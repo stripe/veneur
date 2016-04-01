@@ -22,7 +22,7 @@ func main() {
 
 	// Start the dispatcher.
 	log.Println("Starting the dispatcher")
-	StartDispatcher(*NWorkers)
+	StartDispatcher(*NWorkers, WorkQueue)
 
 	// Start the HTTP server!
 	log.Println("UDP server listening on", *UDPAddr)
@@ -42,7 +42,7 @@ func main() {
 	buf := make([]byte, 1024)
 
 	for {
-		n, addr, err := ServerConn.ReadFromUDP(buf)
+		n, _, err := ServerConn.ReadFromUDP(buf)
 
 		work := PacketRequest{Packet: string(buf[:n])}
 
@@ -50,7 +50,6 @@ func main() {
 		// to the work queue. Note that if the queue is full, we'll block
 		// here.
 		WorkQueue <- work
-		log.Println("Enqeueud ", string(buf[0:n]), " from ", addr)
 
 		if err != nil {
 			log.Println("Error: ", err)

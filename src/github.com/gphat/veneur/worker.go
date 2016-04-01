@@ -6,26 +6,23 @@ import (
 )
 
 // NewWorker creates, and returns a new Worker object. Its only argument
-// is a channel that the worker can add itself to whenever it is done its
-// work.
-func NewWorker(id int, workerQueue chan chan PacketRequest) Worker {
+// is a channel that the worker will receive work from.
+func NewWorker(id int, workQueue chan PacketRequest) Worker {
 	// Create, and return the worker.
 	worker := Worker{
-		ID:          id,
-		Work:        make(chan PacketRequest),
-		WorkerQueue: workerQueue,
-		Counters:    make(map[string]int),
-		QuitChan:    make(chan bool)}
+		ID:       id,
+		Work:     workQueue,
+		Counters: make(map[string]int),
+		QuitChan: make(chan bool)}
 
 	return worker
 }
 
 type Worker struct {
-	ID          int
-	Work        chan PacketRequest
-	WorkerQueue chan chan PacketRequest
-	Counters    map[string]int
-	QuitChan    chan bool
+	ID       int
+	Work     chan PacketRequest
+	Counters map[string]int
+	QuitChan chan bool
 }
 
 // This function "starts" the worker by starting a goroutine, that is
@@ -42,9 +39,6 @@ func (w Worker) Start() {
 
 	go func() {
 		for {
-			// Add ourselves into the worker queue.
-			w.WorkerQueue <- w.Work
-
 			select {
 			case work := <-w.Work:
 				// Receive a work request.
