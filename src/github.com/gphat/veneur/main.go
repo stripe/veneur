@@ -68,7 +68,6 @@ func main() {
 		h := fnv.New32()
 		h.Write([]byte(m.Name))
 		index := h.Sum32() % uint32(*NWorkers)
-		// log.Printf("Dispatching to metric %s to worker %d", m.Name, index)
 
 		// We're ready to have a worker process this packet, so add it
 		// to the work queue. Note that if the queue is full, we'll block

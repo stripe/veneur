@@ -9,10 +9,12 @@ import (
 
 type Metric struct {
 	Name  string
-	Value int64
+	Value int32
 	Type  string
+	Tags  string
 }
 
+// TODO Tags!
 func ParseMetric(packet string) (*Metric, error) {
 	parts := strings.Split(packet, "|")
 
@@ -21,7 +23,7 @@ func ParseMetric(packet string) (*Metric, error) {
 		return nil, errors.New("Invalid metric packet, need at least 1 pipe")
 	}
 
-	value, err := strconv.ParseInt(parts[1], 10, 64)
+	value, err := strconv.ParseInt(parts[1], 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("Invalid int for metric value: %s", parts[1])
 	}
@@ -30,7 +32,7 @@ func ParseMetric(packet string) (*Metric, error) {
 		return nil, fmt.Errorf("Invalid metric type '%s'", parts[2])
 	}
 
-	return &Metric{Name: parts[0], Value: value, Type: parts[2]}, nil
+	return &Metric{Name: parts[0], Value: int32(value), Type: parts[2]}, nil
 }
 
 func checkValidMetricType(t string) bool {
