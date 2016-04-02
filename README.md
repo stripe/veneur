@@ -16,3 +16,8 @@ though it supports other metric types.
 # Status
 
 Veneur is currently a work in progress and thus should not be relied on for production traffic.
+
+# Name
+
+The veneur is a person acting as superintendent of the chase and especially of hounds in French medieval venery and being an
+important officer of the royal household. In other words, it is the master of dogs. :)
