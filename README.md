@@ -13,6 +13,12 @@ instance being a Single Point of Failure (SPoF) for all metrics. Veneur isn't mu
 by being simple and fast. It is advised that you only use Veneur for metric types for which it is beneficial (histograms) even
 though it supports other metric types.
 
+## Histogram Implementation
+
+Veneur uses [rcrowley/metrics-go](https://github.com/rcrowley/go-metrics/)'s histogram, specifically the [forward-decaying
+priority reservoir](http://www.research.att.com/people/Cormode_Graham/library/publications/CormodeShkapenyukSrivastavaXu09.pdf)
+ implementation. Metrics are consistently routed to the same worker to distribute load and to be added to the same histogram.
+
 # Status
 
 Veneur is currently a work in progress and thus should not be relied on for production traffic.
