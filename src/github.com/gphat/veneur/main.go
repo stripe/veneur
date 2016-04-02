@@ -17,6 +17,7 @@ var (
 	NWorkers = flag.Int("n", 4, "The number of workers to start")
 	Interval = flag.Int("i", 10, "The interval at which to flush metrics")
 	UDPAddr  = flag.String("http", ":8125", "Address to listen for UDP requests on")
+	Key      = flag.String("key", "fart", "Your Datadog API Key") // TODO Fix default
 )
 
 /* The WorkQueue is a buffered channel that we can send work to */
@@ -113,7 +114,7 @@ func flush(postMetrics [][]PostMetric) {
 			"series": finalMetrics,
 		}, "", "  ")
 
-		resp, err := http.Post("https://app.datadoghq.com/api/v1/series?api_key=baefa227ac0f2182c26d3b22cdc7ce5d", "application/json", bytes.NewBuffer(postJSON))
+		resp, err := http.Post(fmt.Sprintf("https://app.datadoghq.com/api/v1/series?api_key=%s", *Key), "application/json", bytes.NewBuffer(postJSON))
 		if err != nil {
 			log.Printf("Error posting: %q", err)
 		}
