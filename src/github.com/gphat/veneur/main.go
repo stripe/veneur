@@ -50,8 +50,6 @@ func main() {
 	// TODO More than 4096?
 	buf := make([]byte, 4096)
 
-	h := fnv.New32()
-
 	for {
 		n, _, err := ServerConn.ReadFromUDP(buf)
 		if err != nil {
@@ -67,9 +65,9 @@ func main() {
 
 		// Hash the incoming key so we can consistently choose a worker
 		// by modding the last byte
-		hex := h.Sum([]byte(m.Name))
-		// Use the last byte for modulo
-		index := int64(hex[3]) % int64(*NWorkers)
+		h := fnv.New32()
+		h.Write([]byte(m.Name))
+		index := h.Sum32() % uint32(*NWorkers)
 		// log.Printf("Dispatching to metric %s to worker %d", m.Name, index)
 
 		// We're ready to have a worker process this packet, so add it

@@ -64,6 +64,7 @@ func (w Worker) Start() {
 		for {
 			select {
 			case m := <-w.WorkChan:
+				start := time.Now()
 				mu.Lock()
 				switch m.Type {
 				case "c":
@@ -82,6 +83,14 @@ func (w Worker) Start() {
 					hist.Update(m.Value)
 				}
 				counters["veneur.stats.packets"]++
+
+				hist := histograms["veneur.stats.process_duration_ns"]
+				if hist == nil {
+					hist = metrics.NewHistogram(metrics.NewExpDecaySample(1028, 0.015))
+					histograms["veneur.stats.process_duration_ns"] = hist
+				}
+				hist.Update(time.Now().Sub(start).Nanoseconds())
+
 				mu.Unlock()
 
 			case <-w.QuitChan:
