@@ -6,15 +6,15 @@ import (
 )
 
 func TestParser(t *testing.T) {
-	m, _ := ParseMetric("a.b.c|1.0|c")
+	m, _ := ParseMetric("a.b.c|1|c")
 	if m == nil {
 		t.Error("Want metric, got nil!")
 	} else {
 		if m.Name != "a.b.c" {
 			t.Errorf("Expected name, wanted (a.b.c) got (%s)", m.Name)
 		}
-		if m.Value != 1.0 {
-			t.Errorf("Expected value, wanted (1.0) got (%f)", m.Value)
+		if m.Value != 1 {
+			t.Errorf("Expected value, wanted (1) got (%d)", m.Value)
 		}
 		if m.Type != "c" {
 			t.Errorf("Expected type, wanted (c) got (%s)", m.Name)

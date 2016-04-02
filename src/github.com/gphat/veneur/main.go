@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"hash/fnv"
 	"log"
 	"net"
 )
@@ -14,15 +15,23 @@ var (
 
 /* The WorkQueue is a buffered channel that we can send work to */
 // TODO This should likely be configurable or unbuffered?
-var WorkQueue = make(chan PacketRequest, 100)
+// var WorkQueue = make(chan PacketRequest, 100)
 
 func main() {
 	// Parse the command-line flags.
 	flag.Parse()
 
 	// Start the dispatcher.
-	log.Println("Starting the dispatcher")
-	StartDispatcher(*NWorkers, WorkQueue)
+	log.Println("Starting workers")
+
+	workers := make([]Worker, *NWorkers)
+	for i := 0; i < *NWorkers; i++ {
+		worker := NewWorker(i+1, *Interval)
+		worker.Start()
+		workers[i] = worker
+	}
+
+	// StartDispatcher(*NWorkers, WorkQueue)
 
 	// Start the HTTP server!
 	log.Println("UDP server listening on", *UDPAddr)
@@ -38,21 +47,34 @@ func main() {
 
 	defer ServerConn.Close()
 
-	// TODO More than 1024!!
-	buf := make([]byte, 1024)
+	// TODO More than 4096?
+	buf := make([]byte, 4096)
+
+	h := fnv.New32()
 
 	for {
 		n, _, err := ServerConn.ReadFromUDP(buf)
+		if err != nil {
+			log.Println("Error: ", err)
+		}
 
-		work := PacketRequest{Packet: string(buf[:n])}
+		// We could maybe free up the Read above by moving
+		// this part to a buffered channel?
+		m, err := ParseMetric(string(buf[:n]))
+		if err != nil {
+			log.Println("Error parsing packet: ", err)
+		}
+
+		// Hash the incoming key so we can consistently choose a worker
+		// by modding the last byte
+		hex := h.Sum([]byte(m.Name))
+		// Use the last byte for modulo
+		index := int64(hex[3]) % int64(*NWorkers)
+		// log.Printf("Dispatching to metric %s to worker %d", m.Name, index)
 
 		// We're ready to have a worker process this packet, so add it
 		// to the work queue. Note that if the queue is full, we'll block
 		// here.
-		WorkQueue <- work
-
-		if err != nil {
-			log.Println("Error: ", err)
-		}
+		workers[index].WorkChan <- *m
 	}
 }

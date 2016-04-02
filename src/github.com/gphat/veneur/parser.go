@@ -9,7 +9,7 @@ import (
 
 type Metric struct {
 	Name  string
-	Value float64
+	Value int64
 	Type  string
 }
 
@@ -21,9 +21,9 @@ func ParseMetric(packet string) (*Metric, error) {
 		return nil, errors.New("Invalid metric packet, need at least 1 pipe")
 	}
 
-	value, err := strconv.ParseFloat(parts[1], 64)
+	value, err := strconv.ParseInt(parts[1], 10, 64)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid float for metric value: %s", parts[1])
+		return nil, fmt.Errorf("Invalid int for metric value: %s", parts[1])
 	}
 
 	if !checkValidMetricType(parts[2]) {
