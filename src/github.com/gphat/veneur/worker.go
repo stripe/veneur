@@ -12,9 +12,9 @@ type Worker struct {
 	WorkChan      chan Metric
 	FlushChan     chan bool
 	QuitChan      chan bool
-	counters      map[uint32]Counter
-	gauges        map[uint32]Gauge
-	histograms    map[uint32]Histo
+	counters      map[uint32]*Counter
+	gauges        map[uint32]*Gauge
+	histograms    map[uint32]*Histo
 	mutex         *sync.Mutex
 }
 
@@ -30,9 +30,9 @@ func NewWorker(id int, flushInterval int) Worker {
 		FlushChan:     make(chan bool),
 		QuitChan:      make(chan bool),
 		mutex:         &sync.Mutex{},
-		counters:      make(map[uint32]Counter),
-		gauges:        make(map[uint32]Gauge),
-		histograms:    make(map[uint32]Histo),
+		counters:      make(map[uint32]*Counter),
+		gauges:        make(map[uint32]*Gauge),
+		histograms:    make(map[uint32]*Histo),
 	}
 
 	return worker
@@ -50,26 +50,23 @@ func (w Worker) Start() {
 				w.mutex.Lock()
 				switch m.Type {
 				case "counter":
-					counter, present := w.counters[m.Digest]
+					_, present := w.counters[m.Digest]
 					if !present {
-						counter = NewCounter(m.Name, m.Tags)
-						w.counters[m.Digest] = counter
+						w.counters[m.Digest] = NewCounter(m.Name, m.Tags)
 					}
-					counter.Sample(m.Value)
+					w.counters[m.Digest].Sample(m.Value)
 				case "gauge":
-					gauge, present := w.gauges[m.Digest]
+					_, present := w.gauges[m.Digest]
 					if !present {
-						gauge = NewGauge(m.Name, m.Tags)
-						w.gauges[m.Digest] = gauge
+						w.gauges[m.Digest] = NewGauge(m.Name, m.Tags)
 					}
-					gauge.Sample(m.Value)
+					w.gauges[m.Digest].Sample(m.Value)
 				case "histogram", "timer":
-					hist, present := w.histograms[m.Digest]
+					_, present := w.histograms[m.Digest]
 					if !present {
-						hist = NewHist(m.Name, m.Tags, w.percentiles)
-						w.histograms[m.Digest] = hist
+						w.histograms[m.Digest] = NewHist(m.Name, m.Tags, w.percentiles)
 					}
-					hist.Sample(m.Value)
+					w.histograms[m.Digest].Sample(m.Value)
 				default:
 					log.Printf("Unknown metric type %q", m.Type)
 				}
@@ -108,7 +105,7 @@ func (w Worker) Start() {
 	}()
 }
 
-func (w Worker) Flush() []DDMetric {
+func (w *Worker) Flush() []DDMetric {
 	var postMetrics []DDMetric
 	w.mutex.Lock()
 	for _, v := range w.counters {
