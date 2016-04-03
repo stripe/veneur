@@ -54,7 +54,7 @@ func main() {
 	ticker := time.NewTicker(time.Duration(*Interval) * time.Second)
 	go func() {
 		for t := range ticker.C {
-			metrics := make([][]PostMetric, *NWorkers)
+			metrics := make([][]DDMetric, *NWorkers)
 			for i, w := range workers {
 				log.Printf("Flushing worker %d at %v", i, t)
 				metrics = append(metrics, w.Flush())
@@ -74,9 +74,11 @@ func main() {
 
 		// We could maybe free up the Read above by moving
 		// this part to a buffered channel?
-		m, err := ParseMetric(string(buf[:n]))
+		m, err := ParseMetric(buf[:n])
 		if err != nil {
 			log.Println("Error parsing packet: ", err)
+			// TODO A metric!
+			continue
 		}
 
 		// Hash the incoming key so we can consistently choose a worker
@@ -94,9 +96,9 @@ func main() {
 
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
-func flush(postMetrics [][]PostMetric) {
+func flush(postMetrics [][]DDMetric) {
 	totalCount := 0
-	var finalMetrics []PostMetric
+	var finalMetrics []DDMetric
 	// TODO This seems very inefficient
 	for _, metrics := range postMetrics {
 		totalCount += len(metrics)
@@ -105,14 +107,16 @@ func flush(postMetrics [][]PostMetric) {
 	// Check to see if we have anything to do
 	if totalCount > 0 {
 		// Make a metric for how many metrics we metriced (be sure to add one to the total for it!)
-		finalMetrics = append(
-			finalMetrics,
-			// TODO Is this the right type?
-			NewPostMetric("veneur.stats.metrics_posted", float32(totalCount+1), "", "counter", *Interval),
-		)
-		postJSON, _ := json.MarshalIndent(map[string][]PostMetric{
+		// finalMetrics = append(
+		// 	finalMetrics,
+		// 	// TODO Is this the right type?
+		// 	NewPostMetric("veneur.stats.metrics_posted", float32(totalCount+1), "", "counter", *Interval),
+		// )
+		postJSON, _ := json.MarshalIndent(map[string][]DDMetric{
 			"series": finalMetrics,
 		}, "", "  ")
+
+		fmt.Println(string(postJSON))
 
 		resp, err := http.Post(fmt.Sprintf("https://app.datadoghq.com/api/v1/series?api_key=%s", *Key), "application/json", bytes.NewBuffer(postJSON))
 		if err != nil {
