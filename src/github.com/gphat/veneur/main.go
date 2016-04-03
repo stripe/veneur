@@ -15,7 +15,7 @@ import (
 
 var (
 	NWorkers = flag.Int("n", 4, "The number of workers to start")
-	Interval = flag.Int("i", 10, "The interval at which to flush metrics")
+	Interval = flag.Int("i", 10, "The interval in seconds at which to flush metrics")
 	UDPAddr  = flag.String("http", ":8125", "Address to listen for UDP requests on")
 	Key      = flag.String("key", "fart", "Your Datadog API Key") // TODO Fix default
 )

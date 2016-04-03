@@ -19,6 +19,19 @@ Veneur uses [rcrowley/metrics-go](https://github.com/rcrowley/go-metrics/)'s his
 priority reservoir](http://www.research.att.com/people/Cormode_Graham/library/publications/CormodeShkapenyukSrivastavaXu09.pdf)
  implementation. Metrics are consistently routed to the same worker to distribute load and to be added to the same histogram.
 
+# Usage
+```
+Usage of /Users/gphat/src/veneur/bin/veneur:
+  -http string
+    	Address to listen for UDP requests on (default ":8125")
+  -i int
+    	The interval in seconds at which to flush metrics (default 10)
+  -key string
+    	Your Datadog API Key (default "fart")
+  -n int
+    	The number of workers to start (default 4)
+```
+
 # Status
 
 Veneur is currently a work in progress and thus should not be relied on for production traffic.
