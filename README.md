@@ -38,5 +38,5 @@ Veneur is currently a work in progress and thus should not be relied on for prod
 
 # Name
 
-The veneur is a person acting as superintendent of the chase and especially of hounds in French medieval venery and being an
-important officer of the royal household. In other words, it is the master of dogs. :)
+The [veneur](https://en.wikipedia.org/wiki/Grand_Huntsman_of_France) is a person acting as superintendent of the chase and especially
+of hounds in French medieval venery and being an important officer of the royal household. In other words, it is the master of dogs. :)
