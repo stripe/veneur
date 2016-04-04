@@ -20,9 +20,9 @@ type Worker struct {
 
 // NewWorker creates, and returns a new Worker object. Its only argument
 // is a channel that the worker will receive work from.
-func NewWorker(id int, flushInterval int) Worker {
+func NewWorker(id int, flushInterval int) *Worker {
 	// Create, and return the worker.
-	worker := Worker{
+	return &Worker{
 		id:            id,
 		flushInterval: flushInterval,
 		percentiles:   []float64{0.5, 0.75, 0.99},
@@ -34,13 +34,11 @@ func NewWorker(id int, flushInterval int) Worker {
 		gauges:        make(map[uint32]*Gauge),
 		histograms:    make(map[uint32]*Histo),
 	}
-
-	return worker
 }
 
 // This function "starts" the worker by starting a goroutine, that is
 // an infinite "for-select" loop.
-func (w Worker) Start() {
+func (w *Worker) Start() {
 
 	go func() {
 		for {
@@ -127,7 +125,7 @@ func (w *Worker) Flush() []DDMetric {
 // Stop tells the worker to stop listening for work requests.
 //
 // Note that the worker will only stop *after* it has finished its work.
-func (w Worker) Stop() {
+func (w *Worker) Stop() {
 	go func() {
 		w.QuitChan <- true
 	}()

@@ -30,7 +30,7 @@ func main() {
 
 	// Start the dispatcher.
 	log.Println("Starting workers")
-	workers := make([]Worker, *NWorkers)
+	workers := make([]*Worker, *NWorkers)
 	for i := 0; i < *NWorkers; i++ {
 		worker := NewWorker(i+1, *Interval)
 		worker.Start()
