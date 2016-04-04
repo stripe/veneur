@@ -104,13 +104,15 @@ func NewHist(name string, tags []string, percentiles []float64) *Histo {
 
 func (h *Histo) Flush(interval int32) []DDMetric {
 	now := float64(time.Now().Unix())
+	rate := float64(h.value.Count()) / float64(interval)
 	metrics := []DDMetric{
 		DDMetric{
 			Name:       fmt.Sprintf("%s.count", h.name),
-			Value:      [1][2]float64{{now, float64(h.value.Count())}},
+			Value:      [1][2]float64{{now, rate}},
 			Tags:       h.tags,
-			MetricType: "gauge",
+			MetricType: "rate",
 			Hostname:   "testhost", // TODO Stop hardcoding this
+			Interval:   interval,
 		},
 		DDMetric{
 			Name:       fmt.Sprintf("%s.max", h.name),
