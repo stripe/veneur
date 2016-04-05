@@ -54,7 +54,7 @@ Specifically the [forward-decaying priority reservoir](http://www.research.att.c
  > which offers a 99.9% confidence level with a 5% margin of error assuming a normal distribution, … which heavily biases the reservoir to the past 5 minutes of measurements.
 
 Datadog's DogStatsD — and StatsD — uses an exact histogram which retains all samples and is reset every flush period. This means that there is a loss of precision when using Veneur, but
-the resulting percentile values are meant to be more representative of of a global view.
+the resulting percentile values are meant to be more representative of a global view.
 
 ## Lack of Host Tags
 
