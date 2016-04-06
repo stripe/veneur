@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/gphat/veneur.svg?branch=master)](https://travis-ci.org/gphat/veneur)
+
 Veneur (venn-urr) is a server implementation of the [DogStatsD protocol](http://docs.datadoghq.com/guides/dogstatsd/#datagram-format), which is a superset of the StatsD protocol.
 
 # Motivation
