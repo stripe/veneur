@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// Metric is a representation of the sample provided by a client.
 type Metric struct {
 	Name       string
 	Digest     uint32
@@ -19,7 +20,8 @@ type Metric struct {
 	Tags       []string
 }
 
-// TODO Tags!
+// ParseMetric converts the incoming packet from Datadog DogStatsD
+// Datagram format in to a Metric. http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
 func ParseMetric(packet []byte) (*Metric, error) {
 	parts := bytes.SplitN(packet, []byte(":"), 2)
 
@@ -28,9 +30,6 @@ func ParseMetric(packet []byte) (*Metric, error) {
 	var metricType string
 	var metricTags []string
 	var metricSampleRate float64
-	// fmt.Printf("FART %v\n", string(parts[0]))
-	// fmt.Printf("FART %v\n", string(parts[1]))
-	// fmt.Printf("FART %d\n", len(parts))
 	if len(parts) < 2 {
 		return nil, errors.New("Invalid metric packet, need at least 1 colon")
 	}

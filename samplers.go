@@ -7,6 +7,8 @@ import (
 	"github.com/rcrowley/go-metrics"
 )
 
+// DDMetric is a data structure that represents the JSON that Datadog
+// wants when posting to the API
 type DDMetric struct {
 	Name       string        `json:"metric"`
 	Value      [1][2]float64 `json:"points"`
@@ -17,11 +19,14 @@ type DDMetric struct {
 	Interval int32 `json:"interval,omitempty"`
 }
 
+// Sampler is a thing that takes samples and does something with them
+// to be flushed later.
 type Sampler interface {
 	Sample(int32)
 	Flush() []DDMetric
 }
 
+// Counter is an accumulator
 type Counter struct {
 	name           string
 	tags           []string
@@ -29,11 +34,14 @@ type Counter struct {
 	lastSampleTime time.Time
 }
 
+// Sample adds a sample to the counter.
 func (c *Counter) Sample(sample int32) {
 	c.value += sample
 	c.lastSampleTime = time.Now()
 }
 
+// Flush takes the current state of the counter, generates a
+// DDMetric then clears it.
 func (c *Counter) Flush(interval int32) []DDMetric {
 	rate := float64(c.value) / float64(interval)
 	c.value = 0
@@ -47,10 +55,12 @@ func (c *Counter) Flush(interval int32) []DDMetric {
 	}}
 }
 
+// NewCounter generates and returns a new Counter.
 func NewCounter(name string, tags []string) *Counter {
 	return &Counter{name: name, tags: tags, lastSampleTime: time.Now()}
 }
 
+// Gauge retains whatever the last value was.
 type Gauge struct {
 	name           string
 	tags           []string
@@ -58,11 +68,14 @@ type Gauge struct {
 	lastSampleTime time.Time
 }
 
+// Sample takes on whatever value is passed in as a sample.
 func (g *Gauge) Sample(sample int32) {
 	g.value = sample
 	g.lastSampleTime = time.Now()
 }
 
+// Flush takes the current state of the gauge, generates a
+// DDMetric then clears it.
 func (g *Gauge) Flush(interval int32) []DDMetric {
 	v := g.value
 	g.value = 0
@@ -75,10 +88,13 @@ func (g *Gauge) Flush(interval int32) []DDMetric {
 	}}
 }
 
+// NewGauge genearaaaa who am I kidding just getting rid of the warning.
 func NewGauge(name string, tags []string) *Gauge {
 	return &Gauge{name: name, tags: tags, lastSampleTime: time.Now()}
 }
 
+// Histo is a collection of values that generates max, min, count, and
+// percentiles over time.
 type Histo struct {
 	name           string
 	tags           []string
@@ -87,11 +103,13 @@ type Histo struct {
 	lastSampleTime time.Time
 }
 
+// Sample adds the supplied value to the histogram.
 func (h *Histo) Sample(sample int32) {
 	h.value.Update(int64(sample))
 	h.lastSampleTime = time.Now()
 }
 
+// NewHist generates a new Histo and returns it.
 func NewHist(name string, tags []string, percentiles []float64) *Histo {
 	return &Histo{
 		name:           name,
@@ -102,6 +120,8 @@ func NewHist(name string, tags []string, percentiles []float64) *Histo {
 	}
 }
 
+// Flush generates DDMetrics for the current state of the
+// Histo.
 func (h *Histo) Flush(interval int32) []DDMetric {
 	now := float64(time.Now().Unix())
 	rate := float64(h.value.Count()) / float64(interval)

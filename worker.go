@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// Worker is the doodad that does work.
 type Worker struct {
 	id            int
 	flushInterval int
@@ -37,7 +38,7 @@ func NewWorker(id int, flushInterval int, expirySeconds int) *Worker {
 	}
 }
 
-// This function "starts" the worker by starting a goroutine, that is
+// Start "starts" the worker by starting a goroutine, that is
 // an infinite "for-select" loop.
 func (w *Worker) Start() {
 
@@ -97,6 +98,8 @@ func (w *Worker) ProcessMetric(m *Metric) {
 	w.mutex.Unlock()
 }
 
+// Flush generates DDMetrics to emit. Uses the supplied time
+// to judge expiry of metrics for removal.
 func (w *Worker) Flush(currTime time.Time) []DDMetric {
 	var postMetrics []DDMetric
 	w.mutex.Lock()
