@@ -14,10 +14,12 @@ import (
 )
 
 var (
-	NWorkers = flag.Int("n", 4, "The number of workers to start")
-	Interval = flag.Int("i", 10, "The interval in seconds at which to flush metrics")
-	UDPAddr  = flag.String("http", ":8125", "Address to listen for UDP requests on")
-	Key      = flag.String("key", "fart", "Your Datadog API Key") // TODO Fix default
+	NWorkers      = flag.Int("n", 4, "The number of workers to start")
+	Interval      = flag.Int("i", 10, "The interval in seconds at which to flush metrics")
+	UDPAddr       = flag.String("http", ":8125", "Address to listen for UDP requests on")
+	Key           = flag.String("key", "fart", "Your Datadog API Key")
+	ExpirySeconds = flag.Int("expiry", 300, "The number of seconds metrics will be retained if they stop showing up")
+	BufferSize    = flag.Int("buffersize", 4096, "The size of the buffer of work for the worker pool")
 )
 
 /* The WorkQueue is a buffered channel that we can send work to */
@@ -32,7 +34,7 @@ func main() {
 	log.Println("Starting workers")
 	workers := make([]*Worker, *NWorkers)
 	for i := 0; i < *NWorkers; i++ {
-		worker := NewWorker(i+1, *Interval)
+		worker := NewWorker(i+1, *Interval, *ExpirySeconds)
 		worker.Start()
 		workers[i] = worker
 	}
@@ -57,14 +59,13 @@ func main() {
 			metrics := make([][]DDMetric, *NWorkers)
 			for i, w := range workers {
 				log.Printf("Flushing worker %d at %v", i, t)
-				metrics = append(metrics, w.Flush())
+				metrics = append(metrics, w.Flush(time.Now()))
 			}
 			flush(metrics)
 		}
 	}()
 
-	// TODO More than 4096?
-	buf := make([]byte, 4096)
+	buf := make([]byte, *BufferSize)
 
 	for {
 		n, _, err := ServerConn.ReadFromUDP(buf)

@@ -3,14 +3,15 @@ package main
 import (
 	"log"
 	"sync"
+	"time"
 )
 
 type Worker struct {
 	id            int
 	flushInterval int
+	expirySeconds int
 	percentiles   []float64
 	WorkChan      chan Metric
-	FlushChan     chan bool
 	QuitChan      chan bool
 	counters      map[uint32]*Counter
 	gauges        map[uint32]*Gauge
@@ -20,14 +21,14 @@ type Worker struct {
 
 // NewWorker creates, and returns a new Worker object. Its only argument
 // is a channel that the worker will receive work from.
-func NewWorker(id int, flushInterval int) *Worker {
+func NewWorker(id int, flushInterval int, expirySeconds int) *Worker {
 	// Create, and return the worker.
 	return &Worker{
 		id:            id,
 		flushInterval: flushInterval,
+		expirySeconds: expirySeconds,
 		percentiles:   []float64{0.5, 0.75, 0.99},
 		WorkChan:      make(chan Metric, 100),
-		FlushChan:     make(chan bool),
 		QuitChan:      make(chan bool),
 		mutex:         &sync.Mutex{},
 		counters:      make(map[uint32]*Counter),
@@ -44,79 +45,83 @@ func (w *Worker) Start() {
 		for {
 			select {
 			case m := <-w.WorkChan:
-				// start := time.Now()
-				w.mutex.Lock()
-				switch m.Type {
-				case "counter":
-					_, present := w.counters[m.Digest]
-					if !present {
-						w.counters[m.Digest] = NewCounter(m.Name, m.Tags)
-					}
-					w.counters[m.Digest].Sample(m.Value)
-				case "gauge":
-					_, present := w.gauges[m.Digest]
-					if !present {
-						w.gauges[m.Digest] = NewGauge(m.Name, m.Tags)
-					}
-					w.gauges[m.Digest].Sample(m.Value)
-				case "histogram", "timer":
-					_, present := w.histograms[m.Digest]
-					if !present {
-						w.histograms[m.Digest] = NewHist(m.Name, m.Tags, w.percentiles)
-					}
-					w.histograms[m.Digest].Sample(m.Value)
-				default:
-					log.Printf("Unknown metric type %q", m.Type)
-				}
-				// Keep track of how many packets we've processed
-				// w.counters[Metric{Name: "veneur.stats.packets", Tags: fmt.Sprintf("worker_id:%d", w.id)}]++
-				// Keep track of how long it took us to process a packet
-				// hist := w.histograms[Metric{Name: "veneur.stats.process_duration_ns"}]
-				// if hist == nil {
-				// 	hist = metrics.NewHistogram(metrics.NewExpDecaySample(1028, 0.015))
-				// 	ph := Metric{Name: "veneur.stats.process_duration_ns", Tags: fmt.Sprintf("worker_id:%d", w.id)}
-				// 	w.histograms[ph] = hist
-				// }
-				// hist.Update(time.Now().Sub(start).Nanoseconds())
-
-				w.mutex.Unlock()
-
-			case <-w.FlushChan:
-				log.Println("Received flush signal")
-				//start := time.Now()
-				w.Flush()
-				// TODO Dupe name, add method to make this less verbose
-				// hist := w.histograms[Metric{Name: "veneur.stats.flush_duration_ns", Tags: fmt.Sprintf("worker_id:%d", w.id)}]
-				// if hist == nil {
-				// 	hist = metrics.NewHistogram(metrics.NewExpDecaySample(1028, 0.015))
-				// 	ph := Metric{Name: "veneur.stats.flush_duration_ns"}
-				// 	w.histograms[ph] = hist
-				// }
-				// hist.Update(time.Now().Sub(start).Nanoseconds())
-
+				w.ProcessMetric(&m)
 			case <-w.QuitChan:
 				// We have been asked to stop.
-				log.Printf("worker%d stopping\n", w.id)
+				log.Printf("worker %d stopping\n", w.id)
 				return
 			}
 		}
 	}()
 }
 
-func (w *Worker) Flush() []DDMetric {
+// ProcessMetric takes a Metric and samples it
+//
+// This is standalone to facilitate testing
+func (w *Worker) ProcessMetric(m *Metric) {
+	// start := time.Now()
+	w.mutex.Lock()
+	switch m.Type {
+	case "counter":
+		_, present := w.counters[m.Digest]
+		if !present {
+			w.counters[m.Digest] = NewCounter(m.Name, m.Tags)
+		}
+		w.counters[m.Digest].Sample(m.Value)
+	case "gauge":
+		_, present := w.gauges[m.Digest]
+		if !present {
+			w.gauges[m.Digest] = NewGauge(m.Name, m.Tags)
+		}
+		w.gauges[m.Digest].Sample(m.Value)
+	case "histogram", "timer":
+		_, present := w.histograms[m.Digest]
+		if !present {
+			w.histograms[m.Digest] = NewHist(m.Name, m.Tags, w.percentiles)
+		}
+		w.histograms[m.Digest].Sample(m.Value)
+	default:
+		log.Printf("Unknown metric type %q", m.Type)
+	}
+	// Keep track of how many packets we've processed
+	// w.counters[Metric{Name: "veneur.stats.packets", Tags: fmt.Sprintf("worker_id:%d", w.id)}]++
+	// Keep track of how long it took us to process a packet
+	// hist := w.histograms[Metric{Name: "veneur.stats.process_duration_ns"}]
+	// if hist == nil {
+	// 	hist = metrics.NewHistogram(metrics.NewExpDecaySample(1028, 0.015))
+	// 	ph := Metric{Name: "veneur.stats.process_duration_ns", Tags: fmt.Sprintf("worker_id:%d", w.id)}
+	// 	w.histograms[ph] = hist
+	// }
+	// hist.Update(time.Now().Sub(start).Nanoseconds())
+
+	w.mutex.Unlock()
+}
+
+func (w *Worker) Flush(currTime time.Time) []DDMetric {
 	var postMetrics []DDMetric
 	w.mutex.Lock()
-	for _, v := range w.counters {
-		postMetrics = append(postMetrics, v.Flush(int32(w.flushInterval))...)
-		// TODO Check expiry?
+	// TODO This should probably be a single function that passes in the metrics and the
+	// map
+	for k, v := range w.counters {
+		if currTime.Sub(v.lastSampleTime).Seconds() > float64(w.expirySeconds) {
+			delete(w.counters, k)
+		} else {
+			postMetrics = append(postMetrics, v.Flush(int32(w.flushInterval))...)
+		}
 	}
-	for _, v := range w.gauges {
-		postMetrics = append(postMetrics, v.Flush(int32(w.flushInterval))...)
-		// TODO Check expiry?
+	for k, v := range w.gauges {
+		if currTime.Sub(v.lastSampleTime).Seconds() > float64(w.expirySeconds) {
+			delete(w.gauges, k)
+		} else {
+			postMetrics = append(postMetrics, v.Flush(int32(w.flushInterval))...)
+		}
 	}
-	for _, v := range w.histograms {
-		postMetrics = append(postMetrics, v.Flush(int32(w.flushInterval))...)
-		// TODO Check expiry?
+	for k, v := range w.histograms {
+		if currTime.Sub(v.lastSampleTime).Seconds() > float64(w.expirySeconds) {
+			delete(w.histograms, k)
+		} else {
+			postMetrics = append(postMetrics, v.Flush(int32(w.flushInterval))...)
+		}
 	}
 	w.mutex.Unlock()
 	return postMetrics

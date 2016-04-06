@@ -27,7 +27,11 @@ Veneur is currently a work in progress and thus should not be relied on for prod
 
 # Usage
 ```
-Usage of /Users/gphat/src/veneur/bin/veneur:
+Usage of /Users/gphat/bin/veneur:
+  -buffersize int
+    	The size of the buffer of work for the worker pool (default 4096)
+  -expiry int
+    	The number of seconds metrics will be retained if they stop showing up (default 300)
   -http string
     	Address to listen for UDP requests on (default ":8125")
   -i int
