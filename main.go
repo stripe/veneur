@@ -114,11 +114,11 @@ func flush(postMetrics [][]DDMetric) {
 		// 	// TODO Is this the right type?
 		// 	NewPostMetric("veneur.stats.metrics_posted", float32(totalCount+1), "", "counter", *Interval),
 		// )
-		postJSON, _ := json.MarshalIndent(map[string][]DDMetric{
+		postJSON, _ := json.Marshal(map[string][]DDMetric{
 			"series": finalMetrics,
-		}, "", "  ")
+		})
 
-		fmt.Println(string(postJSON))
+		log.Println(string(postJSON))
 
 		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", *APIURL, *Key), "application/json", bytes.NewBuffer(postJSON))
 		if err != nil {
@@ -131,7 +131,7 @@ func flush(postMetrics [][]DDMetric) {
 		if err != nil {
 			log.Printf("Error reading response body: %q", err)
 		}
-		fmt.Printf("Response: %q", body)
+		log.Printf("Response: %q", body)
 	} else {
 		log.Println("Nothing to flush.")
 	}
