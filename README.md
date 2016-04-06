@@ -26,7 +26,9 @@ Veneur is currently a work in progress and thus should not be relied on for prod
 
 # Usage
 ```
-Usage of /Users/gphat/bin/veneur:
+Usage of veneur:
+  -apiurl string
+    	The URL to which Metrics will be posted (default "https://app.datadoghq.com")
   -buffersize int
     	The size of the buffer of work for the worker pool (default 4096)
   -expiry int

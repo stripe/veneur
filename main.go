@@ -20,6 +20,7 @@ var (
 	Key           = flag.String("key", "fart", "Your Datadog API Key")
 	ExpirySeconds = flag.Int("expiry", 300, "The number of seconds metrics will be retained if they stop showing up")
 	BufferSize    = flag.Int("buffersize", 4096, "The size of the buffer of work for the worker pool")
+	APIURL        = flag.String("apiurl", "https://app.datadoghq.com", "The URL to which Metrics will be posted")
 )
 
 /* The WorkQueue is a buffered channel that we can send work to */
@@ -119,7 +120,7 @@ func flush(postMetrics [][]DDMetric) {
 
 		fmt.Println(string(postJSON))
 
-		resp, err := http.Post(fmt.Sprintf("https://app.datadoghq.com/api/v1/series?api_key=%s", *Key), "application/json", bytes.NewBuffer(postJSON))
+		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", *APIURL, *Key), "application/json", bytes.NewBuffer(postJSON))
 		if err != nil {
 			log.Printf("Error posting: %q", err)
 		}
