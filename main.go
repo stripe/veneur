@@ -125,8 +125,8 @@ func flush(postMetrics [][]DDMetric) {
 			log.Printf("Error posting: %q", err)
 		}
 		defer resp.Body.Close()
-		fmt.Println("Response Status:", resp.Status)
-		fmt.Println("Response Headers:", resp.Header)
+		log.Println("Response Status:", resp.Status)
+		log.Println("Response Headers:", resp.Header)
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			log.Printf("Error reading response body: %q", err)
