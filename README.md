@@ -17,13 +17,12 @@ Veneur is currently a work in progress and thus should not be relied on for prod
 
 # TODO
 
-* Expire unused metrics are some configurable amount of time.
 * Add option to flush histograms at each flush?
 * Proper logging
 * Internal metrics
 * Config file
   * Configuration of percentiles for histograms
-* Global tags, added to all metrics
+  * Global tags, added to all metrics
 
 # Usage
 ```
