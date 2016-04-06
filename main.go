@@ -7,18 +7,20 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 var (
+	debug         = flag.Bool("d", false, "Enable debug logging")
 	nWorkers      = flag.Int("n", 4, "The number of workers to start")
-	interval      = flag.Int("i", 10, "The interval in seconds at which to flush metrics")
+	interval      = flag.Duration("i", 10*time.Second, "The interval at which to flush metrics, see go's ParseDuration")
 	udpAddr       = flag.String("http", ":8125", "Address to listen for UDP requests on")
 	key           = flag.String("key", "fart", "Your Datadog API Key")
-	expirySeconds = flag.Int("expiry", 300, "The number of seconds metrics will be retained if they stop showing up")
+	expirySeconds = flag.Duration("expiry", 5*time.Minute, "The duration metrics will be retained if they stop showing up, see go's ParseDuration")
 	bufferSize    = flag.Int("buffersize", 4096, "The size of the buffer of work for the worker pool")
 	apiURL        = flag.String("apiurl", "https://app.datadoghq.com", "The URL to which Metrics will be posted")
 )
@@ -31,36 +33,53 @@ func main() {
 	// Parse the command-line flags.
 	flag.Parse()
 
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+	}
+
 	// Start the dispatcher.
-	log.Println("Starting workers")
+	log.WithFields(log.Fields{
+		"number": *nWorkers,
+	}).Info("Starting workers")
 	workers := make([]*Worker, *nWorkers)
 	for i := 0; i < *nWorkers; i++ {
-		worker := NewWorker(i+1, *interval, *expirySeconds)
+		worker := NewWorker(i + 1)
 		worker.Start()
 		workers[i] = worker
 	}
 
 	// Start the UDP server!
-	log.Println("UDP server listening on", *udpAddr)
+	log.WithFields(log.Fields{
+		"address":        *udpAddr,
+		"flush_interval": *interval,
+		"expiry":         *expirySeconds,
+	}).Info("UDP server listening")
 	serverAddr, err := net.ResolveUDPAddr("udp", ":8125")
 	if err != nil {
-		log.Println(err.Error())
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Error("Error resolving address")
 	}
 
 	ServerConn, err := net.ListenUDP("udp", serverAddr)
 	if err != nil {
-		log.Println(err.Error())
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Error("Error listening for UDP")
 	}
 
 	defer ServerConn.Close()
 
-	ticker := time.NewTicker(time.Duration(*interval) * time.Second)
+	ticker := time.NewTicker(*interval)
 	go func() {
 		for t := range ticker.C {
 			metrics := make([][]DDMetric, *nWorkers)
 			for i, w := range workers {
-				log.Printf("Flushing worker %d at %v", i, t)
-				metrics = append(metrics, w.Flush(time.Now()))
+				log.WithFields(log.Fields{
+					"worker": i,
+					"tick":   t,
+				}).Debug("Flushing")
+				metrics = append(metrics, w.Flush(*interval, *expirySeconds, time.Now()))
 			}
 			flush(metrics)
 		}
@@ -71,14 +90,16 @@ func main() {
 	for {
 		n, _, err := ServerConn.ReadFromUDP(buf)
 		if err != nil {
-			log.Println("Error reading from UDP: ", err)
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Error("Error reading from UDP")
 		}
 
 		// We could maybe free up the Read above by moving
 		// this part to a buffered channel?
 		m, err := ParseMetric(buf[:n])
 		if err != nil {
-			log.Println("Error parsing packet: ", err)
+			log.Error("Error parsing packet: ", err)
 			// TODO A metric!
 			continue
 		}
@@ -118,21 +139,27 @@ func flush(postMetrics [][]DDMetric) {
 			"series": finalMetrics,
 		})
 
-		log.Println(string(postJSON))
-
 		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", *apiURL, *key), "application/json", bytes.NewBuffer(postJSON))
 		if err != nil {
-			log.Printf("Error posting: %q", err)
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Error("Error posting")
+		} else {
+			log.WithFields(log.Fields{
+				"metrics": len(finalMetrics),
+			}).Info("Completed flush to Datadog")
 		}
-		defer resp.Body.Close()
-		log.Println("Response Status:", resp.Status)
-		log.Println("Response Headers:", resp.Header)
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Printf("Error reading response body: %q", err)
+		if log.GetLevel() == log.DebugLevel {
+			defer resp.Body.Close()
+			body, _ := ioutil.ReadAll(resp.Body)
+			log.WithFields(log.Fields{
+				"json":     string(postJSON),
+				"status":   resp.Status,
+				"headers":  resp.Header,
+				"response": body,
+			}).Debug("POSTing JSON")
 		}
-		log.Printf("Response: %q", body)
 	} else {
-		log.Println("Nothing to flush.")
+		log.Info("Nothing to flush, skipping.")
 	}
 }

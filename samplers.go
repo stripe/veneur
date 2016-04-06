@@ -42,8 +42,8 @@ func (c *Counter) Sample(sample int32) {
 
 // Flush takes the current state of the counter, generates a
 // DDMetric then clears it.
-func (c *Counter) Flush(interval int32) []DDMetric {
-	rate := float64(c.value) / float64(interval)
+func (c *Counter) Flush(interval time.Duration) []DDMetric {
+	rate := float64(c.value) / interval.Seconds()
 	c.value = 0
 	return []DDMetric{DDMetric{
 		Name:       c.name,
@@ -51,7 +51,7 @@ func (c *Counter) Flush(interval int32) []DDMetric {
 		Tags:       c.tags,
 		MetricType: "rate",
 		Hostname:   "testhost", // TODO Stop hardcoding this
-		Interval:   interval,
+		Interval:   int32(interval.Seconds()),
 	}}
 }
 
@@ -76,7 +76,7 @@ func (g *Gauge) Sample(sample int32) {
 
 // Flush takes the current state of the gauge, generates a
 // DDMetric then clears it.
-func (g *Gauge) Flush(interval int32) []DDMetric {
+func (g *Gauge) Flush(interval time.Duration) []DDMetric {
 	v := g.value
 	g.value = 0
 	return []DDMetric{DDMetric{
@@ -122,9 +122,9 @@ func NewHist(name string, tags []string, percentiles []float64) *Histo {
 
 // Flush generates DDMetrics for the current state of the
 // Histo.
-func (h *Histo) Flush(interval int32) []DDMetric {
+func (h *Histo) Flush(interval time.Duration) []DDMetric {
 	now := float64(time.Now().Unix())
-	rate := float64(h.value.Count()) / float64(interval)
+	rate := float64(h.value.Count()) / interval.Seconds()
 	metrics := []DDMetric{
 		DDMetric{
 			Name:       fmt.Sprintf("%s.count", h.name),
@@ -132,7 +132,7 @@ func (h *Histo) Flush(interval int32) []DDMetric {
 			Tags:       h.tags,
 			MetricType: "rate",
 			Hostname:   "testhost", // TODO Stop hardcoding this
-			Interval:   interval,
+			Interval:   int32(interval.Seconds()),
 		},
 		DDMetric{
 			Name:       fmt.Sprintf("%s.max", h.name),
