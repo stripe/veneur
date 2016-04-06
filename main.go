@@ -120,7 +120,7 @@ func flush(postMetrics [][]DDMetric) {
 
 		log.Println(string(postJSON))
 
-		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", *apiURL, *Key), "application/json", bytes.NewBuffer(postJSON))
+		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", *apiURL, *key), "application/json", bytes.NewBuffer(postJSON))
 		if err != nil {
 			log.Printf("Error posting: %q", err)
 		}
