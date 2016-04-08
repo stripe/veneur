@@ -91,7 +91,7 @@ func main() {
 				metrics = append(metrics, w.Flush(*interval, *expiry, flushTime))
 				// Track how much time each worker takes to flush.
 				stats.TimeInMilliseconds(
-					"flush_worker_duration_ms",
+					"flush.worker_duration_ns",
 					float64(time.Now().Sub(wstart).Nanoseconds()),
 					[]string{fmt.Sprintf("worker:%d", i)},
 					1.0,
@@ -100,7 +100,7 @@ func main() {
 			fstart := time.Now()
 			flush(metrics, stats)
 			stats.TimeInMilliseconds(
-				"flush_transaction_duration_ms",
+				"flush.transaction_duration_ns",
 				float64(time.Now().Sub(fstart).Nanoseconds()),
 				nil,
 				1.0,
@@ -160,7 +160,7 @@ func flush(postMetrics [][]DDMetric, stats *statsd.Client) {
 	}
 	// Check to see if we have anything to do
 	if totalCount > 0 {
-		stats.Count("metrics_flushed_total", int64(totalCount), nil, 1.0)
+		stats.Count("flush.metrics_total", int64(totalCount), nil, 1.0)
 		// TODO Watch this error
 		postJSON, _ := json.Marshal(map[string][]DDMetric{
 			"series": finalMetrics,
@@ -168,6 +168,8 @@ func flush(postMetrics [][]DDMetric, stats *statsd.Client) {
 
 		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", *apiURL, *key), "application/json", bytes.NewBuffer(postJSON))
 		if err != nil {
+			stats.Count("flush.error_total", int64(totalCount), nil, 1.0)
+			// TODO Do something at failure time!
 			log.WithFields(log.Fields{
 				"error": err,
 			}).Error("Error posting")

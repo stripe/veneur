@@ -13,9 +13,22 @@ instance being a Single Point of Failure (SPoF) for all metrics. Veneur isn't mu
 by being simple and fast. It is advised that you only use Veneur for metric types for which it is beneficial (i.e. histograms and timers)
 even though it supports other metric types.
 
+# Features
+
+## Internal Metrics
+
+Veneur assumes you have a running DogStatsD on the localhost and emits metrics to it's default port of 8125. Those metrics are:
+
+* `veneur.packet.error_total` - Number of packets that Veneur could not parse.
+* `veneur.packet.received_total` - Number of packets received. Sample rate configurable.
+* `veneur.flush.error_total` - Number of errors when attempting to POST metrics to Datadog.
+* `veneur.flush.metrics_total` - Total number of metrics flushed at each flush time.
+* `veneur.flush.transaction_duration_ns` - Time taken to POST metrics to Datadog.
+* `veneur.flush.worker_duration_ns` - Per-worker timing — tagged with `worker` - for flush.
+
 # Status
 
-Veneur is currently a work in progress and thus should not be relied on for production traffic.
+Veneur is currently a work in progress and thus should not yet be relied on for production traffic.
 
 # TODO
 
