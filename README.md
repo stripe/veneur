@@ -20,7 +20,6 @@ Veneur is currently a work in progress and thus should not be relied on for prod
 # TODO
 
 * Add option to flush histograms at each flush?
-* Proper logging
 * Internal metrics
 * Config file
   * Configuration of percentiles for histograms
