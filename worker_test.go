@@ -6,7 +6,7 @@ import (
 )
 
 func TestWorker(t *testing.T) {
-	w := NewWorker(1)
+	w := NewWorker(1, []float64{0.5, 0.75, 0.99})
 
 	m := Metric{Name: "a.b.c", Digest: 12345, Type: "counter"}
 	w.ProcessMetric(&m)

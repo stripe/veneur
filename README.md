@@ -34,6 +34,7 @@ Veneur is currently a work in progress and thus should not yet be relied on for 
 
 * Add option to flush histograms at each flush?
 * Global tags, added to all metrics
+* Allow for percentiles with more than 2 decimal precision (i.e. .999)
 
 # Usage
 ```
