@@ -33,31 +33,14 @@ Veneur is currently a work in progress and thus should not yet be relied on for 
 # TODO
 
 * Add option to flush histograms at each flush?
-* Config file
-  * Configuration of percentiles for histograms
-  * Global tags, added to all metrics
+* Global tags, added to all metrics
 
 # Usage
 ```
-Usage of veneur:
-  -apiurl string
-    	The URL to which Metrics will be posted (default "https://app.datadoghq.com")
-  -buffersize int
-    	The size of the buffer of work for the worker pool (default 4096)
-  -d	Enable debug logging
-  -expiry duration
-    	The duration metrics will be retained if they stop showing up, see go's ParseDuration (default 5m0s)
-  -i duration
-    	The interval at which to flush metrics, see go's ParseDuration (default 10s)
-  -key string
-    	Your Datadog API Key (default "fart")
-  -listen string
-    	Address to listen for UDP requests on (default ":8126")
-  -n int
-    	The number of workers to start (default 4)
-  -stats string
-    	Address of DogStatsD instance to send internal metrics (default "localhost:8125")
+venuer -f example.yaml
 ```
+
+See example.yaml for a sample config. Be sure and set your Datadog API `key`!
 
 # How Veneur Is Different Than Official DogStatsD
 

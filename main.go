@@ -16,27 +16,35 @@ import (
 )
 
 var (
-	apiURL     = flag.String("apiurl", "https://app.datadoghq.com", "The URL to which Metrics will be posted")
-	bufferSize = flag.Int("buffersize", 4096, "The size of the buffer of work for the worker pool")
-	debug      = flag.Bool("d", false, "Enable debug logging")
-	expiry     = flag.Duration("expiry", 5*time.Minute, "The duration metrics will be retained if they stop showing up, see go's ParseDuration")
-	interval   = flag.Duration("i", 10*time.Second, "The interval at which to flush metrics, see go's ParseDuration")
-	key        = flag.String("key", "fart", "Your Datadog API Key")
-	udpAddr    = flag.String("listen", ":8126", "Address to listen for UDP requests on")
-	nWorkers   = flag.Int("n", 4, "The number of workers to start")
-	sampleRate = flag.Float64("sample", 0.01, "The sample rate for packet receive counts")
-	statsAddr  = flag.String("stats", "localhost:8125", "Address of DogStatsD instance to send internal metrics")
+	configFile = flag.String("f", "", "The config file to read for settings.")
 )
 
 func main() {
+
+	flag.Parse()
+
+	if configFile == nil || *configFile == "" {
+		log.Fatal("You must specify a config file")
+	}
+
+	config, err := ReadConfig(*configFile)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Fatal("Error reading config file")
+	}
+
 	// Parse the command-line flags.
 	flag.Parse()
 
-	if *debug {
+	if config.Debug {
 		log.SetLevel(log.DebugLevel)
+		log.WithFields(log.Fields{
+			"config": config,
+		}).Debug("Starting with config")
 	}
 
-	stats, err := statsd.New(*statsAddr)
+	stats, err := statsd.New(config.StatsAddr)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
@@ -46,22 +54,22 @@ func main() {
 
 	// Start the dispatcher.
 	log.WithFields(log.Fields{
-		"number": *nWorkers,
+		"number": config.NumWorkers,
 	}).Info("Starting workers")
-	workers := make([]*Worker, *nWorkers)
-	for i := 0; i < *nWorkers; i++ {
-		worker := NewWorker(i + 1)
+	workers := make([]*Worker, config.NumWorkers)
+	for i := 0; i < config.NumWorkers; i++ {
+		worker := NewWorker(i+1, config.Percentiles)
 		worker.Start()
 		workers[i] = worker
 	}
 
 	// Start the UDP server!
 	log.WithFields(log.Fields{
-		"address":        *udpAddr,
-		"flush_interval": *interval,
-		"expiry":         *expiry,
+		"address":        config.UDPAddr,
+		"flush_interval": config.Interval,
+		"expiry":         config.Expiry,
 	}).Info("UDP server listening")
-	serverAddr, err := net.ResolveUDPAddr("udp", *udpAddr)
+	serverAddr, err := net.ResolveUDPAddr("udp", config.UDPAddr)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
@@ -77,10 +85,10 @@ func main() {
 
 	defer ServerConn.Close()
 
-	ticker := time.NewTicker(*interval)
+	ticker := time.NewTicker(config.Interval)
 	go func() {
 		for t := range ticker.C {
-			metrics := make([][]DDMetric, *nWorkers)
+			metrics := make([][]DDMetric, config.NumWorkers)
 			flushTime := time.Now()
 			for i, w := range workers {
 				log.WithFields(log.Fields{
@@ -88,7 +96,7 @@ func main() {
 					"tick":   t,
 				}).Debug("Flushing")
 				wstart := time.Now()
-				metrics = append(metrics, w.Flush(*interval, *expiry, flushTime))
+				metrics = append(metrics, w.Flush(config.Interval, config.Expiry, flushTime))
 				// Track how much time each worker takes to flush.
 				stats.TimeInMilliseconds(
 					"flush.worker_duration_ns",
@@ -98,7 +106,7 @@ func main() {
 				)
 			}
 			fstart := time.Now()
-			flush(metrics, stats)
+			flush(config, metrics, stats)
 			stats.TimeInMilliseconds(
 				"flush.transaction_duration_ns",
 				float64(time.Now().Sub(fstart).Nanoseconds()),
@@ -108,7 +116,7 @@ func main() {
 		}
 	}()
 
-	buf := make([]byte, *bufferSize)
+	buf := make([]byte, config.BufferSize)
 
 	for {
 		n, _, err := ServerConn.ReadFromUDP(buf)
@@ -132,14 +140,14 @@ func main() {
 			"packet.received_total",
 			1,
 			[]string{fmt.Sprintf("type:%s", m.Type)},
-			*sampleRate,
+			config.SampleRate,
 		)
 
 		// Hash the incoming key so we can consistently choose a worker
 		// by modding the last byte
 		h := fnv.New32()
 		h.Write([]byte(m.Name))
-		index := h.Sum32() % uint32(*nWorkers)
+		index := h.Sum32() % uint32(config.NumWorkers)
 
 		// We're ready to have a worker process this packet, so add it
 		// to the work queue. Note that if the queue is full, we'll block
@@ -150,7 +158,7 @@ func main() {
 
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
-func flush(postMetrics [][]DDMetric, stats *statsd.Client) {
+func flush(config *VeneurConfig, postMetrics [][]DDMetric, stats *statsd.Client) {
 	totalCount := 0
 	var finalMetrics []DDMetric
 	// TODO This seems very inefficient
@@ -166,7 +174,7 @@ func flush(postMetrics [][]DDMetric, stats *statsd.Client) {
 			"series": finalMetrics,
 		})
 
-		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", *apiURL, *key), "application/json", bytes.NewBuffer(postJSON))
+		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", config.APIURL, config.Key), "application/json", bytes.NewBuffer(postJSON))
 		if err != nil {
 			stats.Count("flush.error_total", int64(totalCount), nil, 1.0)
 			// TODO Do something at failure time!

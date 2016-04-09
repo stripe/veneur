@@ -21,11 +21,11 @@ type Worker struct {
 
 // NewWorker creates, and returns a new Worker object. Its only argument
 // is a channel that the worker will receive work from.
-func NewWorker(id int) *Worker {
+func NewWorker(id int, percentiles []float64) *Worker {
 	// Create, and return the worker.
 	return &Worker{
 		id:          id,
-		percentiles: []float64{0.5, 0.75, 0.99},
+		percentiles: percentiles,
 		WorkChan:    make(chan Metric, 100),
 		QuitChan:    make(chan bool),
 		mutex:       &sync.Mutex{},
