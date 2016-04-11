@@ -1,3 +1,5 @@
+// +build ignore
+
 package main
 
 import (
@@ -13,6 +15,7 @@ import (
 
 	statsd "github.com/DataDog/datadog-go/statsd"
 	log "github.com/Sirupsen/logrus"
+	"github.com/gphat/veneur"
 )
 
 var (
@@ -27,7 +30,7 @@ func main() {
 		log.Fatal("You must specify a config file")
 	}
 
-	config, err := ReadConfig(*configFile)
+	config, err := veneur.ReadConfig(*configFile)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
