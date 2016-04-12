@@ -13,3 +13,6 @@ percentiles:
   - 0.99
 sample_rate: 0.01
 stats_address: "localhost:8125"
+tags:
+#  - "foo:bar"
+#  - "baz:gorch"

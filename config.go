@@ -1,4 +1,4 @@
-package veneuer
+package main
 
 import (
 	"io/ioutil"
@@ -20,6 +20,7 @@ type VeneurConfig struct {
 	NumWorkers  int           `yaml:"num_workers"`
 	SampleRate  float64       `yaml:"sample_rate"`
 	StatsAddr   string        `yaml:"stats_address"`
+	Tags        []string      `yaml:"tags"`
 }
 
 func ReadConfig(path string) (*VeneurConfig, error) {

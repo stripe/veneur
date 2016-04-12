@@ -1,4 +1,4 @@
-package veneuer
+package main
 
 import (
 	"testing"

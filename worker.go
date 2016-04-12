@@ -1,4 +1,4 @@
-package veneuer
+package main
 
 import (
 	"sync"
@@ -94,16 +94,6 @@ func (w *Worker) ProcessMetric(m *Metric) {
 			"type": m.Type,
 		}).Error("Unknown metric type")
 	}
-	// Keep track of how many packets we've processed
-	// w.counters[Metric{Name: "veneur.stats.packets", Tags: fmt.Sprintf("worker_id:%d", w.id)}]++
-	// Keep track of how long it took us to process a packet
-	// hist := w.histograms[Metric{Name: "veneur.stats.process_duration_ns"}]
-	// if hist == nil {
-	// 	hist = metrics.NewHistogram(metrics.NewExpDecaySample(1028, 0.015))
-	// 	ph := Metric{Name: "veneur.stats.process_duration_ns", Tags: fmt.Sprintf("worker_id:%d", w.id)}
-	// 	w.histograms[ph] = hist
-	// }
-	// hist.Update(time.Now().Sub(start).Nanoseconds())
 
 	w.mutex.Unlock()
 }
