@@ -42,7 +42,7 @@ func (c *Counter) Sample(sample int32) {
 
 // Flush takes the current state of the counter, generates a
 // DDMetric then clears it.
-func (c *Counter) Flush(interval time.Duration) []DDMetric {
+func (c *Counter) Flush(interval time.Duration, hostname string) []DDMetric {
 	rate := float64(c.value) / interval.Seconds()
 	c.value = 0
 	return []DDMetric{DDMetric{
@@ -50,7 +50,7 @@ func (c *Counter) Flush(interval time.Duration) []DDMetric {
 		Value:      [1][2]float64{{float64(time.Now().Unix()), rate}},
 		Tags:       c.tags,
 		MetricType: "rate",
-		Hostname:   "testhost", // TODO Stop hardcoding this
+		Hostname:   hostname,
 		Interval:   int32(interval.Seconds()),
 	}}
 }
@@ -76,7 +76,7 @@ func (g *Gauge) Sample(sample int32) {
 
 // Flush takes the current state of the gauge, generates a
 // DDMetric then clears it.
-func (g *Gauge) Flush(interval time.Duration) []DDMetric {
+func (g *Gauge) Flush(interval time.Duration, hostname string) []DDMetric {
 	v := g.value
 	g.value = 0
 	return []DDMetric{DDMetric{
@@ -84,7 +84,7 @@ func (g *Gauge) Flush(interval time.Duration) []DDMetric {
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(v)}},
 		Tags:       g.tags,
 		MetricType: "gauge",
-		Hostname:   "testhost", // TODO Stop hardcoding this
+		Hostname:   hostname,
 	}}
 }
 
@@ -122,7 +122,7 @@ func NewHist(name string, tags []string, percentiles []float64) *Histo {
 
 // Flush generates DDMetrics for the current state of the
 // Histo.
-func (h *Histo) Flush(interval time.Duration) []DDMetric {
+func (h *Histo) Flush(interval time.Duration, hostname string) []DDMetric {
 	now := float64(time.Now().Unix())
 	rate := float64(h.value.Count()) / interval.Seconds()
 	metrics := []DDMetric{
@@ -131,7 +131,7 @@ func (h *Histo) Flush(interval time.Duration) []DDMetric {
 			Value:      [1][2]float64{{now, rate}},
 			Tags:       h.tags,
 			MetricType: "rate",
-			Hostname:   "testhost", // TODO Stop hardcoding this
+			Hostname:   hostname,
 			Interval:   int32(interval.Seconds()),
 		},
 		DDMetric{
@@ -139,14 +139,14 @@ func (h *Histo) Flush(interval time.Duration) []DDMetric {
 			Value:      [1][2]float64{{now, float64(h.value.Max())}},
 			Tags:       h.tags,
 			MetricType: "gauge",
-			Hostname:   "testhost", // TODO Stop hardcoding this
+			Hostname:   hostname,
 		},
 		DDMetric{
 			Name:       fmt.Sprintf("%s.min", h.name),
 			Value:      [1][2]float64{{now, float64(h.value.Min())}},
 			Tags:       h.tags,
 			MetricType: "gauge",
-			Hostname:   "testhost", // TODO Stop hardcoding this
+			Hostname:   hostname,
 		},
 	}
 
@@ -160,7 +160,7 @@ func (h *Histo) Flush(interval time.Duration) []DDMetric {
 				Value:      [1][2]float64{{now, float64(p)}},
 				Tags:       h.tags,
 				MetricType: "gauge",
-				Hostname:   "testhost", // TODO Stop hardcoding this
+				Hostname:   hostname,
 			},
 		)
 	}

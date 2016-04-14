@@ -9,29 +9,29 @@ import (
 
 // Worker is the doodad that does work.
 type Worker struct {
-	id          int
-	percentiles []float64
-	WorkChan    chan Metric
-	QuitChan    chan bool
-	counters    map[uint32]*Counter
-	gauges      map[uint32]*Gauge
-	histograms  map[uint32]*Histo
-	mutex       *sync.Mutex
+	id         int
+	WorkChan   chan Metric
+	QuitChan   chan bool
+	config     *VeneurConfig
+	counters   map[uint32]*Counter
+	gauges     map[uint32]*Gauge
+	histograms map[uint32]*Histo
+	mutex      *sync.Mutex
 }
 
 // NewWorker creates, and returns a new Worker object. Its only argument
 // is a channel that the worker will receive work from.
-func NewWorker(id int, percentiles []float64) *Worker {
+func NewWorker(id int, config *VeneurConfig) *Worker {
 	// Create, and return the worker.
 	return &Worker{
-		id:          id,
-		percentiles: percentiles,
-		WorkChan:    make(chan Metric, 100),
-		QuitChan:    make(chan bool),
-		mutex:       &sync.Mutex{},
-		counters:    make(map[uint32]*Counter),
-		gauges:      make(map[uint32]*Gauge),
-		histograms:  make(map[uint32]*Histo),
+		id:         id,
+		WorkChan:   make(chan Metric, 100),
+		QuitChan:   make(chan bool),
+		config:     config,
+		counters:   make(map[uint32]*Counter),
+		gauges:     make(map[uint32]*Gauge),
+		histograms: make(map[uint32]*Histo),
+		mutex:      &sync.Mutex{},
 	}
 }
 
@@ -85,7 +85,7 @@ func (w *Worker) ProcessMetric(m *Metric) {
 			log.WithFields(log.Fields{
 				"name": m.Name,
 			}).Debug("New histogram")
-			w.histograms[m.Digest] = NewHist(m.Name, m.Tags, w.percentiles)
+			w.histograms[m.Digest] = NewHist(m.Name, m.Tags, w.config.Percentiles)
 		}
 		w.histograms[m.Digest].Sample(m.Value)
 	default:
@@ -100,7 +100,7 @@ func (w *Worker) ProcessMetric(m *Metric) {
 // Flush generates DDMetrics to emit. Uses the supplied time
 // to judge expiry of metrics for removal.
 func (w *Worker) Flush(flushInterval time.Duration, expirySeconds time.Duration, currTime time.Time) []DDMetric {
-	var postMetrics []DDMetric
+	postMetrics := make([]DDMetric, len(w.counters)+len(w.gauges)+len(w.histograms)*6)
 	w.mutex.Lock()
 	// TODO This should probably be a single function that passes in the metrics and the
 	// map
@@ -111,7 +111,7 @@ func (w *Worker) Flush(flushInterval time.Duration, expirySeconds time.Duration,
 			}).Debug("Expiring counter")
 			delete(w.counters, k)
 		} else {
-			postMetrics = append(postMetrics, v.Flush(flushInterval)...)
+			postMetrics = append(postMetrics, v.Flush(flushInterval, w.config.Hostname)...)
 		}
 	}
 	for k, v := range w.gauges {
@@ -121,7 +121,7 @@ func (w *Worker) Flush(flushInterval time.Duration, expirySeconds time.Duration,
 			}).Debug("Expiring gauge")
 			delete(w.gauges, k)
 		} else {
-			postMetrics = append(postMetrics, v.Flush(flushInterval)...)
+			postMetrics = append(postMetrics, v.Flush(flushInterval, w.config.Hostname)...)
 		}
 	}
 	for k, v := range w.histograms {
@@ -131,7 +131,7 @@ func (w *Worker) Flush(flushInterval time.Duration, expirySeconds time.Duration,
 			}).Debug("Expiring histogram")
 			delete(w.histograms, k)
 		} else {
-			postMetrics = append(postMetrics, v.Flush(flushInterval)...)
+			postMetrics = append(postMetrics, v.Flush(flushInterval, w.config.Hostname)...)
 		}
 	}
 	w.mutex.Unlock()

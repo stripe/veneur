@@ -24,7 +24,7 @@ Veneur assumes you have a running DogStatsD on the localhost and emits metrics t
 * `veneur.flush.error_total` - Number of errors when attempting to POST metrics to Datadog.
 * `veneur.flush.metrics_total` - Total number of metrics flushed at each flush time.
 * `veneur.flush.transaction_duration_ns` - Time taken to POST metrics to Datadog.
-* `veneur.flush.worker_duration_ns` - Per-worker timing — tagged with `worker` - for flush.
+* `veneur.flush.worker_duration_ns` - Per-worker timing — tagged with `worker` - for flush. This is important as it is the time in which the worker holds a lock and is unavailable for other work.
 
 # Status
 

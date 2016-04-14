@@ -58,7 +58,7 @@ func main() {
 	}).Info("Starting workers")
 	workers := make([]*Worker, config.NumWorkers)
 	for i := 0; i < config.NumWorkers; i++ {
-		worker := NewWorker(i+1, config.Percentiles)
+		worker := NewWorker(i+1, config)
 		worker.Start()
 		workers[i] = worker
 	}
