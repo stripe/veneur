@@ -137,6 +137,7 @@ func main() {
 			stats.Count("packet.error_total", 1, nil, 1.0)
 			continue
 		}
+
 		stats.TimeInMilliseconds(
 			"packet.parse_duration_ns",
 			float64(time.Now().Sub(pstart).Nanoseconds()),
@@ -175,7 +176,7 @@ func flush(config *VeneurConfig, postMetrics [][]DDMetric, stats *statsd.Client)
 			"series": finalMetrics,
 		})
 
-		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", config.APIURL, config.Key), "application/json", bytes.NewBuffer(postJSON))
+		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", config.APIHostname, config.Key), "application/json", bytes.NewBuffer(postJSON))
 		if err != nil {
 			stats.Count("flush.error_total", int64(totalCount), nil, 1.0)
 			// TODO Do something at failure time!

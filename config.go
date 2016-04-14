@@ -10,7 +10,7 @@ import (
 )
 
 type VeneurConfig struct {
-	APIURL      string        `yaml:"api_url"`
+	APIHostname string        `yaml:"api_hostname"`
 	BufferSize  int           `yaml:"buffer_size"`
 	Debug       bool          `yaml:"debug"`
 	Expiry      time.Duration `yaml:"expiry"`

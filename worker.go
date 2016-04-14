@@ -100,7 +100,11 @@ func (w *Worker) ProcessMetric(m *Metric) {
 // Flush generates DDMetrics to emit. Uses the supplied time
 // to judge expiry of metrics for removal.
 func (w *Worker) Flush(flushInterval time.Duration, expirySeconds time.Duration, currTime time.Time) []DDMetric {
-	postMetrics := make([]DDMetric, len(w.counters)+len(w.gauges)+len(w.histograms)*6)
+	// We preallocate a reasonably sized slice such that hopefully we won't need to reallocate.
+	postMetrics := make([]DDMetric,
+		// Number of each metric, with 3 + percentiles for histograms (count, max, min)
+		len(w.counters)+len(w.gauges)+len(w.histograms)*(3+len(w.config.Percentiles)),
+	)
 	w.mutex.Lock()
 	// TODO This should probably be a single function that passes in the metrics and the
 	// map
