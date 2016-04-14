@@ -63,9 +63,11 @@ do include a hostname tag, Veneur will **not** strip it for you.
 # Performance
 
 Veneur aims to be highly performant. In local testing with sysctl defaults on a mixed wireless and wired network and 2 clients, running on a 8-core i7-2600K
-with 16GB of RAM, Veneur was able to sustain ~95k metrics processed per second, with flushes every 10 second. Tests used 18,000 metric name & tag combinations.
+with 16GB of RAM, Veneur was able to sustain ~95k metrics processed per second, with flushes every 10 seconds. Tests used ~18,000 metric name & tag combinations.
 
 ![Benchmark](/benchmark.png?raw=true "Benchmark")
+
+Box load was around 3.0, memory usage can be seen here from `htop`:
 
 ![Memory Usage](/memory.png?raw=true "Memory Usage")
 
