@@ -59,7 +59,6 @@ func (w *Worker) Start() {
 //
 // This is standalone to facilitate testing
 func (w *Worker) ProcessMetric(m *Metric) {
-	// start := time.Now()
 	w.mutex.Lock()
 	switch m.Type {
 	case "counter":

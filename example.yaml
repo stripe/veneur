@@ -16,3 +16,4 @@ stats_address: "localhost:8125"
 tags:
 #  - "foo:bar"
 #  - "baz:gorch"
+udp_address: "localhost:8126"

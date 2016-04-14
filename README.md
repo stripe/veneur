@@ -30,10 +30,6 @@ Veneur assumes you have a running DogStatsD on the localhost and emits metrics t
 
 Veneur is currently a work in progress and thus should not yet be relied on for production traffic.
 
-# TODO
-
-* Allow for percentiles with more than 2 decimal precision (i.e. .999)
-
 # Usage
 ```
 venuer -f example.yaml

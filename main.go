@@ -126,6 +126,7 @@ func main() {
 			}).Error("Error reading from UDP")
 		}
 
+		pstart := time.Now()
 		// We could maybe free up the Read above by moving
 		// this part to a buffered channel?
 		m, err := ParseMetric(buf[:n], config.Tags)
@@ -136,9 +137,9 @@ func main() {
 			stats.Count("packet.error_total", 1, nil, 1.0)
 			continue
 		}
-		stats.Count(
-			"packet.received_total",
-			1,
+		stats.TimeInMilliseconds(
+			"packet.parse_duration_ns",
+			float64(time.Now().Sub(pstart).Nanoseconds()),
 			[]string{fmt.Sprintf("type:%s", m.Type)},
 			config.SampleRate,
 		)
