@@ -60,6 +60,15 @@ the resulting percentile values are meant to be more representative of a global 
 By definition the hostname is not applicable to metrics that Veneur processes. Note that if you
 do include a hostname tag, Veneur will **not** strip it for you.
 
+# Performance
+
+Veneur aims to be highly performant. In local testing with sysctl defaults on a mixed wireless and wired network and 2 clients, running on a 8-core i7-2600K
+with 16GB of RAM, Veneur was able to sustain ~95k metrics processed per second, with flushes every 10 second. Tests used 18,000 metric name & tag combinations.
+
+![Benchmark](/benchmark.png?raw=true "Benchmark")
+
+![Memory Usage](/memory.png?raw=true "Memory Usage")
+
 # Name
 
 The [veneur](https://en.wikipedia.org/wiki/Grand_Huntsman_of_France) is a person acting as superintendent of the chase and especially
