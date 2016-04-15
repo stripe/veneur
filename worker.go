@@ -19,13 +19,11 @@ type Worker struct {
 	mutex      *sync.Mutex
 }
 
-// NewWorker creates, and returns a new Worker object. Its only argument
-// is a channel that the worker will receive work from.
+// NewWorker creates, and returns a new Worker object.
 func NewWorker(id int, config *VeneurConfig) *Worker {
-	// Create, and return the worker.
 	return &Worker{
 		id:         id,
-		WorkChan:   make(chan Metric, 1024),
+		WorkChan:   make(chan Metric, 1024), // TODO Configurable!
 		QuitChan:   make(chan bool),
 		config:     config,
 		counters:   make(map[uint32]*Counter),
@@ -101,7 +99,7 @@ func (w *Worker) ProcessMetric(m *Metric) {
 // to judge expiry of metrics for removal.
 func (w *Worker) Flush(flushInterval time.Duration, expirySeconds time.Duration, currTime time.Time) []DDMetric {
 	// We preallocate a reasonably sized slice such that hopefully we won't need to reallocate.
-	postMetrics := make([]DDMetric,
+	postMetrics := make([]DDMetric, 0,
 		// Number of each metric, with 3 + percentiles for histograms (count, max, min)
 		len(w.counters)+len(w.gauges)+len(w.histograms)*(3+len(w.config.Percentiles)),
 	)

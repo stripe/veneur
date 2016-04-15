@@ -82,7 +82,7 @@ func main() {
 			"error": err,
 		}).Error("Error listening for UDP")
 	}
-	serverConn.SetReadBuffer(1048576 * 4)
+	serverConn.SetReadBuffer(1048576 * 2) // TODO Configurable!
 
 	defer serverConn.Close()
 
