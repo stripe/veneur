@@ -1,4 +1,4 @@
-package main
+package veneur
 
 import (
 	"sync"
@@ -25,7 +25,7 @@ func NewWorker(id int, config *VeneurConfig) *Worker {
 	// Create, and return the worker.
 	return &Worker{
 		id:         id,
-		WorkChan:   make(chan Metric, 100),
+		WorkChan:   make(chan Metric, 1024),
 		QuitChan:   make(chan bool),
 		config:     config,
 		counters:   make(map[uint32]*Counter),
@@ -105,10 +105,20 @@ func (w *Worker) Flush(flushInterval time.Duration, expirySeconds time.Duration,
 		// Number of each metric, with 3 + percentiles for histograms (count, max, min)
 		len(w.counters)+len(w.gauges)+len(w.histograms)*(3+len(w.config.Percentiles)),
 	)
+
 	w.mutex.Lock()
+	counters := w.counters
+	gauges := w.gauges
+	histograms := w.histograms
+
+	w.counters = make(map[uint32]*Counter)
+	w.gauges = make(map[uint32]*Gauge)
+	w.histograms = make(map[uint32]*Histo)
+	w.mutex.Unlock()
+
 	// TODO This should probably be a single function that passes in the metrics and the
 	// map
-	for k, v := range w.counters {
+	for k, v := range counters {
 		if currTime.Sub(v.lastSampleTime) > expirySeconds {
 			log.WithFields(log.Fields{
 				"name": v.name,
@@ -118,7 +128,7 @@ func (w *Worker) Flush(flushInterval time.Duration, expirySeconds time.Duration,
 			postMetrics = append(postMetrics, v.Flush(flushInterval, w.config.Hostname)...)
 		}
 	}
-	for k, v := range w.gauges {
+	for k, v := range gauges {
 		if currTime.Sub(v.lastSampleTime) > expirySeconds {
 			log.WithFields(log.Fields{
 				"name": v.name,
@@ -128,7 +138,7 @@ func (w *Worker) Flush(flushInterval time.Duration, expirySeconds time.Duration,
 			postMetrics = append(postMetrics, v.Flush(flushInterval, w.config.Hostname)...)
 		}
 	}
-	for k, v := range w.histograms {
+	for k, v := range histograms {
 		if currTime.Sub(v.lastSampleTime) > expirySeconds {
 			log.WithFields(log.Fields{
 				"name": v.name,
@@ -138,7 +148,6 @@ func (w *Worker) Flush(flushInterval time.Duration, expirySeconds time.Duration,
 			postMetrics = append(postMetrics, v.Flush(flushInterval, w.config.Hostname)...)
 		}
 	}
-	w.mutex.Unlock()
 	return postMetrics
 }
 

@@ -81,7 +81,7 @@ do include a hostname tag, Veneur will **not** strip it for you. Veneur will add
 # Performance
 
 Veneur aims to be highly performant. In local testing with sysctl defaults on a mixed wireless and wired network and 2 clients, running on a 8-core i7-2600K
-with 16GB of RAM and `workers: 4` in it's config, Veneur was able to sustain ~95k metrics processed per second, with flushes every 10 seconds. Tests used ~18,000 metric name & tag combinations.
+with 16GB of RAM and `workers: 4` in it's config, Veneur was able to sustain ~95k metrics processed per second, with flushes every 10 seconds. Tests used ~18,000 metric name & tag combinations. Steady state was no dropped UDP packets at this rate.
 
 ![Benchmark](/benchmark.png?raw=true "Benchmark")
 

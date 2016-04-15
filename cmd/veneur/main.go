@@ -76,14 +76,15 @@ func main() {
 		}).Error("Error resolving address")
 	}
 
-	ServerConn, err := net.ListenUDP("udp", serverAddr)
+	serverConn, err := net.ListenUDP("udp", serverAddr)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
 		}).Error("Error listening for UDP")
 	}
+	serverConn.SetReadBuffer(1048576 * 4)
 
-	defer ServerConn.Close()
+	defer serverConn.Close()
 
 	ticker := time.NewTicker(config.Interval)
 	go func() {
@@ -119,43 +120,49 @@ func main() {
 	buf := make([]byte, config.BufferSize)
 
 	for {
-		n, _, err := ServerConn.ReadFromUDP(buf)
+		n, _, err := serverConn.ReadFromUDP(buf)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"error": err,
 			}).Error("Error reading from UDP")
-		}
-
-		pstart := time.Now()
-		// We could maybe free up the Read above by moving
-		// this part to a buffered channel?
-		m, err := ParseMetric(buf[:n], config.Tags)
-		if err != nil {
-			log.WithFields(log.Fields{
-				"error": err,
-			}).Error("Error parsing packet")
-			stats.Count("packet.error_total", 1, nil, 1.0)
 			continue
 		}
-
-		stats.TimeInMilliseconds(
-			"packet.parse_duration_ns",
-			float64(time.Now().Sub(pstart).Nanoseconds()),
-			[]string{fmt.Sprintf("type:%s", m.Type)},
-			config.SampleRate,
-		)
-
-		// Hash the incoming key so we can consistently choose a worker
-		// by modding the last byte
-		h := fnv.New32()
-		h.Write([]byte(m.Name))
-		index := h.Sum32() % uint32(config.NumWorkers)
-
-		// We're ready to have a worker process this packet, so add it
-		// to the work queue. Note that if the queue is full, we'll block
-		// here.
-		workers[index].WorkChan <- *m
+		packet := make([]byte, n)
+		copy(packet, buf[:n])
+		go handlePacket(config, workers, packet, n, stats)
 	}
+}
+
+func handlePacket(config *VeneurConfig, workers []*Worker, packet []byte, rlen int, stats *statsd.Client) {
+	pstart := time.Now()
+	// We could maybe free up the Read above by moving
+	// this part to a buffered channel?
+	m, err := ParseMetric(packet[:rlen], config.Tags)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"error": err,
+		}).Error("Error parsing packet")
+		stats.Count("packet.error_total", 1, nil, 1.0)
+		return
+	}
+
+	stats.TimeInMilliseconds(
+		"packet.parse_duration_ns",
+		float64(time.Now().Sub(pstart).Nanoseconds()),
+		[]string{fmt.Sprintf("type:%s", m.Type)},
+		config.SampleRate,
+	)
+
+	// Hash the incoming key so we can consistently choose a worker
+	// by modding the last byte
+	h := fnv.New32()
+	h.Write([]byte(m.Name))
+	index := h.Sum32() % uint32(config.NumWorkers)
+
+	// We're ready to have a worker process this packet, so add it
+	// to the work queue. Note that if the queue is full, we'll block
+	// here.
+	workers[index].WorkChan <- *m
 }
 
 // Flush takes the slices of metrics, combines then and marshals them to json
