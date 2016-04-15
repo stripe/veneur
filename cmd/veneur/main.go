@@ -13,6 +13,7 @@ import (
 
 	statsd "github.com/DataDog/datadog-go/statsd"
 	log "github.com/Sirupsen/logrus"
+	"github.com/gphat/veneur"
 )
 
 var (
@@ -20,14 +21,13 @@ var (
 )
 
 func main() {
-
 	flag.Parse()
 
 	if configFile == nil || *configFile == "" {
 		log.Fatal("You must specify a config file")
 	}
 
-	config, err := ReadConfig(*configFile)
+	config, err := veneur.ReadConfig(*configFile)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
@@ -56,9 +56,9 @@ func main() {
 	log.WithFields(log.Fields{
 		"number": config.NumWorkers,
 	}).Info("Starting workers")
-	workers := make([]*Worker, config.NumWorkers)
+	workers := make([]*veneur.Worker, config.NumWorkers)
 	for i := 0; i < config.NumWorkers; i++ {
-		worker := NewWorker(i+1, config)
+		worker := veneur.NewWorker(i+1, config)
 		worker.Start()
 		workers[i] = worker
 	}
@@ -89,7 +89,7 @@ func main() {
 	ticker := time.NewTicker(config.Interval)
 	go func() {
 		for t := range ticker.C {
-			metrics := make([][]DDMetric, config.NumWorkers)
+			metrics := make([][]veneur.DDMetric, config.NumWorkers)
 			flushTime := time.Now()
 			for i, w := range workers {
 				log.WithFields(log.Fields{
@@ -133,11 +133,11 @@ func main() {
 	}
 }
 
-func handlePacket(config *VeneurConfig, workers []*Worker, packet []byte, rlen int, stats *statsd.Client) {
+func handlePacket(config *veneur.VeneurConfig, workers []*veneur.Worker, packet []byte, rlen int, stats *statsd.Client) {
 	pstart := time.Now()
 	// We could maybe free up the Read above by moving
 	// this part to a buffered channel?
-	m, err := ParseMetric(packet[:rlen], config.Tags)
+	m, err := veneur.ParseMetric(packet[:rlen], config.Tags)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
@@ -167,9 +167,9 @@ func handlePacket(config *VeneurConfig, workers []*Worker, packet []byte, rlen i
 
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
-func flush(config *VeneurConfig, postMetrics [][]DDMetric, stats *statsd.Client) {
+func flush(config *veneur.VeneurConfig, postMetrics [][]veneur.DDMetric, stats *statsd.Client) {
 	totalCount := 0
-	var finalMetrics []DDMetric
+	var finalMetrics []veneur.DDMetric
 	// TODO This seems very inefficient
 	for _, metrics := range postMetrics {
 		totalCount += len(metrics)
@@ -179,7 +179,7 @@ func flush(config *VeneurConfig, postMetrics [][]DDMetric, stats *statsd.Client)
 	if totalCount > 0 {
 		stats.Count("flush.metrics_total", int64(totalCount), nil, 1.0)
 		// TODO Watch this error
-		postJSON, _ := json.Marshal(map[string][]DDMetric{
+		postJSON, _ := json.Marshal(map[string][]veneur.DDMetric{
 			"series": finalMetrics,
 		})
 
