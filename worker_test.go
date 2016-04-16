@@ -6,7 +6,8 @@ import (
 )
 
 func TestWorker(t *testing.T) {
-	w := NewWorker(1, &VeneurConfig{})
+	ReadConfig("example.yaml")
+	w := NewWorker(1)
 
 	m := Metric{Name: "a.b.c", Digest: 12345, Type: "counter"}
 	w.ProcessMetric(&m)

@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"time"
 
-	statsd "github.com/DataDog/datadog-go/statsd"
 	log "github.com/Sirupsen/logrus"
 	"github.com/gphat/veneur"
 )
@@ -27,7 +26,7 @@ func main() {
 		log.Fatal("You must specify a config file")
 	}
 
-	config, err := veneur.ReadConfig(*configFile)
+	err := veneur.ReadConfig(*configFile)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
@@ -37,39 +36,33 @@ func main() {
 	// Parse the command-line flags.
 	flag.Parse()
 
-	if config.Debug {
+	if veneur.Config.Debug {
 		log.SetLevel(log.DebugLevel)
 		log.WithFields(log.Fields{
-			"config": config,
+			"config": veneur.Config.Debug,
 		}).Debug("Starting with config")
 	}
 
-	stats, err := statsd.New(config.StatsAddr)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"error": err,
-		}).Fatal("Error creating statsd logging")
-	}
-	stats.Namespace = "veneur."
+	veneur.InitStats()
 
 	// Start the dispatcher.
 	log.WithFields(log.Fields{
-		"number": config.NumWorkers,
+		"number": veneur.Config.NumWorkers,
 	}).Info("Starting workers")
-	workers := make([]*veneur.Worker, config.NumWorkers)
-	for i := 0; i < config.NumWorkers; i++ {
-		worker := veneur.NewWorker(i+1, config)
+	workers := make([]*veneur.Worker, veneur.Config.NumWorkers)
+	for i := 0; i < veneur.Config.NumWorkers; i++ {
+		worker := veneur.NewWorker(i + 1)
 		worker.Start()
 		workers[i] = worker
 	}
 
 	// Start the UDP server!
 	log.WithFields(log.Fields{
-		"address":        config.UDPAddr,
-		"flush_interval": config.Interval,
-		"expiry":         config.Expiry,
+		"address":        veneur.Config.UDPAddr,
+		"flush_interval": veneur.Config.Interval,
+		"expiry":         veneur.Config.Expiry,
 	}).Info("UDP server listening")
-	serverAddr, err := net.ResolveUDPAddr("udp", config.UDPAddr)
+	serverAddr, err := net.ResolveUDPAddr("udp", veneur.Config.UDPAddr)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
@@ -86,29 +79,21 @@ func main() {
 
 	defer serverConn.Close()
 
-	ticker := time.NewTicker(config.Interval)
+	ticker := time.NewTicker(veneur.Config.Interval)
 	go func() {
 		for t := range ticker.C {
-			metrics := make([][]veneur.DDMetric, config.NumWorkers)
+			metrics := make([][]veneur.DDMetric, veneur.Config.NumWorkers)
 			flushTime := time.Now()
 			for i, w := range workers {
 				log.WithFields(log.Fields{
 					"worker": i,
 					"tick":   t,
 				}).Debug("Flushing")
-				wstart := time.Now()
-				metrics = append(metrics, w.Flush(config.Interval, config.Expiry, flushTime))
-				// Track how much time each worker takes to flush.
-				stats.TimeInMilliseconds(
-					"flush.worker_duration_ns",
-					float64(time.Now().Sub(wstart).Nanoseconds()),
-					[]string{fmt.Sprintf("worker:%d", i)},
-					1.0,
-				)
+				metrics = append(metrics, w.Flush(flushTime))
 			}
 			fstart := time.Now()
-			flush(config, metrics, stats)
-			stats.TimeInMilliseconds(
+			flush(metrics)
+			veneur.Stats.TimeInMilliseconds(
 				"flush.transaction_duration_ns",
 				float64(time.Now().Sub(fstart).Nanoseconds()),
 				nil,
@@ -117,47 +102,42 @@ func main() {
 		}
 	}()
 
-	buf := make([]byte, config.BufferSize)
-
 	for {
-		n, _, err := serverConn.ReadFromUDP(buf)
+		buf := make([]byte, veneur.Config.BufferSize)
+		n, err := serverConn.Read(buf)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"error": err,
 			}).Error("Error reading from UDP")
 			continue
 		}
-		packet := make([]byte, n)
-		copy(packet, buf[:n])
-		go handlePacket(config, workers, packet, n, stats)
+		handlePacket(workers, buf[:n])
 	}
 }
 
-func handlePacket(config *veneur.VeneurConfig, workers []*veneur.Worker, packet []byte, rlen int, stats *statsd.Client) {
+func handlePacket(workers []*veneur.Worker, packet []byte) {
 	pstart := time.Now()
-	// We could maybe free up the Read above by moving
-	// this part to a buffered channel?
-	m, err := veneur.ParseMetric(packet[:rlen], config.Tags)
+	m, err := veneur.ParseMetric(packet)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
 		}).Error("Error parsing packet")
-		stats.Count("packet.error_total", 1, nil, 1.0)
+		veneur.Stats.Count("packet.error_total", 1, nil, 1.0)
 		return
 	}
 
-	stats.TimeInMilliseconds(
+	veneur.Stats.TimeInMilliseconds(
 		"packet.parse_duration_ns",
 		float64(time.Now().Sub(pstart).Nanoseconds()),
 		[]string{fmt.Sprintf("type:%s", m.Type)},
-		config.SampleRate,
+		veneur.Config.SampleRate,
 	)
 
 	// Hash the incoming key so we can consistently choose a worker
-	// by modding the last byte
+	// by modding the digest
 	h := fnv.New32()
 	h.Write([]byte(m.Name))
-	index := h.Sum32() % uint32(config.NumWorkers)
+	index := h.Sum32() % uint32(veneur.Config.NumWorkers)
 
 	// We're ready to have a worker process this packet, so add it
 	// to the work queue. Note that if the queue is full, we'll block
@@ -167,7 +147,7 @@ func handlePacket(config *veneur.VeneurConfig, workers []*veneur.Worker, packet 
 
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
-func flush(config *veneur.VeneurConfig, postMetrics [][]veneur.DDMetric, stats *statsd.Client) {
+func flush(postMetrics [][]veneur.DDMetric) {
 	totalCount := 0
 	var finalMetrics []veneur.DDMetric
 	// TODO This seems very inefficient
@@ -177,15 +157,15 @@ func flush(config *veneur.VeneurConfig, postMetrics [][]veneur.DDMetric, stats *
 	}
 	// Check to see if we have anything to do
 	if totalCount > 0 {
-		stats.Count("flush.metrics_total", int64(totalCount), nil, 1.0)
+		veneur.Stats.Count("flush.metrics_total", int64(totalCount), nil, 1.0)
 		// TODO Watch this error
 		postJSON, _ := json.Marshal(map[string][]veneur.DDMetric{
 			"series": finalMetrics,
 		})
 
-		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", config.APIHostname, config.Key), "application/json", bytes.NewBuffer(postJSON))
+		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", veneur.Config.APIHostname, veneur.Config.Key), "application/json", bytes.NewBuffer(postJSON))
 		if err != nil {
-			stats.Count("flush.error_total", int64(totalCount), nil, 1.0)
+			veneur.Stats.Count("flush.error_total", int64(totalCount), nil, 1.0)
 			// TODO Do something at failure time!
 			log.WithFields(log.Fields{
 				"error": err,

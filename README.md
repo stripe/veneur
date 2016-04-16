@@ -81,13 +81,26 @@ do include a hostname tag, Veneur will **not** strip it for you. Veneur will add
 # Performance
 
 Veneur aims to be highly performant. In local testing with sysctl defaults on a mixed wireless and wired network and 2 clients, running on a 8-core i7-2600K
-with 16GB of RAM and `workers: 4` in it's config, Veneur was able to sustain ~95k metrics processed per second, with flushes every 10 seconds. Tests used ~18,000 metric name & tag combinations. Steady state was no dropped UDP packets at this rate.
+with 16GB of RAM and `workers: 4` in it's config, Veneur was able to sustain ~90k metrics processed per second with no drops, with flushes every 10 seconds. Tests used ~18,000 metric name & tag combinations. Steady state was no dropped UDP packets at this rate.
 
 ![Benchmark](/benchmark.png?raw=true "Benchmark")
 
 Box load was around 3.0, memory usage can be seen here from `htop`:
 
 ![Memory Usage](/memory.png?raw=true "Memory Usage")
+
+## Sysctl
+
+The following `sysctl` settings are used in testing, and are the same one would use for StatsD:
+
+```
+sysctl -w net.ipv4.udp_rmem_min=67108864
+sysctl -w net.ipv4.udp_wmem_min=67108864
+sysctl -w net.core.netdev_max_backlog=200000
+sysctl -w net.core.rmem_max=16777216
+sysctl -w net.core.rmem_default=16777216
+sysctl -w net.ipv4.udp_mem="4648512 6198016 9297024"
+```
 
 # Name
 
