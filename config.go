@@ -1,18 +1,20 @@
-package main
+package veneur
 
 import (
 	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	"gopkg.in/yaml.v2"
 )
 
 type VeneurConfig struct {
-	APIURL      string        `yaml:"api_url"`
+	APIHostname string        `yaml:"api_hostname"`
 	BufferSize  int           `yaml:"buffer_size"`
 	Debug       bool          `yaml:"debug"`
 	Expiry      time.Duration `yaml:"expiry"`
+	Hostname    string        `yaml:"hostname"`
 	Interval    time.Duration `yaml:"interval"`
 	Key         string        `yaml:"key"`
 	Percentiles []float64     `yaml:"percentiles"`
@@ -23,22 +25,26 @@ type VeneurConfig struct {
 	Tags        []string      `yaml:"tags"`
 }
 
-func ReadConfig(path string) (*VeneurConfig, error) {
+var Config *VeneurConfig
+
+func ReadConfig(path string) error {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var config VeneurConfig
-
-	err = yaml.Unmarshal(data, &config)
+	err = yaml.Unmarshal(data, &Config)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	if config.Key == "" {
+	if Config.Key == "" {
 		log.Fatal("A Datadog API key is required in your config file!")
 	}
 
-	return &config, nil
+	if Config.Hostname == "" {
+		Config.Hostname, _ = os.Hostname()
+	}
+
+	return nil
 }

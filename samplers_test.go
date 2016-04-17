@@ -1,4 +1,4 @@
-package main
+package veneur
 
 import (
 	"testing"
@@ -16,7 +16,7 @@ func TestCounterEmpty(t *testing.T) {
 		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", c.tags)
 	}
 
-	metrics := c.Flush(5 * time.Second)
+	metrics := c.Flush(5*time.Second, "localhost")
 	if len(metrics) != 1 {
 		t.Errorf("Expected 1 DDMetric, got (%d)", len(metrics))
 	}
@@ -45,7 +45,7 @@ func TestCounterRate(t *testing.T) {
 	c.Sample(5)
 
 	// The counter returns an array with a single tuple of timestamp,value
-	metrics := c.Flush(5 * time.Second)
+	metrics := c.Flush(5*time.Second, "localhost")
 	if metrics[0].Value[0][1] != 1 {
 		t.Errorf("Expected value, wanted (1) got (%f)", metrics[0].Value[0][1])
 	}
@@ -64,7 +64,7 @@ func TestGauge(t *testing.T) {
 
 	g.Sample(5)
 
-	metrics := g.Flush(5 * time.Second)
+	metrics := g.Flush(5*time.Second, "localhost")
 	if len(metrics) != 1 {
 		t.Errorf("Expected 1 DDMetric, got (%d)", len(metrics))
 	}
@@ -104,7 +104,7 @@ func TestHisto(t *testing.T) {
 	h.Sample(20)
 	h.Sample(25)
 
-	metrics := h.Flush(5 * time.Second)
+	metrics := h.Flush(5*time.Second, "localhost")
 	// We get lots of metrics back for histograms!
 	if len(metrics) != 4 {
 		t.Errorf("Expected 4 DDMetrics, got (%d)", len(metrics))

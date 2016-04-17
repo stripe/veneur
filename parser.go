@@ -1,4 +1,4 @@
-package main
+package veneur
 
 import (
 	"bytes"
@@ -22,7 +22,7 @@ type Metric struct {
 
 // ParseMetric converts the incoming packet from Datadog DogStatsD
 // Datagram format in to a Metric. http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
-func ParseMetric(packet []byte, globalTags []string) (*Metric, error) {
+func ParseMetric(packet []byte) (*Metric, error) {
 	parts := bytes.SplitN(packet, []byte(":"), 2)
 
 	var metricName string
@@ -90,8 +90,8 @@ func ParseMetric(packet []byte, globalTags []string) (*Metric, error) {
 			metricTags = tags
 		}
 	}
-	if len(globalTags) > 0 {
-		metricTags = append(metricTags, globalTags...)
+	if len(Config.Tags) > 0 {
+		metricTags = append(metricTags, Config.Tags...)
 	}
 
 	digest := h.Sum32()

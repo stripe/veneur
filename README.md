@@ -24,7 +24,7 @@ Veneur assumes you have a running DogStatsD on the localhost and emits metrics t
 * `veneur.flush.error_total` - Number of errors when attempting to POST metrics to Datadog.
 * `veneur.flush.metrics_total` - Total number of metrics flushed at each flush time.
 * `veneur.flush.transaction_duration_ns` - Time taken to POST metrics to Datadog.
-* `veneur.flush.worker_duration_ns` - Per-worker timing — tagged with `worker` - for flush.
+* `veneur.flush.worker_duration_ns` - Per-worker timing — tagged with `worker` - for flush. This is important as it is the time in which the worker holds a lock and is unavailable for other work.
 
 # Status
 
@@ -36,6 +36,24 @@ venuer -f example.yaml
 ```
 
 See example.yaml for a sample config. Be sure and set your Datadog API `key`!
+
+# configuration
+
+Veneur expects to have a config file supplied via `-f PATH`. The include `example.yaml` outlines the options:
+
+* `api_hostname` - The Datadog API URL to post to. Probably `https://app.datadoghq.com`.
+* `buffer_size` - How big a buffer to allocate for incoming metric lengths. Metrics longer than this will get truncated!
+* `debug` - Should we output lots of debug info? :)
+* `expiry` - How often to expire metrics that have not been used.
+* `hostname` - The hostname to be used with each metric sent. Defaults to `os.Hostname()`
+* `interval` - How often to flush. Something like 10s seems good.
+* `key` - Your Datadog API key
+* `percentiles` - The percentiles to generate from our timers and histograms. Specified as array of float64s
+* `udp_address` - The address on which to listen for metrics. Probably `:8126` so as not to interfere with normal DogStatsD.
+* `num_workers` - The number of worker goroutines to start.
+* `sample_rate` - The rate at which to sample Veneur's internal metrics. Assuming you're doing a lot of metrics, keep this very low. 0.01 is nice!
+* `stats_address` - The address to send internally generated metrics. Probably `127.0.0.1:8125` to send to a local DogStatsD
+* `tags` - Tags to add to every metric that is sent to Veneur. Expects an array of strings!
 
 # How Veneur Is Different Than Official DogStatsD
 
@@ -58,18 +76,31 @@ the resulting percentile values are meant to be more representative of a global 
 ## Lack of Host Tags
 
 By definition the hostname is not applicable to metrics that Veneur processes. Note that if you
-do include a hostname tag, Veneur will **not** strip it for you.
+do include a hostname tag, Veneur will **not** strip it for you. Veneur will add it's own hostname as configured to metrics sent to Datadog.
 
 # Performance
 
 Veneur aims to be highly performant. In local testing with sysctl defaults on a mixed wireless and wired network and 2 clients, running on a 8-core i7-2600K
-with 16GB of RAM, Veneur was able to sustain ~95k metrics processed per second, with flushes every 10 seconds. Tests used ~18,000 metric name & tag combinations.
+with 16GB of RAM and `workers: 4` in it's config, Veneur was able to sustain ~90k metrics processed per second with no drops, with flushes every 10 seconds. Tests used ~18,000 metric name & tag combinations. Steady state was no dropped UDP packets at this rate.
 
 ![Benchmark](/benchmark.png?raw=true "Benchmark")
 
 Box load was around 3.0, memory usage can be seen here from `htop`:
 
 ![Memory Usage](/memory.png?raw=true "Memory Usage")
+
+## Sysctl
+
+The following `sysctl` settings are used in testing, and are the same one would use for StatsD:
+
+```
+sysctl -w net.ipv4.udp_rmem_min=67108864
+sysctl -w net.ipv4.udp_wmem_min=67108864
+sysctl -w net.core.netdev_max_backlog=200000
+sysctl -w net.core.rmem_max=16777216
+sysctl -w net.core.rmem_default=16777216
+sysctl -w net.ipv4.udp_mem="4648512 6198016 9297024"
+```
 
 # Name
 
