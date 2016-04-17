@@ -1,9 +1,6 @@
 package veneur
 
-import (
-	"testing"
-	"time"
-)
+import "testing"
 
 func TestCounterEmpty(t *testing.T) {
 
@@ -16,14 +13,14 @@ func TestCounterEmpty(t *testing.T) {
 		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", c.tags)
 	}
 
-	metrics := c.Flush(5*time.Second, "localhost")
+	metrics := c.Flush()
 	if len(metrics) != 1 {
 		t.Errorf("Expected 1 DDMetric, got (%d)", len(metrics))
 	}
 
 	m1 := metrics[0]
-	if m1.Interval != 5 {
-		t.Errorf("Expected interval, wanted (5) got (%d)", m1.Interval)
+	if m1.Interval != 10 {
+		t.Errorf("Expected interval, wanted (10) got (%d)", m1.Interval)
 	}
 	if m1.MetricType != "rate" {
 		t.Errorf("Expected metric type, wanted (rate) got (%s)", m1.MetricType)
@@ -45,9 +42,9 @@ func TestCounterRate(t *testing.T) {
 	c.Sample(5)
 
 	// The counter returns an array with a single tuple of timestamp,value
-	metrics := c.Flush(5*time.Second, "localhost")
-	if metrics[0].Value[0][1] != 1 {
-		t.Errorf("Expected value, wanted (1) got (%f)", metrics[0].Value[0][1])
+	metrics := c.Flush()
+	if metrics[0].Value[0][1] != 0.5 {
+		t.Errorf("Expected value, wanted (0.5) got (%f)", metrics[0].Value[0][1])
 	}
 }
 
@@ -64,7 +61,7 @@ func TestGauge(t *testing.T) {
 
 	g.Sample(5)
 
-	metrics := g.Flush(5*time.Second, "localhost")
+	metrics := g.Flush()
 	if len(metrics) != 1 {
 		t.Errorf("Expected 1 DDMetric, got (%d)", len(metrics))
 	}
@@ -104,7 +101,7 @@ func TestHisto(t *testing.T) {
 	h.Sample(20)
 	h.Sample(25)
 
-	metrics := h.Flush(5*time.Second, "localhost")
+	metrics := h.Flush()
 	// We get lots of metrics back for histograms!
 	if len(metrics) != 4 {
 		t.Errorf("Expected 4 DDMetrics, got (%d)", len(metrics))
@@ -115,8 +112,8 @@ func TestHisto(t *testing.T) {
 	if m1.Name != "a.b.c.count" {
 		t.Errorf("Expected interval, wanted (a.b.c.count) got (%s)", m1.Name)
 	}
-	if m1.Interval != 5 {
-		t.Errorf("Expected interval, wanted (5) got (%d)", m1.Interval)
+	if m1.Interval != 10 {
+		t.Errorf("Expected interval, wanted (10) got (%d)", m1.Interval)
 	}
 	if m1.MetricType != "rate" {
 		t.Errorf("Expected metric type, wanted (rate) got (%s)", m1.MetricType)
@@ -126,8 +123,8 @@ func TestHisto(t *testing.T) {
 		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", m1.Tags)
 	}
 	// The counter returns an array with a single tuple of timestamp,value
-	if m1.Value[0][1] != 1 {
-		t.Errorf("Expected value, wanted (1) got (%f)", m1.Value[0][1])
+	if m1.Value[0][1] != 0.5 {
+		t.Errorf("Expected value, wanted (0.5) got (%f)", m1.Value[0][1])
 	}
 
 	// Now the max

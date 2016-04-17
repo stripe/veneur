@@ -6,7 +6,8 @@ import (
 )
 
 func TestParser(t *testing.T) {
-	m, _ := ParseMetric([]byte("a.b.c:1|c"), []string{})
+	ReadConfig("example.yaml")
+	m, _ := ParseMetric([]byte("a.b.c:1|c"))
 	if m == nil {
 		t.Error("Want metric, got nil!")
 	} else {
@@ -23,7 +24,8 @@ func TestParser(t *testing.T) {
 }
 
 func TestParserWithTags(t *testing.T) {
-	m, _ := ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"), []string{})
+	ReadConfig("example.yaml")
+	m, _ := ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
 	if m == nil {
 		t.Error("Want metric, got nil!")
 	} else {
@@ -36,19 +38,20 @@ func TestParserWithTags(t *testing.T) {
 		if m.Type != "counter" {
 			t.Errorf("Expected type, wanted (counter) got (%s)", m.Type)
 		}
-		if len(m.Tags) != 2 {
-			t.Errorf("Expected tags, wanted (2) got (%d)", len(m.Tags))
+		if len(m.Tags) != 3 {
+			t.Errorf("Expected tags, wanted (3) got (%d)", len(m.Tags))
 		}
 	}
 
-	v, valueError := ParseMetric([]byte("a.b.c:fart|c"), []string{})
+	v, valueError := ParseMetric([]byte("a.b.c:fart|c"))
 	if valueError == nil || !strings.Contains(valueError.Error(), "Invalid integer") {
 		t.Errorf("Unexpected success of invalid value (%v)", v)
 	}
 }
 
 func TestParserWithConfigTags(t *testing.T) {
-	m, _ := ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"), []string{"whiz:bang"})
+	ReadConfig("example.yaml")
+	m, _ := ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
 	if m == nil {
 		t.Error("Want metric, got nil!")
 	} else {
@@ -59,7 +62,8 @@ func TestParserWithConfigTags(t *testing.T) {
 }
 
 func TestParserWithSampleRate(t *testing.T) {
-	m, _ := ParseMetric([]byte("a.b.c:1|c|@0.1"), []string{})
+	ReadConfig("example.yaml")
+	m, _ := ParseMetric([]byte("a.b.c:1|c|@0.1"))
 	if m == nil {
 		t.Error("Want metric, got nil!")
 	} else {
@@ -77,14 +81,15 @@ func TestParserWithSampleRate(t *testing.T) {
 		}
 	}
 
-	v, valueError := ParseMetric([]byte("a.b.c:fart|c"), []string{})
+	v, valueError := ParseMetric([]byte("a.b.c:fart|c"))
 	if valueError == nil || !strings.Contains(valueError.Error(), "Invalid integer") {
 		t.Errorf("Unexpected success of invalid value (%v)", v)
 	}
 }
 
 func TestParserWithSampleRateAndTags(t *testing.T) {
-	m, _ := ParseMetric([]byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"), []string{})
+	ReadConfig("example.yaml")
+	m, _ := ParseMetric([]byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"))
 	if m == nil {
 		t.Error("Want metric, got nil!")
 	} else {
@@ -100,12 +105,12 @@ func TestParserWithSampleRateAndTags(t *testing.T) {
 		if m.SampleRate != 0.1 {
 			t.Errorf("Expected sample rate, wanted (0.1) got (%f)", m.SampleRate)
 		}
-		if len(m.Tags) != 2 {
-			t.Errorf("Expected tags, wanted (2) got (%d)", len(m.Tags))
+		if len(m.Tags) != 3 {
+			t.Errorf("Expected tags, wanted (3) got (%d)", len(m.Tags))
 		}
 	}
 
-	v, valueError := ParseMetric([]byte("a.b.c:fart|c"), []string{})
+	v, valueError := ParseMetric([]byte("a.b.c:fart|c"))
 	if valueError == nil || !strings.Contains(valueError.Error(), "Invalid integer") {
 		t.Errorf("Unexpected success of invalid value (%v)", v)
 	}

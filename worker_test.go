@@ -13,14 +13,14 @@ func TestWorker(t *testing.T) {
 	w.ProcessMetric(&m)
 
 	start := time.Now()
-	ddmetrics := w.Flush(10*time.Second, 10*time.Second, start)
+	ddmetrics := w.Flush(start)
 	if len(ddmetrics) != 1 {
 		t.Errorf("Expected (1) flushed metric, got (%d)", len(ddmetrics))
 	}
 
 	elevenSeconds := 11 * time.Second
 	expired := start.Add(elevenSeconds)
-	nometrics := w.Flush(10*time.Second, 10*time.Second, expired)
+	nometrics := w.Flush(expired)
 	if len(nometrics) != 0 {
 		t.Errorf("Expected (0) flushed metric, got (%d)", len(nometrics))
 	}

@@ -14,7 +14,7 @@ percentiles:
 sample_rate: 0.01
 stats_address: "localhost:8125"
 tags:
-#  - "foo:bar"
+ - "foo:bar"
 #  - "baz:gorch"
 udp_address: "localhost:8126"
 # Defaults to the os.Hostname()!
