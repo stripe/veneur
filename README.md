@@ -21,6 +21,7 @@ Veneur assumes you have a running DogStatsD on the localhost and emits metrics t
 
 * `veneur.packet.error_total` - Number of packets that Veneur could not parse.
 * `veneur.packet.received_total` - Number of packets received. Sample rate configurable.
+* `veneur.packet.parse_duration_ns` - Timer for packet parsing durations. Implicitly gives a `.count` for packet processing as a result.
 * `veneur.flush.error_total` - Number of errors when attempting to POST metrics to Datadog.
 * `veneur.flush.metrics_total` - Total number of metrics flushed at each flush time.
 * `veneur.flush.transaction_duration_ns` - Time taken to POST metrics to Datadog.
