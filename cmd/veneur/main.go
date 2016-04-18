@@ -60,7 +60,7 @@ func main() {
 	log.WithFields(log.Fields{
 		"address":        veneur.Config.UDPAddr,
 		"flush_interval": veneur.Config.Interval,
-		"expiry":         veneur.Config.Expiry,
+		"expiry":         veneur.Config.MetricExpiryDuration,
 	}).Info("UDP server listening")
 	serverAddr, err := net.ResolveUDPAddr("udp", veneur.Config.UDPAddr)
 	if err != nil {
