@@ -1,14 +1,16 @@
 package veneur
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestCounterEmpty(t *testing.T) {
 
 	c := NewCounter("a.b.c", []string{"a:b"})
 
-	if c.name != "a.b.c" {
-		t.Errorf("Expected name, wanted (a.b.c) got (%s)", c.name)
-	}
+	assert.Equal(t, "a.b.c", c.name, "Name")
 	if len(c.tags) != 1 && c.tags[0] != "a:b" {
 		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", c.tags)
 	}
@@ -82,6 +84,32 @@ func TestGauge(t *testing.T) {
 	if m1.Value[0][1] != 5 {
 		t.Errorf("Expected value, wanted (5) got (%f)", m1.Value[0][1])
 	}
+}
+
+func TestSet(t *testing.T) {
+
+	s := NewSet("a.b.c", []string{"a:b"}, 1000, 0.99)
+
+	assert.Equal(t, "a.b.c", s.name, "Name")
+	assert.Len(t, s.tags, 1, "Tag count")
+	assert.Equal(t, "a:b", s.tags[0], "First tag")
+
+	s.Sample(5)
+
+	s.Sample(5)
+
+	s.Sample(123)
+
+	metrics := s.Flush()
+	assert.Len(t, metrics, 1, "Flush")
+
+	m1 := metrics[0]
+	// Interval is not meaningful for this
+	assert.Equal(t, int32(0), m1.Interval, "Interval")
+	assert.Equal(t, "set", m1.MetricType, "Type")
+	assert.Len(t, m1.Tags, 1, "Tag count")
+	assert.Equal(t, "a:b", m1.Tags[0], "First tag")
+	assert.Equal(t, float64(2), m1.Value[0][1], "Value")
 }
 
 func TestHisto(t *testing.T) {

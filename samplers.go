@@ -1,10 +1,12 @@
 package veneur
 
 import (
+	"encoding/binary"
 	"fmt"
 	"time"
 
 	"github.com/rcrowley/go-metrics"
+	"github.com/willf/bloom"
 )
 
 // DDMetric is a data structure that represents the JSON that Datadog
@@ -91,6 +93,51 @@ func (g *Gauge) Flush() []DDMetric {
 // NewGauge genearaaaa who am I kidding just getting rid of the warning.
 func NewGauge(name string, tags []string) *Gauge {
 	return &Gauge{name: name, tags: tags, lastSampleTime: time.Now()}
+}
+
+// Set is a list of unique values seen.
+type Set struct {
+	name           string
+	tags           []string
+	value          int64
+	filter         *bloom.BloomFilter
+	lastSampleTime time.Time
+}
+
+// Sample checks if the supplied value has is already in the filter. If not, it increments
+// the counter!
+func (s *Set) Sample(sample int32) {
+	byteSample := make([]byte, 4)
+	binary.PutVarint(byteSample, int64(sample))
+	if !s.filter.Test(byteSample) {
+		s.filter.Add(byteSample)
+		s.value++
+	}
+}
+
+// NewSet generates a new Set and returns it
+func NewSet(name string, tags []string, setSize uint, accuracy float64) *Set {
+	return &Set{
+		name:           name,
+		tags:           tags,
+		value:          0,
+		filter:         bloom.NewWithEstimates(setSize, accuracy),
+		lastSampleTime: time.Now(),
+	}
+}
+
+// Flush takes the current state of the set, generates a
+// DDMetric then clears it.
+func (s *Set) Flush() []DDMetric {
+	v := s.value
+	s.value = 0
+	return []DDMetric{DDMetric{
+		Name:       s.name,
+		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(v)}},
+		Tags:       s.tags,
+		MetricType: "set",
+		Hostname:   Config.Hostname,
+	}}
 }
 
 // Histo is a collection of values that generates max, min, count, and

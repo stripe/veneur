@@ -15,6 +15,7 @@ type Worker struct {
 	counters   map[uint32]*Counter
 	gauges     map[uint32]*Gauge
 	histograms map[uint32]*Histo
+	sets       map[uint32]*Set
 	mutex      *sync.Mutex
 }
 
@@ -27,6 +28,7 @@ func NewWorker(id int) *Worker {
 		counters:   make(map[uint32]*Counter),
 		gauges:     make(map[uint32]*Gauge),
 		histograms: make(map[uint32]*Histo),
+		sets:       make(map[uint32]*Set),
 		mutex:      &sync.Mutex{},
 	}
 }
@@ -56,6 +58,7 @@ func (w *Worker) Start() {
 // This is standalone to facilitate testing
 func (w *Worker) ProcessMetric(m *Metric) {
 	w.mutex.Lock()
+	defer w.mutex.Unlock()
 	switch m.Type {
 	case "counter":
 		_, present := w.counters[m.Digest]
@@ -84,13 +87,19 @@ func (w *Worker) ProcessMetric(m *Metric) {
 			w.histograms[m.Digest] = NewHist(m.Name, m.Tags, Config.Percentiles)
 		}
 		w.histograms[m.Digest].Sample(m.Value)
+	case "set":
+		_, present := w.sets[m.Digest]
+		if !present {
+			log.WithFields(log.Fields{
+				"name": m.Name,
+			}).Debug("New set")
+			w.sets[m.Digest] = NewSet(m.Name, m.Tags, Config.SetSize, Config.SetAccuracy)
+		}
 	default:
 		log.WithFields(log.Fields{
 			"type": m.Type,
 		}).Error("Unknown metric type")
 	}
-
-	w.mutex.Unlock()
 }
 
 // Flush generates DDMetrics to emit. Uses the supplied time

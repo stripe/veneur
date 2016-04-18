@@ -18,6 +18,8 @@ type VeneurConfig struct {
 	Interval    time.Duration `yaml:"interval"`
 	Key         string        `yaml:"key"`
 	Percentiles []float64     `yaml:"percentiles"`
+	SetSize     uint          `yaml:"set_size"`
+	SetAccuracy float64       `yaml:"set_accuracy"`
 	UDPAddr     string        `yaml:"udp_address"`
 	NumWorkers  int           `yaml:"num_workers"`
 	SampleRate  float64       `yaml:"sample_rate"`
