@@ -5,13 +5,13 @@ Veneur (venn-urr) is a server implementation of the [DogStatsD protocol](http://
 # Motivation
 
 Veneur's intended use is as a standalone server to which multiple DogStatsD clients report, such that the metrics are *global*
-rather than host-local. This is particularly useful for histograms and timers, as in their normal, per-host configuration the
-percentiles for histograms can be less effective or even meaningless.
+rather than host-local. This is particularly useful for histograms, timers and sets, as in their normal, per-host configuration the
+percentiles for histograms can be less effective or even meaningless. Per-host unique sets are also often not what's desired.
 
 Global \*StatsD installations can be problematic, as they either require client-side or proxy sharding behavior to prevent an
 instance being a Single Point of Failure (SPoF) for all metrics. Veneur isn't much different, but attempts to lessen the risk
-by being simple and fast. It is advised that you only use Veneur for metric types for which it is beneficial (i.e. histograms and timers)
-even though it supports other metric types.
+by being simple and fast. It is advised that you only use Veneur for metric types for which it is beneficial (i.e. histograms, timers
+and sets) even though it supports other metric types.
 
 # Features
 
@@ -53,6 +53,8 @@ Veneur expects to have a config file supplied via `-f PATH`. The include `exampl
 * `udp_address` - The address on which to listen for metrics. Probably `:8126` so as not to interfere with normal DogStatsD.
 * `num_workers` - The number of worker goroutines to start.
 * `sample_rate` - The rate at which to sample Veneur's internal metrics. Assuming you're doing a lot of metrics, keep this very low. 0.01 is nice!
+* `set_size` - The cardinality of the set you'll using with sets. Too small will cause decreased accuracy.
+* `set_accuracy` - The approximate accuracy of set's approximations. More accuracy uses more memory.
 * `stats_address` - The address to send internally generated metrics. Probably `127.0.0.1:8125` to send to a local DogStatsD
 * `tags` - Tags to add to every metric that is sent to Veneur. Expects an array of strings!
 
@@ -73,6 +75,11 @@ Specifically the [forward-decaying priority reservoir](http://www.research.att.c
 
 Datadog's DogStatsD — and StatsD — uses an exact histogram which retains all samples and is reset every flush period. This means that there is a loss of precision when using Veneur, but
 the resulting percentile values are meant to be more representative of a global view.
+
+## Approximate Sets
+
+Veneur uses [Bloom filters](https://github.com/willf/bloom) for approximate unique sets. Configured via `set_size` and `set_accuracy`
+discussed above an approximate unique count is generated at each flush.
 
 ## Lack of Host Tags
 
