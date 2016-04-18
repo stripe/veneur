@@ -60,26 +60,18 @@ func TestGauge(t *testing.T) {
 	g.Sample(5, 1.0)
 
 	metrics := g.Flush()
-	if len(metrics) != 1 {
-		t.Errorf("Expected 1 DDMetric, got (%d)", len(metrics))
-	}
+	assert.Len(t, metrics, 1, "Flushed metric count")
 
 	m1 := metrics[0]
 	// Interval is not meaningful for this
-	if m1.Interval != 0 {
-		t.Errorf("Expected interval, wanted (0) got (%d)", m1.Interval)
-	}
-	if m1.MetricType != "gauge" {
-		t.Errorf("Expected metric type, wanted (gauge) got (%s)", m1.MetricType)
-	}
+	assert.Equal(t, int32(0), m1.Interval, "Interval")
+	assert.Equal(t, "gauge", m1.MetricType, "Type")
 	tags := m1.Tags
-	if len(tags) != 1 && tags[0] != "a:b" {
-		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", m1.Tags)
-	}
+	assert.Len(t, tags, 1, "Tag length")
+	assert.Equal(t, tags[0], "a:b", "Tag contents")
+
 	// The counter returns an array with a single tuple of timestamp,value
-	if m1.Value[0][1] != 5 {
-		t.Errorf("Expected value, wanted (5) got (%f)", m1.Value[0][1])
-	}
+	assert.Equal(t, float64(5), m1.Value[0][1], "Value")
 }
 
 func TestSet(t *testing.T) {
@@ -112,12 +104,9 @@ func TestHisto(t *testing.T) {
 
 	h := NewHist("a.b.c", []string{"a:b"}, []float64{0.50})
 
-	if h.name != "a.b.c" {
-		t.Errorf("Expected name, wanted (a.b.c) got (%s)", h.name)
-	}
-	if len(h.tags) != 1 && h.tags[0] != "a:b" {
-		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", h.tags)
-	}
+	assert.Equal(t, "a.b.c", h.name, "Name")
+	assert.Len(t, h.tags, 1, "Tag count")
+	assert.Equal(t, "a:b", h.tags[0], "First tag")
 
 	h.Sample(5, 1.0)
 	h.Sample(10, 1.0)
@@ -127,29 +116,19 @@ func TestHisto(t *testing.T) {
 
 	metrics := h.Flush()
 	// We get lots of metrics back for histograms!
-	if len(metrics) != 4 {
-		t.Errorf("Expected 4 DDMetrics, got (%d)", len(metrics))
-	}
+	assert.Len(t, metrics, 4, "Flushed metrics length")
 
 	// First the count
 	m1 := metrics[0]
-	if m1.Name != "a.b.c.count" {
-		t.Errorf("Expected interval, wanted (a.b.c.count) got (%s)", m1.Name)
-	}
-	if m1.Interval != 10 {
-		t.Errorf("Expected interval, wanted (10) got (%d)", m1.Interval)
-	}
-	if m1.MetricType != "rate" {
-		t.Errorf("Expected metric type, wanted (rate) got (%s)", m1.MetricType)
-	}
+	assert.Equal(t, "a.b.c.count", m1.Name, "Name")
+	assert.Equal(t, int32(10), m1.Interval, "Interval")
+	assert.Equal(t, "rate", m1.MetricType, "Type")
 	tags := m1.Tags
-	if len(tags) != 1 && tags[0] != "a:b" {
-		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", m1.Tags)
-	}
+	assert.Len(t, tags, 1, "Tag count")
+	assert.Equal(t, "a:b", tags[0], "First tag")
+
 	// The counter returns an array with a single tuple of timestamp,value
-	if m1.Value[0][1] != 0.5 {
-		t.Errorf("Expected value, wanted (0.5) got (%f)", m1.Value[0][1])
-	}
+	assert.Equal(t, float64(0.5), m1.Value[0][1], "Value")
 
 	// Now the max
 	m2 := metrics[1]
