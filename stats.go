@@ -17,4 +17,5 @@ func InitStats() {
 	}
 	Stats = nstats
 	Stats.Namespace = "veneur."
+	Stats.Tags = Config.Tags
 }

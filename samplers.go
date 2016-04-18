@@ -24,7 +24,7 @@ type DDMetric struct {
 // Sampler is a thing that takes samples and does something with them
 // to be flushed later.
 type Sampler interface {
-	Sample(int32)
+	Sample(int32, float32)
 	Flush() []DDMetric
 }
 
@@ -37,8 +37,13 @@ type Counter struct {
 }
 
 // Sample adds a sample to the counter.
-func (c *Counter) Sample(sample int32) {
-	c.value += sample
+func (c *Counter) Sample(sample int32, sampleRate float32) {
+	if sampleRate < 1.0 {
+		c.value += sample * int32(100*sampleRate)
+	} else {
+		c.value += sample
+	}
+
 	c.lastSampleTime = time.Now()
 }
 
@@ -71,7 +76,7 @@ type Gauge struct {
 }
 
 // Sample takes on whatever value is passed in as a sample.
-func (g *Gauge) Sample(sample int32) {
+func (g *Gauge) Sample(sample int32, sampleRate float32) {
 	g.value = sample
 	g.lastSampleTime = time.Now()
 }
@@ -106,7 +111,7 @@ type Set struct {
 
 // Sample checks if the supplied value has is already in the filter. If not, it increments
 // the counter!
-func (s *Set) Sample(sample int32) {
+func (s *Set) Sample(sample int32, sampleRate float32) {
 	byteSample := make([]byte, 4)
 	binary.PutVarint(byteSample, int64(sample))
 	if !s.filter.Test(byteSample) {
@@ -145,13 +150,15 @@ func (s *Set) Flush() []DDMetric {
 type Histo struct {
 	name           string
 	tags           []string
+	count          int32
 	value          metrics.Histogram
 	percentiles    []float64
 	lastSampleTime time.Time
 }
 
 // Sample adds the supplied value to the histogram.
-func (h *Histo) Sample(sample int32) {
+func (h *Histo) Sample(sample int32, sampleRate float32) {
+	h.count++
 	h.value.Update(int64(sample))
 	h.lastSampleTime = time.Now()
 }
@@ -161,6 +168,7 @@ func NewHist(name string, tags []string, percentiles []float64) *Histo {
 	return &Histo{
 		name:           name,
 		tags:           tags,
+		count:          0,
 		value:          metrics.NewHistogram(metrics.NewExpDecaySample(1028, 0.015)),
 		percentiles:    percentiles,
 		lastSampleTime: time.Now(),
@@ -171,7 +179,7 @@ func NewHist(name string, tags []string, percentiles []float64) *Histo {
 // Histo.
 func (h *Histo) Flush() []DDMetric {
 	now := float64(time.Now().Unix())
-	rate := float64(h.value.Count()) / Config.Interval.Seconds()
+	rate := float64(h.count) / Config.Interval.Seconds()
 	metrics := []DDMetric{
 		DDMetric{
 			Name:       fmt.Sprintf("%s.count", h.name),

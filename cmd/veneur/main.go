@@ -103,7 +103,7 @@ func main() {
 	}()
 
 	for {
-		buf := make([]byte, veneur.Config.BufferSize)
+		buf := make([]byte, veneur.Config.MetricMaxLength)
 		n, err := serverConn.Read(buf)
 		if err != nil {
 			log.WithFields(log.Fields{

@@ -1,8 +1,8 @@
 ---
 api_hostname: https://app.datadoghq.com
-buffer_size: 4096
+metric_max_length: 4096
 debug: true
-expiry: "5m"
+metric_expiry_duration: "5m"
 interval: "10s"
 key: "farts"
 listen: ":8126"

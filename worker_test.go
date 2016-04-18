@@ -3,25 +3,23 @@ package veneur
 import (
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestWorker(t *testing.T) {
 	ReadConfig("example.yaml")
 	w := NewWorker(1)
 
-	m := Metric{Name: "a.b.c", Digest: 12345, Type: "counter"}
+	m := Metric{Name: "a.b.c", Value: 1, Digest: 12345, Type: "counter", SampleRate: 1.0}
 	w.ProcessMetric(&m)
 
 	start := time.Now()
 	ddmetrics := w.Flush(start)
-	if len(ddmetrics) != 1 {
-		t.Errorf("Expected (1) flushed metric, got (%d)", len(ddmetrics))
-	}
+	assert.Len(t, ddmetrics, 1, "Number of flushed metrics")
 
 	elevenSeconds := 11 * time.Second
 	expired := start.Add(elevenSeconds)
 	nometrics := w.Flush(expired)
-	if len(nometrics) != 0 {
-		t.Errorf("Expected (0) flushed metric, got (%d)", len(nometrics))
-	}
+	assert.Len(t, nometrics, 0, "Should flush no metrics")
 }

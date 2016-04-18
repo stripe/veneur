@@ -9,6 +9,7 @@ import (
 func TestCounterEmpty(t *testing.T) {
 
 	c := NewCounter("a.b.c", []string{"a:b"})
+	c.Sample(1, 1.0)
 
 	assert.Equal(t, "a.b.c", c.name, "Name")
 	if len(c.tags) != 1 && c.tags[0] != "a:b" {
@@ -32,7 +33,7 @@ func TestCounterEmpty(t *testing.T) {
 		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", m1.Tags)
 	}
 	// The counter returns an array with a single tuple of timestamp,value
-	if m1.Value[0][1] != 0 {
+	if m1.Value[0][1] != 0.1 {
 		t.Errorf("Expected value, wanted (0) got (%f)", m1.Value[0][1])
 	}
 }
@@ -41,7 +42,7 @@ func TestCounterRate(t *testing.T) {
 
 	c := NewCounter("a.b.c", []string{"a:b"})
 
-	c.Sample(5)
+	c.Sample(5, 1.0)
 
 	// The counter returns an array with a single tuple of timestamp,value
 	metrics := c.Flush()
@@ -61,7 +62,7 @@ func TestGauge(t *testing.T) {
 		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", g.tags)
 	}
 
-	g.Sample(5)
+	g.Sample(5, 1.0)
 
 	metrics := g.Flush()
 	if len(metrics) != 1 {
@@ -94,11 +95,11 @@ func TestSet(t *testing.T) {
 	assert.Len(t, s.tags, 1, "Tag count")
 	assert.Equal(t, "a:b", s.tags[0], "First tag")
 
-	s.Sample(5)
+	s.Sample(5, 1.0)
 
-	s.Sample(5)
+	s.Sample(5, 1.0)
 
-	s.Sample(123)
+	s.Sample(123, 1.0)
 
 	metrics := s.Flush()
 	assert.Len(t, metrics, 1, "Flush")
@@ -123,11 +124,11 @@ func TestHisto(t *testing.T) {
 		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", h.tags)
 	}
 
-	h.Sample(5)
-	h.Sample(10)
-	h.Sample(15)
-	h.Sample(20)
-	h.Sample(25)
+	h.Sample(5, 1.0)
+	h.Sample(10, 1.0)
+	h.Sample(15, 1.0)
+	h.Sample(20, 1.0)
+	h.Sample(25, 1.0)
 
 	metrics := h.Flush()
 	// We get lots of metrics back for histograms!

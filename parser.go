@@ -29,7 +29,7 @@ func ParseMetric(packet []byte) (*Metric, error) {
 	var metricValue int64
 	var metricType string
 	var metricTags []string
-	var metricSampleRate float64
+	metricSampleRate := float64(1.0)
 	if len(parts) < 2 {
 		return nil, errors.New("Invalid metric packet, need at least 1 colon")
 	}

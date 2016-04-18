@@ -68,7 +68,7 @@ func (w *Worker) ProcessMetric(m *Metric) {
 			}).Debug("New counter")
 			w.counters[m.Digest] = NewCounter(m.Name, m.Tags)
 		}
-		w.counters[m.Digest].Sample(m.Value)
+		w.counters[m.Digest].Sample(m.Value, m.SampleRate)
 	case "gauge":
 		_, present := w.gauges[m.Digest]
 		if !present {
@@ -77,7 +77,7 @@ func (w *Worker) ProcessMetric(m *Metric) {
 			}).Debug("New gauge")
 			w.gauges[m.Digest] = NewGauge(m.Name, m.Tags)
 		}
-		w.gauges[m.Digest].Sample(m.Value)
+		w.gauges[m.Digest].Sample(m.Value, m.SampleRate)
 	case "histogram", "timer":
 		_, present := w.histograms[m.Digest]
 		if !present {
@@ -86,7 +86,7 @@ func (w *Worker) ProcessMetric(m *Metric) {
 			}).Debug("New histogram")
 			w.histograms[m.Digest] = NewHist(m.Name, m.Tags, Config.Percentiles)
 		}
-		w.histograms[m.Digest].Sample(m.Value)
+		w.histograms[m.Digest].Sample(m.Value, m.SampleRate)
 	case "set":
 		_, present := w.sets[m.Digest]
 		if !present {
@@ -132,27 +132,34 @@ func (w *Worker) Flush(currTime time.Time) []DDMetric {
 	// TODO This should probably be a single function that passes in the metrics and the
 	// map
 	for k, v := range counters {
-		if currTime.Sub(v.lastSampleTime) > Config.Expiry {
+		expired := int64(0)
+		if currTime.Sub(v.lastSampleTime) > Config.MetricExpiryDuration {
 			log.WithFields(log.Fields{
 				"name": v.name,
 			}).Debug("Expiring counter")
 			delete(w.counters, k)
+			expired++
 		} else {
 			postMetrics = append(postMetrics, v.Flush()...)
 		}
+		Stats.Count("expire.metrics_total", expired, []string{"type:counter"}, Config.SampleRate)
 	}
 	for k, v := range gauges {
-		if currTime.Sub(v.lastSampleTime) > Config.Expiry {
+		expired := int64(0)
+		if currTime.Sub(v.lastSampleTime) > Config.MetricExpiryDuration {
 			log.WithFields(log.Fields{
 				"name": v.name,
 			}).Debug("Expiring gauge")
 			delete(w.gauges, k)
+			expired++
 		} else {
 			postMetrics = append(postMetrics, v.Flush()...)
 		}
+		Stats.Count("expire.metrics_total", expired, []string{"type:gauge"}, Config.SampleRate)
 	}
 	for k, v := range histograms {
-		if currTime.Sub(v.lastSampleTime) > Config.Expiry {
+		expired := 0
+		if currTime.Sub(v.lastSampleTime) > Config.MetricExpiryDuration {
 			log.WithFields(log.Fields{
 				"name": v.name,
 			}).Debug("Expiring histogram")
@@ -160,7 +167,9 @@ func (w *Worker) Flush(currTime time.Time) []DDMetric {
 		} else {
 			postMetrics = append(postMetrics, v.Flush()...)
 		}
+		Stats.Count("expire.metrics_total", int64(expired), []string{"type:histogram"}, Config.SampleRate)
 	}
+
 	return postMetrics
 }
 

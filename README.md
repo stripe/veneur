@@ -19,6 +19,7 @@ and sets) even though it supports other metric types.
 
 Veneur assumes you have a running DogStatsD on the localhost and emits metrics to it's default port of 8125. Those metrics are:
 
+* `veneur.expire.metrics_total` - Number of metrics that expired due to inactivity.
 * `veneur.packet.error_total` - Number of packets that Veneur could not parse.
 * `veneur.packet.received_total` - Number of packets received. Sample rate configurable.
 * `veneur.packet.parse_duration_ns` - Timer for packet parsing durations. Implicitly gives a `.count` for packet processing as a result.
@@ -43,7 +44,7 @@ See example.yaml for a sample config. Be sure and set your Datadog API `key`!
 Veneur expects to have a config file supplied via `-f PATH`. The include `example.yaml` outlines the options:
 
 * `api_hostname` - The Datadog API URL to post to. Probably `https://app.datadoghq.com`.
-* `buffer_size` - How big a buffer to allocate for incoming metric lengths. Metrics longer than this will get truncated!
+* `metric_max_length` - How big a buffer to allocate for incoming metric lengths. Metrics longer than this will get truncated!
 * `debug` - Should we output lots of debug info? :)
 * `expiry` - How often to expire metrics that have not been used.
 * `hostname` - The hostname to be used with each metric sent. Defaults to `os.Hostname()`
