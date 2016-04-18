@@ -12,30 +12,19 @@ func TestCounterEmpty(t *testing.T) {
 	c.Sample(1, 1.0)
 
 	assert.Equal(t, "a.b.c", c.name, "Name")
-	if len(c.tags) != 1 && c.tags[0] != "a:b" {
-		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", c.tags)
-	}
+	assert.Len(t, c.tags, 1, "Tag length")
+	assert.Equal(t, c.tags[0], "a:b", "Tag contents")
 
 	metrics := c.Flush()
-	if len(metrics) != 1 {
-		t.Errorf("Expected 1 DDMetric, got (%d)", len(metrics))
-	}
+	assert.Len(t, metrics, 1, "Flushes 1 metric")
 
 	m1 := metrics[0]
-	if m1.Interval != 10 {
-		t.Errorf("Expected interval, wanted (10) got (%d)", m1.Interval)
-	}
-	if m1.MetricType != "rate" {
-		t.Errorf("Expected metric type, wanted (rate) got (%s)", m1.MetricType)
-	}
-	tags := m1.Tags
-	if len(tags) != 1 && tags[0] != "a:b" {
-		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", m1.Tags)
-	}
+	assert.Equal(t, int32(10), m1.Interval, "Interval")
+	assert.Equal(t, "rate", m1.MetricType, "Type")
+	assert.Len(t, c.tags, 1, "Tag length")
+	assert.Equal(t, c.tags[0], "a:b", "Tag contents")
 	// The counter returns an array with a single tuple of timestamp,value
-	if m1.Value[0][1] != 0.1 {
-		t.Errorf("Expected value, wanted (0) got (%f)", m1.Value[0][1])
-	}
+	assert.Equal(t, 0.1, m1.Value[0][1], "Metric value")
 }
 
 func TestCounterRate(t *testing.T) {
@@ -46,21 +35,16 @@ func TestCounterRate(t *testing.T) {
 
 	// The counter returns an array with a single tuple of timestamp,value
 	metrics := c.Flush()
-	if metrics[0].Value[0][1] != 0.5 {
-		t.Errorf("Expected value, wanted (0.5) got (%f)", metrics[0].Value[0][1])
-	}
+	assert.Equal(t, 0.5, metrics[0].Value[0][1], "Metric value")
 }
 
 func TestGauge(t *testing.T) {
 
 	g := NewGauge("a.b.c", []string{"a:b"})
 
-	if g.name != "a.b.c" {
-		t.Errorf("Expected name, wanted (a.b.c) got (%s)", g.name)
-	}
-	if len(g.tags) != 1 && g.tags[0] != "a:b" {
-		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", g.tags)
-	}
+	assert.Equal(t, "a.b.c", g.name, "Name")
+	assert.Len(t, g.tags, 1, "Tag length")
+	assert.Equal(t, g.tags[0], "a:b", "Tag contents")
 
 	g.Sample(5, 1.0)
 
