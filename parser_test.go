@@ -1,117 +1,102 @@
 package veneur
 
 import (
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParser(t *testing.T) {
 	ReadConfig("example.yaml")
 	m, _ := ParseMetric([]byte("a.b.c:1|c"))
-	if m == nil {
-		t.Error("Want metric, got nil!")
-	} else {
-		if m.Name != "a.b.c" {
-			t.Errorf("Expected name, wanted (a.b.c) got (%s)", m.Name)
-		}
-		if m.Value != 1 {
-			t.Errorf("Expected value, wanted (1) got (%d)", m.Value)
-		}
-		if m.Type != "counter" {
-			t.Errorf("Expected type, wanted (counter) got (%s)", m.Type)
-		}
-	}
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, "a.b.c", m.Name, "Name")
+	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, "counter", m.Type, "Type")
+}
+
+func TestParserGauge(t *testing.T) {
+	ReadConfig("example.yaml")
+	m, _ := ParseMetric([]byte("a.b.c:1|g"))
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, "a.b.c", m.Name, "Name")
+	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, "gauge", m.Type, "Type")
+}
+
+func TestParserHistogram(t *testing.T) {
+	ReadConfig("example.yaml")
+	m, _ := ParseMetric([]byte("a.b.c:1|h"))
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, "a.b.c", m.Name, "Name")
+	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, "histogram", m.Type, "Type")
+}
+
+func TestParserTimer(t *testing.T) {
+	ReadConfig("example.yaml")
+	m, _ := ParseMetric([]byte("a.b.c:1|ms"))
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, "a.b.c", m.Name, "Name")
+	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, "timer", m.Type, "Type")
+}
+
+func TestParserSet(t *testing.T) {
+	ReadConfig("example.yaml")
+	m, _ := ParseMetric([]byte("a.b.c:1|s"))
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, "a.b.c", m.Name, "Name")
+	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, "set", m.Type, "Type")
 }
 
 func TestParserWithTags(t *testing.T) {
 	ReadConfig("example.yaml")
 	m, _ := ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
-	if m == nil {
-		t.Error("Want metric, got nil!")
-	} else {
-		if m.Name != "a.b.c" {
-			t.Errorf("Expected name, wanted (a.b.c) got (%s)", m.Name)
-		}
-		if m.Value != 1 {
-			t.Errorf("Expected value, wanted (1) got (%d)", m.Value)
-		}
-		if m.Type != "counter" {
-			t.Errorf("Expected type, wanted (counter) got (%s)", m.Type)
-		}
-		if len(m.Tags) != 3 {
-			t.Errorf("Expected tags, wanted (3) got (%d)", len(m.Tags))
-		}
-	}
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, "a.b.c", m.Name, "Name")
+	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, "counter", m.Type, "Type")
+	assert.Equal(t, 3, len(m.Tags), "# of Tags")
 
-	v, valueError := ParseMetric([]byte("a.b.c:fart|c"))
-	if valueError == nil || !strings.Contains(valueError.Error(), "Invalid integer") {
-		t.Errorf("Unexpected success of invalid value (%v)", v)
-	}
+	_, valueError := ParseMetric([]byte("a.b.c:fart|c"))
+	assert.NotNil(t, valueError, "No errors when parsing")
+	assert.Contains(t, valueError.Error(), "Invalid integer", "Invalid integer error missing")
 }
 
 func TestParserWithConfigTags(t *testing.T) {
 	ReadConfig("example.yaml")
 	m, _ := ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
-	if m == nil {
-		t.Error("Want metric, got nil!")
-	} else {
-		if len(m.Tags) != 3 {
-			t.Errorf("Expected tags, wanted (3) got (%d)", len(m.Tags))
-		}
-	}
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Len(t, m.Tags, 3, "Tags")
 }
 
 func TestParserWithSampleRate(t *testing.T) {
 	ReadConfig("example.yaml")
 	m, _ := ParseMetric([]byte("a.b.c:1|c|@0.1"))
-	if m == nil {
-		t.Error("Want metric, got nil!")
-	} else {
-		if m.Name != "a.b.c" {
-			t.Errorf("Expected name, wanted (a.b.c) got (%s)", m.Name)
-		}
-		if m.Value != 1 {
-			t.Errorf("Expected value, wanted (1) got (%d)", m.Value)
-		}
-		if m.Type != "counter" {
-			t.Errorf("Expected type, wanted (counter) got (%s)", m.Type)
-		}
-		if m.SampleRate != 0.1 {
-			t.Errorf("Expected sample rate, wanted (0.1) got (%f)", m.SampleRate)
-		}
-	}
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, "a.b.c", m.Name, "Name")
+	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, "counter", m.Type, "Type")
+	assert.Equal(t, float32(0.1), m.SampleRate, "Sample Rate")
 
-	v, valueError := ParseMetric([]byte("a.b.c:fart|c"))
-	if valueError == nil || !strings.Contains(valueError.Error(), "Invalid integer") {
-		t.Errorf("Unexpected success of invalid value (%v)", v)
-	}
+	_, valueError := ParseMetric([]byte("a.b.c:fart|c"))
+	assert.NotNil(t, valueError, "No errors when parsing")
+	assert.Contains(t, valueError.Error(), "Invalid integer", "Invalid integer error missing")
 }
 
 func TestParserWithSampleRateAndTags(t *testing.T) {
 	ReadConfig("example.yaml")
 	m, _ := ParseMetric([]byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"))
-	if m == nil {
-		t.Error("Want metric, got nil!")
-	} else {
-		if m.Name != "a.b.c" {
-			t.Errorf("Expected name, wanted (a.b.c) got (%s)", m.Name)
-		}
-		if m.Value != 1 {
-			t.Errorf("Expected value, wanted (1) got (%d)", m.Value)
-		}
-		if m.Type != "counter" {
-			t.Errorf("Expected type, wanted (counter) got (%s)", m.Type)
-		}
-		if m.SampleRate != 0.1 {
-			t.Errorf("Expected sample rate, wanted (0.1) got (%f)", m.SampleRate)
-		}
-		if len(m.Tags) != 3 {
-			t.Errorf("Expected tags, wanted (3) got (%d)", len(m.Tags))
-		}
-	}
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, "a.b.c", m.Name, "Name")
+	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, "counter", m.Type, "Type")
+	assert.Equal(t, float32(0.1), m.SampleRate, "Sample Rate")
+	assert.Len(t, m.Tags, 3, "Tags")
 
-	v, valueError := ParseMetric([]byte("a.b.c:fart|c"))
-	if valueError == nil || !strings.Contains(valueError.Error(), "Invalid integer") {
-		t.Errorf("Unexpected success of invalid value (%v)", v)
-	}
+	_, valueError := ParseMetric([]byte("a.b.c:fart|c"))
+	assert.NotNil(t, valueError, "No errors when parsing")
+	assert.Contains(t, valueError.Error(), "Invalid integer", "Invalid integer error missing")
 }
