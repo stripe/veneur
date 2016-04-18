@@ -38,12 +38,7 @@ type Counter struct {
 
 // Sample adds a sample to the counter.
 func (c *Counter) Sample(sample int32, sampleRate float32) {
-	if sampleRate < 1.0 {
-		c.value += sample * int32(100*sampleRate)
-	} else {
-		c.value += sample
-	}
-
+	c.value += sample * int32(1/sampleRate)
 	c.lastSampleTime = time.Now()
 }
 
@@ -158,7 +153,7 @@ type Histo struct {
 
 // Sample adds the supplied value to the histogram.
 func (h *Histo) Sample(sample int32, sampleRate float32) {
-	h.count++
+	h.count += 1 * int32(1/sampleRate)
 	h.value.Update(int64(sample))
 	h.lastSampleTime = time.Now()
 }

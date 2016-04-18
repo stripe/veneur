@@ -38,6 +38,17 @@ func TestCounterRate(t *testing.T) {
 	assert.Equal(t, 0.5, metrics[0].Value[0][1], "Metric value")
 }
 
+func TestCounterSampleRate(t *testing.T) {
+
+	c := NewCounter("a.b.c", []string{"a:b"})
+
+	c.Sample(5, 0.5)
+
+	// The counter returns an array with a single tuple of timestamp,value
+	metrics := c.Flush()
+	assert.Equal(t, float64(1), metrics[0].Value[0][1], "Metric value")
+}
+
 func TestGauge(t *testing.T) {
 
 	g := NewGauge("a.b.c", []string{"a:b"})
@@ -196,4 +207,27 @@ func TestHisto(t *testing.T) {
 	if m4.Value[0][1] != 15 {
 		t.Errorf("Expected value, wanted (15) got (%f)", m4.Value[0][1])
 	}
+}
+
+func TestHistoSampleRate(t *testing.T) {
+
+	h := NewHist("a.b.c", []string{"a:b"}, []float64{0.50})
+
+	assert.Equal(t, "a.b.c", h.name, "Name")
+	assert.Len(t, h.tags, 1, "Tag length")
+	assert.Equal(t, h.tags[0], "a:b", "Tag contents")
+
+	h.Sample(5, 0.5)
+	h.Sample(10, 0.5)
+	h.Sample(15, 0.5)
+	h.Sample(20, 0.5)
+	h.Sample(25, 0.5)
+
+	metrics := h.Flush()
+	assert.Len(t, metrics, 4, "Metrics flush length")
+
+	// First the count
+	m1 := metrics[0]
+	assert.Equal(t, "a.b.c.count", m1.Name, "Count name")
+	assert.Equal(t, float64(1), m1.Value[0][1], "Sampled count as rate")
 }
