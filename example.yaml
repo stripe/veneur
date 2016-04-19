@@ -2,7 +2,6 @@
 api_hostname: https://app.datadoghq.com
 metric_max_length: 4096
 debug: true
-metric_expiry_duration: "5m"
 interval: "10s"
 key: "farts"
 listen: ":8126"

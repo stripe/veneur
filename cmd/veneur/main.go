@@ -60,7 +60,6 @@ func main() {
 	log.WithFields(log.Fields{
 		"address":        veneur.Config.UDPAddr,
 		"flush_interval": veneur.Config.Interval,
-		"expiry":         veneur.Config.MetricExpiryDuration,
 	}).Info("UDP server listening")
 	serverAddr, err := net.ResolveUDPAddr("udp", veneur.Config.UDPAddr)
 	if err != nil {
@@ -83,13 +82,12 @@ func main() {
 	go func() {
 		for t := range ticker.C {
 			metrics := make([][]veneur.DDMetric, veneur.Config.NumWorkers)
-			flushTime := time.Now()
 			for i, w := range workers {
 				log.WithFields(log.Fields{
 					"worker": i,
 					"tick":   t,
 				}).Debug("Flushing")
-				metrics = append(metrics, w.Flush(flushTime))
+				metrics = append(metrics, w.Flush())
 			}
 			fstart := time.Now()
 			flush(metrics)

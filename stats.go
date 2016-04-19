@@ -5,9 +5,10 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
+// Stats is a global stats Client that all underlying bits will use.
 var Stats *statsd.Client
 
-// Setup creates the DogStatsD client for use inside veneur.
+// InitStats creates the DogStatsD client for use inside veneur.
 func InitStats() {
 	nstats, err := statsd.New(Config.StatsAddr)
 	if err != nil {
