@@ -19,7 +19,6 @@ and sets) even though it supports other metric types.
 
 Veneur assumes you have a running DogStatsD on the localhost and emits metrics to it's default port of 8125. Those metrics are:
 
-* `veneur.expire.metrics_total` - Number of metrics that expired due to inactivity.
 * `veneur.packet.error_total` - Number of packets that Veneur could not parse.
 * `veneur.packet.received_total` - Number of packets received. Sample rate configurable.
 * `veneur.packet.parse_duration_ns` - Timer for packet parsing durations. Implicitly gives a `.count` for packet processing as a result.
@@ -46,7 +45,6 @@ Veneur expects to have a config file supplied via `-f PATH`. The include `exampl
 * `api_hostname` - The Datadog API URL to post to. Probably `https://app.datadoghq.com`.
 * `metric_max_length` - How big a buffer to allocate for incoming metric lengths. Metrics longer than this will get truncated!
 * `debug` - Should we output lots of debug info? :)
-* `expiry` - How often to expire metrics that have not been used.
 * `hostname` - The hostname to be used with each metric sent. Defaults to `os.Hostname()`
 * `interval` - How often to flush. Something like 10s seems good.
 * `key` - Your Datadog API key
@@ -86,6 +84,10 @@ discussed above an approximate unique count is generated at each flush.
 
 By definition the hostname is not applicable to metrics that Veneur processes. Note that if you
 do include a hostname tag, Veneur will **not** strip it for you. Veneur will add it's own hostname as configured to metrics sent to Datadog.
+
+## Expiration
+
+Veneur expires all metrics on each flush. If a metric is no longer being sent (or is sent sparsely) Veneur will not send it as zeros!
 
 # Performance
 
