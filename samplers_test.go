@@ -94,7 +94,7 @@ func TestSet(t *testing.T) {
 	m1 := metrics[0]
 	// Interval is not meaningful for this
 	assert.Equal(t, int32(0), m1.Interval, "Interval")
-	assert.Equal(t, "set", m1.MetricType, "Type")
+	assert.Equal(t, "gauge", m1.MetricType, "Type")
 	assert.Len(t, m1.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m1.Tags[0], "First tag")
 	assert.Equal(t, float64(2), m1.Value[0][1], "Value")
