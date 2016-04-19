@@ -136,7 +136,7 @@ func (s *Set) Flush() []DDMetric {
 		Name:       s.name,
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(v)}},
 		Tags:       s.tags,
-		MetricType: "set",
+		MetricType: "gauge",
 		Hostname:   Config.Hostname,
 	}}
 }

@@ -97,6 +97,7 @@ func (w *Worker) ProcessMetric(m *Metric) {
 			}).Debug("New set")
 			w.sets[m.Digest] = NewSet(m.Name, m.Tags, Config.SetSize, Config.SetAccuracy)
 		}
+		w.sets[m.Digest].Sample(m.Value, m.SampleRate)
 	case "timer":
 		_, present := w.timers[m.Digest]
 		if !present {
