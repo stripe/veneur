@@ -123,69 +123,41 @@ func TestHisto(t *testing.T) {
 	assert.Equal(t, "a.b.c.count", m1.Name, "Name")
 	assert.Equal(t, int32(10), m1.Interval, "Interval")
 	assert.Equal(t, "rate", m1.MetricType, "Type")
-	tags := m1.Tags
-	assert.Len(t, tags, 1, "Tag count")
-	assert.Equal(t, "a:b", tags[0], "First tag")
+	assert.Len(t, m1.Tags, 1, "Tag count")
+	assert.Equal(t, "a:b", m1.Tags[0], "First tag")
 
 	// The counter returns an array with a single tuple of timestamp,value
 	assert.Equal(t, float64(0.5), m1.Value[0][1], "Value")
 
 	// Now the max
 	m2 := metrics[1]
-	if m2.Name != "a.b.c.max" {
-		t.Errorf("Expected interval, wanted (a.b.c.max) got (%s)", m2.Name)
-	}
-	if m2.Interval != 0 {
-		t.Errorf("Expected interval, wanted (0) got (%d)", m2.Interval)
-	}
-	if m2.MetricType != "gauge" {
-		t.Errorf("Expected metric type, wanted (gauge) got (%s)", m2.MetricType)
-	}
-	if len(m2.Tags) != 1 && m2.Tags[0] != "a:b" {
-		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", m2.Tags)
-	}
+	assert.Equal(t, "a.b.c.max", m2.Name, "Name")
+	assert.Equal(t, int32(0), m2.Interval, "Interval")
+	assert.Equal(t, "gauge", m2.MetricType, "Type")
+	assert.Len(t, m2.Tags, 1, "Tag count")
+	assert.Equal(t, "a:b", m2.Tags[0], "First tag")
 	// The counter returns an array with a single tuple of timestamp,value
-	if m2.Value[0][1] != 25 {
-		t.Errorf("Expected value, wanted (1) got (%f)", m2.Value[0][1])
-	}
+	assert.Equal(t, float64(25), m2.Value[0][1], "Value")
 
 	// Now the min
 	m3 := metrics[2]
-	if m3.Name != "a.b.c.min" {
-		t.Errorf("Expected interval, wanted (a.b.c.min) got (%s)", m3.Name)
-	}
-	if m3.Interval != 0 {
-		t.Errorf("Expected interval, wanted (0) got (%d)", m3.Interval)
-	}
-	if m3.MetricType != "gauge" {
-		t.Errorf("Expected metric type, wanted (gauge) got (%s)", m3.MetricType)
-	}
-	if len(m3.Tags) != 1 && m3.Tags[0] != "a:b" {
-		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", m3.Tags)
-	}
+	assert.Equal(t, "a.b.c.min", m3.Name, "Name")
+	assert.Equal(t, int32(0), m3.Interval, "Interval")
+	assert.Equal(t, "gauge", m3.MetricType, "Type")
+	assert.Len(t, m3.Tags, 1, "Tag count")
+	assert.Equal(t, "a:b", m3.Tags[0], "First tag")
 	// The counter returns an array with a single tuple of timestamp,value
-	if m3.Value[0][1] != 5 {
-		t.Errorf("Expected value, wanted (2) got (%f)", m3.Value[0][1])
-	}
+	assert.Equal(t, float64(5), m3.Value[0][1], "Value")
 
 	// And the percentile
 	m4 := metrics[3]
-	if m4.Name != "a.b.c.50percentile" {
-		t.Errorf("Expected interval, wanted (a.b.c.50percentile) got (%s)", m4.Name)
-	}
-	if m4.Interval != 0 {
-		t.Errorf("Expected interval, wanted (0) got (%d)", m4.Interval)
-	}
-	if m4.MetricType != "gauge" {
-		t.Errorf("Expected metric type, wanted (gauge) got (%s)", m4.MetricType)
-	}
-	if len(m4.Tags) != 1 && m4.Tags[0] != "a:b" {
-		t.Errorf("Expected tags, wanted ([\"a:b\"]) got (%v)", m4.Tags)
-	}
+	assert.Equal(t, "a.b.c.50percentile", m4.Name, "Name")
+	assert.Equal(t, int32(0), m4.Interval, "Interval")
+	assert.Equal(t, "gauge", m4.MetricType, "Type")
+	assert.Len(t, m4.Tags, 1, "Tag count")
+	assert.Equal(t, "a:b", m4.Tags[0], "First tag")
 	// The counter returns an array with a single tuple of timestamp,value
-	if m4.Value[0][1] != 15 {
-		t.Errorf("Expected value, wanted (15) got (%f)", m4.Value[0][1])
-	}
+	assert.Equal(t, float64(15), m4.Value[0][1], "Value")
 }
 
 func TestHistoSampleRate(t *testing.T) {
