@@ -118,9 +118,10 @@ func (s *Set) Sample(sample int32, sampleRate float32) {
 // NewSet generates a new Set and returns it
 func NewSet(name string, tags []string, setSize uint, accuracy float64) *Set {
 	return &Set{
-		name:           name,
-		tags:           tags,
-		value:          0,
+		name:  name,
+		tags:  tags,
+		value: 0,
+		// TODO We could likely set this based on the set size at last flush to dynamically adjust the storage?
 		filter:         bloom.NewWithEstimates(setSize, accuracy),
 		lastSampleTime: time.Now(),
 	}
