@@ -99,7 +99,7 @@ with flushes every 10 seconds. Tests used ~24,000 metric name & tag combinations
 
 ![Benchmark](/benchmark.png?raw=true "Benchmark")
 
-Box load was around 3.0, memory usage can be seen here from `htop`:
+Box load was around 8, memory usage can be seen here from `htop`:
 
 ![Memory Usage](/memory.png?raw=true "Memory Usage")
 
