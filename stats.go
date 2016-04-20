@@ -10,7 +10,7 @@ var Stats *statsd.Client
 
 // InitStats creates the DogStatsD client for use inside veneur.
 func InitStats() {
-	nstats, err := statsd.New(Config.StatsAddr)
+	nstats, err := statsd.NewBuffered(Config.StatsAddr, 1024)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,

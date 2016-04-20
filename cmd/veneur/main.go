@@ -69,6 +69,7 @@ func main() {
 	}
 
 	serverConn, err := net.ListenUDP("udp", serverAddr)
+
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
@@ -100,36 +101,46 @@ func main() {
 		}
 	}()
 
+	// Creates N workers to handle incoming packets, parsing them,
+	// hashing them and dispatching them on to workers that do the storage.
+	parserChan := make(chan []byte)
+	for i := 0; i < veneur.Config.NumWorkers; i++ {
+		go func() {
+			for {
+				select {
+				case m := <-parserChan:
+					handlePacket(workers, m)
+				}
+			}
+		}()
+	}
+
+	// Read forever!
 	for {
 		buf := make([]byte, veneur.Config.MetricMaxLength)
-		n, err := serverConn.Read(buf)
+		n, _, err := serverConn.ReadFromUDP(buf)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"error": err,
 			}).Error("Error reading from UDP")
 			continue
 		}
-		handlePacket(workers, buf[:n])
+		select {
+		case parserChan <- buf[:n]:
+		}
 	}
 }
 
 func handlePacket(workers []*veneur.Worker, packet []byte) {
-	pstart := time.Now()
 	m, err := veneur.ParseMetric(packet)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"error": err,
+			"error":  err,
+			"packet": packet,
 		}).Error("Error parsing packet")
 		veneur.Stats.Count("packet.error_total", 1, nil, 1.0)
 		return
 	}
-
-	veneur.Stats.TimeInMilliseconds(
-		"packet.parse_duration_ns",
-		float64(time.Now().Sub(pstart).Nanoseconds()),
-		[]string{fmt.Sprintf("type:%s", m.Type)},
-		veneur.Config.SampleRate,
-	)
 
 	// Hash the incoming key so we can consistently choose a worker
 	// by modding the digest
@@ -140,7 +151,9 @@ func handlePacket(workers []*veneur.Worker, packet []byte) {
 	// We're ready to have a worker process this packet, so add it
 	// to the work queue. Note that if the queue is full, we'll block
 	// here.
-	workers[index].WorkChan <- *m
+	select {
+	case workers[index].WorkChan <- *m:
+	}
 }
 
 // Flush takes the slices of metrics, combines then and marshals them to json

@@ -20,8 +20,6 @@ and sets) even though it supports other metric types.
 Veneur assumes you have a running DogStatsD on the localhost and emits metrics to it's default port of 8125. Those metrics are:
 
 * `veneur.packet.error_total` - Number of packets that Veneur could not parse.
-* `veneur.packet.received_total` - Number of packets received. Sample rate configurable.
-* `veneur.packet.parse_duration_ns` - Timer for packet parsing durations. Implicitly gives a `.count` for packet processing as a result.
 * `veneur.flush.error_total` - Number of errors when attempting to POST metrics to Datadog.
 * `veneur.flush.metrics_total` - Total number of metrics flushed at each flush time.
 * `veneur.flush.transaction_duration_ns` - Time taken to POST metrics to Datadog.
@@ -91,8 +89,13 @@ Veneur expires all metrics on each flush. If a metric is no longer being sent (o
 
 # Performance
 
+Processing packets quickly is the name of the game.
+
+## Benchmarks
+
 Veneur aims to be highly performant. In local testing with sysctl defaults on a mixed wireless and wired network and 2 clients, running on a 8-core i7-2600K
-with 16GB of RAM and `workers: 4` in it's config, Veneur was able to sustain ~90k metrics processed per second with no drops, with flushes every 10 seconds. Tests used ~18,000 metric name & tag combinations. Steady state was no dropped UDP packets at this rate.
+with 16GB of RAM and `workers: 96` in it's config, Veneur was able to sustain ~150k metrics processed per second with no drops on the loopback interface,
+with flushes every 10 seconds. Tests used ~24,000 metric name & tag combinations.
 
 ![Benchmark](/benchmark.png?raw=true "Benchmark")
 
