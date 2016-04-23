@@ -85,7 +85,7 @@ do include a hostname tag, Veneur will **not** strip it for you. Veneur will add
 
 ## Expiration
 
-Veneur expires all metrics on each flush. If a metric is no longer being sent (or is sent sparsely) Veneur will not send it as zeros!
+Veneur expires all metrics on each flush. If a metric is no longer being sent (or is sent sparsely) Veneur will not send it as zeros! This was chosen because the combination of the approximation's features and the additional hysteresis imposed by *retaining* these approximations over time was deemed more complex than desirable.
 
 # Performance
 
@@ -96,6 +96,8 @@ Processing packets quickly is the name of the game.
 Veneur aims to be highly performant. In local testing with sysctl defaults on a mixed wireless and wired network and 2 clients, running on a 8-core i7-2600K
 with 16GB of RAM and `workers: 96` in it's config, Veneur was able to sustain ~150k metrics processed per second with no drops on the loopback interface,
 with flushes every 10 seconds. Tests used ~24,000 metric name & tag combinations.
+
+This chart shows the number of packets processed per second as well as a nice flat zero for the number of errors per second in dropped packets.
 
 ![Benchmark](/benchmark.png?raw=true "Benchmark")
 
