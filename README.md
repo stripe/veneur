@@ -93,7 +93,7 @@ Processing packets quickly is the name of the game.
 
 ## Benchmarks
 
-Veneur aims to be highly performant. In local testing with sysctl defaults on a mixed wireless and wired network and 2 clients, running on a 8-core i7-2600K
+Veneur aims to be highly performant. In local testing running on a 8-core i7-2600K
 with 16GB of RAM and `workers: 96` in it's config, Veneur was able to sustain ~150k metrics processed per second with no drops on the loopback interface,
 with flushes every 10 seconds. Tests used ~24,000 metric name & tag combinations.
 
