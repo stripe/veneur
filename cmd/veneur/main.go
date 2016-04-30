@@ -16,6 +16,7 @@ import (
 )
 
 var (
+	clientChan = make(chan []byte)
 	configFile = flag.String("f", "", "The config file to read for settings.")
 )
 
@@ -44,6 +45,8 @@ func main() {
 	}
 
 	veneur.InitStats()
+
+	veneur.BeginHTTP(clientChan)
 
 	// Start the dispatcher.
 	log.WithFields(log.Fields{
@@ -79,6 +82,20 @@ func main() {
 
 	defer serverConn.Close()
 
+	// Creates N workers to handle incoming packets, parsing them,
+	// hashing them and dispatching them on to workers that do the storage.
+	parserChan := make(chan []byte)
+	for i := 0; i < veneur.Config.NumWorkers; i++ {
+		go func() {
+			for {
+				select {
+				case m := <-parserChan:
+					handlePacket(workers, m)
+				}
+			}
+		}()
+	}
+
 	ticker := time.NewTicker(veneur.Config.Interval)
 	go func() {
 		for t := range ticker.C {
@@ -100,20 +117,6 @@ func main() {
 			)
 		}
 	}()
-
-	// Creates N workers to handle incoming packets, parsing them,
-	// hashing them and dispatching them on to workers that do the storage.
-	parserChan := make(chan []byte)
-	for i := 0; i < veneur.Config.NumWorkers; i++ {
-		go func() {
-			for {
-				select {
-				case m := <-parserChan:
-					handlePacket(workers, m)
-				}
-			}
-		}()
-	}
 
 	// Read forever!
 	for {
@@ -168,12 +171,17 @@ func flush(postMetrics [][]veneur.DDMetric) {
 	}
 	// Check to see if we have anything to do
 	if totalCount > 0 {
+		log.Debug("Posting!")
+
 		veneur.Stats.Count("flush.metrics_total", int64(totalCount), nil, 1.0)
 		// TODO Watch this error
 		postJSON, _ := json.Marshal(map[string][]veneur.DDMetric{
 			"series": finalMetrics,
 		})
 
+		//clientChan <- postJSON
+
+		log.Debug("Sent to web socket")
 		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", veneur.Config.APIHostname, veneur.Config.Key), "application/json", bytes.NewBuffer(postJSON))
 		if err != nil {
 			veneur.Stats.Count("flush.error_total", int64(totalCount), nil, 1.0)

@@ -24,6 +24,7 @@ type VeneurConfig struct {
 	SampleRate      float64       `yaml:"sample_rate"`
 	StatsAddr       string        `yaml:"stats_address"`
 	Tags            []string      `yaml:"tags"`
+	WebsocketAddr   string        `yaml:"websocket_address"`
 }
 
 var Config *VeneurConfig

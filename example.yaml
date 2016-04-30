@@ -20,3 +20,4 @@ tags:
 udp_address: "localhost:8126"
 # Defaults to the os.Hostname()!
 # hostname: foobar
+websocket_address: "localhost:8080"
