@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// VenerConfig is a collection of settings that control Veneur.
 type VeneurConfig struct {
 	APIHostname     string        `yaml:"api_hostname"`
 	Debug           bool          `yaml:"debug"`
@@ -26,8 +27,10 @@ type VeneurConfig struct {
 	Tags            []string      `yaml:"tags"`
 }
 
+// Config is the global config that we'll use once it's inited.
 var Config *VeneurConfig
 
+// ReadConfig unmarshals the config file and slurps in it's data.
 func ReadConfig(path string) error {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {

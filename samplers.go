@@ -17,8 +17,7 @@ type DDMetric struct {
 	Tags       []string      `json:"tags,omitempty"`
 	MetricType string        `json:"type"`
 	Hostname   string        `json:"host"`
-	// devicename
-	Interval int32 `json:"interval,omitempty"`
+	Interval   int32         `json:"interval,omitempty"`
 }
 
 // Sampler is a thing that takes samples and does something with them
