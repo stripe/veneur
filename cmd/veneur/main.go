@@ -75,7 +75,7 @@ func main() {
 			"error": err,
 		}).Error("Error listening for UDP")
 	}
-	serverConn.SetReadBuffer(1048576 * 2) // TODO Configurable!
+	serverConn.SetReadBuffer(veneur.Config.ReadBufferSizeBytes) // TODO Configurable!
 
 	defer serverConn.Close()
 
@@ -149,8 +149,7 @@ func handlePacket(workers []*veneur.Worker, packet []byte) {
 	index := h.Sum32() % uint32(veneur.Config.NumWorkers)
 
 	// We're ready to have a worker process this packet, so add it
-	// to the work queue. Note that if the queue is full, we'll block
-	// here.
+	// to the work queue.
 	select {
 	case workers[index].WorkChan <- *m:
 	}
@@ -177,7 +176,6 @@ func flush(postMetrics [][]veneur.DDMetric) {
 		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", veneur.Config.APIHostname, veneur.Config.Key), "application/json", bytes.NewBuffer(postJSON))
 		if err != nil {
 			veneur.Stats.Count("flush.error_total", int64(totalCount), nil, 1.0)
-			// TODO Do something at failure time!
 			log.WithFields(log.Fields{
 				"error": err,
 			}).Error("Error posting")

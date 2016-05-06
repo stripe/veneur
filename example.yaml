@@ -10,6 +10,7 @@ percentiles:
   - 0.5
   - 0.75
   - 0.99
+read_buffer_size_bytes: 2097152
 set_size: 1000
 set_accuracy: 0.99
 sample_rate: 0.01
