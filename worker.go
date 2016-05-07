@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -12,6 +13,7 @@ type Worker struct {
 	id         int
 	WorkChan   chan Metric
 	QuitChan   chan bool
+	metrics    int64
 	counters   map[uint32]*Counter
 	gauges     map[uint32]*Gauge
 	histograms map[uint32]*Histo
@@ -26,6 +28,7 @@ func NewWorker(id int) *Worker {
 		id:         id,
 		WorkChan:   make(chan Metric), // TODO Configurable!
 		QuitChan:   make(chan bool),
+		metrics:    0,
 		counters:   make(map[uint32]*Counter),
 		gauges:     make(map[uint32]*Gauge),
 		histograms: make(map[uint32]*Histo),
@@ -61,6 +64,7 @@ func (w *Worker) Start() {
 func (w *Worker) ProcessMetric(m *Metric) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
+	w.metrics++
 	switch m.Type {
 	case "counter":
 		_, present := w.counters[m.Digest]
@@ -122,18 +126,23 @@ func (w *Worker) Flush() []DDMetric {
 		len(w.counters)+len(w.gauges)+len(w.histograms)*(3+len(Config.Percentiles)),
 	)
 	start := time.Now()
+	// This is a critical spot. The worker can't process metrics while this
+	// mutex is held! So we try and minimize it by copying the maps of values
+	// and assigning new ones.
 	w.mutex.Lock()
 	counters := w.counters
 	gauges := w.gauges
 	histograms := w.histograms
 	sets := w.sets
 	timers := w.timers
+	Stats.Count("worker.metrics_processed_total", w.metrics, []string{fmt.Sprintf("worker:%d", w.id)}, 1.0)
 
 	w.counters = make(map[uint32]*Counter)
 	w.gauges = make(map[uint32]*Gauge)
 	w.histograms = make(map[uint32]*Histo)
 	w.sets = make(map[uint32]*Set)
 	w.timers = make(map[uint32]*Histo)
+	w.metrics = 0
 	w.mutex.Unlock()
 
 	// Track how much time each worker takes to flush.
@@ -144,20 +153,23 @@ func (w *Worker) Flush() []DDMetric {
 		1.0,
 	)
 
-	// TODO This should probably be a single function that passes in the metrics and the
-	// map
+	Stats.Count("flush.metrics_total", int64(len(counters)), []string{"metric_type:counter"}, 1.0)
 	for _, v := range counters {
 		postMetrics = append(postMetrics, v.Flush()...)
 	}
+	Stats.Count("flush.metrics_total", int64(len(gauges)), []string{"metric_type:gauge"}, 1.0)
 	for _, v := range gauges {
 		postMetrics = append(postMetrics, v.Flush()...)
 	}
+	Stats.Count("flush.metrics_total", int64(len(histograms)), []string{"metric_type:histogram"}, 1.0)
 	for _, v := range histograms {
 		postMetrics = append(postMetrics, v.Flush()...)
 	}
+	Stats.Count("flush.metrics_total", int64(len(sets)), []string{"metric_type:set"}, 1.0)
 	for _, v := range sets {
 		postMetrics = append(postMetrics, v.Flush()...)
 	}
+	Stats.Count("flush.metrics_total", int64(len(timers)), []string{"metric_type:timer"}, 1.0)
 	for _, v := range timers {
 		postMetrics = append(postMetrics, v.Flush()...)
 	}

@@ -20,11 +20,12 @@ and sets) even though it supports other metric types.
 
 Veneur assumes you have a running DogStatsD on the localhost and emits metrics to it's default port of 8125. Those metrics are:
 
-* `veneur.packet.error_total` - Number of packets that Veneur could not parse.
+* `veneur.packet.error_total` - Number of packets that Veneur could not parse due to some sort of formatting error by the client.
 * `veneur.flush.error_total` - Number of errors when attempting to POST metrics to Datadog.
-* `veneur.flush.metrics_total` - Total number of metrics flushed at each flush time.
+* `veneur.flush.metrics_total` - Total number of metrics flushed at each flush time, tagged by `metric_type`.
 * `veneur.flush.transaction_duration_ns` - Time taken to POST metrics to Datadog.
-* `veneur.flush.worker_duration_ns` - Per-worker timing — tagged with `worker` - for flush. This is important as it is the time in which the worker holds a lock and is unavailable for other work.
+* `veneur.flush.worker_duration_ns` - Per-worker timing — tagged by `worker` - for flush. This is important as it is the time in which the worker holds a lock and is unavailable for other work.
+* `veneur.worker.metrics_processed_total` - Total number of metrics processed between flushes by workers, tagged by `worker`. This helps you find hot spots where a single worker is handling a lot of metrics.
 
 # Status
 
@@ -37,7 +38,7 @@ venuer -f example.yaml
 
 See example.yaml for a sample config. Be sure and set your Datadog API `key`!
 
-# configuration
+# Configuration
 
 Veneur expects to have a config file supplied via `-f PATH`. The include `example.yaml` outlines the options:
 
@@ -50,7 +51,8 @@ Veneur expects to have a config file supplied via `-f PATH`. The include `exampl
 * `percentiles` - The percentiles to generate from our timers and histograms. Specified as array of float64s
 * `udp_address` - The address on which to listen for metrics. Probably `:8126` so as not to interfere with normal DogStatsD.
 * `num_workers` - The number of worker goroutines to start.
-* `sample_rate` - The rate at which to sample Veneur's internal metrics. Assuming you're doing a lot of metrics, keep this very low. 0.01 is nice!
+* `read_buffer_size_bytes` - The size of the receive buffer for the UDP socket. Defaults to 2MB, as having a lot of buffer prevents packet drops during flush!
+* `sample_rate` - The rate at which to sample Veneur's internal metrics. Assuming you're doing a lot of metrics!
 * `set_size` - The cardinality of the set you'll using with sets. Too small will cause decreased accuracy.
 * `set_accuracy` - The approximate accuracy of set's approximations. More accuracy uses more memory.
 * `stats_address` - The address to send internally generated metrics. Probably `127.0.0.1:8125` to send to a local DogStatsD

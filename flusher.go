@@ -22,7 +22,6 @@ func Flush(postMetrics [][]DDMetric) {
 	}
 	// Check to see if we have anything to do
 	if totalCount > 0 {
-		Stats.Count("flush.metrics_total", int64(totalCount), nil, 1.0)
 		// TODO Watch this error
 		postJSON, _ := json.Marshal(map[string][]DDMetric{
 			"series": finalMetrics,
