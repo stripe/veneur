@@ -28,6 +28,7 @@ func Flush(postMetrics [][]DDMetric) {
 		})
 
 		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", Config.APIHostname, Config.Key), "application/json", bytes.NewBuffer(postJSON))
+		defer resp.Body.Close()
 		if err != nil {
 			Stats.Count("flush.error_total", int64(totalCount), nil, 1.0)
 			log.WithFields(log.Fields{
@@ -39,7 +40,6 @@ func Flush(postMetrics [][]DDMetric) {
 			}).Info("Completed flush to Datadog")
 		}
 		if log.GetLevel() == log.DebugLevel {
-			defer resp.Body.Close()
 			// TODO Watch this error
 			body, _ := ioutil.ReadAll(resp.Body)
 			log.WithFields(log.Fields{
