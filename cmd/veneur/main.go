@@ -1,14 +1,9 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"flag"
-	"fmt"
 	"hash/fnv"
-	"io/ioutil"
 	"net"
-	"net/http"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -91,7 +86,7 @@ func main() {
 				metrics = append(metrics, w.Flush())
 			}
 			fstart := time.Now()
-			flush(metrics)
+			veneur.Flush(metrics)
 			veneur.Stats.TimeInMilliseconds(
 				"flush.transaction_duration_ns",
 				float64(time.Now().Sub(fstart).Nanoseconds()),
@@ -152,50 +147,5 @@ func handlePacket(workers []*veneur.Worker, packet []byte) {
 	// to the work queue.
 	select {
 	case workers[index].WorkChan <- *m:
-	}
-}
-
-// Flush takes the slices of metrics, combines then and marshals them to json
-// for posting to Datadog.
-func flush(postMetrics [][]veneur.DDMetric) {
-	totalCount := 0
-	var finalMetrics []veneur.DDMetric
-	// TODO This seems very inefficient
-	for _, metrics := range postMetrics {
-		totalCount += len(metrics)
-		finalMetrics = append(finalMetrics, metrics...)
-	}
-	// Check to see if we have anything to do
-	if totalCount > 0 {
-		veneur.Stats.Count("flush.metrics_total", int64(totalCount), nil, 1.0)
-		// TODO Watch this error
-		postJSON, _ := json.Marshal(map[string][]veneur.DDMetric{
-			"series": finalMetrics,
-		})
-
-		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", veneur.Config.APIHostname, veneur.Config.Key), "application/json", bytes.NewBuffer(postJSON))
-		if err != nil {
-			veneur.Stats.Count("flush.error_total", int64(totalCount), nil, 1.0)
-			log.WithFields(log.Fields{
-				"error": err,
-			}).Error("Error posting")
-		} else {
-			log.WithFields(log.Fields{
-				"metrics": len(finalMetrics),
-			}).Info("Completed flush to Datadog")
-		}
-		if log.GetLevel() == log.DebugLevel {
-			defer resp.Body.Close()
-			// TODO Watch this error
-			body, _ := ioutil.ReadAll(resp.Body)
-			log.WithFields(log.Fields{
-				"json":     string(postJSON),
-				"status":   resp.Status,
-				"headers":  resp.Header,
-				"response": body,
-			}).Debug("POSTing JSON")
-		}
-	} else {
-		log.Info("Nothing to flush, skipping.")
 	}
 }
