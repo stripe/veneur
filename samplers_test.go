@@ -75,8 +75,9 @@ func TestGauge(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-
-	s := NewSet("a.b.c", []string{"a:b"}, 1000, 0.99)
+	// remember, bloom filters can have false positives, so the test may be
+	// sensitive to the FP rate
+	s := NewSet("a.b.c", []string{"a:b"}, 1000, 0.0001)
 
 	assert.Equal(t, "a.b.c", s.name, "Name")
 	assert.Len(t, s.tags, 1, "Tag count")
@@ -88,6 +89,9 @@ func TestSet(t *testing.T) {
 
 	s.Sample(123, 1.0)
 
+	s.Sample(2147483647, 1.0)
+	s.Sample(-2147483648, 1.0)
+
 	metrics := s.Flush()
 	assert.Len(t, metrics, 1, "Flush")
 
@@ -97,7 +101,7 @@ func TestSet(t *testing.T) {
 	assert.Equal(t, "gauge", m1.MetricType, "Type")
 	assert.Len(t, m1.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m1.Tags[0], "First tag")
-	assert.Equal(t, float64(2), m1.Value[0][1], "Value")
+	assert.Equal(t, float64(4), m1.Value[0][1], "Value")
 }
 
 func TestHisto(t *testing.T) {

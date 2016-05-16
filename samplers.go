@@ -107,7 +107,7 @@ type Set struct {
 // the counter!
 func (s *Set) Sample(sample int32, sampleRate float32) {
 	byteSample := make([]byte, 4)
-	binary.PutVarint(byteSample, int64(sample))
+	binary.LittleEndian.PutUint32(byteSample, uint32(sample))
 	if !s.filter.Test(byteSample) {
 		s.filter.Add(byteSample)
 		s.value++
