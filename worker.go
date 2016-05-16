@@ -12,7 +12,7 @@ import (
 type Worker struct {
 	id         int
 	WorkChan   chan Metric
-	QuitChan   chan bool
+	QuitChan   chan struct{}
 	metrics    int64
 	counters   map[uint32]*Counter
 	gauges     map[uint32]*Gauge
@@ -27,7 +27,7 @@ func NewWorker(id int) *Worker {
 	return &Worker{
 		id:         id,
 		WorkChan:   make(chan Metric), // TODO Configurable!
-		QuitChan:   make(chan bool),
+		QuitChan:   make(chan struct{}),
 		metrics:    0,
 		counters:   make(map[uint32]*Counter),
 		gauges:     make(map[uint32]*Gauge),
@@ -181,7 +181,5 @@ func (w *Worker) Flush() []DDMetric {
 //
 // Note that the worker will only stop *after* it has finished its work.
 func (w *Worker) Stop() {
-	go func() {
-		w.QuitChan <- true
-	}()
+	close(w.QuitChan)
 }
