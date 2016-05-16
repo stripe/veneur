@@ -60,7 +60,7 @@ func main() {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
-		}).Error("Error resolving address")
+		}).Fatal("Error resolving address")
 	}
 
 	serverConn, err := net.ListenUDP("udp", serverAddr)
@@ -68,7 +68,7 @@ func main() {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
-		}).Error("Error listening for UDP")
+		}).Fatal("Error listening for UDP")
 	}
 	serverConn.SetReadBuffer(veneur.Config.ReadBufferSizeBytes) // TODO Configurable!
 
