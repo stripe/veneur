@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"hash/fnv"
 	"net"
 	"time"
 
@@ -132,13 +131,7 @@ func handlePacket(workers []*veneur.Worker, packet []byte) {
 		return
 	}
 
-	// Hash the incoming key so we can consistently choose a worker
-	// by modding the digest
-	h := fnv.New32()
-	h.Write([]byte(m.Name))
-	index := h.Sum32() % uint32(veneur.Config.NumWorkers)
-
 	// We're ready to have a worker process this packet, so add it
 	// to the work queue.
-	workers[index].WorkChan <- *m
+	workers[m.Digest%uint32(veneur.Config.NumWorkers)].WorkChan <- *m
 }
