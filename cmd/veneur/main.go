@@ -60,7 +60,7 @@ func main() {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
-		}).Error("Error resolving address")
+		}).Fatal("Error resolving address")
 	}
 
 	serverConn, err := net.ListenUDP("udp", serverAddr)
@@ -68,7 +68,7 @@ func main() {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
-		}).Error("Error listening for UDP")
+		}).Fatal("Error listening for UDP")
 	}
 	serverConn.SetReadBuffer(veneur.Config.ReadBufferSizeBytes) // TODO Configurable!
 
@@ -101,11 +101,8 @@ func main() {
 	parserChan := make(chan []byte)
 	for i := 0; i < veneur.Config.NumWorkers; i++ {
 		go func() {
-			for {
-				select {
-				case m := <-parserChan:
-					handlePacket(workers, m)
-				}
+			for m := range parserChan {
+				handlePacket(workers, m)
 			}
 		}()
 	}
@@ -120,9 +117,7 @@ func main() {
 			}).Error("Error reading from UDP")
 			continue
 		}
-		select {
-		case parserChan <- buf[:n]:
-		}
+		parserChan <- buf[:n] // TODO: termination condition for this channel?
 	}
 }
 
@@ -145,7 +140,5 @@ func handlePacket(workers []*veneur.Worker, packet []byte) {
 
 	// We're ready to have a worker process this packet, so add it
 	// to the work queue.
-	select {
-	case workers[index].WorkChan <- *m:
-	}
+	workers[index].WorkChan <- *m
 }

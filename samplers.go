@@ -46,7 +46,7 @@ func (c *Counter) Sample(sample int32, sampleRate float32) {
 func (c *Counter) Flush() []DDMetric {
 	rate := float64(c.value) / Config.Interval.Seconds()
 	c.value = 0
-	return []DDMetric{DDMetric{
+	return []DDMetric{{
 		Name:       c.name,
 		Value:      [1][2]float64{{float64(time.Now().Unix()), rate}},
 		Tags:       c.tags,
@@ -80,7 +80,7 @@ func (g *Gauge) Sample(sample int32, sampleRate float32) {
 func (g *Gauge) Flush() []DDMetric {
 	v := g.value
 	g.value = 0
-	return []DDMetric{DDMetric{
+	return []DDMetric{{
 		Name:       g.name,
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(v)}},
 		Tags:       g.tags,
@@ -107,7 +107,7 @@ type Set struct {
 // the counter!
 func (s *Set) Sample(sample int32, sampleRate float32) {
 	byteSample := make([]byte, 4)
-	binary.PutVarint(byteSample, int64(sample))
+	binary.LittleEndian.PutUint32(byteSample, uint32(sample))
 	if !s.filter.Test(byteSample) {
 		s.filter.Add(byteSample)
 		s.value++
@@ -131,7 +131,7 @@ func NewSet(name string, tags []string, setSize uint, accuracy float64) *Set {
 func (s *Set) Flush() []DDMetric {
 	v := s.value
 	s.value = 0
-	return []DDMetric{DDMetric{
+	return []DDMetric{{
 		Name:       s.name,
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(v)}},
 		Tags:       s.tags,
@@ -176,7 +176,7 @@ func (h *Histo) Flush() []DDMetric {
 	now := float64(time.Now().Unix())
 	rate := float64(h.count) / Config.Interval.Seconds()
 	metrics := []DDMetric{
-		DDMetric{
+		{
 			Name:       fmt.Sprintf("%s.count", h.name),
 			Value:      [1][2]float64{{now, rate}},
 			Tags:       h.tags,
@@ -184,14 +184,14 @@ func (h *Histo) Flush() []DDMetric {
 			Hostname:   Config.Hostname,
 			Interval:   int32(Config.Interval.Seconds()),
 		},
-		DDMetric{
+		{
 			Name:       fmt.Sprintf("%s.max", h.name),
 			Value:      [1][2]float64{{now, float64(h.value.Max())}},
 			Tags:       h.tags,
 			MetricType: "gauge",
 			Hostname:   Config.Hostname,
 		},
-		DDMetric{
+		{
 			Name:       fmt.Sprintf("%s.min", h.name),
 			Value:      [1][2]float64{{now, float64(h.value.Min())}},
 			Tags:       h.tags,
