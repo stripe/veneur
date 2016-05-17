@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rcrowley/go-metrics"
+	"github.com/VividCortex/gohistogram"
 	"github.com/willf/bloom"
 )
 
@@ -23,22 +23,20 @@ type DDMetric struct {
 // Sampler is a thing that takes samples and does something with them
 // to be flushed later.
 type Sampler interface {
-	Sample(int32, float32)
+	Sample(float64, float32)
 	Flush() []DDMetric
 }
 
 // Counter is an accumulator
 type Counter struct {
-	name           string
-	tags           []string
-	value          int32
-	lastSampleTime time.Time
+	name  string
+	tags  []string
+	value int64
 }
 
 // Sample adds a sample to the counter.
-func (c *Counter) Sample(sample int32, sampleRate float32) {
-	c.value += sample * int32(1/sampleRate)
-	c.lastSampleTime = time.Now()
+func (c *Counter) Sample(sample float64, sampleRate float32) {
+	c.value += int64(sample) * int64(1/sampleRate)
 }
 
 // Flush takes the current state of the counter, generates a
@@ -58,21 +56,19 @@ func (c *Counter) Flush() []DDMetric {
 
 // NewCounter generates and returns a new Counter.
 func NewCounter(name string, tags []string) *Counter {
-	return &Counter{name: name, tags: tags, lastSampleTime: time.Now()}
+	return &Counter{name: name, tags: tags}
 }
 
 // Gauge retains whatever the last value was.
 type Gauge struct {
-	name           string
-	tags           []string
-	value          int32
-	lastSampleTime time.Time
+	name  string
+	tags  []string
+	value float64
 }
 
 // Sample takes on whatever value is passed in as a sample.
-func (g *Gauge) Sample(sample int32, sampleRate float32) {
+func (g *Gauge) Sample(sample float64, sampleRate float32) {
 	g.value = sample
-	g.lastSampleTime = time.Now()
 }
 
 // Flush takes the current state of the gauge, generates a
@@ -91,21 +87,20 @@ func (g *Gauge) Flush() []DDMetric {
 
 // NewGauge genearaaaa who am I kidding just getting rid of the warning.
 func NewGauge(name string, tags []string) *Gauge {
-	return &Gauge{name: name, tags: tags, lastSampleTime: time.Now()}
+	return &Gauge{name: name, tags: tags}
 }
 
 // Set is a list of unique values seen.
 type Set struct {
-	name           string
-	tags           []string
-	value          int64
-	filter         *bloom.BloomFilter
-	lastSampleTime time.Time
+	name   string
+	tags   []string
+	value  float64
+	filter *bloom.BloomFilter
 }
 
 // Sample checks if the supplied value has is already in the filter. If not, it increments
 // the counter!
-func (s *Set) Sample(sample int32, sampleRate float32) {
+func (s *Set) Sample(sample float64, sampleRate float32) {
 	byteSample := make([]byte, 4)
 	binary.PutVarint(byteSample, int64(sample))
 	if !s.filter.Test(byteSample) {
@@ -121,8 +116,7 @@ func NewSet(name string, tags []string, setSize uint, accuracy float64) *Set {
 		tags:  tags,
 		value: 0,
 		// TODO We could likely set this based on the set size at last flush to dynamically adjust the storage?
-		filter:         bloom.NewWithEstimates(setSize, accuracy),
-		lastSampleTime: time.Now(),
+		filter: bloom.NewWithEstimates(setSize, accuracy),
 	}
 }
 
@@ -143,30 +137,42 @@ func (s *Set) Flush() []DDMetric {
 // Histo is a collection of values that generates max, min, count, and
 // percentiles over time.
 type Histo struct {
-	name           string
-	tags           []string
-	count          int32
-	value          metrics.Histogram
-	percentiles    []float64
-	lastSampleTime time.Time
+	name        string
+	tags        []string
+	count       int64
+	max         float64
+	min         float64
+	value       gohistogram.NumericHistogram
+	percentiles []float64
 }
 
 // Sample adds the supplied value to the histogram.
-func (h *Histo) Sample(sample int32, sampleRate float32) {
-	h.count += 1 * int32(1/sampleRate)
-	h.value.Update(int64(sample))
-	h.lastSampleTime = time.Now()
+func (h *Histo) Sample(sample float64, sampleRate float32) {
+	if h.count == 0 {
+		h.max = sample
+		h.min = sample
+	} else {
+		if h.max < sample {
+			h.max = sample
+		}
+		if h.min > sample {
+			h.min = sample
+		}
+	}
+	h.count += 1 * int64(1/sampleRate)
+	h.value.Add(sample)
 }
 
 // NewHist generates a new Histo and returns it.
 func NewHist(name string, tags []string, percentiles []float64) *Histo {
+	// For gohistogram, the following is from the docs:
+	// There is no "optimal" bin count, but somewhere between 20 and 80 bins should be sufficient. (50!)
 	return &Histo{
-		name:           name,
-		tags:           tags,
-		count:          0,
-		value:          metrics.NewHistogram(metrics.NewExpDecaySample(1028, 0.015)),
-		percentiles:    percentiles,
-		lastSampleTime: time.Now(),
+		name:        name,
+		tags:        tags,
+		count:       0,
+		value:       *gohistogram.NewHistogram(50),
+		percentiles: percentiles,
 	}
 }
 
@@ -186,28 +192,27 @@ func (h *Histo) Flush() []DDMetric {
 		},
 		DDMetric{
 			Name:       fmt.Sprintf("%s.max", h.name),
-			Value:      [1][2]float64{{now, float64(h.value.Max())}},
+			Value:      [1][2]float64{{now, h.max}},
 			Tags:       h.tags,
 			MetricType: "gauge",
 			Hostname:   Config.Hostname,
 		},
 		DDMetric{
 			Name:       fmt.Sprintf("%s.min", h.name),
-			Value:      [1][2]float64{{now, float64(h.value.Min())}},
+			Value:      [1][2]float64{{now, h.min}},
 			Tags:       h.tags,
 			MetricType: "gauge",
 			Hostname:   Config.Hostname,
 		},
 	}
 
-	percentiles := h.value.Percentiles(h.percentiles)
-	for i, p := range percentiles {
+	for i, p := range h.percentiles {
 		metrics = append(
 			metrics,
 			// TODO Fix to allow for p999, etc
 			DDMetric{
 				Name:       fmt.Sprintf("%s.%dpercentile", h.name, int(h.percentiles[i]*100)),
-				Value:      [1][2]float64{{now, float64(p)}},
+				Value:      [1][2]float64{{now, h.value.Quantile(p)}},
 				Tags:       h.tags,
 				MetricType: "gauge",
 				Hostname:   Config.Hostname,

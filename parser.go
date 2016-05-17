@@ -14,7 +14,7 @@ import (
 type Metric struct {
 	Name       string
 	Digest     uint32
-	Value      int32
+	Value      float64
 	SampleRate float32
 	Type       string
 	Tags       []string
@@ -26,7 +26,7 @@ func ParseMetric(packet []byte) (*Metric, error) {
 	parts := bytes.SplitN(packet, []byte(":"), 2)
 
 	var metricName string
-	var metricValue int64
+	var metricValue float64
 	var metricType string
 	var metricTags []string
 	metricSampleRate := float64(1.0)
@@ -47,7 +47,7 @@ func ParseMetric(packet []byte) (*Metric, error) {
 		return nil, errors.New("Invalid metric packet, need at least 1 pipe for type")
 	}
 	// Now convert it
-	v, err := strconv.ParseInt(string(data[0]), 10, 32)
+	v, err := strconv.ParseFloat(string(data[0]), 64)
 	if err != nil {
 		return nil, fmt.Errorf("Invalid integer for metric value: %s", parts[1])
 	}
@@ -96,5 +96,5 @@ func ParseMetric(packet []byte) (*Metric, error) {
 
 	digest := h.Sum32()
 
-	return &Metric{Name: metricName, Digest: digest, Value: int32(metricValue), Type: metricType, SampleRate: float32(metricSampleRate), Tags: metricTags}, nil
+	return &Metric{Name: metricName, Digest: digest, Value: float64(metricValue), Type: metricType, SampleRate: float32(metricSampleRate), Tags: metricTags}, nil
 }

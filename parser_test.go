@@ -11,7 +11,7 @@ func TestParser(t *testing.T) {
 	m, _ := ParseMetric([]byte("a.b.c:1|c"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
-	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 }
 
@@ -20,7 +20,7 @@ func TestParserGauge(t *testing.T) {
 	m, _ := ParseMetric([]byte("a.b.c:1|g"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
-	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "gauge", m.Type, "Type")
 }
 
@@ -29,7 +29,7 @@ func TestParserHistogram(t *testing.T) {
 	m, _ := ParseMetric([]byte("a.b.c:1|h"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
-	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "histogram", m.Type, "Type")
 }
 
@@ -38,7 +38,7 @@ func TestParserTimer(t *testing.T) {
 	m, _ := ParseMetric([]byte("a.b.c:1|ms"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
-	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "timer", m.Type, "Type")
 }
 
@@ -47,7 +47,7 @@ func TestParserSet(t *testing.T) {
 	m, _ := ParseMetric([]byte("a.b.c:1|s"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
-	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "set", m.Type, "Type")
 }
 
@@ -56,7 +56,7 @@ func TestParserWithTags(t *testing.T) {
 	m, _ := ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
-	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.Equal(t, 3, len(m.Tags), "# of Tags")
 
@@ -77,7 +77,7 @@ func TestParserWithSampleRate(t *testing.T) {
 	m, _ := ParseMetric([]byte("a.b.c:1|c|@0.1"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
-	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.Equal(t, float32(0.1), m.SampleRate, "Sample Rate")
 
@@ -91,7 +91,7 @@ func TestParserWithSampleRateAndTags(t *testing.T) {
 	m, _ := ParseMetric([]byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
-	assert.Equal(t, int32(1), m.Value, "Value")
+	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.Equal(t, float32(0.1), m.SampleRate, "Sample Rate")
 	assert.Len(t, m.Tags, 3, "Tags")
