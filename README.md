@@ -66,12 +66,8 @@ Veneur is different for a few reasons. They enumerated here.
 
 Because Veneur is built to handle lots and lots of data, it uses approximate histograms.
 
-Specifically the [forward-decaying priority reservoir](http://www.research.att.com/people/Cormode_Graham/library/publications/CormodeShkapenyukSrivastavaXu09.pdf)
- implementation from [rcrowley/metrics-go](https://github.com/rcrowley/go-metrics/). Metrics are consistently routed to the same worker to distribute load and to be added to the same histogram. There is [documentation for it's memory usage](https://github.com/rcrowley/go-metrics/blob/master/memory.md#50000-histograms-with-a-uniform-sample-size-of-1028) as well.
-
- Per [Dropwizard's documentation](https://dropwizard.github.io/metrics/3.1.0/apidocs/com/codahale/metrics/ExponentiallyDecayingReservoir.html), the reservoir size defaults to 1028 with an alpha of 0.015:
-
- > which offers a 99.9% confidence level with a 5% margin of error assuming a normal distribution, … which heavily biases the reservoir to the past 5 minutes of measurements.
+Specifically the streaming approximate histograms
+ implementation from [VividCortex/metrics-go](https://github.com/VividCortex/gohistogram). Metrics are consistently routed to the same worker to distribute load and to be added to the same histogram.
 
 Datadog's DogStatsD — and StatsD — uses an exact histogram which retains all samples and is reset every flush period. This means that there is a loss of precision when using Veneur, but
 the resulting percentile values are meant to be more representative of a global view.
