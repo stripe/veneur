@@ -23,13 +23,10 @@ type Metric struct {
 // ParseMetric converts the incoming packet from Datadog DogStatsD
 // Datagram format in to a Metric. http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
 func ParseMetric(packet []byte) (*Metric, error) {
+	ret := &Metric{
+		SampleRate: 1.0,
+	}
 	parts := bytes.SplitN(packet, []byte(":"), 2)
-
-	var metricName string
-	var metricValue float64
-	var metricType string
-	var metricTags []string
-	metricSampleRate := float64(1.0)
 	if len(parts) < 2 {
 		return nil, errors.New("Invalid metric packet, need at least 1 colon")
 	}
@@ -39,7 +36,7 @@ func ParseMetric(packet []byte) (*Metric, error) {
 
 	// Add the name to the digest
 	h.Write(parts[0])
-	metricName = string(parts[0])
+	ret.Name = string(parts[0])
 
 	// Use pipes as the delimiter now
 	data := bytes.Split(parts[1], []byte("|"))
@@ -51,20 +48,20 @@ func ParseMetric(packet []byte) (*Metric, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Invalid integer for metric value: %s", parts[1])
 	}
-	metricValue = v
+	ret.Value = v
 
 	// Decide on a type
 	switch data[1][0] {
 	case 'c':
-		metricType = "counter"
+		ret.Type = "counter"
 	case 'g':
-		metricType = "gauge"
+		ret.Type = "gauge"
 	case 'h':
-		metricType = "histogram"
+		ret.Type = "histogram"
 	case 'm': // We can ignore the s in "ms"
-		metricType = "timer"
+		ret.Type = "timer"
 	case 's':
-		metricType = "set"
+		ret.Type = "set"
 	default:
 		return nil, errors.New("Invalid type for metric")
 	}
@@ -80,21 +77,21 @@ func ParseMetric(packet []byte) (*Metric, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Invalid float for sample rate: %s", sr)
 			}
-			metricSampleRate = sampleRate
+			ret.SampleRate = float32(sampleRate)
 
 		case '#':
 			// tags!
 			tags := strings.Split(string(data[i][1:]), ",")
 			sort.Strings(tags)
 			h.Write([]byte(strings.Join(tags, ",")))
-			metricTags = tags
+			ret.Tags = tags
 		}
 	}
 	if len(Config.Tags) > 0 {
-		metricTags = append(metricTags, Config.Tags...)
+		ret.Tags = append(ret.Tags, Config.Tags...)
 	}
 
-	digest := h.Sum32()
+	ret.Digest = h.Sum32()
 
-	return &Metric{Name: metricName, Digest: digest, Value: float64(metricValue), Type: metricType, SampleRate: float32(metricSampleRate), Tags: metricTags}, nil
+	return ret, nil
 }
