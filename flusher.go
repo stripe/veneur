@@ -14,10 +14,11 @@ import (
 // for posting to Datadog.
 func Flush(postMetrics [][]DDMetric) {
 	totalCount := 0
-	var finalMetrics []DDMetric
-	// TODO This seems very inefficient
 	for _, metrics := range postMetrics {
 		totalCount += len(metrics)
+	}
+	finalMetrics := make([]DDMetric, 0, totalCount)
+	for _, metrics := range postMetrics {
 		finalMetrics = append(finalMetrics, metrics...)
 	}
 	// Check to see if we have anything to do
