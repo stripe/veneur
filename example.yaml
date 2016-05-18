@@ -12,7 +12,7 @@ percentiles:
   - 0.99
 read_buffer_size_bytes: 2097152
 set_size: 1000
-set_accuracy: 0.99
+set_accuracy: 0.001
 sample_rate: 0.01
 stats_address: "localhost:8125"
 tags:
