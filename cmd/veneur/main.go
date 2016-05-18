@@ -59,7 +59,9 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Error listening for UDP")
 	}
-	serverConn.SetReadBuffer(veneur.Config.ReadBufferSizeBytes) // TODO Configurable!
+	if err := serverConn.SetReadBuffer(veneur.Config.ReadBufferSizeBytes); err != nil {
+		log.WithError(err).Fatal("Could not set recvbuf size")
+	}
 
 	defer serverConn.Close()
 
