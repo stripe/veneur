@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"net"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -87,20 +88,31 @@ func main() {
 		}
 	}()
 
+	packetPool := &sync.Pool{
+		New: func() interface{} {
+			return make([]byte, veneur.Config.MetricMaxLength)
+		},
+	}
+
 	// Creates N workers to handle incoming packets, parsing them,
 	// hashing them and dispatching them on to workers that do the storage.
 	parserChan := make(chan []byte)
 	for i := 0; i < veneur.Config.NumWorkers; i++ {
 		go func() {
-			for m := range parserChan {
-				handlePacket(workers, m)
+			for packet := range parserChan {
+				handlePacket(workers, packet)
+				// handlePacket generates a Metric struct which contains only
+				// strings, so there are no outstanding references to the byte
+				// slice containing the packet
+				// therefore, at this point we can return it to the pool
+				packetPool.Put(packet[:cap(packet)])
 			}
 		}()
 	}
 
 	// Read forever!
 	for {
-		buf := make([]byte, veneur.Config.MetricMaxLength)
+		buf := packetPool.Get().([]byte)
 		n, _, err := serverConn.ReadFromUDP(buf)
 		if err != nil {
 			log.WithError(err).Error("Error reading from UDP")
