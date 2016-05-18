@@ -69,6 +69,11 @@ func ParseMetric(packet []byte) (*Metric, error) {
 	h.Write(data[1])
 
 	for i := 2; i < len(data); i++ {
+		if len(data[i]) == 0 {
+			// avoid panicking on malformed packets that have too many pipes
+			// (eg "foo:1|g|" or "foo:1|c||@0.1")
+			return nil, errors.New("Invalid metric packet, empty string after/between pipes")
+		}
 		switch data[i][0] {
 		case '@':
 			// sample rate!
