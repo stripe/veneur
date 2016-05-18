@@ -49,9 +49,7 @@ func (w *Worker) Start() {
 				w.ProcessMetric(&m)
 			case <-w.QuitChan:
 				// We have been asked to stop.
-				log.WithFields(log.Fields{
-					"worker": w.id,
-				}).Error("Stopping")
+				log.WithField("worker", w.id).Error("Stopping")
 				return
 			}
 		}
@@ -69,52 +67,40 @@ func (w *Worker) ProcessMetric(m *Metric) {
 	case "counter":
 		_, present := w.counters[m.Digest]
 		if !present {
-			log.WithFields(log.Fields{
-				"name": m.Name,
-			}).Debug("New counter")
+			log.WithField("name", m.Name).Debug("New counter")
 			w.counters[m.Digest] = NewCounter(m.Name, m.Tags)
 		}
 		w.counters[m.Digest].Sample(m.Value, m.SampleRate)
 	case "gauge":
 		_, present := w.gauges[m.Digest]
 		if !present {
-			log.WithFields(log.Fields{
-				"name": m.Name,
-			}).Debug("New gauge")
+			log.WithField("name", m.Name).Debug("New gauge")
 			w.gauges[m.Digest] = NewGauge(m.Name, m.Tags)
 		}
 		w.gauges[m.Digest].Sample(m.Value, m.SampleRate)
 	case "histogram":
 		_, present := w.histograms[m.Digest]
 		if !present {
-			log.WithFields(log.Fields{
-				"name": m.Name,
-			}).Debug("New histogram")
+			log.WithField("name", m.Name).Debug("New histogram")
 			w.histograms[m.Digest] = NewHist(m.Name, m.Tags, Config.Percentiles)
 		}
 		w.histograms[m.Digest].Sample(m.Value, m.SampleRate)
 	case "set":
 		_, present := w.sets[m.Digest]
 		if !present {
-			log.WithFields(log.Fields{
-				"name": m.Name,
-			}).Debug("New set")
+			log.WithField("name", m.Name).Debug("New set")
 			w.sets[m.Digest] = NewSet(m.Name, m.Tags, Config.SetSize, Config.SetAccuracy)
 		}
 		w.sets[m.Digest].Sample(m.Value, m.SampleRate)
 	case "timer":
 		_, present := w.timers[m.Digest]
 		if !present {
-			log.WithFields(log.Fields{
-				"name": m.Name,
-			}).Debug("New timer")
+			log.WithField("name", m.Name).Debug("New timer")
 			w.timers[m.Digest] = NewHist(m.Name, m.Tags, Config.Percentiles)
 		}
 		w.timers[m.Digest].Sample(m.Value, m.SampleRate)
 	default:
-		log.WithFields(log.Fields{
-			"type": m.Type,
-		}).Error("Unknown metric type")
+		log.WithField("type", m.Type).Error("Unknown metric type")
 	}
 }
 

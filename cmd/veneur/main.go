@@ -22,9 +22,7 @@ func main() {
 
 	err := veneur.ReadConfig(*configFile)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"error": err,
-		}).Fatal("Error reading config file")
+		log.WithError(err).Fatal("Error reading config file")
 	}
 
 	// Parse the command-line flags.
@@ -32,17 +30,13 @@ func main() {
 
 	if veneur.Config.Debug {
 		log.SetLevel(log.DebugLevel)
-		log.WithFields(log.Fields{
-			"config": veneur.Config.Debug,
-		}).Debug("Starting with config")
+		log.WithField("config", veneur.Config).Debug("Starting with config")
 	}
 
 	veneur.InitStats()
 
 	// Start the dispatcher.
-	log.WithFields(log.Fields{
-		"number": veneur.Config.NumWorkers,
-	}).Info("Starting workers")
+	log.WithField("number", veneur.Config.NumWorkers).Info("Starting workers")
 	workers := make([]*veneur.Worker, veneur.Config.NumWorkers)
 	for i := 0; i < veneur.Config.NumWorkers; i++ {
 		worker := veneur.NewWorker(i + 1)
@@ -57,17 +51,13 @@ func main() {
 	}).Info("UDP server listening")
 	serverAddr, err := net.ResolveUDPAddr("udp", veneur.Config.UDPAddr)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"error": err,
-		}).Fatal("Error resolving address")
+		log.WithError(err).Fatal("Error resolving address")
 	}
 
 	serverConn, err := net.ListenUDP("udp", serverAddr)
 
 	if err != nil {
-		log.WithFields(log.Fields{
-			"error": err,
-		}).Fatal("Error listening for UDP")
+		log.WithError(err).Fatal("Error listening for UDP")
 	}
 	serverConn.SetReadBuffer(veneur.Config.ReadBufferSizeBytes) // TODO Configurable!
 
@@ -111,9 +101,7 @@ func main() {
 		buf := make([]byte, veneur.Config.MetricMaxLength)
 		n, _, err := serverConn.ReadFromUDP(buf)
 		if err != nil {
-			log.WithFields(log.Fields{
-				"error": err,
-			}).Error("Error reading from UDP")
+			log.WithError(err).Error("Error reading from UDP")
 			continue
 		}
 		parserChan <- buf[:n] // TODO: termination condition for this channel?

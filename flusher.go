@@ -31,13 +31,9 @@ func Flush(postMetrics [][]DDMetric) {
 		defer resp.Body.Close()
 		if err != nil {
 			Stats.Count("flush.error_total", int64(totalCount), nil, 1.0)
-			log.WithFields(log.Fields{
-				"error": err,
-			}).Error("Error posting")
+			log.WithError(err).Error("Error posting")
 		} else {
-			log.WithFields(log.Fields{
-				"metrics": len(finalMetrics),
-			}).Info("Completed flush to Datadog")
+			log.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
 		}
 		if log.GetLevel() == log.DebugLevel {
 			// TODO Watch this error
