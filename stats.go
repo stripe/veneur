@@ -12,9 +12,7 @@ var Stats *statsd.Client
 func InitStats() {
 	nstats, err := statsd.NewBuffered(Config.StatsAddr, 1024)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"error": err,
-		}).Fatal("Error creating statsd logging")
+		log.WithError(err).Fatal("Error creating statsd logging")
 	}
 	Stats = nstats
 	Stats.Namespace = "veneur."

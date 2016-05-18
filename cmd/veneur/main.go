@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"hash/fnv"
 	"net"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -23,9 +23,7 @@ func main() {
 
 	err := veneur.ReadConfig(*configFile)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"error": err,
-		}).Fatal("Error reading config file")
+		log.WithError(err).Fatal("Error reading config file")
 	}
 
 	// Parse the command-line flags.
@@ -33,17 +31,13 @@ func main() {
 
 	if veneur.Config.Debug {
 		log.SetLevel(log.DebugLevel)
-		log.WithFields(log.Fields{
-			"config": veneur.Config.Debug,
-		}).Debug("Starting with config")
+		log.WithField("config", veneur.Config).Debug("Starting with config")
 	}
 
 	veneur.InitStats()
 
 	// Start the dispatcher.
-	log.WithFields(log.Fields{
-		"number": veneur.Config.NumWorkers,
-	}).Info("Starting workers")
+	log.WithField("number", veneur.Config.NumWorkers).Info("Starting workers")
 	workers := make([]*veneur.Worker, veneur.Config.NumWorkers)
 	for i := 0; i < veneur.Config.NumWorkers; i++ {
 		worker := veneur.NewWorker(i + 1)
@@ -58,19 +52,17 @@ func main() {
 	}).Info("UDP server listening")
 	serverAddr, err := net.ResolveUDPAddr("udp", veneur.Config.UDPAddr)
 	if err != nil {
-		log.WithFields(log.Fields{
-			"error": err,
-		}).Fatal("Error resolving address")
+		log.WithError(err).Fatal("Error resolving address")
 	}
 
 	serverConn, err := net.ListenUDP("udp", serverAddr)
 
 	if err != nil {
-		log.WithFields(log.Fields{
-			"error": err,
-		}).Fatal("Error listening for UDP")
+		log.WithError(err).Fatal("Error listening for UDP")
 	}
-	serverConn.SetReadBuffer(veneur.Config.ReadBufferSizeBytes) // TODO Configurable!
+	if err := serverConn.SetReadBuffer(veneur.Config.ReadBufferSizeBytes); err != nil {
+		log.WithError(err).Fatal("Could not set recvbuf size")
+	}
 
 	defer serverConn.Close()
 
@@ -96,25 +88,34 @@ func main() {
 		}
 	}()
 
+	packetPool := &sync.Pool{
+		New: func() interface{} {
+			return make([]byte, veneur.Config.MetricMaxLength)
+		},
+	}
+
 	// Creates N workers to handle incoming packets, parsing them,
 	// hashing them and dispatching them on to workers that do the storage.
 	parserChan := make(chan []byte)
 	for i := 0; i < veneur.Config.NumWorkers; i++ {
 		go func() {
-			for m := range parserChan {
-				handlePacket(workers, m)
+			for packet := range parserChan {
+				handlePacket(workers, packet)
+				// handlePacket generates a Metric struct which contains only
+				// strings, so there are no outstanding references to the byte
+				// slice containing the packet
+				// therefore, at this point we can return it to the pool
+				packetPool.Put(packet[:cap(packet)])
 			}
 		}()
 	}
 
 	// Read forever!
 	for {
-		buf := make([]byte, veneur.Config.MetricMaxLength)
+		buf := packetPool.Get().([]byte)
 		n, _, err := serverConn.ReadFromUDP(buf)
 		if err != nil {
-			log.WithFields(log.Fields{
-				"error": err,
-			}).Error("Error reading from UDP")
+			log.WithError(err).Error("Error reading from UDP")
 			continue
 		}
 		parserChan <- buf[:n] // TODO: termination condition for this channel?
@@ -132,13 +133,7 @@ func handlePacket(workers []*veneur.Worker, packet []byte) {
 		return
 	}
 
-	// Hash the incoming key so we can consistently choose a worker
-	// by modding the digest
-	h := fnv.New32()
-	h.Write([]byte(m.Name))
-	index := h.Sum32() % uint32(veneur.Config.NumWorkers)
-
 	// We're ready to have a worker process this packet, so add it
 	// to the work queue.
-	workers[index].WorkChan <- *m
+	workers[m.Digest%uint32(veneur.Config.NumWorkers)].WorkChan <- *m
 }
