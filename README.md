@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/gphat/veneur.svg?branch=master)](https://travis-ci.org/gphat/veneur)
-[![GoDoc](https://godoc.org/github.com/gphat/veneur?status.svg)](http://godoc.org/github.com/gphat/veneur)
+[![Build Status](https://travis-ci.org/stripe/veneur.svg?branch=master)](https://travis-ci.org/stripe/veneur)
+[![GoDoc](https://godoc.org/github.com/stripe/veneur?status.svg)](http://godoc.org/github.com/stripe/veneur)
 
 Veneur (venn-urr) is a server implementation of the [DogStatsD protocol](http://docs.datadoghq.com/guides/dogstatsd/#datagram-format), which is a superset of the StatsD protocol.
 
