@@ -7,7 +7,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/gphat/veneur"
+	"github.com/stripe/veneur"
 )
 
 var (
@@ -25,9 +25,6 @@ func main() {
 	if err != nil {
 		log.WithError(err).Fatal("Error reading config file")
 	}
-
-	// Parse the command-line flags.
-	flag.Parse()
 
 	if veneur.Config.Debug {
 		log.SetLevel(log.DebugLevel)

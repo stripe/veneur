@@ -52,7 +52,6 @@ Veneur expects to have a config file supplied via `-f PATH`. The include `exampl
 * `udp_address` - The address on which to listen for metrics. Probably `:8126` so as not to interfere with normal DogStatsD.
 * `num_workers` - The number of worker goroutines to start.
 * `read_buffer_size_bytes` - The size of the receive buffer for the UDP socket. Defaults to 2MB, as having a lot of buffer prevents packet drops during flush!
-* `sample_rate` - The rate at which to sample Veneur's internal metrics. Assuming you're doing a lot of metrics!
 * `set_size` - The cardinality of the set you'll using with sets. Too small will cause decreased accuracy.
 * `set_accuracy` - The approximate accuracy of set's approximations. More accuracy uses more memory.
 * `stats_address` - The address to send internally generated metrics. Probably `127.0.0.1:8125` to send to a local DogStatsD

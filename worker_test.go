@@ -10,7 +10,7 @@ func TestWorker(t *testing.T) {
 	ReadConfig("example.yaml")
 	w := NewWorker(1)
 
-	m := Metric{Name: "a.b.c", Value: 1, Digest: 12345, Type: "counter", SampleRate: 1.0}
+	m := Metric{Name: "a.b.c", Value: 1.0, Digest: 12345, Type: "counter", SampleRate: 1.0}
 	w.ProcessMetric(&m)
 
 	ddmetrics := w.Flush()

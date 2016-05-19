@@ -1,7 +1,6 @@
 package veneur
 
 import (
-	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -18,13 +17,6 @@ type DDMetric struct {
 	MetricType string        `json:"type"`
 	Hostname   string        `json:"host"`
 	Interval   int32         `json:"interval,omitempty"`
-}
-
-// Sampler is a thing that takes samples and does something with them
-// to be flushed later.
-type Sampler interface {
-	Sample(float64, float32)
-	Flush() []DDMetric
 }
 
 // Counter is an accumulator
@@ -100,11 +92,8 @@ type Set struct {
 
 // Sample checks if the supplied value has is already in the filter. If not, it increments
 // the counter!
-func (s *Set) Sample(sample float64, sampleRate float32) {
-	byteSample := make([]byte, 4)
-	binary.LittleEndian.PutUint32(byteSample, uint32(sample))
-	if !s.filter.Test(byteSample) {
-		s.filter.Add(byteSample)
+func (s *Set) Sample(sample string, sampleRate float32) {
+	if !s.filter.TestAndAddString(sample) {
 		s.value++
 	}
 }

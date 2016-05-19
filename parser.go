@@ -14,7 +14,7 @@ import (
 type Metric struct {
 	Name       string
 	Digest     uint32
-	Value      float64
+	Value      interface{}
 	SampleRate float32
 	Type       string
 	Tags       []string
@@ -43,13 +43,6 @@ func ParseMetric(packet []byte) (*Metric, error) {
 	if len(data) < 2 {
 		return nil, errors.New("Invalid metric packet, need at least 1 pipe for type")
 	}
-	// Now convert it
-	v, err := strconv.ParseFloat(string(data[0]), 64)
-	if err != nil {
-		return nil, fmt.Errorf("Invalid integer for metric value: %s", parts[1])
-	}
-	ret.Value = v
-
 	// Decide on a type
 	switch data[1][0] {
 	case 'c':
@@ -68,6 +61,17 @@ func ParseMetric(packet []byte) (*Metric, error) {
 	// Add the type to the digest
 	h.Write(data[1])
 
+	// Now convert it
+	if ret.Type == "set" {
+		ret.Value = string(data[0])
+	} else {
+		v, err := strconv.ParseFloat(string(data[0]), 64)
+		if err != nil {
+			return nil, fmt.Errorf("Invalid integer for metric value: %s", parts[1])
+		}
+		ret.Value = v
+	}
+
 	for i := 2; i < len(data); i++ {
 		if len(data[i]) == 0 {
 			// avoid panicking on malformed packets that have too many pipes
@@ -81,6 +85,9 @@ func ParseMetric(packet []byte) (*Metric, error) {
 			sampleRate, err := strconv.ParseFloat(sr, 32)
 			if err != nil {
 				return nil, fmt.Errorf("Invalid float for sample rate: %s", sr)
+			}
+			if ret.Type == "gauge" || ret.Type == "set" {
+				return nil, fmt.Errorf("Invalid metric packet, %s cannot have a sample rate", ret.Type)
 			}
 			ret.SampleRate = float32(sampleRate)
 
