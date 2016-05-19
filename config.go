@@ -23,7 +23,6 @@ type VeneurConfig struct {
 	SetAccuracy         float64       `yaml:"set_accuracy"`
 	UDPAddr             string        `yaml:"udp_address"`
 	NumWorkers          int           `yaml:"num_workers"`
-	SampleRate          float64       `yaml:"sample_rate"`
 	StatsAddr           string        `yaml:"stats_address"`
 	Tags                []string      `yaml:"tags"`
 }
