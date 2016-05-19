@@ -44,10 +44,10 @@ func TestParserTimer(t *testing.T) {
 
 func TestParserSet(t *testing.T) {
 	ReadConfig("example.yaml")
-	m, _ := ParseMetric([]byte("a.b.c:1|s"))
+	m, _ := ParseMetric([]byte("a.b.c:foo|s"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
-	assert.Equal(t, float64(1), m.Value, "Value")
+	assert.Equal(t, "foo", m.Value, "Value")
 	assert.Equal(t, "set", m.Type, "Type")
 }
 
@@ -84,6 +84,10 @@ func TestParserWithSampleRate(t *testing.T) {
 	_, valueError := ParseMetric([]byte("a.b.c:fart|c"))
 	assert.NotNil(t, valueError, "No errors when parsing")
 	assert.Contains(t, valueError.Error(), "Invalid integer", "Invalid integer error missing")
+
+	_, valueError = ParseMetric([]byte("a.b.c:1|g|@0.1"))
+	assert.NotNil(t, valueError, "No errors when parsing")
+	assert.Contains(t, valueError.Error(), "sample rate", "Sample rate error missing")
 }
 
 func TestParserWithSampleRateAndTags(t *testing.T) {

@@ -70,35 +70,35 @@ func (w *Worker) ProcessMetric(m *Metric) {
 			log.WithField("name", m.Name).Debug("New counter")
 			w.counters[m.Digest] = NewCounter(m.Name, m.Tags)
 		}
-		w.counters[m.Digest].Sample(m.Value, m.SampleRate)
+		w.counters[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	case "gauge":
 		_, present := w.gauges[m.Digest]
 		if !present {
 			log.WithField("name", m.Name).Debug("New gauge")
 			w.gauges[m.Digest] = NewGauge(m.Name, m.Tags)
 		}
-		w.gauges[m.Digest].Sample(m.Value, m.SampleRate)
+		w.gauges[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	case "histogram":
 		_, present := w.histograms[m.Digest]
 		if !present {
 			log.WithField("name", m.Name).Debug("New histogram")
 			w.histograms[m.Digest] = NewHist(m.Name, m.Tags, Config.Percentiles)
 		}
-		w.histograms[m.Digest].Sample(m.Value, m.SampleRate)
+		w.histograms[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	case "set":
 		_, present := w.sets[m.Digest]
 		if !present {
 			log.WithField("name", m.Name).Debug("New set")
 			w.sets[m.Digest] = NewSet(m.Name, m.Tags, Config.SetSize, Config.SetAccuracy)
 		}
-		w.sets[m.Digest].Sample(m.Value, m.SampleRate)
+		w.sets[m.Digest].Sample(m.Value.(string), m.SampleRate)
 	case "timer":
 		_, present := w.timers[m.Digest]
 		if !present {
 			log.WithField("name", m.Name).Debug("New timer")
 			w.timers[m.Digest] = NewHist(m.Name, m.Tags, Config.Percentiles)
 		}
-		w.timers[m.Digest].Sample(m.Value, m.SampleRate)
+		w.timers[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	default:
 		log.WithField("type", m.Type).Error("Unknown metric type")
 	}

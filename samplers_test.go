@@ -83,14 +83,14 @@ func TestSet(t *testing.T) {
 	assert.Len(t, s.tags, 1, "Tag count")
 	assert.Equal(t, "a:b", s.tags[0], "First tag")
 
-	s.Sample(5, 1.0)
+	s.Sample("5", 1.0)
 
-	s.Sample(5, 1.0)
+	s.Sample("5", 1.0)
 
-	s.Sample(123, 1.0)
+	s.Sample("123", 1.0)
 
-	s.Sample(2147483647, 1.0)
-	s.Sample(-2147483648, 1.0)
+	s.Sample("2147483647", 1.0)
+	s.Sample("-2147483648", 1.0)
 
 	metrics := s.Flush()
 	assert.Len(t, metrics, 1, "Flush")
