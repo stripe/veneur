@@ -7,7 +7,7 @@ import (
 	"time"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/gphat/veneur"
+	"github.com/stripe/veneur"
 )
 
 var (
