@@ -26,9 +26,6 @@ func main() {
 		log.WithError(err).Fatal("Error reading config file")
 	}
 
-	// Parse the command-line flags.
-	flag.Parse()
-
 	if veneur.Config.Debug {
 		log.SetLevel(log.DebugLevel)
 		log.WithField("config", veneur.Config).Debug("Starting with config")
