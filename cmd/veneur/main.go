@@ -32,6 +32,9 @@ func main() {
 	}
 
 	veneur.InitSentry()
+	defer func() {
+		veneur.ConsumePanic(recover())
+	}()
 	veneur.InitStats()
 
 	// Start the dispatcher.
@@ -66,6 +69,9 @@ func main() {
 
 	ticker := time.NewTicker(veneur.Config.Interval)
 	go func() {
+		defer func() {
+			veneur.ConsumePanic(recover())
+		}()
 		for t := range ticker.C {
 			metrics := make([][]veneur.DDMetric, veneur.Config.NumWorkers)
 			for i, w := range workers {
@@ -97,6 +103,9 @@ func main() {
 	parserChan := make(chan []byte)
 	for i := 0; i < veneur.Config.NumWorkers; i++ {
 		go func() {
+			defer func() {
+				veneur.ConsumePanic(recover())
+			}()
 			for packet := range parserChan {
 				handlePacket(workers, packet)
 				// handlePacket generates a Metric struct which contains only
