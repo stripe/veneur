@@ -18,6 +18,7 @@ func InitSentry() {
 	if err != nil {
 		log.WithError(err).Fatal("Error creating sentry client")
 	}
+	log.AddHook(sentryHook{sentry, []log.Level{log.ErrorLevel, log.FatalLevel, log.PanicLevel}})
 	Sentry = sentry
 }
 
@@ -57,4 +58,64 @@ func ConsumePanic(err interface{}) {
 	<-ch
 
 	panic(err)
+}
+
+// logrus hook to send error/fatal/panic messages to sentry
+type sentryHook struct {
+	c  *raven.Client
+	lv []log.Level
+}
+
+var _ log.Hook = sentryHook{}
+
+func (s sentryHook) Levels() []log.Level {
+	return s.lv
+}
+
+func (s sentryHook) Fire(e *log.Entry) error {
+	p := raven.Packet{
+		ServerName: Config.Hostname,
+		Interfaces: []raven.Interface{
+			// ignore the stack frames for the Fire function itself
+			// the logrus machinery that invoked Fire will also be hidden
+			// because it is not an "in-app" library
+			raven.NewStacktrace(2, 3, []string{"main", "github.com/stripe/veneur"}),
+		},
+	}
+
+	if err, ok := e.Data[log.ErrorKey].(error); ok {
+		p.Message = err.Error()
+	} else {
+		p.Message = e.Message
+	}
+
+	p.Extra = make(map[string]interface{}, len(e.Data)-1)
+	for k, v := range e.Data {
+		if k == log.ErrorKey {
+			continue // already handled this key, don't put it into the Extra hash
+		}
+		p.Extra[k] = v
+	}
+
+	switch e.Level {
+	case log.FatalLevel, log.PanicLevel:
+		p.Level = raven.FATAL
+	case log.ErrorLevel:
+		p.Level = raven.ERROR
+	case log.WarnLevel:
+		p.Level = raven.WARNING
+	case log.InfoLevel:
+		p.Level = raven.INFO
+	case log.DebugLevel:
+		p.Level = raven.DEBUG
+	}
+
+	_, ch := s.c.Capture(&p, nil)
+
+	if e.Level == log.PanicLevel || e.Level == log.FatalLevel {
+		// we don't want the program to terminate before reporting to sentry
+		return <-ch
+	} else {
+		return nil
+	}
 }
