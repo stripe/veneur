@@ -124,7 +124,7 @@ func handlePacket(workers []*veneur.Worker, packet []byte) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error":  err,
-			"packet": packet,
+			"packet": string(packet),
 		}).Error("Error parsing packet")
 		veneur.Stats.Count("packet.error_total", 1, nil, 1.0)
 		return
