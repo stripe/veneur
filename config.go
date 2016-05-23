@@ -25,6 +25,7 @@ type VeneurConfig struct {
 	NumWorkers          int           `yaml:"num_workers"`
 	StatsAddr           string        `yaml:"stats_address"`
 	Tags                []string      `yaml:"tags"`
+	SentryDSN           string        `yaml:"sentry_dsn"`
 }
 
 // Config is the global config that we'll use once it's inited.

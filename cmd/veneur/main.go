@@ -31,6 +31,7 @@ func main() {
 		log.WithField("config", veneur.Config).Debug("Starting with config")
 	}
 
+	veneur.InitSentry()
 	veneur.InitStats()
 
 	// Start the dispatcher.
