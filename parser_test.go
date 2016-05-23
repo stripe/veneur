@@ -104,3 +104,14 @@ func TestParserWithSampleRateAndTags(t *testing.T) {
 	assert.NotNil(t, valueError, "No errors when parsing")
 	assert.Contains(t, valueError.Error(), "Invalid integer", "Invalid integer error missing")
 }
+
+func TestInvalidPackets(t *testing.T) {
+	ReadConfig("example.yaml")
+	_, valueError := ParseMetric([]byte("foo:1||"))
+	assert.NotNil(t, valueError, "No errors when parsing")
+	assert.Contains(t, valueError.Error(), "metric type", "Metric type error missing")
+
+	_, valueError = ParseMetric([]byte("foo:1|c||"))
+	assert.NotNil(t, valueError, "No errors when parsing")
+	assert.Contains(t, valueError.Error(), "pipes", "Pipe error missing")
+}

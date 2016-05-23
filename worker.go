@@ -43,6 +43,9 @@ func NewWorker(id int) *Worker {
 func (w *Worker) Start() {
 
 	go func() {
+		defer func() {
+			ConsumePanic(recover())
+		}()
 		for {
 			select {
 			case m := <-w.WorkChan:

@@ -28,6 +28,12 @@
 			"revisionTime": "2016-05-04T13:01:55Z"
 		},
 		{
+			"checksumSHA1": "mA1jCzbc+bGPzRPXXGdeTsRYs8U=",
+			"path": "github.com/getsentry/raven-go",
+			"revision": "dffeb57df75d6a911f00232155194e43d79d38d7",
+			"revisionTime": "2016-05-18T20:47:10Z"
+		},
+		{
 			"checksumSHA1": "zKKp5SZ3d3ycKe4EKMNT0BqAWBw=",
 			"origin": "github.com/stretchr/testify/vendor/github.com/pmezard/go-difflib/difflib",
 			"path": "github.com/pmezard/go-difflib/difflib",

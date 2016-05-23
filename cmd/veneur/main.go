@@ -31,6 +31,10 @@ func main() {
 		log.WithField("config", veneur.Config).Debug("Starting with config")
 	}
 
+	veneur.InitSentry()
+	defer func() {
+		veneur.ConsumePanic(recover())
+	}()
 	veneur.InitStats()
 
 	// Start the dispatcher.
@@ -65,6 +69,9 @@ func main() {
 
 	ticker := time.NewTicker(veneur.Config.Interval)
 	go func() {
+		defer func() {
+			veneur.ConsumePanic(recover())
+		}()
 		for t := range ticker.C {
 			metrics := make([][]veneur.DDMetric, veneur.Config.NumWorkers)
 			for i, w := range workers {
@@ -96,6 +103,9 @@ func main() {
 	parserChan := make(chan []byte)
 	for i := 0; i < veneur.Config.NumWorkers; i++ {
 		go func() {
+			defer func() {
+				veneur.ConsumePanic(recover())
+			}()
 			for packet := range parserChan {
 				handlePacket(workers, packet)
 				// handlePacket generates a Metric struct which contains only
@@ -124,7 +134,7 @@ func handlePacket(workers []*veneur.Worker, packet []byte) {
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error":  err,
-			"packet": packet,
+			"packet": string(packet),
 		}).Error("Error parsing packet")
 		veneur.Stats.Count("packet.error_total", 1, nil, 1.0)
 		return

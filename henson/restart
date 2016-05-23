@@ -1,0 +1,3 @@
+#!/bin/bash
+
+svc -t /etc/service/veneur-srv

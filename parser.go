@@ -43,6 +43,11 @@ func ParseMetric(packet []byte) (*Metric, error) {
 	if len(data) < 2 {
 		return nil, errors.New("Invalid metric packet, need at least 1 pipe for type")
 	}
+	if len(data[1]) == 0 {
+		// avoid panicking on malformed packets missing a type
+		// (eg "foo:1||")
+		return nil, errors.New("Invalid metric packet, metric type not specified")
+	}
 	// Decide on a type
 	switch data[1][0] {
 	case 'c':
