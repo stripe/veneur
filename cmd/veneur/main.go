@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"hash/fnv"
 	"net"
 	"sync"
 	"time"
@@ -13,6 +14,11 @@ import (
 var (
 	configFile = flag.String("f", "", "The config file to read for settings.")
 )
+
+type packet struct {
+	buf []byte
+	ip  string
+}
 
 func main() {
 	flag.Parse()
@@ -94,38 +100,64 @@ func main() {
 
 	packetPool := &sync.Pool{
 		New: func() interface{} {
-			return make([]byte, veneur.Config.MetricMaxLength)
+			return packet{
+				buf: make([]byte, veneur.Config.MetricMaxLength),
+				ip:  "",
+			}
 		},
 	}
 
+	// precompute digest for the "veneur.unique_sender_ips" set, since it's the
+	// same every time
+	veneurIPdigester := fnv.New32()
+	veneurIPdigester.Write([]byte("veneur.unique_sender_ips"))
+	veneurIPdigester.Write([]byte("set"))
+	uniqueSenderIPDigest := veneurIPdigester.Sum32()
+
 	// Creates N workers to handle incoming packets, parsing them,
 	// hashing them and dispatching them on to workers that do the storage.
-	parserChan := make(chan []byte)
+	parserChan := make(chan packet)
 	for i := 0; i < veneur.Config.NumWorkers; i++ {
 		go func() {
 			defer func() {
 				veneur.ConsumePanic(recover())
 			}()
-			for packet := range parserChan {
-				handlePacket(workers, packet)
+			for packetbuf := range parserChan {
+				handlePacket(workers, packetbuf.buf)
+				// we don't want to talk to statsd in the packet-processing code
+				// path - it causes packet drops (even in the parsing loop).
+				// instead, we can push the metric to a worker and let it handle
+				// the IO at flush time, which has much less performance impact
+				// note that all of these metrics hit a single worker, we might
+				// want to have a dedicated worker for this in the future
+				workers[uniqueSenderIPDigest%uint32(veneur.Config.NumWorkers)].WorkChan <- veneur.Metric{
+					Name:       "veneur.unique_sender_ips",
+					Digest:     uniqueSenderIPDigest,
+					Value:      packetbuf.ip,
+					SampleRate: 1.0,
+					Type:       "set",
+				}
+				packetbuf.buf = packetbuf.buf[:cap(packetbuf.buf)]
 				// handlePacket generates a Metric struct which contains only
 				// strings, so there are no outstanding references to the byte
 				// slice containing the packet
 				// therefore, at this point we can return it to the pool
-				packetPool.Put(packet[:cap(packet)])
+				packetPool.Put(packetbuf)
 			}
 		}()
 	}
 
 	// Read forever!
 	for {
-		buf := packetPool.Get().([]byte)
-		n, _, err := serverConn.ReadFromUDP(buf)
+		packetbuf := packetPool.Get().(packet)
+		n, addr, err := serverConn.ReadFromUDP(packetbuf.buf)
 		if err != nil {
-			log.WithError(err).Error("Error reading from UDP")
+			log.WithError(err).Error("Error reading packetbuf from UDP")
 			continue
 		}
-		parserChan <- buf[:n] // TODO: termination condition for this channel?
+		packetbuf.buf = packetbuf.buf[:n]
+		packetbuf.ip = addr.IP.String()
+		parserChan <- packetbuf
 	}
 }
 
