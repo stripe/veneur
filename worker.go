@@ -20,10 +20,14 @@ type Worker struct {
 	sets       map[uint32]*Set
 	timers     map[uint32]*Histo
 	mutex      *sync.Mutex
+
+	histogramPercentiles []float64
+	bloomSetSize         uint
+	bloomSetAccuracy     float64
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int) *Worker {
+func NewWorker(id int, percentiles []float64, setSize uint, setAccuracy float64) *Worker {
 	return &Worker{
 		id:         id,
 		WorkChan:   make(chan Metric), // TODO Configurable!
@@ -35,6 +39,10 @@ func NewWorker(id int) *Worker {
 		sets:       make(map[uint32]*Set),
 		timers:     make(map[uint32]*Histo),
 		mutex:      &sync.Mutex{},
+
+		histogramPercentiles: percentiles,
+		bloomSetSize:         setSize,
+		bloomSetAccuracy:     setAccuracy,
 	}
 }
 
@@ -85,21 +93,21 @@ func (w *Worker) ProcessMetric(m *Metric) {
 		_, present := w.histograms[m.Digest]
 		if !present {
 			log.WithField("name", m.Name).Debug("New histogram")
-			w.histograms[m.Digest] = NewHist(m.Name, m.Tags, Config.Percentiles)
+			w.histograms[m.Digest] = NewHist(m.Name, m.Tags, w.histogramPercentiles)
 		}
 		w.histograms[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	case "set":
 		_, present := w.sets[m.Digest]
 		if !present {
 			log.WithField("name", m.Name).Debug("New set")
-			w.sets[m.Digest] = NewSet(m.Name, m.Tags, Config.SetSize, Config.SetAccuracy)
+			w.sets[m.Digest] = NewSet(m.Name, m.Tags, w.bloomSetSize, w.bloomSetAccuracy)
 		}
 		w.sets[m.Digest].Sample(m.Value.(string), m.SampleRate)
 	case "timer":
 		_, present := w.timers[m.Digest]
 		if !present {
 			log.WithField("name", m.Name).Debug("New timer")
-			w.timers[m.Digest] = NewHist(m.Name, m.Tags, Config.Percentiles)
+			w.timers[m.Digest] = NewHist(m.Name, m.Tags, w.histogramPercentiles)
 		}
 		w.timers[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	default:
@@ -112,7 +120,7 @@ func (w *Worker) Flush(interval time.Duration) []DDMetric {
 	// We preallocate a reasonably sized slice such that hopefully we won't need to reallocate.
 	postMetrics := make([]DDMetric, 0,
 		// Number of each metric, with 3 + percentiles for histograms (count, max, min)
-		len(w.counters)+len(w.gauges)+len(w.histograms)*(3+len(Config.Percentiles)),
+		len(w.counters)+len(w.gauges)+len(w.histograms)*(3+len(w.histogramPercentiles)),
 	)
 	start := time.Now()
 	// This is a critical spot. The worker can't process metrics while this
