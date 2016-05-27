@@ -2,6 +2,7 @@ package veneur
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -15,7 +16,7 @@ func TestCounterEmpty(t *testing.T) {
 	assert.Len(t, c.tags, 1, "Tag length")
 	assert.Equal(t, c.tags[0], "a:b", "Tag contents")
 
-	metrics := c.Flush()
+	metrics := c.Flush(10 * time.Second)
 	assert.Len(t, metrics, 1, "Flushes 1 metric")
 
 	m1 := metrics[0]
@@ -34,7 +35,7 @@ func TestCounterRate(t *testing.T) {
 	c.Sample(5, 1.0)
 
 	// The counter returns an array with a single tuple of timestamp,value
-	metrics := c.Flush()
+	metrics := c.Flush(10 * time.Second)
 	assert.Equal(t, 0.5, metrics[0].Value[0][1], "Metric value")
 }
 
@@ -45,7 +46,7 @@ func TestCounterSampleRate(t *testing.T) {
 	c.Sample(5, 0.5)
 
 	// The counter returns an array with a single tuple of timestamp,value
-	metrics := c.Flush()
+	metrics := c.Flush(10 * time.Second)
 	assert.Equal(t, float64(1), metrics[0].Value[0][1], "Metric value")
 }
 
@@ -118,7 +119,7 @@ func TestHisto(t *testing.T) {
 	h.Sample(20, 1.0)
 	h.Sample(25, 1.0)
 
-	metrics := h.Flush()
+	metrics := h.Flush(10 * time.Second)
 	// We get lots of metrics back for histograms!
 	assert.Len(t, metrics, 4, "Flushed metrics length")
 
@@ -178,7 +179,7 @@ func TestHistoSampleRate(t *testing.T) {
 	h.Sample(20, 0.5)
 	h.Sample(25, 0.5)
 
-	metrics := h.Flush()
+	metrics := h.Flush(10 * time.Second)
 	assert.Len(t, metrics, 4, "Metrics flush length")
 
 	// First the count

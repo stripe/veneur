@@ -108,7 +108,7 @@ func (w *Worker) ProcessMetric(m *Metric) {
 }
 
 // Flush generates DDMetrics to emit.
-func (w *Worker) Flush() []DDMetric {
+func (w *Worker) Flush(interval time.Duration) []DDMetric {
 	// We preallocate a reasonably sized slice such that hopefully we won't need to reallocate.
 	postMetrics := make([]DDMetric, 0,
 		// Number of each metric, with 3 + percentiles for histograms (count, max, min)
@@ -144,7 +144,7 @@ func (w *Worker) Flush() []DDMetric {
 
 	Stats.Count("flush.metrics_total", int64(len(counters)), []string{"metric_type:counter"}, 1.0)
 	for _, v := range counters {
-		postMetrics = append(postMetrics, v.Flush()...)
+		postMetrics = append(postMetrics, v.Flush(interval)...)
 	}
 	Stats.Count("flush.metrics_total", int64(len(gauges)), []string{"metric_type:gauge"}, 1.0)
 	for _, v := range gauges {
@@ -152,7 +152,7 @@ func (w *Worker) Flush() []DDMetric {
 	}
 	Stats.Count("flush.metrics_total", int64(len(histograms)), []string{"metric_type:histogram"}, 1.0)
 	for _, v := range histograms {
-		postMetrics = append(postMetrics, v.Flush()...)
+		postMetrics = append(postMetrics, v.Flush(interval)...)
 	}
 	Stats.Count("flush.metrics_total", int64(len(sets)), []string{"metric_type:set"}, 1.0)
 	for _, v := range sets {
@@ -160,7 +160,7 @@ func (w *Worker) Flush() []DDMetric {
 	}
 	Stats.Count("flush.metrics_total", int64(len(timers)), []string{"metric_type:timer"}, 1.0)
 	for _, v := range timers {
-		postMetrics = append(postMetrics, v.Flush()...)
+		postMetrics = append(postMetrics, v.Flush(interval)...)
 	}
 
 	return postMetrics

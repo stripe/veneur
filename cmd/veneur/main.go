@@ -85,7 +85,7 @@ func main() {
 					"worker": i,
 					"tick":   t,
 				}).Debug("Flushing")
-				metrics = append(metrics, w.Flush())
+				metrics = append(metrics, w.Flush(veneur.Config.Interval))
 			}
 			fstart := time.Now()
 			veneur.Flush(metrics)
