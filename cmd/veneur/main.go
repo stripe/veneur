@@ -47,7 +47,7 @@ func main() {
 	log.WithField("number", veneur.Config.NumWorkers).Info("Starting workers")
 	workers := make([]*veneur.Worker, veneur.Config.NumWorkers)
 	for i := 0; i < veneur.Config.NumWorkers; i++ {
-		worker := veneur.NewWorker(i + 1)
+		worker := veneur.NewWorker(i+1, veneur.Config.Percentiles, veneur.Config.SetSize, veneur.Config.SetAccuracy)
 		worker.Start()
 		workers[i] = worker
 	}
@@ -85,7 +85,7 @@ func main() {
 					"worker": i,
 					"tick":   t,
 				}).Debug("Flushing")
-				metrics = append(metrics, w.Flush())
+				metrics = append(metrics, w.Flush(veneur.Config.Interval))
 			}
 			fstart := time.Now()
 			veneur.Flush(metrics)
@@ -170,6 +170,9 @@ func handlePacket(workers []*veneur.Worker, packet []byte) {
 		}).Error("Error parsing packet")
 		veneur.Stats.Count("packet.error_total", 1, nil, 1.0)
 		return
+	}
+	if len(veneur.Config.Tags) > 0 {
+		m.Tags = append(m.Tags, veneur.Config.Tags...)
 	}
 
 	// We're ready to have a worker process this packet, so add it
