@@ -41,7 +41,6 @@ func (c *Counter) Flush() []DDMetric {
 		Value:      [1][2]float64{{float64(time.Now().Unix()), rate}},
 		Tags:       c.tags,
 		MetricType: "rate",
-		Hostname:   Config.Hostname,
 		Interval:   int32(Config.Interval.Seconds()),
 	}}
 }
@@ -73,7 +72,6 @@ func (g *Gauge) Flush() []DDMetric {
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(v)}},
 		Tags:       g.tags,
 		MetricType: "gauge",
-		Hostname:   Config.Hostname,
 	}}
 }
 
@@ -119,7 +117,6 @@ func (s *Set) Flush() []DDMetric {
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(v)}},
 		Tags:       s.tags,
 		MetricType: "gauge",
-		Hostname:   Config.Hostname,
 	}}
 }
 
@@ -176,7 +173,6 @@ func (h *Histo) Flush() []DDMetric {
 			Value:      [1][2]float64{{now, rate}},
 			Tags:       h.tags,
 			MetricType: "rate",
-			Hostname:   Config.Hostname,
 			Interval:   int32(Config.Interval.Seconds()),
 		},
 		{
@@ -184,14 +180,12 @@ func (h *Histo) Flush() []DDMetric {
 			Value:      [1][2]float64{{now, h.max}},
 			Tags:       h.tags,
 			MetricType: "gauge",
-			Hostname:   Config.Hostname,
 		},
 		{
 			Name:       fmt.Sprintf("%s.min", h.name),
 			Value:      [1][2]float64{{now, h.min}},
 			Tags:       h.tags,
 			MetricType: "gauge",
-			Hostname:   Config.Hostname,
 		},
 	}
 
@@ -204,7 +198,6 @@ func (h *Histo) Flush() []DDMetric {
 				Value:      [1][2]float64{{now, h.value.Quantile(p)}},
 				Tags:       h.tags,
 				MetricType: "gauge",
-				Hostname:   Config.Hostname,
 			},
 		)
 	}

@@ -21,6 +21,9 @@ func Flush(postMetrics [][]DDMetric) {
 	for _, metrics := range postMetrics {
 		finalMetrics = append(finalMetrics, metrics...)
 	}
+	for i := range finalMetrics {
+		finalMetrics[i].Hostname = Config.Hostname
+	}
 	// Check to see if we have anything to do
 	if totalCount > 0 {
 		// TODO Watch this error
