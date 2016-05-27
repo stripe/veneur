@@ -58,7 +58,7 @@ func TestParserWithTags(t *testing.T) {
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
-	assert.Equal(t, 3, len(m.Tags), "# of Tags")
+	assert.Equal(t, 2, len(m.Tags), "# of Tags")
 
 	_, valueError := ParseMetric([]byte("a.b.c:fart|c"))
 	assert.NotNil(t, valueError, "No errors when parsing")
@@ -69,7 +69,7 @@ func TestParserWithConfigTags(t *testing.T) {
 	ReadConfig("example.yaml")
 	m, _ := ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
 	assert.NotNil(t, m, "Got nil metric!")
-	assert.Len(t, m.Tags, 3, "Tags")
+	assert.Len(t, m.Tags, 2, "Tags")
 }
 
 func TestParserWithSampleRate(t *testing.T) {
@@ -98,7 +98,7 @@ func TestParserWithSampleRateAndTags(t *testing.T) {
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.Equal(t, float32(0.1), m.SampleRate, "Sample Rate")
-	assert.Len(t, m.Tags, 3, "Tags")
+	assert.Len(t, m.Tags, 2, "Tags")
 
 	_, valueError := ParseMetric([]byte("a.b.c:fart|c"))
 	assert.NotNil(t, valueError, "No errors when parsing")

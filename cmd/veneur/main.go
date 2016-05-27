@@ -171,6 +171,9 @@ func handlePacket(workers []*veneur.Worker, packet []byte) {
 		veneur.Stats.Count("packet.error_total", 1, nil, 1.0)
 		return
 	}
+	if len(veneur.Config.Tags) > 0 {
+		m.Tags = append(m.Tags, veneur.Config.Tags...)
+	}
 
 	// We're ready to have a worker process this packet, so add it
 	// to the work queue.

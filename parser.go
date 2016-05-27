@@ -104,9 +104,6 @@ func ParseMetric(packet []byte) (*Metric, error) {
 			ret.Tags = tags
 		}
 	}
-	if len(Config.Tags) > 0 {
-		ret.Tags = append(ret.Tags, Config.Tags...)
-	}
 
 	ret.Digest = h.Sum32()
 
