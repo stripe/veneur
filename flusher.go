@@ -34,9 +34,13 @@ func Flush(postMetrics [][]DDMetric) {
 		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", Config.APIHostname, Config.Key), "application/json", bytes.NewBuffer(postJSON))
 		defer resp.Body.Close()
 		if err != nil {
-			Stats.Count("flush.error_total", int64(totalCount), nil, 1.0)
+			Stats.Count("flush.error_total", int64(totalCount), []string{"cause:io"}, 1.0)
 			log.WithError(err).Error("Error posting")
+		} else if resp.StatusCode != http.StatusAccepted {
+			Stats.Count("flush.error_total", int64(totalCount), []string{fmt.Sprintf("cause:%d", resp.StatusCode)}, 1.0)
+			log.WithField("status", resp.StatusCode).Error("Error posting")
 		} else {
+			Stats.Count("flush.error_total", 0, nil, 0.1)
 			log.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
 		}
 		if log.GetLevel() == log.DebugLevel {
