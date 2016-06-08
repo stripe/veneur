@@ -62,7 +62,7 @@ func TestParserWithTags(t *testing.T) {
 
 	_, valueError := ParseMetric([]byte("a.b.c:fart|c"))
 	assert.NotNil(t, valueError, "No errors when parsing")
-	assert.Contains(t, valueError.Error(), "Invalid integer", "Invalid integer error missing")
+	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 }
 
 func TestParserWithConfigTags(t *testing.T) {
@@ -83,7 +83,7 @@ func TestParserWithSampleRate(t *testing.T) {
 
 	_, valueError := ParseMetric([]byte("a.b.c:fart|c"))
 	assert.NotNil(t, valueError, "No errors when parsing")
-	assert.Contains(t, valueError.Error(), "Invalid integer", "Invalid integer error missing")
+	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 
 	_, valueError = ParseMetric([]byte("a.b.c:1|g|@0.1"))
 	assert.NotNil(t, valueError, "No errors when parsing")
@@ -102,7 +102,7 @@ func TestParserWithSampleRateAndTags(t *testing.T) {
 
 	_, valueError := ParseMetric([]byte("a.b.c:fart|c"))
 	assert.NotNil(t, valueError, "No errors when parsing")
-	assert.Contains(t, valueError.Error(), "Invalid integer", "Invalid integer error missing")
+	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 }
 
 func TestInvalidPackets(t *testing.T) {

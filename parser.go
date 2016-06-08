@@ -72,7 +72,7 @@ func ParseMetric(packet []byte) (*Metric, error) {
 	} else {
 		v, err := strconv.ParseFloat(string(data[0]), 64)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid integer for metric value: %s", parts[1])
+			return nil, fmt.Errorf("Invalid number for metric value: %s", parts[1])
 		}
 		ret.Value = v
 	}
