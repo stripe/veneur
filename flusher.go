@@ -2,6 +2,7 @@ package veneur
 
 import (
 	"bytes"
+	"compress/zlib"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -39,7 +40,23 @@ func Flush(postMetrics [][]DDMetric) {
 		return
 	}
 
-	resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", Config.APIHostname, Config.Key), "application/json", bytes.NewReader(postJSON))
+	var reqBody bytes.Buffer
+	compressor := zlib.NewWriter(&reqBody)
+	// bytes.Buffer never errors
+	compressor.Write(postJSON)
+	// make sure to flush remaining compressed bytes to the buffer
+	compressor.Close()
+
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/series?api_key=%s", Config.APIHostname, Config.Key), &reqBody)
+	if err != nil {
+		Stats.Count("flush.error_total", int64(totalCount), []string{"cause:construct"}, 1.0)
+		log.WithError(err).Error("Error constructing POST request")
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "deflate")
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		Stats.Count("flush.error_total", int64(totalCount), []string{"cause:io"}, 1.0)
 		log.WithError(err).Error("Error writing POST request")
