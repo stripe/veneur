@@ -25,35 +25,47 @@ func Flush(postMetrics [][]DDMetric) {
 		finalMetrics[i].Hostname = Config.Hostname
 	}
 	// Check to see if we have anything to do
-	if totalCount > 0 {
-		// TODO Watch this error
-		postJSON, _ := json.Marshal(map[string][]DDMetric{
-			"series": finalMetrics,
-		})
-
-		resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", Config.APIHostname, Config.Key), "application/json", bytes.NewBuffer(postJSON))
-		defer resp.Body.Close()
-		if err != nil {
-			Stats.Count("flush.error_total", int64(totalCount), []string{"cause:io"}, 1.0)
-			log.WithError(err).Error("Error posting")
-		} else if resp.StatusCode != http.StatusAccepted {
-			Stats.Count("flush.error_total", int64(totalCount), []string{fmt.Sprintf("cause:%d", resp.StatusCode)}, 1.0)
-			log.WithField("status", resp.StatusCode).Error("Error posting")
-		} else {
-			Stats.Count("flush.error_total", 0, nil, 0.1)
-			log.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
-		}
-		if log.GetLevel() == log.DebugLevel {
-			// TODO Watch this error
-			body, _ := ioutil.ReadAll(resp.Body)
-			log.WithFields(log.Fields{
-				"json":     string(postJSON),
-				"status":   resp.Status,
-				"headers":  resp.Header,
-				"response": body,
-			}).Debug("POSTing JSON")
-		}
-	} else {
+	if totalCount == 0 {
 		log.Info("Nothing to flush, skipping.")
+		return
 	}
+
+	postJSON, err := json.Marshal(map[string][]DDMetric{
+		"series": finalMetrics,
+	})
+	if err != nil {
+		Stats.Count("flush.error_total", int64(totalCount), []string{"cause:json"}, 1.0)
+		log.WithError(err).Error("Error rendering JSON request body")
+		return
+	}
+
+	resp, err := http.Post(fmt.Sprintf("%s/api/v1/series?api_key=%s", Config.APIHostname, Config.Key), "application/json", bytes.NewReader(postJSON))
+	if err != nil {
+		Stats.Count("flush.error_total", int64(totalCount), []string{"cause:io"}, 1.0)
+		log.WithError(err).Error("Error writing POST request")
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		// don't bail out if this errors, we'll just log the body as empty
+		log.WithError(err).Error("Error reading response body")
+	}
+	resultFields := log.Fields{
+		"status":   resp.Status,
+		"headers":  resp.Header,
+		"request":  string(postJSON),
+		"response": string(body),
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		Stats.Count("flush.error_total", int64(totalCount), []string{fmt.Sprintf("cause:%d", resp.StatusCode)}, 1.0)
+		log.WithFields(resultFields).Error("Error POSTing")
+		return
+	}
+
+	Stats.Count("flush.error_total", 0, nil, 0.1)
+	log.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
+	log.WithFields(resultFields).Debug("POSTing JSON")
 }
