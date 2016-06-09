@@ -26,6 +26,7 @@ type VeneurConfig struct {
 	StatsAddr           string        `yaml:"stats_address"`
 	Tags                []string      `yaml:"tags"`
 	SentryDSN           string        `yaml:"sentry_dsn"`
+	HistCounters        bool          `yaml:"publish_histogram_counters"`
 }
 
 // Config is the global config that we'll use once it's inited.

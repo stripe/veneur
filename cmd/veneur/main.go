@@ -47,7 +47,7 @@ func main() {
 	log.WithField("number", veneur.Config.NumWorkers).Info("Starting workers")
 	workers := make([]*veneur.Worker, veneur.Config.NumWorkers)
 	for i := 0; i < veneur.Config.NumWorkers; i++ {
-		worker := veneur.NewWorker(i+1, veneur.Config.Percentiles, veneur.Config.SetSize, veneur.Config.SetAccuracy)
+		worker := veneur.NewWorker(i+1, veneur.Config.Percentiles, veneur.Config.HistCounters, veneur.Config.SetSize, veneur.Config.SetAccuracy)
 		worker.Start()
 		workers[i] = worker
 	}
