@@ -72,12 +72,6 @@ func Flush(postMetrics [][]DDMetric) {
 
 	fstart := time.Now()
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/series?api_key=%s", Config.APIHostname, Config.Key), &reqBody)
-	Stats.TimeInMilliseconds(
-		"flush.part_duration_ns",
-		float64(time.Now().Sub(fstart).Nanoseconds()),
-		[]string{"part:post"},
-		1.0,
-	)
 	if err != nil {
 		Stats.Count("flush.error_total", int64(totalCount), []string{"cause:construct"}, 1.0)
 		log.WithError(err).Error("Error constructing POST request")
@@ -92,6 +86,13 @@ func Flush(postMetrics [][]DDMetric) {
 		log.WithError(err).Error("Error writing POST request")
 		return
 	}
+	Stats.TimeInMilliseconds(
+		"flush.part_duration_ns",
+		float64(time.Now().Sub(fstart).Nanoseconds()),
+		[]string{"part:post"},
+		1.0,
+	)
+
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
