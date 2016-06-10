@@ -23,7 +23,7 @@ Veneur assumes you have a running DogStatsD on the localhost and emits metrics t
 * `veneur.packet.error_total` - Number of packets that Veneur could not parse due to some sort of formatting error by the client.
 * `veneur.flush.error_total` - Number of errors when attempting to POST metrics to Datadog.
 * `veneur.flush.metrics_total` - Total number of metrics flushed at each flush time, tagged by `metric_type`.
-* `veneur.flush.transaction_duration_ns` - Time taken to POST metrics to Datadog.
+* `veneur.flush.part_duration_ns` - Time taken for the POST transaction to the Datadog API. Tagged by `part` for each sub-part `prepare`, `json`, `compress` and `post`.
 * `veneur.flush.worker_duration_ns` - Per-worker timing — tagged by `worker` - for flush. This is important as it is the time in which the worker holds a lock and is unavailable for other work.
 * `veneur.worker.metrics_processed_total` - Total number of metrics processed between flushes by workers, tagged by `worker`. This helps you find hot spots where a single worker is handling a lot of metrics.
 
@@ -71,6 +71,8 @@ Specifically the streaming approximate histograms
 
 Datadog's DogStatsD — and StatsD — uses an exact histogram which retains all samples and is reset every flush period. This means that there is a loss of precision when using Veneur, but
 the resulting percentile values are meant to be more representative of a global view.
+
+Veneur's timers and histograms do not emit an `avg` metric. Averages suck.
 
 ## Approximate Sets
 

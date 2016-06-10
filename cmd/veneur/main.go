@@ -87,14 +87,7 @@ func main() {
 				}).Debug("Flushing")
 				metrics = append(metrics, w.Flush(veneur.Config.Interval))
 			}
-			fstart := time.Now()
 			veneur.Flush(metrics)
-			veneur.Stats.TimeInMilliseconds(
-				"flush.transaction_duration_ns",
-				float64(time.Now().Sub(fstart).Nanoseconds()),
-				nil,
-				1.0,
-			)
 		}
 	}()
 
