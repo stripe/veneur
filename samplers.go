@@ -130,6 +130,7 @@ type Histo struct {
 	min         float64
 	value       gohistogram.NumericHistogram
 	percentiles []float64
+	counter     bool
 }
 
 // Sample adds the supplied value to the histogram.
@@ -150,7 +151,7 @@ func (h *Histo) Sample(sample float64, sampleRate float32) {
 }
 
 // NewHist generates a new Histo and returns it.
-func NewHist(name string, tags []string, percentiles []float64) *Histo {
+func NewHist(name string, tags []string, percentiles []float64, counter bool) *Histo {
 	// For gohistogram, the following is from the docs:
 	// There is no "optimal" bin count, but somewhere between 20 and 80 bins should be sufficient. (50!)
 	return &Histo{
@@ -159,6 +160,7 @@ func NewHist(name string, tags []string, percentiles []float64) *Histo {
 		count:       0,
 		value:       *gohistogram.NewHistogram(50),
 		percentiles: percentiles,
+		counter:     counter,
 	}
 }
 
@@ -168,13 +170,6 @@ func (h *Histo) Flush(interval time.Duration) []DDMetric {
 	now := float64(time.Now().Unix())
 	rate := float64(h.count) / interval.Seconds()
 	metrics := []DDMetric{
-		{
-			Name:       fmt.Sprintf("%s.count", h.name),
-			Value:      [1][2]float64{{now, rate}},
-			Tags:       h.tags,
-			MetricType: "rate",
-			Interval:   int32(interval.Seconds()),
-		},
 		{
 			Name:       fmt.Sprintf("%s.max", h.name),
 			Value:      [1][2]float64{{now, h.max}},
@@ -187,6 +182,15 @@ func (h *Histo) Flush(interval time.Duration) []DDMetric {
 			Tags:       h.tags,
 			MetricType: "gauge",
 		},
+	}
+	if h.counter {
+		metrics = append(metrics, DDMetric{
+			Name:       fmt.Sprintf("%s.count", h.name),
+			Value:      [1][2]float64{{now, rate}},
+			Tags:       h.tags,
+			MetricType: "rate",
+			Interval:   int32(interval.Seconds()),
+		})
 	}
 
 	for i, p := range h.percentiles {

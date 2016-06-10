@@ -22,12 +22,13 @@ type Worker struct {
 	mutex      *sync.Mutex
 
 	histogramPercentiles []float64
+	histogramCounter     bool
 	bloomSetSize         uint
 	bloomSetAccuracy     float64
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, percentiles []float64, setSize uint, setAccuracy float64) *Worker {
+func NewWorker(id int, percentiles []float64, histogramCounter bool, setSize uint, setAccuracy float64) *Worker {
 	return &Worker{
 		id:         id,
 		WorkChan:   make(chan Metric), // TODO Configurable!
@@ -41,6 +42,7 @@ func NewWorker(id int, percentiles []float64, setSize uint, setAccuracy float64)
 		mutex:      &sync.Mutex{},
 
 		histogramPercentiles: percentiles,
+		histogramCounter:     histogramCounter,
 		bloomSetSize:         setSize,
 		bloomSetAccuracy:     setAccuracy,
 	}
@@ -93,7 +95,7 @@ func (w *Worker) ProcessMetric(m *Metric) {
 		_, present := w.histograms[m.Digest]
 		if !present {
 			log.WithField("name", m.Name).Debug("New histogram")
-			w.histograms[m.Digest] = NewHist(m.Name, m.Tags, w.histogramPercentiles)
+			w.histograms[m.Digest] = NewHist(m.Name, m.Tags, w.histogramPercentiles, w.histogramCounter)
 		}
 		w.histograms[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	case "set":
@@ -107,7 +109,7 @@ func (w *Worker) ProcessMetric(m *Metric) {
 		_, present := w.timers[m.Digest]
 		if !present {
 			log.WithField("name", m.Name).Debug("New timer")
-			w.timers[m.Digest] = NewHist(m.Name, m.Tags, w.histogramPercentiles)
+			w.timers[m.Digest] = NewHist(m.Name, m.Tags, w.histogramPercentiles, w.histogramCounter)
 		}
 		w.timers[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	default:

@@ -70,10 +70,11 @@ func Flush(postMetrics [][]DDMetric) {
 		log.WithError(err).Error("Error reading response body")
 	}
 	resultFields := log.Fields{
-		"status":   resp.Status,
-		"headers":  resp.Header,
-		"request":  string(postJSON),
-		"response": string(body),
+		"status":           resp.Status,
+		"request_headers":  req.Header,
+		"response_headers": resp.Header,
+		"request":          string(postJSON),
+		"response":         string(body),
 	}
 
 	if resp.StatusCode != http.StatusAccepted {
