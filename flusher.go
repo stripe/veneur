@@ -15,7 +15,6 @@ import (
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func Flush(postMetrics [][]DDMetric) {
-	pstart := time.Now()
 	totalCount := 0
 	for _, metrics := range postMetrics {
 		totalCount += len(metrics)
@@ -27,12 +26,6 @@ func Flush(postMetrics [][]DDMetric) {
 	for i := range finalMetrics {
 		finalMetrics[i].Hostname = Config.Hostname
 	}
-	Stats.TimeInMilliseconds(
-		"flush.part_duration_ns",
-		float64(time.Now().Sub(pstart).Nanoseconds()),
-		[]string{"part:prepare"},
-		1.0,
-	)
 
 	// Check to see if we have anything to do
 	if totalCount == 0 {
