@@ -72,6 +72,8 @@ Specifically the streaming approximate histograms
 Datadog's DogStatsD — and StatsD — uses an exact histogram which retains all samples and is reset every flush period. This means that there is a loss of precision when using Veneur, but
 the resulting percentile values are meant to be more representative of a global view.
 
+Veneur's timers and histograms do not emit an `avg` metric. Averages suck.
+
 ## Approximate Sets
 
 Veneur uses [Bloom filters](https://github.com/willf/bloom) for approximate unique sets. Configured via `set_size` and `set_accuracy`
