@@ -33,35 +33,27 @@ func Flush(postMetrics [][]DDMetric) {
 		return
 	}
 
-	jstart := time.Now()
-	postJSON, err := json.Marshal(map[string][]DDMetric{
+	cstart := time.Now()
+	var reqBody bytes.Buffer
+	compressor := zlib.NewWriter(&reqBody)
+	encoder := json.NewEncoder(compressor)
+	err := encoder.Encode(map[string][]DDMetric{
 		"series": finalMetrics,
 	})
-	Stats.TimeInMilliseconds(
-		"flush.part_duration_ns",
-		float64(time.Now().Sub(jstart).Nanoseconds()),
-		[]string{"part:json"},
-		1.0,
-	)
 	if err != nil {
 		Stats.Count("flush.error_total", int64(totalCount), []string{"cause:json"}, 1.0)
 		log.WithError(err).Error("Error rendering JSON request body")
 		return
 	}
-
-	cstart := time.Now()
-	var reqBody bytes.Buffer
-	compressor := zlib.NewWriter(&reqBody)
-	// bytes.Buffer never errors
-	compressor.Write(postJSON)
 	// make sure to flush remaining compressed bytes to the buffer
 	compressor.Close()
 	Stats.TimeInMilliseconds(
 		"flush.part_duration_ns",
 		float64(time.Now().Sub(cstart).Nanoseconds()),
-		[]string{"part:compress"},
+		[]string{"part:marshal"},
 		1.0,
 	)
+	Stats.Gauge("flush.content_length_bytes", float64(reqBody.Len()), nil, 1.0)
 
 	fstart := time.Now()
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/series?api_key=%s", Config.APIHostname, Config.Key), &reqBody)
@@ -97,7 +89,7 @@ func Flush(postMetrics [][]DDMetric) {
 		"status":           resp.Status,
 		"request_headers":  req.Header,
 		"response_headers": resp.Header,
-		"request":          string(postJSON),
+		"request_length":   reqBody.Len(),
 		"response":         string(body),
 	}
 
