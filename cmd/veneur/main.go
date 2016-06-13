@@ -87,7 +87,7 @@ func main() {
 				}).Debug("Flushing")
 				metrics = append(metrics, w.Flush(veneur.Config.Interval))
 			}
-			veneur.Flush(metrics)
+			veneur.Flush(metrics, veneur.Config.FlushLimit)
 		}
 	}()
 

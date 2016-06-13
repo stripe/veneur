@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"sync"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -14,7 +15,7 @@ import (
 
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
-func Flush(postMetrics [][]DDMetric) {
+func Flush(postMetrics [][]DDMetric, metricLimit int) {
 	totalCount := 0
 	for _, metrics := range postMetrics {
 		totalCount += len(metrics)
@@ -33,15 +34,39 @@ func Flush(postMetrics [][]DDMetric) {
 		return
 	}
 
+	// break the metrics into chunks of approximately equal size, such that
+	// each chunk is less than the limit
+	// we compute the chunks using rounding-up integer division
+	workers := ((totalCount - 1) / metricLimit) + 1
+	chunkSize := ((totalCount - 1) / workers) + 1
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		chunk := finalMetrics[i*chunkSize:]
+		if i < workers-1 {
+			// trim to chunk size unless this is the last one
+			chunk = chunk[:chunkSize]
+		}
+		wg.Add(1)
+		go flushPart(chunk, &wg)
+	}
+	wg.Wait()
+
+	Stats.Count("flush.error_total", 0, nil, 0.1) // make sure this metric is not sparse
+	log.WithField("metrics", totalCount).Info("Completed flush to Datadog")
+}
+
+func flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	cstart := time.Now()
 	var reqBody bytes.Buffer
 	compressor := zlib.NewWriter(&reqBody)
 	encoder := json.NewEncoder(compressor)
 	err := encoder.Encode(map[string][]DDMetric{
-		"series": finalMetrics,
+		"series": metricSlice,
 	})
 	if err != nil {
-		Stats.Count("flush.error_total", int64(totalCount), []string{"cause:json"}, 1.0)
+		Stats.Count("flush.error_total", int64(len(metricSlice)), []string{"cause:json"}, 1.0)
 		log.WithError(err).Error("Error rendering JSON request body")
 		return
 	}
@@ -57,19 +82,19 @@ func Flush(postMetrics [][]DDMetric) {
 	bodyLength := reqBody.Len()
 	Stats.Gauge("flush.content_length_bytes", float64(bodyLength), nil, 1.0)
 
-	fstart := time.Now()
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/series?api_key=%s", Config.APIHostname, Config.Key), &reqBody)
 	if err != nil {
-		Stats.Count("flush.error_total", int64(totalCount), []string{"cause:construct"}, 1.0)
+		Stats.Count("flush.error_total", int64(len(metricSlice)), []string{"cause:construct"}, 1.0)
 		log.WithError(err).Error("Error constructing POST request")
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "deflate")
 
+	fstart := time.Now()
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		Stats.Count("flush.error_total", int64(totalCount), []string{"cause:io"}, 1.0)
+		Stats.Count("flush.error_total", int64(len(metricSlice)), []string{"cause:io"}, 1.0)
 		log.WithError(err).Error("Error writing POST request")
 		return
 	}
@@ -79,7 +104,6 @@ func Flush(postMetrics [][]DDMetric) {
 		[]string{"part:post"},
 		1.0,
 	)
-
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -93,16 +117,14 @@ func Flush(postMetrics [][]DDMetric) {
 		"response_headers": resp.Header,
 		"request_length":   bodyLength,
 		"response":         string(body),
-		"total_metrics":    totalCount,
+		"total_metrics":    len(metricSlice),
 	}
 
 	if resp.StatusCode != http.StatusAccepted {
-		Stats.Count("flush.error_total", int64(totalCount), []string{fmt.Sprintf("cause:%d", resp.StatusCode)}, 1.0)
+		Stats.Count("flush.error_total", int64(len(metricSlice)), []string{fmt.Sprintf("cause:%d", resp.StatusCode)}, 1.0)
 		log.WithFields(resultFields).Error("Error POSTing")
 		return
 	}
 
-	Stats.Count("flush.error_total", 0, nil, 0.1)
-	log.WithField("metrics", totalCount).Info("Completed flush to Datadog")
 	log.WithFields(resultFields).Debug("POSTing JSON")
 }
