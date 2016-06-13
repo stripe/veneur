@@ -28,6 +28,7 @@ func Flush(postMetrics [][]DDMetric, metricLimit int) {
 		finalMetrics[i].Hostname = Config.Hostname
 	}
 
+	Stats.Gauge("flush.post_metrics_total", float64(totalCount), nil, 1.0)
 	// Check to see if we have anything to do
 	if totalCount == 0 {
 		log.Info("Nothing to flush, skipping.")
@@ -40,6 +41,7 @@ func Flush(postMetrics [][]DDMetric, metricLimit int) {
 	workers := ((totalCount - 1) / metricLimit) + 1
 	chunkSize := ((totalCount - 1) / workers) + 1
 	var wg sync.WaitGroup
+	flushStart := time.Now()
 	for i := 0; i < workers; i++ {
 		chunk := finalMetrics[i*chunkSize:]
 		if i < workers-1 {
@@ -50,6 +52,7 @@ func Flush(postMetrics [][]DDMetric, metricLimit int) {
 		go flushPart(chunk, &wg)
 	}
 	wg.Wait()
+	Stats.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(flushStart).Nanoseconds()), nil, 1.0)
 
 	Stats.Count("flush.error_total", 0, nil, 0.1) // make sure this metric is not sparse
 	log.WithField("metrics", totalCount).Info("Completed flush to Datadog")

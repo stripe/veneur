@@ -152,23 +152,23 @@ func (w *Worker) Flush(interval time.Duration) []DDMetric {
 		1.0,
 	)
 
-	Stats.Count("flush.metrics_total", int64(len(counters)), []string{"metric_type:counter"}, 1.0)
+	Stats.Count("worker.metrics_flushed_total", int64(len(counters)), []string{"metric_type:counter"}, 1.0)
 	for _, v := range counters {
 		postMetrics = append(postMetrics, v.Flush(interval)...)
 	}
-	Stats.Count("flush.metrics_total", int64(len(gauges)), []string{"metric_type:gauge"}, 1.0)
+	Stats.Count("worker.metrics_flushed_total", int64(len(gauges)), []string{"metric_type:gauge"}, 1.0)
 	for _, v := range gauges {
 		postMetrics = append(postMetrics, v.Flush()...)
 	}
-	Stats.Count("flush.metrics_total", int64(len(histograms)), []string{"metric_type:histogram"}, 1.0)
+	Stats.Count("worker.metrics_flushed_total", int64(len(histograms)), []string{"metric_type:histogram"}, 1.0)
 	for _, v := range histograms {
 		postMetrics = append(postMetrics, v.Flush(interval)...)
 	}
-	Stats.Count("flush.metrics_total", int64(len(sets)), []string{"metric_type:set"}, 1.0)
+	Stats.Count("worker.metrics_flushed_total", int64(len(sets)), []string{"metric_type:set"}, 1.0)
 	for _, v := range sets {
 		postMetrics = append(postMetrics, v.Flush()...)
 	}
-	Stats.Count("flush.metrics_total", int64(len(timers)), []string{"metric_type:timer"}, 1.0)
+	Stats.Count("worker.metrics_flushed_total", int64(len(timers)), []string{"metric_type:timer"}, 1.0)
 	for _, v := range timers {
 		postMetrics = append(postMetrics, v.Flush(interval)...)
 	}
