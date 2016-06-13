@@ -53,7 +53,9 @@ func Flush(postMetrics [][]DDMetric) {
 		[]string{"part:marshal"},
 		1.0,
 	)
-	Stats.Gauge("flush.content_length_bytes", float64(reqBody.Len()), nil, 1.0)
+	// Len reports the unread length, so we have to record this before it's POSTed
+	bodyLength := reqBody.Len()
+	Stats.Gauge("flush.content_length_bytes", float64(bodyLength), nil, 1.0)
 
 	fstart := time.Now()
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/series?api_key=%s", Config.APIHostname, Config.Key), &reqBody)
@@ -89,8 +91,9 @@ func Flush(postMetrics [][]DDMetric) {
 		"status":           resp.Status,
 		"request_headers":  req.Header,
 		"response_headers": resp.Header,
-		"request_length":   reqBody.Len(),
+		"request_length":   bodyLength,
 		"response":         string(body),
+		"total_metrics":    totalCount,
 	}
 
 	if resp.StatusCode != http.StatusAccepted {
@@ -100,6 +103,6 @@ func Flush(postMetrics [][]DDMetric) {
 	}
 
 	Stats.Count("flush.error_total", 0, nil, 0.1)
-	log.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
+	log.WithField("metrics", totalCount).Info("Completed flush to Datadog")
 	log.WithFields(resultFields).Debug("POSTing JSON")
 }
