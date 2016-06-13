@@ -21,11 +21,15 @@ and sets) even though it supports other metric types.
 Veneur assumes you have a running DogStatsD on the localhost and emits metrics to it's default port of 8125. Those metrics are:
 
 * `veneur.packet.error_total` - Number of packets that Veneur could not parse due to some sort of formatting error by the client.
-* `veneur.flush.error_total` - Number of errors when attempting to POST metrics to Datadog.
-* `veneur.flush.metrics_total` - Total number of metrics flushed at each flush time, tagged by `metric_type`.
-* `veneur.flush.part_duration_ns` - Time taken for the POST transaction to the Datadog API. Tagged by `part` for each sub-part `prepare`, `json`, `compress` and `post`.
+* `veneur.flush.post_metrics_total` - The total number of time-series points that will be submitted to Datadog via POST. Datadog's rate limiting is roughly proportional to this number.
+* `veneur.flush.content_length_bytes` - The number of bytes in a single POST body. Remember that Veneur POSTs large sets of metrics in multiple separate bodies in parallel.
+* `veneur.flush.part_duration_ns` - Time taken for the POST transaction to the Datadog API. Tagged by `part` for each sub-part `marshal` (assembling the request body) and `post` (blocking on an HTTP response from Datadog).
+* `veneur.flush.total_duration_ns` - Total time spent POSTing to Datadog, across all parallel requests. Under most circumstances, this should be roughly equal to the total `veneur.flush.part_duration_ns`. If it's not, then some of the POSTs are happening in sequence, which suggests some kind of goroutine scheduling issue.
+* `veneur.flush.error_total` - Number of metrics dropped from errors attempting to POST to Datadog. If you're getting errors POSTing, this metric tells you how much damage those errors are causing to your metrics pipeline.
 * `veneur.flush.worker_duration_ns` - Per-worker timing — tagged by `worker` - for flush. This is important as it is the time in which the worker holds a lock and is unavailable for other work.
-* `veneur.worker.metrics_processed_total` - Total number of metrics processed between flushes by workers, tagged by `worker`. This helps you find hot spots where a single worker is handling a lot of metrics.
+* `veneur.worker.metrics_processed_total` - Total number of metric packets processed between flushes by workers, tagged by `worker`. This helps you find hot spots where a single worker is handling a lot of metrics. The sum across all workers should be approximately proportional to the number of packets received.
+* `veneur.worker.metrics_flushed_total` - Total number of metrics flushed at each flush time, tagged by `metric_type`. A "metric", in this context, refers to a unique combination of name, tags and metric type. You can use this metric to detect when your clients are introducing new instrumentation, or when you acquire new clients.
+* `veneur.unique_sender_ips` - The number of unique IPs that have submitted metrics to Veneur. This is another way to detect a sudden increase in the number of clients.
 
 # Status
 
@@ -44,6 +48,7 @@ Veneur expects to have a config file supplied via `-f PATH`. The include `exampl
 
 * `api_hostname` - The Datadog API URL to post to. Probably `https://app.datadoghq.com`.
 * `metric_max_length` - How big a buffer to allocate for incoming metric lengths. Metrics longer than this will get truncated!
+* `flush_max_per_body` - how many metrics to include in each JSON body POSTed to Datadog. Veneur will POST multiple bodies in parallel if it goes over this limit. A value around 100k-150k is recommended; in practice we've seen Datadog reject bodies over about 195k.
 * `debug` - Should we output lots of debug info? :)
 * `hostname` - The hostname to be used with each metric sent. Defaults to `os.Hostname()`
 * `interval` - How often to flush. Something like 10s seems good.
