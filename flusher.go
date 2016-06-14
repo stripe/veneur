@@ -85,7 +85,7 @@ func flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
 	)
 	// Len reports the unread length, so we have to record this before it's POSTed
 	bodyLength := reqBody.Len()
-	Stats.Gauge("flush.content_length_bytes", float64(bodyLength), nil, 1.0)
+	Stats.Histogram("flush.content_length_bytes", float64(bodyLength), nil, 1.0)
 
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/series?api_key=%s", Config.APIHostname, Config.Key), &reqBody)
 	if err != nil {

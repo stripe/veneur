@@ -22,7 +22,7 @@ Veneur assumes you have a running DogStatsD on the localhost and emits metrics t
 
 * `veneur.packet.error_total` - Number of packets that Veneur could not parse due to some sort of formatting error by the client.
 * `veneur.flush.post_metrics_total` - The total number of time-series points that will be submitted to Datadog via POST. Datadog's rate limiting is roughly proportional to this number.
-* `veneur.flush.content_length_bytes` - The number of bytes in a single POST body. Remember that Veneur POSTs large sets of metrics in multiple separate bodies in parallel.
+* `veneur.flush.content_length_bytes.*` - The number of bytes in a single POST body. Remember that Veneur POSTs large sets of metrics in multiple separate bodies in parallel. Uses a histogram, so there are multiple metrics generated depending on your local DogStatsD config.
 * `veneur.flush.part_duration_ns` - Time taken for the POST transaction to the Datadog API. Tagged by `part` for each sub-part `marshal` (assembling the request body) and `post` (blocking on an HTTP response from Datadog).
 * `veneur.flush.total_duration_ns` - Total time spent POSTing to Datadog, across all parallel requests. Under most circumstances, this should be roughly equal to the total `veneur.flush.part_duration_ns`. If it's not, then some of the POSTs are happening in sequence, which suggests some kind of goroutine scheduling issue.
 * `veneur.flush.error_total` - Number of metrics dropped from errors attempting to POST to Datadog. If you're getting errors POSTing, this metric tells you how much damage those errors are causing to your metrics pipeline.
