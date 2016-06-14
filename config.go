@@ -27,6 +27,7 @@ type VeneurConfig struct {
 	Tags                []string      `yaml:"tags"`
 	SentryDSN           string        `yaml:"sentry_dsn"`
 	HistCounters        bool          `yaml:"publish_histogram_counters"`
+	FlushLimit          int           `yaml:"flush_max_per_body"`
 }
 
 // Config is the global config that we'll use once it's inited.

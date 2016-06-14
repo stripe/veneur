@@ -17,7 +17,7 @@ var (
 
 type packet struct {
 	buf []byte
-	ip  string
+	ip  net.IP
 }
 
 func main() {
@@ -87,7 +87,7 @@ func main() {
 				}).Debug("Flushing")
 				metrics = append(metrics, w.Flush(veneur.Config.Interval))
 			}
-			veneur.Flush(metrics)
+			veneur.Flush(metrics, veneur.Config.FlushLimit)
 		}
 	}()
 
@@ -95,7 +95,7 @@ func main() {
 		New: func() interface{} {
 			return packet{
 				buf: make([]byte, veneur.Config.MetricMaxLength),
-				ip:  "",
+				ip:  nil,
 			}
 		},
 	}
@@ -126,7 +126,7 @@ func main() {
 				workers[uniqueSenderIPDigest%uint32(veneur.Config.NumWorkers)].WorkChan <- veneur.Metric{
 					Name:       "veneur.unique_sender_ips",
 					Digest:     uniqueSenderIPDigest,
-					Value:      packetbuf.ip,
+					Value:      packetbuf.ip.String(),
 					SampleRate: 1.0,
 					Type:       "set",
 				}
@@ -149,7 +149,7 @@ func main() {
 			continue
 		}
 		packetbuf.buf = packetbuf.buf[:n]
-		packetbuf.ip = addr.IP.String()
+		packetbuf.ip = addr.IP
 		parserChan <- packetbuf
 	}
 }
