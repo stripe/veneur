@@ -40,8 +40,8 @@ func Flush(postMetrics [][]DDMetric, metricLimit int) {
 	// we compute the chunks using rounding-up integer division
 	workers := ((totalCount - 1) / metricLimit) + 1
 	chunkSize := ((totalCount - 1) / workers) + 1
-	log.WithField("workers", workers).Info("Worker count chosen")
-	log.WithField("chunkSize", chunkSize).Info("Chunk size chosen")
+	log.WithField("workers", workers).Debug("Worker count chosen")
+	log.WithField("chunkSize", chunkSize).Debug("Chunk size chosen")
 	var wg sync.WaitGroup
 	flushStart := time.Now()
 	for i := 0; i < workers; i++ {
