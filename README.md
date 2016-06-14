@@ -48,7 +48,7 @@ Veneur expects to have a config file supplied via `-f PATH`. The include `exampl
 
 * `api_hostname` - The Datadog API URL to post to. Probably `https://app.datadoghq.com`.
 * `metric_max_length` - How big a buffer to allocate for incoming metric lengths. Metrics longer than this will get truncated!
-* `flush_max_per_body` - how many metrics to include in each JSON body POSTed to Datadog. Veneur will POST multiple bodies in parallel if it goes over this limit. A value around 100k-150k is recommended; in practice we've seen Datadog reject bodies over about 195k.
+* `flush_max_per_body` - how many metrics to include in each JSON body POSTed to Datadog. Veneur will POST multiple bodies in parallel if it goes over this limit. A value around 5k-10k is recommended; in practice we've seen Datadog reject bodies over about 195k.
 * `debug` - Should we output lots of debug info? :)
 * `hostname` - The hostname to be used with each metric sent. Defaults to `os.Hostname()`
 * `interval` - How often to flush. Something like 10s seems good.
@@ -110,6 +110,16 @@ This chart shows the number of packets processed per second as well as a nice fl
 Box load was around 8, memory usage can be seen here from `htop`:
 
 ![Memory Usage](/memory.png?raw=true "Memory Usage")
+
+
+### Compressed, Chunked POST
+
+Datadog's API is tuned for small POST bodies from lots of hosts since they work on a per-host basis. Also there are limits on the size of the body that
+can be posted. As a result Veneur chunks metrics in to smaller bits — governed by `flush_max_per_body` — and sends them (compressed) concurrently to
+Datadog. This is essential for reasonable performance as Datadog's API seems to be somewhat `O(n)` with the size of the body (which is proportional
+to the number of metrics).
+
+We've found that our hosts generate around 5k metrics and have reasonable performance, so in our case 5k is used as the `flush_max_per_body`.
 
 ## Sysctl
 
