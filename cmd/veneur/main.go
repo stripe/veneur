@@ -37,28 +37,12 @@ func main() {
 	}()
 	veneur.InitStats()
 
-	// Start the dispatcher.
-	log.WithField("number", veneur.Config.NumWorkers).Info("Starting workers")
-	workers := make([]*veneur.Worker, veneur.Config.NumWorkers)
-	for i := 0; i < veneur.Config.NumWorkers; i++ {
-		worker := veneur.NewWorker(i+1, veneur.Config.Percentiles, veneur.Config.HistCounters, veneur.Config.SetSize, veneur.Config.SetAccuracy)
-		worker.Start()
-		workers[i] = worker
-	}
-
 	serverAddr, err := net.ResolveUDPAddr("udp", veneur.Config.UDPAddr)
 	if err != nil {
 		log.WithError(err).Fatal("Error resolving address")
 	}
 
-	server := veneur.Server{
-		Workers:    workers,
-		Stats:      veneur.Stats,
-		Hostname:   veneur.Config.Hostname,
-		Tags:       veneur.Config.Tags,
-		DDHostname: veneur.Config.APIHostname,
-		DDAPIKey:   veneur.Config.Key,
-	}
+	server := veneur.NewFromConfig(veneur.Config)
 
 	packetPool := &sync.Pool{
 		New: func() interface{} {

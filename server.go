@@ -19,6 +19,24 @@ type Server struct {
 	DDAPIKey   string
 }
 
+func NewFromConfig(conf *VeneurConfig) (ret Server) {
+	ret.Hostname = conf.Hostname
+	ret.Tags = conf.Tags
+	ret.DDHostname = conf.APIHostname
+	ret.DDAPIKey = conf.Key
+
+	ret.Stats = Stats // TODO: take ownership of this value and initialize this here
+
+	logrus.WithField("number", conf.NumWorkers).Info("Starting workers")
+	ret.Workers = make([]*Worker, conf.NumWorkers)
+	for i := range ret.Workers {
+		ret.Workers[i] = NewWorker(i+1, conf.Percentiles, conf.HistCounters, conf.SetSize, conf.SetAccuracy)
+		ret.Workers[i].Start()
+	}
+
+	return
+}
+
 func (s *Server) HandlePacket(packet []byte, packetPool *sync.Pool) {
 	metric, err := ParseMetric(packet)
 	if err != nil {
