@@ -55,6 +55,7 @@ func main() {
 		Workers:    workers,
 		Stats:      veneur.Stats,
 		Hostname:   veneur.Config.Hostname,
+		Tags:       veneur.Config.Tags,
 		DDHostname: veneur.Config.APIHostname,
 		DDAPIKey:   veneur.Config.Key,
 	}
@@ -74,12 +75,7 @@ func main() {
 				veneur.ConsumePanic(recover())
 			}()
 			for packet := range parserChan {
-				handlePacket(workers, packet)
-				// handlePacket generates a Metric struct which contains only
-				// strings, so there are no outstanding references to the byte
-				// slice containing the packet
-				// therefore, at this point we can return it to the pool
-				packetPool.Put(packet[:cap(packet)])
+				server.HandlePacket(packet, packetPool)
 			}
 		}()
 	}
@@ -122,23 +118,4 @@ func main() {
 	for range ticker.C {
 		server.Flush(veneur.Config.Interval, veneur.Config.FlushLimit)
 	}
-}
-
-func handlePacket(workers []*veneur.Worker, packet []byte) {
-	m, err := veneur.ParseMetric(packet)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"error":  err,
-			"packet": string(packet),
-		}).Error("Error parsing packet")
-		veneur.Stats.Count("packet.error_total", 1, nil, 1.0)
-		return
-	}
-	if len(veneur.Config.Tags) > 0 {
-		m.Tags = append(m.Tags, veneur.Config.Tags...)
-	}
-
-	// We're ready to have a worker process this packet, so add it
-	// to the work queue.
-	workers[m.Digest%uint32(veneur.Config.NumWorkers)].WorkChan <- *m
 }
