@@ -8,4 +8,7 @@ type Server struct {
 	Stats *statsd.Client
 
 	Hostname string
+
+	DDHostname string
+	DDAPIKey   string
 }

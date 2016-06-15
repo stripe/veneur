@@ -52,8 +52,10 @@ func main() {
 	}
 
 	server := veneur.Server{
-		Stats:    veneur.Stats,
-		Hostname: veneur.Config.Hostname,
+		Stats:      veneur.Stats,
+		Hostname:   veneur.Config.Hostname,
+		DDHostname: veneur.Config.APIHostname,
+		DDAPIKey:   veneur.Config.Key,
 	}
 
 	packetPool := &sync.Pool{
