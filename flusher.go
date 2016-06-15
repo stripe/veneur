@@ -15,11 +15,16 @@ import (
 
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
-func (s *Server) Flush(postMetrics [][]DDMetric, metricLimit int) {
+func (s *Server) Flush(interval time.Duration, metricLimit int) {
+	postMetrics := make([][]DDMetric, len(s.Workers))
 	totalCount := 0
-	for _, metrics := range postMetrics {
-		totalCount += len(metrics)
+	for i, w := range s.Workers {
+		log.WithField("worker", i).Debug("Flushing")
+		tmp := w.Flush(interval)
+		totalCount += len(tmp)
+		postMetrics = append(postMetrics, tmp)
 	}
+
 	finalMetrics := make([]DDMetric, 0, totalCount)
 	for _, metrics := range postMetrics {
 		finalMetrics = append(finalMetrics, metrics...)

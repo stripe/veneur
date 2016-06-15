@@ -52,6 +52,7 @@ func main() {
 	}
 
 	server := veneur.Server{
+		Workers:    workers,
 		Stats:      veneur.Stats,
 		Hostname:   veneur.Config.Hostname,
 		DDHostname: veneur.Config.APIHostname,
@@ -118,16 +119,8 @@ func main() {
 
 	ticker := time.NewTicker(veneur.Config.Interval)
 	log.WithField("interval", veneur.Config.Interval).Info("Starting flush loop")
-	for t := range ticker.C {
-		metrics := make([][]veneur.DDMetric, veneur.Config.NumWorkers)
-		for i, w := range workers {
-			log.WithFields(log.Fields{
-				"worker": i,
-				"tick":   t,
-			}).Debug("Flushing")
-			metrics = append(metrics, w.Flush(veneur.Config.Interval))
-		}
-		server.Flush(metrics, veneur.Config.FlushLimit)
+	for range ticker.C {
+		server.Flush(veneur.Config.Interval, veneur.Config.FlushLimit)
 	}
 }
 

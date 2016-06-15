@@ -5,6 +5,8 @@ import (
 )
 
 type Server struct {
+	Workers []*Worker
+
 	Stats *statsd.Client
 
 	Hostname string
