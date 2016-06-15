@@ -15,7 +15,7 @@ import (
 
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
-func Flush(postMetrics [][]DDMetric, metricLimit int) {
+func (s *Server) Flush(postMetrics [][]DDMetric, metricLimit int) {
 	totalCount := 0
 	for _, metrics := range postMetrics {
 		totalCount += len(metrics)
@@ -25,10 +25,10 @@ func Flush(postMetrics [][]DDMetric, metricLimit int) {
 		finalMetrics = append(finalMetrics, metrics...)
 	}
 	for i := range finalMetrics {
-		finalMetrics[i].Hostname = Config.Hostname
+		finalMetrics[i].Hostname = s.Hostname
 	}
 
-	Stats.Gauge("flush.post_metrics_total", float64(totalCount), nil, 1.0)
+	s.Stats.Gauge("flush.post_metrics_total", float64(totalCount), nil, 1.0)
 	// Check to see if we have anything to do
 	if totalCount == 0 {
 		log.Info("Nothing to flush, skipping.")
@@ -54,9 +54,9 @@ func Flush(postMetrics [][]DDMetric, metricLimit int) {
 		go flushPart(chunk, &wg)
 	}
 	wg.Wait()
-	Stats.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(flushStart).Nanoseconds()), nil, 1.0)
+	s.Stats.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(flushStart).Nanoseconds()), nil, 1.0)
 
-	Stats.Count("flush.error_total", 0, nil, 0.1) // make sure this metric is not sparse
+	s.Stats.Count("flush.error_total", 0, nil, 0.1) // make sure this metric is not sparse
 	log.WithField("metrics", totalCount).Info("Completed flush to Datadog")
 }
 

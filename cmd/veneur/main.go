@@ -51,6 +51,11 @@ func main() {
 		log.WithError(err).Fatal("Error resolving address")
 	}
 
+	server := veneur.Server{
+		Stats:    veneur.Stats,
+		Hostname: veneur.Config.Hostname,
+	}
+
 	packetPool := &sync.Pool{
 		New: func() interface{} {
 			return make([]byte, veneur.Config.MetricMaxLength)
@@ -120,7 +125,7 @@ func main() {
 			}).Debug("Flushing")
 			metrics = append(metrics, w.Flush(veneur.Config.Interval))
 		}
-		veneur.Flush(metrics, veneur.Config.FlushLimit)
+		server.Flush(metrics, veneur.Config.FlushLimit)
 	}
 }
 
