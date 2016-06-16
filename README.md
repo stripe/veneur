@@ -56,6 +56,7 @@ Veneur expects to have a config file supplied via `-f PATH`. The include `exampl
 * `publish_histogram_counters` - Veneur can publish a counter, `$name.count`, for how many samples a histogram has received. Note that this counter, like every other metric passing through veneur, will be attached to Veneur's own host.
 * `udp_address` - The address on which to listen for metrics. Probably `:8126` so as not to interfere with normal DogStatsD.
 * `num_workers` - The number of worker goroutines to start.
+* `num_readers` - The number of reader goroutines to start. Veneur supports SO_REUSEPORT on Linux to scale to multiple readers. On other platforms, this should always be 1; other values will probably cause errors at startup. See below.
 * `read_buffer_size_bytes` - The size of the receive buffer for the UDP socket. Defaults to 2MB, as having a lot of buffer prevents packet drops during flush!
 * `set_size` - The cardinality of the set you'll using with sets. Too small will cause decreased accuracy.
 * `set_accuracy` - The approximate accuracy of set's approximations. More accuracy uses more memory.
@@ -132,6 +133,10 @@ sysctl -w net.core.rmem_max=16777216
 sysctl -w net.core.rmem_default=16777216
 sysctl -w net.ipv4.udp_mem="4648512 6198016 9297024"
 ```
+
+## SO_REUSEPORT
+
+As [other implementations](http://githubengineering.com/brubeck/) have observed, there's a limit to how many UDP packets a single kernel thread can consume before it starts to fall over. Veneur now supports the `SO_REUSEPORT` socket option on Linux, allowing multiple threads to share the UDP socket with kernel-space balancing between them. If you've tried throwing more cores at Veneur and it's just not going fast enough, this feature can probably help by allowing more of those cores to work on the socket (which is Veneur's hottest code path by far). Note that this is only supported on Linux (right now). We have not added support for other platforms, like darwin and BSDs.
 
 # Name
 
