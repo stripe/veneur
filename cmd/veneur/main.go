@@ -46,44 +46,10 @@ func main() {
 		workers[i] = worker
 	}
 
-	// Start the UDP server!
-	log.WithFields(log.Fields{
-		"address":        veneur.Config.UDPAddr,
-		"flush_interval": veneur.Config.Interval,
-	}).Info("UDP server listening")
 	serverAddr, err := net.ResolveUDPAddr("udp", veneur.Config.UDPAddr)
 	if err != nil {
 		log.WithError(err).Fatal("Error resolving address")
 	}
-
-	serverConn, err := net.ListenUDP("udp", serverAddr)
-
-	if err != nil {
-		log.WithError(err).Fatal("Error listening for UDP")
-	}
-	if err := serverConn.SetReadBuffer(veneur.Config.ReadBufferSizeBytes); err != nil {
-		log.WithError(err).Fatal("Could not set recvbuf size")
-	}
-
-	defer serverConn.Close()
-
-	ticker := time.NewTicker(veneur.Config.Interval)
-	go func() {
-		defer func() {
-			veneur.ConsumePanic(recover())
-		}()
-		for t := range ticker.C {
-			metrics := make([][]veneur.DDMetric, veneur.Config.NumWorkers)
-			for i, w := range workers {
-				log.WithFields(log.Fields{
-					"worker": i,
-					"tick":   t,
-				}).Debug("Flushing")
-				metrics = append(metrics, w.Flush(veneur.Config.Interval))
-			}
-			veneur.Flush(metrics, veneur.Config.FlushLimit)
-		}
-	}()
 
 	packetPool := &sync.Pool{
 		New: func() interface{} {
@@ -111,14 +77,50 @@ func main() {
 	}
 
 	// Read forever!
-	for {
-		buf := packetPool.Get().([]byte)
-		n, _, err := serverConn.ReadFromUDP(buf)
-		if err != nil {
-			log.WithError(err).Error("Error reading from UDP")
-			continue
+	for i := 0; i < veneur.Config.NumReaders; i++ {
+		go func() {
+			defer func() {
+				veneur.ConsumePanic(recover())
+			}()
+
+			// each goroutine gets its own socket
+			// if the sockets support SO_REUSEPORT, then this will cause the
+			// kernel to distribute datagrams across them, for better read
+			// performance
+			log.WithField("address", veneur.Config.UDPAddr).Info("UDP server listening")
+			serverConn, err := veneur.NewSocket(serverAddr, veneur.Config.ReadBufferSizeBytes)
+			if err != nil {
+				// if any goroutine fails to create the socket, we can't really
+				// recover, so we just blow up
+				// this probably indicates a systemic issue, eg lack of
+				// SO_REUSEPORT support
+				log.WithError(err).Fatal("Error listening for UDP")
+			}
+
+			for {
+				buf := packetPool.Get().([]byte)
+				n, _, err := serverConn.ReadFrom(buf)
+				if err != nil {
+					log.WithError(err).Error("Error reading from UDP")
+					continue
+				}
+				parserChan <- buf[:n] // TODO: termination condition for this channel?
+			}
+		}()
+	}
+
+	ticker := time.NewTicker(veneur.Config.Interval)
+	log.WithField("interval", veneur.Config.Interval).Info("Starting flush loop")
+	for t := range ticker.C {
+		metrics := make([][]veneur.DDMetric, veneur.Config.NumWorkers)
+		for i, w := range workers {
+			log.WithFields(log.Fields{
+				"worker": i,
+				"tick":   t,
+			}).Debug("Flushing")
+			metrics = append(metrics, w.Flush(veneur.Config.Interval))
 		}
-		parserChan <- buf[:n] // TODO: termination condition for this channel?
+		veneur.Flush(metrics, veneur.Config.FlushLimit)
 	}
 }
 
