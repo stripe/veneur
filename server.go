@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"net"
 	"sync"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -17,9 +18,12 @@ type Server struct {
 
 	DDHostname string
 	DDAPIKey   string
+
+	UDPAddr     *net.UDPAddr
+	RcvbufBytes int
 }
 
-func NewFromConfig(conf *VeneurConfig) (ret Server) {
+func NewFromConfig(conf *VeneurConfig) (ret Server, err error) {
 	ret.Hostname = conf.Hostname
 	ret.Tags = conf.Tags
 	ret.DDHostname = conf.APIHostname
@@ -33,6 +37,12 @@ func NewFromConfig(conf *VeneurConfig) (ret Server) {
 		ret.Workers[i] = NewWorker(i+1, conf.Percentiles, conf.HistCounters, conf.SetSize, conf.SetAccuracy)
 		ret.Workers[i].Start()
 	}
+
+	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UDPAddr)
+	if err != nil {
+		return
+	}
+	ret.RcvbufBytes = conf.ReadBufferSizeBytes
 
 	return
 }
@@ -57,4 +67,30 @@ func (s *Server) HandlePacket(packet []byte, packetPool *sync.Pool) {
 	// therefore there are no outstanding references to this byte slice, and we
 	// can return it to the pool
 	packetPool.Put(packet[:cap(packet)])
+}
+
+func (s *Server) ReadSocket(packetPool *sync.Pool, parserChan chan<- []byte) {
+	// each goroutine gets its own socket
+	// if the sockets support SO_REUSEPORT, then this will cause the
+	// kernel to distribute datagrams across them, for better read
+	// performance
+	logrus.WithField("address", s.UDPAddr).Info("UDP server listening")
+	serverConn, err := NewSocket(s.UDPAddr, s.RcvbufBytes)
+	if err != nil {
+		// if any goroutine fails to create the socket, we can't really
+		// recover, so we just blow up
+		// this probably indicates a systemic issue, eg lack of
+		// SO_REUSEPORT support
+		logrus.WithError(err).Fatal("Error listening for UDP")
+	}
+
+	for {
+		buf := packetPool.Get().([]byte)
+		n, _, err := serverConn.ReadFrom(buf)
+		if err != nil {
+			logrus.WithError(err).Error("Error reading from UDP")
+			continue
+		}
+		parserChan <- buf[:n]
+	}
 }

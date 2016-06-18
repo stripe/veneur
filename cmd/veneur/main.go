@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"net"
 	"sync"
 	"time"
 
@@ -37,12 +36,10 @@ func main() {
 	}()
 	veneur.InitStats()
 
-	serverAddr, err := net.ResolveUDPAddr("udp", veneur.Config.UDPAddr)
+	server, err := veneur.NewFromConfig(veneur.Config)
 	if err != nil {
-		log.WithError(err).Fatal("Error resolving address")
+		log.WithError(err).Fatal("Could not initialize server")
 	}
-
-	server := veneur.NewFromConfig(veneur.Config)
 
 	packetPool := &sync.Pool{
 		New: func() interface{} {
@@ -70,30 +67,7 @@ func main() {
 			defer func() {
 				veneur.ConsumePanic(recover())
 			}()
-
-			// each goroutine gets its own socket
-			// if the sockets support SO_REUSEPORT, then this will cause the
-			// kernel to distribute datagrams across them, for better read
-			// performance
-			log.WithField("address", veneur.Config.UDPAddr).Info("UDP server listening")
-			serverConn, err := veneur.NewSocket(serverAddr, veneur.Config.ReadBufferSizeBytes)
-			if err != nil {
-				// if any goroutine fails to create the socket, we can't really
-				// recover, so we just blow up
-				// this probably indicates a systemic issue, eg lack of
-				// SO_REUSEPORT support
-				log.WithError(err).Fatal("Error listening for UDP")
-			}
-
-			for {
-				buf := packetPool.Get().([]byte)
-				n, _, err := serverConn.ReadFrom(buf)
-				if err != nil {
-					log.WithError(err).Error("Error reading from UDP")
-					continue
-				}
-				parserChan <- buf[:n] // TODO: termination condition for this channel?
-			}
+			server.ReadSocket(packetPool, parserChan)
 		}()
 	}
 
