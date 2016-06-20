@@ -11,7 +11,7 @@ import (
 type Server struct {
 	Workers []*Worker
 
-	Stats *statsd.Client
+	statsd *statsd.Client
 
 	Hostname string
 	Tags     []string
@@ -29,17 +29,17 @@ func NewFromConfig(conf *VeneurConfig) (ret Server, err error) {
 	ret.DDHostname = conf.APIHostname
 	ret.DDAPIKey = conf.Key
 
-	ret.Stats, err = statsd.NewBuffered(conf.StatsAddr, 1024)
+	ret.statsd, err = statsd.NewBuffered(conf.StatsAddr, 1024)
 	if err != nil {
 		return
 	}
-	ret.Stats.Namespace = "veneur."
-	ret.Stats.Tags = ret.Tags
+	ret.statsd.Namespace = "veneur."
+	ret.statsd.Tags = ret.Tags
 
 	logrus.WithField("number", conf.NumWorkers).Info("Starting workers")
 	ret.Workers = make([]*Worker, conf.NumWorkers)
 	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.Stats, conf.Percentiles, conf.HistCounters, conf.SetSize, conf.SetAccuracy)
+		ret.Workers[i] = NewWorker(i+1, ret.statsd, conf.Percentiles, conf.HistCounters, conf.SetSize, conf.SetAccuracy)
 		ret.Workers[i].Start()
 	}
 
@@ -59,7 +59,7 @@ func (s *Server) HandlePacket(packet []byte, packetPool *sync.Pool) {
 			logrus.ErrorKey: err,
 			"packet":        string(packet),
 		}).Error("Could not parse packet")
-		s.Stats.Count("packet.error_total", 1, nil, 1.0)
+		s.statsd.Count("packet.error_total", 1, nil, 1.0)
 	}
 
 	if len(s.Tags) > 0 {
