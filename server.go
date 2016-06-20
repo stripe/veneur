@@ -81,6 +81,10 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	}
 	ret.RcvbufBytes = conf.ReadBufferSizeBytes
 
+	conf.Key = "REDACTED"
+	conf.SentryDSN = "REDACTED"
+	ret.logger.WithField("config", conf).Debug("Initialized server")
+
 	return
 }
 
