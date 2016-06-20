@@ -7,7 +7,6 @@ import (
 )
 
 func TestParser(t *testing.T) {
-	ReadConfig("example.yaml")
 	m, _ := ParseMetric([]byte("a.b.c:1|c"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
@@ -16,7 +15,6 @@ func TestParser(t *testing.T) {
 }
 
 func TestParserGauge(t *testing.T) {
-	ReadConfig("example.yaml")
 	m, _ := ParseMetric([]byte("a.b.c:1|g"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
@@ -25,7 +23,6 @@ func TestParserGauge(t *testing.T) {
 }
 
 func TestParserHistogram(t *testing.T) {
-	ReadConfig("example.yaml")
 	m, _ := ParseMetric([]byte("a.b.c:1|h"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
@@ -34,7 +31,6 @@ func TestParserHistogram(t *testing.T) {
 }
 
 func TestParserTimer(t *testing.T) {
-	ReadConfig("example.yaml")
 	m, _ := ParseMetric([]byte("a.b.c:1|ms"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
@@ -43,7 +39,6 @@ func TestParserTimer(t *testing.T) {
 }
 
 func TestParserSet(t *testing.T) {
-	ReadConfig("example.yaml")
 	m, _ := ParseMetric([]byte("a.b.c:foo|s"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
@@ -52,7 +47,6 @@ func TestParserSet(t *testing.T) {
 }
 
 func TestParserWithTags(t *testing.T) {
-	ReadConfig("example.yaml")
 	m, _ := ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
@@ -65,15 +59,7 @@ func TestParserWithTags(t *testing.T) {
 	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 }
 
-func TestParserWithConfigTags(t *testing.T) {
-	ReadConfig("example.yaml")
-	m, _ := ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
-	assert.NotNil(t, m, "Got nil metric!")
-	assert.Len(t, m.Tags, 2, "Tags")
-}
-
 func TestParserWithSampleRate(t *testing.T) {
-	ReadConfig("example.yaml")
 	m, _ := ParseMetric([]byte("a.b.c:1|c|@0.1"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
@@ -91,7 +77,6 @@ func TestParserWithSampleRate(t *testing.T) {
 }
 
 func TestParserWithSampleRateAndTags(t *testing.T) {
-	ReadConfig("example.yaml")
 	m, _ := ParseMetric([]byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
@@ -106,7 +91,6 @@ func TestParserWithSampleRateAndTags(t *testing.T) {
 }
 
 func TestInvalidPackets(t *testing.T) {
-	ReadConfig("example.yaml")
 	_, valueError := ParseMetric([]byte("foo:1||"))
 	assert.NotNil(t, valueError, "No errors when parsing")
 	assert.Contains(t, valueError.Error(), "metric type", "Metric type error missing")

@@ -34,7 +34,7 @@ type Worker struct {
 func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger, percentiles []float64, histogramCounter bool, setSize uint, setAccuracy float64) *Worker {
 	return &Worker{
 		id:         id,
-		WorkChan:   make(chan Metric), // TODO Configurable!
+		WorkChan:   make(chan Metric),
 		QuitChan:   make(chan struct{}),
 		metrics:    0,
 		counters:   make(map[uint32]*Counter),

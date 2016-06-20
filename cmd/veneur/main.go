@@ -20,11 +20,11 @@ func main() {
 		logrus.Fatal("You must specify a config file")
 	}
 
-	err := veneur.ReadConfig(*configFile)
+	conf, err := veneur.ReadConfig(*configFile)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error reading config file")
 	}
-	server, err := veneur.NewFromConfig(veneur.Config)
+	server, err := veneur.NewFromConfig(conf)
 	if err != nil {
 		logrus.WithError(err).Fatal("Could not initialize server")
 	}
@@ -34,14 +34,14 @@ func main() {
 
 	packetPool := &sync.Pool{
 		New: func() interface{} {
-			return make([]byte, veneur.Config.MetricMaxLength)
+			return make([]byte, conf.MetricMaxLength)
 		},
 	}
 
 	// Creates N workers to handle incoming packets, parsing them,
 	// hashing them and dispatching them on to workers that do the storage.
 	parserChan := make(chan []byte)
-	for i := 0; i < veneur.Config.NumWorkers; i++ {
+	for i := 0; i < conf.NumWorkers; i++ {
 		go func() {
 			defer func() {
 				server.ConsumePanic(recover())
@@ -53,7 +53,7 @@ func main() {
 	}
 
 	// Read forever!
-	for i := 0; i < veneur.Config.NumReaders; i++ {
+	for i := 0; i < conf.NumReaders; i++ {
 		go func() {
 			defer func() {
 				server.ConsumePanic(recover())
@@ -62,8 +62,8 @@ func main() {
 		}()
 	}
 
-	ticker := time.NewTicker(veneur.Config.Interval)
+	ticker := time.NewTicker(conf.Interval)
 	for range ticker.C {
-		server.Flush(veneur.Config.Interval, veneur.Config.FlushLimit)
+		server.Flush(conf.Interval, conf.FlushLimit)
 	}
 }

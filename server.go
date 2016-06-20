@@ -26,7 +26,7 @@ type Server struct {
 	RcvbufBytes int
 }
 
-func NewFromConfig(conf *VeneurConfig) (ret Server, err error) {
+func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.Hostname = conf.Hostname
 	ret.Tags = conf.Tags
 	ret.DDHostname = conf.APIHostname
