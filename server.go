@@ -6,6 +6,7 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
+	"github.com/getsentry/raven-go"
 )
 
 type Server struct {
@@ -13,6 +14,7 @@ type Server struct {
 
 	statsd *statsd.Client
 	logger *logrus.Logger
+	sentry *raven.Client
 
 	Hostname string
 	Tags     []string
@@ -37,12 +39,22 @@ func NewFromConfig(conf *VeneurConfig) (ret Server, err error) {
 	ret.statsd.Namespace = "veneur."
 	ret.statsd.Tags = ret.Tags
 
+	// nil is a valid sentry client that noops all methods, if there is no DSN
+	// we can just leave it as nil
+	if conf.SentryDSN != "" {
+		ret.sentry, err = raven.New(conf.SentryDSN)
+		if err != nil {
+			return
+		}
+	}
+
 	ret.logger = logrus.New()
 	if conf.Debug {
 		ret.logger.Level = logrus.DebugLevel
 	}
 	ret.logger.Hooks.Add(sentryHook{
-		c: Sentry,
+		c:        ret.sentry,
+		hostname: ret.Hostname,
 		lv: []logrus.Level{
 			logrus.ErrorLevel,
 			logrus.FatalLevel,
@@ -54,7 +66,13 @@ func NewFromConfig(conf *VeneurConfig) (ret Server, err error) {
 	ret.Workers = make([]*Worker, conf.NumWorkers)
 	for i := range ret.Workers {
 		ret.Workers[i] = NewWorker(i+1, ret.statsd, ret.logger, conf.Percentiles, conf.HistCounters, conf.SetSize, conf.SetAccuracy)
-		ret.Workers[i].Start()
+		// do not close over loop index
+		go func(w *Worker) {
+			defer func() {
+				ret.ConsumePanic(recover())
+			}()
+			w.Work()
+		}(ret.Workers[i])
 	}
 
 	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UDPAddr)

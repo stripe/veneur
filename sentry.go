@@ -7,33 +7,19 @@ import (
 	"github.com/getsentry/raven-go"
 )
 
-var Sentry *raven.Client
-
-func InitSentry() {
-	if Config.SentryDSN == "" {
-		Sentry = nil
-		return
-	}
-	sentry, err := raven.NewWithTags(Config.SentryDSN, nil)
-	if err != nil {
-		log.WithError(err).Fatal("Error creating sentry client")
-	}
-	Sentry = sentry
-}
-
 // call inside deferred recover, eg
 // defer func() {
 // 	ConsumePanic(recover())
 // }
 // will report panic to sentry, print stack and then repanic (to ensure your program terminates)
-func ConsumePanic(err interface{}) {
+func (s *Server) ConsumePanic(err interface{}) {
 	if err == nil {
 		return
 	}
 
 	p := raven.Packet{
 		Level:      raven.FATAL,
-		ServerName: Config.Hostname,
+		ServerName: s.Hostname,
 		Interfaces: []raven.Interface{
 			// ignore 2 stack frames:
 			// - the frame for ConsumePanic itself
@@ -52,7 +38,7 @@ func ConsumePanic(err interface{}) {
 		p.Message = fmt.Sprintf("%#v", e)
 	}
 
-	_, ch := Sentry.Capture(&p, nil)
+	_, ch := s.sentry.Capture(&p, nil)
 	// we don't want the program to terminate before reporting to sentry
 	<-ch
 
@@ -61,8 +47,9 @@ func ConsumePanic(err interface{}) {
 
 // logrus hook to send error/fatal/panic messages to sentry
 type sentryHook struct {
-	c  *raven.Client
-	lv []log.Level
+	c        *raven.Client
+	hostname string
+	lv       []log.Level
 }
 
 var _ log.Hook = sentryHook{}
@@ -73,7 +60,7 @@ func (s sentryHook) Levels() []log.Level {
 
 func (s sentryHook) Fire(e *log.Entry) error {
 	p := raven.Packet{
-		ServerName: Config.Hostname,
+		ServerName: s.hostname,
 		Interfaces: []raven.Interface{
 			// ignore the stack frames for the Fire function itself
 			// the logrus machinery that invoked Fire will also be hidden

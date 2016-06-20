@@ -53,25 +53,17 @@ func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger, percentiles 
 	}
 }
 
-// Start "starts" the worker by starting a goroutine, that is
-// an infinite "for-select" loop.
-func (w *Worker) Start() {
-
-	go func() {
-		defer func() {
-			ConsumePanic(recover())
-		}()
-		for {
-			select {
-			case m := <-w.WorkChan:
-				w.ProcessMetric(&m)
-			case <-w.QuitChan:
-				// We have been asked to stop.
-				w.logger.WithField("worker", w.id).Error("Stopping")
-				return
-			}
+func (w *Worker) Work() {
+	for {
+		select {
+		case m := <-w.WorkChan:
+			w.ProcessMetric(&m)
+		case <-w.QuitChan:
+			// We have been asked to stop.
+			w.logger.WithField("worker", w.id).Error("Stopping")
+			return
 		}
-	}()
+	}
 }
 
 // ProcessMetric takes a Metric and samples it

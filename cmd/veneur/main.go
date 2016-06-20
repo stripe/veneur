@@ -30,15 +30,13 @@ func main() {
 		log.WithField("config", veneur.Config).Debug("Starting with config")
 	}
 
-	veneur.InitSentry()
-	defer func() {
-		veneur.ConsumePanic(recover())
-	}()
-
 	server, err := veneur.NewFromConfig(veneur.Config)
 	if err != nil {
 		log.WithError(err).Fatal("Could not initialize server")
 	}
+	defer func() {
+		server.ConsumePanic(recover())
+	}()
 
 	packetPool := &sync.Pool{
 		New: func() interface{} {
@@ -52,7 +50,7 @@ func main() {
 	for i := 0; i < veneur.Config.NumWorkers; i++ {
 		go func() {
 			defer func() {
-				veneur.ConsumePanic(recover())
+				server.ConsumePanic(recover())
 			}()
 			for packet := range parserChan {
 				server.HandlePacket(packet, packetPool)
@@ -64,7 +62,7 @@ func main() {
 	for i := 0; i < veneur.Config.NumReaders; i++ {
 		go func() {
 			defer func() {
-				veneur.ConsumePanic(recover())
+				server.ConsumePanic(recover())
 			}()
 			server.ReadSocket(packetPool, parserChan)
 		}()
