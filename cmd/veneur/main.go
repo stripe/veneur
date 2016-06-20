@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/stripe/veneur"
 )
 
@@ -17,22 +17,16 @@ func main() {
 	flag.Parse()
 
 	if configFile == nil || *configFile == "" {
-		log.Fatal("You must specify a config file")
+		logrus.Fatal("You must specify a config file")
 	}
 
 	err := veneur.ReadConfig(*configFile)
 	if err != nil {
-		log.WithError(err).Fatal("Error reading config file")
+		logrus.WithError(err).Fatal("Error reading config file")
 	}
-
-	if veneur.Config.Debug {
-		log.SetLevel(log.DebugLevel)
-		log.WithField("config", veneur.Config).Debug("Starting with config")
-	}
-
 	server, err := veneur.NewFromConfig(veneur.Config)
 	if err != nil {
-		log.WithError(err).Fatal("Could not initialize server")
+		logrus.WithError(err).Fatal("Could not initialize server")
 	}
 	defer func() {
 		server.ConsumePanic(recover())
@@ -69,7 +63,6 @@ func main() {
 	}
 
 	ticker := time.NewTicker(veneur.Config.Interval)
-	log.WithField("interval", veneur.Config.Interval).Info("Starting flush loop")
 	for range ticker.C {
 		server.Flush(veneur.Config.Interval, veneur.Config.FlushLimit)
 	}

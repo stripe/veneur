@@ -3,7 +3,7 @@ package veneur
 import (
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/getsentry/raven-go"
 )
 
@@ -49,16 +49,16 @@ func (s *Server) ConsumePanic(err interface{}) {
 type sentryHook struct {
 	c        *raven.Client
 	hostname string
-	lv       []log.Level
+	lv       []logrus.Level
 }
 
-var _ log.Hook = sentryHook{}
+var _ logrus.Hook = sentryHook{}
 
-func (s sentryHook) Levels() []log.Level {
+func (s sentryHook) Levels() []logrus.Level {
 	return s.lv
 }
 
-func (s sentryHook) Fire(e *log.Entry) error {
+func (s sentryHook) Fire(e *logrus.Entry) error {
 	p := raven.Packet{
 		ServerName: s.hostname,
 		Interfaces: []raven.Interface{
@@ -69,7 +69,7 @@ func (s sentryHook) Fire(e *log.Entry) error {
 		},
 	}
 
-	if err, ok := e.Data[log.ErrorKey].(error); ok {
+	if err, ok := e.Data[logrus.ErrorKey].(error); ok {
 		p.Message = err.Error()
 	} else {
 		p.Message = e.Message
@@ -77,28 +77,28 @@ func (s sentryHook) Fire(e *log.Entry) error {
 
 	p.Extra = make(map[string]interface{}, len(e.Data)-1)
 	for k, v := range e.Data {
-		if k == log.ErrorKey {
+		if k == logrus.ErrorKey {
 			continue // already handled this key, don't put it into the Extra hash
 		}
 		p.Extra[k] = v
 	}
 
 	switch e.Level {
-	case log.FatalLevel, log.PanicLevel:
+	case logrus.FatalLevel, logrus.PanicLevel:
 		p.Level = raven.FATAL
-	case log.ErrorLevel:
+	case logrus.ErrorLevel:
 		p.Level = raven.ERROR
-	case log.WarnLevel:
+	case logrus.WarnLevel:
 		p.Level = raven.WARNING
-	case log.InfoLevel:
+	case logrus.InfoLevel:
 		p.Level = raven.INFO
-	case log.DebugLevel:
+	case logrus.DebugLevel:
 		p.Level = raven.DEBUG
 	}
 
 	_, ch := s.c.Capture(&p, nil)
 
-	if e.Level == log.PanicLevel || e.Level == log.FatalLevel {
+	if e.Level == logrus.PanicLevel || e.Level == logrus.FatalLevel {
 		// we don't want the program to terminate before reporting to sentry
 		return <-ch
 	} else {

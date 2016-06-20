@@ -2,7 +2,6 @@ package veneur
 
 import (
 	"io/ioutil"
-	"log"
 	"os"
 	"time"
 
@@ -44,10 +43,6 @@ func ReadConfig(path string) error {
 	err = yaml.Unmarshal(data, &Config)
 	if err != nil {
 		return err
-	}
-
-	if Config.Key == "" {
-		log.Fatal("A Datadog API key is required in your config file!")
 	}
 
 	if Config.Hostname == "" {
