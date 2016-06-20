@@ -29,12 +29,17 @@ func NewFromConfig(conf *VeneurConfig) (ret Server, err error) {
 	ret.DDHostname = conf.APIHostname
 	ret.DDAPIKey = conf.Key
 
-	ret.Stats = Stats // TODO: take ownership of this value and initialize this here
+	ret.Stats, err = statsd.NewBuffered(conf.StatsAddr, 1024)
+	if err != nil {
+		return
+	}
+	ret.Stats.Namespace = "veneur."
+	ret.Stats.Tags = ret.Tags
 
 	logrus.WithField("number", conf.NumWorkers).Info("Starting workers")
 	ret.Workers = make([]*Worker, conf.NumWorkers)
 	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, conf.Percentiles, conf.HistCounters, conf.SetSize, conf.SetAccuracy)
+		ret.Workers[i] = NewWorker(i+1, ret.Stats, conf.Percentiles, conf.HistCounters, conf.SetSize, conf.SetAccuracy)
 		ret.Workers[i].Start()
 	}
 

@@ -34,7 +34,6 @@ func main() {
 	defer func() {
 		veneur.ConsumePanic(recover())
 	}()
-	veneur.InitStats()
 
 	server, err := veneur.NewFromConfig(veneur.Config)
 	if err != nil {

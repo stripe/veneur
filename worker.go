@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DataDog/datadog-go/statsd"
 	log "github.com/Sirupsen/logrus"
 )
 
@@ -20,6 +21,7 @@ type Worker struct {
 	sets       map[uint32]*Set
 	timers     map[uint32]*Histo
 	mutex      *sync.Mutex
+	stats      *statsd.Client
 
 	histogramPercentiles []float64
 	histogramCounter     bool
@@ -28,7 +30,7 @@ type Worker struct {
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, percentiles []float64, histogramCounter bool, setSize uint, setAccuracy float64) *Worker {
+func NewWorker(id int, stats *statsd.Client, percentiles []float64, histogramCounter bool, setSize uint, setAccuracy float64) *Worker {
 	return &Worker{
 		id:         id,
 		WorkChan:   make(chan Metric), // TODO Configurable!
@@ -40,6 +42,7 @@ func NewWorker(id int, percentiles []float64, histogramCounter bool, setSize uin
 		sets:       make(map[uint32]*Set),
 		timers:     make(map[uint32]*Histo),
 		mutex:      &sync.Mutex{},
+		stats:      stats,
 
 		histogramPercentiles: percentiles,
 		histogramCounter:     histogramCounter,
@@ -134,7 +137,7 @@ func (w *Worker) Flush(interval time.Duration) []DDMetric {
 	histograms := w.histograms
 	sets := w.sets
 	timers := w.timers
-	Stats.Count("worker.metrics_processed_total", w.metrics, []string{fmt.Sprintf("worker:%d", w.id)}, 1.0)
+	w.stats.Count("worker.metrics_processed_total", w.metrics, []string{fmt.Sprintf("worker:%d", w.id)}, 1.0)
 
 	w.counters = make(map[uint32]*Counter)
 	w.gauges = make(map[uint32]*Gauge)
@@ -145,30 +148,30 @@ func (w *Worker) Flush(interval time.Duration) []DDMetric {
 	w.mutex.Unlock()
 
 	// Track how much time each worker takes to flush.
-	Stats.TimeInMilliseconds(
+	w.stats.TimeInMilliseconds(
 		"flush.worker_duration_ns",
 		float64(time.Now().Sub(start).Nanoseconds()),
 		nil,
 		1.0,
 	)
 
-	Stats.Count("worker.metrics_flushed_total", int64(len(counters)), []string{"metric_type:counter"}, 1.0)
+	w.stats.Count("worker.metrics_flushed_total", int64(len(counters)), []string{"metric_type:counter"}, 1.0)
 	for _, v := range counters {
 		postMetrics = append(postMetrics, v.Flush(interval)...)
 	}
-	Stats.Count("worker.metrics_flushed_total", int64(len(gauges)), []string{"metric_type:gauge"}, 1.0)
+	w.stats.Count("worker.metrics_flushed_total", int64(len(gauges)), []string{"metric_type:gauge"}, 1.0)
 	for _, v := range gauges {
 		postMetrics = append(postMetrics, v.Flush()...)
 	}
-	Stats.Count("worker.metrics_flushed_total", int64(len(histograms)), []string{"metric_type:histogram"}, 1.0)
+	w.stats.Count("worker.metrics_flushed_total", int64(len(histograms)), []string{"metric_type:histogram"}, 1.0)
 	for _, v := range histograms {
 		postMetrics = append(postMetrics, v.Flush(interval)...)
 	}
-	Stats.Count("worker.metrics_flushed_total", int64(len(sets)), []string{"metric_type:set"}, 1.0)
+	w.stats.Count("worker.metrics_flushed_total", int64(len(sets)), []string{"metric_type:set"}, 1.0)
 	for _, v := range sets {
 		postMetrics = append(postMetrics, v.Flush()...)
 	}
-	Stats.Count("worker.metrics_flushed_total", int64(len(timers)), []string{"metric_type:timer"}, 1.0)
+	w.stats.Count("worker.metrics_flushed_total", int64(len(timers)), []string{"metric_type:timer"}, 1.0)
 	for _, v := range timers {
 		postMetrics = append(postMetrics, v.Flush(interval)...)
 	}
