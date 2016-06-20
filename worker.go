@@ -5,7 +5,8 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/DataDog/datadog-go/statsd"
+	"github.com/Sirupsen/logrus"
 )
 
 // Worker is the doodad that does work.
@@ -20,6 +21,8 @@ type Worker struct {
 	sets       map[uint32]*Set
 	timers     map[uint32]*Histo
 	mutex      *sync.Mutex
+	stats      *statsd.Client
+	logger     *logrus.Logger
 
 	histogramPercentiles []float64
 	histogramCounter     bool
@@ -28,10 +31,10 @@ type Worker struct {
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, percentiles []float64, histogramCounter bool, setSize uint, setAccuracy float64) *Worker {
+func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger, percentiles []float64, histogramCounter bool, setSize uint, setAccuracy float64) *Worker {
 	return &Worker{
 		id:         id,
-		WorkChan:   make(chan Metric), // TODO Configurable!
+		WorkChan:   make(chan Metric),
 		QuitChan:   make(chan struct{}),
 		metrics:    0,
 		counters:   make(map[uint32]*Counter),
@@ -40,6 +43,8 @@ func NewWorker(id int, percentiles []float64, histogramCounter bool, setSize uin
 		sets:       make(map[uint32]*Set),
 		timers:     make(map[uint32]*Histo),
 		mutex:      &sync.Mutex{},
+		stats:      stats,
+		logger:     logger,
 
 		histogramPercentiles: percentiles,
 		histogramCounter:     histogramCounter,
@@ -48,25 +53,17 @@ func NewWorker(id int, percentiles []float64, histogramCounter bool, setSize uin
 	}
 }
 
-// Start "starts" the worker by starting a goroutine, that is
-// an infinite "for-select" loop.
-func (w *Worker) Start() {
-
-	go func() {
-		defer func() {
-			ConsumePanic(recover())
-		}()
-		for {
-			select {
-			case m := <-w.WorkChan:
-				w.ProcessMetric(&m)
-			case <-w.QuitChan:
-				// We have been asked to stop.
-				log.WithField("worker", w.id).Error("Stopping")
-				return
-			}
+func (w *Worker) Work() {
+	for {
+		select {
+		case m := <-w.WorkChan:
+			w.ProcessMetric(&m)
+		case <-w.QuitChan:
+			// We have been asked to stop.
+			w.logger.WithField("worker", w.id).Error("Stopping")
+			return
 		}
-	}()
+	}
 }
 
 // ProcessMetric takes a Metric and samples it
@@ -80,40 +77,40 @@ func (w *Worker) ProcessMetric(m *Metric) {
 	case "counter":
 		_, present := w.counters[m.Digest]
 		if !present {
-			log.WithField("name", m.Name).Debug("New counter")
+			w.logger.WithField("name", m.Name).Debug("New counter")
 			w.counters[m.Digest] = NewCounter(m.Name, m.Tags)
 		}
 		w.counters[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	case "gauge":
 		_, present := w.gauges[m.Digest]
 		if !present {
-			log.WithField("name", m.Name).Debug("New gauge")
+			w.logger.WithField("name", m.Name).Debug("New gauge")
 			w.gauges[m.Digest] = NewGauge(m.Name, m.Tags)
 		}
 		w.gauges[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	case "histogram":
 		_, present := w.histograms[m.Digest]
 		if !present {
-			log.WithField("name", m.Name).Debug("New histogram")
+			w.logger.WithField("name", m.Name).Debug("New histogram")
 			w.histograms[m.Digest] = NewHist(m.Name, m.Tags, w.histogramPercentiles, w.histogramCounter)
 		}
 		w.histograms[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	case "set":
 		_, present := w.sets[m.Digest]
 		if !present {
-			log.WithField("name", m.Name).Debug("New set")
+			w.logger.WithField("name", m.Name).Debug("New set")
 			w.sets[m.Digest] = NewSet(m.Name, m.Tags, w.bloomSetSize, w.bloomSetAccuracy)
 		}
 		w.sets[m.Digest].Sample(m.Value.(string), m.SampleRate)
 	case "timer":
 		_, present := w.timers[m.Digest]
 		if !present {
-			log.WithField("name", m.Name).Debug("New timer")
+			w.logger.WithField("name", m.Name).Debug("New timer")
 			w.timers[m.Digest] = NewHist(m.Name, m.Tags, w.histogramPercentiles, w.histogramCounter)
 		}
 		w.timers[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	default:
-		log.WithField("type", m.Type).Error("Unknown metric type")
+		w.logger.WithField("type", m.Type).Error("Unknown metric type")
 	}
 }
 
@@ -134,7 +131,7 @@ func (w *Worker) Flush(interval time.Duration) []DDMetric {
 	histograms := w.histograms
 	sets := w.sets
 	timers := w.timers
-	Stats.Count("worker.metrics_processed_total", w.metrics, []string{fmt.Sprintf("worker:%d", w.id)}, 1.0)
+	w.stats.Count("worker.metrics_processed_total", w.metrics, []string{fmt.Sprintf("worker:%d", w.id)}, 1.0)
 
 	w.counters = make(map[uint32]*Counter)
 	w.gauges = make(map[uint32]*Gauge)
@@ -145,30 +142,30 @@ func (w *Worker) Flush(interval time.Duration) []DDMetric {
 	w.mutex.Unlock()
 
 	// Track how much time each worker takes to flush.
-	Stats.TimeInMilliseconds(
+	w.stats.TimeInMilliseconds(
 		"flush.worker_duration_ns",
 		float64(time.Now().Sub(start).Nanoseconds()),
 		nil,
 		1.0,
 	)
 
-	Stats.Count("worker.metrics_flushed_total", int64(len(counters)), []string{"metric_type:counter"}, 1.0)
+	w.stats.Count("worker.metrics_flushed_total", int64(len(counters)), []string{"metric_type:counter"}, 1.0)
 	for _, v := range counters {
 		postMetrics = append(postMetrics, v.Flush(interval)...)
 	}
-	Stats.Count("worker.metrics_flushed_total", int64(len(gauges)), []string{"metric_type:gauge"}, 1.0)
+	w.stats.Count("worker.metrics_flushed_total", int64(len(gauges)), []string{"metric_type:gauge"}, 1.0)
 	for _, v := range gauges {
 		postMetrics = append(postMetrics, v.Flush()...)
 	}
-	Stats.Count("worker.metrics_flushed_total", int64(len(histograms)), []string{"metric_type:histogram"}, 1.0)
+	w.stats.Count("worker.metrics_flushed_total", int64(len(histograms)), []string{"metric_type:histogram"}, 1.0)
 	for _, v := range histograms {
 		postMetrics = append(postMetrics, v.Flush(interval)...)
 	}
-	Stats.Count("worker.metrics_flushed_total", int64(len(sets)), []string{"metric_type:set"}, 1.0)
+	w.stats.Count("worker.metrics_flushed_total", int64(len(sets)), []string{"metric_type:set"}, 1.0)
 	for _, v := range sets {
 		postMetrics = append(postMetrics, v.Flush()...)
 	}
-	Stats.Count("worker.metrics_flushed_total", int64(len(timers)), []string{"metric_type:timer"}, 1.0)
+	w.stats.Count("worker.metrics_flushed_total", int64(len(timers)), []string{"metric_type:timer"}, 1.0)
 	for _, v := range timers {
 		postMetrics = append(postMetrics, v.Flush(interval)...)
 	}

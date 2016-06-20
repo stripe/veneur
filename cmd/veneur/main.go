@@ -2,11 +2,10 @@ package main
 
 import (
 	"flag"
-	"net"
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/stripe/veneur"
 )
 
@@ -18,127 +17,53 @@ func main() {
 	flag.Parse()
 
 	if configFile == nil || *configFile == "" {
-		log.Fatal("You must specify a config file")
+		logrus.Fatal("You must specify a config file")
 	}
 
-	err := veneur.ReadConfig(*configFile)
+	conf, err := veneur.ReadConfig(*configFile)
 	if err != nil {
-		log.WithError(err).Fatal("Error reading config file")
+		logrus.WithError(err).Fatal("Error reading config file")
 	}
-
-	if veneur.Config.Debug {
-		log.SetLevel(log.DebugLevel)
-		log.WithField("config", veneur.Config).Debug("Starting with config")
+	server, err := veneur.NewFromConfig(conf)
+	if err != nil {
+		logrus.WithError(err).Fatal("Could not initialize server")
 	}
-
-	veneur.InitSentry()
 	defer func() {
-		veneur.ConsumePanic(recover())
+		server.ConsumePanic(recover())
 	}()
-	veneur.InitStats()
-
-	// Start the dispatcher.
-	log.WithField("number", veneur.Config.NumWorkers).Info("Starting workers")
-	workers := make([]*veneur.Worker, veneur.Config.NumWorkers)
-	for i := 0; i < veneur.Config.NumWorkers; i++ {
-		worker := veneur.NewWorker(i+1, veneur.Config.Percentiles, veneur.Config.HistCounters, veneur.Config.SetSize, veneur.Config.SetAccuracy)
-		worker.Start()
-		workers[i] = worker
-	}
-
-	serverAddr, err := net.ResolveUDPAddr("udp", veneur.Config.UDPAddr)
-	if err != nil {
-		log.WithError(err).Fatal("Error resolving address")
-	}
 
 	packetPool := &sync.Pool{
 		New: func() interface{} {
-			return make([]byte, veneur.Config.MetricMaxLength)
+			return make([]byte, conf.MetricMaxLength)
 		},
 	}
 
 	// Creates N workers to handle incoming packets, parsing them,
 	// hashing them and dispatching them on to workers that do the storage.
 	parserChan := make(chan []byte)
-	for i := 0; i < veneur.Config.NumWorkers; i++ {
+	for i := 0; i < conf.NumWorkers; i++ {
 		go func() {
 			defer func() {
-				veneur.ConsumePanic(recover())
+				server.ConsumePanic(recover())
 			}()
 			for packet := range parserChan {
-				handlePacket(workers, packet)
-				// handlePacket generates a Metric struct which contains only
-				// strings, so there are no outstanding references to the byte
-				// slice containing the packet
-				// therefore, at this point we can return it to the pool
-				packetPool.Put(packet[:cap(packet)])
+				server.HandlePacket(packet, packetPool)
 			}
 		}()
 	}
 
 	// Read forever!
-	for i := 0; i < veneur.Config.NumReaders; i++ {
+	for i := 0; i < conf.NumReaders; i++ {
 		go func() {
 			defer func() {
-				veneur.ConsumePanic(recover())
+				server.ConsumePanic(recover())
 			}()
-
-			// each goroutine gets its own socket
-			// if the sockets support SO_REUSEPORT, then this will cause the
-			// kernel to distribute datagrams across them, for better read
-			// performance
-			log.WithField("address", veneur.Config.UDPAddr).Info("UDP server listening")
-			serverConn, err := veneur.NewSocket(serverAddr, veneur.Config.ReadBufferSizeBytes)
-			if err != nil {
-				// if any goroutine fails to create the socket, we can't really
-				// recover, so we just blow up
-				// this probably indicates a systemic issue, eg lack of
-				// SO_REUSEPORT support
-				log.WithError(err).Fatal("Error listening for UDP")
-			}
-
-			for {
-				buf := packetPool.Get().([]byte)
-				n, _, err := serverConn.ReadFrom(buf)
-				if err != nil {
-					log.WithError(err).Error("Error reading from UDP")
-					continue
-				}
-				parserChan <- buf[:n] // TODO: termination condition for this channel?
-			}
+			server.ReadSocket(packetPool, parserChan)
 		}()
 	}
 
-	ticker := time.NewTicker(veneur.Config.Interval)
-	log.WithField("interval", veneur.Config.Interval).Info("Starting flush loop")
-	for t := range ticker.C {
-		metrics := make([][]veneur.DDMetric, veneur.Config.NumWorkers)
-		for i, w := range workers {
-			log.WithFields(log.Fields{
-				"worker": i,
-				"tick":   t,
-			}).Debug("Flushing")
-			metrics = append(metrics, w.Flush(veneur.Config.Interval))
-		}
-		veneur.Flush(metrics, veneur.Config.FlushLimit)
+	ticker := time.NewTicker(conf.Interval)
+	for range ticker.C {
+		server.Flush(conf.Interval, conf.FlushLimit)
 	}
-}
-
-func handlePacket(workers []*veneur.Worker, packet []byte) {
-	m, err := veneur.ParseMetric(packet)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"error":  err,
-			"packet": string(packet),
-		}).Error("Error parsing packet")
-		veneur.Stats.Count("packet.error_total", 1, nil, 1.0)
-		return
-	}
-	if len(veneur.Config.Tags) > 0 {
-		m.Tags = append(m.Tags, veneur.Config.Tags...)
-	}
-
-	// We're ready to have a worker process this packet, so add it
-	// to the work queue.
-	workers[m.Digest%uint32(veneur.Config.NumWorkers)].WorkChan <- *m
 }

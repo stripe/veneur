@@ -10,28 +10,33 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
-func Flush(postMetrics [][]DDMetric, metricLimit int) {
+func (s *Server) Flush(interval time.Duration, metricLimit int) {
+	postMetrics := make([][]DDMetric, len(s.Workers))
 	totalCount := 0
-	for _, metrics := range postMetrics {
-		totalCount += len(metrics)
+	for i, w := range s.Workers {
+		s.logger.WithField("worker", i).Debug("Flushing")
+		tmp := w.Flush(interval)
+		totalCount += len(tmp)
+		postMetrics = append(postMetrics, tmp)
 	}
+
 	finalMetrics := make([]DDMetric, 0, totalCount)
 	for _, metrics := range postMetrics {
 		finalMetrics = append(finalMetrics, metrics...)
 	}
 	for i := range finalMetrics {
-		finalMetrics[i].Hostname = Config.Hostname
+		finalMetrics[i].Hostname = s.Hostname
 	}
 
-	Stats.Gauge("flush.post_metrics_total", float64(totalCount), nil, 1.0)
+	s.statsd.Gauge("flush.post_metrics_total", float64(totalCount), nil, 1.0)
 	// Check to see if we have anything to do
 	if totalCount == 0 {
-		log.Info("Nothing to flush, skipping.")
+		s.logger.Info("Nothing to flush, skipping.")
 		return
 	}
 
@@ -40,8 +45,8 @@ func Flush(postMetrics [][]DDMetric, metricLimit int) {
 	// we compute the chunks using rounding-up integer division
 	workers := ((totalCount - 1) / metricLimit) + 1
 	chunkSize := ((totalCount - 1) / workers) + 1
-	log.WithField("workers", workers).Debug("Worker count chosen")
-	log.WithField("chunkSize", chunkSize).Debug("Chunk size chosen")
+	s.logger.WithField("workers", workers).Debug("Worker count chosen")
+	s.logger.WithField("chunkSize", chunkSize).Debug("Chunk size chosen")
 	var wg sync.WaitGroup
 	flushStart := time.Now()
 	for i := 0; i < workers; i++ {
@@ -51,16 +56,16 @@ func Flush(postMetrics [][]DDMetric, metricLimit int) {
 			chunk = chunk[:chunkSize]
 		}
 		wg.Add(1)
-		go flushPart(chunk, &wg)
+		go s.flushPart(chunk, &wg)
 	}
 	wg.Wait()
-	Stats.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(flushStart).Nanoseconds()), nil, 1.0)
+	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(flushStart).Nanoseconds()), nil, 1.0)
 
-	Stats.Count("flush.error_total", 0, nil, 0.1) // make sure this metric is not sparse
-	log.WithField("metrics", totalCount).Info("Completed flush to Datadog")
+	s.statsd.Count("flush.error_total", 0, nil, 0.1) // make sure this metric is not sparse
+	s.logger.WithField("metrics", totalCount).Info("Completed flush to Datadog")
 }
 
-func flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
+func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	cstart := time.Now()
@@ -71,13 +76,13 @@ func flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
 		"series": metricSlice,
 	})
 	if err != nil {
-		Stats.Count("flush.error_total", int64(len(metricSlice)), []string{"cause:json"}, 1.0)
-		log.WithError(err).Error("Error rendering JSON request body")
+		s.statsd.Count("flush.error_total", int64(len(metricSlice)), []string{"cause:json"}, 1.0)
+		s.logger.WithError(err).Error("Error rendering JSON request body")
 		return
 	}
 	// make sure to flush remaining compressed bytes to the buffer
 	compressor.Close()
-	Stats.TimeInMilliseconds(
+	s.statsd.TimeInMilliseconds(
 		"flush.part_duration_ns",
 		float64(time.Now().Sub(cstart).Nanoseconds()),
 		[]string{"part:marshal"},
@@ -85,25 +90,25 @@ func flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
 	)
 	// Len reports the unread length, so we have to record this before it's POSTed
 	bodyLength := reqBody.Len()
-	Stats.Histogram("flush.content_length_bytes", float64(bodyLength), nil, 1.0)
+	s.statsd.Histogram("flush.content_length_bytes", float64(bodyLength), nil, 1.0)
 
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/series?api_key=%s", Config.APIHostname, Config.Key), &reqBody)
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/series?api_key=%s", s.DDHostname, s.DDAPIKey), &reqBody)
 	if err != nil {
-		Stats.Count("flush.error_total", int64(len(metricSlice)), []string{"cause:construct"}, 1.0)
-		log.WithError(err).Error("Error constructing POST request")
+		s.statsd.Count("flush.error_total", int64(len(metricSlice)), []string{"cause:construct"}, 1.0)
+		s.logger.WithError(err).Error("Error constructing POST request")
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Encoding", "deflate")
 
 	fstart := time.Now()
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) // TODO: add configurable http client to server struct
 	if err != nil {
-		Stats.Count("flush.error_total", int64(len(metricSlice)), []string{"cause:io"}, 1.0)
-		log.WithError(err).Error("Error writing POST request")
+		s.statsd.Count("flush.error_total", int64(len(metricSlice)), []string{"cause:io"}, 1.0)
+		s.logger.WithError(err).Error("Error writing POST request")
 		return
 	}
-	Stats.TimeInMilliseconds(
+	s.statsd.TimeInMilliseconds(
 		"flush.part_duration_ns",
 		float64(time.Now().Sub(fstart).Nanoseconds()),
 		[]string{"part:post"},
@@ -114,9 +119,9 @@ func flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		// don't bail out if this errors, we'll just log the body as empty
-		log.WithError(err).Error("Error reading response body")
+		s.logger.WithError(err).Error("Error reading response body")
 	}
-	resultFields := log.Fields{
+	resultFields := logrus.Fields{
 		"status":           resp.Status,
 		"request_headers":  req.Header,
 		"response_headers": resp.Header,
@@ -126,10 +131,10 @@ func flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
 	}
 
 	if resp.StatusCode != http.StatusAccepted {
-		Stats.Count("flush.error_total", int64(len(metricSlice)), []string{fmt.Sprintf("cause:%d", resp.StatusCode)}, 1.0)
-		log.WithFields(resultFields).Error("Error POSTing")
+		s.statsd.Count("flush.error_total", int64(len(metricSlice)), []string{fmt.Sprintf("cause:%d", resp.StatusCode)}, 1.0)
+		s.logger.WithFields(resultFields).Error("Error POSTing")
 		return
 	}
 
-	log.WithFields(resultFields).Debug("POSTing JSON")
+	s.logger.WithFields(resultFields).Debug("POSTing JSON")
 }

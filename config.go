@@ -2,15 +2,14 @@ package veneur
 
 import (
 	"io/ioutil"
-	"log"
 	"os"
 	"time"
 
 	"gopkg.in/yaml.v2"
 )
 
-// VenerConfig is a collection of settings that control Veneur.
-type VeneurConfig struct {
+// Config is a collection of settings that control Veneur.
+type Config struct {
 	APIHostname         string        `yaml:"api_hostname"`
 	Debug               bool          `yaml:"debug"`
 	Hostname            string        `yaml:"hostname"`
@@ -31,32 +30,25 @@ type VeneurConfig struct {
 	FlushLimit          int           `yaml:"flush_max_per_body"`
 }
 
-// Config is the global config that we'll use once it's inited.
-var Config *VeneurConfig
-
 // ReadConfig unmarshals the config file and slurps in it's data.
-func ReadConfig(path string) error {
+func ReadConfig(path string) (ret Config, err error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return err
+		return
 	}
 
-	err = yaml.Unmarshal(data, &Config)
+	err = yaml.Unmarshal(data, &ret)
 	if err != nil {
-		return err
+		return
 	}
 
-	if Config.Key == "" {
-		log.Fatal("A Datadog API key is required in your config file!")
+	if ret.Hostname == "" {
+		ret.Hostname, _ = os.Hostname()
 	}
 
-	if Config.Hostname == "" {
-		Config.Hostname, _ = os.Hostname()
+	if ret.ReadBufferSizeBytes == 0 {
+		ret.ReadBufferSizeBytes = 1048576 * 2 // 2 MB
 	}
 
-	if Config.ReadBufferSizeBytes == 0 {
-		Config.ReadBufferSizeBytes = 1048576 * 2 // 2 MB
-	}
-
-	return nil
+	return
 }

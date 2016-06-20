@@ -3,38 +3,23 @@ package veneur
 import (
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 	"github.com/getsentry/raven-go"
 )
-
-var Sentry *raven.Client
-
-func InitSentry() {
-	if Config.SentryDSN == "" {
-		Sentry = nil
-		return
-	}
-	sentry, err := raven.NewWithTags(Config.SentryDSN, nil)
-	if err != nil {
-		log.WithError(err).Fatal("Error creating sentry client")
-	}
-	log.AddHook(sentryHook{sentry, []log.Level{log.ErrorLevel, log.FatalLevel, log.PanicLevel}})
-	Sentry = sentry
-}
 
 // call inside deferred recover, eg
 // defer func() {
 // 	ConsumePanic(recover())
 // }
 // will report panic to sentry, print stack and then repanic (to ensure your program terminates)
-func ConsumePanic(err interface{}) {
+func (s *Server) ConsumePanic(err interface{}) {
 	if err == nil {
 		return
 	}
 
 	p := raven.Packet{
 		Level:      raven.FATAL,
-		ServerName: Config.Hostname,
+		ServerName: s.Hostname,
 		Interfaces: []raven.Interface{
 			// ignore 2 stack frames:
 			// - the frame for ConsumePanic itself
@@ -53,7 +38,7 @@ func ConsumePanic(err interface{}) {
 		p.Message = fmt.Sprintf("%#v", e)
 	}
 
-	_, ch := Sentry.Capture(&p, nil)
+	_, ch := s.sentry.Capture(&p, nil)
 	// we don't want the program to terminate before reporting to sentry
 	<-ch
 
@@ -62,19 +47,20 @@ func ConsumePanic(err interface{}) {
 
 // logrus hook to send error/fatal/panic messages to sentry
 type sentryHook struct {
-	c  *raven.Client
-	lv []log.Level
+	c        *raven.Client
+	hostname string
+	lv       []logrus.Level
 }
 
-var _ log.Hook = sentryHook{}
+var _ logrus.Hook = sentryHook{}
 
-func (s sentryHook) Levels() []log.Level {
+func (s sentryHook) Levels() []logrus.Level {
 	return s.lv
 }
 
-func (s sentryHook) Fire(e *log.Entry) error {
+func (s sentryHook) Fire(e *logrus.Entry) error {
 	p := raven.Packet{
-		ServerName: Config.Hostname,
+		ServerName: s.hostname,
 		Interfaces: []raven.Interface{
 			// ignore the stack frames for the Fire function itself
 			// the logrus machinery that invoked Fire will also be hidden
@@ -83,7 +69,7 @@ func (s sentryHook) Fire(e *log.Entry) error {
 		},
 	}
 
-	if err, ok := e.Data[log.ErrorKey].(error); ok {
+	if err, ok := e.Data[logrus.ErrorKey].(error); ok {
 		p.Message = err.Error()
 	} else {
 		p.Message = e.Message
@@ -91,28 +77,28 @@ func (s sentryHook) Fire(e *log.Entry) error {
 
 	p.Extra = make(map[string]interface{}, len(e.Data)-1)
 	for k, v := range e.Data {
-		if k == log.ErrorKey {
+		if k == logrus.ErrorKey {
 			continue // already handled this key, don't put it into the Extra hash
 		}
 		p.Extra[k] = v
 	}
 
 	switch e.Level {
-	case log.FatalLevel, log.PanicLevel:
+	case logrus.FatalLevel, logrus.PanicLevel:
 		p.Level = raven.FATAL
-	case log.ErrorLevel:
+	case logrus.ErrorLevel:
 		p.Level = raven.ERROR
-	case log.WarnLevel:
+	case logrus.WarnLevel:
 		p.Level = raven.WARNING
-	case log.InfoLevel:
+	case logrus.InfoLevel:
 		p.Level = raven.INFO
-	case log.DebugLevel:
+	case logrus.DebugLevel:
 		p.Level = raven.DEBUG
 	}
 
 	_, ch := s.c.Capture(&p, nil)
 
-	if e.Level == log.PanicLevel || e.Level == log.FatalLevel {
+	if e.Level == logrus.PanicLevel || e.Level == logrus.FatalLevel {
 		// we don't want the program to terminate before reporting to sentry
 		return <-ch
 	} else {
