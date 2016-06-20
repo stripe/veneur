@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	log "github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 // Worker is the doodad that does work.
@@ -22,6 +22,7 @@ type Worker struct {
 	timers     map[uint32]*Histo
 	mutex      *sync.Mutex
 	stats      *statsd.Client
+	logger     *logrus.Logger
 
 	histogramPercentiles []float64
 	histogramCounter     bool
@@ -30,7 +31,7 @@ type Worker struct {
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, stats *statsd.Client, percentiles []float64, histogramCounter bool, setSize uint, setAccuracy float64) *Worker {
+func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger, percentiles []float64, histogramCounter bool, setSize uint, setAccuracy float64) *Worker {
 	return &Worker{
 		id:         id,
 		WorkChan:   make(chan Metric), // TODO Configurable!
@@ -43,6 +44,7 @@ func NewWorker(id int, stats *statsd.Client, percentiles []float64, histogramCou
 		timers:     make(map[uint32]*Histo),
 		mutex:      &sync.Mutex{},
 		stats:      stats,
+		logger:     logger,
 
 		histogramPercentiles: percentiles,
 		histogramCounter:     histogramCounter,
@@ -65,7 +67,7 @@ func (w *Worker) Start() {
 				w.ProcessMetric(&m)
 			case <-w.QuitChan:
 				// We have been asked to stop.
-				log.WithField("worker", w.id).Error("Stopping")
+				w.logger.WithField("worker", w.id).Error("Stopping")
 				return
 			}
 		}
@@ -83,40 +85,40 @@ func (w *Worker) ProcessMetric(m *Metric) {
 	case "counter":
 		_, present := w.counters[m.Digest]
 		if !present {
-			log.WithField("name", m.Name).Debug("New counter")
+			w.logger.WithField("name", m.Name).Debug("New counter")
 			w.counters[m.Digest] = NewCounter(m.Name, m.Tags)
 		}
 		w.counters[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	case "gauge":
 		_, present := w.gauges[m.Digest]
 		if !present {
-			log.WithField("name", m.Name).Debug("New gauge")
+			w.logger.WithField("name", m.Name).Debug("New gauge")
 			w.gauges[m.Digest] = NewGauge(m.Name, m.Tags)
 		}
 		w.gauges[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	case "histogram":
 		_, present := w.histograms[m.Digest]
 		if !present {
-			log.WithField("name", m.Name).Debug("New histogram")
+			w.logger.WithField("name", m.Name).Debug("New histogram")
 			w.histograms[m.Digest] = NewHist(m.Name, m.Tags, w.histogramPercentiles, w.histogramCounter)
 		}
 		w.histograms[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	case "set":
 		_, present := w.sets[m.Digest]
 		if !present {
-			log.WithField("name", m.Name).Debug("New set")
+			w.logger.WithField("name", m.Name).Debug("New set")
 			w.sets[m.Digest] = NewSet(m.Name, m.Tags, w.bloomSetSize, w.bloomSetAccuracy)
 		}
 		w.sets[m.Digest].Sample(m.Value.(string), m.SampleRate)
 	case "timer":
 		_, present := w.timers[m.Digest]
 		if !present {
-			log.WithField("name", m.Name).Debug("New timer")
+			w.logger.WithField("name", m.Name).Debug("New timer")
 			w.timers[m.Digest] = NewHist(m.Name, m.Tags, w.histogramPercentiles, w.histogramCounter)
 		}
 		w.timers[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	default:
-		log.WithField("type", m.Type).Error("Unknown metric type")
+		w.logger.WithField("type", m.Type).Error("Unknown metric type")
 	}
 }
 

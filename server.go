@@ -12,6 +12,7 @@ type Server struct {
 	Workers []*Worker
 
 	statsd *statsd.Client
+	logger *logrus.Logger
 
 	Hostname string
 	Tags     []string
@@ -36,10 +37,23 @@ func NewFromConfig(conf *VeneurConfig) (ret Server, err error) {
 	ret.statsd.Namespace = "veneur."
 	ret.statsd.Tags = ret.Tags
 
-	logrus.WithField("number", conf.NumWorkers).Info("Starting workers")
+	ret.logger = logrus.New()
+	if conf.Debug {
+		ret.logger.Level = logrus.DebugLevel
+	}
+	ret.logger.Hooks.Add(sentryHook{
+		c: Sentry,
+		lv: []logrus.Level{
+			logrus.ErrorLevel,
+			logrus.FatalLevel,
+			logrus.PanicLevel,
+		},
+	})
+
+	ret.logger.WithField("number", conf.NumWorkers).Info("Starting workers")
 	ret.Workers = make([]*Worker, conf.NumWorkers)
 	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.statsd, conf.Percentiles, conf.HistCounters, conf.SetSize, conf.SetAccuracy)
+		ret.Workers[i] = NewWorker(i+1, ret.statsd, ret.logger, conf.Percentiles, conf.HistCounters, conf.SetSize, conf.SetAccuracy)
 		ret.Workers[i].Start()
 	}
 
@@ -55,7 +69,7 @@ func NewFromConfig(conf *VeneurConfig) (ret Server, err error) {
 func (s *Server) HandlePacket(packet []byte, packetPool *sync.Pool) {
 	metric, err := ParseMetric(packet)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
+		s.logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
 			"packet":        string(packet),
 		}).Error("Could not parse packet")
@@ -79,21 +93,21 @@ func (s *Server) ReadSocket(packetPool *sync.Pool, parserChan chan<- []byte) {
 	// if the sockets support SO_REUSEPORT, then this will cause the
 	// kernel to distribute datagrams across them, for better read
 	// performance
-	logrus.WithField("address", s.UDPAddr).Info("UDP server listening")
+	s.logger.WithField("address", s.UDPAddr).Info("UDP server listening")
 	serverConn, err := NewSocket(s.UDPAddr, s.RcvbufBytes)
 	if err != nil {
 		// if any goroutine fails to create the socket, we can't really
 		// recover, so we just blow up
 		// this probably indicates a systemic issue, eg lack of
 		// SO_REUSEPORT support
-		logrus.WithError(err).Fatal("Error listening for UDP")
+		s.logger.WithError(err).Fatal("Error listening for UDP")
 	}
 
 	for {
 		buf := packetPool.Get().([]byte)
 		n, _, err := serverConn.ReadFrom(buf)
 		if err != nil {
-			logrus.WithError(err).Error("Error reading from UDP")
+			s.logger.WithError(err).Error("Error reading from UDP")
 			continue
 		}
 		parserChan <- buf[:n]

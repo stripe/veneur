@@ -3,12 +3,13 @@ package veneur
 import (
 	"testing"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestWorker(t *testing.T) {
 	ReadConfig("example.yaml")
-	w := NewWorker(1, nil, Config.Percentiles, Config.HistCounters, Config.SetSize, Config.SetAccuracy)
+	w := NewWorker(1, nil, logrus.New(), Config.Percentiles, Config.HistCounters, Config.SetSize, Config.SetAccuracy)
 
 	m := Metric{Name: "a.b.c", Value: 1.0, Digest: 12345, Type: "counter", SampleRate: 1.0}
 	w.ProcessMetric(&m)

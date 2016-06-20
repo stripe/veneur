@@ -18,7 +18,6 @@ func InitSentry() {
 	if err != nil {
 		log.WithError(err).Fatal("Error creating sentry client")
 	}
-	log.AddHook(sentryHook{sentry, []log.Level{log.ErrorLevel, log.FatalLevel, log.PanicLevel}})
 	Sentry = sentry
 }
 
