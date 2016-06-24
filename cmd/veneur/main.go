@@ -38,27 +38,13 @@ func main() {
 		},
 	}
 
-	// Creates N workers to handle incoming packets, parsing them,
-	// hashing them and dispatching them on to workers that do the storage.
-	parserChan := make(chan []byte)
-	for i := 0; i < conf.NumWorkers; i++ {
-		go func() {
-			defer func() {
-				server.ConsumePanic(recover())
-			}()
-			for packet := range parserChan {
-				server.HandlePacket(packet, packetPool)
-			}
-		}()
-	}
-
 	// Read forever!
 	for i := 0; i < conf.NumReaders; i++ {
 		go func() {
 			defer func() {
 				server.ConsumePanic(recover())
 			}()
-			server.ReadSocket(packetPool, parserChan)
+			server.ReadSocket(packetPool)
 		}()
 	}
 

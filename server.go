@@ -110,7 +110,7 @@ func (s *Server) HandlePacket(packet []byte, packetPool *sync.Pool) {
 	packetPool.Put(packet[:cap(packet)])
 }
 
-func (s *Server) ReadSocket(packetPool *sync.Pool, parserChan chan<- []byte) {
+func (s *Server) ReadSocket(packetPool *sync.Pool) {
 	// each goroutine gets its own socket
 	// if the sockets support SO_REUSEPORT, then this will cause the
 	// kernel to distribute datagrams across them, for better read
@@ -132,6 +132,6 @@ func (s *Server) ReadSocket(packetPool *sync.Pool, parserChan chan<- []byte) {
 			s.logger.WithError(err).Error("Error reading from UDP")
 			continue
 		}
-		parserChan <- buf[:n]
+		s.HandlePacket(buf[:n], packetPool)
 	}
 }
