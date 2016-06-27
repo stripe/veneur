@@ -31,14 +31,11 @@ func (c *Counter) Sample(sample float64, sampleRate float32) {
 	c.value += int64(sample) * int64(1/sampleRate)
 }
 
-// Flush takes the current state of the counter, generates a
-// DDMetric then clears it.
+// Flush generates a DDMetric from the current state of this Counter.
 func (c *Counter) Flush(interval time.Duration) []DDMetric {
-	rate := float64(c.value) / interval.Seconds()
-	c.value = 0
 	return []DDMetric{{
 		Name:       c.name,
-		Value:      [1][2]float64{{float64(time.Now().Unix()), rate}},
+		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(c.value) / interval.Seconds()}},
 		Tags:       c.tags,
 		MetricType: "rate",
 		Interval:   int32(interval.Seconds()),
@@ -62,14 +59,11 @@ func (g *Gauge) Sample(sample float64, sampleRate float32) {
 	g.value = sample
 }
 
-// Flush takes the current state of the gauge, generates a
-// DDMetric then clears it.
+// Flush generates a DDMetric from the current state of this gauge.
 func (g *Gauge) Flush() []DDMetric {
-	v := g.value
-	g.value = 0
 	return []DDMetric{{
 		Name:       g.name,
-		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(v)}},
+		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(g.value)}},
 		Tags:       g.tags,
 		MetricType: "gauge",
 	}}
@@ -107,14 +101,11 @@ func NewSet(name string, tags []string, setSize uint, accuracy float64) *Set {
 	}
 }
 
-// Flush takes the current state of the set, generates a
-// DDMetric then clears it.
+// Flush generates a DDMetric for the state of this Set.
 func (s *Set) Flush() []DDMetric {
-	v := s.value
-	s.value = 0
 	return []DDMetric{{
 		Name:       s.name,
-		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(v)}},
+		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(s.value)}},
 		Tags:       s.tags,
 		MetricType: "gauge",
 	}}
@@ -164,25 +155,26 @@ func NewHist(name string, tags []string, percentiles []float64, counter bool) *H
 	}
 }
 
-// Flush generates DDMetrics for the current state of the
-// Histo.
+// Flush generates DDMetrics for the current state of the Histo.
 func (h *Histo) Flush(interval time.Duration) []DDMetric {
 	now := float64(time.Now().Unix())
 	rate := float64(h.count) / interval.Seconds()
-	metrics := []DDMetric{
-		{
+	metrics := make([]DDMetric, 0, 3+len(h.percentiles))
+
+	metrics = append(metrics,
+		DDMetric{
 			Name:       fmt.Sprintf("%s.max", h.name),
 			Value:      [1][2]float64{{now, h.max}},
 			Tags:       h.tags,
 			MetricType: "gauge",
 		},
-		{
+		DDMetric{
 			Name:       fmt.Sprintf("%s.min", h.name),
 			Value:      [1][2]float64{{now, h.min}},
 			Tags:       h.tags,
 			MetricType: "gauge",
 		},
-	}
+	)
 	if h.counter {
 		metrics = append(metrics, DDMetric{
 			Name:       fmt.Sprintf("%s.count", h.name),
