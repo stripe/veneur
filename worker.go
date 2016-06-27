@@ -26,12 +26,10 @@ type Worker struct {
 
 	histogramPercentiles []float64
 	histogramCounter     bool
-	bloomSetSize         uint
-	bloomSetAccuracy     float64
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger, percentiles []float64, histogramCounter bool, setSize uint, setAccuracy float64) *Worker {
+func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger, percentiles []float64, histogramCounter bool) *Worker {
 	return &Worker{
 		id:         id,
 		WorkChan:   make(chan Metric),
@@ -48,8 +46,6 @@ func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger, percentiles 
 
 		histogramPercentiles: percentiles,
 		histogramCounter:     histogramCounter,
-		bloomSetSize:         setSize,
-		bloomSetAccuracy:     setAccuracy,
 	}
 }
 
@@ -99,7 +95,7 @@ func (w *Worker) ProcessMetric(m *Metric) {
 		_, present := w.sets[m.Digest]
 		if !present {
 			w.logger.WithField("name", m.Name).Debug("New set")
-			w.sets[m.Digest] = NewSet(m.Name, m.Tags, w.bloomSetSize, w.bloomSetAccuracy)
+			w.sets[m.Digest] = NewSet(m.Name, m.Tags)
 		}
 		w.sets[m.Digest].Sample(m.Value.(string), m.SampleRate)
 	case "timer":

@@ -2,10 +2,11 @@ package veneur
 
 import (
 	"fmt"
+	"hash/fnv"
 	"time"
 
 	"github.com/VividCortex/gohistogram"
-	"github.com/willf/bloom"
+	"github.com/clarkduvall/hyperloglog"
 )
 
 // DDMetric is a data structure that represents the JSON that Datadog
@@ -76,28 +77,28 @@ func NewGauge(name string, tags []string) *Gauge {
 
 // Set is a list of unique values seen.
 type Set struct {
-	name   string
-	tags   []string
-	value  float64
-	filter *bloom.BloomFilter
+	name string
+	tags []string
+	hll  *hyperloglog.HyperLogLogPlus
 }
 
 // Sample checks if the supplied value has is already in the filter. If not, it increments
 // the counter!
 func (s *Set) Sample(sample string, sampleRate float32) {
-	if !s.filter.TestAndAddString(sample) {
-		s.value++
-	}
+	hasher := fnv.New64a()
+	hasher.Write([]byte(sample))
+	s.hll.Add(hasher)
 }
 
 // NewSet generates a new Set and returns it
-func NewSet(name string, tags []string, setSize uint, accuracy float64) *Set {
+func NewSet(name string, tags []string) *Set {
+	// error is only returned if precision is outside the 4-18 range
+	// TODO: this is the maximum precision, should it be configurable?
+	hll, _ := hyperloglog.NewPlus(18)
 	return &Set{
-		name:  name,
-		tags:  tags,
-		value: 0,
-		// TODO We could likely set this based on the set size at last flush to dynamically adjust the storage?
-		filter: bloom.NewWithEstimates(setSize, accuracy),
+		name: name,
+		tags: tags,
+		hll:  hll,
 	}
 }
 
@@ -105,7 +106,7 @@ func NewSet(name string, tags []string, setSize uint, accuracy float64) *Set {
 func (s *Set) Flush() []DDMetric {
 	return []DDMetric{{
 		Name:       s.name,
-		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(s.value)}},
+		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(s.hll.Count())}},
 		Tags:       s.tags,
 		MetricType: "gauge",
 	}}

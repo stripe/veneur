@@ -76,9 +76,7 @@ func TestGauge(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	// remember, bloom filters can have false positives, so the test may be
-	// sensitive to the FP rate
-	s := NewSet("a.b.c", []string{"a:b"}, 1000, 0.0001)
+	s := NewSet("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", s.name, "Name")
 	assert.Len(t, s.tags, 1, "Tag count")

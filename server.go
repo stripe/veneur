@@ -65,7 +65,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.logger.WithField("number", conf.NumWorkers).Info("Starting workers")
 	ret.Workers = make([]*Worker, conf.NumWorkers)
 	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.statsd, ret.logger, conf.Percentiles, conf.HistCounters, conf.SetSize, conf.SetAccuracy)
+		ret.Workers[i] = NewWorker(i+1, ret.statsd, ret.logger, conf.Percentiles, conf.HistCounters)
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {
