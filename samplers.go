@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VividCortex/gohistogram"
 	"github.com/clarkduvall/hyperloglog"
+	"github.com/stripe/veneur/tdigest"
 )
 
 // DDMetric is a data structure that represents the JSON that Datadog
@@ -158,37 +158,21 @@ func (s *Set) Combine(other []byte) error {
 type Histo struct {
 	name  string
 	tags  []string
-	count int64
-	max   float64
-	min   float64
-	value gohistogram.NumericHistogram
+	value *tdigest.MergingDigest
 }
 
 // Sample adds the supplied value to the histogram.
 func (h *Histo) Sample(sample float64, sampleRate float32) {
-	if h.count == 0 {
-		h.max = sample
-		h.min = sample
-	} else {
-		if h.max < sample {
-			h.max = sample
-		}
-		if h.min > sample {
-			h.min = sample
-		}
-	}
-	h.count += 1 * int64(1/sampleRate)
-	h.value.Add(sample)
+	h.value.Add(sample, float64(1/sampleRate))
 }
 
 // NewHist generates a new Histo and returns it.
 func NewHist(name string, tags []string) *Histo {
-	// For gohistogram, the following is from the docs:
-	// There is no "optimal" bin count, but somewhere between 20 and 80 bins should be sufficient. (50!)
 	return &Histo{
-		name:  name,
-		tags:  tags,
-		value: *gohistogram.NewHistogram(50),
+		name: name,
+		tags: tags,
+		// we're going to allocate a lot of these, so we don't want them to be huge
+		value: tdigest.NewMerging(100, false),
 	}
 }
 
@@ -196,19 +180,19 @@ func NewHist(name string, tags []string) *Histo {
 // indicates what percentiles should be exported from the histogram.
 func (h *Histo) Flush(interval time.Duration, percentiles []float64) []DDMetric {
 	now := float64(time.Now().Unix())
-	rate := float64(h.count) / interval.Seconds()
+	rate := h.value.Count() / interval.Seconds()
 	metrics := make([]DDMetric, 0, 3+len(percentiles))
 
 	metrics = append(metrics,
 		DDMetric{
 			Name:       fmt.Sprintf("%s.max", h.name),
-			Value:      [1][2]float64{{now, h.max}},
+			Value:      [1][2]float64{{now, h.value.Max()}},
 			Tags:       h.tags,
 			MetricType: "gauge",
 		},
 		DDMetric{
 			Name:       fmt.Sprintf("%s.min", h.name),
-			Value:      [1][2]float64{{now, h.min}},
+			Value:      [1][2]float64{{now, h.value.Min()}},
 			Tags:       h.tags,
 			MetricType: "gauge",
 		},

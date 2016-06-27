@@ -202,4 +202,8 @@ func TestHistoSampleRate(t *testing.T) {
 	m1 := metrics[0]
 	assert.Equal(t, "a.b.c.max", m1.Name, "Max name")
 	assert.Equal(t, float64(25), m1.Value[0][1], "Sampled max as rate")
+
+	count := metrics[2]
+	assert.Equal(t, "a.b.c.count", count.Name, "count name")
+	assert.Equal(t, float64(1), count.Value[0][1], "count value")
 }
