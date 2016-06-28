@@ -16,25 +16,38 @@ import (
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) Flush(interval time.Duration, metricLimit int) {
-	finalMetrics := make([]DDMetric, 0)
+	// number of ddmetrics generated when a histogram flushes
+	histogramSize := 2 + len(s.HistogramPercentiles)
+	if s.HistogramCounter {
+		histogramSize++
+	}
+
+	// allocating this long array to count up the sizes is cheaper than appending
+	// the []DDMetrics together one at a time
+	tempMetrics := make([]WorkerMetrics, 0, len(s.Workers))
+	totalLength := 0
 	for i, w := range s.Workers {
-		// TODO: this is very allocation-intensive, can we count lengths in
-		// advance and optimize?
 		s.logger.WithField("worker", i).Debug("Flushing")
-		workerMetrics := w.Flush()
-		for _, c := range workerMetrics.counters {
+		wm := w.Flush()
+		tempMetrics = append(tempMetrics, wm)
+		totalLength += len(wm.counters) + len(wm.gauges) + len(wm.sets) + ((len(wm.timers) + len(wm.histograms)) * histogramSize)
+	}
+
+	finalMetrics := make([]DDMetric, 0, totalLength)
+	for _, wm := range tempMetrics {
+		for _, c := range wm.counters {
 			finalMetrics = append(finalMetrics, c.Flush(interval)...)
 		}
-		for _, g := range workerMetrics.gauges {
+		for _, g := range wm.gauges {
 			finalMetrics = append(finalMetrics, g.Flush()...)
 		}
-		for _, h := range workerMetrics.histograms {
+		for _, h := range wm.histograms {
 			finalMetrics = append(finalMetrics, h.Flush(interval, s.HistogramPercentiles, s.HistogramCounter)...)
 		}
-		for _, s := range workerMetrics.sets {
+		for _, s := range wm.sets {
 			finalMetrics = append(finalMetrics, s.Flush()...)
 		}
-		for _, t := range workerMetrics.timers {
+		for _, t := range wm.timers {
 			finalMetrics = append(finalMetrics, t.Flush(interval, s.HistogramPercentiles, s.HistogramCounter)...)
 		}
 	}
