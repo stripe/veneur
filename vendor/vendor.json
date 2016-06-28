@@ -21,6 +21,12 @@
 			"revisionTime": "2015-05-11T14:34:12Z"
 		},
 		{
+			"checksumSHA1": "Un2TJ2QWyVMTnFf07dt/M3uBRbI=",
+			"path": "github.com/clarkduvall/hyperloglog",
+			"revision": "2d38f733946d0a1f2e810513c71b834cbeba1480",
+			"revisionTime": "2015-07-15T18:56:32Z"
+		},
+		{
 			"checksumSHA1": "5rPfda8jFccr3A6heL+JAmi9K9g=",
 			"origin": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
 			"path": "github.com/davecgh/go-spew/spew",
@@ -51,12 +57,6 @@
 			"path": "github.com/willf/bitset",
 			"revision": "2e6e8094ef4745224150c88c16191c7dceaad16f",
 			"revisionTime": "2016-02-25T15:03:13Z"
-		},
-		{
-			"checksumSHA1": "3xgMnnggKk1pyb6hPmCBNnJTBXY=",
-			"path": "github.com/willf/bloom",
-			"revision": "aa3071d9203598166c09553d43e74b588c3d91be",
-			"revisionTime": "2016-02-25T14:53:07Z"
 		},
 		{
 			"checksumSHA1": "oBKY8LJtCoSvmYA4ADFDY02A8NY=",

@@ -76,9 +76,7 @@ func TestGauge(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	// remember, bloom filters can have false positives, so the test may be
-	// sensitive to the FP rate
-	s := NewSet("a.b.c", []string{"a:b"}, 1000, 0.0001)
+	s := NewSet("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", s.name, "Name")
 	assert.Len(t, s.tags, 1, "Tag count")
@@ -107,7 +105,7 @@ func TestSet(t *testing.T) {
 
 func TestHisto(t *testing.T) {
 
-	h := NewHist("a.b.c", []string{"a:b"}, []float64{0.50}, true)
+	h := NewHist("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", h.name, "Name")
 	assert.Len(t, h.tags, 1, "Tag count")
@@ -119,7 +117,7 @@ func TestHisto(t *testing.T) {
 	h.Sample(20, 1.0)
 	h.Sample(25, 1.0)
 
-	metrics := h.Flush(10 * time.Second)
+	metrics := h.Flush(10*time.Second, []float64{0.50}, true)
 	// We get lots of metrics back for histograms!
 	assert.Len(t, metrics, 4, "Flushed metrics length")
 
@@ -165,7 +163,7 @@ func TestHisto(t *testing.T) {
 }
 
 func TestHistoWithoutCount(t *testing.T) {
-	h := NewHist("a.b.c", []string{"a:b"}, []float64{0.50}, false)
+	h := NewHist("a.b.c", []string{"a:b"})
 
 	h.Sample(5, 0.5)
 	h.Sample(10, 0.5)
@@ -173,13 +171,13 @@ func TestHistoWithoutCount(t *testing.T) {
 	h.Sample(20, 0.5)
 	h.Sample(25, 0.5)
 
-	metrics := h.Flush(10 * time.Second)
+	metrics := h.Flush(10*time.Second, []float64{0.50}, false)
 	assert.Len(t, metrics, 3, "Metrics flush length")
 }
 
 func TestHistoSampleRate(t *testing.T) {
 
-	h := NewHist("a.b.c", []string{"a:b"}, []float64{0.50}, true)
+	h := NewHist("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", h.name, "Name")
 	assert.Len(t, h.tags, 1, "Tag length")
@@ -191,7 +189,7 @@ func TestHistoSampleRate(t *testing.T) {
 	h.Sample(20, 0.5)
 	h.Sample(25, 0.5)
 
-	metrics := h.Flush(10 * time.Second)
+	metrics := h.Flush(10*time.Second, []float64{0.50}, true)
 	assert.Len(t, metrics, 4, "Metrics flush length")
 
 	// First the max

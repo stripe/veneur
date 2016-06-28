@@ -16,26 +16,48 @@ import (
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) Flush(interval time.Duration, metricLimit int) {
-	postMetrics := make([][]DDMetric, len(s.Workers))
-	totalCount := 0
-	for i, w := range s.Workers {
-		s.logger.WithField("worker", i).Debug("Flushing")
-		tmp := w.Flush(interval)
-		totalCount += len(tmp)
-		postMetrics = append(postMetrics, tmp)
+	// number of ddmetrics generated when a histogram flushes
+	histogramSize := 2 + len(s.HistogramPercentiles)
+	if s.HistogramCounter {
+		histogramSize++
 	}
 
-	finalMetrics := make([]DDMetric, 0, totalCount)
-	for _, metrics := range postMetrics {
-		finalMetrics = append(finalMetrics, metrics...)
+	// allocating this long array to count up the sizes is cheaper than appending
+	// the []DDMetrics together one at a time
+	tempMetrics := make([]WorkerMetrics, 0, len(s.Workers))
+	totalLength := 0
+	for i, w := range s.Workers {
+		s.logger.WithField("worker", i).Debug("Flushing")
+		wm := w.Flush()
+		tempMetrics = append(tempMetrics, wm)
+		totalLength += len(wm.counters) + len(wm.gauges) + len(wm.sets) + ((len(wm.timers) + len(wm.histograms)) * histogramSize)
+	}
+
+	finalMetrics := make([]DDMetric, 0, totalLength)
+	for _, wm := range tempMetrics {
+		for _, c := range wm.counters {
+			finalMetrics = append(finalMetrics, c.Flush(interval)...)
+		}
+		for _, g := range wm.gauges {
+			finalMetrics = append(finalMetrics, g.Flush()...)
+		}
+		for _, h := range wm.histograms {
+			finalMetrics = append(finalMetrics, h.Flush(interval, s.HistogramPercentiles, s.HistogramCounter)...)
+		}
+		for _, s := range wm.sets {
+			finalMetrics = append(finalMetrics, s.Flush()...)
+		}
+		for _, t := range wm.timers {
+			finalMetrics = append(finalMetrics, t.Flush(interval, s.HistogramPercentiles, s.HistogramCounter)...)
+		}
 	}
 	for i := range finalMetrics {
 		finalMetrics[i].Hostname = s.Hostname
 	}
 
-	s.statsd.Gauge("flush.post_metrics_total", float64(totalCount), nil, 1.0)
+	s.statsd.Gauge("flush.post_metrics_total", float64(len(finalMetrics)), nil, 1.0)
 	// Check to see if we have anything to do
-	if totalCount == 0 {
+	if len(finalMetrics) == 0 {
 		s.logger.Info("Nothing to flush, skipping.")
 		return
 	}
@@ -43,8 +65,8 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	// break the metrics into chunks of approximately equal size, such that
 	// each chunk is less than the limit
 	// we compute the chunks using rounding-up integer division
-	workers := ((totalCount - 1) / metricLimit) + 1
-	chunkSize := ((totalCount - 1) / workers) + 1
+	workers := ((len(finalMetrics) - 1) / metricLimit) + 1
+	chunkSize := ((len(finalMetrics) - 1) / workers) + 1
 	s.logger.WithField("workers", workers).Debug("Worker count chosen")
 	s.logger.WithField("chunkSize", chunkSize).Debug("Chunk size chosen")
 	var wg sync.WaitGroup
@@ -62,7 +84,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(flushStart).Nanoseconds()), nil, 1.0)
 
 	s.statsd.Count("flush.error_total", 0, nil, 0.1) // make sure this metric is not sparse
-	s.logger.WithField("metrics", totalCount).Info("Completed flush to Datadog")
+	s.logger.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
 }
 
 func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {

@@ -18,8 +18,6 @@ type Config struct {
 	MetricMaxLength     int           `yaml:"metric_max_length"`
 	Percentiles         []float64     `yaml:"percentiles"`
 	ReadBufferSizeBytes int           `yaml:"read_buffer_size_bytes"`
-	SetSize             uint          `yaml:"set_size"`
-	SetAccuracy         float64       `yaml:"set_accuracy"`
 	UDPAddr             string        `yaml:"udp_address"`
 	NumWorkers          int           `yaml:"num_workers"`
 	NumReaders          int           `yaml:"num_readers"`
