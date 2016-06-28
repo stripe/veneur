@@ -91,11 +91,23 @@ func TestParserWithSampleRateAndTags(t *testing.T) {
 }
 
 func TestInvalidPackets(t *testing.T) {
-	_, valueError := ParseMetric([]byte("foo:1||"))
-	assert.NotNil(t, valueError, "No errors when parsing")
-	assert.Contains(t, valueError.Error(), "metric type", "Metric type error missing")
+	table := map[string]string{
+		"foo":               "1 colon",
+		"foo:1":             "1 pipe",
+		"foo:1||":           "metric type",
+		"foo:|c|":           "metric value",
+		"foo:1|foo|":        "Invalid type",
+		"foo:1|c||":         "pipes",
+		"foo:1|c|foo":       "unknown section",
+		"foo:1|c|@-0.1":     ">0",
+		"foo:1|c|@1.1":      "<=1",
+		"foo:1|c|@0.5|@0.2": "multiple sample rates",
+		"foo:1|c|#foo|#bar": "multiple tag sections",
+	}
 
-	_, valueError = ParseMetric([]byte("foo:1|c||"))
-	assert.NotNil(t, valueError, "No errors when parsing")
-	assert.Contains(t, valueError.Error(), "pipes", "Pipe error missing")
+	for packet, errContent := range table {
+		_, err := ParseMetric([]byte(packet))
+		assert.NotNil(t, err, "Should have gotten error parsing: ", packet)
+		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
+	}
 }

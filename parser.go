@@ -77,6 +77,9 @@ func ParseMetric(packet []byte) (*Metric, error) {
 		ret.Value = v
 	}
 
+	// each of these sections can only appear once in the packet
+	foundSampleRate := false
+	foundTags := false
 	for i := 2; i < len(data); i++ {
 		if len(data[i]) == 0 {
 			// avoid panicking on malformed packets that have too many pipes
@@ -85,6 +88,9 @@ func ParseMetric(packet []byte) (*Metric, error) {
 		}
 		switch data[i][0] {
 		case '@':
+			if foundSampleRate {
+				return nil, errors.New("Invalid metric packet, multiple sample rates specified")
+			}
 			// sample rate!
 			sr := string(data[i][1:])
 			sampleRate, err := strconv.ParseFloat(sr, 32)
@@ -94,14 +100,25 @@ func ParseMetric(packet []byte) (*Metric, error) {
 			if ret.Type == "gauge" || ret.Type == "set" {
 				return nil, fmt.Errorf("Invalid metric packet, %s cannot have a sample rate", ret.Type)
 			}
+			if sampleRate <= 0 || sampleRate > 1 {
+				return nil, fmt.Errorf("Sample rate %f must be >0 and <=1", sampleRate)
+			}
 			ret.SampleRate = float32(sampleRate)
+			foundSampleRate = true
 
 		case '#':
 			// tags!
+			if foundTags {
+				return nil, errors.New("Invalid metric packet, multiple tag sections specified")
+			}
 			tags := strings.Split(string(data[i][1:]), ",")
 			sort.Strings(tags)
 			h.Write([]byte(strings.Join(tags, ",")))
 			ret.Tags = tags
+			foundTags = true
+
+		default:
+			return nil, fmt.Errorf("Invalid metric packet, contains unknown section %q", data[i])
 		}
 	}
 
