@@ -19,9 +19,6 @@ type Worker struct {
 	stats    *statsd.Client
 	logger   *logrus.Logger
 	wm       WorkerMetrics
-
-	histogramPercentiles []float64
-	histogramCounter     bool
 }
 
 // just a plain struct bundling together the flushed contents of a worker
@@ -44,7 +41,7 @@ func NewWorkerMetrics() WorkerMetrics {
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger, percentiles []float64, histogramCounter bool) *Worker {
+func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger) *Worker {
 	return &Worker{
 		id:       id,
 		WorkChan: make(chan Metric),
@@ -54,9 +51,6 @@ func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger, percentiles 
 		stats:    stats,
 		logger:   logger,
 		wm:       NewWorkerMetrics(),
-
-		histogramPercentiles: percentiles,
-		histogramCounter:     histogramCounter,
 	}
 }
 
@@ -99,7 +93,7 @@ func (w *Worker) ProcessMetric(m *Metric) {
 		_, present := w.wm.histograms[m.Digest]
 		if !present {
 			w.logger.WithField("name", m.Name).Debug("New histogram")
-			w.wm.histograms[m.Digest] = NewHist(m.Name, m.Tags, w.histogramPercentiles, w.histogramCounter)
+			w.wm.histograms[m.Digest] = NewHist(m.Name, m.Tags)
 		}
 		w.wm.histograms[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	case "set":
@@ -113,7 +107,7 @@ func (w *Worker) ProcessMetric(m *Metric) {
 		_, present := w.wm.timers[m.Digest]
 		if !present {
 			w.logger.WithField("name", m.Name).Debug("New timer")
-			w.wm.timers[m.Digest] = NewHist(m.Name, m.Tags, w.histogramPercentiles, w.histogramCounter)
+			w.wm.timers[m.Digest] = NewHist(m.Name, m.Tags)
 		}
 		w.wm.timers[m.Digest].Sample(m.Value.(float64), m.SampleRate)
 	default:

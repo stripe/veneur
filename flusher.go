@@ -29,13 +29,13 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 			finalMetrics = append(finalMetrics, g.Flush()...)
 		}
 		for _, h := range workerMetrics.histograms {
-			finalMetrics = append(finalMetrics, h.Flush(interval)...)
+			finalMetrics = append(finalMetrics, h.Flush(interval, s.HistogramPercentiles, s.HistogramCounter)...)
 		}
 		for _, s := range workerMetrics.sets {
 			finalMetrics = append(finalMetrics, s.Flush()...)
 		}
 		for _, t := range workerMetrics.timers {
-			finalMetrics = append(finalMetrics, t.Flush(interval)...)
+			finalMetrics = append(finalMetrics, t.Flush(interval, s.HistogramPercentiles, s.HistogramCounter)...)
 		}
 	}
 	for i := range finalMetrics {

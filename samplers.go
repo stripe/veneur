@@ -115,14 +115,12 @@ func (s *Set) Flush() []DDMetric {
 // Histo is a collection of values that generates max, min, count, and
 // percentiles over time.
 type Histo struct {
-	name        string
-	tags        []string
-	count       int64
-	max         float64
-	min         float64
-	value       gohistogram.NumericHistogram
-	percentiles []float64
-	counter     bool
+	name  string
+	tags  []string
+	count int64
+	max   float64
+	min   float64
+	value gohistogram.NumericHistogram
 }
 
 // Sample adds the supplied value to the histogram.
@@ -143,24 +141,23 @@ func (h *Histo) Sample(sample float64, sampleRate float32) {
 }
 
 // NewHist generates a new Histo and returns it.
-func NewHist(name string, tags []string, percentiles []float64, counter bool) *Histo {
+func NewHist(name string, tags []string) *Histo {
 	// For gohistogram, the following is from the docs:
 	// There is no "optimal" bin count, but somewhere between 20 and 80 bins should be sufficient. (50!)
 	return &Histo{
-		name:        name,
-		tags:        tags,
-		count:       0,
-		value:       *gohistogram.NewHistogram(50),
-		percentiles: percentiles,
-		counter:     counter,
+		name:  name,
+		tags:  tags,
+		value: *gohistogram.NewHistogram(50),
 	}
 }
 
-// Flush generates DDMetrics for the current state of the Histo.
-func (h *Histo) Flush(interval time.Duration) []DDMetric {
+// Flush generates DDMetrics for the current state of the Histo. counter indicates
+// whether to include the histogram's built-in counter, and percentiles indicates
+// what percentiles should be exported from the histogram.
+func (h *Histo) Flush(interval time.Duration, percentiles []float64, counter bool) []DDMetric {
 	now := float64(time.Now().Unix())
 	rate := float64(h.count) / interval.Seconds()
-	metrics := make([]DDMetric, 0, 3+len(h.percentiles))
+	metrics := make([]DDMetric, 0, 3+len(percentiles))
 
 	metrics = append(metrics,
 		DDMetric{
@@ -176,7 +173,7 @@ func (h *Histo) Flush(interval time.Duration) []DDMetric {
 			MetricType: "gauge",
 		},
 	)
-	if h.counter {
+	if counter {
 		metrics = append(metrics, DDMetric{
 			Name:       fmt.Sprintf("%s.count", h.name),
 			Value:      [1][2]float64{{now, rate}},
@@ -186,12 +183,12 @@ func (h *Histo) Flush(interval time.Duration) []DDMetric {
 		})
 	}
 
-	for i, p := range h.percentiles {
+	for _, p := range percentiles {
 		metrics = append(
 			metrics,
 			// TODO Fix to allow for p999, etc
 			DDMetric{
-				Name:       fmt.Sprintf("%s.%dpercentile", h.name, int(h.percentiles[i]*100)),
+				Name:       fmt.Sprintf("%s.%dpercentile", h.name, int(p*100)),
 				Value:      [1][2]float64{{now, h.value.Quantile(p)}},
 				Tags:       h.tags,
 				MetricType: "gauge",

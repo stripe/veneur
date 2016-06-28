@@ -8,7 +8,7 @@ import (
 )
 
 func TestWorker(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New(), []float64{0.5, 0.99}, true)
+	w := NewWorker(1, nil, logrus.New())
 
 	m := Metric{Name: "a.b.c", Value: 1.0, Digest: 12345, Type: "counter", SampleRate: 1.0}
 	w.ProcessMetric(&m)

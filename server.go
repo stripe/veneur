@@ -24,6 +24,9 @@ type Server struct {
 
 	UDPAddr     *net.UDPAddr
 	RcvbufBytes int
+
+	HistogramPercentiles []float64
+	HistogramCounter     bool
 }
 
 func NewFromConfig(conf Config) (ret Server, err error) {
@@ -31,6 +34,8 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.Tags = conf.Tags
 	ret.DDHostname = conf.APIHostname
 	ret.DDAPIKey = conf.Key
+	ret.HistogramCounter = conf.HistCounters
+	ret.HistogramPercentiles = conf.Percentiles
 
 	ret.statsd, err = statsd.NewBuffered(conf.StatsAddr, 1024)
 	if err != nil {
@@ -65,7 +70,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.logger.WithField("number", conf.NumWorkers).Info("Starting workers")
 	ret.Workers = make([]*Worker, conf.NumWorkers)
 	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.statsd, ret.logger, conf.Percentiles, conf.HistCounters)
+		ret.Workers[i] = NewWorker(i+1, ret.statsd, ret.logger)
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {
