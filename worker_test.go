@@ -10,7 +10,15 @@ import (
 func TestWorker(t *testing.T) {
 	w := NewWorker(1, nil, logrus.New())
 
-	m := Metric{Name: "a.b.c", Value: 1.0, Digest: 12345, Type: "counter", SampleRate: 1.0}
+	m := Metric{
+		MetricKey: MetricKey{
+			Name: "a.b.c",
+			Type: "counter",
+		},
+		Value:      1.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+	}
 	w.ProcessMetric(&m)
 
 	wm := w.Flush()
