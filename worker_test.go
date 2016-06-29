@@ -10,7 +10,7 @@ import (
 func TestWorker(t *testing.T) {
 	w := NewWorker(1, nil, logrus.New())
 
-	m := Metric{
+	m := UDPMetric{
 		MetricKey: MetricKey{
 			Name: "a.b.c",
 			Type: "counter",
