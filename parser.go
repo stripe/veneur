@@ -23,9 +23,9 @@ type UDPMetric struct {
 // a struct used to key the metrics into the worker's map - must only contain
 // comparable types
 type MetricKey struct {
-	Name       string
-	Type       string
-	JoinedTags string // tags in deterministic order, joined with commas
+	Name       string `json:"name"`
+	Type       string `json:"type"`
+	JoinedTags string `json:"tagstring"` // tags in deterministic order, joined with commas
 }
 
 // ParseMetric converts the incoming packet from Datadog DogStatsD

@@ -11,14 +11,15 @@ import (
 
 // Worker is the doodad that does work.
 type Worker struct {
-	id       int
-	WorkChan chan UDPMetric
-	QuitChan chan struct{}
-	metrics  int64
-	mutex    *sync.Mutex
-	stats    *statsd.Client
-	logger   *logrus.Logger
-	wm       WorkerMetrics
+	id        int
+	WorkChan  chan UDPMetric
+	QuitChan  chan struct{}
+	processed int64
+	imported  int64
+	mutex     *sync.Mutex
+	stats     *statsd.Client
+	logger    *logrus.Logger
+	wm        WorkerMetrics
 }
 
 // just a plain struct bundling together the flushed contents of a worker
@@ -46,14 +47,15 @@ func NewWorkerMetrics() WorkerMetrics {
 // NewWorker creates, and returns a new Worker object.
 func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger) *Worker {
 	return &Worker{
-		id:       id,
-		WorkChan: make(chan UDPMetric),
-		QuitChan: make(chan struct{}),
-		metrics:  0,
-		mutex:    &sync.Mutex{},
-		stats:    stats,
-		logger:   logger,
-		wm:       NewWorkerMetrics(),
+		id:        id,
+		WorkChan:  make(chan UDPMetric),
+		QuitChan:  make(chan struct{}),
+		processed: 0,
+		imported:  0,
+		mutex:     &sync.Mutex{},
+		stats:     stats,
+		logger:    logger,
+		wm:        NewWorkerMetrics(),
 	}
 }
 
@@ -76,7 +78,7 @@ func (w *Worker) Work() {
 func (w *Worker) ProcessMetric(m *UDPMetric) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-	w.metrics++
+	w.processed++
 	switch m.Type {
 	case "counter":
 		_, present := w.wm.counters[m.MetricKey]
@@ -114,7 +116,30 @@ func (w *Worker) ProcessMetric(m *UDPMetric) {
 		}
 		w.wm.timers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 	default:
-		w.logger.WithField("type", m.Type).Error("Unknown metric type")
+		w.logger.WithField("type", m.Type).Error("Unknown metric type for processing")
+	}
+}
+
+func (w *Worker) ImportMetric(other JSONMetric) {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
+	// we don't increment the processed metric counter here, it was already
+	// counted by the original veneur that sent this to us
+	w.imported++
+
+	switch other.Type {
+	case "set":
+		_, present := w.wm.sets[other.MetricKey]
+		if !present {
+			w.logger.WithField("name", other.Name).Debug("New set")
+			w.wm.sets[other.MetricKey] = NewSet(other.Name, other.Tags)
+		}
+		if err := w.wm.sets[other.MetricKey].Combine(other.Value); err != nil {
+			w.logger.WithError(err).Error("Could not merge sets")
+		}
+	default:
+		w.logger.WithField("type", other.Type).Error("Unknown metric type for importing")
 	}
 }
 
@@ -126,10 +151,12 @@ func (w *Worker) Flush() WorkerMetrics {
 	// and assigning new ones.
 	w.mutex.Lock()
 	ret := w.wm
-	w.stats.Count("worker.metrics_processed_total", w.metrics, []string{fmt.Sprintf("worker:%d", w.id)}, 1.0)
+	processed := w.processed
+	imported := w.imported
 
 	w.wm = NewWorkerMetrics()
-	w.metrics = 0
+	w.processed = 0
+	w.imported = 0
 	w.mutex.Unlock()
 
 	// Track how much time each worker takes to flush.
@@ -139,6 +166,9 @@ func (w *Worker) Flush() WorkerMetrics {
 		nil,
 		1.0,
 	)
+
+	w.stats.Count("worker.metrics_processed_total", processed, []string{fmt.Sprintf("worker:%d", w.id)}, 1.0)
+	w.stats.Count("worker.metrics_imported_total", imported, []string{fmt.Sprintf("worker:%d", w.id)}, 1.0)
 
 	w.stats.Count("worker.metrics_flushed_total", int64(len(ret.counters)), []string{"metric_type:counter"}, 1.0)
 	w.stats.Count("worker.metrics_flushed_total", int64(len(ret.gauges)), []string{"metric_type:gauge"}, 1.0)
