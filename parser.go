@@ -10,14 +10,22 @@ import (
 	"strings"
 )
 
-// Metric is a representation of the sample provided by a client.
+// Metric is a representation of the sample provided by a client. The tag list
+// should be deterministically ordered.
 type Metric struct {
-	Name       string
+	MetricKey
 	Digest     uint32
 	Value      interface{}
 	SampleRate float32
-	Type       string
 	Tags       []string
+}
+
+// a struct used to key the metrics into the worker's map - must only contain
+// comparable types
+type MetricKey struct {
+	Name       string
+	Type       string
+	JoinedTags string // tags in deterministic order, joined with commas
 }
 
 // ParseMetric converts the incoming packet from Datadog DogStatsD
@@ -32,7 +40,7 @@ func ParseMetric(packet []byte) (*Metric, error) {
 	}
 
 	// Create a new hasher for accumulating the data we read
-	h := fnv.New32()
+	h := fnv.New32a()
 
 	// Add the name to the digest
 	h.Write(parts[0])
@@ -77,6 +85,9 @@ func ParseMetric(packet []byte) (*Metric, error) {
 		ret.Value = v
 	}
 
+	// each of these sections can only appear once in the packet
+	foundSampleRate := false
+	foundTags := false
 	for i := 2; i < len(data); i++ {
 		if len(data[i]) == 0 {
 			// avoid panicking on malformed packets that have too many pipes
@@ -85,6 +96,9 @@ func ParseMetric(packet []byte) (*Metric, error) {
 		}
 		switch data[i][0] {
 		case '@':
+			if foundSampleRate {
+				return nil, errors.New("Invalid metric packet, multiple sample rates specified")
+			}
 			// sample rate!
 			sr := string(data[i][1:])
 			sampleRate, err := strconv.ParseFloat(sr, 32)
@@ -94,14 +108,28 @@ func ParseMetric(packet []byte) (*Metric, error) {
 			if ret.Type == "gauge" || ret.Type == "set" {
 				return nil, fmt.Errorf("Invalid metric packet, %s cannot have a sample rate", ret.Type)
 			}
+			if sampleRate <= 0 || sampleRate > 1 {
+				return nil, fmt.Errorf("Sample rate %f must be >0 and <=1", sampleRate)
+			}
 			ret.SampleRate = float32(sampleRate)
+			foundSampleRate = true
 
 		case '#':
 			// tags!
+			if foundTags {
+				return nil, errors.New("Invalid metric packet, multiple tag sections specified")
+			}
 			tags := strings.Split(string(data[i][1:]), ",")
 			sort.Strings(tags)
-			h.Write([]byte(strings.Join(tags, ",")))
 			ret.Tags = tags
+			// we specifically need the sorted version here so that hashing over
+			// tags behaves deterministically
+			ret.JoinedTags = strings.Join(tags, ",")
+			h.Write([]byte(ret.JoinedTags))
+			foundTags = true
+
+		default:
+			return nil, fmt.Errorf("Invalid metric packet, contains unknown section %q", data[i])
 		}
 	}
 

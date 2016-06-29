@@ -23,20 +23,23 @@ type Worker struct {
 
 // just a plain struct bundling together the flushed contents of a worker
 type WorkerMetrics struct {
-	counters   map[uint32]*Counter
-	gauges     map[uint32]*Gauge
-	histograms map[uint32]*Histo
-	sets       map[uint32]*Set
-	timers     map[uint32]*Histo
+	// we do not want to key on the metric's Digest here, because those could
+	// collide, and then we'd have to implement a hashtable on top of go maps,
+	// which would be silly
+	counters   map[MetricKey]*Counter
+	gauges     map[MetricKey]*Gauge
+	histograms map[MetricKey]*Histo
+	sets       map[MetricKey]*Set
+	timers     map[MetricKey]*Histo
 }
 
 func NewWorkerMetrics() WorkerMetrics {
 	return WorkerMetrics{
-		counters:   make(map[uint32]*Counter),
-		gauges:     make(map[uint32]*Gauge),
-		histograms: make(map[uint32]*Histo),
-		sets:       make(map[uint32]*Set),
-		timers:     make(map[uint32]*Histo),
+		counters:   make(map[MetricKey]*Counter),
+		gauges:     make(map[MetricKey]*Gauge),
+		histograms: make(map[MetricKey]*Histo),
+		sets:       make(map[MetricKey]*Set),
+		timers:     make(map[MetricKey]*Histo),
 	}
 }
 
@@ -76,40 +79,40 @@ func (w *Worker) ProcessMetric(m *Metric) {
 	w.metrics++
 	switch m.Type {
 	case "counter":
-		_, present := w.wm.counters[m.Digest]
+		_, present := w.wm.counters[m.MetricKey]
 		if !present {
 			w.logger.WithField("name", m.Name).Debug("New counter")
-			w.wm.counters[m.Digest] = NewCounter(m.Name, m.Tags)
+			w.wm.counters[m.MetricKey] = NewCounter(m.Name, m.Tags)
 		}
-		w.wm.counters[m.Digest].Sample(m.Value.(float64), m.SampleRate)
+		w.wm.counters[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 	case "gauge":
-		_, present := w.wm.gauges[m.Digest]
+		_, present := w.wm.gauges[m.MetricKey]
 		if !present {
 			w.logger.WithField("name", m.Name).Debug("New gauge")
-			w.wm.gauges[m.Digest] = NewGauge(m.Name, m.Tags)
+			w.wm.gauges[m.MetricKey] = NewGauge(m.Name, m.Tags)
 		}
-		w.wm.gauges[m.Digest].Sample(m.Value.(float64), m.SampleRate)
+		w.wm.gauges[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 	case "histogram":
-		_, present := w.wm.histograms[m.Digest]
+		_, present := w.wm.histograms[m.MetricKey]
 		if !present {
 			w.logger.WithField("name", m.Name).Debug("New histogram")
-			w.wm.histograms[m.Digest] = NewHist(m.Name, m.Tags)
+			w.wm.histograms[m.MetricKey] = NewHist(m.Name, m.Tags)
 		}
-		w.wm.histograms[m.Digest].Sample(m.Value.(float64), m.SampleRate)
+		w.wm.histograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 	case "set":
-		_, present := w.wm.sets[m.Digest]
+		_, present := w.wm.sets[m.MetricKey]
 		if !present {
 			w.logger.WithField("name", m.Name).Debug("New set")
-			w.wm.sets[m.Digest] = NewSet(m.Name, m.Tags)
+			w.wm.sets[m.MetricKey] = NewSet(m.Name, m.Tags)
 		}
-		w.wm.sets[m.Digest].Sample(m.Value.(string), m.SampleRate)
+		w.wm.sets[m.MetricKey].Sample(m.Value.(string), m.SampleRate)
 	case "timer":
-		_, present := w.wm.timers[m.Digest]
+		_, present := w.wm.timers[m.MetricKey]
 		if !present {
 			w.logger.WithField("name", m.Name).Debug("New timer")
-			w.wm.timers[m.Digest] = NewHist(m.Name, m.Tags)
+			w.wm.timers[m.MetricKey] = NewHist(m.Name, m.Tags)
 		}
-		w.wm.timers[m.Digest].Sample(m.Value.(float64), m.SampleRate)
+		w.wm.timers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 	default:
 		w.logger.WithField("type", m.Type).Error("Unknown metric type")
 	}
