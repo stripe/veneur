@@ -3,10 +3,13 @@ package veneur
 import (
 	"net"
 	"sync"
+	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
 	"github.com/getsentry/raven-go"
+	"github.com/zenazn/goji/bind"
+	"github.com/zenazn/goji/graceful"
 )
 
 type Server struct {
@@ -22,6 +25,7 @@ type Server struct {
 	DDHostname string
 	DDAPIKey   string
 
+	HTTPAddr    string
 	UDPAddr     *net.UDPAddr
 	RcvbufBytes int
 
@@ -85,6 +89,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		return
 	}
 	ret.RcvbufBytes = conf.ReadBufferSizeBytes
+	ret.HTTPAddr = conf.HTTPAddr
 
 	conf.Key = "REDACTED"
 	conf.SentryDSN = "REDACTED"
@@ -140,4 +145,20 @@ func (s *Server) ReadSocket(packetPool *sync.Pool) {
 		// can return it to the pool
 		packetPool.Put(buf)
 	}
+}
+
+func (s *Server) HTTPServe() {
+	httpSocket := bind.Socket(s.HTTPAddr)
+	graceful.Timeout(10 * time.Second)
+	graceful.PreHook(func() {
+		s.logger.Info("Terminating HTTP listener")
+	})
+	graceful.HandleSignals()
+	s.logger.WithField("address", s.HTTPAddr).Info("HTTP server listening")
+	bind.Ready()
+
+	if err := graceful.Serve(httpSocket, s.Handler()); err != nil {
+		s.logger.WithError(err).Error("HTTP server shut down due to error")
+	}
+	graceful.Wait()
 }
