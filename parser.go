@@ -12,7 +12,7 @@ import (
 
 // Metric is a representation of the sample provided by a client. The tag list
 // should be deterministically ordered.
-type Metric struct {
+type UDPMetric struct {
 	MetricKey
 	Digest     uint32
 	Value      interface{}
@@ -30,8 +30,8 @@ type MetricKey struct {
 
 // ParseMetric converts the incoming packet from Datadog DogStatsD
 // Datagram format in to a Metric. http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
-func ParseMetric(packet []byte) (*Metric, error) {
-	ret := &Metric{
+func ParseMetric(packet []byte) (*UDPMetric, error) {
+	ret := &UDPMetric{
 		SampleRate: 1.0,
 	}
 	parts := bytes.SplitN(packet, []byte(":"), 2)

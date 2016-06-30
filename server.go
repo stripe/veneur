@@ -93,7 +93,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	return
 }
 
-func (s *Server) HandlePacket(packet []byte, packetPool *sync.Pool) {
+func (s *Server) HandlePacket(packet []byte) {
 	metric, err := ParseMetric(packet)
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
@@ -101,6 +101,7 @@ func (s *Server) HandlePacket(packet []byte, packetPool *sync.Pool) {
 			"packet":        string(packet),
 		}).Error("Could not parse packet")
 		s.statsd.Count("packet.error_total", 1, nil, 1.0)
+		return
 	}
 
 	if len(s.Tags) > 0 {
@@ -108,11 +109,6 @@ func (s *Server) HandlePacket(packet []byte, packetPool *sync.Pool) {
 	}
 
 	s.Workers[metric.Digest%uint32(len(s.Workers))].WorkChan <- *metric
-
-	// the Metric struct has no byte slices in it, only strings
-	// therefore there are no outstanding references to this byte slice, and we
-	// can return it to the pool
-	packetPool.Put(packet[:cap(packet)])
 }
 
 func (s *Server) ReadSocket(packetPool *sync.Pool) {
@@ -137,6 +133,11 @@ func (s *Server) ReadSocket(packetPool *sync.Pool) {
 			s.logger.WithError(err).Error("Error reading from UDP")
 			continue
 		}
-		s.HandlePacket(buf[:n], packetPool)
+		s.HandlePacket(buf[:n])
+		// the Metric struct created by HandlePacket has no byte slices in it,
+		// only strings
+		// therefore there are no outstanding references to this byte slice, we
+		// can return it to the pool
+		packetPool.Put(buf)
 	}
 }

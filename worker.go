@@ -12,7 +12,7 @@ import (
 // Worker is the doodad that does work.
 type Worker struct {
 	id       int
-	WorkChan chan Metric
+	WorkChan chan UDPMetric
 	QuitChan chan struct{}
 	metrics  int64
 	mutex    *sync.Mutex
@@ -47,7 +47,7 @@ func NewWorkerMetrics() WorkerMetrics {
 func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger) *Worker {
 	return &Worker{
 		id:       id,
-		WorkChan: make(chan Metric),
+		WorkChan: make(chan UDPMetric),
 		QuitChan: make(chan struct{}),
 		metrics:  0,
 		mutex:    &sync.Mutex{},
@@ -73,7 +73,7 @@ func (w *Worker) Work() {
 // ProcessMetric takes a Metric and samples it
 //
 // This is standalone to facilitate testing
-func (w *Worker) ProcessMetric(m *Metric) {
+func (w *Worker) ProcessMetric(m *UDPMetric) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 	w.metrics++
