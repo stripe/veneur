@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"math"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -206,4 +207,28 @@ func TestHistoSampleRate(t *testing.T) {
 	count := metrics[2]
 	assert.Equal(t, "a.b.c.count", count.Name, "count name")
 	assert.Equal(t, float64(1), count.Value[0][1], "count value")
+}
+
+func TestHistoMerge(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+
+	h := NewHist("a.b.c", []string{"a:b"})
+	for i := 0; i < 100; i++ {
+		h.Sample(rand.NormFloat64(), 1.0)
+	}
+
+	jm, err := h.Export()
+	assert.NoError(t, err, "should have exported successfully")
+
+	h2 := NewHist("a.b.c", []string{"a:b"})
+	assert.NoError(t, h2.Combine(jm.Value), "should have combined successfully")
+	assert.InEpsilon(t, h.value.Quantile(0.5), h2.value.Quantile(0.5), 0.02, "50th percentiles did not match after merging")
+	assert.InDelta(t, 0, h2.localWeight, 0.02, "merged histogram should have count of zero")
+	assert.True(t, math.IsInf(h2.localMin, +1), "merged histogram should have local minimum of +inf")
+	assert.True(t, math.IsInf(h2.localMax, -1), "merged histogram should have local minimum of -inf")
+
+	h2.Sample(1.0, 1.0)
+	assert.InDelta(t, 1.0, h2.localWeight, 0.02, "merged histogram should have count of 1 after adding a value")
+	assert.InDelta(t, 1.0, h2.localMin, 0.02, "merged histogram should have min of 1 after adding a value")
+	assert.InDelta(t, 1.0, h2.localMax, 0.02, "merged histogram should have max of 1 after adding a value")
 }
