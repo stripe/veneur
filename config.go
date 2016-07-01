@@ -19,6 +19,7 @@ type Config struct {
 	Percentiles         []float64     `yaml:"percentiles"`
 	ReadBufferSizeBytes int           `yaml:"read_buffer_size_bytes"`
 	UDPAddr             string        `yaml:"udp_address"`
+	HTTPAddr            string        `yaml:"http_address"`
 	NumWorkers          int           `yaml:"num_workers"`
 	NumReaders          int           `yaml:"num_readers"`
 	StatsAddr           string        `yaml:"stats_address"`

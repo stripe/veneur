@@ -59,6 +59,54 @@
 			"revisionTime": "2016-02-25T15:03:13Z"
 		},
 		{
+			"checksumSHA1": "T9J7FOCeCaD5q8T2v+72WtRq2ds=",
+			"path": "github.com/zenazn/goji/bind",
+			"revision": "64eb34159fe53473206c2b3e70fe396a639452f2",
+			"revisionTime": "2016-05-07T20:19:45Z"
+		},
+		{
+			"checksumSHA1": "VlmqBl1j3cULPU18lMBXNf+IHY8=",
+			"path": "github.com/zenazn/goji/graceful",
+			"revision": "64eb34159fe53473206c2b3e70fe396a639452f2",
+			"revisionTime": "2016-05-07T20:19:45Z"
+		},
+		{
+			"checksumSHA1": "caN0mgXEzfd0w9rhUsppkUUUCns=",
+			"path": "github.com/zenazn/goji/graceful/listener",
+			"revision": "64eb34159fe53473206c2b3e70fe396a639452f2",
+			"revisionTime": "2016-05-07T20:19:45Z"
+		},
+		{
+			"checksumSHA1": "mOUDsWfYLlh8f6ekwyIUo3+4xJI=",
+			"path": "goji.io",
+			"revision": "e355964ac565b94cf0fc7f218346626529125086",
+			"revisionTime": "2016-05-07T21:13:57Z"
+		},
+		{
+			"checksumSHA1": "Jf3C/refSMB2wVYGp1pssKXVNcI=",
+			"path": "goji.io/internal",
+			"revision": "e355964ac565b94cf0fc7f218346626529125086",
+			"revisionTime": "2016-05-07T21:13:57Z"
+		},
+		{
+			"checksumSHA1": "gHp/Mv7vgZWs7iq/F0YHnWgEotQ=",
+			"path": "goji.io/pat",
+			"revision": "e355964ac565b94cf0fc7f218346626529125086",
+			"revisionTime": "2016-05-07T21:13:57Z"
+		},
+		{
+			"checksumSHA1": "z2zVlHamw4ufyuSaf49reuusrmg=",
+			"path": "goji.io/pattern",
+			"revision": "e355964ac565b94cf0fc7f218346626529125086",
+			"revisionTime": "2016-05-07T21:13:57Z"
+		},
+		{
+			"checksumSHA1": "9jjO5GjLa0XF/nfWihF02RoH4qc=",
+			"path": "golang.org/x/net/context",
+			"revision": "8e573f4005aa312856df2ea97c32b9beac70dd89",
+			"revisionTime": "2016-06-29T18:55:36Z"
+		},
+		{
 			"checksumSHA1": "oBKY8LJtCoSvmYA4ADFDY02A8NY=",
 			"path": "golang.org/x/sys/unix",
 			"revision": "d4feaf1a7e61e1d9e79e6c4e76c6349e9cab0a03",

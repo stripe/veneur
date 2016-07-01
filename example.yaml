@@ -6,7 +6,6 @@ publish_histogram_counters: true
 debug: true
 interval: "10s"
 key: "farts"
-listen: ":8126"
 num_workers: 96
 num_readers: 4
 percentiles:
@@ -19,5 +18,6 @@ tags:
  - "foo:bar"
 #  - "baz:gorch"
 udp_address: "localhost:8126"
+http_address: "einhorn@0"
 # Defaults to the os.Hostname()!
 # hostname: foobar
