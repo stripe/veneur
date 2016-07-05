@@ -124,7 +124,7 @@ func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
 	req.Header.Set("Content-Encoding", "deflate")
 
 	fstart := time.Now()
-	resp, err := http.DefaultClient.Do(req) // TODO: add configurable http client to server struct
+	resp, err := s.HTTPClient.Do(req)
 	if err != nil {
 		s.statsd.Count("flush.error_total", int64(len(metricSlice)), []string{"cause:io"}, 1.0)
 		s.logger.WithError(err).Error("Error writing POST request")

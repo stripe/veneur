@@ -2,6 +2,7 @@ package veneur
 
 import (
 	"net"
+	"net/http"
 	"sync"
 	"time"
 
@@ -24,6 +25,7 @@ type Server struct {
 
 	DDHostname string
 	DDAPIKey   string
+	HTTPClient *http.Client
 
 	HTTPAddr    string
 	UDPAddr     *net.UDPAddr
@@ -40,6 +42,12 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.DDAPIKey = conf.Key
 	ret.HistogramCounter = conf.HistCounters
 	ret.HistogramPercentiles = conf.Percentiles
+
+	ret.HTTPClient = &http.Client{
+		// make sure that POSTs to datadog do not overflow the flush interval
+		Timeout: conf.Interval * 9 / 10,
+		// we're fine with using the default transport and redirect behavior
+	}
 
 	ret.statsd, err = statsd.NewBuffered(conf.StatsAddr, 1024)
 	if err != nil {
