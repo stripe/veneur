@@ -83,7 +83,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	wg.Wait()
 	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(flushStart).Nanoseconds()), nil, 1.0)
 
-	s.statsd.Count("flush.error_total", 0, nil, 0.1) // make sure this metric is not sparse
+	s.statsd.Count("flush.error_total", 0, nil, 1.0) // make sure this metric is not sparse
 	s.logger.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
 }
 
