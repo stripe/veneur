@@ -90,6 +90,22 @@ do include a hostname tag, Veneur will **not** strip it for you. Veneur will add
 
 Veneur expires all metrics on each flush. If a metric is no longer being sent (or is sent sparsely) Veneur will not send it as zeros! This was chosen because the combination of the approximation's features and the additional hysteresis imposed by *retaining* these approximations over time was deemed more complex than desirable.
 
+# Setup
+
+He're well document some explanations of setup choices you may make when using Veneur.
+
+## Einhorn Usage
+
+When you upgrade Veneur (deploy, stop, start with new binary) there will be a
+brief period where Veneur will not be able to handle requests. At Stripe we use
+[Einhorn](https://github.com/stripe/einhorn) as a shared socket manager to
+bridge the gap until Veneur is ready to handle HTTP requests again.
+
+You'll need to consult Einhorn's documentation for installation, setup and usage.
+But once you've done that you can tell Veneur to use Einhorn by setting `http_address`
+to `einhorn@0`. This informs [goji](https://github.com/zenazn/goji) to use it's
+Einhorn handling code to bind to the file descriptor for HTTP.
+
 # Performance
 
 Processing packets quickly is the name of the game.
