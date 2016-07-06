@@ -1,13 +1,15 @@
 package veneur
 
 import (
+	"compress/zlib"
 	"encoding/json"
+	"fmt"
 	"hash/fnv"
+	"io"
 	"net/http"
 	"sort"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"goji.io"
 	"goji.io/pat"
 	"golang.org/x/net/context"
@@ -21,21 +23,47 @@ func (s *Server) Handler() http.Handler {
 	})
 
 	mux.HandleFuncC(pat.Post("/import"), func(c context.Context, w http.ResponseWriter, r *http.Request) {
+		innerLogger := s.logger.WithField("client", r.RemoteAddr)
 		start := time.Now()
 
-		var jsonMetrics []JSONMetric
-		if err := json.NewDecoder(r.Body).Decode(&jsonMetrics); err != nil {
+		var (
+			jsonMetrics []JSONMetric
+			body        io.ReadCloser
+			err         error
+			encoding    string = r.Header.Get("Content-Encoding")
+		)
+		switch encLogger := innerLogger.WithField("encoding", encoding); encoding {
+		case "":
+			body = r.Body
+			encoding = "identity"
+		case "deflate":
+			body, err = zlib.NewReader(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				encLogger.WithError(err).Error("Could not read compressed request body")
+				s.statsd.Count("import.request_error_total", 1, []string{"cause:deflate"}, 1.0)
+				return
+			}
+			defer body.Close()
+		default:
+			http.Error(w, encoding, http.StatusUnsupportedMediaType)
+			encLogger.Error("Could not determine content-encoding of request")
+			s.statsd.Count("import.request_error_total", 1, []string{"cause:unknown_content_encoding"}, 1.0)
+			return
+		}
+
+		if err := json.NewDecoder(body).Decode(&jsonMetrics); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			s.logger.WithFields(logrus.Fields{
-				logrus.ErrorKey: err,
-				"client":        r.RemoteAddr,
-			}).Error("Could not decode /import request")
+			innerLogger.WithError(err).Error("Could not decode /import request")
 			s.statsd.Count("import.request_error_total", 1, []string{"cause:json"}, 1.0)
 			return
 		}
 
 		w.WriteHeader(http.StatusAccepted)
-		s.statsd.TimeInMilliseconds("import.response_duration_ns", float64(time.Now().Sub(start).Nanoseconds()), []string{"part:request"}, 1.0)
+		s.statsd.TimeInMilliseconds("import.response_duration_ns",
+			float64(time.Now().Sub(start).Nanoseconds()),
+			[]string{"part:request", fmt.Sprintf("encoding:%s", encoding)},
+			1.0)
 
 		// the server usually waits for this to return before finalizing the
 		// response, so this part must be done asynchronously
