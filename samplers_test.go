@@ -1,6 +1,8 @@
 package veneur
 
 import (
+	"math/rand"
+	"strconv"
 	"testing"
 	"time"
 
@@ -101,6 +103,23 @@ func TestSet(t *testing.T) {
 	assert.Len(t, m1.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m1.Tags[0], "First tag")
 	assert.Equal(t, float64(4), m1.Value[0][1], "Value")
+}
+
+func TestSetMerge(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+
+	s := NewSet("a.b.c", []string{"a:b"})
+	for i := 0; i < 100; i++ {
+		s.Sample(strconv.Itoa(rand.Int()), 1.0)
+	}
+	assert.Equal(t, uint64(100), s.hll.Count(), "counts did not match")
+
+	jm, err := s.Export()
+	assert.NoError(t, err, "should have exported successfully")
+
+	s2 := NewSet("a.b.c", []string{"a:b"})
+	assert.NoError(t, s2.Combine(jm.Value), "should have combined successfully")
+	assert.Equal(t, s.hll.Count(), s2.hll.Count(), "counts did not match after merging")
 }
 
 func TestHisto(t *testing.T) {

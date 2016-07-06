@@ -11,14 +11,15 @@ import (
 
 // Worker is the doodad that does work.
 type Worker struct {
-	id       int
-	WorkChan chan UDPMetric
-	QuitChan chan struct{}
-	metrics  int64
-	mutex    *sync.Mutex
-	stats    *statsd.Client
-	logger   *logrus.Logger
-	wm       WorkerMetrics
+	id        int
+	WorkChan  chan UDPMetric
+	QuitChan  chan struct{}
+	processed int64
+	imported  int64
+	mutex     *sync.Mutex
+	stats     *statsd.Client
+	logger    *logrus.Logger
+	wm        WorkerMetrics
 }
 
 // just a plain struct bundling together the flushed contents of a worker
@@ -43,17 +44,49 @@ func NewWorkerMetrics() WorkerMetrics {
 	}
 }
 
+// Create an entry in wm for the given metrickey, if it does not already exist.
+// Returns true if the metric entry was created and false otherwise.
+func (wm WorkerMetrics) Upsert(mk MetricKey, tags []string) bool {
+	present := false
+	switch mk.Type {
+	case "counter":
+		if _, present = wm.counters[mk]; !present {
+			wm.counters[mk] = NewCounter(mk.Name, tags)
+		}
+	case "gauge":
+		if _, present = wm.gauges[mk]; !present {
+			wm.gauges[mk] = NewGauge(mk.Name, tags)
+		}
+	case "histogram":
+		if _, present = wm.histograms[mk]; !present {
+			wm.histograms[mk] = NewHist(mk.Name, tags)
+		}
+	case "set":
+		if _, present = wm.sets[mk]; !present {
+			wm.sets[mk] = NewSet(mk.Name, tags)
+		}
+	case "timer":
+		if _, present = wm.timers[mk]; !present {
+			wm.timers[mk] = NewHist(mk.Name, tags)
+		}
+		// no need to raise errors on unknown types
+		// the caller will probably end up doing that themselves
+	}
+	return !present
+}
+
 // NewWorker creates, and returns a new Worker object.
 func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger) *Worker {
 	return &Worker{
-		id:       id,
-		WorkChan: make(chan UDPMetric),
-		QuitChan: make(chan struct{}),
-		metrics:  0,
-		mutex:    &sync.Mutex{},
-		stats:    stats,
-		logger:   logger,
-		wm:       NewWorkerMetrics(),
+		id:        id,
+		WorkChan:  make(chan UDPMetric),
+		QuitChan:  make(chan struct{}),
+		processed: 0,
+		imported:  0,
+		mutex:     &sync.Mutex{},
+		stats:     stats,
+		logger:    logger,
+		wm:        NewWorkerMetrics(),
 	}
 }
 
@@ -76,45 +109,42 @@ func (w *Worker) Work() {
 func (w *Worker) ProcessMetric(m *UDPMetric) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-	w.metrics++
+
+	w.processed++
+	w.wm.Upsert(m.MetricKey, m.Tags)
+
 	switch m.Type {
 	case "counter":
-		_, present := w.wm.counters[m.MetricKey]
-		if !present {
-			w.logger.WithField("name", m.Name).Debug("New counter")
-			w.wm.counters[m.MetricKey] = NewCounter(m.Name, m.Tags)
-		}
 		w.wm.counters[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 	case "gauge":
-		_, present := w.wm.gauges[m.MetricKey]
-		if !present {
-			w.logger.WithField("name", m.Name).Debug("New gauge")
-			w.wm.gauges[m.MetricKey] = NewGauge(m.Name, m.Tags)
-		}
 		w.wm.gauges[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 	case "histogram":
-		_, present := w.wm.histograms[m.MetricKey]
-		if !present {
-			w.logger.WithField("name", m.Name).Debug("New histogram")
-			w.wm.histograms[m.MetricKey] = NewHist(m.Name, m.Tags)
-		}
 		w.wm.histograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 	case "set":
-		_, present := w.wm.sets[m.MetricKey]
-		if !present {
-			w.logger.WithField("name", m.Name).Debug("New set")
-			w.wm.sets[m.MetricKey] = NewSet(m.Name, m.Tags)
-		}
 		w.wm.sets[m.MetricKey].Sample(m.Value.(string), m.SampleRate)
 	case "timer":
-		_, present := w.wm.timers[m.MetricKey]
-		if !present {
-			w.logger.WithField("name", m.Name).Debug("New timer")
-			w.wm.timers[m.MetricKey] = NewHist(m.Name, m.Tags)
-		}
 		w.wm.timers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 	default:
-		w.logger.WithField("type", m.Type).Error("Unknown metric type")
+		w.logger.WithField("type", m.Type).Error("Unknown metric type for processing")
+	}
+}
+
+func (w *Worker) ImportMetric(other JSONMetric) {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
+	// we don't increment the processed metric counter here, it was already
+	// counted by the original veneur that sent this to us
+	w.imported++
+	w.wm.Upsert(other.MetricKey, other.Tags)
+
+	switch other.Type {
+	case "set":
+		if err := w.wm.sets[other.MetricKey].Combine(other.Value); err != nil {
+			w.logger.WithError(err).Error("Could not merge sets")
+		}
+	default:
+		w.logger.WithField("type", other.Type).Error("Unknown metric type for importing")
 	}
 }
 
@@ -126,10 +156,12 @@ func (w *Worker) Flush() WorkerMetrics {
 	// and assigning new ones.
 	w.mutex.Lock()
 	ret := w.wm
-	w.stats.Count("worker.metrics_processed_total", w.metrics, []string{fmt.Sprintf("worker:%d", w.id)}, 1.0)
+	processed := w.processed
+	imported := w.imported
 
 	w.wm = NewWorkerMetrics()
-	w.metrics = 0
+	w.processed = 0
+	w.imported = 0
 	w.mutex.Unlock()
 
 	// Track how much time each worker takes to flush.
@@ -139,6 +171,9 @@ func (w *Worker) Flush() WorkerMetrics {
 		nil,
 		1.0,
 	)
+
+	w.stats.Count("worker.metrics_processed_total", processed, []string{fmt.Sprintf("worker:%d", w.id)}, 1.0)
+	w.stats.Count("worker.metrics_imported_total", imported, []string{fmt.Sprintf("worker:%d", w.id)}, 1.0)
 
 	w.stats.Count("worker.metrics_flushed_total", int64(len(ret.counters)), []string{"metric_type:counter"}, 1.0)
 	w.stats.Count("worker.metrics_flushed_total", int64(len(ret.gauges)), []string{"metric_type:gauge"}, 1.0)

@@ -3,6 +3,7 @@ package veneur
 import (
 	"fmt"
 	"hash/fnv"
+	"strings"
 	"time"
 
 	"github.com/VividCortex/gohistogram"
@@ -18,6 +19,16 @@ type DDMetric struct {
 	MetricType string        `json:"type"`
 	Hostname   string        `json:"host"`
 	Interval   int32         `json:"interval,omitempty"`
+}
+
+// JSONMetric is used to represent a metric that can be remarshaled with its
+// internal state intact. It is used to send metrics from one Veneur to another.
+type JSONMetric struct {
+	MetricKey
+	Tags []string `json:"tags"`
+	// the Value is an internal representation of the metric's contents, eg a
+	// gob-encoded histogram or hyperloglog.
+	Value []byte `json:"value"`
 }
 
 // Counter is an accumulator
@@ -110,6 +121,36 @@ func (s *Set) Flush() []DDMetric {
 		Tags:       s.tags,
 		MetricType: "gauge",
 	}}
+}
+
+func (s *Set) Export() (JSONMetric, error) {
+	val, err := s.hll.GobEncode()
+	if err != nil {
+		return JSONMetric{}, err
+	}
+	return JSONMetric{
+		MetricKey: MetricKey{
+			Name:       s.name,
+			Type:       "set",
+			JoinedTags: strings.Join(s.tags, ","),
+		},
+		Tags:  s.tags,
+		Value: val,
+	}, nil
+}
+
+func (s *Set) Combine(other []byte) error {
+	otherHLL, _ := hyperloglog.NewPlus(18)
+	if err := otherHLL.GobDecode(other); err != nil {
+		return err
+	}
+	if err := s.hll.Merge(otherHLL); err != nil {
+		// does not error unless compressions are different
+		// however, decoding the other hll causes us to use its compression
+		// parameter, which might be different from ours
+		return err
+	}
+	return nil
 }
 
 // Histo is a collection of values that generates max, min, count, and
