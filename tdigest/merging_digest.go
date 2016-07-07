@@ -22,34 +22,37 @@ type MergingDigest struct {
 	compression float64
 
 	// main list of centroids
-	mainCentroids []centroid
+	mainCentroids []Centroid
 	// total weight of unmerged centroids
 	mainWeight float64
 
 	// centroids that have been added but not yet merged into main list
-	tempCentroids []centroid
+	tempCentroids []Centroid
 	// total weight of unmerged centroids
 	tempWeight float64
 
 	// an extra list used during merging and then swapped with the main list
 	// TODO: there must be an in-place merge we can do to eliminate this
 	// outside of mergeAllTemps(), this is always empty
-	mergedCentroids []centroid
+	mergedCentroids []Centroid
 
 	min float64
 	max float64
+
+	debug bool
 }
 
 // fields must be exported to allow encoding
-type centroid struct {
-	Mean   float64
-	Weight float64
+type Centroid struct {
+	Mean    float64
+	Weight  float64
+	Samples []float64
 }
 
 var _ sort.Interface = centroidList{}
 
 // sort centroids by their mean
-type centroidList []centroid
+type centroidList []Centroid
 
 func (cl centroidList) Len() int {
 	return len(cl)
@@ -65,18 +68,25 @@ func (cl centroidList) Swap(i, j int) {
 // Lower compression values result in reduced memory consumption and less
 // precision, especially at the median. Values from 20 to 1000 are recommended
 // in Dunning's paper.
-func NewMerging(compression float64) *MergingDigest {
+//
+// The debug flag adds a list to each centroid, which stores all the samples
+// that have gone into that centroid. While this is useful for statistical
+// analysis, it makes the t-digest significantly slower and requires it to
+// store every sample. This defeats the purpose of using an approximating
+// histogram at all, so this feature should only be used in tests.
+func NewMerging(compression float64, debug bool) *MergingDigest {
 	// this is a provable upper bound on the size of the centroid list
 	// TODO: derive it myself
 	sizeBound := int((math.Pi * compression / 2) + 0.5)
 
 	return &MergingDigest{
 		compression:     compression,
-		mainCentroids:   make([]centroid, 0, sizeBound),
-		mergedCentroids: make([]centroid, 0, sizeBound),
-		tempCentroids:   make([]centroid, 0, estimateTempBuffer(compression)),
+		mainCentroids:   make([]Centroid, 0, sizeBound),
+		mergedCentroids: make([]Centroid, 0, sizeBound),
+		tempCentroids:   make([]Centroid, 0, estimateTempBuffer(compression)),
 		min:             math.Inf(+1),
 		max:             math.Inf(-1),
+		debug:           debug,
 	}
 }
 
@@ -102,7 +112,14 @@ func (td *MergingDigest) Add(value float64, weight float64) {
 	td.min = math.Min(td.min, value)
 	td.max = math.Max(td.max, value)
 
-	td.tempCentroids = append(td.tempCentroids, centroid{value, weight})
+	next := Centroid{
+		Mean:   value,
+		Weight: weight,
+	}
+	if td.debug {
+		next.Samples = []float64{value}
+	}
+	td.tempCentroids = append(td.tempCentroids, next)
 	td.tempWeight += weight
 }
 
@@ -163,7 +180,7 @@ func (td *MergingDigest) mergeAllTemps() {
 // merges a single centroid into the mergedCentroids list
 // note that "merging" sometimes creates a new centroid in the list, however
 // the length of the list has a strict upper bound (see constructor)
-func (td *MergingDigest) mergeOne(beforeWeight, totalWeight, beforeIndex float64, next centroid) float64 {
+func (td *MergingDigest) mergeOne(beforeWeight, totalWeight, beforeIndex float64, next Centroid) float64 {
 	// compute the quantile index of the element we're about to merge
 	nextIndex := td.indexEstimate((beforeWeight + next.Weight) / totalWeight)
 
@@ -181,6 +198,9 @@ func (td *MergingDigest) mergeOne(beforeWeight, totalWeight, beforeIndex float64
 		// weight must be updated before mean
 		td.mergedCentroids[len(td.mergedCentroids)-1].Weight += next.Weight
 		td.mergedCentroids[len(td.mergedCentroids)-1].Mean += (next.Mean - td.mergedCentroids[len(td.mergedCentroids)-1].Mean) * next.Weight / td.mergedCentroids[len(td.mergedCentroids)-1].Weight
+		if td.debug {
+			td.mergedCentroids[len(td.mergedCentroids)-1].Samples = append(td.mergedCentroids[len(td.mergedCentroids)-1].Samples, next.Samples...)
+		}
 
 		// we did not create a new centroid, so the trailing index of the previous
 		// centroid remains
@@ -373,14 +393,29 @@ func (td *MergingDigest) GobDecode(b []byte) error {
 	td.tempWeight = 0
 	// avoid reallocating if the compressions are the same
 	if cap(td.mergedCentroids) != cap(td.mainCentroids) {
-		td.mergedCentroids = make([]centroid, 0, cap(td.mainCentroids))
+		td.mergedCentroids = make([]Centroid, 0, cap(td.mainCentroids))
 	}
 	if tempSize := estimateTempBuffer(td.compression); cap(td.tempCentroids) != tempSize {
-		td.tempCentroids = make([]centroid, 0, tempSize)
+		td.tempCentroids = make([]Centroid, 0, tempSize)
 	} else {
 		// discard any unmerged centroids if we didn't reallocate
 		td.tempCentroids = td.tempCentroids[:0]
 	}
 
 	return nil
+}
+
+// This function provides direct access to the internal list of centroids in
+// this t-digest. Having access to this list is very important for analyzing the
+// t-digest's statistical properties. However, since it violates the encapsulation
+// of the t-digest, it should be used sparingly. Mutating the returned slice can
+// result in undefined behavior.
+//
+// This function will panic if debug is not enabled for this t-digest.
+func (td *MergingDigest) Centroids() []Centroid {
+	if !td.debug {
+		panic("must enable debug to call Centroids()")
+	}
+	td.mergeAllTemps()
+	return td.mainCentroids
 }

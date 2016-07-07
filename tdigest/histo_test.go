@@ -11,7 +11,7 @@ import (
 func TestMergingDigest(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
-	td := NewMerging(1000)
+	td := NewMerging(1000, false)
 
 	for i := 0; i < 1000000; i++ {
 		td.Add(rand.Float64(), 1.0)
@@ -25,9 +25,9 @@ func TestMergingDigest(t *testing.T) {
 }
 
 func TestMergeSparseDigest(t *testing.T) {
-	td := NewMerging(1000)
+	td := NewMerging(1000, false)
 	td.Add(-200000, 1)
-	other := NewMerging(1000)
+	other := NewMerging(1000, false)
 	other.Add(200000, 1)
 
 	td.Merge(other)
@@ -68,7 +68,7 @@ func validateMergingDigest(t *testing.T, td *MergingDigest) {
 func TestGobEncoding(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
-	td := NewMerging(1000)
+	td := NewMerging(1000, false)
 	for i := 0; i < 1000; i++ {
 		td.Add(rand.Float64(), 1.0)
 	}
@@ -77,7 +77,7 @@ func TestGobEncoding(t *testing.T) {
 	buf, err := td.GobEncode()
 	assert.NoError(t, err, "should have encoded successfully")
 
-	td2 := NewMerging(1000)
+	td2 := NewMerging(1000, false)
 	assert.NoError(t, td2.GobDecode(buf), "should have decoded successfully")
 
 	assert.InEpsilon(t, td.Count(), td2.Count(), 0.02, "counts did not match")
@@ -88,7 +88,7 @@ func TestGobEncoding(t *testing.T) {
 
 func BenchmarkAdd(b *testing.B) {
 	rand.Seed(time.Now().Unix())
-	td := NewMerging(1000)
+	td := NewMerging(1000, false)
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
@@ -98,7 +98,7 @@ func BenchmarkAdd(b *testing.B) {
 
 func BenchmarkQuantile(b *testing.B) {
 	rand.Seed(time.Now().Unix())
-	td := NewMerging(1000)
+	td := NewMerging(1000, false)
 	for i := 0; i < b.N; i++ {
 		td.Add(rand.NormFloat64(), 1.0)
 	}
