@@ -59,8 +59,6 @@ Veneur expects to have a config file supplied via `-f PATH`. The include `exampl
 * `num_workers` - The number of worker goroutines to start.
 * `num_readers` - The number of reader goroutines to start. Veneur supports SO_REUSEPORT on Linux to scale to multiple readers. On other platforms, this should always be 1; other values will probably cause errors at startup. See below.
 * `read_buffer_size_bytes` - The size of the receive buffer for the UDP socket. Defaults to 2MB, as having a lot of buffer prevents packet drops during flush!
-* `set_size` - The cardinality of the set you'll using with sets. Too small will cause decreased accuracy.
-* `set_accuracy` - The approximate accuracy of set's approximations. More accuracy uses more memory.
 * `stats_address` - The address to send internally generated metrics. Probably `127.0.0.1:8125` to send to a local DogStatsD
 * `tags` - Tags to add to every metric that is sent to Veneur. Expects an array of strings!
 
@@ -82,8 +80,7 @@ Veneur's timers and histograms do not emit an `avg` metric. Averages suck.
 
 ## Approximate Sets
 
-Veneur uses [Bloom filters](https://github.com/willf/bloom) for approximate unique sets. Configured via `set_size` and `set_accuracy`
-discussed above an approximate unique count is generated at each flush.
+Veneur uses [HyperLogLogs](https://github.com/clarkduvall/hyperloglog) for approximate unique sets. These are a very efficient unique counter with fixed memory consumption.
 
 ## Lack of Host Tags
 
