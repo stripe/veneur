@@ -136,7 +136,7 @@ func TestHisto(t *testing.T) {
 	h.Sample(20, 1.0)
 	h.Sample(25, 1.0)
 
-	metrics := h.Flush(10*time.Second, []float64{0.50}, true)
+	metrics := h.Flush(10*time.Second, []float64{0.50})
 	// We get lots of metrics back for histograms!
 	assert.Len(t, metrics, 4, "Flushed metrics length")
 
@@ -181,19 +181,6 @@ func TestHisto(t *testing.T) {
 	assert.Equal(t, float64(15), m4.Value[0][1], "Value")
 }
 
-func TestHistoWithoutCount(t *testing.T) {
-	h := NewHist("a.b.c", []string{"a:b"})
-
-	h.Sample(5, 0.5)
-	h.Sample(10, 0.5)
-	h.Sample(15, 0.5)
-	h.Sample(20, 0.5)
-	h.Sample(25, 0.5)
-
-	metrics := h.Flush(10*time.Second, []float64{0.50}, false)
-	assert.Len(t, metrics, 3, "Metrics flush length")
-}
-
 func TestHistoSampleRate(t *testing.T) {
 
 	h := NewHist("a.b.c", []string{"a:b"})
@@ -208,7 +195,7 @@ func TestHistoSampleRate(t *testing.T) {
 	h.Sample(20, 0.5)
 	h.Sample(25, 0.5)
 
-	metrics := h.Flush(10*time.Second, []float64{0.50}, true)
+	metrics := h.Flush(10*time.Second, []float64{0.50})
 	assert.Len(t, metrics, 4, "Metrics flush length")
 
 	// First the max
