@@ -53,6 +53,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	}
 	for i := range finalMetrics {
 		finalMetrics[i].Hostname = s.Hostname
+		finalMetrics[i].Tags = append(finalMetrics[i].Tags, s.Tags...)
 	}
 
 	s.statsd.Gauge("flush.post_metrics_total", float64(len(finalMetrics)), nil, 1.0)

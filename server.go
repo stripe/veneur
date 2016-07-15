@@ -117,10 +117,6 @@ func (s *Server) HandlePacket(packet []byte) {
 		return
 	}
 
-	if len(s.Tags) > 0 {
-		metric.Tags = append(metric.Tags, s.Tags...)
-	}
-
 	s.Workers[metric.Digest%uint32(len(s.Workers))].WorkChan <- *metric
 }
 
