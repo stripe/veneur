@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -124,6 +125,11 @@ func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
 	fstart := time.Now()
 	resp, err := s.HTTPClient.Do(req)
 	if err != nil {
+		if urlErr, ok := err.(*url.Error); ok {
+			// if the error has a URL in it, retrieve the inner error and
+			// discard the URL (it contains the api key, so we cannot log it)
+			err = urlErr.Err
+		}
 		s.statsd.Count("flush.error_total", 1, []string{"cause:io"}, 1.0)
 		s.logger.WithError(err).Error("Error writing POST request")
 		return
