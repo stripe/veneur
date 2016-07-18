@@ -96,7 +96,7 @@ func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
 		"series": metricSlice,
 	})
 	if err != nil {
-		s.statsd.Count("flush.error_total", int64(len(metricSlice)), []string{"cause:json"}, 1.0)
+		s.statsd.Count("flush.error_total", 1, []string{"cause:json"}, 1.0)
 		s.logger.WithError(err).Error("Error rendering JSON request body")
 		return
 	}
@@ -114,7 +114,7 @@ func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
 
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/series?api_key=%s", s.DDHostname, s.DDAPIKey), &reqBody)
 	if err != nil {
-		s.statsd.Count("flush.error_total", int64(len(metricSlice)), []string{"cause:construct"}, 1.0)
+		s.statsd.Count("flush.error_total", 1, []string{"cause:construct"}, 1.0)
 		s.logger.WithError(err).Error("Error constructing POST request")
 		return
 	}
@@ -124,7 +124,7 @@ func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
 	fstart := time.Now()
 	resp, err := s.HTTPClient.Do(req)
 	if err != nil {
-		s.statsd.Count("flush.error_total", int64(len(metricSlice)), []string{"cause:io"}, 1.0)
+		s.statsd.Count("flush.error_total", 1, []string{"cause:io"}, 1.0)
 		s.logger.WithError(err).Error("Error writing POST request")
 		return
 	}
@@ -151,7 +151,7 @@ func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
 	}
 
 	if resp.StatusCode != http.StatusAccepted {
-		s.statsd.Count("flush.error_total", int64(len(metricSlice)), []string{fmt.Sprintf("cause:%d", resp.StatusCode)}, 1.0)
+		s.statsd.Count("flush.error_total", 1, []string{fmt.Sprintf("cause:%d", resp.StatusCode)}, 1.0)
 		s.logger.WithFields(resultFields).Error("Error POSTing")
 		return
 	}
