@@ -53,7 +53,6 @@ Veneur expects to have a config file supplied via `-f PATH`. The include `exampl
 * `interval` - How often to flush. Something like 10s seems good.
 * `key` - Your Datadog API key
 * `percentiles` - The percentiles to generate from our timers and histograms. Specified as array of float64s
-* `publish_histogram_counters` - Veneur can publish a counter, `$name.count`, for how many samples a histogram has received. Note that this counter, like every other metric passing through veneur, will be attached to Veneur's own host.
 * `udp_address` - The address on which to listen for metrics. Probably `:8126` so as not to interfere with normal DogStatsD.
 * `http_address` - The address to serve HTTP healthchecks and other endpoints. If you're under einhorn, you probably want `einhorn@0`.
 * `num_workers` - The number of worker goroutines to start.

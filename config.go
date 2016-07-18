@@ -25,7 +25,6 @@ type Config struct {
 	StatsAddr           string        `yaml:"stats_address"`
 	Tags                []string      `yaml:"tags"`
 	SentryDSN           string        `yaml:"sentry_dsn"`
-	HistCounters        bool          `yaml:"publish_histogram_counters"`
 	FlushLimit          int           `yaml:"flush_max_per_body"`
 }
 

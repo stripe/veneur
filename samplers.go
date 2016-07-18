@@ -192,10 +192,9 @@ func NewHist(name string, tags []string) *Histo {
 	}
 }
 
-// Flush generates DDMetrics for the current state of the Histo. counter indicates
-// whether to include the histogram's built-in counter, and percentiles indicates
-// what percentiles should be exported from the histogram.
-func (h *Histo) Flush(interval time.Duration, percentiles []float64, counter bool) []DDMetric {
+// Flush generates DDMetrics for the current state of the Histo. percentiles
+// indicates what percentiles should be exported from the histogram.
+func (h *Histo) Flush(interval time.Duration, percentiles []float64) []DDMetric {
 	now := float64(time.Now().Unix())
 	rate := float64(h.count) / interval.Seconds()
 	metrics := make([]DDMetric, 0, 3+len(percentiles))
@@ -213,16 +212,14 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, counter boo
 			Tags:       h.tags,
 			MetricType: "gauge",
 		},
-	)
-	if counter {
-		metrics = append(metrics, DDMetric{
+		DDMetric{
 			Name:       fmt.Sprintf("%s.count", h.name),
 			Value:      [1][2]float64{{now, rate}},
 			Tags:       h.tags,
 			MetricType: "rate",
 			Interval:   int32(interval.Seconds()),
-		})
-	}
+		},
+	)
 
 	for _, p := range percentiles {
 		metrics = append(

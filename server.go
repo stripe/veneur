@@ -32,7 +32,6 @@ type Server struct {
 	RcvbufBytes int
 
 	HistogramPercentiles []float64
-	HistogramCounter     bool
 }
 
 func NewFromConfig(conf Config) (ret Server, err error) {
@@ -40,7 +39,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.Tags = conf.Tags
 	ret.DDHostname = conf.APIHostname
 	ret.DDAPIKey = conf.Key
-	ret.HistogramCounter = conf.HistCounters
 	ret.HistogramPercentiles = conf.Percentiles
 
 	ret.HTTPClient = &http.Client{

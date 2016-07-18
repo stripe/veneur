@@ -17,10 +17,7 @@ import (
 // for posting to Datadog.
 func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	// number of ddmetrics generated when a histogram flushes
-	histogramSize := 2 + len(s.HistogramPercentiles)
-	if s.HistogramCounter {
-		histogramSize++
-	}
+	histogramSize := 3 + len(s.HistogramPercentiles)
 
 	// allocating this long array to count up the sizes is cheaper than appending
 	// the []DDMetrics together one at a time
@@ -42,13 +39,13 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 			finalMetrics = append(finalMetrics, g.Flush()...)
 		}
 		for _, h := range wm.histograms {
-			finalMetrics = append(finalMetrics, h.Flush(interval, s.HistogramPercentiles, s.HistogramCounter)...)
+			finalMetrics = append(finalMetrics, h.Flush(interval, s.HistogramPercentiles)...)
 		}
 		for _, s := range wm.sets {
 			finalMetrics = append(finalMetrics, s.Flush()...)
 		}
 		for _, t := range wm.timers {
-			finalMetrics = append(finalMetrics, t.Flush(interval, s.HistogramPercentiles, s.HistogramCounter)...)
+			finalMetrics = append(finalMetrics, t.Flush(interval, s.HistogramPercentiles)...)
 		}
 	}
 	for i := range finalMetrics {
