@@ -29,6 +29,7 @@ type Server struct {
 	HTTPClient *http.Client
 
 	HTTPAddr    string
+	ForwardAddr string
 	UDPAddr     *net.UDPAddr
 	RcvbufBytes int
 
@@ -97,6 +98,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	}
 	ret.RcvbufBytes = conf.ReadBufferSizeBytes
 	ret.HTTPAddr = conf.HTTPAddr
+	ret.ForwardAddr = conf.ForwardAddr
 
 	conf.Key = "REDACTED"
 	conf.SentryDSN = "REDACTED"

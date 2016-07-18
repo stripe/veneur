@@ -192,6 +192,11 @@ func NewHist(name string, tags []string) *Histo {
 	}
 }
 
+// this is the maximum number of DDMetrics that a histogram can flush if
+// len(percentiles)==0
+// specifically the count, min and max
+const HistogramLocalLength = 3
+
 // Flush generates DDMetrics for the current state of the Histo. percentiles
 // indicates what percentiles should be exported from the histogram.
 func (h *Histo) Flush(interval time.Duration, percentiles []float64) []DDMetric {
