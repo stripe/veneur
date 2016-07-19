@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"sync"
@@ -190,9 +191,51 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 		return
 	}
 
-	if s.postHelper(fmt.Sprintf("%s/import", s.ForwardAddr), jsonMetrics, "forward") == nil {
+	// always re-resolve the host to avoid dns caching
+	endpoint, err := resolveEndpoint(fmt.Sprintf("%s/import", s.ForwardAddr))
+	if err != nil {
+		// not a fatal error if we fail
+		// we'll just try to use the host as it was given to us
+		s.statsd.Count("forward.error_total", 1, []string{"cause:dns"}, 1.0)
+		s.logger.WithError(err).Warn("Could not re-resolve host for forward")
+	}
+
+	// the error has already been logged (if there was one), so we only care
+	// about the success case
+	if s.postHelper(endpoint, jsonMetrics, "forward") == nil {
 		s.logger.WithField("metrics", len(jsonMetrics)).Info("Completed forward to upstream Veneur")
 	}
+}
+
+// given a url, attempts to resolve the url's host, and returns a new url whose
+// host has been replaced by the first resolved address
+// on failure, it returns the argument, and the resulting error
+func resolveEndpoint(endpoint string) (string, error) {
+	origURL, err := url.Parse(endpoint)
+	if err != nil {
+		// caution: this error contains the endpoint itself, so if the endpoint
+		// has secrets in it, you have to remove them
+		return endpoint, err
+	}
+
+	origHost, origPort, err := net.SplitHostPort(origURL.Host)
+	if err != nil {
+		return endpoint, err
+	}
+
+	resolvedNames, err := net.LookupHost(origHost)
+	if err != nil {
+		return endpoint, err
+	}
+	if len(resolvedNames) == 0 {
+		return endpoint, &net.DNSError{
+			Err:  "no hosts found",
+			Name: origHost,
+		}
+	}
+
+	origURL.Host = net.JoinHostPort(resolvedNames[0], origPort)
+	return origURL.String(), nil
 }
 
 // shared code for POSTing to an endpoint, that consumes JSON, that is zlib-
