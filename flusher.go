@@ -34,6 +34,10 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 		totalHistograms int
 		totalSets       int
 		totalTimers     int
+
+		totalLocalHistograms int
+		totalLocalSets       int
+		totalLocalTimers     int
 	)
 	for i, w := range s.Workers {
 		s.logger.WithField("worker", i).Debug("Flushing")
@@ -45,9 +49,16 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 		totalHistograms += len(wm.histograms)
 		totalSets += len(wm.sets)
 		totalTimers += len(wm.timers)
+
+		totalLocalHistograms += len(wm.localHistograms)
+		totalLocalSets += len(wm.localSets)
+		totalLocalTimers += len(wm.localTimers)
 	}
 
-	totalLength := totalCounters + totalGauges + (totalTimers+totalHistograms)*(HistogramLocalLength+len(percentiles))
+	totalLength := totalCounters + totalGauges + (totalTimers+totalHistograms)*(HistogramLocalLength+len(percentiles)) +
+		// local-only histograms will be flushed with percentiles, so we intentionally
+		// use the original percentile list here
+		totalLocalSets + (totalLocalTimers+totalLocalHistograms)*(HistogramLocalLength+len(s.HistogramPercentiles))
 	if s.ForwardAddr == "" {
 		totalLength += totalSets
 	}
@@ -67,6 +78,21 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 		for _, t := range wm.timers {
 			finalMetrics = append(finalMetrics, t.Flush(interval, percentiles)...)
 		}
+
+		// local-only samplers should be flushed in their entirety, since they
+		// will not be forwarded
+		// we still want percentiles for these, even if we're a local veneur, so
+		// we use the original percentile list when flushing them
+		for _, h := range wm.localHistograms {
+			finalMetrics = append(finalMetrics, h.Flush(interval, s.HistogramPercentiles)...)
+		}
+		for _, s := range wm.localSets {
+			finalMetrics = append(finalMetrics, s.Flush()...)
+		}
+		for _, t := range wm.localTimers {
+			finalMetrics = append(finalMetrics, t.Flush(interval, s.HistogramPercentiles)...)
+		}
+
 		if s.ForwardAddr == "" {
 			// sets have no local parts, so if we're a local veneur, there's
 			// nothing to flush at all
@@ -82,6 +108,9 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 
 	s.statsd.Count("worker.metrics_flushed_total", int64(totalCounters), []string{"metric_type:counter"}, 1.0)
 	s.statsd.Count("worker.metrics_flushed_total", int64(totalGauges), []string{"metric_type:gauge"}, 1.0)
+	s.statsd.Count("worker.metrics_flushed_total", int64(totalLocalHistograms), []string{"metric_type:local_histogram"}, 1.0)
+	s.statsd.Count("worker.metrics_flushed_total", int64(totalLocalSets), []string{"metric_type:local_set"}, 1.0)
+	s.statsd.Count("worker.metrics_flushed_total", int64(totalLocalTimers), []string{"metric_type:local_timer"}, 1.0)
 	if s.ForwardAddr == "" {
 		// only report these lengths if we're the global veneur instance
 		// responsible for flushing them

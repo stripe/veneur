@@ -18,6 +18,7 @@ type UDPMetric struct {
 	Value      interface{}
 	SampleRate float32
 	Tags       []string
+	LocalOnly  bool
 }
 
 // a struct used to key the metrics into the worker's map - must only contain
@@ -121,6 +122,16 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 			}
 			tags := strings.Split(string(data[i][1:]), ",")
 			sort.Strings(tags)
+			for i, tag := range tags {
+				// we use this tag as an escape hatch for metrics that always
+				// want to be host-local
+				if tag == "veneurlocalonly" {
+					// delete the tag from the list
+					tags = append(tags[:i], tags[i+1:]...)
+					ret.LocalOnly = true
+					break
+				}
+			}
 			ret.Tags = tags
 			// we specifically need the sorted version here so that hashing over
 			// tags behaves deterministically

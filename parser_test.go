@@ -111,3 +111,12 @@ func TestInvalidPackets(t *testing.T) {
 		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
 	}
 }
+
+func TestLocalOnlyEscape(t *testing.T) {
+	m, err := ParseMetric([]byte("a.b.c:1|h|#veneurlocalonly"))
+	assert.NoError(t, err, "should have no error parsing")
+	assert.True(t, m.LocalOnly, "should have gotten local only metric")
+	for _, thisTag := range m.Tags {
+		assert.NotEqual(t, "veneurlocalonly", thisTag, "veneurlocalonly should not actually be a tag")
+	}
+}

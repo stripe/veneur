@@ -28,6 +28,26 @@ func TestWorker(t *testing.T) {
 	assert.Len(t, nometrics.counters, 0, "Should flush no metrics")
 }
 
+func TestWorkerLocal(t *testing.T) {
+	w := NewWorker(1, nil, logrus.New())
+
+	m := UDPMetric{
+		MetricKey: MetricKey{
+			Name: "a.b.c",
+			Type: "histogram",
+		},
+		Value:      1.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		LocalOnly:  true,
+	}
+	w.ProcessMetric(&m)
+
+	wm := w.Flush()
+	assert.Len(t, wm.localHistograms, 1, "number of local histograms")
+	assert.Len(t, wm.histograms, 0, "number of global histograms")
+}
+
 func TestWorkerImportSet(t *testing.T) {
 	w := NewWorker(1, nil, logrus.New())
 	testset := NewSet("a.b.c", nil)
