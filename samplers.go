@@ -3,11 +3,12 @@ package veneur
 import (
 	"fmt"
 	"hash/fnv"
+	"math"
 	"strings"
 	"time"
 
-	"github.com/VividCortex/gohistogram"
 	"github.com/clarkduvall/hyperloglog"
+	"github.com/stripe/veneur/tdigest"
 )
 
 // DDMetric is a data structure that represents the JSON that Datadog
@@ -158,37 +159,36 @@ func (s *Set) Combine(other []byte) error {
 type Histo struct {
 	name  string
 	tags  []string
-	count int64
-	max   float64
-	min   float64
-	value gohistogram.NumericHistogram
+	value *tdigest.MergingDigest
+	// these values are computed from only the samples that came through this
+	// veneur instance, ignoring any histograms merged from elsewhere
+	// we separate them because they're easy to aggregate on the backend without
+	// loss of granularity, and having host-local information on them might be
+	// useful
+	localWeight float64
+	localMin    float64
+	localMax    float64
 }
 
 // Sample adds the supplied value to the histogram.
 func (h *Histo) Sample(sample float64, sampleRate float32) {
-	if h.count == 0 {
-		h.max = sample
-		h.min = sample
-	} else {
-		if h.max < sample {
-			h.max = sample
-		}
-		if h.min > sample {
-			h.min = sample
-		}
-	}
-	h.count += 1 * int64(1/sampleRate)
-	h.value.Add(sample)
+	weight := float64(1 / sampleRate)
+	h.value.Add(sample, weight)
+
+	h.localWeight += weight
+	h.localMin = math.Min(h.localMin, sample)
+	h.localMax = math.Max(h.localMax, sample)
 }
 
 // NewHist generates a new Histo and returns it.
 func NewHist(name string, tags []string) *Histo {
-	// For gohistogram, the following is from the docs:
-	// There is no "optimal" bin count, but somewhere between 20 and 80 bins should be sufficient. (50!)
 	return &Histo{
-		name:  name,
-		tags:  tags,
-		value: *gohistogram.NewHistogram(50),
+		name: name,
+		tags: tags,
+		// we're going to allocate a lot of these, so we don't want them to be huge
+		value:    tdigest.NewMerging(100, false),
+		localMin: math.Inf(+1),
+		localMax: math.Inf(-1),
 	}
 }
 
@@ -196,30 +196,40 @@ func NewHist(name string, tags []string) *Histo {
 // indicates what percentiles should be exported from the histogram.
 func (h *Histo) Flush(interval time.Duration, percentiles []float64) []DDMetric {
 	now := float64(time.Now().Unix())
-	rate := float64(h.count) / interval.Seconds()
+	// we only want to flush the number of samples we received locally, since
+	// any other samples have already been flushed by a local veneur instance
+	// before this was forwarded to us
+	rate := h.localWeight / interval.Seconds()
 	metrics := make([]DDMetric, 0, 3+len(percentiles))
 
-	metrics = append(metrics,
-		DDMetric{
+	if !math.IsInf(h.localMax, 0) {
+		metrics = append(metrics, DDMetric{
 			Name:       fmt.Sprintf("%s.max", h.name),
-			Value:      [1][2]float64{{now, h.max}},
+			Value:      [1][2]float64{{now, h.localMax}},
 			Tags:       h.tags,
 			MetricType: "gauge",
-		},
-		DDMetric{
+		})
+	}
+	if !math.IsInf(h.localMin, 0) {
+		metrics = append(metrics, DDMetric{
 			Name:       fmt.Sprintf("%s.min", h.name),
-			Value:      [1][2]float64{{now, h.min}},
+			Value:      [1][2]float64{{now, h.localMin}},
 			Tags:       h.tags,
 			MetricType: "gauge",
-		},
-		DDMetric{
+		})
+	}
+	if rate != 0 {
+		// if we haven't received any local samples, then leave this sparse,
+		// otherwise it can lead to some misleading zeroes in between the
+		// flushes of downstream instances
+		metrics = append(metrics, DDMetric{
 			Name:       fmt.Sprintf("%s.count", h.name),
 			Value:      [1][2]float64{{now, rate}},
 			Tags:       h.tags,
 			MetricType: "rate",
 			Interval:   int32(interval.Seconds()),
-		},
-	)
+		})
+	}
 
 	for _, p := range percentiles {
 		metrics = append(
@@ -235,4 +245,29 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64) []DDMetric 
 	}
 
 	return metrics
+}
+
+func (h *Histo) Export() (JSONMetric, error) {
+	val, err := h.value.GobEncode()
+	if err != nil {
+		return JSONMetric{}, err
+	}
+	return JSONMetric{
+		MetricKey: MetricKey{
+			Name:       h.name,
+			Type:       "histogram",
+			JoinedTags: strings.Join(h.tags, ","),
+		},
+		Tags:  h.tags,
+		Value: val,
+	}, nil
+}
+
+func (h *Histo) Combine(other []byte) error {
+	otherHistogram := tdigest.NewMerging(100, false)
+	if err := otherHistogram.GobDecode(other); err != nil {
+		return err
+	}
+	h.value.Merge(otherHistogram)
+	return nil
 }

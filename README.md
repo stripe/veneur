@@ -67,10 +67,7 @@ Veneur is different for a few reasons. They enumerated here.
 
 ## Approximate Histograms
 
-Because Veneur is built to handle lots and lots of data, it uses approximate histograms.
-
-Specifically the streaming approximate histograms
- implementation from [VividCortex/metrics-go](https://github.com/VividCortex/gohistogram). Metrics are consistently routed to the same worker to distribute load and to be added to the same histogram.
+Because Veneur is built to handle lots and lots of data, it uses approximate histograms. We have our own implementation of [Dunning's t-digest](tdigest/merging_digest.go), which has bounded memory consumption and reduced error at extreme quantiles. Metrics are consistently routed to the same worker to distribute load and to be added to the same histogram.
 
 Datadog's DogStatsD — and StatsD — uses an exact histogram which retains all samples and is reset every flush period. This means that there is a loss of precision when using Veneur, but
 the resulting percentile values are meant to be more representative of a global view.

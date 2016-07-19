@@ -42,3 +42,18 @@ func TestWorkerImportSet(t *testing.T) {
 	wm := w.Flush()
 	assert.Len(t, wm.sets, 1, "number of flushed sets")
 }
+
+func TestWorkerImportHistogram(t *testing.T) {
+	w := NewWorker(1, nil, logrus.New())
+	testhisto := NewHist("a.b.c", nil)
+	testhisto.Sample(1.0, 1.0)
+	testhisto.Sample(2.0, 1.0)
+
+	jsonMetric, err := testhisto.Export()
+	assert.NoError(t, err, "should have exported successfully")
+
+	w.ImportMetric(jsonMetric)
+
+	wm := w.Flush()
+	assert.Len(t, wm.histograms, 1, "number of flushed histograms")
+}

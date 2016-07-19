@@ -143,6 +143,10 @@ func (w *Worker) ImportMetric(other JSONMetric) {
 		if err := w.wm.sets[other.MetricKey].Combine(other.Value); err != nil {
 			w.logger.WithError(err).Error("Could not merge sets")
 		}
+	case "histogram":
+		if err := w.wm.histograms[other.MetricKey].Combine(other.Value); err != nil {
+			w.logger.WithError(err).Error("Could not merge histograms")
+		}
 	default:
 		w.logger.WithField("type", other.Type).Error("Unknown metric type for importing")
 	}

@@ -15,12 +15,6 @@
 			"revisionTime": "2016-04-25T09:32:37Z"
 		},
 		{
-			"checksumSHA1": "EXGy09PRVQL0bpU/FBOb0EGuy/Q=",
-			"path": "github.com/VividCortex/gohistogram",
-			"revision": "da38b6e56f2f7dc1999a037141441e50d6213f5d",
-			"revisionTime": "2015-05-11T14:34:12Z"
-		},
-		{
 			"checksumSHA1": "Un2TJ2QWyVMTnFf07dt/M3uBRbI=",
 			"path": "github.com/clarkduvall/hyperloglog",
 			"revision": "2d38f733946d0a1f2e810513c71b834cbeba1480",
