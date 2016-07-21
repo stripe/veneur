@@ -116,7 +116,7 @@ func (s *Server) HandlePacket(packet []byte) {
 		return
 	}
 
-	s.Workers[metric.Digest%uint32(len(s.Workers))].WorkChan <- *metric
+	s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
 }
 
 func (s *Server) ReadSocket(packetPool *sync.Pool) {

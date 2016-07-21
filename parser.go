@@ -72,7 +72,7 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 		return nil, errors.New("Invalid type for metric")
 	}
 	// Add the type to the digest
-	h.Write(data[1])
+	h.Write([]byte(ret.Type))
 
 	// Now convert it
 	if ret.Type == "set" {

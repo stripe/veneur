@@ -11,15 +11,16 @@ import (
 
 // Worker is the doodad that does work.
 type Worker struct {
-	id        int
-	WorkChan  chan UDPMetric
-	QuitChan  chan struct{}
-	processed int64
-	imported  int64
-	mutex     *sync.Mutex
-	stats     *statsd.Client
-	logger    *logrus.Logger
-	wm        WorkerMetrics
+	id         int
+	PacketChan chan UDPMetric
+	ImportChan chan []JSONMetric
+	QuitChan   chan struct{}
+	processed  int64
+	imported   int64
+	mutex      *sync.Mutex
+	stats      *statsd.Client
+	logger     *logrus.Logger
+	wm         WorkerMetrics
 }
 
 // just a plain struct bundling together the flushed contents of a worker
@@ -78,23 +79,28 @@ func (wm WorkerMetrics) Upsert(mk MetricKey, tags []string) bool {
 // NewWorker creates, and returns a new Worker object.
 func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger) *Worker {
 	return &Worker{
-		id:        id,
-		WorkChan:  make(chan UDPMetric),
-		QuitChan:  make(chan struct{}),
-		processed: 0,
-		imported:  0,
-		mutex:     &sync.Mutex{},
-		stats:     stats,
-		logger:    logger,
-		wm:        NewWorkerMetrics(),
+		id:         id,
+		PacketChan: make(chan UDPMetric),
+		ImportChan: make(chan []JSONMetric),
+		QuitChan:   make(chan struct{}),
+		processed:  0,
+		imported:   0,
+		mutex:      &sync.Mutex{},
+		stats:      stats,
+		logger:     logger,
+		wm:         NewWorkerMetrics(),
 	}
 }
 
 func (w *Worker) Work() {
 	for {
 		select {
-		case m := <-w.WorkChan:
+		case m := <-w.PacketChan:
 			w.ProcessMetric(&m)
+		case m := <-w.ImportChan:
+			for _, j := range m {
+				w.ImportMetric(j)
+			}
 		case <-w.QuitChan:
 			// We have been asked to stop.
 			w.logger.WithField("worker", w.id).Error("Stopping")
