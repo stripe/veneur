@@ -57,7 +57,7 @@ Veneur expects to have a config file supplied via `-f PATH`. The include `exampl
 * `key` - Your Datadog API key
 * `percentiles` - The percentiles to generate from our timers and histograms. Specified as array of float64s
 * `udp_address` - The address on which to listen for metrics. Probably `:8126` so as not to interfere with normal DogStatsD.
-* `http_address` - The address to serve HTTP healthchecks and other endpoints. If you're under einhorn, you probably want `einhorn@0`.
+* `http_address` - The address to serve HTTP healthchecks and other endpoints. This can be a simple ip:port combination like `127.0.0.1:8127`. If you're under einhorn, you probably want `einhorn@0`.
 * `num_workers` - The number of worker goroutines to start.
 * `num_readers` - The number of reader goroutines to start. Veneur supports SO_REUSEPORT on Linux to scale to multiple readers. On other platforms, this should always be 1; other values will probably cause errors at startup. See below.
 * `read_buffer_size_bytes` - The size of the receive buffer for the UDP socket. Defaults to 2MB, as having a lot of buffer prevents packet drops during flush!
@@ -97,13 +97,13 @@ He're well document some explanations of setup choices you may make when using V
 ## Einhorn Usage
 
 When you upgrade Veneur (deploy, stop, start with new binary) there will be a
-brief period where Veneur will not be able to handle requests. At Stripe we use
-[Einhorn](https://github.com/stripe/einhorn) as a shared socket manager to
+brief period where Veneur will not be able to handle HTTP requests. At Stripe
+we use [Einhorn](https://github.com/stripe/einhorn) as a shared socket manager to
 bridge the gap until Veneur is ready to handle HTTP requests again.
 
 You'll need to consult Einhorn's documentation for installation, setup and usage.
 But once you've done that you can tell Veneur to use Einhorn by setting `http_address`
-to `einhorn@0`. This informs [goji](https://github.com/zenazn/goji) to use it's
+to `einhorn@0`. This informs [goji/bind](https://github.com/zenazn/goji/tree/master/bind) to use it's
 Einhorn handling code to bind to the file descriptor for HTTP.
 
 # Performance
