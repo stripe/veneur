@@ -35,30 +35,35 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 	ret := &UDPMetric{
 		SampleRate: 1.0,
 	}
-	parts := bytes.SplitN(packet, []byte(":"), 2)
-	if len(parts) < 2 {
+	pipeSplitter := NewSplitBytes(packet, '|')
+	pipeSplitter.Next() // first split always succeeds, since there are at least zero pipes
+
+	startingColon := bytes.IndexByte(pipeSplitter.Chunk(), ':')
+	if startingColon == -1 {
 		return nil, errors.New("Invalid metric packet, need at least 1 colon")
 	}
+	nameChunk := pipeSplitter.Chunk()[:startingColon]
+	valueChunk := pipeSplitter.Chunk()[startingColon+1:]
+	if len(nameChunk) == 0 {
+		return nil, errors.New("Invalid metric packet, name cannot be empty")
+	}
 
-	// Create a new hasher for accumulating the data we read
-	h := fnv.New32a()
-
-	// Add the name to the digest
-	h.Write(parts[0])
-	ret.Name = string(parts[0])
-
-	// Use pipes as the delimiter now
-	data := bytes.Split(parts[1], []byte("|"))
-	if len(data) < 2 {
+	if !pipeSplitter.Next() {
 		return nil, errors.New("Invalid metric packet, need at least 1 pipe for type")
 	}
-	if len(data[1]) == 0 {
+	typeChunk := pipeSplitter.Chunk()
+	if len(typeChunk) == 0 {
 		// avoid panicking on malformed packets missing a type
 		// (eg "foo:1||")
 		return nil, errors.New("Invalid metric packet, metric type not specified")
 	}
+
+	h := fnv.New32a()
+	h.Write(nameChunk)
+	ret.Name = string(nameChunk)
+
 	// Decide on a type
-	switch data[1][0] {
+	switch typeChunk[0] {
 	case 'c':
 		ret.Type = "counter"
 	case 'g':
@@ -75,33 +80,32 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 	// Add the type to the digest
 	h.Write([]byte(ret.Type))
 
-	// Now convert it
+	// Now convert the metric's value
 	if ret.Type == "set" {
-		ret.Value = string(data[0])
+		ret.Value = string(valueChunk)
 	} else {
-		v, err := strconv.ParseFloat(string(data[0]), 64)
+		v, err := strconv.ParseFloat(string(valueChunk), 64)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid number for metric value: %s", parts[1])
+			return nil, fmt.Errorf("Invalid number for metric value: %s", valueChunk)
 		}
 		ret.Value = v
 	}
 
 	// each of these sections can only appear once in the packet
 	foundSampleRate := false
-	foundTags := false
-	for i := 2; i < len(data); i++ {
-		if len(data[i]) == 0 {
+	for pipeSplitter.Next() {
+		if len(pipeSplitter.Chunk()) == 0 {
 			// avoid panicking on malformed packets that have too many pipes
 			// (eg "foo:1|g|" or "foo:1|c||@0.1")
 			return nil, errors.New("Invalid metric packet, empty string after/between pipes")
 		}
-		switch data[i][0] {
+		switch pipeSplitter.Chunk()[0] {
 		case '@':
 			if foundSampleRate {
 				return nil, errors.New("Invalid metric packet, multiple sample rates specified")
 			}
 			// sample rate!
-			sr := string(data[i][1:])
+			sr := string(pipeSplitter.Chunk()[1:])
 			sampleRate, err := strconv.ParseFloat(sr, 32)
 			if err != nil {
 				return nil, fmt.Errorf("Invalid float for sample rate: %s", sr)
@@ -117,10 +121,10 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 
 		case '#':
 			// tags!
-			if foundTags {
+			if ret.Tags != nil {
 				return nil, errors.New("Invalid metric packet, multiple tag sections specified")
 			}
-			tags := strings.Split(string(data[i][1:]), ",")
+			tags := strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
 			sort.Strings(tags)
 			for i, tag := range tags {
 				// we use this tag as an escape hatch for metrics that always
@@ -137,10 +141,9 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 			// tags behaves deterministically
 			ret.JoinedTags = strings.Join(tags, ",")
 			h.Write([]byte(ret.JoinedTags))
-			foundTags = true
 
 		default:
-			return nil, fmt.Errorf("Invalid metric packet, contains unknown section %q", data[i])
+			return nil, fmt.Errorf("Invalid metric packet, contains unknown section %q", pipeSplitter.Chunk())
 		}
 	}
 

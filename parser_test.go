@@ -107,7 +107,7 @@ func TestInvalidPackets(t *testing.T) {
 
 	for packet, errContent := range table {
 		_, err := ParseMetric([]byte(packet))
-		assert.NotNil(t, err, "Should have gotten error parsing: ", packet)
+		assert.NotNil(t, err, "Should have gotten error parsing %q", packet)
 		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
 	}
 }
