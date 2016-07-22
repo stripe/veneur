@@ -120,3 +120,61 @@ func TestLocalOnlyEscape(t *testing.T) {
 		assert.NotEqual(t, "veneurlocalonly", thisTag, "veneurlocalonly should not actually be a tag")
 	}
 }
+
+func TestEvents(t *testing.T) {
+	evt, err := ParseEvent([]byte("_e{3,3}:foo|bar|k:foos|s:test|t:success|p:low|#foo:bar,baz:qux|d:1136239445|h:example.com"))
+	assert.NoError(t, err, "should have parsed correctly")
+	assert.EqualValues(t, &UDPEvent{
+		Title:       "foo",
+		Text:        "bar",
+		Timestamp:   1136239445,
+		Aggregation: "foos",
+		Source:      "test",
+		AlertLevel:  "success",
+		Priority:    "low",
+		Tags:        []string{"foo:bar", "baz:qux"},
+		Hostname:    "example.com",
+	}, evt, "should have parsed event")
+
+	table := map[string]string{
+		"_e{4,3}:foo|bar":               "title length",
+		"_e{3,4}:foo|bar":               "text length",
+		"_e{3,3}:foo|bar|d:abc":         "date",
+		"_e{3,3}:foo|bar|p:baz":         "priority",
+		"_e{3,3}:foo|bar|t:baz":         "alert",
+		"_e{3,3}:foo|bar|t:info|t:info": "multiple alert",
+		"_e{3,3}:foo|bar||":             "pipe",
+		"_e{3,0}:foo||":                 "text length",
+		"_e{3,3}:foo":                   "text",
+		"_e{3,3}":                       "colon",
+	}
+	for packet, errContent := range table {
+		_, err := ParseEvent([]byte(packet))
+		assert.NotNil(t, err, "Should have gotten error parsing %q", packet)
+		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
+	}
+}
+
+func TestServiceChecks(t *testing.T) {
+	evt, err := ParseServiceCheck([]byte("_sc|foo.bar|0|d:1136239445|h:example.com"))
+	assert.NoError(t, err, "should have parsed correctly")
+	assert.EqualValues(t, &UDPServiceCheck{
+		Name:      "foo.bar",
+		Status:    0,
+		Timestamp: 1136239445,
+		Hostname:  "example.com",
+	}, evt, "should have parsed event")
+
+	table := map[string]string{
+		"foo.bar|0":           "_sc",
+		"_sc|foo.bar":         "status",
+		"_sc|foo.bar|5":       "status",
+		"_sc|foo.bar|0||":     "pipe",
+		"_sc|foo.bar|0|d:abc": "date",
+	}
+	for packet, errContent := range table {
+		_, err := ParseServiceCheck([]byte(packet))
+		assert.NotNil(t, err, "Should have gotten error parsing %q", packet)
+		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
+	}
+}
