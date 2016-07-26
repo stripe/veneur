@@ -22,10 +22,13 @@ Veneur assumes you have a running DogStatsD on the localhost and emits metrics t
 
 * `veneur.packet.error_total` - Number of packets that Veneur could not parse due to some sort of formatting error by the client.
 * `veneur.flush.post_metrics_total` - The total number of time-series points that will be submitted to Datadog via POST. Datadog's rate limiting is roughly proportional to this number.
-* `veneur.flush.content_length_bytes.*` - The number of bytes in a single POST body. Remember that Veneur POSTs large sets of metrics in multiple separate bodies in parallel. Uses a histogram, so there are multiple metrics generated depending on your local DogStatsD config.
-* `veneur.flush.part_duration_ns` - Time taken for the POST transaction to the Datadog API. Tagged by `part` for each sub-part `marshal` (assembling the request body) and `post` (blocking on an HTTP response from Datadog).
-* `veneur.flush.total_duration_ns` - Total time spent POSTing to Datadog, across all parallel requests. Under most circumstances, this should be roughly equal to the total `veneur.flush.part_duration_ns`. If it's not, then some of the POSTs are happening in sequence, which suggests some kind of goroutine scheduling issue.
-* `veneur.flush.error_total` - Number of metrics dropped from errors attempting to POST to Datadog. If you're getting errors POSTing, this metric tells you how much damage those errors are causing to your metrics pipeline.
+* `veneur.forward.post_metrics_total` - Indicates how many metrics are being forwarded in a given POST request. A "metric", in this context, refers to a unique combination of name, tags and metric type.
+* `veneur.*.content_length_bytes.*` - The number of bytes in a single POST body. Remember that Veneur POSTs large sets of metrics in multiple separate bodies in parallel. Uses a histogram, so there are multiple metrics generated depending on your local DogStatsD config.
+* `veneur.flush.duration_ns` - Time taken for a single POST transaction to the Datadog API. Tagged by `part` for each sub-part `marshal` (assembling the request body) and `post` (blocking on an HTTP response).
+* `veneur.forward.duration_ns` - Same as `flush.duration_ns`, but for forwarding requests.
+* `veneur.flush.total_duration_ns` - Total time spent POSTing to Datadog, across all parallel requests. Under most circumstances, this should be roughly equal to the total `veneur.flush.duration_ns`. If it's not, then some of the POSTs are happening in sequence, which suggests some kind of goroutine scheduling issue.
+* `veneur.flush.error_total` - Number of errors received POSTing to Datadog.
+* `veneur.forward.error_total` - Number of errors received POSTing to an upstream Veneur. See also `import.request_error_total` below.
 * `veneur.flush.worker_duration_ns` - Per-worker timing — tagged by `worker` - for flush. This is important as it is the time in which the worker holds a lock and is unavailable for other work.
 * `veneur.worker.metrics_processed_total` - Total number of metric packets processed between flushes by workers, tagged by `worker`. This helps you find hot spots where a single worker is handling a lot of metrics. The sum across all workers should be approximately proportional to the number of packets received.
 * `veneur.worker.metrics_flushed_total` - Total number of metrics flushed at each flush time, tagged by `metric_type`. A "metric", in this context, refers to a unique combination of name, tags and metric type. You can use this metric to detect when your clients are introducing new instrumentation, or when you acquire new clients.
@@ -38,8 +41,9 @@ Veneur assumes you have a running DogStatsD on the localhost and emits metrics t
 Veneur is currently a work in progress and thus should not yet be relied on for production traffic.
 
 # Usage
+
 ```
-venuer -f example.yaml
+veneur -f example.yaml
 ```
 
 See example.yaml for a sample config. Be sure and set your Datadog API `key`!
@@ -58,6 +62,7 @@ Veneur expects to have a config file supplied via `-f PATH`. The include `exampl
 * `percentiles` - The percentiles to generate from our timers and histograms. Specified as array of float64s
 * `udp_address` - The address on which to listen for metrics. Probably `:8126` so as not to interfere with normal DogStatsD.
 * `http_address` - The address to serve HTTP healthchecks and other endpoints. This can be a simple ip:port combination like `127.0.0.1:8127`. If you're under einhorn, you probably want `einhorn@0`.
+* `forward_address` - The address of an upstream Veneur to forward metrics to. See below.
 * `num_workers` - The number of worker goroutines to start.
 * `num_readers` - The number of reader goroutines to start. Veneur supports SO_REUSEPORT on Linux to scale to multiple readers. On other platforms, this should always be 1; other values will probably cause errors at startup. See below.
 * `read_buffer_size_bytes` - The size of the receive buffer for the UDP socket. Defaults to 2MB, as having a lot of buffer prevents packet drops during flush!
@@ -92,7 +97,7 @@ Veneur expires all metrics on each flush. If a metric is no longer being sent (o
 
 # Setup
 
-He're well document some explanations of setup choices you may make when using Veneur.
+Here we'll document some explanations of setup choices you may make when using Veneur.
 
 ## Einhorn Usage
 
@@ -105,6 +110,20 @@ You'll need to consult Einhorn's documentation for installation, setup and usage
 But once you've done that you can tell Veneur to use Einhorn by setting `http_address`
 to `einhorn@0`. This informs [goji/bind](https://github.com/zenazn/goji/tree/master/bind) to use it's
 Einhorn handling code to bind to the file descriptor for HTTP.
+
+## Forwarding
+
+Veneur instances can be configured to forward their global metrics to another Veneur instance. You can use this feature to get the best of both worlds: metrics that benefit from global aggregation can be passed up to a single global Veneur, but other metrics can be published locally with host-scoped information.
+
+To configure this feature, you need one Veneur, which we'll call the _global_ instance, and one or more other Veneurs, which we'll call _local_ instances. The local instances should have their `forward_address` configured to the global instance's `http_address`. The global instance should have an empty `forward_address` (ie just don't set it). You can then report metrics to any Veneur's `udp_address` as usual.
+
+If a local instance receives a histogram or set, it will publish the local parts of that metric (the count, min and max) directly to DataDog, but instead of publishing percentiles, it will package the entire histogram and send it to the global instance. The global instance will aggregate all the histograms together and publish their percentiles to DataDog.
+
+Note that the global instance can also receive metrics over UDP. It will publish a count, min and max for the samples that were sent directly to it, but not counting any samples from other Veneurs (this ensures that things don't get double-counted). You can even chain multiple levels of forwarding together if you want. This might be useful if, for example, your global Veneur is under too much load. The root of the tree will be the Veneur instance that has an empty `forward_address`. (Do not tell a Veneur instance to forward metrics to itself. We don't support that and it doesn't really make sense in the first place.)
+
+With respect to the `tags` configuration option, the tags that will be added are those of the Veneur that actually publishes to DataDog. If a local instance forwards its histograms and sets to a global instance, the local instance's tags will not be attached to the forwarded structures. It will still use its own tags for the other metrics it publishes, but the percentiles will get extra tags only from the global instance.
+
+If you want a metric to be strictly host-local, you can tell Veneur not to forward it by including a `veneurlocalonly` tag in the metric packet, eg `foo:1|h|#veneurlocalonly`. This tag will not actually appear in DataDog; Veneur removes it.
 
 # Performance
 

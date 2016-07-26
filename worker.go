@@ -33,21 +33,29 @@ type WorkerMetrics struct {
 	histograms map[MetricKey]*Histo
 	sets       map[MetricKey]*Set
 	timers     map[MetricKey]*Histo
+
+	// these are used for metrics that shouldn't be forwarded
+	localHistograms map[MetricKey]*Histo
+	localSets       map[MetricKey]*Set
+	localTimers     map[MetricKey]*Histo
 }
 
 func NewWorkerMetrics() WorkerMetrics {
 	return WorkerMetrics{
-		counters:   make(map[MetricKey]*Counter),
-		gauges:     make(map[MetricKey]*Gauge),
-		histograms: make(map[MetricKey]*Histo),
-		sets:       make(map[MetricKey]*Set),
-		timers:     make(map[MetricKey]*Histo),
+		counters:        make(map[MetricKey]*Counter),
+		gauges:          make(map[MetricKey]*Gauge),
+		histograms:      make(map[MetricKey]*Histo),
+		sets:            make(map[MetricKey]*Set),
+		timers:          make(map[MetricKey]*Histo),
+		localHistograms: make(map[MetricKey]*Histo),
+		localSets:       make(map[MetricKey]*Set),
+		localTimers:     make(map[MetricKey]*Histo),
 	}
 }
 
 // Create an entry in wm for the given metrickey, if it does not already exist.
 // Returns true if the metric entry was created and false otherwise.
-func (wm WorkerMetrics) Upsert(mk MetricKey, tags []string) bool {
+func (wm WorkerMetrics) Upsert(mk MetricKey, localOnly bool, tags []string) bool {
 	present := false
 	switch mk.Type {
 	case "counter":
@@ -59,16 +67,34 @@ func (wm WorkerMetrics) Upsert(mk MetricKey, tags []string) bool {
 			wm.gauges[mk] = NewGauge(mk.Name, tags)
 		}
 	case "histogram":
-		if _, present = wm.histograms[mk]; !present {
-			wm.histograms[mk] = NewHist(mk.Name, tags)
+		if localOnly {
+			if _, present = wm.localHistograms[mk]; !present {
+				wm.localHistograms[mk] = NewHist(mk.Name, tags)
+			}
+		} else {
+			if _, present = wm.histograms[mk]; !present {
+				wm.histograms[mk] = NewHist(mk.Name, tags)
+			}
 		}
 	case "set":
-		if _, present = wm.sets[mk]; !present {
-			wm.sets[mk] = NewSet(mk.Name, tags)
+		if localOnly {
+			if _, present = wm.localSets[mk]; !present {
+				wm.localSets[mk] = NewSet(mk.Name, tags)
+			}
+		} else {
+			if _, present = wm.sets[mk]; !present {
+				wm.sets[mk] = NewSet(mk.Name, tags)
+			}
 		}
 	case "timer":
-		if _, present = wm.timers[mk]; !present {
-			wm.timers[mk] = NewHist(mk.Name, tags)
+		if localOnly {
+			if _, present = wm.localTimers[mk]; !present {
+				wm.localTimers[mk] = NewHist(mk.Name, tags)
+			}
+		} else {
+			if _, present = wm.timers[mk]; !present {
+				wm.timers[mk] = NewHist(mk.Name, tags)
+			}
 		}
 		// no need to raise errors on unknown types
 		// the caller will probably end up doing that themselves
@@ -117,7 +143,7 @@ func (w *Worker) ProcessMetric(m *UDPMetric) {
 	defer w.mutex.Unlock()
 
 	w.processed++
-	w.wm.Upsert(m.MetricKey, m.Tags)
+	w.wm.Upsert(m.MetricKey, m.LocalOnly, m.Tags)
 
 	switch m.Type {
 	case "counter":
@@ -125,11 +151,23 @@ func (w *Worker) ProcessMetric(m *UDPMetric) {
 	case "gauge":
 		w.wm.gauges[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 	case "histogram":
-		w.wm.histograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+		if m.LocalOnly {
+			w.wm.localHistograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+		} else {
+			w.wm.histograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+		}
 	case "set":
-		w.wm.sets[m.MetricKey].Sample(m.Value.(string), m.SampleRate)
+		if m.LocalOnly {
+			w.wm.localSets[m.MetricKey].Sample(m.Value.(string), m.SampleRate)
+		} else {
+			w.wm.sets[m.MetricKey].Sample(m.Value.(string), m.SampleRate)
+		}
 	case "timer":
-		w.wm.timers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+		if m.LocalOnly {
+			w.wm.localTimers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+		} else {
+			w.wm.timers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+		}
 	default:
 		w.logger.WithField("type", m.Type).Error("Unknown metric type for processing")
 	}
@@ -142,7 +180,7 @@ func (w *Worker) ImportMetric(other JSONMetric) {
 	// we don't increment the processed metric counter here, it was already
 	// counted by the original veneur that sent this to us
 	w.imported++
-	w.wm.Upsert(other.MetricKey, other.Tags)
+	w.wm.Upsert(other.MetricKey, false, other.Tags)
 
 	switch other.Type {
 	case "set":
@@ -184,12 +222,6 @@ func (w *Worker) Flush() WorkerMetrics {
 
 	w.stats.Count("worker.metrics_processed_total", processed, []string{fmt.Sprintf("worker:%d", w.id)}, 1.0)
 	w.stats.Count("worker.metrics_imported_total", imported, []string{fmt.Sprintf("worker:%d", w.id)}, 1.0)
-
-	w.stats.Count("worker.metrics_flushed_total", int64(len(ret.counters)), []string{"metric_type:counter"}, 1.0)
-	w.stats.Count("worker.metrics_flushed_total", int64(len(ret.gauges)), []string{"metric_type:gauge"}, 1.0)
-	w.stats.Count("worker.metrics_flushed_total", int64(len(ret.histograms)), []string{"metric_type:histogram"}, 1.0)
-	w.stats.Count("worker.metrics_flushed_total", int64(len(ret.sets)), []string{"metric_type:set"}, 1.0)
-	w.stats.Count("worker.metrics_flushed_total", int64(len(ret.timers)), []string{"metric_type:timer"}, 1.0)
 
 	return ret
 }
