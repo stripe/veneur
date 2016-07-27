@@ -11,7 +11,7 @@ func TestSocket(t *testing.T) {
 	addr, err := net.ResolveUDPAddr("udp", "127.0.0.1:8200")
 	assert.NoError(t, err, "should have constructed udp address correctly")
 
-	sock, err := NewSocket(addr, 2*1024*1024)
+	sock, err := NewSocket(addr, 2*1024*1024, false)
 	assert.NoError(t, err, "should have constructed socket correctly")
 
 	client, err := net.DialUDP("udp", nil, addr)

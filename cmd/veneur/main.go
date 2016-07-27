@@ -44,7 +44,7 @@ func main() {
 			defer func() {
 				server.ConsumePanic(recover())
 			}()
-			server.ReadSocket(packetPool)
+			server.ReadSocket(packetPool, conf.NumReaders != 1)
 		}()
 	}
 
