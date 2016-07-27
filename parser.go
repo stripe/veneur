@@ -111,9 +111,6 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 			if err != nil {
 				return nil, fmt.Errorf("Invalid float for sample rate: %s", sr)
 			}
-			if ret.Type == "gauge" || ret.Type == "set" {
-				return nil, fmt.Errorf("Invalid metric packet, %s cannot have a sample rate", ret.Type)
-			}
 			if sampleRate <= 0 || sampleRate > 1 {
 				return nil, fmt.Errorf("Sample rate %f must be >0 and <=1", sampleRate)
 			}

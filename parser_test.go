@@ -72,8 +72,7 @@ func TestParserWithSampleRate(t *testing.T) {
 	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 
 	_, valueError = ParseMetric([]byte("a.b.c:1|g|@0.1"))
-	assert.NotNil(t, valueError, "No errors when parsing")
-	assert.Contains(t, valueError.Error(), "sample rate", "Sample rate error missing")
+	assert.NoError(t, valueError, "Got errors when parsing")
 }
 
 func TestParserWithSampleRateAndTags(t *testing.T) {
