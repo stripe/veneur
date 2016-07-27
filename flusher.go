@@ -18,6 +18,8 @@ import (
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) Flush(interval time.Duration, metricLimit int) {
+	go s.flushEventsChecks() // we can do all of this separately
+
 	percentiles := s.HistogramPercentiles
 	if s.ForwardAddr != "" {
 		// don't publish percentiles if we're a local veneur; that's the global
@@ -163,7 +165,7 @@ func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
 	s.postHelper(fmt.Sprintf("%s/api/v1/series?api_key=%s", s.DDHostname, s.DDAPIKey), map[string][]DDMetric{
 		"series": metricSlice,
-	}, "flush")
+	}, "flush", true)
 }
 
 func (s *Server) flushForward(wms []WorkerMetrics) {
@@ -231,7 +233,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 
 	// the error has already been logged (if there was one), so we only care
 	// about the success case
-	if s.postHelper(endpoint, jsonMetrics, "forward") == nil {
+	if s.postHelper(endpoint, jsonMetrics, "forward", true) == nil {
 		s.logger.WithField("metrics", len(jsonMetrics)).Info("Completed forward to upstream Veneur")
 	}
 }
@@ -267,28 +269,83 @@ func resolveEndpoint(endpoint string) (string, error) {
 	return origURL.String(), nil
 }
 
+func (s *Server) flushEventsChecks() {
+	events, checks := s.EventWorker.Flush()
+	s.statsd.Count("worker.events_flushed_total", int64(len(events)), nil, 1.0)
+	s.statsd.Count("worker.checks_flushed_total", int64(len(checks)), nil, 1.0)
+
+	// fill in the default hostname for packets that didn't set it
+	for i := range events {
+		if events[i].Hostname == "" {
+			events[i].Hostname = s.Hostname
+		}
+	}
+	for i := range checks {
+		if checks[i].Hostname == "" {
+			checks[i].Hostname = s.Hostname
+		}
+	}
+
+	if len(events) != 0 {
+		// this endpoint is not documented at all, its existence is only known from
+		// the official dd-agent
+		// we don't actually pass all the body keys that dd-agent passes here... but
+		// it still works
+		err := s.postHelper(fmt.Sprintf("%s/intake?api_key=%s", s.DDHostname, s.DDAPIKey), map[string]map[string][]UDPEvent{
+			"events": {
+				"api": events,
+			},
+		}, "flush_events", true)
+		if err == nil {
+			s.logger.WithField("events", len(events)).Info("Completed flushing events to Datadog")
+		}
+	}
+
+	if len(checks) != 0 {
+		// this endpoint is not documented to take an array... but it does
+		// another curious constraint of this endpoint is that it does not
+		// support "Content-Encoding: deflate"
+		err := s.postHelper(fmt.Sprintf("%s/api/v1/check_run?api_key=%s", s.DDHostname, s.DDAPIKey), checks, "flush_checks", false)
+		if err == nil {
+			s.logger.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
+		}
+	}
+}
+
 // shared code for POSTing to an endpoint, that consumes JSON, that is zlib-
 // compressed, that returns 202 on success, that has a small response
 // action is a string used for statsd metric names and log messages emitted from
 // this function - probably a static string for each callsite
-func (s *Server) postHelper(endpoint string, bodyObject interface{}, action string) error {
+// you can disable compression with compress=false for endpoints that don't
+// support it
+func (s *Server) postHelper(endpoint string, bodyObject interface{}, action string, compress bool) error {
 	// attach this field to all the logs we generate
 	innerLogger := s.logger.WithField("action", action)
 
 	marshalStart := time.Now()
-	var bodyBuffer bytes.Buffer
-	compressor := zlib.NewWriter(&bodyBuffer)
-	encoder := json.NewEncoder(compressor)
+	var (
+		bodyBuffer bytes.Buffer
+		encoder    *json.Encoder
+		compressor *zlib.Writer
+	)
+	if compress {
+		compressor = zlib.NewWriter(&bodyBuffer)
+		encoder = json.NewEncoder(compressor)
+	} else {
+		encoder = json.NewEncoder(&bodyBuffer)
+	}
 	if err := encoder.Encode(bodyObject); err != nil {
 		s.statsd.Count(action+".error_total", 1, []string{"cause:json"}, 1.0)
 		innerLogger.WithError(err).Error("Could not render JSON")
 		return err
 	}
-	// don't forget to flush leftover compressed bytes to the buffer
-	if err := compressor.Close(); err != nil {
-		s.statsd.Count(action+".error_total", 1, []string{"cause:compress"}, 1.0)
-		innerLogger.WithError(err).Error("Could not finalize compression")
-		return err
+	if compress {
+		// don't forget to flush leftover compressed bytes to the buffer
+		if err := compressor.Close(); err != nil {
+			s.statsd.Count(action+".error_total", 1, []string{"cause:compress"}, 1.0)
+			innerLogger.WithError(err).Error("Could not finalize compression")
+			return err
+		}
 	}
 	s.statsd.TimeInMilliseconds(action+".duration_ns", float64(time.Now().Sub(marshalStart).Nanoseconds()), []string{"part:json"}, 1.0)
 
@@ -304,7 +361,9 @@ func (s *Server) postHelper(endpoint string, bodyObject interface{}, action stri
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Content-Encoding", "deflate")
+	if compress {
+		req.Header.Set("Content-Encoding", "deflate")
+	}
 
 	requestStart := time.Now()
 	resp, err := s.HTTPClient.Do(req)

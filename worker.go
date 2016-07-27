@@ -232,3 +232,52 @@ func (w *Worker) Flush() WorkerMetrics {
 func (w *Worker) Stop() {
 	close(w.QuitChan)
 }
+
+// A Worker that collects events and service checks instead of metrics.
+type EventWorker struct {
+	EventChan        chan UDPEvent
+	ServiceCheckChan chan UDPServiceCheck
+	mutex            *sync.Mutex
+	events           []UDPEvent
+	checks           []UDPServiceCheck
+	stats            *statsd.Client
+}
+
+func NewEventWorker(stats *statsd.Client) *EventWorker {
+	return &EventWorker{
+		EventChan:        make(chan UDPEvent),
+		ServiceCheckChan: make(chan UDPServiceCheck),
+		mutex:            &sync.Mutex{},
+		stats:            stats,
+	}
+}
+
+func (ew *EventWorker) Work() {
+	for {
+		select {
+		case evt := <-ew.EventChan:
+			ew.mutex.Lock()
+			ew.events = append(ew.events, evt)
+			ew.mutex.Unlock()
+		case svcheck := <-ew.ServiceCheckChan:
+			ew.mutex.Lock()
+			ew.checks = append(ew.checks, svcheck)
+			ew.mutex.Unlock()
+		}
+	}
+}
+
+func (ew *EventWorker) Flush() ([]UDPEvent, []UDPServiceCheck) {
+	start := time.Now()
+	ew.mutex.Lock()
+
+	retevts := ew.events
+	retsvchecks := ew.checks
+	// these slices will be allocated again at append time
+	ew.events = nil
+	ew.checks = nil
+
+	ew.mutex.Unlock()
+	ew.stats.TimeInMilliseconds("flush.event_worker_duration_ns", float64(time.Now().Sub(start).Nanoseconds()), nil, 1.0)
+	return retevts, retsvchecks
+}

@@ -15,7 +15,8 @@ import (
 )
 
 type Server struct {
-	Workers []*Worker
+	Workers     []*Worker
+	EventWorker *EventWorker
 
 	statsd *statsd.Client
 	logger *logrus.Logger
@@ -92,6 +93,14 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		}(ret.Workers[i])
 	}
 
+	ret.EventWorker = NewEventWorker(ret.statsd)
+	go func() {
+		defer func() {
+			ret.ConsumePanic(recover())
+		}()
+		ret.EventWorker.Work()
+	}()
+
 	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UDPAddr)
 	if err != nil {
 		return
@@ -108,17 +117,40 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 }
 
 func (s *Server) HandlePacket(packet []byte) {
-	metric, err := ParseMetric(packet)
-	if err != nil {
-		s.logger.WithFields(logrus.Fields{
-			logrus.ErrorKey: err,
-			"packet":        string(packet),
-		}).Error("Could not parse packet")
-		s.statsd.Count("packet.error_total", 1, nil, 1.0)
-		return
+	if bytes.HasPrefix(packet, []byte{'_', 'e', '{'}) {
+		event, err := ParseEvent(packet)
+		if err != nil {
+			s.logger.WithFields(logrus.Fields{
+				logrus.ErrorKey: err,
+				"packet":        string(packet),
+			}).Error("Could not parse packet")
+			s.statsd.Count("packet.error_total", 1, []string{"packet_type:event"}, 1.0)
+			return
+		}
+		s.EventWorker.EventChan <- *event
+	} else if bytes.HasPrefix(packet, []byte{'_', 's', 'c'}) {
+		svcheck, err := ParseServiceCheck(packet)
+		if err != nil {
+			s.logger.WithFields(logrus.Fields{
+				logrus.ErrorKey: err,
+				"packet":        string(packet),
+			}).Error("Could not parse packet")
+			s.statsd.Count("packet.error_total", 1, []string{"packet_type:service_check"}, 1.0)
+			return
+		}
+		s.EventWorker.ServiceCheckChan <- *svcheck
+	} else {
+		metric, err := ParseMetric(packet)
+		if err != nil {
+			s.logger.WithFields(logrus.Fields{
+				logrus.ErrorKey: err,
+				"packet":        string(packet),
+			}).Error("Could not parse packet")
+			s.statsd.Count("packet.error_total", 1, []string{"packet_type:metric"}, 1.0)
+			return
+		}
+		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
 	}
-
-	s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
 }
 
 func (s *Server) ReadSocket(packetPool *sync.Pool) {
