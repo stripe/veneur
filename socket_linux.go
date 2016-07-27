@@ -9,7 +9,7 @@ import (
 )
 
 // see also https://github.com/jbenet/go-reuseport/blob/master/impl_unix.go#L279
-func NewSocket(addr *net.UDPAddr, recvBuf int) (net.PacketConn, error) {
+func NewSocket(addr *net.UDPAddr, recvBuf int, reuseport bool) (net.PacketConn, error) {
 	sockFD, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM|syscall.SOCK_CLOEXEC|syscall.SOCK_NONBLOCK, 0)
 	if err != nil {
 		return nil, err
@@ -17,8 +17,10 @@ func NewSocket(addr *net.UDPAddr, recvBuf int) (net.PacketConn, error) {
 
 	// unix.SO_REUSEPORT is not defined on linux 386/amd64, see
 	// https://github.com/golang/go/issues/16075
-	if err := unix.SetsockoptInt(sockFD, unix.SOL_SOCKET, 0xf, 1); err != nil {
-		return nil, err
+	if reuseport {
+		if err := unix.SetsockoptInt(sockFD, unix.SOL_SOCKET, 0xf, 1); err != nil {
+			return nil, err
+		}
 	}
 	if err := unix.SetsockoptInt(sockFD, unix.SOL_SOCKET, unix.SO_RCVBUF, recvBuf); err != nil {
 		return nil, err

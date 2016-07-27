@@ -153,13 +153,12 @@ func (s *Server) HandlePacket(packet []byte) {
 	}
 }
 
-func (s *Server) ReadSocket(packetPool *sync.Pool) {
+func (s *Server) ReadSocket(packetPool *sync.Pool, reuseport bool) {
 	// each goroutine gets its own socket
 	// if the sockets support SO_REUSEPORT, then this will cause the
 	// kernel to distribute datagrams across them, for better read
 	// performance
-	s.logger.WithField("address", s.UDPAddr).Info("UDP server listening")
-	serverConn, err := NewSocket(s.UDPAddr, s.RcvbufBytes)
+	serverConn, err := NewSocket(s.UDPAddr, s.RcvbufBytes, reuseport)
 	if err != nil {
 		// if any goroutine fails to create the socket, we can't really
 		// recover, so we just blow up
@@ -167,6 +166,7 @@ func (s *Server) ReadSocket(packetPool *sync.Pool) {
 		// SO_REUSEPORT support
 		s.logger.WithError(err).Fatal("Error listening for UDP")
 	}
+	s.logger.WithField("address", s.UDPAddr).Info("UDP server listening")
 
 	for {
 		buf := packetPool.Get().([]byte)
