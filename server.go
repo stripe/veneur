@@ -117,6 +117,12 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 }
 
 func (s *Server) HandlePacket(packet []byte) {
+	if len(packet) == 0 {
+		// a lot of clients send packets that accidentally have a trailing
+		// newline, it's easier to just let them be
+		return
+	}
+
 	if bytes.HasPrefix(packet, []byte{'_', 'e', '{'}) {
 		event, err := ParseEvent(packet)
 		if err != nil {
