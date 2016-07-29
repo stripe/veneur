@@ -212,6 +212,8 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
+			// the exporter doesn't know that these two are "different"
+			jm.Type = "timer"
 			jsonMetrics = append(jsonMetrics, jm)
 		}
 	}
