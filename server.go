@@ -14,6 +14,9 @@ import (
 	"github.com/zenazn/goji/graceful"
 )
 
+// must be a var so it can be set at link time
+var VERSION = "dirty"
+
 type Server struct {
 	Workers     []*Worker
 	EventWorker *EventWorker
@@ -79,6 +82,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			logrus.PanicLevel,
 		},
 	})
+	ret.logger.WithField("version", VERSION).Info("Starting server")
 
 	ret.logger.WithField("number", conf.NumWorkers).Info("Starting workers")
 	ret.Workers = make([]*Worker, conf.NumWorkers)
