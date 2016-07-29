@@ -364,6 +364,8 @@ func (s *Server) postHelper(endpoint string, bodyObject interface{}, action stri
 	if compress {
 		req.Header.Set("Content-Encoding", "deflate")
 	}
+	// we only make http requests at flush time, so keepalive is not a big win
+	req.Close = true
 
 	requestStart := time.Now()
 	resp, err := s.HTTPClient.Do(req)
