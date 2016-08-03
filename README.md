@@ -9,6 +9,8 @@ Veneur is currently handling all metrics for Stripe and is considered production
 
 # Motivation
 
+We wanted percentiles, histograms and sets to be global. Veneur helps us do that!
+
 Veneur is a DogStatsD implementation that acts as a local collector and — when configured differently — as an aggregator for
 some metric types, such that the metrics are *global* rather than host-local. This is particularly useful for histograms,
 timers and sets, as in their normal, per-host configuration the percentiles for histograms can be less effective or even
