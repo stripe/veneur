@@ -41,6 +41,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 		totalLocalSets       int
 		totalLocalTimers     int
 	)
+	gatherStart := time.Now()
 	for i, w := range s.Workers {
 		s.logger.WithField("worker", i).Debug("Flushing")
 		wm := w.Flush()
@@ -56,6 +57,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 		totalLocalSets += len(wm.localSets)
 		totalLocalTimers += len(wm.localTimers)
 	}
+	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(gatherStart).Nanoseconds()), []string{"part:gather"}, 1.0)
 
 	totalLength := totalCounters + totalGauges + (totalTimers+totalHistograms)*(HistogramLocalLength+len(percentiles)) +
 		// local-only histograms will be flushed with percentiles, so we intentionally
@@ -64,6 +66,8 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	if s.ForwardAddr == "" {
 		totalLength += totalSets
 	}
+
+	combineStart := time.Now()
 	finalMetrics := make([]DDMetric, 0, totalLength)
 	for _, wm := range tempMetrics {
 		for _, c := range wm.counters {
@@ -107,6 +111,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 		finalMetrics[i].Hostname = s.Hostname
 		finalMetrics[i].Tags = append(finalMetrics[i].Tags, s.Tags...)
 	}
+	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(combineStart).Nanoseconds()), []string{"part:combine"}, 1.0)
 
 	s.statsd.Count("worker.metrics_flushed_total", int64(totalCounters), []string{"metric_type:counter"}, 1.0)
 	s.statsd.Count("worker.metrics_flushed_total", int64(totalGauges), []string{"metric_type:gauge"}, 1.0)
@@ -156,7 +161,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 		go s.flushPart(chunk, &wg)
 	}
 	wg.Wait()
-	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(flushStart).Nanoseconds()), nil, 1.0)
+	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(flushStart).Nanoseconds()), []string{"part:post"}, 1.0)
 
 	s.logger.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
 }
@@ -177,6 +182,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 	}
 
 	jsonMetrics := make([]JSONMetric, 0, jmLength)
+	exportStart := time.Now()
 	for _, wm := range wms {
 		for _, histo := range wm.histograms {
 			jm, err := histo.Export()
@@ -217,6 +223,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 			jsonMetrics = append(jsonMetrics, jm)
 		}
 	}
+	s.statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Now().Sub(exportStart).Nanoseconds()), []string{"part:export"}, 1.0)
 
 	s.statsd.Gauge("forward.post_metrics_total", float64(len(jsonMetrics)), nil, 1.0)
 	if len(jsonMetrics) == 0 {
@@ -225,6 +232,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 	}
 
 	// always re-resolve the host to avoid dns caching
+	dnsStart := time.Now()
 	endpoint, err := resolveEndpoint(fmt.Sprintf("%s/import", s.ForwardAddr))
 	if err != nil {
 		// not a fatal error if we fail
@@ -232,6 +240,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 		s.statsd.Count("forward.error_total", 1, []string{"cause:dns"}, 1.0)
 		s.logger.WithError(err).Warn("Could not re-resolve host for forward")
 	}
+	s.statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Now().Sub(dnsStart).Nanoseconds()), []string{"part:dns"}, 1.0)
 
 	// the error has already been logged (if there was one), so we only care
 	// about the success case
