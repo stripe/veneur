@@ -62,7 +62,7 @@ Veneur expires all metrics on each flush. If a metric is no longer being sent (o
 
 To clarify how each metric type behaves in Veneur, please use the following:
 * Counters: Locally accrued, flushed to Datadog
-* Gauges: Locally stored, flushed to Datadog
+* Gauges: Locally accrued, flushed to Datadog
 * Histograms: Locally accrued, count, max and min flushed to Datadog, percentiles forwarded to `forward_address` for global aggregation when set.
 * Timers: Locally accrued, count, max and min flushed to Datadog, percentiles forwarded to `forward_address` for global aggregation when set.
 * Sets: Locally accrued, forwarded to `forward_address` for global aggregation when set.
@@ -135,7 +135,7 @@ Here are the important things to monitor with Veneur:
 # At Local Node
 
 When running as a local instance, you will be primarily concerned with the following metrics:
-* `veneur.flush*.error_total` as a count of errors when flush metrics to Datadog. This should rarely happen. Occasionaly errors are fine, but sustained is bad.
+* `veneur.flush*.error_total` as a count of errors when flush metrics to Datadog. This should rarely happen. Occasional errors are fine, but sustained is bad.
 * `veneur.flush.total_duration_ns` and `veneur.flush.total_duration_ns.count`. These metrics track the per-host time spent performing a flush to Datadog. The time should be minimal!
 
 ## Forwarding
