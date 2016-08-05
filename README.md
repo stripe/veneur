@@ -42,6 +42,8 @@ For example, say you emit a timer `foo.bar.call_duration_ms` from 20 hosts that 
   * `foo.bar.call_duration_ms.max`: by-host tagged maximum value
   * `foo.bar.call_duration_ms.min`: by-host tagged minimum value
 
+Clients can choose to override this behavior by including the tag `veneurlocalonly`.
+
 ## Approximate Histograms
 
 Because Veneur is built to handle lots and lots of data, it uses approximate histograms. We have our own implementation of [Dunning's t-digest](tdigest/merging_digest.go), which has bounded memory consumption and reduced error at extreme quantiles. Metrics are consistently routed to the same worker to distribute load and to be added to the same histogram.
