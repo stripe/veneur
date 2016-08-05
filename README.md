@@ -42,7 +42,7 @@ For example, say you emit a timer `foo.bar.call_duration_ms` from 20 hosts that 
   * `foo.bar.call_duration_ms.max`: by-host tagged maximum value
   * `foo.bar.call_duration_ms.min`: by-host tagged minimum value
 
-Clients can choose to override this behavior by including the tag `veneurlocalonly`.
+Clients can choose to override this behavior by [including the tag `veneurlocalonly`](#magic-tag).
 
 ## Approximate Histograms
 
