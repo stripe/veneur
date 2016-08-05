@@ -30,6 +30,20 @@ Veneur is different for a few reasons. They enumerated here.
 If configured to do so, Veneur can selectively aggregate global metrics to be cumulative across all instances that report to a central Veneur, allowing global percentile
 calculation and global set counts.
 
+For example, say you emit a timer `foo.bar.call_duration_ms` from 20 hosts that are configured to forward to a central veneur. In Datadog you'll see the following:
+
+* Metrics that have been "globalized"
+  * `foo.bar.call_duration_ms.50percentile`: the p50 across all hosts, by tag
+  * `foo.bar.call_duration_ms.90percentile`: the p90 across all hosts, by tag
+  * `foo.bar.call_duration_ms.95percentile`: the p95 across all hosts, by tag
+  * `foo.bar.call_duration_ms.99percentile`: the p99 across all hosts, by tag
+* Metrics that remain host-local
+  * `foo.bar.call_duration_ms.count`: by-host tagged count which (when summed) shows the total count of times this metric was emitted
+  * `foo.bar.call_duration_ms.max`: by-host tagged maximum value
+  * `foo.bar.call_duration_ms.min`: by-host tagged minimum value
+
+Clients can choose to override this behavior by [including the tag `veneurlocalonly`](#magic-tag).
+
 ## Approximate Histograms
 
 Because Veneur is built to handle lots and lots of data, it uses approximate histograms. We have our own implementation of [Dunning's t-digest](tdigest/merging_digest.go), which has bounded memory consumption and reduced error at extreme quantiles. Metrics are consistently routed to the same worker to distribute load and to be added to the same histogram.
