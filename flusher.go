@@ -290,11 +290,13 @@ func (s *Server) flushEventsChecks() {
 		if events[i].Hostname == "" {
 			events[i].Hostname = s.Hostname
 		}
+		events[i].Tags = append(events[i].Tags, s.Tags...)
 	}
 	for i := range checks {
 		if checks[i].Hostname == "" {
 			checks[i].Hostname = s.Hostname
 		}
+		checks[i].Tags = append(checks[i].Tags, s.Tags...)
 	}
 
 	if len(events) != 0 {
