@@ -114,7 +114,11 @@ func (c *Client) format(name, value string, tags []string, rate float64) string 
 		buf.WriteString(strconv.FormatFloat(rate, 'f', -1, 64))
 	}
 
-	tags = append(c.Tags, tags...)
+	// do not append to c.Tags directly, because it's shared
+	// across all invocations of this function
+	tagCopy := make([]string, len(c.Tags), len(c.Tags)+len(tags))
+	copy(tagCopy, c.Tags)
+	tags = append(tagCopy, tags...)
 	if len(tags) > 0 {
 		buf.WriteString("|#")
 		buf.WriteString(tags[0])
