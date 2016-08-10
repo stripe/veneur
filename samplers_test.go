@@ -120,7 +120,10 @@ func TestSetMerge(t *testing.T) {
 
 	s2 := NewSet("a.b.c", []string{"a:b"})
 	assert.NoError(t, s2.Combine(jm.Value), "should have combined successfully")
-	assert.Equal(t, s.hll.Count(), s2.hll.Count(), "counts did not match after merging")
+	// HLLs are approximate, and we've seen error of +-1 here in the past, so
+	// we're giving the test some room for error to reduce flakes
+	countDifference := int(s.hll.Count()) - int(s2.hll.Count())
+	assert.True(t, -1 < countDifference && countDifference < 1, "counts did not match after merging")
 }
 
 func TestHisto(t *testing.T) {
