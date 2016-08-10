@@ -46,10 +46,12 @@ func (c *Counter) Sample(sample float64, sampleRate float32) {
 
 // Flush generates a DDMetric from the current state of this Counter.
 func (c *Counter) Flush(interval time.Duration) []DDMetric {
+	tags := make([]string, len(c.tags))
+	copy(tags, c.tags)
 	return []DDMetric{{
 		Name:       c.name,
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(c.value) / interval.Seconds()}},
-		Tags:       c.tags,
+		Tags:       tags,
 		MetricType: "rate",
 		Interval:   int32(interval.Seconds()),
 	}}
@@ -74,10 +76,12 @@ func (g *Gauge) Sample(sample float64, sampleRate float32) {
 
 // Flush generates a DDMetric from the current state of this gauge.
 func (g *Gauge) Flush() []DDMetric {
+	tags := make([]string, len(g.tags))
+	copy(tags, g.tags)
 	return []DDMetric{{
 		Name:       g.name,
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(g.value)}},
-		Tags:       g.tags,
+		Tags:       tags,
 		MetricType: "gauge",
 	}}
 }
@@ -116,10 +120,12 @@ func NewSet(name string, tags []string) *Set {
 
 // Flush generates a DDMetric for the state of this Set.
 func (s *Set) Flush() []DDMetric {
+	tags := make([]string, len(s.tags))
+	copy(tags, s.tags)
 	return []DDMetric{{
 		Name:       s.name,
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(s.hll.Count())}},
-		Tags:       s.tags,
+		Tags:       tags,
 		MetricType: "gauge",
 	}}
 }
@@ -208,18 +214,22 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64) []DDMetric 
 	metrics := make([]DDMetric, 0, 3+len(percentiles))
 
 	if !math.IsInf(h.localMax, 0) {
+		tags := make([]string, len(h.tags))
+		copy(tags, h.tags)
 		metrics = append(metrics, DDMetric{
 			Name:       fmt.Sprintf("%s.max", h.name),
 			Value:      [1][2]float64{{now, h.localMax}},
-			Tags:       h.tags,
+			Tags:       tags,
 			MetricType: "gauge",
 		})
 	}
 	if !math.IsInf(h.localMin, 0) {
+		tags := make([]string, len(h.tags))
+		copy(tags, h.tags)
 		metrics = append(metrics, DDMetric{
 			Name:       fmt.Sprintf("%s.min", h.name),
 			Value:      [1][2]float64{{now, h.localMin}},
-			Tags:       h.tags,
+			Tags:       tags,
 			MetricType: "gauge",
 		})
 	}
@@ -227,23 +237,27 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64) []DDMetric 
 		// if we haven't received any local samples, then leave this sparse,
 		// otherwise it can lead to some misleading zeroes in between the
 		// flushes of downstream instances
+		tags := make([]string, len(h.tags))
+		copy(tags, h.tags)
 		metrics = append(metrics, DDMetric{
 			Name:       fmt.Sprintf("%s.count", h.name),
 			Value:      [1][2]float64{{now, rate}},
-			Tags:       h.tags,
+			Tags:       tags,
 			MetricType: "rate",
 			Interval:   int32(interval.Seconds()),
 		})
 	}
 
 	for _, p := range percentiles {
+		tags := make([]string, len(h.tags))
+		copy(tags, h.tags)
 		metrics = append(
 			metrics,
 			// TODO Fix to allow for p999, etc
 			DDMetric{
 				Name:       fmt.Sprintf("%s.%dpercentile", h.name, int(p*100)),
 				Value:      [1][2]float64{{now, h.value.Quantile(p)}},
-				Tags:       h.tags,
+				Tags:       tags,
 				MetricType: "gauge",
 			},
 		)

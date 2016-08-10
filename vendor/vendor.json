@@ -3,10 +3,10 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "JhyS/zIicgtrSasHSZ6WtXGWJVk=",
+			"checksumSHA1": "Xv2p37sE7x+W7UMevRA9ad9lAV4=",
 			"path": "github.com/DataDog/datadog-go/statsd",
-			"revision": "cc2f4770f4d61871e19bfee967bc767fe730b0d9",
-			"revisionTime": "2016-03-29T13:52:53Z"
+			"revision": "94b37b603fe4425010c27ee250fed81a00ae583b",
+			"revisionTime": "2016-08-10T17:59:41Z"
 		},
 		{
 			"checksumSHA1": "htjvdG/znrHmFYRQBqA2vHrJsF4=",
