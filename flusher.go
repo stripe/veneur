@@ -227,7 +227,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 
 	s.statsd.Gauge("forward.post_metrics_total", float64(len(jsonMetrics)), nil, 1.0)
 	if len(jsonMetrics) == 0 {
-		s.logger.Info("Nothing to forward, skipping.")
+		s.logger.Debug("Nothing to forward, skipping.")
 		return
 	}
 
