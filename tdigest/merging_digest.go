@@ -31,11 +31,6 @@ type MergingDigest struct {
 	// total weight of unmerged centroids
 	tempWeight float64
 
-	// an extra list used during merging and then swapped with the main list
-	// TODO: there must be an in-place merge we can do to eliminate this
-	// outside of mergeAllTemps(), this is always empty
-	mergedCentroids []Centroid
-
 	min float64
 	max float64
 
@@ -80,13 +75,12 @@ func NewMerging(compression float64, debug bool) *MergingDigest {
 	sizeBound := int((math.Pi * compression / 2) + 0.5)
 
 	return &MergingDigest{
-		compression:     compression,
-		mainCentroids:   make([]Centroid, 0, sizeBound),
-		mergedCentroids: make([]Centroid, 0, sizeBound),
-		tempCentroids:   make([]Centroid, 0, estimateTempBuffer(compression)),
-		min:             math.Inf(+1),
-		max:             math.Inf(-1),
-		debug:           debug,
+		compression:   compression,
+		mainCentroids: make([]Centroid, 0, sizeBound),
+		tempCentroids: make([]Centroid, 0, estimateTempBuffer(compression)),
+		min:           math.Inf(+1),
+		max:           math.Inf(-1),
+		debug:         debug,
 	}
 }
 
@@ -123,8 +117,7 @@ func (td *MergingDigest) Add(value float64, weight float64) {
 	td.tempWeight += weight
 }
 
-// combine the mainCentroids and tempCentroids into mergedCentroids, then swap
-// mergedCentroids and mainCentroids
+// combine the mainCentroids and tempCentroids in-place into mainCentroids
 func (td *MergingDigest) mergeAllTemps() {
 	// this optimization is really important! if you remove it, the main list
 	// will get merged into itself every time this is called
@@ -136,7 +129,6 @@ func (td *MergingDigest) mergeAllTemps() {
 	// we have to sort this one
 	sort.Sort(centroidList(td.tempCentroids))
 	tempIndex := 0
-	mainIndex := 0
 
 	// total weight that the final t-digest will have, after everything is merged
 	totalWeight := td.mainWeight + td.tempWeight
@@ -146,35 +138,70 @@ func (td *MergingDigest) mergeAllTemps() {
 	// this value gets updated each time we split a new centroid out instead of
 	// merging into the current one
 	lastMergedIndex := 0.0
+	// since we will be merging in-place into td.mainCentroids, we need to keep
+	// track of the indices of the remaining elements
+	actualMainCentroids := td.mainCentroids
+	td.mainCentroids = td.mainCentroids[:0]
+	// to facilitate the in-place merge, we will need a place to store the main
+	// centroids that would be overwritten - we will use space from the start
+	// of tempCentroids for this
+	swappedCentroids := td.tempCentroids[:0]
 
-	for tempIndex < len(td.tempCentroids) || mainIndex < len(td.mainCentroids) {
-		// if the main list is exhausted
-		if mainIndex == len(td.mainCentroids) ||
-			// or if both lists are unexhausted and temp's current
-			// centroid is lower than main's current centroid
-			(tempIndex < len(td.tempCentroids) && td.tempCentroids[tempIndex].Mean <= td.mainCentroids[mainIndex].Mean) {
-			// then merge the temp centroid into the previous one
-			lastMergedIndex = td.mergeOne(mergedWeight, totalWeight, lastMergedIndex, td.tempCentroids[tempIndex])
-			mergedWeight += td.tempCentroids[tempIndex].Weight
-			tempIndex++
+	for len(actualMainCentroids)+len(swappedCentroids) != 0 || tempIndex < len(td.tempCentroids) {
+		nextTemp := Centroid{
+			Mean:   math.Inf(+1),
+			Weight: 0,
+		}
+		if tempIndex < len(td.tempCentroids) {
+			nextTemp = td.tempCentroids[tempIndex]
+		}
+
+		nextMain := Centroid{
+			Mean:   math.Inf(+1),
+			Weight: 0,
+		}
+		if len(swappedCentroids) != 0 {
+			nextMain = swappedCentroids[0]
+		} else if len(actualMainCentroids) != 0 {
+			nextMain = actualMainCentroids[0]
+		}
+
+		if nextMain.Mean < nextTemp.Mean {
+			if len(actualMainCentroids) != 0 {
+				if len(swappedCentroids) != 0 {
+					// if this came from swap, before merging, we have to save
+					// the next main centroid at the end
+					// this copy is probably the most expensive part of the
+					// in-place merge, compared to merging into a separate buffer
+					copy(swappedCentroids, swappedCentroids[1:])
+					swappedCentroids[len(swappedCentroids)-1] = actualMainCentroids[0]
+				}
+				actualMainCentroids = actualMainCentroids[1:]
+			} else {
+				// the real main has been completely exhausted, so we're just
+				// cleaning out swapped mains now
+				swappedCentroids = swappedCentroids[1:]
+			}
+
+			lastMergedIndex = td.mergeOne(mergedWeight, totalWeight, lastMergedIndex, nextMain)
+			mergedWeight += nextMain.Weight
 		} else {
-			// either the temp list is exhausted, or the current temp centroid
-			// has greater mean than the current main one
-			// we merge the current main centroid into the previous main centroid
-			lastMergedIndex = td.mergeOne(mergedWeight, totalWeight, lastMergedIndex, td.mainCentroids[mainIndex])
-			mergedWeight += td.mainCentroids[mainIndex].Weight
-			mainIndex++
+			// before merging, we have to save the next main centroid somewhere
+			// else, so that we don't overwrite it
+			if len(actualMainCentroids) != 0 {
+				swappedCentroids = append(swappedCentroids, actualMainCentroids[0])
+				actualMainCentroids = actualMainCentroids[1:]
+			}
+			tempIndex++
+
+			lastMergedIndex = td.mergeOne(mergedWeight, totalWeight, lastMergedIndex, nextTemp)
+			mergedWeight += nextTemp.Weight
 		}
 	}
 
-	// we've merged all elements from tempCentroids and mainCentroids into
-	// mergedCentroids, so now we can swap in the new values
-	td.mainCentroids, td.mergedCentroids = td.mergedCentroids, td.mainCentroids
-	td.mainWeight = totalWeight
-	// empty the other lists
 	td.tempCentroids = td.tempCentroids[:0]
 	td.tempWeight = 0
-	td.mergedCentroids = td.mergedCentroids[:0]
+	td.mainWeight = totalWeight
 }
 
 // merges a single centroid into the mergedCentroids list
@@ -184,11 +211,11 @@ func (td *MergingDigest) mergeOne(beforeWeight, totalWeight, beforeIndex float64
 	// compute the quantile index of the element we're about to merge
 	nextIndex := td.indexEstimate((beforeWeight + next.Weight) / totalWeight)
 
-	if nextIndex-beforeIndex > 1 || len(td.mergedCentroids) == 0 {
+	if nextIndex-beforeIndex > 1 || len(td.mainCentroids) == 0 {
 		// the new index is far away from the last index of the current centroid
 		// therefore we cannot merge into the current centroid or it would
 		// become too wide, so we will append a new centroid
-		td.mergedCentroids = append(td.mergedCentroids, next)
+		td.mainCentroids = append(td.mainCentroids, next)
 		// return the last index that was merged into the previous centroid
 		return td.indexEstimate(beforeWeight / totalWeight)
 	} else {
@@ -196,10 +223,10 @@ func (td *MergingDigest) mergeOne(beforeWeight, totalWeight, beforeIndex float64
 		// combine it into the current centroid's values
 		// this computation is known as welford's method, the order matters
 		// weight must be updated before mean
-		td.mergedCentroids[len(td.mergedCentroids)-1].Weight += next.Weight
-		td.mergedCentroids[len(td.mergedCentroids)-1].Mean += (next.Mean - td.mergedCentroids[len(td.mergedCentroids)-1].Mean) * next.Weight / td.mergedCentroids[len(td.mergedCentroids)-1].Weight
+		td.mainCentroids[len(td.mainCentroids)-1].Weight += next.Weight
+		td.mainCentroids[len(td.mainCentroids)-1].Mean += (next.Mean - td.mainCentroids[len(td.mainCentroids)-1].Mean) * next.Weight / td.mainCentroids[len(td.mainCentroids)-1].Weight
 		if td.debug {
-			td.mergedCentroids[len(td.mergedCentroids)-1].Samples = append(td.mergedCentroids[len(td.mergedCentroids)-1].Samples, next.Samples...)
+			td.mainCentroids[len(td.mainCentroids)-1].Samples = append(td.mainCentroids[len(td.mainCentroids)-1].Samples, next.Samples...)
 		}
 
 		// we did not create a new centroid, so the trailing index of the previous
@@ -312,31 +339,14 @@ func (td *MergingDigest) centroidUpperBound(i int) float64 {
 	}
 }
 
-// Merge another digest into this one. This does not allocate any memory or
-// modify other; however neither td nor other can be shared concurrently during
-// the execution of this method.
+// Merge another digest into this one. Neither td nor other can be shared
+// concurrently during the execution of this method.
 func (td *MergingDigest) Merge(other *MergingDigest) {
-	// we want to add each centroid from other.mainCentroids to this one,
-	// preferably in random order
-	// we don't want to allocate any memory (that's too expensive), nor do we
-	// want to shuffle other.mainCentroids (that's destructive and would force
-	// us to sort it afterwards)
-	// we can use other.mergeCentroids as a scratch buffer instead and
-	// perform the entire operation in O(len(other.mainCentroids)) with zero
-	// allocations
-	other.mergedCentroids = other.mergedCentroids[:len(other.mainCentroids)]
+	shuffledIndices := rand.Perm(len(other.mainCentroids))
 
-	// fisher-yates shuffle from mainCentroids into mergedCentroids
-	for i := range other.mainCentroids {
-		j := rand.Intn(i + 1)
-		other.mergedCentroids[i] = other.mergedCentroids[j]
-		other.mergedCentroids[j] = other.mainCentroids[i]
+	for _, i := range shuffledIndices {
+		td.Add(other.mainCentroids[i].Mean, other.mainCentroids[i].Weight)
 	}
-
-	for i := range other.mergedCentroids {
-		td.Add(other.mergedCentroids[i].Mean, other.mergedCentroids[i].Weight)
-	}
-	other.mergedCentroids = other.mergedCentroids[:0]
 
 	// we did not merge other's temps, so we need to add those too
 	// they're unsorted so there's no need to shuffle them
@@ -391,10 +401,6 @@ func (td *MergingDigest) GobDecode(b []byte) error {
 		td.mainWeight += c.Weight
 	}
 	td.tempWeight = 0
-	// avoid reallocating if the compressions are the same
-	if cap(td.mergedCentroids) != cap(td.mainCentroids) {
-		td.mergedCentroids = make([]Centroid, 0, cap(td.mainCentroids))
-	}
 	if tempSize := estimateTempBuffer(td.compression); cap(td.tempCentroids) != tempSize {
 		td.tempCentroids = make([]Centroid, 0, tempSize)
 	} else {
