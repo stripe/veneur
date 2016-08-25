@@ -25,6 +25,12 @@ are forwarded to a central Veneur instance for aggregation before being sent to 
 
 Veneur is different for a few reasons. They enumerated here.
 
+## Protocol
+
+Veneur adheres to [the official DogStatsD datagram format](http://docs.datadoghq.com/guides/dogstatsd/#datagram-format) with the exceptions below:
+
+* The tag `veneurlocalonly` is stripped and influenced forwarding behavior, as discussed below.
+
 ## Global Aggregation
 
 If configured to do so, Veneur can selectively aggregate global metrics to be cumulative across all instances that report to a central Veneur, allowing global percentile
