@@ -18,7 +18,8 @@ tags:
  - "foo:bar"
 #  - "baz:gorch"
 udp_address: "localhost:8126"
-http_address: "einhorn@0"
+#http_address: "einhorn@0"
+http_address: "localhost:8127"
 forward_address: "http://veneur.example.com"
 # Defaults to the os.Hostname()!
 # hostname: foobar
