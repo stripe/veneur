@@ -145,6 +145,7 @@ Veneur expects to have a config file supplied via `-f PATH`. The include `exampl
 * `num_workers` - The number of worker goroutines to start.
 * `num_readers` - The number of reader goroutines to start. Veneur supports SO_REUSEPORT on Linux to scale to multiple readers. On other platforms, this should always be 1; other values will probably cause errors at startup. See below.
 * `read_buffer_size_bytes` - The size of the receive buffer for the UDP socket. Defaults to 2MB, as having a lot of buffer prevents packet drops during flush!
+* `sentry_dsn` A [DSN](https://docs.sentry.io/hosted/quickstart/#configure-the-dsn) for [Sentry](https://sentry.io/), where errors will be sent when they happen.
 * `stats_address` - The address to send internally generated metrics. Probably `127.0.0.1:8125`. In practice this means you'll be sending metrics to yourself. This is expected!
 * `tags` - Tags to add to every metric that is sent to Veneur. Expects an array of strings!
 
@@ -152,26 +153,26 @@ Veneur expects to have a config file supplied via `-f PATH`. The include `exampl
 
 Here are the important things to monitor with Veneur:
 
-# At Local Node
+## At Local Node
 
 When running as a local instance, you will be primarily concerned with the following metrics:
 * `veneur.flush*.error_total` as a count of errors when flush metrics to Datadog. This should rarely happen. Occasional errors are fine, but sustained is bad.
 * `veneur.flush.total_duration_ns` and `veneur.flush.total_duration_ns.count`. These metrics track the per-host time spent performing a flush to Datadog. The time should be minimal!
 
-## Forwarding
+### Forwarding
 
 If you are forwarding metrics to central Veneur, you'll want to monitor these:
 * `veneur.forward.error_total` and the `cause` tag. This should pretty much never happen and definitely not be sustained.
 * `veneur.forward.duration_ns` and `veneur.forward.duration_ns.count`. These metrics track the per-host time spent performing a forward. The time should be minimal!
 
-# At Global Node
+## At Global Node
 
 When forwarding you'll want to also monitor the global nodes you're using for aggregation:
 * `veneur.import.request_error_total` and the `cause` tag. This should pretty much never happen and definitely not be sustained.
 * `veneur.import.response_duration_ns` and `veneur.import.response_duration_ns.count` to monitor duration and number of received forwards. This should not fail and not take very long. How long it takes will depend on how many metrics you're forwarding.
 * And the same `veneur.flush.*` metrics from the "At Local Node" section.
 
-# Metrics
+## Metrics
 
 Veneur will emit metrics to the `stats_address` configured above in DogStatsD form. Those metrics are:
 
@@ -191,6 +192,9 @@ Veneur will emit metrics to the `stats_address` configured above in DogStatsD fo
 * `veneur.import.response_duration_ns` - Time spent responding to import HTTP requests. This metric is broken into `part` tags for `request` (time spent blocking the client) and `merge` (time spent sending metrics to workers).
 * `veneur.import.request_error_total` - A counter for the number of import requests that have errored out. You can use this for monitoring and alerting when imports fail.
 
+## Error Handling
+
+In addition to logging, Veneur will dutifully sent any errors it generates to a [Sentry](https://sentry.io/) instance. This will occur if you set the `sentry_dsn` configuration option. Not setting the option will disable Sentry reporting.
 
 # Performance
 
@@ -202,7 +206,7 @@ The common use case for Veneur is as an aggregator and host-local replacement fo
 we were processing > 60k packets/second in production before shifting to the current local aggregation method. This outperformed both the Datadog-provided DogStatsD
 and StatsD in our infrastructure.
 
-### Compressed, Chunked POST
+## Compressed, Chunked POST
 
 Datadog's API is tuned for small POST bodies from lots of hosts since they work on a per-host basis. Also there are limits on the size of the body that
 can be posted. As a result Veneur chunks metrics in to smaller bits — governed by `flush_max_per_body` — and sends them (compressed) concurrently to
