@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -107,8 +108,22 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 			}
 		}
 	}
+
 	for i := range finalMetrics {
-		finalMetrics[i].Hostname = s.Hostname
+		// Let's look for "magic tags" that override metric fields host and device.
+		for i, tag := range finalMetrics[i].Tags {
+			// This overrides hostname
+			if strings.HasPrefix(tag, "host:") {
+				// delete the tag from the list
+				finalMetrics[i].Tags = append(finalMetrics[i].Tags[:i], finalMetrics[i].Tags[i+1:]...)
+				// Override the hostname with the tag
+				finalMetrics[i].Hostname = tag[5:len(tag)]
+			} else {
+				// No magic tag, set the hostname
+				finalMetrics[i].Hostname = s.Hostname
+			}
+		}
+
 		finalMetrics[i].Tags = append(finalMetrics[i].Tags, s.Tags...)
 	}
 	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(combineStart).Nanoseconds()), []string{"part:combine"}, 1.0)
