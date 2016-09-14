@@ -175,11 +175,11 @@ func finalizeMetrics(hostname string, tags []string, finalMetrics []DDMetric) []
 				// delete the tag from the list
 				finalMetrics[i].Tags = append(finalMetrics[i].Tags[:j], finalMetrics[i].Tags[j+1:]...)
 				// Override the hostname with the tag, trimming off the prefix
-				finalMetrics[i].Hostname = string(tag[5:len(tag)])
+				finalMetrics[i].Hostname = string(tag[5:])
 			} else if strings.HasPrefix(tag, "device:") {
 				// Same as above, but device this time
 				finalMetrics[i].Tags = append(finalMetrics[i].Tags[:j], finalMetrics[i].Tags[j+1:]...)
-				finalMetrics[i].DeviceName = string(tag[7:len(tag)])
+				finalMetrics[i].DeviceName = string(tag[7:])
 			}
 		}
 		if finalMetrics[i].Hostname == "" {
