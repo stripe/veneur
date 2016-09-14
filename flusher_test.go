@@ -34,3 +34,18 @@ func TestHostMagicTag(t *testing.T) {
 	assert.NotContains(t, metrics[0].Tags, "host:abc123", "Host tag should be removed")
 	assert.Contains(t, metrics[0].Tags, "x:e", "Last tag is still around")
 }
+
+func TestDeviceMagicTag(t *testing.T) {
+	metrics := []DDMetric{{
+		Name:       "foo.bar.baz",
+		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(1.0)}},
+		Tags:       []string{"gorch:frobble", "device:abc123", "x:e"},
+		MetricType: "rate",
+		Interval:   10,
+	}}
+
+	metrics = finalizeMetrics("badhostname", []string{"a:b", "c:d"}, metrics)
+	assert.Equal(t, "abc123", metrics[0].DeviceName, "Metric devicename should be from tag")
+	assert.NotContains(t, metrics[0].Tags, "device:abc123", "Host tag should be removed")
+	assert.Contains(t, metrics[0].Tags, "x:e", "Last tag is still around")
+}
