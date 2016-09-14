@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -107,10 +108,9 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 			}
 		}
 	}
-	for i := range finalMetrics {
-		finalMetrics[i].Hostname = s.Hostname
-		finalMetrics[i].Tags = append(finalMetrics[i].Tags, s.Tags...)
-	}
+
+	finalizeMetrics(s.Hostname, s.Tags, finalMetrics)
+
 	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(combineStart).Nanoseconds()), []string{"part:combine"}, 1.0)
 
 	s.statsd.Count("worker.metrics_flushed_total", int64(totalCounters), []string{"metric_type:counter"}, 1.0)
@@ -164,6 +164,31 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(flushStart).Nanoseconds()), []string{"part:post"}, 1.0)
 
 	s.logger.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
+}
+
+func finalizeMetrics(hostname string, tags []string, finalMetrics []DDMetric) {
+	for i := range finalMetrics {
+		// Let's look for "magic tags" that override metric fields host and device.
+		for j, tag := range finalMetrics[i].Tags {
+			// This overrides hostname
+			if strings.HasPrefix(tag, "host:") {
+				// delete the tag from the list
+				finalMetrics[i].Tags = append(finalMetrics[i].Tags[:j], finalMetrics[i].Tags[j+1:]...)
+				// Override the hostname with the tag, trimming off the prefix
+				finalMetrics[i].Hostname = tag[5:]
+			} else if strings.HasPrefix(tag, "device:") {
+				// Same as above, but device this time
+				finalMetrics[i].Tags = append(finalMetrics[i].Tags[:j], finalMetrics[i].Tags[j+1:]...)
+				finalMetrics[i].DeviceName = tag[7:]
+			}
+		}
+		if finalMetrics[i].Hostname == "" {
+			// No magic tag, set the hostname
+			finalMetrics[i].Hostname = hostname
+		}
+
+		finalMetrics[i].Tags = append(finalMetrics[i].Tags, tags...)
+	}
 }
 
 func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
