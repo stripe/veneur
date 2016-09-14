@@ -109,23 +109,8 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 		}
 	}
 
-	for i := range finalMetrics {
-		// Let's look for "magic tags" that override metric fields host and device.
-		for i, tag := range finalMetrics[i].Tags {
-			// This overrides hostname
-			if strings.HasPrefix(tag, "host:") {
-				// delete the tag from the list
-				finalMetrics[i].Tags = append(finalMetrics[i].Tags[:i], finalMetrics[i].Tags[i+1:]...)
-				// Override the hostname with the tag
-				finalMetrics[i].Hostname = tag[5:len(tag)]
-			} else {
-				// No magic tag, set the hostname
-				finalMetrics[i].Hostname = s.Hostname
-			}
-		}
+	finalMetrics = finalizeMetrics(s.Hostname, s.Tags, finalMetrics)
 
-		finalMetrics[i].Tags = append(finalMetrics[i].Tags, s.Tags...)
-	}
 	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(combineStart).Nanoseconds()), []string{"part:combine"}, 1.0)
 
 	s.statsd.Count("worker.metrics_flushed_total", int64(totalCounters), []string{"metric_type:counter"}, 1.0)
@@ -179,6 +164,28 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(flushStart).Nanoseconds()), []string{"part:post"}, 1.0)
 
 	s.logger.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
+}
+
+func finalizeMetrics(hostname string, tags []string, finalMetrics []DDMetric) []DDMetric {
+	for i := range finalMetrics {
+		// Let's look for "magic tags" that override metric fields host and device.
+		for j, tag := range finalMetrics[i].Tags {
+			// This overrides hostname
+			if strings.HasPrefix(tag, "host:") {
+				// delete the tag from the list
+				finalMetrics[i].Tags = append(finalMetrics[i].Tags[:j], finalMetrics[i].Tags[j+1:]...)
+				// Override the hostname with the tag
+				finalMetrics[i].Hostname = string(tag[5:len(tag)])
+			}
+		}
+		if finalMetrics[i].Hostname == "" {
+			// No magic tag, set the hostname
+			finalMetrics[i].Hostname = hostname
+		}
+
+		finalMetrics[i].Tags = append(finalMetrics[i].Tags, tags...)
+	}
+	return finalMetrics
 }
 
 func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
