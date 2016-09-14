@@ -127,6 +127,8 @@ With respect to the `tags` configuration option, the tags that will be added are
 
 If you want a metric to be strictly host-local, you can tell Veneur not to forward it by including a `veneurlocalonly` tag in the metric packet, eg `foo:1|h|#veneurlocalonly`. This tag will not actually appear in DataDog; Veneur removes it.
 
+Veneur also honors the same "magic" tags as the dogstatsd include in the agent. The tag `host` will override `Hostname` in the metric and `device` will override `DeviceName`.
+
 # Configuration
 
 Veneur expects to have a config file supplied via `-f PATH`. The include `example.yaml` outlines the options:
