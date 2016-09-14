@@ -109,7 +109,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 		}
 	}
 
-finalizeMetrics(s.Hostname, s.Tags, finalMetrics)
+	finalizeMetrics(s.Hostname, s.Tags, finalMetrics)
 
 	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(combineStart).Nanoseconds()), []string{"part:combine"}, 1.0)
 
