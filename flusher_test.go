@@ -17,6 +17,7 @@ func TestServerTags(t *testing.T) {
 	}}
 
 	metrics = finalizeMetrics("somehostname", []string{"a:b", "c:d"}, metrics)
+	assert.Equal(t, "somehostname", metrics[0].Hostname, "Metric hostname uses argument")
 	assert.Contains(t, metrics[0].Tags, "a:b", "Tags should contain server tags")
 }
 
