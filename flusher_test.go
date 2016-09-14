@@ -16,7 +16,7 @@ func TestServerTags(t *testing.T) {
 		Interval:   10,
 	}}
 
-	metrics = finalizeMetrics("somehostname", []string{"a:b", "c:d"}, metrics)
+	finalizeMetrics("somehostname", []string{"a:b", "c:d"}, metrics)
 	assert.Equal(t, "somehostname", metrics[0].Hostname, "Metric hostname uses argument")
 	assert.Contains(t, metrics[0].Tags, "a:b", "Tags should contain server tags")
 }
@@ -30,7 +30,7 @@ func TestHostMagicTag(t *testing.T) {
 		Interval:   10,
 	}}
 
-	metrics = finalizeMetrics("badhostname", []string{"a:b", "c:d"}, metrics)
+	finalizeMetrics("badhostname", []string{"a:b", "c:d"}, metrics)
 	assert.Equal(t, "abc123", metrics[0].Hostname, "Metric hostname should be from tag")
 	assert.NotContains(t, metrics[0].Tags, "host:abc123", "Host tag should be removed")
 	assert.Contains(t, metrics[0].Tags, "x:e", "Last tag is still around")
@@ -45,7 +45,7 @@ func TestDeviceMagicTag(t *testing.T) {
 		Interval:   10,
 	}}
 
-	metrics = finalizeMetrics("badhostname", []string{"a:b", "c:d"}, metrics)
+	finalizeMetrics("badhostname", []string{"a:b", "c:d"}, metrics)
 	assert.Equal(t, "abc123", metrics[0].DeviceName, "Metric devicename should be from tag")
 	assert.NotContains(t, metrics[0].Tags, "device:abc123", "Host tag should be removed")
 	assert.Contains(t, metrics[0].Tags, "x:e", "Last tag is still around")

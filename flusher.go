@@ -109,7 +109,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 		}
 	}
 
-	finalMetrics = finalizeMetrics(s.Hostname, s.Tags, finalMetrics)
+finalizeMetrics(s.Hostname, s.Tags, finalMetrics)
 
 	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(combineStart).Nanoseconds()), []string{"part:combine"}, 1.0)
 
@@ -166,7 +166,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	s.logger.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
 }
 
-func finalizeMetrics(hostname string, tags []string, finalMetrics []DDMetric) []DDMetric {
+func finalizeMetrics(hostname string, tags []string, finalMetrics []DDMetric) {
 	for i := range finalMetrics {
 		// Let's look for "magic tags" that override metric fields host and device.
 		for j, tag := range finalMetrics[i].Tags {
@@ -189,7 +189,6 @@ func finalizeMetrics(hostname string, tags []string, finalMetrics []DDMetric) []
 
 		finalMetrics[i].Tags = append(finalMetrics[i].Tags, tags...)
 	}
-	return finalMetrics
 }
 
 func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
