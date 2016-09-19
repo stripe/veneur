@@ -18,12 +18,12 @@ meaningless. Per-host unique sets are also often not what's desired.
 
 Global \*StatsD installations can be problematic, as they either require client-side or proxy sharding behavior to prevent an
 instance being a Single Point of Failure (SPoF) for all metrics. Veneur aims to solve this problem. Non-global
-metrics like counters and gauges are collected locally and sent to Datadog at flush time. Global metrics (histograms and sets)
+metrics like counters and gauges are collected by a local Veneur instance and sent to Datadog at flush time. Global metrics (histograms and sets)
 are forwarded to a central Veneur instance for aggregation before being sent to Datadog.
 
 # How Veneur Is Different Than Official DogStatsD
 
-Veneur is different for a few reasons. They enumerated here.
+Veneur is different for a few reasons. They are enumerated here.
 
 ## Protocol
 
