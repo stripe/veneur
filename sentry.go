@@ -7,11 +7,9 @@ import (
 	"github.com/getsentry/raven-go"
 )
 
-// call inside deferred recover, eg
-// defer func() {
-// 	ConsumePanic(recover())
-// }
-// will report panic to sentry, print stack and then repanic (to ensure your program terminates)
+// ConsumePanic is intended to be called inside a deferred function when recovering
+// from a panic. It accepts the value of recover() as its only argument,
+// and reports the panic to Sentry, prints the stack,  and then repanics (to ensure your program terminates)
 func (s *Server) ConsumePanic(err interface{}) {
 	if err == nil {
 		return
@@ -101,7 +99,6 @@ func (s sentryHook) Fire(e *logrus.Entry) error {
 	if e.Level == logrus.PanicLevel || e.Level == logrus.FatalLevel {
 		// we don't want the program to terminate before reporting to sentry
 		return <-ch
-	} else {
-		return nil
 	}
+	return nil
 }
