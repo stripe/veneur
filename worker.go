@@ -251,7 +251,6 @@ type EventWorker struct {
 	stats            *statsd.Client
 }
 
-
 // NewEventWorker creates an EventWorker ready to collect events and service checks.
 func NewEventWorker(stats *statsd.Client) *EventWorker {
 	return &EventWorker{
@@ -278,7 +277,6 @@ func (ew *EventWorker) Work() {
 		}
 	}
 }
-
 
 // Flush returns the EventWorker's stored events and service checks and
 // resets the stored contents.
