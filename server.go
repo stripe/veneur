@@ -126,6 +126,10 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 // HandlePacket processes each packet that is sent to the server, and sends to an
 // appropriate worker (EventWorker or Worker).
 func (s *Server) HandlePacket(packet []byte) {
+  // This is a very performance-sensitive function
+  // and packets may be dropped if it gets slowed down.
+  // Keep that in mind when modifying!
+
 	if len(packet) == 0 {
 		// a lot of clients send packets that accidentally have a trailing
 		// newline, it's easier to just let them be

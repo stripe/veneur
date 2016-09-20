@@ -54,7 +54,8 @@ func NewWorkerMetrics() WorkerMetrics {
 	}
 }
 
-// Upsert creates an entry on the WorkerMetrics struct for the given metrickey, if it does not already exist.
+// Upsert creates an entry on the WorkerMetrics struct for the given metrickey (if one does not already exist)
+// and updates the existing entry (if one already exists).
 // Returns true if the metric entry was created and false otherwise.
 func (wm WorkerMetrics) Upsert(mk MetricKey, localOnly bool, tags []string) bool {
 	present := false
