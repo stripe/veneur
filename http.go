@@ -15,6 +15,7 @@ import (
 	"golang.org/x/net/context"
 )
 
+// Handler returns the Handler responsible for routing request processing.
 func (s *Server) Handler() http.Handler {
 	mux := goji.NewMux()
 
@@ -30,7 +31,7 @@ func (s *Server) Handler() http.Handler {
 			jsonMetrics []JSONMetric
 			body        io.ReadCloser
 			err         error
-			encoding    string = r.Header.Get("Content-Encoding")
+			encoding    = r.Header.Get("Content-Encoding")
 		)
 		switch encLogger := innerLogger.WithField("encoding", encoding); encoding {
 		case "":
@@ -73,7 +74,7 @@ func (s *Server) Handler() http.Handler {
 	return mux
 }
 
-// feed a slice of json metrics to the server's workers
+// ImportMetrics feeds a slice of json metrics to the server's workers
 func (s *Server) ImportMetrics(jsonMetrics []JSONMetric) {
 	start := time.Now()
 
