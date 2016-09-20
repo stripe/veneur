@@ -131,6 +131,7 @@ func (s *Set) Flush() []DDMetric {
 	}}
 }
 
+// Export converts a Set into a JSONMetric which reports the tags in the set.
 func (s *Set) Export() (JSONMetric, error) {
 	val, err := s.hll.GobEncode()
 	if err != nil {
@@ -147,6 +148,7 @@ func (s *Set) Export() (JSONMetric, error) {
 	}, nil
 }
 
+// Combine merges the values seen with another set (marshalled as a byte slice)
 func (s *Set) Combine(other []byte) error {
 	otherHLL, _ := hyperloglog.NewPlus(18)
 	if err := otherHLL.GobDecode(other); err != nil {
@@ -199,7 +201,7 @@ func NewHist(name string, tags []string) *Histo {
 	}
 }
 
-// this is the maximum number of DDMetrics that a histogram can flush if
+// HistogramLocalLength is the maximum number of DDMetrics that a histogram can flush if
 // len(percentiles)==0
 // specifically the count, min and max
 const HistogramLocalLength = 3
@@ -267,6 +269,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64) []DDMetric 
 	return metrics
 }
 
+// Export converts a Histogram into a JSONMetric
 func (h *Histo) Export() (JSONMetric, error) {
 	val, err := h.value.GobEncode()
 	if err != nil {
@@ -283,6 +286,8 @@ func (h *Histo) Export() (JSONMetric, error) {
 	}, nil
 }
 
+// Combine merges the values of a histogram with another histogram
+// (marshalled as a byte slice)
 func (h *Histo) Combine(other []byte) error {
 	otherHistogram := tdigest.NewMerging(100, false)
 	if err := otherHistogram.GobDecode(other); err != nil {
