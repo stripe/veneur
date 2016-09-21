@@ -23,7 +23,7 @@ type Worker struct {
 	wm         WorkerMetrics
 }
 
-// just a plain struct bundling together the flushed contents of a worker
+// WorkerMetrics is just a plain struct bundling together the flushed contents of a worker
 type WorkerMetrics struct {
 	// we do not want to key on the metric's Digest here, because those could
 	// collide, and then we'd have to implement a hashtable on top of go maps,
@@ -40,6 +40,7 @@ type WorkerMetrics struct {
 	localTimers     map[MetricKey]*Histo
 }
 
+// NewWorkerMetrics initializes a WorkerMetrics struct
 func NewWorkerMetrics() WorkerMetrics {
 	return WorkerMetrics{
 		counters:        make(map[MetricKey]*Counter),
@@ -53,7 +54,8 @@ func NewWorkerMetrics() WorkerMetrics {
 	}
 }
 
-// Create an entry in wm for the given metrickey, if it does not already exist.
+// Upsert creates an entry on the WorkerMetrics struct for the given metrickey (if one does not already exist)
+// and updates the existing entry (if one already exists).
 // Returns true if the metric entry was created and false otherwise.
 func (wm WorkerMetrics) Upsert(mk MetricKey, localOnly bool, tags []string) bool {
 	present := false
@@ -118,6 +120,8 @@ func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger) *Worker {
 	}
 }
 
+// Work will start the worker listening for metrics to process or import.
+// It will not return until the worker is sent a message to terminate using Stop()
 func (w *Worker) Work() {
 	for {
 		select {
@@ -173,6 +177,7 @@ func (w *Worker) ProcessMetric(m *UDPMetric) {
 	}
 }
 
+// ImportMetric receives a metric from another veneur instance
 func (w *Worker) ImportMetric(other JSONMetric) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
@@ -237,7 +242,7 @@ func (w *Worker) Stop() {
 	close(w.QuitChan)
 }
 
-// A Worker that collects events and service checks instead of metrics.
+// EventWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type EventWorker struct {
 	EventChan        chan UDPEvent
 	ServiceCheckChan chan UDPServiceCheck
@@ -247,6 +252,7 @@ type EventWorker struct {
 	stats            *statsd.Client
 }
 
+// NewEventWorker creates an EventWorker ready to collect events and service checks.
 func NewEventWorker(stats *statsd.Client) *EventWorker {
 	return &EventWorker{
 		EventChan:        make(chan UDPEvent),
@@ -256,6 +262,8 @@ func NewEventWorker(stats *statsd.Client) *EventWorker {
 	}
 }
 
+// Work will start the EventWorker listening for events and service checks.
+// This function will never return.
 func (ew *EventWorker) Work() {
 	for {
 		select {
@@ -271,6 +279,8 @@ func (ew *EventWorker) Work() {
 	}
 }
 
+// Flush returns the EventWorker's stored events and service checks and
+// resets the stored contents.
 func (ew *EventWorker) Flush() ([]UDPEvent, []UDPServiceCheck) {
 	start := time.Now()
 	ew.mutex.Lock()

@@ -14,9 +14,11 @@ import (
 	"github.com/zenazn/goji/graceful"
 )
 
-// must be a var so it can be set at link time
+// VERSION stores the current veneur version.
+// It must be a var so it can be set at link time.
 var VERSION = "dirty"
 
+// A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers     []*Worker
 	EventWorker *EventWorker
@@ -40,6 +42,7 @@ type Server struct {
 	HistogramPercentiles []float64
 }
 
+// NewFromConfig creates a new veneur server from a configuration specification.
 func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.Hostname = conf.Hostname
 	ret.Tags = conf.Tags
@@ -120,7 +123,13 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	return
 }
 
+// HandlePacket processes each packet that is sent to the server, and sends to an
+// appropriate worker (EventWorker or Worker).
 func (s *Server) HandlePacket(packet []byte) {
+  // This is a very performance-sensitive function
+  // and packets may be dropped if it gets slowed down.
+  // Keep that in mind when modifying!
+
 	if len(packet) == 0 {
 		// a lot of clients send packets that accidentally have a trailing
 		// newline, it's easier to just let them be
@@ -163,6 +172,7 @@ func (s *Server) HandlePacket(packet []byte) {
 	}
 }
 
+// ReadSocket listens for available packets to handle.
 func (s *Server) ReadSocket(packetPool *sync.Pool, reuseport bool) {
 	// each goroutine gets its own socket
 	// if the sockets support SO_REUSEPORT, then this will cause the
@@ -204,6 +214,8 @@ func (s *Server) ReadSocket(packetPool *sync.Pool, reuseport bool) {
 	}
 }
 
+
+// HTTPServe starts the HTTP server and listens perpetually until it encounters an unrecoverable error.
 func (s *Server) HTTPServe() {
 	httpSocket := bind.Socket(s.HTTPAddr)
 	graceful.Timeout(10 * time.Second)
@@ -238,6 +250,7 @@ type SplitBytes struct {
 	lastChunk    bool
 }
 
+// NewSplitBytes initializes a SplitBytes struct with the provided buffer and delimiter.
 func NewSplitBytes(buf []byte, delim byte) *SplitBytes {
 	return &SplitBytes{
 		buf:   buf,

@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Metric is a representation of the sample provided by a client. The tag list
+// UDPMetric is a representation of the sample provided by a client. The tag list
 // should be deterministically ordered.
 type UDPMetric struct {
 	MetricKey
@@ -22,8 +22,7 @@ type UDPMetric struct {
 	LocalOnly  bool
 }
 
-// a struct used to key the metrics into the worker's map - must only contain
-// comparable types
+// MetricKey is a struct used to key the metrics into the worker's map. All fields must be comparable types.
 type MetricKey struct {
 	Name       string `json:"name"`
 	Type       string `json:"type"`
@@ -150,7 +149,7 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 	return ret, nil
 }
 
-// the json keys of this structure match datadog's undocumented /intake endpoint
+// UDPEvent represents the structure of datadog's undocumented /intake endpoint
 type UDPEvent struct {
 	Title       string   `json:"msg_title"`
 	Text        string   `json:"msg_text"`
@@ -163,6 +162,7 @@ type UDPEvent struct {
 	Tags        []string `json:"tags,omitempty"`
 }
 
+// ParseEvent parses a packet that represents a UDPEvent.
 func ParseEvent(packet []byte) (*UDPEvent, error) {
 	ret := &UDPEvent{
 		Timestamp:  time.Now().Unix(),
@@ -297,6 +297,7 @@ func ParseEvent(packet []byte) (*UDPEvent, error) {
 	return ret, nil
 }
 
+// UDPServiceCheck is a representation of the service check.
 type UDPServiceCheck struct {
 	Name      string   `json:"check"`
 	Status    int      `json:"status"`
@@ -306,6 +307,7 @@ type UDPServiceCheck struct {
 	Message   string   `json:"message,omitempty"`
 }
 
+// ParseServiceCheck parses a packet that represents a UDPServiceCheck.
 func ParseServiceCheck(packet []byte) (*UDPServiceCheck, error) {
 	ret := &UDPServiceCheck{
 		Timestamp: time.Now().Unix(),
