@@ -49,18 +49,17 @@ func assertMetrics(t *testing.T, metrics DDMetricsRequest, expectedMetrics map[s
 func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, value float64) {
 	defer func() {
 		if r := recover(); r != nil {
-			assert.FailNow(t, "error extracting metrics", r)
+			assert.Fail(t, "error extracting metrics", r)
 		}
 	}()
 	for _, metric := range metrics.Series {
 		if metric.Name == metricName {
-			assert.Equal(t, metric.Value[0][1], value)
+			assert.Equal(t, int(value+.5), int(metric.Value[0][1]+.5), metricName)
 			return
 		}
 	}
-	assert.FailNow(t, "did not find expected metric", metricName)
+	assert.Fail(t, "did not find expected metric", metricName)
 }
-
 
 // setupLocalServer creates a local server from the specified config
 // and starts listening for requests. It returns the server for inspection.
@@ -99,7 +98,6 @@ func setupLocalServer(t *testing.T, config Config) Server {
 	return server
 }
 
-
 // DDMetricsRequest represents the body of the POST request
 // for sending metrics data to Datadog
 type DDMetricsRequest struct {
@@ -118,16 +116,18 @@ func TestLocalServer(t *testing.T) {
 			t.Fatal(err)
 		}
 		expectedMetrics := map[string]float64{
-			"a.b.c":              10,
-			"a.b.c.max":          1,
-			"a.b.c.min":          1,
-			"a.b.c.count":        10,
-			"a.b.c.50percentile": 1,
-			"a.b.c.75percentile": 1,
-			"a.b.c.99percentile": 1,
+			"a.b.c.max": 100,
+			"a.b.c.min": 1,
+
+			// There are five items, but we multiply by 10 when sampling
+			"a.b.c.count": 50,
+
+			// tdigest approximation causes this to be off by 1
+			"a.b.c.50percentile": 6,
+			"a.b.c.75percentile": 42,
+			"a.b.c.99percentile": 98,
 		}
-		assert.Len(t, ddmetrics.Series, 7, "number of elements in the flushed series")
-		assertMetric(t, ddmetrics, "a.b.c.50percentile", 1)
+		assert.Equal(t, 6, len(ddmetrics.Series), "incorrect number of elements in the flushed series")
 		assertMetrics(t, ddmetrics, expectedMetrics)
 		w.WriteHeader(http.StatusAccepted)
 	}))
@@ -140,11 +140,12 @@ func TestLocalServer(t *testing.T) {
 		{
 			MetricKey: MetricKey{
 				Name: "a.b.c",
-				Type: "counter",
+				Type: "histogram",
 			},
 			Value:      1.0,
 			Digest:     12345,
 			SampleRate: 1.0,
+			LocalOnly:  true,
 		},
 		{
 
@@ -152,11 +153,45 @@ func TestLocalServer(t *testing.T) {
 				Name: "a.b.c",
 				Type: "histogram",
 			},
-			Value:      1.0,
+			Value:      2.0,
 			Digest:     12345,
 			SampleRate: 1.0,
 			LocalOnly:  true,
-		}}
+		},
+		{
+
+			MetricKey: MetricKey{
+				Name: "a.b.c",
+				Type: "histogram",
+			},
+			Value:      7.0,
+			Digest:     12345,
+			SampleRate: 1.0,
+			LocalOnly:  true,
+		},
+		{
+
+			MetricKey: MetricKey{
+				Name: "a.b.c",
+				Type: "histogram",
+			},
+			Value:      8.0,
+			Digest:     12345,
+			SampleRate: 1.0,
+			LocalOnly:  true,
+		},
+		{
+
+			MetricKey: MetricKey{
+				Name: "a.b.c",
+				Type: "histogram",
+			},
+			Value:      100.0,
+			Digest:     12345,
+			SampleRate: 1.0,
+			LocalOnly:  true,
+		},
+	}
 
 	for _, metric := range metrics {
 		server.Workers[0].ProcessMetric(&metric)
