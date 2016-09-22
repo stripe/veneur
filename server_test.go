@@ -138,6 +138,7 @@ func TestLocalServer(t *testing.T) {
 	config.APIHostname = globalServer.URL
 
 	server := setupLocalServer(t, config)
+	defer server.Shutdown()
 
 	metricValues := []float64{1.0, 2.0, 7.0, 8.0, 100.0}
 

@@ -228,7 +228,14 @@ func (s *Server) HTTPServe() {
 	if err := graceful.Serve(httpSocket, s.Handler()); err != nil {
 		s.logger.WithError(err).Error("HTTP server shut down due to error")
 	}
-	graceful.Wait()
+
+	graceful.Shutdown()
+}
+
+// Shutdown signals the server to shut down after closing all
+// current connections.
+func (s *Server) Shutdown() {
+	graceful.Shutdown()
 }
 
 // SplitBytes iterates over a byte buffer, returning chunks split by a given
