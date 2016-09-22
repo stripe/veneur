@@ -235,6 +235,7 @@ func (s *Server) HTTPServe() {
 // Shutdown signals the server to shut down after closing all
 // current connections.
 func (s *Server) Shutdown() {
+	// TODO(aditya) shut down workers and socket readers
 	s.logger.Info("Shutting down server gracefully")
 	graceful.Shutdown()
 }
