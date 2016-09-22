@@ -37,6 +37,28 @@ func localConfig() Config {
 	}
 }
 
+func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, value float64) {
+	defer func() {
+		if r := recover(); r != nil {
+			assert.FailNow(t, "error extracting metrics", r)
+		}
+	}()
+	for _, metric := range metrics.Series {
+		if metric.Name == metricName {
+			assert.Equal(t, metric.Value[0][1], value)
+			return
+		}
+	}
+	assert.FailNow(t, "did not find expected metric", metricName)
+}
+
+func assertMetrics(t *testing.T, metrics DDMetricsRequest, expectedMetrics map[string]float64) {
+	// it doesn't count as accidentally quadratic if it's intentional
+	for metricName, expectedValue := range expectedMetrics {
+		assertMetric(t, metrics, metricName, expectedValue)
+	}
+}
+
 func setupLocalServer(t *testing.T, config Config) Server {
 
 	server, err := NewFromConfig(config)
@@ -73,19 +95,33 @@ func setupLocalServer(t *testing.T, config Config) Server {
 	return server
 }
 
-func TestLocalServer(t *testing.T) {
+type DDMetricsRequest struct {
+	Series []DDMetric
+}
 
-	var result map[string]interface{}
+func TestLocalServer(t *testing.T) {
+	var ddmetrics DDMetricsRequest
 	globalServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		zr, err := zlib.NewReader(r.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = json.NewDecoder(zr).Decode(&result)
+		err = json.NewDecoder(zr).Decode(&ddmetrics)
 		if err != nil {
 			t.Fatal(err)
 		}
-		assert.Len(t, result["series"], 7, "number of elements in the flushed series")
+		expectedMetrics := map[string]float64{
+			"a.b.c":              10,
+			"a.b.c.max":          1,
+			"a.b.c.min":          1,
+			"a.b.c.count":        10,
+			"a.b.c.50percentile": 1,
+			"a.b.c.75percentile": 1,
+			"a.b.c.99percentile": 1,
+		}
+		assert.Len(t, ddmetrics.Series, 7, "number of elements in the flushed series")
+		assertMetric(t, ddmetrics, "a.b.c.50percentile", 1)
+		assertMetrics(t, ddmetrics, expectedMetrics)
 		w.WriteHeader(http.StatusAccepted)
 	}))
 	config := localConfig()
