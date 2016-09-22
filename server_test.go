@@ -37,6 +37,15 @@ func localConfig() Config {
 	}
 }
 
+// assertMetrics checks that all expected metrics are present
+// and have the correct value
+func assertMetrics(t *testing.T, metrics DDMetricsRequest, expectedMetrics map[string]float64) {
+	// it doesn't count as accidentally quadratic if it's intentional
+	for metricName, expectedValue := range expectedMetrics {
+		assertMetric(t, metrics, metricName, expectedValue)
+	}
+}
+
 func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, value float64) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -52,15 +61,10 @@ func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, val
 	assert.FailNow(t, "did not find expected metric", metricName)
 }
 
-func assertMetrics(t *testing.T, metrics DDMetricsRequest, expectedMetrics map[string]float64) {
-	// it doesn't count as accidentally quadratic if it's intentional
-	for metricName, expectedValue := range expectedMetrics {
-		assertMetric(t, metrics, metricName, expectedValue)
-	}
-}
 
+// setupLocalServer creates a local server from the specified config
+// and starts listening for requests. It returns the server for inspection.
 func setupLocalServer(t *testing.T, config Config) Server {
-
 	server, err := NewFromConfig(config)
 	if err != nil {
 		t.Fatal(err)
@@ -95,6 +99,9 @@ func setupLocalServer(t *testing.T, config Config) Server {
 	return server
 }
 
+
+// DDMetricsRequest represents the body of the POST request
+// for sending metrics data to Datadog
 type DDMetricsRequest struct {
 	Series []DDMetric
 }
