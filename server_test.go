@@ -36,6 +36,9 @@ func localConfig() Config {
 		// on platforms which do not support SO_REUSEPORT
 		NumReaders: 1,
 
+		// Currently this points nowhere, which is intentional.
+		// We don't need internal metrics for the tests, and they make testing
+		// more complicated.
 		StatsAddr:  "localhost:8125",
 		Tags:       []string{},
 		SentryDSN:  "",
