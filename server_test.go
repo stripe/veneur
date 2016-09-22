@@ -136,65 +136,19 @@ func TestLocalServer(t *testing.T) {
 
 	server := setupLocalServer(t, config)
 
-	metrics := []UDPMetric{
-		{
+	metricValues := []float64{1.0, 2.0, 7.0, 8.0, 100.0}
+
+	for _, value := range metricValues {
+		server.Workers[0].ProcessMetric(&UDPMetric{
 			MetricKey: MetricKey{
 				Name: "a.b.c",
 				Type: "histogram",
 			},
-			Value:      1.0,
+			Value:      value,
 			Digest:     12345,
 			SampleRate: 1.0,
 			LocalOnly:  true,
-		},
-		{
-
-			MetricKey: MetricKey{
-				Name: "a.b.c",
-				Type: "histogram",
-			},
-			Value:      2.0,
-			Digest:     12345,
-			SampleRate: 1.0,
-			LocalOnly:  true,
-		},
-		{
-
-			MetricKey: MetricKey{
-				Name: "a.b.c",
-				Type: "histogram",
-			},
-			Value:      7.0,
-			Digest:     12345,
-			SampleRate: 1.0,
-			LocalOnly:  true,
-		},
-		{
-
-			MetricKey: MetricKey{
-				Name: "a.b.c",
-				Type: "histogram",
-			},
-			Value:      8.0,
-			Digest:     12345,
-			SampleRate: 1.0,
-			LocalOnly:  true,
-		},
-		{
-
-			MetricKey: MetricKey{
-				Name: "a.b.c",
-				Type: "histogram",
-			},
-			Value:      100.0,
-			Digest:     12345,
-			SampleRate: 1.0,
-			LocalOnly:  true,
-		},
-	}
-
-	for _, metric := range metrics {
-		server.Workers[0].ProcessMetric(&metric)
+		})
 	}
 	server.Flush(config.Interval, config.FlushLimit)
 }
