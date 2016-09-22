@@ -17,10 +17,12 @@ import (
 // set up a boilerplate local config for later use
 func localConfig() Config {
 	return Config{
-		APIHostname:         "http://localhost",
-		Debug:               false,
-		Hostname:            "localhost",
-		Interval:            100 * time.Millisecond,
+		APIHostname: "http://localhost",
+		Debug:       false,
+		Hostname:    "localhost",
+
+		// Use a shorter interval for tests
+		Interval:            50 * time.Millisecond,
 		Key:                 "",
 		MetricMaxLength:     4096,
 		Percentiles:         []float64{.5, .75, .99},
@@ -29,11 +31,15 @@ func localConfig() Config {
 		HTTPAddr:            "localhost:8127",
 		ForwardAddr:         "http://localhost",
 		NumWorkers:          96,
-		NumReaders:          4,
-		StatsAddr:           "localhost:8125",
-		Tags:                []string{},
-		SentryDSN:           "",
-		FlushLimit:          1024,
+
+		// Use only one reader, so that we can run tests
+		// on platforms which do not support SO_REUSEPORT
+		NumReaders: 1,
+
+		StatsAddr:  "localhost:8125",
+		Tags:       []string{},
+		SentryDSN:  "",
+		FlushLimit: 1024,
 	}
 }
 
@@ -78,21 +84,13 @@ func setupLocalServer(t *testing.T, config Config) Server {
 	for i := 0; i < config.NumReaders; i++ {
 		go func() {
 			defer func() {
-				server.ConsumePanic(recover())
+				if r := recover(); r != nil {
+					assert.Fail(t, "reader panicked while reading from socket", err)
+				}
 			}()
 			server.ReadSocket(packetPool, config.NumReaders != 1)
 		}()
 	}
-
-	go func() {
-		defer func() {
-			t.Fatal(recover())
-		}()
-		ticker := time.NewTicker(config.Interval)
-		for range ticker.C {
-			server.Flush(config.Interval, config.FlushLimit)
-		}
-	}()
 
 	go server.HTTPServe()
 	return server
@@ -106,6 +104,7 @@ type DDMetricsRequest struct {
 
 func TestLocalServer(t *testing.T) {
 	var ddmetrics DDMetricsRequest
+
 	globalServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		zr, err := zlib.NewReader(r.Body)
 		if err != nil {
@@ -119,8 +118,9 @@ func TestLocalServer(t *testing.T) {
 			"a.b.c.max": 100,
 			"a.b.c.min": 1,
 
-			// There are five items, but we multiply by 10 when sampling
-			"a.b.c.count": 50,
+			// Count is normalized by second
+			// so 5 values/50ms = 100 values/s
+			"a.b.c.count": 100,
 
 			// tdigest approximation causes this to be off by 1
 			"a.b.c.50percentile": 6,
@@ -196,7 +196,6 @@ func TestLocalServer(t *testing.T) {
 	for _, metric := range metrics {
 		server.Workers[0].ProcessMetric(&metric)
 	}
-
 	server.Flush(config.Interval, config.FlushLimit)
 }
 
