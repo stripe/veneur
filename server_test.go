@@ -28,8 +28,21 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// On the CI server, we can't be guaranteed that the port will be
+// released immediately after the server is shut down. Instead, use
+// a unique port for each test. As long as we don't have an insane number
+// of integration tests, we should be fine.
+var HttpAddrPort = 8127
+
+var localHandler http.Handler
+
+
+
 // set up a boilerplate local config for later use
 func localConfig() Config {
+  port := HttpAddrPort
+  HttpAddrPort++
+
 	return Config{
 		APIHostname: "http://localhost",
 		Debug:       DebugMode,
@@ -42,7 +55,7 @@ func localConfig() Config {
 		Percentiles:         []float64{.5, .75, .99},
 		ReadBufferSizeBytes: 2097152,
 		UDPAddr:             "localhost:8126",
-		HTTPAddr:            "localhost:8127",
+		HTTPAddr:            fmt.Sprintf("localhost:%d", port),
 		ForwardAddr:         "http://localhost",
 		NumWorkers:          96,
 
