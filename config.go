@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 	"time"
@@ -30,24 +31,36 @@ type Config struct {
 }
 
 // ReadConfig unmarshals the config file and slurps in it's data.
-func ReadConfig(path string) (ret Config, err error) {
-	data, err := ioutil.ReadFile(path)
+func ReadConfig(path string) (c Config, err error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return c, err
+	}
+	defer f.Close()
+	return readConfig(f)
+}
+
+func readConfig(r io.Reader) (c Config, err error) {
+	// Unfortunately the YAML package does not
+	// support reader inputs
+  // TODO(aditya) convert this when the
+  // upstream PR lands
+	bts, err := ioutil.ReadAll(r)
+	if err != nil {
+		return
+	}
+	err = yaml.Unmarshal(bts, &c)
 	if err != nil {
 		return
 	}
 
-	err = yaml.Unmarshal(data, &ret)
-	if err != nil {
-		return
+	if c.Hostname == "" {
+		c.Hostname, _ = os.Hostname()
 	}
 
-	if ret.Hostname == "" {
-		ret.Hostname, _ = os.Hostname()
+	if c.ReadBufferSizeBytes == 0 {
+		c.ReadBufferSizeBytes = 1048576 * 2 // 2 MB
 	}
 
-	if ret.ReadBufferSizeBytes == 0 {
-		ret.ReadBufferSizeBytes = 1048576 * 2 // 2 MB
-	}
-
-	return
+	return c, nil
 }
