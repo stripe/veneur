@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/json"
+	"flag"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -14,11 +16,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var DebugMode bool
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	DebugMode = flag.Lookup("test.v").Value.(flag.Getter).Get().(bool)
+	os.Exit(m.Run())
+}
+
 // set up a boilerplate local config for later use
 func localConfig() Config {
 	return Config{
 		APIHostname: "http://localhost",
-		Debug:       false,
+		Debug:       DebugMode,
 		Hostname:    "localhost",
 
 		// Use a shorter interval for tests
