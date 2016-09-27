@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -294,6 +297,12 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 	// (e.g. Datadog)
 	globalVeneur := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, r.URL.Path, "/import", "Global veneur should receive request on /import path")
+
+		f, err := os.Create(filepath.Join("fixtures", "import.deflate"))
+		assert.NoError(t, err)
+		defer r.Body.Close()
+		r.Body = ioutil.NopCloser(io.TeeReader(r.Body, f))
+
 		zr, err := zlib.NewReader(r.Body)
 		if err != nil {
 			t.Fatal(err)
@@ -308,6 +317,11 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 		}
 
 		var metrics []requestItem
+
+		f, err = os.Create(filepath.Join("fixtures", "import.uncompressed"))
+		assert.NoError(t, err)
+		defer r.Body.Close()
+		zr = ioutil.NopCloser(io.TeeReader(zr, f))
 
 		err = json.NewDecoder(zr).Decode(&metrics)
 		if err != nil {
@@ -372,6 +386,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 	}
 
 	server.Flush(config.Interval, config.FlushLimit)
+	<-time.After(1 * time.Second)
 }
 
 func TestSplitBytes(t *testing.T) {
