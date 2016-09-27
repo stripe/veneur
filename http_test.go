@@ -85,3 +85,8 @@ func TestIteratingByWorker(t *testing.T) {
 		},
 	}, testChunks, "should have sorted the metrics by hashes")
 }
+
+func TestServerImport(t *testing.T) {
+	// Test that the global veneur instance can handle
+	// requests that provide uncompressed metrics
+}
