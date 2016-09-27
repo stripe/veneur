@@ -89,7 +89,7 @@ func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, val
 	}()
 	for _, metric := range metrics.Series {
 		if metric.Name == metricName {
-			assert.Equal(t, int(value+.5), int(metric.Value[0][1]+.5), fmt.Sprintf("Incorrect value for metric %s", metricName))
+			assert.Equal(t, int(value+.5), int(metric.Value[0][1]+.5), "Incorrect value for metric %s", metricName)
 			return
 		}
 	}
@@ -156,13 +156,15 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 		}
 	}()
 
+	metricValues := []float64{1.0, 2.0, 7.0, 8.0, 100.0}
+
 	expectedMetrics := map[string]float64{
 		"a.b.c.max": 100,
 		"a.b.c.min": 1,
 
 		// Count is normalized by second
 		// so 5 values/50ms = 100 values/s
-		"a.b.c.count": 100,
+		"a.b.c.count": float64(len(metricValues)) * float64(time.Second) / float64(DefaultFlushInterval),
 
 		// tdigest approximation causes this to be off by 1
 		"a.b.c.50percentile": 6,
@@ -192,8 +194,6 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 
 	server := setupLocalServer(t, config)
 	defer server.Shutdown()
-
-	metricValues := []float64{1.0, 2.0, 7.0, 8.0, 100.0}
 
 	for _, value := range metricValues {
 		server.Workers[0].ProcessMetric(&UDPMetric{
@@ -248,18 +248,18 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 	var HistogramValues = []float64{1.0, 2.0, 7.0, 8.0, 100.0}
 
 	// Number of events observed (in 50ms interval)
-	const HistogramCountRaw = 5
+	var HistogramCountRaw = len(HistogramValues)
 
 	// Normalize to events/second
 	// Explicitly convert to int to avoid confusing Stringer behavior
-	const HistogramCountNormalized = int(HistogramCountRaw * time.Second / DefaultFlushInterval)
+	var HistogramCountNormalized = float64(HistogramCountRaw) * float64(time.Second) / float64(DefaultFlushInterval)
 
 	// Number of events observed
 	const CounterNumEvents = 40
 
 	expectedMetrics := map[string]float64{
 		// 40 events/50ms = 800 events/s
-		"x.y.z":     800,
+		"x.y.z":     CounterNumEvents * float64(time.Second) / float64(DefaultFlushInterval),
 		"a.b.c.max": 100,
 		"a.b.c.min": 1,
 
