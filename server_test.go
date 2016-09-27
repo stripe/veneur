@@ -373,7 +373,6 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 	}
 
 	server.Flush(config.Interval, config.FlushLimit)
-	<-time.After(1 * time.Second)
 }
 
 func TestSplitBytes(t *testing.T) {
