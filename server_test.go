@@ -20,6 +20,7 @@ import (
 
 const ε = .00002
 
+const DefaultFlushInterval = 50 * time.Millisecond
 const DefaultServerTimeout = 100 * time.Millisecond
 
 var DebugMode bool
@@ -47,7 +48,7 @@ func localConfig() Config {
 		Hostname:    "localhost",
 
 		// Use a shorter interval for tests
-		Interval:            50 * time.Millisecond,
+		Interval:            DefaultFlushInterval,
 		Key:                 "",
 		MetricMaxLength:     4096,
 		Percentiles:         []float64{.5, .75, .99},
@@ -143,9 +144,16 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	// (Failures after a test has finished executing will actually cause
 	// the test suite to fail, as long as it is still running, but this is
 	// a failsafe).
-	var RemoteResponses int
+
+	RemoteResponseChan := make(chan struct{}, 1)
 	defer func() {
-		assert.Equal(t, 1, RemoteResponses, "Server did not complete all responses before test terminated!")
+		select {
+		case <-RemoteResponseChan:
+			// all is safe
+			return
+		case <-time.After(DefaultServerTimeout):
+			assert.Fail(t, "Global server did not complete all responses before test terminated!")
+		}
 	}()
 
 	expectedMetrics := map[string]float64{
@@ -176,7 +184,7 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 		assert.Equal(t, 6, len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
 		assertMetrics(t, ddmetrics, expectedMetrics)
 		w.WriteHeader(http.StatusAccepted)
-		RemoteResponses++
+		RemoteResponseChan <- struct{}{}
 	}))
 
 	config := localConfig()
@@ -205,9 +213,15 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 func TestLocalServerMixedMetrics(t *testing.T) {
 
 	// Same as in TestLocalServerUnaggregatedMetrics
-	var RemoteResponses int
+	RemoteResponseChan := make(chan struct{}, 1)
 	defer func() {
-		assert.Equal(t, 1, RemoteResponses, "Server did not complete all responses before test terminated!")
+		select {
+		case <-RemoteResponseChan:
+			// all is safe
+			return
+		case <-time.After(DefaultServerTimeout):
+			assert.Fail(t, "Global server did not complete all responses before test terminated!")
+		}
 	}()
 
 	// Unlike flushing to to the remote server, flushing forward
@@ -219,20 +233,30 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 		select {
 		case <-GlobalResponseChan:
 			// all is safe
+			return
 		case <-time.After(DefaultServerTimeout):
 			assert.Fail(t, "Global server did not complete all responses before test terminated!")
 		}
 	}()
 
-	// We can't be guaranteed that we will receive this exact stream
-	// but we should expect that they represent the same underlying tdigest
+	// The exact gob stream that we will receive might differ, so we can't
+	// test against the bytestream directly. But the two streams should unmarshal
+	// to t-digests that have the same key properties, so we can test
+	// those.
 	const ExpectedGobStream = "\r\xff\x87\x02\x01\x02\xff\x88\x00\x01\xff\x84\x00\x007\xff\x83\x03\x01\x01\bCentroid\x01\xff\x84\x00\x01\x03\x01\x04Mean\x01\b\x00\x01\x06Weight\x01\b\x00\x01\aSamples\x01\xff\x86\x00\x00\x00\x17\xff\x85\x02\x01\x01\t[]float64\x01\xff\x86\x00\x01\b\x00\x00/\xff\x88\x00\x05\x01\xfe\xf0?\x01\xfe\xf0?\x00\x01@\x01\xfe\xf0?\x00\x01\xfe\x1c@\x01\xfe\xf0?\x00\x01\xfe @\x01\xfe\xf0?\x00\x01\xfeY@\x01\xfe\xf0?\x00\x05\b\x00\xfeY@\x05\b\x00\xfe\xf0?\x05\b\x00\xfeY@"
 
 	var HistogramValues = []float64{1.0, 2.0, 7.0, 8.0, 100.0}
-	const ABCCountRaw = 5
-	const ABCCountNormalized = 100
 
-	const XYZCountSize = 40
+	// Number of events observed (in 50ms interval)
+	const HistogramCountRaw = 5
+
+	// Normalize to events/second
+	// Explicitly convert to int to avoid confusing Stringer behavior
+	const HistogramCountNormalized = int(HistogramCountRaw * time.Second / DefaultFlushInterval)
+
+	// Number of events observed
+	const CounterNumEvents = 40
+
 	expectedMetrics := map[string]float64{
 		// 40 events/50ms = 800 events/s
 		"x.y.z":     800,
@@ -241,7 +265,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 
 		// Count is normalized by second
 		// so 5 values/50ms = 100 values/s
-		"a.b.c.count": ABCCountNormalized,
+		"a.b.c.count": float64(HistogramCountNormalized),
 	}
 
 	// Set up a remote server (the API that we're sending the data to)
@@ -261,7 +285,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 		assert.Equal(t, len(expectedMetrics), len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
 		assertMetrics(t, ddmetrics, expectedMetrics)
 
-		RemoteResponses++
+		RemoteResponseChan <- struct{}{}
 		w.WriteHeader(http.StatusAccepted)
 	}))
 
@@ -303,7 +327,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 		assert.Equal(t, expectedMetrics["a.b.c.max"], td.Max(), "Maximum value is incorrect")
 
 		// The remote server receives the raw count, *not* the normalized count
-		assert.InEpsilon(t, ABCCountRaw, td.Count(), ε)
+		assert.InEpsilon(t, HistogramCountRaw, td.Count(), ε)
 		assert.Equal(t, tdExpected, td, "Underlying tdigest structure is incorrect")
 
 		GlobalResponseChan <- struct{}{}
@@ -333,7 +357,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 	}
 
 	// Create local-only metrics that should be passed directly to the remote API
-	for i := 0; i < XYZCountSize; i++ {
+	for i := 0; i < CounterNumEvents; i++ {
 		server.Workers[0].ProcessMetric(&UDPMetric{
 			MetricKey: MetricKey{
 				Name: "x.y.z",
