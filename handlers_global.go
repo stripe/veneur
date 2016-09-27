@@ -2,12 +2,13 @@ package veneur
 
 import (
 	"compress/zlib"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
+
+	"golang.org/x/net/context"
 )
 
 type contextHandler func(c context.Context, w http.ResponseWriter, r *http.Request)
