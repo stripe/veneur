@@ -25,8 +25,6 @@ func (ch contextHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // metrics to the global veneur instance.
 func handleImport(s *Server) http.Handler {
 	return contextHandler(func(c context.Context, w http.ResponseWriter, r *http.Request) {
-		s.logger.Debug("HI GUYS I AM RUNNING IN A TEST")
-
 		innerLogger := s.logger.WithField("client", r.RemoteAddr)
 		start := time.Now()
 

@@ -103,6 +103,7 @@ func testServerImport(t *testing.T, filename string, contentEncoding string) {
 
 	config := localConfig()
 	s := setupLocalServer(t, config)
+	defer s.Shutdown()
 
 	handler := handleImport(&s)
 	handler.ServeHTTP(w, r)
