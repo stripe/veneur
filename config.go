@@ -43,8 +43,8 @@ func ReadConfig(path string) (c Config, err error) {
 func readConfig(r io.Reader) (c Config, err error) {
 	// Unfortunately the YAML package does not
 	// support reader inputs
-  // TODO(aditya) convert this when the
-  // upstream PR lands
+	// TODO(aditya) convert this when the
+	// upstream PR lands
 	bts, err := ioutil.ReadAll(r)
 	if err != nil {
 		return

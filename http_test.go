@@ -1,6 +1,10 @@
 package veneur
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -84,4 +88,37 @@ func TestIteratingByWorker(t *testing.T) {
 			JSONMetric{MetricKey: MetricKey{Name: "foo", Type: "histogram"}},
 		},
 	}, testChunks, "should have sorted the metrics by hashes")
+}
+
+func testServerImport(t *testing.T, filename string, contentEncoding string) {
+
+	f, err := os.Open(filename)
+	assert.NoError(t, err, "Error reading response fixture")
+	defer f.Close()
+
+	r := httptest.NewRequest(http.MethodPost, "/import", f)
+	r.Header.Set("Content-Encoding", contentEncoding)
+
+	w := httptest.NewRecorder()
+
+	config := localConfig()
+	s := setupLocalServer(t, config)
+	defer s.Shutdown()
+
+	handler := handleImport(&s)
+	handler.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusAccepted, w.Code, "Test server returned wrong HTTP response code")
+}
+
+func TestServerImportCompressed(t *testing.T) {
+	// Test that the global veneur instance can handle
+	// requests that provide compressed metrics
+	testServerImport(t, filepath.Join("fixtures", "import.deflate"), "deflate")
+}
+
+func TestServerImportUncompressed(t *testing.T) {
+	// Test that the global veneur instance can handle
+	// requests that provide uncompressed metrics
+	testServerImport(t, filepath.Join("fixtures", "import.uncompressed"), "")
 }

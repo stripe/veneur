@@ -293,6 +293,8 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 	// the local veneur instances, aggregates the data, and sends it to the remote API
 	// (e.g. Datadog)
 	globalVeneur := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, r.URL.Path, "/import", "Global veneur should receive request on /import path")
+
 		zr, err := zlib.NewReader(r.Body)
 		if err != nil {
 			t.Fatal(err)
