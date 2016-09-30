@@ -1,6 +1,9 @@
 package veneur
 
 import (
+	"bytes"
+	"compress/gzip"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -121,4 +124,83 @@ func TestServerImportUncompressed(t *testing.T) {
 	// Test that the global veneur instance can handle
 	// requests that provide uncompressed metrics
 	testServerImport(t, filepath.Join("fixtures", "import.uncompressed"), "")
+}
+
+func TestServerImportGzip(t *testing.T) {
+	// Test that the global veneur instance
+	// returns a 400 for gzipped-input
+
+	f, err := os.Open(filepath.Join("fixtures", "import.uncompressed"))
+	assert.NoError(t, err, "Error reading response fixture")
+	defer f.Close()
+
+	var data bytes.Buffer
+	gz := gzip.NewWriter(&data)
+	_, err = io.Copy(gz, f)
+	assert.NoError(t, err)
+	gz.Close()
+
+	r := httptest.NewRequest(http.MethodPost, "/import", &data)
+	r.Header.Set("Content-Encoding", "gzip")
+
+	w := httptest.NewRecorder()
+
+	config := localConfig()
+	s := setupLocalServer(t, config)
+	defer s.Shutdown()
+
+	handler := handleImport(&s)
+	handler.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusUnsupportedMediaType, w.Code, "Test server returned wrong HTTP response code")
+}
+
+func TestServerImportCompressedInvalid(t *testing.T) {
+	// Test that the global veneur instance
+	// properly responds to invalid zlib-deflated data
+
+	//TODO(aditya) test that the metrics are properly reported
+
+	f, err := os.Open(filepath.Join("fixtures", "import.uncompressed"))
+	assert.NoError(t, err, "Error reading response fixture")
+	defer f.Close()
+
+	r := httptest.NewRequest(http.MethodPost, "/import", f)
+	r.Header.Set("Content-Encoding", "deflate")
+
+	w := httptest.NewRecorder()
+
+	config := localConfig()
+	s := setupLocalServer(t, config)
+	defer s.Shutdown()
+
+	handler := handleImport(&s)
+	handler.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code, "Test server returned wrong HTTP response code")
+}
+
+func TestServerImportUncompressedInvalid(t *testing.T) {
+	// Test that the global veneur instance
+	// properly responds to invalid zlib-deflated data
+
+	//TODO(aditya) test that the metrics are properly reported
+
+	f, err := os.Open(filepath.Join("fixtures", "import.deflate"))
+	assert.NoError(t, err, "Error reading response fixture")
+	defer f.Close()
+
+	r := httptest.NewRequest(http.MethodPost, "/import", f)
+	r.Header.Set("Content-Encoding", "")
+
+	w := httptest.NewRecorder()
+
+	config := localConfig()
+	s := setupLocalServer(t, config)
+	defer s.Shutdown()
+
+	handler := handleImport(&s)
+	handler.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code, "Test server returned wrong HTTP response code")
 }
