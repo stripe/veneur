@@ -240,7 +240,7 @@ func (s *Server) Shutdown() {
 	graceful.Shutdown()
 }
 
-// IsGlobal indicates whether veneur is running as a local instance
+// IsLocal indicates whether veneur is running as a local instance
 // (forwarding non-local data to a global veneur instance) or is running as a global
 // instance (sending all data directly to the final destination).
 func (s *Server) IsLocal() bool {
