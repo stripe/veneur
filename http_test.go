@@ -3,6 +3,7 @@ package veneur
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -197,6 +198,67 @@ func TestServerImportUncompressedInvalid(t *testing.T) {
 
 	config := localConfig()
 	s := setupVeneurServer(t, config)
+	defer s.Shutdown()
+
+	handler := handleImport(&s)
+	handler.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code, "Test server returned wrong HTTP response code")
+}
+
+// TestServerImportEmptyError tests that the global
+// veneur instance returns an error
+// if it receives what amounts to an empty struct,
+// because that's usually the sign of an error
+func TestServerImportEmptyError(t *testing.T) {
+
+	// explicitly use the wrong type here
+	data := []struct {
+		Bad string
+	}{
+		{"Foo"},
+		{"Bar"},
+	}
+	testServerImportHelper(t, data)
+}
+
+// TestServerImportEmptyError tests that
+// the global veneur instance returns an error
+// if it receives what amounts to a slice of empty structs
+// because that's usually the sign of an error
+func TestServerImportEmptyStructError(t *testing.T) {
+
+	// explicitly use the wrong type here
+	data := []struct {
+		Bad string
+	}{
+		{"Foo"},
+		{"Bar"},
+	}
+	testServerImportHelper(t, data)
+}
+
+// TestServerImportEmptyError tests that
+// the global veneur instance returns an error
+// if it receives an empty list, because the client
+// should never be sending an empty list.
+func TestServerImportEmptyListError(t *testing.T) {
+	data := []JSONMetric{}
+	testServerImportHelper(t, data)
+}
+
+func testServerImportHelper(t *testing.T, data interface{}) {
+	var b bytes.Buffer
+	err := json.NewEncoder(&b).Encode(data)
+	assert.NoError(t, err)
+
+	r := httptest.NewRequest(http.MethodPost, "/import", &b)
+	r.Header.Set("Content-Encoding", "")
+
+	w := httptest.NewRecorder()
+
+	config := localConfig()
+	s := setupLocalServer(t, config)
 	defer s.Shutdown()
 
 	handler := handleImport(&s)

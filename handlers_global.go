@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"time"
 
 	"golang.org/x/net/context"
@@ -58,6 +59,29 @@ func handleImport(s *Server) http.Handler {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			innerLogger.WithError(err).Error("Could not decode /import request")
 			s.statsd.Count("import.request_error_total", 1, []string{"cause:json"}, 1.0)
+			return
+		}
+
+		if len(jsonMetrics) == 0 {
+			const msg = "Received empty /import request"
+			http.Error(w, msg, http.StatusBadRequest)
+			innerLogger.WithError(err).Error(msg)
+			return
+		}
+
+		var nonEmpty bool
+		sentinel := JSONMetric{}
+		for _, metric := range jsonMetrics {
+			if !reflect.DeepEqual(sentinel, metric) {
+				nonEmpty = true
+				break
+			}
+		}
+
+		if !nonEmpty {
+			const msg = "Received empty or improperly-formed metrics"
+			http.Error(w, msg, http.StatusBadRequest)
+			innerLogger.Error(msg)
 			return
 		}
 
