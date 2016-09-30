@@ -19,6 +19,9 @@ import (
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) Flush(interval time.Duration, metricLimit int) {
+	// right now we have only one destination plugin
+	// but eventually, this is where we would loop over our supported
+	// destinations
 	if s.IsLocal() {
 		s.FlushLocal(interval, metricLimit)
 	} else {
