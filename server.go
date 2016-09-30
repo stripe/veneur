@@ -240,6 +240,13 @@ func (s *Server) Shutdown() {
 	graceful.Shutdown()
 }
 
+// IsLocal indicates whether veneur is running as a local instance
+// (forwarding non-local data to a global veneur instance) or is running as a global
+// instance (sending all data directly to the final destination).
+func (s *Server) IsLocal() bool {
+	return s.ForwardAddr != ""
+}
+
 // SplitBytes iterates over a byte buffer, returning chunks split by a given
 // delimiter byte. It does not perform any allocations, and does not modify the
 // buffer it is given. It is not safe for use by concurrent goroutines.

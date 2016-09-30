@@ -19,14 +19,20 @@ import (
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) Flush(interval time.Duration, metricLimit int) {
+	// right now we have only one destination plugin
+	// but eventually, this is where we would loop over our supported
+	// destinations
+	if s.IsLocal() {
+		s.FlushLocal(interval, metricLimit)
+	} else {
+		s.FlushGlobal(interval, metricLimit)
+	}
+}
+
+func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
 	go s.flushEventsChecks() // we can do all of this separately
 
 	percentiles := s.HistogramPercentiles
-	if s.ForwardAddr != "" {
-		// don't publish percentiles if we're a local veneur; that's the global
-		// veneur's job
-		percentiles = nil
-	}
 
 	// allocating this long array to count up the sizes is cheaper than appending
 	// the []DDMetrics together one at a time
@@ -64,9 +70,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 		// local-only histograms will be flushed with percentiles, so we intentionally
 		// use the original percentile list here
 		totalLocalSets + (totalLocalTimers+totalLocalHistograms)*(HistogramLocalLength+len(s.HistogramPercentiles))
-	if s.ForwardAddr == "" {
-		totalLength += totalSets
-	}
+	totalLength += totalSets
 
 	combineStart := time.Now()
 	finalMetrics := make([]DDMetric, 0, totalLength)
@@ -100,12 +104,10 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 			finalMetrics = append(finalMetrics, t.Flush(interval, s.HistogramPercentiles)...)
 		}
 
-		if s.ForwardAddr == "" {
-			// sets have no local parts, so if we're a local veneur, there's
-			// nothing to flush at all
-			for _, s := range wm.sets {
-				finalMetrics = append(finalMetrics, s.Flush()...)
-			}
+		// sets have no local parts, so if we're a local veneur, there's
+		// nothing to flush at all
+		for _, s := range wm.sets {
+			finalMetrics = append(finalMetrics, s.Flush()...)
 		}
 	}
 
@@ -118,22 +120,145 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	s.statsd.Count("worker.metrics_flushed_total", int64(totalLocalHistograms), []string{"metric_type:local_histogram"}, 1.0)
 	s.statsd.Count("worker.metrics_flushed_total", int64(totalLocalSets), []string{"metric_type:local_set"}, 1.0)
 	s.statsd.Count("worker.metrics_flushed_total", int64(totalLocalTimers), []string{"metric_type:local_timer"}, 1.0)
-	if s.ForwardAddr == "" {
-		// only report these lengths if we're the global veneur instance
-		// responsible for flushing them
-		// this avoids double-counting problems where a local veneur reports
-		// histograms that it received, and then a global veneur reports them
-		// again
-		s.statsd.Count("worker.metrics_flushed_total", int64(totalHistograms), []string{"metric_type:histogram"}, 1.0)
-		s.statsd.Count("worker.metrics_flushed_total", int64(totalSets), []string{"metric_type:set"}, 1.0)
-		s.statsd.Count("worker.metrics_flushed_total", int64(totalTimers), []string{"metric_type:timer"}, 1.0)
+
+	// we only report these lengths in FlushGlobal
+	// since if we're the global veneur instance responsible for flushing them
+	// this avoids double-counting problems where a local veneur reports
+	// histograms that it received, and then a global veneur reports them
+	// again
+	s.statsd.Count("worker.metrics_flushed_total", int64(totalHistograms), []string{"metric_type:histogram"}, 1.0)
+	s.statsd.Count("worker.metrics_flushed_total", int64(totalSets), []string{"metric_type:set"}, 1.0)
+	s.statsd.Count("worker.metrics_flushed_total", int64(totalTimers), []string{"metric_type:timer"}, 1.0)
+
+	s.statsd.Gauge("flush.post_metrics_total", float64(len(finalMetrics)), nil, 1.0)
+	// Check to see if we have anything to do
+	if len(finalMetrics) == 0 {
+		s.logger.Info("Nothing to flush, skipping.")
+		return
 	}
 
-	if s.ForwardAddr != "" {
-		// we cannot do this until we're done using tempMetrics here, since
-		// not everything in tempMetrics is safe for sharing
-		go s.flushForward(tempMetrics)
+	// break the metrics into chunks of approximately equal size, such that
+	// each chunk is less than the limit
+	// we compute the chunks using rounding-up integer division
+	workers := ((len(finalMetrics) - 1) / metricLimit) + 1
+	chunkSize := ((len(finalMetrics) - 1) / workers) + 1
+	s.logger.WithField("workers", workers).Debug("Worker count chosen")
+	s.logger.WithField("chunkSize", chunkSize).Debug("Chunk size chosen")
+	var wg sync.WaitGroup
+	flushStart := time.Now()
+	for i := 0; i < workers; i++ {
+		chunk := finalMetrics[i*chunkSize:]
+		if i < workers-1 {
+			// trim to chunk size unless this is the last one
+			chunk = chunk[:chunkSize]
+		}
+		wg.Add(1)
+		go s.flushPart(chunk, &wg)
 	}
+	wg.Wait()
+	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(flushStart).Nanoseconds()), []string{"part:post"}, 1.0)
+
+	s.logger.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
+}
+
+// Flush takes the slices of metrics, combines then and marshals them to json
+// for posting to Datadog.
+func (s *Server) FlushLocal(interval time.Duration, metricLimit int) {
+	go s.flushEventsChecks() // we can do all of this separately
+
+	// don't publish percentiles if we're a local veneur; that's the global
+	// veneur's job
+	var percentiles []float64 = nil
+
+	// allocating this long array to count up the sizes is cheaper than appending
+	// the []DDMetrics together one at a time
+	tempMetrics := make([]WorkerMetrics, 0, len(s.Workers))
+	var (
+		totalCounters   int
+		totalGauges     int
+		totalHistograms int
+		totalTimers     int
+
+		totalLocalHistograms int
+		totalLocalSets       int
+		totalLocalTimers     int
+	)
+	gatherStart := time.Now()
+	for i, w := range s.Workers {
+		s.logger.WithField("worker", i).Debug("Flushing")
+		wm := w.Flush()
+		tempMetrics = append(tempMetrics, wm)
+
+		totalCounters += len(wm.counters)
+		totalGauges += len(wm.gauges)
+		totalHistograms += len(wm.histograms)
+		totalTimers += len(wm.timers)
+
+		totalLocalHistograms += len(wm.localHistograms)
+		totalLocalSets += len(wm.localSets)
+		totalLocalTimers += len(wm.localTimers)
+	}
+	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(gatherStart).Nanoseconds()), []string{"part:gather"}, 1.0)
+
+	totalLength := totalCounters + totalGauges + (totalTimers+totalHistograms)*(HistogramLocalLength+len(percentiles)) +
+		// local-only histograms will be flushed with percentiles, so we intentionally
+		// use the original percentile list here
+		totalLocalSets + (totalLocalTimers+totalLocalHistograms)*(HistogramLocalLength+len(s.HistogramPercentiles))
+
+	// don't include the count of sets in the local data - these will be counted
+	// by the global veneur instance
+
+	combineStart := time.Now()
+	finalMetrics := make([]DDMetric, 0, totalLength)
+	for _, wm := range tempMetrics {
+		for _, c := range wm.counters {
+			finalMetrics = append(finalMetrics, c.Flush(interval)...)
+		}
+		for _, g := range wm.gauges {
+			finalMetrics = append(finalMetrics, g.Flush()...)
+		}
+		// if we're a local veneur, then percentiles=nil, and only the local
+		// parts (count, min, max) will be flushed
+		for _, h := range wm.histograms {
+			finalMetrics = append(finalMetrics, h.Flush(interval, percentiles)...)
+		}
+		for _, t := range wm.timers {
+			finalMetrics = append(finalMetrics, t.Flush(interval, percentiles)...)
+		}
+
+		// local-only samplers should be flushed in their entirety, since they
+		// will not be forwarded
+		// we still want percentiles for these, even if we're a local veneur, so
+		// we use the original percentile list when flushing them
+		for _, h := range wm.localHistograms {
+			finalMetrics = append(finalMetrics, h.Flush(interval, s.HistogramPercentiles)...)
+		}
+		for _, s := range wm.localSets {
+			finalMetrics = append(finalMetrics, s.Flush()...)
+		}
+		for _, t := range wm.localTimers {
+			finalMetrics = append(finalMetrics, t.Flush(interval, s.HistogramPercentiles)...)
+		}
+
+		// sets have no local parts, so if we're a local veneur, there's
+		// nothing to flush at all
+	}
+
+	finalizeMetrics(s.Hostname, s.Tags, finalMetrics)
+
+	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(combineStart).Nanoseconds()), []string{"part:combine"}, 1.0)
+
+	s.statsd.Count("worker.metrics_flushed_total", int64(totalCounters), []string{"metric_type:counter"}, 1.0)
+	s.statsd.Count("worker.metrics_flushed_total", int64(totalGauges), []string{"metric_type:gauge"}, 1.0)
+	s.statsd.Count("worker.metrics_flushed_total", int64(totalLocalHistograms), []string{"metric_type:local_histogram"}, 1.0)
+	s.statsd.Count("worker.metrics_flushed_total", int64(totalLocalSets), []string{"metric_type:local_set"}, 1.0)
+	s.statsd.Count("worker.metrics_flushed_total", int64(totalLocalTimers), []string{"metric_type:local_timer"}, 1.0)
+
+	// we don't report totalHistograms, totalSets, or totalTimers for local veneur instances
+
+	// we cannot do this until we're done using tempMetrics here, since
+	// not everything in tempMetrics is safe for sharing
+	go s.flushForward(tempMetrics)
 
 	s.statsd.Gauge("flush.post_metrics_total", float64(len(finalMetrics)), nil, 1.0)
 	// Check to see if we have anything to do
@@ -191,6 +316,7 @@ func finalizeMetrics(hostname string, tags []string, finalMetrics []DDMetric) {
 	}
 }
 
+// flushPart flushes a set of metrics to the remote API server
 func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
 	s.postHelper(fmt.Sprintf("%s/api/v1/series?api_key=%s", s.DDHostname, s.DDAPIKey), map[string][]DDMetric{

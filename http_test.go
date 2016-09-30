@@ -105,7 +105,7 @@ func testServerImport(t *testing.T, filename string, contentEncoding string) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupLocalServer(t, config)
+	s := setupVeneurServer(t, config)
 	defer s.Shutdown()
 
 	handler := handleImport(&s)
