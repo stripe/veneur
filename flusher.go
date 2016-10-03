@@ -182,31 +182,6 @@ func (s *Server) generateDDMetrics(interval time.Duration, percentiles []float64
 	return finalMetrics
 }
 
-func finalizeMetrics(hostname string, tags []string, finalMetrics []DDMetric) {
-	for i := range finalMetrics {
-		// Let's look for "magic tags" that override metric fields host and device.
-		for j, tag := range finalMetrics[i].Tags {
-			// This overrides hostname
-			if strings.HasPrefix(tag, "host:") {
-				// delete the tag from the list
-				finalMetrics[i].Tags = append(finalMetrics[i].Tags[:j], finalMetrics[i].Tags[j+1:]...)
-				// Override the hostname with the tag, trimming off the prefix
-				finalMetrics[i].Hostname = tag[5:]
-			} else if strings.HasPrefix(tag, "device:") {
-				// Same as above, but device this time
-				finalMetrics[i].Tags = append(finalMetrics[i].Tags[:j], finalMetrics[i].Tags[j+1:]...)
-				finalMetrics[i].DeviceName = tag[7:]
-			}
-		}
-		if finalMetrics[i].Hostname == "" {
-			// No magic tag, set the hostname
-			finalMetrics[i].Hostname = hostname
-		}
-
-		finalMetrics[i].Tags = append(finalMetrics[i].Tags, tags...)
-	}
-}
-
 // reportMetricsFlushCounts reports the counts of
 // Counters, Gauges, LocalHistograms, LocalSets, and LocalTimers
 // to Datadog. These are shared by both global and local flush operations.
@@ -270,6 +245,32 @@ func (s *Server) flushRemote(finalMetrics []DDMetric, metricLimit int) {
 
 	s.logger.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
 }
+
+func finalizeMetrics(hostname string, tags []string, finalMetrics []DDMetric) {
+	for i := range finalMetrics {
+		// Let's look for "magic tags" that override metric fields host and device.
+		for j, tag := range finalMetrics[i].Tags {
+			// This overrides hostname
+			if strings.HasPrefix(tag, "host:") {
+				// delete the tag from the list
+				finalMetrics[i].Tags = append(finalMetrics[i].Tags[:j], finalMetrics[i].Tags[j+1:]...)
+				// Override the hostname with the tag, trimming off the prefix
+				finalMetrics[i].Hostname = tag[5:]
+			} else if strings.HasPrefix(tag, "device:") {
+				// Same as above, but device this time
+				finalMetrics[i].Tags = append(finalMetrics[i].Tags[:j], finalMetrics[i].Tags[j+1:]...)
+				finalMetrics[i].DeviceName = tag[7:]
+			}
+		}
+		if finalMetrics[i].Hostname == "" {
+			// No magic tag, set the hostname
+			finalMetrics[i].Hostname = hostname
+		}
+
+		finalMetrics[i].Tags = append(finalMetrics[i].Tags, tags...)
+	}
+}
+
 
 // flushPart flushes a set of metrics to the remote API server
 func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
