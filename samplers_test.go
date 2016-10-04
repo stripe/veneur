@@ -125,7 +125,7 @@ func TestSetMerge(t *testing.T) {
 	count1 := int(s.hll.Count())
 	count2 := int(s2.hll.Count())
 	countDifference := count1 - count2
-	assert.True(t, -1 < countDifference && countDifference < 1, "counts did not match after merging (%d and %d)", count1, count2)
+	assert.True(t, -1 <= countDifference && countDifference <= 1, "counts did not match after merging (%d and %d)", count1, count2)
 }
 
 func TestHisto(t *testing.T) {
