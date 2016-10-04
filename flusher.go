@@ -184,7 +184,7 @@ func (s *Server) generateDDMetrics(interval time.Duration, percentiles []float64
 
 // reportMetricsFlushCounts reports the counts of
 // Counters, Gauges, LocalHistograms, LocalSets, and LocalTimers
-// to Datadog. These are shared by both global and local flush operations.
+// as metrics. These are shared by both global and local flush operations.
 // It does *not* report the totalHistograms, totalSets, or totalTimers
 // because those are only performed by the global veneur instance.
 // It also does not report the total metrics posted, because on the local veneur,
@@ -270,7 +270,6 @@ func finalizeMetrics(hostname string, tags []string, finalMetrics []DDMetric) {
 		finalMetrics[i].Tags = append(finalMetrics[i].Tags, tags...)
 	}
 }
-
 
 // flushPart flushes a set of metrics to the remote API server
 func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
