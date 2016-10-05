@@ -105,7 +105,7 @@ func testServerImport(t *testing.T, filename string, contentEncoding string) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupLocalServer(t, config)
+	s := setupVeneurServer(t, config)
 	defer s.Shutdown()
 
 	handler := handleImport(&s)
@@ -146,7 +146,7 @@ func TestServerImportGzip(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupLocalServer(t, config)
+	s := setupVeneurServer(t, config)
 	defer s.Shutdown()
 
 	handler := handleImport(&s)
@@ -171,7 +171,7 @@ func TestServerImportCompressedInvalid(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupLocalServer(t, config)
+	s := setupVeneurServer(t, config)
 	defer s.Shutdown()
 
 	handler := handleImport(&s)
@@ -196,7 +196,7 @@ func TestServerImportUncompressedInvalid(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupLocalServer(t, config)
+	s := setupVeneurServer(t, config)
 	defer s.Shutdown()
 
 	handler := handleImport(&s)
