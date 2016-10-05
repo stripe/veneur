@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"sync"
 	"testing"
@@ -39,6 +40,17 @@ var HttpAddrPort = 8127
 
 // set up a boilerplate local config for later use
 func localConfig() Config {
+	return generateConfig("http://localhost")
+}
+
+// set up a boilerplate global config for later use
+func globalConfig() Config {
+	return generateConfig("")
+}
+
+// generateConfig is not called config to avoid
+// accidental variable shadowing
+func generateConfig(forwardAddr string) Config {
 	port := HttpAddrPort
 	HttpAddrPort++
 
@@ -55,7 +67,7 @@ func localConfig() Config {
 		ReadBufferSizeBytes: 2097152,
 		UDPAddr:             "localhost:8126",
 		HTTPAddr:            fmt.Sprintf("localhost:%d", port),
-		ForwardAddr:         "http://localhost",
+		ForwardAddr:         forwardAddr,
 		NumWorkers:          96,
 
 		// Use only one reader, so that we can run tests
@@ -96,9 +108,9 @@ func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, val
 	assert.Fail(t, "did not find expected metric", metricName)
 }
 
-// setupLocalServer creates a local server from the specified config
+// setupVeneurServer creates a local server from the specified config
 // and starts listening for requests. It returns the server for inspection.
-func setupLocalServer(t *testing.T, config Config) Server {
+func setupVeneurServer(t *testing.T, config Config) Server {
 	server, err := NewFromConfig(config)
 	if err != nil {
 		t.Fatal(err)
@@ -192,7 +204,7 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	config := localConfig()
 	config.APIHostname = remoteServer.URL
 
-	server := setupLocalServer(t, config)
+	server := setupVeneurServer(t, config)
 	defer server.Shutdown()
 
 	for _, value := range metricValues {
@@ -207,6 +219,88 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 			LocalOnly:  true,
 		})
 	}
+	server.Flush(config.Interval, config.FlushLimit)
+}
+
+func TestGlobalServerFlush(t *testing.T) {
+
+	// Same as in TestLocalServerUnaggregatedMetrics
+	RemoteResponseChan := make(chan struct{}, 1)
+	defer func() {
+		select {
+		case <-RemoteResponseChan:
+			// all is safe
+			return
+		case <-time.After(DefaultServerTimeout):
+			assert.Fail(t, "Global server did not complete all responses before test terminated!")
+		}
+	}()
+
+	metricValues := []float64{1.0, 2.0, 7.0, 8.0, 100.0}
+
+	expectedMetrics := map[string]float64{
+		"a.b.c.max": 100,
+		"a.b.c.min": 1,
+
+		// Count is normalized by second
+		// so 5 values/50ms = 100 values/s
+		"a.b.c.count": float64(len(metricValues)) * float64(time.Second) / float64(DefaultFlushInterval),
+
+		// tdigest approximation causes this to be off by 1
+		"a.b.c.50percentile": 6,
+		"a.b.c.75percentile": 42,
+		"a.b.c.99percentile": 98,
+	}
+
+	config := globalConfig()
+
+	// Set up a remote server (the API that we're sending the data to)
+	// (e.g. Datadog)
+	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		// test that we are actually running as the server that we think we are
+		// since it's easy to mess this up when refactoring the test fixtures
+		apiUrl, err := url.Parse(config.APIHostname)
+		assert.NoError(t, err)
+		assert.Equal(t, apiUrl.Host, r.Host)
+
+		zr, err := zlib.NewReader(r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var ddmetrics DDMetricsRequest
+
+		err = json.NewDecoder(zr).Decode(&ddmetrics)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, len(expectedMetrics), len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
+		assertMetrics(t, ddmetrics, expectedMetrics)
+
+		RemoteResponseChan <- struct{}{}
+		w.WriteHeader(http.StatusAccepted)
+	}))
+
+	config.APIHostname = remoteServer.URL
+	config.NumWorkers = 1
+
+	server := setupVeneurServer(t, config)
+	defer server.Shutdown()
+
+	for _, value := range metricValues {
+		server.Workers[0].ProcessMetric(&UDPMetric{
+			MetricKey: MetricKey{
+				Name: "a.b.c",
+				Type: "histogram",
+			},
+			Value:      value,
+			Digest:     12345,
+			SampleRate: 1.0,
+			LocalOnly:  true,
+		})
+	}
+
 	server.Flush(config.Interval, config.FlushLimit)
 }
 
@@ -341,7 +435,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 	config.ForwardAddr = globalVeneur.URL
 	config.NumWorkers = 1
 
-	server := setupLocalServer(t, config)
+	server := setupVeneurServer(t, config)
 	defer server.Shutdown()
 
 	// Create non-local metrics that should be passed to the global veneur instance
