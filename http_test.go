@@ -258,7 +258,7 @@ func testServerImportHelper(t *testing.T, data interface{}) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupLocalServer(t, config)
+	s := setupVeneurServer(t, config)
 	defer s.Shutdown()
 
 	handler := handleImport(&s)
