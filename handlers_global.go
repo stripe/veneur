@@ -69,10 +69,15 @@ func handleImport(s *Server) http.Handler {
 			return
 		}
 
+		// We want to make sure we have at least one entry
+		// that is not empty (ie, all fields are the zero value)
+		// because that is usually the sign that we are unmarshalling
+		// into the wrong struct type
 		var nonEmpty bool
 		sentinel := JSONMetric{}
 		for _, metric := range jsonMetrics {
 			if !reflect.DeepEqual(sentinel, metric) {
+				// we have found at least one entry that is properly formed
 				nonEmpty = true
 				break
 			}
