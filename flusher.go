@@ -5,14 +5,10 @@ import (
 	"compress/zlib"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
-	"os"
-	"path"
 	"strings"
 	"sync"
 	"time"
@@ -49,7 +45,7 @@ func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
 
 	s.reportGlobalMetricsFlushCounts(ms)
 
-	s.flushS3(finalMetrics)
+	go s.flushS3(finalMetrics)
 
 	s.flushRemote(finalMetrics, metricLimit)
 }

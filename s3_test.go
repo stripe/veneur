@@ -27,6 +27,17 @@ func (m *mockS3Client) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput,
 // TestS3Post tests that we can correctly post a sequence of
 // DDMetrics to S3
 func TestS3Post(t *testing.T) {
+	RemoteResponseChan := make(chan struct{}, 1)
+	defer func() {
+		select {
+		case <-RemoteResponseChan:
+			// all is safe
+			return
+		case <-time.After(DefaultServerTimeout):
+			assert.Fail(t, "Global server did not complete all responses before test terminated!")
+		}
+	}()
+
 	client := &mockS3Client{}
 	f, err := os.Open(path.Join("fixtures", "aws", "PutObject", "foo", "bar.req"))
 	assert.NoError(t, err)
@@ -38,6 +49,7 @@ func TestS3Post(t *testing.T) {
 		json.NewDecoder(input.Body).Decode(&data)
 		assert.Equal(t, 6, len(data))
 		assert.Equal(t, "a.b.c.max", data[0].Name)
+		RemoteResponseChan <- struct{}{}
 		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
 	}
 
