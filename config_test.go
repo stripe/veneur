@@ -15,7 +15,6 @@ func TestReadConfig(t *testing.T) {
 api_hostname: https://app.datadoghq.com
 metric_max_length: 4096
 flush_max_per_body: 25000
-publish_histogram_counters: true
 debug: true
 interval: "10s"
 key: "farts"
