@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path"
+	"regexp"
+	"strconv"
 	"testing"
 	"time"
 
@@ -60,21 +62,36 @@ func TestS3Post(t *testing.T) {
 }
 
 func TestS3Path(t *testing.T) {
-	const hostname = "testingbox"
+	const hostname = "testingbox-9f23c"
 
 	start := time.Now()
 
 	path := s3Path(hostname)
 
-	tm, err := time.Parse("2006/01/02/testingbox", *path)
+	// We expect paths to follow this format
+	// <year>/<month/<day>/<hostname>/<timestamp>.json
+	// so we should be able to parse the output with this expectation
+	re := regexp.MustCompile(`(\d{4}?)/(\d{2}?)/(\d{2}?)/([\w\-]+?)/(\d+?).json`)
+	results := re.FindStringSubmatch(*path)
+
+	year, err := strconv.Atoi(results[1])
 	assert.NoError(t, err)
-	assert.Equal(t, tm.Year(), time.Now().Year())
-	assert.Equal(t, tm.Month(), time.Now().Month())
+	month, err := strconv.Atoi(results[2])
+	assert.NoError(t, err)
+	day, err := strconv.Atoi(results[3])
+	assert.NoError(t, err)
+
+	sameYear := year == int(time.Now().Year()) ||
+		year == int(start.Year())
+	sameMonth := month == int(time.Now().Month()) ||
+		month == int(start.Month())
+	sameDay := day == int(time.Now().Day()) ||
+		day == int(start.Day())
 
 	// we may have started the tests a split-second before midnight
-	sameDay := tm.Day() == time.Now().Day() ||
-		tm.Day() == start.Day()
-	assert.True(t, sameDay)
+	assert.True(t, sameYear, "Expected year %s and received %s", start.Year(), year)
+	assert.True(t, sameMonth, "Expected month %s and received %s", start.Month(), month)
+	assert.True(t, sameDay, "Expected day %d and received %s", start.Day(), day)
 }
 
 func TestS3PostNoCredentials(t *testing.T) {

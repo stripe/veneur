@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"path"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -51,5 +52,6 @@ func s3Post(hostname string, data io.ReadSeeker) error {
 
 func s3Path(hostname string) *string {
 	t := time.Now()
-	return aws.String(path.Join(t.Format("2006/01/02"), hostname))
+	filename := strconv.FormatInt(t.Unix(), 10) + ".json"
+	return aws.String(path.Join(t.Format("2006/01/02"), hostname, filename))
 }
