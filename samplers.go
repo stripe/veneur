@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"encoding/csv"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -68,7 +69,9 @@ func init() {
 
 // encodeTSV generates a newline-terminated TSV row that describes
 // the data represented by the DDMetric
-func (d DDMetric) encodeTSV() string {
+func (d DDMetric) encodeTSV(w *csv.Writer) error {
+	w.Comma = '\t'
+
 	timestamp := d.Value[0][0]
 	value := strconv.FormatFloat(d.Value[0][1], 'f', -1, 64)
 	interval := strconv.Itoa(int(d.Interval))
@@ -99,7 +102,13 @@ func (d DDMetric) encodeTSV() string {
 		}
 	}
 
-	return strings.Join(fields[:], "\t") + "\n"
+	err := w.Write(fields[:])
+	if err != nil {
+		return err
+	}
+
+	w.Flush()
+	return w.Error()
 }
 
 // JSONMetric is used to represent a metric that can be remarshaled with its

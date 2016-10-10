@@ -1,9 +1,15 @@
 package veneur
 
 import (
+	"bytes"
+	"encoding/csv"
+	"io"
+	"io/ioutil"
+	"log"
 	"math"
 	"math/rand"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -236,4 +242,88 @@ func TestHistoMerge(t *testing.T) {
 	assert.InDelta(t, 1.0, h2.localWeight, 0.02, "merged histogram should have count of 1 after adding a value")
 	assert.InDelta(t, 1.0, h2.localMin, 0.02, "merged histogram should have min of 1 after adding a value")
 	assert.InDelta(t, 1.0, h2.localMax, 0.02, "merged histogram should have max of 1 after adding a value")
+}
+
+func TestEncodeTSV(t *testing.T) {
+
+	type TestCase struct {
+		Name     string
+		DDMetric DDMetric
+		Row      io.Reader
+	}
+
+	testCases := []TestCase{
+		{
+			Name: "BasicDDMetric",
+			DDMetric: DDMetric{
+				Name: "a.b.c.max",
+				Value: [1][2]float64{[2]float64{1476119058,
+					100}},
+				Tags: []string{"foo:bar",
+					"baz:quz"},
+				MetricType: "gauge",
+				Hostname:   "globalstats",
+				DeviceName: "food",
+				Interval:   0,
+			},
+			Row: strings.NewReader("a.b.c.max\t[foo:bar,baz:quz]\tgauge\tglobalstats\tfood\t0\t1476119058\t100\n"),
+		},
+		{
+			// Test that we are able to handle tags which have tab characters in them
+			// (tags shouldn't do this, but we should handle them properly anyway)
+			Name: "TabTag",
+			DDMetric: DDMetric{
+				Name: "a.b.c.max",
+				Value: [1][2]float64{[2]float64{1476119058,
+					100}},
+				Tags: []string{"foo:b\tar",
+					"baz:quz"},
+				MetricType: "rate",
+				Hostname:   "localhost",
+				DeviceName: "",
+				Interval:   10,
+			},
+			Row: strings.NewReader("a.b.c.max\t[foo:b\\tar,baz:quz]\trate\tlocalhost\t\t10\t1476119058\t100\n"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+
+			b := &bytes.Buffer{}
+
+			w := csv.NewWriter(b)
+
+			err := tc.DDMetric.encodeTSV(w)
+			assert.NoError(t, err)
+
+			log.Printf("asdf %s", b.String())
+			assertReadersEqual(t, tc.Row, b)
+		})
+	}
+}
+
+// Helper function for determining that two readers are equal
+func assertReadersEqual(t *testing.T, expected io.Reader, actual io.Reader) {
+
+	// If we can seek, ensure that we're starting at the beginning
+	for _, reader := range []io.Reader{expected, actual} {
+		if readerSeeker, ok := reader.(io.ReadSeeker); ok {
+			readerSeeker.Seek(0, io.SeekStart)
+		}
+	}
+
+	// do the lazy thing for now
+
+	bts, err := ioutil.ReadAll(expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bts2, err := ioutil.ReadAll(actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, string(bts), string(bts2))
 }
