@@ -215,10 +215,10 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 }
 
 func (s *Server) flushS3(finalMetrics []DDMetric) {
-	start := time.Now()
+	const delimiter = '\t'
 
-	var data bytes.Buffer
-	err := json.NewEncoder(&data).Encode(finalMetrics)
+	start := time.Now()
+	csv, err := encodeDDMetricsCSV(finalMetrics, delimiter)
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
 			"metrics": len(finalMetrics),
@@ -227,7 +227,15 @@ func (s *Server) flushS3(finalMetrics []DDMetric) {
 	}
 
 	// this feels dirty but oh well
-	seekableData := bytes.NewReader(data.Bytes())
+	// the AWS sdk requires seekable input
+	bts, err := ioutil.ReadAll(csv)
+	if err != nil {
+		s.logger.WithFields(logrus.Fields{
+			"metrics": len(finalMetrics),
+		}).Error("Could not unfurl csv before posting to s3")
+		return
+	}
+	seekableData := bytes.NewReader(bts)
 
 	err = s3Post(s.Hostname, seekableData)
 	if err != nil {

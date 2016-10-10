@@ -1,9 +1,11 @@
 package veneur
 
 import (
+	"bytes"
 	"encoding/csv"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -67,10 +69,12 @@ func init() {
 	}
 }
 
-// encodeTSV generates a newline-terminated TSV row that describes
-// the data represented by the DDMetric
-func (d DDMetric) encodeTSV(w *csv.Writer) error {
-	w.Comma = '\t'
+// encodeCSV generates a newline-terminated CSV row that describes
+// the data represented by the DDMetric.
+// The caller is responsible for setting w.Comma as the appropriate delimiter.
+// For performance, encodeCSV does not flush after every call; the caller is
+// expected to flush at the end of the operation cycle
+func (d DDMetric) encodeCSV(w *csv.Writer) error {
 
 	timestamp := d.Value[0][0]
 	value := strconv.FormatFloat(d.Value[0][1], 'f', -1, 64)
@@ -95,16 +99,23 @@ func (d DDMetric) encodeTSV(w *csv.Writer) error {
 		tsvTimestamp: strconv.Itoa(int((timestamp + .1))),
 	}
 
-	// replace any tabs with a \t escape sequence
-	for i, field := range fields {
-		if strings.Contains(field, "\t") {
-			fields[i] = strings.Replace(field, "\t", `\t`, -1)
-		}
+	w.Write(fields[:])
+	return w.Error()
+}
+
+// encodeDDMetricsCSV returns a reader containing the CSV representation of the
+// DDMetrics data, one row per DDMetric.
+func encodeDDMetricsCSV(metrics []DDMetric, delimiter rune) (io.Reader, error) {
+	b := &bytes.Buffer{}
+	w := csv.NewWriter(b)
+	w.Comma = delimiter
+
+	for _, metric := range metrics {
+		metric.encodeCSV(w)
 	}
 
-	w.Write(fields[:])
 	w.Flush()
-	return w.Error()
+	return b, w.Error()
 }
 
 // JSONMetric is used to represent a metric that can be remarshaled with its

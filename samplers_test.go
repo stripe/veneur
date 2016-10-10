@@ -243,7 +243,7 @@ func TestHistoMerge(t *testing.T) {
 	assert.InDelta(t, 1.0, h2.localMax, 0.02, "merged histogram should have max of 1 after adding a value")
 }
 
-func TestEncodeTSV(t *testing.T) {
+func TestEncodeCSV(t *testing.T) {
 
 	type TestCase struct {
 		Name     string
@@ -269,6 +269,7 @@ func TestEncodeTSV(t *testing.T) {
 		},
 		{
 			// Test that we are able to handle tags which have tab characters in them
+			// by quoting the entire field
 			// (tags shouldn't do this, but we should handle them properly anyway)
 			Name: "TabTag",
 			DDMetric: DDMetric{
@@ -282,7 +283,7 @@ func TestEncodeTSV(t *testing.T) {
 				DeviceName: "",
 				Interval:   10,
 			},
-			Row: strings.NewReader("a.b.c.max\t[foo:b\\tar,baz:quz]\trate\tlocalhost\t\t10\t1476119058\t100\n"),
+			Row: strings.NewReader("a.b.c.max\t\"[foo:b\tar,baz:quz]\"\trate\tlocalhost\t\t10\t1476119058\t100\n"),
 		},
 	}
 
@@ -292,8 +293,13 @@ func TestEncodeTSV(t *testing.T) {
 			b := &bytes.Buffer{}
 
 			w := csv.NewWriter(b)
+			w.Comma = '\t'
 
-			err := tc.DDMetric.encodeTSV(w)
+			err := tc.DDMetric.encodeCSV(w)
+			assert.NoError(t, err)
+
+			// We need to flush or there won't actually be any data there
+			w.Flush()
 			assert.NoError(t, err)
 
 			assertReadersEqual(t, tc.Row, b)
