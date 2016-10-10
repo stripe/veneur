@@ -45,6 +45,8 @@ func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
 
 	s.reportGlobalMetricsFlushCounts(ms)
 
+	go s.flushS3(finalMetrics)
+
 	s.flushRemote(finalMetrics, metricLimit)
 }
 
@@ -210,6 +212,33 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 	s.statsd.Count("worker.metrics_flushed_total", int64(ms.totalHistograms), []string{"metric_type:histogram"}, 1.0)
 	s.statsd.Count("worker.metrics_flushed_total", int64(ms.totalSets), []string{"metric_type:set"}, 1.0)
 	s.statsd.Count("worker.metrics_flushed_total", int64(ms.totalTimers), []string{"metric_type:timer"}, 1.0)
+}
+
+func (s *Server) flushS3(finalMetrics []DDMetric) {
+	start := time.Now()
+
+	var data bytes.Buffer
+	err := json.NewEncoder(&data).Encode(finalMetrics)
+	if err != nil {
+		s.logger.WithFields(logrus.Fields{
+			"metrics": len(finalMetrics),
+		}).Error("Could not marshal finalMetrics before posting to s3")
+		return
+	}
+
+	// this feels dirty but oh well
+	seekableData := bytes.NewReader(data.Bytes())
+
+	err = s3Post(s.Hostname, seekableData)
+	if err != nil {
+		s.logger.WithFields(logrus.Fields{
+			"metrics": len(finalMetrics),
+		}).Error("Error posting to s3")
+		return
+	}
+
+	s.statsd.TimeInMilliseconds("flush.s3.total_duration_ns", float64(time.Now().Sub(start).Nanoseconds()), []string{"part:post"}, 1.0)
+	s.logger.WithField("metrics", len(finalMetrics)).Debug("Completed flush to s3")
 }
 
 // flushRemote breaks up the final metrics into chunks
