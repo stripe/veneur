@@ -168,6 +168,8 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 		}
 	}()
 
+	stubS3()
+
 	metricValues := []float64{1.0, 2.0, 7.0, 8.0, 100.0}
 
 	expectedMetrics := map[string]float64{

@@ -222,7 +222,7 @@ func (s *Server) flushS3(finalMetrics []DDMetric) {
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
 			"metrics": len(finalMetrics),
-		}).Error("Could not marshal finalMetrics before posting to s3")
+		}).Error("Could not marshal finalMetrics before posting to s3: ", err)
 		return
 	}
 
@@ -232,7 +232,7 @@ func (s *Server) flushS3(finalMetrics []DDMetric) {
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
 			"metrics": len(finalMetrics),
-		}).Error("Could not unfurl csv before posting to s3")
+		}).Error("Could not unfurl csv before posting to s3: ", err)
 		return
 	}
 	seekableData := bytes.NewReader(bts)
@@ -241,7 +241,7 @@ func (s *Server) flushS3(finalMetrics []DDMetric) {
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
 			"metrics": len(finalMetrics),
-		}).Error("Error posting to s3")
+		}).Error("Error posting to s3: ", err)
 		return
 	}
 
