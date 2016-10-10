@@ -215,33 +215,25 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 }
 
 func (s *Server) flushS3(finalMetrics []DDMetric) {
-	const delimiter = '\t'
+	const Delimiter = '\t'
+	const IncludeHeaders = false
 
 	start := time.Now()
-	csv, err := encodeDDMetricsCSV(finalMetrics, delimiter)
+	csv, err := encodeDDMetricsCSV(finalMetrics, Delimiter, IncludeHeaders)
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
-			"metrics": len(finalMetrics),
-		}).Error("Could not marshal finalMetrics before posting to s3: ", err)
+			logrus.ErrorKey: err,
+			"metrics":       len(finalMetrics),
+		}).Error("Could not marshal finalMetrics before posting to s3")
 		return
 	}
 
-	// this feels dirty but oh well
-	// the AWS sdk requires seekable input
-	bts, err := ioutil.ReadAll(csv)
+	err = s3Post(s.Hostname, csv)
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
-			"metrics": len(finalMetrics),
-		}).Error("Could not unfurl csv before posting to s3: ", err)
-		return
-	}
-	seekableData := bytes.NewReader(bts)
-
-	err = s3Post(s.Hostname, seekableData)
-	if err != nil {
-		s.logger.WithFields(logrus.Fields{
-			"metrics": len(finalMetrics),
-		}).Error("Error posting to s3: ", err)
+			logrus.ErrorKey: err,
+			"metrics":       len(finalMetrics),
+		}).Error("Error posting to s3")
 		return
 	}
 

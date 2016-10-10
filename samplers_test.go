@@ -265,7 +265,7 @@ func CSVTestCases() []CSVTestCase {
 				DeviceName: "food",
 				Interval:   0,
 			},
-			Row: strings.NewReader("a.b.c.max\t[foo:bar,baz:quz]\tgauge\tglobalstats\tfood\t0\t1476119058\t100\n"),
+			Row: strings.NewReader("a.b.c.max\t{foo:bar,baz:quz}\tgauge\tglobalstats\tfood\t0\t1476119058\t100\n"),
 		},
 		{
 			// Test that we are able to handle a missing field (DeviceName)
@@ -281,7 +281,7 @@ func CSVTestCases() []CSVTestCase {
 				DeviceName: "",
 				Interval:   10,
 			},
-			Row: strings.NewReader("a.b.c.max\t[foo:bar,baz:quz]\trate\tlocalhost\t\t10\t1476119058\t100\n"),
+			Row: strings.NewReader("a.b.c.max\t{foo:bar,baz:quz}\trate\tlocalhost\t\t10\t1476119058\t100\n"),
 		},
 		{
 			// Test that we are able to handle tags which have tab characters in them
@@ -299,7 +299,7 @@ func CSVTestCases() []CSVTestCase {
 				DeviceName: "eniac",
 				Interval:   10,
 			},
-			Row: strings.NewReader("a.b.c.max\t\"[foo:b\tar,baz:quz]\"\trate\tlocalhost\teniac\t10\t1476119058\t100\n"),
+			Row: strings.NewReader("a.b.c.max\t\"{foo:b\tar,baz:quz}\"\trate\tlocalhost\teniac\t10\t1476119058\t100\n"),
 		},
 	}
 }
@@ -338,7 +338,7 @@ func TestEncodeDDMetricsCSV(t *testing.T) {
 		metrics[i] = tc.DDMetric
 	}
 
-	c, err := encodeDDMetricsCSV(metrics, Delimiter)
+	c, err := encodeDDMetricsCSV(metrics, Delimiter, true)
 	assert.NoError(t, err)
 	r := csv.NewReader(c)
 	r.FieldsPerRecord = 8

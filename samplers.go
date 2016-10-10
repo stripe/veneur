@@ -82,7 +82,7 @@ func (d DDMetric) encodeCSV(w *csv.Writer) error {
 
 	// TODO(aditya) some better error handling for this
 	// to guarantee that the result is proper JSON
-	tags := "[" + strings.Join(d.Tags, ",") + "]"
+	tags := "{" + strings.Join(d.Tags, ",") + "}"
 
 	fields := [...]string{
 		// the order here doesn't actually matter
@@ -105,33 +105,36 @@ func (d DDMetric) encodeCSV(w *csv.Writer) error {
 
 // encodeDDMetricsCSV returns a reader containing the CSV representation of the
 // DDMetrics data, one row per DDMetric.
-func encodeDDMetricsCSV(metrics []DDMetric, delimiter rune) (io.Reader, error) {
+// the AWS sdk requires seekable input, so we return a ReadSeeker here
+func encodeDDMetricsCSV(metrics []DDMetric, delimiter rune, includeHeaders bool) (io.ReadSeeker, error) {
 	b := &bytes.Buffer{}
 	w := csv.NewWriter(b)
 	w.Comma = delimiter
 
-	// Write the headers first
-	headers := [...]string{
-		// the order here doesn't actually matter
-		// as long as the keys are right
-		tsvName:       tsvName.String(),
-		tsvTags:       tsvTags.String(),
-		tsvMetricType: tsvMetricType.String(),
-		tsvHostname:   tsvHostname.String(),
-		tsvDeviceName: tsvDeviceName.String(),
-		tsvInterval:   tsvInterval.String(),
-		tsvValue:      tsvValue.String(),
-		tsvTimestamp:  tsvTimestamp.String(),
-	}
+	if includeHeaders {
+		// Write the headers first
+		headers := [...]string{
+			// the order here doesn't actually matter
+			// as long as the keys are right
+			tsvName:       tsvName.String(),
+			tsvTags:       tsvTags.String(),
+			tsvMetricType: tsvMetricType.String(),
+			tsvHostname:   tsvHostname.String(),
+			tsvDeviceName: tsvDeviceName.String(),
+			tsvInterval:   tsvInterval.String(),
+			tsvValue:      tsvValue.String(),
+			tsvTimestamp:  tsvTimestamp.String(),
+		}
 
-	w.Write(headers[:])
+		w.Write(headers[:])
+	}
 
 	for _, metric := range metrics {
 		metric.encodeCSV(w)
 	}
 
 	w.Flush()
-	return b, w.Error()
+	return bytes.NewReader(b.Bytes()), w.Error()
 }
 
 // JSONMetric is used to represent a metric that can be remarshaled with its
