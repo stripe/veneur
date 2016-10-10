@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path"
-	"regexp"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -68,17 +68,24 @@ func TestS3Path(t *testing.T) {
 
 	path := s3Path(hostname)
 
+	end := time.Now()
+
 	// We expect paths to follow this format
 	// <year>/<month/<day>/<hostname>/<timestamp>.json
 	// so we should be able to parse the output with this expectation
-	re := regexp.MustCompile(`(\d{4}?)/(\d{2}?)/(\d{2}?)/([\w\-]+?)/(\d+?).json`)
-	results := re.FindStringSubmatch(*path)
+	results := strings.Split(*path, "/")
+	assert.Equal(t, 5, len(results), "Expected %#v to contain 5 parts", results)
 
-	year, err := strconv.Atoi(results[1])
+	year, err := strconv.Atoi(results[0])
 	assert.NoError(t, err)
-	month, err := strconv.Atoi(results[2])
+	month, err := strconv.Atoi(results[1])
 	assert.NoError(t, err)
-	day, err := strconv.Atoi(results[3])
+	day, err := strconv.Atoi(results[2])
+	assert.NoError(t, err)
+
+	hostname2 := results[3]
+	filename := results[4]
+	timestamp, err := strconv.ParseInt(strings.Split(filename, ".")[0], 10, 64)
 	assert.NoError(t, err)
 
 	sameYear := year == int(time.Now().Year()) ||
@@ -92,6 +99,9 @@ func TestS3Path(t *testing.T) {
 	assert.True(t, sameYear, "Expected year %s and received %s", start.Year(), year)
 	assert.True(t, sameMonth, "Expected month %s and received %s", start.Month(), month)
 	assert.True(t, sameDay, "Expected day %d and received %s", start.Day(), day)
+
+	assert.Equal(t, hostname, hostname2)
+	assert.True(t, start.Unix() <= timestamp && timestamp <= end.Unix())
 }
 
 func TestS3PostNoCredentials(t *testing.T) {

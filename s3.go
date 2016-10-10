@@ -15,6 +15,7 @@ import (
 
 const S3Bucket = "stripe-veneur"
 
+// TODO(aditya) config-ify this
 const DefaultAWSRegion = "us-west-2"
 const AwsProfile = "veneur-s3-test"
 

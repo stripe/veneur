@@ -227,7 +227,7 @@ func (s *Server) flushS3(finalMetrics []DDMetric) {
 	}
 
 	// this feels dirty but oh well
-	seekableData := strings.NewReader(data.String())
+	seekableData := bytes.NewReader(data.Bytes())
 
 	err = s3Post(s.Hostname, seekableData)
 	if err != nil {
@@ -238,7 +238,7 @@ func (s *Server) flushS3(finalMetrics []DDMetric) {
 	}
 
 	s.statsd.TimeInMilliseconds("flush.s3.total_duration_ns", float64(time.Now().Sub(start).Nanoseconds()), []string{"part:post"}, 1.0)
-	s.logger.WithField("metrics", len(finalMetrics)).Info("Completed flush to s3")
+	s.logger.WithField("metrics", len(finalMetrics)).Debug("Completed flush to s3")
 }
 
 // flushRemote breaks up the final metrics into chunks
