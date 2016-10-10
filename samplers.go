@@ -110,6 +110,22 @@ func encodeDDMetricsCSV(metrics []DDMetric, delimiter rune) (io.Reader, error) {
 	w := csv.NewWriter(b)
 	w.Comma = delimiter
 
+	// Write the headers first
+	headers := [...]string{
+		// the order here doesn't actually matter
+		// as long as the keys are right
+		tsvName:       tsvName.String(),
+		tsvTags:       tsvTags.String(),
+		tsvMetricType: tsvMetricType.String(),
+		tsvHostname:   tsvHostname.String(),
+		tsvDeviceName: tsvDeviceName.String(),
+		tsvInterval:   tsvInterval.String(),
+		tsvValue:      tsvValue.String(),
+		tsvTimestamp:  tsvTimestamp.String(),
+	}
+
+	w.Write(headers[:])
+
 	for _, metric := range metrics {
 		metric.encodeCSV(w)
 	}

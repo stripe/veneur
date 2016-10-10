@@ -243,15 +243,15 @@ func TestHistoMerge(t *testing.T) {
 	assert.InDelta(t, 1.0, h2.localMax, 0.02, "merged histogram should have max of 1 after adding a value")
 }
 
-func TestEncodeCSV(t *testing.T) {
+type CSVTestCase struct {
+	Name     string
+	DDMetric DDMetric
+	Row      io.Reader
+}
 
-	type TestCase struct {
-		Name     string
-		DDMetric DDMetric
-		Row      io.Reader
-	}
+func CSVTestCases() []CSVTestCase {
 
-	testCases := []TestCase{
+	return []CSVTestCase{
 		{
 			Name: "BasicDDMetric",
 			DDMetric: DDMetric{
@@ -268,6 +268,22 @@ func TestEncodeCSV(t *testing.T) {
 			Row: strings.NewReader("a.b.c.max\t[foo:bar,baz:quz]\tgauge\tglobalstats\tfood\t0\t1476119058\t100\n"),
 		},
 		{
+			// Test that we are able to handle a missing field (DeviceName)
+			Name: "MissingDeviceName",
+			DDMetric: DDMetric{
+				Name: "a.b.c.max",
+				Value: [1][2]float64{[2]float64{1476119058,
+					100}},
+				Tags: []string{"foo:bar",
+					"baz:quz"},
+				MetricType: "rate",
+				Hostname:   "localhost",
+				DeviceName: "",
+				Interval:   10,
+			},
+			Row: strings.NewReader("a.b.c.max\t[foo:bar,baz:quz]\trate\tlocalhost\t\t10\t1476119058\t100\n"),
+		},
+		{
 			// Test that we are able to handle tags which have tab characters in them
 			// by quoting the entire field
 			// (tags shouldn't do this, but we should handle them properly anyway)
@@ -280,12 +296,16 @@ func TestEncodeCSV(t *testing.T) {
 					"baz:quz"},
 				MetricType: "rate",
 				Hostname:   "localhost",
-				DeviceName: "",
+				DeviceName: "eniac",
 				Interval:   10,
 			},
-			Row: strings.NewReader("a.b.c.max\t\"[foo:b\tar,baz:quz]\"\trate\tlocalhost\t\t10\t1476119058\t100\n"),
+			Row: strings.NewReader("a.b.c.max\t\"[foo:b\tar,baz:quz]\"\trate\tlocalhost\teniac\t10\t1476119058\t100\n"),
 		},
 	}
+}
+
+func TestEncodeCSV(t *testing.T) {
+	testCases := CSVTestCases()
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -303,6 +323,45 @@ func TestEncodeCSV(t *testing.T) {
 			assert.NoError(t, err)
 
 			assertReadersEqual(t, tc.Row, b)
+		})
+	}
+}
+
+func TestEncodeDDMetricsCSV(t *testing.T) {
+	const ExpectedHeader = "Name\tTags\tMetricType\tHostname\tDeviceName\tInterval\tTimestamp\tValue"
+	const Delimiter = '\t'
+
+	testCases := CSVTestCases()
+
+	metrics := make([]DDMetric, len(testCases))
+	for i, tc := range testCases {
+		metrics[i] = tc.DDMetric
+	}
+
+	c, err := encodeDDMetricsCSV(metrics, Delimiter)
+	assert.NoError(t, err)
+	r := csv.NewReader(c)
+	r.FieldsPerRecord = 8
+	r.Comma = Delimiter
+
+	// first line should always contain header information
+	header, err := r.Read()
+	assert.NoError(t, err)
+	assert.Equal(t, ExpectedHeader, strings.Join(header, "\t"))
+
+	records, err := r.ReadAll()
+	assert.NoError(t, err)
+
+	assert.Equal(t, len(metrics), len(records), "Expected %d records and got %d", len(metrics), len(records))
+	for i, tc := range testCases {
+		record := records[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			for j, cell := range record {
+				if strings.ContainsRune(cell, Delimiter) {
+					record[j] = `"` + cell + `"`
+				}
+			}
+			assertReadersEqual(t, testCases[i].Row, strings.NewReader(strings.Join(record, "\t")+"\n"))
 		})
 	}
 }
