@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +22,84 @@ type DDMetric struct {
 	Hostname   string        `json:"host"`
 	DeviceName string        `json:"device_name"`
 	Interval   int32         `json:"interval,omitempty"`
+}
+
+type tsvField int
+
+const (
+	// the order in which these appear determines the
+	// order of the fields in the resultant TSV
+	tsvName tsvField = iota
+	tsvTags
+	tsvMetricType
+	tsvHostname
+	tsvDeviceName
+	tsvInterval
+
+	tsvTimestamp
+	tsvValue
+)
+
+var tsvSchema = [...]string{
+	tsvName:       "tsvName",
+	tsvTags:       "tsvTags",
+	tsvMetricType: "tsvMetricType",
+	tsvHostname:   "tsvHostname",
+	tsvDeviceName: "tsvDeviceName",
+	tsvInterval:   "tsvInterval",
+	tsvTimestamp:  "tsvTimestamp",
+	tsvValue:      "tsvValue",
+}
+
+// String returns the field name.
+// eg tsvName.String() returns "Name"
+func (f tsvField) String() string {
+	return fmt.Sprintf(strings.Replace(tsvSchema[f], "tsv", "", 1))
+}
+
+// each key in tsvMapping is guaranteed to have a unique value
+var tsvMapping = map[string]int{}
+
+func init() {
+	for i, field := range tsvSchema {
+		tsvMapping[field] = i
+	}
+}
+
+// encodeTSV generates a newline-terminated TSV row that describes
+// the data represented by the DDMetric
+func (d DDMetric) encodeTSV() string {
+	timestamp := d.Value[0][0]
+	value := strconv.FormatFloat(d.Value[0][1], 'f', -1, 64)
+	interval := strconv.Itoa(int(d.Interval))
+
+	// TODO(aditya) some better error handling for this
+	// to guarantee that the result is proper JSON
+	tags := "[" + strings.Join(d.Tags, ",") + "]"
+
+	fields := [...]string{
+		// the order here doesn't actually matter
+		// as long as the keys are right
+		tsvName:       d.Name,
+		tsvTags:       tags,
+		tsvMetricType: d.MetricType,
+		tsvHostname:   d.Hostname,
+		tsvDeviceName: d.DeviceName,
+		tsvInterval:   interval,
+		tsvValue:      value,
+
+		// round the timestamp and treat it as an integer
+		tsvTimestamp: strconv.Itoa(int((timestamp + .1))),
+	}
+
+	// replace any tabs with a \t escape sequence
+	for i, field := range fields {
+		if strings.Contains(field, "\t") {
+			fields[i] = strings.Replace(field, "\t", `\t`, -1)
+		}
+	}
+
+	return strings.Join(fields[:], "\t") + "\n"
 }
 
 // JSONMetric is used to represent a metric that can be remarshaled with its
