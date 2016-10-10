@@ -5,7 +5,6 @@ import (
 	"encoding/csv"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"math/rand"
 	"strconv"
@@ -297,7 +296,6 @@ func TestEncodeTSV(t *testing.T) {
 			err := tc.DDMetric.encodeTSV(w)
 			assert.NoError(t, err)
 
-			log.Printf("asdf %s", b.String())
 			assertReadersEqual(t, tc.Row, b)
 		})
 	}
@@ -314,7 +312,6 @@ func assertReadersEqual(t *testing.T, expected io.Reader, actual io.Reader) {
 	}
 
 	// do the lazy thing for now
-
 	bts, err := ioutil.ReadAll(expected)
 	if err != nil {
 		t.Fatal(err)

@@ -102,11 +102,7 @@ func (d DDMetric) encodeTSV(w *csv.Writer) error {
 		}
 	}
 
-	err := w.Write(fields[:])
-	if err != nil {
-		return err
-	}
-
+	w.Write(fields[:])
 	w.Flush()
 	return w.Error()
 }
