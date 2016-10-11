@@ -228,7 +228,7 @@ func (s *Server) flushS3(finalMetrics []DDMetric) {
 		return
 	}
 
-	err = s3Post(s.Hostname, csv)
+	err = s3Post(s.Hostname, csv, tsvFt)
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
