@@ -13,7 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 )
 
-const S3Bucket = "stripe-veneur"
+const S3Bucket = "stripe-test-veneur"
 
 // TODO(aditya) config-ify this
 const DefaultAWSRegion = "us-west-2"
