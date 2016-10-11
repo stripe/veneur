@@ -3,13 +3,11 @@ package veneur
 import (
 	"errors"
 	"io"
-	"log"
 	"path"
 	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 )
@@ -23,20 +21,6 @@ const AwsProfile = "veneur-s3-test"
 var svc s3iface.S3API
 
 var S3ClientUninitializedError = errors.New("s3 client has not been initialized")
-
-// credentials will be pull from environment variables
-// AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
-
-func init() {
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String(DefaultAWSRegion),
-	})
-	if err != nil {
-		log.Printf("error getting AWS session: %s", err)
-		return
-	}
-	svc = s3.New(sess)
-}
 
 func s3Post(hostname string, data io.ReadSeeker) error {
 	if svc == nil {

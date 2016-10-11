@@ -28,6 +28,8 @@ type Config struct {
 	Tags                []string      `yaml:"tags"`
 	SentryDSN           string        `yaml:"sentry_dsn"`
 	FlushLimit          int           `yaml:"flush_max_per_body"`
+	AWSAccessKeyId      string        `yaml:"aws_access_key_id"`
+	AWSSecretAccessKey  string        `yaml:"aws_secret_access_key"`
 }
 
 // ReadConfig unmarshals the config file and slurps in it's data.

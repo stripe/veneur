@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"net"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
 	"github.com/getsentry/raven-go"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
 )
@@ -120,7 +123,24 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.Key = "REDACTED"
 	conf.SentryDSN = "REDACTED"
 	ret.logger.WithField("config", conf).Debug("Initialized server")
-	ret.logger.Info("Credentials have length %d and %d", len(os.Getenv("AWS_ACCESS_KEY_ID")), len(os.Getenv("AWS_SECRET_ACCESS_KEY")))
+
+	aws_id := conf.AWSAccessKeyId
+	aws_secret := conf.AWSSecretAccessKey
+
+	ret.logger.Info("Credentials have length %d and %d", len(aws_id), len(aws_secret))
+
+	sess, err := session.NewSession(&aws.Config{
+		Region:      aws.String(DefaultAWSRegion),
+		Credentials: credentials.NewStaticCredentials(aws_id, aws_secret, ""),
+	})
+	if err != nil {
+		ret.logger.Info("error getting AWS session: %s", err)
+		svc = nil
+	} else {
+		ret.logger.Info("Successfully created AWS session")
+		svc = s3.New(sess)
+	}
+
 	if svc == nil {
 		ret.logger.Info("AWS credentials not found. S3 archives are disabled")
 	} else {
