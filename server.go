@@ -119,6 +119,11 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.Key = "REDACTED"
 	conf.SentryDSN = "REDACTED"
 	ret.logger.WithField("config", conf).Debug("Initialized server")
+	if svc == nil {
+		ret.logger.Info("AWS credentials not found. S3 archives are disabled")
+	} else {
+		ret.logger.Info("AWS credentials found. S3 archives are enabled")
+	}
 
 	return
 }
