@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -119,6 +120,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.Key = "REDACTED"
 	conf.SentryDSN = "REDACTED"
 	ret.logger.WithField("config", conf).Debug("Initialized server")
+	ret.logger.Info("Credentials have length %d and %d", len(os.Getenv("AWS_ACCESS_KEY_ID")), len(os.Getenv("AWS_SECRET_ACCESS_KEY")))
 	if svc == nil {
 		ret.logger.Info("AWS credentials not found. S3 archives are disabled")
 	} else {
