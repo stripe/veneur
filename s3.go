@@ -3,6 +3,7 @@ package veneur
 import (
 	"errors"
 	"io"
+	"log"
 	"path"
 	"strconv"
 	"time"
@@ -27,14 +28,14 @@ var S3ClientUninitializedError = errors.New("s3 client has not been initialized"
 // AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
 
 func init() {
-	sess := session.New(&aws.Config{
+	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(DefaultAWSRegion),
 	})
-
-	_, err := sess.Config.Credentials.Get()
-	if err == nil {
-		svc = s3.New(sess)
+	if err != nil {
+		log.Printf("error getting AWS session: %s", err)
+		return
 	}
+	svc = s3.New(sess)
 }
 
 func s3Post(hostname string, data io.ReadSeeker) error {
