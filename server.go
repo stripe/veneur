@@ -9,11 +9,11 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
-	"github.com/getsentry/raven-go"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/getsentry/raven-go"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
 )
@@ -124,27 +124,33 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.SentryDSN = "REDACTED"
 	ret.logger.WithField("config", conf).Debug("Initialized server")
 
+	svc = nil
 	aws_id := conf.AWSAccessKeyId
 	aws_secret := conf.AWSSecretAccessKey
 
-	ret.logger.Info("Credentials have length %d and %d", len(aws_id), len(aws_secret))
+	ret.logger.Infof("Credentials have length %d and %d", len(aws_id), len(aws_secret))
 
-	sess, err := session.NewSession(&aws.Config{
-		Region:      aws.String(DefaultAWSRegion),
-		Credentials: credentials.NewStaticCredentials(aws_id, aws_secret, ""),
-	})
-	if err != nil {
-		ret.logger.Info("error getting AWS session: %s", err)
-		svc = nil
+	if len(aws_id) > 0 && len(aws_secret) > 0 {
+		sess, err := session.NewSession(&aws.Config{
+			Region:      aws.String(DefaultAWSRegion),
+			Credentials: credentials.NewStaticCredentials(aws_id, aws_secret, ""),
+		})
+
+		if err != nil {
+			ret.logger.Info("error getting AWS session: %s", err)
+			svc = nil
+		} else {
+			ret.logger.Info("Successfully created AWS session")
+			svc = s3.New(sess)
+		}
 	} else {
-		ret.logger.Info("Successfully created AWS session")
-		svc = s3.New(sess)
+		ret.logger.Info("AWS credentials not found")
 	}
 
 	if svc == nil {
-		ret.logger.Info("AWS credentials not found. S3 archives are disabled")
+		ret.logger.Info("S3 archives are disabled")
 	} else {
-		ret.logger.Info("AWS credentials found. S3 archives are enabled")
+		ret.logger.Info("S3 archives are enabled")
 	}
 
 	return
