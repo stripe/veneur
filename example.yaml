@@ -22,3 +22,9 @@ http_address: "localhost:8127"
 forward_address: "http://veneur.example.com"
 # Defaults to the os.Hostname()!
 # hostname: foobar
+
+## Add these if you want to archive data to S3
+#aws_access_key_id: "foo"
+#aws_secret_access_key: "bar"
+#aws_region: "us-west-2"
+#aws_s3_bucket: "stripe-veneur"
