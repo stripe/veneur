@@ -1,9 +1,13 @@
 package veneur
 
 import (
+	"bytes"
+	"encoding/csv"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +25,116 @@ type DDMetric struct {
 	Hostname   string        `json:"host"`
 	DeviceName string        `json:"device_name"`
 	Interval   int32         `json:"interval,omitempty"`
+}
+
+type tsvField int
+
+const (
+	// the order in which these appear determines the
+	// order of the fields in the resultant TSV
+	tsvName tsvField = iota
+	tsvTags
+	tsvMetricType
+	tsvHostname
+	tsvDeviceName
+	tsvInterval
+
+	tsvTimestamp
+	tsvValue
+)
+
+var tsvSchema = [...]string{
+	tsvName:       "tsvName",
+	tsvTags:       "tsvTags",
+	tsvMetricType: "tsvMetricType",
+	tsvHostname:   "tsvHostname",
+	tsvDeviceName: "tsvDeviceName",
+	tsvInterval:   "tsvInterval",
+	tsvTimestamp:  "tsvTimestamp",
+	tsvValue:      "tsvValue",
+}
+
+// String returns the field name.
+// eg tsvName.String() returns "Name"
+func (f tsvField) String() string {
+	return fmt.Sprintf(strings.Replace(tsvSchema[f], "tsv", "", 1))
+}
+
+// each key in tsvMapping is guaranteed to have a unique value
+var tsvMapping = map[string]int{}
+
+func init() {
+	for i, field := range tsvSchema {
+		tsvMapping[field] = i
+	}
+}
+
+// encodeCSV generates a newline-terminated CSV row that describes
+// the data represented by the DDMetric.
+// The caller is responsible for setting w.Comma as the appropriate delimiter.
+// For performance, encodeCSV does not flush after every call; the caller is
+// expected to flush at the end of the operation cycle
+func (d DDMetric) encodeCSV(w *csv.Writer) error {
+
+	timestamp := d.Value[0][0]
+	value := strconv.FormatFloat(d.Value[0][1], 'f', -1, 64)
+	interval := strconv.Itoa(int(d.Interval))
+
+	// TODO(aditya) some better error handling for this
+	// to guarantee that the result is proper JSON
+	tags := "{" + strings.Join(d.Tags, ",") + "}"
+
+	fields := [...]string{
+		// the order here doesn't actually matter
+		// as long as the keys are right
+		tsvName:       d.Name,
+		tsvTags:       tags,
+		tsvMetricType: d.MetricType,
+		tsvHostname:   d.Hostname,
+		tsvDeviceName: d.DeviceName,
+		tsvInterval:   interval,
+		tsvValue:      value,
+
+		// round the timestamp and treat it as an integer
+		tsvTimestamp: strconv.Itoa(int((timestamp + .1))),
+	}
+
+	w.Write(fields[:])
+	return w.Error()
+}
+
+// encodeDDMetricsCSV returns a reader containing the CSV representation of the
+// DDMetrics data, one row per DDMetric.
+// the AWS sdk requires seekable input, so we return a ReadSeeker here
+func encodeDDMetricsCSV(metrics []DDMetric, delimiter rune, includeHeaders bool) (io.ReadSeeker, error) {
+	b := &bytes.Buffer{}
+	w := csv.NewWriter(b)
+	w.Comma = delimiter
+
+	if includeHeaders {
+		// Write the headers first
+		headers := [...]string{
+			// the order here doesn't actually matter
+			// as long as the keys are right
+			tsvName:       tsvName.String(),
+			tsvTags:       tsvTags.String(),
+			tsvMetricType: tsvMetricType.String(),
+			tsvHostname:   tsvHostname.String(),
+			tsvDeviceName: tsvDeviceName.String(),
+			tsvInterval:   tsvInterval.String(),
+			tsvValue:      tsvValue.String(),
+			tsvTimestamp:  tsvTimestamp.String(),
+		}
+
+		w.Write(headers[:])
+	}
+
+	for _, metric := range metrics {
+		metric.encodeCSV(w)
+	}
+
+	w.Flush()
+	return bytes.NewReader(b.Bytes()), w.Error()
 }
 
 // JSONMetric is used to represent a metric that can be remarshaled with its

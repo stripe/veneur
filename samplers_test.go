@@ -1,9 +1,14 @@
 package veneur
 
 import (
+	"bytes"
+	"encoding/csv"
+	"io"
+	"io/ioutil"
 	"math"
 	"math/rand"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -236,4 +241,151 @@ func TestHistoMerge(t *testing.T) {
 	assert.InDelta(t, 1.0, h2.localWeight, 0.02, "merged histogram should have count of 1 after adding a value")
 	assert.InDelta(t, 1.0, h2.localMin, 0.02, "merged histogram should have min of 1 after adding a value")
 	assert.InDelta(t, 1.0, h2.localMax, 0.02, "merged histogram should have max of 1 after adding a value")
+}
+
+type CSVTestCase struct {
+	Name     string
+	DDMetric DDMetric
+	Row      io.Reader
+}
+
+func CSVTestCases() []CSVTestCase {
+
+	return []CSVTestCase{
+		{
+			Name: "BasicDDMetric",
+			DDMetric: DDMetric{
+				Name: "a.b.c.max",
+				Value: [1][2]float64{[2]float64{1476119058,
+					100}},
+				Tags: []string{"foo:bar",
+					"baz:quz"},
+				MetricType: "gauge",
+				Hostname:   "globalstats",
+				DeviceName: "food",
+				Interval:   0,
+			},
+			Row: strings.NewReader("a.b.c.max\t{foo:bar,baz:quz}\tgauge\tglobalstats\tfood\t0\t1476119058\t100\n"),
+		},
+		{
+			// Test that we are able to handle a missing field (DeviceName)
+			Name: "MissingDeviceName",
+			DDMetric: DDMetric{
+				Name: "a.b.c.max",
+				Value: [1][2]float64{[2]float64{1476119058,
+					100}},
+				Tags: []string{"foo:bar",
+					"baz:quz"},
+				MetricType: "rate",
+				Hostname:   "localhost",
+				DeviceName: "",
+				Interval:   10,
+			},
+			Row: strings.NewReader("a.b.c.max\t{foo:bar,baz:quz}\trate\tlocalhost\t\t10\t1476119058\t100\n"),
+		},
+		{
+			// Test that we are able to handle tags which have tab characters in them
+			// by quoting the entire field
+			// (tags shouldn't do this, but we should handle them properly anyway)
+			Name: "TabTag",
+			DDMetric: DDMetric{
+				Name: "a.b.c.max",
+				Value: [1][2]float64{[2]float64{1476119058,
+					100}},
+				Tags: []string{"foo:b\tar",
+					"baz:quz"},
+				MetricType: "rate",
+				Hostname:   "localhost",
+				DeviceName: "eniac",
+				Interval:   10,
+			},
+			Row: strings.NewReader("a.b.c.max\t\"{foo:b\tar,baz:quz}\"\trate\tlocalhost\teniac\t10\t1476119058\t100\n"),
+		},
+	}
+}
+
+func TestEncodeCSV(t *testing.T) {
+	testCases := CSVTestCases()
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+
+			b := &bytes.Buffer{}
+
+			w := csv.NewWriter(b)
+			w.Comma = '\t'
+
+			err := tc.DDMetric.encodeCSV(w)
+			assert.NoError(t, err)
+
+			// We need to flush or there won't actually be any data there
+			w.Flush()
+			assert.NoError(t, err)
+
+			assertReadersEqual(t, tc.Row, b)
+		})
+	}
+}
+
+func TestEncodeDDMetricsCSV(t *testing.T) {
+	const ExpectedHeader = "Name\tTags\tMetricType\tHostname\tDeviceName\tInterval\tTimestamp\tValue"
+	const Delimiter = '\t'
+
+	testCases := CSVTestCases()
+
+	metrics := make([]DDMetric, len(testCases))
+	for i, tc := range testCases {
+		metrics[i] = tc.DDMetric
+	}
+
+	c, err := encodeDDMetricsCSV(metrics, Delimiter, true)
+	assert.NoError(t, err)
+	r := csv.NewReader(c)
+	r.FieldsPerRecord = 8
+	r.Comma = Delimiter
+
+	// first line should always contain header information
+	header, err := r.Read()
+	assert.NoError(t, err)
+	assert.Equal(t, ExpectedHeader, strings.Join(header, "\t"))
+
+	records, err := r.ReadAll()
+	assert.NoError(t, err)
+
+	assert.Equal(t, len(metrics), len(records), "Expected %d records and got %d", len(metrics), len(records))
+	for i, tc := range testCases {
+		record := records[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			for j, cell := range record {
+				if strings.ContainsRune(cell, Delimiter) {
+					record[j] = `"` + cell + `"`
+				}
+			}
+			assertReadersEqual(t, testCases[i].Row, strings.NewReader(strings.Join(record, "\t")+"\n"))
+		})
+	}
+}
+
+// Helper function for determining that two readers are equal
+func assertReadersEqual(t *testing.T, expected io.Reader, actual io.Reader) {
+
+	// If we can seek, ensure that we're starting at the beginning
+	for _, reader := range []io.Reader{expected, actual} {
+		if readerSeeker, ok := reader.(io.ReadSeeker); ok {
+			readerSeeker.Seek(0, io.SeekStart)
+		}
+	}
+
+	// do the lazy thing for now
+	bts, err := ioutil.ReadAll(expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bts2, err := ioutil.ReadAll(actual)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, string(bts), string(bts2))
 }

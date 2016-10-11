@@ -26,6 +26,17 @@ func (m *mockS3Client) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput,
 	return m.putObject(input)
 }
 
+// stubS3 sets svc to a mockS3Client that will return 200 for all responses
+// useful for avoiding erroneous error log lines when testing things that aren't
+// related to s3.
+func stubS3() {
+	client := &mockS3Client{}
+	client.putObject = func(*s3.PutObjectInput) (*s3.PutObjectOutput, error) {
+		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
+	}
+	svc = client
+}
+
 // TestS3Post tests that we can correctly post a sequence of
 // DDMetrics to S3
 func TestS3Post(t *testing.T) {

@@ -215,24 +215,24 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 }
 
 func (s *Server) flushS3(finalMetrics []DDMetric) {
-	start := time.Now()
+	const Delimiter = '\t'
+	const IncludeHeaders = false
 
-	var data bytes.Buffer
-	err := json.NewEncoder(&data).Encode(finalMetrics)
+	start := time.Now()
+	csv, err := encodeDDMetricsCSV(finalMetrics, Delimiter, IncludeHeaders)
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
-			"metrics": len(finalMetrics),
+			logrus.ErrorKey: err,
+			"metrics":       len(finalMetrics),
 		}).Error("Could not marshal finalMetrics before posting to s3")
 		return
 	}
 
-	// this feels dirty but oh well
-	seekableData := bytes.NewReader(data.Bytes())
-
-	err = s3Post(s.Hostname, seekableData)
+	err = s3Post(s.Hostname, csv)
 	if err != nil {
 		s.logger.WithFields(logrus.Fields{
-			"metrics": len(finalMetrics),
+			logrus.ErrorKey: err,
+			"metrics":       len(finalMetrics),
 		}).Error("Error posting to s3")
 		return
 	}
