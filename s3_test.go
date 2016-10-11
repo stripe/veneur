@@ -68,7 +68,7 @@ func TestS3Post(t *testing.T) {
 
 	svc = client
 
-	err = s3Post("testbox", f)
+	err = s3Post("testbox", f, tsvFt)
 	assert.NoError(t, err)
 }
 
@@ -77,7 +77,7 @@ func TestS3Path(t *testing.T) {
 
 	start := time.Now()
 
-	path := s3Path(hostname)
+	path := s3Path(hostname, jsonFt)
 
 	end := time.Now()
 
@@ -123,6 +123,6 @@ func TestS3PostNoCredentials(t *testing.T) {
 	defer f.Close()
 
 	// this should not panic
-	err = s3Post("testbox", f)
+	err = s3Post("testbox", f, jsonFt)
 	assert.Equal(t, S3ClientUninitializedError, err)
 }

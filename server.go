@@ -128,11 +128,12 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	aws_id := conf.AWSAccessKeyId
 	aws_secret := conf.AWSSecretAccessKey
 
-	ret.logger.Infof("Credentials have length %d and %d", len(aws_id), len(aws_secret))
+	conf.AWSAccessKeyId = "REDACTED"
+	conf.AWSSecretAccessKey = "REDACTED"
 
 	if len(aws_id) > 0 && len(aws_secret) > 0 {
 		sess, err := session.NewSession(&aws.Config{
-			Region:      aws.String(DefaultAWSRegion),
+			Region:      aws.String(conf.AWSRegion),
 			Credentials: credentials.NewStaticCredentials(aws_id, aws_secret, ""),
 		})
 
@@ -142,6 +143,9 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		} else {
 			ret.logger.Info("Successfully created AWS session")
 			svc = s3.New(sess)
+
+			// TODO(aditya) store this on the server
+			S3Bucket = conf.AWSBucket
 		}
 	} else {
 		ret.logger.Info("AWS credentials not found")
