@@ -1,7 +1,8 @@
 package veneur
 
 import (
-	"encoding/json"
+	"compress/gzip"
+	"encoding/csv"
 	"os"
 	"path"
 	"strconv"
@@ -40,6 +41,7 @@ func stubS3() {
 // TestS3Post tests that we can correctly post a sequence of
 // DDMetrics to S3
 func TestS3Post(t *testing.T) {
+	const Comma = '\t'
 	RemoteResponseChan := make(chan struct{}, 1)
 	defer func() {
 		select {
@@ -52,16 +54,21 @@ func TestS3Post(t *testing.T) {
 	}()
 
 	client := &mockS3Client{}
-	f, err := os.Open(path.Join("fixtures", "aws", "PutObject", "2016", "10", "07", "1475863542.json"))
+	f, err := os.Open(path.Join("fixtures", "aws", "PutObject", "2016", "10", "13", "1476370612.tsv.gz"))
 	assert.NoError(t, err)
 	defer f.Close()
 
 	client.putObject = func(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
-		var data []DDMetric
+		// The data should be a gzipped TSV
+		gzr, err := gzip.NewReader(input.Body)
 		assert.NoError(t, err)
-		json.NewDecoder(input.Body).Decode(&data)
-		assert.Equal(t, 6, len(data))
-		assert.Equal(t, "a.b.c.max", data[0].Name)
+		csvr := csv.NewReader(gzr)
+		csvr.Comma = Comma
+		records, err := csvr.ReadAll()
+		assert.NoError(t, err)
+
+		assert.Equal(t, 6, len(records))
+		assert.Equal(t, "a.b.c.max", records[0][0])
 		RemoteResponseChan <- struct{}{}
 		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
 	}

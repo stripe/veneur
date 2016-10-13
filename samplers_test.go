@@ -2,6 +2,7 @@ package veneur
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/csv"
 	"io"
 	"io/ioutil"
@@ -340,7 +341,9 @@ func TestEncodeDDMetricsCSV(t *testing.T) {
 
 	c, err := encodeDDMetricsCSV(metrics, Delimiter, true)
 	assert.NoError(t, err)
-	r := csv.NewReader(c)
+	gzr, err := gzip.NewReader(c)
+	assert.NoError(t, err)
+	r := csv.NewReader(gzr)
 	r.FieldsPerRecord = 8
 	r.Comma = Delimiter
 
