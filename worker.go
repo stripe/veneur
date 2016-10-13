@@ -133,7 +133,7 @@ func (w *Worker) Work() {
 			}
 		case <-w.QuitChan:
 			// We have been asked to stop.
-			w.logger.WithField("worker", w.id).Error("Stopping")
+			log.WithField("worker", w.id).Error("Stopping")
 			return
 		}
 	}
@@ -173,7 +173,7 @@ func (w *Worker) ProcessMetric(m *UDPMetric) {
 			w.wm.timers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		}
 	default:
-		w.logger.WithField("type", m.Type).Error("Unknown metric type for processing")
+		log.WithField("type", m.Type).Error("Unknown metric type for processing")
 	}
 }
 
@@ -190,18 +190,18 @@ func (w *Worker) ImportMetric(other JSONMetric) {
 	switch other.Type {
 	case "set":
 		if err := w.wm.sets[other.MetricKey].Combine(other.Value); err != nil {
-			w.logger.WithError(err).Error("Could not merge sets")
+			log.WithError(err).Error("Could not merge sets")
 		}
 	case "histogram":
 		if err := w.wm.histograms[other.MetricKey].Combine(other.Value); err != nil {
-			w.logger.WithError(err).Error("Could not merge histograms")
+			log.WithError(err).Error("Could not merge histograms")
 		}
 	case "timer":
 		if err := w.wm.timers[other.MetricKey].Combine(other.Value); err != nil {
-			w.logger.WithError(err).Error("Could not merge timers")
+			log.WithError(err).Error("Could not merge timers")
 		}
 	default:
-		w.logger.WithField("type", other.Type).Error("Unknown metric type for importing")
+		log.WithField("type", other.Type).Error("Unknown metric type for importing")
 	}
 }
 

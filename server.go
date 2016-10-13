@@ -22,13 +22,14 @@ import (
 // It must be a var so it can be set at link time.
 var VERSION = "dirty"
 
+var log = logrus.New()
+
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers     []*Worker
 	EventWorker *EventWorker
 
 	statsd *statsd.Client
-	logger *logrus.Logger
 	sentry *raven.Client
 
 	Hostname string
@@ -76,11 +77,10 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		}
 	}
 
-	ret.logger = logrus.New()
 	if conf.Debug {
-		ret.logger.Level = logrus.DebugLevel
+		log.Level = logrus.DebugLevel
 	}
-	ret.logger.Hooks.Add(sentryHook{
+	log.Hooks.Add(sentryHook{
 		c:        ret.sentry,
 		hostname: ret.Hostname,
 		lv: []logrus.Level{
@@ -89,12 +89,12 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			logrus.PanicLevel,
 		},
 	})
-	ret.logger.WithField("version", VERSION).Info("Starting server")
+	log.WithField("version", VERSION).Info("Starting server")
 
-	ret.logger.WithField("number", conf.NumWorkers).Info("Starting workers")
+	log.WithField("number", conf.NumWorkers).Info("Starting workers")
 	ret.Workers = make([]*Worker, conf.NumWorkers)
 	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.statsd, ret.logger)
+		ret.Workers[i] = NewWorker(i+1, ret.statsd, log)
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {
@@ -122,7 +122,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 	conf.Key = "REDACTED"
 	conf.SentryDSN = "REDACTED"
-	ret.logger.WithField("config", conf).Debug("Initialized server")
+	log.WithField("config", conf).Debug("Initialized server")
 
 	svc = nil
 	aws_id := conf.AWSAccessKeyId
@@ -138,23 +138,23 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		})
 
 		if err != nil {
-			ret.logger.Info("error getting AWS session: %s", err)
+			log.Info("error getting AWS session: %s", err)
 			svc = nil
 		} else {
-			ret.logger.Info("Successfully created AWS session")
+			log.Info("Successfully created AWS session")
 			svc = s3.New(sess)
 
 			// TODO(aditya) store this on the server
 			S3Bucket = conf.AWSBucket
 		}
 	} else {
-		ret.logger.Info("AWS credentials not found")
+		log.Info("AWS credentials not found")
 	}
 
 	if svc == nil {
-		ret.logger.Info("S3 archives are disabled")
+		log.Info("S3 archives are disabled")
 	} else {
-		ret.logger.Info("S3 archives are enabled")
+		log.Info("S3 archives are enabled")
 	}
 
 	return
@@ -176,7 +176,7 @@ func (s *Server) HandlePacket(packet []byte) {
 	if bytes.HasPrefix(packet, []byte{'_', 'e', '{'}) {
 		event, err := ParseEvent(packet)
 		if err != nil {
-			s.logger.WithFields(logrus.Fields{
+			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Error("Could not parse packet")
@@ -187,7 +187,7 @@ func (s *Server) HandlePacket(packet []byte) {
 	} else if bytes.HasPrefix(packet, []byte{'_', 's', 'c'}) {
 		svcheck, err := ParseServiceCheck(packet)
 		if err != nil {
-			s.logger.WithFields(logrus.Fields{
+			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Error("Could not parse packet")
@@ -198,7 +198,7 @@ func (s *Server) HandlePacket(packet []byte) {
 	} else {
 		metric, err := ParseMetric(packet)
 		if err != nil {
-			s.logger.WithFields(logrus.Fields{
+			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Error("Could not parse packet")
@@ -221,15 +221,15 @@ func (s *Server) ReadSocket(packetPool *sync.Pool, reuseport bool) {
 		// recover, so we just blow up
 		// this probably indicates a systemic issue, eg lack of
 		// SO_REUSEPORT support
-		s.logger.WithError(err).Fatal("Error listening for UDP")
+		log.WithError(err).Fatal("Error listening for UDP")
 	}
-	s.logger.WithField("address", s.UDPAddr).Info("UDP server listening")
+	log.WithField("address", s.UDPAddr).Info("UDP server listening")
 
 	for {
 		buf := packetPool.Get().([]byte)
 		n, _, err := serverConn.ReadFrom(buf)
 		if err != nil {
-			s.logger.WithError(err).Error("Error reading from UDP")
+			log.WithError(err).Error("Error reading from UDP")
 			continue
 		}
 
@@ -256,14 +256,14 @@ func (s *Server) HTTPServe() {
 	httpSocket := bind.Socket(s.HTTPAddr)
 	graceful.Timeout(10 * time.Second)
 	graceful.PreHook(func() {
-		s.logger.Info("Terminating HTTP listener")
+		log.Info("Terminating HTTP listener")
 	})
 	graceful.HandleSignals()
-	s.logger.WithField("address", s.HTTPAddr).Info("HTTP server listening")
+	log.WithField("address", s.HTTPAddr).Info("HTTP server listening")
 	bind.Ready()
 
 	if err := graceful.Serve(httpSocket, s.Handler()); err != nil {
-		s.logger.WithError(err).Error("HTTP server shut down due to error")
+		log.WithError(err).Error("HTTP server shut down due to error")
 	}
 
 	graceful.Shutdown()
@@ -273,7 +273,7 @@ func (s *Server) HTTPServe() {
 // current connections.
 func (s *Server) Shutdown() {
 	// TODO(aditya) shut down workers and socket readers
-	s.logger.Info("Shutting down server gracefully")
+	log.Info("Shutting down server gracefully")
 	graceful.Shutdown()
 }
 

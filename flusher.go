@@ -30,6 +30,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 }
 
 func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
+
 	go s.flushEventsChecks() // we can do all of this separately
 
 	percentiles := s.HistogramPercentiles
@@ -53,6 +54,7 @@ func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
 // FlushLocal takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) FlushLocal(interval time.Duration, metricLimit int) {
+
 	go s.flushEventsChecks() // we can do all of this separately
 
 	// don't publish percentiles if we're a local veneur; that's the global
@@ -101,7 +103,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 	ms := metricsSummary{}
 
 	for i, w := range s.Workers {
-		s.logger.WithField("worker", i).Debug("Flushing")
+		log.WithField("worker", i).Debug("Flushing")
 		wm := w.Flush()
 		tempMetrics = append(tempMetrics, wm)
 
@@ -221,7 +223,7 @@ func (s *Server) flushS3(finalMetrics []DDMetric) {
 	start := time.Now()
 	csv, err := encodeDDMetricsCSV(finalMetrics, Delimiter, IncludeHeaders)
 	if err != nil {
-		s.logger.WithFields(logrus.Fields{
+		log.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
 			"metrics":       len(finalMetrics),
 		}).Error("Could not marshal finalMetrics before posting to s3")
@@ -230,7 +232,7 @@ func (s *Server) flushS3(finalMetrics []DDMetric) {
 
 	err = s3Post(s.Hostname, csv, tsvFt+".gz")
 	if err != nil {
-		s.logger.WithFields(logrus.Fields{
+		log.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
 			"metrics":       len(finalMetrics),
 		}).Error("Error posting to s3")
@@ -238,7 +240,7 @@ func (s *Server) flushS3(finalMetrics []DDMetric) {
 	}
 
 	s.statsd.TimeInMilliseconds("flush.s3.total_duration_ns", float64(time.Now().Sub(start).Nanoseconds()), []string{"part:post"}, 1.0)
-	s.logger.WithField("metrics", len(finalMetrics)).Debug("Completed flush to s3")
+	log.WithField("metrics", len(finalMetrics)).Debug("Completed flush to s3")
 }
 
 // flushRemote breaks up the final metrics into chunks
@@ -247,7 +249,7 @@ func (s *Server) flushRemote(finalMetrics []DDMetric, metricLimit int) {
 	s.statsd.Gauge("flush.post_metrics_total", float64(len(finalMetrics)), nil, 1.0)
 	// Check to see if we have anything to do
 	if len(finalMetrics) == 0 {
-		s.logger.Info("Nothing to flush, skipping.")
+		log.Info("Nothing to flush, skipping.")
 		return
 	}
 
@@ -256,8 +258,8 @@ func (s *Server) flushRemote(finalMetrics []DDMetric, metricLimit int) {
 	// we compute the chunks using rounding-up integer division
 	workers := ((len(finalMetrics) - 1) / metricLimit) + 1
 	chunkSize := ((len(finalMetrics) - 1) / workers) + 1
-	s.logger.WithField("workers", workers).Debug("Worker count chosen")
-	s.logger.WithField("chunkSize", chunkSize).Debug("Chunk size chosen")
+	log.WithField("workers", workers).Debug("Worker count chosen")
+	log.WithField("chunkSize", chunkSize).Debug("Chunk size chosen")
 	var wg sync.WaitGroup
 	flushStart := time.Now()
 	for i := 0; i < workers; i++ {
@@ -272,7 +274,7 @@ func (s *Server) flushRemote(finalMetrics []DDMetric, metricLimit int) {
 	wg.Wait()
 	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(flushStart).Nanoseconds()), []string{"part:post"}, 1.0)
 
-	s.logger.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
+	log.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
 }
 
 func finalizeMetrics(hostname string, tags []string, finalMetrics []DDMetric) {
@@ -322,7 +324,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 		for _, histo := range wm.histograms {
 			jm, err := histo.Export()
 			if err != nil {
-				s.logger.WithFields(logrus.Fields{
+				log.WithFields(logrus.Fields{
 					logrus.ErrorKey: err,
 					"type":          "histogram",
 					"name":          histo.name,
@@ -334,7 +336,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 		for _, set := range wm.sets {
 			jm, err := set.Export()
 			if err != nil {
-				s.logger.WithFields(logrus.Fields{
+				log.WithFields(logrus.Fields{
 					logrus.ErrorKey: err,
 					"type":          "set",
 					"name":          set.name,
@@ -346,7 +348,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 		for _, timer := range wm.timers {
 			jm, err := timer.Export()
 			if err != nil {
-				s.logger.WithFields(logrus.Fields{
+				log.WithFields(logrus.Fields{
 					logrus.ErrorKey: err,
 					"type":          "timer",
 					"name":          timer.name,
@@ -362,7 +364,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 
 	s.statsd.Gauge("forward.post_metrics_total", float64(len(jsonMetrics)), nil, 1.0)
 	if len(jsonMetrics) == 0 {
-		s.logger.Debug("Nothing to forward, skipping.")
+		log.Debug("Nothing to forward, skipping.")
 		return
 	}
 
@@ -373,14 +375,14 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 		// not a fatal error if we fail
 		// we'll just try to use the host as it was given to us
 		s.statsd.Count("forward.error_total", 1, []string{"cause:dns"}, 1.0)
-		s.logger.WithError(err).Warn("Could not re-resolve host for forward")
+		log.WithError(err).Warn("Could not re-resolve host for forward")
 	}
 	s.statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Now().Sub(dnsStart).Nanoseconds()), []string{"part:dns"}, 1.0)
 
 	// the error has already been logged (if there was one), so we only care
 	// about the success case
 	if s.postHelper(endpoint, jsonMetrics, "forward", true) == nil {
-		s.logger.WithField("metrics", len(jsonMetrics)).Info("Completed forward to upstream Veneur")
+		log.WithField("metrics", len(jsonMetrics)).Info("Completed forward to upstream Veneur")
 	}
 }
 
@@ -445,7 +447,7 @@ func (s *Server) flushEventsChecks() {
 			},
 		}, "flush_events", true)
 		if err == nil {
-			s.logger.WithField("events", len(events)).Info("Completed flushing events to Datadog")
+			log.WithField("events", len(events)).Info("Completed flushing events to Datadog")
 		}
 	}
 
@@ -455,7 +457,7 @@ func (s *Server) flushEventsChecks() {
 		// support "Content-Encoding: deflate"
 		err := s.postHelper(fmt.Sprintf("%s/api/v1/check_run?api_key=%s", s.DDHostname, s.DDAPIKey), checks, "flush_checks", false)
 		if err == nil {
-			s.logger.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
+			log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
 		}
 	}
 }
@@ -468,7 +470,7 @@ func (s *Server) flushEventsChecks() {
 // support it
 func (s *Server) postHelper(endpoint string, bodyObject interface{}, action string, compress bool) error {
 	// attach this field to all the logs we generate
-	innerLogger := s.logger.WithField("action", action)
+	innerLogger := log.WithField("action", action)
 
 	marshalStart := time.Now()
 	var (
