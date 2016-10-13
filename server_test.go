@@ -2,21 +2,27 @@ package veneur
 
 import (
 	"bytes"
+	"compress/gzip"
 	"compress/zlib"
+	"encoding/csv"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/tdigest"
 )
@@ -569,4 +575,109 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 	}
 
 	server.Flush(config.Interval, config.FlushLimit)
+}
+
+// TestGlobalServerS3PluginFlush tests that we are able to
+// register the S3 plugin on the server, and that when we do,
+// flushing on the server causes the S3 plugin to flush to S3.
+// This is the function that actually tests the S3Plugin.Flush()
+// method
+
+func TestGlobalServerS3PluginFlush(t *testing.T) {
+
+	RemoteResponseChan := make(chan struct{}, 1)
+	defer func() {
+		select {
+		case <-RemoteResponseChan:
+			// all is safe
+			return
+		case <-time.After(DefaultServerTimeout):
+			assert.Fail(t, "Global server did not complete all responses before test terminated!")
+		}
+	}()
+
+	metricValues, _ := generateMetrics()
+
+	config := globalConfig()
+
+	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	}))
+
+	config.APIHostname = remoteServer.URL
+	config.NumWorkers = 1
+
+	server := setupVeneurServer(t, config)
+	defer server.Shutdown()
+
+	client := &mockS3Client{}
+	client.putObject = func(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
+		f, err := os.Open(path.Join("fixtures", "aws", "PutObject", "2016", "10", "13", "1476370612.tsv.gz"))
+		assert.NoError(t, err)
+		defer f.Close()
+
+		records, err := parseGzipTSV(input.Body)
+		assert.NoError(t, err)
+
+		expectedRecords, err := parseGzipTSV(f)
+		assert.NoError(t, err)
+
+		assert.Equal(t, len(expectedRecords), len(records))
+
+		assertCSVFieldsMatch(t, expectedRecords, records, []int{0,1,2,3,4,5,7})
+		//assert.Equal(t, expectedRecords, records)
+
+		RemoteResponseChan <- struct{}{}
+		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
+	}
+
+	s3p := &S3Plugin{logger: log, statsd: server.statsd, svc: client}
+
+	server.registerPlugin(s3p)
+
+	plugins := server.getPlugins()
+	assert.Equal(t, 1, len(plugins))
+
+	for _, value := range metricValues {
+		server.Workers[0].ProcessMetric(&UDPMetric{
+			MetricKey: MetricKey{
+				Name: "a.b.c",
+				Type: "histogram",
+			},
+			Value:      value,
+			Digest:     12345,
+			SampleRate: 1.0,
+			LocalOnly:  true,
+		})
+	}
+
+	server.Flush(config.Interval, config.FlushLimit)
+}
+
+func parseGzipTSV(r io.Reader) ([][]string, error) {
+	gzr, err := gzip.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	cr := csv.NewReader(gzr)
+	cr.Comma = '\t'
+	return cr.ReadAll()
+}
+
+// assertCSVFieldsMatch asserts that all fields of all rows match, but it allows us
+// to skip some columns entirely, if we know that they won't match (e.g. timestamps)
+func assertCSVFieldsMatch(t *testing.T, expected, actual [][]string, columns []int) {
+	if columns == nil {
+		columns = make([]int, len(expected[0]))
+		for i := 0; i < len(columns); i++ {
+			columns[i] = i
+		}
+	}
+
+	for i, row := range expected {
+		assert.Equal(t, len(row), len(actual[i]))
+		for _, column := range columns {
+			assert.Equal(t, row[column], actual[i][column], "mismatch at column %d", column)
+		}
+	}
 }
