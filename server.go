@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/getsentry/raven-go"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
@@ -45,6 +46,9 @@ type Server struct {
 	RcvbufBytes int
 
 	HistogramPercentiles []float64
+
+	plugins   []plugin
+	pluginMtx sync.Mutex
 }
 
 // NewFromConfig creates a new veneur server from a configuration specification.
@@ -124,7 +128,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.SentryDSN = "REDACTED"
 	log.WithField("config", conf).Debug("Initialized server")
 
-	svc = nil
+	var svc s3iface.S3API = nil
 	aws_id := conf.AWSAccessKeyId
 	aws_secret := conf.AWSSecretAccessKey
 
@@ -152,6 +156,8 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	}
 
 	if svc == nil {
+		plugin := S3Plugin{svc: svc}
+		plugin.Initialize(ret.statsd, log)
 		log.Info("S3 archives are disabled")
 	} else {
 		log.Info("S3 archives are enabled")
@@ -335,4 +341,18 @@ func (sb *SplitBytes) Next() bool {
 // Chunk returns the current chunk.
 func (sb *SplitBytes) Chunk() []byte {
 	return sb.currentChunk
+}
+
+func (s *Server) registerPlugin(p plugin) {
+	s.pluginMtx.Lock()
+	s.plugins = append(s.plugins, p)
+	s.pluginMtx.Unlock()
+}
+
+func (s *Server) getPlugins() []plugin {
+	s.pluginMtx.Lock()
+	plugins := make([]plugin, len(s.plugins))
+	copy(plugins, s.plugins)
+	s.pluginMtx.Unlock()
+	return plugins
 }

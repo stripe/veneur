@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-go/statsd"
+	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/tdigest"
 )
@@ -168,8 +170,6 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 		}
 	}()
 
-	stubS3()
-
 	metricValues := []float64{1.0, 2.0, 7.0, 8.0, 100.0}
 
 	expectedMetrics := map[string]float64{
@@ -207,6 +207,8 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	config.APIHostname = remoteServer.URL
 
 	server := setupVeneurServer(t, config)
+	s3p := stubS3()
+	s3p.statsd = server.statsd
 	defer server.Shutdown()
 
 	for _, value := range metricValues {
@@ -504,4 +506,90 @@ func checkBufferSplit(t *testing.T, buf []byte) {
 
 	// now compare our split to the "real" implementation of split
 	assert.EqualValues(t, bytes.Split(buf, []byte{'A'}), testSplit, "should have split %s correctly", buf)
+}
+
+type dummyPlugin struct {
+	logger *logrus.Logger
+	statsd *statsd.Client
+	flush  func([]DDMetric, string) error
+}
+
+func (dp *dummyPlugin) Flush(metrics []DDMetric, hostname string) error {
+	return dp.flush(metrics, hostname)
+}
+
+// TestGlobalServerPluginFlush tests that we are able to
+// register a plugin on the server, and that when we do,
+// flushing on the server causes the plugin to flush
+func TestGlobalServerPluginFlush(t *testing.T) {
+
+	RemoteResponseChan := make(chan struct{}, 1)
+	defer func() {
+		select {
+		case <-RemoteResponseChan:
+			// all is safe
+			return
+		case <-time.After(DefaultServerTimeout):
+			assert.Fail(t, "Global server did not complete all responses before test terminated!")
+		}
+	}()
+
+	metricValues := []float64{1.0, 2.0, 7.0, 8.0, 100.0}
+
+	expectedMetrics := map[string]float64{
+		"a.b.c.max": 100,
+		"a.b.c.min": 1,
+
+		// Count is normalized by second
+		// so 5 values/50ms = 100 values/s
+		"a.b.c.count": float64(len(metricValues)) * float64(time.Second) / float64(DefaultFlushInterval),
+
+		// tdigest approximation causes this to be off by 1
+		"a.b.c.50percentile": 6,
+		"a.b.c.75percentile": 42,
+		"a.b.c.99percentile": 98,
+	}
+
+	config := globalConfig()
+
+	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	}))
+
+	config.APIHostname = remoteServer.URL
+	config.NumWorkers = 1
+
+	server := setupVeneurServer(t, config)
+	defer server.Shutdown()
+
+	dp := &dummyPlugin{logger: log, statsd: server.statsd}
+
+	dp.flush = func(metrics []DDMetric, hostname string) error {
+		assert.Equal(t, len(expectedMetrics), len(metrics))
+
+		firstName := metrics[0].Name
+		assert.Equal(t, expectedMetrics[firstName], metrics[0].Value[0][1])
+
+		assert.Equal(t, hostname, server.Hostname)
+
+		RemoteResponseChan <- struct{}{}
+		return nil
+	}
+
+	server.registerPlugin(dp)
+
+	for _, value := range metricValues {
+		server.Workers[0].ProcessMetric(&UDPMetric{
+			MetricKey: MetricKey{
+				Name: "a.b.c",
+				Type: "histogram",
+			},
+			Value:      value,
+			Digest:     12345,
+			SampleRate: 1.0,
+			LocalOnly:  true,
+		})
+	}
+
+	server.Flush(config.Interval, config.FlushLimit)
 }

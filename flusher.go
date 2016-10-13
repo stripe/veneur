@@ -29,7 +29,12 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	}
 }
 
+type plugin interface {
+	Flush([]DDMetric, string) error
+}
+
 func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
+	//NewS3Plugin(c)
 
 	go s.flushEventsChecks() // we can do all of this separately
 
@@ -46,7 +51,11 @@ func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
 
 	s.reportGlobalMetricsFlushCounts(ms)
 
-	go s.flushS3(finalMetrics)
+	go func() {
+		for _, p := range s.getPlugins() {
+			go p.Flush(finalMetrics, s.Hostname)
+		}
+	}()
 
 	s.flushRemote(finalMetrics, metricLimit)
 }
@@ -54,7 +63,6 @@ func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
 // FlushLocal takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) FlushLocal(interval time.Duration, metricLimit int) {
-
 	go s.flushEventsChecks() // we can do all of this separately
 
 	// don't publish percentiles if we're a local veneur; that's the global
@@ -214,33 +222,6 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 	s.statsd.Count("worker.metrics_flushed_total", int64(ms.totalHistograms), []string{"metric_type:histogram"}, 1.0)
 	s.statsd.Count("worker.metrics_flushed_total", int64(ms.totalSets), []string{"metric_type:set"}, 1.0)
 	s.statsd.Count("worker.metrics_flushed_total", int64(ms.totalTimers), []string{"metric_type:timer"}, 1.0)
-}
-
-func (s *Server) flushS3(finalMetrics []DDMetric) {
-	const Delimiter = '\t'
-	const IncludeHeaders = false
-
-	start := time.Now()
-	csv, err := encodeDDMetricsCSV(finalMetrics, Delimiter, IncludeHeaders)
-	if err != nil {
-		log.WithFields(logrus.Fields{
-			logrus.ErrorKey: err,
-			"metrics":       len(finalMetrics),
-		}).Error("Could not marshal finalMetrics before posting to s3")
-		return
-	}
-
-	err = s3Post(s.Hostname, csv, tsvFt+".gz")
-	if err != nil {
-		log.WithFields(logrus.Fields{
-			logrus.ErrorKey: err,
-			"metrics":       len(finalMetrics),
-		}).Error("Error posting to s3")
-		return
-	}
-
-	s.statsd.TimeInMilliseconds("flush.s3.total_duration_ns", float64(time.Now().Sub(start).Nanoseconds()), []string{"part:post"}, 1.0)
-	log.WithField("metrics", len(finalMetrics)).Debug("Completed flush to s3")
 }
 
 // flushRemote breaks up the final metrics into chunks
