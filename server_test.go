@@ -515,6 +515,10 @@ func (dp *dummyPlugin) Flush(metrics []DDMetric, hostname string) error {
 	return dp.flush(metrics, hostname)
 }
 
+func (dp *dummyPlugin) Name() string {
+	return "dummy_plugin"
+}
+
 // TestGlobalServerPluginFlush tests that we are able to
 // register a dummy plugin on the server, and that when we do,
 // flushing on the server causes the plugin to flush
