@@ -86,6 +86,25 @@ func generateConfig(forwardAddr string) Config {
 	}
 }
 
+func generateMetrics() (metricValues []float64, expectedMetrics map[string]float64) {
+	metricValues = []float64{1.0, 2.0, 7.0, 8.0, 100.0}
+
+	expectedMetrics = map[string]float64{
+		"a.b.c.max": 100,
+		"a.b.c.min": 1,
+
+		// Count is normalized by second
+		// so 5 values/50ms = 100 values/s
+		"a.b.c.count": float64(len(metricValues)) * float64(time.Second) / float64(DefaultFlushInterval),
+
+		// tdigest approximation causes this to be off by 1
+		"a.b.c.50percentile": 6,
+		"a.b.c.75percentile": 42,
+		"a.b.c.99percentile": 98,
+	}
+	return metricValues, expectedMetrics
+}
+
 // assertMetrics checks that all expected metrics are present
 // and have the correct value
 func assertMetrics(t *testing.T, metrics DDMetricsRequest, expectedMetrics map[string]float64) {
@@ -170,21 +189,7 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 		}
 	}()
 
-	metricValues := []float64{1.0, 2.0, 7.0, 8.0, 100.0}
-
-	expectedMetrics := map[string]float64{
-		"a.b.c.max": 100,
-		"a.b.c.min": 1,
-
-		// Count is normalized by second
-		// so 5 values/50ms = 100 values/s
-		"a.b.c.count": float64(len(metricValues)) * float64(time.Second) / float64(DefaultFlushInterval),
-
-		// tdigest approximation causes this to be off by 1
-		"a.b.c.50percentile": 6,
-		"a.b.c.75percentile": 42,
-		"a.b.c.99percentile": 98,
-	}
+	metricValues, expectedMetrics := generateMetrics()
 
 	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		zr, err := zlib.NewReader(r.Body)
@@ -240,21 +245,7 @@ func TestGlobalServerFlush(t *testing.T) {
 		}
 	}()
 
-	metricValues := []float64{1.0, 2.0, 7.0, 8.0, 100.0}
-
-	expectedMetrics := map[string]float64{
-		"a.b.c.max": 100,
-		"a.b.c.min": 1,
-
-		// Count is normalized by second
-		// so 5 values/50ms = 100 values/s
-		"a.b.c.count": float64(len(metricValues)) * float64(time.Second) / float64(DefaultFlushInterval),
-
-		// tdigest approximation causes this to be off by 1
-		"a.b.c.50percentile": 6,
-		"a.b.c.75percentile": 42,
-		"a.b.c.99percentile": 98,
-	}
+	metricValues, expectedMetrics := generateMetrics()
 
 	config := globalConfig()
 
@@ -519,7 +510,7 @@ func (dp *dummyPlugin) Flush(metrics []DDMetric, hostname string) error {
 }
 
 // TestGlobalServerPluginFlush tests that we are able to
-// register a plugin on the server, and that when we do,
+// register a dummy plugin on the server, and that when we do,
 // flushing on the server causes the plugin to flush
 func TestGlobalServerPluginFlush(t *testing.T) {
 
@@ -534,21 +525,7 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 		}
 	}()
 
-	metricValues := []float64{1.0, 2.0, 7.0, 8.0, 100.0}
-
-	expectedMetrics := map[string]float64{
-		"a.b.c.max": 100,
-		"a.b.c.min": 1,
-
-		// Count is normalized by second
-		// so 5 values/50ms = 100 values/s
-		"a.b.c.count": float64(len(metricValues)) * float64(time.Second) / float64(DefaultFlushInterval),
-
-		// tdigest approximation causes this to be off by 1
-		"a.b.c.50percentile": 6,
-		"a.b.c.75percentile": 42,
-		"a.b.c.99percentile": 98,
-	}
+	metricValues, expectedMetrics := generateMetrics()
 
 	config := globalConfig()
 
