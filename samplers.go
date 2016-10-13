@@ -2,6 +2,7 @@ package veneur
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/csv"
 	"fmt"
 	"hash/fnv"
@@ -103,12 +104,13 @@ func (d DDMetric) encodeCSV(w *csv.Writer) error {
 	return w.Error()
 }
 
-// encodeDDMetricsCSV returns a reader containing the CSV representation of the
+// encodeDDMetricsCSV returns a reader containing the gzipped CSV representation of the
 // DDMetrics data, one row per DDMetric.
 // the AWS sdk requires seekable input, so we return a ReadSeeker here
 func encodeDDMetricsCSV(metrics []DDMetric, delimiter rune, includeHeaders bool) (io.ReadSeeker, error) {
 	b := &bytes.Buffer{}
-	w := csv.NewWriter(b)
+	gzw := gzip.NewWriter(b)
+	w := csv.NewWriter(gzw)
 	w.Comma = delimiter
 
 	if includeHeaders {
@@ -134,6 +136,7 @@ func encodeDDMetricsCSV(metrics []DDMetric, delimiter rune, includeHeaders bool)
 	}
 
 	w.Flush()
+	gzw.Close()
 	return bytes.NewReader(b.Bytes()), w.Error()
 }
 

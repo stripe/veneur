@@ -26,3 +26,4 @@ _testmain.go
 bin
 _work
 /veneur
+/cmd/veneur/veneur
