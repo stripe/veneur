@@ -148,16 +148,19 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			log.Info("Successfully created AWS session")
 			svc = s3.New(sess)
 
-			// TODO(aditya) store this on the server
-			S3Bucket = conf.AWSBucket
+			plugin := &S3Plugin{
+				logger:   log,
+				statsd:   ret.statsd,
+				svc:      svc,
+				s3Bucket: conf.AWSBucket,
+			}
+			ret.registerPlugin(plugin)
 		}
 	} else {
 		log.Info("AWS credentials not found")
 	}
 
 	if svc == nil {
-		plugin := S3Plugin{svc: svc}
-		plugin.Initialize(ret.statsd, log)
 		log.Info("S3 archives are disabled")
 	} else {
 		log.Info("S3 archives are enabled")
@@ -343,10 +346,13 @@ func (sb *SplitBytes) Chunk() []byte {
 	return sb.currentChunk
 }
 
+// registerPlugin registers a plugin for use
+// on the veneur server. It is blocking
+// and not threadsafe.
 func (s *Server) registerPlugin(p plugin) {
 	s.pluginMtx.Lock()
+	defer s.pluginMtx.Unlock()
 	s.plugins = append(s.plugins, p)
-	s.pluginMtx.Unlock()
 }
 
 func (s *Server) getPlugins() []plugin {

@@ -34,8 +34,6 @@ type plugin interface {
 }
 
 func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
-	//NewS3Plugin(c)
-
 	go s.flushEventsChecks() // we can do all of this separately
 
 	percentiles := s.HistogramPercentiles

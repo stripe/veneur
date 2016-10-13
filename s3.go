@@ -20,9 +20,10 @@ import (
 var _ plugin = &S3Plugin{}
 
 type S3Plugin struct {
-	logger *logrus.Logger
-	statsd *statsd.Client
-	svc    s3iface.S3API
+	logger   *logrus.Logger
+	statsd   *statsd.Client
+	svc      s3iface.S3API
+	s3Bucket string
 }
 
 func (p *S3Plugin) Flush(metrics []DDMetric, hostname string) error {
@@ -32,7 +33,7 @@ func (p *S3Plugin) Flush(metrics []DDMetric, hostname string) error {
 	start := time.Now()
 	csv, err := encodeDDMetricsCSV(metrics, Delimiter, IncludeHeaders)
 	if err != nil {
-		log.WithFields(logrus.Fields{
+		p.logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
 			"metrics":       len(metrics),
 		}).Error("Could not marshal metrics before posting to s3")
@@ -41,7 +42,7 @@ func (p *S3Plugin) Flush(metrics []DDMetric, hostname string) error {
 
 	err = p.s3Post(hostname, csv, tsvGzFt)
 	if err != nil {
-		log.WithFields(logrus.Fields{
+		p.logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
 			"metrics":       len(metrics),
 		}).Error("Error posting to s3")
@@ -49,13 +50,8 @@ func (p *S3Plugin) Flush(metrics []DDMetric, hostname string) error {
 	}
 
 	p.statsd.TimeInMilliseconds("flush.s3.total_duration_ns", float64(time.Now().Sub(start).Nanoseconds()), []string{"part:post"}, 1.0)
-	log.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
+	p.logger.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
 	return nil
-}
-
-func (p *S3Plugin) Initialize(statsd *statsd.Client, logger *logrus.Logger) {
-	p.statsd = statsd
-	p.logger = logger
 }
 
 type filetype string

@@ -624,7 +624,7 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 
 		assert.Equal(t, len(expectedRecords), len(records))
 
-		assertCSVFieldsMatch(t, expectedRecords, records, []int{0,1,2,3,4,5,7})
+		assertCSVFieldsMatch(t, expectedRecords, records, []int{0, 1, 2, 3, 4, 5, 7})
 		//assert.Equal(t, expectedRecords, records)
 
 		RemoteResponseChan <- struct{}{}
