@@ -110,10 +110,10 @@ func (d DDMetric) encodeCSV(w *csv.Writer, partitionDate *time.Time, hostname st
 		tsvVeneurHostname: hostname,
 		tsvValue:          value,
 
-		tsvTimestamp: time.Unix(int64(timestamp), 0).Format(RedshiftDateFormat),
+		tsvTimestamp: time.Unix(int64(timestamp), 0).UTC().Format(RedshiftDateFormat),
 
 		// TODO avoid edge case at midnight
-		tsvPartition: partitionDate.Format(PartitionDateFormat),
+		tsvPartition: partitionDate.UTC().Format(PartitionDateFormat),
 	}
 
 	w.Write(fields[:])
