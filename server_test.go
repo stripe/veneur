@@ -612,7 +612,7 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 
 	client := &mockS3Client{}
 	client.putObject = func(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
-		f, err := os.Open(path.Join("fixtures", "aws", "PutObject", "2016", "10", "13", "1476370612.tsv.gz"))
+		f, err := os.Open(path.Join("fixtures", "aws", "PutObject", "2016", "10", "14", "1476481302.tsv.gz"))
 		assert.NoError(t, err)
 		defer f.Close()
 
@@ -624,7 +624,7 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 
 		assert.Equal(t, len(expectedRecords), len(records))
 
-		assertCSVFieldsMatch(t, expectedRecords, records, []int{0, 1, 2, 3, 4, 5, 7})
+		assertCSVFieldsMatch(t, expectedRecords, records, []int{0, 1, 2, 3, 4, 5, 6})
 		//assert.Equal(t, expectedRecords, records)
 
 		RemoteResponseChan <- struct{}{}

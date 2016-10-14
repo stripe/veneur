@@ -153,6 +153,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 				statsd:   ret.statsd,
 				svc:      svc,
 				s3Bucket: conf.AWSBucket,
+				hostname: ret.Hostname,
 			}
 			ret.registerPlugin(plugin)
 		}

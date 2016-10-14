@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/csv"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
@@ -252,6 +253,8 @@ type CSVTestCase struct {
 
 func CSVTestCases() []CSVTestCase {
 
+	partition := time.Now().Format("20060102")
+
 	return []CSVTestCase{
 		{
 			Name: "BasicDDMetric",
@@ -266,7 +269,7 @@ func CSVTestCases() []CSVTestCase {
 				DeviceName: "food",
 				Interval:   0,
 			},
-			Row: strings.NewReader("a.b.c.max\t{foo:bar,baz:quz}\tgauge\tglobalstats\tfood\t0\t1476119058\t100\n"),
+			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\tgauge\tglobalstats\ttestbox-c3eac9\tfood\t0\t1476119058\t100\t%s\n", partition)),
 		},
 		{
 			// Test that we are able to handle a missing field (DeviceName)
@@ -282,7 +285,7 @@ func CSVTestCases() []CSVTestCase {
 				DeviceName: "",
 				Interval:   10,
 			},
-			Row: strings.NewReader("a.b.c.max\t{foo:bar,baz:quz}\trate\tlocalhost\t\t10\t1476119058\t100\n"),
+			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\trate\tlocalhost\ttestbox-c3eac9\t\t10\t1476119058\t100\t%s\n", partition)),
 		},
 		{
 			// Test that we are able to handle tags which have tab characters in them
@@ -300,7 +303,7 @@ func CSVTestCases() []CSVTestCase {
 				DeviceName: "eniac",
 				Interval:   10,
 			},
-			Row: strings.NewReader("a.b.c.max\t\"{foo:b\tar,baz:quz}\"\trate\tlocalhost\teniac\t10\t1476119058\t100\n"),
+			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t\"{foo:b\tar,baz:quz}\"\trate\tlocalhost\ttestbox-c3eac9\teniac\t10\t1476119058\t100\t%s\n", partition)),
 		},
 	}
 }
@@ -316,7 +319,8 @@ func TestEncodeCSV(t *testing.T) {
 			w := csv.NewWriter(b)
 			w.Comma = '\t'
 
-			err := tc.DDMetric.encodeCSV(w)
+			tm := time.Now()
+			err := tc.DDMetric.encodeCSV(w, &tm, "testbox-c3eac9")
 			assert.NoError(t, err)
 
 			// We need to flush or there won't actually be any data there
@@ -329,8 +333,9 @@ func TestEncodeCSV(t *testing.T) {
 }
 
 func TestEncodeDDMetricsCSV(t *testing.T) {
-	const ExpectedHeader = "Name\tTags\tMetricType\tHostname\tDeviceName\tInterval\tTimestamp\tValue"
+	const ExpectedHeader = "Name\tTags\tMetricType\tHostname\tVeneurHostname\tDeviceName\tInterval\tTimestamp\tValue\tPartition"
 	const Delimiter = '\t'
+	const VeneurHostname = "testbox-c3eac9"
 
 	testCases := CSVTestCases()
 
@@ -339,12 +344,12 @@ func TestEncodeDDMetricsCSV(t *testing.T) {
 		metrics[i] = tc.DDMetric
 	}
 
-	c, err := encodeDDMetricsCSV(metrics, Delimiter, true)
+	c, err := encodeDDMetricsCSV(metrics, Delimiter, true, VeneurHostname)
 	assert.NoError(t, err)
 	gzr, err := gzip.NewReader(c)
 	assert.NoError(t, err)
 	r := csv.NewReader(gzr)
-	r.FieldsPerRecord = 8
+	r.FieldsPerRecord = 10
 	r.Comma = Delimiter
 
 	// first line should always contain header information

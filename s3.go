@@ -24,6 +24,7 @@ type S3Plugin struct {
 	statsd   *statsd.Client
 	svc      s3iface.S3API
 	s3Bucket string
+	hostname string
 }
 
 func (p *S3Plugin) Flush(metrics []DDMetric, hostname string) error {
@@ -31,7 +32,7 @@ func (p *S3Plugin) Flush(metrics []DDMetric, hostname string) error {
 	const IncludeHeaders = false
 
 	start := time.Now()
-	csv, err := encodeDDMetricsCSV(metrics, Delimiter, IncludeHeaders)
+	csv, err := encodeDDMetricsCSV(metrics, Delimiter, IncludeHeaders, p.hostname)
 	if err != nil {
 		p.logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
@@ -90,7 +91,7 @@ func s3Path(hostname string, ft filetype) *string {
 // encodeDDMetricsCSV returns a reader containing the gzipped CSV representation of the
 // DDMetrics data, one row per DDMetric.
 // the AWS sdk requires seekable input, so we return a ReadSeeker here
-func encodeDDMetricsCSV(metrics []DDMetric, delimiter rune, includeHeaders bool) (io.ReadSeeker, error) {
+func encodeDDMetricsCSV(metrics []DDMetric, delimiter rune, includeHeaders bool, hostname string) (io.ReadSeeker, error) {
 	b := &bytes.Buffer{}
 	gzw := gzip.NewWriter(b)
 	w := csv.NewWriter(gzw)
@@ -101,21 +102,25 @@ func encodeDDMetricsCSV(metrics []DDMetric, delimiter rune, includeHeaders bool)
 		headers := [...]string{
 			// the order here doesn't actually matter
 			// as long as the keys are right
-			tsvName:       tsvName.String(),
-			tsvTags:       tsvTags.String(),
-			tsvMetricType: tsvMetricType.String(),
-			tsvHostname:   tsvHostname.String(),
-			tsvDeviceName: tsvDeviceName.String(),
-			tsvInterval:   tsvInterval.String(),
-			tsvValue:      tsvValue.String(),
-			tsvTimestamp:  tsvTimestamp.String(),
+			tsvName:           tsvName.String(),
+			tsvTags:           tsvTags.String(),
+			tsvMetricType:     tsvMetricType.String(),
+			tsvHostname:       tsvHostname.String(),
+			tsvDeviceName:     tsvDeviceName.String(),
+			tsvInterval:       tsvInterval.String(),
+			tsvVeneurHostname: tsvVeneurHostname.String(),
+			tsvValue:          tsvValue.String(),
+			tsvTimestamp:      tsvTimestamp.String(),
+			tsvPartition:      tsvPartition.String(),
 		}
 
 		w.Write(headers[:])
 	}
 
+	// TODO avoid edge case at midnight
+	partitionDate := time.Now()
 	for _, metric := range metrics {
-		metric.encodeCSV(w)
+		metric.encodeCSV(w, &partitionDate, hostname)
 	}
 
 	w.Flush()
