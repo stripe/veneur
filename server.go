@@ -26,6 +26,8 @@ import (
 // It must be a var so it can be set at link time.
 var VERSION = "dirty"
 
+var profileStartOnce = sync.Once{}
+
 var log = logrus.New()
 
 // A Server is the actual veneur instance that will be run.
@@ -269,13 +271,20 @@ func (s *Server) ReadSocket(packetPool *sync.Pool, reuseport bool) {
 
 // HTTPServe starts the HTTP server and listens perpetually until it encounters an unrecoverable error.
 func (s *Server) HTTPServe() {
-	var prf *profile.Profile
+	var prf interface {
+		Stop()
+	}
 
 	once := sync.Once{}
 
 	if s.debug {
-		prf := profile.Start()
-		defer once.Do(prf.Stop)
+		profileStartOnce.Do(func() {
+			prf = profile.Start()
+		})
+
+		defer func() {
+			defer once.Do(prf.Stop)
+		}()
 	}
 	httpSocket := bind.Socket(s.HTTPAddr)
 	graceful.Timeout(10 * time.Second)
