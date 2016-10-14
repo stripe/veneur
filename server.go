@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -17,6 +18,8 @@ import (
 	"github.com/getsentry/raven-go"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
+
+	"github.com/pkg/profile"
 )
 
 // VERSION stores the current veneur version.
@@ -49,6 +52,8 @@ type Server struct {
 
 	plugins   []plugin
 	pluginMtx sync.Mutex
+
+	debug bool
 }
 
 // NewFromConfig creates a new veneur server from a configuration specification.
@@ -83,6 +88,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 	if conf.Debug {
 		log.Level = logrus.DebugLevel
+		ret.debug = conf.Debug
 	}
 	log.Hooks.Add(sentryHook{
 		c:        ret.sentry,
@@ -263,11 +269,25 @@ func (s *Server) ReadSocket(packetPool *sync.Pool, reuseport bool) {
 
 // HTTPServe starts the HTTP server and listens perpetually until it encounters an unrecoverable error.
 func (s *Server) HTTPServe() {
+	var prf *profile.Profile
+
+	once := sync.Once{}
+
+	if s.debug {
+		prf := profile.Start()
+		defer once.Do(prf.Stop)
+	}
 	httpSocket := bind.Socket(s.HTTPAddr)
 	graceful.Timeout(10 * time.Second)
 	graceful.PreHook(func() {
+
+		if prf != nil {
+			once.Do(prf.Stop)
+		}
+
 		log.Info("Terminating HTTP listener")
 	})
+	graceful.AddSignal(syscall.SIGUSR2, syscall.SIGHUP)
 	graceful.HandleSignals()
 	log.WithField("address", s.HTTPAddr).Info("HTTP server listening")
 	bind.Ready()
