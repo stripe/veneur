@@ -582,7 +582,6 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 // flushing on the server causes the S3 plugin to flush to S3.
 // This is the function that actually tests the S3Plugin.Flush()
 // method
-
 func TestGlobalServerS3PluginFlush(t *testing.T) {
 
 	RemoteResponseChan := make(chan struct{}, 1)

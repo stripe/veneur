@@ -14,6 +14,7 @@ import (
 )
 
 const PartitionDateFormat = "20060102"
+const RedshiftDateFormat = "01.02.2006 03:04:05"
 
 // DDMetric is a data structure that represents the JSON that Datadog
 // wants when posting to the API
@@ -109,8 +110,7 @@ func (d DDMetric) encodeCSV(w *csv.Writer, partitionDate *time.Time, hostname st
 		tsvVeneurHostname: hostname,
 		tsvValue:          value,
 
-		// round the timestamp and treat it as an integer
-		tsvTimestamp: strconv.Itoa(int((timestamp + .1))),
+		tsvTimestamp: time.Unix(int64(timestamp), 0).Format(RedshiftDateFormat),
 
 		// TODO avoid edge case at midnight
 		tsvPartition: partitionDate.Format(PartitionDateFormat),
