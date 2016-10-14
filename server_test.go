@@ -2,19 +2,27 @@ package veneur
 
 import (
 	"bytes"
+	"compress/gzip"
 	"compress/zlib"
+	"encoding/csv"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-go/statsd"
+	"github.com/Sirupsen/logrus"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/tdigest"
 )
@@ -82,6 +90,25 @@ func generateConfig(forwardAddr string) Config {
 		SentryDSN:  "",
 		FlushLimit: 1024,
 	}
+}
+
+func generateMetrics() (metricValues []float64, expectedMetrics map[string]float64) {
+	metricValues = []float64{1.0, 2.0, 7.0, 8.0, 100.0}
+
+	expectedMetrics = map[string]float64{
+		"a.b.c.max": 100,
+		"a.b.c.min": 1,
+
+		// Count is normalized by second
+		// so 5 values/50ms = 100 values/s
+		"a.b.c.count": float64(len(metricValues)) * float64(time.Second) / float64(DefaultFlushInterval),
+
+		// tdigest approximation causes this to be off by 1
+		"a.b.c.50percentile": 6,
+		"a.b.c.75percentile": 42,
+		"a.b.c.99percentile": 98,
+	}
+	return metricValues, expectedMetrics
 }
 
 // assertMetrics checks that all expected metrics are present
@@ -168,23 +195,7 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 		}
 	}()
 
-	stubS3()
-
-	metricValues := []float64{1.0, 2.0, 7.0, 8.0, 100.0}
-
-	expectedMetrics := map[string]float64{
-		"a.b.c.max": 100,
-		"a.b.c.min": 1,
-
-		// Count is normalized by second
-		// so 5 values/50ms = 100 values/s
-		"a.b.c.count": float64(len(metricValues)) * float64(time.Second) / float64(DefaultFlushInterval),
-
-		// tdigest approximation causes this to be off by 1
-		"a.b.c.50percentile": 6,
-		"a.b.c.75percentile": 42,
-		"a.b.c.99percentile": 98,
-	}
+	metricValues, expectedMetrics := generateMetrics()
 
 	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		zr, err := zlib.NewReader(r.Body)
@@ -207,6 +218,8 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	config.APIHostname = remoteServer.URL
 
 	server := setupVeneurServer(t, config)
+	s3p := stubS3()
+	s3p.statsd = server.statsd
 	defer server.Shutdown()
 
 	for _, value := range metricValues {
@@ -238,21 +251,7 @@ func TestGlobalServerFlush(t *testing.T) {
 		}
 	}()
 
-	metricValues := []float64{1.0, 2.0, 7.0, 8.0, 100.0}
-
-	expectedMetrics := map[string]float64{
-		"a.b.c.max": 100,
-		"a.b.c.min": 1,
-
-		// Count is normalized by second
-		// so 5 values/50ms = 100 values/s
-		"a.b.c.count": float64(len(metricValues)) * float64(time.Second) / float64(DefaultFlushInterval),
-
-		// tdigest approximation causes this to be off by 1
-		"a.b.c.50percentile": 6,
-		"a.b.c.75percentile": 42,
-		"a.b.c.99percentile": 98,
-	}
+	metricValues, expectedMetrics := generateMetrics()
 
 	config := globalConfig()
 
@@ -504,4 +503,181 @@ func checkBufferSplit(t *testing.T, buf []byte) {
 
 	// now compare our split to the "real" implementation of split
 	assert.EqualValues(t, bytes.Split(buf, []byte{'A'}), testSplit, "should have split %s correctly", buf)
+}
+
+type dummyPlugin struct {
+	logger *logrus.Logger
+	statsd *statsd.Client
+	flush  func([]DDMetric, string) error
+}
+
+func (dp *dummyPlugin) Flush(metrics []DDMetric, hostname string) error {
+	return dp.flush(metrics, hostname)
+}
+
+// TestGlobalServerPluginFlush tests that we are able to
+// register a dummy plugin on the server, and that when we do,
+// flushing on the server causes the plugin to flush
+func TestGlobalServerPluginFlush(t *testing.T) {
+
+	RemoteResponseChan := make(chan struct{}, 1)
+	defer func() {
+		select {
+		case <-RemoteResponseChan:
+			// all is safe
+			return
+		case <-time.After(DefaultServerTimeout):
+			assert.Fail(t, "Global server did not complete all responses before test terminated!")
+		}
+	}()
+
+	metricValues, expectedMetrics := generateMetrics()
+
+	config := globalConfig()
+
+	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	}))
+
+	config.APIHostname = remoteServer.URL
+	config.NumWorkers = 1
+
+	server := setupVeneurServer(t, config)
+	defer server.Shutdown()
+
+	dp := &dummyPlugin{logger: log, statsd: server.statsd}
+
+	dp.flush = func(metrics []DDMetric, hostname string) error {
+		assert.Equal(t, len(expectedMetrics), len(metrics))
+
+		firstName := metrics[0].Name
+		assert.Equal(t, expectedMetrics[firstName], metrics[0].Value[0][1])
+
+		assert.Equal(t, hostname, server.Hostname)
+
+		RemoteResponseChan <- struct{}{}
+		return nil
+	}
+
+	server.registerPlugin(dp)
+
+	for _, value := range metricValues {
+		server.Workers[0].ProcessMetric(&UDPMetric{
+			MetricKey: MetricKey{
+				Name: "a.b.c",
+				Type: "histogram",
+			},
+			Value:      value,
+			Digest:     12345,
+			SampleRate: 1.0,
+			LocalOnly:  true,
+		})
+	}
+
+	server.Flush(config.Interval, config.FlushLimit)
+}
+
+// TestGlobalServerS3PluginFlush tests that we are able to
+// register the S3 plugin on the server, and that when we do,
+// flushing on the server causes the S3 plugin to flush to S3.
+// This is the function that actually tests the S3Plugin.Flush()
+// method
+
+func TestGlobalServerS3PluginFlush(t *testing.T) {
+
+	RemoteResponseChan := make(chan struct{}, 1)
+	defer func() {
+		select {
+		case <-RemoteResponseChan:
+			// all is safe
+			return
+		case <-time.After(DefaultServerTimeout):
+			assert.Fail(t, "Global server did not complete all responses before test terminated!")
+		}
+	}()
+
+	metricValues, _ := generateMetrics()
+
+	config := globalConfig()
+
+	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	}))
+
+	config.APIHostname = remoteServer.URL
+	config.NumWorkers = 1
+
+	server := setupVeneurServer(t, config)
+	defer server.Shutdown()
+
+	client := &mockS3Client{}
+	client.putObject = func(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
+		f, err := os.Open(path.Join("fixtures", "aws", "PutObject", "2016", "10", "13", "1476370612.tsv.gz"))
+		assert.NoError(t, err)
+		defer f.Close()
+
+		records, err := parseGzipTSV(input.Body)
+		assert.NoError(t, err)
+
+		expectedRecords, err := parseGzipTSV(f)
+		assert.NoError(t, err)
+
+		assert.Equal(t, len(expectedRecords), len(records))
+
+		assertCSVFieldsMatch(t, expectedRecords, records, []int{0, 1, 2, 3, 4, 5, 7})
+		//assert.Equal(t, expectedRecords, records)
+
+		RemoteResponseChan <- struct{}{}
+		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
+	}
+
+	s3p := &S3Plugin{logger: log, statsd: server.statsd, svc: client}
+
+	server.registerPlugin(s3p)
+
+	plugins := server.getPlugins()
+	assert.Equal(t, 1, len(plugins))
+
+	for _, value := range metricValues {
+		server.Workers[0].ProcessMetric(&UDPMetric{
+			MetricKey: MetricKey{
+				Name: "a.b.c",
+				Type: "histogram",
+			},
+			Value:      value,
+			Digest:     12345,
+			SampleRate: 1.0,
+			LocalOnly:  true,
+		})
+	}
+
+	server.Flush(config.Interval, config.FlushLimit)
+}
+
+func parseGzipTSV(r io.Reader) ([][]string, error) {
+	gzr, err := gzip.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	cr := csv.NewReader(gzr)
+	cr.Comma = '\t'
+	return cr.ReadAll()
+}
+
+// assertCSVFieldsMatch asserts that all fields of all rows match, but it allows us
+// to skip some columns entirely, if we know that they won't match (e.g. timestamps)
+func assertCSVFieldsMatch(t *testing.T, expected, actual [][]string, columns []int) {
+	if columns == nil {
+		columns = make([]int, len(expected[0]))
+		for i := 0; i < len(columns); i++ {
+			columns[i] = i
+		}
+	}
+
+	for i, row := range expected {
+		assert.Equal(t, len(row), len(actual[i]))
+		for _, column := range columns {
+			assert.Equal(t, row[column], actual[i][column], "mismatch at column %d", column)
+		}
+	}
 }

@@ -1,12 +1,9 @@
 package veneur
 
 import (
-	"bytes"
-	"compress/gzip"
 	"encoding/csv"
 	"fmt"
 	"hash/fnv"
-	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -102,42 +99,6 @@ func (d DDMetric) encodeCSV(w *csv.Writer) error {
 
 	w.Write(fields[:])
 	return w.Error()
-}
-
-// encodeDDMetricsCSV returns a reader containing the gzipped CSV representation of the
-// DDMetrics data, one row per DDMetric.
-// the AWS sdk requires seekable input, so we return a ReadSeeker here
-func encodeDDMetricsCSV(metrics []DDMetric, delimiter rune, includeHeaders bool) (io.ReadSeeker, error) {
-	b := &bytes.Buffer{}
-	gzw := gzip.NewWriter(b)
-	w := csv.NewWriter(gzw)
-	w.Comma = delimiter
-
-	if includeHeaders {
-		// Write the headers first
-		headers := [...]string{
-			// the order here doesn't actually matter
-			// as long as the keys are right
-			tsvName:       tsvName.String(),
-			tsvTags:       tsvTags.String(),
-			tsvMetricType: tsvMetricType.String(),
-			tsvHostname:   tsvHostname.String(),
-			tsvDeviceName: tsvDeviceName.String(),
-			tsvInterval:   tsvInterval.String(),
-			tsvValue:      tsvValue.String(),
-			tsvTimestamp:  tsvTimestamp.String(),
-		}
-
-		w.Write(headers[:])
-	}
-
-	for _, metric := range metrics {
-		metric.encodeCSV(w)
-	}
-
-	w.Flush()
-	gzw.Close()
-	return bytes.NewReader(b.Bytes()), w.Error()
 }
 
 // JSONMetric is used to represent a metric that can be remarshaled with its

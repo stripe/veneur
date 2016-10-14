@@ -30,12 +30,13 @@ func (m *mockS3Client) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput,
 // stubS3 sets svc to a mockS3Client that will return 200 for all responses
 // useful for avoiding erroneous error log lines when testing things that aren't
 // related to s3.
-func stubS3() {
+func stubS3() *S3Plugin {
 	client := &mockS3Client{}
 	client.putObject = func(*s3.PutObjectInput) (*s3.PutObjectOutput, error) {
 		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
 	}
-	svc = client
+	svc := client
+	return &S3Plugin{logger: log, svc: svc}
 }
 
 // TestS3Post tests that we can correctly post a sequence of
@@ -73,9 +74,9 @@ func TestS3Post(t *testing.T) {
 		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
 	}
 
-	svc = client
+	s3p := &S3Plugin{logger: log, svc: client}
 
-	err = s3Post("testbox", f, tsvFt)
+	err = s3p.s3Post("testbox", f, tsvFt)
 	assert.NoError(t, err)
 }
 
@@ -123,13 +124,13 @@ func TestS3Path(t *testing.T) {
 }
 
 func TestS3PostNoCredentials(t *testing.T) {
-	svc = nil
+	s3p := &S3Plugin{logger: log, svc: nil}
 
 	f, err := os.Open(path.Join("fixtures", "aws", "PutObject", "2016", "10", "07", "1475863542.json"))
 	assert.NoError(t, err)
 	defer f.Close()
 
 	// this should not panic
-	err = s3Post("testbox", f, jsonFt)
+	err = s3p.s3Post("testbox", f, jsonFt)
 	assert.Equal(t, S3ClientUninitializedError, err)
 }
