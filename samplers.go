@@ -14,7 +14,7 @@ import (
 )
 
 const PartitionDateFormat = "20060102"
-const RedshiftDateFormat = "01.02.2006 03:04:05"
+const RedshiftDateFormat = "2006-01-02 03:04:05"
 
 // DDMetric is a data structure that represents the JSON that Datadog
 // wants when posting to the API
