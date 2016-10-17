@@ -35,12 +35,12 @@ var log = logrus.New()
 type Aggregate int
 
 const (
-	AggregateMin     Aggregate = 1 << iota
-	AggregateMax               = 1 << iota
-	AggregateMedian            = 1 << iota
-	AggregateAverage           = 1 << iota
-	AggregateCount             = 1 << iota
-	AggregateSum               = 1 << iota
+	AggregateMin Aggregate = 1 << iota
+	AggregateMax
+	AggregateMedian
+	AggregateAverage
+	AggregateCount
+	AggregateSum
 )
 
 var aggregatesLookup = map[string]Aggregate{
