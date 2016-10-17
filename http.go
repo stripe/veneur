@@ -23,11 +23,11 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle(pat.Post("/import"), handleImport(s))
 
 	// TODO match without trailing slash as well
-	mux.Handle(pat.Get("/debug/pprof/*"), http.HandlerFunc(pprof.Index))
 	mux.Handle(pat.Get("/debug/pprof/cmdline"), http.HandlerFunc(pprof.Cmdline))
 	mux.Handle(pat.Get("/debug/pprof/profile"), http.HandlerFunc(pprof.Profile))
 	mux.Handle(pat.Get("/debug/pprof/symbol"), http.HandlerFunc(pprof.Symbol))
 	mux.Handle(pat.Get("/debug/pprof/trace"), http.HandlerFunc(pprof.Trace))
+	mux.Handle(pat.Get("/debug/pprof/*"), http.HandlerFunc(pprof.Index))
 
 	return mux
 }

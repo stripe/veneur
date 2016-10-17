@@ -13,6 +13,7 @@ import (
 type Config struct {
 	APIHostname         string        `yaml:"api_hostname"`
 	Debug               bool          `yaml:"debug"`
+	EnableProfiling     bool          `yaml:"enable_profiling"`
 	Hostname            string        `yaml:"hostname"`
 	Interval            time.Duration `yaml:"interval"`
 	Key                 string        `yaml:"key"`

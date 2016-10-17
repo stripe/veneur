@@ -55,7 +55,7 @@ type Server struct {
 	plugins   []plugin
 	pluginMtx sync.Mutex
 
-	debug bool
+	enableProfiling bool
 }
 
 // NewFromConfig creates a new veneur server from a configuration specification.
@@ -90,8 +90,12 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 	if conf.Debug {
 		log.Level = logrus.DebugLevel
-		ret.debug = conf.Debug
 	}
+
+	if conf.EnableProfiling {
+		ret.enableProfiling = true
+	}
+
 	log.Hooks.Add(sentryHook{
 		c:        ret.sentry,
 		hostname: ret.Hostname,
@@ -275,15 +279,18 @@ func (s *Server) HTTPServe() {
 		Stop()
 	}
 
-	once := sync.Once{}
+	// We want to make sure the profile is stopped
+	// exactly once (and only once), even if the
+	// shutdown pre-hook does not run (which it may not)
+	profileStopOnce := sync.Once{}
 
-	if s.debug {
+	if s.enableProfiling {
 		profileStartOnce.Do(func() {
 			prf = profile.Start()
 		})
 
 		defer func() {
-			defer once.Do(prf.Stop)
+			profileStopOnce.Do(prf.Stop)
 		}()
 	}
 	httpSocket := bind.Socket(s.HTTPAddr)
@@ -291,7 +298,7 @@ func (s *Server) HTTPServe() {
 	graceful.PreHook(func() {
 
 		if prf != nil {
-			once.Do(prf.Stop)
+			profileStopOnce.Do(prf.Stop)
 		}
 
 		log.Info("Terminating HTTP listener")
