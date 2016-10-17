@@ -115,7 +115,7 @@ Einhorn handling code to bind to the file descriptor for HTTP.
 
 ## Forwarding
 
-Veneur instances can be configured to forward their global metrics to another Veneur instance. You can use this feature to get the best of both worlds: metrics that benefit from global aggregation can be passed up to a single global Veneur, but other metrics can be published locally with host-scoped information.
+Veneur instances can be configured to forward their global metrics to another Veneur instance. You can use this feature to get the best of both worlds: metrics that benefit from global aggregation can be passed up to a single global Veneur, but other metrics can be published locally with host-scoped information. Note: **Forwarding adds an additional delay to metric availability corresponding to the value of the `interval` configuration option**, as the local veneur will flush it to it's configured upstream, which will then flush any recieved metrics when it's interval expires.
 
 To configure this feature, you need one Veneur, which we'll call the _global_ instance, and one or more other Veneurs, which we'll call _local_ instances. The local instances should have their `forward_address` configured to the global instance's `http_address`. The global instance should have an empty `forward_address` (ie just don't set it). You can then report metrics to any Veneur's `udp_address` as usual.
 
