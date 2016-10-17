@@ -13,6 +13,9 @@ import (
 	"github.com/stripe/veneur/tdigest"
 )
 
+const PartitionDateFormat = "20060102"
+const RedshiftDateFormat = "01.02.2006 03:04:05"
+
 // DDMetric is a data structure that represents the JSON that Datadog
 // wants when posting to the API
 type DDMetric struct {
@@ -33,23 +36,36 @@ const (
 	tsvName tsvField = iota
 	tsvTags
 	tsvMetricType
+
+	// The hostname attached to the metric
 	tsvHostname
+
+	// The hostname of the server flushing the data
+	tsvVeneurHostname
+
 	tsvDeviceName
 	tsvInterval
 
 	tsvTimestamp
 	tsvValue
+
+	// This is the _partition field
+	// required by the Redshift IncrementalLoader.
+	// For our purposes, the current date is a good partition.
+	tsvPartition
 )
 
 var tsvSchema = [...]string{
-	tsvName:       "tsvName",
-	tsvTags:       "tsvTags",
-	tsvMetricType: "tsvMetricType",
-	tsvHostname:   "tsvHostname",
-	tsvDeviceName: "tsvDeviceName",
-	tsvInterval:   "tsvInterval",
-	tsvTimestamp:  "tsvTimestamp",
-	tsvValue:      "tsvValue",
+	tsvName:           "tsvName",
+	tsvTags:           "tsvTags",
+	tsvMetricType:     "tsvMetricType",
+	tsvHostname:       "tsvHostname",
+	tsvDeviceName:     "tsvDeviceName",
+	tsvInterval:       "tsvInterval",
+	tsvVeneurHostname: "tsvVeneurHostname",
+	tsvTimestamp:      "tsvTimestamp",
+	tsvValue:          "tsvValue",
+	tsvPartition:      "tsvPartition",
 }
 
 // String returns the field name.
@@ -72,7 +88,7 @@ func init() {
 // The caller is responsible for setting w.Comma as the appropriate delimiter.
 // For performance, encodeCSV does not flush after every call; the caller is
 // expected to flush at the end of the operation cycle
-func (d DDMetric) encodeCSV(w *csv.Writer) error {
+func (d DDMetric) encodeCSV(w *csv.Writer, partitionDate *time.Time, hostname string) error {
 
 	timestamp := d.Value[0][0]
 	value := strconv.FormatFloat(d.Value[0][1], 'f', -1, 64)
@@ -85,16 +101,19 @@ func (d DDMetric) encodeCSV(w *csv.Writer) error {
 	fields := [...]string{
 		// the order here doesn't actually matter
 		// as long as the keys are right
-		tsvName:       d.Name,
-		tsvTags:       tags,
-		tsvMetricType: d.MetricType,
-		tsvHostname:   d.Hostname,
-		tsvDeviceName: d.DeviceName,
-		tsvInterval:   interval,
-		tsvValue:      value,
+		tsvName:           d.Name,
+		tsvTags:           tags,
+		tsvMetricType:     d.MetricType,
+		tsvHostname:       d.Hostname,
+		tsvDeviceName:     d.DeviceName,
+		tsvInterval:       interval,
+		tsvVeneurHostname: hostname,
+		tsvValue:          value,
 
-		// round the timestamp and treat it as an integer
-		tsvTimestamp: strconv.Itoa(int((timestamp + .1))),
+		tsvTimestamp: time.Unix(int64(timestamp), 0).UTC().Format(RedshiftDateFormat),
+
+		// TODO avoid edge case at midnight
+		tsvPartition: partitionDate.UTC().Format(PartitionDateFormat),
 	}
 
 	w.Write(fields[:])
