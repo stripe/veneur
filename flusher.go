@@ -29,8 +29,16 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	}
 }
 
+// A plugin flushes the metrics provided to an arbitrary destination.
+// The metrics slice may be shared between plugins, so the plugin may not
+// write to it or modify any of its components.
+// The name should be a short, lowercase, snake-cased identifier for the plugin.
+// When a plugin is registered, the number of metrics flushed successfully and
+// the number of errors encountered are automatically reported by veneur, using
+// the plugin name.
 type plugin interface {
-	Flush([]DDMetric, string) error
+	Flush(metrics []DDMetric, hostname string) error
+	Name() string
 }
 
 func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
@@ -51,7 +59,14 @@ func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
 
 	go func() {
 		for _, p := range s.getPlugins() {
-			go p.Flush(finalMetrics, s.Hostname)
+			start := time.Now()
+			err := p.Flush(finalMetrics, s.Hostname)
+			s.statsd.TimeInMilliseconds(fmt.Sprintf("flush.plugins.%s.total_duration_ns", p.Name()), float64(time.Now().Sub(start).Nanoseconds()), []string{"part:post"}, 1.0)
+			if err != nil {
+				countName := fmt.Sprintf("flush.plugins.%s.error_total", p.Name())
+				s.statsd.Count(countName, 1, []string{}, 1.0)
+			}
+			s.statsd.Gauge(fmt.Sprintf("flush.plugins.%s.post_metrics_total", p.Name()), float64(len(finalMetrics)), nil, 1.0)
 		}
 	}()
 

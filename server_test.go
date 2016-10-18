@@ -218,8 +218,6 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	config.APIHostname = remoteServer.URL
 
 	server := setupVeneurServer(t, config)
-	s3p := stubS3()
-	s3p.statsd = server.statsd
 	defer server.Shutdown()
 
 	for _, value := range metricValues {
@@ -515,6 +513,10 @@ func (dp *dummyPlugin) Flush(metrics []DDMetric, hostname string) error {
 	return dp.flush(metrics, hostname)
 }
 
+func (dp *dummyPlugin) Name() string {
+	return "dummy_plugin"
+}
+
 // TestGlobalServerPluginFlush tests that we are able to
 // register a dummy plugin on the server, and that when we do,
 // flushing on the server causes the plugin to flush
@@ -630,7 +632,7 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
 	}
 
-	s3p := &S3Plugin{logger: log, statsd: server.statsd, svc: client}
+	s3p := &S3Plugin{logger: log, svc: client}
 
 	server.registerPlugin(s3p)
 

@@ -162,7 +162,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 			plugin := &S3Plugin{
 				logger:   log,
-				statsd:   ret.statsd,
 				svc:      svc,
 				s3Bucket: conf.AWSBucket,
 				hostname: ret.Hostname,
