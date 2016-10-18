@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -21,7 +20,6 @@ var _ plugin = &S3Plugin{}
 
 type S3Plugin struct {
 	logger   *logrus.Logger
-	statsd   *statsd.Client
 	svc      s3iface.S3API
 	s3Bucket string
 	hostname string
@@ -31,7 +29,6 @@ func (p *S3Plugin) Flush(metrics []DDMetric, hostname string) error {
 	const Delimiter = '\t'
 	const IncludeHeaders = false
 
-	start := time.Now()
 	csv, err := encodeDDMetricsCSV(metrics, Delimiter, IncludeHeaders, p.hostname)
 	if err != nil {
 		p.logger.WithFields(logrus.Fields{
@@ -50,19 +47,12 @@ func (p *S3Plugin) Flush(metrics []DDMetric, hostname string) error {
 		return err
 	}
 
-	p.statsd.TimeInMilliseconds("flush.plugins.s3.total_duration_ns", float64(time.Now().Sub(start).Nanoseconds()), []string{"part:post"}, 1.0)
 	log.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
-	p.statsd.Gauge("flush.plugins.s3.post_metrics_total", float64(len(metrics)), nil, 1.0)
 	return nil
 }
 
 func (p *S3Plugin) Name() string {
 	return "s3"
-}
-
-func (p *S3Plugin) Initialize(statsd *statsd.Client, logger *logrus.Logger) {
-	p.statsd = statsd
-	p.logger = logger
 }
 
 type filetype string
