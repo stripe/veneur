@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -17,11 +18,15 @@ import (
 	"github.com/getsentry/raven-go"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
+
+	"github.com/pkg/profile"
 )
 
 // VERSION stores the current veneur version.
 // It must be a var so it can be set at link time.
 var VERSION = "dirty"
+
+var profileStartOnce = sync.Once{}
 
 var log = logrus.New()
 
@@ -49,6 +54,8 @@ type Server struct {
 
 	plugins   []plugin
 	pluginMtx sync.Mutex
+
+	enableProfiling bool
 }
 
 // NewFromConfig creates a new veneur server from a configuration specification.
@@ -84,6 +91,11 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	if conf.Debug {
 		log.Level = logrus.DebugLevel
 	}
+
+	if conf.EnableProfiling {
+		ret.enableProfiling = true
+	}
+
 	log.Hooks.Add(sentryHook{
 		c:        ret.sentry,
 		hostname: ret.Hostname,
@@ -263,11 +275,38 @@ func (s *Server) ReadSocket(packetPool *sync.Pool, reuseport bool) {
 
 // HTTPServe starts the HTTP server and listens perpetually until it encounters an unrecoverable error.
 func (s *Server) HTTPServe() {
+	var prf interface {
+		Stop()
+	}
+
+	// We want to make sure the profile is stopped
+	// exactly once (and only once), even if the
+	// shutdown pre-hook does not run (which it may not)
+	profileStopOnce := sync.Once{}
+
+	if s.enableProfiling {
+		profileStartOnce.Do(func() {
+			prf = profile.Start()
+		})
+
+		defer func() {
+			profileStopOnce.Do(prf.Stop)
+		}()
+	}
 	httpSocket := bind.Socket(s.HTTPAddr)
 	graceful.Timeout(10 * time.Second)
 	graceful.PreHook(func() {
+
+		if prf != nil {
+			profileStopOnce.Do(prf.Stop)
+		}
+
 		log.Info("Terminating HTTP listener")
 	})
+
+	// Ensure that the server responds to SIGUSR2 even
+	// when *not* running under einhorn.
+	graceful.AddSignal(syscall.SIGUSR2, syscall.SIGHUP)
 	graceful.HandleSignals()
 	log.WithField("address", s.HTTPAddr).Info("HTTP server listening")
 	bind.Ready()
