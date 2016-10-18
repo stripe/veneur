@@ -94,6 +94,12 @@ func (s *Server) FlushLocal(interval time.Duration, metricLimit int) {
 	// since not everything in tempMetrics is safe for sharing
 	go s.flushForward(tempMetrics)
 
+	go func() {
+		for _, p := range s.getPlugins() {
+			go p.Flush(finalMetrics, s.Hostname)
+		}
+	}()
+
 	s.flushRemote(finalMetrics, metricLimit)
 }
 
