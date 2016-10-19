@@ -43,7 +43,7 @@ func (p *S3Plugin) Flush(metrics []samplers.DDMetric, hostname string) error {
 		return err
 	}
 
-	err = p.s3Post(hostname, csv, tsvGzFt)
+	err = p.S3Post(hostname, csv, tsvGzFt)
 	if err != nil {
 		p.Logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
@@ -73,13 +73,13 @@ var S3Bucket = "stripe-veneur"
 
 var S3ClientUninitializedError = errors.New("s3 client has not been initialized")
 
-func (p *S3Plugin) s3Post(hostname string, data io.ReadSeeker, ft filetype) error {
+func (p *S3Plugin) S3Post(hostname string, data io.ReadSeeker, ft filetype) error {
 	if p.Svc == nil {
 		return S3ClientUninitializedError
 	}
 	params := &s3.PutObjectInput{
 		Bucket: aws.String(S3Bucket),
-		Key:    s3Path(hostname, ft),
+		Key:    S3Path(hostname, ft),
 		Body:   data,
 	}
 
@@ -87,7 +87,7 @@ func (p *S3Plugin) s3Post(hostname string, data io.ReadSeeker, ft filetype) erro
 	return err
 }
 
-func s3Path(hostname string, ft filetype) *string {
+func S3Path(hostname string, ft filetype) *string {
 	t := time.Now()
 	filename := strconv.FormatInt(t.Unix(), 10) + "." + string(ft)
 	return aws.String(path.Join(t.Format("2006/01/02"), hostname, filename))
