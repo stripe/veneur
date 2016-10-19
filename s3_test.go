@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/stretchr/testify/assert"
+	. "github.com/stripe/veneur/plugins/s3"
 )
 
 const S3TestBucket = "stripe-test-veneur"
@@ -36,7 +37,7 @@ func stubS3() *S3Plugin {
 		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
 	}
 	svc := client
-	return &S3Plugin{logger: log, svc: svc}
+	return &S3Plugin{Logger: log, Svc: svc}
 }
 
 // TestS3Post tests that we can correctly post a sequence of
@@ -74,9 +75,9 @@ func TestS3Post(t *testing.T) {
 		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
 	}
 
-	s3p := &S3Plugin{logger: log, svc: client}
+	s3p := &S3Plugin{Logger: log, Svc: client}
 
-	err = s3p.s3Post("testbox", f, tsvFt)
+	err = s3p.S3Post("testbox", f, TsvFt)
 	assert.NoError(t, err)
 }
 
@@ -85,7 +86,7 @@ func TestS3Path(t *testing.T) {
 
 	start := time.Now()
 
-	path := s3Path(hostname, jsonFt)
+	path := S3Path(hostname, JsonFT)
 
 	end := time.Now()
 
@@ -124,13 +125,13 @@ func TestS3Path(t *testing.T) {
 }
 
 func TestS3PostNoCredentials(t *testing.T) {
-	s3p := &S3Plugin{logger: log, svc: nil}
+	s3p := &S3Plugin{Logger: log, Svc: nil}
 
 	f, err := os.Open(path.Join("fixtures", "aws", "PutObject", "2016", "10", "07", "1475863542.json"))
 	assert.NoError(t, err)
 	defer f.Close()
 
 	// this should not panic
-	err = s3p.s3Post("testbox", f, jsonFt)
+	err = s3p.S3Post("testbox", f, JsonFT)
 	assert.Equal(t, S3ClientUninitializedError, err)
 }

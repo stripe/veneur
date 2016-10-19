@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/stripe/veneur/samplers"
+
 	"golang.org/x/net/context"
 )
 
@@ -30,7 +32,7 @@ func handleImport(s *Server) http.Handler {
 		start := time.Now()
 
 		var (
-			jsonMetrics []JSONMetric
+			jsonMetrics []samplers.JSONMetric
 			body        io.ReadCloser
 			err         error
 			encoding    = r.Header.Get("Content-Encoding")
@@ -74,7 +76,7 @@ func handleImport(s *Server) http.Handler {
 		// because that is usually the sign that we are unmarshalling
 		// into the wrong struct type
 		var nonEmpty bool
-		sentinel := JSONMetric{}
+		sentinel := samplers.JSONMetric{}
 		for _, metric := range jsonMetrics {
 			if !reflect.DeepEqual(sentinel, metric) {
 				// we have found at least one entry that is properly formed

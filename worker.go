@@ -7,13 +7,14 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
+	"github.com/stripe/veneur/samplers"
 )
 
 // Worker is the doodad that does work.
 type Worker struct {
 	id         int
-	PacketChan chan UDPMetric
-	ImportChan chan []JSONMetric
+	PacketChan chan samplers.UDPMetric
+	ImportChan chan []samplers.JSONMetric
 	QuitChan   chan struct{}
 	processed  int64
 	imported   int64
@@ -28,74 +29,74 @@ type WorkerMetrics struct {
 	// we do not want to key on the metric's Digest here, because those could
 	// collide, and then we'd have to implement a hashtable on top of go maps,
 	// which would be silly
-	counters   map[MetricKey]*Counter
-	gauges     map[MetricKey]*Gauge
-	histograms map[MetricKey]*Histo
-	sets       map[MetricKey]*Set
-	timers     map[MetricKey]*Histo
+	counters   map[samplers.MetricKey]*samplers.Counter
+	gauges     map[samplers.MetricKey]*samplers.Gauge
+	histograms map[samplers.MetricKey]*samplers.Histo
+	sets       map[samplers.MetricKey]*samplers.Set
+	timers     map[samplers.MetricKey]*samplers.Histo
 
 	// these are used for metrics that shouldn't be forwarded
-	localHistograms map[MetricKey]*Histo
-	localSets       map[MetricKey]*Set
-	localTimers     map[MetricKey]*Histo
+	localHistograms map[samplers.MetricKey]*samplers.Histo
+	localSets       map[samplers.MetricKey]*samplers.Set
+	localTimers     map[samplers.MetricKey]*samplers.Histo
 }
 
 // NewWorkerMetrics initializes a WorkerMetrics struct
 func NewWorkerMetrics() WorkerMetrics {
 	return WorkerMetrics{
-		counters:        make(map[MetricKey]*Counter),
-		gauges:          make(map[MetricKey]*Gauge),
-		histograms:      make(map[MetricKey]*Histo),
-		sets:            make(map[MetricKey]*Set),
-		timers:          make(map[MetricKey]*Histo),
-		localHistograms: make(map[MetricKey]*Histo),
-		localSets:       make(map[MetricKey]*Set),
-		localTimers:     make(map[MetricKey]*Histo),
+		counters:        make(map[samplers.MetricKey]*samplers.Counter),
+		gauges:          make(map[samplers.MetricKey]*samplers.Gauge),
+		histograms:      make(map[samplers.MetricKey]*samplers.Histo),
+		sets:            make(map[samplers.MetricKey]*samplers.Set),
+		timers:          make(map[samplers.MetricKey]*samplers.Histo),
+		localHistograms: make(map[samplers.MetricKey]*samplers.Histo),
+		localSets:       make(map[samplers.MetricKey]*samplers.Set),
+		localTimers:     make(map[samplers.MetricKey]*samplers.Histo),
 	}
 }
 
 // Upsert creates an entry on the WorkerMetrics struct for the given metrickey (if one does not already exist)
 // and updates the existing entry (if one already exists).
 // Returns true if the metric entry was created and false otherwise.
-func (wm WorkerMetrics) Upsert(mk MetricKey, localOnly bool, tags []string) bool {
+func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, localOnly bool, tags []string) bool {
 	present := false
 	switch mk.Type {
 	case "counter":
 		if _, present = wm.counters[mk]; !present {
-			wm.counters[mk] = NewCounter(mk.Name, tags)
+			wm.counters[mk] = samplers.NewCounter(mk.Name, tags)
 		}
 	case "gauge":
 		if _, present = wm.gauges[mk]; !present {
-			wm.gauges[mk] = NewGauge(mk.Name, tags)
+			wm.gauges[mk] = samplers.NewGauge(mk.Name, tags)
 		}
 	case "histogram":
 		if localOnly {
 			if _, present = wm.localHistograms[mk]; !present {
-				wm.localHistograms[mk] = NewHist(mk.Name, tags)
+				wm.localHistograms[mk] = samplers.NewHist(mk.Name, tags)
 			}
 		} else {
 			if _, present = wm.histograms[mk]; !present {
-				wm.histograms[mk] = NewHist(mk.Name, tags)
+				wm.histograms[mk] = samplers.NewHist(mk.Name, tags)
 			}
 		}
 	case "set":
 		if localOnly {
 			if _, present = wm.localSets[mk]; !present {
-				wm.localSets[mk] = NewSet(mk.Name, tags)
+				wm.localSets[mk] = samplers.NewSet(mk.Name, tags)
 			}
 		} else {
 			if _, present = wm.sets[mk]; !present {
-				wm.sets[mk] = NewSet(mk.Name, tags)
+				wm.sets[mk] = samplers.NewSet(mk.Name, tags)
 			}
 		}
 	case "timer":
 		if localOnly {
 			if _, present = wm.localTimers[mk]; !present {
-				wm.localTimers[mk] = NewHist(mk.Name, tags)
+				wm.localTimers[mk] = samplers.NewHist(mk.Name, tags)
 			}
 		} else {
 			if _, present = wm.timers[mk]; !present {
-				wm.timers[mk] = NewHist(mk.Name, tags)
+				wm.timers[mk] = samplers.NewHist(mk.Name, tags)
 			}
 		}
 		// no need to raise errors on unknown types
@@ -108,8 +109,8 @@ func (wm WorkerMetrics) Upsert(mk MetricKey, localOnly bool, tags []string) bool
 func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger) *Worker {
 	return &Worker{
 		id:         id,
-		PacketChan: make(chan UDPMetric),
-		ImportChan: make(chan []JSONMetric),
+		PacketChan: make(chan samplers.UDPMetric),
+		ImportChan: make(chan []samplers.JSONMetric),
 		QuitChan:   make(chan struct{}),
 		processed:  0,
 		imported:   0,
@@ -142,7 +143,7 @@ func (w *Worker) Work() {
 // ProcessMetric takes a Metric and samples it
 //
 // This is standalone to facilitate testing
-func (w *Worker) ProcessMetric(m *UDPMetric) {
+func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
@@ -178,7 +179,7 @@ func (w *Worker) ProcessMetric(m *UDPMetric) {
 }
 
 // ImportMetric receives a metric from another veneur instance
-func (w *Worker) ImportMetric(other JSONMetric) {
+func (w *Worker) ImportMetric(other samplers.JSONMetric) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
@@ -244,19 +245,19 @@ func (w *Worker) Stop() {
 
 // EventWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type EventWorker struct {
-	EventChan        chan UDPEvent
-	ServiceCheckChan chan UDPServiceCheck
+	EventChan        chan samplers.UDPEvent
+	ServiceCheckChan chan samplers.UDPServiceCheck
 	mutex            *sync.Mutex
-	events           []UDPEvent
-	checks           []UDPServiceCheck
+	events           []samplers.UDPEvent
+	checks           []samplers.UDPServiceCheck
 	stats            *statsd.Client
 }
 
 // NewEventWorker creates an EventWorker ready to collect events and service checks.
 func NewEventWorker(stats *statsd.Client) *EventWorker {
 	return &EventWorker{
-		EventChan:        make(chan UDPEvent),
-		ServiceCheckChan: make(chan UDPServiceCheck),
+		EventChan:        make(chan samplers.UDPEvent),
+		ServiceCheckChan: make(chan samplers.UDPServiceCheck),
 		mutex:            &sync.Mutex{},
 		stats:            stats,
 	}
@@ -281,7 +282,7 @@ func (ew *EventWorker) Work() {
 
 // Flush returns the EventWorker's stored events and service checks and
 // resets the stored contents.
-func (ew *EventWorker) Flush() ([]UDPEvent, []UDPServiceCheck) {
+func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck) {
 	start := time.Now()
 	ew.mutex.Lock()
 
