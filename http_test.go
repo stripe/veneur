@@ -37,7 +37,7 @@ func TestSortableJSONMetrics(t *testing.T) {
 }
 
 func TestSortableJSONMetricHashing(t *testing.T) {
-	packet, err := ParseMetric([]byte("foo:1|h|#bar"))
+	packet, err := samplers.ParseMetric([]byte("foo:1|h|#bar"))
 	assert.NoError(t, err, "should have parsed test packet")
 
 	testList := []samplers.JSONMetric{

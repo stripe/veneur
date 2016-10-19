@@ -323,7 +323,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				log.WithFields(logrus.Fields{
 					logrus.ErrorKey: err,
 					"type":          "histogram",
-					"name":          histo.name,
+					"name":          histo.Name,
 				}).Error("Could not export metric")
 				continue
 			}
@@ -335,7 +335,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				log.WithFields(logrus.Fields{
 					logrus.ErrorKey: err,
 					"type":          "set",
-					"name":          set.name,
+					"name":          set.Name,
 				}).Error("Could not export metric")
 				continue
 			}
@@ -347,7 +347,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				log.WithFields(logrus.Fields{
 					logrus.ErrorKey: err,
 					"type":          "timer",
-					"name":          timer.name,
+					"name":          timer.Name,
 				}).Error("Could not export metric")
 				continue
 			}

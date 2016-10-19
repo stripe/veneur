@@ -63,40 +63,40 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, localOnly bool, tags []str
 	switch mk.Type {
 	case "counter":
 		if _, present = wm.counters[mk]; !present {
-			wm.counters[mk] = NewCounter(mk.Name, tags)
+			wm.counters[mk] = samplers.NewCounter(mk.Name, tags)
 		}
 	case "gauge":
 		if _, present = wm.gauges[mk]; !present {
-			wm.gauges[mk] = NewGauge(mk.Name, tags)
+			wm.gauges[mk] = samplers.NewGauge(mk.Name, tags)
 		}
 	case "histogram":
 		if localOnly {
 			if _, present = wm.localHistograms[mk]; !present {
-				wm.localHistograms[mk] = NewHist(mk.Name, tags)
+				wm.localHistograms[mk] = samplers.NewHist(mk.Name, tags)
 			}
 		} else {
 			if _, present = wm.histograms[mk]; !present {
-				wm.histograms[mk] = NewHist(mk.Name, tags)
+				wm.histograms[mk] = samplers.NewHist(mk.Name, tags)
 			}
 		}
 	case "set":
 		if localOnly {
 			if _, present = wm.localSets[mk]; !present {
-				wm.localSets[mk] = NewSet(mk.Name, tags)
+				wm.localSets[mk] = samplers.NewSet(mk.Name, tags)
 			}
 		} else {
 			if _, present = wm.sets[mk]; !present {
-				wm.sets[mk] = NewSet(mk.Name, tags)
+				wm.sets[mk] = samplers.NewSet(mk.Name, tags)
 			}
 		}
 	case "timer":
 		if localOnly {
 			if _, present = wm.localTimers[mk]; !present {
-				wm.localTimers[mk] = NewHist(mk.Name, tags)
+				wm.localTimers[mk] = samplers.NewHist(mk.Name, tags)
 			}
 		} else {
 			if _, present = wm.timers[mk]; !present {
-				wm.timers[mk] = NewHist(mk.Name, tags)
+				wm.timers[mk] = samplers.NewHist(mk.Name, tags)
 			}
 		}
 		// no need to raise errors on unknown types

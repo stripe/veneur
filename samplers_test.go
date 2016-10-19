@@ -20,7 +20,7 @@ import (
 
 func TestCounterEmpty(t *testing.T) {
 
-	c := NewCounter("a.b.c", []string{"a:b"})
+	c := samplers.NewCounter("a.b.c", []string{"a:b"})
 	c.Sample(1, 1.0)
 
 	assert.Equal(t, "a.b.c", c.name, "Name")
@@ -41,7 +41,7 @@ func TestCounterEmpty(t *testing.T) {
 
 func TestCounterRate(t *testing.T) {
 
-	c := NewCounter("a.b.c", []string{"a:b"})
+	c := samplers.NewCounter("a.b.c", []string{"a:b"})
 
 	c.Sample(5, 1.0)
 
@@ -52,7 +52,7 @@ func TestCounterRate(t *testing.T) {
 
 func TestCounterSampleRate(t *testing.T) {
 
-	c := NewCounter("a.b.c", []string{"a:b"})
+	c := samplers.NewCounter("a.b.c", []string{"a:b"})
 
 	c.Sample(5, 0.5)
 
@@ -63,7 +63,7 @@ func TestCounterSampleRate(t *testing.T) {
 
 func TestGauge(t *testing.T) {
 
-	g := NewGauge("a.b.c", []string{"a:b"})
+	g := samplers.NewGauge("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", g.name, "Name")
 	assert.Len(t, g.tags, 1, "Tag length")
@@ -87,7 +87,7 @@ func TestGauge(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	s := NewSet("a.b.c", []string{"a:b"})
+	s := samplers.NewSet("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", s.name, "Name")
 	assert.Len(t, s.tags, 1, "Tag count")
@@ -117,7 +117,7 @@ func TestSet(t *testing.T) {
 func TestSetMerge(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
-	s := NewSet("a.b.c", []string{"a:b"})
+	s := samplers.NewSet("a.b.c", []string{"a:b"})
 	for i := 0; i < 100; i++ {
 		s.Sample(strconv.Itoa(rand.Int()), 1.0)
 	}
@@ -126,7 +126,7 @@ func TestSetMerge(t *testing.T) {
 	jm, err := s.Export()
 	assert.NoError(t, err, "should have exported successfully")
 
-	s2 := NewSet("a.b.c", []string{"a:b"})
+	s2 := samplers.NewSet("a.b.c", []string{"a:b"})
 	assert.NoError(t, s2.Combine(jm.Value), "should have combined successfully")
 	// HLLs are approximate, and we've seen error of +-1 here in the past, so
 	// we're giving the test some room for error to reduce flakes
@@ -138,7 +138,7 @@ func TestSetMerge(t *testing.T) {
 
 func TestHisto(t *testing.T) {
 
-	h := NewHist("a.b.c", []string{"a:b"})
+	h := samplers.NewHist("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", h.name, "Name")
 	assert.Len(t, h.tags, 1, "Tag count")
@@ -197,7 +197,7 @@ func TestHisto(t *testing.T) {
 
 func TestHistoSampleRate(t *testing.T) {
 
-	h := NewHist("a.b.c", []string{"a:b"})
+	h := samplers.NewHist("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", h.name, "Name")
 	assert.Len(t, h.tags, 1, "Tag length")
@@ -225,7 +225,7 @@ func TestHistoSampleRate(t *testing.T) {
 func TestHistoMerge(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
-	h := NewHist("a.b.c", []string{"a:b"})
+	h := samplers.NewHist("a.b.c", []string{"a:b"})
 	for i := 0; i < 100; i++ {
 		h.Sample(rand.NormFloat64(), 1.0)
 	}
@@ -233,7 +233,7 @@ func TestHistoMerge(t *testing.T) {
 	jm, err := h.Export()
 	assert.NoError(t, err, "should have exported successfully")
 
-	h2 := NewHist("a.b.c", []string{"a:b"})
+	h2 := samplers.NewHist("a.b.c", []string{"a:b"})
 	assert.NoError(t, h2.Combine(jm.Value), "should have combined successfully")
 	assert.InEpsilon(t, h.value.Quantile(0.5), h2.value.Quantile(0.5), 0.02, "50th percentiles did not match after merging")
 	assert.InDelta(t, 0, h2.localWeight, 0.02, "merged histogram should have count of zero")

@@ -51,7 +51,7 @@ func TestWorkerLocal(t *testing.T) {
 
 func TestWorkerImportSet(t *testing.T) {
 	w := NewWorker(1, nil, logrus.New())
-	testset := NewSet("a.b.c", nil)
+	testset := samplers.NewSet("a.b.c", nil)
 	testset.Sample("foo", 1.0)
 	testset.Sample("bar", 1.0)
 
@@ -66,7 +66,7 @@ func TestWorkerImportSet(t *testing.T) {
 
 func TestWorkerImportHistogram(t *testing.T) {
 	w := NewWorker(1, nil, logrus.New())
-	testhisto := NewHist("a.b.c", nil)
+	testhisto := samplers.NewHist("a.b.c", nil)
 	testhisto.Sample(1.0, 1.0)
 	testhisto.Sample(2.0, 1.0)
 

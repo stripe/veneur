@@ -165,10 +165,10 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			svc = s3.New(sess)
 
 			plugin := &s3p.S3Plugin{
-				logger:   log,
-				svc:      svc,
-				s3Bucket: conf.AWSBucket,
-				hostname: ret.Hostname,
+				Logger:   log,
+				Svc:      svc,
+				S3Bucket: conf.AWSBucket,
+				Hostname: ret.Hostname,
 			}
 			ret.registerPlugin(plugin)
 		}
@@ -199,7 +199,7 @@ func (s *Server) HandlePacket(packet []byte) {
 	}
 
 	if bytes.HasPrefix(packet, []byte{'_', 'e', '{'}) {
-		event, err := ParseEvent(packet)
+		event, err := samplers.ParseEvent(packet)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
@@ -210,7 +210,7 @@ func (s *Server) HandlePacket(packet []byte) {
 		}
 		s.EventWorker.EventChan <- *event
 	} else if bytes.HasPrefix(packet, []byte{'_', 's', 'c'}) {
-		svcheck, err := ParseServiceCheck(packet)
+		svcheck, err := samplers.ParseServiceCheck(packet)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
@@ -221,7 +221,7 @@ func (s *Server) HandlePacket(packet []byte) {
 		}
 		s.EventWorker.ServiceCheckChan <- *svcheck
 	} else {
-		metric, err := ParseMetric(packet)
+		metric, err := samplers.ParseMetric(packet)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
@@ -345,9 +345,9 @@ func (s *Server) registerPlugin(p plugins.Plugin) {
 	s.plugins = append(s.plugins, p)
 }
 
-func (s *Server) getPlugins() []plugin {
+func (s *Server) getPlugins() []plugins.Plugin {
 	s.pluginMtx.Lock()
-	plugins := make([]plugin, len(s.plugins))
+	plugins := make([]plugins.Plugin, len(s.plugins))
 	copy(plugins, s.plugins)
 	s.pluginMtx.Unlock()
 	return plugins

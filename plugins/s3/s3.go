@@ -24,19 +24,19 @@ import (
 var _ plugins.Plugin = &S3Plugin{}
 
 type S3Plugin struct {
-	logger   *logrus.Logger
-	svc      s3iface.S3API
-	s3Bucket string
-	hostname string
+	Logger   *logrus.Logger
+	Svc      s3iface.S3API
+	S3Bucket string
+	Hostname string
 }
 
 func (p *S3Plugin) Flush(metrics []samplers.DDMetric, hostname string) error {
 	const Delimiter = '\t'
 	const IncludeHeaders = false
 
-	csv, err := encodeDDMetricsCSV(metrics, Delimiter, IncludeHeaders, p.hostname)
+	csv, err := encodeDDMetricsCSV(metrics, Delimiter, IncludeHeaders, p.Hostname)
 	if err != nil {
-		p.logger.WithFields(logrus.Fields{
+		p.Logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
 			"metrics":       len(metrics),
 		}).Error("Could not marshal metrics before posting to s3")
@@ -45,14 +45,14 @@ func (p *S3Plugin) Flush(metrics []samplers.DDMetric, hostname string) error {
 
 	err = p.s3Post(hostname, csv, tsvGzFt)
 	if err != nil {
-		p.logger.WithFields(logrus.Fields{
+		p.Logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
 			"metrics":       len(metrics),
 		}).Error("Error posting to s3")
 		return err
 	}
 
-	p.logger.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
+	p.Logger.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
 	return nil
 }
 
@@ -74,7 +74,7 @@ var S3Bucket = "stripe-veneur"
 var S3ClientUninitializedError = errors.New("s3 client has not been initialized")
 
 func (p *S3Plugin) s3Post(hostname string, data io.ReadSeeker, ft filetype) error {
-	if p.svc == nil {
+	if p.Svc == nil {
 		return S3ClientUninitializedError
 	}
 	params := &s3.PutObjectInput{
@@ -83,7 +83,7 @@ func (p *S3Plugin) s3Post(hostname string, data io.ReadSeeker, ft filetype) erro
 		Body:   data,
 	}
 
-	_, err := p.svc.PutObject(params)
+	_, err := p.Svc.PutObject(params)
 	return err
 }
 
