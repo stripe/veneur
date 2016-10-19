@@ -18,10 +18,10 @@ import (
 
 func TestSortableJSONMetrics(t *testing.T) {
 	testList := []samplers.JSONMetric{
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
 	}
 
 	sortable := newSortableJSONMetrics(testList, 96)
@@ -29,10 +29,10 @@ func TestSortableJSONMetrics(t *testing.T) {
 
 	sort.Sort(sortable)
 	assert.EqualValues(t, []samplers.JSONMetric{
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
 	}, testList, "should have sorted the metrics by hashes")
 }
 
@@ -42,8 +42,8 @@ func TestSortableJSONMetricHashing(t *testing.T) {
 
 	testList := []samplers.JSONMetric{
 		samplers.JSONMetric{
-			samplers.MetricKey: packet.MetricKey,
-			Tags:               packet.Tags,
+			MetricKey: packet.MetricKey,
+			Tags:      packet.Tags,
 		},
 	}
 
@@ -54,14 +54,14 @@ func TestSortableJSONMetricHashing(t *testing.T) {
 
 func TestIteratingByWorker(t *testing.T) {
 	testList := []samplers.JSONMetric{
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-		samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
+		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
 	}
 
 	var testChunks [][]samplers.JSONMetric
@@ -77,20 +77,20 @@ func TestIteratingByWorker(t *testing.T) {
 
 	assert.EqualValues(t, [][]samplers.JSONMetric{
 		[]samplers.JSONMetric{
-			samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-			samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
 		},
 		[]samplers.JSONMetric{
-			samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-			samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
+			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
+			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
 		},
 		[]samplers.JSONMetric{
-			samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
-			samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
+			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
+			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
 		},
 		[]samplers.JSONMetric{
-			samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
-			samplers.JSONMetric{samplers.MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
 		},
 	}, testChunks, "should have sorted the metrics by hashes")
 }

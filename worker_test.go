@@ -12,7 +12,7 @@ func TestWorker(t *testing.T) {
 	w := NewWorker(1, nil, logrus.New())
 
 	m := samplers.UDPMetric{
-		samplers.MetricKey: samplers.MetricKey{
+		MetricKey: samplers.MetricKey{
 			Name: "a.b.c",
 			Type: "counter",
 		},
@@ -33,7 +33,7 @@ func TestWorkerLocal(t *testing.T) {
 	w := NewWorker(1, nil, logrus.New())
 
 	m := samplers.UDPMetric{
-		samplers.MetricKey: samplers.MetricKey{
+		MetricKey: samplers.MetricKey{
 			Name: "a.b.c",
 			Type: "histogram",
 		},
