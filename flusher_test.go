@@ -5,10 +5,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/samplers"
 )
 
 func TestServerTags(t *testing.T) {
-	metrics := []DDMetric{{
+	metrics := []samplers.UDPServiceCheck{{
 		Name:       "foo.bar.baz",
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(1.0)}},
 		Tags:       []string{"gorch:frobble", "x:e"},
@@ -22,7 +23,7 @@ func TestServerTags(t *testing.T) {
 }
 
 func TestHostMagicTag(t *testing.T) {
-	metrics := []DDMetric{{
+	metrics := []samplers.UDPServiceCheck{{
 		Name:       "foo.bar.baz",
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(1.0)}},
 		Tags:       []string{"gorch:frobble", "host:abc123", "x:e"},
@@ -37,7 +38,7 @@ func TestHostMagicTag(t *testing.T) {
 }
 
 func TestDeviceMagicTag(t *testing.T) {
-	metrics := []DDMetric{{
+	metrics := []samplers.UDPServiceCheck{{
 		Name:       "foo.bar.baz",
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(1.0)}},
 		Tags:       []string{"gorch:frobble", "device:abc123", "x:e"},

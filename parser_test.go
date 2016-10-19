@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/samplers"
 )
 
 func TestParser(t *testing.T) {
@@ -123,7 +124,7 @@ func TestLocalOnlyEscape(t *testing.T) {
 func TestEvents(t *testing.T) {
 	evt, err := ParseEvent([]byte("_e{3,3}:foo|bar|k:foos|s:test|t:success|p:low|#foo:bar,baz:qux|d:1136239445|h:example.com"))
 	assert.NoError(t, err, "should have parsed correctly")
-	assert.EqualValues(t, &UDPEvent{
+	assert.EqualValues(t, &samplers.UDPEvent{
 		Title:       "foo",
 		Text:        "bar",
 		Timestamp:   1136239445,
@@ -157,7 +158,7 @@ func TestEvents(t *testing.T) {
 func TestServiceChecks(t *testing.T) {
 	evt, err := ParseServiceCheck([]byte("_sc|foo.bar|0|d:1136239445|h:example.com"))
 	assert.NoError(t, err, "should have parsed correctly")
-	assert.EqualValues(t, &UDPServiceCheck{
+	assert.EqualValues(t, &samplers.UDPServiceCheck{
 		Name:      "foo.bar",
 		Status:    0,
 		Timestamp: 1136239445,

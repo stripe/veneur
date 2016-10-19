@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/samplers"
 )
 
 func TestCounterEmpty(t *testing.T) {
@@ -247,7 +248,7 @@ func TestHistoMerge(t *testing.T) {
 
 type CSVTestCase struct {
 	Name     string
-	DDMetric DDMetric
+	DDMetric samplers.UDPServiceCheck
 	Row      io.Reader
 }
 
@@ -258,7 +259,7 @@ func CSVTestCases() []CSVTestCase {
 	return []CSVTestCase{
 		{
 			Name: "BasicDDMetric",
-			DDMetric: DDMetric{
+			samplers.UDPServiceCheck: samplers.UDPServiceCheck{
 				Name: "a.b.c.max",
 				Value: [1][2]float64{[2]float64{1476119058,
 					100}},
@@ -274,7 +275,7 @@ func CSVTestCases() []CSVTestCase {
 		{
 			// Test that we are able to handle a missing field (DeviceName)
 			Name: "MissingDeviceName",
-			DDMetric: DDMetric{
+			samplers.UDPServiceCheck: samplers.UDPServiceCheck{
 				Name: "a.b.c.max",
 				Value: [1][2]float64{[2]float64{1476119058,
 					100}},
@@ -292,7 +293,7 @@ func CSVTestCases() []CSVTestCase {
 			// by quoting the entire field
 			// (tags shouldn't do this, but we should handle them properly anyway)
 			Name: "TabTag",
-			DDMetric: DDMetric{
+			samplers.UDPServiceCheck: samplers.UDPServiceCheck{
 				Name: "a.b.c.max",
 				Value: [1][2]float64{[2]float64{1476119058,
 					100}},
@@ -339,7 +340,7 @@ func TestEncodeDDMetricsCSV(t *testing.T) {
 
 	testCases := CSVTestCases()
 
-	metrics := make([]DDMetric, len(testCases))
+	metrics := make([]samplers.UDPServiceCheck, len(testCases))
 	for i, tc := range testCases {
 		metrics[i] = tc.DDMetric
 	}

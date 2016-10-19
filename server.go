@@ -20,6 +20,10 @@ import (
 	"github.com/zenazn/goji/graceful"
 
 	"github.com/pkg/profile"
+
+	"github.com/stripe/veneur/plugins"
+	s3p "github.com/stripe/veneur/plugins/s3"
+	"github.com/stripe/veneur/samplers"
 )
 
 // VERSION stores the current veneur version.
@@ -52,7 +56,7 @@ type Server struct {
 
 	HistogramPercentiles []float64
 
-	plugins   []plugin
+	plugins   []plugins.Plugin
 	pluginMtx sync.Mutex
 
 	enableProfiling bool
@@ -160,7 +164,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			log.Info("Successfully created AWS session")
 			svc = s3.New(sess)
 
-			plugin := &S3Plugin{
+			plugin := &s3p.S3Plugin{
 				logger:   log,
 				svc:      svc,
 				s3Bucket: conf.AWSBucket,
@@ -259,7 +263,7 @@ func (s *Server) ReadSocket(packetPool *sync.Pool, reuseport bool) {
 		// note that spurious newlines are not allowed in this format, it has
 		// to be exactly one newline between each packet, with no leading or
 		// trailing newlines
-		splitPacket := NewSplitBytes(buf[:n], '\n')
+		splitPacket := samplers.NewSplitBytes(buf[:n], '\n')
 		for splitPacket.Next() {
 			s.HandlePacket(splitPacket.Chunk())
 		}
@@ -332,63 +336,10 @@ func (s *Server) IsLocal() bool {
 	return s.ForwardAddr != ""
 }
 
-// SplitBytes iterates over a byte buffer, returning chunks split by a given
-// delimiter byte. It does not perform any allocations, and does not modify the
-// buffer it is given. It is not safe for use by concurrent goroutines.
-//
-//     sb := NewSplitBytes(buf, '\n')
-//     for sb.Next() {
-//         fmt.Printf("%q\n", sb.Chunk())
-//     }
-//
-// The sequence of chunks returned by SplitBytes is equivalent to calling
-// bytes.Split, except without allocating an intermediate slice.
-type SplitBytes struct {
-	buf          []byte
-	delim        byte
-	currentChunk []byte
-	lastChunk    bool
-}
-
-// NewSplitBytes initializes a SplitBytes struct with the provided buffer and delimiter.
-func NewSplitBytes(buf []byte, delim byte) *SplitBytes {
-	return &SplitBytes{
-		buf:   buf,
-		delim: delim,
-	}
-}
-
-// Next advances SplitBytes to the next chunk, returning true if a new chunk
-// actually exists and false otherwise.
-func (sb *SplitBytes) Next() bool {
-	if sb.lastChunk {
-		// we do not check the length here, this ensures that we return the
-		// last chunk in the sequence (even if it's empty)
-		return false
-	}
-
-	next := bytes.IndexByte(sb.buf, sb.delim)
-	if next == -1 {
-		// no newline, consume the entire buffer
-		sb.currentChunk = sb.buf
-		sb.buf = nil
-		sb.lastChunk = true
-	} else {
-		sb.currentChunk = sb.buf[:next]
-		sb.buf = sb.buf[next+1:]
-	}
-	return true
-}
-
-// Chunk returns the current chunk.
-func (sb *SplitBytes) Chunk() []byte {
-	return sb.currentChunk
-}
-
 // registerPlugin registers a plugin for use
 // on the veneur server. It is blocking
 // and not threadsafe.
-func (s *Server) registerPlugin(p plugin) {
+func (s *Server) registerPlugin(p plugins.Plugin) {
 	s.pluginMtx.Lock()
 	defer s.pluginMtx.Unlock()
 	s.plugins = append(s.plugins, p)

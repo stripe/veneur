@@ -5,13 +5,14 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/samplers"
 )
 
 func TestWorker(t *testing.T) {
 	w := NewWorker(1, nil, logrus.New())
 
-	m := UDPMetric{
-		MetricKey: MetricKey{
+	m := samplers.UDPMetric{
+		samplers.MetricKey: samplers.MetricKey{
 			Name: "a.b.c",
 			Type: "counter",
 		},
@@ -31,8 +32,8 @@ func TestWorker(t *testing.T) {
 func TestWorkerLocal(t *testing.T) {
 	w := NewWorker(1, nil, logrus.New())
 
-	m := UDPMetric{
-		MetricKey: MetricKey{
+	m := samplers.UDPMetric{
+		samplers.MetricKey: samplers.MetricKey{
 			Name: "a.b.c",
 			Type: "histogram",
 		},

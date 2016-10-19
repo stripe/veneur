@@ -1,4 +1,4 @@
-package veneur
+package s3
 
 import (
 	"bytes"
@@ -14,9 +14,14 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+
+	"github.com/stripe/veneur/plugins"
+	"github.com/stripe/veneur/samplers"
 )
 
-var _ plugin = &S3Plugin{}
+// TODO set log level
+
+var _ plugins.Plugin = &S3Plugin{}
 
 type S3Plugin struct {
 	logger   *logrus.Logger
@@ -25,7 +30,7 @@ type S3Plugin struct {
 	hostname string
 }
 
-func (p *S3Plugin) Flush(metrics []DDMetric, hostname string) error {
+func (p *S3Plugin) Flush(metrics []samplers.DDMetric, hostname string) error {
 	const Delimiter = '\t'
 	const IncludeHeaders = false
 
@@ -47,7 +52,7 @@ func (p *S3Plugin) Flush(metrics []DDMetric, hostname string) error {
 		return err
 	}
 
-	log.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
+	p.logger.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
 	return nil
 }
 
@@ -91,7 +96,7 @@ func s3Path(hostname string, ft filetype) *string {
 // encodeDDMetricsCSV returns a reader containing the gzipped CSV representation of the
 // DDMetrics data, one row per DDMetric.
 // the AWS sdk requires seekable input, so we return a ReadSeeker here
-func encodeDDMetricsCSV(metrics []DDMetric, delimiter rune, includeHeaders bool, hostname string) (io.ReadSeeker, error) {
+func encodeDDMetricsCSV(metrics []samplers.DDMetric, delimiter rune, includeHeaders bool, hostname string) (io.ReadSeeker, error) {
 	b := &bytes.Buffer{}
 	gzw := gzip.NewWriter(b)
 	w := csv.NewWriter(gzw)
@@ -102,16 +107,16 @@ func encodeDDMetricsCSV(metrics []DDMetric, delimiter rune, includeHeaders bool,
 		headers := [...]string{
 			// the order here doesn't actually matter
 			// as long as the keys are right
-			tsvName:           tsvName.String(),
-			tsvTags:           tsvTags.String(),
-			tsvMetricType:     tsvMetricType.String(),
-			tsvHostname:       tsvHostname.String(),
-			tsvDeviceName:     tsvDeviceName.String(),
-			tsvInterval:       tsvInterval.String(),
-			tsvVeneurHostname: tsvVeneurHostname.String(),
-			tsvValue:          tsvValue.String(),
-			tsvTimestamp:      tsvTimestamp.String(),
-			tsvPartition:      tsvPartition.String(),
+			samplers.TsvName:           samplers.TsvName.String(),
+			samplers.TsvTags:           samplers.TsvTags.String(),
+			samplers.TsvMetricType:     samplers.TsvMetricType.String(),
+			samplers.TsvHostname:       samplers.TsvHostname.String(),
+			samplers.TsvDeviceName:     samplers.TsvDeviceName.String(),
+			samplers.TsvInterval:       samplers.TsvInterval.String(),
+			samplers.TsvVeneurHostname: samplers.TsvVeneurHostname.String(),
+			samplers.TsvValue:          samplers.TsvValue.String(),
+			samplers.TsvTimestamp:      samplers.TsvTimestamp.String(),
+			samplers.TsvPartition:      samplers.TsvPartition.String(),
 		}
 
 		w.Write(headers[:])
@@ -120,7 +125,7 @@ func encodeDDMetricsCSV(metrics []DDMetric, delimiter rune, includeHeaders bool,
 	// TODO avoid edge case at midnight
 	partitionDate := time.Now()
 	for _, metric := range metrics {
-		metric.encodeCSV(w, &partitionDate, hostname)
+		metric.EncodeCSV(w, &partitionDate, hostname)
 	}
 
 	w.Flush()

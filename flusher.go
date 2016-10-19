@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/stripe/veneur/samplers"
 )
 
 // Flush takes the slices of metrics, combines then and marshals them to json
@@ -27,18 +28,6 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	} else {
 		s.FlushGlobal(interval, metricLimit)
 	}
-}
-
-// A plugin flushes the metrics provided to an arbitrary destination.
-// The metrics slice may be shared between plugins, so the plugin may not
-// write to it or modify any of its components.
-// The name should be a short, lowercase, snake-cased identifier for the plugin.
-// When a plugin is registered, the number of metrics flushed successfully and
-// the number of errors encountered are automatically reported by veneur, using
-// the plugin name.
-type plugin interface {
-	Flush(metrics []DDMetric, hostname string) error
-	Name() string
 }
 
 func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
@@ -157,12 +146,12 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 	ms.totalLength = ms.totalCounters + ms.totalGauges +
 		// histograms and timers each report a metric point for each percentile
 		// plus a point for their max, min and count
-		(ms.totalTimers+ms.totalHistograms)*(HistogramLocalLength+len(percentiles)) +
+		(ms.totalTimers+ms.totalHistograms)*(samplers.HistogramLocalLength+len(percentiles)) +
 		// local-only histograms will be flushed with percentiles, so we intentionally
 		// use the original percentile list here.
 		// remember that both the global veneur and the local instances have
 		// 'local-only' histograms.
-		ms.totalLocalSets + (ms.totalLocalTimers+ms.totalLocalHistograms)*(HistogramLocalLength+len(s.HistogramPercentiles))
+		ms.totalLocalSets + (ms.totalLocalTimers+ms.totalLocalHistograms)*(samplers.HistogramLocalLength+len(s.HistogramPercentiles))
 
 	return tempMetrics, ms
 }
@@ -170,9 +159,9 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 // generateDDMetrics calls the Flush method on each
 // counter/gauge/histogram/timer/set in order to
 // generate a DDMetric corresponding to that value
-func (s *Server) generateDDMetrics(interval time.Duration, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []DDMetric {
+func (s *Server) generateDDMetrics(interval time.Duration, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.DDMetric {
 	combineStart := time.Now()
-	finalMetrics := make([]DDMetric, 0, ms.totalLength)
+	finalMetrics := make([]samplers.DDMetric, 0, ms.totalLength)
 	for _, wm := range tempMetrics {
 		for _, c := range wm.counters {
 			finalMetrics = append(finalMetrics, c.Flush(interval)...)
@@ -252,7 +241,7 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 
 // flushRemote breaks up the final metrics into chunks
 // (to avoid hitting the size cap) and POSTs them to the remote API
-func (s *Server) flushRemote(finalMetrics []DDMetric, metricLimit int) {
+func (s *Server) flushRemote(finalMetrics []samplers.DDMetric, metricLimit int) {
 	s.statsd.Gauge("flush.post_metrics_total", float64(len(finalMetrics)), nil, 1.0)
 	// Check to see if we have anything to do
 	if len(finalMetrics) == 0 {
@@ -284,7 +273,7 @@ func (s *Server) flushRemote(finalMetrics []DDMetric, metricLimit int) {
 	log.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
 }
 
-func finalizeMetrics(hostname string, tags []string, finalMetrics []DDMetric) {
+func finalizeMetrics(hostname string, tags []string, finalMetrics []samplers.DDMetric) {
 	for i := range finalMetrics {
 		// Let's look for "magic tags" that override metric fields host and device.
 		for j, tag := range finalMetrics[i].Tags {
@@ -310,9 +299,9 @@ func finalizeMetrics(hostname string, tags []string, finalMetrics []DDMetric) {
 }
 
 // flushPart flushes a set of metrics to the remote API server
-func (s *Server) flushPart(metricSlice []DDMetric, wg *sync.WaitGroup) {
+func (s *Server) flushPart(metricSlice []samplers.DDMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
-	s.postHelper(fmt.Sprintf("%s/api/v1/series?api_key=%s", s.DDHostname, s.DDAPIKey), map[string][]DDMetric{
+	s.postHelper(fmt.Sprintf("%s/api/v1/series?api_key=%s", s.DDHostname, s.DDAPIKey), map[string][]samplers.DDMetric{
 		"series": metricSlice,
 	}, "flush", true)
 }
@@ -325,7 +314,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 		jmLength += len(wm.timers)
 	}
 
-	jsonMetrics := make([]JSONMetric, 0, jmLength)
+	jsonMetrics := make([]samplers.JSONMetric, 0, jmLength)
 	exportStart := time.Now()
 	for _, wm := range wms {
 		for _, histo := range wm.histograms {
@@ -448,7 +437,7 @@ func (s *Server) flushEventsChecks() {
 		// the official dd-agent
 		// we don't actually pass all the body keys that dd-agent passes here... but
 		// it still works
-		err := s.postHelper(fmt.Sprintf("%s/intake?api_key=%s", s.DDHostname, s.DDAPIKey), map[string]map[string][]UDPEvent{
+		err := s.postHelper(fmt.Sprintf("%s/intake?api_key=%s", s.DDHostname, s.DDAPIKey), map[string]map[string][]samplers.UDPEvent{
 			"events": {
 				"api": events,
 			},

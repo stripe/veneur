@@ -1,4 +1,4 @@
-package veneur
+package samplers
 
 import (
 	"encoding/csv"
@@ -33,39 +33,39 @@ type tsvField int
 const (
 	// the order in which these appear determines the
 	// order of the fields in the resultant TSV
-	tsvName tsvField = iota
-	tsvTags
-	tsvMetricType
+	TsvName tsvField = iota
+	TsvTags
+	TsvMetricType
 
 	// The hostname attached to the metric
-	tsvHostname
+	TsvHostname
 
 	// The hostname of the server flushing the data
-	tsvVeneurHostname
+	TsvVeneurHostname
 
-	tsvDeviceName
-	tsvInterval
+	TsvDeviceName
+	TsvInterval
 
-	tsvTimestamp
-	tsvValue
+	TsvTimestamp
+	TsvValue
 
 	// This is the _partition field
 	// required by the Redshift IncrementalLoader.
 	// For our purposes, the current date is a good partition.
-	tsvPartition
+	TsvPartition
 )
 
 var tsvSchema = [...]string{
-	tsvName:           "tsvName",
-	tsvTags:           "tsvTags",
-	tsvMetricType:     "tsvMetricType",
-	tsvHostname:       "tsvHostname",
-	tsvDeviceName:     "tsvDeviceName",
-	tsvInterval:       "tsvInterval",
-	tsvVeneurHostname: "tsvVeneurHostname",
-	tsvTimestamp:      "tsvTimestamp",
-	tsvValue:          "tsvValue",
-	tsvPartition:      "tsvPartition",
+	TsvName:           "TsvName",
+	TsvTags:           "TsvTags",
+	TsvMetricType:     "TsvMetricType",
+	TsvHostname:       "TsvHostname",
+	TsvDeviceName:     "TsvDeviceName",
+	TsvInterval:       "TsvInterval",
+	TsvVeneurHostname: "TsvVeneurHostname",
+	TsvTimestamp:      "TsvTimestamp",
+	TsvValue:          "TsvValue",
+	TsvPartition:      "TsvPartition",
 }
 
 // String returns the field name.
@@ -83,12 +83,12 @@ func init() {
 	}
 }
 
-// encodeCSV generates a newline-terminated CSV row that describes
+// EncodeCSV generates a newline-terminated CSV row that describes
 // the data represented by the DDMetric.
 // The caller is responsible for setting w.Comma as the appropriate delimiter.
 // For performance, encodeCSV does not flush after every call; the caller is
 // expected to flush at the end of the operation cycle
-func (d DDMetric) encodeCSV(w *csv.Writer, partitionDate *time.Time, hostname string) error {
+func (d DDMetric) EncodeCSV(w *csv.Writer, partitionDate *time.Time, hostname string) error {
 
 	timestamp := d.Value[0][0]
 	value := strconv.FormatFloat(d.Value[0][1], 'f', -1, 64)
@@ -101,19 +101,19 @@ func (d DDMetric) encodeCSV(w *csv.Writer, partitionDate *time.Time, hostname st
 	fields := [...]string{
 		// the order here doesn't actually matter
 		// as long as the keys are right
-		tsvName:           d.Name,
-		tsvTags:           tags,
-		tsvMetricType:     d.MetricType,
-		tsvHostname:       d.Hostname,
-		tsvDeviceName:     d.DeviceName,
-		tsvInterval:       interval,
-		tsvVeneurHostname: hostname,
-		tsvValue:          value,
+		TsvName:           d.Name,
+		TsvTags:           tags,
+		TsvMetricType:     d.MetricType,
+		TsvHostname:       d.Hostname,
+		TsvDeviceName:     d.DeviceName,
+		TsvInterval:       interval,
+		TsvVeneurHostname: hostname,
+		TsvValue:          value,
 
-		tsvTimestamp: time.Unix(int64(timestamp), 0).UTC().Format(RedshiftDateFormat),
+		TsvTimestamp: time.Unix(int64(timestamp), 0).UTC().Format(RedshiftDateFormat),
 
 		// TODO avoid edge case at midnight
-		tsvPartition: partitionDate.UTC().Format(PartitionDateFormat),
+		TsvPartition: partitionDate.UTC().Format(PartitionDateFormat),
 	}
 
 	w.Write(fields[:])

@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/tdigest"
 )
 
@@ -168,7 +169,7 @@ func setupVeneurServer(t *testing.T, config Config) Server {
 // for sending metrics data to Datadog
 // Eventually we'll want to define this symmetrically.
 type DDMetricsRequest struct {
-	Series []DDMetric
+	Series []samplers.UDPServiceCheck
 }
 
 // TestLocalServerUnaggregatedMetrics tests the behavior of
@@ -221,8 +222,8 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	defer server.Shutdown()
 
 	for _, value := range metricValues {
-		server.Workers[0].ProcessMetric(&UDPMetric{
-			MetricKey: MetricKey{
+		server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+			samplers.MetricKey: samplers.MetricKey{
 				Name: "a.b.c",
 				Type: "histogram",
 			},
@@ -288,8 +289,8 @@ func TestGlobalServerFlush(t *testing.T) {
 	defer server.Shutdown()
 
 	for _, value := range metricValues {
-		server.Workers[0].ProcessMetric(&UDPMetric{
-			MetricKey: MetricKey{
+		server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+			samplers.MetricKey: samplers.MetricKey{
 				Name: "a.b.c",
 				Type: "histogram",
 			},
@@ -439,8 +440,8 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 
 	// Create non-local metrics that should be passed to the global veneur instance
 	for _, value := range HistogramValues {
-		server.Workers[0].ProcessMetric(&UDPMetric{
-			MetricKey: MetricKey{
+		server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+			samplers.MetricKey: samplers.MetricKey{
 				Name: "a.b.c",
 				Type: "histogram",
 			},
@@ -453,8 +454,8 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 
 	// Create local-only metrics that should be passed directly to the remote API
 	for i := 0; i < CounterNumEvents; i++ {
-		server.Workers[0].ProcessMetric(&UDPMetric{
-			MetricKey: MetricKey{
+		server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+			samplers.MetricKey: samplers.MetricKey{
 				Name: "x.y.z",
 				Type: "counter",
 			},
@@ -506,10 +507,10 @@ func checkBufferSplit(t *testing.T, buf []byte) {
 type dummyPlugin struct {
 	logger *logrus.Logger
 	statsd *statsd.Client
-	flush  func([]DDMetric, string) error
+	flush  func([]samplers.UDPServiceCheck, string) error
 }
 
-func (dp *dummyPlugin) Flush(metrics []DDMetric, hostname string) error {
+func (dp *dummyPlugin) Flush(metrics []samplers.UDPServiceCheck, hostname string) error {
 	return dp.flush(metrics, hostname)
 }
 
@@ -549,7 +550,7 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 
 	dp := &dummyPlugin{logger: log, statsd: server.statsd}
 
-	dp.flush = func(metrics []DDMetric, hostname string) error {
+	dp.flush = func(metrics []samplers.UDPServiceCheck, hostname string) error {
 		assert.Equal(t, len(expectedMetrics), len(metrics))
 
 		firstName := metrics[0].Name
@@ -564,8 +565,8 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 	server.registerPlugin(dp)
 
 	for _, value := range metricValues {
-		server.Workers[0].ProcessMetric(&UDPMetric{
-			MetricKey: MetricKey{
+		server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+			samplers.MetricKey: samplers.MetricKey{
 				Name: "a.b.c",
 				Type: "histogram",
 			},
@@ -640,8 +641,8 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 	assert.Equal(t, 1, len(plugins))
 
 	for _, value := range metricValues {
-		server.Workers[0].ProcessMetric(&UDPMetric{
-			MetricKey: MetricKey{
+		server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+			samplers.MetricKey: samplers.MetricKey{
 				Name: "a.b.c",
 				Type: "histogram",
 			},
