@@ -94,6 +94,19 @@ func (s *Server) FlushLocal(interval time.Duration, metricLimit int) {
 	// since not everything in tempMetrics is safe for sharing
 	go s.flushForward(tempMetrics)
 
+	go func() {
+		for _, p := range s.getPlugins() {
+			start := time.Now()
+			err := p.Flush(finalMetrics, s.Hostname)
+			s.statsd.TimeInMilliseconds(fmt.Sprintf("flush.plugins.%s.total_duration_ns", p.Name()), float64(time.Now().Sub(start).Nanoseconds()), []string{"part:post"}, 1.0)
+			if err != nil {
+				countName := fmt.Sprintf("flush.plugins.%s.error_total", p.Name())
+				s.statsd.Count(countName, 1, []string{}, 1.0)
+			}
+			s.statsd.Gauge(fmt.Sprintf("flush.plugins.%s.post_metrics_total", p.Name()), float64(len(finalMetrics)), nil, 1.0)
+		}
+	}()
+
 	s.flushRemote(finalMetrics, metricLimit)
 }
 
