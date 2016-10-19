@@ -13,8 +13,10 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/stretchr/testify/assert"
+	s3Mock "github.com/stripe/veneur/plugins/s3/mock"
+	"github.com/stripe/veneur/samplers"
+	. "github.com/stripe/veneur/testhelpers"
 )
 
 const DefaultServerTimeout = 100 * time.Millisecond
@@ -23,23 +25,14 @@ var log = logrus.New()
 
 const S3TestBucket = "stripe-test-veneur"
 
-type mockS3Client struct {
-	s3iface.S3API
-	putObject func(*s3.PutObjectInput) (*s3.PutObjectOutput, error)
-}
-
-func (m *mockS3Client) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
-	return m.putObject(input)
-}
-
-// stubS3 sets svc to a mockS3Client that will return 200 for all responses
+// stubS3 sets svc to a s3Mock.MockS3Client that will return 200 for all responses
 // useful for avoiding erroneous error log lines when testing things that aren't
 // related to s3.
 func stubS3() *S3Plugin {
-	client := &mockS3Client{}
-	client.putObject = func(*s3.PutObjectInput) (*s3.PutObjectOutput, error) {
+	client := &s3Mock.MockS3Client{}
+	client.SetPutObject(func(*s3.PutObjectInput) (*s3.PutObjectOutput, error) {
 		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
-	}
+	})
 	svc := client
 	return &S3Plugin{Logger: log, Svc: svc}
 }
@@ -59,12 +52,12 @@ func TestS3Post(t *testing.T) {
 		}
 	}()
 
-	client := &mockS3Client{}
+	client := &s3Mock.MockS3Client{}
 	f, err := os.Open(path.Join("..", "..", "fixtures", "aws", "PutObject", "2016", "10", "13", "1476370612.tsv.gz"))
 	assert.NoError(t, err)
 	defer f.Close()
 
-	client.putObject = func(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
+	client.SetPutObject(func(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
 		// The data should be a gzipped TSV
 		gzr, err := gzip.NewReader(input.Body)
 		assert.NoError(t, err)
@@ -77,7 +70,7 @@ func TestS3Post(t *testing.T) {
 		assert.Equal(t, "a.b.c.max", records[0][0])
 		RemoteResponseChan <- struct{}{}
 		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
-	}
+	})
 
 	s3p := &S3Plugin{Logger: log, Svc: client}
 
@@ -138,4 +131,46 @@ func TestS3PostNoCredentials(t *testing.T) {
 	// this should not panic
 	err = s3p.S3Post("testbox", f, jsonFt)
 	assert.Equal(t, S3ClientUninitializedError, err)
+}
+
+func TestEncodeDDMetricsCSV(t *testing.T) {
+	const ExpectedHeader = "Name\tTags\tMetricType\tHostname\tVeneurHostname\tDeviceName\tInterval\tTimestamp\tValue\tPartition"
+	const Delimiter = '\t'
+	const VeneurHostname = "testbox-c3eac9"
+
+	testCases := CSVTestCases()
+
+	metrics := make([]samplers.DDMetric, len(testCases))
+	for i, tc := range testCases {
+		metrics[i] = tc.DDMetric
+	}
+
+	c, err := EncodeDDMetricsCSV(metrics, Delimiter, true, VeneurHostname)
+	assert.NoError(t, err)
+	gzr, err := gzip.NewReader(c)
+	assert.NoError(t, err)
+	r := csv.NewReader(gzr)
+	r.FieldsPerRecord = 10
+	r.Comma = Delimiter
+
+	// first line should always contain header information
+	header, err := r.Read()
+	assert.NoError(t, err)
+	assert.Equal(t, ExpectedHeader, strings.Join(header, "\t"))
+
+	records, err := r.ReadAll()
+	assert.NoError(t, err)
+
+	assert.Equal(t, len(metrics), len(records), "Expected %d records and got %d", len(metrics), len(records))
+	for i, tc := range testCases {
+		record := records[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			for j, cell := range record {
+				if strings.ContainsRune(cell, Delimiter) {
+					record[j] = `"` + cell + `"`
+				}
+			}
+			AssertReadersEqual(t, testCases[i].Row, strings.NewReader(strings.Join(record, "\t")+"\n"))
+		})
+	}
 }

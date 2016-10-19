@@ -1,8 +1,7 @@
-package veneur
+package samplers
 
 import (
 	"bytes"
-	"compress/gzip"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -15,13 +14,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	s3p "github.com/stripe/veneur/plugins/s3"
-	"github.com/stripe/veneur/samplers"
 )
 
 func TestCounterEmpty(t *testing.T) {
 
-	c := samplers.NewCounter("a.b.c", []string{"a:b"})
+	c := NewCounter("a.b.c", []string{"a:b"})
 	c.Sample(1, 1.0)
 
 	assert.Equal(t, "a.b.c", c.Name, "Name")
@@ -42,7 +39,7 @@ func TestCounterEmpty(t *testing.T) {
 
 func TestCounterRate(t *testing.T) {
 
-	c := samplers.NewCounter("a.b.c", []string{"a:b"})
+	c := NewCounter("a.b.c", []string{"a:b"})
 
 	c.Sample(5, 1.0)
 
@@ -53,7 +50,7 @@ func TestCounterRate(t *testing.T) {
 
 func TestCounterSampleRate(t *testing.T) {
 
-	c := samplers.NewCounter("a.b.c", []string{"a:b"})
+	c := NewCounter("a.b.c", []string{"a:b"})
 
 	c.Sample(5, 0.5)
 
@@ -64,7 +61,7 @@ func TestCounterSampleRate(t *testing.T) {
 
 func TestGauge(t *testing.T) {
 
-	g := samplers.NewGauge("a.b.c", []string{"a:b"})
+	g := NewGauge("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", g.Name, "Name")
 	assert.Len(t, g.Tags, 1, "Tag length")
@@ -88,7 +85,7 @@ func TestGauge(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	s := samplers.NewSet("a.b.c", []string{"a:b"})
+	s := NewSet("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", s.Name, "Name")
 	assert.Len(t, s.Tags, 1, "Tag count")
@@ -118,7 +115,7 @@ func TestSet(t *testing.T) {
 func TestSetMerge(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
-	s := samplers.NewSet("a.b.c", []string{"a:b"})
+	s := NewSet("a.b.c", []string{"a:b"})
 	for i := 0; i < 100; i++ {
 		s.Sample(strconv.Itoa(rand.Int()), 1.0)
 	}
@@ -127,7 +124,7 @@ func TestSetMerge(t *testing.T) {
 	jm, err := s.Export()
 	assert.NoError(t, err, "should have exported successfully")
 
-	s2 := samplers.NewSet("a.b.c", []string{"a:b"})
+	s2 := NewSet("a.b.c", []string{"a:b"})
 	assert.NoError(t, s2.Combine(jm.Value), "should have combined successfully")
 	// HLLs are approximate, and we've seen error of +-1 here in the past, so
 	// we're giving the test some room for error to reduce flakes
@@ -139,7 +136,7 @@ func TestSetMerge(t *testing.T) {
 
 func TestHisto(t *testing.T) {
 
-	h := samplers.NewHist("a.b.c", []string{"a:b"})
+	h := NewHist("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", h.Name, "Name")
 	assert.Len(t, h.Tags, 1, "Tag count")
@@ -151,9 +148,9 @@ func TestHisto(t *testing.T) {
 	h.Sample(20, 1.0)
 	h.Sample(25, 1.0)
 
-	var aggregates samplers.HistogramAggregates
-	aggregates.Value = samplers.AggregateMin | samplers.AggregateMax | samplers.AggregateMedian |
-		samplers.AggregateAverage | samplers.AggregateCount | samplers.AggregateSum
+	var aggregates HistogramAggregates
+	aggregates.Value = AggregateMin | AggregateMax | AggregateMedian |
+		AggregateAverage | AggregateCount | AggregateSum
 	aggregates.Count = 6
 
 	percentiles := []float64{0.90}
@@ -237,7 +234,7 @@ func TestHisto(t *testing.T) {
 
 func TestHistoSampleRate(t *testing.T) {
 
-	h := samplers.NewHist("a.b.c", []string{"a:b"})
+	h := NewHist("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", h.Name, "Name")
 	assert.Len(t, h.Tags, 1, "Tag length")
@@ -249,8 +246,8 @@ func TestHistoSampleRate(t *testing.T) {
 	h.Sample(20, 0.5)
 	h.Sample(25, 0.5)
 
-	var aggregates samplers.HistogramAggregates
-	aggregates.Value = samplers.AggregateMin | samplers.AggregateMax | samplers.AggregateCount
+	var aggregates HistogramAggregates
+	aggregates.Value = AggregateMin | AggregateMax | AggregateCount
 	aggregates.Count = 3
 
 	metrics := h.Flush(10*time.Second, []float64{0.50}, aggregates)
@@ -269,7 +266,7 @@ func TestHistoSampleRate(t *testing.T) {
 func TestHistoMerge(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
-	h := samplers.NewHist("a.b.c", []string{"a:b"})
+	h := NewHist("a.b.c", []string{"a:b"})
 	for i := 0; i < 100; i++ {
 		h.Sample(rand.NormFloat64(), 1.0)
 	}
@@ -277,7 +274,7 @@ func TestHistoMerge(t *testing.T) {
 	jm, err := h.Export()
 	assert.NoError(t, err, "should have exported successfully")
 
-	h2 := samplers.NewHist("a.b.c", []string{"a:b"})
+	h2 := NewHist("a.b.c", []string{"a:b"})
 	assert.NoError(t, h2.Combine(jm.Value), "should have combined successfully")
 	assert.InEpsilon(t, h.Value.Quantile(0.5), h2.Value.Quantile(0.5), 0.02, "50th percentiles did not match after merging")
 	assert.InDelta(t, 0, h2.LocalWeight, 0.02, "merged histogram should have count of zero")
@@ -292,7 +289,7 @@ func TestHistoMerge(t *testing.T) {
 
 type CSVTestCase struct {
 	Name     string
-	DDMetric samplers.DDMetric
+	DDMetric DDMetric
 	Row      io.Reader
 }
 
@@ -303,7 +300,7 @@ func CSVTestCases() []CSVTestCase {
 	return []CSVTestCase{
 		{
 			Name: "BasicDDMetric",
-			DDMetric: samplers.DDMetric{
+			DDMetric: DDMetric{
 				Name: "a.b.c.max",
 				Value: [1][2]float64{[2]float64{1476119058,
 					100}},
@@ -319,7 +316,7 @@ func CSVTestCases() []CSVTestCase {
 		{
 			// Test that we are able to handle a missing field (DeviceName)
 			Name: "MissingDeviceName",
-			DDMetric: samplers.DDMetric{
+			DDMetric: DDMetric{
 				Name: "a.b.c.max",
 				Value: [1][2]float64{[2]float64{1476119058,
 					100}},
@@ -337,7 +334,7 @@ func CSVTestCases() []CSVTestCase {
 			// by quoting the entire field
 			// (tags shouldn't do this, but we should handle them properly anyway)
 			Name: "TabTag",
-			DDMetric: samplers.DDMetric{
+			DDMetric: DDMetric{
 				Name: "a.b.c.max",
 				Value: [1][2]float64{[2]float64{1476119058,
 					100}},
@@ -373,48 +370,6 @@ func TestEncodeCSV(t *testing.T) {
 			assert.NoError(t, err)
 
 			assertReadersEqual(t, tc.Row, b)
-		})
-	}
-}
-
-func TestEncodeDDMetricsCSV(t *testing.T) {
-	const ExpectedHeader = "Name\tTags\tMetricType\tHostname\tVeneurHostname\tDeviceName\tInterval\tTimestamp\tValue\tPartition"
-	const Delimiter = '\t'
-	const VeneurHostname = "testbox-c3eac9"
-
-	testCases := CSVTestCases()
-
-	metrics := make([]samplers.DDMetric, len(testCases))
-	for i, tc := range testCases {
-		metrics[i] = tc.DDMetric
-	}
-
-	c, err := s3p.EncodeDDMetricsCSV(metrics, Delimiter, true, VeneurHostname)
-	assert.NoError(t, err)
-	gzr, err := gzip.NewReader(c)
-	assert.NoError(t, err)
-	r := csv.NewReader(gzr)
-	r.FieldsPerRecord = 10
-	r.Comma = Delimiter
-
-	// first line should always contain header information
-	header, err := r.Read()
-	assert.NoError(t, err)
-	assert.Equal(t, ExpectedHeader, strings.Join(header, "\t"))
-
-	records, err := r.ReadAll()
-	assert.NoError(t, err)
-
-	assert.Equal(t, len(metrics), len(records), "Expected %d records and got %d", len(metrics), len(records))
-	for i, tc := range testCases {
-		record := records[i]
-		t.Run(tc.Name, func(t *testing.T) {
-			for j, cell := range record {
-				if strings.ContainsRune(cell, Delimiter) {
-					record[j] = `"` + cell + `"`
-				}
-			}
-			assertReadersEqual(t, testCases[i].Row, strings.NewReader(strings.Join(record, "\t")+"\n"))
 		})
 	}
 }

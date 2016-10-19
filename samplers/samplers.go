@@ -62,6 +62,43 @@ var aggregates = [...]string{
 	AggregateSum:     "sum",
 }
 
+// EncodeCSV generates a newline-terminated CSV row that describes
+// the data represented by the DDMetric.
+// The caller is responsible for setting w.Comma as the appropriate delimiter.
+// For performance, encodeCSV does not flush after every call; the caller is
+// expected to flush at the end of the operation cycle
+func (d DDMetric) EncodeCSV(w *csv.Writer, partitionDate *time.Time, hostName string) error {
+
+	timestamp := d.Value[0][0]
+	value := strconv.FormatFloat(d.Value[0][1], 'f', -1, 64)
+	interval := strconv.Itoa(int(d.Interval))
+
+	// TODO(aditya) some better error handling for this
+	// to guarantee that the result is proper JSON
+	Tags := "{" + strings.Join(d.Tags, ",") + "}"
+
+	fields := [...]string{
+		// the order here doesn't actually matter
+		// as long as the keys are right
+		TsvName:           d.Name,
+		TsvTags:           Tags,
+		TsvMetricType:     d.MetricType,
+		TsvHostname:       d.Hostname,
+		TsvDeviceName:     d.DeviceName,
+		TsvInterval:       interval,
+		TsvVeneurHostname: hostName,
+		TsvValue:          value,
+
+		TsvTimestamp: time.Unix(int64(timestamp), 0).UTC().Format(RedshiftDateFormat),
+
+		// TODO avoid edge case at midnight
+		TsvPartition: partitionDate.UTC().Format(PartitionDateFormat),
+	}
+
+	w.Write(fields[:])
+	return w.Error()
+}
+
 type tsvField int
 
 const (
@@ -115,43 +152,6 @@ func init() {
 	for i, field := range tsvSchema {
 		tsvMapping[field] = i
 	}
-}
-
-// EncodeCSV generates a newline-terminated CSV row that describes
-// the data represented by the DDMetric.
-// The caller is responsible for setting w.Comma as the appropriate delimiter.
-// For performance, encodeCSV does not flush after every call; the caller is
-// expected to flush at the end of the operation cycle
-func (d DDMetric) EncodeCSV(w *csv.Writer, partitionDate *time.Time, hostName string) error {
-
-	timestamp := d.Value[0][0]
-	value := strconv.FormatFloat(d.Value[0][1], 'f', -1, 64)
-	interval := strconv.Itoa(int(d.Interval))
-
-	// TODO(aditya) some better error handling for this
-	// to guarantee that the result is proper JSON
-	Tags := "{" + strings.Join(d.Tags, ",") + "}"
-
-	fields := [...]string{
-		// the order here doesn't actually matter
-		// as long as the keys are right
-		TsvName:           d.Name,
-		TsvTags:           Tags,
-		TsvMetricType:     d.MetricType,
-		TsvHostname:       d.Hostname,
-		TsvDeviceName:     d.DeviceName,
-		TsvInterval:       interval,
-		TsvVeneurHostname: hostName,
-		TsvValue:          value,
-
-		TsvTimestamp: time.Unix(int64(timestamp), 0).UTC().Format(RedshiftDateFormat),
-
-		// TODO avoid edge case at midnight
-		TsvPartition: partitionDate.UTC().Format(PartitionDateFormat),
-	}
-
-	w.Write(fields[:])
-	return w.Error()
 }
 
 // JSONMetric is used to represent a metric that can be remarshaled with its

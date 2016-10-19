@@ -19,6 +19,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stripe/veneur/plugins/s3/mock"
+
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
@@ -627,8 +629,8 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 	server := setupVeneurServer(t, config)
 	defer server.Shutdown()
 
-	client := &mockS3Client{}
-	client.putObject = func(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
+	client := &s3Mock.MockS3Client{}
+	client.SetPutObject(func(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
 		f, err := os.Open(path.Join("fixtures", "aws", "PutObject", "2016", "10", "14", "1476481302.tsv.gz"))
 		assert.NoError(t, err)
 		defer f.Close()
@@ -646,7 +648,7 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 
 		RemoteResponseChan <- struct{}{}
 		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
-	}
+	})
 
 	s3p := &s3p.S3Plugin{Logger: log, Svc: client}
 

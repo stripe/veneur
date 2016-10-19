@@ -63,7 +63,7 @@ func (p *S3Plugin) Name() string {
 type filetype string
 
 const (
-	jsonFT  filetype = "json"
+	jsonFt  filetype = "json"
 	csvFt            = "csv"
 	tsvFt            = "tsv"
 	tsvGzFt          = "tsv.gz"
