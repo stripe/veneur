@@ -206,7 +206,7 @@ Processing packets quickly is the name of the game.
 
 ## Benchmarks
 
-The common use case for Veneur is as an aggregator and host-local replacement for DogStatsD, therfore processing UDP fast is no longer the priority. That said,
+The common use case for Veneur is as an aggregator and host-local replacement for DogStatsD, therefore processing UDP fast is no longer the priority. That said,
 we were processing > 60k packets/second in production before shifting to the current local aggregation method. This outperformed both the Datadog-provided DogStatsD
 and StatsD in our infrastructure.
 
