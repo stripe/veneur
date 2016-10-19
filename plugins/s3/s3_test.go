@@ -14,6 +14,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/stretchr/testify/assert"
+	s3Mock "github.com/stripe/veneur/plugins/s3/mock"
+	"github.com/stripe/veneur/samplers"
+	. "github.com/stripe/veneur/testhelpers"
 )
 
 const DefaultServerTimeout = 100 * time.Millisecond
@@ -22,11 +25,11 @@ var log = logrus.New()
 
 const S3TestBucket = "stripe-test-veneur"
 
-// stubS3 sets svc to a s3Mock.mockS3Client that will return 200 for all responses
+// stubS3 sets svc to a s3Mock.MockS3Client that will return 200 for all responses
 // useful for avoiding erroneous error log lines when testing things that aren't
 // related to s3.
 func stubS3() *S3Plugin {
-	client := &s3Mock.mockS3Client{}
+	client := &s3Mock.MockS3Client{}
 	client.SetPutObject(func(*s3.PutObjectInput) (*s3.PutObjectOutput, error) {
 		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
 	})
@@ -49,12 +52,12 @@ func TestS3Post(t *testing.T) {
 		}
 	}()
 
-	client := &s3Mock.mockS3Client{}
+	client := &s3Mock.MockS3Client{}
 	f, err := os.Open(path.Join("..", "..", "fixtures", "aws", "PutObject", "2016", "10", "13", "1476370612.tsv.gz"))
 	assert.NoError(t, err)
 	defer f.Close()
 
-	client.PutObject = func(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
+	client.SetPutObject(func(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
 		// The data should be a gzipped TSV
 		gzr, err := gzip.NewReader(input.Body)
 		assert.NoError(t, err)
@@ -67,7 +70,7 @@ func TestS3Post(t *testing.T) {
 		assert.Equal(t, "a.b.c.max", records[0][0])
 		RemoteResponseChan <- struct{}{}
 		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
-	}
+	})
 
 	s3p := &S3Plugin{Logger: log, Svc: client}
 
@@ -137,7 +140,7 @@ func TestEncodeDDMetricsCSV(t *testing.T) {
 
 	testCases := CSVTestCases()
 
-	metrics := make([]DDMetric, len(testCases))
+	metrics := make([]samplers.DDMetric, len(testCases))
 	for i, tc := range testCases {
 		metrics[i] = tc.DDMetric
 	}
@@ -167,7 +170,7 @@ func TestEncodeDDMetricsCSV(t *testing.T) {
 					record[j] = `"` + cell + `"`
 				}
 			}
-			assertReadersEqual(t, testCases[i].Row, strings.NewReader(strings.Join(record, "\t")+"\n"))
+			AssertReadersEqual(t, testCases[i].Row, strings.NewReader(strings.Join(record, "\t")+"\n"))
 		})
 	}
 }

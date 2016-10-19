@@ -5,7 +5,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"math/rand"
 	"strconv"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	. "github.com/stripe/veneur/testhelpers"
 )
 
 func TestCounterEmpty(t *testing.T) {
@@ -244,6 +244,30 @@ func TestHistoMerge(t *testing.T) {
 	assert.InDelta(t, 1.0, h2.LocalMax, 0.02, "merged histogram should have max of 1 after adding a value")
 }
 
+func TestEncodeCSV(t *testing.T) {
+	testCases := CSVTestCases()
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+
+			b := &bytes.Buffer{}
+
+			w := csv.NewWriter(b)
+			w.Comma = '\t'
+
+			tm := time.Now()
+			err := tc.DDMetric.EncodeCSV(w, &tm, "testbox-c3eac9")
+			assert.NoError(t, err)
+
+			// We need to flush or there won't actually be any data there
+			w.Flush()
+			assert.NoError(t, err)
+
+			AssertReadersEqual(t, tc.Row, b)
+		})
+	}
+}
+
 type CSVTestCase struct {
 	Name     string
 	DDMetric DDMetric
@@ -305,52 +329,4 @@ func CSVTestCases() []CSVTestCase {
 			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t\"{foo:b\tar,baz:quz}\"\trate\tlocalhost\ttestbox-c3eac9\teniac\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
 		},
 	}
-}
-
-func TestEncodeCSV(t *testing.T) {
-	testCases := CSVTestCases()
-
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-
-			b := &bytes.Buffer{}
-
-			w := csv.NewWriter(b)
-			w.Comma = '\t'
-
-			tm := time.Now()
-			err := tc.DDMetric.EncodeCSV(w, &tm, "testbox-c3eac9")
-			assert.NoError(t, err)
-
-			// We need to flush or there won't actually be any data there
-			w.Flush()
-			assert.NoError(t, err)
-
-			assertReadersEqual(t, tc.Row, b)
-		})
-	}
-}
-
-// Helper function for determining that two readers are equal
-func assertReadersEqual(t *testing.T, expected io.Reader, actual io.Reader) {
-
-	// If we can seek, ensure that we're starting at the beginning
-	for _, reader := range []io.Reader{expected, actual} {
-		if readerSeeker, ok := reader.(io.ReadSeeker); ok {
-			readerSeeker.Seek(0, io.SeekStart)
-		}
-	}
-
-	// do the lazy thing for now
-	bts, err := ioutil.ReadAll(expected)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	bts2, err := ioutil.ReadAll(actual)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, string(bts), string(bts2))
 }

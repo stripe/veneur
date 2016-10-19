@@ -28,61 +28,6 @@ type DDMetric struct {
 	Interval   int32         `json:"interval,omitempty"`
 }
 
-type tsvField int
-
-const (
-	// the order in which these appear determines the
-	// order of the fields in the resultant TSV
-	TsvName tsvField = iota
-	TsvTags
-	TsvMetricType
-
-	// The hostName attached to the metric
-	TsvHostname
-
-	// The hostName of the server flushing the data
-	TsvVeneurHostname
-
-	TsvDeviceName
-	TsvInterval
-
-	TsvTimestamp
-	TsvValue
-
-	// This is the _partition field
-	// required by the Redshift IncrementalLoader.
-	// For our purposes, the current date is a good partition.
-	TsvPartition
-)
-
-var tsvSchema = [...]string{
-	TsvName:           "TsvName",
-	TsvTags:           "TsvTags",
-	TsvMetricType:     "TsvMetricType",
-	TsvHostname:       "TsvHostname",
-	TsvDeviceName:     "TsvDeviceName",
-	TsvInterval:       "TsvInterval",
-	TsvVeneurHostname: "TsvVeneurHostname",
-	TsvTimestamp:      "TsvTimestamp",
-	TsvValue:          "TsvValue",
-	TsvPartition:      "TsvPartition",
-}
-
-// String returns the field Name.
-// eg tsvName.String() returns "Name"
-func (f tsvField) String() string {
-	return fmt.Sprintf(strings.Replace(tsvSchema[f], "tsv", "", 1))
-}
-
-// each key in tsvMapping is guaranteed to have a unique value
-var tsvMapping = map[string]int{}
-
-func init() {
-	for i, field := range tsvSchema {
-		tsvMapping[field] = i
-	}
-}
-
 // EncodeCSV generates a newline-terminated CSV row that describes
 // the data represented by the DDMetric.
 // The caller is responsible for setting w.Comma as the appropriate delimiter.
@@ -118,6 +63,61 @@ func (d DDMetric) EncodeCSV(w *csv.Writer, partitionDate *time.Time, hostName st
 
 	w.Write(fields[:])
 	return w.Error()
+}
+
+type tsvField int
+
+const (
+	// the order in which these appear determines the
+	// order of the fields in the resultant TSV
+	TsvName tsvField = iota
+	TsvTags
+	TsvMetricType
+
+	// The hostName attached to the metric
+	TsvHostname
+
+	// The hostName of the server flushing the data
+	TsvVeneurHostname
+
+	TsvDeviceName
+	TsvInterval
+
+	TsvTimestamp
+	TsvValue
+
+	// This is the _partition field
+	// required by the Redshift IncrementalLoader.
+	// For our purposes, the current date is a good partition.
+	TsvPartition
+)
+
+var tsvSchema = [...]string{
+	TsvName:           "Name",
+	TsvTags:           "Tags",
+	TsvMetricType:     "MetricType",
+	TsvHostname:       "Hostname",
+	TsvDeviceName:     "DeviceName",
+	TsvInterval:       "Interval",
+	TsvVeneurHostname: "VeneurHostname",
+	TsvTimestamp:      "Timestamp",
+	TsvValue:          "Value",
+	TsvPartition:      "Partition",
+}
+
+// String returns the field Name.
+// eg tsvName.String() returns "Name"
+func (f tsvField) String() string {
+	return fmt.Sprintf(strings.Replace(tsvSchema[f], "tsv", "", 1))
+}
+
+// each key in tsvMapping is guaranteed to have a unique value
+var tsvMapping = map[string]int{}
+
+func init() {
+	for i, field := range tsvSchema {
+		tsvMapping[field] = i
+	}
 }
 
 // JSONMetric is used to represent a metric that can be remarshaled with its
