@@ -43,7 +43,7 @@ func (p *S3Plugin) Flush(metrics []samplers.DDMetric, hostname string) error {
 		return err
 	}
 
-	err = p.S3Post(hostname, csv, TsvGzFt)
+	err = p.S3Post(hostname, csv, tsvGzFt)
 	if err != nil {
 		p.Logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
@@ -63,10 +63,10 @@ func (p *S3Plugin) Name() string {
 type filetype string
 
 const (
-	JsonFT  filetype = "json"
-	CsvFt            = "csv"
-	TsvFt            = "tsv"
-	TsvGzFt          = "tsv.gz"
+	jsonFT  filetype = "json"
+	csvFt            = "csv"
+	tsvFt            = "tsv"
+	tsvGzFt          = "tsv.gz"
 )
 
 var S3Bucket = "stripe-veneur"
