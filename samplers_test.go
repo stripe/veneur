@@ -137,6 +137,8 @@ func TestSetMerge(t *testing.T) {
 
 func TestHisto(t *testing.T) {
 
+	aggregates := HistogramAggregates{AggregateMin + AggregateMax + AggregateCount, 3}
+
 	h := NewHist("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", h.name, "Name")
@@ -149,7 +151,7 @@ func TestHisto(t *testing.T) {
 	h.Sample(20, 1.0)
 	h.Sample(25, 1.0)
 
-	metrics := h.Flush(10*time.Second, []float64{0.50})
+	metrics := h.Flush(10*time.Second, []float64{0.50}, aggregates)
 	// We get lots of metrics back for histograms!
 	assert.Len(t, metrics, 4, "Flushed metrics length")
 
@@ -196,6 +198,8 @@ func TestHisto(t *testing.T) {
 
 func TestHistoSampleRate(t *testing.T) {
 
+	aggregates := HistogramAggregates{AggregateMin + AggregateMax + AggregateCount, 3}
+
 	h := NewHist("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", h.name, "Name")
@@ -208,7 +212,7 @@ func TestHistoSampleRate(t *testing.T) {
 	h.Sample(20, 0.5)
 	h.Sample(25, 0.5)
 
-	metrics := h.Flush(10*time.Second, []float64{0.50})
+	metrics := h.Flush(10*time.Second, []float64{0.50}, aggregates)
 	assert.Len(t, metrics, 4, "Metrics flush length")
 
 	// First the max
