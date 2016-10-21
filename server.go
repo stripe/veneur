@@ -30,6 +30,8 @@ var profileStartOnce = sync.Once{}
 
 var log = logrus.New()
 
+//go:generate gojson -input example.yaml -o config.go -fmt yaml -pkg veneur -name Config
+
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers     []*Worker
@@ -72,7 +74,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		// we're fine with using the default transport and redirect behavior
 	}
 
-	ret.statsd, err = statsd.NewBuffered(conf.StatsAddr, 1024)
+	ret.statsd, err = statsd.NewBuffered(conf.StatsAddress, 1024)
 	if err != nil {
 		return
 	}
@@ -81,8 +83,8 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 	// nil is a valid sentry client that noops all methods, if there is no DSN
 	// we can just leave it as nil
-	if conf.SentryDSN != "" {
-		ret.sentry, err = raven.New(conf.SentryDSN)
+	if conf.SentryDsn != "" {
+		ret.sentry, err = raven.New(conf.SentryDsn)
 		if err != nil {
 			return
 		}
@@ -128,28 +130,28 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		ret.EventWorker.Work()
 	}()
 
-	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UDPAddr)
+	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UdpAddress)
 	if err != nil {
 		return
 	}
 	ret.RcvbufBytes = conf.ReadBufferSizeBytes
-	ret.HTTPAddr = conf.HTTPAddr
-	ret.ForwardAddr = conf.ForwardAddr
+	ret.HTTPAddr = conf.HTTPAddress
+	ret.ForwardAddr = conf.ForwardAddress
 
 	conf.Key = "REDACTED"
-	conf.SentryDSN = "REDACTED"
+	conf.SentryDsn = "REDACTED"
 	log.WithField("config", conf).Debug("Initialized server")
 
 	var svc s3iface.S3API = nil
-	aws_id := conf.AWSAccessKeyId
-	aws_secret := conf.AWSSecretAccessKey
+	aws_id := conf.AwsAccessKeyID
+	aws_secret := conf.AwsSecretAccessKey
 
-	conf.AWSAccessKeyId = "REDACTED"
-	conf.AWSSecretAccessKey = "REDACTED"
+	conf.AwsAccessKeyID = "REDACTED"
+	conf.AwsSecretAccessKey = "REDACTED"
 
 	if len(aws_id) > 0 && len(aws_secret) > 0 {
 		sess, err := session.NewSession(&aws.Config{
-			Region:      aws.String(conf.AWSRegion),
+			Region:      aws.String(conf.AwsRegion),
 			Credentials: credentials.NewStaticCredentials(aws_id, aws_secret, ""),
 		})
 
@@ -163,7 +165,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			plugin := &S3Plugin{
 				logger:   log,
 				svc:      svc,
-				s3Bucket: conf.AWSBucket,
+				s3Bucket: conf.AwsS3Bucket,
 				hostname: ret.Hostname,
 			}
 			ret.registerPlugin(plugin)
