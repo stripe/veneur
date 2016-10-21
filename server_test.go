@@ -313,7 +313,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 			// all is safe
 			return
 		case <-time.After(DefaultServerTimeout):
-			assert.Fail(t, "Global server did not complete all responses before test terminated!")
+			assert.Fail(t, "Remote server did not complete all responses before test terminated!")
 		}
 	}()
 
