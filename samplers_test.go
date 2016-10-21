@@ -253,7 +253,7 @@ type CSVTestCase struct {
 
 func CSVTestCases() []CSVTestCase {
 
-	partition := time.Now().Format("20060102")
+	partition := time.Now().UTC().Format("20060102")
 
 	return []CSVTestCase{
 		{
