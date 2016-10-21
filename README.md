@@ -127,6 +127,8 @@ With respect to the `tags` configuration option, the tags that will be added are
 
 If you want a metric to be strictly host-local, you can tell Veneur not to forward it by including a `veneurlocalonly` tag in the metric packet, eg `foo:1|h|#veneurlocalonly`. This tag will not actually appear in DataDog; Veneur removes it.
 
+Relatedly, if you want to forward a counter to the global veneur instance to reduce tag cardinality, you can tell Veneur to flush it to the global instance by including a `veneurglobalonly` tag in the count's metric packet. This tag will also not appear in Datadog. Note: for global counters to report correctly, the local and global veneur instances should be configured to have the same flush interval.
+
 Veneur also honors the same "magic" tags as the dogstatsd include in the agent. The tag `host` will override `Hostname` in the metric and `device` will override `DeviceName`.
 
 # Configuration

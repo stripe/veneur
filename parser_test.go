@@ -113,12 +113,19 @@ func TestInvalidPackets(t *testing.T) {
 }
 
 func TestLocalOnlyEscape(t *testing.T) {
-	m, err := samplers.ParseMetric([]byte("a.b.c:1|h|#veneurlocalonly"))
+	m, err := samplers.ParseMetric([]byte("a.b.c:1|h|#veneurlocalonly,tag2:quacks"))
 	assert.NoError(t, err, "should have no error parsing")
-	assert.True(t, m.LocalOnly, "should have gotten local only metric")
-	for _, thisTag := range m.Tags {
-		assert.NotEqual(t, "veneurlocalonly", thisTag, "veneurlocalonly should not actually be a tag")
-	}
+	assert.Equal(t, samplers.LocalOnly, m.Scope, "should have gotten local only metric")
+	assert.NotContains(t, m.Tags, "veneurlocalonly", "veneurlocalonly should not actually be a tag")
+	assert.Contains(t, m.Tags, "tag2:quacks", "tag2 should be preserved in the list of tags after removing magic tags")
+}
+
+func TestGlobalOnlyEscape(t *testing.T) {
+	m, err := samplers.ParseMetric([]byte("a.b.c:1|h|#veneurglobalonly,tag2:quacks"))
+	assert.NoError(t, err, "should have no error parsing")
+	assert.Equal(t, samplers.GlobalOnly, m.Scope, "should have gotten local only metric")
+	assert.NotContains(t, m.Tags, "veneurglobalonly", "veneurlocalonly should not actually be a tag")
+	assert.Contains(t, m.Tags, "tag2:quacks", "tag2 should be preserved in the list of tags after removing magic tags")
 }
 
 func TestEvents(t *testing.T) {

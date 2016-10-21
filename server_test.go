@@ -234,7 +234,7 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 			Value:      value,
 			Digest:     12345,
 			SampleRate: 1.0,
-			LocalOnly:  true,
+			Scope:      samplers.LocalOnly,
 		})
 	}
 
@@ -305,7 +305,7 @@ func TestGlobalServerFlush(t *testing.T) {
 			Value:      value,
 			Digest:     12345,
 			SampleRate: 1.0,
-			LocalOnly:  true,
+			Scope:      samplers.LocalOnly,
 		})
 	}
 
@@ -459,7 +459,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 			Value:      value,
 			Digest:     12345,
 			SampleRate: 1.0,
-			LocalOnly:  false,
+			Scope:      samplers.MixedScope,
 		})
 	}
 
@@ -473,7 +473,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 			Value:      1.0,
 			Digest:     12345,
 			SampleRate: 1.0,
-			LocalOnly:  true,
+			Scope:      samplers.LocalOnly,
 		})
 	}
 
@@ -587,7 +587,7 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 			Value:      value,
 			Digest:     12345,
 			SampleRate: 1.0,
-			LocalOnly:  true,
+			Scope:      samplers.LocalOnly,
 		})
 	}
 
@@ -666,7 +666,7 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 			Value:      value,
 			Digest:     12345,
 			SampleRate: 1.0,
-			LocalOnly:  true,
+			Scope:      samplers.LocalOnly,
 		})
 	}
 
