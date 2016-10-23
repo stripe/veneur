@@ -137,8 +137,6 @@ func TestSetMerge(t *testing.T) {
 
 func TestHisto(t *testing.T) {
 
-	aggregates := HistogramAggregates{AggregateMin + AggregateMax + AggregateCount, 3}
-
 	h := NewHist("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", h.name, "Name")
@@ -151,9 +149,14 @@ func TestHisto(t *testing.T) {
 	h.Sample(20, 1.0)
 	h.Sample(25, 1.0)
 
+	var aggregates HistogramAggregates
+	aggregates.Value = AggregateMin | AggregateMax | AggregateMedian |
+		AggregateAverage | AggregateCount | AggregateSum
+	aggregates.Count = 6
+
 	metrics := h.Flush(10*time.Second, []float64{0.50}, aggregates)
 	// We get lots of metrics back for histograms!
-	assert.Len(t, metrics, 4, "Flushed metrics length")
+	assert.Len(t, metrics, 7, "Flushed metrics length")
 
 	// the max
 	m2 := metrics[0]
@@ -175,8 +178,28 @@ func TestHisto(t *testing.T) {
 	// The counter returns an array with a single tuple of timestamp,value
 	assert.Equal(t, float64(5), m3.Value[0][1], "Value")
 
+	// the sum
+	m4 := metrics[2]
+	assert.Equal(t, "a.b.c.sum", m4.Name, "Name")
+	assert.Equal(t, int32(0), m4.Interval, "Interval")
+	assert.Equal(t, "gauge", m4.MetricType, "Type")
+	assert.Len(t, m4.Tags, 1, "Tag count")
+	assert.Equal(t, "a:b", m4.Tags[0], "First tag")
+	// The counter returns an array with a single tuple of timestamp,value
+	assert.Equal(t, float64(75), m4.Value[0][1], "Value")
+
+	// the average
+	m5 := metrics[3]
+	assert.Equal(t, "a.b.c.avg", m5.Name, "Name")
+	assert.Equal(t, int32(0), m5.Interval, "Interval")
+	assert.Equal(t, "gauge", m5.MetricType, "Type")
+	assert.Len(t, m5.Tags, 1, "Tag count")
+	assert.Equal(t, "a:b", m5.Tags[0], "First tag")
+	// The counter returns an array with a single tuple of timestamp,value
+	assert.Equal(t, float64(15), m5.Value[0][1], "Value")
+
 	// the count
-	m1 := metrics[2]
+	m1 := metrics[4]
 	assert.Equal(t, "a.b.c.count", m1.Name, "Name")
 	assert.Equal(t, int32(10), m1.Interval, "Interval")
 	assert.Equal(t, "rate", m1.MetricType, "Type")
@@ -185,20 +208,28 @@ func TestHisto(t *testing.T) {
 	// The counter returns an array with a single tuple of timestamp,value
 	assert.Equal(t, float64(0.5), m1.Value[0][1], "Value")
 
-	// And the percentile
-	m4 := metrics[3]
-	assert.Equal(t, "a.b.c.50percentile", m4.Name, "Name")
-	assert.Equal(t, int32(0), m4.Interval, "Interval")
-	assert.Equal(t, "gauge", m4.MetricType, "Type")
-	assert.Len(t, m4.Tags, 1, "Tag count")
-	assert.Equal(t, "a:b", m4.Tags[0], "First tag")
+	// the median
+	m6 := metrics[5]
+	assert.Equal(t, "a.b.c.median", m6.Name, "Name")
+	assert.Equal(t, int32(0), m6.Interval, "Interval")
+	assert.Equal(t, "gauge", m6.MetricType, "Type")
+	assert.Len(t, m6.Tags, 1, "Tag count")
+	assert.Equal(t, "a:b", m6.Tags[0], "First tag")
 	// The counter returns an array with a single tuple of timestamp,value
-	assert.Equal(t, float64(15), m4.Value[0][1], "Value")
+	assert.Equal(t, float64(15), m6.Value[0][1], "Value")
+
+	// And the percentile
+	m7 := metrics[6]
+	assert.Equal(t, "a.b.c.50percentile", m7.Name, "Name")
+	assert.Equal(t, int32(0), m7.Interval, "Interval")
+	assert.Equal(t, "gauge", m7.MetricType, "Type")
+	assert.Len(t, m7.Tags, 1, "Tag count")
+	assert.Equal(t, "a:b", m7.Tags[0], "First tag")
+	// The counter returns an array with a single tuple of timestamp,value
+	assert.Equal(t, float64(15), m7.Value[0][1], "Value")
 }
 
 func TestHistoSampleRate(t *testing.T) {
-
-	aggregates := HistogramAggregates{AggregateMin + AggregateMax + AggregateCount, 3}
 
 	h := NewHist("a.b.c", []string{"a:b"})
 
@@ -211,6 +242,10 @@ func TestHistoSampleRate(t *testing.T) {
 	h.Sample(15, 0.5)
 	h.Sample(20, 0.5)
 	h.Sample(25, 0.5)
+
+	var aggregates HistogramAggregates
+	aggregates.Value = AggregateMin | AggregateMax | AggregateCount
+	aggregates.Count = 3
 
 	metrics := h.Flush(10*time.Second, []float64{0.50}, aggregates)
 	assert.Len(t, metrics, 4, "Metrics flush length")

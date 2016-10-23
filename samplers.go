@@ -342,7 +342,6 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Value:      [1][2]float64{{now, h.localSum}},
 			Tags:       tags,
 			MetricType: "gauge",
-			Interval:   int32(interval.Seconds()),
 		})
 		if (aggregates.Value&AggregateAverage) == AggregateAverage && h.localWeight != 0 {
 			// we need both a rate and a non-zero sum before it will make sense
@@ -352,7 +351,6 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 				Value:      [1][2]float64{{now, h.localSum / h.localWeight}},
 				Tags:       tags,
 				MetricType: "gauge",
-				Interval:   int32(interval.Seconds()),
 			})
 		}
 	}
