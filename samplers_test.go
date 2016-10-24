@@ -410,9 +410,19 @@ func TestTagsJson(t *testing.T) {
 			Expected: map[string]string{"foobar": "", "bazquz": ""},
 		},
 		{
-			Name:     "Multiple key-values mixed with plain strings",
-			Tags:     []string{"foo:bar", "another", "baz:quz"},
-			Expected: map[string]string{"foo": "bar", "another": "", "baz": "quz"},
+			Name:     "Tag name with colon",
+			Tags:     []string{"foo:"},
+			Expected: map[string]string{"foo": ""},
+		},
+		{
+			Name:     "Multiple key-values mixed with plain strings and tag name with colon",
+			Tags:     []string{"foo:bar", "another", "baz:quz", "rogue:"},
+			Expected: map[string]string{"foo": "bar", "another": "", "baz": "quz", "rogue": ""},
+		},
+		{
+			Name:  "Invalid tags",
+			Tags:  []string{"f.oo:bar"},
+			Error: InvalidTagFormatError,
 		},
 	}
 

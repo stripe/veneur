@@ -22,6 +22,15 @@ var tagsJSONRegexp = regexp.MustCompile(`^([A-Za-z]+)(:?)([A-Za-z]*?)$`)
 
 var InvalidTagFormatError = errors.New("invalid tag format")
 
+type ddmetricJsonError struct {
+	ddmetric DDMetric
+	err      error
+}
+
+func (d ddmetricJsonError) Error() string {
+	return d.err.Error()
+}
+
 // DDMetric is a data structure that represents the JSON that Datadog
 // wants when posting to the API
 type DDMetric struct {
@@ -50,7 +59,8 @@ func (d *DDMetric) tagsJSON() (string, error) {
 	for i, tag := range d.Tags {
 		matches := tagsJSONRegexp.FindStringSubmatch(tag)
 		if len(matches) != 4 && err == nil {
-			return "", InvalidTagFormatError
+			err = InvalidTagFormatError
+			continue
 		}
 		strTags[i] = fmt.Sprintf(`"%s":"%s"`, matches[1], matches[3])
 	}
@@ -125,7 +135,10 @@ func (d DDMetric) encodeCSV(w *csv.Writer, partitionDate *time.Time, hostname st
 
 	// TODO(aditya) some better error handling for this
 	// to guarantee that the result is proper JSON
-	tags := "{" + strings.Join(d.Tags, ",") + "}"
+	tags, err := d.tagsJSON()
+	if err != nil {
+		return ddmetricJsonError{d, err}
+	}
 
 	fields := [...]string{
 		// the order here doesn't actually matter

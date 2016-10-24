@@ -120,7 +120,8 @@ func encodeDDMetricsCSV(metrics []DDMetric, delimiter rune, includeHeaders bool,
 	// TODO avoid edge case at midnight
 	partitionDate := time.Now()
 	for _, metric := range metrics {
-		metric.encodeCSV(w, &partitionDate, hostname)
+		// TODO track these errors
+		_ = metric.encodeCSV(w, &partitionDate, hostname)
 	}
 
 	w.Flush()
