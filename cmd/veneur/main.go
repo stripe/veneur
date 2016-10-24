@@ -48,10 +48,10 @@ func main() {
 		}()
 	}
 
-  interval, err := conf.ParseInterval()
-  if err != nil{
-    logrus.Fatalf("Error parsing configuration %s", err)
-  }
+	interval, err := conf.ParseInterval()
+	if err != nil {
+		logrus.Fatalf("Error parsing configuration %s", err)
+	}
 
 	go func() {
 		defer func() {
