@@ -48,13 +48,18 @@ func main() {
 		}()
 	}
 
+  interval, err := conf.ParseInterval()
+  if err != nil{
+    logrus.Fatalf("Error parsing configuration %s", err)
+  }
+
 	go func() {
 		defer func() {
 			server.ConsumePanic(recover())
 		}()
-		ticker := time.NewTicker(conf.Interval)
+		ticker := time.NewTicker(interval)
 		for range ticker.C {
-			server.Flush(conf.Interval, conf.FlushMaxPerBody)
+			server.Flush(interval, conf.FlushMaxPerBody)
 		}
 	}()
 

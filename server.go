@@ -68,9 +68,13 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.DDAPIKey = conf.Key
 	ret.HistogramPercentiles = conf.Percentiles
 
+	interval, err := time.ParseDuration(conf.Interval)
+	if err != nil {
+		return
+	}
 	ret.HTTPClient = &http.Client{
 		// make sure that POSTs to datadog do not overflow the flush interval
-		Timeout: conf.Interval * 9 / 10,
+		Timeout: interval * 9 / 10,
 		// we're fine with using the default transport and redirect behavior
 	}
 

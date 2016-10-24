@@ -3,6 +3,7 @@ package veneur
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -44,6 +45,10 @@ forward_address: "http://veneur.example.com"
 
 	assert.Equal(t, "https://app.datadoghq.com", c.APIHostname)
 	assert.Equal(t, 96, c.NumWorkers)
+
+	interval, err := c.ParseInterval()
+	assert.NoError(t, err)
+	assert.Equal(t, interval, 10*time.Second)
 }
 
 func TestReadBadConfig(t *testing.T) {

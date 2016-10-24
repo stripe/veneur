@@ -68,7 +68,7 @@ func generateConfig(forwardAddr string) Config {
 		Hostname:    "localhost",
 
 		// Use a shorter interval for tests
-		Interval:            DefaultFlushInterval,
+		Interval:            DefaultFlushInterval.String(),
 		Key:                 "",
 		MetricMaxLength:     4096,
 		Percentiles:         []float64{.5, .75, .99},
@@ -232,7 +232,11 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 			LocalOnly:  true,
 		})
 	}
-	server.Flush(config.Interval, config.FlushMaxPerBody)
+
+	interval, err := config.ParseInterval()
+	assert.NoError(t, err)
+
+	server.Flush(interval, config.FlushMaxPerBody)
 }
 
 func TestGlobalServerFlush(t *testing.T) {
@@ -300,7 +304,10 @@ func TestGlobalServerFlush(t *testing.T) {
 		})
 	}
 
-	server.Flush(config.Interval, config.FlushMaxPerBody)
+	interval, err := config.ParseInterval()
+	assert.NoError(t, err)
+
+	server.Flush(interval, config.FlushMaxPerBody)
 }
 
 func TestLocalServerMixedMetrics(t *testing.T) {
@@ -465,7 +472,10 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 		})
 	}
 
-	server.Flush(config.Interval, config.FlushMaxPerBody)
+	interval, err := config.ParseInterval()
+	assert.NoError(t, err)
+
+	server.Flush(interval, config.FlushMaxPerBody)
 }
 
 func TestSplitBytes(t *testing.T) {
@@ -576,7 +586,10 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 		})
 	}
 
-	server.Flush(config.Interval, config.FlushMaxPerBody)
+	interval, err := config.ParseInterval()
+	assert.NoError(t, err)
+
+	server.Flush(interval, config.FlushMaxPerBody)
 }
 
 // TestGlobalServerS3PluginFlush tests that we are able to
@@ -652,7 +665,10 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 		})
 	}
 
-	server.Flush(config.Interval, config.FlushMaxPerBody)
+	interval, err := config.ParseInterval()
+	assert.NoError(t, err)
+
+	server.Flush(interval, config.FlushMaxPerBody)
 }
 
 func parseGzipTSV(r io.Reader) ([][]string, error) {

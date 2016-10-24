@@ -4,6 +4,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
@@ -41,4 +42,8 @@ func readConfig(r io.Reader) (c Config, err error) {
 	}
 
 	return c, nil
+}
+
+func (c Config) ParseInterval() (time.Duration, error) {
+	return time.ParseDuration(c.Interval)
 }
