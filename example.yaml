@@ -16,16 +16,18 @@ read_buffer_size_bytes: 2097152
 stats_address: "localhost:8125"
 tags:
  - "foo:bar"
-#  - "baz:gorch"
+ - "baz:quz"
 udp_address: "localhost:8126"
 #http_address: "einhorn@0"
 http_address: "localhost:8127"
 forward_address: "http://veneur.example.com"
-# Defaults to the os.Hostname()!
-# hostname: foobar
+sentry_dsn: http://4a21e883f6cf152b70b9af8f70280492b598f615:147347172408bac7999043eebc1a1fa0f19fb4c7@errors.example.com
 
-## Add these if you want to archive data to S3
-#aws_access_key_id: "foo"
-#aws_secret_access_key: "bar"
-#aws_region: "us-west-2"
-#aws_s3_bucket: "stripe-veneur"
+# If absent, defaults to the os.Hostname()!
+hostname: foobar
+
+# Include these if you want to archive data to S3
+aws_access_key_id: "foo"
+aws_secret_access_key: "bar"
+aws_region: "us-west-2"
+aws_s3_bucket: "stripe-veneur"

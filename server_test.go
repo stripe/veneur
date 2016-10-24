@@ -68,14 +68,14 @@ func generateConfig(forwardAddr string) Config {
 		Hostname:    "localhost",
 
 		// Use a shorter interval for tests
-		Interval:            DefaultFlushInterval,
+		Interval:            DefaultFlushInterval.String(),
 		Key:                 "",
 		MetricMaxLength:     4096,
 		Percentiles:         []float64{.5, .75, .99},
 		ReadBufferSizeBytes: 2097152,
-		UDPAddr:             "localhost:8126",
-		HTTPAddr:            fmt.Sprintf("localhost:%d", port),
-		ForwardAddr:         forwardAddr,
+		UdpAddress:          "localhost:8126",
+		HTTPAddress:         fmt.Sprintf("localhost:%d", port),
+		ForwardAddress:      forwardAddr,
 		NumWorkers:          96,
 
 		// Use only one reader, so that we can run tests
@@ -85,10 +85,10 @@ func generateConfig(forwardAddr string) Config {
 		// Currently this points nowhere, which is intentional.
 		// We don't need internal metrics for the tests, and they make testing
 		// more complicated.
-		StatsAddr:  "localhost:8125",
-		Tags:       []string{},
-		SentryDSN:  "",
-		FlushLimit: 1024,
+		StatsAddress:    "localhost:8125",
+		Tags:            []string{},
+		SentryDsn:       "",
+		FlushMaxPerBody: 1024,
 	}
 }
 
@@ -232,7 +232,11 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 			LocalOnly:  true,
 		})
 	}
-	server.Flush(config.Interval, config.FlushLimit)
+
+	interval, err := config.ParseInterval()
+	assert.NoError(t, err)
+
+	server.Flush(interval, config.FlushMaxPerBody)
 }
 
 func TestGlobalServerFlush(t *testing.T) {
@@ -300,7 +304,10 @@ func TestGlobalServerFlush(t *testing.T) {
 		})
 	}
 
-	server.Flush(config.Interval, config.FlushLimit)
+	interval, err := config.ParseInterval()
+	assert.NoError(t, err)
+
+	server.Flush(interval, config.FlushMaxPerBody)
 }
 
 func TestLocalServerMixedMetrics(t *testing.T) {
@@ -313,7 +320,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 			// all is safe
 			return
 		case <-time.After(DefaultServerTimeout):
-			assert.Fail(t, "Global server did not complete all responses before test terminated!")
+			assert.Fail(t, "Remote server did not complete all responses before test terminated!")
 		}
 	}()
 
@@ -431,7 +438,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 
 	config := localConfig()
 	config.APIHostname = remoteServer.URL
-	config.ForwardAddr = globalVeneur.URL
+	config.ForwardAddress = globalVeneur.URL
 	config.NumWorkers = 1
 
 	server := setupVeneurServer(t, config)
@@ -465,7 +472,10 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 		})
 	}
 
-	server.Flush(config.Interval, config.FlushLimit)
+	interval, err := config.ParseInterval()
+	assert.NoError(t, err)
+
+	server.Flush(interval, config.FlushMaxPerBody)
 }
 
 func TestSplitBytes(t *testing.T) {
@@ -576,7 +586,10 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 		})
 	}
 
-	server.Flush(config.Interval, config.FlushLimit)
+	interval, err := config.ParseInterval()
+	assert.NoError(t, err)
+
+	server.Flush(interval, config.FlushMaxPerBody)
 }
 
 // TestGlobalServerS3PluginFlush tests that we are able to
@@ -652,7 +665,10 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 		})
 	}
 
-	server.Flush(config.Interval, config.FlushLimit)
+	interval, err := config.ParseInterval()
+	assert.NoError(t, err)
+
+	server.Flush(interval, config.FlushMaxPerBody)
 }
 
 func parseGzipTSV(r io.Reader) ([][]string, error) {
