@@ -54,7 +54,7 @@ func main() {
 		}()
 		ticker := time.NewTicker(conf.Interval)
 		for range ticker.C {
-			server.Flush(conf.Interval, conf.FlushLimit)
+			server.Flush(conf.Interval, conf.FlushMaxPerBody)
 		}
 	}()
 
