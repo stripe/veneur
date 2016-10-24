@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -370,6 +371,66 @@ func TestEncodeDDMetricsCSV(t *testing.T) {
 				}
 			}
 			assertReadersEqual(t, testCases[i].Row, strings.NewReader(strings.Join(record, "\t")+"\n"))
+		})
+	}
+}
+
+// TestTagsJson tests that we are able to
+// properly escape all json-formatted tags
+// and that we raise an error on invalid tags
+func TestTagsJson(t *testing.T) {
+	type TestCase struct {
+		Name     string
+		Tags     []string
+		Expected map[string]string
+
+		// If non-nil, we expect this error
+		Error error
+	}
+
+	cases := []TestCase{
+		{
+			Name:     "Simple key-value",
+			Tags:     []string{"foo:bar"},
+			Expected: map[string]string{"foo": "bar"},
+		},
+		{
+			Name:     "Multiple key-values",
+			Tags:     []string{"foo:bar", "baz:quz"},
+			Expected: map[string]string{"foo": "bar", "baz": "quz"},
+		},
+		{
+			Name:     "Plain string",
+			Tags:     []string{"foobar"},
+			Expected: map[string]string{"foobar": ""},
+		},
+		{
+			Name:     "Plain string sequence",
+			Tags:     []string{"foobar", "bazquz"},
+			Expected: map[string]string{"foobar": "", "bazquz": ""},
+		},
+		{
+			Name:     "Multiple key-values mixed with plain strings",
+			Tags:     []string{"foo:bar", "another", "baz:quz"},
+			Expected: map[string]string{"foo": "bar", "another": "", "baz": "quz"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			metric := DDMetric{}
+			metric.Tags = tc.Tags
+			js, err := metric.tagsJSON()
+			if tc.Error != nil {
+				assert.Equal(t, tc.Error, err)
+			} else {
+				assert.NoError(t, err)
+
+				tags := map[string]string{}
+				err = json.Unmarshal([]byte(js), &tags)
+				assert.NoError(t, err)
+				assert.Equal(t, tc.Expected, tags)
+			}
 		})
 	}
 }

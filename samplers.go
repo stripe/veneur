@@ -2,9 +2,11 @@ package veneur
 
 import (
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +18,10 @@ import (
 const PartitionDateFormat = "20060102"
 const RedshiftDateFormat = "2006-01-02 03:04:05"
 
+var tagsJSONRegexp = regexp.MustCompile(`^([A-Za-z]+)(:?)([A-Za-z]*?)$`)
+
+var InvalidTagFormatError = errors.New("invalid tag format")
+
 // DDMetric is a data structure that represents the JSON that Datadog
 // wants when posting to the API
 type DDMetric struct {
@@ -26,6 +32,29 @@ type DDMetric struct {
 	Hostname   string        `json:"host"`
 	DeviceName string        `json:"device_name"`
 	Interval   int32         `json:"interval,omitempty"`
+}
+
+// tagsJSON serializes tags as JSON, ensuring that
+// they are quoted properly.
+// it assumes that tags are of the form
+// foo:bar
+// or of the form
+// foo
+// (in which case the implied value is the empty string)
+// and will return an error if the tags are not of either form.
+// Tag "values" are always treated as strings, even
+// if they are numeric.
+func (d *DDMetric) tagsJSON() (string, error) {
+	var err error
+	strTags := make([]string, len(d.Tags))
+	for i, tag := range d.Tags {
+		matches := tagsJSONRegexp.FindStringSubmatch(tag)
+		if len(matches) != 4 && err == nil {
+			return "", InvalidTagFormatError
+		}
+		strTags[i] = fmt.Sprintf(`"%s":"%s"`, matches[1], matches[3])
+	}
+	return fmt.Sprintf("{%s}", strings.Join(strTags, ",")), err
 }
 
 type tsvField int
