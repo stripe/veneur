@@ -38,6 +38,12 @@ func main() {
 		},
 	}
 
+	tracePool := &sync.Pool{
+		New: func() interface{} {
+			return make([]byte, conf.MetricMaxLength)
+		}
+	}
+
 	// Read forever!
 	for i := 0; i < conf.NumReaders; i++ {
 		go func() {
@@ -47,6 +53,14 @@ func main() {
 			server.ReadMetricSocket(packetPool, conf.NumReaders != 1)
 		}()
 	}
+
+	// Trace reader
+	go func() {
+		defer func() {
+			server.ConsumePanic(recover())
+		}()
+		server.ReadTraceSocket(tracePool, conf.NumReaders != 1)
+	}()
 
 	interval, err := conf.ParseInterval()
 	if err != nil {
