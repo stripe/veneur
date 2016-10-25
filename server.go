@@ -16,6 +16,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/getsentry/raven-go"
+	"github.com/golang/protobuf/proto"
+	"github.com/stripe/veneur/ssf"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
 
@@ -40,6 +42,7 @@ var log = logrus.New()
 type Server struct {
 	Workers     []*Worker
 	EventWorker *EventWorker
+	TraceWorker *TraceWorker
 
 	statsd *statsd.Client
 	sentry *raven.Client
@@ -54,6 +57,7 @@ type Server struct {
 	HTTPAddr    string
 	ForwardAddr string
 	UDPAddr     *net.UDPAddr
+	TraceAddr   *net.UDPAddr
 	RcvbufBytes int
 
 	HistogramPercentiles []float64
@@ -150,6 +154,14 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		ret.EventWorker.Work()
 	}()
 
+	ret.TraceWorker = NewTraceWorker(ret.statsd)
+	go func() {
+		defer func() {
+			ret.ConsumePanic(recover())
+		}()
+		ret.TraceWorker.Work()
+	}()
+
 	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UdpAddress)
 	if err != nil {
 		return
@@ -161,6 +173,13 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.Key = "REDACTED"
 	conf.SentryDsn = "REDACTED"
 	log.WithField("config", conf).Debug("Initialized server")
+
+	if len(conf.TraceAddress) > 0 {
+		ret.TraceAddr, err = net.ResolveUDPAddr("udp", conf.TraceAddress)
+		if err != nil {
+			return
+		}
+	}
 
 	var svc s3iface.S3API = nil
 	aws_id := conf.AwsAccessKeyID
@@ -252,6 +271,23 @@ func (s *Server) HandleMetricPacket(packet []byte) {
 	}
 }
 
+func (s *Server) HandleTracePacket(packet []byte) {
+	if len(packet) == 0 {
+		return
+	}
+
+	// Technically this could be anything, but we're only consuming trace spans
+	// for now.
+	newSample := &ssf.SSFSample{}
+	err := proto.Unmarshal(packet, newSample)
+	if err != nil {
+		log.Fatal("Trace unmarshaling error: ", err)
+	}
+	log.Info(proto.CompactTextString(newSample))
+
+	s.TraceWorker.TraceChan <- *newSample
+}
+
 // ReadMetricSocket listens for available packets to handle.
 func (s *Server) ReadMetricSocket(packetPool *sync.Pool, reuseport bool) {
 	// each goroutine gets its own socket
@@ -291,6 +327,32 @@ func (s *Server) ReadMetricSocket(packetPool *sync.Pool, reuseport bool) {
 		// therefore there are no outstanding references to this byte slice, we
 		// can return it to the pool
 		packetPool.Put(buf)
+	}
+}
+
+// ReadTraceSocket listens for available packets to handle.
+func (s *Server) ReadTraceSocket(packetPool *sync.Pool, reuseport bool) {
+	// TODO This is duplicated from ReadMetricSocket and feels like it could be it's
+	// own function?
+	serverConn, err := NewSocket(s.TraceAddr, s.RcvbufBytes, reuseport)
+	if err != nil {
+		// if any goroutine fails to create the socket, we can't really
+		// recover, so we just blow up
+		// this probably indicates a systemic issue, eg lack of
+		// SO_REUSEPORT support
+		log.WithError(err).Fatal("Error listening for UDP traces")
+	}
+	log.WithField("address", s.TraceAddr).Info("Listening for UDP traces")
+
+	for {
+		buf := packetPool.Get().([]byte)
+		n, _, err := serverConn.ReadFrom(buf)
+		if err != nil {
+			log.WithError(err).Error("Error reading from UDP metrics socket")
+			continue
+		}
+
+		s.HandleTracePacket(buf[:n])
 	}
 }
 
