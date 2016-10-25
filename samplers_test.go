@@ -250,6 +250,8 @@ type CSVTestCase struct {
 	Name     string
 	DDMetric DDMetric
 	Row      io.Reader
+	// If non-nil, the error we expect
+	Err error
 }
 
 func CSVTestCases() []CSVTestCase {
@@ -270,7 +272,7 @@ func CSVTestCases() []CSVTestCase {
 				DeviceName: "food",
 				Interval:   0,
 			},
-			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\tgauge\tglobalstats\ttestbox-c3eac9\tfood\t0\t2016-10-10 05:04:18\t100\t%s\n", partition)),
+			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t\"{\"\"foo\"\":\"\"bar\"\",\"\"baz\"\":\"\"quz\"\"}\"\tgauge\tglobalstats\ttestbox-c3eac9\tfood\t0\t2016-10-10 05:04:18\t100\t%s\n", partition)),
 		},
 		{
 			// Test that we are able to handle a missing field (DeviceName)
@@ -286,7 +288,7 @@ func CSVTestCases() []CSVTestCase {
 				DeviceName: "",
 				Interval:   10,
 			},
-			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\trate\tlocalhost\ttestbox-c3eac9\t\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
+			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t\"{\"\"foo\"\":\"\"bar\"\",\"\"baz\"\":\"\"quz\"\"}\"\trate\tlocalhost\ttestbox-c3eac9\t\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
 		},
 		{
 			// Test that we are able to handle tags which have tab characters in them
@@ -305,6 +307,7 @@ func CSVTestCases() []CSVTestCase {
 				Interval:   10,
 			},
 			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t\"{foo:b\tar,baz:quz}\"\trate\tlocalhost\ttestbox-c3eac9\teniac\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
+			Err: InvalidTagFormatError,
 		},
 	}
 }
@@ -322,6 +325,10 @@ func TestEncodeCSV(t *testing.T) {
 
 			tm := time.Now()
 			err := tc.DDMetric.encodeCSV(w, &tm, "testbox-c3eac9")
+			if tc.Err != nil {
+				assert.Equal(t, tc.Err.Error(), err.Error())
+				return
+			}
 			assert.NoError(t, err)
 
 			// We need to flush or there won't actually be any data there
@@ -333,6 +340,9 @@ func TestEncodeCSV(t *testing.T) {
 	}
 }
 
+// TestEncodeDDMetricsCSV tests that the metrics
+// are being written to a CSV in a form that is correctly
+// parseable
 func TestEncodeDDMetricsCSV(t *testing.T) {
 	const ExpectedHeader = "Name\tTags\tMetricType\tHostname\tVeneurHostname\tDeviceName\tInterval\tTimestamp\tValue\tPartition"
 	const Delimiter = '\t'
@@ -340,9 +350,11 @@ func TestEncodeDDMetricsCSV(t *testing.T) {
 
 	testCases := CSVTestCases()
 
-	metrics := make([]DDMetric, len(testCases))
-	for i, tc := range testCases {
-		metrics[i] = tc.DDMetric
+	metrics := make([]DDMetric, 0, len(testCases))
+	for _, tc := range testCases {
+		if tc.Err == nil {
+			metrics = append(metrics, tc.DDMetric)
+		}
 	}
 
 	c, err := encodeDDMetricsCSV(metrics, Delimiter, true, VeneurHostname)
@@ -365,11 +377,29 @@ func TestEncodeDDMetricsCSV(t *testing.T) {
 	for i, tc := range testCases {
 		record := records[i]
 		t.Run(tc.Name, func(t *testing.T) {
-			for j, cell := range record {
-				if strings.ContainsRune(cell, Delimiter) {
-					record[j] = `"` + cell + `"`
+
+			bts, err := ioutil.ReadAll(testCases[i].Row)
+			assert.NoError(t, err)
+			row := strings.TrimSpace(string(bts))
+			expectedCells := strings.Split(row, "\t")
+			assert.Equal(t, len(expectedCells), len(record), "Expected %d cells in row %d and found %d", len(expectedCells), i, len(record))
+
+			for j, expectedCell := range expectedCells {
+				actualCell := record[j]
+				if j != 1 {
+					assert.Equal(t, expectedCell, actualCell, "Expected and actual cell differ at row position %d", j)
+				}
+				if j == 1 {
+					var expectedMap map[string]string
+					var actualMap map[string]string
+					err = json.Unmarshal([]byte(expectedCell), expectedMap)
+					assert.NoError(t, err, "Error unmarshalling expectedCell %#v", expectedCell)
+					err = json.Unmarshal([]byte(actualCell), actualMap)
+					assert.NoError(t, err, "Error unmarshalling actualCell %#v", actualCell)
+					assert.Equal(t, expectedMap, actualMap)
 				}
 			}
+
 			assertReadersEqual(t, testCases[i].Row, strings.NewReader(strings.Join(record, "\t")+"\n"))
 		})
 	}
