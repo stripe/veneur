@@ -157,7 +157,7 @@ func setupVeneurServer(t *testing.T, config Config) Server {
 					assert.Fail(t, "reader panicked while reading from socket", err)
 				}
 			}()
-			server.ReadSocket(packetPool, config.NumReaders != 1)
+			server.ReadMetricSocket(packetPool, config.NumReaders != 1)
 		}()
 	}
 
