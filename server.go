@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+	"github.com/getsentry/raven-go"
 	"github.com/golang/protobuf/proto"
 	"github.com/stripe/veneur/ssf"
 	"github.com/zenazn/goji/bind"
@@ -164,8 +165,11 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.SentryDsn = "REDACTED"
 	log.WithField("config", conf).Debug("Initialized server")
 
-	if len(conf.TraceAddress > 0) {
-		ret.TraceAddr = conf.TraceAddress
+	if len(conf.TraceAddress) > 0 {
+		ret.TraceAddr, err = net.ResolveUDPAddr("udp", conf.TraceAddress)
+		if err != nil {
+			return
+		}
 	}
 
 	var svc s3iface.S3API = nil
@@ -304,7 +308,7 @@ func (s *Server) ReadMetricSocket(packetPool *sync.Pool, reuseport bool) {
 func (s *Server) ReadTraceSocket(packetPool *sync.Pool, reuseport bool) {
 	// TODO This is duplicated from ReadMetricSocket and feels like it could be it's
 	// own function?
-	serverConn, err := ReadTraceSocket(s.TraceAddr, s.RcvbufBytes, reuseport)
+	serverConn, err := NewSocket(s.TraceAddr, s.RcvbufBytes, reuseport)
 	if err != nil {
 		// if any goroutine fails to create the socket, we can't really
 		// recover, so we just blow up
