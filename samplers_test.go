@@ -154,9 +154,13 @@ func TestHisto(t *testing.T) {
 		AggregateAverage | AggregateCount | AggregateSum
 	aggregates.Count = 6
 
-	metrics := h.Flush(10*time.Second, []float64{0.50}, aggregates)
+	percentiles := []float64{0.90}
+
+	metrics := h.Flush(10*time.Second, percentiles, aggregates)
 	// We get lots of metrics back for histograms!
-	assert.Len(t, metrics, 7, "Flushed metrics length")
+	// One for each of the aggregates specified, plus
+	// one for the explicit percentile we are asking for
+	assert.Len(t, metrics, aggregates.Count+len(percentiles), "Flushed metrics length")
 
 	// the max
 	m2 := metrics[0]
@@ -220,13 +224,13 @@ func TestHisto(t *testing.T) {
 
 	// And the percentile
 	m7 := metrics[6]
-	assert.Equal(t, "a.b.c.50percentile", m7.Name, "Name")
+	assert.Equal(t, "a.b.c.90percentile", m7.Name, "Name")
 	assert.Equal(t, int32(0), m7.Interval, "Interval")
 	assert.Equal(t, "gauge", m7.MetricType, "Type")
 	assert.Len(t, m7.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m7.Tags[0], "First tag")
 	// The counter returns an array with a single tuple of timestamp,value
-	assert.Equal(t, float64(15), m7.Value[0][1], "Value")
+	assert.Equal(t, float64(23.75), m7.Value[0][1], "Value")
 }
 
 func TestHistoSampleRate(t *testing.T) {
