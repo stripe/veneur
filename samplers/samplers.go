@@ -75,13 +75,13 @@ func (d DDMetric) EncodeCSV(w *csv.Writer, partitionDate *time.Time, hostName st
 
 	// TODO(aditya) some better error handling for this
 	// to guarantee that the result is proper JSON
-	Tags := "{" + strings.Join(d.Tags, ",") + "}"
+	tags := "{" + strings.Join(d.Tags, ",") + "}"
 
 	fields := [...]string{
 		// the order here doesn't actually matter
 		// as long as the keys are right
 		TsvName:           d.Name,
-		TsvTags:           Tags,
+		TsvTags:           tags,
 		TsvMetricType:     d.MetricType,
 		TsvHostname:       d.Hostname,
 		TsvDeviceName:     d.DeviceName,
@@ -178,12 +178,12 @@ func (c *Counter) Sample(sample float64, sampleRate float32) {
 
 // Flush generates a DDMetric from the current state of this Counter.
 func (c *Counter) Flush(interval time.Duration) []DDMetric {
-	Tags := make([]string, len(c.Tags))
-	copy(Tags, c.Tags)
+	tags := make([]string, len(c.Tags))
+	copy(tags, c.Tags)
 	return []DDMetric{{
 		Name:       c.Name,
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(c.value) / interval.Seconds()}},
-		Tags:       Tags,
+		Tags:       tags,
 		MetricType: "rate",
 		Interval:   int32(interval.Seconds()),
 	}}
@@ -208,12 +208,12 @@ func (g *Gauge) Sample(sample float64, sampleRate float32) {
 
 // Flush generates a DDMetric from the current state of this gauge.
 func (g *Gauge) Flush() []DDMetric {
-	Tags := make([]string, len(g.Tags))
-	copy(Tags, g.Tags)
+	tags := make([]string, len(g.Tags))
+	copy(tags, g.Tags)
 	return []DDMetric{{
 		Name:       g.Name,
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(g.value)}},
-		Tags:       Tags,
+		Tags:       tags,
 		MetricType: "gauge",
 	}}
 }
@@ -252,12 +252,12 @@ func NewSet(Name string, Tags []string) *Set {
 
 // Flush generates a DDMetric for the state of this Set.
 func (s *Set) Flush() []DDMetric {
-	Tags := make([]string, len(s.Tags))
-	copy(Tags, s.Tags)
+	tags := make([]string, len(s.Tags))
+	copy(tags, s.Tags)
 	return []DDMetric{{
 		Name:       s.Name,
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(s.Hll.Count())}},
-		Tags:       Tags,
+		Tags:       tags,
 		MetricType: "gauge",
 	}}
 }
@@ -419,15 +419,15 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 	}
 
 	for _, p := range percentiles {
-		Tags := make([]string, len(h.Tags))
-		copy(Tags, h.Tags)
+		tags := make([]string, len(h.Tags))
+		copy(tags, h.Tags)
 		metrics = append(
 			metrics,
 			// TODO Fix to allow for p999, etc
 			DDMetric{
 				Name:       fmt.Sprintf("%s.%dpercentile", h.Name, int(p*100)),
 				Value:      [1][2]float64{{now, h.Value.Quantile(p)}},
-				Tags:       Tags,
+				Tags:       tags,
 				MetricType: "gauge",
 			},
 		)
