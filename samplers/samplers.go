@@ -346,8 +346,8 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 	metrics := make([]DDMetric, 0, aggregates.Count+len(percentiles))
 
 	if (aggregates.Value&AggregateMax) == AggregateMax && !math.IsInf(h.LocalMax, 0) {
-		// XXX: why is this recreating tags mutliple times, granted they won't always be used, but it seems preferable to
-		// generate them once anyway
+		// Defensively recopy tags to avoid aliasing bugs in case multiple DDMetrics share the same
+		// tag array in the future
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
 		metrics = append(metrics, DDMetric{
