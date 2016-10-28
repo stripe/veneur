@@ -7,6 +7,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/stripe/veneur/samplers"
+
 	"goji.io"
 	"goji.io/pat"
 	"golang.org/x/net/context"
@@ -33,7 +35,7 @@ func (s *Server) Handler() http.Handler {
 }
 
 // ImportMetrics feeds a slice of json metrics to the server's workers
-func (s *Server) ImportMetrics(jsonMetrics []JSONMetric) {
+func (s *Server) ImportMetrics(jsonMetrics []samplers.JSONMetric) {
 	start := time.Now()
 
 	// we have a slice of json metrics that we need to divide up across the workers
@@ -54,11 +56,11 @@ func (s *Server) ImportMetrics(jsonMetrics []JSONMetric) {
 
 // sorts a set of jsonmetrics by what worker they belong to
 type sortableJSONMetrics struct {
-	metrics       []JSONMetric
+	metrics       []samplers.JSONMetric
 	workerIndices []uint32
 }
 
-func newSortableJSONMetrics(metrics []JSONMetric, numWorkers int) *sortableJSONMetrics {
+func newSortableJSONMetrics(metrics []samplers.JSONMetric, numWorkers int) *sortableJSONMetrics {
 	ret := sortableJSONMetrics{
 		metrics:       metrics,
 		workerIndices: make([]uint32, 0, len(metrics)),
@@ -94,7 +96,7 @@ type jsonMetricsByWorker struct {
 
 // iterate over a sorted set of jsonmetrics, returning them in contiguous
 // nonempty chunks such that each chunk correpsonds to a single worker
-func newJSONMetricsByWorker(metrics []JSONMetric, numWorkers int) *jsonMetricsByWorker {
+func newJSONMetricsByWorker(metrics []samplers.JSONMetric, numWorkers int) *jsonMetricsByWorker {
 	ret := &jsonMetricsByWorker{
 		sjm: newSortableJSONMetrics(metrics, numWorkers),
 	}
@@ -118,6 +120,6 @@ func (jmbw *jsonMetricsByWorker) Next() bool {
 	}
 	return true
 }
-func (jmbw *jsonMetricsByWorker) Chunk() ([]JSONMetric, int) {
+func (jmbw *jsonMetricsByWorker) Chunk() ([]samplers.JSONMetric, int) {
 	return jmbw.sjm.metrics[jmbw.currentStart:jmbw.nextStart], int(jmbw.sjm.workerIndices[jmbw.currentStart])
 }

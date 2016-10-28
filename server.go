@@ -20,6 +20,10 @@ import (
 	"github.com/zenazn/goji/graceful"
 
 	"github.com/pkg/profile"
+
+	"github.com/stripe/veneur/plugins"
+	s3p "github.com/stripe/veneur/plugins/s3"
+	"github.com/stripe/veneur/samplers"
 )
 
 // VERSION stores the current veneur version.
@@ -31,40 +35,6 @@ var profileStartOnce = sync.Once{}
 var log = logrus.New()
 
 //go:generate gojson -input example.yaml -o config.go -fmt yaml -pkg veneur -name Config
-
-type Aggregate int
-
-const (
-	AggregateMin Aggregate = 1 << iota
-	AggregateMax
-	AggregateMedian
-	AggregateAverage
-	AggregateCount
-	AggregateSum
-)
-
-var aggregatesLookup = map[string]Aggregate{
-	"min":    AggregateMin,
-	"max":    AggregateMax,
-	"median": AggregateMedian,
-	"avg":    AggregateAverage,
-	"count":  AggregateCount,
-	"sum":    AggregateSum,
-}
-
-type HistogramAggregates struct {
-	Value Aggregate
-	Count int
-}
-
-var aggregates = [...]string{
-	AggregateMin:     "min",
-	AggregateMax:     "max",
-	AggregateMedian:  "median",
-	AggregateAverage: "avg",
-	AggregateCount:   "count",
-	AggregateSum:     "sum",
-}
 
 // A Server is the actual veneur instance that will be run.
 type Server struct {
@@ -88,12 +58,12 @@ type Server struct {
 
 	HistogramPercentiles []float64
 
-	plugins   []plugin
+	plugins   []plugins.Plugin
 	pluginMtx sync.Mutex
 
 	enableProfiling bool
 
-	HistogramAggregates HistogramAggregates
+	HistogramAggregates samplers.HistogramAggregates
 }
 
 // NewFromConfig creates a new veneur server from a configuration specification.
@@ -104,12 +74,12 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.DDAPIKey = conf.Key
 	ret.HistogramPercentiles = conf.Percentiles
 	if len(conf.Aggregates) == 0 {
-		ret.HistogramAggregates.Value = AggregateMin + AggregateMax + AggregateCount
+		ret.HistogramAggregates.Value = samplers.AggregateMin + samplers.AggregateMax + samplers.AggregateCount
 		ret.HistogramAggregates.Count = 3
 	} else {
 		ret.HistogramAggregates.Value = 0
 		for _, agg := range conf.Aggregates {
-			ret.HistogramAggregates.Value += aggregatesLookup[agg]
+			ret.HistogramAggregates.Value += samplers.AggregatesLookup[agg]
 		}
 		ret.HistogramAggregates.Count = len(conf.Aggregates)
 	}
@@ -212,11 +182,11 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			log.Info("Successfully created AWS session")
 			svc = s3.New(sess)
 
-			plugin := &S3Plugin{
-				logger:   log,
-				svc:      svc,
-				s3Bucket: conf.AwsS3Bucket,
-				hostname: ret.Hostname,
+			plugin := &s3p.S3Plugin{
+				Logger:   log,
+				Svc:      svc,
+				S3Bucket: conf.AwsS3Bucket,
+				Hostname: ret.Hostname,
 			}
 			ret.registerPlugin(plugin)
 		}
@@ -247,7 +217,7 @@ func (s *Server) HandleMetricPacket(packet []byte) {
 	}
 
 	if bytes.HasPrefix(packet, []byte{'_', 'e', '{'}) {
-		event, err := ParseEvent(packet)
+		event, err := samplers.ParseEvent(packet)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
@@ -258,7 +228,7 @@ func (s *Server) HandleMetricPacket(packet []byte) {
 		}
 		s.EventWorker.EventChan <- *event
 	} else if bytes.HasPrefix(packet, []byte{'_', 's', 'c'}) {
-		svcheck, err := ParseServiceCheck(packet)
+		svcheck, err := samplers.ParseServiceCheck(packet)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
@@ -269,7 +239,7 @@ func (s *Server) HandleMetricPacket(packet []byte) {
 		}
 		s.EventWorker.ServiceCheckChan <- *svcheck
 	} else {
-		metric, err := ParseMetric(packet)
+		metric, err := samplers.ParseMetric(packet)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
@@ -311,7 +281,7 @@ func (s *Server) ReadMetricSocket(packetPool *sync.Pool, reuseport bool) {
 		// note that spurious newlines are not allowed in this format, it has
 		// to be exactly one newline between each packet, with no leading or
 		// trailing newlines
-		splitPacket := NewSplitBytes(buf[:n], '\n')
+		splitPacket := samplers.NewSplitBytes(buf[:n], '\n')
 		for splitPacket.Next() {
 			s.HandleMetricPacket(splitPacket.Chunk())
 		}
@@ -384,71 +354,18 @@ func (s *Server) IsLocal() bool {
 	return s.ForwardAddr != ""
 }
 
-// SplitBytes iterates over a byte buffer, returning chunks split by a given
-// delimiter byte. It does not perform any allocations, and does not modify the
-// buffer it is given. It is not safe for use by concurrent goroutines.
-//
-//     sb := NewSplitBytes(buf, '\n')
-//     for sb.Next() {
-//         fmt.Printf("%q\n", sb.Chunk())
-//     }
-//
-// The sequence of chunks returned by SplitBytes is equivalent to calling
-// bytes.Split, except without allocating an intermediate slice.
-type SplitBytes struct {
-	buf          []byte
-	delim        byte
-	currentChunk []byte
-	lastChunk    bool
-}
-
-// NewSplitBytes initializes a SplitBytes struct with the provided buffer and delimiter.
-func NewSplitBytes(buf []byte, delim byte) *SplitBytes {
-	return &SplitBytes{
-		buf:   buf,
-		delim: delim,
-	}
-}
-
-// Next advances SplitBytes to the next chunk, returning true if a new chunk
-// actually exists and false otherwise.
-func (sb *SplitBytes) Next() bool {
-	if sb.lastChunk {
-		// we do not check the length here, this ensures that we return the
-		// last chunk in the sequence (even if it's empty)
-		return false
-	}
-
-	next := bytes.IndexByte(sb.buf, sb.delim)
-	if next == -1 {
-		// no newline, consume the entire buffer
-		sb.currentChunk = sb.buf
-		sb.buf = nil
-		sb.lastChunk = true
-	} else {
-		sb.currentChunk = sb.buf[:next]
-		sb.buf = sb.buf[next+1:]
-	}
-	return true
-}
-
-// Chunk returns the current chunk.
-func (sb *SplitBytes) Chunk() []byte {
-	return sb.currentChunk
-}
-
 // registerPlugin registers a plugin for use
 // on the veneur server. It is blocking
 // and not threadsafe.
-func (s *Server) registerPlugin(p plugin) {
+func (s *Server) registerPlugin(p plugins.Plugin) {
 	s.pluginMtx.Lock()
 	defer s.pluginMtx.Unlock()
 	s.plugins = append(s.plugins, p)
 }
 
-func (s *Server) getPlugins() []plugin {
+func (s *Server) getPlugins() []plugins.Plugin {
 	s.pluginMtx.Lock()
-	plugins := make([]plugin, len(s.plugins))
+	plugins := make([]plugins.Plugin, len(s.plugins))
 	copy(plugins, s.plugins)
 	s.pluginMtx.Unlock()
 	return plugins

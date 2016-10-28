@@ -1,4 +1,4 @@
-package veneur
+package samplers
 
 import (
 	"encoding/csv"
@@ -28,47 +28,118 @@ type DDMetric struct {
 	Interval   int32         `json:"interval,omitempty"`
 }
 
+type Aggregate int
+
+const (
+	AggregateMin Aggregate = 1 << iota
+	AggregateMax
+	AggregateMedian
+	AggregateAverage
+	AggregateCount
+	AggregateSum
+)
+
+var AggregatesLookup = map[string]Aggregate{
+	"min":    AggregateMin,
+	"max":    AggregateMax,
+	"median": AggregateMedian,
+	"avg":    AggregateAverage,
+	"count":  AggregateCount,
+	"sum":    AggregateSum,
+}
+
+type HistogramAggregates struct {
+	Value Aggregate
+	Count int
+}
+
+var aggregates = [...]string{
+	AggregateMin:     "min",
+	AggregateMax:     "max",
+	AggregateMedian:  "median",
+	AggregateAverage: "avg",
+	AggregateCount:   "count",
+	AggregateSum:     "sum",
+}
+
+// EncodeCSV generates a newline-terminated CSV row that describes
+// the data represented by the DDMetric.
+// The caller is responsible for setting w.Comma as the appropriate delimiter.
+// For performance, encodeCSV does not flush after every call; the caller is
+// expected to flush at the end of the operation cycle
+func (d DDMetric) EncodeCSV(w *csv.Writer, partitionDate *time.Time, hostName string) error {
+
+	timestamp := d.Value[0][0]
+	value := strconv.FormatFloat(d.Value[0][1], 'f', -1, 64)
+	interval := strconv.Itoa(int(d.Interval))
+
+	// TODO(aditya) some better error handling for this
+	// to guarantee that the result is proper JSON
+	tags := "{" + strings.Join(d.Tags, ",") + "}"
+
+	fields := [...]string{
+		// the order here doesn't actually matter
+		// as long as the keys are right
+		TsvName:           d.Name,
+		TsvTags:           tags,
+		TsvMetricType:     d.MetricType,
+		TsvHostname:       d.Hostname,
+		TsvDeviceName:     d.DeviceName,
+		TsvInterval:       interval,
+		TsvVeneurHostname: hostName,
+		TsvValue:          value,
+
+		TsvTimestamp: time.Unix(int64(timestamp), 0).UTC().Format(RedshiftDateFormat),
+
+		// TODO avoid edge case at midnight
+		TsvPartition: partitionDate.UTC().Format(PartitionDateFormat),
+	}
+
+	w.Write(fields[:])
+	return w.Error()
+}
+
 type tsvField int
 
 const (
 	// the order in which these appear determines the
 	// order of the fields in the resultant TSV
-	tsvName tsvField = iota
-	tsvTags
-	tsvMetricType
+	TsvName tsvField = iota
+	TsvTags
+	TsvMetricType
 
-	// The hostname attached to the metric
-	tsvHostname
+	// The hostName attached to the metric
+	TsvHostname
 
-	// The hostname of the server flushing the data
-	tsvVeneurHostname
+	// The hostName of the server flushing the data
+	TsvVeneurHostname
 
-	tsvDeviceName
-	tsvInterval
+	TsvDeviceName
+	TsvInterval
 
-	tsvTimestamp
-	tsvValue
+	TsvTimestamp
+	TsvValue
 
 	// This is the _partition field
 	// required by the Redshift IncrementalLoader.
 	// For our purposes, the current date is a good partition.
-	tsvPartition
+	TsvPartition
 )
 
 var tsvSchema = [...]string{
-	tsvName:           "tsvName",
-	tsvTags:           "tsvTags",
-	tsvMetricType:     "tsvMetricType",
-	tsvHostname:       "tsvHostname",
-	tsvDeviceName:     "tsvDeviceName",
-	tsvInterval:       "tsvInterval",
-	tsvVeneurHostname: "tsvVeneurHostname",
-	tsvTimestamp:      "tsvTimestamp",
-	tsvValue:          "tsvValue",
-	tsvPartition:      "tsvPartition",
+	TsvName:           "Name",
+	TsvTags:           "Tags",
+	TsvMetricType:     "MetricType",
+	TsvHostname:       "Hostname",
+	TsvDeviceName:     "DeviceName",
+	TsvInterval:       "Interval",
+	TsvVeneurHostname: "VeneurHostname",
+	TsvTimestamp:      "Timestamp",
+	TsvValue:          "Value",
+	TsvPartition:      "Partition",
 }
 
-// String returns the field name.
+// String returns the field Name.
 // eg tsvName.String() returns "Name"
 func (f tsvField) String() string {
 	return fmt.Sprintf(strings.Replace(tsvSchema[f], "tsv", "", 1))
@@ -83,43 +154,6 @@ func init() {
 	}
 }
 
-// encodeCSV generates a newline-terminated CSV row that describes
-// the data represented by the DDMetric.
-// The caller is responsible for setting w.Comma as the appropriate delimiter.
-// For performance, encodeCSV does not flush after every call; the caller is
-// expected to flush at the end of the operation cycle
-func (d DDMetric) encodeCSV(w *csv.Writer, partitionDate *time.Time, hostname string) error {
-
-	timestamp := d.Value[0][0]
-	value := strconv.FormatFloat(d.Value[0][1], 'f', -1, 64)
-	interval := strconv.Itoa(int(d.Interval))
-
-	// TODO(aditya) some better error handling for this
-	// to guarantee that the result is proper JSON
-	tags := "{" + strings.Join(d.Tags, ",") + "}"
-
-	fields := [...]string{
-		// the order here doesn't actually matter
-		// as long as the keys are right
-		tsvName:           d.Name,
-		tsvTags:           tags,
-		tsvMetricType:     d.MetricType,
-		tsvHostname:       d.Hostname,
-		tsvDeviceName:     d.DeviceName,
-		tsvInterval:       interval,
-		tsvVeneurHostname: hostname,
-		tsvValue:          value,
-
-		tsvTimestamp: time.Unix(int64(timestamp), 0).UTC().Format(RedshiftDateFormat),
-
-		// TODO avoid edge case at midnight
-		tsvPartition: partitionDate.UTC().Format(PartitionDateFormat),
-	}
-
-	w.Write(fields[:])
-	return w.Error()
-}
-
 // JSONMetric is used to represent a metric that can be remarshaled with its
 // internal state intact. It is used to send metrics from one Veneur to another.
 type JSONMetric struct {
@@ -132,8 +166,8 @@ type JSONMetric struct {
 
 // Counter is an accumulator
 type Counter struct {
-	name  string
-	tags  []string
+	Name  string
+	Tags  []string
 	value int64
 }
 
@@ -144,10 +178,10 @@ func (c *Counter) Sample(sample float64, sampleRate float32) {
 
 // Flush generates a DDMetric from the current state of this Counter.
 func (c *Counter) Flush(interval time.Duration) []DDMetric {
-	tags := make([]string, len(c.tags))
-	copy(tags, c.tags)
+	tags := make([]string, len(c.Tags))
+	copy(tags, c.Tags)
 	return []DDMetric{{
-		Name:       c.name,
+		Name:       c.Name,
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(c.value) / interval.Seconds()}},
 		Tags:       tags,
 		MetricType: "rate",
@@ -156,14 +190,14 @@ func (c *Counter) Flush(interval time.Duration) []DDMetric {
 }
 
 // NewCounter generates and returns a new Counter.
-func NewCounter(name string, tags []string) *Counter {
-	return &Counter{name: name, tags: tags}
+func NewCounter(Name string, Tags []string) *Counter {
+	return &Counter{Name: Name, Tags: Tags}
 }
 
 // Gauge retains whatever the last value was.
 type Gauge struct {
-	name  string
-	tags  []string
+	Name  string
+	Tags  []string
 	value float64
 }
 
@@ -174,10 +208,10 @@ func (g *Gauge) Sample(sample float64, sampleRate float32) {
 
 // Flush generates a DDMetric from the current state of this gauge.
 func (g *Gauge) Flush() []DDMetric {
-	tags := make([]string, len(g.tags))
-	copy(tags, g.tags)
+	tags := make([]string, len(g.Tags))
+	copy(tags, g.Tags)
 	return []DDMetric{{
-		Name:       g.name,
+		Name:       g.Name,
 		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(g.value)}},
 		Tags:       tags,
 		MetricType: "gauge",
@@ -185,15 +219,15 @@ func (g *Gauge) Flush() []DDMetric {
 }
 
 // NewGauge genearaaaa who am I kidding just getting rid of the warning.
-func NewGauge(name string, tags []string) *Gauge {
-	return &Gauge{name: name, tags: tags}
+func NewGauge(Name string, Tags []string) *Gauge {
+	return &Gauge{Name: Name, Tags: Tags}
 }
 
 // Set is a list of unique values seen.
 type Set struct {
-	name string
-	tags []string
-	hll  *hyperloglog.HyperLogLogPlus
+	Name string
+	Tags []string
+	Hll  *hyperloglog.HyperLogLogPlus
 }
 
 // Sample checks if the supplied value has is already in the filter. If not, it increments
@@ -201,46 +235,46 @@ type Set struct {
 func (s *Set) Sample(sample string, sampleRate float32) {
 	hasher := fnv.New64a()
 	hasher.Write([]byte(sample))
-	s.hll.Add(hasher)
+	s.Hll.Add(hasher)
 }
 
 // NewSet generates a new Set and returns it
-func NewSet(name string, tags []string) *Set {
+func NewSet(Name string, Tags []string) *Set {
 	// error is only returned if precision is outside the 4-18 range
 	// TODO: this is the maximum precision, should it be configurable?
-	hll, _ := hyperloglog.NewPlus(18)
+	Hll, _ := hyperloglog.NewPlus(18)
 	return &Set{
-		name: name,
-		tags: tags,
-		hll:  hll,
+		Name: Name,
+		Tags: Tags,
+		Hll:  Hll,
 	}
 }
 
 // Flush generates a DDMetric for the state of this Set.
 func (s *Set) Flush() []DDMetric {
-	tags := make([]string, len(s.tags))
-	copy(tags, s.tags)
+	tags := make([]string, len(s.Tags))
+	copy(tags, s.Tags)
 	return []DDMetric{{
-		Name:       s.name,
-		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(s.hll.Count())}},
+		Name:       s.Name,
+		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(s.Hll.Count())}},
 		Tags:       tags,
 		MetricType: "gauge",
 	}}
 }
 
-// Export converts a Set into a JSONMetric which reports the tags in the set.
+// Export converts a Set into a JSONMetric which reports the Tags in the set.
 func (s *Set) Export() (JSONMetric, error) {
-	val, err := s.hll.GobEncode()
+	val, err := s.Hll.GobEncode()
 	if err != nil {
 		return JSONMetric{}, err
 	}
 	return JSONMetric{
 		MetricKey: MetricKey{
-			Name:       s.name,
+			Name:       s.Name,
 			Type:       "set",
-			JoinedTags: strings.Join(s.tags, ","),
+			JoinedTags: strings.Join(s.Tags, ","),
 		},
-		Tags:  s.tags,
+		Tags:  s.Tags,
 		Value: val,
 	}, nil
 }
@@ -251,9 +285,9 @@ func (s *Set) Combine(other []byte) error {
 	if err := otherHLL.GobDecode(other); err != nil {
 		return err
 	}
-	if err := s.hll.Merge(otherHLL); err != nil {
+	if err := s.Hll.Merge(otherHLL); err != nil {
 		// does not error unless compressions are different
-		// however, decoding the other hll causes us to use its compression
+		// however, decoding the other Hll causes us to use its compression
 		// parameter, which might be different from ours
 		return err
 	}
@@ -263,41 +297,41 @@ func (s *Set) Combine(other []byte) error {
 // Histo is a collection of values that generates max, min, count, and
 // percentiles over time.
 type Histo struct {
-	name  string
-	tags  []string
-	value *tdigest.MergingDigest
+	Name  string
+	Tags  []string
+	Value *tdigest.MergingDigest
 	// these values are computed from only the samples that came through this
 	// veneur instance, ignoring any histograms merged from elsewhere
 	// we separate them because they're easy to aggregate on the backend without
 	// loss of granularity, and having host-local information on them might be
 	// useful
-	localWeight float64
-	localMin    float64
-	localMax    float64
-	localSum    float64
+	LocalWeight float64
+	LocalMin    float64
+	LocalMax    float64
+	LocalSum    float64
 }
 
 // Sample adds the supplied value to the histogram.
 func (h *Histo) Sample(sample float64, sampleRate float32) {
 	weight := float64(1 / sampleRate)
-	h.value.Add(sample, weight)
+	h.Value.Add(sample, weight)
 
-	h.localWeight += weight
-	h.localMin = math.Min(h.localMin, sample)
-	h.localMax = math.Max(h.localMax, sample)
-	h.localSum += sample * weight
+	h.LocalWeight += weight
+	h.LocalMin = math.Min(h.LocalMin, sample)
+	h.LocalMax = math.Max(h.LocalMax, sample)
+	h.LocalSum += sample * weight
 }
 
 // NewHist generates a new Histo and returns it.
-func NewHist(name string, tags []string) *Histo {
+func NewHist(Name string, Tags []string) *Histo {
 	return &Histo{
-		name: name,
-		tags: tags,
+		Name: Name,
+		Tags: Tags,
 		// we're going to allocate a lot of these, so we don't want them to be huge
-		value:    tdigest.NewMerging(100, false),
-		localMin: math.Inf(+1),
-		localMax: math.Inf(-1),
-		localSum: 0,
+		Value:    tdigest.NewMerging(100, false),
+		LocalMin: math.Inf(+1),
+		LocalMax: math.Inf(-1),
+		LocalSum: 0,
 	}
 }
 
@@ -308,47 +342,47 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 	// we only want to flush the number of samples we received locally, since
 	// any other samples have already been flushed by a local veneur instance
 	// before this was forwarded to us
-	rate := h.localWeight / interval.Seconds()
+	rate := h.LocalWeight / interval.Seconds()
 	metrics := make([]DDMetric, 0, aggregates.Count+len(percentiles))
 
-	if (aggregates.Value&AggregateMax) == AggregateMax && !math.IsInf(h.localMax, 0) {
-		// XXX: why is this recreating tags mutliple times, granted they won't always be used, but it seems preferable to
-		// generate them once anyway
-		tags := make([]string, len(h.tags))
-		copy(tags, h.tags)
+	if (aggregates.Value&AggregateMax) == AggregateMax && !math.IsInf(h.LocalMax, 0) {
+		// Defensively recopy tags to avoid aliasing bugs in case multiple DDMetrics share the same
+		// tag array in the future
+		tags := make([]string, len(h.Tags))
+		copy(tags, h.Tags)
 		metrics = append(metrics, DDMetric{
-			Name:       fmt.Sprintf("%s.max", h.name),
-			Value:      [1][2]float64{{now, h.localMax}},
+			Name:       fmt.Sprintf("%s.max", h.Name),
+			Value:      [1][2]float64{{now, h.LocalMax}},
 			Tags:       tags,
 			MetricType: "gauge",
 		})
 	}
-	if (aggregates.Value&AggregateMin) == AggregateMin && !math.IsInf(h.localMin, 0) {
-		tags := make([]string, len(h.tags))
-		copy(tags, h.tags)
+	if (aggregates.Value&AggregateMin) == AggregateMin && !math.IsInf(h.LocalMin, 0) {
+		tags := make([]string, len(h.Tags))
+		copy(tags, h.Tags)
 		metrics = append(metrics, DDMetric{
-			Name:       fmt.Sprintf("%s.min", h.name),
-			Value:      [1][2]float64{{now, h.localMin}},
+			Name:       fmt.Sprintf("%s.min", h.Name),
+			Value:      [1][2]float64{{now, h.LocalMin}},
 			Tags:       tags,
 			MetricType: "gauge",
 		})
 	}
 
-	if (aggregates.Value&AggregateSum) == AggregateSum && h.localSum != 0 {
-		tags := make([]string, len(h.tags))
-		copy(tags, h.tags)
+	if (aggregates.Value&AggregateSum) == AggregateSum && h.LocalSum != 0 {
+		tags := make([]string, len(h.Tags))
+		copy(tags, h.Tags)
 		metrics = append(metrics, DDMetric{
-			Name:       fmt.Sprintf("%s.sum", h.name),
-			Value:      [1][2]float64{{now, h.localSum}},
+			Name:       fmt.Sprintf("%s.sum", h.Name),
+			Value:      [1][2]float64{{now, h.LocalSum}},
 			Tags:       tags,
 			MetricType: "gauge",
 		})
-		if (aggregates.Value&AggregateAverage) == AggregateAverage && h.localWeight != 0 {
+		if (aggregates.Value&AggregateAverage) == AggregateAverage && h.LocalWeight != 0 {
 			// we need both a rate and a non-zero sum before it will make sense
 			// to submit an average
 			metrics = append(metrics, DDMetric{
-				Name:       fmt.Sprintf("%s.avg", h.name),
-				Value:      [1][2]float64{{now, h.localSum / h.localWeight}},
+				Name:       fmt.Sprintf("%s.avg", h.Name),
+				Value:      [1][2]float64{{now, h.LocalSum / h.LocalWeight}},
 				Tags:       tags,
 				MetricType: "gauge",
 			})
@@ -359,10 +393,10 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		// if we haven't received any local samples, then leave this sparse,
 		// otherwise it can lead to some misleading zeroes in between the
 		// flushes of downstream instances
-		tags := make([]string, len(h.tags))
-		copy(tags, h.tags)
+		tags := make([]string, len(h.Tags))
+		copy(tags, h.Tags)
 		metrics = append(metrics, DDMetric{
-			Name:       fmt.Sprintf("%s.count", h.name),
+			Name:       fmt.Sprintf("%s.count", h.Name),
 			Value:      [1][2]float64{{now, rate}},
 			Tags:       tags,
 			MetricType: "rate",
@@ -371,13 +405,13 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 	}
 
 	if (aggregates.Value & AggregateMedian) == AggregateMedian {
-		tags := make([]string, len(h.tags))
-		copy(tags, h.tags)
+		tags := make([]string, len(h.Tags))
+		copy(tags, h.Tags)
 		metrics = append(
 			metrics,
 			DDMetric{
-				Name:       fmt.Sprintf("%s.median", h.name),
-				Value:      [1][2]float64{{now, h.value.Quantile(0.5)}},
+				Name:       fmt.Sprintf("%s.median", h.Name),
+				Value:      [1][2]float64{{now, h.Value.Quantile(0.5)}},
 				Tags:       tags,
 				MetricType: "gauge",
 			},
@@ -385,14 +419,14 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 	}
 
 	for _, p := range percentiles {
-		tags := make([]string, len(h.tags))
-		copy(tags, h.tags)
+		tags := make([]string, len(h.Tags))
+		copy(tags, h.Tags)
 		metrics = append(
 			metrics,
 			// TODO Fix to allow for p999, etc
 			DDMetric{
-				Name:       fmt.Sprintf("%s.%dpercentile", h.name, int(p*100)),
-				Value:      [1][2]float64{{now, h.value.Quantile(p)}},
+				Name:       fmt.Sprintf("%s.%dpercentile", h.Name, int(p*100)),
+				Value:      [1][2]float64{{now, h.Value.Quantile(p)}},
 				Tags:       tags,
 				MetricType: "gauge",
 			},
@@ -404,17 +438,17 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 
 // Export converts a Histogram into a JSONMetric
 func (h *Histo) Export() (JSONMetric, error) {
-	val, err := h.value.GobEncode()
+	val, err := h.Value.GobEncode()
 	if err != nil {
 		return JSONMetric{}, err
 	}
 	return JSONMetric{
 		MetricKey: MetricKey{
-			Name:       h.name,
+			Name:       h.Name,
 			Type:       "histogram",
-			JoinedTags: strings.Join(h.tags, ","),
+			JoinedTags: strings.Join(h.Tags, ","),
 		},
-		Tags:  h.tags,
+		Tags:  h.Tags,
 		Value: val,
 	}, nil
 }
@@ -426,6 +460,6 @@ func (h *Histo) Combine(other []byte) error {
 	if err := otherHistogram.GobDecode(other); err != nil {
 		return err
 	}
-	h.value.Merge(otherHistogram)
+	h.Value.Merge(otherHistogram)
 	return nil
 }

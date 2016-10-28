@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/samplers"
 )
 
 func TestParser(t *testing.T) {
-	m, _ := ParseMetric([]byte("a.b.c:1|c"))
+	m, _ := samplers.ParseMetric([]byte("a.b.c:1|c"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
@@ -15,7 +16,7 @@ func TestParser(t *testing.T) {
 }
 
 func TestParserGauge(t *testing.T) {
-	m, _ := ParseMetric([]byte("a.b.c:1|g"))
+	m, _ := samplers.ParseMetric([]byte("a.b.c:1|g"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
@@ -23,7 +24,7 @@ func TestParserGauge(t *testing.T) {
 }
 
 func TestParserHistogram(t *testing.T) {
-	m, _ := ParseMetric([]byte("a.b.c:1|h"))
+	m, _ := samplers.ParseMetric([]byte("a.b.c:1|h"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
@@ -31,7 +32,7 @@ func TestParserHistogram(t *testing.T) {
 }
 
 func TestParserTimer(t *testing.T) {
-	m, _ := ParseMetric([]byte("a.b.c:1|ms"))
+	m, _ := samplers.ParseMetric([]byte("a.b.c:1|ms"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
@@ -39,7 +40,7 @@ func TestParserTimer(t *testing.T) {
 }
 
 func TestParserSet(t *testing.T) {
-	m, _ := ParseMetric([]byte("a.b.c:foo|s"))
+	m, _ := samplers.ParseMetric([]byte("a.b.c:foo|s"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, "foo", m.Value, "Value")
@@ -47,36 +48,36 @@ func TestParserSet(t *testing.T) {
 }
 
 func TestParserWithTags(t *testing.T) {
-	m, _ := ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
+	m, _ := samplers.ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.Equal(t, 2, len(m.Tags), "# of Tags")
 
-	_, valueError := ParseMetric([]byte("a.b.c:fart|c"))
+	_, valueError := samplers.ParseMetric([]byte("a.b.c:fart|c"))
 	assert.NotNil(t, valueError, "No errors when parsing")
 	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 }
 
 func TestParserWithSampleRate(t *testing.T) {
-	m, _ := ParseMetric([]byte("a.b.c:1|c|@0.1"))
+	m, _ := samplers.ParseMetric([]byte("a.b.c:1|c|@0.1"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.Equal(t, float32(0.1), m.SampleRate, "Sample Rate")
 
-	_, valueError := ParseMetric([]byte("a.b.c:fart|c"))
+	_, valueError := samplers.ParseMetric([]byte("a.b.c:fart|c"))
 	assert.NotNil(t, valueError, "No errors when parsing")
 	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 
-	_, valueError = ParseMetric([]byte("a.b.c:1|g|@0.1"))
+	_, valueError = samplers.ParseMetric([]byte("a.b.c:1|g|@0.1"))
 	assert.NoError(t, valueError, "Got errors when parsing")
 }
 
 func TestParserWithSampleRateAndTags(t *testing.T) {
-	m, _ := ParseMetric([]byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"))
+	m, _ := samplers.ParseMetric([]byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
@@ -84,7 +85,7 @@ func TestParserWithSampleRateAndTags(t *testing.T) {
 	assert.Equal(t, float32(0.1), m.SampleRate, "Sample Rate")
 	assert.Len(t, m.Tags, 2, "Tags")
 
-	_, valueError := ParseMetric([]byte("a.b.c:fart|c"))
+	_, valueError := samplers.ParseMetric([]byte("a.b.c:fart|c"))
 	assert.NotNil(t, valueError, "No errors when parsing")
 	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 }
@@ -105,14 +106,14 @@ func TestInvalidPackets(t *testing.T) {
 	}
 
 	for packet, errContent := range table {
-		_, err := ParseMetric([]byte(packet))
+		_, err := samplers.ParseMetric([]byte(packet))
 		assert.NotNil(t, err, "Should have gotten error parsing %q", packet)
 		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
 	}
 }
 
 func TestLocalOnlyEscape(t *testing.T) {
-	m, err := ParseMetric([]byte("a.b.c:1|h|#veneurlocalonly"))
+	m, err := samplers.ParseMetric([]byte("a.b.c:1|h|#veneurlocalonly"))
 	assert.NoError(t, err, "should have no error parsing")
 	assert.True(t, m.LocalOnly, "should have gotten local only metric")
 	for _, thisTag := range m.Tags {
@@ -121,9 +122,9 @@ func TestLocalOnlyEscape(t *testing.T) {
 }
 
 func TestEvents(t *testing.T) {
-	evt, err := ParseEvent([]byte("_e{3,3}:foo|bar|k:foos|s:test|t:success|p:low|#foo:bar,baz:qux|d:1136239445|h:example.com"))
+	evt, err := samplers.ParseEvent([]byte("_e{3,3}:foo|bar|k:foos|s:test|t:success|p:low|#foo:bar,baz:qux|d:1136239445|h:example.com"))
 	assert.NoError(t, err, "should have parsed correctly")
-	assert.EqualValues(t, &UDPEvent{
+	assert.EqualValues(t, &samplers.UDPEvent{
 		Title:       "foo",
 		Text:        "bar",
 		Timestamp:   1136239445,
@@ -148,16 +149,16 @@ func TestEvents(t *testing.T) {
 		"_e{3,3}":                       "colon",
 	}
 	for packet, errContent := range table {
-		_, err := ParseEvent([]byte(packet))
+		_, err := samplers.ParseEvent([]byte(packet))
 		assert.NotNil(t, err, "Should have gotten error parsing %q", packet)
 		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
 	}
 }
 
 func TestServiceChecks(t *testing.T) {
-	evt, err := ParseServiceCheck([]byte("_sc|foo.bar|0|d:1136239445|h:example.com"))
+	evt, err := samplers.ParseServiceCheck([]byte("_sc|foo.bar|0|d:1136239445|h:example.com"))
 	assert.NoError(t, err, "should have parsed correctly")
-	assert.EqualValues(t, &UDPServiceCheck{
+	assert.EqualValues(t, &samplers.UDPServiceCheck{
 		Name:      "foo.bar",
 		Status:    0,
 		Timestamp: 1136239445,
@@ -172,7 +173,7 @@ func TestServiceChecks(t *testing.T) {
 		"_sc|foo.bar|0|d:abc": "date",
 	}
 	for packet, errContent := range table {
-		_, err := ParseServiceCheck([]byte(packet))
+		_, err := samplers.ParseServiceCheck([]byte(packet))
 		assert.NotNil(t, err, "Should have gotten error parsing %q", packet)
 		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
 	}
