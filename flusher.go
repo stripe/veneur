@@ -156,13 +156,13 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 
 	ms.totalLength = ms.totalCounters + ms.totalGauges +
 		// histograms and timers each report a metric point for each percentile
-		// plus a point for their max, min and count
-		(ms.totalTimers+ms.totalHistograms)*(HistogramLocalLength+len(percentiles)) +
+		// plus a point for each of their aggregates
+		(ms.totalTimers+ms.totalHistograms)*(s.HistogramAggregates.Count+len(percentiles)) +
 		// local-only histograms will be flushed with percentiles, so we intentionally
 		// use the original percentile list here.
 		// remember that both the global veneur and the local instances have
 		// 'local-only' histograms.
-		ms.totalLocalSets + (ms.totalLocalTimers+ms.totalLocalHistograms)*(HistogramLocalLength+len(s.HistogramPercentiles))
+		ms.totalLocalSets + (ms.totalLocalTimers+ms.totalLocalHistograms)*(s.HistogramAggregates.Count+len(s.HistogramPercentiles))
 
 	return tempMetrics, ms
 }
@@ -183,10 +183,10 @@ func (s *Server) generateDDMetrics(interval time.Duration, percentiles []float64
 		// if we're a local veneur, then percentiles=nil, and only the local
 		// parts (count, min, max) will be flushed
 		for _, h := range wm.histograms {
-			finalMetrics = append(finalMetrics, h.Flush(interval, percentiles)...)
+			finalMetrics = append(finalMetrics, h.Flush(interval, percentiles, s.HistogramAggregates)...)
 		}
 		for _, t := range wm.timers {
-			finalMetrics = append(finalMetrics, t.Flush(interval, percentiles)...)
+			finalMetrics = append(finalMetrics, t.Flush(interval, percentiles, s.HistogramAggregates)...)
 		}
 
 		// local-only samplers should be flushed in their entirety, since they
@@ -194,13 +194,13 @@ func (s *Server) generateDDMetrics(interval time.Duration, percentiles []float64
 		// we still want percentiles for these, even if we're a local veneur, so
 		// we use the original percentile list when flushing them
 		for _, h := range wm.localHistograms {
-			finalMetrics = append(finalMetrics, h.Flush(interval, s.HistogramPercentiles)...)
+			finalMetrics = append(finalMetrics, h.Flush(interval, s.HistogramPercentiles, s.HistogramAggregates)...)
 		}
 		for _, s := range wm.localSets {
 			finalMetrics = append(finalMetrics, s.Flush()...)
 		}
 		for _, t := range wm.localTimers {
-			finalMetrics = append(finalMetrics, t.Flush(interval, s.HistogramPercentiles)...)
+			finalMetrics = append(finalMetrics, t.Flush(interval, s.HistogramPercentiles, s.HistogramAggregates)...)
 		}
 
 		// TODO (aditya) refactor this out so we don't

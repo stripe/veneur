@@ -143,6 +143,7 @@ Veneur expects to have a config file supplied via `-f PATH`. The include `exampl
 * `interval` - How often to flush. Something like 10s seems good. **Note: If you change this, it breaks all kinds of things on Datadog's side. You'll have to change all your metric's metadata.**
 * `key` - Your Datadog API key
 * `percentiles` - The percentiles to generate from our timers and histograms. Specified as array of float64s
+* `aggregates` - The aggregates to generate from our timers and histograms. Specified as array of strings, choices: min, max, median, avg, count, sum. Default: min, max, count
 * `udp_address` - The address on which to listen for metrics. Probably `:8126` so as not to interfere with normal DogStatsD.
 * `http_address` - The address to serve HTTP healthchecks and other endpoints. This can be a simple ip:port combination like `127.0.0.1:8127`. If you're under einhorn, you probably want `einhorn@0`.
 * `forward_address` - The address of an upstream Veneur to forward metrics to. See below.

@@ -274,6 +274,7 @@ type Histo struct {
 	localWeight float64
 	localMin    float64
 	localMax    float64
+	localSum    float64
 }
 
 // Sample adds the supplied value to the histogram.
@@ -284,6 +285,7 @@ func (h *Histo) Sample(sample float64, sampleRate float32) {
 	h.localWeight += weight
 	h.localMin = math.Min(h.localMin, sample)
 	h.localMax = math.Max(h.localMax, sample)
+	h.localSum += sample * weight
 }
 
 // NewHist generates a new Histo and returns it.
@@ -295,25 +297,23 @@ func NewHist(name string, tags []string) *Histo {
 		value:    tdigest.NewMerging(100, false),
 		localMin: math.Inf(+1),
 		localMax: math.Inf(-1),
+		localSum: 0,
 	}
 }
 
-// HistogramLocalLength is the maximum number of DDMetrics that a histogram can flush if
-// len(percentiles)==0
-// specifically the count, min and max
-const HistogramLocalLength = 3
-
 // Flush generates DDMetrics for the current state of the Histo. percentiles
 // indicates what percentiles should be exported from the histogram.
-func (h *Histo) Flush(interval time.Duration, percentiles []float64) []DDMetric {
+func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates HistogramAggregates) []DDMetric {
 	now := float64(time.Now().Unix())
 	// we only want to flush the number of samples we received locally, since
 	// any other samples have already been flushed by a local veneur instance
 	// before this was forwarded to us
 	rate := h.localWeight / interval.Seconds()
-	metrics := make([]DDMetric, 0, 3+len(percentiles))
+	metrics := make([]DDMetric, 0, aggregates.Count+len(percentiles))
 
-	if !math.IsInf(h.localMax, 0) {
+	if (aggregates.Value&AggregateMax) == AggregateMax && !math.IsInf(h.localMax, 0) {
+		// XXX: why is this recreating tags mutliple times, granted they won't always be used, but it seems preferable to
+		// generate them once anyway
 		tags := make([]string, len(h.tags))
 		copy(tags, h.tags)
 		metrics = append(metrics, DDMetric{
@@ -323,7 +323,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64) []DDMetric 
 			MetricType: "gauge",
 		})
 	}
-	if !math.IsInf(h.localMin, 0) {
+	if (aggregates.Value&AggregateMin) == AggregateMin && !math.IsInf(h.localMin, 0) {
 		tags := make([]string, len(h.tags))
 		copy(tags, h.tags)
 		metrics = append(metrics, DDMetric{
@@ -333,7 +333,29 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64) []DDMetric 
 			MetricType: "gauge",
 		})
 	}
-	if rate != 0 {
+
+	if (aggregates.Value&AggregateSum) == AggregateSum && h.localSum != 0 {
+		tags := make([]string, len(h.tags))
+		copy(tags, h.tags)
+		metrics = append(metrics, DDMetric{
+			Name:       fmt.Sprintf("%s.sum", h.name),
+			Value:      [1][2]float64{{now, h.localSum}},
+			Tags:       tags,
+			MetricType: "gauge",
+		})
+		if (aggregates.Value&AggregateAverage) == AggregateAverage && h.localWeight != 0 {
+			// we need both a rate and a non-zero sum before it will make sense
+			// to submit an average
+			metrics = append(metrics, DDMetric{
+				Name:       fmt.Sprintf("%s.avg", h.name),
+				Value:      [1][2]float64{{now, h.localSum / h.localWeight}},
+				Tags:       tags,
+				MetricType: "gauge",
+			})
+		}
+	}
+
+	if (aggregates.Value&AggregateCount) == AggregateCount && rate != 0 {
 		// if we haven't received any local samples, then leave this sparse,
 		// otherwise it can lead to some misleading zeroes in between the
 		// flushes of downstream instances
@@ -346,6 +368,20 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64) []DDMetric 
 			MetricType: "rate",
 			Interval:   int32(interval.Seconds()),
 		})
+	}
+
+	if (aggregates.Value & AggregateMedian) == AggregateMedian {
+		tags := make([]string, len(h.tags))
+		copy(tags, h.tags)
+		metrics = append(
+			metrics,
+			DDMetric{
+				Name:       fmt.Sprintf("%s.median", h.name),
+				Value:      [1][2]float64{{now, h.value.Quantile(0.5)}},
+				Tags:       tags,
+				MetricType: "gauge",
+			},
+		)
 	}
 
 	for _, p := range percentiles {

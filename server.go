@@ -32,6 +32,40 @@ var log = logrus.New()
 
 //go:generate gojson -input example.yaml -o config.go -fmt yaml -pkg veneur -name Config
 
+type Aggregate int
+
+const (
+	AggregateMin Aggregate = 1 << iota
+	AggregateMax
+	AggregateMedian
+	AggregateAverage
+	AggregateCount
+	AggregateSum
+)
+
+var aggregatesLookup = map[string]Aggregate{
+	"min":    AggregateMin,
+	"max":    AggregateMax,
+	"median": AggregateMedian,
+	"avg":    AggregateAverage,
+	"count":  AggregateCount,
+	"sum":    AggregateSum,
+}
+
+type HistogramAggregates struct {
+	Value Aggregate
+	Count int
+}
+
+var aggregates = [...]string{
+	AggregateMin:     "min",
+	AggregateMax:     "max",
+	AggregateMedian:  "median",
+	AggregateAverage: "avg",
+	AggregateCount:   "count",
+	AggregateSum:     "sum",
+}
+
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers     []*Worker
@@ -58,6 +92,8 @@ type Server struct {
 	pluginMtx sync.Mutex
 
 	enableProfiling bool
+
+	HistogramAggregates HistogramAggregates
 }
 
 // NewFromConfig creates a new veneur server from a configuration specification.
@@ -67,6 +103,16 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.DDHostname = conf.APIHostname
 	ret.DDAPIKey = conf.Key
 	ret.HistogramPercentiles = conf.Percentiles
+	if len(conf.Aggregates) == 0 {
+		ret.HistogramAggregates.Value = AggregateMin + AggregateMax + AggregateCount
+		ret.HistogramAggregates.Count = 3
+	} else {
+		ret.HistogramAggregates.Value = 0
+		for _, agg := range conf.Aggregates {
+			ret.HistogramAggregates.Value += aggregatesLookup[agg]
+		}
+		ret.HistogramAggregates.Count = len(conf.Aggregates)
+	}
 
 	interval, err := time.ParseDuration(conf.Interval)
 	if err != nil {

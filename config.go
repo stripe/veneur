@@ -1,6 +1,7 @@
 package veneur
 
 type Config struct {
+	Aggregates          []string  `yaml:"aggregates"`
 	APIHostname         string    `yaml:"api_hostname"`
 	AwsAccessKeyID      string    `yaml:"aws_access_key_id"`
 	AwsRegion           string    `yaml:"aws_region"`
