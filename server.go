@@ -233,9 +233,9 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	return
 }
 
-// HandlePacket processes each packet that is sent to the server, and sends to an
+// HandleMetricPacket processes each packet that is sent to the server, and sends to an
 // appropriate worker (EventWorker or Worker).
-func (s *Server) HandlePacket(packet []byte) {
+func (s *Server) HandleMetricPacket(packet []byte) {
 	// This is a very performance-sensitive function
 	// and packets may be dropped if it gets slowed down.
 	// Keep that in mind when modifying!
@@ -282,8 +282,8 @@ func (s *Server) HandlePacket(packet []byte) {
 	}
 }
 
-// ReadSocket listens for available packets to handle.
-func (s *Server) ReadSocket(packetPool *sync.Pool, reuseport bool) {
+// ReadMetricSocket listens for available packets to handle.
+func (s *Server) ReadMetricSocket(packetPool *sync.Pool, reuseport bool) {
 	// each goroutine gets its own socket
 	// if the sockets support SO_REUSEPORT, then this will cause the
 	// kernel to distribute datagrams across them, for better read
@@ -294,15 +294,15 @@ func (s *Server) ReadSocket(packetPool *sync.Pool, reuseport bool) {
 		// recover, so we just blow up
 		// this probably indicates a systemic issue, eg lack of
 		// SO_REUSEPORT support
-		log.WithError(err).Fatal("Error listening for UDP")
+		log.WithError(err).Fatal("Error listening for UDP metrics")
 	}
-	log.WithField("address", s.UDPAddr).Info("UDP server listening")
+	log.WithField("address", s.UDPAddr).Info("Listening for UDP metrics")
 
 	for {
 		buf := packetPool.Get().([]byte)
 		n, _, err := serverConn.ReadFrom(buf)
 		if err != nil {
-			log.WithError(err).Error("Error reading from UDP")
+			log.WithError(err).Error("Error reading from UDP metrics socket")
 			continue
 		}
 
@@ -313,10 +313,10 @@ func (s *Server) ReadSocket(packetPool *sync.Pool, reuseport bool) {
 		// trailing newlines
 		splitPacket := NewSplitBytes(buf[:n], '\n')
 		for splitPacket.Next() {
-			s.HandlePacket(splitPacket.Chunk())
+			s.HandleMetricPacket(splitPacket.Chunk())
 		}
 
-		// the Metric struct created by HandlePacket has no byte slices in it,
+		// the Metric struct created by HandleMetricPacket has no byte slices in it,
 		// only strings
 		// therefore there are no outstanding references to this byte slice, we
 		// can return it to the pool
