@@ -41,7 +41,7 @@ func main() {
 	tracePool := &sync.Pool{
 		New: func() interface{} {
 			return make([]byte, conf.MetricMaxLength)
-		}
+		},
 	}
 
 	// Read forever!
