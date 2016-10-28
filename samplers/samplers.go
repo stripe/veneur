@@ -21,10 +21,10 @@ const RedshiftDateFormat = "2006-01-02 03:04:05"
 type DDMetric struct {
 	Name       string        `json:"metric"`
 	Value      [1][2]float64 `json:"points"`
-	Tags       []string      `json:"Tags,omitempty"`
+	Tags       []string      `json:"tags,omitempty"`
 	MetricType string        `json:"type"`
 	Hostname   string        `json:"host"`
-	DeviceName string        `json:"device_Name"`
+	DeviceName string        `json:"device_name"`
 	Interval   int32         `json:"interval,omitempty"`
 }
 
@@ -158,7 +158,7 @@ func init() {
 // internal state intact. It is used to send metrics from one Veneur to another.
 type JSONMetric struct {
 	MetricKey
-	Tags []string `json:"Tags"`
+	Tags []string `json:"tags"`
 	// the Value is an internal representation of the metric's contents, eg a
 	// gob-encoded histogram or hyperloglog.
 	Value []byte `json:"value"`
