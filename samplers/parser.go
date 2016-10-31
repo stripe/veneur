@@ -221,7 +221,7 @@ func ParseEvent(packet []byte) (*UDPEvent, error) {
 	if len(textChunk) != textExpectedLength {
 		return nil, errors.New("Invalid event packet, actual text length did not match encoded length")
 	}
-	ret.Text = string(textChunk)
+	ret.Text = strings.Replace(string(textChunk), "\\n", "\n", -1)
 
 	var (
 		foundTimestamp   bool
@@ -380,7 +380,7 @@ func ParseServiceCheck(packet []byte) (*UDPServiceCheck, error) {
 			if foundMessage {
 				return nil, errors.New("Invalid service check packet, multiple message sections")
 			}
-			ret.Message = string(pipeSplitter.Chunk()[2:])
+			ret.Message = strings.Replace(string(pipeSplitter.Chunk()[2:]), "\\n", "\n", -1)
 			foundMessage = true
 		case pipeSplitter.Chunk()[0] == '#':
 			if ret.Tags != nil || foundMessage {

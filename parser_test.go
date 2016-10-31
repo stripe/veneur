@@ -178,3 +178,17 @@ func TestServiceChecks(t *testing.T) {
 		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
 	}
 }
+
+func TestEventMessageUnescape(t *testing.T) {
+	packet := []byte("_e{3,15}:foo|foo\\nbar\\nbaz\\n")
+	evt, err := samplers.ParseEvent(packet)
+	assert.NoError(t, err, "Should have parsed correctly")
+	assert.Equal(t, "foo\nbar\nbaz\n", evt.Text, "Should contain newline")
+}
+
+func TestServiceCheckMessageUnescape(t *testing.T) {
+	packet := []byte("_sc|foo|0|m:foo\\nbar\\nbaz\\n")
+	svcheck, err := samplers.ParseServiceCheck(packet)
+	assert.NoError(t, err, "Should have parsed correctly")
+	assert.Equal(t, "foo\nbar\nbaz\n", svcheck.Message, "Should contain newline")
+}
