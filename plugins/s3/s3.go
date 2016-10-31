@@ -107,16 +107,16 @@ func EncodeDDMetricsCSV(metrics []samplers.DDMetric, delimiter rune, includeHead
 		headers := [...]string{
 			// the order here doesn't actually matter
 			// as long as the keys are right
-			samplers.TsvName:           samplers.TsvName.String(),
-			samplers.TsvTags:           samplers.TsvTags.String(),
-			samplers.TsvMetricType:     samplers.TsvMetricType.String(),
-			samplers.TsvHostname:       samplers.TsvHostname.String(),
-			samplers.TsvDeviceName:     samplers.TsvDeviceName.String(),
-			samplers.TsvInterval:       samplers.TsvInterval.String(),
-			samplers.TsvVeneurHostname: samplers.TsvVeneurHostname.String(),
-			samplers.TsvValue:          samplers.TsvValue.String(),
-			samplers.TsvTimestamp:      samplers.TsvTimestamp.String(),
-			samplers.TsvPartition:      samplers.TsvPartition.String(),
+			TsvName:           TsvName.String(),
+			TsvTags:           TsvTags.String(),
+			TsvMetricType:     TsvMetricType.String(),
+			TsvHostname:       TsvHostname.String(),
+			TsvDeviceName:     TsvDeviceName.String(),
+			TsvInterval:       TsvInterval.String(),
+			TsvVeneurHostname: TsvVeneurHostname.String(),
+			TsvValue:          TsvValue.String(),
+			TsvTimestamp:      TsvTimestamp.String(),
+			TsvPartition:      TsvPartition.String(),
 		}
 
 		w.Write(headers[:])
@@ -125,7 +125,7 @@ func EncodeDDMetricsCSV(metrics []samplers.DDMetric, delimiter rune, includeHead
 	// TODO avoid edge case at midnight
 	partitionDate := time.Now()
 	for _, metric := range metrics {
-		metric.EncodeCSV(w, &partitionDate, hostname)
+		EncodeDDMetricCSV(metric, w, &partitionDate, hostname)
 	}
 
 	w.Flush()
