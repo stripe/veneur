@@ -7,15 +7,17 @@ enable_profiling: true
 interval: "10s"
 key: "farts"
 num_workers: 96
-num_readers: 4
+# Numbers larger than one will enable the use of SO_REUSEPORT, make sure
+# this is supported on your platform!
+num_readers: 1
 percentiles:
   - 0.5
   - 0.75
   - 0.99
-#aggregates:
-#  - "min"
-#  - "max"
-#  - "count"
+aggregates:
+ - "min"
+ - "max"
+ - "count"
 read_buffer_size_bytes: 2097152
 stats_address: "localhost:8125"
 tags:
@@ -25,13 +27,13 @@ udp_address: "localhost:8126"
 #http_address: "einhorn@0"
 http_address: "localhost:8127"
 forward_address: "http://veneur.example.com"
-sentry_dsn: http://4a21e883f6cf152b70b9af8f70280492b598f615:147347172408bac7999043eebc1a1fa0f19fb4c7@errors.example.com
+sentry_dsn: ""
 
 # If absent, defaults to the os.Hostname()!
 hostname: foobar
 
 # Include these if you want to archive data to S3
-aws_access_key_id: "foo"
-aws_secret_access_key: "bar"
-aws_region: "us-west-2"
-aws_s3_bucket: "stripe-veneur"
+aws_access_key_id: ""
+aws_secret_access_key: ""
+aws_region: ""
+aws_s3_bucket: ""
