@@ -42,6 +42,7 @@ var log = logrus.New()
 type Server struct {
 	Workers     []*Worker
 	EventWorker *EventWorker
+	TraceWorker *TraceWorker
 
 	statsd *statsd.Client
 	sentry *raven.Client
@@ -153,6 +154,14 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		ret.EventWorker.Work()
 	}()
 
+	ret.TraceWorker = NewTraceWorker(ret.statsd)
+	go func() {
+		defer func() {
+			ret.ConsumePanic(recover())
+		}()
+		ret.TraceWorker.Work()
+	}()
+
 	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UdpAddress)
 	if err != nil {
 		return
@@ -262,6 +271,23 @@ func (s *Server) HandleMetricPacket(packet []byte) {
 	}
 }
 
+func (s *Server) HandleTracePacket(packet []byte) {
+	if len(packet) == 0 {
+		return
+	}
+
+	// Technically this could be anything, but we're only consuming trace spans
+	// for now.
+	newSample := &ssf.SSFSample{}
+	err := proto.Unmarshal(packet, newSample)
+	if err != nil {
+		log.Fatal("Trace unmarshaling error: ", err)
+	}
+	log.Info(proto.CompactTextString(newSample))
+
+	s.TraceWorker.TraceChan <- *newSample
+}
+
 // ReadMetricSocket listens for available packets to handle.
 func (s *Server) ReadMetricSocket(packetPool *sync.Pool, reuseport bool) {
 	// each goroutine gets its own socket
@@ -326,14 +352,7 @@ func (s *Server) ReadTraceSocket(packetPool *sync.Pool, reuseport bool) {
 			continue
 		}
 
-		// Technically this could be anything, but we're only consuming trace spans
-		// for now.
-		newSample := &ssf.SSFSample{}
-		err = proto.Unmarshal(buf[:n], newSample)
-		if err != nil {
-			log.Fatal("unmarshaling error: ", err)
-		}
-		log.Info(proto.CompactTextString(newSample))
+		s.HandleTracePacket(buf[:n])
 	}
 }
 
