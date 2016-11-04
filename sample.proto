@@ -1,6 +1,6 @@
 syntax = "proto2";
 
-package main;
+package ssf;
 
 message SSFTag {
   required string name = 1;

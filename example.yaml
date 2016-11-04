@@ -34,7 +34,7 @@ trace_address: "localhost:8128"
 hostname: foobar
 
 # Include these if you want to archive data to S3
-#aws_access_key_id: "foo"
-#aws_secret_access_key: "bar"
-#aws_region: "us-west-2"
-#aws_s3_bucket: "stripe-veneur"
+aws_access_key_id: ""
+aws_secret_access_key: ""
+aws_region: ""
+aws_s3_bucket: ""
