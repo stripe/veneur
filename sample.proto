@@ -10,8 +10,7 @@ message SSFTag {
 message SSFTrace {
   required int64 trace_id = 1;
   required int64 id = 2;
-  required int64 duration = 3;
-  optional int64 parent_id = 4;
+  optional int64 parent_id = 3;
 }
 
 message SSFSample {

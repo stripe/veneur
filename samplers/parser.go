@@ -418,7 +418,7 @@ type DatadogTraceSpan struct {
 	Name			string   `json:"name"`
 	Resource  string   `json:"resource"`
 	Start			int64    `json:"start"`
-	Duration  int64    `json:"duration"`
+	Duration  float64  `json:"duration"`
 	// Type      string   `json:"type"`
 	// Meta      map[string]interface{} `json:"meta"`,
 	// Metrics   map[string]interface{} `json:"meta"`

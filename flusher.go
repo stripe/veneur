@@ -457,7 +457,7 @@ func (s *Server) flushTraces() {
 					Name: *span.Name,
 					// Resource: ?
 					Start: *span.Timestamp,
-					Duration: *span.Trace.Duration,
+					Duration: *span.Value,
 					// Type: ?
 					// Tags:
 				}
