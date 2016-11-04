@@ -36,8 +36,6 @@ var profileStartOnce = sync.Once{}
 
 var log = logrus.New()
 
-//go:generate gojson -input example.yaml -o config.go -fmt yaml -pkg veneur -name Config
-
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers     []*Worker
