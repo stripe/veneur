@@ -59,8 +59,6 @@ Because Veneur is built to handle lots and lots of data, it uses approximate his
 Datadog's DogStatsD — and StatsD — uses an exact histogram which retains all samples and is reset every flush period. This means that there is a loss of precision when using Veneur, but
 the resulting percentile values are meant to be more representative of a global view.
 
-Veneur's timers and histograms do not emit an `avg` metric. Averages suck.
-
 ## Approximate Sets
 
 Veneur uses [HyperLogLogs](https://github.com/clarkduvall/hyperloglog) for approximate unique sets. These are a very efficient unique counter with fixed memory consumption.
