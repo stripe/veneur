@@ -463,7 +463,7 @@ func (s *Server) flushTraces() {
 				}
 				finalTraces = append(finalTraces, ddspan)
 			} else {
-				log.Debug("Got an unknown object in tracing ring!")
+				log.Error("Got an unknown object in tracing ring!")
 			}
 		}
 	})
