@@ -1,0 +1,43 @@
+syntax = "proto2";
+
+package main;
+
+message SSFTag {
+  required string name = 1;
+  optional string value = 2;
+}
+
+message SSFTrace {
+  required int64 trace_id = 1;
+  required int64 id = 2;
+  required int64 duration = 3;
+  optional int64 parent_id = 4;
+}
+
+message SSFSample {
+  enum Metric {
+      COUNTER = 0;
+      GAUGE = 1;
+      HISTOGRAM = 2;
+      SET = 3;
+      STATUS = 4;
+      EVENT = 5;
+      TRACE = 6;
+  }
+  enum Status {
+      OK = 0;
+      WARNING = 1;
+      CRITICAL = 2;
+      UNKNOWN = 3;
+  }
+  optional Metric metric = 1 [default = COUNTER];
+  required string name = 2;
+  required int64 timestamp = 3;
+  optional string message = 4;
+  optional Status status = 5 [default = OK];
+  optional double value = 6;
+  optional float sample_rate = 7 [default = 1.0];
+  repeated SSFTag tags = 8;
+  optional string unit = 9;
+  optional SSFTrace trace = 10;
+}
