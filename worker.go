@@ -321,9 +321,7 @@ func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck)
 	return retevts, retsvchecks
 }
 
-//// FARTS
-
-// EventWorker is similar to a Worker but it collects events and service checks instead of metrics.
+// TraceWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type TraceWorker struct {
 	TraceChan chan ssf.SSFSample
 	mutex     *sync.Mutex
@@ -360,7 +358,7 @@ func (tw *TraceWorker) Flush() *ring.Ring {
 	tw.mutex.Lock()
 
 	rettraces := tw.traces
-	tw.traces = ring.New(1024) // TODO CONFIGURABLE
+	tw.traces = ring.New(12) // TODO CONFIGURABLE
 
 	tw.mutex.Unlock()
 	tw.stats.TimeInMilliseconds("flush.event_worker_duration_ns", float64(time.Now().Sub(start).Nanoseconds()), nil, 1.0)

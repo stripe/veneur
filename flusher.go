@@ -15,6 +15,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/ssf"
 )
 
 // Flush takes the slices of metrics, combines then and marshals them to json
@@ -68,6 +69,7 @@ func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
 // for posting to Datadog.
 func (s *Server) FlushLocal(interval time.Duration, metricLimit int) {
 	go s.flushEventsChecks() // we can do all of this separately
+	go s.flushTraces() // this too!
 
 	// don't publish percentiles if we're a local veneur; that's the global
 	// veneur's job
@@ -439,6 +441,49 @@ func resolveEndpoint(endpoint string) (string, error) {
 	return origURL.String(), nil
 }
 
+func (s *Server) flushTraces() {
+	traces := s.TraceWorker.Flush()
+
+	var finalTraces []*samplers.DatadogTraceSpan
+	traces.Do(func(t interface{}) {
+		if t != nil {
+			span, ok := t.(ssf.SSFSample)
+			if ok {
+				ddspan := &samplers.DatadogTraceSpan{
+					TraceId: *span.Trace.TraceId,
+					SpanId: *span.Trace.Id,
+					ParentId: *span.Trace.ParentId,
+					// Service: ?
+					Name: *span.Name,
+					// Resource: ?
+					Start: *span.Timestamp,
+					Duration: *span.Trace.Duration,
+					// Type: ?
+					// Tags:
+				}
+				finalTraces = append(finalTraces, ddspan)
+			} else {
+				log.Debug("Got an unknown object in tracing ring!")
+			}
+		}
+	})
+	if len(finalTraces) != 0 {
+		// this endpoint is not documented to take an array... but it does
+		// another curious constraint of this endpoint is that it does not
+		// support "Content-Encoding: deflate"
+
+		err := s.postHelper(fmt.Sprintf("%s/1e3k8ck1", "http://requestb.in"), finalTraces, "flush_traces", false)
+		// err := s.postHelper(fmt.Sprintf("%s/", "http://localhost:7777"), traces, "flush_traces", false)
+
+		if err == nil {
+			log.WithField("checks", len(finalTraces)).Info("Completed flushing traces to Datadog")
+		}
+	} else {
+		log.Debug("No traces to flush, skipping.")
+	}
+
+}
+
 func (s *Server) flushEventsChecks() {
 	events, checks := s.EventWorker.Flush()
 	s.statsd.Count("worker.events_flushed_total", int64(len(events)), nil, 1.0)
@@ -569,7 +614,7 @@ func (s *Server) postHelper(endpoint string, bodyObject interface{}, action stri
 		"response":         string(responseBody),
 	})
 
-	if resp.StatusCode != http.StatusAccepted {
+	if resp.StatusCode != http.StatusOK {
 		s.statsd.Count(action+".error_total", 1, []string{fmt.Sprintf("cause:%d", resp.StatusCode)}, 1.0)
 		resultLogger.Error("Could not POST")
 		return err
