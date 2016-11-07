@@ -2,3 +2,13 @@ language: go
 go:
   - 1.7
   - tip
+
+before_script:
+  - go get github.com/ChimeraCoder/gojson/gojson
+  - go generate
+  - gofmt -w .
+  - test -n $(git status --porcelain)
+
+
+script:
+  go test -v ./...
