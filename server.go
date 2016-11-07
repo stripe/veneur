@@ -2,7 +2,7 @@ package veneur
 
 import (
 	"bytes"
-	"net"
+"net"
 	"net/http"
 	"sync"
 	"syscall"
