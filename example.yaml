@@ -1,6 +1,5 @@
 ---
 api_hostname: https://app.datadoghq.com
-unknown_thing: asdf
 metric_max_length: 4096
 flush_max_per_body: 25000
 debug: true
