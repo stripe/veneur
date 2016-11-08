@@ -19,12 +19,19 @@ if err != nil {
 c.Namespace = "flubber."
 // Send the EC2 availability zone as a tag with every metric
 c.Tags = append(c.Tags, "us-east-1a")
-err = c.Gauge("request.duration", 1.2, nil, 1)
+
+// Do some metrics!
+err = c.Gauge("request.queue_depth", 12, nil, 1)
+err = c.Timing("request.duration", duration, nil, 1) // Uses a time.Duration!
+err = c.TimeInMilliseconds("request", 12, nil, 1)
+err = c.Incr("request.count_total", nil, 1)
+err = c.Decr("request.count_total", nil, 1)
+err = c.Count("request.count_total", 2, nil, 1)
 ```
 
 ## Buffering Client
 
-Dogstatsd accepts packets with multiple statsd payloads in them.  Using the BufferingClient via `NewBufferingClient` will buffer up commands and send them when the buffer is reached or after 100msec.
+DogStatsD accepts packets with multiple statsd payloads in them.  Using the BufferingClient via `NewBufferingClient` will buffer up commands and send them when the buffer is reached or after 100msec.
 
 ## Development
 

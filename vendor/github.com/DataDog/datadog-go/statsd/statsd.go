@@ -27,6 +27,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 	"strconv"
@@ -114,19 +115,8 @@ func (c *Client) format(name, value string, tags []string, rate float64) string 
 		buf.WriteString(strconv.FormatFloat(rate, 'f', -1, 64))
 	}
 
-	// do not append to c.Tags directly, because it's shared
-	// across all invocations of this function
-	tagCopy := make([]string, len(c.Tags), len(c.Tags)+len(tags))
-	copy(tagCopy, c.Tags)
-	tags = append(tagCopy, tags...)
-	if len(tags) > 0 {
-		buf.WriteString("|#")
-		buf.WriteString(tags[0])
-		for _, tag := range tags[1:] {
-			buf.WriteString(",")
-			buf.WriteString(tag)
-		}
-	}
+	writeTagString(&buf, c.Tags, tags)
+
 	return buf.String()
 }
 
@@ -272,10 +262,25 @@ func (c *Client) Histogram(name string, value float64, tags []string, rate float
 	return c.send(name, stat, tags, rate)
 }
 
+// Decr is just Count of 1
+func (c *Client) Decr(name string, tags []string, rate float64) error {
+	return c.send(name, "-1|c", tags, rate)
+}
+
+// Incr is just Count of 1
+func (c *Client) Incr(name string, tags []string, rate float64) error {
+	return c.send(name, "1|c", tags, rate)
+}
+
 // Set counts the number of unique elements in a group.
 func (c *Client) Set(name string, value string, tags []string, rate float64) error {
 	stat := fmt.Sprintf("%s|s", value)
 	return c.send(name, stat, tags, rate)
+}
+
+// Timing sends timing information, it is an alias for TimeInMilliseconds
+func (c *Client) Timing(name string, value time.Duration, tags []string, rate float64) error {
+	return c.TimeInMilliseconds(name, value.Seconds()*1000, tags, rate)
 }
 
 // TimeInMilliseconds sends timing information in milliseconds.
@@ -298,6 +303,21 @@ func (c *Client) Event(e *Event) error {
 func (c *Client) SimpleEvent(title, text string) error {
 	e := NewEvent(title, text)
 	return c.Event(e)
+}
+
+// ServiceCheck sends the provided ServiceCheck.
+func (c *Client) ServiceCheck(sc *ServiceCheck) error {
+	stat, err := sc.Encode(c.Tags...)
+	if err != nil {
+		return err
+	}
+	return c.sendMsg(stat)
+}
+
+// SimpleServiceCheck sends an serviceCheck with the provided name and status.
+func (c *Client) SimpleServiceCheck(name string, status serviceCheckStatus) error {
+	sc := NewServiceCheck(name, status)
+	return c.ServiceCheck(sc)
 }
 
 // Close the client connection.
@@ -428,16 +448,94 @@ func (e Event) Encode(tags ...string) (string, error) {
 		buffer.WriteString(string(e.AlertType))
 	}
 
-	if len(tags)+len(e.Tags) > 0 {
-		all := make([]string, 0, len(tags)+len(e.Tags))
-		all = append(all, tags...)
-		all = append(all, e.Tags...)
-		buffer.WriteString("|#")
-		buffer.WriteString(all[0])
-		for _, tag := range all[1:] {
-			buffer.WriteString(",")
-			buffer.WriteString(tag)
-		}
+	writeTagString(&buffer, tags, e.Tags)
+
+	return buffer.String(), nil
+}
+
+// ServiceCheck support
+
+type serviceCheckStatus byte
+
+const (
+	// Ok is the "ok" ServiceCheck status
+	Ok serviceCheckStatus = 0
+	// Warn is the "warning" ServiceCheck status
+	Warn serviceCheckStatus = 1
+	// Critical is the "critical" ServiceCheck status
+	Critical serviceCheckStatus = 2
+	// Unknown is the "unknown" ServiceCheck status
+	Unknown serviceCheckStatus = 3
+)
+
+// An ServiceCheck is an object that contains status of DataDog service check.
+type ServiceCheck struct {
+	// Name of the service check.  Required.
+	Name string
+	// Status of service check.  Required.
+	Status serviceCheckStatus
+	// Timestamp is a timestamp for the serviceCheck.  If not provided, the dogstatsd
+	// server will set this to the current time.
+	Timestamp time.Time
+	// Hostname for the serviceCheck.
+	Hostname string
+	// A message describing the current state of the serviceCheck.
+	Message string
+	// Tags for the serviceCheck.
+	Tags []string
+}
+
+// NewServiceCheck creates a new serviceCheck with the given name and status.  Error checking
+// against these values is done at send-time, or upon running sc.Check.
+func NewServiceCheck(name string, status serviceCheckStatus) *ServiceCheck {
+	return &ServiceCheck{
+		Name:   name,
+		Status: status,
+	}
+}
+
+// Check verifies that an event is valid.
+func (sc ServiceCheck) Check() error {
+	if len(sc.Name) == 0 {
+		return fmt.Errorf("statsd.ServiceCheck name is required")
+	}
+	if byte(sc.Status) < 0 || byte(sc.Status) > 3 {
+		return fmt.Errorf("statsd.ServiceCheck status has invalid value")
+	}
+	return nil
+}
+
+// Encode returns the dogstatsd wire protocol representation for an serviceCheck.
+// Tags may be passed which will be added to the encoded output but not to
+// the Event's list of tags, eg. for default tags.
+func (sc ServiceCheck) Encode(tags ...string) (string, error) {
+	err := sc.Check()
+	if err != nil {
+		return "", err
+	}
+	message := sc.escapedMessage()
+
+	var buffer bytes.Buffer
+	buffer.WriteString("_sc|")
+	buffer.WriteString(sc.Name)
+	buffer.WriteRune('|')
+	buffer.WriteString(strconv.FormatInt(int64(sc.Status), 10))
+
+	if !sc.Timestamp.IsZero() {
+		buffer.WriteString("|d:")
+		buffer.WriteString(strconv.FormatInt(int64(sc.Timestamp.Unix()), 10))
+	}
+
+	if len(sc.Hostname) != 0 {
+		buffer.WriteString("|h:")
+		buffer.WriteString(sc.Hostname)
+	}
+
+	writeTagString(&buffer, tags, sc.Tags)
+
+	if len(message) != 0 {
+		buffer.WriteString("|m:")
+		buffer.WriteString(message)
 	}
 
 	return buffer.String(), nil
@@ -445,4 +543,33 @@ func (e Event) Encode(tags ...string) (string, error) {
 
 func (e Event) escapedText() string {
 	return strings.Replace(e.Text, "\n", "\\n", -1)
+}
+
+func (sc ServiceCheck) escapedMessage() string {
+	msg := strings.Replace(sc.Message, "\n", "\\n", -1)
+	return strings.Replace(msg, "m:", `m\:`, -1)
+}
+
+func removeNewlines(str string) string {
+	return strings.Replace(str, "\n", "", -1)
+}
+
+func writeTagString(w io.Writer, tagList1, tagList2 []string) {
+	// the tag lists may be shared with other callers, so we cannot modify
+	// them in any way (which means we cannot append to them either)
+	// therefore we must make an entirely separate copy just for this call
+	totalLen := len(tagList1) + len(tagList2)
+	if totalLen == 0 {
+		return
+	}
+	tags := make([]string, 0, totalLen)
+	tags = append(tags, tagList1...)
+	tags = append(tags, tagList2...)
+
+	io.WriteString(w, "|#")
+	io.WriteString(w, removeNewlines(tags[0]))
+	for _, tag := range tags[1:] {
+		io.WriteString(w, ",")
+		io.WriteString(w, removeNewlines(tag))
+	}
 }
