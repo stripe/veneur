@@ -24,5 +24,6 @@ type Config struct {
 	StatsAddress        string    `yaml:"stats_address"`
 	Tags                []string  `yaml:"tags"`
 	TraceAddress        string    `yaml:"trace_address"`
+	TraceMaxLengthBytes int       `yaml:"trace_max_length_bytes"`
 	UdpAddress          string    `yaml:"udp_address"`
 }
