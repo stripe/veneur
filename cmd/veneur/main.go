@@ -40,7 +40,7 @@ func main() {
 
 	tracePool := &sync.Pool{
 		New: func() interface{} {
-			return make([]byte, conf.MetricMaxLength)
+			return make([]byte, conf.TraceMaxLengthBytes)
 		},
 	}
 

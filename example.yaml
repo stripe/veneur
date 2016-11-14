@@ -1,6 +1,7 @@
 ---
 api_hostname: https://app.datadoghq.com
 metric_max_length: 4096
+trace_max_length_bytes: 16384
 flush_max_per_body: 25000
 debug: true
 enable_profiling: true
