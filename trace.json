@@ -1,0 +1,15 @@
+{
+  "trace_id": 5538716,
+  "span_id": 1100041749,
+  "service": "dbthing",
+  "name": "farttable",
+  "parent_id": 745300532,
+  "resource": "farttable",
+  "start": 1479223864217351424,
+  "duration": 784341812,
+  "type": "demo",
+  "meta":{
+  },
+  "metrics": {
+  }
+}
