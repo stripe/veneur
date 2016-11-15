@@ -409,16 +409,17 @@ func ParseServiceCheck(packet []byte) (*UDPServiceCheck, error) {
 	return ret, nil
 }
 
+// TODO Remove this when we're happy with gojson here.
 // DatadogTraceSpan is a representation of the trace span as needed for Datadog.
-type DatadogTraceSpan struct {
-	TraceId   int64    `json:"trace_id"`
-	SpanId   	int64    `json:"span_id"`
-	ParentId	int64    `json:"parent_id"`
-	Service		string	 `json:"service"`
-	Name			string   `json:"name"`
-	Resource  string   `json:"resource"`
-	Start			int64    `json:"start"`
-	Duration  float64  `json:"duration"`
+// type DatadogTraceSpan struct {
+// 	TraceId   int64    `json:"trace_id"`
+// 	SpanId   	int64    `json:"span_id"`
+// 	ParentId	int64    `json:"parent_id"`
+// 	Service		string	 `json:"service"`
+// 	Name			string   `json:"name"`
+// 	Resource  string   `json:"resource"`
+// 	Start			int64    `json:"start"`
+// 	Duration  float64  `json:"duration"`
 	// Type      string   `json:"type"`
 	// Meta      map[string]interface{} `json:"meta"`,
 	// Metrics   map[string]interface{} `json:"meta"`
@@ -427,4 +428,4 @@ type DatadogTraceSpan struct {
 	// Timestamp int64    `json:"timestamp,omitempty"` // represented as a unix epoch
 	// Tags      []string `json:"tags,omitempty"`
 	// Message   string   `json:"message,omitempty"`
-}
+// }
