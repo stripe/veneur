@@ -1,6 +1,8 @@
 package samplers
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -90,6 +92,41 @@ func (c *Counter) Flush(interval time.Duration) []DDMetric {
 		MetricType: "rate",
 		Interval:   int32(interval.Seconds()),
 	}}
+}
+
+// Export converts a Counter into a JSONMetric which reports the rate.
+func (c *Counter) Export() (JSONMetric, error) {
+	buf := new(bytes.Buffer)
+
+	err := binary.Write(buf, binary.LittleEndian, c.value)
+	if err != nil {
+		return JSONMetric{}, err
+	}
+
+	return JSONMetric{
+		MetricKey: MetricKey{
+			Name:       c.Name,
+			Type:       "counter",
+			JoinedTags: strings.Join(c.Tags, ","),
+		},
+		Tags:  c.Tags,
+		Value: buf.Bytes(),
+	}, nil
+}
+
+// Combine merges the values seen with another set (marshalled as a byte slice)
+func (c *Counter) Combine(other []byte) error {
+	var otherCounts int64
+	buf := bytes.NewReader(other)
+	err := binary.Read(buf, binary.LittleEndian, &otherCounts)
+
+	if err != nil {
+		return err
+	}
+
+	c.value += otherCounts
+
+	return nil
 }
 
 // NewCounter generates and returns a new Counter.

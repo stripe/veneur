@@ -19,8 +19,16 @@ type UDPMetric struct {
 	Value      interface{}
 	SampleRate float32
 	Tags       []string
-	LocalOnly  bool
+	Scope      MetricScope
 }
+
+type MetricScope int
+
+const (
+	MixedScope MetricScope = iota
+	LocalOnly
+	GlobalOnly
+)
 
 // MetricKey is a struct used to key the metrics into the worker's map. All fields must be comparable types.
 type MetricKey struct {
@@ -129,7 +137,12 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 				if tag == "veneurlocalonly" {
 					// delete the tag from the list
 					tags = append(tags[:i], tags[i+1:]...)
-					ret.LocalOnly = true
+					ret.Scope = LocalOnly
+					break
+				} else if tag == "veneurglobalonly" {
+					// delete the tag from the list
+					tags = append(tags[:i], tags[i+1:]...)
+					ret.Scope = GlobalOnly
 					break
 				}
 			}

@@ -38,7 +38,9 @@ func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
 	tempMetrics, ms := s.tallyMetrics(percentiles)
 
 	// the global veneur instance is also responsible for reporting the sets
+	// and global counters
 	ms.totalLength += ms.totalSets
+	ms.totalLength += ms.totalGlobalCounters
 
 	finalMetrics := s.generateDDMetrics(interval, percentiles, tempMetrics, ms)
 
@@ -106,6 +108,8 @@ type metricsSummary struct {
 	totalSets       int
 	totalTimers     int
 
+	totalGlobalCounters int
+
 	totalLocalHistograms int
 	totalLocalSets       int
 	totalLocalTimers     int
@@ -135,6 +139,8 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 		ms.totalHistograms += len(wm.histograms)
 		ms.totalSets += len(wm.sets)
 		ms.totalTimers += len(wm.timers)
+
+		ms.totalGlobalCounters += len(wm.globalCounters)
 
 		ms.totalLocalHistograms += len(wm.localHistograms)
 		ms.totalLocalSets += len(wm.localSets)
@@ -200,6 +206,13 @@ func (s *Server) generateDDMetrics(interval time.Duration, percentiles []float64
 			for _, s := range wm.sets {
 				finalMetrics = append(finalMetrics, s.Flush()...)
 			}
+
+			// also do this for global counters
+			// global counters have no local parts, so if we're a local veneur,
+			// there's nothing to flush
+			for _, gc := range wm.globalCounters {
+				finalMetrics = append(finalMetrics, gc.Flush(interval)...)
+			}
 		}
 	}
 
@@ -225,7 +238,7 @@ func (s *Server) reportMetricsFlushCounts(ms metricsSummary) {
 }
 
 // reportGlobalMetricsFlushCounts reports the counts of
-// totalHistograms, totalSets, and totalTimers,
+// globalCounters, totalHistograms, totalSets, and totalTimers,
 // which are the three metrics reported *only* by the global
 // veneur instance.
 func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
@@ -234,6 +247,7 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 	// this avoids double-counting problems where a local veneur reports
 	// histograms that it received, and then a global veneur reports them
 	// again
+	s.statsd.Count("worker.metrics_flushed_total", int64(ms.totalGlobalCounters), []string{"metric_type:global_counter"}, 1.0)
 	s.statsd.Count("worker.metrics_flushed_total", int64(ms.totalHistograms), []string{"metric_type:histogram"}, 1.0)
 	s.statsd.Count("worker.metrics_flushed_total", int64(ms.totalSets), []string{"metric_type:set"}, 1.0)
 	s.statsd.Count("worker.metrics_flushed_total", int64(ms.totalTimers), []string{"metric_type:timer"}, 1.0)
@@ -317,6 +331,18 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 	jsonMetrics := make([]samplers.JSONMetric, 0, jmLength)
 	exportStart := time.Now()
 	for _, wm := range wms {
+		for _, count := range wm.globalCounters {
+			jm, err := count.Export()
+			if err != nil {
+				log.WithFields(logrus.Fields{
+					logrus.ErrorKey: err,
+					"type":          "counter",
+					"name":          count.Name,
+				}).Error("Could not export metric")
+				continue
+			}
+			jsonMetrics = append(jsonMetrics, jm)
+		}
 		for _, histo := range wm.histograms {
 			jm, err := histo.Export()
 			if err != nil {
