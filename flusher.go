@@ -83,7 +83,7 @@ func (s *Server) FlushLocal(interval time.Duration, metricLimit int) {
 
 	// we cannot do this until we're done using tempMetrics within this function,
 	// since not everything in tempMetrics is safe for sharing
-	go s.flushForward(tempMetrics, interval)
+	go s.flushForward(tempMetrics)
 
 	go func() {
 		for _, p := range s.getPlugins() {
@@ -320,7 +320,7 @@ func (s *Server) flushPart(metricSlice []samplers.DDMetric, wg *sync.WaitGroup) 
 	}, "flush", true)
 }
 
-func (s *Server) flushForward(wms []WorkerMetrics, interval time.Duration) {
+func (s *Server) flushForward(wms []WorkerMetrics) {
 	jmLength := 0
 	for _, wm := range wms {
 		jmLength += len(wm.histograms)
