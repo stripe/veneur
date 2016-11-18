@@ -444,15 +444,15 @@ func resolveEndpoint(endpoint string) (string, error) {
 func (s *Server) flushTraces() {
 	traces := s.TraceWorker.Flush()
 
-	var finalTraces []*samplers.DatadogTraceSpan
+	var finalTraces []*DatadogTraceSpan
 	traces.Do(func(t interface{}) {
 		if t != nil {
 			span, ok := t.(ssf.SSFSample)
 			if ok {
-				ddspan := &samplers.DatadogTraceSpan{
-					TraceId: *span.Trace.TraceId,
-					SpanId: *span.Trace.Id,
-					ParentId: *span.Trace.ParentId,
+				ddspan := &DatadogTraceSpan{
+					TraceID: *span.Trace.TraceId,
+					SpanID: *span.Trace.Id,
+					ParentID: *span.Trace.ParentId,
 					// Service: ?
 					Name: *span.Name,
 					// Resource: ?
