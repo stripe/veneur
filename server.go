@@ -50,6 +50,7 @@ type Server struct {
 
 	DDHostname string
 	DDAPIKey   string
+	DDTraceAddress string
 	HTTPClient *http.Client
 
 	HTTPAddr    string
@@ -74,6 +75,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.Tags = conf.Tags
 	ret.DDHostname = conf.APIHostname
 	ret.DDAPIKey = conf.Key
+	ret.DDTraceAddress = conf.TraceAPIAddress
 	ret.HistogramPercentiles = conf.Percentiles
 	if len(conf.Aggregates) == 0 {
 		ret.HistogramAggregates.Value = samplers.AggregateMin + samplers.AggregateMax + samplers.AggregateCount

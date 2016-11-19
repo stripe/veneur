@@ -472,8 +472,8 @@ func (s *Server) flushTraces() {
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
 
-		err := s.postHelper(fmt.Sprintf("%s/1e3k8ck1", "http://requestb.in"), finalTraces, "flush_traces", false)
-		// err := s.postHelper(fmt.Sprintf("%s/", "http://localhost:7777"), traces, "flush_traces", false)
+		// err := s.postHelper(fmt.Sprintf("%s/1e3k8ck1", "http://requestb.in"), finalTraces, "flush_traces", false)
+		err := s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
 
 		if err == nil {
 			log.WithField("checks", len(finalTraces)).Info("Completed flushing traces to Datadog")
