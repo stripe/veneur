@@ -450,14 +450,14 @@ func (s *Server) flushTraces() {
 			span, ok := t.(ssf.SSFSample)
 			if ok {
 				ddspan := &DatadogTraceSpan{
-					TraceID: *span.Trace.TraceId,
-					SpanID: *span.Trace.Id,
-					ParentID: *span.Trace.ParentId,
+					TraceID: span.Trace.TraceId,
+					SpanID: span.Trace.Id,
+					ParentID: span.Trace.ParentId,
 					// Service: ?
-					Name: *span.Name,
+					Name: span.Name,
 					// Resource: ?
-					Start: *span.Timestamp,
-					Duration: *span.Value,
+					Start: span.Timestamp,
+					Duration: span.Value,
 					// Type: ?
 					// Tags:
 				}
