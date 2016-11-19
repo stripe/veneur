@@ -30,6 +30,7 @@ http_address: "localhost:8127"
 forward_address: "http://veneur.example.com"
 sentry_dsn: ""
 trace_address: "localhost:8128"
+trace_api_address: "http://localhost:7777"
 
 # If absent, defaults to the os.Hostname()!
 hostname: foobar
