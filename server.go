@@ -48,10 +48,10 @@ type Server struct {
 	Hostname string
 	Tags     []string
 
-	DDHostname string
-	DDAPIKey   string
+	DDHostname     string
+	DDAPIKey       string
 	DDTraceAddress string
-	HTTPClient *http.Client
+	HTTPClient     *http.Client
 
 	HTTPAddr    string
 	ForwardAddr string

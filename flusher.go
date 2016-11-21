@@ -69,7 +69,7 @@ func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
 // for posting to Datadog.
 func (s *Server) FlushLocal(interval time.Duration, metricLimit int) {
 	go s.flushEventsChecks() // we can do all of this separately
-	go s.flushTraces() // this too!
+	go s.flushTraces()       // this too!
 
 	// don't publish percentiles if we're a local veneur; that's the global
 	// veneur's job
@@ -450,13 +450,14 @@ func (s *Server) flushTraces() {
 			span, ok := t.(ssf.SSFSample)
 			if ok {
 				ddspan := &DatadogTraceSpan{
-					TraceID: span.Trace.TraceId,
-					SpanID: span.Trace.Id,
-					ParentID: span.Trace.ParentId,
+					// TODO use int64 instead of int
+					TraceID:  int(span.Trace.TraceId),
+					SpanID:   int(span.Trace.Id),
+					ParentID: int(span.Trace.ParentId),
 					// Service: ?
 					Name: span.Name,
 					// Resource: ?
-					Start: span.Timestamp,
+					Start:    int(span.Timestamp),
 					Duration: span.Value,
 					// Type: ?
 					// Tags:

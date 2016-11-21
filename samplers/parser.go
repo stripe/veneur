@@ -420,12 +420,12 @@ func ParseServiceCheck(packet []byte) (*UDPServiceCheck, error) {
 // 	Resource  string   `json:"resource"`
 // 	Start			int64    `json:"start"`
 // 	Duration  float64  `json:"duration"`
-	// Type      string   `json:"type"`
-	// Meta      map[string]interface{} `json:"meta"`,
-	// Metrics   map[string]interface{} `json:"meta"`
-	// Status    int      `json:"status"`
-	// Hostname  string   `json:"host_name"`
-	// Timestamp int64    `json:"timestamp,omitempty"` // represented as a unix epoch
-	// Tags      []string `json:"tags,omitempty"`
-	// Message   string   `json:"message,omitempty"`
+// Type      string   `json:"type"`
+// Meta      map[string]interface{} `json:"meta"`,
+// Metrics   map[string]interface{} `json:"meta"`
+// Status    int      `json:"status"`
+// Hostname  string   `json:"host_name"`
+// Timestamp int64    `json:"timestamp,omitempty"` // represented as a unix epoch
+// Tags      []string `json:"tags,omitempty"`
+// Message   string   `json:"message,omitempty"`
 // }

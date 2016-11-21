@@ -7,9 +7,9 @@ debug: true
 enable_profiling: true
 interval: "10s"
 key: "farts"
-# Numbers larger than one will enable the use of SO_REUSEPORT, make sure
+# Numbers larger than 1 will enable the use of SO_REUSEPORT, make sure
 # this is supported on your platform!
-num_workers: 1
+num_workers: 96
 num_readers: 1
 percentiles:
   - 0.5
