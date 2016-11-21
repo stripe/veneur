@@ -334,7 +334,7 @@ func NewTraceWorker(stats *statsd.Client) *TraceWorker {
 	return &TraceWorker{
 		TraceChan: make(chan ssf.SSFSample),
 		mutex:     &sync.Mutex{},
-		traces:    ring.New(1024), // TODO MAKE THIS CONFIGURABLE
+		traces:    ring.New(12), // TODO MAKE THIS CONFIGURABLE
 		stats:     stats,
 	}
 }
