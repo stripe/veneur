@@ -10,10 +10,13 @@ install:
   - sudo chmod 777 /usr/bin/protoc
 
 before_script:
-  - go get github.com/ChimeraCoder/gojson/gojson
-  - go get github.com/golang/protobuf/protoc-gen-go
+  - go get -u github.com/ChimeraCoder/gojson/gojson
+  - go get -u github.com/golang/protobuf/protoc-gen-go
   - go generate
   - gofmt -w .
+  # If `go generate` or `gofmt` yielded any changes,
+  # this will fail with an error message like "too many arguments"
+  # or "M: binary operator expected"
   - test -n $(git status --porcelain)
 
 
