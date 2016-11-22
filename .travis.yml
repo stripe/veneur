@@ -5,20 +5,28 @@ go:
 
 install:
   - wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
-  - unzip protoc-3.1.0-linux-x86_64.zip
-  - sudo cp bin/protoc /usr/bin/protoc
+  - unzip protoc-3.1.0-linux-x86_64.zip -d /tmp
+  - sudo cp /tmp/bin/protoc /usr/bin/protoc
   - sudo chmod 777 /usr/bin/protoc
+  - rm protoc-3.1.0-linux-x86_64.zip
 
 before_script:
   - go get -u github.com/ChimeraCoder/gojson/gojson
   - go get -u github.com/golang/protobuf/protoc-gen-go
   - go generate
+  # We need to ignore changes to this one file
+  # because the go-generated version will have a different
+  # fileDescriptor0 depending on which version of Go was used
+  # to build protoc-gen-go.
+  - git checkout ssf/sample.pb.go
+
   - gofmt -w .
+
   # If `go generate` or `gofmt` yielded any changes,
   # this will fail with an error message like "too many arguments"
   # or "M: binary operator expected"
-  - test -n $(git status --porcelain)
-
+  - git add .
+  - git diff-index --cached --exit-code HEAD
 
 script:
   go test -v ./...
