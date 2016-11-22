@@ -451,13 +451,13 @@ func (s *Server) flushTraces() {
 			if ok {
 				ddspan := &DatadogTraceSpan{
 					// TODO use int64 instead of int
-					TraceID:  int(span.Trace.TraceId),
-					SpanID:   int(span.Trace.Id),
-					ParentID: int(span.Trace.ParentId),
+					TraceID:  int64(span.Trace.TraceId),
+					SpanID:   int64(span.Trace.Id),
+					ParentID: int64(span.Trace.ParentId),
 					// Service: ?
 					Name: span.Name,
 					// Resource: ?
-					Start:    int(span.Timestamp),
+					Start:    int64(span.Timestamp),
 					Duration: span.Value,
 					// Type: ?
 					// Tags:
