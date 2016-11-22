@@ -36,7 +36,7 @@ message SSFSample {
   Status status = 5;
   double value = 6;
   float sample_rate = 7;
-  SSFTag tags = 8;
+  repeated SSFTag tags = 8;
   string unit = 9;
   SSFTrace trace = 10;
 }

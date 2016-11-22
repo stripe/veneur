@@ -15,15 +15,15 @@ func main() {
 	tags = append(tags, &ssf.SSFTag{Name: *proto.String("baz")})
 
 	test := &ssf.SSFSample{
-		Metric:    ssf.SSFSample_TRACE.Enum(),
+		Metric:    ssf.SSFSample_TRACE,
 		Timestamp: *proto.Int64(1474599325),
-		Status:    ssf.SSFSample_OK.Enum(),
+		Status:    ssf.SSFSample_OK,
 		Name:      *proto.String("foo.bar"),
 		// Message:   proto.String("Hello World!"),
 		Trace: &ssf.SSFTrace{
-			TraceId:  *proto.Int64(1234),
-			Id:       *proto.Int64(1235),
-			Duration: *proto.Int64(12),
+			TraceId: *proto.Int64(1234),
+			Id:      *proto.Int64(1235),
+			//Duration: *proto.Int64(12),
 			ParentId: *proto.Int64(23),
 		},
 		Value:      *proto.Float64(1.234),
