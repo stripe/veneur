@@ -27,3 +27,7 @@ bin
 _work
 /veneur
 /cmd/veneur/veneur
+
+*.swp
+*.swo
+*.swn
