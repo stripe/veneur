@@ -5,11 +5,11 @@ type DatadogTraceSpan struct {
 	Meta     struct{} `json:"meta"`
 	Metrics  struct{} `json:"metrics"`
 	Name     string   `json:"name"`
-	ParentID int      `json:"parent_id"`
+	ParentID int64    `json:"parent_id"`
 	Resource string   `json:"resource"`
 	Service  string   `json:"service"`
-	SpanID   int      `json:"span_id"`
-	Start    int      `json:"start"`
-	TraceID  int      `json:"trace_id"`
+	SpanID   int64    `json:"span_id"`
+	Start    int64    `json:"start"`
+	TraceID  int64    `json:"trace_id"`
 	Type     string   `json:"type"`
 }

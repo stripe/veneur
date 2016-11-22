@@ -103,6 +103,20 @@ func (m *SSFTag) String() string            { return proto.CompactTextString(m) 
 func (*SSFTag) ProtoMessage()               {}
 func (*SSFTag) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
+func (m *SSFTag) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *SSFTag) GetValue() string {
+	if m != nil {
+		return m.Value
+	}
+	return ""
+}
+
 type SSFTrace struct {
 	TraceId  int64 `protobuf:"varint,1,opt,name=trace_id,json=traceId" json:"trace_id,omitempty"`
 	Id       int64 `protobuf:"varint,2,opt,name=id" json:"id,omitempty"`
@@ -113,6 +127,27 @@ func (m *SSFTrace) Reset()                    { *m = SSFTrace{} }
 func (m *SSFTrace) String() string            { return proto.CompactTextString(m) }
 func (*SSFTrace) ProtoMessage()               {}
 func (*SSFTrace) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+
+func (m *SSFTrace) GetTraceId() int64 {
+	if m != nil {
+		return m.TraceId
+	}
+	return 0
+}
+
+func (m *SSFTrace) GetId() int64 {
+	if m != nil {
+		return m.Id
+	}
+	return 0
+}
+
+func (m *SSFTrace) GetParentId() int64 {
+	if m != nil {
+		return m.ParentId
+	}
+	return 0
+}
 
 type SSFSample struct {
 	Metric     SSFSample_Metric `protobuf:"varint,1,opt,name=metric,enum=ssf.SSFSample_Metric" json:"metric,omitempty"`
@@ -132,11 +167,67 @@ func (m *SSFSample) String() string            { return proto.CompactTextString(
 func (*SSFSample) ProtoMessage()               {}
 func (*SSFSample) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
 
+func (m *SSFSample) GetMetric() SSFSample_Metric {
+	if m != nil {
+		return m.Metric
+	}
+	return SSFSample_COUNTER
+}
+
+func (m *SSFSample) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *SSFSample) GetTimestamp() int64 {
+	if m != nil {
+		return m.Timestamp
+	}
+	return 0
+}
+
+func (m *SSFSample) GetMessage() string {
+	if m != nil {
+		return m.Message
+	}
+	return ""
+}
+
+func (m *SSFSample) GetStatus() SSFSample_Status {
+	if m != nil {
+		return m.Status
+	}
+	return SSFSample_OK
+}
+
+func (m *SSFSample) GetValue() float64 {
+	if m != nil {
+		return m.Value
+	}
+	return 0
+}
+
+func (m *SSFSample) GetSampleRate() float32 {
+	if m != nil {
+		return m.SampleRate
+	}
+	return 0
+}
+
 func (m *SSFSample) GetTags() []*SSFTag {
 	if m != nil {
 		return m.Tags
 	}
 	return nil
+}
+
+func (m *SSFSample) GetUnit() string {
+	if m != nil {
+		return m.Unit
+	}
+	return ""
 }
 
 func (m *SSFSample) GetTrace() *SSFTrace {
