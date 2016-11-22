@@ -11,23 +11,23 @@ import (
 
 func main() {
 	tags := []*ssf.SSFTag{}
-	tags = append(tags, &ssf.SSFTag{Name: proto.String("foo"), Value: proto.String("bar")})
-	tags = append(tags, &ssf.SSFTag{Name: proto.String("baz")})
+	tags = append(tags, &ssf.SSFTag{Name: *proto.String("foo"), Value: *proto.String("bar")})
+	tags = append(tags, &ssf.SSFTag{Name: *proto.String("baz")})
 
 	test := &ssf.SSFSample{
 		Metric:    ssf.SSFSample_TRACE.Enum(),
-		Timestamp: proto.Int64(1474599325),
+		Timestamp: *proto.Int64(1474599325),
 		Status:    ssf.SSFSample_OK.Enum(),
-		Name:      proto.String("foo.bar"),
+		Name:      *proto.String("foo.bar"),
 		// Message:   proto.String("Hello World!"),
 		Trace: &ssf.SSFTrace{
-			TraceId:  proto.Int64(1234),
-			Id:       proto.Int64(1235),
-			Duration: proto.Int64(12),
-			ParentId: proto.Int64(23),
+			TraceId:  *proto.Int64(1234),
+			Id:       *proto.Int64(1235),
+			Duration: *proto.Int64(12),
+			ParentId: *proto.Int64(23),
 		},
-		Value:      proto.Float64(1.234),
-		SampleRate: proto.Float32(0.50),
+		Value:      *proto.Float64(1.234),
+		SampleRate: *proto.Float32(0.50),
 		Tags:       tags,
 		// Unit:       proto.String("farts"),
 	}
