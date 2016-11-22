@@ -1,7 +1,6 @@
 package veneur
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
