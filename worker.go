@@ -253,8 +253,8 @@ func (w *Worker) Flush() WorkerMetrics {
 		1.0,
 	)
 
-	w.stats.Count("worker.metrics_processed_total", processed, []string{fmt.Sprintf("worker:%d", w.id)}, 1.0)
-	w.stats.Count("worker.metrics_imported_total", imported, []string{fmt.Sprintf("worker:%d", w.id)}, 1.0)
+	w.stats.Count("worker.metrics_processed_total", processed, []string{}, 1.0)
+	w.stats.Count("worker.metrics_imported_total", imported, []string{}, 1.0)
 
 	return ret
 }
