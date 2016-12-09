@@ -33,6 +33,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 
 func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
 	go s.flushEventsChecks() // we can do all of this separately
+	go s.flushTraces()       // this too!
 
 	percentiles := s.HistogramPercentiles
 
