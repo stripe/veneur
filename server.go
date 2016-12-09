@@ -283,7 +283,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	if err != nil {
 		log.Fatal("Trace unmarshaling error: ", err)
 	}
-	log.Info(proto.CompactTextString(newSample))
+	log.WithField("proto", proto.CompactTextString(newSample)).Error("Handling trace packet")
 
 	s.TraceWorker.TraceChan <- *newSample
 }

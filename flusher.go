@@ -480,7 +480,7 @@ func (s *Server) flushTraces() {
 			log.WithField("checks", len(finalTraces)).Info("Completed flushing traces to Datadog")
 		}
 	} else {
-		log.Debug("No traces to flush, skipping.")
+		log.Info("No traces to flush, skipping.")
 	}
 
 }
