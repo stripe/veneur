@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/golang/protobuf/proto"
 	"github.com/stripe/veneur/ssf"
 )
@@ -56,4 +57,8 @@ func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, traceId, 
 	if err != nil {
 		log.WithError(err).Error("Error submitting sample")
 	}
+	log.WithFields(logrus.Fields{
+		"parent": parentId,
+		"id":     id,
+	}).Info("Recorded trace")
 }

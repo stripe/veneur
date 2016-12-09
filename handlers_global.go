@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/golang/protobuf/proto"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
@@ -57,7 +58,9 @@ func handleImport(s *Server) http.Handler {
 
 			err := sendSample(sample)
 			if err != nil {
-				log.WithError(err).Error("Error submitting sample")
+				logrus.Infof("Error submitting sample %s", err)
+			} else {
+				logrus.Infof("Recorded trace %d (parent %d)", spanId, traceId)
 			}
 		}(start, "veneur.import.trace", []*ssf.SSFTag{}, *traceId, *spanId, *traceId)
 
