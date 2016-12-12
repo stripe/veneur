@@ -478,7 +478,7 @@ func (s *Server) flushTraces() {
 		err := s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
 
 		if err == nil {
-			log.WithField("checks", len(finalTraces)).Info("Completed flushing traces to Datadog")
+			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
 		}
 	} else {
 		log.Info("No traces to flush, skipping.")
