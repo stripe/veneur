@@ -355,6 +355,7 @@ func (s *Server) ReadTraceSocket(packetPool *sync.Pool, reuseport bool) {
 	log.WithField("address", s.TraceAddr).Info("Listening for UDP traces")
 
 	for {
+		log.Info("Reading traces from socket over UDP")
 		buf := packetPool.Get().([]byte)
 		n, _, err := serverConn.ReadFrom(buf)
 		if err != nil {
