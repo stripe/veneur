@@ -338,6 +338,11 @@ func (s *Server) ReadMetricSocket(packetPool *sync.Pool, reuseport bool) {
 func (s *Server) ReadTraceSocket(packetPool *sync.Pool, reuseport bool) {
 	// TODO This is duplicated from ReadMetricSocket and feels like it could be it's
 	// own function?
+
+	if s.TraceAddr == nil {
+		log.WithField("s.TraceAddr", s.TraceAddr).Fatal("Cannot listen on nil trace address")
+	}
+
 	serverConn, err := NewSocket(s.TraceAddr, s.RcvbufBytes, reuseport)
 	if err != nil {
 		// if any goroutine fails to create the socket, we can't really

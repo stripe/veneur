@@ -26,7 +26,7 @@ func TestReadConfig(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, interval, 10*time.Second)
 
-	assert.Equal(t, c.TraceAddress, "localhost:8128")
+	assert.Equal(t, c.TraceAddress, "127.0.0.1:8128")
 
 }
 
