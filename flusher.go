@@ -616,7 +616,7 @@ func (s *Server) postHelper(endpoint string, bodyObject interface{}, action stri
 		"response":         string(responseBody),
 	})
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		s.statsd.Count(action+".error_total", 1, []string{fmt.Sprintf("cause:%d", resp.StatusCode)}, 1.0)
 		resultLogger.Error("Could not POST")
 		return err
