@@ -59,7 +59,11 @@ func main() {
 		defer func() {
 			server.ConsumePanic(recover())
 		}()
-		server.ReadTraceSocket(tracePool, conf.NumReaders != 1)
+		if server.TraceAddr != nil {
+			server.ReadTraceSocket(tracePool, conf.NumReaders != 1)
+		} else {
+			logrus.Info("Tracing not configured - not reading trace socket")
+		}
 	}()
 
 	interval, err := conf.ParseInterval()
