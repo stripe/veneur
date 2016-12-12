@@ -277,8 +277,9 @@ func (s *Server) HandleMetricPacket(packet []byte) {
 }
 
 func (s *Server) HandleTracePacket(packet []byte) {
+	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
-		return
+		log.Error("received zero-length trace packet")
 	}
 
 	// Technically this could be anything, but we're only consuming trace spans
