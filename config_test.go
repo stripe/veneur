@@ -25,6 +25,9 @@ func TestReadConfig(t *testing.T) {
 	interval, err := c.ParseInterval()
 	assert.NoError(t, err)
 	assert.Equal(t, interval, 10*time.Second)
+
+	assert.Equal(t, c.TraceAddress, "localhost:8128")
+
 }
 
 func TestReadBadConfig(t *testing.T) {
