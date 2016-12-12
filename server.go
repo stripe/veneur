@@ -2,6 +2,7 @@ package veneur
 
 import (
 	"bytes"
+	"errors"
 	"net"
 	"net/http"
 	"sync"
@@ -176,6 +177,9 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 	if len(conf.TraceAddress) > 0 {
 		ret.TraceAddr, err = net.ResolveUDPAddr("udp", conf.TraceAddress)
+		if err == nil && ret.TraceAddr == nil {
+			err = errors.New("resolved nil UDP address")
+		}
 		if err != nil {
 			return
 		}
