@@ -60,5 +60,5 @@ func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, traceId, 
 	log.WithFields(logrus.Fields{
 		"parent": parentId,
 		"id":     id,
-	}).Info("Recorded trace")
+	}).Debug("Recorded trace")
 }
