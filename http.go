@@ -38,7 +38,7 @@ func (s *Server) Handler() http.Handler {
 func (s *Server) ImportMetrics(jsonMetrics []samplers.JSONMetric, traceId *int64, parentId *int64) {
 	start := time.Now()
 
-	recordTrace(start, "veneur.import.trace", nil, -1, *traceId, *parentId)
+	recordTrace(start, "veneur.import.trace", nil, -1, *traceId, *parentId, "")
 
 	// we have a slice of json metrics that we need to divide up across the workers
 	// we don't want to push one metric at a time (too much channel contention

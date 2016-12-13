@@ -38,19 +38,12 @@ func sendSample(sample *ssf.SSFSample) error {
 // recordTrace sends a trace to DataDog.
 // If the spanId is negative, it will be regenerated.
 // If this is the root trace, parentId should be zero.
-func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, spanId, traceId, parentId int64) {
+// resource will be ignored for non-root spans.
+func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, spanId, traceId, parentId int64, resource string) {
 	if spanId < 0 {
 		spanId = *proto.Int64(rand.Int63())
 	}
 	duration := time.Now().Sub(startTime).Nanoseconds()
-	var resource string
-
-	// TODO don't hardcode this
-	if traceId == parentId {
-		resource = "/import"
-	} else {
-		resource = "something else"
-	}
 
 	sample := &ssf.SSFSample{
 		Metric:    ssf.SSFSample_TRACE,

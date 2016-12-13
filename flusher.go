@@ -453,8 +453,13 @@ func (s *Server) flushTraces() {
 				// -1 is a canonical way of passing in invalid info in Go
 				// so we should support that too
 				parentId := int64(span.Trace.ParentId)
-				if parentId < 0 {
+				// resource should only be set on the root trace
+				var resource string
+				if parentId <= 0 {
+					// we need parentId to be zero for json:omitempty to work
 					parentId = 0
+					resource = span.Resource
+
 				}
 				ddspan := &DatadogTraceSpan{
 					TraceID:  int64(span.Trace.TraceId),
@@ -462,7 +467,7 @@ func (s *Server) flushTraces() {
 					ParentID: parentId,
 					Service:  span.Service,
 					Name:     span.Name,
-					Resource: span.Resource,
+					Resource: resource,
 					Start:    int64(span.Timestamp),
 					Duration: span.Value,
 					// TODO don't hardcode
@@ -484,12 +489,7 @@ func (s *Server) flushTraces() {
 		// support "Content-Encoding: deflate"
 
 		// err := s.postHelper(fmt.Sprintf("%s/1e3k8ck1", "http://requestb.in"), finalTraces, "flush_traces", false)
-		bts, err := json.Marshal(finalTraces)
-		if err != nil {
-			log.WithError(err).Error("could not marshal finalTraces")
-		}
-		log.WithField("json", string(bts)).Info("About to flush traces")
-		err = s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
+		err := s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
 		log.Printf("final traces %#v", finalTraces[0])
 
 		if err == nil {
