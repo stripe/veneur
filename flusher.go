@@ -478,7 +478,7 @@ func (s *Server) flushTraces() {
 		// support "Content-Encoding: deflate"
 
 		// err := s.postHelper(fmt.Sprintf("%s/1e3k8ck1", "http://requestb.in"), finalTraces, "flush_traces", false)
-		err := s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
+		err := s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), [][]*DatadogTraceSpan{finalTraces}, "flush_traces", false)
 		log.Printf("final traces %#v", finalTraces[0])
 
 		if err == nil {
