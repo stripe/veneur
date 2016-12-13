@@ -11,5 +11,7 @@
   "meta":{
   },
   "metrics": {
-  }
+    "foo": 100
+  },
+  "error": 0
 }
