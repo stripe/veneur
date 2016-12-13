@@ -39,4 +39,6 @@ message SSFSample {
   repeated SSFTag tags = 8;
   string unit = 9;
   SSFTrace trace = 10;
+  string resource = 11;
+  string service = 12;
 }

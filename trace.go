@@ -35,9 +35,23 @@ func sendSample(sample *ssf.SSFSample) error {
 	return nil
 }
 
-func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, traceId, parentId int64) {
-	id := proto.Int64(rand.Int63())
+// recordTrace sends a trace to DataDog. traceId and parentId should be
+// the same iff this is the root trace.
+// If the spanId is negative, it will be regenerated
+func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, spanId, traceId, parentId int64) {
+	if spanId < 0 {
+		spanId = *proto.Int64(rand.Int63())
+	}
 	duration := time.Now().Sub(startTime).Nanoseconds()
+	var resource string
+
+	// TODO don't hardcode this
+	if traceId == parentId {
+		resource = "/import"
+	} else {
+		resource = "something else"
+	}
+
 	sample := &ssf.SSFSample{
 		Metric:    ssf.SSFSample_TRACE,
 		Timestamp: startTime.Unix(),
@@ -45,12 +59,14 @@ func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, traceId, 
 		Name:      *proto.String(name),
 		Trace: &ssf.SSFTrace{
 			TraceId:  traceId,
-			Id:       *id,
+			Id:       spanId,
 			ParentId: parentId,
 		},
 		Value:      float64(duration),
 		SampleRate: *proto.Float32(.10),
 		Tags:       []*ssf.SSFTag{},
+		Resource:   resource,
+		Service:    "veneur",
 	}
 
 	err := sendSample(sample)
@@ -59,6 +75,6 @@ func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, traceId, 
 	}
 	log.WithFields(logrus.Fields{
 		"parent": parentId,
-		"id":     id,
+		"spanId": spanId,
 	}).Debug("Recorded trace")
 }

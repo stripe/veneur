@@ -451,16 +451,16 @@ func (s *Server) flushTraces() {
 			span, ok := t.(ssf.SSFSample)
 			if ok {
 				ddspan := &DatadogTraceSpan{
-					// TODO use int64 instead of int
 					TraceID:  int64(span.Trace.TraceId),
 					SpanID:   int64(span.Trace.Id),
 					ParentID: int64(span.Trace.ParentId),
-					// Service: ?
-					Name: span.Name,
-					// Resource: ?
+					Service:  span.Service,
+					Name:     span.Name,
+					Resource: span.Resource,
 					Start:    int64(span.Timestamp),
 					Duration: span.Value,
-					// Type: ?
+					// TODO don't hardcode
+					Type: "http",
 					// Tags:
 				}
 				finalTraces = append(finalTraces, ddspan)
@@ -476,6 +476,7 @@ func (s *Server) flushTraces() {
 
 		// err := s.postHelper(fmt.Sprintf("%s/1e3k8ck1", "http://requestb.in"), finalTraces, "flush_traces", false)
 		err := s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
+		log.Printf("final traces %#v", finalTraces[0])
 
 		if err == nil {
 			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
