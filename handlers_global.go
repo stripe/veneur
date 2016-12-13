@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/golang/protobuf/proto"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
@@ -39,33 +38,7 @@ func handleImport(s *Server) http.Handler {
 		innerLogger := log.WithField("client", r.RemoteAddr)
 		start := time.Now()
 
-		defer func(startTime time.Time, name string, tags []*ssf.SSFTag, traceId, spanId, parentId int64) {
-			duration := time.Now().Sub(startTime).Nanoseconds()
-			sample := &ssf.SSFSample{
-				Metric:    ssf.SSFSample_TRACE,
-				Timestamp: start.Unix(),
-				Status:    ssf.SSFSample_OK,
-				Name:      *proto.String("veneur.import.trace"),
-				Trace: &ssf.SSFTrace{
-					TraceId:  traceId,
-					Id:       spanId,
-					ParentId: parentId,
-				},
-				Value:      float64(duration),
-				SampleRate: *proto.Float32(.10),
-				Tags:       []*ssf.SSFTag{},
-			}
-
-			err := sendSample(sample)
-			if err != nil {
-				log.WithError(err).Error("Error submitting sample")
-			} else {
-				log.WithFields(logrus.Fields{
-					"spanId":  spanId,
-					"traceId": traceId,
-				}).Debug("Recorded trace %d (parent %d)", spanId, traceId)
-			}
-		}(start, "veneur.import.trace", []*ssf.SSFTag{}, *traceId, *spanId, *traceId)
+		defer recordTrace(start, "veneur.import.trace", []*ssf.SSFTag{}, *traceId, *spanId, *traceId)
 
 		var (
 			jsonMetrics []samplers.JSONMetric
