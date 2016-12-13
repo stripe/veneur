@@ -55,7 +55,7 @@ func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, spanId, t
 			Id:       spanId,
 			ParentId: parentId,
 		},
-		Value:      float64(duration),
+		Value:      duration,
 		SampleRate: *proto.Float32(.10),
 		Tags:       []*ssf.SSFTag{},
 		Resource:   resource,

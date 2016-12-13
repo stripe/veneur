@@ -26,7 +26,7 @@ func main() {
 			//Duration: *proto.Int64(12),
 			ParentId: *proto.Int64(23),
 		},
-		Value:      *proto.Float64(1.234),
+		//Value:      *proto.Float64(1.234),
 		SampleRate: *proto.Float32(0.50),
 		Tags:       tags,
 		// Unit:       proto.String("farts"),

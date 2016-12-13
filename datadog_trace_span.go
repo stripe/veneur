@@ -1,7 +1,7 @@
 package veneur
 
 type DatadogTraceSpan struct {
-	Duration float64            `json:"duration"`
+	Duration int64              `json:"duration"`
 	Error    int64              `json:"error"`
 	Meta     struct{}           `json:"meta"`
 	Metrics  map[string]float64 `json:"metrics"`
