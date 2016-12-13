@@ -450,10 +450,16 @@ func (s *Server) flushTraces() {
 		if t != nil {
 			span, ok := t.(ssf.SSFSample)
 			if ok {
+				// -1 is a canonical way of passing in invalid info in Go
+				// so we should support that too
+				parentId := int64(span.Trace.ParentId)
+				if parentId < 0 {
+					parentId = 0
+				}
 				ddspan := &DatadogTraceSpan{
 					TraceID:  int64(span.Trace.TraceId),
 					SpanID:   int64(span.Trace.Id),
-					ParentID: int64(span.Trace.ParentId),
+					ParentID: parentId,
 					Service:  span.Service,
 					Name:     span.Name,
 					Resource: span.Resource,

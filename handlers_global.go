@@ -38,7 +38,7 @@ func handleImport(s *Server) http.Handler {
 		innerLogger := log.WithField("client", r.RemoteAddr)
 		start := time.Now()
 
-		defer recordTrace(start, "veneur.import.trace", []*ssf.SSFTag{}, *traceId, *spanId, *traceId)
+		defer recordTrace(start, "veneur.import.trace", []*ssf.SSFTag{}, *traceId, *spanId, -1)
 
 		var (
 			jsonMetrics []samplers.JSONMetric

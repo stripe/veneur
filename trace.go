@@ -35,9 +35,9 @@ func sendSample(sample *ssf.SSFSample) error {
 	return nil
 }
 
-// recordTrace sends a trace to DataDog. traceId and parentId should be
-// the same iff this is the root trace.
-// If the spanId is negative, it will be regenerated
+// recordTrace sends a trace to DataDog.
+// If the spanId is negative, it will be regenerated.
+// If this is the root trace, parentId should be zero.
 func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, spanId, traceId, parentId int64) {
 	if spanId < 0 {
 		spanId = *proto.Int64(rand.Int63())

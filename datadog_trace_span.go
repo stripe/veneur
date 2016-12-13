@@ -6,7 +6,7 @@ type DatadogTraceSpan struct {
 	Meta     struct{}           `json:"meta"`
 	Metrics  map[string]float64 `json:"metrics"`
 	Name     string             `json:"name"`
-	ParentID int64              `json:"parent_id"`
+	ParentID int64              `json:"parent_id,omitempty"`
 	Resource string             `json:"resource"`
 	Service  string             `json:"service"`
 	SpanID   int64              `json:"span_id"`
