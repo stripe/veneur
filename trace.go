@@ -54,7 +54,7 @@ func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, spanId, t
 
 	sample := &ssf.SSFSample{
 		Metric:    ssf.SSFSample_TRACE,
-		Timestamp: startTime.Unix(),
+		Timestamp: startTime.UnixNano(),
 		Status:    ssf.SSFSample_OK,
 		Name:      *proto.String(name),
 		Trace: &ssf.SSFTrace{
