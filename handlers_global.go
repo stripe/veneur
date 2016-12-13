@@ -33,7 +33,7 @@ func handleImport(s *Server) http.Handler {
 	return contextHandler(func(c context.Context, w http.ResponseWriter, r *http.Request) {
 
 		traceId := proto.Int64(rand.Int63())
-		spanId := proto.Int64(rand.Int63())
+		spanId := traceId
 
 		innerLogger := log.WithField("client", r.RemoteAddr)
 		start := time.Now()
@@ -84,17 +84,8 @@ func handleImport(s *Server) http.Handler {
 		// that is not empty (ie, all fields are the zero value)
 		// because that is usually the sign that we are unmarshalling
 		// into the wrong struct type
-		var nonEmpty bool
-		sentinel := samplers.JSONMetric{}
-		for _, metric := range jsonMetrics {
-			if !reflect.DeepEqual(sentinel, metric) {
-				// we have found at least one entry that is properly formed
-				nonEmpty = true
-				break
-			}
-		}
 
-		if !nonEmpty {
+		if !nonEmpty(jsonMetrics, *spanId) {
 			const msg = "Received empty or improperly-formed metrics"
 			http.Error(w, msg, http.StatusBadRequest)
 			innerLogger.Error(msg)
@@ -111,4 +102,21 @@ func handleImport(s *Server) http.Handler {
 		// response, so this part must be done asynchronously
 		go s.ImportMetrics(jsonMetrics, traceId, spanId)
 	})
+}
+
+// nonEmpty returns true if there is at least one non-empty
+// metric
+func nonEmpty(jsonMetrics []samplers.JSONMetric, traceId int64) bool {
+	start := time.Now()
+	defer recordTrace(start, "veneur.import.nonEmpty.trace", nil, -1, traceId, traceId, "/import")
+
+	sentinel := samplers.JSONMetric{}
+	for _, metric := range jsonMetrics {
+		if !reflect.DeepEqual(sentinel, metric) {
+			// we have found at least one entry that is properly formed
+			return true
+
+		}
+	}
+	return false
 }
