@@ -34,7 +34,9 @@ message SSFSample {
   int64 timestamp = 3;
   string message = 4;
   Status status = 5;
-  double value = 6;
+  // At the moment, this Value refers specifically to a Duration
+  // TODO change this to a separate field
+  int64 value = 6;
   float sample_rate = 7;
   repeated SSFTag tags = 8;
   string unit = 9;
