@@ -458,9 +458,9 @@ func (s *Server) flushTraces() {
 				if parentId <= 0 {
 					// we need parentId to be zero for json:omitempty to work
 					parentId = 0
-					resource = span.Resource
-
 				}
+				resource = span.Resource
+
 				ddspan := &DatadogTraceSpan{
 					TraceID:  int64(span.Trace.TraceId),
 					SpanID:   int64(span.Trace.Id),
@@ -491,6 +491,9 @@ func (s *Server) flushTraces() {
 		// err := s.postHelper(fmt.Sprintf("%s/1e3k8ck1", "http://requestb.in"), finalTraces, "flush_traces", false)
 		err := s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
 		log.Printf("final traces %#v", finalTraces[0])
+		if len(finalTraces) > 1 {
+			log.Printf("final traces 2 %#v", finalTraces[1])
+		}
 
 		if err == nil {
 			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
