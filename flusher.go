@@ -460,8 +460,11 @@ func (s *Server) flushTraces() {
 					Start:    int64(span.Timestamp),
 					Duration: span.Value,
 					// TODO don't hardcode
-					Type: "http",
-					// Tags:
+					Type:  "http",
+					Error: 0,
+					Metrics: map[string]float64{
+						"veneur.import.trace.foo": 100,
+					},
 				}
 				finalTraces = append(finalTraces, ddspan)
 			} else {
@@ -475,7 +478,12 @@ func (s *Server) flushTraces() {
 		// support "Content-Encoding: deflate"
 
 		// err := s.postHelper(fmt.Sprintf("%s/1e3k8ck1", "http://requestb.in"), finalTraces, "flush_traces", false)
-		err := s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
+		bts, err := json.Marshal(finalTraces)
+		if err != nil {
+			log.WithError(err).Error("could not marshal finalTraces")
+		}
+		log.WithField("json", string(bts)).Info("About to flush traces")
+		err = s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
 		log.Printf("final traces %#v", finalTraces[0])
 
 		if err == nil {
