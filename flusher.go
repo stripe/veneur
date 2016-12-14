@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/golang/protobuf/proto"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 )
@@ -21,17 +23,29 @@ import (
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) Flush(interval time.Duration, metricLimit int) {
+
+	traceId := proto.Int64(rand.Int63())
+	spanId := traceId
+	start := time.Now()
+	defer s.recordTrace(start, "veneur.flush.trace", []*ssf.SSFTag{}, *traceId, *spanId, -1, "flush")
+
 	// right now we have only one destination plugin
 	// but eventually, this is where we would loop over our supported
 	// destinations
 	if s.IsLocal() {
-		s.FlushLocal(interval, metricLimit)
+		s.FlushLocal(interval, metricLimit, *spanId)
 	} else {
-		s.FlushGlobal(interval, metricLimit)
+		s.FlushGlobal(interval, metricLimit, *spanId)
 	}
 }
 
-func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
+func (s *Server) FlushGlobal(interval time.Duration, metricLimit int, parentId int64) {
+	start := time.Now()
+	spanId := proto.Int64(rand.Int63())
+	// we know the parent was the root
+	traceId := parentId
+	defer s.recordTrace(start, "veneur.flush.FlushGlobal.trace", nil, *spanId, traceId, parentId, "flush")
+
 	go s.flushEventsChecks() // we can do all of this separately
 	go s.flushTraces()       // this too!
 
@@ -44,7 +58,7 @@ func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
 	ms.totalLength += ms.totalSets
 	ms.totalLength += ms.totalGlobalCounters
 
-	finalMetrics := s.generateDDMetrics(interval, percentiles, tempMetrics, ms)
+	finalMetrics := s.generateDDMetrics(interval, percentiles, tempMetrics, ms, *spanId, parentId)
 
 	s.reportMetricsFlushCounts(ms)
 
@@ -68,7 +82,13 @@ func (s *Server) FlushGlobal(interval time.Duration, metricLimit int) {
 
 // FlushLocal takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
-func (s *Server) FlushLocal(interval time.Duration, metricLimit int) {
+func (s *Server) FlushLocal(interval time.Duration, metricLimit int, parentId int64) {
+	start := time.Now()
+	spanId := proto.Int64(rand.Int63())
+	// we know the parent was the root
+	traceId := parentId
+	defer s.recordTrace(start, "veneur.flush.FlushLocal.trace", nil, *spanId, traceId, parentId, "flush")
+
 	go s.flushEventsChecks() // we can do all of this separately
 	go s.flushTraces()       // this too!
 
@@ -78,7 +98,7 @@ func (s *Server) FlushLocal(interval time.Duration, metricLimit int) {
 
 	tempMetrics, ms := s.tallyMetrics(percentiles)
 
-	finalMetrics := s.generateDDMetrics(interval, percentiles, tempMetrics, ms)
+	finalMetrics := s.generateDDMetrics(interval, percentiles, tempMetrics, ms, *spanId, parentId)
 
 	s.reportMetricsFlushCounts(ms)
 
@@ -168,8 +188,11 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 // generateDDMetrics calls the Flush method on each
 // counter/gauge/histogram/timer/set in order to
 // generate a DDMetric corresponding to that value
-func (s *Server) generateDDMetrics(interval time.Duration, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.DDMetric {
+func (s *Server) generateDDMetrics(interval time.Duration, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary, parentId, traceId int64) []samplers.DDMetric {
 	combineStart := time.Now()
+	spanId := proto.Int64(rand.Int63())
+	defer s.recordTrace(combineStart, "veneur.flush.generateDDMetrics.trace", nil, *spanId, traceId, parentId, "flush")
+
 	finalMetrics := make([]samplers.DDMetric, 0, ms.totalLength)
 	for _, wm := range tempMetrics {
 		for _, c := range wm.counters {
@@ -501,6 +524,10 @@ func (s *Server) flushTraces() {
 
 		if err == nil {
 			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
+		} else {
+			log.WithFields(logrus.Fields{
+				"traces": len(finalTraces),
+				"error":  err}).Error("Error flushing traces to Datadog")
 		}
 	} else {
 		log.Info("No traces to flush, skipping.")
