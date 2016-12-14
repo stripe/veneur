@@ -108,9 +108,6 @@ func handleImport(s *Server) http.Handler {
 // metric
 func nonEmpty(jsonMetrics []samplers.JSONMetric, traceId int64) bool {
 	start := time.Now()
-
-	<-time.After(1 * time.Second)
-
 	defer recordTrace(start, "veneur.import.nonEmpty.trace", nil, -1, traceId, traceId, "/import")
 
 	sentinel := samplers.JSONMetric{}
