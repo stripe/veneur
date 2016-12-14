@@ -27,7 +27,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	traceId := proto.Int64(rand.Int63())
 	spanId := traceId
 	start := time.Now()
-	defer recordTrace(start, "veneur.flush.trace", []*ssf.SSFTag{}, *traceId, *spanId, -1, "flush")
+	defer s.recordTrace(start, "veneur.flush.trace", []*ssf.SSFTag{}, *traceId, *spanId, -1, "flush")
 
 	// right now we have only one destination plugin
 	// but eventually, this is where we would loop over our supported
@@ -44,7 +44,7 @@ func (s *Server) FlushGlobal(interval time.Duration, metricLimit int, parentId i
 	spanId := proto.Int64(rand.Int63())
 	// we know the parent was the root
 	traceId := parentId
-	defer recordTrace(start, "veneur.flush.FlushGlobal.trace", nil, *spanId, traceId, parentId, "flush")
+	defer s.recordTrace(start, "veneur.flush.FlushGlobal.trace", nil, *spanId, traceId, parentId, "flush")
 
 	go s.flushEventsChecks() // we can do all of this separately
 	go s.flushTraces()       // this too!
@@ -87,7 +87,7 @@ func (s *Server) FlushLocal(interval time.Duration, metricLimit int, parentId in
 	spanId := proto.Int64(rand.Int63())
 	// we know the parent was the root
 	traceId := parentId
-	defer recordTrace(start, "veneur.flush.FlushLocal.trace", nil, *spanId, traceId, parentId, "flush")
+	defer s.recordTrace(start, "veneur.flush.FlushLocal.trace", nil, *spanId, traceId, parentId, "flush")
 
 	go s.flushEventsChecks() // we can do all of this separately
 	go s.flushTraces()       // this too!
@@ -191,7 +191,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 func (s *Server) generateDDMetrics(interval time.Duration, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary, parentId, traceId int64) []samplers.DDMetric {
 	combineStart := time.Now()
 	spanId := proto.Int64(rand.Int63())
-	defer recordTrace(combineStart, "veneur.flush.generateDDMetrics.trace", nil, *spanId, traceId, parentId, "flush")
+	defer s.recordTrace(combineStart, "veneur.flush.generateDDMetrics.trace", nil, *spanId, traceId, parentId, "flush")
 
 	finalMetrics := make([]samplers.DDMetric, 0, ms.totalLength)
 	for _, wm := range tempMetrics {
@@ -524,6 +524,10 @@ func (s *Server) flushTraces() {
 
 		if err == nil {
 			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
+		} else {
+			log.WithFields(logrus.Fields{
+				"traces": len(finalTraces),
+				"error":  err}).Error("Error flushing traces to Datadog")
 		}
 	} else {
 		log.Info("No traces to flush, skipping.")

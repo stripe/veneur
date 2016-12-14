@@ -38,7 +38,7 @@ func handleImport(s *Server) http.Handler {
 		innerLogger := log.WithField("client", r.RemoteAddr)
 		start := time.Now()
 
-		defer recordTrace(start, "veneur.import.trace", []*ssf.SSFTag{}, *traceId, *spanId, -1, "/import")
+		defer s.recordTrace(start, "veneur.import.trace", []*ssf.SSFTag{}, *traceId, *spanId, -1, "/import")
 
 		var (
 			jsonMetrics []samplers.JSONMetric
@@ -85,7 +85,7 @@ func handleImport(s *Server) http.Handler {
 		// because that is usually the sign that we are unmarshalling
 		// into the wrong struct type
 
-		if !nonEmpty(jsonMetrics, *spanId) {
+		if !s.nonEmpty(jsonMetrics, *spanId) {
 			const msg = "Received empty or improperly-formed metrics"
 			http.Error(w, msg, http.StatusBadRequest)
 			innerLogger.Error(msg)
@@ -106,9 +106,9 @@ func handleImport(s *Server) http.Handler {
 
 // nonEmpty returns true if there is at least one non-empty
 // metric
-func nonEmpty(jsonMetrics []samplers.JSONMetric, traceId int64) bool {
+func (s *Server) nonEmpty(jsonMetrics []samplers.JSONMetric, traceId int64) bool {
 	start := time.Now()
-	defer recordTrace(start, "veneur.import.nonEmpty.trace", nil, -1, traceId, traceId, "/import")
+	defer s.recordTrace(start, "veneur.import.nonEmpty.trace", nil, -1, traceId, traceId, "/import")
 
 	sentinel := samplers.JSONMetric{}
 	for _, metric := range jsonMetrics {

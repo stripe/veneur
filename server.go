@@ -289,6 +289,9 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	if err != nil {
 		log.Fatal("Trace unmarshaling error: ", err)
 	}
+
+	s.statsd.Count("veneur.traces.handled", 1, []string{}, 1.0)
+
 	log.WithField("proto", proto.CompactTextString(newSample)).Debug("Handling trace packet")
 
 	s.TraceWorker.TraceChan <- *newSample

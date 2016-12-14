@@ -10,7 +10,7 @@ import (
 	"github.com/stripe/veneur/ssf"
 )
 
-func sendSample(sample *ssf.SSFSample) error {
+func (s *Server) sendSample(sample *ssf.SSFSample) error {
 	server_addr, err := net.ResolveUDPAddr("udp", "127.0.0.1:8128")
 	if err != nil {
 		return err
@@ -32,6 +32,8 @@ func sendSample(sample *ssf.SSFSample) error {
 	if err != nil {
 		return err
 	}
+
+	s.statsd.Count("veneur.traces.sent", 1, []string{}, 1.0)
 	return nil
 }
 
@@ -39,7 +41,7 @@ func sendSample(sample *ssf.SSFSample) error {
 // If the spanId is negative, it will be regenerated.
 // If this is the root trace, parentId should be zero.
 // resource will be ignored for non-root spans.
-func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, spanId, traceId, parentId int64, resource string) {
+func (s *Server) recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, spanId, traceId, parentId int64, resource string) {
 	if spanId < 0 {
 		spanId = *proto.Int64(rand.Int63())
 	}
@@ -62,7 +64,7 @@ func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, spanId, t
 		Service:    "veneur",
 	}
 
-	err := sendSample(sample)
+	err := s.sendSample(sample)
 	if err != nil {
 		log.WithError(err).Error("Error submitting sample")
 	}
