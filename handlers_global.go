@@ -100,7 +100,7 @@ func handleImport(s *Server) http.Handler {
 
 		// the server usually waits for this to return before finalizing the
 		// response, so this part must be done asynchronously
-		go s.ImportMetrics(jsonMetrics, traceId, spanId)
+		go s.ImportMetrics(jsonMetrics)
 	})
 }
 
