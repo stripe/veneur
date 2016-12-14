@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"fmt"
 	"math/rand"
 	"net"
 	"time"
@@ -33,7 +34,7 @@ func (s *Server) sendSample(sample *ssf.SSFSample) error {
 		return err
 	}
 
-	s.statsd.Count("veneur.traces.sent", 1, []string{}, 1.0)
+	s.statsd.Count("veneur.traces.sent", 1, []string{fmt.Sprintf("name:%s", sample.Name)}, 1.0)
 	return nil
 }
 
