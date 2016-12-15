@@ -17,12 +17,13 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/trace"
 )
 
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) Flush(interval time.Duration, metricLimit int) {
-	trace := StartTrace("flush")
+	trace := trace.StartTrace("flush")
 	defer trace.Record("veneur.flush.trace", []*ssf.SSFTag{})
 
 	// right now we have only one destination plugin
@@ -36,7 +37,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 }
 
 func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metricLimit int) {
-	trace := SpanFromContext(ctx)
+	trace := trace.SpanFromContext(ctx)
 	defer trace.Record("veneur.flush.FlushGlobal.trace", nil)
 
 	go s.flushEventsChecks() // we can do all of this separately
@@ -76,7 +77,7 @@ func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metric
 // FlushLocal takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) FlushLocal(ctx context.Context, interval time.Duration, metricLimit int) {
-	trace := SpanFromContext(ctx)
+	trace := trace.SpanFromContext(ctx)
 	defer trace.Record("veneur.flush.FlushLocal.trace", nil)
 
 	go s.flushEventsChecks() // we can do all of this separately
@@ -180,7 +181,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 // generate a DDMetric corresponding to that value
 func (s *Server) generateDDMetrics(ctx context.Context, interval time.Duration, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.DDMetric {
 
-	trace := SpanFromContext(ctx)
+	trace := trace.SpanFromContext(ctx)
 	defer trace.Record("veneur.flush.generateDDMetrics.trace", nil)
 
 	finalMetrics := make([]samplers.DDMetric, 0, ms.totalLength)
@@ -505,12 +506,7 @@ func (s *Server) flushTraces() {
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
 
-		// err := s.postHelper(fmt.Sprintf("%s/1e3k8ck1", "http://requestb.in"), finalTraces, "flush_traces", false)
 		err := s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
-		log.Printf("final traces %#v", finalTraces[0])
-		if len(finalTraces) > 1 {
-			log.Printf("final traces 2 %#v", finalTraces[1])
-		}
 
 		if err == nil {
 			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")

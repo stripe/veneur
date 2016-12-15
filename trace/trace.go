@@ -1,4 +1,4 @@
-package veneur
+package trace
 
 import (
 	"context"
@@ -52,7 +52,7 @@ func (t *Trace) Attach(c context.Context) context.Context {
 func SpanFromContext(c context.Context) *Trace {
 	parent, ok := c.Value(traceKey).(*Trace)
 	if !ok {
-		log.WithField("type", reflect.TypeOf(c.Value(traceKey))).Error("expected *Trace from context")
+		logrus.WithField("type", reflect.TypeOf(c.Value(traceKey))).Error("expected *Trace from context")
 	}
 
 	spanId := proto.Int64(rand.Int63())
@@ -138,13 +138,6 @@ func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, spanId, t
 
 	err := sendSample(sample)
 	if err != nil {
-		log.WithError(err).Error("Error submitting sample")
+		logrus.WithError(err).Error("Error submitting sample")
 	}
-	log.WithFields(logrus.Fields{
-		"parent":   parentId,
-		"spanId":   spanId,
-		"name":     name,
-		"resource": resource,
-		"traceId":  traceId,
-	}).Debug("Recorded trace")
 }
