@@ -467,17 +467,14 @@ func (s *Server) flushTraces() {
 				// -1 is a canonical way of passing in invalid info in Go
 				// so we should support that too
 				parentId := int64(span.Trace.ParentId)
-				// resource should only be set on the root trace
-				var resource string
 
 				// check if this is the root span
 				if parentId <= 0 {
 					// we need parentId to be zero for json:omitempty to work
 					parentId = 0
-					resource = span.Resource
-				} else {
-					resource = span.Name
 				}
+
+				resource := span.Resource
 
 				ddspan := &DatadogTraceSpan{
 					TraceID:  int64(span.Trace.TraceId),
