@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/rand"
 	"net"
+	"reflect"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -51,7 +52,7 @@ func (t *Trace) Attach(c context.Context) context.Context {
 func SpanFromContext(c context.Context) *Trace {
 	parent, ok := c.Value(traceKey).(*Trace)
 	if !ok {
-		// do something here
+		log.WithField("type", reflect.TypeOf(c.Value(traceKey))).Error("expected *Trace from context")
 	}
 
 	spanId := proto.Int64(rand.Int63())
