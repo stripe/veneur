@@ -12,7 +12,6 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/ssf"
 
 	"golang.org/x/net/context"
 )
@@ -38,7 +37,7 @@ func handleImport(s *Server) http.Handler {
 		innerLogger := log.WithField("client", r.RemoteAddr)
 		start := time.Now()
 
-		defer s.recordTrace(start, "veneur.import.trace", []*ssf.SSFTag{}, *traceId, *spanId, -1, "/import")
+		//defer s.recordTrace(start, "veneur.import.trace", []*ssf.SSFTag{}, *traceId, *spanId, -1, "/import")
 
 		var (
 			jsonMetrics []samplers.JSONMetric
@@ -107,8 +106,8 @@ func handleImport(s *Server) http.Handler {
 // nonEmpty returns true if there is at least one non-empty
 // metric
 func (s *Server) nonEmpty(jsonMetrics []samplers.JSONMetric, traceId int64) bool {
-	start := time.Now()
-	defer s.recordTrace(start, "veneur.import.nonEmpty.trace", nil, -1, traceId, traceId, "/import")
+	//start := time.Now()
+	//defer s.recordTrace(start, "veneur.import.nonEmpty.trace", nil, -1, traceId, traceId, "/import")
 
 	sentinel := samplers.JSONMetric{}
 	for _, metric := range jsonMetrics {
