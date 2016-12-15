@@ -32,7 +32,7 @@ type Trace struct {
 }
 
 func (t *Trace) Record(name string, tags []*ssf.SSFTag) {
-	recordTrace(t.Start, name, tags, t.TraceId, t.SpanId, t.ParentId, t.Resource)
+	recordTrace(t.Start, name, tags, t.SpanId, t.TraceId, t.ParentId, t.Resource)
 }
 
 // Attach attaches the current trace to the context
@@ -140,5 +140,6 @@ func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, spanId, t
 		"spanId":   spanId,
 		"name":     name,
 		"resource": resource,
+		"traceId":  traceId,
 	}).Debug("Recorded trace")
 }
