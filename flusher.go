@@ -507,10 +507,6 @@ func (s *Server) flushTraces() {
 		// support "Content-Encoding: deflate"
 
 		err := s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
-		log.Printf("final traces %#v", finalTraces[0])
-		if len(finalTraces) > 1 {
-			log.Printf("final traces 2 %#v", finalTraces[1])
-		}
 
 		if err == nil {
 			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
