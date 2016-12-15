@@ -22,9 +22,8 @@ before_script:
 
   - gofmt -w .
 
-  # If `go generate` or `gofmt` yielded any changes,
-  # this will fail with an error message like "too many arguments"
-  # or "M: binary operator expected"
+  # See the corresponding lines in the Dockerfile for an explanation
+  # of this logic
   - git add .
   - git diff-index --cached --exit-code HEAD
 

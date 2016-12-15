@@ -18,6 +18,8 @@ func init() {
 
 const traceKey = "trace"
 
+const localVeneurAddress = "127.0.0.1:8128"
+
 type Trace struct {
 	// the ID for the root span
 	// which is also the ID for the trace itself
@@ -34,10 +36,39 @@ type Trace struct {
 	Resource string
 
 	Start time.Time
+
+	// If non-zero, the trace will be treated
+	// as an error
+	Status ssf.SSFSample_Status
 }
 
+// Record sends a trace to the (local) veneur instance,
+// which will pass it on to the tracing agent running on the
+// global veneur instance.
 func (t *Trace) Record(name string, tags []*ssf.SSFTag) {
-	recordTrace(t.Start, name, tags, t.SpanId, t.TraceId, t.ParentId, t.Resource)
+	duration := time.Now().Sub(t.Start).Nanoseconds()
+
+	sample := &ssf.SSFSample{
+		Metric:    ssf.SSFSample_TRACE,
+		Timestamp: t.Start.UnixNano(),
+		Status:    t.Status,
+		Name:      *proto.String(name),
+		Trace: &ssf.SSFTrace{
+			TraceId:  t.TraceId,
+			Id:       t.SpanId,
+			ParentId: t.ParentId,
+		},
+		Value:      duration,
+		SampleRate: *proto.Float32(.10),
+		Tags:       tags,
+		Resource:   t.Resource,
+		Service:    "veneur",
+	}
+
+	err := sendSample(sample)
+	if err != nil {
+		logrus.WithError(err).Error("Error submitting sample")
+	}
 }
 
 // Attach attaches the current trace to the context
@@ -83,8 +114,10 @@ func StartTrace(resource string) *Trace {
 	return t
 }
 
+// sendSample marshals the sample using protobuf and sends it
+// over UDP to the local veneur instance
 func sendSample(sample *ssf.SSFSample) error {
-	server_addr, err := net.ResolveUDPAddr("udp", "127.0.0.1:8128")
+	server_addr, err := net.ResolveUDPAddr("udp", localVeneurAddress)
 	if err != nil {
 		return err
 	}
@@ -107,37 +140,4 @@ func sendSample(sample *ssf.SSFSample) error {
 	}
 
 	return nil
-}
-
-// recordTrace sends a trace to DataDog.
-// If the spanId is negative, it will be regenerated.
-// If this is the root trace, parentId should be zero.
-// resource will be ignored for non-root spans.
-func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, spanId, traceId, parentId int64, resource string) {
-	if spanId < 0 {
-		spanId = *proto.Int64(rand.Int63())
-	}
-	duration := time.Now().Sub(startTime).Nanoseconds()
-
-	sample := &ssf.SSFSample{
-		Metric:    ssf.SSFSample_TRACE,
-		Timestamp: startTime.UnixNano(),
-		Status:    ssf.SSFSample_OK,
-		Name:      *proto.String(name),
-		Trace: &ssf.SSFTrace{
-			TraceId:  traceId,
-			Id:       spanId,
-			ParentId: parentId,
-		},
-		Value:      duration,
-		SampleRate: *proto.Float32(.10),
-		Tags:       []*ssf.SSFTag{},
-		Resource:   resource,
-		Service:    "veneur",
-	}
-
-	err := sendSample(sample)
-	if err != nil {
-		logrus.WithError(err).Error("Error submitting sample")
-	}
 }
