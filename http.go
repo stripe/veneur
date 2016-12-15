@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/trace"
 
 	"goji.io"
 	"goji.io/pat"
@@ -36,7 +37,7 @@ func (s *Server) Handler() http.Handler {
 
 // ImportMetrics feeds a slice of json metrics to the server's workers
 func (s *Server) ImportMetrics(ctx context.Context, jsonMetrics []samplers.JSONMetric) {
-	trace := SpanFromContext(ctx)
+	trace := trace.SpanFromContext(ctx)
 	defer trace.Record("veneur.import.nonEmpty.trace", nil)
 
 	// we have a slice of json metrics that we need to divide up across the workers

@@ -12,6 +12,7 @@ import (
 
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/trace"
 )
 
 type contextHandler func(c context.Context, w http.ResponseWriter, r *http.Request)
@@ -26,7 +27,7 @@ func (ch contextHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func handleImport(s *Server) http.Handler {
 	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 
-		trace := StartTrace("/import")
+		trace := trace.StartTrace("/import")
 		defer trace.Record("veneur.import.trace", []*ssf.SSFTag{})
 
 		innerLogger := log.WithField("client", r.RemoteAddr)
@@ -99,7 +100,7 @@ func handleImport(s *Server) http.Handler {
 // metric
 func (s *Server) nonEmpty(ctx context.Context, jsonMetrics []samplers.JSONMetric) bool {
 
-	trace := SpanFromContext(ctx)
+	trace := trace.SpanFromContext(ctx)
 	defer trace.Record("veneur.import.nonEmpty.trace", nil)
 
 	sentinel := samplers.JSONMetric{}
