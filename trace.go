@@ -11,6 +11,10 @@ import (
 	"github.com/stripe/veneur/ssf"
 )
 
+func init() {
+	rand.Seed(time.Now().Unix())
+}
+
 const traceKey = "trace"
 
 type Trace struct {
