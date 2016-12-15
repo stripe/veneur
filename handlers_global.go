@@ -2,42 +2,34 @@ package veneur
 
 import (
 	"compress/zlib"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 	"reflect"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/stripe/veneur/samplers"
-
-	"golang.org/x/net/context"
+	"github.com/stripe/veneur/ssf"
 )
 
 type contextHandler func(c context.Context, w http.ResponseWriter, r *http.Request)
 
 func (ch contextHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// nil context is bad form, but since we don't use it, it's a quick hack
-	// to allow us to write tests before we upgrade to Go 1.7 Context type
-	// and the newer goji
-	// TODO(aditya) actually update this
-	ch(nil, w, r)
+	ctx := context.Background()
+	ch(ctx, w, r)
 }
 
 // handleImport generates the handler that responds to POST requests submitting
 // metrics to the global veneur instance.
 func handleImport(s *Server) http.Handler {
-	return contextHandler(func(c context.Context, w http.ResponseWriter, r *http.Request) {
+	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 
-		traceId := proto.Int64(rand.Int63())
-		spanId := traceId
+		trace := StartTrace("/import")
+		defer trace.Record("veneur.import.trace", []*ssf.SSFTag{})
 
 		innerLogger := log.WithField("client", r.RemoteAddr)
-		start := time.Now()
-
-		//defer s.recordTrace(start, "veneur.import.trace", []*ssf.SSFTag{}, *traceId, *spanId, -1, "/import")
 
 		var (
 			jsonMetrics []samplers.JSONMetric
@@ -84,7 +76,7 @@ func handleImport(s *Server) http.Handler {
 		// because that is usually the sign that we are unmarshalling
 		// into the wrong struct type
 
-		if !s.nonEmpty(jsonMetrics, *spanId) {
+		if !s.nonEmpty(trace.Attach(ctx), jsonMetrics) {
 			const msg = "Received empty or improperly-formed metrics"
 			http.Error(w, msg, http.StatusBadRequest)
 			innerLogger.Error(msg)
@@ -93,7 +85,7 @@ func handleImport(s *Server) http.Handler {
 
 		w.WriteHeader(http.StatusAccepted)
 		s.statsd.TimeInMilliseconds("import.response_duration_ns",
-			float64(time.Now().Sub(start).Nanoseconds()),
+			float64(time.Now().Sub(trace.Start).Nanoseconds()),
 			[]string{"part:request", fmt.Sprintf("encoding:%s", encoding)},
 			1.0)
 
@@ -105,9 +97,10 @@ func handleImport(s *Server) http.Handler {
 
 // nonEmpty returns true if there is at least one non-empty
 // metric
-func (s *Server) nonEmpty(jsonMetrics []samplers.JSONMetric, traceId int64) bool {
-	//start := time.Now()
-	//defer s.recordTrace(start, "veneur.import.nonEmpty.trace", nil, -1, traceId, traceId, "/import")
+func (s *Server) nonEmpty(ctx context.Context, jsonMetrics []samplers.JSONMetric) bool {
+
+	trace := SpanFromContext(ctx)
+	defer trace.Record("veneur.import.nonEmpty.trace", nil)
 
 	sentinel := samplers.JSONMetric{}
 	for _, metric := range jsonMetrics {

@@ -1,7 +1,7 @@
 package veneur
 
 import (
-	"fmt"
+	"context"
 	"math/rand"
 	"net"
 	"time"
@@ -11,7 +11,74 @@ import (
 	"github.com/stripe/veneur/ssf"
 )
 
-func (s *Server) sendSample(sample *ssf.SSFSample) error {
+const traceKey = "trace"
+
+type Trace struct {
+	// the ID for the root span
+	// which is also the ID for the trace itself
+	TraceId int64
+
+	// For the root span, this will be equal
+	// to the TraceId
+	SpanId int64
+
+	// For the root span, this will be <= 0
+	ParentId int64
+
+	// The Resource should be the same for all spans in the same trace
+	Resource string
+
+	Start time.Time
+}
+
+func (t *Trace) Record(name string, tags []*ssf.SSFTag) {
+	recordTrace(t.Start, name, tags, t.TraceId, t.SpanId, t.ParentId, t.Resource)
+}
+
+// Attach attaches the current trace to the context
+// and returns a copy of the context with that trace
+// stored under the key "trace".
+func (t *Trace) Attach(c context.Context) context.Context {
+	return context.WithValue(c, traceKey, t)
+}
+
+// SpanFromContext is used to create a child span
+// when the parent trace is in the context
+func SpanFromContext(c context.Context) *Trace {
+	parent, ok := c.Value(traceKey).(*Trace)
+	if !ok {
+		// do something here
+	}
+
+	spanId := proto.Int64(rand.Int63())
+	span := &Trace{
+		TraceId:  parent.TraceId,
+		SpanId:   *spanId,
+		ParentId: parent.SpanId,
+		Resource: parent.Resource,
+		Start:    time.Now(),
+	}
+
+	return span
+}
+
+// StartTrace is called by to create the root-level span
+// for a trace
+func StartTrace(resource string) *Trace {
+	traceId := proto.Int64(rand.Int63())
+
+	t := &Trace{
+		TraceId:  *traceId,
+		SpanId:   *traceId,
+		ParentId: 0,
+		Resource: resource,
+	}
+
+	t.Start = time.Now()
+	return t
+}
+
+func sendSample(sample *ssf.SSFSample) error {
 	server_addr, err := net.ResolveUDPAddr("udp", "127.0.0.1:8128")
 	if err != nil {
 		return err
@@ -34,7 +101,6 @@ func (s *Server) sendSample(sample *ssf.SSFSample) error {
 		return err
 	}
 
-	s.statsd.Count("veneur.traces.sent", 1, []string{fmt.Sprintf("name:%s", sample.Name)}, 1.0)
 	return nil
 }
 
@@ -42,7 +108,7 @@ func (s *Server) sendSample(sample *ssf.SSFSample) error {
 // If the spanId is negative, it will be regenerated.
 // If this is the root trace, parentId should be zero.
 // resource will be ignored for non-root spans.
-func (s *Server) recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, spanId, traceId, parentId int64, resource string) {
+func recordTrace(startTime time.Time, name string, tags []*ssf.SSFTag, spanId, traceId, parentId int64, resource string) {
 	if spanId < 0 {
 		spanId = *proto.Int64(rand.Int63())
 	}
@@ -65,12 +131,14 @@ func (s *Server) recordTrace(startTime time.Time, name string, tags []*ssf.SSFTa
 		Service:    "veneur",
 	}
 
-	err := s.sendSample(sample)
+	err := sendSample(sample)
 	if err != nil {
 		log.WithError(err).Error("Error submitting sample")
 	}
 	log.WithFields(logrus.Fields{
-		"parent": parentId,
-		"spanId": spanId,
+		"parent":   parentId,
+		"spanId":   spanId,
+		"name":     name,
+		"resource": resource,
 	}).Debug("Recorded trace")
 }
