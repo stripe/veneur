@@ -296,7 +296,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 
 	// TODO REMOVE THIS AS WELL
 	// DEBUGGING ONLY
-	log.WithField("proto", proto.CompactTextString(newSample)).Debug("Handling trace packet")
+	log.WithField("proto", proto.CompactTextString(newSample)).Info("Handling trace packet")
 
 	s.TraceWorker.TraceChan <- *newSample
 }
