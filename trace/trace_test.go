@@ -2,7 +2,9 @@ package trace
 
 import (
 	"context"
+	"io/ioutil"
 	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -64,7 +66,21 @@ func TestRecord(t *testing.T) {
 
 	trace := StartTrace(resource)
 	trace.Status = ssf.SSFSample_CRITICAL
-	trace.Record(metricName, nil)
+	tags := []*ssf.SSFTag{
+		{
+			Name:  "error.msg",
+			Value: "an error occurred!",
+		},
+		{
+			Name:  "error.type",
+			Value: "type error interface",
+		},
+		{
+			Name:  "error.stack",
+			Value: "insert\nlots\nof\nstuff",
+		},
+	}
+	trace.Record(metricName, tags)
 	end := time.Now()
 
 	select {
@@ -74,9 +90,12 @@ func TestRecord(t *testing.T) {
 		// Because this is marshalled using protobuf,
 		// we can't expect the representation to be immutable
 		// and cannot test the marshalled payload directly
+		err2 := ioutil.WriteFile("asdf.pb", resp, os.ModePerm)
+		assert.NoError(t, err2)
 
 		sample := &ssf.SSFSample{}
 		err := proto.Unmarshal(resp, sample)
+
 		assert.NoError(t, err)
 
 		timestamp := time.Unix(sample.Timestamp/1e9, 0)
@@ -94,6 +113,7 @@ func TestRecord(t *testing.T) {
 		assert.Equal(t, sample.Status, ssf.SSFSample_CRITICAL)
 		assert.Equal(t, sample.Metric, ssf.SSFSample_TRACE)
 		assert.Equal(t, sample.Service, serviceName)
+		// TODO assert on tags
 	}
 
 }

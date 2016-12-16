@@ -1,9 +1,11 @@
 package veneur
 
+import "github.com/stripe/veneur/ssf"
+
 type DatadogTraceSpan struct {
 	Duration int64              `json:"duration"`
 	Error    int64              `json:"error"`
-	Meta     struct{}           `json:"meta"`
+	Meta     []*ssf.SSFTag      `json:"meta"`
 	Metrics  map[string]float64 `json:"metrics"`
 	Name     string             `json:"name"`
 	ParentID int64              `json:"parent_id,omitempty"`
