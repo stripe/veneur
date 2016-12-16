@@ -20,7 +20,6 @@ ADD . /go/src/github.com/stripe/veneur
 # If running locally, ignore any changes since
 # the last commit
 RUN git reset --hard HEAD && git status
-ADD henson /build/
 
 # Unlike the travis build file, we do NOT need to
 # ignore changes to protobuf-generated output
@@ -44,4 +43,4 @@ RUN git diff-index --cached --exit-code HEAD
 
 
 RUN govendor test -v -timeout 10s +local
-CMD go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur ./cmd/veneur
+CMD cp -r henson /build/ && go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur ./cmd/veneur
