@@ -490,10 +490,11 @@ func (s *Server) flushTraces() {
 				Duration: span.Value,
 				// TODO don't hardcode
 				Type:  "http",
-				Error: 0,
+				Error: int64(span.Status),
 				Metrics: map[string]float64{
 					"veneur.import.trace.foo": 100,
 				},
+				Meta: span.Tags,
 			}
 			finalTraces = append(finalTraces, ddspan)
 		}
