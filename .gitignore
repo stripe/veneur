@@ -31,3 +31,4 @@ _work
 *.swp
 *.swo
 *.swn
+coverage.out
