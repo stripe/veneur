@@ -28,10 +28,17 @@ RUN cp -r henson /build/
 # used to build protoc-gen-go
 RUN go generate
 RUN gofmt -w .
+
 # Stage any changes caused by go generate and gofmt,
 # then confirm that there are no staged changes.
-# TODO figure out why this test is flaky if we don't stage
-# and run without --cached.
+#
+# If `go generate` or `gofmt` yielded any changes,
+# this will fail with an error message like "too many arguments"
+# or "M: binary operator expected"
+# Due to overlayfs peculiarities, running git diff-index without --cached
+# won't work, because it'll compare the mtimes (which have changed), and
+# therefore reports that the file may have changed (ie, a series of 0s)
+# See https://github.com/stripe/veneur/pull/110#discussion_r92843581
 RUN git add .
 RUN git diff-index --cached --exit-code HEAD
 

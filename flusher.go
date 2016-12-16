@@ -463,39 +463,39 @@ func (s *Server) flushTraces() {
 	traces.Do(func(t interface{}) {
 		if t != nil {
 			span, ok := t.(ssf.SSFSample)
-			if ok {
-				// -1 is a canonical way of passing in invalid info in Go
-				// so we should support that too
-				parentId := int64(span.Trace.ParentId)
-
-				// check if this is the root span
-				if parentId <= 0 {
-					// we need parentId to be zero for json:omitempty to work
-					parentId = 0
-				}
-
-				resource := span.Resource
-
-				ddspan := &DatadogTraceSpan{
-					TraceID:  int64(span.Trace.TraceId),
-					SpanID:   int64(span.Trace.Id),
-					ParentID: parentId,
-					Service:  span.Service,
-					Name:     span.Name,
-					Resource: resource,
-					Start:    int64(span.Timestamp),
-					Duration: span.Value,
-					// TODO don't hardcode
-					Type:  "http",
-					Error: 0,
-					Metrics: map[string]float64{
-						"veneur.import.trace.foo": 100,
-					},
-				}
-				finalTraces = append(finalTraces, ddspan)
-			} else {
+			if !ok {
 				log.Error("Got an unknown object in tracing ring!")
+				return
 			}
+			// -1 is a canonical way of passing in invalid info in Go
+			// so we should support that too
+			parentId := int64(span.Trace.ParentId)
+
+			// check if this is the root span
+			if parentId <= 0 {
+				// we need parentId to be zero for json:omitempty to work
+				parentId = 0
+			}
+
+			resource := span.Resource
+
+			ddspan := &DatadogTraceSpan{
+				TraceID:  int64(span.Trace.TraceId),
+				SpanID:   int64(span.Trace.Id),
+				ParentID: parentId,
+				Service:  span.Service,
+				Name:     span.Name,
+				Resource: resource,
+				Start:    int64(span.Timestamp),
+				Duration: span.Value,
+				// TODO don't hardcode
+				Type:  "http",
+				Error: 0,
+				Metrics: map[string]float64{
+					"veneur.import.trace.foo": 100,
+				},
+			}
+			finalTraces = append(finalTraces, ddspan)
 		}
 	})
 	if len(finalTraces) != 0 {
@@ -508,9 +508,10 @@ func (s *Server) flushTraces() {
 		if err == nil {
 			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
 		} else {
-			log.WithFields(logrus.Fields{
-				"traces": len(finalTraces),
-				"error":  err}).Error("Error flushing traces to Datadog")
+			log.WithFields(
+				logrus.Fields{
+					"traces":        len(finalTraces),
+					logrus.ErrorKey: err}).Error("Error flushing traces to Datadog")
 		}
 	} else {
 		log.Info("No traces to flush, skipping.")
