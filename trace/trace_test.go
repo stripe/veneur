@@ -2,7 +2,6 @@ package trace
 
 import (
 	"context"
-	"log"
 	"net"
 	"testing"
 	"time"
@@ -14,7 +13,7 @@ import (
 
 const ε = .00002
 
-func Test_StartTrace(t *testing.T) {
+func TestStartTrace(t *testing.T) {
 	const resource = "Robert'); DROP TABLE students;"
 	const expectedParent int64 = 0
 	start := time.Now()
@@ -29,7 +28,7 @@ func Test_StartTrace(t *testing.T) {
 	assert.True(t, between)
 }
 
-func Test_Record(t *testing.T) {
+func TestRecord(t *testing.T) {
 	const resource = "Robert'); DROP TABLE students;"
 	const metricName = "veneur.trace.test"
 	const serviceName = "veneur-test"
@@ -75,12 +74,10 @@ func Test_Record(t *testing.T) {
 		// Because this is marshalled using protobuf,
 		// we can't expect the representation to be immutable
 		// and cannot test the marshalled payload directly
-		log.Printf("resp is %v", string(resp))
 
 		sample := &ssf.SSFSample{}
 		err := proto.Unmarshal(resp, sample)
 		assert.NoError(t, err)
-		log.Printf("resp is %#v", sample)
 
 		timestamp := time.Unix(sample.Timestamp/1e9, 0)
 
@@ -101,7 +98,7 @@ func Test_Record(t *testing.T) {
 
 }
 
-func Test_Attach(t *testing.T) {
+func TestAttach(t *testing.T) {
 	const resource = "Robert'); DROP TABLE students;"
 	ctx := context.Background()
 
@@ -115,6 +112,21 @@ func Test_Attach(t *testing.T) {
 	assert.NotNil(t, parent, "Expected not to find parent in context before attaching")
 }
 
-func Test_SpanFromContext(t *testing.T) {
-	_ = context.Background()
+func TestSpanFromContext(t *testing.T) {
+	const resource = "Robert'); DROP TABLE students;"
+	trace := StartTrace(resource)
+
+	ctx := trace.Attach(context.Background())
+	child := SpanFromContext(ctx)
+	// Test the *grandchild* so that we can ensure that
+	// the parent ID is set independently of the trace ID
+	ctx = child.Attach(context.Background())
+	grandchild := SpanFromContext(ctx)
+
+	assert.Equal(t, child.TraceId, trace.SpanId)
+	assert.Equal(t, child.TraceId, trace.TraceId)
+	assert.Equal(t, child.ParentId, trace.SpanId)
+	assert.Equal(t, grandchild.ParentId, child.SpanId)
+	assert.Equal(t, grandchild.TraceId, trace.SpanId)
+
 }
