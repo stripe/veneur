@@ -7,11 +7,16 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/stripe/veneur"
+	"github.com/stripe/veneur/trace"
 )
 
 var (
 	configFile = flag.String("f", "", "The config file to read for settings.")
 )
+
+func init() {
+	trace.Service = "veneur"
+}
 
 func main() {
 	flag.Parse()
