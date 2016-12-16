@@ -4,6 +4,7 @@ import (
 	"compress/zlib"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -46,7 +47,7 @@ func handleImport(s *Server) http.Handler {
 			body, err = zlib.NewReader(r.Body)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
-				trace.Status = ssf.SSFSample_CRITICAL
+				trace.Error(err)
 				encLogger.WithError(err).Error("Could not read compressed request body")
 				s.statsd.Count("import.request_error_total", 1, []string{"cause:deflate"}, 1.0)
 				return
@@ -54,7 +55,7 @@ func handleImport(s *Server) http.Handler {
 			defer body.Close()
 		default:
 			http.Error(w, encoding, http.StatusUnsupportedMediaType)
-			trace.Status = ssf.SSFSample_CRITICAL
+			trace.Error(errors.New("Could not determine content-encoding of request"))
 			encLogger.Error("Could not determine content-encoding of request")
 			s.statsd.Count("import.request_error_total", 1, []string{"cause:unknown_content_encoding"}, 1.0)
 			return
@@ -62,7 +63,7 @@ func handleImport(s *Server) http.Handler {
 
 		if err := json.NewDecoder(body).Decode(&jsonMetrics); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			trace.Status = ssf.SSFSample_CRITICAL
+			trace.Error(err)
 			innerLogger.WithError(err).Error("Could not decode /import request")
 			s.statsd.Count("import.request_error_total", 1, []string{"cause:json"}, 1.0)
 			return
@@ -71,7 +72,7 @@ func handleImport(s *Server) http.Handler {
 		if len(jsonMetrics) == 0 {
 			const msg = "Received empty /import request"
 			http.Error(w, msg, http.StatusBadRequest)
-			trace.Status = ssf.SSFSample_CRITICAL
+			trace.Error(errors.New(msg))
 			innerLogger.WithError(err).Error(msg)
 			return
 		}
@@ -84,7 +85,7 @@ func handleImport(s *Server) http.Handler {
 		if !s.nonEmpty(trace.Attach(ctx), jsonMetrics) {
 			const msg = "Received empty or improperly-formed metrics"
 			http.Error(w, msg, http.StatusBadRequest)
-			trace.Status = ssf.SSFSample_CRITICAL
+			trace.Error(errors.New(msg))
 			innerLogger.Error(msg)
 			return
 		}

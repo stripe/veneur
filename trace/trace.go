@@ -43,6 +43,8 @@ type Trace struct {
 	// If non-zero, the trace will be treated
 	// as an error
 	Status ssf.SSFSample_Status
+
+	Tags []*ssf.SSFTag
 }
 
 // Record sends a trace to the (local) veneur instance,
@@ -50,6 +52,8 @@ type Trace struct {
 // global veneur instance.
 func (t *Trace) Record(name string, tags []*ssf.SSFTag) error {
 	duration := time.Now().Sub(t.Start).Nanoseconds()
+
+	t.Tags = append(t.Tags, tags...)
 
 	sample := &ssf.SSFSample{
 		Metric:    ssf.SSFSample_TRACE,
@@ -63,7 +67,7 @@ func (t *Trace) Record(name string, tags []*ssf.SSFTag) error {
 		},
 		Value:      duration,
 		SampleRate: *proto.Float32(.10),
-		Tags:       tags,
+		Tags:       t.Tags,
 		Resource:   t.Resource,
 		Service:    Service,
 	}
@@ -73,6 +77,26 @@ func (t *Trace) Record(name string, tags []*ssf.SSFTag) error {
 		logrus.WithError(err).Error("Error submitting sample")
 	}
 	return err
+}
+
+func (t *Trace) Error(err error) {
+	t.Status = ssf.SSFSample_CRITICAL
+	tags := []*ssf.SSFTag{
+		{
+			Name:  "error.msg",
+			Value: err.Error(),
+		},
+		{
+			Name:  "error.type",
+			Value: reflect.TypeOf(err).Name(),
+		},
+		{
+			Name:  "error.stack",
+			Value: "",
+		},
+	}
+
+	t.Tags = append(t.Tags, tags...)
 }
 
 // Attach attaches the current trace to the context
