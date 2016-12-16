@@ -81,6 +81,12 @@ func (t *Trace) Record(name string, tags []*ssf.SSFTag) error {
 
 func (t *Trace) Error(err error) {
 	t.Status = ssf.SSFSample_CRITICAL
+
+	errorType := reflect.TypeOf(err).Name()
+	if errorType == "" {
+		errorType = "error"
+	}
+
 	tags := []*ssf.SSFTag{
 		{
 			Name:  "error.msg",
@@ -88,11 +94,11 @@ func (t *Trace) Error(err error) {
 		},
 		{
 			Name:  "error.type",
-			Value: reflect.TypeOf(err).Name(),
+			Value: errorType,
 		},
 		{
 			Name:  "error.stack",
-			Value: "",
+			Value: err.Error(),
 		},
 	}
 
