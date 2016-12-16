@@ -20,8 +20,7 @@ ADD . /go/src/github.com/stripe/veneur
 # If running locally, ignore any changes since
 # the last commit
 RUN git reset --hard HEAD && git status
-RUN echo "hi there"
-RUN cp -r henson /build/
+ADD henson /build/
 
 # Unlike the travis build file, we do NOT need to
 # ignore changes to protobuf-generated output
