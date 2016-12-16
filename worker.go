@@ -342,8 +342,7 @@ func NewTraceWorker(stats *statsd.Client) *TraceWorker {
 // Work will start the EventWorker listening for events and service checks.
 // This function will never return.
 func (tw *TraceWorker) Work() {
-	for {
-		m := <-tw.TraceChan
+	for m := range tw.TraceChan {
 		tw.mutex.Lock()
 		tw.traces.Value = m
 		tw.traces = tw.traces.Next()

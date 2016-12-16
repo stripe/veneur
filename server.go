@@ -287,11 +287,15 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	newSample := &ssf.SSFSample{}
 	err := proto.Unmarshal(packet, newSample)
 	if err != nil {
-		log.Fatal("Trace unmarshaling error: ", err)
+		log.WithError(err).Error("Trace unmarshaling error")
 	}
 
+	// TODO REMOVE THIS
+	// DEBUGGING ONLY
 	s.statsd.Count("veneur.traces.handled", 1, []string{}, 1.0)
 
+	// TODO REMOVE THIS AS WELL
+	// DEBUGGING ONLY
 	log.WithField("proto", proto.CompactTextString(newSample)).Debug("Handling trace packet")
 
 	s.TraceWorker.TraceChan <- *newSample
@@ -362,11 +366,12 @@ func (s *Server) ReadTraceSocket(packetPool *sync.Pool, reuseport bool) {
 		buf := packetPool.Get().([]byte)
 		n, _, err := serverConn.ReadFrom(buf)
 		if err != nil {
-			log.WithError(err).Error("Error reading from UDP metrics socket")
+			log.WithError(err).Error("Error reading from UDP trace socket")
 			continue
 		}
 
 		s.HandleTracePacket(buf[:n])
+		packetPool.Put(buf)
 	}
 }
 

@@ -60,7 +60,7 @@ func (t *Trace) Record(name string, tags []*ssf.SSFTag) {
 		},
 		Value:      duration,
 		SampleRate: *proto.Float32(.10),
-		Tags:       []*ssf.SSFTag{},
+		Tags:       tags,
 		Resource:   t.Resource,
 		Service:    "veneur",
 	}

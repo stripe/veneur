@@ -8,8 +8,12 @@ message SSFTag {
 }
 
 message SSFTrace {
+  // the trace_id is the (span) id of the root span
   int64 trace_id = 1;
+  // the id for this span
   int64 id = 2;
+  // the (span) id of the direct parent,
+  // if this span is not a root span
   int64 parent_id = 3;
 }
 
@@ -29,7 +33,10 @@ message SSFSample {
       CRITICAL = 2;
       UNKNOWN = 3;
   }
+
+  // The underlying type of the metric
   Metric metric = 1;
+
   string name = 2;
   int64 timestamp = 3;
   string message = 4;
@@ -41,6 +48,14 @@ message SSFSample {
   repeated SSFTag tags = 8;
   string unit = 9;
   SSFTrace trace = 10;
+
+  // Traces also have a Resource. Unlike the Name, Resource
+  // can include whitespace and can be (for example) the
+  // endpoint or the base of a SQL query
+  // See https://godoc.org/github.com/DataDog/dd-trace-go/tracer#Span
   string resource = 11;
+
+  // the name of the service
+  // e.g. "veneur"
   string service = 12;
 }
