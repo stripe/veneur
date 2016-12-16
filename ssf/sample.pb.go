@@ -118,8 +118,12 @@ func (m *SSFTag) GetValue() string {
 }
 
 type SSFTrace struct {
-	TraceId  int64 `protobuf:"varint,1,opt,name=trace_id,json=traceId" json:"trace_id,omitempty"`
-	Id       int64 `protobuf:"varint,2,opt,name=id" json:"id,omitempty"`
+	// the trace_id is the (span) id of the root span
+	TraceId int64 `protobuf:"varint,1,opt,name=trace_id,json=traceId" json:"trace_id,omitempty"`
+	// the id for this span
+	Id int64 `protobuf:"varint,2,opt,name=id" json:"id,omitempty"`
+	// the (span) id of the direct parent,
+	// if this span is not a root span
 	ParentId int64 `protobuf:"varint,3,opt,name=parent_id,json=parentId" json:"parent_id,omitempty"`
 }
 
@@ -150,6 +154,7 @@ func (m *SSFTrace) GetParentId() int64 {
 }
 
 type SSFSample struct {
+	// The underlying type of the metric
 	Metric    SSFSample_Metric `protobuf:"varint,1,opt,name=metric,enum=ssf.SSFSample_Metric" json:"metric,omitempty"`
 	Name      string           `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
 	Timestamp int64            `protobuf:"varint,3,opt,name=timestamp" json:"timestamp,omitempty"`
@@ -162,8 +167,14 @@ type SSFSample struct {
 	Tags       []*SSFTag `protobuf:"bytes,8,rep,name=tags" json:"tags,omitempty"`
 	Unit       string    `protobuf:"bytes,9,opt,name=unit" json:"unit,omitempty"`
 	Trace      *SSFTrace `protobuf:"bytes,10,opt,name=trace" json:"trace,omitempty"`
-	Resource   string    `protobuf:"bytes,11,opt,name=resource" json:"resource,omitempty"`
-	Service    string    `protobuf:"bytes,12,opt,name=service" json:"service,omitempty"`
+	// Traces also have a Resource. Unlike the Name, Resource
+	// can include whitespace and can be (for example) the
+	// endpoint or the base of a SQL query
+	// See https://godoc.org/github.com/DataDog/dd-trace-go/tracer#Span
+	Resource string `protobuf:"bytes,11,opt,name=resource" json:"resource,omitempty"`
+	// the name of the service
+	// e.g. "veneur"
+	Service string `protobuf:"bytes,12,opt,name=service" json:"service,omitempty"`
 }
 
 func (m *SSFSample) Reset()                    { *m = SSFSample{} }
