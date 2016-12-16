@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 // released immediately after the server is shut down. Instead, use
 // a unique port for each test. As long as we don't have an insane number
 // of integration tests, we should be fine.
-var HttpAddrPort = 8127
+var HttpAddrPort = 8129
 
 // set up a boilerplate local config for later use
 func localConfig() Config {
@@ -94,6 +94,9 @@ func generateConfig(forwardAddr string) Config {
 		Tags:            []string{},
 		SentryDsn:       "",
 		FlushMaxPerBody: 1024,
+
+		TraceAddress:    "127.0.0.1:8128",
+		TraceAPIAddress: forwardAddr,
 	}
 }
 
@@ -154,6 +157,7 @@ func setupVeneurServer(t *testing.T, config Config) Server {
 		},
 	}
 
+	// Metrics reader
 	for i := 0; i < config.NumReaders; i++ {
 		go func() {
 			defer func() {
@@ -164,6 +168,24 @@ func setupVeneurServer(t *testing.T, config Config) Server {
 			server.ReadMetricSocket(packetPool, config.NumReaders != 1)
 		}()
 	}
+
+	tracePool := &sync.Pool{
+		New: func() interface{} {
+			return make([]byte, config.TraceMaxLengthBytes)
+		},
+	}
+
+	// Trace reader
+	go func() {
+		defer func() {
+			server.ConsumePanic(recover())
+		}()
+		if server.TraceAddr != nil {
+			server.ReadTraceSocket(tracePool, config.NumReaders != 1)
+		} else {
+			logrus.Info("Tracing not configured - not reading trace socket")
+		}
+	}()
 
 	go server.HTTPServe()
 	return server

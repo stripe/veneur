@@ -516,7 +516,6 @@ func (s *Server) flushTraces() {
 	} else {
 		log.Info("No traces to flush, skipping.")
 	}
-
 }
 
 func (s *Server) flushEventsChecks() {
