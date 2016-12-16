@@ -18,6 +18,9 @@ func init() {
 
 const traceKey = "trace"
 
+// this should be set exactly once, at startup
+var Service = ""
+
 const localVeneurAddress = "127.0.0.1:8128"
 
 type Trace struct {
@@ -45,7 +48,7 @@ type Trace struct {
 // Record sends a trace to the (local) veneur instance,
 // which will pass it on to the tracing agent running on the
 // global veneur instance.
-func (t *Trace) Record(name string, tags []*ssf.SSFTag) {
+func (t *Trace) Record(name string, tags []*ssf.SSFTag) error {
 	duration := time.Now().Sub(t.Start).Nanoseconds()
 
 	sample := &ssf.SSFSample{
@@ -62,13 +65,14 @@ func (t *Trace) Record(name string, tags []*ssf.SSFTag) {
 		SampleRate: *proto.Float32(.10),
 		Tags:       tags,
 		Resource:   t.Resource,
-		Service:    "veneur",
+		Service:    Service,
 	}
 
 	err := sendSample(sample)
 	if err != nil {
 		logrus.WithError(err).Error("Error submitting sample")
 	}
+	return err
 }
 
 // Attach attaches the current trace to the context
