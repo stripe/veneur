@@ -290,14 +290,6 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		log.WithError(err).Error("Trace unmarshaling error")
 	}
 
-	// TODO REMOVE THIS
-	// DEBUGGING ONLY
-	s.statsd.Count("veneur.traces.handled", 1, []string{}, 1.0)
-
-	// TODO REMOVE THIS AS WELL
-	// DEBUGGING ONLY
-	log.WithField("proto", proto.CompactTextString(newSample)).Debug("Handling trace packet")
-
 	s.TraceWorker.TraceChan <- *newSample
 }
 
