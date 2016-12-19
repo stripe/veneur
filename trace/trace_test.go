@@ -81,9 +81,6 @@ func TestRecord(t *testing.T) {
 		},
 	}
 
-	tags = nil
-	trace.Status = ssf.SSFSample_OK
-
 	trace.Record(metricName, tags)
 	end := time.Now()
 
