@@ -2,9 +2,7 @@ package trace
 
 import (
 	"context"
-	"io/ioutil"
 	"net"
-	"os"
 	"testing"
 	"time"
 
@@ -93,7 +91,6 @@ func TestRecord(t *testing.T) {
 		// and cannot test the marshalled payload directly
 		sample := &ssf.SSFSample{}
 		err := proto.Unmarshal(resp, sample)
-		ioutil.WriteFile("foo.pb", resp, os.ModePerm)
 
 		assert.NoError(t, err)
 
