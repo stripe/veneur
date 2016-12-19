@@ -479,6 +479,11 @@ func (s *Server) flushTraces() {
 
 			resource := span.Resource
 
+			tags := map[string]string{}
+			for _, tag := range span.Tags {
+				tags[tag.Name] = tag.Value
+			}
+
 			ddspan := &DatadogTraceSpan{
 				TraceID:  int64(span.Trace.TraceId),
 				SpanID:   int64(span.Trace.Id),
@@ -494,7 +499,7 @@ func (s *Server) flushTraces() {
 				Metrics: map[string]float64{
 					"veneur.import.trace.foo": 100,
 				},
-				Meta: span.Tags,
+				Meta: tags,
 			}
 			finalTraces = append(finalTraces, ddspan)
 		}
