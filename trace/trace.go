@@ -64,11 +64,11 @@ func (t *Trace) Record(name string, tags []*ssf.SSFTag) error {
 			TraceId:  t.TraceId,
 			Id:       t.SpanId,
 			ParentId: t.ParentId,
+			Duration: duration,
+			Resource: t.Resource,
 		},
-		Value:      duration,
 		SampleRate: *proto.Float32(.10),
 		Tags:       t.Tags,
-		Resource:   t.Resource,
 		Service:    Service,
 	}
 

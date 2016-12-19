@@ -78,6 +78,7 @@ func TestRecord(t *testing.T) {
 			Value: "insert\nlots\nof\nstuff",
 		},
 	}
+
 	trace.Record(metricName, tags)
 	end := time.Now()
 
@@ -98,12 +99,12 @@ func TestRecord(t *testing.T) {
 		assert.Equal(t, trace.Start.Unix(), timestamp.Unix())
 
 		// We don't know the exact duration, but we can assert on the interval
-		assert.True(t, sample.Value > 0, "Expected positive Value (duration)")
+		assert.True(t, sample.Trace.Duration > 0, "Expected positive trace duration")
 		upperBound := end.Sub(trace.Start).Nanoseconds()
-		assert.True(t, sample.Value < upperBound, "Expected value (%d) to be less than upper bound %d", sample.Value, upperBound)
+		assert.True(t, sample.Trace.Duration < upperBound, "Expected trace duration (%d) to be less than upper bound %d", sample.Trace.Duration, upperBound)
 		assert.InEpsilon(t, sample.SampleRate, 0.1, ε)
 
-		assert.Equal(t, sample.Resource, resource)
+		assert.Equal(t, sample.Trace.Resource, resource)
 		assert.Equal(t, sample.Name, metricName)
 		assert.Equal(t, sample.Status, ssf.SSFSample_CRITICAL)
 		assert.Equal(t, sample.Metric, ssf.SSFSample_TRACE)

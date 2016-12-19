@@ -288,6 +288,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	err := proto.Unmarshal(packet, newSample)
 	if err != nil {
 		log.WithError(err).Error("Trace unmarshaling error")
+		return
 	}
 
 	s.TraceWorker.TraceChan <- *newSample

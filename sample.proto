@@ -15,6 +15,15 @@ message SSFTrace {
   // the (span) id of the direct parent,
   // if this span is not a root span
   int64 parent_id = 3;
+
+  // In addition to the Name (defined on the SSFSample),
+  // traces also have a Resource. Unlike the Name, Resource
+  // can include whitespace and can be (for example) the
+  // endpoint or the base of a SQL query
+  // See https://godoc.org/github.com/DataDog/dd-trace-go/tracer#Span
+  string resource = 4;
+
+  int64 duration = 5;
 }
 
 message SSFSample {
@@ -37,25 +46,19 @@ message SSFSample {
   // The underlying type of the metric
   Metric metric = 1;
 
+  // no spaces, but . is allowed
+  // e.g.: veneur.bar.baz
   string name = 2;
   int64 timestamp = 3;
   string message = 4;
   Status status = 5;
-  // At the moment, this Value refers specifically to a Duration
-  // TODO change this to a separate field
-  int64 value = 6;
-  float sample_rate = 7;
-  repeated SSFTag tags = 8;
-  string unit = 9;
-  SSFTrace trace = 10;
+  float sample_rate = 6;
+  repeated SSFTag tags = 7;
+  string unit = 8;
+  SSFTrace trace = 9;
 
-  // Traces also have a Resource. Unlike the Name, Resource
-  // can include whitespace and can be (for example) the
-  // endpoint or the base of a SQL query
-  // See https://godoc.org/github.com/DataDog/dd-trace-go/tracer#Span
-  string resource = 11;
 
   // the name of the service
   // e.g. "veneur"
-  string service = 12;
+  string service = 10;
 }
