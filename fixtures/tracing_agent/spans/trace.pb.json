@@ -1,6 +1,5 @@
 [
-  {
-    "duration":57,
+  {"duration":93,
     "error":0,
     "meta":{},
     "metrics": {
@@ -9,9 +8,8 @@
     "name":"veneur.trace.test",
     "resource":"Robert'); DROP TABLE students;",
     "service":"veneur-test",
-    "span_id":4117565225879578175,
-    "start":1481917838593576980,
-    "trace_id":4117565225879578175,
-    "type":"http"
-  }
+    "span_id":1778663125302625139,
+    "start":1482180895770453088,
+    "trace_id":1778663125302625139,
+    "type":"http"}
 ]

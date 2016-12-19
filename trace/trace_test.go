@@ -2,9 +2,7 @@ package trace
 
 import (
 	"context"
-	"io/ioutil"
 	"net"
-	"os"
 	"testing"
 	"time"
 
@@ -90,9 +88,6 @@ func TestRecord(t *testing.T) {
 		// Because this is marshalled using protobuf,
 		// we can't expect the representation to be immutable
 		// and cannot test the marshalled payload directly
-		err2 := ioutil.WriteFile("asdf.pb", resp, os.ModePerm)
-		assert.NoError(t, err2)
-
 		sample := &ssf.SSFSample{}
 		err := proto.Unmarshal(resp, sample)
 
@@ -114,6 +109,7 @@ func TestRecord(t *testing.T) {
 		assert.Equal(t, sample.Metric, ssf.SSFSample_TRACE)
 		assert.Equal(t, sample.Service, serviceName)
 		// TODO assert on tags
+		assert.Equal(t, sample.Tags, tags)
 	}
 
 }
