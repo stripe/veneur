@@ -477,12 +477,15 @@ func (s *Server) flushTraces() {
 				parentId = 0
 			}
 
-			resource := span.Resource
+			resource := span.Trace.Resource
 
 			tags := map[string]string{}
 			for _, tag := range span.Tags {
 				tags[tag.Name] = tag.Value
 			}
+
+			// TODO implement additional metrics
+			var metrics map[string]float64
 
 			ddspan := &DatadogTraceSpan{
 				TraceID:  int64(span.Trace.TraceId),
@@ -492,14 +495,12 @@ func (s *Server) flushTraces() {
 				Name:     span.Name,
 				Resource: resource,
 				Start:    int64(span.Timestamp),
-				Duration: span.Value,
+				Duration: span.Trace.Duration,
 				// TODO don't hardcode
-				Type:  "http",
-				Error: int64(span.Status),
-				Metrics: map[string]float64{
-					"veneur.import.trace.foo": 100,
-				},
-				Meta: tags,
+				Type:    "http",
+				Error:   int64(span.Status),
+				Metrics: metrics,
+				Meta:    tags,
 			}
 			finalTraces = append(finalTraces, ddspan)
 		}

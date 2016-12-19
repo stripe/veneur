@@ -1,15 +1,13 @@
 [
-  {"duration":93,
+  {"duration":330,
     "error":0,
     "meta":{},
-    "metrics": {
-      "veneur.import.trace.foo":100
-    },
+    "metrics": null,
     "name":"veneur.trace.test",
     "resource":"Robert'); DROP TABLE students;",
     "service":"veneur-test",
-    "span_id":1778663125302625139,
-    "start":1482180895770453088,
-    "trace_id":1778663125302625139,
+    "span_id": 9195106660278187518,
+    "start": 1482182495032611732,
+    "trace_id": 9195106660278187518,
     "type":"http"}
 ]
