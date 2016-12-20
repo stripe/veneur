@@ -155,14 +155,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		ret.EventWorker.Work()
 	}()
 
-	ret.TraceWorker = NewTraceWorker(ret.statsd)
-	go func() {
-		defer func() {
-			ret.ConsumePanic(recover())
-		}()
-		ret.TraceWorker.Work()
-	}()
-
 	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UdpAddress)
 	if err != nil {
 		return
@@ -175,7 +167,16 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.SentryDsn = "REDACTED"
 	log.WithField("config", conf).Debug("Initialized server")
 
-	if len(conf.TraceAddress) > 0 {
+	if len(conf.TraceAddress) > 0 && len(conf.TraceAPIAddress) > 0 {
+
+		ret.TraceWorker = NewTraceWorker(ret.statsd)
+		go func() {
+			defer func() {
+				ret.ConsumePanic(recover())
+			}()
+			ret.TraceWorker.Work()
+		}()
+
 		ret.TraceAddr, err = net.ResolveUDPAddr("udp", conf.TraceAddress)
 		log.WithField("traceaddr", ret.TraceAddr).Info("Set trace address")
 		if err == nil && ret.TraceAddr == nil {
@@ -443,4 +444,8 @@ func (s *Server) getPlugins() []plugins.Plugin {
 	copy(plugins, s.plugins)
 	s.pluginMtx.Unlock()
 	return plugins
+}
+
+func (s *Server) TracingEnabled() bool {
+	return s.TraceWorker != nil
 }

@@ -457,6 +457,10 @@ func resolveEndpoint(endpoint string) (string, error) {
 }
 
 func (s *Server) flushTraces() {
+	if !s.TracingEnabled() {
+		return
+	}
+
 	traces := s.TraceWorker.Flush()
 
 	var finalTraces []*DatadogTraceSpan
