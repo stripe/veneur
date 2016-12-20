@@ -23,5 +23,8 @@ type Config struct {
 	SentryDsn           string    `yaml:"sentry_dsn"`
 	StatsAddress        string    `yaml:"stats_address"`
 	Tags                []string  `yaml:"tags"`
+	TraceAddress        string    `yaml:"trace_address"`
+	TraceAPIAddress     string    `yaml:"trace_api_address"`
+	TraceMaxLengthBytes int       `yaml:"trace_max_length_bytes"`
 	UdpAddress          string    `yaml:"udp_address"`
 }

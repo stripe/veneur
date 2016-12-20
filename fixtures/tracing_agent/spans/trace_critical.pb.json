@@ -1,0 +1,19 @@
+[
+  {
+    "duration": 377,
+    "error": 2,
+    "meta": {
+      "error.msg": "an error occurred!",
+      "error.stack": "insert\nlots\nof\nstuff",
+      "error.type": "type error interface"
+    },
+    "metrics": null,
+    "name": "veneur.trace.test",
+    "resource": "Robert'); DROP TABLE students;",
+    "service": "veneur-test",
+    "span_id": 884671344597019736,
+    "start": 1482182422160135252,
+    "trace_id": 884671344597019736,
+    "type": "http"
+  }
+]

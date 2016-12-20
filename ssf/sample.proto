@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package ssf;
+
+message SSFTag {
+  string name = 1;
+  string value = 2;
+}
+
+message SSFTrace {
+  // the trace_id is the (span) id of the root span
+  int64 trace_id = 1;
+  // the id for this span
+  int64 id = 2;
+  // the (span) id of the direct parent,
+  // if this span is not a root span
+  int64 parent_id = 3;
+
+  // In addition to the Name (defined on the SSFSample),
+  // traces also have a Resource. Unlike the Name, Resource
+  // can include whitespace and can be (for example) the
+  // endpoint or the base of a SQL query
+  // See https://godoc.org/github.com/DataDog/dd-trace-go/tracer#Span
+  string resource = 4;
+
+  int64 duration = 5;
+}
+
+message SSFSample {
+  enum Metric {
+      COUNTER = 0;
+      GAUGE = 1;
+      HISTOGRAM = 2;
+      SET = 3;
+      STATUS = 4;
+      EVENT = 5;
+      TRACE = 6;
+  }
+  enum Status {
+      OK = 0;
+      WARNING = 1;
+      CRITICAL = 2;
+      UNKNOWN = 3;
+  }
+
+  // The underlying type of the metric
+  Metric metric = 1;
+
+  // no spaces, but . is allowed
+  // e.g.: veneur.bar.baz
+  string name = 2;
+  int64 timestamp = 3;
+  string message = 4;
+  Status status = 5;
+  float sample_rate = 6;
+  repeated SSFTag tags = 7;
+  string unit = 8;
+  SSFTrace trace = 9;
+
+
+  // the name of the service
+  // e.g. "veneur"
+  string service = 10;
+}

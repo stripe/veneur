@@ -7,11 +7,16 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/stripe/veneur"
+	"github.com/stripe/veneur/trace"
 )
 
 var (
 	configFile = flag.String("f", "", "The config file to read for settings.")
 )
+
+func init() {
+	trace.Service = "veneur"
+}
 
 func main() {
 	flag.Parse()
@@ -38,6 +43,12 @@ func main() {
 		},
 	}
 
+	tracePool := &sync.Pool{
+		New: func() interface{} {
+			return make([]byte, conf.TraceMaxLengthBytes)
+		},
+	}
+
 	// Read forever!
 	for i := 0; i < conf.NumReaders; i++ {
 		go func() {
@@ -47,6 +58,18 @@ func main() {
 			server.ReadMetricSocket(packetPool, conf.NumReaders != 1)
 		}()
 	}
+
+	// Trace reader
+	go func() {
+		defer func() {
+			server.ConsumePanic(recover())
+		}()
+		if server.TraceAddr != nil {
+			server.ReadTraceSocket(tracePool, conf.NumReaders != 1)
+		} else {
+			logrus.Info("Tracing not configured - not reading trace socket")
+		}
+	}()
 
 	interval, err := conf.ParseInterval()
 	if err != nil {

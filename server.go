@@ -2,6 +2,7 @@ package veneur
 
 import (
 	"bytes"
+	"errors"
 	"net"
 	"net/http"
 	"sync"
@@ -16,6 +17,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/getsentry/raven-go"
+	"github.com/golang/protobuf/proto"
+	"github.com/stripe/veneur/ssf"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
 
@@ -24,6 +27,7 @@ import (
 	"github.com/stripe/veneur/plugins"
 	s3p "github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/trace"
 )
 
 // VERSION stores the current veneur version.
@@ -34,12 +38,11 @@ var profileStartOnce = sync.Once{}
 
 var log = logrus.New()
 
-//go:generate gojson -input example.yaml -o config.go -fmt yaml -pkg veneur -name Config
-
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers     []*Worker
 	EventWorker *EventWorker
+	TraceWorker *TraceWorker
 
 	statsd *statsd.Client
 	sentry *raven.Client
@@ -47,13 +50,15 @@ type Server struct {
 	Hostname string
 	Tags     []string
 
-	DDHostname string
-	DDAPIKey   string
-	HTTPClient *http.Client
+	DDHostname     string
+	DDAPIKey       string
+	DDTraceAddress string
+	HTTPClient     *http.Client
 
 	HTTPAddr    string
 	ForwardAddr string
 	UDPAddr     *net.UDPAddr
+	TraceAddr   *net.UDPAddr
 	RcvbufBytes int
 
 	HistogramPercentiles []float64
@@ -72,6 +77,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.Tags = conf.Tags
 	ret.DDHostname = conf.APIHostname
 	ret.DDAPIKey = conf.Key
+	ret.DDTraceAddress = conf.TraceAPIAddress
 	ret.HistogramPercentiles = conf.Percentiles
 	if len(conf.Aggregates) == 0 {
 		ret.HistogramAggregates.Value = samplers.AggregateMin + samplers.AggregateMax + samplers.AggregateCount
@@ -161,6 +167,28 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.Key = "REDACTED"
 	conf.SentryDsn = "REDACTED"
 	log.WithField("config", conf).Debug("Initialized server")
+
+	if len(conf.TraceAddress) > 0 && len(conf.TraceAPIAddress) > 0 {
+
+		ret.TraceWorker = NewTraceWorker(ret.statsd)
+		go func() {
+			defer func() {
+				ret.ConsumePanic(recover())
+			}()
+			ret.TraceWorker.Work()
+		}()
+
+		ret.TraceAddr, err = net.ResolveUDPAddr("udp", conf.TraceAddress)
+		log.WithField("traceaddr", ret.TraceAddr).Info("Set trace address")
+		if err == nil && ret.TraceAddr == nil {
+			err = errors.New("resolved nil UDP address")
+		}
+		if err != nil {
+			return
+		}
+	} else {
+		trace.Disabled = true
+	}
 
 	var svc s3iface.S3API = nil
 	aws_id := conf.AwsAccessKeyID
@@ -252,6 +280,24 @@ func (s *Server) HandleMetricPacket(packet []byte) {
 	}
 }
 
+func (s *Server) HandleTracePacket(packet []byte) {
+	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
+	if len(packet) == 0 {
+		log.Error("received zero-length trace packet")
+	}
+
+	// Technically this could be anything, but we're only consuming trace spans
+	// for now.
+	newSample := &ssf.SSFSample{}
+	err := proto.Unmarshal(packet, newSample)
+	if err != nil {
+		log.WithError(err).Error("Trace unmarshaling error")
+		return
+	}
+
+	s.TraceWorker.TraceChan <- *newSample
+}
+
 // ReadMetricSocket listens for available packets to handle.
 func (s *Server) ReadMetricSocket(packetPool *sync.Pool, reuseport bool) {
 	// each goroutine gets its own socket
@@ -290,6 +336,38 @@ func (s *Server) ReadMetricSocket(packetPool *sync.Pool, reuseport bool) {
 		// only strings
 		// therefore there are no outstanding references to this byte slice, we
 		// can return it to the pool
+		packetPool.Put(buf)
+	}
+}
+
+// ReadTraceSocket listens for available packets to handle.
+func (s *Server) ReadTraceSocket(packetPool *sync.Pool, reuseport bool) {
+	// TODO This is duplicated from ReadMetricSocket and feels like it could be it's
+	// own function?
+
+	if s.TraceAddr == nil {
+		log.WithField("s.TraceAddr", s.TraceAddr).Fatal("Cannot listen on nil trace address")
+	}
+
+	serverConn, err := NewSocket(s.TraceAddr, s.RcvbufBytes, reuseport)
+	if err != nil {
+		// if any goroutine fails to create the socket, we can't really
+		// recover, so we just blow up
+		// this probably indicates a systemic issue, eg lack of
+		// SO_REUSEPORT support
+		log.WithError(err).Fatal("Error listening for UDP traces")
+	}
+	log.WithField("address", s.TraceAddr).Info("Listening for UDP traces")
+
+	for {
+		buf := packetPool.Get().([]byte)
+		n, _, err := serverConn.ReadFrom(buf)
+		if err != nil {
+			log.WithError(err).Error("Error reading from UDP trace socket")
+			continue
+		}
+
+		s.HandleTracePacket(buf[:n])
 		packetPool.Put(buf)
 	}
 }
@@ -369,4 +447,8 @@ func (s *Server) getPlugins() []plugins.Plugin {
 	copy(plugins, s.plugins)
 	s.pluginMtx.Unlock()
 	return plugins
+}
+
+func (s *Server) TracingEnabled() bool {
+	return s.TraceWorker != nil
 }

@@ -1,6 +1,13 @@
 package veneur
 
 import (
+	"encoding/json"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -50,4 +57,87 @@ func TestDeviceMagicTag(t *testing.T) {
 	assert.Equal(t, "abc123", metrics[0].DeviceName, "Metric devicename should be from tag")
 	assert.NotContains(t, metrics[0].Tags, "device:abc123", "Host tag should be removed")
 	assert.Contains(t, metrics[0].Tags, "x:e", "Last tag is still around")
+}
+
+func TestFlushTraces(t *testing.T) {
+	type TestCase struct {
+		Name         string
+		ProtobufFile string
+		JsonFile     string
+	}
+
+	cases := []TestCase{
+		{
+			Name:         "Success",
+			ProtobufFile: filepath.Join("fixtures", "protobuf", "trace.pb"),
+			JsonFile:     filepath.Join("fixtures", "tracing_agent", "spans", "trace.pb.json"),
+		},
+		{
+			Name:         "Critical",
+			ProtobufFile: filepath.Join("fixtures", "protobuf", "trace_critical.pb"),
+			JsonFile:     filepath.Join("fixtures", "tracing_agent", "spans", "trace_critical.pb.json"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			pb, err := os.Open(tc.ProtobufFile)
+			assert.NoError(t, err)
+			defer pb.Close()
+
+			js, err := os.Open(tc.JsonFile)
+			assert.NoError(t, err)
+			defer js.Close()
+
+			testFlushTrace(t, pb, js)
+		})
+	}
+}
+
+func testFlushTrace(t *testing.T, protobuf, jsn io.Reader) {
+
+	RemoteResponseChan := make(chan struct{}, 1)
+	defer func() {
+		select {
+		case <-RemoteResponseChan:
+			// all is safe
+			return
+		case <-time.After(10 * time.Second):
+			assert.Fail(t, "Global server did not complete all responses before test terminated!")
+		}
+	}()
+
+	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		var expected []*DatadogTraceSpan
+		err := json.NewDecoder(jsn).Decode(&expected)
+		assert.NoError(t, err)
+
+		var actual []*DatadogTraceSpan
+		err = json.NewDecoder(r.Body).Decode(&actual)
+		assert.NoError(t, err)
+
+		assert.Equal(t, expected, actual)
+
+		w.WriteHeader(http.StatusAccepted)
+
+		RemoteResponseChan <- struct{}{}
+	}))
+
+	config := globalConfig()
+	config.TraceAPIAddress = remoteServer.URL
+
+	server := setupVeneurServer(t, config)
+	defer server.Shutdown()
+
+	assert.Equal(t, server.DDTraceAddress, config.TraceAPIAddress)
+
+	packet, err := ioutil.ReadAll(protobuf)
+	assert.NoError(t, err)
+
+	server.HandleTracePacket(packet)
+
+	interval, err := config.ParseInterval()
+	assert.NoError(t, err)
+	server.Flush(interval, config.FlushMaxPerBody)
 }
