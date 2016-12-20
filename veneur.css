@@ -1,0 +1,110 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  background-color: #ffffff;
+}
+
+@-ms-viewport{
+  width: device-width;
+}
+
+#top {
+  background-color: rgba(255, 204, 25, 0.22);
+  font-size: 1em;
+  padding-bottom: 2em;
+}
+
+#top-img {
+  width: 80%;
+  margin-bottom: -10%;
+  margin-top: -7%;
+}
+
+@media only screen and (min-width: 600px) {
+  #top-img {
+    width: 30em;
+    margin-bottom: -5em;
+    margin-top: -3em;
+  }
+}
+
+#bottom {
+  color: #383f52;
+  background-image: -ms-linear-gradient(top, #eaf1f7 0%, #c5e6ff 100%);
+  background-image: -moz-linear-gradient(top, #eaf1f7 0%, #c5e6ff 100%);
+  background-image: -o-linear-gradient(top, #eaf1f7 0%, #c5e6ff 100%);
+  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #eaf1f7), color-stop(100, #c5e6ff));
+  background-image: -webkit-linear-gradient(top, #eaf1f7 0%, #c5e6ff 100%);
+  background-image: linear-gradient(to bottom, #eaf1f7 0%, #c5e6ff 100%);
+}
+
+.s:nth-of-type(6n+0) {color: rgb(9, 55, 243);}
+.s:nth-of-type(6n+1) {color: rgb(9, 55, 243);}
+.s:nth-of-type(6n+2) {color: rgb(9, 55, 243);}
+.s:nth-of-type(6n+3) {color: rgb(9, 55, 243);}
+.s:nth-of-type(6n+4) {color: rgb(9, 55, 243);}
+.s:nth-of-type(6n+5) {color: rgb(9, 55, 243);}
+
+.bigwords {
+  font-size: 2.5em;
+  margin: 0 auto;
+  padding: 1em 0;
+  width: 66%;
+  text-align: center;
+  overflow: hidden;
+}
+
+.bigwords .s {
+  font-weight: bold;
+}
+
+
+@media only screen and (min-width: 768px) {
+  .xrow.xgap-10 > * {
+    margin-left: 6em;
+  }
+
+  .xrow>*:first-child {
+    margin-left: 0;
+  }
+}
+
+.columnblock {
+  font-size: 1.5em;
+  width: 80%;
+  line-height: 1.5em;
+  letter-spacing: -.5px;
+}
+
+@media only screen and (min-width: 768px) {
+  .columnblock {
+    width: 12em;
+  }
+}
+
+.bullet {
+  font-size: 2em;
+}
+
+h1 {
+  margin: 2em 0;
+  font-size: 1.5em;
+  font-weight: normal;
+}
+
+a,
+a:link,
+a:visited,
+a:hover,
+a:active {
+  color: inherit;
+  text-decoration: inherit;
+  font-weight: inherit;
+}
+
+.mono {
+  font-size: 150%;
+  font-weight: normal;
+  font-family: monospace;
+}
