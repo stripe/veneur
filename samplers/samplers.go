@@ -20,8 +20,8 @@ type DDMetric struct {
 	Value      [1][2]float64 `json:"points"`
 	Tags       []string      `json:"tags,omitempty"`
 	MetricType string        `json:"type"`
-	Hostname   string        `json:"host"`
-	DeviceName string        `json:"device_name"`
+	Hostname   string        `json:"host,omitempty"`
+	DeviceName string        `json:"device_name,omitempty"`
 	Interval   int32         `json:"interval,omitempty"`
 }
 
