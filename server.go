@@ -27,6 +27,7 @@ import (
 	"github.com/stripe/veneur/plugins"
 	s3p "github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/trace"
 )
 
 // VERSION stores the current veneur version.
@@ -185,6 +186,8 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		if err != nil {
 			return
 		}
+	} else {
+		trace.Disabled = true
 	}
 
 	var svc s3iface.S3API = nil

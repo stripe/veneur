@@ -16,6 +16,12 @@ func init() {
 	rand.Seed(time.Now().Unix())
 }
 
+// (Experimental)
+// If this is set to true,
+// traces will be generated but not actually sent.
+// This should only be set before any traces are generated
+var Disabled bool = false
+
 const traceKey = "trace"
 
 // this should be set exactly once, at startup
@@ -151,6 +157,10 @@ func StartTrace(resource string) *Trace {
 // sendSample marshals the sample using protobuf and sends it
 // over UDP to the local veneur instance
 func sendSample(sample *ssf.SSFSample) error {
+	if Disabled {
+		return nil
+	}
+
 	server_addr, err := net.ResolveUDPAddr("udp", localVeneurAddress)
 	if err != nil {
 		return err
