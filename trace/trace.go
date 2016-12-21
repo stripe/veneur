@@ -15,6 +15,10 @@ import (
 	"github.com/stripe/veneur/ssf"
 )
 
+var _ opentracing.Tracer = &Tracer{}
+var _ opentracing.Span = &Span{}
+var _ opentracing.SpanContext = &spanContext{}
+
 type spanContext struct {
 	TraceId      int64
 	Resource     string
@@ -33,8 +37,6 @@ func (c *spanContext) ForeachBaggageItem(handler func(k, v string) bool) {
 		}
 	}
 }
-
-var _ opentracing.SpanContext = &spanContext{}
 
 type Span struct {
 	tracer Tracer
@@ -214,9 +216,6 @@ func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier i
 func (t Tracer) Extract(format interface{}, carrier interface{}) (opentracing.SpanContext, error) {
 	return nil, opentracing.ErrUnsupportedFormat
 }
-
-var _ opentracing.Tracer = &Tracer{}
-var _ opentracing.Span = &Span{}
 
 func init() {
 	rand.Seed(time.Now().Unix())
