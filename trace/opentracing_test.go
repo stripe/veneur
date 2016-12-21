@@ -37,6 +37,9 @@ func TestTracerRootSpan(t *testing.T) {
 
 // Test that the Tracer can correctly create a child span
 func TestTracerChildSpan(t *testing.T) {
+	// TODO test grandchild as well
+	// to ensure we can do nested children properly
+
 	const resource = "Robert'); DROP TABLE students;"
 	// This will be a *really* slow trace!
 	const expectedTimestamp = 1136239445

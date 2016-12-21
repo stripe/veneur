@@ -2,10 +2,15 @@ package trace
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"math/rand"
 	"net"
 	"reflect"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/stripe/veneur/ssf"
@@ -21,11 +26,17 @@ var _ opentracing.Span = &Span{}
 var _ opentracing.SpanContext = &spanContext{}
 var _ opentracing.StartSpanOption = &spanOption{}
 
+var ErrUnsupportedSpanContext = errors.New("Unsupported SpanContext")
+
+// TODO make this more descriptive
+var ErrContractViolation = errors.New("Contract violation")
+
 type spanContext struct {
-	TraceId      int64
-	Resource     string
-	ParentId     int64
 	baggageItems map[string]string
+}
+
+func (c *spanContext) Init() {
+	c.baggageItems = map[string]string{}
 }
 
 // ForeachBaggageItem calls the handler function on each key/val pair in
@@ -40,10 +51,56 @@ func (c *spanContext) ForeachBaggageItem(handler func(k, v string) bool) {
 	}
 }
 
+// TraceID extracts the Trace ID from the BaggageItems.
+// It assumes the TraceID is present and valid.
+func (c *spanContext) TraceId() int64 {
+	return c.parseBaggageInt64("traceid")
+}
+
+// TraceID extracts the Trace ID from the BaggageItems.
+// It assumes the TraceID is present and valid.
+func (c *spanContext) ParentId() int64 {
+	return c.parseBaggageInt64("parentid")
+}
+
+// parseBaggageInt64 searches for the target key in the BaggageItems
+// and parses it as an int64. It treats keys as case-insensitive.
+func (c *spanContext) parseBaggageInt64(key string) int64 {
+	var val int64
+	c.ForeachBaggageItem(func(k, v string) bool {
+		if strings.ToLower(k) == strings.ToLower(key) {
+			i, err := strconv.ParseInt(v, 10, 64)
+			if err != nil {
+				// TODO handle err
+				return true
+			}
+			val = i
+			return false
+		}
+		return true
+	})
+	return val
+}
+
+// Resource returns the resource assocaited with the spanContext
+func (c *spanContext) Resource() string {
+	var resource string
+	c.ForeachBaggageItem(func(k, v string) bool {
+		if strings.ToLower(k) == "resource" {
+			resource = v
+			return false
+		}
+		return true
+	})
+	return resource
+}
+
 type Span struct {
 	tracer Tracer
 
 	*Trace
+
+	// These are currently ignored
 	logLines []opentracinglog.Field
 }
 
@@ -70,12 +127,13 @@ func (s *Span) Context() opentracing.SpanContext {
 // except it returns the concrete type for local package use
 func (s *Span) context() *spanContext {
 	//TODO baggageItems
-	return &spanContext{
-		TraceId:      s.TraceId,
-		Resource:     s.Resource,
-		ParentId:     s.ParentId,
-		baggageItems: nil,
-	}
+
+	c := &spanContext{}
+	c.Init()
+	c.baggageItems["traceid"] = strconv.FormatInt(s.TraceId, 10)
+	c.baggageItems["parentid"] = strconv.FormatInt(s.ParentId, 10)
+	c.baggageItems["resource"] = s.Resource
+	return c
 }
 
 func (s *Span) SetOperationName(name string) opentracing.Span {
@@ -223,9 +281,10 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 				if !ok {
 					continue
 				}
-				parent.TraceId = ctx.TraceId
-				parent.SpanId = ctx.ParentId
-				parent.Resource = ctx.Resource
+				parent.TraceId = ctx.TraceId()
+				parent.SpanId = ctx.ParentId()
+				parent.Resource = ctx.Resource()
+
 			default:
 				// TODO handle error
 			}
@@ -253,14 +312,77 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 
 // Inject injects the provided SpanContext into the carrier for propagation.
 // It will return opentracing.ErrUnsupportedFormat if the format is not supported.
+// TODO support other SpanContext implementations
 // TODO support all the BuiltinFormats
-func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier interface{}) error {
+func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier interface{}) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			// TODO annotate this error type
+			err = ErrContractViolation
+		}
+	}()
+
+	sc, ok := sm.(*spanContext)
+	if !ok {
+		return ErrUnsupportedSpanContext
+	}
+
+	switch format {
+	case opentracing.Binary:
+		// carrier is guaranteed to be an io.Writer by contract
+		w := carrier.(io.Writer)
+
+		trace := &Trace{
+			TraceId:  sc.TraceId(),
+			ParentId: sc.ParentId(),
+			Resource: sc.Resource(),
+		}
+		return trace.ProtoMarshalText(w)
+
+	case opentracing.TextMap:
+	case opentracing.HTTPHeaders:
+	}
+
 	return opentracing.ErrUnsupportedFormat
 }
 
 // Extract returns a SpanContext given the format and the carrier.
 // TODO support all the BuiltinFormats
-func (t Tracer) Extract(format interface{}, carrier interface{}) (opentracing.SpanContext, error) {
+func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracing.SpanContext, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			// TODO annotate this error type
+			err = ErrContractViolation
+		}
+	}()
+
+	switch format {
+	case opentracing.Binary:
+		// carrier is guaranteed to be an io.Reader by contract
+		r := carrier.(io.Reader)
+		packet, err := ioutil.ReadAll(r)
+		if err != nil {
+			return nil, err
+		}
+
+		sample := &ssf.SSFSample{}
+		err = proto.Unmarshal(packet, sample)
+		if err != nil {
+			return nil, err
+		}
+
+		trace := &Trace{
+			TraceId:  sample.Trace.TraceId,
+			ParentId: sample.Trace.ParentId,
+			Resource: sample.Trace.Resource,
+		}
+
+		return trace.context(), nil
+
+	case opentracing.TextMap:
+	case opentracing.HTTPHeaders:
+	}
+
 	return nil, opentracing.ErrUnsupportedFormat
 }
 
@@ -305,6 +427,10 @@ type Trace struct {
 	Status ssf.SSFSample_Status
 
 	Tags []*ssf.SSFTag
+
+	// Unlike the Resource, this should not contain spaces
+	// It should be of the format foo.bar.baz
+	Name string
 }
 
 // Set the end timestamp and finalize Span state
@@ -322,6 +448,39 @@ func (t *Trace) Duration() time.Duration {
 	return t.End.Sub(t.Start)
 }
 
+// SSFSample converts the Trace to an SSFSample type.
+// It sets the duration, so it assumes the span has already ended.
+// (It is safe to call on a span that has not ended, but the duration
+// field will be invalid)
+func (t *Trace) SSFSample() *ssf.SSFSample {
+	duration := t.Duration().Nanoseconds()
+	name := t.Name
+
+	return &ssf.SSFSample{
+		Metric:    ssf.SSFSample_TRACE,
+		Timestamp: t.Start.UnixNano(),
+		Status:    t.Status,
+		Name:      *proto.String(name),
+		Trace: &ssf.SSFTrace{
+			TraceId:  t.TraceId,
+			Id:       t.SpanId,
+			ParentId: t.ParentId,
+			Duration: duration,
+			Resource: t.Resource,
+		},
+		SampleRate: *proto.Float32(.10),
+		Tags:       t.Tags,
+		Service:    Service,
+	}
+}
+
+// ProtoMarshalText writes the Trace as a protocol buffer
+// in text format to the specified writer.
+// The only errors returned are from w.
+func (t *Trace) ProtoMarshalText(w io.Writer) error {
+	return proto.MarshalText(w, t.SSFSample())
+}
+
 // Record sends a trace to the (local) veneur instance,
 // which will pass it on to the tracing agent running on the
 // global veneur instance.
@@ -330,6 +489,10 @@ func (t *Trace) Record(name string, tags []*ssf.SSFTag) error {
 	duration := t.Duration().Nanoseconds()
 
 	t.Tags = append(t.Tags, tags...)
+
+	if name == "" {
+		name = t.Name
+	}
 
 	sample := &ssf.SSFSample{
 		Metric:    ssf.SSFSample_TRACE,
@@ -408,15 +571,16 @@ func (t *Trace) SetParent(parent *Trace) {
 }
 
 // Context returns a spanContext representing the trace
-// from the point of view of its direct children
+// from the point of view of its direct children.
+// (The SpanId for the trace will be set as the ParentId for the context)
 func (t *Trace) context() *spanContext {
-	// TODO baggageItems
-	return &spanContext{
-		TraceId:      t.TraceId,
-		Resource:     t.Resource,
-		ParentId:     t.SpanId,
-		baggageItems: nil,
-	}
+
+	c := &spanContext{}
+	c.Init()
+	c.baggageItems["traceid"] = strconv.FormatInt(t.TraceId, 10)
+	c.baggageItems["parentid"] = strconv.FormatInt(t.SpanId, 10)
+	c.baggageItems["resource"] = t.Resource
+	return c
 }
 
 // StartTrace is called by to create the root-level span
