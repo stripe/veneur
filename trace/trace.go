@@ -17,6 +17,8 @@ import (
 
 type spanContext struct {
 	TraceId      int64
+	Resource     string
+	ParentId     int64
 	baggageItems map[string]string
 }
 
@@ -38,7 +40,6 @@ type Span struct {
 	tracer Tracer
 
 	*Trace
-	context  *spanContext
 	logLines []opentracinglog.Field
 }
 
@@ -58,7 +59,19 @@ func (s *Span) FinishWithOptions(opts opentracing.FinishOptions) {
 }
 
 func (s *Span) Context() opentracing.SpanContext {
-	return s.context
+	return s.context()
+}
+
+// context() is like its exported counterpart,
+// except it returns the concrete type for local package use
+func (s *Span) context() *spanContext {
+	//TODO baggageItems
+	return &spanContext{
+		TraceId:      s.TraceId,
+		Resource:     s.Resource,
+		ParentId:     s.ParentId,
+		baggageItems: nil,
+	}
 }
 
 func (s *Span) SetOperationName(name string) opentracing.Span {
@@ -95,12 +108,12 @@ func (s *Span) LogKV(alternatingKeyValues ...interface{}) {
 }
 
 func (s *Span) SetBaggageItem(restrictedKey, value string) opentracing.Span {
-	s.context.baggageItems[restrictedKey] = value
+	s.context().baggageItems[restrictedKey] = value
 	return s
 }
 
 func (s *Span) BaggageItem(restrictedKey string) string {
-	return s.context.baggageItems[restrictedKey]
+	return s.context().baggageItems[restrictedKey]
 }
 
 // Tracer returns the tracer that created this Span
@@ -126,18 +139,66 @@ func (s *Span) Log(data opentracing.LogData) {
 type Tracer struct {
 }
 
+// StartSpan starts a span with the specified operationName (resource) and options.
+// If the options specify a parent span and/or root trace, the resource from the
+// root trace will be used.
 func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOption) opentracing.Span {
-	// TODO implement opts
+	// TODO implement References
 
 	sso := opentracing.StartSpanOptions{}
 	for _, o := range opts {
 		o.Apply(&sso)
 	}
 
-	trace := StartTrace(operationName)
-	return &Span{
-		Trace:  trace,
-		tracer: t,
+	if len(sso.References) == 0 {
+		// This is a root-level span
+		// beginning a new trace
+		return &Span{
+			Trace:  StartTrace(operationName),
+			tracer: t,
+		}
+	} else {
+
+		// First, let's extract the parent's information
+		parent := Trace{}
+
+		// TODO don't assume that the ReferencedContext is a concrete spanContext
+		for _, ref := range sso.References {
+			// at the moment, I believe Datadog treats children and follow-children
+			// the same way
+			switch ref.Type {
+			case opentracing.FollowsFromRef:
+				fallthrough
+			case opentracing.ChildOfRef:
+				ctx, ok := ref.ReferencedContext.(*spanContext)
+				if !ok {
+					continue
+				}
+				parent.TraceId = ctx.TraceId
+				parent.SpanId = ctx.ParentId
+				parent.Resource = ctx.Resource
+			default:
+				// TODO handle error
+			}
+		}
+
+		// TODO allow us to start the trace as a separate operation
+		// to prevent measurement error in timing
+		trace := StartChildSpan(&parent)
+
+		if !sso.StartTime.IsZero() {
+			trace.Start = sso.StartTime
+		}
+
+		span := &Span{
+			Trace:  StartTrace(operationName),
+			tracer: t,
+		}
+
+		for k, v := range sso.Tags {
+			span.SetTag(k, v)
+		}
+		return span
 	}
 }
 
@@ -289,16 +350,15 @@ func SpanFromContext(c context.Context) *Trace {
 		logrus.WithField("type", reflect.TypeOf(c.Value(traceKey))).Error("expected *Trace from context")
 	}
 
-	spanId := proto.Int64(rand.Int63())
-	span := &Trace{
-		TraceId:  parent.TraceId,
-		SpanId:   *spanId,
-		ParentId: parent.SpanId,
-		Resource: parent.Resource,
-		Start:    time.Now(),
-	}
+	return StartChildSpan(parent)
+}
 
-	return span
+// SetParent updates the ParentId, TraceId, and Resource of a trace
+// based on the parent's values (SpanId, TraceId, Resource).
+func (t *Trace) SetParent(parent *Trace) {
+	t.ParentId = parent.SpanId
+	t.TraceId = parent.TraceId
+	t.Resource = parent.Resource
 }
 
 // StartTrace is called by to create the root-level span
@@ -315,6 +375,19 @@ func StartTrace(resource string) *Trace {
 
 	t.Start = time.Now()
 	return t
+}
+
+// StartChildSpan creates a new Span with the specified parent
+func StartChildSpan(parent *Trace) *Trace {
+	spanId := proto.Int64(rand.Int63())
+	span := &Trace{
+		SpanId: *spanId,
+	}
+
+	span.SetParent(parent)
+	span.Start = time.Now()
+
+	return span
 }
 
 // sendSample marshals the sample using protobuf and sends it
