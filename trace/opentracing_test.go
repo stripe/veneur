@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stripe/veneur/ssf"
+
+	"github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,4 +33,52 @@ func TestTracerRootSpan(t *testing.T) {
 	assert.Equal(t, trace.ParentId, expectedParent)
 	assert.Equal(t, trace.Resource, resource)
 	assert.True(t, between)
+}
+
+// Test that the Tracer can correctly create a child span
+func TestTracerChildSpan(t *testing.T) {
+	const resource = "Robert'); DROP TABLE students;"
+	// This will be a *really* slow trace!
+	const expectedTimestamp = 1136239445
+	var expectedTags = []*ssf.SSFTag{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "baz",
+			Value: "quz",
+		},
+	}
+
+	tracer := Tracer{}
+
+	parent := StartTrace(resource)
+	var expectedParent = parent.SpanId
+
+	start := time.Now()
+	opts := []opentracing.StartSpanOption{
+		customSpanStart(time.Unix(expectedTimestamp, 0)),
+		customSpanParent(parent),
+		customSpanTags("foo", "bar"),
+		customSpanTags("baz", "quz"),
+	}
+	trace := tracer.StartSpan(resource, opts...).(*Span)
+	end := time.Now()
+
+	// The end time should be something between these two
+	between := end.After(trace.End) && trace.End.After(start)
+	assert.False(t, between)
+
+	assert.Equal(t, time.Unix(expectedTimestamp, 0), trace.Start)
+
+	assert.Equal(t, parent.TraceId, parent.SpanId)
+	assert.Equal(t, expectedParent, trace.ParentId)
+	assert.Equal(t, resource, trace.Resource)
+
+	assert.Len(t, trace.Tags, len(expectedTags))
+
+	for _, tag := range expectedTags {
+		assert.Contains(t, trace.Tags, tag)
+	}
 }

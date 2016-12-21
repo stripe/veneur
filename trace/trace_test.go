@@ -145,5 +145,21 @@ func TestSpanFromContext(t *testing.T) {
 	assert.Equal(t, child.ParentId, trace.SpanId)
 	assert.Equal(t, grandchild.ParentId, child.SpanId)
 	assert.Equal(t, grandchild.TraceId, trace.SpanId)
+}
 
+func TestStartChildSpan(t *testing.T) {
+	const resource = "Robert'); DROP TABLE students;"
+	root := StartTrace(resource)
+	child := StartChildSpan(root)
+	grandchild := StartChildSpan(child)
+
+	assert.Equal(t, resource, child.Resource)
+	assert.Equal(t, resource, grandchild.Resource)
+
+	assert.Equal(t, root.SpanId, root.TraceId)
+	assert.Equal(t, root.SpanId, child.TraceId)
+	assert.Equal(t, root.SpanId, grandchild.TraceId)
+
+	assert.Equal(t, root.SpanId, child.ParentId)
+	assert.Equal(t, child.SpanId, grandchild.ParentId)
 }
