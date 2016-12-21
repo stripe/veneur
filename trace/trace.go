@@ -2,6 +2,7 @@ package trace
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"net"
 	"reflect"
@@ -9,8 +10,152 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/golang/protobuf/proto"
+	"github.com/opentracing/opentracing-go"
+	opentracinglog "github.com/opentracing/opentracing-go/log"
 	"github.com/stripe/veneur/ssf"
 )
+
+type spanContext struct {
+	TraceId      int64
+	baggageItems map[string]string
+}
+
+// ForeachBaggageItem calls the handler function on each key/val pair in
+// the spanContext's baggage items. If the handler function returns false, it
+// terminates iteration immediately.
+func (c *spanContext) ForeachBaggageItem(handler func(k, v string) bool) {
+	for k, v := range c.baggageItems {
+		b := handler(k, v)
+		if !b {
+			return
+		}
+	}
+}
+
+var _ opentracing.SpanContext = &spanContext{}
+
+type Span struct {
+	tracer Tracer
+
+	*Trace
+	context  *spanContext
+	logLines []opentracinglog.Field
+}
+
+func (s *Span) Finish() {
+	s.FinishWithOptions(opentracing.FinishOptions{
+		FinishTime:  time.Now(),
+		LogRecords:  nil,
+		BulkLogData: nil,
+	})
+
+}
+
+// FinishWithOptions finishes the span, but with explicit
+// control over timestamps and log data.
+// The BulkLogData field is deprecated and ignored.
+func (s *Span) FinishWithOptions(opts opentracing.FinishOptions) {
+}
+
+func (s *Span) Context() opentracing.SpanContext {
+	return s.context
+}
+
+func (s *Span) SetOperationName(name string) opentracing.Span {
+	s.Trace.Resource = name
+	return s
+}
+
+// SetTag sets the tags on the underlying span
+func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
+	tag := ssf.SSFTag{Name: key}
+	// TODO mutex
+	switch v := value.(type) {
+	case fmt.Stringer:
+		tag.Value = v.String()
+	default:
+		// TODO maybe just ban non-strings?
+		tag.Value = fmt.Sprintf("%#v", value)
+	}
+	s.Tags = append(s.Tags, &tag)
+	return s
+}
+
+// LogFields sets log fields on the underlying span.
+// Currently these are ignored, but they can be fun to set anyway!
+func (s *Span) LogFields(fields ...opentracinglog.Field) {
+	// TODO mutex this
+	s.logLines = append(s.logLines, fields...)
+}
+
+func (s *Span) LogKV(alternatingKeyValues ...interface{}) {
+	// TODO handle error
+	fs, _ := opentracinglog.InterleavedKVToFields(alternatingKeyValues...)
+	s.LogFields(fs...)
+}
+
+func (s *Span) SetBaggageItem(restrictedKey, value string) opentracing.Span {
+	s.context.baggageItems[restrictedKey] = value
+	return s
+}
+
+func (s *Span) BaggageItem(restrictedKey string) string {
+	return s.context.baggageItems[restrictedKey]
+}
+
+// Tracer returns the tracer that created this Span
+func (s *Span) Tracer() opentracing.Tracer {
+	return s.tracer
+}
+
+// LogEvent is deprecated and unimplemented.
+// It is included only to satisfy the opentracing.Span interface.
+func (s *Span) LogEvent(event string) {
+}
+
+// LogEventWithPayload is deprecated and unimplemented.
+// It is included only to satisfy the opentracing.Span interface.
+func (s *Span) LogEventWithPayload(event string, payload interface{}) {
+}
+
+// Log is deprecated and unimplemented.
+// It is included only to satisfy the opentracing.Span interface.
+func (s *Span) Log(data opentracing.LogData) {
+}
+
+type Tracer struct {
+}
+
+func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOption) opentracing.Span {
+	// TODO implement opts
+
+	sso := opentracing.StartSpanOptions{}
+	for _, o := range opts {
+		o.Apply(&sso)
+	}
+
+	trace := StartTrace(operationName)
+	return &Span{
+		Trace:  trace,
+		tracer: t,
+	}
+}
+
+// Inject injects the provided SpanContext into the carrier for propagation.
+// It will return opentracing.ErrUnsupportedFormat if the format is not supported.
+// TODO support all the BuiltinFormats
+func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier interface{}) error {
+	return opentracing.ErrUnsupportedFormat
+}
+
+// Extract returns a SpanContext given the format and the carrier.
+// TODO support all the BuiltinFormats
+func (t Tracer) Extract(format interface{}, carrier interface{}) (opentracing.SpanContext, error) {
+	return nil, opentracing.ErrUnsupportedFormat
+}
+
+var _ opentracing.Tracer = &Tracer{}
+var _ opentracing.Span = &Span{}
 
 func init() {
 	rand.Seed(time.Now().Unix())
@@ -46,6 +191,8 @@ type Trace struct {
 
 	Start time.Time
 
+	End time.Time
+
 	// If non-zero, the trace will be treated
 	// as an error
 	Status ssf.SSFSample_Status
@@ -53,11 +200,27 @@ type Trace struct {
 	Tags []*ssf.SSFTag
 }
 
+// Set the end timestamp and finalize Span state
+func (t *Trace) Finish() {
+	t.End = time.Now()
+}
+
+// Duration is a convenience function for
+// the difference between the Start and End timestamps.
+// It assumes the span has already ended.
+func (t *Trace) Duration() time.Duration {
+	if t.End.IsZero() {
+		return -1
+	}
+	return t.End.Sub(t.Start)
+}
+
 // Record sends a trace to the (local) veneur instance,
 // which will pass it on to the tracing agent running on the
 // global veneur instance.
 func (t *Trace) Record(name string, tags []*ssf.SSFTag) error {
-	duration := time.Now().Sub(t.Start).Nanoseconds()
+	t.Finish()
+	duration := t.Duration().Nanoseconds()
 
 	t.Tags = append(t.Tags, tags...)
 
