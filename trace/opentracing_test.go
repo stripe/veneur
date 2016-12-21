@@ -3,6 +3,10 @@
 package trace
 
 import (
+	"bytes"
+	"io"
+	"log"
+	"os"
 	"testing"
 	"time"
 
@@ -84,4 +88,41 @@ func TestTracerChildSpan(t *testing.T) {
 	for _, tag := range expectedTags {
 		assert.Contains(t, trace.Tags, tag)
 	}
+}
+
+// DummySpan is a helper function that gives
+// a simple Span to use in tests
+func DummySpan() *Span {
+	const resource = "Robert'); DROP TABLE students;"
+	const expectedTimestamp = 1136239445
+	tracer := &Tracer{}
+
+	parent := StartTrace(resource)
+	opts := []opentracing.StartSpanOption{
+		customSpanStart(time.Unix(expectedTimestamp, 0)),
+		customSpanParent(parent),
+		customSpanTags("foo", "bar"),
+		customSpanTags("baz", "quz"),
+	}
+	trace := tracer.StartSpan(resource, opts...).(*Span)
+	return trace
+}
+
+func TestTracerInjectBinary(t *testing.T) {
+	trace := DummySpan().Trace
+	tracer := Tracer{}
+	var b bytes.Buffer
+
+	err := tracer.Inject(trace.context(), opentracing.Binary, &b)
+	assert.NoError(t, err)
+
+	log.Printf("asdfas")
+	io.Copy(os.Stdout, &b)
+
+	c, err := tracer.Extract(opentracing.Binary, &b)
+	assert.NoError(t, err)
+
+	ctx := c.(*spanContext)
+
+	assert.Equal(t, trace.TraceId, ctx.TraceId())
 }
