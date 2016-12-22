@@ -522,6 +522,11 @@ func (s *Server) flushTraces() {
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
 
+		// TODO REMOVE
+		for _, trace := range finalTraces {
+			log.WithField("trace", trace).Info("Flushing trace")
+		}
+
 		err := s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
 
 		if err == nil {
