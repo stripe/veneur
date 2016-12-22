@@ -118,7 +118,7 @@ func TestTracerInjectBinary(t *testing.T) {
 	tracer := Tracer{}
 	var b bytes.Buffer
 
-	err := tracer.Inject(trace.contextAsParent(), opentracing.Binary, &b)
+	err := tracer.Inject(trace.context(), opentracing.Binary, &b)
 	assert.NoError(t, err)
 
 	packet, err := ioutil.ReadAll(&b)
@@ -157,7 +157,7 @@ func TestTracerInjectExtractBinary(t *testing.T) {
 	var b bytes.Buffer
 	var _ io.Reader = &b
 
-	err := tracer.Inject(trace.contextAsParent(), opentracing.Binary, &b)
+	err := tracer.Inject(trace.context(), opentracing.Binary, &b)
 	assert.NoError(t, err)
 
 	c, err := tracer.Extract(opentracing.Binary, &b)
@@ -166,7 +166,9 @@ func TestTracerInjectExtractBinary(t *testing.T) {
 	ctx := c.(*spanContext)
 
 	assert.Equal(t, trace.TraceId, ctx.TraceId())
-	assert.Equal(t, trace.SpanId, ctx.ParentId())
+
+	assert.Equal(t, trace.SpanId, ctx.SpanId(), "original trace and context should share the same SpanId")
+	assert.Equal(t, trace.ParentId, ctx.ParentId(), "original trace and context should share the same ParentId")
 	assert.Equal(t, trace.Resource, ctx.Resource())
 }
 
@@ -185,8 +187,10 @@ func assertContextUnmarshalEqual(t *testing.T, expected *Trace, sample *ssf.SSFS
 	// The sample rate is hard-coded
 	assert.Equal(t, expected.SSFSample().SampleRate, sample.SampleRate)
 
+	// The TraceId, ParentId, and Resource should all be the same.
 	assert.Equal(t, expected.SSFSample().Trace.TraceId, sample.Trace.TraceId)
-	assert.Equal(t, expected.SSFSample().Trace.Id, sample.Trace.ParentId)
+	assert.Equal(t, expected.SSFSample().Trace.ParentId, sample.Trace.ParentId)
+	assert.Equal(t, expected.SSFSample().Trace.Id, sample.Trace.Id)
 	assert.Equal(t, expected.SSFSample().Trace.Resource, sample.Trace.Resource)
 
 }
