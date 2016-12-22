@@ -107,7 +107,7 @@ func handleImport(s *Server) http.Handler {
 // metric
 func (s *Server) nonEmpty(ctx context.Context, jsonMetrics []samplers.JSONMetric) bool {
 
-	span, _ := trace.StartSpanFromContext(ctx, "veneur.import.nonEmpty.opentracing")
+	span, _ := trace.StartSpanFromContext(ctx, "/import", trace.NameTag("veneur.import.nonEmpty.opentracing"))
 	defer span.Finish()
 
 	sentinel := samplers.JSONMetric{}

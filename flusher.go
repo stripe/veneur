@@ -25,7 +25,7 @@ import (
 func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	//trace := trace.StartTrace("flush")
 	//defer trace.Record("veneur.flush.trace", []*ssf.SSFTag{})
-	span := tracer.StartSpan("/import", trace.NameTag("veneur.flush.opentracing")).(*trace.Span)
+	span := tracer.StartSpan("flush", trace.NameTag("veneur.flush.opentracing")).(*trace.Span)
 	defer span.Finish()
 
 	// right now we have only one destination plugin
@@ -42,7 +42,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metricLimit int) {
 	//trace := trace.SpanFromContext(ctx)
 	//defer trace.Record("veneur.flush.FlushGlobal.trace", nil)
-	span, _ := trace.StartSpanFromContext(ctx, "veneur.flush.FlushGlobal.opentracing")
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.flush.FlushGlobal.opentracing"))
 	defer span.Finish()
 
 	go s.flushEventsChecks() // we can do all of this separately
@@ -84,7 +84,7 @@ func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metric
 func (s *Server) FlushLocal(ctx context.Context, interval time.Duration, metricLimit int) {
 	//trace := trace.SpanFromContext(ctx)
 	//defer trace.Record("veneur.flush.FlushLocal.trace", nil)
-	span, _ := trace.StartSpanFromContext(ctx, "veneur.flush.FlushLocal.opentracing")
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.flush.FlushLocal.opentracing"))
 	defer span.Finish()
 
 	go s.flushEventsChecks() // we can do all of this separately
@@ -190,7 +190,7 @@ func (s *Server) generateDDMetrics(ctx context.Context, interval time.Duration, 
 
 	//trace := trace.SpanFromContext(ctx)
 	//defer trace.Record("veneur.flush.generateDDMetrics.trace", nil)
-	span, _ := trace.StartSpanFromContext(ctx, "veneur.flush.generateDDMetrics.opentracing")
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.flush.generateDDMetrics.opentracing"))
 	defer span.Finish()
 
 	finalMetrics := make([]samplers.DDMetric, 0, ms.totalLength)
@@ -497,8 +497,6 @@ func (s *Server) flushTraces() {
 				tags[tag.Name] = tag.Value
 			}
 
-			log.WithField("span", span).Info("Building span")
-
 			// TODO implement additional metrics
 			var metrics map[string]float64
 
@@ -524,11 +522,6 @@ func (s *Server) flushTraces() {
 		// this endpoint is not documented to take an array... but it does
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
-
-		// TODO REMOVE
-		for _, trace := range finalTraces {
-			log.WithField("trace", trace).Info("Flushing trace")
-		}
 
 		err := s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
 

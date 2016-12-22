@@ -180,20 +180,13 @@ func (s *Span) FinishWithOptions(opts opentracing.FinishOptions) {
 		return
 	}
 
-	var name string
-	for _, tag := range s.Tags {
-		if tag.Name == "name" {
-			name = tag.Value
-		}
-	}
-
 	// TODO remove the name tag from the slice of tags
 
-	s.Record(name, s.Tags)
+	s.Record(s.Name, s.Tags)
 }
 
 func (s *Span) Context() opentracing.SpanContext {
-	return s.contextAsParent()
+	return s.context()
 }
 
 // contextAsParent() is like its exported counterpart,
@@ -317,7 +310,7 @@ func customSpanParent(t *Trace) opentracing.StartSpanOption {
 		apply: func(sso *opentracing.StartSpanOptions) {
 			sso.References = append(sso.References, opentracing.SpanReference{
 				Type:              opentracing.ChildOfRef,
-				ReferencedContext: t.contextAsParent(),
+				ReferencedContext: t.context(),
 			})
 		},
 	}
@@ -343,10 +336,12 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 		o.Apply(&sso)
 	}
 
+	span := &Span{}
+
 	if len(sso.References) == 0 {
 		// This is a root-level span
 		// beginning a new trace
-		return &Span{
+		span = &Span{
 			Trace:  StartTrace(operationName),
 			tracer: t,
 		}
@@ -368,7 +363,7 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 					continue
 				}
 				parent.TraceId = ctx.TraceId()
-				parent.SpanId = ctx.ParentId()
+				parent.SpanId = ctx.SpanId()
 				parent.Resource = ctx.Resource()
 
 			default:
@@ -384,16 +379,22 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 			trace.Start = sso.StartTime
 		}
 
-		span := &Span{
+		span = &Span{
 			Trace:  trace,
 			tracer: t,
 		}
 
-		for k, v := range sso.Tags {
-			span.SetTag(k, v)
-		}
-		return span
 	}
+
+	for k, v := range sso.Tags {
+		span.SetTag(k, v)
+		if k == "name" {
+			span.Name = v.(string)
+		}
+	}
+
+	return span
+
 }
 
 // Inject injects the provided SpanContext into the carrier for propagation.
