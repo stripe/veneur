@@ -496,6 +496,8 @@ func (s *Server) flushTraces() {
 				tags[tag.Name] = tag.Value
 			}
 
+			log.WithField("span", span).Info("Building span")
+
 			// TODO implement additional metrics
 			var metrics map[string]float64
 
