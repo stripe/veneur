@@ -49,6 +49,22 @@ func (t textMapReaderWriter) Set(k, v string) {
 	t[k] = v
 }
 
+// Clone creates a new textMapReaderWriter with the same
+// key-value pairs
+func (t textMapReaderWriter) Clone() textMapReaderWriter {
+	clone := textMapReaderWriter(map[string]string{})
+	t.CloneTo(clone)
+	return clone
+}
+
+// CloneTo clones the textMapReaderWriter into the provided TextMapWriter
+func (t textMapReaderWriter) CloneTo(w opentracing.TextMapWriter) {
+	t.ForeachKey(func(k, v string) error {
+		w.Set(k, v)
+		return nil
+	})
+}
+
 type spanContext struct {
 	baggageItems map[string]string
 }
@@ -353,7 +369,6 @@ func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier i
 	if !ok {
 		return ErrUnsupportedSpanContext
 	}
-
 	switch format {
 	case opentracing.Binary:
 		// carrier is guaranteed to be an io.Writer by contract
@@ -365,9 +380,17 @@ func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier i
 			SpanId:   sc.SpanId(),
 			Resource: sc.Resource(),
 		}
+
 		return trace.ProtoMarshalTo(w)
 
 	case opentracing.TextMap:
+		// carrier is guaranteed to be an opentracing.TextMapWriter by contract
+
+		w := carrier.(opentracing.TextMapWriter)
+
+		textMapReaderWriter(sc.baggageItems).CloneTo(w)
+		return nil
+
 	case opentracing.HTTPHeaders:
 	}
 
@@ -378,14 +401,12 @@ func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier i
 // The SpanContext returned represents the parent span (ie, SpanId refers to the parent span's own SpanId).
 // TODO support all the BuiltinFormats
 func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracing.SpanContext, err error) {
-	/*
-		defer func() {
-			if r := recover(); r != nil {
-				// TODO annotate this error type
-				err = ErrContractViolation
-			}
-		}()
-	*/
+	defer func() {
+		if r := recover(); r != nil {
+			// TODO annotate this error type
+			err = ErrContractViolation
+		}
+	}()
 
 	switch format {
 	case opentracing.Binary:
@@ -412,6 +433,24 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 		return trace.context(), nil
 
 	case opentracing.TextMap:
+		// carrier is guaranteed to be an opentracing.TextMapReader by contract
+		// TODO support other TextMapReader implementations
+		tm := carrier.(textMapReaderWriter)
+		traceId, err := strconv.ParseInt(tm["traceid"], 10, 64)
+		spanId, err2 := strconv.ParseInt(tm["spanid"], 10, 64)
+		parentId, err3 := strconv.ParseInt(tm["parentid"], 10, 64)
+		if !(err == nil && err2 == nil && err3 == nil) {
+			return nil, errors.New("error parsing fields from TextMapReader")
+		}
+
+		trace := &Trace{
+			TraceId:  traceId,
+			SpanId:   spanId,
+			ParentId: parentId,
+			Resource: tm["resource"],
+		}
+		return trace.context(), nil
+
 	case opentracing.HTTPHeaders:
 	}
 

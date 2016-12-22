@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+	"strconv"
 	"testing"
 	"time"
 
@@ -161,6 +162,48 @@ func TestTracerInjectExtractBinary(t *testing.T) {
 	assert.NoError(t, err)
 
 	c, err := tracer.Extract(opentracing.Binary, &b)
+	assert.NoError(t, err)
+
+	ctx := c.(*spanContext)
+
+	assert.Equal(t, trace.TraceId, ctx.TraceId())
+
+	assert.Equal(t, trace.SpanId, ctx.SpanId(), "original trace and context should share the same SpanId")
+	assert.Equal(t, trace.ParentId, ctx.ParentId(), "original trace and context should share the same ParentId")
+	assert.Equal(t, trace.Resource, ctx.Resource())
+}
+
+// TestTracerInjectTextMap tests that we can inject
+// a protocol buffer using the TextMap format.
+func TestTracerInjectTextMap(t *testing.T) {
+	trace := DummySpan().Trace
+	trace.Finish()
+	tracer := Tracer{}
+
+	tm := textMapReaderWriter(map[string]string{})
+
+	err := tracer.Inject(trace.context(), opentracing.TextMap, tm)
+	assert.NoError(t, err)
+
+	assert.Equal(t, strconv.FormatInt(trace.TraceId, 10), tm["traceid"])
+	assert.Equal(t, strconv.FormatInt(trace.ParentId, 10), tm["parentid"])
+	assert.Equal(t, strconv.FormatInt(trace.SpanId, 10), tm["spanid"])
+	assert.Equal(t, trace.Resource, tm["resource"])
+}
+
+// TestTracerInjectExtractBinary tests that we can inject a span
+// and then Extract it (end-to-end).
+func TestTracerInjectExtractExtractTextMap(t *testing.T) {
+	trace := DummySpan().Trace
+	trace.Finish()
+	tracer := Tracer{}
+
+	tm := textMapReaderWriter(map[string]string{})
+
+	err := tracer.Inject(trace.context(), opentracing.TextMap, tm)
+	assert.NoError(t, err)
+
+	c, err := tracer.Extract(opentracing.TextMap, tm)
 	assert.NoError(t, err)
 
 	ctx := c.(*spanContext)
