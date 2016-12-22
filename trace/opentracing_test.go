@@ -115,7 +115,7 @@ func DummySpan() *Span {
 func TestTracerInjectBinary(t *testing.T) {
 	trace := DummySpan().Trace
 
-	trace.Finish()
+	trace.finish()
 
 	tracer := Tracer{}
 	var b bytes.Buffer
@@ -138,7 +138,7 @@ func TestTracerInjectBinary(t *testing.T) {
 func TestTracerExtractBinary(t *testing.T) {
 	trace := DummySpan().Trace
 
-	trace.Finish()
+	trace.finish()
 
 	tracer := Tracer{}
 
@@ -178,7 +178,7 @@ func TestTracerInjectExtractBinary(t *testing.T) {
 // a protocol buffer using the TextMap format.
 func TestTracerInjectTextMap(t *testing.T) {
 	trace := DummySpan().Trace
-	trace.Finish()
+	trace.finish()
 	tracer := Tracer{}
 
 	tm := textMapReaderWriter(map[string]string{})
@@ -196,7 +196,7 @@ func TestTracerInjectTextMap(t *testing.T) {
 // and then Extract it (end-to-end).
 func TestTracerInjectExtractExtractTextMap(t *testing.T) {
 	trace := DummySpan().Trace
-	trace.Finish()
+	trace.finish()
 	tracer := Tracer{}
 
 	tm := textMapReaderWriter(map[string]string{})
@@ -220,7 +220,7 @@ func TestTracerInjectExtractExtractTextMap(t *testing.T) {
 // using HTTP headers and then extract it (end-to-end)
 func TestTracerInjectExtractHeader(t *testing.T) {
 	trace := DummySpan().Trace
-	trace.Finish()
+	trace.finish()
 	tracer := Tracer{}
 
 	req, err := http.NewRequest(http.MethodPost, "/test", bytes.NewBuffer(nil))

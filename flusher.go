@@ -25,7 +25,7 @@ import (
 func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	//trace := trace.StartTrace("flush")
 	//defer trace.Record("veneur.flush.trace", []*ssf.SSFTag{})
-	span := tracer.StartSpan("/import", trace.NameTag("veneur.flush.opentracing")).(*trace.Span)
+	span := tracer.StartSpan("flush", trace.NameTag("veneur.flush.opentracing")).(*trace.Span)
 	defer span.Finish()
 
 	// right now we have only one destination plugin
@@ -41,7 +41,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metricLimit int) {
 	//trace := trace.SpanFromContext(ctx)
 	//defer trace.Record("veneur.flush.FlushGlobal.trace", nil)
-	span, _ := trace.StartSpanFromContext(ctx, "veneur.flush.FlushGlobal.opentracing")
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.flush.FlushGlobal.opentracing"))
 	defer span.Finish()
 
 	go s.flushEventsChecks() // we can do all of this separately
@@ -83,7 +83,7 @@ func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metric
 func (s *Server) FlushLocal(ctx context.Context, interval time.Duration, metricLimit int) {
 	//trace := trace.SpanFromContext(ctx)
 	//defer trace.Record("veneur.flush.FlushLocal.trace", nil)
-	span, _ := trace.StartSpanFromContext(ctx, "veneur.flush.FlushLocal.opentracing")
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.flush.FlushLocal.opentracing"))
 	defer span.Finish()
 
 	go s.flushEventsChecks() // we can do all of this separately
@@ -189,7 +189,7 @@ func (s *Server) generateDDMetrics(ctx context.Context, interval time.Duration, 
 
 	//trace := trace.SpanFromContext(ctx)
 	//defer trace.Record("veneur.flush.generateDDMetrics.trace", nil)
-	span, _ := trace.StartSpanFromContext(ctx, "veneur.flush.generateDDMetrics.opentracing")
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.flush.generateDDMetrics.opentracing"))
 	defer span.Finish()
 
 	finalMetrics := make([]samplers.DDMetric, 0, ms.totalLength)
@@ -496,7 +496,11 @@ func (s *Server) flushTraces() {
 				tags[tag.Name] = tag.Value
 			}
 
-			log.WithField("span", span).Info("Building span")
+			log.WithFields(
+				logrus.Fields{
+					"span":     span,
+					"parentId": parentId,
+				}).Info("Building span")
 
 			// TODO implement additional metrics
 			var metrics map[string]float64

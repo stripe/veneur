@@ -39,7 +39,6 @@ func (s *Server) Handler() http.Handler {
 func (s *Server) ImportMetrics(ctx context.Context, jsonMetrics []samplers.JSONMetric) {
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.import.import_metrics.opentracing")
 	defer span.Finish()
-	log.Printf("span is %#v", span)
 
 	//defer trace.Record("veneur.import.import_metrics", nil)
 

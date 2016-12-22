@@ -67,7 +67,7 @@ type Trace struct {
 }
 
 // Set the end timestamp and finalize Span state
-func (t *Trace) Finish() {
+func (t *Trace) finish() {
 	t.End = time.Now()
 }
 
@@ -122,7 +122,7 @@ func (t *Trace) ProtoMarshalTo(w io.Writer) error {
 // which will pass it on to the tracing agent running on the
 // global veneur instance.
 func (t *Trace) Record(name string, tags []*ssf.SSFTag) error {
-	t.Finish()
+	t.finish()
 	duration := t.Duration().Nanoseconds()
 
 	t.Tags = append(t.Tags, tags...)
@@ -200,14 +200,14 @@ func SpanFromContext(c context.Context) *Trace {
 
 // StartSpanFromContext is used to create a child span
 // when the parent trace is in the context
-func StartSpanFromContext(ctx context.Context, name string) (s *Span, c context.Context) {
+func StartSpanFromContext(ctx context.Context, name string, opts ...opentracing.StartSpanOption) (s *Span, c context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
 			s = nil
 			c = ctx
 		}
 	}()
-	sp, c := opentracing.StartSpanFromContext(ctx, name)
+	sp, c := opentracing.StartSpanFromContext(ctx, name, opts...)
 
 	s = sp.(*Span)
 	return s, c

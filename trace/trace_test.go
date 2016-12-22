@@ -177,3 +177,13 @@ func TestTraceContextAsParent(t *testing.T) {
 	assert.Equal(t, trace.SpanId, ctx.ParentId())
 	assert.Equal(t, trace.Resource, ctx.Resource())
 }
+
+func TestNameTag(t *testing.T) {
+	const name = "my.name.tag"
+	tracer := Tracer{}
+	span := tracer.StartSpan("resource", NameTag(name)).(*Span)
+	assert.Equal(t, 1, len(span.Tags))
+	assert.Equal(t, "name", span.Tags[0].Name)
+	assert.Equal(t, name, span.Tags[0].Value)
+
+}
