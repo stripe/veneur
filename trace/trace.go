@@ -120,12 +120,12 @@ func (s *Span) FinishWithOptions(opts opentracing.FinishOptions) {
 }
 
 func (s *Span) Context() opentracing.SpanContext {
-	return s.context()
+	return s.contextAsParent()
 }
 
-// context() is like its exported counterpart,
+// contextAsParent() is like its exported counterpart,
 // except it returns the concrete type for local package use
-func (s *Span) context() *spanContext {
+func (s *Span) contextAsParent() *spanContext {
 	//TODO baggageItems
 
 	c := &spanContext{}
@@ -172,12 +172,12 @@ func (s *Span) LogKV(alternatingKeyValues ...interface{}) {
 }
 
 func (s *Span) SetBaggageItem(restrictedKey, value string) opentracing.Span {
-	s.context().baggageItems[restrictedKey] = value
+	s.contextAsParent().baggageItems[restrictedKey] = value
 	return s
 }
 
 func (s *Span) BaggageItem(restrictedKey string) string {
-	return s.context().baggageItems[restrictedKey]
+	return s.contextAsParent().baggageItems[restrictedKey]
 }
 
 // Tracer returns the tracer that created this Span
@@ -238,7 +238,7 @@ func customSpanParent(t *Trace) opentracing.StartSpanOption {
 		apply: func(sso *opentracing.StartSpanOptions) {
 			sso.References = append(sso.References, opentracing.SpanReference{
 				Type:              opentracing.ChildOfRef,
-				ReferencedContext: t.context(),
+				ReferencedContext: t.contextAsParent(),
 			})
 		},
 	}
@@ -337,7 +337,7 @@ func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier i
 			ParentId: sc.ParentId(),
 			Resource: sc.Resource(),
 		}
-		return trace.ProtoMarshalText(w)
+		return trace.ProtoMarshalTo(w)
 
 	case opentracing.TextMap:
 	case opentracing.HTTPHeaders:
@@ -349,12 +349,14 @@ func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier i
 // Extract returns a SpanContext given the format and the carrier.
 // TODO support all the BuiltinFormats
 func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracing.SpanContext, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			// TODO annotate this error type
-			err = ErrContractViolation
-		}
-	}()
+	/*
+		defer func() {
+			if r := recover(); r != nil {
+				// TODO annotate this error type
+				err = ErrContractViolation
+			}
+		}()
+	*/
 
 	switch format {
 	case opentracing.Binary:
@@ -365,8 +367,8 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 			return nil, err
 		}
 
-		sample := &ssf.SSFSample{}
-		err = proto.Unmarshal(packet, sample)
+		sample := ssf.SSFSample{}
+		err = proto.Unmarshal(packet, &sample)
 		if err != nil {
 			return nil, err
 		}
@@ -403,6 +405,9 @@ var Service = ""
 
 const localVeneurAddress = "127.0.0.1:8128"
 
+// Trace is a convenient structural representation
+// of a TraceSpan. It is intended to map transparently
+// to the more general type SSFSample.
 type Trace struct {
 	// the ID for the root span
 	// which is also the ID for the trace itself
@@ -476,9 +481,13 @@ func (t *Trace) SSFSample() *ssf.SSFSample {
 
 // ProtoMarshalText writes the Trace as a protocol buffer
 // in text format to the specified writer.
-// The only errors returned are from w.
-func (t *Trace) ProtoMarshalText(w io.Writer) error {
-	return proto.MarshalText(w, t.SSFSample())
+func (t *Trace) ProtoMarshalTo(w io.Writer) error {
+	packet, err := proto.Marshal(t.SSFSample())
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(packet)
+	return err
 }
 
 // Record sends a trace to the (local) veneur instance,
@@ -570,10 +579,23 @@ func (t *Trace) SetParent(parent *Trace) {
 	t.Resource = parent.Resource
 }
 
-// Context returns a spanContext representing the trace
+// context returns a spanContext representing the trace
+// from the point of view of itself .
+// (The parentid for the trace will be set as the parentid for the context)
+func (t *Trace) context() *spanContext {
+
+	c := &spanContext{}
+	c.Init()
+	c.baggageItems["traceid"] = strconv.FormatInt(t.TraceId, 10)
+	c.baggageItems["parentid"] = strconv.FormatInt(t.ParentId, 10)
+	c.baggageItems["resource"] = t.Resource
+	return c
+}
+
+// contextAsParent returns a spanContext representing the trace
 // from the point of view of its direct children.
 // (The SpanId for the trace will be set as the ParentId for the context)
-func (t *Trace) context() *spanContext {
+func (t *Trace) contextAsParent() *spanContext {
 
 	c := &spanContext{}
 	c.Init()

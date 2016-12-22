@@ -165,12 +165,13 @@ func TestStartChildSpan(t *testing.T) {
 }
 
 // Test that a Trace is correctly able to generate
-// its spanContext representation
-func TestTraceContext(t *testing.T) {
+// its spanContext representation from the point of view
+// of its children
+func TestTraceContextAsParent(t *testing.T) {
 	const resource = "Robert'); DROP TABLE students;"
 	trace := StartTrace(resource)
 
-	ctx := trace.context()
+	ctx := trace.contextAsParent()
 
 	assert.Equal(t, trace.TraceId, ctx.TraceId())
 	assert.Equal(t, trace.SpanId, ctx.ParentId())
