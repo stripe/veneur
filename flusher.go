@@ -496,12 +496,6 @@ func (s *Server) flushTraces() {
 				tags[tag.Name] = tag.Value
 			}
 
-			log.WithFields(
-				logrus.Fields{
-					"span":     span,
-					"parentId": parentId,
-				}).Info("Building span")
-
 			// TODO implement additional metrics
 			var metrics map[string]float64
 
@@ -527,11 +521,6 @@ func (s *Server) flushTraces() {
 		// this endpoint is not documented to take an array... but it does
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
-
-		// TODO REMOVE
-		for _, trace := range finalTraces {
-			log.WithField("trace", trace).Info("Flushing trace")
-		}
 
 		err := s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
 
