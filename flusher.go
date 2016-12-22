@@ -23,22 +23,26 @@ import (
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) Flush(interval time.Duration, metricLimit int) {
-	trace := trace.StartTrace("flush")
-	defer trace.Record("veneur.flush.trace", []*ssf.SSFTag{})
+	//trace := trace.StartTrace("flush")
+	//defer trace.Record("veneur.flush.trace", []*ssf.SSFTag{})
+	span := tracer.StartSpan("/import", trace.NameTag("veneur.flush.opentracing")).(*trace.Span)
+	defer span.Finish()
 
 	// right now we have only one destination plugin
 	// but eventually, this is where we would loop over our supported
 	// destinations
 	if s.IsLocal() {
-		s.FlushLocal(trace.Attach(context.Background()), interval, metricLimit)
+		s.FlushLocal(span.Attach(context.Background()), interval, metricLimit)
 	} else {
-		s.FlushGlobal(trace.Attach(context.Background()), interval, metricLimit)
+		s.FlushGlobal(span.Attach(context.Background()), interval, metricLimit)
 	}
 }
 
 func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metricLimit int) {
-	trace := trace.SpanFromContext(ctx)
-	defer trace.Record("veneur.flush.FlushGlobal.trace", nil)
+	//trace := trace.SpanFromContext(ctx)
+	//defer trace.Record("veneur.flush.FlushGlobal.trace", nil)
+	span, _ := trace.StartSpanFromContext(ctx, "veneur.flush.FlushGlobal.opentracing")
+	defer span.Finish()
 
 	go s.flushEventsChecks() // we can do all of this separately
 	go s.flushTraces()       // this too!
@@ -52,7 +56,7 @@ func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metric
 	ms.totalLength += ms.totalSets
 	ms.totalLength += ms.totalGlobalCounters
 
-	finalMetrics := s.generateDDMetrics(trace.Attach(ctx), interval, percentiles, tempMetrics, ms)
+	finalMetrics := s.generateDDMetrics(span.Attach(ctx), interval, percentiles, tempMetrics, ms)
 
 	s.reportMetricsFlushCounts(ms)
 
@@ -77,8 +81,10 @@ func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metric
 // FlushLocal takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) FlushLocal(ctx context.Context, interval time.Duration, metricLimit int) {
-	trace := trace.SpanFromContext(ctx)
-	defer trace.Record("veneur.flush.FlushLocal.trace", nil)
+	//trace := trace.SpanFromContext(ctx)
+	//defer trace.Record("veneur.flush.FlushLocal.trace", nil)
+	span, _ := trace.StartSpanFromContext(ctx, "veneur.flush.FlushLocal.opentracing")
+	defer span.Finish()
 
 	go s.flushEventsChecks() // we can do all of this separately
 	go s.flushTraces()       // this too!
@@ -89,7 +95,7 @@ func (s *Server) FlushLocal(ctx context.Context, interval time.Duration, metricL
 
 	tempMetrics, ms := s.tallyMetrics(percentiles)
 
-	finalMetrics := s.generateDDMetrics(trace.Attach(ctx), interval, percentiles, tempMetrics, ms)
+	finalMetrics := s.generateDDMetrics(span.Attach(ctx), interval, percentiles, tempMetrics, ms)
 
 	s.reportMetricsFlushCounts(ms)
 
@@ -181,8 +187,10 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 // generate a DDMetric corresponding to that value
 func (s *Server) generateDDMetrics(ctx context.Context, interval time.Duration, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.DDMetric {
 
-	trace := trace.SpanFromContext(ctx)
-	defer trace.Record("veneur.flush.generateDDMetrics.trace", nil)
+	//trace := trace.SpanFromContext(ctx)
+	//defer trace.Record("veneur.flush.generateDDMetrics.trace", nil)
+	span, _ := trace.StartSpanFromContext(ctx, "veneur.flush.generateDDMetrics.opentracing")
+	defer span.Finish()
 
 	finalMetrics := make([]samplers.DDMetric, 0, ms.totalLength)
 	for _, wm := range tempMetrics {
@@ -234,7 +242,7 @@ func (s *Server) generateDDMetrics(ctx context.Context, interval time.Duration, 
 	}
 
 	finalizeMetrics(s.Hostname, s.Tags, finalMetrics)
-	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(trace.Start).Nanoseconds()), []string{"part:combine"}, 1.0)
+	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(span.Start).Nanoseconds()), []string{"part:combine"}, 1.0)
 
 	return finalMetrics
 }
