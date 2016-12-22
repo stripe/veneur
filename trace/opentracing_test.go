@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"strconv"
 	"testing"
 	"time"
@@ -213,6 +214,34 @@ func TestTracerInjectExtractExtractTextMap(t *testing.T) {
 	assert.Equal(t, trace.SpanId, ctx.SpanId(), "original trace and context should share the same SpanId")
 	assert.Equal(t, trace.ParentId, ctx.ParentId(), "original trace and context should share the same ParentId")
 	assert.Equal(t, trace.Resource, ctx.Resource())
+}
+
+// TestTracerInjectExtractHeader tests that we can inject a span
+// using HTTP headers and then extract it (end-to-end)
+func TestTracerInjectExtractHeader(t *testing.T) {
+	trace := DummySpan().Trace
+	trace.Finish()
+	tracer := Tracer{}
+
+	req, err := http.NewRequest(http.MethodPost, "/test", bytes.NewBuffer(nil))
+	assert.NoError(t, err)
+
+	carrier := opentracing.HTTPHeadersCarrier(req.Header)
+
+	err = tracer.Inject(trace.context(), opentracing.HTTPHeaders, carrier)
+	assert.NoError(t, err)
+
+	c, err := tracer.Extract(opentracing.HTTPHeaders, carrier)
+	assert.NoError(t, err)
+
+	ctx := c.(*spanContext)
+
+	assert.Equal(t, trace.TraceId, ctx.TraceId())
+
+	assert.Equal(t, trace.SpanId, ctx.SpanId(), "original trace and context should share the same SpanId")
+	assert.Equal(t, trace.ParentId, ctx.ParentId(), "original trace and context should share the same ParentId")
+	assert.Equal(t, trace.Resource, ctx.Resource())
+
 }
 
 // assertContextUnmarshalEqual is a helper that asserts that the given SSFSample
