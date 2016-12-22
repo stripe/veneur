@@ -25,11 +25,29 @@ var _ opentracing.Tracer = &Tracer{}
 var _ opentracing.Span = &Span{}
 var _ opentracing.SpanContext = &spanContext{}
 var _ opentracing.StartSpanOption = &spanOption{}
+var _ opentracing.TextMapReader = textMapReaderWriter(map[string]string{})
+var _ opentracing.TextMapWriter = textMapReaderWriter(map[string]string{})
 
 var ErrUnsupportedSpanContext = errors.New("Unsupported SpanContext")
 
 // TODO make this more descriptive
 var ErrContractViolation = errors.New("Contract violation")
+
+type textMapReaderWriter map[string]string
+
+func (t textMapReaderWriter) ForeachKey(handler func(k, v string) error) error {
+	for k, v := range t {
+		err := handler(k, v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t textMapReaderWriter) Set(k, v string) {
+	t[k] = v
+}
 
 type spanContext struct {
 	baggageItems map[string]string
@@ -43,12 +61,15 @@ func (c *spanContext) Init() {
 // the spanContext's baggage items. If the handler function returns false, it
 // terminates iteration immediately.
 func (c *spanContext) ForeachBaggageItem(handler func(k, v string) bool) {
-	for k, v := range c.baggageItems {
+	errHandler := func(k, v string) error {
 		b := handler(k, v)
 		if !b {
-			return
+			return errors.New("dummy error")
 		}
+		return nil
 	}
+
+	textMapReaderWriter(c.baggageItems).ForeachKey(errHandler)
 }
 
 // TraceID extracts the Trace ID from the BaggageItems.
