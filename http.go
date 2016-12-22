@@ -37,8 +37,11 @@ func (s *Server) Handler() http.Handler {
 
 // ImportMetrics feeds a slice of json metrics to the server's workers
 func (s *Server) ImportMetrics(ctx context.Context, jsonMetrics []samplers.JSONMetric) {
-	trace := trace.SpanFromContext(ctx)
-	defer trace.Record("veneur.import.nonEmpty.trace", nil)
+	span, _ := trace.StartSpanFromContext(ctx, "veneur.import.import_metrics.opentracing")
+	defer span.Finish()
+	log.Printf("span is %#v", span)
+
+	//defer trace.Record("veneur.import.import_metrics", nil)
 
 	// we have a slice of json metrics that we need to divide up across the workers
 	// we don't want to push one metric at a time (too much channel contention
@@ -53,7 +56,7 @@ func (s *Server) ImportMetrics(ctx context.Context, jsonMetrics []samplers.JSONM
 		s.Workers[workerIndex].ImportChan <- nextChunk
 	}
 
-	s.statsd.TimeInMilliseconds("import.response_duration_ns", float64(time.Now().Sub(trace.Start).Nanoseconds()), []string{"part:merge"}, 1.0)
+	s.statsd.TimeInMilliseconds("import.response_duration_ns", float64(time.Now().Sub(span.Start).Nanoseconds()), []string{"part:merge"}, 1.0)
 }
 
 // sorts a set of jsonmetrics by what worker they belong to

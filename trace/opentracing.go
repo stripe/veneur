@@ -16,6 +16,13 @@ import (
 	"github.com/stripe/veneur/ssf"
 )
 
+var GlobalTracer = Tracer{}
+
+func init() {
+	opentracing.SetGlobalTracer(GlobalTracer)
+
+}
+
 var _ opentracing.Tracer = &Tracer{}
 var _ opentracing.Span = &Span{}
 var _ opentracing.SpanContext = &spanContext{}

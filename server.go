@@ -38,6 +38,8 @@ var profileStartOnce = sync.Once{}
 
 var log = logrus.New()
 
+var tracer = trace.GlobalTracer
+
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers     []*Worker
