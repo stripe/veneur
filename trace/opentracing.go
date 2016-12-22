@@ -1,6 +1,7 @@
 package trace
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -147,6 +148,12 @@ type Span struct {
 }
 
 func (s *Span) Finish() {
+	// This should never happen,
+	// but calling defer span.Finish() should always be
+	// a safe operation.
+	if s == nil {
+		return
+	}
 	s.FinishWithOptions(opentracing.FinishOptions{
 		FinishTime:  time.Now(),
 		LogRecords:  nil,
@@ -159,6 +166,23 @@ func (s *Span) Finish() {
 // control over timestamps and log data.
 // The BulkLogData field is deprecated and ignored.
 func (s *Span) FinishWithOptions(opts opentracing.FinishOptions) {
+	// This should never happen,
+	// but calling defer span.FinishWithOptions() should always be
+	// a safe operation.
+	if s == nil {
+		return
+	}
+
+	var name string
+	for _, tag := range s.Tags {
+		if tag.Name == "name" {
+			name = tag.Value
+		}
+	}
+
+	// TODO remove the name tag from the slice of tags
+
+	s.Record(name, s.Tags)
 }
 
 func (s *Span) Context() opentracing.SpanContext {
@@ -198,6 +222,12 @@ func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
 	}
 	s.Tags = append(s.Tags, &tag)
 	return s
+}
+
+// Attach attaches the span to the context.
+// It delegates to opentracing.ContextWithSpan
+func (s *Span) Attach(ctx context.Context) context.Context {
+	return opentracing.ContextWithSpan(ctx, s)
 }
 
 // LogFields sets log fields on the underlying span.
@@ -286,9 +316,16 @@ func customSpanParent(t *Trace) opentracing.StartSpanOption {
 	}
 }
 
+func NameTag(name string) opentracing.StartSpanOption {
+	return customSpanTags("name", name)
+}
+
 // StartSpan starts a span with the specified operationName (resource) and options.
 // If the options specify a parent span and/or root trace, the resource from the
 // root trace will be used.
+// The tag "name" will be used as the SSF Name field - this can be set using the NameTag
+// convenience function.
+// The value returned is always a concrete Span (which satisfies the opentracing.Span interface)
 func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOption) opentracing.Span {
 	// TODO implement References
 
