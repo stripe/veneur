@@ -5,13 +5,13 @@ package trace
 import (
 	"bytes"
 	"io"
-	"log"
-	"os"
+	"io/ioutil"
 	"testing"
 	"time"
 
 	"github.com/stripe/veneur/ssf"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
 )
@@ -108,16 +108,57 @@ func DummySpan() *Span {
 	return trace
 }
 
+// TestTracerInjectBinary tests that we can inject
+// a protocol buffer using the Binary format.
 func TestTracerInjectBinary(t *testing.T) {
 	trace := DummySpan().Trace
+
+	trace.Finish()
+
 	tracer := Tracer{}
 	var b bytes.Buffer
 
-	err := tracer.Inject(trace.context(), opentracing.Binary, &b)
+	err := tracer.Inject(trace.contextAsParent(), opentracing.Binary, &b)
 	assert.NoError(t, err)
 
-	log.Printf("asdfas")
-	io.Copy(os.Stdout, &b)
+	packet, err := ioutil.ReadAll(&b)
+	assert.NoError(t, err)
+
+	sample := &ssf.SSFSample{}
+	err = proto.Unmarshal(packet, sample)
+	assert.NoError(t, err)
+
+	assertContextUnmarshalEqual(t, trace, sample)
+}
+
+// TestTracerExtractBinary tests that we can extract
+// a protobuf representing an SSF (using the Binary format)
+func TestTracerExtractBinary(t *testing.T) {
+	trace := DummySpan().Trace
+
+	trace.Finish()
+
+	tracer := Tracer{}
+
+	packet, err := proto.Marshal(trace.SSFSample())
+	assert.NoError(t, err)
+
+	b := bytes.NewBuffer(packet)
+
+	_, err = tracer.Extract(opentracing.Binary, b)
+	assert.NoError(t, err)
+}
+
+// TestTracerInjectExtractBinary tests that we can inject a span
+// and then Extract it (end-to-end).
+func TestTracerInjectExtractBinary(t *testing.T) {
+	trace := DummySpan().Trace
+	tracer := Tracer{}
+	var b bytes.Buffer
+	var _ io.Reader = &b
+
+	err := tracer.Inject(trace.contextAsParent(), opentracing.Binary, &b)
+	assert.NoError(t, err)
 
 	c, err := tracer.Extract(opentracing.Binary, &b)
 	assert.NoError(t, err)
@@ -125,4 +166,27 @@ func TestTracerInjectBinary(t *testing.T) {
 	ctx := c.(*spanContext)
 
 	assert.Equal(t, trace.TraceId, ctx.TraceId())
+	assert.Equal(t, trace.SpanId, ctx.ParentId())
+	assert.Equal(t, trace.Resource, ctx.Resource())
+}
+
+// assertContextUnmarshalEqual is a helper that asserts that the given SSFSample
+// matches the expected *Trace on all fields that are passed through a SpanContext.
+// Since a SpanContext doesn't pass fields like tags, this function will not cause
+// the assertion to fail if those differ.
+func assertContextUnmarshalEqual(t *testing.T, expected *Trace, sample *ssf.SSFSample) {
+	assert.Equal(t, expected.SSFSample().Metric, sample.Metric)
+	assert.Equal(t, expected.SSFSample().Status, sample.Status)
+
+	// Future-proofiing: Currently we don't actually pass this through
+	// but we don't support units at all.
+	assert.Equal(t, expected.SSFSample().Unit, sample.Unit)
+
+	// The sample rate is hard-coded
+	assert.Equal(t, expected.SSFSample().SampleRate, sample.SampleRate)
+
+	assert.Equal(t, expected.SSFSample().Trace.TraceId, sample.Trace.TraceId)
+	assert.Equal(t, expected.SSFSample().Trace.Id, sample.Trace.ParentId)
+	assert.Equal(t, expected.SSFSample().Trace.Resource, sample.Trace.Resource)
+
 }
