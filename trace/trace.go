@@ -57,10 +57,16 @@ func (c *spanContext) TraceId() int64 {
 	return c.parseBaggageInt64("traceid")
 }
 
-// TraceID extracts the Trace ID from the BaggageItems.
-// It assumes the TraceID is present and valid.
+// ParentID extracts the Parent ID from the BaggageItems.
+// It assumes the ParentID is present and valid.
 func (c *spanContext) ParentId() int64 {
 	return c.parseBaggageInt64("parentid")
+}
+
+// SpanId extracts the Span ID from the BaggageItems.
+// It assumes the SpanId is present and valid.
+func (c *spanContext) SpanId() int64 {
+	return c.parseBaggageInt64("spanid")
 }
 
 // parseBaggageInt64 searches for the target key in the BaggageItems
@@ -335,6 +341,7 @@ func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier i
 		trace := &Trace{
 			TraceId:  sc.TraceId(),
 			ParentId: sc.ParentId(),
+			SpanId:   sc.SpanId(),
 			Resource: sc.Resource(),
 		}
 		return trace.ProtoMarshalTo(w)
@@ -347,6 +354,7 @@ func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier i
 }
 
 // Extract returns a SpanContext given the format and the carrier.
+// The SpanContext returned represents the parent span (ie, SpanId refers to the parent span's own SpanId).
 // TODO support all the BuiltinFormats
 func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracing.SpanContext, err error) {
 	/*
@@ -376,6 +384,7 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 		trace := &Trace{
 			TraceId:  sample.Trace.TraceId,
 			ParentId: sample.Trace.ParentId,
+			SpanId:   sample.Trace.Id,
 			Resource: sample.Trace.Resource,
 		}
 
@@ -588,6 +597,7 @@ func (t *Trace) context() *spanContext {
 	c.Init()
 	c.baggageItems["traceid"] = strconv.FormatInt(t.TraceId, 10)
 	c.baggageItems["parentid"] = strconv.FormatInt(t.ParentId, 10)
+	c.baggageItems["spanid"] = strconv.FormatInt(t.SpanId, 10)
 	c.baggageItems["resource"] = t.Resource
 	return c
 }
