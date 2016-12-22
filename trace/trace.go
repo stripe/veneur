@@ -13,6 +13,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/golang/protobuf/proto"
+	opentracing "github.com/opentracing/opentracing-go"
 )
 
 func init() {
@@ -194,8 +195,22 @@ func SpanFromContext(c context.Context) *Trace {
 	if !ok {
 		logrus.WithField("type", reflect.TypeOf(c.Value(traceKey))).Error("expected *Trace from context")
 	}
-
 	return StartChildSpan(parent)
+}
+
+// StartSpanFromContext is used to create a child span
+// when the parent trace is in the context
+func StartSpanFromContext(ctx context.Context, name string) (s *Span, c context.Context) {
+	defer func() {
+		if r := recover(); r != nil {
+			s = nil
+			c = ctx
+		}
+	}()
+	sp, c := opentracing.StartSpanFromContext(ctx, name)
+
+	s = sp.(*Span)
+	return s, c
 }
 
 // SetParent updates the ParentId, TraceId, and Resource of a trace
