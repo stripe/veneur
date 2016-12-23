@@ -26,20 +26,28 @@ func (ch contextHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // metrics to the global veneur instance.
 func handleImport(s *Server) http.Handler {
 	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-
-		//trace := trace.StartTrace("/import")
-		//defer trace.Record("veneur.import.trace", []*ssf.SSFTag{})
-		span := tracer.StartSpan("/import", trace.NameTag("veneur.import.opentracing")).(*trace.Span)
-		defer span.Finish()
-
-		innerLogger := log.WithField("client", r.RemoteAddr)
-
 		var (
 			jsonMetrics []samplers.JSONMetric
 			body        io.ReadCloser
 			err         error
 			encoding    = r.Header.Get("Content-Encoding")
+			span        *trace.Span
 		)
+
+		span, err = tracer.ExtractRequestChild("/import", r, "veneur.import.opentracing")
+		if err != nil {
+			log.WithError(err).Info("Could not extract span from request")
+			span = tracer.StartSpan("/import", trace.NameTag("veneur.import.opentracing")).(*trace.Span)
+		} else {
+			log.WithField("trace", span.Trace).Info("Extracted span from request")
+		}
+		defer span.Finish()
+
+		//trace := trace.StartTrace("/import")
+		//defer trace.Record("veneur.import.trace", []*ssf.SSFTag{})
+
+		innerLogger := log.WithField("client", r.RemoteAddr)
+
 		switch encLogger := innerLogger.WithField("encoding", encoding); encoding {
 		case "":
 			body = r.Body
