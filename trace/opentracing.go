@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -397,6 +398,38 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 
 }
 
+// InjectRequest injects a trace into an HTTP request header.
+// It is a convenience function for Inject.
+func (tracer Tracer) InjectRequest(t *Trace, req *http.Request) error {
+	carrier := opentracing.HTTPHeadersCarrier(req.Header)
+	return tracer.Inject(t.context(), opentracing.HTTPHeaders, carrier)
+}
+
+// ExtractRequestChild extracts a span from an HTTP request
+// and creates and returns a new child of that span
+func (tracer Tracer) ExtractRequestChild(resource string, req *http.Request, name string) (*Span, error) {
+	carrier := opentracing.HTTPHeadersCarrier(req.Header)
+	parentSpan, err := tracer.Extract(opentracing.HTTPHeaders, carrier)
+	if err != nil {
+		return nil, err
+	}
+
+	parent := parentSpan.(*spanContext)
+
+	t := StartChildSpan(&Trace{
+		SpanId:   parent.SpanId(),
+		TraceId:  parent.TraceId(),
+		ParentId: parent.ParentId(),
+		Resource: resource,
+	})
+
+	t.Name = name
+	return &Span{
+		tracer: tracer,
+		Trace:  t,
+	}, nil
+}
+
 // Inject injects the provided SpanContext into the carrier for propagation.
 // It will return opentracing.ErrUnsupportedFormat if the format is not supported.
 // TODO support other SpanContext implementations
@@ -477,9 +510,9 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 
 		// carrier is guaranteed to be an opentracing.TextMapReader by contract
 		// TODO support other TextMapReader implementations
-		traceId, err := strconv.ParseInt(textMapReaderGet(tm, "traceid"), 10, 64)
-		spanId, err2 := strconv.ParseInt(textMapReaderGet(tm, "spanid"), 10, 64)
-		parentId, err3 := strconv.ParseInt(textMapReaderGet(tm, "parentid"), 10, 64)
+		traceId, err := strconv.ParseInt(textMapReaderGet(tm, "Traceid"), 10, 64)
+		spanId, err2 := strconv.ParseInt(textMapReaderGet(tm, "Spanid"), 10, 64)
+		parentId, err3 := strconv.ParseInt(textMapReaderGet(tm, "Parentid"), 10, 64)
 		if !(err == nil && err2 == nil && err3 == nil) {
 			return nil, errors.New("error parsing fields from TextMapReader")
 		}
