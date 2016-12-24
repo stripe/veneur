@@ -40,3 +40,8 @@ aws_access_key_id: ""
 aws_secret_access_key: ""
 aws_region: ""
 aws_s3_bucket: ""
+
+# Influde these if you want write to InfluxDB
+influx_address: http://localhost:8086
+influx_consistency: one
+influx_db_name: mydb

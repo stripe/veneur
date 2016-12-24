@@ -13,6 +13,9 @@ type Config struct {
 	ForwardAddress      string    `yaml:"forward_address"`
 	Hostname            string    `yaml:"hostname"`
 	HTTPAddress         string    `yaml:"http_address"`
+	InfluxAddress       string    `yaml:"influx_address"`
+	InfluxConsistency   string    `yaml:"influx_consistency"`
+	InfluxDBName        string    `yaml:"influx_db_name"`
 	Interval            string    `yaml:"interval"`
 	Key                 string    `yaml:"key"`
 	MetricMaxLength     int       `yaml:"metric_max_length"`
