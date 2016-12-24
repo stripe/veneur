@@ -36,6 +36,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	}
 }
 
+// FlushGlobal sends any global metrics to their destination.
 func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metricLimit int) {
 	trace := trace.SpanFromContext(ctx)
 	defer trace.Record("veneur.flush.FlushGlobal.trace", nil)
@@ -85,7 +86,7 @@ func (s *Server) FlushLocal(ctx context.Context, interval time.Duration, metricL
 
 	// don't publish percentiles if we're a local veneur; that's the global
 	// veneur's job
-	var percentiles []float64 = nil
+	var percentiles []float64
 
 	tempMetrics, ms := s.tallyMetrics(percentiles)
 
@@ -473,12 +474,12 @@ func (s *Server) flushTraces() {
 			}
 			// -1 is a canonical way of passing in invalid info in Go
 			// so we should support that too
-			parentId := int64(span.Trace.ParentId)
+			parentID := int64(span.Trace.ParentId)
 
 			// check if this is the root span
-			if parentId <= 0 {
+			if parentID <= 0 {
 				// we need parentId to be zero for json:omitempty to work
-				parentId = 0
+				parentID = 0
 			}
 
 			resource := span.Trace.Resource
@@ -494,7 +495,7 @@ func (s *Server) flushTraces() {
 			ddspan := &DatadogTraceSpan{
 				TraceID:  int64(span.Trace.TraceId),
 				SpanID:   int64(span.Trace.Id),
-				ParentID: parentId,
+				ParentID: parentID,
 				Service:  span.Service,
 				Name:     span.Name,
 				Resource: resource,

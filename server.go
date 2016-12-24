@@ -156,7 +156,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		ret.EventWorker.Work()
 	}()
 
-	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UdpAddress)
+	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UDPAddress)
 	if err != nil {
 		return
 	}
@@ -190,17 +190,17 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		trace.Disabled = true
 	}
 
-	var svc s3iface.S3API = nil
-	aws_id := conf.AwsAccessKeyID
-	aws_secret := conf.AwsSecretAccessKey
+	var svc s3iface.S3API
+	awsID := conf.AwsAccessKeyID
+	awsSecret := conf.AwsSecretAccessKey
 
 	conf.AwsAccessKeyID = "REDACTED"
 	conf.AwsSecretAccessKey = "REDACTED"
 
-	if len(aws_id) > 0 && len(aws_secret) > 0 {
+	if len(awsID) > 0 && len(awsSecret) > 0 {
 		sess, err := session.NewSession(&aws.Config{
 			Region:      aws.String(conf.AwsRegion),
-			Credentials: credentials.NewStaticCredentials(aws_id, aws_secret, ""),
+			Credentials: credentials.NewStaticCredentials(awsID, awsSecret, ""),
 		})
 
 		if err != nil {
@@ -280,6 +280,8 @@ func (s *Server) HandleMetricPacket(packet []byte) {
 	}
 }
 
+// HandleTracePacket accepts an incoming packet as bytes and sends it to the
+// appropriate worker.
 func (s *Server) HandleTracePacket(packet []byte) {
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
@@ -449,6 +451,7 @@ func (s *Server) getPlugins() []plugins.Plugin {
 	return plugins
 }
 
+// TracingEnabled returns true if tracing is enabled.
 func (s *Server) TracingEnabled() bool {
 	return s.TraceWorker != nil
 }

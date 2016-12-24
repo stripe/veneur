@@ -1,5 +1,6 @@
 package veneur
 
+// Config is a formalized version of the config file as a struct
 type Config struct {
 	Aggregates          []string  `yaml:"aggregates"`
 	APIHostname         string    `yaml:"api_hostname"`
@@ -26,5 +27,5 @@ type Config struct {
 	TraceAddress        string    `yaml:"trace_address"`
 	TraceAPIAddress     string    `yaml:"trace_api_address"`
 	TraceMaxLengthBytes int       `yaml:"trace_max_length_bytes"`
-	UdpAddress          string    `yaml:"udp_address"`
+	UDPAddress          string    `yaml:"udp_address"`
 }
