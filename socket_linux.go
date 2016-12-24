@@ -18,11 +18,11 @@ func NewSocket(addr *net.UDPAddr, recvBuf int, reuseport bool) (net.PacketConn, 
 	// unix.SO_REUSEPORT is not defined on linux 386/amd64, see
 	// https://github.com/golang/go/issues/16075
 	if reuseport {
-		if err := unix.SetsockoptInt(sockFD, unix.SOL_SOCKET, 0xf, 1); err != nil {
+		if err = unix.SetsockoptInt(sockFD, unix.SOL_SOCKET, 0xf, 1); err != nil {
 			return nil, err
 		}
 	}
-	if err := unix.SetsockoptInt(sockFD, unix.SOL_SOCKET, unix.SO_RCVBUF, recvBuf); err != nil {
+	if err = unix.SetsockoptInt(sockFD, unix.SOL_SOCKET, unix.SO_RCVBUF, recvBuf); err != nil {
 		return nil, err
 	}
 
@@ -32,7 +32,7 @@ func NewSocket(addr *net.UDPAddr, recvBuf int, reuseport bool) (net.PacketConn, 
 	if copied := copy(sockaddr.Addr[:], addr.IP); copied != net.IPv4len {
 		panic("did not copy enough bytes of ip address")
 	}
-	if err := unix.Bind(sockFD, &sockaddr); err != nil {
+	if err = unix.Bind(sockFD, &sockaddr); err != nil {
 		return nil, err
 	}
 

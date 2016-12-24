@@ -249,7 +249,7 @@ func (w *Worker) Flush() WorkerMetrics {
 	// Track how much time each worker takes to flush.
 	w.stats.TimeInMilliseconds(
 		"flush.worker_duration_ns",
-		float64(time.Now().Sub(start).Nanoseconds()),
+		float64(time.Since(start).Nanoseconds()),
 		nil,
 		1.0,
 	)
@@ -317,7 +317,7 @@ func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck)
 	ew.checks = nil
 
 	ew.mutex.Unlock()
-	ew.stats.TimeInMilliseconds("flush.event_worker_duration_ns", float64(time.Now().Sub(start).Nanoseconds()), nil, 1.0)
+	ew.stats.TimeInMilliseconds("flush.event_worker_duration_ns", float64(time.Since(start).Nanoseconds()), nil, 1.0)
 	return retevts, retsvchecks
 }
 
@@ -360,6 +360,6 @@ func (tw *TraceWorker) Flush() *ring.Ring {
 	tw.traces = ring.New(12) // TODO CONFIGURABLE
 
 	tw.mutex.Unlock()
-	tw.stats.TimeInMilliseconds("flush.event_worker_duration_ns", float64(time.Now().Sub(start).Nanoseconds()), nil, 1.0)
+	tw.stats.TimeInMilliseconds("flush.event_worker_duration_ns", float64(time.Since(start).Nanoseconds()), nil, 1.0)
 	return rettraces
 }

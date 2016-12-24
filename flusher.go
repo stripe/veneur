@@ -63,7 +63,7 @@ func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metric
 		for _, p := range s.getPlugins() {
 			start := time.Now()
 			err := p.Flush(finalMetrics, s.Hostname)
-			s.statsd.TimeInMilliseconds(fmt.Sprintf("flush.plugins.%s.total_duration_ns", p.Name()), float64(time.Now().Sub(start).Nanoseconds()), []string{"part:post"}, 1.0)
+			s.statsd.TimeInMilliseconds(fmt.Sprintf("flush.plugins.%s.total_duration_ns", p.Name()), float64(time.Since(start).Nanoseconds()), []string{"part:post"}, 1.0)
 			if err != nil {
 				countName := fmt.Sprintf("flush.plugins.%s.error_total", p.Name())
 				s.statsd.Count(countName, 1, []string{}, 1.0)
@@ -104,7 +104,7 @@ func (s *Server) FlushLocal(ctx context.Context, interval time.Duration, metricL
 		for _, p := range s.getPlugins() {
 			start := time.Now()
 			err := p.Flush(finalMetrics, s.Hostname)
-			s.statsd.TimeInMilliseconds(fmt.Sprintf("flush.plugins.%s.total_duration_ns", p.Name()), float64(time.Now().Sub(start).Nanoseconds()), []string{"part:post"}, 1.0)
+			s.statsd.TimeInMilliseconds(fmt.Sprintf("flush.plugins.%s.total_duration_ns", p.Name()), float64(time.Since(start).Nanoseconds()), []string{"part:post"}, 1.0)
 			if err != nil {
 				countName := fmt.Sprintf("flush.plugins.%s.error_total", p.Name())
 				s.statsd.Count(countName, 1, []string{}, 1.0)
@@ -162,7 +162,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 		ms.totalLocalTimers += len(wm.localTimers)
 	}
 
-	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(gatherStart).Nanoseconds()), []string{"part:gather"}, 1.0)
+	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(gatherStart).Nanoseconds()), []string{"part:gather"}, 1.0)
 
 	ms.totalLength = ms.totalCounters + ms.totalGauges +
 		// histograms and timers each report a metric point for each percentile
@@ -235,7 +235,7 @@ func (s *Server) generateDDMetrics(ctx context.Context, interval time.Duration, 
 	}
 
 	finalizeMetrics(s.Hostname, s.Tags, finalMetrics)
-	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(trace.Start).Nanoseconds()), []string{"part:combine"}, 1.0)
+	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(trace.Start).Nanoseconds()), []string{"part:combine"}, 1.0)
 
 	return finalMetrics
 }
@@ -300,7 +300,7 @@ func (s *Server) flushRemote(finalMetrics []samplers.DDMetric, metricLimit int) 
 		go s.flushPart(chunk, &wg)
 	}
 	wg.Wait()
-	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Now().Sub(flushStart).Nanoseconds()), []string{"part:post"}, 1.0)
+	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(flushStart).Nanoseconds()), []string{"part:post"}, 1.0)
 
 	log.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
 }
@@ -400,7 +400,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 			jsonMetrics = append(jsonMetrics, jm)
 		}
 	}
-	s.statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Now().Sub(exportStart).Nanoseconds()), []string{"part:export"}, 1.0)
+	s.statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(exportStart).Nanoseconds()), []string{"part:export"}, 1.0)
 
 	s.statsd.Gauge("forward.post_metrics_total", float64(len(jsonMetrics)), nil, 1.0)
 	if len(jsonMetrics) == 0 {
@@ -417,7 +417,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 		s.statsd.Count("forward.error_total", 1, []string{"cause:dns"}, 1.0)
 		log.WithError(err).Warn("Could not re-resolve host for forward")
 	}
-	s.statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Now().Sub(dnsStart).Nanoseconds()), []string{"part:dns"}, 1.0)
+	s.statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(dnsStart).Nanoseconds()), []string{"part:dns"}, 1.0)
 
 	// the error has already been logged (if there was one), so we only care
 	// about the success case
@@ -474,7 +474,7 @@ func (s *Server) flushTraces() {
 			}
 			// -1 is a canonical way of passing in invalid info in Go
 			// so we should support that too
-			parentID := int64(span.Trace.ParentId)
+			parentID := span.Trace.ParentId
 
 			// check if this is the root span
 			if parentID <= 0 {
@@ -493,13 +493,13 @@ func (s *Server) flushTraces() {
 			var metrics map[string]float64
 
 			ddspan := &DatadogTraceSpan{
-				TraceID:  int64(span.Trace.TraceId),
-				SpanID:   int64(span.Trace.Id),
+				TraceID:  span.Trace.TraceId,
+				SpanID:   span.Trace.Id,
 				ParentID: parentID,
 				Service:  span.Service,
 				Name:     span.Name,
 				Resource: resource,
-				Start:    int64(span.Timestamp),
+				Start:    span.Timestamp,
 				Duration: span.Trace.Duration,
 				// TODO don't hardcode
 				Type:    "http",
@@ -610,7 +610,7 @@ func (s *Server) postHelper(endpoint string, bodyObject interface{}, action stri
 			return err
 		}
 	}
-	s.statsd.TimeInMilliseconds(action+".duration_ns", float64(time.Now().Sub(marshalStart).Nanoseconds()), []string{"part:json"}, 1.0)
+	s.statsd.TimeInMilliseconds(action+".duration_ns", float64(time.Since(marshalStart).Nanoseconds()), []string{"part:json"}, 1.0)
 
 	// Len reports the unread length, so we have to record this before the
 	// http client consumes it
@@ -642,7 +642,7 @@ func (s *Server) postHelper(endpoint string, bodyObject interface{}, action stri
 		innerLogger.WithError(err).Error("Could not execute request")
 		return err
 	}
-	s.statsd.TimeInMilliseconds(action+".duration_ns", float64(time.Now().Sub(requestStart).Nanoseconds()), []string{"part:post"}, 1.0)
+	s.statsd.TimeInMilliseconds(action+".duration_ns", float64(time.Since(requestStart).Nanoseconds()), []string{"part:post"}, 1.0)
 	defer resp.Body.Close()
 
 	responseBody, err := ioutil.ReadAll(resp.Body)

@@ -61,7 +61,7 @@ func handleImport(s *Server) http.Handler {
 			return
 		}
 
-		if err := json.NewDecoder(body).Decode(&jsonMetrics); err != nil {
+		if err = json.NewDecoder(body).Decode(&jsonMetrics); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			trace.Error(err)
 			innerLogger.WithError(err).Error("Could not decode /import request")
@@ -92,7 +92,7 @@ func handleImport(s *Server) http.Handler {
 
 		w.WriteHeader(http.StatusAccepted)
 		s.statsd.TimeInMilliseconds("import.response_duration_ns",
-			float64(time.Now().Sub(trace.Start).Nanoseconds()),
+			float64(time.Since(trace.Start).Nanoseconds()),
 			[]string{"part:request", fmt.Sprintf("encoding:%s", encoding)},
 			1.0)
 
