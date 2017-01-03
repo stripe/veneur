@@ -592,7 +592,7 @@ func (s *Server) flushEventsChecks() {
 // you can disable compression with compress=false for endpoints that don't
 // support it
 func (s *Server) postHelper(ctx context.Context, endpoint string, bodyObject interface{}, action string, compress bool) error {
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.flush.FlushGlobal.opentracing"))
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.flush.postHelper.opentracing"))
 	defer span.Finish()
 
 	// attach this field to all the logs we generate
