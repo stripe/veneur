@@ -39,6 +39,12 @@ var Service = ""
 
 const localVeneurAddress = "127.0.0.1:8128"
 
+// For an error to be recorded correctly in DataDog, these three tags
+// need to be set
+const errorMessageTag = "error.msg"
+const errorTypeTag = "error.type"
+const errorStackTag = "error.stack"
+
 // Trace is a convenient structural representation
 // of a TraceSpan. It is intended to map transparently
 // to the more general type SSFSample.
@@ -171,15 +177,15 @@ func (t *Trace) Error(err error) {
 
 	tags := []*ssf.SSFTag{
 		{
-			Name:  "error.msg",
+			Name:  errorMessageTag,
 			Value: err.Error(),
 		},
 		{
-			Name:  "error.type",
+			Name:  errorTypeTag,
 			Value: errorType,
 		},
 		{
-			Name:  "error.stack",
+			Name:  errorStackTag,
 			Value: err.Error(),
 		},
 	}

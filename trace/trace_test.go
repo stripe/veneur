@@ -187,3 +187,35 @@ func TestNameTag(t *testing.T) {
 	assert.Equal(t, name, span.Tags[0].Value)
 
 }
+
+type localError struct {
+	message string
+}
+
+func (le localError) Error() string {
+	return le.message
+}
+
+func TestError(t *testing.T) {
+	const resource = "Robert'); DROP TABLE students;"
+	const errorMessage = "some error happened"
+	err := localError{errorMessage}
+
+	root := StartTrace(resource)
+	root.Error(err)
+
+	assert.Equal(t, root.Status, ssf.SSFSample_CRITICAL)
+	assert.Equal(t, len(root.Tags), 3)
+
+	for _, tag := range root.Tags {
+		switch tag.Name {
+		case errorMessageTag:
+			assert.Equal(t, tag.Value, err.Error())
+		case errorTypeTag:
+			assert.Equal(t, tag.Value, "localError")
+		case errorStackTag:
+			assert.Equal(t, tag.Value, err.Error())
+		}
+	}
+
+}

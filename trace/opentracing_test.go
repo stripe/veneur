@@ -266,3 +266,25 @@ func assertContextUnmarshalEqual(t *testing.T, expected *Trace, sample *ssf.SSFS
 	assert.Equal(t, expected.SSFSample().Trace.Resource, sample.Trace.Resource)
 
 }
+
+// TestInjectRequestExtractRequestChild tests the InjectRequest
+// and ExtractRequestChild helper functions
+func TestInjectRequestExtractRequestChild(t *testing.T) {
+	const childResource = "my child resource"
+	const traceName = "my.child.name"
+	trace := DummySpan().Trace
+	trace.finish()
+	tracer := Tracer{}
+	req, err := http.NewRequest(http.MethodPost, "/test", bytes.NewBuffer(nil))
+	assert.NoError(t, err)
+
+	err = tracer.InjectRequest(trace, req)
+	assert.NoError(t, err)
+
+	span, err := tracer.ExtractRequestChild(childResource, req, traceName)
+	assert.NoError(t, err)
+
+	assert.NotEqual(t, trace.SpanId, span.SpanId, "original trace and child should have different SpanIds")
+	assert.Equal(t, trace.SpanId, span.ParentId, "child should have the original trace's SpanId as its ParentId")
+	assert.Equal(t, trace.TraceId, span.TraceId)
+}
