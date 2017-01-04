@@ -40,8 +40,6 @@ func (s *Server) ImportMetrics(ctx context.Context, jsonMetrics []samplers.JSONM
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.import.import_metrics.opentracing")
 	defer span.Finish()
 
-	//defer trace.Record("veneur.import.import_metrics", nil)
-
 	// we have a slice of json metrics that we need to divide up across the workers
 	// we don't want to push one metric at a time (too much channel contention
 	// and goroutine switching) and we also don't want to allocate a temp

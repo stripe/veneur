@@ -23,8 +23,6 @@ import (
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) Flush(interval time.Duration, metricLimit int) {
-	//trace := trace.StartTrace("flush")
-	//defer trace.Record("veneur.flush.trace", []*ssf.SSFTag{})
 	span := tracer.StartSpan("flush", trace.NameTag("veneur.flush.opentracing")).(*trace.Span)
 	defer span.Finish()
 
@@ -40,8 +38,6 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 
 // FlushGlobal sends any global metrics to their destination.
 func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metricLimit int) {
-	//trace := trace.SpanFromContext(ctx)
-	//defer trace.Record("veneur.flush.FlushGlobal.trace", nil)
 	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.flush.FlushGlobal.opentracing"))
 	defer span.Finish()
 
@@ -82,8 +78,6 @@ func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metric
 // FlushLocal takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) FlushLocal(ctx context.Context, interval time.Duration, metricLimit int) {
-	//trace := trace.SpanFromContext(ctx)
-	//defer trace.Record("veneur.flush.FlushLocal.trace", nil)
 	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.flush.FlushLocal.opentracing"))
 	defer span.Finish()
 
@@ -188,8 +182,6 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 // generate a DDMetric corresponding to that value
 func (s *Server) generateDDMetrics(ctx context.Context, interval time.Duration, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.DDMetric {
 
-	//trace := trace.SpanFromContext(ctx)
-	//defer trace.Record("veneur.flush.generateDDMetrics.trace", nil)
 	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.flush.generateDDMetrics.opentracing"))
 	defer span.Finish()
 
