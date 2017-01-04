@@ -15,7 +15,7 @@ var (
 )
 
 func init() {
-	trace.Service = "veneur-global"
+	trace.Service = "veneur"
 }
 
 func main() {
