@@ -1,3 +1,9 @@
+// Package trace provies an experimental API for initiating
+// traces. Veneur's tracing API also provides
+// an opentracing compatibility layer. The Veneur tracing API
+// is completely independent of the opentracing
+// compatibility layer, with the exception of one convenience
+// function.
 package trace
 
 import (
