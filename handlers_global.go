@@ -43,9 +43,6 @@ func handleImport(s *Server) http.Handler {
 		}
 		defer span.Finish()
 
-		//trace := trace.StartTrace("/import")
-		//defer trace.Record("veneur.import.trace", []*ssf.SSFTag{})
-
 		innerLogger := log.WithField("client", r.RemoteAddr)
 
 		switch encLogger := innerLogger.WithField("encoding", encoding); encoding {
