@@ -17,6 +17,10 @@ import (
 	"github.com/stripe/veneur/ssf"
 )
 
+const TraceIdHeader = "Traceid"
+const SpanIdHeader = "Spanid"
+const ParentIdHeader = "Parentid"
+
 var GlobalTracer = Tracer{}
 
 func init() {
@@ -510,9 +514,9 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 
 		// carrier is guaranteed to be an opentracing.TextMapReader by contract
 		// TODO support other TextMapReader implementations
-		traceId, err := strconv.ParseInt(textMapReaderGet(tm, "Traceid"), 10, 64)
-		spanId, err2 := strconv.ParseInt(textMapReaderGet(tm, "Spanid"), 10, 64)
-		parentId, err3 := strconv.ParseInt(textMapReaderGet(tm, "Parentid"), 10, 64)
+		traceId, err := strconv.ParseInt(textMapReaderGet(tm, TraceIdHeader), 10, 64)
+		spanId, err2 := strconv.ParseInt(textMapReaderGet(tm, SpanIdHeader), 10, 64)
+		parentId, err3 := strconv.ParseInt(textMapReaderGet(tm, ParentIdHeader), 10, 64)
 		if !(err == nil && err2 == nil && err3 == nil) {
 			return nil, errors.New("error parsing fields from TextMapReader")
 		}
