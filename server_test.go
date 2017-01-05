@@ -78,7 +78,7 @@ func generateConfig(forwardAddr string) Config {
 		Percentiles:         []float64{.5, .75, .99},
 		Aggregates:          []string{"min", "max", "count"},
 		ReadBufferSizeBytes: 2097152,
-		UDPAddress:          "localhost:8126",
+		UdpAddress:          "localhost:8126",
 		HTTPAddress:         fmt.Sprintf("localhost:%d", port),
 		ForwardAddress:      forwardAddr,
 		NumWorkers:          96,

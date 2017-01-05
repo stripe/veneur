@@ -156,7 +156,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		ret.EventWorker.Work()
 	}()
 
-	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UDPAddress)
+	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UdpAddress)
 	if err != nil {
 		return
 	}
