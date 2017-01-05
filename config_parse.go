@@ -44,7 +44,7 @@ func readConfig(r io.Reader) (c Config, err error) {
 	return c, nil
 }
 
-// ParseInterval handled parseing the flush interval as a time.Duration
+// ParseInterval handles parsing the flush interval as a time.Duration
 func (c Config) ParseInterval() (time.Duration, error) {
 	return time.ParseDuration(c.Interval)
 }
