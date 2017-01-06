@@ -90,7 +90,7 @@ func generateConfig(forwardAddr string) Config {
 		HTTPAddress:         fmt.Sprintf("localhost:%d", port),
 		ForwardAddress:      forwardAddr,
 		NumWorkers:          4,
-		FlushFile:           "/dev/null",
+		FlushFile:           "",
 
 		// Use only one reader, so that we can run tests
 		// on platforms which do not support SO_REUSEPORT
@@ -499,6 +499,17 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 	f.server.Flush()
 }
 
+// TestLocalFilePluginRegister tests that we are able to register
+// a local file as a flush output for Veneur.
+func TestLocalFilePluginRegister(t *testing.T) {
+	config := globalConfig()
+	config.FlushFile = "/dev/null"
+
+	server := setupVeneurServer(t, config)
+
+	assert.Equal(t, 1, len(server.getPlugins()))
+}
+
 // TestGlobalServerS3PluginFlush tests that we are able to
 // register the S3 plugin on the server, and that when we do,
 // flushing on the server causes the S3 plugin to flush to S3.
@@ -546,12 +557,10 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 
 	s3p := &s3p.S3Plugin{Logger: log, Svc: client}
 
-	pluginCount := len(f.server.getPlugins())
-
 	f.server.registerPlugin(s3p)
 
 	plugins := f.server.getPlugins()
-	assert.Equal(t, pluginCount+1, len(plugins))
+	assert.Equal(t, 1, len(plugins))
 
 	for _, value := range metricValues {
 		f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{

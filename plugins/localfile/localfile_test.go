@@ -27,10 +27,16 @@ func TestAppendToWriter(t *testing.T) {
 	metrics := []samplers.DDMetric{
 		samplers.DDMetric{
 			Name: "a.b.c.max",
-			Value: [1][2]float64{[2]float64{1476119058,
-				100}},
-			Tags: []string{"foo:bar",
-				"baz:quz"},
+			Value: [1][2]float64{
+				[2]float64{
+					1476119058,
+					100,
+				},
+			},
+			Tags: []string{
+				"foo:bar",
+				"baz:quz",
+			},
 			MetricType: "gauge",
 			Hostname:   "globalstats",
 			DeviceName: "food",

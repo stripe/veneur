@@ -41,7 +41,7 @@ import (
 // It must be a var so it can be set at link time.
 var VERSION = "dirty"
 
-// REDACTED should be a constant since we use it enough.
+// REDACTED is used to replace values that we don't want to leak into loglines (e.g., credentials)
 const REDACTED = "REDACTED"
 
 var profileStartOnce = sync.Once{}
@@ -194,7 +194,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.HTTPAddr = conf.HTTPAddress
 	ret.ForwardAddr = conf.ForwardAddress
 
-<<<<<<< HEAD
 	if conf.TcpAddress != "" {
 		ret.TCPAddr, err = net.ResolveTCPAddr("tcp", conf.TcpAddress)
 		if err != nil {
@@ -298,7 +297,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			log, conf.InfluxAddress, conf.InfluxConsistency, conf.InfluxDBName, ret.HTTPClient, ret.statsd,
 		)
 		ret.registerPlugin(plugin)
-    }
+	}
 
 	if conf.FlushFile != "" {
 		localFilePlugin := &localfilep.Plugin{
