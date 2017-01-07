@@ -18,7 +18,7 @@ func NewSocket(addr *net.UDPAddr, recvBuf int, reuseport bool) (net.PacketConn, 
 	// unix.SO_REUSEPORT is not defined on linux 386/amd64, see
 	// https://github.com/golang/go/issues/16075
 	if reuseport {
-		if err = unix.SetsockoptInt(sockFD, unix.SOL_SOCKET, 0xf, 1); err != nil {
+		if err := unix.SetsockoptInt(sockFD, unix.SOL_SOCKET, 0xf, 1); err != nil {
 			return nil, err
 		}
 	}
