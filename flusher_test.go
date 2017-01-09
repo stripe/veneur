@@ -63,19 +63,19 @@ func TestFlushTraces(t *testing.T) {
 	type TestCase struct {
 		Name         string
 		ProtobufFile string
-		JsonFile     string
+		JSONFile     string
 	}
 
 	cases := []TestCase{
 		{
 			Name:         "Success",
 			ProtobufFile: filepath.Join("fixtures", "protobuf", "trace.pb"),
-			JsonFile:     filepath.Join("fixtures", "tracing_agent", "spans", "trace.pb.json"),
+			JSONFile:     filepath.Join("fixtures", "tracing_agent", "spans", "trace.pb.json"),
 		},
 		{
 			Name:         "Critical",
 			ProtobufFile: filepath.Join("fixtures", "protobuf", "trace_critical.pb"),
-			JsonFile:     filepath.Join("fixtures", "tracing_agent", "spans", "trace_critical.pb.json"),
+			JSONFile:     filepath.Join("fixtures", "tracing_agent", "spans", "trace_critical.pb.json"),
 		},
 	}
 
@@ -85,7 +85,7 @@ func TestFlushTraces(t *testing.T) {
 			assert.NoError(t, err)
 			defer pb.Close()
 
-			js, err := os.Open(tc.JsonFile)
+			js, err := os.Open(tc.JSONFile)
 			assert.NoError(t, err)
 			defer js.Close()
 

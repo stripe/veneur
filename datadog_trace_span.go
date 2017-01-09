@@ -1,5 +1,7 @@
 package veneur
 
+// DatadogTraceSpan represents a trace span as JSON for the
+// Datadog tracing API.
 type DatadogTraceSpan struct {
 	Duration int64              `json:"duration"`
 	Error    int64              `json:"error"`

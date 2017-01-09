@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 // released immediately after the server is shut down. Instead, use
 // a unique port for each test. As long as we don't have an insane number
 // of integration tests, we should be fine.
-var HttpAddrPort = 8129
+var HTTPAddrPort = 8129
 
 // set up a boilerplate local config for later use
 func localConfig() Config {
@@ -63,8 +63,8 @@ func globalConfig() Config {
 // generateConfig is not called config to avoid
 // accidental variable shadowing
 func generateConfig(forwardAddr string) Config {
-	port := HttpAddrPort
-	HttpAddrPort++
+	port := HTTPAddrPort
+	HTTPAddrPort++
 
 	return Config{
 		APIHostname: "http://localhost",
@@ -290,9 +290,9 @@ func TestGlobalServerFlush(t *testing.T) {
 
 		// test that we are actually running as the server that we think we are
 		// since it's easy to mess this up when refactoring the test fixtures
-		apiUrl, err := url.Parse(config.APIHostname)
+		apiURL, err := url.Parse(config.APIHostname)
 		assert.NoError(t, err)
-		assert.Equal(t, apiUrl.Host, r.Host)
+		assert.Equal(t, apiURL.Host, r.Host)
 
 		zr, err := zlib.NewReader(r.Body)
 		if err != nil {

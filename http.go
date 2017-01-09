@@ -53,7 +53,7 @@ func (s *Server) ImportMetrics(ctx context.Context, jsonMetrics []samplers.JSONM
 		s.Workers[workerIndex].ImportChan <- nextChunk
 	}
 
-	s.statsd.TimeInMilliseconds("import.response_duration_ns", float64(time.Now().Sub(trace.Start).Nanoseconds()), []string{"part:merge"}, 1.0)
+	s.statsd.TimeInMilliseconds("import.response_duration_ns", float64(time.Since(trace.Start).Nanoseconds()), []string{"part:merge"}, 1.0)
 }
 
 // sorts a set of jsonmetrics by what worker they belong to
