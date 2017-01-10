@@ -23,7 +23,7 @@ import (
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) Flush(interval time.Duration, metricLimit int) {
-	span := tracer.StartSpan("flush", trace.NameTag("veneur.flush.opentracing")).(*trace.Span)
+	span := tracer.StartSpan("flush", trace.NameTag("veneur.opentracing.flush")).(*trace.Span)
 	defer span.Finish()
 
 	// right now we have only one destination plugin
@@ -38,7 +38,7 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 
 // FlushGlobal sends any global metrics to their destination.
 func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metricLimit int) {
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.flush.FlushGlobal.opentracing"))
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.FlushGlobal"))
 	defer span.Finish()
 
 	go s.flushEventsChecks()           // we can do all of this separately
@@ -78,7 +78,7 @@ func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metric
 // FlushLocal takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) FlushLocal(ctx context.Context, interval time.Duration, metricLimit int) {
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.flush.FlushLocal.opentracing"))
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.FlushLocal"))
 	defer span.Finish()
 
 	go s.flushEventsChecks()           // we can do all of this separately
@@ -182,7 +182,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 // generate a DDMetric corresponding to that value
 func (s *Server) generateDDMetrics(ctx context.Context, interval time.Duration, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.DDMetric {
 
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.flush.generateDDMetrics.opentracing"))
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.generateDDMetrics"))
 	defer span.Finish()
 
 	finalMetrics := make([]samplers.DDMetric, 0, ms.totalLength)
@@ -462,7 +462,7 @@ func (s *Server) flushTraces(ctx context.Context) {
 		return
 	}
 
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.flush.flushTraces.opentracing"))
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.flushTraces"))
 	defer span.Finish()
 
 	traces := s.TraceWorker.Flush()
@@ -585,7 +585,7 @@ func (s *Server) flushEventsChecks() {
 // you can disable compression with compress=false for endpoints that don't
 // support it
 func (s *Server) postHelper(ctx context.Context, endpoint string, bodyObject interface{}, action string, compress bool) error {
-	span, _ := trace.StartSpanFromContext(ctx, action, trace.NameTag("veneur.flush.postHelper.opentracing"))
+	span, _ := trace.StartSpanFromContext(ctx, action, trace.NameTag("veneur.opentracing.flush.postHelper"))
 	defer span.Finish()
 
 	// attach this field to all the logs we generate
@@ -639,7 +639,7 @@ func (s *Server) postHelper(ctx context.Context, endpoint string, bodyObject int
 
 	err = tracer.InjectRequest(span.Trace, req)
 	if err != nil {
-		s.statsd.Count("veneur.flush.opentracing.inject.errors", 1, nil, 1.0)
+		s.statsd.Count("veneur.opentracing.flush.inject.errors", 1, nil, 1.0)
 		innerLogger.WithError(err).Error("Error injecting header")
 	}
 

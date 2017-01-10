@@ -34,10 +34,10 @@ func handleImport(s *Server) http.Handler {
 			span        *trace.Span
 		)
 
-		span, err = tracer.ExtractRequestChild("/import", r, "veneur.import.opentracing")
+		span, err = tracer.ExtractRequestChild("/import", r, "veneur.opentracing.import")
 		if err != nil {
 			log.WithError(err).Info("Could not extract span from request")
-			span = tracer.StartSpan("/import", trace.NameTag("veneur.import.opentracing")).(*trace.Span)
+			span = tracer.StartSpan("/import", trace.NameTag("veneur.opentracing.import")).(*trace.Span)
 		} else {
 			log.WithField("trace", span.Trace).Info("Extracted span from request")
 		}
@@ -112,7 +112,7 @@ func handleImport(s *Server) http.Handler {
 // metric
 func (s *Server) nonEmpty(ctx context.Context, jsonMetrics []samplers.JSONMetric) bool {
 
-	span, _ := trace.StartSpanFromContext(ctx, "/import", trace.NameTag("veneur.import.nonEmpty.opentracing"))
+	span, _ := trace.StartSpanFromContext(ctx, "/import", trace.NameTag("veneur.opentracing.import.nonEmpty"))
 	defer span.Finish()
 
 	sentinel := samplers.JSONMetric{}

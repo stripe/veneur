@@ -37,7 +37,7 @@ func (s *Server) Handler() http.Handler {
 
 // ImportMetrics feeds a slice of json metrics to the server's workers
 func (s *Server) ImportMetrics(ctx context.Context, jsonMetrics []samplers.JSONMetric) {
-	span, _ := trace.StartSpanFromContext(ctx, "veneur.import.import_metrics.opentracing")
+	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.import.import_metrics")
 	defer span.Finish()
 
 	// we have a slice of json metrics that we need to divide up across the workers
