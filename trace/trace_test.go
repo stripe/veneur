@@ -145,5 +145,77 @@ func TestSpanFromContext(t *testing.T) {
 	assert.Equal(t, child.ParentId, trace.SpanId)
 	assert.Equal(t, grandchild.ParentId, child.SpanId)
 	assert.Equal(t, grandchild.TraceId, trace.SpanId)
+}
+
+func TestStartChildSpan(t *testing.T) {
+	const resource = "Robert'); DROP TABLE students;"
+	root := StartTrace(resource)
+	child := StartChildSpan(root)
+	grandchild := StartChildSpan(child)
+
+	assert.Equal(t, resource, child.Resource)
+	assert.Equal(t, resource, grandchild.Resource)
+
+	assert.Equal(t, root.SpanId, root.TraceId)
+	assert.Equal(t, root.SpanId, child.TraceId)
+	assert.Equal(t, root.SpanId, grandchild.TraceId)
+
+	assert.Equal(t, root.SpanId, child.ParentId)
+	assert.Equal(t, child.SpanId, grandchild.ParentId)
+}
+
+// Test that a Trace is correctly able to generate
+// its spanContext representation from the point of view
+// of its children
+func TestTraceContextAsParent(t *testing.T) {
+	const resource = "Robert'); DROP TABLE students;"
+	trace := StartTrace(resource)
+
+	ctx := trace.contextAsParent()
+
+	assert.Equal(t, trace.TraceId, ctx.TraceId())
+	assert.Equal(t, trace.SpanId, ctx.ParentId())
+	assert.Equal(t, trace.Resource, ctx.Resource())
+}
+
+func TestNameTag(t *testing.T) {
+	const name = "my.name.tag"
+	tracer := Tracer{}
+	span := tracer.StartSpan("resource", NameTag(name)).(*Span)
+	assert.Equal(t, 1, len(span.Tags))
+	assert.Equal(t, "name", span.Tags[0].Name)
+	assert.Equal(t, name, span.Tags[0].Value)
+
+}
+
+type localError struct {
+	message string
+}
+
+func (le localError) Error() string {
+	return le.message
+}
+
+func TestError(t *testing.T) {
+	const resource = "Robert'); DROP TABLE students;"
+	const errorMessage = "some error happened"
+	err := localError{errorMessage}
+
+	root := StartTrace(resource)
+	root.Error(err)
+
+	assert.Equal(t, root.Status, ssf.SSFSample_CRITICAL)
+	assert.Equal(t, len(root.Tags), 3)
+
+	for _, tag := range root.Tags {
+		switch tag.Name {
+		case errorMessageTag:
+			assert.Equal(t, tag.Value, err.Error())
+		case errorTypeTag:
+			assert.Equal(t, tag.Value, "localError")
+		case errorStackTag:
+			assert.Equal(t, tag.Value, err.Error())
+		}
+	}
 
 }

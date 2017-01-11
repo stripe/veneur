@@ -23,26 +23,26 @@ import (
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) Flush(interval time.Duration, metricLimit int) {
-	trace := trace.StartTrace("flush")
-	defer trace.Record("veneur.flush.trace", []*ssf.SSFTag{})
+	span := tracer.StartSpan("flush", trace.NameTag("veneur.opentracing.flush")).(*trace.Span)
+	defer span.Finish()
 
 	// right now we have only one destination plugin
 	// but eventually, this is where we would loop over our supported
 	// destinations
 	if s.IsLocal() {
-		s.FlushLocal(trace.Attach(context.Background()), interval, metricLimit)
+		s.FlushLocal(span.Attach(context.Background()), interval, metricLimit)
 	} else {
-		s.FlushGlobal(trace.Attach(context.Background()), interval, metricLimit)
+		s.FlushGlobal(span.Attach(context.Background()), interval, metricLimit)
 	}
 }
 
 // FlushGlobal sends any global metrics to their destination.
 func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metricLimit int) {
-	trace := trace.SpanFromContext(ctx)
-	defer trace.Record("veneur.flush.FlushGlobal.trace", nil)
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.FlushGlobal"))
+	defer span.Finish()
 
-	go s.flushEventsChecks() // we can do all of this separately
-	go s.flushTraces()       // this too!
+	go s.flushEventsChecks()           // we can do all of this separately
+	go s.flushTraces(span.Attach(ctx)) // this too!
 
 	percentiles := s.HistogramPercentiles
 
@@ -53,7 +53,7 @@ func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metric
 	ms.totalLength += ms.totalSets
 	ms.totalLength += ms.totalGlobalCounters
 
-	finalMetrics := s.generateDDMetrics(trace.Attach(ctx), interval, percentiles, tempMetrics, ms)
+	finalMetrics := s.generateDDMetrics(span.Attach(ctx), interval, percentiles, tempMetrics, ms)
 
 	s.reportMetricsFlushCounts(ms)
 
@@ -78,11 +78,11 @@ func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metric
 // FlushLocal takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) FlushLocal(ctx context.Context, interval time.Duration, metricLimit int) {
-	trace := trace.SpanFromContext(ctx)
-	defer trace.Record("veneur.flush.FlushLocal.trace", nil)
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.FlushLocal"))
+	defer span.Finish()
 
-	go s.flushEventsChecks() // we can do all of this separately
-	go s.flushTraces()       // this too!
+	go s.flushEventsChecks()           // we can do all of this separately
+	go s.flushTraces(span.Attach(ctx)) // this too!
 
 	// don't publish percentiles if we're a local veneur; that's the global
 	// veneur's job
@@ -90,7 +90,7 @@ func (s *Server) FlushLocal(ctx context.Context, interval time.Duration, metricL
 
 	tempMetrics, ms := s.tallyMetrics(percentiles)
 
-	finalMetrics := s.generateDDMetrics(trace.Attach(ctx), interval, percentiles, tempMetrics, ms)
+	finalMetrics := s.generateDDMetrics(span.Attach(ctx), interval, percentiles, tempMetrics, ms)
 
 	s.reportMetricsFlushCounts(ms)
 
@@ -182,8 +182,8 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 // generate a DDMetric corresponding to that value
 func (s *Server) generateDDMetrics(ctx context.Context, interval time.Duration, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.DDMetric {
 
-	trace := trace.SpanFromContext(ctx)
-	defer trace.Record("veneur.flush.generateDDMetrics.trace", nil)
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.generateDDMetrics"))
+	defer span.Finish()
 
 	finalMetrics := make([]samplers.DDMetric, 0, ms.totalLength)
 	for _, wm := range tempMetrics {
@@ -235,7 +235,7 @@ func (s *Server) generateDDMetrics(ctx context.Context, interval time.Duration, 
 	}
 
 	finalizeMetrics(s.Hostname, s.Tags, finalMetrics)
-	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(trace.Start).Nanoseconds()), []string{"part:combine"}, 1.0)
+	s.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(span.Start).Nanoseconds()), []string{"part:combine"}, 1.0)
 
 	return finalMetrics
 }
@@ -333,7 +333,7 @@ func finalizeMetrics(hostname string, tags []string, finalMetrics []samplers.DDM
 // flushPart flushes a set of metrics to the remote API server
 func (s *Server) flushPart(metricSlice []samplers.DDMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
-	s.postHelper(fmt.Sprintf("%s/api/v1/series?api_key=%s", s.DDHostname, s.DDAPIKey), map[string][]samplers.DDMetric{
+	s.postHelper(context.TODO(), fmt.Sprintf("%s/api/v1/series?api_key=%s", s.DDHostname, s.DDAPIKey), map[string][]samplers.DDMetric{
 		"series": metricSlice,
 	}, "flush", true)
 }
@@ -421,7 +421,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 
 	// the error has already been logged (if there was one), so we only care
 	// about the success case
-	if s.postHelper(endpoint, jsonMetrics, "forward", true) == nil {
+	if s.postHelper(context.TODO(), endpoint, jsonMetrics, "forward", true) == nil {
 		log.WithField("metrics", len(jsonMetrics)).Info("Completed forward to upstream Veneur")
 	}
 }
@@ -457,10 +457,13 @@ func resolveEndpoint(endpoint string) (string, error) {
 	return origURL.String(), nil
 }
 
-func (s *Server) flushTraces() {
+func (s *Server) flushTraces(ctx context.Context) {
 	if !s.TracingEnabled() {
 		return
 	}
+
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.flushTraces"))
+	defer span.Finish()
 
 	traces := s.TraceWorker.Flush()
 
@@ -515,7 +518,7 @@ func (s *Server) flushTraces() {
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
 
-		err := s.postHelper(fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
+		err := s.postHelper(span.Attach(ctx), fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
 
 		if err == nil {
 			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
@@ -554,7 +557,7 @@ func (s *Server) flushEventsChecks() {
 		// the official dd-agent
 		// we don't actually pass all the body keys that dd-agent passes here... but
 		// it still works
-		err := s.postHelper(fmt.Sprintf("%s/intake?api_key=%s", s.DDHostname, s.DDAPIKey), map[string]map[string][]samplers.UDPEvent{
+		err := s.postHelper(context.TODO(), fmt.Sprintf("%s/intake?api_key=%s", s.DDHostname, s.DDAPIKey), map[string]map[string][]samplers.UDPEvent{
 			"events": {
 				"api": events,
 			},
@@ -568,7 +571,7 @@ func (s *Server) flushEventsChecks() {
 		// this endpoint is not documented to take an array... but it does
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
-		err := s.postHelper(fmt.Sprintf("%s/api/v1/check_run?api_key=%s", s.DDHostname, s.DDAPIKey), checks, "flush_checks", false)
+		err := s.postHelper(context.TODO(), fmt.Sprintf("%s/api/v1/check_run?api_key=%s", s.DDHostname, s.DDAPIKey), checks, "flush_checks", false)
 		if err == nil {
 			log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
 		}
@@ -581,7 +584,10 @@ func (s *Server) flushEventsChecks() {
 // this function - probably a static string for each callsite
 // you can disable compression with compress=false for endpoints that don't
 // support it
-func (s *Server) postHelper(endpoint string, bodyObject interface{}, action string, compress bool) error {
+func (s *Server) postHelper(ctx context.Context, endpoint string, bodyObject interface{}, action string, compress bool) error {
+	span, _ := trace.StartSpanFromContext(ctx, action, trace.NameTag("veneur.opentracing.flush.postHelper"))
+	defer span.Finish()
+
 	// attach this field to all the logs we generate
 	innerLogger := log.WithField("action", action)
 
@@ -618,6 +624,7 @@ func (s *Server) postHelper(endpoint string, bodyObject interface{}, action stri
 	s.statsd.Histogram(action+".content_length_bytes", float64(bodyLength), nil, 1.0)
 
 	req, err := http.NewRequest(http.MethodPost, endpoint, &bodyBuffer)
+
 	if err != nil {
 		s.statsd.Count(action+".error_total", 1, []string{"cause:construct"}, 1.0)
 		innerLogger.WithError(err).Error("Could not construct request")
@@ -629,6 +636,12 @@ func (s *Server) postHelper(endpoint string, bodyObject interface{}, action stri
 	}
 	// we only make http requests at flush time, so keepalive is not a big win
 	req.Close = true
+
+	err = tracer.InjectRequest(span.Trace, req)
+	if err != nil {
+		s.statsd.Count("veneur.opentracing.flush.inject.errors", 1, nil, 1.0)
+		innerLogger.WithError(err).Error("Error injecting header")
+	}
 
 	requestStart := time.Now()
 	resp, err := s.HTTPClient.Do(req)

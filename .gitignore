@@ -32,3 +32,4 @@ _work
 *.swo
 *.swn
 coverage.out
+.DS_Store
