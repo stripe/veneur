@@ -10,7 +10,7 @@ body {
 }
 
 #top {
-  background-color: rgba(255, 204, 25, 0.22);
+  background-color: #383f52;
   font-size: 1em;
   padding-bottom: 2em;
 }
@@ -30,21 +30,30 @@ body {
 }
 
 #bottom {
-  color: #383f52;
-  background-image: -ms-linear-gradient(top, #eaf1f7 0%, #c5e6ff 100%);
-  background-image: -moz-linear-gradient(top, #eaf1f7 0%, #c5e6ff 100%);
-  background-image: -o-linear-gradient(top, #eaf1f7 0%, #c5e6ff 100%);
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #eaf1f7), color-stop(100, #c5e6ff));
-  background-image: -webkit-linear-gradient(top, #eaf1f7 0%, #c5e6ff 100%);
-  background-image: linear-gradient(to bottom, #eaf1f7 0%, #c5e6ff 100%);
+  background: #c5e6ff; /* Old browsers */
+  background: -moz-linear-gradient(top, #c5e6ff 0%, #eaf1f7 100%); /* FF3.6-15 */
+  background: -webkit-linear-gradient(top, #c5e6ff 0%,#eaf1f7 100%); /* Chrome10-25,Safari5.1-6 */
+  background: linear-gradient(to bottom, #c5e6ff 0%,#eaf1f7 100%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+  filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#c5e6ff', endColorstr='#eaf1f7',GradientType=0 ); /* IE6-9 */
 }
 
+html {
+  background-color: #eaf1f7;
+}
+
+.s {
+  color: hsla(359, 100%, 35%, 1);
+}
+
+/* Use these to make letters different colors within a word */
+/*
 .s:nth-of-type(6n+0) {color: rgb(9, 55, 243);}
 .s:nth-of-type(6n+1) {color: rgb(9, 55, 243);}
 .s:nth-of-type(6n+2) {color: rgb(9, 55, 243);}
 .s:nth-of-type(6n+3) {color: rgb(9, 55, 243);}
 .s:nth-of-type(6n+4) {color: rgb(9, 55, 243);}
 .s:nth-of-type(6n+5) {color: rgb(9, 55, 243);}
+*/
 
 .bigwords {
   font-size: 2.5em;
@@ -107,4 +116,9 @@ a:active {
   font-size: 150%;
   font-weight: normal;
   font-family: monospace;
+}
+
+.columnblock .s {
+  font-weight: bold;
+  display: block;
 }

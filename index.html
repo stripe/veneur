@@ -7,8 +7,7 @@
   <title>Veneur</title>
   <link rel="icon" type="image/png" href="manual/gitbook/images/favicon-32x32.png" sizes="32x32">
   <link rel="icon" type="image/png" href="manual/gitbook/images/favicon-16x16.png" sizes="16x16">
-  <link rel="shortcut icon" type='image/x-icon' href='manual/gitbook/images/favicon.ico'/ >
-  <link rel="stylesheet" href="font-awesome.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css" />
   <link rel="stylesheet" href="flexblocks-responsive.css">
   <link rel="stylesheet" href="veneur.css">
 </head>
@@ -25,19 +24,20 @@
   </div>
   <div id="bottom" class="center">
     <div class="bigwords">
-      <span class="s">V</span><span class="s">e</span><span class="s">n</span><span class="s">e</span><span class="s">u</span><span class="s">r</span>
+      <span class="s">Veneur</span>
 
       is a distributed server implementation of the statsd protocol.
 
-      It's fast, memory-efficient, and capable of aggregating global metrics.
+      It's fast, <span class="s">memory-efficient</span>, and capable of aggregating <span class="s">global metrics</span>.
       <br/><br/>
-      Veneur is:
+
+      It's designed to be:
     </div>
     <div id="rows" class="col gap-5">
       <div class="col gap-5 center xrow xgap-10 xtop">
 
         <div class="columnblock col">
-          <div class="fa fa-cube bullet"></div>
+          <div class="fa fa-microchip bullet"></div>
           <div>
             <span class="s">Memory-efficient:</span> Perform aggregation in constant space with HyperLogLog and t-digests.
           </div>
@@ -53,19 +53,19 @@
         <div class="columnblock col">
           <div class="fa fa-plug bullet"></div>
           <div>
-            <span class="s">Pluggable :</span> Archive data in S3, Redshift, or a custom backend.
+            <span class="s">Pluggable:</span> Archive data in S3, Redshift, or a custom backend.
           </div>
         </div>
 
         <div class="columnblock col">
-          <div class="fa fa-dashboard bullet"></div>
+          <div class="fa fa-sitemap bullet"></div>
           <div>
-            <span class="s">Fast:</span> Process even more packets/second than StatsD and DogStatsD.
+            <span class="s">Parallelized:</span> Scale metrics processing with a configurable worker pool
           </div>
         </div>
       </div>
     </div>
-    <h1 class="bigwords">To get started, check out the <a href="manual"><span class="fa fa-book s"></span> <span class="s">m</span><span class="s">a</span><span class="s">n</span><span class="s">u</span><span class="s">a</span><span class="s">l</span></a>.</h1>
+    <h1 class="bigwords">To get started, check out the <a href="https://github.com/stripe/veneur#status"><span class="fa fa-book s"></span> documentation</a>.</h1>
   </div>
 </body>
 </html>
