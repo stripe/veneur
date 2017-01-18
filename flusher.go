@@ -15,9 +15,11 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/hashicorp/consul/api"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"stathat.com/c/consistent"
 )
 
 // Flush takes the slices of metrics, combines then and marshals them to json
@@ -346,9 +348,26 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 		jmLength += len(wm.timers)
 	}
 
+	conRing := consistent.New()
+	consulClient, err := api.NewClient(api.DefaultConfig())
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			logrus.ErrorKey: err,
+		}).Error("Error creating Consul client")
+	}
+	consulCatalog := consulClient.Catalog()
+	// consulCatalog.Nodes(api.QueryTemplate) Query!
+	// get the nodes, do something like
+	conRing.Add("foo")
+	conRing.Add("bar")
+
 	jsonMetrics := make([]samplers.JSONMetric, 0, jmLength)
 	exportStart := time.Now()
 	for _, wm := range wms {
+		// Make a JSON metrics slice for each possible host in the ring
+		// Use conRing.Get on metric's hash? to get the destination
+		// add metric to that host's slice, flush each one to the
+		// destination host.
 		for _, count := range wm.globalCounters {
 			jm, err := count.Export()
 			if err != nil {
