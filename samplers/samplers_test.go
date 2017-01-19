@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/samplers"
 )
 
 func TestCounterEmpty(t *testing.T) {
@@ -305,4 +306,19 @@ func TestHistoMerge(t *testing.T) {
 	assert.InDelta(t, 1.0, h2.LocalWeight, 0.02, "merged histogram should have count of 1 after adding a value")
 	assert.InDelta(t, 1.0, h2.LocalMin, 0.02, "merged histogram should have min of 1 after adding a value")
 	assert.InDelta(t, 1.0, h2.LocalMax, 0.02, "merged histogram should have max of 1 after adding a value")
+}
+
+func TestMetricKeyEquality(t *testing.T) {
+	c1 := samplers.ParseMetric([]byte("a.b.c:1|c|#a:b,c:d"))
+	ce1, _ := c1.Export()
+
+	c2 := samplers.ParseMetric([]byte("a.b.c:1|c|#c:d,a:b"))
+	ce2, _ := c2.Export()
+
+	c3 := samplers.ParseMetric([]byte("a.b.c:1|c|#c:d,fart:poot"))
+	// Make sure we're actually getting the tags in sorted order
+	assert.Equal(t, ce1.JoinedTags, ce2.JoinedTags)
+	// Make sure we can stringify that key and get equal!
+	assert.Equal(t, ce1.ToString(), ce2.ToString())
+	assert.NotEqual(t, ce1.ToString(), ce3.ToString())
 }

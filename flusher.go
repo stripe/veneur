@@ -356,12 +356,35 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 		}).Error("Error creating Consul client")
 	}
 	consulCatalog := consulClient.Catalog()
-	// consulCatalog.Nodes(api.QueryTemplate) Query!
-	// get the nodes, do something like
-	conRing.Add("foo")
-	conRing.Add("bar")
+	catalogService, queryMeta, err := consulCatalog.Service("veneur-srv", "", &api.QueryOptions{})
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			logrus.ErrorKey: err,
+		}).Error("Error querying Consul for service")
+		return
+	}
+	s.statsd.TimeInMilliseconds("consul.service_duration_ns", float64(queryMeta.RequestTime.Nanoseconds()), nil, 1.0)
 
-	jsonMetrics := make([]samplers.JSONMetric, 0, jmLength)
+	numHosts := len(catalogService)
+	if numHosts < 1 {
+		log.Error("Got no hosts when querying, can't flush!")
+	}
+	// Make a slice to hold our returned hosts
+	hosts := make([]string, numHosts)
+	for index, cs := range catalogService {
+		h := cs.ServiceAddress
+		if h == "" {
+			h = cs.Address
+		}
+		hosts[index] = h
+	}
+	conRing.Set(hosts)
+
+	jsonMetricsByDestination := make(map[string][]samplers.JSONMetric)
+	for _, h := range conRing.Members() {
+		jsonMetricsByDestination[h] = make([]samplers.JSONMetric, 0)
+	}
+
 	exportStart := time.Now()
 	for _, wm := range wms {
 		// Make a JSON metrics slice for each possible host in the ring
@@ -378,7 +401,8 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
-			jsonMetrics = append(jsonMetrics, jm)
+			dest := conRing.Get(jm.ToString())
+			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 		for _, histo := range wm.histograms {
 			jm, err := histo.Export()
@@ -390,7 +414,8 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
-			jsonMetrics = append(jsonMetrics, jm)
+			dest := conRing.Get(jm.ToString())
+			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 		for _, set := range wm.sets {
 			jm, err := set.Export()
@@ -402,7 +427,8 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
-			jsonMetrics = append(jsonMetrics, jm)
+			dest := conRing.Get(jm.ToString())
+			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 		for _, timer := range wm.timers {
 			jm, err := timer.Export()
@@ -416,32 +442,35 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 			}
 			// the exporter doesn't know that these two are "different"
 			jm.Type = "timer"
-			jsonMetrics = append(jsonMetrics, jm)
+			dest := conRing.Get(jm.ToString())
+			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 	}
 	s.statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(exportStart).Nanoseconds()), []string{"part:export"}, 1.0)
 
-	s.statsd.Gauge("forward.post_metrics_total", float64(len(jsonMetrics)), nil, 1.0)
-	if len(jsonMetrics) == 0 {
-		log.Debug("Nothing to forward, skipping.")
-		return
-	}
+	// s.statsd.Gauge("forward.post_metrics_total", float64(len(jsonMetrics)), nil, 1.0)
+	// if len(jsonMetrics) == 0 {
+	// 	log.Debug("Nothing to forward, skipping.")
+	// 	return
+	// }
 
-	// always re-resolve the host to avoid dns caching
-	dnsStart := time.Now()
-	endpoint, err := resolveEndpoint(fmt.Sprintf("%s/import", s.ForwardAddr))
-	if err != nil {
-		// not a fatal error if we fail
-		// we'll just try to use the host as it was given to us
-		s.statsd.Count("forward.error_total", 1, []string{"cause:dns"}, 1.0)
-		log.WithError(err).Warn("Could not re-resolve host for forward")
-	}
-	s.statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(dnsStart).Nanoseconds()), []string{"part:dns"}, 1.0)
+	for dest, batch := range jsonMetricsByDestination {
+		// always re-resolve the host to avoid dns caching
+		dnsStart := time.Now()
+		endpoint, err := resolveEndpoint(fmt.Sprintf("%s/import", dest))
+		if err != nil {
+			// not a fatal error if we fail
+			// we'll just try to use the host as it was given to us
+			s.statsd.Count("forward.error_total", 1, []string{"cause:dns"}, 1.0)
+			log.WithError(err).Warn("Could not re-resolve host for forward")
+		}
+		s.statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(dnsStart).Nanoseconds()), []string{"part:dns"}, 1.0)
 
-	// the error has already been logged (if there was one), so we only care
-	// about the success case
-	if s.postHelper(context.TODO(), endpoint, jsonMetrics, "forward", true) == nil {
-		log.WithField("metrics", len(jsonMetrics)).Info("Completed forward to upstream Veneur")
+		// the error has already been logged (if there was one), so we only care
+		// about the success case
+		if s.postHelper(context.TODO(), endpoint, batch, "forward", true) == nil {
+			log.WithField("metrics", len(batch)).Info("Completed forward to upstream Veneur")
+		}
 	}
 }
 
