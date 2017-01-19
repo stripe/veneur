@@ -12,7 +12,6 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path"
 	"sync"
@@ -198,57 +197,57 @@ type DDMetricsRequest struct {
 	Series []samplers.DDMetric
 }
 
+// fixture sets up a mock Datadog API server and Veneur
+type fixture struct {
+	api       *httptest.Server
+	server    Server
+	ddmetrics chan DDMetricsRequest
+}
+
+func newFixture(t *testing.T, config Config) *fixture {
+	// Set up a remote server (the API that we're sending the data to)
+	// (e.g. Datadog)
+	f := &fixture{nil, Server{}, make(chan DDMetricsRequest, 10)}
+	f.api = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		zr, err := zlib.NewReader(r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var ddmetrics DDMetricsRequest
+
+		err = json.NewDecoder(zr).Decode(&ddmetrics)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		f.ddmetrics <- ddmetrics
+		w.WriteHeader(http.StatusAccepted)
+	}))
+
+	config.APIHostname = f.api.URL
+	config.NumWorkers = 1
+	f.server = setupVeneurServer(t, config)
+	return f
+}
+
+func (f *fixture) Close() {
+	f.api.Close()
+	f.server.Shutdown()
+	close(f.ddmetrics)
+}
+
 // TestLocalServerUnaggregatedMetrics tests the behavior of
 // the veneur client when operating without a global veneur
 // instance (ie, when sending data directly to the remote server)
 func TestLocalServerUnaggregatedMetrics(t *testing.T) {
-	// Since we are asserting inside a separate goroutine, we should
-	// always assert that we get to the end of the goroutine.
-	// In the future, if the key call (in this case, server.Flush)
-	// is made asynchronous, we will know if we are ever encountering
-	// a race condition in which our assertions are simply not executing.
-	// (Failures after a test has finished executing will actually cause
-	// the test suite to fail, as long as it is still running, but this is
-	// a failsafe).
-
-	RemoteResponseChan := make(chan struct{}, 1)
-	defer func() {
-		select {
-		case <-RemoteResponseChan:
-			// all is safe
-			return
-		case <-time.After(DefaultServerTimeout):
-			assert.Fail(t, "Global server did not complete all responses before test terminated!")
-		}
-	}()
-
 	metricValues, expectedMetrics := generateMetrics()
-
-	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		zr, err := zlib.NewReader(r.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		var ddmetrics DDMetricsRequest
-		err = json.NewDecoder(zr).Decode(&ddmetrics)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assert.Equal(t, 6, len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
-		assertMetrics(t, ddmetrics, expectedMetrics)
-		w.WriteHeader(http.StatusAccepted)
-		RemoteResponseChan <- struct{}{}
-	}))
-
 	config := localConfig()
-	config.APIHostname = remoteServer.URL
-
-	server := setupVeneurServer(t, config)
-	defer server.Shutdown()
+	f := newFixture(t, config)
+	defer f.Close()
 
 	for _, value := range metricValues {
-		server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: "a.b.c",
 				Type: "histogram",
@@ -263,63 +262,21 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	interval, err := config.ParseInterval()
 	assert.NoError(t, err)
 
-	server.Flush(interval, config.FlushMaxPerBody)
+	f.server.Flush(interval, config.FlushMaxPerBody)
+
+	ddmetrics := <-f.ddmetrics
+	assert.Equal(t, 6, len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
+	assertMetrics(t, ddmetrics, expectedMetrics)
 }
 
 func TestGlobalServerFlush(t *testing.T) {
-
-	// Same as in TestLocalServerUnaggregatedMetrics
-	RemoteResponseChan := make(chan struct{}, 1)
-	defer func() {
-		select {
-		case <-RemoteResponseChan:
-			// all is safe
-			return
-		case <-time.After(DefaultServerTimeout):
-			assert.Fail(t, "Global server did not complete all responses before test terminated!")
-		}
-	}()
-
 	metricValues, expectedMetrics := generateMetrics()
-
 	config := globalConfig()
-
-	// Set up a remote server (the API that we're sending the data to)
-	// (e.g. Datadog)
-	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		// test that we are actually running as the server that we think we are
-		// since it's easy to mess this up when refactoring the test fixtures
-		apiURL, err := url.Parse(config.APIHostname)
-		assert.NoError(t, err)
-		assert.Equal(t, apiURL.Host, r.Host)
-
-		zr, err := zlib.NewReader(r.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		var ddmetrics DDMetricsRequest
-
-		err = json.NewDecoder(zr).Decode(&ddmetrics)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assert.Equal(t, len(expectedMetrics), len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
-		assertMetrics(t, ddmetrics, expectedMetrics)
-
-		RemoteResponseChan <- struct{}{}
-		w.WriteHeader(http.StatusAccepted)
-	}))
-
-	config.APIHostname = remoteServer.URL
-	config.NumWorkers = 1
-
-	server := setupVeneurServer(t, config)
-	defer server.Shutdown()
+	f := newFixture(t, config)
+	defer f.Close()
 
 	for _, value := range metricValues {
-		server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: "a.b.c",
 				Type: "histogram",
@@ -334,43 +291,22 @@ func TestGlobalServerFlush(t *testing.T) {
 	interval, err := config.ParseInterval()
 	assert.NoError(t, err)
 
-	server.Flush(interval, config.FlushMaxPerBody)
+	f.server.Flush(interval, config.FlushMaxPerBody)
+
+	ddmetrics := <-f.ddmetrics
+	assert.Equal(t, len(expectedMetrics), len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
+	assertMetrics(t, ddmetrics, expectedMetrics)
 }
 
 func TestLocalServerMixedMetrics(t *testing.T) {
-
-	// Same as in TestLocalServerUnaggregatedMetrics
-	RemoteResponseChan := make(chan struct{}, 1)
-	defer func() {
-		select {
-		case <-RemoteResponseChan:
-			// all is safe
-			return
-		case <-time.After(DefaultServerTimeout):
-			assert.Fail(t, "Remote server did not complete all responses before test terminated!")
-		}
-	}()
-
-	// Unlike flushing to to the remote server, flushing forward
-	// (ie, flushing to global veneur) is asynchronous.
-	// This means it is quite likely that the function will return before
-	// the global server has actually responded, unless we introduce a small timeout
-	GlobalResponseChan := make(chan struct{})
-	defer func() {
-		select {
-		case <-GlobalResponseChan:
-			// all is safe
-			return
-		case <-time.After(DefaultServerTimeout):
-			assert.Fail(t, "Global server did not complete all responses before test terminated!")
-		}
-	}()
-
 	// The exact gob stream that we will receive might differ, so we can't
 	// test against the bytestream directly. But the two streams should unmarshal
 	// to t-digests that have the same key properties, so we can test
 	// those.
 	const ExpectedGobStream = "\r\xff\x87\x02\x01\x02\xff\x88\x00\x01\xff\x84\x00\x007\xff\x83\x03\x01\x01\bCentroid\x01\xff\x84\x00\x01\x03\x01\x04Mean\x01\b\x00\x01\x06Weight\x01\b\x00\x01\aSamples\x01\xff\x86\x00\x00\x00\x17\xff\x85\x02\x01\x01\t[]float64\x01\xff\x86\x00\x01\b\x00\x00/\xff\x88\x00\x05\x01\xfe\xf0?\x01\xfe\xf0?\x00\x01@\x01\xfe\xf0?\x00\x01\xfe\x1c@\x01\xfe\xf0?\x00\x01\xfe @\x01\xfe\xf0?\x00\x01\xfeY@\x01\xfe\xf0?\x00\x05\b\x00\xfeY@\x05\b\x00\xfe\xf0?\x05\b\x00\xfeY@"
+	tdExpected := tdigest.NewMerging(100, false)
+	err := tdExpected.GobDecode([]byte(ExpectedGobStream))
+	assert.NoError(t, err, "Should not have encountered error in decoding expected gob stream")
 
 	var HistogramValues = []float64{1.0, 2.0, 7.0, 8.0, 100.0}
 
@@ -395,30 +331,10 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 		"a.b.c.count": float64(HistogramCountNormalized),
 	}
 
-	// Set up a remote server (the API that we're sending the data to)
-	// (e.g. Datadog)
-	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		zr, err := zlib.NewReader(r.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		var ddmetrics DDMetricsRequest
-
-		err = json.NewDecoder(zr).Decode(&ddmetrics)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assert.Equal(t, len(expectedMetrics), len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
-		assertMetrics(t, ddmetrics, expectedMetrics)
-
-		RemoteResponseChan <- struct{}{}
-		w.WriteHeader(http.StatusAccepted)
-	}))
-
 	// This represents the global veneur instance, which receives request from
 	// the local veneur instances, aggregates the data, and sends it to the remote API
 	// (e.g. Datadog)
+	globalTD := make(chan *tdigest.MergingDigest)
 	globalVeneur := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, r.URL.Path, "/import", "Global veneur should receive request on /import path")
 
@@ -444,36 +360,22 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 
 		assert.Equal(t, 1, len(metrics), "incorrect number of elements in the flushed series")
 
-		tdExpected := tdigest.NewMerging(100, false)
-		err = tdExpected.GobDecode([]byte(ExpectedGobStream))
-		assert.NoError(t, err, "Should not have encountered error in decoding expected gob stream")
-
 		td := tdigest.NewMerging(100, false)
 		err = td.GobDecode(metrics[0].Value)
 		assert.NoError(t, err, "Should not have encountered error in decoding gob stream")
-
-		assert.Equal(t, expectedMetrics["a.b.c.min"], td.Min(), "Minimum value is incorrect")
-		assert.Equal(t, expectedMetrics["a.b.c.max"], td.Max(), "Maximum value is incorrect")
-
-		// The remote server receives the raw count, *not* the normalized count
-		assert.InEpsilon(t, HistogramCountRaw, td.Count(), ε)
-		assert.Equal(t, tdExpected, td, "Underlying tdigest structure is incorrect")
-
-		GlobalResponseChan <- struct{}{}
+		globalTD <- td
 		w.WriteHeader(http.StatusAccepted)
 	}))
+	defer globalVeneur.Close()
 
 	config := localConfig()
-	config.APIHostname = remoteServer.URL
 	config.ForwardAddress = globalVeneur.URL
-	config.NumWorkers = 1
-
-	server := setupVeneurServer(t, config)
-	defer server.Shutdown()
+	f := newFixture(t, config)
+	defer f.Close()
 
 	// Create non-local metrics that should be passed to the global veneur instance
 	for _, value := range HistogramValues {
-		server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: "a.b.c",
 				Type: "histogram",
@@ -487,7 +389,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 
 	// Create local-only metrics that should be passed directly to the remote API
 	for i := 0; i < CounterNumEvents; i++ {
-		server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: "x.y.z",
 				Type: "counter",
@@ -502,7 +404,16 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 	interval, err := config.ParseInterval()
 	assert.NoError(t, err)
 
-	server.Flush(interval, config.FlushMaxPerBody)
+	f.server.Flush(interval, config.FlushMaxPerBody)
+
+	// the global veneur instance should get valid data
+	td := <-globalTD
+	assert.Equal(t, expectedMetrics["a.b.c.min"], td.Min(), "Minimum value is incorrect")
+	assert.Equal(t, expectedMetrics["a.b.c.max"], td.Max(), "Maximum value is incorrect")
+
+	// The remote server receives the raw count, *not* the normalized count
+	assert.InEpsilon(t, HistogramCountRaw, td.Count(), ε)
+	assert.Equal(t, tdExpected, td, "Underlying tdigest structure is incorrect")
 }
 
 func TestSplitBytes(t *testing.T) {
@@ -571,20 +482,11 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 	}()
 
 	metricValues, expectedMetrics := generateMetrics()
-
 	config := globalConfig()
+	f := newFixture(t, config)
+	defer f.Close()
 
-	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusAccepted)
-	}))
-
-	config.APIHostname = remoteServer.URL
-	config.NumWorkers = 1
-
-	server := setupVeneurServer(t, config)
-	defer server.Shutdown()
-
-	dp := &dummyPlugin{logger: log, statsd: server.statsd}
+	dp := &dummyPlugin{logger: log, statsd: f.server.statsd}
 
 	dp.flush = func(metrics []samplers.DDMetric, hostname string) error {
 		assert.Equal(t, len(expectedMetrics), len(metrics))
@@ -592,16 +494,16 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 		firstName := metrics[0].Name
 		assert.Equal(t, expectedMetrics[firstName], metrics[0].Value[0][1])
 
-		assert.Equal(t, hostname, server.Hostname)
+		assert.Equal(t, hostname, f.server.Hostname)
 
 		RemoteResponseChan <- struct{}{}
 		return nil
 	}
 
-	server.registerPlugin(dp)
+	f.server.registerPlugin(dp)
 
 	for _, value := range metricValues {
-		server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: "a.b.c",
 				Type: "histogram",
@@ -616,7 +518,7 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 	interval, err := config.ParseInterval()
 	assert.NoError(t, err)
 
-	server.Flush(interval, config.FlushMaxPerBody)
+	f.server.Flush(interval, config.FlushMaxPerBody)
 }
 
 // TestGlobalServerS3PluginFlush tests that we are able to
@@ -640,16 +542,8 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 	metricValues, _ := generateMetrics()
 
 	config := globalConfig()
-
-	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusAccepted)
-	}))
-
-	config.APIHostname = remoteServer.URL
-	config.NumWorkers = 1
-
-	server := setupVeneurServer(t, config)
-	defer server.Shutdown()
+	f := newFixture(t, config)
+	defer f.Close()
 
 	client := &s3Mock.MockS3Client{}
 	client.SetPutObject(func(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
@@ -674,13 +568,13 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 
 	s3p := &s3p.S3Plugin{Logger: log, Svc: client}
 
-	server.registerPlugin(s3p)
+	f.server.registerPlugin(s3p)
 
-	plugins := server.getPlugins()
+	plugins := f.server.getPlugins()
 	assert.Equal(t, 1, len(plugins))
 
 	for _, value := range metricValues {
-		server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: "a.b.c",
 				Type: "histogram",
@@ -695,7 +589,7 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 	interval, err := config.ParseInterval()
 	assert.NoError(t, err)
 
-	server.Flush(interval, config.FlushMaxPerBody)
+	f.server.Flush(interval, config.FlushMaxPerBody)
 }
 
 func parseGzipTSV(r io.Reader) ([][]string, error) {
