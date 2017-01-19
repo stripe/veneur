@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/getsentry/raven-go"
 	"github.com/golang/protobuf/proto"
+	"github.com/hashicorp/consul/api"
 	"github.com/stripe/veneur/ssf"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
@@ -28,6 +29,7 @@ import (
 	s3p "github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/trace"
+	"stathat.com/c/consistent"
 )
 
 // VERSION stores the current veneur version.
@@ -57,8 +59,14 @@ type Server struct {
 	DDTraceAddress string
 	HTTPClient     *http.Client
 
-	HTTPAddr    string
-	ForwardAddr string
+	HTTPAddr string
+
+	ForwardAddr            string
+	ForwardDestinations    *consistent.Consistent
+	ConsulCatalog          *api.Catalog
+	ConsulFowardService    string
+	ForwardDestinationsMtx sync.Mutex
+
 	UDPAddr     *net.UDPAddr
 	TraceAddr   *net.UDPAddr
 	RcvbufBytes int
@@ -230,7 +238,82 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		log.Info("S3 archives are enabled")
 	}
 
+	ret.ForwardDestinations = consistent.New()
+	// TODO Size of replicas in config?
+	//ret.ForwardDestinations.NumberOfReplicas = ???
+
+	if conf.ForwardAddress != "" {
+		ret.ForwardDestinations.Add(conf.ForwardAddress)
+	} else if conf.ConsulForwardServiceName != "" {
+		consulInterval, perr := time.ParseDuration(conf.ConsulRefreshInterval)
+		if perr != nil {
+			return
+		}
+
+		ret.RefreshForwardDestinations()
+		go func() {
+			defer func() {
+				ret.ConsumePanic(recover())
+			}()
+			ticker := time.NewTicker(consulInterval)
+			for range ticker.C {
+				ret.RefreshForwardDestinations()
+			}
+		}()
+
+	}
+
 	return
+}
+
+// RefreshForwardDestinations updates the server's list of valid destinations
+// for "forward" flushing. This should be called periodically to ensure we have
+// the latest data.
+func (s *Server) RefreshForwardDestinations() {
+	if s.ConsulCatalog == nil {
+		// If we've got no catalog then it's our first time here and we'll
+		// create the necessary pieces.
+		consulClient, err := api.NewClient(api.DefaultConfig())
+		if err != nil {
+			log.WithFields(logrus.Fields{
+				logrus.ErrorKey: err,
+			}).Fatal("Error creating Consul client")
+		}
+		s.ConsulCatalog = consulClient.Catalog()
+	}
+
+	catalogService, queryMeta, err := s.ConsulCatalog.Service(s.ConsulFowardService, "", &api.QueryOptions{})
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			logrus.ErrorKey: err,
+		}).Error("Error querying Consul for service")
+		return
+	}
+	s.statsd.TimeInMilliseconds("consul.service_duration_ns", float64(queryMeta.RequestTime.Nanoseconds()), nil, 1.0)
+
+	numHosts := len(catalogService)
+	if numHosts < 1 {
+		s.statsd.Count("consul_catalog.errrors_total", 1, nil, 1.0)
+		log.Error("Got no hosts when querying, might have stale hosts!")
+	}
+	// Make a slice to hold our returned hosts
+	hosts := make([]string, numHosts)
+	for index, cs := range catalogService {
+		h := cs.ServiceAddress
+		if h == "" {
+			h = cs.Address
+		}
+		hosts[index] = h
+	}
+
+	// At the last moment, lock the mutex and defer so we unlock after setting.
+	// We do this after we've fetched info so we don't hold the lock during long
+	// queries, timeouts or errors. The flusher can lock the mutex and prevent us
+	// from updating at the same time.
+	s.ForwardDestinationsMtx.Lock()
+	defer s.ForwardDestinationsMtx.Unlock()
+
+	s.ForwardDestinations.Set(hosts)
 }
 
 // HandleMetricPacket processes each packet that is sent to the server, and sends to an

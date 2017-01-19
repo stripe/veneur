@@ -15,11 +15,9 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/hashicorp/consul/api"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
-	"stathat.com/c/consistent"
 )
 
 // Flush takes the slices of metrics, combines then and marshals them to json
@@ -348,40 +346,12 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 		jmLength += len(wm.timers)
 	}
 
-	conRing := consistent.New()
-	consulClient, err := api.NewClient(api.DefaultConfig())
-	if err != nil {
-		log.WithFields(logrus.Fields{
-			logrus.ErrorKey: err,
-		}).Error("Error creating Consul client")
-	}
-	consulCatalog := consulClient.Catalog()
-	catalogService, queryMeta, err := consulCatalog.Service("veneur-srv", "", &api.QueryOptions{})
-	if err != nil {
-		log.WithFields(logrus.Fields{
-			logrus.ErrorKey: err,
-		}).Error("Error querying Consul for service")
-		return
-	}
-	s.statsd.TimeInMilliseconds("consul.service_duration_ns", float64(queryMeta.RequestTime.Nanoseconds()), nil, 1.0)
-
-	numHosts := len(catalogService)
-	if numHosts < 1 {
-		log.Error("Got no hosts when querying, can't flush!")
-	}
-	// Make a slice to hold our returned hosts
-	hosts := make([]string, numHosts)
-	for index, cs := range catalogService {
-		h := cs.ServiceAddress
-		if h == "" {
-			h = cs.Address
-		}
-		hosts[index] = h
-	}
-	conRing.Set(hosts)
-
+	// Lock the server's forward destinations so it doesn't modify the list
+	// while we're using it!
+	s.ForwardDestinationsMtx.Lock()
+	defer s.ForwardDestinationsMtx.Unlock()
 	jsonMetricsByDestination := make(map[string][]samplers.JSONMetric)
-	for _, h := range conRing.Members() {
+	for _, h := range s.ForwardDestinations.Members() {
 		jsonMetricsByDestination[h] = make([]samplers.JSONMetric, 0)
 	}
 
@@ -401,7 +371,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
-			dest := conRing.Get(jm.ToString())
+			dest, _ := s.ForwardDestinations.Get(jm.ToString())
 			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 		for _, histo := range wm.histograms {
@@ -414,7 +384,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
-			dest := conRing.Get(jm.ToString())
+			dest, _ := s.ForwardDestinations.Get(jm.ToString())
 			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 		for _, set := range wm.sets {
@@ -427,7 +397,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
-			dest := conRing.Get(jm.ToString())
+			dest, _ := s.ForwardDestinations.Get(jm.ToString())
 			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 		for _, timer := range wm.timers {
@@ -442,7 +412,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 			}
 			// the exporter doesn't know that these two are "different"
 			jm.Type = "timer"
-			dest := conRing.Get(jm.ToString())
+			dest, _ := s.ForwardDestinations.Get(jm.ToString())
 			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 	}
