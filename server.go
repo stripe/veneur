@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -63,7 +64,7 @@ type Server struct {
 
 	ForwardAddr            string
 	ForwardDestinations    *consistent.Consistent
-	ConsulCatalog          *api.Catalog
+	ConsulHealth           *api.Health
 	ConsulFowardService    string
 	ForwardDestinationsMtx sync.Mutex
 
@@ -238,6 +239,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		log.Info("S3 archives are enabled")
 	}
 
+	ret.ConsulFowardService = conf.ConsulForwardServiceName
 	ret.ForwardDestinations = consistent.New()
 	// TODO Size of replicas in config?
 	//ret.ForwardDestinations.NumberOfReplicas = ???
@@ -270,7 +272,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 // for "forward" flushing. This should be called periodically to ensure we have
 // the latest data.
 func (s *Server) RefreshForwardDestinations() {
-	if s.ConsulCatalog == nil {
+	if s.ConsulHealth == nil {
 		// If we've got no catalog then it's our first time here and we'll
 		// create the necessary pieces.
 		consulClient, err := api.NewClient(api.DefaultConfig())
@@ -279,10 +281,11 @@ func (s *Server) RefreshForwardDestinations() {
 				logrus.ErrorKey: err,
 			}).Fatal("Error creating Consul client")
 		}
-		s.ConsulCatalog = consulClient.Catalog()
+		s.ConsulHealth = consulClient.Health()
 	}
 
-	catalogService, queryMeta, err := s.ConsulCatalog.Service(s.ConsulFowardService, "", &api.QueryOptions{})
+	log.Debug("Querying for updated forward hosts via Consul")
+	serviceEntries, queryMeta, err := s.ConsulHealth.Service(s.ConsulFowardService, "", true, &api.QueryOptions{})
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
@@ -291,19 +294,23 @@ func (s *Server) RefreshForwardDestinations() {
 	}
 	s.statsd.TimeInMilliseconds("consul.service_duration_ns", float64(queryMeta.RequestTime.Nanoseconds()), nil, 1.0)
 
-	numHosts := len(catalogService)
+	numHosts := len(serviceEntries)
 	if numHosts < 1 {
 		s.statsd.Count("consul_catalog.errrors_total", 1, nil, 1.0)
 		log.Error("Got no hosts when querying, might have stale hosts!")
 	}
 	// Make a slice to hold our returned hosts
 	hosts := make([]string, numHosts)
-	for index, cs := range catalogService {
-		h := cs.ServiceAddress
-		if h == "" {
-			h = cs.Address
-		}
-		hosts[index] = h
+	for index, se := range serviceEntries {
+		service := se.Service
+		var h bytes.Buffer
+		h.WriteString("http://")
+
+		h.WriteString(se.Node.Address)
+		h.WriteString(":")
+		h.WriteString(strconv.Itoa(service.Port))
+		log.WithField("host", h.String()).Debug("Adding host")
+		hosts[index] = h.String()
 	}
 
 	// At the last moment, lock the mutex and defer so we unlock after setting.
@@ -516,7 +523,7 @@ func (s *Server) Shutdown() {
 // (forwarding non-local data to a global veneur instance) or is running as a global
 // instance (sending all data directly to the final destination).
 func (s *Server) IsLocal() bool {
-	return s.ForwardAddr != ""
+	return s.ForwardAddr != "" || s.ConsulFowardService != ""
 }
 
 // registerPlugin registers a plugin for use

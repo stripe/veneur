@@ -339,13 +339,6 @@ func (s *Server) flushPart(metricSlice []samplers.DDMetric, wg *sync.WaitGroup) 
 }
 
 func (s *Server) flushForward(wms []WorkerMetrics) {
-	jmLength := 0
-	for _, wm := range wms {
-		jmLength += len(wm.histograms)
-		jmLength += len(wm.sets)
-		jmLength += len(wm.timers)
-	}
-
 	// Lock the server's forward destinations so it doesn't modify the list
 	// while we're using it!
 	s.ForwardDestinationsMtx.Lock()
@@ -418,14 +411,9 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 	}
 	s.statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(exportStart).Nanoseconds()), []string{"part:export"}, 1.0)
 
-	// s.statsd.Gauge("forward.post_metrics_total", float64(len(jsonMetrics)), nil, 1.0)
-	// if len(jsonMetrics) == 0 {
-	// 	log.Debug("Nothing to forward, skipping.")
-	// 	return
-	// }
-
 	for dest, batch := range jsonMetricsByDestination {
 		// always re-resolve the host to avoid dns caching
+		log.WithField("destination", dest).Debug("Beginning flush forward")
 		dnsStart := time.Now()
 		endpoint, err := resolveEndpoint(fmt.Sprintf("%s/import", dest))
 		if err != nil {
