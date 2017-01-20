@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/profile"
 
 	"github.com/stripe/veneur/plugins"
+	"github.com/stripe/veneur/plugins/influxdb"
 	s3p "github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/trace"
@@ -228,6 +229,13 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		log.Info("S3 archives are disabled")
 	} else {
 		log.Info("S3 archives are enabled")
+	}
+
+	if conf.InfluxAddress != "" {
+		plugin := influxdb.NewInfluxDBPlugin(
+			log, conf.InfluxAddress, conf.InfluxConsistency, conf.InfluxDBName, ret.HTTPClient, ret.statsd,
+		)
+		ret.registerPlugin(plugin)
 	}
 
 	return

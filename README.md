@@ -1,11 +1,13 @@
 [![Build Status](https://travis-ci.org/stripe/veneur.svg?branch=master)](https://travis-ci.org/stripe/veneur)
 [![GoDoc](https://godoc.org/github.com/stripe/veneur?status.svg)](http://godoc.org/github.com/stripe/veneur)
 
-Veneur (venn-urr) is a server implementation of the [DogStatsD protocol](http://docs.datadoghq.com/guides/dogstatsd/#datagram-format), which is a superset of the StatsD protocol.
+Veneur (venn-urr) is a server implementation of the [DogStatsD protocol](http://docs.datadoghq.com/guides/dogstatsd/#datagram-format) for aggregating metrics and sending them to downstream storage (e.g. Datadog), typically [Datadog](http://datadoghq.com). It can also as a [global aggregator](#global-aggregation) for histograms, sets and counters.
+
+More generically, Veneur is a convenient, host-local sink for various observability primitives.
 
 # Status
 
-Veneur is currently handling all metrics for Stripe and is considered production ready. It is, however, still in heavy development and may change!
+Veneur is currently handling all metrics for Stripe and is considered production ready. It is under active development and maintenance!
 
 Building veneur requires Go 1.7 or later.
 
@@ -13,15 +15,15 @@ Building veneur requires Go 1.7 or later.
 
 We wanted percentiles, histograms and sets to be global. Veneur helps us do that!
 
-Veneur is a DogStatsD implementation that acts as a local collector and — when configured differently — as an aggregator for
+Veneur is a DogStatsD implementation that acts as a local collector and — optionally — as an aggregator for
 some metric types, such that the metrics are *global* rather than host-local. This is particularly useful for histograms,
 timers and sets, as in their normal, per-host configuration the percentiles for histograms can be less effective or even
 meaningless. Per-host unique sets are also often not what's desired.
 
 Global \*StatsD installations can be problematic, as they either require client-side or proxy sharding behavior to prevent an
 instance being a Single Point of Failure (SPoF) for all metrics. Veneur aims to solve this problem. Non-global
-metrics like counters and gauges are collected by a local Veneur instance and sent to Datadog at flush time. Global metrics (histograms and sets)
-are forwarded to a central Veneur instance for aggregation before being sent to Datadog.
+metrics like counters and gauges are collected by a local Veneur instance and sent to storage at flush time. Global metrics (histograms and sets)
+are forwarded to a central Veneur instance for aggregation before being sent to storage.
 
 # How Veneur Is Different Than Official DogStatsD
 
@@ -31,12 +33,11 @@ Veneur is different for a few reasons. They are enumerated here.
 
 Veneur adheres to [the official DogStatsD datagram format](http://docs.datadoghq.com/guides/dogstatsd/#datagram-format) with the exceptions below:
 
-* The tag `veneurlocalonly` is stripped and influenced forwarding behavior, as discussed below.
+* The tag `veneurlocalonly` is stripped and influences forwarding behavior, as discussed below.
 
 ## Global Aggregation
 
-If configured to do so, Veneur can selectively aggregate global metrics to be cumulative across all instances that report to a central Veneur, allowing global percentile
-calculation and global set counts.
+If configured to do so, Veneur can selectively aggregate global metrics to be cumulative across all instances that report to a central Veneur, allowing global percentile calculation and global set counts.
 
 For example, say you emit a timer `foo.bar.call_duration_ms` from 20 hosts that are configured to forward to a central veneur. In Datadog you'll see the following:
 
@@ -46,9 +47,12 @@ For example, say you emit a timer `foo.bar.call_duration_ms` from 20 hosts that 
   * `foo.bar.call_duration_ms.95percentile`: the p95 across all hosts, by tag
   * `foo.bar.call_duration_ms.99percentile`: the p99 across all hosts, by tag
 * Metrics that remain host-local
+  * `foo.bar.call_duration_ms.avg`: by-host tagged average
   * `foo.bar.call_duration_ms.count`: by-host tagged count which (when summed) shows the total count of times this metric was emitted
   * `foo.bar.call_duration_ms.max`: by-host tagged maximum value
+  * `foo.bar.call_duration_ms.median`: by-host tagged median value
   * `foo.bar.call_duration_ms.min`: by-host tagged minimum value
+  * `foo.bar.call_duration_ms.sum`: by-host tagged sum value representing the total time
 
 Clients can choose to override this behavior by [including the tag `veneurlocalonly`](#magic-tag).
 
@@ -63,10 +67,14 @@ the resulting percentile values are meant to be more representative of a global 
 
 Veneur uses [HyperLogLogs](https://github.com/clarkduvall/hyperloglog) for approximate unique sets. These are a very efficient unique counter with fixed memory consumption.
 
+## Global Counters
+
+Via an optional [magic tag](#magic-tag) Veneur will forward counters to a global host for accumulation. This feature was primarily developed to
+
 ## Lack of Host Tags for Aggregated Metrics
 
-By definition the hostname is not applicable to global metrics that Veneur processes. Note that if you
-do include a hostname tag, Veneur will **not** strip it for you. Veneur will add it's own hostname as configured to metrics sent to Datadog.
+By definition the hostname is not applicable to *global* metrics that Veneur processes. Note that if you
+do include a hostname tag, Veneur will **not** strip it for you. Veneur will add its own hostname as configured to metrics sent to Datadog.
 
 ## Expiration
 
@@ -81,7 +89,7 @@ Veneur expires all metrics on each flush. If a metric is no longer being sent (o
 ## By Metric Type Behavior
 
 To clarify how each metric type behaves in Veneur, please use the following:
-* Counters: Locally accrued, flushed to Datadog
+* Counters: Locally accrued, flushed to Datadog (see [magic tags](#magic-tag) for global version)
 * Gauges: Locally accrued, flushed to Datadog
 * Histograms: Locally accrued, count, max and min flushed to Datadog, percentiles forwarded to `forward_address` for global aggregation when set.
 * Timers: Locally accrued, count, max and min flushed to Datadog, percentiles forwarded to `forward_address` for global aggregation when set.
@@ -94,6 +102,13 @@ veneur -f example.yaml
 ```
 
 See example.yaml for a sample config. Be sure and set your Datadog API `key`!
+
+# Plugins
+
+Veneur [includes optional plugins](tree/master/plugins) to extend it's capabilities. These plugins are enabled via configuration options. Please consult each plugin's README for more information:
+
+* [S3 Plugin](tree/master/plugins/s3) - Emit flushed metrics as a TSV file to Amazon S3
+* []
 
 # Setup
 
@@ -119,7 +134,7 @@ To configure this feature, you need one Veneur, which we'll call the _global_ in
 
 If a local instance receives a histogram or set, it will publish the local parts of that metric (the count, min and max) directly to DataDog, but instead of publishing percentiles, it will package the entire histogram and send it to the global instance. The global instance will aggregate all the histograms together and publish their percentiles to DataDog.
 
-Note that the global instance can also receive metrics over UDP. It will publish a count, min and max for the samples that were sent directly to it, but not counting any samples from other Veneurs (this ensures that things don't get double-counted). You can even chain multiple levels of forwarding together if you want. This might be useful if, for example, your global Veneur is under too much load. The root of the tree will be the Veneur instance that has an empty `forward_address`. (Do not tell a Veneur instance to forward metrics to itself. We don't support that and it doesn't really make sense in the first place.)
+Note that the global instance can also receive metrics over UDP. It will publish a count, min and max for the samples that were sent directly to it, but not counting any samples from other Veneur instancess (this ensures that things don't get double-counted). You can even chain multiple levels of forwarding together if you want. This might be useful if, for example, your global Veneur is under too much load. The root of the tree will be the Veneur instance that has an empty `forward_address`. (Do not tell a Veneur instance to forward metrics to itself. We don't support that and it doesn't really make sense in the first place.)
 
 With respect to the `tags` configuration option, the tags that will be added are those of the Veneur that actually publishes to DataDog. If a local instance forwards its histograms and sets to a global instance, the local instance's tags will not be attached to the forwarded structures. It will still use its own tags for the other metrics it publishes, but the percentiles will get extra tags only from the global instance.
 
@@ -127,9 +142,13 @@ With respect to the `tags` configuration option, the tags that will be added are
 
 If you want a metric to be strictly host-local, you can tell Veneur not to forward it by including a `veneurlocalonly` tag in the metric packet, eg `foo:1|h|#veneurlocalonly`. This tag will not actually appear in DataDog; Veneur removes it.
 
-Relatedly, if you want to forward a counter to the global veneur instance to reduce tag cardinality, you can tell Veneur to flush it to the global instance by including a `veneurglobalonly` tag in the count's metric packet. This tag will also not appear in Datadog. Note: for global counters to report correctly, the local and global veneur instances should be configured to have the same flush interval.
+#### Counters
 
-Veneur also honors the same "magic" tags as the dogstatsd include in the agent. The tag `host` will override `Hostname` in the metric and `device` will override `DeviceName`.
+Relatedly, if you want to forward a counter to the global Veneur instance to reduce tag cardinality, you can tell Veneur to flush it to the global instance by including a `veneurglobalonly` tag in the count's metric packet. This tag will also not appear in Datadog. Note: for global counters to report correctly, the local and global Veneur instances should be configured to have the same flush interval.
+
+#### Hostname and Device
+
+Veneur also honors the same "magic" tags that the dogstatsd daemon includes in the datadog agent. The tag `host` will override `Hostname` in the metric and `device` will override `DeviceName`.
 
 # Configuration
 
@@ -161,7 +180,7 @@ Here are the important things to monitor with Veneur:
 ## At Local Node
 
 When running as a local instance, you will be primarily concerned with the following metrics:
-* `veneur.flush*.error_total` as a count of errors when flush metrics to Datadog. This should rarely happen. Occasional errors are fine, but sustained is bad.
+* `veneur.flush*.error_total` as a count of errors when flushing metrics to Datadog. This should rarely happen. Occasional errors are fine, but sustained is bad.
 * `veneur.flush.total_duration_ns` and `veneur.flush.total_duration_ns.count`. These metrics track the per-host time spent performing a flush to Datadog. The time should be minimal!
 
 ### Forwarding
@@ -199,7 +218,7 @@ Veneur will emit metrics to the `stats_address` configured above in DogStatsD fo
 
 ## Error Handling
 
-In addition to logging, Veneur will dutifully sent any errors it generates to a [Sentry](https://sentry.io/) instance. This will occur if you set the `sentry_dsn` configuration option. Not setting the option will disable Sentry reporting.
+In addition to logging, Veneur will dutifully send any errors it generates to a [Sentry](https://sentry.io/) instance. This will occur if you set the `sentry_dsn` configuration option. Not setting the option will disable Sentry reporting.
 
 # Performance
 
