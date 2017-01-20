@@ -107,8 +107,8 @@ See example.yaml for a sample config. Be sure and set your Datadog API `key`!
 
 Veneur [includes optional plugins](tree/master/plugins) to extend it's capabilities. These plugins are enabled via configuration options. Please consult each plugin's README for more information:
 
-* [S3 Plugin](/tree/master/plugins/s3) - Emit flushed metrics as a TSV file to Amazon S3
-* [InfluxDB Plugin](/tree/master/plugins/influxdb) - Emit flushed metrics to InfluxDB (experimental)
+* [S3 Plugin](plugins/s3) - Emit flushed metrics as a TSV file to Amazon S3
+* [InfluxDB Plugin](plugins/influxdb) - Emit flushed metrics to InfluxDB (experimental)
 
 # Setup
 
