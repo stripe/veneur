@@ -254,8 +254,8 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		ret.RefreshDestinations(conf.ConsulForwardServiceName, ret.ForwardDestinations, &ret.ForwardDestinationsMtx)
 	}
 
-	if conf.TraceAddress != "" {
-		ret.TraceDestinations.Add(conf.TraceAddress)
+	if conf.TraceAPIAddress != "" {
+		ret.TraceDestinations.Add(conf.TraceAPIAddress)
 	} else if conf.ConsulForwardServiceName != "" {
 		ret.RefreshDestinations(conf.ConsulTraceServiceName, ret.TraceDestinations, &ret.TraceDestinationsMtx)
 	}

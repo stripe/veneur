@@ -533,7 +533,6 @@ func (s *Server) flushTraces(ctx context.Context) {
 			// this endpoint is not documented to take an array... but it does
 			// another curious constraint of this endpoint is that it does not
 			// support "Content-Encoding: deflate"
-
 			err := s.postHelper(span.Attach(ctx), fmt.Sprintf("%s/spans", dest), batch, "flush_traces", false)
 
 			if err == nil {
