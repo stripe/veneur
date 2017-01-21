@@ -5,8 +5,6 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"net/url"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -27,6 +25,7 @@ import (
 
 	"github.com/pkg/profile"
 
+	"github.com/stripe/veneur/discovery"
 	"github.com/stripe/veneur/plugins"
 	s3p "github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/samplers"
@@ -65,7 +64,7 @@ type Server struct {
 	ForwardAddr            string
 	ForwardDestinations    *consistent.Consistent
 	TraceDestinations      *consistent.Consistent
-	ConsulHealth           *api.Health
+	Discoverer             discovery.Discoverer
 	ConsulFowardService    string
 	ConsulTraceService     string
 	ForwardDestinationsMtx sync.Mutex
@@ -241,32 +240,21 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		log.Info("S3 archives are enabled")
 	}
 
-	ret.ConsulFowardService = conf.ConsulForwardServiceName
-	ret.ConsulTraceService = conf.ConsulTraceServiceName
-	ret.ForwardDestinations = consistent.New()
-	ret.TraceDestinations = consistent.New()
-	// TODO Size of replicas in config?
-	//ret.ForwardDestinations.NumberOfReplicas = ???
-
-	if conf.ForwardAddress != "" {
-		ret.ForwardDestinations.Add(conf.ForwardAddress)
-	} else if conf.ConsulForwardServiceName != "" {
-		ret.RefreshDestinations(conf.ConsulForwardServiceName, ret.ForwardDestinations, &ret.ForwardDestinationsMtx)
-	}
-
-	if conf.TraceAPIAddress != "" {
-		ret.TraceDestinations.Add(conf.TraceAPIAddress)
-	} else if conf.ConsulForwardServiceName != "" {
-		ret.RefreshDestinations(conf.ConsulTraceServiceName, ret.TraceDestinations, &ret.TraceDestinationsMtx)
-	}
-
 	if conf.ConsulForwardServiceName != "" || conf.ConsulTraceServiceName != "" {
-		go func() {
-			consulInterval, err := time.ParseDuration(conf.ConsulRefreshInterval)
-			if err != nil {
-				return
-			}
+		disc, consulErr := discovery.NewConsul(api.DefaultConfig())
+		if consulErr != nil {
+			log.WithError(consulErr).Error("Error creating Consul discoverer")
+			return
+		}
+		ret.Discoverer = disc
+		consulInterval, parseErr := time.ParseDuration(conf.ConsulRefreshInterval)
+		if parseErr != nil {
+			log.WithError(parseErr).Error("Error parsing Consul refresh interval")
+			return
+		}
+		log.WithField("interval", conf.ConsulRefreshInterval).Info("Will use Consul for service discovery")
 
+		go func() {
 			defer func() {
 				ret.ConsumePanic(recover())
 			}()
@@ -280,7 +268,33 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 				}
 			}
 		}()
+	}
 
+	ret.ForwardDestinations = consistent.New()
+	ret.TraceDestinations = consistent.New()
+	// TODO Size of replicas in config?
+	//ret.ForwardDestinations.NumberOfReplicas = ???
+
+	// For readability we're "initializing" our destination rings here,
+	// assured that any use of RefreshDestinations will work because we
+	// populated the Discoverer above. We could refactor this and make
+	// a "Static" discoverer, but it seems better to absorb it in some
+	// complexity here rather than create a goroutine that just does
+	// nothing on each call to RefreshDestinations.
+	if conf.ForwardAddress != "" {
+		// Static address? Use a ring of 1
+		ret.ForwardDestinations.Add(conf.ForwardAddress)
+	} else if conf.ConsulForwardServiceName != "" {
+		// else use Consul
+		ret.RefreshDestinations(conf.ConsulForwardServiceName, ret.ForwardDestinations, &ret.ForwardDestinationsMtx)
+	}
+
+	if conf.TraceAPIAddress != "" {
+		// Static address? Use a ring of 1
+		ret.TraceDestinations.Add(conf.TraceAPIAddress)
+	} else if conf.ConsulForwardServiceName != "" {
+		// Else use Consul
+		ret.RefreshDestinations(conf.ConsulTraceServiceName, ret.TraceDestinations, &ret.TraceDestinationsMtx)
 	}
 
 	return
@@ -290,62 +304,21 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 // for flushing. This should be called periodically to ensure we have
 // the latest data.
 func (s *Server) RefreshDestinations(serviceName string, ring *consistent.Consistent, mtx *sync.Mutex) {
-	if s.ConsulHealth == nil {
-		// If we've got no catalog then it's our first time here and we'll
-		// create the necessary pieces.
-		// TODO Add consul config information here!
-		consulClient, err := api.NewClient(api.DefaultConfig())
-		if err != nil {
-			log.WithFields(logrus.Fields{
-				logrus.ErrorKey: err,
-			}).Fatal("Error creating Consul client")
-		}
-		s.ConsulHealth = consulClient.Health()
-	}
 
-	log.Debug("Querying for updated forward hosts via Consul")
-	serviceEntries, queryMeta, err := s.ConsulHealth.Service(s.ConsulFowardService, "", true, &api.QueryOptions{})
+	start := time.Now()
+	destinations, err := s.Discoverer.UpdateDestinations(serviceName)
 	if err != nil {
-		log.WithFields(logrus.Fields{
-			logrus.ErrorKey: err,
-		}).Error("Error querying Consul for service")
-		return
+		log.WithError(err).Error("Discoverer returned an error, destinations may be stale!")
 	}
-	s.statsd.TimeInMilliseconds("consul.service_duration_ns", float64(queryMeta.RequestTime.Nanoseconds()), nil, 1.0)
-
-	numHosts := len(serviceEntries)
-	if numHosts < 1 {
-		s.statsd.Count("consul_catalog.errrors_total", 1, nil, 1.0)
-		log.Error("Got no hosts when querying, might have stale hosts!")
-	}
-	// Make a slice to hold our returned hosts
-	hosts := make([]string, numHosts)
-	for index, se := range serviceEntries {
-		service := se.Service
-
-		var h bytes.Buffer
-		h.WriteString(se.Node.Address)
-		h.WriteString(":")
-		h.WriteString(strconv.Itoa(service.Port))
-
-		dest := url.URL{
-			Scheme: "http",
-			Host:   h.String(),
-			Path:   "/import",
-		}
-
-		log.WithField("host", dest.String()).Debug("Adding host")
-		hosts[index] = dest.String()
-	}
+	s.statsd.TimeInMilliseconds("discoverer.update_duration_ns", float64(time.Since(start).Nanoseconds()), nil, 1.0)
 
 	// At the last moment, lock the mutex and defer so we unlock after setting.
 	// We do this after we've fetched info so we don't hold the lock during long
 	// queries, timeouts or errors. The flusher can lock the mutex and prevent us
 	// from updating at the same time.
-	s.ForwardDestinationsMtx.Lock()
-	defer s.ForwardDestinationsMtx.Unlock()
-
-	s.ForwardDestinations.Set(hosts)
+	mtx.Lock()
+	defer mtx.Unlock()
+	ring.Set(destinations)
 }
 
 // HandleMetricPacket processes each packet that is sent to the server, and sends to an
