@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"sync"
 	"syscall"
@@ -321,14 +322,20 @@ func (s *Server) RefreshDestinations(serviceName string, ring *consistent.Consis
 	hosts := make([]string, numHosts)
 	for index, se := range serviceEntries {
 		service := se.Service
-		var h bytes.Buffer
-		h.WriteString("http://")
 
+		var h bytes.Buffer
 		h.WriteString(se.Node.Address)
 		h.WriteString(":")
 		h.WriteString(strconv.Itoa(service.Port))
-		log.WithField("host", h.String()).Debug("Adding host")
-		hosts[index] = h.String()
+
+		dest := url.URL{
+			Scheme: "http",
+			Host:   h.String(),
+			Path:   "/import",
+		}
+
+		log.WithField("host", dest.String()).Debug("Adding host")
+		hosts[index] = dest.String()
 	}
 
 	// At the last moment, lock the mutex and defer so we unlock after setting.

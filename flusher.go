@@ -416,7 +416,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 		// always re-resolve the host to avoid dns caching
 		log.WithField("destination", dest).Debug("Beginning flush forward")
 		dnsStart := time.Now()
-		endpoint, err := resolveEndpoint(fmt.Sprintf("%s/import", dest))
+		endpoint, err := resolveEndpoint(dest)
 		if err != nil {
 			// not a fatal error if we fail
 			// we'll just try to use the host as it was given to us
