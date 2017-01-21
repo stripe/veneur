@@ -55,18 +55,20 @@ type Server struct {
 	Hostname string
 	Tags     []string
 
-	DDHostname     string
-	DDAPIKey       string
-	DDTraceAddress string
-	HTTPClient     *http.Client
+	DDHostname string
+	DDAPIKey   string
+	HTTPClient *http.Client
 
 	HTTPAddr string
 
 	ForwardAddr            string
 	ForwardDestinations    *consistent.Consistent
+	TraceDestinations      *consistent.Consistent
 	ConsulHealth           *api.Health
 	ConsulFowardService    string
+	ConsulTraceService     string
 	ForwardDestinationsMtx sync.Mutex
+	TraceDestinationsMtx   sync.Mutex
 
 	UDPAddr     *net.UDPAddr
 	TraceAddr   *net.UDPAddr
@@ -88,7 +90,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.Tags = conf.Tags
 	ret.DDHostname = conf.APIHostname
 	ret.DDAPIKey = conf.Key
-	ret.DDTraceAddress = conf.TraceAPIAddress
 	ret.HistogramPercentiles = conf.Percentiles
 	if len(conf.Aggregates) == 0 {
 		ret.HistogramAggregates.Value = samplers.AggregateMin + samplers.AggregateMax + samplers.AggregateCount
@@ -240,26 +241,42 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	}
 
 	ret.ConsulFowardService = conf.ConsulForwardServiceName
+	ret.ConsulTraceService = conf.ConsulTraceServiceName
 	ret.ForwardDestinations = consistent.New()
+	ret.TraceDestinations = consistent.New()
 	// TODO Size of replicas in config?
 	//ret.ForwardDestinations.NumberOfReplicas = ???
 
 	if conf.ForwardAddress != "" {
 		ret.ForwardDestinations.Add(conf.ForwardAddress)
 	} else if conf.ConsulForwardServiceName != "" {
-		consulInterval, perr := time.ParseDuration(conf.ConsulRefreshInterval)
-		if perr != nil {
-			return
-		}
+		ret.RefreshDestinations(conf.ConsulForwardServiceName, ret.ForwardDestinations, &ret.ForwardDestinationsMtx)
+	}
 
-		ret.RefreshForwardDestinations()
+	if conf.TraceAddress != "" {
+		ret.TraceDestinations.Add(conf.TraceAddress)
+	} else if conf.ConsulForwardServiceName != "" {
+		ret.RefreshDestinations(conf.ConsulTraceServiceName, ret.TraceDestinations, &ret.TraceDestinationsMtx)
+	}
+
+	if conf.ConsulForwardServiceName != "" || conf.ConsulTraceServiceName != "" {
 		go func() {
+			consulInterval, err := time.ParseDuration(conf.ConsulRefreshInterval)
+			if err != nil {
+				return
+			}
+
 			defer func() {
 				ret.ConsumePanic(recover())
 			}()
 			ticker := time.NewTicker(consulInterval)
 			for range ticker.C {
-				ret.RefreshForwardDestinations()
+				if conf.ConsulForwardServiceName != "" {
+					ret.RefreshDestinations(conf.ConsulForwardServiceName, ret.ForwardDestinations, &ret.ForwardDestinationsMtx)
+				}
+				if conf.ConsulTraceServiceName != "" {
+					ret.RefreshDestinations(conf.ConsulTraceServiceName, ret.TraceDestinations, &ret.TraceDestinationsMtx)
+				}
 			}
 		}()
 
@@ -268,13 +285,14 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	return
 }
 
-// RefreshForwardDestinations updates the server's list of valid destinations
-// for "forward" flushing. This should be called periodically to ensure we have
+// RefreshDestinations updates the server's list of valid destinations
+// for flushing. This should be called periodically to ensure we have
 // the latest data.
-func (s *Server) RefreshForwardDestinations() {
+func (s *Server) RefreshDestinations(serviceName string, ring *consistent.Consistent, mtx *sync.Mutex) {
 	if s.ConsulHealth == nil {
 		// If we've got no catalog then it's our first time here and we'll
 		// create the necessary pieces.
+		// TODO Add consul config information here!
 		consulClient, err := api.NewClient(api.DefaultConfig())
 		if err != nil {
 			log.WithFields(logrus.Fields{

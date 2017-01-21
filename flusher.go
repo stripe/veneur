@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -473,7 +474,13 @@ func (s *Server) flushTraces(ctx context.Context) {
 
 	traces := s.TraceWorker.Flush()
 
-	var finalTraces []*DatadogTraceSpan
+	s.TraceDestinationsMtx.Lock()
+	defer s.TraceDestinationsMtx.Unlock()
+	tracesByDestination := make(map[string][]*DatadogTraceSpan)
+	for _, h := range s.TraceDestinations.Members() {
+		tracesByDestination[h] = make([]*DatadogTraceSpan, 0)
+	}
+
 	traces.Do(func(t interface{}) {
 		if t != nil {
 			span, ok := t.(ssf.SSFSample)
@@ -516,26 +523,33 @@ func (s *Server) flushTraces(ctx context.Context) {
 				Metrics: metrics,
 				Meta:    tags,
 			}
-			finalTraces = append(finalTraces, ddspan)
+			dest, _ := s.TraceDestinations.Get(strconv.FormatInt(span.Trace.TraceId, 10))
+			tracesByDestination[dest] = append(tracesByDestination[dest], ddspan)
 		}
 	})
-	if len(finalTraces) != 0 {
-		// this endpoint is not documented to take an array... but it does
-		// another curious constraint of this endpoint is that it does not
-		// support "Content-Encoding: deflate"
+	for dest, batch := range tracesByDestination {
 
-		err := s.postHelper(span.Attach(ctx), fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
+		if len(batch) != 0 {
+			// this endpoint is not documented to take an array... but it does
+			// another curious constraint of this endpoint is that it does not
+			// support "Content-Encoding: deflate"
 
-		if err == nil {
-			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
+			err := s.postHelper(span.Attach(ctx), fmt.Sprintf("%s/spans", dest), batch, "flush_traces", false)
+
+			if err == nil {
+				log.WithFields(logrus.Fields{
+					"traces":      len(batch),
+					"destination": dest,
+				}).Info("Completed flushing traces to Datadog")
+			} else {
+				log.WithFields(
+					logrus.Fields{
+						"traces":        len(batch),
+						logrus.ErrorKey: err}).Error("Error flushing traces to Datadog")
+			}
 		} else {
-			log.WithFields(
-				logrus.Fields{
-					"traces":        len(finalTraces),
-					logrus.ErrorKey: err}).Error("Error flushing traces to Datadog")
+			log.WithField("destination", dest).Info("No traces to flush, skipping.")
 		}
-	} else {
-		log.Info("No traces to flush, skipping.")
 	}
 }
 

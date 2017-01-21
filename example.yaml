@@ -31,6 +31,8 @@ http_address: "localhost:8127"
 forward_address: "http://veneur.example.com"
 # Use a consul service for consisent forwarding.
 consul_forward_service_name: ""
+# and for traces!
+consul_trace_service_name: ""
 consul_refresh_interval: "30s"
 
 sentry_dsn: ""
