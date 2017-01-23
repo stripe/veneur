@@ -27,15 +27,26 @@ tags:
 udp_address: "localhost:8126"
 #http_address: "einhorn@0"
 http_address: "localhost:8127"
-# Use a static host for forwarding
-forward_address: "http://veneur.example.com"
-# Use a consul service for consisent forwarding.
-consul_forward_service_name: ""
+
+# How often to refresh from Consul's healthy nodes
 consul_refresh_interval: "30s"
 
-sentry_dsn: ""
+### FORWARDING
+# Use a static host for forwarding
+forward_address: "http://veneur.example.com"
+# Or use a consul service for consisent forwarding.
+consul_forward_service_name: ""
+
+### TRACING
+# The address on which we will listen for trace data
 trace_address: "127.0.0.1:8128"
+# Use a static host to send traces to
 trace_api_address: "http://localhost:7777"
+# Ose us a consul service for sending all spans belonging to the same parent
+# trace to a consistent host
+consul_trace_service_name: ""
+
+sentry_dsn: ""
 
 # If absent, defaults to the os.Hostname()!
 hostname: foobar

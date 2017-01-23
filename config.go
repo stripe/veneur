@@ -9,6 +9,7 @@ type Config struct {
 	AwsSecretAccessKey       string    `yaml:"aws_secret_access_key"`
 	ConsulForwardServiceName string    `yaml:"consul_forward_service_name"`
 	ConsulRefreshInterval    string    `yaml:"consul_refresh_interval"`
+	ConsulTraceServiceName   string    `yaml:"consul_trace_service_name"`
 	Debug                    bool      `yaml:"debug"`
 	EnableProfiling          bool      `yaml:"enable_profiling"`
 	FlushMaxPerBody          int       `yaml:"flush_max_per_body"`

@@ -7,7 +7,7 @@ Veneur (venn-urr) is a server implementation of the [DogStatsD protocol](http://
 
 Veneur is currently handling all metrics for Stripe and is considered production ready. It is, however, still in heavy development and may change!
 
-Building veneur requires Go 1.7 or later.
+Building Veneur requires Go 1.7 or later.
 
 # Motivation
 
