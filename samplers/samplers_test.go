@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stripe/veneur/samplers"
 )
 
 func TestCounterEmpty(t *testing.T) {
@@ -309,16 +308,16 @@ func TestHistoMerge(t *testing.T) {
 }
 
 func TestMetricKeyEquality(t *testing.T) {
-	c1 := samplers.ParseMetric([]byte("a.b.c:1|c|#a:b,c:d"))
+	c1 := NewCounter("a.b.c", []string{"a:b", "c:d"})
 	ce1, _ := c1.Export()
 
-	c2 := samplers.ParseMetric([]byte("a.b.c:1|c|#c:d,a:b"))
+	c2 := NewCounter("a.b.c", []string{"a:b", "c:d"})
 	ce2, _ := c2.Export()
 
-	c3 := samplers.ParseMetric([]byte("a.b.c:1|c|#c:d,fart:poot"))
-	// Make sure we're actually getting the tags in sorted order
+	c3 := NewCounter("a.b.c", []string{"c:d", "fart:poot"})
+	ce3, _ := c3.Export()
 	assert.Equal(t, ce1.JoinedTags, ce2.JoinedTags)
 	// Make sure we can stringify that key and get equal!
-	assert.Equal(t, ce1.ToString(), ce2.ToString())
-	assert.NotEqual(t, ce1.ToString(), ce3.ToString())
+	assert.Equal(t, ce1.MetricKey.String(), ce2.MetricKey.String())
+	assert.NotEqual(t, ce1.MetricKey.String(), ce3.MetricKey.String())
 }
