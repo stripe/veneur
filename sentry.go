@@ -69,13 +69,16 @@ func (s sentryHook) Fire(e *logrus.Entry) error {
 		},
 	}
 
+	packetExtraLength := len(e.Data)
 	if err, ok := e.Data[logrus.ErrorKey].(error); ok {
 		p.Message = err.Error()
+		// don't send the error as an extra field
+		packetExtraLength -= 1
 	} else {
 		p.Message = e.Message
 	}
 
-	p.Extra = make(map[string]interface{}, len(e.Data)-1)
+	p.Extra = make(map[string]interface{}, packetExtraLength)
 	for k, v := range e.Data {
 		if k == logrus.ErrorKey {
 			continue // already handled this key, don't put it into the Extra hash
