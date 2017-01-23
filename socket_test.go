@@ -49,7 +49,6 @@ func TestSocket(t *testing.T) {
 
 	for _, test := range tests {
 		if test.addr == v6Localhost && !systemSupportsV6 {
-			t.Error("skipping v6Localhost because the system does not support it")
 			continue
 		}
 
