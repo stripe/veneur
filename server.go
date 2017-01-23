@@ -85,7 +85,7 @@ type Server struct {
 }
 
 // NewFromConfig creates a new veneur server from a configuration specification.
-func NewFromConfig(conf Config) (ret Server, err error) {
+func NewFromConfig(conf Config, transport http.RoundTripper) (ret Server, err error) {
 	ret.Hostname = conf.Hostname
 	ret.Tags = conf.Tags
 	ret.DDHostname = conf.APIHostname
@@ -108,8 +108,8 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	}
 	ret.HTTPClient = &http.Client{
 		// make sure that POSTs to datadog do not overflow the flush interval
-		Timeout: interval * 9 / 10,
-		// we're fine with using the default transport and redirect behavior
+		Timeout:   interval * 9 / 10,
+		Transport: transport,
 	}
 
 	ret.statsd, err = statsd.NewBuffered(conf.StatsAddress, 1024)
@@ -241,7 +241,11 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	}
 
 	if conf.ConsulForwardServiceName != "" || conf.ConsulTraceServiceName != "" {
-		disc, consulErr := discovery.NewConsul(api.DefaultConfig())
+		config := api.DefaultConfig()
+		// Use the same HTTP Client we're using for other things, so we can leverage
+		// it for testing.
+		config.HttpClient = ret.HTTPClient
+		disc, consulErr := discovery.NewConsul(config)
 		if consulErr != nil {
 			log.WithError(consulErr).Error("Error creating Consul discoverer")
 			return
@@ -272,6 +276,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 	ret.ForwardDestinations = consistent.New()
 	ret.TraceDestinations = consistent.New()
+
 	// TODO Size of replicas in config?
 	//ret.ForwardDestinations.NumberOfReplicas = ???
 

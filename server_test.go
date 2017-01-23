@@ -145,8 +145,8 @@ func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, val
 
 // setupVeneurServer creates a local server from the specified config
 // and starts listening for requests. It returns the server for inspection.
-func setupVeneurServer(t *testing.T, config Config) Server {
-	server, err := NewFromConfig(config)
+func setupVeneurServer(t *testing.T, config Config, transport http.RoundTripper) Server {
+	server, err := NewFromConfig(config, transport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,7 +244,7 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	config := localConfig()
 	config.APIHostname = remoteServer.URL
 
-	server := setupVeneurServer(t, config)
+	server := setupVeneurServer(t, config, nil)
 	defer server.Shutdown()
 
 	for _, value := range metricValues {
@@ -315,7 +315,7 @@ func TestGlobalServerFlush(t *testing.T) {
 	config.APIHostname = remoteServer.URL
 	config.NumWorkers = 1
 
-	server := setupVeneurServer(t, config)
+	server := setupVeneurServer(t, config, nil)
 	defer server.Shutdown()
 
 	for _, value := range metricValues {
@@ -468,7 +468,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 	config.ForwardAddress = globalVeneur.URL
 	config.NumWorkers = 1
 
-	server := setupVeneurServer(t, config)
+	server := setupVeneurServer(t, config, nil)
 	defer server.Shutdown()
 
 	// Create non-local metrics that should be passed to the global veneur instance
@@ -581,7 +581,7 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 	config.APIHostname = remoteServer.URL
 	config.NumWorkers = 1
 
-	server := setupVeneurServer(t, config)
+	server := setupVeneurServer(t, config, nil)
 	defer server.Shutdown()
 
 	dp := &dummyPlugin{logger: log, statsd: server.statsd}
@@ -648,7 +648,7 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 	config.APIHostname = remoteServer.URL
 	config.NumWorkers = 1
 
-	server := setupVeneurServer(t, config)
+	server := setupVeneurServer(t, config, nil)
 	defer server.Shutdown()
 
 	client := &s3Mock.MockS3Client{}
