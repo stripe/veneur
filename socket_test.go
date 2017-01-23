@@ -32,10 +32,10 @@ func TestSocket(t *testing.T) {
 	systemSupportsV6 := true
 	conn, err := net.ListenPacket("udp", "[::1]:0")
 	if err != nil {
-		t.Error("IPv6 not supported?", err)
 		systemSupportsV6 = false
+	} else {
+		conn.Close()
 	}
-	conn.Close()
 
 	tests := []struct {
 		addr         string
