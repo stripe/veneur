@@ -28,6 +28,15 @@ func TestSocket(t *testing.T) {
 	const v4Localhost = "127.0.0.1:" + portString
 	const v6Localhost = "[::1]:" + portString
 
+	// see if the system supports ipv6 by listening to a port
+	systemSupportsV6 := true
+	conn, err := net.ListenPacket("udp", "[::1]:0")
+	if err != nil {
+		t.Error("IPv6 not supported?", err)
+		systemSupportsV6 = false
+	}
+	conn.Close()
+
 	tests := []struct {
 		addr         string
 		supportsIPv4 bool
@@ -39,6 +48,11 @@ func TestSocket(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		if test.addr == v6Localhost && !systemSupportsV6 {
+			t.Error("skipping v6Localhost because the system does not support it")
+			continue
+		}
+
 		addr, err := net.ResolveUDPAddr("udp", test.addr)
 		assert.NoError(t, err, "should have resolved udp address %s correctly", test.addr)
 
@@ -48,7 +62,7 @@ func TestSocket(t *testing.T) {
 		if test.supportsIPv4 {
 			writeReadUDP(t, sock, v4Localhost)
 		}
-		if test.supportsIPv6 {
+		if test.supportsIPv6 && systemSupportsV6 {
 			writeReadUDP(t, sock, v6Localhost)
 		}
 
