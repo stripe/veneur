@@ -52,7 +52,6 @@ func (c *Consul) UpdateDestinations(serviceName string) ([]string, error) {
 		dest := url.URL{
 			Scheme: "http",
 			Host:   h.String(),
-			Path:   "/import",
 		}
 
 		hosts[index] = dest.String()
