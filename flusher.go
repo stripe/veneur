@@ -364,7 +364,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
-			dest, _ := s.ForwardDestinations.Get(jm.ToString())
+			dest, _ := s.ForwardDestinations.Get(jm.MetricKey.String())
 			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 		for _, histo := range wm.histograms {
@@ -377,7 +377,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
-			dest, _ := s.ForwardDestinations.Get(jm.ToString())
+			dest, _ := s.ForwardDestinations.Get(jm.MetricKey.String())
 			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 		for _, set := range wm.sets {
@@ -390,7 +390,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
-			dest, _ := s.ForwardDestinations.Get(jm.ToString())
+			dest, _ := s.ForwardDestinations.Get(jm.MetricKey.String())
 			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 		for _, timer := range wm.timers {
@@ -405,7 +405,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 			}
 			// the exporter doesn't know that these two are "different"
 			jm.Type = "timer"
-			dest, _ := s.ForwardDestinations.Get(jm.ToString())
+			dest, _ := s.ForwardDestinations.Get(jm.MetricKey.String())
 			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 	}

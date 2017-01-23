@@ -38,7 +38,7 @@ type MetricKey struct {
 }
 
 // ToString returns a string representation of this MetricKey
-func (m *MetricKey) ToString() string {
+func (m *MetricKey) String() string {
 	var buff bytes.Buffer
 	buff.WriteString(m.Name)
 	buff.WriteString(m.Type)

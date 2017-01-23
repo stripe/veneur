@@ -296,7 +296,7 @@ func (s *Server) RefreshForwardDestinations() {
 
 	numHosts := len(serviceEntries)
 	if numHosts < 1 {
-		s.statsd.Count("consul_catalog.errrors_total", 1, nil, 1.0)
+		s.statsd.Count("consul_catalog.errors_total", 1, nil, 1.0)
 		log.Error("Got no hosts when querying, might have stale hosts!")
 	}
 	// Make a slice to hold our returned hosts
