@@ -15,30 +15,32 @@ func (s *Server) ConsumePanic(err interface{}) {
 		return
 	}
 
-	p := raven.Packet{
-		Level:      raven.FATAL,
-		ServerName: s.Hostname,
-		Interfaces: []raven.Interface{
-			// ignore 2 stack frames:
-			// - the frame for ConsumePanic itself
-			// - the frame for the deferred function that invoked ConsumePanic
-			raven.NewStacktrace(2, 3, []string{"main", "github.com/stripe/veneur"}),
-		},
-	}
+	if s.sentry != nil {
+		p := raven.Packet{
+			Level:      raven.FATAL,
+			ServerName: s.Hostname,
+			Interfaces: []raven.Interface{
+				// ignore 2 stack frames:
+				// - the frame for ConsumePanic itself
+				// - the frame for the deferred function that invoked ConsumePanic
+				raven.NewStacktrace(2, 3, []string{"main", "github.com/stripe/veneur"}),
+			},
+		}
 
-	// remember to block, since we're about to re-panic, which will probably terminate
-	switch e := err.(type) {
-	case error:
-		p.Message = e.Error()
-	case fmt.Stringer:
-		p.Message = e.String()
-	default:
-		p.Message = fmt.Sprintf("%#v", e)
-	}
+		// remember to block, since we're about to re-panic, which will probably terminate
+		switch e := err.(type) {
+		case error:
+			p.Message = e.Error()
+		case fmt.Stringer:
+			p.Message = e.String()
+		default:
+			p.Message = fmt.Sprintf("%#v", e)
+		}
 
-	_, ch := s.sentry.Capture(&p, nil)
-	// we don't want the program to terminate before reporting to sentry
-	<-ch
+		_, ch := s.sentry.Capture(&p, nil)
+		// we don't want the program to terminate before reporting to sentry
+		<-ch
+	}
 
 	panic(err)
 }
@@ -67,13 +69,16 @@ func (s sentryHook) Fire(e *logrus.Entry) error {
 		},
 	}
 
+	packetExtraLength := len(e.Data)
 	if err, ok := e.Data[logrus.ErrorKey].(error); ok {
 		p.Message = err.Error()
+		// don't send the error as an extra field
+		packetExtraLength -= 1
 	} else {
 		p.Message = e.Message
 	}
 
-	p.Extra = make(map[string]interface{}, len(e.Data)-1)
+	p.Extra = make(map[string]interface{}, packetExtraLength)
 	for k, v := range e.Data {
 		if k == logrus.ErrorKey {
 			continue // already handled this key, don't put it into the Extra hash
