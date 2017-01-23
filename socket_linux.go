@@ -12,7 +12,7 @@ import (
 func NewSocket(addr *net.UDPAddr, recvBuf int, reuseport bool) (net.PacketConn, error) {
 	// default to AF_INET6 to be equivalent to net.ListenUDP()
 	domain := unix.AF_INET6
-	if len(addr.IP) == net.IPv4len {
+	if addr.IP.To4() != nil {
 		domain = unix.AF_INET
 	}
 	sockFD, err := unix.Socket(domain, unix.SOCK_DGRAM|syscall.SOCK_CLOEXEC|syscall.SOCK_NONBLOCK, 0)
@@ -36,7 +36,7 @@ func NewSocket(addr *net.UDPAddr, recvBuf int, reuseport bool) (net.PacketConn, 
 		sockaddr := &unix.SockaddrInet4{
 			Port: addr.Port,
 		}
-		if copied := copy(sockaddr.Addr[:], addr.IP); copied != net.IPv4len {
+		if copied := copy(sockaddr.Addr[:], addr.IP.To4()); copied != net.IPv4len {
 			panic("did not copy enough bytes of ip address")
 		}
 		sa = sockaddr
@@ -45,7 +45,7 @@ func NewSocket(addr *net.UDPAddr, recvBuf int, reuseport bool) (net.PacketConn, 
 			Port: addr.Port,
 		}
 		// addr.IP will be length 0 for "bind all interfaces"
-		if copied := copy(sockaddr.Addr[:], addr.IP); !(copied == net.IPv6len || copied == 0) {
+		if copied := copy(sockaddr.Addr[:], addr.IP.To16()); !(copied == net.IPv6len || copied == 0) {
 			panic("did not copy enough bytes of ip address")
 		}
 		sa = sockaddr
