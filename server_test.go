@@ -187,6 +187,7 @@ func setupVeneurServer(t *testing.T, config Config) Server {
 	}()
 
 	go server.HTTPServe()
+	server.Start()
 	return server
 }
 
