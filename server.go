@@ -136,28 +136,12 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			logrus.PanicLevel,
 		},
 	})
-	log.WithField("version", VERSION).Info("Starting server")
 
-	log.WithField("number", conf.NumWorkers).Info("Starting workers")
+	log.WithField("number", conf.NumWorkers).Info("Preparing workers")
+	// Allocate the slice, we'll fill it with workers later.
 	ret.Workers = make([]*Worker, conf.NumWorkers)
-	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.statsd, log)
-		// do not close over loop index
-		go func(w *Worker) {
-			defer func() {
-				ret.ConsumePanic(recover())
-			}()
-			w.Work()
-		}(ret.Workers[i])
-	}
 
 	ret.EventWorker = NewEventWorker(ret.statsd)
-	go func() {
-		defer func() {
-			ret.ConsumePanic(recover())
-		}()
-		ret.EventWorker.Work()
-	}()
 
 	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UdpAddress)
 	if err != nil {
@@ -174,12 +158,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	if len(conf.TraceAddress) > 0 && len(conf.TraceAPIAddress) > 0 {
 
 		ret.TraceWorker = NewTraceWorker(ret.statsd)
-		go func() {
-			defer func() {
-				ret.ConsumePanic(recover())
-			}()
-			ret.TraceWorker.Work()
-		}()
 
 		ret.TraceAddr, err = net.ResolveUDPAddr("udp", conf.TraceAddress)
 		log.WithField("traceaddr", ret.TraceAddr).Info("Set trace address")
@@ -239,6 +217,42 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	}
 
 	return
+}
+
+// Start spins up the Server to do actual work, firing off goroutines for
+// various workers and utilities.
+func (s *Server) Start() {
+	log.WithField("version", VERSION).Info("Starting server")
+
+	// Use the pre-allocated Workers slice to know how many to start.
+	for i := range s.Workers {
+		s.Workers[i] = NewWorker(i+1, s.statsd, log)
+		// do not close over loop index
+		go func(w *Worker) {
+			defer func() {
+				s.ConsumePanic(recover())
+			}()
+			w.Work()
+		}(s.Workers[i])
+	}
+
+	go func() {
+		log.Info("Starting Event worker")
+		defer func() {
+			s.ConsumePanic(recover())
+		}()
+		s.EventWorker.Work()
+	}()
+
+	if s.TraceWorker != nil {
+		log.Info("Starting Trace worker")
+		go func() {
+			defer func() {
+				s.ConsumePanic(recover())
+			}()
+			s.TraceWorker.Work()
+		}()
+	}
 }
 
 // HandleMetricPacket processes each packet that is sent to the server, and sends to an

@@ -36,6 +36,7 @@ func main() {
 	defer func() {
 		server.ConsumePanic(recover())
 	}()
+	server.Start()
 
 	packetPool := &sync.Pool{
 		New: func() interface{} {
