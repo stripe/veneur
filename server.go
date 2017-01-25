@@ -240,6 +240,7 @@ func NewFromConfig(conf Config, transport http.RoundTripper) (ret Server, err er
 		log.Info("S3 archives are enabled")
 	}
 
+	ret.ConsulFowardService = conf.ConsulForwardServiceName
 	if conf.ConsulForwardServiceName != "" || conf.ConsulTraceServiceName != "" {
 		config := api.DefaultConfig()
 		// Use the same HTTP Client we're using for other things, so we can leverage
