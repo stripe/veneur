@@ -80,7 +80,7 @@ func generateConfig(forwardAddr string) Config {
 		UdpAddress:          "localhost:8126",
 		HTTPAddress:         fmt.Sprintf("localhost:%d", port),
 		ForwardAddress:      forwardAddr,
-		NumWorkers:          96,
+		NumWorkers:          4,
 
 		// Use only one reader, so that we can run tests
 		// on platforms which do not support SO_REUSEPORT
@@ -150,6 +150,8 @@ func setupVeneurServer(t *testing.T, config Config) Server {
 		t.Fatal(err)
 	}
 
+	server.Start()
+
 	packetPool := &sync.Pool{
 		New: func() interface{} {
 			return make([]byte, config.MetricMaxLength)
@@ -187,7 +189,6 @@ func setupVeneurServer(t *testing.T, config Config) Server {
 	}()
 
 	go server.HTTPServe()
-	server.Start()
 	return server
 }
 
