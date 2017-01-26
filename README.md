@@ -159,6 +159,7 @@ Veneur expects to have a config file supplied via `-f PATH`. The include `exampl
 * `flush_max_per_body` - how many metrics to include in each JSON body POSTed to Datadog. Veneur will POST multiple bodies in parallel if it goes over this limit. A value around 5k-10k is recommended; in practice we've seen Datadog reject bodies over about 195k.
 * `debug` - Should we output lots of debug info? :)
 * `hostname` - The hostname to be used with each metric sent. Defaults to `os.Hostname()`
+* `omit_empty_hostname` - If true and `hostname` is empty (`""`) Veneur will *not* add a host tag to its own metrics.
 * `interval` - How often to flush. Something like 10s seems good. **Note: If you change this, it breaks all kinds of things on Datadog's side. You'll have to change all your metric's metadata.**
 * `key` - Your Datadog API key
 * `percentiles` - The percentiles to generate from our timers and histograms. Specified as array of float64s
