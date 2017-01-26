@@ -64,10 +64,10 @@ type Server struct {
 	TraceAddr   *net.UDPAddr
 	RcvbufBytes int
 
-	Interval             time.Duration
-	NumReaders           int
-	MetricMaxLength      int
-	TraceMaxLengthBytes  int
+	interval             time.Duration
+	numReaders           int
+	metricMaxLength      int
+	traceMaxLengthBytes  int
 	HistogramPercentiles []float64
 	FlushMaxPerBody      int
 
@@ -100,10 +100,9 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 	interval, err := time.ParseDuration(conf.Interval)
 	if err != nil {
-		logrus.Fatalf("Error parsing configuration %s", err)
 		return
 	}
-	ret.Interval = interval
+	ret.interval = interval
 	ret.HTTPClient = &http.Client{
 		// make sure that POSTs to datadog do not overflow the flush interval
 		Timeout: interval * 9 / 10,
@@ -148,7 +147,19 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	log.WithField("number", conf.NumWorkers).Info("Preparing workers")
 	// Allocate the slice, we'll fill it with workers later.
 	ret.Workers = make([]*Worker, conf.NumWorkers)
-	ret.NumReaders = conf.NumReaders
+	ret.numReaders = conf.NumReaders
+
+	// Use the pre-allocated Workers slice to know how many to start.
+	for i := range ret.Workers {
+		ret.Workers[i] = NewWorker(i+1, ret.statsd, log)
+		// do not close over loop index
+		go func(w *Worker) {
+			defer func() {
+				ret.ConsumePanic(recover())
+			}()
+			w.Work()
+		}(ret.Workers[i])
+	}
 
 	ret.EventWorker = NewEventWorker(ret.statsd)
 
@@ -157,8 +168,8 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		return
 	}
 
-	ret.MetricMaxLength = conf.MetricMaxLength
-	ret.TraceMaxLengthBytes = conf.TraceMaxLengthBytes
+	ret.metricMaxLength = conf.MetricMaxLength
+	ret.traceMaxLengthBytes = conf.TraceMaxLengthBytes
 	ret.RcvbufBytes = conf.ReadBufferSizeBytes
 	ret.HTTPAddr = conf.HTTPAddress
 	ret.ForwardAddr = conf.ForwardAddress
@@ -236,18 +247,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 func (s *Server) Start() {
 	log.WithField("version", VERSION).Info("Starting server")
 
-	// Use the pre-allocated Workers slice to know how many to start.
-	for i := range s.Workers {
-		s.Workers[i] = NewWorker(i+1, s.statsd, log)
-		// do not close over loop index
-		go func(w *Worker) {
-			defer func() {
-				s.ConsumePanic(recover())
-			}()
-			w.Work()
-		}(s.Workers[i])
-	}
-
 	go func() {
 		log.Info("Starting Event worker")
 		defer func() {
@@ -268,23 +267,23 @@ func (s *Server) Start() {
 
 	packetPool := &sync.Pool{
 		New: func() interface{} {
-			return make([]byte, s.MetricMaxLength)
+			return make([]byte, s.metricMaxLength)
 		},
 	}
 
 	tracePool := &sync.Pool{
 		New: func() interface{} {
-			return make([]byte, s.TraceMaxLengthBytes)
+			return make([]byte, s.traceMaxLengthBytes)
 		},
 	}
 
 	// Read Metrics Forever!
-	for i := 0; i < s.NumReaders; i++ {
+	for i := 0; i < s.numReaders; i++ {
 		go func() {
 			defer func() {
 				s.ConsumePanic(recover())
 			}()
-			s.ReadMetricSocket(packetPool, s.NumReaders != 1)
+			s.ReadMetricSocket(packetPool, s.numReaders != 1)
 		}()
 	}
 
@@ -294,7 +293,7 @@ func (s *Server) Start() {
 			s.ConsumePanic(recover())
 		}()
 		if s.TraceAddr != nil {
-			s.ReadTraceSocket(tracePool, s.NumReaders != 1)
+			s.ReadTraceSocket(tracePool, s.numReaders != 1)
 		} else {
 			logrus.Info("Tracing not configured - not reading trace socket")
 		}
@@ -305,7 +304,7 @@ func (s *Server) Start() {
 		defer func() {
 			s.ConsumePanic(recover())
 		}()
-		ticker := time.NewTicker(s.Interval)
+		ticker := time.NewTicker(s.interval)
 		for range ticker.C {
 			s.Flush()
 		}

@@ -188,7 +188,7 @@ func (s *Server) generateDDMetrics(ctx context.Context, percentiles []float64, t
 	finalMetrics := make([]samplers.DDMetric, 0, ms.totalLength)
 	for _, wm := range tempMetrics {
 		for _, c := range wm.counters {
-			finalMetrics = append(finalMetrics, c.Flush(s.Interval)...)
+			finalMetrics = append(finalMetrics, c.Flush(s.interval)...)
 		}
 		for _, g := range wm.gauges {
 			finalMetrics = append(finalMetrics, g.Flush()...)
@@ -196,10 +196,10 @@ func (s *Server) generateDDMetrics(ctx context.Context, percentiles []float64, t
 		// if we're a local veneur, then percentiles=nil, and only the local
 		// parts (count, min, max) will be flushed
 		for _, h := range wm.histograms {
-			finalMetrics = append(finalMetrics, h.Flush(s.Interval, percentiles, s.HistogramAggregates)...)
+			finalMetrics = append(finalMetrics, h.Flush(s.interval, percentiles, s.HistogramAggregates)...)
 		}
 		for _, t := range wm.timers {
-			finalMetrics = append(finalMetrics, t.Flush(s.Interval, percentiles, s.HistogramAggregates)...)
+			finalMetrics = append(finalMetrics, t.Flush(s.interval, percentiles, s.HistogramAggregates)...)
 		}
 
 		// local-only samplers should be flushed in their entirety, since they
@@ -207,13 +207,13 @@ func (s *Server) generateDDMetrics(ctx context.Context, percentiles []float64, t
 		// we still want percentiles for these, even if we're a local veneur, so
 		// we use the original percentile list when flushing them
 		for _, h := range wm.localHistograms {
-			finalMetrics = append(finalMetrics, h.Flush(s.Interval, s.HistogramPercentiles, s.HistogramAggregates)...)
+			finalMetrics = append(finalMetrics, h.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
 		}
 		for _, s := range wm.localSets {
 			finalMetrics = append(finalMetrics, s.Flush()...)
 		}
 		for _, t := range wm.localTimers {
-			finalMetrics = append(finalMetrics, t.Flush(s.Interval, s.HistogramPercentiles, s.HistogramAggregates)...)
+			finalMetrics = append(finalMetrics, t.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
 		}
 
 		// TODO (aditya) refactor this out so we don't
@@ -229,7 +229,7 @@ func (s *Server) generateDDMetrics(ctx context.Context, percentiles []float64, t
 			// global counters have no local parts, so if we're a local veneur,
 			// there's nothing to flush
 			for _, gc := range wm.globalCounters {
-				finalMetrics = append(finalMetrics, gc.Flush(s.Interval)...)
+				finalMetrics = append(finalMetrics, gc.Flush(s.interval)...)
 			}
 		}
 	}
