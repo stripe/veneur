@@ -24,10 +24,12 @@ func NewSocket(addr *net.UDPAddr, recvBuf int, reuseport bool) (net.PacketConn, 
 	// https://github.com/golang/go/issues/16075
 	if reuseport {
 		if err := unix.SetsockoptInt(sockFD, unix.SOL_SOCKET, 0xf, 1); err != nil {
+			unix.Close(sockFD)
 			return nil, err
 		}
 	}
 	if err = unix.SetsockoptInt(sockFD, unix.SOL_SOCKET, unix.SO_RCVBUF, recvBuf); err != nil {
+		unix.Close(sockFD)
 		return nil, err
 	}
 
@@ -51,6 +53,7 @@ func NewSocket(addr *net.UDPAddr, recvBuf int, reuseport bool) (net.PacketConn, 
 		sa = sockaddr
 	}
 	if err = unix.Bind(sockFD, sa); err != nil {
+		unix.Close(sockFD)
 		return nil, err
 	}
 
