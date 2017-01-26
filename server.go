@@ -288,7 +288,7 @@ func (s *Server) Start() {
 		}()
 	}
 
-	// Trace reader
+	// Read Traces Forever!
 	go func() {
 		defer func() {
 			s.ConsumePanic(recover())
@@ -300,6 +300,7 @@ func (s *Server) Start() {
 		}
 	}()
 
+	// Flush every Interval forever!
 	go func() {
 		defer func() {
 			s.ConsumePanic(recover())
