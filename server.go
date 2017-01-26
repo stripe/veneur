@@ -64,7 +64,12 @@ type Server struct {
 	TraceAddr   *net.UDPAddr
 	RcvbufBytes int
 
+	Interval             time.Duration
+	NumReaders           int
+	MetricMaxLength      int
+	TraceMaxLengthBytes  int
 	HistogramPercentiles []float64
+	FlushMaxPerBody      int
 
 	plugins   []plugins.Plugin
 	pluginMtx sync.Mutex
@@ -95,13 +100,16 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 	interval, err := time.ParseDuration(conf.Interval)
 	if err != nil {
+		logrus.Fatalf("Error parsing configuration %s", err)
 		return
 	}
+	ret.Interval = interval
 	ret.HTTPClient = &http.Client{
 		// make sure that POSTs to datadog do not overflow the flush interval
 		Timeout: interval * 9 / 10,
 		// we're fine with using the default transport and redirect behavior
 	}
+	ret.FlushMaxPerBody = conf.FlushMaxPerBody
 
 	ret.statsd, err = statsd.NewBuffered(conf.StatsAddress, 1024)
 	if err != nil {
@@ -140,6 +148,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	log.WithField("number", conf.NumWorkers).Info("Preparing workers")
 	// Allocate the slice, we'll fill it with workers later.
 	ret.Workers = make([]*Worker, conf.NumWorkers)
+	ret.NumReaders = conf.NumReaders
 
 	ret.EventWorker = NewEventWorker(ret.statsd)
 
@@ -147,6 +156,9 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	if err != nil {
 		return
 	}
+
+	ret.MetricMaxLength = conf.MetricMaxLength
+	ret.TraceMaxLengthBytes = conf.TraceMaxLengthBytes
 	ret.RcvbufBytes = conf.ReadBufferSizeBytes
 	ret.HTTPAddr = conf.HTTPAddress
 	ret.ForwardAddr = conf.ForwardAddress
@@ -253,6 +265,51 @@ func (s *Server) Start() {
 			s.TraceWorker.Work()
 		}()
 	}
+
+	packetPool := &sync.Pool{
+		New: func() interface{} {
+			return make([]byte, s.MetricMaxLength)
+		},
+	}
+
+	tracePool := &sync.Pool{
+		New: func() interface{} {
+			return make([]byte, s.TraceMaxLengthBytes)
+		},
+	}
+
+	// Read Metrics Forever!
+	for i := 0; i < s.NumReaders; i++ {
+		go func() {
+			defer func() {
+				s.ConsumePanic(recover())
+			}()
+			s.ReadMetricSocket(packetPool, s.NumReaders != 1)
+		}()
+	}
+
+	// Trace reader
+	go func() {
+		defer func() {
+			s.ConsumePanic(recover())
+		}()
+		if s.TraceAddr != nil {
+			s.ReadTraceSocket(tracePool, s.NumReaders != 1)
+		} else {
+			logrus.Info("Tracing not configured - not reading trace socket")
+		}
+	}()
+
+	go func() {
+		defer func() {
+			s.ConsumePanic(recover())
+		}()
+		ticker := time.NewTicker(s.Interval)
+		for range ticker.C {
+			s.Flush()
+		}
+	}()
+
 }
 
 // HandleMetricPacket processes each packet that is sent to the server, and sends to an

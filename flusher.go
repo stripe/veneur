@@ -22,7 +22,7 @@ import (
 
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
-func (s *Server) Flush(interval time.Duration, metricLimit int) {
+func (s *Server) Flush() {
 	span := tracer.StartSpan("flush", trace.NameTag("veneur.opentracing.flush")).(*trace.Span)
 	defer span.Finish()
 
@@ -30,14 +30,14 @@ func (s *Server) Flush(interval time.Duration, metricLimit int) {
 	// but eventually, this is where we would loop over our supported
 	// destinations
 	if s.IsLocal() {
-		s.FlushLocal(span.Attach(context.Background()), interval, metricLimit)
+		s.FlushLocal(span.Attach(context.Background()))
 	} else {
-		s.FlushGlobal(span.Attach(context.Background()), interval, metricLimit)
+		s.FlushGlobal(span.Attach(context.Background()))
 	}
 }
 
 // FlushGlobal sends any global metrics to their destination.
-func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metricLimit int) {
+func (s *Server) FlushGlobal(ctx context.Context) {
 	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.FlushGlobal"))
 	defer span.Finish()
 
@@ -53,7 +53,7 @@ func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metric
 	ms.totalLength += ms.totalSets
 	ms.totalLength += ms.totalGlobalCounters
 
-	finalMetrics := s.generateDDMetrics(span.Attach(ctx), interval, percentiles, tempMetrics, ms)
+	finalMetrics := s.generateDDMetrics(span.Attach(ctx), percentiles, tempMetrics, ms)
 
 	s.reportMetricsFlushCounts(ms)
 
@@ -72,12 +72,12 @@ func (s *Server) FlushGlobal(ctx context.Context, interval time.Duration, metric
 		}
 	}()
 
-	s.flushRemote(finalMetrics, metricLimit)
+	s.flushRemote(finalMetrics)
 }
 
 // FlushLocal takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
-func (s *Server) FlushLocal(ctx context.Context, interval time.Duration, metricLimit int) {
+func (s *Server) FlushLocal(ctx context.Context) {
 	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.FlushLocal"))
 	defer span.Finish()
 
@@ -90,7 +90,7 @@ func (s *Server) FlushLocal(ctx context.Context, interval time.Duration, metricL
 
 	tempMetrics, ms := s.tallyMetrics(percentiles)
 
-	finalMetrics := s.generateDDMetrics(span.Attach(ctx), interval, percentiles, tempMetrics, ms)
+	finalMetrics := s.generateDDMetrics(span.Attach(ctx), percentiles, tempMetrics, ms)
 
 	s.reportMetricsFlushCounts(ms)
 
@@ -113,7 +113,7 @@ func (s *Server) FlushLocal(ctx context.Context, interval time.Duration, metricL
 		}
 	}()
 
-	s.flushRemote(finalMetrics, metricLimit)
+	s.flushRemote(finalMetrics)
 }
 
 type metricsSummary struct {
@@ -180,7 +180,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 // generateDDMetrics calls the Flush method on each
 // counter/gauge/histogram/timer/set in order to
 // generate a DDMetric corresponding to that value
-func (s *Server) generateDDMetrics(ctx context.Context, interval time.Duration, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.DDMetric {
+func (s *Server) generateDDMetrics(ctx context.Context, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.DDMetric {
 
 	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.generateDDMetrics"))
 	defer span.Finish()
@@ -188,7 +188,7 @@ func (s *Server) generateDDMetrics(ctx context.Context, interval time.Duration, 
 	finalMetrics := make([]samplers.DDMetric, 0, ms.totalLength)
 	for _, wm := range tempMetrics {
 		for _, c := range wm.counters {
-			finalMetrics = append(finalMetrics, c.Flush(interval)...)
+			finalMetrics = append(finalMetrics, c.Flush(s.Interval)...)
 		}
 		for _, g := range wm.gauges {
 			finalMetrics = append(finalMetrics, g.Flush()...)
@@ -196,10 +196,10 @@ func (s *Server) generateDDMetrics(ctx context.Context, interval time.Duration, 
 		// if we're a local veneur, then percentiles=nil, and only the local
 		// parts (count, min, max) will be flushed
 		for _, h := range wm.histograms {
-			finalMetrics = append(finalMetrics, h.Flush(interval, percentiles, s.HistogramAggregates)...)
+			finalMetrics = append(finalMetrics, h.Flush(s.Interval, percentiles, s.HistogramAggregates)...)
 		}
 		for _, t := range wm.timers {
-			finalMetrics = append(finalMetrics, t.Flush(interval, percentiles, s.HistogramAggregates)...)
+			finalMetrics = append(finalMetrics, t.Flush(s.Interval, percentiles, s.HistogramAggregates)...)
 		}
 
 		// local-only samplers should be flushed in their entirety, since they
@@ -207,13 +207,13 @@ func (s *Server) generateDDMetrics(ctx context.Context, interval time.Duration, 
 		// we still want percentiles for these, even if we're a local veneur, so
 		// we use the original percentile list when flushing them
 		for _, h := range wm.localHistograms {
-			finalMetrics = append(finalMetrics, h.Flush(interval, s.HistogramPercentiles, s.HistogramAggregates)...)
+			finalMetrics = append(finalMetrics, h.Flush(s.Interval, s.HistogramPercentiles, s.HistogramAggregates)...)
 		}
 		for _, s := range wm.localSets {
 			finalMetrics = append(finalMetrics, s.Flush()...)
 		}
 		for _, t := range wm.localTimers {
-			finalMetrics = append(finalMetrics, t.Flush(interval, s.HistogramPercentiles, s.HistogramAggregates)...)
+			finalMetrics = append(finalMetrics, t.Flush(s.Interval, s.HistogramPercentiles, s.HistogramAggregates)...)
 		}
 
 		// TODO (aditya) refactor this out so we don't
@@ -229,7 +229,7 @@ func (s *Server) generateDDMetrics(ctx context.Context, interval time.Duration, 
 			// global counters have no local parts, so if we're a local veneur,
 			// there's nothing to flush
 			for _, gc := range wm.globalCounters {
-				finalMetrics = append(finalMetrics, gc.Flush(interval)...)
+				finalMetrics = append(finalMetrics, gc.Flush(s.Interval)...)
 			}
 		}
 	}
@@ -273,7 +273,7 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 
 // flushRemote breaks up the final metrics into chunks
 // (to avoid hitting the size cap) and POSTs them to the remote API
-func (s *Server) flushRemote(finalMetrics []samplers.DDMetric, metricLimit int) {
+func (s *Server) flushRemote(finalMetrics []samplers.DDMetric) {
 	s.statsd.Gauge("flush.post_metrics_total", float64(len(finalMetrics)), nil, 1.0)
 	// Check to see if we have anything to do
 	if len(finalMetrics) == 0 {
@@ -284,7 +284,7 @@ func (s *Server) flushRemote(finalMetrics []samplers.DDMetric, metricLimit int) 
 	// break the metrics into chunks of approximately equal size, such that
 	// each chunk is less than the limit
 	// we compute the chunks using rounding-up integer division
-	workers := ((len(finalMetrics) - 1) / metricLimit) + 1
+	workers := ((len(finalMetrics) - 1) / s.FlushMaxPerBody) + 1
 	chunkSize := ((len(finalMetrics) - 1) / workers) + 1
 	log.WithField("workers", workers).Debug("Worker count chosen")
 	log.WithField("chunkSize", chunkSize).Debug("Chunk size chosen")
