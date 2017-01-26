@@ -34,6 +34,8 @@ trace_api_address: "http://localhost:7777"
 
 # If absent, defaults to the os.Hostname()!
 hostname: foobar
+# If true and hostname is "" or absent, don't add the host tag
+omit_empty_hostname: false
 
 # Include these if you want to archive data to S3
 aws_access_key_id: ""

@@ -9,6 +9,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const defaultBufferSizeBytes = 1048576 * 2 // 2 MB
+
 // ReadConfig unmarshals the config file and slurps in it's data.
 func ReadConfig(path string) (c Config, err error) {
 	f, err := os.Open(path)
@@ -33,12 +35,12 @@ func readConfig(r io.Reader) (c Config, err error) {
 		return
 	}
 
-	if c.Hostname == "" {
+	if c.Hostname == "" && !c.OmitEmptyHostname {
 		c.Hostname, _ = os.Hostname()
 	}
 
 	if c.ReadBufferSizeBytes == 0 {
-		c.ReadBufferSizeBytes = 1048576 * 2 // 2 MB
+		c.ReadBufferSizeBytes = defaultBufferSizeBytes
 	}
 
 	return c, nil
