@@ -32,9 +32,13 @@ func main() {
 		logrus.WithError(err).Fatal("Could not initialize server")
 	}
 	defer func() {
-		server.ConsumePanic(recover())
+		veneur.ConsumePanic(server.Sentry, server.Statsd, server.Hostname, recover())
 	}()
 	server.Start()
 
-	server.HTTPServe()
+	if conf.HTTPAddress != "" {
+		server.HTTPServe()
+	} else {
+		select {}
+	}
 }

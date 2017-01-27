@@ -1,7 +1,10 @@
-# 1.2.1, UNRELEASED
+# 1.3.0, 2017-05-19
 
 ## Bugfixes
 * No longer allow clients to pass in `nan`, `+inf` or `-inf` as a value for a metric, as this caused errors on flush.
+
+## Added
+* Added `veneur-proxy` to provide HA features with consistent hashing. See the [Proxy section of the README](https://github.com/stripe/veneur#proxy)
 
 # 1.2.0, 2017-04-24
 

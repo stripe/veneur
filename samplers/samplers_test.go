@@ -306,3 +306,18 @@ func TestHistoMerge(t *testing.T) {
 	assert.InDelta(t, 1.0, h2.LocalMin, 0.02, "merged histogram should have min of 1 after adding a value")
 	assert.InDelta(t, 1.0, h2.LocalMax, 0.02, "merged histogram should have max of 1 after adding a value")
 }
+
+func TestMetricKeyEquality(t *testing.T) {
+	c1 := NewCounter("a.b.c", []string{"a:b", "c:d"})
+	ce1, _ := c1.Export()
+
+	c2 := NewCounter("a.b.c", []string{"a:b", "c:d"})
+	ce2, _ := c2.Export()
+
+	c3 := NewCounter("a.b.c", []string{"c:d", "fart:poot"})
+	ce3, _ := c3.Export()
+	assert.Equal(t, ce1.JoinedTags, ce2.JoinedTags)
+	// Make sure we can stringify that key and get equal!
+	assert.Equal(t, ce1.MetricKey.String(), ce2.MetricKey.String())
+	assert.NotEqual(t, ce1.MetricKey.String(), ce3.MetricKey.String())
+}

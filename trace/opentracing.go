@@ -199,6 +199,9 @@ func (s *Span) FinishWithOptions(opts opentracing.FinishOptions) {
 }
 
 func (s *Span) Context() opentracing.SpanContext {
+	if s == nil {
+		return nil
+	}
 	return s.context()
 }
 
