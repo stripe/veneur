@@ -9,7 +9,7 @@ More generically, Veneur is a convenient, host-local sink for various observabil
 
 Veneur is currently handling all metrics for Stripe and is considered production ready. It is under active development and maintenance!
 
-Building veneur requires Go 1.7 or later.
+Building Veneur requires Go 1.7 or later.
 
 # Motivation
 
@@ -130,13 +130,30 @@ Einhorn handling code to bind to the file descriptor for HTTP.
 
 Veneur instances can be configured to forward their global metrics to another Veneur instance. You can use this feature to get the best of both worlds: metrics that benefit from global aggregation can be passed up to a single global Veneur, but other metrics can be published locally with host-scoped information. Note: **Forwarding adds an additional delay to metric availability corresponding to the value of the `interval` configuration option**, as the local veneur will flush it to it's configured upstream, which will then flush any recieved metrics when it's interval expires.
 
-To configure this feature, you need one Veneur, which we'll call the _global_ instance, and one or more other Veneurs, which we'll call _local_ instances. The local instances should have their `forward_address` configured to the global instance's `http_address`. The global instance should have an empty `forward_address` (ie just don't set it). You can then report metrics to any Veneur's `udp_address` as usual.
-
 If a local instance receives a histogram or set, it will publish the local parts of that metric (the count, min and max) directly to DataDog, but instead of publishing percentiles, it will package the entire histogram and send it to the global instance. The global instance will aggregate all the histograms together and publish their percentiles to DataDog.
 
-Note that the global instance can also receive metrics over UDP. It will publish a count, min and max for the samples that were sent directly to it, but not counting any samples from other Veneur instancess (this ensures that things don't get double-counted). You can even chain multiple levels of forwarding together if you want. This might be useful if, for example, your global Veneur is under too much load. The root of the tree will be the Veneur instance that has an empty `forward_address`. (Do not tell a Veneur instance to forward metrics to itself. We don't support that and it doesn't really make sense in the first place.)
+Note that the global instance can also receive metrics over UDP. It will publish a count, min and max for the samples that were sent directly to it, but not counting any samples from other Veneur instances (this ensures that things don't get double-counted). You can even chain multiple levels of forwarding together if you want. This might be useful if, for example, your global Veneur is under too much load. The root of the tree will be the Veneur instance that has an empty `forward_address`. (Do not tell a Veneur instance to forward metrics to itself. We don't support that and it doesn't really make sense in the first place.)
 
 With respect to the `tags` configuration option, the tags that will be added are those of the Veneur that actually publishes to DataDog. If a local instance forwards its histograms and sets to a global instance, the local instance's tags will not be attached to the forwarded structures. It will still use its own tags for the other metrics it publishes, but the percentiles will get extra tags only from the global instance.
+
+### Consul Service Discovery and Consistent Hashing
+
+If you use Consul for service discovery, Veneur can be configured to query it's API for instances of a service using `consul_forward_service_name`. Each **healthy** instance is then entered in to a hash ring. When choosing which host to forward to, Veneur will use a combination of metric name and tags to _consistently_ choose the same host.
+
+Use the `consul_refresh_interval` to specify how often Veneur should refresh it's list.
+
+#### Tracing
+
+Consistent handling of tracing can also be used by setting `consul_trace_service_name`. The trace's ID — not the span, but the overall trace — is used for the choice of destination. So long as the hosts in the service stay consistent, this means that all of a trace's spans should arrive to the same destination host.
+
+#### Concerns
+
+* Veneur locks the list of servers when refreshing and flushing to avoid race conditions. If your retrieval of consul hosts (see metric `veneur.discoverer.update_duration_ns`) or flushes (see metric `veneur.flush.total_duration_ns`) are slow, you see one or the other slow down.
+* Veneur uses a [consistent hash ring](https://en.wikipedia.org/wiki/Consistent_hashing) to try and mitigate the impact of changes in Consul's list of healthy nodes. This is not perfect, and you can expect some churn whenever the list of healthy nodes changes in Consul.
+
+### Static Configuration
+
+For static configuration you need one Veneur, which we'll call the _global_ instance, and one or more other Veneurs, which we'll call _local_ instances. The local instances should have their `forward_address` configured to the global instance's `http_address`. The global instance should have an empty `forward_address` (ie just don't set it). You can then report metrics to any Veneur's `udp_address` as usual.
 
 ### Magic Tag
 
@@ -217,6 +234,14 @@ Veneur will emit metrics to the `stats_address` configured above in DogStatsD fo
 * `veneur.import.response_duration_ns` - Time spent responding to import HTTP requests. This metric is broken into `part` tags for `request` (time spent blocking the client) and `merge` (time spent sending metrics to workers).
 * `veneur.import.request_error_total` - A counter for the number of import requests that have errored out. You can use this for monitoring and alerting when imports fail.
 
+### Service Discovery
+
+If you use service discovery (e.g. Consul) for forwarding or tracing, these metrics will be useful to you. Each of these is tagged with `service` that has a value matching the service name supplied via the config:
+
+* `veneur.discoverer.destination_number` - A gauge containing the number of hosts Veneur discovered and added to the hash ring.
+* `veneur.discoverer.errors` - A counter tracking the number of times the service discovery mechanism has failed to return *any* hosts. Note that Veneur will refuse to update it's list if there are 0 returned hosts and may use stale results until such as as > 1 host is returned.
+* `veneur.discoverer.update_duration_ns` - A timer describing the duration of service discovery calls.
+
 ## Error Handling
 
 In addition to logging, Veneur will dutifully send any errors it generates to a [Sentry](https://sentry.io/) instance. This will occur if you set the `sentry_dsn` configuration option. Not setting the option will disable Sentry reporting.
@@ -255,7 +280,7 @@ sysctl -w net.ipv4.udp_mem="4648512 6198016 9297024"
 
 ## SO_REUSEPORT
 
-As [other implementations](http://githubengineering.com/brubeck/) have observed, there's a limit to how many UDP packets a single kernel thread can consume before it starts to fall over. Veneur now supports the `SO_REUSEPORT` socket option on Linux, allowing multiple threads to share the UDP socket with kernel-space balancing between them. If you've tried throwing more cores at Veneur and it's just not going fast enough, this feature can probably help by allowing more of those cores to work on the socket (which is Veneur's hottest code path by far). Note that this is only supported on Linux (right now). We have not added support for other platforms, like darwin and BSDs.
+As [other implementations](http://githubengineering.com/brubeck/) have observed, there's a limit to how many UDP packets a single kernel thread can consume before it starts to fall over. Veneur supports the `SO_REUSEPORT` socket option on Linux, allowing multiple threads to share the UDP socket with kernel-space balancing between them. If you've tried throwing more cores at Veneur and it's just not going fast enough, this feature can probably help by allowing more of those cores to work on the socket (which is Veneur's hottest code path by far). Note that this is only supported on Linux (right now). We have not added support for other platforms, like darwin and BSDs.
 
 # Name
 

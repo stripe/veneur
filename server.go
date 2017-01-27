@@ -3,11 +3,14 @@ package veneur
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"sync"
 	"syscall"
 	"time"
+
+	"stathat.com/c/consistent"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
@@ -18,6 +21,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/getsentry/raven-go"
 	"github.com/golang/protobuf/proto"
+	"github.com/hashicorp/consul/api"
+	"github.com/stripe/veneur/discovery"
 	"github.com/stripe/veneur/ssf"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
@@ -53,13 +58,22 @@ type Server struct {
 	Hostname string
 	Tags     []string
 
-	DDHostname     string
-	DDAPIKey       string
-	DDTraceAddress string
-	HTTPClient     *http.Client
+	DDHostname string
+	DDAPIKey   string
+	HTTPClient *http.Client
 
-	HTTPAddr    string
-	ForwardAddr string
+	HTTPAddr string
+
+	ForwardAddr            string
+	ForwardDestinations    *consistent.Consistent
+	TraceDestinations      *consistent.Consistent
+	Discoverer             discovery.Discoverer
+	ConsulForwardService   string
+	ConsulTraceService     string
+	ConsulInterval         time.Duration
+	ForwardDestinationsMtx sync.Mutex
+	TraceDestinationsMtx   sync.Mutex
+
 	UDPAddr     *net.UDPAddr
 	TraceAddr   *net.UDPAddr
 	RcvbufBytes int
@@ -80,12 +94,11 @@ type Server struct {
 }
 
 // NewFromConfig creates a new veneur server from a configuration specification.
-func NewFromConfig(conf Config) (ret Server, err error) {
+func NewFromConfig(conf Config, transport http.RoundTripper) (ret Server, err error) {
 	ret.Hostname = conf.Hostname
 	ret.Tags = conf.Tags
 	ret.DDHostname = conf.APIHostname
 	ret.DDAPIKey = conf.Key
-	ret.DDTraceAddress = conf.TraceAPIAddress
 	ret.HistogramPercentiles = conf.Percentiles
 	if len(conf.Aggregates) == 0 {
 		ret.HistogramAggregates.Value = samplers.AggregateMin + samplers.AggregateMax + samplers.AggregateCount
@@ -98,15 +111,17 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		ret.HistogramAggregates.Count = len(conf.Aggregates)
 	}
 
-	interval, err := time.ParseDuration(conf.Interval)
+	ret.interval, err = time.ParseDuration(conf.Interval)
 	if err != nil {
 		return
 	}
-	ret.interval = interval
 	ret.HTTPClient = &http.Client{
 		// make sure that POSTs to datadog do not overflow the flush interval
-		Timeout: interval * 9 / 10,
+		Timeout: ret.interval * 9 / 10,
 		// we're fine with using the default transport and redirect behavior
+	}
+	if transport != nil {
+		ret.HTTPClient.Transport = transport
 	}
 	ret.FlushMaxPerBody = conf.FlushMaxPerBody
 
@@ -178,7 +193,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.SentryDsn = "REDACTED"
 	log.WithField("config", conf).Debug("Initialized server")
 
-	if len(conf.TraceAddress) > 0 && len(conf.TraceAPIAddress) > 0 {
+	if len(conf.TraceAddress) > 0 && (conf.TraceAPIAddress != "" || conf.ConsulTraceServiceName != "") {
 
 		ret.TraceWorker = NewTraceWorker(ret.statsd)
 
@@ -237,6 +252,61 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			log, conf.InfluxAddress, conf.InfluxConsistency, conf.InfluxDBName, ret.HTTPClient, ret.statsd,
 		)
 		ret.registerPlugin(plugin)
+	}
+
+	ret.ConsulForwardService = conf.ConsulForwardServiceName
+	ret.ConsulTraceService = conf.ConsulTraceServiceName
+	if conf.ConsulForwardServiceName != "" || conf.ConsulTraceServiceName != "" {
+		config := api.DefaultConfig()
+		// Use the same HTTP Client we're using for other things, so we can leverage
+		// it for testing.
+		config.HttpClient = ret.HTTPClient
+		disc, consulErr := discovery.NewConsul(config)
+		if consulErr != nil {
+			log.WithError(consulErr).Error("Error creating Consul discoverer")
+			return
+		}
+		ret.Discoverer = disc
+		ret.ConsulInterval, err = time.ParseDuration(conf.ConsulRefreshInterval)
+		if err != nil {
+			log.WithError(err).Error("Error parsing Consul refresh interval")
+			return
+		}
+		log.WithField("interval", conf.ConsulRefreshInterval).Info("Will use Consul for service discovery")
+	}
+
+	ret.ForwardDestinations = consistent.New()
+	ret.TraceDestinations = consistent.New()
+
+	// TODO Size of replicas in config?
+	//ret.ForwardDestinations.NumberOfReplicas = ???
+
+	// For readability we're "initializing" our destination rings here,
+	// assured that any use of RefreshDestinations will work because we
+	// populated the Discoverer above. We could refactor this and make
+	// a "Static" discoverer, but it seems better to absorb it in some
+	// complexity here rather than create a goroutine that just does
+	// nothing on each call to RefreshDestinations.
+	if conf.ForwardAddress != "" {
+		// Static address? Use a ring of 1
+		ret.ForwardDestinations.Add(conf.ForwardAddress)
+	} else if conf.ConsulForwardServiceName != "" {
+		// else use Consul
+		ret.RefreshDestinations(conf.ConsulForwardServiceName, ret.ForwardDestinations, &ret.ForwardDestinationsMtx)
+		if len(ret.ForwardDestinations.Members()) == 0 {
+			log.WithField("serviceName", conf.ConsulForwardServiceName).Error("Refusing to start with zero destinations for forwarding.")
+		}
+	}
+
+	if conf.TraceAPIAddress != "" {
+		// Static address? Use a ring of 1
+		ret.TraceDestinations.Add(conf.TraceAPIAddress)
+	} else if conf.ConsulTraceServiceName != "" {
+		// Else use Consul
+		ret.RefreshDestinations(conf.ConsulTraceServiceName, ret.TraceDestinations, &ret.TraceDestinationsMtx)
+		if len(ret.ForwardDestinations.Members()) == 0 {
+			log.WithField("serviceName", conf.ConsulTraceServiceName).Error("Refusing to start with zero destinations for tracing.")
+		}
 	}
 
 	return
@@ -310,6 +380,48 @@ func (s *Server) Start() {
 		}
 	}()
 
+	if s.ConsulForwardService != "" || s.ConsulTraceService != "" {
+		go func() {
+			defer func() {
+				s.ConsumePanic(recover())
+			}()
+			ticker := time.NewTicker(s.ConsulInterval)
+			for range ticker.C {
+				if s.ConsulForwardService != "" {
+					s.RefreshDestinations(s.ConsulForwardService, s.ForwardDestinations, &s.ForwardDestinationsMtx)
+				}
+				if s.ConsulTraceService != "" {
+					s.RefreshDestinations(s.ConsulTraceService, s.TraceDestinations, &s.TraceDestinationsMtx)
+				}
+			}
+		}()
+	}
+}
+
+// RefreshDestinations updates the server's list of valid destinations
+// for flushing. This should be called periodically to ensure we have
+// the latest data.
+func (s *Server) RefreshDestinations(serviceName string, ring *consistent.Consistent, mtx *sync.Mutex) {
+
+	start := time.Now()
+	destinations, err := s.Discoverer.UpdateDestinations(serviceName)
+	s.statsd.TimeInMilliseconds("discoverer.update_duration_ns", float64(time.Since(start).Nanoseconds()), []string{fmt.Sprintf("service:%s", serviceName)}, 1.0)
+	if err != nil || len(destinations) == 0 {
+		log.WithError(err).Error("Discoverer returned an error, destinations may be stale!")
+		s.statsd.Incr("discoverer.errors", []string{fmt.Sprintf("service:%s", serviceName)}, 1.0)
+		// Return since we got no hosts. We don't want to zero out the list. This
+		// should result in us leaving the "last good" values in the ring.
+		return
+	}
+
+	// At the last moment, lock the mutex and defer so we unlock after setting.
+	// We do this after we've fetched info so we don't hold the lock during long
+	// queries, timeouts or errors. The flusher can lock the mutex and prevent us
+	// from updating at the same time.
+	mtx.Lock()
+	defer mtx.Unlock()
+	ring.Set(destinations)
+	s.statsd.Gauge("discoverer.destination_number", float64(len(destinations)), []string{fmt.Sprintf("service:%s", serviceName)}, 1.0)
 }
 
 // HandleMetricPacket processes each packet that is sent to the server, and sends to an
@@ -513,7 +625,7 @@ func (s *Server) Shutdown() {
 // (forwarding non-local data to a global veneur instance) or is running as a global
 // instance (sending all data directly to the final destination).
 func (s *Server) IsLocal() bool {
-	return s.ForwardAddr != ""
+	return s.ForwardAddr != "" || s.ConsulForwardService != ""
 }
 
 // registerPlugin registers a plugin for use

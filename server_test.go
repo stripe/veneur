@@ -143,10 +143,14 @@ func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, val
 
 // setupVeneurServer creates a local server from the specified config
 // and starts listening for requests. It returns the server for inspection.
-func setupVeneurServer(t *testing.T, config Config) Server {
-	server, err := NewFromConfig(config)
+func setupVeneurServer(t *testing.T, config Config, transport http.RoundTripper) Server {
+	server, err := NewFromConfig(config, transport)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if transport != nil {
+		server.HTTPClient.Transport = transport
 	}
 
 	server.Start()
@@ -192,7 +196,7 @@ func newFixture(t *testing.T, config Config) *fixture {
 
 	config.APIHostname = f.api.URL
 	config.NumWorkers = 1
-	f.server = setupVeneurServer(t, config)
+	f.server = setupVeneurServer(t, config, nil)
 	return f
 }
 

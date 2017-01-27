@@ -202,6 +202,24 @@
 			"revisionTime": "2016-10-12T20:53:35Z"
 		},
 		{
+			"checksumSHA1": "/DReHn5j0caPm3thgFD9DmOmibQ=",
+			"path": "github.com/hashicorp/consul/api",
+			"revision": "61a20c53ba13900c66a9e79c026485ce67e1df3f",
+			"revisionTime": "2017-01-18T01:18:29Z"
+		},
+		{
+			"checksumSHA1": "Uzyon2091lmwacNsl1hCytjhHtg=",
+			"path": "github.com/hashicorp/go-cleanhttp",
+			"revision": "ad28ea4487f05916463e2423a55166280e8254b5",
+			"revisionTime": "2016-04-07T17:41:26Z"
+		},
+		{
+			"checksumSHA1": "E3Xcanc9ouQwL+CZGOUyA/+giLg=",
+			"path": "github.com/hashicorp/serf/coordinate",
+			"revision": "d3a67ab21bc8a4643fa53a3633f2d951dd50c6ca",
+			"revisionTime": "2016-12-07T01:17:43Z"
+		},
+		{
 			"checksumSHA1": "0ZrwvB6KoGPj2PoDNSEJwxQ6Mog=",
 			"path": "github.com/jmespath/go-jmespath",
 			"revision": "bd40a432e4c76585ef6b72d3fd96fb9b6dc7b68d",
@@ -303,6 +321,12 @@
 			"path": "gopkg.in/yaml.v2",
 			"revision": "a83829b6f1293c91addabc89d0571c246397bbf4",
 			"revisionTime": "2016-03-01T20:40:22Z"
+		},
+		{
+			"checksumSHA1": "IaJ9sf/1xMXDVNEDpby7jcy7x9M=",
+			"path": "stathat.com/c/consistent",
+			"revision": "748f01b59d1b2218efe39513039e9ee31266d7c7",
+			"revisionTime": "2015-03-23T02:41:28Z"
 		}
 	],
 	"rootPath": "github.com/stripe/veneur"
