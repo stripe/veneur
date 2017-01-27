@@ -14,7 +14,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
-	"sync"
 	"testing"
 	"time"
 
@@ -80,7 +79,7 @@ func generateConfig(forwardAddr string) Config {
 		UdpAddress:          "localhost:8126",
 		HTTPAddress:         fmt.Sprintf("localhost:%d", port),
 		ForwardAddress:      forwardAddr,
-		NumWorkers:          96,
+		NumWorkers:          4,
 
 		// Use only one reader, so that we can run tests
 		// on platforms which do not support SO_REUSEPORT
@@ -150,41 +149,7 @@ func setupVeneurServer(t *testing.T, config Config) Server {
 		t.Fatal(err)
 	}
 
-	packetPool := &sync.Pool{
-		New: func() interface{} {
-			return make([]byte, config.MetricMaxLength)
-		},
-	}
-
-	// Metrics reader
-	for i := 0; i < config.NumReaders; i++ {
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					assert.Fail(t, "reader panicked while reading from socket", err)
-				}
-			}()
-			server.ReadMetricSocket(packetPool, config.NumReaders != 1)
-		}()
-	}
-
-	tracePool := &sync.Pool{
-		New: func() interface{} {
-			return make([]byte, config.TraceMaxLengthBytes)
-		},
-	}
-
-	// Trace reader
-	go func() {
-		defer func() {
-			server.ConsumePanic(recover())
-		}()
-		if server.TraceAddr != nil {
-			server.ReadTraceSocket(tracePool, config.NumReaders != 1)
-		} else {
-			logrus.Info("Tracing not configured - not reading trace socket")
-		}
-	}()
+	server.Start()
 
 	go server.HTTPServe()
 	return server
@@ -259,10 +224,7 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 		})
 	}
 
-	interval, err := config.ParseInterval()
-	assert.NoError(t, err)
-
-	f.server.Flush(interval, config.FlushMaxPerBody)
+	f.server.Flush()
 
 	ddmetrics := <-f.ddmetrics
 	assert.Equal(t, 6, len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
@@ -288,10 +250,7 @@ func TestGlobalServerFlush(t *testing.T) {
 		})
 	}
 
-	interval, err := config.ParseInterval()
-	assert.NoError(t, err)
-
-	f.server.Flush(interval, config.FlushMaxPerBody)
+	f.server.Flush()
 
 	ddmetrics := <-f.ddmetrics
 	assert.Equal(t, len(expectedMetrics), len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
@@ -401,10 +360,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 		})
 	}
 
-	interval, err := config.ParseInterval()
-	assert.NoError(t, err)
-
-	f.server.Flush(interval, config.FlushMaxPerBody)
+	f.server.Flush()
 
 	// the global veneur instance should get valid data
 	td := <-globalTD
@@ -515,10 +471,7 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 		})
 	}
 
-	interval, err := config.ParseInterval()
-	assert.NoError(t, err)
-
-	f.server.Flush(interval, config.FlushMaxPerBody)
+	f.server.Flush()
 }
 
 // TestGlobalServerS3PluginFlush tests that we are able to
@@ -586,10 +539,7 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 		})
 	}
 
-	interval, err := config.ParseInterval()
-	assert.NoError(t, err)
-
-	f.server.Flush(interval, config.FlushMaxPerBody)
+	f.server.Flush()
 }
 
 func parseGzipTSV(r io.Reader) ([][]string, error) {

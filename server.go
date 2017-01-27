@@ -64,7 +64,12 @@ type Server struct {
 	TraceAddr   *net.UDPAddr
 	RcvbufBytes int
 
+	interval             time.Duration
+	numReaders           int
+	metricMaxLength      int
+	traceMaxLengthBytes  int
 	HistogramPercentiles []float64
+	FlushMaxPerBody      int
 
 	plugins   []plugins.Plugin
 	pluginMtx sync.Mutex
@@ -97,11 +102,13 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	if err != nil {
 		return
 	}
+	ret.interval = interval
 	ret.HTTPClient = &http.Client{
 		// make sure that POSTs to datadog do not overflow the flush interval
 		Timeout: interval * 9 / 10,
 		// we're fine with using the default transport and redirect behavior
 	}
+	ret.FlushMaxPerBody = conf.FlushMaxPerBody
 
 	ret.statsd, err = statsd.NewBuffered(conf.StatsAddress, 1024)
 	if err != nil {
@@ -136,10 +143,13 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			logrus.PanicLevel,
 		},
 	})
-	log.WithField("version", VERSION).Info("Starting server")
 
-	log.WithField("number", conf.NumWorkers).Info("Starting workers")
+	log.WithField("number", conf.NumWorkers).Info("Preparing workers")
+	// Allocate the slice, we'll fill it with workers later.
 	ret.Workers = make([]*Worker, conf.NumWorkers)
+	ret.numReaders = conf.NumReaders
+
+	// Use the pre-allocated Workers slice to know how many to start.
 	for i := range ret.Workers {
 		ret.Workers[i] = NewWorker(i+1, ret.statsd, log)
 		// do not close over loop index
@@ -152,17 +162,14 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	}
 
 	ret.EventWorker = NewEventWorker(ret.statsd)
-	go func() {
-		defer func() {
-			ret.ConsumePanic(recover())
-		}()
-		ret.EventWorker.Work()
-	}()
 
 	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UdpAddress)
 	if err != nil {
 		return
 	}
+
+	ret.metricMaxLength = conf.MetricMaxLength
+	ret.traceMaxLengthBytes = conf.TraceMaxLengthBytes
 	ret.RcvbufBytes = conf.ReadBufferSizeBytes
 	ret.HTTPAddr = conf.HTTPAddress
 	ret.ForwardAddr = conf.ForwardAddress
@@ -174,12 +181,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	if len(conf.TraceAddress) > 0 && len(conf.TraceAPIAddress) > 0 {
 
 		ret.TraceWorker = NewTraceWorker(ret.statsd)
-		go func() {
-			defer func() {
-				ret.ConsumePanic(recover())
-			}()
-			ret.TraceWorker.Work()
-		}()
 
 		ret.TraceAddr, err = net.ResolveUDPAddr("udp", conf.TraceAddress)
 		log.WithField("traceaddr", ret.TraceAddr).Info("Set trace address")
@@ -241,6 +242,76 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	return
 }
 
+// Start spins up the Server to do actual work, firing off goroutines for
+// various workers and utilities.
+func (s *Server) Start() {
+	log.WithField("version", VERSION).Info("Starting server")
+
+	go func() {
+		log.Info("Starting Event worker")
+		defer func() {
+			s.ConsumePanic(recover())
+		}()
+		s.EventWorker.Work()
+	}()
+
+	if s.TraceWorker != nil {
+		log.Info("Starting Trace worker")
+		go func() {
+			defer func() {
+				s.ConsumePanic(recover())
+			}()
+			s.TraceWorker.Work()
+		}()
+	}
+
+	packetPool := &sync.Pool{
+		New: func() interface{} {
+			return make([]byte, s.metricMaxLength)
+		},
+	}
+
+	tracePool := &sync.Pool{
+		New: func() interface{} {
+			return make([]byte, s.traceMaxLengthBytes)
+		},
+	}
+
+	// Read Metrics Forever!
+	for i := 0; i < s.numReaders; i++ {
+		go func() {
+			defer func() {
+				s.ConsumePanic(recover())
+			}()
+			s.ReadMetricSocket(packetPool, s.numReaders != 1)
+		}()
+	}
+
+	// Read Traces Forever!
+	go func() {
+		defer func() {
+			s.ConsumePanic(recover())
+		}()
+		if s.TraceAddr != nil {
+			s.ReadTraceSocket(tracePool, s.numReaders != 1)
+		} else {
+			logrus.Info("Tracing not configured - not reading trace socket")
+		}
+	}()
+
+	// Flush every Interval forever!
+	go func() {
+		defer func() {
+			s.ConsumePanic(recover())
+		}()
+		ticker := time.NewTicker(s.interval)
+		for range ticker.C {
+			s.Flush()
+		}
+	}()
+
+}
+
 // HandleMetricPacket processes each packet that is sent to the server, and sends to an
 // appropriate worker (EventWorker or Worker).
 func (s *Server) HandleMetricPacket(packet []byte) {
@@ -296,6 +367,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
 		log.Error("received zero-length trace packet")
+		return
 	}
 
 	// Technically this could be anything, but we're only consuming trace spans

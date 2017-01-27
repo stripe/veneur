@@ -137,7 +137,6 @@ func testFlushTrace(t *testing.T, protobuf, jsn io.Reader) {
 
 	server.HandleTracePacket(packet)
 
-	interval, err := config.ParseInterval()
 	assert.NoError(t, err)
-	server.Flush(interval, config.FlushMaxPerBody)
+	server.Flush()
 }

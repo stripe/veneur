@@ -2,8 +2,6 @@ package main
 
 import (
 	"flag"
-	"sync"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/stripe/veneur"
@@ -36,55 +34,7 @@ func main() {
 	defer func() {
 		server.ConsumePanic(recover())
 	}()
-
-	packetPool := &sync.Pool{
-		New: func() interface{} {
-			return make([]byte, conf.MetricMaxLength)
-		},
-	}
-
-	tracePool := &sync.Pool{
-		New: func() interface{} {
-			return make([]byte, conf.TraceMaxLengthBytes)
-		},
-	}
-
-	// Read forever!
-	for i := 0; i < conf.NumReaders; i++ {
-		go func() {
-			defer func() {
-				server.ConsumePanic(recover())
-			}()
-			server.ReadMetricSocket(packetPool, conf.NumReaders != 1)
-		}()
-	}
-
-	// Trace reader
-	go func() {
-		defer func() {
-			server.ConsumePanic(recover())
-		}()
-		if server.TraceAddr != nil {
-			server.ReadTraceSocket(tracePool, conf.NumReaders != 1)
-		} else {
-			logrus.Info("Tracing not configured - not reading trace socket")
-		}
-	}()
-
-	interval, err := conf.ParseInterval()
-	if err != nil {
-		logrus.Fatalf("Error parsing configuration %s", err)
-	}
-
-	go func() {
-		defer func() {
-			server.ConsumePanic(recover())
-		}()
-		ticker := time.NewTicker(interval)
-		for range ticker.C {
-			server.Flush(interval, conf.FlushMaxPerBody)
-		}
-	}()
+	server.Start()
 
 	server.HTTPServe()
 }
