@@ -257,6 +257,55 @@ sysctl -w net.ipv4.udp_mem="4648512 6198016 9297024"
 
 As [other implementations](http://githubengineering.com/brubeck/) have observed, there's a limit to how many UDP packets a single kernel thread can consume before it starts to fall over. Veneur now supports the `SO_REUSEPORT` socket option on Linux, allowing multiple threads to share the UDP socket with kernel-space balancing between them. If you've tried throwing more cores at Veneur and it's just not going fast enough, this feature can probably help by allowing more of those cores to work on the socket (which is Veneur's hottest code path by far). Note that this is only supported on Linux (right now). We have not added support for other platforms, like darwin and BSDs.
 
+## TCP connections
+
+Veneur supports reading the statds protocol from TCP connections. This is mostly to support TLS encryption and authentication, but might be useful on its own. Since TCP is a continuous stream of bytes, this requires each stat to be terminated by a new line character ('\n'). Most statsd clients only add new lines between stats within a single UDP packet, and omit the final trailing new line. This means you will likely need to modify your client to use this feature.
+
+
+## TLS encryption and authentication
+
+If you specify the `tls_key` and `tls_certificate` options, Veneur will only accept TLS connections on its TCP port. This allows the metrics sent to Veneur to be encrypted.
+
+If you specify the `tls_authority_certificate` option, Veneur will require clients to present a client certificate, signed by this authority. This ensures that only authenticated clients can connect.
+
+You can generate your own set of keys using openssl:
+
+```
+# Generate the authority key and certificate (2048-bit RSA signed using SHA-256)
+openssl genrsa -out cakey.pem 2048
+openssl req -new -x509 -sha256 -key cakey.pem -out cacert.pem -days 1095 -subj "/O=Example Inc/CN=Example Certificate Authority"
+
+# Generate the server key and certificate, signed by the authority
+openssl genrsa -out serverkey.pem 2048
+openssl req -new -sha256 -key serverkey.pem -out serverkey.csr -days 1095 -subj "/O=Example Inc/CN=veneur.example.com"
+openssl x509 -sha256 -req -in serverkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out servercert.pem -days 1095
+
+# Generate a client key and certificate, signed by the authority
+openssl genrsa -out clientkey.pem 2048
+openssl req -new -sha256 -key clientkey.pem -out clientkey.csr -days 1095 -subj "/O=Example Inc/CN=Veneur client key"
+openssl x509 -req -in clientkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out clientcert.pem -days 1095
+```
+
+Set `tcp_address`, `tls_key`, `tls_certificate`, and `tls_authority_certificate`:
+
+```
+tcp_address: "localhost:8129"
+tls_certificate: |
+  -----BEGIN CERTIFICATE-----
+  MIIC8TCCAdkCCQDc2V7P5nCDLjANBgkqhkiG9w0BAQsFADBAMRUwEwYDVQQKEwxC
+  ...
+  -----END CERTIFICATE-----
+tls_key: |
+    -----BEGIN RSA PRIVATE KEY-----
+  MIIEpAIBAAKCAQEA7Sntp4BpEYGzgwQR8byGK99YOIV2z88HHtPDwdvSP0j5ZKdg
+  ...
+  -----END RSA PRIVATE KEY-----
+tls_authority_certificate: |
+  -----BEGIN CERTIFICATE-----
+  ...
+  -----END CERTIFICATE-----
+```
+
 # Name
 
 The [veneur](https://en.wikipedia.org/wiki/Grand_Huntsman_of_France) is a person acting as superintendent of the chase and especially

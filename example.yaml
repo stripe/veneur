@@ -47,3 +47,14 @@ aws_s3_bucket: ""
 influx_address: http://localhost:8086
 influx_consistency: one
 influx_db_name: mydb
+
+# Listen address for statsd over TCP
+tcp_address: ""
+
+# TLS server private key and certificate for encryption (specify both)
+# These are the key/certificate contents, not a file path
+tls_key: ""
+tls_certificate: ""
+
+# Authority certificate: requires clients to be authenticated
+tls_authority_certificate: ""

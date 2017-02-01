@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/csv"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -164,15 +167,20 @@ type DDMetricsRequest struct {
 
 // fixture sets up a mock Datadog API server and Veneur
 type fixture struct {
-	api       *httptest.Server
-	server    Server
-	ddmetrics chan DDMetricsRequest
+	api             *httptest.Server
+	server          Server
+	ddmetrics       chan DDMetricsRequest
+	interval        time.Duration
+	flushMaxPerBody int
 }
 
 func newFixture(t *testing.T, config Config) *fixture {
+	interval, err := config.ParseInterval()
+	assert.NoError(t, err)
+
 	// Set up a remote server (the API that we're sending the data to)
 	// (e.g. Datadog)
-	f := &fixture{nil, Server{}, make(chan DDMetricsRequest, 10)}
+	f := &fixture{nil, Server{}, make(chan DDMetricsRequest, 10), interval, config.FlushMaxPerBody}
 	f.api = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		zr, err := zlib.NewReader(r.Body)
 		if err != nil {
@@ -193,13 +201,20 @@ func newFixture(t *testing.T, config Config) *fixture {
 	config.APIHostname = f.api.URL
 	config.NumWorkers = 1
 	f.server = setupVeneurServer(t, config)
+
 	return f
 }
 
 func (f *fixture) Close() {
+	// make Close safe to call multiple times
+	if f.ddmetrics == nil {
+		return
+	}
+
 	f.api.Close()
 	f.server.Shutdown()
 	close(f.ddmetrics)
+	f.ddmetrics = nil
 }
 
 // TestLocalServerUnaggregatedMetrics tests the behavior of
@@ -569,3 +584,262 @@ func assertCSVFieldsMatch(t *testing.T, expected, actual [][]string, columns []i
 		}
 	}
 }
+
+// TestTCPConfig checks that invalid configurations are errors
+func TestTCPConfig(t *testing.T) {
+	config := localConfig()
+
+	config.TcpAddress = " invalid:invalid"
+	_, err := NewFromConfig(config)
+	if err == nil {
+		t.Error("invalid TCP address is a config error")
+	}
+
+	config.TcpAddress = "localhost:8129"
+	config.TLSKey = "somekey"
+	_, err = NewFromConfig(config)
+	if err == nil {
+		t.Error("key without certificate is a config error")
+	}
+
+	config.TLSKey = serverKey
+	config.TLSCertificate = "somecert"
+	_, err = NewFromConfig(config)
+	if err == nil {
+		t.Error("invalid key and certificate is a config error")
+	}
+
+	config.TLSCertificate = serverCertificate
+	s, err := NewFromConfig(config)
+	if err != nil {
+		t.Error("expected valid config")
+	}
+	if s.TCPAddr == nil || s.TCPAddr.Port != 8129 {
+		t.Error("TCPAddr not set correctly:", s.TCPAddr)
+	}
+}
+
+func sendTCPMetrics(addr string, tlsConfig *tls.Config, f *fixture) error {
+	// TODO: attempt to ensure the accept goroutine opens the port before we attempt to connect
+	// connect and send stats in two parts
+	var conn net.Conn
+	var err error
+	if tlsConfig != nil {
+		conn, err = tls.Dial("tcp", addr, tlsConfig)
+	} else {
+		conn, err = net.Dial("tcp", addr)
+	}
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = conn.Write([]byte("page.views:1|c\npage.views:1|c\n"))
+	if err != nil {
+		return err
+	}
+	err = conn.Close()
+	if err != nil {
+		return err
+	}
+
+	// check that the server received the stats; HACK: sleep to ensure workers process before flush
+	time.Sleep(20 * time.Millisecond)
+	f.server.Flush()
+	select {
+	case ddmetrics := <-f.ddmetrics:
+		if len(ddmetrics.Series) != 1 {
+			return fmt.Errorf("unexpected Series: %v", ddmetrics.Series)
+		}
+		if !(ddmetrics.Series[0].Name == "page.views" && ddmetrics.Series[0].Value[0][1] == 40) {
+			return fmt.Errorf("unexpected metric: %v", ddmetrics.Series[0])
+		}
+
+	case <-time.After(100 * time.Millisecond):
+		return fmt.Errorf("timed out waiting for metrics")
+	}
+
+	return nil
+}
+
+// TestTCPMetrics checks that a server can accept metrics over a TCP socket.
+func TestTCPMetrics(t *testing.T) {
+	// all supported TCP connection modes
+	serverConfigs := []struct {
+		name                   string
+		serverKey              string
+		serverCertificate      string
+		authorityCertificate   string
+		expectedConnectResults [4]bool
+	}{
+		{"TCP", "", "", "", [4]bool{true, false, false, false}},
+		{"encrypted", serverKey, serverCertificate, "", [4]bool{false, true, true, true}},
+		{"authenticated", serverKey, serverCertificate, caCertificate, [4]bool{false, false, false, true}},
+	}
+
+	// load all the various keys and certificates for the client
+	trustServerCA := x509.NewCertPool()
+	ok := trustServerCA.AppendCertsFromPEM([]byte(caCertificate))
+	if !ok {
+		t.Fatal("could not load server certificate")
+	}
+	wrongCert, err := tls.X509KeyPair([]byte(wrongClientCertificate), []byte(clientKey))
+	if err != nil {
+		t.Fatal("could not load wrong client cert/key:", err)
+	}
+	wrongConfig := &tls.Config{
+		RootCAs:      trustServerCA,
+		Certificates: []tls.Certificate{wrongCert},
+	}
+	correctCert, err := tls.X509KeyPair([]byte(correctClientCertificate), []byte(clientKey))
+	if err != nil {
+		t.Fatal("could not load correct client cert/key:", err)
+	}
+	correctConfig := &tls.Config{
+		RootCAs:      trustServerCA,
+		Certificates: []tls.Certificate{correctCert},
+	}
+
+	// all supported client configurations
+	clientConfigs := []struct {
+		name      string
+		tlsConfig *tls.Config
+	}{
+		{"TCP", nil},
+		{"TLS no cert", &tls.Config{RootCAs: trustServerCA}},
+		{"TLS wrong cert", wrongConfig},
+		{"TLS correct cert", correctConfig},
+	}
+
+	for _, serverConfig := range serverConfigs {
+		config := localConfig()
+		config.NumWorkers = 1
+		// Use a unique port to avoid race with shutting down accept goroutine on Linux
+		config.TcpAddress = fmt.Sprintf("localhost:%d", HTTPAddrPort)
+		HTTPAddrPort++
+		config.TLSKey = serverConfig.serverKey
+		config.TLSCertificate = serverConfig.serverCertificate
+		config.TLSAuthorityCertificate = serverConfig.authorityCertificate
+		f := newFixture(t, config)
+		defer f.Close() // ensure shutdown if the test aborts
+
+		// attempt to connect and send stats with each of the client configurations
+		for i, clientConfig := range clientConfigs {
+			expectedSuccess := serverConfig.expectedConnectResults[i]
+			err := sendTCPMetrics(config.TcpAddress, clientConfig.tlsConfig, f)
+			if err != nil {
+				if expectedSuccess {
+					t.Errorf("server config: '%s' client config: '%s' failed: %s",
+						serverConfig.name, clientConfig.name, err.Error())
+				} else {
+					fmt.Printf("SUCCESS server config: '%s' client config: '%s' got expected error: %s\n",
+						serverConfig.name, clientConfig.name, err.Error())
+				}
+			} else if !expectedSuccess {
+				t.Errorf("server config: '%s' client config: '%s' worked; should fail!",
+					serverConfig.name, clientConfig.name)
+			} else {
+				fmt.Printf("SUCCESS server config: '%s' client config: '%s'\n",
+					serverConfig.name, clientConfig.name)
+			}
+		}
+
+		f.Close()
+	}
+}
+
+// DO NOT USE: insecure test keys generated with the following commands:
+// # Generate the authority key and certificate (512-bit RSA signed using SHA-256)
+// openssl genrsa -out cakey.pem 512
+// openssl req -new -x509 -key cakey.pem -out cacert.pem -days 1095 -subj "/O=Example Inc/CN=Example Certificate Authority"
+
+// # Generate the server key and certificate, signed by the authority
+// openssl genrsa -out serverkey.pem 512
+// openssl req -new -key serverkey.pem -out serverkey.csr -days 1095 -subj "/O=Example Inc/CN=localhost"
+// openssl x509 -req -in serverkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out servercert.pem -days 1095
+
+// # Generate a client key and certificate, signed by the authority
+// openssl genrsa -out clientkey.pem 512
+// openssl req -new -key clientkey.pem -out clientkey.csr -days 1095 -subj "/O=Example Inc/CN=Veneur client key"
+// openssl x509 -req -in clientkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out clientcert.pem -days 1095
+
+// # Generate another ca and sign the client key
+// openssl genrsa -out wrongcakey.pem 512
+// openssl req -new -x509 -key wrongcakey.pem -out wrongcacert.pem -days 1095 -subj "/O=Wrong Inc/CN=Wrong Certificate Authority"
+// openssl x509 -req -in clientkey.csr -CA wrongcacert.pem -CAkey wrongcakey.pem -CAcreateserial -out wrongclientcert.pem -days 1095
+const caCertificate = `-----BEGIN CERTIFICATE-----
+MIICFjCCAcCgAwIBAgIJAKEIvn49TGuuMA0GCSqGSIb3DQEBBQUAMD4xFDASBgNV
+BAoTC0V4YW1wbGUgSW5jMSYwJAYDVQQDEx1FeGFtcGxlIENlcnRpZmljYXRlIEF1
+dGhvcml0eTAeFw0xNzAxMTEyMjU0NDFaFw0yMDAxMTEyMjU0NDFaMD4xFDASBgNV
+BAoTC0V4YW1wbGUgSW5jMSYwJAYDVQQDEx1FeGFtcGxlIENlcnRpZmljYXRlIEF1
+dGhvcml0eTBcMA0GCSqGSIb3DQEBAQUAA0sAMEgCQQC8X1Uu9kBANVdjGglpt0lV
+Qk8Pv84SojlV7US34+cHv9kSc+m2IEw4xhJRRD8SWgMApBqsaKje0eL+6mitd9U5
+AgMBAAGjgaAwgZ0wHQYDVR0OBBYEFOBZB0u12nikr1y8n2J3axKMVviuMG4GA1Ud
+IwRnMGWAFOBZB0u12nikr1y8n2J3axKMVviuoUKkQDA+MRQwEgYDVQQKEwtFeGFt
+cGxlIEluYzEmMCQGA1UEAxMdRXhhbXBsZSBDZXJ0aWZpY2F0ZSBBdXRob3JpdHmC
+CQChCL5+PUxrrjAMBgNVHRMEBTADAQH/MA0GCSqGSIb3DQEBBQUAA0EAeVcidFqa
+tI562hmJEv+sSwNGeBXB62t7NUEZK7ltAos3Lvopm1AvgYLtFn4khvCz0W10qkcv
+c0eygvw97lhi2Q==
+-----END CERTIFICATE-----`
+const serverKey = `-----BEGIN RSA PRIVATE KEY-----
+MIIBOgIBAAJBALcTfmYUfGJGidLo9KMoeIE+L2pK6862Pz9QkUD3Va2NtoYBtM1n
+XkZ6DzLcOqF91VXn9mYau08438t5mX0E/fkCAwEAAQJAf0Se7um42jy9HRBy2GWO
++BG5toOkz8ujxikFAQuv1PhsbKSonbbZNVo+7uNE5h7TAYtpILy3N4gCiximFyub
+gQIhAOXUlb4lULdWQqr+jg7NT3e7wOn6livaK6G0kuEh+WOpAiEAy+wNAr28eMgz
+RtJEm9T4JudlUjJtw5WIzkwP9pOqOdECIG+hifoJdeMW6trTOXzHDEpDz7fWFwrF
+tVudsZnYPqHBAiB4yM5EC2IxIFPO5QiiTJjXYkPPVfNR36ZymvbxlDFFoQIhAK/r
+U048JgviFBqQy07pwhrlslcDF7rOaTYRlDC9Hs/B
+-----END RSA PRIVATE KEY-----`
+const serverCertificate = `-----BEGIN CERTIFICATE-----
+MIIBWjCCAQQCCQCE1RKqeZabvjANBgkqhkiG9w0BAQUFADA+MRQwEgYDVQQKEwtF
+eGFtcGxlIEluYzEmMCQGA1UEAxMdRXhhbXBsZSBDZXJ0aWZpY2F0ZSBBdXRob3Jp
+dHkwHhcNMTcwMTExMjI1NTQ0WhcNMjAwMTExMjI1NTQ0WjAqMRQwEgYDVQQKEwtF
+eGFtcGxlIEluYzESMBAGA1UEAxMJbG9jYWxob3N0MFwwDQYJKoZIhvcNAQEBBQAD
+SwAwSAJBALcTfmYUfGJGidLo9KMoeIE+L2pK6862Pz9QkUD3Va2NtoYBtM1nXkZ6
+DzLcOqF91VXn9mYau08438t5mX0E/fkCAwEAATANBgkqhkiG9w0BAQUFAANBABeG
+Gath3bDvwGwuyv3QgMC+gPUouD1BgoBZJUBA508YCfQRvhrvP9KG1U5oTSCr1z2Q
+f5GfzvjTlxeC+N9AUJ8=
+-----END CERTIFICATE-----`
+const clientKey = `-----BEGIN RSA PRIVATE KEY-----
+MIIBOQIBAAJBAMzKDTWFFkEO+tMZtaYuiiFRYTj6jSF68xPF5WWTQrBfoxgYM/iB
+IGAXXUKaFu1sW5IXTwMVSVpS6IXZBxOKmT0CAwEAAQJAfXdtEFUxhTqAQcWGnQH2
+buNFBXu7679AHeUo3kqSmStljLdhDQFkfTTLf9jxndtOhvJ5gsgb48eYEfJapaBG
+oQIhAPbi35g9jki2lETmj5mhzFpdPcS2D/h3ic6AiKxhvDcTAiEA1FlaY35Wcq3J
+1hKqb3r6djNDHr8PbHSXCkABrGgVaG8CIAD/j9nkvdOLcXQJ3qDHZ7Uh1WMbPVtK
+2HLOUD8qMgGjAiA8aL8CFurY7P/CWsUJud6Oyb6KfKgSnohpbhQLzABrGQIgYBvp
+SFo9IOb6RH9VMYxWENt2aFegZgSyUetaUh7JrZY=
+-----END RSA PRIVATE KEY-----`
+const correctClientCertificate = `-----BEGIN CERTIFICATE-----
+MIIBYjCCAQwCCQCE1RKqeZabvTANBgkqhkiG9w0BAQUFADA+MRQwEgYDVQQKEwtF
+eGFtcGxlIEluYzEmMCQGA1UEAxMdRXhhbXBsZSBDZXJ0aWZpY2F0ZSBBdXRob3Jp
+dHkwHhcNMTcwMTExMjI1NDQyWhcNMjAwMTExMjI1NDQyWjAyMRQwEgYDVQQKEwtF
+eGFtcGxlIEluYzEaMBgGA1UEAxMRVmVuZXVyIGNsaWVudCBrZXkwXDANBgkqhkiG
+9w0BAQEFAANLADBIAkEAzMoNNYUWQQ760xm1pi6KIVFhOPqNIXrzE8XlZZNCsF+j
+GBgz+IEgYBddQpoW7WxbkhdPAxVJWlLohdkHE4qZPQIDAQABMA0GCSqGSIb3DQEB
+BQUAA0EAMkZxOsZ87UZcyj03NjM8qf0lIU0EiIwzox54tGj2ux3TDC1AUhzrB2MT
+NHioTW/nZ/mho+4t2RX4Z+VbAqtvxQ==
+-----END CERTIFICATE-----`
+const wrongClientCertificate = `-----BEGIN CERTIFICATE-----
+MIIBXjCCAQgCCQDQKXcL6M3l8TANBgkqhkiG9w0BAQUFADA6MRIwEAYDVQQKEwlX
+cm9uZyBJbmMxJDAiBgNVBAMTG1dyb25nIENlcnRpZmljYXRlIEF1dGhvcml0eTAe
+Fw0xNzAxMTEyMzAwMTFaFw0yMDAxMTEyMzAwMTFaMDIxFDASBgNVBAoTC0V4YW1w
+bGUgSW5jMRowGAYDVQQDExFWZW5ldXIgY2xpZW50IGtleTBcMA0GCSqGSIb3DQEB
+AQUAA0sAMEgCQQDMyg01hRZBDvrTGbWmLoohUWE4+o0hevMTxeVlk0KwX6MYGDP4
+gSBgF11CmhbtbFuSF08DFUlaUuiF2QcTipk9AgMBAAEwDQYJKoZIhvcNAQEFBQAD
+QQC7S5NOcZZTXaREFf/ove2eJ5URP+/s/gkfZG22Y0MhoR8F7HDjjw+z9pusuhk8
+0Rl1h1+MCUoiyEbk8W2OjTc8
+-----END CERTIFICATE-----`
+
+const wrongCACertificate = `-----BEGIN CERTIFICATE-----
+MIICCjCCAbSgAwIBAgIJALN3g8oNNFMiMA0GCSqGSIb3DQEBBQUAMDoxEjAQBgNV
+BAoTCVdyb25nIEluYzEkMCIGA1UEAxMbV3JvbmcgQ2VydGlmaWNhdGUgQXV0aG9y
+aXR5MB4XDTE3MDExMTIzMDAwOVoXDTIwMDExMTIzMDAwOVowOjESMBAGA1UEChMJ
+V3JvbmcgSW5jMSQwIgYDVQQDExtXcm9uZyBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkw
+XDANBgkqhkiG9w0BAQEFAANLADBIAkEA2lm1V7zxwy0AhKZXNZq8bShJLEx5PZg0
+wcpN6k++FmCGgAr7yCoVKhCf+QWozLn4wqicKfHEeBmMb/om2/4NbQIDAQABo4Gc
+MIGZMB0GA1UdDgQWBBTSIHKuWdBpTX15/oHrYApXzVks8zBqBgNVHSMEYzBhgBTS
+IHKuWdBpTX15/oHrYApXzVks86E+pDwwOjESMBAGA1UEChMJV3JvbmcgSW5jMSQw
+IgYDVQQDExtXcm9uZyBDZXJ0aWZpY2F0ZSBBdXRob3JpdHmCCQCzd4PKDTRTIjAM
+BgNVHRMEBTADAQH/MA0GCSqGSIb3DQEBBQUAA0EAKCsw0lPuHmJSgR3QY5Vr8jav
+XbKqnT9W7sih/keu7R2Gna3jGczo0vWt6Mq7cWNs9H1mfznZZBlue1UiNlq+7Q==
+-----END CERTIFICATE-----`
