@@ -80,6 +80,13 @@ func generateConfig(forwardAddr string) Config {
 		Debug:              DebugMode,
 		Hostname:           "localhost",
 
+		// test directives for the listeners
+		CirconusListenerKey:      "test_token",
+		CirconusListenerInstance: "test_instance",
+		DataDogListenerAddr:      "127.0.0.1:8131",
+		DataDogListenerHost:      "datadog.foo.com",
+		StatsDListenerAddr:       "127.0.0.1:8131",
+
 		// Use a shorter interval for tests
 		Interval:            DefaultFlushInterval.String(),
 		Key:                 "",

@@ -67,6 +67,7 @@ type Server struct {
 	Workers     []*Worker
 	EventWorker *EventWorker
 	TraceWorker *TraceWorker
+	Listeners   []*Listener
 
 	Statsd *statsd.Client
 	Sentry *raven.Client
@@ -218,6 +219,29 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	}
 
 	ret.EventWorker = NewEventWorker(ret.Statsd)
+
+	// only setup listeners on local nodes
+	if conf.ForwardAddress != "" {
+
+		ret.Listeners = make([]*Listener, len(conf.Listeners))
+		for i := range ret.Listeners {
+
+			// create the listener
+			listener, err := NewListener(conf.Listeners[i], conf)
+			if err != nil {
+				log.WithField("err", err).Error("could not create listener")
+				continue
+			}
+
+			// launch the listener
+			go func(l *Listener) {
+				l.Listen()
+			}(listener)
+
+			// register the listener
+			ret.Listeners[i] = listener
+		}
+	}
 
 	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UdpAddress)
 	if err != nil {
@@ -590,6 +614,11 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 			return err
 		}
 		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
+
+		// write the metric to any backend listeners
+		for _, l := range s.Listeners {
+			l.MetricChan <- *metric
+		}
 	}
 	return nil
 }
