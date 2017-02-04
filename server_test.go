@@ -11,12 +11,14 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -585,6 +587,46 @@ func assertCSVFieldsMatch(t *testing.T, expected, actual [][]string, columns []i
 	}
 }
 
+func readTestKeysCerts() (map[string]string, error) {
+	// reads the insecure test keys and certificates in fixtures generated with:
+	// # Generate the authority key and certificate (512-bit RSA signed using SHA-256)
+	// openssl genrsa -out cakey.pem 512
+	// openssl req -new -x509 -key cakey.pem -out cacert.pem -days 1095 -subj "/O=Example Inc/CN=Example Certificate Authority"
+
+	// # Generate the server key and certificate, signed by the authority
+	// openssl genrsa -out serverkey.pem 512
+	// openssl req -new -key serverkey.pem -out serverkey.csr -days 1095 -subj "/O=Example Inc/CN=localhost"
+	// openssl x509 -req -in serverkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out servercert.pem -days 1095
+
+	// # Generate a client key and certificate, signed by the authority
+	// openssl genrsa -out clientkey.pem 512
+	// openssl req -new -key clientkey.pem -out clientkey.csr -days 1095 -subj "/O=Example Inc/CN=Veneur client key"
+	// openssl x509 -req -in clientkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out clientcert.pem -days 1095
+
+	// # Generate another ca and sign the client key
+	// openssl genrsa -out wrongcakey.pem 512
+	// openssl req -new -x509 -key wrongcakey.pem -out wrongcacert.pem -days 1095 -subj "/O=Wrong Inc/CN=Wrong Certificate Authority"
+	// openssl x509 -req -in clientkey.csr -CA wrongcacert.pem -CAkey wrongcakey.pem -CAcreateserial -out wrongclientcert.pem -days 1095
+
+	pems := map[string]string{}
+	pemFileNames := []string{
+		"cacert.pem",
+		"clientcert_correct.pem",
+		"clientcert_wrong.pem",
+		"clientkey.pem",
+		"servercert.pem",
+		"serverkey.pem",
+	}
+	for _, fileName := range pemFileNames {
+		b, err := ioutil.ReadFile(filepath.Join("fixtures", fileName))
+		if err != nil {
+			return nil, err
+		}
+		pems[fileName] = string(b)
+	}
+	return pems, nil
+}
+
 // TestTCPConfig checks that invalid configurations are errors
 func TestTCPConfig(t *testing.T) {
 	config := localConfig()
@@ -597,19 +639,25 @@ func TestTCPConfig(t *testing.T) {
 
 	config.TcpAddress = "localhost:8129"
 	config.TLSKey = "somekey"
+	config.TLSCertificate = ""
 	_, err = NewFromConfig(config)
 	if err == nil {
 		t.Error("key without certificate is a config error")
 	}
 
-	config.TLSKey = serverKey
+	pems, err := readTestKeysCerts()
+	if err != nil {
+		t.Fatal("could not read test keys/certs:", err)
+	}
+	config.TLSKey = pems["serverkey.pem"]
 	config.TLSCertificate = "somecert"
 	_, err = NewFromConfig(config)
 	if err == nil {
 		t.Error("invalid key and certificate is a config error")
 	}
 
-	config.TLSCertificate = serverCertificate
+	config.TLSKey = pems["serverkey.pem"]
+	config.TLSCertificate = pems["servercert.pem"]
 	s, err := NewFromConfig(config)
 	if err != nil {
 		t.Error("expected valid config")
@@ -664,6 +712,11 @@ func sendTCPMetrics(addr string, tlsConfig *tls.Config, f *fixture) error {
 
 // TestTCPMetrics checks that a server can accept metrics over a TCP socket.
 func TestTCPMetrics(t *testing.T) {
+	pems, err := readTestKeysCerts()
+	if err != nil {
+		t.Fatal("could not read test keys/certs:", err)
+	}
+
 	// all supported TCP connection modes
 	serverConfigs := []struct {
 		name                   string
@@ -673,17 +726,20 @@ func TestTCPMetrics(t *testing.T) {
 		expectedConnectResults [4]bool
 	}{
 		{"TCP", "", "", "", [4]bool{true, false, false, false}},
-		{"encrypted", serverKey, serverCertificate, "", [4]bool{false, true, true, true}},
-		{"authenticated", serverKey, serverCertificate, caCertificate, [4]bool{false, false, false, true}},
+		{"encrypted", pems["serverkey.pem"], pems["servercert.pem"], "",
+			[4]bool{false, true, true, true}},
+		{"authenticated", pems["serverkey.pem"], pems["servercert.pem"], pems["cacert.pem"],
+			[4]bool{false, false, false, true}},
 	}
 
 	// load all the various keys and certificates for the client
 	trustServerCA := x509.NewCertPool()
-	ok := trustServerCA.AppendCertsFromPEM([]byte(caCertificate))
+	ok := trustServerCA.AppendCertsFromPEM([]byte(pems["cacert.pem"]))
 	if !ok {
 		t.Fatal("could not load server certificate")
 	}
-	wrongCert, err := tls.X509KeyPair([]byte(wrongClientCertificate), []byte(clientKey))
+	wrongCert, err := tls.X509KeyPair(
+		[]byte(pems["clientcert_wrong.pem"]), []byte(pems["clientkey.pem"]))
 	if err != nil {
 		t.Fatal("could not load wrong client cert/key:", err)
 	}
@@ -691,7 +747,8 @@ func TestTCPMetrics(t *testing.T) {
 		RootCAs:      trustServerCA,
 		Certificates: []tls.Certificate{wrongCert},
 	}
-	correctCert, err := tls.X509KeyPair([]byte(correctClientCertificate), []byte(clientKey))
+	correctCert, err := tls.X509KeyPair(
+		[]byte(pems["clientcert_correct.pem"]), []byte(pems["clientkey.pem"]))
 	if err != nil {
 		t.Fatal("could not load correct client cert/key:", err)
 	}
@@ -747,99 +804,3 @@ func TestTCPMetrics(t *testing.T) {
 		f.Close()
 	}
 }
-
-// DO NOT USE: insecure test keys generated with the following commands:
-// # Generate the authority key and certificate (512-bit RSA signed using SHA-256)
-// openssl genrsa -out cakey.pem 512
-// openssl req -new -x509 -key cakey.pem -out cacert.pem -days 1095 -subj "/O=Example Inc/CN=Example Certificate Authority"
-
-// # Generate the server key and certificate, signed by the authority
-// openssl genrsa -out serverkey.pem 512
-// openssl req -new -key serverkey.pem -out serverkey.csr -days 1095 -subj "/O=Example Inc/CN=localhost"
-// openssl x509 -req -in serverkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out servercert.pem -days 1095
-
-// # Generate a client key and certificate, signed by the authority
-// openssl genrsa -out clientkey.pem 512
-// openssl req -new -key clientkey.pem -out clientkey.csr -days 1095 -subj "/O=Example Inc/CN=Veneur client key"
-// openssl x509 -req -in clientkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out clientcert.pem -days 1095
-
-// # Generate another ca and sign the client key
-// openssl genrsa -out wrongcakey.pem 512
-// openssl req -new -x509 -key wrongcakey.pem -out wrongcacert.pem -days 1095 -subj "/O=Wrong Inc/CN=Wrong Certificate Authority"
-// openssl x509 -req -in clientkey.csr -CA wrongcacert.pem -CAkey wrongcakey.pem -CAcreateserial -out wrongclientcert.pem -days 1095
-const caCertificate = `-----BEGIN CERTIFICATE-----
-MIICFjCCAcCgAwIBAgIJAKEIvn49TGuuMA0GCSqGSIb3DQEBBQUAMD4xFDASBgNV
-BAoTC0V4YW1wbGUgSW5jMSYwJAYDVQQDEx1FeGFtcGxlIENlcnRpZmljYXRlIEF1
-dGhvcml0eTAeFw0xNzAxMTEyMjU0NDFaFw0yMDAxMTEyMjU0NDFaMD4xFDASBgNV
-BAoTC0V4YW1wbGUgSW5jMSYwJAYDVQQDEx1FeGFtcGxlIENlcnRpZmljYXRlIEF1
-dGhvcml0eTBcMA0GCSqGSIb3DQEBAQUAA0sAMEgCQQC8X1Uu9kBANVdjGglpt0lV
-Qk8Pv84SojlV7US34+cHv9kSc+m2IEw4xhJRRD8SWgMApBqsaKje0eL+6mitd9U5
-AgMBAAGjgaAwgZ0wHQYDVR0OBBYEFOBZB0u12nikr1y8n2J3axKMVviuMG4GA1Ud
-IwRnMGWAFOBZB0u12nikr1y8n2J3axKMVviuoUKkQDA+MRQwEgYDVQQKEwtFeGFt
-cGxlIEluYzEmMCQGA1UEAxMdRXhhbXBsZSBDZXJ0aWZpY2F0ZSBBdXRob3JpdHmC
-CQChCL5+PUxrrjAMBgNVHRMEBTADAQH/MA0GCSqGSIb3DQEBBQUAA0EAeVcidFqa
-tI562hmJEv+sSwNGeBXB62t7NUEZK7ltAos3Lvopm1AvgYLtFn4khvCz0W10qkcv
-c0eygvw97lhi2Q==
------END CERTIFICATE-----`
-const serverKey = `-----BEGIN RSA PRIVATE KEY-----
-MIIBOgIBAAJBALcTfmYUfGJGidLo9KMoeIE+L2pK6862Pz9QkUD3Va2NtoYBtM1n
-XkZ6DzLcOqF91VXn9mYau08438t5mX0E/fkCAwEAAQJAf0Se7um42jy9HRBy2GWO
-+BG5toOkz8ujxikFAQuv1PhsbKSonbbZNVo+7uNE5h7TAYtpILy3N4gCiximFyub
-gQIhAOXUlb4lULdWQqr+jg7NT3e7wOn6livaK6G0kuEh+WOpAiEAy+wNAr28eMgz
-RtJEm9T4JudlUjJtw5WIzkwP9pOqOdECIG+hifoJdeMW6trTOXzHDEpDz7fWFwrF
-tVudsZnYPqHBAiB4yM5EC2IxIFPO5QiiTJjXYkPPVfNR36ZymvbxlDFFoQIhAK/r
-U048JgviFBqQy07pwhrlslcDF7rOaTYRlDC9Hs/B
------END RSA PRIVATE KEY-----`
-const serverCertificate = `-----BEGIN CERTIFICATE-----
-MIIBWjCCAQQCCQCE1RKqeZabvjANBgkqhkiG9w0BAQUFADA+MRQwEgYDVQQKEwtF
-eGFtcGxlIEluYzEmMCQGA1UEAxMdRXhhbXBsZSBDZXJ0aWZpY2F0ZSBBdXRob3Jp
-dHkwHhcNMTcwMTExMjI1NTQ0WhcNMjAwMTExMjI1NTQ0WjAqMRQwEgYDVQQKEwtF
-eGFtcGxlIEluYzESMBAGA1UEAxMJbG9jYWxob3N0MFwwDQYJKoZIhvcNAQEBBQAD
-SwAwSAJBALcTfmYUfGJGidLo9KMoeIE+L2pK6862Pz9QkUD3Va2NtoYBtM1nXkZ6
-DzLcOqF91VXn9mYau08438t5mX0E/fkCAwEAATANBgkqhkiG9w0BAQUFAANBABeG
-Gath3bDvwGwuyv3QgMC+gPUouD1BgoBZJUBA508YCfQRvhrvP9KG1U5oTSCr1z2Q
-f5GfzvjTlxeC+N9AUJ8=
------END CERTIFICATE-----`
-const clientKey = `-----BEGIN RSA PRIVATE KEY-----
-MIIBOQIBAAJBAMzKDTWFFkEO+tMZtaYuiiFRYTj6jSF68xPF5WWTQrBfoxgYM/iB
-IGAXXUKaFu1sW5IXTwMVSVpS6IXZBxOKmT0CAwEAAQJAfXdtEFUxhTqAQcWGnQH2
-buNFBXu7679AHeUo3kqSmStljLdhDQFkfTTLf9jxndtOhvJ5gsgb48eYEfJapaBG
-oQIhAPbi35g9jki2lETmj5mhzFpdPcS2D/h3ic6AiKxhvDcTAiEA1FlaY35Wcq3J
-1hKqb3r6djNDHr8PbHSXCkABrGgVaG8CIAD/j9nkvdOLcXQJ3qDHZ7Uh1WMbPVtK
-2HLOUD8qMgGjAiA8aL8CFurY7P/CWsUJud6Oyb6KfKgSnohpbhQLzABrGQIgYBvp
-SFo9IOb6RH9VMYxWENt2aFegZgSyUetaUh7JrZY=
------END RSA PRIVATE KEY-----`
-const correctClientCertificate = `-----BEGIN CERTIFICATE-----
-MIIBYjCCAQwCCQCE1RKqeZabvTANBgkqhkiG9w0BAQUFADA+MRQwEgYDVQQKEwtF
-eGFtcGxlIEluYzEmMCQGA1UEAxMdRXhhbXBsZSBDZXJ0aWZpY2F0ZSBBdXRob3Jp
-dHkwHhcNMTcwMTExMjI1NDQyWhcNMjAwMTExMjI1NDQyWjAyMRQwEgYDVQQKEwtF
-eGFtcGxlIEluYzEaMBgGA1UEAxMRVmVuZXVyIGNsaWVudCBrZXkwXDANBgkqhkiG
-9w0BAQEFAANLADBIAkEAzMoNNYUWQQ760xm1pi6KIVFhOPqNIXrzE8XlZZNCsF+j
-GBgz+IEgYBddQpoW7WxbkhdPAxVJWlLohdkHE4qZPQIDAQABMA0GCSqGSIb3DQEB
-BQUAA0EAMkZxOsZ87UZcyj03NjM8qf0lIU0EiIwzox54tGj2ux3TDC1AUhzrB2MT
-NHioTW/nZ/mho+4t2RX4Z+VbAqtvxQ==
------END CERTIFICATE-----`
-const wrongClientCertificate = `-----BEGIN CERTIFICATE-----
-MIIBXjCCAQgCCQDQKXcL6M3l8TANBgkqhkiG9w0BAQUFADA6MRIwEAYDVQQKEwlX
-cm9uZyBJbmMxJDAiBgNVBAMTG1dyb25nIENlcnRpZmljYXRlIEF1dGhvcml0eTAe
-Fw0xNzAxMTEyMzAwMTFaFw0yMDAxMTEyMzAwMTFaMDIxFDASBgNVBAoTC0V4YW1w
-bGUgSW5jMRowGAYDVQQDExFWZW5ldXIgY2xpZW50IGtleTBcMA0GCSqGSIb3DQEB
-AQUAA0sAMEgCQQDMyg01hRZBDvrTGbWmLoohUWE4+o0hevMTxeVlk0KwX6MYGDP4
-gSBgF11CmhbtbFuSF08DFUlaUuiF2QcTipk9AgMBAAEwDQYJKoZIhvcNAQEFBQAD
-QQC7S5NOcZZTXaREFf/ove2eJ5URP+/s/gkfZG22Y0MhoR8F7HDjjw+z9pusuhk8
-0Rl1h1+MCUoiyEbk8W2OjTc8
------END CERTIFICATE-----`
-
-const wrongCACertificate = `-----BEGIN CERTIFICATE-----
-MIICCjCCAbSgAwIBAgIJALN3g8oNNFMiMA0GCSqGSIb3DQEBBQUAMDoxEjAQBgNV
-BAoTCVdyb25nIEluYzEkMCIGA1UEAxMbV3JvbmcgQ2VydGlmaWNhdGUgQXV0aG9y
-aXR5MB4XDTE3MDExMTIzMDAwOVoXDTIwMDExMTIzMDAwOVowOjESMBAGA1UEChMJ
-V3JvbmcgSW5jMSQwIgYDVQQDExtXcm9uZyBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkw
-XDANBgkqhkiG9w0BAQEFAANLADBIAkEA2lm1V7zxwy0AhKZXNZq8bShJLEx5PZg0
-wcpN6k++FmCGgAr7yCoVKhCf+QWozLn4wqicKfHEeBmMb/om2/4NbQIDAQABo4Gc
-MIGZMB0GA1UdDgQWBBTSIHKuWdBpTX15/oHrYApXzVks8zBqBgNVHSMEYzBhgBTS
-IHKuWdBpTX15/oHrYApXzVks86E+pDwwOjESMBAGA1UEChMJV3JvbmcgSW5jMSQw
-IgYDVQQDExtXcm9uZyBDZXJ0aWZpY2F0ZSBBdXRob3JpdHmCCQCzd4PKDTRTIjAM
-BgNVHRMEBTADAQH/MA0GCSqGSIb3DQEBBQUAA0EAKCsw0lPuHmJSgR3QY5Vr8jav
-XbKqnT9W7sih/keu7R2Gna3jGczo0vWt6Mq7cWNs9H1mfznZZBlue1UiNlq+7Q==
------END CERTIFICATE-----`
