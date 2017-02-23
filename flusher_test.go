@@ -127,10 +127,10 @@ func testFlushTrace(t *testing.T, protobuf, jsn io.Reader) {
 	config := globalConfig()
 	config.TraceAPIAddress = remoteServer.URL
 
-	server := setupVeneurServer(t, config)
+	server := setupVeneurServer(t, config, nil)
 	defer server.Shutdown()
 
-	assert.Equal(t, server.DDTraceAddress, config.TraceAPIAddress)
+	assert.Equal(t, server.TraceDestinations.Members()[0], config.TraceAPIAddress)
 
 	packet, err := ioutil.ReadAll(protobuf)
 	assert.NoError(t, err)

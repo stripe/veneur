@@ -37,6 +37,15 @@ type MetricKey struct {
 	JoinedTags string `json:"tagstring"` // tags in deterministic order, joined with commas
 }
 
+// ToString returns a string representation of this MetricKey
+func (m *MetricKey) String() string {
+	var buff bytes.Buffer
+	buff.WriteString(m.Name)
+	buff.WriteString(m.Type)
+	buff.WriteString(m.JoinedTags)
+	return buff.String()
+}
+
 // ParseMetric converts the incoming packet from Datadog DogStatsD
 // Datagram format in to a Metric. http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
 func ParseMetric(packet []byte) (*UDPMetric, error) {

@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -339,14 +340,17 @@ func (s *Server) flushPart(metricSlice []samplers.DDMetric, wg *sync.WaitGroup) 
 }
 
 func (s *Server) flushForward(wms []WorkerMetrics) {
-	jmLength := 0
-	for _, wm := range wms {
-		jmLength += len(wm.histograms)
-		jmLength += len(wm.sets)
-		jmLength += len(wm.timers)
+
+	// Lock the server's forward destinations so it doesn't modify the list
+	// while we're using it!
+	s.ForwardDestinationsMtx.Lock()
+	defer s.ForwardDestinationsMtx.Unlock()
+	// Make a JSON metrics slice for each possible host in the ring
+	jsonMetricsByDestination := make(map[string][]samplers.JSONMetric)
+	for _, h := range s.ForwardDestinations.Members() {
+		jsonMetricsByDestination[h] = make([]samplers.JSONMetric, 0)
 	}
 
-	jsonMetrics := make([]samplers.JSONMetric, 0, jmLength)
 	exportStart := time.Now()
 	for _, wm := range wms {
 		for _, count := range wm.globalCounters {
@@ -359,7 +363,8 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
-			jsonMetrics = append(jsonMetrics, jm)
+			dest, _ := s.ForwardDestinations.Get(jm.MetricKey.String())
+			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 		for _, histo := range wm.histograms {
 			jm, err := histo.Export()
@@ -371,7 +376,8 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
-			jsonMetrics = append(jsonMetrics, jm)
+			dest, _ := s.ForwardDestinations.Get(jm.MetricKey.String())
+			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 		for _, set := range wm.sets {
 			jm, err := set.Export()
@@ -383,7 +389,8 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
-			jsonMetrics = append(jsonMetrics, jm)
+			dest, _ := s.ForwardDestinations.Get(jm.MetricKey.String())
+			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 		for _, timer := range wm.timers {
 			jm, err := timer.Export()
@@ -397,33 +404,40 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 			}
 			// the exporter doesn't know that these two are "different"
 			jm.Type = "timer"
-			jsonMetrics = append(jsonMetrics, jm)
+			dest, _ := s.ForwardDestinations.Get(jm.MetricKey.String())
+			jsonMetricsByDestination[dest] = append(jsonMetricsByDestination[dest], jm)
 		}
 	}
 	s.statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(exportStart).Nanoseconds()), []string{"part:export"}, 1.0)
 
-	s.statsd.Gauge("forward.post_metrics_total", float64(len(jsonMetrics)), nil, 1.0)
-	if len(jsonMetrics) == 0 {
-		log.Debug("Nothing to forward, skipping.")
-		return
+	metrics_total := 0
+	for dest, batch := range jsonMetricsByDestination {
+		if len(batch) == 0 {
+			log.Debug("Nothing to forward, skipping.")
+			continue
+		}
+
+		// always re-resolve the host to avoid dns caching
+		log.WithField("destination", dest).Debug("Beginning flush forward")
+		dnsStart := time.Now()
+		endpoint, err := resolveEndpoint(fmt.Sprintf("%s/import", dest))
+		if err != nil {
+			// not a fatal error if we fail
+			// we'll just try to use the host as it was given to us
+			s.statsd.Count("forward.error_total", 1, []string{"cause:dns"}, 1.0)
+			log.WithError(err).Warn("Could not re-resolve host for forward")
+		}
+		s.statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(dnsStart).Nanoseconds()), []string{"part:dns"}, 1.0)
+
+		// the error has already been logged (if there was one), so we only care
+		// about the success case
+		if s.postHelper(context.TODO(), endpoint, batch, "forward", true) == nil {
+			log.WithField("metrics", len(batch)).Info("Completed forward to upstream Veneur")
+			metrics_total += len(batch)
+		}
 	}
 
-	// always re-resolve the host to avoid dns caching
-	dnsStart := time.Now()
-	endpoint, err := resolveEndpoint(fmt.Sprintf("%s/import", s.ForwardAddr))
-	if err != nil {
-		// not a fatal error if we fail
-		// we'll just try to use the host as it was given to us
-		s.statsd.Count("forward.error_total", 1, []string{"cause:dns"}, 1.0)
-		log.WithError(err).Warn("Could not re-resolve host for forward")
-	}
-	s.statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(dnsStart).Nanoseconds()), []string{"part:dns"}, 1.0)
-
-	// the error has already been logged (if there was one), so we only care
-	// about the success case
-	if s.postHelper(context.TODO(), endpoint, jsonMetrics, "forward", true) == nil {
-		log.WithField("metrics", len(jsonMetrics)).Info("Completed forward to upstream Veneur")
-	}
+	s.statsd.Gauge("forward.post_metrics_total", float64(metrics_total), nil, 1.0)
 }
 
 // given a url, attempts to resolve the url's host, and returns a new url whose
@@ -467,7 +481,13 @@ func (s *Server) flushTraces(ctx context.Context) {
 
 	traces := s.TraceWorker.Flush()
 
-	var finalTraces []*DatadogTraceSpan
+	s.TraceDestinationsMtx.Lock()
+	defer s.TraceDestinationsMtx.Unlock()
+	tracesByDestination := make(map[string][]*DatadogTraceSpan)
+	for _, h := range s.TraceDestinations.Members() {
+		tracesByDestination[h] = make([]*DatadogTraceSpan, 0)
+	}
+
 	traces.Do(func(t interface{}) {
 		if t != nil {
 			span, ok := t.(ssf.SSFSample)
@@ -510,26 +530,33 @@ func (s *Server) flushTraces(ctx context.Context) {
 				Metrics: metrics,
 				Meta:    tags,
 			}
-			finalTraces = append(finalTraces, ddspan)
+			dest, _ := s.TraceDestinations.Get(strconv.FormatInt(span.Trace.TraceId, 10))
+			tracesByDestination[dest] = append(tracesByDestination[dest], ddspan)
 		}
 	})
-	if len(finalTraces) != 0 {
-		// this endpoint is not documented to take an array... but it does
-		// another curious constraint of this endpoint is that it does not
-		// support "Content-Encoding: deflate"
 
-		err := s.postHelper(span.Attach(ctx), fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
+	for dest, batch := range tracesByDestination {
+		if len(batch) != 0 {
+			// this endpoint is not documented to take an array... but it does
+			// another curious constraint of this endpoint is that it does not
+			// support "Content-Encoding: deflate"
 
-		if err == nil {
-			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
+			err := s.postHelper(span.Attach(ctx), fmt.Sprintf("%s/spans", dest), batch, "flush_traces", false)
+
+			if err == nil {
+				log.WithFields(logrus.Fields{
+					"traces":      len(batch),
+					"destination": dest,
+				}).Info("Completed flushing traces to Datadog")
+			} else {
+				log.WithFields(
+					logrus.Fields{
+						"traces": len(batch),
+					}).WithError(err).Error("Error flushing traces to Datadog")
+			}
 		} else {
-			log.WithFields(
-				logrus.Fields{
-					"traces":        len(finalTraces),
-					logrus.ErrorKey: err}).Error("Error flushing traces to Datadog")
+			log.Info("No traces to flush, skipping.")
 		}
-	} else {
-		log.Info("No traces to flush, skipping.")
 	}
 }
 

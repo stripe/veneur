@@ -27,7 +27,7 @@ func main() {
 	if err != nil {
 		logrus.WithError(err).Fatal("Error reading config file")
 	}
-	server, err := veneur.NewFromConfig(conf)
+	server, err := veneur.NewFromConfig(conf, nil)
 	if err != nil {
 		logrus.WithError(err).Fatal("Could not initialize server")
 	}
