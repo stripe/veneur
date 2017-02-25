@@ -1,10 +1,15 @@
 package veneur
 
 import (
+	"bufio"
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -64,10 +69,16 @@ type Server struct {
 	TraceAddr   *net.UDPAddr
 	RcvbufBytes int
 
-	interval             time.Duration
-	numReaders           int
-	metricMaxLength      int
-	traceMaxLengthBytes  int
+	interval            time.Duration
+	numReaders          int
+	metricMaxLength     int
+	traceMaxLengthBytes int
+
+	TCPAddr   *net.TCPAddr
+	tlsConfig *tls.Config
+	// closed when the TCP listener should exit
+	tcpListener net.Listener
+
 	HistogramPercentiles []float64
 	FlushMaxPerBody      int
 
@@ -174,8 +185,48 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.HTTPAddr = conf.HTTPAddress
 	ret.ForwardAddr = conf.ForwardAddress
 
+	if conf.TcpAddress != "" {
+		ret.TCPAddr, err = net.ResolveTCPAddr("tcp", conf.TcpAddress)
+		if err != nil {
+			return
+		}
+		if conf.TLSKey != "" {
+			if conf.TLSCertificate == "" {
+				err = errors.New("tls_key is set; must set tls_certificate")
+				return
+			}
+
+			// load the TLS key and certificate
+			var cert tls.Certificate
+			cert, err = tls.X509KeyPair([]byte(conf.TLSCertificate), []byte(conf.TLSKey))
+			if err != nil {
+				return
+			}
+
+			clientAuthMode := tls.NoClientCert
+			var clientCAs *x509.CertPool = nil
+			if conf.TLSAuthorityCertificate != "" {
+				// load the authority; require clients to present certificated signed by this authority
+				clientAuthMode = tls.RequireAndVerifyClientCert
+				clientCAs = x509.NewCertPool()
+				ok := clientCAs.AppendCertsFromPEM([]byte(conf.TLSAuthorityCertificate))
+				if !ok {
+					err = errors.New("tls_authority_certificate: Could not load any certificates")
+					return
+				}
+			}
+
+			ret.tlsConfig = &tls.Config{
+				Certificates: []tls.Certificate{cert},
+				ClientAuth:   clientAuthMode,
+				ClientCAs:    clientCAs,
+			}
+		}
+	}
+
 	conf.Key = "REDACTED"
 	conf.SentryDsn = "REDACTED"
+	conf.TLSKey = "REDACTED"
 	log.WithField("config", conf).Debug("Initialized server")
 
 	if len(conf.TraceAddress) > 0 && len(conf.TraceAPIAddress) > 0 {
@@ -287,6 +338,25 @@ func (s *Server) Start() {
 		}()
 	}
 
+	// Read Metrics from TCP Forever!
+	if s.TCPAddr != nil {
+		// allow shutdown to stop the accept goroutine
+		var err error
+		s.tcpListener, err = net.ListenTCP("tcp", s.TCPAddr)
+		if err != nil {
+			logrus.WithError(err).Fatal("Error listening for TCP connections")
+		}
+
+		go func() {
+			defer func() {
+				s.ConsumePanic(recover())
+			}()
+			s.ReadTCPSocket()
+		}()
+	} else {
+		logrus.Info("TCP not configured - not reading TCP socket")
+	}
+
 	// Read Traces Forever!
 	go func() {
 		defer func() {
@@ -314,7 +384,7 @@ func (s *Server) Start() {
 
 // HandleMetricPacket processes each packet that is sent to the server, and sends to an
 // appropriate worker (EventWorker or Worker).
-func (s *Server) HandleMetricPacket(packet []byte) {
+func (s *Server) HandleMetricPacket(packet []byte) error {
 	// This is a very performance-sensitive function
 	// and packets may be dropped if it gets slowed down.
 	// Keep that in mind when modifying!
@@ -322,7 +392,7 @@ func (s *Server) HandleMetricPacket(packet []byte) {
 	if len(packet) == 0 {
 		// a lot of clients send packets that accidentally have a trailing
 		// newline, it's easier to just let them be
-		return
+		return nil
 	}
 
 	if bytes.HasPrefix(packet, []byte{'_', 'e', '{'}) {
@@ -333,7 +403,7 @@ func (s *Server) HandleMetricPacket(packet []byte) {
 				"packet":        string(packet),
 			}).Error("Could not parse packet")
 			s.statsd.Count("packet.error_total", 1, []string{"packet_type:event"}, 1.0)
-			return
+			return err
 		}
 		s.EventWorker.EventChan <- *event
 	} else if bytes.HasPrefix(packet, []byte{'_', 's', 'c'}) {
@@ -344,7 +414,7 @@ func (s *Server) HandleMetricPacket(packet []byte) {
 				"packet":        string(packet),
 			}).Error("Could not parse packet")
 			s.statsd.Count("packet.error_total", 1, []string{"packet_type:service_check"}, 1.0)
-			return
+			return err
 		}
 		s.EventWorker.ServiceCheckChan <- *svcheck
 	} else {
@@ -355,10 +425,11 @@ func (s *Server) HandleMetricPacket(packet []byte) {
 				"packet":        string(packet),
 			}).Error("Could not parse packet")
 			s.statsd.Count("packet.error_total", 1, []string{"packet_type:metric"}, 1.0)
-			return
+			return err
 		}
 		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
 	}
+	return nil
 }
 
 // HandleTracePacket accepts an incoming packet as bytes and sends it to the
@@ -456,6 +527,108 @@ func (s *Server) ReadTraceSocket(packetPool *sync.Pool, reuseport bool) {
 	}
 }
 
+func (s *Server) handleTCPGoroutine(conn net.Conn) {
+	defer func() {
+		s.ConsumePanic(recover())
+	}()
+
+	defer func() {
+		log.WithField("peer", conn.RemoteAddr()).Debug("Closing TCP connection")
+		err := conn.Close()
+		s.statsd.Count("tcp.disconnects", 1, nil, 1.0)
+		if err != nil {
+			log.WithFields(logrus.Fields{
+				logrus.ErrorKey: err,
+				"peer":          conn.RemoteAddr(),
+			}).Error("TCP close failed")
+		}
+	}()
+	s.statsd.Count("tcp.connects", 1, nil, 1.0)
+
+	if tlsConn, ok := conn.(*tls.Conn); ok {
+		// complete the handshake to verify the certificate
+		if !tlsConn.ConnectionState().HandshakeComplete {
+			err := tlsConn.Handshake()
+			if err != nil {
+				s.statsd.Count("tcp.tls_handshake_failures", 1, nil, 1.0)
+				log.WithError(err).Error("TLS Handshake failed")
+				return
+			}
+		}
+
+		state := tlsConn.ConnectionState()
+		var clientCert pkix.RDNSequence
+		if len(state.PeerCertificates) > 0 {
+			clientCert = state.PeerCertificates[0].Subject.ToRDNSequence()
+		}
+		log.WithFields(logrus.Fields{
+			"peer":        conn.RemoteAddr().String(),
+			"client_cert": clientCert,
+		}).Debug("Starting TLS connection")
+	} else {
+		log.WithFields(logrus.Fields{
+			"peer": conn.RemoteAddr().String(),
+		}).Debug("Starting TCP connection")
+	}
+
+	// Scanner is nearly the same performance as a custom implementation
+	buf := bufio.NewScanner(conn)
+	for buf.Scan() {
+		// treat each line as a separate packet
+		err := s.HandleMetricPacket(buf.Bytes())
+		if err != nil {
+			// don't consume bad data from a client indefinitely
+			// HandleMetricPacket logs the err and packet, and increments error counters
+			log.WithField("peer", conn.RemoteAddr()).Error(
+				"Error parsing packet; closing TCP connection")
+			return
+		}
+	}
+	if buf.Err() != nil {
+		log.WithFields(logrus.Fields{
+			logrus.ErrorKey: buf.Err(),
+			"peer":          conn.RemoteAddr(),
+		}).Error("Error reading from TCP client")
+	}
+}
+
+// ReadTCPSocket listens on Server.TCPAddr for new connections, starting a goroutine for each.
+func (s *Server) ReadTCPSocket() {
+	mode := "unencrypted"
+	if s.tlsConfig != nil {
+		// wrap the listener with TLS
+		s.tcpListener = tls.NewListener(s.tcpListener, s.tlsConfig)
+		if s.tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
+			mode = "authenticated"
+		} else {
+			mode = "encrypted"
+		}
+	}
+
+	log.WithFields(logrus.Fields{
+		"address": s.TCPAddr, "mode": mode,
+	}).Info("Listening for TCP connections")
+
+	for {
+		defer func() {
+			s.ConsumePanic(recover())
+		}()
+		conn, err := s.tcpListener.Accept()
+		if err != nil {
+			// TODO: better way of detecting this error? net.errClosing is private
+			if strings.HasSuffix(err.Error(), "use of closed network connection") {
+				// occurs when cleanly shutting down the server e.g. in testss
+				log.WithError(err).Info("Accept on closed listener; shutting down")
+				return
+			} else {
+				log.WithError(err).Fatal("TCP accept failed")
+			}
+		}
+
+		go s.handleTCPGoroutine(conn)
+	}
+}
+
 // HTTPServe starts the HTTP server and listens perpetually until it encounters an unrecoverable error.
 func (s *Server) HTTPServe() {
 	var prf interface {
@@ -506,6 +679,12 @@ func (s *Server) HTTPServe() {
 func (s *Server) Shutdown() {
 	// TODO(aditya) shut down workers and socket readers
 	log.Info("Shutting down server gracefully")
+	if s.tcpListener != nil {
+		err := s.tcpListener.Close()
+		if err != nil {
+			log.WithError(err).Warn("Ignoring error closing TCP listener")
+		}
+	}
 	graceful.Shutdown()
 }
 

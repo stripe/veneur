@@ -10,7 +10,8 @@
 
 ## Improvements
 
-* Add `omit_empt_hostname` option. If true and `hostname` tag is set to empty, Veneur will not add a host tag to it's own metrics. Thanks [evanj](https://github.com/evanj)!
+* Add `omit_empty_hostname` option. If true and `hostname` tag is set to empty, Veneur will not add a host tag to it's own metrics. Thanks [evanj](https://github.com/evanj)!
 * Support "all interfaces" addresses (`:1234`) for listening configuration. Thanks [evanj](https://github.com/evanj)!
+* Add support for receiving statsd packets over authenticated TLS connections. Thanks [evanj](https://github.com/evanj)!
 * [EXPERIMENTAL] Add [InfluxDB](https://www.influxdata.com) support.
 * [EXPERIMENTAL] Add support for ingesting traces and sending to Datadog's APM agent.

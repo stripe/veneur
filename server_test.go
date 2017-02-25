@@ -4,16 +4,21 @@ import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/csv"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -164,15 +169,20 @@ type DDMetricsRequest struct {
 
 // fixture sets up a mock Datadog API server and Veneur
 type fixture struct {
-	api       *httptest.Server
-	server    Server
-	ddmetrics chan DDMetricsRequest
+	api             *httptest.Server
+	server          Server
+	ddmetrics       chan DDMetricsRequest
+	interval        time.Duration
+	flushMaxPerBody int
 }
 
 func newFixture(t *testing.T, config Config) *fixture {
+	interval, err := config.ParseInterval()
+	assert.NoError(t, err)
+
 	// Set up a remote server (the API that we're sending the data to)
 	// (e.g. Datadog)
-	f := &fixture{nil, Server{}, make(chan DDMetricsRequest, 10)}
+	f := &fixture{nil, Server{}, make(chan DDMetricsRequest, 10), interval, config.FlushMaxPerBody}
 	f.api = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		zr, err := zlib.NewReader(r.Body)
 		if err != nil {
@@ -193,13 +203,20 @@ func newFixture(t *testing.T, config Config) *fixture {
 	config.APIHostname = f.api.URL
 	config.NumWorkers = 1
 	f.server = setupVeneurServer(t, config)
+
 	return f
 }
 
 func (f *fixture) Close() {
+	// make Close safe to call multiple times
+	if f.ddmetrics == nil {
+		return
+	}
+
 	f.api.Close()
 	f.server.Shutdown()
 	close(f.ddmetrics)
+	f.ddmetrics = nil
 }
 
 // TestLocalServerUnaggregatedMetrics tests the behavior of
@@ -567,5 +584,223 @@ func assertCSVFieldsMatch(t *testing.T, expected, actual [][]string, columns []i
 		for _, column := range columns {
 			assert.Equal(t, row[column], actual[i][column], "mismatch at column %d", column)
 		}
+	}
+}
+
+func readTestKeysCerts() (map[string]string, error) {
+	// reads the insecure test keys and certificates in fixtures generated with:
+	// # Generate the authority key and certificate (512-bit RSA signed using SHA-256)
+	// openssl genrsa -out cakey.pem 512
+	// openssl req -new -x509 -key cakey.pem -out cacert.pem -days 1095 -subj "/O=Example Inc/CN=Example Certificate Authority"
+
+	// # Generate the server key and certificate, signed by the authority
+	// openssl genrsa -out serverkey.pem 512
+	// openssl req -new -key serverkey.pem -out serverkey.csr -days 1095 -subj "/O=Example Inc/CN=localhost"
+	// openssl x509 -req -in serverkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out servercert.pem -days 1095
+
+	// # Generate a client key and certificate, signed by the authority
+	// openssl genrsa -out clientkey.pem 512
+	// openssl req -new -key clientkey.pem -out clientkey.csr -days 1095 -subj "/O=Example Inc/CN=Veneur client key"
+	// openssl x509 -req -in clientkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out clientcert.pem -days 1095
+
+	// # Generate another ca and sign the client key
+	// openssl genrsa -out wrongcakey.pem 512
+	// openssl req -new -x509 -key wrongcakey.pem -out wrongcacert.pem -days 1095 -subj "/O=Wrong Inc/CN=Wrong Certificate Authority"
+	// openssl x509 -req -in clientkey.csr -CA wrongcacert.pem -CAkey wrongcakey.pem -CAcreateserial -out wrongclientcert.pem -days 1095
+
+	pems := map[string]string{}
+	pemFileNames := []string{
+		"cacert.pem",
+		"clientcert_correct.pem",
+		"clientcert_wrong.pem",
+		"clientkey.pem",
+		"servercert.pem",
+		"serverkey.pem",
+	}
+	for _, fileName := range pemFileNames {
+		b, err := ioutil.ReadFile(filepath.Join("fixtures", fileName))
+		if err != nil {
+			return nil, err
+		}
+		pems[fileName] = string(b)
+	}
+	return pems, nil
+}
+
+// TestTCPConfig checks that invalid configurations are errors
+func TestTCPConfig(t *testing.T) {
+	config := localConfig()
+
+	config.TcpAddress = " invalid:invalid"
+	_, err := NewFromConfig(config)
+	if err == nil {
+		t.Error("invalid TCP address is a config error")
+	}
+
+	config.TcpAddress = "localhost:8129"
+	config.TLSKey = "somekey"
+	config.TLSCertificate = ""
+	_, err = NewFromConfig(config)
+	if err == nil {
+		t.Error("key without certificate is a config error")
+	}
+
+	pems, err := readTestKeysCerts()
+	if err != nil {
+		t.Fatal("could not read test keys/certs:", err)
+	}
+	config.TLSKey = pems["serverkey.pem"]
+	config.TLSCertificate = "somecert"
+	_, err = NewFromConfig(config)
+	if err == nil {
+		t.Error("invalid key and certificate is a config error")
+	}
+
+	config.TLSKey = pems["serverkey.pem"]
+	config.TLSCertificate = pems["servercert.pem"]
+	s, err := NewFromConfig(config)
+	if err != nil {
+		t.Error("expected valid config")
+	}
+	if s.TCPAddr == nil || s.TCPAddr.Port != 8129 {
+		t.Error("TCPAddr not set correctly:", s.TCPAddr)
+	}
+}
+
+func sendTCPMetrics(addr string, tlsConfig *tls.Config, f *fixture) error {
+	// TODO: attempt to ensure the accept goroutine opens the port before we attempt to connect
+	// connect and send stats in two parts
+	var conn net.Conn
+	var err error
+	if tlsConfig != nil {
+		conn, err = tls.Dial("tcp", addr, tlsConfig)
+	} else {
+		conn, err = net.Dial("tcp", addr)
+	}
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	_, err = conn.Write([]byte("page.views:1|c\npage.views:1|c\n"))
+	if err != nil {
+		return err
+	}
+	err = conn.Close()
+	if err != nil {
+		return err
+	}
+
+	// check that the server received the stats; HACK: sleep to ensure workers process before flush
+	time.Sleep(20 * time.Millisecond)
+	f.server.Flush()
+	select {
+	case ddmetrics := <-f.ddmetrics:
+		if len(ddmetrics.Series) != 1 {
+			return fmt.Errorf("unexpected Series: %v", ddmetrics.Series)
+		}
+		if !(ddmetrics.Series[0].Name == "page.views" && ddmetrics.Series[0].Value[0][1] == 40) {
+			return fmt.Errorf("unexpected metric: %v", ddmetrics.Series[0])
+		}
+
+	case <-time.After(100 * time.Millisecond):
+		return fmt.Errorf("timed out waiting for metrics")
+	}
+
+	return nil
+}
+
+// TestTCPMetrics checks that a server can accept metrics over a TCP socket.
+func TestTCPMetrics(t *testing.T) {
+	pems, err := readTestKeysCerts()
+	if err != nil {
+		t.Fatal("could not read test keys/certs:", err)
+	}
+
+	// all supported TCP connection modes
+	serverConfigs := []struct {
+		name                   string
+		serverKey              string
+		serverCertificate      string
+		authorityCertificate   string
+		expectedConnectResults [4]bool
+	}{
+		{"TCP", "", "", "", [4]bool{true, false, false, false}},
+		{"encrypted", pems["serverkey.pem"], pems["servercert.pem"], "",
+			[4]bool{false, true, true, true}},
+		{"authenticated", pems["serverkey.pem"], pems["servercert.pem"], pems["cacert.pem"],
+			[4]bool{false, false, false, true}},
+	}
+
+	// load all the various keys and certificates for the client
+	trustServerCA := x509.NewCertPool()
+	ok := trustServerCA.AppendCertsFromPEM([]byte(pems["cacert.pem"]))
+	if !ok {
+		t.Fatal("could not load server certificate")
+	}
+	wrongCert, err := tls.X509KeyPair(
+		[]byte(pems["clientcert_wrong.pem"]), []byte(pems["clientkey.pem"]))
+	if err != nil {
+		t.Fatal("could not load wrong client cert/key:", err)
+	}
+	wrongConfig := &tls.Config{
+		RootCAs:      trustServerCA,
+		Certificates: []tls.Certificate{wrongCert},
+	}
+	correctCert, err := tls.X509KeyPair(
+		[]byte(pems["clientcert_correct.pem"]), []byte(pems["clientkey.pem"]))
+	if err != nil {
+		t.Fatal("could not load correct client cert/key:", err)
+	}
+	correctConfig := &tls.Config{
+		RootCAs:      trustServerCA,
+		Certificates: []tls.Certificate{correctCert},
+	}
+
+	// all supported client configurations
+	clientConfigs := []struct {
+		name      string
+		tlsConfig *tls.Config
+	}{
+		{"TCP", nil},
+		{"TLS no cert", &tls.Config{RootCAs: trustServerCA}},
+		{"TLS wrong cert", wrongConfig},
+		{"TLS correct cert", correctConfig},
+	}
+
+	for _, serverConfig := range serverConfigs {
+		config := localConfig()
+		config.NumWorkers = 1
+		// Use a unique port to avoid race with shutting down accept goroutine on Linux
+		config.TcpAddress = fmt.Sprintf("localhost:%d", HTTPAddrPort)
+		HTTPAddrPort++
+		config.TLSKey = serverConfig.serverKey
+		config.TLSCertificate = serverConfig.serverCertificate
+		config.TLSAuthorityCertificate = serverConfig.authorityCertificate
+		f := newFixture(t, config)
+		defer f.Close() // ensure shutdown if the test aborts
+
+		// attempt to connect and send stats with each of the client configurations
+		for i, clientConfig := range clientConfigs {
+			expectedSuccess := serverConfig.expectedConnectResults[i]
+			err := sendTCPMetrics(config.TcpAddress, clientConfig.tlsConfig, f)
+			if err != nil {
+				if expectedSuccess {
+					t.Errorf("server config: '%s' client config: '%s' failed: %s",
+						serverConfig.name, clientConfig.name, err.Error())
+				} else {
+					fmt.Printf("SUCCESS server config: '%s' client config: '%s' got expected error: %s\n",
+						serverConfig.name, clientConfig.name, err.Error())
+				}
+			} else if !expectedSuccess {
+				t.Errorf("server config: '%s' client config: '%s' worked; should fail!",
+					serverConfig.name, clientConfig.name)
+			} else {
+				fmt.Printf("SUCCESS server config: '%s' client config: '%s'\n",
+					serverConfig.name, clientConfig.name)
+			}
+		}
+
+		f.Close()
 	}
 }
