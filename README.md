@@ -34,6 +34,7 @@ Veneur is different for a few reasons. They are enumerated here.
 Veneur adheres to [the official DogStatsD datagram format](http://docs.datadoghq.com/guides/dogstatsd/#datagram-format) with the exceptions below:
 
 * The tag `veneurlocalonly` is stripped and influences forwarding behavior, as discussed below.
+* The tag `veneurglobalonly` is stripped and influences forwarding behavior, as discussed below.
 
 ## Global Aggregation
 
@@ -69,7 +70,7 @@ Veneur uses [HyperLogLogs](https://github.com/clarkduvall/hyperloglog) for appro
 
 ## Global Counters
 
-Via an optional [magic tag](#magic-tag) Veneur will forward counters to a global host for accumulation. This feature was primarily developed to
+Via an optional [magic tag](#magic-tag) Veneur will forward counters to a global host for accumulation. This feature was primarily developed to control tag cardinality. Some counters are valuable but do not require per-host tagging.
 
 ## Lack of Host Tags for Aggregated Metrics
 
