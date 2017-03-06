@@ -309,7 +309,7 @@ tls_authority_certificate: |
 
 ### Performance implications of TLS
 
-Establishing a TLS connection is fairly expensive, so you should reuse connections as much as possible. Using RSA keys are also far more expensive than using ECDH keys. Using localhost on a machine with one CPU, Veneur was able to establish ~700 connections/second using ECDH keys, but only ~110 connections/second using RSA keys. According to the Go profiling for a Veneur instance using TLS with RSA keys, approximately 25% of the CPU time was in the TLS handshake, and 13% was decrypting data.
+Establishing a TLS connection is fairly expensive, so you should reuse connections as much as possible. RSA keys are also far more expensive than using ECDH keys. Using localhost on a machine with one CPU, Veneur was able to establish ~700 connections/second using ECDH `prime256v1` keys, but only ~110 connections/second using RSA 2048-bit keys. According to the Go profiling for a Veneur instance using TLS with RSA keys, approximately 25% of the CPU time was in the TLS handshake, and 13% was decrypting data.
 
 # Name
 
