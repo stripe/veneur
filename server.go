@@ -136,6 +136,16 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		if err != nil {
 			return
 		}
+
+		log.Hooks.Add(sentryHook{
+			c:        ret.sentry,
+			hostname: ret.Hostname,
+			lv: []logrus.Level{
+				logrus.ErrorLevel,
+				logrus.FatalLevel,
+				logrus.PanicLevel,
+			},
+		})
 	}
 
 	if conf.Debug {
@@ -145,16 +155,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	if conf.EnableProfiling {
 		ret.enableProfiling = true
 	}
-
-	log.Hooks.Add(sentryHook{
-		c:        ret.sentry,
-		hostname: ret.Hostname,
-		lv: []logrus.Level{
-			logrus.ErrorLevel,
-			logrus.FatalLevel,
-			logrus.PanicLevel,
-		},
-	})
 
 	log.WithField("number", conf.NumWorkers).Info("Preparing workers")
 	// Allocate the slice, we'll fill it with workers later.
