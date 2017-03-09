@@ -95,20 +95,8 @@ func TestFlushTraces(t *testing.T) {
 }
 
 func testFlushTrace(t *testing.T, protobuf, jsn io.Reader) {
-
-	RemoteResponseChan := make(chan struct{}, 1)
-	defer func() {
-		select {
-		case <-RemoteResponseChan:
-			// all is safe
-			return
-		case <-time.After(10 * time.Second):
-			assert.Fail(t, "Global server did not complete all responses before test terminated!")
-		}
-	}()
-
+	remoteResponseChan := make(chan struct{}, 1)
 	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		var expected []*DatadogTraceSpan
 		err := json.NewDecoder(jsn).Decode(&expected)
 		assert.NoError(t, err)
@@ -121,8 +109,9 @@ func testFlushTrace(t *testing.T, protobuf, jsn io.Reader) {
 
 		w.WriteHeader(http.StatusAccepted)
 
-		RemoteResponseChan <- struct{}{}
+		remoteResponseChan <- struct{}{}
 	}))
+	defer remoteServer.Close()
 
 	config := globalConfig()
 	config.TraceAPIAddress = remoteServer.URL
@@ -139,4 +128,13 @@ func testFlushTrace(t *testing.T, protobuf, jsn io.Reader) {
 
 	assert.NoError(t, err)
 	server.Flush()
+
+	// wait for remoteServer to process the POST
+	select {
+	case <-remoteResponseChan:
+		// all is safe
+		break
+	case <-time.After(10 * time.Second):
+		assert.Fail(t, "Global server did not complete all responses before test terminated!")
+	}
 }
