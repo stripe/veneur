@@ -98,8 +98,9 @@ func generateConfig(forwardAddr string) Config {
 		SentryDsn:       "",
 		FlushMaxPerBody: 1024,
 
-		TraceAddress:    "127.0.0.1:8128",
-		TraceAPIAddress: forwardAddr,
+		TraceAddress:        "127.0.0.1:8128",
+		TraceAPIAddress:     forwardAddr,
+		TraceMaxLengthBytes: 4096,
 	}
 }
 

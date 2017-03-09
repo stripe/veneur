@@ -67,6 +67,7 @@ type Server struct {
 	ForwardAddr string
 	UDPAddr     *net.UDPAddr
 	TraceAddr   *net.UDPAddr
+	traceSocket net.PacketConn
 	RcvbufBytes int
 
 	interval            time.Duration
@@ -358,16 +359,25 @@ func (s *Server) Start() {
 	}
 
 	// Read Traces Forever!
-	go func() {
-		defer func() {
-			s.ConsumePanic(recover())
-		}()
-		if s.TraceAddr != nil {
-			s.ReadTraceSocket(tracePool, s.numReaders != 1)
-		} else {
-			logrus.Info("Tracing not configured - not reading trace socket")
+	if s.TraceAddr != nil {
+		// create the socket before starting the reader, so we can close it in Shutdown()
+		// we don't need SO_REUSEPORT: There is currently only one goroutine reading traces
+		var err error
+		s.traceSocket, err = NewSocket(s.TraceAddr, s.RcvbufBytes, false)
+		if err != nil {
+			// if any goroutine fails to create the socket, we can't really recover
+			log.WithError(err).Fatal("Error listening for UDP traces")
 		}
-	}()
+
+		go func() {
+			defer func() {
+				s.ConsumePanic(recover())
+			}()
+			s.ReadTraceSocket(tracePool)
+		}()
+	} else {
+		logrus.Info("Tracing not configured - not reading trace socket")
+	}
 
 	// Flush every Interval forever!
 	go func() {
@@ -496,28 +506,29 @@ func (s *Server) ReadMetricSocket(packetPool *sync.Pool, reuseport bool) {
 }
 
 // ReadTraceSocket listens for available packets to handle.
-func (s *Server) ReadTraceSocket(packetPool *sync.Pool, reuseport bool) {
+func (s *Server) ReadTraceSocket(packetPool *sync.Pool) {
 	// TODO This is duplicated from ReadMetricSocket and feels like it could be it's
 	// own function?
 
-	if s.TraceAddr == nil {
-		log.WithField("s.TraceAddr", s.TraceAddr).Fatal("Cannot listen on nil trace address")
+	if s.traceSocket == nil {
+		log.WithField("s.traceSocket", s.traceSocket).Fatal("Cannot listen on nil trace address")
 	}
+	p := packetPool.Get().([]byte)
+	if len(p) == 0 {
+		log.WithField("len", len(p)).Fatal("packetPool must create non-zero length slices")
+	}
+	packetPool.Put(p)
 
-	serverConn, err := NewSocket(s.TraceAddr, s.RcvbufBytes, reuseport)
-	if err != nil {
-		// if any goroutine fails to create the socket, we can't really
-		// recover, so we just blow up
-		// this probably indicates a systemic issue, eg lack of
-		// SO_REUSEPORT support
-		log.WithError(err).Fatal("Error listening for UDP traces")
-	}
 	log.WithField("address", s.TraceAddr).Info("Listening for UDP traces")
-
 	for {
 		buf := packetPool.Get().([]byte)
-		n, _, err := serverConn.ReadFrom(buf)
+		n, _, err := s.traceSocket.ReadFrom(buf)
 		if err != nil {
+			if isClosedSocketErr(err) {
+				// occurs when cleanly shutting down the server e.g. in tests
+				log.WithError(err).Info("ReadFrom called on closed listener; shutting down")
+				break
+			}
 			log.WithError(err).Error("Error reading from UDP trace socket")
 			continue
 		}
@@ -592,6 +603,12 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 	}
 }
 
+// Returns true if err represents the use of a closed network socket.
+func isClosedSocketErr(err error) bool {
+	// TODO: better way of detecting this error? net.errClosing is private
+	return strings.HasSuffix(err.Error(), "use of closed network connection")
+}
+
 // ReadTCPSocket listens on Server.TCPAddr for new connections, starting a goroutine for each.
 func (s *Server) ReadTCPSocket() {
 	mode := "unencrypted"
@@ -615,9 +632,8 @@ func (s *Server) ReadTCPSocket() {
 		}()
 		conn, err := s.tcpListener.Accept()
 		if err != nil {
-			// TODO: better way of detecting this error? net.errClosing is private
-			if strings.HasSuffix(err.Error(), "use of closed network connection") {
-				// occurs when cleanly shutting down the server e.g. in testss
+			if isClosedSocketErr(err) {
+				// occurs when cleanly shutting down the server e.g. in tests
 				log.WithError(err).Info("Accept on closed listener; shutting down")
 				return
 			} else {
@@ -685,6 +701,14 @@ func (s *Server) Shutdown() {
 			log.WithError(err).Warn("Ignoring error closing TCP listener")
 		}
 	}
+
+	if s.traceSocket != nil {
+		err := s.traceSocket.Close()
+		if err != nil {
+			log.WithError(err).Warn("Ignoring error closing trace socket")
+		}
+	}
+
 	graceful.Shutdown()
 }
 
