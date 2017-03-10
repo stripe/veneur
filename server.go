@@ -363,7 +363,8 @@ func (s *Server) Start() {
 			s.ConsumePanic(recover())
 		}()
 		if s.TraceAddr != nil {
-			s.ReadTraceSocket(tracePool, s.numReaders != 1)
+			// If we ever use multiple readers, pass in the appropriate reuseport option
+			s.ReadTraceSocket(tracePool)
 		} else {
 			logrus.Info("Tracing not configured - not reading trace socket")
 		}
@@ -496,7 +497,7 @@ func (s *Server) ReadMetricSocket(packetPool *sync.Pool, reuseport bool) {
 }
 
 // ReadTraceSocket listens for available packets to handle.
-func (s *Server) ReadTraceSocket(packetPool *sync.Pool, reuseport bool) {
+func (s *Server) ReadTraceSocket(packetPool *sync.Pool) {
 	// TODO This is duplicated from ReadMetricSocket and feels like it could be it's
 	// own function?
 
@@ -504,7 +505,8 @@ func (s *Server) ReadTraceSocket(packetPool *sync.Pool, reuseport bool) {
 		log.WithField("s.TraceAddr", s.TraceAddr).Fatal("Cannot listen on nil trace address")
 	}
 
-	serverConn, err := NewSocket(s.TraceAddr, s.RcvbufBytes, reuseport)
+	// if we want to use multiple readers, make reuseport a parameter, like ReadMetricSocket.
+	serverConn, err := NewSocket(s.TraceAddr, s.RcvbufBytes, false)
 	if err != nil {
 		// if any goroutine fails to create the socket, we can't really
 		// recover, so we just blow up
