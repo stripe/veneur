@@ -682,6 +682,8 @@ func (s *Server) Shutdown() {
 	// TODO(aditya) shut down workers and socket readers
 	log.Info("Shutting down server gracefully")
 	if s.tcpListener != nil {
+		// TODO: the socket is in use until there are no goroutines blocked in Accept
+		// we should wait until the accepting goroutine exits
 		err := s.tcpListener.Close()
 		if err != nil {
 			log.WithError(err).Warn("Ignoring error closing TCP listener")

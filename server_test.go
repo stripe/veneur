@@ -66,7 +66,12 @@ func globalConfig() Config {
 // generateConfig is not called config to avoid
 // accidental variable shadowing
 func generateConfig(forwardAddr string) Config {
+	// we don't shut down ports so avoid address in use errors
 	port := HTTPAddrPort
+	HTTPAddrPort++
+	metricsPort := HTTPAddrPort
+	HTTPAddrPort++
+	tracePort := HTTPAddrPort
 	HTTPAddrPort++
 
 	return Config{
@@ -81,7 +86,7 @@ func generateConfig(forwardAddr string) Config {
 		Percentiles:         []float64{.5, .75, .99},
 		Aggregates:          []string{"min", "max", "count"},
 		ReadBufferSizeBytes: 2097152,
-		UdpAddress:          "localhost:8126",
+		UdpAddress:          fmt.Sprintf("localhost:%d", metricsPort),
 		HTTPAddress:         fmt.Sprintf("localhost:%d", port),
 		ForwardAddress:      forwardAddr,
 		NumWorkers:          4,
@@ -98,7 +103,8 @@ func generateConfig(forwardAddr string) Config {
 		SentryDsn:       "",
 		FlushMaxPerBody: 1024,
 
-		TraceAddress:    "127.0.0.1:8128",
+		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
+		TraceAddress:    fmt.Sprintf("127.0.0.1:%d", tracePort),
 		TraceAPIAddress: forwardAddr,
 	}
 }
