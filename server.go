@@ -9,7 +9,6 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -74,10 +73,12 @@ type Server struct {
 	metricMaxLength     int
 	traceMaxLengthBytes int
 
-	TCPAddr   *net.TCPAddr
-	tlsConfig *tls.Config
-	// closed when the TCP listener should exit
+	TCPAddr     *net.TCPAddr
+	tlsConfig   *tls.Config
 	tcpListener net.Listener
+
+	// closed when the server is shutting down gracefully
+	shutdown chan struct{}
 
 	HistogramPercentiles []float64
 	FlushMaxPerBody      int
@@ -289,6 +290,9 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		)
 		ret.registerPlugin(plugin)
 	}
+
+	// closed in Shutdown; Same approach and http.Shutdown
+	ret.shutdown = make(chan struct{})
 
 	return
 }
@@ -617,14 +621,13 @@ func (s *Server) ReadTCPSocket() {
 		}()
 		conn, err := s.tcpListener.Accept()
 		if err != nil {
-			// TODO: better way of detecting this error? net.errClosing is private
-			if strings.HasSuffix(err.Error(), "use of closed network connection") {
-				// occurs when cleanly shutting down the server e.g. in testss
-				log.WithError(err).Info("Accept on closed listener; shutting down")
-				return
-			} else {
-				log.WithError(err).Fatal("TCP accept failed")
+			select {
+			case <-s.shutdown:
+				// occurs when cleanly shutting down the server e.g. in tests; ignore errors
+				log.WithError(err).Info("Ignoring Accept error while shutting down")
+			default:
 			}
+			log.WithError(err).Fatal("TCP accept failed")
 		}
 
 		go s.handleTCPGoroutine(conn)
@@ -681,6 +684,8 @@ func (s *Server) HTTPServe() {
 func (s *Server) Shutdown() {
 	// TODO(aditya) shut down workers and socket readers
 	log.Info("Shutting down server gracefully")
+	close(s.shutdown)
+
 	if s.tcpListener != nil {
 		// TODO: the socket is in use until there are no goroutines blocked in Accept
 		// we should wait until the accepting goroutine exits
