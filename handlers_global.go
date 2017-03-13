@@ -36,10 +36,10 @@ func handleImport(s *Server) http.Handler {
 
 		span, err = tracer.ExtractRequestChild("/import", r, "veneur.opentracing.import")
 		if err != nil {
-			log.WithError(err).Info("Could not extract span from request")
+			log.WithError(err).Debug("Could not extract span from request")
 			span = tracer.StartSpan("/import", trace.NameTag("veneur.opentracing.import")).(*trace.Span)
 		} else {
-			log.WithField("trace", span.Trace).Info("Extracted span from request")
+			log.WithField("trace", span.Trace).Debug("Extracted span from request")
 		}
 		defer span.Finish()
 
