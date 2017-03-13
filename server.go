@@ -504,6 +504,12 @@ func (s *Server) ReadTraceSocket(packetPool *sync.Pool) {
 	if s.TraceAddr == nil {
 		log.WithField("s.TraceAddr", s.TraceAddr).Fatal("Cannot listen on nil trace address")
 	}
+	p := packetPool.Get().([]byte)
+	if len(p) == 0 {
+		log.WithField("len", len(p)).Fatal(
+			"packetPool making empty slices: trace_max_length_bytes must be >= 0")
+	}
+	packetPool.Put(p)
 
 	// if we want to use multiple readers, make reuseport a parameter, like ReadMetricSocket.
 	serverConn, err := NewSocket(s.TraceAddr, s.RcvbufBytes, false)

@@ -104,8 +104,9 @@ func generateConfig(forwardAddr string) Config {
 		FlushMaxPerBody: 1024,
 
 		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
-		TraceAddress:    fmt.Sprintf("127.0.0.1:%d", tracePort),
-		TraceAPIAddress: forwardAddr,
+		TraceAddress:        fmt.Sprintf("127.0.0.1:%d", tracePort),
+		TraceAPIAddress:     forwardAddr,
+		TraceMaxLengthBytes: 4096,
 	}
 }
 
