@@ -545,10 +545,11 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 		err := conn.Close()
 		s.statsd.Count("tcp.disconnects", 1, nil, 1.0)
 		if err != nil {
+			// most often "write: broken pipe"; not really an error
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"peer":          conn.RemoteAddr(),
-			}).Error("TCP close failed")
+			}).Info("TCP close failed")
 		}
 	}()
 	s.statsd.Count("tcp.connects", 1, nil, 1.0)
@@ -558,8 +559,14 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 		if !tlsConn.ConnectionState().HandshakeComplete {
 			err := tlsConn.Handshake()
 			if err != nil {
+				// usually io.EOF or "read: connection reset by peer"; not really errors
+				// it can also be caused by certificate authentication problems
 				s.statsd.Count("tcp.tls_handshake_failures", 1, nil, 1.0)
-				log.WithError(err).Error("TLS Handshake failed")
+				log.WithFields(logrus.Fields{
+					logrus.ErrorKey: err,
+					"peer":          conn.RemoteAddr(),
+				}).Info("TLS Handshake failed")
+
 				return
 			}
 		}
@@ -570,12 +577,12 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 			clientCert = state.PeerCertificates[0].Subject.ToRDNSequence()
 		}
 		log.WithFields(logrus.Fields{
-			"peer":        conn.RemoteAddr().String(),
+			"peer":        conn.RemoteAddr(),
 			"client_cert": clientCert,
 		}).Debug("Starting TLS connection")
 	} else {
 		log.WithFields(logrus.Fields{
-			"peer": conn.RemoteAddr().String(),
+			"peer": conn.RemoteAddr(),
 		}).Debug("Starting TCP connection")
 	}
 
@@ -593,10 +600,11 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 		}
 	}
 	if buf.Err() != nil {
+		// usually "read: connection reset by peer"
 		log.WithFields(logrus.Fields{
 			logrus.ErrorKey: buf.Err(),
 			"peer":          conn.RemoteAddr(),
-		}).Error("Error reading from TCP client")
+		}).Info("Error reading from TCP client")
 	}
 }
 
