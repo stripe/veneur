@@ -243,7 +243,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			return
 		}
 	} else {
-		trace.Disabled = true
+		trace.Disable()
 	}
 
 	var svc s3iface.S3API

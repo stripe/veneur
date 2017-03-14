@@ -13,6 +13,7 @@ import (
 	"net"
 	"reflect"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/stripe/veneur/ssf"
@@ -30,7 +31,39 @@ func init() {
 // If this is set to true,
 // traces will be generated but not actually sent.
 // This should only be set before any traces are generated
-var Disabled bool = false
+var disabled bool = false
+
+var disabledMtx = &sync.RWMutex{}
+
+// Disable is an experimental function. If this
+// is run, traces will be generated but not actually sent.
+// This should only be set before any traces are generated
+func Disable() {
+	disabledMtx.Lock()
+	defer disabledMtx.Unlock()
+
+	disabled = true
+}
+
+// Enable is an experimental function that will re-enable
+// traces if they have been disabled. (This is intended to
+// be used only by testing functions).
+func Enable() {
+	disabledMtx.Lock()
+	defer disabledMtx.Unlock()
+
+	disabled = false
+}
+
+// Disabled is an experimental function which
+// indicates whether traces have been disabled
+// (using the Disable function).
+func Disabled() bool {
+	disabledMtx.RLock()
+	result := disabled
+	defer disabledMtx.RUnlock()
+	return result
+}
 
 const traceKey = "trace"
 
@@ -292,7 +325,8 @@ func StartChildSpan(parent *Trace) *Trace {
 // sendSample marshals the sample using protobuf and sends it
 // over UDP to the local veneur instance
 func sendSample(sample *ssf.SSFSample) error {
-	if Disabled {
+
+	if Disabled() {
 		return nil
 	}
 

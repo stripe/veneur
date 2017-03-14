@@ -2,9 +2,10 @@ package veneur
 
 import (
 	"errors"
-	"github.com/Sirupsen/logrus"
 	"testing"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 
 	"github.com/getsentry/raven-go"
 )

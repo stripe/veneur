@@ -32,6 +32,7 @@ import (
 	s3p "github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/tdigest"
+	"github.com/stripe/veneur/trace"
 )
 
 const ε = .00002
@@ -156,6 +157,8 @@ func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, val
 // setupVeneurServer creates a local server from the specified config
 // and starts listening for requests. It returns the server for inspection.
 func setupVeneurServer(t *testing.T, config Config) Server {
+	trace.Enable()
+
 	server, err := NewFromConfig(config)
 	if err != nil {
 		t.Fatal(err)
