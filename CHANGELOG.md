@@ -1,4 +1,15 @@
-# 1.1.0, IN PROGRESS
+# 1.1.1, IN PROGRESS
+
+## Bugfixes
+* Fix flusher_test to properly shutdown HTTP after handling. Thanks [evanj](https://github.com/evanj)!
+* Verify that `trace_max_length_bytes` is properly set. Thanks [evanj](https://github.com/evanj)!
+
+## Improvements
+* Document performance cost of TLS with RSA and ECDH keys. Thanks [evanj](https://github.com/evanj)!
+* Reduce logging of tracing information to `debug` level to decrease unnecessary logging.
+* Reduce common TCP error logs to `info` level. Thanks [evanj](https://github.com/evanj)!
+
+# 1.1.0, 2017-03-02
 
 ## Changes
 * Refactor tests to use a more shareable test fixture. Thanks [evanj](https://github.com/evanj)!
@@ -7,6 +18,7 @@
 ## Bugfixes
 * Hostname and device name tags are now omitted from JSON generated for transmission to Datadog at flush time. Thanks [evanj](https://github.com/evanj)!
 * Fix panic when an error is generated and Sentry is not configured. Thanks [evanj](https://github.com/evanj)!
+* Fix typos in README
 
 ## Improvements
 
