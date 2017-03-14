@@ -641,8 +641,8 @@ func (s *Server) ReadTCPSocket() {
 				log.WithError(err).Info("Ignoring Accept error while shutting down")
 				return
 			default:
+				log.WithError(err).Fatal("TCP accept failed")
 			}
-			log.WithError(err).Fatal("TCP accept failed")
 		}
 
 		go s.handleTCPGoroutine(conn)
