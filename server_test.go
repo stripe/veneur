@@ -717,6 +717,49 @@ func sendTCPMetrics(addr string, tlsConfig *tls.Config, f *fixture) error {
 	return nil
 }
 
+func TestUDPMetrics(t *testing.T) {
+	config := localConfig()
+	config.NumWorkers = 1
+	config.Interval = "60s"
+	config.UdpAddress = fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
+	HTTPAddrPort++
+	f := newFixture(t, config)
+	defer f.Close()
+	// Add a bit of delay to ensure things get listening
+	time.Sleep(20 * time.Millisecond)
+
+	conn, err := net.Dial("udp", config.UdpAddress)
+	assert.NoError(t, err)
+	defer conn.Close()
+
+	conn.Write([]byte("foo.bar:1|c|#baz:gorch"))
+	// Add a bit of delay to ensure things get processed
+	time.Sleep(20 * time.Millisecond)
+	assert.Equal(t, int64(1), f.server.Workers[0].processed, "worker processed metric")
+}
+
+func TestIgnoreLongUDPMetrics(t *testing.T) {
+	config := localConfig()
+	config.NumWorkers = 1
+	config.MetricMaxLength = 31
+	config.Interval = "60s"
+	config.UdpAddress = fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
+	HTTPAddrPort++
+	f := newFixture(t, config)
+	defer f.Close()
+	// Add a bit of delay to ensure things get listening
+	time.Sleep(20 * time.Millisecond)
+
+	conn, err := net.Dial("udp", config.UdpAddress)
+	assert.NoError(t, err)
+	defer conn.Close()
+
+	conn.Write([]byte("foo.bar:1|c|#baz:gorch,long:tag,is:long"))
+	// Add a bit of delay to ensure things get processed
+	time.Sleep(20 * time.Millisecond)
+	assert.Equal(t, int64(0), f.server.Workers[0].processed, "worker did not process a metric")
+}
+
 // TestTCPMetrics checks that a server can accept metrics over a TCP socket.
 func TestTCPMetrics(t *testing.T) {
 	pems, err := readTestKeysCerts()
