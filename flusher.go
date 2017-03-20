@@ -523,10 +523,9 @@ func (s *Server) flushTraces(ctx context.Context) {
 		if err == nil {
 			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
 		} else {
-			log.WithFields(
-				logrus.Fields{
-					"traces":        len(finalTraces),
-					logrus.ErrorKey: err}).Warn("Error flushing traces to Datadog")
+			log.WithFields(logrus.Fields{
+				"traces":        len(finalTraces),
+				logrus.ErrorKey: err}).Warn("Error flushing traces to Datadog")
 		}
 	} else {
 		log.Info("No traces to flush, skipping.")
@@ -565,10 +564,9 @@ func (s *Server) flushEventsChecks() {
 		if err == nil {
 			log.WithField("events", len(events)).Info("Completed flushing events to Datadog")
 		} else {
-			log.WithFields(
-				logrus.Fields{
-					"events":        len(events),
-					logrus.ErrorKey: err}).Warn("Error flushing events to Datadog")
+			log.WithFields(logrus.Fields{
+				"events":        len(events),
+				logrus.ErrorKey: err}).Warn("Error flushing events to Datadog")
 		}
 	}
 
@@ -580,10 +578,9 @@ func (s *Server) flushEventsChecks() {
 		if err == nil {
 			log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
 		} else {
-			log.WithFields(
-				logrus.Fields{
-					"checks":        len(checks),
-					logrus.ErrorKey: err}).Warn("Error flushing checks to Datadog")
+			log.WithFields(logrus.Fields{
+				"checks":        len(checks),
+				logrus.ErrorKey: err}).Warn("Error flushing checks to Datadog")
 		}
 	}
 }
