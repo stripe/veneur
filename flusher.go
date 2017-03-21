@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -281,6 +282,13 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 func (s *Server) flushRemote(ctx context.Context, finalMetrics []samplers.DDMetric) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
+
+	mem := &runtime.MemStats{}
+	runtime.ReadMemStats(mem)
+
+	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
+	s.Statsd.Gauge("gc.number", float64(mem.NumGC), nil, 1.0)
+	s.Statsd.Gauge("gc.pause_total_ns", float64(mem.PauseTotalNs), nil, 1.0)
 
 	s.Statsd.Gauge("flush.post_metrics_total", float64(len(finalMetrics)), nil, 1.0)
 	// Check to see if we have anything to do
