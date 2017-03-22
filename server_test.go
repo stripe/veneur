@@ -811,3 +811,19 @@ func TestTCPMetrics(t *testing.T) {
 		f.Close()
 	}
 }
+
+func BenchmarkMetricParsing(b *testing.B) {
+	config := localConfig()
+	config.Interval = "300s"
+	config.TraceAddress = ""
+	config.ForwardAddress = ""
+	server, _ := NewFromConfig(config)
+
+	packet := []byte("a.b.c:123|c|@1.0|#host_env:prod,host_type:bar,thing1:thing2")
+
+	for i := 0; i < b.N; i++ {
+		server.HandleMetricPacket(packet)
+	}
+
+	server.Shutdown()
+}

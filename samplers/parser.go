@@ -37,6 +37,11 @@ type MetricKey struct {
 	JoinedTags string `json:"tagstring"` // tags in deterministic order, joined with commas
 }
 
+var (
+	hash = fnv.New32a()
+	buf  bytes.Buffer
+)
+
 // ParseMetric converts the incoming packet from Datadog DogStatsD
 // Datagram format in to a Metric. http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
 func ParseMetric(packet []byte) (*UDPMetric, error) {
@@ -66,8 +71,7 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 		return nil, errors.New("Invalid metric packet, metric type not specified")
 	}
 
-	h := fnv.New32a()
-	h.Write(nameChunk)
+	buf.Write(nameChunk)
 	ret.Name = string(nameChunk)
 
 	// Decide on a type
@@ -86,7 +90,7 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 		return nil, errors.New("Invalid type for metric")
 	}
 	// Add the type to the digest
-	h.Write([]byte(ret.Type))
+	buf.WriteString(ret.Type)
 
 	// Now convert the metric's value
 	if ret.Type == "set" {
@@ -150,14 +154,17 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 			// we specifically need the sorted version here so that hashing over
 			// tags behaves deterministically
 			ret.JoinedTags = strings.Join(tags, ",")
-			h.Write([]byte(ret.JoinedTags))
+			buf.WriteString(ret.JoinedTags)
 
 		default:
 			return nil, fmt.Errorf("Invalid metric packet, contains unknown section %q", pipeSplitter.Chunk())
 		}
 	}
 
-	ret.Digest = h.Sum32()
+	hash.Write(buf.Bytes())
+	ret.Digest = hash.Sum32()
+	buf.Reset()
+	hash.Reset()
 
 	return ret, nil
 }
