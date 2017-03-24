@@ -8,6 +8,9 @@
 * Document performance cost of TLS with RSA and ECDH keys. Thanks [evanj](https://github.com/evanj)!
 * Reduce logging of tracing information to `debug` level to decrease unnecessary logging.
 * Reduce common TCP error logs to `info` level. Thanks [evanj](https://github.com/evanj)!
+* Deal with server shutdown without inspecting errors strings. Thanks [evanj](https://github.com/evanj)!
+* Decrease the number of things we send to Sentry as "errors".
+* Add a metric `veneur.sentry.errors_total` for number of errors we send to Sentry.
 
 # 1.1.0, 2017-03-02
 
