@@ -523,10 +523,9 @@ func (s *Server) flushTraces(ctx context.Context) {
 		if err == nil {
 			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
 		} else {
-			log.WithFields(
-				logrus.Fields{
-					"traces":        len(finalTraces),
-					logrus.ErrorKey: err}).Error("Error flushing traces to Datadog")
+			log.WithFields(logrus.Fields{
+				"traces":        len(finalTraces),
+				logrus.ErrorKey: err}).Warn("Error flushing traces to Datadog")
 		}
 	} else {
 		log.Info("No traces to flush, skipping.")
@@ -564,6 +563,10 @@ func (s *Server) flushEventsChecks() {
 		}, "flush_events", true)
 		if err == nil {
 			log.WithField("events", len(events)).Info("Completed flushing events to Datadog")
+		} else {
+			log.WithFields(logrus.Fields{
+				"events":        len(events),
+				logrus.ErrorKey: err}).Warn("Error flushing events to Datadog")
 		}
 	}
 
@@ -574,6 +577,10 @@ func (s *Server) flushEventsChecks() {
 		err := s.postHelper(context.TODO(), fmt.Sprintf("%s/api/v1/check_run?api_key=%s", s.DDHostname, s.DDAPIKey), checks, "flush_checks", false)
 		if err == nil {
 			log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
+		} else {
+			log.WithFields(logrus.Fields{
+				"checks":        len(checks),
+				logrus.ErrorKey: err}).Warn("Error flushing checks to Datadog")
 		}
 	}
 }
@@ -675,7 +682,7 @@ func (s *Server) postHelper(ctx context.Context, endpoint string, bodyObject int
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		s.statsd.Count(action+".error_total", 1, []string{fmt.Sprintf("cause:%d", resp.StatusCode)}, 1.0)
-		resultLogger.Error("Could not POST")
+		resultLogger.Warn("Could not POST")
 		return err
 	}
 
