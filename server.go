@@ -406,7 +406,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
-			}).Error("Could not parse packet")
+			}).Warn("Could not parse packet")
 			s.statsd.Count("packet.error_total", 1, []string{"packet_type:event"}, 1.0)
 			return err
 		}
@@ -417,7 +417,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
-			}).Error("Could not parse packet")
+			}).Warn("Could not parse packet")
 			s.statsd.Count("packet.error_total", 1, []string{"packet_type:service_check"}, 1.0)
 			return err
 		}
@@ -428,7 +428,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
-			}).Error("Could not parse packet")
+			}).Warn("Could not parse packet")
 			s.statsd.Count("packet.error_total", 1, []string{"packet_type:metric"}, 1.0)
 			return err
 		}
@@ -442,7 +442,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 func (s *Server) HandleTracePacket(packet []byte) {
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
-		log.Error("received zero-length trace packet")
+		log.Warn("received zero-length trace packet")
 		return
 	}
 
@@ -451,7 +451,8 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	newSample := &ssf.SSFSample{}
 	err := proto.Unmarshal(packet, newSample)
 	if err != nil {
-		log.WithError(err).Error("Trace unmarshaling error")
+		s.statsd.Count("packet.error_total", 1, []string{"packet_type:trace", "reaon:unmarshal"}, 1.0)
+		log.WithError(err).Warn("Trace unmarshaling error")
 		return
 	}
 
@@ -598,7 +599,7 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 		if err != nil {
 			// don't consume bad data from a client indefinitely
 			// HandleMetricPacket logs the err and packet, and increments error counters
-			log.WithField("peer", conn.RemoteAddr()).Error(
+			log.WithField("peer", conn.RemoteAddr()).Warn(
 				"Error parsing packet; closing TCP connection")
 			return
 		}

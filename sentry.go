@@ -36,8 +36,8 @@ func (s *Server) ConsumePanic(err interface{}) {
 		default:
 			p.Message = fmt.Sprintf("%#v", e)
 		}
-
 		_, ch := s.sentry.Capture(&p, nil)
+		s.statsd.Count("sentry.errors_total", 1, nil, 1.0)
 		// we don't want the program to terminate before reporting to sentry
 		<-ch
 	}
