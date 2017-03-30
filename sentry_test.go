@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-
 	"github.com/getsentry/raven-go"
 )
 
@@ -72,9 +71,6 @@ func TestHookWithoutSentry(t *testing.T) {
 	entry := &logrus.Entry{}
 	// must use Fatal so the call to Fire blocks and we can check the result
 	entry.Level = logrus.FatalLevel
-	// entry.Time = time.Now()
-	// entry.Message = "received zero-length trace packet"
-	// fmt.Println("WTF???")f
 	err := hook.Fire(entry)
 	if err != nil {
 		t.Error("Fire returned an error:", err)

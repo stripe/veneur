@@ -798,9 +798,7 @@ func TestTCPMetrics(t *testing.T) {
 			t.Run(testName, func(t *testing.T) {
 
 				expectedSuccess := serverConfig.expectedConnectResults[i]
-				log.Info("asdfasdfsadf")
 				err := sendTCPMetrics(config.TcpAddress, clientConfig.tlsConfig, f)
-				log.Info("after")
 				if err != nil {
 					if expectedSuccess {
 						t.Errorf("server config: '%s' client config: '%s' failed: %s",
