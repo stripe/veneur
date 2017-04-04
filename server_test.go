@@ -754,6 +754,8 @@ func TestIgnoreLongUDPMetrics(t *testing.T) {
 	assert.NoError(t, err)
 	defer conn.Close()
 
+	// nb this metric is bad because it's too long based on the `MetricMaxLength`
+	// we set above!
 	conn.Write([]byte("foo.bar:1|c|#baz:gorch,long:tag,is:long"))
 	// Add a bit of delay to ensure things get processed
 	time.Sleep(20 * time.Millisecond)
