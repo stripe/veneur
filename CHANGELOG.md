@@ -11,6 +11,8 @@
 * Deal with server shutdown without inspecting errors strings. Thanks [evanj](https://github.com/evanj)!
 * Decrease the number of things we send to Sentry as "errors".
 * Add a metric `veneur.sentry.errors_total` for number of errors we send to Sentry.
+* Detect and emit a metric `veneur.packet.error_total` tagged `reason:toolong` for metrics that exceed the metric max length.
+* Emit a metric `veneur.packet.error_total` tagged `reason:zerolength` for metrics have no contents.
 
 # 1.1.0, 2017-03-02
 
