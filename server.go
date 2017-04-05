@@ -321,8 +321,9 @@ func (s *Server) Start() {
 	}
 
 	packetPool := &sync.Pool{
+		// We +1 this so we an "detect" when someone sends us too long of a metric!
 		New: func() interface{} {
-			return make([]byte, s.metricMaxLength)
+			return make([]byte, s.metricMaxLength+1)
 		},
 	}
 
@@ -407,7 +408,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Warn("Could not parse packet")
-			s.statsd.Count("packet.error_total", 1, []string{"packet_type:event"}, 1.0)
+			s.statsd.Count("packet.error_total", 1, []string{"packet_type:event", "reason:parse"}, 1.0)
 			return err
 		}
 		s.EventWorker.EventChan <- *event
@@ -418,7 +419,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Warn("Could not parse packet")
-			s.statsd.Count("packet.error_total", 1, []string{"packet_type:service_check"}, 1.0)
+			s.statsd.Count("packet.error_total", 1, []string{"packet_type:service_check", "reason:parse"}, 1.0)
 			return err
 		}
 		s.EventWorker.ServiceCheckChan <- *svcheck
@@ -429,7 +430,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Warn("Could not parse packet")
-			s.statsd.Count("packet.error_total", 1, []string{"packet_type:metric"}, 1.0)
+			s.statsd.Count("packet.error_total", 1, []string{"packet_type:metric", "reason:parse"}, 1.0)
 			return err
 		}
 		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
@@ -442,6 +443,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 func (s *Server) HandleTracePacket(packet []byte) {
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
+		s.statsd.Count("packet.error_total", 1, []string{"packet_type:unknown", "reason:zerolength"}, 1.0)
 		log.Warn("received zero-length trace packet")
 		return
 	}
@@ -480,6 +482,10 @@ func (s *Server) ReadMetricSocket(packetPool *sync.Pool, reuseport bool) {
 		n, _, err := serverConn.ReadFrom(buf)
 		if err != nil {
 			log.WithError(err).Error("Error reading from UDP metrics socket")
+			continue
+		}
+		if n > s.metricMaxLength {
+			s.statsd.Count("packet.error_total", 1, []string{"packet_type:unknown", "reason:toolong"}, 1.0)
 			continue
 		}
 

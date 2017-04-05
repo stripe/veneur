@@ -202,7 +202,7 @@ When forwarding you'll want to also monitor the global nodes you're using for ag
 
 Veneur will emit metrics to the `stats_address` configured above in DogStatsD form. Those metrics are:
 
-* `veneur.packet.error_total` - Number of packets that Veneur could not parse due to some sort of formatting error by the client.
+* `veneur.packet.error_total` - Number of packets that Veneur could not parse due to some sort of formatting error by the client. Tagged by `packet_type` and `reason`.
 * `veneur.flush.post_metrics_total` - The total number of time-series points that will be submitted to Datadog via POST. Datadog's rate limiting is roughly proportional to this number.
 * `veneur.forward.post_metrics_total` - Indicates how many metrics are being forwarded in a given POST request. A "metric", in this context, refers to a unique combination of name, tags and metric type.
 * `veneur.*.content_length_bytes.*` - The number of bytes in a single POST body. Remember that Veneur POSTs large sets of metrics in multiple separate bodies in parallel. Uses a histogram, so there are multiple metrics generated depending on your local DogStatsD config.
