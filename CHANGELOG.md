@@ -3,6 +3,7 @@
 ## Bugfixes
 * Fix flusher_test to properly shutdown HTTP after handling. Thanks [evanj](https://github.com/evanj)!
 * Verify that `trace_max_length_bytes` is properly set. Thanks [evanj](https://github.com/evanj)!
+* Fix a race condition in testing.
 
 ## Improvements
 * Document performance cost of TLS with RSA and ECDH keys. Thanks [evanj](https://github.com/evanj)!

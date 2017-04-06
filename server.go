@@ -369,6 +369,21 @@ func (s *Server) Start() {
 			logrus.WithError(err).Fatal("Error listening for TCP connections")
 		}
 
+		mode := "unencrypted"
+		if s.tlsConfig != nil {
+			// wrap the listener with TLS
+			s.tcpListener = tls.NewListener(s.tcpListener, s.tlsConfig)
+			if s.tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
+				mode = "authenticated"
+			} else {
+				mode = "encrypted"
+			}
+		}
+
+		log.WithFields(logrus.Fields{
+			"address": s.TCPAddr, "mode": mode,
+		}).Info("Listening for TCP connections")
+
 		go func() {
 			defer func() {
 				s.ConsumePanic(recover())
@@ -647,21 +662,6 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 
 // ReadTCPSocket listens on Server.TCPAddr for new connections, starting a goroutine for each.
 func (s *Server) ReadTCPSocket() {
-	mode := "unencrypted"
-	if s.tlsConfig != nil {
-		// wrap the listener with TLS
-		s.tcpListener = tls.NewListener(s.tcpListener, s.tlsConfig)
-		if s.tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
-			mode = "authenticated"
-		} else {
-			mode = "encrypted"
-		}
-	}
-
-	log.WithFields(logrus.Fields{
-		"address": s.TCPAddr, "mode": mode,
-	}).Info("Listening for TCP connections")
-
 	for {
 		conn, err := s.tcpListener.Accept()
 		if err != nil {
