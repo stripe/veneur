@@ -257,8 +257,9 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		if err != nil {
 			return
 		}
+		trace.Enable()
 	} else {
-		trace.Disabled = true
+		trace.Disable()
 	}
 
 	var svc s3iface.S3API
