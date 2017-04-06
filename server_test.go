@@ -747,7 +747,7 @@ func TestUDPMetrics(t *testing.T) {
 	conn.Write([]byte("foo.bar:1|c|#baz:gorch"))
 	// Add a bit of delay to ensure things get processed
 	time.Sleep(20 * time.Millisecond)
-	assert.Equal(t, int64(1), f.server.Workers[0].processed, "worker processed metric")
+	assert.Equal(t, int64(1), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
 }
 
 func TestIgnoreLongUDPMetrics(t *testing.T) {
