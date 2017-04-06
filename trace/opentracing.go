@@ -17,10 +17,16 @@ import (
 	"github.com/stripe/veneur/ssf"
 )
 
-const TraceIdHeader = "Traceid"
-const SpanIdHeader = "Spanid"
-const ParentIdHeader = "Parentid"
+// TraceIDHeader is the header for the trace id field
+const TraceIDHeader = "Traceid"
 
+// SpanIDHeader is the header for the span id field
+const SpanIDHeader = "Spanid"
+
+// ParentIDHeader is the header for the parent id field
+const ParentIDHeader = "Parentid"
+
+// GlobalTracer is the… global tracer!
 var GlobalTracer = Tracer{}
 
 func init() {
@@ -42,7 +48,7 @@ type ErrContractViolation struct {
 }
 
 func (e ErrContractViolation) Error() string {
-	return fmt.Sprintf("Contract violation: %s: %#v", e.details)
+	return fmt.Sprintf("Contract violation: %#v", e.details)
 }
 
 type textMapReaderWriter map[string]string
@@ -102,19 +108,19 @@ func (c *spanContext) ForeachBaggageItem(handler func(k, v string) bool) {
 
 // TraceID extracts the Trace ID from the BaggageItems.
 // It assumes the TraceID is present and valid.
-func (c *spanContext) TraceId() int64 {
+func (c *spanContext) TraceID() int64 {
 	return c.parseBaggageInt64("traceid")
 }
 
 // ParentID extracts the Parent ID from the BaggageItems.
 // It assumes the ParentID is present and valid.
-func (c *spanContext) ParentId() int64 {
+func (c *spanContext) ParentID() int64 {
 	return c.parseBaggageInt64("parentid")
 }
 
-// SpanId extracts the Span ID from the BaggageItems.
+// SpanID extracts the Span ID from the BaggageItems.
 // It assumes the SpanId is present and valid.
-func (c *spanContext) SpanId() int64 {
+func (c *spanContext) SpanID() int64 {
 	return c.parseBaggageInt64("spanid")
 }
 
@@ -150,6 +156,7 @@ func (c *spanContext) Resource() string {
 	return resource
 }
 
+// Span is a member of a trace
 type Span struct {
 	tracer Tracer
 
@@ -159,6 +166,7 @@ type Span struct {
 	logLines []opentracinglog.Field
 }
 
+// Finish ends a trace end records it.
 func (s *Span) Finish() {
 	// This should never happen,
 	// but calling defer span.Finish() should always be
@@ -201,12 +209,14 @@ func (s *Span) contextAsParent() *spanContext {
 
 	c := &spanContext{}
 	c.Init()
-	c.baggageItems["traceid"] = strconv.FormatInt(s.TraceId, 10)
-	c.baggageItems["parentid"] = strconv.FormatInt(s.ParentId, 10)
+	c.baggageItems["traceid"] = strconv.FormatInt(s.TraceID, 10)
+	c.baggageItems["parentid"] = strconv.FormatInt(s.ParentID, 10)
 	c.baggageItems["resource"] = s.Resource
 	return c
 }
 
+// SetOperationName sets the name of the operation being performed
+// in this span.
 func (s *Span) SetOperationName(name string) opentracing.Span {
 	s.Trace.Resource = name
 	return s
@@ -248,11 +258,13 @@ func (s *Span) LogKV(alternatingKeyValues ...interface{}) {
 	s.LogFields(fs...)
 }
 
+// SetBaggageItem sets the value of a baggage in the span.
 func (s *Span) SetBaggageItem(restrictedKey, value string) opentracing.Span {
 	s.contextAsParent().baggageItems[restrictedKey] = value
 	return s
 }
 
+// BaggageItem fetches the value of a baggage item in the span.
 func (s *Span) BaggageItem(restrictedKey string) string {
 	return s.contextAsParent().baggageItems[restrictedKey]
 }
@@ -277,6 +289,7 @@ func (s *Span) LogEventWithPayload(event string, payload interface{}) {
 func (s *Span) Log(data opentracing.LogData) {
 }
 
+// Tracer is a tracer
 type Tracer struct {
 }
 
@@ -367,8 +380,8 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 				if !ok {
 					continue
 				}
-				parent.TraceId = ctx.TraceId()
-				parent.SpanId = ctx.SpanId()
+				parent.TraceID = ctx.TraceID()
+				parent.SpanID = ctx.SpanID()
 				parent.Resource = ctx.Resource()
 
 			default:
@@ -421,9 +434,9 @@ func (tracer Tracer) ExtractRequestChild(resource string, req *http.Request, nam
 	parent := parentSpan.(*spanContext)
 
 	t := StartChildSpan(&Trace{
-		SpanId:   parent.SpanId(),
-		TraceId:  parent.TraceId(),
-		ParentId: parent.ParentId(),
+		SpanID:   parent.SpanID(),
+		TraceID:  parent.TraceID(),
+		ParentID: parent.ParentID(),
 		Resource: resource,
 	})
 
@@ -456,9 +469,9 @@ func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier i
 		w := carrier.(io.Writer)
 
 		trace := &Trace{
-			TraceId:  sc.TraceId(),
-			ParentId: sc.ParentId(),
-			SpanId:   sc.SpanId(),
+			TraceID:  sc.TraceID(),
+			ParentID: sc.ParentID(),
+			SpanID:   sc.SpanID(),
 			Resource: sc.Resource(),
 		}
 
@@ -501,9 +514,9 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 		}
 
 		trace := &Trace{
-			TraceId:  sample.Trace.TraceId,
-			ParentId: sample.Trace.ParentId,
-			SpanId:   sample.Trace.Id,
+			TraceID:  sample.Trace.TraceId,
+			ParentID: sample.Trace.ParentId,
+			SpanID:   sample.Trace.Id,
 			Resource: sample.Trace.Resource,
 		}
 
@@ -514,17 +527,17 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 
 		// carrier is guaranteed to be an opentracing.TextMapReader by contract
 		// TODO support other TextMapReader implementations
-		traceId, err := strconv.ParseInt(textMapReaderGet(tm, TraceIdHeader), 10, 64)
-		spanId, err2 := strconv.ParseInt(textMapReaderGet(tm, SpanIdHeader), 10, 64)
-		parentId, err3 := strconv.ParseInt(textMapReaderGet(tm, ParentIdHeader), 10, 64)
+		traceID, err := strconv.ParseInt(textMapReaderGet(tm, TraceIDHeader), 10, 64)
+		spanID, err2 := strconv.ParseInt(textMapReaderGet(tm, SpanIDHeader), 10, 64)
+		parentID, err3 := strconv.ParseInt(textMapReaderGet(tm, ParentIDHeader), 10, 64)
 		if !(err == nil && err2 == nil && err3 == nil) {
 			return nil, errors.New("error parsing fields from TextMapReader")
 		}
 
 		trace := &Trace{
-			TraceId:  traceId,
-			SpanId:   spanId,
-			ParentId: parentId,
+			TraceID:  traceID,
+			SpanID:   spanID,
+			ParentID: parentID,
 			Resource: textMapReaderGet(tm, "resource"),
 		}
 		return trace.context(), nil

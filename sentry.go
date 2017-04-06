@@ -73,7 +73,7 @@ func (s sentryHook) Fire(e *logrus.Entry) error {
 	if err, ok := e.Data[logrus.ErrorKey].(error); ok {
 		p.Message = err.Error()
 		// don't send the error as an extra field
-		packetExtraLength -= 1
+		packetExtraLength--
 	} else {
 		p.Message = e.Message
 	}
