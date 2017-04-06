@@ -154,15 +154,22 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		ret.enableProfiling = true
 	}
 
-	log.Hooks.Add(sentryHook{
-		c:        ret.sentry,
-		hostname: ret.Hostname,
-		lv: []logrus.Level{
-			logrus.ErrorLevel,
-			logrus.FatalLevel,
-			logrus.PanicLevel,
-		},
-	})
+	// This is a check to ensure that we don't repeatedly add a hook
+	// to the "global" log instance on repeated calls to `NewFromConfig`
+	// such as those made in testing. By skipping this we avoid a race
+	// condition in logrus discussed here:
+	// https://github.com/sirupsen/logrus/issues/295
+	if _, ok := log.Hooks[logrus.FatalLevel]; !ok {
+		log.Hooks.Add(sentryHook{
+			c:        ret.sentry,
+			hostname: ret.Hostname,
+			lv: []logrus.Level{
+				logrus.ErrorLevel,
+				logrus.FatalLevel,
+				logrus.PanicLevel,
+			},
+		})
+	}
 
 	log.WithField("number", conf.NumWorkers).Info("Preparing workers")
 	// Allocate the slice, we'll fill it with workers later.
