@@ -856,3 +856,53 @@ func TestTCPMetrics(t *testing.T) {
 		f.Close()
 	}
 }
+
+// TestHandleTCPGoroutineTimeout verifies that an idle TCP connection doesn't block forever.
+func TestHandleTCPGoroutineTimeout(t *testing.T) {
+	const readTimeout = 30 * time.Millisecond
+	s := &Server{tcpReadTimeout: readTimeout, Workers: []*Worker{
+		&Worker{PacketChan: make(chan samplers.UDPMetric, 1)},
+	}}
+
+	// make a real TCP connection ... to ourselves
+	listener, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	acceptorDone := make(chan struct{})
+	go func() {
+		accepted, err := listener.Accept()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// after half the read timeout: send a stat; it should work
+		time.Sleep(readTimeout / 2)
+		_, err = accepted.Write([]byte("metric:42|g\n"))
+		if err != nil {
+			t.Error("expected Write to succeed:", err)
+		}
+
+		// read: returns when the connection is closed
+		out, err := ioutil.ReadAll(accepted)
+		if !(len(out) == 0 && err == nil) {
+			t.Errorf("expected len(out)==0 (was %d) and err==nil (was %v)", len(out), err)
+		}
+		close(acceptorDone)
+	}()
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// handleTCPGoroutine should not block forever: it will time outTest
+	log.Printf("handling goroutine")
+	s.handleTCPGoroutine(conn)
+	<-acceptorDone
+
+	// we should have received one metric
+	packet := <-s.Workers[0].PacketChan
+	if packet.Name != "metric" {
+		t.Error("Expected packet for metric:", packet)
+	}
+}
