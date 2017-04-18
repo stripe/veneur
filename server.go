@@ -637,9 +637,6 @@ func (s *Server) ReadTCPSocket() {
 	}).Info("Listening for TCP connections")
 
 	for {
-		defer func() {
-			s.ConsumePanic(recover())
-		}()
 		conn, err := s.tcpListener.Accept()
 		if err != nil {
 			select {
