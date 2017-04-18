@@ -45,6 +45,8 @@ var log = logrus.New()
 
 var tracer = trace.GlobalTracer
 
+const defaultTCPReadTimeout = 10 * time.Minute
+
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers     []*Worker
@@ -73,9 +75,10 @@ type Server struct {
 	metricMaxLength     int
 	traceMaxLengthBytes int
 
-	TCPAddr     *net.TCPAddr
-	tlsConfig   *tls.Config
-	tcpListener net.Listener
+	TCPAddr        *net.TCPAddr
+	tlsConfig      *tls.Config
+	tcpListener    net.Listener
+	tcpReadTimeout time.Duration
 
 	// closed when the server is shutting down gracefully
 	shutdown chan struct{}
@@ -565,21 +568,26 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 	}()
 	s.statsd.Count("tcp.connects", 1, nil, 1.0)
 
+	// time out idle connections to prevent leaking memory/goroutines
+	timeout := defaultTCPReadTimeout
+	if s.tcpReadTimeout != 0 {
+		timeout = s.tcpReadTimeout
+	}
+
 	if tlsConn, ok := conn.(*tls.Conn); ok {
 		// complete the handshake to verify the certificate
-		if !tlsConn.ConnectionState().HandshakeComplete {
-			err := tlsConn.Handshake()
-			if err != nil {
-				// usually io.EOF or "read: connection reset by peer"; not really errors
-				// it can also be caused by certificate authentication problems
-				s.statsd.Count("tcp.tls_handshake_failures", 1, nil, 1.0)
-				log.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"peer":          conn.RemoteAddr(),
-				}).Info("TLS Handshake failed")
+		conn.SetReadDeadline(time.Now().Add(timeout))
+		err := tlsConn.Handshake()
+		if err != nil {
+			// usually io.EOF or "read: connection reset by peer"; not really errors
+			// it can also be caused by certificate authentication problems
+			s.statsd.Count("tcp.tls_handshake_failures", 1, nil, 1.0)
+			log.WithFields(logrus.Fields{
+				logrus.ErrorKey: err,
+				"peer":          conn.RemoteAddr(),
+			}).Info("TLS Handshake failed")
 
-				return
-			}
+			return
 		}
 
 		state := tlsConn.ConnectionState()
@@ -599,7 +607,12 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 
 	// Scanner is nearly the same performance as a custom implementation
 	buf := bufio.NewScanner(conn)
-	for buf.Scan() {
+
+	scanWithDeadline := func() bool {
+		conn.SetReadDeadline(time.Now().Add(timeout))
+		return buf.Scan()
+	}
+	for scanWithDeadline() {
 		// treat each line as a separate packet
 		err := s.HandleMetricPacket(buf.Bytes())
 		if err != nil {
@@ -611,7 +624,7 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 		}
 	}
 	if buf.Err() != nil {
-		// usually "read: connection reset by peer"
+		// usually "read: connection reset by peer" or "i/o timeout"
 		log.WithFields(logrus.Fields{
 			logrus.ErrorKey: buf.Err(),
 			"peer":          conn.RemoteAddr(),
