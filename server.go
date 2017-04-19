@@ -313,7 +313,7 @@ func (s *Server) Start() {
 		s.EventWorker.Work()
 	}()
 
-	if s.TraceWorker != nil {
+	if s.TracingEnabled() {
 		log.Info("Starting Trace worker")
 		go func() {
 			defer func() {
@@ -366,17 +366,16 @@ func (s *Server) Start() {
 	}
 
 	// Read Traces Forever!
-	go func() {
-		defer func() {
-			s.ConsumePanic(recover())
-		}()
-		if s.TraceAddr != nil {
-			// If we ever use multiple readers, pass in the appropriate reuseport option
+	if s.TracingEnabled() {
+		go func() {
+			defer func() {
+				s.ConsumePanic(recover())
+			}()
 			s.ReadTraceSocket(tracePool)
-		} else {
-			logrus.Info("Tracing not configured - not reading trace socket")
-		}
-	}()
+		}()
+	} else {
+		logrus.Info("Tracing not configured - not reading trace socket")
+	}
 
 	// Flush every Interval forever!
 	go func() {
