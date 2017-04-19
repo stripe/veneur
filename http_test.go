@@ -269,6 +269,7 @@ func TestOkTraceHealthCheck(t *testing.T) {
 	config := localConfig()
 	s := setupVeneurServer(t, config)
 	defer s.Shutdown()
+	HTTPAddrPort++
 
 	w := httptest.NewRecorder()
 
@@ -285,6 +286,7 @@ func TestNokTraceHealthCheck(t *testing.T) {
 	config.TraceAddress = ""
 	s := setupVeneurServer(t, config)
 	defer s.Shutdown()
+	HTTPAddrPort++
 
 	w := httptest.NewRecorder()
 
@@ -307,6 +309,7 @@ func testServerImportHelper(t *testing.T, data interface{}) {
 	config := localConfig()
 	s := setupVeneurServer(t, config)
 	defer s.Shutdown()
+	HTTPAddrPort++
 
 	handler := handleImport(&s)
 	handler.ServeHTTP(w, r)

@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"fmt"
 	"net"
 	"testing"
 
@@ -24,9 +25,10 @@ func writeReadUDP(t *testing.T, sock net.PacketConn, addr string) {
 }
 
 func TestSocket(t *testing.T) {
-	const portString = "8200"
-	const v4Localhost = "127.0.0.1:" + portString
-	const v6Localhost = "[::1]:" + portString
+	HTTPAddrPort++
+	portString := fmt.Sprintf("%d", HTTPAddrPort)
+	v4Localhost := "127.0.0.1:" + portString
+	v6Localhost := "[::1]:" + portString
 
 	// see if the system supports ipv6 by listening to a port
 	systemSupportsV6 := true
