@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"sync"
@@ -30,6 +31,7 @@ import (
 
 	"github.com/stripe/veneur/plugins"
 	"github.com/stripe/veneur/plugins/influxdb"
+	localfilep "github.com/stripe/veneur/plugins/localfile"
 	s3p "github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/trace"
@@ -38,6 +40,9 @@ import (
 // VERSION stores the current veneur version.
 // It must be a var so it can be set at link time.
 var VERSION = "dirty"
+
+// REDACTED should be a constant since we use it enough.
+const REDACTED = "REDACTED"
 
 var profileStartOnce = sync.Once{}
 
@@ -189,6 +194,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.HTTPAddr = conf.HTTPAddress
 	ret.ForwardAddr = conf.ForwardAddress
 
+<<<<<<< HEAD
 	if conf.TcpAddress != "" {
 		ret.TCPAddr, err = net.ResolveTCPAddr("tcp", conf.TcpAddress)
 		if err != nil {
@@ -228,9 +234,9 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		}
 	}
 
-	conf.Key = "REDACTED"
-	conf.SentryDsn = "REDACTED"
-	conf.TLSKey = "REDACTED"
+	conf.Key = REDACTED
+	conf.SentryDsn = REDACTED
+	conf.TLSKey = REDACTED
 	log.WithField("config", conf).Debug("Initialized server")
 
 	if len(conf.TraceAddress) > 0 && len(conf.TraceAPIAddress) > 0 {
@@ -253,8 +259,8 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	awsID := conf.AwsAccessKeyID
 	awsSecret := conf.AwsSecretAccessKey
 
-	conf.AwsAccessKeyID = "REDACTED"
-	conf.AwsSecretAccessKey = "REDACTED"
+	conf.AwsAccessKeyID = REDACTED
+	conf.AwsSecretAccessKey = REDACTED
 
 	if len(awsID) > 0 && len(awsSecret) > 0 {
 		sess, err := session.NewSession(&aws.Config{
@@ -292,6 +298,15 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			log, conf.InfluxAddress, conf.InfluxConsistency, conf.InfluxDBName, ret.HTTPClient, ret.statsd,
 		)
 		ret.registerPlugin(plugin)
+    }
+
+	if conf.FlushFile != "" {
+		localFilePlugin := &localfilep.Plugin{
+			FilePath: conf.FlushFile,
+			Logger:   log,
+		}
+		ret.registerPlugin(localFilePlugin)
+		log.Info(fmt.Sprintf("Local file logging to %s", conf.FlushFile))
 	}
 
 	// closed in Shutdown; Same approach and http.Shutdown

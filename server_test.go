@@ -90,6 +90,7 @@ func generateConfig(forwardAddr string) Config {
 		HTTPAddress:         fmt.Sprintf("localhost:%d", port),
 		ForwardAddress:      forwardAddr,
 		NumWorkers:          4,
+		FlushFile:           "/dev/null",
 
 		// Use only one reader, so that we can run tests
 		// on platforms which do not support SO_REUSEPORT
@@ -545,10 +546,12 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 
 	s3p := &s3p.S3Plugin{Logger: log, Svc: client}
 
+	pluginCount := len(f.server.getPlugins())
+
 	f.server.registerPlugin(s3p)
 
 	plugins := f.server.getPlugins()
-	assert.Equal(t, 1, len(plugins))
+	assert.Equal(t, pluginCount+1, len(plugins))
 
 	for _, value := range metricValues {
 		f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
