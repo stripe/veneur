@@ -144,6 +144,16 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		if err != nil {
 			return
 		}
+
+		log.Hooks.Add(sentryHook{
+			c:        ret.sentry,
+			hostname: ret.Hostname,
+			lv: []logrus.Level{
+				logrus.ErrorLevel,
+				logrus.FatalLevel,
+				logrus.PanicLevel,
+			},
+		})
 	}
 
 	if conf.Debug {
@@ -153,16 +163,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	if conf.EnableProfiling {
 		ret.enableProfiling = true
 	}
-
-	log.Hooks.Add(sentryHook{
-		c:        ret.sentry,
-		hostname: ret.Hostname,
-		lv: []logrus.Level{
-			logrus.ErrorLevel,
-			logrus.FatalLevel,
-			logrus.PanicLevel,
-		},
-	})
 
 	log.WithField("number", conf.NumWorkers).Info("Preparing workers")
 	// Allocate the slice, we'll fill it with workers later.
@@ -251,7 +251,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			return
 		}
 	} else {
-		trace.Disabled = true
+		trace.Disable()
 	}
 
 	var svc s3iface.S3API
@@ -670,9 +670,10 @@ func (s *Server) ReadTCPSocket() {
 			case <-s.shutdown:
 				// occurs when cleanly shutting down the server e.g. in tests; ignore errors
 				log.WithError(err).Info("Ignoring Accept error while shutting down")
+				return
 			default:
+				log.WithError(err).Fatal("TCP accept failed")
 			}
-			log.WithError(err).Fatal("TCP accept failed")
 		}
 
 		go s.handleTCPGoroutine(conn)

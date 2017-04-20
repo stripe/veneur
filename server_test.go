@@ -32,6 +32,7 @@ import (
 	s3p "github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/tdigest"
+	"github.com/stripe/veneur/trace"
 )
 
 const ε = .00002
@@ -157,6 +158,8 @@ func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, val
 // setupVeneurServer creates a local server from the specified config
 // and starts listening for requests. It returns the server for inspection.
 func setupVeneurServer(t *testing.T, config Config) Server {
+	trace.Enable()
+
 	server, err := NewFromConfig(config)
 	if err != nil {
 		t.Fatal(err)
@@ -846,23 +849,29 @@ func TestTCPMetrics(t *testing.T) {
 
 		// attempt to connect and send stats with each of the client configurations
 		for i, clientConfig := range clientConfigs {
-			expectedSuccess := serverConfig.expectedConnectResults[i]
-			err := sendTCPMetrics(config.TcpAddress, clientConfig.tlsConfig, f)
-			if err != nil {
-				if expectedSuccess {
-					t.Errorf("server config: '%s' client config: '%s' failed: %s",
-						serverConfig.name, clientConfig.name, err.Error())
+
+			testName := fmt.Sprintf("%s_%s", serverConfig.name, clientConfig.name)
+
+			t.Run(testName, func(t *testing.T) {
+
+				expectedSuccess := serverConfig.expectedConnectResults[i]
+				err := sendTCPMetrics(config.TcpAddress, clientConfig.tlsConfig, f)
+				if err != nil {
+					if expectedSuccess {
+						t.Errorf("server config: '%s' client config: '%s' failed: %s",
+							serverConfig.name, clientConfig.name, err.Error())
+					} else {
+						fmt.Printf("SUCCESS server config: '%s' client config: '%s' got expected error: %s\n",
+							serverConfig.name, clientConfig.name, err.Error())
+					}
+				} else if !expectedSuccess {
+					t.Errorf("server config: '%s' client config: '%s' worked; should fail!",
+						serverConfig.name, clientConfig.name)
 				} else {
-					fmt.Printf("SUCCESS server config: '%s' client config: '%s' got expected error: %s\n",
-						serverConfig.name, clientConfig.name, err.Error())
+					fmt.Printf("SUCCESS server config: '%s' client config: '%s'\n",
+						serverConfig.name, clientConfig.name)
 				}
-			} else if !expectedSuccess {
-				t.Errorf("server config: '%s' client config: '%s' worked; should fail!",
-					serverConfig.name, clientConfig.name)
-			} else {
-				fmt.Printf("SUCCESS server config: '%s' client config: '%s'\n",
-					serverConfig.name, clientConfig.name)
-			}
+			})
 		}
 
 		f.Close()
