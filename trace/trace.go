@@ -26,15 +26,21 @@ func init() {
 	rand.Seed(time.Now().Unix())
 }
 
-// (Experimental)
-// If this is set to true,
-// traces will be generated but not actually sent.
-// This should only be set before any traces are generated
-var Disabled bool = false
+// Disabled controls if we'll actually emit the traces.
+// If this is set to true, traces will be generated but not
+// actually sent. This should only be set before any traces
+// are generated. Note: Very Experimental.
+var Disabled = false
 
-const traceKey = "trace"
+// Make an unexported `key` type that we use as a String such
+// that we don't get lint warnings from using it as a key in
+// Context. See https://blog.golang.org/context#TOC_3.2.
+type key string
 
-// this should be set exactly once, at startup
+const traceKey key = "trace"
+
+// Service is our service name and should be set exactly once,
+// at startup
 var Service = ""
 
 const localVeneurAddress = "127.0.0.1:8128"
@@ -51,14 +57,14 @@ const errorStackTag = "error.stack"
 type Trace struct {
 	// the ID for the root span
 	// which is also the ID for the trace itself
-	TraceId int64
+	TraceID int64
 
 	// For the root span, this will be equal
 	// to the TraceId
-	SpanId int64
+	SpanID int64
 
 	// For the root span, this will be <= 0
-	ParentId int64
+	ParentID int64
 
 	// The Resource should be the same for all spans in the same trace
 	Resource string
@@ -107,9 +113,9 @@ func (t *Trace) SSFSample() *ssf.SSFSample {
 		Status:    t.Status,
 		Name:      *proto.String(name),
 		Trace: &ssf.SSFTrace{
-			TraceId:  t.TraceId,
-			Id:       t.SpanId,
-			ParentId: t.ParentId,
+			TraceId:  t.TraceID,
+			Id:       t.SpanID,
+			ParentId: t.ParentID,
 			Duration: duration,
 			Resource: t.Resource,
 		},
@@ -119,7 +125,7 @@ func (t *Trace) SSFSample() *ssf.SSFSample {
 	}
 }
 
-// ProtoMarshalText writes the Trace as a protocol buffer
+// ProtoMarshalTo writes the Trace as a protocol buffer
 // in text format to the specified writer.
 func (t *Trace) ProtoMarshalTo(w io.Writer) error {
 	packet, err := proto.Marshal(t.SSFSample())
@@ -149,9 +155,9 @@ func (t *Trace) Record(name string, tags []*ssf.SSFTag) error {
 		Status:    t.Status,
 		Name:      *proto.String(name),
 		Trace: &ssf.SSFTrace{
-			TraceId:  t.TraceId,
-			Id:       t.SpanId,
-			ParentId: t.ParentId,
+			TraceId:  t.TraceID,
+			Id:       t.SpanID,
+			ParentId: t.ParentID,
 			Duration: duration,
 			Resource: t.Resource,
 		},
@@ -228,8 +234,8 @@ func StartSpanFromContext(ctx context.Context, name string, opts ...opentracing.
 // SetParent updates the ParentId, TraceId, and Resource of a trace
 // based on the parent's values (SpanId, TraceId, Resource).
 func (t *Trace) SetParent(parent *Trace) {
-	t.ParentId = parent.SpanId
-	t.TraceId = parent.TraceId
+	t.ParentID = parent.SpanID
+	t.TraceID = parent.TraceID
 	t.Resource = parent.Resource
 }
 
@@ -240,9 +246,9 @@ func (t *Trace) context() *spanContext {
 
 	c := &spanContext{}
 	c.Init()
-	c.baggageItems["traceid"] = strconv.FormatInt(t.TraceId, 10)
-	c.baggageItems["parentid"] = strconv.FormatInt(t.ParentId, 10)
-	c.baggageItems["spanid"] = strconv.FormatInt(t.SpanId, 10)
+	c.baggageItems["traceid"] = strconv.FormatInt(t.TraceID, 10)
+	c.baggageItems["parentid"] = strconv.FormatInt(t.ParentID, 10)
+	c.baggageItems["spanid"] = strconv.FormatInt(t.SpanID, 10)
 	c.baggageItems["resource"] = t.Resource
 	return c
 }
@@ -254,8 +260,8 @@ func (t *Trace) contextAsParent() *spanContext {
 
 	c := &spanContext{}
 	c.Init()
-	c.baggageItems["traceid"] = strconv.FormatInt(t.TraceId, 10)
-	c.baggageItems["parentid"] = strconv.FormatInt(t.SpanId, 10)
+	c.baggageItems["traceid"] = strconv.FormatInt(t.TraceID, 10)
+	c.baggageItems["parentid"] = strconv.FormatInt(t.SpanID, 10)
 	c.baggageItems["resource"] = t.Resource
 	return c
 }
@@ -263,12 +269,12 @@ func (t *Trace) contextAsParent() *spanContext {
 // StartTrace is called by to create the root-level span
 // for a trace
 func StartTrace(resource string) *Trace {
-	traceId := proto.Int64(rand.Int63())
+	traceID := proto.Int64(rand.Int63())
 
 	t := &Trace{
-		TraceId:  *traceId,
-		SpanId:   *traceId,
-		ParentId: 0,
+		TraceID:  *traceID,
+		SpanID:   *traceID,
+		ParentID: 0,
 		Resource: resource,
 	}
 
@@ -278,9 +284,9 @@ func StartTrace(resource string) *Trace {
 
 // StartChildSpan creates a new Span with the specified parent
 func StartChildSpan(parent *Trace) *Trace {
-	spanId := proto.Int64(rand.Int63())
+	spanID := proto.Int64(rand.Int63())
 	span := &Trace{
-		SpanId: *spanId,
+		SpanID: *spanID,
 	}
 
 	span.SetParent(parent)
@@ -296,12 +302,12 @@ func sendSample(sample *ssf.SSFSample) error {
 		return nil
 	}
 
-	server_addr, err := net.ResolveUDPAddr("udp", localVeneurAddress)
+	serverAddr, err := net.ResolveUDPAddr("udp", localVeneurAddress)
 	if err != nil {
 		return err
 	}
 
-	conn, err := net.DialUDP("udp", nil, server_addr)
+	conn, err := net.DialUDP("udp", nil, serverAddr)
 	if err != nil {
 		return err
 	}

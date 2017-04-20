@@ -90,6 +90,7 @@ func generateConfig(forwardAddr string) Config {
 		HTTPAddress:         fmt.Sprintf("localhost:%d", port),
 		ForwardAddress:      forwardAddr,
 		NumWorkers:          4,
+		FlushFile:           "",
 
 		// Use only one reader, so that we can run tests
 		// on platforms which do not support SO_REUSEPORT
@@ -496,6 +497,17 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 	}
 
 	f.server.Flush()
+}
+
+// TestLocalFilePluginRegister tests that we are able to register
+// a local file as a flush output for Veneur.
+func TestLocalFilePluginRegister(t *testing.T) {
+	config := globalConfig()
+	config.FlushFile = "/dev/null"
+
+	server := setupVeneurServer(t, config)
+
+	assert.Equal(t, 1, len(server.getPlugins()))
 }
 
 // TestGlobalServerS3PluginFlush tests that we are able to
