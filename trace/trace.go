@@ -29,7 +29,7 @@ func init() {
 // Disabled controls if we'll actually emit the traces.
 // If this is set to true, traces will be generated but not
 // actually sent. This should only be set before any traces
-// are generated
+// are generated. Note: Very Experimental.
 var Disabled = false
 
 // Make an unexported `key` type that we use as a String such
