@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"sync"
@@ -30,6 +31,7 @@ import (
 
 	"github.com/stripe/veneur/plugins"
 	"github.com/stripe/veneur/plugins/influxdb"
+	localfilep "github.com/stripe/veneur/plugins/localfile"
 	s3p "github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/trace"
@@ -39,11 +41,16 @@ import (
 // It must be a var so it can be set at link time.
 var VERSION = "dirty"
 
+// REDACTED is used to replace values that we don't want to leak into loglines (e.g., credentials)
+const REDACTED = "REDACTED"
+
 var profileStartOnce = sync.Once{}
 
 var log = logrus.New()
 
 var tracer = trace.GlobalTracer
+
+const defaultTCPReadTimeout = 10 * time.Minute
 
 // A Server is the actual veneur instance that will be run.
 type Server struct {
@@ -73,9 +80,10 @@ type Server struct {
 	metricMaxLength     int
 	traceMaxLengthBytes int
 
-	TCPAddr     *net.TCPAddr
-	tlsConfig   *tls.Config
-	tcpListener net.Listener
+	TCPAddr        *net.TCPAddr
+	tlsConfig      *tls.Config
+	tcpListener    net.Listener
+	tcpReadTimeout time.Duration
 
 	// closed when the server is shutting down gracefully
 	shutdown chan struct{}
@@ -225,9 +233,9 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		}
 	}
 
-	conf.Key = "REDACTED"
-	conf.SentryDsn = "REDACTED"
-	conf.TLSKey = "REDACTED"
+	conf.Key = REDACTED
+	conf.SentryDsn = REDACTED
+	conf.TLSKey = REDACTED
 	log.WithField("config", conf).Debug("Initialized server")
 
 	if len(conf.TraceAddress) > 0 && len(conf.TraceAPIAddress) > 0 {
@@ -250,8 +258,8 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	awsID := conf.AwsAccessKeyID
 	awsSecret := conf.AwsSecretAccessKey
 
-	conf.AwsAccessKeyID = "REDACTED"
-	conf.AwsSecretAccessKey = "REDACTED"
+	conf.AwsAccessKeyID = REDACTED
+	conf.AwsSecretAccessKey = REDACTED
 
 	if len(awsID) > 0 && len(awsSecret) > 0 {
 		sess, err := session.NewSession(&aws.Config{
@@ -289,6 +297,15 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			log, conf.InfluxAddress, conf.InfluxConsistency, conf.InfluxDBName, ret.HTTPClient, ret.statsd,
 		)
 		ret.registerPlugin(plugin)
+	}
+
+	if conf.FlushFile != "" {
+		localFilePlugin := &localfilep.Plugin{
+			FilePath: conf.FlushFile,
+			Logger:   log,
+		}
+		ret.registerPlugin(localFilePlugin)
+		log.Info(fmt.Sprintf("Local file logging to %s", conf.FlushFile))
 	}
 
 	// closed in Shutdown; Same approach and http.Shutdown
@@ -565,21 +582,26 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 	}()
 	s.statsd.Count("tcp.connects", 1, nil, 1.0)
 
+	// time out idle connections to prevent leaking memory/goroutines
+	timeout := defaultTCPReadTimeout
+	if s.tcpReadTimeout != 0 {
+		timeout = s.tcpReadTimeout
+	}
+
 	if tlsConn, ok := conn.(*tls.Conn); ok {
 		// complete the handshake to verify the certificate
-		if !tlsConn.ConnectionState().HandshakeComplete {
-			err := tlsConn.Handshake()
-			if err != nil {
-				// usually io.EOF or "read: connection reset by peer"; not really errors
-				// it can also be caused by certificate authentication problems
-				s.statsd.Count("tcp.tls_handshake_failures", 1, nil, 1.0)
-				log.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"peer":          conn.RemoteAddr(),
-				}).Info("TLS Handshake failed")
+		conn.SetReadDeadline(time.Now().Add(timeout))
+		err := tlsConn.Handshake()
+		if err != nil {
+			// usually io.EOF or "read: connection reset by peer"; not really errors
+			// it can also be caused by certificate authentication problems
+			s.statsd.Count("tcp.tls_handshake_failures", 1, nil, 1.0)
+			log.WithFields(logrus.Fields{
+				logrus.ErrorKey: err,
+				"peer":          conn.RemoteAddr(),
+			}).Info("TLS Handshake failed")
 
-				return
-			}
+			return
 		}
 
 		state := tlsConn.ConnectionState()
@@ -599,7 +621,12 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 
 	// Scanner is nearly the same performance as a custom implementation
 	buf := bufio.NewScanner(conn)
-	for buf.Scan() {
+
+	scanWithDeadline := func() bool {
+		conn.SetReadDeadline(time.Now().Add(timeout))
+		return buf.Scan()
+	}
+	for scanWithDeadline() {
 		// treat each line as a separate packet
 		err := s.HandleMetricPacket(buf.Bytes())
 		if err != nil {
@@ -611,7 +638,7 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 		}
 	}
 	if buf.Err() != nil {
-		// usually "read: connection reset by peer"
+		// usually "read: connection reset by peer" or "i/o timeout"
 		log.WithFields(logrus.Fields{
 			logrus.ErrorKey: buf.Err(),
 			"peer":          conn.RemoteAddr(),
@@ -637,9 +664,6 @@ func (s *Server) ReadTCPSocket() {
 	}).Info("Listening for TCP connections")
 
 	for {
-		defer func() {
-			s.ConsumePanic(recover())
-		}()
 		conn, err := s.tcpListener.Accept()
 		if err != nil {
 			select {

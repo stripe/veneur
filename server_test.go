@@ -90,6 +90,7 @@ func generateConfig(forwardAddr string) Config {
 		HTTPAddress:         fmt.Sprintf("localhost:%d", port),
 		ForwardAddress:      forwardAddr,
 		NumWorkers:          4,
+		FlushFile:           "",
 
 		// Use only one reader, so that we can run tests
 		// on platforms which do not support SO_REUSEPORT
@@ -498,6 +499,17 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 	f.server.Flush()
 }
 
+// TestLocalFilePluginRegister tests that we are able to register
+// a local file as a flush output for Veneur.
+func TestLocalFilePluginRegister(t *testing.T) {
+	config := globalConfig()
+	config.FlushFile = "/dev/null"
+
+	server := setupVeneurServer(t, config)
+
+	assert.Equal(t, 1, len(server.getPlugins()))
+}
+
 // TestGlobalServerS3PluginFlush tests that we are able to
 // register the S3 plugin on the server, and that when we do,
 // flushing on the server causes the S3 plugin to flush to S3.
@@ -854,5 +866,55 @@ func TestTCPMetrics(t *testing.T) {
 		}
 
 		f.Close()
+	}
+}
+
+// TestHandleTCPGoroutineTimeout verifies that an idle TCP connection doesn't block forever.
+func TestHandleTCPGoroutineTimeout(t *testing.T) {
+	const readTimeout = 30 * time.Millisecond
+	s := &Server{tcpReadTimeout: readTimeout, Workers: []*Worker{
+		&Worker{PacketChan: make(chan samplers.UDPMetric, 1)},
+	}}
+
+	// make a real TCP connection ... to ourselves
+	listener, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	acceptorDone := make(chan struct{})
+	go func() {
+		accepted, err := listener.Accept()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// after half the read timeout: send a stat; it should work
+		time.Sleep(readTimeout / 2)
+		_, err = accepted.Write([]byte("metric:42|g\n"))
+		if err != nil {
+			t.Error("expected Write to succeed:", err)
+		}
+
+		// read: returns when the connection is closed
+		out, err := ioutil.ReadAll(accepted)
+		if !(len(out) == 0 && err == nil) {
+			t.Errorf("expected len(out)==0 (was %d) and err==nil (was %v)", len(out), err)
+		}
+		close(acceptorDone)
+	}()
+	conn, err := net.Dial("tcp", listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// handleTCPGoroutine should not block forever: it will time outTest
+	log.Printf("handling goroutine")
+	s.handleTCPGoroutine(conn)
+	<-acceptorDone
+
+	// we should have received one metric
+	packet := <-s.Workers[0].PacketChan
+	if packet.Name != "metric" {
+		t.Error("Expected packet for metric:", packet)
 	}
 }
