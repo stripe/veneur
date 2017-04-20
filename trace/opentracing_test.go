@@ -35,8 +35,8 @@ func TestTracerRootSpan(t *testing.T) {
 
 	between := end.After(trace.Start) && trace.Start.After(start)
 
-	assert.Equal(t, trace.TraceId, trace.SpanId)
-	assert.Equal(t, trace.ParentId, expectedParent)
+	assert.Equal(t, trace.TraceID, trace.SpanID)
+	assert.Equal(t, trace.ParentID, expectedParent)
 	assert.Equal(t, trace.Resource, resource)
 	assert.True(t, between)
 }
@@ -63,7 +63,7 @@ func TestTracerChildSpan(t *testing.T) {
 	tracer := Tracer{}
 
 	parent := StartTrace(resource)
-	var expectedParent = parent.SpanId
+	var expectedParent = parent.SpanID
 
 	start := time.Now()
 	opts := []opentracing.StartSpanOption{
@@ -81,8 +81,8 @@ func TestTracerChildSpan(t *testing.T) {
 
 	assert.Equal(t, time.Unix(expectedTimestamp, 0), trace.Start)
 
-	assert.Equal(t, parent.TraceId, parent.SpanId)
-	assert.Equal(t, expectedParent, trace.ParentId)
+	assert.Equal(t, parent.TraceID, parent.SpanID)
+	assert.Equal(t, expectedParent, trace.ParentID)
 	assert.Equal(t, resource, trace.Resource)
 
 	assert.Len(t, trace.Tags, len(expectedTags))
@@ -167,10 +167,10 @@ func TestTracerInjectExtractBinary(t *testing.T) {
 
 	ctx := c.(*spanContext)
 
-	assert.Equal(t, trace.TraceId, ctx.TraceId())
+	assert.Equal(t, trace.TraceID, ctx.TraceID())
 
-	assert.Equal(t, trace.SpanId, ctx.SpanId(), "original trace and context should share the same SpanId")
-	assert.Equal(t, trace.ParentId, ctx.ParentId(), "original trace and context should share the same ParentId")
+	assert.Equal(t, trace.SpanID, ctx.SpanID(), "original trace and context should share the same SpanId")
+	assert.Equal(t, trace.ParentID, ctx.ParentID(), "original trace and context should share the same ParentId")
 	assert.Equal(t, trace.Resource, ctx.Resource())
 }
 
@@ -186,9 +186,9 @@ func TestTracerInjectTextMap(t *testing.T) {
 	err := tracer.Inject(trace.context(), opentracing.TextMap, tm)
 	assert.NoError(t, err)
 
-	assert.Equal(t, strconv.FormatInt(trace.TraceId, 10), tm["traceid"])
-	assert.Equal(t, strconv.FormatInt(trace.ParentId, 10), tm["parentid"])
-	assert.Equal(t, strconv.FormatInt(trace.SpanId, 10), tm["spanid"])
+	assert.Equal(t, strconv.FormatInt(trace.TraceID, 10), tm["traceid"])
+	assert.Equal(t, strconv.FormatInt(trace.ParentID, 10), tm["parentid"])
+	assert.Equal(t, strconv.FormatInt(trace.SpanID, 10), tm["spanid"])
 	assert.Equal(t, trace.Resource, tm["resource"])
 }
 
@@ -209,10 +209,10 @@ func TestTracerInjectExtractExtractTextMap(t *testing.T) {
 
 	ctx := c.(*spanContext)
 
-	assert.Equal(t, trace.TraceId, ctx.TraceId())
+	assert.Equal(t, trace.TraceID, ctx.TraceID())
 
-	assert.Equal(t, trace.SpanId, ctx.SpanId(), "original trace and context should share the same SpanId")
-	assert.Equal(t, trace.ParentId, ctx.ParentId(), "original trace and context should share the same ParentId")
+	assert.Equal(t, trace.SpanID, ctx.SpanID(), "original trace and context should share the same SpanId")
+	assert.Equal(t, trace.ParentID, ctx.ParentID(), "original trace and context should share the same ParentId")
 	assert.Equal(t, trace.Resource, ctx.Resource())
 }
 
@@ -236,10 +236,10 @@ func TestTracerInjectExtractHeader(t *testing.T) {
 
 	ctx := c.(*spanContext)
 
-	assert.Equal(t, trace.TraceId, ctx.TraceId())
+	assert.Equal(t, trace.TraceID, ctx.TraceID())
 
-	assert.Equal(t, trace.SpanId, ctx.SpanId(), "original trace and context should share the same SpanId")
-	assert.Equal(t, trace.ParentId, ctx.ParentId(), "original trace and context should share the same ParentId")
+	assert.Equal(t, trace.SpanID, ctx.SpanID(), "original trace and context should share the same SpanId")
+	assert.Equal(t, trace.ParentID, ctx.ParentID(), "original trace and context should share the same ParentId")
 	assert.Equal(t, trace.Resource, ctx.Resource())
 
 }
@@ -284,7 +284,7 @@ func TestInjectRequestExtractRequestChild(t *testing.T) {
 	span, err := tracer.ExtractRequestChild(childResource, req, traceName)
 	assert.NoError(t, err)
 
-	assert.NotEqual(t, trace.SpanId, span.SpanId, "original trace and child should have different SpanIds")
-	assert.Equal(t, trace.SpanId, span.ParentId, "child should have the original trace's SpanId as its ParentId")
-	assert.Equal(t, trace.TraceId, span.TraceId)
+	assert.NotEqual(t, trace.SpanID, span.SpanID, "original trace and child should have different SpanIds")
+	assert.Equal(t, trace.SpanID, span.ParentID, "child should have the original trace's SpanId as its ParentId")
+	assert.Equal(t, trace.TraceID, span.TraceID)
 }

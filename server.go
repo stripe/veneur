@@ -213,7 +213,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			}
 
 			clientAuthMode := tls.NoClientCert
-			var clientCAs *x509.CertPool = nil
+			var clientCAs *x509.CertPool
 			if conf.TLSAuthorityCertificate != "" {
 				// load the authority; require clients to present certificated signed by this authority
 				clientAuthMode = tls.RequireAndVerifyClientCert

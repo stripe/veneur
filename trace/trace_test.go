@@ -22,8 +22,8 @@ func TestStartTrace(t *testing.T) {
 
 	between := end.After(trace.Start) && trace.Start.After(start)
 
-	assert.Equal(t, trace.TraceId, trace.SpanId)
-	assert.Equal(t, trace.ParentId, expectedParent)
+	assert.Equal(t, trace.TraceID, trace.SpanID)
+	assert.Equal(t, trace.ParentID, expectedParent)
 	assert.Equal(t, trace.Resource, resource)
 	assert.True(t, between)
 }
@@ -140,11 +140,11 @@ func TestSpanFromContext(t *testing.T) {
 	ctx = child.Attach(context.Background())
 	grandchild := SpanFromContext(ctx)
 
-	assert.Equal(t, child.TraceId, trace.SpanId)
-	assert.Equal(t, child.TraceId, trace.TraceId)
-	assert.Equal(t, child.ParentId, trace.SpanId)
-	assert.Equal(t, grandchild.ParentId, child.SpanId)
-	assert.Equal(t, grandchild.TraceId, trace.SpanId)
+	assert.Equal(t, child.TraceID, trace.SpanID)
+	assert.Equal(t, child.TraceID, trace.TraceID)
+	assert.Equal(t, child.ParentID, trace.SpanID)
+	assert.Equal(t, grandchild.ParentID, child.SpanID)
+	assert.Equal(t, grandchild.TraceID, trace.SpanID)
 }
 
 func TestStartChildSpan(t *testing.T) {
@@ -156,12 +156,12 @@ func TestStartChildSpan(t *testing.T) {
 	assert.Equal(t, resource, child.Resource)
 	assert.Equal(t, resource, grandchild.Resource)
 
-	assert.Equal(t, root.SpanId, root.TraceId)
-	assert.Equal(t, root.SpanId, child.TraceId)
-	assert.Equal(t, root.SpanId, grandchild.TraceId)
+	assert.Equal(t, root.SpanID, root.TraceID)
+	assert.Equal(t, root.SpanID, child.TraceID)
+	assert.Equal(t, root.SpanID, grandchild.TraceID)
 
-	assert.Equal(t, root.SpanId, child.ParentId)
-	assert.Equal(t, child.SpanId, grandchild.ParentId)
+	assert.Equal(t, root.SpanID, child.ParentID)
+	assert.Equal(t, child.SpanID, grandchild.ParentID)
 }
 
 // Test that a Trace is correctly able to generate
@@ -173,8 +173,8 @@ func TestTraceContextAsParent(t *testing.T) {
 
 	ctx := trace.contextAsParent()
 
-	assert.Equal(t, trace.TraceId, ctx.TraceId())
-	assert.Equal(t, trace.SpanId, ctx.ParentId())
+	assert.Equal(t, trace.TraceID, ctx.TraceID())
+	assert.Equal(t, trace.SpanID, ctx.ParentID())
 	assert.Equal(t, trace.Resource, ctx.Resource())
 }
 
