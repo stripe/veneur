@@ -58,3 +58,6 @@ tls_certificate: ""
 
 # Authority certificate: requires clients to be authenticated
 tls_authority_certificate: ""
+
+# Include this if you want to archive data to a local file (which should then be rotated/cleaned)
+flush_file: ""
