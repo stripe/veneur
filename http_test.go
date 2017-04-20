@@ -248,6 +248,54 @@ func TestServerImportEmptyListError(t *testing.T) {
 	testServerImportHelper(t, data)
 }
 
+func TestGeneralHealthCheck(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/healthcheck", nil)
+
+	config := localConfig()
+	s := setupVeneurServer(t, config)
+	defer s.Shutdown()
+
+	w := httptest.NewRecorder()
+
+	handler := s.Handler()
+	handler.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code, "Healthcheck did not succeed")
+}
+
+func TestOkTraceHealthCheck(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/healthcheck/tracing", nil)
+
+	config := localConfig()
+	s := setupVeneurServer(t, config)
+	defer s.Shutdown()
+	HTTPAddrPort++
+
+	w := httptest.NewRecorder()
+
+	handler := s.Handler()
+	handler.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code, "Trace healthcheck did not succeed")
+}
+
+func TestNokTraceHealthCheck(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/healthcheck/tracing", nil)
+
+	config := localConfig()
+	config.TraceAddress = ""
+	s := setupVeneurServer(t, config)
+	defer s.Shutdown()
+	HTTPAddrPort++
+
+	w := httptest.NewRecorder()
+
+	handler := s.Handler()
+	handler.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusForbidden, w.Code, "Trace healthcheck succeeded when disabled")
+}
+
 func testServerImportHelper(t *testing.T, data interface{}) {
 	var b bytes.Buffer
 	err := json.NewEncoder(&b).Encode(data)
@@ -261,6 +309,7 @@ func testServerImportHelper(t *testing.T, data interface{}) {
 	config := localConfig()
 	s := setupVeneurServer(t, config)
 	defer s.Shutdown()
+	HTTPAddrPort++
 
 	handler := handleImport(&s)
 	handler.ServeHTTP(w, r)
