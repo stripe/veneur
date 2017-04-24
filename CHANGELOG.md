@@ -1,4 +1,4 @@
-# 1.2.0, IN PROGRESS
+# 1.2.0, 2017-04-24
 
 ## Bugfixes
 * Fix flusher_test to properly shutdown HTTP after handling. Thanks [evanj](https://github.com/evanj)!
