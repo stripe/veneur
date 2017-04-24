@@ -13,6 +13,7 @@ import (
 	"net"
 	"reflect"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/stripe/veneur/ssf"
@@ -26,11 +27,13 @@ func init() {
 	rand.Seed(time.Now().Unix())
 }
 
-// Disabled controls if we'll actually emit the traces.
-// If this is set to true, traces will be generated but not
-// actually sent. This should only be set before any traces
-// are generated. Note: Very Experimental.
-var Disabled = false
+// (Experimental)
+// If this is set to true,
+// traces will be generated but not actually sent.
+// This should only be set before any traces are generated
+var disabled bool = false
+
+var enabledMtx sync.RWMutex
 
 // Make an unexported `key` type that we use as a String such
 // that we don't get lint warnings from using it as a key in
@@ -87,6 +90,31 @@ type Trace struct {
 // Set the end timestamp and finalize Span state
 func (t *Trace) finish() {
 	t.End = time.Now()
+}
+
+// (Experimental)
+// Enabled sets tracing to enabled.
+func Enable() {
+	enabledMtx.Lock()
+	defer enabledMtx.Unlock()
+
+	disabled = false
+}
+
+// (Experimental)
+// Disabled sets tracing to disabled.
+func Disable() {
+	enabledMtx.Lock()
+	defer enabledMtx.Unlock()
+
+	disabled = true
+}
+
+func Disabled() bool {
+	enabledMtx.RLock()
+	defer enabledMtx.RUnlock()
+
+	return disabled
 }
 
 // Duration is a convenience function for
@@ -298,7 +326,7 @@ func StartChildSpan(parent *Trace) *Trace {
 // sendSample marshals the sample using protobuf and sends it
 // over UDP to the local veneur instance
 func sendSample(sample *ssf.SSFSample) error {
-	if Disabled {
+	if Disabled() {
 		return nil
 	}
 

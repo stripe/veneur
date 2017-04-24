@@ -154,15 +154,22 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		ret.enableProfiling = true
 	}
 
-	log.Hooks.Add(sentryHook{
-		c:        ret.sentry,
-		hostname: ret.Hostname,
-		lv: []logrus.Level{
-			logrus.ErrorLevel,
-			logrus.FatalLevel,
-			logrus.PanicLevel,
-		},
-	})
+	// This is a check to ensure that we don't repeatedly add a hook
+	// to the "global" log instance on repeated calls to `NewFromConfig`
+	// such as those made in testing. By skipping this we avoid a race
+	// condition in logrus discussed here:
+	// https://github.com/sirupsen/logrus/issues/295
+	if _, ok := log.Hooks[logrus.FatalLevel]; !ok {
+		log.Hooks.Add(sentryHook{
+			c:        ret.sentry,
+			hostname: ret.Hostname,
+			lv: []logrus.Level{
+				logrus.ErrorLevel,
+				logrus.FatalLevel,
+				logrus.PanicLevel,
+			},
+		})
+	}
 
 	log.WithField("number", conf.NumWorkers).Info("Preparing workers")
 	// Allocate the slice, we'll fill it with workers later.
@@ -250,8 +257,9 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		if err != nil {
 			return
 		}
+		trace.Enable()
 	} else {
-		trace.Disabled = true
+		trace.Disable()
 	}
 
 	var svc s3iface.S3API
@@ -368,6 +376,21 @@ func (s *Server) Start() {
 		if err != nil {
 			logrus.WithError(err).Fatal("Error listening for TCP connections")
 		}
+
+		mode := "unencrypted"
+		if s.tlsConfig != nil {
+			// wrap the listener with TLS
+			s.tcpListener = tls.NewListener(s.tcpListener, s.tlsConfig)
+			if s.tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
+				mode = "authenticated"
+			} else {
+				mode = "encrypted"
+			}
+		}
+
+		log.WithFields(logrus.Fields{
+			"address": s.TCPAddr, "mode": mode,
+		}).Info("Listening for TCP connections")
 
 		go func() {
 			defer func() {
@@ -647,21 +670,6 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 
 // ReadTCPSocket listens on Server.TCPAddr for new connections, starting a goroutine for each.
 func (s *Server) ReadTCPSocket() {
-	mode := "unencrypted"
-	if s.tlsConfig != nil {
-		// wrap the listener with TLS
-		s.tcpListener = tls.NewListener(s.tcpListener, s.tlsConfig)
-		if s.tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
-			mode = "authenticated"
-		} else {
-			mode = "encrypted"
-		}
-	}
-
-	log.WithFields(logrus.Fields{
-		"address": s.TCPAddr, "mode": mode,
-	}).Info("Listening for TCP connections")
-
 	for {
 		conn, err := s.tcpListener.Accept()
 		if err != nil {

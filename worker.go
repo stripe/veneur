@@ -151,6 +151,15 @@ func (w *Worker) Work() {
 	}
 }
 
+// MetricsProcessedCount is a convenince method for testing
+// that allows us to fetch the Worker's processed count
+// in a non-racey way.
+func (w *Worker) MetricsProcessedCount() int64 {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+	return w.processed
+}
+
 // ProcessMetric takes a Metric and samples it
 //
 // This is standalone to facilitate testing
