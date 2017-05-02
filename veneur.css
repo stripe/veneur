@@ -18,10 +18,9 @@ body {
 
 #top-img {
   width: 40%;
-  margin-bottom: 1em;
-  margin-top: 0%;
   border: none;
-  padding-bottom: 0px;
+  margin: none;
+  padding: 1em 0;
 }
 
 @media only screen and (min-width: 600px) {
