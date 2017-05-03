@@ -1,0 +1,69 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Veneur</title>
+  <link rel="icon" type="image/png" href="favicon-32x32.png" sizes="32x32">
+  <link rel="icon" type="image/png" href="favicon-16x16.png" sizes="16x16">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css" />
+  <link rel="stylesheet" href="flexblocks-responsive.css">
+  <link rel="stylesheet" href="veneur.css">
+</head>
+
+<body>
+  <div id="top" class="col center">
+    <img id="top-img" src="veneur_logo.svg"> <div id="links" class="col gap-1 xrow xgap-2 center"> <a class="s" href="https://github.com/stripe/veneur/releases"><span class="fa fa-download"></span> download</a>
+      <a class="s" href="manual"><span class="fa fa-book"></span> manual</a>
+      <a class="s" href="https://github.com/stripe/veneur"><span class="fa fa-github"></span> source</a>
+      <a class="s" href="https://github.com/stripe/veneur/issues"><span class="fa fa-exclamation-triangle"></span> issues</a>
+    </div>
+  </div>
+  <div id="bottom" class="center">
+    <div class="bigwords">
+      <span class="s">Veneur</span>
+
+      is a distributed server implementation of the statsd protocol.
+
+      It's fast, <span class="s">memory-efficient</span>, and capable of aggregating <span class="s">global metrics</span>.
+      <br/><br/>
+
+      It's designed to be:
+    </div>
+    <div id="rows" class="col gap-5">
+      <div class="col gap-5 center xrow xgap-10 xtop">
+
+        <div class="columnblock col">
+          <div class="fa fa-microchip bullet"></div>
+          <div>
+            <span class="s">Memory-efficient:</span> Perform aggregation in constant space with HyperLogLog and t-digests.
+          </div>
+        </div>
+
+        <div class="columnblock col">
+          <div class="fa fa-database bullet"></div>
+          <span class="s">Distributed:</span> Run host-local instances, but also get global aggregate metrics.
+        </div>
+      </div>
+
+      <div class="col gap-5 center xrow xgap-10 xtop">
+        <div class="columnblock col">
+          <div class="fa fa-plug bullet"></div>
+          <div>
+            <span class="s">Pluggable:</span> Archive data in S3, Redshift, or a custom backend.
+          </div>
+        </div>
+
+        <div class="columnblock col">
+          <div class="fa fa-sitemap bullet"></div>
+          <div>
+            <span class="s">Parallelized:</span> Scale metrics processing with a configurable worker pool.
+          </div>
+        </div>
+      </div>
+    </div>
+    <h1 class="bigwords">To get started, check out the <a href="https://github.com/stripe/veneur#status"><span class="fa fa-book s"></span> documentation</a>.</h1>
+  </div>
+</body>
+</html>
