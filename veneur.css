@@ -109,10 +109,14 @@ a:link,
 a:visited,
 a:hover,
 a:active {
-  color: inherit;
-  text-decoration: inherit;
+  color: blue;
+  text-decoration: underline;
   font-weight: inherit;
 }
+ #top a {
+   color: black;
+   text-decoration: none;
+ }
 
 .mono {
   font-size: 150%;
