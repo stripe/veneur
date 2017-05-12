@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -93,7 +94,7 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 		ret.Value = string(valueChunk)
 	} else {
 		v, err := strconv.ParseFloat(string(valueChunk), 64)
-		if err != nil {
+		if err != nil || math.IsNaN(v) || math.IsInf(v, 0) {
 			return nil, fmt.Errorf("Invalid number for metric value: %s", valueChunk)
 		}
 		ret.Value = v
