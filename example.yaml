@@ -33,10 +33,14 @@ http_address: "localhost:8127"
 forward_address: "http://veneur.example.com"
 
 ### TRACING
-# The address on which we will listen for trace data
+# The address on which we will listen for UDP trace data
 trace_address: "127.0.0.1:8128"
-# Use a static host to send traces to
+# Use a static host to send datadog traces to
 trace_api_address: "http://localhost:7777"
+
+# If present, lightstep will be enabled as a tracing sink
+# and this access token will be used
+trace_lightstep_access_token: ""
 
 sentry_dsn: ""
 

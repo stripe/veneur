@@ -13,7 +13,7 @@ var (
 )
 
 func init() {
-	trace.Service = "veneur"
+	trace.Service = "veneur-local"
 }
 
 func main() {
