@@ -18,6 +18,9 @@ before_script:
   # because the go-generated version will have a different
   # fileDescriptor0 depending on which version of Go was used
   # to build protoc-gen-go.
+  # We do *not* do this in Jenkins, because Jenkins only builds
+  # using a single version of Go, whereas Travis builds with multiple
+  # versions.
   - git checkout ssf/sample.pb.go
 
   - gofmt -w .
