@@ -7,14 +7,17 @@ import "strings"
 
 func main () {
     // Flag instantiation
-    var hostport, namespace, name, metric_type, tag string
+    var hostport, namespace, name, metric_type, tag, value string
 
     // Flag definitions
     flag.StringVar(&hostport, "hostport", "127.0.0.1:8080", "Hostname and port of destination.")
     flag.StringVar(&namespace, "namespace", "foo", "Namespace of metrics. Ex: daemontools")
     flag.StringVar(&name, "name", "foo", "Name of metric to report to Veneur. Ex: service.starts")
-    flag.StringVar(&metric_type, "type", "foo", "Type of metric to report. One of: guage, timing, timeinms, incr, decr, count.")
+    flag.StringVar(&metric_type, "type", "foo", "Type of metric to report. One of: gauge, timing, timeinms, incr, decr, count.")
     flag.StringVar(&tag, "tag", "foo", "Tag for metric. Ex: #service:airflow")
+    //flag.StringVar(&value, "value", "0", "Value of metric, Not used for 'incr' or 'decr'.")
+
+    // add value
 
     // Parse flags
     flag.Parse()
@@ -30,6 +33,7 @@ func main () {
     fmt.Println("name: ", name)
     fmt.Println("type: ", metric_type)
     fmt.Println("tag: ", tag)
+    fmt.Println("value: ", value)
 
     // Set up connection to server
     conn, err := statsd.New(hostport)
@@ -41,21 +45,20 @@ func main () {
 
     // Validate type *and* send actual metric.
     switch metric_type {
-        case "guage":
-            err = conn.Gauge(name, 12, nil, 1)
+        case "gauge":
+            err = conn.Gauge(name, 15, nil, 1)
         case "timing":
-            fmt.Println("TIMING not supported yet.")
-            //err = conn.Timing(name, duration, nil, 1)
+            err = conn.Timing(name, 12, nil, 1)
         case "timeinms":
-            err = conn.TimeInMilliseconds(name, 12, nil, 1)
+            err = conn.TimeInMilliseconds(name, 10, nil, 1)
         case "incr":
             err = conn.Incr(name, nil, 1)
         case "decr":
             err = conn.Decr(name, nil, 1)
         case "count":
-            err = conn.Count(name, 2, nil, 1)
+            err = conn.Count(name, 10, nil, 1)
         default:
-            panic("Unrecognized metric type. Must be one of guage, timing, timeinms, incr, decr, count.")
+            fmt.Println("Unrecognized metric type. Must be one of gauge, timing, timeinms, incr, decr, count.")
     }
 }
 
