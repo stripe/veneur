@@ -17,8 +17,6 @@ var (
 	gauge      = flag.Float64("gauge", 0, "Report a 'gauge' metric. Value must be float64.")
 	timing     = flag.Duration("timing", time.Now().Sub(time.Now()), "Report a 'timing' metric. Value must be parseable by time.ParseDuration.")
 	timeinms   = flag.Float64("timeinms", 0, "Report a 'timing' metric, in milliseconds. Value must be float64.")
-	incr       = flag.Bool("incr", false, "Report an 'incr' metric.")
-	decr       = flag.Bool("decr", false, "Report a 'decr' metric.")
 	count      = flag.Int64("count", 0, "Report a 'count' metric. Value must be an integer.")
 	tag        = flag.String("tag", "", "Tag(s) for metric, comma separated. Ex: service:airflow")
 )
@@ -31,13 +29,13 @@ func main() {
 	flag.Visit(func(f *flag.Flag) { passedFlags[f.Name] = true })
 
 	addr := ""
-	if passedFlags["f"] && (configFile == nil || *configFile == "") {
+	if passedFlags["f"] && !(configFile == nil || *configFile == "") {
 		conf, err := veneur.ReadConfig(*configFile)
 		if err != nil {
 			logrus.WithError(err).Fatal("Error reading config file")
 		}
-		addr = conf.UdpAddress
-	} else if passedFlags["hostport"] && (hostport == nil || *hostport == "" || !strings.Contains(*hostport, ":")) {
+		addr = conf.UdpAddress // TODO: conf.TcpAddress
+	} else if passedFlags["hostport"] && !(hostport == nil || *hostport == "" || !strings.Contains(*hostport, ":")) {
 		addr = *hostport
 	} else {
 		logrus.Fatal("You must either specify a Veneur config file or a valid hostport.")
@@ -63,14 +61,6 @@ func main() {
 	if passedFlags["timeinms"] {
 		conn.TimeInMilliseconds(*name, *timeinms, nil, 1)
 		logrus.Infof("Sending timeinms '%s' -> %f", *name, *timeinms)
-	}
-	if *incr {
-		conn.Incr(*name, nil, 1)
-		logrus.Infof("Sending incr '%s'", *name)
-	}
-	if *decr {
-		conn.Decr(*name, nil, 1)
-		logrus.Infof("Sending decr '%s'", *name)
 	}
 	if passedFlags["count"] {
 		conn.Count(*name, *count, nil, 1)
