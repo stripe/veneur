@@ -26,8 +26,8 @@ func main() {
 	flag.Parse()
 
 	// hacky way to detect which flags were *actually* set
-	flagset := make(map[string]bool)
-	flag.Visit(func(f *flag.Flag) { flagset[f.Name] = true })
+	passedFlags := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) { passedFlags[f.Name] = true })
 
 	if hostport == nil || *hostport == "" || !strings.Contains(*hostport, ":") {
 		logrus.Fatal("You must specifiy a valid destination host and port.")
@@ -51,13 +51,13 @@ func main() {
 	conn.Namespace = *namespace + "."
 	conn.Tags = append(conn.Tags, *tag)
 
-	if flagset["gauge"] {
+	if passedFlags["gauge"] {
 		conn.Gauge(*name, *gauge, nil, 1)
 	}
-	if flagset["timing"] {
+	if passedFlags["timing"] {
 		conn.Timing(*name, *timing, nil, 1)
 	}
-	if flagset["timeinms"] {
+	if passedFlags["timeinms"] {
 		conn.TimeInMilliseconds(*name, *timeinms, nil, 1)
 	}
 	if *incr {
@@ -66,7 +66,7 @@ func main() {
 	if *decr {
 		conn.Decr(*name, nil, 1)
 	}
-	if flagset["count"] {
+	if passedFlags["count"] {
 		conn.Count(*name, *count, nil, 1)
 	}
 }
