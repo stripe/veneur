@@ -1,3 +1,8 @@
+# 1.2.1, UNRELEASED
+
+## Bugfixes
+* No longer allow clients to pass in `nan`, `+inf` or `-inf` as a value for a metric, as this caused errors on flush.
+
 # 1.2.0, 2017-04-24
 
 ## Bugfixes
