@@ -21,13 +21,6 @@ var (
 	tag        = flag.String("tag", "", "Tag(s) for metric, comma separated. Ex: service:airflow")
 )
 
-// MinimalStatsd is a more easily dependency-injectable interface
-// over statsd, containing only the functionality that this
-// project uses.
-// type MinimalStatsd interface {
-// 	New(addr string) (*statsd.Client, error)
-// }
-
 // MinimalClient
 type MinimalClient interface {
 	Gauge(name string, value float64, tags []string, rate float64) error
