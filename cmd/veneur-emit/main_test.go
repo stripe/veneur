@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"testing"
 	"time"
 )
@@ -124,8 +125,8 @@ func TestHostport(t *testing.T) {
 	resetMap(testFlag)
 	testFlag["hostport"] = true
 	testHostport := "host:port"
-	addr := getAddr(testFlag, nil, &testHostport)
-	if addr != testHostport {
+	addr, err := getAddr(testFlag, nil, &testHostport)
+	if addr != testHostport || err != nil {
 		t.Error("Did not return hostport.")
 	}
 }
@@ -134,16 +135,35 @@ func TestInvalidHostport(t *testing.T) {
 	resetMap(testFlag)
 	testFlag["hostport"] = true
 	testHostport := "hostport"
-	addr := getAddr(testFlag, nil, &testHostport)
-	if addr != "" {
+	addr, err := getAddr(testFlag, nil, &testHostport)
+	if addr != "" || err == nil {
 		t.Error("Did not check for valid hostport flag.")
+	}
+}
+
+func TestEmptyHostport(t *testing.T) {
+	resetMap(testFlag)
+	testFlag["hostport"] = true
+	testHostport := ""
+	addr, err := getAddr(testFlag, nil, &testHostport)
+	if addr != "" || err == nil {
+		t.Error("Did not check for valid hostport.")
+	}
+}
+
+func TestNilHostport(t *testing.T) {
+	resetMap(testFlag)
+	testFlag["hostport"] = true
+	addr, err := getAddr(testFlag, nil, nil)
+	if addr != "" || err == nil {
+		t.Error("Did not check for valid hostport.")
 	}
 }
 
 func TestNoAddr(t *testing.T) {
 	resetMap(testFlag)
-	addr := getAddr(testFlag, nil, nil)
-	if addr != "" {
+	addr, err := getAddr(testFlag, nil, nil)
+	if addr != "" || err == nil {
 		t.Error("Returned non-empty address with no flags.")
 	}
 }
@@ -161,6 +181,21 @@ func TestGetTags(t *testing.T) {
 		}
 	}
 }
+
+func TestGetFlags(t *testing.T) {
+	os.Args = append(os.Args, "-name='testname'")
+	outputFlags := getFlags()
+	if !outputFlags["name"] {
+		t.Error("Did not properly parse flags.")
+	}
+}
+
+// func TestFlags(t *testing.T) {
+// 	os.Args = append(os.Args, "-hostport=asdf")
+// 	for idx, elem := range os.Args {
+// 		fmt.Printf("%d\t->\t'%s'\n", idx, elem)
+// 	}
+// }
 
 func resetMap(m map[string]bool) {
 	for key := range m {

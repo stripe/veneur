@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"strings"
 	"time"
@@ -21,7 +22,7 @@ var (
 	tag        = flag.String("tag", "", "Tag(s) for metric, comma separated. Ex: service:airflow")
 )
 
-// MinimalClient
+// MinimalClient represents the functions that we call on Clients in veneur-emit.
 type MinimalClient interface {
 	Gauge(name string, value float64, tags []string, rate float64) error
 	Count(name string, value int64, tags []string, rate float64) error
@@ -29,25 +30,23 @@ type MinimalClient interface {
 	TimeInMilliseconds(name string, value float64, tags []string, rate float64) error
 }
 
+// MinimalVeneur represents the functions that we call on Veneur in veneur-emit.
+type MinimalVeneur interface {
+	ReadConfig(configFile string) (c veneur.Config, err error)
+}
+
 func main() {
-	flag.Parse()
+	passedFlags := getFlags()
 
-	// hacky way to detect which flags were *actually* set
-	passedFlags := make(map[string]bool)
-	flag.Visit(func(f *flag.Flag) {
-		passedFlags[f.Name] = true
-	})
-
-	addr := getAddr(passedFlags, configFile, hostport)
-	if addr == "" {
-		logrus.Fatal("You must either specify a Veneur config file or a valid hostport.")
+	addr, err := getAddr(passedFlags, configFile, hostport)
+	if err != nil {
+		logrus.WithError(err).Fatal("Error!")
 	}
 
 	var conn MinimalClient
-	var err error
 	conn, err = statsd.New(addr)
 	if err != nil {
-		logrus.Fatal("ERROR")
+		logrus.WithError(err).Fatal("Error!")
 	}
 
 	tags := getTags(*tag)
@@ -55,6 +54,16 @@ func main() {
 	if err != nil {
 		logrus.WithError(err).Fatal("Error!")
 	}
+}
+
+func getFlags() map[string]bool {
+	flag.Parse()
+	// hacky way to detect which flags were *actually* set
+	passedFlags := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) {
+		passedFlags[f.Name] = true
+	})
+	return passedFlags
 }
 
 func getTags(tag string) []string {
@@ -65,18 +74,23 @@ func getTags(tag string) []string {
 	return tags
 }
 
-func getAddr(passedFlags map[string]bool, configFile *string, hostport *string) string {
+func getAddr(passedFlags map[string]bool, configFile *string, hostport *string) (string, error) {
 	addr := ""
+	var err error
 	if passedFlags["f"] && !(configFile == nil || *configFile == "") {
-		conf, err := veneur.ReadConfig(*configFile)
-		if err != nil {
-			logrus.WithError(err).Fatal("Error reading config file")
+		conf, e := veneur.ReadConfig(*configFile)
+		if e == nil {
+			addr = conf.UdpAddress // TODO: conf.TcpAddress
+			// logrus.WithError(err).Fatal("Error reading config file")
+		} else {
+			err = e
 		}
-		addr = conf.UdpAddress // TODO: conf.TcpAddress
 	} else if passedFlags["hostport"] && !(hostport == nil || *hostport == "" || !strings.Contains(*hostport, ":")) {
 		addr = *hostport
+	} else {
+		err = errors.New("You must either specify a Veneur config file or a valid hostport.")
 	}
-	return addr
+	return addr, err
 }
 
 func sendMetrics(client MinimalClient, passedFlags map[string]bool, name string, tags []string) error {
