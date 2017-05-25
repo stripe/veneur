@@ -43,4 +43,5 @@ RUN git diff-index --cached --exit-code HEAD
 
 
 RUN govendor test -v -timeout 10s +local
-CMD cp -r henson /build/ && go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur ./cmd/veneur
+CMD cp -r henson /build/ && go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur ./cmd/veneur && \
+  cp -r henson /build/ && go build -a -v -ldflags "-X github.com/stripe/veneur-proxy.VERSION=$(git rev-parse HEAD)" -o /build/veneur-proxy ./cmd/veneur-proxy

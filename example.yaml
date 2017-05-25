@@ -27,10 +27,18 @@ tags:
 udp_address: "localhost:8126"
 #http_address: "einhorn@0"
 http_address: "localhost:8127"
+
+### FORWARDING
+# Use a static host for forwarding
 forward_address: "http://veneur.example.com"
-sentry_dsn: ""
+
+### TRACING
+# The address on which we will listen for trace data
 trace_address: "127.0.0.1:8128"
+# Use a static host to send traces to
 trace_api_address: "http://localhost:7777"
+
+sentry_dsn: ""
 
 # If absent, defaults to the os.Hostname()!
 hostname: foobar

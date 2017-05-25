@@ -27,6 +27,8 @@ bin
 _work
 /veneur
 /cmd/veneur/veneur
+/veneur-proxy
+/cmd/veneur-proxy/veneur-proxy
 
 *.swp
 *.swo

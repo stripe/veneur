@@ -1,0 +1,41 @@
+[
+  {
+    "Node": {
+      "Node": "foobar",
+      "Address": "10.1.10.12",
+      "TaggedAddresses": {
+        "lan": "10.1.10.12",
+        "wan": "10.1.10.12"
+      }
+    },
+    "Service": {
+      "ID": "veneur",
+      "Service": "veneur",
+      "Tags": null,
+      "Address": "10.1.10.12",
+      "Port": 8000
+    },
+    "Checks": [
+      {
+        "Node": "foobar",
+        "CheckID": "service:veneur",
+        "Name": "Service 'redis' check",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "",
+        "ServiceID": "redis",
+        "ServiceName": "redis"
+      },
+      {
+        "Node": "foobar",
+        "CheckID": "serfHealth",
+        "Name": "Serf Health Status",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "",
+        "ServiceID": "",
+        "ServiceName": ""
+      }
+    ]
+  }
+]

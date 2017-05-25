@@ -2,9 +2,10 @@ package veneur
 
 import (
 	"errors"
-	"github.com/Sirupsen/logrus"
 	"testing"
 	"time"
+
+	"github.com/Sirupsen/logrus"
 
 	"github.com/getsentry/raven-go"
 )
@@ -14,14 +15,14 @@ func consumeAndCatchPanic(s *Server) (result interface{}) {
 	defer func() {
 		result = recover()
 	}()
-	s.ConsumePanic("panic")
+	ConsumePanic(s.Sentry, s.Statsd, s.Hostname, "panic")
 	return
 }
 
 func TestConsumePanicWithoutSentry(t *testing.T) {
 	s := &Server{}
 	// does nothing
-	s.ConsumePanic(nil)
+	ConsumePanic(s.Sentry, s.Statsd, s.Hostname, nil)
 
 	recovered := consumeAndCatchPanic(s)
 	if recovered != "panic" {
@@ -41,15 +42,15 @@ func (t *fakeSentryTransport) Send(url string, authHeader string, packet *raven.
 func TestConsumePanicWithSentry(t *testing.T) {
 	s := &Server{}
 	var err error
-	s.sentry, err = raven.NewClient("", nil)
+	s.Sentry, err = raven.NewClient("", nil)
 	if err != nil {
 		t.Fatal("failed to create sentry client:", err)
 	}
 	fakeTransport := &fakeSentryTransport{}
-	s.sentry.Transport = fakeTransport
+	s.Sentry.Transport = fakeTransport
 
 	// nil does nothing
-	s.ConsumePanic(nil)
+	ConsumePanic(s.Sentry, s.Statsd, s.Hostname, nil)
 	if len(fakeTransport.packets) != 0 {
 		t.Error("ConsumePanic(nil) should not send data:", fakeTransport.packets)
 	}
