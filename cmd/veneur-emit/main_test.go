@@ -61,7 +61,7 @@ func TestGauge(t *testing.T) {
 	testFlag["gauge"] = true
 	err := sendMetrics(client, testFlag, "testMetric", testTags)
 	if err != nil || !calledFunctions["gauge"] {
-		t.Error("Did not attempt to send a message?")
+		t.Error("Did not send 'gauge' metric.")
 	}
 }
 
@@ -72,7 +72,7 @@ func TestCount(t *testing.T) {
 	testFlag["count"] = true
 	err := sendMetrics(client, testFlag, "testMetric", testTags)
 	if err != nil || !calledFunctions["count"] {
-		t.Error("Did not attempt to send a message?")
+		t.Error("Did not send 'count' metric.")
 	}
 }
 
@@ -83,7 +83,7 @@ func TestTiming(t *testing.T) {
 	testFlag["timing"] = true
 	err := sendMetrics(client, testFlag, "testMetric", testTags)
 	if err != nil || !calledFunctions["timing"] {
-		t.Error("Did not attempt to send a message?")
+		t.Error("Did not send 'timing' metric.")
 	}
 }
 
@@ -94,7 +94,29 @@ func TestTimeInMilliseconds(t *testing.T) {
 	testFlag["timeinms"] = true
 	err := sendMetrics(client, testFlag, "testMetric", testTags)
 	if err != nil || !calledFunctions["timeinms"] {
-		t.Error("Did not attempt to send a message?")
+		t.Error("Did not send 'timeinms' metric.")
+	}
+}
+
+func TestMultiple(t *testing.T) {
+	client := &fakeClient{}
+	resetMap(testFlag)
+	resetMap(calledFunctions)
+	testFlag["count"] = true
+	testFlag["gauge"] = true
+	err := sendMetrics(client, testFlag, "testMetrics", testTags)
+	if err != nil || (!calledFunctions["count"] && !calledFunctions["gauge"]) {
+		t.Error("Did not send multiple metrics.")
+	}
+}
+
+func TestNone(t *testing.T) {
+	client := &fakeClient{}
+	resetMap(testFlag)
+	resetMap(calledFunctions)
+	err := sendMetrics(client, testFlag, "testNoMetric", testTags)
+	if err != nil {
+		t.Error("Error while sending no metrics.")
 	}
 }
 
