@@ -160,7 +160,6 @@ func TestGetTags(t *testing.T) {
 			t.Error("Did not return correct tags array.")
 		}
 	}
-	// for idx, elem := range expectedOutput
 }
 
 func resetMap(m map[string]bool) {
