@@ -43,9 +43,36 @@ func main() {
 	passedFlags := make(map[string]bool)
 	flag.Visit(func(f *flag.Flag) {
 		passedFlags[f.Name] = true
-		// fmt.Printf("%s \t\t %s\n", f.Name, f.Value)
 	})
 
+	addr := getAddr(passedFlags, configFile, hostport)
+	if addr == "" {
+		logrus.Fatal("You must either specify a Veneur config file or a valid hostport.")
+	}
+
+	var conn MinimalClient
+	var err error
+	conn, err = statsd.New(addr)
+	if err != nil {
+		logrus.Fatal("ERROR")
+	}
+
+	tags := getTags(*tag)
+	err = sendMetrics(conn, passedFlags, *name, tags)
+	if err != nil {
+		logrus.WithError(err).Fatal("Error!")
+	}
+}
+
+func getTags(tag string) []string {
+	var tags []string
+	for _, elem := range strings.Split(tag, ",") {
+		tags = append(tags, elem)
+	}
+	return tags
+}
+
+func getAddr(passedFlags map[string]bool, configFile *string, hostport *string) string {
 	addr := ""
 	if passedFlags["f"] && !(configFile == nil || *configFile == "") {
 		conf, err := veneur.ReadConfig(*configFile)
@@ -55,27 +82,8 @@ func main() {
 		addr = conf.UdpAddress // TODO: conf.TcpAddress
 	} else if passedFlags["hostport"] && !(hostport == nil || *hostport == "" || !strings.Contains(*hostport, ":")) {
 		addr = *hostport
-	} else {
-		logrus.Fatal("You must either specify a Veneur config file or a valid hostport.")
 	}
-
-	var conn MinimalClient
-	var err error
-	conn, err = statsd.New(addr)
-	// conn = (*MinimalClient)(tconn)
-	// fmt.Println(reflect.TypeOf(conn))
-	if err != nil {
-		logrus.Fatal("ERROR")
-	}
-
-	var tags []string
-	for _, elem := range strings.Split(*tag, ",") {
-		tags = append(tags, elem)
-	}
-	err = sendMetrics(conn, passedFlags, *name, tags)
-	if err != nil {
-		logrus.WithError(err).Fatal("Error!")
-	}
+	return addr
 }
 
 func sendMetrics(client MinimalClient, passedFlags map[string]bool, name string, tags []string) error {

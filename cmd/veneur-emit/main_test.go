@@ -120,6 +120,49 @@ func TestNone(t *testing.T) {
 	}
 }
 
+func TestHostport(t *testing.T) {
+	resetMap(testFlag)
+	testFlag["hostport"] = true
+	testHostport := "host:port"
+	addr := getAddr(testFlag, nil, &testHostport)
+	if addr != testHostport {
+		t.Error("Did not return hostport.")
+	}
+}
+
+func TestInvalidHostport(t *testing.T) {
+	resetMap(testFlag)
+	testFlag["hostport"] = true
+	testHostport := "hostport"
+	addr := getAddr(testFlag, nil, &testHostport)
+	if addr != "" {
+		t.Error("Did not check for valid hostport flag.")
+	}
+}
+
+func TestNoAddr(t *testing.T) {
+	resetMap(testFlag)
+	addr := getAddr(testFlag, nil, nil)
+	if addr != "" {
+		t.Error("Returned non-empty address with no flags.")
+	}
+}
+
+func TestGetTags(t *testing.T) {
+	testTag := "tag1,tag2,tag3"
+	expectedOutput := []string{"tag1", "tag2", "tag3"}
+	output := getTags(testTag)
+	if len(expectedOutput) != len(output) {
+		t.Error("Did not return correct tags array.")
+	}
+	for i := 0; i < len(output); i++ {
+		if expectedOutput[i] != output[i] {
+			t.Error("Did not return correct tags array.")
+		}
+	}
+	// for idx, elem := range expectedOutput
+}
+
 func resetMap(m map[string]bool) {
 	for key := range m {
 		m[key] = false
