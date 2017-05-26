@@ -4,6 +4,9 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/Sirupsen/logrus"
+	"github.com/stripe/veneur"
 )
 
 var (
@@ -23,19 +26,7 @@ var (
 )
 
 type fakeClient struct {
-	// Namespace to prepend to all statsd calls
-	// Namespace string -> not used
-	// Tags are global tags to be added to every statsd call
 	Tags []string
-	// BufferLength is the length of the buffer in commands.
-	/*
-		bufferLength int
-		flushTime    time.Duration
-		commands     []string
-		buffer       bytes.Buffer
-		stop         bool
-		sync.Mutex
-	*/
 }
 
 func (c *fakeClient) Gauge(name string, value float64, tags []string, rate float64) error {
@@ -53,6 +44,11 @@ func (c *fakeClient) Timing(name string, value time.Duration, tags []string, rat
 func (c *fakeClient) TimeInMilliseconds(name string, value float64, tags []string, rate float64) error {
 	calledFunctions["timeinms"] = true
 	return nil
+}
+
+func TestMain(m *testing.M) {
+	logrus.SetLevel(logrus.WarnLevel) // turns off logging in veneur-emit
+	os.Exit(m.Run())
 }
 
 func TestGauge(t *testing.T) {
@@ -125,7 +121,7 @@ func TestHostport(t *testing.T) {
 	resetMap(testFlag)
 	testFlag["hostport"] = true
 	testHostport := "host:port"
-	addr, err := getAddr(testFlag, nil, &testHostport)
+	addr, err := addr(testFlag, nil, &testHostport)
 	if addr != testHostport || err != nil {
 		t.Error("Did not return hostport.")
 	}
@@ -135,7 +131,7 @@ func TestInvalidHostport(t *testing.T) {
 	resetMap(testFlag)
 	testFlag["hostport"] = true
 	testHostport := "hostport"
-	addr, err := getAddr(testFlag, nil, &testHostport)
+	addr, err := addr(testFlag, nil, &testHostport)
 	if addr != "" || err == nil {
 		t.Error("Did not check for valid hostport flag.")
 	}
@@ -145,7 +141,7 @@ func TestEmptyHostport(t *testing.T) {
 	resetMap(testFlag)
 	testFlag["hostport"] = true
 	testHostport := ""
-	addr, err := getAddr(testFlag, nil, &testHostport)
+	addr, err := addr(testFlag, nil, &testHostport)
 	if addr != "" || err == nil {
 		t.Error("Did not check for valid hostport.")
 	}
@@ -154,24 +150,35 @@ func TestEmptyHostport(t *testing.T) {
 func TestNilHostport(t *testing.T) {
 	resetMap(testFlag)
 	testFlag["hostport"] = true
-	addr, err := getAddr(testFlag, nil, nil)
+	addr, err := addr(testFlag, nil, nil)
 	if addr != "" || err == nil {
 		t.Error("Did not check for valid hostport.")
 	}
 }
 
+func TestConfig(t *testing.T) {
+	resetMap(testFlag)
+	fakeConfig := &veneur.Config{}
+	fakeConfig.UdpAddress = "testudp"
+	testFlag["f"] = true
+	addr, err := addr(testFlag, fakeConfig, nil)
+	if addr != "testudp" || err != nil {
+		t.Error("Did not use config file for hostname and port.")
+	}
+}
+
 func TestNoAddr(t *testing.T) {
 	resetMap(testFlag)
-	addr, err := getAddr(testFlag, nil, nil)
+	addr, err := addr(testFlag, nil, nil)
 	if addr != "" || err == nil {
 		t.Error("Returned non-empty address with no flags.")
 	}
 }
 
-func TestGetTags(t *testing.T) {
+func TestTags(t *testing.T) {
 	testTag := "tag1,tag2,tag3"
 	expectedOutput := []string{"tag1", "tag2", "tag3"}
-	output := getTags(testTag)
+	output := tags(testTag)
 	if len(expectedOutput) != len(output) {
 		t.Error("Did not return correct tags array.")
 	}
@@ -182,20 +189,13 @@ func TestGetTags(t *testing.T) {
 	}
 }
 
-func TestGetFlags(t *testing.T) {
+func TestFlags(t *testing.T) {
 	os.Args = append(os.Args, "-name='testname'")
-	outputFlags := getFlags()
+	outputFlags := flags()
 	if !outputFlags["name"] {
 		t.Error("Did not properly parse flags.")
 	}
 }
-
-// func TestFlags(t *testing.T) {
-// 	os.Args = append(os.Args, "-hostport=asdf")
-// 	for idx, elem := range os.Args {
-// 		fmt.Printf("%d\t->\t'%s'\n", idx, elem)
-// 	}
-// }
 
 func resetMap(m map[string]bool) {
 	for key := range m {
