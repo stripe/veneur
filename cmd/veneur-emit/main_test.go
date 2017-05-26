@@ -13,16 +13,14 @@ import (
 var (
 	testTags []string
 	testFlag = map[string]bool{
-		"gauge":    false,
-		"count":    false,
-		"timing":   false,
-		"timeinms": false,
+		"gauge":  false,
+		"count":  false,
+		"timing": false,
 	}
 	calledFunctions = map[string]bool{
-		"gauge":    false,
-		"count":    false,
-		"timing":   false,
-		"timeinms": false,
+		"gauge":  false,
+		"count":  false,
+		"timing": false,
 	}
 	badCall = false
 )
@@ -47,13 +45,6 @@ func (c *fakeClient) Count(name string, value int64, tags []string, rate float64
 }
 func (c *fakeClient) Timing(name string, value time.Duration, tags []string, rate float64) error {
 	calledFunctions["timing"] = true
-	if badCall {
-		return errors.New("error sending metric")
-	}
-	return nil
-}
-func (c *fakeClient) TimeInMilliseconds(name string, value float64, tags []string, rate float64) error {
-	calledFunctions["timeinms"] = true
 	if badCall {
 		return errors.New("error sending metric")
 	}
@@ -95,17 +86,6 @@ func TestTiming(t *testing.T) {
 	err := sendMetrics(client, testFlag, "testMetric", testTags)
 	if err != nil || !calledFunctions["timing"] {
 		t.Error("Did not send 'timing' metric.")
-	}
-}
-
-func TestTimeInMilliseconds(t *testing.T) {
-	client := &fakeClient{}
-	resetMap(testFlag)
-	resetMap(calledFunctions)
-	testFlag["timeinms"] = true
-	err := sendMetrics(client, testFlag, "testMetric", testTags)
-	if err != nil || !calledFunctions["timeinms"] {
-		t.Error("Did not send 'timeinms' metric.")
 	}
 }
 
@@ -154,14 +134,6 @@ func TestBadCalls(t *testing.T) {
 
 	resetMap(testFlag)
 	resetMap(calledFunctions)
-	testFlag["timeinms"] = true
-	err = sendMetrics(client, testFlag, "testBadMetric", testTags)
-	if err == nil || err.Error() != "error sending metric" || !calledFunctions["timeinms"] {
-		t.Error("Did not detect error")
-	}
-
-	resetMap(testFlag)
-	resetMap(calledFunctions)
 	testFlag["count"] = true
 	err = sendMetrics(client, testFlag, "testBadMetric", testTags)
 	if err == nil || err.Error() != "error sending metric" || !calledFunctions["count"] {
@@ -176,26 +148,6 @@ func TestHostport(t *testing.T) {
 	addr, err := addr(testFlag, nil, &testHostport)
 	if addr != testHostport || err != nil {
 		t.Error("Did not return hostport.")
-	}
-}
-
-func TestInvalidHostport(t *testing.T) {
-	resetMap(testFlag)
-	testFlag["hostport"] = true
-	testHostport := "hostport"
-	addr, err := addr(testFlag, nil, &testHostport)
-	if addr != "" || err == nil {
-		t.Error("Did not check for valid hostport flag.")
-	}
-}
-
-func TestEmptyHostport(t *testing.T) {
-	resetMap(testFlag)
-	testFlag["hostport"] = true
-	testHostport := ""
-	addr, err := addr(testFlag, nil, &testHostport)
-	if addr != "" || err == nil {
-		t.Error("Did not check for valid hostport.")
 	}
 }
 
