@@ -31,11 +31,6 @@ type MinimalClient interface {
 	TimeInMilliseconds(name string, value float64, tags []string, rate float64) error
 }
 
-// MinimalVeneur represents the functions that we call on Veneur in veneur-emit.
-type MinimalVeneur interface {
-	ReadConfig(configFile string) (c veneur.Config, err error)
-}
-
 func main() {
 	passedFlags := flags()
 
