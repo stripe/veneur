@@ -17,7 +17,6 @@ var (
 	name       = flag.String("name", "", "Name of metric to report. Ex: daemontools.service.starts")
 	gauge      = flag.Float64("gauge", 0, "Report a 'gauge' metric. Value must be float64.")
 	timing     = flag.Duration("timing", time.Now().Sub(time.Now()), "Report a 'timing' metric. Value must be parseable by time.ParseDuration.")
-	timeinms   = flag.Float64("timeinms", 0, "Report a 'timing' metric, in milliseconds. Value must be float64.")
 	count      = flag.Int64("count", 0, "Report a 'count' metric. Value must be an integer.")
 	tag        = flag.String("tag", "", "Tag(s) for metric, comma separated. Ex: service:airflow")
 	debug      = flag.Bool("debug", false, "Turns on debug messages.")
@@ -28,7 +27,6 @@ type MinimalClient interface {
 	Gauge(name string, value float64, tags []string, rate float64) error
 	Count(name string, value int64, tags []string, rate float64) error
 	Timing(name string, value time.Duration, tags []string, rate float64) error
-	TimeInMilliseconds(name string, value float64, tags []string, rate float64) error
 }
 
 func main() {
@@ -87,9 +85,9 @@ func tags(tag string) []string {
 func addr(passedFlags map[string]bool, conf *veneur.Config, hostport *string) (string, error) {
 	addr := ""
 	var err error
-	if passedFlags["f"] && (conf != nil) {
+	if conf != nil {
 		addr = conf.UdpAddress // TODO: conf.TcpAddress
-	} else if passedFlags["hostport"] && !(hostport == nil || *hostport == "" || !strings.Contains(*hostport, ":")) {
+	} else if passedFlags["hostport"] && hostport != nil {
 		addr = *hostport
 	} else {
 		err = errors.New("you must either specify a Veneur config file or a valid hostport")
@@ -109,13 +107,6 @@ func sendMetrics(client MinimalClient, passedFlags map[string]bool, name string,
 	if passedFlags["timing"] {
 		logrus.Debugf("Sending timing '%s' -> %f", name, *timing)
 		err = client.Timing(name, *timing, tags, 1)
-		if err != nil {
-			return err
-		}
-	}
-	if passedFlags["timeinms"] {
-		logrus.Debugf("Sending timeinms '%s' -> %f", name, *timeinms)
-		err = client.TimeInMilliseconds(name, *timeinms, tags, 1)
 		if err != nil {
 			return err
 		}
