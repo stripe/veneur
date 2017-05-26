@@ -39,10 +39,9 @@ func main() {
 	}
 
 	var config *veneur.Config
-	var err error
 	if passedFlags["f"] {
-		conf, e := veneur.ReadConfig(*configFile)
-		if e != nil {
+		conf, err := veneur.ReadConfig(*configFile)
+		if err != nil {
 			logrus.WithError(err).Fatal("Error reading configuration file.")
 		}
 		config = &conf
@@ -50,7 +49,7 @@ func main() {
 
 	addr, err := addr(passedFlags, config, hostport)
 	if err != nil {
-		logrus.WithError(err).Fatal("Error!")
+		logrus.WithError(err).Fatal("Error getting destination address.")
 	}
 	logrus.Debugf("destination: %s", addr)
 
@@ -63,7 +62,7 @@ func main() {
 	tags := tags(*tag)
 	err = sendMetrics(conn, passedFlags, *name, tags)
 	if err != nil {
-		logrus.WithError(err).Fatal("Error!")
+		logrus.WithError(err).Fatal("Error sending metric(s).")
 	}
 }
 
