@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -23,6 +24,7 @@ var (
 		"timing":   false,
 		"timeinms": false,
 	}
+	badCall = false
 )
 
 type fakeClient struct {
@@ -31,18 +33,30 @@ type fakeClient struct {
 
 func (c *fakeClient) Gauge(name string, value float64, tags []string, rate float64) error {
 	calledFunctions["gauge"] = true
+	if badCall {
+		return errors.New("error sending metric")
+	}
 	return nil
 }
 func (c *fakeClient) Count(name string, value int64, tags []string, rate float64) error {
 	calledFunctions["count"] = true
+	if badCall {
+		return errors.New("error sending metric")
+	}
 	return nil
 }
 func (c *fakeClient) Timing(name string, value time.Duration, tags []string, rate float64) error {
 	calledFunctions["timing"] = true
+	if badCall {
+		return errors.New("error sending metric")
+	}
 	return nil
 }
 func (c *fakeClient) TimeInMilliseconds(name string, value float64, tags []string, rate float64) error {
 	calledFunctions["timeinms"] = true
+	if badCall {
+		return errors.New("error sending metric")
+	}
 	return nil
 }
 
@@ -114,6 +128,44 @@ func TestNone(t *testing.T) {
 	err := sendMetrics(client, testFlag, "testNoMetric", testTags)
 	if err != nil {
 		t.Error("Error while sending no metrics.")
+	}
+}
+
+func TestBadCalls(t *testing.T) {
+	client := &fakeClient{}
+	badCall = true
+	var err error
+
+	resetMap(testFlag)
+	resetMap(calledFunctions)
+	testFlag["gauge"] = true
+	err = sendMetrics(client, testFlag, "testBadMetric", testTags)
+	if err == nil || err.Error() != "error sending metric" || !calledFunctions["gauge"] {
+		t.Error("Did not detect error")
+	}
+
+	resetMap(testFlag)
+	resetMap(calledFunctions)
+	testFlag["timing"] = true
+	err = sendMetrics(client, testFlag, "testBadMetric", testTags)
+	if err == nil || err.Error() != "error sending metric" || !calledFunctions["timing"] {
+		t.Error("Did not detect error")
+	}
+
+	resetMap(testFlag)
+	resetMap(calledFunctions)
+	testFlag["timeinms"] = true
+	err = sendMetrics(client, testFlag, "testBadMetric", testTags)
+	if err == nil || err.Error() != "error sending metric" || !calledFunctions["timeinms"] {
+		t.Error("Did not detect error")
+	}
+
+	resetMap(testFlag)
+	resetMap(calledFunctions)
+	testFlag["count"] = true
+	err = sendMetrics(client, testFlag, "testBadMetric", testTags)
+	if err == nil || err.Error() != "error sending metric" || !calledFunctions["count"] {
+		t.Error("Did not detect error")
 	}
 }
 
