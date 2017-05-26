@@ -108,18 +108,34 @@ func sendMetrics(client MinimalClient, passedFlags map[string]bool, name string,
 	if passedFlags["gauge"] {
 		logrus.Debugf("Sending gauge '%s' -> %f", name, *gauge)
 		err = client.Gauge(name, *gauge, tags, 1)
+		if err != nil {
+			return err
+		}
 	}
 	if passedFlags["timing"] {
-		err = client.Timing(name, *timing, tags, 1)
 		logrus.Debugf("Sending timing '%s' -> %f", name, *timing)
+		err = client.Timing(name, *timing, tags, 1)
+		if err != nil {
+			return err
+		}
 	}
 	if passedFlags["timeinms"] {
-		err = client.TimeInMilliseconds(name, *timeinms, tags, 1)
 		logrus.Debugf("Sending timeinms '%s' -> %f", name, *timeinms)
+		err = client.TimeInMilliseconds(name, *timeinms, tags, 1)
+		if err != nil {
+			return err
+		}
 	}
 	if passedFlags["count"] {
-		err = client.Count(name, *count, tags, 1)
 		logrus.Debugf("Sending count '%s' -> %d", name, *count)
+		err = client.Count(name, *count, tags, 1)
+		if err != nil {
+			return err
+		}
+	}
+	if !passedFlags["gauge"] && !passedFlags["timing"] && !passedFlags["timeinms"] && !passedFlags["count"] {
+		logrus.Info("No metrics reported.")
 	}
 	return err
+	// TODO: error on no metrics?
 }
