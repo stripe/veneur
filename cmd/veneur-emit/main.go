@@ -16,7 +16,7 @@ var (
 	hostport   = flag.String("hostport", "", "Hostname and port of destination. Must be used if config file is not present.")
 	name       = flag.String("name", "", "Name of metric to report. Ex: daemontools.service.starts")
 	gauge      = flag.Float64("gauge", 0, "Report a 'gauge' metric. Value must be float64.")
-	timing     = flag.Duration("timing", time.Now().Sub(time.Now()), "Report a 'timing' metric. Value must be parseable by time.ParseDuration.")
+	timing     = flag.Duration("timing", time.Now().Sub(time.Now()), "Report a 'timing' metric. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).")
 	count      = flag.Int64("count", 0, "Report a 'count' metric. Value must be an integer.")
 	tag        = flag.String("tag", "", "Tag(s) for metric, comma separated. Ex: service:airflow")
 	debug      = flag.Bool("debug", false, "Turns on debug messages.")
