@@ -340,7 +340,7 @@ func finalizeMetrics(hostname string, tags []string, finalMetrics []samplers.DDM
 // flushPart flushes a set of metrics to the remote API server
 func (s *Server) flushPart(ctx context.Context, metricSlice []samplers.DDMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
-	postHelper(ctx, s.HTTPClient, s.Statsd, fmt.Sprintf("%s/api/v1/series?api_key=%s", s.DDHostname, s.DDAPIKey), map[string][]samplers.DDMetric{
+	postHelper(ctx, s.ForwardAddr, s.HTTPClient, s.Statsd, fmt.Sprintf("%s/api/v1/series?api_key=%s", s.DDHostname, s.DDAPIKey), map[string][]samplers.DDMetric{
 		"series": metricSlice,
 	}, "flush", true)
 }
@@ -430,9 +430,34 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 
 	// the error has already been logged (if there was one), so we only care
 	// about the success case
-	if postHelper(span.Attach(ctx), s.HTTPClient, s.Statsd, endpoint, jsonMetrics, "forward", true) == nil {
+	if postHelper(span.Attach(ctx), s.ForwardAddr, s.HTTPClient, s.Statsd, endpoint, jsonMetrics, "forward", true) == nil {
 		log.WithField("metrics", len(jsonMetrics)).Info("Completed forward to upstream Veneur")
 	}
+}
+
+// given a url, extract the host and port
+// on failure, it returns the argument, nil and the resulting error
+func extractHostPort(endpoint string) (string, string, error) {
+	origURL, err := url.Parse(endpoint)
+
+	if err != nil {
+		// caution: this error contains the endpoint itself, so if the endpoint
+		// has secrets in it, you have to remove them
+		return endpoint, "", err
+	}
+
+	origPort := origURL.Port()
+
+	// Fallback to default port
+	if origPort == "" {
+		if origURL.Scheme == "https" {
+			origPort = "443"
+		} else {
+			origPort = "80"
+		}
+	}
+
+	return origURL.Hostname(), origPort, nil
 }
 
 // given a url, attempts to resolve the url's host, and returns a new url whose
@@ -548,7 +573,7 @@ func (s *Server) flushEventsChecks(ctx context.Context) {
 		// the official dd-agent
 		// we don't actually pass all the body keys that dd-agent passes here... but
 		// it still works
-		err := postHelper(context.TODO(), s.HTTPClient, s.Statsd, fmt.Sprintf("%s/intake?api_key=%s", s.DDHostname, s.DDAPIKey), map[string]map[string][]samplers.UDPEvent{
+		err := postHelper(context.TODO(), s.ForwardAddr, s.HTTPClient, s.Statsd, fmt.Sprintf("%s/intake?api_key=%s", s.DDHostname, s.DDAPIKey), map[string]map[string][]samplers.UDPEvent{
 			"events": {
 				"api": events,
 			},
@@ -566,7 +591,7 @@ func (s *Server) flushEventsChecks(ctx context.Context) {
 		// this endpoint is not documented to take an array... but it does
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
-		err := postHelper(context.TODO(), s.HTTPClient, s.Statsd, fmt.Sprintf("%s/api/v1/check_run?api_key=%s", s.DDHostname, s.DDAPIKey), checks, "flush_checks", false)
+		err := postHelper(context.TODO(), s.ForwardAddr, s.HTTPClient, s.Statsd, fmt.Sprintf("%s/api/v1/check_run?api_key=%s", s.DDHostname, s.DDAPIKey), checks, "flush_checks", false)
 		if err == nil {
 			log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
 		} else {
@@ -583,7 +608,7 @@ func (s *Server) flushEventsChecks(ctx context.Context) {
 // this function - probably a static string for each callsite
 // you can disable compression with compress=false for endpoints that don't
 // support it
-func postHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Client, endpoint string, bodyObject interface{}, action string, compress bool) error {
+func postHelper(ctx context.Context, forwardedAddr string, httpClient *http.Client, stats *statsd.Client, endpoint string, bodyObject interface{}, action string, compress bool) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	span.SetTag("action", action)
 	defer span.Finish()
@@ -630,6 +655,16 @@ func postHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 		innerLogger.WithError(err).Error("Could not construct request")
 		return err
 	}
+
+	hostUrl, hostPort, err := extractHostPort(forwardedAddr)
+
+	if err != nil {
+		stats.Count(action+".error_total", 1, []string{"cause:extract"}, 1.0)
+		innerLogger.WithError(err).Error("Could not extract host and port from forwarded address")
+		return err
+	}
+
+	req.Host = hostUrl + ":" + hostPort
 	req.Header.Set("Content-Type", "application/json")
 	if compress {
 		req.Header.Set("Content-Encoding", "deflate")
@@ -759,7 +794,7 @@ func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tra
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
 
-		err := postHelper(span.Attach(ctx), s.HTTPClient, s.Statsd, fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
+		err := postHelper(span.Attach(ctx), s.ForwardAddr, s.HTTPClient, s.Statsd, fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
 
 		if err == nil {
 			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
