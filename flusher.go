@@ -736,9 +736,10 @@ func flushSpanLightstep(lightstepTracer opentracing.Tracer, ssfSpan ssf.SSFSampl
 		parentId = 0
 	}
 
+	timestamp := time.Unix(ssfSpan.Timestamp/1e9, ssfSpan.Timestamp%1e9)
 	sp := lightstepTracer.StartSpan(
 		ssfSpan.Name,
-		opentracing.StartTime(time.Unix(ssfSpan.Timestamp/1e9, ssfSpan.Timestamp%1e9)),
+		opentracing.StartTime(timestamp),
 		lightstep.SetTraceID(uint64(ssfSpan.Trace.TraceId)),
 		lightstep.SetSpanID(uint64(ssfSpan.Trace.Id)),
 		lightstep.SetParentSpanID(uint64(parentId)))
@@ -761,6 +762,6 @@ func flushSpanLightstep(lightstepTracer opentracing.Tracer, ssfSpan ssf.SSFSampl
 	}
 
 	sp.FinishWithOptions(opentracing.FinishOptions{
-		FinishTime: time.Unix(ssfSpan.Timestamp, 0).Add(time.Duration(ssfSpan.Trace.Duration)),
+		FinishTime: timestamp.Add(time.Duration(ssfSpan.Trace.Duration)),
 	})
 }
