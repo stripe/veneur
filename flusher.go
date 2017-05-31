@@ -486,7 +486,12 @@ func (s *Server) flushTraces(ctx context.Context) {
 
 	for _, sink := range s.tracerSinks {
 		sink.flush(span.Attach(ctx), s, sink.tracer, ssfSpans)
-		s.Statsd.Count("worker.trace.sink.flushed_total", int64(len(ssfSpans)), []string{fmt.Sprintf("sink:%s", sink.name)}, 1)
+		tags := []string{
+			fmt.Sprintf("sink:%s", sink.name),
+			fmt.Sprintf("service:%s", trace.Service),
+		}
+
+		s.Statsd.Count("worker.trace.sink.flushed_total", int64(len(ssfSpans)), tags, 1)
 	}
 }
 
