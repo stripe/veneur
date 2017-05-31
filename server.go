@@ -306,6 +306,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 					Port:      8443,
 					Plaintext: false,
 				},
+				UseGRPC: true,
 			})
 
 			ret.tracerSinks = append(ret.tracerSinks, tracerSink{
