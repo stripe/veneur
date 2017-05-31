@@ -303,10 +303,10 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 				AccessToken: ret.traceLightstepAccessToken,
 				Collector: lightstep.Endpoint{
 					Host:      "localhost",
-					Port:      80,
+					Port:      8080,
 					Plaintext: true,
 				},
-				UseGRPC: false,
+				UseGRPC: true,
 			})
 
 			ret.tracerSinks = append(ret.tracerSinks, tracerSink{
