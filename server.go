@@ -302,7 +302,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			lightstepTracer := lightstep.NewTracer(lightstep.Options{
 				AccessToken: ret.traceLightstepAccessToken,
 				Collector: lightstep.Endpoint{
-					Host:      "localhost",
+					Host:      conf.TraceLightstepCollectorHost,
 					Port:      8080,
 					Plaintext: true,
 				},
