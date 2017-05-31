@@ -301,6 +301,11 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 			lightstepTracer := lightstep.NewTracer(lightstep.Options{
 				AccessToken: ret.traceLightstepAccessToken,
+				Endpoint: lightstep.Endpoint{
+					Host:       "localhost",
+					Port:       443,
+					Encryption: true,
+				},
 			})
 
 			ret.tracerSinks = append(ret.tracerSinks, tracerSink{
