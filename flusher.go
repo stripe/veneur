@@ -45,8 +45,8 @@ func (s *Server) FlushGlobal(ctx context.Context) {
 	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.FlushGlobal"))
 	defer span.Finish()
 
-	go s.flushEventsChecks()           // we can do all of this separately
-	go s.flushTraces(span.Attach(ctx)) // this too!
+	go s.flushEventsChecks(span.Attach(ctx)) // we can do all of this separately
+	go s.flushTraces(span.Attach(ctx))       // this too!
 
 	percentiles := s.HistogramPercentiles
 
@@ -76,7 +76,7 @@ func (s *Server) FlushGlobal(ctx context.Context) {
 		}
 	}()
 
-	s.flushRemote(finalMetrics)
+	s.flushRemote(span.Attach(ctx), finalMetrics)
 }
 
 // FlushLocal takes the slices of metrics, combines then and marshals them to json
@@ -85,8 +85,8 @@ func (s *Server) FlushLocal(ctx context.Context) {
 	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.FlushLocal"))
 	defer span.Finish()
 
-	go s.flushEventsChecks()           // we can do all of this separately
-	go s.flushTraces(span.Attach(ctx)) // this too!
+	go s.flushEventsChecks(span.Attach(ctx)) // we can do all of this separately
+	go s.flushTraces(span.Attach(ctx))       // this too!
 
 	// don't publish percentiles if we're a local veneur; that's the global
 	// veneur's job
@@ -117,7 +117,7 @@ func (s *Server) FlushLocal(ctx context.Context) {
 		}
 	}()
 
-	s.flushRemote(finalMetrics)
+	s.flushRemote(span.Attach(ctx), finalMetrics)
 }
 
 type metricsSummary struct {
@@ -277,7 +277,10 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 
 // flushRemote breaks up the final metrics into chunks
 // (to avoid hitting the size cap) and POSTs them to the remote API
-func (s *Server) flushRemote(finalMetrics []samplers.DDMetric) {
+func (s *Server) flushRemote(ctx context.Context, finalMetrics []samplers.DDMetric) {
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.FlushLocal.flushRemote"))
+	defer span.Finish()
+
 	s.Statsd.Gauge("flush.post_metrics_total", float64(len(finalMetrics)), nil, 1.0)
 	// Check to see if we have anything to do
 	if len(finalMetrics) == 0 {
@@ -495,7 +498,10 @@ func (s *Server) flushTraces(ctx context.Context) {
 	}
 }
 
-func (s *Server) flushEventsChecks() {
+func (s *Server) flushEventsChecks(ctx context.Context) {
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.flushEventsChecks"))
+	defer span.Finish()
+
 	events, checks := s.EventWorker.Flush()
 	s.Statsd.Count("worker.events_flushed_total", int64(len(events)), nil, 1.0)
 	s.Statsd.Count("worker.checks_flushed_total", int64(len(checks)), nil, 1.0)
@@ -722,8 +728,10 @@ func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tra
 }
 
 func flushSpansLightstep(ctx context.Context, s *Server, lightstepTracer opentracing.Tracer, ssfSpans []ssf.SSFSample) {
-	for _, span := range ssfSpans {
-		flushSpanLightstep(lightstepTracer, span)
+	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.flushTraces.flushSpansLightstep"))
+	defer span.Finish()
+	for _, ssfSpan := range ssfSpans {
+		flushSpanLightstep(lightstepTracer, ssfSpan)
 	}
 }
 
