@@ -298,11 +298,21 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 		// configure Lightstep as Sink
 		if ret.traceLightstepAccessToken != "" {
+			log.Info("Host %s", conf.TraceLightstepCollectorHost)
+			host, err := resolveEndpoint(conf.TraceLightstepCollectorHost)
+			if err != nil {
+				log.WithError(err).Error("Error resolving Lightstep collector host")
+				return ret, err
+			}
+
+			log.WithFields(logrus.Fields{
+				"Host": host,
+			}).Info("Dialing lightstep host")
 
 			lightstepTracer := lightstep.NewTracer(lightstep.Options{
 				AccessToken: ret.traceLightstepAccessToken,
 				Collector: lightstep.Endpoint{
-					Host:      conf.TraceLightstepCollectorHost,
+					Host:      host,
 					Port:      8080,
 					Plaintext: true,
 				},
