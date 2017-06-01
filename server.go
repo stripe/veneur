@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -54,6 +56,8 @@ var log = logrus.New()
 var tracer = trace.GlobalTracer
 
 const defaultTCPReadTimeout = 10 * time.Minute
+
+const lightstepDefaultPort = 8080
 
 // A Server is the actual veneur instance that will be run.
 type Server struct {
@@ -298,22 +302,38 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 		// configure Lightstep as Sink
 		if ret.traceLightstepAccessToken != "" {
-			log.Info("Host %s", conf.TraceLightstepCollectorHost)
-			host, err := resolveEndpoint(conf.TraceLightstepCollectorHost)
+			resolved, err := resolveEndpoint(conf.TraceLightstepCollectorHost)
 			if err != nil {
-				log.WithError(err).Error("Error resolving Lightstep collector host")
+				log.WithError(err).WithFields(logrus.Fields{
+					"host": conf.TraceLightstepCollectorHost,
+				}).Error("Error resolving Lightstep collector host")
 				return ret, err
 			}
 
+			host, err := url.Parse(resolved)
+			if err != nil {
+				log.WithError(err).WithFields(logrus.Fields{
+					"host":     conf.TraceLightstepCollectorHost,
+					"resolved": resolved,
+				}).Error("Error parsing Lightstep collector URL")
+				return ret, err
+			}
+
+			port, err := strconv.Atoi(host.Port())
+			if err != nil {
+				port = lightstepDefaultPort
+			}
+
 			log.WithFields(logrus.Fields{
-				"Host": host,
+				"Host": host.Hostname(),
+				"Port": port,
 			}).Info("Dialing lightstep host")
 
 			lightstepTracer := lightstep.NewTracer(lightstep.Options{
 				AccessToken: ret.traceLightstepAccessToken,
 				Collector: lightstep.Endpoint{
-					Host:      host,
-					Port:      8080,
+					Host:      host.Hostname(),
+					Port:      port,
 					Plaintext: true,
 				},
 				UseGRPC: true,

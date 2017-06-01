@@ -733,6 +733,10 @@ func flushSpansLightstep(ctx context.Context, s *Server, lightstepTracer opentra
 	for _, ssfSpan := range ssfSpans {
 		flushSpanLightstep(lightstepTracer, ssfSpan)
 	}
+
+	// Confusingly, this will still get called even if the Opentracing client fails to reach the collector
+	// because we don't get access to the error if that happens.
+	log.WithField("traces", len(ssfSpans)).Info("Completed flushing traces to Lightstep")
 }
 
 // flushSpanLightstep builds a tracespan from an SSF and flushes
