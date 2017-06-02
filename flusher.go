@@ -27,7 +27,7 @@ import (
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) Flush() {
-	span := tracer.StartSpan("flush", trace.NameTag("veneur.opentracing.flush")).(*trace.Span)
+	span := tracer.StartSpan("flush").(*trace.Span)
 	defer span.Finish()
 
 	// right now we have only one destination plugin
@@ -42,7 +42,7 @@ func (s *Server) Flush() {
 
 // FlushGlobal sends any global metrics to their destination.
 func (s *Server) FlushGlobal(ctx context.Context) {
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.FlushGlobal"))
+	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 
 	go s.flushEventsChecks(span.Attach(ctx)) // we can do all of this separately
@@ -82,7 +82,7 @@ func (s *Server) FlushGlobal(ctx context.Context) {
 // FlushLocal takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) FlushLocal(ctx context.Context) {
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.FlushLocal"))
+	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 
 	go s.flushEventsChecks(span.Attach(ctx)) // we can do all of this separately
@@ -186,7 +186,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 // generate a DDMetric corresponding to that value
 func (s *Server) generateDDMetrics(ctx context.Context, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.DDMetric {
 
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.generateDDMetrics"))
+	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 
 	finalMetrics := make([]samplers.DDMetric, 0, ms.totalLength)
@@ -278,7 +278,7 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 // flushRemote breaks up the final metrics into chunks
 // (to avoid hitting the size cap) and POSTs them to the remote API
 func (s *Server) flushRemote(ctx context.Context, finalMetrics []samplers.DDMetric) {
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.FlushLocal.flushRemote"))
+	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 
 	s.Statsd.Gauge("flush.post_metrics_total", float64(len(finalMetrics)), nil, 1.0)
@@ -469,7 +469,7 @@ func (s *Server) flushTraces(ctx context.Context) {
 		return
 	}
 
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.flushTraces"))
+	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 
 	traceRing := s.TraceWorker.Flush()
@@ -499,7 +499,7 @@ func (s *Server) flushTraces(ctx context.Context) {
 }
 
 func (s *Server) flushEventsChecks(ctx context.Context) {
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.flushEventsChecks"))
+	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 
 	events, checks := s.EventWorker.Flush()
@@ -561,7 +561,7 @@ func (s *Server) flushEventsChecks(ctx context.Context) {
 // you can disable compression with compress=false for endpoints that don't
 // support it
 func postHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Client, endpoint string, bodyObject interface{}, action string, compress bool) error {
-	span, _ := trace.StartSpanFromContext(ctx, action, trace.NameTag("veneur.opentracing.flush.postHelper"))
+	span, _ := trace.StartSpanFromContext(ctx, action)
 	defer span.Finish()
 
 	// attach this field to all the logs we generate
@@ -666,7 +666,7 @@ func postHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 type traceFlusher func(context.Context, *Server, opentracing.Tracer, []ssf.SSFSample)
 
 func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tracer, ssfSpans []ssf.SSFSample) {
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.flushSpansDatadog"))
+	span, _ := trace.StartSpanFromContext(ctx, "flush")
 
 	var finalTraces []*DatadogTraceSpan
 	for _, span := range ssfSpans {
@@ -728,7 +728,7 @@ func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tra
 }
 
 func flushSpansLightstep(ctx context.Context, s *Server, lightstepTracer opentracing.Tracer, ssfSpans []ssf.SSFSample) {
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.flushTraces.flushSpansLightstep"))
+	span, _ := trace.StartSpanFromContext(ctx, "flush")
 	defer span.Finish()
 	for _, ssfSpan := range ssfSpans {
 		flushSpanLightstep(lightstepTracer, ssfSpan)
