@@ -4,6 +4,7 @@ package trace
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -287,4 +288,36 @@ func TestInjectRequestExtractRequestChild(t *testing.T) {
 	assert.NotEqual(t, trace.SpanID, span.SpanID, "original trace and child should have different SpanIds")
 	assert.Equal(t, trace.SpanID, span.ParentID, "child should have the original trace's SpanId as its ParentId")
 	assert.Equal(t, trace.TraceID, span.TraceID)
+}
+
+func TestStartSpanDefaultName(t *testing.T) {
+	const resource = "TestResourceName"
+	const expectedName = "github.com/stripe/veneur/trace.TestStartSpanDefaultName"
+
+	ctx := context.Background()
+	tracer := Tracer{}
+	span := tracer.StartSpan(resource).(*Span)
+	ctx = span.Attach(ctx)
+
+	_, _ = StartSpanFromContext(ctx, "")
+
+	assert.Equal(t, span.Resource, resource)
+	assert.Equal(t, span.Name, expectedName)
+
+}
+
+func TestStartSpanFromContextDefaultName(t *testing.T) {
+	const resource = "TestResourceName"
+	const expectedName = "github.com/stripe/veneur/trace.TestStartSpanFromContextDefaultName"
+
+	ctx := context.Background()
+	tracer := Tracer{}
+	span := tracer.StartSpan(resource).(*Span)
+	ctx = span.Attach(ctx)
+
+	span, _ = StartSpanFromContext(ctx, "")
+
+	assert.Equal(t, span.Resource, resource)
+	assert.Equal(t, span.Name, expectedName)
+
 }

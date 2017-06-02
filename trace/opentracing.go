@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -411,6 +412,14 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 		span.SetTag(k, v)
 		if k == "name" {
 			span.Name = v.(string)
+		}
+	}
+
+	if span.Name == "" {
+		pc, _, _, ok := runtime.Caller(1)
+		details := runtime.FuncForPC(pc)
+		if ok && details != nil {
+			span.Name = details.Name()
 		}
 	}
 

@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"net"
 	"reflect"
+	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -253,6 +254,16 @@ func StartSpanFromContext(ctx context.Context, name string, opts ...opentracing.
 			c = ctx
 		}
 	}()
+
+	if name == "" {
+		pc, _, _, ok := runtime.Caller(1)
+		details := runtime.FuncForPC(pc)
+		if ok && details != nil {
+			name = details.Name()
+			opts = append(opts, NameTag(name))
+		}
+	}
+
 	sp, c := opentracing.StartSpanFromContext(ctx, name, opts...)
 
 	s = sp.(*Span)
