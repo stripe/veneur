@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -259,7 +260,7 @@ func StartSpanFromContext(ctx context.Context, name string, opts ...opentracing.
 		pc, _, _, ok := runtime.Caller(1)
 		details := runtime.FuncForPC(pc)
 		if ok && details != nil {
-			name = details.Name()
+			name = stripPackageName(details.Name())
 			opts = append(opts, NameTag(name))
 		}
 	}
@@ -364,4 +365,15 @@ func sendSample(sample *ssf.SSFSample) error {
 	}
 
 	return nil
+}
+
+// stripPackageName strips the package name from a function
+// name (as formatted by the runtime package)
+func stripPackageName(name string) string {
+	i := strings.LastIndex(name, "/")
+	if i < 0 || i >= len(name)-1 {
+		return name
+	}
+
+	return name[i+1:]
 }

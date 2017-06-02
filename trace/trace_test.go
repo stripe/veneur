@@ -219,3 +219,37 @@ func TestError(t *testing.T) {
 	}
 
 }
+
+func TestStripPackageName(t *testing.T) {
+	type testCase struct {
+		Name     string
+		fname    string
+		expected string
+	}
+
+	cases := []testCase{
+		{
+			Name:     "Method",
+			fname:    "github.com/stripe/veneur.(*Server).Flush",
+			expected: "veneur.(*Server).Flush",
+		},
+		{
+			Name:     "NestedPackageMethod",
+			fname:    "github.com/stripe/veneur/trace.(*Tracer).StartSpan",
+			expected: "trace.(*Tracer).StartSpan",
+		},
+		{
+			// This shouldn't be valid, but we should at least ensure we don't
+			// cause a runtime panic if it's passed
+			Name:     "TrailingSlash",
+			fname:    "github.com/",
+			expected: "github.com/",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			assert.Equal(t, stripPackageName(tc.fname), tc.expected)
+		})
+	}
+}

@@ -419,7 +419,7 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 		pc, _, _, ok := runtime.Caller(1)
 		details := runtime.FuncForPC(pc)
 		if ok && details != nil {
-			span.Name = details.Name()
+			span.Name = stripPackageName(details.Name())
 		}
 	}
 

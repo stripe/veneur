@@ -10,7 +10,7 @@ import (
 
 func TestStartSpanDefaultName(t *testing.T) {
 	const resource = "TestResourceName"
-	const expectedName = "github.com/stripe/veneur/trace_test.TestStartSpanDefaultName"
+	const expectedName = "trace_test.TestStartSpanDefaultName"
 
 	ctx := context.Background()
 	tracer := trace.Tracer{}
@@ -26,7 +26,7 @@ func TestStartSpanDefaultName(t *testing.T) {
 
 func TestStartSpanFromContextDefaultName(t *testing.T) {
 	const resource = "TestResourceName"
-	const expectedName = "github.com/stripe/veneur/trace_test.TestStartSpanFromContextDefaultName"
+	const expectedName = "trace_test.TestStartSpanFromContextDefaultName"
 
 	ctx := context.Background()
 	tracer := trace.Tracer{}
