@@ -304,7 +304,7 @@ func (s *Server) flushRemote(ctx context.Context, finalMetrics []samplers.DDMetr
 			chunk = chunk[:chunkSize]
 		}
 		wg.Add(1)
-		go s.flushPart(chunk, &wg)
+		go s.flushPart(span.Attach(ctx), chunk, &wg)
 	}
 	wg.Wait()
 	s.Statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(flushStart).Nanoseconds()), []string{"part:post"}, 1.0)
@@ -338,9 +338,9 @@ func finalizeMetrics(hostname string, tags []string, finalMetrics []samplers.DDM
 }
 
 // flushPart flushes a set of metrics to the remote API server
-func (s *Server) flushPart(metricSlice []samplers.DDMetric, wg *sync.WaitGroup) {
+func (s *Server) flushPart(ctx context.Context, metricSlice []samplers.DDMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
-	postHelper(context.TODO(), s.HTTPClient, s.Statsd, fmt.Sprintf("%s/api/v1/series?api_key=%s", s.DDHostname, s.DDAPIKey), map[string][]samplers.DDMetric{
+	postHelper(ctx, s.HTTPClient, s.Statsd, fmt.Sprintf("%s/api/v1/series?api_key=%s", s.DDHostname, s.DDAPIKey), map[string][]samplers.DDMetric{
 		"series": metricSlice,
 	}, "flush", true)
 }
@@ -561,7 +561,8 @@ func (s *Server) flushEventsChecks(ctx context.Context) {
 // you can disable compression with compress=false for endpoints that don't
 // support it
 func postHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Client, endpoint string, bodyObject interface{}, action string, compress bool) error {
-	span, _ := trace.StartSpanFromContext(ctx, action)
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	span.SetTag("action", action)
 	defer span.Finish()
 
 	// attach this field to all the logs we generate
@@ -666,7 +667,7 @@ func postHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 type traceFlusher func(context.Context, *Server, opentracing.Tracer, []ssf.SSFSample)
 
 func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tracer, ssfSpans []ssf.SSFSample) {
-	span, _ := trace.StartSpanFromContext(ctx, "flush")
+	span, _ := trace.StartSpanFromContext(ctx, "")
 
 	var finalTraces []*DatadogTraceSpan
 	for _, span := range ssfSpans {
@@ -728,7 +729,7 @@ func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tra
 }
 
 func flushSpansLightstep(ctx context.Context, s *Server, lightstepTracer opentracing.Tracer, ssfSpans []ssf.SSFSample) {
-	span, _ := trace.StartSpanFromContext(ctx, "flush")
+	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 	for _, ssfSpan := range ssfSpans {
 		flushSpanLightstep(lightstepTracer, ssfSpan)
@@ -742,7 +743,6 @@ func flushSpansLightstep(ctx context.Context, s *Server, lightstepTracer opentra
 // flushSpanLightstep builds a tracespan from an SSF and flushes
 // it using the provided OpenTracing tracer (sink)
 func flushSpanLightstep(lightstepTracer opentracing.Tracer, ssfSpan ssf.SSFSample) {
-
 	parentId := ssfSpan.Trace.ParentId
 	if parentId <= 0 {
 		parentId = 0
