@@ -656,15 +656,18 @@ func postHelper(ctx context.Context, forwardedAddr string, httpClient *http.Clie
 		return err
 	}
 
-	hostUrl, hostPort, err := extractHostPort(forwardedAddr)
+	if forwardedAddr != "" {
+		hostURL, hostPort, err := extractHostPort(forwardedAddr)
 
-	if err != nil {
-		stats.Count(action+".error_total", 1, []string{"cause:extract"}, 1.0)
-		innerLogger.WithError(err).Error("Could not extract host and port from forwarded address")
-		return err
+		if err != nil {
+			stats.Count(action+".error_total", 1, []string{"cause:extract"}, 1.0)
+			innerLogger.WithError(err).Error("Could not extract host and port from forwarded address")
+			return err
+		}
+
+		req.Host = hostURL + ":" + hostPort
 	}
 
-	req.Host = hostUrl + ":" + hostPort
 	req.Header.Set("Content-Type", "application/json")
 	if compress {
 		req.Header.Set("Content-Encoding", "deflate")
