@@ -127,36 +127,47 @@ func (t *Trace) Duration() time.Duration {
 	return t.End.Sub(t.Start)
 }
 
-// SSFSample converts the Trace to an SSFSample type.
+// SSFSpan converts the Trace to an SSFSpan type.
 // It sets the duration, so it assumes the span has already ended.
 // (It is safe to call on a span that has not ended, but the duration
 // field will be invalid)
-func (t *Trace) SSFSample() *ssf.SSFSample {
-	duration := t.Duration().Nanoseconds()
-	name := t.Name
+func (t *Trace) SSFSpan() *ssf.SSFSpan {
+	// duration := t.Duration().Nanoseconds()
+	// name := t.Name
 
-	return &ssf.SSFSample{
-		Metric:    ssf.SSFSample_TRACE,
-		Timestamp: t.Start.UnixNano(),
-		Status:    t.Status,
-		Name:      *proto.String(name),
-		Trace: &ssf.SSFTrace{
-			TraceId:  t.TraceID,
-			Id:       t.SpanID,
-			ParentId: t.ParentID,
-			Duration: duration,
-			Resource: t.Resource,
-		},
-		SampleRate: *proto.Float32(.10),
-		Tags:       t.Tags,
-		Service:    Service,
+	return &ssf.SSFSpan{
+		TraceId:        t.TraceID,
+		Id:             t.SpanID,
+		ParentId:       t.ParentID,
+		StartTimestamp: t.Start.UnixNano(),
+		EndTimestamp:   t.End.UnixNano(),
+		Service:        Service,
+		Resource:       t.Resource,
+		Tags:           t.Tags,
 	}
+
+	// return &ssf.SSFSample{
+	// 	Metric:    ssf.SSFSample_TRACE,
+	// 	Timestamp: t.Start.UnixNano(),
+	// 	Status:    t.Status,
+	// 	Name:      *proto.String(name),
+	// 	Trace: &ssf.SSFTrace{
+	// 		TraceId:  t.TraceID,
+	// 		Id:       t.SpanID,
+	// 		ParentId: t.ParentID,
+	// 		Duration: duration,
+	// 		Resource: t.Resource,
+	// 	},
+	// 	SampleRate: *proto.Float32(.10),
+	// 	Tags:       t.Tags,
+	// 	Service:    Service,
+	// }
 }
 
 // ProtoMarshalTo writes the Trace as a protocol buffer
 // in text format to the specified writer.
 func (t *Trace) ProtoMarshalTo(w io.Writer) error {
-	packet, err := proto.Marshal(t.SSFSample())
+	packet, err := proto.Marshal(t.SSFSpan())
 	if err != nil {
 		return err
 	}
@@ -169,7 +180,7 @@ func (t *Trace) ProtoMarshalTo(w io.Writer) error {
 // global veneur instance.
 func (t *Trace) Record(name string, tags []*ssf.SSFTag) error {
 	t.finish()
-	duration := t.Duration().Nanoseconds()
+	// duration := t.Duration().Nanoseconds()
 
 	t.Tags = append(t.Tags, tags...)
 
@@ -177,24 +188,35 @@ func (t *Trace) Record(name string, tags []*ssf.SSFTag) error {
 		name = t.Name
 	}
 
-	sample := &ssf.SSFSample{
-		Metric:    ssf.SSFSample_TRACE,
-		Timestamp: t.Start.UnixNano(),
-		Status:    t.Status,
-		Name:      *proto.String(name),
-		Trace: &ssf.SSFTrace{
-			TraceId:  t.TraceID,
-			Id:       t.SpanID,
-			ParentId: t.ParentID,
-			Duration: duration,
-			Resource: t.Resource,
-		},
-		SampleRate: *proto.Float32(.10),
-		Tags:       t.Tags,
-		Service:    Service,
+	span := &ssf.SSFSpan{
+		TraceId:        t.TraceID,
+		Id:             t.SpanID,
+		ParentId:       t.ParentID,
+		StartTimestamp: t.Start.UnixNano(),
+		EndTimestamp:   t.End.UnixNano(),
+		Resource:       t.Resource,
+		Tags:           t.Tags,
+		Service:        Service,
 	}
 
-	err := sendSample(sample)
+	// sample := &ssf.SSFSample{
+	// 	Metric:    ssf.SSFSample_TRACE,
+	// 	Timestamp: t.Start.UnixNano(),
+	// 	Status:    t.Status,
+	// 	Name:      *proto.String(name),
+	// 	Trace: &ssf.SSFTrace{
+	// 		TraceId:  t.TraceID,
+	// 		Id:       t.SpanID,
+	// 		ParentId: t.ParentID,
+	// 		Duration: duration,
+	// 		Resource: t.Resource,
+	// 	},
+	// 	SampleRate: *proto.Float32(.10),
+	// 	Tags:       t.Tags,
+	// 	Service:    Service,
+	// }
+
+	err := sendSpan(span)
 	if err != nil {
 		logrus.WithError(err).Error("Error submitting sample")
 	}
@@ -323,9 +345,9 @@ func StartChildSpan(parent *Trace) *Trace {
 	return span
 }
 
-// sendSample marshals the sample using protobuf and sends it
+// sendSpan marshals the sample using protobuf and sends it
 // over UDP to the local veneur instance
-func sendSample(sample *ssf.SSFSample) error {
+func sendSpan(span *ssf.SSFSpan) error {
 	if Disabled() {
 		return nil
 	}
@@ -342,7 +364,7 @@ func sendSample(sample *ssf.SSFSample) error {
 
 	defer conn.Close()
 
-	data, err := proto.Marshal(sample)
+	data, err := proto.Marshal(span)
 	if err != nil {
 		return err
 	}

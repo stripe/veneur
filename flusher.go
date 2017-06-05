@@ -471,14 +471,14 @@ func (s *Server) flushTraces(ctx context.Context) {
 	var finalTraces []*DatadogTraceSpan
 	traces.Do(func(t interface{}) {
 		if t != nil {
-			span, ok := t.(ssf.SSFSample)
+			span, ok := t.(ssf.SSFSpan)
 			if !ok {
 				log.Error("Got an unknown object in tracing ring!")
 				return
 			}
 			// -1 is a canonical way of passing in invalid info in Go
 			// so we should support that too
-			parentID := span.Trace.ParentId
+			parentID := span.ParentId
 
 			// check if this is the root span
 			if parentID <= 0 {
@@ -486,7 +486,7 @@ func (s *Server) flushTraces(ctx context.Context) {
 				parentID = 0
 			}
 
-			resource := span.Trace.Resource
+			resource := span.Resource
 
 			tags := map[string]string{}
 			for _, tag := range span.Tags {
@@ -496,18 +496,25 @@ func (s *Server) flushTraces(ctx context.Context) {
 			// TODO implement additional metrics
 			var metrics map[string]float64
 
+			var isError int64
+			if span.Error {
+				isError = 1
+			} else {
+				isError = 0
+			}
+
 			ddspan := &DatadogTraceSpan{
-				TraceID:  span.Trace.TraceId,
-				SpanID:   span.Trace.Id,
+				TraceID:  span.TraceId,
+				SpanID:   span.Id,
 				ParentID: parentID,
 				Service:  span.Service,
 				Name:     span.Name,
 				Resource: resource,
-				Start:    span.Timestamp,
-				Duration: span.Trace.Duration,
+				Start:    span.StartTimestamp,
+				Duration: span.EndTimestamp - span.StartTimestamp,
 				// TODO don't hardcode
 				Type:    "http",
-				Error:   int64(span.Status),
+				Error:   isError,
 				Metrics: metrics,
 				Meta:    tags,
 			}
