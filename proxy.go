@@ -349,7 +349,7 @@ func (p *Proxy) doPost(wg *sync.WaitGroup, destination string, batch []samplers.
 
 	err = postHelper(context.TODO(), p.HTTPClient, p.Statsd, endpoint, batch, "forward", true)
 	if err == nil {
-		log.WithField("metrics", batchSize).Info("Completed forward to upstream Veneur")
+		log.WithField("metrics", batchSize).Debug("Completed forward to upstream Veneur")
 	} else {
 		p.Statsd.Count("forward.error_total", 1, []string{"cause:post"}, 1.0)
 		log.WithError(err).Warn("Failed to POST metrics to destination")

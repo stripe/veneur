@@ -100,7 +100,7 @@ func TestAcceptingBooleans(t *testing.T) {
 
 	server, _ := NewProxyFromConfig(proxyConfig)
 	assert.True(t, server.AcceptingForwards, "Server accepts forwards")
-	assert.False(t, server.AcceptingTraces, "Server does not forwards")
+	assert.False(t, server.AcceptingTraces, "Server does not forward traces")
 }
 
 func TestConsistentForward(t *testing.T) {
