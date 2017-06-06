@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/pprof"
@@ -41,6 +42,8 @@ type Proxy struct {
 	HTTPAddr               string
 	HTTPClient             *http.Client
 	Statsd                 *statsd.Client
+	AcceptingForwards      bool
+	AcceptingTraces        bool
 
 	enableProfiling bool
 }
@@ -80,6 +83,22 @@ func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
 	p.ConsulForwardService = conf.ConsulForwardServiceName
 	p.ConsulTraceService = conf.ConsulTraceServiceName
 
+	if p.ConsulForwardService != "" {
+		p.AcceptingForwards = true
+	}
+	if p.ConsulTraceService != "" {
+		p.AcceptingTraces = true
+	}
+
+	if !p.AcceptingForwards && !p.AcceptingTraces {
+		err = errors.New("Refusing to start with no Consul service names in config.")
+		log.WithError(err).WithFields(logrus.Fields{
+			"consul_forward_service_name": p.ConsulForwardService,
+			"consul_trace_service_name":   p.ConsulTraceService,
+		}).Error("Oops")
+		return
+	}
+
 	p.ForwardDestinations = consistent.New()
 	p.TraceDestinations = consistent.New()
 
@@ -112,15 +131,18 @@ func (p *Proxy) Start() {
 	}
 	p.Discoverer = disc
 
-	p.RefreshDestinations(p.ConsulForwardService, p.ForwardDestinations, &p.ForwardDestinationsMtx)
-	if len(p.ForwardDestinations.Members()) == 0 {
-		log.WithField("serviceName", p.ConsulForwardService).Error("Refusing to start with zero destinations for forwarding.")
+	if p.AcceptingForwards {
+		p.RefreshDestinations(p.ConsulForwardService, p.ForwardDestinations, &p.ForwardDestinationsMtx)
+		if len(p.ForwardDestinations.Members()) == 0 {
+			log.WithField("serviceName", p.ConsulForwardService).Fatal("Refusing to start with zero destinations for forwarding.")
+		}
 	}
 
-	// Else use Consul
-	p.RefreshDestinations(p.ConsulTraceService, p.TraceDestinations, &p.TraceDestinationsMtx)
-	if len(p.ForwardDestinations.Members()) == 0 {
-		log.WithField("serviceName", p.ConsulTraceService).Error("Refusing to start with zero destinations for tracing.")
+	if p.AcceptingTraces {
+		p.RefreshDestinations(p.ConsulTraceService, p.TraceDestinations, &p.TraceDestinationsMtx)
+		if len(p.ForwardDestinations.Members()) == 0 {
+			log.WithField("serviceName", p.ConsulTraceService).Fatal("Refusing to start with zero destinations for tracing.")
+		}
 	}
 
 	go func() {
@@ -129,10 +151,10 @@ func (p *Proxy) Start() {
 		}()
 		ticker := time.NewTicker(p.ConsulInterval)
 		for range ticker.C {
-			if p.ConsulForwardService != "" {
+			if p.AcceptingForwards {
 				p.RefreshDestinations(p.ConsulForwardService, p.ForwardDestinations, &p.ForwardDestinationsMtx)
 			}
-			if p.ConsulTraceService != "" {
+			if p.AcceptingTraces {
 				p.RefreshDestinations(p.ConsulTraceService, p.TraceDestinations, &p.TraceDestinationsMtx)
 			}
 		}
@@ -193,7 +215,7 @@ func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consist
 	destinations, err := p.Discoverer.GetDestinationsForService(serviceName)
 	p.Statsd.TimeInMilliseconds("discoverer.update_duration_ns", float64(time.Since(start).Nanoseconds()), []string{fmt.Sprintf("service:%s", serviceName)}, 1.0)
 	if err != nil || len(destinations) == 0 {
-		log.WithError(err).Error("Discoverer returned an error, destinations may be stale!")
+		log.WithError(err).WithField("service", serviceName).Error("Discoverer returned an error, destinations may be stale!")
 		p.Statsd.Incr("discoverer.errors", []string{fmt.Sprintf("service:%s", serviceName)}, 1.0)
 		// Return since we got no hosts. We don't want to zero out the list. This
 		// should result in us leaving the "last good" values in the ring.
@@ -327,7 +349,7 @@ func (p *Proxy) doPost(wg *sync.WaitGroup, destination string, batch []samplers.
 
 	err = postHelper(context.TODO(), p.HTTPClient, p.Statsd, endpoint, batch, "forward", true)
 	if err == nil {
-		log.WithField("metrics", batchSize).Info("Completed forward to upstream Veneur")
+		log.WithField("metrics", batchSize).Debug("Completed forward to upstream Veneur")
 	} else {
 		p.Statsd.Count("forward.error_total", 1, []string{"cause:post"}, 1.0)
 		log.WithError(err).Warn("Failed to POST metrics to destination")

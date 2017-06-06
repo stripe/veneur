@@ -85,6 +85,24 @@ func (rt *ConsulTwoMetricRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 	return rec.Result(), nil
 }
 
+func TestMissingServices(t *testing.T) {
+	proxyConfig := generateProxyConfig()
+	proxyConfig.ConsulForwardServiceName = ""
+	proxyConfig.ConsulTraceServiceName = ""
+
+	_, error := NewProxyFromConfig(proxyConfig)
+	assert.Error(t, error, "No consul services means Proxy won't start")
+}
+
+func TestAcceptingBooleans(t *testing.T) {
+	proxyConfig := generateProxyConfig()
+	proxyConfig.ConsulTraceServiceName = ""
+
+	server, _ := NewProxyFromConfig(proxyConfig)
+	assert.True(t, server.AcceptingForwards, "Server accepts forwards")
+	assert.False(t, server.AcceptingTraces, "Server does not forward traces")
+}
+
 func TestConsistentForward(t *testing.T) {
 
 	// We need to set up a proxy, have a local veneur send to it, then verify
