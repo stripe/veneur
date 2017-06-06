@@ -1,3 +1,12 @@
+# 1.3.1, 2017-06-06
+
+## Bugfixes
+* Decrease logging level for proxy's "forwarded" messages.
+* Failed discovery refreshes now log the service name.
+
+## Improvements
+* Proxy no longer requires a trace service name, since it's not wired up.
+
 # 1.3.0, 2017-05-19
 
 ## Bugfixes
