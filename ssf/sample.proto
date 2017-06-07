@@ -49,16 +49,14 @@ message SSFSpan {
   int64 start_timestamp = 4;
   int64 end_timestamp = 5;
 
-  string name = 6;
-
-  bool error = 7;
+  bool error = 6;
 
   // the name of the service
   // e.g. "veneur"
-  string service = 8;
+  string service = 7;
 
-  string resource = 9;
+  string resource = 8;
 
-  repeated SSFSample metrics = 10;
-  repeated SSFTag tags = 11;
+  repeated SSFSample metrics = 9;
+  repeated SSFTag tags = 10;
 }

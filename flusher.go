@@ -508,7 +508,6 @@ func (s *Server) flushTraces(ctx context.Context) {
 				SpanID:   span.Id,
 				ParentID: parentID,
 				Service:  span.Service,
-				Name:     span.Name,
 				Resource: resource,
 				Start:    span.StartTimestamp,
 				Duration: span.EndTimestamp - span.StartTimestamp,
