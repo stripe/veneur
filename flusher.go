@@ -427,6 +427,31 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 	}
 }
 
+// given a url, extract the host and port
+// on failure, it returns the argument, nil and the resulting error
+func extractHostPort(endpoint string) (string, string, error) {
+	origURL, err := url.Parse(endpoint)
+
+	if err != nil {
+		// caution: this error contains the endpoint itself, so if the endpoint
+		// has secrets in it, you have to remove them
+		return endpoint, "", err
+	}
+
+	origPort := origURL.Port()
+
+	// Fallback to default port
+	if origPort == "" {
+		if origURL.Scheme == "https" {
+			origPort = "443"
+		} else {
+			origPort = "80"
+		}
+	}
+
+	return origURL.Hostname(), origPort, nil
+}
+
 // given a url, attempts to resolve the url's host, and returns a new url whose
 // host has been replaced by the first resolved address
 // on failure, it returns the argument, and the resulting error
@@ -638,6 +663,16 @@ func postHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 		innerLogger.WithError(err).Error("Could not construct request")
 		return err
 	}
+
+	hostUrl, hostPort, err := extractHostPort(endpoint)
+
+	if err != nil {
+		stats.Count(action+".error_total", 1, []string{"cause:extract"}, 1.0)
+		innerLogger.WithError(err).Error("Could not extract host and port from forwarded address")
+		return err
+	}
+
+	req.Host = hostUrl + ":" + hostPort
 	req.Header.Set("Content-Type", "application/json")
 	if compress {
 		req.Header.Set("Content-Encoding", "deflate")

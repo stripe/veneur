@@ -29,6 +29,13 @@ func TestServerTags(t *testing.T) {
 	assert.Contains(t, metrics[0].Tags, "a:b", "Tags should contain server tags")
 }
 
+func TestHostPortExtract(t *testing.T) {
+	h, p, _ := extractHostPort("https://github.com/stripe/veneur")
+
+	assert.Equal(t, "github.com", h, "Host should contain extracted host")
+	assert.Equal(t, "443", p, "Port should contain extracted port")
+}
+
 func TestHostMagicTag(t *testing.T) {
 	metrics := []samplers.DDMetric{{
 		Name:       "foo.bar.baz",
