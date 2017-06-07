@@ -52,11 +52,12 @@ message SSFSpan {
 
   bool error = 7;
 
-  // the name of the service
+  // The name of the service
   // e.g. "veneur"
   string service = 8;
 
-  string resource = 9;
+  // The thing we're doing, handing a request, writing a value, etc
+  string operation = 9;
 
   repeated SSFSample metrics = 10;
   repeated SSFTag tags = 11;
