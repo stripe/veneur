@@ -38,25 +38,26 @@ message SSFSample {
 }
 
 message SSFSpan {
+  int32 version = 1;
   // the trace_id is the (span) id of the root span
-  int64 trace_id = 1;
+  int64 trace_id = 2;
   // the id for this span
-  int64 id = 2;
+  int64 id = 3;
   // the (span) id of the direct parent,
   // if this span is not a root span
-  int64 parent_id = 3;
+  int64 parent_id = 4;
 
-  int64 start_timestamp = 4;
-  int64 end_timestamp = 5;
+  int64 start_timestamp = 5;
+  int64 end_timestamp = 6;
 
-  bool error = 6;
+  bool error = 7;
 
   // the name of the service
   // e.g. "veneur"
-  string service = 7;
+  string service = 8;
 
-  string resource = 8;
+  string resource = 9;
 
-  repeated SSFSample metrics = 9;
-  repeated SSFTag tags = 10;
+  repeated SSFSample metrics = 10;
+  repeated SSFTag tags = 11;
 }
