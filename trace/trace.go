@@ -69,22 +69,24 @@ type Trace struct {
 	// For the root span, this will be <= 0
 	ParentID int64
 
-	// The Resource should be the same for all spans in the same trace
-	Resource string
-
 	Start time.Time
 
 	End time.Time
 
-	// If non-zero, the trace will be treated
-	// as an error
-	Status ssf.SSFSample_Status
-
 	Tags []*ssf.SSFTag
 
-	// Unlike the Resource, this should not contain spaces
-	// It should be of the format foo.bar.baz
-	Name string
+	Metrics []*ssf.SSFSample
+
+	// Thing of component + operation as parts of a dotted metric name: service.http_requests_total
+	// and resource as the tag that differentiates them: api_method:create_charge
+
+	// Component is the service
+	component string
+	// operation the abtract work being performed (i.e. "http_request", etc)
+	operation string
+
+	// resource is the endpoint, rpc or api method being invoked
+	resource string
 }
 
 // Set the end timestamp and finalize Span state
@@ -145,23 +147,6 @@ func (t *Trace) SSFSpan() *ssf.SSFSpan {
 		Resource:       t.Resource,
 		Tags:           t.Tags,
 	}
-
-	// return &ssf.SSFSample{
-	// 	Metric:    ssf.SSFSample_TRACE,
-	// 	Timestamp: t.Start.UnixNano(),
-	// 	Status:    t.Status,
-	// 	Name:      *proto.String(name),
-	// 	Trace: &ssf.SSFTrace{
-	// 		TraceId:  t.TraceID,
-	// 		Id:       t.SpanID,
-	// 		ParentId: t.ParentID,
-	// 		Duration: duration,
-	// 		Resource: t.Resource,
-	// 	},
-	// 	SampleRate: *proto.Float32(.10),
-	// 	Tags:       t.Tags,
-	// 	Service:    Service,
-	// }
 }
 
 // ProtoMarshalTo writes the Trace as a protocol buffer
@@ -198,23 +183,6 @@ func (t *Trace) Record(name string, tags []*ssf.SSFTag) error {
 		Tags:           t.Tags,
 		Service:        Service,
 	}
-
-	// sample := &ssf.SSFSample{
-	// 	Metric:    ssf.SSFSample_TRACE,
-	// 	Timestamp: t.Start.UnixNano(),
-	// 	Status:    t.Status,
-	// 	Name:      *proto.String(name),
-	// 	Trace: &ssf.SSFTrace{
-	// 		TraceId:  t.TraceID,
-	// 		Id:       t.SpanID,
-	// 		ParentId: t.ParentID,
-	// 		Duration: duration,
-	// 		Resource: t.Resource,
-	// 	},
-	// 	SampleRate: *proto.Float32(.10),
-	// 	Tags:       t.Tags,
-	// 	Service:    Service,
-	// }
 
 	err := sendSpan(span)
 	if err != nil {
