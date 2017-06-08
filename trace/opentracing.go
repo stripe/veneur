@@ -510,17 +510,17 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 			return nil, err
 		}
 
-		sample := ssf.SSFSample{}
-		err = proto.Unmarshal(packet, &sample)
+		span := ssf.SSFSpan{}
+		err = proto.Unmarshal(packet, &span)
 		if err != nil {
 			return nil, err
 		}
 
 		trace := &Trace{
-			TraceID:  sample.Trace.TraceId,
-			ParentID: sample.Trace.ParentId,
-			SpanID:   sample.Trace.Id,
-			Resource: sample.Trace.Resource,
+			TraceID:  span.TraceId,
+			ParentID: span.ParentId,
+			SpanID:   span.Id,
+			Resource: span.Resource,
 		}
 
 		return trace.context(), nil
