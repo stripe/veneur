@@ -582,10 +582,10 @@ func (s *Server) HandleTracePacket(packet []byte) {
 
 	// Technically this could be anything, but we're only consuming trace spans
 	// for now.
-	newSample := &ssf.SSFSample{}
+	newSample := &ssf.SSFSpan{}
 	err := proto.Unmarshal(packet, newSample)
 	if err != nil {
-		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:trace", "reaon:unmarshal"}, 1.0)
+		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:trace", "reason:unmarshal"}, 1.0)
 		log.WithError(err).Warn("Trace unmarshaling error")
 		return
 	}

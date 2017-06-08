@@ -474,11 +474,11 @@ func (s *Server) flushTraces(ctx context.Context) {
 
 	traceRing := s.TraceWorker.Flush()
 
-	ssfSpans := []ssf.SSFSample{}
+	ssfSpans := []ssf.SSFSpan{}
 
 	traceRing.Do(func(t interface{}) {
 		if t != nil {
-			ssfSpan, ok := t.(ssf.SSFSample)
+			ssfSpan, ok := t.(ssf.SSFSpan)
 			if !ok {
 				log.Error("Got an unknown object in tracing ring!")
 				return
@@ -664,16 +664,16 @@ func postHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 }
 
 // TODO better name, also finalize type signature
-type traceFlusher func(context.Context, *Server, opentracing.Tracer, []ssf.SSFSample)
+type traceFlusher func(context.Context, *Server, opentracing.Tracer, []ssf.SSFSpan)
 
-func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tracer, ssfSpans []ssf.SSFSample) {
+func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tracer, ssfSpans []ssf.SSFSpan) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 
 	var finalTraces []*DatadogTraceSpan
 	for _, span := range ssfSpans {
 		// -1 is a canonical way of passing in invalid info in Go
 		// so we should support that too
-		parentID := span.Trace.ParentId
+		parentID := span.ParentId
 
 		// check if this is the root span
 		if parentID <= 0 {
@@ -681,28 +681,37 @@ func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tra
 			parentID = 0
 		}
 
-		resource := span.Trace.Resource
+		resource := span.Tags["resource"]
+		name := span.Tags["name"]
 
 		tags := map[string]string{}
-		for _, tag := range span.Tags {
-			tags[tag.Name] = tag.Value
+		for k, v := range span.Tags {
+			tags[k] = v
 		}
+
+		delete(tags, "name")
+		delete(tags, "resource")
 
 		// TODO implement additional metrics
 		var metrics map[string]float64
 
+		var errorCode int64
+		if span.Error {
+			errorCode = 2
+		}
+
 		ddspan := &DatadogTraceSpan{
-			TraceID:  span.Trace.TraceId,
-			SpanID:   span.Trace.Id,
+			TraceID:  span.TraceId,
+			SpanID:   span.Id,
 			ParentID: parentID,
 			Service:  span.Service,
-			Name:     span.Name,
+			Name:     name,
 			Resource: resource,
-			Start:    span.Timestamp,
-			Duration: span.Trace.Duration,
+			Start:    span.StartTimestamp,
+			Duration: span.EndTimestamp - span.StartTimestamp,
 			// TODO don't hardcode
 			Type:    "http",
-			Error:   int64(span.Status),
+			Error:   errorCode,
 			Metrics: metrics,
 			Meta:    tags,
 		}
@@ -728,7 +737,7 @@ func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tra
 	}
 }
 
-func flushSpansLightstep(ctx context.Context, s *Server, lightstepTracer opentracing.Tracer, ssfSpans []ssf.SSFSample) {
+func flushSpansLightstep(ctx context.Context, s *Server, lightstepTracer opentracing.Tracer, ssfSpans []ssf.SSFSpan) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 	for _, ssfSpan := range ssfSpans {
@@ -742,38 +751,44 @@ func flushSpansLightstep(ctx context.Context, s *Server, lightstepTracer opentra
 
 // flushSpanLightstep builds a tracespan from an SSF and flushes
 // it using the provided OpenTracing tracer (sink)
-func flushSpanLightstep(lightstepTracer opentracing.Tracer, ssfSpan ssf.SSFSample) {
-	parentId := ssfSpan.Trace.ParentId
+func flushSpanLightstep(lightstepTracer opentracing.Tracer, ssfSpan ssf.SSFSpan) {
+	parentId := ssfSpan.ParentId
 	if parentId <= 0 {
 		parentId = 0
 	}
 
-	timestamp := time.Unix(ssfSpan.Timestamp/1e9, ssfSpan.Timestamp%1e9)
+	var errorCode int64
+	if ssfSpan.Error {
+		errorCode = 1
+	}
+
+	timestamp := time.Unix(ssfSpan.StartTimestamp/1e9, ssfSpan.StartTimestamp%1e9)
 	sp := lightstepTracer.StartSpan(
-		ssfSpan.Name,
+		ssfSpan.Tags["name"],
 		opentracing.StartTime(timestamp),
-		lightstep.SetTraceID(uint64(ssfSpan.Trace.TraceId)),
-		lightstep.SetSpanID(uint64(ssfSpan.Trace.Id)),
+		lightstep.SetTraceID(uint64(ssfSpan.TraceId)),
+		lightstep.SetSpanID(uint64(ssfSpan.Id)),
 		lightstep.SetParentSpanID(uint64(parentId)))
 
-	sp.SetTag("resource", ssfSpan.Trace.Resource)
+	sp.SetTag("resource", ssfSpan.Tags["resource"])
 	sp.SetTag(lightstep.ComponentNameKey, ssfSpan.Service)
 	// TODO don't hardcode
 	sp.SetTag("type", "http")
-	sp.SetTag("error-code", int64(ssfSpan.Status))
-	for _, tag := range ssfSpan.Tags {
-		sp.SetTag(tag.Name, tag.Value)
+	sp.SetTag("error-code", errorCode)
+	for k, v := range ssfSpan.Tags {
+		sp.SetTag(k, v)
 	}
 
 	// TODO add metrics as tags to the span as well
 
-	if ssfSpan.Status > 0 {
+	if errorCode > 0 {
 		// Note: this sets the OT-standard "error" tag, which
 		// LightStep uses to flag error spans.
 		ext.Error.Set(sp, true)
 	}
 
+	endTime := time.Unix(ssfSpan.EndTimestamp/1e9, ssfSpan.EndTimestamp%1e9)
 	sp.FinishWithOptions(opentracing.FinishOptions{
-		FinishTime: timestamp.Add(time.Duration(ssfSpan.Trace.Duration)),
+		FinishTime: endTime,
 	})
 }

@@ -64,19 +64,14 @@ func TestRecord(t *testing.T) {
 
 	trace := StartTrace(resource)
 	trace.Status = ssf.SSFSample_CRITICAL
-	tags := []*ssf.SSFTag{
-		{
-			Name:  "error.msg",
-			Value: "an error occurred!",
-		},
-		{
-			Name:  "error.type",
-			Value: "type error interface",
-		},
-		{
-			Name:  "error.stack",
-			Value: "insert\nlots\nof\nstuff",
-		},
+	trace.error = true
+
+	tags := map[string]string{
+		"error.msg":   "an error occurred!",
+		"error.type":  "type error interface",
+		"error.stack": "insert\nlots\nof\nstuff",
+		"resource":    resource,
+		"name":        metricName,
 	}
 
 	trace.Record(metricName, tags)
@@ -89,28 +84,31 @@ func TestRecord(t *testing.T) {
 		// Because this is marshalled using protobuf,
 		// we can't expect the representation to be immutable
 		// and cannot test the marshalled payload directly
-		sample := &ssf.SSFSample{}
+		sample := &ssf.SSFSpan{}
 		err := proto.Unmarshal(resp, sample)
 
 		assert.NoError(t, err)
 
-		timestamp := time.Unix(sample.Timestamp/1e9, 0)
+		timestamp := time.Unix(sample.StartTimestamp/1e9, 0)
 
 		assert.Equal(t, trace.Start.Unix(), timestamp.Unix())
 
-		// We don't know the exact duration, but we can assert on the interval
-		assert.True(t, sample.Trace.Duration > 0, "Expected positive trace duration")
-		upperBound := end.Sub(trace.Start).Nanoseconds()
-		assert.True(t, sample.Trace.Duration < upperBound, "Expected trace duration (%d) to be less than upper bound %d", sample.Trace.Duration, upperBound)
-		assert.InEpsilon(t, sample.SampleRate, 0.1, ε)
+		duration := sample.EndTimestamp - sample.StartTimestamp
 
-		assert.Equal(t, sample.Trace.Resource, resource)
-		assert.Equal(t, sample.Name, metricName)
-		assert.Equal(t, sample.Status, ssf.SSFSample_CRITICAL)
-		assert.Equal(t, sample.Metric, ssf.SSFSample_TRACE)
-		assert.Equal(t, sample.Service, serviceName)
-		// TODO assert on tags
-		assert.Equal(t, sample.Tags, tags)
+		// We don't know the exact duration, but we can assert on the interval
+		assert.True(t, duration > 0, "Expected positive trace duration")
+		upperBound := end.Sub(trace.Start).Nanoseconds()
+		assert.True(t, duration < upperBound, "Expected trace duration (%d) to be less than upper bound %d", duration, upperBound)
+
+		for _, metric := range sample.Metrics {
+			assert.InEpsilon(t, metric.SampleRate, 0.1, ε)
+		}
+
+		assertTagEquals(t, sample, "resource", resource)
+		assertTagEquals(t, sample, "name", metricName)
+		assert.Equal(t, true, sample.Error)
+		assert.Equal(t, serviceName, sample.Service)
+		assert.Equal(t, tags, sample.Tags)
 	}
 
 }
@@ -183,8 +181,7 @@ func TestNameTag(t *testing.T) {
 	tracer := Tracer{}
 	span := tracer.StartSpan("resource", NameTag(name)).(*Span)
 	assert.Equal(t, 1, len(span.Tags))
-	assert.Equal(t, "name", span.Tags[0].Name)
-	assert.Equal(t, name, span.Tags[0].Value)
+	assert.Equal(t, name, span.Tags["name"])
 
 }
 
@@ -207,14 +204,14 @@ func TestError(t *testing.T) {
 	assert.Equal(t, root.Status, ssf.SSFSample_CRITICAL)
 	assert.Equal(t, len(root.Tags), 3)
 
-	for _, tag := range root.Tags {
-		switch tag.Name {
+	for k, v := range root.Tags {
+		switch k {
 		case errorMessageTag:
-			assert.Equal(t, tag.Value, err.Error())
+			assert.Equal(t, v, err.Error())
 		case errorTypeTag:
-			assert.Equal(t, tag.Value, "localError")
+			assert.Equal(t, v, "localError")
 		case errorStackTag:
-			assert.Equal(t, tag.Value, err.Error())
+			assert.Equal(t, v, err.Error())
 		}
 	}
 
@@ -252,4 +249,8 @@ func TestStripPackageName(t *testing.T) {
 			assert.Equal(t, stripPackageName(tc.fname), tc.expected)
 		})
 	}
+}
+
+func assertTagEquals(t *testing.T, sample *ssf.SSFSpan, name, value string) {
+	assert.Equal(t, value, sample.Tags[name])
 }

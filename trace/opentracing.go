@@ -228,18 +228,22 @@ func (s *Span) SetOperationName(name string) opentracing.Span {
 
 // SetTag sets the tags on the underlying span
 func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
-	tag := ssf.SSFTag{Name: key}
+	if s.Tags == nil {
+		s.Tags = map[string]string{}
+	}
+	var val string
+
 	// TODO mutex
 	switch v := value.(type) {
 	case string:
-		tag.Value = v
+		val = v
 	case fmt.Stringer:
-		tag.Value = v.String()
+		val = v.String()
 	default:
 		// TODO maybe just ban non-strings?
-		tag.Value = fmt.Sprintf("%#v", value)
+		val = fmt.Sprintf("%#v", value)
 	}
-	s.Tags = append(s.Tags, &tag)
+	s.Tags[key] = val
 	return s
 }
 
@@ -485,6 +489,7 @@ func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier i
 			ParentID: sc.ParentID(),
 			SpanID:   sc.SpanID(),
 			Resource: sc.Resource(),
+			Tags:     map[string]string{},
 		}
 
 		return trace.ProtoMarshalTo(w)
@@ -519,17 +524,19 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 			return nil, err
 		}
 
-		sample := ssf.SSFSample{}
+		sample := ssf.SSFSpan{}
 		err = proto.Unmarshal(packet, &sample)
 		if err != nil {
 			return nil, err
 		}
 
+		resource := sample.Tags["resource"]
+
 		trace := &Trace{
-			TraceID:  sample.Trace.TraceId,
-			ParentID: sample.Trace.ParentId,
-			SpanID:   sample.Trace.Id,
-			Resource: sample.Trace.Resource,
+			TraceID:  sample.TraceId,
+			ParentID: sample.ParentId,
+			SpanID:   sample.Id,
+			Resource: resource,
 		}
 
 		return trace.context(), nil
