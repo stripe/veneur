@@ -1,3 +1,8 @@
+# 1.4.0, 2017-06-09
+
+## Changes
+* Require Go 1.8+ and stop building against 1.7
+
 # 1.3.1, 2017-06-06
 
 ## Bugfixes
