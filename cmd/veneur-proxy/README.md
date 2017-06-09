@@ -65,3 +65,4 @@ If you use service discovery (e.g. Consul) for forwarding or tracing, these metr
 * `veneur_proxy.discoverer.destination_number` - A gauge containing the number of hosts Veneur discovered and added to the hash ring.
 * `veneur_proxy.discoverer.errors` - A counter tracking the number of times the service discovery mechanism has failed to return *any* hosts. Note that Veneur will refuse to update it's list if there are 0 returned hosts and may use stale results until such as as > 1 host is returned.
 * `veneur_proxy.discoverer.update_duration_ns` - A timer describing the duration of service discovery calls.
+
