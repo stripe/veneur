@@ -139,20 +139,11 @@ With respect to the `tags` configuration option, the tags that will be added are
 
 ### Proxy
 
-To improve availability, you can leverage leverage the Veneur proxy in conjunction with Consul service discovery.
+To improve availability, you can [leverage veneur-proxy](https://github.com/stripe/veneur/tree/master/cmd/veneur-proxy/#readme) in conjunction with [Consul](https://www.consul.io) service discovery.
 
 The proxy can be configured to query the Consul API for instances of a service using `consul_forward_service_name`. Each **healthy** instance is then entered in to a hash ring. When choosing which host to forward to, Veneur will use a combination of metric name and tags to _consistently_ choose the same host for forwarding.
 
-Use the `consul_refresh_interval` to specify how often Veneur should refresh it's list.
-
-#### Tracing
-
-Consistent handling of tracing can also be used by setting `consul_trace_service_name`. The trace's ID — not the span, but the overall trace — is used for the choice of destination. So long as the hosts in the service stay consistent, this means that all of a trace's spans should arrive to the same destination host.
-
-#### Concerns
-
-* Veneur locks the list of servers when refreshing and flushing to avoid race conditions. If your retrieval of consul hosts (see metric `veneur.discoverer.update_duration_ns`) or flushes (see metric `veneur.flush.total_duration_ns`) are slow, you see one or the other slow down.
-* Veneur uses a [consistent hash ring](https://en.wikipedia.org/wiki/Consistent_hashing) to try and mitigate the impact of changes in Consul's list of healthy nodes. This is not perfect, and you can expect some churn whenever the list of healthy nodes changes in Consul.
+See [more documentation for Proxy Veneur](https://github.com/stripe/veneur/tree/master/cmd/veneur-proxy/#readme).
 
 ### Static Configuration
 

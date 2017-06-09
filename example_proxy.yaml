@@ -1,6 +1,6 @@
 ---
 debug: true
-enable_profiling: true
+enable_profiling: false
 http_address: "localhost:8127"
 
 # How often to refresh from Consul's healthy nodes
@@ -11,7 +11,7 @@ stats_address: "localhost:8125"
 ### FORWARDING
 # Use a static host for forwarding
 forward_address: "http://veneur.example.com"
-# Or use a consul service for consisent forwarding.
+# Or use a consul service for consistent forwarding.
 consul_forward_service_name: "forwardServiceName"
 
 ### TRACING
