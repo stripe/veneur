@@ -1,6 +1,13 @@
 `veneur-emit` is a command line utility for emitting metrics to [Veneur](https://github.com/stripe/veneur).
 
+Some common use cases:
+* Instrument shell scripts
+* Instrumenting shell-based tools like init scripts, startup scripts and more
+* Testing
+
 # Usage
+
+`veneur-emit` can read an existing veneur [config file](https://github.com/stripe/veneur#configuration). If that's not convenient, you can specify it's configuration options directly.
 
 ```
 Usage of ./veneur-emit:

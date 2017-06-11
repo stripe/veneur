@@ -5,6 +5,12 @@ Veneur (venn-urr) is a server implementation of the [DogStatsD protocol](http://
 
 More generically, Veneur is a convenient, host-local sink for various observability primitives.
 
+See also:
+
+* A nascent observability format, [SSF](https://github.com/stripe/veneur/tree/master/ssf/#readme)
+* A proxy for resilient distributed aggregation, [veneur-proxy](https://github.com/stripe/veneur/tree/master/cmd/veneur-proxy/#readme)
+* A command line tool for emmitting metrics, [veneur-proxy](https://github.com/stripe/veneur/tree/master/cmd/veneur-emit/#readme)
+
 # Status
 
 Veneur is currently handling all metrics for Stripe and is considered production ready. It is under active development and maintenance!
