@@ -25,6 +25,12 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 )
 
+// Experimental
+const NameKey = "name"
+
+// Experimental
+const ResourceKey = "resource"
+
 func init() {
 	rand.Seed(time.Now().Unix())
 }
@@ -149,8 +155,8 @@ func (t *Trace) SSFSpan() *ssf.SSFSpan {
 		Service:        Service,
 	}
 
-	span.Tags["name"] = name
-	span.Tags["resource"] = t.Resource
+	span.Tags[NameKey] = name
+	span.Tags[ResourceKey] = t.Resource
 
 	return span
 }
@@ -184,7 +190,7 @@ func (t *Trace) Record(name string, tags map[string]string) error {
 	}
 
 	span := t.SSFSpan()
-	span.Tags["name"] = name
+	span.Tags[NameKey] = name
 
 	err := sendSample(span)
 	if err != nil {
@@ -267,7 +273,7 @@ func (t *Trace) context() *spanContext {
 	c.baggageItems["traceid"] = strconv.FormatInt(t.TraceID, 10)
 	c.baggageItems["parentid"] = strconv.FormatInt(t.ParentID, 10)
 	c.baggageItems["spanid"] = strconv.FormatInt(t.SpanID, 10)
-	c.baggageItems["resource"] = t.Resource
+	c.baggageItems[ResourceKey] = t.Resource
 	return c
 }
 
@@ -280,7 +286,7 @@ func (t *Trace) contextAsParent() *spanContext {
 	c.Init()
 	c.baggageItems["traceid"] = strconv.FormatInt(t.TraceID, 10)
 	c.baggageItems["parentid"] = strconv.FormatInt(t.SpanID, 10)
-	c.baggageItems["resource"] = t.Resource
+	c.baggageItems[ResourceKey] = t.Resource
 	return c
 }
 

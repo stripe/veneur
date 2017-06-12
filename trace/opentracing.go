@@ -148,7 +148,7 @@ func (c *spanContext) parseBaggageInt64(key string) int64 {
 func (c *spanContext) Resource() string {
 	var resource string
 	c.ForeachBaggageItem(func(k, v string) bool {
-		if strings.ToLower(k) == "resource" {
+		if strings.ToLower(k) == ResourceKey {
 			resource = v
 			return false
 		}
@@ -215,7 +215,7 @@ func (s *Span) contextAsParent() *spanContext {
 	c.Init()
 	c.baggageItems["traceid"] = strconv.FormatInt(s.TraceID, 10)
 	c.baggageItems["parentid"] = strconv.FormatInt(s.ParentID, 10)
-	c.baggageItems["resource"] = s.Resource
+	c.baggageItems[ResourceKey] = s.Resource
 	return c
 }
 
@@ -343,7 +343,7 @@ func customSpanParent(t *Trace) opentracing.StartSpanOption {
 }
 
 func NameTag(name string) opentracing.StartSpanOption {
-	return customSpanTags("name", name)
+	return customSpanTags(NameKey, name)
 }
 
 // StartSpan starts a span with the specified operationName (resource) and options.
@@ -414,7 +414,7 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 
 	for k, v := range sso.Tags {
 		span.SetTag(k, v)
-		if k == "name" {
+		if k == NameKey {
 			span.Name = v.(string)
 		}
 	}
@@ -530,7 +530,7 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 			return nil, err
 		}
 
-		resource := sample.Tags["resource"]
+		resource := sample.Tags[ResourceKey]
 
 		trace := &Trace{
 			TraceID:  sample.TraceId,
@@ -557,7 +557,7 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 			TraceID:  traceID,
 			SpanID:   spanID,
 			ParentID: parentID,
-			Resource: textMapReaderGet(tm, "resource"),
+			Resource: textMapReaderGet(tm, ResourceKey),
 		}
 		return trace.context(), nil
 
