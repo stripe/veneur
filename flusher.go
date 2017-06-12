@@ -474,7 +474,7 @@ func (s *Server) flushTraces(ctx context.Context) {
 
 	traceRing := s.TraceWorker.Flush()
 
-	ssfSpans := []ssf.SSFSpan{}
+	ssfSpans := make([]ssf.SSFSpan, 0, traceRing.Len())
 
 	traceRing.Do(func(t interface{}) {
 		if t != nil {
