@@ -208,6 +208,10 @@ func NewFromConfig(conf Config) (*Server, error) {
 		})
 	}
 
+	// After log hooks are configured, if any further errors are found during
+	// setup we should use log.Fatal or log.Panic, because that will give us
+	// breakage monitoring through Sentry.
+
 	log.WithField("number", conf.NumWorkers).Info("Preparing workers")
 	// Allocate the slice, we'll fill it with workers later.
 	ret.Workers = make([]*Worker, conf.NumWorkers)
@@ -263,6 +267,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 	if conf.TLSKey != "" {
 		if conf.TLSCertificate == "" {
 			err = errors.New("tls_key is set; must set tls_certificate")
+			log.WithError(err).Error("Improper TLS configuration")
 			return ret, err
 		}
 
@@ -270,6 +275,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 		var cert tls.Certificate
 		cert, err = tls.X509KeyPair([]byte(conf.TLSCertificate), []byte(conf.TLSKey))
 		if err != nil {
+			log.WithError(err).Error("Improper TLS configuration")
 			return ret, err
 		}
 
@@ -282,6 +288,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 			ok := clientCAs.AppendCertsFromPEM([]byte(conf.TLSAuthorityCertificate))
 			if !ok {
 				err = errors.New("tls_authority_certificate: Could not load any certificates")
+				log.WithError(err).Error("Improper TLS configuration")
 				return ret, err
 			}
 		}
@@ -317,7 +324,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 		ret.traceBackend = &internalTraceBackend{statsd: ret.Statsd}
 		ret.TraceClient, err = trace.NewBackendClient(ret.traceBackend, trace.Capacity(200))
 		if err != nil {
-			return ret, err
+			log.WithError(err).Panic("Error configuring Datadog tracing")
 		}
 
 		// configure Datadog as a Span sink
@@ -468,7 +475,7 @@ func (s *Server) Start() {
 	for _, sink := range s.spanSinks {
 		logrus.WithField("sink", sink.Name()).Info("Starting span sink")
 		if err := sink.Start(s.TraceClient); err != nil {
-			logrus.WithError(err).WithField("sink", sink).Fatal("Error starting span sink")
+			logrus.WithError(err).WithField("sink", sink).Panic("Error starting span sink")
 		}
 	}
 
