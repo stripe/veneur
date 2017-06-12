@@ -107,9 +107,6 @@ type Server struct {
 
 	HistogramAggregates samplers.HistogramAggregates
 
-	// TODO we don't want to hardcode this
-	// TODO we need to actually configure lightstep
-	// TODO also accessing it is a race condition
 	tracerSinks []tracerSink
 
 	traceLightstepAccessToken string
