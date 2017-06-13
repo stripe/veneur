@@ -16,6 +16,9 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
+	lightstep "github.com/lightstep/lightstep-tracer-go"
+	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
@@ -24,7 +27,7 @@ import (
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) Flush() {
-	span := tracer.StartSpan("flush", trace.NameTag("veneur.opentracing.flush")).(*trace.Span)
+	span := tracer.StartSpan("flush").(*trace.Span)
 	defer span.Finish()
 
 	// right now we have only one destination plugin
@@ -39,11 +42,11 @@ func (s *Server) Flush() {
 
 // FlushGlobal sends any global metrics to their destination.
 func (s *Server) FlushGlobal(ctx context.Context) {
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.FlushGlobal"))
+	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 
-	go s.flushEventsChecks()           // we can do all of this separately
-	go s.flushTraces(span.Attach(ctx)) // this too!
+	go s.flushEventsChecks(span.Attach(ctx)) // we can do all of this separately
+	go s.flushTraces(span.Attach(ctx))       // this too!
 
 	percentiles := s.HistogramPercentiles
 
@@ -73,17 +76,17 @@ func (s *Server) FlushGlobal(ctx context.Context) {
 		}
 	}()
 
-	s.flushRemote(finalMetrics)
+	s.flushRemote(span.Attach(ctx), finalMetrics)
 }
 
 // FlushLocal takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) FlushLocal(ctx context.Context) {
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.FlushLocal"))
+	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 
-	go s.flushEventsChecks()           // we can do all of this separately
-	go s.flushTraces(span.Attach(ctx)) // this too!
+	go s.flushEventsChecks(span.Attach(ctx)) // we can do all of this separately
+	go s.flushTraces(span.Attach(ctx))       // this too!
 
 	// don't publish percentiles if we're a local veneur; that's the global
 	// veneur's job
@@ -114,7 +117,7 @@ func (s *Server) FlushLocal(ctx context.Context) {
 		}
 	}()
 
-	s.flushRemote(finalMetrics)
+	s.flushRemote(span.Attach(ctx), finalMetrics)
 }
 
 type metricsSummary struct {
@@ -183,7 +186,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 // generate a DDMetric corresponding to that value
 func (s *Server) generateDDMetrics(ctx context.Context, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.DDMetric {
 
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.generateDDMetrics"))
+	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 
 	finalMetrics := make([]samplers.DDMetric, 0, ms.totalLength)
@@ -274,7 +277,10 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 
 // flushRemote breaks up the final metrics into chunks
 // (to avoid hitting the size cap) and POSTs them to the remote API
-func (s *Server) flushRemote(finalMetrics []samplers.DDMetric) {
+func (s *Server) flushRemote(ctx context.Context, finalMetrics []samplers.DDMetric) {
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	defer span.Finish()
+
 	s.Statsd.Gauge("flush.post_metrics_total", float64(len(finalMetrics)), nil, 1.0)
 	// Check to see if we have anything to do
 	if len(finalMetrics) == 0 {
@@ -298,7 +304,7 @@ func (s *Server) flushRemote(finalMetrics []samplers.DDMetric) {
 			chunk = chunk[:chunkSize]
 		}
 		wg.Add(1)
-		go s.flushPart(chunk, &wg)
+		go s.flushPart(span.Attach(ctx), chunk, &wg)
 	}
 	wg.Wait()
 	s.Statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(flushStart).Nanoseconds()), []string{"part:post"}, 1.0)
@@ -332,9 +338,9 @@ func finalizeMetrics(hostname string, tags []string, finalMetrics []samplers.DDM
 }
 
 // flushPart flushes a set of metrics to the remote API server
-func (s *Server) flushPart(metricSlice []samplers.DDMetric, wg *sync.WaitGroup) {
+func (s *Server) flushPart(ctx context.Context, metricSlice []samplers.DDMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
-	postHelper(context.TODO(), s.HTTPClient, s.Statsd, fmt.Sprintf("%s/api/v1/series?api_key=%s", s.DDHostname, s.DDAPIKey), map[string][]samplers.DDMetric{
+	postHelper(ctx, s.HTTPClient, s.Statsd, fmt.Sprintf("%s/api/v1/series?api_key=%s", s.DDHostname, s.DDAPIKey), map[string][]samplers.DDMetric{
 		"series": metricSlice,
 	}, "flush", true)
 }
@@ -463,77 +469,39 @@ func (s *Server) flushTraces(ctx context.Context) {
 		return
 	}
 
-	span, _ := trace.StartSpanFromContext(ctx, "flush", trace.NameTag("veneur.opentracing.flush.flushTraces"))
+	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 
-	traces := s.TraceWorker.Flush()
+	traceRing := s.TraceWorker.Flush()
 
-	var finalTraces []*DatadogTraceSpan
-	traces.Do(func(t interface{}) {
+	ssfSpans := make([]ssf.SSFSpan, 0, traceRing.Len())
+
+	traceRing.Do(func(t interface{}) {
 		if t != nil {
-			span, ok := t.(ssf.SSFSample)
+			ssfSpan, ok := t.(ssf.SSFSpan)
 			if !ok {
 				log.Error("Got an unknown object in tracing ring!")
 				return
 			}
-			// -1 is a canonical way of passing in invalid info in Go
-			// so we should support that too
-			parentID := span.Trace.ParentId
-
-			// check if this is the root span
-			if parentID <= 0 {
-				// we need parentId to be zero for json:omitempty to work
-				parentID = 0
-			}
-
-			resource := span.Trace.Resource
-
-			tags := map[string]string{}
-			for _, tag := range span.Tags {
-				tags[tag.Name] = tag.Value
-			}
-
-			// TODO implement additional metrics
-			var metrics map[string]float64
-
-			ddspan := &DatadogTraceSpan{
-				TraceID:  span.Trace.TraceId,
-				SpanID:   span.Trace.Id,
-				ParentID: parentID,
-				Service:  span.Service,
-				Name:     span.Name,
-				Resource: resource,
-				Start:    span.Timestamp,
-				Duration: span.Trace.Duration,
-				// TODO don't hardcode
-				Type:    "http",
-				Error:   int64(span.Status),
-				Metrics: metrics,
-				Meta:    tags,
-			}
-			finalTraces = append(finalTraces, ddspan)
+			ssfSpans = append(ssfSpans, ssfSpan)
 		}
 	})
-	if len(finalTraces) != 0 {
-		// this endpoint is not documented to take an array... but it does
-		// another curious constraint of this endpoint is that it does not
-		// support "Content-Encoding: deflate"
 
-		err := postHelper(span.Attach(ctx), s.HTTPClient, s.Statsd, fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
-
-		if err == nil {
-			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
-		} else {
-			log.WithFields(logrus.Fields{
-				"traces":        len(finalTraces),
-				logrus.ErrorKey: err}).Warn("Error flushing traces to Datadog")
+	for _, sink := range s.tracerSinks {
+		sink.flush(span.Attach(ctx), s, sink.tracer, ssfSpans)
+		tags := []string{
+			fmt.Sprintf("sink:%s", sink.name),
+			fmt.Sprintf("service:%s", trace.Service),
 		}
-	} else {
-		log.Info("No traces to flush, skipping.")
+
+		s.Statsd.Count("worker.trace.sink.flushed_total", int64(len(ssfSpans)), tags, 1)
 	}
 }
 
-func (s *Server) flushEventsChecks() {
+func (s *Server) flushEventsChecks(ctx context.Context) {
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	defer span.Finish()
+
 	events, checks := s.EventWorker.Flush()
 	s.Statsd.Count("worker.events_flushed_total", int64(len(events)), nil, 1.0)
 	s.Statsd.Count("worker.checks_flushed_total", int64(len(checks)), nil, 1.0)
@@ -593,7 +561,8 @@ func (s *Server) flushEventsChecks() {
 // you can disable compression with compress=false for endpoints that don't
 // support it
 func postHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Client, endpoint string, bodyObject interface{}, action string, compress bool) error {
-	span, _ := trace.StartSpanFromContext(ctx, action, trace.NameTag("veneur.opentracing.flush.postHelper"))
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	span.SetTag("action", action)
 	defer span.Finish()
 
 	// attach this field to all the logs we generate
@@ -692,4 +661,134 @@ func postHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 	stats.Count(action+".error_total", 0, nil, 1.0)
 	resultLogger.Debug("POSTed successfully")
 	return nil
+}
+
+// TODO better name, also finalize type signature
+type traceFlusher func(context.Context, *Server, opentracing.Tracer, []ssf.SSFSpan)
+
+func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tracer, ssfSpans []ssf.SSFSpan) {
+	span, _ := trace.StartSpanFromContext(ctx, "")
+
+	var finalTraces []*DatadogTraceSpan
+	for _, span := range ssfSpans {
+		// -1 is a canonical way of passing in invalid info in Go
+		// so we should support that too
+		parentID := span.ParentId
+
+		// check if this is the root span
+		if parentID <= 0 {
+			// we need parentId to be zero for json:omitempty to work
+			parentID = 0
+		}
+
+		resource := span.Tags[trace.ResourceKey]
+		name := span.Tags[trace.NameKey]
+
+		tags := map[string]string{}
+		for k, v := range span.Tags {
+			tags[k] = v
+		}
+
+		delete(tags, trace.NameKey)
+		delete(tags, trace.ResourceKey)
+
+		// TODO implement additional metrics
+		var metrics map[string]float64
+
+		var errorCode int64
+		if span.Error {
+			errorCode = 2
+		}
+
+		ddspan := &DatadogTraceSpan{
+			TraceID:  span.TraceId,
+			SpanID:   span.Id,
+			ParentID: parentID,
+			Service:  span.Service,
+			Name:     name,
+			Resource: resource,
+			Start:    span.StartTimestamp,
+			Duration: span.EndTimestamp - span.StartTimestamp,
+			// TODO don't hardcode
+			Type:    "http",
+			Error:   errorCode,
+			Metrics: metrics,
+			Meta:    tags,
+		}
+		finalTraces = append(finalTraces, ddspan)
+	}
+
+	if len(finalTraces) != 0 {
+		// this endpoint is not documented to take an array... but it does
+		// another curious constraint of this endpoint is that it does not
+		// support "Content-Encoding: deflate"
+
+		err := postHelper(span.Attach(ctx), s.HTTPClient, s.Statsd, fmt.Sprintf("%s/spans", s.DDTraceAddress), finalTraces, "flush_traces", false)
+
+		if err == nil {
+			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
+		} else {
+			log.WithFields(logrus.Fields{
+				"traces":        len(finalTraces),
+				logrus.ErrorKey: err}).Warn("Error flushing traces to Datadog")
+		}
+	} else {
+		log.Info("No traces to flush to Datadog, skipping.")
+	}
+}
+
+func flushSpansLightstep(ctx context.Context, s *Server, lightstepTracer opentracing.Tracer, ssfSpans []ssf.SSFSpan) {
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	defer span.Finish()
+	for _, ssfSpan := range ssfSpans {
+		flushSpanLightstep(lightstepTracer, ssfSpan)
+	}
+
+	// Confusingly, this will still get called even if the Opentracing client fails to reach the collector
+	// because we don't get access to the error if that happens.
+	log.WithField("traces", len(ssfSpans)).Info("Completed flushing traces to Lightstep")
+}
+
+// flushSpanLightstep builds a tracespan from an SSF and flushes
+// it using the provided OpenTracing tracer (sink)
+func flushSpanLightstep(lightstepTracer opentracing.Tracer, ssfSpan ssf.SSFSpan) {
+	parentId := ssfSpan.ParentId
+	if parentId <= 0 {
+		parentId = 0
+	}
+
+	var errorCode int64
+	if ssfSpan.Error {
+		errorCode = 1
+	}
+
+	timestamp := time.Unix(ssfSpan.StartTimestamp/1e9, ssfSpan.StartTimestamp%1e9)
+	sp := lightstepTracer.StartSpan(
+		ssfSpan.Tags[trace.NameKey],
+		opentracing.StartTime(timestamp),
+		lightstep.SetTraceID(uint64(ssfSpan.TraceId)),
+		lightstep.SetSpanID(uint64(ssfSpan.Id)),
+		lightstep.SetParentSpanID(uint64(parentId)))
+
+	sp.SetTag(trace.ResourceKey, ssfSpan.Tags[trace.ResourceKey])
+	sp.SetTag(lightstep.ComponentNameKey, ssfSpan.Service)
+	// TODO don't hardcode
+	sp.SetTag("type", "http")
+	sp.SetTag("error-code", errorCode)
+	for k, v := range ssfSpan.Tags {
+		sp.SetTag(k, v)
+	}
+
+	// TODO add metrics as tags to the span as well
+
+	if errorCode > 0 {
+		// Note: this sets the OT-standard "error" tag, which
+		// LightStep uses to flag error spans.
+		ext.Error.Set(sp, true)
+	}
+
+	endTime := time.Unix(ssfSpan.EndTimestamp/1e9, ssfSpan.EndTimestamp%1e9)
+	sp.FinishWithOptions(opentracing.FinishOptions{
+		FinishTime: endTime,
+	})
 }

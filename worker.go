@@ -332,7 +332,7 @@ func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck)
 
 // TraceWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type TraceWorker struct {
-	TraceChan chan ssf.SSFSample
+	TraceChan chan ssf.SSFSpan
 	mutex     *sync.Mutex
 	traces    *ring.Ring
 	stats     *statsd.Client
@@ -341,7 +341,7 @@ type TraceWorker struct {
 // NewTraceWorker creates an TraceWorker ready to collect events and service checks.
 func NewTraceWorker(stats *statsd.Client) *TraceWorker {
 	return &TraceWorker{
-		TraceChan: make(chan ssf.SSFSample),
+		TraceChan: make(chan ssf.SSFSpan),
 		mutex:     &sync.Mutex{},
 		traces:    ring.New(12), // TODO MAKE THIS CONFIGURABLE
 		stats:     stats,

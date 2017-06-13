@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -147,7 +148,7 @@ func (c *spanContext) parseBaggageInt64(key string) int64 {
 func (c *spanContext) Resource() string {
 	var resource string
 	c.ForeachBaggageItem(func(k, v string) bool {
-		if strings.ToLower(k) == "resource" {
+		if strings.ToLower(k) == ResourceKey {
 			resource = v
 			return false
 		}
@@ -214,7 +215,7 @@ func (s *Span) contextAsParent() *spanContext {
 	c.Init()
 	c.baggageItems["traceid"] = strconv.FormatInt(s.TraceID, 10)
 	c.baggageItems["parentid"] = strconv.FormatInt(s.ParentID, 10)
-	c.baggageItems["resource"] = s.Resource
+	c.baggageItems[ResourceKey] = s.Resource
 	return c
 }
 
@@ -227,18 +228,22 @@ func (s *Span) SetOperationName(name string) opentracing.Span {
 
 // SetTag sets the tags on the underlying span
 func (s *Span) SetTag(key string, value interface{}) opentracing.Span {
-	tag := ssf.SSFTag{Name: key}
+	if s.Tags == nil {
+		s.Tags = map[string]string{}
+	}
+	var val string
+
 	// TODO mutex
 	switch v := value.(type) {
 	case string:
-		tag.Value = v
+		val = v
 	case fmt.Stringer:
-		tag.Value = v.String()
+		val = v.String()
 	default:
 		// TODO maybe just ban non-strings?
-		tag.Value = fmt.Sprintf("%#v", value)
+		val = fmt.Sprintf("%#v", value)
 	}
-	s.Tags = append(s.Tags, &tag)
+	s.Tags[key] = val
 	return s
 }
 
@@ -338,7 +343,7 @@ func customSpanParent(t *Trace) opentracing.StartSpanOption {
 }
 
 func NameTag(name string) opentracing.StartSpanOption {
-	return customSpanTags("name", name)
+	return customSpanTags(NameKey, name)
 }
 
 // StartSpan starts a span with the specified operationName (resource) and options.
@@ -409,8 +414,16 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 
 	for k, v := range sso.Tags {
 		span.SetTag(k, v)
-		if k == "name" {
+		if k == NameKey {
 			span.Name = v.(string)
+		}
+	}
+
+	if span.Name == "" {
+		pc, _, _, ok := runtime.Caller(1)
+		details := runtime.FuncForPC(pc)
+		if ok && details != nil {
+			span.Name = stripPackageName(details.Name())
 		}
 	}
 
@@ -476,6 +489,7 @@ func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier i
 			ParentID: sc.ParentID(),
 			SpanID:   sc.SpanID(),
 			Resource: sc.Resource(),
+			Tags:     map[string]string{},
 		}
 
 		return trace.ProtoMarshalTo(w)
@@ -510,17 +524,19 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 			return nil, err
 		}
 
-		sample := ssf.SSFSample{}
+		sample := ssf.SSFSpan{}
 		err = proto.Unmarshal(packet, &sample)
 		if err != nil {
 			return nil, err
 		}
 
+		resource := sample.Tags[ResourceKey]
+
 		trace := &Trace{
-			TraceID:  sample.Trace.TraceId,
-			ParentID: sample.Trace.ParentId,
-			SpanID:   sample.Trace.Id,
-			Resource: sample.Trace.Resource,
+			TraceID:  sample.TraceId,
+			ParentID: sample.ParentId,
+			SpanID:   sample.Id,
+			Resource: resource,
 		}
 
 		return trace.context(), nil
@@ -541,7 +557,7 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 			TraceID:  traceID,
 			SpanID:   spanID,
 			ParentID: parentID,
-			Resource: textMapReaderGet(tm, "resource"),
+			Resource: textMapReaderGet(tm, ResourceKey),
 		}
 		return trace.context(), nil
 

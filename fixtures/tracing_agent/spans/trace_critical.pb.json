@@ -1,6 +1,6 @@
 [
   {
-    "duration": 377,
+    "duration": 881,
     "error": 2,
     "meta": {
       "error.msg": "an error occurred!",
@@ -11,9 +11,9 @@
     "name": "veneur.trace.test",
     "resource": "Robert'); DROP TABLE students;",
     "service": "veneur-test",
-    "span_id": 884671344597019736,
-    "start": 1482182422160135252,
-    "trace_id": 884671344597019736,
+    "span_id": 8890541568593727407,
+    "start": 1497026085338874599,
+    "trace_id": 8890541568593727407,
     "type": "http"
   }
 ]

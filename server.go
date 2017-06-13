@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -35,6 +37,9 @@ import (
 	s3p "github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/trace"
+
+	lightstep "github.com/lightstep/lightstep-tracer-go"
+	opentracing "github.com/opentracing/opentracing-go"
 )
 
 // VERSION stores the current veneur version.
@@ -51,6 +56,8 @@ var log = logrus.New()
 var tracer = trace.GlobalTracer
 
 const defaultTCPReadTimeout = 10 * time.Minute
+
+const lightstepDefaultPort = 8080
 
 // A Server is the actual veneur instance that will be run.
 type Server struct {
@@ -99,6 +106,20 @@ type Server struct {
 	enableProfiling bool
 
 	HistogramAggregates samplers.HistogramAggregates
+
+	tracerSinks []tracerSink
+
+	traceLightstepAccessToken string
+}
+
+// TODO refactor and move this
+type tracerSink struct {
+	name string
+
+	// This may be nil, if the tracer doesn't use
+	// an opentracing backend
+	tracer opentracing.Tracer
+	flush  traceFlusher
 }
 
 // NewFromConfig creates a new veneur server from a configuration specification.
@@ -108,6 +129,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.DDHostname = conf.APIHostname
 	ret.DDAPIKey = conf.Key
 	ret.DDTraceAddress = conf.TraceAPIAddress
+	ret.traceLightstepAccessToken = conf.TraceLightstepAccessToken
 	ret.HistogramPercentiles = conf.Percentiles
 	if len(conf.Aggregates) == 0 {
 		ret.HistogramAggregates.Value = samplers.AggregateMin + samplers.AggregateMax + samplers.AggregateCount
@@ -249,12 +271,14 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.TLSKey = REDACTED
 	log.WithField("config", conf).Debug("Initialized server")
 
-	if len(conf.TraceAddress) > 0 && (conf.TraceAPIAddress != "") {
+	// Configure tracing workers and sinks
+	if len(conf.TraceAddress) > 0 && ret.tracingSinkEnabled() {
 
 		ret.TraceWorker = NewTraceWorker(ret.Statsd)
 
 		ret.TraceAddr, err = net.ResolveUDPAddr("udp", conf.TraceAddress)
-		log.WithField("traceaddr", ret.TraceAddr).Info("Set trace address")
+		log.WithField("traceaddr", ret.TraceAddr).Info("Listening for trace spans on address")
+
 		if err == nil && ret.TraceAddr == nil {
 			err = errors.New("resolved nil UDP address")
 		}
@@ -262,6 +286,67 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			return
 		}
 		trace.Enable()
+
+		// configure Datadog as sink
+		if ret.DDTraceAddress != "" {
+			ret.tracerSinks = append(ret.tracerSinks, tracerSink{
+				name:   "Datadog",
+				tracer: nil,
+				flush:  flushSpansDatadog,
+			})
+			log.Info("Configured Datadog trace sink")
+		}
+
+		// configure Lightstep as Sink
+		if ret.traceLightstepAccessToken != "" {
+			resolved, err := resolveEndpoint(conf.TraceLightstepCollectorHost)
+			if err != nil {
+				log.WithError(err).WithFields(logrus.Fields{
+					"host": conf.TraceLightstepCollectorHost,
+				}).Error("Error resolving Lightstep collector host")
+				return ret, err
+			}
+
+			host, err := url.Parse(resolved)
+			if err != nil {
+				log.WithError(err).WithFields(logrus.Fields{
+					"host":     conf.TraceLightstepCollectorHost,
+					"resolved": resolved,
+				}).Error("Error parsing Lightstep collector URL")
+				return ret, err
+			}
+
+			port, err := strconv.Atoi(host.Port())
+			if err != nil {
+				port = lightstepDefaultPort
+			}
+
+			log.WithFields(logrus.Fields{
+				"Host": host.Hostname(),
+				"Port": port,
+			}).Info("Dialing lightstep host")
+
+			lightstepTracer := lightstep.NewTracer(lightstep.Options{
+				AccessToken: ret.traceLightstepAccessToken,
+				Collector: lightstep.Endpoint{
+					Host:      host.Hostname(),
+					Port:      port,
+					Plaintext: true,
+				},
+				UseGRPC: true,
+			})
+
+			ret.tracerSinks = append(ret.tracerSinks, tracerSink{
+				name:   "Lightstep",
+				tracer: lightstepTracer,
+				flush:  flushSpansLightstep,
+			})
+
+			// only set this if the original token was non-empty
+			ret.traceLightstepAccessToken = REDACTED
+			log.Info("Configured Lightstep trace sink")
+		}
+
 	} else {
 		trace.Disable()
 	}
@@ -483,6 +568,8 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 // HandleTracePacket accepts an incoming packet as bytes and sends it to the
 // appropriate worker.
 func (s *Server) HandleTracePacket(packet []byte) {
+	//TODO increment at .1
+	s.Statsd.Incr("packet.received_total", nil, 1)
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
 		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:unknown", "reason:zerolength"}, 1.0)
@@ -492,10 +579,10 @@ func (s *Server) HandleTracePacket(packet []byte) {
 
 	// Technically this could be anything, but we're only consuming trace spans
 	// for now.
-	newSample := &ssf.SSFSample{}
+	newSample := &ssf.SSFSpan{}
 	err := proto.Unmarshal(packet, newSample)
 	if err != nil {
-		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:trace", "reaon:unmarshal"}, 1.0)
+		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:trace", "reason:unmarshal"}, 1.0)
 		log.WithError(err).Warn("Trace unmarshaling error")
 		return
 	}
@@ -778,5 +865,12 @@ func (s *Server) getPlugins() []plugins.Plugin {
 
 // TracingEnabled returns true if tracing is enabled.
 func (s *Server) TracingEnabled() bool {
+	//TODO we now need to check that the backends are flushing the data too
 	return s.TraceWorker != nil
+}
+
+// tracingSinkEnabled returns true if at least one
+// tracing sink has been enabled
+func (s *Server) tracingSinkEnabled() bool {
+	return s.DDTraceAddress != "" || s.traceLightstepAccessToken != ""
 }

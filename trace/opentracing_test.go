@@ -49,15 +49,9 @@ func TestTracerChildSpan(t *testing.T) {
 	const resource = "Robert'); DROP TABLE students;"
 	// This will be a *really* slow trace!
 	const expectedTimestamp = 1136239445
-	var expectedTags = []*ssf.SSFTag{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-		{
-			Name:  "baz",
-			Value: "quz",
-		},
+	var expectedTags = map[string]string{
+		"foo": "bar",
+		"baz": "quz",
 	}
 
 	tracer := Tracer{}
@@ -87,8 +81,8 @@ func TestTracerChildSpan(t *testing.T) {
 
 	assert.Len(t, trace.Tags, len(expectedTags))
 
-	for _, tag := range expectedTags {
-		assert.Contains(t, trace.Tags, tag)
+	for k, v := range expectedTags {
+		assert.Equal(t, trace.Tags[k], v)
 	}
 }
 
@@ -126,7 +120,7 @@ func TestTracerInjectBinary(t *testing.T) {
 	packet, err := ioutil.ReadAll(&b)
 	assert.NoError(t, err)
 
-	sample := &ssf.SSFSample{}
+	sample := &ssf.SSFSpan{}
 	err = proto.Unmarshal(packet, sample)
 	assert.NoError(t, err)
 
@@ -142,7 +136,7 @@ func TestTracerExtractBinary(t *testing.T) {
 
 	tracer := Tracer{}
 
-	packet, err := proto.Marshal(trace.SSFSample())
+	packet, err := proto.Marshal(trace.SSFSpan())
 	assert.NoError(t, err)
 
 	b := bytes.NewBuffer(packet)
@@ -244,27 +238,25 @@ func TestTracerInjectExtractHeader(t *testing.T) {
 
 }
 
-// assertContextUnmarshalEqual is a helper that asserts that the given SSFSample
+// assertContextUnmarshalEqual is a helper that asserts that the given SSFSpan
 // matches the expected *Trace on all fields that are passed through a SpanContext.
 // Since a SpanContext doesn't pass fields like tags, this function will not cause
 // the assertion to fail if those differ.
-func assertContextUnmarshalEqual(t *testing.T, expected *Trace, sample *ssf.SSFSample) {
-	assert.Equal(t, expected.SSFSample().Metric, sample.Metric)
-	assert.Equal(t, expected.SSFSample().Status, sample.Status)
-
-	// Future-proofiing: Currently we don't actually pass this through
-	// but we don't support units at all.
-	assert.Equal(t, expected.SSFSample().Unit, sample.Unit)
-
-	// The sample rate is hard-coded
-	assert.Equal(t, expected.SSFSample().SampleRate, sample.SampleRate)
+// Since Resource and Name are passed in as tags, this will NOT check for equality on those fields!
+func assertContextUnmarshalEqual(t *testing.T, expected *Trace, sample *ssf.SSFSpan) {
+	assert.Equal(t, expected.SSFSpan().Metrics, sample.Metrics)
+	assert.Equal(t, expected.SSFSpan().Error, sample.Error)
 
 	// The TraceId, ParentId, and Resource should all be the same.
-	assert.Equal(t, expected.SSFSample().Trace.TraceId, sample.Trace.TraceId)
-	assert.Equal(t, expected.SSFSample().Trace.ParentId, sample.Trace.ParentId)
-	assert.Equal(t, expected.SSFSample().Trace.Id, sample.Trace.Id)
-	assert.Equal(t, expected.SSFSample().Trace.Resource, sample.Trace.Resource)
+	assert.Equal(t, expected.SSFSpan().TraceId, sample.TraceId)
+	assert.Equal(t, expected.SSFSpan().ParentId, sample.ParentId)
+	assert.Equal(t, expected.SSFSpan().Id, sample.Id)
+}
 
+// assertTagEqual checks that the two representations share the same value
+// for the specified tag name
+func assertTagEqual(t *testing.T, tagName string, expected *Trace, sample *ssf.SSFSpan) {
+	assert.Equal(t, expected.Tags[tagName], sample.Tags[tagName], "Tag '%s' has wrong value", tagName)
 }
 
 // TestInjectRequestExtractRequestChild tests the InjectRequest

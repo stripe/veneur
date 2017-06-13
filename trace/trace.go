@@ -12,7 +12,9 @@ import (
 	"math/rand"
 	"net"
 	"reflect"
+	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,6 +24,12 @@ import (
 	"github.com/golang/protobuf/proto"
 	opentracing "github.com/opentracing/opentracing-go"
 )
+
+// Experimental
+const NameKey = "name"
+
+// Experimental
+const ResourceKey = "resource"
 
 func init() {
 	rand.Seed(time.Now().Unix())
@@ -80,11 +88,13 @@ type Trace struct {
 	// as an error
 	Status ssf.SSFSample_Status
 
-	Tags []*ssf.SSFTag
+	Tags map[string]string
 
 	// Unlike the Resource, this should not contain spaces
 	// It should be of the format foo.bar.baz
 	Name string
+
+	error bool
 }
 
 // Set the end timestamp and finalize Span state
@@ -127,36 +137,34 @@ func (t *Trace) Duration() time.Duration {
 	return t.End.Sub(t.Start)
 }
 
-// SSFSample converts the Trace to an SSFSample type.
+// SSFSample converts the Trace to an SSFSpan type.
 // It sets the duration, so it assumes the span has already ended.
 // (It is safe to call on a span that has not ended, but the duration
 // field will be invalid)
-func (t *Trace) SSFSample() *ssf.SSFSample {
-	duration := t.Duration().Nanoseconds()
+func (t *Trace) SSFSpan() *ssf.SSFSpan {
 	name := t.Name
 
-	return &ssf.SSFSample{
-		Metric:    ssf.SSFSample_TRACE,
-		Timestamp: t.Start.UnixNano(),
-		Status:    t.Status,
-		Name:      *proto.String(name),
-		Trace: &ssf.SSFTrace{
-			TraceId:  t.TraceID,
-			Id:       t.SpanID,
-			ParentId: t.ParentID,
-			Duration: duration,
-			Resource: t.Resource,
-		},
-		SampleRate: *proto.Float32(.10),
-		Tags:       t.Tags,
-		Service:    Service,
+	span := &ssf.SSFSpan{
+		StartTimestamp: t.Start.UnixNano(),
+		Error:          t.error,
+		TraceId:        t.TraceID,
+		Id:             t.SpanID,
+		ParentId:       t.ParentID,
+		EndTimestamp:   t.End.UnixNano(),
+		Tags:           t.Tags,
+		Service:        Service,
 	}
+
+	span.Tags[NameKey] = name
+	span.Tags[ResourceKey] = t.Resource
+
+	return span
 }
 
 // ProtoMarshalTo writes the Trace as a protocol buffer
 // in text format to the specified writer.
 func (t *Trace) ProtoMarshalTo(w io.Writer) error {
-	packet, err := proto.Marshal(t.SSFSample())
+	packet, err := proto.Marshal(t.SSFSpan())
 	if err != nil {
 		return err
 	}
@@ -167,34 +175,24 @@ func (t *Trace) ProtoMarshalTo(w io.Writer) error {
 // Record sends a trace to the (local) veneur instance,
 // which will pass it on to the tracing agent running on the
 // global veneur instance.
-func (t *Trace) Record(name string, tags []*ssf.SSFTag) error {
+func (t *Trace) Record(name string, tags map[string]string) error {
+	if t.Tags == nil {
+		t.Tags = map[string]string{}
+	}
 	t.finish()
-	duration := t.Duration().Nanoseconds()
 
-	t.Tags = append(t.Tags, tags...)
+	for k, v := range tags {
+		t.Tags[k] = v
+	}
 
 	if name == "" {
 		name = t.Name
 	}
 
-	sample := &ssf.SSFSample{
-		Metric:    ssf.SSFSample_TRACE,
-		Timestamp: t.Start.UnixNano(),
-		Status:    t.Status,
-		Name:      *proto.String(name),
-		Trace: &ssf.SSFTrace{
-			TraceId:  t.TraceID,
-			Id:       t.SpanID,
-			ParentId: t.ParentID,
-			Duration: duration,
-			Resource: t.Resource,
-		},
-		SampleRate: *proto.Float32(.10),
-		Tags:       t.Tags,
-		Service:    Service,
-	}
+	span := t.SSFSpan()
+	span.Tags[NameKey] = name
 
-	err := sendSample(sample)
+	err := sendSample(span)
 	if err != nil {
 		logrus.WithError(err).Error("Error submitting sample")
 	}
@@ -203,28 +201,16 @@ func (t *Trace) Record(name string, tags []*ssf.SSFTag) error {
 
 func (t *Trace) Error(err error) {
 	t.Status = ssf.SSFSample_CRITICAL
+	t.error = true
 
 	errorType := reflect.TypeOf(err).Name()
 	if errorType == "" {
 		errorType = "error"
 	}
 
-	tags := []*ssf.SSFTag{
-		{
-			Name:  errorMessageTag,
-			Value: err.Error(),
-		},
-		{
-			Name:  errorTypeTag,
-			Value: errorType,
-		},
-		{
-			Name:  errorStackTag,
-			Value: err.Error(),
-		},
-	}
-
-	t.Tags = append(t.Tags, tags...)
+	t.Tags[errorMessageTag] = err.Error()
+	t.Tags[errorTypeTag] = errorType
+	t.Tags[errorStackTag] = err.Error()
 }
 
 // Attach attaches the current trace to the context
@@ -253,6 +239,16 @@ func StartSpanFromContext(ctx context.Context, name string, opts ...opentracing.
 			c = ctx
 		}
 	}()
+
+	if name == "" {
+		pc, _, _, ok := runtime.Caller(1)
+		details := runtime.FuncForPC(pc)
+		if ok && details != nil {
+			name = stripPackageName(details.Name())
+			opts = append(opts, NameTag(name))
+		}
+	}
+
 	sp, c := opentracing.StartSpanFromContext(ctx, name, opts...)
 
 	s = sp.(*Span)
@@ -277,7 +273,7 @@ func (t *Trace) context() *spanContext {
 	c.baggageItems["traceid"] = strconv.FormatInt(t.TraceID, 10)
 	c.baggageItems["parentid"] = strconv.FormatInt(t.ParentID, 10)
 	c.baggageItems["spanid"] = strconv.FormatInt(t.SpanID, 10)
-	c.baggageItems["resource"] = t.Resource
+	c.baggageItems[ResourceKey] = t.Resource
 	return c
 }
 
@@ -290,7 +286,7 @@ func (t *Trace) contextAsParent() *spanContext {
 	c.Init()
 	c.baggageItems["traceid"] = strconv.FormatInt(t.TraceID, 10)
 	c.baggageItems["parentid"] = strconv.FormatInt(t.SpanID, 10)
-	c.baggageItems["resource"] = t.Resource
+	c.baggageItems[ResourceKey] = t.Resource
 	return c
 }
 
@@ -304,6 +300,7 @@ func StartTrace(resource string) *Trace {
 		SpanID:   *traceID,
 		ParentID: 0,
 		Resource: resource,
+		Tags:     map[string]string{},
 	}
 
 	t.Start = time.Now()
@@ -325,7 +322,7 @@ func StartChildSpan(parent *Trace) *Trace {
 
 // sendSample marshals the sample using protobuf and sends it
 // over UDP to the local veneur instance
-func sendSample(sample *ssf.SSFSample) error {
+func sendSample(sample *ssf.SSFSpan) error {
 	if Disabled() {
 		return nil
 	}
@@ -351,6 +348,22 @@ func sendSample(sample *ssf.SSFSample) error {
 	if err != nil {
 		return err
 	}
+	newSample := &ssf.SSFSpan{}
+	err = proto.Unmarshal(data, newSample)
+	if err != nil {
+		panic(err)
+	}
 
 	return nil
+}
+
+// stripPackageName strips the package name from a function
+// name (as formatted by the runtime package)
+func stripPackageName(name string) string {
+	i := strings.LastIndex(name, "/")
+	if i < 0 || i >= len(name)-1 {
+		return name
+	}
+
+	return name[i+1:]
 }
