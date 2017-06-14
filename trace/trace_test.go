@@ -145,6 +145,18 @@ func TestSpanFromContext(t *testing.T) {
 	assert.Equal(t, grandchild.TraceID, trace.SpanID)
 }
 
+// StartSpanFromContext should create a brand-new root span
+// if the context does not contain a span
+func TestSpanFromContextNoParent(t *testing.T) {
+	const resource = "example"
+	ctx := context.Background()
+
+	span, _ := StartSpanFromContext(ctx, resource)
+
+	assert.Equal(t, span.TraceID, span.SpanID)
+	assert.Equal(t, int64(0), span.ParentID)
+}
+
 func TestStartChildSpan(t *testing.T) {
 	const resource = "Robert'); DROP TABLE students;"
 	root := StartTrace(resource)
