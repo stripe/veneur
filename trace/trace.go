@@ -348,11 +348,6 @@ func sendSample(sample *ssf.SSFSpan) error {
 	if err != nil {
 		return err
 	}
-	newSample := &ssf.SSFSpan{}
-	err = proto.Unmarshal(data, newSample)
-	if err != nil {
-		panic(err)
-	}
 
 	return nil
 }
