@@ -99,7 +99,9 @@ type Trace struct {
 
 // Set the end timestamp and finalize Span state
 func (t *Trace) finish() {
-	t.End = time.Now()
+	if t.End.IsZero() {
+		t.End = time.Now()
+	}
 }
 
 // (Experimental)
