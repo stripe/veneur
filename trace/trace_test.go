@@ -117,6 +117,14 @@ func TestRecord(t *testing.T) {
 	assert.Equal(t, tags, sample.Tags)
 }
 
+func TestRecordManualTime(t *testing.T) {
+	trace := StartTrace("test-resource")
+	end := time.Now()
+	trace.End = end
+	sample, _ := testRecord(t, trace, "test-metric", map[string]string{})
+	assert.Equal(t, end.UnixNano(), sample.EndTimestamp)
+}
+
 func TestAttach(t *testing.T) {
 	const resource = "Robert'); DROP TABLE students;"
 	ctx := context.Background()
