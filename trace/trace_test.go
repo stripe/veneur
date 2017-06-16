@@ -28,12 +28,7 @@ func TestStartTrace(t *testing.T) {
 	assert.True(t, between)
 }
 
-func TestRecord(t *testing.T) {
-	const resource = "Robert'); DROP TABLE students;"
-	const metricName = "veneur.trace.test"
-	const serviceName = "veneur-test"
-	Service = serviceName
-
+func testRecord(t *testing.T, trace *Trace, name string, tags map[string]string) (sample *ssf.SSFSpan, end time.Time) {
 	// arbitrary
 	const BufferSize = 1087152
 
@@ -41,6 +36,7 @@ func TestRecord(t *testing.T) {
 	assert.NoError(t, err)
 	serverConn, err := net.ListenUDP("udp", traceAddr)
 	assert.NoError(t, err)
+	defer serverConn.Close()
 
 	err = serverConn.SetReadBuffer(BufferSize)
 	assert.NoError(t, err)
@@ -62,6 +58,29 @@ func TestRecord(t *testing.T) {
 		kill <- struct{}{}
 	}()
 
+	trace.Record(name, tags)
+	end = time.Now()
+
+	select {
+	case _ = <-kill:
+		assert.Fail(t, "timed out waiting for socket read")
+	case resp := <-respChan:
+		// Because this is marshalled using protobuf,
+		// we can't expect the representation to be immutable
+		// and cannot test the marshalled payload directly
+		sample = &ssf.SSFSpan{}
+		err := proto.Unmarshal(resp, sample)
+		assert.NoError(t, err)
+	}
+	return
+}
+
+func TestRecord(t *testing.T) {
+	const resource = "Robert'); DROP TABLE students;"
+	const metricName = "veneur.trace.test"
+	const serviceName = "veneur-test"
+	Service = serviceName
+
 	trace := StartTrace(resource)
 	trace.Status = ssf.SSFSample_CRITICAL
 	trace.error = true
@@ -74,43 +93,36 @@ func TestRecord(t *testing.T) {
 		"name":        metricName,
 	}
 
-	trace.Record(metricName, tags)
-	end := time.Now()
+	sample, end := testRecord(t, trace, metricName, tags)
 
-	select {
-	case _ = <-kill:
-		assert.Fail(t, "timed out waiting for socket read")
-	case resp := <-respChan:
-		// Because this is marshalled using protobuf,
-		// we can't expect the representation to be immutable
-		// and cannot test the marshalled payload directly
-		sample := &ssf.SSFSpan{}
-		err := proto.Unmarshal(resp, sample)
+	timestamp := time.Unix(sample.StartTimestamp/1e9, 0)
 
-		assert.NoError(t, err)
+	assert.Equal(t, trace.Start.Unix(), timestamp.Unix())
 
-		timestamp := time.Unix(sample.StartTimestamp/1e9, 0)
+	duration := sample.EndTimestamp - sample.StartTimestamp
 
-		assert.Equal(t, trace.Start.Unix(), timestamp.Unix())
+	// We don't know the exact duration, but we can assert on the interval
+	assert.True(t, duration > 0, "Expected positive trace duration")
+	upperBound := end.Sub(trace.Start).Nanoseconds()
+	assert.True(t, duration < upperBound, "Expected trace duration (%d) to be less than upper bound %d", duration, upperBound)
 
-		duration := sample.EndTimestamp - sample.StartTimestamp
-
-		// We don't know the exact duration, but we can assert on the interval
-		assert.True(t, duration > 0, "Expected positive trace duration")
-		upperBound := end.Sub(trace.Start).Nanoseconds()
-		assert.True(t, duration < upperBound, "Expected trace duration (%d) to be less than upper bound %d", duration, upperBound)
-
-		for _, metric := range sample.Metrics {
-			assert.InEpsilon(t, metric.SampleRate, 0.1, ε)
-		}
-
-		assertTagEquals(t, sample, "resource", resource)
-		assertTagEquals(t, sample, "name", metricName)
-		assert.Equal(t, true, sample.Error)
-		assert.Equal(t, serviceName, sample.Service)
-		assert.Equal(t, tags, sample.Tags)
+	for _, metric := range sample.Metrics {
+		assert.InEpsilon(t, metric.SampleRate, 0.1, ε)
 	}
 
+	assertTagEquals(t, sample, "resource", resource)
+	assertTagEquals(t, sample, "name", metricName)
+	assert.Equal(t, true, sample.Error)
+	assert.Equal(t, serviceName, sample.Service)
+	assert.Equal(t, tags, sample.Tags)
+}
+
+func TestRecordManualTime(t *testing.T) {
+	trace := StartTrace("test-resource")
+	end := time.Now()
+	trace.End = end
+	sample, _ := testRecord(t, trace, "test-metric", map[string]string{})
+	assert.Equal(t, end.UnixNano(), sample.EndTimestamp)
 }
 
 func TestAttach(t *testing.T) {
