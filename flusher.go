@@ -741,6 +741,7 @@ func flushSpansLightstep(ctx context.Context, s *Server, lightstepTracer opentra
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 	for _, ssfSpan := range ssfSpans {
+		log.Info("Flushing span to Lightstep %#v", ssfSpan)
 		flushSpanLightstep(lightstepTracer, ssfSpan)
 	}
 
