@@ -477,12 +477,27 @@ func (s *Server) flushTraces(ctx context.Context) {
 	ssfSpans := make([]ssf.SSFSpan, 0, traceRing.Len())
 
 	traceRing.Do(func(t interface{}) {
+		const tooEarly = 1497
+		const tooLate = 1497629343000000
+
 		if t != nil {
 			ssfSpan, ok := t.(ssf.SSFSpan)
 			if !ok {
 				log.Error("Got an unknown object in tracing ring!")
 				return
 			}
+
+			var timeErr string
+			if ssfSpan.StartTimestamp < tooEarly {
+				timeErr = "type:tooEarly"
+			}
+			if ssfSpan.StartTimestamp > tooLate {
+				timeErr = "type:tooLate"
+			}
+			if timeErr != "" {
+				s.Statsd.Incr("worker.trace.sink.timestamp_error", []string{timeErr}, 1)
+			}
+
 			ssfSpans = append(ssfSpans, ssfSpan)
 		}
 	})
