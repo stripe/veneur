@@ -11,6 +11,10 @@ import (
 	"github.com/stripe/veneur/ssf"
 )
 
+// spanBufferSize is the maximum number of spans that
+// we can flush per flush-interval
+const spanBufferSize = 1 << 14
+
 // Worker is the doodad that does work.
 type Worker struct {
 	id         int
@@ -366,7 +370,7 @@ func (tw *TraceWorker) Flush() *ring.Ring {
 	tw.mutex.Lock()
 
 	rettraces := tw.traces
-	tw.traces = ring.New(12) // TODO CONFIGURABLE
+	tw.traces = ring.New(spanBufferSize) // TODO CONFIGURABLE
 
 	tw.mutex.Unlock()
 	tw.stats.TimeInMilliseconds("flush.event_worker_duration_ns", float64(time.Since(start).Nanoseconds()), nil, 1.0)
