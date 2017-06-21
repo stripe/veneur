@@ -15,7 +15,7 @@ See also:
 
 Veneur is currently handling all metrics for Stripe and is considered production ready. It is under active development and maintenance!
 
-Building Veneur requires Go 1.7 or later.
+Building Veneur requires Go 1.8 or later.
 
 # Motivation
 
