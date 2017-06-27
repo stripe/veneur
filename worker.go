@@ -11,7 +11,7 @@ import (
 	"github.com/stripe/veneur/ssf"
 )
 
-// spanBufferSize is the maximum number of spans that
+// spanBufferSize is the default maximum number of spans that
 // we can flush per flush-interval
 const spanBufferSize = 1 << 14
 
@@ -336,19 +336,21 @@ func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck)
 
 // TraceWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type TraceWorker struct {
-	TraceChan chan ssf.SSFSpan
-	mutex     *sync.Mutex
-	traces    *ring.Ring
-	stats     *statsd.Client
+	TraceChan  chan ssf.SSFSpan
+	mutex      *sync.Mutex
+	traces     *ring.Ring
+	stats      *statsd.Client
+	bufferSize int
 }
 
 // NewTraceWorker creates an TraceWorker ready to collect events and service checks.
-func NewTraceWorker(stats *statsd.Client) *TraceWorker {
+func NewTraceWorker(stats *statsd.Client, bufferSize int) *TraceWorker {
 	return &TraceWorker{
-		TraceChan: make(chan ssf.SSFSpan),
-		mutex:     &sync.Mutex{},
-		traces:    ring.New(12), // TODO MAKE THIS CONFIGURABLE
-		stats:     stats,
+		TraceChan:  make(chan ssf.SSFSpan),
+		mutex:      &sync.Mutex{},
+		traces:     ring.New(bufferSize),
+		stats:      stats,
+		bufferSize: bufferSize,
 	}
 }
 
@@ -370,7 +372,7 @@ func (tw *TraceWorker) Flush() *ring.Ring {
 	tw.mutex.Lock()
 
 	rettraces := tw.traces
-	tw.traces = ring.New(spanBufferSize) // TODO CONFIGURABLE
+	tw.traces = ring.New(tw.bufferSize)
 
 	tw.mutex.Unlock()
 	tw.stats.TimeInMilliseconds("flush.event_worker_duration_ns", float64(time.Since(start).Nanoseconds()), nil, 1.0)

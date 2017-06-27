@@ -26,6 +26,7 @@ type Config struct {
 	Percentiles                 []float64 `yaml:"percentiles"`
 	ReadBufferSizeBytes         int       `yaml:"read_buffer_size_bytes"`
 	SentryDsn                   string    `yaml:"sentry_dsn"`
+	SsfBufferSize               int       `yaml:"ssf_buffer_size"`
 	StatsAddress                string    `yaml:"stats_address"`
 	Tags                        []string  `yaml:"tags"`
 	TcpAddress                  string    `yaml:"tcp_address"`
