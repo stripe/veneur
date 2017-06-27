@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/gogo/protobuf/proto"
 	"github.com/stripe/veneur"
 )
 
@@ -22,7 +24,8 @@ var (
 		"count":  false,
 		"timing": false,
 	}
-	badCall = false
+	badCall     = false
+	dataWritten []byte
 )
 
 type fakeClient struct {
@@ -49,6 +52,13 @@ func (c *fakeClient) Timing(name string, value time.Duration, tags []string, rat
 		return errors.New("error sending metric")
 	}
 	return nil
+}
+
+type fakeConn struct{}
+
+func (c *fakeConn) Write(data []byte) (int, error) {
+	dataWritten = data
+	return len(data), nil
 }
 
 func TestMain(m *testing.M) {
@@ -198,6 +208,51 @@ func TestFlags(t *testing.T) {
 	outputFlags := flags()
 	if !outputFlags["name"] {
 		t.Error("Did not properly parse flags.")
+	}
+}
+
+func TestBareMetrics(t *testing.T) {
+	metric := bareMetric("test_name", "tag1:value1,tag2:value2")
+	if metric.Name != "test_name" {
+		t.Error("Bare metric does not have correct name.")
+	}
+	testTag1 := metric.Tags["tag1"]
+	testTag2 := metric.Tags["tag2"]
+	if testTag1 != "value1" || testTag2 != "value2" {
+		t.Error("Bare metric does not have correct tags.")
+	}
+	if metric.Value != 0 {
+		t.Error("Bare metric is not bare.")
+	}
+}
+
+func TestCreateMetrics(t *testing.T) {
+	resetMap(testFlag)
+
+	testFlag["gauge"] = true
+	testFlag["count"] = true
+	span, _ := createMetrics(testFlag, "test.metric", "tag1:value1")
+	if len(span.Metrics) != 2 {
+		t.Error("Not reporting right number of metrics.")
+	}
+	for _, metric := range span.Metrics {
+		if metric.Name != "test.metric" {
+			t.Error("Metric name not correct.")
+		}
+		if metric.Tags["tag1"] != "value1" {
+			t.Error("Metric tags not correct.")
+		}
+	}
+}
+
+func TestSendSpan(t *testing.T) {
+	dataWritten = []byte{}
+	conn := &fakeConn{}
+	span, _ := createMetrics(testFlag, "test.metric", "tag1:value1")
+	sendSpan(conn, span)
+	orig, _ := proto.Marshal(span)
+	if !bytes.Equal(orig, dataWritten) {
+		t.Error("Did not send correct data.")
 	}
 }
 
