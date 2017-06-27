@@ -43,6 +43,11 @@ trace_api_address: "http://localhost:7777"
 trace_lightstep_access_token: ""
 trace_lightstep_collector_host: ""
 
+
+# The number of SSF packets that can be processed
+# per flush interval
+ssf_buffer_size: 16384
+
 sentry_dsn: ""
 
 # If absent, defaults to the os.Hostname()!

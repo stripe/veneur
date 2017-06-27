@@ -274,7 +274,12 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	// Configure tracing workers and sinks
 	if len(conf.TraceAddress) > 0 && ret.tracingSinkEnabled() {
 
-		ret.TraceWorker = NewTraceWorker(ret.Statsd)
+		bufferSize := conf.SsfBufferSize
+		if bufferSize == 0 {
+			bufferSize = spanBufferSize
+		}
+
+		ret.TraceWorker = NewTraceWorker(ret.Statsd, bufferSize)
 
 		ret.TraceAddr, err = net.ResolveUDPAddr("udp", conf.TraceAddress)
 		log.WithField("traceaddr", ret.TraceAddr).Info("Listening for trace spans on address")
