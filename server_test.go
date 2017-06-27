@@ -107,6 +107,7 @@ func generateConfig(forwardAddr string) Config {
 		TraceAddress:        fmt.Sprintf("127.0.0.1:%d", tracePort),
 		TraceAPIAddress:     forwardAddr,
 		TraceMaxLengthBytes: 4096,
+		SsfBufferSize:       32,
 	}
 }
 
