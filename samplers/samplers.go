@@ -317,16 +317,19 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Tags:       tags,
 			MetricType: "gauge",
 		})
-		if (aggregates.Value&AggregateAverage) == AggregateAverage && h.LocalWeight != 0 {
-			// we need both a rate and a non-zero sum before it will make sense
-			// to submit an average
-			metrics = append(metrics, DDMetric{
-				Name:       fmt.Sprintf("%s.avg", h.Name),
-				Value:      [1][2]float64{{now, h.LocalSum / h.LocalWeight}},
-				Tags:       tags,
-				MetricType: "gauge",
-			})
-		}
+	}
+
+	if (aggregates.Value&AggregateAverage) == AggregateAverage && h.LocalSum != 0 && h.LocalWeight != 0 {
+		// we need both a rate and a non-zero sum before it will make sense
+		// to submit an average
+		tags := make([]string, len(h.Tags))
+		copy(tags, h.Tags)
+		metrics = append(metrics, DDMetric{
+			Name:       fmt.Sprintf("%s.avg", h.Name),
+			Value:      [1][2]float64{{now, h.LocalSum / h.LocalWeight}},
+			Tags:       tags,
+			MetricType: "gauge",
+		})
 	}
 
 	if (aggregates.Value&AggregateCount) == AggregateCount && rate != 0 {
