@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/kelseyhightower/envconfig"
+
 	"gopkg.in/yaml.v2"
 )
 
@@ -26,6 +28,11 @@ func ReadProxyConfig(path string) (c ProxyConfig, err error) {
 	err = yaml.Unmarshal(bts, &c)
 	if err != nil {
 		return
+	}
+
+	err = envconfig.Process("veneur", &c)
+	if err != nil {
+		log.Fatal(err.Error())
 	}
 
 	return c, nil
@@ -53,6 +60,11 @@ func readConfig(r io.Reader) (c Config, err error) {
 	err = yaml.Unmarshal(bts, &c)
 	if err != nil {
 		return
+	}
+
+	err = envconfig.Process("veneur", &c)
+	if err != nil {
+		log.Fatal(err.Error())
 	}
 
 	if c.Hostname == "" && !c.OmitEmptyHostname {

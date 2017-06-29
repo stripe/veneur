@@ -1,7 +1,15 @@
+<<<<<<< HEAD
 # 1.5.3, pending
 
 ## Added
 * Veneur-emit can now time any shell command and emit its duration as a Timing metric. Thanks [redsn0w422](https://github.com/redsn0w422)!
+=======
+# 1.5.3, PENDING
+
+## Improvements
+
+* Config options can now be provided via environment variables using [envconfig](https://github.com/kelseyhightower/envconfig) for veneur and veneur-proxy. Thanks [gphat](https://github.com/gphat)!
+>>>>>>> Allow environment config.
 
 # 1.5.2, 2017-08-15
 
