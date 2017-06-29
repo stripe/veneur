@@ -102,7 +102,7 @@ func (s *Server) FlushLocal(ctx context.Context) {
 
 	// we cannot do this until we're done using tempMetrics within this function,
 	// since not everything in tempMetrics is safe for sharing
-	go s.flushForward(tempMetrics)
+	go s.flushForward(span.Attach(ctx), tempMetrics)
 
 	go func() {
 		for _, p := range s.getPlugins() {
@@ -345,7 +345,9 @@ func (s *Server) flushPart(ctx context.Context, metricSlice []samplers.DDMetric,
 	}, "flush", true)
 }
 
-func (s *Server) flushForward(wms []WorkerMetrics) {
+func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	defer span.Finish()
 	jmLength := 0
 	for _, wm := range wms {
 		jmLength += len(wm.histograms)
@@ -428,7 +430,7 @@ func (s *Server) flushForward(wms []WorkerMetrics) {
 
 	// the error has already been logged (if there was one), so we only care
 	// about the success case
-	if postHelper(context.TODO(), s.HTTPClient, s.Statsd, endpoint, jsonMetrics, "forward", true) == nil {
+	if postHelper(span.Attach(ctx), s.HTTPClient, s.Statsd, endpoint, jsonMetrics, "forward", true) == nil {
 		log.WithField("metrics", len(jsonMetrics)).Info("Completed forward to upstream Veneur")
 	}
 }
