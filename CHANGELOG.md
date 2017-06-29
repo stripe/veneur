@@ -1,3 +1,9 @@
+# 1.5.3, PENDING
+
+## Improvements
+
+* Config options can now be provided via environment variables using [envconfig](https://github.com/kelseyhightower/envconfig) for veneur and veneur-proxy. Thanks [gphat](https://github.com/gphat)!
+
 # 1.5.2, 2017-08-15
 
 ## Bugfixes
