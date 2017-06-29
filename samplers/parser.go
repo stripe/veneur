@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/stripe/veneur/ssf"
 )
 
 // UDPMetric is a representation of the sample provided by a client. The tag list
@@ -45,6 +47,45 @@ func (m *MetricKey) String() string {
 	buff.WriteString(m.Type)
 	buff.WriteString(m.JoinedTags)
 	return buff.String()
+}
+
+// ParseMetricSSF converts an incoming SSF packet to a Metric.
+func ParseMetricSSF(metric *ssf.SSFSample) (*UDPMetric, error) {
+	fmt.Println(metric)
+	ret := &UDPMetric{
+		SampleRate: 1.0,
+	}
+	h := fnv.New32a()
+	h.Write([]byte(metric.Name))
+	ret.Name = metric.Name
+	switch metric.Metric {
+	case ssf.SSFSample_COUNTER:
+		ret.Type = "counter"
+	case ssf.SSFSample_GAUGE:
+		ret.Type = "gauge"
+	case ssf.SSFSample_HISTOGRAM:
+		ret.Type = "histogram"
+	case ssf.SSFSample_SET:
+		ret.Type = "set"
+	default:
+		return nil, errors.New("Invalid type for metric")
+	}
+	h.Write([]byte(ret.Type))
+	ret.Value = metric.Value
+	ret.SampleRate = metric.SampleRate
+	// TODO: figure out localonly vs globalonly
+	tempTags := make([]string, len(metric.Tags))
+	for key, value := range metric.Tags {
+		tempTags = append(tempTags, fmt.Sprintf("%s:%s", key, value))
+	}
+	// fmt.Println(tempTags)
+	sort.Strings(tempTags)
+	ret.Tags = tempTags
+	ret.JoinedTags = strings.Join(tempTags, ",")
+	h.Write([]byte(ret.JoinedTags))
+	ret.Digest = h.Sum32()
+	fmt.Println(ret)
+	return nil, nil
 }
 
 // ParseMetric converts the incoming packet from Datadog DogStatsD
