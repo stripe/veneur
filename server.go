@@ -611,8 +611,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 			s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", "reason:parse"}, 1.0)
 			return
 		}
-		fmt.Println(*metric)
-		// s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
+		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
 	}
 	s.TraceWorker.TraceChan <- *newSample
 }
