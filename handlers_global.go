@@ -118,10 +118,12 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 
 	span, err = tracer.ExtractRequestChild("/import", r, "veneur.opentracing.import")
 	if err != nil {
-		log.WithError(err).Debug("Could not extract span from request")
+		tags := []string{fmt.Sprintf("remote_host:%s", r.RemoteAddr)}
+		stats.Incr("veneur.opentracing.import.spans_extracted.errors", tags, 1)
+
 		span = tracer.StartSpan("/import", trace.NameTag("veneur.opentracing.import")).(*trace.Span)
 	} else {
-		log.WithField("trace", span.Trace).Debug("Extracted span from request")
+		stats.Incr("veneur.opentracing.import.spans_extracted", nil, 0.1)
 	}
 	defer span.Finish()
 
