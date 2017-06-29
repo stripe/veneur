@@ -85,7 +85,7 @@ func ParseMetricSSF(metric *ssf.SSFSample) (*UDPMetric, error) {
 	h.Write([]byte(ret.JoinedTags))
 	ret.Digest = h.Sum32()
 	fmt.Println(ret)
-	return nil, nil
+	return ret, nil
 }
 
 // ParseMetric converts the incoming packet from Datadog DogStatsD
