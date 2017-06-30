@@ -577,6 +577,16 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 	return nil
 }
 
+// ValidTrace takes in an SSF span and determines if it is valid or not.
+func ValidTrace(sample ssf.SSFSpan) bool {
+	ret := true
+	ret = ret && sample.Id != 0
+	ret = ret && sample.TraceId != 0
+	ret = ret && sample.StartTimestamp != 0
+	ret = ret && sample.EndTimestamp != 0
+	return ret
+}
+
 // HandleTracePacket accepts an incoming packet as bytes and sends it to the
 // appropriate worker.
 func (s *Server) HandleTracePacket(packet []byte) {
@@ -610,7 +620,9 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		}
 		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
 	}
-	s.TraceWorker.TraceChan <- *newSample
+	if ValidTrace(*newSample) {
+		s.TraceWorker.TraceChan <- *newSample
+	}
 }
 
 // ReadMetricSocket listens for available packets to handle.
