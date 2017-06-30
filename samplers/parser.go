@@ -14,6 +14,8 @@ import (
 	"github.com/stripe/veneur/ssf"
 )
 
+var invalidMetricTypeError = errors.New("Invalid type for metric")
+
 // UDPMetric is a representation of the sample provided by a client. The tag list
 // should be deterministically ordered.
 type UDPMetric struct {
@@ -67,7 +69,7 @@ func ParseMetricSSF(metric *ssf.SSFSample) (*UDPMetric, error) {
 	case ssf.SSFSample_SET:
 		ret.Type = "set"
 	default:
-		return nil, errors.New("Invalid type for metric")
+		return nil, invalidMetricTypeError
 	}
 	h.Write([]byte(ret.Type))
 	ret.Value = float64(metric.Value)
@@ -131,7 +133,7 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 	case 's':
 		ret.Type = "set"
 	default:
-		return nil, errors.New("Invalid type for metric")
+		return nil, invalidMetricTypeError
 	}
 	// Add the type to the digest
 	h.Write([]byte(ret.Type))
