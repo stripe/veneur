@@ -10,13 +10,13 @@ stats_address: "localhost:8125"
 
 ### FORWARDING
 # Use a static host for forwarding
-forward_address: "http://veneur.example.com"
+#forward_address: "http://veneur.example.com"
 # Or use a consul service for consistent forwarding.
 consul_forward_service_name: "forwardServiceName"
 
 ### TRACING
 # The address on which we will listen for trace data
-trace_address: "127.0.0.1:8128"
+#trace_address: "127.0.0.1:8128"
 # Use a static host to send traces to
 trace_api_address: "http://localhost:7777"
 # Ose us a consul service for sending all spans belonging to the same parent

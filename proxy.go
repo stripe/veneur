@@ -45,6 +45,7 @@ type Proxy struct {
 	AcceptingForwards      bool
 	AcceptingTraces        bool
 
+	usingConsul     bool
 	enableProfiling bool
 }
 
@@ -83,34 +84,57 @@ func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
 	p.ConsulForwardService = conf.ConsulForwardServiceName
 	p.ConsulTraceService = conf.ConsulTraceServiceName
 
-	if p.ConsulForwardService != "" {
+	if p.ConsulForwardService != "" || conf.ForwardAddress != "" {
 		p.AcceptingForwards = true
 	}
-	if p.ConsulTraceService != "" {
+	if p.ConsulTraceService != "" || conf.TraceAddress != "" {
 		p.AcceptingTraces = true
 	}
 
-	if !p.AcceptingForwards && !p.AcceptingTraces {
-		err = errors.New("Refusing to start with no Consul service names in config.")
-		log.WithError(err).WithFields(logrus.Fields{
-			"consul_forward_service_name": p.ConsulForwardService,
-			"consul_trace_service_name":   p.ConsulTraceService,
-		}).Error("Oops")
-		return
+	// We need a convenient way to know if we're even using Consul later
+	if p.ConsulForwardService != "" || p.ConsulTraceService != "" {
+		p.usingConsul = true
 	}
 
 	p.ForwardDestinations = consistent.New()
 	p.TraceDestinations = consistent.New()
 
-	p.ConsulInterval, err = time.ParseDuration(conf.ConsulRefreshInterval)
-	if err != nil {
-		log.WithError(err).Error("Error parsing Consul refresh interval")
+	// We got a static forward address, stick it in the destination!
+	if p.ConsulForwardService == "" && conf.ForwardAddress != "" {
+		p.ForwardDestinations.Add(conf.ForwardAddress)
+	}
+	if p.ConsulTraceService == "" && conf.TraceAddress != "" {
+		p.TraceDestinations.Add(conf.TraceAddress)
+	}
+
+	if !p.AcceptingForwards && !p.AcceptingTraces {
+		err = errors.New("Refusing to start with no Consul service names or static addresses in config.")
+		log.WithError(err).WithFields(logrus.Fields{
+			"consul_forward_service_name": p.ConsulForwardService,
+			"consul_trace_service_name":   p.ConsulTraceService,
+			"forward_address":             conf.ForwardAddress,
+			"trace_address":               conf.TraceAddress,
+		}).Error("Oops")
 		return
 	}
-	log.WithField("interval", conf.ConsulRefreshInterval).Info("Will use Consul for service discovery")
+
+	if p.usingConsul {
+		p.ConsulInterval, err = time.ParseDuration(conf.ConsulRefreshInterval)
+		if err != nil {
+			log.WithError(err).Error("Error parsing Consul refresh interval")
+			return
+		}
+		log.WithField("interval", conf.ConsulRefreshInterval).Info("Will use Consul for service discovery")
+	}
 
 	// TODO Size of replicas in config?
 	//ret.ForwardDestinations.NumberOfReplicas = ???
+
+	if conf.Debug {
+		log.Level = logrus.DebugLevel
+	}
+
+	log.WithField("config", conf).Debug("Initialized server")
 
 	return
 }
@@ -131,34 +155,36 @@ func (p *Proxy) Start() {
 	}
 	p.Discoverer = disc
 
-	if p.AcceptingForwards {
+	if p.AcceptingForwards && p.ConsulForwardService != "" {
 		p.RefreshDestinations(p.ConsulForwardService, p.ForwardDestinations, &p.ForwardDestinationsMtx)
 		if len(p.ForwardDestinations.Members()) == 0 {
 			log.WithField("serviceName", p.ConsulForwardService).Fatal("Refusing to start with zero destinations for forwarding.")
 		}
 	}
 
-	if p.AcceptingTraces {
+	if p.AcceptingTraces && p.ConsulTraceService != "" {
 		p.RefreshDestinations(p.ConsulTraceService, p.TraceDestinations, &p.TraceDestinationsMtx)
 		if len(p.ForwardDestinations.Members()) == 0 {
 			log.WithField("serviceName", p.ConsulTraceService).Fatal("Refusing to start with zero destinations for tracing.")
 		}
 	}
 
-	go func() {
-		defer func() {
-			ConsumePanic(p.Sentry, p.Statsd, p.Hostname, recover())
+	if p.usingConsul {
+		go func() {
+			defer func() {
+				ConsumePanic(p.Sentry, p.Statsd, p.Hostname, recover())
+			}()
+			ticker := time.NewTicker(p.ConsulInterval)
+			for range ticker.C {
+				if p.AcceptingForwards {
+					p.RefreshDestinations(p.ConsulForwardService, p.ForwardDestinations, &p.ForwardDestinationsMtx)
+				}
+				if p.AcceptingTraces {
+					p.RefreshDestinations(p.ConsulTraceService, p.TraceDestinations, &p.TraceDestinationsMtx)
+				}
+			}
 		}()
-		ticker := time.NewTicker(p.ConsulInterval)
-		for range ticker.C {
-			if p.AcceptingForwards {
-				p.RefreshDestinations(p.ConsulForwardService, p.ForwardDestinations, &p.ForwardDestinationsMtx)
-			}
-			if p.AcceptingTraces {
-				p.RefreshDestinations(p.ConsulTraceService, p.TraceDestinations, &p.TraceDestinationsMtx)
-			}
-		}
-	}()
+	}
 }
 
 // HTTPServe starts the HTTP server and listens perpetually until it encounters an unrecoverable error.
