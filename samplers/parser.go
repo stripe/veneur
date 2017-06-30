@@ -71,7 +71,7 @@ func ParseMetricSSF(metric *ssf.SSFSample) (*UDPMetric, error) {
 		return nil, errors.New("Invalid type for metric")
 	}
 	h.Write([]byte(ret.Type))
-	ret.Value = metric.Value
+	ret.Value = float64(metric.Value)
 	ret.SampleRate = metric.SampleRate
 	// TODO: figure out localonly vs globalonly
 	tempTags := make([]string, len(metric.Tags))
@@ -84,7 +84,6 @@ func ParseMetricSSF(metric *ssf.SSFSample) (*UDPMetric, error) {
 	ret.JoinedTags = strings.Join(tempTags, ",")
 	h.Write([]byte(ret.JoinedTags))
 	ret.Digest = h.Sum32()
-	fmt.Println(ret)
 	return ret, nil
 }
 
