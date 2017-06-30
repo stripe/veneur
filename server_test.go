@@ -26,10 +26,12 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	s3p "github.com/stripe/veneur/plugins/s3"
 	s3Mock "github.com/stripe/veneur/plugins/s3/mock"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/tdigest"
 )
 
@@ -755,6 +757,38 @@ func TestUDPMetrics(t *testing.T) {
 
 	conn.Write([]byte("foo.bar:1|c|#baz:gorch"))
 	// Add a bit of delay to ensure things get processed
+	time.Sleep(20 * time.Millisecond)
+	assert.Equal(t, int64(1), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+}
+
+func TestUDPMetricsSSF(t *testing.T) {
+	config := localConfig()
+	config.NumWorkers = 1
+	config.Interval = "60s"
+	config.TraceAddress = fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
+	HTTPAddrPort++
+	f := newFixture(t, config)
+	defer f.Close()
+	// listen delay
+	time.Sleep(20 * time.Millisecond)
+
+	conn, err := net.Dial("udp", config.TraceAddress)
+	assert.NoError(t, err)
+	defer conn.Close()
+
+	testSample := &ssf.SSFSpan{}
+	testMetric := &ssf.SSFSample{}
+	testMetric.Name = "test.metric"
+	testMetric.Metric = ssf.SSFSample_COUNTER
+	testMetric.Value = 1
+	testMetric.Tags = make(map[string]string)
+	testMetric.Tags["tag"] = "tagValue"
+	testSample.Metrics = append(testSample.Metrics, testMetric)
+
+	packet, err := proto.Marshal(testSample)
+	assert.NoError(t, err)
+	conn.Write(packet)
+
 	time.Sleep(20 * time.Millisecond)
 	assert.Equal(t, int64(1), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
 }
