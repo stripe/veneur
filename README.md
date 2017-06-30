@@ -234,18 +234,6 @@ Veneur will emit metrics to the `stats_address` configured above in DogStatsD fo
 * `veneur.import.response_duration_ns` - Time spent responding to import HTTP requests. This metric is broken into `part` tags for `request` (time spent blocking the client) and `merge` (time spent sending metrics to workers).
 * `veneur.import.request_error_total` - A counter for the number of import requests that have errored out. You can use this for monitoring and alerting when imports fail.
 
-### Proxy Metrics
-
-If you use service discovery (e.g. Consul) for forwarding or tracing, these metrics will be useful to you. Each of these is tagged with `service` that has a value matching the service name supplied via the config:
-
-* `veneur_proxy.discoverer.destination_number` - A gauge containing the number of hosts Veneur discovered and added to the hash ring.
-* `veneur_proxy.discoverer.errors` - A counter tracking the number of times the service discovery mechanism has failed to return *any* hosts. Note that Veneur will refuse to update it's list if there are 0 returned hosts and may use stale results until such as as > 1 host is returned.
-* `veneur_proxy.discoverer.update_duration_ns` - A timer describing the duration of service discovery calls.
-* `veneur_proxy.forward.content_length_bytes.*` - Length of forwarded request bodies as a histogram
-* `veneur_proxy.proxy.duration_ns.*` - A timer describing the duration of the entire proxy call.
-* `veneur_proxy.import.duration_ns.*` - A timer describing the duration of handling the "import" call, which is used to deserialize and process the incoming metrics from a child Veneur.
-* `veneur_proxy.metrics_by_destination` - A gauge describing the number of metrics that were proxied to each destination instance.
-
 ## Error Handling
 
 In addition to logging, Veneur will dutifully send any errors it generates to a [Sentry](https://sentry.io/) instance. This will occur if you set the `sentry_dsn` configuration option. Not setting the option will disable Sentry reporting.

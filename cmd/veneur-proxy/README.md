@@ -48,4 +48,20 @@ Using either Consul or some sort of load balancer, remove the proxy instance. Pe
 
 ## Monitoring
 
-ADD METRICS HERE
+Since the proxy's job is to accept and dispatch connections, the important metrics to watch are:
+
+* `veneur_proxy.proxy.duration_ns.*` - A timer describing the duration of the entire proxy call.
+* `veneur_proxy.import.duration_ns.*` - A timer describing the duration of handling the "import" call, which is used to deserialize and process the incoming metrics from a child Veneur.
+* `veneur_proxy.forward.duration_ns.*`: A timer for the duration of forwards
+* `veneur_proxy.forward.error_total`: The count of errored forwards
+
+To monitor the health of the forwarded metrics, you might want to look at:
+
+* `veneur_proxy.forward.content_length_bytes.*` - Length of forwarded request bodies as a histogram
+* `veneur_proxy.metrics_by_destination` - A gauge describing the number of metrics that were proxied to each destination instance.
+
+If you use service discovery (e.g. Consul) for forwarding or tracing, these metrics will be useful to you. Each of these is tagged with `service` that has a value matching the service name supplied via the config:
+
+* `veneur_proxy.discoverer.destination_number` - A gauge containing the number of hosts Veneur discovered and added to the hash ring.
+* `veneur_proxy.discoverer.errors` - A counter tracking the number of times the service discovery mechanism has failed to return *any* hosts. Note that Veneur will refuse to update it's list if there are 0 returned hosts and may use stale results until such as as > 1 host is returned.
+* `veneur_proxy.discoverer.update_duration_ns` - A timer describing the duration of service discovery calls.
