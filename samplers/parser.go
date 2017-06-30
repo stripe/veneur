@@ -51,7 +51,6 @@ func (m *MetricKey) String() string {
 
 // ParseMetricSSF converts an incoming SSF packet to a Metric.
 func ParseMetricSSF(metric *ssf.SSFSample) (*UDPMetric, error) {
-	fmt.Println(metric)
 	ret := &UDPMetric{
 		SampleRate: 1.0,
 	}
@@ -78,7 +77,6 @@ func ParseMetricSSF(metric *ssf.SSFSample) (*UDPMetric, error) {
 	for key, value := range metric.Tags {
 		tempTags = append(tempTags, fmt.Sprintf("%s:%s", key, value))
 	}
-	// fmt.Println(tempTags)
 	sort.Strings(tempTags)
 	ret.Tags = tempTags
 	ret.JoinedTags = strings.Join(tempTags, ",")
