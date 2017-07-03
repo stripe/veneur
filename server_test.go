@@ -187,6 +187,7 @@ type fixture struct {
 	api             *httptest.Server
 	server          Server
 	ddmetrics       chan DDMetricsRequest
+	importmetrics   chan []samplers.JSONMetric
 	interval        time.Duration
 	flushMaxPerBody int
 }
@@ -196,26 +197,49 @@ func newFixture(t *testing.T, config Config) *fixture {
 	assert.NoError(t, err)
 
 	// Set up a remote server (the API that we're sending the data to)
-	// (e.g. Datadog)
-	f := &fixture{nil, Server{}, make(chan DDMetricsRequest, 10), interval, config.FlushMaxPerBody}
+	// (e.g. Datadog) and our own /import
+	f := &fixture{nil, Server{}, make(chan DDMetricsRequest, 10), make(chan []samplers.JSONMetric, 10), interval, config.FlushMaxPerBody}
 	f.api = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		zr, err := zlib.NewReader(r.Body)
-		if err != nil {
-			t.Fatal(err)
+
+		if r.URL.Path == "/api/v1/series" {
+			zr, err := zlib.NewReader(r.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var ddmetrics DDMetricsRequest
+
+			err = json.NewDecoder(zr).Decode(&ddmetrics)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			f.ddmetrics <- ddmetrics
+		} else if r.URL.Path == "/import" {
+			rz, err := zlib.NewReader(r.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			var importmetrics []samplers.JSONMetric
+			err = json.NewDecoder(rz).Decode(&importmetrics)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			f.importmetrics <- importmetrics
+		} else {
+			t.Fatalf("Got unexpected HTTP request to %s", r.URL.Path)
 		}
-
-		var ddmetrics DDMetricsRequest
-
-		err = json.NewDecoder(zr).Decode(&ddmetrics)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		f.ddmetrics <- ddmetrics
 		w.WriteHeader(http.StatusAccepted)
 	}))
 
 	config.APIHostname = f.api.URL
+	// If the config is aiming to do it's own import, let's replace the config
+	// with that of our fixture.
+	if config.ForwardAddress == "http://localhost" {
+		config.ForwardAddress = f.api.URL
+	}
 	config.NumWorkers = 1
 	f.server = setupVeneurServer(t, config, nil)
 	return f
@@ -223,7 +247,7 @@ func newFixture(t *testing.T, config Config) *fixture {
 
 func (f *fixture) Close() {
 	// make Close safe to call multiple times
-	if f.ddmetrics == nil {
+	if f.ddmetrics == nil && f.importmetrics == nil {
 		return
 	}
 
@@ -231,6 +255,7 @@ func (f *fixture) Close() {
 	f.server.Shutdown()
 	close(f.ddmetrics)
 	f.ddmetrics = nil
+	f.importmetrics = nil
 }
 
 // TestLocalServerUnaggregatedMetrics tests the behavior of
@@ -286,6 +311,32 @@ func TestGlobalServerFlush(t *testing.T) {
 	ddmetrics := <-f.ddmetrics
 	assert.Equal(t, len(expectedMetrics), len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
 	assertMetrics(t, ddmetrics, expectedMetrics)
+}
+
+func TestLocalAddsImportTags(t *testing.T) {
+	metricValues, _ := generateMetrics()
+	config := localConfig()
+	config.Tags = []string{"foo:bar"}
+	f := newFixture(t, config)
+	defer f.Close()
+
+	for _, value := range metricValues {
+		f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: "a.b.c",
+				Type: "histogram",
+			},
+			Value:      value,
+			Digest:     12345,
+			SampleRate: 1.0,
+		})
+	}
+
+	f.server.Flush()
+
+	importmetrics := <-f.importmetrics
+	assert.Equal(t, 1, len(importmetrics), 1, "import received the histogram")
+	assert.Equal(t, "foo:bar", importmetrics[0].Tags[0], "imported histogram has sender's tags")
 }
 
 func TestLocalServerMixedMetrics(t *testing.T) {
