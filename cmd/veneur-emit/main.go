@@ -3,12 +3,15 @@ package main
 import (
 	"errors"
 	"flag"
+	"net"
 	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
+	"github.com/gogo/protobuf/proto"
 	"github.com/stripe/veneur"
+	"github.com/stripe/veneur/ssf"
 )
 
 var (
@@ -20,6 +23,7 @@ var (
 	count      = flag.Int64("count", 0, "Report a 'count' metric. Value must be an integer.")
 	tag        = flag.String("tag", "", "Tag(s) for metric, comma separated. Ex: service:airflow")
 	debug      = flag.Bool("debug", false, "Turns on debug messages.")
+	toSSF      = flag.Bool("ssf", false, "Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)")
 )
 
 // MinimalClient represents the functions that we call on Clients in veneur-emit.
@@ -27,6 +31,11 @@ type MinimalClient interface {
 	Gauge(name string, value float64, tags []string, rate float64) error
 	Count(name string, value int64, tags []string, rate float64) error
 	Timing(name string, value time.Duration, tags []string, rate float64) error
+}
+
+// MinimalConn represents the functions that we call on connections in veneur-emit.
+type MinimalConn interface {
+	Write([]byte) (int, error)
 }
 
 func main() {
@@ -51,16 +60,35 @@ func main() {
 	}
 	logrus.Debugf("destination: %s", addr)
 
-	var conn MinimalClient
-	conn, err = statsd.New(addr)
-	if err != nil {
-		logrus.WithError(err).Fatal("Error!")
-	}
+	if *toSSF {
+		var nconn net.Conn
+		nconn, err = net.Dial("udp", addr)
+		if err != nil {
+			logrus.WithError(err).Fatal("Error!")
+		}
 
-	tags := tags(*tag)
-	err = sendMetrics(conn, passedFlags, *name, tags)
-	if err != nil {
-		logrus.WithError(err).Fatal("Error sending metric(s).")
+		var span *ssf.SSFSpan
+		span, err = createMetrics(passedFlags, *name, *tag)
+		if err != nil {
+			logrus.WithError(err).Fatal("Error creating metric(s).")
+		}
+
+		err = sendSpan(nconn, span)
+		if err != nil {
+			logrus.WithError(err).Fatal("Error sending metric(s).")
+		}
+	} else {
+		var conn MinimalClient
+		conn, err = statsd.New(addr)
+		if err != nil {
+			logrus.WithError(err).Fatal("Error!")
+		}
+
+		tags := tags(*tag)
+		err = sendMetrics(conn, passedFlags, *name, tags)
+		if err != nil {
+			logrus.WithError(err).Fatal("Error sending metric(s).")
+		}
 	}
 }
 
@@ -93,6 +121,53 @@ func addr(passedFlags map[string]bool, conf *veneur.Config, hostport *string) (s
 		err = errors.New("you must either specify a Veneur config file or a valid hostport")
 	}
 	return addr, err
+}
+
+func bareMetric(name string, tags string) *ssf.SSFSample {
+	metric := &ssf.SSFSample{}
+	metric.Name = name
+	metric.Tags = make(map[string]string)
+	for _, elem := range strings.Split(tags, ",") {
+		tag := strings.Split(elem, ":")
+		metric.Tags[tag[0]] = tag[1]
+	}
+	return metric
+}
+
+func createMetrics(passedFlags map[string]bool, name string, tags string) (*ssf.SSFSpan, error) {
+	var err error
+	span := &ssf.SSFSpan{}
+	if passedFlags["gauge"] {
+		logrus.Debugf("Sending gauge '%s' -> %f", name, *gauge)
+		metric := bareMetric(name, tags)
+		metric.Metric = ssf.SSFSample_GAUGE
+		metric.Value = float32(*gauge)
+		span.Metrics = append(span.Metrics, metric)
+	}
+	// TODO: figure out timing metrics
+	if passedFlags["count"] {
+		logrus.Debugf("Sending count '%s' -> %d", name, *count)
+		metric := bareMetric(name, tags)
+		metric.Metric = ssf.SSFSample_COUNTER
+		metric.Value = float32(*count)
+		span.Metrics = append(span.Metrics, metric)
+	}
+	return span, err
+}
+
+func sendSpan(conn MinimalConn, span *ssf.SSFSpan) error {
+	var err error
+	var data []byte
+	data, err = proto.Marshal(span)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Write(data)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func sendMetrics(client MinimalClient, passedFlags map[string]bool, name string, tags []string) error {
