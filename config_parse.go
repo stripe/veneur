@@ -63,6 +63,14 @@ func readConfig(r io.Reader) (c Config, err error) {
 		c.ReadBufferSizeBytes = defaultBufferSizeBytes
 	}
 
+	if c.Key != "" {
+		log.Warn("The config key `key` is deprecated and will be removed in 2.0!")
+		// If they set the DatadogAPIKey, favor it. Otherwise, replace it.
+		if c.DatadogAPIKey == "" {
+			c.DatadogAPIKey = c.Key
+		}
+	}
+
 	return c, nil
 }
 
