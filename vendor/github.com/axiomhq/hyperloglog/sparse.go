@@ -2,7 +2,6 @@ package hyperloglog
 
 import (
 	bits "github.com/dgryski/go-bits"
-	metro "github.com/dgryski/go-metro"
 )
 
 func getIndex(k uint32, p, pp uint8) uint32 {
@@ -85,7 +84,3 @@ type uint64Slice []uint32
 func (p uint64Slice) Len() int           { return len(p) }
 func (p uint64Slice) Less(i, j int) bool { return p[i] < p[j] }
 func (p uint64Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-
-func hash(e []byte) uint64 {
-	return metro.Hash64(e, 1337)
-}

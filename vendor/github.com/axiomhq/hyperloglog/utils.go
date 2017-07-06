@@ -4,6 +4,7 @@ import (
 	"math"
 
 	bits "github.com/dgryski/go-bits"
+	metro "github.com/dgryski/go-metro"
 )
 
 func beta14(ez float64) float64 {
@@ -61,3 +62,9 @@ func bextr(v uint64, start, length uint8) uint64 {
 func bextr32(v uint32, start, length uint8) uint32 {
 	return (v >> start) & ((1 << length) - 1)
 }
+
+func hashFunc(e []byte) uint64 {
+	return metro.Hash64(e, 1337)
+}
+
+var hash func(buf []byte) uint64

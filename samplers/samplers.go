@@ -225,7 +225,7 @@ func (s *Set) Sample(sample string, sampleRate float32) {
 func NewSet(Name string, Tags []string) *Set {
 	// error is only returned if precision is outside the 4-18 range
 	// TODO: this is the maximum precision, should it be configurable?
-	Hll, _ := hyperloglog.New(18)
+	Hll := hyperloglog.New()
 	return &Set{
 		Name: Name,
 		Tags: Tags,
@@ -264,7 +264,7 @@ func (s *Set) Export() (JSONMetric, error) {
 
 // Combine merges the values seen with another set (marshalled as a byte slice)
 func (s *Set) Combine(other []byte) error {
-	otherHLL, _ := hyperloglog.New(18)
+	otherHLL := hyperloglog.New()
 	if err := otherHLL.UnmarshalBinary(other); err != nil {
 		return err
 	}

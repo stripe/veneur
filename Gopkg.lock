@@ -22,7 +22,7 @@
   branch = "master"
   name = "github.com/axiomhq/hyperloglog"
   packages = ["."]
-  revision = "f93c8603a35921d1f4d742cf063ff5d4c4092f21"
+  revision = "67c63c1769669ed114425d82cc7a91af4ce24f8b"
 
 [[projects]]
   name = "github.com/certifi/gocertifi"

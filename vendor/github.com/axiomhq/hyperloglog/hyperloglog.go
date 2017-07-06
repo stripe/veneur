@@ -18,21 +18,36 @@ const (
 // Sketch is a HyperLogLog data-structure for the count-distinct problem,
 // approximating the number of distinct elements in a multiset.
 type Sketch struct {
-	sparse bool
-	p      uint8
-	b      uint8
-	m      uint32
-	alpha  float64
-
-	tmpSet set
-	hash   func(e []byte) uint64
-
+	sparse     bool
+	p          uint8
+	b          uint8
+	m          uint32
+	alpha      float64
+	tmpSet     set
 	sparseList *compressedList
 	regs       *registers
 }
 
-// New ...
-func New(precision uint8) (*Sketch, error) {
+//New returns a HyperLogLog Sketch with 2^14 registers (precision 14)
+func New() *Sketch {
+	return New14()
+}
+
+//New14 returns a HyperLogLog Sketch with 2^14 registers (precision 14)
+func New14() *Sketch {
+	sk, _ := new(14)
+	return sk
+}
+
+//New16 returns a HyperLogLog Sketch with 2^16 registers (precision 16)
+func New16() *Sketch {
+	sk, _ := new(14)
+	return sk
+}
+
+// New returns a HyperLogLog Sketch with 2^precision registers
+func new(precision uint8) (*Sketch, error) {
+	hash = hashFunc
 	if precision < 4 || precision > 18 {
 		return nil, fmt.Errorf("p has to be >= 4 and <= 18")
 	}
@@ -44,13 +59,13 @@ func New(precision uint8) (*Sketch, error) {
 		sparse:     true,
 		tmpSet:     set{},
 		sparseList: newCompressedList(int(m)),
-		hash:       hash,
 	}, nil
 }
 
 // Clone returns a deep copy of sk.
 func (sk *Sketch) Clone() *Sketch {
 	return &Sketch{
+		b:          sk.b,
 		p:          sk.p,
 		m:          sk.m,
 		alpha:      sk.alpha,
@@ -169,7 +184,7 @@ func (sk *Sketch) insert(i uint32, r uint8) {
 
 // Insert adds element e to sketch
 func (sk *Sketch) Insert(e []byte) {
-	x := sk.hash(e)
+	x := hash(e)
 	if sk.sparse {
 		sk.tmpSet.add(encodeHash(x, sk.p, pp))
 		if uint32(len(sk.tmpSet))*100 > sk.m {
@@ -196,7 +211,7 @@ func (sk *Sketch) Estimate() uint64 {
 	var est float64
 
 	var beta func(float64) float64
-	if sk.m < 16 {
+	if sk.p < 16 {
 		beta = beta14
 	} else {
 		beta = beta16
@@ -308,7 +323,7 @@ func (sk *Sketch) UnmarshalBinary(data []byte) error {
 	// Unmarshal p.
 	p := data[1]
 
-	newh, err := New(p)
+	newh, err := new(p)
 	if err != nil {
 		return err
 	}

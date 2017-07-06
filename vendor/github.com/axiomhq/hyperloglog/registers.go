@@ -44,7 +44,7 @@ func (rs *registers) clone() *registers {
 	if rs == nil {
 		return nil
 	}
-	var tc []reg
+	tc := make([]reg, len(rs.tailcuts))
 	copy(tc, rs.tailcuts)
 	return &registers{
 		tailcuts: tc,
