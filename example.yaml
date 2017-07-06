@@ -109,13 +109,13 @@ tls_authority_certificate: ""
 # == Datadog ==
 # Datadog can be a sink for metrics, events, service checks and trace spans.
 
-# This is deprecated and will be removed in 2.0, use datadog_api_key
+# This is deprecated and will be removed in 2.0; use datadog_api_key
 key: "farts"
 
-# This is deprecated and will be removed in 2.0, use datadog_api_hostname
+# This is deprecated and will be removed in 2.0; use datadog_api_hostname
 api_hostname: https://app.datadoghq.com
 
-# This is deprecated and will be removed in 2.0, use datadog_trace_api_address
+# This is deprecated and will be removed in 2.0; use datadog_trace_api_address
 trace_api_address: "http://localhost:7777"
 
 # Hostname to send Datadog data to.
