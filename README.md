@@ -5,11 +5,17 @@ Veneur (venn-urr) is a server implementation of the [DogStatsD protocol](http://
 
 More generically, Veneur is a convenient, host-local sink for various observability primitives.
 
+See also:
+
+* A nascent observability format, [SSF](https://github.com/stripe/veneur/tree/master/ssf/#readme)
+* A proxy for resilient distributed aggregation, [veneur-proxy](https://github.com/stripe/veneur/tree/master/cmd/veneur-proxy/#readme)
+* A command line tool for emmitting metrics, [veneur-proxy](https://github.com/stripe/veneur/tree/master/cmd/veneur-emit/#readme)
+
 # Status
 
 Veneur is currently handling all metrics for Stripe and is considered production ready. It is under active development and maintenance!
 
-Building Veneur requires Go 1.7 or later.
+Building Veneur requires Go 1.8 or later.
 
 # Motivation
 
@@ -139,20 +145,11 @@ With respect to the `tags` configuration option, the tags that will be added are
 
 ### Proxy
 
-To improve availability, you can leverage leverage the Veneur proxy in conjunction with Consul service discovery.
+To improve availability, you can [leverage veneur-proxy](https://github.com/stripe/veneur/tree/master/cmd/veneur-proxy/#readme) in conjunction with [Consul](https://www.consul.io) service discovery.
 
 The proxy can be configured to query the Consul API for instances of a service using `consul_forward_service_name`. Each **healthy** instance is then entered in to a hash ring. When choosing which host to forward to, Veneur will use a combination of metric name and tags to _consistently_ choose the same host for forwarding.
 
-Use the `consul_refresh_interval` to specify how often Veneur should refresh it's list.
-
-#### Tracing
-
-Consistent handling of tracing can also be used by setting `consul_trace_service_name`. The trace's ID — not the span, but the overall trace — is used for the choice of destination. So long as the hosts in the service stay consistent, this means that all of a trace's spans should arrive to the same destination host.
-
-#### Concerns
-
-* Veneur locks the list of servers when refreshing and flushing to avoid race conditions. If your retrieval of consul hosts (see metric `veneur.discoverer.update_duration_ns`) or flushes (see metric `veneur.flush.total_duration_ns`) are slow, you see one or the other slow down.
-* Veneur uses a [consistent hash ring](https://en.wikipedia.org/wiki/Consistent_hashing) to try and mitigate the impact of changes in Consul's list of healthy nodes. This is not perfect, and you can expect some churn whenever the list of healthy nodes changes in Consul.
+See [more documentation for Proxy Veneur](https://github.com/stripe/veneur/tree/master/cmd/veneur-proxy/#readme).
 
 ### Static Configuration
 
@@ -236,18 +233,6 @@ Veneur will emit metrics to the `stats_address` configured above in DogStatsD fo
 * `veneur.worker.metrics_imported_total` - Total number of metrics received via the importing endpoint. A "metric", in this context, refers to a unique combination of name, tags, type _and originating host_. This metric indicates how much of a Veneur instance's load is coming from imports.
 * `veneur.import.response_duration_ns` - Time spent responding to import HTTP requests. This metric is broken into `part` tags for `request` (time spent blocking the client) and `merge` (time spent sending metrics to workers).
 * `veneur.import.request_error_total` - A counter for the number of import requests that have errored out. You can use this for monitoring and alerting when imports fail.
-
-### Proxy Metrics
-
-If you use service discovery (e.g. Consul) for forwarding or tracing, these metrics will be useful to you. Each of these is tagged with `service` that has a value matching the service name supplied via the config:
-
-* `veneur_proxy.discoverer.destination_number` - A gauge containing the number of hosts Veneur discovered and added to the hash ring.
-* `veneur_proxy.discoverer.errors` - A counter tracking the number of times the service discovery mechanism has failed to return *any* hosts. Note that Veneur will refuse to update it's list if there are 0 returned hosts and may use stale results until such as as > 1 host is returned.
-* `veneur_proxy.discoverer.update_duration_ns` - A timer describing the duration of service discovery calls.
-* `veneur_proxy.forward.content_length_bytes.*` - Length of forwarded request bodies as a histogram
-* `veneur_proxy.proxy.duration_ns.*` - A timer describing the duration of the entire proxy call.
-* `veneur_proxy.import.duration_ns.*` - A timer describing the duration of handling the "import" call, which is used to deserialize and process the incoming metrics from a child Veneur.
-* `veneur_proxy.metrics_by_destination` - A gauge describing the number of metrics that were proxied to each destination instance.
 
 ## Error Handling
 
