@@ -64,10 +64,17 @@ func readConfig(r io.Reader) (c Config, err error) {
 	}
 
 	if c.Key != "" {
-		log.Warn("The config key `key` is deprecated and will be removed in 2.0!")
+		log.Warn("The config key `key` is deprecated in and replaced with `datadog_api_key` and will be removed in 2.0!")
 		// If they set the DatadogAPIKey, favor it. Otherwise, replace it.
 		if c.DatadogAPIKey == "" {
 			c.DatadogAPIKey = c.Key
+		}
+	}
+
+	if c.APIHostname != "" {
+		log.Warn("The config key `api_hostname` is deprecated and replaced with `datadog_api_hostname` and will be removed in 2.0!")
+		if c.DatadogAPIHostname == "" {
+			c.DatadogAPIHostname = c.APIHostname
 		}
 	}
 
