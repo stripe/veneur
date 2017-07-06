@@ -11,10 +11,6 @@ import (
 	"github.com/stripe/veneur/ssf"
 )
 
-// spanBufferSize is the default maximum number of spans that
-// we can flush per flush-interval
-const spanBufferSize = 1 << 14
-
 // Worker is the doodad that does work.
 type Worker struct {
 	id         int
