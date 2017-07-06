@@ -53,7 +53,8 @@ debug: true
 # Providing a Sentry DSN here will send internal exceptions to Sentry
 sentry_dsn: ""
 
-# Where to send metrics about ourselves, can point this at ourself too!
+# Veneur emits it's own metrics, this configures where we send them. It's ok
+# to point veneur at itself for metrics consumption!
 stats_address: "localhost:8125"
 
 # == FEATURES ==
