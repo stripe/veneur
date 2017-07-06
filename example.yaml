@@ -80,15 +80,15 @@ tcp_address: ""
 #http_address: "einhorn@0"
 http_address: "localhost:8127"
 
-### FORWARDING
+# FORWARDING
 # Use a static host for forwarding
 forward_address: "http://veneur.example.com"
 
-### SSF
+# SSF
 # The address on which we will listen for SSF packets via UDP
 ssf_address: "127.0.0.1:8128"
 
-### TRACING
+# TRACING
 # The address on which we will listen for UDP trace data
 trace_address: "127.0.0.1:8128"
 
@@ -149,15 +149,15 @@ trace_lightstep_access_token: ""
 # Host to send trace data to
 trace_lightstep_collector_host: ""
 
-### PLUGINS
+# == PLUGINS ==
 
-# S3 Output
+# == S3 Output ==
 # Include these if you want to archive data to S3
 aws_access_key_id: ""
 aws_secret_access_key: ""
 aws_region: ""
 aws_s3_bucket: ""
 
-# LocalFile Output
+# == LocalFile Output ==
 # Include this if you want to archive data to a local file (which should then be rotated/cleaned)
 flush_file: ""
