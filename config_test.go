@@ -19,14 +19,14 @@ func TestReadConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "https://app.datadoghq.com", c.APIHostname)
+	assert.Equal(t, "https://app.datadoghq.com", c.DatadogAPIHostname)
 	assert.Equal(t, 96, c.NumWorkers)
 
 	interval, err := c.ParseInterval()
 	assert.NoError(t, err)
 	assert.Equal(t, interval, 10*time.Second)
 
-	assert.Equal(t, c.TraceAddress, "127.0.0.1:8128")
+	assert.Equal(t, "http://localhost:7777", c.DatadogTraceAPIAddress)
 
 }
 
