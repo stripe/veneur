@@ -9,6 +9,7 @@ package trace
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"math/rand"
 	"net"
@@ -332,24 +333,36 @@ func StartChildSpan(parent *Trace) *Trace {
 
 // sendSample marshals the sample using protobuf and sends it
 // over UDP to the local veneur instance
-func sendSample(sample *ssf.SSFSpan) error {
+func sendSample(sample *ssf.SSFSpan) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err, ok := r.(error)
+			if !ok {
+				err = fmt.Errorf("encountered panic while sending sample %#v", err)
+			}
+		}
+	}()
+
 	if Disabled() {
 		return nil
 	}
 
 	udpInitOnce.Do(udpInitFunc)
+
+	// at this point, the connection should already be initialized
+
 	if udpConn == nil {
 		return udpConnUninitializedErr
 	}
 
 	data, err := proto.Marshal(sample)
 	if err != nil {
-		return err
+		return
 	}
 
 	_, err = udpConn.Write(data)
 	if err != nil {
-		return err
+		return
 	}
 
 	return nil
