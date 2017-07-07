@@ -32,7 +32,7 @@ func ReadProxyConfig(path string) (c ProxyConfig, err error) {
 
 	err = envconfig.Process("veneur", &c)
 	if err != nil {
-		log.Fatal(err.Error())
+		return c, err
 	}
 
 	return c, nil
@@ -64,7 +64,7 @@ func readConfig(r io.Reader) (c Config, err error) {
 
 	err = envconfig.Process("veneur", &c)
 	if err != nil {
-		log.Fatal(err.Error())
+		return c, err
 	}
 
 	if c.Hostname == "" && !c.OmitEmptyHostname {
