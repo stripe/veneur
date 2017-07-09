@@ -111,21 +111,18 @@ func TestFlushTracesDatadog(t *testing.T) {
 }
 
 func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
-	remoteResponseChan := make(chan struct{}, 1)
-	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var expected []*DatadogTraceSpan
-		err := json.NewDecoder(jsn).Decode(&expected)
-		assert.NoError(t, err)
+	var expected []*DatadogTraceSpan
+	err := json.NewDecoder(jsn).Decode(&expected)
+	assert.NoError(t, err)
 
+	remoteResponseChan := make(chan []*DatadogTraceSpan, 1)
+	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var actual []*DatadogTraceSpan
 		err = json.NewDecoder(r.Body).Decode(&actual)
 		assert.NoError(t, err)
 
-		assert.Equal(t, expected, actual)
-
 		w.WriteHeader(http.StatusAccepted)
-
-		remoteResponseChan <- struct{}{}
+		remoteResponseChan <- actual
 	}))
 	defer remoteServer.Close()
 
@@ -147,13 +144,12 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	assert.NoError(t, err)
 
 	server.HandleTracePacket(packet)
-
-	assert.NoError(t, err)
 	server.Flush()
 
 	// wait for remoteServer to process the POST
 	select {
-	case <-remoteResponseChan:
+	case actual := <-remoteResponseChan:
+		assert.Equal(t, expected, actual)
 		// all is safe
 		break
 	case <-time.After(10 * time.Second):
