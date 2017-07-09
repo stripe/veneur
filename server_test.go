@@ -511,7 +511,10 @@ func TestLocalFilePluginRegister(t *testing.T) {
 	config := globalConfig()
 	config.FlushFile = "/dev/null"
 
-	server := setupVeneurServer(t, config, nil)
+	server, err := NewFromConfig(config)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	assert.Equal(t, 1, len(server.getPlugins()))
 }
