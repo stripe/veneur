@@ -163,6 +163,8 @@ type Span struct {
 
 	*Trace
 
+	recordErr error
+
 	// These are currently ignored
 	logLines []opentracinglog.Field
 }
@@ -196,7 +198,7 @@ func (s *Span) FinishWithOptions(opts opentracing.FinishOptions) {
 
 	// TODO remove the name tag from the slice of tags
 
-	s.Record(s.Name, s.Tags)
+	s.recordErr = s.Record(s.Name, s.Tags)
 }
 
 func (s *Span) Context() opentracing.SpanContext {

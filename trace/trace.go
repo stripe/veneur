@@ -8,6 +8,8 @@ package trace
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"math/rand"
 	"net"
@@ -42,6 +44,13 @@ func init() {
 var disabled bool = false
 
 var enabledMtx sync.RWMutex
+
+var udpConn *net.UDPConn
+
+// used to initialize udpConn inside sendSample
+var udpInitOnce sync.Once
+var udpInitFunc = func() { initUDPConn(localVeneurAddress) }
+var udpConnUninitializedErr = errors.New("UDP connection is not yet initialized")
 
 // Make an unexported `key` type that we use as a String such
 // that we don't get lint warnings from using it as a key in
@@ -194,11 +203,7 @@ func (t *Trace) Record(name string, tags map[string]string) error {
 	span := t.SSFSpan()
 	span.Tags[NameKey] = name
 
-	err := sendSample(span)
-	if err != nil {
-		logrus.WithError(err).Error("Error submitting sample")
-	}
-	return err
+	return sendSample(span)
 }
 
 func (t *Trace) Error(err error) {
@@ -324,34 +329,55 @@ func StartChildSpan(parent *Trace) *Trace {
 
 // sendSample marshals the sample using protobuf and sends it
 // over UDP to the local veneur instance
-func sendSample(sample *ssf.SSFSpan) error {
+func sendSample(sample *ssf.SSFSpan) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err, ok := r.(error)
+			if !ok {
+				err = fmt.Errorf("encountered panic while sending sample %#v", err)
+			}
+		}
+	}()
+
 	if Disabled() {
 		return nil
 	}
 
+	udpInitOnce.Do(udpInitFunc)
+
+	// at this point, the connection should already be initialized
+
+	if udpConn == nil {
+		return udpConnUninitializedErr
+	}
+
+	data, err := proto.Marshal(sample)
+	if err != nil {
+		return
+	}
+
+	_, err = udpConn.Write(data)
+	if err != nil {
+		return
+	}
+
+	return nil
+}
+
+// initUDPConn will initialize the global UDP connection.
+// It will panic if it encounters an error.
+// It should only be called via the corresponding sync.Once
+func initUDPConn(address string) {
 	serverAddr, err := net.ResolveUDPAddr("udp", localVeneurAddress)
 	if err != nil {
-		return err
+		panic(err)
 	}
 
 	conn, err := net.DialUDP("udp", nil, serverAddr)
 	if err != nil {
-		return err
+		panic(err)
 	}
-
-	defer conn.Close()
-
-	data, err := proto.Marshal(sample)
-	if err != nil {
-		return err
-	}
-
-	_, err = conn.Write(data)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	udpConn = conn
 }
 
 // stripPackageName strips the package name from a function
