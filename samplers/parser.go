@@ -74,7 +74,6 @@ func ParseMetricSSF(metric *ssf.SSFSample) (*UDPMetric, error) {
 	h.Write([]byte(ret.Type))
 	ret.Value = float64(metric.Value)
 	ret.SampleRate = metric.SampleRate
-	// TODO: figure out localonly vs globalonly
 	tempTags := make([]string, len(metric.Tags))
 	for key, value := range metric.Tags {
 		if key == "veneurlocalonly" {
