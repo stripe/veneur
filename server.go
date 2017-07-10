@@ -621,6 +621,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
 	}
 	if ValidTrace(*newSample) {
+		s.Statsd.Incr("packet.spans.received_total", nil, 1)
 		s.TraceWorker.TraceChan <- *newSample
 	}
 }
