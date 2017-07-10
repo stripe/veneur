@@ -203,11 +203,7 @@ func (t *Trace) Record(name string, tags map[string]string) error {
 	span := t.SSFSpan()
 	span.Tags[NameKey] = name
 
-	err := sendSample(span)
-	if err != nil {
-		logrus.WithError(err).Error("Error submitting sample")
-	}
-	return err
+	return sendSample(span)
 }
 
 func (t *Trace) Error(err error) {
