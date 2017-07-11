@@ -127,7 +127,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.Hostname = conf.Hostname
 	ret.Tags = conf.Tags
 	ret.DDHostname = conf.APIHostname
-	ret.DDAPIKey = conf.DatadogAPIKey
+	ret.DDAPIKey = conf.Key
 	ret.DDTraceAddress = conf.TraceAPIAddress
 	ret.traceLightstepAccessToken = conf.TraceLightstepAccessToken
 	ret.HistogramPercentiles = conf.Percentiles
