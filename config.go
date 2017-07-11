@@ -7,6 +7,9 @@ type Config struct {
 	AwsRegion                   string    `yaml:"aws_region"`
 	AwsS3Bucket                 string    `yaml:"aws_s3_bucket"`
 	AwsSecretAccessKey          string    `yaml:"aws_secret_access_key"`
+	DatadogAPIHostname          string    `yaml:"datadog_api_hostname"`
+	DatadogAPIKey               string    `yaml:"datadog_api_key"`
+	DatadogTraceAPIAddress      string    `yaml:"datadog_trace_api_address"`
 	Debug                       bool      `yaml:"debug"`
 	EnableProfiling             bool      `yaml:"enable_profiling"`
 	FlushFile                   string    `yaml:"flush_file"`
@@ -26,6 +29,7 @@ type Config struct {
 	Percentiles                 []float64 `yaml:"percentiles"`
 	ReadBufferSizeBytes         int       `yaml:"read_buffer_size_bytes"`
 	SentryDsn                   string    `yaml:"sentry_dsn"`
+	SsfAddress                  string    `yaml:"ssf_address"`
 	SsfBufferSize               int       `yaml:"ssf_buffer_size"`
 	StatsAddress                string    `yaml:"stats_address"`
 	Tags                        []string  `yaml:"tags"`
