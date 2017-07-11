@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-
 	"github.com/getsentry/raven-go"
 )
 
@@ -61,6 +60,19 @@ func TestConsumePanicWithSentry(t *testing.T) {
 	}
 	if len(fakeTransport.packets) != 1 {
 		t.Error("expected 1 packet:", fakeTransport.packets)
+	}
+}
+
+func TestHookWithoutSentry(t *testing.T) {
+	// hook with a nil sentry client is used when sentry is disabled
+	hook := &sentryHook{}
+
+	entry := &logrus.Entry{}
+	// must use Fatal so the call to Fire blocks and we can check the result
+	entry.Level = logrus.FatalLevel
+	err := hook.Fire(entry)
+	if err != nil {
+		t.Error("Fire returned an error:", err)
 	}
 }
 

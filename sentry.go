@@ -62,6 +62,11 @@ func (s sentryHook) Levels() []logrus.Level {
 }
 
 func (s sentryHook) Fire(e *logrus.Entry) error {
+	if s.c == nil {
+		// raven.Client works when it is nil, but skip the useless work and don't hang on Fatal
+		return nil
+	}
+
 	p := raven.Packet{
 		ServerName: s.hostname,
 		Interfaces: []raven.Interface{
