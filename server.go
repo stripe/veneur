@@ -577,11 +577,20 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 	return nil
 }
 
+// ValidTrace takes in an SSF span and determines if it is valid or not.
+func ValidTrace(sample ssf.SSFSpan) bool {
+	ret := true
+	ret = ret && sample.Id != 0
+	ret = ret && sample.TraceId != 0
+	ret = ret && sample.StartTimestamp != 0
+	ret = ret && sample.EndTimestamp != 0
+	return ret
+}
+
 // HandleTracePacket accepts an incoming packet as bytes and sends it to the
 // appropriate worker.
 func (s *Server) HandleTracePacket(packet []byte) {
-	//TODO increment at .1
-	s.Statsd.Incr("packet.received_total", nil, 1)
+	s.Statsd.Incr("packet.received_total", nil, .1)
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
 		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:unknown", "reason:zerolength"}, 1.0)
@@ -598,8 +607,22 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		log.WithError(err).Warn("Trace unmarshaling error")
 		return
 	}
-
-	s.TraceWorker.TraceChan <- *newSample
+	for _, metricPacket := range newSample.Metrics {
+		metric, err := samplers.ParseMetricSSF(metricPacket)
+		if err != nil {
+			log.WithFields(logrus.Fields{
+				logrus.ErrorKey: err,
+				"packet":        metricPacket.String(),
+			}).Warn("Could not parse packet")
+			s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", "reason:parse"}, 1.0)
+			return
+		}
+		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
+	}
+	if ValidTrace(*newSample) {
+		s.Statsd.Incr("packet.spans.received_total", nil, .1)
+		s.TraceWorker.TraceChan <- *newSample
+	}
 }
 
 // ReadMetricSocket listens for available packets to handle.

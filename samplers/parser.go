@@ -10,7 +10,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/stripe/veneur/ssf"
 )
+
+var invalidMetricTypeError = errors.New("Invalid type for metric")
 
 // UDPMetric is a representation of the sample provided by a client. The tag list
 // should be deterministically ordered.
@@ -45,6 +49,51 @@ func (m *MetricKey) String() string {
 	buff.WriteString(m.Type)
 	buff.WriteString(m.JoinedTags)
 	return buff.String()
+}
+
+// ParseMetricSSF converts an incoming SSF packet to a Metric.
+func ParseMetricSSF(metric *ssf.SSFSample) (*UDPMetric, error) {
+	ret := &UDPMetric{
+		SampleRate: 1.0,
+	}
+	h := fnv.New32a()
+	h.Write([]byte(metric.Name))
+	ret.Name = metric.Name
+	switch metric.Metric {
+	case ssf.SSFSample_COUNTER:
+		ret.Type = "counter"
+	case ssf.SSFSample_GAUGE:
+		ret.Type = "gauge"
+	case ssf.SSFSample_HISTOGRAM:
+		ret.Type = "histogram"
+	case ssf.SSFSample_SET:
+		ret.Type = "set"
+	default:
+		return nil, invalidMetricTypeError
+	}
+	h.Write([]byte(ret.Type))
+	ret.Value = float64(metric.Value)
+	ret.SampleRate = metric.SampleRate
+	tempTags := make([]string, len(metric.Tags))
+	for key, value := range metric.Tags {
+		if key == "veneurlocalonly" {
+			// delete the tag from the list
+			ret.Scope = LocalOnly
+			break
+		} else if key == "veneurglobalonly" {
+			// delete the tag from the list
+			ret.Scope = GlobalOnly
+			break
+		} else {
+			tempTags = append(tempTags, fmt.Sprintf("%s:%s", key, value))
+		}
+	}
+	sort.Strings(tempTags)
+	ret.Tags = tempTags
+	ret.JoinedTags = strings.Join(tempTags, ",")
+	h.Write([]byte(ret.JoinedTags))
+	ret.Digest = h.Sum32()
+	return ret, nil
 }
 
 // ParseMetric converts the incoming packet from Datadog DogStatsD
@@ -93,7 +142,7 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 	case 's':
 		ret.Type = "set"
 	default:
-		return nil, errors.New("Invalid type for metric")
+		return nil, invalidMetricTypeError
 	}
 	// Add the type to the digest
 	h.Write([]byte(ret.Type))
