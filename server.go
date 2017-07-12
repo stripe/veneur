@@ -126,9 +126,9 @@ type tracerSink struct {
 func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.Hostname = conf.Hostname
 	ret.Tags = conf.Tags
-	ret.DDHostname = conf.APIHostname
+	ret.DDHostname = conf.DatadogAPIHostname
 	ret.DDAPIKey = conf.DatadogAPIKey
-	ret.DDTraceAddress = conf.TraceAPIAddress
+	ret.DDTraceAddress = conf.DatadogTraceAPIAddress
 	ret.traceLightstepAccessToken = conf.TraceLightstepAccessToken
 	ret.HistogramPercentiles = conf.Percentiles
 	if len(conf.Aggregates) == 0 {
@@ -272,7 +272,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	log.WithField("config", conf).Debug("Initialized server")
 
 	// Configure tracing workers and sinks
-	if len(conf.TraceAddress) > 0 && ret.tracingSinkEnabled() {
+	if len(conf.SsfAddress) > 0 && ret.tracingSinkEnabled() {
 
 		bufferSize := conf.SsfBufferSize
 		if bufferSize == 0 {
@@ -281,7 +281,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 		ret.TraceWorker = NewTraceWorker(ret.Statsd, bufferSize)
 
-		ret.TraceAddr, err = net.ResolveUDPAddr("udp", conf.TraceAddress)
+		ret.TraceAddr, err = net.ResolveUDPAddr("udp", conf.SsfAddress)
 		log.WithField("traceaddr", ret.TraceAddr).Info("Listening for trace spans on address")
 
 		if err == nil && ret.TraceAddr == nil {

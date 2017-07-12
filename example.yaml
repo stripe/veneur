@@ -12,7 +12,7 @@ interval: "10s"
 read_buffer_size_bytes: 2097152
 
 # Adjusts the number of workers Veneur will distribute aggregation across.
-# More decreases contention but has diminishng returns.
+# More decreases contention but has diminishing returns.
 num_workers: 96
 
 # Numbers larger than 1 will enable the use of SO_REUSEPORT, make sure
