@@ -20,18 +20,34 @@ var (
 	configFile = flag.String("f", "", "The Veneur config file to read for settings.")
 	hostport   = flag.String("hostport", "", "Hostname and port of destination. Must be used if config file is not present.")
 	mode       = flag.String("mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
+	debug      = flag.Bool("debug", false, "Turns on debug messages.")
 
 	// Metric flags
-	name   = flag.String("name", "", "Name of metric to report. Ex: daemontools.service.starts")
+	name   = flag.String("name", "", "Name of metric to report. Ex: 'daemontools.service.starts'")
 	gauge  = flag.Float64("gauge", 0, "Report a 'gauge' metric. Value must be float64.")
 	timing = flag.Duration("timing", 0*time.Millisecond, "Report a 'timing' metric. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).")
 	count  = flag.Int64("count", 0, "Report a 'count' metric. Value must be an integer.")
-	tag    = flag.String("tag", "", "Tag(s) for metric, comma separated. Ex: service:airflow")
-	debug  = flag.Bool("debug", false, "Turns on debug messages.")
+	tag    = flag.String("tag", "", "Tag(s) for metric, comma separated. Ex: 'service:airflow'")
 	toSSF  = flag.Bool("ssf", false, "Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)")
 
 	// Event flags
+	// TODO: what should flags be called?
+	eTitle      = flag.String("e_title", "", "Title of event. Ex: 'An exception occurred' *")
+	eText       = flag.String("e_text", "", "Text of event. Insert line breaks with an esaped slash (\\\\n) *")
+	eHostname   = flag.String("e_hostname", "", "Hostname for the event.")
+	eAggrKey    = flag.String("e_aggr_key", "", "Add an aggregation key to group event with others with same key.")
+	ePriority   = flag.String("e_priority", "normal", "Priority of event. Must be 'low' or 'normal'.")
+	eSourceType = flag.String("e_source_type", "", "Add source type to the event.")
+	eAlertType  = flag.String("e_alert_type", "info", "Alert type must be 'error', 'warning', 'info', or 'success'.")
+	eTag        = flag.String("e_event_tags", "", "Tag(s) for event, comma separated. Ex: 'service:airflow,host_type:qa'")
+
 	// Service check flags
+	scName      = flag.String("sc_name", "", "Service check name. *")
+	scStatus    = flag.String("sc_status", "", "Integer corresponding to check status. (OK = 0, WARNING = 1, CRITICAL = 2, UNKNOWN = 3)*")
+	scTimestamp = flag.String("sc_time", "", "Add timestamp to check. Default is current Unix epoch timestamp.")
+	scHostname  = flag.String("sc_hostname", "", "Add hostname to the event.")
+	scTags      = flag.String("sc_tags", "", "Tag(s) for service check, comma separated. Ex: 'service:airflow,host_type:qa'")
+	scMsg       = flag.String("sc_msg", "", "Message describing state of current state of service check.")
 )
 
 // MinimalClient represents the functions that we call on Clients in veneur-emit.
