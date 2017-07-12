@@ -102,7 +102,7 @@ func (s *Server) FlushLocal(ctx context.Context) {
 
 	// we cannot do this until we're done using tempMetrics within this function,
 	// since not everything in tempMetrics is safe for sharing
-	go s.flushForward(span.Attach(ctx), tempMetrics)
+	go s.flushForward(span.Attach(ctx), s.Tags, tempMetrics)
 
 	go func() {
 		for _, p := range s.getPlugins() {
@@ -345,7 +345,7 @@ func (s *Server) flushPart(ctx context.Context, metricSlice []samplers.DDMetric,
 	}, "flush", true)
 }
 
-func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
+func (s *Server) flushForward(ctx context.Context, tags []string, wms []WorkerMetrics) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 	jmLength := 0
@@ -368,6 +368,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
+			jm.Tags = append(jm.Tags, tags...)
 			jsonMetrics = append(jsonMetrics, jm)
 		}
 		for _, histo := range wm.histograms {
@@ -380,6 +381,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
+			jm.Tags = append(jm.Tags, tags...)
 			jsonMetrics = append(jsonMetrics, jm)
 		}
 		for _, set := range wm.sets {
@@ -392,6 +394,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 				}).Error("Could not export metric")
 				continue
 			}
+			jm.Tags = append(jm.Tags, tags...)
 			jsonMetrics = append(jsonMetrics, jm)
 		}
 		for _, timer := range wm.timers {
@@ -406,6 +409,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 			}
 			// the exporter doesn't know that these two are "different"
 			jm.Type = "timer"
+			jm.Tags = append(jm.Tags, tags...)
 			jsonMetrics = append(jsonMetrics, jm)
 		}
 	}
