@@ -76,9 +76,9 @@ func generateConfig(forwardAddr string) Config {
 	HTTPAddrPort++
 
 	return Config{
-		APIHostname: "http://localhost",
-		Debug:       DebugMode,
-		Hostname:    "localhost",
+		DatadogAPIHostname: "http://localhost",
+		Debug:              DebugMode,
+		Hostname:           "localhost",
 
 		// Use a shorter interval for tests
 		Interval:            DefaultFlushInterval.String(),
@@ -106,10 +106,10 @@ func generateConfig(forwardAddr string) Config {
 		FlushMaxPerBody: 1024,
 
 		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
-		TraceAddress:        fmt.Sprintf("127.0.0.1:%d", tracePort),
-		TraceAPIAddress:     forwardAddr,
-		TraceMaxLengthBytes: 4096,
-		SsfBufferSize:       32,
+		SsfAddress:             fmt.Sprintf("127.0.0.1:%d", tracePort),
+		DatadogTraceAPIAddress: forwardAddr,
+		TraceMaxLengthBytes:    4096,
+		SsfBufferSize:          32,
 	}
 }
 
@@ -217,7 +217,7 @@ func newFixture(t *testing.T, config Config) *fixture {
 		w.WriteHeader(http.StatusAccepted)
 	}))
 
-	config.APIHostname = f.api.URL
+	config.DatadogAPIHostname = f.api.URL
 	config.NumWorkers = 1
 	f.server = setupVeneurServer(t, config, nil)
 	return f
@@ -765,14 +765,14 @@ func TestUDPMetricsSSF(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.Interval = "60s"
-	config.TraceAddress = fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
+	config.SsfAddress = fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
 	HTTPAddrPort++
 	f := newFixture(t, config)
 	defer f.Close()
 	// listen delay
 	time.Sleep(20 * time.Millisecond)
 
-	conn, err := net.Dial("udp", config.TraceAddress)
+	conn, err := net.Dial("udp", config.SsfAddress)
 	assert.NoError(t, err)
 	defer conn.Close()
 
@@ -960,4 +960,28 @@ func TestHandleTCPGoroutineTimeout(t *testing.T) {
 	if packet.Name != "metric" {
 		t.Error("Expected packet for metric:", packet)
 	}
+}
+
+func TestNewFromServerConfigRenamedVariables(t *testing.T) {
+	// test the variables that have been renamed
+	config := Config{
+		DatadogAPIKey:          "apikey",
+		DatadogAPIHostname:     "http://api",
+		DatadogTraceAPIAddress: "http://trace",
+		SsfAddress:             "127.0.0.1:99",
+
+		// required or NewFromConfig fails
+		Interval:     "10s",
+		StatsAddress: "localhost:62251",
+	}
+	s, err := NewFromConfig(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, "apikey", s.DDAPIKey)
+	assert.Equal(t, "http://api", s.DDHostname)
+	assert.Equal(t, "http://trace", s.DDTraceAddress)
+	assert.True(t, s.TraceAddr.IP.IsLoopback(), "TraceAddr should be loopback")
+	assert.Equal(t, 99, s.TraceAddr.Port)
 }

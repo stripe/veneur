@@ -79,7 +79,7 @@ func readConfig(r io.Reader) (c Config, err error) {
 	}
 
 	if c.TraceAPIAddress != "" {
-		log.Warn("The config key `datadog_trace_api_hostname` is deprecated and replaced with `datadog_trace_api_hostname` and will be removed in 2.0!")
+		log.Warn("The config key `trace_api_address` is deprecated and replaced with `datadog_trace_api_hostname` and will be removed in 2.0!")
 		if c.DatadogTraceAPIAddress == "" {
 			c.DatadogTraceAPIAddress = c.TraceAPIAddress
 		}

@@ -127,7 +127,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	defer remoteServer.Close()
 
 	config := globalConfig()
-	config.TraceAPIAddress = remoteServer.URL
+	config.DatadogTraceAPIAddress = remoteServer.URL
 
 	server := setupVeneurServer(t, config, nil)
 	defer server.Shutdown()
@@ -138,7 +138,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 		flush:  flushSpansDatadog,
 	})
 
-	assert.Equal(t, server.DDTraceAddress, config.TraceAPIAddress)
+	assert.Equal(t, server.DDTraceAddress, config.DatadogTraceAPIAddress)
 
 	packet, err := ioutil.ReadAll(protobuf)
 	assert.NoError(t, err)
@@ -165,7 +165,7 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 	config := globalConfig()
 
 	// this can be anything as long as it's not empty
-	config.TraceAPIAddress = "http://example.org"
+	config.DatadogTraceAPIAddress = "http://example.org"
 	server := setupVeneurServer(t, config, nil)
 	defer server.Shutdown()
 
@@ -179,7 +179,7 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 		flush:  flushSpansLightstep,
 	})
 
-	assert.Equal(t, server.DDTraceAddress, config.TraceAPIAddress)
+	assert.Equal(t, server.DDTraceAddress, config.DatadogTraceAPIAddress)
 
 	packet, err := ioutil.ReadAll(protobuf)
 	assert.NoError(t, err)
