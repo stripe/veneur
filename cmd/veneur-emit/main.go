@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"net"
@@ -15,15 +16,22 @@ import (
 )
 
 var (
+	// Generic flags
 	configFile = flag.String("f", "", "The Veneur config file to read for settings.")
 	hostport   = flag.String("hostport", "", "Hostname and port of destination. Must be used if config file is not present.")
-	name       = flag.String("name", "", "Name of metric to report. Ex: daemontools.service.starts")
-	gauge      = flag.Float64("gauge", 0, "Report a 'gauge' metric. Value must be float64.")
-	timing     = flag.Duration("timing", time.Now().Sub(time.Now()), "Report a 'timing' metric. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).")
-	count      = flag.Int64("count", 0, "Report a 'count' metric. Value must be an integer.")
-	tag        = flag.String("tag", "", "Tag(s) for metric, comma separated. Ex: service:airflow")
-	debug      = flag.Bool("debug", false, "Turns on debug messages.")
-	toSSF      = flag.Bool("ssf", false, "Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)")
+	mode       = flag.String("mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
+
+	// Metric flags
+	name   = flag.String("name", "", "Name of metric to report. Ex: daemontools.service.starts")
+	gauge  = flag.Float64("gauge", 0, "Report a 'gauge' metric. Value must be float64.")
+	timing = flag.Duration("timing", 0*time.Millisecond, "Report a 'timing' metric. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).")
+	count  = flag.Int64("count", 0, "Report a 'count' metric. Value must be an integer.")
+	tag    = flag.String("tag", "", "Tag(s) for metric, comma separated. Ex: service:airflow")
+	debug  = flag.Bool("debug", false, "Turns on debug messages.")
+	toSSF  = flag.Bool("ssf", false, "Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)")
+
+	// Event flags
+	// Service check flags
 )
 
 // MinimalClient represents the functions that we call on Clients in veneur-emit.
@@ -60,35 +68,54 @@ func main() {
 	}
 	logrus.Debugf("destination: %s", addr)
 
-	if *toSSF {
-		var nconn net.Conn
-		nconn, err = net.Dial("udp", addr)
-		if err != nil {
-			logrus.WithError(err).Fatal("Error!")
-		}
+	if *mode == "metric" {
+		logrus.Debug("Sending metric")
+		if *toSSF {
+			var nconn net.Conn
+			nconn, err = net.Dial("udp", addr)
+			if err != nil {
+				logrus.WithError(err).Fatal("Error!")
+			}
 
-		var span *ssf.SSFSpan
-		span, err = createMetrics(passedFlags, *name, *tag)
-		if err != nil {
-			logrus.WithError(err).Fatal("Error creating metric(s).")
-		}
+			var span *ssf.SSFSpan
+			span, err = createMetrics(passedFlags, *name, *tag)
+			if err != nil {
+				logrus.WithError(err).Fatal("Error creating metric(s).")
+			}
 
-		err = sendSpan(nconn, span)
-		if err != nil {
-			logrus.WithError(err).Fatal("Error sending metric(s).")
+			err = sendSpan(nconn, span)
+			if err != nil {
+				logrus.WithError(err).Fatal("Error sending metric(s).")
+			}
+		} else {
+			var conn MinimalClient
+			conn, err = statsd.New(addr)
+			if err != nil {
+				logrus.WithError(err).Fatal("Error!")
+			}
+
+			tags := tags(*tag)
+			err = sendMetrics(conn, passedFlags, *name, tags)
+			if err != nil {
+				logrus.WithError(err).Fatal("Error sending metric(s).")
+			}
 		}
+	} else if *mode == "event" {
+		logrus.Debug("Sending event")
+		nconn, _ := net.Dial("udp", addr)
+		var buffer bytes.Buffer
+		buffer.WriteString("event")
+		nconn.Write(buffer.Bytes())
+		logrus.Infof("Buffer string: %s", buffer.String())
+	} else if *mode == "sc" {
+		logrus.Debug("Sending service check")
+		nconn, _ := net.Dial("udp", addr)
+		var buffer bytes.Buffer
+		buffer.WriteString("sc")
+		nconn.Write(buffer.Bytes())
+		logrus.Infof("Buffer string: %s", buffer.String())
 	} else {
-		var conn MinimalClient
-		conn, err = statsd.New(addr)
-		if err != nil {
-			logrus.WithError(err).Fatal("Error!")
-		}
-
-		tags := tags(*tag)
-		err = sendMetrics(conn, passedFlags, *name, tags)
-		if err != nil {
-			logrus.WithError(err).Fatal("Error sending metric(s).")
-		}
+		logrus.Fatalf("Mode '%s' is invalid.", *mode)
 	}
 }
 
