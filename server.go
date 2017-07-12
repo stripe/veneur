@@ -514,8 +514,15 @@ func (s *Server) Start() {
 			ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
 		}()
 		ticker := time.NewTicker(s.interval)
-		for range ticker.C {
-			s.Flush()
+		for {
+			select {
+			case <-s.shutdown:
+				// stop flushing on graceful shutdown
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				s.Flush()
+			}
 		}
 	}()
 }
