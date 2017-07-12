@@ -590,8 +590,7 @@ func ValidTrace(sample ssf.SSFSpan) bool {
 // HandleTracePacket accepts an incoming packet as bytes and sends it to the
 // appropriate worker.
 func (s *Server) HandleTracePacket(packet []byte) {
-	//TODO increment at .1
-	s.Statsd.Incr("packet.received_total", nil, 1)
+	s.Statsd.Incr("packet.received_total", nil, .1)
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
 		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:unknown", "reason:zerolength"}, 1.0)
@@ -621,7 +620,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
 	}
 	if ValidTrace(*newSample) {
-		s.Statsd.Incr("packet.spans.received_total", nil, 1)
+		s.Statsd.Incr("packet.spans.received_total", nil, .1)
 		s.TraceWorker.TraceChan <- *newSample
 	}
 }
