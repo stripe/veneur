@@ -1,21 +1,50 @@
+# 1.5.0, PENDING
+
+## Bugfixes
+* Fixed an error in graceful shutdown of the TCP listener. Thanks [evanj](https://github.com/evanj)!
+* Don't hang if we call `log.Fatal` and we aren't hooked up to a Sentry. Thanks [evanj](https://github.com/evanj)!
+* Fix flusher_test being called more than once resulting in flappy failure. Thanks [evanj](https://github.com/evanj)!
+* Improve flusher test to not start veneur, fixing flapping test. Thanks [evanj](https://github.com/evanj)!
+
+## Added
+* `veneur-emit` can now emit metrics using the [SSF protocol](https://github.com/stripe/veneur/tree/master/ssf#readme). Thanks [redsn0w422](https://github.com/redsn0w422)!
+* Documentation for SSF. Thanks [gphat](https://github.com/gphat)!
+
+## Improvements
+* It is no longer required to emit a `sum` to get an `avg` when configuring what aggregations to emit for a histogram. Thanks [cgilling](https://github.com/cgilling)!
+* Tags added in the `tags` config key are now applied to trace spans. Thanks [chimeracoder](https://github.com/chimeracoder)!
+* Additional documentation for `veneur-proxy`. Thanks [gphat](https://github.com/gphat)!
+* Revamped configuration file organization and comments. Thanks [gphat](https://github.com/gphat)!
+* Changed some config keys to have more specific names to facilitate future refactoring. Thanks [gphat](https://github.com/gphat)!
+* Adjust the flush loop to listen for server shutdown to improve test consistency. Thanks [evanj](https://github.com/evanj)!
+* Veneur can now, experimentally, ingest metrics using the [SSF protocol](https://github.com/stripe/veneur/tree/master/ssf#readme). Thanks [redsn0w422](https://github.com/redsn0w422)!
+* Reresolve the LightStep trace flusher on each flush, accomodating Consul-based DNS use and preventing stale sinks. Thanks [chimeracoder](https://github.com/chimeracoder)!
+
+## Deprecations
+* The following configuration keys are deprecated and will be removed in version 2.0 of Veneur:
+  * `datadog_api_key` replaces `key`
+  * `datadog_api_hostname` replaces `api_hostname`
+  * `datadog_trace_api_address` replaces `trace_api_address`
+  * `ssf_address` replaces `trace_address`
+
 # 1.4.0, 2017-06-09
 
 ## Changes
-* Require Go 1.8+ and stop building against 1.7
+* Require Go 1.8+ and stop building against 1.7 Thanks Thanks [chimeracoder](https://github.com/chimeracoder)!
 
 # 1.3.1, 2017-06-06
 
 ## Bugfixes
-* Decrease logging level for proxy's "forwarded" messages.
-* Failed discovery refreshes now log the service name.
+* Decrease logging level for proxy's "forwarded" messages. Thanks [gphat](https://github.com/gphat)!
+* Failed discovery refreshes now log the service name. Thanks [gphat](https://github.com/gphat)!
 
 ## Improvements
-* Proxy no longer requires a trace service name, since it's not wired up.
+* Proxy no longer requires a trace service name, since it's not wired up. Thanks [gphat](https://github.com/gphat)!
 
 # 1.3.0, 2017-05-19
 
 ## Bugfixes
-* No longer allow clients to pass in `nan`, `+inf` or `-inf` as a value for a metric, as this caused errors on flush.
+* No longer allow clients to pass in `nan`, `+inf` or `-inf` as a value for a metric, as this caused errors on flush. Thanks [gphat](https://github.com/gphat)!
 
 ## Added
 * Added `veneur-proxy` to provide HA features with consistent hashing. See the [Proxy section of the README](https://github.com/stripe/veneur#proxy)
