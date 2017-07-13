@@ -12,19 +12,19 @@ const (
 )
 
 // An implementation of the log.Encoder interface
-type logFieldEncoder struct {
-	recorder        *Recorder
+type grpcLogFieldEncoder struct {
+	recorder        *grpcCollectorClient
 	buffer          *reportBuffer
 	currentKeyValue *cpb.KeyValue
 }
 
 func marshalFields(
-	recorder *Recorder,
+	recorder *grpcCollectorClient,
 	protoLog *cpb.Log,
 	fields []log.Field,
 	buffer *reportBuffer,
 ) {
-	lfe := logFieldEncoder{recorder, buffer, nil}
+	lfe := grpcLogFieldEncoder{recorder, buffer, nil}
 	protoLog.Keyvalues = make([]*cpb.KeyValue, len(fields))
 	for i, f := range fields {
 		lfe.currentKeyValue = &cpb.KeyValue{}
@@ -33,43 +33,43 @@ func marshalFields(
 	}
 }
 
-func (lfe *logFieldEncoder) EmitString(key, value string) {
+func (lfe *grpcLogFieldEncoder) EmitString(key, value string) {
 	lfe.emitSafeKey(key)
 	lfe.emitSafeString(value)
 }
-func (lfe *logFieldEncoder) EmitBool(key string, value bool) {
+func (lfe *grpcLogFieldEncoder) EmitBool(key string, value bool) {
 	lfe.emitSafeKey(key)
 	lfe.currentKeyValue.Value = &cpb.KeyValue_BoolValue{value}
 }
-func (lfe *logFieldEncoder) EmitInt(key string, value int) {
+func (lfe *grpcLogFieldEncoder) EmitInt(key string, value int) {
 	lfe.emitSafeKey(key)
 	lfe.currentKeyValue.Value = &cpb.KeyValue_IntValue{int64(value)}
 }
-func (lfe *logFieldEncoder) EmitInt32(key string, value int32) {
+func (lfe *grpcLogFieldEncoder) EmitInt32(key string, value int32) {
 	lfe.emitSafeKey(key)
 	lfe.currentKeyValue.Value = &cpb.KeyValue_IntValue{int64(value)}
 }
-func (lfe *logFieldEncoder) EmitInt64(key string, value int64) {
+func (lfe *grpcLogFieldEncoder) EmitInt64(key string, value int64) {
 	lfe.emitSafeKey(key)
 	lfe.currentKeyValue.Value = &cpb.KeyValue_IntValue{int64(value)}
 }
-func (lfe *logFieldEncoder) EmitUint32(key string, value uint32) {
+func (lfe *grpcLogFieldEncoder) EmitUint32(key string, value uint32) {
 	lfe.emitSafeKey(key)
 	lfe.currentKeyValue.Value = &cpb.KeyValue_IntValue{int64(value)}
 }
-func (lfe *logFieldEncoder) EmitUint64(key string, value uint64) {
+func (lfe *grpcLogFieldEncoder) EmitUint64(key string, value uint64) {
 	lfe.emitSafeKey(key)
 	lfe.currentKeyValue.Value = &cpb.KeyValue_IntValue{int64(value)}
 }
-func (lfe *logFieldEncoder) EmitFloat32(key string, value float32) {
+func (lfe *grpcLogFieldEncoder) EmitFloat32(key string, value float32) {
 	lfe.emitSafeKey(key)
 	lfe.currentKeyValue.Value = &cpb.KeyValue_DoubleValue{float64(value)}
 }
-func (lfe *logFieldEncoder) EmitFloat64(key string, value float64) {
+func (lfe *grpcLogFieldEncoder) EmitFloat64(key string, value float64) {
 	lfe.emitSafeKey(key)
 	lfe.currentKeyValue.Value = &cpb.KeyValue_DoubleValue{float64(value)}
 }
-func (lfe *logFieldEncoder) EmitObject(key string, value interface{}) {
+func (lfe *grpcLogFieldEncoder) EmitObject(key string, value interface{}) {
 	lfe.emitSafeKey(key)
 	jsonBytes, err := json.Marshal(value)
 	if err != nil {
@@ -79,24 +79,24 @@ func (lfe *logFieldEncoder) EmitObject(key string, value interface{}) {
 	}
 	lfe.emitSafeJSON(string(jsonBytes))
 }
-func (lfe *logFieldEncoder) EmitLazyLogger(value log.LazyLogger) {
+func (lfe *grpcLogFieldEncoder) EmitLazyLogger(value log.LazyLogger) {
 	// Delegate to `value` to do the late-bound encoding.
 	value(lfe)
 }
 
-func (lfe *logFieldEncoder) emitSafeKey(key string) {
+func (lfe *grpcLogFieldEncoder) emitSafeKey(key string) {
 	if len(key) > lfe.recorder.maxLogKeyLen {
 		key = key[:(lfe.recorder.maxLogKeyLen-1)] + ellipsis
 	}
 	lfe.currentKeyValue.Key = key
 }
-func (lfe *logFieldEncoder) emitSafeString(str string) {
+func (lfe *grpcLogFieldEncoder) emitSafeString(str string) {
 	if len(str) > lfe.recorder.maxLogValueLen {
 		str = str[:(lfe.recorder.maxLogValueLen-1)] + ellipsis
 	}
 	lfe.currentKeyValue.Value = &cpb.KeyValue_StringValue{str}
 }
-func (lfe *logFieldEncoder) emitSafeJSON(json string) {
+func (lfe *grpcLogFieldEncoder) emitSafeJSON(json string) {
 	if len(json) > lfe.recorder.maxLogValueLen {
 		str := json[:(lfe.recorder.maxLogValueLen-1)] + ellipsis
 		lfe.currentKeyValue.Value = &cpb.KeyValue_StringValue{str}
