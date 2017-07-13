@@ -10,8 +10,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -38,7 +36,6 @@ import (
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/trace"
 
-	lightstep "github.com/lightstep/lightstep-tracer-go"
 	opentracing "github.com/opentracing/opentracing-go"
 )
 
@@ -118,8 +115,8 @@ type tracerSink struct {
 
 	// This may be nil, if the tracer doesn't use
 	// an opentracing backend
-	tracer opentracing.Tracer
-	flush  traceFlusher
+	tracerThunk func() opentracing.Tracer
+	flush       traceFlusher
 }
 
 // NewFromConfig creates a new veneur server from a configuration specification.
@@ -295,56 +292,19 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		// configure Datadog as sink
 		if ret.DDTraceAddress != "" {
 			ret.tracerSinks = append(ret.tracerSinks, tracerSink{
-				name:   "Datadog",
-				tracer: nil,
-				flush:  flushSpansDatadog,
+				name:        "Datadog",
+				tracerThunk: nil,
+				flush:       flushSpansDatadog,
 			})
 			log.Info("Configured Datadog trace sink")
 		}
 
 		// configure Lightstep as Sink
 		if ret.traceLightstepAccessToken != "" {
-			resolved, err := resolveEndpoint(conf.TraceLightstepCollectorHost)
-			if err != nil {
-				log.WithError(err).WithFields(logrus.Fields{
-					"host": conf.TraceLightstepCollectorHost,
-				}).Error("Error resolving Lightstep collector host")
-				return ret, err
-			}
-
-			host, err := url.Parse(resolved)
-			if err != nil {
-				log.WithError(err).WithFields(logrus.Fields{
-					"host":     conf.TraceLightstepCollectorHost,
-					"resolved": resolved,
-				}).Error("Error parsing Lightstep collector URL")
-				return ret, err
-			}
-
-			port, err := strconv.Atoi(host.Port())
-			if err != nil {
-				port = lightstepDefaultPort
-			}
-
-			log.WithFields(logrus.Fields{
-				"Host": host.Hostname(),
-				"Port": port,
-			}).Info("Dialing lightstep host")
-
-			lightstepTracer := lightstep.NewTracer(lightstep.Options{
-				AccessToken: ret.traceLightstepAccessToken,
-				Collector: lightstep.Endpoint{
-					Host:      host.Hostname(),
-					Port:      port,
-					Plaintext: true,
-				},
-				UseGRPC: true,
-			})
-
 			ret.tracerSinks = append(ret.tracerSinks, tracerSink{
-				name:   "Lightstep",
-				tracer: lightstepTracer,
-				flush:  flushSpansLightstep,
+				name:        "Lightstep",
+				tracerThunk: configureLightstepTracer(conf),
+				flush:       flushSpansLightstep,
 			})
 
 			// only set this if the original token was non-empty
