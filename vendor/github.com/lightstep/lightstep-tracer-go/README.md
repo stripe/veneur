@@ -2,6 +2,7 @@
 
 [![Circle CI](https://circleci.com/gh/lightstep/lightstep-tracer-go.svg?style=shield)](https://circleci.com/gh/lightstep/lightstep-tracer-go)
 [![MIT license](http://img.shields.io/badge/license-MIT-blue.svg)](http://opensource.org/licenses/MIT)
+[![GoDoc](https://godoc.org/github.com/lightstep/lightstep-tracer-go?status.svg)](https://godoc.org/github.com/lightstep/lightstep-tracer-go)
 
 The LightStep distributed tracing library for Go.
 
@@ -30,7 +31,7 @@ func main() {
     })
 
     // Optionally set the opentracing global Tracer to the above
-    opentracing.InitGlobalTracer(lightstepTracer)
+    opentracing.SetGlobalTracer(lightstepTracer)
 
     ...
 }

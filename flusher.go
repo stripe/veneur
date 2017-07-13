@@ -777,6 +777,7 @@ func flushSpansDatadog(ctx context.Context, s *Server, nilTracer func() opentrac
 
 func flushSpansLightstep(ctx context.Context, s *Server, tracerThunk func() opentracing.Tracer, ssfSpans []ssf.SSFSpan) {
 	lightstepTracer := tracerThunk()
+	defer lightstep.CloseTracer(lightstepTracer)
 
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
