@@ -1,4 +1,4 @@
-# 1.5.0, PENDING
+# 1.5.0, 2017-07-13
 
 ## Bugfixes
 * Fixed an error in graceful shutdown of the TCP listener. Thanks [evanj](https://github.com/evanj)!
