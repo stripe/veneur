@@ -336,6 +336,7 @@ func sendSample(sample *ssf.SSFSpan) (err error) {
 			if !ok {
 				err = fmt.Errorf("encountered panic while sending sample %#v", err)
 			}
+			logrus.WithError(err).Error("Panicked while dialing UDP connection - traces will not be sent")
 		}
 	}()
 
