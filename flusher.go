@@ -874,6 +874,7 @@ func configureLightstepTracer(conf Config) func() opentracing.Tracer {
 				Plaintext: true,
 			},
 			UseGRPC: true,
+			Verbose: true,
 		})
 	}
 }
