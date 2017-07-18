@@ -1,5 +1,8 @@
 # 1.5.1, PENDING
 
+## Bugfixes
+* Flush the lightstep tracer before closing it. Thanks [gphat](https://github.com/gphat) with assist from [stangles](https://github.com/joshu-stripe)!
+
 ## Improvements
 * Better document how to configure Veneur as a DogStatsD replacement. Thanks [gphat](https://github.com/gphat) with assist from [stangles](https://github.com/stangles)!
 
