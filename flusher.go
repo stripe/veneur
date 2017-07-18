@@ -512,11 +512,13 @@ func (s *Server) flushTraces(ctx context.Context) {
 	})
 
 	for _, sink := range s.tracerSinks {
+		sinkFlushStart := time.Now()
 		sink.flush(span.Attach(ctx), s, sink.tracerThunk, ssfSpans)
 		tags := []string{
 			fmt.Sprintf("sink:%s", sink.name),
 			fmt.Sprintf("service:%s", trace.Service),
 		}
+		s.Statsd.TimeInMilliseconds("worker.trace.sink.flush_duration_ns", float64(time.Since(sinkFlushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", sink.name)}, 1.0)
 
 		s.Statsd.Count("worker.trace.sink.flushed_total", int64(len(ssfSpans)), tags, 1)
 	}
@@ -784,6 +786,7 @@ func flushSpansLightstep(ctx context.Context, s *Server, tracerThunk func() open
 	for _, ssfSpan := range ssfSpans {
 		flushSpanLightstep(lightstepTracer, ssfSpan)
 	}
+	lightstep.FlushLightStepTracer(lightstepTracer)
 
 	// Confusingly, this will still get called even if the Opentracing client fails to reach the collector
 	// because we don't get access to the error if that happens.
