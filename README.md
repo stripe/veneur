@@ -121,6 +121,24 @@ Veneur [includes optional plugins](tree/master/plugins) to extend it's capabilit
 
 Here we'll document some explanations of setup choices you may make when using Veneur.
 
+## With Datadog
+
+Veneur can act as a replacement for the stock DogStatsD. In our environment we disable the Datadog DogStatsd port by setting `use_dogstatsd` to false. We run Veneur on an alternate port (8200) so as to not accidentally ingest metrics from legacy StatsD clients and we configure our Datadog agent to use this port by `dogstatsd_port` to 8200 to match.
+
+## Clients
+
+Veneur is capable of ingesting:
+
+* [DogStatsD](https://docs.datadoghq.com/guides/dogstatsd/) including events and service checks
+* [SSF](https://github.com/stripe/veneur/tree/master/ssf) (experimental)
+* StatsD as a subset of DogStatsD, but this may cause trouble depending on where you store your metrics.
+
+To use clients with Veneur you need only configure your client of choice to the proper host and port combination. This port should match one of:
+
+* `udp_address` for UDP-based clients
+* `tcp_address` for TCP-based clients
+* `ssf_address` for SSF-based clients
+
 ## Einhorn Usage
 
 When you upgrade Veneur (deploy, stop, start with new binary) there will be a
