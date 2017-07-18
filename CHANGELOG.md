@@ -1,3 +1,8 @@
+# 1.5.1, PENDING
+
+## Improvements
+* Better document how to configure Veneur as a DogStatsD replacement. Thanks [gphat](https://github.com/gphat) with assist from [stangles](https://github.com/stangles)!
+
 # 1.5.0, 2017-07-13
 
 ## Bugfixes
