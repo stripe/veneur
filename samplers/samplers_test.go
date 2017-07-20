@@ -151,7 +151,6 @@ func TestSetMerge(t *testing.T) {
 }
 
 func TestHisto(t *testing.T) {
-
 	h := NewHist("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", h.Name, "Name")
