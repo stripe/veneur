@@ -72,7 +72,11 @@ func ParseMetricSSF(metric *ssf.SSFSample) (*UDPMetric, error) {
 		return nil, invalidMetricTypeError
 	}
 	h.Write([]byte(ret.Type))
-	ret.Value = float64(metric.Value)
+	if metric.Metric == ssf.SSFSample_SET {
+		ret.Value = metric.Message
+	} else {
+		ret.Value = float64(metric.Value)
+	}
 	ret.SampleRate = metric.SampleRate
 	tempTags := make([]string, len(metric.Tags))
 	for key, value := range metric.Tags {
