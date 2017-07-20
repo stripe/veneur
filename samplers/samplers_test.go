@@ -11,7 +11,6 @@ import (
 )
 
 func TestCounterEmpty(t *testing.T) {
-
 	c := NewCounter("a.b.c", []string{"a:b"})
 	c.Sample(1, 1.0)
 
@@ -32,7 +31,6 @@ func TestCounterEmpty(t *testing.T) {
 }
 
 func TestCounterRate(t *testing.T) {
-
 	c := NewCounter("a.b.c", []string{"a:b"})
 
 	c.Sample(5, 1.0)
@@ -43,7 +41,6 @@ func TestCounterRate(t *testing.T) {
 }
 
 func TestCounterSampleRate(t *testing.T) {
-
 	c := NewCounter("a.b.c", []string{"a:b"})
 
 	c.Sample(5, 0.5)
@@ -80,7 +77,6 @@ func TestCounterMerge(t *testing.T) {
 }
 
 func TestGauge(t *testing.T) {
-
 	g := NewGauge("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", g.Name, "Name")
@@ -253,7 +249,6 @@ func TestHisto(t *testing.T) {
 }
 
 func TestHistoAvgOnly(t *testing.T) {
-
 	h := NewHist("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", h.Name, "Name")
@@ -290,7 +285,6 @@ func TestHistoAvgOnly(t *testing.T) {
 }
 
 func TestHistoSampleRate(t *testing.T) {
-
 	h := NewHist("a.b.c", []string{"a:b"})
 
 	assert.Equal(t, "a.b.c", h.Name, "Name")
