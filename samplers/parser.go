@@ -92,6 +92,9 @@ func ParseMetricSSF(metric *ssf.SSFSample) (*UDPMetric, error) {
 			tempTags = append(tempTags, fmt.Sprintf("%s:%s", key, value))
 		}
 	}
+	if len(tempTags) == 0 {
+		tempTags = append(tempTags, ":")
+	}
 	sort.Strings(tempTags)
 	ret.Tags = tempTags
 	ret.JoinedTags = strings.Join(tempTags, ",")
