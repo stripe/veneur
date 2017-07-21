@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"fmt"
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
 	"github.com/gogo/protobuf/proto"
@@ -34,6 +35,7 @@ var (
 	// TODO: what should flags be called?
 	eTitle      = flag.String("e_title", "", "Title of event. Ex: 'An exception occurred' *")
 	eText       = flag.String("e_text", "", "Text of event. Insert line breaks with an esaped slash (\\\\n) *")
+	eTimestamp  = flag.String("e_time", "", "Add timestamp to the event. Default is the current Unix epoch timestamp.")
 	eHostname   = flag.String("e_hostname", "", "Hostname for the event.")
 	eAggrKey    = flag.String("e_aggr_key", "", "Add an aggregation key to group event with others with same key.")
 	ePriority   = flag.String("e_priority", "normal", "Priority of event. Must be 'low' or 'normal'.")
@@ -119,17 +121,21 @@ func main() {
 	} else if *mode == "event" {
 		logrus.Debug("Sending event")
 		nconn, _ := net.Dial("udp", addr)
-		var buffer bytes.Buffer
-		buffer.WriteString("event")
-		nconn.Write(buffer.Bytes())
-		logrus.Infof("Buffer string: %s", buffer.String())
+		pkt, err := buildEventPacket(passedFlags)
+		if err != nil {
+			logrus.WithError(err).Fatal("build event")
+		}
+		nconn.Write(pkt.Bytes())
+		logrus.Debugf("Buffer string: %s", pkt.String())
 	} else if *mode == "sc" {
 		logrus.Debug("Sending service check")
 		nconn, _ := net.Dial("udp", addr)
-		var buffer bytes.Buffer
-		buffer.WriteString("sc")
-		nconn.Write(buffer.Bytes())
-		logrus.Infof("Buffer string: %s", buffer.String())
+		pkt, err := buildSCPacket(passedFlags)
+		if err != nil {
+			logrus.WithError(err).Fatal("build event")
+		}
+		nconn.Write(pkt.Bytes())
+		logrus.Debugf("Buffer string: %s", pkt.String())
 	} else {
 		logrus.Fatalf("Mode '%s' is invalid.", *mode)
 	}
@@ -211,6 +217,95 @@ func sendSpan(conn MinimalConn, span *ssf.SSFSpan) error {
 		return err
 	}
 	return nil
+}
+
+// TODO: validity checking? or just fire and forget
+func buildEventPacket(passedFlags map[string]bool) (bytes.Buffer, error) {
+	var buffer bytes.Buffer
+	buffer.WriteString("_e")
+
+	if !passedFlags["e_title"] {
+		return bytes.Buffer{}, errors.New("missing event title")
+	}
+	if !passedFlags["e_text"] {
+		return bytes.Buffer{}, errors.New("missing event text")
+	}
+
+	buffer.WriteString(fmt.Sprintf("{%d,%d}", len(*eTitle), len(*eText)))
+	buffer.WriteString(":")
+
+	buffer.WriteString(*eTitle)
+	buffer.WriteString("|")
+
+	buffer.WriteString(*eText)
+	buffer.WriteString("|")
+
+	if passedFlags["e_time"] {
+		buffer.WriteString(fmt.Sprintf("|d:%s", *eTimestamp))
+	}
+
+	if passedFlags["e_hostname"] {
+		buffer.WriteString(fmt.Sprintf("|h:%s", *eHostname))
+	}
+
+	if passedFlags["e_aggr_key"] {
+		buffer.WriteString(fmt.Sprintf("|k:%s", *eAggrKey))
+	}
+
+	if passedFlags["e_priority"] {
+		buffer.WriteString(fmt.Sprintf("|p:%s", *ePriority))
+	}
+
+	if passedFlags["e_source_type"] {
+		buffer.WriteString(fmt.Sprintf("|s:%s", *eSourceType))
+	}
+
+	if passedFlags["e_alert_type"] {
+		buffer.WriteString(fmt.Sprintf("|t:%s", *eAlertType))
+	}
+
+	if passedFlags["e_event_tags"] {
+		buffer.WriteString(fmt.Sprintf("|#%s", *eTag))
+	}
+
+	return buffer, nil
+}
+
+func buildSCPacket(passedFlags map[string]bool) (bytes.Buffer, error) {
+	var buffer bytes.Buffer
+	buffer.WriteString("_sc")
+
+	if !passedFlags["sc_name"] {
+		return bytes.Buffer{}, errors.New("missing service check name")
+	}
+
+	if !passedFlags["sc_status"] {
+		return bytes.Buffer{}, errors.New("missing service check status")
+	}
+
+	buffer.WriteString("|")
+	buffer.WriteString(*scName)
+
+	buffer.WriteString("|")
+	buffer.WriteString(*scStatus)
+
+	if passedFlags["sc_time"] {
+		buffer.WriteString(fmt.Sprintf("|d:%s", *scTimestamp))
+	}
+
+	if passedFlags["sc_hostname"] {
+		buffer.WriteString(fmt.Sprintf("|h:%s", *scHostname))
+	}
+
+	if passedFlags["sc_tags"] {
+		buffer.WriteString(fmt.Sprintf("|#%s", *scTags))
+	}
+
+	if passedFlags["sc_msg"] {
+		buffer.WriteString(fmt.Sprintf("|m:%s", *scMsg))
+	}
+
+	return buffer, nil
 }
 
 func sendMetrics(client MinimalClient, passedFlags map[string]bool, name string, tags []string) error {
