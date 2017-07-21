@@ -3,9 +3,89 @@ package veneur
 import (
 	"testing"
 
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/ssf"
 )
+
+func freshSSFMetric() *ssf.SSFSample {
+	return &ssf.SSFSample{
+		Metric:     0,
+		Name:       "test.ssf_metric",
+		Value:      5,
+		Message:    "test_msg",
+		Status:     0,
+		SampleRate: 1,
+		Tags: map[string]string{
+			"tag1": "value1",
+			"tag2": "value2",
+		},
+	}
+}
+
+func TestParserSSF(t *testing.T) {
+	standardMetric := freshSSFMetric()
+	m, _ := samplers.ParseMetricSSF(standardMetric)
+	fmt.Printf("%v\n", m)
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, standardMetric.Name, m.Name, "Name")
+	assert.Equal(t, float64(standardMetric.Value), m.Value, "Value")
+	assert.Equal(t, "counter", m.Type, "Type")
+}
+
+func TestParserSSFGauge(t *testing.T) {
+	standardMetric := freshSSFMetric()
+	standardMetric.Metric = ssf.SSFSample_GAUGE
+	m, _ := samplers.ParseMetricSSF(standardMetric)
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, standardMetric.Name, m.Name, "Name")
+	assert.Equal(t, float64(standardMetric.Value), m.Value, "Value")
+	assert.Equal(t, "gauge", m.Type, "Type")
+}
+
+func TestParserSSFSet(t *testing.T) {
+	standardMetric := freshSSFMetric()
+	standardMetric.Metric = ssf.SSFSample_SET
+	m, _ := samplers.ParseMetricSSF(standardMetric)
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, standardMetric.Name, m.Name, "Name")
+	assert.Equal(t, standardMetric.Message, m.Value, "Value")
+	assert.Equal(t, "set", m.Type, "Type")
+}
+
+func TestParserSSFWithTags(t *testing.T) {
+	standardMetric := freshSSFMetric()
+	m, _ := samplers.ParseMetricSSF(standardMetric)
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, standardMetric.Name, m.Name, "Name")
+	assert.Equal(t, float64(standardMetric.Value), m.Value, "Value")
+	assert.Equal(t, "counter", m.Type, "Type")
+	assert.Equal(t, 2, len(m.Tags), "# of Tags")
+}
+
+func TestParserSSFWithSampleRate(t *testing.T) {
+	standardMetric := freshSSFMetric()
+	standardMetric.SampleRate = 0.1
+	m, _ := samplers.ParseMetricSSF(standardMetric)
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, standardMetric.Name, m.Name, "Name")
+	assert.Equal(t, float64(standardMetric.Value), m.Value, "Value")
+	assert.Equal(t, "counter", m.Type, "Type")
+	assert.Equal(t, float32(0.1), m.SampleRate, "Sample Rate")
+}
+
+func TestParserSSFWithSampleRateAndTags(t *testing.T) {
+	standardMetric := freshSSFMetric()
+	standardMetric.SampleRate = 0.1
+	m, _ := samplers.ParseMetricSSF(standardMetric)
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, standardMetric.Name, m.Name, "Name")
+	assert.Equal(t, float64(standardMetric.Value), m.Value, "Value")
+	assert.Equal(t, "counter", m.Type, "Type")
+	assert.Equal(t, float32(0.1), m.SampleRate, "Sample Rate")
+	assert.Len(t, m.Tags, 2, "Tags")
+}
 
 func TestParser(t *testing.T) {
 	m, _ := samplers.ParseMetric([]byte("a.b.c:1|c"))
