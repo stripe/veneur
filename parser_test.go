@@ -3,7 +3,6 @@ package veneur
 import (
 	"testing"
 
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
@@ -27,7 +26,6 @@ func freshSSFMetric() *ssf.SSFSample {
 func TestParserSSF(t *testing.T) {
 	standardMetric := freshSSFMetric()
 	m, _ := samplers.ParseMetricSSF(standardMetric)
-	fmt.Printf("%v\n", m)
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, standardMetric.Name, m.Name, "Name")
 	assert.Equal(t, float64(standardMetric.Value), m.Value, "Value")
