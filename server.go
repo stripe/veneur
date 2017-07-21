@@ -547,6 +547,17 @@ func ValidTrace(sample ssf.SSFSpan) bool {
 	return ret
 }
 
+// ValidMetric takes in an SSF sample and determines if it is valid or not.
+func ValidMetric(sample samplers.UDPMetric) bool {
+	ret := true
+	ret = ret && sample.Name != ""
+	ret = ret && sample.Value != nil
+	if sample.SampleRate == 0 {
+		sample.SampleRate = 1
+	}
+	return ret
+}
+
 // HandleTracePacket accepts an incoming packet as bytes and sends it to the
 // appropriate worker.
 func (s *Server) HandleTracePacket(packet []byte) {
@@ -577,11 +588,17 @@ func (s *Server) HandleTracePacket(packet []byte) {
 			s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", "reason:parse"}, 1.0)
 			return
 		}
-		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
+		if ValidMetric(*metric) {
+			s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
+		} else {
+			s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", "reason:not_valid"}, 1.0)
+		}
 	}
 	if ValidTrace(*newSample) {
 		s.Statsd.Incr("packet.spans.received_total", nil, .1)
 		s.TraceWorker.TraceChan <- *newSample
+	} else {
+		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_span", "reason:not_valid"}, 1.0)
 	}
 }
 
