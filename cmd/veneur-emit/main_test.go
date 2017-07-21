@@ -7,8 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/gogo/protobuf/proto"
+	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur"
 )
 
@@ -59,6 +61,12 @@ type fakeConn struct{}
 func (c *fakeConn) Write(data []byte) (int, error) {
 	dataWritten = data
 	return len(data), nil
+}
+
+type badConn struct{}
+
+func (c *badConn) Write(data []byte) (int, error) {
+	return 0, errors.New("bad write")
 }
 
 func TestMain(m *testing.M) {
@@ -254,6 +262,39 @@ func TestSendSpan(t *testing.T) {
 	if !bytes.Equal(orig, dataWritten) {
 		t.Error("Did not send correct data.")
 	}
+}
+
+func TestBadSendSpan(t *testing.T) {
+	dataWritten = []byte{}
+	conn := &badConn{}
+	span, _ := createMetrics(testFlag, "test.metric", "tag1:value1")
+	err := sendSpan(conn, span)
+	assert.NotNil(t, err, "Did not return err!")
+}
+
+func TestBuildEventPacketError(t *testing.T) {
+	flags := map[string]bool{
+		"e_title": false,
+		"e_text":  false,
+	}
+	pkt, err := buildEventPacket(flags)
+	fmt.Println(pkt.String())
+	fmt.Println(err)
+	assert.NotNil(t, err, "Did not catch error.")
+}
+
+func TestBuildEventPacket(t *testing.T) {
+	flags := map[string]bool{
+		"e_title": true,
+		"e_text":  true,
+	}
+	text := "test"
+	// eTitle := &text
+
+	pkt, err := buildEventPacket(flags)
+	assert.Nil(t, err, "Returned error.")
+
+	assert.Contains(t, pkt, "")
 }
 
 func resetMap(m map[string]bool) {

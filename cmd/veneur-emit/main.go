@@ -224,11 +224,8 @@ func buildEventPacket(passedFlags map[string]bool) (bytes.Buffer, error) {
 	var buffer bytes.Buffer
 	buffer.WriteString("_e")
 
-	if !passedFlags["e_title"] {
-		return bytes.Buffer{}, errors.New("missing event title")
-	}
-	if !passedFlags["e_text"] {
-		return bytes.Buffer{}, errors.New("missing event text")
+	if !passedFlags["e_title"] || !passedFlags["e_text"] {
+		return bytes.Buffer{}, errors.New("missing event title or text")
 	}
 
 	buffer.WriteString(fmt.Sprintf("{%d,%d}", len(*eTitle), len(*eText)))
