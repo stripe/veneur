@@ -743,8 +743,14 @@ func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tra
 		delete(tags, trace.NameKey)
 		delete(tags, trace.ResourceKey)
 
-		// TODO implement additional metrics
-		var metrics map[string]float64
+		metrics := make(map[string]float64)
+
+		for _, met := range span.Metrics {
+			// Datadog doesn't accept non-string metrics, so we have to throw away sets.
+			if met.GetMetric() != ssf.SSFSample_SET {
+				metrics[met.GetName()] = float64(met.GetValue())
+			}
+		}
 
 		var errorCode int64
 		if span.Error {
