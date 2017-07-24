@@ -1,3 +1,12 @@
+# 1.5.2, pending
+
+## Bugfixes
+* Correctly parse `Set` metrics if sent via SSF. Thanks [redsn0w422](https://github.com/redsn0w422)!
+* Return correct array of tags after parsing an SSF metric. Thanks [redsn0w422](https://github.com/redsn0w422)!
+
+## Improvements
+* Added tests for `parseMetricSSF`. Thanks [redsn0w422](https://github.com/redsn0w422)!
+
 # 1.5.1, 2017-07-18
 
 ## Bugfixes
