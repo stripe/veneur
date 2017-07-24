@@ -795,8 +795,12 @@ func flushSpansLightstep(ctx context.Context, s *Server, lightstepTracer opentra
 	for _, ssfSpan := range ssfSpans {
 		flushSpanLightstep(lightstepTracer, ssfSpan)
 	}
-
-	lightstep.FlushLightStepTracer(lightstepTracer)
+	err := lightstep.FlushLightStepTracer(lightstepTracer)
+	if err != nil {
+		log.WithError(err).Error("Error flushing traces to Lightstep")
+		s.Statsd.Incr("worker.trace.sink.flush_errors", []string{"sink:lightstep"}, 1)
+		span.Error(err)
+	}
 
 	// Confusingly, this will still get called even if the Opentracing client fails to reach the collector
 	// because we don't get access to the error if that happens.
