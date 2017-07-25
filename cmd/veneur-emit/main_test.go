@@ -339,15 +339,16 @@ func TestBuildEventPacket(t *testing.T) {
 		assert.True(t, strings.HasPrefix(pkt.String(), "_e"))
 	})
 
-	// TODO: check this test
 	t.Run("newline", func(t *testing.T) {
 		testFlag["e_title"] = newValue("An exception occurred")
-		testFlag["e_text"] = newValue("Cannot parse JSON request:\\n{'foo': 'bar'}")
+		testFlag["e_text"] = newValue("Cannot parse JSON request:\n{'foo': 'bar'}")
 		testFlag["e_priority"] = newValue("low")
 		testFlag["e_event_tags"] = newValue("err_type:bad_request")
 
-		_, err := buildEventPacket(testFlag)
+		pkt, err := buildEventPacket(testFlag)
 		assert.Nil(t, err, "Returned non-nil error.")
+
+		assert.Contains(t, pkt.String(), "\\n", "Did not parse newline.")
 	})
 
 	t.Run("all", func(t *testing.T) {
