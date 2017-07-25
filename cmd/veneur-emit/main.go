@@ -230,7 +230,6 @@ func sendSpan(conn MinimalConn, span *ssf.SSFSpan) error {
 	return nil
 }
 
-// TODO: validity checking? or just fire and forget
 func buildEventPacket(passedFlags map[string]flag.Value) (bytes.Buffer, error) {
 	var buffer bytes.Buffer
 	buffer.WriteString("_e")
