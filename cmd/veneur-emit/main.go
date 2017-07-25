@@ -14,6 +14,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/stripe/veneur"
 	"github.com/stripe/veneur/ssf"
+	"strconv"
 )
 
 var (
@@ -72,7 +73,7 @@ func main() {
 	}
 
 	var config *veneur.Config
-	if passedFlags["f"] {
+	if passedFlags["f"] != nil {
 		conf, err := veneur.ReadConfig(*configFile)
 		if err != nil {
 			logrus.WithError(err).Fatal("Error reading configuration file.")
@@ -141,12 +142,12 @@ func main() {
 	}
 }
 
-func flags() map[string]bool {
+func flags() map[string]flag.Value {
 	flag.Parse()
 	// hacky way to detect which flags were *actually* set
-	passedFlags := make(map[string]bool)
+	passedFlags := make(map[string]flag.Value)
 	flag.Visit(func(f *flag.Flag) {
-		passedFlags[f.Name] = true
+		passedFlags[f.Name] = f.Value
 	})
 	return passedFlags
 }
@@ -159,12 +160,14 @@ func tags(tag string) []string {
 	return tags
 }
 
-func addr(passedFlags map[string]bool, conf *veneur.Config, hostport *string) (string, error) {
+func addr(passedFlags map[string]flag.Value, conf *veneur.Config, hostport *string) (string, error) {
 	addr := ""
 	var err error
 	if conf != nil {
 		addr = conf.UdpAddress // TODO: conf.TcpAddress
-	} else if passedFlags["hostport"] && hostport != nil {
+	} else if passedFlags["hostport"] != nil {
+		addr = passedFlags["hostport"].String()
+	} else if hostport != nil {
 		addr = *hostport
 	} else {
 		err = errors.New("you must either specify a Veneur config file or a valid hostport")
@@ -183,22 +186,30 @@ func bareMetric(name string, tags string) *ssf.SSFSample {
 	return metric
 }
 
-func createMetrics(passedFlags map[string]bool, name string, tags string) (*ssf.SSFSpan, error) {
+func createMetrics(passedFlags map[string]flag.Value, name string, tags string) (*ssf.SSFSpan, error) {
 	var err error
 	span := &ssf.SSFSpan{}
-	if passedFlags["gauge"] {
-		logrus.Debugf("Sending gauge '%s' -> %f", name, *gauge)
+	if passedFlags["gauge"] != nil {
+		logrus.Debugf("Sending gauge '%s' -> %f", name, passedFlags["gauge"].String())
+		value, err := strconv.ParseFloat(passedFlags["gauge"].String(), 32)
+		if err != nil {
+			return nil, err
+		}
 		metric := bareMetric(name, tags)
 		metric.Metric = ssf.SSFSample_GAUGE
-		metric.Value = float32(*gauge)
+		metric.Value = float32(value)
 		span.Metrics = append(span.Metrics, metric)
 	}
 	// TODO: figure out timing metrics
-	if passedFlags["count"] {
-		logrus.Debugf("Sending count '%s' -> %d", name, *count)
+	if passedFlags["count"] != nil {
+		logrus.Debugf("Sending count '%s' -> %s", name, passedFlags["count"].String())
+		value, err := strconv.ParseInt(passedFlags["count"].String(), 10, 64)
+		if err != nil {
+			return nil, err
+		}
 		metric := bareMetric(name, tags)
 		metric.Metric = ssf.SSFSample_COUNTER
-		metric.Value = float32(*count)
+		metric.Value = float32(value)
 		span.Metrics = append(span.Metrics, metric)
 	}
 	return span, err
@@ -220,115 +231,130 @@ func sendSpan(conn MinimalConn, span *ssf.SSFSpan) error {
 }
 
 // TODO: validity checking? or just fire and forget
-func buildEventPacket(passedFlags map[string]bool) (bytes.Buffer, error) {
+func buildEventPacket(passedFlags map[string]flag.Value) (bytes.Buffer, error) {
 	var buffer bytes.Buffer
 	buffer.WriteString("_e")
 
-	if !passedFlags["e_title"] || !passedFlags["e_text"] {
-		return bytes.Buffer{}, errors.New("missing event title or text")
+	if passedFlags["e_title"] == nil {
+		return bytes.Buffer{}, errors.New("missing event title")
 	}
 
-	buffer.WriteString(fmt.Sprintf("{%d,%d}", len(*eTitle), len(*eText)))
+	if passedFlags["e_text"] == nil {
+		return bytes.Buffer{}, errors.New("missing event text")
+	}
+
+	buffer.WriteString(fmt.Sprintf("{%d,%d}", len(passedFlags["e_title"].String()), len(passedFlags["e_text"].String())))
 	buffer.WriteString(":")
 
-	buffer.WriteString(*eTitle)
+	buffer.WriteString(passedFlags["e_title"].String())
 	buffer.WriteString("|")
 
-	buffer.WriteString(*eText)
-	buffer.WriteString("|")
+	buffer.WriteString(passedFlags["e_text"].String())
 
-	if passedFlags["e_time"] {
-		buffer.WriteString(fmt.Sprintf("|d:%s", *eTimestamp))
+	if passedFlags["e_time"] != nil {
+		buffer.WriteString(fmt.Sprintf("|d:%s", passedFlags["e_time"].String()))
 	}
 
-	if passedFlags["e_hostname"] {
-		buffer.WriteString(fmt.Sprintf("|h:%s", *eHostname))
+	if passedFlags["e_hostname"] != nil {
+		buffer.WriteString(fmt.Sprintf("|h:%s", passedFlags["e_hostname"].String()))
 	}
 
-	if passedFlags["e_aggr_key"] {
-		buffer.WriteString(fmt.Sprintf("|k:%s", *eAggrKey))
+	if passedFlags["e_aggr_key"] != nil {
+		buffer.WriteString(fmt.Sprintf("|k:%s", passedFlags["e_aggr_key"].String()))
 	}
 
-	if passedFlags["e_priority"] {
-		buffer.WriteString(fmt.Sprintf("|p:%s", *ePriority))
+	if passedFlags["e_priority"] != nil {
+		buffer.WriteString(fmt.Sprintf("|p:%s", passedFlags["e_priority"].String()))
 	}
 
-	if passedFlags["e_source_type"] {
-		buffer.WriteString(fmt.Sprintf("|s:%s", *eSourceType))
+	if passedFlags["e_source_type"] != nil {
+		buffer.WriteString(fmt.Sprintf("|s:%s", passedFlags["e_source_type"].String()))
 	}
 
-	if passedFlags["e_alert_type"] {
-		buffer.WriteString(fmt.Sprintf("|t:%s", *eAlertType))
+	if passedFlags["e_alert_type"] != nil {
+		buffer.WriteString(fmt.Sprintf("|t:%s", passedFlags["e_alert_type"].String()))
 	}
 
-	if passedFlags["e_event_tags"] {
-		buffer.WriteString(fmt.Sprintf("|#%s", *eTag))
+	if passedFlags["e_event_tags"] != nil {
+		buffer.WriteString(fmt.Sprintf("|#%s", passedFlags["e_event_tags"].String()))
 	}
 
 	return buffer, nil
 }
 
-func buildSCPacket(passedFlags map[string]bool) (bytes.Buffer, error) {
+func buildSCPacket(passedFlags map[string]flag.Value) (bytes.Buffer, error) {
 	var buffer bytes.Buffer
 	buffer.WriteString("_sc")
 
-	if !passedFlags["sc_name"] {
+	if passedFlags["sc_name"] != nil {
 		return bytes.Buffer{}, errors.New("missing service check name")
 	}
 
-	if !passedFlags["sc_status"] {
+	if passedFlags["sc_status"] != nil {
 		return bytes.Buffer{}, errors.New("missing service check status")
 	}
 
 	buffer.WriteString("|")
-	buffer.WriteString(*scName)
+	buffer.WriteString(passedFlags["sc_name"].String())
 
 	buffer.WriteString("|")
-	buffer.WriteString(*scStatus)
+	buffer.WriteString(passedFlags["sc_status"].String())
 
-	if passedFlags["sc_time"] {
-		buffer.WriteString(fmt.Sprintf("|d:%s", *scTimestamp))
+	if passedFlags["sc_time"] != nil {
+		buffer.WriteString(fmt.Sprintf("|d:%s", passedFlags["sc_time"].String()))
 	}
 
-	if passedFlags["sc_hostname"] {
-		buffer.WriteString(fmt.Sprintf("|h:%s", *scHostname))
+	if passedFlags["sc_hostname"] != nil {
+		buffer.WriteString(fmt.Sprintf("|h:%s", passedFlags["sc_hostname"].String()))
 	}
 
-	if passedFlags["sc_tags"] {
-		buffer.WriteString(fmt.Sprintf("|#%s", *scTags))
+	if passedFlags["sc_tags"] != nil {
+		buffer.WriteString(fmt.Sprintf("|#%s", passedFlags["sc_tags"].String()))
 	}
 
-	if passedFlags["sc_msg"] {
-		buffer.WriteString(fmt.Sprintf("|m:%s", *scMsg))
+	if passedFlags["sc_msg"] != nil {
+		buffer.WriteString(fmt.Sprintf("|m:%s", passedFlags["sc_msg"].String()))
 	}
 
 	return buffer, nil
 }
 
-func sendMetrics(client MinimalClient, passedFlags map[string]bool, name string, tags []string) error {
+func sendMetrics(client MinimalClient, passedFlags map[string]flag.Value, name string, tags []string) error {
 	var err error
-	if passedFlags["gauge"] {
-		logrus.Debugf("Sending gauge '%s' -> %f", name, *gauge)
-		err = client.Gauge(name, *gauge, tags, 1)
+	if passedFlags["gauge"] != nil {
+		logrus.Debugf("Sending gauge '%s' -> %f", name, passedFlags["gauge"].String())
+		value, err := strconv.ParseFloat(passedFlags["gauge"].String(), 64)
+		if err != nil {
+			return err
+		}
+		err = client.Gauge(name, value, tags, 1)
 		if err != nil {
 			return err
 		}
 	}
-	if passedFlags["timing"] {
-		logrus.Debugf("Sending timing '%s' -> %f", name, *timing)
-		err = client.Timing(name, *timing, tags, 1)
+	if passedFlags["timing"] != nil {
+		logrus.Debugf("Sending timing '%s' -> %f", name, passedFlags["timing"].String())
+		value, err := time.ParseDuration(passedFlags["timing"].String())
+		if err != nil {
+			return err
+		}
+		err = client.Timing(name, value, tags, 1)
 		if err != nil {
 			return err
 		}
 	}
-	if passedFlags["count"] {
-		logrus.Debugf("Sending count '%s' -> %d", name, *count)
-		err = client.Count(name, *count, tags, 1)
+	if passedFlags["count"] != nil {
+		logrus.Debugf("Sending count '%s' -> %s", name, passedFlags["count"].String())
+		value, err := strconv.ParseInt(passedFlags["count"].String(), 10, 64)
+		if err != nil {
+			return err
+		}
+		err = client.Count(name, value, tags, 1)
 		if err != nil {
 			return err
 		}
 	}
-	if !passedFlags["gauge"] && !passedFlags["timing"] && !passedFlags["timeinms"] && !passedFlags["count"] {
+	if passedFlags["gauge"] == nil && passedFlags["timing"] == nil && passedFlags["timeinms"] == nil && passedFlags["count"] == nil {
 		logrus.Info("No metrics reported.")
 	}
 	return err
