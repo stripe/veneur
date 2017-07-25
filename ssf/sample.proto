@@ -45,6 +45,9 @@ message SSFSpan {
   int64 start_timestamp = 5;
   int64 end_timestamp = 6;
 
+  // This flag being true signals that this span was an error. That definition
+  // of error is not implicitly fatal, as a span may error but be fixed by
+  // a subsequent retry, etc.
   bool error = 7;
 
   // The name of the service
@@ -55,5 +58,22 @@ message SSFSpan {
   string operation = 9;
 
   repeated SSFSample metrics = 10;
+
+  // Tags are name value pairs that describe a facet of the span. They apply to
+  // the *entire* span as opposed to logs which apply to a specific time in
+  // the span.
   map<string, string> tags = 11;
+
+  // An indicator span is one that represents an action that is included in a
+  // service's Service Level Indicators (https://en.wikipedia.org/wiki/Service_level_indicator)
+  // This is a signal to receivers that this span may be used to compute SLIs.
+  // In practice a service's core feature — the thing you would "bill" for, such
+  // as an API call or read/write operation — would be flagged as an indicator
+  // span, and it's child spans would further describe it's duration.
+  bool indicator = 12;
+}
+
+// A span collection allows clients to send a batch of spans rather than just one.
+message SSFSpanCollection {
+  repeated SSFSpan spans = 1;
 }
