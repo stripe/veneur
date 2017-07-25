@@ -249,7 +249,8 @@ func buildEventPacket(passedFlags map[string]flag.Value) (bytes.Buffer, error) {
 	buffer.WriteString(passedFlags["e_title"].String())
 	buffer.WriteString("|")
 
-	buffer.WriteString(passedFlags["e_text"].String())
+	text := strings.Replace(passedFlags["e_text"].String(), "\n", "\\n", -1)
+	buffer.WriteString(text)
 
 	if passedFlags["e_time"] != nil {
 		buffer.WriteString(fmt.Sprintf("|d:%s", passedFlags["e_time"].String()))
