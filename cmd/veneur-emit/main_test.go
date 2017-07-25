@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,6 +47,10 @@ func (v *fakeValue) String() string {
 func (v *fakeValue) Set(s string) error {
 	v.value = s
 	return nil
+}
+
+func newValue(s string) *fakeValue {
+	return &fakeValue{value: s}
 }
 
 func (c *fakeClient) Gauge(name string, value float64, tags []string, rate float64) error {
@@ -91,7 +97,7 @@ func TestGauge(t *testing.T) {
 	client := &fakeClient{}
 	resetMap(calledFunctions)
 	testFlag := make(map[string]flag.Value)
-	testFlag["gauge"] = &fakeValue{value: "3"}
+	testFlag["gauge"] = newValue("3")
 	err := sendMetrics(client, testFlag, "testMetric", testTags)
 	if err != nil || !calledFunctions["gauge"] {
 		t.Error("Did not send 'gauge' metric.")
@@ -102,7 +108,7 @@ func TestCount(t *testing.T) {
 	client := &fakeClient{}
 	resetMap(calledFunctions)
 	testFlag := make(map[string]flag.Value)
-	testFlag["count"] = &fakeValue{value: "3"}
+	testFlag["count"] = newValue("3")
 	err := sendMetrics(client, testFlag, "testMetric", testTags)
 	if err != nil || !calledFunctions["count"] {
 		t.Error("Did not send 'count' metric.")
@@ -113,7 +119,7 @@ func TestTiming(t *testing.T) {
 	client := &fakeClient{}
 	resetMap(calledFunctions)
 	testFlag := make(map[string]flag.Value)
-	testFlag["timing"] = &fakeValue{value: "3ns"}
+	testFlag["timing"] = newValue("3ns")
 	err := sendMetrics(client, testFlag, "testMetric", testTags)
 	if err != nil || !calledFunctions["timing"] {
 		t.Error("Did not send 'timing' metric.")
@@ -124,8 +130,8 @@ func TestMultiple(t *testing.T) {
 	client := &fakeClient{}
 	resetMap(calledFunctions)
 	testFlag := make(map[string]flag.Value)
-	testFlag["gauge"] = &fakeValue{value: "3"}
-	testFlag["count"] = &fakeValue{value: "2"}
+	testFlag["gauge"] = newValue("3")
+	testFlag["count"] = newValue("2")
 	err := sendMetrics(client, testFlag, "testMetrics", testTags)
 	if err != nil || (!calledFunctions["count"] && !calledFunctions["gauge"]) {
 		t.Error("Did not send multiple metrics.")
@@ -148,7 +154,7 @@ func TestBadCalls(t *testing.T) {
 	var err error
 	resetMap(calledFunctions)
 	testFlag := make(map[string]flag.Value)
-	testFlag["gauge"] = &fakeValue{value: "3"}
+	testFlag["gauge"] = newValue("3")
 	err = sendMetrics(client, testFlag, "testBadMetric", testTags)
 	if err == nil || err.Error() != "error sending metric" || !calledFunctions["gauge"] {
 		t.Error("Did not detect error")
@@ -156,7 +162,7 @@ func TestBadCalls(t *testing.T) {
 
 	resetMap(calledFunctions)
 	testFlag = make(map[string]flag.Value)
-	testFlag["timing"] = &fakeValue{value: "3ns"}
+	testFlag["timing"] = newValue("3ns")
 	err = sendMetrics(client, testFlag, "testBadMetric", testTags)
 	if err == nil || err.Error() != "error sending metric" || !calledFunctions["timing"] {
 		t.Error("Did not detect error")
@@ -164,7 +170,7 @@ func TestBadCalls(t *testing.T) {
 
 	resetMap(calledFunctions)
 	testFlag = make(map[string]flag.Value)
-	testFlag["count"] = &fakeValue{value: "3"}
+	testFlag["count"] = newValue("3")
 	err = sendMetrics(client, testFlag, "testBadMetric", testTags)
 	if err == nil || err.Error() != "error sending metric" || !calledFunctions["count"] {
 		t.Error("Did not detect error")
@@ -174,7 +180,7 @@ func TestBadCalls(t *testing.T) {
 func TestHostport(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testHostport := "host:port"
-	testFlag["hostport"] = &fakeValue{value: testHostport}
+	testFlag["hostport"] = newValue(testHostport)
 	addr, err := addr(testFlag, nil, &testHostport)
 	if addr != testHostport || err != nil {
 		t.Error("Did not return hostport.")
@@ -193,7 +199,7 @@ func TestConfig(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	fakeConfig := &veneur.Config{}
 	fakeConfig.UdpAddress = "testudp"
-	testFlag["f"] = &fakeValue{value: "/pay/conf/veneur.yaml"}
+	testFlag["f"] = newValue("/pay/conf/veneur.yaml")
 	addr, err := addr(testFlag, fakeConfig, nil)
 	if addr != "testudp" || err != nil {
 		t.Error("Did not use config file for hostname and port.")
@@ -248,8 +254,8 @@ func TestBareMetrics(t *testing.T) {
 func TestCreateMetrics(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 
-	testFlag["gauge"] = &fakeValue{value: "3.14"}
-	testFlag["count"] = &fakeValue{value: "2"}
+	testFlag["gauge"] = newValue("3.14")
+	testFlag["count"] = newValue("2")
 	span, _ := createMetrics(testFlag, "test.metric", "tag1:value1")
 	if len(span.Metrics) != 2 {
 		t.Error("Not reporting right number of metrics.")
@@ -289,6 +295,155 @@ func TestBuildEventPacketError(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	_, err := buildEventPacket(testFlag)
 	assert.NotNil(t, err, "Did not catch error.")
+
+	testFlag["e_title"] = newValue("myBadTitle")
+	_, err = buildEventPacket(testFlag)
+	assert.NotNil(t, err, "Did not catch error. (title, no text)")
+
+	testFlag = make(map[string]flag.Value)
+	testFlag["e_text"] = newValue("myBadText")
+	_, err = buildEventPacket(testFlag)
+	assert.NotNil(t, err, "Did not catch error. (text, no title)")
+}
+
+func TestBuildEventPacket(t *testing.T) {
+	myTitle := "myTitle"
+	myText := "myText"
+
+	testFlag := make(map[string]flag.Value)
+
+	t.Run("simple", func(t *testing.T) {
+		testFlag["e_title"] = newValue(myTitle)
+		testFlag["e_text"] = newValue(myText)
+
+		pkt, err := buildEventPacket(testFlag)
+		assert.Nil(t, err, "Returned non-nil error.")
+
+		expected := fmt.Sprintf("_e{%d,%d}:%s|%s", len(myTitle), len(myText), myTitle, myText)
+		assert.Equal(t, pkt.String(), expected, "Bad event packet.")
+	})
+
+	t.Run("basic", func(t *testing.T) {
+		testFlag["e_title"] = newValue("An exception occurred")
+		testFlag["e_text"] = newValue("Cannot parse CSV file from 10.0.0.17")
+		testFlag["e_alert_type"] = newValue("warning")
+		tags := "tag1:value1"
+		testFlag["e_event_tags"] = newValue(tags)
+
+		pkt, err := buildEventPacket(testFlag)
+		assert.Nil(t, err, "Returned non-nil error.")
+
+		suffix := fmt.Sprintf("#%s", tags)
+		assert.True(t, strings.HasSuffix(pkt.String(), suffix), "Tags not at end of event packet.")
+
+		assert.True(t, strings.HasPrefix(pkt.String(), "_e"))
+	})
+
+	// TODO: check this test
+	t.Run("newline", func(t *testing.T) {
+		testFlag["e_title"] = newValue("An exception occurred")
+		testFlag["e_text"] = newValue("Cannot parse JSON request:\\n{'foo': 'bar'}")
+		testFlag["e_priority"] = newValue("low")
+		testFlag["e_event_tags"] = newValue("err_type:bad_request")
+
+		_, err := buildEventPacket(testFlag)
+		assert.Nil(t, err, "Returned non-nil error.")
+	})
+
+	t.Run("all", func(t *testing.T) {
+		testFlag["e_title"] = newValue("An exception occurred")
+		testFlag["e_text"] = newValue("Cannot parse CSV file from 10.0.0.17")
+		testFlag["e_time"] = newValue("1501002564")
+		testFlag["e_hostname"] = newValue("tester.host")
+		testFlag["e_aggr_key"] = newValue("testEvents")
+		testFlag["e_priority"] = newValue("low")
+		testFlag["e_source_type"] = newValue("tester")
+		testFlag["e_alert_type"] = newValue("warning")
+		testFlag["e_event_tags"] = newValue("err_type:bad")
+
+		pkt, err := buildEventPacket(testFlag)
+		assert.Nil(t, err, "Returned non-nil error.")
+
+		data := pkt.String()
+		assert.True(t, strings.HasPrefix(data, "_e"), "Missing _e at beginning.")
+		assert.Contains(t, data, "|d:1501002564", "Missing timestamp.")
+		assert.Contains(t, data, "|h:tester.host", "Missing hostname.")
+		assert.Contains(t, data, "|k:testEvents", "Missing aggregation key.")
+		assert.Contains(t, data, "|p:low", "Missing priority.")
+		assert.Contains(t, data, "|s:tester", "Missing source type.")
+		assert.Contains(t, data, "|t:warning", "Missing alert type.")
+		assert.True(t, strings.HasSuffix(data, "|#err_type:bad"), "Missing tags at end of packet.")
+	})
+}
+
+func TestBuilldSCPacketError(t *testing.T) {
+	testFlag := make(map[string]flag.Value)
+	_, err := buildSCPacket(testFlag)
+	assert.NotNil(t, err, "Did not catch error.")
+
+	testFlag["sc_name"] = newValue("myBadName")
+	_, err = buildSCPacket(testFlag)
+	assert.NotNil(t, err, "Did not catch error. (title, no text)")
+
+	testFlag = make(map[string]flag.Value)
+	testFlag["sc_status"] = newValue("myBadStatus")
+	_, err = buildSCPacket(testFlag)
+	assert.NotNil(t, err, "Did not catch error. (text, no title)")
+}
+
+func TestBuilldSCPacket(t *testing.T) {
+	myName := "myName"
+	myStatus := "1" // Corresponds to WARNING
+
+	testFlag := make(map[string]flag.Value)
+
+	t.Run("simple", func(t *testing.T) {
+		testFlag["sc_name"] = newValue(myName)
+		testFlag["sc_status"] = newValue(myStatus)
+
+		pkt, err := buildSCPacket(testFlag)
+		assert.Nil(t, err, "Returned non-nil error.")
+
+		expected := fmt.Sprintf("_sc|%s|%s", myName, myStatus)
+		assert.Equal(t, pkt.String(), expected, "Bad service check packet.")
+	})
+
+	t.Run("basic", func(t *testing.T) {
+		msg := "Redis connection timed out after 10s"
+		testFlag["sc_name"] = newValue("Redis connection")
+		testFlag["sc_status"] = newValue("2")
+		testFlag["sc_tags"] = newValue("redis_instance:10.0.0.16:6379")
+		testFlag["sc_msg"] = newValue(msg)
+
+		pkt, err := buildSCPacket(testFlag)
+		assert.Nil(t, err, "Returned non-nil error.")
+
+		expected := "_sc|Redis connection|2|#redis_instance:10.0.0.16:6379|m:Redis connection timed out after 10s"
+		assert.Equal(t, expected, pkt.String(), "Bad service check packet.")
+
+		assert.True(t, strings.HasSuffix(pkt.String(), msg), "Message not at the end of the packet.")
+	})
+
+	t.Run("all", func(t *testing.T) {
+		msg := "Redis connection timed out after 10s"
+		testFlag["sc_name"] = newValue("Redis connection")
+		testFlag["sc_status"] = newValue("2")
+		testFlag["sc_time"] = newValue("1501002564")
+		testFlag["sc_hostname"] = newValue("tester.host")
+		testFlag["sc_tags"] = newValue("redis_instance:10.0.0.16:6379")
+		testFlag["sc_msg"] = newValue(msg)
+
+		pkt, err := buildSCPacket(testFlag)
+		assert.Nil(t, err, "Returned non-nil error.")
+
+		data := pkt.String()
+		assert.True(t, strings.HasPrefix(data, "_sc"), "Missing _sc at beginning.")
+		assert.Contains(t, data, "|d:1501002564", "Missing timestamp.")
+		assert.Contains(t, data, "|h:tester.host", "Missing hostname.")
+		assert.Contains(t, data, "|#redis_instance:10.0.0.16:6379", "Missing service check tags.")
+		suffix := fmt.Sprintf("|m:%s", msg)
+		assert.True(t, strings.HasSuffix(data, suffix), "Missing message at end of packet.")
+	})
 }
 
 func resetMap(m map[string]bool) {
