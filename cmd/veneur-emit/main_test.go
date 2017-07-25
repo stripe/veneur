@@ -3,11 +3,11 @@ package main
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"os"
 	"testing"
 	"time"
 
-	"fmt"
 	"github.com/Sirupsen/logrus"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
@@ -32,6 +32,19 @@ var (
 
 type fakeClient struct {
 	Tags []string
+}
+
+type fakeValue struct {
+	value string
+}
+
+func (v *fakeValue) String() string {
+	return v.value
+}
+
+func (v *fakeValue) Set(s string) error {
+	v.value = s
+	return nil
 }
 
 func (c *fakeClient) Gauge(name string, value float64, tags []string, rate float64) error {
@@ -76,9 +89,9 @@ func TestMain(m *testing.M) {
 
 func TestGauge(t *testing.T) {
 	client := &fakeClient{}
-	resetMap(testFlag)
 	resetMap(calledFunctions)
-	testFlag["gauge"] = true
+	testFlag := make(map[string]flag.Value)
+	testFlag["gauge"] = &fakeValue{value: "3"}
 	err := sendMetrics(client, testFlag, "testMetric", testTags)
 	if err != nil || !calledFunctions["gauge"] {
 		t.Error("Did not send 'gauge' metric.")
@@ -87,9 +100,9 @@ func TestGauge(t *testing.T) {
 
 func TestCount(t *testing.T) {
 	client := &fakeClient{}
-	resetMap(testFlag)
 	resetMap(calledFunctions)
-	testFlag["count"] = true
+	testFlag := make(map[string]flag.Value)
+	testFlag["count"] = &fakeValue{value: "3"}
 	err := sendMetrics(client, testFlag, "testMetric", testTags)
 	if err != nil || !calledFunctions["count"] {
 		t.Error("Did not send 'count' metric.")
@@ -98,9 +111,9 @@ func TestCount(t *testing.T) {
 
 func TestTiming(t *testing.T) {
 	client := &fakeClient{}
-	resetMap(testFlag)
 	resetMap(calledFunctions)
-	testFlag["timing"] = true
+	testFlag := make(map[string]flag.Value)
+	testFlag["timing"] = &fakeValue{value: "3ns"}
 	err := sendMetrics(client, testFlag, "testMetric", testTags)
 	if err != nil || !calledFunctions["timing"] {
 		t.Error("Did not send 'timing' metric.")
@@ -109,10 +122,10 @@ func TestTiming(t *testing.T) {
 
 func TestMultiple(t *testing.T) {
 	client := &fakeClient{}
-	resetMap(testFlag)
 	resetMap(calledFunctions)
-	testFlag["count"] = true
-	testFlag["gauge"] = true
+	testFlag := make(map[string]flag.Value)
+	testFlag["gauge"] = &fakeValue{value: "3"}
+	testFlag["count"] = &fakeValue{value: "2"}
 	err := sendMetrics(client, testFlag, "testMetrics", testTags)
 	if err != nil || (!calledFunctions["count"] && !calledFunctions["gauge"]) {
 		t.Error("Did not send multiple metrics.")
@@ -121,8 +134,8 @@ func TestMultiple(t *testing.T) {
 
 func TestNone(t *testing.T) {
 	client := &fakeClient{}
-	resetMap(testFlag)
 	resetMap(calledFunctions)
+	testFlag := make(map[string]flag.Value)
 	err := sendMetrics(client, testFlag, "testNoMetric", testTags)
 	if err != nil {
 		t.Error("Error while sending no metrics.")
@@ -133,26 +146,25 @@ func TestBadCalls(t *testing.T) {
 	client := &fakeClient{}
 	badCall = true
 	var err error
-
-	resetMap(testFlag)
 	resetMap(calledFunctions)
-	testFlag["gauge"] = true
+	testFlag := make(map[string]flag.Value)
+	testFlag["gauge"] = &fakeValue{value: "3"}
 	err = sendMetrics(client, testFlag, "testBadMetric", testTags)
 	if err == nil || err.Error() != "error sending metric" || !calledFunctions["gauge"] {
 		t.Error("Did not detect error")
 	}
 
-	resetMap(testFlag)
 	resetMap(calledFunctions)
-	testFlag["timing"] = true
+	testFlag = make(map[string]flag.Value)
+	testFlag["timing"] = &fakeValue{value: "3ns"}
 	err = sendMetrics(client, testFlag, "testBadMetric", testTags)
 	if err == nil || err.Error() != "error sending metric" || !calledFunctions["timing"] {
 		t.Error("Did not detect error")
 	}
 
-	resetMap(testFlag)
 	resetMap(calledFunctions)
-	testFlag["count"] = true
+	testFlag = make(map[string]flag.Value)
+	testFlag["count"] = &fakeValue{value: "3"}
 	err = sendMetrics(client, testFlag, "testBadMetric", testTags)
 	if err == nil || err.Error() != "error sending metric" || !calledFunctions["count"] {
 		t.Error("Did not detect error")
@@ -160,9 +172,9 @@ func TestBadCalls(t *testing.T) {
 }
 
 func TestHostport(t *testing.T) {
-	resetMap(testFlag)
-	testFlag["hostport"] = true
+	testFlag := make(map[string]flag.Value)
 	testHostport := "host:port"
+	testFlag["hostport"] = &fakeValue{value: testHostport}
 	addr, err := addr(testFlag, nil, &testHostport)
 	if addr != testHostport || err != nil {
 		t.Error("Did not return hostport.")
@@ -170,8 +182,7 @@ func TestHostport(t *testing.T) {
 }
 
 func TestNilHostport(t *testing.T) {
-	resetMap(testFlag)
-	testFlag["hostport"] = true
+	testFlag := make(map[string]flag.Value)
 	addr, err := addr(testFlag, nil, nil)
 	if addr != "" || err == nil {
 		t.Error("Did not check for valid hostport.")
@@ -179,10 +190,10 @@ func TestNilHostport(t *testing.T) {
 }
 
 func TestConfig(t *testing.T) {
-	resetMap(testFlag)
+	testFlag := make(map[string]flag.Value)
 	fakeConfig := &veneur.Config{}
 	fakeConfig.UdpAddress = "testudp"
-	testFlag["f"] = true
+	testFlag["f"] = &fakeValue{value: "/pay/conf/veneur.yaml"}
 	addr, err := addr(testFlag, fakeConfig, nil)
 	if addr != "testudp" || err != nil {
 		t.Error("Did not use config file for hostname and port.")
@@ -190,7 +201,7 @@ func TestConfig(t *testing.T) {
 }
 
 func TestNoAddr(t *testing.T) {
-	resetMap(testFlag)
+	testFlag := make(map[string]flag.Value)
 	addr, err := addr(testFlag, nil, nil)
 	if addr != "" || err == nil {
 		t.Error("Returned non-empty address with no flags.")
@@ -214,7 +225,7 @@ func TestTags(t *testing.T) {
 func TestFlags(t *testing.T) {
 	os.Args = append(os.Args, "-name='testname'")
 	outputFlags := flags()
-	if !outputFlags["name"] {
+	if outputFlags["name"] == nil {
 		t.Error("Did not properly parse flags.")
 	}
 }
@@ -235,10 +246,10 @@ func TestBareMetrics(t *testing.T) {
 }
 
 func TestCreateMetrics(t *testing.T) {
-	resetMap(testFlag)
+	testFlag := make(map[string]flag.Value)
 
-	testFlag["gauge"] = true
-	testFlag["count"] = true
+	testFlag["gauge"] = &fakeValue{value: "3.14"}
+	testFlag["count"] = &fakeValue{value: "2"}
 	span, _ := createMetrics(testFlag, "test.metric", "tag1:value1")
 	if len(span.Metrics) != 2 {
 		t.Error("Not reporting right number of metrics.")
@@ -254,6 +265,7 @@ func TestCreateMetrics(t *testing.T) {
 }
 
 func TestSendSpan(t *testing.T) {
+	testFlag := make(map[string]flag.Value)
 	dataWritten = []byte{}
 	conn := &fakeConn{}
 	span, _ := createMetrics(testFlag, "test.metric", "tag1:value1")
@@ -265,6 +277,7 @@ func TestSendSpan(t *testing.T) {
 }
 
 func TestBadSendSpan(t *testing.T) {
+	testFlag := make(map[string]flag.Value)
 	dataWritten = []byte{}
 	conn := &badConn{}
 	span, _ := createMetrics(testFlag, "test.metric", "tag1:value1")
@@ -273,28 +286,9 @@ func TestBadSendSpan(t *testing.T) {
 }
 
 func TestBuildEventPacketError(t *testing.T) {
-	flags := map[string]bool{
-		"e_title": false,
-		"e_text":  false,
-	}
-	pkt, err := buildEventPacket(flags)
-	fmt.Println(pkt.String())
-	fmt.Println(err)
+	testFlag := make(map[string]flag.Value)
+	pkt, err := buildEventPacket(testFlag)
 	assert.NotNil(t, err, "Did not catch error.")
-}
-
-func TestBuildEventPacket(t *testing.T) {
-	flags := map[string]bool{
-		"e_title": true,
-		"e_text":  true,
-	}
-	text := "test"
-	// eTitle := &text
-
-	pkt, err := buildEventPacket(flags)
-	assert.Nil(t, err, "Returned error.")
-
-	assert.Contains(t, pkt, "")
 }
 
 func resetMap(m map[string]bool) {
