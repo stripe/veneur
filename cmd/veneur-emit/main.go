@@ -286,11 +286,11 @@ func buildSCPacket(passedFlags map[string]flag.Value) (bytes.Buffer, error) {
 	var buffer bytes.Buffer
 	buffer.WriteString("_sc")
 
-	if passedFlags["sc_name"] != nil {
+	if passedFlags["sc_name"] == nil {
 		return bytes.Buffer{}, errors.New("missing service check name")
 	}
 
-	if passedFlags["sc_status"] != nil {
+	if passedFlags["sc_status"] == nil {
 		return bytes.Buffer{}, errors.New("missing service check status")
 	}
 
