@@ -4,8 +4,12 @@
 * Correctly parse `Set` metrics if sent via SSF. Thanks [redsn0w422](https://github.com/redsn0w422)!
 * Return correct array of tags after parsing an SSF metric. Thanks [redsn0w422](https://github.com/redsn0w422)!
 
+## Added
+* Adds [events](https://docs.datadoghq.com/guides/dogstatsd/#events-1) and [service checks](https://docs.datadoghq.com/guides/dogstatsd/#service-checks-1) to `veneur-emit`. Thanks [redsn0w422](https://github.com/redsn0w422)!
+
 ## Improvements
 * Added tests for `parseMetricSSF`. Thanks [redsn0w422](https://github.com/redsn0w422)!
+* Refactored `veneur-emit` flag usage to make testing easier. Thanks [redsn0w422](https://github.com/redsn0w422)!
 
 # 1.5.1, 2017-07-18
 
