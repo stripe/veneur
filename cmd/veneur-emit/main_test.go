@@ -287,7 +287,7 @@ func TestBadSendSpan(t *testing.T) {
 
 func TestBuildEventPacketError(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
-	pkt, err := buildEventPacket(testFlag)
+	_, err := buildEventPacket(testFlag)
 	assert.NotNil(t, err, "Did not catch error.")
 }
 
