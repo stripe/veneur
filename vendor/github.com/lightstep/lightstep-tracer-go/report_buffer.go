@@ -1,9 +1,13 @@
 package lightstep
 
-import "time"
+import (
+	"time"
+
+	"github.com/lightstep/lightstep-tracer-go/basictracer"
+)
 
 type reportBuffer struct {
-	rawSpans             []RawSpan
+	rawSpans             []basictracer.RawSpan
 	droppedSpanCount     int64
 	logEncoderErrorCount int64
 	reportStart          time.Time
@@ -11,7 +15,7 @@ type reportBuffer struct {
 }
 
 func newSpansBuffer(size int) (b reportBuffer) {
-	b.rawSpans = make([]RawSpan, 0, size)
+	b.rawSpans = make([]basictracer.RawSpan, 0, size)
 	b.reportStart = time.Time{}
 	b.reportEnd = time.Time{}
 	return
@@ -38,7 +42,7 @@ func (b *reportBuffer) clear() {
 	b.logEncoderErrorCount = 0
 }
 
-func (b *reportBuffer) addSpan(span RawSpan) {
+func (b *reportBuffer) addSpan(span basictracer.RawSpan) {
 	if len(b.rawSpans) == cap(b.rawSpans) {
 		b.droppedSpanCount++
 		return

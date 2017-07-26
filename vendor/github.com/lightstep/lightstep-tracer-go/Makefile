@@ -18,15 +18,6 @@ lightstep_thrift/constants.go: $(GOPATH)/src/github.com/lightstep/common-go/crou
 	rm -rf lightstep_thrift/reporting_service-remote
 endif
 
-lightstepfakes/fake_recorder.go: interfaces.go
-	counterfeiter -o lightstepfakes/fake_recorder.go interfaces.go SpanRecorder
-
-lightstep_thrift/lightstep_thriftfakes/fake_reporting_service.go: lightstep_thrift/reportingservice.go
-	counterfeiter lightstep_thrift/reportingservice.go ReportingService
-
-collectorpb/collectorpbfakes/fake_collector_service_server.go: collectorpb/collector.pb.go
-	counterfeiter collectorpb/collector.pb.go CollectorServiceClient
-
 # gRPC
 ifeq (,$(wildcard lightstep-tracer-common/collector.proto))
 collectorpb/collector.pb.go:
@@ -47,15 +38,11 @@ lightsteppb/lightstep_carrier.pb.go: lightstep-tracer-common/lightstep_carrier.p
 	  protoc --go_out=plugins=grpc:/output --proto_path=/input /input/lightstep_carrier.proto
 endif
 
-test: lightstep_thrift/constants.go collectorpb/collector.pb.go lightsteppb/lightstep_carrier.pb.go \
-		collectorpb/collectorpbfakes/fake_collector_service_server.go \
-		lightstep_thrift/lightstep_thriftfakes/fake_reporting_service.go lightstepfakes/fake_recorder.go
-	ginkgo -race -p
+test: lightstep_thrift/constants.go collectorpb/collector.pb.go lightsteppb/lightstep_carrier.pb.go
+	${GO} test $(shell go list ./... | grep -v /vendor/)
 	docker run --rm -v $(GOPATH):/input:ro lightstep/noglog:latest noglog github.com/lightstep/lightstep-tracer-go
 
-build: lightstep_thrift/constants.go collectorpb/collector.pb.go lightsteppb/lightstep_carrier.pb.go \
-		collectorpb/collectorpbfakes/fake_collector_service_server.go version.go \
-		lightstep_thrift/lightstep_thriftfakes/fake_reporting_service.go lightstepfakes/fake_recorder.go
+build: lightstep_thrift/constants.go collectorpb/collector.pb.go lightsteppb/lightstep_carrier.pb.go version.go
 	${GO} build github.com/lightstep/lightstep-tracer-go/...
 
 # When releasing significant changes, make sure to update the semantic

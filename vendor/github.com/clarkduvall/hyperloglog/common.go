@@ -81,13 +81,13 @@ func clz64(x uint64) uint8 {
 	return c
 }
 
-// Extract bits from uint32 using LSB 0 numbering, including lo
+// Extract bits from uint32 using LSB 0 numbering, including lo.
 func eb32(bits uint32, hi uint8, lo uint8) uint32 {
 	m := uint32(((1 << (hi - lo)) - 1) << lo)
 	return (bits & m) >> lo
 }
 
-// Extract bits from uint64 using LSB 0 numbering, including lo
+// Extract bits from uint64 using LSB 0 numbering, including lo.
 func eb64(bits uint64, hi uint8, lo uint8) uint64 {
 	m := uint64(((1 << (hi - lo)) - 1) << lo)
 	return (bits & m) >> lo
@@ -111,7 +111,7 @@ func countZeros(s []uint8) uint32 {
 func calculateEstimate(s []uint8) float64 {
 	sum := 0.0
 	for _, val := range s {
-		sum += 1.0 / float64(uint32(1)<<val)
+		sum += 1.0 / float64(uint64(1)<<val)
 	}
 
 	m := uint32(len(s))

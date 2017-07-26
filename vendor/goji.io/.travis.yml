@@ -1,0 +1,11 @@
+go_import_path: goji.io
+language: go
+sudo: false
+
+matrix:
+  include:
+    - go: 1.7
+    - go: tip
+
+script:
+  - go test -cover -race ./...

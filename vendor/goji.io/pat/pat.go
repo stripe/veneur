@@ -87,7 +87,6 @@ import (
 	"strings"
 
 	"goji.io/pattern"
-	"golang.org/x/net/context"
 )
 
 type patNames []struct {
@@ -184,12 +183,12 @@ func newWithMethods(pat string, methods ...string) *Pattern {
 }
 
 /*
-Match runs the Pat pattern on the given request, returning a non-nil context if
-the request matches the request.
+Match runs the Pat pattern on the given request, returning a non-nil output
+request if the input request matches the pattern.
 
 This function satisfies goji.Pattern.
 */
-func (p *Pattern) Match(ctx context.Context, r *http.Request) context.Context {
+func (p *Pattern) Match(r *http.Request) *http.Request {
 	if p.methods != nil {
 		if _, ok := p.methods[r.Method]; !ok {
 			return nil
@@ -197,6 +196,7 @@ func (p *Pattern) Match(ctx context.Context, r *http.Request) context.Context {
 	}
 
 	// Check Path
+	ctx := r.Context()
 	path := pattern.Path(ctx)
 	var scratch []string
 	if p.wildcard {
@@ -251,7 +251,7 @@ func (p *Pattern) Match(ctx context.Context, r *http.Request) context.Context {
 		}
 	}
 
-	return &match{ctx, p, scratch}
+	return r.WithContext(&match{ctx, p, scratch})
 }
 
 /*
@@ -292,11 +292,11 @@ and the URL Path:
 
 	/user/carl
 
-a call to Param(ctx, "name") would return the string "carl". It is the caller's
+a call to Param(r, "name") would return the string "carl". It is the caller's
 responsibility to ensure that the variable has been bound. Attempts to access
 variables that have not been set (or which have been invalidly set) are
 considered programmer errors and will trigger a panic.
 */
-func Param(ctx context.Context, name string) string {
-	return ctx.Value(pattern.Variable(name)).(string)
+func Param(r *http.Request, name string) string {
+	return r.Context().Value(pattern.Variable(name)).(string)
 }
