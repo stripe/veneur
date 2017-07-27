@@ -5,7 +5,6 @@ RUN mkdir -p /build
 ENV GOPATH=/go
 RUN apt-get update
 RUN apt-get install -y zip
-RUN go get -u -v github.com/kardianos/govendor
 RUN go get -u -v github.com/ChimeraCoder/gojson/gojson
 RUN go get -u github.com/golang/protobuf/protoc-gen-go
 RUN wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
@@ -42,5 +41,5 @@ RUN git add .
 RUN git diff-index --cached --exit-code HEAD
 
 
-RUN govendor test -v -timeout 11s +local
+RUN go test -v -timeout 11s +local
 CMD cp -r henson /build/ && env GOBIN=/build go install -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" ./cmd/...
