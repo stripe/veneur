@@ -55,7 +55,6 @@
 
 [[constraint]]
   name = "github.com/lightstep/lightstep-tracer-go"
-  version = "0.10.0"
 
 [[constraint]]
   name = "github.com/opentracing/opentracing-go"
