@@ -41,5 +41,5 @@ RUN git add .
 RUN git diff-index --cached --exit-code HEAD
 
 
-RUN go test -v -timeout 11s +local
+RUN go test -v -timeout 11s
 CMD cp -r henson /build/ && env GOBIN=/build go install -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" ./cmd/...
