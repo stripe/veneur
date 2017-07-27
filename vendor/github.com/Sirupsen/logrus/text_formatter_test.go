@@ -3,10 +3,10 @@ package logrus
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
-	"fmt"
 )
 
 func TestQuoting(t *testing.T) {
