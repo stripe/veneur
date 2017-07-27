@@ -1,16 +1,19 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
 	"testing"
+
+	"goji.io"
+	"goji.io/internal"
+	"golang.org/x/net/context"
 )
 
 type testPattern bool
 
-func (t testPattern) Match(r *http.Request) *http.Request {
+func (t testPattern) Match(ctx context.Context, _ *http.Request) context.Context {
 	if t {
-		return r
+		return ctx
 	}
 	return nil
 }
@@ -18,6 +21,8 @@ func (t testPattern) Match(r *http.Request) *http.Request {
 type testHandler struct{}
 
 func (t testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {}
+
+func (t testHandler) ServeHTTPC(ctx context.Context, w http.ResponseWriter, r *http.Request) {}
 
 func TestPattern(t *testing.T) {
 	t.Parallel()
@@ -43,6 +48,20 @@ func TestHandler(t *testing.T) {
 	}
 
 	if h2 := Handler(context.Background()); h2 != nil {
+		t.Errorf("got handler=%v, expected nil", h2)
+	}
+}
+
+func TestUnwrapHandler(t *testing.T) {
+	t.Parallel()
+
+	h := &testHandler{}
+	if h2 := UnwrapHandler(internal.ContextWrapper{Handler: h}); h2 != h {
+		t.Errorf("got handler=%v, expected %v", h2, h)
+	}
+
+	h3 := goji.HandlerFunc(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {})
+	if h2 := UnwrapHandler(h3); h2 != nil {
 		t.Errorf("got handler=%v, expected nil", h2)
 	}
 }

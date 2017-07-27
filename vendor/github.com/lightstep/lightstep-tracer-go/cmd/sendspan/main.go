@@ -29,7 +29,7 @@ func main() {
 			Host:      *flagHost,
 			Port:      *flagPort,
 			Plaintext: !*flagSecure},
-		UseGRPC: *flagUseGRPC})
+		UseThrift: !*flagUseGRPC})
 
 	fmt.Println("Sending span...")
 	span := t.StartSpan(*flagOperation)

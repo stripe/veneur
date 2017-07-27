@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"goji.io/internal"
+	"golang.org/x/net/context"
 )
 
 type router struct {
@@ -18,7 +19,7 @@ type router struct {
 
 type route struct {
 	Pattern
-	http.Handler
+	Handler
 }
 
 type child struct {
@@ -31,7 +32,7 @@ type trieNode struct {
 	children []child
 }
 
-func (rt *router) add(p Pattern, h http.Handler) {
+func (rt *router) add(p Pattern, h Handler) {
 	i := len(rt.routes)
 	rt.routes = append(rt.routes, route{p, h})
 
@@ -63,13 +64,12 @@ func (rt *router) add(p Pattern, h http.Handler) {
 	}
 }
 
-func (rt *router) route(r *http.Request) *http.Request {
+func (rt *router) route(ctx context.Context, r *http.Request) context.Context {
 	tn := &rt.wildcard
 	if tn2, ok := rt.methods[r.Method]; ok {
 		tn = tn2
 	}
 
-	ctx := r.Context()
 	path := ctx.Value(internal.Path).(string)
 	for path != "" {
 		i := sort.Search(len(tn.children), func(i int) bool {
@@ -83,15 +83,11 @@ func (rt *router) route(r *http.Request) *http.Request {
 		tn = tn.children[i].node
 	}
 	for _, i := range tn.routes {
-		if r2 := rt.routes[i].Match(r); r2 != nil {
-			return r2.WithContext(&match{
-				Context: r2.Context(),
-				p:       rt.routes[i].Pattern,
-				h:       rt.routes[i].Handler,
-			})
+		if ctx := rt.routes[i].Match(ctx, r); ctx != nil {
+			return &match{ctx, rt.routes[i].Pattern, rt.routes[i].Handler}
 		}
 	}
-	return r.WithContext(&match{Context: ctx})
+	return &match{Context: ctx}
 }
 
 // We can be a teensy bit more efficient here: we're maintaining a sorted list,

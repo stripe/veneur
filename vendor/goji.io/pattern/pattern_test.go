@@ -1,9 +1,10 @@
 package pattern
 
 import (
-	"context"
 	"net/http"
 	"testing"
+
+	"golang.org/x/net/context"
 )
 
 type boolPattern bool

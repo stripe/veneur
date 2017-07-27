@@ -1,4 +1,4 @@
-package basictracer
+package lightstep
 
 import (
 	"strconv"
@@ -6,9 +6,6 @@ import (
 
 	opentracing "github.com/opentracing/opentracing-go"
 )
-
-type textMapPropagator struct {
-}
 
 const (
 	prefixTracerState = "ot-tracer-"
@@ -19,6 +16,8 @@ const (
 	fieldNameSpanID       = prefixTracerState + "spanid"
 	fieldNameSampled      = prefixTracerState + "sampled"
 )
+
+type textMapPropagator struct{}
 
 func (_ *textMapPropagator) Inject(
 	spanContext opentracing.SpanContext,
@@ -52,7 +51,7 @@ func (_ *textMapPropagator) Extract(
 	requiredFieldCount := 0
 	var traceID, spanID uint64
 	var err error
-	decodedBaggage := make(map[string]string)
+	decodedBaggage := map[string]string{}
 	err = carrier.ForeachKey(func(k, v string) error {
 		switch strings.ToLower(k) {
 		case fieldNameTraceID:

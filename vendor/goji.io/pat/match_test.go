@@ -1,12 +1,12 @@
 package pat
 
 import (
-	"context"
 	"net/http"
 	"reflect"
 	"testing"
 
 	"goji.io/pattern"
+	"golang.org/x/net/context"
 )
 
 func TestExistingContext(t *testing.T) {
@@ -23,14 +23,12 @@ func TestExistingContext(t *testing.T) {
 		"hello": "world",
 		"c":     "nope",
 	})
-	ctx = context.WithValue(ctx, pattern.Variable("user"), "carl")
+	ctx = context.WithValue(ctx, "user", "carl")
 
-	req = req.WithContext(ctx)
-	req = pat.Match(req)
-	if req == nil {
+	ctx = pat.Match(ctx, req)
+	if ctx == nil {
 		t.Fatalf("expected pattern to match")
 	}
-	ctx = req.Context()
 
 	expected := map[pattern.Variable]interface{}{
 		"c": "foo",
@@ -39,7 +37,7 @@ func TestExistingContext(t *testing.T) {
 		"l": "quux",
 	}
 	for k, v := range expected {
-		if p := Param(req, string(k)); p != v {
+		if p := Param(ctx, string(k)); p != v {
 			t.Errorf("expected %s=%q, got %q", k, v, p)
 		}
 	}
@@ -54,7 +52,7 @@ func TestExistingContext(t *testing.T) {
 		t.Errorf("expected path=%q, got %q", "", path)
 	}
 
-	if user := ctx.Value(pattern.Variable("user")); user != "carl" {
+	if user := ctx.Value("user"); user != "carl" {
 		t.Errorf("expected user=%q, got %q", "carl", user)
 	}
 }

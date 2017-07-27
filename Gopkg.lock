@@ -16,14 +16,14 @@
 [[projects]]
   name = "github.com/aws/aws-sdk-go"
   packages = ["aws","aws/awserr","aws/awsutil","aws/client","aws/client/metadata","aws/corehandlers","aws/credentials","aws/credentials/ec2rolecreds","aws/credentials/endpointcreds","aws/credentials/stscreds","aws/defaults","aws/ec2metadata","aws/endpoints","aws/request","aws/session","aws/signer/v4","internal/shareddefaults","private/protocol","private/protocol/query","private/protocol/query/queryutil","private/protocol/rest","private/protocol/restxml","private/protocol/xml/xmlutil","service/s3","service/s3/s3iface","service/sts"]
-  revision = "61b379ef486ea3baa55e10c358f3217f06e7b5ad"
-  version = "v1.10.16"
+  revision = "e0223293ab40c06fad94970678748486705f8d0f"
+  version = "v1.10.17"
 
 [[projects]]
   name = "github.com/certifi/gocertifi"
   packages = ["."]
-  revision = "a9c833d2837d3b16888d55d5aafa9ffe9afb22b0"
-  version = "2017.04.17"
+  revision = "3fd9e1adb12b72d2f3f82191d49be9b93c69f67c"
+  version = "2017.07.27"
 
 [[projects]]
   branch = "master"
@@ -92,10 +92,10 @@
   version = "0.2.2"
 
 [[projects]]
+  branch = "master"
   name = "github.com/lightstep/lightstep-tracer-go"
-  packages = [".","basictracer","collectorpb","lightstep_thrift","lightsteppb","thrift_0_9_2/lib/go/thrift","thrift_rpc"]
-  revision = "d9d2a958da1b2b4dd282e7685261942e20abd49c"
-  version = "v0.10.0"
+  packages = [".","collectorpb","lightstep_thrift","lightsteppb","thrift_0_9_2/lib/go/thrift"]
+  revision = "43ac9945569228b0d570a80aa6411a9afe728d23"
 
 [[projects]]
   branch = "master"
@@ -136,8 +136,8 @@
 [[projects]]
   name = "goji.io"
   packages = [".","internal","pat","pattern"]
-  revision = "0d89ff54b2c18c9c4ba530e32496aef902d3c6cd"
-  version = "v2.0"
+  revision = "bc2e9e7dc2769805d1b6ce4dc48ec23a03ae82ec"
+  version = "v1.1"
 
 [[projects]]
   branch = "master"
@@ -149,7 +149,7 @@
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "02a66801d979d706a4b445e24e03916eeaa2a404"
+  revision = "35ef4487ce0a1ea5d4b616ffe71e34febe723695"
 
 [[projects]]
   branch = "master"
@@ -166,8 +166,8 @@
 [[projects]]
   name = "google.golang.org/grpc"
   packages = [".","codes","credentials","grpclb/grpc_lb_v1","grpclog","internal","keepalive","metadata","naming","peer","stats","status","tap","transport"]
-  revision = "172ccacff3cfbddedcf1ba5ea06cda943bc976c1"
-  version = "v1.5.0"
+  revision = "b8669c35455183da6d5c474ea6e72fbf55183274"
+  version = "v1.5.1"
 
 [[projects]]
   branch = "v2"
@@ -184,6 +184,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d00ed4d97769bc1d1bb71c0104c494a127b2065277c06aecbcd353c2e33c68de"
+  inputs-digest = "4a143573fede2eca145d98a5f22a73d1a7b7abb3470e43f73e2024fbde64922c"
   solver-name = "gps-cdcl"
   solver-version = 1

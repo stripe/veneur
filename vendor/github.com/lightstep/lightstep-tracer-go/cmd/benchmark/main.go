@@ -11,7 +11,6 @@ import (
 	"time"
 
 	ls "github.com/lightstep/lightstep-tracer-go"
-	bt "github.com/lightstep/lightstep-tracer-go/basictracer"
 	ot "github.com/opentracing/opentracing-go"
 )
 
@@ -185,7 +184,10 @@ func (t *testClient) run(control *Control) (time.Duration, time.Duration, time.D
 	endTime := time.Now()
 	flushDur := time.Duration(0)
 	if control.Trace {
-		recorder := t.tracer.(bt.Tracer).Options().Recorder.(*ls.Recorder)
+		recorder, ok := t.tracer.(ls.Tracer)
+		if !ok {
+			panic("Tracer does not have a lightstep recorder")
+		}
 		recorder.Flush()
 		flushDur = time.Now().Sub(endTime)
 	}
@@ -205,8 +207,6 @@ func main() {
 				Port:      GrpcPort,
 				Plaintext: true,
 			},
-			// Verbose: true,
-			UseGRPC: true,
 		}),
 	}
 	tc.loop()

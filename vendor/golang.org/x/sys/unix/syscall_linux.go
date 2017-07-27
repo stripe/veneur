@@ -1279,6 +1279,7 @@ func Setgid(uid int) (err error) {
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sys	Setxattr(path string, attr string, data []byte, flags int) (err error)
 //sys	Sync()
+//sys	Syncfs(fd int) (err error)
 //sysnb	Sysinfo(info *Sysinfo_t) (err error)
 //sys	Tee(rfd int, wfd int, len int, flags int) (n int64, err error)
 //sysnb	Tgkill(tgid int, tid int, sig syscall.Signal) (err error)

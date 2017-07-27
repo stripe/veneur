@@ -6,13 +6,14 @@ import (
 	"strings"
 
 	"goji.io/internal"
+	"golang.org/x/net/context"
 )
 
 type boolPattern bool
 
-func (b boolPattern) Match(r *http.Request) *http.Request {
+func (b boolPattern) Match(ctx context.Context, _ *http.Request) context.Context {
 	if b {
-		return r
+		return ctx
 	}
 	return nil
 }
@@ -24,8 +25,7 @@ type testPattern struct {
 	prefix  string
 }
 
-func (t testPattern) Match(r *http.Request) *http.Request {
-	ctx := r.Context()
+func (t testPattern) Match(ctx context.Context, r *http.Request) context.Context {
 	if t.index < *t.mark {
 		return nil
 	}
@@ -38,7 +38,7 @@ func (t testPattern) Match(r *http.Request) *http.Request {
 			return nil
 		}
 	}
-	return r
+	return ctx
 }
 
 func (t testPattern) PathPrefix() string {
@@ -58,7 +58,7 @@ func (t testPattern) HTTPMethods() map[string]struct{} {
 
 type intHandler int
 
-func (i intHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (i intHandler) ServeHTTPC(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func wr() (*httptest.ResponseRecorder, *http.Request) {

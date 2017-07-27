@@ -9,7 +9,11 @@ their own, especially if their needs are unusual.
 */
 package goji
 
-import "net/http"
+import (
+	"net/http"
+
+	"golang.org/x/net/context"
+)
 
 /*
 Pattern determines whether a given request matches some criteria. Goji users
@@ -45,19 +49,46 @@ All operations on Patterns must be safe for concurrent use by multiple
 goroutines.
 */
 type Pattern interface {
-	// Match examines the input Request to determine if it matches some
-	// criteria, and if so returns a non-nil output Request. This returned
-	// Request will be passed to the middleware stack and the final Handler.
+	// Match examines the request and request context to determine if the
+	// request is a match. If so, it returns a non-nil context.Context
+	// (likely one derived from the input Context, and perhaps simply the
+	// input Context unchanged). The returned context may be used to store
+	// request-scoped data, such as variables extracted from the Request.
 	//
-	// Patterns often extract variables from the Request, for instance from
-	// the URL or from HTTP headers. In this case, it is common for the
-	// Request returned from the Match function to be derived from the input
-	// Request using the WithContext function, with a Context that contains
-	// those variable bindings. If no variable bindings are necessary,
-	// another common choice is to return the input Request unchanged.
-	//
-	// Match must not mutate the passed request if it returns nil.
-	// Implementers are also strongly discouraged from mutating the input
-	// Request even in the event of a match; instead, prefer making a copy.
-	Match(*http.Request) *http.Request
+	// Match must not mutate the passed request.
+	Match(context.Context, *http.Request) context.Context
+}
+
+/*
+Handler is a context-aware variant of net/http.Handler. It has the same
+semantics as http.Handler, except that a request-scoped context is additionally
+passed to the handler function.
+*/
+type Handler interface {
+	ServeHTTPC(context.Context, http.ResponseWriter, *http.Request)
+}
+
+/*
+HandlerFunc is a context-aware variant of net/http.HandlerFunc. It has the same
+semantics as http.HandlerFunc, except that a request-scoped context is
+additionally passed to the function.
+
+HandlerFunc implements both the Handler and http.Handler interfaces.
+*/
+type HandlerFunc func(context.Context, http.ResponseWriter, *http.Request)
+
+/*
+ServeHTTP implements net/http.Handler. It calls the underlying function with a
+context of context.TODO in order to ease the conversion of non-context-aware
+Handlers to context-aware ones using static analysis.
+*/
+func (h HandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h(context.TODO(), w, r)
+}
+
+/*
+ServeHTTPC implements Handler.
+*/
+func (h HandlerFunc) ServeHTTPC(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	h(ctx, w, r)
 }

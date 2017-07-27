@@ -1,4 +1,4 @@
-package basictracer
+package lightstep
 
 import (
 	"encoding/base64"
@@ -8,17 +8,13 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 )
 
-type (
-	lightstepBinaryPropagator struct{}
+// BinaryCarrier is used as the format parameter in inject/extract for lighstep
+// binary propogation.
+const BinaryCarrier = "lightstep_binary_carrier"
 
-	lightstepBinaryCarrier struct{}
-)
+type lightstepBinaryPropagator struct{}
 
-var (
-	BinaryCarrier lightstepBinaryCarrier
-)
-
-func (_ lightstepBinaryPropagator) Inject(
+func (lightstepBinaryPropagator) Inject(
 	spanContext opentracing.SpanContext,
 	opaqueCarrier interface{},
 ) error {
@@ -49,16 +45,7 @@ func (_ lightstepBinaryPropagator) Inject(
 	return nil
 }
 
-func decodeBase64Bytes(in []byte) ([]byte, error) {
-	data := make([]byte, base64.StdEncoding.DecodedLen(len(in)))
-	n, err := base64.StdEncoding.Decode(data, in)
-	if err != nil {
-		return nil, err
-	}
-	return data[:n], nil
-}
-
-func (_ lightstepBinaryPropagator) Extract(
+func (lightstepBinaryPropagator) Extract(
 	opaqueCarrier interface{},
 ) (opentracing.SpanContext, error) {
 	var data []byte
@@ -97,4 +84,13 @@ func (_ lightstepBinaryPropagator) Extract(
 		SpanID:  pb.BasicCtx.SpanId,
 		Baggage: pb.BasicCtx.BaggageItems,
 	}, nil
+}
+
+func decodeBase64Bytes(in []byte) ([]byte, error) {
+	data := make([]byte, base64.StdEncoding.DecodedLen(len(in)))
+	n, err := base64.StdEncoding.Decode(data, in)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
 }

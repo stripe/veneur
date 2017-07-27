@@ -1,11 +1,11 @@
 package pat
 
 import (
-	"context"
 	"sort"
 
 	"goji.io/internal"
 	"goji.io/pattern"
+	"golang.org/x/net/context"
 )
 
 type match struct {

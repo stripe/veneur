@@ -1,4 +1,4 @@
-package lightstep
+package lightstep_test
 
 import (
 	"strings"
@@ -15,7 +15,7 @@ func BenchmarkStringsRepeatBaseline(b *B) {
 }
 
 func BenchmarkShortMessage(b *B) {
-	tracer := NewTracer(Options{})
+	tracer := newTestTracer(nil)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		span := tracer.StartSpan("operation")
@@ -26,7 +26,7 @@ func BenchmarkShortMessage(b *B) {
 }
 
 func BenchmarkLongMessage(b *B) {
-	tracer := NewTracer(Options{})
+	tracer := newTestTracer(nil)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		span := tracer.StartSpan("operation")

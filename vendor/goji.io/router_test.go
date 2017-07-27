@@ -1,32 +1,29 @@
 package goji
 
 import (
-	"context"
 	"net/http"
 	"reflect"
 	"testing"
 
 	"goji.io/internal"
-	"goji.io/pattern"
+	"golang.org/x/net/context"
 )
 
 func TestNoMatch(t *testing.T) {
 	t.Parallel()
 
 	var rt router
-	rt.add(boolPattern(false), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	rt.add(boolPattern(false), HandlerFunc(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 		t.Fatal("did not expect handler to be called")
 	}))
 	_, r := wr()
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, internal.Pattern, boolPattern(true))
 	ctx = context.WithValue(ctx, internal.Pattern, boolPattern(true))
-	ctx = context.WithValue(ctx, pattern.Variable("answer"), 42)
-	ctx = context.WithValue(ctx, internal.Path, "/")
+	ctx = context.WithValue(ctx, "answer", 42)
 
-	r = r.WithContext(ctx)
-	r = rt.route(r)
-	ctx = r.Context()
+	ctx = context.WithValue(ctx, internal.Path, "/")
+	ctx = rt.route(ctx, r)
 
 	if p := ctx.Value(internal.Pattern); p != nil {
 		t.Errorf("unexpected pattern %v", p)
@@ -34,7 +31,7 @@ func TestNoMatch(t *testing.T) {
 	if h := ctx.Value(internal.Handler); h != nil {
 		t.Errorf("unexpected handler %v", h)
 	}
-	if h := ctx.Value(pattern.Variable("answer")); h != 42 {
+	if h := ctx.Value("answer"); h != 42 {
 		t.Errorf("context didn't work: got %v, wanted %v", h, 42)
 	}
 }
@@ -114,12 +111,10 @@ func TestRouter(t *testing.T) {
 			panic(err)
 		}
 		ctx := context.WithValue(context.Background(), internal.Path, test.path)
-		r = r.WithContext(ctx)
 
 		var out []int
 		for *mark = 0; *mark < len(TestRoutes); *mark++ {
-			r := rt.route(r)
-			ctx := r.Context()
+			ctx := rt.route(ctx, r)
 			if h := ctx.Value(internal.Handler); h != nil {
 				out = append(out, int(h.(intHandler)))
 			} else {
@@ -129,25 +124,5 @@ func TestRouter(t *testing.T) {
 		if !reflect.DeepEqual(out, test.results) {
 			t.Errorf("[%d] expected %v got %v", i, test.results, out)
 		}
-	}
-}
-
-type contextPattern struct{}
-
-func (contextPattern) Match(r *http.Request) *http.Request {
-	return r.WithContext(context.WithValue(r.Context(), pattern.Variable("hello"), "world"))
-}
-
-func TestRouterContextPropagation(t *testing.T) {
-	t.Parallel()
-
-	var rt router
-	rt.add(contextPattern{}, intHandler(0))
-	_, r := wr()
-	r = r.WithContext(context.WithValue(r.Context(), internal.Path, "/"))
-	r2 := rt.route(r)
-	ctx := r2.Context()
-	if hello := ctx.Value(pattern.Variable("hello")).(string); hello != "world" {
-		t.Fatalf("routed request didn't include correct key from pattern: %q", hello)
 	}
 }

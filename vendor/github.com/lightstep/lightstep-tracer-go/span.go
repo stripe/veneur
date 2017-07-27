@@ -1,28 +1,15 @@
-package basictracer
+package lightstep
 
 import (
 	"sync"
 	"time"
 
-	opentracing "github.com/opentracing/opentracing-go"
+	ot "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/log"
 )
 
-// Span provides access to the essential details of the span, for use
-// by basictracer consumers.  These methods may only be called prior
-// to (*opentracing.Span).Finish().
-type Span interface {
-	opentracing.Span
-
-	// Operation names the work done by this span instance
-	Operation() string
-
-	// Start indicates when the span began
-	Start() time.Time
-}
-
 // Implements the `Span` interface. Created via tracerImpl (see
-// `basictracer.New()`).
+// `New()`).
 type spanImpl struct {
 	tracer     *tracerImpl
 	sync.Mutex // protects the fields below
@@ -31,19 +18,78 @@ type spanImpl struct {
 	numDroppedLogs int
 }
 
-func (s *spanImpl) SetOperationName(operationName string) opentracing.Span {
+func newSpan(operationName string, tracer *tracerImpl, sso []ot.StartSpanOption) *spanImpl {
+	opts := newStartSpanOptions(sso)
+
+	// Start time.
+	startTime := opts.Options.StartTime
+	if startTime.IsZero() {
+		startTime = time.Now()
+	}
+
+	// Build the new span. This is the only allocation: We'll return this as
+	// an opentracing.Span.
+	sp := &spanImpl{}
+
+	// It's meaningless to provide either SpanID or ParentSpanID
+	// without also providing TraceID, so just test for TraceID.
+	if opts.SetTraceID != 0 {
+		sp.raw.Context.TraceID = opts.SetTraceID
+		sp.raw.Context.SpanID = opts.SetSpanID
+		sp.raw.ParentSpanID = opts.SetParentSpanID
+	}
+
+	// Look for a parent in the list of References.
+	//
+	// TODO: would be nice if we did something with all References, not just
+	//       the first one.
+ReferencesLoop:
+	for _, ref := range opts.Options.References {
+		switch ref.Type {
+		case ot.ChildOfRef, ot.FollowsFromRef:
+			refCtx := ref.ReferencedContext.(SpanContext)
+			sp.raw.Context.TraceID = refCtx.TraceID
+			sp.raw.ParentSpanID = refCtx.SpanID
+
+			if l := len(refCtx.Baggage); l > 0 {
+				sp.raw.Context.Baggage = make(map[string]string, l)
+				for k, v := range refCtx.Baggage {
+					sp.raw.Context.Baggage[k] = v
+				}
+			}
+			break ReferencesLoop
+		}
+	}
+
+	if sp.raw.Context.TraceID == 0 {
+		// TraceID not set by parent reference or explicitly
+		sp.raw.Context.TraceID, sp.raw.Context.SpanID = genSeededGUID2()
+	} else if sp.raw.Context.SpanID == 0 {
+		// TraceID set but SpanID not set
+		sp.raw.Context.SpanID = genSeededGUID()
+	}
+
+	sp.tracer = tracer
+	sp.raw.Operation = operationName
+	sp.raw.Start = startTime
+	sp.raw.Duration = -1
+	sp.raw.Tags = opts.Options.Tags
+	return sp
+}
+
+func (s *spanImpl) SetOperationName(operationName string) ot.Span {
 	s.Lock()
 	defer s.Unlock()
 	s.raw.Operation = operationName
 	return s
 }
 
-func (s *spanImpl) SetTag(key string, value interface{}) opentracing.Span {
+func (s *spanImpl) SetTag(key string, value interface{}) ot.Span {
 	s.Lock()
 	defer s.Unlock()
 
 	if s.raw.Tags == nil {
-		s.raw.Tags = opentracing.Tags{}
+		s.raw.Tags = ot.Tags{}
 	}
 	s.raw.Tags[key] = value
 	return s
@@ -58,8 +104,8 @@ func (s *spanImpl) LogKV(keyValues ...interface{}) {
 	s.LogFields(fields...)
 }
 
-func (s *spanImpl) appendLog(lr opentracing.LogRecord) {
-	maxLogs := s.tracer.options.MaxLogsPerSpan
+func (s *spanImpl) appendLog(lr ot.LogRecord) {
+	maxLogs := s.tracer.opts.MaxLogsPerSpan
 	if maxLogs == 0 || len(s.raw.Logs) < maxLogs {
 		s.raw.Logs = append(s.raw.Logs, lr)
 		return
@@ -74,12 +120,12 @@ func (s *spanImpl) appendLog(lr opentracing.LogRecord) {
 }
 
 func (s *spanImpl) LogFields(fields ...log.Field) {
-	lr := opentracing.LogRecord{
+	lr := ot.LogRecord{
 		Fields: fields,
 	}
 	s.Lock()
 	defer s.Unlock()
-	if s.tracer.options.DropAllLogs {
+	if s.tracer.opts.DropSpanLogs {
 		return
 	}
 	if lr.Timestamp.IsZero() {
@@ -89,22 +135,22 @@ func (s *spanImpl) LogFields(fields ...log.Field) {
 }
 
 func (s *spanImpl) LogEvent(event string) {
-	s.Log(opentracing.LogData{
+	s.Log(ot.LogData{
 		Event: event,
 	})
 }
 
 func (s *spanImpl) LogEventWithPayload(event string, payload interface{}) {
-	s.Log(opentracing.LogData{
+	s.Log(ot.LogData{
 		Event:   event,
 		Payload: payload,
 	})
 }
 
-func (s *spanImpl) Log(ld opentracing.LogData) {
+func (s *spanImpl) Log(ld ot.LogData) {
 	s.Lock()
 	defer s.Unlock()
-	if s.tracer.options.DropAllLogs {
+	if s.tracer.opts.DropSpanLogs {
 		return
 	}
 
@@ -116,12 +162,12 @@ func (s *spanImpl) Log(ld opentracing.LogData) {
 }
 
 func (s *spanImpl) Finish() {
-	s.FinishWithOptions(opentracing.FinishOptions{})
+	s.FinishWithOptions(ot.FinishOptions{})
 }
 
 // rotateLogBuffer rotates the records in the buffer: records 0 to pos-1 move at
 // the end (i.e. pos circular left shifts).
-func rotateLogBuffer(buf []opentracing.LogRecord, pos int) {
+func rotateLogBuffer(buf []ot.LogRecord, pos int) {
 	// This algorithm is described in:
 	//    http://www.cplusplus.com/reference/algorithm/rotate
 	for first, middle, next := 0, pos, pos; first != middle; {
@@ -136,7 +182,7 @@ func rotateLogBuffer(buf []opentracing.LogRecord, pos int) {
 	}
 }
 
-func (s *spanImpl) FinishWithOptions(opts opentracing.FinishOptions) {
+func (s *spanImpl) FinishWithOptions(opts ot.FinishOptions) {
 	finishTime := opts.FinishTime
 	if finishTime.IsZero() {
 		finishTime = time.Now()
@@ -164,7 +210,7 @@ func (s *spanImpl) FinishWithOptions(opts opentracing.FinishOptions) {
 		// about the dropped logs. This means that we are effectively dropping one
 		// more "new" log.
 		numDropped := s.numDroppedLogs + 1
-		s.raw.Logs[numOld] = opentracing.LogRecord{
+		s.raw.Logs[numOld] = ot.LogRecord{
 			// Keep the timestamp of the last dropped event.
 			Timestamp: s.raw.Logs[numOld].Timestamp,
 			Fields: []log.Field{
@@ -177,18 +223,18 @@ func (s *spanImpl) FinishWithOptions(opts opentracing.FinishOptions) {
 
 	s.raw.Duration = duration
 
-	s.tracer.options.Recorder.RecordSpan(s.raw)
+	s.tracer.RecordSpan(s.raw)
 }
 
-func (s *spanImpl) Tracer() opentracing.Tracer {
+func (s *spanImpl) Tracer() ot.Tracer {
 	return s.tracer
 }
 
-func (s *spanImpl) Context() opentracing.SpanContext {
+func (s *spanImpl) Context() ot.SpanContext {
 	return s.raw.Context
 }
 
-func (s *spanImpl) SetBaggageItem(key, val string) opentracing.Span {
+func (s *spanImpl) SetBaggageItem(key, val string) ot.Span {
 
 	s.Lock()
 	defer s.Unlock()
