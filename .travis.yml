@@ -1,7 +1,6 @@
 language: go
 go:
   - 1.8
-  - 1.9
   - tip
 
 install:
@@ -10,6 +9,12 @@ install:
   - sudo cp /tmp/bin/protoc /usr/bin/protoc
   - sudo chmod 777 /usr/bin/protoc
   - rm protoc-3.1.0-linux-x86_64.zip
+  # After 1.9 hits stable, replace this link
+  # It is only used for gofmt
+  - wget https://storage.googleapis.com/golang/go1.9rc1.linux-amd64.tar.gz
+  - tar -C /tmp -xvf go1.9rc1.linux-amd64.tar.gz go/bin/gofmt
+  - sudo mv /tmp/go/bin/gofmt /usr/bin/gofmt
+  - rm go1.9rc1.linux-amd64.tar.gz
 
 before_script:
   - go get -u github.com/ChimeraCoder/gojson/gojson
@@ -21,7 +26,10 @@ before_script:
   # to build protoc-gen-go.
   - git checkout ssf/sample.pb.go
 
-  - gofmt -w .
+  # We need to use gofmt built with 1.9+
+  # on *all* builds
+  # because some vendored files use type alias syntax
+  - /usr/bin/gofmt -w .
 
   # See the corresponding lines in the Dockerfile for an explanation
   # of this logic
@@ -29,4 +37,5 @@ before_script:
   - git diff-index --cached --exit-code HEAD
 
 script:
-  go test -v ./...
+  - if [ "$TRAVIS_GO_VERISION" = 1.8 ]; then go test -v ./...; fi
+  - if [ "$TRAVIS_GO_VERISION" != 1.8 ]; then go test -v ./...; fi
