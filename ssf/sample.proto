@@ -69,11 +69,13 @@ message SSFSpan {
   // This is a signal to receivers that this span may be used to compute SLIs.
   // In practice a service's core feature — the thing you would "bill" for, such
   // as an API call or read/write operation — would be flagged as an indicator
-  // span, and it's child spans would further describe it's duration.
+  // span, and its child spans would further describe it's duration.
   bool indicator = 12;
 }
 
-// A span collection allows clients to send a batch of spans rather than just one.
+// A span collection allows clients to send a batch of spans rather than just one. Note that
+// these spans may have nothing in common. This is merely a convenience to save clients — and
+// servers — having to (un)marshal each span separately.
 message SSFSpanCollection {
   repeated SSFSpan spans = 1;
 }
