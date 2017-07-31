@@ -53,12 +53,12 @@ type HistogramAggregates struct {
 }
 
 var aggregates = [...]string{
-	AggregateMin:     "min",
-	AggregateMax:     "max",
-	AggregateMedian:  "median",
-	AggregateAverage: "avg",
-	AggregateCount:   "count",
-	AggregateSum:     "sum",
+	AggregateMin:          "min",
+	AggregateMax:          "max",
+	AggregateMedian:       "median",
+	AggregateAverage:      "avg",
+	AggregateCount:        "count",
+	AggregateSum:          "sum",
 	AggregateHarmonicMean: "hmean",
 }
 
@@ -248,10 +248,10 @@ type Histo struct {
 	// we separate them because they're easy to aggregate on the backend without
 	// loss of granularity, and having host-local information on them might be
 	// useful
-	LocalWeight float64
-	LocalMin    float64
-	LocalMax    float64
-	LocalSum    float64
+	LocalWeight        float64
+	LocalMin           float64
+	LocalMax           float64
+	LocalSum           float64
 	LocalReciprocalSum float64
 }
 

@@ -245,7 +245,7 @@ func TestHisto(t *testing.T) {
 	assert.Len(t, m8.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m8.Tags[0], "First tag")
 	// The counter returns an array with a single tuple of timestamp,value
-	expected := float64(5.0 / ((1.0/5) + (1.0/10) + (1.0/15) + (1.0/20) + (1.0/25)))
+	expected := float64(5.0 / ((1.0 / 5) + (1.0 / 10) + (1.0 / 15) + (1.0 / 20) + (1.0 / 25)))
 	assert.Equal(t, expected, m8.Value[0][1], "Value")
 
 	// And the percentile
@@ -328,7 +328,7 @@ func TestHistoHMeanOnly(t *testing.T) {
 	assert.Len(t, m5.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m5.Tags[0], "First tag")
 	// The counter returns an array with a single tuple of timestamp,value
-	expected := float64(5.0 / ((1.0/5) + (1.0/10) + (1.0/15) + (1.0/20) + (1.0/25)))
+	expected := float64(5.0 / ((1.0 / 5) + (1.0 / 10) + (1.0 / 15) + (1.0 / 20) + (1.0 / 25)))
 	assert.Equal(t, expected, m5.Value[0][1], "Value")
 }
 
