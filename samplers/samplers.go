@@ -34,6 +34,7 @@ const (
 	AggregateAverage
 	AggregateCount
 	AggregateSum
+	AggregateHarmonicMean
 )
 
 var AggregatesLookup = map[string]Aggregate{
@@ -43,6 +44,7 @@ var AggregatesLookup = map[string]Aggregate{
 	"avg":    AggregateAverage,
 	"count":  AggregateCount,
 	"sum":    AggregateSum,
+	"hmean":  AggregateHarmonicMean,
 }
 
 type HistogramAggregates struct {
@@ -57,6 +59,7 @@ var aggregates = [...]string{
 	AggregateAverage: "avg",
 	AggregateCount:   "count",
 	AggregateSum:     "sum",
+	AggregateHarmonicMean: "hmean",
 }
 
 // JSONMetric is used to represent a metric that can be remarshaled with its
@@ -249,6 +252,7 @@ type Histo struct {
 	LocalMin    float64
 	LocalMax    float64
 	LocalSum    float64
+	LocalReciprocalSum float64
 }
 
 // Sample adds the supplied value to the histogram.
@@ -260,6 +264,8 @@ func (h *Histo) Sample(sample float64, sampleRate float32) {
 	h.LocalMin = math.Min(h.LocalMin, sample)
 	h.LocalMax = math.Max(h.LocalMax, sample)
 	h.LocalSum += sample * weight
+
+	h.LocalReciprocalSum += (1 / sample) * weight
 }
 
 // NewHist generates a new Histo and returns it.
@@ -359,6 +365,19 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 				MetricType: "gauge",
 			},
 		)
+	}
+
+	if (aggregates.Value&AggregateHarmonicMean) == AggregateHarmonicMean && h.LocalReciprocalSum != 0 && h.LocalWeight != 0 {
+		// we need both a rate and a non-zero sum before it will make sense
+		// to submit an average
+		tags := make([]string, len(h.Tags))
+		copy(tags, h.Tags)
+		metrics = append(metrics, DDMetric{
+			Name:       fmt.Sprintf("%s.hmean", h.Name),
+			Value:      [1][2]float64{{now, h.LocalWeight / h.LocalReciprocalSum}},
+			Tags:       tags,
+			MetricType: "gauge",
+		})
 	}
 
 	for _, p := range percentiles {

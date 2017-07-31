@@ -165,8 +165,9 @@ func TestHisto(t *testing.T) {
 
 	var aggregates HistogramAggregates
 	aggregates.Value = AggregateMin | AggregateMax | AggregateMedian |
-		AggregateAverage | AggregateCount | AggregateSum
-	aggregates.Count = 6
+		AggregateAverage | AggregateCount | AggregateSum |
+		AggregateHarmonicMean
+	aggregates.Count = 7
 
 	percentiles := []float64{0.90}
 
@@ -236,8 +237,19 @@ func TestHisto(t *testing.T) {
 	// The counter returns an array with a single tuple of timestamp,value
 	assert.Equal(t, float64(15), m6.Value[0][1], "Value")
 
+	// the average
+	m8 := metrics[6]
+	assert.Equal(t, "a.b.c.hmean", m8.Name, "Name")
+	assert.Equal(t, int32(0), m8.Interval, "Interval")
+	assert.Equal(t, "gauge", m8.MetricType, "Type")
+	assert.Len(t, m8.Tags, 1, "Tag count")
+	assert.Equal(t, "a:b", m8.Tags[0], "First tag")
+	// The counter returns an array with a single tuple of timestamp,value
+	expected := float64(5.0 / ((1.0/5) + (1.0/10) + (1.0/15) + (1.0/20) + (1.0/25)))
+	assert.Equal(t, expected, m8.Value[0][1], "Value")
+
 	// And the percentile
-	m7 := metrics[6]
+	m7 := metrics[7]
 	assert.Equal(t, "a.b.c.90percentile", m7.Name, "Name")
 	assert.Equal(t, int32(0), m7.Interval, "Interval")
 	assert.Equal(t, "gauge", m7.MetricType, "Type")
@@ -281,6 +293,43 @@ func TestHistoAvgOnly(t *testing.T) {
 	assert.Equal(t, "a:b", m5.Tags[0], "First tag")
 	// The counter returns an array with a single tuple of timestamp,value
 	assert.Equal(t, float64(15), m5.Value[0][1], "Value")
+}
+
+func TestHistoHMeanOnly(t *testing.T) {
+	h := NewHist("a.b.c", []string{"a:b"})
+
+	assert.Equal(t, "a.b.c", h.Name, "Name")
+	assert.Len(t, h.Tags, 1, "Tag count")
+	assert.Equal(t, "a:b", h.Tags[0], "First tag")
+
+	h.Sample(5, 1.0)
+	h.Sample(10, 1.0)
+	h.Sample(15, 1.0)
+	h.Sample(20, 1.0)
+	h.Sample(25, 1.0)
+
+	var aggregates HistogramAggregates
+	aggregates.Value = AggregateHarmonicMean
+	aggregates.Count = 1
+
+	percentiles := []float64{}
+
+	metrics := h.Flush(10*time.Second, percentiles, aggregates)
+	// We get lots of metrics back for histograms!
+	// One for each of the aggregates specified, plus
+	// one for the explicit percentile we are asking for
+	assert.Len(t, metrics, aggregates.Count, "Flushed metrics length")
+
+	// the average
+	m5 := metrics[0]
+	assert.Equal(t, "a.b.c.hmean", m5.Name, "Name")
+	assert.Equal(t, int32(0), m5.Interval, "Interval")
+	assert.Equal(t, "gauge", m5.MetricType, "Type")
+	assert.Len(t, m5.Tags, 1, "Tag count")
+	assert.Equal(t, "a:b", m5.Tags[0], "First tag")
+	// The counter returns an array with a single tuple of timestamp,value
+	expected := float64(5.0 / ((1.0/5) + (1.0/10) + (1.0/15) + (1.0/20) + (1.0/25)))
+	assert.Equal(t, expected, m5.Value[0][1], "Value")
 }
 
 func TestHistoSampleRate(t *testing.T) {
