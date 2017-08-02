@@ -6,6 +6,8 @@
 
 ## Added
 * Adds [events](https://docs.datadoghq.com/guides/dogstatsd/#events-1) and [service checks](https://docs.datadoghq.com/guides/dogstatsd/#service-checks-1) to `veneur-emit`. Thanks [redsn0w422](https://github.com/redsn0w422)!
+* Switch to [dep](https://github.com/golang/dep/) for managing the `vendor` directory.
+* Remove support for `govendor`.
 
 ## Improvements
 * Added tests for `parseMetricSSF`. Thanks [redsn0w422](https://github.com/redsn0w422)!
