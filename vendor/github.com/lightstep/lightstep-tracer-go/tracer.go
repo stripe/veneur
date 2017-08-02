@@ -67,9 +67,10 @@ type tracerImpl struct {
 	lock sync.Mutex
 
 	// Remote service that will receive reports.
-	client  collectorClient
-	conn    Connection
-	closech chan struct{}
+	client       collectorClient
+	conn         Connection
+	closech      chan struct{}
+	reportLoopch chan struct{}
 
 	// Two buffers of data.
 	buffer   reportBuffer
@@ -130,8 +131,14 @@ func NewTracer(opts Options) Tracer {
 
 	impl.conn = conn
 	impl.closech = make(chan struct{})
+	impl.reportLoopch = make(chan struct{})
 
-	go impl.reportLoop(impl.closech)
+	// Important! incase close is called before go routine is kicked off
+	closech := impl.closech
+	go func() {
+		impl.reportLoop(closech)
+		close(impl.reportLoopch)
+	}()
 
 	return impl
 }
@@ -185,19 +192,31 @@ func (r *tracerImpl) reconnectClient(now time.Time) {
 // Close flushes and then terminates the LightStep collector.
 func (r *tracerImpl) Close() error {
 	r.lock.Lock()
-	conn := r.conn
 	closech := r.closech
-	r.conn = nil
 	r.closech = nil
 	r.lock.Unlock()
 
 	if closech != nil {
+		// notify report loop that we are closing
 		close(closech)
+
+		// wait for report loop to finish
+		if r.reportLoopch != nil {
+			<-r.reportLoopch
+		}
 	}
+
+	// now its safe to close the connection
+	r.lock.Lock()
+	conn := r.conn
+	r.conn = nil
+	r.reportLoopch = nil
+	r.lock.Unlock()
 
 	if conn == nil {
 		return nil
 	}
+
 	return conn.Close()
 }
 
