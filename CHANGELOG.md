@@ -12,7 +12,7 @@
 ## Improvements
 * Added tests for `parseMetricSSF`. Thanks [redsn0w422](https://github.com/redsn0w422)!
 * Refactored `veneur-emit` flag usage to make testing easier. Thanks [redsn0w422](https://github.com/redsn0w422)!
-* Minor text fixes in the README. Thanks [an-stripe](https://github.com/an-stripe)
+* Minor text fixes in the README. Thanks [an-stripe](https://github.com/an-stripe)!
 
 # 1.5.1, 2017-07-18
 
