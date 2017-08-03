@@ -158,7 +158,7 @@ func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, val
 
 // setupVeneurServer creates a local server from the specified config
 // and starts listening for requests. It returns the server for inspection.
-func setupVeneurServer(t *testing.T, config Config, transport http.RoundTripper) Server {
+func setupVeneurServer(t *testing.T, config Config, transport http.RoundTripper) *Server {
 	server, err := NewFromConfig(config)
 	if transport != nil {
 		server.HTTPClient.Transport = transport
@@ -174,7 +174,7 @@ func setupVeneurServer(t *testing.T, config Config, transport http.RoundTripper)
 	server.Start()
 
 	go server.HTTPServe()
-	return server
+	return &server
 }
 
 // DDMetricsRequest represents the body of the POST request
@@ -187,7 +187,7 @@ type DDMetricsRequest struct {
 // fixture sets up a mock Datadog API server and Veneur
 type fixture struct {
 	api             *httptest.Server
-	server          Server
+	server          *Server
 	ddmetrics       chan DDMetricsRequest
 	interval        time.Duration
 	flushMaxPerBody int
@@ -199,7 +199,7 @@ func newFixture(t *testing.T, config Config) *fixture {
 
 	// Set up a remote server (the API that we're sending the data to)
 	// (e.g. Datadog)
-	f := &fixture{nil, Server{}, make(chan DDMetricsRequest, 10), interval, config.FlushMaxPerBody}
+	f := &fixture{nil, &Server{}, make(chan DDMetricsRequest, 10), interval, config.FlushMaxPerBody}
 	f.api = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		zr, err := zlib.NewReader(r.Body)
 		if err != nil {
