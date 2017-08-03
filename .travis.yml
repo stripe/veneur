@@ -37,5 +37,5 @@ before_script:
   - git diff-index --cached --exit-code HEAD
 
 script:
-  - if [ "$TRAVIS_GO_VERSION" = "1.8" ]; then go list ./... | grep -v vendor | xargs go test -race -v; fi
-  - if [ "$TRAVIS_GO_VERSION" != "1.8" ]; then echo $TRAVIS_GO_VERSION; go test -race -v ./...; fi
+  - if [ "$TRAVIS_GO_VERSION" = "1.8" ]; then go list ./... | grep -v vendor | xargs go test -race -v -timeout 15s; fi
+  - if [ "$TRAVIS_GO_VERSION" != "1.8" ]; then echo $TRAVIS_GO_VERSION; go test -race -v -timeout 15s ./...; fi
