@@ -176,7 +176,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	}
 
 	if conf.Debug {
-		log.Level = logrus.DebugLevel
+		log.SetLevel(logrus.DebugLevel)
 	}
 
 	if conf.EnableProfiling {
