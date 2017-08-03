@@ -42,9 +42,17 @@ type ConsulTwoMetricRoundTripper struct {
 	wg        *sync.WaitGroup
 	aReceived bool
 	bReceived bool
+
+	mtx sync.Mutex
 }
 
 func (rt *ConsulTwoMetricRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Ensure that only one RoundTrip is happening at once
+	// to prevent dataraces on aReceived and bReceived
+
+	rt.mtx.Lock()
+	defer rt.mtx.Unlock()
+
 	rec := httptest.NewRecorder()
 	if req.URL.Path == "/v1/health/service/forwardServiceName" {
 		resp, _ := ioutil.ReadFile("fixtures/consul/health_service_two.json")
