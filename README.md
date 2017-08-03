@@ -9,7 +9,7 @@ See also:
 
 * A nascent observability format, [SSF](https://github.com/stripe/veneur/tree/master/ssf/#readme)
 * A proxy for resilient distributed aggregation, [veneur-proxy](https://github.com/stripe/veneur/tree/master/cmd/veneur-proxy/#readme)
-* A command line tool for emmitting metrics, [veneur-proxy](https://github.com/stripe/veneur/tree/master/cmd/veneur-emit/#readme)
+* A command line tool for emitting metrics, [veneur-proxy](https://github.com/stripe/veneur/tree/master/cmd/veneur-emit/#readme)
 
 # Status
 
@@ -108,11 +108,11 @@ To clarify how each metric type behaves in Veneur, please use the following:
 veneur -f example.yaml
 ```
 
-See example.yaml for a sample config. Be sure and set your Datadog API `key`!
+See example.yaml for a sample config. Be sure to set your Datadog API `key`!
 
 # Plugins
 
-Veneur [includes optional plugins](tree/master/plugins) to extend it's capabilities. These plugins are enabled via configuration options. Please consult each plugin's README for more information:
+Veneur [includes optional plugins](tree/master/plugins) to extend its capabilities. These plugins are enabled via configuration options. Please consult each plugin's README for more information:
 
 * [S3 Plugin](plugins/s3) - Emit flushed metrics as a TSV file to Amazon S3
 * [InfluxDB Plugin](plugins/influxdb) - Emit flushed metrics to InfluxDB (experimental)
@@ -148,12 +148,12 @@ bridge the gap until Veneur is ready to handle HTTP requests again.
 
 You'll need to consult Einhorn's documentation for installation, setup and usage.
 But once you've done that you can tell Veneur to use Einhorn by setting `http_address`
-to `einhorn@0`. This informs [goji/bind](https://github.com/zenazn/goji/tree/master/bind) to use it's
+to `einhorn@0`. This informs [goji/bind](https://github.com/zenazn/goji/tree/master/bind) to use its
 Einhorn handling code to bind to the file descriptor for HTTP.
 
 ## Forwarding
 
-Veneur instances can be configured to forward their global metrics to another Veneur instance. You can use this feature to get the best of both worlds: metrics that benefit from global aggregation can be passed up to a single global Veneur, but other metrics can be published locally with host-scoped information. Note: **Forwarding adds an additional delay to metric availability corresponding to the value of the `interval` configuration option**, as the local veneur will flush it to it's configured upstream, which will then flush any recieved metrics when it's interval expires.
+Veneur instances can be configured to forward their global metrics to another Veneur instance. You can use this feature to get the best of both worlds: metrics that benefit from global aggregation can be passed up to a single global Veneur, but other metrics can be published locally with host-scoped information. Note: **Forwarding adds an additional delay to metric availability corresponding to the value of the `interval` configuration option**, as the local veneur will flush it to its configured upstream, which will then flush any recieved metrics when its interval expires.
 
 If a local instance receives a histogram or set, it will publish the local parts of that metric (the count, min and max) directly to DataDog, but instead of publishing percentiles, it will package the entire histogram and send it to the global instance. The global instance will aggregate all the histograms together and publish their percentiles to DataDog.
 
@@ -187,7 +187,7 @@ Veneur also honors the same "magic" tags that the dogstatsd daemon includes in t
 
 # Configuration
 
-Veneur expects to have a config file supplied via `-f PATH`. The include `example.yaml` outlines the options:
+Veneur expects to have a config file supplied via `-f PATH`. The included `example.yaml` outlines the options:
 
 * `api_hostname` - The Datadog API URL to post to. Probably `https://app.datadoghq.com`.
 * `metric_max_length` - How big a buffer to allocate for incoming metric lengths. Metrics longer than this will get truncated!
