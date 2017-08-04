@@ -72,7 +72,7 @@ func handleTraceRequest(ctx context.Context, stats *statsd.Client, w http.Respon
 	span, err = tracer.ExtractRequestChild("/spans", r, "veneur.opentracing.spans")
 	if err != nil {
 		log.WithError(err).Info("Could not extract span from request")
-		span = tracer.StartSpan("/spans", trace.NameTag("veneur.opentracing.spans")).(*trace.Span)
+		span = tracer.StartSpan("veneur.opentracing.spans").(*trace.Span)
 	} else {
 		log.WithField("trace", span.Trace).Info("Extracted span from request")
 	}
@@ -119,7 +119,7 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 	span, err = tracer.ExtractRequestChild("/import", r, "veneur.opentracing.import")
 	if err != nil {
 		log.WithError(err).Debug("Could not extract span from request")
-		span = tracer.StartSpan("/import", trace.NameTag("veneur.opentracing.import")).(*trace.Span)
+		span = tracer.StartSpan("veneur.opentracing.import").(*trace.Span)
 	} else {
 		log.WithField("trace", span.Trace).Debug("Extracted span from request")
 	}
@@ -191,7 +191,7 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 // metric
 func nonEmpty(ctx context.Context, jsonMetrics []samplers.JSONMetric) bool {
 
-	span, _ := trace.StartSpanFromContext(ctx, "/import", trace.NameTag("veneur.opentracing.import.nonEmpty"))
+	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.import.nonEmpty")
 	defer span.Finish()
 
 	sentinel := samplers.JSONMetric{}

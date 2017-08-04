@@ -28,9 +28,6 @@ import (
 )
 
 // Experimental
-const NameKey = "name"
-
-// Experimental
 const ResourceKey = "resource"
 
 func init() {
@@ -162,12 +159,10 @@ func (t *Trace) SSFSpan() *ssf.SSFSpan {
 		Id:             t.SpanID,
 		ParentId:       t.ParentID,
 		EndTimestamp:   t.End.UnixNano(),
+		Name:           name,
 		Tags:           t.Tags,
 		Service:        Service,
 	}
-
-	span.Tags[NameKey] = name
-	span.Tags[ResourceKey] = t.Resource
 
 	return span
 }
@@ -201,7 +196,7 @@ func (t *Trace) Record(name string, tags map[string]string) error {
 	}
 
 	span := t.SSFSpan()
-	span.Tags[NameKey] = name
+	span.Name = name
 
 	return sendSample(span)
 }
@@ -252,7 +247,6 @@ func StartSpanFromContext(ctx context.Context, name string, opts ...opentracing.
 		details := runtime.FuncForPC(pc)
 		if ok && details != nil {
 			name = stripPackageName(details.Name())
-			opts = append(opts, NameTag(name))
 		}
 	}
 

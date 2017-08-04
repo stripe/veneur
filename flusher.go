@@ -732,16 +732,15 @@ func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tra
 			parentID = 0
 		}
 
-		resource := span.Tags[trace.ResourceKey]
-		name := span.Tags[trace.NameKey]
+		resource := span.Tags["resource"]
+		name := span.Name
 
 		tags := map[string]string{}
 		for k, v := range span.Tags {
 			tags[k] = v
 		}
 
-		delete(tags, trace.NameKey)
-		delete(tags, trace.ResourceKey)
+		delete(tags, "resource")
 
 		// TODO implement additional metrics
 		var metrics map[string]float64
@@ -817,7 +816,7 @@ func flushSpanLightstep(lightstepTracer opentracing.Tracer, ssfSpan ssf.SSFSpan)
 
 	timestamp := time.Unix(ssfSpan.StartTimestamp/1e9, ssfSpan.StartTimestamp%1e9)
 	sp := lightstepTracer.StartSpan(
-		ssfSpan.Tags[trace.NameKey],
+		ssfSpan.Name,
 		opentracing.StartTime(timestamp),
 		lightstep.SetTraceID(uint64(ssfSpan.TraceId)),
 		lightstep.SetSpanID(uint64(ssfSpan.Id)),
