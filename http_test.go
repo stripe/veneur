@@ -110,7 +110,7 @@ func testServerImport(t *testing.T, filename string, contentEncoding string) {
 	s := setupVeneurServer(t, config, nil)
 	defer s.Shutdown()
 
-	handler := handleImport(&s)
+	handler := handleImport(s)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusAccepted, w.Code, "Test server returned wrong HTTP response code")
@@ -151,7 +151,7 @@ func TestServerImportGzip(t *testing.T) {
 	s := setupVeneurServer(t, config, nil)
 	defer s.Shutdown()
 
-	handler := handleImport(&s)
+	handler := handleImport(s)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusUnsupportedMediaType, w.Code, "Test server returned wrong HTTP response code")
@@ -176,7 +176,7 @@ func TestServerImportCompressedInvalid(t *testing.T) {
 	s := setupVeneurServer(t, config, nil)
 	defer s.Shutdown()
 
-	handler := handleImport(&s)
+	handler := handleImport(s)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code, "Test server returned wrong HTTP response code")
@@ -201,7 +201,7 @@ func TestServerImportUncompressedInvalid(t *testing.T) {
 	s := setupVeneurServer(t, config, nil)
 	defer s.Shutdown()
 
-	handler := handleImport(&s)
+	handler := handleImport(s)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code, "Test server returned wrong HTTP response code")
@@ -311,7 +311,7 @@ func testServerImportHelper(t *testing.T, data interface{}) {
 	defer s.Shutdown()
 	HTTPAddrPort++
 
-	handler := handleImport(&s)
+	handler := handleImport(s)
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code, "Test server returned wrong HTTP response code")
