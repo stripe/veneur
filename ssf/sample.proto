@@ -33,6 +33,8 @@ message SSFSample {
 }
 
 message SSFSpan {
+  reserved 9;
+
   int32 version = 1;
   // the trace_id is the (span) id of the root span
   int64 trace_id = 2;
@@ -54,9 +56,6 @@ message SSFSpan {
   // e.g. "veneur"
   string service = 8;
 
-  // The thing we're doing, handing a request, writing a value, etc
-  string operation = 9;
-
   repeated SSFSample metrics = 10;
 
   // Tags are name value pairs that describe a facet of the span. They apply to
@@ -74,6 +73,11 @@ message SSFSpan {
   // span in a trace. You might have various forms of middleware that happen
   // first or you might have multiple services participating in the same trace.
   bool indicator = 12;
+
+  // What to call this span. This could take the form of the endpoint
+  // (/customer/:id), the function (class::name.method), a friendly name
+  // (foo middleware) or whatever makes sense in your context.
+  string name = 13;
 }
 
 // A span collection allows clients to send a batch of spans rather than just one. Note that
