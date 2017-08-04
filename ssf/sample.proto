@@ -70,6 +70,9 @@ message SSFSpan {
   // In practice a service's core feature — the thing you would "bill" for, such
   // as an API call or read/write operation — would be flagged as an indicator
   // span, and its child spans would further describe it's duration.
+  // It's also worth nothing that an indicator need not be the "root" or first
+  // span in a trace. You might have various forms of middleware that happen
+  // first or you might have multiple services participating in the same trace.
   bool indicator = 12;
 }
 
