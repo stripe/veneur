@@ -144,7 +144,10 @@ type SSFSpan struct {
 	// This is a signal to receivers that this span may be used to compute SLIs.
 	// In practice a service's core feature — the thing you would "bill" for, such
 	// as an API call or read/write operation — would be flagged as an indicator
-	// span, and it's child spans would further describe it's duration.
+	// span, and its child spans would further describe it's duration.
+	// It's also worth nothing that an indicator need not be the "root" or first
+	// span in a trace. You might have various forms of middleware that happen
+	// first or you might have multiple services participating in the same trace.
 	Indicator bool `protobuf:"varint,12,opt,name=indicator" json:"indicator,omitempty"`
 }
 
@@ -167,7 +170,9 @@ func (m *SSFSpan) GetTags() map[string]string {
 	return nil
 }
 
-// A span collection allows clients to send a batch of spans rather than just one.
+// A span collection allows clients to send a batch of spans rather than just one. Note that
+// these spans may have nothing in common. This is merely a convenience to save clients — and
+// servers — having to (un)marshal each span separately.
 type SSFSpanCollection struct {
 	Spans []*SSFSpan `protobuf:"bytes,1,rep,name=spans" json:"spans,omitempty"`
 }
