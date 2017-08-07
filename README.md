@@ -246,6 +246,9 @@ Veneur will emit metrics to the `stats_address` configured above in DogStatsD fo
 * `veneur.flush.error_total` - Number of errors received POSTing to Datadog.
 * `veneur.forward.error_total` - Number of errors received POSTing to an upstream Veneur. See also `import.request_error_total` below.
 * `veneur.flush.worker_duration_ns` - Per-worker timing — tagged by `worker` - for flush. This is important as it is the time in which the worker holds a lock and is unavailable for other work.
+* `veneur.gc.number` - Number of completed GC cycles.
+* `veneur.gc.pause_total_ns` - Total seconds of STW GC since the program started.
+* `veneur.mem.heap_alloc_bytes` - Total number of reachable and unreachable but uncollected heap objects in bytes.
 * `veneur.worker.metrics_processed_total` - Total number of metric packets processed between flushes by workers, tagged by `worker`. This helps you find hot spots where a single worker is handling a lot of metrics. The sum across all workers should be approximately proportional to the number of packets received.
 * `veneur.worker.metrics_flushed_total` - Total number of metrics flushed at each flush time, tagged by `metric_type`. A "metric", in this context, refers to a unique combination of name, tags and metric type. You can use this metric to detect when your clients are introducing new instrumentation, or when you acquire new clients.
 * `veneur.worker.metrics_imported_total` - Total number of metrics received via the importing endpoint. A "metric", in this context, refers to a unique combination of name, tags, type _and originating host_. This metric indicates how much of a Veneur instance's load is coming from imports.
