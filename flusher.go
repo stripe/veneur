@@ -25,6 +25,8 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
+const DatadogResourceKey = "resource"
+
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) Flush() {
@@ -732,7 +734,7 @@ func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tra
 			parentID = 0
 		}
 
-		resource := span.Tags["resource"]
+		resource := span.Tags[DatadogResourceKey]
 		name := span.Name
 
 		tags := map[string]string{}
@@ -740,7 +742,7 @@ func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tra
 			tags[k] = v
 		}
 
-		delete(tags, "resource")
+		delete(tags, DatadogResourceKey)
 
 		// TODO implement additional metrics
 		var metrics map[string]float64
