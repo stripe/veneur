@@ -72,7 +72,7 @@ func handleTraceRequest(ctx context.Context, stats *statsd.Client, w http.Respon
 	span, err = tracer.ExtractRequestChild("/spans", r, "veneur.opentracing.spans")
 	if err != nil {
 		log.WithError(err).Info("Could not extract span from request")
-		span = tracer.StartSpan("veneur.opentracing.spans").(*trace.Span)
+		span = tracer.StartSpan("/spans").(*trace.Span)
 	} else {
 		log.WithField("trace", span.Trace).Info("Extracted span from request")
 	}
