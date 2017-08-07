@@ -873,13 +873,22 @@ func configureLightstepTracer(conf Config) func() opentracing.Tracer {
 			port = lightstepDefaultPort
 		}
 
+		reconPeriod, err := time.ParseDuration(conf.TraceLightstepReconnectPeriod)
+		if err != nil {
+			log.WithError(err).WithField(
+				"interval", conf.TraceLightstepReconnectPeriod,
+			).Error("Failed to parse reconnect duration, using default.")
+			reconPeriod = 5 * time.Minute
+		}
+
 		log.WithFields(logrus.Fields{
 			"Host": host.Hostname(),
 			"Port": port,
 		}).Info("Dialing lightstep host")
 
 		return lightstep.NewTracer(lightstep.Options{
-			AccessToken: conf.TraceLightstepAccessToken,
+			AccessToken:     conf.TraceLightstepAccessToken,
+			ReconnectPeriod: reconPeriod,
 			Collector: lightstep.Endpoint{
 				Host:      host.Hostname(),
 				Port:      port,
