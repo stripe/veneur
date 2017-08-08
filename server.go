@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -22,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/getsentry/raven-go"
+	lightstep "github.com/lightstep/lightstep-tracer-go"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
 
@@ -53,6 +56,7 @@ var tracer = trace.GlobalTracer
 const defaultTCPReadTimeout = 10 * time.Minute
 
 const lightstepDefaultPort = 8080
+const lightstepDefaultInterval = 5 * time.Minute
 
 // A Server is the actual veneur instance that will be run.
 type Server struct {
@@ -113,8 +117,8 @@ type tracerSink struct {
 
 	// This may be nil, if the tracer doesn't use
 	// an opentracing backend
-	tracerThunk func() opentracing.Tracer
-	flush       traceFlusher
+	tracer opentracing.Tracer
+	flush  traceFlusher
 }
 
 // NewFromConfig creates a new veneur server from a configuration specification.
@@ -290,19 +294,63 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		// configure Datadog as sink
 		if ret.DDTraceAddress != "" {
 			ret.tracerSinks = append(ret.tracerSinks, tracerSink{
-				name:        "Datadog",
-				tracerThunk: nil,
-				flush:       flushSpansDatadog,
+				name:   "Datadog",
+				tracer: nil,
+				flush:  flushSpansDatadog,
 			})
 			log.Info("Configured Datadog trace sink")
 		}
 
 		// configure Lightstep as Sink
 		if ret.traceLightstepAccessToken != "" {
+			var host *url.URL
+			host, err = url.Parse(conf.TraceLightstepCollectorHost)
+			if err != nil {
+				log.WithError(err).WithField(
+					"host", conf.TraceLightstepCollectorHost,
+				).Error("Error parsing LightStep collector URL")
+				return
+			}
+
+			port, err := strconv.Atoi(host.Port())
+			if err != nil {
+				port = lightstepDefaultPort
+			} else {
+				log.WithError(err).WithFields(logrus.Fields{
+					"port":         port,
+					"default_port": lightstepDefaultPort,
+				}).Error("Error parsing LightStep port, using default")
+			}
+
+			reconPeriod, err := time.ParseDuration(conf.TraceLightstepReconnectPeriod)
+			if err != nil {
+				log.WithError(err).WithFields(logrus.Fields{
+					"interval":         conf.TraceLightstepReconnectPeriod,
+					"default_interval": lightstepDefaultInterval,
+				}).Error("Failed to parse reconnect duration, using default.")
+				reconPeriod = lightstepDefaultInterval
+			}
+
+			log.WithFields(logrus.Fields{
+				"Host": host.Hostname(),
+				"Port": port,
+			}).Info("Dialing lightstep host")
+
+			lightstepTracer := lightstep.NewTracer(lightstep.Options{
+				AccessToken:     conf.TraceLightstepAccessToken,
+				ReconnectPeriod: reconPeriod,
+				Collector: lightstep.Endpoint{
+					Host:      host.Hostname(),
+					Port:      port,
+					Plaintext: true,
+				},
+				UseGRPC: true,
+			})
+
 			ret.tracerSinks = append(ret.tracerSinks, tracerSink{
-				name:        "Lightstep",
-				tracerThunk: configureLightstepTracer(conf),
-				flush:       flushSpansLightstep,
+				name:   "Lightstep",
+				tracer: lightstepTracer,
+				flush:  flushSpansLightstep,
 			})
 
 			// only set this if the original token was non-empty
