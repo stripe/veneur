@@ -70,7 +70,7 @@ func TestParseSSFEmpty(t *testing.T) {
 
 	sample, metrics, err := samplers.ParseSSF(buff)
 	assert.Nil(t, sample)
-	assert.Nil(t, metrics)
+	assert.Zero(t, len(metrics))
 	assert.Nil(t, err)
 }
 
