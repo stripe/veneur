@@ -319,7 +319,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 				log.WithError(err).WithFields(logrus.Fields{
 					"port":         port,
 					"default_port": lightstepDefaultPort,
-				}).Error("Error parsing LightStep port, using default")
+				}).Warn("Error parsing LightStep port, using default")
 			}
 
 			reconPeriod, err := time.ParseDuration(conf.TraceLightstepReconnectPeriod)
@@ -327,7 +327,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 				log.WithError(err).WithFields(logrus.Fields{
 					"interval":         conf.TraceLightstepReconnectPeriod,
 					"default_interval": lightstepDefaultInterval,
-				}).Error("Failed to parse reconnect duration, using default.")
+				}).Warn("Failed to parse reconnect duration, using default.")
 				reconPeriod = lightstepDefaultInterval
 			}
 
