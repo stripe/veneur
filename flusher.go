@@ -503,6 +503,10 @@ func (s *Server) flushTraces(ctx context.Context) {
 				s.Statsd.Incr("worker.trace.sink.timestamp_error", []string{timeErr}, 1)
 			}
 
+			if ssfSpan.Tags == nil {
+				ssfSpan.Tags = make(map[string]string)
+			}
+
 			// this will overwrite tags already present on the span
 			for _, tag := range tags {
 				ssfSpan.Tags[tag[0]] = tag[1]
