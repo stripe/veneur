@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/stripe/veneur/ssf"
 )
 
@@ -49,6 +50,67 @@ func (m *MetricKey) String() string {
 	buff.WriteString(m.Type)
 	buff.WriteString(m.JoinedTags)
 	return buff.String()
+}
+
+// ValidTrace takes in an SSF span and determines if it is valid or not.
+// It also makes sure the Tags is non-nil, since we use it later.
+func ValidTrace(sample ssf.SSFSpan) bool {
+	ret := true
+	ret = ret && sample.Id != 0
+	ret = ret && sample.TraceId != 0
+	ret = ret && sample.StartTimestamp != 0
+	ret = ret && sample.EndTimestamp != 0
+
+	if sample.Tags == nil {
+		sample.Tags = make(map[string]string, 0)
+	}
+
+	return ret
+}
+
+// ValidMetric takes in an SSF sample and determines if it is valid or not.
+func ValidMetric(sample UDPMetric) bool {
+	ret := true
+	ret = ret && sample.Name != ""
+	ret = ret && sample.Value != nil
+	if sample.SampleRate == 0 {
+		sample.SampleRate = 1
+	}
+	return ret
+}
+
+// ErrSSFUnmarshal is returned by ParseSSF when the packet can't be unmarshaled.
+var ErrSSFUnmarshal = errors.New("Unmarshal trace")
+
+// ErrParseMetricSSF is returned by ParseSSF when a metric packet can't be parsed.
+var ErrParseMetricSSF = errors.New("ParseMetricSSF on metric")
+
+// ParseSSF takes in a byte slice and returns:
+// an SSFSpan, slice of UDPMetrics, and an error.
+// It also validates packets before returning them.
+func ParseSSF(packet []byte) (*ssf.SSFSpan, []*UDPMetric, error) {
+	sample := &ssf.SSFSpan{}
+	err := proto.Unmarshal(packet, sample)
+	if err != nil {
+		return nil, nil, ErrSSFUnmarshal
+	}
+
+	metrics := make([]*UDPMetric, 0)
+	for _, metricPacket := range sample.Metrics {
+		metric, err := ParseMetricSSF(metricPacket)
+		if err != nil {
+			return nil, nil, ErrParseMetricSSF
+		}
+		if ValidMetric(*metric) {
+			metrics = append(metrics, metric)
+		}
+	}
+
+	if !ValidTrace(*sample) {
+		sample = nil
+	}
+
+	return sample, metrics, nil
 }
 
 // ParseMetricSSF converts an incoming SSF packet to a Metric.
