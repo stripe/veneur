@@ -23,6 +23,34 @@ func freshSSFMetric() *ssf.SSFSample {
 	}
 }
 
+func TestValidMetric(t *testing.T) {
+	metric := freshSSFMetric()
+
+	m, _ := samplers.ParseMetricSSF(metric)
+	assert.True(t, samplers.ValidMetric(m))
+
+	metric.Name = ""
+	m, _ = samplers.ParseMetricSSF(metric)
+	assert.False(t, samplers.ValidMetric(m))
+
+	metric.SampleRate = 0
+	m, _ = samplers.ParseMetricSSF(metric)
+	assert.False(t, samplers.ValidMetric(m))
+	assert.Equal(t, float32(1), m.SampleRate)
+}
+
+func TestValidTrace(t *testing.T) {
+	trace := &ssf.SSFSpan{}
+	assert.False(t, samplers.ValidTrace(trace))
+	assert.NotNil(t, trace.Tags)
+
+	trace.Id = 1
+	trace.TraceId = 1
+	trace.StartTimestamp = 1
+	trace.EndTimestamp = 5
+	assert.True(t, samplers.ValidTrace(trace))
+}
+
 func TestParserSSF(t *testing.T) {
 	standardMetric := freshSSFMetric()
 	m, _ := samplers.ParseMetricSSF(standardMetric)
