@@ -54,7 +54,7 @@ func (m *MetricKey) String() string {
 
 // ValidTrace takes in an SSF span and determines if it is valid or not.
 // It also makes sure the Tags is non-nil, since we use it later.
-func ValidTrace(sample ssf.SSFSpan) bool {
+func ValidTrace(sample *ssf.SSFSpan) bool {
 	ret := true
 	ret = ret && sample.Id != 0
 	ret = ret && sample.TraceId != 0
@@ -69,7 +69,7 @@ func ValidTrace(sample ssf.SSFSpan) bool {
 }
 
 // ValidMetric takes in an SSF sample and determines if it is valid or not.
-func ValidMetric(sample UDPMetric) bool {
+func ValidMetric(sample *UDPMetric) bool {
 	ret := true
 	ret = ret && sample.Name != ""
 	ret = ret && sample.Value != nil
@@ -95,12 +95,12 @@ func ParseSSF(packet []byte) (*ssf.SSFSpan, []*UDPMetric, error) {
 		if err != nil {
 			return nil, nil, errors.New("parse")
 		}
-		if ValidMetric(*metric) {
+		if ValidMetric(metric) {
 			metrics = append(metrics, metric)
 		}
 	}
 
-	if !ValidTrace(*sample) {
+	if !ValidTrace(sample) {
 		sample = nil
 	}
 
