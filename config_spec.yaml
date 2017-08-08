@@ -157,9 +157,10 @@ trace_lightstep_reconnect_period: "5m"
 
 # The LightStep client has internal throttling to prevent you overwhelming
 # things. Anything that exceeds this many spans in the reporting period
-# — which is a minimum of 500ms and 2.5s at the time of this writing — will be
-# dropped. In other words, you can only submit this many spans per flush! If
-# left at zero, veneur will set the maximum to the size of `ssf_buffer_size`.
+# — which is a minimum of 500ms and maxmium 2.5s at the time of this writing
+# — will be dropped. In other words, you can only submit this many spans per
+# flush! If left at zero, veneur will set the maximum to the size of
+# `ssf_buffer_size`.
 trace_lightstep_maximum_spans: 0
 
 # == PLUGINS ==
