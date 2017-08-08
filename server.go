@@ -22,8 +22,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/getsentry/raven-go"
-	"github.com/golang/protobuf/proto"
-	"github.com/stripe/veneur/ssf"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
 
@@ -537,27 +535,6 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 	return nil
 }
 
-// ValidTrace takes in an SSF span and determines if it is valid or not.
-func ValidTrace(sample ssf.SSFSpan) bool {
-	ret := true
-	ret = ret && sample.Id != 0
-	ret = ret && sample.TraceId != 0
-	ret = ret && sample.StartTimestamp != 0
-	ret = ret && sample.EndTimestamp != 0
-	return ret
-}
-
-// ValidMetric takes in an SSF sample and determines if it is valid or not.
-func ValidMetric(sample samplers.UDPMetric) bool {
-	ret := true
-	ret = ret && sample.Name != ""
-	ret = ret && sample.Value != nil
-	if sample.SampleRate == 0 {
-		sample.SampleRate = 1
-	}
-	return ret
-}
-
 // HandleTracePacket accepts an incoming packet as bytes and sends it to the
 // appropriate worker.
 func (s *Server) HandleTracePacket(packet []byte) {
@@ -569,36 +546,28 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		return
 	}
 
-	// Technically this could be anything, but we're only consuming trace spans
-	// for now.
-	newSample := &ssf.SSFSpan{}
-	err := proto.Unmarshal(packet, newSample)
-	if err != nil {
+	sample, metrics, err := samplers.ParseSSF(packet)
+	if err == samplers.ErrSSFUnmarshal {
 		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:trace", "reason:unmarshal"}, 1.0)
 		log.WithError(err).Warn("Trace unmarshaling error")
 		return
+	} else if err == samplers.ErrParseMetricSSF {
+		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", "reason:parse"}, 1.0)
+		log.WithError(err).Warn("ParseMetricSSF error")
+		return
+	} else if err != nil {
+		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", "reason:unknown"}, 1.0)
+		log.WithError(err).Warn("Unknown error ASDF")
+		return
 	}
-	for _, metricPacket := range newSample.Metrics {
-		metric, err := samplers.ParseMetricSSF(metricPacket)
-		if err != nil {
-			log.WithFields(logrus.Fields{
-				logrus.ErrorKey: err,
-				"packet":        metricPacket.String(),
-			}).Warn("Could not parse packet")
-			s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", "reason:parse"}, 1.0)
-			return
-		}
-		if ValidMetric(*metric) {
-			s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
-		} else {
-			s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", "reason:not_valid"}, 1.0)
-		}
+
+	for _, metric := range metrics {
+		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
 	}
-	if ValidTrace(*newSample) {
+
+	if sample != nil {
 		s.Statsd.Incr("packet.spans.received_total", nil, .1)
-		s.TraceWorker.TraceChan <- *newSample
-	} else {
-		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_span", "reason:not_valid"}, 1.0)
+		s.TraceWorker.TraceChan <- *sample
 	}
 }
 
