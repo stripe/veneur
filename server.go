@@ -547,8 +547,8 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	}
 
 	sample, metrics, err := samplers.ParseSSF(packet)
-	reason := fmt.Sprintf("reason:%s", err.Error())
 	if err != nil {
+		reason := fmt.Sprintf("reason:%s", err.Error())
 		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", reason}, 1.0)
 		log.WithError(err).Warn("ParseSSF")
 		return
