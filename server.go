@@ -547,17 +547,10 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	}
 
 	sample, metrics, err := samplers.ParseSSF(packet)
-	if err == samplers.ErrSSFUnmarshal {
-		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:trace", "reason:unmarshal"}, 1.0)
-		log.WithError(err).Warn("Trace unmarshaling error")
-		return
-	} else if err == samplers.ErrParseMetricSSF {
-		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", "reason:parse"}, 1.0)
-		log.WithError(err).Warn("ParseMetricSSF error")
-		return
-	} else if err != nil {
-		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", "reason:unknown"}, 1.0)
-		log.WithError(err).Warn("Unknown error ASDF")
+	reason := fmt.Sprintf("reason:%s", err.Error())
+	if err != nil {
+		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", reason}, 1.0)
+		log.WithError(err).Warn("ParseSSF")
 		return
 	}
 

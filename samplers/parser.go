@@ -79,12 +79,6 @@ func ValidMetric(sample UDPMetric) bool {
 	return ret
 }
 
-// ErrSSFUnmarshal is returned by ParseSSF when the packet can't be unmarshaled.
-var ErrSSFUnmarshal = errors.New("Unmarshal trace")
-
-// ErrParseMetricSSF is returned by ParseSSF when a metric packet can't be parsed.
-var ErrParseMetricSSF = errors.New("ParseMetricSSF on metric")
-
 // ParseSSF takes in a byte slice and returns:
 // an SSFSpan, slice of UDPMetrics, and an error.
 // It also validates packets before returning them.
@@ -92,14 +86,14 @@ func ParseSSF(packet []byte) (*ssf.SSFSpan, []*UDPMetric, error) {
 	sample := &ssf.SSFSpan{}
 	err := proto.Unmarshal(packet, sample)
 	if err != nil {
-		return nil, nil, ErrSSFUnmarshal
+		return nil, nil, errors.New("unmarshal")
 	}
 
 	metrics := make([]*UDPMetric, 0)
 	for _, metricPacket := range sample.Metrics {
 		metric, err := ParseMetricSSF(metricPacket)
 		if err != nil {
-			return nil, nil, ErrParseMetricSSF
+			return nil, nil, errors.New("parse")
 		}
 		if ValidMetric(*metric) {
 			metrics = append(metrics, metric)
