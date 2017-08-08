@@ -3,6 +3,7 @@ package veneur
 import (
 	"testing"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
@@ -49,6 +50,110 @@ func TestValidTrace(t *testing.T) {
 	trace.StartTimestamp = 1
 	trace.EndTimestamp = 5
 	assert.True(t, samplers.ValidTrace(trace))
+}
+
+func TestParseSSFUnmarshal(t *testing.T) {
+	test := []byte{'0'}
+	sample, metrics, err := samplers.ParseSSF(test)
+
+	assert.Nil(t, sample)
+	assert.Zero(t, len(metrics))
+	assert.NotNil(t, err)
+	assert.Equal(t, "unmarshal", err.Error())
+}
+
+func TestParseSSFEmpty(t *testing.T) {
+	trace := &ssf.SSFSpan{}
+
+	buff, err := proto.Marshal(trace)
+	assert.Nil(t, err)
+
+	sample, metrics, err := samplers.ParseSSF(buff)
+	assert.Nil(t, sample)
+	assert.Nil(t, metrics)
+	assert.Nil(t, err)
+}
+
+func TestParseSSFValidTraceInvalidMetric(t *testing.T) {
+	trace := &ssf.SSFSpan{}
+	trace.Id = 1
+	trace.TraceId = 1
+	trace.StartTimestamp = 1
+	trace.EndTimestamp = 5
+
+	buff, err := proto.Marshal(trace)
+	assert.Nil(t, err)
+
+	sample, metrics, err := samplers.ParseSSF(buff)
+	assert.NotNil(t, sample)
+	assert.Zero(t, len(metrics))
+	assert.Nil(t, err)
+	assert.NotNil(t, sample.Tags)
+}
+
+func TestParseSSFInvalidTraceValidMetric(t *testing.T) {
+	metric := freshSSFMetric()
+
+	trace := &ssf.SSFSpan{}
+	trace.Metrics = make([]*ssf.SSFSample, 0)
+	trace.Metrics = append(trace.Metrics, metric)
+
+	buff, err := proto.Marshal(trace)
+	assert.Nil(t, err)
+
+	sample, metrics, err := samplers.ParseSSF(buff)
+	assert.Nil(t, sample)
+	assert.Equal(t, 1, len(metrics))
+	assert.Nil(t, err)
+
+	m := metrics[0]
+	assert.Equal(t, metric.Name, m.Name, "Name")
+	assert.Equal(t, float64(metric.Value), m.Value, "Value")
+	assert.Equal(t, "counter", m.Type, "Type")
+}
+
+func TestParseSSFValid(t *testing.T) {
+	metric := freshSSFMetric()
+
+	trace := &ssf.SSFSpan{}
+	trace.Id = 1
+	trace.TraceId = 1
+	trace.StartTimestamp = 1
+	trace.EndTimestamp = 5
+
+	trace.Metrics = make([]*ssf.SSFSample, 0)
+	trace.Metrics = append(trace.Metrics, metric)
+
+	buff, err := proto.Marshal(trace)
+	assert.Nil(t, err)
+
+	sample, metrics, err := samplers.ParseSSF(buff)
+	assert.NotNil(t, sample)
+	assert.Equal(t, 1, len(metrics))
+	assert.Nil(t, err)
+
+	m := metrics[0]
+	assert.Equal(t, metric.Name, m.Name, "Name")
+	assert.Equal(t, float64(metric.Value), m.Value, "Value")
+	assert.Equal(t, "counter", m.Type, "Type")
+}
+
+func TestParseSSFBadMetric(t *testing.T) {
+	metric := freshSSFMetric()
+	metric.Metric = 5
+
+	trace := &ssf.SSFSpan{}
+
+	trace.Metrics = make([]*ssf.SSFSample, 0)
+	trace.Metrics = append(trace.Metrics, metric)
+
+	buff, err := proto.Marshal(trace)
+	assert.Nil(t, err)
+
+	sample, metrics, err := samplers.ParseSSF(buff)
+	assert.Nil(t, sample)
+	assert.Equal(t, 0, len(metrics))
+	assert.Equal(t, "parse", err.Error())
 }
 
 func TestParserSSF(t *testing.T) {
