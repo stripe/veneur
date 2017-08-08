@@ -41,6 +41,7 @@ type Config struct {
 	TraceAPIAddress               string    `yaml:"trace_api_address"`
 	TraceLightstepAccessToken     string    `yaml:"trace_lightstep_access_token"`
 	TraceLightstepCollectorHost   string    `yaml:"trace_lightstep_collector_host"`
+	TraceLightstepMaximumSpans    int       `yaml:"trace_lightstep_maximum_spans"`
 	TraceLightstepReconnectPeriod string    `yaml:"trace_lightstep_reconnect_period"`
 	TraceMaxLengthBytes           int       `yaml:"trace_max_length_bytes"`
 	UdpAddress                    string    `yaml:"udp_address"`

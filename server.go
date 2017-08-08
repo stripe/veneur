@@ -336,6 +336,12 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 				"Port": port,
 			}).Info("Dialing lightstep host")
 
+			maxSpans := conf.TraceLightstepMaximumSpans
+			if maxSpans == 0 {
+				maxSpans = conf.SsfBufferSize
+				log.WithField("max spans", maxSpans).Info("Using default maximum spans for LightStep")
+			}
+
 			lightstepTracer := lightstep.NewTracer(lightstep.Options{
 				AccessToken:     conf.TraceLightstepAccessToken,
 				ReconnectPeriod: reconPeriod,
@@ -344,7 +350,8 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 					Port:      port,
 					Plaintext: true,
 				},
-				UseGRPC: true,
+				UseGRPC:          true,
+				MaxBufferedSpans: maxSpans,
 			})
 
 			ret.tracerSinks = append(ret.tracerSinks, tracerSink{
