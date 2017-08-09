@@ -338,8 +338,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 			maxSpans := conf.TraceLightstepMaximumSpans
 			if maxSpans == 0 {
-				maxSpans = conf.SsfBufferSize
-				log.WithField("max spans", maxSpans).Info("Using default maximum spans for LightStep")
+				log.WithField("max spans", bufferSize).Info("Using default maximum spans — ssf_buffer_size — for LightStep")
 			}
 
 			lightstepTracer := lightstep.NewTracer(lightstep.Options{
