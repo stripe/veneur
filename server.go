@@ -55,6 +55,10 @@ var tracer = trace.GlobalTracer
 
 const defaultTCPReadTimeout = 10 * time.Minute
 
+// defaultSpanBufferSize is the default maximum number of spans that
+// we can flush per flush-interval
+const defaultSpanBufferSize = 1 << 14
+
 const lightstepDefaultPort = 8080
 const lightstepDefaultInterval = 5 * time.Minute
 
@@ -275,7 +279,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 		bufferSize := conf.SsfBufferSize
 		if bufferSize == 0 {
-			bufferSize = spanBufferSize
+			bufferSize = defaultSpanBufferSize
 		}
 
 		ret.TraceWorker = NewTraceWorker(ret.Statsd, bufferSize)
