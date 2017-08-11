@@ -29,6 +29,8 @@ _work
 /cmd/veneur/veneur
 /veneur-proxy
 /cmd/veneur-proxy/veneur-proxy
+/veneur-prometheus
+/cmd/veneur-prometheus/veneur-prometheus
 
 *.swp
 *.swo
