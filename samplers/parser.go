@@ -102,6 +102,13 @@ func ParseSSF(packet []byte) (*ssf.SSFSpan, []*UDPMetric, error) {
 
 	if !ValidTrace(sample) {
 		sample = nil
+	} else {
+		for k, v := range sample.Tags {
+			if k == "name" {
+				sample.Name = v
+			}
+		}
+		delete(sample.Tags, "name")
 	}
 
 	return sample, metrics, nil
