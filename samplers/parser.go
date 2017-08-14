@@ -102,7 +102,7 @@ func ParseSSF(packet []byte) (*ssf.SSFSpan, []*UDPMetric, error) {
 
 	if !ValidTrace(sample) {
 		sample = nil
-	} else {
+	} else if sample.Name == "" {
 		for k, v := range sample.Tags {
 			if k == "name" {
 				sample.Name = v
