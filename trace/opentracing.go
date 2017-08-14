@@ -367,7 +367,6 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 			Trace:  StartTrace(operationName),
 			tracer: t,
 		}
-		span.Name = operationName
 	} else {
 
 		// First, let's extract the parent's information
@@ -406,11 +405,13 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 			Trace:  trace,
 			tracer: t,
 		}
-		span.Name = operationName
 	}
 
 	for k, v := range sso.Tags {
 		span.SetTag(k, v)
+		if k == "name" {
+			span.Name = v.(string)
+		}
 	}
 
 	if span.Name == "" {

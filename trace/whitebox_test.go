@@ -19,9 +19,8 @@ func TestStartSpanDefaultName(t *testing.T) {
 
 	_, _ = trace.StartSpanFromContext(ctx, "")
 
-	assert.Equal(t, span.Resource, resource)
-	assert.Equal(t, span.Name, expectedName)
-
+	assert.Equal(t, resource, span.Resource)
+	assert.Equal(t, expectedName, span.Name)
 }
 
 func TestStartSpanFromContextDefaultName(t *testing.T) {
@@ -35,8 +34,8 @@ func TestStartSpanFromContextDefaultName(t *testing.T) {
 
 	span, _ := trace.StartSpanFromContext(ctx, "")
 
-	assert.Equal(t, span.Resource, resource)
-	assert.Equal(t, span.Name, expectedName)
+	assert.Equal(t, resource, span.Resource)
+	assert.Equal(t, expectedName, span.Name)
 	assert.Equal(t, span.ParentID, root.SpanID)
 	assert.Equal(t, span.TraceID, root.SpanID)
 
