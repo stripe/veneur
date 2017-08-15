@@ -5,8 +5,10 @@ import (
 	"errors"
 	"flag"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 
 	"fmt"
@@ -97,10 +99,12 @@ func main() {
 			logrus.WithError(err).Fatal("Error!")
 		}
 
-		err = timeCommand(conn, passedFlags)
+		var status int
+		status, err = timeCommand(conn, passedFlags)
 		if err != nil {
 			logrus.WithError(err).Fatal("Error timing command.")
 		}
+		os.Exit(status)
 	} else if *mode == "metric" {
 		logrus.Debug("Sending metric")
 		if *toSSF {
@@ -189,22 +193,19 @@ func addr(passedFlags map[string]flag.Value, conf *veneur.Config, hostport *stri
 	return addr, err
 }
 
-func timeCommand(client MinimalClient, passedFlags map[string]flag.Value) error {
+func timeCommand(client MinimalClient, passedFlags map[string]flag.Value) (int, error) {
 	command := passedFlags["command"].String()
 	cmd := exec.Command("sh", "-c", command)
+	exitStatus := 0
 	start := time.Now()
-	// err := cmd.Start()
-	// if err != nil {
-	// 	return err
-	// }
-	// err = cmd.Wait()
-	cmd.Run()
-	// TODO: should we care about exit status?
-	// TODO: start vs. run?
-	// if err != nil {
-	// 	return err
-	// }
-	// TODO: https://golang.org/pkg/os/exec/#CommandContext
+	err := cmd.Run()
+	if err != nil {
+		status, ok := err.(*exec.ExitError).ProcessState.Sys().(syscall.WaitStatus)
+		if !ok {
+			return 1, err
+		}
+		exitStatus = status.ExitStatus()
+	}
 	elapsed := time.Since(start)
 	var myTags []string
 	if passedFlags["tag"] != nil {
@@ -212,9 +213,11 @@ func timeCommand(client MinimalClient, passedFlags map[string]flag.Value) error 
 	} else {
 		myTags = make([]string, 0)
 	}
+	exitTag := fmt.Sprintf("exit_status:%d", exitStatus)
+	myTags = append(myTags, exitTag)
 	logrus.Debugf("%s took %s", command, elapsed)
-	err := client.Timing(passedFlags["name"].String(), elapsed, myTags, 1)
-	return err
+	err = client.Timing(passedFlags["name"].String(), elapsed, myTags, 1)
+	return exitStatus, err
 }
 
 func bareMetric(name string, tags string) *ssf.SSFSample {
