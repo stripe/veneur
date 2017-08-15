@@ -213,8 +213,8 @@ func timeCommand(client MinimalClient, passedFlags map[string]flag.Value) error 
 		myTags = make([]string, 0)
 	}
 	logrus.Debugf("%s took %s", command, elapsed)
-	client.Timing(passedFlags["name"].String(), elapsed, myTags, 1)
-	return nil
+	err := client.Timing(passedFlags["name"].String(), elapsed, myTags, 1)
+	return err
 }
 
 func bareMetric(name string, tags string) *ssf.SSFSample {
