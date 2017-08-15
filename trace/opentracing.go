@@ -484,7 +484,7 @@ func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier i
 			ParentID: sc.ParentID(),
 			SpanID:   sc.SpanID(),
 			Resource: sc.Resource(),
-			Tags:     map[string]string{},
+			Tags:     map[string]string{ResourceKey: sc.Resource()},
 		}
 
 		return trace.ProtoMarshalTo(w)
