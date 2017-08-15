@@ -4,6 +4,7 @@
 * Correctly parse `Set` metrics if sent via SSF. Thanks [redsn0w422](https://github.com/redsn0w422)!
 * Return correct array of tags after parsing an SSF metric. Thanks [redsn0w422](https://github.com/redsn0w422)!
 * Don't panic if a packet doesn't have tags. Thanks [redsn0w422](https://github.com/redsn0w422)!
+* Fix a typo in the link to veneur-emit in the readme. Thanks [vasi](https://github.com/vasi)!
 
 ## Added
 * Adds [events](https://docs.datadoghq.com/guides/dogstatsd/#events-1) and [service checks](https://docs.datadoghq.com/guides/dogstatsd/#service-checks-1) to `veneur-emit`. Thanks [redsn0w422](https://github.com/redsn0w422)!
@@ -17,6 +18,7 @@
 * Refactored `veneur-emit` flag usage to make testing easier. Thanks [redsn0w422](https://github.com/redsn0w422)!
 * Minor text fixes in the README. Thanks [an-stripe](https://github.com/an-stripe)!
 * Restructured SSF parsing logic and added more tests. Thanks [redsn0w422](https://github.com/redsn0w422)!
+* Tag `packet.spans.received_total` with `service` from the span. Thanks [chimeracoder](https://github.com/chimeracoder)!
 
 # 1.5.1, 2017-07-18
 
