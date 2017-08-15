@@ -5,16 +5,18 @@ import (
 	"errors"
 	"flag"
 	"net"
+	"os/exec"
 	"strings"
 	"time"
 
 	"fmt"
+	"strconv"
+
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stripe/veneur"
 	"github.com/stripe/veneur/ssf"
-	"strconv"
 )
 
 var (
@@ -23,6 +25,7 @@ var (
 	hostport   = flag.String("hostport", "", "Hostname and port of destination. Must be used if config file is not present.")
 	mode       = flag.String("mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
 	debug      = flag.Bool("debug", false, "Turns on debug messages.")
+	command    = flag.String("command", "", "Command to time. This will exec 'command', time it, and emit a timer metric.")
 
 	// Metric flags
 	name   = flag.String("name", "", "Name of metric to report. Ex: 'daemontools.service.starts'")
@@ -87,7 +90,18 @@ func main() {
 	}
 	logrus.Debugf("destination: %s", addr)
 
-	if *mode == "metric" {
+	if *command != "" {
+		var conn MinimalClient
+		conn, err = statsd.New(addr)
+		if err != nil {
+			logrus.WithError(err).Fatal("Error!")
+		}
+
+		err := timeCommand(conn, passedFlags)
+		if err != nil {
+			logrus.WithError(err).Fatal("Error timing command.")
+		}
+	} else if *mode == "metric" {
 		logrus.Debug("Sending metric")
 		if *toSSF {
 			var nconn net.Conn
@@ -173,6 +187,34 @@ func addr(passedFlags map[string]flag.Value, conf *veneur.Config, hostport *stri
 		err = errors.New("you must either specify a Veneur config file or a valid hostport")
 	}
 	return addr, err
+}
+
+func timeCommand(client MinimalClient, passedFlags map[string]flag.Value) error {
+	command := passedFlags["command"].String()
+	cmd := exec.Command("sh", "-c", command)
+	start := time.Now()
+	// err := cmd.Start()
+	// if err != nil {
+	// 	return err
+	// }
+	// err = cmd.Wait()
+	cmd.Run()
+	// TODO: should we care about exit status?
+	// TODO: start vs. run?
+	// if err != nil {
+	// 	return err
+	// }
+	// TODO: https://golang.org/pkg/os/exec/#CommandContext
+	elapsed := time.Since(start)
+	var myTags []string
+	if passedFlags["tag"] != nil {
+		myTags = tags(passedFlags["tag"].String())
+	} else {
+		myTags = make([]string, 0)
+	}
+	logrus.Debugf("%s took %s", command, elapsed)
+	client.Timing(passedFlags["name"].String(), elapsed, myTags, 1)
+	return nil
 }
 
 func bareMetric(name string, tags string) *ssf.SSFSample {
