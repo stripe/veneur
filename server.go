@@ -618,7 +618,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	}
 
 	if sample != nil {
-		s.Statsd.Incr("packet.spans.received_total", nil, .1)
+		s.Statsd.Incr("packet.spans.received_total", []string{fmt.Sprintf("service:%s", sample.Service)}, .1)
 		s.TraceWorker.TraceChan <- *sample
 	}
 }
