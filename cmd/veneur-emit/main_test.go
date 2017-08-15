@@ -124,6 +124,12 @@ func TestTimeCommand(t *testing.T) {
 		assert.NoError(t, err, "timeCommand had an error")
 		assert.Zero(t, st)
 	})
+
+	t.Run("badCall", func(t *testing.T) {
+		testFlag["command"] = newValue("cat x")
+		st, _ := timeCommand(client, testFlag)
+		assert.NotZero(t, st)
+	})
 }
 
 func TestGauge(t *testing.T) {
