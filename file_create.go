@@ -1,4 +1,6 @@
-// package main
+package veneur
+
+// Change to `package main` to be able to run this file with `go run file_create.go`
 
 // import (
 // 	"fmt"
