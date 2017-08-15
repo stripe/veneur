@@ -97,7 +97,7 @@ func main() {
 			logrus.WithError(err).Fatal("Error!")
 		}
 
-		err := timeCommand(conn, passedFlags)
+		err = timeCommand(conn, passedFlags)
 		if err != nil {
 			logrus.WithError(err).Fatal("Error timing command.")
 		}
