@@ -1,6 +1,9 @@
 package veneur
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,17 +12,6 @@ import (
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 )
-
-/*
-If tag name is set and Name is null, we want Span name to be set when it exits.
-If span Name is set, we want it to stay set even with name tag
-Emit a span with operation set and make sure nothing breaks
-
-tag name set; name null
-tag name set, name set
-tag name null, name set
-operation set
-*/
 
 func validSample() ssf.SSFSpan {
 	return *&ssf.SSFSpan{
@@ -69,4 +61,19 @@ func TestNoTagName(t *testing.T) {
 	assert.Equal(t, sample.Name, newSample.Name, "Name did not propogate")
 	assert.Zero(t, len(metrics))
 	assert.NoError(t, errSSF)
+}
+
+func TestOperation(t *testing.T) {
+	pbFile := filepath.Join("fixtures", "protobuf", "regression.pb")
+	pb, err := os.Open(pbFile)
+	assert.NoError(t, err)
+	defer pb.Close()
+
+	packet, err := ioutil.ReadAll(pb)
+	assert.NoError(t, err)
+
+	sample, metrics, errSSF := samplers.ParseSSF(packet)
+	assert.NoError(t, errSSF)
+	assert.Zero(t, len(metrics))
+	assert.NotNil(t, sample)
 }
