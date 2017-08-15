@@ -253,6 +253,7 @@ func StartSpanFromContext(ctx context.Context, name string, opts ...opentracing.
 	sp, c := opentracing.StartSpanFromContext(ctx, name, opts...)
 
 	s = sp.(*Span)
+	s.Name = name
 	return s, c
 }
 
