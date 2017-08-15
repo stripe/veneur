@@ -137,6 +137,11 @@ trace_lightstep_access_token: ""
 # Host to send trace data to
 trace_lightstep_collector_host: ""
 
+# How often LightStep should reconnect to collectors. If your workload is
+# imbalanced — some veneur instances see more spans than others — then you may
+# want to reconnect more often.
+trace_lightstep_reconnect_period: "5m"
+
 # == PLUGINS ==
 
 # == S3 Output ==

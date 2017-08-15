@@ -7,8 +7,10 @@
 
 ## Added
 * Adds [events](https://docs.datadoghq.com/guides/dogstatsd/#events-1) and [service checks](https://docs.datadoghq.com/guides/dogstatsd/#service-checks-1) to `veneur-emit`. Thanks [redsn0w422](https://github.com/redsn0w422)!
-* Switch to [dep](https://github.com/golang/dep/) for managing the `vendor` directory.
-* Remove support for `govendor`.
+* Switch to [dep](https://github.com/golang/dep/) for managing the `vendor` directory. Thanks [chimeracoder](https://github.com/chimeracoder)!
+* Remove support for `govendor`. Thanks [chimeracoder](https://github.com/chimeracoder)!
+* Emit GC metrics at flush time. This feature is best used with Go 1.9 as previous versions cause GC pauses when collecting this information from go. Thanks [gphat](https://github.com/gphat)!
+* Allow configuration of LightStep's reconnect period via `trace_lightstep_reconnect_period` and the maximum number of spans it will buffer via `trace_lightstep_maximum_spans`. Thanks [gphat](https://github.com/gphat)!
 
 ## Improvements
 * Added tests for `parseMetricSSF`. Thanks [redsn0w422](https://github.com/redsn0w422)!

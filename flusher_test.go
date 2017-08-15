@@ -13,7 +13,6 @@ import (
 	"time"
 
 	lightstep "github.com/lightstep/lightstep-tracer-go"
-	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/samplers"
 )
@@ -134,9 +133,9 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	defer server.Shutdown()
 
 	server.tracerSinks = append(server.tracerSinks, tracerSink{
-		name:        "Datadog",
-		tracerThunk: nil,
-		flush:       flushSpansDatadog,
+		name:   "Datadog",
+		tracer: nil,
+		flush:  flushSpansDatadog,
 	})
 
 	assert.Equal(t, server.DDTraceAddress, config.DatadogTraceAPIAddress)
@@ -170,16 +169,14 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 	server := setupVeneurServer(t, config, nil)
 	defer server.Shutdown()
 
-	lightstepTracerThunk := func() opentracing.Tracer {
-		return lightstep.NewTracer(lightstep.Options{
-			AccessToken: "TestAccessToken",
-		})
-	}
+	lightstepTracer := lightstep.NewTracer(lightstep.Options{
+		AccessToken: "TestAccessToken",
+	})
 
 	server.tracerSinks = append(server.tracerSinks, tracerSink{
-		name:        "Lightstep",
-		tracerThunk: lightstepTracerThunk,
-		flush:       flushSpansLightstep,
+		name:   "Lightstep",
+		tracer: lightstepTracer,
+		flush:  flushSpansLightstep,
 	})
 
 	assert.Equal(t, server.DDTraceAddress, config.DatadogTraceAPIAddress)

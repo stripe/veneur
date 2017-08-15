@@ -10,7 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"strconv"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -282,6 +282,13 @@ func (s *Server) flushRemote(ctx context.Context, finalMetrics []samplers.DDMetr
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 
+	mem := &runtime.MemStats{}
+	runtime.ReadMemStats(mem)
+
+	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
+	s.Statsd.Gauge("gc.number", float64(mem.NumGC), nil, 1.0)
+	s.Statsd.Gauge("gc.pause_total_ns", float64(mem.PauseTotalNs), nil, 1.0)
+
 	s.Statsd.Gauge("flush.post_metrics_total", float64(len(finalMetrics)), nil, 1.0)
 	// Check to see if we have anything to do
 	if len(finalMetrics) == 0 {
@@ -517,7 +524,7 @@ func (s *Server) flushTraces(ctx context.Context) {
 
 	for _, sink := range s.tracerSinks {
 		sinkFlushStart := time.Now()
-		sink.flush(span.Attach(ctx), s, sink.tracerThunk, ssfSpans)
+		sink.flush(span.Attach(ctx), s, sink.tracer, ssfSpans)
 		tags := []string{
 			fmt.Sprintf("sink:%s", sink.name),
 			fmt.Sprintf("service:%s", trace.Service),
@@ -707,10 +714,10 @@ func (s *Server) traceTags(ctx context.Context) [][2]string {
 }
 
 // TODO better name, also finalize type signature
-type traceFlusher func(context.Context, *Server, func() opentracing.Tracer, []ssf.SSFSpan)
+type traceFlusher func(context.Context, *Server, opentracing.Tracer, []ssf.SSFSpan)
 
 // flushSpansDatadog flushes spans to datadog. The niltracer argument is ignored.
-func flushSpansDatadog(ctx context.Context, s *Server, nilTracer func() opentracing.Tracer, ssfSpans []ssf.SSFSpan) {
+func flushSpansDatadog(ctx context.Context, s *Server, nilTracer opentracing.Tracer, ssfSpans []ssf.SSFSpan) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 
 	var finalTraces []*DatadogTraceSpan
@@ -781,15 +788,13 @@ func flushSpansDatadog(ctx context.Context, s *Server, nilTracer func() opentrac
 	}
 }
 
-func flushSpansLightstep(ctx context.Context, s *Server, tracerThunk func() opentracing.Tracer, ssfSpans []ssf.SSFSpan) {
-	lightstepTracer := tracerThunk()
-	defer lightstep.CloseTracer(lightstepTracer)
-
+func flushSpansLightstep(ctx context.Context, s *Server, lightstepTracer opentracing.Tracer, ssfSpans []ssf.SSFSpan) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 	for _, ssfSpan := range ssfSpans {
 		flushSpanLightstep(lightstepTracer, ssfSpan)
 	}
+
 	lightstep.FlushLightStepTracer(lightstepTracer)
 
 	// Confusingly, this will still get called even if the Opentracing client fails to reach the collector
@@ -839,45 +844,4 @@ func flushSpanLightstep(lightstepTracer opentracing.Tracer, ssfSpan ssf.SSFSpan)
 	sp.FinishWithOptions(opentracing.FinishOptions{
 		FinishTime: endTime,
 	})
-}
-
-func configureLightstepTracer(conf Config) func() opentracing.Tracer {
-	return func() opentracing.Tracer {
-		resolved, err := resolveEndpoint(conf.TraceLightstepCollectorHost)
-		if err != nil {
-			log.WithError(err).WithFields(logrus.Fields{
-				"host": conf.TraceLightstepCollectorHost,
-			}).Error("Error resolving Lightstep collector host")
-			return nil
-		}
-
-		host, err := url.Parse(resolved)
-		if err != nil {
-			log.WithError(err).WithFields(logrus.Fields{
-				"host":     conf.TraceLightstepCollectorHost,
-				"resolved": resolved,
-			}).Error("Error parsing Lightstep collector URL")
-			return nil
-		}
-
-		port, err := strconv.Atoi(host.Port())
-		if err != nil {
-			port = lightstepDefaultPort
-		}
-
-		log.WithFields(logrus.Fields{
-			"Host": host.Hostname(),
-			"Port": port,
-		}).Info("Dialing lightstep host")
-
-		return lightstep.NewTracer(lightstep.Options{
-			AccessToken: conf.TraceLightstepAccessToken,
-			Collector: lightstep.Endpoint{
-				Host:      host.Hostname(),
-				Port:      port,
-				Plaintext: true,
-			},
-			UseGRPC: true,
-		})
-	}
 }
