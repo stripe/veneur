@@ -93,6 +93,36 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestTimeCommand(t *testing.T) {
+	client := &fakeClient{}
+	resetMap(calledFunctions)
+	testFlag := make(map[string]flag.Value)
+	testFlag["command"] = newValue("echo hello")
+	testFlag["name"] = newValue("test.timing")
+
+	t.Run("basic", func(t *testing.T) {
+		err := timeCommand(client, testFlag)
+
+		assert.NoError(t, err, "timeCommand had an error")
+		assert.True(t, calledFunctions["timing"], "timeCommand did not call Timing")
+	})
+
+	t.Run("badCall", func(t *testing.T) {
+		badCall = true
+		defer func() {
+			badCall = false
+		}()
+		err := timeCommand(client, testFlag)
+		assert.Error(t, err, "timeCommand did not throw error.")
+	})
+
+	t.Run("withTags", func(t *testing.T) {
+		testFlag["tag"] = newValue("tag1:value1")
+		err := timeCommand(client, testFlag)
+		assert.NoError(t, err, "timeCommand had an error")
+	})
+}
+
 func TestGauge(t *testing.T) {
 	client := &fakeClient{}
 	resetMap(calledFunctions)
