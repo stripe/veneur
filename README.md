@@ -9,7 +9,7 @@ See also:
 
 * A nascent observability format, [SSF](https://github.com/stripe/veneur/tree/master/ssf/#readme)
 * A proxy for resilient distributed aggregation, [veneur-proxy](https://github.com/stripe/veneur/tree/master/cmd/veneur-proxy/#readme)
-* A command line tool for emitting metrics, [veneur-proxy](https://github.com/stripe/veneur/tree/master/cmd/veneur-emit/#readme)
+* A command line tool for emitting metrics, [veneur-emit](https://github.com/stripe/veneur/tree/master/cmd/veneur-emit/#readme)
 
 # Status
 
