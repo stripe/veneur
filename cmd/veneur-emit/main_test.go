@@ -101,10 +101,11 @@ func TestTimeCommand(t *testing.T) {
 	testFlag["name"] = newValue("test.timing")
 
 	t.Run("basic", func(t *testing.T) {
-		err := timeCommand(client, testFlag)
+		st, err := timeCommand(client, testFlag)
 
 		assert.NoError(t, err, "timeCommand had an error")
 		assert.True(t, calledFunctions["timing"], "timeCommand did not call Timing")
+		assert.Zero(t, st)
 	})
 
 	t.Run("badCall", func(t *testing.T) {
@@ -112,14 +113,16 @@ func TestTimeCommand(t *testing.T) {
 		defer func() {
 			badCall = false
 		}()
-		err := timeCommand(client, testFlag)
+		st, err := timeCommand(client, testFlag)
 		assert.Error(t, err, "timeCommand did not throw error.")
+		assert.Zero(t, st)
 	})
 
 	t.Run("withTags", func(t *testing.T) {
 		testFlag["tag"] = newValue("tag1:value1")
-		err := timeCommand(client, testFlag)
+		st, err := timeCommand(client, testFlag)
 		assert.NoError(t, err, "timeCommand had an error")
+		assert.Zero(t, st)
 	})
 }
 
