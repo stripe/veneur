@@ -36,10 +36,11 @@ percentiles:
 # or all of:
 # - `min`: the minimum value in the histogram during the flush period
 # - `max`: the maximum value in the histogram during the flush period
-# -	`median`: the median value in the histogram during the flush period
-# -	`avg`: the average value in the histogram during the flush period
-# -	`count`: the number of values added to the histogram during the flush period
-# -	`sum`: the sum of all values added to the histogram during the flush period
+# - `median`: the median value in the histogram during the flush period
+# - `avg`: the average value in the histogram during the flush period
+# - `count`: the number of values added to the histogram during the flush period
+# - `sum`: the sum of all values added to the histogram during the flush period
+# - `hmean`: the harmonic mean of the all the values added to the histogram during the flush period
 aggregates:
  - "min"
  - "max"
