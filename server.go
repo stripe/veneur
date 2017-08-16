@@ -49,7 +49,7 @@ const REDACTED = "REDACTED"
 
 var profileStartOnce = sync.Once{}
 
-var log = logrus.New()
+var log = logrus.StandardLogger()
 
 var tracer = trace.GlobalTracer
 
@@ -176,7 +176,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	}
 
 	if conf.Debug {
-		log.Level = logrus.DebugLevel
+		log.SetLevel(logrus.DebugLevel)
 	}
 
 	if conf.EnableProfiling {
