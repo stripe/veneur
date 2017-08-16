@@ -99,9 +99,11 @@ func TestTimeCommand(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testFlag["command"] = newValue("echo hello")
 	testFlag["name"] = newValue("test.timing")
+	command := "echo hello"
+	name := "test.timing"
 
 	t.Run("basic", func(t *testing.T) {
-		st, err := timeCommand(client, testFlag)
+		st, err := timeCommand(client, command, name, []string{})
 
 		assert.NoError(t, err, "timeCommand had an error")
 		assert.True(t, calledFunctions["timing"], "timeCommand did not call Timing")
@@ -113,22 +115,22 @@ func TestTimeCommand(t *testing.T) {
 		defer func() {
 			badCall = false
 		}()
-		st, err := timeCommand(client, testFlag)
+		st, err := timeCommand(client, command, name, []string{})
 		assert.Error(t, err, "timeCommand did not throw error.")
 		assert.Zero(t, st)
 	})
 
 	t.Run("withTags", func(t *testing.T) {
-		testFlag["tag"] = newValue("tag1:value1")
-		st, err := timeCommand(client, testFlag)
+		st, err := timeCommand(client, command, name, []string{"tag1:value1"})
 		assert.NoError(t, err, "timeCommand had an error")
 		assert.Zero(t, st)
 	})
 
 	t.Run("badCall", func(t *testing.T) {
-		testFlag["command"] = newValue("cat x")
-		st, _ := timeCommand(client, testFlag)
+		command = "cat x"
+		st, err := timeCommand(client, command, name, []string{"tag1:value1"})
 		assert.NotZero(t, st)
+		assert.NoError(t, err)
 	})
 }
 
