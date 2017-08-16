@@ -22,32 +22,40 @@ func validSample() ssf.SSFSpan {
 	}
 }
 
-func TestTagNameSet(t *testing.T) {
+// Tests that setting the tag "Name" will result in a span with span.Name being set,
+// and the tag "Name" being deleted.
+func TestTagNameSetNameNotSet(t *testing.T) {
 	sample := validSample()
 	sample.Tags = make(map[string]string)
 	sample.Tags["name"] = "testName"
 
-	t.Run("nameNotSet", func(t *testing.T) {
-		buf, err := proto.Marshal(&sample)
-		assert.NoError(t, err, "Eror when marshalling sample")
+	buf, err := proto.Marshal(&sample)
+	assert.NoError(t, err, "Eror when marshalling sample")
 
-		newSample, metrics, errSSF := samplers.ParseSSF(buf)
-		assert.Equal(t, sample.Tags["name"], newSample.Name, "Name via Tag did not propogate")
-		assert.Zero(t, len(metrics))
-		assert.NoError(t, errSSF)
-	})
+	newSample, metrics, errSSF := samplers.ParseSSF(buf)
+	assert.Equal(t, sample.Tags["name"], newSample.Name, "Name via Tag did not propogate")
+	assert.Zero(t, len(metrics))
+	assert.NoError(t, errSSF)
+	assert.Empty(t, newSample.Tags["name"])
+}
 
-	t.Run("nameSet", func(t *testing.T) {
-		sample.Name = "realName"
+// Tests that setting a tag "Name" and span.Name won't change
+// span.Name to be the tag "Name", and that the tag is still there
+// after we parse the packet.
+func TestTagNameSetNameSet(t *testing.T) {
+	sample := validSample()
+	sample.Tags = make(map[string]string)
+	sample.Tags["name"] = "testName"
+	sample.Name = "realName"
 
-		buf, err := proto.Marshal(&sample)
-		assert.NoError(t, err, "Error when marshalling sample")
+	buf, err := proto.Marshal(&sample)
+	assert.NoError(t, err, "Error when marshalling sample")
 
-		newSample, metrics, errSSF := samplers.ParseSSF(buf)
-		assert.Equal(t, sample.Name, newSample.Name, "Name did not propogate")
-		assert.Zero(t, len(metrics))
-		assert.NoError(t, errSSF)
-	})
+	newSample, metrics, errSSF := samplers.ParseSSF(buf)
+	assert.Equal(t, sample.Name, newSample.Name, "Name did not propogate")
+	assert.Zero(t, len(metrics))
+	assert.NoError(t, errSSF)
+	assert.NotEmpty(t, newSample.Tags["name"])
 }
 
 func TestNoTagName(t *testing.T) {
