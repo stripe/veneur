@@ -27,7 +27,8 @@
 
 [[constraint]]
   name = "github.com/Sirupsen/logrus"
-  version = "1.0.2"
+  source = "https://github.com/ChimeraCoder/logrus.git"
+  revision = "99069a2f51322071cea01daf0167e3a31a82575a"
 
 [[constraint]]
   name = "github.com/aws/aws-sdk-go"
