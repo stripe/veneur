@@ -23,11 +23,12 @@ import (
 
 var (
 	// Generic flags
-	configFile = flag.String("f", "", "The Veneur config file to read for settings.")
-	hostport   = flag.String("hostport", "", "Hostname and port of destination. Must be used if config file is not present.")
-	mode       = flag.String("mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
-	debug      = flag.Bool("debug", false, "Turns on debug messages.")
-	command    = flag.String("command", "", "Command to time. This will exec 'command', time it, and emit a timer metric.")
+	configFile   = flag.String("f", "", "The Veneur config file to read for settings.")
+	hostport     = flag.String("hostport", "", "Hostname and port of destination. Must be used if config file is not present.")
+	mode         = flag.String("mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
+	debug        = flag.Bool("debug", false, "Turns on debug messages.")
+	command      = flag.String("command", "", "Command to time. This will exec 'command', time it, and emit a timer metric.")
+	shellCommand = flag.Bool("shellCommand", false, "Turns on timeCommand mode. TODO")
 
 	// Metric flags
 	name   = flag.String("name", "", "Name of metric to report. Ex: 'daemontools.service.starts'")
@@ -92,15 +93,17 @@ func main() {
 	}
 	logrus.Debugf("destination: %s", addr)
 
-	if *command != "" {
+	if *shellCommand {
 		var conn MinimalClient
 		conn, err = statsd.New(addr)
 		if err != nil {
 			logrus.WithError(err).Fatal("Error!")
 		}
 
+		command := strings.Join(flag.Args(), " ")
+
 		var status int
-		status, err = timeCommand(conn, passedFlags)
+		status, err = timeCommand(conn, command, passedFlags["name"].String(), tags(*tag))
 		if err != nil {
 			logrus.WithError(err).Fatal("Error timing command.")
 		}
@@ -172,6 +175,9 @@ func flags() map[string]flag.Value {
 
 func tags(tag string) []string {
 	var tags []string
+	if len(tag) == 0 {
+		return tags
+	}
 	for _, elem := range strings.Split(tag, ",") {
 		tags = append(tags, elem)
 	}
@@ -193,8 +199,8 @@ func addr(passedFlags map[string]flag.Value, conf *veneur.Config, hostport *stri
 	return addr, err
 }
 
-func timeCommand(client MinimalClient, passedFlags map[string]flag.Value) (int, error) {
-	command := passedFlags["command"].String()
+func timeCommand(client MinimalClient, command string, name string, tags []string) (int, error) {
+	logrus.Debugf("Timing '%s'...", command)
 	cmd := exec.Command("sh", "-c", command)
 	exitStatus := 0
 	start := time.Now()
@@ -207,16 +213,10 @@ func timeCommand(client MinimalClient, passedFlags map[string]flag.Value) (int, 
 		exitStatus = status.ExitStatus()
 	}
 	elapsed := time.Since(start)
-	var myTags []string
-	if passedFlags["tag"] != nil {
-		myTags = tags(passedFlags["tag"].String())
-	} else {
-		myTags = make([]string, 0)
-	}
 	exitTag := fmt.Sprintf("exit_status:%d", exitStatus)
-	myTags = append(myTags, exitTag)
-	logrus.Debugf("%s took %s", command, elapsed)
-	err = client.Timing(passedFlags["name"].String(), elapsed, myTags, 1)
+	tags = append(tags, exitTag)
+	logrus.Debugf("'%s' took %s", command, elapsed)
+	err = client.Timing(name, elapsed, tags, 1)
 	return exitStatus, err
 }
 
