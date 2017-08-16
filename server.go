@@ -10,8 +10,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
-	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -24,7 +23,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/getsentry/raven-go"
-	lightstep "github.com/lightstep/lightstep-tracer-go"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
 
@@ -36,8 +34,6 @@ import (
 	s3p "github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/trace"
-
-	opentracing "github.com/opentracing/opentracing-go"
 )
 
 // VERSION stores the current veneur version.
@@ -66,13 +62,14 @@ const lightstepDefaultInterval = 5 * time.Minute
 type Server struct {
 	Workers     []*Worker
 	EventWorker *EventWorker
-	TraceWorker *TraceWorker
+	SpanWorker  *SpanWorker
 
 	Statsd *statsd.Client
 	Sentry *raven.Client
 
-	Hostname string
-	Tags     []string
+	Hostname  string
+	Tags      []string
+	TagsAsMap map[string]string
 
 	DDHostname     string
 	DDAPIKey       string
@@ -110,25 +107,27 @@ type Server struct {
 
 	HistogramAggregates samplers.HistogramAggregates
 
-	tracerSinks []tracerSink
+	spanSinks []SpanSink
 
 	traceLightstepAccessToken string
-}
-
-// TODO refactor and move this
-type tracerSink struct {
-	name string
-
-	// This may be nil, if the tracer doesn't use
-	// an opentracing backend
-	tracer opentracing.Tracer
-	flush  traceFlusher
 }
 
 // NewFromConfig creates a new veneur server from a configuration specification.
 func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.Hostname = conf.Hostname
 	ret.Tags = conf.Tags
+
+	mappedTags := make(map[string]string)
+	for _, tag := range ret.Tags {
+		splt := strings.SplitN(tag, ":", 2)
+		if len(splt) < 2 {
+			mappedTags[splt[0]] = ""
+		} else {
+			mappedTags[splt[0]] = splt[1]
+		}
+	}
+
+	ret.TagsAsMap = mappedTags
 	ret.DDHostname = conf.DatadogAPIHostname
 	ret.DDAPIKey = conf.DatadogAPIKey
 	ret.DDTraceAddress = conf.DatadogTraceAPIAddress
@@ -277,12 +276,10 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	// Configure tracing workers and sinks
 	if len(conf.SsfAddress) > 0 && ret.tracingSinkEnabled() {
 
-		bufferSize := conf.SsfBufferSize
-		if bufferSize == 0 {
-			bufferSize = defaultSpanBufferSize
+		// Set a sane default
+		if conf.SsfBufferSize == 0 {
+			conf.SsfBufferSize = defaultSpanBufferSize
 		}
-
-		ret.TraceWorker = NewTraceWorker(ret.Statsd, bufferSize)
 
 		ret.TraceAddr, err = net.ResolveUDPAddr("udp", conf.SsfAddress)
 		log.WithField("traceaddr", ret.TraceAddr).Info("Listening for trace spans on address")
@@ -297,77 +294,33 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 		// configure Datadog as sink
 		if ret.DDTraceAddress != "" {
-			ret.tracerSinks = append(ret.tracerSinks, tracerSink{
-				name:   "Datadog",
-				tracer: nil,
-				flush:  flushSpansDatadog,
-			})
+
+			var ddSink SpanSink
+			ddSink, err = NewDatadogSpanSink(&conf, ret.Statsd, ret.HTTPClient, ret.TagsAsMap)
+			if err != nil {
+				return
+			}
+
+			ret.spanSinks = append(ret.spanSinks, ddSink)
 			log.Info("Configured Datadog trace sink")
 		}
 
 		// configure Lightstep as Sink
 		if ret.traceLightstepAccessToken != "" {
-			var host *url.URL
-			host, err = url.Parse(conf.TraceLightstepCollectorHost)
+
+			var lsSink SpanSink
+			lsSink, err = NewLightStepSpanSink(&conf, ret.Statsd, ret.TagsAsMap)
 			if err != nil {
-				log.WithError(err).WithField(
-					"host", conf.TraceLightstepCollectorHost,
-				).Error("Error parsing LightStep collector URL")
 				return
 			}
-
-			port, err := strconv.Atoi(host.Port())
-			if err != nil {
-				port = lightstepDefaultPort
-			} else {
-				log.WithError(err).WithFields(logrus.Fields{
-					"port":         port,
-					"default_port": lightstepDefaultPort,
-				}).Warn("Error parsing LightStep port, using default")
-			}
-
-			reconPeriod, err := time.ParseDuration(conf.TraceLightstepReconnectPeriod)
-			if err != nil {
-				log.WithError(err).WithFields(logrus.Fields{
-					"interval":         conf.TraceLightstepReconnectPeriod,
-					"default_interval": lightstepDefaultInterval,
-				}).Warn("Failed to parse reconnect duration, using default.")
-				reconPeriod = lightstepDefaultInterval
-			}
-
-			log.WithFields(logrus.Fields{
-				"Host": host.Hostname(),
-				"Port": port,
-			}).Info("Dialing lightstep host")
-
-			maxSpans := conf.TraceLightstepMaximumSpans
-			if maxSpans == 0 {
-				maxSpans = bufferSize
-				log.WithField("max spans", maxSpans).Info("Using default maximum spans — ssf_buffer_size — for LightStep")
-			}
-
-			lightstepTracer := lightstep.NewTracer(lightstep.Options{
-				AccessToken:     conf.TraceLightstepAccessToken,
-				ReconnectPeriod: reconPeriod,
-				Collector: lightstep.Endpoint{
-					Host:      host.Hostname(),
-					Port:      port,
-					Plaintext: true,
-				},
-				UseGRPC:          true,
-				MaxBufferedSpans: maxSpans,
-			})
-
-			ret.tracerSinks = append(ret.tracerSinks, tracerSink{
-				name:   "Lightstep",
-				tracer: lightstepTracer,
-				flush:  flushSpansLightstep,
-			})
+			ret.spanSinks = append(ret.spanSinks, lsSink)
 
 			// only set this if the original token was non-empty
 			ret.traceLightstepAccessToken = REDACTED
 			log.Info("Configured Lightstep trace sink")
 		}
+
+		ret.SpanWorker = NewSpanWorker(ret.spanSinks, ret.Statsd)
 
 	} else {
 		trace.Disable()
@@ -452,7 +405,7 @@ func (s *Server) Start() {
 			defer func() {
 				ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
 			}()
-			s.TraceWorker.Work()
+			s.SpanWorker.Work()
 		}()
 	}
 
@@ -619,7 +572,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 
 	if sample != nil {
 		s.Statsd.Incr("packet.spans.received_total", []string{fmt.Sprintf("service:%s", sample.Service)}, .1)
-		s.TraceWorker.TraceChan <- *sample
+		s.SpanWorker.TraceChan <- *sample
 	}
 }
 
@@ -900,7 +853,7 @@ func (s *Server) getPlugins() []plugins.Plugin {
 // TracingEnabled returns true if tracing is enabled.
 func (s *Server) TracingEnabled() bool {
 	//TODO we now need to check that the backends are flushing the data too
-	return s.TraceWorker != nil
+	return s.SpanWorker != nil
 }
 
 // tracingSinkEnabled returns true if at least one

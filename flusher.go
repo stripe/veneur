@@ -17,11 +17,7 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
-	lightstep "github.com/lightstep/lightstep-tracer-go"
-	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
 	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
 
@@ -481,60 +477,7 @@ func (s *Server) flushTraces(ctx context.Context) {
 		return
 	}
 
-	span, _ := trace.StartSpanFromContext(ctx, "")
-	defer span.Finish()
-
-	tags := s.traceTags(span.Attach(ctx))
-
-	traceRing := s.TraceWorker.Flush()
-
-	ssfSpans := make([]ssf.SSFSpan, 0, traceRing.Len())
-
-	traceRing.Do(func(t interface{}) {
-		const tooEarly = 1497
-		const tooLate = 1497629343000000
-
-		if t != nil {
-			ssfSpan, ok := t.(ssf.SSFSpan)
-			if !ok {
-				log.Error("Got an unknown object in tracing ring!")
-				return
-			}
-
-			var timeErr string
-			if ssfSpan.StartTimestamp < tooEarly {
-				timeErr = "type:tooEarly"
-			}
-			if ssfSpan.StartTimestamp > tooLate {
-				timeErr = "type:tooLate"
-			}
-			if timeErr != "" {
-				s.Statsd.Incr("worker.trace.sink.timestamp_error", []string{timeErr}, 1)
-			}
-
-			if ssfSpan.Tags == nil {
-				ssfSpan.Tags = make(map[string]string)
-			}
-
-			// this will overwrite tags already present on the span
-			for _, tag := range tags {
-				ssfSpan.Tags[tag[0]] = tag[1]
-			}
-			ssfSpans = append(ssfSpans, ssfSpan)
-		}
-	})
-
-	for _, sink := range s.tracerSinks {
-		sinkFlushStart := time.Now()
-		sink.flush(span.Attach(ctx), s, sink.tracer, ssfSpans)
-		tags := []string{
-			fmt.Sprintf("sink:%s", sink.name),
-			fmt.Sprintf("service:%s", trace.Service),
-		}
-		s.Statsd.TimeInMilliseconds("worker.trace.sink.flush_duration_ns", float64(time.Since(sinkFlushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", sink.name)}, 1.0)
-
-		s.Statsd.Count("worker.trace.sink.flushed_total", int64(len(ssfSpans)), tags, 1)
-	}
+	s.SpanWorker.Flush()
 }
 
 func (s *Server) flushEventsChecks(ctx context.Context) {
@@ -701,6 +644,7 @@ func postHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 	resultLogger.Debug("POSTed successfully")
 	return nil
 }
+<<<<<<< HEAD
 
 func (s *Server) traceTags(ctx context.Context) [][2]string {
 	tags := make([][2]string, len(s.Tags))
@@ -850,3 +794,5 @@ func flushSpanLightstep(lightstepTracer opentracing.Tracer, ssfSpan ssf.SSFSpan)
 		FinishTime: endTime,
 	})
 }
+=======
+>>>>>>> Add new SpanSpink so we don't have to buffer spans.
