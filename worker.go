@@ -1,7 +1,7 @@
 package veneur
 
 import (
-	"container/ring"
+	"fmt"
 	"sync"
 	"time"
 
@@ -330,47 +330,40 @@ func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck)
 	return retevts, retsvchecks
 }
 
-// TraceWorker is similar to a Worker but it collects events and service checks instead of metrics.
-type TraceWorker struct {
-	TraceChan  chan ssf.SSFSpan
-	mutex      *sync.Mutex
-	traces     *ring.Ring
-	stats      *statsd.Client
-	bufferSize int
+// SpanWorker is similar to a Worker but it collects events and service checks instead of metrics.
+type SpanWorker struct {
+	TraceChan chan ssf.SSFSpan
+	sinks     []SpanSink
+	stats     *statsd.Client
 }
 
 // NewTraceWorker creates an TraceWorker ready to collect events and service checks.
-func NewTraceWorker(stats *statsd.Client, bufferSize int) *TraceWorker {
-	return &TraceWorker{
-		TraceChan:  make(chan ssf.SSFSpan),
-		mutex:      &sync.Mutex{},
-		traces:     ring.New(bufferSize),
-		stats:      stats,
-		bufferSize: bufferSize,
+func NewSpanWorker(sinks []SpanSink, stats *statsd.Client) *SpanWorker {
+	return &SpanWorker{
+		TraceChan: make(chan ssf.SSFSpan),
+		sinks:     sinks,
+		stats:     stats,
 	}
 }
 
-// Work will start the EventWorker listening for events and service checks.
+// Work will start the SpanWorker listening for spans.
 // This function will never return.
-func (tw *TraceWorker) Work() {
+func (tw *SpanWorker) Work() {
 	for m := range tw.TraceChan {
-		tw.mutex.Lock()
-		tw.traces.Value = m
-		tw.traces = tw.traces.Next()
-		tw.mutex.Unlock()
+		// Give each sink a change to ingest.
+		for _, s := range tw.sinks {
+			s.Ingest(m)
+		}
 	}
 }
 
-// Flush returns the TraceWorker's stored spans and
-// resets the stored contents.
-func (tw *TraceWorker) Flush() *ring.Ring {
-	start := time.Now()
-	tw.mutex.Lock()
+// Flush invokes flush on each sink.
+func (tw *SpanWorker) Flush() {
 
-	rettraces := tw.traces
-	tw.traces = ring.New(tw.bufferSize)
-
-	tw.mutex.Unlock()
-	tw.stats.TimeInMilliseconds("flush.event_worker_duration_ns", float64(time.Since(start).Nanoseconds()), nil, 1.0)
-	return rettraces
+	// Flush and time each sink.
+	for _, s := range tw.sinks {
+		sinkFlushStart := time.Now()
+		s.Flush()
+		tw.stats.TimeInMilliseconds("worker.trace.sink.flush_duration_ns", float64(time.Since(sinkFlushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", s.Name())}, 1.0)
+	}
 }
