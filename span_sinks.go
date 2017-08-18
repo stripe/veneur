@@ -24,7 +24,7 @@ const datadogNameKey = "name"
 
 const lightStepOperationKey = "name"
 
-const totalSpansFlushedMetricKey = "worker.trace.sink.flushed_total"
+const totalSpansFlushedMetricKey = "worker.spans_flushed_total"
 
 // SpanSink is a receiver of spans that handles sending those spans to some
 // downstream sink. Calls to `Ingest(span)` are meant to give the sink control
