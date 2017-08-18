@@ -198,7 +198,7 @@ func addr(passedFlags map[string]flag.Value, conf *veneur.Config, hostport *stri
 }
 
 func timeCommand(client MinimalClient, command []string, name string, tags []string) (int, error) {
-	logrus.Debugf("Timing '%s'...", command)
+	logrus.Debugf("Timing %q...", command)
 	cmd := exec.Command(command[0], command[1:]...)
 	exitStatus := 0
 	start := time.Now()
@@ -214,7 +214,7 @@ func timeCommand(client MinimalClient, command []string, name string, tags []str
 	elapsed := time.Since(start)
 	exitTag := fmt.Sprintf("exit_status:%d", exitStatus)
 	tags = append(tags, exitTag)
-	logrus.Debugf("'%s' took %s", command, elapsed)
+	logrus.Debugf("%q took %s", command, elapsed)
 	err = client.Timing(name, elapsed, tags, 1)
 	return exitStatus, err
 }
