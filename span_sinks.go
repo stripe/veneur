@@ -32,7 +32,7 @@ const totalSpansFlushedMetricKey = "worker.trace.sink.flushed_total"
 // handle their own flushing in a separate goroutine, etc.
 type SpanSink interface {
 	Name() string
-	Ingest(ssf.SSFSpan)
+	Ingest(ssf.SSFSpan) error
 	Flush()
 }
 
@@ -66,12 +66,13 @@ func (dd *DatadogSpanSink) Name() string {
 }
 
 // Ingest takes the span and adds it to the ringbuffer.
-func (dd *DatadogSpanSink) Ingest(span ssf.SSFSpan) {
+func (dd *DatadogSpanSink) Ingest(span ssf.SSFSpan) error {
 	dd.mutex.Lock()
 	defer dd.mutex.Unlock()
 
 	dd.buffer.Value = span
 	dd.buffer = dd.buffer.Next()
+	return nil
 }
 
 // Flush signals the sink to send it's spans to their destination. For this
@@ -278,7 +279,7 @@ func (ls *LightStepSpanSink) Name() string {
 
 // Ingest takes in a span and passed it along to the LS client after
 // some sanity checks and improvements are made.
-func (ls *LightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) {
+func (ls *LightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
 	ls.mutex.Lock()
 	defer ls.mutex.Unlock()
 
@@ -330,6 +331,7 @@ func (ls *LightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) {
 		service = "unknown"
 	}
 	ls.serviceCount[service]++
+	return nil
 }
 
 // Flush doesn't need to do anything to the LS tracer, so we emit metrics

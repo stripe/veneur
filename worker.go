@@ -337,7 +337,7 @@ type SpanWorker struct {
 	stats     *statsd.Client
 }
 
-// NewTraceWorker creates an TraceWorker ready to collect events and service checks.
+// NewSpanWorker creates an TraceWorker ready to collect events and service checks.
 func NewSpanWorker(sinks []SpanSink, stats *statsd.Client) *SpanWorker {
 	return &SpanWorker{
 		TraceChan: make(chan ssf.SSFSpan),
@@ -352,7 +352,12 @@ func (tw *SpanWorker) Work() {
 	for m := range tw.TraceChan {
 		// Give each sink a change to ingest.
 		for _, s := range tw.sinks {
-			s.Ingest(m)
+			err := s.Ingest(m)
+			if err != nil {
+				// If a sink goes wacko and errors a lot, we stand to emit a loooot of metrics
+				// here since span ingest rates can be very high. C'est la vie.
+				tw.stats.Count("worker.trace.ingest.error_total", 1, []string{fmt.Sprintf("sink:%s", s.Name())}, 1.0)
+			}
 		}
 	}
 }
