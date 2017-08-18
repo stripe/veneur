@@ -101,7 +101,7 @@ func main() {
 		}
 
 		var status int
-		status, err = timeCommand(conn, flag.Args(), passedFlags["name"].String(), tags(*tag))
+		status, err = timeCommand(conn, flag.Args(), *name, tags(*tag))
 		if err != nil {
 			logrus.WithError(err).Fatal("Error timing command.")
 		}
