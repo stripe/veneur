@@ -21,8 +21,6 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
-const DatadogResourceKey = "resource"
-
 // Flush takes the slices of metrics, combines then and marshals them to json
 // for posting to Datadog.
 func (s *Server) Flush() {
@@ -58,20 +56,18 @@ func (s *Server) FlushGlobal(ctx context.Context) {
 
 	finalMetrics := s.generateDDMetrics(span.Attach(ctx), percentiles, tempMetrics, ms)
 
-	s.reportMetricsFlushCounts(ms)
+	s.Recorder.LocalMetricsFlushCounts(ms)
 
-	s.reportGlobalMetricsFlushCounts(ms)
+	s.Recorder.GlobalMetricsFlushCounts(ms)
 
 	go func() {
 		for _, p := range s.getPlugins() {
 			start := time.Now()
 			err := p.Flush(finalMetrics, s.Hostname)
-			s.Statsd.TimeInMilliseconds(fmt.Sprintf("flush.plugins.%s.total_duration_ns", p.Name()), float64(time.Since(start).Nanoseconds()), []string{"part:post"}, 1.0)
+			s.Recorder.PluginFlushDuration(start, p.Name())
 			if err != nil {
-				countName := fmt.Sprintf("flush.plugins.%s.error_total", p.Name())
-				s.Statsd.Count(countName, 1, []string{}, 1.0)
+				s.Recorder.PluginFlushErrorCount(p.Name())
 			}
-			s.Statsd.Gauge(fmt.Sprintf("flush.plugins.%s.post_metrics_total", p.Name()), float64(len(finalMetrics)), nil, 1.0)
 		}
 	}()
 
@@ -95,7 +91,7 @@ func (s *Server) FlushLocal(ctx context.Context) {
 
 	finalMetrics := s.generateDDMetrics(span.Attach(ctx), percentiles, tempMetrics, ms)
 
-	s.reportMetricsFlushCounts(ms)
+	s.Recorder.LocalMetricsFlushCounts(ms)
 
 	// we don't report totalHistograms, totalSets, or totalTimers for local veneur instances
 
@@ -107,12 +103,10 @@ func (s *Server) FlushLocal(ctx context.Context) {
 		for _, p := range s.getPlugins() {
 			start := time.Now()
 			err := p.Flush(finalMetrics, s.Hostname)
-			s.Statsd.TimeInMilliseconds(fmt.Sprintf("flush.plugins.%s.total_duration_ns", p.Name()), float64(time.Since(start).Nanoseconds()), []string{"part:post"}, 1.0)
+			s.Recorder.PluginFlushDuration(start, p.Name())
 			if err != nil {
-				countName := fmt.Sprintf("flush.plugins.%s.error_total", p.Name())
-				s.Statsd.Count(countName, 1, []string{}, 1.0)
+				s.Recorder.PluginFlushErrorCount(p.Name())
 			}
-			s.Statsd.Gauge(fmt.Sprintf("flush.plugins.%s.post_metrics_total", p.Name()), float64(len(finalMetrics)), nil, 1.0)
 		}
 	}()
 
@@ -165,7 +159,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 		ms.totalLocalTimers += len(wm.localTimers)
 	}
 
-	s.Statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(gatherStart).Nanoseconds()), []string{"part:gather"}, 1.0)
+	s.Recorder.FlushDuration(gatherStart, "gather")
 
 	ms.totalLength = ms.totalCounters + ms.totalGauges +
 		// histograms and timers each report a metric point for each percentile
@@ -238,40 +232,9 @@ func (s *Server) generateDDMetrics(ctx context.Context, percentiles []float64, t
 	}
 
 	finalizeMetrics(s.Hostname, s.Tags, finalMetrics)
-	s.Statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(span.Start).Nanoseconds()), []string{"part:combine"}, 1.0)
+	s.Recorder.FlushDuration(span.Start, "combine")
 
 	return finalMetrics
-}
-
-// reportMetricsFlushCounts reports the counts of
-// Counters, Gauges, LocalHistograms, LocalSets, and LocalTimers
-// as metrics. These are shared by both global and local flush operations.
-// It does *not* report the totalHistograms, totalSets, or totalTimers
-// because those are only performed by the global veneur instance.
-// It also does not report the total metrics posted, because on the local veneur,
-// that should happen *after* the flush-forward operation.
-func (s *Server) reportMetricsFlushCounts(ms metricsSummary) {
-	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalCounters), []string{"metric_type:counter"}, 1.0)
-	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalGauges), []string{"metric_type:gauge"}, 1.0)
-	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalLocalHistograms), []string{"metric_type:local_histogram"}, 1.0)
-	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalLocalSets), []string{"metric_type:local_set"}, 1.0)
-	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalLocalTimers), []string{"metric_type:local_timer"}, 1.0)
-}
-
-// reportGlobalMetricsFlushCounts reports the counts of
-// globalCounters, totalHistograms, totalSets, and totalTimers,
-// which are the three metrics reported *only* by the global
-// veneur instance.
-func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
-	// we only report these lengths in FlushGlobal
-	// since if we're the global veneur instance responsible for flushing them
-	// this avoids double-counting problems where a local veneur reports
-	// histograms that it received, and then a global veneur reports them
-	// again
-	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalGlobalCounters), []string{"metric_type:global_counter"}, 1.0)
-	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalHistograms), []string{"metric_type:histogram"}, 1.0)
-	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalSets), []string{"metric_type:set"}, 1.0)
-	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalTimers), []string{"metric_type:timer"}, 1.0)
 }
 
 // flushRemote breaks up the final metrics into chunks
@@ -283,11 +246,9 @@ func (s *Server) flushRemote(ctx context.Context, finalMetrics []samplers.DDMetr
 	mem := &runtime.MemStats{}
 	runtime.ReadMemStats(mem)
 
-	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
-	s.Statsd.Gauge("gc.number", float64(mem.NumGC), nil, 1.0)
-	s.Statsd.Gauge("gc.pause_total_ns", float64(mem.PauseTotalNs), nil, 1.0)
+	s.Recorder.GCStats(mem)
 
-	s.Statsd.Gauge("flush.post_metrics_total", float64(len(finalMetrics)), nil, 1.0)
+	s.Recorder.FlushMetricCount(len(finalMetrics))
 	// Check to see if we have anything to do
 	if len(finalMetrics) == 0 {
 		log.Info("Nothing to flush, skipping.")

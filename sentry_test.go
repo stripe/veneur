@@ -14,14 +14,14 @@ func consumeAndCatchPanic(s *Server) (result interface{}) {
 	defer func() {
 		result = recover()
 	}()
-	ConsumePanic(s.Sentry, s.Statsd, s.Hostname, "panic")
+	ConsumePanic(s.Sentry, s.Recorder, s.Hostname, "panic")
 	return
 }
 
 func TestConsumePanicWithoutSentry(t *testing.T) {
 	s := &Server{}
 	// does nothing
-	ConsumePanic(s.Sentry, s.Statsd, s.Hostname, nil)
+	ConsumePanic(s.Sentry, s.Recorder, s.Hostname, nil)
 
 	recovered := consumeAndCatchPanic(s)
 	if recovered != "panic" {
@@ -39,7 +39,12 @@ func (t *fakeSentryTransport) Send(url string, authHeader string, packet *raven.
 }
 
 func TestConsumePanicWithSentry(t *testing.T) {
-	s := &Server{}
+	config := localConfig()
+	HTTPAddrPort++
+	f := newFixture(t, config)
+	defer f.Close()
+	s := f.server
+
 	var err error
 	s.Sentry, err = raven.NewClient("", nil)
 	if err != nil {
@@ -49,7 +54,7 @@ func TestConsumePanicWithSentry(t *testing.T) {
 	s.Sentry.Transport = fakeTransport
 
 	// nil does nothing
-	ConsumePanic(s.Sentry, s.Statsd, s.Hostname, nil)
+	ConsumePanic(s.Sentry, s.Recorder, s.Hostname, nil)
 	if len(fakeTransport.packets) != 0 {
 		t.Error("ConsumePanic(nil) should not send data:", fakeTransport.packets)
 	}
@@ -61,6 +66,8 @@ func TestConsumePanicWithSentry(t *testing.T) {
 	if len(fakeTransport.packets) != 1 {
 		t.Error("expected 1 packet:", fakeTransport.packets)
 	}
+
+	f.Close()
 }
 
 func TestHookWithoutSentry(t *testing.T) {

@@ -3,7 +3,6 @@ package veneur
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
 	"github.com/getsentry/raven-go"
 )
@@ -11,7 +10,7 @@ import (
 // ConsumePanic is intended to be called inside a deferred function when recovering
 // from a panic. It accepts the value of recover() as its only argument,
 // and reports the panic to Sentry, prints the stack,  and then repanics (to ensure your program terminates)
-func ConsumePanic(sentry *raven.Client, stats *statsd.Client, hostname string, err interface{}) {
+func ConsumePanic(sentry *raven.Client, recorder *Recorder, hostname string, err interface{}) {
 	if err == nil {
 		return
 	}
@@ -39,7 +38,7 @@ func ConsumePanic(sentry *raven.Client, stats *statsd.Client, hostname string, e
 		}
 
 		_, ch := sentry.Capture(&p, nil)
-		stats.Count("sentry.errors_total", 1, nil, 1.0)
+		recorder.SentryErrorCount()
 
 		// we don't want the program to terminate before reporting to sentry
 		<-ch

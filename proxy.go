@@ -42,6 +42,7 @@ type Proxy struct {
 	HTTPAddr               string
 	HTTPClient             *http.Client
 	Statsd                 *statsd.Client
+	Recorder               *Recorder
 	AcceptingForwards      bool
 	AcceptingTraces        bool
 
@@ -72,11 +73,12 @@ func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
 	// TODO Timeout?
 	p.HTTPClient = &http.Client{}
 
-	p.Statsd, err = statsd.NewBuffered(conf.StatsAddress, 1024)
+	p.Recorder, err = NewProxyRecorder(conf)
 	if err != nil {
 		log.WithError(err).Error("Failed to create stats instance")
 		return
 	}
+	p.Statsd = p.Recorder.Statsd
 	p.Statsd.Namespace = "veneur_proxy."
 
 	p.enableProfiling = conf.EnableProfiling
@@ -172,7 +174,7 @@ func (p *Proxy) Start() {
 	if p.usingConsul {
 		go func() {
 			defer func() {
-				ConsumePanic(p.Sentry, p.Statsd, p.Hostname, recover())
+				ConsumePanic(p.Sentry, p.Recorder, p.Hostname, recover())
 			}()
 			ticker := time.NewTicker(p.ConsulInterval)
 			for range ticker.C {

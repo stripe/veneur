@@ -64,8 +64,9 @@ type Server struct {
 	EventWorker *EventWorker
 	SpanWorker  *SpanWorker
 
-	Statsd *statsd.Client
-	Sentry *raven.Client
+	Statsd   *statsd.Client
+	Recorder *Recorder
+	Sentry   *raven.Client
 
 	Hostname  string
 	Tags      []string
@@ -114,6 +115,12 @@ type Server struct {
 func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.Hostname = conf.Hostname
 	ret.Tags = conf.Tags
+	ret.Recorder, err = NewRecorder(conf)
+	if err != nil {
+		log.WithError(err).Error("Failed to create stats instance")
+		return
+	}
+	ret.Statsd = ret.Recorder.Statsd
 
 	mappedTags := make(map[string]string)
 	for _, tag := range ret.Tags {
@@ -205,7 +212,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {
-				ConsumePanic(ret.Sentry, ret.Statsd, ret.Hostname, recover())
+				ConsumePanic(ret.Sentry, ret.Recorder, ret.Hostname, recover())
 			}()
 			w.Work()
 		}(ret.Workers[i])
@@ -385,7 +392,7 @@ func (s *Server) Start() {
 	go func() {
 		log.Info("Starting Event worker")
 		defer func() {
-			ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
+			ConsumePanic(s.Sentry, s.Recorder, s.Hostname, recover())
 		}()
 		s.EventWorker.Work()
 	}()
@@ -394,7 +401,7 @@ func (s *Server) Start() {
 		log.Info("Starting Trace worker")
 		go func() {
 			defer func() {
-				ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
+				ConsumePanic(s.Sentry, s.Recorder, s.Hostname, recover())
 			}()
 			s.SpanWorker.Work()
 		}()
@@ -422,7 +429,7 @@ func (s *Server) Start() {
 	if s.TracingEnabled() {
 		go func() {
 			defer func() {
-				ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
+				ConsumePanic(s.Sentry, s.Recorder, s.Hostname, recover())
 			}()
 			s.ReadTraceSocket(tracePool)
 		}()
@@ -433,7 +440,7 @@ func (s *Server) Start() {
 	// Flush every Interval forever!
 	go func() {
 		defer func() {
-			ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
+			ConsumePanic(s.Sentry, s.Recorder, s.Hostname, recover())
 		}()
 		ticker := time.NewTicker(s.interval)
 		for {
@@ -601,7 +608,7 @@ func (s *Server) ReadTraceSocket(packetPool *sync.Pool) {
 
 func (s *Server) handleTCPGoroutine(conn net.Conn) {
 	defer func() {
-		ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
+		ConsumePanic(s.Sentry, s.Recorder, s.Hostname, recover())
 	}()
 
 	defer func() {
