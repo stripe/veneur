@@ -99,7 +99,7 @@ func TestTimeCommand(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testFlag["command"] = newValue("echo hello")
 	testFlag["name"] = newValue("test.timing")
-	command := "echo hello"
+	command := []string{"echo", "hello"}
 	name := "test.timing"
 
 	t.Run("basic", func(t *testing.T) {
@@ -127,7 +127,7 @@ func TestTimeCommand(t *testing.T) {
 	})
 
 	t.Run("badCall", func(t *testing.T) {
-		command = "cat x"
+		command = []string{"cat", "x"}
 		st, err := timeCommand(client, command, name, []string{"tag1:value1"})
 		assert.NotZero(t, st)
 		assert.NoError(t, err)
