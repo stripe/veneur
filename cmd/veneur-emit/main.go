@@ -100,10 +100,8 @@ func main() {
 			logrus.WithError(err).Fatal("Error!")
 		}
 
-		command := strings.Join(flag.Args(), " ")
-
 		var status int
-		status, err = timeCommand(conn, command, passedFlags["name"].String(), tags(*tag))
+		status, err = timeCommand(conn, flag.Args(), passedFlags["name"].String(), tags(*tag))
 		if err != nil {
 			logrus.WithError(err).Fatal("Error timing command.")
 		}
@@ -199,17 +197,18 @@ func addr(passedFlags map[string]flag.Value, conf *veneur.Config, hostport *stri
 	return addr, err
 }
 
-func timeCommand(client MinimalClient, command string, name string, tags []string) (int, error) {
+func timeCommand(client MinimalClient, command []string, name string, tags []string) (int, error) {
 	logrus.Debugf("Timing '%s'...", command)
-	cmd := exec.Command("sh", "-c", command)
+	cmd := exec.Command(command[0], command[1:]...)
 	exitStatus := 0
 	start := time.Now()
 	err := cmd.Run()
 	if err != nil {
-		status, ok := err.(*exec.ExitError).ProcessState.Sys().(syscall.WaitStatus)
+		exitError, ok := err.(*exec.ExitError)
 		if !ok {
 			return 1, err
 		}
+		status := exitError.ProcessState.Sys().(syscall.WaitStatus)
 		exitStatus = status.ExitStatus()
 	}
 	elapsed := time.Since(start)
