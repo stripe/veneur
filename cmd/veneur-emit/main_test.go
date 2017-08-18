@@ -93,6 +93,47 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestTimeCommand(t *testing.T) {
+	client := &fakeClient{}
+	resetMap(calledFunctions)
+	testFlag := make(map[string]flag.Value)
+	testFlag["command"] = newValue("echo hello")
+	testFlag["name"] = newValue("test.timing")
+	command := []string{"echo", "hello"}
+	name := "test.timing"
+
+	t.Run("basic", func(t *testing.T) {
+		st, err := timeCommand(client, command, name, []string{})
+
+		assert.NoError(t, err, "timeCommand had an error")
+		assert.True(t, calledFunctions["timing"], "timeCommand did not call Timing")
+		assert.Zero(t, st)
+	})
+
+	t.Run("badCall", func(t *testing.T) {
+		badCall = true
+		defer func() {
+			badCall = false
+		}()
+		st, err := timeCommand(client, command, name, []string{})
+		assert.Error(t, err, "timeCommand did not throw error.")
+		assert.Zero(t, st)
+	})
+
+	t.Run("withTags", func(t *testing.T) {
+		st, err := timeCommand(client, command, name, []string{"tag1:value1"})
+		assert.NoError(t, err, "timeCommand had an error")
+		assert.Zero(t, st)
+	})
+
+	t.Run("badCall", func(t *testing.T) {
+		command = []string{"cat", "x"}
+		st, err := timeCommand(client, command, name, []string{"tag1:value1"})
+		assert.NotZero(t, st)
+		assert.NoError(t, err)
+	})
+}
+
 func TestGauge(t *testing.T) {
 	client := &fakeClient{}
 	resetMap(calledFunctions)

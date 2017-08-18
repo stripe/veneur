@@ -5,24 +5,30 @@ import (
 	"errors"
 	"flag"
 	"net"
+	"os"
+	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 
 	"fmt"
+	"strconv"
+
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stripe/veneur"
 	"github.com/stripe/veneur/ssf"
-	"strconv"
 )
 
 var (
 	// Generic flags
-	configFile = flag.String("f", "", "The Veneur config file to read for settings.")
-	hostport   = flag.String("hostport", "", "Hostname and port of destination. Must be used if config file is not present.")
-	mode       = flag.String("mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
-	debug      = flag.Bool("debug", false, "Turns on debug messages.")
+	configFile   = flag.String("f", "", "The Veneur config file to read for settings.")
+	hostport     = flag.String("hostport", "", "Hostname and port of destination. Must be used if config file is not present.")
+	mode         = flag.String("mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
+	debug        = flag.Bool("debug", false, "Turns on debug messages.")
+	command      = flag.String("command", "", "Command to time. This will exec 'command', time it, and emit a timer metric.")
+	shellCommand = flag.Bool("shellCommand", false, "Turns on timeCommand mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.")
 
 	// Metric flags
 	name   = flag.String("name", "", "Name of metric to report. Ex: 'daemontools.service.starts'")
@@ -87,7 +93,20 @@ func main() {
 	}
 	logrus.Debugf("destination: %s", addr)
 
-	if *mode == "metric" {
+	if *shellCommand {
+		var conn MinimalClient
+		conn, err = statsd.New(addr)
+		if err != nil {
+			logrus.WithError(err).Fatal("Error!")
+		}
+
+		var status int
+		status, err = timeCommand(conn, flag.Args(), *name, tags(*tag))
+		if err != nil {
+			logrus.WithError(err).Fatal("Error timing command.")
+		}
+		os.Exit(status)
+	} else if *mode == "metric" {
 		logrus.Debug("Sending metric")
 		if *toSSF {
 			var nconn net.Conn
@@ -154,6 +173,9 @@ func flags() map[string]flag.Value {
 
 func tags(tag string) []string {
 	var tags []string
+	if len(tag) == 0 {
+		return tags
+	}
 	for _, elem := range strings.Split(tag, ",") {
 		tags = append(tags, elem)
 	}
@@ -173,6 +195,28 @@ func addr(passedFlags map[string]flag.Value, conf *veneur.Config, hostport *stri
 		err = errors.New("you must either specify a Veneur config file or a valid hostport")
 	}
 	return addr, err
+}
+
+func timeCommand(client MinimalClient, command []string, name string, tags []string) (int, error) {
+	logrus.Debugf("Timing %q...", command)
+	cmd := exec.Command(command[0], command[1:]...)
+	exitStatus := 0
+	start := time.Now()
+	err := cmd.Run()
+	if err != nil {
+		exitError, ok := err.(*exec.ExitError)
+		if !ok {
+			return 1, err
+		}
+		status := exitError.ProcessState.Sys().(syscall.WaitStatus)
+		exitStatus = status.ExitStatus()
+	}
+	elapsed := time.Since(start)
+	exitTag := fmt.Sprintf("exit_status:%d", exitStatus)
+	tags = append(tags, exitTag)
+	logrus.Debugf("%q took %s", command, elapsed)
+	err = client.Timing(name, elapsed, tags, 1)
+	return exitStatus, err
 }
 
 func bareMetric(name string, tags string) *ssf.SSFSample {
