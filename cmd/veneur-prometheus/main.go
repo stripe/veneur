@@ -43,6 +43,22 @@ func main() {
 				}
 				c.Gauge(mf.GetName(), float64(gauge.GetGauge().GetValue()), tags, 1.0)
 			}
+		case dto.MetricType_HISTOGRAM:
+			for _, histo := range mf.GetMetric() {
+				var tags []string
+				labels := histo.GetLabel()
+				for _, pair := range labels {
+					tags = append(tags, fmt.Sprintf("%s:%s", pair.GetName(), pair.GetValue()))
+				}
+				hname := mf.GetName()
+				summ := histo.GetSummary()
+				c.Gauge(fmt.Sprintf("%s.sum", hname), summ.GetSampleSum(), tags, 1.0)
+				c.Gauge(fmt.Sprintf("%s.count", hname), float64(summ.GetSampleCount()), tags, 1.0)
+				for _, quantile := range summ.GetQuantile() {
+					// TODO Fix this formatting
+					c.Gauge(fmt.Sprintf("%s.%fpercentile", hname, quantile.GetQuantile()), quantile.GetValue(), tags, 1.0)
+				}
+			}
 		}
 	}
 }
