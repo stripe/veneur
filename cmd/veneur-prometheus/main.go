@@ -34,6 +34,15 @@ func main() {
 				}
 				c.Count(mf.GetName(), int64(counter.GetCounter().GetValue()), tags, 1.0)
 			}
+		case dto.MetricType_GAUGE:
+			for _, gauge := range mf.GetMetric() {
+				var tags []string
+				labels := gauge.GetLabel()
+				for _, pair := range labels {
+					tags = append(tags, fmt.Sprintf("%s:%s", pair.GetName(), pair.GetValue()))
+				}
+				c.Gauge(mf.GetName(), float64(gauge.GetGauge().GetValue()), tags, 1.0)
+			}
 		}
 	}
 }
