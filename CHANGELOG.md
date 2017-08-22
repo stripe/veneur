@@ -1,4 +1,4 @@
-# 1.5.3, pending
+# 1.6.0, pending
 
 ## Added
 * Veneur-emit can now time any shell command and emit its duration as a Timing metric. Thanks [redsn0w422](https://github.com/redsn0w422)!
