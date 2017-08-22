@@ -151,6 +151,14 @@ But once you've done that you can tell Veneur to use Einhorn by setting `http_ad
 to `einhorn@0`. This informs [goji/bind](https://github.com/zenazn/goji/tree/master/bind) to use its
 Einhorn handling code to bind to the file descriptor for HTTP.
 
+## Configuration via Environment Variables
+
+Veneur and venuer-proxy each allow configuration via environment variables using [envconfig](https://github.com/kelseyhightower/envconfig). Options provided via environment variables take precedent over those in config. This allows stuff like:
+
+```
+VENEUR_DEBUG=true veneur -f someconfig.yml
+```
+
 ## Forwarding
 
 Veneur instances can be configured to forward their global metrics to another Veneur instance. You can use this feature to get the best of both worlds: metrics that benefit from global aggregation can be passed up to a single global Veneur, but other metrics can be published locally with host-scoped information. Note: **Forwarding adds an additional delay to metric availability corresponding to the value of the `interval` configuration option**, as the local veneur will flush it to its configured upstream, which will then flush any recieved metrics when its interval expires.

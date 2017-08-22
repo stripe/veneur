@@ -2,6 +2,13 @@
 
 ## Added
 * Veneur-emit can now time any shell command and emit its duration as a Timing metric. Thanks [redsn0w422](https://github.com/redsn0w422)!
+* Config options can now be provided via environment variables using [envconfig](https://github.com/kelseyhightower/envconfig) for veneur and veneur-proxy. Thanks [gphat](https://github.com/gphat)!
+* [SSF](https://github.com/stripe/veneur/tree/master/ssf) now includes a boolean `indicator` field for signaling that this span is useful as a [Service Level Indicator](https://en.wikipedia.org/wiki/Service_level_indicator) for it's service.
+* A type `SSFSpanCollection` has been added but is not yet used.
+
+# Deprecations
+* [SSF](https://github.com/stripe/veneur/tree/master/ssf)'s `operation` field has been deprecated in favor of the field `name`.
+* SSF spans with a tag `name` will have that name placed into the SSF span `name` field until 2.0 is released.
 
 # 1.5.2, 2017-08-15
 
