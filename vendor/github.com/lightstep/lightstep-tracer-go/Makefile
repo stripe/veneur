@@ -1,10 +1,20 @@
 # tools
 GO=go
+DOCKER_PRESENT = $(shell command -v docker 2> /dev/null)
 
 default: build
-
 .PHONY: default build test
 
+# generate_fake: runs counterfeiter in docker container to generate fake classes
+# $(1) output file path
+# $(2) input file path
+# $(3) class name
+define generate_fake
+	docker run --rm -v $(GOPATH):/usergo \
+	  lightstep/gobuild:latest /bin/bash -c "\
+	  cd /usergo/src/github.com/lightstep/lightstep-tracer-go; \
+	  counterfeiter -o $(1) $(2) $(3)"
+endef
 # Thrift
 ifeq (,$(wildcard $(GOPATH)/src/github.com/lightstep/common-go/crouton.thrift))
 lightstep_thrift/constants.go:
@@ -19,13 +29,13 @@ lightstep_thrift/constants.go: $(GOPATH)/src/github.com/lightstep/common-go/crou
 endif
 
 lightstepfakes/fake_recorder.go: interfaces.go
-	counterfeiter -o lightstepfakes/fake_recorder.go interfaces.go SpanRecorder
+	$(call generate_fake,lightstepfakes/fake_recorder.go,interfaces.go,SpanRecorder)
 
 lightstep_thrift/lightstep_thriftfakes/fake_reporting_service.go: lightstep_thrift/reportingservice.go
-	counterfeiter lightstep_thrift/reportingservice.go ReportingService
+	$(call generate_fake,lightstep_thrift/lightstep_thriftfakes/fake_reporting_service.go,lightstep_thrift/reportingservice.go,ReportingService)
 
-collectorpb/collectorpbfakes/fake_collector_service_server.go: collectorpb/collector.pb.go
-	counterfeiter collectorpb/collector.pb.go CollectorServiceClient
+collectorpb/collectorpbfakes/fake_collector_service_client.go: collectorpb/collector.pb.go
+	$(call generate_fake,collectorpb/collectorpbfakes/fake_collector_service_client.go,collectorpb/collector.pb.go,CollectorServiceClient)
 
 # gRPC
 ifeq (,$(wildcard lightstep-tracer-common/collector.proto))
@@ -48,14 +58,21 @@ lightsteppb/lightstep_carrier.pb.go: lightstep-tracer-common/lightstep_carrier.p
 endif
 
 test: lightstep_thrift/constants.go collectorpb/collector.pb.go lightsteppb/lightstep_carrier.pb.go \
-		collectorpb/collectorpbfakes/fake_collector_service_server.go \
+		collectorpb/collectorpbfakes/fake_collector_service_client.go \
 		lightstep_thrift/lightstep_thriftfakes/fake_reporting_service.go lightstepfakes/fake_recorder.go
-	ginkgo -race -p
+ifeq ($(DOCKER_PRESENT),)
+	$(error "docker not found. Please install from https://www.docker.com/")
+endif
+	docker run --rm -v $(GOPATH):/usergo lightstep/gobuild:latest \
+	  ginkgo -race -p /usergo/src/github.com/lightstep/lightstep-tracer-go
 	docker run --rm -v $(GOPATH):/input:ro lightstep/noglog:latest noglog github.com/lightstep/lightstep-tracer-go
 
 build: lightstep_thrift/constants.go collectorpb/collector.pb.go lightsteppb/lightstep_carrier.pb.go \
-		collectorpb/collectorpbfakes/fake_collector_service_server.go version.go \
+		collectorpb/collectorpbfakes/fake_collector_service_client.go version.go \
 		lightstep_thrift/lightstep_thriftfakes/fake_reporting_service.go lightstepfakes/fake_recorder.go
+ifeq ($(DOCKER_PRESENT),)
+       	$(error "docker not found. Please install from https://www.docker.com/")
+endif	
 	${GO} build github.com/lightstep/lightstep-tracer-go/...
 
 # When releasing significant changes, make sure to update the semantic

@@ -486,7 +486,7 @@ func TestMarshalAnyJSONPBMarshaler(t *testing.T) {
 	}
 	// after custom marshaling, it's round-tripped through JSON decoding/encoding already,
 	// so the keys are sorted, whitespace is compacted, and "@type" key has been added
-	expected := `{"@type":"type.googleapis.com/` + dynamicMessageName + `","baz":[0,1,2,3],"foo":"bar"}`
+	expected := `{"@type":"type.googleapis.com/` + dynamicMessageName +`","baz":[0,1,2,3],"foo":"bar"}`
 	if str != expected {
 		t.Errorf("marshalling JSON produced incorrect output: got %s, wanted %s", str, expected)
 	}
@@ -736,7 +736,6 @@ func TestUnmarshalAnyJSONPBUnmarshaler(t *testing.T) {
 const (
 	dynamicMessageName = "google.protobuf.jsonpb.testing.dynamicMessage"
 )
-
 func init() {
 	// we register the custom type below so that we can use it in Any types
 	proto.RegisterType((*dynamicMessage)(nil), dynamicMessageName)
