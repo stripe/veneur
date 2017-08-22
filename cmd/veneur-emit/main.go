@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -87,7 +88,7 @@ func main() {
 		config = &conf
 	}
 
-	addr, err := addr(passedFlags, config, hostport)
+	network, addr, err := addr(passedFlags, config, hostport, *toSSF)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error getting destination address.")
 	}
@@ -110,7 +111,7 @@ func main() {
 		logrus.Debug("Sending metric")
 		if *toSSF {
 			var nconn net.Conn
-			nconn, err = net.Dial("udp", addr)
+			nconn, err = net.Dial(network, addr)
 			if err != nil {
 				logrus.WithError(err).Fatal("Error!")
 			}
@@ -140,7 +141,7 @@ func main() {
 		}
 	} else if *mode == "event" {
 		logrus.Debug("Sending event")
-		nconn, _ := net.Dial("udp", addr)
+		nconn, _ := net.Dial(network, addr)
 		pkt, err := buildEventPacket(passedFlags)
 		if err != nil {
 			logrus.WithError(err).Fatal("build event")
@@ -149,7 +150,7 @@ func main() {
 		logrus.Debugf("Buffer string: %s", pkt.String())
 	} else if *mode == "sc" {
 		logrus.Debug("Sending service check")
-		nconn, _ := net.Dial("udp", addr)
+		nconn, _ := net.Dial(network, addr)
 		pkt, err := buildSCPacket(passedFlags)
 		if err != nil {
 			logrus.WithError(err).Fatal("build event")
@@ -182,11 +183,19 @@ func tags(tag string) []string {
 	return tags
 }
 
-func addr(passedFlags map[string]flag.Value, conf *veneur.Config, hostport *string) (string, error) {
-	addr := ""
-	var err error
-	if conf != nil {
-		addr = conf.UdpAddress // TODO: conf.TcpAddress
+func addr(passedFlags map[string]flag.Value, conf *veneur.Config, hostport *string, useSSF bool) (addr string, network string, err error) {
+	network = "udp"
+	if conf != nil && !useSSF && len(conf.StatsdListenAddresses) > 0 {
+		var u *url.URL
+		var a veneur.ListeningAddr
+		addrStr := conf.StatsdListenAddresses[0]
+		u, err = url.Parse(addrStr)
+		if err != nil {
+			return
+		}
+		a.FromURL(u)
+		addr = a.String()
+		network = a.Network()
 	} else if passedFlags["hostport"] != nil {
 		addr = passedFlags["hostport"].String()
 	} else if hostport != nil {
@@ -194,7 +203,7 @@ func addr(passedFlags map[string]flag.Value, conf *veneur.Config, hostport *stri
 	} else {
 		err = errors.New("you must either specify a Veneur config file or a valid hostport")
 	}
-	return addr, err
+	return addr, network, err
 }
 
 func timeCommand(client MinimalClient, command []string, name string, tags []string) (int, error) {
