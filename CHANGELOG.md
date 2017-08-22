@@ -6,7 +6,10 @@
 * [SSF](https://github.com/stripe/veneur/tree/master/ssf) now includes a boolean `indicator` field for signaling that this span is useful as a [Service Level Indicator](https://en.wikipedia.org/wiki/Service_level_indicator) for it's service.
 * A type `SSFSpanCollection` has been added but is not yet used.
 
-# Deprecations
+## Improvements
+* If possible, initialization errors when starting Veneur will now be reported to Sentry. Thanks [chimeracoder](https://github.com/chimeracoder)!
+
+## Deprecations
 * [SSF](https://github.com/stripe/veneur/tree/master/ssf)'s `operation` field has been deprecated in favor of the field `name`.
 * SSF spans with a tag `name` will have that name placed into the SSF span `name` field until 2.0 is released.
 
