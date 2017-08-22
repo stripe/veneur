@@ -92,9 +92,7 @@ type Server struct {
 	metricMaxLength     int
 	traceMaxLengthBytes int
 
-	TCPAddr        *net.TCPAddr
 	tlsConfig      *tls.Config
-	tcpListener    net.Listener
 	tcpReadTimeout time.Duration
 
 	// closed when the server is shutting down gracefully
@@ -241,42 +239,36 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.HTTPAddr = conf.HTTPAddress
 	ret.ForwardAddr = conf.ForwardAddress
 
-	if conf.TcpAddress != "" {
-		ret.TCPAddr, err = net.ResolveTCPAddr("tcp", conf.TcpAddress)
+	if conf.TLSKey != "" {
+		if conf.TLSCertificate == "" {
+			err = errors.New("tls_key is set; must set tls_certificate")
+			return
+		}
+
+		// load the TLS key and certificate
+		var cert tls.Certificate
+		cert, err = tls.X509KeyPair([]byte(conf.TLSCertificate), []byte(conf.TLSKey))
 		if err != nil {
 			return
 		}
-		if conf.TLSKey != "" {
-			if conf.TLSCertificate == "" {
-				err = errors.New("tls_key is set; must set tls_certificate")
+
+		clientAuthMode := tls.NoClientCert
+		var clientCAs *x509.CertPool
+		if conf.TLSAuthorityCertificate != "" {
+			// load the authority; require clients to present certificated signed by this authority
+			clientAuthMode = tls.RequireAndVerifyClientCert
+			clientCAs = x509.NewCertPool()
+			ok := clientCAs.AppendCertsFromPEM([]byte(conf.TLSAuthorityCertificate))
+			if !ok {
+				err = errors.New("tls_authority_certificate: Could not load any certificates")
 				return
 			}
+		}
 
-			// load the TLS key and certificate
-			var cert tls.Certificate
-			cert, err = tls.X509KeyPair([]byte(conf.TLSCertificate), []byte(conf.TLSKey))
-			if err != nil {
-				return
-			}
-
-			clientAuthMode := tls.NoClientCert
-			var clientCAs *x509.CertPool
-			if conf.TLSAuthorityCertificate != "" {
-				// load the authority; require clients to present certificated signed by this authority
-				clientAuthMode = tls.RequireAndVerifyClientCert
-				clientCAs = x509.NewCertPool()
-				ok := clientCAs.AppendCertsFromPEM([]byte(conf.TLSAuthorityCertificate))
-				if !ok {
-					err = errors.New("tls_authority_certificate: Could not load any certificates")
-					return
-				}
-			}
-
-			ret.tlsConfig = &tls.Config{
-				Certificates: []tls.Certificate{cert},
-				ClientAuth:   clientAuthMode,
-				ClientCAs:    clientCAs,
-			}
+		ret.tlsConfig = &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			ClientAuth:   clientAuthMode,
+			ClientCAs:    clientCAs,
 		}
 	}
 
@@ -483,40 +475,6 @@ func (s *Server) Start() {
 	// Read Metrics Forever!
 	for _, addr := range s.StatsdListenAddrs {
 		addr.StartStatsd(s, statsdPool)
-	}
-
-	// Read Metrics from TCP Forever!
-	if s.TCPAddr != nil {
-		// allow shutdown to stop the accept goroutine
-		var err error
-		s.tcpListener, err = net.ListenTCP("tcp", s.TCPAddr)
-		if err != nil {
-			logrus.WithError(err).Fatal("Error listening for TCP connections")
-		}
-
-		mode := "unencrypted"
-		if s.tlsConfig != nil {
-			// wrap the listener with TLS
-			s.tcpListener = tls.NewListener(s.tcpListener, s.tlsConfig)
-			if s.tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
-				mode = "authenticated"
-			} else {
-				mode = "encrypted"
-			}
-		}
-
-		log.WithFields(logrus.Fields{
-			"address": s.TCPAddr, "mode": mode,
-		}).Info("Listening for TCP connections")
-
-		go func() {
-			defer func() {
-				ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
-			}()
-			s.ReadTCPSocket()
-		}()
-	} else {
-		logrus.Info("TCP not configured - not reading TCP socket")
 	}
 
 	// Read Traces Forever!
@@ -784,9 +742,9 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 }
 
 // ReadTCPSocket listens on Server.TCPAddr for new connections, starting a goroutine for each.
-func (s *Server) ReadTCPSocket() {
+func (s *Server) ReadTCPSocket(listener net.Listener) {
 	for {
-		conn, err := s.tcpListener.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
 			select {
 			case <-s.shutdown:
@@ -853,15 +811,6 @@ func (s *Server) Shutdown() {
 	// TODO(aditya) shut down workers and socket readers
 	log.Info("Shutting down server gracefully")
 	close(s.shutdown)
-
-	if s.tcpListener != nil {
-		// TODO: the socket is in use until there are no goroutines blocked in Accept
-		// we should wait until the accepting goroutine exits
-		err := s.tcpListener.Close()
-		if err != nil {
-			log.WithError(err).Warn("Ignoring error closing TCP listener")
-		}
-	}
 	graceful.Shutdown()
 }
 

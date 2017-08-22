@@ -662,13 +662,13 @@ func readTestKeysCerts() (map[string]string, error) {
 func TestTCPConfig(t *testing.T) {
 	config := localConfig()
 
-	config.TcpAddress = " invalid:invalid"
+	config.StatsdListenAddresses = []string{"tcp://invalid:invalid"}
 	_, err := NewFromConfig(config)
 	if err == nil {
 		t.Error("invalid TCP address is a config error")
 	}
 
-	config.TcpAddress = "localhost:8129"
+	config.StatsdListenAddresses = []string{"tcp://localhost:8129"}
 	config.TLSKey = "somekey"
 	config.TLSCertificate = ""
 	_, err = NewFromConfig(config)
@@ -689,12 +689,9 @@ func TestTCPConfig(t *testing.T) {
 
 	config.TLSKey = pems["serverkey.pem"]
 	config.TLSCertificate = pems["servercert.pem"]
-	s, err := NewFromConfig(config)
+	_, err = NewFromConfig(config)
 	if err != nil {
 		t.Error("expected valid config")
-	}
-	if s.TCPAddr == nil || s.TCPAddr.Port != 8129 {
-		t.Error("TCPAddr not set correctly:", s.TCPAddr)
 	}
 }
 
@@ -882,8 +879,9 @@ func TestTCPMetrics(t *testing.T) {
 		config := localConfig()
 		config.NumWorkers = 1
 		// Use a unique port to avoid race with shutting down accept goroutine on Linux
-		config.TcpAddress = fmt.Sprintf("localhost:%d", HTTPAddrPort)
+		addr := fmt.Sprintf("localhost:%d", HTTPAddrPort)
 		HTTPAddrPort++
+		config.StatsdListenAddresses = []string{fmt.Sprintf("tcp://%s", addr)}
 		config.TLSKey = serverConfig.serverKey
 		config.TLSCertificate = serverConfig.serverCertificate
 		config.TLSAuthorityCertificate = serverConfig.authorityCertificate
@@ -893,7 +891,7 @@ func TestTCPMetrics(t *testing.T) {
 		// attempt to connect and send stats with each of the client configurations
 		for i, clientConfig := range clientConfigs {
 			expectedSuccess := serverConfig.expectedConnectResults[i]
-			err := sendTCPMetrics(config.TcpAddress, clientConfig.tlsConfig, f)
+			err := sendTCPMetrics(addr, clientConfig.tlsConfig, f)
 			if err != nil {
 				if expectedSuccess {
 					t.Errorf("server config: '%s' client config: '%s' failed: %s",
