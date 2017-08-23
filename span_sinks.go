@@ -26,18 +26,18 @@ const lightStepOperationKey = "name"
 
 const totalSpansFlushedMetricKey = "worker.spans_flushed_total"
 
-// SpanSink is a receiver of spans that handles sending those spans to some
+// spanSink is a receiver of spans that handles sending those spans to some
 // downstream sink. Calls to `Ingest(span)` are meant to give the sink control
 // of the span, with periodic calls to flush as a signal for sinks that don't
 // handle their own flushing in a separate goroutine, etc.
-type SpanSink interface {
+type spanSink interface {
 	Name() string
 	Ingest(ssf.SSFSpan) error
 	Flush()
 }
 
 // DatadogSpanSink is a sink for sending spans to a Datadog trace agent.
-type DatadogSpanSink struct {
+type datadogSpanSink struct {
 	HTTPClient   *http.Client
 	buffer       *ring.Ring
 	bufferSize   int
@@ -48,8 +48,8 @@ type DatadogSpanSink struct {
 }
 
 // NewDatadogSpanSink creates a new Datadog sink for trace spans.
-func NewDatadogSpanSink(config *Config, stats *statsd.Client, httpClient *http.Client, commonTags map[string]string) (*DatadogSpanSink, error) {
-	return &DatadogSpanSink{
+func NewDatadogSpanSink(config *Config, stats *statsd.Client, httpClient *http.Client, commonTags map[string]string) (*datadogSpanSink, error) {
+	return &datadogSpanSink{
 		HTTPClient:   httpClient,
 		bufferSize:   config.SsfBufferSize,
 		buffer:       ring.New(config.SsfBufferSize),
@@ -61,12 +61,12 @@ func NewDatadogSpanSink(config *Config, stats *statsd.Client, httpClient *http.C
 }
 
 // Name returns the name of this sink.
-func (dd *DatadogSpanSink) Name() string {
+func (dd *datadogSpanSink) Name() string {
 	return "datadog"
 }
 
 // Ingest takes the span and adds it to the ringbuffer.
-func (dd *DatadogSpanSink) Ingest(span ssf.SSFSpan) error {
+func (dd *datadogSpanSink) Ingest(span ssf.SSFSpan) error {
 	dd.mutex.Lock()
 	defer dd.mutex.Unlock()
 
@@ -78,7 +78,7 @@ func (dd *DatadogSpanSink) Ingest(span ssf.SSFSpan) error {
 // Flush signals the sink to send it's spans to their destination. For this
 // sync it means we'll be making an HTTP request to send them along. We assume
 // it's beneficial to performance to defer these until the normal 10s flush.
-func (dd *DatadogSpanSink) Flush() {
+func (dd *datadogSpanSink) Flush() {
 	dd.mutex.Lock()
 
 	ssfSpans := make([]ssf.SSFSpan, 0, dd.buffer.Len())
@@ -201,8 +201,8 @@ func (dd *DatadogSpanSink) Flush() {
 	}
 }
 
-// LightStepSpanSink is a sink for spans to be sent to the LightStep client.
-type LightStepSpanSink struct {
+// lightStepSpanSink is a sink for spans to be sent to the LightStep client.
+type lightStepSpanSink struct {
 	tracer       opentracing.Tracer
 	stats        *statsd.Client
 	commonTags   map[string]string
@@ -211,7 +211,7 @@ type LightStepSpanSink struct {
 }
 
 // NewLightStepSpanSink creates a new instance of a LightStepSpanSink.
-func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[string]string) (*LightStepSpanSink, error) {
+func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[string]string) (*lightStepSpanSink, error) {
 
 	var host *url.URL
 	host, err := url.Parse(config.TraceLightstepCollectorHost)
@@ -219,7 +219,7 @@ func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[s
 		log.WithError(err).WithField(
 			"host", config.TraceLightstepCollectorHost,
 		).Error("Error parsing LightStep collector URL")
-		return &LightStepSpanSink{}, err
+		return &lightStepSpanSink{}, err
 	}
 
 	port, err := strconv.Atoi(host.Port())
@@ -264,7 +264,7 @@ func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[s
 		MaxBufferedSpans: maxSpans,
 	})
 
-	return &LightStepSpanSink{
+	return &lightStepSpanSink{
 		tracer:       lightstepTracer,
 		stats:        stats,
 		serviceCount: make(map[string]int64),
@@ -273,13 +273,13 @@ func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[s
 }
 
 // Name returns this sink's name.
-func (ls *LightStepSpanSink) Name() string {
+func (ls *lightStepSpanSink) Name() string {
 	return "lightstep"
 }
 
 // Ingest takes in a span and passed it along to the LS client after
 // some sanity checks and improvements are made.
-func (ls *LightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
+func (ls *lightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
 	ls.mutex.Lock()
 	defer ls.mutex.Unlock()
 
@@ -336,7 +336,7 @@ func (ls *LightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
 
 // Flush doesn't need to do anything to the LS tracer, so we emit metrics
 // instead.
-func (ls *LightStepSpanSink) Flush() {
+func (ls *lightStepSpanSink) Flush() {
 	ls.mutex.Lock()
 	defer ls.mutex.Unlock()
 
