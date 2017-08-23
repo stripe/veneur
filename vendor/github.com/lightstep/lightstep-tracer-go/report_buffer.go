@@ -1,6 +1,8 @@
 package lightstep
 
-import "time"
+import (
+	"time"
+)
 
 type reportBuffer struct {
 	rawSpans             []RawSpan
@@ -69,7 +71,8 @@ func (into *reportBuffer) mergeFrom(from *reportBuffer) {
 		space = unreported
 	}
 
-	copy(into.rawSpans[have:], from.rawSpans[0:space])
+	into.rawSpans = append(into.rawSpans, from.rawSpans[0:space]...)
+
 	into.droppedSpanCount += int64(unreported - space)
 
 	from.clear()

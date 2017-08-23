@@ -2,6 +2,7 @@ package lightstep
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"path"
@@ -30,6 +31,8 @@ const (
 	DefaultMaxLogKeyLen   = 256
 	DefaultMaxLogValueLen = 1024
 	DefaultMaxLogsPerSpan = 500
+
+	DefaultGRPCMaxCallSendMsgSizeBytes = math.MaxInt32
 )
 
 // Tag and Tracer Attribute keys.
@@ -51,24 +54,25 @@ const (
 	plaintextProtocol = "http"
 )
 
-// Endpoint describes a collection or web API host/port and whether or
-// not to use plaintext communicatation.
+// Endpoint describes a collector or web API host/port and whether or
+// not to use plaintext communication.
 type Endpoint struct {
 	Host      string `yaml:"host" usage:"host on which the endpoint is running"`
 	Port      int    `yaml:"port" usage:"port on which the endpoint is listening"`
 	Plaintext bool   `yaml:"plaintext" usage:"whether or not to encrypt data send to the endpoint"`
 }
 
+// HostPort returns an address suitable for dialing grpc connections
 func (e Endpoint) HostPort() string {
 	return fmt.Sprintf("%s:%d", e.Host, e.Port)
 }
 
+// URL returns an address suitable for dialing thrift connections
 func (e Endpoint) URL() string {
 	if e.Plaintext {
 		return fmt.Sprintf("%s://%s:%d%s", plaintextProtocol, e.Host, e.Port, DefaultCollectorPath)
-	} else {
-		return fmt.Sprintf("%s://%s:%d%s", secureProtocol, e.Host, e.Port, DefaultCollectorPath)
 	}
+	return fmt.Sprintf("%s://%s:%d%s", secureProtocol, e.Host, e.Port, DefaultCollectorPath)
 }
 
 // Options control how the LightStep Tracer behaves.
@@ -105,6 +109,10 @@ type Options struct {
 	// MaxLogsPerSpan limits the number of logs in a single span.
 	MaxLogsPerSpan int `yaml:"max_logs_per_span"`
 
+	// GRPCMaxCallSendMsgSizeBytes limits the size in bytes of grpc messages
+	// sent by a client.
+	GRPCMaxCallSendMsgSizeBytes int `yaml:"grpc_max_call_send_msg_size_bytes"`
+
 	// ReportingPeriod is the maximum duration of time between sending spans
 	// to a collector.  If zero, the default will be used.
 	ReportingPeriod time.Duration `yaml:"reporting_period"`
@@ -112,7 +120,7 @@ type Options struct {
 	// MinReportingPeriod is the minimum duration of time between sending spans
 	// to a collector.  If zero, the default will be used. It is strongly
 	// recommended to use the default.
-	MinReportingPeriod time.Duration `yaml:"reporting_period"`
+	MinReportingPeriod time.Duration `yaml:"min_reporting_period"`
 
 	ReportTimeout time.Duration `yaml:"report_timeout"`
 
@@ -131,10 +139,10 @@ type Options struct {
 	ReconnectPeriod time.Duration `yaml:"reconnect_period"`
 
 	// a hook for recieving finished span events
-	Recorder SpanRecorder
+	Recorder SpanRecorder `yaml:"-" json:"-"`
 
 	// For testing purposes only
-	ConnFactory ConnectorFactory
+	ConnFactory ConnectorFactory `yaml:"-" json:"-"`
 }
 
 // Initialize validates options, and sets default values for unset options.
@@ -160,6 +168,9 @@ func (opts *Options) Initialize() error {
 	}
 	if opts.MaxLogsPerSpan == 0 {
 		opts.MaxLogsPerSpan = DefaultMaxLogsPerSpan
+	}
+	if opts.GRPCMaxCallSendMsgSizeBytes == 0 {
+		opts.GRPCMaxCallSendMsgSizeBytes = DefaultGRPCMaxCallSendMsgSizeBytes
 	}
 	if opts.ReportingPeriod == 0 {
 		opts.ReportingPeriod = DefaultMaxReportingPeriod
@@ -215,6 +226,7 @@ func (opts *Options) Initialize() error {
 // SetTraceID or the result is undefined.
 type SetSpanID uint64
 
+// Apply satisfies the StartSpanOption interface.
 func (sid SetSpanID) Apply(sso *ot.StartSpanOptions) {}
 func (sid SetSpanID) applyLS(sso *startSpanOptions) {
 	sso.SetSpanID = uint64(sid)
@@ -227,6 +239,7 @@ func (sid SetSpanID) applyLS(sso *startSpanOptions) {
 // it will override this value.
 type SetTraceID uint64
 
+// Apply satisfies the StartSpanOption interface.
 func (sid SetTraceID) Apply(sso *ot.StartSpanOptions) {}
 func (sid SetTraceID) applyLS(sso *startSpanOptions) {
 	sso.SetTraceID = uint64(sid)
@@ -240,6 +253,7 @@ func (sid SetTraceID) applyLS(sso *startSpanOptions) {
 // it will override this value.
 type SetParentSpanID uint64
 
+// Apply satisfies the StartSpanOption interface.
 func (sid SetParentSpanID) Apply(sso *ot.StartSpanOptions) {}
 func (sid SetParentSpanID) applyLS(sso *startSpanOptions) {
 	sso.SetParentSpanID = uint64(sid)
