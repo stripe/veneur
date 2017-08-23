@@ -107,7 +107,7 @@ type Server struct {
 
 	HistogramAggregates samplers.HistogramAggregates
 
-	spanSinks []SpanSink
+	spanSinks []spanSink
 
 	traceLightstepAccessToken string
 }
@@ -295,7 +295,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		// configure Datadog as sink
 		if ret.DDTraceAddress != "" {
 
-			var ddSink SpanSink
+			var ddSink spanSink
 			ddSink, err = NewDatadogSpanSink(&conf, ret.Statsd, ret.HTTPClient, ret.TagsAsMap)
 			if err != nil {
 				return
@@ -308,7 +308,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		// configure Lightstep as Sink
 		if ret.traceLightstepAccessToken != "" {
 
-			var lsSink SpanSink
+			var lsSink spanSink
 			lsSink, err = NewLightStepSpanSink(&conf, ret.Statsd, ret.TagsAsMap)
 			if err != nil {
 				return
