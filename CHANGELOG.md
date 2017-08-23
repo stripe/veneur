@@ -8,6 +8,7 @@
 
 ## Improvements
 * If possible, initialization errors when starting Veneur will now be reported to Sentry. Thanks [chimeracoder](https://github.com/chimeracoder)!
+* Check return value of LightStep flush. Thanks [chimeracoder](https://github.com/chimeracoder)!
 
 ## Deprecations
 * [SSF](https://github.com/stripe/veneur/tree/master/ssf)'s `operation` field has been deprecated in favor of the field `name`.
