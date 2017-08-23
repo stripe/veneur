@@ -45,6 +45,8 @@ type Tracer interface {
 	Flush()
 	// Options gets the Options used in New() or NewWithOptions().
 	Options() Options
+	// Disable prevents the tracer from recording spans or flushing
+	Disable()
 }
 
 // lightStepStartSpanOption is used to identify lightstep-specific Span options.
