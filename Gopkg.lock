@@ -10,8 +10,8 @@
 [[projects]]
   name = "github.com/Sirupsen/logrus"
   packages = ["."]
-  revision = "99069a2f51322071cea01daf0167e3a31a82575a"
-  source = "https://github.com/ChimeraCoder/logrus.git"
+  revision = "f006c2ac4710855cf0f916dd6b77acf6b048dc6e"
+  version = "v1.0.3"
 
 [[projects]]
   name = "github.com/aws/aws-sdk-go"
@@ -95,7 +95,7 @@
   branch = "master"
   name = "github.com/lightstep/lightstep-tracer-go"
   packages = [".","collectorpb","lightstep_thrift","lightsteppb","thrift_0_9_2/lib/go/thrift"]
-  revision = "43ac9945569228b0d570a80aa6411a9afe728d23"
+  revision = "ea8cdd9df8635eca5fcde3e602f52c4b7971adcd"
 
 [[projects]]
   branch = "master"
@@ -190,6 +190,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "69ed561abe22d2b38608b2e80aa78e8a885a54affbf3caf27017cff4abea8725"
+  inputs-digest = "fede6b1988f8192835b48119f7d09c02360faafe49fb22b69902cc1e6814b852"
   solver-name = "gps-cdcl"
   solver-version = 1

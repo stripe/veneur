@@ -3,7 +3,7 @@ package lightstep
 import (
 	"encoding/base64"
 
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	lightstep "github.com/lightstep/lightstep-tracer-go/lightsteppb"
 	opentracing "github.com/opentracing/opentracing-go"
 )
