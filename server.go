@@ -295,10 +295,9 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		// configure Datadog as sink
 		if ret.DDTraceAddress != "" {
 
-			var ddSink spanSink
 			ddSink, err := NewDatadogSpanSink(&conf, ret.Statsd, ret.HTTPClient, ret.TagsAsMap)
 			if err != nil {
-				return
+				return ret, err
 			}
 
 			ret.spanSinks = append(ret.spanSinks, ddSink)
