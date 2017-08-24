@@ -222,16 +222,16 @@ func TestHostport(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testHostport := "host:port"
 	testFlag["hostport"] = newValue(testHostport)
-	addr, err := addr(testFlag, nil, &testHostport)
-	if addr != testHostport || err != nil {
-		t.Error("Did not return hostport.")
+	addr, network, err := addr(testFlag, nil, &testHostport, false)
+	if addr != testHostport || network != "udp" || err != nil {
+		t.Errorf("Did not return hostport: %q/%q", network, addr)
 	}
 }
 
 func TestNilHostport(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
-	addr, err := addr(testFlag, nil, nil)
-	if addr != "" || err == nil {
+	addr, network, err := addr(testFlag, nil, nil, false)
+	if addr != "" || network != "udp" || err == nil {
 		t.Error("Did not check for valid hostport.")
 	}
 }
@@ -239,18 +239,18 @@ func TestNilHostport(t *testing.T) {
 func TestConfig(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	fakeConfig := &veneur.Config{}
-	fakeConfig.UdpAddress = "testudp"
+	fakeConfig.StatsdListenAddresses = []string{"udp://127.0.0.1:8200"}
 	testFlag["f"] = newValue("/pay/conf/veneur.yaml")
-	addr, err := addr(testFlag, fakeConfig, nil)
-	if addr != "testudp" || err != nil {
-		t.Error("Did not use config file for hostname and port.")
+	addr, network, err := addr(testFlag, fakeConfig, nil, false)
+	if addr != "127.0.0.1:8200" || network != "udp" || err != nil {
+		t.Errorf("Did not use config file for hostname and port: %q/%q", network, addr)
 	}
 }
 
 func TestNoAddr(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
-	addr, err := addr(testFlag, nil, nil)
-	if addr != "" || err == nil {
+	addr, network, err := addr(testFlag, nil, nil, false)
+	if addr != "" || network != "udp" || err == nil {
 		t.Error("Returned non-empty address with no flags.")
 	}
 }
