@@ -70,14 +70,6 @@ hostname: foobar
 # If true and hostname is "" or absent, don't add the host tag
 omit_empty_hostname: false
 
-# The address on which to listen for metrics sent to this instance over UDP,
-# leave empty to disable.
-udp_address: "localhost:8126"
-
-# The address on which to listen for metrics sent to this instance over TCP,
-# leave empty to disable.
-tcp_address: ""
-
 # The address on which to listen for HTTP imports and/or healthchecks.
 #http_address: "einhorn@0"
 http_address: "localhost:8127"
@@ -104,6 +96,27 @@ tls_certificate: ""
 
 # Authority certificate: requires clients to be authenticated
 tls_authority_certificate: ""
+
+# == STATSD ==
+
+# The addresses on which to listen for statsd metrics. These are
+# formatted as URLs, with schemes corresponding to valid "network"
+# arguments on https://golang.org/pkg/net/#Listen. Currently, only udp
+# and tcp (including IPv4 and 6-only) schemes are supported.
+# This option supersedes the "udp_address" and "tcp_address" options.
+statsd_listen_addresses:
+ - udp://localhost:8126
+ - tcp://localhost:8126
+
+# The address on which to listen for metrics sent to this instance over UDP,
+# leave empty to disable.
+# This option is DEPRECATED, use statsd_listen_addresses instead.
+udp_address: "localhost:8126"
+
+# The address on which to listen for metrics sent to this instance over TCP,
+# leave empty to disable.
+# This option is DEPRECATED, use statsd_listen_addresses instead.
+tcp_address: ""
 
 # == SINKS ==
 

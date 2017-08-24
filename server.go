@@ -83,9 +83,9 @@ type Server struct {
 
 	ForwardAddr string
 
-	UDPAddr     *net.UDPAddr
-	TraceAddr   *net.UDPAddr
-	RcvbufBytes int
+	StatsdListenAddrs []ListeningAddr
+	TraceAddr         *net.UDPAddr
+	RcvbufBytes       int
 
 	interval            time.Duration
 	numReaders          int
@@ -155,7 +155,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		// we're fine with using the default transport and redirect behavior
 	}
 	// if transport != nil {
-	// 	ret.HTTPClient.Transport = transport
+	//	ret.HTTPClient.Transport = transport
 	// }
 	ret.FlushMaxPerBody = conf.FlushMaxPerBody
 
@@ -219,9 +219,20 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 	ret.EventWorker = NewEventWorker(ret.Statsd)
 
-	ret.UDPAddr, err = net.ResolveUDPAddr("udp", conf.UdpAddress)
-	if err != nil {
-		return
+	for _, addrStr := range conf.StatsdListenAddresses {
+		var addr ListeningAddr
+		var uri *url.URL
+
+		uri, err = url.Parse(addrStr)
+		if err != nil {
+			return
+		}
+		addr.FromURL(uri)
+		_, err = addr.Resolve()
+		if err != nil {
+			return
+		}
+		ret.StatsdListenAddrs = append(ret.StatsdListenAddrs, addr)
 	}
 
 	ret.metricMaxLength = conf.MetricMaxLength
@@ -456,7 +467,7 @@ func (s *Server) Start() {
 		}()
 	}
 
-	packetPool := &sync.Pool{
+	statsdPool := &sync.Pool{
 		// We +1 this so we an "detect" when someone sends us too long of a metric!
 		New: func() interface{} {
 			return make([]byte, s.metricMaxLength+1)
@@ -470,13 +481,8 @@ func (s *Server) Start() {
 	}
 
 	// Read Metrics Forever!
-	for i := 0; i < s.numReaders; i++ {
-		go func() {
-			defer func() {
-				ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
-			}()
-			s.ReadMetricSocket(packetPool, s.numReaders != 1)
-		}()
+	for _, addr := range s.StatsdListenAddrs {
+		addr.StartStatsd(s, statsdPool)
 	}
 
 	// Read Metrics from TCP Forever!
@@ -624,21 +630,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 }
 
 // ReadMetricSocket listens for available packets to handle.
-func (s *Server) ReadMetricSocket(packetPool *sync.Pool, reuseport bool) {
-	// each goroutine gets its own socket
-	// if the sockets support SO_REUSEPORT, then this will cause the
-	// kernel to distribute datagrams across them, for better read
-	// performance
-	serverConn, err := NewSocket(s.UDPAddr, s.RcvbufBytes, reuseport)
-	if err != nil {
-		// if any goroutine fails to create the socket, we can't really
-		// recover, so we just blow up
-		// this probably indicates a systemic issue, eg lack of
-		// SO_REUSEPORT support
-		log.WithError(err).Fatal("Error listening for UDP metrics")
-	}
-	log.WithField("address", s.UDPAddr).Info("Listening for UDP metrics")
-
+func (s *Server) ReadMetricSocket(serverConn net.PacketConn, packetPool *sync.Pool) {
 	for {
 		buf := packetPool.Get().([]byte)
 		n, _, err := serverConn.ReadFrom(buf)

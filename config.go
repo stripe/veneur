@@ -32,6 +32,7 @@ type Config struct {
 	SsfAddress                    string    `yaml:"ssf_address"`
 	SsfBufferSize                 int       `yaml:"ssf_buffer_size"`
 	StatsAddress                  string    `yaml:"stats_address"`
+	StatsdListenAddresses         []string  `yaml:"statsd_listen_addresses"`
 	Tags                          []string  `yaml:"tags"`
 	TcpAddress                    string    `yaml:"tcp_address"`
 	TLSAuthorityCertificate       string    `yaml:"tls_authority_certificate"`
