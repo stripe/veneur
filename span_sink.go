@@ -281,9 +281,6 @@ func (ls *lightStepSpanSink) Name() string {
 // Ingest takes in a span and passed it along to the LS client after
 // some sanity checks and improvements are made.
 func (ls *lightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
-	ls.mutex.Lock()
-	defer ls.mutex.Unlock()
-
 	parentID := ssfSpan.ParentId
 	if parentID <= 0 {
 		parentID = 0
@@ -331,7 +328,12 @@ func (ls *lightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
 	if service == "" {
 		service = "unknown"
 	}
+
+	// Protect mutating the service count with a mutex
+	ls.mutex.Lock()
 	ls.serviceCount[service]++
+	ls.mutex.Unlock()
+
 	return nil
 }
 
