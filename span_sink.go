@@ -92,6 +92,7 @@ func (dd *datadogSpanSink) Flush() {
 			if !ok {
 				log.Error("Got an unknown object in tracing ring!")
 				// We'll just skip this one so we don't poison pill or anything.
+				return
 			}
 
 			var timeErr string
