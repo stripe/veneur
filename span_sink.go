@@ -331,8 +331,8 @@ func (ls *lightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
 
 	// Protect mutating the service count with a mutex
 	ls.mutex.Lock()
+	defer ls.mutex.Unlock()
 	ls.serviceCount[service]++
-	ls.mutex.Unlock()
 
 	return nil
 }
