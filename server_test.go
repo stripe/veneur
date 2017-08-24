@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+
 	"math/rand"
 	"net"
 	"net/http"
@@ -81,17 +82,17 @@ func generateConfig(forwardAddr string) Config {
 		Hostname:           "localhost",
 
 		// Use a shorter interval for tests
-		Interval:            DefaultFlushInterval.String(),
-		Key:                 "",
-		MetricMaxLength:     4096,
-		Percentiles:         []float64{.5, .75, .99},
-		Aggregates:          []string{"min", "max", "count"},
-		ReadBufferSizeBytes: 2097152,
-		UdpAddress:          fmt.Sprintf("localhost:%d", metricsPort),
-		HTTPAddress:         fmt.Sprintf("localhost:%d", port),
-		ForwardAddress:      forwardAddr,
-		NumWorkers:          4,
-		FlushFile:           "",
+		Interval:              DefaultFlushInterval.String(),
+		Key:                   "",
+		MetricMaxLength:       4096,
+		Percentiles:           []float64{.5, .75, .99},
+		Aggregates:            []string{"min", "max", "count"},
+		ReadBufferSizeBytes:   2097152,
+		StatsdListenAddresses: []string{fmt.Sprintf("udp://localhost:%d", metricsPort)},
+		HTTPAddress:           fmt.Sprintf("localhost:%d", port),
+		ForwardAddress:        forwardAddr,
+		NumWorkers:            4,
+		FlushFile:             "",
 
 		// Use only one reader, so that we can run tests
 		// on platforms which do not support SO_REUSEPORT
@@ -661,13 +662,13 @@ func readTestKeysCerts() (map[string]string, error) {
 func TestTCPConfig(t *testing.T) {
 	config := localConfig()
 
-	config.TcpAddress = " invalid:invalid"
+	config.StatsdListenAddresses = []string{"tcp://invalid:invalid"}
 	_, err := NewFromConfig(config)
 	if err == nil {
 		t.Error("invalid TCP address is a config error")
 	}
 
-	config.TcpAddress = "localhost:8129"
+	config.StatsdListenAddresses = []string{"tcp://localhost:8129"}
 	config.TLSKey = "somekey"
 	config.TLSCertificate = ""
 	_, err = NewFromConfig(config)
@@ -688,12 +689,9 @@ func TestTCPConfig(t *testing.T) {
 
 	config.TLSKey = pems["serverkey.pem"]
 	config.TLSCertificate = pems["servercert.pem"]
-	s, err := NewFromConfig(config)
+	_, err = NewFromConfig(config)
 	if err != nil {
 		t.Error("expected valid config")
-	}
-	if s.TCPAddr == nil || s.TCPAddr.Port != 8129 {
-		t.Error("TCPAddr not set correctly:", s.TCPAddr)
 	}
 }
 
@@ -744,14 +742,15 @@ func TestUDPMetrics(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.Interval = "60s"
-	config.UdpAddress = fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
+	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
 	HTTPAddrPort++
+	config.StatsdListenAddresses = []string{fmt.Sprintf("udp://%s", addr)}
 	f := newFixture(t, config)
 	defer f.Close()
 	// Add a bit of delay to ensure things get listening
 	time.Sleep(20 * time.Millisecond)
 
-	conn, err := net.Dial("udp", config.UdpAddress)
+	conn, err := net.Dial("udp", addr)
 	assert.NoError(t, err)
 	defer conn.Close()
 
@@ -798,14 +797,15 @@ func TestIgnoreLongUDPMetrics(t *testing.T) {
 	config.NumWorkers = 1
 	config.MetricMaxLength = 31
 	config.Interval = "60s"
-	config.UdpAddress = fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
+	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
+	config.StatsdListenAddresses = []string{fmt.Sprintf("udp://%s", addr)}
 	HTTPAddrPort++
 	f := newFixture(t, config)
 	defer f.Close()
 	// Add a bit of delay to ensure things get listening
 	time.Sleep(20 * time.Millisecond)
 
-	conn, err := net.Dial("udp", config.UdpAddress)
+	conn, err := net.Dial("udp", addr)
 	assert.NoError(t, err)
 	defer conn.Close()
 
@@ -879,8 +879,9 @@ func TestTCPMetrics(t *testing.T) {
 		config := localConfig()
 		config.NumWorkers = 1
 		// Use a unique port to avoid race with shutting down accept goroutine on Linux
-		config.TcpAddress = fmt.Sprintf("localhost:%d", HTTPAddrPort)
+		addr := fmt.Sprintf("localhost:%d", HTTPAddrPort)
 		HTTPAddrPort++
+		config.StatsdListenAddresses = []string{fmt.Sprintf("tcp://%s", addr)}
 		config.TLSKey = serverConfig.serverKey
 		config.TLSCertificate = serverConfig.serverCertificate
 		config.TLSAuthorityCertificate = serverConfig.authorityCertificate
@@ -890,7 +891,7 @@ func TestTCPMetrics(t *testing.T) {
 		// attempt to connect and send stats with each of the client configurations
 		for i, clientConfig := range clientConfigs {
 			expectedSuccess := serverConfig.expectedConnectResults[i]
-			err := sendTCPMetrics(config.TcpAddress, clientConfig.tlsConfig, f)
+			err := sendTCPMetrics(addr, clientConfig.tlsConfig, f)
 			if err != nil {
 				if expectedSuccess {
 					t.Errorf("server config: '%s' client config: '%s' failed: %s",

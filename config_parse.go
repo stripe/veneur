@@ -1,8 +1,10 @@
 package veneur
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"time"
 
@@ -91,6 +93,26 @@ func readConfig(r io.Reader) (c Config, err error) {
 			c.SsfAddress = c.TraceAddress
 		}
 	}
+
+	var moreAddrs []string
+	if c.UdpAddress != "" {
+		if len(c.StatsdListenAddresses) > 0 {
+			err = fmt.Errorf("`statsd_listen_addresses` and deprecated parameter `udp_address` are both present")
+			return
+		}
+		log.Warn("The config key `udp_address` is deprecated and replaced with entries in `statsd_listen_addresses` and will be removed in 2.0!")
+		moreAddrs = append(moreAddrs, (&url.URL{Scheme: "udp", Host: c.UdpAddress}).String())
+	}
+
+	if c.TcpAddress != "" {
+		if len(c.StatsdListenAddresses) > 0 {
+			err = fmt.Errorf("`statsd_listen_addresses` and deprecated parameter `tcp_address` are both present")
+			return
+		}
+		log.Warn("The config key `tcp_address` is deprecated and replaced with entries in `statsd_listen_addresses` and will be removed in 2.0!")
+		moreAddrs = append(moreAddrs, (&url.URL{Scheme: "tcp", Host: c.UdpAddress}).String())
+	}
+	c.StatsdListenAddresses = append(c.StatsdListenAddresses, moreAddrs...)
 
 	return c, nil
 }
