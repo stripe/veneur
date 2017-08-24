@@ -98,6 +98,12 @@
   revision = "ea8cdd9df8635eca5fcde3e602f52c4b7971adcd"
 
 [[projects]]
+  name = "github.com/matttproud/golang_protobuf_extensions"
+  packages = ["pbutil"]
+  revision = "3247c84500bff8d9fb6d579d800f20b3e091582c"
+  version = "v1.0.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/mitchellh/go-homedir"
   packages = ["."]
@@ -120,6 +126,18 @@
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/prometheus/client_model"
+  packages = ["go"]
+  revision = "6f3806018612930941127f2a7c6c453ba2c527d2"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/prometheus/common"
+  packages = ["expfmt","internal/bitbucket.org/ww/goautoneg","model"]
+  revision = "61f87aac8082fa8c3c5655c7608d7478d46ac2ad"
 
 [[projects]]
   name = "github.com/stretchr/testify"
@@ -190,6 +208,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fede6b1988f8192835b48119f7d09c02360faafe49fb22b69902cc1e6814b852"
+  inputs-digest = "3691925bfc5160c6f2e0329316d5914051a55a427d72931532e839a29b602df3"
   solver-name = "gps-cdcl"
   solver-version = 1
