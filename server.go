@@ -296,7 +296,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		if ret.DDTraceAddress != "" {
 
 			var ddSink spanSink
-			ddSink, err = NewDatadogSpanSink(&conf, ret.Statsd, ret.HTTPClient, ret.TagsAsMap)
+			ddSink, err := NewDatadogSpanSink(&conf, ret.Statsd, ret.HTTPClient, ret.TagsAsMap)
 			if err != nil {
 				return
 			}
