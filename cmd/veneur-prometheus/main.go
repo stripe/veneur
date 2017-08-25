@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"time"
@@ -52,7 +53,10 @@ func collect(c *statsd.Client) {
 	var mf dto.MetricFamily
 	for {
 		err := d.Decode(&mf)
-		if err != nil {
+		if err == io.EOF {
+			// We've hit the end, break out!
+			break
+		} else if err != nil {
 			logrus.WithError(err).Warn("Failed to decode a metric")
 			break
 		}
