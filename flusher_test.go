@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	lightstep "github.com/lightstep/lightstep-tracer-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/samplers"
 )
@@ -132,11 +131,9 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	server := setupVeneurServer(t, config, nil)
 	defer server.Shutdown()
 
-	server.tracerSinks = append(server.tracerSinks, tracerSink{
-		name:   "Datadog",
-		tracer: nil,
-		flush:  flushSpansDatadog,
-	})
+	ddSink, err := NewDatadogSpanSink(&config, server.Statsd, server.HTTPClient, server.TagsAsMap)
+
+	server.spanSinks = append(server.spanSinks, ddSink)
 
 	assert.Equal(t, server.DDTraceAddress, config.DatadogTraceAPIAddress)
 
@@ -169,15 +166,8 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 	server := setupVeneurServer(t, config, nil)
 	defer server.Shutdown()
 
-	lightstepTracer := lightstep.NewTracer(lightstep.Options{
-		AccessToken: "TestAccessToken",
-	})
-
-	server.tracerSinks = append(server.tracerSinks, tracerSink{
-		name:   "Lightstep",
-		tracer: lightstepTracer,
-		flush:  flushSpansLightstep,
-	})
+	lsSink, err := NewLightStepSpanSink(&config, server.Statsd, server.TagsAsMap)
+	server.spanSinks = append(server.spanSinks, lsSink)
 
 	assert.Equal(t, server.DDTraceAddress, config.DatadogTraceAPIAddress)
 
