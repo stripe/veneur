@@ -43,7 +43,9 @@ type MetricKey struct {
 	JoinedTags string `json:"tagstring"` // tags in deterministic order, joined with commas
 }
 
-// A reusable protobuf buffer, is not safe to use concurrently!
+// scratchBuff is a reusable protobuf buffer, such that repeated calls to
+// unmarshal protobuf spans don't make new buffers over and over. is not safe
+// to use concurrently!
 var scratchBuff = proto.NewBuffer(nil)
 
 // ToString returns a string representation of this MetricKey

@@ -415,10 +415,48 @@ func TestServiceCheckMessageUnescape(t *testing.T) {
 	assert.Equal(t, "foo\nbar\nbaz\n", svcheck.Message, "Should contain newline")
 }
 
-func BenchmarkParseSSF(b *testing.B) {
-	trace := &ssf.SSFSpan{}
+func TestConsecutiveParseSSF(t *testing.T) {
 
-	buff, err := proto.Marshal(trace)
+	span := &ssf.SSFSpan{
+		Id:             12345678,
+		TraceId:        1,
+		StartTimestamp: 123,
+		EndTimestamp:   124,
+		Tags: map[string]string{
+			"foo": "bar",
+		},
+	}
+	buff1, err := proto.Marshal(span)
+	assert.Nil(t, err)
+
+	otherSpan := &ssf.SSFSpan{
+		Id:             12345679,
+		TraceId:        2,
+		StartTimestamp: 125,
+		EndTimestamp:   126,
+	}
+	buff2, err := proto.Marshal(otherSpan)
+	assert.Nil(t, err)
+
+	// Because ParseSSF reuses a buffer when parsing we want to ensure that
+	// subsequent calls properly reset and don't bleed into each other, so
+	// "parse" each and check.
+	span1, _, err := samplers.ParseSSF(buff1)
+	assert.Nil(t, err)
+	span2, _, err := samplers.ParseSSF(buff2)
+	assert.Nil(t, err)
+
+	assert.Equal(t, int64(12345678), span1.Id)
+	assert.Equal(t, "bar", span1.Tags["foo"], "Tagful span has no tags!")
+
+	assert.Equal(t, int64(12345679), span2.Id)
+	assert.Equal(t, "", span2.Tags["foo"], "Tagless span has tags!")
+}
+
+func BenchmarkParseSSF(b *testing.B) {
+	span := &ssf.SSFSpan{}
+
+	buff, err := proto.Marshal(span)
 	assert.Nil(b, err)
 
 	for n := 0; n < b.N; n++ {
