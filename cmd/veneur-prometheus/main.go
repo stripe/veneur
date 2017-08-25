@@ -62,7 +62,7 @@ func collect(c *statsd.Client) {
 			break
 		}
 
-		metricCount := int64(0)
+		var metricCount int64
 		switch mf.GetType() {
 		case dto.MetricType_COUNTER:
 			for _, counter := range mf.GetMetric() {
