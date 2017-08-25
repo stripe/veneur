@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -70,6 +71,55 @@ type JSONMetric struct {
 	// the Value is an internal representation of the metric's contents, eg a
 	// gob-encoded histogram or hyperloglog.
 	Value []byte `json:"value"`
+}
+
+// CardinalityCount is a sampler that records an approximate cardinality count
+// by metric name.
+type CardinalityCount struct {
+	MetricCardinality map[string]*hyperloglog.HyperLogLogPlus
+}
+
+// Sample adds a measurement to the cardinality counter. It makes the
+// assumption that no two metrics with different types share a name (ie, name
+// is unique across all types)
+func (cc *CardinalityCount) Sample(name string, tags []string) {
+	hasher := fnv.New64a()
+	sort.Strings(tags)
+	joinedTags := strings.Join(tags, ",")
+	hasher.Write([]byte(joinedTags))
+	cc.MetricCardinality[name].Add(hasher)
+}
+
+// Export groups the CardinalityCount struct into sub structs, grouped by what
+// their metric consistently hashes to
+func (cc *CardinalityCount) Export() {
+	// what even
+	// turn this into a JSON metric
+	// figure out how to get proxy.go to split this map up into submaps
+	// grouped by the global it needs to be forwarded to
+
+	// maybe at that point, we can treat each HLL as its own set type?
+	// should this be individual HLLs when forwarded, instead of a map[string]?
+}
+
+// Combine merges cardinality count structs exported from locals
+func (cc *CardinalityCount) Combine(other []byte) {
+	// TODO: deserialize `other`
+	var otherCC CardinalityCount
+	for name, hll := range otherCC.MetricCardinality {
+		if _, ok := cc.MetricCardinality[name]; ok {
+			cc.MetricCardinality[name].Merge(hll)
+		} else {
+			cc.MetricCardinality[name] = hll
+		}
+	}
+}
+
+// Flush emits the names + cardinality of the top TEN in the map
+// TODO: would it be just ~fine to emit counts for every metric?
+// TODO: make this configurable?
+func (cc *CardinalityCount) Flush() {
+	// flush grabs the top 10 counts in its map to send off to the downstream
 }
 
 // Counter is an accumulator
