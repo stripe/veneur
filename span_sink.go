@@ -139,8 +139,8 @@ func (dd *datadogSpanSink) Flush() {
 			parentID = 0
 		}
 
-		resource := span.Tags[datadogResourceKey]
-		name := span.Tags[datadogNameKey]
+		resource := span.Tags[DatadogResourceKey]
+		name := span.Name
 
 		tags := map[string]string{}
 		// Get the span's existing tags
@@ -148,8 +148,7 @@ func (dd *datadogSpanSink) Flush() {
 			tags[k] = v
 		}
 
-		delete(tags, datadogNameKey)
-		delete(tags, datadogResourceKey)
+		delete(tags, DatadogResourceKey)
 
 		// TODO implement additional metrics
 		var metrics map[string]float64
@@ -293,7 +292,7 @@ func (ls *lightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
 
 	timestamp := time.Unix(ssfSpan.StartTimestamp/1e9, ssfSpan.StartTimestamp%1e9)
 	sp := ls.tracer.StartSpan(
-		ssfSpan.Tags[lightStepOperationKey],
+		ssfSpan.Name,
 		opentracing.StartTime(timestamp),
 		lightstep.SetTraceID(uint64(ssfSpan.TraceId)),
 		lightstep.SetSpanID(uint64(ssfSpan.Id)),
