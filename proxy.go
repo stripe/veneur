@@ -108,7 +108,7 @@ func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
 	}
 
 	if !p.AcceptingForwards && !p.AcceptingTraces {
-		err = errors.New("Refusing to start with no Consul service names or static addresses in config.")
+		err = errors.New("refusing to start with no Consul service names or static addresses in config")
 		log.WithError(err).WithFields(logrus.Fields{
 			"consul_forward_service_name": p.ConsulForwardService,
 			"consul_trace_service_name":   p.ConsulTraceService,
