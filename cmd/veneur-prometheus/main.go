@@ -57,10 +57,12 @@ func collect(c *statsd.Client) {
 			// We've hit the end, break out!
 			break
 		} else if err != nil {
+			c.Count("veneur.prometheus.decode_errors_total", 1, nil, 1.0)
 			logrus.WithError(err).Warn("Failed to decode a metric")
 			break
 		}
 
+		metricCount := int64(0)
 		switch mf.GetType() {
 		case dto.MetricType_COUNTER:
 			for _, counter := range mf.GetMetric() {
@@ -70,6 +72,7 @@ func collect(c *statsd.Client) {
 					tags = append(tags, fmt.Sprintf("%s:%s", pair.GetName(), pair.GetValue()))
 				}
 				c.Count(mf.GetName(), int64(counter.GetCounter().GetValue()), tags, 1.0)
+				metricCount++
 			}
 		case dto.MetricType_GAUGE:
 			for _, gauge := range mf.GetMetric() {
@@ -79,6 +82,7 @@ func collect(c *statsd.Client) {
 					tags = append(tags, fmt.Sprintf("%s:%s", pair.GetName(), pair.GetValue()))
 				}
 				c.Gauge(mf.GetName(), float64(gauge.GetGauge().GetValue()), tags, 1.0)
+				metricCount++
 			}
 		case dto.MetricType_HISTOGRAM, dto.MetricType_SUMMARY:
 			for _, histo := range mf.GetMetric() {
@@ -95,9 +99,13 @@ func collect(c *statsd.Client) {
 					v := quantile.GetValue()
 					if !math.IsNaN(v) {
 						c.Gauge(fmt.Sprintf("%s.%dpercentile", hname, int(quantile.GetQuantile()*100)), v, tags, 1.0)
+						metricCount++
 					}
 				}
 			}
+		default:
+			c.Count("veneur.prometheus.unknown_metric_type_total", 1, nil, 1.0)
 		}
+		c.Count("veneur.prometheus.metrics_flushed_total", metricCount, nil, 1.0)
 	}
 }
