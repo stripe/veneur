@@ -43,6 +43,9 @@ type MetricKey struct {
 	JoinedTags string `json:"tagstring"` // tags in deterministic order, joined with commas
 }
 
+// A reusable protobuf buffer, is not safe to use concurrently!
+var scratchBuff = proto.NewBuffer(nil)
+
 // ToString returns a string representation of this MetricKey
 func (m *MetricKey) String() string {
 	var buff bytes.Buffer
@@ -84,7 +87,10 @@ func ValidMetric(sample *UDPMetric) bool {
 // It also validates packets before returning them.
 func ParseSSF(packet []byte) (*ssf.SSFSpan, []*UDPMetric, error) {
 	sample := &ssf.SSFSpan{}
-	err := proto.Unmarshal(packet, sample)
+	scratchBuff.Reset()
+	scratchBuff.SetBuf(packet)
+	err := scratchBuff.Unmarshal(sample)
+
 	if err != nil {
 		return nil, nil, errors.New("unmarshal")
 	}
