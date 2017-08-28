@@ -86,7 +86,9 @@ func ValidMetric(sample *UDPMetric) bool {
 
 // ParseSSF takes in a byte slice and returns:
 // an SSFSpan, slice of UDPMetrics, and an error.
-// It also validates packets before returning them.
+// It also validates packets before returning them. Note that this function
+// is not currently safe for concurrent use. If needed in the future,
+// have the caller pass in a `proto.Buffer`!
 func ParseSSF(packet []byte) (*ssf.SSFSpan, []*UDPMetric, error) {
 	sample := &ssf.SSFSpan{}
 	scratchBuff.Reset()
