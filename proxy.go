@@ -176,10 +176,10 @@ func (p *Proxy) Start() {
 			}()
 			ticker := time.NewTicker(p.ConsulInterval)
 			for range ticker.C {
-				if p.AcceptingForwards {
+				if p.AcceptingForwards && p.ConsulForwardService != "" {
 					p.RefreshDestinations(p.ConsulForwardService, p.ForwardDestinations, &p.ForwardDestinationsMtx)
 				}
-				if p.AcceptingTraces {
+				if p.AcceptingTraces && p.ConsulTraceService != "" {
 					p.RefreshDestinations(p.ConsulTraceService, p.TraceDestinations, &p.TraceDestinationsMtx)
 				}
 			}
