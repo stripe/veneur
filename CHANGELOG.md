@@ -11,7 +11,8 @@
 * Check return value of LightStep flush. Thanks [chimeracoder](https://github.com/chimeracoder)!
 * No longer using a fork of [Logrus](https://github.com/sirupsen/logrus) that fixed a race condition. Thanks [chimeracoder](https://github.com/chimeracoder)!
 * Updated to latest version of [LightStep's tracing library](https://github.com/lightstep/lightstep-tracer-go), which drastically improves the success of spans on hosts with high span rates. Thanks [gphat](https://github.com/gphat)!
-* Veneur no longer buffers spans for LightStep, they are dispatched directly to the LightStep client. Thanks [gphat](https://github.com/gphat)!
+* No longer buffers spans for LightStep, they are dispatched directly to the LightStep client. Thanks [gphat](https://github.com/gphat)!
+* Reuse an existing buffer when parsing incoming spans, reducing allocations. Thanks [gphat](https://github.com/gphat)!
 
 ## Bugfixes
 * veneur-proxy no longer balks at using static hosts for tracing and metrics. Thanks [gphat](https://github.com/gphat)!
