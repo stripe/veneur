@@ -414,3 +414,14 @@ func TestServiceCheckMessageUnescape(t *testing.T) {
 	assert.NoError(t, err, "Should have parsed correctly")
 	assert.Equal(t, "foo\nbar\nbaz\n", svcheck.Message, "Should contain newline")
 }
+
+func BenchmarkParseSSF(b *testing.B) {
+	span := &ssf.SSFSpan{}
+
+	buff, err := proto.Marshal(span)
+	assert.Nil(b, err)
+
+	for n := 0; n < b.N; n++ {
+		samplers.ParseSSF(buff)
+	}
+}
