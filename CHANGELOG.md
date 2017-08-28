@@ -13,6 +13,7 @@
 * Updated to latest version of [LightStep's tracing library](https://github.com/lightstep/lightstep-tracer-go), which drastically improves the success of spans on hosts with high span rates. Thanks [gphat](https://github.com/gphat)!
 * No longer buffers spans for LightStep, they are dispatched directly to the LightStep client. Thanks [gphat](https://github.com/gphat)!
 * Reuse an existing buffer when parsing incoming spans, reducing allocations. Thanks [gphat](https://github.com/gphat)!
+* Use [gogo protobuf](https://github.com/gogo/protobuf) for code generation of SSF's protobuf, resulting in faster and less memory span ingestion. Thanks [gphat](https://github.com/gphat)!
 
 ## Bugfixes
 * veneur-proxy no longer balks at using static hosts for tracing and metrics. Thanks [gphat](https://github.com/gphat)!
