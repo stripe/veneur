@@ -43,6 +43,11 @@ type MetricKey struct {
 	JoinedTags string `json:"tagstring"` // tags in deterministic order, joined with commas
 }
 
+// scratchBuff is a reusable protobuf buffer, such that repeated calls to
+// unmarshal protobuf spans don't make new buffers over and over. is not safe
+// to use concurrently!
+var scratchBuff = proto.NewBuffer(nil)
+
 // ToString returns a string representation of this MetricKey
 func (m *MetricKey) String() string {
 	var buff bytes.Buffer
@@ -81,10 +86,15 @@ func ValidMetric(sample *UDPMetric) bool {
 
 // ParseSSF takes in a byte slice and returns:
 // an SSFSpan, slice of UDPMetrics, and an error.
-// It also validates packets before returning them.
+// It also validates packets before returning them. Note that this function
+// is not currently safe for concurrent use. If needed in the future,
+// have the caller pass in a `proto.Buffer`!
 func ParseSSF(packet []byte) (*ssf.SSFSpan, []*UDPMetric, error) {
 	sample := &ssf.SSFSpan{}
-	err := proto.Unmarshal(packet, sample)
+	scratchBuff.Reset()
+	scratchBuff.SetBuf(packet)
+	err := scratchBuff.Unmarshal(sample)
+
 	if err != nil {
 		return nil, nil, errors.New("unmarshal")
 	}
