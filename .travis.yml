@@ -20,6 +20,7 @@ install:
 before_script:
   - go get -u github.com/ChimeraCoder/gojson/gojson
   - go get -u github.com/golang/protobuf/protoc-gen-go
+  - go get -u github.com/gogo/protobuf/protoc-gen-gofast
   - go generate
   # We need to ignore changes to this one file
   # because the go-generated version will have a different
