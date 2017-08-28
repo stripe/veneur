@@ -212,3 +212,22 @@ func (dd *datadogMetricSink) flushPart(ctx context.Context, metricSlice []DDMetr
 		"series": metricSlice,
 	}, "flush", true)
 }
+
+type blackholeMetricSink struct {
+}
+
+func NewBlackholeMetricSink() (*blackholeMetricSink, error) {
+	return &blackholeMetricSink{}, nil
+}
+
+func (b *blackholeMetricSink) Name() string {
+	return "blackhole"
+}
+
+func (b *blackholeMetricSink) Flush(context.Context, []samplers.InterMetric) error {
+	return nil
+}
+
+func (b *blackholeMetricSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
+	return
+}

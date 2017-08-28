@@ -162,7 +162,7 @@ func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, val
 
 // setupVeneurServer creates a local server from the specified config
 // and starts listening for requests. It returns the server for inspection.
-func setupVeneurServer(t *testing.T, config Config, transport http.RoundTripper) *Server {
+func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper) *Server {
 	server, err := NewFromConfig(config)
 	if transport != nil {
 		server.HTTPClient.Transport = transport
@@ -197,7 +197,7 @@ type fixture struct {
 	flushMaxPerBody int
 }
 
-func newFixture(t *testing.T, config Config) *fixture {
+func newFixture(t testing.TB, config Config) *fixture {
 	interval, err := config.ParseInterval()
 	assert.NoError(t, err)
 
@@ -1020,4 +1020,34 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 	l.Close()
 	close(s.shutdown)
 	return
+}
+
+func BenchmarkServerFlush(b *testing.B) {
+	metricValues, _ := generateMetrics()
+	config := localConfig()
+	config.SsfListenAddresses = nil
+	config.StatsdListenAddresses = nil
+	f := newFixture(b, config)
+
+	bhs, _ := NewBlackholeMetricSink()
+	f.server.metricSinks = []metricSink{bhs}
+	defer f.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, value := range metricValues {
+			f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+				MetricKey: samplers.MetricKey{
+					Name: "a.b.c",
+					Type: "histogram",
+				},
+				Value:      value,
+				Digest:     12345,
+				SampleRate: 1.0,
+				Scope:      samplers.LocalOnly,
+			})
+		}
+
+		f.server.Flush(context.Background())
+	}
 }
