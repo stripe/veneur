@@ -200,15 +200,6 @@ func TestTraceContextAsParent(t *testing.T) {
 	assert.Equal(t, trace.Resource, ctx.Resource())
 }
 
-func TestNameTag(t *testing.T) {
-	const name = "my.name.tag"
-	tracer := Tracer{}
-	span := tracer.StartSpan("resource", NameTag(name)).(*Span)
-	assert.Equal(t, 1, len(span.Tags))
-	assert.Equal(t, name, span.Tags["name"])
-
-}
-
 type localError struct {
 	message string
 }
@@ -277,4 +268,12 @@ func TestStripPackageName(t *testing.T) {
 
 func assertTagEquals(t *testing.T, sample *ssf.SSFSpan, name, value string) {
 	assert.Equal(t, value, sample.Tags[name])
+}
+
+func BenchmarkMarshalSSF(b *testing.B) {
+	span := &ssf.SSFSpan{}
+
+	for n := 0; n < b.N; n++ {
+		proto.Marshal(span)
+	}
 }

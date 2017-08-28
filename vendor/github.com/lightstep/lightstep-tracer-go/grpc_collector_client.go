@@ -24,9 +24,7 @@ const (
 )
 
 var (
-	intType                   reflect.Type = reflect.TypeOf(int64(0))
-	errPreviousReportInFlight              = fmt.Errorf("a previous Report is still in flight; aborting Flush()")
-	errConnectionWasClosed                 = fmt.Errorf("the connection was closed")
+	intType = reflect.TypeOf(int64(0))
 )
 
 // grpcCollectorClient specifies how to send reports back to a LightStep
@@ -51,7 +49,7 @@ type grpcCollectorClient struct {
 	hostPort      string
 	grpcClient    cpb.CollectorServiceClient
 	connTimestamp time.Time
-	creds         grpc.DialOption
+	dialOptions   []grpc.DialOption
 
 	// For testing purposes only
 	grpcConnectorFactory ConnectorFactory
@@ -72,10 +70,11 @@ func newGrpcCollectorClient(opts Options, reporterID uint64, attributes map[stri
 		grpcConnectorFactory: opts.ConnFactory,
 	}
 
+	rec.dialOptions = append(rec.dialOptions, grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(opts.GRPCMaxCallSendMsgSizeBytes)))
 	if opts.Collector.Plaintext {
-		rec.creds = grpc.WithInsecure()
+		rec.dialOptions = append(rec.dialOptions, grpc.WithInsecure())
 	} else {
-		rec.creds = grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, ""))
+		rec.dialOptions = append(rec.dialOptions, grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, "")))
 	}
 
 	return rec
@@ -85,12 +84,12 @@ func (client *grpcCollectorClient) ConnectClient() (Connection, error) {
 	now := time.Now()
 	var conn Connection
 	if client.grpcConnectorFactory != nil {
-		unchecked_client, transport, err := client.grpcConnectorFactory()
+		uncheckedClient, transport, err := client.grpcConnectorFactory()
 		if err != nil {
 			return nil, err
 		}
 
-		grpcClient, ok := unchecked_client.(cpb.CollectorServiceClient)
+		grpcClient, ok := uncheckedClient.(cpb.CollectorServiceClient)
 		if !ok {
 			return nil, fmt.Errorf("Grpc connector factory did not provide valid client!")
 		}
@@ -98,7 +97,7 @@ func (client *grpcCollectorClient) ConnectClient() (Connection, error) {
 		conn = transport
 		client.grpcClient = grpcClient
 	} else {
-		transport, err := grpc.Dial(client.hostPort, client.creds)
+		transport, err := grpc.Dial(client.hostPort, client.dialOptions...)
 		if err != nil {
 			return nil, err
 		}
@@ -129,15 +128,15 @@ func (client *grpcCollectorClient) convertToKeyValue(key string, value interface
 	k := v.Kind()
 	switch k {
 	case reflect.String:
-		kv.Value = &cpb.KeyValue_StringValue{v.String()}
+		kv.Value = &cpb.KeyValue_StringValue{StringValue: v.String()}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		kv.Value = &cpb.KeyValue_IntValue{v.Convert(intType).Int()}
+		kv.Value = &cpb.KeyValue_IntValue{IntValue: v.Convert(intType).Int()}
 	case reflect.Float32, reflect.Float64:
-		kv.Value = &cpb.KeyValue_DoubleValue{v.Float()}
+		kv.Value = &cpb.KeyValue_DoubleValue{DoubleValue: v.Float()}
 	case reflect.Bool:
-		kv.Value = &cpb.KeyValue_BoolValue{v.Bool()}
+		kv.Value = &cpb.KeyValue_BoolValue{BoolValue: v.Bool()}
 	default:
-		kv.Value = &cpb.KeyValue_StringValue{fmt.Sprint(v)}
+		kv.Value = &cpb.KeyValue_StringValue{StringValue: fmt.Sprint(v)}
 		maybeLogInfof("value: %v, %T, is an unsupported type, and has been converted to string", client.verbose, v, v)
 	}
 	return &kv
@@ -182,7 +181,7 @@ func (client *grpcCollectorClient) makeReportRequest(buffer *reportBuffer) *cpb.
 
 	req := cpb.ReportRequest{
 		Reporter:        reporter,
-		Auth:            &cpb.Auth{client.accessToken},
+		Auth:            &cpb.Auth{AccessToken: client.accessToken},
 		Spans:           spans,
 		InternalMetrics: convertToInternalMetrics(buffer),
 	}
@@ -202,7 +201,7 @@ func (client *grpcCollectorClient) Report(ctx context.Context, buffer *reportBuf
 func translateAttributes(atts map[string]string) []*cpb.KeyValue {
 	tags := make([]*cpb.KeyValue, 0, len(atts))
 	for k, v := range atts {
-		tags = append(tags, &cpb.KeyValue{Key: k, Value: &cpb.KeyValue_StringValue{v}})
+		tags = append(tags, &cpb.KeyValue{Key: k, Value: &cpb.KeyValue_StringValue{StringValue: v}})
 	}
 	return tags
 }
@@ -218,11 +217,11 @@ func generateMetricsSample(b *reportBuffer) []*cpb.MetricsSample {
 	return []*cpb.MetricsSample{
 		&cpb.MetricsSample{
 			Name:  spansDropped,
-			Value: &cpb.MetricsSample_IntValue{b.droppedSpanCount},
+			Value: &cpb.MetricsSample_IntValue{IntValue: b.droppedSpanCount},
 		},
 		&cpb.MetricsSample{
 			Name:  logEncoderErrors,
-			Value: &cpb.MetricsSample_IntValue{b.logEncoderErrorCount},
+			Value: &cpb.MetricsSample_IntValue{IntValue: b.logEncoderErrorCount},
 		},
 	}
 }
