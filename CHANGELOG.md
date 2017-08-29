@@ -25,7 +25,7 @@ Secondly, the shift in *not* buffering spans on their way to LightStep should be
 * veneur-proxy no longer balks at using static hosts for tracing and metrics. Thanks [gphat](https://github.com/gphat)!
 
 ## Deprecations
-* [SSF](https://github.com/stripe/veneur/tree/master/ssf)'s `operation` field has been deprecated in favor of the field `name`.
+* SSF's `operation` field has been deprecated in favor of the field `name`.
 * SSF spans with a tag `name` will have that name placed into the SSF span `name` field until 2.0 is released.
 
 # 1.5.2, 2017-08-15
