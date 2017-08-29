@@ -13,7 +13,7 @@ See also:
 
 # Status
 
-Veneur is currently handling all metrics for Stripe and is considered production ready. It is under active development and maintenance!
+Veneur is currently handling all metrics for Stripe and is considered production ready. It is under active development and maintenance! Starting with v1.6, Veneur operates on a six-week release cycle, and all releases are tagged in git.
 
 Building Veneur requires Go 1.8 or later.
 
