@@ -269,3 +269,11 @@ func TestStripPackageName(t *testing.T) {
 func assertTagEquals(t *testing.T, sample *ssf.SSFSpan, name, value string) {
 	assert.Equal(t, value, sample.Tags[name])
 }
+
+func BenchmarkMarshalSSF(b *testing.B) {
+	span := &ssf.SSFSpan{}
+
+	for n := 0; n < b.N; n++ {
+		proto.Marshal(span)
+	}
+}

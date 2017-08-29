@@ -6,7 +6,8 @@ ENV GOPATH=/go
 RUN apt-get update
 RUN apt-get install -y zip
 RUN go get -u -v github.com/ChimeraCoder/gojson/gojson
-RUN go get -u github.com/golang/protobuf/protoc-gen-go
+RUN go get -u -v github.com/golang/protobuf/protoc-gen-go
+RUN go get -u -v github.com/gogo/protobuf/protoc-gen-gofast
 RUN wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
 RUN unzip protoc-3.1.0-linux-x86_64.zip
 RUN cp bin/protoc /usr/bin/protoc
