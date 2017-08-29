@@ -19,6 +19,15 @@ import (
 func (s *Server) Handler() http.Handler {
 	mux := goji.NewMux()
 
+	// Add a default X-Powered-By header
+	mux.Use(func(h http.Handler) http.Handler {
+		mw := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Add("X-Powered-By", "Veneur")
+			h.ServeHTTP(w, r)
+		}
+		return http.HandlerFunc(mw)
+	})
+
 	mux.HandleFuncC(pat.Get("/healthcheck"), func(c context.Context, w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok\n"))
 	})
