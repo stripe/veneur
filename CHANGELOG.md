@@ -1,15 +1,32 @@
-<<<<<<< HEAD
-# 1.5.3, pending
+# 1.6.0, 2017-08-29
 
 ## Added
-* Veneur-emit can now time any shell command and emit its duration as a Timing metric. Thanks [redsn0w422](https://github.com/redsn0w422)!
-=======
-# 1.5.3, PENDING
+* Veneur-emit [can now time any shell command](https://github.com/stripe/veneur/pull/222) and emit its duration as a Timing metric. Thanks [redsn0w422](https://github.com/redsn0w422)!
+* Config options can now be provided via environment variables using [envconfig](https://github.com/kelseyhightower/envconfig) for veneur and veneur-proxy. Thanks [gphat](https://github.com/gphat)!
+* [SSF](https://github.com/stripe/veneur/tree/master/ssf) now includes a boolean `indicator` field for signaling that this span is useful as a [Service Level Indicator](https://en.wikipedia.org/wiki/Service_level_indicator) for it's service.
+* A type `SSFSpanCollection` has been added but is not yet used.
+* The `veneur-prometheus` command can be used to [scrape prometheus endpoints and emit those metrics to Veneur](https://github.com/stripe/veneur/pull/221). Thanks [gphat](https://github.com/gphat) and [jvns](https://github.com/jvns)
 
 ## Improvements
 
-* Config options can now be provided via environment variables using [envconfig](https://github.com/kelseyhightower/envconfig) for veneur and veneur-proxy. Thanks [gphat](https://github.com/gphat)!
->>>>>>> Allow environment config.
+As a result of the efficiency improvements in this release, we've seen ~50% reduction in memory usage by way of measuring the allocated heap.
+
+Secondly, the shift in *not* buffering spans on their way to LightStep should be noted. This changes behavior in Veneur which has traditionally done everything in 10s increments.
+
+* If possible, initialization errors when starting Veneur [will now be reported to Sentry](https://github.com/stripe/veneur/pull/173). Thanks [chimeracoder](https://github.com/chimeracoder)!
+* [Check return value of LightStep flush](https://github.com/stripe/veneur/pull/209). Thanks [chimeracoder](https://github.com/chimeracoder)!
+* No longer using a fork of [Logrus](https://github.com/sirupsen/logrus) that fixed a race condition. Thanks [chimeracoder](https://github.com/chimeracoder)!
+* Updated to latest version of [LightStep's tracing library](https://github.com/lightstep/lightstep-tracer-go), which drastically improves the success of spans on hosts with high span rates. Thanks [gphat](https://github.com/gphat)!
+* [No longer buffers spans for LightStep](https://github.com/stripe/veneur/pull/227), they are dispatched directly to the LightStep client. Thanks [gphat](https://github.com/gphat)!
+* [Reuse an existing buffer when parsing incoming spans](https://github.com/stripe/veneur/pull/234), reducing allocations. Thanks [gphat](https://github.com/gphat)!
+* Use [gogo protobuf](https://github.com/gogo/protobuf) for [code generation of SSF's protobuf](https://github.com/stripe/veneur/pull/236), resulting in faster and less memory span ingestion. Thanks [gphat](https://github.com/gphat)!
+
+## Bugfixes
+* veneur-proxy no longer balks at using static hosts for tracing and metrics. Thanks [gphat](https://github.com/gphat)!
+
+## Deprecations
+* [SSF](https://github.com/stripe/veneur/tree/master/ssf)'s `operation` field has been deprecated in favor of the field `name`.
+* SSF spans with a tag `name` will have that name placed into the SSF span `name` field until 2.0 is released.
 
 # 1.5.2, 2017-08-15
 
