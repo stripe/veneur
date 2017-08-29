@@ -344,15 +344,9 @@ func customSpanParent(t *Trace) opentracing.StartSpanOption {
 	}
 }
 
-func NameTag(name string) opentracing.StartSpanOption {
-	return customSpanTags(NameKey, name)
-}
-
-// StartSpan starts a span with the specified operationName (resource) and options.
-// If the options specify a parent span and/or root trace, the resource from the
+// StartSpan starts a span with the specified operationName (name) and options.
+// If the options specify a parent span and/or root trace, the name from the
 // root trace will be used.
-// The tag "name" will be used as the SSF Name field - this can be set using the NameTag
-// convenience function.
 // The value returned is always a concrete Span (which satisfies the opentracing.Span interface)
 func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOption) opentracing.Span {
 	// TODO implement References
@@ -411,12 +405,11 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 			Trace:  trace,
 			tracer: t,
 		}
-
 	}
 
 	for k, v := range sso.Tags {
 		span.SetTag(k, v)
-		if k == NameKey {
+		if k == "name" {
 			span.Name = v.(string)
 		}
 	}
@@ -491,7 +484,7 @@ func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier i
 			ParentID: sc.ParentID(),
 			SpanID:   sc.SpanID(),
 			Resource: sc.Resource(),
-			Tags:     map[string]string{},
+			Tags:     map[string]string{ResourceKey: sc.Resource()},
 		}
 
 		return trace.ProtoMarshalTo(w)

@@ -33,6 +33,8 @@ message SSFSample {
 }
 
 message SSFSpan {
+  reserved 9;
+
   int32 version = 1;
   // the trace_id is the (span) id of the root span
   int64 trace_id = 2;
@@ -45,15 +47,42 @@ message SSFSpan {
   int64 start_timestamp = 5;
   int64 end_timestamp = 6;
 
+  // This flag being true signals that this span was an error. That definition
+  // of error is not implicitly fatal, as a span may error but be fixed by
+  // a subsequent retry, etc.
   bool error = 7;
 
   // The name of the service
   // e.g. "veneur"
   string service = 8;
 
-  // The thing we're doing, handing a request, writing a value, etc
-  string operation = 9;
-
   repeated SSFSample metrics = 10;
+
+  // Tags are name value pairs that describe a facet of the span. They apply to
+  // the *entire* span as opposed to logs which apply to a specific time in
+  // the span.
   map<string, string> tags = 11;
+
+  // An indicator span is one that represents an action that is included in a
+  // service's Service Level Indicators (https://en.wikipedia.org/wiki/Service_level_indicator)
+  // This is a signal to receivers that this span may be used to compute SLIs.
+  // In practice a service's core feature — the thing you would "bill" for, such
+  // as an API call or read/write operation — would be flagged as an indicator
+  // span, and its child spans would further describe its duration.
+  // It's also worth nothing that an indicator need not be the "root" or first
+  // span in a trace. You might have various forms of middleware that happen
+  // first or you might have multiple services participating in the same trace.
+  bool indicator = 12;
+
+  // What to call this span. This could take the form of the endpoint
+  // (/customer/:id), the function (class::name.method), a friendly name
+  // (foo middleware) or whatever makes sense in your context.
+  string name = 13;
+}
+
+// A span collection allows clients to send a batch of spans rather than just one. Note that
+// these spans may have nothing in common. This is merely a convenience to save clients — and
+// servers — having to (un)marshal each span separately.
+message SSFSpanCollection {
+  repeated SSFSpan spans = 1;
 }
