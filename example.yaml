@@ -154,3 +154,28 @@ aws_s3_bucket: ""
 # == LocalFile Output ==
 # Include this if you want to archive data to a local file (which should then be rotated/cleaned)
 flush_file: ""
+
+# == Go-Metrics based listener backends ==
+# Specify various backends to syndicate the metrics to
+listeners:
+    # - "circonus"
+    # - "datadog"
+    # - "prometheus"
+    # - "statsd"
+
+## circonus listener config
+# api token - https://login.circonus.com/resources/api#authentication
+circonus_listener_tokenkey: "abc123"
+
+# specify the check name to be created for the circonus listener
+circonus_listener_instance: "Veneur Listener"
+
+# tags to add when the check is being created (comma separated)
+circonus_listener_tags: "veneur"
+
+## datadog listener config
+datadog_listener_addr: "127.0.0.1:8131"
+datadog_listener_host: "datadog.foo.com"
+
+## statsd listener config
+statsd_listener_addr: "127.0.0.1:8125"

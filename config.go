@@ -7,8 +7,13 @@ type Config struct {
 	AwsRegion                     string    `yaml:"aws_region"`
 	AwsS3Bucket                   string    `yaml:"aws_s3_bucket"`
 	AwsSecretAccessKey            string    `yaml:"aws_secret_access_key"`
+	CirconusListenerKey           string    `yaml:"circonus_listener_tokenkey"`
+	CirconusListenerInstance      string    `yaml:"circonus_listener_instance"`
+	CirconusListenerTags          string    `yaml:"circonus_listener_tags"`
 	DatadogAPIHostname            string    `yaml:"datadog_api_hostname"`
 	DatadogAPIKey                 string    `yaml:"datadog_api_key"`
+	DataDogListenerAddr           string    `yaml:"datadog_listener_addr"`
+	DataDogListenerHost           string    `yaml:"datadog_listener_host"`
 	DatadogTraceAPIAddress        string    `yaml:"datadog_trace_api_address"`
 	Debug                         bool      `yaml:"debug"`
 	EnableProfiling               bool      `yaml:"enable_profiling"`
@@ -32,6 +37,7 @@ type Config struct {
 	SsfAddress                    string    `yaml:"ssf_address"`
 	SsfBufferSize                 int       `yaml:"ssf_buffer_size"`
 	StatsAddress                  string    `yaml:"stats_address"`
+	StatsDListenerAddr            string    `yaml:"statsd_listener_addr"`
 	Tags                          []string  `yaml:"tags"`
 	TcpAddress                    string    `yaml:"tcp_address"`
 	TLSAuthorityCertificate       string    `yaml:"tls_authority_certificate"`
