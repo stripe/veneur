@@ -93,8 +93,22 @@ func (rt *ConsulTwoMetricRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 	return rec.Result(), nil
 }
 
+func TestAllowStaticServices(t *testing.T) {
+	proxyConfig := generateProxyConfig()
+	proxyConfig.ConsulForwardServiceName = ""
+	proxyConfig.ConsulTraceServiceName = ""
+	proxyConfig.ForwardAddress = "localhost:1234"
+	proxyConfig.TraceAddress = "localhost:1234"
+
+	server, error := NewProxyFromConfig(proxyConfig)
+	assert.NoError(t, error, "Should start with just static services")
+	assert.False(t, server.usingConsul, "Server isn't using consul")
+}
+
 func TestMissingServices(t *testing.T) {
 	proxyConfig := generateProxyConfig()
+	proxyConfig.ForwardAddress = ""
+	proxyConfig.TraceAddress = ""
 	proxyConfig.ConsulForwardServiceName = ""
 	proxyConfig.ConsulTraceServiceName = ""
 
@@ -105,6 +119,7 @@ func TestMissingServices(t *testing.T) {
 func TestAcceptingBooleans(t *testing.T) {
 	proxyConfig := generateProxyConfig()
 	proxyConfig.ConsulTraceServiceName = ""
+	proxyConfig.TraceAddress = ""
 
 	server, _ := NewProxyFromConfig(proxyConfig)
 	assert.True(t, server.AcceptingForwards, "Server accepts forwards")
