@@ -106,14 +106,14 @@ func readConfig(r io.Reader) (c Config, err error) {
 		}
 	}
 
-	var moreAddrs []string
+	var statsdAddrs []string
 	if c.UdpAddress != "" {
 		if len(c.StatsdListenAddresses) > 0 {
 			err = fmt.Errorf("`statsd_listen_addresses` and deprecated parameter `udp_address` are both present")
 			return
 		}
 		log.Warn("The config key `udp_address` is deprecated and replaced with entries in `statsd_listen_addresses` and will be removed in 2.0!")
-		moreAddrs = append(moreAddrs, (&url.URL{Scheme: "udp", Host: c.UdpAddress}).String())
+		statsdAddrs = append(statsdAddrs, (&url.URL{Scheme: "udp", Host: c.UdpAddress}).String())
 	}
 
 	if c.TcpAddress != "" {
@@ -122,9 +122,20 @@ func readConfig(r io.Reader) (c Config, err error) {
 			return
 		}
 		log.Warn("The config key `tcp_address` is deprecated and replaced with entries in `statsd_listen_addresses` and will be removed in 2.0!")
-		moreAddrs = append(moreAddrs, (&url.URL{Scheme: "tcp", Host: c.TcpAddress}).String())
+		statsdAddrs = append(statsdAddrs, (&url.URL{Scheme: "tcp", Host: c.TcpAddress}).String())
 	}
-	c.StatsdListenAddresses = append(c.StatsdListenAddresses, moreAddrs...)
+	c.StatsdListenAddresses = append(c.StatsdListenAddresses, statsdAddrs...)
+
+	var ssfAddrs []string
+	if c.SsfAddress != "" {
+		if len(c.SsfListenAddresses) > 0 {
+			err = fmt.Errorf("`ssf_listen_addresses` and deprecated parameter `ssf_address` are both present")
+			return
+		}
+		log.Warn("The config key `ssf_address` is deprecated and replaced with entries in `ssf_listen_addresses` and will be removed in 2.0!")
+		ssfAddrs = append(statsdAddrs, (&url.URL{Scheme: "udp", Host: c.SsfAddress}).String())
+	}
+	c.SsfListenAddresses = append(c.SsfListenAddresses, ssfAddrs...)
 
 	return c, nil
 }

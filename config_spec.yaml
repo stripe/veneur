@@ -80,7 +80,18 @@ forward_address: "http://veneur.example.com"
 
 # SSF
 # The address on which we will listen for SSF packets via UDP
-ssf_address: "127.0.0.1:8128"
+# This option is DEPRECATED. Use ssf_listen_addresses instead.
+ssf_address: ""
+
+# The addresses on which to listen for SSF data. As with
+# statsd_listen_addresses, these are formatted as URLs, with schemes
+# corresponding to valid "network" arguments on
+# https://golang.org/pkg/net/#Listen. Currently, only UDP and Unix
+# domain sockets are supported.
+# This option supersedes the "ssf_address" option.
+ssf_listen_addresses:
+  - udp://localhost:8128
+  - unix:///tmp/veneur-ssf.sock
 
 # TRACING
 # The address on which we will listen for UDP trace data
@@ -110,12 +121,12 @@ statsd_listen_addresses:
 
 # The address on which to listen for metrics sent to this instance over UDP,
 # leave empty to disable.
-# This option is DEPRECATED, use statsd_listen_addresses instead.
-udp_address: "localhost:8126"
+# This option is DEPRECATED. Use statsd_listen_addresses instead.
+udp_address: ""
 
 # The address on which to listen for metrics sent to this instance over TCP,
 # leave empty to disable.
-# This option is DEPRECATED; use statsd_listen_addresses instead.
+# This option is DEPRECATED. Use statsd_listen_addresses instead.
 tcp_address: ""
 
 # == SINKS ==

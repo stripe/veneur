@@ -61,6 +61,7 @@ tcp_address: 127.0.0.1:8003
 	assert.Equal(t, "trace_address:12345", c.SsfAddress)
 	assert.Contains(t, c.StatsdListenAddresses, "udp://127.0.0.1:8002")
 	assert.Contains(t, c.StatsdListenAddresses, "tcp://127.0.0.1:8003")
+	assert.Contains(t, c.SsfListenAddresses, "udp://trace_address:12345")
 }
 
 func TestHostname(t *testing.T) {
