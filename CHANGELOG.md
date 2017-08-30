@@ -1,3 +1,8 @@
+# 1.7.0, pending
+
+## Added
+* New [configuration option](https://github.com/stripe/veneur/pull/233) `statsd_listen_addresses`, a list of URIs indicating on which ports (and protocols) veneur should listen on for statsd metrics. This deprecates both the `udp_address` and `tcp_address` settings. Thanks [antifuchs](https://github.com/antifuchs)!
+
 # 1.6.0, 2017-08-29
 
 ## Added
