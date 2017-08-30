@@ -133,7 +133,7 @@ func readConfig(r io.Reader) (c Config, err error) {
 			return
 		}
 		log.Warn("The config key `ssf_address` is deprecated and replaced with entries in `ssf_listen_addresses` and will be removed in 2.0!")
-		ssfAddrs = append(statsdAddrs, (&url.URL{Scheme: "udp", Host: c.SsfAddress}).String())
+		ssfAddrs = append(ssfAddrs, (&url.URL{Scheme: "udp", Host: c.SsfAddress}).String())
 	}
 	c.SsfListenAddresses = append(c.SsfListenAddresses, ssfAddrs...)
 

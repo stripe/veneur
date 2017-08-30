@@ -126,3 +126,34 @@ func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) {
 		s.ReadTCPSocket(listener)
 	}()
 }
+
+func StartSSF(s *Server, a net.Addr, tracePool *sync.Pool) {
+	switch addr := a.(type) {
+	case *net.UDPAddr:
+		startSSFUDP(s, addr, tracePool)
+	default:
+		panic(fmt.Sprintf("Can't listen for SSF on %v: only UDP is supported", a))
+	}
+	log.WithFields(logrus.Fields{
+		"address": a.String(),
+		"network": a.Network(),
+	}).Info("Listening for SSF traces")
+}
+
+func startSSFUDP(s *Server, addr *net.UDPAddr, tracePool *sync.Pool) {
+	// if we want to use multiple readers, make reuseport a parameter, like ReadMetricSocket.
+	listener, err := NewSocket(addr, s.RcvbufBytes, false)
+	if err != nil {
+		// if any goroutine fails to create the socket, we can't really
+		// recover, so we just blow up
+		// this probably indicates a systemic issue, eg lack of
+		// SO_REUSEPORT support
+		panic(fmt.Sprintf("couldn't listen on UDP socket %v: %v", addr, err))
+	}
+	go func() {
+		defer func() {
+			ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
+		}()
+		s.ReadTraceSocket(listener, tracePool)
+	}()
+}

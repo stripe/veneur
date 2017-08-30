@@ -81,7 +81,7 @@ type Server struct {
 	ForwardAddr string
 
 	StatsdListenAddrs []net.Addr
-	TraceAddr         *net.UDPAddr
+	SSFListenAddrs    []net.Addr
 	RcvbufBytes       int
 
 	interval            time.Duration
@@ -220,6 +220,13 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		}
 		ret.StatsdListenAddrs = append(ret.StatsdListenAddrs, addr)
 	}
+	for _, addrStr := range conf.SsfListenAddresses {
+		addr, err := ResolveAddr(addrStr)
+		if err != nil {
+			return ret, err
+		}
+		ret.SSFListenAddrs = append(ret.SSFListenAddrs, addr)
+	}
 
 	ret.metricMaxLength = conf.MetricMaxLength
 	ret.traceMaxLengthBytes = conf.TraceMaxLengthBytes
@@ -265,23 +272,14 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.TLSKey = REDACTED
 	log.WithField("config", conf).Debug("Initialized server")
 
-	// Configure tracing workers and sinks
-	if len(conf.SsfAddress) > 0 && ret.tracingSinkEnabled() {
+	// Configure tracing sinks
+	if ret.tracingSinkEnabled() && len(conf.SsfListenAddresses) > 0 {
 
 		// Set a sane default
 		if conf.SsfBufferSize == 0 {
 			conf.SsfBufferSize = defaultSpanBufferSize
 		}
 
-		ret.TraceAddr, err = net.ResolveUDPAddr("udp", conf.SsfAddress)
-		log.WithField("traceaddr", ret.TraceAddr).Info("Listening for trace spans on address")
-
-		if err == nil && ret.TraceAddr == nil {
-			err = errors.New("resolved nil UDP address")
-		}
-		if err != nil {
-			return
-		}
 		trace.Enable()
 
 		// configure Datadog as sink
@@ -419,15 +417,12 @@ func (s *Server) Start() {
 	}
 
 	// Read Traces Forever!
-	if s.TracingEnabled() {
-		go func() {
-			defer func() {
-				ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
-			}()
-			s.ReadTraceSocket(tracePool)
-		}()
+	if s.TracingEnabled() && len(s.SSFListenAddrs) > 0 {
+		for _, addr := range s.SSFListenAddrs {
+			StartSSF(s, addr, tracePool)
+		}
 	} else {
-		logrus.Info("Tracing not configured - not reading trace socket")
+		logrus.Info("Tracing sockets are configured - not reading trace socket")
 	}
 
 	// Flush every Interval forever!
@@ -586,30 +581,15 @@ func (s *Server) ReadMetricSocket(serverConn net.PacketConn, packetPool *sync.Po
 }
 
 // ReadTraceSocket listens for available packets to handle.
-func (s *Server) ReadTraceSocket(packetPool *sync.Pool) {
+func (s *Server) ReadTraceSocket(serverConn net.PacketConn, packetPool *sync.Pool) {
 	// TODO This is duplicated from ReadMetricSocket and feels like it could be it's
 	// own function?
-
-	if s.TraceAddr == nil {
-		log.WithField("s.TraceAddr", s.TraceAddr).Fatal("Cannot listen on nil trace address")
-	}
 	p := packetPool.Get().([]byte)
 	if len(p) == 0 {
 		log.WithField("len", len(p)).Fatal(
 			"packetPool making empty slices: trace_max_length_bytes must be >= 0")
 	}
 	packetPool.Put(p)
-
-	// if we want to use multiple readers, make reuseport a parameter, like ReadMetricSocket.
-	serverConn, err := NewSocket(s.TraceAddr, s.RcvbufBytes, false)
-	if err != nil {
-		// if any goroutine fails to create the socket, we can't really
-		// recover, so we just blow up
-		// this probably indicates a systemic issue, eg lack of
-		// SO_REUSEPORT support
-		log.WithError(err).Fatal("Error listening for UDP traces")
-	}
-	log.WithField("address", s.TraceAddr).Info("Listening for UDP traces")
 
 	for {
 		buf := packetPool.Get().([]byte)

@@ -64,6 +64,21 @@ tcp_address: 127.0.0.1:8003
 	assert.Contains(t, c.SsfListenAddresses, "udp://trace_address:12345")
 }
 
+func TestReadSSFConfigBackwardsCompatible(t *testing.T) {
+	// set the deprecated config options
+	const config = `
+trace_api_address: http://trace_api
+ssf_address: trace_address:12345
+`
+	c, err := readConfig(strings.NewReader(config))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// they should get copied to the new config options
+	assert.Equal(t, c.SsfListenAddresses, []string{"udp://trace_address:12345"})
+}
+
 func TestHostname(t *testing.T) {
 	const hostnameConfig = "hostname: foo"
 	r := strings.NewReader(hostnameConfig)

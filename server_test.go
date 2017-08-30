@@ -97,7 +97,7 @@ func generateConfig(forwardAddr string) Config {
 		FlushMaxPerBody: 1024,
 
 		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
-		SsfAddress:             fmt.Sprintf("127.0.0.1:%d", tracePort),
+		SsfListenAddresses:     []string{fmt.Sprintf("udp://127.0.0.1:%d", tracePort)},
 		DatadogTraceAPIAddress: forwardAddr,
 		TraceMaxLengthBytes:    4096,
 		SsfBufferSize:          32,
@@ -606,14 +606,15 @@ func TestUDPMetricsSSF(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.Interval = "60s"
-	config.SsfAddress = fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
+	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
+	config.SsfListenAddresses = []string{fmt.Sprintf("udp://%s", addr)}
 	HTTPAddrPort++
 	f := newFixture(t, config)
 	defer f.Close()
 	// listen delay
 	time.Sleep(20 * time.Millisecond)
 
-	conn, err := net.Dial("udp", config.SsfAddress)
+	conn, err := net.Dial("udp", addr)
 	assert.NoError(t, err)
 	defer conn.Close()
 
@@ -811,7 +812,7 @@ func TestNewFromServerConfigRenamedVariables(t *testing.T) {
 		DatadogAPIKey:          "apikey",
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
-		SsfAddress:             "127.0.0.1:99",
+		SsfListenAddresses:     []string{"udp://127.0.0.1:99"},
 
 		// required or NewFromConfig fails
 		Interval:     "10s",
@@ -825,6 +826,7 @@ func TestNewFromServerConfigRenamedVariables(t *testing.T) {
 	assert.Equal(t, "apikey", s.DDAPIKey)
 	assert.Equal(t, "http://api", s.DDHostname)
 	assert.Equal(t, "http://trace", s.DDTraceAddress)
-	assert.True(t, s.TraceAddr.IP.IsLoopback(), "TraceAddr should be loopback")
-	assert.Equal(t, 99, s.TraceAddr.Port)
+	addr := s.SSFListenAddrs[0].(*net.UDPAddr)
+	assert.True(t, addr.IP.IsLoopback(), "TraceAddr should be loopback")
+	assert.Equal(t, 99, addr.Port)
 }
