@@ -122,7 +122,7 @@ func readConfig(r io.Reader) (c Config, err error) {
 			return
 		}
 		log.Warn("The config key `tcp_address` is deprecated and replaced with entries in `statsd_listen_addresses` and will be removed in 2.0!")
-		moreAddrs = append(moreAddrs, (&url.URL{Scheme: "tcp", Host: c.UdpAddress}).String())
+		moreAddrs = append(moreAddrs, (&url.URL{Scheme: "tcp", Host: c.TcpAddress}).String())
 	}
 	c.StatsdListenAddresses = append(c.StatsdListenAddresses, moreAddrs...)
 
