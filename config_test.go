@@ -41,10 +41,14 @@ func TestReadBadConfig(t *testing.T) {
 
 func TestReadConfigBackwardsCompatible(t *testing.T) {
 	// set the deprecated config options
-	const config = `api_hostname: "http://api"
+	const config = `
+api_hostname: "http://api"
 key: apikey
 trace_api_address: http://trace_api
-trace_address: trace_address:12345`
+trace_address: trace_address:12345
+udp_address: 127.0.0.1:8002
+tcp_address: 127.0.0.1:8003
+`
 	c, err := readConfig(strings.NewReader(config))
 	if err != nil {
 		t.Fatal(err)
@@ -55,6 +59,8 @@ trace_address: trace_address:12345`
 	assert.Equal(t, "apikey", c.DatadogAPIKey)
 	assert.Equal(t, "http://trace_api", c.DatadogTraceAPIAddress)
 	assert.Equal(t, "trace_address:12345", c.SsfAddress)
+	assert.Contains(t, c.StatsdListenAddresses, "udp://127.0.0.1:8002")
+	assert.Contains(t, c.StatsdListenAddresses, "tcp://127.0.0.1:8003")
 }
 
 func TestHostname(t *testing.T) {
