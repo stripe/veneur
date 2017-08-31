@@ -24,7 +24,8 @@ stats_address: "localhost:8125"
 tags:
  - "foo:bar"
  - "baz:quz"
-udp_address: "localhost:8126"
+statsd_listening_addresses:
+  - udp://localhost:8126
 #http_address: "einhorn@0"
 http_address: ""
 
