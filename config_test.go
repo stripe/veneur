@@ -14,7 +14,7 @@ func TestReadConfig(t *testing.T) {
 	assert.NoError(t, err)
 	defer exampleConfig.Close()
 
-	c, err := readConfig(exampleConfig)
+	c, err, warnings := readConfig(exampleConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +33,7 @@ func TestReadConfig(t *testing.T) {
 func TestReadBadConfig(t *testing.T) {
 	const exampleConfig = `--- api_hostname: :bad`
 	r := strings.NewReader(exampleConfig)
-	c, err := readConfig(r)
+	c, err, _ := readConfig(r)
 
 	assert.NotNil(t, err, "Should have encountered parsing error when reading invalid config file")
 	assert.Equal(t, c, Config{}, "Parsing invalid config file should return zero struct")
@@ -49,10 +49,11 @@ trace_address: trace_address:12345
 udp_address: 127.0.0.1:8002
 tcp_address: 127.0.0.1:8003
 `
-	c, err := readConfig(strings.NewReader(config))
+	c, err, warnings := readConfig(strings.NewReader(config))
 	if err != nil {
 		t.Fatal(err)
 	}
+	assert.NotEmpty(t, warnings, "Should warn on backwards-compat config test")
 
 	// they should get copied to the new config options
 	assert.Equal(t, "http://api", c.DatadogAPIHostname)
@@ -66,15 +67,17 @@ tcp_address: 127.0.0.1:8003
 func TestHostname(t *testing.T) {
 	const hostnameConfig = "hostname: foo"
 	r := strings.NewReader(hostnameConfig)
-	c, err := readConfig(r)
+	c, err, warnings := readConfig(r)
 	assert.Nil(t, err, "Should parsed valid config file: %s", hostnameConfig)
+	assert.Empty(t, warnings, "Should not warn on a test config")
 	assert.Equal(t, c, Config{Hostname: "foo", ReadBufferSizeBytes: defaultBufferSizeBytes},
 		"Should have parsed hostname into Config")
 
 	const noHostname = "hostname: ''"
 	r = strings.NewReader(noHostname)
-	c, err = readConfig(r)
+	c, err, warnings = readConfig(r)
 	assert.Nil(t, err, "Should parsed valid config file: %s", noHostname)
+	assert.Empty(t, warnings, "Should not warn on a test config")
 	currentHost, err := os.Hostname()
 	assert.Nil(t, err, "Could not get current hostname")
 	assert.Equal(t, c, Config{Hostname: currentHost, ReadBufferSizeBytes: defaultBufferSizeBytes},
@@ -82,8 +85,9 @@ func TestHostname(t *testing.T) {
 
 	const omitHostname = "omit_empty_hostname: true"
 	r = strings.NewReader(omitHostname)
-	c, err = readConfig(r)
+	c, err, warnings = readConfig(r)
 	assert.Nil(t, err, "Should parsed valid config file: %s", omitHostname)
+	assert.Empty(t, warnings, "Should not warn on a test config")
 	assert.Equal(t, c, Config{
 		Hostname:            "",
 		ReadBufferSizeBytes: defaultBufferSizeBytes,

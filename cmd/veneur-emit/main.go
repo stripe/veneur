@@ -80,7 +80,7 @@ func main() {
 
 	var config *veneur.Config
 	if passedFlags["f"] != nil {
-		conf, err := veneur.ReadConfig(*configFile)
+		conf, err, _ := veneur.ReadConfig(*configFile)
 		if err != nil {
 			logrus.WithError(err).Fatal("Error reading configuration file.")
 		}

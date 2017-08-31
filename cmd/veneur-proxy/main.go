@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/stripe/veneur"
@@ -23,9 +24,12 @@ func main() {
 		logrus.Fatal("You must specify a config file")
 	}
 
-	conf, err := veneur.ReadProxyConfig(*configFile)
+	conf, err, warnings := veneur.ReadProxyConfig(*configFile)
 	if err != nil {
-		logrus.WithError(err).Fatal("Error reading config file")
+		logrus.WithField("file", configFile).WithError(err).Fatal("Error reading config file")
+	}
+	if len(warnings) > 0 {
+		logrus.WithField("file", configFile).Warn("Warnings reading config file:\n%s", strings.Join(warnings, "\n  "))
 	}
 
 	proxy, err := veneur.NewProxyFromConfig(conf)
