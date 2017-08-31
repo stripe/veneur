@@ -15,6 +15,14 @@ import (
 
 const defaultBufferSizeBytes = 1048576 * 2 // 2 MB
 
+func unmarshalSemiStrictly(bts []byte, into interface{}) (err error, strictErr error) {
+	strictErr = yaml.UnmarshalStrict(bts, into)
+	if strictErr != nil {
+		err = yaml.Unmarshal(bts, into)
+	}
+	return
+}
+
 // ReadProxyConfig unmarshals the proxy config file and slurps in its data.
 func ReadProxyConfig(path string) (c ProxyConfig, err error, warnings []string) {
 	f, err := os.Open(path)
@@ -27,11 +35,13 @@ func ReadProxyConfig(path string) (c ProxyConfig, err error, warnings []string) 
 	if err != nil {
 		return
 	}
-	err = yaml.Unmarshal(bts, &c)
+	err, strictErr := unmarshalSemiStrictly(bts, &c)
 	if err != nil {
-		return
+		return c, err, warnings
 	}
-
+	if strictErr != nil {
+		warnings = append(warnings, strictErr.Error())
+	}
 	err = envconfig.Process("veneur", &c)
 	if err != nil {
 		return
@@ -59,9 +69,12 @@ func readConfig(r io.Reader) (c Config, err error, warnings []string) {
 	if err != nil {
 		return
 	}
-	err = yaml.Unmarshal(bts, &c)
+	err, strictErr := unmarshalSemiStrictly(bts, &c)
 	if err != nil {
-		return
+		return c, err, warnings
+	}
+	if strictErr != nil {
+		warnings = append(warnings, fmt.Sprintf("Unknown fields encountered in config: %v", err))
 	}
 
 	err = envconfig.Process("veneur", &c)
