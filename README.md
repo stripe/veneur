@@ -105,10 +105,10 @@ To clarify how each metric type behaves in Veneur, please use the following:
 # Usage
 
 ```
-veneur -f example.yaml
+veneur -f example/veneur/config.yaml
 ```
 
-See example.yaml for a sample config. Be sure to set your Datadog API `key`!
+See `example/veneur/config.yaml` for a sample config. Be sure to set your `datadog_api_key`!
 
 # Plugins
 
@@ -194,7 +194,7 @@ Veneur also honors the same "magic" tags that the dogstatsd daemon includes in t
 
 # Configuration
 
-Veneur expects to have a config file supplied via `-f PATH`. The included `example.yaml` outlines the options:
+Veneur expects to have a config file supplied via `-f PATH`. The included `example/veneur/config.yaml` outlines the options:
 
 * `api_hostname` - The Datadog API URL to post to. Probably `https://app.datadoghq.com`.
 * `metric_max_length` - How big a buffer to allocate for incoming metric lengths. Metrics longer than this will get truncated!
@@ -203,7 +203,7 @@ Veneur expects to have a config file supplied via `-f PATH`. The included `examp
 * `hostname` - The hostname to be used with each metric sent. Defaults to `os.Hostname()`
 * `omit_empty_hostname` - If true and `hostname` is empty (`""`) Veneur will *not* add a host tag to its own metrics.
 * `interval` - How often to flush. Something like 10s seems good. **Note: If you change this, it breaks all kinds of things on Datadog's side. You'll have to change all your metric's metadata.**
-* `key` - Your Datadog API key
+* `datadog_api_key` - Your Datadog API key
 * `percentiles` - The percentiles to generate from our timers and histograms. Specified as array of float64s
 * `aggregates` - The aggregates to generate from our timers and histograms. Specified as array of strings, choices: min, max, median, avg, count, sum. Default: min, max, count
 * `statsd_listen_addresses` - An array of URIs specifying the addresses to listen on. The URI schema can be either `udp` or `tcp`, and the host/port part should be the address to use for the listening socket. When using UDP, probably `udp://127.0.0.1:8126` so as not to interfere with normal DogStatsD.
