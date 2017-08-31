@@ -71,7 +71,7 @@ omit_empty_hostname: false
 
 # The addresses on which to listen for metrics sent to this instance
 # over UDP or TCP, leave as an empty array to disable.
-statsd_listening_addresses:
+statsd_listen_addresses:
   - "udp://localhost:8126"
 
 # The address on which to listen for HTTP imports and/or healthchecks.

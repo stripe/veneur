@@ -1,7 +1,9 @@
 package veneur
 
 import (
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -9,15 +11,17 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestReadConfig(t *testing.T) {
-	exampleConfig, err := os.Open("example.yaml")
+func TestReadExample(t *testing.T) {
+	filename := "example/veneur/config.yaml"
+	exampleConfig, err := os.Open(filename)
 	assert.NoError(t, err)
 	defer exampleConfig.Close()
 
 	c, err, warnings := readConfig(exampleConfig)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Parsing %v failed: %v", filename, err)
 	}
+	assert.Empty(t, warnings, "Should not warn reading config")
 
 	assert.Equal(t, "https://app.datadoghq.com", c.DatadogAPIHostname)
 	assert.Equal(t, 96, c.NumWorkers)
@@ -27,7 +31,50 @@ func TestReadConfig(t *testing.T) {
 	assert.Equal(t, interval, 10*time.Second)
 
 	assert.Equal(t, "http://localhost:7777", c.DatadogTraceAPIAddress)
+}
 
+func TestVeneurExamples(t *testing.T) {
+	exDir := "example/veneur"
+	dir, err := ioutil.ReadDir(exDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, configFile := range dir {
+		filename := filepath.Join(exDir, configFile.Name())
+		t.Run(configFile.Name(), func(t *testing.T) {
+			t.Parallel()
+			exampleConfig, err := os.Open(filename)
+			assert.NoError(t, err)
+			defer exampleConfig.Close()
+
+			c, err, warnings := readConfig(exampleConfig)
+			if err != nil {
+				t.Fatalf("Parsing %v failed: %v", filename, err)
+			}
+			assert.Empty(t, warnings, "Should not warn reading config")
+			assert.NotEqual(t, c, Config{}, "Should not result in a zero config struct")
+		})
+	}
+}
+
+func TestProxyExamples(t *testing.T) {
+	exDir := "example/veneur-proxy"
+	dir, err := ioutil.ReadDir(exDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, configFile := range dir {
+		filename := filepath.Join(exDir, configFile.Name())
+		t.Run(configFile.Name(), func(t *testing.T) {
+			t.Parallel()
+			c, err, warnings := ReadProxyConfig(filename)
+			if err != nil {
+				t.Fatalf("Parsing %v failed: %v", filename, err)
+			}
+			assert.Empty(t, warnings, "Should not warn reading config")
+			assert.NotEqual(t, c, Config{}, "Should not result in a zero config struct")
+		})
+	}
 }
 
 func TestReadBadConfig(t *testing.T) {
