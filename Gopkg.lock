@@ -92,6 +92,12 @@
   version = "0.2.2"
 
 [[projects]]
+  name = "github.com/kelseyhightower/envconfig"
+  packages = ["."]
+  revision = "f611eb38b3875cc3bd991ca91c51d06446afa14c"
+  version = "v1.3.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/lightstep/lightstep-tracer-go"
   packages = [".","collectorpb","lightstep_thrift","lightsteppb","thrift_0_9_2/lib/go/thrift"]
@@ -208,6 +214,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c1696683059b9c62f219bc46dcb6a4d1bf1c844aee59bf64d97e9a22ed52dfa0"
+  inputs-digest = "d2e04ec94eb107e41811726d9baaa4db60426a3b6c44fd6513a129787cb9be23"
   solver-name = "gps-cdcl"
   solver-version = 1
