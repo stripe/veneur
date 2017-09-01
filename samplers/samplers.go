@@ -108,7 +108,7 @@ func (cc *CardinalityCount) Export() {
 }
 
 // Combine merges cardinality count structs exported from locals
-func (cc *CardinalityCount) Combine(other []byte) {
+func (cc *CardinalityCount) Combine(other []byte) error {
 	// TODO: deserialize `other`
 	var otherCC CardinalityCount
 	for name, hll := range otherCC.MetricCardinality {
@@ -118,6 +118,7 @@ func (cc *CardinalityCount) Combine(other []byte) {
 			cc.MetricCardinality[name] = hll
 		}
 	}
+	return nil
 }
 
 // Flush emits the names + cardinality of the top TEN in the map
