@@ -10,8 +10,7 @@
 [[projects]]
   name = "github.com/Sirupsen/logrus"
   packages = ["."]
-  revision = "f006c2ac4710855cf0f916dd6b77acf6b048dc6e"
-  version = "v1.0.3"
+  revision = "89742aefa4b206dcf400792f3bd35b542998eb3b"
 
 [[projects]]
   name = "github.com/aws/aws-sdk-go"
@@ -214,6 +213,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d2e04ec94eb107e41811726d9baaa4db60426a3b6c44fd6513a129787cb9be23"
+  inputs-digest = "3f6d9c6d2e9baa0919b8a408e2453df977779201a49ce0a7878f823112af1301"
   solver-name = "gps-cdcl"
   solver-version = 1
