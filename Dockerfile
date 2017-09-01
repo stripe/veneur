@@ -8,6 +8,7 @@ RUN apt-get install -y zip
 RUN go get -u -v github.com/ChimeraCoder/gojson/gojson
 RUN go get -u -v github.com/golang/protobuf/protoc-gen-go
 RUN go get -u -v github.com/gogo/protobuf/protoc-gen-gofast
+RUN go get -u github.com/golang/dep/cmd/dep
 RUN wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
 RUN unzip protoc-3.1.0-linux-x86_64.zip
 RUN cp bin/protoc /usr/bin/protoc
@@ -26,6 +27,7 @@ RUN git reset --hard HEAD && git status
 # because we are guaranteed only one version of Go
 # used to build protoc-gen-go
 RUN go generate
+RUN dep ensure -v
 RUN gofmt -w .
 
 # Stage any changes caused by go generate and gofmt,
