@@ -131,7 +131,7 @@ func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
 	//ret.ForwardDestinations.NumberOfReplicas = ???
 
 	if conf.Debug {
-		log.Level = logrus.DebugLevel
+		log.SetLevel(logrus.DebugLevel)
 	}
 
 	log.WithField("config", conf).Debug("Initialized server")
