@@ -41,6 +41,9 @@ RUN gofmt -w .
 # therefore reports that the file may have changed (ie, a series of 0s)
 # See https://github.com/stripe/veneur/pull/110#discussion_r92843581
 RUN git add .
+# The output will be empty unless the build fails, in which case this
+# information is helpful in debugging
+RUN git diff --cached
 RUN git diff-index --cached --exit-code HEAD
 
 
