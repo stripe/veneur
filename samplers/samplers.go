@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"math"
-	"sort"
 	"strings"
 	"time"
 
@@ -79,13 +78,19 @@ type CardinalityCount struct {
 	MetricCardinality map[string]*hyperloglog.HyperLogLogPlus
 }
 
+func NewCardinalityCount() *CardinalityCount {
+	return &CardinalityCount{make(map[string]*hyperloglog.HyperLogLogPlus)}
+}
+
 // Sample adds a measurement to the cardinality counter. It makes the
 // assumption that no two metrics with different types share a name (ie, name
 // is unique across all types)
-func (cc *CardinalityCount) Sample(name string, tags []string) {
+func (cc *CardinalityCount) Sample(name string, joinedTags string) {
+	if _, present := cc.MetricCardinality[name]; !present {
+		hll, _ := hyperloglog.NewPlus(18)
+		cc.MetricCardinality[name] = hll
+	}
 	hasher := fnv.New64a()
-	sort.Strings(tags)
-	joinedTags := strings.Join(tags, ",")
 	hasher.Write([]byte(joinedTags))
 	cc.MetricCardinality[name].Add(hasher)
 }
