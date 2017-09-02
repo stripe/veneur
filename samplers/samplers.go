@@ -3,6 +3,7 @@ package samplers
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/gob"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -97,20 +98,48 @@ func (cc *CardinalityCount) Sample(name string, joinedTags string) {
 
 // Export groups the CardinalityCount struct into sub structs, grouped by what
 // their metric consistently hashes to
-func (cc *CardinalityCount) Export() {
-	// what even
-	// turn this into a JSON metric
+func (cc *CardinalityCount) Export() (JSONMetric, error) {
 	// figure out how to get proxy.go to split this map up into submaps
 	// grouped by the global it needs to be forwarded to
 
 	// maybe at that point, we can treat each HLL as its own set type?
 	// should this be individual HLLs when forwarded, instead of a map[string]?
+	buf := new(bytes.Buffer)
+	encoder := gob.NewEncoder(buf)
+
+	err := encoder.Encode(cc.MetricCardinality)
+	if err != nil {
+		panic(err)
+	}
+
+	if err != nil {
+		return JSONMetric{}, err
+	}
+	return JSONMetric{
+		MetricKey: MetricKey{
+			Name:       "cardinality.count", // TODO (kiran): wtf do I name this
+			Type:       "cardinality",
+			JoinedTags: "",
+		},
+		Tags:  nil,
+		Value: buf.Bytes(),
+	}, nil
 }
 
 // Combine merges cardinality count structs exported from locals
 func (cc *CardinalityCount) Combine(other []byte) error {
-	// TODO: deserialize `other`
-	var otherCC CardinalityCount
+	var decodedMap map[string]*hyperloglog.HyperLogLogPlus
+	buf := bytes.NewReader(other)
+	decoder := gob.NewDecoder(buf)
+
+	err := decoder.Decode(&decodedMap)
+	if err != nil {
+		panic(err)
+	}
+
+	otherCC := CardinalityCount{
+		MetricCardinality: decodedMap,
+	}
 	for name, hll := range otherCC.MetricCardinality {
 		if _, ok := cc.MetricCardinality[name]; ok {
 			cc.MetricCardinality[name].Merge(hll)

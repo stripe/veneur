@@ -76,6 +76,54 @@ func TestCounterMerge(t *testing.T) {
 	assert.Equal(t, float64(3.8), metrics[0].Value[0][1])
 }
 
+func TestCardinality(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+	c := NewCardinalityCount()
+	c.Sample("abc", "tag1tag2tag3")
+
+	for i := 0; i < 100; i++ {
+		c.Sample("abc", strconv.Itoa(rand.Int()))
+	}
+	assert.Equal(t, uint64(101), c.MetricCardinality["abc"].Count(), "counts did not match")
+}
+
+func TestCardinalityMerge(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+
+	cc := NewCardinalityCount()
+	for i := 0; i < 100; i++ {
+		cc.Sample("abc", strconv.Itoa(rand.Int()))
+	}
+	for i := 0; i < 150; i++ {
+		cc.Sample("cde", strconv.Itoa(rand.Int()))
+	}
+	assert.Equal(t, uint64(100), cc.MetricCardinality["abc"].Count(), "counts did not match")
+	assert.Equal(t, uint64(150), cc.MetricCardinality["cde"].Count(), "counts did not match")
+
+	jm, err := cc.Export()
+	assert.NoError(t, err, "should have exported successfully")
+	assert.NotNil(t, jm, "Need a value")
+
+	cc2 := NewCardinalityCount()
+	for i := 0; i < 50; i++ {
+		cc2.Sample("abc", strconv.Itoa(rand.Int()))
+	}
+	for i := 0; i < 50; i++ {
+		cc2.Sample("cde", strconv.Itoa(rand.Int()))
+	}
+
+	assert.NoError(t, cc2.Combine(jm.Value), "should have combined successfully")
+	// // HLLs are approximate, and we've seen error of +-1 here in the past, so
+	// // we're giving the test some room for error to reduce flakes
+	receivedCount := int(cc2.MetricCardinality["abc"].Count())
+	countDifference := 150 - int(receivedCount)
+	assert.True(t, -2 <= countDifference && countDifference <= 2, "counts did not match after merging (%d and %d)", 150, receivedCount)
+
+	receivedCount = int(cc2.MetricCardinality["cde"].Count())
+	countDifference = 200 - int(receivedCount)
+	assert.True(t, -2 <= countDifference && countDifference <= 2, "counts did not match after merging (%d and %d)", 200, receivedCount)
+}
+
 func TestGauge(t *testing.T) {
 	g := NewGauge("a.b.c", []string{"a:b"})
 
