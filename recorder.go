@@ -8,6 +8,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 )
 
+const prefix = "veneur."
 const workerMetricsFlushedTotal = "worker.metrics_flushed_total"
 const flushDuration = "flush.total_duration_ns"
 const flushPostTotal = "flush.post_metrics_total"
@@ -17,6 +18,9 @@ const memGCPauseTotal = "gc.pause_total_ns"
 const sentryErrorsTotal = "sentry.errors_total"
 const flushPluginErrorsTotal = "flush.plugins.%s.error_total"
 const flushPluginDuration = "flush.plugins.%s.total_duration_ns"
+const packetsSpanCount = "packet.spans.received_total"
+const workerSpanFlushDuration = "worker.span.flush_duration_ns"
+const workerSpanIngestErrorTotal = "worker.span.ingest_error_total"
 
 // Recorder is a type-safe interface for emitting metrics.
 type Recorder struct {
@@ -29,7 +33,7 @@ func NewRecorder(conf Config) (*Recorder, error) {
 	if err != nil {
 		return nil, err
 	}
-	statsd.Namespace = "veneur."
+	statsd.Namespace = prefix
 	statsd.Tags = append(conf.Tags, "veneurlocalonly")
 
 	return &Recorder{
@@ -43,7 +47,7 @@ func NewProxyRecorder(conf ProxyConfig) (*Recorder, error) {
 	if err != nil {
 		return nil, err
 	}
-	statsd.Namespace = "veneur."
+	statsd.Namespace = prefix
 
 	return &Recorder{
 		Statsd: statsd,
@@ -119,4 +123,16 @@ func (r *Recorder) PluginFlushErrorCount(plugin string) {
 // SentryErrorCount tracks the number of errors sent to Sentry.
 func (r *Recorder) SentryErrorCount() {
 	r.Statsd.Count(sentryErrorsTotal, 1, nil, 1.0)
+}
+
+func (r *Recorder) SpanPacketsProcessedCount(spans int64) {
+	r.Statsd.Count(packetsSpanCount, spans, nil, 1.0)
+}
+
+func (r *Recorder) WorkerSpanIngestErrorTotal(sink string) {
+	r.Statsd.Incr(workerSpanIngestErrorTotal, []string{fmt.Sprintf("sink:%s", sink)}, 1.0)
+}
+
+func (r *Recorder) WorkerSpanFlushDuration(start time.Time, sink string) {
+	r.Statsd.TimeInMilliseconds(workerSpanFlushDuration, float64(time.Since(start).Nanoseconds()), []string{fmt.Sprintf("sink:%s", sink)}, 1.0)
 }

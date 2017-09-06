@@ -318,7 +318,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			log.Info("Configured Lightstep trace sink")
 		}
 
-		ret.SpanWorker = NewSpanWorker(ret.spanSinks, ret.Statsd)
+		ret.SpanWorker = NewSpanWorker(ret.spanSinks, ret.Recorder)
 
 	} else {
 		trace.Disable()
@@ -517,7 +517,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		return
 	}
 
-	sample, metrics, err := samplers.ParseSSF(packet)
+	span, metrics, err := samplers.ParseSSF(packet)
 	if err != nil {
 		reason := fmt.Sprintf("reason:%s", err.Error())
 		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", reason}, 1.0)
@@ -529,9 +529,8 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
 	}
 
-	if sample != nil {
-		s.Statsd.Incr("packet.spans.received_total", []string{fmt.Sprintf("service:%s", sample.Service)}, .1)
-		s.SpanWorker.SpanChan <- *sample
+	if span != nil {
+		s.SpanWorker.SpanChan <- *span
 	}
 }
 

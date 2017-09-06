@@ -1,7 +1,6 @@
 package veneur
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -334,15 +333,15 @@ func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck)
 type SpanWorker struct {
 	SpanChan chan ssf.SSFSpan
 	sinks    []spanSink
-	stats    *statsd.Client
+	recorder *Recorder
 }
 
 // NewSpanWorker creates an SpanWorker ready to collect events and service checks.
-func NewSpanWorker(sinks []spanSink, stats *statsd.Client) *SpanWorker {
+func NewSpanWorker(sinks []spanSink, recorder *Recorder) *SpanWorker {
 	return &SpanWorker{
 		SpanChan: make(chan ssf.SSFSpan),
 		sinks:    sinks,
-		stats:    stats,
+		recorder: recorder,
 	}
 }
 
@@ -350,13 +349,12 @@ func NewSpanWorker(sinks []spanSink, stats *statsd.Client) *SpanWorker {
 // This function will never return.
 func (tw *SpanWorker) Work() {
 	for m := range tw.SpanChan {
-		// Give each sink a change to ingest.
 		for _, s := range tw.sinks {
 			err := s.Ingest(m)
 			if err != nil {
 				// If a sink goes wacko and errors a lot, we stand to emit a loooot of metrics
 				// here since span ingest rates can be very high. C'est la vie.
-				tw.stats.Count("worker.span.ingest_error_total", 1, []string{fmt.Sprintf("sink:%s", s.Name())}, 1.0)
+				tw.recorder.WorkerSpanIngestErrorTotal(s.Name())
 			}
 		}
 	}
@@ -369,6 +367,6 @@ func (tw *SpanWorker) Flush() {
 	for _, s := range tw.sinks {
 		sinkFlushStart := time.Now()
 		s.Flush()
-		tw.stats.TimeInMilliseconds("worker.span.flush_duration_ns", float64(time.Since(sinkFlushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", s.Name())}, 1.0)
+		tw.recorder.WorkerSpanFlushDuration(sinkFlushStart, s.Name())
 	}
 }
