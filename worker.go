@@ -331,17 +331,21 @@ func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck)
 
 // SpanWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type SpanWorker struct {
-	SpanChan chan ssf.SSFSpan
-	sinks    []spanSink
-	recorder *Recorder
+	SpanChan     chan ssf.SSFSpan
+	sinks        []spanSink
+	recorder     *Recorder
+	mutex        *sync.Mutex
+	serviceCount map[string]int64
 }
 
 // NewSpanWorker creates an SpanWorker ready to collect events and service checks.
 func NewSpanWorker(sinks []spanSink, recorder *Recorder) *SpanWorker {
 	return &SpanWorker{
-		SpanChan: make(chan ssf.SSFSpan),
-		sinks:    sinks,
-		recorder: recorder,
+		SpanChan:     make(chan ssf.SSFSpan),
+		sinks:        sinks,
+		recorder:     recorder,
+		serviceCount: make(map[string]int64),
+		mutex:        &sync.Mutex{},
 	}
 }
 
@@ -349,6 +353,10 @@ func NewSpanWorker(sinks []spanSink, recorder *Recorder) *SpanWorker {
 // This function will never return.
 func (tw *SpanWorker) Work() {
 	for m := range tw.SpanChan {
+		tw.mutex.Lock()
+		tw.serviceCount[m.Service]++
+		tw.mutex.Unlock()
+
 		for _, s := range tw.sinks {
 			err := s.Ingest(m)
 			if err != nil {
@@ -362,6 +370,12 @@ func (tw *SpanWorker) Work() {
 
 // Flush invokes flush on each sink.
 func (tw *SpanWorker) Flush() {
+	tw.mutex.Lock()
+	for service, count := range tw.serviceCount {
+		tw.recorder.SpanPacketsProcessedCount(count, service)
+	}
+	tw.serviceCount = make(map[string]int64)
+	tw.mutex.Unlock()
 
 	// Flush and time each sink.
 	for _, s := range tw.sinks {

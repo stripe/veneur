@@ -19,6 +19,7 @@ const sentryErrorsTotal = "sentry.errors_total"
 const flushPluginErrorsTotal = "flush.plugins.%s.error_total"
 const flushPluginDuration = "flush.plugins.%s.total_duration_ns"
 const packetsSpanCount = "packet.spans.received_total"
+const totalSpansFlushedMetricKey = "worker.spans_flushed_total"
 const workerSpanFlushDuration = "worker.span.flush_duration_ns"
 const workerSpanIngestErrorTotal = "worker.span.ingest_error_total"
 
@@ -125,14 +126,17 @@ func (r *Recorder) SentryErrorCount() {
 	r.Statsd.Count(sentryErrorsTotal, 1, nil, 1.0)
 }
 
-func (r *Recorder) SpanPacketsProcessedCount(spans int64) {
-	r.Statsd.Count(packetsSpanCount, spans, nil, 1.0)
+// SpanPacketsProcessedCount tracks the number of span packets processed.
+func (r *Recorder) SpanPacketsProcessedCount(spans int64, service string) {
+	r.Statsd.Count(packetsSpanCount, spans, []string{fmt.Sprintf("service:%s", service)}, 1)
 }
 
+// WorkerSpanIngestErrorTotal tracks the number of spans that failed sink ingest.
 func (r *Recorder) WorkerSpanIngestErrorTotal(sink string) {
 	r.Statsd.Incr(workerSpanIngestErrorTotal, []string{fmt.Sprintf("sink:%s", sink)}, 1.0)
 }
 
+// WorkerSpanFlushDuration tracks the duration of span sink flushes.
 func (r *Recorder) WorkerSpanFlushDuration(start time.Time, sink string) {
 	r.Statsd.TimeInMilliseconds(workerSpanFlushDuration, float64(time.Since(start).Nanoseconds()), []string{fmt.Sprintf("sink:%s", sink)}, 1.0)
 }

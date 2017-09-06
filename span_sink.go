@@ -24,8 +24,6 @@ const datadogNameKey = "name"
 
 const lightStepOperationKey = "name"
 
-const totalSpansFlushedMetricKey = "worker.spans_flushed_total"
-
 // spanSink is a receiver of spans that handles sending those spans to some
 // downstream sink. Calls to `Ingest(span)` are meant to give the sink control
 // of the span, with periodic calls to flush as a signal for sinks that don't
@@ -203,11 +201,9 @@ func (dd *datadogSpanSink) Flush() {
 
 // lightStepSpanSink is a sink for spans to be sent to the LightStep client.
 type lightStepSpanSink struct {
-	tracer       opentracing.Tracer
-	stats        *statsd.Client
-	commonTags   map[string]string
-	mutex        *sync.Mutex
-	serviceCount map[string]int64
+	tracer     opentracing.Tracer
+	stats      *statsd.Client
+	commonTags map[string]string
 }
 
 // NewLightStepSpanSink creates a new instance of a LightStepSpanSink.
@@ -265,10 +261,8 @@ func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[s
 	})
 
 	return &lightStepSpanSink{
-		tracer:       lightstepTracer,
-		stats:        stats,
-		serviceCount: make(map[string]int64),
-		mutex:        &sync.Mutex{},
+		tracer: lightstepTracer,
+		stats:  stats,
 	}, nil
 }
 
@@ -329,24 +323,10 @@ func (ls *lightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
 	}
 
 	// Protect mutating the service count with a mutex
-	ls.mutex.Lock()
-	defer ls.mutex.Unlock()
-	ls.serviceCount[service]++
-
 	return nil
 }
 
 // Flush doesn't need to do anything to the LS tracer, so we emit metrics
 // instead.
 func (ls *lightStepSpanSink) Flush() {
-	ls.mutex.Lock()
-	defer ls.mutex.Unlock()
-
-	totalCount := int64(0)
-	for service, count := range ls.serviceCount {
-		totalCount += count
-		ls.stats.Count(totalSpansFlushedMetricKey, count, []string{"sink:lightstep", fmt.Sprintf("service:%s", service)}, 1)
-	}
-	ls.serviceCount = make(map[string]int64)
-	log.WithField("total_spans", totalCount).Debug("Checkpointing flushed spans for Lightstep")
 }
