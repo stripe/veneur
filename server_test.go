@@ -182,7 +182,7 @@ func setupVeneurServer(t *testing.T, config Config, transport http.RoundTripper)
 // for sending metrics data to Datadog
 // Eventually we'll want to define this symmetrically.
 type DDMetricsRequest struct {
-	Series []samplers.DDMetric
+	Series DDMetric
 }
 
 // fixture sets up a mock Datadog API server and Veneur
