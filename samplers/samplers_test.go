@@ -100,9 +100,10 @@ func TestCardinalityMerge(t *testing.T) {
 	assert.Equal(t, uint64(100), cc.MetricCardinality["abc"].Count(), "counts did not match")
 	assert.Equal(t, uint64(150), cc.MetricCardinality["cde"].Count(), "counts did not match")
 
-	jm, err := cc.Export()
+	jsonMetrics, err := cc.ExportSets()
 	assert.NoError(t, err, "should have exported successfully")
-	assert.NotNil(t, jm, "Need a value")
+	assert.NotEmpty(t, jsonMetrics, "should have returned a value")
+	assert.NotNil(t, jsonMetrics[0], "Need a value")
 
 	cc2 := NewCardinalityCount()
 	for i := 0; i < 50; i++ {
@@ -112,7 +113,10 @@ func TestCardinalityMerge(t *testing.T) {
 		cc2.Sample("cde", strconv.Itoa(rand.Int()))
 	}
 
-	assert.NoError(t, cc2.Combine(jm.Value), "should have combined successfully")
+	for _, jm := range jsonMetrics {
+		assert.NoError(t, cc2.Combine(jm.Value), "should have combined successfully")
+	}
+
 	// // HLLs are approximate, and we've seen error of +-1 here in the past, so
 	// // we're giving the test some room for error to reduce flakes
 	receivedCount := int(cc2.MetricCardinality["abc"].Count())

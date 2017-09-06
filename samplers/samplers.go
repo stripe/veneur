@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"hash/fnv"
+	"log"
 	"math"
 	"strings"
 	"time"
@@ -98,32 +99,32 @@ func (cc *CardinalityCount) Sample(name string, joinedTags string) {
 
 // Export groups the CardinalityCount struct into sub structs, grouped by what
 // their metric consistently hashes to
-func (cc *CardinalityCount) Export() (JSONMetric, error) {
-	// figure out how to get proxy.go to split this map up into submaps
-	// grouped by the global it needs to be forwarded to
+func (cc *CardinalityCount) ExportSets() ([]JSONMetric, error) {
+	jsonMetrics := make([]JSONMetric, 0, len(cc.MetricCardinality))
+	for metricName, hll := range cc.MetricCardinality {
 
-	// maybe at that point, we can treat each HLL as its own set type?
-	// should this be individual HLLs when forwarded, instead of a map[string]?
-	buf := new(bytes.Buffer)
-	encoder := gob.NewEncoder(buf)
+		buf := new(bytes.Buffer)
+		encoder := gob.NewEncoder(buf)
 
-	err := encoder.Encode(cc.MetricCardinality)
-	if err != nil {
-		panic(err)
+		err := encoder.Encode(map[string]*hyperloglog.HyperLogLogPlus{metricName: hll})
+		if err != nil {
+			// TODO (kiran): do we return an array of metrics, instead?
+			log.Printf("failed to export cardinality count for metric name:%s, error:%v", metricName, err)
+		}
+
+		jm := JSONMetric{
+			MetricKey: MetricKey{
+				Name:       "cardinality count",
+				Type:       "cardinality_count",
+				JoinedTags: metricName,
+			},
+			Tags:  []string{metricName},
+			Value: buf.Bytes(),
+		}
+		jsonMetrics = append(jsonMetrics, jm)
 	}
-
-	if err != nil {
-		return JSONMetric{}, err
-	}
-	return JSONMetric{
-		MetricKey: MetricKey{
-			Name:       "cardinality.count", // TODO (kiran): wtf do I name this
-			Type:       "cardinality",
-			JoinedTags: "",
-		},
-		Tags:  nil,
-		Value: buf.Bytes(),
-	}, nil
+	// TODO (kiran): do we return an array of metrics, instead?
+	return jsonMetrics, nil
 }
 
 // Combine merges cardinality count structs exported from locals
