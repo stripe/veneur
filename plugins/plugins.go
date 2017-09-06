@@ -10,6 +10,6 @@ import "github.com/stripe/veneur/samplers"
 // the number of errors encountered are automatically reported by veneur, using
 // the plugin name.
 type Plugin interface {
-	Flush(metrics []samplers.DDMetric, hostname string) error
+	Flush(metrics []samplers.InterMetric, hostname string) error
 	Name() string
 }

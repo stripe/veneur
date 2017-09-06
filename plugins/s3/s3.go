@@ -30,11 +30,11 @@ type S3Plugin struct {
 	Hostname string
 }
 
-func (p *S3Plugin) Flush(metrics []samplers.DDMetric, hostname string) error {
+func (p *S3Plugin) Flush(metrics []samplers.InterMetric, hostname string) error {
 	const Delimiter = '\t'
 	const IncludeHeaders = false
 
-	csv, err := EncodeDDMetricsCSV(metrics, Delimiter, IncludeHeaders, p.Hostname)
+	csv, err := EncodeInterMetricsCSV(metrics, Delimiter, IncludeHeaders, p.Hostname)
 	if err != nil {
 		p.Logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
@@ -93,10 +93,10 @@ func S3Path(hostname string, ft filetype) *string {
 	return aws.String(path.Join(t.Format("2006/01/02"), hostname, filename))
 }
 
-// EncodeDDMetricsCSV returns a reader containing the gzipped CSV representation of the
-// DDMetrics data, one row per DDMetric.
+// EncodeInterMetricsCSV returns a reader containing the gzipped CSV representation of the
+// InterMetric data, one row per InterMetric.
 // the AWS sdk requires seekable input, so we return a ReadSeeker here
-func EncodeDDMetricsCSV(metrics []samplers.DDMetric, delimiter rune, includeHeaders bool, hostname string) (io.ReadSeeker, error) {
+func EncodeInterMetricsCSV(metrics []samplers.InterMetric, delimiter rune, includeHeaders bool, hostname string) (io.ReadSeeker, error) {
 	b := &bytes.Buffer{}
 	gzw := gzip.NewWriter(b)
 	w := csv.NewWriter(gzw)
@@ -125,7 +125,7 @@ func EncodeDDMetricsCSV(metrics []samplers.DDMetric, delimiter rune, includeHead
 	// TODO avoid edge case at midnight
 	partitionDate := time.Now()
 	for _, metric := range metrics {
-		EncodeDDMetricCSV(metric, w, &partitionDate, hostname)
+		EncodeInterMetricCSV(metric, w, &partitionDate, hostname)
 	}
 
 	w.Flush()

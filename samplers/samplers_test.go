@@ -22,12 +22,10 @@ func TestCounterEmpty(t *testing.T) {
 	assert.Len(t, metrics, 1, "Flushes 1 metric")
 
 	m1 := metrics[0]
-	assert.Equal(t, int32(10), m1.Interval, "Interval")
-	assert.Equal(t, "rate", m1.MetricType, "Type")
+	assert.Equal(t, "counter", m1.MetricType, "Type")
 	assert.Len(t, c.Tags, 1, "Tag length")
 	assert.Equal(t, c.Tags[0], "a:b", "Tag contents")
-	// The counter returns an array with a single tuple of timestamp,value
-	assert.Equal(t, 0.1, m1.Value[0][1], "Metric value")
+	assert.Equal(t, float64(1), m1.Value, "Metric value")
 }
 
 func TestCounterRate(t *testing.T) {
@@ -35,9 +33,8 @@ func TestCounterRate(t *testing.T) {
 
 	c.Sample(5, 1.0)
 
-	// The counter returns an array with a single tuple of timestamp,value
 	metrics := c.Flush(10 * time.Second)
-	assert.Equal(t, 0.5, metrics[0].Value[0][1], "Metric value")
+	assert.Equal(t, float64(5), metrics[0].Value, "Metric value")
 }
 
 func TestCounterSampleRate(t *testing.T) {
@@ -45,9 +42,8 @@ func TestCounterSampleRate(t *testing.T) {
 
 	c.Sample(5, 0.5)
 
-	// The counter returns an array with a single tuple of timestamp,value
 	metrics := c.Flush(10 * time.Second)
-	assert.Equal(t, float64(1), metrics[0].Value[0][1], "Metric value")
+	assert.Equal(t, float64(10), metrics[0].Value, "Metric value")
 }
 
 func TestCounterMerge(t *testing.T) {
@@ -68,12 +64,12 @@ func TestCounterMerge(t *testing.T) {
 	assert.NoError(t, cGlobal.Combine(jm.Value), "should have combined counters successfully")
 
 	metrics := cGlobal.Flush(10 * time.Second)
-	assert.Equal(t, float64(1), metrics[0].Value[0][1])
+	assert.Equal(t, float64(10), metrics[0].Value)
 
 	assert.NoError(t, cGlobal.Combine(jm2.Value), "should have combined counters successfully")
 
 	metrics = cGlobal.Flush(10 * time.Second)
-	assert.Equal(t, float64(3.8), metrics[0].Value[0][1])
+	assert.Equal(t, float64(38), metrics[0].Value)
 }
 
 func TestGauge(t *testing.T) {
@@ -89,15 +85,12 @@ func TestGauge(t *testing.T) {
 	assert.Len(t, metrics, 1, "Flushed metric count")
 
 	m1 := metrics[0]
-	// Interval is not meaningful for this
-	assert.Equal(t, int32(0), m1.Interval, "Interval")
 	assert.Equal(t, "gauge", m1.MetricType, "Type")
 	tags := m1.Tags
 	assert.Len(t, tags, 1, "Tag length")
 	assert.Equal(t, tags[0], "a:b", "Tag contents")
 
-	// The counter returns an array with a single tuple of timestamp,value
-	assert.Equal(t, float64(5), m1.Value[0][1], "Value")
+	assert.Equal(t, float64(5), m1.Value, "Value")
 }
 
 func TestSet(t *testing.T) {
@@ -120,12 +113,10 @@ func TestSet(t *testing.T) {
 	assert.Len(t, metrics, 1, "Flush")
 
 	m1 := metrics[0]
-	// Interval is not meaningful for this
-	assert.Equal(t, int32(0), m1.Interval, "Interval")
 	assert.Equal(t, "gauge", m1.MetricType, "Type")
 	assert.Len(t, m1.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m1.Tags[0], "First tag")
-	assert.Equal(t, float64(4), m1.Value[0][1], "Value")
+	assert.Equal(t, float64(4), m1.Value, "Value")
 }
 
 func TestSetMerge(t *testing.T) {
@@ -180,83 +171,67 @@ func TestHisto(t *testing.T) {
 	// the max
 	m2 := metrics[0]
 	assert.Equal(t, "a.b.c.max", m2.Name, "Name")
-	assert.Equal(t, int32(0), m2.Interval, "Interval")
 	assert.Equal(t, "gauge", m2.MetricType, "Type")
 	assert.Len(t, m2.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m2.Tags[0], "First tag")
-	// The counter returns an array with a single tuple of timestamp,value
-	assert.Equal(t, float64(25), m2.Value[0][1], "Value")
+	assert.Equal(t, float64(25), m2.Value, "Value")
 
 	// the min
 	m3 := metrics[1]
 	assert.Equal(t, "a.b.c.min", m3.Name, "Name")
-	assert.Equal(t, int32(0), m3.Interval, "Interval")
 	assert.Equal(t, "gauge", m3.MetricType, "Type")
 	assert.Len(t, m3.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m3.Tags[0], "First tag")
-	// The counter returns an array with a single tuple of timestamp,value
-	assert.Equal(t, float64(5), m3.Value[0][1], "Value")
+	assert.Equal(t, float64(5), m3.Value, "Value")
 
 	// the sum
 	m4 := metrics[2]
 	assert.Equal(t, "a.b.c.sum", m4.Name, "Name")
-	assert.Equal(t, int32(0), m4.Interval, "Interval")
 	assert.Equal(t, "gauge", m4.MetricType, "Type")
 	assert.Len(t, m4.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m4.Tags[0], "First tag")
-	// The counter returns an array with a single tuple of timestamp,value
-	assert.Equal(t, float64(75), m4.Value[0][1], "Value")
+	assert.Equal(t, float64(75), m4.Value, "Value")
 
 	// the average
 	m5 := metrics[3]
 	assert.Equal(t, "a.b.c.avg", m5.Name, "Name")
-	assert.Equal(t, int32(0), m5.Interval, "Interval")
 	assert.Equal(t, "gauge", m5.MetricType, "Type")
 	assert.Len(t, m5.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m5.Tags[0], "First tag")
-	// The counter returns an array with a single tuple of timestamp,value
-	assert.Equal(t, float64(15), m5.Value[0][1], "Value")
+	assert.Equal(t, float64(15), m5.Value, "Value")
 
 	// the count
 	m1 := metrics[4]
 	assert.Equal(t, "a.b.c.count", m1.Name, "Name")
-	assert.Equal(t, int32(10), m1.Interval, "Interval")
-	assert.Equal(t, "rate", m1.MetricType, "Type")
+	assert.Equal(t, "counter", m1.MetricType, "Type")
 	assert.Len(t, m1.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m1.Tags[0], "First tag")
-	// The counter returns an array with a single tuple of timestamp,value
-	assert.Equal(t, float64(0.5), m1.Value[0][1], "Value")
+	assert.Equal(t, float64(5), m1.Value, "Value")
 
 	// the median
 	m6 := metrics[5]
 	assert.Equal(t, "a.b.c.median", m6.Name, "Name")
-	assert.Equal(t, int32(0), m6.Interval, "Interval")
 	assert.Equal(t, "gauge", m6.MetricType, "Type")
 	assert.Len(t, m6.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m6.Tags[0], "First tag")
-	// The counter returns an array with a single tuple of timestamp,value
-	assert.Equal(t, float64(15), m6.Value[0][1], "Value")
+	assert.Equal(t, float64(15), m6.Value, "Value")
 
 	// the average
 	m8 := metrics[6]
 	assert.Equal(t, "a.b.c.hmean", m8.Name, "Name")
-	assert.Equal(t, int32(0), m8.Interval, "Interval")
 	assert.Equal(t, "gauge", m8.MetricType, "Type")
 	assert.Len(t, m8.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m8.Tags[0], "First tag")
-	// The counter returns an array with a single tuple of timestamp,value
 	expected := float64(5.0 / ((1.0 / 5) + (1.0 / 10) + (1.0 / 15) + (1.0 / 20) + (1.0 / 25)))
-	assert.Equal(t, expected, m8.Value[0][1], "Value")
+	assert.Equal(t, expected, m8.Value, "Value")
 
 	// And the percentile
 	m7 := metrics[7]
 	assert.Equal(t, "a.b.c.90percentile", m7.Name, "Name")
-	assert.Equal(t, int32(0), m7.Interval, "Interval")
 	assert.Equal(t, "gauge", m7.MetricType, "Type")
 	assert.Len(t, m7.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m7.Tags[0], "First tag")
-	// The counter returns an array with a single tuple of timestamp,value
-	assert.Equal(t, float64(23.75), m7.Value[0][1], "Value")
+	assert.Equal(t, float64(23.75), m7.Value, "Value")
 }
 
 func TestHistoAvgOnly(t *testing.T) {
@@ -287,12 +262,10 @@ func TestHistoAvgOnly(t *testing.T) {
 	// the average
 	m5 := metrics[0]
 	assert.Equal(t, "a.b.c.avg", m5.Name, "Name")
-	assert.Equal(t, int32(0), m5.Interval, "Interval")
 	assert.Equal(t, "gauge", m5.MetricType, "Type")
 	assert.Len(t, m5.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m5.Tags[0], "First tag")
-	// The counter returns an array with a single tuple of timestamp,value
-	assert.Equal(t, float64(15), m5.Value[0][1], "Value")
+	assert.Equal(t, float64(15), m5.Value, "Value")
 }
 
 func TestHistoHMeanOnly(t *testing.T) {
@@ -323,13 +296,11 @@ func TestHistoHMeanOnly(t *testing.T) {
 	// the average
 	m5 := metrics[0]
 	assert.Equal(t, "a.b.c.hmean", m5.Name, "Name")
-	assert.Equal(t, int32(0), m5.Interval, "Interval")
 	assert.Equal(t, "gauge", m5.MetricType, "Type")
 	assert.Len(t, m5.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m5.Tags[0], "First tag")
-	// The counter returns an array with a single tuple of timestamp,value
 	expected := float64(5.0 / ((1.0 / 5) + (1.0 / 10) + (1.0 / 15) + (1.0 / 20) + (1.0 / 25)))
-	assert.Equal(t, expected, m5.Value[0][1], "Value")
+	assert.Equal(t, expected, m5.Value, "Value")
 }
 
 func TestHistoSampleRate(t *testing.T) {
@@ -355,11 +326,11 @@ func TestHistoSampleRate(t *testing.T) {
 	// First the max
 	m1 := metrics[0]
 	assert.Equal(t, "a.b.c.max", m1.Name, "Max name")
-	assert.Equal(t, float64(25), m1.Value[0][1], "Sampled max as rate")
+	assert.Equal(t, float64(25), m1.Value, "Sampled max as rate")
 
 	count := metrics[2]
 	assert.Equal(t, "a.b.c.count", count.Name, "count name")
-	assert.Equal(t, float64(1), count.Value[0][1], "count value")
+	assert.Equal(t, float64(10), count.Value, "count value")
 }
 
 func TestHistoMerge(t *testing.T) {

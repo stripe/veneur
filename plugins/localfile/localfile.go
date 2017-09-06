@@ -26,7 +26,7 @@ type Plugin struct {
 const Delimiter = '\t'
 
 // Flush the metrics from the LocalFilePlugin
-func (p *Plugin) Flush(metrics []samplers.DDMetric, hostname string) error {
+func (p *Plugin) Flush(metrics []samplers.InterMetric, hostname string) error {
 	f, err := os.OpenFile(p.FilePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, os.ModePerm)
 	defer f.Close()
 
@@ -37,14 +37,14 @@ func (p *Plugin) Flush(metrics []samplers.DDMetric, hostname string) error {
 	return nil
 }
 
-func appendToWriter(appender io.Writer, metrics []samplers.DDMetric, hostname string) error {
+func appendToWriter(appender io.Writer, metrics []samplers.InterMetric, hostname string) error {
 	gzW := gzip.NewWriter(appender)
 	csvW := csv.NewWriter(gzW)
 	csvW.Comma = Delimiter
 
 	partitionDate := time.Now()
 	for _, metric := range metrics {
-		s3.EncodeDDMetricCSV(metric, csvW, &partitionDate, hostname)
+		s3.EncodeInterMetricCSV(metric, csvW, &partitionDate, hostname)
 	}
 	csvW.Flush()
 	gzW.Close()

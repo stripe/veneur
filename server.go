@@ -105,7 +105,8 @@ type Server struct {
 
 	HistogramAggregates samplers.HistogramAggregates
 
-	spanSinks []spanSink
+	spanSinks   []spanSink
+	metricSinks []metricSink
 
 	traceLightstepAccessToken string
 }
@@ -265,6 +266,13 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.TLSKey = REDACTED
 	log.WithField("config", conf).Debug("Initialized server")
 
+	ddSink, err := NewDatadogMetricSink(&conf, ret.HTTPClient, ret.Statsd)
+	if err != nil {
+		return
+	}
+
+	ret.metricSinks = append(ret.metricSinks, ddSink)
+
 	// Configure tracing workers and sinks
 	if len(conf.SsfAddress) > 0 && ret.tracingSinkEnabled() {
 
@@ -284,7 +292,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		}
 		trace.Enable()
 
-		// configure Datadog as sink
+		// configure Datadog as Span sink
 		if ret.DDTraceAddress != "" {
 
 			ddSink, err := NewDatadogSpanSink(&conf, ret.Statsd, ret.HTTPClient, ret.TagsAsMap)
@@ -296,7 +304,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			log.Info("Configured Datadog trace sink")
 		}
 
-		// configure Lightstep as Sink
+		// configure Lightstep as a Span sink
 		if ret.traceLightstepAccessToken != "" {
 
 			var lsSink spanSink

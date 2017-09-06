@@ -10,9 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"runtime"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -56,7 +53,7 @@ func (s *Server) FlushGlobal(ctx context.Context) {
 	ms.totalLength += ms.totalSets
 	ms.totalLength += ms.totalGlobalCounters
 
-	finalMetrics := s.generateDDMetrics(span.Attach(ctx), percentiles, tempMetrics, ms)
+	finalMetrics := s.generateInterMetrics(span.Attach(ctx), percentiles, tempMetrics, ms)
 
 	s.reportMetricsFlushCounts(ms)
 
@@ -75,7 +72,9 @@ func (s *Server) FlushGlobal(ctx context.Context) {
 		}
 	}()
 
-	s.flushRemote(span.Attach(ctx), finalMetrics)
+	// TODO Don't hardcode this
+	s.metricSinks[0].Flush(span.Attach(ctx), finalMetrics)
+	// s.flushRemote(span.Attach(ctx), finalMetrics)
 }
 
 // FlushLocal takes the slices of metrics, combines then and marshals them to json
@@ -93,7 +92,7 @@ func (s *Server) FlushLocal(ctx context.Context) {
 
 	tempMetrics, ms := s.tallyMetrics(percentiles)
 
-	finalMetrics := s.generateDDMetrics(span.Attach(ctx), percentiles, tempMetrics, ms)
+	finalMetrics := s.generateInterMetrics(span.Attach(ctx), percentiles, tempMetrics, ms)
 
 	s.reportMetricsFlushCounts(ms)
 
@@ -116,7 +115,8 @@ func (s *Server) FlushLocal(ctx context.Context) {
 		}
 	}()
 
-	s.flushRemote(span.Attach(ctx), finalMetrics)
+	// TODO Don't harcode this
+	s.metricSinks[0].Flush(span.Attach(ctx), finalMetrics)
 }
 
 type metricsSummary struct {
@@ -141,7 +141,7 @@ type metricsSummary struct {
 // for performance
 func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSummary) {
 	// allocating this long array to count up the sizes is cheaper than appending
-	// the []DDMetrics together one at a time
+	// the []WorkerMetrics together one at a time
 	tempMetrics := make([]WorkerMetrics, 0, len(s.Workers))
 
 	gatherStart := time.Now()
@@ -183,12 +183,12 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 // generateDDMetrics calls the Flush method on each
 // counter/gauge/histogram/timer/set in order to
 // generate a DDMetric corresponding to that value
-func (s *Server) generateDDMetrics(ctx context.Context, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.DDMetric {
+func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.InterMetric {
 
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 
-	finalMetrics := make([]samplers.DDMetric, 0, ms.totalLength)
+	finalMetrics := make([]samplers.InterMetric, 0, ms.totalLength)
 	for _, wm := range tempMetrics {
 		for _, c := range wm.counters {
 			finalMetrics = append(finalMetrics, c.Flush(s.interval)...)
@@ -237,7 +237,7 @@ func (s *Server) generateDDMetrics(ctx context.Context, percentiles []float64, t
 		}
 	}
 
-	finalizeMetrics(s.Hostname, s.Tags, finalMetrics)
+	// finalizeMetrics(s.Hostname, s.Tags, finalMetrics)
 	s.Statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(span.Start).Nanoseconds()), []string{"part:combine"}, 1.0)
 
 	return finalMetrics
@@ -272,83 +272,6 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalHistograms), []string{"metric_type:histogram"}, 1.0)
 	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalSets), []string{"metric_type:set"}, 1.0)
 	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalTimers), []string{"metric_type:timer"}, 1.0)
-}
-
-// flushRemote breaks up the final metrics into chunks
-// (to avoid hitting the size cap) and POSTs them to the remote API
-func (s *Server) flushRemote(ctx context.Context, finalMetrics []samplers.DDMetric) {
-	span, _ := trace.StartSpanFromContext(ctx, "")
-	defer span.Finish()
-
-	mem := &runtime.MemStats{}
-	runtime.ReadMemStats(mem)
-
-	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
-	s.Statsd.Gauge("gc.number", float64(mem.NumGC), nil, 1.0)
-	s.Statsd.Gauge("gc.pause_total_ns", float64(mem.PauseTotalNs), nil, 1.0)
-
-	s.Statsd.Gauge("flush.post_metrics_total", float64(len(finalMetrics)), nil, 1.0)
-	// Check to see if we have anything to do
-	if len(finalMetrics) == 0 {
-		log.Info("Nothing to flush, skipping.")
-		return
-	}
-
-	// break the metrics into chunks of approximately equal size, such that
-	// each chunk is less than the limit
-	// we compute the chunks using rounding-up integer division
-	workers := ((len(finalMetrics) - 1) / s.FlushMaxPerBody) + 1
-	chunkSize := ((len(finalMetrics) - 1) / workers) + 1
-	log.WithField("workers", workers).Debug("Worker count chosen")
-	log.WithField("chunkSize", chunkSize).Debug("Chunk size chosen")
-	var wg sync.WaitGroup
-	flushStart := time.Now()
-	for i := 0; i < workers; i++ {
-		chunk := finalMetrics[i*chunkSize:]
-		if i < workers-1 {
-			// trim to chunk size unless this is the last one
-			chunk = chunk[:chunkSize]
-		}
-		wg.Add(1)
-		go s.flushPart(span.Attach(ctx), chunk, &wg)
-	}
-	wg.Wait()
-	s.Statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(flushStart).Nanoseconds()), []string{"part:post"}, 1.0)
-
-	log.WithField("metrics", len(finalMetrics)).Info("Completed flush to Datadog")
-}
-
-func finalizeMetrics(hostname string, tags []string, finalMetrics []samplers.DDMetric) {
-	for i := range finalMetrics {
-		// Let's look for "magic tags" that override metric fields host and device.
-		for j, tag := range finalMetrics[i].Tags {
-			// This overrides hostname
-			if strings.HasPrefix(tag, "host:") {
-				// delete the tag from the list
-				finalMetrics[i].Tags = append(finalMetrics[i].Tags[:j], finalMetrics[i].Tags[j+1:]...)
-				// Override the hostname with the tag, trimming off the prefix
-				finalMetrics[i].Hostname = tag[5:]
-			} else if strings.HasPrefix(tag, "device:") {
-				// Same as above, but device this time
-				finalMetrics[i].Tags = append(finalMetrics[i].Tags[:j], finalMetrics[i].Tags[j+1:]...)
-				finalMetrics[i].DeviceName = tag[7:]
-			}
-		}
-		if finalMetrics[i].Hostname == "" {
-			// No magic tag, set the hostname
-			finalMetrics[i].Hostname = hostname
-		}
-
-		finalMetrics[i].Tags = append(finalMetrics[i].Tags, tags...)
-	}
-}
-
-// flushPart flushes a set of metrics to the remote API server
-func (s *Server) flushPart(ctx context.Context, metricSlice []samplers.DDMetric, wg *sync.WaitGroup) {
-	defer wg.Done()
-	postHelper(ctx, s.HTTPClient, s.Statsd, fmt.Sprintf("%s/api/v1/series?api_key=%s", s.DDHostname, s.DDAPIKey), map[string][]samplers.DDMetric{
-		"series": metricSlice,
-	}, "flush", true)
 }
 
 func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
