@@ -60,7 +60,7 @@ func main() {
 		logrus.WithError(e).Fatal("Could not initialize server")
 	}
 	defer func() {
-		veneur.ConsumePanic(server.Sentry, server.Statsd, server.Hostname, recover())
+		veneur.ConsumePanic(server.Sentry, server.Recorder, server.Hostname, recover())
 	}()
 	server.Start()
 
