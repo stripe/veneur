@@ -32,11 +32,17 @@ func TestTagNameSetNameNotSet(t *testing.T) {
 	buf, err := proto.Marshal(&sample)
 	assert.NoError(t, err, "Eror when marshalling sample")
 
-	newSample, metrics, errSSF := samplers.ParseSSF(buf)
-	assert.Equal(t, sample.Tags["name"], newSample.Name, "Name via Tag did not propogate")
-	assert.Zero(t, len(metrics))
-	assert.NoError(t, errSSF)
-	assert.Empty(t, newSample.Tags["name"])
+	msg, errSSF := samplers.ParseSSF(buf)
+	assert.NoError(t, err)
+	if assert.NotNil(t, msg) {
+		newSample, err := msg.TraceSpan()
+		assert.NoError(t, err)
+		if assert.NotNil(t, newSample) {
+			assert.Equal(t, sample.Tags["name"], newSample.Name, "Name via Tag did not propogate")
+			assert.NoError(t, errSSF)
+			assert.Empty(t, newSample.Tags["name"])
+		}
+	}
 }
 
 // Tests that setting a tag "Name" and span.Name won't change
@@ -51,11 +57,17 @@ func TestTagNameSetNameSet(t *testing.T) {
 	buf, err := proto.Marshal(&sample)
 	assert.NoError(t, err, "Error when marshalling sample")
 
-	newSample, metrics, errSSF := samplers.ParseSSF(buf)
-	assert.Equal(t, sample.Name, newSample.Name, "Name did not propogate")
-	assert.Zero(t, len(metrics))
-	assert.NoError(t, errSSF)
-	assert.NotEmpty(t, newSample.Tags["name"])
+	msg, errSSF := samplers.ParseSSF(buf)
+	assert.NoError(t, err)
+	if assert.NotNil(t, msg) {
+		newSample, err := msg.TraceSpan()
+		assert.NoError(t, err)
+		if assert.NotNil(t, newSample) {
+			assert.Equal(t, sample.Name, newSample.Name, "Name did not propogate")
+			assert.NoError(t, errSSF)
+			assert.NotEmpty(t, newSample.Tags["name"])
+		}
+	}
 }
 
 func TestNoTagName(t *testing.T) {
@@ -65,10 +77,16 @@ func TestNoTagName(t *testing.T) {
 	buf, err := proto.Marshal(&sample)
 	assert.NoError(t, err)
 
-	newSample, metrics, errSSF := samplers.ParseSSF(buf)
-	assert.Equal(t, sample.Name, newSample.Name, "Name did not propogate")
-	assert.Zero(t, len(metrics))
-	assert.NoError(t, errSSF)
+	msg, errSSF := samplers.ParseSSF(buf)
+	assert.NoError(t, err)
+	if assert.NotNil(t, msg) {
+		newSample, err := msg.TraceSpan()
+		assert.NoError(t, err)
+		if assert.NotNil(t, newSample) {
+			assert.Equal(t, sample.Name, newSample.Name, "Name did not propogate")
+			assert.NoError(t, errSSF)
+		}
+	}
 }
 
 func TestOperation(t *testing.T) {
@@ -80,8 +98,14 @@ func TestOperation(t *testing.T) {
 	packet, err := ioutil.ReadAll(pb)
 	assert.NoError(t, err)
 
-	sample, metrics, errSSF := samplers.ParseSSF(packet)
+	msg, errSSF := samplers.ParseSSF(packet)
 	assert.NoError(t, errSSF)
-	assert.Zero(t, len(metrics))
-	assert.NotNil(t, sample)
+	if assert.NotNil(t, msg) {
+		sample, errSSF := msg.TraceSpan()
+		assert.NoError(t, err)
+		if assert.NotNil(t, sample) {
+			assert.NoError(t, errSSF)
+			assert.NotNil(t, sample)
+		}
+	}
 }

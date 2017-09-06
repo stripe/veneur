@@ -37,13 +37,11 @@ func TestValidMetric(t *testing.T) {
 	metric.SampleRate = 0
 	m, _ = samplers.ParseMetricSSF(metric)
 	assert.False(t, samplers.ValidMetric(m))
-	assert.Equal(t, float32(1), m.SampleRate)
 }
 
 func TestValidTrace(t *testing.T) {
 	trace := &ssf.SSFSpan{}
 	assert.False(t, samplers.ValidTrace(trace))
-	assert.NotNil(t, trace.Tags)
 
 	trace.Id = 1
 	trace.TraceId = 1
@@ -54,12 +52,11 @@ func TestValidTrace(t *testing.T) {
 
 func TestParseSSFUnmarshal(t *testing.T) {
 	test := []byte{'0'}
-	sample, metrics, err := samplers.ParseSSF(test)
+	sample, err := samplers.ParseSSF(test)
 
 	assert.Nil(t, sample)
-	assert.Zero(t, len(metrics))
 	assert.NotNil(t, err)
-	assert.Equal(t, "unmarshal", err.Error())
+	assert.Error(t, err)
 }
 
 func TestParseSSFEmpty(t *testing.T) {
@@ -68,10 +65,8 @@ func TestParseSSFEmpty(t *testing.T) {
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)
 
-	sample, metrics, err := samplers.ParseSSF(buff)
-	assert.Nil(t, sample)
-	assert.Zero(t, len(metrics))
-	assert.Nil(t, err)
+	_, err = samplers.ParseSSF(buff)
+	assert.NoError(t, err)
 }
 
 func TestParseSSFValidTraceInvalidMetric(t *testing.T) {
@@ -84,11 +79,18 @@ func TestParseSSFValidTraceInvalidMetric(t *testing.T) {
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)
 
-	sample, metrics, err := samplers.ParseSSF(buff)
-	assert.NotNil(t, sample)
-	assert.Zero(t, len(metrics))
+	msg, err := samplers.ParseSSF(buff)
 	assert.Nil(t, err)
-	assert.NotNil(t, sample.Tags)
+	if assert.NotNil(t, msg) {
+		span, err := msg.TraceSpan()
+		assert.NoError(t, err)
+		assert.NotNil(t, span)
+		assert.NotNil(t, span.Tags)
+
+		metrics, err := msg.Metrics()
+		assert.NoError(t, err)
+		assert.Empty(t, metrics)
+	}
 }
 
 func TestParseSSFInvalidTraceValidMetric(t *testing.T) {
@@ -101,15 +103,22 @@ func TestParseSSFInvalidTraceValidMetric(t *testing.T) {
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)
 
-	sample, metrics, err := samplers.ParseSSF(buff)
-	assert.Nil(t, sample)
-	assert.Equal(t, 1, len(metrics))
-	assert.Nil(t, err)
+	msg, err := samplers.ParseSSF(buff)
+	assert.NoError(t, err)
+	if assert.NotNil(t, msg) {
+		metrics, err := msg.Metrics()
+		assert.NoError(t, err)
+		if assert.Equal(t, 1, len(metrics)) {
+			m := metrics[0]
+			assert.Equal(t, metric.Name, m.Name, "Name")
+			assert.Equal(t, float64(metric.Value), m.Value, "Value")
+			assert.Equal(t, "counter", m.Type, "Type")
+		}
 
-	m := metrics[0]
-	assert.Equal(t, metric.Name, m.Name, "Name")
-	assert.Equal(t, float64(metric.Value), m.Value, "Value")
-	assert.Equal(t, "counter", m.Type, "Type")
+		span, err := msg.TraceSpan()
+		assert.Equal(t, samplers.ErrInvalidTrace, err)
+		assert.Nil(t, span)
+	}
 }
 
 func TestParseSSFValid(t *testing.T) {
@@ -127,15 +136,18 @@ func TestParseSSFValid(t *testing.T) {
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)
 
-	sample, metrics, err := samplers.ParseSSF(buff)
-	assert.NotNil(t, sample)
-	assert.Equal(t, 1, len(metrics))
-	assert.Nil(t, err)
-
-	m := metrics[0]
-	assert.Equal(t, metric.Name, m.Name, "Name")
-	assert.Equal(t, float64(metric.Value), m.Value, "Value")
-	assert.Equal(t, "counter", m.Type, "Type")
+	msg, err := samplers.ParseSSF(buff)
+	assert.NoError(t, err)
+	if assert.NotNil(t, msg) {
+		metrics, err := msg.Metrics()
+		assert.NoError(t, err)
+		if assert.Equal(t, 1, len(metrics)) {
+			m := metrics[0]
+			assert.Equal(t, metric.Name, m.Name, "Name")
+			assert.Equal(t, float64(metric.Value), m.Value, "Value")
+			assert.Equal(t, "counter", m.Type, "Type")
+		}
+	}
 }
 
 func TestParseSSFBadMetric(t *testing.T) {
@@ -150,10 +162,17 @@ func TestParseSSFBadMetric(t *testing.T) {
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)
 
-	sample, metrics, err := samplers.ParseSSF(buff)
-	assert.Nil(t, sample)
-	assert.Equal(t, 0, len(metrics))
-	assert.Equal(t, "parse", err.Error())
+	msg, err := samplers.ParseSSF(buff)
+	assert.NoError(t, err)
+	if assert.NotNil(t, msg) {
+		metrics, err := msg.Metrics()
+		assert.Error(t, err)
+		assert.Equal(t, 0, len(metrics))
+		invalid, ok := err.(samplers.InvalidMetrics)
+		if assert.True(t, ok, "Error type incorrect: %v", err) {
+			assert.Equal(t, 1, len(invalid.Samples()))
+		}
+	}
 }
 
 func TestParserSSF(t *testing.T) {
@@ -438,13 +457,18 @@ func TestConsecutiveParseSSF(t *testing.T) {
 	buff2, err := proto.Marshal(otherSpan)
 	assert.Nil(t, err)
 
-	// Because ParseSSF reuses a buffer when parsing we want to ensure that
-	// subsequent calls properly reset and don't bleed into each other, so
-	// "parse" each and check.
-	span1, _, err := samplers.ParseSSF(buff1)
+	// Because ParseSSF reuses buffers via a Pool when parsing we
+	// want to ensure that subsequent calls properly reset and
+	// don't bleed into each other, so "parse" each and check.
+	msg, err := samplers.ParseSSF(buff1)
 	assert.Nil(t, err)
-	span2, _, err := samplers.ParseSSF(buff2)
+	msg2, err := samplers.ParseSSF(buff2)
 	assert.Nil(t, err)
+
+	span1, err := msg.TraceSpan()
+	assert.NoError(t, err)
+	span2, err := msg2.TraceSpan()
+	assert.NoError(t, err)
 
 	assert.Equal(t, int64(12345678), span1.Id)
 	assert.Equal(t, "bar", span1.Tags["foo"], "Tagful span has no tags!")
