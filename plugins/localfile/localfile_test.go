@@ -2,6 +2,7 @@ package localfile
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"testing"
 
@@ -37,7 +38,7 @@ func TestAppendToWriter(t *testing.T) {
 		},
 	}
 
-	err := appendToWriter(b, metrics, "globblestoots")
+	err := appendToWriter(b, metrics, "globblestoots", 10)
 	assert.NoError(t, err)
 	assert.NotEqual(t, b.Len(), 0)
 }
@@ -53,14 +54,14 @@ func TestHandlesErrorsInAppendToWriter(t *testing.T) {
 			Tags:       []string{"skepticism:high"},
 			MetricType: "gauge",
 		},
-	}, "globblestoots")
+	}, "globblestoots", 10)
 
 	assert.Error(t, err)
 }
 
 func TestWritesToDevNull(t *testing.T) {
-	plugin := Plugin{FilePath: "/dev/null", Logger: logrus.New()}
-	err := plugin.Flush([]samplers.InterMetric{
+	plugin := Plugin{FilePath: "/dev/null", Logger: logrus.New(), hostname: "globblestoots"}
+	err := plugin.Flush(context.TODO(), []samplers.InterMetric{
 		samplers.InterMetric{
 			Name:       "sketchy.metric",
 			Timestamp:  1476119058,
@@ -68,13 +69,13 @@ func TestWritesToDevNull(t *testing.T) {
 			Tags:       []string{"skepticism:high"},
 			MetricType: "gauge",
 		},
-	}, "globblestoots")
+	})
 	assert.NoError(t, err)
 }
 
 func TestFailsWritingToInvalidPath(t *testing.T) {
-	plugin := Plugin{FilePath: "", Logger: logrus.New()}
-	err := plugin.Flush([]samplers.InterMetric{
+	plugin := Plugin{FilePath: "", Logger: logrus.New(), hostname: "globblestoots"}
+	err := plugin.Flush(context.TODO(), []samplers.InterMetric{
 		samplers.InterMetric{
 			Name:       "sketchy.metric",
 			Timestamp:  1476119058,
@@ -82,6 +83,6 @@ func TestFailsWritingToInvalidPath(t *testing.T) {
 			Tags:       []string{"skepticism:high"},
 			MetricType: "gauge",
 		},
-	}, "globblestoots")
+	})
 	assert.Error(t, err)
 }

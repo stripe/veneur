@@ -35,7 +35,7 @@ func CSVTestCases() []CSVTestCase {
 					"baz:quz"},
 				MetricType: "gauge",
 			},
-			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\tgauge\tglobalstats\ttestbox-c3eac9\tfood\t0\t2016-10-10 05:04:18\t100\t%s\n", partition)),
+			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\tgauge\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
 		},
 		{
 			// Test that we are able to handle a missing field (DeviceName)
@@ -48,7 +48,7 @@ func CSVTestCases() []CSVTestCase {
 					"baz:quz"},
 				MetricType: "rate",
 			},
-			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\trate\tlocalhost\ttestbox-c3eac9\t\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
+			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\trate\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
 		},
 		{
 			// Test that we are able to handle tags which have tab characters in them
@@ -63,7 +63,7 @@ func CSVTestCases() []CSVTestCase {
 					"baz:quz"},
 				MetricType: "rate",
 			},
-			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t\"{foo:b\tar,baz:quz}\"\trate\tlocalhost\ttestbox-c3eac9\teniac\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
+			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t\"{foo:b\tar,baz:quz}\"\trate\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
 		},
 	}
 }
@@ -80,7 +80,7 @@ func TestEncodeCSV(t *testing.T) {
 			w.Comma = '\t'
 
 			tm := time.Now()
-			err := EncodeInterMetricCSV(tc.InterMetric, w, &tm, "testbox-c3eac9")
+			err := EncodeInterMetricCSV(tc.InterMetric, w, &tm, "testbox-c3eac9", 10)
 			assert.NoError(t, err)
 
 			// We need to flush or there won't actually be any data there

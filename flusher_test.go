@@ -16,10 +16,30 @@ import (
 	"github.com/stripe/veneur/samplers"
 )
 
+func TestDatadogRate(t *testing.T) {
+	ddSink := datadogMetricSink{
+		hostname: "somehostname",
+		tags:     []string{"a:b", "c:d"},
+		interval: 10,
+	}
+
+	metrics := []samplers.InterMetric{{
+		Name:       "foo.bar.baz",
+		Timestamp:  time.Now().Unix(),
+		Value:      float64(10),
+		Tags:       []string{"gorch:frobble", "x:e"},
+		MetricType: "counter",
+	}}
+	ddMetrics := ddSink.finalizeMetrics(metrics)
+	assert.Equal(t, "rate", ddMetrics[0].MetricType, "Metric type should be rate")
+	assert.Equal(t, float64(1.0), ddMetrics[0].Value[0][1], "Metric rate wasnt computed correctly")
+}
+
 func TestServerTags(t *testing.T) {
 	ddSink := datadogMetricSink{
 		hostname: "somehostname",
 		tags:     []string{"a:b", "c:d"},
+		interval: 10,
 	}
 
 	metrics := []samplers.InterMetric{{
@@ -32,7 +52,7 @@ func TestServerTags(t *testing.T) {
 
 	ddMetrics := ddSink.finalizeMetrics(metrics)
 	assert.Equal(t, "somehostname", ddMetrics[0].Hostname, "Metric hostname uses argument")
-	assert.Contains(t, metrics[0].Tags, "a:b", "Tags should contain server tags")
+	assert.Contains(t, ddMetrics[0].Tags, "a:b", "Tags should contain server tags")
 }
 
 func TestHostMagicTag(t *testing.T) {
@@ -150,8 +170,6 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 
 	server.spanSinks = append(server.spanSinks, ddSink)
 
-	assert.Equal(t, server.DDTraceAddress, config.DatadogTraceAPIAddress)
-
 	packet, err := ioutil.ReadAll(protobuf)
 	assert.NoError(t, err)
 
@@ -183,8 +201,6 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 
 	lsSink, err := NewLightStepSpanSink(&config, server.Statsd, server.TagsAsMap)
 	server.spanSinks = append(server.spanSinks, lsSink)
-
-	assert.Equal(t, server.DDTraceAddress, config.DatadogTraceAPIAddress)
 
 	packet, err := ioutil.ReadAll(protobuf)
 	assert.NoError(t, err)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/csv"
@@ -12,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 
 	"math/rand"
 	"net"
@@ -182,7 +184,7 @@ func setupVeneurServer(t *testing.T, config Config, transport http.RoundTripper)
 // for sending metrics data to Datadog
 // Eventually we'll want to define this symmetrically.
 type DDMetricsRequest struct {
-	Series DDMetric
+	Series []DDMetric
 }
 
 // fixture sets up a mock Datadog API server and Veneur
@@ -444,11 +446,11 @@ func checkBufferSplit(t *testing.T, buf []byte) {
 type dummyPlugin struct {
 	logger *logrus.Logger
 	statsd *statsd.Client
-	flush  func([]samplers.DDMetric, string) error
+	flush  func(context.Context, []samplers.InterMetric) error
 }
 
-func (dp *dummyPlugin) Flush(metrics []samplers.DDMetric, hostname string) error {
-	return dp.flush(metrics, hostname)
+func (dp *dummyPlugin) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+	return dp.flush(ctx, metrics)
 }
 
 func (dp *dummyPlugin) Name() string {
@@ -478,13 +480,11 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 
 	dp := &dummyPlugin{logger: log, statsd: f.server.Statsd}
 
-	dp.flush = func(metrics []samplers.DDMetric, hostname string) error {
+	dp.flush = func(ctx context.Context, metrics []samplers.InterMetric) error {
 		assert.Equal(t, len(expectedMetrics), len(metrics))
 
 		firstName := metrics[0].Name
-		assert.Equal(t, expectedMetrics[firstName], metrics[0].Value[0][1])
-
-		assert.Equal(t, hostname, f.server.Hostname)
+		assert.Equal(t, expectedMetrics[firstName], metrics[0].Value)
 
 		RemoteResponseChan <- struct{}{}
 		return nil
@@ -1004,13 +1004,14 @@ func TestNewFromServerConfigRenamedVariables(t *testing.T) {
 		Interval:     "10s",
 		StatsAddress: "localhost:62251",
 	}
-	s, err := NewFromConfig(config)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ddSink := NewDatadogMetricSink(config, float64(10.0), http.Client{}, statsd.NewBuffered(conf.StatsAddress, 1024))
+	// s, err := NewFromConfig(config)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
 
-	assert.Equal(t, "apikey", s.DDAPIKey)
-	assert.Equal(t, "http://api", s.DDHostname)
+	assert.Equal(t, "apikey", ddSink.apiKey)
+	assert.Equal(t, "http://api", ddSink.ddHostname)
 	assert.Equal(t, "http://trace", s.DDTraceAddress)
 	assert.True(t, s.TraceAddr.IP.IsLoopback(), "TraceAddr should be loopback")
 	assert.Equal(t, 99, s.TraceAddr.Port)

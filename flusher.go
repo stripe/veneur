@@ -41,8 +41,12 @@ func (s *Server) FlushGlobal(ctx context.Context) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 
-	go s.flushEventsChecks(span.Attach(ctx)) // we can do all of this separately
-	go s.flushTraces(span.Attach(ctx))       // this too!
+	events, checks := s.EventWorker.Flush()
+	s.Statsd.Count("worker.events_flushed_total", int64(len(events)), nil, 1.0)
+	s.Statsd.Count("worker.checks_flushed_total", int64(len(checks)), nil, 1.0)
+
+	go s.metricSinks[0].FlushEventsChecks(span.Attach(ctx), events, checks) // we can do all of this separately
+	go s.flushTraces(span.Attach(ctx))                                      // this too!
 
 	percentiles := s.HistogramPercentiles
 
@@ -62,7 +66,7 @@ func (s *Server) FlushGlobal(ctx context.Context) {
 	go func() {
 		for _, p := range s.getPlugins() {
 			start := time.Now()
-			err := p.Flush(finalMetrics, s.Hostname)
+			err := p.Flush(context.TODO(), finalMetrics)
 			s.Statsd.TimeInMilliseconds(fmt.Sprintf("flush.plugins.%s.total_duration_ns", p.Name()), float64(time.Since(start).Nanoseconds()), []string{"part:post"}, 1.0)
 			if err != nil {
 				countName := fmt.Sprintf("flush.plugins.%s.error_total", p.Name())
@@ -83,8 +87,12 @@ func (s *Server) FlushLocal(ctx context.Context) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
 
-	go s.flushEventsChecks(span.Attach(ctx)) // we can do all of this separately
-	go s.flushTraces(span.Attach(ctx))       // this too!
+	events, checks := s.EventWorker.Flush()
+	s.Statsd.Count("worker.events_flushed_total", int64(len(events)), nil, 1.0)
+	s.Statsd.Count("worker.checks_flushed_total", int64(len(checks)), nil, 1.0)
+
+	go s.metricSinks[0].FlushEventsChecks(span.Attach(ctx), events, checks) // we can do all of this separately
+	go s.flushTraces(span.Attach(ctx))                                      // this too!
 
 	// don't publish percentiles if we're a local veneur; that's the global
 	// veneur's job
@@ -105,7 +113,7 @@ func (s *Server) FlushLocal(ctx context.Context) {
 	go func() {
 		for _, p := range s.getPlugins() {
 			start := time.Now()
-			err := p.Flush(finalMetrics, s.Hostname)
+			err := p.Flush(context.TODO(), finalMetrics)
 			s.Statsd.TimeInMilliseconds(fmt.Sprintf("flush.plugins.%s.total_duration_ns", p.Name()), float64(time.Since(start).Nanoseconds()), []string{"part:post"}, 1.0)
 			if err != nil {
 				countName := fmt.Sprintf("flush.plugins.%s.error_total", p.Name())
@@ -401,62 +409,6 @@ func (s *Server) flushTraces(ctx context.Context) {
 	}
 
 	s.SpanWorker.Flush()
-}
-
-func (s *Server) flushEventsChecks(ctx context.Context) {
-	span, _ := trace.StartSpanFromContext(ctx, "")
-	defer span.Finish()
-
-	events, checks := s.EventWorker.Flush()
-	s.Statsd.Count("worker.events_flushed_total", int64(len(events)), nil, 1.0)
-	s.Statsd.Count("worker.checks_flushed_total", int64(len(checks)), nil, 1.0)
-
-	// fill in the default hostname for packets that didn't set it
-	for i := range events {
-		if events[i].Hostname == "" {
-			events[i].Hostname = s.Hostname
-		}
-		events[i].Tags = append(events[i].Tags, s.Tags...)
-	}
-	for i := range checks {
-		if checks[i].Hostname == "" {
-			checks[i].Hostname = s.Hostname
-		}
-		checks[i].Tags = append(checks[i].Tags, s.Tags...)
-	}
-
-	if len(events) != 0 {
-		// this endpoint is not documented at all, its existence is only known from
-		// the official dd-agent
-		// we don't actually pass all the body keys that dd-agent passes here... but
-		// it still works
-		err := postHelper(context.TODO(), s.HTTPClient, s.Statsd, fmt.Sprintf("%s/intake?api_key=%s", s.DDHostname, s.DDAPIKey), map[string]map[string][]samplers.UDPEvent{
-			"events": {
-				"api": events,
-			},
-		}, "flush_events", true)
-		if err == nil {
-			log.WithField("events", len(events)).Info("Completed flushing events to Datadog")
-		} else {
-			log.WithFields(logrus.Fields{
-				"events":        len(events),
-				logrus.ErrorKey: err}).Warn("Error flushing events to Datadog")
-		}
-	}
-
-	if len(checks) != 0 {
-		// this endpoint is not documented to take an array... but it does
-		// another curious constraint of this endpoint is that it does not
-		// support "Content-Encoding: deflate"
-		err := postHelper(context.TODO(), s.HTTPClient, s.Statsd, fmt.Sprintf("%s/api/v1/check_run?api_key=%s", s.DDHostname, s.DDAPIKey), checks, "flush_checks", false)
-		if err == nil {
-			log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
-		} else {
-			log.WithFields(logrus.Fields{
-				"checks":        len(checks),
-				logrus.ErrorKey: err}).Warn("Error flushing checks to Datadog")
-		}
-	}
 }
 
 // shared code for POSTing to an endpoint, that consumes JSON, that is zlib-

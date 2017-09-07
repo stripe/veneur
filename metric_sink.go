@@ -1,14 +1,9 @@
 package veneur
 
 import (
-	"bytes"
-	"compress/zlib"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -22,15 +17,19 @@ import (
 type metricSink interface {
 	Name() string
 	Flush(context.Context, []samplers.InterMetric) error
+	// This one is temporary
+	FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck)
 }
 
 type datadogMetricSink struct {
 	HTTPClient      *http.Client
+	ddHostname      string
 	hostname        string
 	apiKey          string
 	flushMaxPerBody int
 	statsd          *statsd.Client
 	tags            []string
+	interval        float64
 }
 
 // DDMetric is a data structure that represents the JSON that Datadog
@@ -46,10 +45,14 @@ type DDMetric struct {
 }
 
 // NewDatadogMetricSink creates a new Datadog sink for trace spans.
-func NewDatadogMetricSink(config *Config, httpClient *http.Client, stats *statsd.Client) (*datadogMetricSink, error) {
+func NewDatadogMetricSink(config *Config, interval float64, httpClient *http.Client, stats *statsd.Client) (*datadogMetricSink, error) {
 	return &datadogMetricSink{
-		HTTPClient: httpClient,
-		statsd:     stats,
+		HTTPClient:      httpClient,
+		statsd:          stats,
+		interval:        interval,
+		flushMaxPerBody: config.FlushMaxPerBody,
+		ddHostname:      config.DatadogAPIHostname,
+		apiKey:          config.DatadogAPIKey,
 	}, nil
 }
 
@@ -87,19 +90,81 @@ func (dd *datadogMetricSink) Flush(ctx context.Context, metrics []samplers.Inter
 	return nil
 }
 
+func (dd *datadogMetricSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	defer span.Finish()
+
+	// fill in the default hostname for packets that didn't set it
+	for i := range events {
+		if events[i].Hostname == "" {
+			events[i].Hostname = dd.hostname
+		}
+		events[i].Tags = append(events[i].Tags, dd.tags...)
+	}
+	for i := range checks {
+		if checks[i].Hostname == "" {
+			checks[i].Hostname = dd.hostname
+		}
+		checks[i].Tags = append(checks[i].Tags, dd.tags...)
+	}
+
+	if len(events) != 0 {
+		// this endpoint is not documented at all, its existence is only known from
+		// the official dd-agent
+		// we don't actually pass all the body keys that dd-agent passes here... but
+		// it still works
+		err := postHelper(context.TODO(), dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/intake?api_key=%s"), map[string]map[string][]samplers.UDPEvent{
+			"events": {
+				"api": events,
+			},
+		}, "flush_events", true)
+		if err == nil {
+			log.WithField("events", len(events)).Info("Completed flushing events to Datadog")
+		} else {
+			log.WithFields(logrus.Fields{
+				"events":        len(events),
+				logrus.ErrorKey: err}).Warn("Error flushing events to Datadog")
+		}
+	}
+
+	if len(checks) != 0 {
+		// this endpoint is not documented to take an array... but it does
+		// another curious constraint of this endpoint is that it does not
+		// support "Content-Encoding: deflate"
+		err := postHelper(context.TODO(), dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/api/v1/check_run?api_key=%s"), checks, "flush_checks", false)
+		if err == nil {
+			log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
+		} else {
+			log.WithFields(logrus.Fields{
+				"checks":        len(checks),
+				logrus.ErrorKey: err}).Warn("Error flushing checks to Datadog")
+		}
+	}
+}
+
 func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []DDMetric {
 	ddMetrics := make([]DDMetric, len(metrics))
-
-	for _, m := range metrics {
+	for i, m := range metrics {
+		// Defensively copy tags since we're gonna mutate it
+		tags := make([]string, len(dd.tags))
+		copy(tags, dd.tags)
+		metricType := m.MetricType
+		value := m.Value
+		// We convert Datadog counters into rates
+		if m.MetricType == "counter" {
+			metricType = "rate"
+			value = m.Value / dd.interval
+		}
 		ddMetric := DDMetric{
 			Name: m.Name,
 			Value: [1][2]float64{
 				[2]float64{
-					float64(m.Timestamp), m.Value,
+					float64(m.Timestamp), value,
 				},
 			},
-			Tags:       dd.tags,
-			MetricType: m.MetricType,
+			Tags:       tags,
+			MetricType: metricType,
+			Interval:   int32(dd.interval),
 		}
 
 		// Let's look for "magic tags" that override metric fields host and device.
@@ -120,6 +185,7 @@ func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []D
 			// No magic tag, set the hostname
 			ddMetric.Hostname = dd.hostname
 		}
+		ddMetrics[i] = ddMetric
 	}
 
 	return ddMetrics
@@ -127,116 +193,7 @@ func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []D
 
 func (dd *datadogMetricSink) flushPart(ctx context.Context, metricSlice []samplers.InterMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
-	dd.postHelper(ctx, dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.hostname, dd.apiKey), map[string][]samplers.InterMetric{
+	postHelper(ctx, dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/api/v1/series?api_key=%s"), map[string][]samplers.InterMetric{
 		"series": metricSlice,
 	}, "flush", true)
-}
-
-// shared code for POSTing to an endpoint, that consumes JSON, that is zlib-
-// compressed, that returns 202 on success, that has a small response
-// action is a string used for statsd metric names and log messages emitted from
-// this function - probably a static string for each callsite
-// you can disable compression with compress=false for endpoints that don't
-// support it
-func (dd *datadogMetricSink) postHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Client, endpoint string, bodyObject interface{}, action string, compress bool) error {
-	span, _ := trace.StartSpanFromContext(ctx, "")
-	span.SetTag("action", action)
-	defer span.Finish()
-
-	// attach this field to all the logs we generate
-	innerLogger := log.WithField("action", action)
-
-	marshalStart := time.Now()
-	var (
-		bodyBuffer bytes.Buffer
-		encoder    *json.Encoder
-		compressor *zlib.Writer
-	)
-	if compress {
-		compressor = zlib.NewWriter(&bodyBuffer)
-		encoder = json.NewEncoder(compressor)
-	} else {
-		encoder = json.NewEncoder(&bodyBuffer)
-	}
-	if err := encoder.Encode(bodyObject); err != nil {
-		stats.Count(action+".error_total", 1, []string{"cause:json"}, 1.0)
-		innerLogger.WithError(err).Error("Could not render JSON")
-		return err
-	}
-	if compress {
-		// don't forget to flush leftover compressed bytes to the buffer
-		if err := compressor.Close(); err != nil {
-			stats.Count(action+".error_total", 1, []string{"cause:compress"}, 1.0)
-			innerLogger.WithError(err).Error("Could not finalize compression")
-			return err
-		}
-	}
-	stats.TimeInMilliseconds(action+".duration_ns", float64(time.Since(marshalStart).Nanoseconds()), []string{"part:json"}, 1.0)
-
-	// Len reports the unread length, so we have to record this before the
-	// http client consumes it
-	bodyLength := bodyBuffer.Len()
-	stats.Histogram(action+".content_length_bytes", float64(bodyLength), nil, 1.0)
-
-	req, err := http.NewRequest(http.MethodPost, endpoint, &bodyBuffer)
-
-	if err != nil {
-		stats.Count(action+".error_total", 1, []string{"cause:construct"}, 1.0)
-		innerLogger.WithError(err).Error("Could not construct request")
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if compress {
-		req.Header.Set("Content-Encoding", "deflate")
-	}
-	// we only make http requests at flush time, so keepalive is not a big win
-	req.Close = true
-
-	err = tracer.InjectRequest(span.Trace, req)
-	if err != nil {
-		stats.Count("veneur.opentracing.flush.inject.errors", 1, nil, 1.0)
-		innerLogger.WithError(err).Error("Error injecting header")
-	}
-
-	requestStart := time.Now()
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		if urlErr, ok := err.(*url.Error); ok {
-			// if the error has the url in it, then retrieve the inner error
-			// and ditch the url (which might contain secrets)
-			err = urlErr.Err
-		}
-		stats.Count(action+".error_total", 1, []string{"cause:io"}, 1.0)
-		innerLogger.WithError(err).Error("Could not execute request")
-		return err
-	}
-	stats.TimeInMilliseconds(action+".duration_ns", float64(time.Since(requestStart).Nanoseconds()), []string{"part:post"}, 1.0)
-	defer resp.Body.Close()
-
-	responseBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		// this error is not fatal, since we only need the body for reporting
-		// purposes
-		stats.Count(action+".error_total", 1, []string{"cause:readresponse"}, 1.0)
-		innerLogger.WithError(err).Error("Could not read response body")
-	}
-	resultLogger := innerLogger.WithFields(logrus.Fields{
-		"endpoint":         endpoint,
-		"request_length":   bodyLength,
-		"request_headers":  req.Header,
-		"status":           resp.Status,
-		"response_headers": resp.Header,
-		"response":         string(responseBody),
-	})
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		stats.Count(action+".error_total", 1, []string{fmt.Sprintf("cause:%d", resp.StatusCode)}, 1.0)
-		resultLogger.Error("Could not POST")
-		return err
-	}
-
-	// make sure the error metric isn't sparse
-	stats.Count(action+".error_total", 0, nil, 1.0)
-	resultLogger.Debug("POSTed successfully")
-	return nil
 }

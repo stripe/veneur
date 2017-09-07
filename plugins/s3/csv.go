@@ -22,13 +22,9 @@ const (
 	TsvTags
 	TsvMetricType
 
-	// The hostName attached to the metric
-	TsvHostname
-
 	// The hostName of the server flushing the data
 	TsvVeneurHostname
 
-	TsvDeviceName
 	TsvInterval
 
 	TsvTimestamp
@@ -44,8 +40,6 @@ var tsvSchema = [...]string{
 	TsvName:           "Name",
 	TsvTags:           "Tags",
 	TsvMetricType:     "MetricType",
-	TsvHostname:       "Hostname",
-	TsvDeviceName:     "DeviceName",
 	TsvInterval:       "Interval",
 	TsvVeneurHostname: "VeneurHostname",
 	TsvTimestamp:      "Timestamp",
@@ -58,7 +52,7 @@ var tsvSchema = [...]string{
 // The caller is responsible for setting w.Comma as the appropriate delimiter.
 // For performance, encodeCSV does not flush after every call; the caller is
 // expected to flush at the end of the operation cycle
-func EncodeInterMetricCSV(d samplers.InterMetric, w *csv.Writer, partitionDate *time.Time, hostName string) error {
+func EncodeInterMetricCSV(d samplers.InterMetric, w *csv.Writer, partitionDate *time.Time, hostName string, interval int) error {
 
 	value := strconv.FormatFloat(d.Value, 'f', -1, 64)
 	// interval := strconv.Itoa(int(d.Interval))
@@ -70,13 +64,10 @@ func EncodeInterMetricCSV(d samplers.InterMetric, w *csv.Writer, partitionDate *
 	fields := [...]string{
 		// the order here doesn't actually matter
 		// as long as the keys are right
-		TsvName:       d.Name,
-		TsvTags:       tags,
-		TsvMetricType: d.MetricType,
-		// FIXME: What to do here?
-		// TsvHostname:       d.Hostname, // FIXME:
-		// TsvDeviceName:     d.DeviceName,
-		// TsvInterval:       interval,
+		TsvName:           d.Name,
+		TsvTags:           tags,
+		TsvMetricType:     d.MetricType,
+		TsvInterval:       strconv.Itoa(interval),
 		TsvVeneurHostname: hostName,
 		TsvValue:          value,
 

@@ -2,6 +2,7 @@ package influxdb
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -58,7 +59,7 @@ func NewInfluxDBPlugin(logger *logrus.Logger, addr string, consistency string, d
 }
 
 // Flush sends a slice of metrics to InfluxDB
-func (p *InfluxDBPlugin) Flush(metrics []samplers.InterMetric, hostname string) error {
+func (p *InfluxDBPlugin) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
 	p.Statsd.Gauge("flush.post_metrics_total", float64(len(metrics)), nil, 1.0)
 	// Check to see if we have anything to do
 	if len(metrics) == 0 {
