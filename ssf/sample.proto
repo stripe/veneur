@@ -32,6 +32,33 @@ message SSFSample {
   string unit = 9;
 }
 
+// SSFSpan is the primary unit of reporting in SSF. It embeds a set of
+// SSFSamples, as well as start/stop time stamps and a parent ID
+// (which allows assembling a span lineage for distributed tracing
+// purposes).
+//
+// Note that since this is protobuf, an SSFSpan does not *have* to
+// include metrics, just as it does not *have* to include information
+// necessary to reconstruct a trace.
+//
+// Compatibility
+//
+// On ingestion, an SSFSpan with an empty string for a name field but
+// a tag "name" will have that name field replaced with the name tag,
+// and the tag is removed.
+//
+// Metric SSFSamples with a zero sample_rate (indicating it was left
+// out) have the sample_rate field set to 1 on ingestion.
+//
+// Validity Criteria
+//
+// Programs consuming SSFSpans should take care to only process spans
+// and metrics that fulfill the following criteria:
+//
+// Metrics are considered valid if they have a name and a value.
+//
+// SSFSpans are considered valid trace spans if they have non-zero id,
+// trace_id, start_timestamp and end_timestamp fields.
 message SSFSpan {
   reserved 9;
 
@@ -40,8 +67,8 @@ message SSFSpan {
   int64 trace_id = 2;
   // the id for this span
   int64 id = 3;
-  // the (span) id of the direct parent,
-  // if this span is not a root span
+  // the (span) id of the direct parent, if this span is not a root
+  // span
   int64 parent_id = 4;
 
   int64 start_timestamp = 5;

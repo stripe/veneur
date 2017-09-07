@@ -170,14 +170,41 @@ func (m *SSFSample) GetUnit() string {
 	return ""
 }
 
+// SSFSpan is the primary unit of reporting in SSF. It embeds a set of
+// SSFSamples, as well as start/stop time stamps and a parent ID
+// (which allows assembling a span lineage for distributed tracing
+// purposes).
+//
+// Note that since this is protobuf, an SSFSpan does not *have* to
+// include metrics, just as it does not *have* to include information
+// necessary to reconstruct a trace.
+//
+// Compatibility
+//
+// On ingestion, an SSFSpan with an empty string for a name field but
+// a tag "name" will have that name field replaced with the name tag,
+// and the tag is removed.
+//
+// Metric SSFSamples with a zero sample_rate (indicating it was left
+// out) have the sample_rate field set to 1 on ingestion.
+//
+// Validity Criteria
+//
+// Programs consuming SSFSpans should take care to only process spans
+// and metrics that fulfill the following criteria:
+//
+// Metrics are considered valid if they have a name and a value.
+//
+// SSFSpans are considered valid trace spans if they have non-zero id,
+// trace_id, start_timestamp and end_timestamp fields.
 type SSFSpan struct {
 	Version int32 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
 	// the trace_id is the (span) id of the root span
 	TraceId int64 `protobuf:"varint,2,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
 	// the id for this span
 	Id int64 `protobuf:"varint,3,opt,name=id,proto3" json:"id,omitempty"`
-	// the (span) id of the direct parent,
-	// if this span is not a root span
+	// the (span) id of the direct parent, if this span is not a root
+	// span
 	ParentId       int64 `protobuf:"varint,4,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
 	StartTimestamp int64 `protobuf:"varint,5,opt,name=start_timestamp,json=startTimestamp,proto3" json:"start_timestamp,omitempty"`
 	EndTimestamp   int64 `protobuf:"varint,6,opt,name=end_timestamp,json=endTimestamp,proto3" json:"end_timestamp,omitempty"`
