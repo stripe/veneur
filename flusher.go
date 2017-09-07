@@ -425,6 +425,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 			jsonMetrics = append(jsonMetrics, jm)
 		}
 	}
+	// TODO (kiran) export the cardinalityCount.ExportSets()
 	s.Statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(exportStart).Nanoseconds()), []string{"part:export"}, 1.0)
 
 	s.Statsd.Gauge("forward.post_metrics_total", float64(len(jsonMetrics)), nil, 1.0)

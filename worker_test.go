@@ -11,7 +11,7 @@ import (
 )
 
 func TestWorker(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New())
+	w := NewWorker(1, nil, log)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -52,7 +52,7 @@ func TestWorkerLocal(t *testing.T) {
 }
 
 func TestWorkerImportSet(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New())
+	w := NewWorker(1, nil, log)
 	testset := samplers.NewSet("a.b.c", nil)
 	testset.Sample("foo", 1.0)
 	testset.Sample("bar", 1.0)
@@ -82,7 +82,7 @@ func TestWorkerImportHistogram(t *testing.T) {
 }
 
 func TestWorkerImportCardinality(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New())
+	w := NewWorker(1, nil, log)
 
 	cc := samplers.NewCardinalityCount()
 	for i := 0; i < 100; i++ {

@@ -6,7 +6,6 @@ import (
 	"encoding/gob"
 	"fmt"
 	"hash/fnv"
-	"log"
 	"math"
 	"strings"
 	"time"
@@ -74,8 +73,17 @@ type JSONMetric struct {
 	Value []byte `json:"value"`
 }
 
+// CardinalityCountName is the name of the metric that we eventually pass on
+// to the sinks.
 const CardinalityCountName = "cardinality.count"
+
+// CardinalityCountType is the string that denotes the type of the metric. We
+// use this when we serialize to a JSON metric.
 const CardinalityCountType = "cardinality_count"
+
+// cardinalityPrecision is the precision of the HLL that stores cardinality for
+// each metric name.
+const cardinalityPrecision = 18
 
 // CardinalityCount is a sampler that records an approximate cardinality count
 // by metric name.
@@ -92,7 +100,7 @@ func NewCardinalityCount() *CardinalityCount {
 // is unique across all types)
 func (cc *CardinalityCount) Sample(name string, joinedTags string) {
 	if _, present := cc.MetricCardinality[name]; !present {
-		hll, _ := hyperloglog.NewPlus(18)
+		hll, _ := hyperloglog.NewPlus(cardinalityPrecision)
 		cc.MetricCardinality[name] = hll
 	}
 	hasher := fnv.New64a()
@@ -100,19 +108,41 @@ func (cc *CardinalityCount) Sample(name string, joinedTags string) {
 	cc.MetricCardinality[name].Add(hasher)
 }
 
-// Export groups the CardinalityCount struct into sub structs, grouped by what
-// their metric consistently hashes to
+// defin a custom error type here
+type CardinalityExportError struct {
+	metricNames   []string
+	errorMessages []string
+}
+
+func (e *CardinalityExportError) Error() string {
+	return "oh no"
+}
+
+// an array of names
+// an arr of the actual error message
+
+// ExportSets breaks apart the CardinalityCount into individual JSON metrics
+// by metric name.
 func (cc *CardinalityCount) ExportSets() ([]JSONMetric, error) {
 	jsonMetrics := make([]JSONMetric, 0, len(cc.MetricCardinality))
+
 	for metricName, hll := range cc.MetricCardinality {
 
-		buf := new(bytes.Buffer)
+		buf := &bytes.Buffer{}
 		encoder := gob.NewEncoder(buf)
+
+		var expErrs *CardinalityExportError
 
 		err := encoder.Encode(map[string]*hyperloglog.HyperLogLogPlus{metricName: hll})
 		if err != nil {
-			// TODO (kiran): do we return an array of metrics, instead?
-			log.Printf("failed to export cardinality count for metric name:%s, error:%v", metricName, err)
+			if expErrs == nil {
+				expErrs = &CardinalityExportError{
+					metricNames:   make([]string, 0),
+					errorMessages: make([]string, 0),
+				}
+				expErrs.metricNames = append(expErrs.metricNames, metricName)
+				expErrs.errorMessages = append(expErrs.errorMessages, err.Error())
+			}
 		}
 
 		jm := JSONMetric{
@@ -126,11 +156,10 @@ func (cc *CardinalityCount) ExportSets() ([]JSONMetric, error) {
 		}
 		jsonMetrics = append(jsonMetrics, jm)
 	}
-	// TODO (kiran): do we return an array of metrics, instead?
 	return jsonMetrics, nil
 }
 
-// Combine merges cardinality count structs exported from locals
+// Combine merges the cardinality count structs exported from locals.
 func (cc *CardinalityCount) Combine(other []byte) error {
 	var decodedMap map[string]*hyperloglog.HyperLogLogPlus
 	buf := bytes.NewReader(other)
@@ -138,7 +167,7 @@ func (cc *CardinalityCount) Combine(other []byte) error {
 
 	err := decoder.Decode(&decodedMap)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	otherCC := CardinalityCount{
