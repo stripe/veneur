@@ -79,10 +79,3 @@ message SSFSpan {
   // (foo middleware) or whatever makes sense in your context.
   string name = 13;
 }
-
-// A span collection allows clients to send a batch of spans rather than just one. Note that
-// these spans may have nothing in common. This is merely a convenience to save clients — and
-// servers — having to (un)marshal each span separately.
-message SSFSpanCollection {
-  repeated SSFSpan spans = 1;
-}
