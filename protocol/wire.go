@@ -62,30 +62,30 @@ func readFrame(in io.Reader, length int) ([]byte, error) {
 	}
 }
 
-// ReadSSF reads a framed SSF span from a stream and returns a
-// validated SSFSpan structure and a set of statsd metrics.
+// ReadSSF reads a framed SSF span from a stream and returns a parsed
+// SSFSpan structure and a set of statsd metrics.
 //
 // If this function returns an error, client code must check it with
 // IsFramingError to decide if the error means the stream is
 // unrecoverably broken.
-func ReadSSF(in io.Reader) (*ssf.SSFSpan, []*samplers.UDPMetric, error) {
+func ReadSSF(in io.Reader) (*ssf.SSFSpan, error) {
 	var version uint8
 	var length uint32
 	if err := binary.Read(in, binary.BigEndian, &version); err != nil {
-		return nil, nil, &errFramingIO{err}
+		return nil, &errFramingIO{err}
 	}
 	if version != version0 {
-		return nil, nil, &errFrameVersion{version}
+		return nil, &errFrameVersion{version}
 	}
 	if err := binary.Read(in, binary.BigEndian, &length); err != nil {
-		return nil, nil, &errFramingIO{err}
+		return nil, &errFramingIO{err}
 	}
 	if length > MaxSSFPacketLength {
-		return nil, nil, &errFrameLength{length}
+		return nil, &errFrameLength{length}
 	}
 	bts, err := readFrame(in, int(length))
 	if err != nil {
-		return nil, nil, &errFramingIO{err}
+		return nil, &errFramingIO{err}
 	}
 	return samplers.ParseSSF(bts)
 }
