@@ -1,6 +1,8 @@
 package veneur
 
 import (
+	"math/rand"
+	"strconv"
 	"testing"
 
 	"github.com/Sirupsen/logrus"
@@ -77,4 +79,26 @@ func TestWorkerImportHistogram(t *testing.T) {
 
 	wm := w.Flush()
 	assert.Len(t, wm.histograms, 1, "number of flushed histograms")
+}
+
+func TestWorkerImportCardinality(t *testing.T) {
+	w := NewWorker(1, nil, logrus.New())
+
+	cc := samplers.NewCardinalityCount()
+	for i := 0; i < 100; i++ {
+		cc.Sample("abc", strconv.Itoa(rand.Int()))
+	}
+	for i := 0; i < 150; i++ {
+		cc.Sample("cde", strconv.Itoa(rand.Int()))
+	}
+
+	jsonMetrics, err := cc.ExportSets()
+	assert.NoError(t, err, "should have exported successfully")
+
+	for _, jm := range jsonMetrics {
+		w.ImportMetric(jm)
+	}
+
+	wm := w.Flush()
+	assert.Len(t, wm.cardinality.MetricCardinality, 2, "number of flushed outputs")
 }

@@ -74,6 +74,9 @@ type JSONMetric struct {
 	Value []byte `json:"value"`
 }
 
+const CardinalityCountName = "cardinality.count"
+const CardinalityCountType = "cardinality_count"
+
 // CardinalityCount is a sampler that records an approximate cardinality count
 // by metric name.
 type CardinalityCount struct {
@@ -114,8 +117,8 @@ func (cc *CardinalityCount) ExportSets() ([]JSONMetric, error) {
 
 		jm := JSONMetric{
 			MetricKey: MetricKey{
-				Name:       "cardinality count",
-				Type:       "cardinality_count",
+				Name:       CardinalityCountName,
+				Type:       CardinalityCountType,
 				JoinedTags: metricName,
 			},
 			Tags:  []string{metricName},
@@ -151,11 +154,19 @@ func (cc *CardinalityCount) Combine(other []byte) error {
 	return nil
 }
 
-// Flush emits the names + cardinality of the top TEN in the map
-// TODO: would it be just ~fine to emit counts for every metric?
-// TODO: make this configurable?
-func (cc *CardinalityCount) Flush() {
-	// flush grabs the top 10 counts in its map to send off to the downstream
+// Flush emits the names + cardinality of all the metrics in the map
+// TODO (kiran): investigate whether we'd want to emit only the top k metrics
+func (cc *CardinalityCount) Flush() []DDMetric {
+	ddMetrics := make([]DDMetric, 0, len(cc.MetricCardinality))
+	for metricName, hll := range cc.MetricCardinality {
+		ddMetric := DDMetric{
+			Name:  CardinalityCountName,
+			Value: [1][2]float64{{float64(time.Now().Unix()), float64(hll.Count())}},
+			Tags:  []string{metricName},
+		}
+		ddMetrics = append(ddMetrics, ddMetric)
+	}
+	return ddMetrics
 }
 
 // Counter is an accumulator

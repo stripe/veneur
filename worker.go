@@ -240,7 +240,7 @@ func (w *Worker) ImportMetric(other samplers.JSONMetric) {
 		if err := w.wm.timers[other.MetricKey].Combine(other.Value); err != nil {
 			log.WithError(err).Error("Could not merge timers")
 		}
-	case "cardinalitycount":
+	case samplers.CardinalityCountType:
 		if err := w.wm.cardinality.Combine(other.Value); err != nil {
 			log.WithError(err).Error("Could not merge cardinality")
 		}
