@@ -17,6 +17,7 @@ func TestReadSSFStream(t *testing.T) {
 		ParentId:       3,
 		StartTimestamp: 9000,
 		EndTimestamp:   9001,
+		Tags:           map[string]string{},
 	}
 	// Write it to a reader twice:
 	buf := bytes.NewBuffer([]byte{})
@@ -28,13 +29,17 @@ func TestReadSSFStream(t *testing.T) {
 	{
 		read, err := ReadSSF(buf)
 		require.NoError(t, err)
-		assert.Equal(t, *msg, *read)
+		span, err := read.TraceSpan()
+		require.NoError(t, err)
+		assert.Equal(t, *msg, *span)
 	}
 	// Read the second frame:
 	{
 		read, err := ReadSSF(buf)
 		require.NoError(t, err)
-		assert.Equal(t, *msg, *read)
+		span, err := read.TraceSpan()
+		require.NoError(t, err)
+		assert.Equal(t, *msg, *span)
 	}
 }
 
