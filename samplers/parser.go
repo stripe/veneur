@@ -151,7 +151,7 @@ func ParseSSF(packet []byte) (*Message, error) {
 
 	// Normalize the span:
 	if span.Tags == nil {
-		span.Tags = make(map[string]string, 0)
+		span.Tags = map[string]string{}
 	}
 	if span.Name == "" {
 		// Even though incoming packets should have Name set,
