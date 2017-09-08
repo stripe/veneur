@@ -65,7 +65,7 @@ func ValidTrace(sample *ssf.SSFSpan) bool {
 }
 
 // ValidMetric takes in an SSF sample and determines if it is valid or not.
-func ValidMetric(sample *UDPMetric) bool {
+func ValidMetric(sample UDPMetric) bool {
 	ret := true
 	ret = ret && sample.Name != ""
 	ret = ret && sample.Value != nil
@@ -108,10 +108,10 @@ func (m *Message) TraceSpan() (*ssf.SSFSpan, error) {
 // any of the metrics, ExtractMetrics collects them into the error
 // type InvalidMetrics and returns this error alongside any valid
 // metrics that could be parsed.
-func (m *Message) Metrics() ([]*UDPMetric, error) {
+func (m *Message) Metrics() ([]UDPMetric, error) {
 	span := m.span
 	invalid := []*ssf.SSFSample{}
-	metrics := make([]*UDPMetric, 0)
+	metrics := make([]UDPMetric, 0, len(span.Metrics))
 	for _, metricPacket := range span.Metrics {
 		metric, err := ParseMetricSSF(metricPacket)
 		if err != nil || !ValidMetric(metric) {
@@ -193,8 +193,8 @@ func (err *invalidMetrics) Samples() []*ssf.SSFSample {
 }
 
 // ParseMetricSSF converts an incoming SSF packet to a Metric.
-func ParseMetricSSF(metric *ssf.SSFSample) (*UDPMetric, error) {
-	ret := &UDPMetric{
+func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
+	ret := UDPMetric{
 		SampleRate: 1.0,
 	}
 	h := fnv.New32a()
@@ -210,7 +210,7 @@ func ParseMetricSSF(metric *ssf.SSFSample) (*UDPMetric, error) {
 	case ssf.SSFSample_SET:
 		ret.Type = "set"
 	default:
-		return nil, invalidMetricTypeError
+		return UDPMetric{}, invalidMetricTypeError
 	}
 	h.Write([]byte(ret.Type))
 	if metric.Metric == ssf.SSFSample_SET {

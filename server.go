@@ -539,7 +539,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		}
 	}
 	for _, metric := range metrics {
-		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
+		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- metric
 	}
 
 	span, err := msg.TraceSpan()
