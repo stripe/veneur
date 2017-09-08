@@ -544,7 +544,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 
 	span, err := msg.TraceSpan()
 	if err != nil {
-		if err != samplers.ErrInvalidTrace {
+		if _, ok := err.(*samplers.InvalidTrace); !ok {
 			log.WithError(err).Warn("Unexpected error extracting trace span from SSF Message")
 		}
 		return

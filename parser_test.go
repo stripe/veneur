@@ -116,7 +116,8 @@ func TestParseSSFInvalidTraceValidMetric(t *testing.T) {
 		}
 
 		span, err := msg.TraceSpan()
-		assert.Equal(t, samplers.ErrInvalidTrace, err)
+		_, isInvalid := err.(*samplers.InvalidTrace)
+		assert.True(t, isInvalid)
 		assert.Nil(t, span)
 	}
 }

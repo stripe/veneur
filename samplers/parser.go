@@ -79,35 +79,38 @@ type Message struct {
 	span *ssf.SSFSpan
 }
 
-type errInvalidTrace string
+// InvalidTrace is an error type indicating that an SSF span was
+// invalid.
+type InvalidTrace struct {
+	span *ssf.SSFSpan
+}
 
-// ErrInvalidTrace indicates that an SSF span was invalid.
-const ErrInvalidTrace errInvalidTrace = "span did not validate"
-
-func (e errInvalidTrace) Error() string {
-	return string(e)
+func (e *InvalidTrace) Error() string {
+	return fmt.Sprintf("not a valid trace span: %#v", e.span)
 }
 
 // TraceSpan checks if an SSF message is a valid trace. If so, it
 // normalizes the span in-place (infers a Name from a "name" tag, sets
-// Tags if none were given), and returns that span.  If the span is
-// not a valid trace, TraceSpan returns a nil span and
-// ErrInvalidTrace.
+// Tags if none were given), and returns a pointer to that original
+// span. If the span is not a valid trace, TraceSpan returns nil and
+// an *InvalidTrace error type.
 //
 // The span returned from TraceSpan does contain the (unparsed) metric
-// samples contained in the span.
+// samples contained in the span. Note also that since the data
+// returned is a pointer to the original span, it's not advisable to
+// modify that span directly.
 func (m *Message) TraceSpan() (*ssf.SSFSpan, error) {
 	if !ValidTrace(m.span) {
-		return nil, ErrInvalidTrace
+		return nil, &InvalidTrace{m.span}
 	}
 	return m.span, nil
 }
 
-// Metrics examines an SSF message, parses and returns any
-// metrics contained inside. If any parse error occurs in processing
-// any of the metrics, ExtractMetrics collects them into the error
-// type InvalidMetrics and returns this error alongside any valid
-// metrics that could be parsed.
+// Metrics examines an SSF message, parses and returns a new array
+// containing any metrics contained in the message. If any parse error
+// occurs in processing any of the metrics, ExtractMetrics collects
+// them into the error type InvalidMetrics and returns this error
+// alongside any valid metrics that could be parsed.
 func (m *Message) Metrics() ([]UDPMetric, error) {
 	span := m.span
 	invalid := []*ssf.SSFSample{}
