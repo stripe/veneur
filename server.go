@@ -519,15 +519,22 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	}
 	metrics, err := msg.Metrics()
 	if err != nil {
-		reason := fmt.Sprintf("reason:%s", err.Error())
-		s.Statsd.Count("packet.error_total", 1, []string{
-			"packet_type:ssf_metric",
-			"step:extract_metrics",
-			reason,
-		}, 1.0)
-		log.WithError(err).Warn("ParseSSF-metrics")
-		if _, ok := err.(samplers.InvalidMetrics); !ok {
-			// This is a serious error, let's abort:
+		if _, ok := err.(samplers.InvalidMetrics); ok {
+			log.WithError(err).Warn("Could not parse metrics from SSF Message")
+			s.Statsd.Count("packet.error_total", 1, []string{
+				"packet_type:ssf_metric",
+				"step:extract_metrics",
+				"reason:invalid_metrics",
+			}, 1.0)
+		} else {
+			log.WithError(err).Error("Unexpected error extracting metrics from SSF Message")
+			errorTag := fmt.Sprintf("error:%s", err.Error())
+			s.Statsd.Count("packet.error_total", 1, []string{
+				"packet_type:ssf_metric",
+				"step:extract_metrics",
+				"reason:unexpected_error",
+				errorTag,
+			}, 1.0)
 			return
 		}
 	}
@@ -538,7 +545,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	span, err := msg.TraceSpan()
 	if err != nil {
 		if err != samplers.ErrInvalidTrace {
-			log.WithError(err).Warn("ParseSSL-trace")
+			log.WithError(err).Warn("Unexpected error extracting trace span from SSF Message")
 		}
 		return
 	}
