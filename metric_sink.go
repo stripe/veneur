@@ -61,9 +61,11 @@ func (dd *datadogMetricSink) Name() string {
 	return "datadog"
 }
 
-func (dd *datadogMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+func (dd *datadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.Finish()
+
+	metrics := dd.finalizeMetrics(interMetrics)
 
 	// break the metrics into chunks of approximately equal size, such that
 	// each chunk is less than the limit
@@ -191,9 +193,9 @@ func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []D
 	return ddMetrics
 }
 
-func (dd *datadogMetricSink) flushPart(ctx context.Context, metricSlice []samplers.InterMetric, wg *sync.WaitGroup) {
+func (dd *datadogMetricSink) flushPart(ctx context.Context, metricSlice []DDMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
-	postHelper(ctx, dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/api/v1/series?api_key=%s"), map[string][]samplers.InterMetric{
+	postHelper(ctx, dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.ddHostname, dd.apiKey), map[string][]DDMetric{
 		"series": metricSlice,
 	}, "flush", true)
 }

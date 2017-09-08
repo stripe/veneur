@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 
 	"math/rand"
 	"net"
@@ -215,7 +214,6 @@ func newFixture(t *testing.T, config Config) *fixture {
 		if err != nil {
 			t.Fatal(err)
 		}
-
 		f.ddmetrics <- ddmetrics
 		w.WriteHeader(http.StatusAccepted)
 	}))
@@ -990,29 +988,4 @@ func TestHandleTCPGoroutineTimeout(t *testing.T) {
 	if packet.Name != "metric" {
 		t.Error("Expected packet for metric:", packet)
 	}
-}
-
-func TestNewFromServerConfigRenamedVariables(t *testing.T) {
-	// test the variables that have been renamed
-	config := Config{
-		DatadogAPIKey:          "apikey",
-		DatadogAPIHostname:     "http://api",
-		DatadogTraceAPIAddress: "http://trace",
-		SsfAddress:             "127.0.0.1:99",
-
-		// required or NewFromConfig fails
-		Interval:     "10s",
-		StatsAddress: "localhost:62251",
-	}
-	ddSink := NewDatadogMetricSink(config, float64(10.0), http.Client{}, statsd.NewBuffered(conf.StatsAddress, 1024))
-	// s, err := NewFromConfig(config)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-
-	assert.Equal(t, "apikey", ddSink.apiKey)
-	assert.Equal(t, "http://api", ddSink.ddHostname)
-	assert.Equal(t, "http://trace", s.DDTraceAddress)
-	assert.True(t, s.TraceAddr.IP.IsLoopback(), "TraceAddr should be loopback")
-	assert.Equal(t, 99, s.TraceAddr.Port)
 }
