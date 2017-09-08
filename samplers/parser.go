@@ -90,10 +90,8 @@ func (e *InvalidTrace) Error() string {
 }
 
 // TraceSpan checks if an SSF message is a valid trace. If so, it
-// normalizes the span in-place (infers a Name from a "name" tag, sets
-// Tags if none were given), and returns a pointer to that original
-// span. If the span is not a valid trace, TraceSpan returns nil and
-// an *InvalidTrace error type.
+// returns a pointer to that original span. If the span is not a valid
+// trace, TraceSpan returns nil and an *InvalidTrace error type.
 //
 // The span returned from TraceSpan does contain the (unparsed) metric
 // samples contained in the span. Note also that since the data
