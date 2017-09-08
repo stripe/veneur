@@ -510,22 +510,47 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		return
 	}
 
-	sample, metrics, err := samplers.ParseSSF(packet)
+	msg, err := samplers.ParseSSF(packet)
 	if err != nil {
 		reason := fmt.Sprintf("reason:%s", err.Error())
 		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", reason}, 1.0)
 		log.WithError(err).Warn("ParseSSF")
 		return
 	}
-
+	metrics, err := msg.Metrics()
+	if err != nil {
+		if _, ok := err.(samplers.InvalidMetrics); ok {
+			log.WithError(err).Warn("Could not parse metrics from SSF Message")
+			s.Statsd.Count("packet.error_total", 1, []string{
+				"packet_type:ssf_metric",
+				"step:extract_metrics",
+				"reason:invalid_metrics",
+			}, 1.0)
+		} else {
+			log.WithError(err).Error("Unexpected error extracting metrics from SSF Message")
+			errorTag := fmt.Sprintf("error:%s", err.Error())
+			s.Statsd.Count("packet.error_total", 1, []string{
+				"packet_type:ssf_metric",
+				"step:extract_metrics",
+				"reason:unexpected_error",
+				errorTag,
+			}, 1.0)
+			return
+		}
+	}
 	for _, metric := range metrics {
-		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
+		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- metric
 	}
 
-	if sample != nil {
-		s.Statsd.Incr("packet.spans.received_total", []string{fmt.Sprintf("service:%s", sample.Service)}, .1)
-		s.SpanWorker.SpanChan <- *sample
+	span, err := msg.TraceSpan()
+	if err != nil {
+		if _, ok := err.(*samplers.InvalidTrace); !ok {
+			log.WithError(err).Warn("Unexpected error extracting trace span from SSF Message")
+		}
+		return
 	}
+	s.Statsd.Incr("packet.spans.received_total", []string{fmt.Sprintf("service:%s", span.Service)}, .1)
+	s.SpanWorker.SpanChan <- *span
 }
 
 // ReadMetricSocket listens for available packets to handle.

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -43,11 +44,6 @@ type MetricKey struct {
 	JoinedTags string `json:"tagstring"` // tags in deterministic order, joined with commas
 }
 
-// scratchBuff is a reusable protobuf buffer, such that repeated calls to
-// unmarshal protobuf spans don't make new buffers over and over. is not safe
-// to use concurrently!
-var scratchBuff = proto.NewBuffer(nil)
-
 // ToString returns a string representation of this MetricKey
 func (m *MetricKey) String() string {
 	var buff bytes.Buffer
@@ -65,70 +61,141 @@ func ValidTrace(sample *ssf.SSFSpan) bool {
 	ret = ret && sample.TraceId != 0
 	ret = ret && sample.StartTimestamp != 0
 	ret = ret && sample.EndTimestamp != 0
-
-	if sample.Tags == nil {
-		sample.Tags = make(map[string]string, 0)
-	}
-
 	return ret
 }
 
 // ValidMetric takes in an SSF sample and determines if it is valid or not.
-func ValidMetric(sample *UDPMetric) bool {
+func ValidMetric(sample UDPMetric) bool {
 	ret := true
 	ret = ret && sample.Name != ""
 	ret = ret && sample.Value != nil
-	if sample.SampleRate == 0 {
-		sample.SampleRate = 1
-	}
 	return ret
 }
 
-// ParseSSF takes in a byte slice and returns:
-// an SSFSpan, slice of UDPMetrics, and an error.
-// It also validates packets before returning them. Note that this function
-// is not currently safe for concurrent use. If needed in the future,
-// have the caller pass in a `proto.Buffer`!
-func ParseSSF(packet []byte) (*ssf.SSFSpan, []*UDPMetric, error) {
-	sample := &ssf.SSFSpan{}
-	scratchBuff.Reset()
+// A Message struct represents a parsed SSF message. It encapsulates
+// an ssf.SSFSpan object, which can contain a trace span and/or a set
+// of metrics.
+type Message struct {
+	span *ssf.SSFSpan
+}
+
+// InvalidTrace is an error type indicating that an SSF span was
+// invalid.
+type InvalidTrace struct {
+	span *ssf.SSFSpan
+}
+
+func (e *InvalidTrace) Error() string {
+	return fmt.Sprintf("not a valid trace span: %#v", e.span)
+}
+
+// TraceSpan checks if an SSF message is a valid trace. If so, it
+// returns a pointer to that original span. If the span is not a valid
+// trace, TraceSpan returns nil and an *InvalidTrace error type.
+//
+// The span returned from TraceSpan does contain the (unparsed) metric
+// samples contained in the span. Note also that since the data
+// returned is a pointer to the original span, it's not advisable to
+// modify that span directly.
+func (m *Message) TraceSpan() (*ssf.SSFSpan, error) {
+	if !ValidTrace(m.span) {
+		return nil, &InvalidTrace{m.span}
+	}
+	return m.span, nil
+}
+
+// Metrics examines an SSF message, parses and returns a new array
+// containing any metrics contained in the message. If any parse error
+// occurs in processing any of the metrics, ExtractMetrics collects
+// them into the error type InvalidMetrics and returns this error
+// alongside any valid metrics that could be parsed.
+func (m *Message) Metrics() ([]UDPMetric, error) {
+	span := m.span
+	invalid := []*ssf.SSFSample{}
+	metrics := make([]UDPMetric, 0, len(span.Metrics))
+	for _, metricPacket := range span.Metrics {
+		metric, err := ParseMetricSSF(metricPacket)
+		if err != nil || !ValidMetric(metric) {
+			invalid = append(invalid, metricPacket)
+			continue
+		}
+		metrics = append(metrics, metric)
+	}
+	if len(invalid) != 0 {
+		return metrics, &invalidMetrics{invalid}
+	}
+	return metrics, nil
+}
+
+var pbufPool = sync.Pool{
+	New: func() interface{} {
+		return proto.NewBuffer(nil)
+	},
+}
+
+// ParseSSF takes in a byte slice and returns: a normalized SSFSpan
+// and an error if any errors in parsing the SSF packet occur.
+func ParseSSF(packet []byte) (*Message, error) {
+	span := &ssf.SSFSpan{}
+	scratchBuff := pbufPool.Get().(*proto.Buffer)
+	defer func() {
+		scratchBuff.Reset()
+		pbufPool.Put(scratchBuff)
+	}()
 	scratchBuff.SetBuf(packet)
-	err := scratchBuff.Unmarshal(sample)
+	err := scratchBuff.Unmarshal(span)
 
 	if err != nil {
-		return nil, nil, errors.New("unmarshal")
+		return nil, err
 	}
 
-	metrics := make([]*UDPMetric, 0)
-	for _, metricPacket := range sample.Metrics {
-		metric, err := ParseMetricSSF(metricPacket)
-		if err != nil {
-			return nil, nil, errors.New("parse")
-		}
-		if ValidMetric(metric) {
-			metrics = append(metrics, metric)
-		}
+	// Normalize the span:
+	if span.Tags == nil {
+		span.Tags = map[string]string{}
 	}
-
-	if !ValidTrace(sample) {
-		sample = nil
-	} else if sample.Name == "" {
+	if span.Name == "" {
 		// Even though incoming packets should have Name set,
 		// this allows Veneur to be backwards-compatible.
-		for k, v := range sample.Tags {
+		for k, v := range span.Tags {
 			if k == "name" {
-				sample.Name = v
+				span.Name = v
 			}
 		}
-		delete(sample.Tags, "name")
+		delete(span.Tags, "name")
 	}
 
-	return sample, metrics, nil
+	// Normalize metrics on the span:
+	for _, sample := range span.Metrics {
+		if sample.SampleRate == 0 {
+			sample.SampleRate = 1
+		}
+	}
+	return &Message{span}, nil
+}
+
+// InvalidMetrics is an error type returned if any metric could not be parsed.
+type InvalidMetrics interface {
+	error
+
+	// Samples returns any samples that couldn't be parsed or validated.
+	Samples() []*ssf.SSFSample
+}
+
+type invalidMetrics struct {
+	samples []*ssf.SSFSample
+}
+
+func (err *invalidMetrics) Error() string {
+	return fmt.Sprintf("parse errors on %d metrics", len(err.samples))
+}
+
+func (err *invalidMetrics) Samples() []*ssf.SSFSample {
+	return err.samples
 }
 
 // ParseMetricSSF converts an incoming SSF packet to a Metric.
-func ParseMetricSSF(metric *ssf.SSFSample) (*UDPMetric, error) {
-	ret := &UDPMetric{
+func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
+	ret := UDPMetric{
 		SampleRate: 1.0,
 	}
 	h := fnv.New32a()
@@ -144,7 +211,7 @@ func ParseMetricSSF(metric *ssf.SSFSample) (*UDPMetric, error) {
 	case ssf.SSFSample_SET:
 		ret.Type = "set"
 	default:
-		return nil, invalidMetricTypeError
+		return UDPMetric{}, invalidMetricTypeError
 	}
 	h.Write([]byte(ret.Type))
 	if metric.Metric == ssf.SSFSample_SET {
