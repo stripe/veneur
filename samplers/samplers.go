@@ -16,12 +16,12 @@ import (
 // InterMetric represents a metric that has been completed and is ready for
 // flushing by sinks.
 type InterMetric struct {
-	Name       string
-	Timestamp  int64
-	Value      float64
-	Tags       []string
+	Name      string
+	Timestamp int64
+	Value     float64
+	Tags      []string
+	// This should likely be a real type?
 	MetricType string
-	Hostname   string
 }
 
 // DDMetric is a data structure that represents the JSON that Datadog
