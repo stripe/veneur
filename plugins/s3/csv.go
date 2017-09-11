@@ -53,9 +53,7 @@ var tsvSchema = [...]string{
 // For performance, encodeCSV does not flush after every call; the caller is
 // expected to flush at the end of the operation cycle
 func EncodeInterMetricCSV(d samplers.InterMetric, w *csv.Writer, partitionDate *time.Time, hostName string, interval int) error {
-
 	value := strconv.FormatFloat(d.Value, 'f', -1, 64)
-	// interval := strconv.Itoa(int(d.Interval))
 
 	// TODO(aditya) some better error handling for this
 	// to guarantee that the result is proper JSON
