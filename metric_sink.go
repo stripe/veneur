@@ -132,8 +132,8 @@ func (dd *datadogMetricSink) FlushEventsChecks(ctx context.Context, events []sam
 	}
 }
 
-func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []DDMetric {
-	ddMetrics := make([]DDMetric, len(metrics))
+func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []samplers.DDMetric {
+	ddMetrics := make([]samplers.DDMetric, len(metrics))
 	for i, m := range metrics {
 		// Defensively copy tags since we're gonna mutate it
 		tags := make([]string, len(dd.tags))
@@ -145,7 +145,7 @@ func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []D
 			metricType = "rate"
 			value = m.Value / dd.interval
 		}
-		ddMetric := DDMetric{
+		ddMetric := samplers.DDMetric{
 			Name: m.Name,
 			Value: [1][2]float64{
 				[2]float64{
@@ -181,9 +181,9 @@ func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []D
 	return ddMetrics
 }
 
-func (dd *datadogMetricSink) flushPart(ctx context.Context, metricSlice []DDMetric, wg *sync.WaitGroup) {
+func (dd *datadogMetricSink) flushPart(ctx context.Context, metricSlice []samplers.DDMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
-	postHelper(ctx, dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.ddHostname, dd.apiKey), map[string][]DDMetric{
+	postHelper(ctx, dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.ddHostname, dd.apiKey), map[string][]samplers.DDMetric{
 		"series": metricSlice,
 	}, "flush", true)
 }
