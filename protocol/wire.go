@@ -110,9 +110,12 @@ func WriteSSF(out io.Writer, ssf *ssf.SSFSpan) (int, error) {
 		return 0, err
 	}
 	defer func() {
+		// Make sure we reset the scratch protobuffer (by default, it
+		// would retain its contents) and put it back into the pool:
 		pbuf.Reset()
 		pbufPool.Put(pbuf)
 	}()
+
 	if err = binary.Write(out, binary.BigEndian, version0); err != nil {
 		return 0, &errFramingIO{err}
 	}
