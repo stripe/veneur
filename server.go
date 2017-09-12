@@ -497,10 +497,10 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 // HandleTracePacket accepts an incoming packet as bytes and sends it to the
 // appropriate worker.
 func (s *Server) HandleTracePacket(packet []byte) {
-	s.Statsd.Incr("packet.received_total", nil, .1)
+	s.Statsd.Incr("ssf.received_total", nil, .1)
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
-		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:unknown", "reason:zerolength"}, 1.0)
+		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:unknown", "reason:zerolength"}, 1.0)
 		log.Warn("received zero-length trace packet")
 		return
 	}
@@ -508,28 +508,32 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	msg, err := samplers.ParseSSF(packet)
 	if err != nil {
 		reason := fmt.Sprintf("reason:%s", err.Error())
-		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", reason}, 1.0)
+		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:ssf_metric", reason}, 1.0)
 		log.WithError(err).Warn("ParseSSF")
 		return
 	}
+	s.handleSSF(msg, []string{"ssf_format:packet"})
+}
+
+func (s *Server) handleSSF(msg *samplers.Message, tags []string) {
 	metrics, err := msg.Metrics()
 	if err != nil {
 		if _, ok := err.(samplers.InvalidMetrics); ok {
 			log.WithError(err).Warn("Could not parse metrics from SSF Message")
-			s.Statsd.Count("packet.error_total", 1, []string{
+			s.Statsd.Count("ssf.error_total", 1, append([]string{
 				"packet_type:ssf_metric",
 				"step:extract_metrics",
 				"reason:invalid_metrics",
-			}, 1.0)
+			}, tags...), 1.0)
 		} else {
 			log.WithError(err).Error("Unexpected error extracting metrics from SSF Message")
 			errorTag := fmt.Sprintf("error:%s", err.Error())
-			s.Statsd.Count("packet.error_total", 1, []string{
+			s.Statsd.Count("ssf.error_total", 1, append([]string{
 				"packet_type:ssf_metric",
 				"step:extract_metrics",
 				"reason:unexpected_error",
 				errorTag,
-			}, 1.0)
+			}, tags...), 1.0)
 			return
 		}
 	}
@@ -544,7 +548,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		}
 		return
 	}
-	s.Statsd.Incr("packet.spans.received_total", []string{fmt.Sprintf("service:%s", span.Service)}, .1)
+	s.Statsd.Incr("ssf.spans.received_total", append([]string{fmt.Sprintf("service:%s", span.Service)}, tags...), .1)
 	s.SpanWorker.SpanChan <- *span
 }
 
