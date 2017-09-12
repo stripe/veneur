@@ -13,6 +13,25 @@ import (
 	"github.com/stripe/veneur/tdigest"
 )
 
+// MetricType defines what kind of metric this is, so that we or our upstream
+// sinks can do the right thing with it.
+type MetricType int
+
+const (
+	// CounterMetric is a counter
+	CounterMetric MetricType = iota
+	// GaugeMetric is a gauge
+	GaugeMetric
+	// HistogramMetric is a histogram
+	HistogramMetric
+	// RateMetric is a rate
+	RateMetric
+	// SetMetric is a set
+	SetMetric
+	// TimerMetric is a timer
+	TimerMetric
+)
+
 // InterMetric represents a metric that has been completed and is ready for
 // flushing by sinks.
 type InterMetric struct {
@@ -20,8 +39,7 @@ type InterMetric struct {
 	Timestamp int64
 	Value     float64
 	Tags      []string
-	// This should likely be a real type?
-	MetricType string
+	Type      MetricType
 }
 
 // DDMetric is a data structure that represents the JSON that Datadog
