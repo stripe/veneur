@@ -38,6 +38,7 @@ before_script:
   # See the corresponding lines in the Dockerfile for an explanation
   # of this logic
   - git add .
+  - git diff --cached
   - git diff-index --cached --exit-code HEAD
 
 script:
