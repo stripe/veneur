@@ -21,6 +21,8 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/tdigest"
@@ -633,6 +635,47 @@ func TestUDPMetricsSSF(t *testing.T) {
 
 	time.Sleep(20 * time.Millisecond)
 	assert.Equal(t, int64(1), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+}
+
+func TestUNIXMetricsSSF(t *testing.T) {
+	tdir, err := ioutil.TempDir("", "unixmetrics_ssf")
+	require.NoError(t, err)
+	defer os.RemoveAll(tdir)
+
+	config := localConfig()
+	config.NumWorkers = 1
+	config.Interval = "60s"
+	path := filepath.Join(tdir, "test.sock")
+	config.SsfListenAddresses = []string{fmt.Sprintf("unix://%s", path)}
+	f := newFixture(t, config)
+	defer f.Close()
+	// listen delay
+	time.Sleep(20 * time.Millisecond)
+
+	conn, err := net.Dial("unix", path)
+	assert.NoError(t, err)
+	defer conn.Close()
+
+	testSpan := &ssf.SSFSpan{}
+	testMetric := &ssf.SSFSample{}
+	testMetric.Name = "test.metric"
+	testMetric.Metric = ssf.SSFSample_COUNTER
+	testMetric.Value = 1
+	testMetric.Tags = make(map[string]string)
+	testMetric.Tags["tag"] = "tagValue"
+	testSpan.Metrics = append(testSpan.Metrics, testMetric)
+
+	_, err = protocol.WriteSSF(conn, testSpan)
+	if assert.NoError(t, err) {
+		time.Sleep(20 * time.Millisecond)
+		assert.Equal(t, int64(1), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+	}
+
+	_, err = protocol.WriteSSF(conn, testSpan)
+	if assert.NoError(t, err) {
+		time.Sleep(20 * time.Millisecond)
+		assert.Equal(t, int64(2), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+	}
 }
 
 func TestIgnoreLongUDPMetrics(t *testing.T) {

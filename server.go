@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -32,6 +33,7 @@ import (
 	"github.com/stripe/veneur/plugins/influxdb"
 	localfilep "github.com/stripe/veneur/plugins/localfile"
 	s3p "github.com/stripe/veneur/plugins/s3"
+	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/trace"
 )
@@ -605,6 +607,44 @@ func (s *Server) ReadTraceSocket(serverConn net.PacketConn, packetPool *sync.Poo
 
 		s.HandleTracePacket(buf[:n])
 		packetPool.Put(buf)
+	}
+}
+
+// ReadTraceStream reads a streaming connection in framed wire
+// format. See package github.com/stripe/veneur/protocol for details.
+func (s *Server) ReadTraceStream(serverConn net.Conn) {
+	defer func() {
+		serverConn.Close()
+	}()
+	tags := []string{"ssf_format:framed"}
+	for {
+		msg, err := protocol.ReadSSF(serverConn)
+		if err != nil {
+			if err == io.EOF {
+				// Client hangup, close this
+				s.Statsd.Incr("frames.disconnects", nil, 1.0)
+				return
+			}
+			if protocol.IsFramingError(err) {
+				log.WithError(err).
+					WithField("remote", serverConn.RemoteAddr()).
+					Error("Frame error reading from SSF connection. Closing.")
+				s.Statsd.Incr("ssf.error_total",
+					append([]string{"packet_type:unknown", "reason:framing"}, tags...),
+					1.0)
+				return
+			}
+			// Non-frame errors means we can continue reading:
+			log.WithError(err).
+				WithField("remote", serverConn.RemoteAddr()).
+				Error("Error processing an SSF frame")
+			s.Statsd.Incr("ssf.error_total",
+				append([]string{"packet_type:unknown", "reason:processing"}, tags...),
+				1.0)
+			continue
+		}
+		s.Statsd.Incr("ssf.received_total", tags, .1)
+		s.handleSSF(msg, tags)
 	}
 }
 

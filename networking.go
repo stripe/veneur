@@ -132,12 +132,9 @@ func StartSSF(s *Server, a net.Addr, tracePool *sync.Pool) {
 	case *net.UDPAddr:
 		startSSFUDP(s, addr, tracePool)
 	case *net.UnixAddr:
-		if addr.Network() != "unixpacket" {
-			panic(fmt.Sprintf("Can't listen for SSF on %v: only unixpacket is supported", a))
-		}
-		startSSFUnix(s, addr, tracePool)
+		startSSFUnix(s, addr)
 	default:
-		panic(fmt.Sprintf("Can't listen for SSF on %v: only UDP & unixpacket are supported", a))
+		panic(fmt.Sprintf("Can't listen for SSF on %v: only udp:// & unix:// are supported", a))
 	}
 	log.WithFields(logrus.Fields{
 		"address": a.String(),
@@ -163,13 +160,15 @@ func startSSFUDP(s *Server, addr *net.UDPAddr, tracePool *sync.Pool) {
 	}()
 }
 
-func startSSFUnix(s *Server, addr *net.UnixAddr, tracePool *sync.Pool) {
+func startSSFUnix(s *Server, addr *net.UnixAddr) {
+	if addr.Network() != "unix" {
+		panic(fmt.Sprintf("Can't listen for SSF on %v: only udp:// and unix:// addresses are supported", addr))
+	}
 	listener, err := net.ListenUnix(addr.Network(), addr)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't listen on UNIX socket %v: %v", addr, err))
 	}
 	go func() {
-		defer listener.Close()
 		for {
 			conn, err := listener.AcceptUnix()
 			if err != nil {
@@ -182,14 +181,7 @@ func startSSFUnix(s *Server, addr *net.UnixAddr, tracePool *sync.Pool) {
 					log.WithError(err).Fatal("Unix accept failed")
 				}
 			}
-			switch addr.Net {
-			case "unixpacket":
-				go s.ReadTraceSocket(conn, tracePool)
-			default:
-				log.WithField("Network", conn.Net).
-					WithField("Address", conn.String()).
-					Error("Got a connection with a network I don't understand")
-			}
+			go s.ReadTraceStream(conn)
 		}
 	}()
 }
