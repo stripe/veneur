@@ -647,6 +647,7 @@ func TestUNIXMetricsSSF(t *testing.T) {
 	config.Interval = "60s"
 	path := filepath.Join(tdir, "test.sock")
 	config.SsfListenAddresses = []string{fmt.Sprintf("unix://%s", path)}
+	HTTPAddrPort++
 	f := newFixture(t, config)
 	defer f.Close()
 	// listen delay
