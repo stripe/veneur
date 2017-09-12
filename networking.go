@@ -131,8 +131,13 @@ func StartSSF(s *Server, a net.Addr, tracePool *sync.Pool) {
 	switch addr := a.(type) {
 	case *net.UDPAddr:
 		startSSFUDP(s, addr, tracePool)
+	case *net.UnixAddr:
+		if addr.Network() != "unixpacket" {
+			panic(fmt.Sprintf("Can't listen for SSF on %v: only unixpacket is supported", a))
+		}
+		startSSFUnix(s, addr, tracePool)
 	default:
-		panic(fmt.Sprintf("Can't listen for SSF on %v: only UDP is supported", a))
+		panic(fmt.Sprintf("Can't listen for SSF on %v: only UDP & unixpacket are supported", a))
 	}
 	log.WithFields(logrus.Fields{
 		"address": a.String(),
@@ -155,5 +160,36 @@ func startSSFUDP(s *Server, addr *net.UDPAddr, tracePool *sync.Pool) {
 			ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
 		}()
 		s.ReadTraceSocket(listener, tracePool)
+	}()
+}
+
+func startSSFUnix(s *Server, addr *net.UnixAddr, tracePool *sync.Pool) {
+	listener, err := net.ListenUnix(addr.Network(), addr)
+	if err != nil {
+		panic(fmt.Sprintf("Couldn't listen on UNIX socket %v: %v", addr, err))
+	}
+	go func() {
+		defer listener.Close()
+		for {
+			conn, err := listener.AcceptUnix()
+			if err != nil {
+				select {
+				case <-s.shutdown:
+					// occurs when cleanly shutting down the server e.g. in tests; ignore errors
+					log.WithError(err).Info("Ignoring Accept error while shutting down")
+					return
+				default:
+					log.WithError(err).Fatal("Unix accept failed")
+				}
+			}
+			switch addr.Net {
+			case "unixpacket":
+				go s.ReadTraceSocket(conn, tracePool)
+			default:
+				log.WithField("Network", conn.Net).
+					WithField("Address", conn.String()).
+					Error("Got a connection with a network I don't understand")
+			}
+		}
 	}()
 }
