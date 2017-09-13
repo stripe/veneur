@@ -15,6 +15,8 @@ Usage of ./veneur-prometheus:
     	The full URL — like 'http://localhost:9090/metrics' to query for Prometheus metrics. (default "http://localhost:9090/metrics")
   -i string
     	The interval at which to query. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration). (default "10s")
+  -p string
+    	A prefix to append to any metrics emitted. Do not include a trailing period.
   -s string
     	The host and port — like '127.0.0.1:8126' — to send our metrics to. (default "127.0.0.1:8126")
 ```
