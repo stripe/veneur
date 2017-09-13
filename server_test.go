@@ -1015,7 +1015,7 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 			conn.Write(packet)
 		}
 	}()
-	go s.ReadTraceSocket(l, pool)
+	go s.ReadSSFPacketSocket(l, pool)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

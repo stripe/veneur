@@ -156,7 +156,7 @@ func startSSFUDP(s *Server, addr *net.UDPAddr, tracePool *sync.Pool) {
 		defer func() {
 			ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
 		}()
-		s.ReadTraceSocket(listener, tracePool)
+		s.ReadSSFPacketSocket(listener, tracePool)
 	}()
 }
 

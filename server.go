@@ -587,8 +587,8 @@ func (s *Server) ReadMetricSocket(serverConn net.PacketConn, packetPool *sync.Po
 	}
 }
 
-// ReadTraceSocket listens for available packets to handle.
-func (s *Server) ReadTraceSocket(serverConn net.PacketConn, packetPool *sync.Pool) {
+// ReadSSFPacketSocket reads SSF packets off a packet connection.
+func (s *Server) ReadSSFPacketSocket(serverConn net.PacketConn, packetPool *sync.Pool) {
 	// TODO This is duplicated from ReadMetricSocket and feels like it could be it's
 	// own function?
 	p := packetPool.Get().([]byte)
