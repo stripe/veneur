@@ -601,8 +601,17 @@ func (s *Server) ReadTraceSocket(serverConn net.PacketConn, packetPool *sync.Poo
 		buf := packetPool.Get().([]byte)
 		n, _, err := serverConn.ReadFrom(buf)
 		if err != nil {
-			log.WithError(err).Error("Error reading from UDP trace socket")
-			continue
+			// In tests, the probably-best way to
+			// terminate this reader is to issue a shutdown and close the listening
+			// socket, which returns an error, so let's handle it here:
+			select {
+			case <-s.shutdown:
+				log.WithError(err).Info("Ignoring ReadFrom error while shutting down")
+				return
+			default:
+				log.WithError(err).Error("Error reading from UDP trace socket")
+				continue
+			}
 		}
 
 		s.HandleTracePacket(buf[:n])
