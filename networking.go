@@ -181,7 +181,7 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) {
 					log.WithError(err).Fatal("Unix accept failed")
 				}
 			}
-			go s.ReadTraceStream(conn)
+			go s.ReadSSFStreamSocket(conn)
 		}
 	}()
 }

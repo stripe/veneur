@@ -620,9 +620,10 @@ func (s *Server) ReadSSFPacketSocket(serverConn net.PacketConn, packetPool *sync
 	}
 }
 
-// ReadTraceStream reads a streaming connection in framed wire
-// format. See package github.com/stripe/veneur/protocol for details.
-func (s *Server) ReadTraceStream(serverConn net.Conn) {
+// ReadSSFStreamSocket reads a streaming connection in framed wire format
+// off a streaming socket. See package
+// github.com/stripe/veneur/protocol for details.
+func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 	defer func() {
 		serverConn.Close()
 	}()
@@ -653,6 +654,7 @@ func (s *Server) ReadTraceStream(serverConn net.Conn) {
 				1.0)
 			continue
 		}
+		// TODO: don't use statsd for this metric, use an in-memory counter.
 		s.Statsd.Incr("ssf.received_total", tags, .1)
 		s.handleSSF(msg, tags)
 	}

@@ -943,7 +943,7 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 	}()
 	sConn, err := l.Accept()
 	require.NoError(b, err)
-	go s.ReadTraceStream(sConn)
+	go s.ReadSSFStreamSocket(sConn)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
