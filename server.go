@@ -499,6 +499,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 // HandleTracePacket accepts an incoming packet as bytes and sends it to the
 // appropriate worker.
 func (s *Server) HandleTracePacket(packet []byte) {
+	// TODO: don't use statsd for this in favor of an in-memory counter
 	s.Statsd.Incr("ssf.received_total", nil, .1)
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
