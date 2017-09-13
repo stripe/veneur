@@ -20,8 +20,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/golang/protobuf/proto"
-	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/protocol"
@@ -877,6 +877,17 @@ func TestNewFromServerConfigRenamedVariables(t *testing.T) {
 	assert.Equal(t, 99, addr.Port)
 }
 
+// This is necessary until we can import
+// github.com/sirupsen/logrus/test - it's currently failing due to dep
+// insisting on pulling the repo in with its capitalized name.
+//
+// TODO: Revisit once https://github.com/golang/dep/issues/433 is fixed
+func nullLogger() *logrus.Logger {
+	logger := logrus.New()
+	logger.Out = ioutil.Discard
+	return logger
+}
+
 // BenchmarkSendSSFUNIX sends b.N metrics to veneur and waits until
 // all of them have been read (not processed).
 func BenchmarkSendSSFUNIX(b *testing.B) {
@@ -902,8 +913,7 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 		b.Fatal(err)
 	}
 	// Simulate a metrics worker:
-	logger, _ := test.NewNullLogger()
-	w := NewWorker(0, nil, logger)
+	w := NewWorker(0, nil, nullLogger())
 	s.Workers = []*Worker{w}
 	go func() {
 	}()
@@ -978,8 +988,7 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 	require.NoError(b, err)
 
 	// Simulate a metrics worker:
-	logger, _ := test.NewNullLogger()
-	w := NewWorker(0, nil, logger)
+	w := NewWorker(0, nil, nullLogger())
 	s.Workers = []*Worker{w}
 
 	go func() {
