@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"sync"
 
 	"math/rand"
 	"net"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/protocol"
@@ -873,4 +875,144 @@ func TestNewFromServerConfigRenamedVariables(t *testing.T) {
 	addr := s.SSFListenAddrs[0].(*net.UDPAddr)
 	assert.True(t, addr.IP.IsLoopback(), "TraceAddr should be loopback")
 	assert.Equal(t, 99, addr.Port)
+}
+
+// BenchmarkSendSSFUNIX sends b.N metrics to veneur and waits until
+// all of them have been read (not processed).
+func BenchmarkSendSSFUNIX(b *testing.B) {
+	tdir, err := ioutil.TempDir("", "unixmetrics_ssf")
+	require.NoError(b, err)
+	defer os.RemoveAll(tdir)
+	HTTPAddrPort++
+
+	path := filepath.Join(tdir, "test.sock")
+	// test the variables that have been renamed
+	config := Config{
+		DatadogAPIKey:          "apikey",
+		DatadogAPIHostname:     "http://api",
+		DatadogTraceAPIAddress: "http://trace",
+		SsfListenAddresses:     []string{fmt.Sprintf("unix://%s", path)},
+
+		// required or NewFromConfig fails
+		Interval:     "10s",
+		StatsAddress: "localhost:62251",
+	}
+	s, err := NewFromConfig(config)
+	if err != nil {
+		b.Fatal(err)
+	}
+	// Simulate a metrics worker:
+	logger, _ := test.NewNullLogger()
+	w := NewWorker(0, nil, logger)
+	s.Workers = []*Worker{w}
+	go func() {
+	}()
+	defer close(w.QuitChan)
+	// Simulate an incoming connection on the server:
+	l, err := net.Listen("unix", path)
+	require.NoError(b, err)
+	defer l.Close()
+	go func() {
+		testSpan := &ssf.SSFSpan{}
+		testMetric := &ssf.SSFSample{}
+		testMetric.Name = "test.metric"
+		testMetric.Metric = ssf.SSFSample_COUNTER
+		testMetric.Value = 1
+		testMetric.Tags = make(map[string]string)
+		testMetric.Tags["tag"] = "tagValue"
+		testSpan.Metrics = append(testSpan.Metrics, testMetric)
+
+		conn, err := net.Dial("unix", path)
+		require.NoError(b, err)
+		defer conn.Close()
+		for i := 0; i < b.N; i++ {
+			_, err := protocol.WriteSSF(conn, testSpan)
+			require.NoError(b, err)
+		}
+		conn.Close()
+	}()
+	sConn, err := l.Accept()
+	require.NoError(b, err)
+	go s.ReadTraceStream(sConn)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		<-w.PacketChan
+	}
+	close(s.shutdown)
+}
+
+// BenchmarkSendSSFUDP floods the veneur UDP socket with messages and
+// and times how long it takes to read (not process) b.N metrics. This
+// is almost an inversion of the SSFUNIX benchmark above, as UDP does
+// lose packets and we don't want to loop forever.
+func BenchmarkSendSSFUDP(b *testing.B) {
+	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
+	HTTPAddrPort++
+	// test the variables that have been renamed
+	config := Config{
+		DatadogAPIKey:          "apikey",
+		DatadogAPIHostname:     "http://api",
+		DatadogTraceAPIAddress: "http://trace",
+		SsfListenAddresses:     []string{fmt.Sprintf("udp://%s", addr)},
+		ReadBufferSizeBytes:    16 * 1024,
+		TraceMaxLengthBytes:    900 * 1024,
+
+		// required or NewFromConfig fails
+		Interval:     "10s",
+		StatsAddress: "localhost:62251",
+	}
+	s, err := NewFromConfig(config)
+	if err != nil {
+		b.Fatal(err)
+	}
+	pool := &sync.Pool{
+		New: func() interface{} {
+			return make([]byte, s.traceMaxLengthBytes)
+		},
+	}
+	// Simulate listening for UDP SSF on the server:
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	require.NoError(b, err)
+	l, err := NewSocket(udpAddr, s.RcvbufBytes, false)
+	require.NoError(b, err)
+
+	// Simulate a metrics worker:
+	logger, _ := test.NewNullLogger()
+	w := NewWorker(0, nil, logger)
+	s.Workers = []*Worker{w}
+
+	go func() {
+		testSpan := &ssf.SSFSpan{}
+		testMetric := &ssf.SSFSample{}
+		testMetric.Name = "test.metric"
+		testMetric.Metric = ssf.SSFSample_COUNTER
+		testMetric.Value = 1
+		testMetric.Tags = make(map[string]string)
+		testMetric.Tags["tag"] = "tagValue"
+		testSpan.Metrics = append(testSpan.Metrics, testMetric)
+
+		conn, err := net.Dial("udp", addr)
+		require.NoError(b, err)
+		defer conn.Close()
+		for {
+			select {
+			case <-s.shutdown:
+				return
+			default:
+			}
+			packet, err := proto.Marshal(testSpan)
+			assert.NoError(b, err)
+			conn.Write(packet)
+		}
+	}()
+	go s.ReadTraceSocket(l, pool)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		<-w.PacketChan
+	}
+	l.Close()
+	close(s.shutdown)
+	return
 }
