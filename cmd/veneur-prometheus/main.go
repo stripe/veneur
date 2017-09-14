@@ -18,6 +18,7 @@ var (
 	debug       = flag.Bool("d", false, "Enable debug mode")
 	metricsHost = flag.String("h", "http://localhost:9090/metrics", "The full URL — like 'http://localhost:9090/metrics' to query for Prometheus metrics.")
 	interval    = flag.String("i", "10s", "The interval at which to query. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).")
+	prefix      = flag.String("p", "", "A prefix to append to any metrics emitted. Do not include a trailing period.")
 	statsHost   = flag.String("s", "127.0.0.1:8126", "The host and port — like '127.0.0.1:8126' — to send our metrics to.")
 )
 
@@ -29,7 +30,6 @@ func main() {
 	if *debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
-	logrus.Debug("HELLO")
 
 	i, err := time.ParseDuration(*interval)
 	if err != nil {
@@ -39,6 +39,10 @@ func main() {
 	ticker := time.NewTicker(i)
 	for _ = range ticker.C {
 		collect(c)
+	}
+
+	if *prefix != "" {
+		c.Namespace = *prefix
 	}
 }
 

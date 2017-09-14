@@ -3,6 +3,7 @@
 ## Added
 * New [configuration option](https://github.com/stripe/veneur/pull/233) `statsd_listen_addresses`, a list of URIs indicating on which ports (and protocols) veneur should listen on for statsd metrics. This deprecates both the `udp_address` and `tcp_address` settings. Thanks [antifuchs](https://github.com/antifuchs)!
 * New package `github.com/stripe/veneur/protocol`, containing a wire protocol for sending/reading SSF over a streaming connection. Thanks [antifuchs](https://github.com/antifuchs)!
+* [veneur-prometheus](https://github.com/stripe/veneur/tree/master/cmd/veneur-prometheus) now has a `-p` option for specifying a prefix for all metrics. Thanks [gphat](https://github.com/gphat)!
 
 # 1.6.0, 2017-08-29
 
