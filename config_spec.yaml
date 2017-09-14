@@ -87,7 +87,8 @@ ssf_address: "127.0.0.1:8128"
 trace_address: "127.0.0.1:8128"
 
 # TLS
-# This is only useful in conjunction with `tcp_address`
+# This is only useful in conjunction with a tcp:// URI on
+# `statsd_listening_addresses`.
 
 # TLS server private key and certificate for encryption (specify both)
 # These are the key/certificate contents, not a file path
@@ -110,12 +111,12 @@ statsd_listen_addresses:
 
 # The address on which to listen for metrics sent to this instance over UDP,
 # leave empty to disable.
-# This option is DEPRECATED, use statsd_listen_addresses instead.
+# This option is DEPRECATED. Use statsd_listen_addresses instead.
 udp_address: "localhost:8126"
 
 # The address on which to listen for metrics sent to this instance over TCP,
 # leave empty to disable.
-# This option is DEPRECATED; use statsd_listen_addresses instead.
+# This option is DEPRECATED. Use statsd_listen_addresses instead.
 tcp_address: ""
 
 # == SINKS ==

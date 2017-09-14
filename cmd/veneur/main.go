@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -26,9 +27,12 @@ func main() {
 		logrus.Fatal("You must specify a config file")
 	}
 
-	conf, err := veneur.ReadConfig(*configFile)
+	conf, err, warnings := veneur.ReadConfig(*configFile)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error reading config file")
+	}
+	if len(warnings) > 0 {
+		logrus.Warn("Warnings when parsing the config file:\n%s", strings.Join(warnings, "\n  "))
 	}
 
 	server, err := veneur.NewFromConfig(conf)

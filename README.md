@@ -105,10 +105,10 @@ To clarify how each metric type behaves in Veneur, please use the following:
 # Usage
 
 ```
-veneur -f example.yaml
+veneur -f example/veneur/config.yaml
 ```
 
-See example.yaml for a sample config. Be sure to set your Datadog API `key`!
+See `example/veneur/config.yaml` for a sample config. Be sure to set your `datadog_api_key`!
 
 # Plugins
 
@@ -135,8 +135,7 @@ Veneur is capable of ingesting:
 
 To use clients with Veneur you need only configure your client of choice to the proper host and port combination. This port should match one of:
 
-* `udp_address` for UDP-based clients
-* `tcp_address` for TCP-based clients
+* an UDP or TCP address given on `statsd_listening_addresses`
 * `ssf_address` for SSF-based clients
 
 ## Einhorn Usage
@@ -179,7 +178,7 @@ See [more documentation for Proxy Veneur](https://github.com/stripe/veneur/tree/
 
 ### Static Configuration
 
-For static configuration you need one Veneur, which we'll call the _global_ instance, and one or more other Veneurs, which we'll call _local_ instances. The local instances should have their `forward_address` configured to the global instance's `http_address`. The global instance should have an empty `forward_address` (ie just don't set it). You can then report metrics to any Veneur's `udp_address` as usual.
+For static configuration you need one Veneur, which we'll call the _global_ instance, and one or more other Veneurs, which we'll call _local_ instances. The local instances should have their `forward_address` configured to the global instance's `http_address`. The global instance should have an empty `forward_address` (ie just don't set it). You can then report metrics to any Veneur's configured `statsd_listen_addresses` as usual.
 
 ### Magic Tag
 
@@ -195,7 +194,7 @@ Veneur also honors the same "magic" tags that the dogstatsd daemon includes in t
 
 # Configuration
 
-Veneur expects to have a config file supplied via `-f PATH`. The included `example.yaml` outlines the options:
+Veneur expects to have a config file supplied via `-f PATH`. The included `example/veneur/config.yaml` outlines the options:
 
 * `api_hostname` - The Datadog API URL to post to. Probably `https://app.datadoghq.com`.
 * `metric_max_length` - How big a buffer to allocate for incoming metric lengths. Metrics longer than this will get truncated!
@@ -204,10 +203,10 @@ Veneur expects to have a config file supplied via `-f PATH`. The included `examp
 * `hostname` - The hostname to be used with each metric sent. Defaults to `os.Hostname()`
 * `omit_empty_hostname` - If true and `hostname` is empty (`""`) Veneur will *not* add a host tag to its own metrics.
 * `interval` - How often to flush. Something like 10s seems good. **Note: If you change this, it breaks all kinds of things on Datadog's side. You'll have to change all your metric's metadata.**
-* `key` - Your Datadog API key
+* `datadog_api_key` - Your Datadog API key
 * `percentiles` - The percentiles to generate from our timers and histograms. Specified as array of float64s
 * `aggregates` - The aggregates to generate from our timers and histograms. Specified as array of strings, choices: min, max, median, avg, count, sum. Default: min, max, count
-* `udp_address` - The address on which to listen for metrics. Probably `:8126` so as not to interfere with normal DogStatsD.
+* `statsd_listen_addresses` - An array of URIs specifying the addresses to listen on. The URI schema can be either `udp` or `tcp`, and the host/port part should be the address to use for the listening socket. When using UDP, probably `udp://127.0.0.1:8126` so as not to interfere with normal DogStatsD.
 * `http_address` - The address to serve HTTP healthchecks and other endpoints. This can be a simple ip:port combination like `127.0.0.1:8127`. If you're under einhorn, you probably want `einhorn@0`.
 * `forward_address` - The address of an upstream Veneur to forward metrics to. See below.
 * `num_workers` - The number of worker goroutines to start.
@@ -332,10 +331,11 @@ openssl req -new -sha256 -key clientkey.pem -out clientkey.csr -days 1095 -subj 
 openssl x509 -req -in clientkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out clientcert.pem -days 1095
 ```
 
-Set `tcp_address`, `tls_key`, `tls_certificate`, and `tls_authority_certificate`:
+Set a TCP listener on `statsd_listen_addresses`, `tls_key`, `tls_certificate`, and `tls_authority_certificate`:
 
 ```
-tcp_address: "localhost:8129"
+statsd_listen_addresses:
+ - "tcp://localhost:8129"
 tls_certificate: |
   -----BEGIN CERTIFICATE-----
   MIIC8TCCAdkCCQDc2V7P5nCDLjANBgkqhkiG9w0BAQsFADBAMRUwEwYDVQQKEwxC
