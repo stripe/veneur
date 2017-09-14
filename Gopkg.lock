@@ -10,8 +10,7 @@
 [[projects]]
   name = "github.com/Sirupsen/logrus"
   packages = ["."]
-  revision = "f006c2ac4710855cf0f916dd6b77acf6b048dc6e"
-  version = "v1.0.3"
+  revision = "89742aefa4b206dcf400792f3bd35b542998eb3b"
 
 [[projects]]
   name = "github.com/aws/aws-sdk-go"
@@ -92,6 +91,12 @@
   version = "0.2.2"
 
 [[projects]]
+  name = "github.com/kelseyhightower/envconfig"
+  packages = ["."]
+  revision = "f611eb38b3875cc3bd991ca91c51d06446afa14c"
+  version = "v1.3.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/lightstep/lightstep-tracer-go"
   packages = [".","collectorpb","lightstep_thrift","lightsteppb","thrift_0_9_2/lib/go/thrift"]
@@ -141,7 +146,7 @@
 
 [[projects]]
   name = "github.com/stretchr/testify"
-  packages = ["assert"]
+  packages = ["assert","require"]
   revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
   version = "v1.1.4"
 
@@ -208,6 +213,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c1696683059b9c62f219bc46dcb6a4d1bf1c844aee59bf64d97e9a22ed52dfa0"
+  inputs-digest = "3d268d70c04575937cf4898f2b0e6e40921922fc2487847241d97765f9b2e6b2"
   solver-name = "gps-cdcl"
   solver-version = 1
