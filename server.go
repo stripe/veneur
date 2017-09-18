@@ -216,14 +216,14 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.EventWorker = NewEventWorker(ret.Statsd)
 
 	for _, addrStr := range conf.StatsdListenAddresses {
-		addr, err := ResolveAddr(addrStr)
+		addr, err := protocol.ResolveAddr(addrStr)
 		if err != nil {
 			return ret, err
 		}
 		ret.StatsdListenAddrs = append(ret.StatsdListenAddrs, addr)
 	}
 	for _, addrStr := range conf.SsfListenAddresses {
-		addr, err := ResolveAddr(addrStr)
+		addr, err := protocol.ResolveAddr(addrStr)
 		if err != nil {
 			return ret, err
 		}
