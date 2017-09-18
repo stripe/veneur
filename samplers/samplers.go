@@ -3,6 +3,7 @@ package samplers
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/gob"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -70,6 +71,131 @@ type JSONMetric struct {
 	// the Value is an internal representation of the metric's contents, eg a
 	// gob-encoded histogram or hyperloglog.
 	Value []byte `json:"value"`
+}
+
+// CardinalityCountName is the name of the metric that we eventually pass on
+// to the sinks.
+const CardinalityCountName = "cardinality.count"
+
+// CardinalityCountType is the string that denotes the type of the metric. We
+// use this when we serialize to a JSON metric.
+const CardinalityCountType = "cardinality_count"
+
+// cardinalityPrecision is the precision of the HLL that stores cardinality for
+// each metric name.
+const cardinalityPrecision = 18
+
+// CardinalityCount is a sampler that records an approximate cardinality count
+// by metric name.
+type CardinalityCount struct {
+	MetricCardinality map[string]*hyperloglog.HyperLogLogPlus
+}
+
+func NewCardinalityCount() *CardinalityCount {
+	return &CardinalityCount{make(map[string]*hyperloglog.HyperLogLogPlus)}
+}
+
+// Sample adds a measurement to the cardinality counter. It makes the
+// assumption that no two metrics with different types share a name (ie, name
+// is unique across all types)
+func (cc *CardinalityCount) Sample(name string, joinedTags string) {
+	if _, present := cc.MetricCardinality[name]; !present {
+		hll, _ := hyperloglog.NewPlus(cardinalityPrecision)
+		cc.MetricCardinality[name] = hll
+	}
+	hasher := fnv.New64a()
+	hasher.Write([]byte(joinedTags))
+	cc.MetricCardinality[name].Add(hasher)
+}
+
+// defin a custom error type here
+type CardinalityExportError struct {
+	metricNames   []string
+	errorMessages []string
+}
+
+func (e *CardinalityExportError) Error() string {
+	return "oh no"
+}
+
+// an array of names
+// an arr of the actual error message
+
+// ExportSets breaks apart the CardinalityCount into individual JSON metrics
+// by metric name.
+func (cc *CardinalityCount) ExportSets() ([]JSONMetric, error) {
+	jsonMetrics := make([]JSONMetric, 0, len(cc.MetricCardinality))
+
+	for metricName, hll := range cc.MetricCardinality {
+
+		buf := &bytes.Buffer{}
+		encoder := gob.NewEncoder(buf)
+
+		var expErrs *CardinalityExportError
+
+		err := encoder.Encode(map[string]*hyperloglog.HyperLogLogPlus{metricName: hll})
+		if err != nil {
+			if expErrs == nil {
+				expErrs = &CardinalityExportError{
+					metricNames:   make([]string, 0),
+					errorMessages: make([]string, 0),
+				}
+				expErrs.metricNames = append(expErrs.metricNames, metricName)
+				expErrs.errorMessages = append(expErrs.errorMessages, err.Error())
+			}
+		}
+
+		jm := JSONMetric{
+			MetricKey: MetricKey{
+				Name:       CardinalityCountName,
+				Type:       CardinalityCountType,
+				JoinedTags: metricName,
+			},
+			Tags:  []string{metricName},
+			Value: buf.Bytes(),
+		}
+		jsonMetrics = append(jsonMetrics, jm)
+	}
+	return jsonMetrics, nil
+}
+
+// Combine merges the cardinality count structs exported from locals.
+func (cc *CardinalityCount) Combine(other []byte) error {
+	var decodedMap map[string]*hyperloglog.HyperLogLogPlus
+	buf := bytes.NewReader(other)
+	decoder := gob.NewDecoder(buf)
+
+	err := decoder.Decode(&decodedMap)
+	if err != nil {
+		return err
+	}
+
+	otherCC := CardinalityCount{
+		MetricCardinality: decodedMap,
+	}
+	for name, hll := range otherCC.MetricCardinality {
+		if _, ok := cc.MetricCardinality[name]; ok {
+			cc.MetricCardinality[name].Merge(hll)
+		} else {
+			cc.MetricCardinality[name] = hll
+		}
+	}
+	return nil
+}
+
+// Flush emits the names + cardinality of all the metrics in the map
+// TODO (kiran): investigate whether we'd want to emit only the top k metrics
+func (cc *CardinalityCount) Flush() []DDMetric {
+	ddMetrics := make([]DDMetric, 0, len(cc.MetricCardinality))
+	for metricName, hll := range cc.MetricCardinality {
+		ddMetric := DDMetric{
+			Name:  CardinalityCountName,
+			Value: [1][2]float64{{float64(time.Now().Unix()), float64(hll.Count())}},
+			Tags:  []string{metricName},
+		}
+		ddMetrics = append(ddMetrics, ddMetric)
+	}
+	return ddMetrics
 }
 
 // Counter is an accumulator

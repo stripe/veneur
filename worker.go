@@ -36,6 +36,9 @@ type WorkerMetrics struct {
 	sets       map[samplers.MetricKey]*samplers.Set
 	timers     map[samplers.MetricKey]*samplers.Histo
 
+	// metametrics -- these store information about the metrics themselves
+	cardinality *samplers.CardinalityCount
+
 	// this is for counters which are globally aggregated
 	globalCounters map[samplers.MetricKey]*samplers.Counter
 
@@ -54,6 +57,7 @@ func NewWorkerMetrics() WorkerMetrics {
 		histograms:      make(map[samplers.MetricKey]*samplers.Histo),
 		sets:            make(map[samplers.MetricKey]*samplers.Set),
 		timers:          make(map[samplers.MetricKey]*samplers.Histo),
+		cardinality:     samplers.NewCardinalityCount(),
 		localHistograms: make(map[samplers.MetricKey]*samplers.Histo),
 		localSets:       make(map[samplers.MetricKey]*samplers.Set),
 		localTimers:     make(map[samplers.MetricKey]*samplers.Histo),
@@ -200,6 +204,8 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 	default:
 		log.WithField("type", m.Type).Error("Unknown metric type for processing")
 	}
+	// record the metric's cardinality
+	w.wm.cardinality.Sample(m.MetricKey.Name, m.MetricKey.JoinedTags)
 }
 
 // ImportMetric receives a metric from another veneur instance
@@ -233,6 +239,10 @@ func (w *Worker) ImportMetric(other samplers.JSONMetric) {
 	case "timer":
 		if err := w.wm.timers[other.MetricKey].Combine(other.Value); err != nil {
 			log.WithError(err).Error("Could not merge timers")
+		}
+	case samplers.CardinalityCountType:
+		if err := w.wm.cardinality.Combine(other.Value); err != nil {
+			log.WithError(err).Error("Could not merge cardinality")
 		}
 	default:
 		log.WithField("type", other.Type).Error("Unknown metric type for importing")

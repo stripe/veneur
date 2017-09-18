@@ -55,6 +55,7 @@ func (s *Server) FlushGlobal(ctx context.Context) {
 	// and global counters
 	ms.totalLength += ms.totalSets
 	ms.totalLength += ms.totalGlobalCounters
+	ms.totalLength += ms.totalCardinalityCounts
 
 	finalMetrics := s.generateDDMetrics(span.Attach(ctx), percentiles, tempMetrics, ms)
 
@@ -132,6 +133,8 @@ type metricsSummary struct {
 	totalLocalSets       int
 	totalLocalTimers     int
 
+	totalCardinalityCounts int
+
 	totalLength int
 }
 
@@ -163,6 +166,8 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 		ms.totalLocalHistograms += len(wm.localHistograms)
 		ms.totalLocalSets += len(wm.localSets)
 		ms.totalLocalTimers += len(wm.localTimers)
+
+		ms.totalCardinalityCounts += len(wm.cardinality.MetricCardinality)
 	}
 
 	s.Statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(gatherStart).Nanoseconds()), []string{"part:gather"}, 1.0)
@@ -227,6 +232,9 @@ func (s *Server) generateDDMetrics(ctx context.Context, percentiles []float64, t
 			for _, s := range wm.sets {
 				finalMetrics = append(finalMetrics, s.Flush()...)
 			}
+
+			// cardinality counts also have no local parts to flush
+			finalMetrics = append(finalMetrics, wm.cardinality.Flush()...)
 
 			// also do this for global counters
 			// global counters have no local parts, so if we're a local veneur,
@@ -415,6 +423,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 			jsonMetrics = append(jsonMetrics, jm)
 		}
 	}
+	// TODO (kiran) export the cardinalityCount.ExportSets()
 	s.Statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(exportStart).Nanoseconds()), []string{"part:export"}, 1.0)
 
 	s.Statsd.Gauge("forward.post_metrics_total", float64(len(jsonMetrics)), nil, 1.0)
