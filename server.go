@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -32,6 +33,7 @@ import (
 	"github.com/stripe/veneur/plugins/influxdb"
 	localfilep "github.com/stripe/veneur/plugins/localfile"
 	s3p "github.com/stripe/veneur/plugins/s3"
+	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/trace"
 )
@@ -81,7 +83,7 @@ type Server struct {
 	ForwardAddr string
 
 	StatsdListenAddrs []net.Addr
-	TraceAddr         *net.UDPAddr
+	SSFListenAddrs    []net.Addr
 	RcvbufBytes       int
 
 	interval            time.Duration
@@ -220,6 +222,13 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		}
 		ret.StatsdListenAddrs = append(ret.StatsdListenAddrs, addr)
 	}
+	for _, addrStr := range conf.SsfListenAddresses {
+		addr, err := ResolveAddr(addrStr)
+		if err != nil {
+			return ret, err
+		}
+		ret.SSFListenAddrs = append(ret.SSFListenAddrs, addr)
+	}
 
 	ret.metricMaxLength = conf.MetricMaxLength
 	ret.traceMaxLengthBytes = conf.TraceMaxLengthBytes
@@ -265,23 +274,14 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.TLSKey = REDACTED
 	log.WithField("config", conf).Debug("Initialized server")
 
-	// Configure tracing workers and sinks
-	if len(conf.SsfAddress) > 0 && ret.tracingSinkEnabled() {
+	// Configure tracing sinks
+	if ret.tracingSinkEnabled() && len(conf.SsfListenAddresses) > 0 {
 
 		// Set a sane default
 		if conf.SsfBufferSize == 0 {
 			conf.SsfBufferSize = defaultSpanBufferSize
 		}
 
-		ret.TraceAddr, err = net.ResolveUDPAddr("udp", conf.SsfAddress)
-		log.WithField("traceaddr", ret.TraceAddr).Info("Listening for trace spans on address")
-
-		if err == nil && ret.TraceAddr == nil {
-			err = errors.New("resolved nil UDP address")
-		}
-		if err != nil {
-			return
-		}
 		trace.Enable()
 
 		// configure Datadog as sink
@@ -419,15 +419,12 @@ func (s *Server) Start() {
 	}
 
 	// Read Traces Forever!
-	if s.TracingEnabled() {
-		go func() {
-			defer func() {
-				ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
-			}()
-			s.ReadTraceSocket(tracePool)
-		}()
+	if s.TracingEnabled() && len(s.SSFListenAddrs) > 0 {
+		for _, addr := range s.SSFListenAddrs {
+			StartSSF(s, addr, tracePool)
+		}
 	} else {
-		logrus.Info("Tracing not configured - not reading trace socket")
+		logrus.Info("Tracing sockets are configured - not reading trace socket")
 	}
 
 	// Flush every Interval forever!
@@ -502,10 +499,11 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 // HandleTracePacket accepts an incoming packet as bytes and sends it to the
 // appropriate worker.
 func (s *Server) HandleTracePacket(packet []byte) {
-	s.Statsd.Incr("packet.received_total", nil, .1)
+	// TODO: don't use statsd for this in favor of an in-memory counter
+	s.Statsd.Incr("ssf.received_total", nil, .1)
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
-		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:unknown", "reason:zerolength"}, 1.0)
+		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:unknown", "reason:zerolength"}, 1.0)
 		log.Warn("received zero-length trace packet")
 		return
 	}
@@ -513,28 +511,32 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	msg, err := samplers.ParseSSF(packet)
 	if err != nil {
 		reason := fmt.Sprintf("reason:%s", err.Error())
-		s.Statsd.Count("packet.error_total", 1, []string{"packet_type:ssf_metric", reason}, 1.0)
+		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:ssf_metric", reason}, 1.0)
 		log.WithError(err).Warn("ParseSSF")
 		return
 	}
+	s.handleSSF(msg, []string{"ssf_format:packet"})
+}
+
+func (s *Server) handleSSF(msg *samplers.Message, tags []string) {
 	metrics, err := msg.Metrics()
 	if err != nil {
 		if _, ok := err.(samplers.InvalidMetrics); ok {
 			log.WithError(err).Warn("Could not parse metrics from SSF Message")
-			s.Statsd.Count("packet.error_total", 1, []string{
+			s.Statsd.Count("ssf.error_total", 1, append([]string{
 				"packet_type:ssf_metric",
 				"step:extract_metrics",
 				"reason:invalid_metrics",
-			}, 1.0)
+			}, tags...), 1.0)
 		} else {
 			log.WithError(err).Error("Unexpected error extracting metrics from SSF Message")
 			errorTag := fmt.Sprintf("error:%s", err.Error())
-			s.Statsd.Count("packet.error_total", 1, []string{
+			s.Statsd.Count("ssf.error_total", 1, append([]string{
 				"packet_type:ssf_metric",
 				"step:extract_metrics",
 				"reason:unexpected_error",
 				errorTag,
-			}, 1.0)
+			}, tags...), 1.0)
 			return
 		}
 	}
@@ -549,7 +551,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		}
 		return
 	}
-	s.Statsd.Incr("packet.spans.received_total", []string{fmt.Sprintf("service:%s", span.Service)}, .1)
+	s.Statsd.Incr("ssf.spans.received_total", append([]string{fmt.Sprintf("service:%s", span.Service)}, tags...), .1)
 	s.SpanWorker.SpanChan <- *span
 }
 
@@ -585,14 +587,10 @@ func (s *Server) ReadMetricSocket(serverConn net.PacketConn, packetPool *sync.Po
 	}
 }
 
-// ReadTraceSocket listens for available packets to handle.
-func (s *Server) ReadTraceSocket(packetPool *sync.Pool) {
+// ReadSSFPacketSocket reads SSF packets off a packet connection.
+func (s *Server) ReadSSFPacketSocket(serverConn net.PacketConn, packetPool *sync.Pool) {
 	// TODO This is duplicated from ReadMetricSocket and feels like it could be it's
 	// own function?
-
-	if s.TraceAddr == nil {
-		log.WithField("s.TraceAddr", s.TraceAddr).Fatal("Cannot listen on nil trace address")
-	}
 	p := packetPool.Get().([]byte)
 	if len(p) == 0 {
 		log.WithField("len", len(p)).Fatal(
@@ -600,27 +598,65 @@ func (s *Server) ReadTraceSocket(packetPool *sync.Pool) {
 	}
 	packetPool.Put(p)
 
-	// if we want to use multiple readers, make reuseport a parameter, like ReadMetricSocket.
-	serverConn, err := NewSocket(s.TraceAddr, s.RcvbufBytes, false)
-	if err != nil {
-		// if any goroutine fails to create the socket, we can't really
-		// recover, so we just blow up
-		// this probably indicates a systemic issue, eg lack of
-		// SO_REUSEPORT support
-		log.WithError(err).Fatal("Error listening for UDP traces")
-	}
-	log.WithField("address", s.TraceAddr).Info("Listening for UDP traces")
-
 	for {
 		buf := packetPool.Get().([]byte)
 		n, _, err := serverConn.ReadFrom(buf)
 		if err != nil {
-			log.WithError(err).Error("Error reading from UDP trace socket")
-			continue
+			// In tests, the probably-best way to
+			// terminate this reader is to issue a shutdown and close the listening
+			// socket, which returns an error, so let's handle it here:
+			select {
+			case <-s.shutdown:
+				log.WithError(err).Info("Ignoring ReadFrom error while shutting down")
+				return
+			default:
+				log.WithError(err).Error("Error reading from UDP trace socket")
+				continue
+			}
 		}
 
 		s.HandleTracePacket(buf[:n])
 		packetPool.Put(buf)
+	}
+}
+
+// ReadSSFStreamSocket reads a streaming connection in framed wire format
+// off a streaming socket. See package
+// github.com/stripe/veneur/protocol for details.
+func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
+	defer func() {
+		serverConn.Close()
+	}()
+	tags := []string{"ssf_format:framed"}
+	for {
+		msg, err := protocol.ReadSSF(serverConn)
+		if err != nil {
+			if err == io.EOF {
+				// Client hangup, close this
+				s.Statsd.Incr("frames.disconnects", nil, 1.0)
+				return
+			}
+			if protocol.IsFramingError(err) {
+				log.WithError(err).
+					WithField("remote", serverConn.RemoteAddr()).
+					Error("Frame error reading from SSF connection. Closing.")
+				s.Statsd.Incr("ssf.error_total",
+					append([]string{"packet_type:unknown", "reason:framing"}, tags...),
+					1.0)
+				return
+			}
+			// Non-frame errors means we can continue reading:
+			log.WithError(err).
+				WithField("remote", serverConn.RemoteAddr()).
+				Error("Error processing an SSF frame")
+			s.Statsd.Incr("ssf.error_total",
+				append([]string{"packet_type:unknown", "reason:processing"}, tags...),
+				1.0)
+			continue
+		}
+		// TODO: don't use statsd for this metric, use an in-memory counter.
+		s.Statsd.Incr("ssf.received_total", tags, .1)
+		s.handleSSF(msg, tags)
 	}
 }
 

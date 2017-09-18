@@ -67,11 +67,19 @@ func readFrame(in io.Reader, length int) ([]byte, error) {
 //
 // If this function returns an error, client code must check it with
 // IsFramingError to decide if the error means the stream is
-// unrecoverably broken.
+// unrecoverably broken. The error is EOF only if no bytes were read
+// at the start of a message (e.g. if a connection was closed after
+// the last message).
+
 func ReadSSF(in io.Reader) (*samplers.Message, error) {
 	var version uint8
 	var length uint32
 	if err := binary.Read(in, binary.BigEndian, &version); err != nil {
+		if err == io.EOF {
+			// EOF/hang-ups at the start of a new message
+			// are fine, pass them through as-is.
+			return nil, err
+		}
 		return nil, &errFramingIO{err}
 	}
 	if version != version0 {

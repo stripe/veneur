@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"sync"
 
 	"math/rand"
 	"net"
@@ -19,8 +20,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/tdigest"
@@ -97,7 +101,7 @@ func generateConfig(forwardAddr string) Config {
 		FlushMaxPerBody: 1024,
 
 		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
-		SsfAddress:             fmt.Sprintf("127.0.0.1:%d", tracePort),
+		SsfListenAddresses:     []string{fmt.Sprintf("udp://127.0.0.1:%d", tracePort)},
 		DatadogTraceAPIAddress: forwardAddr,
 		TraceMaxLengthBytes:    4096,
 		SsfBufferSize:          32,
@@ -606,14 +610,15 @@ func TestUDPMetricsSSF(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.Interval = "60s"
-	config.SsfAddress = fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
+	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
+	config.SsfListenAddresses = []string{fmt.Sprintf("udp://%s", addr)}
 	HTTPAddrPort++
 	f := newFixture(t, config)
 	defer f.Close()
 	// listen delay
 	time.Sleep(20 * time.Millisecond)
 
-	conn, err := net.Dial("udp", config.SsfAddress)
+	conn, err := net.Dial("udp", addr)
 	assert.NoError(t, err)
 	defer conn.Close()
 
@@ -632,6 +637,48 @@ func TestUDPMetricsSSF(t *testing.T) {
 
 	time.Sleep(20 * time.Millisecond)
 	assert.Equal(t, int64(1), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+}
+
+func TestUNIXMetricsSSF(t *testing.T) {
+	tdir, err := ioutil.TempDir("", "unixmetrics_ssf")
+	require.NoError(t, err)
+	defer os.RemoveAll(tdir)
+
+	config := localConfig()
+	config.NumWorkers = 1
+	config.Interval = "60s"
+	path := filepath.Join(tdir, "test.sock")
+	config.SsfListenAddresses = []string{fmt.Sprintf("unix://%s", path)}
+	HTTPAddrPort++
+	f := newFixture(t, config)
+	defer f.Close()
+	// listen delay
+	time.Sleep(20 * time.Millisecond)
+
+	conn, err := net.Dial("unix", path)
+	assert.NoError(t, err)
+	defer conn.Close()
+
+	testSpan := &ssf.SSFSpan{}
+	testMetric := &ssf.SSFSample{}
+	testMetric.Name = "test.metric"
+	testMetric.Metric = ssf.SSFSample_COUNTER
+	testMetric.Value = 1
+	testMetric.Tags = make(map[string]string)
+	testMetric.Tags["tag"] = "tagValue"
+	testSpan.Metrics = append(testSpan.Metrics, testMetric)
+
+	_, err = protocol.WriteSSF(conn, testSpan)
+	if assert.NoError(t, err) {
+		time.Sleep(20 * time.Millisecond)
+		assert.Equal(t, int64(1), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+	}
+
+	_, err = protocol.WriteSSF(conn, testSpan)
+	if assert.NoError(t, err) {
+		time.Sleep(20 * time.Millisecond)
+		assert.Equal(t, int64(2), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+	}
 }
 
 func TestIgnoreLongUDPMetrics(t *testing.T) {
@@ -811,7 +858,7 @@ func TestNewFromServerConfigRenamedVariables(t *testing.T) {
 		DatadogAPIKey:          "apikey",
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
-		SsfAddress:             "127.0.0.1:99",
+		SsfListenAddresses:     []string{"udp://127.0.0.1:99"},
 
 		// required or NewFromConfig fails
 		Interval:     "10s",
@@ -825,6 +872,156 @@ func TestNewFromServerConfigRenamedVariables(t *testing.T) {
 	assert.Equal(t, "apikey", s.DDAPIKey)
 	assert.Equal(t, "http://api", s.DDHostname)
 	assert.Equal(t, "http://trace", s.DDTraceAddress)
-	assert.True(t, s.TraceAddr.IP.IsLoopback(), "TraceAddr should be loopback")
-	assert.Equal(t, 99, s.TraceAddr.Port)
+	addr := s.SSFListenAddrs[0].(*net.UDPAddr)
+	assert.True(t, addr.IP.IsLoopback(), "TraceAddr should be loopback")
+	assert.Equal(t, 99, addr.Port)
+}
+
+// This is necessary until we can import
+// github.com/sirupsen/logrus/test - it's currently failing due to dep
+// insisting on pulling the repo in with its capitalized name.
+//
+// TODO: Revisit once https://github.com/golang/dep/issues/433 is fixed
+func nullLogger() *logrus.Logger {
+	logger := logrus.New()
+	logger.Out = ioutil.Discard
+	return logger
+}
+
+// BenchmarkSendSSFUNIX sends b.N metrics to veneur and waits until
+// all of them have been read (not processed).
+func BenchmarkSendSSFUNIX(b *testing.B) {
+	tdir, err := ioutil.TempDir("", "unixmetrics_ssf")
+	require.NoError(b, err)
+	defer os.RemoveAll(tdir)
+	HTTPAddrPort++
+
+	path := filepath.Join(tdir, "test.sock")
+	// test the variables that have been renamed
+	config := Config{
+		DatadogAPIKey:          "apikey",
+		DatadogAPIHostname:     "http://api",
+		DatadogTraceAPIAddress: "http://trace",
+		SsfListenAddresses:     []string{fmt.Sprintf("unix://%s", path)},
+
+		// required or NewFromConfig fails
+		Interval:     "10s",
+		StatsAddress: "localhost:62251",
+	}
+	s, err := NewFromConfig(config)
+	if err != nil {
+		b.Fatal(err)
+	}
+	// Simulate a metrics worker:
+	w := NewWorker(0, nil, nullLogger())
+	s.Workers = []*Worker{w}
+	go func() {
+	}()
+	defer close(w.QuitChan)
+	// Simulate an incoming connection on the server:
+	l, err := net.Listen("unix", path)
+	require.NoError(b, err)
+	defer l.Close()
+	go func() {
+		testSpan := &ssf.SSFSpan{}
+		testMetric := &ssf.SSFSample{}
+		testMetric.Name = "test.metric"
+		testMetric.Metric = ssf.SSFSample_COUNTER
+		testMetric.Value = 1
+		testMetric.Tags = make(map[string]string)
+		testMetric.Tags["tag"] = "tagValue"
+		testSpan.Metrics = append(testSpan.Metrics, testMetric)
+
+		conn, err := net.Dial("unix", path)
+		require.NoError(b, err)
+		defer conn.Close()
+		for i := 0; i < b.N; i++ {
+			_, err := protocol.WriteSSF(conn, testSpan)
+			require.NoError(b, err)
+		}
+		conn.Close()
+	}()
+	sConn, err := l.Accept()
+	require.NoError(b, err)
+	go s.ReadSSFStreamSocket(sConn)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		<-w.PacketChan
+	}
+	close(s.shutdown)
+}
+
+// BenchmarkSendSSFUDP floods the veneur UDP socket with messages and
+// and times how long it takes to read (not process) b.N metrics. This
+// is almost an inversion of the SSFUNIX benchmark above, as UDP does
+// lose packets and we don't want to loop forever.
+func BenchmarkSendSSFUDP(b *testing.B) {
+	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
+	HTTPAddrPort++
+	// test the variables that have been renamed
+	config := Config{
+		DatadogAPIKey:          "apikey",
+		DatadogAPIHostname:     "http://api",
+		DatadogTraceAPIAddress: "http://trace",
+		SsfListenAddresses:     []string{fmt.Sprintf("udp://%s", addr)},
+		ReadBufferSizeBytes:    16 * 1024,
+		TraceMaxLengthBytes:    900 * 1024,
+
+		// required or NewFromConfig fails
+		Interval:     "10s",
+		StatsAddress: "localhost:62251",
+	}
+	s, err := NewFromConfig(config)
+	if err != nil {
+		b.Fatal(err)
+	}
+	pool := &sync.Pool{
+		New: func() interface{} {
+			return make([]byte, s.traceMaxLengthBytes)
+		},
+	}
+	// Simulate listening for UDP SSF on the server:
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	require.NoError(b, err)
+	l, err := NewSocket(udpAddr, s.RcvbufBytes, false)
+	require.NoError(b, err)
+
+	// Simulate a metrics worker:
+	w := NewWorker(0, nil, nullLogger())
+	s.Workers = []*Worker{w}
+
+	go func() {
+		testSpan := &ssf.SSFSpan{}
+		testMetric := &ssf.SSFSample{}
+		testMetric.Name = "test.metric"
+		testMetric.Metric = ssf.SSFSample_COUNTER
+		testMetric.Value = 1
+		testMetric.Tags = make(map[string]string)
+		testMetric.Tags["tag"] = "tagValue"
+		testSpan.Metrics = append(testSpan.Metrics, testMetric)
+
+		conn, err := net.Dial("udp", addr)
+		require.NoError(b, err)
+		defer conn.Close()
+		for {
+			select {
+			case <-s.shutdown:
+				return
+			default:
+			}
+			packet, err := proto.Marshal(testSpan)
+			assert.NoError(b, err)
+			conn.Write(packet)
+		}
+	}()
+	go s.ReadSSFPacketSocket(l, pool)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		<-w.PacketChan
+	}
+	l.Close()
+	close(s.shutdown)
+	return
 }

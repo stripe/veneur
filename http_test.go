@@ -283,7 +283,7 @@ func TestNokTraceHealthCheck(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/healthcheck/tracing", nil)
 
 	config := localConfig()
-	config.SsfAddress = ""
+	config.SsfListenAddresses = []string{}
 	s := setupVeneurServer(t, config, nil)
 	defer s.Shutdown()
 	HTTPAddrPort++

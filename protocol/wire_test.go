@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"bytes"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,7 +20,7 @@ func TestReadSSFStream(t *testing.T) {
 		EndTimestamp:   9001,
 		Tags:           map[string]string{},
 	}
-	// Write it to a reader twice:
+	// Write it to a buffer twice:
 	buf := bytes.NewBuffer([]byte{})
 	_, err := WriteSSF(buf, msg)
 	require.NoError(t, err)
@@ -40,6 +41,44 @@ func TestReadSSFStream(t *testing.T) {
 		span, err := read.TraceSpan()
 		require.NoError(t, err)
 		assert.Equal(t, *msg, *span)
+	}
+}
+
+func TestEOF(t *testing.T) {
+	msg := &ssf.SSFSpan{
+		Version:        1,
+		TraceId:        1,
+		Id:             2,
+		ParentId:       3,
+		StartTimestamp: 9000,
+		EndTimestamp:   9001,
+		Tags:           map[string]string{},
+	}
+	buf := bytes.NewBuffer([]byte{})
+	_, err := WriteSSF(buf, msg)
+	require.NoError(t, err)
+	// First frame should work:
+	{
+		read, err := ReadSSF(buf)
+		if assert.NoError(t, err) {
+			assert.NotNil(t, read)
+		}
+	}
+	// Second frame should return a plain EOF error:
+	{
+		read, err := ReadSSF(buf)
+		assert.False(t, IsFramingError(err))
+		if assert.Equal(t, io.EOF, err) {
+			assert.Nil(t, read)
+		}
+	}
+	// subsequent reads should get EOF too:
+	{
+		read, err := ReadSSF(buf)
+		assert.False(t, IsFramingError(err))
+		if assert.Equal(t, io.EOF, err) {
+			assert.Nil(t, read)
+		}
 	}
 }
 

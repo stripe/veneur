@@ -31,6 +31,7 @@ type Config struct {
 	SentryDsn                     string    `yaml:"sentry_dsn"`
 	SsfAddress                    string    `yaml:"ssf_address"`
 	SsfBufferSize                 int       `yaml:"ssf_buffer_size"`
+	SsfListenAddresses            []string  `yaml:"ssf_listen_addresses"`
 	StatsAddress                  string    `yaml:"stats_address"`
 	StatsdListenAddresses         []string  `yaml:"statsd_listen_addresses"`
 	Tags                          []string  `yaml:"tags"`
