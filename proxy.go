@@ -58,7 +58,7 @@ func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
 	}
 	p.Hostname = hostname
 
-	log.Hooks.Add(sentryHook{
+	log.AddHook(sentryHook{
 		c:        p.Sentry,
 		hostname: hostname,
 		lv: []logrus.Level{
