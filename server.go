@@ -508,6 +508,8 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		return
 	}
 
+	s.Statsd.Histogram("ssf.packet_size", float64(len(packet)), nil, .1)
+
 	msg, err := samplers.ParseSSF(packet)
 	if err != nil {
 		reason := fmt.Sprintf("reason:%s", err.Error())
@@ -555,7 +557,7 @@ func (s *Server) handleSSF(msg *samplers.Message, tags []string) {
 	tags = append([]string{fmt.Sprintf("service:%s", span.Service)}, tags...)
 
 	s.Statsd.Incr("ssf.spans.received_total", tags, .1)
-	s.Statsd.Histogram("ssf.spans.tags", float64(len(span.Tags)), tags, .1)
+	s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, .1)
 	s.SpanWorker.SpanChan <- *span
 }
 
