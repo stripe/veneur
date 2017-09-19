@@ -551,7 +551,11 @@ func (s *Server) handleSSF(msg *samplers.Message, tags []string) {
 		}
 		return
 	}
-	s.Statsd.Incr("ssf.spans.received_total", append([]string{fmt.Sprintf("service:%s", span.Service)}, tags...), .1)
+
+	tags = append([]string{fmt.Sprintf("service:%s", span.Service)}, tags...)
+
+	s.Statsd.Incr("ssf.spans.received_total", tags, .1)
+	s.Statsd.Histogram("ssf.spans.tags", float64(len(span.Tags)), tags, .1)
 	s.SpanWorker.SpanChan <- *span
 }
 
