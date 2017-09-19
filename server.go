@@ -185,7 +185,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	// condition in logrus discussed here:
 	// https://github.com/sirupsen/logrus/issues/295
 	if _, ok := log.Hooks[logrus.FatalLevel]; !ok {
-		log.Hooks.Add(sentryHook{
+		log.AddHook(sentryHook{
 			c:        ret.Sentry,
 			hostname: ret.Hostname,
 			lv: []logrus.Level{
