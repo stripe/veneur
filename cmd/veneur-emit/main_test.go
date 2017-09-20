@@ -13,7 +13,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
-	"github.com/stripe/veneur"
 )
 
 var (
@@ -220,36 +219,35 @@ func TestBadCalls(t *testing.T) {
 
 func TestHostport(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
-	testHostport := "host:port"
+	testHostport := "127.0.0.1:8200"
 	testFlag["hostport"] = newValue(testHostport)
-	addr, network, err := addr(testFlag, nil, &testHostport, false)
-	if addr != testHostport || network != "udp" || err != nil {
-		t.Errorf("Did not return hostport: %q/%q", network, addr)
-	}
+	addr, network, err := destination(testFlag, &testHostport, false)
+	assert.NoError(t, err)
+	assert.Equal(t, "127.0.0.1:8200", addr)
+	assert.Equal(t, "udp", network)
+}
+
+func TestHostportAsURL(t *testing.T) {
+	testFlag := make(map[string]flag.Value)
+	testHostport := "tcp://127.0.0.1:8200"
+	testFlag["hostport"] = newValue(testHostport)
+	addr, network, err := destination(testFlag, &testHostport, false)
+	assert.NoError(t, err)
+	assert.Equal(t, "127.0.0.1:8200", addr)
+	assert.Equal(t, "tcp", network)
 }
 
 func TestNilHostport(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
-	addr, network, err := addr(testFlag, nil, nil, false)
+	addr, network, err := destination(testFlag, nil, false)
 	if addr != "" || network != "udp" || err == nil {
 		t.Error("Did not check for valid hostport.")
 	}
 }
 
-func TestConfig(t *testing.T) {
-	testFlag := make(map[string]flag.Value)
-	fakeConfig := &veneur.Config{}
-	fakeConfig.StatsdListenAddresses = []string{"udp://127.0.0.1:8200"}
-	testFlag["f"] = newValue("/pay/conf/veneur.yaml")
-	addr, network, err := addr(testFlag, fakeConfig, nil, false)
-	if addr != "127.0.0.1:8200" || network != "udp" || err != nil {
-		t.Errorf("Did not use config file for hostname and port: %q/%q", network, addr)
-	}
-}
-
 func TestNoAddr(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
-	addr, network, err := addr(testFlag, nil, nil, false)
+	addr, network, err := destination(testFlag, nil, false)
 	if addr != "" || network != "udp" || err == nil {
 		t.Error("Returned non-empty address with no flags.")
 	}
