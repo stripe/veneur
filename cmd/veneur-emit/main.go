@@ -91,13 +91,18 @@ func main() {
 	if err != nil {
 		logrus.WithError(err).Fatal("Error getting destination address.")
 	}
-	logrus.Debugf("destination: %s", addr)
+	logrus.WithField("net", network).
+		WithField("addr", addr).
+		Debugf("destination")
 
 	if *shellCommand {
 		var conn MinimalClient
 		conn, err = statsd.New(addr)
 		if err != nil {
-			logrus.WithError(err).Fatal("Error!")
+			logrus.WithError(err).
+				WithField("addr", addr).
+				WithField("network", network).
+				Fatal("Could not create statsd client")
 		}
 
 		var status int
@@ -112,7 +117,10 @@ func main() {
 			var nconn net.Conn
 			nconn, err = net.Dial(network, addr)
 			if err != nil {
-				logrus.WithError(err).Fatal("Error!")
+				logrus.WithError(err).
+					WithField("addr", addr).
+					WithField("network", network).
+					Fatal("Could not connect")
 			}
 
 			var span *ssf.SSFSpan
@@ -129,7 +137,10 @@ func main() {
 			var conn MinimalClient
 			conn, err = statsd.New(addr)
 			if err != nil {
-				logrus.WithError(err).Fatal("Error!")
+				logrus.WithError(err).
+					WithField("addr", addr).
+					WithField("network", network).
+					Fatal("Could not create statsd client")
 			}
 
 			tags := tags(*tag)
