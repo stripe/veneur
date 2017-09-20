@@ -5,6 +5,7 @@
 * New package `github.com/stripe/veneur/protocol`, containing a wire protocol for sending/reading SSF over a streaming connection. Thanks [antifuchs](https://github.com/antifuchs)!
 * [veneur-prometheus](https://github.com/stripe/veneur/tree/master/cmd/veneur-prometheus) now has a `-p` option for specifying a prefix for all metrics. Thanks [gphat](https://github.com/gphat)!
 * New metrics `ssf.spans.tags_per_span` and `ssf.packet_size` track the distribution of tags per span and total packet sizes, respectively.
+* Our super spiffy logo, designed by [mercedes](https://github.com/mercedes-stripe), is now included at the top of the README!
 
 # 1.6.0, 2017-08-29
 
