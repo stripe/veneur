@@ -219,12 +219,22 @@ func TestBadCalls(t *testing.T) {
 
 func TestHostport(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
-	testHostport := "host:port"
+	testHostport := "127.0.0.1:8200"
 	testFlag["hostport"] = newValue(testHostport)
 	addr, network, err := destination(testFlag, &testHostport, false)
-	if addr != testHostport || network != "udp" || err != nil {
-		t.Errorf("Did not return hostport: %q/%q", network, addr)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "127.0.0.1:8200", addr)
+	assert.Equal(t, "udp", network)
+}
+
+func TestHostportAsURL(t *testing.T) {
+	testFlag := make(map[string]flag.Value)
+	testHostport := "tcp://127.0.0.1:8200"
+	testFlag["hostport"] = newValue(testHostport)
+	addr, network, err := destination(testFlag, &testHostport, false)
+	assert.NoError(t, err)
+	assert.Equal(t, "127.0.0.1:8200", addr)
+	assert.Equal(t, "tcp", network)
 }
 
 func TestNilHostport(t *testing.T) {
