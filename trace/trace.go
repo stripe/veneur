@@ -88,6 +88,11 @@ type Trace struct {
 	// It should be of the format foo.bar.baz
 	Name string
 
+	// Sent is a callback, invoked when the span has been
+	// serialized and sent. It is passed any error that occurs
+	// serializing or sending this trace.
+	Sent func(error)
+
 	error bool
 }
 
@@ -166,10 +171,14 @@ func (t *Trace) ProtoMarshalTo(w io.Writer) error {
 	return err
 }
 
-// Record sends a trace to the (local) veneur instance,
-// which will pass it on to the tracing agent running on the
-// global veneur instance.
+// Record sends a trace to a veneur instance using the DefaultClient .
 func (t *Trace) Record(name string, tags map[string]string) error {
+	return t.ClientRecord(DefaultClient, name, tags)
+}
+
+// ClientRecord uses the given client to send a trace to a veneur
+// instance.
+func (t *Trace) ClientRecord(cl *Client, name string, tags map[string]string) error {
 	if t.Tags == nil {
 		t.Tags = map[string]string{}
 	}
@@ -186,7 +195,7 @@ func (t *Trace) Record(name string, tags map[string]string) error {
 	span := t.SSFSpan()
 	span.Name = name
 
-	return sendSample(span)
+	return Record(cl, span, t.Sent)
 }
 
 func (t *Trace) Error(err error) {

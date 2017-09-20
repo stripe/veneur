@@ -182,7 +182,6 @@ func (s *Span) Finish() {
 		LogRecords:  nil,
 		BulkLogData: nil,
 	})
-
 }
 
 // FinishWithOptions finishes the span, but with explicit

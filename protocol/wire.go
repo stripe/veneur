@@ -43,6 +43,11 @@ import (
 // currently 16MB.
 const MaxSSFPacketLength uint32 = 16 * 1024 * 1024
 
+// SSFFrameLength is the length of an SSF Frame. This is currently 5
+// bytes - 1 byte for the version and 4 bytes for the 32-bit content
+// length.
+const SSFFrameLength uint32 = 1 + 4
+
 // The only version we support right now: A frame with a length
 // followed by an ssf.SSFSpan.
 const version0 uint8 = 0
