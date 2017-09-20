@@ -87,7 +87,7 @@ func main() {
 		config = &conf
 	}
 
-	addr, network, err := addr(passedFlags, config, hostport, *toSSF)
+	addr, network, err := destination(passedFlags, config, hostport, *toSSF)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error getting destination address.")
 	}
@@ -193,7 +193,7 @@ func tags(tag string) []string {
 	return tags
 }
 
-func addr(passedFlags map[string]flag.Value, conf *veneur.Config, hostport *string, useSSF bool) (addr string, network string, err error) {
+func destination(passedFlags map[string]flag.Value, conf *veneur.Config, hostport *string, useSSF bool) (addr string, network string, err error) {
 	network = "udp"
 	if conf != nil && !useSSF && len(conf.StatsdListenAddresses) > 0 {
 		addrStr := conf.StatsdListenAddresses[0]
