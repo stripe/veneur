@@ -17,14 +17,12 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
 	"github.com/gogo/protobuf/proto"
-	"github.com/stripe/veneur"
 	"github.com/stripe/veneur/ssf"
 )
 
 var (
 	// Generic flags
-	configFile   = flag.String("f", "", "The Veneur config file to read for settings.")
-	hostport     = flag.String("hostport", "", "Hostname and port of destination. Must be used if config file is not present.")
+	hostport     = flag.String("hostport", "", "Address of destination (hostport or listening address URL).")
 	mode         = flag.String("mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
 	debug        = flag.Bool("debug", false, "Turns on debug messages.")
 	command      = flag.String("command", "", "Command to time. This will exec 'command', time it, and emit a timer metric.")
@@ -78,16 +76,7 @@ func main() {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	var config *veneur.Config
-	if passedFlags["f"] != nil {
-		conf, err := veneur.ReadConfig(*configFile)
-		if err != nil {
-			logrus.WithError(err).Fatal("Error reading configuration file.")
-		}
-		config = &conf
-	}
-
-	addr, network, err := destination(passedFlags, config, hostport, *toSSF)
+	addr, network, err := destination(passedFlags, hostport, *toSSF)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error getting destination address.")
 	}
@@ -193,22 +182,14 @@ func tags(tag string) []string {
 	return tags
 }
 
-func destination(passedFlags map[string]flag.Value, conf *veneur.Config, hostport *string, useSSF bool) (addr string, network string, err error) {
+func destination(passedFlags map[string]flag.Value, hostport *string, useSSF bool) (addr string, network string, err error) {
 	network = "udp"
-	if conf != nil && !useSSF && len(conf.StatsdListenAddresses) > 0 {
-		addrStr := conf.StatsdListenAddresses[0]
-		a, err := veneur.ResolveAddr(addrStr)
-		if err != nil {
-			return "", "", err
-		}
-		addr = a.String()
-		network = a.Network()
-	} else if passedFlags["hostport"] != nil {
+	if passedFlags["hostport"] != nil {
 		addr = passedFlags["hostport"].String()
 	} else if hostport != nil {
 		addr = *hostport
 	} else {
-		err = errors.New("you must either specify a Veneur config file or a valid hostport")
+		err = errors.New("you must specify a valid hostport")
 	}
 	return addr, network, err
 }
