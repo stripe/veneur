@@ -184,9 +184,8 @@ func tags(tag string) []string {
 
 func addr(passedFlags map[string]flag.Value, conf *veneur.Config, hostport *string, useSSF bool) (addr string, network string, err error) {
 	network = "udp"
-	if conf != nil && !useSSF && len(conf.StatsdListenAddresses) > 0 {
-		addrStr := conf.StatsdListenAddresses[0]
-		a, err := veneur.ResolveAddr(addrStr)
+	if conf != nil && !useSSF && conf.StatsAddress != "" {
+		a, err := veneur.ResolveAddr(conf.StatsAddress)
 		if err != nil {
 			return "", "", err
 		}
