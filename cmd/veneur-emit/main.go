@@ -87,7 +87,7 @@ func main() {
 		config = &conf
 	}
 
-	network, addr, err := addr(passedFlags, config, hostport, *toSSF)
+	addr, network, err := addr(passedFlags, config, hostport, *toSSF)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error getting destination address.")
 	}
