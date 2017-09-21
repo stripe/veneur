@@ -1,23 +1,23 @@
-# Simple Sensor format
+# Simple Sensor Format
 
 The Simple Sensor Format — or SSF for short — is a language agnostic format for transmitting observability data such as trace spans, metrics, events and more.
 
 # Why?
 
-SSF is based on prior art of metrics formats and protocols mentioned in the [inspiration section](#inspiration). Unlike each of these wonderful formats, which we have used for years and benefited greatly from, SSF is a binary format utilizing [Protocol Buffers](https://developers.google.com/protocol-buffers/). It is emission, collection and storage agnostic. It is merely a protocol for transmitting information. It is developed as part of a suite of technologies around [Veneur](https://github.com/stripe/veneur).
+SSF is based on prior art of metrics formats and protocols mentioned in the [inspiration section](#inspiration). Unlike each of these wonderful formats, which we have used for years and benefited greatly from, SSF is a binary format utilizing [Protocol Buffers](https://developers.google.com/protocol-buffers/). It is emission-, collection- and storage-agnostic. It is merely a protocol for transmitting information. It is developed as part of a suite of technologies around [Veneur](https://github.com/stripe/veneur).
 
 ## Why A New Format?
 
 Because we want to:
 
-* leverage protobuf so we no longer have to write buggy, string-based marshaling and unmarshaling code in clients libraries and server imeplementations
+* leverage protobuf so we no longer have to write buggy, string-based marshaling and unmarshaling code in clients libraries and server implementations
 * benefit from the efficiency of protobuf
-* collect and combine the great ideas from our [inspiration](https://github.com/stripe/veneur/tree/master/ssf#inspiration).
+* collect and combine the great ideas from our [inspiration](https://github.com/stripe/veneur/tree/master/ssf#inspiration)
 * add some of [our own ideas](https://github.com/stripe/veneur/tree/master/ssf#philosophy)
 
 # Philosophy
 
-We've got some novel ideas that we've put in to SSF. It might help to be familiar with the concepts in our [inspiration](https://github.com/stripe/veneur/tree/master/ssf#inspiration) Here they are:
+We've got some novel ideas that we've put in to SSF. It might help to be familiar with the concepts in our [inspiration](https://github.com/stripe/veneur/tree/master/ssf#inspiration). Here is our founding philosophy of SSF:
 
 * a timer is a span
 * a log line is a span, especially if it's [structured](https://www.thoughtworks.com/radar/techniques/structured-logging)
