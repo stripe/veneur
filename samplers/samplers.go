@@ -13,6 +13,35 @@ import (
 	"github.com/stripe/veneur/tdigest"
 )
 
+// MetricType defines what kind of metric this is, so that we or our upstream
+// sinks can do the right thing with it.
+type MetricType int
+
+const (
+	// CounterMetric is a counter
+	CounterMetric MetricType = iota
+	// GaugeMetric is a gauge
+	GaugeMetric
+	// HistogramMetric is a histogram
+	HistogramMetric
+	// RateMetric is a rate
+	RateMetric
+	// SetMetric is a set
+	SetMetric
+	// TimerMetric is a timer
+	TimerMetric
+)
+
+// InterMetric represents a metric that has been completed and is ready for
+// flushing by sinks.
+type InterMetric struct {
+	Name      string
+	Timestamp int64
+	Value     float64
+	Tags      []string
+	Type      MetricType
+}
+
 // DDMetric is a data structure that represents the JSON that Datadog
 // wants when posting to the API
 type DDMetric struct {
@@ -25,18 +54,29 @@ type DDMetric struct {
 	Interval   int32         `json:"interval,omitempty"`
 }
 
+// Aggregate is one of the supported aggregation formulas.
 type Aggregate int
 
 const (
+	// AggregateMin is a minimum aggregation
 	AggregateMin Aggregate = 1 << iota
+	// AggregateMax is a maximum aggregation
 	AggregateMax
+	// AggregateMedian is a median aggregation
 	AggregateMedian
+	// AggregateAverage is an average aggregation
 	AggregateAverage
+	// AggregateCount is a count aggregation, aka how many measurements were
+	// received.
 	AggregateCount
+	// AggregateSum is a sum aggregation, aka the sum of all measurements
 	AggregateSum
+	// AggregateHarmonicMean is a harmonic mean aggregation
 	AggregateHarmonicMean
 )
 
+// AggregatesLookup is a map to Aggregate table for converting a config value
+// to the actual Aggregate type
 var AggregatesLookup = map[string]Aggregate{
 	"min":    AggregateMin,
 	"max":    AggregateMax,
@@ -47,6 +87,9 @@ var AggregatesLookup = map[string]Aggregate{
 	"hmean":  AggregateHarmonicMean,
 }
 
+// HistogramAggregates is the aggregates that need to be exported, ANDed
+// together and a count summing the number of "on" aggregations contained in
+// Value.
 type HistogramAggregates struct {
 	Value Aggregate
 	Count int
