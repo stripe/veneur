@@ -1,6 +1,10 @@
 package plugins
 
-import "github.com/stripe/veneur/samplers"
+import (
+	"context"
+
+	"github.com/stripe/veneur/samplers"
+)
 
 // Plugin flushes the metrics provided to an arbitrary destination.
 // The metrics slice may be shared between plugins, so the plugin may not
@@ -10,6 +14,6 @@ import "github.com/stripe/veneur/samplers"
 // the number of errors encountered are automatically reported by veneur, using
 // the plugin name.
 type Plugin interface {
-	Flush(metrics []samplers.InterMetric, hostname string) error
+	Flush(ctx context.Context, metrics []samplers.InterMetric) error
 	Name() string
 }

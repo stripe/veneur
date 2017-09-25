@@ -134,23 +134,23 @@ func TestS3PostNoCredentials(t *testing.T) {
 }
 
 func TestEncodeDDMetricsCSV(t *testing.T) {
-	const ExpectedHeader = "Name\tTags\tMetricType\tHostname\tVeneurHostname\tDeviceName\tInterval\tTimestamp\tValue\tPartition"
+	const ExpectedHeader = "Name\tTags\tMetricType\tVeneurHostname\tInterval\tTimestamp\tValue\tPartition"
 	const Delimiter = '\t'
 	const VeneurHostname = "testbox-c3eac9"
 
 	testCases := CSVTestCases()
 
-	metrics := make([]samplers.DDMetric, len(testCases))
+	metrics := make([]samplers.InterMetric, len(testCases))
 	for i, tc := range testCases {
-		metrics[i] = tc.DDMetric
+		metrics[i] = tc.InterMetric
 	}
 
-	c, err := EncodeDDMetricsCSV(metrics, Delimiter, true, VeneurHostname)
+	c, err := EncodeInterMetricsCSV(metrics, Delimiter, true, VeneurHostname, 10)
 	assert.NoError(t, err)
 	gzr, err := gzip.NewReader(c)
 	assert.NoError(t, err)
 	r := csv.NewReader(gzr)
-	r.FieldsPerRecord = 10
+	r.FieldsPerRecord = 8
 	r.Comma = Delimiter
 
 	// first line should always contain header information

@@ -3,6 +3,7 @@ package s3
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/csv"
 	"errors"
 	"io"
@@ -28,13 +29,14 @@ type S3Plugin struct {
 	Svc      s3iface.S3API
 	S3Bucket string
 	Hostname string
+	Interval int
 }
 
-func (p *S3Plugin) Flush(metrics []samplers.DDMetric, hostname string) error {
+func (p *S3Plugin) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
 	const Delimiter = '\t'
 	const IncludeHeaders = false
 
-	csv, err := EncodeDDMetricsCSV(metrics, Delimiter, IncludeHeaders, p.Hostname)
+	csv, err := EncodeInterMetricsCSV(metrics, Delimiter, IncludeHeaders, p.Hostname, p.Interval)
 	if err != nil {
 		p.Logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
@@ -43,7 +45,7 @@ func (p *S3Plugin) Flush(metrics []samplers.DDMetric, hostname string) error {
 		return err
 	}
 
-	err = p.S3Post(hostname, csv, tsvGzFt)
+	err = p.S3Post(p.Hostname, csv, tsvGzFt)
 	if err != nil {
 		p.Logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
@@ -93,10 +95,10 @@ func S3Path(hostname string, ft filetype) *string {
 	return aws.String(path.Join(t.Format("2006/01/02"), hostname, filename))
 }
 
-// EncodeDDMetricsCSV returns a reader containing the gzipped CSV representation of the
-// DDMetrics data, one row per DDMetric.
+// EncodeInterMetricsCSV returns a reader containing the gzipped CSV representation of the
+// InterMetric data, one row per InterMetric.
 // the AWS sdk requires seekable input, so we return a ReadSeeker here
-func EncodeDDMetricsCSV(metrics []samplers.DDMetric, delimiter rune, includeHeaders bool, hostname string) (io.ReadSeeker, error) {
+func EncodeInterMetricsCSV(metrics []samplers.InterMetric, delimiter rune, includeHeaders bool, hostname string, interval int) (io.ReadSeeker, error) {
 	b := &bytes.Buffer{}
 	gzw := gzip.NewWriter(b)
 	w := csv.NewWriter(gzw)
@@ -110,8 +112,6 @@ func EncodeDDMetricsCSV(metrics []samplers.DDMetric, delimiter rune, includeHead
 			TsvName:           TsvName.String(),
 			TsvTags:           TsvTags.String(),
 			TsvMetricType:     TsvMetricType.String(),
-			TsvHostname:       TsvHostname.String(),
-			TsvDeviceName:     TsvDeviceName.String(),
 			TsvInterval:       TsvInterval.String(),
 			TsvVeneurHostname: TsvVeneurHostname.String(),
 			TsvValue:          TsvValue.String(),
@@ -125,7 +125,7 @@ func EncodeDDMetricsCSV(metrics []samplers.DDMetric, delimiter rune, includeHead
 	// TODO avoid edge case at midnight
 	partitionDate := time.Now()
 	for _, metric := range metrics {
-		EncodeDDMetricCSV(metric, w, &partitionDate, hostname)
+		EncodeInterMetricCSV(metric, w, &partitionDate, hostname, interval)
 	}
 
 	w.Flush()

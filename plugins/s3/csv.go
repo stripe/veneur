@@ -22,13 +22,9 @@ const (
 	TsvTags
 	TsvMetricType
 
-	// The hostName attached to the metric
-	TsvHostname
-
 	// The hostName of the server flushing the data
 	TsvVeneurHostname
 
-	TsvDeviceName
 	TsvInterval
 
 	TsvTimestamp
@@ -44,8 +40,6 @@ var tsvSchema = [...]string{
 	TsvName:           "Name",
 	TsvTags:           "Tags",
 	TsvMetricType:     "MetricType",
-	TsvHostname:       "Hostname",
-	TsvDeviceName:     "DeviceName",
 	TsvInterval:       "Interval",
 	TsvVeneurHostname: "VeneurHostname",
 	TsvTimestamp:      "Timestamp",
@@ -53,16 +47,13 @@ var tsvSchema = [...]string{
 	TsvPartition:      "Partition",
 }
 
-// EncodeDDMetricCSV generates a newline-terminated CSV row that describes
-// the data represented by the DDMetric.
+// EncodeInterMetricCSV generates a newline-terminated CSV row that describes
+// the data represented by the InterMetric.
 // The caller is responsible for setting w.Comma as the appropriate delimiter.
 // For performance, encodeCSV does not flush after every call; the caller is
 // expected to flush at the end of the operation cycle
-func EncodeDDMetricCSV(d samplers.DDMetric, w *csv.Writer, partitionDate *time.Time, hostName string) error {
-
-	timestamp := d.Value[0][0]
-	value := strconv.FormatFloat(d.Value[0][1], 'f', -1, 64)
-	interval := strconv.Itoa(int(d.Interval))
+func EncodeInterMetricCSV(d samplers.InterMetric, w *csv.Writer, partitionDate *time.Time, hostName string, interval int) error {
+	value := strconv.FormatFloat(d.Value, 'f', -1, 64)
 
 	// TODO(aditya) some better error handling for this
 	// to guarantee that the result is proper JSON
@@ -73,14 +64,12 @@ func EncodeDDMetricCSV(d samplers.DDMetric, w *csv.Writer, partitionDate *time.T
 		// as long as the keys are right
 		TsvName:           d.Name,
 		TsvTags:           tags,
-		TsvMetricType:     d.MetricType,
-		TsvHostname:       d.Hostname,
-		TsvDeviceName:     d.DeviceName,
-		TsvInterval:       interval,
+		TsvMetricType:     d.Type.String(),
+		TsvInterval:       strconv.Itoa(interval),
 		TsvVeneurHostname: hostName,
 		TsvValue:          value,
 
-		TsvTimestamp: time.Unix(int64(timestamp), 0).UTC().Format(RedshiftDateFormat),
+		TsvTimestamp: time.Unix(d.Timestamp, 0).UTC().Format(RedshiftDateFormat),
 
 		// TODO avoid edge case at midnight
 		TsvPartition: partitionDate.UTC().Format(PartitionDateFormat),
