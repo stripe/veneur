@@ -138,10 +138,10 @@ func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []s
 		// Defensively copy tags since we're gonna mutate it
 		tags := make([]string, len(dd.tags))
 		copy(tags, dd.tags)
-		metricType := m.MetricType
+		metricType := m.Type.String()
 		value := m.Value
 		// We convert Datadog counters into rates
-		if m.MetricType == "counter" {
+		if metricType == "counter" {
 			metricType = "rate"
 			value = m.Value / dd.interval
 		}
