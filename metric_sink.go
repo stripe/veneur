@@ -32,6 +32,18 @@ type datadogMetricSink struct {
 	interval        float64
 }
 
+// DDMetric is a data structure that represents the JSON that Datadog
+// wants when posting to the API
+type DDMetric struct {
+	Name       string        `json:"metric"`
+	Value      [1][2]float64 `json:"points"`
+	Tags       []string      `json:"tags,omitempty"`
+	MetricType string        `json:"type"`
+	Hostname   string        `json:"host,omitempty"`
+	DeviceName string        `json:"device_name,omitempty"`
+	Interval   int32         `json:"interval,omitempty"`
+}
+
 // NewDatadogMetricSink creates a new Datadog sink for trace spans.
 func NewDatadogMetricSink(config *Config, interval float64, httpClient *http.Client, stats *statsd.Client) (*datadogMetricSink, error) {
 	return &datadogMetricSink{
