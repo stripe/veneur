@@ -4,9 +4,9 @@ package samplers
 
 import "fmt"
 
-const _MetricType_name = "CounterMetricGaugeMetricHistogramMetricRateMetricSetMetricTimerMetric"
+const _MetricType_name = "CounterMetricGaugeMetric"
 
-var _MetricType_index = [...]uint8{0, 13, 24, 39, 49, 58, 69}
+var _MetricType_index = [...]uint8{0, 13, 24}
 
 func (i MetricType) String() string {
 	if i < 0 || i >= MetricType(len(_MetricType_index)-1) {

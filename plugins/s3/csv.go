@@ -2,6 +2,7 @@ package s3
 
 import (
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -53,21 +54,32 @@ var tsvSchema = [...]string{
 // For performance, encodeCSV does not flush after every call; the caller is
 // expected to flush at the end of the operation cycle
 func EncodeInterMetricCSV(d samplers.InterMetric, w *csv.Writer, partitionDate *time.Time, hostName string, interval int) error {
-	value := strconv.FormatFloat(d.Value, 'f', -1, 64)
-
 	// TODO(aditya) some better error handling for this
 	// to guarantee that the result is proper JSON
 	tags := "{" + strings.Join(d.Tags, ",") + "}"
+
+	metricType := ""
+	metricValue := d.Value
+	switch d.Type {
+	case samplers.CounterMetric:
+		metricValue = d.Value / float64(interval)
+		metricType = "rate"
+
+	case samplers.GaugeMetric:
+		metricType = "gauge"
+	default:
+		return errors.New(fmt.Sprintf("Encountered an unknown metric type %s", d.Type.String()))
+	}
 
 	fields := [...]string{
 		// the order here doesn't actually matter
 		// as long as the keys are right
 		TsvName:           d.Name,
 		TsvTags:           tags,
-		TsvMetricType:     d.Type.String(),
+		TsvMetricType:     metricType,
 		TsvInterval:       strconv.Itoa(interval),
 		TsvVeneurHostname: hostName,
-		TsvValue:          value,
+		TsvValue:          strconv.FormatFloat(metricValue, 'f', -1, 64),
 
 		TsvTimestamp: time.Unix(d.Timestamp, 0).UTC().Format(RedshiftDateFormat),
 

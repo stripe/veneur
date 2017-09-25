@@ -21,14 +21,6 @@ const (
 	CounterMetric MetricType = iota
 	// GaugeMetric is a gauge
 	GaugeMetric
-	// HistogramMetric is a histogram
-	HistogramMetric
-	// RateMetric is a rate
-	RateMetric
-	// SetMetric is a set
-	SetMetric
-	// TimerMetric is a timer
-	TimerMetric
 )
 
 // InterMetric represents a metric that has been completed and is ready for

@@ -48,7 +48,7 @@ func CSVTestCases() []CSVTestCase {
 					"baz:quz"},
 				Type: samplers.CounterMetric,
 			},
-			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\trate\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
+			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\trate\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t10\t%s\n", partition)),
 		},
 		{
 			// Test that we are able to handle tags which have tab characters in them
@@ -63,7 +63,7 @@ func CSVTestCases() []CSVTestCase {
 					"baz:quz"},
 				Type: samplers.CounterMetric,
 			},
-			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t\"{foo:b\tar,baz:quz}\"\trate\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
+			Row: strings.NewReader(fmt.Sprintf("a.b.c.count\t\"{foo:b\tar,baz:quz}\"\trate\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t10\t%s\n", partition)),
 		},
 	}
 }

@@ -150,13 +150,22 @@ func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []D
 		// Defensively copy tags since we're gonna mutate it
 		tags := make([]string, len(dd.tags))
 		copy(tags, dd.tags)
-		metricType := m.Type.String()
+
+		metricType := ""
 		value := m.Value
-		// We convert Datadog counters into rates
-		if metricType == "CounterMetric" {
+
+		switch m.Type {
+		case samplers.CounterMetric:
+			// We convert counters into rates for Datadog
 			metricType = "rate"
 			value = m.Value / dd.interval
+		case samplers.GaugeMetric:
+			metricType = "gauge"
+		default:
+			log.WithField("metric_type", m.Type).Warn("Encountered an unknown metric type")
+			continue
 		}
+
 		ddMetric := DDMetric{
 			Name: m.Name,
 			Value: [1][2]float64{
