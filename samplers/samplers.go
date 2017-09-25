@@ -100,7 +100,7 @@ func (c *Counter) Sample(sample float64, sampleRate float32) {
 	c.value += int64(sample) * int64(1/sampleRate)
 }
 
-// Flush generates a DDMetric from the current state of this Counter.
+// Flush generates an InterMetric from the current state of this Counter.
 func (c *Counter) Flush(interval time.Duration) []InterMetric {
 	tags := make([]string, len(c.Tags))
 	copy(tags, c.Tags)
@@ -165,7 +165,7 @@ func (g *Gauge) Sample(sample float64, sampleRate float32) {
 	g.value = sample
 }
 
-// Flush generates a DDMetric from the current state of this gauge.
+// Flush generates an InterMetric from the current state of this gauge.
 func (g *Gauge) Flush() []InterMetric {
 	tags := make([]string, len(g.Tags))
 	copy(tags, g.Tags)
