@@ -103,7 +103,7 @@ func (dd *datadogMetricSink) FlushEventsChecks(ctx context.Context, events []sam
 		// the official dd-agent
 		// we don't actually pass all the body keys that dd-agent passes here... but
 		// it still works
-		err := postHelper(context.TODO(), dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/intake?api_key=%s"), map[string]map[string][]samplers.UDPEvent{
+		err := postHelper(context.TODO(), dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/intake?api_key=%s", dd.ddHostname, dd.apiKey), map[string]map[string][]samplers.UDPEvent{
 			"events": {
 				"api": events,
 			},
@@ -121,7 +121,7 @@ func (dd *datadogMetricSink) FlushEventsChecks(ctx context.Context, events []sam
 		// this endpoint is not documented to take an array... but it does
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
-		err := postHelper(context.TODO(), dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/api/v1/check_run?api_key=%s"), checks, "flush_checks", false)
+		err := postHelper(context.TODO(), dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/api/v1/check_run?api_key=%s", dd.hostname, dd.apiKey), checks, "flush_checks", false)
 		if err == nil {
 			log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
 		} else {
