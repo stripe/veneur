@@ -162,7 +162,6 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 
 	config := globalConfig()
 	config.DatadogTraceAPIAddress = remoteServer.URL
-	config.SsfAddress = "127.0.0.1:991"
 
 	server := setupVeneurServer(t, config, nil)
 	defer server.Shutdown()
@@ -194,7 +193,6 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 // implementation doesn't expose itself for mocking.
 func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 	config := globalConfig()
-	config.SsfAddress = "127.0.0.1:991"
 
 	// this can be anything as long as it's not empty
 	config.DatadogTraceAPIAddress = "http://example.org"
