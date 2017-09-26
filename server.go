@@ -275,7 +275,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 	// Configure tracing sinks
 	if len(conf.SsfAddress) > 0 && (conf.DatadogTraceAPIAddress != "" || conf.TraceLightstepAccessToken != "") {
-
 		// Set a sane default
 		if conf.SsfBufferSize == 0 {
 			conf.SsfBufferSize = defaultSpanBufferSize
