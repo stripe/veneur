@@ -137,14 +137,14 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 
 		assert.Equal(t, len(expectedRecords), len(records))
 
-		assertCSVFieldsMatch(t, expectedRecords, records, []int{0, 1, 2, 3, 4, 5, 6})
+		assertCSVFieldsMatch(t, expectedRecords, records, []int{0, 1, 2, 3, 4, 6})
 		//assert.Equal(t, expectedRecords, records)
 
 		RemoteResponseChan <- struct{}{}
 		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
 	})
 
-	s3p := &s3p.S3Plugin{Logger: log, Svc: client}
+	s3p := &s3p.S3Plugin{Logger: log, Svc: client, Interval: 10}
 
 	f.server.registerPlugin(s3p)
 
