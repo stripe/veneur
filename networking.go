@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	flock "github.com/theckman/go-flock"
 )
 
 // ResolveAddr takes a URL-style listen address specification,
@@ -165,25 +167,49 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) <-chan struct{} {
 	if addr.Network() != "unix" {
 		panic(fmt.Sprintf("Can't listen for SSF on %v: only udp:// and unix:// addresses are supported", addr))
 	}
+	// ensure we are the only ones locking this socket:
+	lockname := fmt.Sprintf("%s.lock", addr.String())
+	lock := flock.NewFlock(lockname)
+	locked, err := lock.TryLock()
+	if err != nil {
+		panic(fmt.Sprintf("Could not acquire the lock %q to listen on %v: %v", lockname, addr, err))
+	}
+	if !locked {
+		panic(fmt.Sprintf("Lock file %q for %v is in use by another process already", lockname, addr))
+	}
+	// We have the exclusive use of the socket, clear away any old sockets and listen:
+	_ = os.Remove(addr.String())
 	listener, err := net.ListenUnix(addr.Network(), addr)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't listen on UNIX socket %v: %v", addr, err))
 	}
 	go func() {
-		for {
+		conns := make(chan net.Conn)
+		go func() {
+			defer lock.Unlock()
+			defer close(done)
+
 			conn, err := listener.AcceptUnix()
 			if err != nil {
 				select {
 				case <-s.shutdown:
 					// occurs when cleanly shutting down the server e.g. in tests; ignore errors
 					log.WithError(err).Info("Ignoring Accept error while shutting down")
-					close(done)
 					return
 				default:
 					log.WithError(err).Fatal("Unix accept failed")
 				}
 			}
-			go s.ReadSSFStreamSocket(conn)
+			conns <- conn
+		}()
+		for {
+			select {
+			case conn := <-conns:
+				go s.ReadSSFStreamSocket(conn)
+			case <-s.shutdown:
+				listener.Close()
+				return
+			}
 		}
 	}()
 	return done
