@@ -92,3 +92,7 @@
 [[constraint]]
   branch = "master"
   name = "stathat.com/c/consistent"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/theckman/go-flock"

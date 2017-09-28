@@ -151,6 +151,12 @@
   version = "v1.1.4"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/theckman/go-flock"
+  packages = ["."]
+  revision = "6de226b0d5f040ed85b88c82c381709b98277f3d"
+
+[[projects]]
   name = "github.com/zenazn/goji"
   packages = ["bind","graceful","graceful/listener"]
   revision = "64eb34159fe53473206c2b3e70fe396a639452f2"
@@ -213,6 +219,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3d268d70c04575937cf4898f2b0e6e40921922fc2487847241d97765f9b2e6b2"
+  inputs-digest = "be44ac6b42b3680e7aabe1fe5b3dffa96d4cddf76a37f5abc122d8c1e13d238c"
   solver-name = "gps-cdcl"
   solver-version = 1
