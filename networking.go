@@ -160,7 +160,8 @@ func startSSFUDP(s *Server, addr *net.UDPAddr, tracePool *sync.Pool) {
 	}()
 }
 
-func startSSFUnix(s *Server, addr *net.UnixAddr) {
+func startSSFUnix(s *Server, addr *net.UnixAddr) <-chan struct{} {
+	done := make(chan struct{})
 	if addr.Network() != "unix" {
 		panic(fmt.Sprintf("Can't listen for SSF on %v: only udp:// and unix:// addresses are supported", addr))
 	}
@@ -176,6 +177,7 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) {
 				case <-s.shutdown:
 					// occurs when cleanly shutting down the server e.g. in tests; ignore errors
 					log.WithError(err).Info("Ignoring Accept error while shutting down")
+					close(done)
 					return
 				default:
 					log.WithError(err).Fatal("Unix accept failed")
@@ -184,4 +186,5 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) {
 			go s.ReadSSFStreamSocket(conn)
 		}
 	}()
+	return done
 }
