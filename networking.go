@@ -162,6 +162,10 @@ func startSSFUDP(s *Server, addr *net.UDPAddr, tracePool *sync.Pool) {
 	}()
 }
 
+// startSSFUnix starts listening for connections that send framed SSF
+// spans on a UNIX domain socket address. It does so until the
+// server's shutdown socket is closed. startSSFUnix returns a channel
+// that is closed once the listener has terminated.
 func startSSFUnix(s *Server, addr *net.UnixAddr) <-chan struct{} {
 	done := make(chan struct{})
 	if addr.Network() != "unix" {
