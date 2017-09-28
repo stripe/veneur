@@ -37,20 +37,17 @@ func TestUDP(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	sentCh := make(chan struct{})
+	sentCh := make(chan error)
 
 	for i := 0; i < 4; i++ {
 		name := fmt.Sprintf("Testing-%d", i)
 		tr := StartTrace(name)
-		tr.Sent = func(err error) {
-			assert.NoError(t, err)
-			sentCh <- struct{}{}
-		}
+		tr.Sent = sentCh
 		err = tr.ClientRecord(client, name, map[string]string{})
 		assert.NoError(t, err)
 	}
 	for i := 0; i < 4; i++ {
-		<-sentCh
+		assert.NoError(t, <-sentCh)
 	}
 }
 
@@ -80,19 +77,16 @@ func TestUNIX(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	sentCh := make(chan struct{})
+	sentCh := make(chan error)
 	for i := 0; i < 4; i++ {
 		name := fmt.Sprintf("Testing-%d", i)
 		tr := StartTrace(name)
-		tr.Sent = func(err error) {
-			assert.NoError(t, err)
-			sentCh <- struct{}{}
-		}
+		tr.Sent = sentCh
 		err = tr.ClientRecord(client, name, map[string]string{})
 		assert.NoError(t, err)
 	}
 	for i := 0; i < 4; i++ {
-		<-sentCh
+		assert.NoError(t, <-sentCh)
 		<-outPkg
 	}
 }
@@ -125,19 +119,16 @@ func TestUNIXBuffered(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	sentCh := make(chan struct{})
+	sentCh := make(chan error)
 	for i := 0; i < 4; i++ {
 		name := fmt.Sprintf("Testing-%d", i)
 		tr := StartTrace(name)
-		tr.Sent = func(err error) {
-			assert.NoError(t, err)
-			sentCh <- struct{}{}
-		}
+		tr.Sent = sentCh
 		err = tr.ClientRecord(client, name, map[string]string{})
 		assert.NoError(t, err)
 	}
 	for i := 0; i < 4; i++ {
-		<-sentCh
+		assert.NoError(t, <-sentCh)
 	}
 	assert.Equal(t, 0, len(outPkg), "Should not have sent any packets yet")
 	err = Flush(client)
@@ -185,23 +176,21 @@ func TestFailingUDP(t *testing.T) {
 
 	// We'll send packets regardless:
 
-	sentCh := make(chan struct{})
+	sentCh := make(chan error)
 
 	for i := 0; i < 4; i++ {
 		name := fmt.Sprintf("Testing-%d", i)
 		tr := StartTrace(name)
-		tr.Sent = func(err error) {
-			// Linux reports an error when sending to a
-			// non-listened-to address, and macos doesn't,
-			// so we can't usefully assert absence or
-			// presence of an error here. This function
-			// will get called, though.
-			sentCh <- struct{}{}
-		}
+		tr.Sent = sentCh
 		err = tr.ClientRecord(client, name, map[string]string{})
 		assert.NoError(t, err)
 	}
 	for i := 0; i < 4; i++ {
+		// Linux reports an error when sending to a
+		// non-listened-to address, and macos doesn't,
+		// so we can't usefully assert absence or
+		// presence of an error here. This function
+		// will get called, though.
 		<-sentCh
 	}
 }
@@ -235,50 +224,41 @@ func TestReconnectUNIX(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	sentCh := make(chan struct{})
+	sentCh := make(chan error)
 	{
 		name := "Testing-success"
 		tr := StartTrace(name)
-		tr.Sent = func(err error) {
-			assert.NoError(t, err, "at %q", name)
-			sentCh <- struct{}{}
-		}
+		tr.Sent = sentCh
 		t.Logf("submitting span")
 		err = tr.ClientRecord(client, name, map[string]string{})
 		assert.NoError(t, err)
 
 		// A span was successfully received by the server:
-		<-sentCh
+		assert.NoError(t, <-sentCh)
 		<-outPkg
 	}
 	{
 		name := "Testing-failure"
 		tr := StartTrace(name)
-		tr.Sent = func(err error) {
-			assert.Error(t, err)
-			sentCh <- struct{}{}
-		}
+		tr.Sent = sentCh
 		t.Logf("submitting span")
 		err = tr.ClientRecord(client, name, map[string]string{})
 		assert.NoError(t, err)
 
 		// Since reconnections throw away the span, nothing
 		// was received:
-		<-sentCh
+		assert.Error(t, <-sentCh)
 	}
 	{
 		name := "Testing-success2"
 		tr := StartTrace(name)
-		tr.Sent = func(err error) {
-			assert.NoError(t, err, "at %q", name)
-			sentCh <- struct{}{}
-		}
+		tr.Sent = sentCh
 		t.Logf("submitting span")
 		err = tr.ClientRecord(client, name, map[string]string{})
 		assert.NoError(t, err)
 
 		// A span was successfully received by the server:
-		<-sentCh
+		assert.NoError(t, <-sentCh)
 		<-outPkg
 	}
 }
@@ -314,19 +294,16 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	sentCh := make(chan struct{}, 1)
+	sentCh := make(chan error, 1)
 	{
 		name := "Testing-success"
 		tr := StartTrace(name)
-		tr.Sent = func(err error) {
-			assert.NoError(t, err, "at %q", name)
-			sentCh <- struct{}{}
-		}
+		tr.Sent = sentCh
 		t.Logf("submitting span")
 		err = tr.ClientRecord(client, name, map[string]string{})
 		assert.NoError(t, err)
 
-		<-sentCh
+		assert.NoError(t, <-sentCh, "at %q", name)
 		t.Logf("Flushing")
 		go assert.NoError(t, Flush(client))
 		// A span was successfully received by the server:
@@ -335,15 +312,12 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 	{
 		name := "Testing-failure"
 		tr := StartTrace(name)
-		tr.Sent = func(err error) {
-			assert.NoError(t, err)
-			sentCh <- struct{}{}
-		}
+		tr.Sent = sentCh
 		t.Logf("submitting span")
 		err = tr.ClientRecord(client, name, map[string]string{})
 		assert.NoError(t, err)
 
-		<-sentCh
+		assert.NoError(t, <-sentCh)
 		t.Logf("Flushing")
 		go assert.Error(t, Flush(client))
 		// Since reconnections throw away the span, nothing
@@ -352,15 +326,13 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 	{
 		name := "Testing-success2"
 		tr := StartTrace(name)
-		tr.Sent = func(err error) {
-			assert.NoError(t, err, "at %q", name)
-			sentCh <- struct{}{}
-		}
+		tr.Sent = sentCh
 		t.Logf("submitting span")
 		err = tr.ClientRecord(client, name, map[string]string{})
 		assert.NoError(t, err)
 
-		<-sentCh
+		assert.NoError(t, <-sentCh, "at %q", name)
+
 		t.Logf("Flushing")
 		go assert.NoError(t, Flush(client))
 		// A span was successfully received by the server:

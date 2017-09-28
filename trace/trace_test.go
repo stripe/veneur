@@ -64,14 +64,11 @@ func testRecord(t *testing.T, trace *Trace, name string, tags map[string]string)
 	require.NoError(t, err)
 	defer client.Close()
 
-	sentCh := make(chan struct{})
-	trace.Sent = func(err error) {
-		assert.NoError(t, err)
-		close(sentCh)
-	}
+	sentCh := make(chan error)
+	trace.Sent = sentCh
 	err = trace.ClientRecord(client, name, tags)
 	if assert.NoError(t, err) {
-		<-sentCh
+		assert.NoError(t, <-sentCh)
 		end = time.Now()
 
 		select {

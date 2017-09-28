@@ -88,10 +88,9 @@ type Trace struct {
 	// It should be of the format foo.bar.baz
 	Name string
 
-	// Sent is a callback, invoked when the span has been
-	// serialized and sent. It is passed any error that occurs
-	// serializing or sending this trace.
-	Sent func(error)
+	// Sent holds a channel. If set, this channel receives an
+	// error (or nil) when the span has been serialized and sent.
+	Sent chan<- error
 
 	error bool
 }

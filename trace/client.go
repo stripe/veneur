@@ -177,18 +177,22 @@ var ErrNoClient = errors.New("client is not initialized")
 var ErrWouldBlock = errors.New("sending span would block")
 
 // Record instructs the client to serialize and send a span. It does
-// not wait for a delivery attempt, instead the Client will call the
-// callback once it made an attempt to send the span.
+// not wait for a delivery attempt, instead the Client will send the
+// result from serializing and submitting the span to the channel
+// done, if it is non-nil.
 //
 // Record returns ErrNoClient if client is nil and ErrWouldBlock if
 // the client is not able to accomodate another span.
-func Record(cl *Client, span *ssf.SSFSpan, callback func(error)) error {
+func Record(cl *Client, span *ssf.SSFSpan, done chan<- error) error {
 	if cl == nil {
 		return ErrNoClient
 	}
 
 	op := func(ctx context.Context, s backend) {
-		callback(s.sendSync(ctx, span))
+		err := s.sendSync(ctx, span)
+		if done != nil {
+			done <- err
+		}
 	}
 	select {
 	case cl.c <- op:
