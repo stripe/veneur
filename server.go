@@ -39,6 +39,7 @@ import (
 	"github.com/stripe/veneur/sinks/datadog"
 	"github.com/stripe/veneur/sinks/lightstep"
 	"github.com/stripe/veneur/sinks/metrics"
+	"github.com/stripe/veneur/sinks/signalfx"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
@@ -300,6 +301,13 @@ func NewFromConfig(conf Config) (*Server, error) {
 		}
 	}
 
+	if conf.SignalfxAPIKey != "" {
+		sfxSink, err := signalfx.NewSignalFXSink(conf.SignalfxAPIKey, conf.SignalfxHostname, ret.Statsd, log, nil)
+		if err != nil {
+			return ret, err
+		}
+		ret.metricSinks = append(ret.metricSinks, sfxSink)
+	}
 	if conf.DatadogAPIKey != "" {
 		ddSink, err := datadog.NewDatadogMetricSink(
 			ret.interval.Seconds(), conf.FlushMaxPerBody, conf.Hostname, ret.Tags,
@@ -420,6 +428,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 	conf.SentryDsn = REDACTED
 	conf.TLSKey = REDACTED
 	conf.DatadogAPIKey = REDACTED
+	conf.SignalfxAPIKey = REDACTED
 	conf.TraceLightstepAccessToken = REDACTED
 	conf.AwsAccessKeyID = REDACTED
 	conf.AwsSecretAccessKey = REDACTED

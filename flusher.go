@@ -224,69 +224,6 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 		}
 	}
 
-	// finalizeMetrics(s.Hostname, s.Tags, finalMetrics)
-	s.Statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(span.Start).Nanoseconds()), []string{"part:combine"}, 1.0)
-
-	return finalMetrics
-}
-
-// generateDDMetrics calls the Flush method on each
-// counter/gauge/histogram/timer/set in order to
-// generate an InterMetric corresponding to that value
-func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.InterMetric {
-
-	span, _ := trace.StartSpanFromContext(ctx, "")
-	defer span.Finish()
-
-	finalMetrics := make([]samplers.InterMetric, 0, ms.totalLength)
-	for _, wm := range tempMetrics {
-		for _, c := range wm.counters {
-			finalMetrics = append(finalMetrics, c.Flush(s.interval)...)
-		}
-		for _, g := range wm.gauges {
-			finalMetrics = append(finalMetrics, g.Flush()...)
-		}
-		// if we're a local veneur, then percentiles=nil, and only the local
-		// parts (count, min, max) will be flushed
-		for _, h := range wm.histograms {
-			finalMetrics = append(finalMetrics, h.Flush(s.interval, percentiles, s.HistogramAggregates)...)
-		}
-		for _, t := range wm.timers {
-			finalMetrics = append(finalMetrics, t.Flush(s.interval, percentiles, s.HistogramAggregates)...)
-		}
-
-		// local-only samplers should be flushed in their entirety, since they
-		// will not be forwarded
-		// we still want percentiles for these, even if we're a local veneur, so
-		// we use the original percentile list when flushing them
-		for _, h := range wm.localHistograms {
-			finalMetrics = append(finalMetrics, h.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
-		}
-		for _, s := range wm.localSets {
-			finalMetrics = append(finalMetrics, s.Flush()...)
-		}
-		for _, t := range wm.localTimers {
-			finalMetrics = append(finalMetrics, t.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
-		}
-
-		// TODO (aditya) refactor this out so we don't
-		// have to call IsLocal again
-		if !s.IsLocal() {
-			// sets have no local parts, so if we're a local veneur, there's
-			// nothing to flush at all
-			for _, s := range wm.sets {
-				finalMetrics = append(finalMetrics, s.Flush()...)
-			}
-
-			// also do this for global counters
-			// global counters have no local parts, so if we're a local veneur,
-			// there's nothing to flush
-			for _, gc := range wm.globalCounters {
-				finalMetrics = append(finalMetrics, gc.Flush(s.interval)...)
-			}
-		}
-	}
-
 	s.Statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(span.Start).Nanoseconds()), []string{"part:combine"}, 1.0)
 
 	return finalMetrics

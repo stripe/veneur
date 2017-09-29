@@ -1,0 +1,11 @@
+dependencies:
+  cache_directories:
+    - ~/gover
+    - ~/lints
+  override:
+    - ./circle.sh cache > >(tee $CIRCLE_ARTIFACTS/cache.stdout.txt) 2> >(tee $CIRCLE_ARTIFACTS/cache.stderr.txt >&2)
+
+test:
+  override:
+    - ./circle.sh test > >(tee $CIRCLE_ARTIFACTS/test.stdout.txt) 2> >(tee $CIRCLE_ARTIFACTS/test.stderr.txt >&2):
+        parallel: true

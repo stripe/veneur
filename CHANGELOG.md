@@ -4,6 +4,7 @@
 * The semantics around `veneur-emit` command timing have changed: `-shellCommand` argument has been renamed to `-command`, and `-command` is now gone. The only way to time a command is to provide the command and its arguments as separate arguments, the method of passing in a shell-escaped string is no longer supported.
 
 ## Added
+* A [SignalFX sink](https://github.com/stripe/veneur/tree/master/sinks/signalfx) has been added for flushing metrics to [SignalFX](https://signalfx.com/). Thanks, [gphat](https://github.com/gphat)!
 * Buffered trace clients in `github.com/stripe/veneur/trace` now have a new option to automatically flush them in a periodic interval. Thanks, [antifuchs](https://github.com/antifuchs)!
 * Gauges can now be marked as `veneurglobalonly` to be globally "last write wins". Thanks [gphat](https://github.com/gphat)!
 * `veneur-emit` now takes `-span_service`, `-trace_id`, and `-parent_id` arguments. These (combined with `-ssf`) allow submitting spans for tracing when recording timing data for commands. In addition, `-timing` with `-ssf` now works, too.

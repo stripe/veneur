@@ -105,6 +105,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/kr/logfmt"
+  packages = ["."]
+  revision = "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
+
+[[projects]]
+  branch = "master"
   name = "github.com/lightstep/lightstep-tracer-go"
   packages = [".","collectorpb","lightstep_thrift","lightsteppb","thrift_0_9_2/lib/go/thrift"]
   revision = "ea8cdd9df8635eca5fcde3e602f52c4b7971adcd"
@@ -150,6 +156,24 @@
   name = "github.com/prometheus/common"
   packages = ["expfmt","internal/bitbucket.org/ww/goautoneg","model"]
   revision = "61f87aac8082fa8c3c5655c7608d7478d46ac2ad"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/signalfx/com_signalfx_metrics_protobuf"
+  packages = ["."]
+  revision = "93e507b42f43f458a109ca278d1542a26a0b87fc"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/signalfx/gohistogram"
+  packages = ["."]
+  revision = "1ccfd2ff508314074672f4450a917011a2060408"
+
+[[projects]]
+  name = "github.com/signalfx/golib"
+  packages = ["datapoint","datapoint/dpsink","errors","event","eventcounter","log","sfxclient","timekeeper"]
+  revision = "cb7680940d605b817db79790c241eed2a00fa6e6"
+  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -217,6 +241,18 @@
   version = "v1.5.1"
 
 [[projects]]
+  name = "gopkg.in/logfmt.v0"
+  packages = ["."]
+  revision = "390ab7935ee28ec6b286364bba9b4dd6410cb3d5"
+  version = "v0.3.0"
+
+[[projects]]
+  name = "gopkg.in/stack.v1"
+  packages = ["."]
+  revision = "817915b46b97fd7bb80e8ab6b69f01a53ac3eebf"
+  version = "v1.6.0"
+
+[[projects]]
   branch = "v2"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
@@ -231,6 +267,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "32a3b523a2ded372923ed3dfba870de90e99f5dacf7b5d6f3459bad31ddca667"
+  inputs-digest = "0ebfe3b1ca875c15ac90687266a5d75e58bd4641cf3eabdd2459e2b3aa272ae0"
   solver-name = "gps-cdcl"
   solver-version = 1

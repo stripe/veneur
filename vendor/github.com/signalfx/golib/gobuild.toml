@@ -1,0 +1,23 @@
+[vars]
+  duplLimit = "300"
+  testCoverage = 100.0
+
+[metalinter]
+  [metalinter.ignored]
+    go14= "^.*has no field or method Cancel.*$" 
+    go14trace= "^.*Trace not declared by package pprof.*$" 
+    logargs = "no args in Log call"
+    logval = "in Log call is a function value, not a function call"
+    coverageignored = "ignored is unused"
+  [metalinter.enabled]
+    golint = true
+    gofmt = true
+    varcheck = true
+    aligncheck = true
+    gocyclo = true
+    vet = true
+    deadcode = true
+    unconvert = true
+    structcheck = true
+    ineffassign = true
+    errcheck = true

@@ -1,0 +1,26 @@
+language: go
+
+sudo: false
+
+go:
+  - 1.6
+
+before_install:
+  - go get -u github.com/signalfx/gobuild
+  - go get -u github.com/alecthomas/gometalinter 
+  - gometalinter --install --update
+
+install:
+  - echo -e "Host heroku.com\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
+  - echo -e "Host github.com\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
+  - echo -e "Host git.apache.org\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
+  - go get -d -v -t ./... 
+
+script:
+  - export PATH=$HOME/gopath/bin:$PATH
+  - export GOCOVERDIR_DIR="."
+  - env GOCONVEY_REPORTER=silent GOLIB_LOG=/dev/null gobuild
+
+after_script:
+  - cat coverage.out
+
