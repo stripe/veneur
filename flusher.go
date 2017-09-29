@@ -108,6 +108,11 @@ func (s *Server) FlushLocal(ctx context.Context) {
 	// since not everything in tempMetrics is safe for sharing
 	go s.flushForward(span.Attach(ctx), tempMetrics)
 
+	// If there's nothing to flush, don't bother calling the plugins and stuff.
+	if len(finalMetrics) == 0 {
+		return
+	}
+
 	go func() {
 		for _, p := range s.getPlugins() {
 			start := time.Now()
@@ -243,7 +248,6 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 		}
 	}
 
-	// finalizeMetrics(s.Hostname, s.Tags, finalMetrics)
 	s.Statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(span.Start).Nanoseconds()), []string{"part:combine"}, 1.0)
 
 	return finalMetrics
