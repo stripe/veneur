@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	flock "github.com/theckman/go-flock"
 )
 
 // ResolveAddr takes a URL-style listen address specification,
@@ -160,16 +162,37 @@ func startSSFUDP(s *Server, addr *net.UDPAddr, tracePool *sync.Pool) {
 	}()
 }
 
-func startSSFUnix(s *Server, addr *net.UnixAddr) {
+// startSSFUnix starts listening for connections that send framed SSF
+// spans on a UNIX domain socket address. It does so until the
+// server's shutdown socket is closed. startSSFUnix returns a channel
+// that is closed once the listener has terminated.
+func startSSFUnix(s *Server, addr *net.UnixAddr) <-chan struct{} {
+	done := make(chan struct{})
 	if addr.Network() != "unix" {
 		panic(fmt.Sprintf("Can't listen for SSF on %v: only udp:// and unix:// addresses are supported", addr))
 	}
+	// ensure we are the only ones locking this socket:
+	lockname := fmt.Sprintf("%s.lock", addr.String())
+	lock := flock.NewFlock(lockname)
+	locked, err := lock.TryLock()
+	if err != nil {
+		panic(fmt.Sprintf("Could not acquire the lock %q to listen on %v: %v", lockname, addr, err))
+	}
+	if !locked {
+		panic(fmt.Sprintf("Lock file %q for %v is in use by another process already", lockname, addr))
+	}
+	// We have the exclusive use of the socket, clear away any old sockets and listen:
+	_ = os.Remove(addr.String())
 	listener, err := net.ListenUnix(addr.Network(), addr)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't listen on UNIX socket %v: %v", addr, err))
 	}
 	go func() {
-		for {
+		conns := make(chan net.Conn)
+		go func() {
+			defer lock.Unlock()
+			defer close(done)
+
 			conn, err := listener.AcceptUnix()
 			if err != nil {
 				select {
@@ -181,7 +204,17 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) {
 					log.WithError(err).Fatal("Unix accept failed")
 				}
 			}
-			go s.ReadSSFStreamSocket(conn)
+			conns <- conn
+		}()
+		for {
+			select {
+			case conn := <-conns:
+				go s.ReadSSFStreamSocket(conn)
+			case <-s.shutdown:
+				listener.Close()
+				return
+			}
 		}
 	}()
+	return done
 }
