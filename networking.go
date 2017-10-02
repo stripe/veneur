@@ -187,24 +187,32 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) <-chan struct{} {
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't listen on UNIX socket %v: %v", addr, err))
 	}
+
+	// Make the socket connectable by everyone with access to the socket pathname:
+	err = os.Chmod(addr.String(), 0666)
+	if err != nil {
+		panic(fmt.Sprintf("Couldn't set permissions on %v: %v", addr, err))
+	}
+
 	go func() {
 		conns := make(chan net.Conn)
 		go func() {
 			defer lock.Unlock()
 			defer close(done)
-
-			conn, err := listener.AcceptUnix()
-			if err != nil {
-				select {
-				case <-s.shutdown:
-					// occurs when cleanly shutting down the server e.g. in tests; ignore errors
-					log.WithError(err).Info("Ignoring Accept error while shutting down")
-					return
-				default:
-					log.WithError(err).Fatal("Unix accept failed")
+			for {
+				conn, err := listener.AcceptUnix()
+				if err != nil {
+					select {
+					case <-s.shutdown:
+						// occurs when cleanly shutting down the server e.g. in tests; ignore errors
+						log.WithError(err).Info("Ignoring Accept error while shutting down")
+						return
+					default:
+						log.WithError(err).Fatal("Unix accept failed")
+					}
 				}
+				conns <- conn
 			}
-			conns <- conn
 		}()
 		for {
 			select {
