@@ -187,6 +187,10 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) <-chan struct{} {
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't listen on UNIX socket %v: %v", addr, err))
 	}
+
+	// Make the socket connectable by everyone with access to the socket pathname:
+	os.Chmod(addr.String(), 0666)
+
 	go func() {
 		conns := make(chan net.Conn)
 		go func() {
