@@ -189,7 +189,10 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) <-chan struct{} {
 	}
 
 	// Make the socket connectable by everyone with access to the socket pathname:
-	os.Chmod(addr.String(), 0666)
+	err = os.Chmod(addr.String(), 0666)
+	if err != nil {
+		panic(fmt.Sprintf("Couldn't set permissions on %v: %v", addr, err))
+	}
 
 	go func() {
 		conns := make(chan net.Conn)
