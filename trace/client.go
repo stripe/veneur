@@ -35,7 +35,7 @@ type op func(context.Context, backend)
 type Client struct {
 	backend
 	cancel context.CancelFunc
-	c      chan op
+	ops    chan op
 }
 
 // Close tears down the entire client. It waits until the backend has
@@ -44,16 +44,16 @@ type Client struct {
 func (c *Client) Close() error {
 	ch := make(chan error)
 	c.cancel()
-	c.c <- func(ctx context.Context, s backend) {
+	c.ops <- func(ctx context.Context, s backend) {
 		ch <- s.Close()
 	}
-	close(c.c)
+	close(c.ops)
 	return <-ch
 }
 
 func (c *Client) run(ctx context.Context) {
 	for {
-		do, ok := <-c.c
+		do, ok := <-c.ops
 		if !ok {
 			return
 		}
@@ -150,7 +150,7 @@ func NewClient(addrStr string, opts ...ClientParam) (*Client, error) {
 		}
 	}
 	ch := make(chan op, params.cap)
-	cl.c = ch
+	cl.ops = ch
 	ctx := context.Background()
 	ctx, cl.cancel = context.WithCancel(ctx)
 	go cl.run(ctx)
@@ -195,7 +195,7 @@ func Record(cl *Client, span *ssf.SSFSpan, done chan<- error) error {
 		}
 	}
 	select {
-	case cl.c <- op:
+	case cl.ops <- op:
 		return nil
 	default:
 	}
@@ -237,7 +237,7 @@ func FlushAsync(cl *Client, ch chan<- error) error {
 		}
 	}
 	select {
-	case cl.c <- op:
+	case cl.ops <- op:
 		return nil
 	default:
 	}
