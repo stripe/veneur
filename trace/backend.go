@@ -15,16 +15,16 @@ import (
 // DefaultBackoff defaults to 10 milliseconds of initial wait
 // time. Subsequent wait times will add this backoff to the time they
 // wait.
-const DefaultBackoff time.Duration = 20 * time.Millisecond
+const DefaultBackoff = 20 * time.Millisecond
 
 // DefaultMaxBackoff defaults to 1 second. No reconnection attempt
 // wait interval will be longer than this.
-const DefaultMaxBackoff time.Duration = 1 * time.Second
+const DefaultMaxBackoff = 1 * time.Second
 
 // DefaultConnectTimeout is to 10 seconts. Any attempt to (re)connect
 // to a veneur will take longer than this. If it would take longer,
 // the span is discarded.
-const DefaultConnectTimeout time.Duration = 10 * time.Second
+const DefaultConnectTimeout = 10 * time.Second
 
 // BufferSize is the default size of the SSF buffer. It defaults to
 // enough bytes to accomodate the largest SSF span.
@@ -50,24 +50,24 @@ func (p *backendParams) params() *backendParams {
 //
 // Data loss / resiliency to failure
 //
-// If a backend encounters an error sending a span, it discards
-// the span and attempts to reconnect. This means that the
-// backend is resilient against "poison pill" spans, but it
-// also means that spans will get lost if there are connection
-// problems, such as veneurs getting restarted.
+// If a backend encounters an error sending a span, it should discard
+// the span and attempt to reconnect. This is intended to make the
+// backend resilient against "poison pill" spans, at the cost of
+// losing that span if there are connection problems, such as veneurs
+// getting restarted.
 type backend interface {
 	io.Closer
 
 	params() *backendParams
 	connection(net.Conn)
 
-	// sendSync synchronously sends a span to an upstream veneur. If
-	// it encounters a protocol error in sending, it loops
-	// forever, backing off by n*the backoff interval (until it
-	// reaches the maximal backoff interval) and tries to
-	// reconnect. If sendSync encounters any non-protocol errors
-	// (e.g. in serializing the SSF span), it returns them without
-	// reconnecting.
+	// sendSync synchronously sends a span to an upstream
+	// veneur. If it encounters a protocol error in sending, it
+	// must loop forever, backing off by n*the backoff interval
+	// (until it reaches the maximal backoff interval) and tries
+	// to reconnect. If sendSync encounters any non-protocol
+	// errors (e.g. in serializing the SSF span), it must return
+	// them without reconnecting.
 	sendSync(ctx context.Context, span *ssf.SSFSpan) error
 
 	// flushSync causes all (potentially) buffered data to be sent to
@@ -144,7 +144,7 @@ func connect(ctx context.Context, s backend) error {
 	ctx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
 
-	wait := 0 * time.Second
+	var wait time.Duration
 	var conn net.Conn
 	var err error
 	for {
