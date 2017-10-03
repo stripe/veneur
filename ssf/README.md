@@ -1,6 +1,6 @@
-# Simple Sensor Format
+# Standard Sensor Format
 
-The Simple Sensor Format — or SSF for short — is a language agnostic format for transmitting observability data such as trace spans, metrics, events and more.
+The Standard Sensor Format — or SSF for short — is a language agnostic format for transmitting observability data such as trace spans, metrics, events and more.
 
 # Why?
 
