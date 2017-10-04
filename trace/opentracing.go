@@ -43,8 +43,6 @@ var HeaderFormats = []HeaderGroup{
 	},
 }
 
-const TraceIDHeader = "Traceid"
-
 // GlobalTracer is the… global tracer!
 var GlobalTracer = Tracer{}
 
