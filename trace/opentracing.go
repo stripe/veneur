@@ -18,14 +18,32 @@ import (
 	"github.com/stripe/veneur/ssf"
 )
 
-// TraceIDHeader is the header for the trace id field
+// Lists the names of headers that a specification uses for representing trace information.
+type HeaderGroup struct {
+	TraceID  string
+	SpanID   string
+	ParentID string
+}
+
+var HeaderFormats = []HeaderGroup{
+	HeaderGroup{
+		TraceID:  "x-request-id",
+		SpanID:   "x-client-trace-id",
+		ParentID: "Parentid",
+	},
+	HeaderGroup{
+		TraceID:  "Trace-Id",
+		SpanID:   "Span-Id",
+		ParentID: "Parentid",
+	},
+	HeaderGroup{
+		TraceID:  "Traceid",
+		SpanID:   "Spanid",
+		ParentID: "Parentid",
+	},
+}
+
 const TraceIDHeader = "Traceid"
-
-// SpanIDHeader is the header for the span id field
-const SpanIDHeader = "Spanid"
-
-// ParentIDHeader is the header for the parent id field
-const ParentIDHeader = "Parentid"
 
 // GlobalTracer is the… global tracer!
 var GlobalTracer = Tracer{}
@@ -549,13 +567,28 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 	}
 
 	if tm, ok := carrier.(opentracing.TextMapReader); ok {
-
 		// carrier is guaranteed to be an opentracing.TextMapReader by contract
 		// TODO support other TextMapReader implementations
-		traceID, err := strconv.ParseInt(textMapReaderGet(tm, TraceIDHeader), 10, 64)
-		spanID, err2 := strconv.ParseInt(textMapReaderGet(tm, SpanIDHeader), 10, 64)
-		parentID, err3 := strconv.ParseInt(textMapReaderGet(tm, ParentIDHeader), 10, 64)
-		if !(err == nil && err2 == nil && err3 == nil) {
+		parsedHeaders := false
+		var traceID int64
+		var spanID int64
+		var parentID int64
+		for _, headers := range HeaderFormats {
+			var err1 error
+			var err2 error
+			var err3 error
+			traceID, err1 = strconv.ParseInt(textMapReaderGet(tm, headers.TraceID), 10, 64)
+			spanID, err2 = strconv.ParseInt(textMapReaderGet(tm, headers.SpanID), 10, 64)
+			parentID, err3 = strconv.ParseInt(textMapReaderGet(tm, headers.ParentID), 10, 64)
+
+			fmt.Printf("%d ", traceID)
+
+			if err1 == nil && err2 == nil && err3 == nil {
+				parsedHeaders = true
+				break
+			}
+		}
+		if !parsedHeaders {
 			return nil, errors.New("error parsing fields from TextMapReader")
 		}
 
