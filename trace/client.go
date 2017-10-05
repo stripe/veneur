@@ -21,7 +21,7 @@ func init() {
 
 // op is a function invoked on a backend, such as sending a span
 // synchronously, flushing the backend buffer, or closing the backend.
-type op func(context.Context, backend)
+type op func(context.Context, ClientBackend)
 
 // Client is a Client that sends traces to Veneur. It represents a
 // pump for span packets from user code to the network (whether it be
@@ -33,6 +33,7 @@ type op func(context.Context, backend)
 // serialization part providing backpressure (the front end) and a
 // restartable network connection (the backend).
 type Client struct {
+	ClientBackend
 	backend
 	cancel context.CancelFunc
 	ops    chan op
@@ -44,7 +45,7 @@ type Client struct {
 func (c *Client) Close() error {
 	ch := make(chan error)
 	c.cancel()
-	c.ops <- func(ctx context.Context, s backend) {
+	c.ops <- func(ctx context.Context, s ClientBackend) {
 		ch <- s.Close()
 	}
 	close(c.ops)
@@ -57,7 +58,7 @@ func (c *Client) run(ctx context.Context) {
 		if !ok {
 			return
 		}
-		do(ctx, c.backend)
+		do(ctx, c.ClientBackend)
 	}
 }
 
@@ -141,6 +142,7 @@ func NewClient(addrStr string, opts ...ClientParam) (*Client, error) {
 	default:
 		return nil, fmt.Errorf("can not connect to %v addresses", addr.Network())
 	}
+	cl.ClientBackend = cl.backend
 	params := cl.backend.params()
 	params.addr = addr
 	params.cap = DefaultCapacity
@@ -192,8 +194,8 @@ func Record(cl *Client, span *ssf.SSFSpan, done chan<- error) error {
 		return ErrNoClient
 	}
 
-	op := func(ctx context.Context, s backend) {
-		err := s.sendSync(ctx, span)
+	op := func(ctx context.Context, s ClientBackend) {
+		err := s.SendSync(ctx, span)
 		if done != nil {
 			done <- err
 		}
@@ -234,8 +236,8 @@ func FlushAsync(cl *Client, ch chan<- error) error {
 	if cl == nil {
 		return ErrNoClient
 	}
-	op := func(ctx context.Context, s backend) {
-		err := s.flushSync(ctx)
+	op := func(ctx context.Context, s ClientBackend) {
+		err := s.FlushSync(ctx)
 		if ch != nil {
 			ch <- err
 		}
