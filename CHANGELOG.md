@@ -1,18 +1,22 @@
-# 1.7.0, pending
+# 1.7.0, 2017-10-10
 
 ## Added
 * New [configuration option](https://github.com/stripe/veneur/pull/233) `statsd_listen_addresses`, a list of URIs indicating on which ports (and protocols) veneur should listen on for statsd metrics. This deprecates both the `udp_address` and `tcp_address` settings. Thanks [antifuchs](https://github.com/antifuchs)!
 * New package `github.com/stripe/veneur/protocol`, containing a wire protocol for sending/reading SSF over a streaming connection. Thanks [antifuchs](https://github.com/antifuchs)!
+* `github.com/veneur/trace` now contains [customizable `Client`s](https://github.com/stripe/veneur/pull/262) that support streaming connections.
 * [veneur-prometheus](https://github.com/stripe/veneur/tree/master/cmd/veneur-prometheus) now has a `-p` option for specifying a prefix for all metrics. Thanks [gphat](https://github.com/gphat)!
 * New metrics `ssf.spans.tags_per_span` and `ssf.packet_size` track the distribution of tags per span and total packet sizes, respectively.
 * Our super spiffy logo, designed by [mercedes](https://github.com/mercedes-stripe), is now included at the top of the README!
 * Refactor internals to use a new intermediary metric struct to facilitate new plugins. Thanks [gphat](https://github.com/gphat)!
 
 ## Improvements
+
+* [A new HyperLogLog implementation](https://github.com/stripe/veneur/pull/190) means `set`s are faster and allocate less memory. Thanks, [martinpinto](https://github.com/martinpinto)!
 * Introduced a new `metricSink` which provides a common interface for metric backends. In an upcoming release all plugins will be converted to this interface. Thanks [gphat](https://github.com/gphat)!
 
 ## Deprecations
 * `veneur-emit` no longer supports the `-config` argument, as it's no longer possible to reliably detect which statsd host/port to connect to. The `-hostport` option now takes a URL of the same form `statsd_listen_addresses` takes to explicitly tell it what address it should send to.
+* `SSFSpanCollection` got removed, as it is superseded by the wire protocol. If you need to send multiple spans in bulk, we recommend setting up a buffered `trace.Client`!
 
 # 1.6.0, 2017-08-29
 
