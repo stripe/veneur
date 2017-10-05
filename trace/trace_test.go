@@ -2,12 +2,14 @@ package trace
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/ssf"
 )
 
@@ -32,7 +34,7 @@ func testRecord(t *testing.T, trace *Trace, name string, tags map[string]string)
 	// arbitrary
 	const BufferSize = 1087152
 
-	traceAddr, err := net.ResolveUDPAddr("udp", localVeneurAddress)
+	traceAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:0")
 	assert.NoError(t, err)
 	serverConn, err := net.ListenUDP("udp", traceAddr)
 	assert.NoError(t, err)
@@ -55,22 +57,31 @@ func testRecord(t *testing.T, trace *Trace, name string, tags map[string]string)
 
 	go func() {
 		<-time.After(5 * time.Second)
-		kill <- struct{}{}
+		close(kill)
 	}()
 
-	trace.Record(name, tags)
-	end = time.Now()
+	client, err := NewClient(fmt.Sprintf("udp://%s", serverConn.LocalAddr().String()))
+	require.NoError(t, err)
+	defer client.Close()
 
-	select {
-	case _ = <-kill:
-		assert.Fail(t, "timed out waiting for socket read")
-	case resp := <-respChan:
-		// Because this is marshalled using protobuf,
-		// we can't expect the representation to be immutable
-		// and cannot test the marshalled payload directly
-		sample = &ssf.SSFSpan{}
-		err := proto.Unmarshal(resp, sample)
-		assert.NoError(t, err)
+	sentCh := make(chan error)
+	trace.Sent = sentCh
+	err = trace.ClientRecord(client, name, tags)
+	if assert.NoError(t, err) {
+		assert.NoError(t, <-sentCh)
+		end = time.Now()
+
+		select {
+		case _ = <-kill:
+			assert.Fail(t, "timed out waiting for socket read")
+		case resp := <-respChan:
+			// Because this is marshalled using protobuf,
+			// we can't expect the representation to be immutable
+			// and cannot test the marshalled payload directly
+			sample = &ssf.SSFSpan{}
+			err := proto.Unmarshal(resp, sample)
+			assert.NoError(t, err)
+		}
 	}
 	return
 }

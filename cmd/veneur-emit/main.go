@@ -17,7 +17,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Sirupsen/logrus"
 	"github.com/gogo/protobuf/proto"
-	"github.com/stripe/veneur"
+	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/ssf"
 )
 
@@ -193,7 +193,7 @@ func destination(passedFlags map[string]flag.Value, hostport *string, useSSF boo
 		err = errors.New("you must specify a valid hostport")
 		return
 	}
-	address, parseErr := veneur.ResolveAddr(addr)
+	address, parseErr := protocol.ResolveAddr(addr)
 	if parseErr != nil {
 		// This is fine - we can attempt to treat the
 		// host:port combination as a UDP address.

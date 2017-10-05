@@ -8,11 +8,8 @@ package trace
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"io"
 	"math/rand"
-	"net"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -42,13 +39,6 @@ var disabled bool = false
 
 var enabledMtx sync.RWMutex
 
-var udpConn *net.UDPConn
-
-// used to initialize udpConn inside sendSample
-var udpInitOnce sync.Once
-var udpInitFunc = func() { initUDPConn(localVeneurAddress) }
-var udpConnUninitializedErr = errors.New("UDP connection is not yet initialized")
-
 // Make an unexported `key` type that we use as a String such
 // that we don't get lint warnings from using it as a key in
 // Context. See https://blog.golang.org/context#TOC_3.2.
@@ -59,8 +49,6 @@ const traceKey key = "trace"
 // Service is our service name and should be set exactly once,
 // at startup
 var Service = ""
-
-const localVeneurAddress = "127.0.0.1:8128"
 
 // For an error to be recorded correctly in DataDog, these three tags
 // need to be set
@@ -99,6 +87,10 @@ type Trace struct {
 	// Unlike the Resource, this should not contain spaces
 	// It should be of the format foo.bar.baz
 	Name string
+
+	// Sent holds a channel. If set, this channel receives an
+	// error (or nil) when the span has been serialized and sent.
+	Sent chan<- error
 
 	error bool
 }
@@ -178,10 +170,14 @@ func (t *Trace) ProtoMarshalTo(w io.Writer) error {
 	return err
 }
 
-// Record sends a trace to the (local) veneur instance,
-// which will pass it on to the tracing agent running on the
-// global veneur instance.
+// Record sends a trace to a veneur instance using the DefaultClient .
 func (t *Trace) Record(name string, tags map[string]string) error {
+	return t.ClientRecord(DefaultClient, name, tags)
+}
+
+// ClientRecord uses the given client to send a trace to a veneur
+// instance.
+func (t *Trace) ClientRecord(cl *Client, name string, tags map[string]string) error {
 	if t.Tags == nil {
 		t.Tags = map[string]string{}
 	}
@@ -198,7 +194,7 @@ func (t *Trace) Record(name string, tags map[string]string) error {
 	span := t.SSFSpan()
 	span.Name = name
 
-	return sendSample(span)
+	return Record(cl, span, t.Sent)
 }
 
 func (t *Trace) Error(err error) {
@@ -320,60 +316,6 @@ func StartChildSpan(parent *Trace) *Trace {
 	span.Start = time.Now()
 
 	return span
-}
-
-// sendSample marshals the sample using protobuf and sends it
-// over UDP to the local veneur instance
-func sendSample(sample *ssf.SSFSpan) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err, ok := r.(error)
-			if !ok {
-				err = fmt.Errorf("encountered panic while sending sample %#v", err)
-			}
-			logrus.WithError(err).Error("Panicked while dialing UDP connection - traces will not be sent")
-		}
-	}()
-
-	if Disabled() {
-		return nil
-	}
-
-	udpInitOnce.Do(udpInitFunc)
-
-	// at this point, the connection should already be initialized
-
-	if udpConn == nil {
-		return udpConnUninitializedErr
-	}
-
-	data, err := proto.Marshal(sample)
-	if err != nil {
-		return
-	}
-
-	_, err = udpConn.Write(data)
-	if err != nil {
-		return
-	}
-
-	return nil
-}
-
-// initUDPConn will initialize the global UDP connection.
-// It will panic if it encounters an error.
-// It should only be called via the corresponding sync.Once
-func initUDPConn(address string) {
-	serverAddr, err := net.ResolveUDPAddr("udp", localVeneurAddress)
-	if err != nil {
-		panic(err)
-	}
-
-	conn, err := net.DialUDP("udp", nil, serverAddr)
-	if err != nil {
-		panic(err)
-	}
-	udpConn = conn
 }
 
 // stripPackageName strips the package name from a function
