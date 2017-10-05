@@ -36,7 +36,6 @@ type backendParams struct {
 	maxBackoff     time.Duration
 	connectTimeout time.Duration
 	bufferSize     uint
-	cap            uint
 }
 
 func (p *backendParams) params() *backendParams {
@@ -64,19 +63,20 @@ type ClientBackend interface {
 	FlushSync(ctx context.Context) error
 }
 
-// backend is a structure that can send an SSF span to a destination
-// over a persistent connection, handling reconnections. When
-// encountering connection errors, a backend will automatically attempt
-// to reconnect and blocks until reconnecting succeeds.
+// networkBackend is a structure that can send an SSF span to a
+// destination over a persistent connection, handling
+// reconnections. When encountering connection errors, a
+// networkBackend will automatically attempt to reconnect and blocks
+// until reconnecting succeeds.
 //
 // Data loss / resiliency to failure
 //
-// If a backend encounters an error sending a span, it should discard
-// the span and attempt to reconnect. This is intended to make the
-// backend resilient against "poison pill" spans, at the cost of
-// losing that span if there are connection problems, such as veneurs
-// getting restarted.
-type backend interface {
+// If a networkBackend encounters an error sending a span, it should
+// discard the span and attempt to reconnect. This is intended to make
+// the networkBackend resilient against "poison pill" spans, at the
+// cost of losing that span if there are connection problems, such as
+// veneurs getting restarted.
+type networkBackend interface {
 	ClientBackend
 
 	params() *backendParams
@@ -121,7 +121,7 @@ func (s *packetBackend) FlushSync(context.Context) error {
 	return nil
 }
 
-var _ backend = &packetBackend{}
+var _ networkBackend = &packetBackend{}
 
 // streamBackend is a backend for streaming connections.
 type streamBackend struct {
@@ -131,7 +131,7 @@ type streamBackend struct {
 	buffer *bufio.Writer
 }
 
-func connect(ctx context.Context, s backend) error {
+func connect(ctx context.Context, s networkBackend) error {
 	dialer := net.Dialer{}
 
 	params := s.params()
@@ -236,4 +236,4 @@ func (ds *streamBackend) FlushSync(ctx context.Context) error {
 	return err
 }
 
-var _ backend = &streamBackend{}
+var _ networkBackend = &streamBackend{}

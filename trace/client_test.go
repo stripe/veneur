@@ -1,6 +1,7 @@
 package trace
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/protocol"
+	"github.com/stripe/veneur/ssf"
 )
 
 func TestNoClient(t *testing.T) {
@@ -337,4 +339,60 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 		// A span was successfully received by the server:
 		<-outPkg
 	}
+}
+
+type testBackend struct {
+	t  *testing.T
+	ch chan *ssf.SSFSpan
+}
+
+func (tb *testBackend) Close() error {
+	tb.t.Logf("Closing backend")
+	close(tb.ch)
+	return nil
+}
+
+func (tb *testBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
+	tb.t.Logf("Sending span")
+	tb.ch <- span
+	return nil
+}
+
+func (tb *testBackend) FlushSync(ctx context.Context) error {
+	return nil
+}
+
+func TestInternalBackend(t *testing.T) {
+	received := make(chan *ssf.SSFSpan)
+
+	tb := testBackend{t, received}
+	cl, err := NewBackendClient(&tb, Capacity(5))
+	require.NoError(t, err)
+
+	sent := make(chan error, 10)
+	somespan := func() error {
+		tr := StartTrace("hi there")
+		tr.Sent = sent
+		return tr.ClientRecord(cl, "hi there", map[string]string{})
+	}
+
+	inflight := 0
+	for {
+		t.Logf("submitting span %d", inflight)
+		err := somespan()
+		if err == ErrWouldBlock {
+			t.Logf("got note that we'd block, breaking")
+			break
+		}
+		inflight++
+		require.NoError(t, err)
+	}
+
+	// Receive the sent/queued spans:
+	for i := 0; i < inflight; i++ {
+		t.Logf("Receiving %d", i)
+		<-received
+		assert.NoError(t, <-sent)
+	}
+	assert.NoError(t, cl.Close())
 }

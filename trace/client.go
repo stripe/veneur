@@ -23,20 +23,20 @@ func init() {
 // synchronously, flushing the backend buffer, or closing the backend.
 type op func(context.Context, ClientBackend)
 
-// Client is a Client that sends traces to Veneur. It represents a
-// pump for span packets from user code to the network (whether it be
-// UDP or streaming sockets, with or without buffers).
+// Client is a Client that sends traces to Veneur over the network. It
+// represents a pump for span packets from user code to the network
+// (whether it be UDP or streaming sockets, with or without buffers).
 //
 // Structure
 //
 // A Client is composed of two parts (each with its own purpose): A
 // serialization part providing backpressure (the front end) and a
-// restartable network connection (the backend).
+// backend (which is called on a single goroutine).
 type Client struct {
-	ClientBackend
-	backend
-	cancel context.CancelFunc
-	ops    chan op
+	backend ClientBackend
+	cap     uint
+	cancel  context.CancelFunc
+	ops     chan op
 }
 
 // Close tears down the entire client. It waits until the backend has
@@ -58,14 +58,31 @@ func (c *Client) run(ctx context.Context) {
 		if !ok {
 			return
 		}
-		do(ctx, c.ClientBackend)
+		do(ctx, c.backend)
 	}
 }
 
 // ClientParam is an option for NewClient. Its implementation borrows
 // from Dave Cheney's functional options API
 // (https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis).
+//
+// Unless otherwise noted, ClientParams only apply to networked
+// backends (i.e., those used by NewClient). Using them on
+// non-network-backed clients will return ErrClientNotNetworked on
+// client creation.
 type ClientParam func(*Client) error
+
+var ErrClientNotNetworked = fmt.Errorf("client is not using a network backend")
+
+// Capacity indicates how many spans a client's channel should
+// accomodate. This parameter can be used on both generic and
+// networked backends.
+func Capacity(n uint) ClientParam {
+	return func(cl *Client) error {
+		cl.cap = n
+		return nil
+	}
+}
 
 // Buffered sets the client to be buffered with the default buffer
 // size (enough to accomodate a single, maximum-sized SSF frame,
@@ -78,17 +95,11 @@ func Buffered(cl *Client) error {
 // large.
 func BufferedSize(size uint) ClientParam {
 	return func(cl *Client) error {
-		cl.backend.params().bufferSize = size
-		return nil
-	}
-}
-
-// Capacity indicates how many spans a client's channel should
-// accomodate.
-func Capacity(n uint) ClientParam {
-	return func(cl *Client) error {
-		cl.backend.params().cap = n
-		return nil
+		if nb, ok := cl.backend.(networkBackend); ok {
+			nb.params().bufferSize = size
+			return nil
+		}
+		return ErrClientNotNetworked
 	}
 }
 
@@ -97,8 +108,11 @@ func Capacity(n uint) ClientParam {
 // this option is not used, the backend uses DefaultBackoff.
 func BackoffTime(t time.Duration) ClientParam {
 	return func(cl *Client) error {
-		cl.backend.params().backoff = t
-		return nil
+		if nb, ok := cl.backend.(networkBackend); ok {
+			nb.params().backoff = t
+			return nil
+		}
+		return ErrClientNotNetworked
 	}
 }
 
@@ -107,8 +121,11 @@ func BackoffTime(t time.Duration) ClientParam {
 // DefaultMaxBackoff.
 func MaxBackoffTime(t time.Duration) ClientParam {
 	return func(cl *Client) error {
-		cl.backend.params().maxBackoff = t
-		return nil
+		if nb, ok := cl.backend.(networkBackend); ok {
+			nb.params().maxBackoff = t
+			return nil
+		}
+		return ErrClientNotNetworked
 	}
 }
 
@@ -120,8 +137,11 @@ func MaxBackoffTime(t time.Duration) ClientParam {
 // DefaultConnectTimeout.
 func ConnectTimeout(t time.Duration) ClientParam {
 	return func(cl *Client) error {
-		cl.backend.params().connectTimeout = t
-		return nil
+		if nb, ok := cl.backend.(networkBackend); ok {
+			nb.params().connectTimeout = t
+			return nil
+		}
+		return ErrClientNotNetworked
 	}
 }
 
@@ -134,25 +154,48 @@ func NewClient(addrStr string, opts ...ClientParam) (*Client, error) {
 		return nil, err
 	}
 	cl := &Client{}
+	var nb networkBackend
 	switch addr := addr.(type) {
 	case *net.UDPAddr:
-		cl.backend = &packetBackend{}
+		nb = &packetBackend{}
 	case *net.UnixAddr:
-		cl.backend = &streamBackend{}
+		nb = &streamBackend{}
 	default:
 		return nil, fmt.Errorf("can not connect to %v addresses", addr.Network())
 	}
-	cl.ClientBackend = cl.backend
-	params := cl.backend.params()
+	cl.backend = nb
+	params := nb.params()
 	params.addr = addr
-	params.cap = DefaultCapacity
+	cl.cap = DefaultCapacity
 	for _, opt := range opts {
 		if err = opt(cl); err != nil {
 			return nil, err
 		}
 	}
-	ch := make(chan op, params.cap)
+	ch := make(chan op, cl.cap)
 	cl.ops = ch
+	ctx := context.Background()
+	ctx, cl.cancel = context.WithCancel(ctx)
+	go cl.run(ctx)
+	return cl, nil
+}
+
+// NewBackendClient constructs and returns a Client sending to the
+// ClientBackend passed. Most user code should use NewClient, as
+// NewBackendClient is primarily useful for processing spans
+// internally (e.g. in veneur itself or in test code), without making
+// trips over the network.
+func NewBackendClient(b ClientBackend, opts ...ClientParam) (*Client, error) {
+	cl := &Client{}
+	cl.backend = b
+	cl.cap = 1
+
+	for _, opt := range opts {
+		if err := opt(cl); err != nil {
+			return nil, err
+		}
+	}
+	cl.ops = make(chan op, cl.cap)
 	ctx := context.Background()
 	ctx, cl.cancel = context.WithCancel(ctx)
 	go cl.run(ctx)
