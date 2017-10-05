@@ -62,6 +62,13 @@ func main() {
 	defer func() {
 		veneur.ConsumePanic(server.Sentry, server.Statsd, server.Hostname, recover())
 	}()
+
+	if server.TraceClient != nil {
+		if trace.DefaultClient != nil {
+			trace.DefaultClient.Close()
+		}
+		trace.DefaultClient = server.TraceClient
+	}
 	server.Start()
 
 	if conf.HTTPAddress != "" {
