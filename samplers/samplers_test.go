@@ -135,7 +135,7 @@ func TestSetMerge(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		s.Sample(strconv.Itoa(rand.Int()), 1.0)
 	}
-	assert.Equal(t, uint64(100), s.Hll.Count(), "counts did not match")
+	assert.Equal(t, uint64(100), s.Hll.Estimate(), "counts did not match")
 
 	jm, err := s.Export()
 	assert.NoError(t, err, "should have exported successfully")
@@ -144,8 +144,8 @@ func TestSetMerge(t *testing.T) {
 	assert.NoError(t, s2.Combine(jm.Value), "should have combined successfully")
 	// HLLs are approximate, and we've seen error of +-1 here in the past, so
 	// we're giving the test some room for error to reduce flakes
-	count1 := int(s.Hll.Count())
-	count2 := int(s2.Hll.Count())
+	count1 := int(s.Hll.Estimate())
+	count2 := int(s2.Hll.Estimate())
 	countDifference := count1 - count2
 	assert.True(t, -1 <= countDifference && countDifference <= 1, "counts did not match after merging (%d and %d)", count1, count2)
 }

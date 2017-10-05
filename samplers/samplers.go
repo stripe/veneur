@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"hash/fnv"
 	"math"
 	"strings"
 	"time"
 
-	"github.com/clarkduvall/hyperloglog"
+	"github.com/axiomhq/hyperloglog"
 	"github.com/stripe/veneur/tdigest"
 )
 
@@ -213,22 +212,20 @@ func NewGauge(Name string, Tags []string) *Gauge {
 type Set struct {
 	Name string
 	Tags []string
-	Hll  *hyperloglog.HyperLogLogPlus
+	Hll  *hyperloglog.Sketch
 }
 
 // Sample checks if the supplied value has is already in the filter. If not, it increments
 // the counter!
 func (s *Set) Sample(sample string, sampleRate float32) {
-	hasher := fnv.New64a()
-	hasher.Write([]byte(sample))
-	s.Hll.Add(hasher)
+	s.Hll.Insert([]byte(sample))
 }
 
 // NewSet generates a new Set and returns it
 func NewSet(Name string, Tags []string) *Set {
 	// error is only returned if precision is outside the 4-18 range
 	// TODO: this is the maximum precision, should it be configurable?
-	Hll, _ := hyperloglog.NewPlus(18)
+	Hll := hyperloglog.New()
 	return &Set{
 		Name: Name,
 		Tags: Tags,
@@ -242,7 +239,7 @@ func (s *Set) Flush() []DDMetric {
 	copy(tags, s.Tags)
 	return []DDMetric{{
 		Name:       s.Name,
-		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(s.Hll.Count())}},
+		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(s.Hll.Estimate())}},
 		Tags:       tags,
 		MetricType: "gauge",
 	}}
@@ -250,7 +247,7 @@ func (s *Set) Flush() []DDMetric {
 
 // Export converts a Set into a JSONMetric which reports the Tags in the set.
 func (s *Set) Export() (JSONMetric, error) {
-	val, err := s.Hll.GobEncode()
+	val, err := s.Hll.MarshalBinary()
 	if err != nil {
 		return JSONMetric{}, err
 	}
@@ -267,8 +264,8 @@ func (s *Set) Export() (JSONMetric, error) {
 
 // Combine merges the values seen with another set (marshalled as a byte slice)
 func (s *Set) Combine(other []byte) error {
-	otherHLL, _ := hyperloglog.NewPlus(18)
-	if err := otherHLL.GobDecode(other); err != nil {
+	otherHLL := hyperloglog.New()
+	if err := otherHLL.UnmarshalBinary(other); err != nil {
 		return err
 	}
 	if err := s.Hll.Merge(otherHLL); err != nil {

@@ -19,22 +19,34 @@
   version = "v1.10.17"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/axiomhq/hyperloglog"
+  packages = ["."]
+  revision = "67c63c1769669ed114425d82cc7a91af4ce24f8b"
+
+[[projects]]
   name = "github.com/certifi/gocertifi"
   packages = ["."]
   revision = "3fd9e1adb12b72d2f3f82191d49be9b93c69f67c"
   version = "2017.07.27"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/clarkduvall/hyperloglog"
-  packages = ["."]
-  revision = "c8a7a0be3536230c0a46ec8d3f6d9aab7c71bb8d"
-
-[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/dgryski/go-bits"
+  packages = ["."]
+  revision = "2ad8d707cc05b1815ce6ff2543bb5e8d8f9298ef"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/dgryski/go-metro"
+  packages = ["."]
+  revision = "0f6473574cdfd7be3962c41fb23dc4768b1f7deb"
 
 [[projects]]
   branch = "master"
@@ -219,6 +231,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "dcc463749489faaa5923a125d571a0e02cfbe51c155f5e31eac3e00c0694dc17"
+  inputs-digest = "f38bf5dc3c7d710c14d0c03c236e2753860012955589a81547fbd3375aff9d3c"
   solver-name = "gps-cdcl"
   solver-version = 1
