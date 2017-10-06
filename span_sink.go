@@ -45,10 +45,11 @@ type datadogSpanSink struct {
 	stats        *statsd.Client
 	commonTags   map[string]string
 	traceAddress string
+	traceClient  *trace.Client
 }
 
 // NewDatadogSpanSink creates a new Datadog sink for trace spans.
-func NewDatadogSpanSink(config *Config, stats *statsd.Client, httpClient *http.Client, commonTags map[string]string) (*datadogSpanSink, error) {
+func NewDatadogSpanSink(config *Config, stats *statsd.Client, httpClient *http.Client, traceClient *trace.Client, commonTags map[string]string) (*datadogSpanSink, error) {
 	return &datadogSpanSink{
 		HTTPClient:   httpClient,
 		bufferSize:   config.SsfBufferSize,
@@ -57,6 +58,7 @@ func NewDatadogSpanSink(config *Config, stats *statsd.Client, httpClient *http.C
 		stats:        stats,
 		commonTags:   commonTags,
 		traceAddress: config.DatadogTraceAPIAddress,
+		traceClient:  traceClient,
 	}, nil
 }
 
