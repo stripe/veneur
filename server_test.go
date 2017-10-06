@@ -166,7 +166,7 @@ func setupVeneurServer(t *testing.T, config Config, transport http.RoundTripper)
 	if transport != nil {
 		server.HTTPClient.Transport = transport
 	}
-
+	server.TraceClient = nil
 	server.Start()
 
 	go server.HTTPServe()
