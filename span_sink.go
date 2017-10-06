@@ -210,10 +210,11 @@ type lightStepSpanSink struct {
 	commonTags   map[string]string
 	mutex        *sync.Mutex
 	serviceCount map[string]int64
+	traceClient  *trace.Client
 }
 
 // NewLightStepSpanSink creates a new instance of a LightStepSpanSink.
-func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[string]string) (*lightStepSpanSink, error) {
+func NewLightStepSpanSink(config *Config, stats *statsd.Client, traceClient *trace.Client, commonTags map[string]string) (*lightStepSpanSink, error) {
 
 	var host *url.URL
 	host, err := url.Parse(config.TraceLightstepCollectorHost)
@@ -283,6 +284,7 @@ func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[s
 		stats:        stats,
 		serviceCount: make(map[string]int64),
 		mutex:        &sync.Mutex{},
+		traceClient:  traceClient,
 	}, nil
 }
 
@@ -343,7 +345,7 @@ func (ls *lightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
 	}
 
 	endTime := time.Unix(ssfSpan.EndTimestamp/1e9, ssfSpan.EndTimestamp%1e9)
-	sp.FinishWithOptions(opentracing.FinishOptions{
+	sp.ClientFinishWithOptions(sp.traceClient, opentracing.FinishOptions{
 		FinishTime: endTime,
 	})
 
