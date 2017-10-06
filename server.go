@@ -283,6 +283,13 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 	// Configure tracing sinks
 	if len(conf.SsfListenAddresses) > 0 && (conf.DatadogTraceAPIAddress != "" || conf.TraceLightstepAccessToken != "") {
+		// Set up our internal trace client:
+		tb := &internalTraceBackend{}
+		ret.TraceClient, err = trace.NewBackendClient(tb, trace.Capacity(200))
+		if err != nil {
+			panic(fmt.Sprintf("Could not set up internal trace backend: %v", err))
+		}
+
 		// Set a sane default
 		if conf.SsfBufferSize == 0 {
 			conf.SsfBufferSize = defaultSpanBufferSize
@@ -293,7 +300,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		// configure Datadog as a Span sink
 		if conf.DatadogTraceAPIAddress != "" {
 
-			ddSink, err := NewDatadogSpanSink(&conf, ret.Statsd, ret.HTTPClient, ret.TagsAsMap)
+			ddSink, err := NewDatadogSpanSink(&conf, ret.Statsd, ret.HTTPClient, ret.TraceClient, ret.TagsAsMap)
 			if err != nil {
 				return ret, err
 			}
@@ -319,6 +326,9 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 		ret.SpanWorker = NewSpanWorker(ret.spanSinks, ret.Statsd)
 
+		// Now that we have a span worker, set the trace
+		// backend up to send spans to it:
+		tb.spanWorker = ret.SpanWorker
 	} else {
 		trace.Disable()
 	}
@@ -397,12 +407,6 @@ func (s *Server) Start() {
 	}()
 
 	if s.TracingEnabled() {
-		tb := &internalTraceBackend{server: s}
-		cl, err := trace.NewBackendClient(tb, trace.Capacity(200))
-		if err != nil {
-			panic(fmt.Sprintf("Could not set up internal trace backend: %v", err))
-		}
-		s.TraceClient = cl
 
 		log.Info("Starting Trace worker")
 		go func() {
@@ -866,7 +870,7 @@ func (s *Server) TracingEnabled() bool {
 }
 
 type internalTraceBackend struct {
-	server *Server
+	spanWorker *SpanWorker
 }
 
 // Close is a no-op on the internal backend.
@@ -876,9 +880,12 @@ func (tb *internalTraceBackend) Close() error {
 
 // SendSync sends the span directly into the veneur Server.
 func (tb *internalTraceBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
+	if tb.spanWorker == nil {
+		return ErrNoSpanWorker
+	}
 	ch := make(chan struct{})
 	go func() {
-		tb.server.SpanWorker.SpanChan <- *span
+		tb.spanWorker.SpanChan <- *span
 		close(ch)
 	}()
 	select {
@@ -893,5 +900,7 @@ func (tb *internalTraceBackend) SendSync(ctx context.Context, span *ssf.SSFSpan)
 func (tb *internalTraceBackend) FlushSync(ctx context.Context) error {
 	return nil
 }
+
+var ErrNoSpanWorker = fmt.Errorf("Can not submit traces to an unstarted server")
 
 var _ trace.ClientBackend = &internalTraceBackend{}
