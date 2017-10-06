@@ -182,7 +182,7 @@ func (dd *datadogSpanSink) Flush() {
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
 
-		err := postHelper(context.TODO(), dd.HTTPClient, dd.stats, fmt.Sprintf("%s/spans", dd.traceAddress), finalTraces, "flush_traces", false)
+		err := postHelper(context.TODO(), dd.HTTPClient, dd.stats, dd.traceClient, fmt.Sprintf("%s/spans", dd.traceAddress), finalTraces, "flush_traces", false)
 
 		if err == nil {
 			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")

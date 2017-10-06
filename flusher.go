@@ -23,7 +23,7 @@ import (
 // Flush collects sampler's metrics and passes them to sinks.
 func (s *Server) Flush(ctx context.Context) {
 	span := tracer.StartSpan("flush").(*trace.Span)
-	defer span.Finish()
+	defer span.ClientFinish(s.TraceClient)
 
 	mem := &runtime.MemStats{}
 	runtime.ReadMemStats(mem)
@@ -171,7 +171,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.InterMetric {
 
 	span, _ := trace.StartSpanFromContext(ctx, "")
-	defer span.Finish()
+	defer span.ClientFinish(s.TraceClient)
 
 	finalMetrics := make([]samplers.InterMetric, 0, ms.totalLength)
 	for _, wm := range tempMetrics {
@@ -260,7 +260,7 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 
 func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
-	defer span.Finish()
+	defer span.ClientFinish(s.TraceClient)
 	jmLength := 0
 	for _, wm := range wms {
 		jmLength += len(wm.histograms)
@@ -343,7 +343,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 
 	// the error has already been logged (if there was one), so we only care
 	// about the success case
-	if postHelper(span.Attach(ctx), s.HTTPClient, s.Statsd, endpoint, jsonMetrics, "forward", true) == nil {
+	if postHelper(span.Attach(ctx), s.HTTPClient, s.Statsd, s.TraceClient, endpoint, jsonMetrics, "forward", true) == nil {
 		log.WithField("metrics", len(jsonMetrics)).Info("Completed forward to upstream Veneur")
 	}
 }
@@ -393,10 +393,10 @@ func (s *Server) flushTraces(ctx context.Context) {
 // this function - probably a static string for each callsite
 // you can disable compression with compress=false for endpoints that don't
 // support it
-func postHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Client, endpoint string, bodyObject interface{}, action string, compress bool) error {
+func postHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Client, tc *trace.Client, endpoint string, bodyObject interface{}, action string, compress bool) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	span.SetTag("action", action)
-	defer span.Finish()
+	defer span.ClientFinish(tc)
 
 	// attach this field to all the logs we generate
 	innerLogger := log.WithField("action", action)
