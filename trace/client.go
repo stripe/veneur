@@ -72,6 +72,8 @@ func (c *Client) run(ctx context.Context) {
 // client creation.
 type ClientParam func(*Client) error
 
+// ErrClientNotNetworked indicates that the client being constructed
+// does not support options relevant only to networked clients.
 var ErrClientNotNetworked = fmt.Errorf("client is not using a network backend")
 
 // Capacity indicates how many spans a client's channel should
