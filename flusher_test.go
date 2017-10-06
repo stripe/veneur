@@ -167,7 +167,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	server := setupVeneurServer(t, config, nil)
 	defer server.Shutdown()
 
-	ddSink, err := NewDatadogSpanSink(&config, server.Statsd, server.HTTPClient, server.TagsAsMap)
+	ddSink, err := NewDatadogSpanSink(&config, server.Statsd, server.HTTPClient, nil, server.TagsAsMap)
 
 	server.spanSinks = append(server.spanSinks, ddSink)
 
@@ -200,7 +200,7 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 	server := setupVeneurServer(t, config, nil)
 	defer server.Shutdown()
 
-	lsSink, err := NewLightStepSpanSink(&config, server.Statsd, server.TagsAsMap)
+	lsSink, err := NewLightStepSpanSink(&config, server.Statsd, nil, server.TagsAsMap)
 	server.spanSinks = append(server.spanSinks, lsSink)
 
 	packet, err := ioutil.ReadAll(protobuf)
