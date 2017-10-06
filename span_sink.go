@@ -345,9 +345,12 @@ func (ls *lightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
 	}
 
 	endTime := time.Unix(ssfSpan.EndTimestamp/1e9, ssfSpan.EndTimestamp%1e9)
-	sp.ClientFinishWithOptions(sp.traceClient, opentracing.FinishOptions{
-		FinishTime: endTime,
-	})
+	finishOpts := opentracing.FinishOptions{FinishTime: endTime}
+	if sp, ok := sp.(*trace.Span); ok {
+		sp.ClientFinishWithOptions(ls.traceClient, finishOpts)
+	} else {
+		sp.FinishWithOptions(finishOpts)
+	}
 
 	service := ssfSpan.Service
 	if service == "" {
