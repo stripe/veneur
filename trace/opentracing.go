@@ -169,15 +169,20 @@ type Span struct {
 	logLines []opentracinglog.Field
 }
 
-// Finish ends a trace end records it.
+// Finish ends a trace end records it with DefaultClient.
 func (s *Span) Finish() {
+	s.ClientFinish(DefaultClient)
+}
+
+// ClientFinish ends a trace and records it with the given Client.
+func (s *Span) ClientFinish(cl *Client) {
 	// This should never happen,
 	// but calling defer span.Finish() should always be
 	// a safe operation.
 	if s == nil {
 		return
 	}
-	s.FinishWithOptions(opentracing.FinishOptions{
+	s.ClientFinishWithOptions(cl, opentracing.FinishOptions{
 		FinishTime:  time.Now(),
 		LogRecords:  nil,
 		BulkLogData: nil,
@@ -188,6 +193,13 @@ func (s *Span) Finish() {
 // control over timestamps and log data.
 // The BulkLogData field is deprecated and ignored.
 func (s *Span) FinishWithOptions(opts opentracing.FinishOptions) {
+	s.ClientFinishWithOptions(DefaultClient, opts)
+}
+
+// ClientFinishWithOptions finishes the span and records it on the
+// given client, but with explicit control over timestamps and log
+// data.  The BulkLogData field is deprecated and ignored.
+func (s *Span) ClientFinishWithOptions(cl *Client, opts opentracing.FinishOptions) {
 	// This should never happen,
 	// but calling defer span.FinishWithOptions() should always be
 	// a safe operation.
@@ -197,7 +209,7 @@ func (s *Span) FinishWithOptions(opts opentracing.FinishOptions) {
 
 	// TODO remove the name tag from the slice of tags
 
-	s.recordErr = s.Record(s.Name, s.Tags)
+	s.recordErr = s.ClientRecord(cl, s.Name, s.Tags)
 }
 
 func (s *Span) Context() opentracing.SpanContext {
