@@ -47,6 +47,7 @@ type Proxy struct {
 
 	usingConsul     bool
 	enableProfiling bool
+	traceClient     *trace.Client
 }
 
 func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
@@ -126,6 +127,7 @@ func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
 		}
 		log.WithField("interval", conf.ConsulRefreshInterval).Info("Will use Consul for service discovery")
 	}
+	p.traceClient = trace.DefaultClient
 
 	// TODO Size of replicas in config?
 	//ret.ForwardDestinations.NumberOfReplicas = ???
