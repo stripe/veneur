@@ -35,6 +35,7 @@ type datadogMetricSink struct {
 	statsd          *statsd.Client
 	tags            []string
 	interval        float64
+	traceClient     *trace.Client
 }
 
 // DDMetric is a data structure that represents the JSON that Datadog
@@ -50,7 +51,7 @@ type DDMetric struct {
 }
 
 // NewDatadogMetricSink creates a new Datadog sink for trace spans.
-func NewDatadogMetricSink(config *Config, interval float64, httpClient *http.Client, stats *statsd.Client) (*datadogMetricSink, error) {
+func NewDatadogMetricSink(config *Config, interval float64, httpClient *http.Client, stats *statsd.Client, traceClient *trace.Client) (*datadogMetricSink, error) {
 	return &datadogMetricSink{
 		HTTPClient:      httpClient,
 		statsd:          stats,
@@ -60,6 +61,7 @@ func NewDatadogMetricSink(config *Config, interval float64, httpClient *http.Cli
 		tags:            config.Tags,
 		ddHostname:      config.DatadogAPIHostname,
 		apiKey:          config.DatadogAPIKey,
+		traceClient:     traceClient,
 	}, nil
 }
 
