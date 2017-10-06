@@ -282,7 +282,7 @@ func (p *Proxy) Handler() http.Handler {
 
 func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxy.proxy_traces")
-	defer span.Finish()
+	defer span.ClientFinish(p.traceClient)
 
 	tracesByDestination := make(map[string][]*DatadogTraceSpan)
 	for _, h := range p.TraceDestinations.Members() {
@@ -333,7 +333,7 @@ func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
 // HTTP requests by MetricKey using the hash ring.
 func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMetric) {
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxy.proxy_metrics")
-	defer span.Finish()
+	defer span.ClientFinish(p.traceClient)
 
 	jsonMetricsByDestination := make(map[string][]samplers.JSONMetric)
 	for _, h := range p.ForwardDestinations.Members() {
