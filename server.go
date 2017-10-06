@@ -313,7 +313,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		if ret.traceLightstepAccessToken != "" {
 
 			var lsSink spanSink
-			lsSink, err = NewLightStepSpanSink(&conf, ret.Statsd, ret.TagsAsMap)
+			lsSink, err = NewLightStepSpanSink(&conf, ret.Statsd, ret.TraceClient, ret.TagsAsMap)
 			if err != nil {
 				return
 			}
