@@ -294,6 +294,11 @@ func (s *Server) flushRemote(ctx context.Context, finalMetrics []samplers.DDMetr
 		return
 	}
 
+	if s.DDHostname == "" {
+		log.Debug("Datadog api not configured, skipping.")
+		return
+	}
+
 	// break the metrics into chunks of approximately equal size, such that
 	// each chunk is less than the limit
 	// we compute the chunks using rounding-up integer division
