@@ -201,6 +201,49 @@ trace_lightstep_maximum_spans: 0
 # to a minimum of one client
 trace_lightstep_num_clients: 1
 
+# == Kafka ==
+
+# Comma-delimited list of brokers suitable for Sarama's [NewSyncProducer](https://godoc.org/github.com/Shopify/sarama#NewSyncProducer)
+kafka_broker: ""
+
+# Name of the topic we'll be publishing checks to
+kafka_check_topic: ""
+
+# Name of the topic we'll be publishing events to
+kafka_event_topic: ""
+
+# Name of the topic we'll be publishing metrics to
+kafka_metric_topic: ""
+
+# Name of the topic we'll be publishing spans to
+kafka_span_topic: ""
+
+kafka_metric_buffer_bytes: 0
+
+kafka_metric_buffer_mesages: 0
+
+kafka_metric_buffer_frequency: ""
+
+kafka_serialization_format: "protobuf"
+
+# The type of partitioner to use.
+kafka_partitioner: "hash"
+
+# What type of acks to require for metrics? One of none, local or all.
+kafka_metric_require_acks: "all"
+
+# What type of acks to require for span? One of none, local or all.
+kafka_span_require_acks: "all"
+
+kafka_span_buffer_bytes: 0
+
+kafka_span_buffer_mesages: 0
+
+kafka_span_buffer_frquency: ""
+
+# The number of retries before giving up.
+kafka_retry_max: 0
+
 # == PLUGINS ==
 
 # == S3 Output ==
@@ -213,7 +256,6 @@ aws_s3_bucket: ""
 # == LocalFile Output ==
 # Include this if you want to archive data to a local file (which should then be rotated/cleaned)
 flush_file: ""
-
 
 
 # == DEPRECATED FIELDS ==

@@ -37,6 +37,7 @@ import (
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/sinks/datadog"
+	"github.com/stripe/veneur/sinks/kafka"
 	"github.com/stripe/veneur/sinks/lightstep"
 	"github.com/stripe/veneur/sinks/metrics"
 	"github.com/stripe/veneur/sinks/signalfx"
@@ -370,6 +371,25 @@ func NewFromConfig(conf Config) (*Server, error) {
 
 			log.Info("Configured Lightstep trace sink")
 		}
+	}
+
+	if conf.KafkaBroker != "" {
+		if conf.KafkaMetricTopic != "" {
+			kSink, err := kafka.NewKafkaMetricSink(
+				log, conf.KafkaBroker, conf.KafkaCheckTopic, conf.KafkaEventTopic,
+				conf.KafkaMetricTopic, conf.KafkaMetricRequireAcks,
+				conf.KafkaPartitioner, conf.KafkaRetryMax,
+				conf.KafkaMetricBufferBytes, conf.KafkaMetricBufferMesages,
+				conf.KafkaMetricBufferFrequency, conf.KafkaSerializationFormat,
+				ret.Statsd,
+			)
+		}
+		// 	plugin := kafka.NewKafkaPlugin(
+		// 		log, conf.KafkaBroker, conf.KafkaTopic, conf.KafkaPartitioner, conf.KafkaRetryMax, conf.KafkaBatchedMetrics, ret.Statsd,
+		// 	)
+		// 	ret.registerPlugin(plugin)
+		// }
+
 	}
 
 	var svc s3iface.S3API
