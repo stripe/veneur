@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	lightstep "github.com/lightstep/lightstep-tracer-go"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"

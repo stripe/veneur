@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 )

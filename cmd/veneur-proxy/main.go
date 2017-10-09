@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur"
 	"github.com/stripe/veneur/trace"
 )

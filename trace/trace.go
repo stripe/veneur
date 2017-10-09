@@ -19,7 +19,7 @@ import (
 
 	"github.com/stripe/veneur/ssf"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/golang/protobuf/proto"
 	opentracing "github.com/opentracing/opentracing-go"
 )

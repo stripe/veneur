@@ -15,7 +15,7 @@ import (
 	"strconv"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/gogo/protobuf/proto"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/ssf"

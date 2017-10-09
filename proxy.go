@@ -14,7 +14,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	raven "github.com/getsentry/raven-go"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/profile"

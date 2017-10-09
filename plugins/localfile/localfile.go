@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/plugins"
 	"github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/samplers"

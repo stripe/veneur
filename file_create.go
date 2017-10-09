@@ -7,7 +7,7 @@ package veneur
 // 	"os"
 // 	"path/filepath"
 
-// 	"github.com/Sirupsen/logrus"
+// 	"github.com/sirupsen/logrus"
 // 	"github.com/gogo/protobuf/proto"
 // 	"github.com/stripe/veneur/ssf"
 // )
