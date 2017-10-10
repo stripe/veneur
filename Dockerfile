@@ -7,9 +7,12 @@ RUN apt-get update
 RUN apt-get install -y zip
 RUN go get -u -v github.com/ChimeraCoder/gojson/gojson
 RUN go get -u -v github.com/golang/protobuf/protoc-gen-go
-RUN go get -u -v github.com/gogo/protobuf/protoc-gen-gofast
-RUN cd $GOPATH/src/github.com/gogo/protobuf/ && git checkout v0.5
+RUN go get -d -v github.com/gogo/protobuf/protoc-gen-gofast
+WORKDIR /go/src/github.com/gogo/protobuf
+RUN git fetch
+RUN git checkout v0.5
 RUN go install github.com/gogo/protobuf/protoc-gen-gofast
+WORKDIR /go
 RUN go get -u github.com/golang/dep/cmd/dep
 RUN go get -u -v golang.org/x/tools/cmd/stringer
 RUN wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
@@ -19,7 +22,6 @@ RUN chmod 777 /usr/bin/protoc
 
 WORKDIR /go/src/github.com/stripe/veneur
 ADD . /go/src/github.com/stripe/veneur
-
 
 # If running locally, ignore any changes since
 # the last commit
