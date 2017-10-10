@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/sirupsen/logrus"
 	"github.com/getsentry/raven-go"
+	"github.com/sirupsen/logrus"
 )
 
 // ConsumePanic is intended to be called inside a deferred function when recovering

@@ -19,9 +19,9 @@ import (
 
 	"github.com/stripe/veneur/ssf"
 
-	"github.com/sirupsen/logrus"
 	"github.com/golang/protobuf/proto"
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/sirupsen/logrus"
 )
 
 // Experimental

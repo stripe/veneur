@@ -14,10 +14,10 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/sirupsen/logrus"
 	raven "github.com/getsentry/raven-go"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/profile"
+	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/trace"
 	"github.com/zenazn/goji/bind"

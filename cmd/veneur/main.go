@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/getsentry/raven-go"
+	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur"
 	"github.com/stripe/veneur/trace"
 )
