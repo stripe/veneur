@@ -21,14 +21,6 @@ const (
 	CounterMetric MetricType = iota
 	// GaugeMetric is a gauge
 	GaugeMetric
-	// HistogramMetric is a histogram
-	HistogramMetric
-	// RateMetric is a rate
-	RateMetric
-	// SetMetric is a set
-	SetMetric
-	// TimerMetric is a timer
-	TimerMetric
 )
 
 // InterMetric represents a metric that has been completed and is ready for
@@ -41,41 +33,18 @@ type InterMetric struct {
 	Type      MetricType
 }
 
-// DDMetric is a data structure that represents the JSON that Datadog
-// wants when posting to the API
-type DDMetric struct {
-	Name       string        `json:"metric"`
-	Value      [1][2]float64 `json:"points"`
-	Tags       []string      `json:"tags,omitempty"`
-	MetricType string        `json:"type"`
-	Hostname   string        `json:"host,omitempty"`
-	DeviceName string        `json:"device_name,omitempty"`
-	Interval   int32         `json:"interval,omitempty"`
-}
-
-// Aggregate is one of the supported aggregation formulas.
 type Aggregate int
 
 const (
-	// AggregateMin is a minimum aggregation
 	AggregateMin Aggregate = 1 << iota
-	// AggregateMax is a maximum aggregation
 	AggregateMax
-	// AggregateMedian is a median aggregation
 	AggregateMedian
-	// AggregateAverage is an average aggregation
 	AggregateAverage
-	// AggregateCount is a count aggregation, aka how many measurements were
-	// received.
 	AggregateCount
-	// AggregateSum is a sum aggregation, aka the sum of all measurements
 	AggregateSum
-	// AggregateHarmonicMean is a harmonic mean aggregation
 	AggregateHarmonicMean
 )
 
-// AggregatesLookup is a map to Aggregate table for converting a config value
-// to the actual Aggregate type
 var AggregatesLookup = map[string]Aggregate{
 	"min":    AggregateMin,
 	"max":    AggregateMax,
@@ -86,9 +55,6 @@ var AggregatesLookup = map[string]Aggregate{
 	"hmean":  AggregateHarmonicMean,
 }
 
-// HistogramAggregates is the aggregates that need to be exported, ANDed
-// together and a count summing the number of "on" aggregations contained in
-// Value.
 type HistogramAggregates struct {
 	Value Aggregate
 	Count int
@@ -126,16 +92,16 @@ func (c *Counter) Sample(sample float64, sampleRate float32) {
 	c.value += int64(sample) * int64(1/sampleRate)
 }
 
-// Flush generates a DDMetric from the current state of this Counter.
-func (c *Counter) Flush(interval time.Duration) []DDMetric {
+// Flush generates an InterMetric from the current state of this Counter.
+func (c *Counter) Flush(interval time.Duration) []InterMetric {
 	tags := make([]string, len(c.Tags))
 	copy(tags, c.Tags)
-	return []DDMetric{{
-		Name:       c.Name,
-		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(c.value) / interval.Seconds()}},
-		Tags:       tags,
-		MetricType: "rate",
-		Interval:   int32(interval.Seconds()),
+	return []InterMetric{{
+		Name:      c.Name,
+		Timestamp: time.Now().Unix(),
+		Value:     float64(c.value),
+		Tags:      tags,
+		Type:      CounterMetric,
 	}}
 }
 
@@ -191,15 +157,16 @@ func (g *Gauge) Sample(sample float64, sampleRate float32) {
 	g.value = sample
 }
 
-// Flush generates a DDMetric from the current state of this gauge.
-func (g *Gauge) Flush() []DDMetric {
+// Flush generates an InterMetric from the current state of this gauge.
+func (g *Gauge) Flush() []InterMetric {
 	tags := make([]string, len(g.Tags))
 	copy(tags, g.Tags)
-	return []DDMetric{{
-		Name:       g.Name,
-		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(g.value)}},
-		Tags:       tags,
-		MetricType: "gauge",
+	return []InterMetric{{
+		Name:      g.Name,
+		Timestamp: time.Now().Unix(),
+		Value:     float64(g.value),
+		Tags:      tags,
+		Type:      GaugeMetric,
 	}}
 }
 
@@ -233,15 +200,16 @@ func NewSet(Name string, Tags []string) *Set {
 	}
 }
 
-// Flush generates a DDMetric for the state of this Set.
-func (s *Set) Flush() []DDMetric {
+// Flush generates an InterMetric for the state of this Set.
+func (s *Set) Flush() []InterMetric {
 	tags := make([]string, len(s.Tags))
 	copy(tags, s.Tags)
-	return []DDMetric{{
-		Name:       s.Name,
-		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(s.Hll.Estimate())}},
-		Tags:       tags,
-		MetricType: "gauge",
+	return []InterMetric{{
+		Name:      s.Name,
+		Timestamp: time.Now().Unix(),
+		Value:     float64(s.Hll.Estimate()),
+		Tags:      tags,
+		Type:      GaugeMetric,
 	}}
 }
 
@@ -321,47 +289,46 @@ func NewHist(Name string, Tags []string) *Histo {
 	}
 }
 
-// Flush generates DDMetrics for the current state of the Histo. percentiles
+// Flush generates InterMetrics for the current state of the Histo. percentiles
 // indicates what percentiles should be exported from the histogram.
-func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates HistogramAggregates) []DDMetric {
-	now := float64(time.Now().Unix())
-	// we only want to flush the number of samples we received locally, since
-	// any other samples have already been flushed by a local veneur instance
-	// before this was forwarded to us
-	rate := h.LocalWeight / interval.Seconds()
-	metrics := make([]DDMetric, 0, aggregates.Count+len(percentiles))
+func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates HistogramAggregates) []InterMetric {
+	now := time.Now().Unix()
+	metrics := make([]InterMetric, 0, aggregates.Count+len(percentiles))
 
 	if (aggregates.Value&AggregateMax) == AggregateMax && !math.IsInf(h.LocalMax, 0) {
-		// Defensively recopy tags to avoid aliasing bugs in case multiple DDMetrics share the same
+		// Defensively recopy tags to avoid aliasing bugs in case multiple InterMetrics share the same
 		// tag array in the future
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
-		metrics = append(metrics, DDMetric{
-			Name:       fmt.Sprintf("%s.max", h.Name),
-			Value:      [1][2]float64{{now, h.LocalMax}},
-			Tags:       tags,
-			MetricType: "gauge",
+		metrics = append(metrics, InterMetric{
+			Name:      fmt.Sprintf("%s.max", h.Name),
+			Timestamp: now,
+			Value:     float64(h.LocalMax),
+			Tags:      tags,
+			Type:      GaugeMetric,
 		})
 	}
 	if (aggregates.Value&AggregateMin) == AggregateMin && !math.IsInf(h.LocalMin, 0) {
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
-		metrics = append(metrics, DDMetric{
-			Name:       fmt.Sprintf("%s.min", h.Name),
-			Value:      [1][2]float64{{now, h.LocalMin}},
-			Tags:       tags,
-			MetricType: "gauge",
+		metrics = append(metrics, InterMetric{
+			Name:      fmt.Sprintf("%s.min", h.Name),
+			Timestamp: now,
+			Value:     float64(h.LocalMin),
+			Tags:      tags,
+			Type:      GaugeMetric,
 		})
 	}
 
 	if (aggregates.Value&AggregateSum) == AggregateSum && h.LocalSum != 0 {
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
-		metrics = append(metrics, DDMetric{
-			Name:       fmt.Sprintf("%s.sum", h.Name),
-			Value:      [1][2]float64{{now, h.LocalSum}},
-			Tags:       tags,
-			MetricType: "gauge",
+		metrics = append(metrics, InterMetric{
+			Name:      fmt.Sprintf("%s.sum", h.Name),
+			Timestamp: now,
+			Value:     float64(h.LocalSum),
+			Tags:      tags,
+			Type:      GaugeMetric,
 		})
 	}
 
@@ -370,26 +337,27 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		// to submit an average
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
-		metrics = append(metrics, DDMetric{
-			Name:       fmt.Sprintf("%s.avg", h.Name),
-			Value:      [1][2]float64{{now, h.LocalSum / h.LocalWeight}},
-			Tags:       tags,
-			MetricType: "gauge",
+		metrics = append(metrics, InterMetric{
+			Name:      fmt.Sprintf("%s.avg", h.Name),
+			Timestamp: now,
+			Value:     float64(h.LocalSum / h.LocalWeight),
+			Tags:      tags,
+			Type:      GaugeMetric,
 		})
 	}
 
-	if (aggregates.Value&AggregateCount) == AggregateCount && rate != 0 {
+	if (aggregates.Value&AggregateCount) == AggregateCount && h.LocalWeight != 0 {
 		// if we haven't received any local samples, then leave this sparse,
 		// otherwise it can lead to some misleading zeroes in between the
 		// flushes of downstream instances
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
-		metrics = append(metrics, DDMetric{
-			Name:       fmt.Sprintf("%s.count", h.Name),
-			Value:      [1][2]float64{{now, rate}},
-			Tags:       tags,
-			MetricType: "rate",
-			Interval:   int32(interval.Seconds()),
+		metrics = append(metrics, InterMetric{
+			Name:      fmt.Sprintf("%s.count", h.Name),
+			Timestamp: now,
+			Value:     float64(h.LocalWeight),
+			Tags:      tags,
+			Type:      CounterMetric,
 		})
 	}
 
@@ -398,11 +366,12 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		copy(tags, h.Tags)
 		metrics = append(
 			metrics,
-			DDMetric{
-				Name:       fmt.Sprintf("%s.median", h.Name),
-				Value:      [1][2]float64{{now, h.Value.Quantile(0.5)}},
-				Tags:       tags,
-				MetricType: "gauge",
+			InterMetric{
+				Name:      fmt.Sprintf("%s.median", h.Name),
+				Timestamp: now,
+				Value:     float64(h.Value.Quantile(0.5)),
+				Tags:      tags,
+				Type:      GaugeMetric,
 			},
 		)
 	}
@@ -412,11 +381,12 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		// to submit an average
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
-		metrics = append(metrics, DDMetric{
-			Name:       fmt.Sprintf("%s.hmean", h.Name),
-			Value:      [1][2]float64{{now, h.LocalWeight / h.LocalReciprocalSum}},
-			Tags:       tags,
-			MetricType: "gauge",
+		metrics = append(metrics, InterMetric{
+			Name:      fmt.Sprintf("%s.hmean", h.Name),
+			Timestamp: now,
+			Value:     float64(h.LocalWeight / h.LocalReciprocalSum),
+			Tags:      tags,
+			Type:      GaugeMetric,
 		})
 	}
 
@@ -426,11 +396,12 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		metrics = append(
 			metrics,
 			// TODO Fix to allow for p999, etc
-			DDMetric{
-				Name:       fmt.Sprintf("%s.%dpercentile", h.Name, int(p*100)),
-				Value:      [1][2]float64{{now, h.Value.Quantile(p)}},
-				Tags:       tags,
-				MetricType: "gauge",
+			InterMetric{
+				Name:      fmt.Sprintf("%s.%dpercentile", h.Name, int(p*100)),
+				Timestamp: now,
+				Value:     float64(h.Value.Quantile(p)),
+				Tags:      tags,
+				Type:      GaugeMetric,
 			},
 		)
 	}

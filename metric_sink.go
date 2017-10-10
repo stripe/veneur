@@ -32,6 +32,18 @@ type datadogMetricSink struct {
 	interval        float64
 }
 
+// DDMetric is a data structure that represents the JSON that Datadog
+// wants when posting to the API
+type DDMetric struct {
+	Name       string        `json:"metric"`
+	Value      [1][2]float64 `json:"points"`
+	Tags       []string      `json:"tags,omitempty"`
+	MetricType string        `json:"type"`
+	Hostname   string        `json:"host,omitempty"`
+	DeviceName string        `json:"device_name,omitempty"`
+	Interval   int32         `json:"interval,omitempty"`
+}
+
 // NewDatadogMetricSink creates a new Datadog sink for trace spans.
 func NewDatadogMetricSink(config *Config, interval float64, httpClient *http.Client, stats *statsd.Client) (*datadogMetricSink, error) {
 	return &datadogMetricSink{
@@ -103,7 +115,7 @@ func (dd *datadogMetricSink) FlushEventsChecks(ctx context.Context, events []sam
 		// the official dd-agent
 		// we don't actually pass all the body keys that dd-agent passes here... but
 		// it still works
-		err := postHelper(context.TODO(), dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/intake?api_key=%s"), map[string]map[string][]samplers.UDPEvent{
+		err := postHelper(context.TODO(), dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/intake?api_key=%s", dd.ddHostname, dd.apiKey), map[string]map[string][]samplers.UDPEvent{
 			"events": {
 				"api": events,
 			},
@@ -121,7 +133,7 @@ func (dd *datadogMetricSink) FlushEventsChecks(ctx context.Context, events []sam
 		// this endpoint is not documented to take an array... but it does
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
-		err := postHelper(context.TODO(), dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/api/v1/check_run?api_key=%s"), checks, "flush_checks", false)
+		err := postHelper(context.TODO(), dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/api/v1/check_run?api_key=%s", dd.ddHostname, dd.apiKey), checks, "flush_checks", false)
 		if err == nil {
 			log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
 		} else {
@@ -132,20 +144,29 @@ func (dd *datadogMetricSink) FlushEventsChecks(ctx context.Context, events []sam
 	}
 }
 
-func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []samplers.DDMetric {
-	ddMetrics := make([]samplers.DDMetric, len(metrics))
+func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []DDMetric {
+	ddMetrics := make([]DDMetric, len(metrics))
 	for i, m := range metrics {
 		// Defensively copy tags since we're gonna mutate it
 		tags := make([]string, len(dd.tags))
 		copy(tags, dd.tags)
-		metricType := m.Type.String()
+
+		metricType := ""
 		value := m.Value
-		// We convert Datadog counters into rates
-		if metricType == "counter" {
+
+		switch m.Type {
+		case samplers.CounterMetric:
+			// We convert counters into rates for Datadog
 			metricType = "rate"
 			value = m.Value / dd.interval
+		case samplers.GaugeMetric:
+			metricType = "gauge"
+		default:
+			log.WithField("metric_type", m.Type).Warn("Encountered an unknown metric type")
+			continue
 		}
-		ddMetric := samplers.DDMetric{
+
+		ddMetric := DDMetric{
 			Name: m.Name,
 			Value: [1][2]float64{
 				[2]float64{
@@ -181,9 +202,9 @@ func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []s
 	return ddMetrics
 }
 
-func (dd *datadogMetricSink) flushPart(ctx context.Context, metricSlice []samplers.DDMetric, wg *sync.WaitGroup) {
+func (dd *datadogMetricSink) flushPart(ctx context.Context, metricSlice []DDMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
-	postHelper(ctx, dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.ddHostname, dd.apiKey), map[string][]samplers.DDMetric{
+	postHelper(ctx, dd.HTTPClient, dd.statsd, fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.ddHostname, dd.apiKey), map[string][]DDMetric{
 		"series": metricSlice,
 	}, "flush", true)
 }

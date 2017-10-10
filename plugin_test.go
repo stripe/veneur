@@ -2,6 +2,7 @@ package veneur
 
 import (
 	"compress/gzip"
+	"context"
 	"encoding/csv"
 	"io"
 	"os"
@@ -22,11 +23,11 @@ import (
 type dummyPlugin struct {
 	logger *logrus.Logger
 	statsd *statsd.Client
-	flush  func([]samplers.DDMetric, string) error
+	flush  func(context.Context, []samplers.InterMetric) error
 }
 
-func (dp *dummyPlugin) Flush(metrics []samplers.DDMetric, hostname string) error {
-	return dp.flush(metrics, hostname)
+func (dp *dummyPlugin) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+	return dp.flush(ctx, metrics)
 }
 
 func (dp *dummyPlugin) Name() string {
@@ -56,13 +57,11 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 
 	dp := &dummyPlugin{logger: log, statsd: f.server.Statsd}
 
-	dp.flush = func(metrics []samplers.DDMetric, hostname string) error {
+	dp.flush = func(ctx context.Context, metrics []samplers.InterMetric) error {
 		assert.Equal(t, len(expectedMetrics), len(metrics))
 
 		firstName := metrics[0].Name
-		assert.Equal(t, expectedMetrics[firstName], metrics[0].Value[0][1])
-
-		assert.Equal(t, hostname, f.server.Hostname)
+		assert.Equal(t, expectedMetrics[firstName], metrics[0].Value)
 
 		RemoteResponseChan <- struct{}{}
 		return nil
@@ -138,14 +137,14 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 
 		assert.Equal(t, len(expectedRecords), len(records))
 
-		assertCSVFieldsMatch(t, expectedRecords, records, []int{0, 1, 2, 3, 4, 5, 6})
+		assertCSVFieldsMatch(t, expectedRecords, records, []int{0, 1, 2, 3, 4, 6})
 		//assert.Equal(t, expectedRecords, records)
 
 		RemoteResponseChan <- struct{}{}
 		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
 	})
 
-	s3p := &s3p.S3Plugin{Logger: log, Svc: client}
+	s3p := &s3p.S3Plugin{Logger: log, Svc: client, Interval: 10}
 
 	f.server.registerPlugin(s3p)
 

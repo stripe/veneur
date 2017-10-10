@@ -73,10 +73,7 @@ type Server struct {
 	Tags      []string
 	TagsAsMap map[string]string
 
-	DDHostname     string
-	DDAPIKey       string
-	DDTraceAddress string
-	HTTPClient     *http.Client
+	HTTPClient *http.Client
 
 	HTTPAddr string
 
@@ -98,7 +95,6 @@ type Server struct {
 	shutdown chan struct{}
 
 	HistogramPercentiles []float64
-	FlushMaxPerBody      int
 
 	plugins   []plugins.Plugin
 	pluginMtx sync.Mutex
@@ -107,7 +103,8 @@ type Server struct {
 
 	HistogramAggregates samplers.HistogramAggregates
 
-	spanSinks []spanSink
+	spanSinks   []spanSink
+	metricSinks []metricSink
 
 	traceLightstepAccessToken string
 }
@@ -128,9 +125,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	}
 
 	ret.TagsAsMap = mappedTags
-	ret.DDHostname = conf.DatadogAPIHostname
-	ret.DDAPIKey = conf.DatadogAPIKey
-	ret.DDTraceAddress = conf.DatadogTraceAPIAddress
 	ret.traceLightstepAccessToken = conf.TraceLightstepAccessToken
 	ret.HistogramPercentiles = conf.Percentiles
 	if len(conf.Aggregates) == 0 {
@@ -153,7 +147,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		Timeout: ret.interval * 9 / 10,
 		// we're fine with using the default transport and redirect behavior
 	}
-	ret.FlushMaxPerBody = conf.FlushMaxPerBody
 
 	ret.Statsd, err = statsd.NewBuffered(conf.StatsAddress, 1024)
 	if err != nil {
@@ -274,9 +267,14 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.TLSKey = REDACTED
 	log.WithField("config", conf).Debug("Initialized server")
 
-	// Configure tracing sinks
-	if ret.tracingSinkEnabled() && len(conf.SsfListenAddresses) > 0 {
+	ddSink, err := NewDatadogMetricSink(&conf, ret.interval.Seconds(), ret.HTTPClient, ret.Statsd)
+	if err != nil {
+		return
+	}
+	ret.metricSinks = append(ret.metricSinks, ddSink)
 
+	// Configure tracing sinks
+	if len(conf.SsfListenAddresses) > 0 && (conf.DatadogTraceAPIAddress != "" || conf.TraceLightstepAccessToken != "") {
 		// Set a sane default
 		if conf.SsfBufferSize == 0 {
 			conf.SsfBufferSize = defaultSpanBufferSize
@@ -284,8 +282,8 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 		trace.Enable()
 
-		// configure Datadog as sink
-		if ret.DDTraceAddress != "" {
+		// configure Datadog as a Span sink
+		if conf.DatadogTraceAPIAddress != "" {
 
 			ddSink, err := NewDatadogSpanSink(&conf, ret.Statsd, ret.HTTPClient, ret.TagsAsMap)
 			if err != nil {
@@ -296,7 +294,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			log.Info("Configured Datadog trace sink")
 		}
 
-		// configure Lightstep as Sink
+		// configure Lightstep as a Span Sink
 		if ret.traceLightstepAccessToken != "" {
 
 			var lsSink spanSink
@@ -850,10 +848,4 @@ func (s *Server) getPlugins() []plugins.Plugin {
 func (s *Server) TracingEnabled() bool {
 	//TODO we now need to check that the backends are flushing the data too
 	return s.SpanWorker != nil
-}
-
-// tracingSinkEnabled returns true if at least one
-// tracing sink has been enabled
-func (s *Server) tracingSinkEnabled() bool {
-	return s.DDTraceAddress != "" || s.traceLightstepAccessToken != ""
 }

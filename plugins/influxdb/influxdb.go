@@ -2,6 +2,7 @@ package influxdb
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -58,7 +59,7 @@ func NewInfluxDBPlugin(logger *logrus.Logger, addr string, consistency string, d
 }
 
 // Flush sends a slice of metrics to InfluxDB
-func (p *InfluxDBPlugin) Flush(metrics []samplers.DDMetric, hostname string) error {
+func (p *InfluxDBPlugin) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
 	p.Statsd.Gauge("flush.post_metrics_total", float64(len(metrics)), nil, 1.0)
 	// Check to see if we have anything to do
 	if len(metrics) == 0 {
@@ -74,7 +75,7 @@ func (p *InfluxDBPlugin) Flush(metrics []samplers.DDMetric, hostname string) err
 		// rather than name value pairs, we have to do this ugly conversion
 		cleanTags := colons.ReplaceAllLiteralString(tags, "=")
 		buff.WriteString(
-			fmt.Sprintf("%s,%s value=%f %d\n", metric.Name, cleanTags, metric.Value[0][1], int64(metric.Value[0][0])),
+			fmt.Sprintf("%s,%s value=%f %d\n", metric.Name, cleanTags, metric.Value, metric.Timestamp),
 		)
 	}
 

@@ -176,7 +176,7 @@ func setupVeneurServer(t *testing.T, config Config, transport http.RoundTripper)
 // for sending metrics data to Datadog
 // Eventually we'll want to define this symmetrically.
 type DDMetricsRequest struct {
-	Series []samplers.DDMetric
+	Series []DDMetric
 }
 
 // fixture sets up a mock Datadog API server and Veneur
@@ -850,31 +850,6 @@ func TestHandleTCPGoroutineTimeout(t *testing.T) {
 	if packet.Name != "metric" {
 		t.Error("Expected packet for metric:", packet)
 	}
-}
-
-func TestNewFromServerConfigRenamedVariables(t *testing.T) {
-	// test the variables that have been renamed
-	config := Config{
-		DatadogAPIKey:          "apikey",
-		DatadogAPIHostname:     "http://api",
-		DatadogTraceAPIAddress: "http://trace",
-		SsfListenAddresses:     []string{"udp://127.0.0.1:99"},
-
-		// required or NewFromConfig fails
-		Interval:     "10s",
-		StatsAddress: "localhost:62251",
-	}
-	s, err := NewFromConfig(config)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, "apikey", s.DDAPIKey)
-	assert.Equal(t, "http://api", s.DDHostname)
-	assert.Equal(t, "http://trace", s.DDTraceAddress)
-	addr := s.SSFListenAddrs[0].(*net.UDPAddr)
-	assert.True(t, addr.IP.IsLoopback(), "TraceAddr should be loopback")
-	assert.Equal(t, 99, addr.Port)
 }
 
 // This is necessary until we can import
