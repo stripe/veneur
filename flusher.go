@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"runtime"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -20,11 +21,17 @@ import (
 
 const DatadogResourceKey = "resource"
 
-// Flush takes the slices of metrics, combines then and marshals them to json
-// for posting to Datadog.
+// Flush collects sampler's metrics and passes them to sinks.
 func (s *Server) Flush() {
 	span := tracer.StartSpan("flush").(*trace.Span)
 	defer span.Finish()
+
+	mem := &runtime.MemStats{}
+	runtime.ReadMemStats(mem)
+
+	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
+	s.Statsd.Gauge("gc.number", float64(mem.NumGC), nil, 1.0)
+	s.Statsd.Gauge("gc.pause_total_ns", float64(mem.PauseTotalNs), nil, 1.0)
 
 	// right now we have only one destination plugin
 	// but eventually, this is where we would loop over our supported
