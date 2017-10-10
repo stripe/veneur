@@ -11,7 +11,7 @@
 
 ## Improvements
 
-* [A new HyperLogLog implementation](https://github.com/stripe/veneur/pull/190) means `set`s are faster and allocate less memory. Thanks, [martinpinto](https://github.com/martinpinto)!
+* [A new HyperLogLog implementation](https://github.com/stripe/veneur/pull/190) means `set`s are faster and allocate less memory. Thanks, [martinpinto](https://github.com/martinpinto) and [seiflotfy](https://github.com/seiflotfy)!
 * Introduced a new `metricSink` which provides a common interface for metric backends. In an upcoming release all plugins will be converted to this interface. Thanks [gphat](https://github.com/gphat)!
 
 ## Deprecations
