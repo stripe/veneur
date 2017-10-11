@@ -261,37 +261,6 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	assert.Equal(t, "butts:farts", ddmetrics.Series[0].Tags[0], "Metric is not tagged with server tags")
 }
 
-// TestFlushMaxSize tests the behavior of
-// the veneur client splitting a post across multiple requests.
-func TestFlushMaxSize(t *testing.T) {
-	metricValues, _ := generateMetrics()
-	config := localConfig()
-	config.FlushMaxPerBody = 2
-	f := newFixture(t, config)
-	defer f.Close()
-
-	for _, value := range metricValues {
-		f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: "a.b.c",
-				Type: "histogram",
-			},
-			Value:      value,
-			Digest:     12345,
-			SampleRate: 1.0,
-			Scope:      samplers.LocalOnly,
-		})
-	}
-
-	f.server.Flush()
-
-	// Verify we get 3 sets of 2, other tests can verify the internals
-	for i := 1; i <= 3; i++ {
-		ddmetrics := <-f.ddmetrics
-		assert.Equal(t, 2, len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
-	}
-}
-
 func TestGlobalServerFlush(t *testing.T) {
 	metricValues, expectedMetrics := generateMetrics()
 	config := globalConfig()
