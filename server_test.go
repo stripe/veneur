@@ -207,7 +207,6 @@ func newFixture(t *testing.T, config Config) *fixture {
 		if err != nil {
 			t.Fatal(err)
 		}
-
 		f.ddmetrics <- ddmetrics
 		w.WriteHeader(http.StatusAccepted)
 	}))
@@ -236,6 +235,7 @@ func (f *fixture) Close() {
 func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	metricValues, expectedMetrics := generateMetrics()
 	config := localConfig()
+	config.Tags = []string{"butts:farts"}
 	f := newFixture(t, config)
 	defer f.Close()
 
@@ -257,6 +257,8 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	ddmetrics := <-f.ddmetrics
 	assert.Equal(t, 6, len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
 	assertMetrics(t, ddmetrics, expectedMetrics)
+	assert.Equal(t, "localhost", ddmetrics.Series[0].Hostname, "Metric is not tagged with hostname")
+	assert.Equal(t, "butts:farts", ddmetrics.Series[0].Tags[0], "Metric is not tagged with server tags")
 }
 
 func TestGlobalServerFlush(t *testing.T) {
