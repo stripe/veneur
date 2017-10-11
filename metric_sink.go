@@ -52,6 +52,7 @@ func NewDatadogMetricSink(config *Config, interval float64, httpClient *http.Cli
 		interval:        interval,
 		flushMaxPerBody: config.FlushMaxPerBody,
 		hostname:        config.Hostname,
+		tags:            config.Tags,
 		ddHostname:      config.DatadogAPIHostname,
 		apiKey:          config.DatadogAPIKey,
 	}, nil
