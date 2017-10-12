@@ -11,54 +11,56 @@ Some common use cases:
 
 ```
 Usage of veneur-emit:
+  -command string
+    	Command to time. This will exec 'command', time it, and emit a timer metric.
   -count int
-       Report a 'count' metric. Value must be an integer.
+    	Report a 'count' metric. Value must be an integer.
   -debug
-       Turns on debug messages.
+    	Turns on debug messages.
   -e_aggr_key string
-       Add an aggregation key to group event with others with same key.
+    	Add an aggregation key to group event with others with same key.
   -e_alert_type string
-       Alert type must be 'error', 'warning', 'info', or 'success'. (default "info")
+    	Alert type must be 'error', 'warning', 'info', or 'success'. (default "info")
   -e_event_tags string
-       Tag(s) for event, comma separated. Ex: 'service:airflow,host_type:qa'
+    	Tag(s) for event, comma separated. Ex: 'service:airflow,host_type:qa'
   -e_hostname string
-       Hostname for the event.
+    	Hostname for the event.
   -e_priority string
-       Priority of event. Must be 'low' or 'normal'. (default "normal")
+    	Priority of event. Must be 'low' or 'normal'. (default "normal")
   -e_source_type string
-       Add source type to the event.
+    	Add source type to the event.
   -e_text string
-       Text of event. Insert line breaks with an esaped slash (\\n) *
+    	Text of event. Insert line breaks with an esaped slash (\\n) *
   -e_time string
-       Add timestamp to the event. Default is the current Unix epoch timestamp.
+    	Add timestamp to the event. Default is the current Unix epoch timestamp.
   -e_title string
-       Title of event. Ex: 'An exception occurred' *
-  -f string
-       The Veneur config file to read for settings.
+    	Title of event. Ex: 'An exception occurred' *
   -gauge float
-       Report a 'gauge' metric. Value must be float64.
+    	Report a 'gauge' metric. Value must be float64.
   -hostport string
-       Hostname and port of destination. Must be used if config file is not present.
+    	Address of destination (hostport or listening address URL).
   -mode string
-       Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'. (default "metric")
+    	Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'. (default "metric")
   -name string
-       Name of metric to report. Ex: 'daemontools.service.starts'
+    	Name of metric to report. Ex: 'daemontools.service.starts'
   -sc_hostname string
-       Add hostname to the event.
+    	Add hostname to the event.
   -sc_msg string
-       Message describing state of current state of service check.
+    	Message describing state of current state of service check.
   -sc_name string
-       Service check name. *
+    	Service check name. *
   -sc_status string
-       Integer corresponding to check status. (OK = 0, WARNING = 1, CRITICAL = 2, UNKNOWN = 3)*
+    	Integer corresponding to check status. (OK = 0, WARNING = 1, CRITICAL = 2, UNKNOWN = 3)*
   -sc_tags string
-       Tag(s) for service check, comma separated. Ex: 'service:airflow,host_type:qa'
+    	Tag(s) for service check, comma separated. Ex: 'service:airflow,host_type:qa'
   -sc_time string
-       Add timestamp to check. Default is current Unix epoch timestamp.
+    	Add timestamp to check. Default is current Unix epoch timestamp.
+  -shellCommand
+    	Turns on timeCommand mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.
   -ssf
-       Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)
+    	Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)
   -tag string
-       Tag(s) for metric, comma separated. Ex: 'service:airflow'
+    	Tag(s) for metric, comma separated. Ex: 'service:airflow'
   -timing duration
-       Report a 'timing' metric. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).
+    	Report a 'timing' metric. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).
 ```
