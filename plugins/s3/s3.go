@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+	"github.com/sirupsen/logrus"
 
 	"github.com/stripe/veneur/plugins"
 	"github.com/stripe/veneur/samplers"

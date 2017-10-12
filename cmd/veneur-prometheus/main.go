@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/Sirupsen/logrus"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
+	"github.com/sirupsen/logrus"
 )
 
 var (

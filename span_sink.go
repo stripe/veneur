@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/Sirupsen/logrus"
 	lightstep "github.com/lightstep/lightstep-tracer-go"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
+	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )

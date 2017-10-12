@@ -7,7 +7,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	flock "github.com/theckman/go-flock"
 )
 

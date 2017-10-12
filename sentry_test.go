@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/getsentry/raven-go"
+	"github.com/sirupsen/logrus"
 )
 
 // returns the result of calling recover() after s.ConsumePanic()

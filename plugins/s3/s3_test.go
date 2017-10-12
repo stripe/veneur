@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	s3Mock "github.com/stripe/veneur/plugins/s3/mock"
 	"github.com/stripe/veneur/samplers"
