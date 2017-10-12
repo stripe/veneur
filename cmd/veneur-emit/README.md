@@ -7,7 +7,13 @@ Some common use cases:
 
 # Usage
 
-`veneur-emit` can read an existing veneur [config file](https://github.com/stripe/veneur#configuration). If that's not convenient, you can specify it's configuration options directly.
+Emitting a metric with veneur-emit:
+
+```
+$ veneur-emit -hostport udp://example.com:8125 -count 3 -name "my.test.metric" -tag "host:my.machine.local"
+```
+
+Full usage:
 
 ```
 Usage of veneur-emit:
