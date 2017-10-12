@@ -107,8 +107,9 @@ func StartSSF(s *Server, a net.Addr, tracePool *sync.Pool) {
 }
 
 func startSSFUDP(s *Server, addr *net.UDPAddr, tracePool *sync.Pool) {
-	// if we want to use multiple readers, make reuseport a parameter, like ReadMetricSocket.
-	listener, err := NewSocket(addr, s.RcvbufBytes, false)
+	// TODO: Make this actually use readers / add a predicate
+	// function for testing if we should SO_REUSEPORT.
+	listener, err := NewSocket(addr, s.RcvbufBytes, s.numReaders > 1)
 	if err != nil {
 		// if any goroutine fails to create the socket, we can't really
 		// recover, so we just blow up
