@@ -1,5 +1,8 @@
 # 1.7.0, 2017-10-10
 
+## Notes for upgrading from previous versions
+* The `set` data structure serialization format for communiation with a global veneur server has changed in an incompatible way. If your infrastructure relies on a global veneur installation, they will drop `set` data from non-matching versions until the entire fleet and the global veneur are all at the same version.
+
 ## Added
 * New [configuration option](https://github.com/stripe/veneur/pull/233) `statsd_listen_addresses`, a list of URIs indicating on which ports (and protocols) veneur should listen on for statsd metrics. This deprecates both the `udp_address` and `tcp_address` settings. Thanks [antifuchs](https://github.com/antifuchs)!
 * New package `github.com/stripe/veneur/protocol`, containing a wire protocol for sending/reading SSF over a streaming connection. Thanks [antifuchs](https://github.com/antifuchs)!
