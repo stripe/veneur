@@ -12,6 +12,7 @@
 * New metrics `ssf.spans.tags_per_span` and `ssf.packet_size` track the distribution of tags per span and total packet sizes, respectively.
 * Our super spiffy logo, designed by [mercedes](https://github.com/mercedes-stripe), is now included at the top of the README!
 * Refactor internals to use a new intermediary metric struct to facilitate new plugins. Thanks [gphat](https://github.com/gphat)!
+* The BUILD_DATE and VERSION variables can be set at link-time and are now exposed by the `/builddate` and `/version` endpoints.
 
 ## Improvements
 
