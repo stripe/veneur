@@ -160,8 +160,10 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) <-chan struct{} {
 	go func() {
 		conns := make(chan net.Conn)
 		go func() {
-			defer lock.Unlock()
-			defer close(done)
+			defer func() {
+				lock.Unlock()
+				close(done)
+			}()
 			for {
 				conn, err := listener.AcceptUnix()
 				if err != nil {
