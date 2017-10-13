@@ -333,6 +333,26 @@ func TestBuildDate(t *testing.T) {
 	}
 }
 
+func TestVersion(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/version", nil)
+
+	config := localConfig()
+	config.SsfListenAddresses = []string{}
+	s := setupVeneurServer(t, config, nil)
+	defer s.Shutdown()
+	HTTPAddrPort++
+
+	w := httptest.NewRecorder()
+
+	handler := s.Handler()
+	handler.ServeHTTP(w, r)
+
+	bts, err := ioutil.ReadAll(w.Body)
+	assert.NoError(t, err, "error reading /version")
+
+	assert.Equal(t, string(bts), VERSION, "received invalid version")
+}
+
 func testServerImportHelper(t *testing.T, data interface{}) {
 	var b bytes.Buffer
 	err := json.NewEncoder(&b).Encode(data)
