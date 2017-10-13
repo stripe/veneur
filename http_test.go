@@ -4,13 +4,17 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/samplers"
@@ -294,6 +298,59 @@ func TestNokTraceHealthCheck(t *testing.T) {
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusForbidden, w.Code, "Trace healthcheck succeeded when disabled")
+}
+
+func TestBuildDate(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/builddate", nil)
+
+	config := localConfig()
+	config.SsfListenAddresses = []string{}
+	s := setupVeneurServer(t, config, nil)
+	defer s.Shutdown()
+	HTTPAddrPort++
+
+	w := httptest.NewRecorder()
+
+	handler := s.Handler()
+	handler.ServeHTTP(w, r)
+
+	bts, err := ioutil.ReadAll(w.Body)
+	assert.NoError(t, err, "error reading /builddate")
+
+	assert.Equal(t, string(bts), BUILD_DATE, "received invalid build date")
+
+	// we can't always check this against the current time
+	// because that would break local tests when run with `go test`
+	if BUILD_DATE != defaultLinkValue {
+		date, err := strconv.ParseInt(string(bts), 10, 64)
+		assert.NoError(t, err, "error parsing date %s", string(bts))
+
+		dt := time.Unix(date, 0)
+		duration := time.Since(dt)
+		if duration > 60*time.Minute {
+			assert.Fail(t, fmt.Sprintf("either date %s is invalid, or our builds are taking more than an hour", dt.Format(time.RFC822)))
+		}
+	}
+}
+
+func TestVersion(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/version", nil)
+
+	config := localConfig()
+	config.SsfListenAddresses = []string{}
+	s := setupVeneurServer(t, config, nil)
+	defer s.Shutdown()
+	HTTPAddrPort++
+
+	w := httptest.NewRecorder()
+
+	handler := s.Handler()
+	handler.ServeHTTP(w, r)
+
+	bts, err := ioutil.ReadAll(w.Body)
+	assert.NoError(t, err, "error reading /version")
+
+	assert.Equal(t, string(bts), VERSION, "received invalid version")
 }
 
 func testServerImportHelper(t *testing.T, data interface{}) {

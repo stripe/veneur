@@ -40,7 +40,11 @@ import (
 
 // VERSION stores the current veneur version.
 // It must be a var so it can be set at link time.
-var VERSION = "dirty"
+var VERSION = defaultLinkValue
+
+var BUILD_DATE = defaultLinkValue
+
+const defaultLinkValue = "dirty"
 
 // REDACTED is used to replace values that we don't want to leak into loglines (e.g., credentials)
 const REDACTED = "REDACTED"
