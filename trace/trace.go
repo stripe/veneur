@@ -8,6 +8,7 @@ package trace
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"math/rand"
 	"reflect"
@@ -194,7 +195,14 @@ func (t *Trace) ClientRecord(cl *Client, name string, tags map[string]string) er
 	span := t.SSFSpan()
 	span.Name = name
 
-	return Record(cl, span, t.Sent)
+	err := Record(cl, span, t.Sent)
+	if err != nil {
+		cl.statsMtx.Lock()
+		defer cl.statsMtx.Unlock()
+		tags := []string{fmt.Sprintf("error:%s", err.Error())}
+		cl.stats.Incr("veneur.trace.record.errors_total", tags, 0.1)
+	}
+	return err
 }
 
 func (t *Trace) Error(err error) {
