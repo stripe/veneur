@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -174,7 +175,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	assert.NoError(t, err)
 
 	server.HandleTracePacket(packet)
-	server.Flush()
+	server.Flush(context.TODO())
 
 	// wait for remoteServer to process the POST
 	select {
@@ -208,5 +209,5 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 	server.HandleTracePacket(packet)
 
 	assert.NoError(t, err)
-	server.Flush()
+	server.Flush(context.TODO())
 }

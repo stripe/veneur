@@ -14,6 +14,8 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
+const DatadogResourceKey = "resource"
+
 type metricSink interface {
 	Name() string
 	Flush(context.Context, []samplers.InterMetric) error

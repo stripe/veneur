@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -19,13 +20,12 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
-const DatadogResourceKey = "resource"
-
 // Flush collects sampler's metrics and passes them to sinks.
-func (s *Server) Flush() {
+func (s *Server) Flush(ctx context.Context) {
 	span := tracer.StartSpan("flush").(*trace.Span)
 	defer span.Finish()
 
+	// TODO Move this to an independent ticker routine or something?
 	mem := &runtime.MemStats{}
 	runtime.ReadMemStats(mem)
 
@@ -33,93 +33,57 @@ func (s *Server) Flush() {
 	s.Statsd.Gauge("gc.number", float64(mem.NumGC), nil, 1.0)
 	s.Statsd.Gauge("gc.pause_total_ns", float64(mem.PauseTotalNs), nil, 1.0)
 
-	// right now we have only one destination plugin
-	// but eventually, this is where we would loop over our supported
-	// destinations
-	if s.IsLocal() {
-		s.FlushLocal(span.Attach(context.Background()))
-	} else {
-		s.FlushGlobal(span.Attach(context.Background()))
-	}
-}
-
-// FlushGlobal sends any global metrics to their destination.
-func (s *Server) FlushGlobal(ctx context.Context) {
-	span, _ := trace.StartSpanFromContext(ctx, "")
-	defer span.Finish()
-
+	// TODO Why is this not in the worker the way the trace worker is set up?
 	events, checks := s.EventWorker.Flush()
 	s.Statsd.Count("worker.events_flushed_total", int64(len(events)), nil, 1.0)
 	s.Statsd.Count("worker.checks_flushed_total", int64(len(checks)), nil, 1.0)
 
-	go s.metricSinks[0].FlushEventsChecks(span.Attach(ctx), events, checks) // we can do all of this separately
-	go s.flushTraces(span.Attach(ctx))                                      // this too!
+	// TODO Concurrency
+	for _, sink := range s.metricSinks {
+		sink.FlushEventsChecks(span.Attach(ctx), events, checks)
+	}
 
-	percentiles := s.HistogramPercentiles
-
-	tempMetrics, ms := s.tallyMetrics(percentiles)
-
-	// the global veneur instance is also responsible for reporting the sets
-	// and global counters
-	ms.totalLength += ms.totalSets
-	ms.totalLength += ms.totalGlobalCounters
-
-	finalMetrics := s.generateInterMetrics(span.Attach(ctx), percentiles, tempMetrics, ms)
-
-	s.reportMetricsFlushCounts(ms)
-
-	s.reportGlobalMetricsFlushCounts(ms)
-
-	go func() {
-		for _, p := range s.getPlugins() {
-			start := time.Now()
-			err := p.Flush(span.Attach(ctx), finalMetrics)
-			s.Statsd.TimeInMilliseconds(fmt.Sprintf("flush.plugins.%s.total_duration_ns", p.Name()), float64(time.Since(start).Nanoseconds()), []string{"part:post"}, 1.0)
-			if err != nil {
-				countName := fmt.Sprintf("flush.plugins.%s.error_total", p.Name())
-				s.Statsd.Count(countName, 1, []string{}, 1.0)
-			}
-			s.Statsd.Gauge(fmt.Sprintf("flush.plugins.%s.post_metrics_total", p.Name()), float64(len(finalMetrics)), nil, 1.0)
-		}
-	}()
-
-	// TODO Don't hardcode this
-	s.metricSinks[0].Flush(span.Attach(ctx), finalMetrics)
-}
-
-// FlushLocal takes the slices of metrics, combines then and marshals them to json
-// for posting to Datadog.
-func (s *Server) FlushLocal(ctx context.Context) {
-	span, _ := trace.StartSpanFromContext(ctx, "")
-	defer span.Finish()
-
-	events, checks := s.EventWorker.Flush()
-	s.Statsd.Count("worker.checks_flushed_total", int64(len(checks)), nil, 1.0)
-
-	go s.metricSinks[0].FlushEventsChecks(span.Attach(ctx), events, checks) // we can do all of this separately
-	go s.flushTraces(span.Attach(ctx))
+	go s.flushTraces(span.Attach(ctx)) // this too!
 
 	// don't publish percentiles if we're a local veneur; that's the global
 	// veneur's job
 	var percentiles []float64
+	var finalMetrics []samplers.InterMetric
+
+	if !s.IsLocal() {
+		percentiles = s.HistogramPercentiles
+	}
 
 	tempMetrics, ms := s.tallyMetrics(percentiles)
 
-	finalMetrics := s.generateInterMetrics(span.Attach(ctx), percentiles, tempMetrics, ms)
+	finalMetrics = s.generateInterMetrics(span.Attach(ctx), percentiles, tempMetrics, ms)
 
 	s.reportMetricsFlushCounts(ms)
 
-	// we don't report totalHistograms, totalSets, or totalTimers for local veneur instances
-
-	// we cannot do this until we're done using tempMetrics within this function,
-	// since not everything in tempMetrics is safe for sharing
-	go s.flushForward(span.Attach(ctx), tempMetrics)
+	if s.IsLocal() {
+		go s.flushForward(span.Attach(ctx), tempMetrics)
+	} else {
+		s.reportGlobalMetricsFlushCounts(ms)
+	}
 
 	// If there's nothing to flush, don't bother calling the plugins and stuff.
 	if len(finalMetrics) == 0 {
 		return
 	}
 
+	wg := sync.WaitGroup{}
+	for _, sink := range s.metricSinks {
+		wg.Add(1)
+		go func(ms metricSink) {
+			err := ms.Flush(span.Attach(ctx), finalMetrics)
+			if err != nil {
+				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushin sink")
+			}
+			wg.Done()
+		}(sink)
+	}
+	wg.Wait()
+
 	go func() {
 		for _, p := range s.getPlugins() {
 			start := time.Now()
@@ -132,9 +96,6 @@ func (s *Server) FlushLocal(ctx context.Context) {
 			s.Statsd.Gauge(fmt.Sprintf("flush.plugins.%s.post_metrics_total", p.Name()), float64(len(finalMetrics)), nil, 1.0)
 		}
 	}()
-
-	// TODO Don't harcode this
-	s.metricSinks[0].Flush(span.Attach(ctx), finalMetrics)
 }
 
 type metricsSummary struct {
@@ -194,6 +155,13 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 		// remember that both the global veneur and the local instances have
 		// 'local-only' histograms.
 		ms.totalLocalSets + (ms.totalLocalTimers+ms.totalLocalHistograms)*(s.HistogramAggregates.Count+len(s.HistogramPercentiles))
+
+	// Global instances also flush sets and global counters, so be sure and add
+	// them to the total size
+	if !s.IsLocal() {
+		ms.totalLength += ms.totalSets
+		ms.totalLength += ms.totalGlobalCounters
+	}
 
 	return tempMetrics, ms
 }
