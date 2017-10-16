@@ -69,7 +69,7 @@ type IncrClient interface {
 	Incr(name string, tags []string, rate float64) error
 }
 
-// SetStats sets an IncrClient used for reporting errors
+// SetErrorStats sets an IncrClient used for reporting errors
 func (c *Client) SetErrorStats(statsClient IncrClient) {
 	c.statsMtx.Lock()
 	defer c.statsMtx.Unlock()
