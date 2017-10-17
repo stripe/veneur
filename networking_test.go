@@ -3,6 +3,7 @@ package veneur
 import (
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -91,4 +92,56 @@ func TestConnectUNIX(t *testing.T) {
 		}
 	}
 	close(srv.shutdown)
+}
+
+func TestParseSoftnet(t *testing.T) {
+	const input = `
+00058bcf 00000001 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+0004c22d 00000000 00000004 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+00042d39 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+00052ffe 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+00015a54 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+0001897c 00000000 00000000 00000000 00000000 00000000 00000000 00000000 000000c2 00000000 00000000
+00233be1 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 000000d0 00000000
+0025ec50 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000f00`
+
+	expected := SoftnetData{
+		Processors: []SoftnetDataProcessor{
+			{
+				Processed: 0x00058bcf,
+				Dropped:   0x1,
+			},
+			{
+				Processed:   0x0004c22d,
+				TimeSqueeze: 0x4,
+			},
+			{
+				Processed: 0x00042d39,
+			},
+			{
+				Processed: 0x00052ffe,
+			},
+			{
+				Processed: 0x00015a54,
+			},
+			{
+				Processed:    0x0001897c,
+				CPUCollision: 0xc2,
+			},
+			{
+				Processed:   0x00233be1,
+				ReceivedRPS: 0xd0,
+			},
+			{
+				Processed:      0x0025ec50,
+				FlowLimitCount: 0xf00,
+			},
+		},
+	}
+
+	r := strings.NewReader(input)
+	sd, err := parseSoftnet(r)
+	assert.NoError(t, err, "Could not parse valid softnet_stat data")
+
+	assert.Equal(t, sd, expected)
 }
