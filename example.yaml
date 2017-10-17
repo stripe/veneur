@@ -128,6 +128,7 @@ read_buffer_size_bytes: 2097152
 flush_max_per_body: 25000
 
 
+
 # == DIAGNOSTICS ==
 
 # Sets the log level to DEBUG
@@ -209,7 +210,7 @@ flush_file: ""
 
 
 
-# == Deprecated fields ==
+# == DEPRECATED FIELDS ==
 # The options below here have newer analogs above. They are listed here for the
 # sake of documentation and code-generation.
 
