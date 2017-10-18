@@ -2,7 +2,7 @@
 
 ## Notes for upgrading from previous versions
 * The `set` data structure serialization format for communiation with a global veneur server has changed in an incompatible way. If your infrastructure relies on a global veneur installation, they will drop `set` data from non-matching versions until the entire fleet and the global veneur are all at the same version.
-* The metric for SSF spans received has changed names: It used to be `veneur.packet.spans.received_total`, it is now named `veneur.ssf.spans.received_total`.
+* The metrics for SSF packets (and spans) received have changed names: They used to be `veneur.packet.received_total` and `veneur.packet.spans.received_total`, respectively, and they are now named `veneur.ssf.received_total` and `veneur.ssf.spans.received_total`.
 
 ## Added
 * New [configuration option](https://github.com/stripe/veneur/pull/233) `statsd_listen_addresses`, a list of URIs indicating on which ports (and protocols) veneur should listen on for statsd metrics. This deprecates both the `udp_address` and `tcp_address` settings. Thanks [antifuchs](https://github.com/antifuchs)!
