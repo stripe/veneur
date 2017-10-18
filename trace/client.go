@@ -143,7 +143,7 @@ func NewClient(addrStr string, opts ...ClientParam) (*Client, error) {
 	}
 	params := cl.backend.params()
 	params.addr = addr
-	params.cap = 1
+	params.cap = DefaultCapacity
 	for _, opt := range opts {
 		if err = opt(cl); err != nil {
 			return nil, err
@@ -164,6 +164,10 @@ func NewClient(addrStr string, opts ...ClientParam) (*Client, error) {
 // Note that it is not safe to set this variable concurrently with
 // other goroutines that use the DefaultClient.
 var DefaultClient *Client
+
+// DefaultCapacity is the capacity of the span submission queue in a
+// veneur client.
+const DefaultCapacity = 64
 
 // DefaultVeneurAddress is the address that a reasonable veneur should
 // listen on. Currently it defaults to UDP port 8128.
