@@ -156,14 +156,6 @@ But once you've done that you can tell Veneur to use Einhorn by setting `http_ad
 to `einhorn@0`. This informs [goji/bind](https://github.com/zenazn/goji/tree/master/bind) to use its
 Einhorn handling code to bind to the file descriptor for HTTP.
 
-## Configuration via Environment Variables
-
-Veneur and venuer-proxy each allow configuration via environment variables using [envconfig](https://github.com/kelseyhightower/envconfig). Options provided via environment variables take precedent over those in config. This allows stuff like:
-
-```
-VENEUR_DEBUG=true veneur -f someconfig.yml
-```
-
 ## Forwarding
 
 Veneur instances can be configured to forward their global metrics to another Veneur instance. You can use this feature to get the best of both worlds: metrics that benefit from global aggregation can be passed up to a single global Veneur, but other metrics can be published locally with host-scoped information. Note: **Forwarding adds an additional delay to metric availability corresponding to the value of the `interval` configuration option**, as the local veneur will flush it to its configured upstream, which will then flush any recieved metrics when its interval expires.
@@ -202,25 +194,75 @@ Veneur also honors the same "magic" tags that the dogstatsd daemon includes in t
 
 Veneur expects to have a config file supplied via `-f PATH`. The included `example.yaml` outlines the options:
 
-* `api_hostname` - The Datadog API URL to post to. Probably `https://app.datadoghq.com`.
-* `metric_max_length` - How big a buffer to allocate for incoming metric lengths. Metrics longer than this will get truncated!
-* `flush_max_per_body` - how many metrics to include in each JSON body POSTed to Datadog. Veneur will POST multiple bodies in parallel if it goes over this limit. A value around 5k-10k is recommended; in practice we've seen Datadog reject bodies over about 195k.
-* `debug` - Should we output lots of debug info? :)
-* `hostname` - The hostname to be used with each metric sent. Defaults to `os.Hostname()`
-* `omit_empty_hostname` - If true and `hostname` is empty (`""`) Veneur will *not* add a host tag to its own metrics.
+### Collection
+* `statsd_listen_addresses` - The address(es) on which to listen for metrics, in URI form. Examples: `udp://127.0.0.1:8126`, `tcp://127.0.0.1:8126`. DogStatsD listens on 8125, so you might want to choose a different port.
+
+### Behavior
+* `forward_address` - The address of an upstream Veneur to forward metrics to. See below.
 * `interval` - How often to flush. Something like 10s seems good. **Note: If you change this, it breaks all kinds of things on Datadog's side. You'll have to change all your metric's metadata.**
-* `key` - Your Datadog API key
+* `stats_address` - The address to send internally generated metrics. Probably `127.0.0.1:8126`. In practice this means you'll be sending metrics to yourself. This is expected!
+* `http_address` - The address to serve HTTP healthchecks and other endpoints. This can be a simple ip:port combination like `127.0.0.1:8127`. If you're under einhorn, you probably want `einhorn@0`.
+
+### Metrics configuration
+* `hostname` - The hostname to be tagged on each metric sent. Defaults to `os.Hostname()`
+* `omit_empty_hostname` - If true and `hostname` is empty (`""`) Veneur will *not* add a host tag to its own metrics.
+* `tags` - Tags to add to every metric that is sent to Veneur. Expects an array of strings!
 * `percentiles` - The percentiles to generate from our timers and histograms. Specified as array of float64s
 * `aggregates` - The aggregates to generate from our timers and histograms. Specified as array of strings, choices: min, max, median, avg, count, sum. Default: min, max, count
-* `udp_address` - The address on which to listen for metrics. Probably `:8126` so as not to interfere with normal DogStatsD.
-* `http_address` - The address to serve HTTP healthchecks and other endpoints. This can be a simple ip:port combination like `127.0.0.1:8127`. If you're under einhorn, you probably want `einhorn@0`.
-* `forward_address` - The address of an upstream Veneur to forward metrics to. See below.
+
+### Performance
 * `num_workers` - The number of worker goroutines to start.
 * `num_readers` - The number of reader goroutines to start. Veneur supports SO_REUSEPORT on Linux to scale to multiple readers. On other platforms, this should always be 1; other values will probably cause errors at startup. See below.
-* `read_buffer_size_bytes` - The size of the receive buffer for the UDP socket. Defaults to 2MB, as having a lot of buffer prevents packet drops during flush!
+
+### Limits
+* `metric_max_length` - How big a buffer to allocate for incoming metric lengths. Metrics longer than this will get truncated!
+* `trace_max_length_bytes` - How big a buffer to allocate for incoming traces
+* `ssf_buffer_size` - The number of SSF packets that can be processed per flush interval
+* `read_buffer_size_bytes` - The size of the buffer we'll use to buffer socket reads. Tune this if you think Veneur needs more room to keep up with all packets.
+* `flush_max_per_body` - how many metrics to include in each JSON body POSTed to Datadog. Veneur will POST multiple bodies in parallel if it goes over this limit. A value around 5k-10k is recommended; in practice we've seen Datadog reject bodies over about 195k.
+
+### Diagnostics
+* `debug` - Should we output lots of debug info? :)
 * `sentry_dsn` A [DSN](https://docs.sentry.io/hosted/quickstart/#configure-the-dsn) for [Sentry](https://sentry.io/), where errors will be sent when they happen.
-* `stats_address` - The address to send internally generated metrics. Probably `127.0.0.1:8125`. In practice this means you'll be sending metrics to yourself. This is expected!
-* `tags` - Tags to add to every metric that is sent to Veneur. Expects an array of strings!
+* `enable_profiling` - Enables Go profiling
+
+### Sinks
+#### Datadog
+* `datadog_api_key` - Your Datadog API key
+* `datadog_api_hostname` - The Datadog API URL to post to. Probably `https://app.datadoghq.com`.
+* `datadog_trace_api_address` - The hostname to send Datadog traces to
+
+#### InfluxDB
+* `influx_address` - The hostname to send Influx metrics to
+* `influx_consistency` - The consistency level for writes
+* `influx_db_name` - The database name to write metrics to
+
+#### LightStep
+* `trace_lightstep_access_token` - The access token for sending to LightStep
+* `trace_lightstep_collector_host` - The hostname to send trace data to
+* `trace_lightstep_reconnect_period` - How often to reconnect to LightStep collectors
+
+### Plugins
+#### S3
+* `aws_access_key_id` - The AWS access key ID, used in conjunction with `aws_secret_access_key` to authenticate to AWS
+* `aws_secret_access_key` - The AWS secret access key, used in conjunction with `aws_access_key_id` to authenticate to AWS
+* `aws_region` - The region to write to
+* `aws_s3_bucket` - The bucket to write to
+
+#### LocalFile
+* `flush_file` - The local file path to write metrics to
+
+## Configuration via Environment Variables
+
+Veneur and veneur-proxy each allow configuration via environment variables using [envconfig](https://github.com/kelseyhightower/envconfig). Options provided via environment variables take precedent over those in config. This allows stuff like:
+
+```
+VENEUR_DEBUG=true veneur -f someconfig.yml
+```
+
+**Note**: The environment variables used for configuration map to the field names in [config.go](https://github.com/stripe/veneur/blob/master/config.go), capitalized, with the prefix `VENEUR_`. For example, the environment variable equivalent of `api_hostname` is `VENEUR_APIHOSTNAME`.
+
+You may specify configurations that are arrays by separating them with a comma, for example `VENEUR_AGGREGATES="min,max"`
 
 # Monitoring
 
