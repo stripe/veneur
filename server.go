@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -87,10 +88,11 @@ type Server struct {
 	SSFListenAddrs    []net.Addr
 	RcvbufBytes       int
 
-	interval            time.Duration
-	numReaders          int
-	metricMaxLength     int
-	traceMaxLengthBytes int
+	interval              time.Duration
+	runtimeMetricInterval time.Duration
+	numReaders            int
+	metricMaxLength       int
+	traceMaxLengthBytes   int
 
 	tlsConfig      *tls.Config
 	tcpReadTimeout time.Duration
@@ -146,6 +148,12 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	if err != nil {
 		return
 	}
+
+	ret.runtimeMetricInterval, err = time.ParseDuration(conf.RuntimeMetricsFlushInterval)
+	if err != nil {
+		return
+	}
+
 	ret.HTTPClient = &http.Client{
 		// make sure that POSTs to datadog do not overflow the flush interval
 		Timeout: ret.interval * 9 / 10,
@@ -428,6 +436,30 @@ func (s *Server) Start() {
 	} else {
 		logrus.Info("Tracing sockets are configured - not reading trace socket")
 	}
+
+	// Emit runtime metrics about ourselves on a timer.
+	go func() {
+		defer func() {
+			ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
+		}()
+		ticker := time.NewTicker(s.runtimeMetricInterval)
+		for {
+			select {
+			case <-s.shutdown:
+				// stop flushing on graceful shutdown
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				mem := &runtime.MemStats{}
+				runtime.ReadMemStats(mem)
+
+				s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
+				s.Statsd.Gauge("gc.number", float64(mem.NumGC), nil, 1.0)
+				s.Statsd.Gauge("gc.pause_total_ns", float64(mem.PauseTotalNs), nil, 1.0)
+				s.Statsd.Gauge("goroutines", float64(runtime.NumGoroutine()), nil, 1.0)
+			}
+		}
+	}()
 
 	// Flush every Interval forever!
 	go func() {

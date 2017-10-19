@@ -28,6 +28,7 @@ type Config struct {
 	OmitEmptyHostname             bool      `yaml:"omit_empty_hostname"`
 	Percentiles                   []float64 `yaml:"percentiles"`
 	ReadBufferSizeBytes           int       `yaml:"read_buffer_size_bytes"`
+	RuntimeMetricsFlushInterval   string    `yaml:"runtime_metrics_flush_interval"`
 	SentryDsn                     string    `yaml:"sentry_dsn"`
 	SsfAddress                    string    `yaml:"ssf_address"`
 	SsfBufferSize                 int       `yaml:"ssf_buffer_size"`

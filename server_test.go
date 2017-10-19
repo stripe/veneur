@@ -76,7 +76,8 @@ func generateConfig(forwardAddr string) Config {
 		Hostname:           "localhost",
 
 		// Use a shorter interval for tests
-		Interval:              DefaultFlushInterval.String(),
+		Interval:                    DefaultFlushInterval.String(),
+		RuntimeMetricsFlushInterval: DefaultFlushInterval.String(),
 		Key:                   "",
 		MetricMaxLength:       4096,
 		Percentiles:           []float64{.5, .75, .99},
@@ -189,7 +190,7 @@ type fixture struct {
 }
 
 func newFixture(t *testing.T, config Config) *fixture {
-	interval, err := config.ParseInterval()
+	interval, err := time.ParseDuration(config.Interval)
 	assert.NoError(t, err)
 
 	// Set up a remote server (the API that we're sending the data to)
