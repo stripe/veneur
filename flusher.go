@@ -25,7 +25,6 @@ func (s *Server) Flush(ctx context.Context) {
 	span := tracer.StartSpan("flush").(*trace.Span)
 	defer span.Finish()
 
-	// TODO Move this to an independent ticker routine or something?
 	mem := &runtime.MemStats{}
 	runtime.ReadMemStats(mem)
 
@@ -43,7 +42,7 @@ func (s *Server) Flush(ctx context.Context) {
 		sink.FlushEventsChecks(span.Attach(ctx), events, checks)
 	}
 
-	go s.flushTraces(span.Attach(ctx)) // this too!
+	go s.flushTraces(span.Attach(ctx))
 
 	// don't publish percentiles if we're a local veneur; that's the global
 	// veneur's job
@@ -77,7 +76,7 @@ func (s *Server) Flush(ctx context.Context) {
 		go func(ms metricSink) {
 			err := ms.Flush(span.Attach(ctx), finalMetrics)
 			if err != nil {
-				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushin sink")
+				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
 			}
 			wg.Done()
 		}(sink)

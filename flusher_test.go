@@ -175,7 +175,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	assert.NoError(t, err)
 
 	server.HandleTracePacket(packet)
-	server.Flush(context.TODO())
+	server.Flush(context.Background())
 
 	// wait for remoteServer to process the POST
 	select {
@@ -209,5 +209,5 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 	server.HandleTracePacket(packet)
 
 	assert.NoError(t, err)
-	server.Flush(context.TODO())
+	server.Flush(context.Background())
 }
