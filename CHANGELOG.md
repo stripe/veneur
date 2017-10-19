@@ -1,4 +1,4 @@
-# 1.7.0, 2017-10-10
+# 1.7.0, 2017-10-19
 
 ## Notes for upgrading from previous versions
 * The `set` data structure serialization format for communiation with a global veneur server has changed in an incompatible way. If your infrastructure relies on a global veneur installation, they will drop `set` data from non-matching versions until the entire fleet and the global veneur are all at the same version.
