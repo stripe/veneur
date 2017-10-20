@@ -18,6 +18,9 @@ const DatadogResourceKey = "resource"
 
 type metricSink interface {
 	Name() string
+	// Flush receives `InterMetric`s from Veneur and is responsible for "sinking"
+	// these metrics to whatever it's backend wants. Note that the sink must
+	// **not** mutate the incoming metrics as they are shared with other sinks.
 	Flush(context.Context, []samplers.InterMetric) error
 	// This one is temporary?
 	FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck)
