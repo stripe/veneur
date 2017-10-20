@@ -458,11 +458,8 @@ func (s *Server) Start() {
 		}()
 
 		// We want to align our ticker to a multiple of it's duration for
-		// convenience of bucketing. This `Sleep` works by taking the current time,
-		// `Truncate`ing to a rounded-down multiple of `interval`, then adding the
-		// the interval back to find the "next" tick. We then wait that long before
-		// starting our ticker.
-		time.Sleep(time.Now().Truncate(s.interval).Add(s.interval).Sub(time.Now()))
+		// convenience of bucketing.
+		time.Sleep(s.CalculateTickDelay(time.Now()))
 
 		// We aligned the ticker to our interval above. It's worth noting that just
 		// because we aligned once we're not gauranteed to be perfect on each
@@ -857,6 +854,12 @@ func (s *Server) Shutdown() {
 	log.Info("Shutting down server gracefully")
 	close(s.shutdown)
 	graceful.Shutdown()
+}
+
+// CalculateTickDelay takes the provided time, `Truncate`s it a rounded-down
+// multiple of `interval`, then adds `interval` back to find the "next" tick.
+func (s *Server) CalculateTickDelay(t time.Time) time.Duration {
+	return t.Truncate(s.interval).Add(s.interval).Sub(t)
 }
 
 // IsLocal indicates whether veneur is running as a local instance

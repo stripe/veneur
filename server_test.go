@@ -874,6 +874,19 @@ func nullLogger() *logrus.Logger {
 	return logger
 }
 
+func TestCalculateTickerDelay(t *testing.T) {
+	config := localConfig()
+	config.Interval = "10s"
+	f := newFixture(t, config)
+	defer f.Close()
+
+	layout := "2006-01-02T15:04:05.000Z"
+	str := "2014-11-12T11:45:26.371Z"
+	theTime, _ := time.Parse(layout, str)
+	delay := f.server.CalculateTickDelay(theTime)
+	assert.Equal(t, 3.629, delay.Seconds(), "Delay is incorrect")
+}
+
 // BenchmarkSendSSFUNIX sends b.N metrics to veneur and waits until
 // all of them have been read (not processed).
 func BenchmarkSendSSFUNIX(b *testing.B) {
