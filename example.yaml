@@ -1,29 +1,75 @@
 ---
-metric_max_length: 4096
-trace_max_length_bytes: 16384
-flush_max_per_body: 25000
-enable_profiling: false
+# == COLLECTION ==
+
+# The addresses on which to listen for statsd metrics. These are
+# formatted as URLs, with schemes corresponding to valid "network"
+# arguments on https://golang.org/pkg/net/#Listen. Currently, only udp
+# and tcp (including IPv4 and 6-only) schemes are supported.
+# This option supersedes the "udp_address" and "tcp_address" options.
+statsd_listen_addresses:
+ - udp://localhost:8126
+ - tcp://localhost:8126
+
+# The addresses on which to listen for SSF data. As with
+# statsd_listen_addresses, these are formatted as URLs, with schemes
+# corresponding to valid "network" arguments on
+# https://golang.org/pkg/net/#Listen. Currently, only UDP and Unix
+# domain sockets are supported.
+# Note: SSF sockets are required to ingest trace data.
+# This option supersedes the "ssf_address" option.
+ssf_listen_addresses:
+  - udp://localhost:8128
+  - unix:///tmp/veneur-ssf.sock
+
+# TLS
+# These are only useful in conjunction with TCP listening sockets
+
+# TLS server private key and certificate for encryption (specify both)
+# These are the key/certificate contents, not a file path
+tls_key: ""
+tls_certificate: ""
+
+# Authority certificate: requires clients to be authenticated
+tls_authority_certificate: ""
+
+
+
+# == BEHAVIOR ==
+
+# Use a static host for forwarding
+#forward_address: "http://veneur.example.com"
+forward_address: ""
+
+# How often to flush. When flushing to Datadog, changing this
+# value when you've already emitted metrics will break your time
+# series data.
 interval: "10s"
 
-# == PERFORMANCE ==
+# Veneur emits its own metrics; this configures where we send them. It's ok
+# to point veneur at itself for metrics consumption!
+stats_address: "localhost:8126"
 
-# The size of the buffer we'll use to buffer socket reads. Tune this if you
-# you think Veneur needs more room to keep up with all packets.
-read_buffer_size_bytes: 2097152
+# The address on which to listen for HTTP imports and/or healthchecks.
+# http_address: "einhorn@0"
+http_address: "localhost:8127"
 
-# Adjusts the number of workers Veneur will distribute aggregation across.
-# More decreases contention but has diminishing returns.
-num_workers: 96
 
-# Numbers larger than 1 will enable the use of SO_REUSEPORT, make sure
-# this is supported on your platform!
-num_readers: 1
 
-# The number of SSF packets that can be processed
-# per flush interval
-ssf_buffer_size: 16384
+# == METRICS CONFIGURATION ==
 
-# == AGGREGATION ==
+# Defaults to the os.Hostname()!
+hostname: ""
+
+# If true and hostname is "" or absent, don't add the host tag
+omit_empty_hostname: false
+
+# Tags supplied here will be added to all metrics ingested by this instance.
+# Example:
+# tags:
+#  - "foo:bar"
+#  - "baz:quz"
+tags:
+  - ""
 
 # Set to floating point values that you'd like to putput percentiles for from
 # histograms.
@@ -36,69 +82,64 @@ percentiles:
 # or all of:
 # - `min`: the minimum value in the histogram during the flush period
 # - `max`: the maximum value in the histogram during the flush period
-# -	`median`: the median value in the histogram during the flush period
-# -	`avg`: the average value in the histogram during the flush period
-# -	`count`: the number of values added to the histogram during the flush period
-# -	`sum`: the sum of all values added to the histogram during the flush period
+# - `median`: the median value in the histogram during the flush period
+# - `avg`: the average value in the histogram during the flush period
+# - `count`: the number of values added to the histogram during the flush period
+# - `sum`: the sum of all values added to the histogram during the flush period
+# - `hmean`: the harmonic mean of the all the values added to the histogram during the flush period
 aggregates:
  - "min"
  - "max"
  - "count"
 
+
+
+# == PERFORMANCE ==
+
+# Adjusts the number of workers Veneur will distribute aggregation across.
+# More decreases contention but has diminishing returns.
+num_workers: 96
+
+# Numbers larger than 1 will enable the use of SO_REUSEPORT, make sure
+# this is supported on your platform!
+num_readers: 1
+
+
+
+# == LIMITS ==
+
+# How big of a buffer to allocate for incoming metrics. Metrics longer than this
+# will be truncated!
+metric_max_length: 4096
+
+# How big of a buffer to allocate for incoming traces.
+trace_max_length_bytes: 16384
+
+# The number of SSF packets that can be processed
+# per flush interval
+ssf_buffer_size: 16384
+
+# The size of the buffer we'll use to buffer socket reads. Tune this if you
+# you think Veneur needs more room to keep up with all packets.
+read_buffer_size_bytes: 2097152
+
+# How many metrics to include in the body of each POST to Datadog. Veneur
+# will post multiple times in parallel if the limit is exceeded.
+flush_max_per_body: 25000
+
+
 # == DIAGNOSTICS ==
 
-# Enable debug logging
+# Sets the log level to DEBUG
 debug: true
 
 # Providing a Sentry DSN here will send internal exceptions to Sentry
 sentry_dsn: ""
 
-# Veneur emits it's own metrics, this configures where we send them. It's ok
-# to point veneur at itself for metrics consumption!
-stats_address: "localhost:8125"
+# Enables Go profiling
+enable_profiling: false
 
-# == FEATURES ==
 
-# Tags supplied here will be added to all metrics ingested by this instance.
-tags:
- - "foo:bar"
- - "baz:quz"
-
-# If absent, defaults to the os.Hostname()!
-hostname: foobar
-# If true and hostname is "" or absent, don't add the host tag
-omit_empty_hostname: false
-
-# The address on which to listen for metrics sent to this instance over UDP,
-# leave empty to disable.
-udp_address: "localhost:8126"
-
-# The address on which to listen for metrics sent to this instance over TCP,
-# leave empty to disable.
-tcp_address: ""
-
-# The address on which to listen for HTTP imports and/or healthchecks.
-#http_address: "einhorn@0"
-http_address: "localhost:8127"
-
-# FORWARDING
-# Use a static host for forwarding
-forward_address: "http://veneur.example.com"
-
-# SSF
-# The address on which we will listen for SSF packets via UDP
-ssf_address: "127.0.0.1:8128"
-
-# TLS
-# This is only useful in conjunction with `tcp_address`
-
-# TLS server private key and certificate for encryption (specify both)
-# These are the key/certificate contents, not a file path
-tls_key: ""
-tls_certificate: ""
-
-# Authority certificate: requires clients to be authenticated
-tls_authority_certificate: ""
 
 # == SINKS ==
 
@@ -118,13 +159,14 @@ datadog_trace_api_address: "http://localhost:7777"
 # InfluxDB can be a sink for metrics.
 
 # Hostname to send Influx metrics to
-influx_address: http://localhost:8086
+#influx_address: "http://localhost:8086"
+influx_address: ""
 
 # Consistency level for writes
 influx_consistency: one
 
 # Name of database to which metrics will be written.
-influx_db_name: mydb
+influx_db_name: "mydb"
 
 # == LightStep ==
 # LightStep can be a sink for trace spans.
@@ -142,6 +184,16 @@ trace_lightstep_collector_host: ""
 # want to reconnect more often.
 trace_lightstep_reconnect_period: "5m"
 
+# The LightStep client has internal throttling to prevent you overwhelming
+# things. Anything that exceeds this many spans in the reporting period
+# — which is a minimum of 500ms and maxmium 2.5s at the time of this writing
+# — will be dropped. In other words, you can only submit this many spans per
+# flush! If left at zero, veneur will set the maximum to the size of
+# `ssf_buffer_size`.
+trace_lightstep_maximum_spans: 0
+
+
+
 # == PLUGINS ==
 
 # == S3 Output ==
@@ -154,3 +206,35 @@ aws_s3_bucket: ""
 # == LocalFile Output ==
 # Include this if you want to archive data to a local file (which should then be rotated/cleaned)
 flush_file: ""
+
+
+
+# == Deprecated fields ==
+# The options below here have newer analogs above. They are listed here for the
+# sake of documentation and code-generation.
+
+# The address on which to listen for metrics sent to this instance over UDP,
+# leave empty to disable.
+# This option is deprecated. Use statsd_listen_addresses instead.
+udp_address: ""
+
+# The address on which to listen for metrics sent to this instance over TCP,
+# leave empty to disable.
+# This option is deprecated. Use statsd_listen_addresses instead.
+tcp_address: ""
+
+# The address on which we will listen for SSF packets via UDP
+# This option is deprecated. Use ssf_listen_addresses instead.
+ssf_address: ""
+
+# This is deprecated and will be removed in 2.0; use datadog_api_key
+key: ""
+
+# This is deprecated and will be removed in 2.0; use datadog_api_hostname
+api_hostname: ""
+
+# This is deprecated and will be removed in 2.0; use datadog_trace_api_address
+trace_api_address: ""
+
+# The address on which we will listen for UDP trace data
+trace_address: ""
