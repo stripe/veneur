@@ -456,6 +456,19 @@ func (s *Server) Start() {
 		defer func() {
 			ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
 		}()
+
+		// We want to align our ticker to a multiple of it's duration for
+		// convenience of bucketing. This `Sleep` works by taking the current time,
+		// `Truncate`ing to a rounded-down multiple of `interval`, then adding the
+		// the interval back to find the "next" tick. We then wait that long before
+		// starting our ticker.
+		time.Sleep(time.Now().Truncate(s.interval).Add(s.interval).Sub(time.Now()))
+
+		// We aligned the ticker to our interval above. It's worth noting that just
+		// because we aligned once we're not gauranteed to be perfect on each
+		// subsequent tick. This code is small, however, and should service the
+		// incoming tick signal fast enough that the amount we are "off" is
+		// negligible.
 		ticker := time.NewTicker(s.interval)
 		for {
 			select {
