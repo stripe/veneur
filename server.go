@@ -459,7 +459,7 @@ func (s *Server) Start() {
 
 		// We want to align our ticker to a multiple of it's duration for
 		// convenience of bucketing.
-		time.Sleep(s.CalculateTickDelay(time.Now()))
+		<-time.After(s.CalculateTickDelay(time.Now()))
 
 		// We aligned the ticker to our interval above. It's worth noting that just
 		// because we aligned once we're not gauranteed to be perfect on each
