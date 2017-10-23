@@ -231,9 +231,11 @@ func bareMetric(name string, tags string) *ssf.SSFSample {
 	metric := &ssf.SSFSample{}
 	metric.Name = name
 	metric.Tags = make(map[string]string)
-	for _, elem := range strings.Split(tags, ",") {
-		tag := strings.Split(elem, ":")
-		metric.Tags[tag[0]] = tag[1]
+	if tags != "" {
+		for _, elem := range strings.Split(tags, ",") {
+			tag := strings.Split(elem, ":")
+			metric.Tags[tag[0]] = tag[1]
+		}
 	}
 	return metric
 }
