@@ -107,6 +107,11 @@ To clarify how each metric type behaves in Veneur, please use the following:
 * Timers: Locally accrued, count, max and min flushed to Datadog, percentiles forwarded to `forward_address` for global aggregation when set.
 * Sets: Locally accrued, forwarded to `forward_address` for global aggregation when set.
 
+# Other Notes
+
+* Veneur aligns its flush timing with the local clock. For the default interval of `10s` Veneur will generally emit metrics at 00, 10, 20, 30, … seconds after the minute.
+* Veneur will delay it's first metric emission to align the clock as stated above. This may result in a brief quiet period on a restart at worst < `interval` seconds long.
+
 # Usage
 
 ```
