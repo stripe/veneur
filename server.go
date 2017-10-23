@@ -457,12 +457,12 @@ func (s *Server) Start() {
 			ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
 		}()
 
-		// We want to align our ticker to a multiple of it's duration for
+		// We want to align our ticker to a multiple of its duration for
 		// convenience of bucketing.
 		<-time.After(CalculateTickDelay(s.interval, time.Now()))
 
 		// We aligned the ticker to our interval above. It's worth noting that just
-		// because we aligned once we're not gauranteed to be perfect on each
+		// because we aligned once we're not guaranteed to be perfect on each
 		// subsequent tick. This code is small, however, and should service the
 		// incoming tick signal fast enough that the amount we are "off" is
 		// negligible.
