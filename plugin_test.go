@@ -82,7 +82,7 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 		})
 	}
 
-	f.server.Flush(context.TODO())
+	f.server.Flush(context.Background())
 }
 
 // TestLocalFilePluginRegister tests that we are able to register
@@ -164,7 +164,7 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 		})
 	}
 
-	f.server.Flush(context.TODO())
+	f.server.Flush(context.Background())
 }
 
 func parseGzipTSV(r io.Reader) ([][]string, error) {
