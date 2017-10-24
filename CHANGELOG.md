@@ -1,3 +1,8 @@
+# 1.8, pending
+
+## Bugfixes
+* Fix a panic when using `veneur-emit` to emit metrics via `-ssf` when no tags are specified. Thanks [myndzi](https://github.com/myndzi)
+
 # 1.7.0, 2017-10-19
 
 ## Notes for upgrading from previous versions
