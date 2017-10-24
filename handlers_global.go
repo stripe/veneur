@@ -7,7 +7,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"reflect"
@@ -133,18 +132,15 @@ func handleTraceRequest(ctx context.Context, stats *statsd.Client, w http.Respon
 	return span, traces, nil
 }
 
-// unmarshalMetricsFromHTTP takes care of the common need to unmarshal a slice of metrics from a request body,
-// dealing with error handling, decoding, tracing, and the associated metrics.
-func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []samplers.JSONMetric, error) {
+func decodeBody(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, io.ReadCloser, error) {
 	var (
-		jsonMetrics []samplers.JSONMetric
-		body        io.ReadCloser
-		err         error
-		encoding    = r.Header.Get("Content-Encoding")
-		span        *trace.Span
+		body     io.ReadCloser
+		err      error
+		encoding = r.Header.Get("Content-Encoding")
+		span     *trace.Span
 	)
 
-	span, err = tracer.ExtractRequestChild("/import", r, "veneur.opentracing.import")
+	span, err = tracer.ExtractRequestChild("decodeBody", r, "veneur.opentracing.import")
 	if err != nil {
 		log.WithError(err).Debug("Could not extract span from request")
 		span = tracer.StartSpan("veneur.opentracing.import").(*trace.Span)
@@ -166,7 +162,7 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 			span.Error(err)
 			encLogger.WithError(err).Error("Could not read compressed request body")
 			stats.Count("import.request_error_total", 1, []string{"cause:deflate"}, 1.0)
-			return nil, nil, err
+			return span, nil, err
 		}
 		defer body.Close()
 	default:
@@ -174,13 +170,26 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 		span.Error(errors.New("Could not determine content-encoding of request"))
 		encLogger.Error("Could not determine content-encoding of request")
 		stats.Count("import.request_error_total", 1, []string{"cause:unknown_content_encoding"}, 1.0)
-		return nil, nil, err
+		return span, nil, err
+	}
+
+	return span, body, nil
+}
+
+// unmarshalMetricsFromHTTP takes care of the common need to unmarshal a slice of metrics from a request body,
+// dealing with error handling, decoding, tracing, and the associated metrics.
+func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []samplers.JSONMetric, error) {
+	var jsonMetrics []samplers.JSONMetric
+
+	span, body, err := decodeBody(ctx, stats, w, r)
+	if err != nil {
+		return span, nil, err
 	}
 
 	if err = json.NewDecoder(body).Decode(&jsonMetrics); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		span.Error(err)
-		innerLogger.WithError(err).Error("Could not decode /import request")
+		log.WithError(err).Error("Could not decode /import request")
 		stats.Count("import.request_error_total", 1, []string{"cause:json"}, 1.0)
 		return nil, nil, err
 	}
@@ -189,7 +198,7 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 		const msg = "Received empty /import request"
 		http.Error(w, msg, http.StatusBadRequest)
 		span.Error(errors.New(msg))
-		innerLogger.WithError(err).Error(msg)
+		log.WithError(err).Error(msg)
 		return nil, nil, err
 	}
 
@@ -202,75 +211,41 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 		const msg = "Received empty or improperly-formed metrics"
 		http.Error(w, msg, http.StatusBadRequest)
 		span.Error(errors.New(msg))
-		innerLogger.Error(msg)
+		log.Error(msg)
 		return nil, nil, err
 	}
 
 	w.WriteHeader(http.StatusAccepted)
 	stats.TimeInMilliseconds("import.response_duration_ns",
 		float64(time.Since(span.Start).Nanoseconds()),
-		[]string{"part:request", fmt.Sprintf("encoding:%s", encoding)},
+		[]string{"part:request"},
 		1.0)
 
 	return span, jsonMetrics, nil
 }
 
 func unmarshalDDEventsFromHTTP(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []samplers.UDPEvent, error) {
-	var (
-		ddEvents map[string]map[string][]samplers.UDPEvent
-		body     io.ReadCloser
-		err      error
-		encoding = r.Header.Get("Content-Encoding")
-		span     *trace.Span
-	)
+	var ddEvents map[string]map[string][]samplers.UDPEvent
 
-	span, err = tracer.ExtractRequestChild("/v1/intake", r, "veneur.opentracing.import")
+	span, body, err := decodeBody(ctx, stats, w, r)
 	if err != nil {
-		log.WithError(err).Debug("Could not extract span from request")
-		span = tracer.StartSpan("veneur.opentracing.import").(*trace.Span)
-	} else {
-		log.WithField("trace", span.Trace).Debug("Extracted span from request")
-	}
-	defer span.Finish()
-
-	innerLogger := log.WithField("client", r.RemoteAddr)
-
-	switch encLogger := innerLogger.WithField("encoding", encoding); encoding {
-	case "":
-		body = r.Body
-		encoding = "identity"
-	case "deflate":
-		body, err = zlib.NewReader(r.Body)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			span.Error(err)
-			encLogger.WithError(err).Error("Could not read compressed request body")
-			stats.Count("import.request_error_total", 1, []string{"cause:deflate"}, 1.0)
-			return nil, nil, err
-		}
-		defer body.Close()
-	default:
-		http.Error(w, encoding, http.StatusUnsupportedMediaType)
-		span.Error(errors.New("Could not determine content-encoding of request"))
-		encLogger.Error("Could not determine content-encoding of request")
-		stats.Count("import.request_error_total", 1, []string{"cause:unknown_content_encoding"}, 1.0)
-		return nil, nil, err
+		return span, nil, err
 	}
 
 	if err = json.NewDecoder(body).Decode(&ddEvents); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		span.Error(err)
-		innerLogger.WithError(err).Error("Could not decode /v1/intake request")
+		log.WithError(err).Error("Could not decode /v1/intake request")
 		stats.Count("import.request_error_total", 1, []string{"cause:json"}, 1.0)
-		return nil, nil, err
+		return span, nil, err
 	}
 
 	if len(ddEvents) == 0 {
 		const msg = "Received empty /v1/series request"
 		http.Error(w, msg, http.StatusBadRequest)
 		span.Error(errors.New(msg))
-		innerLogger.WithError(err).Error(msg)
-		return nil, nil, err
+		log.WithError(err).Error(msg)
+		return span, nil, err
 	}
 
 	// Verify we got some serieseses
@@ -279,8 +254,8 @@ func unmarshalDDEventsFromHTTP(ctx context.Context, stats *statsd.Client, w http
 			const msg = "Received empty or improperly-formed metrics"
 			http.Error(w, msg, http.StatusBadRequest)
 			span.Error(errors.New(msg))
-			innerLogger.Error(msg)
-			return nil, nil, err
+			log.Error(msg)
+			return span, nil, err
 		}
 	}
 
@@ -288,7 +263,7 @@ func unmarshalDDEventsFromHTTP(ctx context.Context, stats *statsd.Client, w http
 	// TODO Fix metric
 	stats.TimeInMilliseconds("import.response_duration_ns",
 		float64(time.Since(span.Start).Nanoseconds()),
-		[]string{"part:request", fmt.Sprintf("encoding:%s", encoding)},
+		[]string{"part:request"},
 		1.0)
 
 	return span, ddEvents["events"]["api"], nil
@@ -297,61 +272,27 @@ func unmarshalDDEventsFromHTTP(ctx context.Context, stats *statsd.Client, w http
 // unmarshalDDMetricsFromHTTP takes care of the common need to unmarshal a slice of metrics from a request body,
 // dealing with error handling, decoding, tracing, and the associated metrics.
 func unmarshalDDMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []samplers.JSONMetric, error) {
-	var (
-		ddMetrics map[string][]DDMetric
-		body      io.ReadCloser
-		err       error
-		encoding  = r.Header.Get("Content-Encoding")
-		span      *trace.Span
-	)
+	var ddMetrics map[string][]DDMetric
 
-	span, err = tracer.ExtractRequestChild("/v1/series", r, "veneur.opentracing.import")
+	span, body, err := decodeBody(ctx, stats, w, r)
 	if err != nil {
-		log.WithError(err).Debug("Could not extract span from request")
-		span = tracer.StartSpan("veneur.opentracing.import").(*trace.Span)
-	} else {
-		log.WithField("trace", span.Trace).Debug("Extracted span from request")
-	}
-	defer span.Finish()
-
-	innerLogger := log.WithField("client", r.RemoteAddr)
-
-	switch encLogger := innerLogger.WithField("encoding", encoding); encoding {
-	case "":
-		body = r.Body
-		encoding = "identity"
-	case "deflate":
-		body, err = zlib.NewReader(r.Body)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			span.Error(err)
-			encLogger.WithError(err).Error("Could not read compressed request body")
-			stats.Count("import.request_error_total", 1, []string{"cause:deflate"}, 1.0)
-			return nil, nil, err
-		}
-		defer body.Close()
-	default:
-		http.Error(w, encoding, http.StatusUnsupportedMediaType)
-		span.Error(errors.New("Could not determine content-encoding of request"))
-		encLogger.Error("Could not determine content-encoding of request")
-		stats.Count("import.request_error_total", 1, []string{"cause:unknown_content_encoding"}, 1.0)
-		return nil, nil, err
+		return span, nil, err
 	}
 
 	if err = json.NewDecoder(body).Decode(&ddMetrics); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		span.Error(err)
-		innerLogger.WithError(err).Error("Could not decode /ve1/series request")
+		log.WithError(err).Error("Could not decode /ve1/series request")
 		stats.Count("import.request_error_total", 1, []string{"cause:json"}, 1.0)
-		return nil, nil, err
+		return span, nil, err
 	}
 
 	if len(ddMetrics) == 0 {
 		const msg = "Received empty /v1/series request"
 		http.Error(w, msg, http.StatusBadRequest)
 		span.Error(errors.New(msg))
-		innerLogger.WithError(err).Error(msg)
-		return nil, nil, err
+		log.WithError(err).Error(msg)
+		return span, nil, err
 	}
 
 	// Verify we got some serieseses
@@ -359,8 +300,8 @@ func unmarshalDDMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w htt
 		const msg = "Received empty or improperly-formed metrics"
 		http.Error(w, msg, http.StatusBadRequest)
 		span.Error(errors.New(msg))
-		innerLogger.Error(msg)
-		return nil, nil, err
+		log.Error(msg)
+		return span, nil, err
 	}
 
 	jsonMetrics := make([]samplers.JSONMetric, len(ddMetrics["series"]))
@@ -386,7 +327,7 @@ func unmarshalDDMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w htt
 	// TODO Fix metric
 	stats.TimeInMilliseconds("import.response_duration_ns",
 		float64(time.Since(span.Start).Nanoseconds()),
-		[]string{"part:request", fmt.Sprintf("encoding:%s", encoding)},
+		[]string{"part:request"},
 		1.0)
 
 	return span, jsonMetrics, nil
