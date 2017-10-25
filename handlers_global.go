@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"reflect"
 	"sort"
@@ -161,7 +162,6 @@ func decodeBody(ctx context.Context, stats *statsd.Client, w http.ResponseWriter
 	} else {
 		log.WithField("trace", span.Trace).Debug("Extracted span from request")
 	}
-	defer span.Finish()
 
 	innerLogger := log.WithField("client", r.RemoteAddr)
 
@@ -196,14 +196,16 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 	var jsonMetrics []samplers.JSONMetric
 
 	span, body, err := decodeBody(ctx, stats, w, r)
+	defer span.Finish()
 	if err != nil {
-		return span, nil, err
+		return nil, nil, err
 	}
 
 	if err = json.NewDecoder(body).Decode(&jsonMetrics); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		span.Error(err)
-		log.WithError(err).Error("Could not decode /import request")
+		b, _ := ioutil.ReadAll(body)
+		log.WithField("body", b).WithError(err).Error("Could not decode /import request")
 		stats.Count("import.request_error_total", 1, []string{"cause:json"}, 1.0)
 		return nil, nil, err
 	}
@@ -243,13 +245,15 @@ func unmarshalDDChecksFromHTTP(ctx context.Context, stats *statsd.Client, w http
 
 	span, body, err := decodeBody(ctx, stats, w, r)
 	if err != nil {
-		return span, nil, err
+		return nil, nil, err
 	}
+	defer span.Finish()
 
 	if err = json.NewDecoder(body).Decode(&ddChecks); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		span.Error(err)
-		log.WithError(err).Error("Could not decode /api/v1/check_run request")
+		b, _ := ioutil.ReadAll(body)
+		log.WithField("body", b).WithError(err).Error("Could not decode /api/v1/check_run request")
 		stats.Count("import.request_error_total", 1, []string{"cause:json"}, 1.0)
 		return span, nil, err
 	}
@@ -277,8 +281,9 @@ func unmarshalDDEventsFromHTTP(ctx context.Context, stats *statsd.Client, w http
 
 	span, body, err := decodeBody(ctx, stats, w, r)
 	if err != nil {
-		return span, nil, err
+		return nil, nil, err
 	}
+	defer span.Finish()
 
 	if err = json.NewDecoder(body).Decode(&ddEvents); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -289,7 +294,7 @@ func unmarshalDDEventsFromHTTP(ctx context.Context, stats *statsd.Client, w http
 	}
 
 	if len(ddEvents) == 0 {
-		const msg = "Received empty /v1/series request"
+		const msg = "Received empty /v1/intake request"
 		http.Error(w, msg, http.StatusBadRequest)
 		span.Error(errors.New(msg))
 		log.WithError(err).Error(msg)
@@ -327,10 +332,13 @@ func unmarshalDDMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w htt
 		return span, nil, err
 	}
 
+	// buf := new(bytes.Buffer)
+	// buf.ReadFrom(body)
+
 	if err = json.NewDecoder(body).Decode(&ddMetrics); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		span.Error(err)
-		log.WithError(err).Error("Could not decode /ve1/series request")
+		log.WithError(err).Error("Could not decode /v1/series request")
 		stats.Count("import.request_error_total", 1, []string{"cause:json"}, 1.0)
 		return span, nil, err
 	}

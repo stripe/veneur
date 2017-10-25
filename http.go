@@ -42,9 +42,9 @@ func (s *Server) Handler() http.Handler {
 
 	mux.Handle(pat.Post("/import"), handleImport(s))
 
-	mux.Handle(pat.Post("/intake"), handleDatadogEventImport(s))
-	mux.Handle(pat.Post("/v1/series"), handleDatadogImport(s))
-	mux.Handle(pat.Post("/api/v1/check_run"), handleDatadogCheckImport(s))
+	mux.Handle(pat.Post("/intake/*"), handleDatadogEventImport(s))
+	mux.Handle(pat.Post("/api/v1/series/*"), handleDatadogImport(s))
+	mux.Handle(pat.Post("/api/v1/check_run/*"), handleDatadogCheckImport(s))
 
 	mux.Handle(pat.Get("/debug/pprof/cmdline"), http.HandlerFunc(pprof.Cmdline))
 	mux.Handle(pat.Get("/debug/pprof/profile"), http.HandlerFunc(pprof.Profile))
