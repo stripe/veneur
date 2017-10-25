@@ -3,6 +3,7 @@ package veneur
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -442,7 +443,7 @@ func (s *Server) Start() {
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				s.Flush()
+				s.Flush(context.TODO())
 			}
 		}
 	}()

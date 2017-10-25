@@ -3,6 +3,7 @@ package veneur
 import (
 	"bytes"
 	"compress/zlib"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -252,7 +253,7 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 		})
 	}
 
-	f.server.Flush()
+	f.server.Flush(context.TODO())
 
 	ddmetrics := <-f.ddmetrics
 	assert.Equal(t, 6, len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
@@ -280,7 +281,7 @@ func TestGlobalServerFlush(t *testing.T) {
 		})
 	}
 
-	f.server.Flush()
+	f.server.Flush(context.TODO())
 
 	ddmetrics := <-f.ddmetrics
 	assert.Equal(t, len(expectedMetrics), len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
@@ -390,7 +391,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 		})
 	}
 
-	f.server.Flush()
+	f.server.Flush(context.TODO())
 
 	// the global veneur instance should get valid data
 	td := <-globalTD
@@ -540,7 +541,7 @@ func sendTCPMetrics(addr string, tlsConfig *tls.Config, f *fixture) error {
 
 	// check that the server received the stats; HACK: sleep to ensure workers process before flush
 	time.Sleep(20 * time.Millisecond)
-	f.server.Flush()
+	f.server.Flush(context.TODO())
 	select {
 	case ddmetrics := <-f.ddmetrics:
 		if len(ddmetrics.Series) != 1 {
