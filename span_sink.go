@@ -231,13 +231,16 @@ func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[s
 		port = lightstepDefaultPort
 	}
 
-	reconPeriod, err := time.ParseDuration(config.TraceLightstepReconnectPeriod)
-	if err != nil {
-		log.WithError(err).WithFields(logrus.Fields{
-			"interval":         config.TraceLightstepReconnectPeriod,
-			"default_interval": lightstepDefaultInterval,
-		}).Warn("Failed to parse reconnect duration, using default.")
-		reconPeriod = lightstepDefaultInterval
+	reconPeriod := lightstepDefaultInterval
+	if config.TraceLightstepReconnectPeriod != "" {
+		reconPeriod, err = time.ParseDuration(config.TraceLightstepReconnectPeriod)
+		if err != nil {
+			log.WithError(err).WithFields(logrus.Fields{
+				"interval":         config.TraceLightstepReconnectPeriod,
+				"default_interval": lightstepDefaultInterval,
+			}).Warn("Failed to parse reconnect duration, using default.")
+			reconPeriod = lightstepDefaultInterval
+		}
 	}
 
 	log.WithFields(logrus.Fields{
