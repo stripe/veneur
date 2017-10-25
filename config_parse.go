@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
-	"time"
 
 	"github.com/kelseyhightower/envconfig"
 
@@ -137,10 +136,10 @@ func readConfig(r io.Reader) (c Config, err error) {
 	}
 	c.SsfListenAddresses = append(c.SsfListenAddresses, ssfAddrs...)
 
-	return c, nil
-}
+	if c.RuntimeMetricsFlushInterval == "" {
+		// Default the runtime metrics to the flush interval if not overriden
+		c.RuntimeMetricsFlushInterval = c.Interval
+	}
 
-// ParseInterval handles parsing the flush interval as a time.Duration
-func (c Config) ParseInterval() (time.Duration, error) {
-	return time.ParseDuration(c.Interval)
+	return c, nil
 }

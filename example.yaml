@@ -105,7 +105,6 @@ num_workers: 96
 num_readers: 1
 
 
-
 # == LIMITS ==
 
 # How big of a buffer to allocate for incoming metrics. Metrics longer than this
@@ -127,7 +126,6 @@ read_buffer_size_bytes: 2097152
 # will post multiple times in parallel if the limit is exceeded.
 flush_max_per_body: 25000
 
-
 # == DIAGNOSTICS ==
 
 # Sets the log level to DEBUG
@@ -139,6 +137,9 @@ sentry_dsn: ""
 # Enables Go profiling
 enable_profiling: false
 
+# Veneur emits metrics about itself. By default it matches the `interval`, but
+# you can tune it to a different interval if desired.
+runtime_metrics_flush_interval: "10s"
 
 
 # == SINKS ==

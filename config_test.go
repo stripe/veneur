@@ -22,7 +22,7 @@ func TestReadConfig(t *testing.T) {
 	assert.Equal(t, "https://app.datadoghq.com", c.DatadogAPIHostname)
 	assert.Equal(t, 96, c.NumWorkers)
 
-	interval, err := c.ParseInterval()
+	interval, err := time.ParseDuration(c.Interval)
 	assert.NoError(t, err)
 	assert.Equal(t, interval, 10*time.Second)
 
