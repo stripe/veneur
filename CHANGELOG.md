@@ -5,6 +5,7 @@
 
 ## Bugfixes
 * Fix a panic when using `veneur-emit` to emit metrics via `-ssf` when no tags are specified. Thanks [myndzi](https://github.com/myndzi)
+* Remove spurious warnings about unset configuration settings. Thanks [antifuchs](https://github.com/antifuchs)
 
 # 1.7.0, 2017-10-19
 
