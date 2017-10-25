@@ -224,12 +224,11 @@ func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[s
 
 	port, err := strconv.Atoi(host.Port())
 	if err != nil {
-		port = lightstepDefaultPort
-	} else {
 		log.WithError(err).WithFields(logrus.Fields{
 			"port":         port,
 			"default_port": lightstepDefaultPort,
 		}).Warn("Error parsing LightStep port, using default")
+		port = lightstepDefaultPort
 	}
 
 	reconPeriod, err := time.ParseDuration(config.TraceLightstepReconnectPeriod)
