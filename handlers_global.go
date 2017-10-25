@@ -75,6 +75,20 @@ func handleDatadogImport(s *Server) http.Handler {
 	})
 }
 
+func handleDatadogCheckImport(s *Server) http.Handler {
+	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+		// TODO Get span out
+		_, checks, err := unmarshalDDChecksFromHTTP(ctx, s.Statsd, w, r)
+		if err != nil {
+			return
+		}
+		// TODO make a function for this
+		for _, c := range checks {
+			s.EventWorker.ServiceCheckChan <- c
+		}
+	})
+}
+
 func handleDatadogEventImport(s *Server) http.Handler {
 	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 		// TODO Get span out
@@ -222,6 +236,40 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 		1.0)
 
 	return span, jsonMetrics, nil
+}
+
+func unmarshalDDChecksFromHTTP(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []samplers.UDPServiceCheck, error) {
+	var ddChecks []samplers.UDPServiceCheck
+
+	span, body, err := decodeBody(ctx, stats, w, r)
+	if err != nil {
+		return span, nil, err
+	}
+
+	if err = json.NewDecoder(body).Decode(&ddChecks); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		span.Error(err)
+		log.WithError(err).Error("Could not decode /api/v1/check_run request")
+		stats.Count("import.request_error_total", 1, []string{"cause:json"}, 1.0)
+		return span, nil, err
+	}
+
+	if len(ddChecks) == 0 {
+		const msg = "Received empty /api/v1/check_run request"
+		http.Error(w, msg, http.StatusBadRequest)
+		span.Error(errors.New(msg))
+		log.WithError(err).Error(msg)
+		return span, nil, err
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+	// TODO Fix metric
+	stats.TimeInMilliseconds("import.response_duration_ns",
+		float64(time.Since(span.Start).Nanoseconds()),
+		[]string{"part:request"},
+		1.0)
+
+	return span, ddChecks, nil
 }
 
 func unmarshalDDEventsFromHTTP(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []samplers.UDPEvent, error) {
