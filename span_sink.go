@@ -32,6 +32,7 @@ const totalSpansFlushedMetricKey = "worker.spans_flushed_total"
 // handle their own flushing in a separate goroutine, etc.
 type spanSink interface {
 	Name() string
+	Start(*trace.Client) error
 	Ingest(ssf.SSFSpan) error
 	Flush()
 }
@@ -49,7 +50,7 @@ type datadogSpanSink struct {
 }
 
 // NewDatadogSpanSink creates a new Datadog sink for trace spans.
-func NewDatadogSpanSink(config *Config, stats *statsd.Client, httpClient *http.Client, traceClient *trace.Client, commonTags map[string]string) (*datadogSpanSink, error) {
+func NewDatadogSpanSink(config *Config, stats *statsd.Client, httpClient *http.Client, commonTags map[string]string) (*datadogSpanSink, error) {
 	return &datadogSpanSink{
 		HTTPClient:   httpClient,
 		bufferSize:   config.SsfBufferSize,
@@ -58,13 +59,18 @@ func NewDatadogSpanSink(config *Config, stats *statsd.Client, httpClient *http.C
 		stats:        stats,
 		commonTags:   commonTags,
 		traceAddress: config.DatadogTraceAPIAddress,
-		traceClient:  traceClient,
 	}, nil
 }
 
 // Name returns the name of this sink.
 func (dd *datadogSpanSink) Name() string {
 	return "datadog"
+}
+
+// Start performs final adjustments on the sink.
+func (dd *datadogSpanSink) Start(cl *trace.Client) error {
+	dd.traceClient = cl
+	return nil
 }
 
 // Ingest takes the span and adds it to the ringbuffer.
@@ -214,7 +220,7 @@ type lightStepSpanSink struct {
 }
 
 // NewLightStepSpanSink creates a new instance of a LightStepSpanSink.
-func NewLightStepSpanSink(config *Config, stats *statsd.Client, traceClient *trace.Client, commonTags map[string]string) (*lightStepSpanSink, error) {
+func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[string]string) (*lightStepSpanSink, error) {
 
 	var host *url.URL
 	host, err := url.Parse(config.TraceLightstepCollectorHost)
@@ -284,8 +290,12 @@ func NewLightStepSpanSink(config *Config, stats *statsd.Client, traceClient *tra
 		stats:        stats,
 		serviceCount: make(map[string]int64),
 		mutex:        &sync.Mutex{},
-		traceClient:  traceClient,
 	}, nil
+}
+
+func (ls *lightStepSpanSink) Start(cl *trace.Client) error {
+	ls.traceClient = cl
+	return nil
 }
 
 // Name returns this sink's name.

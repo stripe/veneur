@@ -275,6 +275,12 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.TLSKey = REDACTED
 	log.WithField("config", conf).Debug("Initialized server")
 
+	ddSink, err := NewDatadogMetricSink(&conf, ret.interval.Seconds(), ret.HTTPClient, ret.Statsd, ret.TraceClient)
+	if err != nil {
+		return
+	}
+	ret.metricSinks = append(ret.metricSinks, ddSink)
+
 	// Configure tracing sinks
 	if len(conf.SsfListenAddresses) > 0 && (conf.DatadogTraceAPIAddress != "" || conf.TraceLightstepAccessToken != "") {
 		// Set up our internal trace client:
@@ -294,7 +300,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		// configure Datadog as a Span sink
 		if conf.DatadogTraceAPIAddress != "" {
 
-			ddSink, err := NewDatadogSpanSink(&conf, ret.Statsd, ret.HTTPClient, ret.TraceClient, ret.TagsAsMap)
+			ddSink, err := NewDatadogSpanSink(&conf, ret.Statsd, ret.HTTPClient, ret.TagsAsMap)
 			if err != nil {
 				return ret, err
 			}
@@ -307,7 +313,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		if ret.traceLightstepAccessToken != "" {
 
 			var lsSink spanSink
-			lsSink, err = NewLightStepSpanSink(&conf, ret.Statsd, ret.TraceClient, ret.TagsAsMap)
+			lsSink, err = NewLightStepSpanSink(&conf, ret.Statsd, ret.TagsAsMap)
 			if err != nil {
 				return
 			}
@@ -326,12 +332,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	} else {
 		trace.Disable()
 	}
-
-	ddSink, err := NewDatadogMetricSink(&conf, ret.interval.Seconds(), ret.HTTPClient, ret.Statsd, ret.TraceClient)
-	if err != nil {
-		return
-	}
-	ret.metricSinks = append(ret.metricSinks, ddSink)
 
 	var svc s3iface.S3API
 	awsID := conf.AwsAccessKeyID
@@ -428,6 +428,18 @@ func (s *Server) Start() {
 		New: func() interface{} {
 			return make([]byte, s.traceMaxLengthBytes)
 		},
+	}
+
+	for _, sink := range s.spanSinks {
+		if err := sink.Start(s.TraceClient); err != nil {
+			logrus.WithError(err).WithField("sink", sink).Fatal("Error starting span sink")
+		}
+	}
+
+	for _, sink := range s.metricSinks {
+		if err := sink.Start(s.TraceClient); err != nil {
+			logrus.WithError(err).WithField("sink", sink).Fatal("Error starting metric sink")
+		}
 	}
 
 	// Read Metrics Forever!

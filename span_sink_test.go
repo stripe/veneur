@@ -14,7 +14,11 @@ func TestNewDatadogSpanSinkConfig(t *testing.T) {
 		DatadogTraceAPIAddress: "http://trace",
 	}
 	stats, _ := statsd.NewBuffered(config.StatsAddress, 1024)
-	ddSink, err := NewDatadogSpanSink(&config, stats, &http.Client{}, nil, nil)
+	ddSink, err := NewDatadogSpanSink(&config, stats, &http.Client{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ddSink.Start(nil)
 	if err != nil {
 		t.Fatal(err)
 	}

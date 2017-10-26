@@ -18,6 +18,12 @@ const DatadogResourceKey = "resource"
 
 type metricSink interface {
 	Name() string
+
+	// Start finishes setting up the sink and starts any
+	// background processing tasks that the sink might have to run
+	// in the background. It's invoked when the server starts.
+	Start(traceClient *trace.Client) error
+
 	// Flush receives `InterMetric`s from Veneur and is responsible for "sinking"
 	// these metrics to whatever it's backend wants. Note that the sink must
 	// **not** mutate the incoming metrics as they are shared with other sinks.
@@ -61,13 +67,18 @@ func NewDatadogMetricSink(config *Config, interval float64, httpClient *http.Cli
 		tags:            config.Tags,
 		ddHostname:      config.DatadogAPIHostname,
 		apiKey:          config.DatadogAPIKey,
-		traceClient:     traceClient,
 	}, nil
 }
 
 // Name returns the name of this sink.
 func (dd *datadogMetricSink) Name() string {
 	return "datadog"
+}
+
+// Start sets the sink up.
+func (dd *datadogMetricSink) Start(cl *trace.Client) error {
+	dd.traceClient = cl
+	return nil
 }
 
 func (dd *datadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
@@ -103,6 +114,7 @@ func (dd *datadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 
 func (dd *datadogMetricSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
+	defer log.Printf("Flushing event checks with %#v", dd.traceClient)
 	defer span.ClientFinish(dd.traceClient)
 
 	// fill in the default hostname for packets that didn't set it
