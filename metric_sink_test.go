@@ -21,7 +21,7 @@ func TestNewDatadogMetricSinkConfig(t *testing.T) {
 		StatsAddress: "localhost:62251",
 	}
 	stats, _ := statsd.NewBuffered(config.StatsAddress, 1024)
-	ddSink, err := NewDatadogMetricSink(&config, float64(10.0), &http.Client{}, stats, nil)
+	ddSink, err := NewDatadogMetricSink(&config, float64(10.0), &http.Client{}, stats)
 	if err != nil {
 		t.Fatal(err)
 	}

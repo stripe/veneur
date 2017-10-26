@@ -275,7 +275,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.TLSKey = REDACTED
 	log.WithField("config", conf).Debug("Initialized server")
 
-	ddSink, err := NewDatadogMetricSink(&conf, ret.interval.Seconds(), ret.HTTPClient, ret.Statsd, ret.TraceClient)
+	ddSink, err := NewDatadogMetricSink(&conf, ret.interval.Seconds(), ret.HTTPClient, ret.Statsd)
 	if err != nil {
 		return
 	}
