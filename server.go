@@ -275,12 +275,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.TLSKey = REDACTED
 	log.WithField("config", conf).Debug("Initialized server")
 
-	ddSink, err := NewDatadogMetricSink(&conf, ret.interval.Seconds(), ret.HTTPClient, ret.Statsd)
-	if err != nil {
-		return
-	}
-	ret.metricSinks = append(ret.metricSinks, ddSink)
-
 	// Configure tracing sinks
 	if len(conf.SsfListenAddresses) > 0 && (conf.DatadogTraceAPIAddress != "" || conf.TraceLightstepAccessToken != "") {
 		// Set up our internal trace client:
@@ -332,6 +326,12 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	} else {
 		trace.Disable()
 	}
+
+	ddSink, err := NewDatadogMetricSink(&conf, ret.interval.Seconds(), ret.HTTPClient, ret.Statsd, ret.TraceClient)
+	if err != nil {
+		return
+	}
+	ret.metricSinks = append(ret.metricSinks, ddSink)
 
 	var svc s3iface.S3API
 	awsID := conf.AwsAccessKeyID
