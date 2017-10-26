@@ -1,17 +1,17 @@
 package veneur
 
 import (
-	"bytes"
 	"compress/zlib"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"io"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +21,17 @@ import (
 )
 
 type contextHandler func(c context.Context, w http.ResponseWriter, r *http.Request)
+
+// IncomingDDMetric more permissive DDMetric that allows string floats
+type IncomingDDMetric struct {
+	Name       string            `json:"metric"`
+	Value      [1][2]interface{} `json:"points"`
+	Tags       []string          `json:"tags,omitempty"`
+	MetricType string            `json:"type"`
+	Hostname   string            `json:"host,omitempty"`
+	DeviceName string            `json:"device_name,omitempty"`
+	Interval   int32             `json:"interval,omitempty"`
+}
 
 func (ch contextHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
@@ -325,17 +336,14 @@ func unmarshalDDEventsFromHTTP(ctx context.Context, stats *statsd.Client, w http
 // unmarshalDDMetricsFromHTTP takes care of the common need to unmarshal a slice of metrics from a request body,
 // dealing with error handling, decoding, tracing, and the associated metrics.
 func unmarshalDDMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []samplers.JSONMetric, error) {
-	var ddMetrics map[string][]DDMetric
+	var ddIncMetrics map[string][]IncomingDDMetric
 
 	span, body, err := decodeBody(ctx, stats, w, r)
 	if err != nil {
 		return span, nil, err
 	}
 
-	// buf := new(bytes.Buffer)
-	// buf.ReadFrom(body)
-
-	if err = json.NewDecoder(body).Decode(&ddMetrics); err != nil {
+	if err = json.NewDecoder(body).Decode(&ddIncMetrics); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		span.Error(err)
 		log.WithError(err).Error("Could not decode /v1/series request")
@@ -343,7 +351,7 @@ func unmarshalDDMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w htt
 		return span, nil, err
 	}
 
-	if len(ddMetrics) == 0 {
+	if len(ddIncMetrics) == 0 {
 		const msg = "Received empty /v1/series request"
 		http.Error(w, msg, http.StatusBadRequest)
 		span.Error(errors.New(msg))
@@ -352,7 +360,7 @@ func unmarshalDDMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w htt
 	}
 
 	// Verify we got some serieseses
-	if _, ok := ddMetrics["series"]; !ok {
+	if _, ok := ddIncMetrics["series"]; !ok {
 		const msg = "Received empty or improperly-formed metrics"
 		http.Error(w, msg, http.StatusBadRequest)
 		span.Error(errors.New(msg))
@@ -360,22 +368,40 @@ func unmarshalDDMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w htt
 		return span, nil, err
 	}
 
-	jsonMetrics := make([]samplers.JSONMetric, len(ddMetrics["series"]))
-	for i, ddMetric := range ddMetrics["series"] {
+	jsonMetrics := make([]samplers.JSONMetric, len(ddIncMetrics["series"]))
+	for i, ddIncMetric := range ddIncMetrics["series"] {
 		// We're mutating this thing since nothing else is gonna use it
-		sort.Strings(ddMetric.Tags)
+		sort.Strings(ddIncMetric.Tags)
 		// Transform the incoming metrics to a JSONMetric, so we can use existing
 		// code to merge it.
-		var buf bytes.Buffer
-		binary.Write(&buf, binary.BigEndian, ddMetric.Value[0][1])
+		var finalValue float64
+		value := ddIncMetric.Value[0][1]
+		switch v := value.(type) {
+		case string:
+			finalValue, err = strconv.ParseFloat(value.(string), 64)
+			if err != nil {
+				log.WithField("value", value).Warn("Unable to convert string to float, dropping")
+				continue
+			}
+		case float64:
+			finalValue = value.(float64)
+		default:
+			log.WithField("type", v).Warn("Unexpected metric value type, dropping")
+			continue
+
+		}
+
+		var valBuf []byte
+		math.Float64bits(finalValue)
+
 		jsonMetrics[i] = samplers.JSONMetric{
 			MetricKey: samplers.MetricKey{
-				Name:       ddMetric.Name,
-				Type:       ddMetric.MetricType,
-				JoinedTags: strings.Join(ddMetric.Tags, ","),
+				Name:       ddIncMetric.Name,
+				Type:       ddIncMetric.MetricType,
+				JoinedTags: strings.Join(ddIncMetric.Tags, ","),
 			},
-			Tags:  ddMetric.Tags,
-			Value: buf.Bytes(),
+			Tags:  ddIncMetric.Tags,
+			Value: valBuf,
 		}
 	}
 
