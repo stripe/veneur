@@ -5,8 +5,7 @@ MAINTAINER The Stripe Observability Team <support@stripe.com>
 FROM base AS deps
 RUN mkdir -p /build
 ENV GOPATH=/go
-RUN apt-get update
-RUN apt-get install -y zip
+RUN apt-get update && apt-get install -y zip
 RUN go get -u -v github.com/ChimeraCoder/gojson/gojson
 RUN go get -u -v github.com/golang/protobuf/protoc-gen-go
 RUN go get -d -v github.com/gogo/protobuf/protoc-gen-gofast
@@ -42,12 +41,8 @@ RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse
 RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-emit ./cmd/veneur-emit
 
 
-FROM debian:sid AS release-prep
-RUN apt-get update
-RUN apt-get -y install ca-certificates
-
-
-FROM release-prep AS release
+FROM debian:sid AS release
+RUN apt-get update && apt-get -y install ca-certificates
 WORKDIR /veneur/
 EXPOSE 8126/UDP 8126/TCP 8127/TCP 8128/UDP
 COPY --from=release-prep /etc/ca-certificates.conf /etc/ca-certificates.conf
