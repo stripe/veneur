@@ -3,6 +3,7 @@ package veneur
 import (
 	"compress/zlib"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"io"
@@ -391,8 +392,9 @@ func unmarshalDDMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w htt
 
 		}
 
-		var valBuf []byte
-		math.Float64bits(finalValue)
+		bits := math.Float64bits(finalValue)
+		bytes := make([]byte, 8)
+		binary.LittleEndian.PutUint64(bytes, bits)
 
 		jsonMetrics[i] = samplers.JSONMetric{
 			MetricKey: samplers.MetricKey{
@@ -401,7 +403,7 @@ func unmarshalDDMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w htt
 				JoinedTags: strings.Join(ddIncMetric.Tags, ","),
 			},
 			Tags:  ddIncMetric.Tags,
-			Value: valBuf,
+			Value: bytes,
 		}
 	}
 

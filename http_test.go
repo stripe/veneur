@@ -317,12 +317,6 @@ func testServerImportHelper(t *testing.T, data interface{}) {
 
 	w := httptest.NewRecorder()
 
-	config := localConfig()
-	config.SsfListenAddresses = []string{}
-	s := setupVeneurServer(t, config, nil, nil, nil)
-	defer s.Shutdown()
-	HTTPAddrPort++
-
 	handler := handleImport(s)
 	handler.ServeHTTP(w, r)
 
