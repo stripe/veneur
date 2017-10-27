@@ -203,7 +203,7 @@ func (dd *datadogSpanSink) Flush() {
 
 // lightStepSpanSink is a sink for spans to be sent to the LightStep client.
 type lightStepSpanSink struct {
-	tracer       opentracing.Tracer
+	tracerPool   sync.Pool
 	stats        *statsd.Client
 	commonTags   map[string]string
 	mutex        *sync.Mutex
@@ -254,20 +254,25 @@ func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[s
 		log.WithField("max spans", maxSpans).Info("Using default maximum spans — ssf_buffer_size — for LightStep")
 	}
 
-	lightstepTracer := lightstep.NewTracer(lightstep.Options{
-		AccessToken:     config.TraceLightstepAccessToken,
-		ReconnectPeriod: reconPeriod,
-		Collector: lightstep.Endpoint{
-			Host:      host.Hostname(),
-			Port:      port,
-			Plaintext: true,
+	p := sync.Pool{
+		New: func() interface{} {
+			stats.Incr("tracer.pool.new", nil, 1.0)
+			return lightstep.NewTracer(lightstep.Options{
+				AccessToken:     config.TraceLightstepAccessToken,
+				ReconnectPeriod: reconPeriod,
+				Collector: lightstep.Endpoint{
+					Host:      host.Hostname(),
+					Port:      port,
+					Plaintext: true,
+				},
+				UseGRPC:          true,
+				MaxBufferedSpans: maxSpans,
+			})
 		},
-		UseGRPC:          true,
-		MaxBufferedSpans: maxSpans,
-	})
+	}
 
 	return &lightStepSpanSink{
-		tracer:       lightstepTracer,
+		tracerPool:   p,
 		stats:        stats,
 		serviceCount: make(map[string]int64),
 		mutex:        &sync.Mutex{},
@@ -293,7 +298,9 @@ func (ls *lightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
 	}
 
 	timestamp := time.Unix(ssfSpan.StartTimestamp/1e9, ssfSpan.StartTimestamp%1e9)
-	sp := ls.tracer.StartSpan(
+	tracer := ls.tracerPool.Get().(opentracing.Tracer)
+	defer ls.tracerPool.Put(tracer)
+	sp := tracer.StartSpan(
 		ssfSpan.Name,
 		opentracing.StartTime(timestamp),
 		lightstep.SetTraceID(uint64(ssfSpan.TraceId)),
