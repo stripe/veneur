@@ -42,7 +42,7 @@ $ docker run --rm -it \
 
 ## Systemd
 
-[veneur.service](https://github.com/stripe/veneur/tree/master/public-docker-images/veneur.service) can be installed as a Systemd unit capable of managing Veneur as a docker container. It expects an environment configuration file in `/etc/default/veneur`; this should contain your settings, including API keys. You may also specify which Docker image to use here, via the environment variable `DOCKER_IMAGE` (default is `veneur`).
+[veneur.service](https://github.com/stripe/veneur/tree/master/public-docker-images/veneur.service) can be installed as a systemd unit capable of managing Veneur as a docker container. It expects an environment configuration file in `/etc/default/veneur`; this should contain your settings, including API keys. You may also specify which Docker image to use here, via the environment variable `DOCKER_IMAGE` (default is `veneur`).
 
 ## Veneur-emit
 
