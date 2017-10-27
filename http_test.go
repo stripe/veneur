@@ -342,9 +342,10 @@ func TestDatadogMetricsProxy(t *testing.T) {
 	config := localConfig()
 	s := setupVeneurServer(t, config, nil, nil, nil)
 	defer s.Shutdown()
+	HTTPAddrPort++
 
 	handler := handleDatadogImport(s)
 	handler.ServeHTTP(w, r)
 
-	assert.Equal(t, http.StatusOK, w.Code, "Test server returned wrong HTTP response code")
+	assert.Equal(t, http.StatusAccepted, w.Code, "Test server returned wrong HTTP response code")
 }
