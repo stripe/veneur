@@ -23,6 +23,7 @@ const datadogResourceKey = "resource"
 const datadogNameKey = "name"
 
 const lightStepOperationKey = "name"
+const lightstepMultiplexTracerNum = 10
 
 const totalSpansFlushedMetricKey = "worker.spans_flushed_total"
 
@@ -203,7 +204,7 @@ func (dd *datadogSpanSink) Flush() {
 
 // lightStepSpanSink is a sink for spans to be sent to the LightStep client.
 type lightStepSpanSink struct {
-	tracerPool   sync.Pool
+	tracers      []opentracing.Tracer
 	stats        *statsd.Client
 	commonTags   map[string]string
 	mutex        *sync.Mutex
@@ -254,25 +255,24 @@ func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[s
 		log.WithField("max spans", maxSpans).Info("Using default maximum spans — ssf_buffer_size — for LightStep")
 	}
 
-	p := sync.Pool{
-		New: func() interface{} {
-			stats.Incr("tracer.pool.new", nil, 1.0)
-			return lightstep.NewTracer(lightstep.Options{
-				AccessToken:     config.TraceLightstepAccessToken,
-				ReconnectPeriod: reconPeriod,
-				Collector: lightstep.Endpoint{
-					Host:      host.Hostname(),
-					Port:      port,
-					Plaintext: true,
-				},
-				UseGRPC:          true,
-				MaxBufferedSpans: maxSpans,
-			})
-		},
+	tracers := make([]opentracing.Tracer, 0, lightstepMultiplexTracerNum)
+
+	for _, _ = range tracers {
+		tracers = append(tracers, lightstep.NewTracer(lightstep.Options{
+			AccessToken:     config.TraceLightstepAccessToken,
+			ReconnectPeriod: reconPeriod,
+			Collector: lightstep.Endpoint{
+				Host:      host.Hostname(),
+				Port:      port,
+				Plaintext: true,
+			},
+			UseGRPC:          true,
+			MaxBufferedSpans: maxSpans,
+		}))
 	}
 
 	return &lightStepSpanSink{
-		tracerPool:   p,
+		tracers:      tracers,
 		stats:        stats,
 		serviceCount: make(map[string]int64),
 		mutex:        &sync.Mutex{},
@@ -298,8 +298,11 @@ func (ls *lightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
 	}
 
 	timestamp := time.Unix(ssfSpan.StartTimestamp/1e9, ssfSpan.StartTimestamp%1e9)
-	tracer := ls.tracerPool.Get().(opentracing.Tracer)
-	defer ls.tracerPool.Put(tracer)
+
+	// pick the tracer to use
+	tracerIndex := ssfSpan.TraceId % int64(len(ls.tracers))
+	tracer := ls.tracers[tracerIndex]
+
 	sp := tracer.StartSpan(
 		ssfSpan.Name,
 		opentracing.StartTime(timestamp),
