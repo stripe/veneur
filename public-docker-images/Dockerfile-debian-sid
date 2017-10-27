@@ -45,7 +45,6 @@ FROM debian:sid AS release
 RUN apt-get update && apt-get -y install ca-certificates
 WORKDIR /veneur/
 EXPOSE 8126/UDP 8126/TCP 8127/TCP 8128/UDP
-COPY --from=release-prep /etc/ca-certificates.conf /etc/ca-certificates.conf
 COPY --from=build /build/* /veneur/
 COPY --from=src /go/src/github.com/stripe/veneur/example.yaml /veneur/config.yaml
 CMD ["/veneur/veneur", "-f", "config.yaml"]

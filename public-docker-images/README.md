@@ -12,12 +12,12 @@ public-docker-images$ docker build --no-cache -t veneur:local -f Dockerfile-debi
 
 For the Alpine Linux-based image:
 ```
-public-docker-images$ docker build --no-cache -t veneur:local --build-arg Dockerfile-alpine .
+public-docker-images$ docker build --no-cache -t veneur:local -f Dockerfile-alpine .
 ```
 
 For a specific tag or branch:
 ```
-public-docker-images$ docker build -t veneur:local --build-arg BUILD_REF='tag-or-branch' Dockerfile-debian-sid .
+public-docker-images$ docker build -t veneur:local --build-arg BUILD_REF='tag-or-branch' -f Dockerfile-debian-sid .
 ```
 
 ## Running
