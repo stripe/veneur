@@ -257,7 +257,7 @@ func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[s
 
 	tracers := make([]opentracing.Tracer, 0, lightstepMultiplexTracerNum)
 
-	for _, _ = range tracers {
+	for i := 0; i < lightstepMultiplexTracerNum; i++ {
 		tracers = append(tracers, lightstep.NewTracer(lightstep.Options{
 			AccessToken:     config.TraceLightstepAccessToken,
 			ReconnectPeriod: reconPeriod,
@@ -299,6 +299,11 @@ func (ls *lightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
 
 	timestamp := time.Unix(ssfSpan.StartTimestamp/1e9, ssfSpan.StartTimestamp%1e9)
 
+	if len(ls.tracers) == 0 {
+		err := fmt.Errorf("No lightstep tracer clients initialized")
+		log.Error(err)
+		return err
+	}
 	// pick the tracer to use
 	tracerIndex := ssfSpan.TraceId % int64(len(ls.tracers))
 	tracer := ls.tracers[tracerIndex]
