@@ -1,0 +1,26 @@
+[Unit]
+Description=Veneur
+After=docker.service
+Requires=docker.service
+
+[Service]
+# Default docker image -- can be overridden in the EnvironmentFile
+Environment="DOCKER_IMAGE=veneur"
+
+# Should come after above; contents are passed to the docker container directly
+EnvironmentFile=/etc/default/veneur
+
+# Graceful shutdown requires a SIGINT
+KillSignal=INT
+
+# Start a named container, clean up when it stops
+ExecStart=/usr/bin/docker run --rm \
+  --name veneur-systemd \
+  -p 8126:8126/udp \
+  -p 8127:8127/tcp \
+  --env-file /etc/default/veneur \
+  --net=host \
+  $DOCKER_IMAGE
+
+[Install]
+WantedBy=multi-user.target timers.target

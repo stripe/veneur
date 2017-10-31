@@ -100,7 +100,7 @@ func readConfig(r io.Reader) (c Config, err error) {
 	}
 
 	if c.TraceAddress != "" {
-		log.Warn("The config key `trace_address` is deprecated and replaced with `ssf_address` and will be removed in 2.0!")
+		log.Warn("The config key `trace_address` is deprecated and replaced with entries in `ssf_listen_addresses` and will be removed in 2.0!")
 		if c.SsfAddress == "" {
 			c.SsfAddress = c.TraceAddress
 		}
