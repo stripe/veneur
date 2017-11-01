@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	proto "github.com/golang/protobuf/proto"
-	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/ssf"
 )
 
@@ -32,7 +32,7 @@ func TestTagNameSetNameNotSet(t *testing.T) {
 	buf, err := proto.Marshal(&sample)
 	assert.NoError(t, err, "Eror when marshalling sample")
 
-	msg, errSSF := samplers.ParseSSF(buf)
+	msg, errSSF := protocol.ParseSSF(buf)
 	assert.NoError(t, err)
 	if assert.NotNil(t, msg) {
 		newSample, err := msg.TraceSpan()
@@ -57,7 +57,7 @@ func TestTagNameSetNameSet(t *testing.T) {
 	buf, err := proto.Marshal(&sample)
 	assert.NoError(t, err, "Error when marshalling sample")
 
-	msg, errSSF := samplers.ParseSSF(buf)
+	msg, errSSF := protocol.ParseSSF(buf)
 	assert.NoError(t, err)
 	if assert.NotNil(t, msg) {
 		newSample, err := msg.TraceSpan()
@@ -77,7 +77,7 @@ func TestNoTagName(t *testing.T) {
 	buf, err := proto.Marshal(&sample)
 	assert.NoError(t, err)
 
-	msg, errSSF := samplers.ParseSSF(buf)
+	msg, errSSF := protocol.ParseSSF(buf)
 	assert.NoError(t, err)
 	if assert.NotNil(t, msg) {
 		newSample, err := msg.TraceSpan()
@@ -98,7 +98,7 @@ func TestOperation(t *testing.T) {
 	packet, err := ioutil.ReadAll(pb)
 	assert.NoError(t, err)
 
-	msg, errSSF := samplers.ParseSSF(packet)
+	msg, errSSF := protocol.ParseSSF(packet)
 	assert.NoError(t, errSSF)
 	if assert.NotNil(t, msg) {
 		sample, errSSF := msg.TraceSpan()

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 )
@@ -41,18 +42,18 @@ func TestValidMetric(t *testing.T) {
 
 func TestValidTrace(t *testing.T) {
 	trace := &ssf.SSFSpan{}
-	assert.False(t, samplers.ValidTrace(trace))
+	assert.False(t, protocol.ValidTrace(trace))
 
 	trace.Id = 1
 	trace.TraceId = 1
 	trace.StartTimestamp = 1
 	trace.EndTimestamp = 5
-	assert.True(t, samplers.ValidTrace(trace))
+	assert.True(t, protocol.ValidTrace(trace))
 }
 
 func TestParseSSFUnmarshal(t *testing.T) {
 	test := []byte{'0'}
-	sample, err := samplers.ParseSSF(test)
+	sample, err := protocol.ParseSSF(test)
 
 	assert.Nil(t, sample)
 	assert.NotNil(t, err)
@@ -65,7 +66,7 @@ func TestParseSSFEmpty(t *testing.T) {
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)
 
-	_, err = samplers.ParseSSF(buff)
+	_, err = protocol.ParseSSF(buff)
 	assert.NoError(t, err)
 }
 
@@ -79,7 +80,7 @@ func TestParseSSFValidTraceInvalidMetric(t *testing.T) {
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)
 
-	msg, err := samplers.ParseSSF(buff)
+	msg, err := protocol.ParseSSF(buff)
 	assert.Nil(t, err)
 	if assert.NotNil(t, msg) {
 		span, err := msg.TraceSpan()
@@ -87,7 +88,7 @@ func TestParseSSFValidTraceInvalidMetric(t *testing.T) {
 		assert.NotNil(t, span)
 		assert.NotNil(t, span.Tags)
 
-		metrics, err := msg.Metrics()
+		metrics, err := samplers.ConvertMetrics(msg)
 		assert.NoError(t, err)
 		assert.Empty(t, metrics)
 	}
@@ -103,10 +104,10 @@ func TestParseSSFInvalidTraceValidMetric(t *testing.T) {
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)
 
-	msg, err := samplers.ParseSSF(buff)
+	msg, err := protocol.ParseSSF(buff)
 	assert.NoError(t, err)
 	if assert.NotNil(t, msg) {
-		metrics, err := msg.Metrics()
+		metrics, err := samplers.ConvertMetrics(msg)
 		assert.NoError(t, err)
 		if assert.Equal(t, 1, len(metrics)) {
 			m := metrics[0]
@@ -116,7 +117,7 @@ func TestParseSSFInvalidTraceValidMetric(t *testing.T) {
 		}
 
 		span, err := msg.TraceSpan()
-		_, isInvalid := err.(*samplers.InvalidTrace)
+		_, isInvalid := err.(*protocol.InvalidTrace)
 		assert.True(t, isInvalid)
 		assert.Nil(t, span)
 	}
@@ -137,10 +138,10 @@ func TestParseSSFValid(t *testing.T) {
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)
 
-	msg, err := samplers.ParseSSF(buff)
+	msg, err := protocol.ParseSSF(buff)
 	assert.NoError(t, err)
 	if assert.NotNil(t, msg) {
-		metrics, err := msg.Metrics()
+		metrics, err := samplers.ConvertMetrics(msg)
 		assert.NoError(t, err)
 		if assert.Equal(t, 1, len(metrics)) {
 			m := metrics[0]
@@ -163,10 +164,10 @@ func TestParseSSFBadMetric(t *testing.T) {
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)
 
-	msg, err := samplers.ParseSSF(buff)
+	msg, err := protocol.ParseSSF(buff)
 	assert.NoError(t, err)
 	if assert.NotNil(t, msg) {
-		metrics, err := msg.Metrics()
+		metrics, err := samplers.ConvertMetrics(msg)
 		assert.Error(t, err)
 		assert.Equal(t, 0, len(metrics))
 		invalid, ok := err.(samplers.InvalidMetrics)
@@ -461,9 +462,9 @@ func TestConsecutiveParseSSF(t *testing.T) {
 	// Because ParseSSF reuses buffers via a Pool when parsing we
 	// want to ensure that subsequent calls properly reset and
 	// don't bleed into each other, so "parse" each and check.
-	msg, err := samplers.ParseSSF(buff1)
+	msg, err := protocol.ParseSSF(buff1)
 	assert.Nil(t, err)
-	msg2, err := samplers.ParseSSF(buff2)
+	msg2, err := protocol.ParseSSF(buff2)
 	assert.Nil(t, err)
 
 	span1, err := msg.TraceSpan()
@@ -485,6 +486,6 @@ func BenchmarkParseSSF(b *testing.B) {
 	assert.Nil(b, err)
 
 	for n := 0; n < b.N; n++ {
-		samplers.ParseSSF(buff)
+		protocol.ParseSSF(buff)
 	}
 }
