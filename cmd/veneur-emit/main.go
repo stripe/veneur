@@ -140,6 +140,10 @@ func main() {
 			}
 		}
 	} else if *mode == "event" {
+		if *toSSF {
+			logrus.WithField("mode", *mode).
+				Fatal("Unsupported mode with SSF")
+		}
 		logrus.Debug("Sending event")
 		nconn, _ := net.Dial(network, addr)
 		pkt, err := buildEventPacket(passedFlags)
@@ -149,6 +153,10 @@ func main() {
 		nconn.Write(pkt.Bytes())
 		logrus.Debugf("Buffer string: %s", pkt.String())
 	} else if *mode == "sc" {
+		if *toSSF {
+			logrus.WithField("mode", *mode).
+				Fatal("Unsupported mode with SSF")
+		}
 		logrus.Debug("Sending service check")
 		nconn, _ := net.Dial(network, addr)
 		pkt, err := buildSCPacket(passedFlags)
