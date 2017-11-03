@@ -169,23 +169,23 @@ func destination(passedFlags map[string]flag.Value, hostport *string, useSSF boo
 	return addr, network, nil
 }
 
-func timeCommand(command []string, name string) (int, time.Duration, error) {
+func timeCommand(command []string, name string) (exitStatus int, start time.Time, ended time.Time, err error) {
 	logrus.Debugf("Timing %q...", command)
 	cmd := exec.Command(command[0], command[1:]...)
-	exitStatus := 0
-	start := time.Now()
-	err := cmd.Run()
+	start = time.Now()
+	err = cmd.Run()
+	ended = time.Now()
 	if err != nil {
 		exitError, ok := err.(*exec.ExitError)
 		if !ok {
-			return 1, 0, err
+			exitStatus = 1
+			return
 		}
 		status := exitError.ProcessState.Sys().(syscall.WaitStatus)
 		exitStatus = status.ExitStatus()
 	}
-	elapsed := time.Since(start)
-	logrus.Debugf("%q took %s", command, elapsed)
-	return exitStatus, elapsed, err
+	logrus.Debugf("%q took %s", command, ended.Sub(start))
+	return
 }
 
 func bareMetric(name string, tags string) *ssf.SSFSample {
@@ -209,18 +209,22 @@ func createMetric(passedFlags map[string]flag.Value, name string, tags string) (
 		if *shellCommand {
 			var elapsed time.Duration
 			var cmdTags []string
+			var start, ended time.Time
 
-			// TODO: This is wrong also - we should set this on the span itself.
-			status, elapsed, err = timeCommand(flag.Args(), name)
+			status, start, ended, err = timeCommand(flag.Args(), name)
 			if err != nil {
 				return nil, status, err
 			}
-			metric := bareMetric(name, tags)
-			metric.Tags["exit_status"] = strconv.Itoa(status)
-			metric.Metric = ssf.SSFSample_HISTOGRAM
-			metric.Unit = "ms"
-			metric.Value = float32(elapsed / time.Millisecond)
-			span.Metrics = append(span.Metrics, metric)
+			span.Name = name
+			span.Tags = make(map[string]string)
+			if tags != "" {
+				for _, elem := range strings.Split(tags, ",") {
+					tag := strings.Split(elem, ":")
+					span.Tags[tag[0]] = tag[1]
+				}
+			}
+			span.StartTimestamp = start.UnixNano()
+			span.EndTimestamp = ended.UnixNano()
 		}
 		if passedFlags["gauge"] != nil {
 			logrus.Debugf("Sending gauge '%s' -> %f", name, passedFlags["gauge"].String())
@@ -271,6 +275,18 @@ func sendStatsd(addr string, span *ssf.SSFSpan) error {
 	if err != nil {
 		return err
 	}
+	// See if we can report the span's duration as a timing:
+	if span.StartTimestamp != 0 && span.EndTimestamp != 0 {
+		tags := make([]string, 0, len(span.Tags))
+		for name, val := range span.Tags {
+			tags = append(tags, fmt.Sprintf("%s:%s", name, val))
+		}
+		err = client.Timing(span.Name, time.Duration(span.EndTimestamp-span.StartTimestamp), tags, 1.0)
+		if err != nil {
+			return err
+		}
+	}
+	// Report all the metrics in the span:
 	for _, metric := range span.Metrics {
 		tags := make([]string, 0, len(metric.Tags))
 		for name, val := range metric.Tags {
@@ -278,12 +294,12 @@ func sendStatsd(addr string, span *ssf.SSFSpan) error {
 		}
 		switch metric.Metric {
 		case ssf.SSFSample_COUNTER:
-			return client.Count(metric.Name, int64(metric.Value), tags, 1.0)
+			err = client.Count(metric.Name, int64(metric.Value), tags, 1.0)
 		case ssf.SSFSample_GAUGE:
-			return client.Gauge(metric.Name, float64(metric.Value), tags, 1.0)
-		case ssf.SSFSample_HISTOGRAM:
-			// TODO: this is wrong. We should be using the duration of the span instead.
-			return client.Histogram(metric.Name, float64(metric.Value), tags, 1.0)
+			err = client.Gauge(metric.Name, float64(metric.Value), tags, 1.0)
+		}
+		if err != nil {
+			return err
 		}
 	}
 	return nil
