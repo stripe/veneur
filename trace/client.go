@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/stripe/veneur/protocol"
@@ -36,6 +37,9 @@ type Client struct {
 	backend
 	cancel context.CancelFunc
 	ops    chan op
+
+	stats    IncrClient
+	statsMtx sync.Mutex
 }
 
 // Close tears down the entire client. It waits until the backend has
@@ -59,6 +63,18 @@ func (c *Client) run(ctx context.Context) {
 		}
 		do(ctx, c.backend)
 	}
+}
+
+type IncrClient interface {
+	Incr(name string, tags []string, rate float64) error
+}
+
+// SetErrorStats sets an IncrClient used for reporting errors
+func (c *Client) SetErrorStats(statsClient IncrClient) {
+	c.statsMtx.Lock()
+	defer c.statsMtx.Unlock()
+
+	c.stats = statsClient
 }
 
 // ClientParam is an option for NewClient. Its implementation borrows
