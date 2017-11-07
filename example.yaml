@@ -193,7 +193,11 @@ trace_lightstep_reconnect_period: "5m"
 # `ssf_buffer_size`.
 trace_lightstep_maximum_spans: 0
 
-
+# Multiple clients can be used to load-balance spans cross multiple collectors,
+# improving span indexing success rates.
+# If missing (or set to zero), it will default
+# to a minimum of one client
+trace_lightstep_num_clients: 1
 
 # == PLUGINS ==
 
