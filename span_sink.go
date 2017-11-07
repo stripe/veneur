@@ -23,7 +23,6 @@ const datadogResourceKey = "resource"
 const datadogNameKey = "name"
 
 const lightStepOperationKey = "name"
-const lightstepMultiplexTracerNum = 10
 
 const totalSpansFlushedMetricKey = "worker.spans_flushed_total"
 
@@ -253,6 +252,12 @@ func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[s
 	if maxSpans == 0 {
 		maxSpans = config.SsfBufferSize
 		log.WithField("max spans", maxSpans).Info("Using default maximum spans — ssf_buffer_size — for LightStep")
+	}
+
+	lightstepMultiplexTracerNum := config.TraceLightstepNumClients
+	// If config value is missing, this value should default to one client
+	if lightstepMultiplexTracerNum <= 0 {
+		lightstepMultiplexTracerNum = 1
 	}
 
 	tracers := make([]opentracing.Tracer, 0, lightstepMultiplexTracerNum)
