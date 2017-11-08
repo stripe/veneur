@@ -117,11 +117,15 @@ func main() {
 		return
 	}
 
-	span, err := createMetric(passedFlags, *name, *tag)
+	span, status, err := createMetric(passedFlags, *name, *tag)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error creating metric.")
 	}
-
+	if *toSSF {
+		// sendSSF(addr, span)  // TODO: what's addr?
+	} else {
+		sendStatsd(addr, span)
+	}
 	os.Exit(status)
 }
 
@@ -169,7 +173,7 @@ func destination(passedFlags map[string]flag.Value, hostport *string, useSSF boo
 	return addr, network, nil
 }
 
-func timeCommand(command []string, name string) (exitStatus int, start time.Time, ended time.Time, err error) {
+func timeCommand(command []string) (exitStatus int, start time.Time, ended time.Time, err error) {
 	logrus.Debugf("Timing %q...", command)
 	cmd := exec.Command(command[0], command[1:]...)
 	start = time.Now()
@@ -206,14 +210,20 @@ func createMetric(passedFlags map[string]flag.Value, name string, tags string) (
 	status := 0
 	span := &ssf.SSFSpan{}
 	if *mode == "metric" {
-		if *shellCommand {
-			var elapsed time.Duration
-			var cmdTags []string
+		if *shellCommand || passedFlags["timing"] != nil {
 			var start, ended time.Time
 
-			status, start, ended, err = timeCommand(flag.Args(), name)
-			if err != nil {
-				return nil, status, err
+			if *shellCommand {
+				status, start, ended, err = timeCommand(flag.Args())
+				if err != nil {
+					return nil, status, err
+				}
+			} else {
+				duration, err := time.ParseDuration(passedFlags["timing"].String())
+				if err != nil {
+					return nil, 0, err
+				}
+				ended = start.Add(duration)
 			}
 			span.Name = name
 			span.Tags = make(map[string]string)

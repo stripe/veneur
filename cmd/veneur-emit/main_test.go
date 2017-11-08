@@ -13,6 +13,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/ssf"
 )
 
 var (
@@ -96,13 +97,13 @@ func TestTimeCommand(t *testing.T) {
 	client := &fakeClient{}
 	resetMap(calledFunctions)
 	testFlag := make(map[string]flag.Value)
-	testFlag["command"] = newValue("echo hello")
+	testFlag["command"] = newValue("/bin/true")
 	testFlag["name"] = newValue("test.timing")
 	command := []string{"echo", "hello"}
 	name := "test.timing"
 
 	t.Run("basic", func(t *testing.T) {
-		st, err := timeCommand(client, command, name, []string{})
+		st, _, _, err := timeCommand(command)
 
 		assert.NoError(t, err, "timeCommand had an error")
 		assert.True(t, calledFunctions["timing"], "timeCommand did not call Timing")
@@ -114,107 +115,86 @@ func TestTimeCommand(t *testing.T) {
 		defer func() {
 			badCall = false
 		}()
-		st, err := timeCommand(client, command, name, []string{})
+		st, _, _, err := timeCommand(command)
 		assert.Error(t, err, "timeCommand did not throw error.")
 		assert.Zero(t, st)
 	})
 
-	t.Run("withTags", func(t *testing.T) {
-		st, err := timeCommand(client, command, name, []string{"tag1:value1"})
-		assert.NoError(t, err, "timeCommand had an error")
-		assert.Zero(t, st)
-	})
-
 	t.Run("badCall", func(t *testing.T) {
-		command = []string{"cat", "x"}
-		st, err := timeCommand(client, command, name, []string{"tag1:value1"})
+		command = []string{"/bin/false"}
+		st, _, _, err := timeCommand(command)
 		assert.NotZero(t, st)
 		assert.NoError(t, err)
 	})
 }
 
 func TestGauge(t *testing.T) {
-	client := &fakeClient{}
-	resetMap(calledFunctions)
 	testFlag := make(map[string]flag.Value)
 	testFlag["gauge"] = newValue("3")
-	err := sendMetrics(client, testFlag, "testMetric", testTags)
-	if err != nil || !calledFunctions["gauge"] {
-		t.Error("Did not send 'gauge' metric.")
-	}
+	span, _, err := createMetric(testFlag, "testMetric", "")
+	assert.NoError(t, err)
+	assert.Len(t, span.Metrics, 1)
+	assert.Equal(t, ssf.SSFSample_GAUGE, span.Metrics[0].Metric)
+	assert.Equal(t, "testMetric", span.Metrics[0].Name)
+	assert.Equal(t, 3.0, span.Metrics[0].Value)
 }
 
 func TestCount(t *testing.T) {
-	client := &fakeClient{}
-	resetMap(calledFunctions)
 	testFlag := make(map[string]flag.Value)
 	testFlag["count"] = newValue("3")
-	err := sendMetrics(client, testFlag, "testMetric", testTags)
-	if err != nil || !calledFunctions["count"] {
-		t.Error("Did not send 'count' metric.")
-	}
+	span, _, err := createMetric(testFlag, "testMetric", "")
+	assert.NoError(t, err)
+	assert.Len(t, span.Metrics, 1)
+	assert.Equal(t, ssf.SSFSample_COUNTER, span.Metrics[0].Metric)
+	assert.Equal(t, "testMetric", span.Metrics[0].Name)
+	assert.Equal(t, 3.0, span.Metrics[0].Value)
 }
 
 func TestTiming(t *testing.T) {
-	client := &fakeClient{}
-	resetMap(calledFunctions)
 	testFlag := make(map[string]flag.Value)
 	testFlag["timing"] = newValue("3ns")
-	err := sendMetrics(client, testFlag, "testMetric", testTags)
-	if err != nil || !calledFunctions["timing"] {
-		t.Error("Did not send 'timing' metric.")
-	}
+	span, _, err := createMetric(testFlag, "testMetric", "")
+	assert.NoError(t, err)
+	assert.Len(t, span.Metrics, 0)
+	assert.Equal(t, "testMetric", span.Name)
+	assert.Equal(t, 3*time.Nanosecond, span.StartTimestamp)
+	assert.Equal(t, 3*time.Nanosecond, span.EndTimestamp)
 }
 
 func TestMultiple(t *testing.T) {
-	client := &fakeClient{}
-	resetMap(calledFunctions)
 	testFlag := make(map[string]flag.Value)
 	testFlag["gauge"] = newValue("3")
 	testFlag["count"] = newValue("2")
-	err := sendMetrics(client, testFlag, "testMetrics", testTags)
-	if err != nil || (!calledFunctions["count"] && !calledFunctions["gauge"]) {
-		t.Error("Did not send multiple metrics.")
-	}
+	span, _, err := createMetric(testFlag, "testMetric", "")
+	assert.NoError(t, err)
+	assert.Len(t, span.Metrics, 2)
+	assert.Equal(t, "testMetric", span.Metrics[1].Name)
+	assert.Equal(t, "testMetric", span.Metrics[0].Name)
 }
 
 func TestNone(t *testing.T) {
-	client := &fakeClient{}
-	resetMap(calledFunctions)
 	testFlag := make(map[string]flag.Value)
-	err := sendMetrics(client, testFlag, "testNoMetric", testTags)
-	if err != nil {
-		t.Error("Error while sending no metrics.")
-	}
+	span, _, err := createMetric(testFlag, "testMetric", "")
+	assert.NoError(t, err)
+	assert.Len(t, span.Metrics, 0)
 }
 
 func TestBadCalls(t *testing.T) {
-	client := &fakeClient{}
-	badCall = true
 	var err error
-	resetMap(calledFunctions)
 	testFlag := make(map[string]flag.Value)
-	testFlag["gauge"] = newValue("3")
-	err = sendMetrics(client, testFlag, "testBadMetric", testTags)
-	if err == nil || err.Error() != "error sending metric" || !calledFunctions["gauge"] {
-		t.Error("Did not detect error")
-	}
+	testFlag["gauge"] = newValue("notanumber")
+	_, _, err = createMetric(testFlag, "testBadMetric", "")
+	assert.Error(t, err)
 
-	resetMap(calledFunctions)
 	testFlag = make(map[string]flag.Value)
-	testFlag["timing"] = newValue("3ns")
-	err = sendMetrics(client, testFlag, "testBadMetric", testTags)
-	if err == nil || err.Error() != "error sending metric" || !calledFunctions["timing"] {
-		t.Error("Did not detect error")
-	}
+	testFlag["timing"] = newValue("40megayears")
+	_, _, err = createMetric(testFlag, "testBadMetric", "")
+	assert.Error(t, err)
 
-	resetMap(calledFunctions)
 	testFlag = make(map[string]flag.Value)
-	testFlag["count"] = newValue("3")
-	err = sendMetrics(client, testFlag, "testBadMetric", testTags)
-	if err == nil || err.Error() != "error sending metric" || !calledFunctions["count"] {
-		t.Error("Did not detect error")
-	}
+	testFlag["count"] = newValue("four")
+	_, _, err = createMetric(testFlag, "testBadMetric", "")
+	assert.Error(t, err)
 }
 
 func TestHostport(t *testing.T) {
@@ -295,17 +275,12 @@ func TestCreateMetrics(t *testing.T) {
 
 	testFlag["gauge"] = newValue("3.14")
 	testFlag["count"] = newValue("2")
-	span, _ := createMetrics(testFlag, "test.metric", "tag1:value1")
-	if len(span.Metrics) != 2 {
-		t.Error("Not reporting right number of metrics.")
-	}
+	span, _, err := createMetric(testFlag, "test.metric", "tag1:value1")
+	assert.NoError(t, err)
+	assert.Len(t, span.Metrics, 2)
 	for _, metric := range span.Metrics {
-		if metric.Name != "test.metric" {
-			t.Error("Metric name not correct.")
-		}
-		if metric.Tags["tag1"] != "value1" {
-			t.Error("Metric tags not correct.")
-		}
+		assert.Equal(t, "test.metric", metric.Name)
+		assert.Equal(t, "value1", metric.Tags["tag1"])
 	}
 }
 
@@ -313,7 +288,7 @@ func TestSendSpan(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	dataWritten = []byte{}
 	conn := &fakeConn{}
-	span, _ := createMetrics(testFlag, "test.metric", "tag1:value1")
+	span, _, _ := createMetric(testFlag, "test.metric", "tag1:value1")
 	sendSpan(conn, span)
 	orig, _ := proto.Marshal(span)
 	if !bytes.Equal(orig, dataWritten) {
@@ -325,7 +300,7 @@ func TestBadSendSpan(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	dataWritten = []byte{}
 	conn := &badConn{}
-	span, _ := createMetrics(testFlag, "test.metric", "tag1:value1")
+	span, _, _ := createMetric(testFlag, "test.metric", "tag1:value1")
 	err := sendSpan(conn, span)
 	assert.NotNil(t, err, "Did not return err!")
 }
