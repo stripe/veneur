@@ -32,6 +32,7 @@ const totalSpansFlushedMetricKey = "worker.spans_flushed_total"
 // handle their own flushing in a separate goroutine, etc.
 type spanSink interface {
 	Name() string
+	Start(*trace.Client) error
 	Ingest(ssf.SSFSpan) error
 	Flush()
 }
@@ -45,6 +46,7 @@ type datadogSpanSink struct {
 	stats        *statsd.Client
 	commonTags   map[string]string
 	traceAddress string
+	traceClient  *trace.Client
 }
 
 // NewDatadogSpanSink creates a new Datadog sink for trace spans.
@@ -63,6 +65,12 @@ func NewDatadogSpanSink(config *Config, stats *statsd.Client, httpClient *http.C
 // Name returns the name of this sink.
 func (dd *datadogSpanSink) Name() string {
 	return "datadog"
+}
+
+// Start performs final adjustments on the sink.
+func (dd *datadogSpanSink) Start(cl *trace.Client) error {
+	dd.traceClient = cl
+	return nil
 }
 
 // Ingest takes the span and adds it to the ringbuffer.
@@ -182,7 +190,7 @@ func (dd *datadogSpanSink) Flush() {
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
 
-		err := postHelper(context.TODO(), dd.HTTPClient, dd.stats, fmt.Sprintf("%s/spans", dd.traceAddress), finalTraces, "flush_traces", false)
+		err := postHelper(context.TODO(), dd.HTTPClient, dd.stats, dd.traceClient, fmt.Sprintf("%s/spans", dd.traceAddress), finalTraces, "flush_traces", false)
 
 		if err == nil {
 			log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
@@ -208,6 +216,7 @@ type lightStepSpanSink struct {
 	commonTags   map[string]string
 	mutex        *sync.Mutex
 	serviceCount map[string]int64
+	traceClient  *trace.Client
 }
 
 // NewLightStepSpanSink creates a new instance of a LightStepSpanSink.
@@ -284,6 +293,11 @@ func NewLightStepSpanSink(config *Config, stats *statsd.Client, commonTags map[s
 	}, nil
 }
 
+func (ls *lightStepSpanSink) Start(cl *trace.Client) error {
+	ls.traceClient = cl
+	return nil
+}
+
 // Name returns this sink's name.
 func (ls *lightStepSpanSink) Name() string {
 	return "lightstep"
@@ -341,9 +355,12 @@ func (ls *lightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
 	}
 
 	endTime := time.Unix(ssfSpan.EndTimestamp/1e9, ssfSpan.EndTimestamp%1e9)
-	sp.FinishWithOptions(opentracing.FinishOptions{
-		FinishTime: endTime,
-	})
+	finishOpts := opentracing.FinishOptions{FinishTime: endTime}
+	if sp, ok := sp.(*trace.Span); ok {
+		sp.ClientFinishWithOptions(ls.traceClient, finishOpts)
+	} else {
+		sp.FinishWithOptions(finishOpts)
+	}
 
 	service := ssfSpan.Service
 	if service == "" {

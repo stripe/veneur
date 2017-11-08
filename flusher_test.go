@@ -169,6 +169,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 
 	ddSink, err := NewDatadogSpanSink(&config, server.Statsd, server.HTTPClient, server.TagsAsMap)
 
+	server.TraceClient = nil
 	server.spanSinks = append(server.spanSinks, ddSink)
 
 	packet, err := ioutil.ReadAll(protobuf)

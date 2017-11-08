@@ -36,6 +36,7 @@ import (
 	s3p "github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
 
@@ -112,6 +113,8 @@ type Server struct {
 	metricSinks []metricSink
 
 	traceLightstepAccessToken string
+
+	TraceClient *trace.Client
 }
 
 // NewFromConfig creates a new veneur server from a configuration specification.
@@ -280,6 +283,13 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 	// Configure tracing sinks
 	if len(conf.SsfListenAddresses) > 0 && (conf.DatadogTraceAPIAddress != "" || conf.TraceLightstepAccessToken != "") {
+		// Set up our internal trace client:
+		tb := &internalTraceBackend{}
+		ret.TraceClient, err = trace.NewBackendClient(tb, trace.Capacity(200))
+		if err != nil {
+			panic(fmt.Sprintf("Could not set up internal trace backend: %v", err))
+		}
+
 		// Set a sane default
 		if conf.SsfBufferSize == 0 {
 			conf.SsfBufferSize = defaultSpanBufferSize
@@ -316,6 +326,9 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 		ret.SpanWorker = NewSpanWorker(ret.spanSinks, ret.Statsd)
 
+		// Now that we have a span worker, set the trace
+		// backend up to send spans to it:
+		tb.spanWorker = ret.SpanWorker
 	} else {
 		trace.Disable()
 	}
@@ -394,6 +407,7 @@ func (s *Server) Start() {
 	}()
 
 	if s.TracingEnabled() {
+
 		log.Info("Starting Trace worker")
 		go func() {
 			defer func() {
@@ -414,6 +428,20 @@ func (s *Server) Start() {
 		New: func() interface{} {
 			return make([]byte, s.traceMaxLengthBytes)
 		},
+	}
+
+	for _, sink := range s.spanSinks {
+		logrus.WithField("sink", sink.Name()).Info("Starting span sink")
+		if err := sink.Start(s.TraceClient); err != nil {
+			logrus.WithError(err).WithField("sink", sink).Fatal("Error starting span sink")
+		}
+	}
+
+	for _, sink := range s.metricSinks {
+		logrus.WithField("sink", sink.Name()).Info("Starting metric sink")
+		if err := sink.Start(s.TraceClient); err != nil {
+			logrus.WithError(err).WithField("sink", sink).Fatal("Error starting metric sink")
+		}
 	}
 
 	// Read Metrics Forever!
@@ -854,3 +882,39 @@ func (s *Server) TracingEnabled() bool {
 	//TODO we now need to check that the backends are flushing the data too
 	return s.SpanWorker != nil
 }
+
+type internalTraceBackend struct {
+	spanWorker *SpanWorker
+}
+
+// Close is a no-op on the internal backend.
+func (tb *internalTraceBackend) Close() error {
+	return nil
+}
+
+// SendSync sends the span directly into the veneur Server.
+func (tb *internalTraceBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
+	if tb.spanWorker == nil {
+		return ErrNoSpanWorker
+	}
+	ch := make(chan struct{})
+	go func() {
+		tb.spanWorker.SpanChan <- *span
+		close(ch)
+	}()
+	select {
+	case <-ch:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// Flush on an internal trace backend is a no-op.
+func (tb *internalTraceBackend) FlushSync(ctx context.Context) error {
+	return nil
+}
+
+var ErrNoSpanWorker = fmt.Errorf("Can not submit traces to an unstarted server")
+
+var _ trace.ClientBackend = &internalTraceBackend{}

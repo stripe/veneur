@@ -18,6 +18,10 @@ func TestNewDatadogSpanSinkConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	err = ddSink.Start(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	assert.Equal(t, "http://trace", ddSink.traceAddress)
 }

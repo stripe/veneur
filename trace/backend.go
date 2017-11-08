@@ -36,43 +36,51 @@ type backendParams struct {
 	maxBackoff     time.Duration
 	connectTimeout time.Duration
 	bufferSize     uint
-	cap            uint
 }
 
 func (p *backendParams) params() *backendParams {
 	return p
 }
 
-// backend is a structure that can send an SSF span to a destination
-// over a persistent connection, handling reconnections. When
-// encountering connection errors, a backend will automatically attempt
-// to reconnect and blocks until reconnecting succeeds.
+// ClientBackend represents the ability of a client to transport SSF
+// spans to a veneur server.
+type ClientBackend interface {
+	io.Closer
+
+	// SendSync synchronously sends a span to an upstream
+	// veneur.
+	//
+	// On a networked connection, if it encounters a protocol
+	// error in sending, it must loop forever, backing off by
+	// n*the backoff interval (until it reaches the maximal
+	// backoff interval) and tries to reconnect. If SendSync
+	// encounters any non-protocol errors (e.g. in serializing the
+	// SSF span), it must return them without reconnecting.
+	SendSync(ctx context.Context, span *ssf.SSFSpan) error
+
+	// FlushSync causes all (potentially) buffered data to be sent to
+	// the upstream veneur.
+	FlushSync(ctx context.Context) error
+}
+
+// networkBackend is a structure that can send an SSF span to a
+// destination over a persistent connection, handling
+// reconnections. When encountering connection errors, a
+// networkBackend will automatically attempt to reconnect and blocks
+// until reconnecting succeeds.
 //
 // Data loss / resiliency to failure
 //
-// If a backend encounters an error sending a span, it should discard
-// the span and attempt to reconnect. This is intended to make the
-// backend resilient against "poison pill" spans, at the cost of
-// losing that span if there are connection problems, such as veneurs
-// getting restarted.
-type backend interface {
-	io.Closer
+// If a networkBackend encounters an error sending a span, it should
+// discard the span and attempt to reconnect. This is intended to make
+// the networkBackend resilient against "poison pill" spans, at the
+// cost of losing that span if there are connection problems, such as
+// veneurs getting restarted.
+type networkBackend interface {
+	ClientBackend
 
 	params() *backendParams
 	connection(net.Conn)
-
-	// sendSync synchronously sends a span to an upstream
-	// veneur. If it encounters a protocol error in sending, it
-	// must loop forever, backing off by n*the backoff interval
-	// (until it reaches the maximal backoff interval) and tries
-	// to reconnect. If sendSync encounters any non-protocol
-	// errors (e.g. in serializing the SSF span), it must return
-	// them without reconnecting.
-	sendSync(ctx context.Context, span *ssf.SSFSpan) error
-
-	// flushSync causes all (potentially) buffered data to be sent to
-	// the upstream veneur.
-	flushSync(ctx context.Context) error
 }
 
 // packetBackend represents a UDP connection to a veneur server. It
@@ -93,7 +101,7 @@ func (s *packetBackend) Close() error {
 	return s.conn.Close()
 }
 
-func (s *packetBackend) sendSync(ctx context.Context, span *ssf.SSFSpan) error {
+func (s *packetBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
 	if s.conn == nil {
 		if err := connect(ctx, s); err != nil {
 			return err
@@ -108,12 +116,12 @@ func (s *packetBackend) sendSync(ctx context.Context, span *ssf.SSFSpan) error {
 	return err
 }
 
-// flushSync on a PacketStream is a no-op.
-func (s *packetBackend) flushSync(context.Context) error {
+// FlushSync on a PacketStream is a no-op.
+func (s *packetBackend) FlushSync(context.Context) error {
 	return nil
 }
 
-var _ backend = &packetBackend{}
+var _ networkBackend = &packetBackend{}
 
 // streamBackend is a backend for streaming connections.
 type streamBackend struct {
@@ -123,7 +131,7 @@ type streamBackend struct {
 	buffer *bufio.Writer
 }
 
-func connect(ctx context.Context, s backend) error {
+func connect(ctx context.Context, s networkBackend) error {
 	dialer := net.Dialer{}
 
 	params := s.params()
@@ -179,11 +187,11 @@ func (ds *streamBackend) connection(conn net.Conn) {
 	}
 }
 
-// sendSync on a DirectStream attempts to write the packet on the
+// SendSync on a DirectStream attempts to write the packet on the
 // connection to the upstream veneur directly. If it encounters a
-// protocol error, sendSync will return the original protocol error once
+// protocol error, SendSync will return the original protocol error once
 // the connection is re-established.
-func (ds *streamBackend) sendSync(ctx context.Context, span *ssf.SSFSpan) error {
+func (ds *streamBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
 	if ds.conn == nil {
 		if err := connect(ctx, ds); err != nil {
 			return err
@@ -206,10 +214,10 @@ func (ds *streamBackend) Close() error {
 	return ds.conn.Close()
 }
 
-// flushSync on a DirectStream flushes the buffer if one exists. If the
-// connection was disconnected prior to flushing, flushSync re-establishes
+// FlushSync on a DirectStream flushes the buffer if one exists. If the
+// connection was disconnected prior to flushing, FlushSync re-establishes
 // it and discards the buffer.
-func (ds *streamBackend) flushSync(ctx context.Context) error {
+func (ds *streamBackend) FlushSync(ctx context.Context) error {
 	if ds.buffer == nil {
 		return nil
 	}
@@ -228,4 +236,4 @@ func (ds *streamBackend) flushSync(ctx context.Context) error {
 	return err
 }
 
-var _ backend = &streamBackend{}
+var _ networkBackend = &streamBackend{}
