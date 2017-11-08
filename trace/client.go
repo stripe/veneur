@@ -77,7 +77,7 @@ type ClientParam func(*Client) error
 var ErrClientNotNetworked = fmt.Errorf("client is not using a network backend")
 
 // Capacity indicates how many spans a client's channel should
-// accomodate. This parameter can be used on both generic and
+// accommodate. This parameter can be used on both generic and
 // networked backends.
 func Capacity(n uint) ClientParam {
 	return func(cl *Client) error {
