@@ -8,6 +8,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 )
 
@@ -333,12 +334,12 @@ func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck)
 // SpanWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type SpanWorker struct {
 	SpanChan chan ssf.SSFSpan
-	sinks    []spanSink
+	sinks    []sinks.SpanSink
 	stats    *statsd.Client
 }
 
 // NewSpanWorker creates an SpanWorker ready to collect events and service checks.
-func NewSpanWorker(sinks []spanSink, stats *statsd.Client) *SpanWorker {
+func NewSpanWorker(sinks []sinks.SpanSink, stats *statsd.Client) *SpanWorker {
 	return &SpanWorker{
 		SpanChan: make(chan ssf.SSFSpan),
 		sinks:    sinks,

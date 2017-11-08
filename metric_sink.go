@@ -16,22 +16,6 @@ import (
 
 const DatadogResourceKey = "resource"
 
-type metricSink interface {
-	Name() string
-
-	// Start finishes setting up the sink and starts any
-	// background processing tasks that the sink might have to run
-	// in the background. It's invoked when the server starts.
-	Start(traceClient *trace.Client) error
-
-	// Flush receives `InterMetric`s from Veneur and is responsible for "sinking"
-	// these metrics to whatever it's backend wants. Note that the sink must
-	// **not** mutate the incoming metrics as they are shared with other sinks.
-	Flush(context.Context, []samplers.InterMetric) error
-	// This one is temporary?
-	FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck)
-}
-
 type datadogMetricSink struct {
 	HTTPClient      *http.Client
 	ddHostname      string

@@ -31,11 +31,11 @@ import (
 	"github.com/pkg/profile"
 
 	"github.com/stripe/veneur/plugins"
-	"github.com/stripe/veneur/plugins/influxdb"
 	localfilep "github.com/stripe/veneur/plugins/localfile"
 	s3p "github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
@@ -109,8 +109,8 @@ type Server struct {
 
 	HistogramAggregates samplers.HistogramAggregates
 
-	spanSinks   []spanSink
-	metricSinks []metricSink
+	spanSinks   []sinks.SpanSink
+	metricSinks []sinks.MetricSink
 
 	traceLightstepAccessToken string
 
@@ -312,7 +312,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		// configure Lightstep as a Span Sink
 		if ret.traceLightstepAccessToken != "" {
 
-			var lsSink spanSink
+			var lsSink sinks.SpanSink
 			lsSink, err = NewLightStepSpanSink(&conf, ret.Statsd, ret.TagsAsMap)
 			if err != nil {
 				return
@@ -369,13 +369,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		log.Info("S3 archives are disabled")
 	} else {
 		log.Info("S3 archives are enabled")
-	}
-
-	if conf.InfluxAddress != "" {
-		plugin := influxdb.NewInfluxDBPlugin(
-			log, conf.InfluxAddress, conf.InfluxConsistency, conf.InfluxDBName, ret.HTTPClient, ret.Statsd,
-		)
-		ret.registerPlugin(plugin)
 	}
 
 	if conf.FlushFile != "" {

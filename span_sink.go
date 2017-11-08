@@ -26,17 +26,6 @@ const lightStepOperationKey = "name"
 
 const totalSpansFlushedMetricKey = "worker.spans_flushed_total"
 
-// spanSink is a receiver of spans that handles sending those spans to some
-// downstream sink. Calls to `Ingest(span)` are meant to give the sink control
-// of the span, with periodic calls to flush as a signal for sinks that don't
-// handle their own flushing in a separate goroutine, etc.
-type spanSink interface {
-	Name() string
-	Start(*trace.Client) error
-	Ingest(ssf.SSFSpan) error
-	Flush()
-}
-
 // DatadogSpanSink is a sink for sending spans to a Datadog trace agent.
 type datadogSpanSink struct {
 	HTTPClient   *http.Client

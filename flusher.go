@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/trace"
 )
 
@@ -73,7 +74,7 @@ func (s *Server) Flush(ctx context.Context) {
 	wg := sync.WaitGroup{}
 	for _, sink := range s.metricSinks {
 		wg.Add(1)
-		go func(ms metricSink) {
+		go func(ms sinks.MetricSink) {
 			err := ms.Flush(span.Attach(ctx), finalMetrics)
 			if err != nil {
 				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
