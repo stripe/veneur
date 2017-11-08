@@ -431,12 +431,14 @@ func (s *Server) Start() {
 	}
 
 	for _, sink := range s.spanSinks {
+		logrus.WithField("sink", sink.Name()).Info("Starting span sink")
 		if err := sink.Start(s.TraceClient); err != nil {
 			logrus.WithError(err).WithField("sink", sink).Fatal("Error starting span sink")
 		}
 	}
 
 	for _, sink := range s.metricSinks {
+		logrus.WithField("sink", sink.Name()).Info("Starting metric sink")
 		if err := sink.Start(s.TraceClient); err != nil {
 			logrus.WithError(err).WithField("sink", sink).Fatal("Error starting metric sink")
 		}
