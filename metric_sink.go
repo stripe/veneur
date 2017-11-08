@@ -114,7 +114,6 @@ func (dd *datadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 
 func (dd *datadogMetricSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
-	defer log.Printf("Flushing event checks with %#v", dd.traceClient)
 	defer span.ClientFinish(dd.traceClient)
 
 	// fill in the default hostname for packets that didn't set it
