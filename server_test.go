@@ -29,6 +29,7 @@ import (
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/tdigest"
+	"github.com/stripe/veneur/trace"
 )
 
 const ε = .00002
@@ -80,9 +81,8 @@ func generateConfig(forwardAddr string) Config {
 	HTTPAddrPort++
 
 	return Config{
-		DatadogAPIHostname: "http://localhost",
-		Debug:              DebugMode,
-		Hostname:           "localhost",
+		Debug:    DebugMode,
+		Hostname: "localhost",
 
 		// Use a shorter interval for tests
 		Interval:              DefaultFlushInterval.String(),
@@ -110,10 +110,9 @@ func generateConfig(forwardAddr string) Config {
 		FlushMaxPerBody: 1024,
 
 		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
-		SsfListenAddresses:     []string{fmt.Sprintf("udp://127.0.0.1:%d", tracePort)},
-		DatadogTraceAPIAddress: forwardAddr,
-		TraceMaxLengthBytes:    4096,
-		SsfBufferSize:          32,
+		SsfListenAddresses:  []string{fmt.Sprintf("udp://127.0.0.1:%d", tracePort)},
+		TraceMaxLengthBytes: 4096,
+		SsfBufferSize:       32,
 	}
 }
 
@@ -162,7 +161,7 @@ func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, val
 
 // setupVeneurServer creates a local server from the specified config
 // and starts listening for requests. It returns the server for inspection.
-func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper) *Server {
+func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper, mSink metricSink, sSink spanSink) *Server {
 	server, err := NewFromConfig(config)
 	if transport != nil {
 		server.HTTPClient.Transport = transport
@@ -175,6 +174,21 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper)
 		server.HTTPClient.Transport = transport
 	}
 	server.TraceClient = nil
+
+	if mSink == nil {
+		// Install a blackhole sink if we have no other sinks
+		bhs, _ := NewBlackholeMetricSink()
+		mSink = bhs
+	}
+	server.metricSinks = append(server.metricSinks, mSink)
+
+	if sSink == nil {
+		// Install a blackhole sink if we have no other sinks
+		bhs, _ := NewBlackholeSpanSink()
+		sSink = bhs
+	}
+	server.spanSinks = append(server.spanSinks, sSink)
+
 	server.Start()
 
 	go server.HTTPServe()
@@ -188,64 +202,77 @@ type DDMetricsRequest struct {
 	Series []DDMetric
 }
 
+type channelMetricSink struct {
+	metricsChannel chan []samplers.InterMetric
+}
+
+func NewChannelMetricSink(ch chan []samplers.InterMetric) (*channelMetricSink, error) {
+	return &channelMetricSink{
+		metricsChannel: ch,
+	}, nil
+}
+
+func (c *channelMetricSink) Name() string {
+	return "channel"
+}
+
+func (c *channelMetricSink) Start(*trace.Client) error {
+	return nil
+}
+
+func (c *channelMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+	// Put the whole slice in since many tests want to see all of them and we
+	// don't want them to have to loop over and wait on empty or something
+	c.metricsChannel <- metrics
+	return nil
+}
+
+func (c *channelMetricSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
+	return
+}
+
 // fixture sets up a mock Datadog API server and Veneur
 type fixture struct {
 	api             *httptest.Server
 	server          *Server
-	ddmetrics       chan DDMetricsRequest
 	interval        time.Duration
 	flushMaxPerBody int
 }
 
-func newFixture(t testing.TB, config Config) *fixture {
+func newFixture(t testing.TB, config Config, mSink metricSink, sSink spanSink) *fixture {
 	interval, err := config.ParseInterval()
 	assert.NoError(t, err)
 
 	// Set up a remote server (the API that we're sending the data to)
 	// (e.g. Datadog)
-	f := &fixture{nil, &Server{}, make(chan DDMetricsRequest, 10), interval, config.FlushMaxPerBody}
-	f.api = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		zr, err := zlib.NewReader(r.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
+	f := &fixture{nil, &Server{}, interval, config.FlushMaxPerBody}
 
-		var ddmetrics DDMetricsRequest
-
-		err = json.NewDecoder(zr).Decode(&ddmetrics)
-		if err != nil {
-			t.Fatal(err)
-		}
-		f.ddmetrics <- ddmetrics
-		w.WriteHeader(http.StatusAccepted)
-	}))
-
-	config.DatadogAPIHostname = f.api.URL
 	config.NumWorkers = 1
-	f.server = setupVeneurServer(t, config, nil)
+	f.server = setupVeneurServer(t, config, nil, mSink, sSink)
 	return f
 }
 
 func (f *fixture) Close() {
-	// make Close safe to call multiple times
-	if f.ddmetrics == nil {
-		return
+	// Make it safe to close this more than once, jic
+	if f.server != nil {
+		f.server.Shutdown()
+		f.server = nil
 	}
-
-	f.api.Close()
-	f.server.Shutdown()
-	close(f.ddmetrics)
-	f.ddmetrics = nil
 }
 
 // TestLocalServerUnaggregatedMetrics tests the behavior of
 // the veneur client when operating without a global veneur
 // instance (ie, when sending data directly to the remote server)
 func TestLocalServerUnaggregatedMetrics(t *testing.T) {
-	metricValues, expectedMetrics := generateMetrics()
+	metricValues, _ := generateMetrics()
 	config := localConfig()
 	config.Tags = []string{"butts:farts"}
-	f := newFixture(t, config)
+
+	metricsChan := make(chan []samplers.InterMetric, 10)
+	cms, _ := NewChannelMetricSink(metricsChan)
+	defer close(metricsChan)
+
+	f := newFixture(t, config, cms, nil)
 	defer f.Close()
 
 	for _, value := range metricValues {
@@ -263,17 +290,19 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 
 	f.server.Flush(context.TODO())
 
-	ddmetrics := <-f.ddmetrics
-	assert.Equal(t, 6, len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
-	assertMetrics(t, ddmetrics, expectedMetrics)
-	assert.Equal(t, "localhost", ddmetrics.Series[0].Hostname, "Metric is not tagged with hostname")
-	assert.Equal(t, "butts:farts", ddmetrics.Series[0].Tags[0], "Metric is not tagged with server tags")
+	interMetrics := <-metricsChan
+	assert.Equal(t, 6, len(interMetrics), "incorrect number of elements in the flushed series on the remote server")
 }
 
 func TestGlobalServerFlush(t *testing.T) {
 	metricValues, expectedMetrics := generateMetrics()
 	config := globalConfig()
-	f := newFixture(t, config)
+
+	metricsChan := make(chan []samplers.InterMetric, 10)
+	cms, _ := NewChannelMetricSink(metricsChan)
+	defer close(metricsChan)
+
+	f := newFixture(t, config, cms, nil)
 	defer f.Close()
 
 	for _, value := range metricValues {
@@ -291,9 +320,8 @@ func TestGlobalServerFlush(t *testing.T) {
 
 	f.server.Flush(context.TODO())
 
-	ddmetrics := <-f.ddmetrics
-	assert.Equal(t, len(expectedMetrics), len(ddmetrics.Series), "incorrect number of elements in the flushed series on the remote server")
-	assertMetrics(t, ddmetrics, expectedMetrics)
+	interMetrics := <-metricsChan
+	assert.Equal(t, len(expectedMetrics), len(interMetrics), "incorrect number of elements in the flushed series on the remote server")
 }
 
 func TestLocalServerMixedMetrics(t *testing.T) {
@@ -368,7 +396,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 
 	config := localConfig()
 	config.ForwardAddress = globalVeneur.URL
-	f := newFixture(t, config)
+	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 
 	// Create non-local metrics that should be passed to the global veneur instance
@@ -549,18 +577,9 @@ func sendTCPMetrics(addr string, tlsConfig *tls.Config, f *fixture) error {
 
 	// check that the server received the stats; HACK: sleep to ensure workers process before flush
 	time.Sleep(20 * time.Millisecond)
-	f.server.Flush(context.TODO())
-	select {
-	case ddmetrics := <-f.ddmetrics:
-		if len(ddmetrics.Series) != 1 {
-			return fmt.Errorf("unexpected Series: %v", ddmetrics.Series)
-		}
-		if !(ddmetrics.Series[0].Name == "page.views" && ddmetrics.Series[0].Value[0][1] == 40) {
-			return fmt.Errorf("unexpected metric: %v", ddmetrics.Series[0])
-		}
 
-	case <-time.After(100 * time.Millisecond):
-		return fmt.Errorf("timed out waiting for metrics")
+	if f.server.Workers[0].MetricsProcessedCount() < 1 {
+		return fmt.Errorf("metrics were not processed")
 	}
 
 	return nil
@@ -573,7 +592,7 @@ func TestUDPMetrics(t *testing.T) {
 	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
 	HTTPAddrPort++
 	config.StatsdListenAddresses = []string{fmt.Sprintf("udp://%s", addr)}
-	f := newFixture(t, config)
+	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 	// Add a bit of delay to ensure things get listening
 	time.Sleep(20 * time.Millisecond)
@@ -597,7 +616,7 @@ func TestMultipleUDPSockets(t *testing.T) {
 	addr2 := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
 	HTTPAddrPort++
 	config.StatsdListenAddresses = []string{fmt.Sprintf("udp://%s", addr1), fmt.Sprintf("udp://%s", addr2)}
-	f := newFixture(t, config)
+	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 	// Add a bit of delay to ensure things get listening
 	time.Sleep(20 * time.Millisecond)
@@ -624,7 +643,7 @@ func TestUDPMetricsSSF(t *testing.T) {
 	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
 	config.SsfListenAddresses = []string{fmt.Sprintf("udp://%s", addr)}
 	HTTPAddrPort++
-	f := newFixture(t, config)
+	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 	// listen delay
 	time.Sleep(20 * time.Millisecond)
@@ -661,7 +680,7 @@ func TestUNIXMetricsSSF(t *testing.T) {
 	path := filepath.Join(tdir, "test.sock")
 	config.SsfListenAddresses = []string{fmt.Sprintf("unix://%s", path)}
 	HTTPAddrPort++
-	f := newFixture(t, config)
+	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 	// listen delay
 	time.Sleep(20 * time.Millisecond)
@@ -700,7 +719,7 @@ func TestIgnoreLongUDPMetrics(t *testing.T) {
 	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
 	config.StatsdListenAddresses = []string{fmt.Sprintf("udp://%s", addr)}
 	HTTPAddrPort++
-	f := newFixture(t, config)
+	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 	// Add a bit of delay to ensure things get listening
 	time.Sleep(20 * time.Millisecond)
@@ -777,6 +796,7 @@ func TestTCPMetrics(t *testing.T) {
 
 	for _, serverConfig := range serverConfigs {
 		config := localConfig()
+		config.Interval = "60s"
 		config.NumWorkers = 1
 		// Use a unique port to avoid race with shutting down accept goroutine on Linux
 		addr := fmt.Sprintf("localhost:%d", HTTPAddrPort)
@@ -785,7 +805,7 @@ func TestTCPMetrics(t *testing.T) {
 		config.TLSKey = serverConfig.serverKey
 		config.TLSCertificate = serverConfig.serverCertificate
 		config.TLSAuthorityCertificate = serverConfig.authorityCertificate
-		f := newFixture(t, config)
+		f := newFixture(t, config, nil, nil)
 		defer f.Close() // ensure shutdown if the test aborts
 
 		// attempt to connect and send stats with each of the client configurations
@@ -1027,7 +1047,7 @@ func BenchmarkServerFlush(b *testing.B) {
 	config := localConfig()
 	config.SsfListenAddresses = nil
 	config.StatsdListenAddresses = nil
-	f := newFixture(b, config)
+	f := newFixture(b, config, nil, nil)
 
 	bhs, _ := NewBlackholeMetricSink()
 	f.server.metricSinks = []metricSink{bhs}

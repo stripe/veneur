@@ -224,6 +224,10 @@ func (b *blackholeMetricSink) Name() string {
 	return "blackhole"
 }
 
+func (b *blackholeMetricSink) Start(*trace.Client) error {
+	return nil
+}
+
 func (b *blackholeMetricSink) Flush(context.Context, []samplers.InterMetric) error {
 	return nil
 }

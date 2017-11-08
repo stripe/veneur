@@ -173,7 +173,6 @@ func (w *Worker) MetricsProcessedCount() int64 {
 func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-
 	w.processed++
 	w.wm.Upsert(m.MetricKey, m.Scope, m.Tags)
 

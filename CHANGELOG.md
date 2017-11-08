@@ -12,6 +12,7 @@
 * When using Lightstep as a tracing sink, spans can be load-balanced more evenly across collectors by configuring the `trace_lightstep_num_clients` option to multiplex across multiple clients. Thanks [aditya](https://github.com/chimeracoder)!
 * When starting, Veneur will now delay it's first metric to be aligned with an `interval` boundary on the local clock. This will effectively "synchronize" Veneur instances across your deployment assuming reasonable clock behavior. The result is a metric timestamps in your TSDB that mostly line up improving bucketing behavior. Thanks [gphat](https://github.com/gphat)!
 * Cleaned up some linter warnings. Thanks [gphat](https://github.com/gphat)!
+* Tests no longer depend on implicit presence of a Datadog metric or span sink. Thanks [gphat](https://github.com/gphat)!
 
 ## Bugfixes
 * Fix a panic when using `veneur-emit` to emit metrics via `-ssf` when no tags are specified. Thanks [myndzi](https://github.com/myndzi)
