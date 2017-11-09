@@ -164,7 +164,6 @@ func TestTracerInjectExtractBinary(t *testing.T) {
 	assert.Equal(t, trace.TraceID, ctx.TraceID())
 
 	assert.Equal(t, trace.SpanID, ctx.SpanID(), "original trace and context should share the same SpanId")
-	assert.Equal(t, trace.ParentID, ctx.ParentID(), "original trace and context should share the same ParentId")
 	assert.Equal(t, trace.Resource, ctx.Resource())
 }
 
@@ -181,7 +180,6 @@ func TestTracerInjectTextMap(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, strconv.FormatInt(trace.TraceID, 10), tm["traceid"])
-	assert.Equal(t, strconv.FormatInt(trace.ParentID, 10), tm["parentid"])
 	assert.Equal(t, strconv.FormatInt(trace.SpanID, 10), tm["spanid"])
 	assert.Equal(t, trace.Resource, tm["resource"])
 }
@@ -206,7 +204,6 @@ func TestTracerInjectExtractExtractTextMap(t *testing.T) {
 	assert.Equal(t, trace.TraceID, ctx.TraceID())
 
 	assert.Equal(t, trace.SpanID, ctx.SpanID(), "original trace and context should share the same SpanId")
-	assert.Equal(t, trace.ParentID, ctx.ParentID(), "original trace and context should share the same ParentId")
 	assert.Equal(t, trace.Resource, ctx.Resource())
 }
 
@@ -233,9 +230,50 @@ func TestTracerInjectExtractHeader(t *testing.T) {
 	assert.Equal(t, trace.TraceID, ctx.TraceID())
 
 	assert.Equal(t, trace.SpanID, ctx.SpanID(), "original trace and context should share the same SpanId")
-	assert.Equal(t, trace.ParentID, ctx.ParentID(), "original trace and context should share the same ParentId")
 	assert.Equal(t, trace.Resource, ctx.Resource())
+}
 
+func TestTraceExtractHeaderEnvoy(t *testing.T) {
+	tracer := Tracer{}
+	tm := textMapReaderWriter(map[string]string{
+		"x-request-id":      "12345",
+		"x-client-trace-id": "67890",
+	})
+
+	c, _ := tracer.Extract(opentracing.TextMap, tm)
+
+	ctx := c.(*spanContext)
+
+	assert.Equal(t, int64(12345), ctx.TraceID())
+	assert.Equal(t, int64(67890), ctx.SpanID())
+}
+
+func TestTraceExtractHeaderOpenTracing(t *testing.T) {
+	tracer := Tracer{}
+	tm := textMapReaderWriter(map[string]string{
+		"Trace-Id": "24680",
+		"Span-Id":  "13579",
+	})
+
+	c, _ := tracer.Extract(opentracing.TextMap, tm)
+
+	ctx := c.(*spanContext)
+
+	assert.Equal(t, int64(24680), ctx.TraceID())
+	assert.Equal(t, int64(13579), ctx.SpanID())
+}
+
+func TestTraceExtractHeaderError(t *testing.T) {
+	tracer := Tracer{}
+	tm := textMapReaderWriter(map[string]string{
+		"wrong-header": "24680",
+		"bad header":   "13579",
+	})
+
+	c, err := tracer.Extract(opentracing.TextMap, tm)
+
+	assert.Nil(t, c)
+	assert.EqualError(t, err, "error parsing fields from TextMapReader")
 }
 
 // assertContextUnmarshalEqual is a helper that asserts that the given SSFSpan
