@@ -37,6 +37,11 @@ var HeaderFormats = []HeaderGroup{
 		TraceID: "Trace-Id",
 		SpanID:  "Span-Id",
 	},
+	// Ruby format.
+	HeaderGroup{
+		TraceID: "X-Trace-Id",
+		SpanID:  "X-Span-Id",
+	},
 	// Veneur format.
 	HeaderGroup{
 		TraceID: "Traceid",
@@ -571,12 +576,10 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 		var traceID int64
 		var spanID int64
 		for _, headers := range HeaderFormats {
-			var err1 error
-			var err2 error
-			traceID, err1 = strconv.ParseInt(textMapReaderGet(tm, headers.TraceID), 10, 64)
-			spanID, err2 = strconv.ParseInt(textMapReaderGet(tm, headers.SpanID), 10, 64)
+			traceID, _ = strconv.ParseInt(textMapReaderGet(tm, headers.TraceID), 10, 64)
+			spanID, _ = strconv.ParseInt(textMapReaderGet(tm, headers.SpanID), 10, 64)
 
-			if err1 == nil && err2 == nil {
+			if traceID != 0 && spanID != 0 {
 				parsedHeaders = true
 				break
 			}
