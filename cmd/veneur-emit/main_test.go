@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,10 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/trace"
 )
 
 var (
@@ -94,37 +95,21 @@ func TestMain(m *testing.M) {
 }
 
 func TestTimeCommand(t *testing.T) {
-	client := &fakeClient{}
-	resetMap(calledFunctions)
-	testFlag := make(map[string]flag.Value)
-	testFlag["command"] = newValue("/bin/true")
-	testFlag["name"] = newValue("test.timing")
-	command := []string{"echo", "hello"}
-	name := "test.timing"
-
 	t.Run("basic", func(t *testing.T) {
-		st, _, _, err := timeCommand(command)
+		command := []string{"true"}
+		st, start, ended, err := timeCommand(command)
 
 		assert.NoError(t, err, "timeCommand had an error")
-		assert.True(t, calledFunctions["timing"], "timeCommand did not call Timing")
+		assert.NotZero(t, start)
+		assert.NotZero(t, ended)
 		assert.Zero(t, st)
 	})
 
 	t.Run("badCall", func(t *testing.T) {
-		badCall = true
-		defer func() {
-			badCall = false
-		}()
+		command := []string{"false"}
 		st, _, _, err := timeCommand(command)
 		assert.Error(t, err, "timeCommand did not throw error.")
-		assert.Zero(t, st)
-	})
-
-	t.Run("badCall", func(t *testing.T) {
-		command = []string{"/bin/false"}
-		st, _, _, err := timeCommand(command)
 		assert.NotZero(t, st)
-		assert.NoError(t, err)
 	})
 }
 
@@ -136,7 +121,7 @@ func TestGauge(t *testing.T) {
 	assert.Len(t, span.Metrics, 1)
 	assert.Equal(t, ssf.SSFSample_GAUGE, span.Metrics[0].Metric)
 	assert.Equal(t, "testMetric", span.Metrics[0].Name)
-	assert.Equal(t, 3.0, span.Metrics[0].Value)
+	assert.Equal(t, float32(3.0), span.Metrics[0].Value)
 }
 
 func TestCount(t *testing.T) {
@@ -147,18 +132,19 @@ func TestCount(t *testing.T) {
 	assert.Len(t, span.Metrics, 1)
 	assert.Equal(t, ssf.SSFSample_COUNTER, span.Metrics[0].Metric)
 	assert.Equal(t, "testMetric", span.Metrics[0].Name)
-	assert.Equal(t, 3.0, span.Metrics[0].Value)
+	assert.Equal(t, float32(3.0), span.Metrics[0].Value)
 }
 
 func TestTiming(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
-	testFlag["timing"] = newValue("3ns")
+	testFlag["timing"] = newValue("3ms")
 	span, _, err := createMetric(testFlag, "testMetric", "")
 	assert.NoError(t, err)
-	assert.Len(t, span.Metrics, 0)
-	assert.Equal(t, "testMetric", span.Name)
-	assert.Equal(t, 3*time.Nanosecond, span.StartTimestamp)
-	assert.Equal(t, 3*time.Nanosecond, span.EndTimestamp)
+	assert.Len(t, span.Metrics, 1)
+	assert.Equal(t, ssf.SSFSample_HISTOGRAM, span.Metrics[0].Metric)
+	assert.Equal(t, "testMetric", span.Metrics[0].Name)
+	assert.Equal(t, "ms", span.Metrics[0].Unit)
+	assert.Equal(t, float32(3.0), span.Metrics[0].Value)
 }
 
 func TestMultiple(t *testing.T) {
@@ -201,36 +187,30 @@ func TestHostport(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testHostport := "127.0.0.1:8200"
 	testFlag["hostport"] = newValue(testHostport)
-	addr, network, err := destination(testFlag, &testHostport, false)
+	addr, netAddr, err := destination(testFlag, &testHostport, false)
 	assert.NoError(t, err)
-	assert.Equal(t, "127.0.0.1:8200", addr)
-	assert.Equal(t, "udp", network)
+	assert.Equal(t, "udp://127.0.0.1:8200", addr)
+	assert.Equal(t, "127.0.0.1:8200", netAddr.String())
+	assert.Equal(t, "udp", netAddr.Network())
 }
 
 func TestHostportAsURL(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testHostport := "tcp://127.0.0.1:8200"
 	testFlag["hostport"] = newValue(testHostport)
-	addr, network, err := destination(testFlag, &testHostport, false)
+	addr, netAddr, err := destination(testFlag, &testHostport, false)
 	assert.NoError(t, err)
-	assert.Equal(t, "127.0.0.1:8200", addr)
-	assert.Equal(t, "tcp", network)
+	assert.Equal(t, "tcp://127.0.0.1:8200", addr)
+	assert.Equal(t, "tcp", netAddr.Network())
+	assert.Equal(t, "127.0.0.1:8200", netAddr.String())
 }
 
 func TestNilHostport(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
-	addr, network, err := destination(testFlag, nil, false)
-	if addr != "" || network != "udp" || err == nil {
-		t.Error("Did not check for valid hostport.")
-	}
-}
-
-func TestNoAddr(t *testing.T) {
-	testFlag := make(map[string]flag.Value)
-	addr, network, err := destination(testFlag, nil, false)
-	if addr != "" || network != "udp" || err == nil {
-		t.Error("Returned non-empty address with no flags.")
-	}
+	addr, netAddr, err := destination(testFlag, nil, false)
+	assert.Empty(t, addr)
+	assert.Nil(t, netAddr)
+	assert.Error(t, err)
 }
 
 func TestTags(t *testing.T) {
@@ -284,25 +264,65 @@ func TestCreateMetrics(t *testing.T) {
 	}
 }
 
+type testBackend struct {
+	t      *testing.T
+	ch     chan *ssf.SSFSpan
+	errors chan error
+}
+
+func (tb *testBackend) Close() error {
+	tb.t.Logf("Closing backend")
+	close(tb.ch)
+	close(tb.errors)
+	return nil
+}
+
+func (tb *testBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
+	tb.t.Logf("Sending span")
+	tb.ch <- span
+	return <-tb.errors
+}
+
+func (tb *testBackend) FlushSync(ctx context.Context) error {
+	return nil
+}
+
 func TestSendSpan(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	dataWritten = []byte{}
-	conn := &fakeConn{}
 	span, _, _ := createMetric(testFlag, "test.metric", "tag1:value1")
-	sendSpan(conn, span)
-	orig, _ := proto.Marshal(span)
-	if !bytes.Equal(orig, dataWritten) {
-		t.Error("Did not send correct data.")
-	}
+
+	ch := make(chan *ssf.SSFSpan, 1)
+	errors := make(chan error, 1)
+	be := &testBackend{t: t, ch: ch, errors: errors}
+	defer be.Close()
+	cl, err := trace.NewBackendClient(be)
+	require.NoError(t, err)
+
+	be.errors <- nil
+	err = sendSSF(cl, span)
+	assert.NoError(t, err)
+
+	spanOut := <-ch
+	assert.Equal(t, span, spanOut)
 }
 
 func TestBadSendSpan(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	dataWritten = []byte{}
-	conn := &badConn{}
+
 	span, _, _ := createMetric(testFlag, "test.metric", "tag1:value1")
-	err := sendSpan(conn, span)
-	assert.NotNil(t, err, "Did not return err!")
+
+	ch := make(chan *ssf.SSFSpan, 1)
+	errors := make(chan error, 1)
+	be := &testBackend{t: t, ch: ch, errors: errors}
+	defer be.Close()
+	cl, err := trace.NewBackendClient(be)
+	require.NoError(t, err)
+
+	errors <- fmt.Errorf("a potential error in sending")
+	err = sendSSF(cl, span)
+	assert.Error(t, err)
 }
 
 func TestBuildEventPacketError(t *testing.T) {
