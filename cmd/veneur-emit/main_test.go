@@ -2,13 +2,11 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -33,10 +31,6 @@ var (
 	dataWritten []byte
 )
 
-type fakeClient struct {
-	Tags []string
-}
-
 type fakeValue struct {
 	value string
 }
@@ -52,41 +46,6 @@ func (v *fakeValue) Set(s string) error {
 
 func newValue(s string) *fakeValue {
 	return &fakeValue{value: s}
-}
-
-func (c *fakeClient) Gauge(name string, value float64, tags []string, rate float64) error {
-	calledFunctions["gauge"] = true
-	if badCall {
-		return errors.New("error sending metric")
-	}
-	return nil
-}
-func (c *fakeClient) Count(name string, value int64, tags []string, rate float64) error {
-	calledFunctions["count"] = true
-	if badCall {
-		return errors.New("error sending metric")
-	}
-	return nil
-}
-func (c *fakeClient) Timing(name string, value time.Duration, tags []string, rate float64) error {
-	calledFunctions["timing"] = true
-	if badCall {
-		return errors.New("error sending metric")
-	}
-	return nil
-}
-
-type fakeConn struct{}
-
-func (c *fakeConn) Write(data []byte) (int, error) {
-	dataWritten = data
-	return len(data), nil
-}
-
-type badConn struct{}
-
-func (c *badConn) Write(data []byte) (int, error) {
-	return 0, errors.New("bad write")
 }
 
 func TestMain(m *testing.M) {
