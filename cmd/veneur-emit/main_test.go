@@ -75,7 +75,8 @@ func TestTimeCommand(t *testing.T) {
 func TestGauge(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testFlag["gauge"] = newValue("3")
-	span, _, err := createMetric(testFlag, "testMetric", "")
+	span := &ssf.SSFSpan{}
+	_, err := createMetric(span, testFlag, "testMetric", "")
 	assert.NoError(t, err)
 	assert.Len(t, span.Metrics, 1)
 	assert.Equal(t, ssf.SSFSample_GAUGE, span.Metrics[0].Metric)
@@ -86,7 +87,8 @@ func TestGauge(t *testing.T) {
 func TestCount(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testFlag["count"] = newValue("3")
-	span, _, err := createMetric(testFlag, "testMetric", "")
+	span := &ssf.SSFSpan{}
+	_, err := createMetric(span, testFlag, "testMetric", "")
 	assert.NoError(t, err)
 	assert.Len(t, span.Metrics, 1)
 	assert.Equal(t, ssf.SSFSample_COUNTER, span.Metrics[0].Metric)
@@ -97,7 +99,8 @@ func TestCount(t *testing.T) {
 func TestTiming(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testFlag["timing"] = newValue("3ms")
-	span, _, err := createMetric(testFlag, "testMetric", "")
+	span := &ssf.SSFSpan{}
+	_, err := createMetric(span, testFlag, "testMetric", "")
 	assert.NoError(t, err)
 	assert.Len(t, span.Metrics, 1)
 	assert.Equal(t, ssf.SSFSample_HISTOGRAM, span.Metrics[0].Metric)
@@ -110,7 +113,8 @@ func TestMultiple(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testFlag["gauge"] = newValue("3")
 	testFlag["count"] = newValue("2")
-	span, _, err := createMetric(testFlag, "testMetric", "")
+	span := &ssf.SSFSpan{}
+	_, err := createMetric(span, testFlag, "testMetric", "")
 	assert.NoError(t, err)
 	assert.Len(t, span.Metrics, 2)
 	assert.Equal(t, "testMetric", span.Metrics[1].Name)
@@ -119,7 +123,8 @@ func TestMultiple(t *testing.T) {
 
 func TestNone(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
-	span, _, err := createMetric(testFlag, "testMetric", "")
+	span := &ssf.SSFSpan{}
+	_, err := createMetric(span, testFlag, "testMetric", "")
 	assert.NoError(t, err)
 	assert.Len(t, span.Metrics, 0)
 }
@@ -128,17 +133,18 @@ func TestBadCalls(t *testing.T) {
 	var err error
 	testFlag := make(map[string]flag.Value)
 	testFlag["gauge"] = newValue("notanumber")
-	_, _, err = createMetric(testFlag, "testBadMetric", "")
+	span := &ssf.SSFSpan{}
+	_, err = createMetric(span, testFlag, "testBadMetric", "")
 	assert.Error(t, err)
 
 	testFlag = make(map[string]flag.Value)
 	testFlag["timing"] = newValue("40megayears")
-	_, _, err = createMetric(testFlag, "testBadMetric", "")
+	_, err = createMetric(span, testFlag, "testBadMetric", "")
 	assert.Error(t, err)
 
 	testFlag = make(map[string]flag.Value)
 	testFlag["count"] = newValue("four")
-	_, _, err = createMetric(testFlag, "testBadMetric", "")
+	_, err = createMetric(span, testFlag, "testBadMetric", "")
 	assert.Error(t, err)
 }
 
@@ -209,7 +215,8 @@ func TestCreateMetrics(t *testing.T) {
 
 	testFlag["gauge"] = newValue("3.14")
 	testFlag["count"] = newValue("2")
-	span, _, err := createMetric(testFlag, "test.metric", "tag1:value1")
+	span := &ssf.SSFSpan{}
+	_, err := createMetric(span, testFlag, "test.metric", "tag1:value1")
 	assert.NoError(t, err)
 	assert.Len(t, span.Metrics, 2)
 	for _, metric := range span.Metrics {
@@ -244,7 +251,8 @@ func (tb *testBackend) FlushSync(ctx context.Context) error {
 func TestSendSpan(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	dataWritten = []byte{}
-	span, _, _ := createMetric(testFlag, "test.metric", "tag1:value1")
+	span := &ssf.SSFSpan{}
+	_, _ = createMetric(span, testFlag, "test.metric", "tag1:value1")
 
 	ch := make(chan *ssf.SSFSpan, 1)
 	errors := make(chan error, 1)
@@ -265,7 +273,8 @@ func TestBadSendSpan(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	dataWritten = []byte{}
 
-	span, _, _ := createMetric(testFlag, "test.metric", "tag1:value1")
+	span := &ssf.SSFSpan{}
+	_, _ = createMetric(span, testFlag, "test.metric", "tag1:value1")
 
 	ch := make(chan *ssf.SSFSpan, 1)
 	errors := make(chan error, 1)

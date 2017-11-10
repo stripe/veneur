@@ -14,6 +14,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"math/rand"
+
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
@@ -56,6 +58,10 @@ var (
 	scHostname  = flag.String("sc_hostname", "", "Add hostname to the event.")
 	scTags      = flag.String("sc_tags", "", "Tag(s) for service check, comma separated. Ex: 'service:airflow,host_type:qa'")
 	scMsg       = flag.String("sc_msg", "", "Message describing state of current state of service check.")
+
+	// Tracing flags
+	traceID  = flag.Int64("trace_id", 0, "ID for the trace (top-level) span. Setting a trace ID activated tracing.")
+	parentID = flag.Int64("parent_span_id", 0, "ID of the parent span.")
 )
 
 // MinimalClient represents the functions that we call on Clients in veneur-emit.
@@ -117,9 +123,18 @@ func main() {
 		return
 	}
 
-	span, status, err := createMetric(passedFlags, *name, *tag)
+	span := setupSpan(traceID, parentID, *name, *tag)
+	if span.TraceId != 0 {
+		logrus.WithField("trace_id", span.TraceId).
+			WithField("span_id", span.Id).
+			WithField("parent_id", span.ParentId).
+			WithField("name", span.Name).
+			Debug("Tracing is activated")
+	}
+
+	status, err := createMetric(span, passedFlags, *name, *tag)
 	if err != nil {
-		logrus.WithError(err).Fatal("Error creating metric.")
+		logrus.WithError(err).Fatal("Error creating metrics.")
 	}
 	if *toSSF {
 		client, err := trace.NewClient(addr)
@@ -186,6 +201,24 @@ func destination(hostport *string, useSSF bool) (string, net.Addr, error) {
 	return addr, netAddr, nil
 }
 
+func setupSpan(traceID, parentID *int64, name, tags string) *ssf.SSFSpan {
+	span := &ssf.SSFSpan{}
+	if *toSSF && traceID != nil {
+		span.TraceId = *traceID
+		if parentID != nil {
+			span.ParentId = *parentID
+		}
+		span.Id = rand.Int63()
+		span.Name = name
+		span.Tags = make(map[string]string)
+		for _, elem := range strings.Split(tags, ",") {
+			tag := strings.Split(elem, ":")
+			span.Tags[tag[0]] = tag[1]
+		}
+	}
+	return span
+}
+
 func timeCommand(command []string) (exitStatus int, start time.Time, ended time.Time, err error) {
 	logrus.Debugf("Timing %q...", command)
 	cmd := exec.Command(command[0], command[1:]...)
@@ -226,35 +259,26 @@ func timingSample(duration time.Duration, name string, tags string) *ssf.SSFSamp
 	return m
 }
 
-func createMetric(passedFlags map[string]flag.Value, name string, tags string) (*ssf.SSFSpan, int, error) {
+func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name string, tags string) (int, error) {
 	var err error
 	status := 0
-	span := &ssf.SSFSpan{}
 	if *mode == "metric" {
 		if *shellCommand {
 			var start, ended time.Time
 
 			status, start, ended, err = timeCommand(flag.Args())
 			if err != nil {
-				return nil, status, err
+				return status, err
 			}
 			span.StartTimestamp = start.UnixNano()
 			span.EndTimestamp = ended.UnixNano()
-			span.Name = name
-			span.Tags = make(map[string]string)
-			if tags != "" {
-				for _, elem := range strings.Split(tags, ",") {
-					tag := strings.Split(elem, ":")
-					span.Tags[tag[0]] = tag[1]
-				}
-			}
 			span.Metrics = append(span.Metrics, timingSample(ended.Sub(start), name, tags))
 		}
 
 		if passedFlags["timing"] != nil {
 			duration, err := time.ParseDuration(passedFlags["timing"].String())
 			if err != nil {
-				return nil, 0, err
+				return 0, err
 			}
 			span.Metrics = append(span.Metrics, timingSample(duration, name, tags))
 		}
@@ -263,7 +287,7 @@ func createMetric(passedFlags map[string]flag.Value, name string, tags string) (
 			logrus.Debugf("Sending gauge '%s' -> %f", name, passedFlags["gauge"].String())
 			value, err := strconv.ParseFloat(passedFlags["gauge"].String(), 32)
 			if err != nil {
-				return nil, status, err
+				return status, err
 			}
 			metric := bareMetric(name, tags)
 			metric.Metric = ssf.SSFSample_GAUGE
@@ -275,7 +299,7 @@ func createMetric(passedFlags map[string]flag.Value, name string, tags string) (
 			logrus.Debugf("Sending count '%s' -> %s", name, passedFlags["count"].String())
 			value, err := strconv.ParseInt(passedFlags["count"].String(), 10, 64)
 			if err != nil {
-				return nil, status, err
+				return status, err
 			}
 			metric := bareMetric(name, tags)
 			metric.Metric = ssf.SSFSample_COUNTER
@@ -283,7 +307,7 @@ func createMetric(passedFlags map[string]flag.Value, name string, tags string) (
 			span.Metrics = append(span.Metrics, metric)
 		}
 	}
-	return span, status, err
+	return status, err
 }
 
 // sendSSF sends a whole span to an SSF receiver.
