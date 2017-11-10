@@ -77,7 +77,7 @@ func main() {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	addr, netAddr, err := destination(passedFlags, hostport, *toSSF)
+	addr, netAddr, err := destination(hostport, *toSSF)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error getting destination address.")
 	}
@@ -165,10 +165,10 @@ func tags(tag string) []string {
 	return tags
 }
 
-func destination(passedFlags map[string]flag.Value, hostport *string, useSSF bool) (string, net.Addr, error) {
+func destination(hostport *string, useSSF bool) (string, net.Addr, error) {
 	var addr string
-	if passedFlags["hostport"] != nil {
-		addr = passedFlags["hostport"].String()
+	if hostport != nil {
+		addr = *hostport
 	} else {
 		return "", nil, errors.New("you must specify a valid hostport")
 	}

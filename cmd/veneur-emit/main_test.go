@@ -143,10 +143,8 @@ func TestBadCalls(t *testing.T) {
 }
 
 func TestHostport(t *testing.T) {
-	testFlag := make(map[string]flag.Value)
 	testHostport := "127.0.0.1:8200"
-	testFlag["hostport"] = newValue(testHostport)
-	addr, netAddr, err := destination(testFlag, &testHostport, false)
+	addr, netAddr, err := destination(&testHostport, false)
 	assert.NoError(t, err)
 	assert.Equal(t, "udp://127.0.0.1:8200", addr)
 	assert.Equal(t, "127.0.0.1:8200", netAddr.String())
@@ -154,10 +152,8 @@ func TestHostport(t *testing.T) {
 }
 
 func TestHostportAsURL(t *testing.T) {
-	testFlag := make(map[string]flag.Value)
 	testHostport := "tcp://127.0.0.1:8200"
-	testFlag["hostport"] = newValue(testHostport)
-	addr, netAddr, err := destination(testFlag, &testHostport, false)
+	addr, netAddr, err := destination(&testHostport, false)
 	assert.NoError(t, err)
 	assert.Equal(t, "tcp://127.0.0.1:8200", addr)
 	assert.Equal(t, "tcp", netAddr.Network())
@@ -165,8 +161,7 @@ func TestHostportAsURL(t *testing.T) {
 }
 
 func TestNilHostport(t *testing.T) {
-	testFlag := make(map[string]flag.Value)
-	addr, netAddr, err := destination(testFlag, nil, false)
+	addr, netAddr, err := destination(nil, false)
 	assert.Empty(t, addr)
 	assert.Nil(t, netAddr)
 	assert.Error(t, err)
