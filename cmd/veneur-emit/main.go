@@ -205,26 +205,28 @@ func bareMetric(name string, tags string) *ssf.SSFSample {
 	return metric
 }
 
+func timingSample(duration time.Duration, name string, tags string) *ssf.SSFSample {
+	m := bareMetric(name, tags)
+	m.Metric = ssf.SSFSample_HISTOGRAM
+	m.Unit = "ms"
+	m.Value = float32(duration / time.Millisecond)
+	return m
+}
+
 func createMetric(passedFlags map[string]flag.Value, name string, tags string) (*ssf.SSFSpan, int, error) {
 	var err error
 	status := 0
 	span := &ssf.SSFSpan{}
 	if *mode == "metric" {
-		if *shellCommand || passedFlags["timing"] != nil {
+		if *shellCommand {
 			var start, ended time.Time
 
-			if *shellCommand {
-				status, start, ended, err = timeCommand(flag.Args())
-				if err != nil {
-					return nil, status, err
-				}
-			} else {
-				duration, err := time.ParseDuration(passedFlags["timing"].String())
-				if err != nil {
-					return nil, 0, err
-				}
-				ended = start.Add(duration)
+			status, start, ended, err = timeCommand(flag.Args())
+			if err != nil {
+				return nil, status, err
 			}
+			span.StartTimestamp = start.UnixNano()
+			span.EndTimestamp = ended.UnixNano()
 			span.Name = name
 			span.Tags = make(map[string]string)
 			if tags != "" {
@@ -233,9 +235,17 @@ func createMetric(passedFlags map[string]flag.Value, name string, tags string) (
 					span.Tags[tag[0]] = tag[1]
 				}
 			}
-			span.StartTimestamp = start.UnixNano()
-			span.EndTimestamp = ended.UnixNano()
+			span.Metrics = append(span.Metrics, timingSample(ended.Sub(start), name, tags))
 		}
+
+		if passedFlags["timing"] != nil {
+			duration, err := time.ParseDuration(passedFlags["timing"].String())
+			if err != nil {
+				return nil, 0, err
+			}
+			span.Metrics = append(span.Metrics, timingSample(duration, name, tags))
+		}
+
 		if passedFlags["gauge"] != nil {
 			logrus.Debugf("Sending gauge '%s' -> %f", name, passedFlags["gauge"].String())
 			value, err := strconv.ParseFloat(passedFlags["gauge"].String(), 32)
@@ -247,6 +257,7 @@ func createMetric(passedFlags map[string]flag.Value, name string, tags string) (
 			metric.Value = float32(value)
 			span.Metrics = append(span.Metrics, metric)
 		}
+
 		if passedFlags["count"] != nil {
 			logrus.Debugf("Sending count '%s' -> %s", name, passedFlags["count"].String())
 			value, err := strconv.ParseInt(passedFlags["count"].String(), 10, 64)
@@ -285,17 +296,6 @@ func sendStatsd(addr string, span *ssf.SSFSpan) error {
 	if err != nil {
 		return err
 	}
-	// See if we can report the span's duration as a timing:
-	if span.StartTimestamp != 0 && span.EndTimestamp != 0 {
-		tags := make([]string, 0, len(span.Tags))
-		for name, val := range span.Tags {
-			tags = append(tags, fmt.Sprintf("%s:%s", name, val))
-		}
-		err = client.Timing(span.Name, time.Duration(span.EndTimestamp-span.StartTimestamp), tags, 1.0)
-		if err != nil {
-			return err
-		}
-	}
 	// Report all the metrics in the span:
 	for _, metric := range span.Metrics {
 		tags := make([]string, 0, len(metric.Tags))
@@ -307,6 +307,12 @@ func sendStatsd(addr string, span *ssf.SSFSpan) error {
 			err = client.Count(metric.Name, int64(metric.Value), tags, 1.0)
 		case ssf.SSFSample_GAUGE:
 			err = client.Gauge(metric.Name, float64(metric.Value), tags, 1.0)
+		case ssf.SSFSample_HISTOGRAM:
+			if metric.Unit == "ms" {
+				err = client.TimeInMilliseconds(metric.Name, float64(metric.Value), tags, 1.0)
+			} else {
+				err = client.Histogram(metric.Name, float64(metric.Value), tags, 1.0)
+			}
 		}
 		if err != nil {
 			return err
