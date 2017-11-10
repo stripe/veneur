@@ -4,6 +4,8 @@
 * Veneur no longer **requires** the use of Datadog as a target for flushes. Veneur can now use one or more of any of it's supported sinks as a backend. This realizes our desire for Veneur to be fully vendor agnostic. Thanks [gphat](https://github.com/gphat)!
 * The package `github.com/stripe/veneur/trace` now depends on fewer other packages across veneur, making it easier to pull in `trace` as a dependency. Thanks [antifuchs](https://github.com/antifuchs)!
 * A veneur server with tracing enabled now submits traces and spans concerning its own operation to itself internally without sending them over UDP. Thanks [antifuchs](https://github.com/antifuchs)!
+* veneur-prometheus and veneur-proxy executables are now included in the docker images. Thanks [jac](https://github.com/jac-stripe)
+* All veneur executables are now in $PATH in the docker images. Thanks [jac](https://github.com/jac-stripe)
 
 ## Bugfixes
 * Fix a panic when using `veneur-emit` to emit metrics via `-ssf` when no tags are specified. Thanks [myndzi](https://github.com/myndzi)
