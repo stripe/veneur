@@ -77,12 +77,12 @@ func main() {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	addr, network, err := destination(passedFlags, hostport, *toSSF)
+	addr, netAddr, err := destination(passedFlags, hostport, *toSSF)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error getting destination address.")
 	}
-	logrus.WithField("net", network).
-		WithField("addr", addr).
+	logrus.WithField("net", netAddr.Network()).
+		WithField("addr", netAddr.String()).
 		Debugf("destination")
 
 	if *mode == "event" {
@@ -91,7 +91,7 @@ func main() {
 				Fatal("Unsupported mode with SSF")
 		}
 		logrus.Debug("Sending event")
-		nconn, _ := net.Dial(network, addr)
+		nconn, _ := net.Dial(netAddr.Network(), netAddr.String())
 		pkt, err := buildEventPacket(passedFlags)
 		if err != nil {
 			logrus.WithError(err).Fatal("build event")
@@ -107,7 +107,7 @@ func main() {
 				Fatal("Unsupported mode with SSF")
 		}
 		logrus.Debug("Sending service check")
-		nconn, _ := net.Dial(network, addr)
+		nconn, _ := net.Dial(netAddr.Network(), netAddr.String())
 		pkt, err := buildSCPacket(passedFlags)
 		if err != nil {
 			logrus.WithError(err).Fatal("build event")
@@ -122,9 +122,24 @@ func main() {
 		logrus.WithError(err).Fatal("Error creating metric.")
 	}
 	if *toSSF {
-		// sendSSF(addr, span)  // TODO: what's addr?
+		client, err := trace.NewClient(addr)
+		if err != nil {
+			logrus.WithError(err).
+				WithField("address", addr).
+				Fatal("Could not construct client")
+		}
+		defer client.Close()
+		err = sendSSF(client, span)
+		if err != nil {
+			logrus.WithError(err).Fatal("Could not send SSF span")
+		}
 	} else {
-		sendStatsd(addr, span)
+		if netAddr.Network() != "udp" {
+			logrus.WithField("address", addr).
+				WithField("network", netAddr.Network()).
+				Fatal("hostport must be a UDP address for statsd metrics")
+		}
+		sendStatsd(netAddr.String(), span)
 	}
 	os.Exit(status)
 }
@@ -150,27 +165,25 @@ func tags(tag string) []string {
 	return tags
 }
 
-func destination(passedFlags map[string]flag.Value, hostport *string, useSSF bool) (string, string, error) {
-	var network = "udp"
+func destination(passedFlags map[string]flag.Value, hostport *string, useSSF bool) (string, net.Addr, error) {
 	var addr string
 	if passedFlags["hostport"] != nil {
 		addr = passedFlags["hostport"].String()
-	} else if hostport != nil {
-		addr = *hostport
 	} else {
-		err := errors.New("you must specify a valid hostport")
-		return addr, network, err
+		return "", nil, errors.New("you must specify a valid hostport")
 	}
-	address, parseErr := protocol.ResolveAddr(addr)
-	if parseErr != nil {
+	netAddr, err := protocol.ResolveAddr(addr)
+	if err != nil {
 		// This is fine - we can attempt to treat the
-		// host:port combination as a UDP address.
-		return addr, network, nil
+		// host:port combination as a UDP address:
+		addr = fmt.Sprintf("udp://%s", addr)
+		udpAddr, err := protocol.ResolveAddr(addr)
+		if err != nil {
+			return "", nil, err
+		}
+		return addr, udpAddr, nil
 	}
-	// Looks like we got a listener spec URL, translate that into an address:
-	network = address.Network()
-	addr = address.String()
-	return addr, network, nil
+	return addr, netAddr, nil
 }
 
 func timeCommand(command []string) (exitStatus int, start time.Time, ended time.Time, err error) {
@@ -274,15 +287,9 @@ func createMetric(passedFlags map[string]flag.Value, name string, tags string) (
 }
 
 // sendSSF sends a whole span to an SSF receiver.
-func sendSSF(addr string, span *ssf.SSFSpan) error {
-	cl, err := trace.NewClient(addr)
-	if err != nil {
-		return err
-	}
-	defer cl.Close()
-
+func sendSSF(client *trace.Client, span *ssf.SSFSpan) error {
 	done := make(chan error)
-	err = trace.Record(cl, span, done)
+	err := trace.Record(client, span, done)
 	if err != nil {
 		return err
 	}
