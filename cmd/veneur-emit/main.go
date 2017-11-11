@@ -203,7 +203,7 @@ func destination(hostport *string, useSSF bool) (string, net.Addr, error) {
 
 func setupSpan(traceID, parentID *int64, name, tags string) *ssf.SSFSpan {
 	span := &ssf.SSFSpan{}
-	if *toSSF && traceID != nil {
+	if traceID != nil {
 		span.TraceId = *traceID
 		if parentID != nil {
 			span.ParentId = *parentID

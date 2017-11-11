@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -246,6 +247,24 @@ func (tb *testBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
 
 func (tb *testBackend) FlushSync(ctx context.Context) error {
 	return nil
+}
+
+func TestSetupSpanWithTracing(t *testing.T) {
+	span := setupSpan(proto.Int64(1), proto.Int64(2), "oink", "hi:there")
+	assert.NotZero(t, span.Id)
+	assert.Equal(t, int64(1), span.TraceId)
+	assert.Equal(t, int64(2), span.ParentId)
+	assert.Equal(t, "oink", span.Name)
+	assert.Equal(t, 1, len(span.Tags))
+}
+
+func TestSetupSpanWithoutTracing(t *testing.T) {
+	span := setupSpan(nil, nil, "oink", "hi:there")
+	assert.Zero(t, span.Id)
+	assert.Zero(t, span.TraceId)
+	assert.Zero(t, span.ParentId)
+	assert.Equal(t, "", span.Name)
+	assert.Equal(t, 0, len(span.Tags))
 }
 
 func TestSendSpan(t *testing.T) {
