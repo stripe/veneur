@@ -255,7 +255,7 @@ func timingSample(duration time.Duration, name string, tags string) *ssf.SSFSamp
 	m := bareMetric(name, tags)
 	m.Metric = ssf.SSFSample_HISTOGRAM
 	m.Unit = "ms"
-	m.Value = float32(duration / time.Millisecond)
+	m.Value = float32(duration * time.Millisecond)
 	return m
 }
 
@@ -340,6 +340,9 @@ func sendStatsd(addr string, span *ssf.SSFSpan) error {
 			err = client.Gauge(metric.Name, float64(metric.Value), tags, 1.0)
 		case ssf.SSFSample_HISTOGRAM:
 			if metric.Unit == "ms" {
+				// Treating the "ms" unit special is a
+				// bit wonky, but it seems like the
+				// right tool for the job here:
 				err = client.TimeInMilliseconds(metric.Name, float64(metric.Value), tags, 1.0)
 			} else {
 				err = client.Histogram(metric.Name, float64(metric.Value), tags, 1.0)
