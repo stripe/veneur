@@ -572,7 +572,6 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 	if tm, ok := carrier.(opentracing.TextMapReader); ok {
 		// carrier is guaranteed to be an opentracing.TextMapReader by contract
 		// TODO support other TextMapReader implementations
-		parsedHeaders := false
 		var traceID int64
 		var spanID int64
 		for _, headers := range HeaderFormats {
@@ -580,11 +579,10 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 			spanID, _ = strconv.ParseInt(textMapReaderGet(tm, headers.SpanID), 10, 64)
 
 			if traceID != 0 && spanID != 0 {
-				parsedHeaders = true
 				break
 			}
 		}
-		if !parsedHeaders {
+		if traceID == 0 && spanID == 0 {
 			return nil, errors.New("error parsing fields from TextMapReader")
 		}
 
