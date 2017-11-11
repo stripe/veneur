@@ -255,7 +255,7 @@ func timingSample(duration time.Duration, name string, tags string) *ssf.SSFSamp
 	m := bareMetric(name, tags)
 	m.Metric = ssf.SSFSample_HISTOGRAM
 	m.Unit = "ms"
-	m.Value = float32(duration * time.Millisecond)
+	m.Value = float32(duration / time.Millisecond)
 	return m
 }
 
