@@ -39,6 +39,8 @@ RUN go test -race -v -timeout 60s -ldflags "-X github.com/stripe/veneur.VERSION=
 FROM test AS build
 RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur ./cmd/veneur
 RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-emit ./cmd/veneur-emit
+RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-prometheus ./cmd/veneur-prometheus
+RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-proxy ./cmd/veneur-proxy
 
 
 FROM debian:sid AS release
@@ -47,4 +49,5 @@ WORKDIR /veneur/
 EXPOSE 8126/UDP 8126/TCP 8127/TCP 8128/UDP
 COPY --from=build /build/* /veneur/
 COPY --from=src /go/src/github.com/stripe/veneur/example.yaml /veneur/config.yaml
+ENV PATH="/veneur:${PATH}"
 CMD ["/veneur/veneur", "-f", "config.yaml"]
