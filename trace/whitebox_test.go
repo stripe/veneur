@@ -2,6 +2,7 @@ package trace_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -58,4 +59,12 @@ func TestSpanFromContextNoParent(t *testing.T) {
 
 	assert.Equal(t, span.TraceID, span.SpanID)
 	assert.Equal(t, int64(0), span.ParentID)
+}
+
+// TestError tests that the Error method properly sets
+// the error tags on a span.
+func TestSetError(t *testing.T) {
+	span, _ := trace.StartSpanFromContext(context.Background(), "")
+	err := fmt.Errorf("test error")
+	span.Error(err)
 }

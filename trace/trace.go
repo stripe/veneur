@@ -206,6 +206,10 @@ func (t *Trace) Error(err error) {
 		errorType = "error"
 	}
 
+	if t.Tags == nil {
+		t.Tags = map[string]string{}
+	}
+
 	t.Tags[errorMessageTag] = err.Error()
 	t.Tags[errorTypeTag] = errorType
 	t.Tags[errorStackTag] = err.Error()
