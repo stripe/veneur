@@ -2,7 +2,7 @@
 
 package samplers
 
-import "fmt"
+import "strconv"
 
 const _MetricType_name = "CounterMetricGaugeMetric"
 
@@ -10,7 +10,7 @@ var _MetricType_index = [...]uint8{0, 13, 24}
 
 func (i MetricType) String() string {
 	if i < 0 || i >= MetricType(len(_MetricType_index)-1) {
-		return fmt.Sprintf("MetricType(%d)", i)
+		return "MetricType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _MetricType_name[_MetricType_index[i]:_MetricType_index[i+1]]
 }
