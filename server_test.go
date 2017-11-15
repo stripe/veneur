@@ -38,6 +38,14 @@ const DefaultServerTimeout = 100 * time.Millisecond
 
 var DebugMode bool
 
+func seedRand() {
+	seed := time.Now().Unix()
+	log.WithFields(logrus.Fields{
+		"randSeed": seed,
+	}).Info("Re-seeding random number generator")
+	rand.Seed(seed)
+}
+
 func TestMain(m *testing.M) {
 	flag.Parse()
 	DebugMode = flag.Lookup("test.v").Value.(flag.Getter).Get().(bool)
@@ -404,7 +412,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 }
 
 func TestSplitBytes(t *testing.T) {
-	rand.Seed(time.Now().Unix())
+	seedRand()
 	buf := make([]byte, 1000)
 
 	for i := 0; i < 1000; i++ {
