@@ -1,7 +1,10 @@
 package veneur
 
 import (
+	"fmt"
+	"sort"
 	"testing"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
@@ -149,6 +152,78 @@ func TestParseSSFValid(t *testing.T) {
 			assert.Equal(t, float64(metric.Value), m.Value, "Value")
 			assert.Equal(t, "counter", m.Type, "Type")
 		}
+	}
+}
+
+func TestParseSSFIndicatorSpan(t *testing.T) {
+	duration := 5 * time.Second
+	start := time.Now()
+	end := start.Add(duration)
+
+	span := &ssf.SSFSpan{}
+	span.Id = 1
+	span.TraceId = 5
+	span.Name = "foo"
+	span.StartTimestamp = start.UnixNano()
+	span.EndTimestamp = end.UnixNano()
+	span.Indicator = true
+	span.Service = "bar-srv"
+	span.Tags = map[string]string{
+		"this-tag":       "definitely gets ignored",
+		"this-other-tag": "also gets dropped",
+	}
+	span.Metrics = make([]*ssf.SSFSample, 0)
+
+	buff, err := proto.Marshal(span)
+	assert.Nil(t, err)
+	msg, err := protocol.ParseSSF(buff)
+	assert.NoError(t, err)
+
+	if assert.NotNil(t, msg) {
+		metrics, err := samplers.ConvertMetrics(msg)
+		assert.NoError(t, err)
+		if assert.Equal(t, 1, len(metrics)) {
+			m := metrics[0]
+			assert.Equal(t, "ssf.indicator_duration_ms", m.Name)
+			assert.Equal(t, "histogram", m.Type)
+			assert.InEpsilon(t, float32(duration*time.Millisecond), m.Value, 0.001)
+			if assert.Equal(t, 2, len(m.Tags)) {
+				var tags sort.StringSlice = m.Tags
+				sort.Sort(tags)
+				assert.Equal(t, fmt.Sprintf("name:%s", span.Name), tags[0])
+				assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[1])
+			}
+		}
+	}
+}
+
+func TestParseSSFNonIndicatorSpan(t *testing.T) {
+	duration := 5 * time.Second
+	start := time.Now()
+	end := start.Add(duration)
+
+	span := &ssf.SSFSpan{}
+	span.Id = 1
+	span.TraceId = 5
+	span.Name = "no-timer"
+	span.StartTimestamp = start.UnixNano()
+	span.EndTimestamp = end.UnixNano()
+	span.Indicator = false
+	span.Service = "bar-srv"
+	span.Tags = map[string]string{
+		"this-tag":       "definitely gets ignored",
+		"this-other-tag": "also gets dropped",
+	}
+	span.Metrics = make([]*ssf.SSFSample, 0)
+
+	buff, err := proto.Marshal(span)
+	assert.Nil(t, err)
+	msg, err := protocol.ParseSSF(buff)
+	assert.NoError(t, err)
+	if assert.NotNil(t, msg) {
+		metrics, err := samplers.ConvertMetrics(msg)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, len(metrics))
 	}
 }
 

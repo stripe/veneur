@@ -59,8 +59,9 @@ func (m *MetricKey) String() string {
 // error alongside any valid metrics that could be parsed.
 func ConvertMetrics(m *protocol.Message) ([]UDPMetric, error) {
 	samples := m.Metrics()
-	metrics := make([]UDPMetric, 0, len(samples))
+	metrics := make([]UDPMetric, 0, len(samples)+1)
 	invalid := []*ssf.SSFSample{}
+
 	for _, metricPacket := range samples {
 		metric, err := ParseMetricSSF(metricPacket)
 		if err != nil || !ValidMetric(metric) {
@@ -69,9 +70,45 @@ func ConvertMetrics(m *protocol.Message) ([]UDPMetric, error) {
 		}
 		metrics = append(metrics, metric)
 	}
+	indicators, err := metricsFromIndicatorSpan(m)
+	if err == nil {
+		metrics = append(metrics, indicators...)
+	}
 	if len(invalid) != 0 {
 		return metrics, &invalidMetrics{invalid}
 	}
+	return metrics, nil
+}
+
+const timerMetric = "ssf.indicator_duration_ms"
+
+func metricsFromIndicatorSpan(m *protocol.Message) ([]UDPMetric, error) {
+	metrics := []UDPMetric{}
+	span, err := m.TraceSpan()
+	if err != nil {
+		return metrics, err
+	}
+	if !span.Indicator {
+		// No-op if this isn't an indicator span
+		return metrics, nil
+	}
+
+	end := time.Unix(span.EndTimestamp/1e9, span.EndTimestamp%1e9)
+	start := time.Unix(span.StartTimestamp/1e9, span.StartTimestamp%1e9)
+	ssfTimer := &ssf.SSFSample{
+		Metric: ssf.SSFSample_HISTOGRAM,
+		Name:   timerMetric,
+		Value:  float32(end.Sub(start) * time.Millisecond),
+		Tags: map[string]string{
+			"name":    span.Name,
+			"service": span.Service,
+		},
+	}
+	timer, err := ParseMetricSSF(ssfTimer)
+	if err != nil {
+		return metrics, err
+	}
+	metrics = append(metrics, timer)
 	return metrics, nil
 }
 
