@@ -3,6 +3,9 @@
 ## Added
 * Buffered trace clients in `github.com/stripe/veneur/trace` now have a new option to automatically flush them in a periodic interval. Thanks, [antifuchs](https://github.com/antifuchs)!
 
+## Improvements
+* Veneur now emits a timer metric for every "indicator" span that it receives. Thanks, [antifuchs](https://github.com/antifuchs)!
+
 # 1.8.1, 2017-12-05
 
 ## Improvements
