@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"flag"
+	"math"
+	"math/big"
 	"net"
 	"os"
 	"os/exec"
@@ -14,7 +16,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"math/rand"
+	"crypto/rand"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
@@ -123,7 +125,11 @@ func main() {
 		return
 	}
 
-	span := setupSpan(traceID, parentID, *name, *tag)
+	span, err := setupSpan(traceID, parentID, *name, *tag)
+	if err != nil {
+		logrus.WithError(err).
+			Fatal("Couldn't set up the main span")
+	}
 	if span.TraceId != 0 {
 		logrus.WithField("trace_id", span.TraceId).
 			WithField("span_id", span.Id).
@@ -201,14 +207,18 @@ func destination(hostport *string, useSSF bool) (string, net.Addr, error) {
 	return addr, netAddr, nil
 }
 
-func setupSpan(traceID, parentID *int64, name, tags string) *ssf.SSFSpan {
+func setupSpan(traceID, parentID *int64, name, tags string) (*ssf.SSFSpan, error) {
 	span := &ssf.SSFSpan{}
 	if traceID != nil {
 		span.TraceId = *traceID
 		if parentID != nil {
 			span.ParentId = *parentID
 		}
-		span.Id = rand.Int63()
+		bigid, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+		if err != nil {
+			return nil, err
+		}
+		span.Id = bigid.Int64()
 		span.Name = name
 		span.Tags = map[string]string{}
 		for _, elem := range strings.Split(tags, ",") {
@@ -216,7 +226,7 @@ func setupSpan(traceID, parentID *int64, name, tags string) *ssf.SSFSpan {
 			span.Tags[tag[0]] = tag[1]
 		}
 	}
-	return span
+	return span, nil
 }
 
 func timeCommand(command []string) (exitStatus int, start time.Time, ended time.Time, err error) {
