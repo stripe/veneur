@@ -162,7 +162,7 @@ func main() {
 func flags() map[string]flag.Value {
 	flag.Parse()
 	// hacky way to detect which flags were *actually* set
-	passedFlags := make(map[string]flag.Value)
+	passedFlags := map[string]flag.Value{}
 	flag.Visit(func(f *flag.Flag) {
 		passedFlags[f.Name] = f.Value
 	})
@@ -210,7 +210,7 @@ func setupSpan(traceID, parentID *int64, name, tags string) *ssf.SSFSpan {
 		}
 		span.Id = rand.Int63()
 		span.Name = name
-		span.Tags = make(map[string]string)
+		span.Tags = map[string]string{}
 		for _, elem := range strings.Split(tags, ",") {
 			tag := strings.Split(elem, ":")
 			span.Tags[tag[0]] = tag[1]
@@ -241,7 +241,7 @@ func timeCommand(command []string) (exitStatus int, start time.Time, ended time.
 func bareMetric(name string, tags string) *ssf.SSFSample {
 	metric := &ssf.SSFSample{}
 	metric.Name = name
-	metric.Tags = make(map[string]string)
+	metric.Tags = map[string]string{}
 	if tags != "" {
 		for _, elem := range strings.Split(tags, ",") {
 			tag := strings.Split(elem, ":")
