@@ -70,34 +70,27 @@ func ConvertMetrics(m *protocol.Message) ([]UDPMetric, error) {
 		}
 		metrics = append(metrics, metric)
 	}
-	indicators, err := metricsFromIndicatorSpan(m)
-	if err == nil {
-		metrics = append(metrics, indicators...)
-	}
 	if len(invalid) != 0 {
 		return metrics, &invalidMetrics{invalid}
 	}
 	return metrics, nil
 }
 
-const timerMetric = "ssf.indicator_duration_ms"
-
-func metricsFromIndicatorSpan(m *protocol.Message) ([]UDPMetric, error) {
-	metrics := []UDPMetric{}
-	span, err := m.TraceSpan()
-	if err != nil {
-		return metrics, err
-	}
-	if !span.Indicator {
+// ConvertIndicatorMetrics takes a span that may be an "indicator"
+// span and returns metrics that can be determined from that
+// span. Currently, it converts the span to a timer metric for the
+// duration of the span.
+func ConvertIndicatorMetrics(span *ssf.SSFSpan, timerName string) (metrics []UDPMetric, err error) {
+	if !span.Indicator || timerName == "" {
 		// No-op if this isn't an indicator span
-		return metrics, nil
+		return
 	}
 
 	end := time.Unix(span.EndTimestamp/1e9, span.EndTimestamp%1e9)
 	start := time.Unix(span.StartTimestamp/1e9, span.StartTimestamp%1e9)
 	ssfTimer := &ssf.SSFSample{
 		Metric: ssf.SSFSample_HISTOGRAM,
-		Name:   timerMetric,
+		Name:   timerName,
 		Value:  float32(end.Sub(start) * time.Millisecond),
 		Tags: map[string]string{
 			"name":    span.Name,
