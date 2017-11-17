@@ -120,7 +120,6 @@ See example.yaml for a sample config. Be sure to set your Datadog API `key`!
 Veneur [includes optional plugins](tree/master/plugins) to extend its capabilities. These plugins are enabled via configuration options. Please consult each plugin's README for more information:
 
 * [S3 Plugin](plugins/s3) - Emit flushed metrics as a TSV file to Amazon S3
-* [InfluxDB Plugin](plugins/influxdb) - Emit flushed metrics to InfluxDB (experimental)
 
 # Setup
 
@@ -231,11 +230,6 @@ Veneur expects to have a config file supplied via `-f PATH`. The included `examp
 * `datadog_api_key` - Your Datadog API key
 * `datadog_api_hostname` - The Datadog API URL to post to. Probably `https://app.datadoghq.com`.
 * `datadog_trace_api_address` - The hostname to send Datadog traces to
-
-#### InfluxDB
-* `influx_address` - The hostname to send Influx metrics to
-* `influx_consistency` - The consistency level for writes
-* `influx_db_name` - The database name to write metrics to
 
 #### LightStep
 * `trace_lightstep_access_token` - The access token for sending to LightStep
