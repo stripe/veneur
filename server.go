@@ -36,6 +36,7 @@ import (
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
+	"github.com/stripe/veneur/sinks/datadog"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
@@ -275,7 +276,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.TLSKey = REDACTED
 	log.WithField("config", conf).Debug("Initialized server")
 
-	ddSink, err := NewDatadogMetricSink(&conf, ret.interval.Seconds(), ret.HTTPClient, ret.Statsd)
+	ddSink, err := datadog.NewDatadogMetricSink(ret.interval.Seconds(), conf.FlushMaxPerBody, conf.Hostname, conf.Tags, conf.DatadogAPIHostname, conf.DatadogAPIKey, ret.HTTPClient, ret.Statsd, log.WithField("sink", "datadog"))
 	if err != nil {
 		return
 	}
