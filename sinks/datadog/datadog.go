@@ -16,7 +16,7 @@ import (
 
 const DatadogResourceKey = "resource"
 
-type datadogMetricSink struct {
+type DatadogMetricSink struct {
 	HTTPClient      *http.Client
 	ddHostname      string
 	hostname        string
@@ -26,6 +26,7 @@ type datadogMetricSink struct {
 	tags            []string
 	interval        float64
 	traceClient     *trace.Client
+	log             *logrus.Logger
 }
 
 // DDMetric is a data structure that represents the JSON that Datadog
@@ -41,31 +42,31 @@ type DDMetric struct {
 }
 
 // NewDatadogMetricSink creates a new Datadog sink for trace spans.
-func NewDatadogMetricSink(config *Config, interval float64, httpClient *http.Client, stats *statsd.Client) (*datadogMetricSink, error) {
-	return &datadogMetricSink{
+func NewDatadogMetricSink(interval float64, flushMaxPerBody int, hostname string, tags []string, ddHostname string, apiKey string, httpClient *http.Client, stats *statsd.Client, log *logrus.Logger) (*DatadogMetricSink, error) {
+	return &DatadogMetricSink{
 		HTTPClient:      httpClient,
 		statsd:          stats,
 		interval:        interval,
-		flushMaxPerBody: config.FlushMaxPerBody,
-		hostname:        config.Hostname,
-		tags:            config.Tags,
-		ddHostname:      config.DatadogAPIHostname,
-		apiKey:          config.DatadogAPIKey,
+		flushMaxPerBody: flushMaxPerBody,
+		hostname:        hostname,
+		tags:            tags,
+		ddHostname:      ddHostname,
+		apiKey:          apiKey,
 	}, nil
 }
 
 // Name returns the name of this sink.
-func (dd *datadogMetricSink) Name() string {
+func (dd *DatadogMetricSink) Name() string {
 	return "datadog"
 }
 
 // Start sets the sink up.
-func (dd *datadogMetricSink) Start(cl *trace.Client) error {
+func (dd *DatadogMetricSink) Start(cl *trace.Client) error {
 	dd.traceClient = cl
 	return nil
 }
 
-func (dd *datadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
+func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(dd.traceClient)
 
@@ -76,8 +77,8 @@ func (dd *datadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 	// we compute the chunks using rounding-up integer division
 	workers := ((len(metrics) - 1) / dd.flushMaxPerBody) + 1
 	chunkSize := ((len(metrics) - 1) / workers) + 1
-	log.WithField("workers", workers).Debug("Worker count chosen")
-	log.WithField("chunkSize", chunkSize).Debug("Chunk size chosen")
+	dd.log.WithField("workers", workers).Debug("Worker count chosen")
+	dd.log.WithField("chunkSize", chunkSize).Debug("Chunk size chosen")
 	var wg sync.WaitGroup
 	flushStart := time.Now()
 	for i := 0; i < workers; i++ {
@@ -92,11 +93,11 @@ func (dd *datadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 	wg.Wait()
 	dd.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(flushStart).Nanoseconds()), []string{"part:post"}, 1.0)
 
-	log.WithField("metrics", len(metrics)).Info("Completed flush to Datadog")
+	dd.log.WithField("metrics", len(metrics)).Info("Completed flush to Datadog")
 	return nil
 }
 
-func (dd *datadogMetricSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
+func (dd *DatadogMetricSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(dd.traceClient)
 
@@ -125,9 +126,9 @@ func (dd *datadogMetricSink) FlushEventsChecks(ctx context.Context, events []sam
 			},
 		}, "flush_events", true)
 		if err == nil {
-			log.WithField("events", len(events)).Info("Completed flushing events to Datadog")
+			dd.log.WithField("events", len(events)).Info("Completed flushing events to Datadog")
 		} else {
-			log.WithFields(logrus.Fields{
+			dd.log.WithFields(logrus.Fields{
 				"events":        len(events),
 				logrus.ErrorKey: err}).Warn("Error flushing events to Datadog")
 		}
@@ -139,16 +140,16 @@ func (dd *datadogMetricSink) FlushEventsChecks(ctx context.Context, events []sam
 		// support "Content-Encoding: deflate"
 		err := postHelper(context.TODO(), dd.HTTPClient, dd.statsd, dd.traceClient, fmt.Sprintf("%s/api/v1/check_run?api_key=%s", dd.ddHostname, dd.apiKey), checks, "flush_checks", false)
 		if err == nil {
-			log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
+			dd.log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
 		} else {
-			log.WithFields(logrus.Fields{
+			dd.log.WithFields(logrus.Fields{
 				"checks":        len(checks),
 				logrus.ErrorKey: err}).Warn("Error flushing checks to Datadog")
 		}
 	}
 }
 
-func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []DDMetric {
+func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []DDMetric {
 	ddMetrics := make([]DDMetric, len(metrics))
 	for i, m := range metrics {
 		// Defensively copy tags since we're gonna mutate it
@@ -166,7 +167,7 @@ func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []D
 		case samplers.GaugeMetric:
 			metricType = "gauge"
 		default:
-			log.WithField("metric_type", m.Type).Warn("Encountered an unknown metric type")
+			dd.log.WithField("metric_type", m.Type).Warn("Encountered an unknown metric type")
 			continue
 		}
 
@@ -206,7 +207,7 @@ func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []D
 	return ddMetrics
 }
 
-func (dd *datadogMetricSink) flushPart(ctx context.Context, metricSlice []DDMetric, wg *sync.WaitGroup) {
+func (dd *DatadogMetricSink) flushPart(ctx context.Context, metricSlice []DDMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
 	postHelper(ctx, dd.HTTPClient, dd.statsd, dd.traceClient, fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.ddHostname, dd.apiKey), map[string][]DDMetric{
 		"series": metricSlice,
