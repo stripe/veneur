@@ -12,6 +12,9 @@
 * Fix a panic when using `veneur-emit` to emit metrics via `-ssf` when no tags are specified. Thanks [myndzi](https://github.com/myndzi)
 * Remove spurious warnings about unset configuration settings. Thanks [antifuchs](https://github.com/antifuchs)
 
+## Removals
+* Removed the InfluxDB plugin as it was experimental and wasn't working. We can make a sink for it in the future if desired. Thanks [gphat](https://github.com/gphat)!
+
 # 1.7.0, 2017-10-19
 
 ## Notes for upgrading from previous versions

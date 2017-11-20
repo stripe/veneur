@@ -156,19 +156,6 @@ datadog_api_key: "farts"
 # Hostname to send Datadog trace data to.
 datadog_trace_api_address: "http://localhost:7777"
 
-# == InfluxDB ==
-# InfluxDB can be a sink for metrics.
-
-# Hostname to send Influx metrics to
-#influx_address: "http://localhost:8086"
-influx_address: ""
-
-# Consistency level for writes
-influx_consistency: one
-
-# Name of database to which metrics will be written.
-influx_db_name: "mydb"
-
 # == LightStep ==
 # LightStep can be a sink for trace spans.
 
