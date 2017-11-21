@@ -3,12 +3,17 @@ package veneur
 import (
 	"compress/zlib"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
+	"io/ioutil"
+	"math"
 	"net/http"
 	"reflect"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -17,6 +22,17 @@ import (
 )
 
 type contextHandler func(c context.Context, w http.ResponseWriter, r *http.Request)
+
+// IncomingDDMetric more permissive DDMetric that allows string floats
+type IncomingDDMetric struct {
+	Name       string            `json:"metric"`
+	Value      [1][2]interface{} `json:"points"`
+	Tags       []string          `json:"tags,omitempty"`
+	MetricType string            `json:"type"`
+	Hostname   string            `json:"host,omitempty"`
+	DeviceName string            `json:"device_name,omitempty"`
+	Interval   int32             `json:"interval,omitempty"`
+}
 
 func (ch contextHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
@@ -59,6 +75,44 @@ func handleImport(s *Server) http.Handler {
 		// the server usually waits for this to return before finalizing the
 		// response, so this part must be done asynchronously
 		go s.ImportMetrics(span.Attach(ctx), jsonMetrics)
+	})
+}
+
+func handleDatadogImport(s *Server) http.Handler {
+	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+		span, jsonMetrics, err := unmarshalDDMetricsFromHTTP(ctx, s.Statsd, w, r)
+		if err != nil {
+			return
+		}
+		go s.ImportMetrics(span.Attach(ctx), jsonMetrics)
+	})
+}
+
+func handleDatadogCheckImport(s *Server) http.Handler {
+	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+		// TODO Get span out
+		_, checks, err := unmarshalDDChecksFromHTTP(ctx, s.Statsd, w, r)
+		if err != nil {
+			return
+		}
+		// TODO make a function for this
+		for _, c := range checks {
+			s.EventWorker.ServiceCheckChan <- c
+		}
+	})
+}
+
+func handleDatadogEventImport(s *Server) http.Handler {
+	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+		// TODO Get span out
+		_, events, err := unmarshalDDEventsFromHTTP(ctx, s.Statsd, w, r)
+		if err != nil {
+			return
+		}
+		// TODO make a function for this
+		for _, e := range events {
+			s.EventWorker.EventChan <- e
+		}
 	})
 }
 
@@ -105,25 +159,21 @@ func handleTraceRequest(ctx context.Context, stats *statsd.Client, w http.Respon
 	return span, traces, nil
 }
 
-// unmarshalMetricsFromHTTP takes care of the common need to unmarshal a slice of metrics from a request body,
-// dealing with error handling, decoding, tracing, and the associated metrics.
-func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []samplers.JSONMetric, error) {
+func decodeBody(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, io.ReadCloser, error) {
 	var (
-		jsonMetrics []samplers.JSONMetric
-		body        io.ReadCloser
-		err         error
-		encoding    = r.Header.Get("Content-Encoding")
-		span        *trace.Span
+		body     io.ReadCloser
+		err      error
+		encoding = r.Header.Get("Content-Encoding")
+		span     *trace.Span
 	)
 
-	span, err = tracer.ExtractRequestChild("/import", r, "veneur.opentracing.import")
+	span, err = tracer.ExtractRequestChild("decodeBody", r, "veneur.opentracing.import")
 	if err != nil {
 		log.WithError(err).Debug("Could not extract span from request")
 		span = tracer.StartSpan("veneur.opentracing.import").(*trace.Span)
 	} else {
 		log.WithField("trace", span.Trace).Debug("Extracted span from request")
 	}
-	defer span.Finish()
 
 	innerLogger := log.WithField("client", r.RemoteAddr)
 
@@ -138,7 +188,7 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 			span.Error(err)
 			encLogger.WithError(err).Error("Could not read compressed request body")
 			stats.Count("import.request_error_total", 1, []string{"cause:deflate"}, 1.0)
-			return nil, nil, err
+			return span, nil, err
 		}
 		defer body.Close()
 	default:
@@ -146,13 +196,28 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 		span.Error(errors.New("Could not determine content-encoding of request"))
 		encLogger.Error("Could not determine content-encoding of request")
 		stats.Count("import.request_error_total", 1, []string{"cause:unknown_content_encoding"}, 1.0)
+		return span, nil, err
+	}
+
+	return span, body, nil
+}
+
+// unmarshalMetricsFromHTTP takes care of the common need to unmarshal a slice of metrics from a request body,
+// dealing with error handling, decoding, tracing, and the associated metrics.
+func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []samplers.JSONMetric, error) {
+	var jsonMetrics []samplers.JSONMetric
+
+	span, body, err := decodeBody(ctx, stats, w, r)
+	defer span.Finish()
+	if err != nil {
 		return nil, nil, err
 	}
 
 	if err = json.NewDecoder(body).Decode(&jsonMetrics); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		span.Error(err)
-		innerLogger.WithError(err).Error("Could not decode /import request")
+		b, _ := ioutil.ReadAll(body)
+		log.WithField("body", b).WithError(err).Error("Could not decode /import request")
 		stats.Count("import.request_error_total", 1, []string{"cause:json"}, 1.0)
 		return nil, nil, err
 	}
@@ -161,7 +226,7 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 		const msg = "Received empty /import request"
 		http.Error(w, msg, http.StatusBadRequest)
 		span.Error(errors.New(msg))
-		innerLogger.WithError(err).Error(msg)
+		log.WithError(err).Error(msg)
 		return nil, nil, err
 	}
 
@@ -174,14 +239,179 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 		const msg = "Received empty or improperly-formed metrics"
 		http.Error(w, msg, http.StatusBadRequest)
 		span.Error(errors.New(msg))
-		innerLogger.Error(msg)
+		log.Error(msg)
 		return nil, nil, err
 	}
 
 	w.WriteHeader(http.StatusAccepted)
 	stats.TimeInMilliseconds("import.response_duration_ns",
 		float64(time.Since(span.Start).Nanoseconds()),
-		[]string{"part:request", fmt.Sprintf("encoding:%s", encoding)},
+		[]string{"part:request"},
+		1.0)
+
+	return span, jsonMetrics, nil
+}
+
+func unmarshalDDChecksFromHTTP(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []samplers.UDPServiceCheck, error) {
+	var ddChecks []samplers.UDPServiceCheck
+
+	span, body, err := decodeBody(ctx, stats, w, r)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer span.Finish()
+
+	if err = json.NewDecoder(body).Decode(&ddChecks); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		span.Error(err)
+		b, _ := ioutil.ReadAll(body)
+		log.WithField("body", b).WithError(err).Error("Could not decode /api/v1/check_run request")
+		stats.Count("import.request_error_total", 1, []string{"cause:json"}, 1.0)
+		return span, nil, err
+	}
+
+	if len(ddChecks) == 0 {
+		const msg = "Received empty /api/v1/check_run request"
+		http.Error(w, msg, http.StatusBadRequest)
+		span.Error(errors.New(msg))
+		log.WithError(err).Error(msg)
+		return span, nil, err
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+	// TODO Fix metric
+	stats.TimeInMilliseconds("import.response_duration_ns",
+		float64(time.Since(span.Start).Nanoseconds()),
+		[]string{"part:request"},
+		1.0)
+
+	return span, ddChecks, nil
+}
+
+func unmarshalDDEventsFromHTTP(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []samplers.UDPEvent, error) {
+	var ddEvents map[string]map[string][]samplers.UDPEvent
+
+	span, body, err := decodeBody(ctx, stats, w, r)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer span.Finish()
+
+	if err = json.NewDecoder(body).Decode(&ddEvents); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		span.Error(err)
+		log.WithError(err).Error("Could not decode /v1/intake request")
+		stats.Count("import.request_error_total", 1, []string{"cause:json"}, 1.0)
+		return span, nil, err
+	}
+
+	if len(ddEvents) == 0 {
+		const msg = "Received empty /v1/intake request"
+		http.Error(w, msg, http.StatusBadRequest)
+		span.Error(errors.New(msg))
+		log.WithError(err).Error(msg)
+		return span, nil, err
+	}
+
+	// Verify we got some serieseses
+	if _, ok := ddEvents["events"]; ok {
+		if _, apiok := ddEvents["events"]["api"]; !apiok {
+			const msg = "Received empty or improperly-formed metrics"
+			http.Error(w, msg, http.StatusBadRequest)
+			span.Error(errors.New(msg))
+			log.Error(msg)
+			return span, nil, err
+		}
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+	// TODO Fix metric
+	stats.TimeInMilliseconds("import.response_duration_ns",
+		float64(time.Since(span.Start).Nanoseconds()),
+		[]string{"part:request"},
+		1.0)
+
+	return span, ddEvents["events"]["api"], nil
+}
+
+// unmarshalDDMetricsFromHTTP takes care of the common need to unmarshal a slice of metrics from a request body,
+// dealing with error handling, decoding, tracing, and the associated metrics.
+func unmarshalDDMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []samplers.JSONMetric, error) {
+	var ddIncMetrics map[string][]IncomingDDMetric
+
+	span, body, err := decodeBody(ctx, stats, w, r)
+	if err != nil {
+		return span, nil, err
+	}
+
+	if err = json.NewDecoder(body).Decode(&ddIncMetrics); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		span.Error(err)
+		log.WithError(err).Error("Could not decode /v1/series request")
+		stats.Count("import.request_error_total", 1, []string{"cause:json"}, 1.0)
+		return span, nil, err
+	}
+
+	if len(ddIncMetrics) == 0 {
+		const msg = "Received empty /v1/series request"
+		http.Error(w, msg, http.StatusBadRequest)
+		span.Error(errors.New(msg))
+		log.WithError(err).Error(msg)
+		return span, nil, err
+	}
+
+	// Verify we got some serieseses
+	if _, ok := ddIncMetrics["series"]; !ok {
+		const msg = "Received empty or improperly-formed metrics"
+		http.Error(w, msg, http.StatusBadRequest)
+		span.Error(errors.New(msg))
+		log.Error(msg)
+		return span, nil, err
+	}
+
+	jsonMetrics := make([]samplers.JSONMetric, len(ddIncMetrics["series"]))
+	for i, ddIncMetric := range ddIncMetrics["series"] {
+		// We're mutating this thing since nothing else is gonna use it
+		sort.Strings(ddIncMetric.Tags)
+		// Transform the incoming metrics to a JSONMetric, so we can use existing
+		// code to merge it.
+		var finalValue float64
+		value := ddIncMetric.Value[0][1]
+		switch v := value.(type) {
+		case string:
+			finalValue, err = strconv.ParseFloat(value.(string), 64)
+			if err != nil {
+				log.WithField("value", value).Warn("Unable to convert string to float, dropping")
+				continue
+			}
+		case float64:
+			finalValue = value.(float64)
+		default:
+			log.WithField("type", v).Warn("Unexpected metric value type, dropping")
+			continue
+
+		}
+
+		bits := math.Float64bits(finalValue)
+		bytes := make([]byte, 8)
+		binary.LittleEndian.PutUint64(bytes, bits)
+
+		jsonMetrics[i] = samplers.JSONMetric{
+			MetricKey: samplers.MetricKey{
+				Name:       ddIncMetric.Name,
+				Type:       ddIncMetric.MetricType,
+				JoinedTags: strings.Join(ddIncMetric.Tags, ","),
+			},
+			Tags:  ddIncMetric.Tags,
+			Value: bytes,
+		}
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+	// TODO Fix metric
+	stats.TimeInMilliseconds("import.response_duration_ns",
+		float64(time.Since(span.Start).Nanoseconds()),
+		[]string{"part:request"},
 		1.0)
 
 	return span, jsonMetrics, nil

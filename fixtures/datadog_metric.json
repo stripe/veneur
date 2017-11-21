@@ -1,0 +1,1663 @@
+{
+    "series": [
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "file.age_seconds",
+            "points": [
+                [
+                    1509037548,
+                    -1
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "expected_status:absent",
+                "path:/etc/stripe/facts/puppet_locked.txt"
+            ],
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "file.age_seconds",
+            "points": [
+                [
+                    1509037548,
+                    9680992.398920298
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "expected_status:present",
+                "path:/pay/health/successfully-bootstrapped"
+            ],
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "file.age_seconds",
+            "points": [
+                [
+                    1509037548,
+                    1875586.5739953518
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "expected_status:absent",
+                "path:/var/run/stripe/restart-required/*"
+            ],
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "file.age_seconds",
+            "points": [
+                [
+                    1509037548,
+                    25.596588850021362
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "expected_status:present",
+                "path:/pay/confidant/rendered/all-secrets.json"
+            ],
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "file.age_seconds",
+            "points": [
+                [
+                    1509037548,
+                    43.20435857772827
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "expected_status:present",
+                "path:/tmp/reyes.u0.generation"
+            ],
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "file.age_seconds",
+            "points": [
+                [
+                    1509037548,
+                    -1
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "expected_status:absent",
+                "path:/run/vulnerable-processes.running"
+            ],
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "file.age_seconds",
+            "points": [
+                [
+                    1509037548,
+                    -1
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "expected_status:absent",
+                "path:/run/vulnerable-packages.to-upgrade"
+            ],
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "file.age_seconds",
+            "points": [
+                [
+                    1509037548,
+                    -1
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "expected_status:absent",
+                "path:/run/reboot-required.nagios"
+            ],
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "file.age_seconds",
+            "points": [
+                [
+                    1509037548,
+                    -1
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "expected_status:absent",
+                "path:/var/run/stripe/bootstrapping"
+            ],
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.current_time",
+            "points": [
+                [
+                    1509037548,
+                    1509037548.087327
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "updates.security",
+            "points": [
+                [
+                    1509037548,
+                    0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "updates.available",
+            "points": [
+                [
+                    1509037548,
+                    56
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp6.time_wait",
+            "points": [
+                [
+                    1509037548,
+                    0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "eth0",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.packets_out.count",
+            "points": [
+                [
+                    1509037548,
+                    42.7
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp4.opening",
+            "points": [
+                [
+                    1509037548,
+                    0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "eth0",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.bytes_sent",
+            "points": [
+                [
+                    1509037548,
+                    137276.05
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.udp.in_datagrams",
+            "points": [
+                [
+                    1509037548,
+                    13.85
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp6.opening",
+            "points": [
+                [
+                    1509037548,
+                    0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp4.established",
+            "points": [
+                [
+                    1509037548,
+                    46
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.udp.snd_buf_errors",
+            "points": [
+                [
+                    1509037548,
+                    0.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "eth0",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.packets_in.count",
+            "points": [
+                [
+                    1509037548,
+                    46.65
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "eth0",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.packets_out.error",
+            "points": [
+                [
+                    1509037548,
+                    0.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp6.closing",
+            "points": [
+                [
+                    1509037548,
+                    0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp6.listening",
+            "points": [
+                [
+                    1509037548,
+                    6
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp.out_segs",
+            "points": [
+                [
+                    1509037548,
+                    79.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp6.established",
+            "points": [
+                [
+                    1509037548,
+                    1
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.udp4.connections",
+            "points": [
+                [
+                    1509037548,
+                    20
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.udp.out_datagrams",
+            "points": [
+                [
+                    1509037548,
+                    14.05
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp4.closing",
+            "points": [
+                [
+                    1509037548,
+                    0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.udp.rcv_buf_errors",
+            "points": [
+                [
+                    1509037548,
+                    0.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp.in_segs",
+            "points": [
+                [
+                    1509037548,
+                    75.05
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.udp.in_csum_errors",
+            "points": [
+                [
+                    1509037548,
+                    0.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.udp6.connections",
+            "points": [
+                [
+                    1509037548,
+                    4
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.udp.in_errors",
+            "points": [
+                [
+                    1509037548,
+                    0.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp4.time_wait",
+            "points": [
+                [
+                    1509037548,
+                    33
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp.retrans_segs",
+            "points": [
+                [
+                    1509037548,
+                    0.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp4.listening",
+            "points": [
+                [
+                    1509037548,
+                    19
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "eth0",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.packets_in.error",
+            "points": [
+                [
+                    1509037548,
+                    0.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp.listen_drops",
+            "points": [
+                [
+                    1509037548,
+                    0.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.udp.no_ports",
+            "points": [
+                [
+                    1509037548,
+                    0.1
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "eth0",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.bytes_rcvd",
+            "points": [
+                [
+                    1509037548,
+                    5089.9
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp.backlog_drops",
+            "points": [
+                [
+                    1509037548,
+                    0.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.net.tcp.listen_overflows",
+            "points": [
+                [
+                    1509037548,
+                    0.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "nginx.net.writing",
+            "points": [
+                [
+                    1509037548,
+                    1
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "nginx.net.reading",
+            "points": [
+                [
+                    1509037548,
+                    0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "nginx.net.waiting",
+            "points": [
+                [
+                    1509037548,
+                    0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "nginx.net.request_per_s",
+            "points": [
+                [
+                    1509037548,
+                    0.05
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "nginx.net.conn_dropped_per_s",
+            "points": [
+                [
+                    1509037548,
+                    0.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "nginx.net.conn_opened_per_s",
+            "points": [
+                [
+                    1509037548,
+                    0.05
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "nginx.net.connections",
+            "points": [
+                [
+                    1509037548,
+                    1
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.oom.count",
+            "points": [
+                [
+                    1509037548,
+                    0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "veneur.build_age.max",
+            "points": [
+                [
+                    1509037548,
+                    398.914322
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "veneur.build_age.median",
+            "points": [
+                [
+                    1509037548,
+                    398.914322
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "veneur.build_age.avg",
+            "points": [
+                [
+                    1509037548,
+                    398.914322
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "veneur.build_age.count",
+            "points": [
+                [
+                    1509037548,
+                    1.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "rate"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "veneur.build_age.50percentile",
+            "points": [
+                [
+                    1509037548,
+                    398.914322
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "veneur.build_age.90percentile",
+            "points": [
+                [
+                    1509037548,
+                    398.914322
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "veneur.build_age.95percentile",
+            "points": [
+                [
+                    1509037548,
+                    398.914322
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "veneur.build_age.99percentile",
+            "points": [
+                [
+                    1509037548,
+                    398.914322
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "veneur.deployed_version",
+            "points": [
+                [
+                    1509037548,
+                    1
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "sha:1b48c52c0aea6e3177e09b32772bf6a83129176d"
+            ],
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.linux.context_switches",
+            "points": [
+                [
+                    1509037548,
+                    37976.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "count"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.processes.priorities",
+            "points": [
+                [
+                    1509037548,
+                    11.0
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "priority:low"
+            ],
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.entropy.available",
+            "points": [
+                [
+                    1509037548,
+                    905.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.linux.processes_created",
+            "points": [
+                [
+                    1509037548,
+                    936
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "count"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.inodes.total",
+            "points": [
+                [
+                    1509037548,
+                    422537.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.processes.states",
+            "points": [
+                [
+                    1509037548,
+                    1.0
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "state:runnable"
+            ],
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.linux.interrupts",
+            "points": [
+                [
+                    1509037548,
+                    28891
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "count"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.inodes.used",
+            "points": [
+                [
+                    1509037548,
+                    494.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.processes.states",
+            "points": [
+                [
+                    1509037548,
+                    184.0
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "state:sleeping"
+            ],
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.processes.priorities",
+            "points": [
+                [
+                    1509037548,
+                    35.0
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "priority:high"
+            ],
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.linux.vm.pages.swapped_in",
+            "points": [
+                [
+                    1509037548,
+                    0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "count"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.linux.vm.pages.out",
+            "points": [
+                [
+                    1509037548,
+                    1296
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "count"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.linux.vm.pages.faults",
+            "points": [
+                [
+                    1509037548,
+                    417462
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "count"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.linux.vm.pages.swapped_out",
+            "points": [
+                [
+                    1509037548,
+                    0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "count"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.linux.vm.pages.major_faults",
+            "points": [
+                [
+                    1509037548,
+                    0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "count"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.linux.vm.pages.in",
+            "points": [
+                [
+                    1509037548,
+                    0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "count"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "puppet.last_successful_run.age_seconds",
+            "points": [
+                [
+                    1509037548,
+                    235
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "puppet.last_run.age_seconds",
+            "points": [
+                [
+                    1509037548,
+                    235
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "puppet.is_failing",
+            "points": [
+                [
+                    1509037548,
+                    0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "stripe.health.is_down",
+            "points": [
+                [
+                    1509037549,
+                    0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "net.netfilter.nf_conntrack_count",
+            "points": [
+                [
+                    1509037549,
+                    "351"
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "net.netfilter.nf_conntrack_max",
+            "points": [
+                [
+                    1509037549,
+                    "262144"
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "datadog.agent.heartbeat",
+            "points": [
+                [
+                    1509037549,
+                    1
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "consul.nodes_passing",
+            "points": [
+                [
+                    1509037549,
+                    1
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "consul_version:0.9.3",
+                "consul_datacenter:qa-northwest",
+                "service:stripe-health"
+            ],
+            "type": "gauge"
+        },
+        {
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "consul.peers",
+            "points": [
+                [
+                    1509037549,
+                    3
+                ]
+            ],
+            "source_type_name": "System",
+            "tags": [
+                "consul_version:0.9.3",
+                "consul_datacenter:qa-northwest",
+                "mode:follower"
+            ],
+            "type": "gauge"
+        },
+        {
+            "device": "udev",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.used",
+            "points": [
+                [
+                    1509037549,
+                    428
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvda1",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.used",
+            "points": [
+                [
+                    1509037549,
+                    3588256.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvdf",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.free",
+            "points": [
+                [
+                    1509037549,
+                    67039044
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvdf",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.used",
+            "points": [
+                [
+                    1509037549,
+                    69820
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/mapper/stripe-pay",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.in_use",
+            "points": [
+                [
+                    1509037549,
+                    0.027000000000000003
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/mapper/stripe-pay",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.total",
+            "points": [
+                [
+                    1509037549,
+                    1703936
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "udev",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.total",
+            "points": [
+                [
+                    1509037549,
+                    956041
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvdf",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.total",
+            "points": [
+                [
+                    1509037549,
+                    67108864
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvda1",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.free",
+            "points": [
+                [
+                    1509037549,
+                    6140828.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "tmpfs",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.free",
+            "points": [
+                [
+                    1509037549,
+                    765456.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvda1",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.used",
+            "points": [
+                [
+                    1509037549,
+                    252983
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "udev",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.free",
+            "points": [
+                [
+                    1509037549,
+                    955613
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/mapper/stripe-pay",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.free",
+            "points": [
+                [
+                    1509037549,
+                    1697554
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvda15",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.free",
+            "points": [
+                [
+                    1509037549,
+                    101129.5
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "tmpfs",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.used",
+            "points": [
+                [
+                    1509037549,
+                    412
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/mapper/stripe-pay",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.used",
+            "points": [
+                [
+                    1509037549,
+                    681932.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvdf",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.in_use",
+            "points": [
+                [
+                    1509037549,
+                    0.02
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "udev",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.in_use",
+            "points": [
+                [
+                    1509037549,
+                    0.00044767954512411076
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvdf",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.total",
+            "points": [
+                [
+                    1509037549,
+                    1056763060.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvda15",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.in_use",
+            "points": [
+                [
+                    1509037549,
+                    0.045
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvda1",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.total",
+            "points": [
+                [
+                    1509037549,
+                    655360
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvda15",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.total",
+            "points": [
+                [
+                    1509037549,
+                    105866.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "udev",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.total",
+            "points": [
+                [
+                    1509037549,
+                    3824164.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/mapper/stripe-pay",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.in_use",
+            "points": [
+                [
+                    1509037549,
+                    0.003745445838341346
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "tmpfs",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.total",
+            "points": [
+                [
+                    1509037549,
+                    765952.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "tmpfs",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.total",
+            "points": [
+                [
+                    1509037549,
+                    957437
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "tmpfs",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.in_use",
+            "points": [
+                [
+                    1509037549,
+                    0.001
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/mapper/stripe-pay",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.free",
+            "points": [
+                [
+                    1509037549,
+                    24944944.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvda1",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.total",
+            "points": [
+                [
+                    1509037549,
+                    10174756.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "udev",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.used",
+            "points": [
+                [
+                    1509037549,
+                    12.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "udev",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.free",
+            "points": [
+                [
+                    1509037549,
+                    3824152.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvdf",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.free",
+            "points": [
+                [
+                    1509037549,
+                    1034129632.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvda1",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.in_use",
+            "points": [
+                [
+                    1509037549,
+                    0.369
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "tmpfs",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.free",
+            "points": [
+                [
+                    1509037549,
+                    957025
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvdf",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.in_use",
+            "points": [
+                [
+                    1509037549,
+                    0.0010403990745544434
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvda1",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.free",
+            "points": [
+                [
+                    1509037549,
+                    402377
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvdf",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.used",
+            "points": [
+                [
+                    1509037549,
+                    21568468.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvda15",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.used",
+            "points": [
+                [
+                    1509037549,
+                    4736.5
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "tmpfs",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.in_use",
+            "points": [
+                [
+                    1509037549,
+                    0.00043031551945454374
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/xvda1",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.in_use",
+            "points": [
+                [
+                    1509037549,
+                    0.38602142333984374
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "tmpfs",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.used",
+            "points": [
+                [
+                    1509037549,
+                    496.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/mapper/stripe-pay",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.fs.inodes.used",
+            "points": [
+                [
+                    1509037549,
+                    6382
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "/dev/mapper/stripe-pay",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.total",
+            "points": [
+                [
+                    1509037549,
+                    26691836.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        },
+        {
+            "device": "udev",
+            "host": "qa-splunkmaster1.northwest.stripe.io",
+            "metric": "system.disk.in_use",
+            "points": [
+                [
+                    1509037549,
+                    0.0
+                ]
+            ],
+            "source_type_name": "System",
+            "type": "gauge"
+        }
+    ]
+}

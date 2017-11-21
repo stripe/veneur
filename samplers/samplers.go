@@ -157,6 +157,16 @@ func (g *Gauge) Sample(sample float64, sampleRate float32) {
 	g.value = sample
 }
 
+// Combine overwrites gauge (marshalled as a byte slice)
+func (g *Gauge) Combine(other []byte) error {
+	bits := binary.LittleEndian.Uint64(other)
+	otherGauge := math.Float64frombits(bits)
+
+	g.value += otherGauge
+
+	return nil
+}
+
 // Flush generates an InterMetric from the current state of this gauge.
 func (g *Gauge) Flush() []InterMetric {
 	tags := make([]string, len(g.Tags))

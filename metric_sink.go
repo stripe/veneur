@@ -33,7 +33,7 @@ type datadogMetricSink struct {
 // wants when posting to the API
 type DDMetric struct {
 	Name       string        `json:"metric"`
-	Value      [1][2]float64 `json:"points"`
+	Value      [1][2]float64 `json:"points,string"`
 	Tags       []string      `json:"tags,omitempty"`
 	MetricType string        `json:"type"`
 	Hostname   string        `json:"host,omitempty"`
