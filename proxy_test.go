@@ -157,7 +157,7 @@ func TestConsistentForward(t *testing.T) {
 	// Cool, now let's make a veneur to process some bits!
 	config := localConfig()
 	config.ForwardAddress = fmt.Sprintf("http://%s", proxyConfig.HTTPAddress)
-	f := newFixture(t, config)
+	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 
 	f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{

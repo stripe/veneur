@@ -11,6 +11,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/trace"
 )
 
@@ -211,4 +212,32 @@ func (dd *datadogMetricSink) flushPart(ctx context.Context, metricSlice []DDMetr
 	postHelper(ctx, dd.HTTPClient, dd.statsd, dd.traceClient, fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.ddHostname, dd.apiKey), map[string][]DDMetric{
 		"series": metricSlice,
 	}, "flush", true)
+}
+
+type blackholeMetricSink struct {
+}
+
+var _ sinks.MetricSink = &blackholeMetricSink{}
+
+// NewBlackholeMetricSink creates a new blackholeMetricSink. This sink does
+// nothing at flush time, effectively "black holing" any metrics that are flushed.
+// It is useful for tests that do not require any inspect of flushed metrics.
+func NewBlackholeMetricSink() (*blackholeMetricSink, error) {
+	return &blackholeMetricSink{}, nil
+}
+
+func (b *blackholeMetricSink) Name() string {
+	return "blackhole"
+}
+
+func (b *blackholeMetricSink) Start(*trace.Client) error {
+	return nil
+}
+
+func (b *blackholeMetricSink) Flush(context.Context, []samplers.InterMetric) error {
+	return nil
+}
+
+func (b *blackholeMetricSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
+	return
 }

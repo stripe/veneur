@@ -275,21 +275,16 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	conf.TLSKey = REDACTED
 	log.WithField("config", conf).Debug("Initialized server")
 
-	ddSink, err := NewDatadogMetricSink(&conf, ret.interval.Seconds(), ret.HTTPClient, ret.Statsd)
-	if err != nil {
-		return
+	if conf.DatadogAPIKey != "" {
+		ddSink, err2 := NewDatadogMetricSink(&conf, ret.interval.Seconds(), ret.HTTPClient, ret.Statsd)
+		if err2 != nil {
+			return
+		}
+		ret.metricSinks = append(ret.metricSinks, ddSink)
 	}
-	ret.metricSinks = append(ret.metricSinks, ddSink)
 
 	// Configure tracing sinks
-	if len(conf.SsfListenAddresses) > 0 && (conf.DatadogTraceAPIAddress != "" || conf.TraceLightstepAccessToken != "") {
-		// Set up our internal trace client:
-		tb := &internalTraceBackend{}
-		ret.TraceClient, err = trace.NewBackendClient(tb, trace.Capacity(200))
-		if err != nil {
-			panic(fmt.Sprintf("Could not set up internal trace backend: %v", err))
-		}
-
+	if len(conf.SsfListenAddresses) > 0 {
 		// Set a sane default
 		if conf.SsfBufferSize == 0 {
 			conf.SsfBufferSize = defaultSpanBufferSize
@@ -323,14 +318,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			ret.traceLightstepAccessToken = REDACTED
 			log.Info("Configured Lightstep trace sink")
 		}
-
-		ret.SpanWorker = NewSpanWorker(ret.spanSinks, ret.Statsd)
-
-		// Now that we have a span worker, set the trace
-		// backend up to send spans to it:
-		tb.spanWorker = ret.SpanWorker
-	} else {
-		trace.Disable()
 	}
 
 	var svc s3iface.S3API
@@ -390,6 +377,23 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 // various workers and utilities.
 func (s *Server) Start() {
 	log.WithField("version", VERSION).Info("Starting server")
+
+	if len(s.spanSinks) > 0 {
+		// Set up our internal trace client:
+		tb := &internalTraceBackend{}
+		var err error
+		s.TraceClient, err = trace.NewBackendClient(tb, trace.Capacity(200))
+		if err != nil {
+			log.WithError(err).Error("Could not set up internal trace backend")
+			panic(err)
+		}
+		s.SpanWorker = NewSpanWorker(s.spanSinks, s.Statsd)
+		// Now that we have a span worker, set the trace
+		// backend up to send spans to it:
+		tb.spanWorker = s.SpanWorker
+	} else {
+		trace.Disable()
+	}
 
 	go func() {
 		log.Info("Starting Event worker")

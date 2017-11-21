@@ -164,7 +164,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	config := globalConfig()
 	config.DatadogTraceAPIAddress = remoteServer.URL
 
-	server := setupVeneurServer(t, config, nil)
+	server := setupVeneurServer(t, config, nil, nil, nil)
 	defer server.Shutdown()
 
 	ddSink, err := NewDatadogSpanSink(&config, server.Statsd, server.HTTPClient, server.TagsAsMap)
@@ -198,7 +198,7 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 
 	// this can be anything as long as it's not empty
 	config.DatadogTraceAPIAddress = "http://example.org"
-	server := setupVeneurServer(t, config, nil)
+	server := setupVeneurServer(t, config, nil, nil, nil)
 	defer server.Shutdown()
 
 	lsSink, err := NewLightStepSpanSink(&config, server.Statsd, server.TagsAsMap)

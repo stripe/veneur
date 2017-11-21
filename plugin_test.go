@@ -52,7 +52,7 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 
 	metricValues, expectedMetrics := generateMetrics()
 	config := globalConfig()
-	f := newFixture(t, config)
+	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 
 	dp := &dummyPlugin{logger: log, statsd: f.server.Statsd}
@@ -120,7 +120,7 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 	metricValues, _ := generateMetrics()
 
 	config := globalConfig()
-	f := newFixture(t, config)
+	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 
 	client := &s3Mock.MockS3Client{}
