@@ -14,7 +14,87 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/samplers"
 )
+
+func TestDatadogRate(t *testing.T) {
+	ddSink := datadogMetricSink{
+		hostname: "somehostname",
+		tags:     []string{"a:b", "c:d"},
+		interval: 10,
+	}
+
+	metrics := []samplers.InterMetric{{
+		Name:      "foo.bar.baz",
+		Timestamp: time.Now().Unix(),
+		Value:     float64(10),
+		Tags:      []string{"gorch:frobble", "x:e"},
+		Type:      samplers.CounterMetric,
+	}}
+	ddMetrics := ddSink.finalizeMetrics(metrics)
+	assert.Equal(t, "rate", ddMetrics[0].MetricType, "Metric type should be rate")
+	assert.Equal(t, float64(1.0), ddMetrics[0].Value[0][1], "Metric rate wasnt computed correctly")
+}
+
+func TestServerTags(t *testing.T) {
+	ddSink := datadogMetricSink{
+		hostname: "somehostname",
+		tags:     []string{"a:b", "c:d"},
+		interval: 10,
+	}
+
+	metrics := []samplers.InterMetric{{
+		Name:      "foo.bar.baz",
+		Timestamp: time.Now().Unix(),
+		Value:     float64(10),
+		Tags:      []string{"gorch:frobble", "x:e"},
+		Type:      samplers.CounterMetric,
+	}}
+
+	ddMetrics := ddSink.finalizeMetrics(metrics)
+	assert.Equal(t, "somehostname", ddMetrics[0].Hostname, "Metric hostname uses argument")
+	assert.Contains(t, ddMetrics[0].Tags, "a:b", "Tags should contain server tags")
+}
+
+func TestHostMagicTag(t *testing.T) {
+	ddSink := datadogMetricSink{
+		hostname: "badhostname",
+		tags:     []string{"a:b", "c:d"},
+	}
+
+	metrics := []samplers.InterMetric{{
+		Name:      "foo.bar.baz",
+		Timestamp: time.Now().Unix(),
+		Value:     float64(10),
+		Tags:      []string{"gorch:frobble", "host:abc123", "x:e"},
+		Type:      samplers.CounterMetric,
+	}}
+
+	ddMetrics := ddSink.finalizeMetrics(metrics)
+	assert.Equal(t, "abc123", ddMetrics[0].Hostname, "Metric hostname should be from tag")
+	assert.NotContains(t, ddMetrics[0].Tags, "host:abc123", "Host tag should be removed")
+	assert.Contains(t, ddMetrics[0].Tags, "x:e", "Last tag is still around")
+}
+
+func TestDeviceMagicTag(t *testing.T) {
+	ddSink := datadogMetricSink{
+		hostname: "badhostname",
+		tags:     []string{"a:b", "c:d"},
+	}
+
+	metrics := []samplers.InterMetric{{
+		Name:      "foo.bar.baz",
+		Timestamp: time.Now().Unix(),
+		Value:     float64(10),
+		Tags:      []string{"gorch:frobble", "device:abc123", "x:e"},
+		Type:      samplers.CounterMetric,
+	}}
+
+	ddMetrics := ddSink.finalizeMetrics(metrics)
+	assert.Equal(t, "abc123", ddMetrics[0].DeviceName, "Metric devicename should be from tag")
+	assert.NotContains(t, ddMetrics[0].Tags, "device:abc123", "Host tag should be removed")
+	assert.Contains(t, ddMetrics[0].Tags, "x:e", "Last tag is still around")
+}
 
 func TestFlushTracesDatadog(t *testing.T) {
 	type TestCase struct {
