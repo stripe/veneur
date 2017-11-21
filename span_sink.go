@@ -15,6 +15,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
@@ -378,6 +379,11 @@ func (ls *lightStepSpanSink) Flush() {
 type blackholeSpanSink struct {
 }
 
+var _ sinks.SpanSink = &blackholeSpanSink{}
+
+// NewBlackholeSpanSink creates a new blackholeSpanSink. This sink does
+// nothing at flush time, effectively "black holing" any spans that are flushed.
+// It is useful for tests that do not require any inspect of flushed spans.
 func NewBlackholeSpanSink() (*blackholeSpanSink, error) {
 	return &blackholeSpanSink{}, nil
 }

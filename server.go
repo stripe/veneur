@@ -384,7 +384,8 @@ func (s *Server) Start() {
 		var err error
 		s.TraceClient, err = trace.NewBackendClient(tb, trace.Capacity(200))
 		if err != nil {
-			panic(fmt.Sprintf("Could not set up internal trace backend: %v", err))
+			log.WithError(err).Error("Could not set up internal trace backend")
+			panic(err)
 		}
 		s.SpanWorker = NewSpanWorker(s.spanSinks, s.Statsd)
 		// Now that we have a span worker, set the trace

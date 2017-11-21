@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/tdigest"
 	"github.com/stripe/veneur/trace"
@@ -161,7 +162,9 @@ func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, val
 
 // setupVeneurServer creates a local server from the specified config
 // and starts listening for requests. It returns the server for inspection.
-func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper, mSink metricSink, sSink spanSink) *Server {
+// If no metricSink or spanSink are provided then a `black hole` sink be used
+// so that flushes to these sinks do "nothing".
+func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper, mSink sinks.MetricSink, sSink sinks.SpanSink) *Server {
 	server, err := NewFromConfig(config)
 	if transport != nil {
 		server.HTTPClient.Transport = transport
@@ -206,6 +209,9 @@ type channelMetricSink struct {
 	metricsChannel chan []samplers.InterMetric
 }
 
+// NewChannelMetricSink creates a new channelMetricSink. This sink writes any
+// flushed metrics to its `metricsChannel` such that the test can inspect
+// the metrics for correctness.
 func NewChannelMetricSink(ch chan []samplers.InterMetric) (*channelMetricSink, error) {
 	return &channelMetricSink{
 		metricsChannel: ch,
@@ -239,7 +245,7 @@ type fixture struct {
 	flushMaxPerBody int
 }
 
-func newFixture(t testing.TB, config Config, mSink metricSink, sSink spanSink) *fixture {
+func newFixture(t testing.TB, config Config, mSink sinks.MetricSink, sSink sinks.SpanSink) *fixture {
 	interval, err := config.ParseInterval()
 	assert.NoError(t, err)
 
@@ -1050,7 +1056,7 @@ func BenchmarkServerFlush(b *testing.B) {
 	f := newFixture(b, config, nil, nil)
 
 	bhs, _ := NewBlackholeMetricSink()
-	f.server.metricSinks = []metricSink{bhs}
+	f.server.metricSinks = []sinks.MetricSink{bhs}
 	defer f.Close()
 
 	b.ResetTimer()
