@@ -136,30 +136,6 @@ func generateMetrics() (metricValues []float64, expectedMetrics map[string]float
 	return metricValues, expectedMetrics
 }
 
-// assertMetrics checks that all expected metrics are present
-// and have the correct value
-func assertMetrics(t *testing.T, metrics DDMetricsRequest, expectedMetrics map[string]float64) {
-	// it doesn't count as accidentally quadratic if it's intentional
-	for metricName, expectedValue := range expectedMetrics {
-		assertMetric(t, metrics, metricName, expectedValue)
-	}
-}
-
-func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, value float64) {
-	defer func() {
-		if r := recover(); r != nil {
-			assert.Fail(t, "error extracting metrics", r)
-		}
-	}()
-	for _, metric := range metrics.Series {
-		if metric.Name == metricName {
-			assert.Equal(t, int(value+.5), int(metric.Value[0][1]+.5), "Incorrect value for metric %s", metricName)
-			return
-		}
-	}
-	assert.Fail(t, "did not find expected metric", metricName)
-}
-
 // setupVeneurServer creates a local server from the specified config
 // and starts listening for requests. It returns the server for inspection.
 func setupVeneurServer(t *testing.T, config Config, transport http.RoundTripper) *Server {
@@ -179,63 +155,6 @@ func setupVeneurServer(t *testing.T, config Config, transport http.RoundTripper)
 
 	go server.HTTPServe()
 	return &server
-}
-
-// DDMetricsRequest represents the body of the POST request
-// for sending metrics data to Datadog
-// Eventually we'll want to define this symmetrically.
-type DDMetricsRequest struct {
-	Series []DDMetric
-}
-
-// fixture sets up a mock Datadog API server and Veneur
-type fixture struct {
-	api             *httptest.Server
-	server          *Server
-	ddmetrics       chan DDMetricsRequest
-	interval        time.Duration
-	flushMaxPerBody int
-}
-
-func newFixture(t *testing.T, config Config) *fixture {
-	interval, err := config.ParseInterval()
-	assert.NoError(t, err)
-
-	// Set up a remote server (the API that we're sending the data to)
-	// (e.g. Datadog)
-	f := &fixture{nil, &Server{}, make(chan DDMetricsRequest, 10), interval, config.FlushMaxPerBody}
-	f.api = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		zr, err := zlib.NewReader(r.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		var ddmetrics DDMetricsRequest
-
-		err = json.NewDecoder(zr).Decode(&ddmetrics)
-		if err != nil {
-			t.Fatal(err)
-		}
-		f.ddmetrics <- ddmetrics
-		w.WriteHeader(http.StatusAccepted)
-	}))
-
-	config.DatadogAPIHostname = f.api.URL
-	config.NumWorkers = 1
-	f.server = setupVeneurServer(t, config, nil)
-	return f
-}
-
-func (f *fixture) Close() {
-	// make Close safe to call multiple times
-	if f.ddmetrics == nil {
-		return
-	}
-
-	f.api.Close()
-	f.server.Shutdown()
-	close(f.ddmetrics)
-	f.ddmetrics = nil
 }
 
 // TestLocalServerUnaggregatedMetrics tests the behavior of
