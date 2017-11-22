@@ -133,5 +133,5 @@ func TestNewDatadogSpanSinkConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "http://trace", ddSink.traceAddress)
+	assert.Equal(t, "http://example.com", ddSink.traceAddress)
 }
