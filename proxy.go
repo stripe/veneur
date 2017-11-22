@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/profile"
 	"github.com/sirupsen/logrus"
+	vhttp "github.com/stripe/veneur/http"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/trace"
 	"github.com/zenazn/goji/bind"
@@ -310,7 +311,7 @@ func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
 			// this endpoint is not documented to take an array... but it does
 			// another curious constraint of this endpoint is that it does not
 			// support "Content-Encoding: deflate"
-			err = postHelper(span.Attach(ctx), p.HTTPClient, p.Statsd, p.traceClient, endpoint, batch, "flush_traces", false)
+			err = vhttp.PostHelper(span.Attach(ctx), p.HTTPClient, p.Statsd, p.traceClient, endpoint, batch, "flush_traces", false, log)
 
 			if err == nil {
 				log.WithFields(logrus.Fields{
@@ -375,7 +376,7 @@ func (p *Proxy) doPost(wg *sync.WaitGroup, destination string, batch []samplers.
 		return
 	}
 
-	err = postHelper(context.TODO(), p.HTTPClient, p.Statsd, p.traceClient, endpoint, batch, "forward", true)
+	err = vhttp.PostHelper(context.TODO(), p.HTTPClient, p.Statsd, p.traceClient, endpoint, batch, "forward", true, log)
 	if err == nil {
 		log.WithField("metrics", batchSize).Debug("Completed forward to upstream Veneur")
 	} else {
