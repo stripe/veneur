@@ -36,6 +36,8 @@ import (
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
+	"github.com/stripe/veneur/sinks/datadog"
+	"github.com/stripe/veneur/sinks/lightstep"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
@@ -62,9 +64,6 @@ const defaultTCPReadTimeout = 10 * time.Minute
 // defaultSpanBufferSize is the default maximum number of spans that
 // we can flush per flush-interval
 const defaultSpanBufferSize = 1 << 14
-
-const lightstepDefaultPort = 8080
-const lightstepDefaultInterval = 5 * time.Minute
 
 // A Server is the actual veneur instance that will be run.
 type Server struct {
@@ -113,8 +112,6 @@ type Server struct {
 	spanSinks   []sinks.SpanSink
 	metricSinks []sinks.MetricSink
 
-	traceLightstepAccessToken string
-
 	indicatorSpanTimerName string
 
 	TraceClient  *trace.Client
@@ -139,7 +136,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	ret.synchronizeInterval = conf.SynchronizeWithInterval
 
 	ret.TagsAsMap = mappedTags
-	ret.traceLightstepAccessToken = conf.TraceLightstepAccessToken
 	ret.HistogramPercentiles = conf.Percentiles
 	if len(conf.Aggregates) == 0 {
 		ret.HistogramAggregates.Value = samplers.AggregateMin + samplers.AggregateMax + samplers.AggregateCount
@@ -276,13 +272,12 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		}
 	}
 
-	conf.Key = REDACTED
-	conf.SentryDsn = REDACTED
-	conf.TLSKey = REDACTED
-	log.WithField("config", conf).Debug("Initialized server")
-
 	if conf.DatadogAPIKey != "" {
-		ddSink, err2 := NewDatadogMetricSink(&conf, ret.interval.Seconds(), ret.HTTPClient, ret.Statsd)
+		ddSink, err2 := datadog.NewDatadogMetricSink(
+			ret.interval.Seconds(), conf.FlushMaxPerBody, conf.Hostname, ret.Tags,
+			conf.DatadogAPIHostname, conf.DatadogAPIKey, ret.HTTPClient, ret.Statsd,
+			log,
+		)
 		if err2 != nil {
 			return
 		}
@@ -307,7 +302,10 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		// configure Datadog as a Span sink
 		if conf.DatadogTraceAPIAddress != "" {
 
-			ddSink, err := NewDatadogSpanSink(&conf, ret.Statsd, ret.HTTPClient, ret.TagsAsMap)
+			ddSink, err := datadog.NewDatadogSpanSink(
+				conf.DatadogTraceAPIAddress, conf.SsfBufferSize, ret.Statsd,
+				ret.HTTPClient, ret.TagsAsMap, log,
+			)
 			if err != nil {
 				return ret, err
 			}
@@ -317,17 +315,25 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		}
 
 		// configure Lightstep as a Span Sink
-		if ret.traceLightstepAccessToken != "" {
+		if conf.TraceLightstepAccessToken != "" {
+
+			maxSpans := conf.TraceLightstepMaximumSpans
+			if maxSpans == 0 {
+				maxSpans = conf.SsfBufferSize
+				log.WithField("max spans", maxSpans).Info("Using default maximum spans — ssf_buffer_size — for LightStep")
+			}
 
 			var lsSink sinks.SpanSink
-			lsSink, err = NewLightStepSpanSink(&conf, ret.Statsd, ret.TagsAsMap)
+			lsSink, err = lightstep.NewLightStepSpanSink(
+				conf.TraceLightstepCollectorHost, conf.TraceLightstepReconnectPeriod,
+				conf.TraceLightstepMaximumSpans, conf.TraceLightstepNumClients,
+				conf.TraceLightstepAccessToken, ret.Statsd, ret.TagsAsMap, log,
+			)
 			if err != nil {
 				return
 			}
 			ret.spanSinks = append(ret.spanSinks, lsSink)
 
-			// only set this if the original token was non-empty
-			ret.traceLightstepAccessToken = REDACTED
 			log.Info("Configured Lightstep trace sink")
 		}
 	}
@@ -335,9 +341,6 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	var svc s3iface.S3API
 	awsID := conf.AwsAccessKeyID
 	awsSecret := conf.AwsSecretAccessKey
-
-	conf.AwsAccessKeyID = REDACTED
-	conf.AwsSecretAccessKey = REDACTED
 
 	if len(awsID) > 0 && len(awsSecret) > 0 {
 		sess, err := session.NewSession(&aws.Config{
@@ -383,6 +386,17 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 	// closed in Shutdown; Same approach and http.Shutdown
 	ret.shutdown = make(chan struct{})
+
+	// Don't emit keys into logs now that we're done with them.
+	conf.Key = REDACTED
+	conf.SentryDsn = REDACTED
+	conf.TLSKey = REDACTED
+	conf.DatadogAPIKey = REDACTED
+	conf.TraceLightstepAccessToken = REDACTED
+	conf.AwsAccessKeyID = REDACTED
+	conf.AwsSecretAccessKey = REDACTED
+
+	log.WithField("config", conf).Debug("Initialized server")
 
 	return
 }
