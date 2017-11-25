@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -44,8 +45,11 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 		log.Debug("Found pod %#v", pod)
 		log.Debug("Containers are %#v", pod.Spec.Containers)
 		if len(pod.Spec.Containers) > 0 {
-			for i, container := range pod.Spec.Containers {
+			var i int
+			var container v1.Container
+			for i, container = range pod.Spec.Containers {
 				log.WithField("index", container).Debugf("Container %d is %#v", i, container)
+				log.WithField("index", container).Debugf("Container ports are %#v", container.Ports)
 				for _, port := range container.Ports {
 					if port.Name == "http" {
 						forwardPort = strconv.Itoa(int(port.HostPort))
