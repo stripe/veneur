@@ -343,7 +343,11 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 	// the error has already been logged (if there was one), so we only care
 	// about the success case
 	if http.PostHelper(span.Attach(ctx), s.HTTPClient, s.Statsd, s.TraceClient, endpoint, jsonMetrics, "forward", true, log) == nil {
-		log.WithField("metrics", len(jsonMetrics)).Info("Completed forward to upstream Veneur")
+		log.WithFields(logrus.Fields{
+			"metrics":     len(jsonMetrics),
+			"endpoint":    endpoint,
+			"forwardAddr": s.ForwardAddr,
+		}).Info("Completed forward to upstream Veneur")
 	}
 }
 
