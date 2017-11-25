@@ -305,8 +305,9 @@ func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consist
 
 	if err != nil || len(destinations) == 0 {
 		log.WithError(err).WithFields(logrus.Fields{
-			"service":   serviceName,
-			"errorType": reflect.TypeOf(err),
+			"service":         serviceName,
+			"errorType":       reflect.TypeOf(err),
+			"numDestinations": len(destinations),
 		}).Error("Discoverer returned an error, destinations may be stale!")
 		samples.Add(ssf.Count("discoverer.errors", 1, srvTags))
 		// Return since we got no hosts. We don't want to zero out the list. This
