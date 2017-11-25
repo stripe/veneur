@@ -35,9 +35,13 @@ RUN git checkout docker/${BUILD_REF}
 FROM src AS test
 # -race doesn't work on alpine because of a glibc dependency
 # https://github.com/golang/go/issues/19938 tracks progress in making the builder for race work
+RUN go test -v -timeout 60s -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur.BUILD_DATE=$(date +%s)" ./...
 
 
 FROM test AS build
+RUN go build -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur ./cmd/veneur
+RUN go build -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-emit ./cmd/veneur-emit
+RUN go build -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-prometheus ./cmd/veneur-prometheus
 RUN go build -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-proxy ./cmd/veneur-proxy
 
 
