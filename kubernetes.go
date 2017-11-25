@@ -42,6 +42,7 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 
 		// TODO don't assume there is only one container for the veneur global
 		log.Debug("Found pod %#v", pod)
+		log.Debug("Containers are %#v", pod.Spec.Containers)
 		if len(pod.Spec.Containers) > 0 {
 			for _, port := range pod.Spec.Containers[0].Ports {
 				if port.Name == "http" {
