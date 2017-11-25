@@ -422,6 +422,7 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 	}
 	wg.Wait() // Wait for all the above goroutines to complete
 	span.Add(ssf.Timing("proxy.duration_ns", time.Since(span.Start), time.Nanosecond, nil))
+	span.Add(ssf.Count("proxy.proxied_metrics_total", float32(len(jsonMetrics)), nil))
 }
 
 func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination string, batch []samplers.JSONMetric) {

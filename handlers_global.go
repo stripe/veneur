@@ -61,6 +61,8 @@ func handleImport(s *Server) http.Handler {
 	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 		span, jsonMetrics, err := unmarshalMetricsFromHTTP(ctx, s.TraceClient, w, r)
 		if err != nil {
+			log.WithError(err).Error("Error unmarshalling metrics in global import")
+			span.Add(ssf.Count("import.unmarshal.errors_total", 1, nil))
 			return
 		}
 		// the server usually waits for this to return before finalizing the
