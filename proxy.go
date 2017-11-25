@@ -401,6 +401,7 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 	}
 	wg.Wait() // Wait for all the above goroutines to complete
 	p.Statsd.TimeInMilliseconds("proxy.duration_ns", float64(time.Since(span.Start).Nanoseconds()), nil, 1.0)
+	p.Statsd.Count("proxy.proxied_metrics_total", int64(len(jsonMetrics)), nil, 1.0)
 }
 
 func (p *Proxy) doPost(wg *sync.WaitGroup, destination string, batch []samplers.JSONMetric) {
