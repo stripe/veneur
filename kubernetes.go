@@ -44,17 +44,20 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 		log.Debug("Found pod %#v", pod)
 		log.Debug("Containers are %#v", pod.Spec.Containers)
 		if len(pod.Spec.Containers) > 0 {
-			for _, port := range pod.Spec.Containers[0].Ports {
-				if port.Name == "http" {
-					forwardPort = strconv.Itoa(int(port.HostPort))
-					log.WithField("port", forwardPort).Debug("Found http port")
-					break
-				}
+			for i, container := range pod.Spec.Containers {
+				log.WithField("index", container).Debugf("Container %d is %#v", i, container)
+				for _, port := range container.Ports {
+					if port.Name == "http" {
+						forwardPort = strconv.Itoa(int(port.HostPort))
+						log.WithField("port", forwardPort).Debug("Found http port")
+						break
+					}
 
-				// TODO don't assume all TCP ports are for importing
-				if port.Protocol == "TCP" {
-					forwardPort = strconv.Itoa(int(port.HostPort))
-					log.WithField("port", forwardPort).Debug("Found TCP port")
+					// TODO don't assume all TCP ports are for importing
+					if port.Protocol == "TCP" {
+						forwardPort = strconv.Itoa(int(port.HostPort))
+						log.WithField("port", forwardPort).Debug("Found TCP port")
+					}
 				}
 			}
 		}
