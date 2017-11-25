@@ -1,8 +1,8 @@
 package veneur
 
 import (
-    "fmt"
-    "strconv"
+	"fmt"
+	"strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -41,18 +41,19 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 		var forwardPort string
 
 		// TODO don't assume there is only one container for the veneur global
+		log.WithField("pod", pod).Debug("Found pod")
 		if len(pod.Spec.Containers) > 0 {
 			for _, port := range pod.Spec.Containers[0].Ports {
 				if port.Name == "http" {
 					forwardPort = strconv.Itoa(int(port.HostPort))
-                    log.WithField("port", forwardPort).Debug("Found http port")
+					log.WithField("port", forwardPort).Debug("Found http port")
 					break
 				}
 
 				// TODO don't assume all TCP ports are for importing
 				if port.Protocol == "TCP" {
 					forwardPort = strconv.Itoa(int(port.HostPort))
-                    log.WithField("port", forwardPort).Debug("Found TCP port")
+					log.WithField("port", forwardPort).Debug("Found TCP port")
 				}
 			}
 		}
