@@ -27,7 +27,9 @@ func NewKubernetesDiscoverer() (*KubernetesDiscoverer, error) {
 
 
 func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([]string, error) {
-    pods, err := kd.clientset.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{})
+    pods, err := kd.clientset.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{
+        LabelSelector: "app=veneur-global",
+    })
     if err != nil{
         return nil, err
     }
