@@ -94,6 +94,12 @@ func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
 		p.AcceptingTraces = true
 	}
 
+	// We need a convenient way to know if we're even using Consul later
+	if p.ConsulForwardService != "" || p.ConsulTraceService != "" {
+        log.Info("Using consul")
+		p.usingConsul = true
+	}
+
 	// check if we are running on Kubernetes
 	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount"); !os.IsNotExist(err) {
         log.Info("Using Kubernetes")
@@ -105,11 +111,6 @@ func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
         }
 	}
 
-	// We need a convenient way to know if we're even using Consul later
-	if p.ConsulForwardService != "" || p.ConsulTraceService != "" {
-        log.Info("Using consul")
-		p.usingConsul = true
-	}
 
 	p.ForwardDestinations = consistent.New()
 	p.TraceDestinations = consistent.New()
@@ -173,9 +174,7 @@ func (p *Proxy) Start() {
         }
         p.Discoverer = disc
         log.Info("Set Kubernetes discoverer")
-	}
-
-	if p.usingConsul {
+	} else if p.usingConsul {
 		disc, consulErr := NewConsul(config)
 		if consulErr != nil {
 			log.WithError(consulErr).Error("Error creating Consul discoverer")
@@ -200,6 +199,7 @@ func (p *Proxy) Start() {
 	}
 
 	if p.usingConsul || p.usingKubernetes {
+        log.Info("Creating update goroutine")
 		go func() {
 			defer func() {
 				ConsumePanic(p.Sentry, p.Statsd, p.Hostname, recover())
