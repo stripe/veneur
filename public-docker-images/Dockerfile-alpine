@@ -23,7 +23,7 @@ RUN chmod 777 /usr/bin/protoc
 
 
 FROM deps AS src
-ARG BUILD_REF=master
+ARG BUILD_REF=aditya-kubernetes-service-discovery
 RUN mkdir -p /go/src/github.com/stripe
 WORKDIR /go/src/github.com/stripe
 RUN git clone --depth 1 https://github.com/stripe/veneur
