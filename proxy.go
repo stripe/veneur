@@ -47,6 +47,7 @@ type Proxy struct {
 	AcceptingTraces        bool
 
 	usingConsul     bool
+	usingKubernetes bool
 	enableProfiling bool
 	traceClient     *trace.Client
 }
@@ -93,8 +94,20 @@ func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
 		p.AcceptingTraces = true
 	}
 
+	// check if we are running on Kubernetes
+	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount"); !os.IsNotExist(err) {
+        log.Info("Using Kubernetes")
+		p.usingKubernetes = true
+
+        //TODO don't overload this
+        if conf.ConsulForwardServiceName != ""{
+            p.AcceptingForwards = true
+        }
+	}
+
 	// We need a convenient way to know if we're even using Consul later
 	if p.ConsulForwardService != "" || p.ConsulTraceService != "" {
+        log.Info("Using consul")
 		p.usingConsul = true
 	}
 
@@ -151,12 +164,26 @@ func (p *Proxy) Start() {
 	// Use the same HTTP Client we're using for other things, so we can leverage
 	// it for testing.
 	config.HttpClient = p.HTTPClient
-	disc, consulErr := NewConsul(config)
-	if consulErr != nil {
-		log.WithError(consulErr).Error("Error creating Consul discoverer")
-		return
+
+	if p.usingKubernetes {
+        disc, err := NewKubernetesDiscoverer()
+        if err != nil {
+            log.WithError(err).Error("Error creating KubernetesDiscoverer")
+            return
+        }
+        p.Discoverer = disc
+        log.Info("Set Kubernetes discoverer")
 	}
-	p.Discoverer = disc
+
+	if p.usingConsul {
+		disc, consulErr := NewConsul(config)
+		if consulErr != nil {
+			log.WithError(consulErr).Error("Error creating Consul discoverer")
+			return
+		}
+		p.Discoverer = disc
+        log.Info("Set Consul discoverer")
+	}
 
 	if p.AcceptingForwards && p.ConsulForwardService != "" {
 		p.RefreshDestinations(p.ConsulForwardService, p.ForwardDestinations, &p.ForwardDestinationsMtx)
@@ -172,13 +199,18 @@ func (p *Proxy) Start() {
 		}
 	}
 
-	if p.usingConsul {
+	if p.usingConsul || p.usingKubernetes {
 		go func() {
 			defer func() {
 				ConsumePanic(p.Sentry, p.Statsd, p.Hostname, recover())
 			}()
 			ticker := time.NewTicker(p.ConsulInterval)
 			for range ticker.C {
+                log.WithFields(logrus.Fields{
+                    "acceptingForwards": p.AcceptingForwards,
+                    "consulForwardService": p.ConsulForwardService,
+                    "consulTraceService": p.ConsulTraceService,
+                }).Info("About to refresh destinations")
 				if p.AcceptingForwards && p.ConsulForwardService != "" {
 					p.RefreshDestinations(p.ConsulForwardService, p.ForwardDestinations, &p.ForwardDestinationsMtx)
 				}
@@ -242,6 +274,13 @@ func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consist
 
 	start := time.Now()
 	destinations, err := p.Discoverer.GetDestinationsForService(serviceName)
+
+    log.WithFields(logrus.Fields{
+        "destinations": destinations,
+        "service": serviceName,
+    }).Info("Got destinations")
+
+
 	p.Statsd.TimeInMilliseconds("discoverer.update_duration_ns", float64(time.Since(start).Nanoseconds()), []string{fmt.Sprintf("service:%s", serviceName)}, 1.0)
 	if err != nil || len(destinations) == 0 {
 		log.WithError(err).WithField("service", serviceName).Error("Discoverer returned an error, destinations may be stale!")
