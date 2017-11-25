@@ -287,8 +287,8 @@ func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consist
 	p.Statsd.TimeInMilliseconds("discoverer.update_duration_ns", float64(time.Since(start).Nanoseconds()), []string{fmt.Sprintf("service:%s", serviceName)}, 1.0)
 	if err != nil || len(destinations) == 0 {
 		log.WithError(err).WithFields(logrus.Fields{
-			"service": serviceName,
-			"errorType": reflect.TypeOf(err),
+			"service":         serviceName,
+			"errorType":       reflect.TypeOf(err),
 			"numDestinations": len(destinations),
 		}).Error("Discoverer returned an error, destinations may be stale!")
 		p.Statsd.Incr("discoverer.errors", []string{fmt.Sprintf("service:%s", serviceName)}, 1.0)
@@ -418,7 +418,10 @@ func (p *Proxy) doPost(wg *sync.WaitGroup, destination string, batch []samplers.
 		// not a fatal error if we fail
 		// we'll just try to use the host as it was given to us
 		p.Statsd.Count("forward.error_total", 1, []string{"cause:dns"}, 1.0)
-		log.WithError(err).Warn("Could not re-resolve host for forward")
+		log.WithError(err).WithFields(logrus.Fields{
+			"endpoint":    endpoint,
+			"destination": destination,
+		}).Warn("Could not re-resolve host for proxy forward")
 		return
 	}
 

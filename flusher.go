@@ -333,7 +333,10 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 		// not a fatal error if we fail
 		// we'll just try to use the host as it was given to us
 		s.Statsd.Count("forward.error_total", 1, []string{"cause:dns"}, 1.0)
-		log.WithError(err).Warn("Could not re-resolve host for forward")
+		log.WithError(err).WithFields(logrus.Fields{
+			"endpoint":    endpoint,
+			"forwardAddr": s.ForwardAddr,
+		}).Warn("Could not re-resolve host for flush forward")
 	}
 	s.Statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(dnsStart).Nanoseconds()), []string{"part:dns"}, 1.0)
 
