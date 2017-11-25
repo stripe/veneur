@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"os"
+	"reflect"
 	"strconv"
 	"sync"
 	"syscall"
@@ -88,6 +89,12 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 		p.AcceptingTraces = true
 	}
 
+	// We need a convenient way to know if we're even using Consul later
+	if p.ConsulForwardService != "" || p.ConsulTraceService != "" {
+		log.Info("Using consul")
+		p.usingConsul = true
+	}
+
 	// check if we are running on Kubernetes
 	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount"); !os.IsNotExist(err) {
 		log.Info("Using Kubernetes")
@@ -97,12 +104,6 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 		if conf.ConsulForwardServiceName != "" {
 			p.AcceptingForwards = true
 		}
-	}
-
-	// We need a convenient way to know if we're even using Consul later
-	if p.ConsulForwardService != "" || p.ConsulTraceService != "" {
-		log.Info("Using consul")
-		p.usingConsul = true
 	}
 
 	p.ForwardDestinations = consistent.New()
@@ -189,9 +190,7 @@ func (p *Proxy) Start() {
 		}
 		p.Discoverer = disc
 		log.Info("Set Kubernetes discoverer")
-	}
-
-	if p.usingConsul {
+	} else if p.usingConsul {
 		disc, consulErr := NewConsul(config)
 		if consulErr != nil {
 			log.WithError(consulErr).Error("Error creating Consul discoverer")
@@ -216,6 +215,7 @@ func (p *Proxy) Start() {
 	}
 
 	if p.usingConsul || p.usingKubernetes {
+		log.Info("Creating update goroutine")
 		go func() {
 			defer func() {
 				ConsumePanic(p.Sentry, p.TraceClient, p.Hostname, recover())
@@ -291,6 +291,10 @@ func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consist
 	defer metrics.Report(p.TraceClient, samples)
 	srvTags := map[string]string{"service": serviceName}
 
+	log.WithFields(logrus.Fields{
+		"discovererType": reflect.TypeOf(p.Discoverer),
+		"serviceName":    serviceName,
+	}).Info("Refreshing destinations")
 	start := time.Now()
 	destinations, err := p.Discoverer.GetDestinationsForService(serviceName)
 	samples.Add(ssf.Timing("discoverer.update_duration_ns", time.Since(start), time.Nanosecond, srvTags))
@@ -298,8 +302,12 @@ func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consist
 		"destinations": destinations,
 		"service":      serviceName,
 	}).Info("Got destinations")
+
 	if err != nil || len(destinations) == 0 {
-		log.WithError(err).WithField("service", serviceName).Error("Discoverer returned an error, destinations may be stale!")
+		log.WithError(err).WithFields(logrus.Fields{
+			"service":   serviceName,
+			"errorType": reflect.TypeOf(err),
+		}).Error("Discoverer returned an error, destinations may be stale!")
 		samples.Add(ssf.Count("discoverer.errors", 1, srvTags))
 		// Return since we got no hosts. We don't want to zero out the list. This
 		// should result in us leaving the "last good" values in the ring.
