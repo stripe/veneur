@@ -4,7 +4,7 @@ enable_profiling: false
 http_address: "localhost:8127"
 
 # How often to refresh from Consul's healthy nodes
-consul_refresh_interval: "30s"
+consul_refresh_interval: "7s"
 
 stats_address: "localhost:8125"
 
