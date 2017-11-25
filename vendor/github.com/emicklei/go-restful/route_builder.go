@@ -24,7 +24,7 @@ type RouteBuilder struct {
 	httpMethod  string        // required
 	function    RouteFunction // required
 	filters     []FilterFunction
-	conditions []RouteSelectionConditionFunction
+	conditions  []RouteSelectionConditionFunction
 
 	typeNameHandleFunc TypeNameHandleFunction // required
 
