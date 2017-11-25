@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
@@ -26,8 +27,13 @@ func (ch contextHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func handleProxy(p *Proxy) http.Handler {
 	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+		log.WithFields(logrus.Fields{
+			"path": r.URL.Path,
+			"host": r.URL.Host,
+		}).Debug("Importing metrics on proxy")
 		span, jsonMetrics, err := unmarshalMetricsFromHTTP(ctx, p.TraceClient, w, r)
 		if err != nil {
+			log.WithError(err).Error("Error unmarshalling metrics in proxy import")
 			return
 		}
 		// the server usually waits for this to return before finalizing the
