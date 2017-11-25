@@ -34,6 +34,7 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 
     ips := make([]string, 0, len(pods.Items))
     for _, pod := range pods.Items{
+        log.WithField("pod", pod).Info("Found pod")
         ips = append(ips, pod.Status.PodIP)
     }
     return ips, nil
