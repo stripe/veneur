@@ -24,6 +24,7 @@ package unix
 #include <netinet/tcp.h>
 #include <netpacket/packet.h>
 #include <poll.h>
+#include <sched.h>
 #include <signal.h>
 #include <stdio.h>
 #include <sys/epoll.h>
@@ -46,11 +47,12 @@ package unix
 #include <sys/utsname.h>
 #include <sys/wait.h>
 #include <linux/filter.h>
+#include <linux/icmpv6.h>
 #include <linux/keyctl.h>
 #include <linux/netlink.h>
 #include <linux/perf_event.h>
 #include <linux/rtnetlink.h>
-#include <linux/icmpv6.h>
+#include <linux/stat.h>
 #include <asm/termbits.h>
 #include <asm/ptrace.h>
 #include <time.h>
@@ -62,6 +64,9 @@ package unix
 #include <linux/fs.h>
 #include <linux/vm_sockets.h>
 #include <linux/random.h>
+#include <linux/taskstats.h>
+#include <linux/cgroupstats.h>
+#include <linux/genetlink.h>
 
 // On mips64, the glibc stat and kernel stat do not agree
 #if (defined(__mips__) && _MIPS_SIM == _MIPS_SIM_ABI64)
@@ -112,13 +117,20 @@ struct stat {
 
 #endif
 
-// Certain constants and structs are missing from the fs/crypto UAPI
-#define FS_MAX_KEY_SIZE                 64
-struct fscrypt_key {
-  __u32 mode;
-  __u8 raw[FS_MAX_KEY_SIZE];
-  __u32 size;
-};
+// These are defined in linux/fcntl.h, but including it globally causes
+// conflicts with fcntl.h
+#ifndef AT_STATX_SYNC_TYPE
+# define AT_STATX_SYNC_TYPE	0x6000	// Type of synchronisation required from statx()
+#endif
+#ifndef AT_STATX_SYNC_AS_STAT
+# define AT_STATX_SYNC_AS_STAT	0x0000	// - Do whatever stat() does
+#endif
+#ifndef AT_STATX_FORCE_SYNC
+# define AT_STATX_FORCE_SYNC	0x2000	// - Force the attributes to be sync'd with the server
+#endif
+#ifndef AT_STATX_DONT_SYNC
+# define AT_STATX_DONT_SYNC	0x4000	// - Don't sync attributes with the server
+#endif
 
 #ifdef TCSETS2
 // On systems that have "struct termios2" use this as type Termios.
@@ -150,7 +162,21 @@ struct sockaddr_hci {
         sa_family_t     hci_family;
         unsigned short  hci_dev;
         unsigned short  hci_channel;
-};;
+};
+
+// copied from /usr/include/bluetooth/bluetooth.h
+#define BDADDR_BREDR           0x00
+#define BDADDR_LE_PUBLIC       0x01
+#define BDADDR_LE_RANDOM       0x02
+
+// copied from /usr/include/bluetooth/l2cap.h
+struct sockaddr_l2 {
+	sa_family_t	l2_family;
+	unsigned short	l2_psm;
+	uint8_t		l2_bdaddr[6];
+	unsigned short	l2_cid;
+	uint8_t		l2_bdaddr_type;
+};
 
 // copied from /usr/include/linux/un.h
 struct my_sockaddr_un {
@@ -253,6 +279,10 @@ type Stat_t C.struct_stat
 
 type Statfs_t C.struct_statfs
 
+type StatxTimestamp C.struct_statx_timestamp
+
+type Statx_t C.struct_statx
+
 type Dirent C.struct_dirent
 
 type Fsid C.fsid_t
@@ -294,6 +324,8 @@ type RawSockaddrNetlink C.struct_sockaddr_nl
 
 type RawSockaddrHCI C.struct_sockaddr_hci
 
+type RawSockaddrL2 C.struct_sockaddr_l2
+
 type RawSockaddrCAN C.struct_sockaddr_can
 
 type RawSockaddrALG C.struct_sockaddr_alg
@@ -315,6 +347,8 @@ type IPMreq C.struct_ip_mreq
 type IPMreqn C.struct_ip_mreqn
 
 type IPv6Mreq C.struct_ipv6_mreq
+
+type PacketMreq C.struct_packet_mreq
 
 type Msghdr C.struct_msghdr
 
@@ -340,13 +374,16 @@ const (
 	SizeofSockaddrLinklayer = C.sizeof_struct_sockaddr_ll
 	SizeofSockaddrNetlink   = C.sizeof_struct_sockaddr_nl
 	SizeofSockaddrHCI       = C.sizeof_struct_sockaddr_hci
+	SizeofSockaddrL2        = C.sizeof_struct_sockaddr_l2
 	SizeofSockaddrCAN       = C.sizeof_struct_sockaddr_can
 	SizeofSockaddrALG       = C.sizeof_struct_sockaddr_alg
 	SizeofSockaddrVM        = C.sizeof_struct_sockaddr_vm
 	SizeofLinger            = C.sizeof_struct_linger
+	SizeofIovec             = C.sizeof_struct_iovec
 	SizeofIPMreq            = C.sizeof_struct_ip_mreq
 	SizeofIPMreqn           = C.sizeof_struct_ip_mreqn
 	SizeofIPv6Mreq          = C.sizeof_struct_ipv6_mreq
+	SizeofPacketMreq        = C.sizeof_struct_packet_mreq
 	SizeofMsghdr            = C.sizeof_struct_msghdr
 	SizeofCmsghdr           = C.sizeof_struct_cmsghdr
 	SizeofInet4Pktinfo      = C.sizeof_struct_in_pktinfo
@@ -513,8 +550,15 @@ type Ustat_t C.struct_ustat
 type EpollEvent C.struct_my_epoll_event
 
 const (
-	AT_FDCWD            = C.AT_FDCWD
-	AT_REMOVEDIR        = C.AT_REMOVEDIR
+	AT_EMPTY_PATH   = C.AT_EMPTY_PATH
+	AT_FDCWD        = C.AT_FDCWD
+	AT_NO_AUTOMOUNT = C.AT_NO_AUTOMOUNT
+	AT_REMOVEDIR    = C.AT_REMOVEDIR
+
+	AT_STATX_SYNC_AS_STAT = C.AT_STATX_SYNC_AS_STAT
+	AT_STATX_FORCE_SYNC   = C.AT_STATX_FORCE_SYNC
+	AT_STATX_DONT_SYNC    = C.AT_STATX_DONT_SYNC
+
 	AT_SYMLINK_FOLLOW   = C.AT_SYMLINK_FOLLOW
 	AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
 )
@@ -537,12 +581,90 @@ const RNDGETENTCNT = C.RNDGETENTCNT
 
 const PERF_IOC_FLAG_GROUP = C.PERF_IOC_FLAG_GROUP
 
-// sysconf information
-
-const _SC_PAGESIZE = C._SC_PAGESIZE
-
 // Terminal handling
 
 type Termios C.termios_t
 
 type Winsize C.struct_winsize
+
+// Taskstats and cgroup stats.
+
+type Taskstats C.struct_taskstats
+
+const (
+	TASKSTATS_CMD_UNSPEC                  = C.TASKSTATS_CMD_UNSPEC
+	TASKSTATS_CMD_GET                     = C.TASKSTATS_CMD_GET
+	TASKSTATS_CMD_NEW                     = C.TASKSTATS_CMD_NEW
+	TASKSTATS_TYPE_UNSPEC                 = C.TASKSTATS_TYPE_UNSPEC
+	TASKSTATS_TYPE_PID                    = C.TASKSTATS_TYPE_PID
+	TASKSTATS_TYPE_TGID                   = C.TASKSTATS_TYPE_TGID
+	TASKSTATS_TYPE_STATS                  = C.TASKSTATS_TYPE_STATS
+	TASKSTATS_TYPE_AGGR_PID               = C.TASKSTATS_TYPE_AGGR_PID
+	TASKSTATS_TYPE_AGGR_TGID              = C.TASKSTATS_TYPE_AGGR_TGID
+	TASKSTATS_TYPE_NULL                   = C.TASKSTATS_TYPE_NULL
+	TASKSTATS_CMD_ATTR_UNSPEC             = C.TASKSTATS_CMD_ATTR_UNSPEC
+	TASKSTATS_CMD_ATTR_PID                = C.TASKSTATS_CMD_ATTR_PID
+	TASKSTATS_CMD_ATTR_TGID               = C.TASKSTATS_CMD_ATTR_TGID
+	TASKSTATS_CMD_ATTR_REGISTER_CPUMASK   = C.TASKSTATS_CMD_ATTR_REGISTER_CPUMASK
+	TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK = C.TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK
+)
+
+type CGroupStats C.struct_cgroupstats
+
+const (
+	CGROUPSTATS_CMD_UNSPEC        = C.__TASKSTATS_CMD_MAX
+	CGROUPSTATS_CMD_GET           = C.CGROUPSTATS_CMD_GET
+	CGROUPSTATS_CMD_NEW           = C.CGROUPSTATS_CMD_NEW
+	CGROUPSTATS_TYPE_UNSPEC       = C.CGROUPSTATS_TYPE_UNSPEC
+	CGROUPSTATS_TYPE_CGROUP_STATS = C.CGROUPSTATS_TYPE_CGROUP_STATS
+	CGROUPSTATS_CMD_ATTR_UNSPEC   = C.CGROUPSTATS_CMD_ATTR_UNSPEC
+	CGROUPSTATS_CMD_ATTR_FD       = C.CGROUPSTATS_CMD_ATTR_FD
+)
+
+// Generic netlink
+
+type Genlmsghdr C.struct_genlmsghdr
+
+const (
+	CTRL_CMD_UNSPEC            = C.CTRL_CMD_UNSPEC
+	CTRL_CMD_NEWFAMILY         = C.CTRL_CMD_NEWFAMILY
+	CTRL_CMD_DELFAMILY         = C.CTRL_CMD_DELFAMILY
+	CTRL_CMD_GETFAMILY         = C.CTRL_CMD_GETFAMILY
+	CTRL_CMD_NEWOPS            = C.CTRL_CMD_NEWOPS
+	CTRL_CMD_DELOPS            = C.CTRL_CMD_DELOPS
+	CTRL_CMD_GETOPS            = C.CTRL_CMD_GETOPS
+	CTRL_CMD_NEWMCAST_GRP      = C.CTRL_CMD_NEWMCAST_GRP
+	CTRL_CMD_DELMCAST_GRP      = C.CTRL_CMD_DELMCAST_GRP
+	CTRL_CMD_GETMCAST_GRP      = C.CTRL_CMD_GETMCAST_GRP
+	CTRL_ATTR_UNSPEC           = C.CTRL_ATTR_UNSPEC
+	CTRL_ATTR_FAMILY_ID        = C.CTRL_ATTR_FAMILY_ID
+	CTRL_ATTR_FAMILY_NAME      = C.CTRL_ATTR_FAMILY_NAME
+	CTRL_ATTR_VERSION          = C.CTRL_ATTR_VERSION
+	CTRL_ATTR_HDRSIZE          = C.CTRL_ATTR_HDRSIZE
+	CTRL_ATTR_MAXATTR          = C.CTRL_ATTR_MAXATTR
+	CTRL_ATTR_OPS              = C.CTRL_ATTR_OPS
+	CTRL_ATTR_MCAST_GROUPS     = C.CTRL_ATTR_MCAST_GROUPS
+	CTRL_ATTR_OP_UNSPEC        = C.CTRL_ATTR_OP_UNSPEC
+	CTRL_ATTR_OP_ID            = C.CTRL_ATTR_OP_ID
+	CTRL_ATTR_OP_FLAGS         = C.CTRL_ATTR_OP_FLAGS
+	CTRL_ATTR_MCAST_GRP_UNSPEC = C.CTRL_ATTR_MCAST_GRP_UNSPEC
+	CTRL_ATTR_MCAST_GRP_NAME   = C.CTRL_ATTR_MCAST_GRP_NAME
+	CTRL_ATTR_MCAST_GRP_ID     = C.CTRL_ATTR_MCAST_GRP_ID
+)
+
+// CPU affinity
+
+type cpuMask C.__cpu_mask
+
+const (
+	_CPU_SETSIZE = C.__CPU_SETSIZE
+	_NCPUBITS    = C.__NCPUBITS
+)
+
+// Bluetooth
+
+const (
+	BDADDR_BREDR     = C.BDADDR_BREDR
+	BDADDR_LE_PUBLIC = C.BDADDR_LE_PUBLIC
+	BDADDR_LE_RANDOM = C.BDADDR_LE_RANDOM
+)

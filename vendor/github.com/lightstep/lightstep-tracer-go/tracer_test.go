@@ -2,6 +2,7 @@ package lightstep_test
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -15,61 +16,163 @@ import (
 	"github.com/lightstep/lightstep-tracer-go/lightstepfakes"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	opentracing "github.com/opentracing/opentracing-go"
 )
 
-var _ = Describe("SpanRecorder", func() {
+var _ = Describe("Tracer", func() {
 	var tracer Tracer
+	var opts Options
 
-	Describe("FlushLightstepTracer", func() {
-		var fakeClient *cpbfakes.FakeCollectorServiceClient
-		var cancelch chan struct{}
-		var startTestch chan bool
+	const accessToken = "ACCESS_TOKEN"
 
+	var fakeClient *cpbfakes.FakeCollectorServiceClient
+	var fakeConn ConnectorFactory
+
+	var fakeRecorder *lightstepfakes.FakeSpanRecorder
+
+	var eventHandler func(Event)
+	var eventChan <-chan Event
+	const eventBufferSize = 10
+
+	BeforeEach(func() {
+		opts = Options{}
+
+		fakeClient = new(cpbfakes.FakeCollectorServiceClient)
+		fakeClient.ReportReturns(&cpb.ReportResponse{}, nil)
+		fakeConn = fakeGrpcConnection(fakeClient)
+		fakeRecorder = new(lightstepfakes.FakeSpanRecorder)
+
+		eventHandler, eventChan = NewEventChannel(eventBufferSize)
+		SetGlobalEventHandler(eventHandler)
+	})
+
+	JustBeforeEach(func() {
+		tracer = NewTracer(opts)
+	})
+
+	AfterEach(func() {
+		closeTestTracer(tracer)
+	})
+
+	Describe("Access Token", func() {
 		BeforeEach(func() {
-			cancelch = make(chan struct{})
-			startTestch = make(chan bool)
-			fakeClient = new(cpbfakes.FakeCollectorServiceClient)
+			opts = Options{
+				AccessToken: accessToken,
+				ConnFactory: fakeConn,
+			}
+		})
+
+		It("should return the access token", func() {
+			Expect(GetLightStepAccessToken(tracer)).To(Equal(accessToken))
+		})
+	})
+
+	Describe("Flush", func() {
+		BeforeEach(func() {
+			opts = Options{
+				AccessToken: accessToken,
+				ConnFactory: fakeConn,
+			}
+		})
+
+		Context("when the tracer is dropping spans", func() {
+			const ExpectedDroppedSpans = 2
+
+			JustBeforeEach(func() {
+				// overflow the span buffer so the tracer starts to drop spans
+				for i := 0; i < DefaultMaxSpans+ExpectedDroppedSpans; i++ {
+					tracer.StartSpan(fmt.Sprint("span ", i)).Finish()
+				}
+			})
+
+			It("emits EventStatusReport", func(done Done) {
+				tracer.Flush(context.Background())
+
+				err := <-eventChan
+				dropSpanErr, ok := err.(EventStatusReport)
+				Expect(ok).To(BeTrue())
+
+				Expect(dropSpanErr.DroppedSpans()).To(Equal(ExpectedDroppedSpans))
+				close(done)
+			})
+
+			It("emits exactly one event", func() {
+				tracer.Flush(context.Background())
+
+				Eventually(eventChan).Should(Receive())
+				Consistently(eventChan).ShouldNot(Receive())
+			})
 		})
 
 		Context("when the tracer is disabled", func() {
-			var reportCallCount int
-
-			BeforeEach(func() {
-				tracer = NewTracer(Options{
-					AccessToken: "YOU SHALL NOT PASS",
-					ConnFactory: fakeGrpcConnection(fakeClient),
-				})
+			JustBeforeEach(func() {
 				tracer.Disable()
-				reportCallCount = fakeClient.ReportCallCount()
+				Eventually(eventChan).Should(Receive())
 			})
 
-			It("should not record or flush spans", func(done Done) {
+			It("should not flush spans", func() {
+				reportCallCount := fakeClient.ReportCallCount()
 				tracer.StartSpan("these spans should not be recorded").Finish()
 				tracer.StartSpan("or flushed").Finish()
-				tracer.Flush()
+
+				tracer.Flush(context.Background())
+
 				Consistently(fakeClient.ReportCallCount).Should(Equal(reportCallCount))
-				close(done)
 			}, 5)
+
+			It("emits EventFlushError", func(done Done) {
+				tracer.Flush(context.Background())
+
+				event := <-eventChan
+				flushErrorEvent, ok := event.(EventFlushError)
+				Expect(ok).To(BeTrue())
+				Expect(flushErrorEvent.State()).To(Equal(FlushErrorTracerDisabled))
+				close(done)
+			})
+
+			It("emits exactly one event", func() {
+				tracer.Flush(context.Background())
+
+				Eventually(eventChan).Should(Receive())
+				Consistently(eventChan).ShouldNot(Receive())
+			})
 		})
 
 		Context("when tracer has been closed", func() {
 			var reportCallCount int
 
-			BeforeEach(func() {
-				tracer = NewTracer(Options{
-					AccessToken: "YOU SHALL NOT PASS",
-					ConnFactory: fakeGrpcConnection(fakeClient),
-				})
-				err := tracer.Close()
-				Expect(err).NotTo(HaveOccurred())
+			JustBeforeEach(func() {
+				tracer.Close(context.Background())
 				reportCallCount = fakeClient.ReportCallCount()
 			})
 
 			It("should not flush spans", func() {
 				tracer.StartSpan("can't flush this").Finish()
 				tracer.StartSpan("hammer time").Finish()
-				tracer.Flush()
+
+				tracer.Flush(context.Background())
+
 				Consistently(fakeClient.ReportCallCount).Should(Equal(reportCallCount))
+			})
+
+			It("emits EventFlushError", func(done Done) {
+				tracer.Flush(context.Background())
+
+				Eventually(eventChan).Should(Receive())
+
+				event := <-eventChan
+				flushErrorEvent, ok := event.(EventFlushError)
+				Expect(ok).To(BeTrue())
+				Expect(flushErrorEvent.State()).To(Equal(FlushErrorTracerClosed))
+				close(done)
+			})
+
+			It("emits exactly two events", func() {
+				tracer.Flush(context.Background())
+
+				Eventually(eventChan).Should(Receive())
+				Eventually(eventChan).Should(Receive())
+				Consistently(eventChan).ShouldNot(Receive())
 			})
 		})
 
@@ -78,76 +181,69 @@ var _ = Describe("SpanRecorder", func() {
 				// set client to fail on the first call, then return normally
 				fakeClient.ReportReturnsOnCall(0, nil, errors.New("fail"))
 				fakeClient.ReportReturns(new(cpb.ReportResponse), nil)
-				tracer = NewTracer(Options{
-					AccessToken:        "YOU SHALL NOT PASS",
-					ConnFactory:        fakeGrpcConnection(fakeClient),
-					MinReportingPeriod: 10 * time.Minute,
-					ReportingPeriod:    10 * time.Minute,
-				})
 			})
 
 			It("should restore the spans that failed to be sent", func() {
 				tracer.StartSpan("if at first you don't succeed...").Finish()
 				tracer.StartSpan("...copy flushing back into your buffer").Finish()
-				tracer.Flush()
-				tracer.Flush()
+				tracer.Flush(context.Background())
+				tracer.Flush(context.Background())
 				Expect(len(getReportedGRPCSpans(fakeClient))).To(Equal(4))
 			})
 		})
 
-		Context("when tracer is running normally", func() {
+		Context("when a report is in progress", func() {
+			var startReportonce sync.Once
+			var startReportch chan struct{}
+			var finishReportch chan struct{}
+
 			BeforeEach(func() {
-				var once sync.Once
+				finishReportch = make(chan struct{})
+				startReportch = make(chan struct{})
+				startReportonce = sync.Once{}
 				fakeClient.ReportStub = func(ctx context.Context, req *cpb.ReportRequest, options ...grpc.CallOption) (*cpb.ReportResponse, error) {
-					once.Do(func() { startTestch <- true })
-					<-cancelch
+					startReportonce.Do(func() { close(startReportch) })
+					<-finishReportch
 					return new(cpb.ReportResponse), nil
 				}
-
-				tracer = NewTracer(Options{
-					AccessToken: "YOU SHALL NOT PASS",
-					ConnFactory: fakeGrpcConnection(fakeClient),
-				})
 			})
 
-			It("should retry flushing if a report is in progress", func() {
-				Eventually(startTestch).Should(Receive())
-				// tracer is now has a report in flight
+			JustBeforeEach(func() {
+				// wait for tracer to have a report in flight
+				Eventually(startReportch).Should(BeClosed())
+			})
+
+			It("retries flushing", func() {
 				tracer.StartSpan("these spans should sit in the buffer").Finish()
 				tracer.StartSpan("while the last report is in flight").Finish()
 
-				finishedch := make(chan struct{})
+				flushFinishedch := make(chan struct{})
 				go func() {
-					FlushLightStepTracer(tracer)
-					close(finishedch)
+					Flush(context.Background(), tracer)
+					close(flushFinishedch)
 				}()
 				// flush should wait for the last report to finish
-				Consistently(finishedch).ShouldNot(BeClosed())
+				Consistently(flushFinishedch).ShouldNot(BeClosed())
 				// no spans should have been reported yet
-				Expect(getReportedGRPCSpans(fakeClient)).Should(HaveLen(0))
+				Expect(getReportedGRPCSpans(fakeClient)).To(HaveLen(0))
 				// allow the last report to finish
-				close(cancelch)
+				close(finishReportch)
 				// flush should now send a report with the last two spans
-				Eventually(finishedch).Should(BeClosed())
+				Eventually(flushFinishedch).Should(BeClosed())
 				// now the spans that were sitting in the buffer should be reported
 				Expect(getReportedGRPCSpans(fakeClient)).Should(HaveLen(2))
 			})
 		})
-
 	})
 
-	Context("CloseLightstepTracer", func() {
-		var fakeClient *cpbfakes.FakeCollectorServiceClient
+	Describe("Close", func() {
 
 		BeforeEach(func() {
-			fakeClient = new(cpbfakes.FakeCollectorServiceClient)
-			fakeClient.ReportReturns(&cpb.ReportResponse{}, nil)
-
-			tracer = NewTracer(Options{
-				AccessToken:        "token",
-				ConnFactory:        fakeGrpcConnection(fakeClient),
+			opts = Options{
+				AccessToken:        accessToken,
+				ConnFactory:        fakeConn,
 				MinReportingPeriod: 100 * time.Second,
-			})
+			}
 		})
 
 		It("flushes the buffer before closing", func() {
@@ -160,20 +256,13 @@ var _ = Describe("SpanRecorder", func() {
 		})
 	})
 
-	Context("When tracer has a SpanRecorder", func() {
-		var fakeRecorder *lightstepfakes.FakeSpanRecorder
-
+	Describe("valid SpanRecorder", func() {
 		BeforeEach(func() {
-			fakeRecorder = new(lightstepfakes.FakeSpanRecorder)
-			tracer = NewTracer(Options{
-				AccessToken: "value",
-				ConnFactory: fakeGrpcConnection(new(cpbfakes.FakeCollectorServiceClient)),
+			opts = Options{
+				AccessToken: accessToken,
+				ConnFactory: fakeConn,
 				Recorder:    fakeRecorder,
-			})
-		})
-
-		AfterEach(func() {
-			closeTestTracer(tracer)
+			}
 		})
 
 		It("calls RecordSpan after finishing a span", func() {
@@ -182,17 +271,13 @@ var _ = Describe("SpanRecorder", func() {
 		})
 	})
 
-	Context("When tracer does not have a SpanRecorder", func() {
+	Describe("nil SpanRecorder", func() {
 		BeforeEach(func() {
-			tracer = NewTracer(Options{
-				AccessToken: "value",
-				ConnFactory: fakeGrpcConnection(new(cpbfakes.FakeCollectorServiceClient)),
+			opts = Options{
+				AccessToken: accessToken,
+				ConnFactory: fakeConn,
 				Recorder:    nil,
-			})
-		})
-
-		AfterEach(func() {
-			closeTestTracer(tracer)
+			}
 		})
 
 		It("doesn't call RecordSpan after finishing a span", func() {
@@ -201,4 +286,35 @@ var _ = Describe("SpanRecorder", func() {
 		})
 	})
 
+	Describe("provides its ReporterID", func() {
+		BeforeEach(func() {
+			opts = Options{
+				AccessToken: accessToken,
+				ConnFactory: fakeConn,
+				Recorder:    nil,
+			}
+		})
+
+		It("is non-zero", func() {
+			rid, err := GetLightStepReporterID(tracer)
+			Expect(err).To(BeNil())
+			Expect(rid).To(Not(BeZero()))
+		})
+	})
+})
+
+var _ = Describe("UnsupportedTracer", func() {
+	type unsupportedTracer struct {
+		opentracing.Tracer
+	}
+
+	tracer := unsupportedTracer{}
+
+	Describe("has no ReporterID", func() {
+		It("is an error", func() {
+			rid, err := GetLightStepReporterID(tracer)
+			Expect(err).To(Not(BeNil()))
+			Expect(rid).To(BeZero())
+		})
+	})
 })

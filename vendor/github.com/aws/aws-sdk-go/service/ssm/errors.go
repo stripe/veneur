@@ -36,6 +36,13 @@ const (
 	// You can have at most 2,000 active associations.
 	ErrCodeAssociationLimitExceeded = "AssociationLimitExceeded"
 
+	// ErrCodeAssociationVersionLimitExceeded for service response error code
+	// "AssociationVersionLimitExceeded".
+	//
+	// You have reached the maximum number versions allowed for an association.
+	// Each association has a limit of 1,000 versions.
+	ErrCodeAssociationVersionLimitExceeded = "AssociationVersionLimitExceeded"
+
 	// ErrCodeAutomationDefinitionNotFoundException for service response error code
 	// "AutomationDefinitionNotFoundException".
 	//
@@ -62,6 +69,20 @@ const (
 	// execution ID.
 	ErrCodeAutomationExecutionNotFoundException = "AutomationExecutionNotFoundException"
 
+	// ErrCodeAutomationStepNotFoundException for service response error code
+	// "AutomationStepNotFoundException".
+	//
+	// The specified step name and execution ID don't exist. Verify the information
+	// and try again.
+	ErrCodeAutomationStepNotFoundException = "AutomationStepNotFoundException"
+
+	// ErrCodeComplianceTypeCountLimitExceededException for service response error code
+	// "ComplianceTypeCountLimitExceededException".
+	//
+	// You specified too many custom compliance types. You can specify a maximum
+	// of 10 different types.
+	ErrCodeComplianceTypeCountLimitExceededException = "ComplianceTypeCountLimitExceededException"
+
 	// ErrCodeCustomSchemaCountLimitExceededException for service response error code
 	// "CustomSchemaCountLimitExceededException".
 	//
@@ -78,7 +99,7 @@ const (
 	// ErrCodeDocumentLimitExceeded for service response error code
 	// "DocumentLimitExceeded".
 	//
-	// You can have at most 200 active SSM documents.
+	// You can have at most 200 active Systems Manager documents.
 	ErrCodeDocumentLimitExceeded = "DocumentLimitExceeded"
 
 	// ErrCodeDocumentPermissionLimit for service response error code
@@ -99,8 +120,11 @@ const (
 	// ErrCodeDoesNotExistException for service response error code
 	// "DoesNotExistException".
 	//
-	// Error returned when the ID specified for a resource (e.g. a Maintenance Window)
-	// doesn't exist.
+	// Error returned when the ID specified for a resource, such as a Maintenance
+	// Window or Patch baseline, doesn't exist.
+	//
+	// For information about resource limits in Systems Manager, see AWS Systems
+	// Manager Limits (http://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html#limits_ssm).
 	ErrCodeDoesNotExistException = "DoesNotExistException"
 
 	// ErrCodeDuplicateDocumentContent for service response error code
@@ -116,14 +140,18 @@ const (
 	// You cannot specify an instance ID in more than one association.
 	ErrCodeDuplicateInstanceId = "DuplicateInstanceId"
 
+	// ErrCodeFeatureNotAvailableException for service response error code
+	// "FeatureNotAvailableException".
+	//
+	// You attempted to register a LAMBDA or STEP_FUNCTION task in a region where
+	// the corresponding service is not available.
+	ErrCodeFeatureNotAvailableException = "FeatureNotAvailableException"
+
 	// ErrCodeHierarchyLevelLimitExceededException for service response error code
 	// "HierarchyLevelLimitExceededException".
 	//
-	// A hierarchy can have a maximum of five levels. For example:
-	//
-	// /Finance/Prod/IAD/OS/WinServ2016/license15
-	//
-	// For more information, see Working with Systems Manager Parameters (http://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-working.html).
+	// A hierarchy can have a maximum of 15 levels. For more information, see Working
+	// with Systems Manager Parameters (http://docs.aws.amazon.com/systems-manager/latest/userguide/sysman-paramstore-working.html).
 	ErrCodeHierarchyLevelLimitExceededException = "HierarchyLevelLimitExceededException"
 
 	// ErrCodeHierarchyTypeMismatchException for service response error code
@@ -167,6 +195,14 @@ const (
 	// The request does not meet the regular expression requirement.
 	ErrCodeInvalidAllowedPatternException = "InvalidAllowedPatternException"
 
+	// ErrCodeInvalidAssociationVersion for service response error code
+	// "InvalidAssociationVersion".
+	//
+	// The version you specified is not valid. Use ListAssociationVersions to view
+	// all versions of an association according to the association ID. Or, use the
+	// $LATEST parameter to view the latest version of the association.
+	ErrCodeInvalidAssociationVersion = "InvalidAssociationVersion"
+
 	// ErrCodeInvalidAutomationExecutionParametersException for service response error code
 	// "InvalidAutomationExecutionParametersException".
 	//
@@ -174,6 +210,18 @@ const (
 	// incorrect. For example, they may not match the set of parameters permitted
 	// for the specified Automation document.
 	ErrCodeInvalidAutomationExecutionParametersException = "InvalidAutomationExecutionParametersException"
+
+	// ErrCodeInvalidAutomationSignalException for service response error code
+	// "InvalidAutomationSignalException".
+	//
+	// The signal is not valid for the current Automation execution.
+	ErrCodeInvalidAutomationSignalException = "InvalidAutomationSignalException"
+
+	// ErrCodeInvalidAutomationStatusUpdateException for service response error code
+	// "InvalidAutomationStatusUpdateException".
+	//
+	// The specified update status operation is not valid.
+	ErrCodeInvalidAutomationStatusUpdateException = "InvalidAutomationStatusUpdateException"
 
 	// ErrCodeInvalidCommandId for service response error code
 	// "InvalidCommandId".
@@ -260,6 +308,13 @@ const (
 	// The specified filter value is not valid.
 	ErrCodeInvalidInstanceInformationFilterValue = "InvalidInstanceInformationFilterValue"
 
+	// ErrCodeInvalidInventoryItemContextException for service response error code
+	// "InvalidInventoryItemContextException".
+	//
+	// You specified invalid keys or values in the Context attribute for InventoryItem.
+	// Verify the keys and values, and try again.
+	ErrCodeInvalidInventoryItemContextException = "InvalidInventoryItemContextException"
+
 	// ErrCodeInvalidItemContentException for service response error code
 	// "InvalidItemContentException".
 	//
@@ -300,8 +355,9 @@ const (
 	// ErrCodeInvalidParameters for service response error code
 	// "InvalidParameters".
 	//
-	// You must specify values for all required parameters in the SSM document.
-	// You can only supply values to parameters defined in the SSM document.
+	// You must specify values for all required parameters in the Systems Manager
+	// document. You can only supply values to parameters defined in the Systems
+	// Manager document.
 	ErrCodeInvalidParameters = "InvalidParameters"
 
 	// ErrCodeInvalidPermissionType for service response error code
@@ -327,8 +383,8 @@ const (
 	// ErrCodeInvalidResourceType for service response error code
 	// "InvalidResourceType".
 	//
-	// The resource type is not valid. If you are attempting to tag an instance,
-	// the instance must be a registered, managed instance.
+	// The resource type is not valid. For example, if you are attempting to tag
+	// an instance, the instance must be a registered, managed instance.
 	ErrCodeInvalidResourceType = "InvalidResourceType"
 
 	// ErrCodeInvalidResultAttributeException for service response error code
@@ -344,7 +400,7 @@ const (
 	// an IAM role for notifications that includes the required trust policy. For
 	// information about configuring the IAM role for Run Command notifications,
 	// see Configuring Amazon SNS Notifications for Run Command (http://docs.aws.amazon.com/systems-manager/latest/userguide/rc-sns-notifications.html)
-	// in the Amazon EC2 Systems Manager User Guide.
+	// in the AWS Systems Manager User Guide.
 	ErrCodeInvalidRole = "InvalidRole"
 
 	// ErrCodeInvalidSchedule for service response error code
@@ -410,6 +466,12 @@ const (
 	// or more parameters and try again.
 	ErrCodeParameterLimitExceeded = "ParameterLimitExceeded"
 
+	// ErrCodeParameterMaxVersionLimitExceeded for service response error code
+	// "ParameterMaxVersionLimitExceeded".
+	//
+	// The parameter exceeded the maximum number of allowed versions.
+	ErrCodeParameterMaxVersionLimitExceeded = "ParameterMaxVersionLimitExceeded"
+
 	// ErrCodeParameterNotFound for service response error code
 	// "ParameterNotFound".
 	//
@@ -421,6 +483,13 @@ const (
 	//
 	// The parameter name is not valid.
 	ErrCodeParameterPatternMismatchException = "ParameterPatternMismatchException"
+
+	// ErrCodeParameterVersionNotFound for service response error code
+	// "ParameterVersionNotFound".
+	//
+	// The specified parameter version was not found. Verify the parameter name
+	// and version, and try again.
+	ErrCodeParameterVersionNotFound = "ParameterVersionNotFound"
 
 	// ErrCodeResourceDataSyncAlreadyExistsException for service response error code
 	// "ResourceDataSyncAlreadyExistsException".
@@ -456,8 +525,11 @@ const (
 	// ErrCodeResourceLimitExceededException for service response error code
 	// "ResourceLimitExceededException".
 	//
-	// Error returned when the caller has exceeded the default resource limits (e.g.
-	// too many Maintenance Windows have been created).
+	// Error returned when the caller has exceeded the default resource limits.
+	// For example, too many Maintenance Windows or Patch baselines have been created.
+	//
+	// For information about resource limits in Systems Manager, see AWS Systems
+	// Manager Limits (http://docs.aws.amazon.com/general/latest/gr/aws_service_limits.html#limits_ssm).
 	ErrCodeResourceLimitExceededException = "ResourceLimitExceededException"
 
 	// ErrCodeStatusUnchanged for service response error code
@@ -465,6 +537,19 @@ const (
 	//
 	// The updated status is the same as the current status.
 	ErrCodeStatusUnchanged = "StatusUnchanged"
+
+	// ErrCodeSubTypeCountLimitExceededException for service response error code
+	// "SubTypeCountLimitExceededException".
+	//
+	// The sub-type count exceeded the limit for the inventory type.
+	ErrCodeSubTypeCountLimitExceededException = "SubTypeCountLimitExceededException"
+
+	// ErrCodeTargetInUseException for service response error code
+	// "TargetInUseException".
+	//
+	// You specified the Safe option for the DeregisterTargetFromMaintenanceWindow
+	// operation, but the target is still referenced in a task.
+	ErrCodeTargetInUseException = "TargetInUseException"
 
 	// ErrCodeTooManyTagsError for service response error code
 	// "TooManyTagsError".
@@ -485,6 +570,14 @@ const (
 	//
 	// The size of inventory data has exceeded the total size limit for the resource.
 	ErrCodeTotalSizeLimitExceededException = "TotalSizeLimitExceededException"
+
+	// ErrCodeUnsupportedInventoryItemContextException for service response error code
+	// "UnsupportedInventoryItemContextException".
+	//
+	// The Context attribute that you specified for the InventoryItem is not allowed
+	// for this inventory type. You can only use the Context attribute with inventory
+	// types like AWS:ComplianceItem.
+	ErrCodeUnsupportedInventoryItemContextException = "UnsupportedInventoryItemContextException"
 
 	// ErrCodeUnsupportedInventorySchemaVersionException for service response error code
 	// "UnsupportedInventorySchemaVersionException".

@@ -21,7 +21,7 @@ import (
 //
 // The best way to use this interface is so the SDK's service client's calls
 // can be stubbed out for unit testing your code with the SDK without needing
-// to inject custom request handlers into the the SDK's request pipeline.
+// to inject custom request handlers into the SDK's request pipeline.
 //
 //    // myFunc uses an SDK service client to make a request to
 //    // Amazon CloudDirectory.
@@ -159,6 +159,10 @@ type CloudDirectoryAPI interface {
 	EnableDirectory(*clouddirectory.EnableDirectoryInput) (*clouddirectory.EnableDirectoryOutput, error)
 	EnableDirectoryWithContext(aws.Context, *clouddirectory.EnableDirectoryInput, ...request.Option) (*clouddirectory.EnableDirectoryOutput, error)
 	EnableDirectoryRequest(*clouddirectory.EnableDirectoryInput) (*request.Request, *clouddirectory.EnableDirectoryOutput)
+
+	GetAppliedSchemaVersion(*clouddirectory.GetAppliedSchemaVersionInput) (*clouddirectory.GetAppliedSchemaVersionOutput, error)
+	GetAppliedSchemaVersionWithContext(aws.Context, *clouddirectory.GetAppliedSchemaVersionInput, ...request.Option) (*clouddirectory.GetAppliedSchemaVersionOutput, error)
+	GetAppliedSchemaVersionRequest(*clouddirectory.GetAppliedSchemaVersionInput) (*request.Request, *clouddirectory.GetAppliedSchemaVersionOutput)
 
 	GetDirectory(*clouddirectory.GetDirectoryInput) (*clouddirectory.GetDirectoryOutput, error)
 	GetDirectoryWithContext(aws.Context, *clouddirectory.GetDirectoryInput, ...request.Option) (*clouddirectory.GetDirectoryOutput, error)
@@ -349,6 +353,14 @@ type CloudDirectoryAPI interface {
 	UpdateTypedLinkFacet(*clouddirectory.UpdateTypedLinkFacetInput) (*clouddirectory.UpdateTypedLinkFacetOutput, error)
 	UpdateTypedLinkFacetWithContext(aws.Context, *clouddirectory.UpdateTypedLinkFacetInput, ...request.Option) (*clouddirectory.UpdateTypedLinkFacetOutput, error)
 	UpdateTypedLinkFacetRequest(*clouddirectory.UpdateTypedLinkFacetInput) (*request.Request, *clouddirectory.UpdateTypedLinkFacetOutput)
+
+	UpgradeAppliedSchema(*clouddirectory.UpgradeAppliedSchemaInput) (*clouddirectory.UpgradeAppliedSchemaOutput, error)
+	UpgradeAppliedSchemaWithContext(aws.Context, *clouddirectory.UpgradeAppliedSchemaInput, ...request.Option) (*clouddirectory.UpgradeAppliedSchemaOutput, error)
+	UpgradeAppliedSchemaRequest(*clouddirectory.UpgradeAppliedSchemaInput) (*request.Request, *clouddirectory.UpgradeAppliedSchemaOutput)
+
+	UpgradePublishedSchema(*clouddirectory.UpgradePublishedSchemaInput) (*clouddirectory.UpgradePublishedSchemaOutput, error)
+	UpgradePublishedSchemaWithContext(aws.Context, *clouddirectory.UpgradePublishedSchemaInput, ...request.Option) (*clouddirectory.UpgradePublishedSchemaOutput, error)
+	UpgradePublishedSchemaRequest(*clouddirectory.UpgradePublishedSchemaInput) (*request.Request, *clouddirectory.UpgradePublishedSchemaOutput)
 }
 
 var _ CloudDirectoryAPI = (*clouddirectory.CloudDirectory)(nil)

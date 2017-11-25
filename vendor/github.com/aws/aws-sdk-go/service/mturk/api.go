@@ -15,19 +15,18 @@ const opAcceptQualificationRequest = "AcceptQualificationRequest"
 
 // AcceptQualificationRequestRequest generates a "aws/request.Request" representing the
 // client's request for the AcceptQualificationRequest operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See AcceptQualificationRequest for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the AcceptQualificationRequest method directly
-// instead.
+// See AcceptQualificationRequest for more information on using the AcceptQualificationRequest
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the AcceptQualificationRequestRequest method.
 //    req, resp := client.AcceptQualificationRequestRequest(params)
@@ -37,7 +36,7 @@ const opAcceptQualificationRequest = "AcceptQualificationRequest"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AcceptQualificationRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AcceptQualificationRequest
 func (c *MTurk) AcceptQualificationRequestRequest(input *AcceptQualificationRequestInput) (req *request.Request, output *AcceptQualificationRequestOutput) {
 	op := &request.Operation{
 		Name:       opAcceptQualificationRequest,
@@ -80,7 +79,7 @@ func (c *MTurk) AcceptQualificationRequestRequest(input *AcceptQualificationRequ
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AcceptQualificationRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AcceptQualificationRequest
 func (c *MTurk) AcceptQualificationRequest(input *AcceptQualificationRequestInput) (*AcceptQualificationRequestOutput, error) {
 	req, out := c.AcceptQualificationRequestRequest(input)
 	return out, req.Send()
@@ -106,19 +105,18 @@ const opApproveAssignment = "ApproveAssignment"
 
 // ApproveAssignmentRequest generates a "aws/request.Request" representing the
 // client's request for the ApproveAssignment operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ApproveAssignment for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ApproveAssignment method directly
-// instead.
+// See ApproveAssignment for more information on using the ApproveAssignment
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ApproveAssignmentRequest method.
 //    req, resp := client.ApproveAssignmentRequest(params)
@@ -128,7 +126,7 @@ const opApproveAssignment = "ApproveAssignment"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ApproveAssignment
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ApproveAssignment
 func (c *MTurk) ApproveAssignmentRequest(input *ApproveAssignmentInput) (req *request.Request, output *ApproveAssignmentOutput) {
 	op := &request.Operation{
 		Name:       opApproveAssignment,
@@ -182,7 +180,7 @@ func (c *MTurk) ApproveAssignmentRequest(input *ApproveAssignmentInput) (req *re
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ApproveAssignment
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ApproveAssignment
 func (c *MTurk) ApproveAssignment(input *ApproveAssignmentInput) (*ApproveAssignmentOutput, error) {
 	req, out := c.ApproveAssignmentRequest(input)
 	return out, req.Send()
@@ -208,19 +206,18 @@ const opAssociateQualificationWithWorker = "AssociateQualificationWithWorker"
 
 // AssociateQualificationWithWorkerRequest generates a "aws/request.Request" representing the
 // client's request for the AssociateQualificationWithWorker operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See AssociateQualificationWithWorker for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the AssociateQualificationWithWorker method directly
-// instead.
+// See AssociateQualificationWithWorker for more information on using the AssociateQualificationWithWorker
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the AssociateQualificationWithWorkerRequest method.
 //    req, resp := client.AssociateQualificationWithWorkerRequest(params)
@@ -230,7 +227,7 @@ const opAssociateQualificationWithWorker = "AssociateQualificationWithWorker"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AssociateQualificationWithWorker
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AssociateQualificationWithWorker
 func (c *MTurk) AssociateQualificationWithWorkerRequest(input *AssociateQualificationWithWorkerInput) (req *request.Request, output *AssociateQualificationWithWorkerOutput) {
 	op := &request.Operation{
 		Name:       opAssociateQualificationWithWorker,
@@ -278,7 +275,7 @@ func (c *MTurk) AssociateQualificationWithWorkerRequest(input *AssociateQualific
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AssociateQualificationWithWorker
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AssociateQualificationWithWorker
 func (c *MTurk) AssociateQualificationWithWorker(input *AssociateQualificationWithWorkerInput) (*AssociateQualificationWithWorkerOutput, error) {
 	req, out := c.AssociateQualificationWithWorkerRequest(input)
 	return out, req.Send()
@@ -304,19 +301,18 @@ const opCreateAdditionalAssignmentsForHIT = "CreateAdditionalAssignmentsForHIT"
 
 // CreateAdditionalAssignmentsForHITRequest generates a "aws/request.Request" representing the
 // client's request for the CreateAdditionalAssignmentsForHIT operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See CreateAdditionalAssignmentsForHIT for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the CreateAdditionalAssignmentsForHIT method directly
-// instead.
+// See CreateAdditionalAssignmentsForHIT for more information on using the CreateAdditionalAssignmentsForHIT
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the CreateAdditionalAssignmentsForHITRequest method.
 //    req, resp := client.CreateAdditionalAssignmentsForHITRequest(params)
@@ -326,7 +322,7 @@ const opCreateAdditionalAssignmentsForHIT = "CreateAdditionalAssignmentsForHIT"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateAdditionalAssignmentsForHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateAdditionalAssignmentsForHIT
 func (c *MTurk) CreateAdditionalAssignmentsForHITRequest(input *CreateAdditionalAssignmentsForHITInput) (req *request.Request, output *CreateAdditionalAssignmentsForHITOutput) {
 	op := &request.Operation{
 		Name:       opCreateAdditionalAssignmentsForHIT,
@@ -376,7 +372,7 @@ func (c *MTurk) CreateAdditionalAssignmentsForHITRequest(input *CreateAdditional
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateAdditionalAssignmentsForHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateAdditionalAssignmentsForHIT
 func (c *MTurk) CreateAdditionalAssignmentsForHIT(input *CreateAdditionalAssignmentsForHITInput) (*CreateAdditionalAssignmentsForHITOutput, error) {
 	req, out := c.CreateAdditionalAssignmentsForHITRequest(input)
 	return out, req.Send()
@@ -402,19 +398,18 @@ const opCreateHIT = "CreateHIT"
 
 // CreateHITRequest generates a "aws/request.Request" representing the
 // client's request for the CreateHIT operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See CreateHIT for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the CreateHIT method directly
-// instead.
+// See CreateHIT for more information on using the CreateHIT
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the CreateHITRequest method.
 //    req, resp := client.CreateHITRequest(params)
@@ -424,7 +419,7 @@ const opCreateHIT = "CreateHIT"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHIT
 func (c *MTurk) CreateHITRequest(input *CreateHITInput) (req *request.Request, output *CreateHITOutput) {
 	op := &request.Operation{
 		Name:       opCreateHIT,
@@ -481,7 +476,7 @@ func (c *MTurk) CreateHITRequest(input *CreateHITInput) (req *request.Request, o
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHIT
 func (c *MTurk) CreateHIT(input *CreateHITInput) (*CreateHITOutput, error) {
 	req, out := c.CreateHITRequest(input)
 	return out, req.Send()
@@ -507,19 +502,18 @@ const opCreateHITType = "CreateHITType"
 
 // CreateHITTypeRequest generates a "aws/request.Request" representing the
 // client's request for the CreateHITType operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See CreateHITType for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the CreateHITType method directly
-// instead.
+// See CreateHITType for more information on using the CreateHITType
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the CreateHITTypeRequest method.
 //    req, resp := client.CreateHITTypeRequest(params)
@@ -529,7 +523,7 @@ const opCreateHITType = "CreateHITType"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITType
 func (c *MTurk) CreateHITTypeRequest(input *CreateHITTypeInput) (req *request.Request, output *CreateHITTypeOutput) {
 	op := &request.Operation{
 		Name:       opCreateHITType,
@@ -568,7 +562,7 @@ func (c *MTurk) CreateHITTypeRequest(input *CreateHITTypeInput) (req *request.Re
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITType
 func (c *MTurk) CreateHITType(input *CreateHITTypeInput) (*CreateHITTypeOutput, error) {
 	req, out := c.CreateHITTypeRequest(input)
 	return out, req.Send()
@@ -594,19 +588,18 @@ const opCreateHITWithHITType = "CreateHITWithHITType"
 
 // CreateHITWithHITTypeRequest generates a "aws/request.Request" representing the
 // client's request for the CreateHITWithHITType operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See CreateHITWithHITType for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the CreateHITWithHITType method directly
-// instead.
+// See CreateHITWithHITType for more information on using the CreateHITWithHITType
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the CreateHITWithHITTypeRequest method.
 //    req, resp := client.CreateHITWithHITTypeRequest(params)
@@ -616,7 +609,7 @@ const opCreateHITWithHITType = "CreateHITWithHITType"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITWithHITType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITWithHITType
 func (c *MTurk) CreateHITWithHITTypeRequest(input *CreateHITWithHITTypeInput) (req *request.Request, output *CreateHITWithHITTypeOutput) {
 	op := &request.Operation{
 		Name:       opCreateHITWithHITType,
@@ -664,7 +657,7 @@ func (c *MTurk) CreateHITWithHITTypeRequest(input *CreateHITWithHITTypeInput) (r
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITWithHITType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITWithHITType
 func (c *MTurk) CreateHITWithHITType(input *CreateHITWithHITTypeInput) (*CreateHITWithHITTypeOutput, error) {
 	req, out := c.CreateHITWithHITTypeRequest(input)
 	return out, req.Send()
@@ -690,19 +683,18 @@ const opCreateQualificationType = "CreateQualificationType"
 
 // CreateQualificationTypeRequest generates a "aws/request.Request" representing the
 // client's request for the CreateQualificationType operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See CreateQualificationType for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the CreateQualificationType method directly
-// instead.
+// See CreateQualificationType for more information on using the CreateQualificationType
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the CreateQualificationTypeRequest method.
 //    req, resp := client.CreateQualificationTypeRequest(params)
@@ -712,7 +704,7 @@ const opCreateQualificationType = "CreateQualificationType"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateQualificationType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateQualificationType
 func (c *MTurk) CreateQualificationTypeRequest(input *CreateQualificationTypeInput) (req *request.Request, output *CreateQualificationTypeOutput) {
 	op := &request.Operation{
 		Name:       opCreateQualificationType,
@@ -749,7 +741,7 @@ func (c *MTurk) CreateQualificationTypeRequest(input *CreateQualificationTypeInp
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateQualificationType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateQualificationType
 func (c *MTurk) CreateQualificationType(input *CreateQualificationTypeInput) (*CreateQualificationTypeOutput, error) {
 	req, out := c.CreateQualificationTypeRequest(input)
 	return out, req.Send()
@@ -775,19 +767,18 @@ const opCreateWorkerBlock = "CreateWorkerBlock"
 
 // CreateWorkerBlockRequest generates a "aws/request.Request" representing the
 // client's request for the CreateWorkerBlock operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See CreateWorkerBlock for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the CreateWorkerBlock method directly
-// instead.
+// See CreateWorkerBlock for more information on using the CreateWorkerBlock
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the CreateWorkerBlockRequest method.
 //    req, resp := client.CreateWorkerBlockRequest(params)
@@ -797,7 +788,7 @@ const opCreateWorkerBlock = "CreateWorkerBlock"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateWorkerBlock
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateWorkerBlock
 func (c *MTurk) CreateWorkerBlockRequest(input *CreateWorkerBlockInput) (req *request.Request, output *CreateWorkerBlockOutput) {
 	op := &request.Operation{
 		Name:       opCreateWorkerBlock,
@@ -835,7 +826,7 @@ func (c *MTurk) CreateWorkerBlockRequest(input *CreateWorkerBlockInput) (req *re
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateWorkerBlock
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateWorkerBlock
 func (c *MTurk) CreateWorkerBlock(input *CreateWorkerBlockInput) (*CreateWorkerBlockOutput, error) {
 	req, out := c.CreateWorkerBlockRequest(input)
 	return out, req.Send()
@@ -861,19 +852,18 @@ const opDeleteHIT = "DeleteHIT"
 
 // DeleteHITRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteHIT operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DeleteHIT for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DeleteHIT method directly
-// instead.
+// See DeleteHIT for more information on using the DeleteHIT
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DeleteHITRequest method.
 //    req, resp := client.DeleteHITRequest(params)
@@ -883,7 +873,7 @@ const opDeleteHIT = "DeleteHIT"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteHIT
 func (c *MTurk) DeleteHITRequest(input *DeleteHITInput) (req *request.Request, output *DeleteHITOutput) {
 	op := &request.Operation{
 		Name:       opDeleteHIT,
@@ -937,7 +927,7 @@ func (c *MTurk) DeleteHITRequest(input *DeleteHITInput) (req *request.Request, o
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteHIT
 func (c *MTurk) DeleteHIT(input *DeleteHITInput) (*DeleteHITOutput, error) {
 	req, out := c.DeleteHITRequest(input)
 	return out, req.Send()
@@ -963,19 +953,18 @@ const opDeleteQualificationType = "DeleteQualificationType"
 
 // DeleteQualificationTypeRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteQualificationType operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DeleteQualificationType for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DeleteQualificationType method directly
-// instead.
+// See DeleteQualificationType for more information on using the DeleteQualificationType
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DeleteQualificationTypeRequest method.
 //    req, resp := client.DeleteQualificationTypeRequest(params)
@@ -985,7 +974,7 @@ const opDeleteQualificationType = "DeleteQualificationType"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteQualificationType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteQualificationType
 func (c *MTurk) DeleteQualificationTypeRequest(input *DeleteQualificationTypeInput) (req *request.Request, output *DeleteQualificationTypeOutput) {
 	op := &request.Operation{
 		Name:       opDeleteQualificationType,
@@ -1033,7 +1022,7 @@ func (c *MTurk) DeleteQualificationTypeRequest(input *DeleteQualificationTypeInp
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteQualificationType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteQualificationType
 func (c *MTurk) DeleteQualificationType(input *DeleteQualificationTypeInput) (*DeleteQualificationTypeOutput, error) {
 	req, out := c.DeleteQualificationTypeRequest(input)
 	return out, req.Send()
@@ -1059,19 +1048,18 @@ const opDeleteWorkerBlock = "DeleteWorkerBlock"
 
 // DeleteWorkerBlockRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteWorkerBlock operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DeleteWorkerBlock for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DeleteWorkerBlock method directly
-// instead.
+// See DeleteWorkerBlock for more information on using the DeleteWorkerBlock
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DeleteWorkerBlockRequest method.
 //    req, resp := client.DeleteWorkerBlockRequest(params)
@@ -1081,7 +1069,7 @@ const opDeleteWorkerBlock = "DeleteWorkerBlock"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteWorkerBlock
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteWorkerBlock
 func (c *MTurk) DeleteWorkerBlockRequest(input *DeleteWorkerBlockInput) (req *request.Request, output *DeleteWorkerBlockOutput) {
 	op := &request.Operation{
 		Name:       opDeleteWorkerBlock,
@@ -1122,7 +1110,7 @@ func (c *MTurk) DeleteWorkerBlockRequest(input *DeleteWorkerBlockInput) (req *re
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteWorkerBlock
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteWorkerBlock
 func (c *MTurk) DeleteWorkerBlock(input *DeleteWorkerBlockInput) (*DeleteWorkerBlockOutput, error) {
 	req, out := c.DeleteWorkerBlockRequest(input)
 	return out, req.Send()
@@ -1148,19 +1136,18 @@ const opDisassociateQualificationFromWorker = "DisassociateQualificationFromWork
 
 // DisassociateQualificationFromWorkerRequest generates a "aws/request.Request" representing the
 // client's request for the DisassociateQualificationFromWorker operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DisassociateQualificationFromWorker for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DisassociateQualificationFromWorker method directly
-// instead.
+// See DisassociateQualificationFromWorker for more information on using the DisassociateQualificationFromWorker
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DisassociateQualificationFromWorkerRequest method.
 //    req, resp := client.DisassociateQualificationFromWorkerRequest(params)
@@ -1170,7 +1157,7 @@ const opDisassociateQualificationFromWorker = "DisassociateQualificationFromWork
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DisassociateQualificationFromWorker
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DisassociateQualificationFromWorker
 func (c *MTurk) DisassociateQualificationFromWorkerRequest(input *DisassociateQualificationFromWorkerInput) (req *request.Request, output *DisassociateQualificationFromWorkerOutput) {
 	op := &request.Operation{
 		Name:       opDisassociateQualificationFromWorker,
@@ -1210,7 +1197,7 @@ func (c *MTurk) DisassociateQualificationFromWorkerRequest(input *DisassociateQu
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DisassociateQualificationFromWorker
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DisassociateQualificationFromWorker
 func (c *MTurk) DisassociateQualificationFromWorker(input *DisassociateQualificationFromWorkerInput) (*DisassociateQualificationFromWorkerOutput, error) {
 	req, out := c.DisassociateQualificationFromWorkerRequest(input)
 	return out, req.Send()
@@ -1236,19 +1223,18 @@ const opGetAccountBalance = "GetAccountBalance"
 
 // GetAccountBalanceRequest generates a "aws/request.Request" representing the
 // client's request for the GetAccountBalance operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GetAccountBalance for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GetAccountBalance method directly
-// instead.
+// See GetAccountBalance for more information on using the GetAccountBalance
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GetAccountBalanceRequest method.
 //    req, resp := client.GetAccountBalanceRequest(params)
@@ -1258,7 +1244,7 @@ const opGetAccountBalance = "GetAccountBalance"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAccountBalance
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAccountBalance
 func (c *MTurk) GetAccountBalanceRequest(input *GetAccountBalanceInput) (req *request.Request, output *GetAccountBalanceOutput) {
 	op := &request.Operation{
 		Name:       opGetAccountBalance,
@@ -1295,7 +1281,7 @@ func (c *MTurk) GetAccountBalanceRequest(input *GetAccountBalanceInput) (req *re
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAccountBalance
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAccountBalance
 func (c *MTurk) GetAccountBalance(input *GetAccountBalanceInput) (*GetAccountBalanceOutput, error) {
 	req, out := c.GetAccountBalanceRequest(input)
 	return out, req.Send()
@@ -1321,19 +1307,18 @@ const opGetAssignment = "GetAssignment"
 
 // GetAssignmentRequest generates a "aws/request.Request" representing the
 // client's request for the GetAssignment operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GetAssignment for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GetAssignment method directly
-// instead.
+// See GetAssignment for more information on using the GetAssignment
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GetAssignmentRequest method.
 //    req, resp := client.GetAssignmentRequest(params)
@@ -1343,7 +1328,7 @@ const opGetAssignment = "GetAssignment"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAssignment
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAssignment
 func (c *MTurk) GetAssignmentRequest(input *GetAssignmentInput) (req *request.Request, output *GetAssignmentOutput) {
 	op := &request.Operation{
 		Name:       opGetAssignment,
@@ -1379,7 +1364,7 @@ func (c *MTurk) GetAssignmentRequest(input *GetAssignmentInput) (req *request.Re
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAssignment
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAssignment
 func (c *MTurk) GetAssignment(input *GetAssignmentInput) (*GetAssignmentOutput, error) {
 	req, out := c.GetAssignmentRequest(input)
 	return out, req.Send()
@@ -1405,19 +1390,18 @@ const opGetFileUploadURL = "GetFileUploadURL"
 
 // GetFileUploadURLRequest generates a "aws/request.Request" representing the
 // client's request for the GetFileUploadURL operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GetFileUploadURL for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GetFileUploadURL method directly
-// instead.
+// See GetFileUploadURL for more information on using the GetFileUploadURL
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GetFileUploadURLRequest method.
 //    req, resp := client.GetFileUploadURLRequest(params)
@@ -1427,7 +1411,7 @@ const opGetFileUploadURL = "GetFileUploadURL"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetFileUploadURL
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetFileUploadURL
 func (c *MTurk) GetFileUploadURLRequest(input *GetFileUploadURLInput) (req *request.Request, output *GetFileUploadURLOutput) {
 	op := &request.Operation{
 		Name:       opGetFileUploadURL,
@@ -1469,7 +1453,7 @@ func (c *MTurk) GetFileUploadURLRequest(input *GetFileUploadURLInput) (req *requ
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetFileUploadURL
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetFileUploadURL
 func (c *MTurk) GetFileUploadURL(input *GetFileUploadURLInput) (*GetFileUploadURLOutput, error) {
 	req, out := c.GetFileUploadURLRequest(input)
 	return out, req.Send()
@@ -1495,19 +1479,18 @@ const opGetHIT = "GetHIT"
 
 // GetHITRequest generates a "aws/request.Request" representing the
 // client's request for the GetHIT operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GetHIT for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GetHIT method directly
-// instead.
+// See GetHIT for more information on using the GetHIT
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GetHITRequest method.
 //    req, resp := client.GetHITRequest(params)
@@ -1517,7 +1500,7 @@ const opGetHIT = "GetHIT"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetHIT
 func (c *MTurk) GetHITRequest(input *GetHITInput) (req *request.Request, output *GetHITOutput) {
 	op := &request.Operation{
 		Name:       opGetHIT,
@@ -1553,7 +1536,7 @@ func (c *MTurk) GetHITRequest(input *GetHITInput) (req *request.Request, output 
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetHIT
 func (c *MTurk) GetHIT(input *GetHITInput) (*GetHITOutput, error) {
 	req, out := c.GetHITRequest(input)
 	return out, req.Send()
@@ -1579,19 +1562,18 @@ const opGetQualificationScore = "GetQualificationScore"
 
 // GetQualificationScoreRequest generates a "aws/request.Request" representing the
 // client's request for the GetQualificationScore operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GetQualificationScore for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GetQualificationScore method directly
-// instead.
+// See GetQualificationScore for more information on using the GetQualificationScore
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GetQualificationScoreRequest method.
 //    req, resp := client.GetQualificationScoreRequest(params)
@@ -1601,7 +1583,7 @@ const opGetQualificationScore = "GetQualificationScore"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationScore
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationScore
 func (c *MTurk) GetQualificationScoreRequest(input *GetQualificationScoreInput) (req *request.Request, output *GetQualificationScoreOutput) {
 	op := &request.Operation{
 		Name:       opGetQualificationScore,
@@ -1645,7 +1627,7 @@ func (c *MTurk) GetQualificationScoreRequest(input *GetQualificationScoreInput) 
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationScore
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationScore
 func (c *MTurk) GetQualificationScore(input *GetQualificationScoreInput) (*GetQualificationScoreOutput, error) {
 	req, out := c.GetQualificationScoreRequest(input)
 	return out, req.Send()
@@ -1671,19 +1653,18 @@ const opGetQualificationType = "GetQualificationType"
 
 // GetQualificationTypeRequest generates a "aws/request.Request" representing the
 // client's request for the GetQualificationType operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GetQualificationType for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GetQualificationType method directly
-// instead.
+// See GetQualificationType for more information on using the GetQualificationType
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GetQualificationTypeRequest method.
 //    req, resp := client.GetQualificationTypeRequest(params)
@@ -1693,7 +1674,7 @@ const opGetQualificationType = "GetQualificationType"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationType
 func (c *MTurk) GetQualificationTypeRequest(input *GetQualificationTypeInput) (req *request.Request, output *GetQualificationTypeOutput) {
 	op := &request.Operation{
 		Name:       opGetQualificationType,
@@ -1730,7 +1711,7 @@ func (c *MTurk) GetQualificationTypeRequest(input *GetQualificationTypeInput) (r
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationType
 func (c *MTurk) GetQualificationType(input *GetQualificationTypeInput) (*GetQualificationTypeOutput, error) {
 	req, out := c.GetQualificationTypeRequest(input)
 	return out, req.Send()
@@ -1756,19 +1737,18 @@ const opListAssignmentsForHIT = "ListAssignmentsForHIT"
 
 // ListAssignmentsForHITRequest generates a "aws/request.Request" representing the
 // client's request for the ListAssignmentsForHIT operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListAssignmentsForHIT for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListAssignmentsForHIT method directly
-// instead.
+// See ListAssignmentsForHIT for more information on using the ListAssignmentsForHIT
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListAssignmentsForHITRequest method.
 //    req, resp := client.ListAssignmentsForHITRequest(params)
@@ -1778,7 +1758,7 @@ const opListAssignmentsForHIT = "ListAssignmentsForHIT"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListAssignmentsForHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListAssignmentsForHIT
 func (c *MTurk) ListAssignmentsForHITRequest(input *ListAssignmentsForHITInput) (req *request.Request, output *ListAssignmentsForHITOutput) {
 	op := &request.Operation{
 		Name:       opListAssignmentsForHIT,
@@ -1840,7 +1820,7 @@ func (c *MTurk) ListAssignmentsForHITRequest(input *ListAssignmentsForHITInput) 
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListAssignmentsForHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListAssignmentsForHIT
 func (c *MTurk) ListAssignmentsForHIT(input *ListAssignmentsForHITInput) (*ListAssignmentsForHITOutput, error) {
 	req, out := c.ListAssignmentsForHITRequest(input)
 	return out, req.Send()
@@ -1916,19 +1896,18 @@ const opListBonusPayments = "ListBonusPayments"
 
 // ListBonusPaymentsRequest generates a "aws/request.Request" representing the
 // client's request for the ListBonusPayments operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListBonusPayments for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListBonusPayments method directly
-// instead.
+// See ListBonusPayments for more information on using the ListBonusPayments
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListBonusPaymentsRequest method.
 //    req, resp := client.ListBonusPaymentsRequest(params)
@@ -1938,7 +1917,7 @@ const opListBonusPayments = "ListBonusPayments"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListBonusPayments
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListBonusPayments
 func (c *MTurk) ListBonusPaymentsRequest(input *ListBonusPaymentsInput) (req *request.Request, output *ListBonusPaymentsOutput) {
 	op := &request.Operation{
 		Name:       opListBonusPayments,
@@ -1981,7 +1960,7 @@ func (c *MTurk) ListBonusPaymentsRequest(input *ListBonusPaymentsInput) (req *re
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListBonusPayments
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListBonusPayments
 func (c *MTurk) ListBonusPayments(input *ListBonusPaymentsInput) (*ListBonusPaymentsOutput, error) {
 	req, out := c.ListBonusPaymentsRequest(input)
 	return out, req.Send()
@@ -2057,19 +2036,18 @@ const opListHITs = "ListHITs"
 
 // ListHITsRequest generates a "aws/request.Request" representing the
 // client's request for the ListHITs operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListHITs for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListHITs method directly
-// instead.
+// See ListHITs for more information on using the ListHITs
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListHITsRequest method.
 //    req, resp := client.ListHITsRequest(params)
@@ -2079,7 +2057,7 @@ const opListHITs = "ListHITs"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITs
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITs
 func (c *MTurk) ListHITsRequest(input *ListHITsInput) (req *request.Request, output *ListHITsOutput) {
 	op := &request.Operation{
 		Name:       opListHITs,
@@ -2123,7 +2101,7 @@ func (c *MTurk) ListHITsRequest(input *ListHITsInput) (req *request.Request, out
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITs
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITs
 func (c *MTurk) ListHITs(input *ListHITsInput) (*ListHITsOutput, error) {
 	req, out := c.ListHITsRequest(input)
 	return out, req.Send()
@@ -2199,19 +2177,18 @@ const opListHITsForQualificationType = "ListHITsForQualificationType"
 
 // ListHITsForQualificationTypeRequest generates a "aws/request.Request" representing the
 // client's request for the ListHITsForQualificationType operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListHITsForQualificationType for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListHITsForQualificationType method directly
-// instead.
+// See ListHITsForQualificationType for more information on using the ListHITsForQualificationType
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListHITsForQualificationTypeRequest method.
 //    req, resp := client.ListHITsForQualificationTypeRequest(params)
@@ -2221,7 +2198,7 @@ const opListHITsForQualificationType = "ListHITsForQualificationType"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITsForQualificationType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITsForQualificationType
 func (c *MTurk) ListHITsForQualificationTypeRequest(input *ListHITsForQualificationTypeInput) (req *request.Request, output *ListHITsForQualificationTypeOutput) {
 	op := &request.Operation{
 		Name:       opListHITsForQualificationType,
@@ -2266,7 +2243,7 @@ func (c *MTurk) ListHITsForQualificationTypeRequest(input *ListHITsForQualificat
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITsForQualificationType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITsForQualificationType
 func (c *MTurk) ListHITsForQualificationType(input *ListHITsForQualificationTypeInput) (*ListHITsForQualificationTypeOutput, error) {
 	req, out := c.ListHITsForQualificationTypeRequest(input)
 	return out, req.Send()
@@ -2342,19 +2319,18 @@ const opListQualificationRequests = "ListQualificationRequests"
 
 // ListQualificationRequestsRequest generates a "aws/request.Request" representing the
 // client's request for the ListQualificationRequests operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListQualificationRequests for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListQualificationRequests method directly
-// instead.
+// See ListQualificationRequests for more information on using the ListQualificationRequests
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListQualificationRequestsRequest method.
 //    req, resp := client.ListQualificationRequestsRequest(params)
@@ -2364,7 +2340,7 @@ const opListQualificationRequests = "ListQualificationRequests"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationRequests
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationRequests
 func (c *MTurk) ListQualificationRequestsRequest(input *ListQualificationRequestsInput) (req *request.Request, output *ListQualificationRequestsOutput) {
 	op := &request.Operation{
 		Name:       opListQualificationRequests,
@@ -2409,7 +2385,7 @@ func (c *MTurk) ListQualificationRequestsRequest(input *ListQualificationRequest
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationRequests
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationRequests
 func (c *MTurk) ListQualificationRequests(input *ListQualificationRequestsInput) (*ListQualificationRequestsOutput, error) {
 	req, out := c.ListQualificationRequestsRequest(input)
 	return out, req.Send()
@@ -2485,19 +2461,18 @@ const opListQualificationTypes = "ListQualificationTypes"
 
 // ListQualificationTypesRequest generates a "aws/request.Request" representing the
 // client's request for the ListQualificationTypes operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListQualificationTypes for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListQualificationTypes method directly
-// instead.
+// See ListQualificationTypes for more information on using the ListQualificationTypes
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListQualificationTypesRequest method.
 //    req, resp := client.ListQualificationTypesRequest(params)
@@ -2507,7 +2482,7 @@ const opListQualificationTypes = "ListQualificationTypes"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationTypes
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationTypes
 func (c *MTurk) ListQualificationTypesRequest(input *ListQualificationTypesInput) (req *request.Request, output *ListQualificationTypesOutput) {
 	op := &request.Operation{
 		Name:       opListQualificationTypes,
@@ -2552,7 +2527,7 @@ func (c *MTurk) ListQualificationTypesRequest(input *ListQualificationTypesInput
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationTypes
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationTypes
 func (c *MTurk) ListQualificationTypes(input *ListQualificationTypesInput) (*ListQualificationTypesOutput, error) {
 	req, out := c.ListQualificationTypesRequest(input)
 	return out, req.Send()
@@ -2628,19 +2603,18 @@ const opListReviewPolicyResultsForHIT = "ListReviewPolicyResultsForHIT"
 
 // ListReviewPolicyResultsForHITRequest generates a "aws/request.Request" representing the
 // client's request for the ListReviewPolicyResultsForHIT operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListReviewPolicyResultsForHIT for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListReviewPolicyResultsForHIT method directly
-// instead.
+// See ListReviewPolicyResultsForHIT for more information on using the ListReviewPolicyResultsForHIT
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListReviewPolicyResultsForHITRequest method.
 //    req, resp := client.ListReviewPolicyResultsForHITRequest(params)
@@ -2650,7 +2624,7 @@ const opListReviewPolicyResultsForHIT = "ListReviewPolicyResultsForHIT"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewPolicyResultsForHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewPolicyResultsForHIT
 func (c *MTurk) ListReviewPolicyResultsForHITRequest(input *ListReviewPolicyResultsForHITInput) (req *request.Request, output *ListReviewPolicyResultsForHITOutput) {
 	op := &request.Operation{
 		Name:       opListReviewPolicyResultsForHIT,
@@ -2696,7 +2670,7 @@ func (c *MTurk) ListReviewPolicyResultsForHITRequest(input *ListReviewPolicyResu
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewPolicyResultsForHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewPolicyResultsForHIT
 func (c *MTurk) ListReviewPolicyResultsForHIT(input *ListReviewPolicyResultsForHITInput) (*ListReviewPolicyResultsForHITOutput, error) {
 	req, out := c.ListReviewPolicyResultsForHITRequest(input)
 	return out, req.Send()
@@ -2772,19 +2746,18 @@ const opListReviewableHITs = "ListReviewableHITs"
 
 // ListReviewableHITsRequest generates a "aws/request.Request" representing the
 // client's request for the ListReviewableHITs operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListReviewableHITs for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListReviewableHITs method directly
-// instead.
+// See ListReviewableHITs for more information on using the ListReviewableHITs
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListReviewableHITsRequest method.
 //    req, resp := client.ListReviewableHITsRequest(params)
@@ -2794,7 +2767,7 @@ const opListReviewableHITs = "ListReviewableHITs"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewableHITs
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewableHITs
 func (c *MTurk) ListReviewableHITsRequest(input *ListReviewableHITsInput) (req *request.Request, output *ListReviewableHITsOutput) {
 	op := &request.Operation{
 		Name:       opListReviewableHITs,
@@ -2838,7 +2811,7 @@ func (c *MTurk) ListReviewableHITsRequest(input *ListReviewableHITsInput) (req *
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewableHITs
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewableHITs
 func (c *MTurk) ListReviewableHITs(input *ListReviewableHITsInput) (*ListReviewableHITsOutput, error) {
 	req, out := c.ListReviewableHITsRequest(input)
 	return out, req.Send()
@@ -2914,19 +2887,18 @@ const opListWorkerBlocks = "ListWorkerBlocks"
 
 // ListWorkerBlocksRequest generates a "aws/request.Request" representing the
 // client's request for the ListWorkerBlocks operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListWorkerBlocks for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListWorkerBlocks method directly
-// instead.
+// See ListWorkerBlocks for more information on using the ListWorkerBlocks
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListWorkerBlocksRequest method.
 //    req, resp := client.ListWorkerBlocksRequest(params)
@@ -2936,7 +2908,7 @@ const opListWorkerBlocks = "ListWorkerBlocks"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkerBlocks
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkerBlocks
 func (c *MTurk) ListWorkerBlocksRequest(input *ListWorkerBlocksInput) (req *request.Request, output *ListWorkerBlocksOutput) {
 	op := &request.Operation{
 		Name:       opListWorkerBlocks,
@@ -2979,7 +2951,7 @@ func (c *MTurk) ListWorkerBlocksRequest(input *ListWorkerBlocksInput) (req *requ
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkerBlocks
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkerBlocks
 func (c *MTurk) ListWorkerBlocks(input *ListWorkerBlocksInput) (*ListWorkerBlocksOutput, error) {
 	req, out := c.ListWorkerBlocksRequest(input)
 	return out, req.Send()
@@ -3055,19 +3027,18 @@ const opListWorkersWithQualificationType = "ListWorkersWithQualificationType"
 
 // ListWorkersWithQualificationTypeRequest generates a "aws/request.Request" representing the
 // client's request for the ListWorkersWithQualificationType operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListWorkersWithQualificationType for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListWorkersWithQualificationType method directly
-// instead.
+// See ListWorkersWithQualificationType for more information on using the ListWorkersWithQualificationType
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListWorkersWithQualificationTypeRequest method.
 //    req, resp := client.ListWorkersWithQualificationTypeRequest(params)
@@ -3077,7 +3048,7 @@ const opListWorkersWithQualificationType = "ListWorkersWithQualificationType"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkersWithQualificationType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkersWithQualificationType
 func (c *MTurk) ListWorkersWithQualificationTypeRequest(input *ListWorkersWithQualificationTypeInput) (req *request.Request, output *ListWorkersWithQualificationTypeOutput) {
 	op := &request.Operation{
 		Name:       opListWorkersWithQualificationType,
@@ -3120,7 +3091,7 @@ func (c *MTurk) ListWorkersWithQualificationTypeRequest(input *ListWorkersWithQu
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkersWithQualificationType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkersWithQualificationType
 func (c *MTurk) ListWorkersWithQualificationType(input *ListWorkersWithQualificationTypeInput) (*ListWorkersWithQualificationTypeOutput, error) {
 	req, out := c.ListWorkersWithQualificationTypeRequest(input)
 	return out, req.Send()
@@ -3196,19 +3167,18 @@ const opNotifyWorkers = "NotifyWorkers"
 
 // NotifyWorkersRequest generates a "aws/request.Request" representing the
 // client's request for the NotifyWorkers operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See NotifyWorkers for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the NotifyWorkers method directly
-// instead.
+// See NotifyWorkers for more information on using the NotifyWorkers
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the NotifyWorkersRequest method.
 //    req, resp := client.NotifyWorkersRequest(params)
@@ -3218,7 +3188,7 @@ const opNotifyWorkers = "NotifyWorkers"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/NotifyWorkers
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/NotifyWorkers
 func (c *MTurk) NotifyWorkersRequest(input *NotifyWorkersInput) (req *request.Request, output *NotifyWorkersOutput) {
 	op := &request.Operation{
 		Name:       opNotifyWorkers,
@@ -3258,7 +3228,7 @@ func (c *MTurk) NotifyWorkersRequest(input *NotifyWorkersInput) (req *request.Re
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/NotifyWorkers
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/NotifyWorkers
 func (c *MTurk) NotifyWorkers(input *NotifyWorkersInput) (*NotifyWorkersOutput, error) {
 	req, out := c.NotifyWorkersRequest(input)
 	return out, req.Send()
@@ -3284,19 +3254,18 @@ const opRejectAssignment = "RejectAssignment"
 
 // RejectAssignmentRequest generates a "aws/request.Request" representing the
 // client's request for the RejectAssignment operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See RejectAssignment for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the RejectAssignment method directly
-// instead.
+// See RejectAssignment for more information on using the RejectAssignment
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the RejectAssignmentRequest method.
 //    req, resp := client.RejectAssignmentRequest(params)
@@ -3306,7 +3275,7 @@ const opRejectAssignment = "RejectAssignment"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectAssignment
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectAssignment
 func (c *MTurk) RejectAssignmentRequest(input *RejectAssignmentInput) (req *request.Request, output *RejectAssignmentOutput) {
 	op := &request.Operation{
 		Name:       opRejectAssignment,
@@ -3350,7 +3319,7 @@ func (c *MTurk) RejectAssignmentRequest(input *RejectAssignmentInput) (req *requ
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectAssignment
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectAssignment
 func (c *MTurk) RejectAssignment(input *RejectAssignmentInput) (*RejectAssignmentOutput, error) {
 	req, out := c.RejectAssignmentRequest(input)
 	return out, req.Send()
@@ -3376,19 +3345,18 @@ const opRejectQualificationRequest = "RejectQualificationRequest"
 
 // RejectQualificationRequestRequest generates a "aws/request.Request" representing the
 // client's request for the RejectQualificationRequest operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See RejectQualificationRequest for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the RejectQualificationRequest method directly
-// instead.
+// See RejectQualificationRequest for more information on using the RejectQualificationRequest
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the RejectQualificationRequestRequest method.
 //    req, resp := client.RejectQualificationRequestRequest(params)
@@ -3398,7 +3366,7 @@ const opRejectQualificationRequest = "RejectQualificationRequest"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectQualificationRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectQualificationRequest
 func (c *MTurk) RejectQualificationRequestRequest(input *RejectQualificationRequestInput) (req *request.Request, output *RejectQualificationRequestOutput) {
 	op := &request.Operation{
 		Name:       opRejectQualificationRequest,
@@ -3437,7 +3405,7 @@ func (c *MTurk) RejectQualificationRequestRequest(input *RejectQualificationRequ
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectQualificationRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectQualificationRequest
 func (c *MTurk) RejectQualificationRequest(input *RejectQualificationRequestInput) (*RejectQualificationRequestOutput, error) {
 	req, out := c.RejectQualificationRequestRequest(input)
 	return out, req.Send()
@@ -3463,19 +3431,18 @@ const opSendBonus = "SendBonus"
 
 // SendBonusRequest generates a "aws/request.Request" representing the
 // client's request for the SendBonus operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See SendBonus for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the SendBonus method directly
-// instead.
+// See SendBonus for more information on using the SendBonus
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the SendBonusRequest method.
 //    req, resp := client.SendBonusRequest(params)
@@ -3485,7 +3452,7 @@ const opSendBonus = "SendBonus"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendBonus
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendBonus
 func (c *MTurk) SendBonusRequest(input *SendBonusInput) (req *request.Request, output *SendBonusOutput) {
 	op := &request.Operation{
 		Name:       opSendBonus,
@@ -3529,7 +3496,7 @@ func (c *MTurk) SendBonusRequest(input *SendBonusInput) (req *request.Request, o
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendBonus
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendBonus
 func (c *MTurk) SendBonus(input *SendBonusInput) (*SendBonusOutput, error) {
 	req, out := c.SendBonusRequest(input)
 	return out, req.Send()
@@ -3555,19 +3522,18 @@ const opSendTestEventNotification = "SendTestEventNotification"
 
 // SendTestEventNotificationRequest generates a "aws/request.Request" representing the
 // client's request for the SendTestEventNotification operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See SendTestEventNotification for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the SendTestEventNotification method directly
-// instead.
+// See SendTestEventNotification for more information on using the SendTestEventNotification
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the SendTestEventNotificationRequest method.
 //    req, resp := client.SendTestEventNotificationRequest(params)
@@ -3577,7 +3543,7 @@ const opSendTestEventNotification = "SendTestEventNotification"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendTestEventNotification
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendTestEventNotification
 func (c *MTurk) SendTestEventNotificationRequest(input *SendTestEventNotificationInput) (req *request.Request, output *SendTestEventNotificationOutput) {
 	op := &request.Operation{
 		Name:       opSendTestEventNotification,
@@ -3618,7 +3584,7 @@ func (c *MTurk) SendTestEventNotificationRequest(input *SendTestEventNotificatio
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendTestEventNotification
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendTestEventNotification
 func (c *MTurk) SendTestEventNotification(input *SendTestEventNotificationInput) (*SendTestEventNotificationOutput, error) {
 	req, out := c.SendTestEventNotificationRequest(input)
 	return out, req.Send()
@@ -3644,19 +3610,18 @@ const opUpdateExpirationForHIT = "UpdateExpirationForHIT"
 
 // UpdateExpirationForHITRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateExpirationForHIT operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See UpdateExpirationForHIT for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the UpdateExpirationForHIT method directly
-// instead.
+// See UpdateExpirationForHIT for more information on using the UpdateExpirationForHIT
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the UpdateExpirationForHITRequest method.
 //    req, resp := client.UpdateExpirationForHITRequest(params)
@@ -3666,7 +3631,7 @@ const opUpdateExpirationForHIT = "UpdateExpirationForHIT"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateExpirationForHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateExpirationForHIT
 func (c *MTurk) UpdateExpirationForHITRequest(input *UpdateExpirationForHITInput) (req *request.Request, output *UpdateExpirationForHITOutput) {
 	op := &request.Operation{
 		Name:       opUpdateExpirationForHIT,
@@ -3704,7 +3669,7 @@ func (c *MTurk) UpdateExpirationForHITRequest(input *UpdateExpirationForHITInput
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateExpirationForHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateExpirationForHIT
 func (c *MTurk) UpdateExpirationForHIT(input *UpdateExpirationForHITInput) (*UpdateExpirationForHITOutput, error) {
 	req, out := c.UpdateExpirationForHITRequest(input)
 	return out, req.Send()
@@ -3730,19 +3695,18 @@ const opUpdateHITReviewStatus = "UpdateHITReviewStatus"
 
 // UpdateHITReviewStatusRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateHITReviewStatus operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See UpdateHITReviewStatus for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the UpdateHITReviewStatus method directly
-// instead.
+// See UpdateHITReviewStatus for more information on using the UpdateHITReviewStatus
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the UpdateHITReviewStatusRequest method.
 //    req, resp := client.UpdateHITReviewStatusRequest(params)
@@ -3752,7 +3716,7 @@ const opUpdateHITReviewStatus = "UpdateHITReviewStatus"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITReviewStatus
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITReviewStatus
 func (c *MTurk) UpdateHITReviewStatusRequest(input *UpdateHITReviewStatusInput) (req *request.Request, output *UpdateHITReviewStatusOutput) {
 	op := &request.Operation{
 		Name:       opUpdateHITReviewStatus,
@@ -3790,7 +3754,7 @@ func (c *MTurk) UpdateHITReviewStatusRequest(input *UpdateHITReviewStatusInput) 
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITReviewStatus
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITReviewStatus
 func (c *MTurk) UpdateHITReviewStatus(input *UpdateHITReviewStatusInput) (*UpdateHITReviewStatusOutput, error) {
 	req, out := c.UpdateHITReviewStatusRequest(input)
 	return out, req.Send()
@@ -3816,19 +3780,18 @@ const opUpdateHITTypeOfHIT = "UpdateHITTypeOfHIT"
 
 // UpdateHITTypeOfHITRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateHITTypeOfHIT operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See UpdateHITTypeOfHIT for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the UpdateHITTypeOfHIT method directly
-// instead.
+// See UpdateHITTypeOfHIT for more information on using the UpdateHITTypeOfHIT
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the UpdateHITTypeOfHITRequest method.
 //    req, resp := client.UpdateHITTypeOfHITRequest(params)
@@ -3838,7 +3801,7 @@ const opUpdateHITTypeOfHIT = "UpdateHITTypeOfHIT"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITTypeOfHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITTypeOfHIT
 func (c *MTurk) UpdateHITTypeOfHITRequest(input *UpdateHITTypeOfHITInput) (req *request.Request, output *UpdateHITTypeOfHITOutput) {
 	op := &request.Operation{
 		Name:       opUpdateHITTypeOfHIT,
@@ -3877,7 +3840,7 @@ func (c *MTurk) UpdateHITTypeOfHITRequest(input *UpdateHITTypeOfHITInput) (req *
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITTypeOfHIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITTypeOfHIT
 func (c *MTurk) UpdateHITTypeOfHIT(input *UpdateHITTypeOfHITInput) (*UpdateHITTypeOfHITOutput, error) {
 	req, out := c.UpdateHITTypeOfHITRequest(input)
 	return out, req.Send()
@@ -3903,19 +3866,18 @@ const opUpdateNotificationSettings = "UpdateNotificationSettings"
 
 // UpdateNotificationSettingsRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateNotificationSettings operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See UpdateNotificationSettings for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the UpdateNotificationSettings method directly
-// instead.
+// See UpdateNotificationSettings for more information on using the UpdateNotificationSettings
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the UpdateNotificationSettingsRequest method.
 //    req, resp := client.UpdateNotificationSettingsRequest(params)
@@ -3925,7 +3887,7 @@ const opUpdateNotificationSettings = "UpdateNotificationSettings"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateNotificationSettings
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateNotificationSettings
 func (c *MTurk) UpdateNotificationSettingsRequest(input *UpdateNotificationSettingsInput) (req *request.Request, output *UpdateNotificationSettingsOutput) {
 	op := &request.Operation{
 		Name:       opUpdateNotificationSettings,
@@ -3970,7 +3932,7 @@ func (c *MTurk) UpdateNotificationSettingsRequest(input *UpdateNotificationSetti
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateNotificationSettings
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateNotificationSettings
 func (c *MTurk) UpdateNotificationSettings(input *UpdateNotificationSettingsInput) (*UpdateNotificationSettingsOutput, error) {
 	req, out := c.UpdateNotificationSettingsRequest(input)
 	return out, req.Send()
@@ -3996,19 +3958,18 @@ const opUpdateQualificationType = "UpdateQualificationType"
 
 // UpdateQualificationTypeRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateQualificationType operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See UpdateQualificationType for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the UpdateQualificationType method directly
-// instead.
+// See UpdateQualificationType for more information on using the UpdateQualificationType
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the UpdateQualificationTypeRequest method.
 //    req, resp := client.UpdateQualificationTypeRequest(params)
@@ -4018,7 +3979,7 @@ const opUpdateQualificationType = "UpdateQualificationType"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateQualificationType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateQualificationType
 func (c *MTurk) UpdateQualificationTypeRequest(input *UpdateQualificationTypeInput) (req *request.Request, output *UpdateQualificationTypeOutput) {
 	op := &request.Operation{
 		Name:       opUpdateQualificationType,
@@ -4084,7 +4045,7 @@ func (c *MTurk) UpdateQualificationTypeRequest(input *UpdateQualificationTypeInp
 //   * ErrCodeRequestError "RequestError"
 //   Your request is invalid.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateQualificationType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateQualificationType
 func (c *MTurk) UpdateQualificationType(input *UpdateQualificationTypeInput) (*UpdateQualificationTypeOutput, error) {
 	req, out := c.UpdateQualificationTypeRequest(input)
 	return out, req.Send()
@@ -4106,7 +4067,7 @@ func (c *MTurk) UpdateQualificationTypeWithContext(ctx aws.Context, input *Updat
 	return out, req.Send()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AcceptQualificationRequestRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AcceptQualificationRequestRequest
 type AcceptQualificationRequestInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4156,7 +4117,7 @@ func (s *AcceptQualificationRequestInput) SetQualificationRequestId(v string) *A
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AcceptQualificationRequestResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AcceptQualificationRequestResponse
 type AcceptQualificationRequestOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -4171,7 +4132,7 @@ func (s AcceptQualificationRequestOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ApproveAssignmentRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ApproveAssignmentRequest
 type ApproveAssignmentInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4234,7 +4195,7 @@ func (s *ApproveAssignmentInput) SetRequesterFeedback(v string) *ApproveAssignme
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ApproveAssignmentResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ApproveAssignmentResponse
 type ApproveAssignmentOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -4252,7 +4213,7 @@ func (s ApproveAssignmentOutput) GoString() string {
 // The Assignment data structure represents a single assignment of a HIT to
 // a Worker. The assignment tracks the Worker's efforts to complete the HIT,
 // and contains the results for later retrieval.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/Assignment
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/Assignment
 type Assignment struct {
 	_ struct{} `type:"structure"`
 
@@ -4393,7 +4354,7 @@ func (s *Assignment) SetWorkerId(v string) *Assignment {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AssociateQualificationWithWorkerRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AssociateQualificationWithWorkerRequest
 type AssociateQualificationWithWorkerInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4473,7 +4434,7 @@ func (s *AssociateQualificationWithWorkerInput) SetWorkerId(v string) *Associate
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AssociateQualificationWithWorkerResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/AssociateQualificationWithWorkerResponse
 type AssociateQualificationWithWorkerOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -4489,14 +4450,14 @@ func (s AssociateQualificationWithWorkerOutput) GoString() string {
 }
 
 // An object representing a Bonus payment paid to a Worker.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/BonusPayment
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/BonusPayment
 type BonusPayment struct {
 	_ struct{} `type:"structure"`
 
 	// The ID of the assignment associated with this bonus payment.
 	AssignmentId *string `min:"1" type:"string"`
 
-	// A string representing a numeric value.
+	// A string representing a currency amount.
 	BonusAmount *string `type:"string"`
 
 	// The date and time of when the bonus was granted.
@@ -4549,7 +4510,7 @@ func (s *BonusPayment) SetWorkerId(v string) *BonusPayment {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateAdditionalAssignmentsForHITRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateAdditionalAssignmentsForHITRequest
 type CreateAdditionalAssignmentsForHITInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4559,7 +4520,9 @@ type CreateAdditionalAssignmentsForHITInput struct {
 	HITId *string `min:"1" type:"string" required:"true"`
 
 	// The number of additional assignments to request for this HIT.
-	NumberOfAdditionalAssignments *int64 `type:"integer"`
+	//
+	// NumberOfAdditionalAssignments is a required field
+	NumberOfAdditionalAssignments *int64 `type:"integer" required:"true"`
 
 	// A unique identifier for this request, which allows you to retry the call
 	// on error without extending the HIT multiple times. This is useful in cases
@@ -4589,6 +4552,9 @@ func (s *CreateAdditionalAssignmentsForHITInput) Validate() error {
 	if s.HITId != nil && len(*s.HITId) < 1 {
 		invalidParams.Add(request.NewErrParamMinLen("HITId", 1))
 	}
+	if s.NumberOfAdditionalAssignments == nil {
+		invalidParams.Add(request.NewErrParamRequired("NumberOfAdditionalAssignments"))
+	}
 	if s.UniqueRequestToken != nil && len(*s.UniqueRequestToken) < 1 {
 		invalidParams.Add(request.NewErrParamMinLen("UniqueRequestToken", 1))
 	}
@@ -4617,7 +4583,7 @@ func (s *CreateAdditionalAssignmentsForHITInput) SetUniqueRequestToken(v string)
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateAdditionalAssignmentsForHITResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateAdditionalAssignmentsForHITResponse
 type CreateAdditionalAssignmentsForHITOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -4632,7 +4598,7 @@ func (s CreateAdditionalAssignmentsForHITOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITRequest
 type CreateHITInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4781,6 +4747,26 @@ func (s *CreateHITInput) Validate() error {
 	if s.UniqueRequestToken != nil && len(*s.UniqueRequestToken) < 1 {
 		invalidParams.Add(request.NewErrParamMinLen("UniqueRequestToken", 1))
 	}
+	if s.AssignmentReviewPolicy != nil {
+		if err := s.AssignmentReviewPolicy.Validate(); err != nil {
+			invalidParams.AddNested("AssignmentReviewPolicy", err.(request.ErrInvalidParams))
+		}
+	}
+	if s.HITLayoutParameters != nil {
+		for i, v := range s.HITLayoutParameters {
+			if v == nil {
+				continue
+			}
+			if err := v.Validate(); err != nil {
+				invalidParams.AddNested(fmt.Sprintf("%s[%v]", "HITLayoutParameters", i), err.(request.ErrInvalidParams))
+			}
+		}
+	}
+	if s.HITReviewPolicy != nil {
+		if err := s.HITReviewPolicy.Validate(); err != nil {
+			invalidParams.AddNested("HITReviewPolicy", err.(request.ErrInvalidParams))
+		}
+	}
 	if s.QualificationRequirements != nil {
 		for i, v := range s.QualificationRequirements {
 			if v == nil {
@@ -4894,7 +4880,7 @@ func (s *CreateHITInput) SetUniqueRequestToken(v string) *CreateHITInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITResponse
 type CreateHITOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4919,7 +4905,7 @@ func (s *CreateHITOutput) SetHIT(v *HIT) *CreateHITOutput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITTypeRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITTypeRequest
 type CreateHITTypeInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5052,7 +5038,7 @@ func (s *CreateHITTypeInput) SetTitle(v string) *CreateHITTypeInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITTypeResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITTypeResponse
 type CreateHITTypeOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5076,7 +5062,7 @@ func (s *CreateHITTypeOutput) SetHITTypeId(v string) *CreateHITTypeOutput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITWithHITTypeRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITWithHITTypeRequest
 type CreateHITWithHITTypeInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5180,6 +5166,26 @@ func (s *CreateHITWithHITTypeInput) Validate() error {
 	if s.UniqueRequestToken != nil && len(*s.UniqueRequestToken) < 1 {
 		invalidParams.Add(request.NewErrParamMinLen("UniqueRequestToken", 1))
 	}
+	if s.AssignmentReviewPolicy != nil {
+		if err := s.AssignmentReviewPolicy.Validate(); err != nil {
+			invalidParams.AddNested("AssignmentReviewPolicy", err.(request.ErrInvalidParams))
+		}
+	}
+	if s.HITLayoutParameters != nil {
+		for i, v := range s.HITLayoutParameters {
+			if v == nil {
+				continue
+			}
+			if err := v.Validate(); err != nil {
+				invalidParams.AddNested(fmt.Sprintf("%s[%v]", "HITLayoutParameters", i), err.(request.ErrInvalidParams))
+			}
+		}
+	}
+	if s.HITReviewPolicy != nil {
+		if err := s.HITReviewPolicy.Validate(); err != nil {
+			invalidParams.AddNested("HITReviewPolicy", err.(request.ErrInvalidParams))
+		}
+	}
 
 	if invalidParams.Len() > 0 {
 		return invalidParams
@@ -5247,7 +5253,7 @@ func (s *CreateHITWithHITTypeInput) SetUniqueRequestToken(v string) *CreateHITWi
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITWithHITTypeResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateHITWithHITTypeResponse
 type CreateHITWithHITTypeOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5272,7 +5278,7 @@ func (s *CreateHITWithHITTypeOutput) SetHIT(v *HIT) *CreateHITWithHITTypeOutput 
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateQualificationTypeRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateQualificationTypeRequest
 type CreateQualificationTypeInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5437,7 +5443,7 @@ func (s *CreateQualificationTypeInput) SetTestDurationInSeconds(v int64) *Create
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateQualificationTypeResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateQualificationTypeResponse
 type CreateQualificationTypeOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5461,7 +5467,7 @@ func (s *CreateQualificationTypeOutput) SetQualificationType(v *QualificationTyp
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateWorkerBlockRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateWorkerBlockRequest
 type CreateWorkerBlockInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5518,7 +5524,7 @@ func (s *CreateWorkerBlockInput) SetWorkerId(v string) *CreateWorkerBlockInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateWorkerBlockResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/CreateWorkerBlockResponse
 type CreateWorkerBlockOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -5533,7 +5539,7 @@ func (s CreateWorkerBlockOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteHITRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteHITRequest
 type DeleteHITInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5575,7 +5581,7 @@ func (s *DeleteHITInput) SetHITId(v string) *DeleteHITInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteHITResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteHITResponse
 type DeleteHITOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -5590,7 +5596,7 @@ func (s DeleteHITOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteQualificationTypeRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteQualificationTypeRequest
 type DeleteQualificationTypeInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5632,7 +5638,7 @@ func (s *DeleteQualificationTypeInput) SetQualificationTypeId(v string) *DeleteQ
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteQualificationTypeResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteQualificationTypeResponse
 type DeleteQualificationTypeOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -5647,7 +5653,7 @@ func (s DeleteQualificationTypeOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteWorkerBlockRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteWorkerBlockRequest
 type DeleteWorkerBlockInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5699,7 +5705,7 @@ func (s *DeleteWorkerBlockInput) SetWorkerId(v string) *DeleteWorkerBlockInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteWorkerBlockResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DeleteWorkerBlockResponse
 type DeleteWorkerBlockOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -5714,7 +5720,7 @@ func (s DeleteWorkerBlockOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DisassociateQualificationFromWorkerRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DisassociateQualificationFromWorkerRequest
 type DisassociateQualificationFromWorkerInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5783,7 +5789,7 @@ func (s *DisassociateQualificationFromWorkerInput) SetWorkerId(v string) *Disass
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DisassociateQualificationFromWorkerResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/DisassociateQualificationFromWorkerResponse
 type DisassociateQualificationFromWorkerOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -5798,7 +5804,7 @@ func (s DisassociateQualificationFromWorkerOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAccountBalanceRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAccountBalanceRequest
 type GetAccountBalanceInput struct {
 	_ struct{} `type:"structure"`
 }
@@ -5813,14 +5819,14 @@ func (s GetAccountBalanceInput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAccountBalanceResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAccountBalanceResponse
 type GetAccountBalanceOutput struct {
 	_ struct{} `type:"structure"`
 
-	// A string representing a numeric value.
+	// A string representing a currency amount.
 	AvailableBalance *string `type:"string"`
 
-	// A string representing a numeric value.
+	// A string representing a currency amount.
 	OnHoldBalance *string `type:"string"`
 }
 
@@ -5846,7 +5852,7 @@ func (s *GetAccountBalanceOutput) SetOnHoldBalance(v string) *GetAccountBalanceO
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAssignmentRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAssignmentRequest
 type GetAssignmentInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5888,7 +5894,7 @@ func (s *GetAssignmentInput) SetAssignmentId(v string) *GetAssignmentInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAssignmentResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetAssignmentResponse
 type GetAssignmentOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5921,7 +5927,7 @@ func (s *GetAssignmentOutput) SetHIT(v *HIT) *GetAssignmentOutput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetFileUploadURLRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetFileUploadURLRequest
 type GetFileUploadURLInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5978,7 +5984,7 @@ func (s *GetFileUploadURLInput) SetQuestionIdentifier(v string) *GetFileUploadUR
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetFileUploadURLResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetFileUploadURLResponse
 type GetFileUploadURLOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -6002,7 +6008,7 @@ func (s *GetFileUploadURLOutput) SetFileUploadURL(v string) *GetFileUploadURLOut
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetHITRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetHITRequest
 type GetHITInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6044,7 +6050,7 @@ func (s *GetHITInput) SetHITId(v string) *GetHITInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetHITResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetHITResponse
 type GetHITOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -6068,7 +6074,7 @@ func (s *GetHITOutput) SetHIT(v *HIT) *GetHITOutput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationScoreRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationScoreRequest
 type GetQualificationScoreInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6127,7 +6133,7 @@ func (s *GetQualificationScoreInput) SetWorkerId(v string) *GetQualificationScor
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationScoreResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationScoreResponse
 type GetQualificationScoreOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -6152,7 +6158,7 @@ func (s *GetQualificationScoreOutput) SetQualification(v *Qualification) *GetQua
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationTypeRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationTypeRequest
 type GetQualificationTypeInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6194,7 +6200,7 @@ func (s *GetQualificationTypeInput) SetQualificationTypeId(v string) *GetQualifi
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationTypeResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/GetQualificationTypeResponse
 type GetQualificationTypeOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -6220,7 +6226,7 @@ func (s *GetQualificationTypeOutput) SetQualificationType(v *QualificationType) 
 
 // The HIT data structure represents a single HIT, including all the information
 // necessary for a Worker to accept and complete the HIT.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/HIT
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/HIT
 type HIT struct {
 	_ struct{} `type:"structure"`
 
@@ -6298,7 +6304,7 @@ type HIT struct {
 	// is visible only to the creator of the HIT.
 	RequesterAnnotation *string `type:"string"`
 
-	// A string representing a numeric value.
+	// A string representing a currency amount.
 	Reward *string `type:"string"`
 
 	// The title of the HIT.
@@ -6444,15 +6450,19 @@ func (s *HIT) SetTitle(v string) *HIT {
 // The HITLayoutParameter data structure defines parameter values used with
 // a HITLayout. A HITLayout is a reusable Amazon Mechanical Turk project template
 // used to provide Human Intelligence Task (HIT) question data for CreateHIT.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/HITLayoutParameter
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/HITLayoutParameter
 type HITLayoutParameter struct {
 	_ struct{} `type:"structure"`
 
 	// The name of the parameter in the HITLayout.
-	Name *string `type:"string"`
+	//
+	// Name is a required field
+	Name *string `type:"string" required:"true"`
 
 	// The value substituted for the parameter referenced in the HITLayout.
-	Value *string `type:"string"`
+	//
+	// Value is a required field
+	Value *string `type:"string" required:"true"`
 }
 
 // String returns the string representation
@@ -6463,6 +6473,22 @@ func (s HITLayoutParameter) String() string {
 // GoString returns the string representation
 func (s HITLayoutParameter) GoString() string {
 	return s.String()
+}
+
+// Validate inspects the fields of the type to determine if they are valid.
+func (s *HITLayoutParameter) Validate() error {
+	invalidParams := request.ErrInvalidParams{Context: "HITLayoutParameter"}
+	if s.Name == nil {
+		invalidParams.Add(request.NewErrParamRequired("Name"))
+	}
+	if s.Value == nil {
+		invalidParams.Add(request.NewErrParamRequired("Value"))
+	}
+
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	}
+	return nil
 }
 
 // SetName sets the Name field's value.
@@ -6477,7 +6503,7 @@ func (s *HITLayoutParameter) SetValue(v string) *HITLayoutParameter {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListAssignmentsForHITRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListAssignmentsForHITRequest
 type ListAssignmentsForHITInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6551,7 +6577,7 @@ func (s *ListAssignmentsForHITInput) SetNextToken(v string) *ListAssignmentsForH
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListAssignmentsForHITResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListAssignmentsForHITResponse
 type ListAssignmentsForHITOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -6596,7 +6622,7 @@ func (s *ListAssignmentsForHITOutput) SetNumResults(v int64) *ListAssignmentsFor
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListBonusPaymentsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListBonusPaymentsRequest
 type ListBonusPaymentsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6672,7 +6698,7 @@ func (s *ListBonusPaymentsInput) SetNextToken(v string) *ListBonusPaymentsInput 
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListBonusPaymentsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListBonusPaymentsResponse
 type ListBonusPaymentsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -6718,7 +6744,7 @@ func (s *ListBonusPaymentsOutput) SetNumResults(v int64) *ListBonusPaymentsOutpu
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITsForQualificationTypeRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITsForQualificationTypeRequest
 type ListHITsForQualificationTypeInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6784,7 +6810,7 @@ func (s *ListHITsForQualificationTypeInput) SetQualificationTypeId(v string) *Li
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITsForQualificationTypeResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITsForQualificationTypeResponse
 type ListHITsForQualificationTypeOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -6829,7 +6855,7 @@ func (s *ListHITsForQualificationTypeOutput) SetNumResults(v int64) *ListHITsFor
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITsRequest
 type ListHITsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6877,7 +6903,7 @@ func (s *ListHITsInput) SetNextToken(v string) *ListHITsInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListHITsResponse
 type ListHITsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -6922,7 +6948,7 @@ func (s *ListHITsOutput) SetNumResults(v int64) *ListHITsOutput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationRequestsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationRequestsRequest
 type ListQualificationRequestsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6985,7 +7011,7 @@ func (s *ListQualificationRequestsInput) SetQualificationTypeId(v string) *ListQ
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationRequestsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationRequestsResponse
 type ListQualificationRequestsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7032,7 +7058,7 @@ func (s *ListQualificationRequestsOutput) SetQualificationRequests(v []*Qualific
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationTypesRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationTypesRequest
 type ListQualificationTypesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7121,7 +7147,7 @@ func (s *ListQualificationTypesInput) SetQuery(v string) *ListQualificationTypes
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationTypesResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListQualificationTypesResponse
 type ListQualificationTypesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7166,7 +7192,7 @@ func (s *ListQualificationTypesOutput) SetQualificationTypes(v []*QualificationT
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewPolicyResultsForHITRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewPolicyResultsForHITRequest
 type ListReviewPolicyResultsForHITInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7263,7 +7289,7 @@ func (s *ListReviewPolicyResultsForHITInput) SetRetrieveResults(v bool) *ListRev
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewPolicyResultsForHITResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewPolicyResultsForHITResponse
 type ListReviewPolicyResultsForHITOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7336,7 +7362,7 @@ func (s *ListReviewPolicyResultsForHITOutput) SetNextToken(v string) *ListReview
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewableHITsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewableHITsRequest
 type ListReviewableHITsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7407,7 +7433,7 @@ func (s *ListReviewableHITsInput) SetStatus(v string) *ListReviewableHITsInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewableHITsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListReviewableHITsResponse
 type ListReviewableHITsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7452,7 +7478,7 @@ func (s *ListReviewableHITsOutput) SetNumResults(v int64) *ListReviewableHITsOut
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkerBlocksRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkerBlocksRequest
 type ListWorkerBlocksInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7500,7 +7526,7 @@ func (s *ListWorkerBlocksInput) SetNextToken(v string) *ListWorkerBlocksInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkerBlocksResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkerBlocksResponse
 type ListWorkerBlocksOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7546,7 +7572,7 @@ func (s *ListWorkerBlocksOutput) SetWorkerBlocks(v []*WorkerBlock) *ListWorkerBl
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkersWithQualificationTypeRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkersWithQualificationTypeRequest
 type ListWorkersWithQualificationTypeInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7621,7 +7647,7 @@ func (s *ListWorkersWithQualificationTypeInput) SetStatus(v string) *ListWorkers
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkersWithQualificationTypeResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ListWorkersWithQualificationTypeResponse
 type ListWorkersWithQualificationTypeOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7667,7 +7693,7 @@ func (s *ListWorkersWithQualificationTypeOutput) SetQualifications(v []*Qualific
 }
 
 // The Locale data structure represents a geographical region or location.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/Locale
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/Locale
 type Locale struct {
 	_ struct{} `type:"structure"`
 
@@ -7725,14 +7751,18 @@ func (s *Locale) SetSubdivision(v string) *Locale {
 
 // The NotificationSpecification data structure describes a HIT event notification
 // for a HIT type.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/NotificationSpecification
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/NotificationSpecification
 type NotificationSpecification struct {
 	_ struct{} `type:"structure"`
 
-	// The destination for notification messages. or email notifications (if Transport
-	// is Email), this is an email address. For Amazon Simple Queue Service (Amazon
-	// SQS) notifications (if Transport is SQS), this is the URL for your Amazon
-	// SQS queue.
+	// The target for notification messages. The Destination’s format is determined
+	// by the specified Transport:
+	//
+	//    * When Transport is Email, the Destination is your email address.
+	//
+	//    * When Transport is SQS, the Destination is your queue URL.
+	//
+	//    * When Transport is SNS, the Destination is the ARN of your topic.
 	//
 	// Destination is a required field
 	Destination *string `type:"string" required:"true"`
@@ -7742,16 +7772,20 @@ type NotificationSpecification struct {
 	// | AssignmentRejected | AssignmentApproved | HITCreated | HITExtended | HITDisposed
 	// | HITReviewable | HITExpired | Ping. The Ping event is only valid for the
 	// SendTestEventNotification operation.
-	EventTypes []*string `type:"list"`
+	//
+	// EventTypes is a required field
+	EventTypes []*string `type:"list" required:"true"`
 
 	// The method Amazon Mechanical Turk uses to send the notification. Valid Values:
-	// Email | SQS.
+	// Email | SQS | SNS.
 	//
 	// Transport is a required field
 	Transport *string `type:"string" required:"true" enum:"NotificationTransport"`
 
 	// The version of the Notification API to use. Valid value is 2006-05-05.
-	Version *string `type:"string"`
+	//
+	// Version is a required field
+	Version *string `type:"string" required:"true"`
 }
 
 // String returns the string representation
@@ -7770,8 +7804,14 @@ func (s *NotificationSpecification) Validate() error {
 	if s.Destination == nil {
 		invalidParams.Add(request.NewErrParamRequired("Destination"))
 	}
+	if s.EventTypes == nil {
+		invalidParams.Add(request.NewErrParamRequired("EventTypes"))
+	}
 	if s.Transport == nil {
 		invalidParams.Add(request.NewErrParamRequired("Transport"))
+	}
+	if s.Version == nil {
+		invalidParams.Add(request.NewErrParamRequired("Version"))
 	}
 
 	if invalidParams.Len() > 0 {
@@ -7806,7 +7846,7 @@ func (s *NotificationSpecification) SetVersion(v string) *NotificationSpecificat
 
 // When MTurk encounters an issue with notifying the Workers you specified,
 // it returns back this object with failure details.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/NotifyWorkersFailureStatus
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/NotifyWorkersFailureStatus
 type NotifyWorkersFailureStatus struct {
 	_ struct{} `type:"structure"`
 
@@ -7848,7 +7888,7 @@ func (s *NotifyWorkersFailureStatus) SetWorkerId(v string) *NotifyWorkersFailure
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/NotifyWorkersRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/NotifyWorkersRequest
 type NotifyWorkersInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7916,7 +7956,7 @@ func (s *NotifyWorkersInput) SetWorkerIds(v []*string) *NotifyWorkersInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/NotifyWorkersResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/NotifyWorkersResponse
 type NotifyWorkersOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7943,7 +7983,7 @@ func (s *NotifyWorkersOutput) SetNotifyWorkersFailureStatuses(v []*NotifyWorkers
 
 // This data structure is the data type for the AnswerKey parameter of the ScoreMyKnownAnswers/2011-09-01
 // Review Policy.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ParameterMapEntry
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ParameterMapEntry
 type ParameterMapEntry struct {
 	_ struct{} `type:"structure"`
 
@@ -7980,7 +8020,7 @@ func (s *ParameterMapEntry) SetValues(v []*string) *ParameterMapEntry {
 }
 
 // Name of the parameter from the Review policy.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/PolicyParameter
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/PolicyParameter
 type PolicyParameter struct {
 	_ struct{} `type:"structure"`
 
@@ -8024,7 +8064,7 @@ func (s *PolicyParameter) SetValues(v []*string) *PolicyParameter {
 
 // The Qualification data structure represents a Qualification assigned to a
 // user, including the Qualification type and the value (score).
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/Qualification
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/Qualification
 type Qualification struct {
 	_ struct{} `type:"structure"`
 
@@ -8099,7 +8139,7 @@ func (s *Qualification) SetWorkerId(v string) *Qualification {
 
 // The QualificationRequest data structure represents a request a Worker has
 // made for a Qualification.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/QualificationRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/QualificationRequest
 type QualificationRequest struct {
 	_ struct{} `type:"structure"`
 
@@ -8182,7 +8222,7 @@ func (s *QualificationRequest) SetWorkerId(v string) *QualificationRequest {
 // a Worker must have before the Worker is allowed to accept a HIT. A requirement
 // may optionally state that a Worker must have the Qualification in order to
 // preview the HIT.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/QualificationRequirement
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/QualificationRequirement
 type QualificationRequirement struct {
 	_ struct{} `type:"structure"`
 
@@ -8303,7 +8343,7 @@ func (s *QualificationRequirement) SetRequiredToPreview(v bool) *QualificationRe
 // Worker to be able to accept the HIT. The type also describes how a Worker
 // can obtain a Qualification of that type, such as through a Qualification
 // test.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/QualificationType
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/QualificationType
 type QualificationType struct {
 	_ struct{} `type:"structure"`
 
@@ -8456,7 +8496,7 @@ func (s *QualificationType) SetTestDurationInSeconds(v int64) *QualificationType
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectAssignmentRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectAssignmentRequest
 type RejectAssignmentInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8468,7 +8508,9 @@ type RejectAssignmentInput struct {
 
 	// A message for the Worker, which the Worker can see in the Status section
 	// of the web site.
-	RequesterFeedback *string `type:"string"`
+	//
+	// RequesterFeedback is a required field
+	RequesterFeedback *string `type:"string" required:"true"`
 }
 
 // String returns the string representation
@@ -8490,6 +8532,9 @@ func (s *RejectAssignmentInput) Validate() error {
 	if s.AssignmentId != nil && len(*s.AssignmentId) < 1 {
 		invalidParams.Add(request.NewErrParamMinLen("AssignmentId", 1))
 	}
+	if s.RequesterFeedback == nil {
+		invalidParams.Add(request.NewErrParamRequired("RequesterFeedback"))
+	}
 
 	if invalidParams.Len() > 0 {
 		return invalidParams
@@ -8509,7 +8554,7 @@ func (s *RejectAssignmentInput) SetRequesterFeedback(v string) *RejectAssignment
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectAssignmentResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectAssignmentResponse
 type RejectAssignmentOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -8524,7 +8569,7 @@ func (s RejectAssignmentOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectQualificationRequestRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectQualificationRequestRequest
 type RejectQualificationRequestInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8574,7 +8619,7 @@ func (s *RejectQualificationRequestInput) SetReason(v string) *RejectQualificati
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectQualificationRequestResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/RejectQualificationRequestResponse
 type RejectQualificationRequestOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -8592,7 +8637,7 @@ func (s RejectQualificationRequestOutput) GoString() string {
 // Both the AssignmentReviewReport and the HITReviewReport elements contains
 // the ReviewActionDetail data structure. This structure is returned multiple
 // times for each action specified in the Review Policy.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ReviewActionDetail
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ReviewActionDetail
 type ReviewActionDetail struct {
 	_ struct{} `type:"structure"`
 
@@ -8683,7 +8728,7 @@ func (s *ReviewActionDetail) SetTargetType(v string) *ReviewActionDetail {
 
 // HIT Review Policy data structures represent HIT review policies, which you
 // specify when you create a HIT.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ReviewPolicy
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ReviewPolicy
 type ReviewPolicy struct {
 	_ struct{} `type:"structure"`
 
@@ -8691,7 +8736,9 @@ type ReviewPolicy struct {
 	Parameters []*PolicyParameter `type:"list"`
 
 	// Name of a Review Policy: SimplePlurality/2011-09-01 or ScoreMyKnownAnswers/2011-09-01
-	PolicyName *string `type:"string"`
+	//
+	// PolicyName is a required field
+	PolicyName *string `type:"string" required:"true"`
 }
 
 // String returns the string representation
@@ -8702,6 +8749,19 @@ func (s ReviewPolicy) String() string {
 // GoString returns the string representation
 func (s ReviewPolicy) GoString() string {
 	return s.String()
+}
+
+// Validate inspects the fields of the type to determine if they are valid.
+func (s *ReviewPolicy) Validate() error {
+	invalidParams := request.ErrInvalidParams{Context: "ReviewPolicy"}
+	if s.PolicyName == nil {
+		invalidParams.Add(request.NewErrParamRequired("PolicyName"))
+	}
+
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	}
+	return nil
 }
 
 // SetParameters sets the Parameters field's value.
@@ -8717,7 +8777,7 @@ func (s *ReviewPolicy) SetPolicyName(v string) *ReviewPolicy {
 }
 
 // Contains both ReviewResult and ReviewAction elements for a particular HIT.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ReviewReport
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ReviewReport
 type ReviewReport struct {
 	_ struct{} `type:"structure"`
 
@@ -8752,7 +8812,7 @@ func (s *ReviewReport) SetReviewResults(v []*ReviewResultDetail) *ReviewReport {
 
 // This data structure is returned multiple times for each result specified
 // in the Review Policy.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ReviewResultDetail
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/ReviewResultDetail
 type ReviewResultDetail struct {
 	_ struct{} `type:"structure"`
 
@@ -8829,7 +8889,7 @@ func (s *ReviewResultDetail) SetValue(v string) *ReviewResultDetail {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendBonusRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendBonusRequest
 type SendBonusInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8847,7 +8907,9 @@ type SendBonusInput struct {
 
 	// A message that explains the reason for the bonus payment. The Worker receiving
 	// the bonus can see this message.
-	Reason *string `type:"string"`
+	//
+	// Reason is a required field
+	Reason *string `type:"string" required:"true"`
 
 	// A unique identifier for this request, which allows you to retry the call
 	// on error without granting multiple bonuses. This is useful in cases such
@@ -8884,6 +8946,9 @@ func (s *SendBonusInput) Validate() error {
 	}
 	if s.BonusAmount == nil {
 		invalidParams.Add(request.NewErrParamRequired("BonusAmount"))
+	}
+	if s.Reason == nil {
+		invalidParams.Add(request.NewErrParamRequired("Reason"))
 	}
 	if s.UniqueRequestToken != nil && len(*s.UniqueRequestToken) < 1 {
 		invalidParams.Add(request.NewErrParamMinLen("UniqueRequestToken", 1))
@@ -8931,7 +8996,7 @@ func (s *SendBonusInput) SetWorkerId(v string) *SendBonusInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendBonusResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendBonusResponse
 type SendBonusOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -8946,7 +9011,7 @@ func (s SendBonusOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendTestEventNotificationRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendTestEventNotificationRequest
 type SendTestEventNotificationInput struct {
 	_ struct{} `type:"structure"`
 
@@ -9009,7 +9074,7 @@ func (s *SendTestEventNotificationInput) SetTestEventType(v string) *SendTestEve
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendTestEventNotificationResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/SendTestEventNotificationResponse
 type SendTestEventNotificationOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -9024,12 +9089,14 @@ func (s SendTestEventNotificationOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateExpirationForHITRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateExpirationForHITRequest
 type UpdateExpirationForHITInput struct {
 	_ struct{} `type:"structure"`
 
 	// The date and time at which you want the HIT to expire
-	ExpireAt *time.Time `type:"timestamp" timestampFormat:"unix"`
+	//
+	// ExpireAt is a required field
+	ExpireAt *time.Time `type:"timestamp" timestampFormat:"unix" required:"true"`
 
 	// The HIT to update.
 	//
@@ -9050,6 +9117,9 @@ func (s UpdateExpirationForHITInput) GoString() string {
 // Validate inspects the fields of the type to determine if they are valid.
 func (s *UpdateExpirationForHITInput) Validate() error {
 	invalidParams := request.ErrInvalidParams{Context: "UpdateExpirationForHITInput"}
+	if s.ExpireAt == nil {
+		invalidParams.Add(request.NewErrParamRequired("ExpireAt"))
+	}
 	if s.HITId == nil {
 		invalidParams.Add(request.NewErrParamRequired("HITId"))
 	}
@@ -9075,7 +9145,7 @@ func (s *UpdateExpirationForHITInput) SetHITId(v string) *UpdateExpirationForHIT
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateExpirationForHITResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateExpirationForHITResponse
 type UpdateExpirationForHITOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -9090,7 +9160,7 @@ func (s UpdateExpirationForHITOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITReviewStatusRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITReviewStatusRequest
 type UpdateHITReviewStatusInput struct {
 	_ struct{} `type:"structure"`
 
@@ -9146,7 +9216,7 @@ func (s *UpdateHITReviewStatusInput) SetRevert(v bool) *UpdateHITReviewStatusInp
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITReviewStatusResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITReviewStatusResponse
 type UpdateHITReviewStatusOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -9161,7 +9231,7 @@ func (s UpdateHITReviewStatusOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITTypeOfHITRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITTypeOfHITRequest
 type UpdateHITTypeOfHITInput struct {
 	_ struct{} `type:"structure"`
 
@@ -9220,7 +9290,7 @@ func (s *UpdateHITTypeOfHITInput) SetHITTypeId(v string) *UpdateHITTypeOfHITInpu
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITTypeOfHITResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateHITTypeOfHITResponse
 type UpdateHITTypeOfHITOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -9235,7 +9305,7 @@ func (s UpdateHITTypeOfHITOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateNotificationSettingsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateNotificationSettingsRequest
 type UpdateNotificationSettingsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -9303,7 +9373,7 @@ func (s *UpdateNotificationSettingsInput) SetNotification(v *NotificationSpecifi
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateNotificationSettingsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateNotificationSettingsResponse
 type UpdateNotificationSettingsOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -9318,7 +9388,7 @@ func (s UpdateNotificationSettingsOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateQualificationTypeRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateQualificationTypeRequest
 type UpdateQualificationTypeInput struct {
 	_ struct{} `type:"structure"`
 
@@ -9453,7 +9523,7 @@ func (s *UpdateQualificationTypeInput) SetTestDurationInSeconds(v int64) *Update
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateQualificationTypeResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/UpdateQualificationTypeResponse
 type UpdateQualificationTypeOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -9479,7 +9549,7 @@ func (s *UpdateQualificationTypeOutput) SetQualificationType(v *QualificationTyp
 
 // The WorkerBlock data structure represents a Worker who has been blocked.
 // It has two elements: the WorkerId and the Reason for the block.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/WorkerBlock
+// See also, https://docs.aws.amazon.com/goto/WebAPI/mturk-requester-2017-01-17/WorkerBlock
 type WorkerBlock struct {
 	_ struct{} `type:"structure"`
 
@@ -9630,6 +9700,9 @@ const (
 
 	// NotificationTransportSqs is a NotificationTransport enum value
 	NotificationTransportSqs = "SQS"
+
+	// NotificationTransportSns is a NotificationTransport enum value
+	NotificationTransportSns = "SNS"
 )
 
 const (

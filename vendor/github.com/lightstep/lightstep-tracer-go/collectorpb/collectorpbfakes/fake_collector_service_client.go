@@ -6,6 +6,7 @@ import (
 
 	"github.com/lightstep/lightstep-tracer-go/collectorpb"
 	"golang.org/x/net/context"
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	"google.golang.org/grpc"
 )
 

@@ -21,7 +21,7 @@ import (
 //
 // The best way to use this interface is so the SDK's service client's calls
 // can be stubbed out for unit testing your code with the SDK without needing
-// to inject custom request handlers into the the SDK's request pipeline.
+// to inject custom request handlers into the SDK's request pipeline.
 //
 //    // myFunc uses an SDK service client to make a request to
 //    // AWS Lambda.
@@ -88,6 +88,10 @@ type LambdaAPI interface {
 	DeleteFunctionWithContext(aws.Context, *lambda.DeleteFunctionInput, ...request.Option) (*lambda.DeleteFunctionOutput, error)
 	DeleteFunctionRequest(*lambda.DeleteFunctionInput) (*request.Request, *lambda.DeleteFunctionOutput)
 
+	DeleteFunctionConcurrency(*lambda.DeleteFunctionConcurrencyInput) (*lambda.DeleteFunctionConcurrencyOutput, error)
+	DeleteFunctionConcurrencyWithContext(aws.Context, *lambda.DeleteFunctionConcurrencyInput, ...request.Option) (*lambda.DeleteFunctionConcurrencyOutput, error)
+	DeleteFunctionConcurrencyRequest(*lambda.DeleteFunctionConcurrencyInput) (*request.Request, *lambda.DeleteFunctionConcurrencyOutput)
+
 	GetAccountSettings(*lambda.GetAccountSettingsInput) (*lambda.GetAccountSettingsOutput, error)
 	GetAccountSettingsWithContext(aws.Context, *lambda.GetAccountSettingsInput, ...request.Option) (*lambda.GetAccountSettingsOutput, error)
 	GetAccountSettingsRequest(*lambda.GetAccountSettingsInput) (*request.Request, *lambda.GetAccountSettingsOutput)
@@ -149,6 +153,10 @@ type LambdaAPI interface {
 	PublishVersion(*lambda.PublishVersionInput) (*lambda.FunctionConfiguration, error)
 	PublishVersionWithContext(aws.Context, *lambda.PublishVersionInput, ...request.Option) (*lambda.FunctionConfiguration, error)
 	PublishVersionRequest(*lambda.PublishVersionInput) (*request.Request, *lambda.FunctionConfiguration)
+
+	PutFunctionConcurrency(*lambda.PutFunctionConcurrencyInput) (*lambda.PutFunctionConcurrencyOutput, error)
+	PutFunctionConcurrencyWithContext(aws.Context, *lambda.PutFunctionConcurrencyInput, ...request.Option) (*lambda.PutFunctionConcurrencyOutput, error)
+	PutFunctionConcurrencyRequest(*lambda.PutFunctionConcurrencyInput) (*request.Request, *lambda.PutFunctionConcurrencyOutput)
 
 	RemovePermission(*lambda.RemovePermissionInput) (*lambda.RemovePermissionOutput, error)
 	RemovePermissionWithContext(aws.Context, *lambda.RemovePermissionInput, ...request.Option) (*lambda.RemovePermissionOutput, error)

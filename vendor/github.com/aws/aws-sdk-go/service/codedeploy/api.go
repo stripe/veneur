@@ -16,19 +16,18 @@ const opAddTagsToOnPremisesInstances = "AddTagsToOnPremisesInstances"
 
 // AddTagsToOnPremisesInstancesRequest generates a "aws/request.Request" representing the
 // client's request for the AddTagsToOnPremisesInstances operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See AddTagsToOnPremisesInstances for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the AddTagsToOnPremisesInstances method directly
-// instead.
+// See AddTagsToOnPremisesInstances for more information on using the AddTagsToOnPremisesInstances
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the AddTagsToOnPremisesInstancesRequest method.
 //    req, resp := client.AddTagsToOnPremisesInstancesRequest(params)
@@ -38,7 +37,7 @@ const opAddTagsToOnPremisesInstances = "AddTagsToOnPremisesInstances"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/AddTagsToOnPremisesInstances
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/AddTagsToOnPremisesInstances
 func (c *CodeDeploy) AddTagsToOnPremisesInstancesRequest(input *AddTagsToOnPremisesInstancesInput) (req *request.Request, output *AddTagsToOnPremisesInstancesOutput) {
 	op := &request.Operation{
 		Name:       opAddTagsToOnPremisesInstances,
@@ -72,6 +71,9 @@ func (c *CodeDeploy) AddTagsToOnPremisesInstancesRequest(input *AddTagsToOnPremi
 //   * ErrCodeInstanceNameRequiredException "InstanceNameRequiredException"
 //   An on-premises instance name was not specified.
 //
+//   * ErrCodeInvalidInstanceNameException "InvalidInstanceNameException"
+//   The specified on-premises instance name was specified in an invalid format.
+//
 //   * ErrCodeTagRequiredException "TagRequiredException"
 //   A tag was not specified.
 //
@@ -88,7 +90,7 @@ func (c *CodeDeploy) AddTagsToOnPremisesInstancesRequest(input *AddTagsToOnPremi
 //   * ErrCodeInstanceNotRegisteredException "InstanceNotRegisteredException"
 //   The specified on-premises instance is not registered.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/AddTagsToOnPremisesInstances
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/AddTagsToOnPremisesInstances
 func (c *CodeDeploy) AddTagsToOnPremisesInstances(input *AddTagsToOnPremisesInstancesInput) (*AddTagsToOnPremisesInstancesOutput, error) {
 	req, out := c.AddTagsToOnPremisesInstancesRequest(input)
 	return out, req.Send()
@@ -114,19 +116,18 @@ const opBatchGetApplicationRevisions = "BatchGetApplicationRevisions"
 
 // BatchGetApplicationRevisionsRequest generates a "aws/request.Request" representing the
 // client's request for the BatchGetApplicationRevisions operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See BatchGetApplicationRevisions for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the BatchGetApplicationRevisions method directly
-// instead.
+// See BatchGetApplicationRevisions for more information on using the BatchGetApplicationRevisions
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the BatchGetApplicationRevisionsRequest method.
 //    req, resp := client.BatchGetApplicationRevisionsRequest(params)
@@ -136,7 +137,7 @@ const opBatchGetApplicationRevisions = "BatchGetApplicationRevisions"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplicationRevisions
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplicationRevisions
 func (c *CodeDeploy) BatchGetApplicationRevisionsRequest(input *BatchGetApplicationRevisionsInput) (req *request.Request, output *BatchGetApplicationRevisionsOutput) {
 	op := &request.Operation{
 		Name:       opBatchGetApplicationRevisions,
@@ -183,7 +184,7 @@ func (c *CodeDeploy) BatchGetApplicationRevisionsRequest(input *BatchGetApplicat
 //   * ErrCodeBatchLimitExceededException "BatchLimitExceededException"
 //   The maximum number of names or IDs allowed for this request (100) was exceeded.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplicationRevisions
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplicationRevisions
 func (c *CodeDeploy) BatchGetApplicationRevisions(input *BatchGetApplicationRevisionsInput) (*BatchGetApplicationRevisionsOutput, error) {
 	req, out := c.BatchGetApplicationRevisionsRequest(input)
 	return out, req.Send()
@@ -209,19 +210,18 @@ const opBatchGetApplications = "BatchGetApplications"
 
 // BatchGetApplicationsRequest generates a "aws/request.Request" representing the
 // client's request for the BatchGetApplications operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See BatchGetApplications for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the BatchGetApplications method directly
-// instead.
+// See BatchGetApplications for more information on using the BatchGetApplications
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the BatchGetApplicationsRequest method.
 //    req, resp := client.BatchGetApplicationsRequest(params)
@@ -231,7 +231,7 @@ const opBatchGetApplications = "BatchGetApplications"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplications
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplications
 func (c *CodeDeploy) BatchGetApplicationsRequest(input *BatchGetApplicationsInput) (req *request.Request, output *BatchGetApplicationsOutput) {
 	op := &request.Operation{
 		Name:       opBatchGetApplications,
@@ -272,7 +272,7 @@ func (c *CodeDeploy) BatchGetApplicationsRequest(input *BatchGetApplicationsInpu
 //   * ErrCodeBatchLimitExceededException "BatchLimitExceededException"
 //   The maximum number of names or IDs allowed for this request (100) was exceeded.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplications
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplications
 func (c *CodeDeploy) BatchGetApplications(input *BatchGetApplicationsInput) (*BatchGetApplicationsOutput, error) {
 	req, out := c.BatchGetApplicationsRequest(input)
 	return out, req.Send()
@@ -298,19 +298,18 @@ const opBatchGetDeploymentGroups = "BatchGetDeploymentGroups"
 
 // BatchGetDeploymentGroupsRequest generates a "aws/request.Request" representing the
 // client's request for the BatchGetDeploymentGroups operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See BatchGetDeploymentGroups for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the BatchGetDeploymentGroups method directly
-// instead.
+// See BatchGetDeploymentGroups for more information on using the BatchGetDeploymentGroups
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the BatchGetDeploymentGroupsRequest method.
 //    req, resp := client.BatchGetDeploymentGroupsRequest(params)
@@ -320,7 +319,7 @@ const opBatchGetDeploymentGroups = "BatchGetDeploymentGroups"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentGroups
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentGroups
 func (c *CodeDeploy) BatchGetDeploymentGroupsRequest(input *BatchGetDeploymentGroupsInput) (req *request.Request, output *BatchGetDeploymentGroupsOutput) {
 	op := &request.Operation{
 		Name:       opBatchGetDeploymentGroups,
@@ -367,7 +366,7 @@ func (c *CodeDeploy) BatchGetDeploymentGroupsRequest(input *BatchGetDeploymentGr
 //   * ErrCodeBatchLimitExceededException "BatchLimitExceededException"
 //   The maximum number of names or IDs allowed for this request (100) was exceeded.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentGroups
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentGroups
 func (c *CodeDeploy) BatchGetDeploymentGroups(input *BatchGetDeploymentGroupsInput) (*BatchGetDeploymentGroupsOutput, error) {
 	req, out := c.BatchGetDeploymentGroupsRequest(input)
 	return out, req.Send()
@@ -393,19 +392,18 @@ const opBatchGetDeploymentInstances = "BatchGetDeploymentInstances"
 
 // BatchGetDeploymentInstancesRequest generates a "aws/request.Request" representing the
 // client's request for the BatchGetDeploymentInstances operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See BatchGetDeploymentInstances for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the BatchGetDeploymentInstances method directly
-// instead.
+// See BatchGetDeploymentInstances for more information on using the BatchGetDeploymentInstances
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the BatchGetDeploymentInstancesRequest method.
 //    req, resp := client.BatchGetDeploymentInstancesRequest(params)
@@ -415,7 +413,7 @@ const opBatchGetDeploymentInstances = "BatchGetDeploymentInstances"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentInstances
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentInstances
 func (c *CodeDeploy) BatchGetDeploymentInstancesRequest(input *BatchGetDeploymentInstancesInput) (req *request.Request, output *BatchGetDeploymentInstancesOutput) {
 	op := &request.Operation{
 		Name:       opBatchGetDeploymentInstances,
@@ -463,7 +461,7 @@ func (c *CodeDeploy) BatchGetDeploymentInstancesRequest(input *BatchGetDeploymen
 //   * ErrCodeBatchLimitExceededException "BatchLimitExceededException"
 //   The maximum number of names or IDs allowed for this request (100) was exceeded.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentInstances
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentInstances
 func (c *CodeDeploy) BatchGetDeploymentInstances(input *BatchGetDeploymentInstancesInput) (*BatchGetDeploymentInstancesOutput, error) {
 	req, out := c.BatchGetDeploymentInstancesRequest(input)
 	return out, req.Send()
@@ -489,19 +487,18 @@ const opBatchGetDeployments = "BatchGetDeployments"
 
 // BatchGetDeploymentsRequest generates a "aws/request.Request" representing the
 // client's request for the BatchGetDeployments operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See BatchGetDeployments for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the BatchGetDeployments method directly
-// instead.
+// See BatchGetDeployments for more information on using the BatchGetDeployments
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the BatchGetDeploymentsRequest method.
 //    req, resp := client.BatchGetDeploymentsRequest(params)
@@ -511,7 +508,7 @@ const opBatchGetDeployments = "BatchGetDeployments"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeployments
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeployments
 func (c *CodeDeploy) BatchGetDeploymentsRequest(input *BatchGetDeploymentsInput) (req *request.Request, output *BatchGetDeploymentsOutput) {
 	op := &request.Operation{
 		Name:       opBatchGetDeployments,
@@ -549,7 +546,7 @@ func (c *CodeDeploy) BatchGetDeploymentsRequest(input *BatchGetDeploymentsInput)
 //   * ErrCodeBatchLimitExceededException "BatchLimitExceededException"
 //   The maximum number of names or IDs allowed for this request (100) was exceeded.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeployments
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeployments
 func (c *CodeDeploy) BatchGetDeployments(input *BatchGetDeploymentsInput) (*BatchGetDeploymentsOutput, error) {
 	req, out := c.BatchGetDeploymentsRequest(input)
 	return out, req.Send()
@@ -575,19 +572,18 @@ const opBatchGetOnPremisesInstances = "BatchGetOnPremisesInstances"
 
 // BatchGetOnPremisesInstancesRequest generates a "aws/request.Request" representing the
 // client's request for the BatchGetOnPremisesInstances operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See BatchGetOnPremisesInstances for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the BatchGetOnPremisesInstances method directly
-// instead.
+// See BatchGetOnPremisesInstances for more information on using the BatchGetOnPremisesInstances
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the BatchGetOnPremisesInstancesRequest method.
 //    req, resp := client.BatchGetOnPremisesInstancesRequest(params)
@@ -597,7 +593,7 @@ const opBatchGetOnPremisesInstances = "BatchGetOnPremisesInstances"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetOnPremisesInstances
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetOnPremisesInstances
 func (c *CodeDeploy) BatchGetOnPremisesInstancesRequest(input *BatchGetOnPremisesInstancesInput) (req *request.Request, output *BatchGetOnPremisesInstancesOutput) {
 	op := &request.Operation{
 		Name:       opBatchGetOnPremisesInstances,
@@ -635,7 +631,7 @@ func (c *CodeDeploy) BatchGetOnPremisesInstancesRequest(input *BatchGetOnPremise
 //   * ErrCodeBatchLimitExceededException "BatchLimitExceededException"
 //   The maximum number of names or IDs allowed for this request (100) was exceeded.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetOnPremisesInstances
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetOnPremisesInstances
 func (c *CodeDeploy) BatchGetOnPremisesInstances(input *BatchGetOnPremisesInstancesInput) (*BatchGetOnPremisesInstancesOutput, error) {
 	req, out := c.BatchGetOnPremisesInstancesRequest(input)
 	return out, req.Send()
@@ -661,19 +657,18 @@ const opContinueDeployment = "ContinueDeployment"
 
 // ContinueDeploymentRequest generates a "aws/request.Request" representing the
 // client's request for the ContinueDeployment operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ContinueDeployment for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ContinueDeployment method directly
-// instead.
+// See ContinueDeployment for more information on using the ContinueDeployment
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ContinueDeploymentRequest method.
 //    req, resp := client.ContinueDeploymentRequest(params)
@@ -683,7 +678,7 @@ const opContinueDeployment = "ContinueDeployment"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ContinueDeployment
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ContinueDeployment
 func (c *CodeDeploy) ContinueDeploymentRequest(input *ContinueDeploymentInput) (req *request.Request, output *ContinueDeploymentOutput) {
 	op := &request.Operation{
 		Name:       opContinueDeployment,
@@ -737,7 +732,7 @@ func (c *CodeDeploy) ContinueDeploymentRequest(input *ContinueDeploymentInput) (
 //   * ErrCodeUnsupportedActionForDeploymentTypeException "UnsupportedActionForDeploymentTypeException"
 //   A call was submitted that is not supported for the specified deployment type.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ContinueDeployment
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ContinueDeployment
 func (c *CodeDeploy) ContinueDeployment(input *ContinueDeploymentInput) (*ContinueDeploymentOutput, error) {
 	req, out := c.ContinueDeploymentRequest(input)
 	return out, req.Send()
@@ -763,19 +758,18 @@ const opCreateApplication = "CreateApplication"
 
 // CreateApplicationRequest generates a "aws/request.Request" representing the
 // client's request for the CreateApplication operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See CreateApplication for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the CreateApplication method directly
-// instead.
+// See CreateApplication for more information on using the CreateApplication
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the CreateApplicationRequest method.
 //    req, resp := client.CreateApplicationRequest(params)
@@ -785,7 +779,7 @@ const opCreateApplication = "CreateApplication"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateApplication
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateApplication
 func (c *CodeDeploy) CreateApplicationRequest(input *CreateApplicationInput) (req *request.Request, output *CreateApplicationOutput) {
 	op := &request.Operation{
 		Name:       opCreateApplication,
@@ -827,7 +821,10 @@ func (c *CodeDeploy) CreateApplicationRequest(input *CreateApplicationInput) (re
 //   * ErrCodeApplicationLimitExceededException "ApplicationLimitExceededException"
 //   More applications were attempted to be created than are allowed.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateApplication
+//   * ErrCodeInvalidComputePlatformException "InvalidComputePlatformException"
+//   The computePlatform is invalid. The computePlatform should be Lambda or Server.
+//
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateApplication
 func (c *CodeDeploy) CreateApplication(input *CreateApplicationInput) (*CreateApplicationOutput, error) {
 	req, out := c.CreateApplicationRequest(input)
 	return out, req.Send()
@@ -853,19 +850,18 @@ const opCreateDeployment = "CreateDeployment"
 
 // CreateDeploymentRequest generates a "aws/request.Request" representing the
 // client's request for the CreateDeployment operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See CreateDeployment for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the CreateDeployment method directly
-// instead.
+// See CreateDeployment for more information on using the CreateDeployment
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the CreateDeploymentRequest method.
 //    req, resp := client.CreateDeploymentRequest(params)
@@ -875,7 +871,7 @@ const opCreateDeployment = "CreateDeployment"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeployment
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeployment
 func (c *CodeDeploy) CreateDeploymentRequest(input *CreateDeploymentInput) (req *request.Request, output *CreateDeploymentOutput) {
 	op := &request.Operation{
 		Name:       opCreateDeployment,
@@ -971,7 +967,26 @@ func (c *CodeDeploy) CreateDeploymentRequest(input *CreateDeploymentInput) (req 
 //   but weren't part of the previous successful deployment. Valid values include
 //   "DISALLOW", "OVERWRITE", and "RETAIN".
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeployment
+//   * ErrCodeInvalidRoleException "InvalidRoleException"
+//   The service role ARN was specified in an invalid format. Or, if an Auto Scaling
+//   group was specified, the specified service role does not grant the appropriate
+//   permissions to Auto Scaling.
+//
+//   * ErrCodeInvalidAutoScalingGroupException "InvalidAutoScalingGroupException"
+//   The Auto Scaling group was specified in an invalid format or does not exist.
+//
+//   * ErrCodeThrottlingException "ThrottlingException"
+//   An API function was called too frequently.
+//
+//   * ErrCodeInvalidUpdateOutdatedInstancesOnlyValueException "InvalidUpdateOutdatedInstancesOnlyValueException"
+//   The UpdateOutdatedInstancesOnly value is invalid. For AWS Lambda deployments,
+//   false is expected. For EC2/On-premises deployments, true or false is expected.
+//
+//   * ErrCodeInvalidIgnoreApplicationStopFailuresValueException "InvalidIgnoreApplicationStopFailuresValueException"
+//   The IgnoreApplicationStopFailures value is invalid. For AWS Lambda deployments,
+//   false is expected. For EC2/On-premises deployments, true or false is expected.
+//
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeployment
 func (c *CodeDeploy) CreateDeployment(input *CreateDeploymentInput) (*CreateDeploymentOutput, error) {
 	req, out := c.CreateDeploymentRequest(input)
 	return out, req.Send()
@@ -997,19 +1012,18 @@ const opCreateDeploymentConfig = "CreateDeploymentConfig"
 
 // CreateDeploymentConfigRequest generates a "aws/request.Request" representing the
 // client's request for the CreateDeploymentConfig operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See CreateDeploymentConfig for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the CreateDeploymentConfig method directly
-// instead.
+// See CreateDeploymentConfig for more information on using the CreateDeploymentConfig
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the CreateDeploymentConfigRequest method.
 //    req, resp := client.CreateDeploymentConfigRequest(params)
@@ -1019,7 +1033,7 @@ const opCreateDeploymentConfig = "CreateDeploymentConfig"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentConfig
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentConfig
 func (c *CodeDeploy) CreateDeploymentConfigRequest(input *CreateDeploymentConfigInput) (req *request.Request, output *CreateDeploymentConfigOutput) {
 	op := &request.Operation{
 		Name:       opCreateDeploymentConfig,
@@ -1064,7 +1078,14 @@ func (c *CodeDeploy) CreateDeploymentConfigRequest(input *CreateDeploymentConfig
 //   * ErrCodeDeploymentConfigLimitExceededException "DeploymentConfigLimitExceededException"
 //   The deployment configurations limit was exceeded.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentConfig
+//   * ErrCodeInvalidComputePlatformException "InvalidComputePlatformException"
+//   The computePlatform is invalid. The computePlatform should be Lambda or Server.
+//
+//   * ErrCodeInvalidTrafficRoutingConfigurationException "InvalidTrafficRoutingConfigurationException"
+//   The configuration that specifies how traffic is routed during a deployment
+//   is invalid.
+//
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentConfig
 func (c *CodeDeploy) CreateDeploymentConfig(input *CreateDeploymentConfigInput) (*CreateDeploymentConfigOutput, error) {
 	req, out := c.CreateDeploymentConfigRequest(input)
 	return out, req.Send()
@@ -1090,19 +1111,18 @@ const opCreateDeploymentGroup = "CreateDeploymentGroup"
 
 // CreateDeploymentGroupRequest generates a "aws/request.Request" representing the
 // client's request for the CreateDeploymentGroup operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See CreateDeploymentGroup for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the CreateDeploymentGroup method directly
-// instead.
+// See CreateDeploymentGroup for more information on using the CreateDeploymentGroup
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the CreateDeploymentGroupRequest method.
 //    req, resp := client.CreateDeploymentGroupRequest(params)
@@ -1112,7 +1132,7 @@ const opCreateDeploymentGroup = "CreateDeploymentGroup"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentGroup
 func (c *CodeDeploy) CreateDeploymentGroupRequest(input *CreateDeploymentGroupInput) (req *request.Request, output *CreateDeploymentGroupOutput) {
 	op := &request.Operation{
 		Name:       opCreateDeploymentGroup,
@@ -1230,7 +1250,22 @@ func (c *CodeDeploy) CreateDeploymentGroupRequest(input *CreateDeploymentGroupIn
 //   invalid format. For information about deployment configuration format, see
 //   CreateDeploymentConfig.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentGroup
+//   * ErrCodeInvalidEC2TagCombinationException "InvalidEC2TagCombinationException"
+//   A call was submitted that specified both Ec2TagFilters and Ec2TagSet, but
+//   only one of these data types can be used in a single call.
+//
+//   * ErrCodeInvalidOnPremisesTagCombinationException "InvalidOnPremisesTagCombinationException"
+//   A call was submitted that specified both OnPremisesTagFilters and OnPremisesTagSet,
+//   but only one of these data types can be used in a single call.
+//
+//   * ErrCodeTagSetListLimitExceededException "TagSetListLimitExceededException"
+//   The number of tag groups included in the tag set list exceeded the maximum
+//   allowed limit of 3.
+//
+//   * ErrCodeInvalidInputException "InvalidInputException"
+//   The specified input was specified in an invalid format.
+//
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentGroup
 func (c *CodeDeploy) CreateDeploymentGroup(input *CreateDeploymentGroupInput) (*CreateDeploymentGroupOutput, error) {
 	req, out := c.CreateDeploymentGroupRequest(input)
 	return out, req.Send()
@@ -1256,19 +1291,18 @@ const opDeleteApplication = "DeleteApplication"
 
 // DeleteApplicationRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteApplication operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DeleteApplication for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DeleteApplication method directly
-// instead.
+// See DeleteApplication for more information on using the DeleteApplication
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DeleteApplicationRequest method.
 //    req, resp := client.DeleteApplicationRequest(params)
@@ -1278,7 +1312,7 @@ const opDeleteApplication = "DeleteApplication"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteApplication
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteApplication
 func (c *CodeDeploy) DeleteApplicationRequest(input *DeleteApplicationInput) (req *request.Request, output *DeleteApplicationOutput) {
 	op := &request.Operation{
 		Name:       opDeleteApplication,
@@ -1315,7 +1349,7 @@ func (c *CodeDeploy) DeleteApplicationRequest(input *DeleteApplicationInput) (re
 //   * ErrCodeInvalidApplicationNameException "InvalidApplicationNameException"
 //   The application name was specified in an invalid format.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteApplication
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteApplication
 func (c *CodeDeploy) DeleteApplication(input *DeleteApplicationInput) (*DeleteApplicationOutput, error) {
 	req, out := c.DeleteApplicationRequest(input)
 	return out, req.Send()
@@ -1341,19 +1375,18 @@ const opDeleteDeploymentConfig = "DeleteDeploymentConfig"
 
 // DeleteDeploymentConfigRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteDeploymentConfig operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DeleteDeploymentConfig for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DeleteDeploymentConfig method directly
-// instead.
+// See DeleteDeploymentConfig for more information on using the DeleteDeploymentConfig
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DeleteDeploymentConfigRequest method.
 //    req, resp := client.DeleteDeploymentConfigRequest(params)
@@ -1363,7 +1396,7 @@ const opDeleteDeploymentConfig = "DeleteDeploymentConfig"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentConfig
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentConfig
 func (c *CodeDeploy) DeleteDeploymentConfigRequest(input *DeleteDeploymentConfigInput) (req *request.Request, output *DeleteDeploymentConfigOutput) {
 	op := &request.Operation{
 		Name:       opDeleteDeploymentConfig,
@@ -1409,7 +1442,7 @@ func (c *CodeDeploy) DeleteDeploymentConfigRequest(input *DeleteDeploymentConfig
 //   * ErrCodeInvalidOperationException "InvalidOperationException"
 //   An invalid operation was detected.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentConfig
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentConfig
 func (c *CodeDeploy) DeleteDeploymentConfig(input *DeleteDeploymentConfigInput) (*DeleteDeploymentConfigOutput, error) {
 	req, out := c.DeleteDeploymentConfigRequest(input)
 	return out, req.Send()
@@ -1435,19 +1468,18 @@ const opDeleteDeploymentGroup = "DeleteDeploymentGroup"
 
 // DeleteDeploymentGroupRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteDeploymentGroup operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DeleteDeploymentGroup for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DeleteDeploymentGroup method directly
-// instead.
+// See DeleteDeploymentGroup for more information on using the DeleteDeploymentGroup
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DeleteDeploymentGroupRequest method.
 //    req, resp := client.DeleteDeploymentGroupRequest(params)
@@ -1457,7 +1489,7 @@ const opDeleteDeploymentGroup = "DeleteDeploymentGroup"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentGroup
 func (c *CodeDeploy) DeleteDeploymentGroupRequest(input *DeleteDeploymentGroupInput) (req *request.Request, output *DeleteDeploymentGroupOutput) {
 	op := &request.Operation{
 		Name:       opDeleteDeploymentGroup,
@@ -1503,7 +1535,7 @@ func (c *CodeDeploy) DeleteDeploymentGroupRequest(input *DeleteDeploymentGroupIn
 //   group was specified, the specified service role does not grant the appropriate
 //   permissions to Auto Scaling.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentGroup
 func (c *CodeDeploy) DeleteDeploymentGroup(input *DeleteDeploymentGroupInput) (*DeleteDeploymentGroupOutput, error) {
 	req, out := c.DeleteDeploymentGroupRequest(input)
 	return out, req.Send()
@@ -1525,23 +1557,113 @@ func (c *CodeDeploy) DeleteDeploymentGroupWithContext(ctx aws.Context, input *De
 	return out, req.Send()
 }
 
+const opDeleteGitHubAccountToken = "DeleteGitHubAccountToken"
+
+// DeleteGitHubAccountTokenRequest generates a "aws/request.Request" representing the
+// client's request for the DeleteGitHubAccountToken operation. The "output" return
+// value will be populated with the request's response once the request complets
+// successfuly.
+//
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
+//
+// See DeleteGitHubAccountToken for more information on using the DeleteGitHubAccountToken
+// API call, and error handling.
+//
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
+//
+//    // Example sending a request using the DeleteGitHubAccountTokenRequest method.
+//    req, resp := client.DeleteGitHubAccountTokenRequest(params)
+//
+//    err := req.Send()
+//    if err == nil { // resp is now filled
+//        fmt.Println(resp)
+//    }
+//
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteGitHubAccountToken
+func (c *CodeDeploy) DeleteGitHubAccountTokenRequest(input *DeleteGitHubAccountTokenInput) (req *request.Request, output *DeleteGitHubAccountTokenOutput) {
+	op := &request.Operation{
+		Name:       opDeleteGitHubAccountToken,
+		HTTPMethod: "POST",
+		HTTPPath:   "/",
+	}
+
+	if input == nil {
+		input = &DeleteGitHubAccountTokenInput{}
+	}
+
+	output = &DeleteGitHubAccountTokenOutput{}
+	req = c.newRequest(op, input, output)
+	return
+}
+
+// DeleteGitHubAccountToken API operation for AWS CodeDeploy.
+//
+// Deletes a GitHub account connection.
+//
+// Returns awserr.Error for service API and SDK errors. Use runtime type assertions
+// with awserr.Error's Code and Message methods to get detailed information about
+// the error.
+//
+// See the AWS API reference guide for AWS CodeDeploy's
+// API operation DeleteGitHubAccountToken for usage and error information.
+//
+// Returned Error Codes:
+//   * ErrCodeGitHubAccountTokenNameRequiredException "GitHubAccountTokenNameRequiredException"
+//   The call is missing a required GitHub account connection name.
+//
+//   * ErrCodeGitHubAccountTokenDoesNotExistException "GitHubAccountTokenDoesNotExistException"
+//   No GitHub account connection exists with the named specified in the call.
+//
+//   * ErrCodeInvalidGitHubAccountTokenNameException "InvalidGitHubAccountTokenNameException"
+//   The format of the specified GitHub account connection name is invalid.
+//
+//   * ErrCodeResourceValidationException "ResourceValidationException"
+//   The specified resource could not be validated.
+//
+//   * ErrCodeOperationNotSupportedException "OperationNotSupportedException"
+//   The API used does not support the deployment.
+//
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteGitHubAccountToken
+func (c *CodeDeploy) DeleteGitHubAccountToken(input *DeleteGitHubAccountTokenInput) (*DeleteGitHubAccountTokenOutput, error) {
+	req, out := c.DeleteGitHubAccountTokenRequest(input)
+	return out, req.Send()
+}
+
+// DeleteGitHubAccountTokenWithContext is the same as DeleteGitHubAccountToken with the addition of
+// the ability to pass a context and additional request options.
+//
+// See DeleteGitHubAccountToken for details on how to use this API operation.
+//
+// The context must be non-nil and will be used for request cancellation. If
+// the context is nil a panic will occur. In the future the SDK may create
+// sub-contexts for http.Requests. See https://golang.org/pkg/context/
+// for more information on using Contexts.
+func (c *CodeDeploy) DeleteGitHubAccountTokenWithContext(ctx aws.Context, input *DeleteGitHubAccountTokenInput, opts ...request.Option) (*DeleteGitHubAccountTokenOutput, error) {
+	req, out := c.DeleteGitHubAccountTokenRequest(input)
+	req.SetContext(ctx)
+	req.ApplyOptions(opts...)
+	return out, req.Send()
+}
+
 const opDeregisterOnPremisesInstance = "DeregisterOnPremisesInstance"
 
 // DeregisterOnPremisesInstanceRequest generates a "aws/request.Request" representing the
 // client's request for the DeregisterOnPremisesInstance operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DeregisterOnPremisesInstance for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DeregisterOnPremisesInstance method directly
-// instead.
+// See DeregisterOnPremisesInstance for more information on using the DeregisterOnPremisesInstance
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DeregisterOnPremisesInstanceRequest method.
 //    req, resp := client.DeregisterOnPremisesInstanceRequest(params)
@@ -1551,7 +1673,7 @@ const opDeregisterOnPremisesInstance = "DeregisterOnPremisesInstance"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeregisterOnPremisesInstance
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeregisterOnPremisesInstance
 func (c *CodeDeploy) DeregisterOnPremisesInstanceRequest(input *DeregisterOnPremisesInstanceInput) (req *request.Request, output *DeregisterOnPremisesInstanceOutput) {
 	op := &request.Operation{
 		Name:       opDeregisterOnPremisesInstance,
@@ -1588,7 +1710,7 @@ func (c *CodeDeploy) DeregisterOnPremisesInstanceRequest(input *DeregisterOnPrem
 //   * ErrCodeInvalidInstanceNameException "InvalidInstanceNameException"
 //   The specified on-premises instance name was specified in an invalid format.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeregisterOnPremisesInstance
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeregisterOnPremisesInstance
 func (c *CodeDeploy) DeregisterOnPremisesInstance(input *DeregisterOnPremisesInstanceInput) (*DeregisterOnPremisesInstanceOutput, error) {
 	req, out := c.DeregisterOnPremisesInstanceRequest(input)
 	return out, req.Send()
@@ -1614,19 +1736,18 @@ const opGetApplication = "GetApplication"
 
 // GetApplicationRequest generates a "aws/request.Request" representing the
 // client's request for the GetApplication operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GetApplication for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GetApplication method directly
-// instead.
+// See GetApplication for more information on using the GetApplication
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GetApplicationRequest method.
 //    req, resp := client.GetApplicationRequest(params)
@@ -1636,7 +1757,7 @@ const opGetApplication = "GetApplication"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplication
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplication
 func (c *CodeDeploy) GetApplicationRequest(input *GetApplicationInput) (req *request.Request, output *GetApplicationOutput) {
 	op := &request.Operation{
 		Name:       opGetApplication,
@@ -1674,7 +1795,7 @@ func (c *CodeDeploy) GetApplicationRequest(input *GetApplicationInput) (req *req
 //   * ErrCodeApplicationDoesNotExistException "ApplicationDoesNotExistException"
 //   The application does not exist with the applicable IAM user or AWS account.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplication
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplication
 func (c *CodeDeploy) GetApplication(input *GetApplicationInput) (*GetApplicationOutput, error) {
 	req, out := c.GetApplicationRequest(input)
 	return out, req.Send()
@@ -1700,19 +1821,18 @@ const opGetApplicationRevision = "GetApplicationRevision"
 
 // GetApplicationRevisionRequest generates a "aws/request.Request" representing the
 // client's request for the GetApplicationRevision operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GetApplicationRevision for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GetApplicationRevision method directly
-// instead.
+// See GetApplicationRevision for more information on using the GetApplicationRevision
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GetApplicationRevisionRequest method.
 //    req, resp := client.GetApplicationRevisionRequest(params)
@@ -1722,7 +1842,7 @@ const opGetApplicationRevision = "GetApplicationRevision"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplicationRevision
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplicationRevision
 func (c *CodeDeploy) GetApplicationRevisionRequest(input *GetApplicationRevisionInput) (req *request.Request, output *GetApplicationRevisionOutput) {
 	op := &request.Operation{
 		Name:       opGetApplicationRevision,
@@ -1769,7 +1889,7 @@ func (c *CodeDeploy) GetApplicationRevisionRequest(input *GetApplicationRevision
 //   * ErrCodeInvalidRevisionException "InvalidRevisionException"
 //   The revision was specified in an invalid format.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplicationRevision
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplicationRevision
 func (c *CodeDeploy) GetApplicationRevision(input *GetApplicationRevisionInput) (*GetApplicationRevisionOutput, error) {
 	req, out := c.GetApplicationRevisionRequest(input)
 	return out, req.Send()
@@ -1795,19 +1915,18 @@ const opGetDeployment = "GetDeployment"
 
 // GetDeploymentRequest generates a "aws/request.Request" representing the
 // client's request for the GetDeployment operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GetDeployment for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GetDeployment method directly
-// instead.
+// See GetDeployment for more information on using the GetDeployment
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GetDeploymentRequest method.
 //    req, resp := client.GetDeploymentRequest(params)
@@ -1817,7 +1936,7 @@ const opGetDeployment = "GetDeployment"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeployment
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeployment
 func (c *CodeDeploy) GetDeploymentRequest(input *GetDeploymentInput) (req *request.Request, output *GetDeploymentOutput) {
 	op := &request.Operation{
 		Name:       opGetDeployment,
@@ -1855,7 +1974,7 @@ func (c *CodeDeploy) GetDeploymentRequest(input *GetDeploymentInput) (req *reque
 //   * ErrCodeDeploymentDoesNotExistException "DeploymentDoesNotExistException"
 //   The deployment does not exist with the applicable IAM user or AWS account.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeployment
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeployment
 func (c *CodeDeploy) GetDeployment(input *GetDeploymentInput) (*GetDeploymentOutput, error) {
 	req, out := c.GetDeploymentRequest(input)
 	return out, req.Send()
@@ -1881,19 +2000,18 @@ const opGetDeploymentConfig = "GetDeploymentConfig"
 
 // GetDeploymentConfigRequest generates a "aws/request.Request" representing the
 // client's request for the GetDeploymentConfig operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GetDeploymentConfig for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GetDeploymentConfig method directly
-// instead.
+// See GetDeploymentConfig for more information on using the GetDeploymentConfig
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GetDeploymentConfigRequest method.
 //    req, resp := client.GetDeploymentConfigRequest(params)
@@ -1903,7 +2021,7 @@ const opGetDeploymentConfig = "GetDeploymentConfig"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentConfig
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentConfig
 func (c *CodeDeploy) GetDeploymentConfigRequest(input *GetDeploymentConfigInput) (req *request.Request, output *GetDeploymentConfigOutput) {
 	op := &request.Operation{
 		Name:       opGetDeploymentConfig,
@@ -1942,7 +2060,7 @@ func (c *CodeDeploy) GetDeploymentConfigRequest(input *GetDeploymentConfigInput)
 //   The deployment configuration does not exist with the applicable IAM user
 //   or AWS account.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentConfig
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentConfig
 func (c *CodeDeploy) GetDeploymentConfig(input *GetDeploymentConfigInput) (*GetDeploymentConfigOutput, error) {
 	req, out := c.GetDeploymentConfigRequest(input)
 	return out, req.Send()
@@ -1968,19 +2086,18 @@ const opGetDeploymentGroup = "GetDeploymentGroup"
 
 // GetDeploymentGroupRequest generates a "aws/request.Request" representing the
 // client's request for the GetDeploymentGroup operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GetDeploymentGroup for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GetDeploymentGroup method directly
-// instead.
+// See GetDeploymentGroup for more information on using the GetDeploymentGroup
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GetDeploymentGroupRequest method.
 //    req, resp := client.GetDeploymentGroupRequest(params)
@@ -1990,7 +2107,7 @@ const opGetDeploymentGroup = "GetDeploymentGroup"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentGroup
 func (c *CodeDeploy) GetDeploymentGroupRequest(input *GetDeploymentGroupInput) (req *request.Request, output *GetDeploymentGroupOutput) {
 	op := &request.Operation{
 		Name:       opGetDeploymentGroup,
@@ -2038,7 +2155,7 @@ func (c *CodeDeploy) GetDeploymentGroupRequest(input *GetDeploymentGroupInput) (
 //   The named deployment group does not exist with the applicable IAM user or
 //   AWS account.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentGroup
 func (c *CodeDeploy) GetDeploymentGroup(input *GetDeploymentGroupInput) (*GetDeploymentGroupOutput, error) {
 	req, out := c.GetDeploymentGroupRequest(input)
 	return out, req.Send()
@@ -2064,19 +2181,18 @@ const opGetDeploymentInstance = "GetDeploymentInstance"
 
 // GetDeploymentInstanceRequest generates a "aws/request.Request" representing the
 // client's request for the GetDeploymentInstance operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GetDeploymentInstance for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GetDeploymentInstance method directly
-// instead.
+// See GetDeploymentInstance for more information on using the GetDeploymentInstance
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GetDeploymentInstanceRequest method.
 //    req, resp := client.GetDeploymentInstanceRequest(params)
@@ -2086,7 +2202,7 @@ const opGetDeploymentInstance = "GetDeploymentInstance"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentInstance
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentInstance
 func (c *CodeDeploy) GetDeploymentInstanceRequest(input *GetDeploymentInstanceInput) (req *request.Request, output *GetDeploymentInstanceOutput) {
 	op := &request.Operation{
 		Name:       opGetDeploymentInstance,
@@ -2133,7 +2249,7 @@ func (c *CodeDeploy) GetDeploymentInstanceRequest(input *GetDeploymentInstanceIn
 //   * ErrCodeInvalidInstanceNameException "InvalidInstanceNameException"
 //   The specified on-premises instance name was specified in an invalid format.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentInstance
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentInstance
 func (c *CodeDeploy) GetDeploymentInstance(input *GetDeploymentInstanceInput) (*GetDeploymentInstanceOutput, error) {
 	req, out := c.GetDeploymentInstanceRequest(input)
 	return out, req.Send()
@@ -2159,19 +2275,18 @@ const opGetOnPremisesInstance = "GetOnPremisesInstance"
 
 // GetOnPremisesInstanceRequest generates a "aws/request.Request" representing the
 // client's request for the GetOnPremisesInstance operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GetOnPremisesInstance for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GetOnPremisesInstance method directly
-// instead.
+// See GetOnPremisesInstance for more information on using the GetOnPremisesInstance
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GetOnPremisesInstanceRequest method.
 //    req, resp := client.GetOnPremisesInstanceRequest(params)
@@ -2181,7 +2296,7 @@ const opGetOnPremisesInstance = "GetOnPremisesInstance"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetOnPremisesInstance
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetOnPremisesInstance
 func (c *CodeDeploy) GetOnPremisesInstanceRequest(input *GetOnPremisesInstanceInput) (req *request.Request, output *GetOnPremisesInstanceOutput) {
 	op := &request.Operation{
 		Name:       opGetOnPremisesInstance,
@@ -2219,7 +2334,7 @@ func (c *CodeDeploy) GetOnPremisesInstanceRequest(input *GetOnPremisesInstanceIn
 //   * ErrCodeInvalidInstanceNameException "InvalidInstanceNameException"
 //   The specified on-premises instance name was specified in an invalid format.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetOnPremisesInstance
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetOnPremisesInstance
 func (c *CodeDeploy) GetOnPremisesInstance(input *GetOnPremisesInstanceInput) (*GetOnPremisesInstanceOutput, error) {
 	req, out := c.GetOnPremisesInstanceRequest(input)
 	return out, req.Send()
@@ -2245,19 +2360,18 @@ const opListApplicationRevisions = "ListApplicationRevisions"
 
 // ListApplicationRevisionsRequest generates a "aws/request.Request" representing the
 // client's request for the ListApplicationRevisions operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListApplicationRevisions for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListApplicationRevisions method directly
-// instead.
+// See ListApplicationRevisions for more information on using the ListApplicationRevisions
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListApplicationRevisionsRequest method.
 //    req, resp := client.ListApplicationRevisionsRequest(params)
@@ -2267,7 +2381,7 @@ const opListApplicationRevisions = "ListApplicationRevisions"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplicationRevisions
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplicationRevisions
 func (c *CodeDeploy) ListApplicationRevisionsRequest(input *ListApplicationRevisionsInput) (req *request.Request, output *ListApplicationRevisionsOutput) {
 	op := &request.Operation{
 		Name:       opListApplicationRevisions,
@@ -2333,7 +2447,7 @@ func (c *CodeDeploy) ListApplicationRevisionsRequest(input *ListApplicationRevis
 //   * ErrCodeInvalidNextTokenException "InvalidNextTokenException"
 //   The next token was specified in an invalid format.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplicationRevisions
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplicationRevisions
 func (c *CodeDeploy) ListApplicationRevisions(input *ListApplicationRevisionsInput) (*ListApplicationRevisionsOutput, error) {
 	req, out := c.ListApplicationRevisionsRequest(input)
 	return out, req.Send()
@@ -2409,19 +2523,18 @@ const opListApplications = "ListApplications"
 
 // ListApplicationsRequest generates a "aws/request.Request" representing the
 // client's request for the ListApplications operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListApplications for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListApplications method directly
-// instead.
+// See ListApplications for more information on using the ListApplications
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListApplicationsRequest method.
 //    req, resp := client.ListApplicationsRequest(params)
@@ -2431,7 +2544,7 @@ const opListApplications = "ListApplications"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplications
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplications
 func (c *CodeDeploy) ListApplicationsRequest(input *ListApplicationsInput) (req *request.Request, output *ListApplicationsOutput) {
 	op := &request.Operation{
 		Name:       opListApplications,
@@ -2469,7 +2582,7 @@ func (c *CodeDeploy) ListApplicationsRequest(input *ListApplicationsInput) (req 
 //   * ErrCodeInvalidNextTokenException "InvalidNextTokenException"
 //   The next token was specified in an invalid format.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplications
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplications
 func (c *CodeDeploy) ListApplications(input *ListApplicationsInput) (*ListApplicationsOutput, error) {
 	req, out := c.ListApplicationsRequest(input)
 	return out, req.Send()
@@ -2545,19 +2658,18 @@ const opListDeploymentConfigs = "ListDeploymentConfigs"
 
 // ListDeploymentConfigsRequest generates a "aws/request.Request" representing the
 // client's request for the ListDeploymentConfigs operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListDeploymentConfigs for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListDeploymentConfigs method directly
-// instead.
+// See ListDeploymentConfigs for more information on using the ListDeploymentConfigs
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListDeploymentConfigsRequest method.
 //    req, resp := client.ListDeploymentConfigsRequest(params)
@@ -2567,7 +2679,7 @@ const opListDeploymentConfigs = "ListDeploymentConfigs"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentConfigs
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentConfigs
 func (c *CodeDeploy) ListDeploymentConfigsRequest(input *ListDeploymentConfigsInput) (req *request.Request, output *ListDeploymentConfigsOutput) {
 	op := &request.Operation{
 		Name:       opListDeploymentConfigs,
@@ -2605,7 +2717,7 @@ func (c *CodeDeploy) ListDeploymentConfigsRequest(input *ListDeploymentConfigsIn
 //   * ErrCodeInvalidNextTokenException "InvalidNextTokenException"
 //   The next token was specified in an invalid format.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentConfigs
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentConfigs
 func (c *CodeDeploy) ListDeploymentConfigs(input *ListDeploymentConfigsInput) (*ListDeploymentConfigsOutput, error) {
 	req, out := c.ListDeploymentConfigsRequest(input)
 	return out, req.Send()
@@ -2681,19 +2793,18 @@ const opListDeploymentGroups = "ListDeploymentGroups"
 
 // ListDeploymentGroupsRequest generates a "aws/request.Request" representing the
 // client's request for the ListDeploymentGroups operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListDeploymentGroups for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListDeploymentGroups method directly
-// instead.
+// See ListDeploymentGroups for more information on using the ListDeploymentGroups
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListDeploymentGroupsRequest method.
 //    req, resp := client.ListDeploymentGroupsRequest(params)
@@ -2703,7 +2814,7 @@ const opListDeploymentGroups = "ListDeploymentGroups"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentGroups
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentGroups
 func (c *CodeDeploy) ListDeploymentGroupsRequest(input *ListDeploymentGroupsInput) (req *request.Request, output *ListDeploymentGroupsOutput) {
 	op := &request.Operation{
 		Name:       opListDeploymentGroups,
@@ -2751,7 +2862,7 @@ func (c *CodeDeploy) ListDeploymentGroupsRequest(input *ListDeploymentGroupsInpu
 //   * ErrCodeInvalidNextTokenException "InvalidNextTokenException"
 //   The next token was specified in an invalid format.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentGroups
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentGroups
 func (c *CodeDeploy) ListDeploymentGroups(input *ListDeploymentGroupsInput) (*ListDeploymentGroupsOutput, error) {
 	req, out := c.ListDeploymentGroupsRequest(input)
 	return out, req.Send()
@@ -2827,19 +2938,18 @@ const opListDeploymentInstances = "ListDeploymentInstances"
 
 // ListDeploymentInstancesRequest generates a "aws/request.Request" representing the
 // client's request for the ListDeploymentInstances operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListDeploymentInstances for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListDeploymentInstances method directly
-// instead.
+// See ListDeploymentInstances for more information on using the ListDeploymentInstances
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListDeploymentInstancesRequest method.
 //    req, resp := client.ListDeploymentInstancesRequest(params)
@@ -2849,7 +2959,7 @@ const opListDeploymentInstances = "ListDeploymentInstances"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentInstances
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentInstances
 func (c *CodeDeploy) ListDeploymentInstancesRequest(input *ListDeploymentInstancesInput) (req *request.Request, output *ListDeploymentInstancesOutput) {
 	op := &request.Operation{
 		Name:       opListDeploymentInstances,
@@ -2912,7 +3022,7 @@ func (c *CodeDeploy) ListDeploymentInstancesRequest(input *ListDeploymentInstanc
 //   An instance type was specified for an in-place deployment. Instance types
 //   are supported for blue/green deployments only.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentInstances
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentInstances
 func (c *CodeDeploy) ListDeploymentInstances(input *ListDeploymentInstancesInput) (*ListDeploymentInstancesOutput, error) {
 	req, out := c.ListDeploymentInstancesRequest(input)
 	return out, req.Send()
@@ -2988,19 +3098,18 @@ const opListDeployments = "ListDeployments"
 
 // ListDeploymentsRequest generates a "aws/request.Request" representing the
 // client's request for the ListDeployments operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListDeployments for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListDeployments method directly
-// instead.
+// See ListDeployments for more information on using the ListDeployments
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListDeploymentsRequest method.
 //    req, resp := client.ListDeploymentsRequest(params)
@@ -3010,7 +3119,7 @@ const opListDeployments = "ListDeployments"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeployments
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeployments
 func (c *CodeDeploy) ListDeploymentsRequest(input *ListDeploymentsInput) (req *request.Request, output *ListDeploymentsOutput) {
 	op := &request.Operation{
 		Name:       opListDeployments,
@@ -3074,7 +3183,7 @@ func (c *CodeDeploy) ListDeploymentsRequest(input *ListDeploymentsInput) (req *r
 //   * ErrCodeInvalidNextTokenException "InvalidNextTokenException"
 //   The next token was specified in an invalid format.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeployments
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeployments
 func (c *CodeDeploy) ListDeployments(input *ListDeploymentsInput) (*ListDeploymentsOutput, error) {
 	req, out := c.ListDeploymentsRequest(input)
 	return out, req.Send()
@@ -3150,19 +3259,18 @@ const opListGitHubAccountTokenNames = "ListGitHubAccountTokenNames"
 
 // ListGitHubAccountTokenNamesRequest generates a "aws/request.Request" representing the
 // client's request for the ListGitHubAccountTokenNames operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListGitHubAccountTokenNames for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListGitHubAccountTokenNames method directly
-// instead.
+// See ListGitHubAccountTokenNames for more information on using the ListGitHubAccountTokenNames
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListGitHubAccountTokenNamesRequest method.
 //    req, resp := client.ListGitHubAccountTokenNamesRequest(params)
@@ -3172,7 +3280,7 @@ const opListGitHubAccountTokenNames = "ListGitHubAccountTokenNames"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListGitHubAccountTokenNames
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListGitHubAccountTokenNames
 func (c *CodeDeploy) ListGitHubAccountTokenNamesRequest(input *ListGitHubAccountTokenNamesInput) (req *request.Request, output *ListGitHubAccountTokenNamesOutput) {
 	op := &request.Operation{
 		Name:       opListGitHubAccountTokenNames,
@@ -3207,7 +3315,10 @@ func (c *CodeDeploy) ListGitHubAccountTokenNamesRequest(input *ListGitHubAccount
 //   * ErrCodeResourceValidationException "ResourceValidationException"
 //   The specified resource could not be validated.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListGitHubAccountTokenNames
+//   * ErrCodeOperationNotSupportedException "OperationNotSupportedException"
+//   The API used does not support the deployment.
+//
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListGitHubAccountTokenNames
 func (c *CodeDeploy) ListGitHubAccountTokenNames(input *ListGitHubAccountTokenNamesInput) (*ListGitHubAccountTokenNamesOutput, error) {
 	req, out := c.ListGitHubAccountTokenNamesRequest(input)
 	return out, req.Send()
@@ -3233,19 +3344,18 @@ const opListOnPremisesInstances = "ListOnPremisesInstances"
 
 // ListOnPremisesInstancesRequest generates a "aws/request.Request" representing the
 // client's request for the ListOnPremisesInstances operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListOnPremisesInstances for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListOnPremisesInstances method directly
-// instead.
+// See ListOnPremisesInstances for more information on using the ListOnPremisesInstances
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListOnPremisesInstancesRequest method.
 //    req, resp := client.ListOnPremisesInstancesRequest(params)
@@ -3255,7 +3365,7 @@ const opListOnPremisesInstances = "ListOnPremisesInstances"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListOnPremisesInstances
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListOnPremisesInstances
 func (c *CodeDeploy) ListOnPremisesInstancesRequest(input *ListOnPremisesInstancesInput) (req *request.Request, output *ListOnPremisesInstancesOutput) {
 	op := &request.Operation{
 		Name:       opListOnPremisesInstances,
@@ -3297,7 +3407,7 @@ func (c *CodeDeploy) ListOnPremisesInstancesRequest(input *ListOnPremisesInstanc
 //   * ErrCodeInvalidNextTokenException "InvalidNextTokenException"
 //   The next token was specified in an invalid format.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListOnPremisesInstances
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListOnPremisesInstances
 func (c *CodeDeploy) ListOnPremisesInstances(input *ListOnPremisesInstancesInput) (*ListOnPremisesInstancesOutput, error) {
 	req, out := c.ListOnPremisesInstancesRequest(input)
 	return out, req.Send()
@@ -3319,23 +3429,123 @@ func (c *CodeDeploy) ListOnPremisesInstancesWithContext(ctx aws.Context, input *
 	return out, req.Send()
 }
 
+const opPutLifecycleEventHookExecutionStatus = "PutLifecycleEventHookExecutionStatus"
+
+// PutLifecycleEventHookExecutionStatusRequest generates a "aws/request.Request" representing the
+// client's request for the PutLifecycleEventHookExecutionStatus operation. The "output" return
+// value will be populated with the request's response once the request complets
+// successfuly.
+//
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
+//
+// See PutLifecycleEventHookExecutionStatus for more information on using the PutLifecycleEventHookExecutionStatus
+// API call, and error handling.
+//
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
+//
+//    // Example sending a request using the PutLifecycleEventHookExecutionStatusRequest method.
+//    req, resp := client.PutLifecycleEventHookExecutionStatusRequest(params)
+//
+//    err := req.Send()
+//    if err == nil { // resp is now filled
+//        fmt.Println(resp)
+//    }
+//
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/PutLifecycleEventHookExecutionStatus
+func (c *CodeDeploy) PutLifecycleEventHookExecutionStatusRequest(input *PutLifecycleEventHookExecutionStatusInput) (req *request.Request, output *PutLifecycleEventHookExecutionStatusOutput) {
+	op := &request.Operation{
+		Name:       opPutLifecycleEventHookExecutionStatus,
+		HTTPMethod: "POST",
+		HTTPPath:   "/",
+	}
+
+	if input == nil {
+		input = &PutLifecycleEventHookExecutionStatusInput{}
+	}
+
+	output = &PutLifecycleEventHookExecutionStatusOutput{}
+	req = c.newRequest(op, input, output)
+	return
+}
+
+// PutLifecycleEventHookExecutionStatus API operation for AWS CodeDeploy.
+//
+// Sets the result of a Lambda validation function. The function validates one
+// or both lifecycle events (BeforeAllowTraffic and AfterAllowTraffic) and returns
+// Succeeded or Failed.
+//
+// Returns awserr.Error for service API and SDK errors. Use runtime type assertions
+// with awserr.Error's Code and Message methods to get detailed information about
+// the error.
+//
+// See the AWS API reference guide for AWS CodeDeploy's
+// API operation PutLifecycleEventHookExecutionStatus for usage and error information.
+//
+// Returned Error Codes:
+//   * ErrCodeInvalidLifecycleEventHookExecutionStatusException "InvalidLifecycleEventHookExecutionStatusException"
+//   The result of a Lambda validation function that verifies a lifecycle event
+//   is invalid. It should return Succeeded or Failed.
+//
+//   * ErrCodeInvalidLifecycleEventHookExecutionIdException "InvalidLifecycleEventHookExecutionIdException"
+//   A lifecycle event hook is invalid. Review the hooks section in your AppSpec
+//   file to ensure the lifecycle events and hooks functions are valid.
+//
+//   * ErrCodeLifecycleEventAlreadyCompletedException "LifecycleEventAlreadyCompletedException"
+//   An attempt to return the status of an already completed lifecycle event occurred.
+//
+//   * ErrCodeDeploymentIdRequiredException "DeploymentIdRequiredException"
+//   At least one deployment ID must be specified.
+//
+//   * ErrCodeDeploymentDoesNotExistException "DeploymentDoesNotExistException"
+//   The deployment does not exist with the applicable IAM user or AWS account.
+//
+//   * ErrCodeInvalidDeploymentIdException "InvalidDeploymentIdException"
+//   At least one of the deployment IDs was specified in an invalid format.
+//
+//   * ErrCodeUnsupportedActionForDeploymentTypeException "UnsupportedActionForDeploymentTypeException"
+//   A call was submitted that is not supported for the specified deployment type.
+//
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/PutLifecycleEventHookExecutionStatus
+func (c *CodeDeploy) PutLifecycleEventHookExecutionStatus(input *PutLifecycleEventHookExecutionStatusInput) (*PutLifecycleEventHookExecutionStatusOutput, error) {
+	req, out := c.PutLifecycleEventHookExecutionStatusRequest(input)
+	return out, req.Send()
+}
+
+// PutLifecycleEventHookExecutionStatusWithContext is the same as PutLifecycleEventHookExecutionStatus with the addition of
+// the ability to pass a context and additional request options.
+//
+// See PutLifecycleEventHookExecutionStatus for details on how to use this API operation.
+//
+// The context must be non-nil and will be used for request cancellation. If
+// the context is nil a panic will occur. In the future the SDK may create
+// sub-contexts for http.Requests. See https://golang.org/pkg/context/
+// for more information on using Contexts.
+func (c *CodeDeploy) PutLifecycleEventHookExecutionStatusWithContext(ctx aws.Context, input *PutLifecycleEventHookExecutionStatusInput, opts ...request.Option) (*PutLifecycleEventHookExecutionStatusOutput, error) {
+	req, out := c.PutLifecycleEventHookExecutionStatusRequest(input)
+	req.SetContext(ctx)
+	req.ApplyOptions(opts...)
+	return out, req.Send()
+}
+
 const opRegisterApplicationRevision = "RegisterApplicationRevision"
 
 // RegisterApplicationRevisionRequest generates a "aws/request.Request" representing the
 // client's request for the RegisterApplicationRevision operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See RegisterApplicationRevision for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the RegisterApplicationRevision method directly
-// instead.
+// See RegisterApplicationRevision for more information on using the RegisterApplicationRevision
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the RegisterApplicationRevisionRequest method.
 //    req, resp := client.RegisterApplicationRevisionRequest(params)
@@ -3345,7 +3555,7 @@ const opRegisterApplicationRevision = "RegisterApplicationRevision"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterApplicationRevision
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterApplicationRevision
 func (c *CodeDeploy) RegisterApplicationRevisionRequest(input *RegisterApplicationRevisionInput) (req *request.Request, output *RegisterApplicationRevisionOutput) {
 	op := &request.Operation{
 		Name:       opRegisterApplicationRevision,
@@ -3394,7 +3604,7 @@ func (c *CodeDeploy) RegisterApplicationRevisionRequest(input *RegisterApplicati
 //   * ErrCodeInvalidRevisionException "InvalidRevisionException"
 //   The revision was specified in an invalid format.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterApplicationRevision
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterApplicationRevision
 func (c *CodeDeploy) RegisterApplicationRevision(input *RegisterApplicationRevisionInput) (*RegisterApplicationRevisionOutput, error) {
 	req, out := c.RegisterApplicationRevisionRequest(input)
 	return out, req.Send()
@@ -3420,19 +3630,18 @@ const opRegisterOnPremisesInstance = "RegisterOnPremisesInstance"
 
 // RegisterOnPremisesInstanceRequest generates a "aws/request.Request" representing the
 // client's request for the RegisterOnPremisesInstance operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See RegisterOnPremisesInstance for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the RegisterOnPremisesInstance method directly
-// instead.
+// See RegisterOnPremisesInstance for more information on using the RegisterOnPremisesInstance
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the RegisterOnPremisesInstanceRequest method.
 //    req, resp := client.RegisterOnPremisesInstanceRequest(params)
@@ -3442,7 +3651,7 @@ const opRegisterOnPremisesInstance = "RegisterOnPremisesInstance"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterOnPremisesInstance
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterOnPremisesInstance
 func (c *CodeDeploy) RegisterOnPremisesInstanceRequest(input *RegisterOnPremisesInstanceInput) (req *request.Request, output *RegisterOnPremisesInstanceOutput) {
 	op := &request.Operation{
 		Name:       opRegisterOnPremisesInstance,
@@ -3509,7 +3718,7 @@ func (c *CodeDeploy) RegisterOnPremisesInstanceRequest(input *RegisterOnPremises
 //   Both an IAM user ARN and an IAM session ARN were included in the request.
 //   Use only one ARN type.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterOnPremisesInstance
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterOnPremisesInstance
 func (c *CodeDeploy) RegisterOnPremisesInstance(input *RegisterOnPremisesInstanceInput) (*RegisterOnPremisesInstanceOutput, error) {
 	req, out := c.RegisterOnPremisesInstanceRequest(input)
 	return out, req.Send()
@@ -3535,19 +3744,18 @@ const opRemoveTagsFromOnPremisesInstances = "RemoveTagsFromOnPremisesInstances"
 
 // RemoveTagsFromOnPremisesInstancesRequest generates a "aws/request.Request" representing the
 // client's request for the RemoveTagsFromOnPremisesInstances operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See RemoveTagsFromOnPremisesInstances for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the RemoveTagsFromOnPremisesInstances method directly
-// instead.
+// See RemoveTagsFromOnPremisesInstances for more information on using the RemoveTagsFromOnPremisesInstances
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the RemoveTagsFromOnPremisesInstancesRequest method.
 //    req, resp := client.RemoveTagsFromOnPremisesInstancesRequest(params)
@@ -3557,7 +3765,7 @@ const opRemoveTagsFromOnPremisesInstances = "RemoveTagsFromOnPremisesInstances"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RemoveTagsFromOnPremisesInstances
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RemoveTagsFromOnPremisesInstances
 func (c *CodeDeploy) RemoveTagsFromOnPremisesInstancesRequest(input *RemoveTagsFromOnPremisesInstancesInput) (req *request.Request, output *RemoveTagsFromOnPremisesInstancesOutput) {
 	op := &request.Operation{
 		Name:       opRemoveTagsFromOnPremisesInstances,
@@ -3591,6 +3799,9 @@ func (c *CodeDeploy) RemoveTagsFromOnPremisesInstancesRequest(input *RemoveTagsF
 //   * ErrCodeInstanceNameRequiredException "InstanceNameRequiredException"
 //   An on-premises instance name was not specified.
 //
+//   * ErrCodeInvalidInstanceNameException "InvalidInstanceNameException"
+//   The specified on-premises instance name was specified in an invalid format.
+//
 //   * ErrCodeTagRequiredException "TagRequiredException"
 //   A tag was not specified.
 //
@@ -3607,7 +3818,7 @@ func (c *CodeDeploy) RemoveTagsFromOnPremisesInstancesRequest(input *RemoveTagsF
 //   * ErrCodeInstanceNotRegisteredException "InstanceNotRegisteredException"
 //   The specified on-premises instance is not registered.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RemoveTagsFromOnPremisesInstances
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RemoveTagsFromOnPremisesInstances
 func (c *CodeDeploy) RemoveTagsFromOnPremisesInstances(input *RemoveTagsFromOnPremisesInstancesInput) (*RemoveTagsFromOnPremisesInstancesOutput, error) {
 	req, out := c.RemoveTagsFromOnPremisesInstancesRequest(input)
 	return out, req.Send()
@@ -3633,19 +3844,18 @@ const opSkipWaitTimeForInstanceTermination = "SkipWaitTimeForInstanceTermination
 
 // SkipWaitTimeForInstanceTerminationRequest generates a "aws/request.Request" representing the
 // client's request for the SkipWaitTimeForInstanceTermination operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See SkipWaitTimeForInstanceTermination for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the SkipWaitTimeForInstanceTermination method directly
-// instead.
+// See SkipWaitTimeForInstanceTermination for more information on using the SkipWaitTimeForInstanceTermination
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the SkipWaitTimeForInstanceTerminationRequest method.
 //    req, resp := client.SkipWaitTimeForInstanceTerminationRequest(params)
@@ -3655,7 +3865,7 @@ const opSkipWaitTimeForInstanceTermination = "SkipWaitTimeForInstanceTermination
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/SkipWaitTimeForInstanceTermination
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/SkipWaitTimeForInstanceTermination
 func (c *CodeDeploy) SkipWaitTimeForInstanceTerminationRequest(input *SkipWaitTimeForInstanceTerminationInput) (req *request.Request, output *SkipWaitTimeForInstanceTerminationOutput) {
 	op := &request.Operation{
 		Name:       opSkipWaitTimeForInstanceTermination,
@@ -3705,7 +3915,7 @@ func (c *CodeDeploy) SkipWaitTimeForInstanceTerminationRequest(input *SkipWaitTi
 //   * ErrCodeUnsupportedActionForDeploymentTypeException "UnsupportedActionForDeploymentTypeException"
 //   A call was submitted that is not supported for the specified deployment type.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/SkipWaitTimeForInstanceTermination
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/SkipWaitTimeForInstanceTermination
 func (c *CodeDeploy) SkipWaitTimeForInstanceTermination(input *SkipWaitTimeForInstanceTerminationInput) (*SkipWaitTimeForInstanceTerminationOutput, error) {
 	req, out := c.SkipWaitTimeForInstanceTerminationRequest(input)
 	return out, req.Send()
@@ -3731,19 +3941,18 @@ const opStopDeployment = "StopDeployment"
 
 // StopDeploymentRequest generates a "aws/request.Request" representing the
 // client's request for the StopDeployment operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See StopDeployment for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the StopDeployment method directly
-// instead.
+// See StopDeployment for more information on using the StopDeployment
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the StopDeploymentRequest method.
 //    req, resp := client.StopDeploymentRequest(params)
@@ -3753,7 +3962,7 @@ const opStopDeployment = "StopDeployment"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/StopDeployment
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/StopDeployment
 func (c *CodeDeploy) StopDeploymentRequest(input *StopDeploymentInput) (req *request.Request, output *StopDeploymentOutput) {
 	op := &request.Operation{
 		Name:       opStopDeployment,
@@ -3794,7 +4003,7 @@ func (c *CodeDeploy) StopDeploymentRequest(input *StopDeploymentInput) (req *req
 //   * ErrCodeInvalidDeploymentIdException "InvalidDeploymentIdException"
 //   At least one of the deployment IDs was specified in an invalid format.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/StopDeployment
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/StopDeployment
 func (c *CodeDeploy) StopDeployment(input *StopDeploymentInput) (*StopDeploymentOutput, error) {
 	req, out := c.StopDeploymentRequest(input)
 	return out, req.Send()
@@ -3820,19 +4029,18 @@ const opUpdateApplication = "UpdateApplication"
 
 // UpdateApplicationRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateApplication operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See UpdateApplication for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the UpdateApplication method directly
-// instead.
+// See UpdateApplication for more information on using the UpdateApplication
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the UpdateApplicationRequest method.
 //    req, resp := client.UpdateApplicationRequest(params)
@@ -3842,7 +4050,7 @@ const opUpdateApplication = "UpdateApplication"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateApplication
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateApplication
 func (c *CodeDeploy) UpdateApplicationRequest(input *UpdateApplicationInput) (req *request.Request, output *UpdateApplicationOutput) {
 	op := &request.Operation{
 		Name:       opUpdateApplication,
@@ -3886,7 +4094,7 @@ func (c *CodeDeploy) UpdateApplicationRequest(input *UpdateApplicationInput) (re
 //   * ErrCodeApplicationDoesNotExistException "ApplicationDoesNotExistException"
 //   The application does not exist with the applicable IAM user or AWS account.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateApplication
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateApplication
 func (c *CodeDeploy) UpdateApplication(input *UpdateApplicationInput) (*UpdateApplicationOutput, error) {
 	req, out := c.UpdateApplicationRequest(input)
 	return out, req.Send()
@@ -3912,19 +4120,18 @@ const opUpdateDeploymentGroup = "UpdateDeploymentGroup"
 
 // UpdateDeploymentGroupRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateDeploymentGroup operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See UpdateDeploymentGroup for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the UpdateDeploymentGroup method directly
-// instead.
+// See UpdateDeploymentGroup for more information on using the UpdateDeploymentGroup
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the UpdateDeploymentGroupRequest method.
 //    req, resp := client.UpdateDeploymentGroupRequest(params)
@@ -3934,7 +4141,7 @@ const opUpdateDeploymentGroup = "UpdateDeploymentGroup"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateDeploymentGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateDeploymentGroup
 func (c *CodeDeploy) UpdateDeploymentGroupRequest(input *UpdateDeploymentGroupInput) (req *request.Request, output *UpdateDeploymentGroupOutput) {
 	op := &request.Operation{
 		Name:       opUpdateDeploymentGroup,
@@ -4050,7 +4257,22 @@ func (c *CodeDeploy) UpdateDeploymentGroupRequest(input *UpdateDeploymentGroupIn
 //   invalid format. For information about deployment configuration format, see
 //   CreateDeploymentConfig.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateDeploymentGroup
+//   * ErrCodeInvalidEC2TagCombinationException "InvalidEC2TagCombinationException"
+//   A call was submitted that specified both Ec2TagFilters and Ec2TagSet, but
+//   only one of these data types can be used in a single call.
+//
+//   * ErrCodeInvalidOnPremisesTagCombinationException "InvalidOnPremisesTagCombinationException"
+//   A call was submitted that specified both OnPremisesTagFilters and OnPremisesTagSet,
+//   but only one of these data types can be used in a single call.
+//
+//   * ErrCodeTagSetListLimitExceededException "TagSetListLimitExceededException"
+//   The number of tag groups included in the tag set list exceeded the maximum
+//   allowed limit of 3.
+//
+//   * ErrCodeInvalidInputException "InvalidInputException"
+//   The specified input was specified in an invalid format.
+//
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateDeploymentGroup
 func (c *CodeDeploy) UpdateDeploymentGroup(input *UpdateDeploymentGroupInput) (*UpdateDeploymentGroupOutput, error) {
 	req, out := c.UpdateDeploymentGroupRequest(input)
 	return out, req.Send()
@@ -4073,7 +4295,7 @@ func (c *CodeDeploy) UpdateDeploymentGroupWithContext(ctx aws.Context, input *Up
 }
 
 // Represents the input of, and adds tags to, an on-premises instance operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/AddTagsToOnPremisesInstancesInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/AddTagsToOnPremisesInstancesInput
 type AddTagsToOnPremisesInstancesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4129,7 +4351,7 @@ func (s *AddTagsToOnPremisesInstancesInput) SetTags(v []*Tag) *AddTagsToOnPremis
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/AddTagsToOnPremisesInstancesOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/AddTagsToOnPremisesInstancesOutput
 type AddTagsToOnPremisesInstancesOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -4145,7 +4367,7 @@ func (s AddTagsToOnPremisesInstancesOutput) GoString() string {
 }
 
 // Information about an alarm.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/Alarm
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/Alarm
 type Alarm struct {
 	_ struct{} `type:"structure"`
 
@@ -4171,7 +4393,7 @@ func (s *Alarm) SetName(v string) *Alarm {
 }
 
 // Information about alarms associated with the deployment group.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/AlarmConfiguration
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/AlarmConfiguration
 type AlarmConfiguration struct {
 	_ struct{} `type:"structure"`
 
@@ -4223,7 +4445,7 @@ func (s *AlarmConfiguration) SetIgnorePollAlarmFailure(v bool) *AlarmConfigurati
 }
 
 // Information about an application.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ApplicationInfo
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ApplicationInfo
 type ApplicationInfo struct {
 	_ struct{} `type:"structure"`
 
@@ -4232,6 +4454,10 @@ type ApplicationInfo struct {
 
 	// The application name.
 	ApplicationName *string `locationName:"applicationName" min:"1" type:"string"`
+
+	// The destination platform type for deployment of the application (Lambda or
+	// Server).
+	ComputePlatform *string `locationName:"computePlatform" type:"string" enum:"ComputePlatform"`
 
 	// The time at which the application was created.
 	CreateTime *time.Time `locationName:"createTime" type:"timestamp" timestampFormat:"unix"`
@@ -4266,6 +4492,12 @@ func (s *ApplicationInfo) SetApplicationName(v string) *ApplicationInfo {
 	return s
 }
 
+// SetComputePlatform sets the ComputePlatform field's value.
+func (s *ApplicationInfo) SetComputePlatform(v string) *ApplicationInfo {
+	s.ComputePlatform = &v
+	return s
+}
+
 // SetCreateTime sets the CreateTime field's value.
 func (s *ApplicationInfo) SetCreateTime(v time.Time) *ApplicationInfo {
 	s.CreateTime = &v
@@ -4286,7 +4518,7 @@ func (s *ApplicationInfo) SetLinkedToGitHub(v bool) *ApplicationInfo {
 
 // Information about a configuration for automatically rolling back to a previous
 // version of an application revision when a deployment doesn't complete successfully.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/AutoRollbackConfiguration
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/AutoRollbackConfiguration
 type AutoRollbackConfiguration struct {
 	_ struct{} `type:"structure"`
 
@@ -4321,7 +4553,7 @@ func (s *AutoRollbackConfiguration) SetEvents(v []*string) *AutoRollbackConfigur
 }
 
 // Information about an Auto Scaling group.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/AutoScalingGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/AutoScalingGroup
 type AutoScalingGroup struct {
 	_ struct{} `type:"structure"`
 
@@ -4355,7 +4587,7 @@ func (s *AutoScalingGroup) SetName(v string) *AutoScalingGroup {
 }
 
 // Represents the input of a BatchGetApplicationRevisions operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplicationRevisionsInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplicationRevisionsInput
 type BatchGetApplicationRevisionsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4412,7 +4644,7 @@ func (s *BatchGetApplicationRevisionsInput) SetRevisions(v []*RevisionLocation) 
 }
 
 // Represents the output of a BatchGetApplicationRevisions operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplicationRevisionsOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplicationRevisionsOutput
 type BatchGetApplicationRevisionsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4455,12 +4687,14 @@ func (s *BatchGetApplicationRevisionsOutput) SetRevisions(v []*RevisionInfo) *Ba
 }
 
 // Represents the input of a BatchGetApplications operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplicationsInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplicationsInput
 type BatchGetApplicationsInput struct {
 	_ struct{} `type:"structure"`
 
 	// A list of application names separated by spaces.
-	ApplicationNames []*string `locationName:"applicationNames" type:"list"`
+	//
+	// ApplicationNames is a required field
+	ApplicationNames []*string `locationName:"applicationNames" type:"list" required:"true"`
 }
 
 // String returns the string representation
@@ -4473,6 +4707,19 @@ func (s BatchGetApplicationsInput) GoString() string {
 	return s.String()
 }
 
+// Validate inspects the fields of the type to determine if they are valid.
+func (s *BatchGetApplicationsInput) Validate() error {
+	invalidParams := request.ErrInvalidParams{Context: "BatchGetApplicationsInput"}
+	if s.ApplicationNames == nil {
+		invalidParams.Add(request.NewErrParamRequired("ApplicationNames"))
+	}
+
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	}
+	return nil
+}
+
 // SetApplicationNames sets the ApplicationNames field's value.
 func (s *BatchGetApplicationsInput) SetApplicationNames(v []*string) *BatchGetApplicationsInput {
 	s.ApplicationNames = v
@@ -4480,7 +4727,7 @@ func (s *BatchGetApplicationsInput) SetApplicationNames(v []*string) *BatchGetAp
 }
 
 // Represents the output of a BatchGetApplications operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplicationsOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetApplicationsOutput
 type BatchGetApplicationsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4505,7 +4752,7 @@ func (s *BatchGetApplicationsOutput) SetApplicationsInfo(v []*ApplicationInfo) *
 }
 
 // Represents the input of a BatchGetDeploymentGroups operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentGroupsInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentGroupsInput
 type BatchGetDeploymentGroupsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4563,7 +4810,7 @@ func (s *BatchGetDeploymentGroupsInput) SetDeploymentGroupNames(v []*string) *Ba
 }
 
 // Represents the output of a BatchGetDeploymentGroups operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentGroupsOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentGroupsOutput
 type BatchGetDeploymentGroupsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4597,7 +4844,7 @@ func (s *BatchGetDeploymentGroupsOutput) SetErrorMessage(v string) *BatchGetDepl
 }
 
 // Represents the input of a BatchGetDeploymentInstances operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentInstancesInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentInstancesInput
 type BatchGetDeploymentInstancesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4651,7 +4898,7 @@ func (s *BatchGetDeploymentInstancesInput) SetInstanceIds(v []*string) *BatchGet
 }
 
 // Represents the output of a BatchGetDeploymentInstances operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentInstancesOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentInstancesOutput
 type BatchGetDeploymentInstancesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4685,12 +4932,14 @@ func (s *BatchGetDeploymentInstancesOutput) SetInstancesSummary(v []*InstanceSum
 }
 
 // Represents the input of a BatchGetDeployments operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentsInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentsInput
 type BatchGetDeploymentsInput struct {
 	_ struct{} `type:"structure"`
 
 	// A list of deployment IDs, separated by spaces.
-	DeploymentIds []*string `locationName:"deploymentIds" type:"list"`
+	//
+	// DeploymentIds is a required field
+	DeploymentIds []*string `locationName:"deploymentIds" type:"list" required:"true"`
 }
 
 // String returns the string representation
@@ -4703,6 +4952,19 @@ func (s BatchGetDeploymentsInput) GoString() string {
 	return s.String()
 }
 
+// Validate inspects the fields of the type to determine if they are valid.
+func (s *BatchGetDeploymentsInput) Validate() error {
+	invalidParams := request.ErrInvalidParams{Context: "BatchGetDeploymentsInput"}
+	if s.DeploymentIds == nil {
+		invalidParams.Add(request.NewErrParamRequired("DeploymentIds"))
+	}
+
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	}
+	return nil
+}
+
 // SetDeploymentIds sets the DeploymentIds field's value.
 func (s *BatchGetDeploymentsInput) SetDeploymentIds(v []*string) *BatchGetDeploymentsInput {
 	s.DeploymentIds = v
@@ -4710,7 +4972,7 @@ func (s *BatchGetDeploymentsInput) SetDeploymentIds(v []*string) *BatchGetDeploy
 }
 
 // Represents the output of a BatchGetDeployments operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentsOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetDeploymentsOutput
 type BatchGetDeploymentsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4735,12 +4997,14 @@ func (s *BatchGetDeploymentsOutput) SetDeploymentsInfo(v []*DeploymentInfo) *Bat
 }
 
 // Represents the input of a BatchGetOnPremisesInstances operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetOnPremisesInstancesInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetOnPremisesInstancesInput
 type BatchGetOnPremisesInstancesInput struct {
 	_ struct{} `type:"structure"`
 
 	// The names of the on-premises instances about which to get information.
-	InstanceNames []*string `locationName:"instanceNames" type:"list"`
+	//
+	// InstanceNames is a required field
+	InstanceNames []*string `locationName:"instanceNames" type:"list" required:"true"`
 }
 
 // String returns the string representation
@@ -4753,6 +5017,19 @@ func (s BatchGetOnPremisesInstancesInput) GoString() string {
 	return s.String()
 }
 
+// Validate inspects the fields of the type to determine if they are valid.
+func (s *BatchGetOnPremisesInstancesInput) Validate() error {
+	invalidParams := request.ErrInvalidParams{Context: "BatchGetOnPremisesInstancesInput"}
+	if s.InstanceNames == nil {
+		invalidParams.Add(request.NewErrParamRequired("InstanceNames"))
+	}
+
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	}
+	return nil
+}
+
 // SetInstanceNames sets the InstanceNames field's value.
 func (s *BatchGetOnPremisesInstancesInput) SetInstanceNames(v []*string) *BatchGetOnPremisesInstancesInput {
 	s.InstanceNames = v
@@ -4760,7 +5037,7 @@ func (s *BatchGetOnPremisesInstancesInput) SetInstanceNames(v []*string) *BatchG
 }
 
 // Represents the output of a BatchGetOnPremisesInstances operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetOnPremisesInstancesOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BatchGetOnPremisesInstancesOutput
 type BatchGetOnPremisesInstancesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4785,7 +5062,7 @@ func (s *BatchGetOnPremisesInstancesOutput) SetInstanceInfos(v []*InstanceInfo) 
 }
 
 // Information about blue/green deployment options for a deployment group.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BlueGreenDeploymentConfiguration
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BlueGreenDeploymentConfiguration
 type BlueGreenDeploymentConfiguration struct {
 	_ struct{} `type:"structure"`
 
@@ -4832,7 +5109,7 @@ func (s *BlueGreenDeploymentConfiguration) SetTerminateBlueInstancesOnDeployment
 
 // Information about whether instances in the original environment are terminated
 // when a blue/green deployment is successful.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BlueInstanceTerminationOption
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/BlueInstanceTerminationOption
 type BlueInstanceTerminationOption struct {
 	_ struct{} `type:"structure"`
 
@@ -4872,7 +5149,7 @@ func (s *BlueInstanceTerminationOption) SetTerminationWaitTimeInMinutes(v int64)
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ContinueDeploymentInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ContinueDeploymentInput
 type ContinueDeploymentInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4897,7 +5174,7 @@ func (s *ContinueDeploymentInput) SetDeploymentId(v string) *ContinueDeploymentI
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ContinueDeploymentOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ContinueDeploymentOutput
 type ContinueDeploymentOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -4913,7 +5190,7 @@ func (s ContinueDeploymentOutput) GoString() string {
 }
 
 // Represents the input of a CreateApplication operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateApplicationInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateApplicationInput
 type CreateApplicationInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4922,6 +5199,9 @@ type CreateApplicationInput struct {
 	//
 	// ApplicationName is a required field
 	ApplicationName *string `locationName:"applicationName" min:"1" type:"string" required:"true"`
+
+	// The destination platform type for the deployment (Lambda or Server).
+	ComputePlatform *string `locationName:"computePlatform" type:"string" enum:"ComputePlatform"`
 }
 
 // String returns the string representation
@@ -4956,8 +5236,14 @@ func (s *CreateApplicationInput) SetApplicationName(v string) *CreateApplication
 	return s
 }
 
+// SetComputePlatform sets the ComputePlatform field's value.
+func (s *CreateApplicationInput) SetComputePlatform(v string) *CreateApplicationInput {
+	s.ComputePlatform = &v
+	return s
+}
+
 // Represents the output of a CreateApplication operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateApplicationOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateApplicationOutput
 type CreateApplicationOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4982,9 +5268,12 @@ func (s *CreateApplicationOutput) SetApplicationId(v string) *CreateApplicationO
 }
 
 // Represents the input of a CreateDeploymentConfig operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentConfigInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentConfigInput
 type CreateDeploymentConfigInput struct {
 	_ struct{} `type:"structure"`
+
+	// The destination platform type for the deployment (Lambda or Server>).
+	ComputePlatform *string `locationName:"computePlatform" type:"string" enum:"ComputePlatform"`
 
 	// The name of the deployment configuration to create.
 	//
@@ -5011,6 +5300,9 @@ type CreateDeploymentConfigInput struct {
 	// For example, to set a minimum of 95% healthy instance, specify a type of
 	// FLEET_PERCENT and a value of 95.
 	MinimumHealthyHosts *MinimumHealthyHosts `locationName:"minimumHealthyHosts" type:"structure"`
+
+	// The configuration that specifies how the deployment traffic will be routed.
+	TrafficRoutingConfig *TrafficRoutingConfig `locationName:"trafficRoutingConfig" type:"structure"`
 }
 
 // String returns the string representation
@@ -5039,6 +5331,12 @@ func (s *CreateDeploymentConfigInput) Validate() error {
 	return nil
 }
 
+// SetComputePlatform sets the ComputePlatform field's value.
+func (s *CreateDeploymentConfigInput) SetComputePlatform(v string) *CreateDeploymentConfigInput {
+	s.ComputePlatform = &v
+	return s
+}
+
 // SetDeploymentConfigName sets the DeploymentConfigName field's value.
 func (s *CreateDeploymentConfigInput) SetDeploymentConfigName(v string) *CreateDeploymentConfigInput {
 	s.DeploymentConfigName = &v
@@ -5051,8 +5349,14 @@ func (s *CreateDeploymentConfigInput) SetMinimumHealthyHosts(v *MinimumHealthyHo
 	return s
 }
 
+// SetTrafficRoutingConfig sets the TrafficRoutingConfig field's value.
+func (s *CreateDeploymentConfigInput) SetTrafficRoutingConfig(v *TrafficRoutingConfig) *CreateDeploymentConfigInput {
+	s.TrafficRoutingConfig = v
+	return s
+}
+
 // Represents the output of a CreateDeploymentConfig operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentConfigOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentConfigOutput
 type CreateDeploymentConfigOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5077,7 +5381,7 @@ func (s *CreateDeploymentConfigOutput) SetDeploymentConfigId(v string) *CreateDe
 }
 
 // Represents the input of a CreateDeploymentGroup operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentGroupInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentGroupInput
 type CreateDeploymentGroupInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5125,15 +5429,27 @@ type CreateDeploymentGroupInput struct {
 	DeploymentStyle *DeploymentStyle `locationName:"deploymentStyle" type:"structure"`
 
 	// The Amazon EC2 tags on which to filter. The deployment group will include
-	// EC2 instances with any of the specified tags.
+	// EC2 instances with any of the specified tags. Cannot be used in the same
+	// call as ec2TagSet.
 	Ec2TagFilters []*EC2TagFilter `locationName:"ec2TagFilters" type:"list"`
+
+	// Information about groups of tags applied to EC2 instances. The deployment
+	// group will include only EC2 instances identified by all the tag groups. Cannot
+	// be used in the same call as ec2TagFilters.
+	Ec2TagSet *EC2TagSet `locationName:"ec2TagSet" type:"structure"`
 
 	// Information about the load balancer used in a deployment.
 	LoadBalancerInfo *LoadBalancerInfo `locationName:"loadBalancerInfo" type:"structure"`
 
 	// The on-premises instance tags on which to filter. The deployment group will
-	// include on-premises instances with any of the specified tags.
+	// include on-premises instances with any of the specified tags. Cannot be used
+	// in the same call as OnPremisesTagSet.
 	OnPremisesInstanceTagFilters []*TagFilter `locationName:"onPremisesInstanceTagFilters" type:"list"`
+
+	// Information about groups of tags applied to on-premises instances. The deployment
+	// group will include only on-premises instances identified by all the tag groups.
+	// Cannot be used in the same call as onPremisesInstanceTagFilters.
+	OnPremisesTagSet *OnPremisesTagSet `locationName:"onPremisesTagSet" type:"structure"`
 
 	// A service role ARN that allows AWS CodeDeploy to act on the user's behalf
 	// when interacting with AWS services.
@@ -5239,6 +5555,12 @@ func (s *CreateDeploymentGroupInput) SetEc2TagFilters(v []*EC2TagFilter) *Create
 	return s
 }
 
+// SetEc2TagSet sets the Ec2TagSet field's value.
+func (s *CreateDeploymentGroupInput) SetEc2TagSet(v *EC2TagSet) *CreateDeploymentGroupInput {
+	s.Ec2TagSet = v
+	return s
+}
+
 // SetLoadBalancerInfo sets the LoadBalancerInfo field's value.
 func (s *CreateDeploymentGroupInput) SetLoadBalancerInfo(v *LoadBalancerInfo) *CreateDeploymentGroupInput {
 	s.LoadBalancerInfo = v
@@ -5248,6 +5570,12 @@ func (s *CreateDeploymentGroupInput) SetLoadBalancerInfo(v *LoadBalancerInfo) *C
 // SetOnPremisesInstanceTagFilters sets the OnPremisesInstanceTagFilters field's value.
 func (s *CreateDeploymentGroupInput) SetOnPremisesInstanceTagFilters(v []*TagFilter) *CreateDeploymentGroupInput {
 	s.OnPremisesInstanceTagFilters = v
+	return s
+}
+
+// SetOnPremisesTagSet sets the OnPremisesTagSet field's value.
+func (s *CreateDeploymentGroupInput) SetOnPremisesTagSet(v *OnPremisesTagSet) *CreateDeploymentGroupInput {
+	s.OnPremisesTagSet = v
 	return s
 }
 
@@ -5264,7 +5592,7 @@ func (s *CreateDeploymentGroupInput) SetTriggerConfigurations(v []*TriggerConfig
 }
 
 // Represents the output of a CreateDeploymentGroup operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentGroupOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentGroupOutput
 type CreateDeploymentGroupOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5289,7 +5617,7 @@ func (s *CreateDeploymentGroupOutput) SetDeploymentGroupId(v string) *CreateDepl
 }
 
 // Represents the input of a CreateDeployment operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentInput
 type CreateDeploymentInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5449,7 +5777,7 @@ func (s *CreateDeploymentInput) SetUpdateOutdatedInstancesOnly(v bool) *CreateDe
 }
 
 // Represents the output of a CreateDeployment operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/CreateDeploymentOutput
 type CreateDeploymentOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5474,7 +5802,7 @@ func (s *CreateDeploymentOutput) SetDeploymentId(v string) *CreateDeploymentOutp
 }
 
 // Represents the input of a DeleteApplication operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteApplicationInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteApplicationInput
 type DeleteApplicationInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5517,7 +5845,7 @@ func (s *DeleteApplicationInput) SetApplicationName(v string) *DeleteApplication
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteApplicationOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteApplicationOutput
 type DeleteApplicationOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -5533,7 +5861,7 @@ func (s DeleteApplicationOutput) GoString() string {
 }
 
 // Represents the input of a DeleteDeploymentConfig operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentConfigInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentConfigInput
 type DeleteDeploymentConfigInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5576,7 +5904,7 @@ func (s *DeleteDeploymentConfigInput) SetDeploymentConfigName(v string) *DeleteD
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentConfigOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentConfigOutput
 type DeleteDeploymentConfigOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -5592,7 +5920,7 @@ func (s DeleteDeploymentConfigOutput) GoString() string {
 }
 
 // Represents the input of a DeleteDeploymentGroup operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentGroupInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentGroupInput
 type DeleteDeploymentGroupInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5653,7 +5981,7 @@ func (s *DeleteDeploymentGroupInput) SetDeploymentGroupName(v string) *DeleteDep
 }
 
 // Represents the output of a DeleteDeploymentGroup operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentGroupOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteDeploymentGroupOutput
 type DeleteDeploymentGroupOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5682,10 +6010,63 @@ func (s *DeleteDeploymentGroupOutput) SetHooksNotCleanedUp(v []*AutoScalingGroup
 	return s
 }
 
+// Represents the input of a DeleteGitHubAccount operation.
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteGitHubAccountTokenInput
+type DeleteGitHubAccountTokenInput struct {
+	_ struct{} `type:"structure"`
+
+	// The name of the GitHub account connection to delete.
+	TokenName *string `locationName:"tokenName" type:"string"`
+}
+
+// String returns the string representation
+func (s DeleteGitHubAccountTokenInput) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s DeleteGitHubAccountTokenInput) GoString() string {
+	return s.String()
+}
+
+// SetTokenName sets the TokenName field's value.
+func (s *DeleteGitHubAccountTokenInput) SetTokenName(v string) *DeleteGitHubAccountTokenInput {
+	s.TokenName = &v
+	return s
+}
+
+// Represents the output of a DeleteGitHubAccountToken operation.
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeleteGitHubAccountTokenOutput
+type DeleteGitHubAccountTokenOutput struct {
+	_ struct{} `type:"structure"`
+
+	// The name of the GitHub account connection that was deleted.
+	TokenName *string `locationName:"tokenName" type:"string"`
+}
+
+// String returns the string representation
+func (s DeleteGitHubAccountTokenOutput) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s DeleteGitHubAccountTokenOutput) GoString() string {
+	return s.String()
+}
+
+// SetTokenName sets the TokenName field's value.
+func (s *DeleteGitHubAccountTokenOutput) SetTokenName(v string) *DeleteGitHubAccountTokenOutput {
+	s.TokenName = &v
+	return s
+}
+
 // Information about a deployment configuration.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeploymentConfigInfo
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeploymentConfigInfo
 type DeploymentConfigInfo struct {
 	_ struct{} `type:"structure"`
+
+	// The destination platform type for the deployment (Lambda or Server).
+	ComputePlatform *string `locationName:"computePlatform" type:"string" enum:"ComputePlatform"`
 
 	// The time at which the deployment configuration was created.
 	CreateTime *time.Time `locationName:"createTime" type:"timestamp" timestampFormat:"unix"`
@@ -5698,6 +6079,10 @@ type DeploymentConfigInfo struct {
 
 	// Information about the number or percentage of minimum healthy instance.
 	MinimumHealthyHosts *MinimumHealthyHosts `locationName:"minimumHealthyHosts" type:"structure"`
+
+	// The configuration specifying how the deployment traffic will be routed. Only
+	// deployments with a Lambda compute platform can specify this.
+	TrafficRoutingConfig *TrafficRoutingConfig `locationName:"trafficRoutingConfig" type:"structure"`
 }
 
 // String returns the string representation
@@ -5708,6 +6093,12 @@ func (s DeploymentConfigInfo) String() string {
 // GoString returns the string representation
 func (s DeploymentConfigInfo) GoString() string {
 	return s.String()
+}
+
+// SetComputePlatform sets the ComputePlatform field's value.
+func (s *DeploymentConfigInfo) SetComputePlatform(v string) *DeploymentConfigInfo {
+	s.ComputePlatform = &v
+	return s
 }
 
 // SetCreateTime sets the CreateTime field's value.
@@ -5734,8 +6125,14 @@ func (s *DeploymentConfigInfo) SetMinimumHealthyHosts(v *MinimumHealthyHosts) *D
 	return s
 }
 
+// SetTrafficRoutingConfig sets the TrafficRoutingConfig field's value.
+func (s *DeploymentConfigInfo) SetTrafficRoutingConfig(v *TrafficRoutingConfig) *DeploymentConfigInfo {
+	s.TrafficRoutingConfig = v
+	return s
+}
+
 // Information about a deployment group.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeploymentGroupInfo
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeploymentGroupInfo
 type DeploymentGroupInfo struct {
 	_ struct{} `type:"structure"`
 
@@ -5755,6 +6152,9 @@ type DeploymentGroupInfo struct {
 	// Information about blue/green deployment options for a deployment group.
 	BlueGreenDeploymentConfiguration *BlueGreenDeploymentConfiguration `locationName:"blueGreenDeploymentConfiguration" type:"structure"`
 
+	// The destination platform type for the deployment group (Lambda or Server).
+	ComputePlatform *string `locationName:"computePlatform" type:"string" enum:"ComputePlatform"`
+
 	// The deployment configuration name.
 	DeploymentConfigName *string `locationName:"deploymentConfigName" min:"1" type:"string"`
 
@@ -5768,8 +6168,14 @@ type DeploymentGroupInfo struct {
 	// you want to run and whether to route deployment traffic behind a load balancer.
 	DeploymentStyle *DeploymentStyle `locationName:"deploymentStyle" type:"structure"`
 
-	// The Amazon EC2 tags on which to filter.
+	// The Amazon EC2 tags on which to filter. The deployment group includes EC2
+	// instances with any of the specified tags.
 	Ec2TagFilters []*EC2TagFilter `locationName:"ec2TagFilters" type:"list"`
+
+	// Information about groups of tags applied to an EC2 instance. The deployment
+	// group includes only EC2 instances identified by all the tag groups. Cannot
+	// be used in the same call as ec2TagFilters.
+	Ec2TagSet *EC2TagSet `locationName:"ec2TagSet" type:"structure"`
 
 	// Information about the most recent attempted deployment to the deployment
 	// group.
@@ -5782,8 +6188,14 @@ type DeploymentGroupInfo struct {
 	// Information about the load balancer to use in a deployment.
 	LoadBalancerInfo *LoadBalancerInfo `locationName:"loadBalancerInfo" type:"structure"`
 
-	// The on-premises instance tags on which to filter.
+	// The on-premises instance tags on which to filter. The deployment group includes
+	// on-premises instances with any of the specified tags.
 	OnPremisesInstanceTagFilters []*TagFilter `locationName:"onPremisesInstanceTagFilters" type:"list"`
+
+	// Information about groups of tags applied to an on-premises instance. The
+	// deployment group includes only on-premises instances identified by all the
+	// tag groups. Cannot be used in the same call as onPremisesInstanceTagFilters.
+	OnPremisesTagSet *OnPremisesTagSet `locationName:"onPremisesTagSet" type:"structure"`
 
 	// A service role ARN.
 	ServiceRoleArn *string `locationName:"serviceRoleArn" type:"string"`
@@ -5836,6 +6248,12 @@ func (s *DeploymentGroupInfo) SetBlueGreenDeploymentConfiguration(v *BlueGreenDe
 	return s
 }
 
+// SetComputePlatform sets the ComputePlatform field's value.
+func (s *DeploymentGroupInfo) SetComputePlatform(v string) *DeploymentGroupInfo {
+	s.ComputePlatform = &v
+	return s
+}
+
 // SetDeploymentConfigName sets the DeploymentConfigName field's value.
 func (s *DeploymentGroupInfo) SetDeploymentConfigName(v string) *DeploymentGroupInfo {
 	s.DeploymentConfigName = &v
@@ -5866,6 +6284,12 @@ func (s *DeploymentGroupInfo) SetEc2TagFilters(v []*EC2TagFilter) *DeploymentGro
 	return s
 }
 
+// SetEc2TagSet sets the Ec2TagSet field's value.
+func (s *DeploymentGroupInfo) SetEc2TagSet(v *EC2TagSet) *DeploymentGroupInfo {
+	s.Ec2TagSet = v
+	return s
+}
+
 // SetLastAttemptedDeployment sets the LastAttemptedDeployment field's value.
 func (s *DeploymentGroupInfo) SetLastAttemptedDeployment(v *LastDeploymentInfo) *DeploymentGroupInfo {
 	s.LastAttemptedDeployment = v
@@ -5890,6 +6314,12 @@ func (s *DeploymentGroupInfo) SetOnPremisesInstanceTagFilters(v []*TagFilter) *D
 	return s
 }
 
+// SetOnPremisesTagSet sets the OnPremisesTagSet field's value.
+func (s *DeploymentGroupInfo) SetOnPremisesTagSet(v *OnPremisesTagSet) *DeploymentGroupInfo {
+	s.OnPremisesTagSet = v
+	return s
+}
+
 // SetServiceRoleArn sets the ServiceRoleArn field's value.
 func (s *DeploymentGroupInfo) SetServiceRoleArn(v string) *DeploymentGroupInfo {
 	s.ServiceRoleArn = &v
@@ -5909,13 +6339,13 @@ func (s *DeploymentGroupInfo) SetTriggerConfigurations(v []*TriggerConfig) *Depl
 }
 
 // Information about a deployment.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeploymentInfo
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeploymentInfo
 type DeploymentInfo struct {
 	_ struct{} `type:"structure"`
 
 	// Provides information about the results of a deployment, such as whether instances
 	// in the original environment in a blue/green deployment were not terminated.
-	AdditionalDeploymentStatusInfo *string `locationName:"additionalDeploymentStatusInfo" type:"string"`
+	AdditionalDeploymentStatusInfo *string `locationName:"additionalDeploymentStatusInfo" deprecated:"true" type:"string"`
 
 	// The application name.
 	ApplicationName *string `locationName:"applicationName" min:"1" type:"string"`
@@ -5929,6 +6359,9 @@ type DeploymentInfo struct {
 
 	// A timestamp indicating when the deployment was complete.
 	CompleteTime *time.Time `locationName:"completeTime" type:"timestamp" timestampFormat:"unix"`
+
+	// The destination platform type for the deployment (Lambda or Server).
+	ComputePlatform *string `locationName:"computePlatform" type:"string" enum:"ComputePlatform"`
 
 	// A timestamp indicating when the deployment was created.
 	CreateTime *time.Time `locationName:"createTime" type:"timestamp" timestampFormat:"unix"`
@@ -5953,6 +6386,9 @@ type DeploymentInfo struct {
 
 	// A summary of the deployment status of the instances in the deployment.
 	DeploymentOverview *DeploymentOverview `locationName:"deploymentOverview" type:"structure"`
+
+	// Messages that contain information about the status of a deployment.
+	DeploymentStatusMessages []*string `locationName:"deploymentStatusMessages" type:"list"`
 
 	// Information about the type of deployment, either in-place or blue/green,
 	// you want to run and whether to route deployment traffic behind a load balancer.
@@ -6069,6 +6505,12 @@ func (s *DeploymentInfo) SetCompleteTime(v time.Time) *DeploymentInfo {
 	return s
 }
 
+// SetComputePlatform sets the ComputePlatform field's value.
+func (s *DeploymentInfo) SetComputePlatform(v string) *DeploymentInfo {
+	s.ComputePlatform = &v
+	return s
+}
+
 // SetCreateTime sets the CreateTime field's value.
 func (s *DeploymentInfo) SetCreateTime(v time.Time) *DeploymentInfo {
 	s.CreateTime = &v
@@ -6102,6 +6544,12 @@ func (s *DeploymentInfo) SetDeploymentId(v string) *DeploymentInfo {
 // SetDeploymentOverview sets the DeploymentOverview field's value.
 func (s *DeploymentInfo) SetDeploymentOverview(v *DeploymentOverview) *DeploymentInfo {
 	s.DeploymentOverview = v
+	return s
+}
+
+// SetDeploymentStatusMessages sets the DeploymentStatusMessages field's value.
+func (s *DeploymentInfo) SetDeploymentStatusMessages(v []*string) *DeploymentInfo {
+	s.DeploymentStatusMessages = v
 	return s
 }
 
@@ -6190,7 +6638,7 @@ func (s *DeploymentInfo) SetUpdateOutdatedInstancesOnly(v bool) *DeploymentInfo 
 }
 
 // Information about the deployment status of the instances in the deployment.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeploymentOverview
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeploymentOverview
 type DeploymentOverview struct {
 	_ struct{} `type:"structure"`
 
@@ -6263,7 +6711,7 @@ func (s *DeploymentOverview) SetSucceeded(v int64) *DeploymentOverview {
 
 // Information about how traffic is rerouted to instances in a replacement environment
 // in a blue/green deployment.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeploymentReadyOption
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeploymentReadyOption
 type DeploymentReadyOption struct {
 	_ struct{} `type:"structure"`
 
@@ -6310,7 +6758,7 @@ func (s *DeploymentReadyOption) SetWaitTimeInMinutes(v int64) *DeploymentReadyOp
 
 // Information about the type of deployment, either in-place or blue/green,
 // you want to run and whether to route deployment traffic behind a load balancer.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeploymentStyle
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeploymentStyle
 type DeploymentStyle struct {
 	_ struct{} `type:"structure"`
 
@@ -6344,7 +6792,7 @@ func (s *DeploymentStyle) SetDeploymentType(v string) *DeploymentStyle {
 }
 
 // Represents the input of a DeregisterOnPremisesInstance operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeregisterOnPremisesInstanceInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeregisterOnPremisesInstanceInput
 type DeregisterOnPremisesInstanceInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6383,7 +6831,7 @@ func (s *DeregisterOnPremisesInstanceInput) SetInstanceName(v string) *Deregiste
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeregisterOnPremisesInstanceOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/DeregisterOnPremisesInstanceOutput
 type DeregisterOnPremisesInstanceOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -6399,7 +6847,7 @@ func (s DeregisterOnPremisesInstanceOutput) GoString() string {
 }
 
 // Diagnostic information about executable scripts that are part of a deployment.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/Diagnostics
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/Diagnostics
 type Diagnostics struct {
 	_ struct{} `type:"structure"`
 
@@ -6468,7 +6916,7 @@ func (s *Diagnostics) SetScriptName(v string) *Diagnostics {
 }
 
 // Information about an EC2 tag filter.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/EC2TagFilter
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/EC2TagFilter
 type EC2TagFilter struct {
 	_ struct{} `type:"structure"`
 
@@ -6516,8 +6964,37 @@ func (s *EC2TagFilter) SetValue(v string) *EC2TagFilter {
 	return s
 }
 
+// Information about groups of EC2 instance tags.
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/EC2TagSet
+type EC2TagSet struct {
+	_ struct{} `type:"structure"`
+
+	// A list containing other lists of EC2 instance tag groups. In order for an
+	// instance to be included in the deployment group, it must be identified by
+	// all the tag groups in the list.
+	Ec2TagSetList [][]*EC2TagFilter `locationName:"ec2TagSetList" type:"list"`
+}
+
+// String returns the string representation
+func (s EC2TagSet) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s EC2TagSet) GoString() string {
+	return s.String()
+}
+
+// SetEc2TagSetList sets the Ec2TagSetList field's value.
+func (s *EC2TagSet) SetEc2TagSetList(v [][]*EC2TagFilter) *EC2TagSet {
+	s.Ec2TagSetList = v
+	return s
+}
+
 // Information about a load balancer in Elastic Load Balancing to use in a deployment.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ELBInfo
+// Instances are registered directly with a load balancer, and traffic is routed
+// to the load balancer.
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ELBInfo
 type ELBInfo struct {
 	_ struct{} `type:"structure"`
 
@@ -6546,7 +7023,7 @@ func (s *ELBInfo) SetName(v string) *ELBInfo {
 }
 
 // Information about a deployment error.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ErrorInformation
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ErrorInformation
 type ErrorInformation struct {
 	_ struct{} `type:"structure"`
 
@@ -6620,7 +7097,7 @@ func (s *ErrorInformation) SetMessage(v string) *ErrorInformation {
 }
 
 // Information about an application revision.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GenericRevisionInfo
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GenericRevisionInfo
 type GenericRevisionInfo struct {
 	_ struct{} `type:"structure"`
 
@@ -6681,7 +7158,7 @@ func (s *GenericRevisionInfo) SetRegisterTime(v time.Time) *GenericRevisionInfo 
 }
 
 // Represents the input of a GetApplication operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplicationInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplicationInput
 type GetApplicationInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6725,7 +7202,7 @@ func (s *GetApplicationInput) SetApplicationName(v string) *GetApplicationInput 
 }
 
 // Represents the output of a GetApplication operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplicationOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplicationOutput
 type GetApplicationOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -6750,7 +7227,7 @@ func (s *GetApplicationOutput) SetApplication(v *ApplicationInfo) *GetApplicatio
 }
 
 // Represents the input of a GetApplicationRevision operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplicationRevisionInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplicationRevisionInput
 type GetApplicationRevisionInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6807,7 +7284,7 @@ func (s *GetApplicationRevisionInput) SetRevision(v *RevisionLocation) *GetAppli
 }
 
 // Represents the output of a GetApplicationRevision operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplicationRevisionOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetApplicationRevisionOutput
 type GetApplicationRevisionOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -6850,7 +7327,7 @@ func (s *GetApplicationRevisionOutput) SetRevisionInfo(v *GenericRevisionInfo) *
 }
 
 // Represents the input of a GetDeploymentConfig operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentConfigInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentConfigInput
 type GetDeploymentConfigInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6894,7 +7371,7 @@ func (s *GetDeploymentConfigInput) SetDeploymentConfigName(v string) *GetDeploym
 }
 
 // Represents the output of a GetDeploymentConfig operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentConfigOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentConfigOutput
 type GetDeploymentConfigOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -6919,7 +7396,7 @@ func (s *GetDeploymentConfigOutput) SetDeploymentConfigInfo(v *DeploymentConfigI
 }
 
 // Represents the input of a GetDeploymentGroup operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentGroupInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentGroupInput
 type GetDeploymentGroupInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6980,7 +7457,7 @@ func (s *GetDeploymentGroupInput) SetDeploymentGroupName(v string) *GetDeploymen
 }
 
 // Represents the output of a GetDeploymentGroup operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentGroupOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentGroupOutput
 type GetDeploymentGroupOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7005,7 +7482,7 @@ func (s *GetDeploymentGroupOutput) SetDeploymentGroupInfo(v *DeploymentGroupInfo
 }
 
 // Represents the input of a GetDeployment operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentInput
 type GetDeploymentInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7045,7 +7522,7 @@ func (s *GetDeploymentInput) SetDeploymentId(v string) *GetDeploymentInput {
 }
 
 // Represents the input of a GetDeploymentInstance operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentInstanceInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentInstanceInput
 type GetDeploymentInstanceInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7099,7 +7576,7 @@ func (s *GetDeploymentInstanceInput) SetInstanceId(v string) *GetDeploymentInsta
 }
 
 // Represents the output of a GetDeploymentInstance operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentInstanceOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentInstanceOutput
 type GetDeploymentInstanceOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7124,7 +7601,7 @@ func (s *GetDeploymentInstanceOutput) SetInstanceSummary(v *InstanceSummary) *Ge
 }
 
 // Represents the output of a GetDeployment operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetDeploymentOutput
 type GetDeploymentOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7149,7 +7626,7 @@ func (s *GetDeploymentOutput) SetDeploymentInfo(v *DeploymentInfo) *GetDeploymen
 }
 
 // Represents the input of a GetOnPremisesInstance operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetOnPremisesInstanceInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetOnPremisesInstanceInput
 type GetOnPremisesInstanceInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7189,7 +7666,7 @@ func (s *GetOnPremisesInstanceInput) SetInstanceName(v string) *GetOnPremisesIns
 }
 
 // Represents the output of a GetOnPremisesInstance operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetOnPremisesInstanceOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GetOnPremisesInstanceOutput
 type GetOnPremisesInstanceOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7214,7 +7691,7 @@ func (s *GetOnPremisesInstanceOutput) SetInstanceInfo(v *InstanceInfo) *GetOnPre
 }
 
 // Information about the location of application artifacts stored in GitHub.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GitHubLocation
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GitHubLocation
 type GitHubLocation struct {
 	_ struct{} `type:"structure"`
 
@@ -7253,7 +7730,7 @@ func (s *GitHubLocation) SetRepository(v string) *GitHubLocation {
 
 // Information about the instances that belong to the replacement environment
 // in a blue/green deployment.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GreenFleetProvisioningOption
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/GreenFleetProvisioningOption
 type GreenFleetProvisioningOption struct {
 	_ struct{} `type:"structure"`
 
@@ -7284,7 +7761,7 @@ func (s *GreenFleetProvisioningOption) SetAction(v string) *GreenFleetProvisioni
 }
 
 // Information about an on-premises instance.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/InstanceInfo
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/InstanceInfo
 type InstanceInfo struct {
 	_ struct{} `type:"structure"`
 
@@ -7364,7 +7841,7 @@ func (s *InstanceInfo) SetTags(v []*Tag) *InstanceInfo {
 }
 
 // Information about an instance in a deployment.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/InstanceSummary
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/InstanceSummary
 type InstanceSummary struct {
 	_ struct{} `type:"structure"`
 
@@ -7452,7 +7929,7 @@ func (s *InstanceSummary) SetStatus(v string) *InstanceSummary {
 
 // Information about the most recent attempted or successful deployment to a
 // deployment group.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/LastDeploymentInfo
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/LastDeploymentInfo
 type LastDeploymentInfo struct {
 	_ struct{} `type:"structure"`
 
@@ -7506,7 +7983,7 @@ func (s *LastDeploymentInfo) SetStatus(v string) *LastDeploymentInfo {
 }
 
 // Information about a deployment lifecycle event.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/LifecycleEvent
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/LifecycleEvent
 type LifecycleEvent struct {
 	_ struct{} `type:"structure"`
 
@@ -7580,7 +8057,7 @@ func (s *LifecycleEvent) SetStatus(v string) *LifecycleEvent {
 }
 
 // Represents the input of a ListApplicationRevisions operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplicationRevisionsInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplicationRevisionsInput
 type ListApplicationRevisionsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7707,7 +8184,7 @@ func (s *ListApplicationRevisionsInput) SetSortOrder(v string) *ListApplicationR
 }
 
 // Represents the output of a ListApplicationRevisions operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplicationRevisionsOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplicationRevisionsOutput
 type ListApplicationRevisionsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7743,7 +8220,7 @@ func (s *ListApplicationRevisionsOutput) SetRevisions(v []*RevisionLocation) *Li
 }
 
 // Represents the input of a ListApplications operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplicationsInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplicationsInput
 type ListApplicationsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7769,7 +8246,7 @@ func (s *ListApplicationsInput) SetNextToken(v string) *ListApplicationsInput {
 }
 
 // Represents the output of a ListApplications operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplicationsOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListApplicationsOutput
 type ListApplicationsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7805,7 +8282,7 @@ func (s *ListApplicationsOutput) SetNextToken(v string) *ListApplicationsOutput 
 }
 
 // Represents the input of a ListDeploymentConfigs operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentConfigsInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentConfigsInput
 type ListDeploymentConfigsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7832,7 +8309,7 @@ func (s *ListDeploymentConfigsInput) SetNextToken(v string) *ListDeploymentConfi
 }
 
 // Represents the output of a ListDeploymentConfigs operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentConfigsOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentConfigsOutput
 type ListDeploymentConfigsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7869,7 +8346,7 @@ func (s *ListDeploymentConfigsOutput) SetNextToken(v string) *ListDeploymentConf
 }
 
 // Represents the input of a ListDeploymentGroups operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentGroupsInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentGroupsInput
 type ListDeploymentGroupsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7923,7 +8400,7 @@ func (s *ListDeploymentGroupsInput) SetNextToken(v string) *ListDeploymentGroups
 }
 
 // Represents the output of a ListDeploymentGroups operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentGroupsOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentGroupsOutput
 type ListDeploymentGroupsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7968,7 +8445,7 @@ func (s *ListDeploymentGroupsOutput) SetNextToken(v string) *ListDeploymentGroup
 }
 
 // Represents the input of a ListDeploymentInstances operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentInstancesInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentInstancesInput
 type ListDeploymentInstancesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8050,7 +8527,7 @@ func (s *ListDeploymentInstancesInput) SetNextToken(v string) *ListDeploymentIns
 }
 
 // Represents the output of a ListDeploymentInstances operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentInstancesOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentInstancesOutput
 type ListDeploymentInstancesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -8086,7 +8563,7 @@ func (s *ListDeploymentInstancesOutput) SetNextToken(v string) *ListDeploymentIn
 }
 
 // Represents the input of a ListDeployments operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentsInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentsInput
 type ListDeploymentsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8177,7 +8654,7 @@ func (s *ListDeploymentsInput) SetNextToken(v string) *ListDeploymentsInput {
 }
 
 // Represents the output of a ListDeployments operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentsOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListDeploymentsOutput
 type ListDeploymentsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -8213,7 +8690,7 @@ func (s *ListDeploymentsOutput) SetNextToken(v string) *ListDeploymentsOutput {
 }
 
 // Represents the input of a ListGitHubAccountTokenNames operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListGitHubAccountTokenNamesInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListGitHubAccountTokenNamesInput
 type ListGitHubAccountTokenNamesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8239,7 +8716,7 @@ func (s *ListGitHubAccountTokenNamesInput) SetNextToken(v string) *ListGitHubAcc
 }
 
 // Represents the output of a ListGitHubAccountTokenNames operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListGitHubAccountTokenNamesOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListGitHubAccountTokenNamesOutput
 type ListGitHubAccountTokenNamesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -8275,7 +8752,7 @@ func (s *ListGitHubAccountTokenNamesOutput) SetTokenNameList(v []*string) *ListG
 }
 
 // Represents the input of a ListOnPremisesInstances operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListOnPremisesInstancesInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListOnPremisesInstancesInput
 type ListOnPremisesInstancesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8326,7 +8803,7 @@ func (s *ListOnPremisesInstancesInput) SetTagFilters(v []*TagFilter) *ListOnPrem
 }
 
 // Represents the output of list on-premises instances operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListOnPremisesInstancesOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/ListOnPremisesInstancesOutput
 type ListOnPremisesInstancesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -8361,14 +8838,21 @@ func (s *ListOnPremisesInstancesOutput) SetNextToken(v string) *ListOnPremisesIn
 	return s
 }
 
-// Information about the load balancer used in a deployment.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/LoadBalancerInfo
+// Information about the Elastic Load Balancing load balancer or target group
+// used in a deployment.
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/LoadBalancerInfo
 type LoadBalancerInfo struct {
 	_ struct{} `type:"structure"`
 
-	// An array containing information about the load balancer in Elastic Load Balancing
-	// to use in a deployment.
+	// An array containing information about the load balancer to use for load balancing
+	// in a deployment. In Elastic Load Balancing, load balancers are used with
+	// Classic Load Balancers.
 	ElbInfoList []*ELBInfo `locationName:"elbInfoList" type:"list"`
+
+	// An array containing information about the target group to use for load balancing
+	// in a deployment. In Elastic Load Balancing, target groups are used with Application
+	// Load Balancers.
+	TargetGroupInfoList []*TargetGroupInfo `locationName:"targetGroupInfoList" type:"list"`
 }
 
 // String returns the string representation
@@ -8387,8 +8871,14 @@ func (s *LoadBalancerInfo) SetElbInfoList(v []*ELBInfo) *LoadBalancerInfo {
 	return s
 }
 
+// SetTargetGroupInfoList sets the TargetGroupInfoList field's value.
+func (s *LoadBalancerInfo) SetTargetGroupInfoList(v []*TargetGroupInfo) *LoadBalancerInfo {
+	s.TargetGroupInfoList = v
+	return s
+}
+
 // Information about minimum healthy instance.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/MinimumHealthyHosts
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/MinimumHealthyHosts
 type MinimumHealthyHosts struct {
 	_ struct{} `type:"structure"`
 
@@ -8446,8 +8936,143 @@ func (s *MinimumHealthyHosts) SetValue(v int64) *MinimumHealthyHosts {
 	return s
 }
 
+// Information about groups of on-premises instance tags.
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/OnPremisesTagSet
+type OnPremisesTagSet struct {
+	_ struct{} `type:"structure"`
+
+	// A list containing other lists of on-premises instance tag groups. In order
+	// for an instance to be included in the deployment group, it must be identified
+	// by all the tag groups in the list.
+	OnPremisesTagSetList [][]*TagFilter `locationName:"onPremisesTagSetList" type:"list"`
+}
+
+// String returns the string representation
+func (s OnPremisesTagSet) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s OnPremisesTagSet) GoString() string {
+	return s.String()
+}
+
+// SetOnPremisesTagSetList sets the OnPremisesTagSetList field's value.
+func (s *OnPremisesTagSet) SetOnPremisesTagSetList(v [][]*TagFilter) *OnPremisesTagSet {
+	s.OnPremisesTagSetList = v
+	return s
+}
+
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/PutLifecycleEventHookExecutionStatusInput
+type PutLifecycleEventHookExecutionStatusInput struct {
+	_ struct{} `type:"structure"`
+
+	// The ID of the deployment. Pass this ID to a Lambda function that validates
+	// a deployment lifecycle event.
+	DeploymentId *string `locationName:"deploymentId" type:"string"`
+
+	// The execution ID of a deployment's lifecycle hook. A deployment lifecycle
+	// hook is specified in the hooks section of the AppSpec file.
+	LifecycleEventHookExecutionId *string `locationName:"lifecycleEventHookExecutionId" type:"string"`
+
+	// The result of a Lambda function that validates a deployment lifecycle event
+	// (Succeeded or Failed).
+	Status *string `locationName:"status" type:"string" enum:"LifecycleEventStatus"`
+}
+
+// String returns the string representation
+func (s PutLifecycleEventHookExecutionStatusInput) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s PutLifecycleEventHookExecutionStatusInput) GoString() string {
+	return s.String()
+}
+
+// SetDeploymentId sets the DeploymentId field's value.
+func (s *PutLifecycleEventHookExecutionStatusInput) SetDeploymentId(v string) *PutLifecycleEventHookExecutionStatusInput {
+	s.DeploymentId = &v
+	return s
+}
+
+// SetLifecycleEventHookExecutionId sets the LifecycleEventHookExecutionId field's value.
+func (s *PutLifecycleEventHookExecutionStatusInput) SetLifecycleEventHookExecutionId(v string) *PutLifecycleEventHookExecutionStatusInput {
+	s.LifecycleEventHookExecutionId = &v
+	return s
+}
+
+// SetStatus sets the Status field's value.
+func (s *PutLifecycleEventHookExecutionStatusInput) SetStatus(v string) *PutLifecycleEventHookExecutionStatusInput {
+	s.Status = &v
+	return s
+}
+
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/PutLifecycleEventHookExecutionStatusOutput
+type PutLifecycleEventHookExecutionStatusOutput struct {
+	_ struct{} `type:"structure"`
+
+	// The execution ID of the lifecycle event hook. A hook is specified in the
+	// hooks section of the deployment's AppSpec file.
+	LifecycleEventHookExecutionId *string `locationName:"lifecycleEventHookExecutionId" type:"string"`
+}
+
+// String returns the string representation
+func (s PutLifecycleEventHookExecutionStatusOutput) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s PutLifecycleEventHookExecutionStatusOutput) GoString() string {
+	return s.String()
+}
+
+// SetLifecycleEventHookExecutionId sets the LifecycleEventHookExecutionId field's value.
+func (s *PutLifecycleEventHookExecutionStatusOutput) SetLifecycleEventHookExecutionId(v string) *PutLifecycleEventHookExecutionStatusOutput {
+	s.LifecycleEventHookExecutionId = &v
+	return s
+}
+
+// A revision for an AWS Lambda deployment that is a YAML-formatted or JSON-formatted
+// string. For AWS Lambda deployments, the revision is the same as the AppSpec
+// file.
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RawString
+type RawString struct {
+	_ struct{} `type:"structure"`
+
+	// The YAML-formatted or JSON-formatted revision string. It includes information
+	// about which Lambda function to update and optional Lambda functions that
+	// validate deployment lifecycle events.
+	Content *string `locationName:"content" type:"string"`
+
+	// The SHA256 hash value of the revision that is specified as a RawString.
+	Sha256 *string `locationName:"sha256" type:"string"`
+}
+
+// String returns the string representation
+func (s RawString) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s RawString) GoString() string {
+	return s.String()
+}
+
+// SetContent sets the Content field's value.
+func (s *RawString) SetContent(v string) *RawString {
+	s.Content = &v
+	return s
+}
+
+// SetSha256 sets the Sha256 field's value.
+func (s *RawString) SetSha256(v string) *RawString {
+	s.Sha256 = &v
+	return s
+}
+
 // Represents the input of a RegisterApplicationRevision operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterApplicationRevisionInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterApplicationRevisionInput
 type RegisterApplicationRevisionInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8514,7 +9139,7 @@ func (s *RegisterApplicationRevisionInput) SetRevision(v *RevisionLocation) *Reg
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterApplicationRevisionOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterApplicationRevisionOutput
 type RegisterApplicationRevisionOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -8530,7 +9155,7 @@ func (s RegisterApplicationRevisionOutput) GoString() string {
 }
 
 // Represents the input of the register on-premises instance operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterOnPremisesInstanceInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterOnPremisesInstanceInput
 type RegisterOnPremisesInstanceInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8587,7 +9212,7 @@ func (s *RegisterOnPremisesInstanceInput) SetInstanceName(v string) *RegisterOnP
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterOnPremisesInstanceOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RegisterOnPremisesInstanceOutput
 type RegisterOnPremisesInstanceOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -8603,7 +9228,7 @@ func (s RegisterOnPremisesInstanceOutput) GoString() string {
 }
 
 // Represents the input of a RemoveTagsFromOnPremisesInstances operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RemoveTagsFromOnPremisesInstancesInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RemoveTagsFromOnPremisesInstancesInput
 type RemoveTagsFromOnPremisesInstancesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8656,7 +9281,7 @@ func (s *RemoveTagsFromOnPremisesInstancesInput) SetTags(v []*Tag) *RemoveTagsFr
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RemoveTagsFromOnPremisesInstancesOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RemoveTagsFromOnPremisesInstancesOutput
 type RemoveTagsFromOnPremisesInstancesOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -8672,7 +9297,7 @@ func (s RemoveTagsFromOnPremisesInstancesOutput) GoString() string {
 }
 
 // Information about an application revision.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RevisionInfo
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RevisionInfo
 type RevisionInfo struct {
 	_ struct{} `type:"structure"`
 
@@ -8707,7 +9332,7 @@ func (s *RevisionInfo) SetRevisionLocation(v *RevisionLocation) *RevisionInfo {
 }
 
 // Information about the location of an application revision.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RevisionLocation
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RevisionLocation
 type RevisionLocation struct {
 	_ struct{} `type:"structure"`
 
@@ -8718,12 +9343,19 @@ type RevisionLocation struct {
 	//
 	//    * S3: An application revision stored in Amazon S3.
 	//
-	//    * GitHub: An application revision stored in GitHub.
+	//    * GitHub: An application revision stored in GitHub (EC2/On-premises deployments
+	//    only)
+	//
+	//    * String: A YAML-formatted or JSON-formatted string (AWS Lambda deployments
+	//    only)
 	RevisionType *string `locationName:"revisionType" type:"string" enum:"RevisionLocationType"`
 
-	// Information about the location of application artifacts stored in Amazon
-	// S3.
+	// Information about the location of a revision stored in Amazon S3.
 	S3Location *S3Location `locationName:"s3Location" type:"structure"`
+
+	// Information about the location of an AWS Lambda deployment revision stored
+	// as a RawString.
+	String_ *RawString `locationName:"string" type:"structure"`
 }
 
 // String returns the string representation
@@ -8754,8 +9386,14 @@ func (s *RevisionLocation) SetS3Location(v *S3Location) *RevisionLocation {
 	return s
 }
 
+// SetString_ sets the String_ field's value.
+func (s *RevisionLocation) SetString_(v *RawString) *RevisionLocation {
+	s.String_ = v
+	return s
+}
+
 // Information about a deployment rollback.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RollbackInfo
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/RollbackInfo
 type RollbackInfo struct {
 	_ struct{} `type:"structure"`
 
@@ -8801,7 +9439,7 @@ func (s *RollbackInfo) SetRollbackTriggeringDeploymentId(v string) *RollbackInfo
 
 // Information about the location of application artifacts stored in Amazon
 // S3.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/S3Location
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/S3Location
 type S3Location struct {
 	_ struct{} `type:"structure"`
 
@@ -8876,7 +9514,7 @@ func (s *S3Location) SetVersion(v string) *S3Location {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/SkipWaitTimeForInstanceTerminationInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/SkipWaitTimeForInstanceTerminationInput
 type SkipWaitTimeForInstanceTerminationInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8901,7 +9539,7 @@ func (s *SkipWaitTimeForInstanceTerminationInput) SetDeploymentId(v string) *Ski
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/SkipWaitTimeForInstanceTerminationOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/SkipWaitTimeForInstanceTerminationOutput
 type SkipWaitTimeForInstanceTerminationOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -8917,7 +9555,7 @@ func (s SkipWaitTimeForInstanceTerminationOutput) GoString() string {
 }
 
 // Represents the input of a StopDeployment operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/StopDeploymentInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/StopDeploymentInput
 type StopDeploymentInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8968,7 +9606,7 @@ func (s *StopDeploymentInput) SetDeploymentId(v string) *StopDeploymentInput {
 }
 
 // Represents the output of a StopDeployment operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/StopDeploymentOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/StopDeploymentOutput
 type StopDeploymentOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -9006,7 +9644,7 @@ func (s *StopDeploymentOutput) SetStatusMessage(v string) *StopDeploymentOutput 
 }
 
 // Information about a tag.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/Tag
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/Tag
 type Tag struct {
 	_ struct{} `type:"structure"`
 
@@ -9040,7 +9678,7 @@ func (s *Tag) SetValue(v string) *Tag {
 }
 
 // Information about an on-premises instance tag filter.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/TagFilter
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/TagFilter
 type TagFilter struct {
 	_ struct{} `type:"structure"`
 
@@ -9088,9 +9726,40 @@ func (s *TagFilter) SetValue(v string) *TagFilter {
 	return s
 }
 
+// Information about a target group in Elastic Load Balancing to use in a deployment.
+// Instances are registered as targets in a target group, and traffic is routed
+// to the target group.
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/TargetGroupInfo
+type TargetGroupInfo struct {
+	_ struct{} `type:"structure"`
+
+	// For blue/green deployments, the name of the target group that instances in
+	// the original environment are deregistered from, and instances in the replacement
+	// environment registered with. For in-place deployments, the name of the target
+	// group that instances are deregistered from, so they are not serving traffic
+	// during a deployment, and then re-registered with after the deployment completes.
+	Name *string `locationName:"name" type:"string"`
+}
+
+// String returns the string representation
+func (s TargetGroupInfo) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s TargetGroupInfo) GoString() string {
+	return s.String()
+}
+
+// SetName sets the Name field's value.
+func (s *TargetGroupInfo) SetName(v string) *TargetGroupInfo {
+	s.Name = &v
+	return s
+}
+
 // Information about the instances to be used in the replacement environment
 // in a blue/green deployment.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/TargetInstances
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/TargetInstances
 type TargetInstances struct {
 	_ struct{} `type:"structure"`
 
@@ -9098,8 +9767,14 @@ type TargetInstances struct {
 	// for a blue/green deployment.
 	AutoScalingGroups []*string `locationName:"autoScalingGroups" type:"list"`
 
+	// Information about the groups of EC2 instance tags that an instance must be
+	// identified by in order for it to be included in the replacement environment
+	// for a blue/green deployment. Cannot be used in the same call as tagFilters.
+	Ec2TagSet *EC2TagSet `locationName:"ec2TagSet" type:"structure"`
+
 	// The tag filter key, type, and value used to identify Amazon EC2 instances
-	// in a replacement environment for a blue/green deployment.
+	// in a replacement environment for a blue/green deployment. Cannot be used
+	// in the same call as ec2TagSet.
 	TagFilters []*EC2TagFilter `locationName:"tagFilters" type:"list"`
 }
 
@@ -9119,14 +9794,97 @@ func (s *TargetInstances) SetAutoScalingGroups(v []*string) *TargetInstances {
 	return s
 }
 
+// SetEc2TagSet sets the Ec2TagSet field's value.
+func (s *TargetInstances) SetEc2TagSet(v *EC2TagSet) *TargetInstances {
+	s.Ec2TagSet = v
+	return s
+}
+
 // SetTagFilters sets the TagFilters field's value.
 func (s *TargetInstances) SetTagFilters(v []*EC2TagFilter) *TargetInstances {
 	s.TagFilters = v
 	return s
 }
 
+// A configuration that shifts traffic from one version of a Lambda function
+// to another in two increments. The original and target Lambda function versions
+// are specified in the deployment's AppSpec file.
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/TimeBasedCanary
+type TimeBasedCanary struct {
+	_ struct{} `type:"structure"`
+
+	// The number of minutes between the first and second traffic shifts of a TimeBasedCanary
+	// deployment.
+	CanaryInterval *int64 `locationName:"canaryInterval" type:"integer"`
+
+	// The percentage of traffic to shift in the first increment of a TimeBasedCanary
+	// deployment.
+	CanaryPercentage *int64 `locationName:"canaryPercentage" type:"integer"`
+}
+
+// String returns the string representation
+func (s TimeBasedCanary) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s TimeBasedCanary) GoString() string {
+	return s.String()
+}
+
+// SetCanaryInterval sets the CanaryInterval field's value.
+func (s *TimeBasedCanary) SetCanaryInterval(v int64) *TimeBasedCanary {
+	s.CanaryInterval = &v
+	return s
+}
+
+// SetCanaryPercentage sets the CanaryPercentage field's value.
+func (s *TimeBasedCanary) SetCanaryPercentage(v int64) *TimeBasedCanary {
+	s.CanaryPercentage = &v
+	return s
+}
+
+// A configuration that shifts traffic from one version of a Lambda function
+// to another in equal increments, with an equal number of minutes between each
+// increment. The original and target Lambda function versions are specified
+// in the deployment's AppSpec file.
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/TimeBasedLinear
+type TimeBasedLinear struct {
+	_ struct{} `type:"structure"`
+
+	// The number of minutes between each incremental traffic shift of a TimeBasedLinear
+	// deployment.
+	LinearInterval *int64 `locationName:"linearInterval" type:"integer"`
+
+	// The percentage of traffic that is shifted at the start of each increment
+	// of a TimeBasedLinear deployment.
+	LinearPercentage *int64 `locationName:"linearPercentage" type:"integer"`
+}
+
+// String returns the string representation
+func (s TimeBasedLinear) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s TimeBasedLinear) GoString() string {
+	return s.String()
+}
+
+// SetLinearInterval sets the LinearInterval field's value.
+func (s *TimeBasedLinear) SetLinearInterval(v int64) *TimeBasedLinear {
+	s.LinearInterval = &v
+	return s
+}
+
+// SetLinearPercentage sets the LinearPercentage field's value.
+func (s *TimeBasedLinear) SetLinearPercentage(v int64) *TimeBasedLinear {
+	s.LinearPercentage = &v
+	return s
+}
+
 // Information about a time range.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/TimeRange
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/TimeRange
 type TimeRange struct {
 	_ struct{} `type:"structure"`
 
@@ -9163,8 +9921,58 @@ func (s *TimeRange) SetStart(v time.Time) *TimeRange {
 	return s
 }
 
+// The configuration that specifies how traffic is shifted from one version
+// of a Lambda function to another version during an AWS Lambda deployment.
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/TrafficRoutingConfig
+type TrafficRoutingConfig struct {
+	_ struct{} `type:"structure"`
+
+	// A configuration that shifts traffic from one version of a Lambda function
+	// to another in two increments. The original and target Lambda function versions
+	// are specified in the deployment's AppSpec file.
+	TimeBasedCanary *TimeBasedCanary `locationName:"timeBasedCanary" type:"structure"`
+
+	// A configuration that shifts traffic from one version of a Lambda function
+	// to another in equal increments, with an equal number of minutes between each
+	// increment. The original and target Lambda function versions are specified
+	// in the deployment's AppSpec file.
+	TimeBasedLinear *TimeBasedLinear `locationName:"timeBasedLinear" type:"structure"`
+
+	// The type of traffic shifting (TimeBasedCanary or TimeBasedLinear) used by
+	// a deployment configuration .
+	Type *string `locationName:"type" type:"string" enum:"TrafficRoutingType"`
+}
+
+// String returns the string representation
+func (s TrafficRoutingConfig) String() string {
+	return awsutil.Prettify(s)
+}
+
+// GoString returns the string representation
+func (s TrafficRoutingConfig) GoString() string {
+	return s.String()
+}
+
+// SetTimeBasedCanary sets the TimeBasedCanary field's value.
+func (s *TrafficRoutingConfig) SetTimeBasedCanary(v *TimeBasedCanary) *TrafficRoutingConfig {
+	s.TimeBasedCanary = v
+	return s
+}
+
+// SetTimeBasedLinear sets the TimeBasedLinear field's value.
+func (s *TrafficRoutingConfig) SetTimeBasedLinear(v *TimeBasedLinear) *TrafficRoutingConfig {
+	s.TimeBasedLinear = v
+	return s
+}
+
+// SetType sets the Type field's value.
+func (s *TrafficRoutingConfig) SetType(v string) *TrafficRoutingConfig {
+	s.Type = &v
+	return s
+}
+
 // Information about notification triggers for the deployment group.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/TriggerConfig
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/TriggerConfig
 type TriggerConfig struct {
 	_ struct{} `type:"structure"`
 
@@ -9208,7 +10016,7 @@ func (s *TriggerConfig) SetTriggerTargetArn(v string) *TriggerConfig {
 }
 
 // Represents the input of an UpdateApplication operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateApplicationInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateApplicationInput
 type UpdateApplicationInput struct {
 	_ struct{} `type:"structure"`
 
@@ -9257,7 +10065,7 @@ func (s *UpdateApplicationInput) SetNewApplicationName(v string) *UpdateApplicat
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateApplicationOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateApplicationOutput
 type UpdateApplicationOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -9273,7 +10081,7 @@ func (s UpdateApplicationOutput) GoString() string {
 }
 
 // Represents the input of an UpdateDeploymentGroup operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateDeploymentGroupInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateDeploymentGroupInput
 type UpdateDeploymentGroupInput struct {
 	_ struct{} `type:"structure"`
 
@@ -9317,6 +10125,10 @@ type UpdateDeploymentGroupInput struct {
 	// do not enter any tag names.
 	Ec2TagFilters []*EC2TagFilter `locationName:"ec2TagFilters" type:"list"`
 
+	// Information about groups of tags applied to on-premises instances. The deployment
+	// group will include only EC2 instances identified by all the tag groups.
+	Ec2TagSet *EC2TagSet `locationName:"ec2TagSet" type:"structure"`
+
 	// Information about the load balancer used in a deployment.
 	LoadBalancerInfo *LoadBalancerInfo `locationName:"loadBalancerInfo" type:"structure"`
 
@@ -9327,6 +10139,10 @@ type UpdateDeploymentGroupInput struct {
 	// want to change them. To keep the existing tags, enter their names. To remove
 	// tags, do not enter any tag names.
 	OnPremisesInstanceTagFilters []*TagFilter `locationName:"onPremisesInstanceTagFilters" type:"list"`
+
+	// Information about an on-premises instance tag set. The deployment group will
+	// include only on-premises instances identified by all the tag groups.
+	OnPremisesTagSet *OnPremisesTagSet `locationName:"onPremisesTagSet" type:"structure"`
 
 	// A replacement ARN for the service role, if you want to change it.
 	ServiceRoleArn *string `locationName:"serviceRoleArn" type:"string"`
@@ -9429,6 +10245,12 @@ func (s *UpdateDeploymentGroupInput) SetEc2TagFilters(v []*EC2TagFilter) *Update
 	return s
 }
 
+// SetEc2TagSet sets the Ec2TagSet field's value.
+func (s *UpdateDeploymentGroupInput) SetEc2TagSet(v *EC2TagSet) *UpdateDeploymentGroupInput {
+	s.Ec2TagSet = v
+	return s
+}
+
 // SetLoadBalancerInfo sets the LoadBalancerInfo field's value.
 func (s *UpdateDeploymentGroupInput) SetLoadBalancerInfo(v *LoadBalancerInfo) *UpdateDeploymentGroupInput {
 	s.LoadBalancerInfo = v
@@ -9447,6 +10269,12 @@ func (s *UpdateDeploymentGroupInput) SetOnPremisesInstanceTagFilters(v []*TagFil
 	return s
 }
 
+// SetOnPremisesTagSet sets the OnPremisesTagSet field's value.
+func (s *UpdateDeploymentGroupInput) SetOnPremisesTagSet(v *OnPremisesTagSet) *UpdateDeploymentGroupInput {
+	s.OnPremisesTagSet = v
+	return s
+}
+
 // SetServiceRoleArn sets the ServiceRoleArn field's value.
 func (s *UpdateDeploymentGroupInput) SetServiceRoleArn(v string) *UpdateDeploymentGroupInput {
 	s.ServiceRoleArn = &v
@@ -9460,7 +10288,7 @@ func (s *UpdateDeploymentGroupInput) SetTriggerConfigurations(v []*TriggerConfig
 }
 
 // Represents the output of an UpdateDeploymentGroup operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateDeploymentGroupOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/codedeploy-2014-10-06/UpdateDeploymentGroupOutput
 type UpdateDeploymentGroupOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -9519,6 +10347,20 @@ const (
 
 	// BundleTypeZip is a BundleType enum value
 	BundleTypeZip = "zip"
+
+	// BundleTypeYaml is a BundleType enum value
+	BundleTypeYaml = "YAML"
+
+	// BundleTypeJson is a BundleType enum value
+	BundleTypeJson = "JSON"
+)
+
+const (
+	// ComputePlatformServer is a ComputePlatform enum value
+	ComputePlatformServer = "Server"
+
+	// ComputePlatformLambda is a ComputePlatform enum value
+	ComputePlatformLambda = "Lambda"
 )
 
 const (
@@ -9644,6 +10486,30 @@ const (
 
 	// ErrorCodeManualStop is a ErrorCode enum value
 	ErrorCodeManualStop = "MANUAL_STOP"
+
+	// ErrorCodeMissingBlueGreenDeploymentConfiguration is a ErrorCode enum value
+	ErrorCodeMissingBlueGreenDeploymentConfiguration = "MISSING_BLUE_GREEN_DEPLOYMENT_CONFIGURATION"
+
+	// ErrorCodeMissingElbInformation is a ErrorCode enum value
+	ErrorCodeMissingElbInformation = "MISSING_ELB_INFORMATION"
+
+	// ErrorCodeMissingGithubToken is a ErrorCode enum value
+	ErrorCodeMissingGithubToken = "MISSING_GITHUB_TOKEN"
+
+	// ErrorCodeElasticLoadBalancingInvalid is a ErrorCode enum value
+	ErrorCodeElasticLoadBalancingInvalid = "ELASTIC_LOAD_BALANCING_INVALID"
+
+	// ErrorCodeElbInvalidInstance is a ErrorCode enum value
+	ErrorCodeElbInvalidInstance = "ELB_INVALID_INSTANCE"
+
+	// ErrorCodeInvalidLambdaConfiguration is a ErrorCode enum value
+	ErrorCodeInvalidLambdaConfiguration = "INVALID_LAMBDA_CONFIGURATION"
+
+	// ErrorCodeInvalidLambdaFunction is a ErrorCode enum value
+	ErrorCodeInvalidLambdaFunction = "INVALID_LAMBDA_FUNCTION"
+
+	// ErrorCodeHookExecutionFailure is a ErrorCode enum value
+	ErrorCodeHookExecutionFailure = "HOOK_EXECUTION_FAILURE"
 )
 
 const (
@@ -9777,6 +10643,9 @@ const (
 
 	// RevisionLocationTypeGitHub is a RevisionLocationType enum value
 	RevisionLocationTypeGitHub = "GitHub"
+
+	// RevisionLocationTypeString is a RevisionLocationType enum value
+	RevisionLocationTypeString = "String"
 )
 
 const (
@@ -9804,6 +10673,17 @@ const (
 
 	// TagFilterTypeKeyAndValue is a TagFilterType enum value
 	TagFilterTypeKeyAndValue = "KEY_AND_VALUE"
+)
+
+const (
+	// TrafficRoutingTypeTimeBasedCanary is a TrafficRoutingType enum value
+	TrafficRoutingTypeTimeBasedCanary = "TimeBasedCanary"
+
+	// TrafficRoutingTypeTimeBasedLinear is a TrafficRoutingType enum value
+	TrafficRoutingTypeTimeBasedLinear = "TimeBasedLinear"
+
+	// TrafficRoutingTypeAllAtOnce is a TrafficRoutingType enum value
+	TrafficRoutingTypeAllAtOnce = "AllAtOnce"
 )
 
 const (

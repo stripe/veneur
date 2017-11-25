@@ -21,7 +21,7 @@ import (
 //
 // The best way to use this interface is so the SDK's service client's calls
 // can be stubbed out for unit testing your code with the SDK without needing
-// to inject custom request handlers into the the SDK's request pipeline.
+// to inject custom request handlers into the SDK's request pipeline.
 //
 //    // myFunc uses an SDK service client to make a request to
 //    // Amazon ElastiCache.
@@ -227,6 +227,10 @@ type ElastiCacheAPI interface {
 	ModifyReplicationGroup(*elasticache.ModifyReplicationGroupInput) (*elasticache.ModifyReplicationGroupOutput, error)
 	ModifyReplicationGroupWithContext(aws.Context, *elasticache.ModifyReplicationGroupInput, ...request.Option) (*elasticache.ModifyReplicationGroupOutput, error)
 	ModifyReplicationGroupRequest(*elasticache.ModifyReplicationGroupInput) (*request.Request, *elasticache.ModifyReplicationGroupOutput)
+
+	ModifyReplicationGroupShardConfiguration(*elasticache.ModifyReplicationGroupShardConfigurationInput) (*elasticache.ModifyReplicationGroupShardConfigurationOutput, error)
+	ModifyReplicationGroupShardConfigurationWithContext(aws.Context, *elasticache.ModifyReplicationGroupShardConfigurationInput, ...request.Option) (*elasticache.ModifyReplicationGroupShardConfigurationOutput, error)
+	ModifyReplicationGroupShardConfigurationRequest(*elasticache.ModifyReplicationGroupShardConfigurationInput) (*request.Request, *elasticache.ModifyReplicationGroupShardConfigurationOutput)
 
 	PurchaseReservedCacheNodesOffering(*elasticache.PurchaseReservedCacheNodesOfferingInput) (*elasticache.PurchaseReservedCacheNodesOfferingOutput, error)
 	PurchaseReservedCacheNodesOfferingWithContext(aws.Context, *elasticache.PurchaseReservedCacheNodesOfferingInput, ...request.Option) (*elasticache.PurchaseReservedCacheNodesOfferingOutput, error)

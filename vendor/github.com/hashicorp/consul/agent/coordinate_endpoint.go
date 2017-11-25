@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/hashicorp/consul/agent/consul/structs"
+	"github.com/hashicorp/consul/agent/structs"
 )
 
 // coordinateDisabled handles all the endpoints when coordinates are not enabled,
 // returning an error message.
 func coordinateDisabled(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	resp.WriteHeader(401)
+	resp.WriteHeader(http.StatusUnauthorized)
 	fmt.Fprint(resp, "Coordinate support disabled")
 	return nil, nil
 }
@@ -81,5 +81,18 @@ func (s *HTTPServer) CoordinateNodes(resp http.ResponseWriter, req *http.Request
 	if out.Coordinates == nil {
 		out.Coordinates = make(structs.Coordinates, 0)
 	}
+
+	// Filter by segment if applicable
+	if v, ok := req.URL.Query()["segment"]; ok && len(v) > 0 {
+		segment := v[0]
+		filtered := make(structs.Coordinates, 0)
+		for _, coord := range out.Coordinates {
+			if coord.Segment == segment {
+				filtered = append(filtered, coord)
+			}
+		}
+		out.Coordinates = filtered
+	}
+
 	return out.Coordinates, nil
 }

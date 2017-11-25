@@ -21,7 +21,7 @@ import (
 //
 // The best way to use this interface is so the SDK's service client's calls
 // can be stubbed out for unit testing your code with the SDK without needing
-// to inject custom request handlers into the the SDK's request pipeline.
+// to inject custom request handlers into the SDK's request pipeline.
 //
 //    // myFunc uses an SDK service client to make a request to
 //    // AWS Step Functions.
@@ -88,6 +88,10 @@ type SFNAPI interface {
 	DescribeStateMachineWithContext(aws.Context, *sfn.DescribeStateMachineInput, ...request.Option) (*sfn.DescribeStateMachineOutput, error)
 	DescribeStateMachineRequest(*sfn.DescribeStateMachineInput) (*request.Request, *sfn.DescribeStateMachineOutput)
 
+	DescribeStateMachineForExecution(*sfn.DescribeStateMachineForExecutionInput) (*sfn.DescribeStateMachineForExecutionOutput, error)
+	DescribeStateMachineForExecutionWithContext(aws.Context, *sfn.DescribeStateMachineForExecutionInput, ...request.Option) (*sfn.DescribeStateMachineForExecutionOutput, error)
+	DescribeStateMachineForExecutionRequest(*sfn.DescribeStateMachineForExecutionInput) (*request.Request, *sfn.DescribeStateMachineForExecutionOutput)
+
 	GetActivityTask(*sfn.GetActivityTaskInput) (*sfn.GetActivityTaskOutput, error)
 	GetActivityTaskWithContext(aws.Context, *sfn.GetActivityTaskInput, ...request.Option) (*sfn.GetActivityTaskOutput, error)
 	GetActivityTaskRequest(*sfn.GetActivityTaskInput) (*request.Request, *sfn.GetActivityTaskOutput)
@@ -139,6 +143,10 @@ type SFNAPI interface {
 	StopExecution(*sfn.StopExecutionInput) (*sfn.StopExecutionOutput, error)
 	StopExecutionWithContext(aws.Context, *sfn.StopExecutionInput, ...request.Option) (*sfn.StopExecutionOutput, error)
 	StopExecutionRequest(*sfn.StopExecutionInput) (*request.Request, *sfn.StopExecutionOutput)
+
+	UpdateStateMachine(*sfn.UpdateStateMachineInput) (*sfn.UpdateStateMachineOutput, error)
+	UpdateStateMachineWithContext(aws.Context, *sfn.UpdateStateMachineInput, ...request.Option) (*sfn.UpdateStateMachineOutput, error)
+	UpdateStateMachineRequest(*sfn.UpdateStateMachineInput) (*request.Request, *sfn.UpdateStateMachineOutput)
 }
 
 var _ SFNAPI = (*sfn.SFN)(nil)

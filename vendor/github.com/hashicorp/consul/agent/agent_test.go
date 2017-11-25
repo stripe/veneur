@@ -15,19 +15,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/agent/consul"
-	"github.com/hashicorp/consul/agent/consul/structs"
+	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/hashicorp/consul/types"
-	"github.com/hashicorp/consul/version"
 	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/raft"
 	"github.com/pascaldekloe/goe/verify"
 )
-
-func init() {
-	version.Version = "0.8.0"
-}
 
 func externalIP() (string, error) {
 	addrs, err := net.InterfaceAddrs()
@@ -117,6 +112,7 @@ func TestAgent_CheckAdvertiseAddrsSettings(t *testing.T) {
 	cfg.AdvertiseAddrs.SerfLan, _ = net.ResolveTCPAddr("tcp", "127.0.0.42:1233")
 	cfg.AdvertiseAddrs.SerfWan, _ = net.ResolveTCPAddr("tcp", "127.0.0.43:1234")
 	cfg.AdvertiseAddrs.RPC, _ = net.ResolveTCPAddr("tcp", "127.0.0.44:1235")
+	cfg.SetupTaggedAndAdvertiseAddrs()
 	a := NewTestAgent(t.Name(), cfg)
 	defer a.Shutdown()
 
@@ -146,6 +142,27 @@ func TestAgent_CheckAdvertiseAddrsSettings(t *testing.T) {
 	}
 	if !reflect.DeepEqual(a.Config.TaggedAddresses, expected) {
 		t.Fatalf("Tagged addresses not set up properly: %v", a.Config.TaggedAddresses)
+	}
+}
+
+func TestAgent_TokenStore(t *testing.T) {
+	t.Parallel()
+
+	cfg := TestConfig()
+	cfg.ACLToken = "user"
+	cfg.ACLAgentToken = "agent"
+	cfg.ACLAgentMasterToken = "master"
+	a := NewTestAgent(t.Name(), cfg)
+	defer a.Shutdown()
+
+	if got, want := a.tokens.UserToken(), "user"; got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+	if got, want := a.tokens.AgentToken(), "agent"; got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+	if got, want := a.tokens.IsAgentMasterToken("master"), true; got != want {
+		t.Fatalf("got %v want %v", got, want)
 	}
 }
 
@@ -822,7 +839,7 @@ func TestAgent_AddCheck_ExecDisable(t *testing.T) {
 		Interval: 15 * time.Second,
 	}
 	err := a.AddCheck(health, chk, false, "")
-	if err == nil || !strings.Contains(err.Error(), "exec scripts are disabled on this agent") {
+	if err == nil || !strings.Contains(err.Error(), "Scripts are disabled on this agent") {
 		t.Fatalf("err: %v", err)
 	}
 

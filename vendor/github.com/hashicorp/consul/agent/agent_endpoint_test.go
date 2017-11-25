@@ -13,7 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/agent/consul/structs"
+	"github.com/hashicorp/consul/acl"
+	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/logger"
 	"github.com/hashicorp/consul/testutil/retry"
@@ -190,13 +191,14 @@ func TestAgent_Self(t *testing.T) {
 		t.Fatalf("incorrect port: %v", obj)
 	}
 
-	c, err := a.GetLANCoordinate()
+	cs, err := a.GetLANCoordinate()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !reflect.DeepEqual(c, val.Coord) {
+	if c := cs[cfg.Segment]; !reflect.DeepEqual(c, val.Coord) {
 		t.Fatalf("coordinates are not equal: %v != %v", c, val.Coord)
 	}
+	delete(val.Meta, structs.MetaSegmentKey) // Added later, not in config.
 	if !reflect.DeepEqual(cfg.Meta, val.Meta) {
 		t.Fatalf("meta fields are not equal: %v != %v", cfg.Meta, val.Meta)
 	}
@@ -218,7 +220,7 @@ func TestAgent_Self_ACLDeny(t *testing.T) {
 
 	t.Run("no token", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/v1/agent/self", nil)
-		if _, err := a.srv.AgentSelf(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentSelf(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -233,6 +235,34 @@ func TestAgent_Self_ACLDeny(t *testing.T) {
 	t.Run("read-only token", func(t *testing.T) {
 		ro := makeReadOnlyAgentACL(t, a.srv)
 		req, _ := http.NewRequest("GET", fmt.Sprintf("/v1/agent/self?token=%s", ro), nil)
+		if _, err := a.srv.AgentSelf(nil, req); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+}
+
+func TestAgent_Metrics_ACLDeny(t *testing.T) {
+	t.Parallel()
+	a := NewTestAgent(t.Name(), TestACLConfig())
+	defer a.Shutdown()
+
+	t.Run("no token", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/v1/agent/metrics", nil)
+		if _, err := a.srv.AgentSelf(nil, req); !acl.IsErrPermissionDenied(err) {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	t.Run("agent master token", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/v1/agent/metrics?token=towel", nil)
+		if _, err := a.srv.AgentSelf(nil, req); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+	})
+
+	t.Run("read-only token", func(t *testing.T) {
+		ro := makeReadOnlyAgentACL(t, a.srv)
+		req, _ := http.NewRequest("GET", fmt.Sprintf("/v1/agent/metrics?token=%s", ro), nil)
 		if _, err := a.srv.AgentSelf(nil, req); err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -293,7 +323,7 @@ func TestAgent_Reload_ACLDeny(t *testing.T) {
 
 	t.Run("no token", func(t *testing.T) {
 		req, _ := http.NewRequest("PUT", "/v1/agent/reload", nil)
-		if _, err := a.srv.AgentReload(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentReload(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -301,7 +331,7 @@ func TestAgent_Reload_ACLDeny(t *testing.T) {
 	t.Run("read-only token", func(t *testing.T) {
 		ro := makeReadOnlyAgentACL(t, a.srv)
 		req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/agent/reload?token=%s", ro), nil)
-		if _, err := a.srv.AgentReload(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentReload(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -449,7 +479,7 @@ func TestAgent_Join_ACLDeny(t *testing.T) {
 
 	t.Run("no token", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", fmt.Sprintf("/v1/agent/join/%s", addr), nil)
-		if _, err := a1.srv.AgentJoin(nil, req); !isPermissionDenied(err) {
+		if _, err := a1.srv.AgentJoin(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -465,7 +495,7 @@ func TestAgent_Join_ACLDeny(t *testing.T) {
 	t.Run("read-only token", func(t *testing.T) {
 		ro := makeReadOnlyAgentACL(t, a1.srv)
 		req, _ := http.NewRequest("GET", fmt.Sprintf("/v1/agent/join/%s?token=%s", addr, ro), nil)
-		if _, err := a1.srv.AgentJoin(nil, req); !isPermissionDenied(err) {
+		if _, err := a1.srv.AgentJoin(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -545,7 +575,7 @@ func TestAgent_Leave_ACLDeny(t *testing.T) {
 
 	t.Run("no token", func(t *testing.T) {
 		req, _ := http.NewRequest("PUT", "/v1/agent/leave", nil)
-		if _, err := a.srv.AgentLeave(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentLeave(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -553,7 +583,7 @@ func TestAgent_Leave_ACLDeny(t *testing.T) {
 	t.Run("read-only token", func(t *testing.T) {
 		ro := makeReadOnlyAgentACL(t, a.srv)
 		req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/agent/leave?token=%s", ro), nil)
-		if _, err := a.srv.AgentLeave(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentLeave(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -609,7 +639,7 @@ func TestAgent_ForceLeave_ACLDeny(t *testing.T) {
 
 	t.Run("no token", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/v1/agent/force-leave/nope", nil)
-		if _, err := a.srv.AgentForceLeave(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentForceLeave(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -624,7 +654,7 @@ func TestAgent_ForceLeave_ACLDeny(t *testing.T) {
 	t.Run("read-only token", func(t *testing.T) {
 		ro := makeReadOnlyAgentACL(t, a.srv)
 		req, _ := http.NewRequest("GET", fmt.Sprintf("/v1/agent/force-leave/nope?token=%s", ro), nil)
-		if _, err := a.srv.AgentForceLeave(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentForceLeave(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -740,7 +770,7 @@ func TestAgent_RegisterCheck_ACLDeny(t *testing.T) {
 
 	t.Run("no token", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/v1/agent/check/register", jsonReader(args))
-		if _, err := a.srv.AgentRegisterCheck(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentRegisterCheck(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -791,7 +821,7 @@ func TestAgent_DeregisterCheckACLDeny(t *testing.T) {
 
 	t.Run("no token", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/v1/agent/check/deregister/test", nil)
-		if _, err := a.srv.AgentDeregisterCheck(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentDeregisterCheck(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -844,7 +874,7 @@ func TestAgent_PassCheck_ACLDeny(t *testing.T) {
 
 	t.Run("no token", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/v1/agent/check/pass/test", nil)
-		if _, err := a.srv.AgentCheckPass(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentCheckPass(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -897,7 +927,7 @@ func TestAgent_WarnCheck_ACLDeny(t *testing.T) {
 
 	t.Run("no token", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/v1/agent/check/warn/test", nil)
-		if _, err := a.srv.AgentCheckWarn(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentCheckWarn(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -950,7 +980,7 @@ func TestAgent_FailCheck_ACLDeny(t *testing.T) {
 
 	t.Run("no token", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/v1/agent/check/fail/test", nil)
-		if _, err := a.srv.AgentCheckFail(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentCheckFail(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -1076,7 +1106,7 @@ func TestAgent_UpdateCheck_ACLDeny(t *testing.T) {
 	t.Run("no token", func(t *testing.T) {
 		args := checkUpdate{api.HealthPassing, "hello-passing"}
 		req, _ := http.NewRequest("PUT", "/v1/agent/check/update/test", jsonReader(args))
-		if _, err := a.srv.AgentCheckUpdate(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentCheckUpdate(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -1166,7 +1196,7 @@ func TestAgent_RegisterService_ACLDeny(t *testing.T) {
 
 	t.Run("no token", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/v1/agent/service/register", jsonReader(args))
-		if _, err := a.srv.AgentRegisterService(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentRegisterService(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -1254,7 +1284,7 @@ func TestAgent_DeregisterService_ACLDeny(t *testing.T) {
 
 	t.Run("no token", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/v1/agent/service/deregister/test", nil)
-		if _, err := a.srv.AgentDeregisterService(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentDeregisterService(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -1411,7 +1441,7 @@ func TestAgent_ServiceMaintenance_ACLDeny(t *testing.T) {
 
 	t.Run("no token", func(t *testing.T) {
 		req, _ := http.NewRequest("PUT", "/v1/agent/service/maintenance/test?enable=true&reason=broken", nil)
-		if _, err := a.srv.AgentServiceMaintenance(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentServiceMaintenance(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -1513,7 +1543,7 @@ func TestAgent_NodeMaintenance_ACLDeny(t *testing.T) {
 
 	t.Run("no token", func(t *testing.T) {
 		req, _ := http.NewRequest("PUT", "/v1/agent/self/maintenance?enable=true&reason=broken", nil)
-		if _, err := a.srv.AgentNodeMaintenance(nil, req); !isPermissionDenied(err) {
+		if _, err := a.srv.AgentNodeMaintenance(nil, req); !acl.IsErrPermissionDenied(err) {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -1645,7 +1675,7 @@ func TestAgent_Monitor_ACLDeny(t *testing.T) {
 
 	// Try without a token.
 	req, _ := http.NewRequest("GET", "/v1/agent/monitor", nil)
-	if _, err := a.srv.AgentMonitor(nil, req); !isPermissionDenied(err) {
+	if _, err := a.srv.AgentMonitor(nil, req); !acl.IsErrPermissionDenied(err) {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -1653,4 +1683,166 @@ func TestAgent_Monitor_ACLDeny(t *testing.T) {
 	// test to prove monitor works, which should be sufficient. The monitor
 	// logic is a little complex to set up so isn't worth repeating again
 	// here.
+}
+
+func TestAgent_Token(t *testing.T) {
+	t.Parallel()
+	cfg := TestACLConfig()
+	cfg.ACLToken = ""
+	cfg.ACLAgentToken = ""
+	cfg.ACLAgentMasterToken = ""
+	a := NewTestAgent(t.Name(), cfg)
+	defer a.Shutdown()
+
+	type tokens struct {
+		user, agent, master, repl string
+	}
+
+	resetTokens := func(got tokens) {
+		a.tokens.UpdateUserToken(got.user)
+		a.tokens.UpdateAgentToken(got.agent)
+		a.tokens.UpdateAgentMasterToken(got.master)
+		a.tokens.UpdateACLReplicationToken(got.repl)
+	}
+
+	body := func(token string) io.Reader {
+		return jsonReader(&api.AgentToken{Token: token})
+	}
+
+	badJSON := func() io.Reader {
+		return jsonReader(false)
+	}
+
+	tests := []struct {
+		name        string
+		method, url string
+		body        io.Reader
+		code        int
+		got, want   tokens
+	}{
+		{
+			name:   "bad method",
+			method: "GET",
+			url:    "acl_token",
+			code:   http.StatusMethodNotAllowed,
+		},
+		{
+			name:   "bad token name",
+			method: "PUT",
+			url:    "nope?token=root",
+			body:   body("X"),
+			code:   http.StatusNotFound,
+		},
+		{
+			name:   "bad JSON",
+			method: "PUT",
+			url:    "acl_token?token=root",
+			body:   badJSON(),
+			code:   http.StatusBadRequest,
+		},
+		{
+			name:   "set user",
+			method: "PUT",
+			url:    "acl_token?token=root",
+			body:   body("U"),
+			code:   http.StatusOK,
+			want:   tokens{user: "U", agent: "U"},
+		},
+		{
+			name:   "set agent",
+			method: "PUT",
+			url:    "acl_agent_token?token=root",
+			body:   body("A"),
+			code:   http.StatusOK,
+			got:    tokens{user: "U", agent: "U"},
+			want:   tokens{user: "U", agent: "A"},
+		},
+		{
+			name:   "set master",
+			method: "PUT",
+			url:    "acl_agent_master_token?token=root",
+			body:   body("M"),
+			code:   http.StatusOK,
+			want:   tokens{master: "M"},
+		},
+		{
+			name:   "set repl",
+			method: "PUT",
+			url:    "acl_replication_token?token=root",
+			body:   body("R"),
+			code:   http.StatusOK,
+			want:   tokens{repl: "R"},
+		},
+		{
+			name:   "clear user",
+			method: "PUT",
+			url:    "acl_token?token=root",
+			body:   body(""),
+			code:   http.StatusOK,
+			got:    tokens{user: "U"},
+		},
+		{
+			name:   "clear agent",
+			method: "PUT",
+			url:    "acl_agent_token?token=root",
+			body:   body(""),
+			code:   http.StatusOK,
+			got:    tokens{agent: "A"},
+		},
+		{
+			name:   "clear master",
+			method: "PUT",
+			url:    "acl_agent_master_token?token=root",
+			body:   body(""),
+			code:   http.StatusOK,
+			got:    tokens{master: "M"},
+		},
+		{
+			name:   "clear repl",
+			method: "PUT",
+			url:    "acl_replication_token?token=root",
+			body:   body(""),
+			code:   http.StatusOK,
+			got:    tokens{repl: "R"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetTokens(tt.got)
+			url := fmt.Sprintf("/v1/agent/token/%s", tt.url)
+			resp := httptest.NewRecorder()
+			req, _ := http.NewRequest(tt.method, url, tt.body)
+			if _, err := a.srv.AgentToken(resp, req); err != nil {
+				t.Fatalf("err: %v", err)
+			}
+			if got, want := resp.Code, tt.code; got != want {
+				t.Fatalf("got %d want %d", got, want)
+			}
+			if got, want := a.tokens.UserToken(), tt.want.user; got != want {
+				t.Fatalf("got %q want %q", got, want)
+			}
+			if got, want := a.tokens.AgentToken(), tt.want.agent; got != want {
+				t.Fatalf("got %q want %q", got, want)
+			}
+			if tt.want.master != "" && !a.tokens.IsAgentMasterToken(tt.want.master) {
+				t.Fatalf("%q should be the master token", tt.want.master)
+			}
+			if got, want := a.tokens.ACLReplicationToken(), tt.want.repl; got != want {
+				t.Fatalf("got %q want %q", got, want)
+			}
+		})
+	}
+
+	// This one returns an error that is interpreted by the HTTP wrapper, so
+	// doesn't fit into our table above.
+	t.Run("permission denied", func(t *testing.T) {
+		resetTokens(tokens{})
+		req, _ := http.NewRequest("PUT", "/v1/agent/token/acl_token", body("X"))
+		if _, err := a.srv.AgentToken(nil, req); !acl.IsErrPermissionDenied(err) {
+			t.Fatalf("err: %v", err)
+		}
+		if got, want := a.tokens.UserToken(), ""; got != want {
+			t.Fatalf("got %q want %q", got, want)
+		}
+	})
 }

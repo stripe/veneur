@@ -28,8 +28,8 @@ lightstep_thrift/constants.go: $(GOPATH)/src/github.com/lightstep/common-go/crou
 	rm -rf lightstep_thrift/reporting_service-remote
 endif
 
-lightstepfakes/fake_recorder.go: interfaces.go
-	$(call generate_fake,lightstepfakes/fake_recorder.go,interfaces.go,SpanRecorder)
+lightstepfakes/fake_recorder.go: options.go
+	$(call generate_fake,lightstepfakes/fake_recorder.go,options.go,SpanRecorder)
 
 lightstep_thrift/lightstep_thriftfakes/fake_reporting_service.go: lightstep_thrift/reportingservice.go
 	$(call generate_fake,lightstep_thrift/lightstep_thriftfakes/fake_reporting_service.go,lightstep_thrift/reportingservice.go,ReportingService)
@@ -43,8 +43,8 @@ collectorpb/collector.pb.go:
 else
 collectorpb/collector.pb.go: lightstep-tracer-common/collector.proto
 	docker run --rm -v $(shell pwd)/lightstep-tracer-common:/input:ro -v $(shell pwd)/collectorpb:/output \
-	  lightstep/protoc:latest \
-	  protoc --go_out=plugins=grpc:/output --proto_path=/input /input/collector.proto
+	  lightstep/grpc-gateway:latest \
+	  protoc -I/root/go/src/tmp/vendor/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis --go_out=plugins=grpc:/output --proto_path=/input /input/collector.proto
 endif
 
 # gRPC

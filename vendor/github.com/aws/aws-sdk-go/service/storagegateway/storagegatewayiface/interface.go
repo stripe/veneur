@@ -21,7 +21,7 @@ import (
 //
 // The best way to use this interface is so the SDK's service client's calls
 // can be stubbed out for unit testing your code with the SDK without needing
-// to inject custom request handlers into the the SDK's request pipeline.
+// to inject custom request handlers into the SDK's request pipeline.
 //
 //    // myFunc uses an SDK service client to make a request to
 //    // AWS Storage Gateway.
@@ -261,6 +261,10 @@ type StorageGatewayAPI interface {
 
 	ListVolumesPages(*storagegateway.ListVolumesInput, func(*storagegateway.ListVolumesOutput, bool) bool) error
 	ListVolumesPagesWithContext(aws.Context, *storagegateway.ListVolumesInput, func(*storagegateway.ListVolumesOutput, bool) bool, ...request.Option) error
+
+	NotifyWhenUploaded(*storagegateway.NotifyWhenUploadedInput) (*storagegateway.NotifyWhenUploadedOutput, error)
+	NotifyWhenUploadedWithContext(aws.Context, *storagegateway.NotifyWhenUploadedInput, ...request.Option) (*storagegateway.NotifyWhenUploadedOutput, error)
+	NotifyWhenUploadedRequest(*storagegateway.NotifyWhenUploadedInput) (*request.Request, *storagegateway.NotifyWhenUploadedOutput)
 
 	RefreshCache(*storagegateway.RefreshCacheInput) (*storagegateway.RefreshCacheOutput, error)
 	RefreshCacheWithContext(aws.Context, *storagegateway.RefreshCacheInput, ...request.Option) (*storagegateway.RefreshCacheOutput, error)

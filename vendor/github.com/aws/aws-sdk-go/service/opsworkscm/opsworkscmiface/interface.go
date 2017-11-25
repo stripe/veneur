@@ -21,7 +21,7 @@ import (
 //
 // The best way to use this interface is so the SDK's service client's calls
 // can be stubbed out for unit testing your code with the SDK without needing
-// to inject custom request handlers into the the SDK's request pipeline.
+// to inject custom request handlers into the SDK's request pipeline.
 //
 //    // myFunc uses an SDK service client to make a request to
 //    // AWS OpsWorks for Chef Automate.
@@ -119,6 +119,9 @@ type OpsWorksCMAPI interface {
 	UpdateServerEngineAttributes(*opsworkscm.UpdateServerEngineAttributesInput) (*opsworkscm.UpdateServerEngineAttributesOutput, error)
 	UpdateServerEngineAttributesWithContext(aws.Context, *opsworkscm.UpdateServerEngineAttributesInput, ...request.Option) (*opsworkscm.UpdateServerEngineAttributesOutput, error)
 	UpdateServerEngineAttributesRequest(*opsworkscm.UpdateServerEngineAttributesInput) (*request.Request, *opsworkscm.UpdateServerEngineAttributesOutput)
+
+	WaitUntilNodeAssociated(*opsworkscm.DescribeNodeAssociationStatusInput) error
+	WaitUntilNodeAssociatedWithContext(aws.Context, *opsworkscm.DescribeNodeAssociationStatusInput, ...request.WaiterOption) error
 }
 
 var _ OpsWorksCMAPI = (*opsworkscm.OpsWorksCM)(nil)

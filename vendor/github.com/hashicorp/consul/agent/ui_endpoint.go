@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hashicorp/consul/agent/consul/structs"
+	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/api"
 )
 
@@ -68,7 +68,7 @@ func (s *HTTPServer) UINodeInfo(resp http.ResponseWriter, req *http.Request) (in
 	// Verify we have some DC, or use the default
 	args.Node = strings.TrimPrefix(req.URL.Path, "/v1/internal/ui/node/")
 	if args.Node == "" {
-		resp.WriteHeader(400)
+		resp.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(resp, "Missing node name")
 		return nil, nil
 	}

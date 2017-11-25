@@ -21,7 +21,7 @@ import (
 //
 // The best way to use this interface is so the SDK's service client's calls
 // can be stubbed out for unit testing your code with the SDK without needing
-// to inject custom request handlers into the the SDK's request pipeline.
+// to inject custom request handlers into the SDK's request pipeline.
 //
 //    // myFunc uses an SDK service client to make a request to
 //    // Amazon CloudFront.
@@ -91,6 +91,10 @@ type CloudFrontAPI interface {
 	DeleteDistribution(*cloudfront.DeleteDistributionInput) (*cloudfront.DeleteDistributionOutput, error)
 	DeleteDistributionWithContext(aws.Context, *cloudfront.DeleteDistributionInput, ...request.Option) (*cloudfront.DeleteDistributionOutput, error)
 	DeleteDistributionRequest(*cloudfront.DeleteDistributionInput) (*request.Request, *cloudfront.DeleteDistributionOutput)
+
+	DeleteServiceLinkedRole(*cloudfront.DeleteServiceLinkedRoleInput) (*cloudfront.DeleteServiceLinkedRoleOutput, error)
+	DeleteServiceLinkedRoleWithContext(aws.Context, *cloudfront.DeleteServiceLinkedRoleInput, ...request.Option) (*cloudfront.DeleteServiceLinkedRoleOutput, error)
+	DeleteServiceLinkedRoleRequest(*cloudfront.DeleteServiceLinkedRoleInput) (*request.Request, *cloudfront.DeleteServiceLinkedRoleOutput)
 
 	DeleteStreamingDistribution(*cloudfront.DeleteStreamingDistributionInput) (*cloudfront.DeleteStreamingDistributionOutput, error)
 	DeleteStreamingDistributionWithContext(aws.Context, *cloudfront.DeleteStreamingDistributionInput, ...request.Option) (*cloudfront.DeleteStreamingDistributionOutput, error)

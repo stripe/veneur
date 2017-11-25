@@ -15,19 +15,18 @@ const opDeleteLexicon = "DeleteLexicon"
 
 // DeleteLexiconRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteLexicon operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DeleteLexicon for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DeleteLexicon method directly
-// instead.
+// See DeleteLexicon for more information on using the DeleteLexicon
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DeleteLexiconRequest method.
 //    req, resp := client.DeleteLexiconRequest(params)
@@ -37,7 +36,7 @@ const opDeleteLexicon = "DeleteLexicon"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DeleteLexicon
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DeleteLexicon
 func (c *Polly) DeleteLexiconRequest(input *DeleteLexiconInput) (req *request.Request, output *DeleteLexiconOutput) {
 	op := &request.Operation{
 		Name:       opDeleteLexicon,
@@ -81,7 +80,7 @@ func (c *Polly) DeleteLexiconRequest(input *DeleteLexiconInput) (req *request.Re
 //   * ErrCodeServiceFailureException "ServiceFailureException"
 //   An unknown condition has caused a service failure.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DeleteLexicon
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DeleteLexicon
 func (c *Polly) DeleteLexicon(input *DeleteLexiconInput) (*DeleteLexiconOutput, error) {
 	req, out := c.DeleteLexiconRequest(input)
 	return out, req.Send()
@@ -107,19 +106,18 @@ const opDescribeVoices = "DescribeVoices"
 
 // DescribeVoicesRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeVoices operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DescribeVoices for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DescribeVoices method directly
-// instead.
+// See DescribeVoices for more information on using the DescribeVoices
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DescribeVoicesRequest method.
 //    req, resp := client.DescribeVoicesRequest(params)
@@ -129,7 +127,7 @@ const opDescribeVoices = "DescribeVoices"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DescribeVoices
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DescribeVoices
 func (c *Polly) DescribeVoicesRequest(input *DescribeVoicesInput) (req *request.Request, output *DescribeVoicesOutput) {
 	op := &request.Operation{
 		Name:       opDescribeVoices,
@@ -181,7 +179,7 @@ func (c *Polly) DescribeVoicesRequest(input *DescribeVoicesInput) (req *request.
 //   * ErrCodeServiceFailureException "ServiceFailureException"
 //   An unknown condition has caused a service failure.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DescribeVoices
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DescribeVoices
 func (c *Polly) DescribeVoices(input *DescribeVoicesInput) (*DescribeVoicesOutput, error) {
 	req, out := c.DescribeVoicesRequest(input)
 	return out, req.Send()
@@ -207,19 +205,18 @@ const opGetLexicon = "GetLexicon"
 
 // GetLexiconRequest generates a "aws/request.Request" representing the
 // client's request for the GetLexicon operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GetLexicon for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GetLexicon method directly
-// instead.
+// See GetLexicon for more information on using the GetLexicon
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GetLexiconRequest method.
 //    req, resp := client.GetLexiconRequest(params)
@@ -229,7 +226,7 @@ const opGetLexicon = "GetLexicon"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/GetLexicon
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/GetLexicon
 func (c *Polly) GetLexiconRequest(input *GetLexiconInput) (req *request.Request, output *GetLexiconOutput) {
 	op := &request.Operation{
 		Name:       opGetLexicon,
@@ -270,7 +267,7 @@ func (c *Polly) GetLexiconRequest(input *GetLexiconInput) (req *request.Request,
 //   * ErrCodeServiceFailureException "ServiceFailureException"
 //   An unknown condition has caused a service failure.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/GetLexicon
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/GetLexicon
 func (c *Polly) GetLexicon(input *GetLexiconInput) (*GetLexiconOutput, error) {
 	req, out := c.GetLexiconRequest(input)
 	return out, req.Send()
@@ -296,19 +293,18 @@ const opListLexicons = "ListLexicons"
 
 // ListLexiconsRequest generates a "aws/request.Request" representing the
 // client's request for the ListLexicons operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListLexicons for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListLexicons method directly
-// instead.
+// See ListLexicons for more information on using the ListLexicons
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListLexiconsRequest method.
 //    req, resp := client.ListLexiconsRequest(params)
@@ -318,7 +314,7 @@ const opListLexicons = "ListLexicons"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/ListLexicons
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/ListLexicons
 func (c *Polly) ListLexiconsRequest(input *ListLexiconsInput) (req *request.Request, output *ListLexiconsOutput) {
 	op := &request.Operation{
 		Name:       opListLexicons,
@@ -355,7 +351,7 @@ func (c *Polly) ListLexiconsRequest(input *ListLexiconsInput) (req *request.Requ
 //   * ErrCodeServiceFailureException "ServiceFailureException"
 //   An unknown condition has caused a service failure.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/ListLexicons
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/ListLexicons
 func (c *Polly) ListLexicons(input *ListLexiconsInput) (*ListLexiconsOutput, error) {
 	req, out := c.ListLexiconsRequest(input)
 	return out, req.Send()
@@ -381,19 +377,18 @@ const opPutLexicon = "PutLexicon"
 
 // PutLexiconRequest generates a "aws/request.Request" representing the
 // client's request for the PutLexicon operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See PutLexicon for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the PutLexicon method directly
-// instead.
+// See PutLexicon for more information on using the PutLexicon
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the PutLexiconRequest method.
 //    req, resp := client.PutLexiconRequest(params)
@@ -403,7 +398,7 @@ const opPutLexicon = "PutLexicon"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/PutLexicon
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/PutLexicon
 func (c *Polly) PutLexiconRequest(input *PutLexiconInput) (req *request.Request, output *PutLexiconOutput) {
 	op := &request.Operation{
 		Name:       opPutLexicon,
@@ -461,7 +456,7 @@ func (c *Polly) PutLexiconRequest(input *PutLexiconInput) (req *request.Request,
 //   * ErrCodeServiceFailureException "ServiceFailureException"
 //   An unknown condition has caused a service failure.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/PutLexicon
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/PutLexicon
 func (c *Polly) PutLexicon(input *PutLexiconInput) (*PutLexiconOutput, error) {
 	req, out := c.PutLexiconRequest(input)
 	return out, req.Send()
@@ -487,19 +482,18 @@ const opSynthesizeSpeech = "SynthesizeSpeech"
 
 // SynthesizeSpeechRequest generates a "aws/request.Request" representing the
 // client's request for the SynthesizeSpeech operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See SynthesizeSpeech for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the SynthesizeSpeech method directly
-// instead.
+// See SynthesizeSpeech for more information on using the SynthesizeSpeech
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the SynthesizeSpeechRequest method.
 //    req, resp := client.SynthesizeSpeechRequest(params)
@@ -509,7 +503,7 @@ const opSynthesizeSpeech = "SynthesizeSpeech"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/SynthesizeSpeech
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/SynthesizeSpeech
 func (c *Polly) SynthesizeSpeechRequest(input *SynthesizeSpeechInput) (req *request.Request, output *SynthesizeSpeechOutput) {
 	op := &request.Operation{
 		Name:       opSynthesizeSpeech,
@@ -572,7 +566,7 @@ func (c *Polly) SynthesizeSpeechRequest(input *SynthesizeSpeechInput) (req *requ
 //   * ErrCodeSsmlMarksNotSupportedForTextTypeException "SsmlMarksNotSupportedForTextTypeException"
 //   SSML speech marks are not supported for plain text-type input.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/SynthesizeSpeech
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/SynthesizeSpeech
 func (c *Polly) SynthesizeSpeech(input *SynthesizeSpeechInput) (*SynthesizeSpeechOutput, error) {
 	req, out := c.SynthesizeSpeechRequest(input)
 	return out, req.Send()
@@ -594,7 +588,7 @@ func (c *Polly) SynthesizeSpeechWithContext(ctx aws.Context, input *SynthesizeSp
 	return out, req.Send()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DeleteLexiconInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DeleteLexiconInput
 type DeleteLexiconInput struct {
 	_ struct{} `type:"structure"`
 
@@ -633,7 +627,7 @@ func (s *DeleteLexiconInput) SetName(v string) *DeleteLexiconInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DeleteLexiconOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DeleteLexiconOutput
 type DeleteLexiconOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -648,7 +642,7 @@ func (s DeleteLexiconOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DescribeVoicesInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DescribeVoicesInput
 type DescribeVoicesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -684,7 +678,7 @@ func (s *DescribeVoicesInput) SetNextToken(v string) *DescribeVoicesInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DescribeVoicesOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/DescribeVoicesOutput
 type DescribeVoicesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -718,7 +712,7 @@ func (s *DescribeVoicesOutput) SetVoices(v []*Voice) *DescribeVoicesOutput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/GetLexiconInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/GetLexiconInput
 type GetLexiconInput struct {
 	_ struct{} `type:"structure"`
 
@@ -757,7 +751,7 @@ func (s *GetLexiconInput) SetName(v string) *GetLexiconInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/GetLexiconOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/GetLexiconOutput
 type GetLexiconOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -794,7 +788,7 @@ func (s *GetLexiconOutput) SetLexiconAttributes(v *LexiconAttributes) *GetLexico
 
 // Provides lexicon name and lexicon content in string format. For more information,
 // see Pronunciation Lexicon Specification (PLS) Version 1.0 (https://www.w3.org/TR/pronunciation-lexicon/).
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/Lexicon
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/Lexicon
 type Lexicon struct {
 	_ struct{} `type:"structure"`
 
@@ -830,7 +824,7 @@ func (s *Lexicon) SetName(v string) *Lexicon {
 
 // Contains metadata describing the lexicon such as the number of lexemes, language
 // code, and so on. For more information, see Managing Lexicons (http://docs.aws.amazon.com/polly/latest/dg/managing-lexicons.html).
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/LexiconAttributes
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/LexiconAttributes
 type LexiconAttributes struct {
 	_ struct{} `type:"structure"`
 
@@ -902,7 +896,7 @@ func (s *LexiconAttributes) SetSize(v int64) *LexiconAttributes {
 }
 
 // Describes the content of the lexicon.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/LexiconDescription
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/LexiconDescription
 type LexiconDescription struct {
 	_ struct{} `type:"structure"`
 
@@ -935,7 +929,7 @@ func (s *LexiconDescription) SetName(v string) *LexiconDescription {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/ListLexiconsInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/ListLexiconsInput
 type ListLexiconsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -960,7 +954,7 @@ func (s *ListLexiconsInput) SetNextToken(v string) *ListLexiconsInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/ListLexiconsOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/ListLexiconsOutput
 type ListLexiconsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -994,7 +988,7 @@ func (s *ListLexiconsOutput) SetNextToken(v string) *ListLexiconsOutput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/PutLexiconInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/PutLexiconInput
 type PutLexiconInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1049,7 +1043,7 @@ func (s *PutLexiconInput) SetName(v string) *PutLexiconInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/PutLexiconOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/PutLexiconOutput
 type PutLexiconOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -1064,7 +1058,7 @@ func (s PutLexiconOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/SynthesizeSpeechInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/SynthesizeSpeechInput
 type SynthesizeSpeechInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1180,7 +1174,7 @@ func (s *SynthesizeSpeechInput) SetVoiceId(v string) *SynthesizeSpeechInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/SynthesizeSpeechOutput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/SynthesizeSpeechOutput
 type SynthesizeSpeechOutput struct {
 	_ struct{} `type:"structure" payload:"AudioStream"`
 
@@ -1237,7 +1231,7 @@ func (s *SynthesizeSpeechOutput) SetRequestCharacters(v int64) *SynthesizeSpeech
 }
 
 // Description of the voice.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/Voice
+// See also, https://docs.aws.amazon.com/goto/WebAPI/polly-2016-06-10/Voice
 type Voice struct {
 	_ struct{} `type:"structure"`
 
@@ -1349,6 +1343,9 @@ const (
 
 	// LanguageCodeItIt is a LanguageCode enum value
 	LanguageCodeItIt = "it-IT"
+
+	// LanguageCodeKoKr is a LanguageCode enum value
+	LanguageCodeKoKr = "ko-KR"
 
 	// LanguageCodeJaJp is a LanguageCode enum value
 	LanguageCodeJaJp = "ja-JP"
@@ -1472,6 +1469,9 @@ const (
 	// VoiceIdKimberly is a VoiceId enum value
 	VoiceIdKimberly = "Kimberly"
 
+	// VoiceIdMatthew is a VoiceId enum value
+	VoiceIdMatthew = "Matthew"
+
 	// VoiceIdSalli is a VoiceId enum value
 	VoiceIdSalli = "Salli"
 
@@ -1561,4 +1561,13 @@ const (
 
 	// VoiceIdVicki is a VoiceId enum value
 	VoiceIdVicki = "Vicki"
+
+	// VoiceIdTakumi is a VoiceId enum value
+	VoiceIdTakumi = "Takumi"
+
+	// VoiceIdSeoyeon is a VoiceId enum value
+	VoiceIdSeoyeon = "Seoyeon"
+
+	// VoiceIdAditi is a VoiceId enum value
+	VoiceIdAditi = "Aditi"
 )

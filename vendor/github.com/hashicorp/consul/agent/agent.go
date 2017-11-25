@@ -5,7 +5,6 @@ import (
 	"crypto/sha512"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,25 +13,26 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/armon/go-metrics"
+	"github.com/hashicorp/consul/acl"
 	"github.com/hashicorp/consul/agent/consul"
-	"github.com/hashicorp/consul/agent/consul/structs"
+	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/agent/systemd"
+	"github.com/hashicorp/consul/agent/token"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/ipaddr"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/consul/logger"
 	"github.com/hashicorp/consul/types"
 	"github.com/hashicorp/consul/watch"
-	"github.com/hashicorp/go-sockaddr/template"
 	"github.com/hashicorp/go-uuid"
+	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/raft"
-	"github.com/hashicorp/serf/coordinate"
 	"github.com/hashicorp/serf/serf"
 	"github.com/shirou/gopsutil/host"
 )
@@ -52,16 +52,15 @@ const (
 		"service, but no reason was provided. This is a default message."
 )
 
-// dnsNameRe checks if a name or tag is dns-compatible.
-var dnsNameRe = regexp.MustCompile(`^[a-zA-Z0-9\-]+$`)
-
 // delegate defines the interface shared by both
 // consul.Client and consul.Server.
 type delegate interface {
 	Encrypted() bool
-	GetLANCoordinate() (*coordinate.Coordinate, error)
+	GetLANCoordinate() (lib.CoordinateSet, error)
 	Leave() error
 	LANMembers() []serf.Member
+	LANMembersAllSegments() ([]serf.Member, error)
+	LANSegmentMembers(segment string) ([]serf.Member, error)
 	LocalMember() serf.Member
 	JoinLAN(addrs []string) (n int, err error)
 	RemoveFailedNode(node string) error
@@ -94,6 +93,9 @@ type Agent struct {
 
 	// Used for streaming logs to
 	LogWriter *logger.LogWriter
+
+	// In-memory sink used for collecting metrics
+	MemSink *metrics.InmemSink
 
 	// delegate is either a *consul.Server or *consul.Client
 	// depending on the configuration
@@ -180,6 +182,11 @@ type Agent struct {
 	// watchPlans tracks all the currently-running watch plans for the
 	// agent.
 	watchPlans []*watch.Plan
+
+	// tokens holds ACL tokens initially from the configuration, but can
+	// be updated at runtime, so should always be used instead of going to
+	// the configuration directly.
+	tokens *token.Store
 }
 
 func New(c *Config) (*Agent, error) {
@@ -220,56 +227,14 @@ func New(c *Config) (*Agent, error) {
 		endpoints:       make(map[string]string),
 		dnsAddrs:        dnsAddrs,
 		httpAddrs:       httpAddrs,
-	}
-	if err := a.resolveTmplAddrs(); err != nil {
-		return nil, err
+		tokens:          new(token.Store),
 	}
 
-	// Try to get an advertise address
-	switch {
-	case a.config.AdvertiseAddr != "":
-		ipStr, err := parseSingleIPTemplate(a.config.AdvertiseAddr)
-		if err != nil {
-			return nil, fmt.Errorf("Advertise address resolution failed: %v", err)
-		}
-		if net.ParseIP(ipStr) == nil {
-			return nil, fmt.Errorf("Failed to parse advertise address: %v", ipStr)
-		}
-		a.config.AdvertiseAddr = ipStr
-
-	case a.config.BindAddr != "" && !ipaddr.IsAny(a.config.BindAddr):
-		a.config.AdvertiseAddr = a.config.BindAddr
-
-	default:
-		ip, err := consul.GetPrivateIP()
-		if ipaddr.IsAnyV6(a.config.BindAddr) {
-			ip, err = consul.GetPublicIPv6()
-		}
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get advertise address: %v", err)
-		}
-		a.config.AdvertiseAddr = ip.String()
-	}
-
-	// Try to get an advertise address for the wan
-	if a.config.AdvertiseAddrWan != "" {
-		ipStr, err := parseSingleIPTemplate(a.config.AdvertiseAddrWan)
-		if err != nil {
-			return nil, fmt.Errorf("Advertise WAN address resolution failed: %v", err)
-		}
-		if net.ParseIP(ipStr) == nil {
-			return nil, fmt.Errorf("Failed to parse advertise address for WAN: %v", ipStr)
-		}
-		a.config.AdvertiseAddrWan = ipStr
-	} else {
-		a.config.AdvertiseAddrWan = a.config.AdvertiseAddr
-	}
-
-	// Create the default set of tagged addresses.
-	a.config.TaggedAddresses = map[string]string{
-		"lan": a.config.AdvertiseAddr,
-		"wan": a.config.AdvertiseAddrWan,
-	}
+	// Set up the initial state of the token store based on the config.
+	a.tokens.UpdateUserToken(a.config.ACLToken)
+	a.tokens.UpdateAgentToken(a.config.ACLAgentToken)
+	a.tokens.UpdateAgentMasterToken(a.config.ACLAgentMasterToken)
+	a.tokens.UpdateACLReplicationToken(a.config.ACLReplicationToken)
 
 	return a, nil
 }
@@ -292,7 +257,7 @@ func (a *Agent) Start() error {
 	}
 
 	// create the local state
-	a.state = NewLocalState(c, a.logger)
+	a.state = NewLocalState(c, a.logger, a.tokens)
 
 	// create the config for the rpc server/client
 	consulCfg, err := a.consulConfig()
@@ -305,7 +270,7 @@ func (a *Agent) Start() error {
 
 	// Setup either the client or the server.
 	if c.Server {
-		server, err := consul.NewServerLogger(consulCfg, a.logger)
+		server, err := consul.NewServerLogger(consulCfg, a.logger, a.tokens)
 		if err != nil {
 			return fmt.Errorf("Failed to start Consul server: %v", err)
 		}
@@ -377,8 +342,8 @@ func (a *Agent) Start() error {
 	}
 
 	// start retry join
-	go a.retryJoin()
-	go a.retryJoinWan()
+	go a.retryJoinLAN()
+	go a.retryJoinWAN()
 
 	return nil
 }
@@ -684,6 +649,14 @@ func (a *Agent) consulConfig() (*consul.Config, error) {
 	if a.config.AdvertiseAddrs.RPC != nil {
 		base.RPCAdvertise = a.config.AdvertiseAddrs.RPC
 	}
+	base.Segment = a.config.Segment
+	if len(a.config.Segments) > 0 {
+		segments, err := a.segmentConfig()
+		if err != nil {
+			return nil, err
+		}
+		base.Segments = segments
+	}
 	if a.config.Bootstrap {
 		base.Bootstrap = true
 	}
@@ -698,12 +671,6 @@ func (a *Agent) consulConfig() (*consul.Config, error) {
 	}
 	if a.config.RaftProtocol != 0 {
 		base.RaftConfig.ProtocolVersion = raft.ProtocolVersion(a.config.RaftProtocol)
-	}
-	if a.config.ACLToken != "" {
-		base.ACLToken = a.config.ACLToken
-	}
-	if a.config.ACLAgentToken != "" {
-		base.ACLAgentToken = a.config.ACLAgentToken
 	}
 	if a.config.ACLMasterToken != "" {
 		base.ACLMasterToken = a.config.ACLMasterToken
@@ -720,9 +687,7 @@ func (a *Agent) consulConfig() (*consul.Config, error) {
 	if a.config.ACLDownPolicy != "" {
 		base.ACLDownPolicy = a.config.ACLDownPolicy
 	}
-	if a.config.ACLReplicationToken != "" {
-		base.ACLReplicationToken = a.config.ACLReplicationToken
-	}
+	base.EnableACLReplication = a.config.EnableACLReplication
 	if a.config.ACLEnforceVersion8 != nil {
 		base.ACLEnforceVersion8 = *a.config.ACLEnforceVersion8
 	}
@@ -757,6 +722,14 @@ func (a *Agent) consulConfig() (*consul.Config, error) {
 	// make sure the advertise address is always set
 	if base.RPCAdvertise == nil {
 		base.RPCAdvertise = base.RPCAddr
+	}
+
+	// Rate limiting for RPC calls.
+	if a.config.Limits.RPCRate > 0 {
+		base.RPCRate = a.config.Limits.RPCRate
+	}
+	if a.config.Limits.RPCMaxBurst > 0 {
+		base.RPCMaxBurst = a.config.Limits.RPCMaxBurst
 	}
 
 	// set the src address for outgoing rpc connections
@@ -800,7 +773,8 @@ func (a *Agent) consulConfig() (*consul.Config, error) {
 	// Setup the loggers
 	base.LogOutput = a.LogOutput
 
-	// This will set up the LAN keyring, as well as the WAN for servers.
+	// This will set up the LAN keyring, as well as the WAN and any segments
+	// for servers.
 	if err := a.setupKeyrings(base); err != nil {
 		return nil, fmt.Errorf("Failed to configure keyring: %v", err)
 	}
@@ -808,111 +782,56 @@ func (a *Agent) consulConfig() (*consul.Config, error) {
 	return base, nil
 }
 
-// parseSingleIPTemplate is used as a helper function to parse out a single IP
-// address from a config parameter.
-func parseSingleIPTemplate(ipTmpl string) (string, error) {
-	out, err := template.Parse(ipTmpl)
-	if err != nil {
-		return "", fmt.Errorf("Unable to parse address template %q: %v", ipTmpl, err)
-	}
+// Setup the serf and memberlist config for any defined network segments.
+func (a *Agent) segmentConfig() ([]consul.NetworkSegment, error) {
+	var segments []consul.NetworkSegment
+	config := a.config
 
-	ips := strings.Split(out, " ")
-	switch len(ips) {
-	case 0:
-		return "", errors.New("No addresses found, please configure one.")
-	case 1:
-		return ips[0], nil
-	default:
-		return "", fmt.Errorf("Multiple addresses found (%q), please configure one.", out)
-	}
-}
+	for _, segment := range config.Segments {
+		serfConf := consul.DefaultConfig().SerfLANConfig
 
-// resolveTmplAddrs iterates over the myriad of addresses in the agent's config
-// and performs go-sockaddr/template Parse on each known address in case the
-// user specified a template config for any of their values.
-func (a *Agent) resolveTmplAddrs() error {
-	if a.config.AdvertiseAddr != "" {
-		ipStr, err := parseSingleIPTemplate(a.config.AdvertiseAddr)
-		if err != nil {
-			return fmt.Errorf("Advertise address resolution failed: %v", err)
+		if segment.Advertise != "" {
+			serfConf.MemberlistConfig.AdvertiseAddr = segment.Advertise
+		} else {
+			serfConf.MemberlistConfig.AdvertiseAddr = a.config.AdvertiseAddr
 		}
-		a.config.AdvertiseAddr = ipStr
-	}
-
-	if a.config.Addresses.DNS != "" {
-		ipStr, err := parseSingleIPTemplate(a.config.Addresses.DNS)
-		if err != nil {
-			return fmt.Errorf("DNS address resolution failed: %v", err)
+		if segment.Bind != "" {
+			serfConf.MemberlistConfig.BindAddr = segment.Bind
+		} else {
+			serfConf.MemberlistConfig.BindAddr = a.config.BindAddr
 		}
-		a.config.Addresses.DNS = ipStr
-	}
+		serfConf.MemberlistConfig.AdvertisePort = segment.Port
+		serfConf.MemberlistConfig.BindPort = segment.Port
 
-	if a.config.Addresses.HTTP != "" {
-		ipStr, err := parseSingleIPTemplate(a.config.Addresses.HTTP)
-		if err != nil {
-			return fmt.Errorf("HTTP address resolution failed: %v", err)
+		if config.ReconnectTimeoutLan != 0 {
+			serfConf.ReconnectTimeout = config.ReconnectTimeoutLan
 		}
-		a.config.Addresses.HTTP = ipStr
-	}
-
-	if a.config.Addresses.HTTPS != "" {
-		ipStr, err := parseSingleIPTemplate(a.config.Addresses.HTTPS)
-		if err != nil {
-			return fmt.Errorf("HTTPS address resolution failed: %v", err)
+		if config.EncryptVerifyIncoming != nil {
+			serfConf.MemberlistConfig.GossipVerifyIncoming = *config.EncryptVerifyIncoming
 		}
-		a.config.Addresses.HTTPS = ipStr
-	}
-
-	if a.config.AdvertiseAddrWan != "" {
-		ipStr, err := parseSingleIPTemplate(a.config.AdvertiseAddrWan)
-		if err != nil {
-			return fmt.Errorf("Advertise WAN address resolution failed: %v", err)
+		if config.EncryptVerifyOutgoing != nil {
+			serfConf.MemberlistConfig.GossipVerifyOutgoing = *config.EncryptVerifyOutgoing
 		}
-		a.config.AdvertiseAddrWan = ipStr
-	}
 
-	if a.config.BindAddr != "" {
-		ipStr, err := parseSingleIPTemplate(a.config.BindAddr)
-		if err != nil {
-			return fmt.Errorf("Bind address resolution failed: %v", err)
+		var rpcAddr *net.TCPAddr
+		if segment.RPCListener {
+			rpcAddr = &net.TCPAddr{
+				IP:   net.ParseIP(segment.Bind),
+				Port: a.config.Ports.Server,
+			}
 		}
-		a.config.BindAddr = ipStr
+
+		segments = append(segments, consul.NetworkSegment{
+			Name:       segment.Name,
+			Bind:       serfConf.MemberlistConfig.BindAddr,
+			Port:       segment.Port,
+			Advertise:  serfConf.MemberlistConfig.AdvertiseAddr,
+			RPCAddr:    rpcAddr,
+			SerfConfig: serfConf,
+		})
 	}
 
-	if a.config.ClientAddr != "" {
-		ipStr, err := parseSingleIPTemplate(a.config.ClientAddr)
-		if err != nil {
-			return fmt.Errorf("Client address resolution failed: %v", err)
-		}
-		a.config.ClientAddr = ipStr
-	}
-
-	if a.config.SerfLanBindAddr != "" {
-		ipStr, err := parseSingleIPTemplate(a.config.SerfLanBindAddr)
-		if err != nil {
-			return fmt.Errorf("Serf LAN Address resolution failed: %v", err)
-		}
-		a.config.SerfLanBindAddr = ipStr
-	}
-
-	if a.config.SerfWanBindAddr != "" {
-		ipStr, err := parseSingleIPTemplate(a.config.SerfWanBindAddr)
-		if err != nil {
-			return fmt.Errorf("Serf WAN Address resolution failed: %v", err)
-		}
-		a.config.SerfWanBindAddr = ipStr
-	}
-
-	// Parse all tagged addresses
-	for k, v := range a.config.TaggedAddresses {
-		ipStr, err := parseSingleIPTemplate(v)
-		if err != nil {
-			return fmt.Errorf("%s address resolution failed: %v", k, err)
-		}
-		a.config.TaggedAddresses[k] = ipStr
-	}
-
-	return nil
+	return segments, nil
 }
 
 // makeRandomID will generate a random UUID for a node.
@@ -1029,8 +948,8 @@ func (a *Agent) setupNodeID(config *Config) error {
 	return nil
 }
 
-// setupKeyrings is used to initialize and load keyrings during agent startup
-func (a *Agent) setupKeyrings(config *consul.Config) error {
+// setupBaseKeyrings configures the LAN and WAN keyrings.
+func (a *Agent) setupBaseKeyrings(config *consul.Config) error {
 	// If the keyring file is disabled then just poke the provided key
 	// into the in-memory keyring.
 	if a.config.DisableKeyringFile {
@@ -1089,6 +1008,34 @@ LOAD:
 	return nil
 }
 
+// setupKeyrings is used to initialize and load keyrings during agent startup.
+func (a *Agent) setupKeyrings(config *consul.Config) error {
+	// First set up the LAN and WAN keyrings.
+	if err := a.setupBaseKeyrings(config); err != nil {
+		return err
+	}
+
+	// If there's no LAN keyring then there's nothing else to set up for
+	// any segments.
+	lanKeyring := config.SerfLANConfig.MemberlistConfig.Keyring
+	if lanKeyring == nil {
+		return nil
+	}
+
+	// Copy the initial state of the LAN keyring into each segment config.
+	// Segments don't have their own keyring file, they rely on the LAN
+	// holding the state so things can't get out of sync.
+	k, pk := lanKeyring.GetKeys(), lanKeyring.GetPrimaryKey()
+	for _, segment := range config.Segments {
+		keyring, err := memberlist.NewKeyring(k, pk)
+		if err != nil {
+			return err
+		}
+		segment.SerfConfig.MemberlistConfig.Keyring = keyring
+	}
+	return nil
+}
+
 // registerEndpoint registers a handler for the consul RPC server
 // under a unique name while making it accessible under the provided
 // name. This allows overwriting handlers for the golang net/rpc
@@ -1108,7 +1055,7 @@ func (a *Agent) registerEndpoint(name string, handler interface{}) error {
 // RPC is used to make an RPC call to the Consul servers
 // This allows the agent to implement the Consul.Interface
 func (a *Agent) RPC(method string, args interface{}, reply interface{}) error {
-	a.endpointsLock.Lock()
+	a.endpointsLock.RLock()
 	// fast path: only translate if there are overrides
 	if len(a.endpoints) > 0 {
 		p := strings.SplitN(method, ".", 2)
@@ -1116,7 +1063,7 @@ func (a *Agent) RPC(method string, args interface{}, reply interface{}) error {
 			method = e + "." + p[1]
 		}
 	}
-	a.endpointsLock.Unlock()
+	a.endpointsLock.RUnlock()
 	return a.delegate.RPC(method, args, reply)
 }
 
@@ -1306,15 +1253,16 @@ func (a *Agent) ResumeSync() {
 	a.state.Resume()
 }
 
-// GetLANCoordinate returns the coordinate of this node in the local pool (assumes coordinates
-// are enabled, so check that before calling).
-func (a *Agent) GetLANCoordinate() (*coordinate.Coordinate, error) {
+// GetLANCoordinate returns the coordinates of this node in the local pools
+// (assumes coordinates are enabled, so check that before calling).
+func (a *Agent) GetLANCoordinate() (lib.CoordinateSet, error) {
 	return a.delegate.GetLANCoordinate()
 }
 
 // sendCoordinate is a long-running loop that periodically sends our coordinate
 // to the server. Closing the agent's shutdownChannel will cause this to exit.
 func (a *Agent) sendCoordinate() {
+OUTER:
 	for {
 		rate := a.config.SyncCoordinateRateTarget
 		min := a.config.SyncCoordinateIntervalMin
@@ -1334,26 +1282,29 @@ func (a *Agent) sendCoordinate() {
 				continue
 			}
 
-			c, err := a.GetLANCoordinate()
+			cs, err := a.GetLANCoordinate()
 			if err != nil {
 				a.logger.Printf("[ERR] agent: Failed to get coordinate: %s", err)
 				continue
 			}
 
-			req := structs.CoordinateUpdateRequest{
-				Datacenter:   a.config.Datacenter,
-				Node:         a.config.NodeName,
-				Coord:        c,
-				WriteRequest: structs.WriteRequest{Token: a.config.GetTokenForAgent()},
-			}
-			var reply struct{}
-			if err := a.RPC("Coordinate.Update", &req, &reply); err != nil {
-				if strings.Contains(err.Error(), permissionDenied) {
-					a.logger.Printf("[WARN] agent: Coordinate update blocked by ACLs")
-				} else {
-					a.logger.Printf("[ERR] agent: Coordinate update error: %v", err)
+			for segment, coord := range cs {
+				req := structs.CoordinateUpdateRequest{
+					Datacenter:   a.config.Datacenter,
+					Node:         a.config.NodeName,
+					Segment:      segment,
+					Coord:        coord,
+					WriteRequest: structs.WriteRequest{Token: a.tokens.AgentToken()},
 				}
-				continue
+				var reply struct{}
+				if err := a.RPC("Coordinate.Update", &req, &reply); err != nil {
+					if acl.IsErrPermissionDenied(err) {
+						a.logger.Printf("[WARN] agent: Coordinate update blocked by ACLs")
+					} else {
+						a.logger.Printf("[ERR] agent: Coordinate update error: %v", err)
+					}
+					continue OUTER
+				}
 			}
 		case <-a.shutdownCh:
 			return
@@ -1485,15 +1436,24 @@ func writeFileAtomic(path string, contents []byte) error {
 		return err
 	}
 	if _, err := fh.Write(contents); err != nil {
+		fh.Close()
+		os.Remove(tempPath)
 		return err
 	}
 	if err := fh.Sync(); err != nil {
+		fh.Close()
+		os.Remove(tempPath)
 		return err
 	}
 	if err := fh.Close(); err != nil {
+		os.Remove(tempPath)
 		return err
 	}
-	return os.Rename(tempPath, path)
+	if err := os.Rename(tempPath, path); err != nil {
+		os.Remove(tempPath)
+		return err
+	}
+	return nil
 }
 
 // AddService is used to add a service entry.
@@ -1513,7 +1473,7 @@ func (a *Agent) AddService(service *structs.NodeService, chkTypes []*structs.Che
 	}
 
 	// Warn if the service name is incompatible with DNS
-	if !dnsNameRe.MatchString(service.Service) {
+	if InvalidDnsRe.MatchString(service.Service) {
 		a.logger.Printf("[WARN] Service name %q will not be discoverable "+
 			"via DNS due to invalid characters. Valid characters include "+
 			"all alpha-numerics and dashes.", service.Service)
@@ -1521,7 +1481,7 @@ func (a *Agent) AddService(service *structs.NodeService, chkTypes []*structs.Che
 
 	// Warn if any tags are incompatible with DNS
 	for _, tag := range service.Tags {
-		if !dnsNameRe.MatchString(tag) {
+		if InvalidDnsRe.MatchString(tag) {
 			a.logger.Printf("[DEBUG] Service tag %q will not be discoverable "+
 				"via DNS due to invalid characters. Valid characters include "+
 				"all alpha-numerics and dashes.", tag)
@@ -1629,7 +1589,7 @@ func (a *Agent) AddCheck(check *structs.HealthCheck, chkType *structs.CheckType,
 		}
 
 		if chkType.IsScript() && !a.config.EnableScriptChecks {
-			return fmt.Errorf("Check types that exec scripts are disabled on this agent")
+			return fmt.Errorf("Scripts are disabled on this agent; to enable, configure 'enable_script_checks' to true")
 		}
 	}
 
@@ -2072,6 +2032,12 @@ func (a *Agent) loadServices(conf *Config) error {
 			continue
 		}
 
+		// Skip all partially written temporary files
+		if strings.HasSuffix(fi.Name(), "tmp") {
+			a.logger.Printf("[WARN] Ignoring temporary service file %v", fi.Name())
+			continue
+		}
+
 		// Open the file for reading
 		file := filepath.Join(svcDir, fi.Name())
 		fh, err := os.Open(file)
@@ -2242,6 +2208,8 @@ func (a *Agent) loadMetadata(conf *Config) error {
 		a.state.metadata[key] = value
 	}
 
+	a.state.metadata[structs.MetaSegmentKey] = conf.Segment
+
 	a.state.changeMade()
 
 	return nil
@@ -2381,6 +2349,9 @@ func (a *Agent) ReloadConfig(newCfg *Config) error {
 	if err := a.reloadWatches(newCfg); err != nil {
 		return fmt.Errorf("Failed reloading watches: %v", err)
 	}
+
+	// Update filtered metrics
+	metrics.UpdateFilter(newCfg.Telemetry.AllowedPrefixes, newCfg.Telemetry.BlockedPrefixes)
 
 	return nil
 }

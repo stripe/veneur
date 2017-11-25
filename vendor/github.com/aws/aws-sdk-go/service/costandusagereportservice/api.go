@@ -12,19 +12,18 @@ const opDeleteReportDefinition = "DeleteReportDefinition"
 
 // DeleteReportDefinitionRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteReportDefinition operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DeleteReportDefinition for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DeleteReportDefinition method directly
-// instead.
+// See DeleteReportDefinition for more information on using the DeleteReportDefinition
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DeleteReportDefinitionRequest method.
 //    req, resp := client.DeleteReportDefinitionRequest(params)
@@ -34,7 +33,7 @@ const opDeleteReportDefinition = "DeleteReportDefinition"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DeleteReportDefinition
+// See also, https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DeleteReportDefinition
 func (c *CostandUsageReportService) DeleteReportDefinitionRequest(input *DeleteReportDefinitionInput) (req *request.Request, output *DeleteReportDefinitionOutput) {
 	op := &request.Operation{
 		Name:       opDeleteReportDefinition,
@@ -71,7 +70,7 @@ func (c *CostandUsageReportService) DeleteReportDefinitionRequest(input *DeleteR
 //   preference with an invalid report name, or Delete a report preference with
 //   an empty report name.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DeleteReportDefinition
+// See also, https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DeleteReportDefinition
 func (c *CostandUsageReportService) DeleteReportDefinition(input *DeleteReportDefinitionInput) (*DeleteReportDefinitionOutput, error) {
 	req, out := c.DeleteReportDefinitionRequest(input)
 	return out, req.Send()
@@ -97,19 +96,18 @@ const opDescribeReportDefinitions = "DescribeReportDefinitions"
 
 // DescribeReportDefinitionsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeReportDefinitions operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DescribeReportDefinitions for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DescribeReportDefinitions method directly
-// instead.
+// See DescribeReportDefinitions for more information on using the DescribeReportDefinitions
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DescribeReportDefinitionsRequest method.
 //    req, resp := client.DescribeReportDefinitionsRequest(params)
@@ -119,7 +117,7 @@ const opDescribeReportDefinitions = "DescribeReportDefinitions"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DescribeReportDefinitions
+// See also, https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DescribeReportDefinitions
 func (c *CostandUsageReportService) DescribeReportDefinitionsRequest(input *DescribeReportDefinitionsInput) (req *request.Request, output *DescribeReportDefinitionsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeReportDefinitions,
@@ -157,7 +155,7 @@ func (c *CostandUsageReportService) DescribeReportDefinitionsRequest(input *Desc
 //   * ErrCodeInternalErrorException "InternalErrorException"
 //   This exception is thrown on a known dependency failure.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DescribeReportDefinitions
+// See also, https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DescribeReportDefinitions
 func (c *CostandUsageReportService) DescribeReportDefinitions(input *DescribeReportDefinitionsInput) (*DescribeReportDefinitionsOutput, error) {
 	req, out := c.DescribeReportDefinitionsRequest(input)
 	return out, req.Send()
@@ -233,19 +231,18 @@ const opPutReportDefinition = "PutReportDefinition"
 
 // PutReportDefinitionRequest generates a "aws/request.Request" representing the
 // client's request for the PutReportDefinition operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See PutReportDefinition for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the PutReportDefinition method directly
-// instead.
+// See PutReportDefinition for more information on using the PutReportDefinition
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the PutReportDefinitionRequest method.
 //    req, resp := client.PutReportDefinitionRequest(params)
@@ -255,7 +252,7 @@ const opPutReportDefinition = "PutReportDefinition"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/PutReportDefinition
+// See also, https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/PutReportDefinition
 func (c *CostandUsageReportService) PutReportDefinitionRequest(input *PutReportDefinitionInput) (req *request.Request, output *PutReportDefinitionOutput) {
 	op := &request.Operation{
 		Name:       opPutReportDefinition,
@@ -300,7 +297,7 @@ func (c *CostandUsageReportService) PutReportDefinitionRequest(input *PutReportD
 //   preference with an invalid report name, or Delete a report preference with
 //   an empty report name.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/PutReportDefinition
+// See also, https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/PutReportDefinition
 func (c *CostandUsageReportService) PutReportDefinition(input *PutReportDefinitionInput) (*PutReportDefinitionOutput, error) {
 	req, out := c.PutReportDefinitionRequest(input)
 	return out, req.Send()
@@ -323,7 +320,7 @@ func (c *CostandUsageReportService) PutReportDefinitionWithContext(ctx aws.Conte
 }
 
 // Request of DeleteReportDefinition
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DeleteReportDefinitionRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DeleteReportDefinitionRequest
 type DeleteReportDefinitionInput struct {
 	_ struct{} `type:"structure"`
 
@@ -349,7 +346,7 @@ func (s *DeleteReportDefinitionInput) SetReportName(v string) *DeleteReportDefin
 }
 
 // Response of DeleteReportDefinition
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DeleteReportDefinitionResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DeleteReportDefinitionResponse
 type DeleteReportDefinitionOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -374,7 +371,7 @@ func (s *DeleteReportDefinitionOutput) SetResponseMessage(v string) *DeleteRepor
 }
 
 // Request of DescribeReportDefinitions
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DescribeReportDefinitionsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DescribeReportDefinitionsRequest
 type DescribeReportDefinitionsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -421,7 +418,7 @@ func (s *DescribeReportDefinitionsInput) SetNextToken(v string) *DescribeReportD
 }
 
 // Response of DescribeReportDefinitions
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DescribeReportDefinitionsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/DescribeReportDefinitionsResponse
 type DescribeReportDefinitionsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -455,7 +452,7 @@ func (s *DescribeReportDefinitionsOutput) SetReportDefinitions(v []*ReportDefini
 }
 
 // Request of PutReportDefinition
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/PutReportDefinitionRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/PutReportDefinitionRequest
 type PutReportDefinitionInput struct {
 	_ struct{} `type:"structure"`
 
@@ -502,7 +499,7 @@ func (s *PutReportDefinitionInput) SetReportDefinition(v *ReportDefinition) *Put
 }
 
 // Response of PutReportDefinition
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/PutReportDefinitionResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/PutReportDefinitionResponse
 type PutReportDefinitionOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -520,7 +517,7 @@ func (s PutReportDefinitionOutput) GoString() string {
 // The definition of AWS Cost and Usage Report. Customer can specify the report
 // name, time unit, report format, compression format, S3 bucket and additional
 // artifacts and schema elements in the definition.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/ReportDefinition
+// See also, https://docs.aws.amazon.com/goto/WebAPI/cur-2017-01-06/ReportDefinition
 type ReportDefinition struct {
 	_ struct{} `type:"structure"`
 

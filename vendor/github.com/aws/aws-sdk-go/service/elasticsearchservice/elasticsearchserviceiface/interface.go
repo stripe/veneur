@@ -21,7 +21,7 @@ import (
 //
 // The best way to use this interface is so the SDK's service client's calls
 // can be stubbed out for unit testing your code with the SDK without needing
-// to inject custom request handlers into the the SDK's request pipeline.
+// to inject custom request handlers into the SDK's request pipeline.
 //
 //    // myFunc uses an SDK service client to make a request to
 //    // Amazon Elasticsearch Service.
@@ -71,6 +71,10 @@ type ElasticsearchServiceAPI interface {
 	DeleteElasticsearchDomain(*elasticsearchservice.DeleteElasticsearchDomainInput) (*elasticsearchservice.DeleteElasticsearchDomainOutput, error)
 	DeleteElasticsearchDomainWithContext(aws.Context, *elasticsearchservice.DeleteElasticsearchDomainInput, ...request.Option) (*elasticsearchservice.DeleteElasticsearchDomainOutput, error)
 	DeleteElasticsearchDomainRequest(*elasticsearchservice.DeleteElasticsearchDomainInput) (*request.Request, *elasticsearchservice.DeleteElasticsearchDomainOutput)
+
+	DeleteElasticsearchServiceRole(*elasticsearchservice.DeleteElasticsearchServiceRoleInput) (*elasticsearchservice.DeleteElasticsearchServiceRoleOutput, error)
+	DeleteElasticsearchServiceRoleWithContext(aws.Context, *elasticsearchservice.DeleteElasticsearchServiceRoleInput, ...request.Option) (*elasticsearchservice.DeleteElasticsearchServiceRoleOutput, error)
+	DeleteElasticsearchServiceRoleRequest(*elasticsearchservice.DeleteElasticsearchServiceRoleInput) (*request.Request, *elasticsearchservice.DeleteElasticsearchServiceRoleOutput)
 
 	DescribeElasticsearchDomain(*elasticsearchservice.DescribeElasticsearchDomainInput) (*elasticsearchservice.DescribeElasticsearchDomainOutput, error)
 	DescribeElasticsearchDomainWithContext(aws.Context, *elasticsearchservice.DescribeElasticsearchDomainInput, ...request.Option) (*elasticsearchservice.DescribeElasticsearchDomainOutput, error)

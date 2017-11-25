@@ -28,6 +28,27 @@ func TestAPI_AgentSelf(t *testing.T) {
 	}
 }
 
+func TestAPI_AgentMetrics(t *testing.T) {
+	t.Parallel()
+	c, s := makeClient(t)
+	defer s.Stop()
+
+	agent := c.Agent()
+
+	metrics, err := agent.Metrics()
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(metrics.Gauges) < 0 {
+		t.Fatalf("bad: %v", metrics)
+	}
+
+	if metrics.Gauges[0].Name != "consul.runtime.alloc_bytes" {
+		t.Fatalf("bad: %v", metrics.Gauges[0])
+	}
+}
+
 func TestAPI_AgentReload(t *testing.T) {
 	t.Parallel()
 
@@ -67,6 +88,29 @@ func TestAPI_AgentReload(t *testing.T) {
 	}
 	if service.Port != 1234 {
 		t.Fatalf("bad: %v", service.Port)
+	}
+}
+
+func TestAPI_AgentMembersOpts(t *testing.T) {
+	t.Parallel()
+	c, s1 := makeClient(t)
+	_, s2 := makeClientWithConfig(t, nil, func(c *testutil.TestServerConfig) {
+		c.Datacenter = "dc2"
+	})
+	defer s1.Stop()
+	defer s2.Stop()
+
+	agent := c.Agent()
+
+	s2.JoinWAN(t, s1.WANAddr)
+
+	members, err := agent.MembersOpts(MembersOpts{WAN: true})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if len(members) != 2 {
+		t.Fatalf("bad: %v", members)
 	}
 }
 
@@ -764,5 +808,29 @@ func TestAPI_NodeMaintenance(t *testing.T) {
 		if strings.Contains(check.CheckID, "maintenance") {
 			t.Fatalf("should have removed health check")
 		}
+	}
+}
+
+func TestAPI_AgentUpdateToken(t *testing.T) {
+	t.Parallel()
+	c, s := makeACLClient(t)
+	defer s.Stop()
+
+	agent := c.Agent()
+
+	if _, err := agent.UpdateACLToken("root", nil); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if _, err := agent.UpdateACLAgentToken("root", nil); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if _, err := agent.UpdateACLAgentMasterToken("root", nil); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	if _, err := agent.UpdateACLReplicationToken("root", nil); err != nil {
+		t.Fatalf("err: %v", err)
 	}
 }

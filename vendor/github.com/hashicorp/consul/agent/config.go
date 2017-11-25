@@ -15,12 +15,23 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/agent/consul"
-	"github.com/hashicorp/consul/agent/consul/structs"
+	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/ipaddr"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/consul/tlsutil"
 	"github.com/hashicorp/consul/types"
 	"github.com/hashicorp/consul/watch"
+	"github.com/hashicorp/go-sockaddr/template"
 	"github.com/mitchellh/mapstructure"
+	"golang.org/x/time/rate"
+)
+
+const (
+	// SegmentLimit is the maximum number of network segments that may be declared.
+	SegmentLimit = 64
+
+	// SegmentNameLimit is the maximum segment name length.
+	SegmentNameLimit = 64
 )
 
 // Ports is used to simplify the configuration by
@@ -191,6 +202,20 @@ type RetryJoinAzure struct {
 	SecretAccessKey string `mapstructure:"secret_access_key" json:"-"`
 }
 
+// Limits is used to configure limits enforced by the agent.
+type Limits struct {
+	// RPCRate and RPCMaxBurst control how frequently RPC calls are allowed
+	// to happen. In any large enough time interval, rate limiter limits the
+	// rate to RPCRate tokens per second, with a maximum burst size of
+	// RPCMaxBurst events. As a special case, if RPCRate == Inf (the infinite
+	// rate), RPCMaxBurst is ignored.
+	//
+	// See https://en.wikipedia.org/wiki/Token_bucket for more about token
+	// buckets.
+	RPCRate     rate.Limit `mapstructure:"rpc_rate"`
+	RPCMaxBurst int        `mapstructure:"rpc_max_burst"`
+}
+
 // Performance is used to tune the performance of Consul's subsystems.
 type Performance struct {
 	// RaftMultiplier is an integer multiplier used to scale Raft timing
@@ -214,6 +239,16 @@ type Telemetry struct {
 
 	// DisableHostname will disable hostname prefixing for all metrics
 	DisableHostname bool `mapstructure:"disable_hostname"`
+
+	// PrefixFilter is a list of filter rules to apply for allowing/blocking metrics
+	// by prefix.
+	PrefixFilter    []string `mapstructure:"prefix_filter"`
+	AllowedPrefixes []string `mapstructure:"-" json:"-"`
+	BlockedPrefixes []string `mapstructure:"-" json:"-"`
+
+	// FilterDefault is the default for whether to allow a metric that's not
+	// covered by the filter.
+	FilterDefault *bool `mapstructure:"filter_default"`
 
 	// DogStatsdAddr is the address of a dogstatsd instance. If provided,
 	// metrics will be sent to that instance
@@ -330,6 +365,26 @@ type Autopilot struct {
 	UpgradeVersionTag string `mapstructure:"upgrade_version_tag"`
 }
 
+// (Enterprise-only) NetworkSegment is the configuration for a network segment, which is an
+// isolated serf group on the LAN.
+type NetworkSegment struct {
+	// Name is the name of the segment.
+	Name string `mapstructure:"name"`
+
+	// Bind is the bind address for this segment.
+	Bind string `mapstructure:"bind"`
+
+	// Port is the port for this segment.
+	Port int `mapstructure:"port"`
+
+	// RPCListener is whether to bind a separate RPC listener on the bind address
+	// for this segment.
+	RPCListener bool `mapstructure:"rpc_listener"`
+
+	// Advertise is the advertise address of this segment.
+	Advertise string `mapstructure:"advertise"`
+}
+
 // Config is the configuration that can be set for an Agent.
 // Some of this is configurable as CLI flags, but most must
 // be set using a configuration file.
@@ -337,6 +392,9 @@ type Config struct {
 	// DevMode enables a fast-path mode of operation to bring up an in-memory
 	// server with minimal configuration. Useful for developing Consul.
 	DevMode bool `mapstructure:"-"`
+
+	// Limits is used to configure limits enforced by the agent.
+	Limits Limits `mapstructure:"limits"`
 
 	// Performance is used to tune the performance of Consul's subsystems.
 	Performance Performance `mapstructure:"performance"`
@@ -453,6 +511,13 @@ type Config struct {
 	// Address configurations
 	Addresses AddressConfig
 
+	// (Enterprise-only) NetworkSegment is the network segment for this client to join.
+	Segment string `mapstructure:"segment"`
+
+	// (Enterprise-only) Segments is the list of network segments for this server to
+	// initialize.
+	Segments []NetworkSegment `mapstructure:"segments"`
+
 	// Tagged addresses. These are used to publish a set of addresses for
 	// for a node, which can be used by the remote agent. We currently
 	// populate only the "wan" tag based on the SerfWan advertise address,
@@ -560,7 +625,7 @@ type Config struct {
 	StartJoinWan []string `mapstructure:"start_join_wan"`
 
 	// RetryJoin is a list of addresses to join with retry enabled.
-	RetryJoin []string `mapstructure:"retry_join"`
+	RetryJoin []string `mapstructure:"retry_join" json:"-"`
 
 	// RetryMaxAttempts specifies the maximum number of times to retry joining a
 	// host on startup. This is useful for cases where we know the node will be
@@ -572,15 +637,6 @@ type Config struct {
 	// the default is 30s.
 	RetryInterval    time.Duration `mapstructure:"-" json:"-"`
 	RetryIntervalRaw string        `mapstructure:"retry_interval"`
-
-	// RetryJoinEC2 specifies the configuration for auto-join on EC2.
-	RetryJoinEC2 RetryJoinEC2 `mapstructure:"retry_join_ec2"`
-
-	// RetryJoinGCE specifies the configuration for auto-join on GCE.
-	RetryJoinGCE RetryJoinGCE `mapstructure:"retry_join_gce"`
-
-	// RetryJoinAzure specifies the configuration for auto-join on Azure.
-	RetryJoinAzure RetryJoinAzure `mapstructure:"retry_join_azure"`
 
 	// RetryJoinWan is a list of addresses to join -wan with retry enabled.
 	RetryJoinWan []string `mapstructure:"retry_join_wan"`
@@ -701,6 +757,12 @@ type Config struct {
 	//                    this acts like deny.
 	ACLDownPolicy string `mapstructure:"acl_down_policy"`
 
+	// EnableACLReplication is used to turn on ACL replication when using
+	// /v1/agent/token/acl_replication_token to introduce the token, instead
+	// of setting acl_replication_token in the config. Setting the token via
+	// config will also set this to true for backward compatibility.
+	EnableACLReplication bool `mapstructure:"enable_acl_replication"`
+
 	// ACLReplicationToken is used to fetch ACLs from the ACLDatacenter in
 	// order to replicate them locally. Setting this to a non-empty value
 	// also enables replication. Replication is only available in datacenters
@@ -784,6 +846,9 @@ type Config struct {
 	DeprecatedAtlasJoin              bool              `mapstructure:"atlas_join" json:"-"`
 	DeprecatedAtlasEndpoint          string            `mapstructure:"atlas_endpoint" json:"-"`
 	DeprecatedHTTPAPIResponseHeaders map[string]string `mapstructure:"http_api_response_headers"`
+	DeprecatedRetryJoinEC2           RetryJoinEC2      `mapstructure:"retry_join_ec2"`
+	DeprecatedRetryJoinGCE           RetryJoinGCE      `mapstructure:"retry_join_gce"`
+	DeprecatedRetryJoinAzure         RetryJoinAzure    `mapstructure:"retry_join_azure"`
 }
 
 // IncomingHTTPSConfig returns the TLS configuration for HTTPS
@@ -909,6 +974,10 @@ type dirEnts []os.FileInfo
 // DefaultConfig is used to return a sane default configuration
 func DefaultConfig() *Config {
 	return &Config{
+		Limits: Limits{
+			RPCRate:     rate.Inf,
+			RPCMaxBurst: 1000,
+		},
 		Bootstrap:       false,
 		BootstrapExpect: 0,
 		Server:          false,
@@ -933,6 +1002,7 @@ func DefaultConfig() *Config {
 		},
 		Telemetry: Telemetry{
 			StatsitePrefix: "consul",
+			FilterDefault:  Bool(true),
 		},
 		Meta:                       make(map[string]string),
 		SyslogFacility:             "LOCAL0",
@@ -1019,18 +1089,6 @@ func (c *Config) ClientListener(override string, port int) (net.Addr, error) {
 		return nil, fmt.Errorf("Failed to parse IP: %v", addr)
 	}
 	return &net.TCPAddr{IP: ip, Port: port}, nil
-}
-
-// GetTokenForAgent returns the token the agent should use for its own internal
-// operations, such as registering itself with the catalog.
-func (c *Config) GetTokenForAgent() string {
-	if c.ACLAgentToken != "" {
-		return c.ACLAgentToken
-	}
-	if c.ACLToken != "" {
-		return c.ACLToken
-	}
-	return ""
 }
 
 // VerifyUniqueListeners checks to see if an address was used more than once in
@@ -1377,6 +1435,11 @@ func DecodeConfig(r io.Reader) (*Config, error) {
 		result.AdvertiseAddrs.RPC = addr
 	}
 
+	// Validate segment config.
+	if err := ValidateSegments(&result); err != nil {
+		return nil, err
+	}
+
 	// Enforce the max Raft multiplier.
 	if result.Performance.RaftMultiplier > consul.MaxRaftMultiplier {
 		return nil, fmt.Errorf("Performance.RaftMultiplier must be <= %d", consul.MaxRaftMultiplier)
@@ -1403,6 +1466,33 @@ func DecodeConfig(r io.Reader) (*Config, error) {
 		}
 		result.DeprecatedHTTPAPIResponseHeaders = nil
 	}
+
+	// Set the ACL replication enable if they set a token, for backwards
+	// compatibility.
+	if result.ACLReplicationToken != "" {
+		result.EnableACLReplication = true
+	}
+
+	// Parse the metric filters
+	for _, rule := range result.Telemetry.PrefixFilter {
+		if rule == "" {
+			return nil, fmt.Errorf("Cannot have empty filter rule in prefix_filter")
+		}
+		switch rule[0] {
+		case '+':
+			result.Telemetry.AllowedPrefixes = append(result.Telemetry.AllowedPrefixes, rule[1:])
+		case '-':
+			result.Telemetry.BlockedPrefixes = append(result.Telemetry.BlockedPrefixes, rule[1:])
+		default:
+			return nil, fmt.Errorf("Filter rule must begin with either '+' or '-': %q", rule)
+		}
+	}
+
+	// Validate node meta fields
+	if err := structs.ValidateMetadata(result.Meta, false); err != nil {
+		return nil, fmt.Errorf("Failed to parse node metadata: %v", err)
+	}
+
 	return &result, nil
 }
 
@@ -1571,6 +1661,13 @@ func DecodeCheckDefinition(raw interface{}) (*structs.CheckDefinition, error) {
 func MergeConfig(a, b *Config) *Config {
 	var result Config = *a
 
+	if b.Limits.RPCRate > 0 {
+		result.Limits.RPCRate = b.Limits.RPCRate
+	}
+	if b.Limits.RPCMaxBurst > 0 {
+		result.Limits.RPCMaxBurst = b.Limits.RPCMaxBurst
+	}
+
 	// Propagate non-default performance settings
 	if b.Performance.RaftMultiplier > 0 {
 		result.Performance.RaftMultiplier = b.Performance.RaftMultiplier
@@ -1696,6 +1793,12 @@ func MergeConfig(a, b *Config) *Config {
 	}
 	if b.Telemetry.DisableHostname == true {
 		result.Telemetry.DisableHostname = true
+	}
+	if len(b.Telemetry.PrefixFilter) != 0 {
+		result.Telemetry.PrefixFilter = append(result.Telemetry.PrefixFilter, b.Telemetry.PrefixFilter...)
+	}
+	if b.Telemetry.FilterDefault != nil {
+		result.Telemetry.FilterDefault = b.Telemetry.FilterDefault
 	}
 	if b.Telemetry.StatsdAddr != "" {
 		result.Telemetry.StatsdAddr = b.Telemetry.StatsdAddr
@@ -1832,6 +1935,12 @@ func MergeConfig(a, b *Config) *Config {
 	if b.Addresses.RPC != "" {
 		result.Addresses.RPC = b.Addresses.RPC
 	}
+	if b.Segment != "" {
+		result.Segment = b.Segment
+	}
+	if len(b.Segments) > 0 {
+		result.Segments = append(result.Segments, b.Segments...)
+	}
 	if b.EnableUI {
 		result.EnableUI = true
 	}
@@ -1853,50 +1962,50 @@ func MergeConfig(a, b *Config) *Config {
 	if b.RetryInterval != 0 {
 		result.RetryInterval = b.RetryInterval
 	}
-	if b.RetryJoinEC2.AccessKeyID != "" {
-		result.RetryJoinEC2.AccessKeyID = b.RetryJoinEC2.AccessKeyID
+	if b.DeprecatedRetryJoinEC2.AccessKeyID != "" {
+		result.DeprecatedRetryJoinEC2.AccessKeyID = b.DeprecatedRetryJoinEC2.AccessKeyID
 	}
-	if b.RetryJoinEC2.SecretAccessKey != "" {
-		result.RetryJoinEC2.SecretAccessKey = b.RetryJoinEC2.SecretAccessKey
+	if b.DeprecatedRetryJoinEC2.SecretAccessKey != "" {
+		result.DeprecatedRetryJoinEC2.SecretAccessKey = b.DeprecatedRetryJoinEC2.SecretAccessKey
 	}
-	if b.RetryJoinEC2.Region != "" {
-		result.RetryJoinEC2.Region = b.RetryJoinEC2.Region
+	if b.DeprecatedRetryJoinEC2.Region != "" {
+		result.DeprecatedRetryJoinEC2.Region = b.DeprecatedRetryJoinEC2.Region
 	}
-	if b.RetryJoinEC2.TagKey != "" {
-		result.RetryJoinEC2.TagKey = b.RetryJoinEC2.TagKey
+	if b.DeprecatedRetryJoinEC2.TagKey != "" {
+		result.DeprecatedRetryJoinEC2.TagKey = b.DeprecatedRetryJoinEC2.TagKey
 	}
-	if b.RetryJoinEC2.TagValue != "" {
-		result.RetryJoinEC2.TagValue = b.RetryJoinEC2.TagValue
+	if b.DeprecatedRetryJoinEC2.TagValue != "" {
+		result.DeprecatedRetryJoinEC2.TagValue = b.DeprecatedRetryJoinEC2.TagValue
 	}
-	if b.RetryJoinGCE.ProjectName != "" {
-		result.RetryJoinGCE.ProjectName = b.RetryJoinGCE.ProjectName
+	if b.DeprecatedRetryJoinGCE.ProjectName != "" {
+		result.DeprecatedRetryJoinGCE.ProjectName = b.DeprecatedRetryJoinGCE.ProjectName
 	}
-	if b.RetryJoinGCE.ZonePattern != "" {
-		result.RetryJoinGCE.ZonePattern = b.RetryJoinGCE.ZonePattern
+	if b.DeprecatedRetryJoinGCE.ZonePattern != "" {
+		result.DeprecatedRetryJoinGCE.ZonePattern = b.DeprecatedRetryJoinGCE.ZonePattern
 	}
-	if b.RetryJoinGCE.TagValue != "" {
-		result.RetryJoinGCE.TagValue = b.RetryJoinGCE.TagValue
+	if b.DeprecatedRetryJoinGCE.TagValue != "" {
+		result.DeprecatedRetryJoinGCE.TagValue = b.DeprecatedRetryJoinGCE.TagValue
 	}
-	if b.RetryJoinGCE.CredentialsFile != "" {
-		result.RetryJoinGCE.CredentialsFile = b.RetryJoinGCE.CredentialsFile
+	if b.DeprecatedRetryJoinGCE.CredentialsFile != "" {
+		result.DeprecatedRetryJoinGCE.CredentialsFile = b.DeprecatedRetryJoinGCE.CredentialsFile
 	}
-	if b.RetryJoinAzure.TagName != "" {
-		result.RetryJoinAzure.TagName = b.RetryJoinAzure.TagName
+	if b.DeprecatedRetryJoinAzure.TagName != "" {
+		result.DeprecatedRetryJoinAzure.TagName = b.DeprecatedRetryJoinAzure.TagName
 	}
-	if b.RetryJoinAzure.TagValue != "" {
-		result.RetryJoinAzure.TagValue = b.RetryJoinAzure.TagValue
+	if b.DeprecatedRetryJoinAzure.TagValue != "" {
+		result.DeprecatedRetryJoinAzure.TagValue = b.DeprecatedRetryJoinAzure.TagValue
 	}
-	if b.RetryJoinAzure.SubscriptionID != "" {
-		result.RetryJoinAzure.SubscriptionID = b.RetryJoinAzure.SubscriptionID
+	if b.DeprecatedRetryJoinAzure.SubscriptionID != "" {
+		result.DeprecatedRetryJoinAzure.SubscriptionID = b.DeprecatedRetryJoinAzure.SubscriptionID
 	}
-	if b.RetryJoinAzure.TenantID != "" {
-		result.RetryJoinAzure.TenantID = b.RetryJoinAzure.TenantID
+	if b.DeprecatedRetryJoinAzure.TenantID != "" {
+		result.DeprecatedRetryJoinAzure.TenantID = b.DeprecatedRetryJoinAzure.TenantID
 	}
-	if b.RetryJoinAzure.ClientID != "" {
-		result.RetryJoinAzure.ClientID = b.RetryJoinAzure.ClientID
+	if b.DeprecatedRetryJoinAzure.ClientID != "" {
+		result.DeprecatedRetryJoinAzure.ClientID = b.DeprecatedRetryJoinAzure.ClientID
 	}
-	if b.RetryJoinAzure.SecretAccessKey != "" {
-		result.RetryJoinAzure.SecretAccessKey = b.RetryJoinAzure.SecretAccessKey
+	if b.DeprecatedRetryJoinAzure.SecretAccessKey != "" {
+		result.DeprecatedRetryJoinAzure.SecretAccessKey = b.DeprecatedRetryJoinAzure.SecretAccessKey
 	}
 	if b.RetryMaxAttemptsWan != 0 {
 		result.RetryMaxAttemptsWan = b.RetryMaxAttemptsWan
@@ -1977,6 +2086,9 @@ func MergeConfig(a, b *Config) *Config {
 	}
 	if b.ACLDefaultPolicy != "" {
 		result.ACLDefaultPolicy = b.ACLDefaultPolicy
+	}
+	if b.EnableACLReplication {
+		result.EnableACLReplication = true
 	}
 	if b.ACLReplicationToken != "" {
 		result.ACLReplicationToken = b.ACLReplicationToken
@@ -2131,6 +2243,105 @@ func ReadConfigPaths(paths []string) (*Config, error) {
 	}
 
 	return result, nil
+}
+
+// ResolveTmplAddrs iterates over the myriad of addresses in the agent's config
+// and performs go-sockaddr/template Parse on each known address in case the
+// user specified a template config for any of their values.
+func (c *Config) ResolveTmplAddrs() (err error) {
+	parse := func(addr *string, socketAllowed bool, name string) {
+		if *addr == "" || err != nil {
+			return
+		}
+		var ip string
+		ip, err = parseSingleIPTemplate(*addr)
+		if err != nil {
+			err = fmt.Errorf("Resolution of %s failed: %v", name, err)
+			return
+		}
+		ipAddr := net.ParseIP(ip)
+		if !socketAllowed && ipAddr == nil {
+			err = fmt.Errorf("Failed to parse %s: %v", name, ip)
+			return
+		}
+		if socketAllowed && socketPath(ip) == "" && ipAddr == nil {
+			err = fmt.Errorf("Failed to parse %s, %q is not a valid IP address or socket", name, ip)
+			return
+		}
+
+		*addr = ip
+	}
+
+	if c == nil {
+		return
+	}
+	parse(&c.Addresses.DNS, true, "DNS address")
+	parse(&c.Addresses.HTTP, true, "HTTP address")
+	parse(&c.Addresses.HTTPS, true, "HTTPS address")
+	parse(&c.AdvertiseAddr, false, "Advertise address")
+	parse(&c.AdvertiseAddrWan, false, "Advertise WAN address")
+	parse(&c.BindAddr, true, "Bind address")
+	parse(&c.ClientAddr, true, "Client address")
+	parse(&c.SerfLanBindAddr, false, "Serf LAN address")
+	parse(&c.SerfWanBindAddr, false, "Serf WAN address")
+	for i, segment := range c.Segments {
+		parse(&c.Segments[i].Bind, false, fmt.Sprintf("Segment %q bind address", segment.Name))
+		parse(&c.Segments[i].Advertise, false, fmt.Sprintf("Segment %q advertise address", segment.Name))
+	}
+
+	return
+}
+
+// SetupTaggedAndAdvertiseAddrs configures advertise addresses and sets up a map of tagged addresses
+func (cfg *Config) SetupTaggedAndAdvertiseAddrs() error {
+	if cfg.AdvertiseAddr == "" {
+		switch {
+
+		case cfg.BindAddr != "" && !ipaddr.IsAny(cfg.BindAddr):
+			cfg.AdvertiseAddr = cfg.BindAddr
+
+		default:
+			ip, err := consul.GetPrivateIP()
+			if ipaddr.IsAnyV6(cfg.BindAddr) {
+				ip, err = consul.GetPublicIPv6()
+			}
+			if err != nil {
+				return fmt.Errorf("Failed to get advertise address: %v", err)
+			}
+			cfg.AdvertiseAddr = ip.String()
+		}
+	}
+
+	// Try to get an advertise address for the wan
+	if cfg.AdvertiseAddrWan == "" {
+		cfg.AdvertiseAddrWan = cfg.AdvertiseAddr
+	}
+
+	// Create the default set of tagged addresses.
+	cfg.TaggedAddresses = map[string]string{
+		"lan": cfg.AdvertiseAddr,
+		"wan": cfg.AdvertiseAddrWan,
+	}
+	return nil
+}
+
+// parseSingleIPTemplate is used as a helper function to parse out a single IP
+// address from a config parameter.
+func parseSingleIPTemplate(ipTmpl string) (string, error) {
+	out, err := template.Parse(ipTmpl)
+	if err != nil {
+		return "", fmt.Errorf("Unable to parse address template %q: %v", ipTmpl, err)
+	}
+
+	ips := strings.Split(out, " ")
+	switch len(ips) {
+	case 0:
+		return "", errors.New("No addresses found, please configure one.")
+	case 1:
+		return ips[0], nil
+	default:
+		return "", fmt.Errorf("Multiple addresses found (%q), please configure one.", out)
+	}
 }
 
 // Implement the sort interface for dirEnts

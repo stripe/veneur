@@ -1,15 +1,13 @@
 package agent
 
 import (
-	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/acl"
-	"github.com/hashicorp/consul/agent/consul/structs"
+	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/types"
 	"github.com/hashicorp/golang-lru"
 	"github.com/hashicorp/serf/serf"
@@ -20,20 +18,7 @@ import (
 // consul/acl.go. We may refactor some of the caching logic in the future,
 // but for now we are developing this separately to see how things shake out.
 
-// These must be kept in sync with the constants in consul/acl.go.
 const (
-	// aclNotFound indicates there is no matching ACL.
-	aclNotFound = "ACL not found"
-
-	// rootDenied is returned when attempting to resolve a root ACL.
-	rootDenied = "Cannot resolve root ACL"
-
-	// permissionDenied is returned when an ACL based rejection happens.
-	permissionDenied = "Permission denied"
-
-	// aclDisabled is returned when ACL changes are not permitted since they
-	// are disabled.
-	aclDisabled = "ACL support disabled"
 
 	// anonymousToken is the token ID we re-write to if there is no token ID
 	// provided.
@@ -42,8 +27,6 @@ const (
 	// Maximum number of cached ACL entries.
 	aclCacheSize = 10 * 1024
 )
-
-var errPermissionDenied = errors.New(permissionDenied)
 
 // aclCacheEntry is used to cache ACL tokens.
 type aclCacheEntry struct {
@@ -67,7 +50,6 @@ type aclManager struct {
 	acls *lru.TwoQueueCache
 
 	// master is the ACL to use when the agent master token is supplied.
-	// This may be nil if that option isn't set in the agent config.
 	master acl.ACL
 
 	// down is the ACL to use when the servers are down. This may be nil
@@ -93,29 +75,24 @@ func newACLManager(config *Config) (*aclManager, error) {
 		return nil, err
 	}
 
-	// If an agent master token is configured, build a policy and ACL for
-	// it, otherwise leave it nil.
-	var master acl.ACL
-	if len(config.ACLAgentMasterToken) > 0 {
-		policy := &acl.Policy{
-			Agents: []*acl.AgentPolicy{
-				&acl.AgentPolicy{
-					Node:   config.NodeName,
-					Policy: acl.PolicyWrite,
-				},
+	// Build a policy for the agent master token.
+	policy := &acl.Policy{
+		Agents: []*acl.AgentPolicy{
+			&acl.AgentPolicy{
+				Node:   config.NodeName,
+				Policy: acl.PolicyWrite,
 			},
-			Nodes: []*acl.NodePolicy{
-				&acl.NodePolicy{
-					Name:   "",
-					Policy: acl.PolicyRead,
-				},
+		},
+		Nodes: []*acl.NodePolicy{
+			&acl.NodePolicy{
+				Name:   "",
+				Policy: acl.PolicyRead,
 			},
-		}
-		acl, err := acl.New(acl.DenyAll(), policy)
-		if err != nil {
-			return nil, err
-		}
-		master = acl
+		},
+	}
+	master, err := acl.New(acl.DenyAll(), policy)
+	if err != nil {
+		return nil, err
 	}
 
 	var down acl.ACL
@@ -154,8 +131,8 @@ func (m *aclManager) lookupACL(a *Agent, id string) (acl.ACL, error) {
 	if len(id) == 0 {
 		id = anonymousToken
 	} else if acl.RootACL(id) != nil {
-		return nil, errors.New(rootDenied)
-	} else if m.master != nil && id == a.config.ACLAgentMasterToken {
+		return nil, acl.ErrRootDenied
+	} else if a.tokens.IsAgentMasterToken(id) {
 		return m.master, nil
 	}
 
@@ -182,14 +159,14 @@ func (m *aclManager) lookupACL(a *Agent, id string) (acl.ACL, error) {
 	var reply structs.ACLPolicy
 	err := a.RPC("ACL.GetPolicy", &args, &reply)
 	if err != nil {
-		if strings.Contains(err.Error(), aclDisabled) {
+		if acl.IsErrDisabled(err) {
 			a.logger.Printf("[DEBUG] agent: ACLs disabled on servers, will check again after %s", a.config.ACLDisabledTTL)
 			m.disabledLock.Lock()
 			m.disabled = time.Now().Add(a.config.ACLDisabledTTL)
 			m.disabledLock.Unlock()
 			return nil, nil
-		} else if strings.Contains(err.Error(), aclNotFound) {
-			return nil, errors.New(aclNotFound)
+		} else if acl.IsErrNotFound(err) {
+			return nil, acl.ErrNotFound
 		} else {
 			a.logger.Printf("[DEBUG] agent: Failed to get policy for ACL from servers: %v", err)
 			if m.down != nil {
@@ -265,24 +242,24 @@ func (a *Agent) resolveToken(id string) (acl.ACL, error) {
 // the given token.
 func (a *Agent) vetServiceRegister(token string, service *structs.NodeService) error {
 	// Resolve the token and bail if ACLs aren't enabled.
-	acl, err := a.resolveToken(token)
+	rule, err := a.resolveToken(token)
 	if err != nil {
 		return err
 	}
-	if acl == nil {
+	if rule == nil {
 		return nil
 	}
 
 	// Vet the service itself.
-	if !acl.ServiceWrite(service.Service) {
-		return errPermissionDenied
+	if !rule.ServiceWrite(service.Service) {
+		return acl.ErrPermissionDenied
 	}
 
 	// Vet any service that might be getting overwritten.
 	services := a.state.Services()
 	if existing, ok := services[service.ID]; ok {
-		if !acl.ServiceWrite(existing.Service) {
-			return errPermissionDenied
+		if !rule.ServiceWrite(existing.Service) {
+			return acl.ErrPermissionDenied
 		}
 	}
 
@@ -293,19 +270,19 @@ func (a *Agent) vetServiceRegister(token string, service *structs.NodeService) e
 // token.
 func (a *Agent) vetServiceUpdate(token string, serviceID string) error {
 	// Resolve the token and bail if ACLs aren't enabled.
-	acl, err := a.resolveToken(token)
+	rule, err := a.resolveToken(token)
 	if err != nil {
 		return err
 	}
-	if acl == nil {
+	if rule == nil {
 		return nil
 	}
 
 	// Vet any changes based on the existing services's info.
 	services := a.state.Services()
 	if existing, ok := services[serviceID]; ok {
-		if !acl.ServiceWrite(existing.Service) {
-			return errPermissionDenied
+		if !rule.ServiceWrite(existing.Service) {
+			return acl.ErrPermissionDenied
 		}
 	} else {
 		return fmt.Errorf("Unknown service %q", serviceID)
@@ -318,22 +295,22 @@ func (a *Agent) vetServiceUpdate(token string, serviceID string) error {
 // given token.
 func (a *Agent) vetCheckRegister(token string, check *structs.HealthCheck) error {
 	// Resolve the token and bail if ACLs aren't enabled.
-	acl, err := a.resolveToken(token)
+	rule, err := a.resolveToken(token)
 	if err != nil {
 		return err
 	}
-	if acl == nil {
+	if rule == nil {
 		return nil
 	}
 
 	// Vet the check itself.
 	if len(check.ServiceName) > 0 {
-		if !acl.ServiceWrite(check.ServiceName) {
-			return errPermissionDenied
+		if !rule.ServiceWrite(check.ServiceName) {
+			return acl.ErrPermissionDenied
 		}
 	} else {
-		if !acl.NodeWrite(a.config.NodeName) {
-			return errPermissionDenied
+		if !rule.NodeWrite(a.config.NodeName) {
+			return acl.ErrPermissionDenied
 		}
 	}
 
@@ -341,12 +318,12 @@ func (a *Agent) vetCheckRegister(token string, check *structs.HealthCheck) error
 	checks := a.state.Checks()
 	if existing, ok := checks[check.CheckID]; ok {
 		if len(existing.ServiceName) > 0 {
-			if !acl.ServiceWrite(existing.ServiceName) {
-				return errPermissionDenied
+			if !rule.ServiceWrite(existing.ServiceName) {
+				return acl.ErrPermissionDenied
 			}
 		} else {
-			if !acl.NodeWrite(a.config.NodeName) {
-				return errPermissionDenied
+			if !rule.NodeWrite(a.config.NodeName) {
+				return acl.ErrPermissionDenied
 			}
 		}
 	}
@@ -357,11 +334,11 @@ func (a *Agent) vetCheckRegister(token string, check *structs.HealthCheck) error
 // vetCheckUpdate makes sure that a check update is allowed by the given token.
 func (a *Agent) vetCheckUpdate(token string, checkID types.CheckID) error {
 	// Resolve the token and bail if ACLs aren't enabled.
-	acl, err := a.resolveToken(token)
+	rule, err := a.resolveToken(token)
 	if err != nil {
 		return err
 	}
-	if acl == nil {
+	if rule == nil {
 		return nil
 	}
 
@@ -369,12 +346,12 @@ func (a *Agent) vetCheckUpdate(token string, checkID types.CheckID) error {
 	checks := a.state.Checks()
 	if existing, ok := checks[checkID]; ok {
 		if len(existing.ServiceName) > 0 {
-			if !acl.ServiceWrite(existing.ServiceName) {
-				return errPermissionDenied
+			if !rule.ServiceWrite(existing.ServiceName) {
+				return acl.ErrPermissionDenied
 			}
 		} else {
-			if !acl.NodeWrite(a.config.NodeName) {
-				return errPermissionDenied
+			if !rule.NodeWrite(a.config.NodeName) {
+				return acl.ErrPermissionDenied
 			}
 		}
 	} else {
@@ -387,11 +364,11 @@ func (a *Agent) vetCheckUpdate(token string, checkID types.CheckID) error {
 // filterMembers redacts members that the token doesn't have access to.
 func (a *Agent) filterMembers(token string, members *[]serf.Member) error {
 	// Resolve the token and bail if ACLs aren't enabled.
-	acl, err := a.resolveToken(token)
+	rule, err := a.resolveToken(token)
 	if err != nil {
 		return err
 	}
-	if acl == nil {
+	if rule == nil {
 		return nil
 	}
 
@@ -399,7 +376,7 @@ func (a *Agent) filterMembers(token string, members *[]serf.Member) error {
 	m := *members
 	for i := 0; i < len(m); i++ {
 		node := m[i].Name
-		if acl.NodeRead(node) {
+		if rule.NodeRead(node) {
 			continue
 		}
 		a.logger.Printf("[DEBUG] agent: dropping node %q from result due to ACLs", node)
@@ -413,17 +390,17 @@ func (a *Agent) filterMembers(token string, members *[]serf.Member) error {
 // filterServices redacts services that the token doesn't have access to.
 func (a *Agent) filterServices(token string, services *map[string]*structs.NodeService) error {
 	// Resolve the token and bail if ACLs aren't enabled.
-	acl, err := a.resolveToken(token)
+	rule, err := a.resolveToken(token)
 	if err != nil {
 		return err
 	}
-	if acl == nil {
+	if rule == nil {
 		return nil
 	}
 
 	// Filter out services based on the service policy.
 	for id, service := range *services {
-		if acl.ServiceRead(service.Service) {
+		if rule.ServiceRead(service.Service) {
 			continue
 		}
 		a.logger.Printf("[DEBUG] agent: dropping service %q from result due to ACLs", id)
@@ -435,22 +412,22 @@ func (a *Agent) filterServices(token string, services *map[string]*structs.NodeS
 // filterChecks redacts checks that the token doesn't have access to.
 func (a *Agent) filterChecks(token string, checks *map[types.CheckID]*structs.HealthCheck) error {
 	// Resolve the token and bail if ACLs aren't enabled.
-	acl, err := a.resolveToken(token)
+	rule, err := a.resolveToken(token)
 	if err != nil {
 		return err
 	}
-	if acl == nil {
+	if rule == nil {
 		return nil
 	}
 
 	// Filter out checks based on the node or service policy.
 	for id, check := range *checks {
 		if len(check.ServiceName) > 0 {
-			if acl.ServiceRead(check.ServiceName) {
+			if rule.ServiceRead(check.ServiceName) {
 				continue
 			}
 		} else {
-			if acl.NodeRead(a.config.NodeName) {
+			if rule.NodeRead(a.config.NodeName) {
 				continue
 			}
 		}

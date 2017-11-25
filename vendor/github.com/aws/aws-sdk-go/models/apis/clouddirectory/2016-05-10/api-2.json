@@ -541,6 +541,25 @@
         {"shape":"InvalidArnException"}
       ]
     },
+    "GetAppliedSchemaVersion":{
+      "name":"GetAppliedSchemaVersion",
+      "http":{
+        "method":"POST",
+        "requestUri":"/amazonclouddirectory/2017-01-11/schema/getappliedschema",
+        "responseCode":200
+      },
+      "input":{"shape":"GetAppliedSchemaVersionRequest"},
+      "output":{"shape":"GetAppliedSchemaVersionResponse"},
+      "errors":[
+        {"shape":"InternalServiceException"},
+        {"shape":"InvalidArnException"},
+        {"shape":"RetryableConflictException"},
+        {"shape":"ValidationException"},
+        {"shape":"LimitExceededException"},
+        {"shape":"AccessDeniedException"},
+        {"shape":"ResourceNotFoundException"}
+      ]
+    },
     "GetDirectory":{
       "name":"GetDirectory",
       "http":{
@@ -1247,6 +1266,47 @@
         {"shape":"FacetNotFoundException"},
         {"shape":"InvalidRuleException"}
       ]
+    },
+    "UpgradeAppliedSchema":{
+      "name":"UpgradeAppliedSchema",
+      "http":{
+        "method":"PUT",
+        "requestUri":"/amazonclouddirectory/2017-01-11/schema/upgradeapplied",
+        "responseCode":200
+      },
+      "input":{"shape":"UpgradeAppliedSchemaRequest"},
+      "output":{"shape":"UpgradeAppliedSchemaResponse"},
+      "errors":[
+        {"shape":"InternalServiceException"},
+        {"shape":"InvalidArnException"},
+        {"shape":"RetryableConflictException"},
+        {"shape":"ValidationException"},
+        {"shape":"IncompatibleSchemaException"},
+        {"shape":"AccessDeniedException"},
+        {"shape":"ResourceNotFoundException"},
+        {"shape":"InvalidAttachmentException"}
+      ]
+    },
+    "UpgradePublishedSchema":{
+      "name":"UpgradePublishedSchema",
+      "http":{
+        "method":"PUT",
+        "requestUri":"/amazonclouddirectory/2017-01-11/schema/upgradepublished",
+        "responseCode":200
+      },
+      "input":{"shape":"UpgradePublishedSchemaRequest"},
+      "output":{"shape":"UpgradePublishedSchemaResponse"},
+      "errors":[
+        {"shape":"InternalServiceException"},
+        {"shape":"InvalidArnException"},
+        {"shape":"RetryableConflictException"},
+        {"shape":"ValidationException"},
+        {"shape":"IncompatibleSchemaException"},
+        {"shape":"AccessDeniedException"},
+        {"shape":"ResourceNotFoundException"},
+        {"shape":"InvalidAttachmentException"},
+        {"shape":"LimitExceededException"}
+      ]
     }
   },
   "shapes":{
@@ -1643,6 +1703,22 @@
         "detachedObjectIdentifier":{"shape":"ObjectIdentifier"}
       }
     },
+    "BatchDetachPolicy":{
+      "type":"structure",
+      "required":[
+        "PolicyReference",
+        "ObjectReference"
+      ],
+      "members":{
+        "PolicyReference":{"shape":"ObjectReference"},
+        "ObjectReference":{"shape":"ObjectReference"}
+      }
+    },
+    "BatchDetachPolicyResponse":{
+      "type":"structure",
+      "members":{
+      }
+    },
     "BatchDetachTypedLink":{
       "type":"structure",
       "required":["TypedLinkSpecifier"],
@@ -2010,6 +2086,7 @@
         "AddFacetToObject":{"shape":"BatchAddFacetToObject"},
         "RemoveFacetFromObject":{"shape":"BatchRemoveFacetFromObject"},
         "AttachPolicy":{"shape":"BatchAttachPolicy"},
+        "DetachPolicy":{"shape":"BatchDetachPolicy"},
         "CreateIndex":{"shape":"BatchCreateIndex"},
         "AttachToIndex":{"shape":"BatchAttachToIndex"},
         "DetachFromIndex":{"shape":"BatchDetachFromIndex"},
@@ -2032,6 +2109,7 @@
         "AddFacetToObject":{"shape":"BatchAddFacetToObjectResponse"},
         "RemoveFacetFromObject":{"shape":"BatchRemoveFacetFromObjectResponse"},
         "AttachPolicy":{"shape":"BatchAttachPolicyResponse"},
+        "DetachPolicy":{"shape":"BatchDetachPolicyResponse"},
         "CreateIndex":{"shape":"BatchCreateIndexResponse"},
         "AttachToIndex":{"shape":"BatchAttachToIndexResponse"},
         "DetachFromIndex":{"shape":"BatchDetachFromIndexResponse"},
@@ -2599,6 +2677,19 @@
       "error":{"httpStatusCode":400},
       "exception":true
     },
+    "GetAppliedSchemaVersionRequest":{
+      "type":"structure",
+      "required":["SchemaArn"],
+      "members":{
+        "SchemaArn":{"shape":"Arn"}
+      }
+    },
+    "GetAppliedSchemaVersionResponse":{
+      "type":"structure",
+      "members":{
+        "AppliedSchemaArn":{"shape":"Arn"}
+      }
+    },
     "GetDirectoryRequest":{
       "type":"structure",
       "required":["DirectoryArn"],
@@ -2703,6 +2794,14 @@
       "members":{
         "IdentityAttributeOrder":{"shape":"AttributeNameList"}
       }
+    },
+    "IncompatibleSchemaException":{
+      "type":"structure",
+      "members":{
+        "Message":{"shape":"ExceptionMessage"}
+      },
+      "error":{"httpStatusCode":400},
+      "exception":true
     },
     "IndexAttachment":{
       "type":"structure",
@@ -2819,6 +2918,7 @@
       "required":["DirectoryArn"],
       "members":{
         "DirectoryArn":{"shape":"Arn"},
+        "SchemaArn":{"shape":"Arn"},
         "NextToken":{"shape":"NextToken"},
         "MaxResults":{"shape":"NumberResults"}
       }
@@ -3190,6 +3290,7 @@
     "ListPublishedSchemaArnsRequest":{
       "type":"structure",
       "members":{
+        "SchemaArn":{"shape":"Arn"},
         "NextToken":{"shape":"NextToken"},
         "MaxResults":{"shape":"NumberResults"}
       }
@@ -3434,6 +3535,7 @@
           "locationName":"x-amz-data-partition"
         },
         "Version":{"shape":"Version"},
+        "MinorVersion":{"shape":"Version"},
         "Name":{"shape":"SchemaName"}
       }
     },
@@ -3874,6 +3976,45 @@
     "UpdateTypedLinkFacetResponse":{
       "type":"structure",
       "members":{
+      }
+    },
+    "UpgradeAppliedSchemaRequest":{
+      "type":"structure",
+      "required":[
+        "PublishedSchemaArn",
+        "DirectoryArn"
+      ],
+      "members":{
+        "PublishedSchemaArn":{"shape":"Arn"},
+        "DirectoryArn":{"shape":"Arn"},
+        "DryRun":{"shape":"Bool"}
+      }
+    },
+    "UpgradeAppliedSchemaResponse":{
+      "type":"structure",
+      "members":{
+        "UpgradedSchemaArn":{"shape":"Arn"},
+        "DirectoryArn":{"shape":"Arn"}
+      }
+    },
+    "UpgradePublishedSchemaRequest":{
+      "type":"structure",
+      "required":[
+        "DevelopmentSchemaArn",
+        "PublishedSchemaArn",
+        "MinorVersion"
+      ],
+      "members":{
+        "DevelopmentSchemaArn":{"shape":"Arn"},
+        "PublishedSchemaArn":{"shape":"Arn"},
+        "MinorVersion":{"shape":"Version"},
+        "DryRun":{"shape":"Bool"}
+      }
+    },
+    "UpgradePublishedSchemaResponse":{
+      "type":"structure",
+      "members":{
+        "UpgradedSchemaArn":{"shape":"Arn"}
       }
     },
     "ValidationException":{

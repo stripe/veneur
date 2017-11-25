@@ -21,7 +21,7 @@ import (
 //
 // The best way to use this interface is so the SDK's service client's calls
 // can be stubbed out for unit testing your code with the SDK without needing
-// to inject custom request handlers into the the SDK's request pipeline.
+// to inject custom request handlers into the SDK's request pipeline.
 //
 //    // myFunc uses an SDK service client to make a request to
 //    // AWS Shield.
@@ -87,6 +87,10 @@ type ShieldAPI interface {
 	DescribeSubscription(*shield.DescribeSubscriptionInput) (*shield.DescribeSubscriptionOutput, error)
 	DescribeSubscriptionWithContext(aws.Context, *shield.DescribeSubscriptionInput, ...request.Option) (*shield.DescribeSubscriptionOutput, error)
 	DescribeSubscriptionRequest(*shield.DescribeSubscriptionInput) (*request.Request, *shield.DescribeSubscriptionOutput)
+
+	GetSubscriptionState(*shield.GetSubscriptionStateInput) (*shield.GetSubscriptionStateOutput, error)
+	GetSubscriptionStateWithContext(aws.Context, *shield.GetSubscriptionStateInput, ...request.Option) (*shield.GetSubscriptionStateOutput, error)
+	GetSubscriptionStateRequest(*shield.GetSubscriptionStateInput) (*request.Request, *shield.GetSubscriptionStateOutput)
 
 	ListAttacks(*shield.ListAttacksInput) (*shield.ListAttacksOutput, error)
 	ListAttacksWithContext(aws.Context, *shield.ListAttacksInput, ...request.Option) (*shield.ListAttacksOutput, error)

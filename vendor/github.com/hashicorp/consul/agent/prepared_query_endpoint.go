@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/consul/agent/consul"
-	"github.com/hashicorp/consul/agent/consul/structs"
+	"github.com/hashicorp/consul/agent/structs"
 )
 
 const (
@@ -29,7 +29,7 @@ func (s *HTTPServer) preparedQueryCreate(resp http.ResponseWriter, req *http.Req
 	s.parseToken(req, &args.Token)
 	if req.ContentLength > 0 {
 		if err := decodeBody(req, &args.Query, nil); err != nil {
-			resp.WriteHeader(400)
+			resp.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(resp, "Request decode failed: %v", err)
 			return nil, nil
 		}
@@ -71,7 +71,7 @@ func (s *HTTPServer) PreparedQueryGeneral(resp http.ResponseWriter, req *http.Re
 		return s.preparedQueryList(resp, req)
 
 	default:
-		resp.WriteHeader(405)
+		resp.WriteHeader(http.StatusMethodNotAllowed)
 		return nil, nil
 	}
 }
@@ -96,6 +96,7 @@ func (s *HTTPServer) preparedQueryExecute(id string, resp http.ResponseWriter, r
 		Agent: structs.QuerySource{
 			Node:       s.agent.config.NodeName,
 			Datacenter: s.agent.config.Datacenter,
+			Segment:    s.agent.config.Segment,
 		},
 	}
 	s.parseSource(req, &args.Source)
@@ -111,7 +112,7 @@ func (s *HTTPServer) preparedQueryExecute(id string, resp http.ResponseWriter, r
 		// We have to check the string since the RPC sheds
 		// the specific error type.
 		if err.Error() == consul.ErrQueryNotFound.Error() {
-			resp.WriteHeader(404)
+			resp.WriteHeader(http.StatusNotFound)
 			fmt.Fprint(resp, err.Error())
 			return nil, nil
 		}
@@ -140,6 +141,7 @@ func (s *HTTPServer) preparedQueryExplain(id string, resp http.ResponseWriter, r
 		Agent: structs.QuerySource{
 			Node:       s.agent.config.NodeName,
 			Datacenter: s.agent.config.Datacenter,
+			Segment:    s.agent.config.Segment,
 		},
 	}
 	s.parseSource(req, &args.Source)
@@ -155,7 +157,7 @@ func (s *HTTPServer) preparedQueryExplain(id string, resp http.ResponseWriter, r
 		// We have to check the string since the RPC sheds
 		// the specific error type.
 		if err.Error() == consul.ErrQueryNotFound.Error() {
-			resp.WriteHeader(404)
+			resp.WriteHeader(http.StatusNotFound)
 			fmt.Fprint(resp, err.Error())
 			return nil, nil
 		}
@@ -178,7 +180,7 @@ func (s *HTTPServer) preparedQueryGet(id string, resp http.ResponseWriter, req *
 		// We have to check the string since the RPC sheds
 		// the specific error type.
 		if err.Error() == consul.ErrQueryNotFound.Error() {
-			resp.WriteHeader(404)
+			resp.WriteHeader(http.StatusNotFound)
 			fmt.Fprint(resp, err.Error())
 			return nil, nil
 		}
@@ -196,7 +198,7 @@ func (s *HTTPServer) preparedQueryUpdate(id string, resp http.ResponseWriter, re
 	s.parseToken(req, &args.Token)
 	if req.ContentLength > 0 {
 		if err := decodeBody(req, &args.Query, nil); err != nil {
-			resp.WriteHeader(400)
+			resp.WriteHeader(http.StatusBadRequest)
 			fmt.Fprintf(resp, "Request decode failed: %v", err)
 			return nil, nil
 		}
@@ -261,7 +263,7 @@ func (s *HTTPServer) PreparedQuerySpecific(resp http.ResponseWriter, req *http.R
 		return s.preparedQueryDelete(id, resp, req)
 
 	default:
-		resp.WriteHeader(405)
+		resp.WriteHeader(http.StatusMethodNotAllowed)
 		return nil, nil
 	}
 }

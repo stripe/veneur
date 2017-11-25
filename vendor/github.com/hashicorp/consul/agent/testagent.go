@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/agent/consul"
-	"github.com/hashicorp/consul/agent/consul/structs"
+	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/logger"
 	"github.com/hashicorp/consul/testutil/retry"
@@ -235,6 +235,13 @@ func (a *TestAgent) HTTPAddr() string {
 	return a.srv.Addr
 }
 
+func (a *TestAgent) SegmentAddr(name string) string {
+	if server, ok := a.Agent.delegate.(*consul.Server); ok {
+		return server.LANSegmentAddr(name)
+	}
+	return ""
+}
+
 func (a *TestAgent) Client() *api.Client {
 	conf := api.DefaultConfig()
 	conf.Address = a.HTTPAddr()
@@ -334,6 +341,7 @@ func TestConfig() *Config {
 
 	ccfg.CoordinateUpdatePeriod = 100 * time.Millisecond
 	ccfg.ServerHealthInterval = 10 * time.Millisecond
+	cfg.SetupTaggedAndAdvertiseAddrs()
 	return cfg
 }
 

@@ -54,6 +54,18 @@ const (
 	plaintextProtocol = "http"
 )
 
+// Validation Errors
+var (
+	validationErrorNoAccessToken = fmt.Errorf("Options invalid: AccessToken must not be empty")
+	validationErrorGUIDKey       = fmt.Errorf("Options invalid: setting the %v tag is no longer supported", GUIDKey)
+)
+
+// A SpanRecorder handles all of the `RawSpan` data generated via an
+// associated `Tracer` instance.
+type SpanRecorder interface {
+	RecordSpan(RawSpan)
+}
+
 // Endpoint describes a collector or web API host/port and whether or
 // not to use plaintext communication.
 type Endpoint struct {
@@ -127,18 +139,22 @@ type Options struct {
 	// DropSpanLogs turns log events on all Spans into no-ops.
 	DropSpanLogs bool `yaml:"drop_span_logs"`
 
-	// Set Verbose to true to enable more text logging.
+	// DEPRECATED: The LightStep library prints the first error to stdout by default.
+	// See the documentation on the SetGlobalEventHandler function for guidance on
+	// how to integrate tracer diagnostics with your applicaiton's logging and
+	// metrics systems.
 	Verbose bool `yaml:"verbose"`
 
-	// DEPRECATED: set `UseThrift` to true if you do not want gRPC
-	UseGRPC bool `yaml:"usegrpc"`
-
-	// Switch to
+	// Force the use of a specific transport protocol. If multiple are set to true,
+	// the following order is used to select for the first option: thrift, http, grpc.
+	// If none are set to true, GRPC is defaulted to.
 	UseThrift bool `yaml:"use_thrift"`
+	UseHttp   bool `yaml:"use_http"`
+	UseGRPC   bool `yaml:"usegrpc"`
 
 	ReconnectPeriod time.Duration `yaml:"reconnect_period"`
 
-	// a hook for recieving finished span events
+	// A hook for receiving finished span events
 	Recorder SpanRecorder `yaml:"-" json:"-"`
 
 	// For testing purposes only
@@ -148,12 +164,9 @@ type Options struct {
 // Initialize validates options, and sets default values for unset options.
 // This is called automatically when creating a new Tracer.
 func (opts *Options) Initialize() error {
-	if len(opts.AccessToken) == 0 {
-		return fmt.Errorf("LightStep Recorder options.AccessToken must not be empty")
-	}
-
-	if _, found := opts.Tags[GUIDKey]; found {
-		return fmt.Errorf("Passing in your own %v is no longer supported\n", GUIDKey)
+	err := opts.Validate()
+	if err != nil {
+		return err
 	}
 
 	// Note: opts is a copy of the user's data, ok to modify.
@@ -221,6 +234,20 @@ func (opts *Options) Initialize() error {
 	return nil
 }
 
+// Validate checks that all required fields are set, and no options are incorrectly
+// configured.
+func (opts *Options) Validate() error {
+	if len(opts.AccessToken) == 0 {
+		return validationErrorNoAccessToken
+	}
+
+	if _, found := opts.Tags[GUIDKey]; found {
+		return validationErrorGUIDKey
+	}
+
+	return nil
+}
+
 // SetSpanID is a opentracing.StartSpanOption that sets an
 // explicit SpanID.  It must be used in conjunction with
 // SetTraceID or the result is undefined.
@@ -257,6 +284,11 @@ type SetParentSpanID uint64
 func (sid SetParentSpanID) Apply(sso *ot.StartSpanOptions) {}
 func (sid SetParentSpanID) applyLS(sso *startSpanOptions) {
 	sso.SetParentSpanID = uint64(sid)
+}
+
+// lightStepStartSpanOption is used to identify lightstep-specific Span options.
+type lightStepStartSpanOption interface {
+	applyLS(*startSpanOptions)
 }
 
 type startSpanOptions struct {

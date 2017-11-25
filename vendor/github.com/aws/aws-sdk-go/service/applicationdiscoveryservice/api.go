@@ -15,19 +15,18 @@ const opAssociateConfigurationItemsToApplication = "AssociateConfigurationItemsT
 
 // AssociateConfigurationItemsToApplicationRequest generates a "aws/request.Request" representing the
 // client's request for the AssociateConfigurationItemsToApplication operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See AssociateConfigurationItemsToApplication for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the AssociateConfigurationItemsToApplication method directly
-// instead.
+// See AssociateConfigurationItemsToApplication for more information on using the AssociateConfigurationItemsToApplication
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the AssociateConfigurationItemsToApplicationRequest method.
 //    req, resp := client.AssociateConfigurationItemsToApplicationRequest(params)
@@ -37,7 +36,7 @@ const opAssociateConfigurationItemsToApplication = "AssociateConfigurationItemsT
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/AssociateConfigurationItemsToApplication
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/AssociateConfigurationItemsToApplication
 func (c *ApplicationDiscoveryService) AssociateConfigurationItemsToApplicationRequest(input *AssociateConfigurationItemsToApplicationInput) (req *request.Request, output *AssociateConfigurationItemsToApplicationOutput) {
 	op := &request.Operation{
 		Name:       opAssociateConfigurationItemsToApplication,
@@ -80,7 +79,7 @@ func (c *ApplicationDiscoveryService) AssociateConfigurationItemsToApplicationRe
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/AssociateConfigurationItemsToApplication
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/AssociateConfigurationItemsToApplication
 func (c *ApplicationDiscoveryService) AssociateConfigurationItemsToApplication(input *AssociateConfigurationItemsToApplicationInput) (*AssociateConfigurationItemsToApplicationOutput, error) {
 	req, out := c.AssociateConfigurationItemsToApplicationRequest(input)
 	return out, req.Send()
@@ -106,19 +105,18 @@ const opCreateApplication = "CreateApplication"
 
 // CreateApplicationRequest generates a "aws/request.Request" representing the
 // client's request for the CreateApplication operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See CreateApplication for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the CreateApplication method directly
-// instead.
+// See CreateApplication for more information on using the CreateApplication
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the CreateApplicationRequest method.
 //    req, resp := client.CreateApplicationRequest(params)
@@ -128,7 +126,7 @@ const opCreateApplication = "CreateApplication"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateApplication
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateApplication
 func (c *ApplicationDiscoveryService) CreateApplicationRequest(input *CreateApplicationInput) (req *request.Request, output *CreateApplicationOutput) {
 	op := &request.Operation{
 		Name:       opCreateApplication,
@@ -171,7 +169,7 @@ func (c *ApplicationDiscoveryService) CreateApplicationRequest(input *CreateAppl
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateApplication
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateApplication
 func (c *ApplicationDiscoveryService) CreateApplication(input *CreateApplicationInput) (*CreateApplicationOutput, error) {
 	req, out := c.CreateApplicationRequest(input)
 	return out, req.Send()
@@ -197,19 +195,18 @@ const opCreateTags = "CreateTags"
 
 // CreateTagsRequest generates a "aws/request.Request" representing the
 // client's request for the CreateTags operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See CreateTags for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the CreateTags method directly
-// instead.
+// See CreateTags for more information on using the CreateTags
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the CreateTagsRequest method.
 //    req, resp := client.CreateTagsRequest(params)
@@ -219,7 +216,7 @@ const opCreateTags = "CreateTags"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateTags
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateTags
 func (c *ApplicationDiscoveryService) CreateTagsRequest(input *CreateTagsInput) (req *request.Request, output *CreateTagsOutput) {
 	op := &request.Operation{
 		Name:       opCreateTags,
@@ -268,7 +265,7 @@ func (c *ApplicationDiscoveryService) CreateTagsRequest(input *CreateTagsInput) 
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateTags
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateTags
 func (c *ApplicationDiscoveryService) CreateTags(input *CreateTagsInput) (*CreateTagsOutput, error) {
 	req, out := c.CreateTagsRequest(input)
 	return out, req.Send()
@@ -294,19 +291,18 @@ const opDeleteApplications = "DeleteApplications"
 
 // DeleteApplicationsRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteApplications operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DeleteApplications for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DeleteApplications method directly
-// instead.
+// See DeleteApplications for more information on using the DeleteApplications
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DeleteApplicationsRequest method.
 //    req, resp := client.DeleteApplicationsRequest(params)
@@ -316,7 +312,7 @@ const opDeleteApplications = "DeleteApplications"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteApplications
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteApplications
 func (c *ApplicationDiscoveryService) DeleteApplicationsRequest(input *DeleteApplicationsInput) (req *request.Request, output *DeleteApplicationsOutput) {
 	op := &request.Operation{
 		Name:       opDeleteApplications,
@@ -360,7 +356,7 @@ func (c *ApplicationDiscoveryService) DeleteApplicationsRequest(input *DeleteApp
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteApplications
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteApplications
 func (c *ApplicationDiscoveryService) DeleteApplications(input *DeleteApplicationsInput) (*DeleteApplicationsOutput, error) {
 	req, out := c.DeleteApplicationsRequest(input)
 	return out, req.Send()
@@ -386,19 +382,18 @@ const opDeleteTags = "DeleteTags"
 
 // DeleteTagsRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteTags operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DeleteTags for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DeleteTags method directly
-// instead.
+// See DeleteTags for more information on using the DeleteTags
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DeleteTagsRequest method.
 //    req, resp := client.DeleteTagsRequest(params)
@@ -408,7 +403,7 @@ const opDeleteTags = "DeleteTags"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteTags
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteTags
 func (c *ApplicationDiscoveryService) DeleteTagsRequest(input *DeleteTagsInput) (req *request.Request, output *DeleteTagsOutput) {
 	op := &request.Operation{
 		Name:       opDeleteTags,
@@ -456,7 +451,7 @@ func (c *ApplicationDiscoveryService) DeleteTagsRequest(input *DeleteTagsInput) 
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteTags
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteTags
 func (c *ApplicationDiscoveryService) DeleteTags(input *DeleteTagsInput) (*DeleteTagsOutput, error) {
 	req, out := c.DeleteTagsRequest(input)
 	return out, req.Send()
@@ -482,19 +477,18 @@ const opDescribeAgents = "DescribeAgents"
 
 // DescribeAgentsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeAgents operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DescribeAgents for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DescribeAgents method directly
-// instead.
+// See DescribeAgents for more information on using the DescribeAgents
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DescribeAgentsRequest method.
 //    req, resp := client.DescribeAgentsRequest(params)
@@ -504,7 +498,7 @@ const opDescribeAgents = "DescribeAgents"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeAgents
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeAgents
 func (c *ApplicationDiscoveryService) DescribeAgentsRequest(input *DescribeAgentsInput) (req *request.Request, output *DescribeAgentsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeAgents,
@@ -548,7 +542,7 @@ func (c *ApplicationDiscoveryService) DescribeAgentsRequest(input *DescribeAgent
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeAgents
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeAgents
 func (c *ApplicationDiscoveryService) DescribeAgents(input *DescribeAgentsInput) (*DescribeAgentsOutput, error) {
 	req, out := c.DescribeAgentsRequest(input)
 	return out, req.Send()
@@ -574,19 +568,18 @@ const opDescribeConfigurations = "DescribeConfigurations"
 
 // DescribeConfigurationsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeConfigurations operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DescribeConfigurations for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DescribeConfigurations method directly
-// instead.
+// See DescribeConfigurations for more information on using the DescribeConfigurations
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DescribeConfigurationsRequest method.
 //    req, resp := client.DescribeConfigurationsRequest(params)
@@ -596,7 +589,7 @@ const opDescribeConfigurations = "DescribeConfigurations"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeConfigurations
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeConfigurations
 func (c *ApplicationDiscoveryService) DescribeConfigurationsRequest(input *DescribeConfigurationsInput) (req *request.Request, output *DescribeConfigurationsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeConfigurations,
@@ -646,7 +639,7 @@ func (c *ApplicationDiscoveryService) DescribeConfigurationsRequest(input *Descr
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeConfigurations
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeConfigurations
 func (c *ApplicationDiscoveryService) DescribeConfigurations(input *DescribeConfigurationsInput) (*DescribeConfigurationsOutput, error) {
 	req, out := c.DescribeConfigurationsRequest(input)
 	return out, req.Send()
@@ -672,19 +665,18 @@ const opDescribeExportConfigurations = "DescribeExportConfigurations"
 
 // DescribeExportConfigurationsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeExportConfigurations operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DescribeExportConfigurations for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DescribeExportConfigurations method directly
-// instead.
+// See DescribeExportConfigurations for more information on using the DescribeExportConfigurations
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DescribeExportConfigurationsRequest method.
 //    req, resp := client.DescribeExportConfigurationsRequest(params)
@@ -694,7 +686,7 @@ const opDescribeExportConfigurations = "DescribeExportConfigurations"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportConfigurations
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportConfigurations
 func (c *ApplicationDiscoveryService) DescribeExportConfigurationsRequest(input *DescribeExportConfigurationsInput) (req *request.Request, output *DescribeExportConfigurationsOutput) {
 	if c.Client.Config.Logger != nil {
 		c.Client.Config.Logger.Log("This operation, DescribeExportConfigurations, has been deprecated")
@@ -747,7 +739,7 @@ func (c *ApplicationDiscoveryService) DescribeExportConfigurationsRequest(input 
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportConfigurations
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportConfigurations
 func (c *ApplicationDiscoveryService) DescribeExportConfigurations(input *DescribeExportConfigurationsInput) (*DescribeExportConfigurationsOutput, error) {
 	req, out := c.DescribeExportConfigurationsRequest(input)
 	return out, req.Send()
@@ -773,19 +765,18 @@ const opDescribeExportTasks = "DescribeExportTasks"
 
 // DescribeExportTasksRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeExportTasks operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DescribeExportTasks for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DescribeExportTasks method directly
-// instead.
+// See DescribeExportTasks for more information on using the DescribeExportTasks
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DescribeExportTasksRequest method.
 //    req, resp := client.DescribeExportTasksRequest(params)
@@ -795,7 +786,7 @@ const opDescribeExportTasks = "DescribeExportTasks"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportTasks
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportTasks
 func (c *ApplicationDiscoveryService) DescribeExportTasksRequest(input *DescribeExportTasksInput) (req *request.Request, output *DescribeExportTasksOutput) {
 	op := &request.Operation{
 		Name:       opDescribeExportTasks,
@@ -839,7 +830,7 @@ func (c *ApplicationDiscoveryService) DescribeExportTasksRequest(input *Describe
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportTasks
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportTasks
 func (c *ApplicationDiscoveryService) DescribeExportTasks(input *DescribeExportTasksInput) (*DescribeExportTasksOutput, error) {
 	req, out := c.DescribeExportTasksRequest(input)
 	return out, req.Send()
@@ -865,19 +856,18 @@ const opDescribeTags = "DescribeTags"
 
 // DescribeTagsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeTags operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DescribeTags for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DescribeTags method directly
-// instead.
+// See DescribeTags for more information on using the DescribeTags
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DescribeTagsRequest method.
 //    req, resp := client.DescribeTagsRequest(params)
@@ -887,7 +877,7 @@ const opDescribeTags = "DescribeTags"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeTags
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeTags
 func (c *ApplicationDiscoveryService) DescribeTagsRequest(input *DescribeTagsInput) (req *request.Request, output *DescribeTagsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeTags,
@@ -935,7 +925,7 @@ func (c *ApplicationDiscoveryService) DescribeTagsRequest(input *DescribeTagsInp
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeTags
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeTags
 func (c *ApplicationDiscoveryService) DescribeTags(input *DescribeTagsInput) (*DescribeTagsOutput, error) {
 	req, out := c.DescribeTagsRequest(input)
 	return out, req.Send()
@@ -961,19 +951,18 @@ const opDisassociateConfigurationItemsFromApplication = "DisassociateConfigurati
 
 // DisassociateConfigurationItemsFromApplicationRequest generates a "aws/request.Request" representing the
 // client's request for the DisassociateConfigurationItemsFromApplication operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DisassociateConfigurationItemsFromApplication for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DisassociateConfigurationItemsFromApplication method directly
-// instead.
+// See DisassociateConfigurationItemsFromApplication for more information on using the DisassociateConfigurationItemsFromApplication
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DisassociateConfigurationItemsFromApplicationRequest method.
 //    req, resp := client.DisassociateConfigurationItemsFromApplicationRequest(params)
@@ -983,7 +972,7 @@ const opDisassociateConfigurationItemsFromApplication = "DisassociateConfigurati
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DisassociateConfigurationItemsFromApplication
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DisassociateConfigurationItemsFromApplication
 func (c *ApplicationDiscoveryService) DisassociateConfigurationItemsFromApplicationRequest(input *DisassociateConfigurationItemsFromApplicationInput) (req *request.Request, output *DisassociateConfigurationItemsFromApplicationOutput) {
 	op := &request.Operation{
 		Name:       opDisassociateConfigurationItemsFromApplication,
@@ -1026,7 +1015,7 @@ func (c *ApplicationDiscoveryService) DisassociateConfigurationItemsFromApplicat
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DisassociateConfigurationItemsFromApplication
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DisassociateConfigurationItemsFromApplication
 func (c *ApplicationDiscoveryService) DisassociateConfigurationItemsFromApplication(input *DisassociateConfigurationItemsFromApplicationInput) (*DisassociateConfigurationItemsFromApplicationOutput, error) {
 	req, out := c.DisassociateConfigurationItemsFromApplicationRequest(input)
 	return out, req.Send()
@@ -1052,19 +1041,18 @@ const opExportConfigurations = "ExportConfigurations"
 
 // ExportConfigurationsRequest generates a "aws/request.Request" representing the
 // client's request for the ExportConfigurations operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ExportConfigurations for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ExportConfigurations method directly
-// instead.
+// See ExportConfigurations for more information on using the ExportConfigurations
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ExportConfigurationsRequest method.
 //    req, resp := client.ExportConfigurationsRequest(params)
@@ -1074,7 +1062,7 @@ const opExportConfigurations = "ExportConfigurations"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ExportConfigurations
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ExportConfigurations
 func (c *ApplicationDiscoveryService) ExportConfigurationsRequest(input *ExportConfigurationsInput) (req *request.Request, output *ExportConfigurationsOutput) {
 	if c.Client.Config.Logger != nil {
 		c.Client.Config.Logger.Log("This operation, ExportConfigurations, has been deprecated")
@@ -1129,7 +1117,7 @@ func (c *ApplicationDiscoveryService) ExportConfigurationsRequest(input *ExportC
 //   * ErrCodeOperationNotPermittedException "OperationNotPermittedException"
 //   This operation is not permitted.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ExportConfigurations
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ExportConfigurations
 func (c *ApplicationDiscoveryService) ExportConfigurations(input *ExportConfigurationsInput) (*ExportConfigurationsOutput, error) {
 	req, out := c.ExportConfigurationsRequest(input)
 	return out, req.Send()
@@ -1155,19 +1143,18 @@ const opGetDiscoverySummary = "GetDiscoverySummary"
 
 // GetDiscoverySummaryRequest generates a "aws/request.Request" representing the
 // client's request for the GetDiscoverySummary operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GetDiscoverySummary for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GetDiscoverySummary method directly
-// instead.
+// See GetDiscoverySummary for more information on using the GetDiscoverySummary
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GetDiscoverySummaryRequest method.
 //    req, resp := client.GetDiscoverySummaryRequest(params)
@@ -1177,7 +1164,7 @@ const opGetDiscoverySummary = "GetDiscoverySummary"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/GetDiscoverySummary
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/GetDiscoverySummary
 func (c *ApplicationDiscoveryService) GetDiscoverySummaryRequest(input *GetDiscoverySummaryInput) (req *request.Request, output *GetDiscoverySummaryOutput) {
 	op := &request.Operation{
 		Name:       opGetDiscoverySummary,
@@ -1220,7 +1207,7 @@ func (c *ApplicationDiscoveryService) GetDiscoverySummaryRequest(input *GetDisco
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/GetDiscoverySummary
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/GetDiscoverySummary
 func (c *ApplicationDiscoveryService) GetDiscoverySummary(input *GetDiscoverySummaryInput) (*GetDiscoverySummaryOutput, error) {
 	req, out := c.GetDiscoverySummaryRequest(input)
 	return out, req.Send()
@@ -1246,19 +1233,18 @@ const opListConfigurations = "ListConfigurations"
 
 // ListConfigurationsRequest generates a "aws/request.Request" representing the
 // client's request for the ListConfigurations operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListConfigurations for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListConfigurations method directly
-// instead.
+// See ListConfigurations for more information on using the ListConfigurations
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListConfigurationsRequest method.
 //    req, resp := client.ListConfigurationsRequest(params)
@@ -1268,7 +1254,7 @@ const opListConfigurations = "ListConfigurations"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListConfigurations
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListConfigurations
 func (c *ApplicationDiscoveryService) ListConfigurationsRequest(input *ListConfigurationsInput) (req *request.Request, output *ListConfigurationsOutput) {
 	op := &request.Operation{
 		Name:       opListConfigurations,
@@ -1316,7 +1302,7 @@ func (c *ApplicationDiscoveryService) ListConfigurationsRequest(input *ListConfi
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListConfigurations
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListConfigurations
 func (c *ApplicationDiscoveryService) ListConfigurations(input *ListConfigurationsInput) (*ListConfigurationsOutput, error) {
 	req, out := c.ListConfigurationsRequest(input)
 	return out, req.Send()
@@ -1342,19 +1328,18 @@ const opListServerNeighbors = "ListServerNeighbors"
 
 // ListServerNeighborsRequest generates a "aws/request.Request" representing the
 // client's request for the ListServerNeighbors operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListServerNeighbors for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListServerNeighbors method directly
-// instead.
+// See ListServerNeighbors for more information on using the ListServerNeighbors
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListServerNeighborsRequest method.
 //    req, resp := client.ListServerNeighborsRequest(params)
@@ -1364,7 +1349,7 @@ const opListServerNeighbors = "ListServerNeighbors"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListServerNeighbors
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListServerNeighbors
 func (c *ApplicationDiscoveryService) ListServerNeighborsRequest(input *ListServerNeighborsInput) (req *request.Request, output *ListServerNeighborsOutput) {
 	op := &request.Operation{
 		Name:       opListServerNeighbors,
@@ -1408,7 +1393,7 @@ func (c *ApplicationDiscoveryService) ListServerNeighborsRequest(input *ListServ
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListServerNeighbors
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListServerNeighbors
 func (c *ApplicationDiscoveryService) ListServerNeighbors(input *ListServerNeighborsInput) (*ListServerNeighborsOutput, error) {
 	req, out := c.ListServerNeighborsRequest(input)
 	return out, req.Send()
@@ -1434,19 +1419,18 @@ const opStartDataCollectionByAgentIds = "StartDataCollectionByAgentIds"
 
 // StartDataCollectionByAgentIdsRequest generates a "aws/request.Request" representing the
 // client's request for the StartDataCollectionByAgentIds operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See StartDataCollectionByAgentIds for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the StartDataCollectionByAgentIds method directly
-// instead.
+// See StartDataCollectionByAgentIds for more information on using the StartDataCollectionByAgentIds
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the StartDataCollectionByAgentIdsRequest method.
 //    req, resp := client.StartDataCollectionByAgentIdsRequest(params)
@@ -1456,7 +1440,7 @@ const opStartDataCollectionByAgentIds = "StartDataCollectionByAgentIds"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartDataCollectionByAgentIds
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartDataCollectionByAgentIds
 func (c *ApplicationDiscoveryService) StartDataCollectionByAgentIdsRequest(input *StartDataCollectionByAgentIdsInput) (req *request.Request, output *StartDataCollectionByAgentIdsOutput) {
 	op := &request.Operation{
 		Name:       opStartDataCollectionByAgentIds,
@@ -1499,7 +1483,7 @@ func (c *ApplicationDiscoveryService) StartDataCollectionByAgentIdsRequest(input
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartDataCollectionByAgentIds
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartDataCollectionByAgentIds
 func (c *ApplicationDiscoveryService) StartDataCollectionByAgentIds(input *StartDataCollectionByAgentIdsInput) (*StartDataCollectionByAgentIdsOutput, error) {
 	req, out := c.StartDataCollectionByAgentIdsRequest(input)
 	return out, req.Send()
@@ -1525,19 +1509,18 @@ const opStartExportTask = "StartExportTask"
 
 // StartExportTaskRequest generates a "aws/request.Request" representing the
 // client's request for the StartExportTask operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See StartExportTask for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the StartExportTask method directly
-// instead.
+// See StartExportTask for more information on using the StartExportTask
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the StartExportTaskRequest method.
 //    req, resp := client.StartExportTaskRequest(params)
@@ -1547,7 +1530,7 @@ const opStartExportTask = "StartExportTask"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartExportTask
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartExportTask
 func (c *ApplicationDiscoveryService) StartExportTaskRequest(input *StartExportTaskInput) (req *request.Request, output *StartExportTaskOutput) {
 	op := &request.Operation{
 		Name:       opStartExportTask,
@@ -1568,13 +1551,13 @@ func (c *ApplicationDiscoveryService) StartExportTaskRequest(input *StartExportT
 //
 // Begins the export of discovered data to an S3 bucket.
 //
-// If you specify agentId in a filter, the task exports up to 72 hours of detailed
+// If you specify agentIds in a filter, the task exports up to 72 hours of detailed
 // data collected by the identified Application Discovery Agent, including network,
 // process, and performance details. A time range for exported agent data may
 // be set by using startTime and endTime. Export of detailed agent data is limited
 // to five concurrently running exports.
 //
-// If you do not include an agentId filter, summary data is exported that includes
+// If you do not include an agentIds filter, summary data is exported that includes
 // both AWS Agentless Discovery Connector data and summary data from AWS Discovery
 // Agents. Export of summary data is limited to two exports per day.
 //
@@ -1603,7 +1586,7 @@ func (c *ApplicationDiscoveryService) StartExportTaskRequest(input *StartExportT
 //   * ErrCodeOperationNotPermittedException "OperationNotPermittedException"
 //   This operation is not permitted.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartExportTask
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartExportTask
 func (c *ApplicationDiscoveryService) StartExportTask(input *StartExportTaskInput) (*StartExportTaskOutput, error) {
 	req, out := c.StartExportTaskRequest(input)
 	return out, req.Send()
@@ -1629,19 +1612,18 @@ const opStopDataCollectionByAgentIds = "StopDataCollectionByAgentIds"
 
 // StopDataCollectionByAgentIdsRequest generates a "aws/request.Request" representing the
 // client's request for the StopDataCollectionByAgentIds operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See StopDataCollectionByAgentIds for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the StopDataCollectionByAgentIds method directly
-// instead.
+// See StopDataCollectionByAgentIds for more information on using the StopDataCollectionByAgentIds
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the StopDataCollectionByAgentIdsRequest method.
 //    req, resp := client.StopDataCollectionByAgentIdsRequest(params)
@@ -1651,7 +1633,7 @@ const opStopDataCollectionByAgentIds = "StopDataCollectionByAgentIds"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StopDataCollectionByAgentIds
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StopDataCollectionByAgentIds
 func (c *ApplicationDiscoveryService) StopDataCollectionByAgentIdsRequest(input *StopDataCollectionByAgentIdsInput) (req *request.Request, output *StopDataCollectionByAgentIdsOutput) {
 	op := &request.Operation{
 		Name:       opStopDataCollectionByAgentIds,
@@ -1694,7 +1676,7 @@ func (c *ApplicationDiscoveryService) StopDataCollectionByAgentIdsRequest(input 
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StopDataCollectionByAgentIds
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StopDataCollectionByAgentIds
 func (c *ApplicationDiscoveryService) StopDataCollectionByAgentIds(input *StopDataCollectionByAgentIdsInput) (*StopDataCollectionByAgentIdsOutput, error) {
 	req, out := c.StopDataCollectionByAgentIdsRequest(input)
 	return out, req.Send()
@@ -1720,19 +1702,18 @@ const opUpdateApplication = "UpdateApplication"
 
 // UpdateApplicationRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateApplication operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See UpdateApplication for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the UpdateApplication method directly
-// instead.
+// See UpdateApplication for more information on using the UpdateApplication
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the UpdateApplicationRequest method.
 //    req, resp := client.UpdateApplicationRequest(params)
@@ -1742,7 +1723,7 @@ const opUpdateApplication = "UpdateApplication"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/UpdateApplication
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/UpdateApplication
 func (c *ApplicationDiscoveryService) UpdateApplicationRequest(input *UpdateApplicationInput) (req *request.Request, output *UpdateApplicationOutput) {
 	op := &request.Operation{
 		Name:       opUpdateApplication,
@@ -1785,7 +1766,7 @@ func (c *ApplicationDiscoveryService) UpdateApplicationRequest(input *UpdateAppl
 //   * ErrCodeServerInternalErrorException "ServerInternalErrorException"
 //   The server experienced an internal error. Try again.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/UpdateApplication
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/UpdateApplication
 func (c *ApplicationDiscoveryService) UpdateApplication(input *UpdateApplicationInput) (*UpdateApplicationOutput, error) {
 	req, out := c.UpdateApplicationRequest(input)
 	return out, req.Send()
@@ -1810,7 +1791,7 @@ func (c *ApplicationDiscoveryService) UpdateApplicationWithContext(ctx aws.Conte
 // Information about agents or connectors that were instructed to start collecting
 // data. Information includes the agent/connector ID, a description of the operation,
 // and whether the agent/connector configuration was updated.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/AgentConfigurationStatus
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/AgentConfigurationStatus
 type AgentConfigurationStatus struct {
 	_ struct{} `type:"structure"`
 
@@ -1858,7 +1839,7 @@ func (s *AgentConfigurationStatus) SetOperationSucceeded(v bool) *AgentConfigura
 // Information includes agent or connector IDs, IP addresses, media access control
 // (MAC) addresses, agent or connector health, hostname where the agent or connector
 // resides, and agent version for each agent.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/AgentInfo
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/AgentInfo
 type AgentInfo struct {
 	_ struct{} `type:"structure"`
 
@@ -1965,7 +1946,7 @@ func (s *AgentInfo) SetVersion(v string) *AgentInfo {
 }
 
 // Network details about the host where the agent/connector resides.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/AgentNetworkInfo
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/AgentNetworkInfo
 type AgentNetworkInfo struct {
 	_ struct{} `type:"structure"`
 
@@ -1998,7 +1979,7 @@ func (s *AgentNetworkInfo) SetMacAddress(v string) *AgentNetworkInfo {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/AssociateConfigurationItemsToApplicationRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/AssociateConfigurationItemsToApplicationRequest
 type AssociateConfigurationItemsToApplicationInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2051,7 +2032,7 @@ func (s *AssociateConfigurationItemsToApplicationInput) SetConfigurationIds(v []
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/AssociateConfigurationItemsToApplicationResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/AssociateConfigurationItemsToApplicationResponse
 type AssociateConfigurationItemsToApplicationOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -2068,7 +2049,7 @@ func (s AssociateConfigurationItemsToApplicationOutput) GoString() string {
 
 // Tags for a configuration item. Tags are metadata that help you categorize
 // IT assets.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ConfigurationTag
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ConfigurationTag
 type ConfigurationTag struct {
 	_ struct{} `type:"structure"`
 
@@ -2131,7 +2112,7 @@ func (s *ConfigurationTag) SetValue(v string) *ConfigurationTag {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateApplicationRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateApplicationRequest
 type CreateApplicationInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2179,7 +2160,7 @@ func (s *CreateApplicationInput) SetName(v string) *CreateApplicationInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateApplicationResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateApplicationResponse
 type CreateApplicationOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2203,7 +2184,7 @@ func (s *CreateApplicationOutput) SetConfigurationId(v string) *CreateApplicatio
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateTagsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateTagsRequest
 type CreateTagsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2218,7 +2199,7 @@ type CreateTagsInput struct {
 	// {"key": "serverType", "value": "webServer"}
 	//
 	// Tags is a required field
-	Tags []*Tag `locationName:"tags" locationNameList:"item" type:"list" required:"true"`
+	Tags []*Tag `locationName:"tags" type:"list" required:"true"`
 }
 
 // String returns the string representation
@@ -2269,7 +2250,7 @@ func (s *CreateTagsInput) SetTags(v []*Tag) *CreateTagsInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateTagsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CreateTagsResponse
 type CreateTagsOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -2285,7 +2266,7 @@ func (s CreateTagsOutput) GoString() string {
 }
 
 // Inventory data for installed discovery agents.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CustomerAgentInfo
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CustomerAgentInfo
 type CustomerAgentInfo struct {
 	_ struct{} `type:"structure"`
 
@@ -2378,7 +2359,7 @@ func (s *CustomerAgentInfo) SetUnknownAgents(v int64) *CustomerAgentInfo {
 }
 
 // Inventory data for installed discovery connectors.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CustomerConnectorInfo
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/CustomerConnectorInfo
 type CustomerConnectorInfo struct {
 	_ struct{} `type:"structure"`
 
@@ -2470,7 +2451,7 @@ func (s *CustomerConnectorInfo) SetUnknownConnectors(v int64) *CustomerConnector
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteApplicationsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteApplicationsRequest
 type DeleteApplicationsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2509,7 +2490,7 @@ func (s *DeleteApplicationsInput) SetConfigurationIds(v []*string) *DeleteApplic
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteApplicationsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteApplicationsResponse
 type DeleteApplicationsOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -2524,7 +2505,7 @@ func (s DeleteApplicationsOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteTagsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteTagsRequest
 type DeleteTagsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2537,7 +2518,7 @@ type DeleteTagsInput struct {
 	// the tags that you want to delete in a key-value format. For example:
 	//
 	// {"key": "serverType", "value": "webServer"}
-	Tags []*Tag `locationName:"tags" locationNameList:"item" type:"list"`
+	Tags []*Tag `locationName:"tags" type:"list"`
 }
 
 // String returns the string representation
@@ -2585,7 +2566,7 @@ func (s *DeleteTagsInput) SetTags(v []*Tag) *DeleteTagsInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteTagsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DeleteTagsResponse
 type DeleteTagsOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -2600,7 +2581,7 @@ func (s DeleteTagsOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeAgentsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeAgentsRequest
 type DescribeAgentsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2680,7 +2661,7 @@ func (s *DescribeAgentsInput) SetNextToken(v string) *DescribeAgentsInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeAgentsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeAgentsResponse
 type DescribeAgentsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2720,7 +2701,7 @@ func (s *DescribeAgentsOutput) SetNextToken(v string) *DescribeAgentsOutput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeConfigurationsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeConfigurationsRequest
 type DescribeConfigurationsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2759,7 +2740,7 @@ func (s *DescribeConfigurationsInput) SetConfigurationIds(v []*string) *Describe
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeConfigurationsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeConfigurationsResponse
 type DescribeConfigurationsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2783,7 +2764,7 @@ func (s *DescribeConfigurationsOutput) SetConfigurations(v []map[string]*string)
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportConfigurationsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportConfigurationsRequest
 type DescribeExportConfigurationsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2828,7 +2809,7 @@ func (s *DescribeExportConfigurationsInput) SetNextToken(v string) *DescribeExpo
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportConfigurationsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportConfigurationsResponse
 type DescribeExportConfigurationsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2865,7 +2846,7 @@ func (s *DescribeExportConfigurationsOutput) SetNextToken(v string) *DescribeExp
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportTasksRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportTasksRequest
 type DescribeExportTasksInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2944,7 +2925,7 @@ func (s *DescribeExportTasksInput) SetNextToken(v string) *DescribeExportTasksIn
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportTasksResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeExportTasksResponse
 type DescribeExportTasksOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2982,7 +2963,7 @@ func (s *DescribeExportTasksOutput) SetNextToken(v string) *DescribeExportTasksO
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeTagsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeTagsRequest
 type DescribeTagsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3047,7 +3028,7 @@ func (s *DescribeTagsInput) SetNextToken(v string) *DescribeTagsInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeTagsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DescribeTagsResponse
 type DescribeTagsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3056,7 +3037,7 @@ type DescribeTagsOutput struct {
 
 	// Depending on the input, this is a list of configuration items tagged with
 	// a specific tag, or a list of tags for a specific configuration item.
-	Tags []*ConfigurationTag `locationName:"tags" locationNameList:"item" type:"list"`
+	Tags []*ConfigurationTag `locationName:"tags" type:"list"`
 }
 
 // String returns the string representation
@@ -3081,7 +3062,7 @@ func (s *DescribeTagsOutput) SetTags(v []*ConfigurationTag) *DescribeTagsOutput 
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DisassociateConfigurationItemsFromApplicationRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DisassociateConfigurationItemsFromApplicationRequest
 type DisassociateConfigurationItemsFromApplicationInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3134,7 +3115,7 @@ func (s *DisassociateConfigurationItemsFromApplicationInput) SetConfigurationIds
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DisassociateConfigurationItemsFromApplicationResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/DisassociateConfigurationItemsFromApplicationResponse
 type DisassociateConfigurationItemsFromApplicationOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -3149,7 +3130,7 @@ func (s DisassociateConfigurationItemsFromApplicationOutput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ExportConfigurationsInput
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ExportConfigurationsInput
 type ExportConfigurationsInput struct {
 	_ struct{} `type:"structure"`
 }
@@ -3164,7 +3145,7 @@ func (s ExportConfigurationsInput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ExportConfigurationsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ExportConfigurationsResponse
 type ExportConfigurationsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3191,7 +3172,7 @@ func (s *ExportConfigurationsOutput) SetExportId(v string) *ExportConfigurations
 // Used to select which agent's data is to be exported. A single agent ID may
 // be selected for export using the StartExportTask (http://docs.aws.amazon.com/application-discovery/latest/APIReference/API_StartExportTask.html)
 // action.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ExportFilter
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ExportFilter
 type ExportFilter struct {
 	_ struct{} `type:"structure"`
 
@@ -3210,7 +3191,7 @@ type ExportFilter struct {
 	// action. Typically an ADS agentId is in the form o-0123456789abcdef0.
 	//
 	// Values is a required field
-	Values []*string `locationName:"values" locationNameList:"item" type:"list" required:"true"`
+	Values []*string `locationName:"values" type:"list" required:"true"`
 }
 
 // String returns the string representation
@@ -3262,7 +3243,7 @@ func (s *ExportFilter) SetValues(v []*string) *ExportFilter {
 
 // Information regarding the export status of discovered data. The value is
 // an array of objects.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ExportInfo
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ExportInfo
 type ExportInfo struct {
 	_ struct{} `type:"structure"`
 
@@ -3367,7 +3348,7 @@ func (s *ExportInfo) SetStatusMessage(v string) *ExportInfo {
 //
 // For more information about filters, see Querying Discovered Configuration
 // Items (http://docs.aws.amazon.com/application-discovery/latest/APIReference/discovery-api-queries.html).
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/Filter
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/Filter
 type Filter struct {
 	_ struct{} `type:"structure"`
 
@@ -3390,7 +3371,7 @@ type Filter struct {
 	// filter name, you could specify Ubuntu for the value.
 	//
 	// Values is a required field
-	Values []*string `locationName:"values" locationNameList:"item" type:"list" required:"true"`
+	Values []*string `locationName:"values" type:"list" required:"true"`
 }
 
 // String returns the string representation
@@ -3440,7 +3421,7 @@ func (s *Filter) SetValues(v []*string) *Filter {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/GetDiscoverySummaryRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/GetDiscoverySummaryRequest
 type GetDiscoverySummaryInput struct {
 	_ struct{} `type:"structure"`
 }
@@ -3455,7 +3436,7 @@ func (s GetDiscoverySummaryInput) GoString() string {
 	return s.String()
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/GetDiscoverySummaryResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/GetDiscoverySummaryResponse
 type GetDiscoverySummaryOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3524,7 +3505,7 @@ func (s *GetDiscoverySummaryOutput) SetServersMappedtoTags(v int64) *GetDiscover
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListConfigurationsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListConfigurationsRequest
 type ListConfigurationsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3630,7 +3611,7 @@ func (s *ListConfigurationsInput) SetOrderBy(v []*OrderByElement) *ListConfigura
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListConfigurationsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListConfigurationsResponse
 type ListConfigurationsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3667,7 +3648,7 @@ func (s *ListConfigurationsOutput) SetNextToken(v string) *ListConfigurationsOut
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListServerNeighborsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListServerNeighborsRequest
 type ListServerNeighborsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3747,7 +3728,7 @@ func (s *ListServerNeighborsInput) SetPortInformationNeeded(v bool) *ListServerN
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListServerNeighborsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/ListServerNeighborsResponse
 type ListServerNeighborsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3795,7 +3776,7 @@ func (s *ListServerNeighborsOutput) SetNextToken(v string) *ListServerNeighborsO
 }
 
 // Details about neighboring servers.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/NeighborConnectionDetail
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/NeighborConnectionDetail
 type NeighborConnectionDetail struct {
 	_ struct{} `type:"structure"`
 
@@ -3862,7 +3843,7 @@ func (s *NeighborConnectionDetail) SetTransportProtocol(v string) *NeighborConne
 }
 
 // A field and direction for ordered output.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/OrderByElement
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/OrderByElement
 type OrderByElement struct {
 	_ struct{} `type:"structure"`
 
@@ -3910,7 +3891,7 @@ func (s *OrderByElement) SetSortOrder(v string) *OrderByElement {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartDataCollectionByAgentIdsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartDataCollectionByAgentIdsRequest
 type StartDataCollectionByAgentIdsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3955,7 +3936,7 @@ func (s *StartDataCollectionByAgentIdsInput) SetAgentIds(v []*string) *StartData
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartDataCollectionByAgentIdsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartDataCollectionByAgentIdsResponse
 type StartDataCollectionByAgentIdsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3981,7 +3962,7 @@ func (s *StartDataCollectionByAgentIdsOutput) SetAgentsConfigurationStatus(v []*
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartExportTaskRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartExportTaskRequest
 type StartExportTaskInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3990,7 +3971,8 @@ type StartExportTaskInput struct {
 	// the most recent data collected by the agent.
 	EndTime *time.Time `locationName:"endTime" type:"timestamp" timestampFormat:"unix"`
 
-	// The file format for the returned export data. Default value is CSV.
+	// The file format for the returned export data. Default value is CSV. Note:TheGRAPHMLoption
+	// has been deprecated.
 	ExportDataFormat []*string `locationName:"exportDataFormat" type:"list"`
 
 	// If a filter is present, it selects the single agentId of the Application
@@ -4060,7 +4042,7 @@ func (s *StartExportTaskInput) SetStartTime(v time.Time) *StartExportTaskInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartExportTaskResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StartExportTaskResponse
 type StartExportTaskOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4084,7 +4066,7 @@ func (s *StartExportTaskOutput) SetExportId(v string) *StartExportTaskOutput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StopDataCollectionByAgentIdsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StopDataCollectionByAgentIdsRequest
 type StopDataCollectionByAgentIdsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4123,7 +4105,7 @@ func (s *StopDataCollectionByAgentIdsInput) SetAgentIds(v []*string) *StopDataCo
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StopDataCollectionByAgentIdsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/StopDataCollectionByAgentIdsResponse
 type StopDataCollectionByAgentIdsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4150,7 +4132,7 @@ func (s *StopDataCollectionByAgentIdsOutput) SetAgentsConfigurationStatus(v []*A
 }
 
 // Metadata that help you categorize IT assets.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/Tag
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/Tag
 type Tag struct {
 	_ struct{} `type:"structure"`
 
@@ -4204,7 +4186,7 @@ func (s *Tag) SetValue(v string) *Tag {
 }
 
 // The tag filter. Valid names are: tagKey, tagValue, configurationId.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/TagFilter
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/TagFilter
 type TagFilter struct {
 	_ struct{} `type:"structure"`
 
@@ -4216,7 +4198,7 @@ type TagFilter struct {
 	// Values for the tag filter.
 	//
 	// Values is a required field
-	Values []*string `locationName:"values" locationNameList:"item" type:"list" required:"true"`
+	Values []*string `locationName:"values" type:"list" required:"true"`
 }
 
 // String returns the string representation
@@ -4257,7 +4239,7 @@ func (s *TagFilter) SetValues(v []*string) *TagFilter {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/UpdateApplicationRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/UpdateApplicationRequest
 type UpdateApplicationInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4314,7 +4296,7 @@ func (s *UpdateApplicationInput) SetName(v string) *UpdateApplicationInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/UpdateApplicationResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/discovery-2015-11-01/UpdateApplicationResponse
 type UpdateApplicationOutput struct {
 	_ struct{} `type:"structure"`
 }

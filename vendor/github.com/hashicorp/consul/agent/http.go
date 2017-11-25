@@ -12,7 +12,8 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/agent/consul/structs"
+	"github.com/hashicorp/consul/acl"
+	"github.com/hashicorp/consul/agent/structs"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -60,6 +61,7 @@ func (s *HTTPServer) handler(enableDebug bool) http.Handler {
 
 		// Register the wrapper, which will close over the expensive-to-compute
 		// parts from above.
+		// TODO (kyhavlov): Convert this to utilize metric labels in a major release
 		wrapper := func(resp http.ResponseWriter, req *http.Request) {
 			start := time.Now()
 			handler(resp, req)
@@ -73,6 +75,7 @@ func (s *HTTPServer) handler(enableDebug bool) http.Handler {
 
 	// API V1.
 	if s.agent.config.ACLDatacenter != "" {
+		handleFuncMetrics("/v1/acl/bootstrap", s.wrap(s.ACLBootstrap))
 		handleFuncMetrics("/v1/acl/create", s.wrap(s.ACLCreate))
 		handleFuncMetrics("/v1/acl/update", s.wrap(s.ACLUpdate))
 		handleFuncMetrics("/v1/acl/destroy/", s.wrap(s.ACLDestroy))
@@ -80,7 +83,9 @@ func (s *HTTPServer) handler(enableDebug bool) http.Handler {
 		handleFuncMetrics("/v1/acl/clone/", s.wrap(s.ACLClone))
 		handleFuncMetrics("/v1/acl/list", s.wrap(s.ACLList))
 		handleFuncMetrics("/v1/acl/replication", s.wrap(s.ACLReplicationStatus))
+		handleFuncMetrics("/v1/agent/token/", s.wrap(s.AgentToken))
 	} else {
+		handleFuncMetrics("/v1/acl/bootstrap", s.wrap(ACLDisabled))
 		handleFuncMetrics("/v1/acl/create", s.wrap(ACLDisabled))
 		handleFuncMetrics("/v1/acl/update", s.wrap(ACLDisabled))
 		handleFuncMetrics("/v1/acl/destroy/", s.wrap(ACLDisabled))
@@ -88,11 +93,13 @@ func (s *HTTPServer) handler(enableDebug bool) http.Handler {
 		handleFuncMetrics("/v1/acl/clone/", s.wrap(ACLDisabled))
 		handleFuncMetrics("/v1/acl/list", s.wrap(ACLDisabled))
 		handleFuncMetrics("/v1/acl/replication", s.wrap(ACLDisabled))
+		handleFuncMetrics("/v1/agent/token/", s.wrap(ACLDisabled))
 	}
 	handleFuncMetrics("/v1/agent/self", s.wrap(s.AgentSelf))
 	handleFuncMetrics("/v1/agent/maintenance", s.wrap(s.AgentNodeMaintenance))
 	handleFuncMetrics("/v1/agent/reload", s.wrap(s.AgentReload))
 	handleFuncMetrics("/v1/agent/monitor", s.wrap(s.AgentMonitor))
+	handleFuncMetrics("/v1/agent/metrics", s.wrap(s.AgentMetrics))
 	handleFuncMetrics("/v1/agent/services", s.wrap(s.AgentServices))
 	handleFuncMetrics("/v1/agent/checks", s.wrap(s.AgentChecks))
 	handleFuncMetrics("/v1/agent/members", s.wrap(s.AgentMembers))
@@ -200,7 +207,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 		formVals, err := url.ParseQuery(req.URL.RawQuery)
 		if err != nil {
 			s.agent.logger.Printf("[ERR] http: Failed to decode query: %s from=%s", err, req.RemoteAddr)
-			resp.WriteHeader(http.StatusInternalServerError) // 500
+			resp.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		logURL := req.URL.String()
@@ -225,13 +232,17 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 
 		handleErr := func(err error) {
 			s.agent.logger.Printf("[ERR] http: Request %s %v, error: %v from=%s", req.Method, logURL, err, req.RemoteAddr)
-			code := http.StatusInternalServerError // 500
-			errMsg := err.Error()
-			if strings.Contains(errMsg, "Permission denied") || strings.Contains(errMsg, "ACL not found") {
-				code = http.StatusForbidden // 403
+			switch {
+			case acl.IsErrPermissionDenied(err) || acl.IsErrNotFound(err):
+				resp.WriteHeader(http.StatusForbidden)
+				fmt.Fprint(resp, err.Error())
+			case structs.IsErrRPCRateExceeded(err):
+				resp.WriteHeader(http.StatusTooManyRequests)
+				fmt.Fprint(resp, err.Error())
+			default:
+				resp.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprint(resp, err.Error())
 			}
-			resp.WriteHeader(code)
-			fmt.Fprint(resp, errMsg)
 		}
 
 		// Invoke the handler
@@ -286,7 +297,7 @@ func (s *HTTPServer) IsUIEnabled() bool {
 func (s *HTTPServer) Index(resp http.ResponseWriter, req *http.Request) {
 	// Check if this is a non-index path
 	if req.URL.Path != "/" {
-		resp.WriteHeader(http.StatusNotFound) // 404
+		resp.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -370,7 +381,7 @@ func parseWait(resp http.ResponseWriter, req *http.Request, b *structs.QueryOpti
 	if wait := query.Get("wait"); wait != "" {
 		dur, err := time.ParseDuration(wait)
 		if err != nil {
-			resp.WriteHeader(http.StatusBadRequest) // 400
+			resp.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(resp, "Invalid wait time")
 			return true
 		}
@@ -379,7 +390,7 @@ func parseWait(resp http.ResponseWriter, req *http.Request, b *structs.QueryOpti
 	if idx := query.Get("index"); idx != "" {
 		index, err := strconv.ParseUint(idx, 10, 64)
 		if err != nil {
-			resp.WriteHeader(http.StatusBadRequest) // 400
+			resp.WriteHeader(http.StatusBadRequest)
 			fmt.Fprint(resp, "Invalid index")
 			return true
 		}
@@ -399,7 +410,7 @@ func parseConsistency(resp http.ResponseWriter, req *http.Request, b *structs.Qu
 		b.RequireConsistent = true
 	}
 	if b.AllowStale && b.RequireConsistent {
-		resp.WriteHeader(http.StatusBadRequest) // 400
+		resp.WriteHeader(http.StatusBadRequest)
 		fmt.Fprint(resp, "Cannot specify ?stale with ?consistent, conflicting semantics.")
 		return true
 	}
@@ -428,7 +439,7 @@ func (s *HTTPServer) parseToken(req *http.Request, token *string) {
 	}
 
 	// Set the default ACLToken
-	*token = s.agent.config.ACLToken
+	*token = s.agent.tokens.UserToken()
 }
 
 // parseSource is used to parse the ?near=<node> query parameter, used for

@@ -1,6 +1,7 @@
 package lightstep_test
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
@@ -18,9 +19,12 @@ import (
 )
 
 func closeTestTracer(tracer ot.Tracer) {
-	errChan := make(chan error)
-	go func() { errChan <- CloseTracer(tracer) }()
-	Eventually(errChan).Should(Receive(BeNil()))
+	complete := make(chan struct{})
+	go func() {
+		Close(context.Background(), tracer)
+		close(complete)
+	}()
+	Eventually(complete).Should(BeClosed())
 }
 
 func startNSpans(n int, tracer ot.Tracer) {
@@ -29,9 +33,6 @@ func startNSpans(n int, tracer ot.Tracer) {
 	}
 }
 
-//////////////////
-// GRPC HELPERS //
-//////////////////
 type haveKeyValuesMatcher []*cpb.KeyValue
 
 func HaveKeyValues(keyValues ...*cpb.KeyValue) types.GomegaMatcher {
@@ -39,24 +40,54 @@ func HaveKeyValues(keyValues ...*cpb.KeyValue) types.GomegaMatcher {
 }
 
 func (matcher haveKeyValuesMatcher) Match(actual interface{}) (bool, error) {
-	var actualKeyValues []*cpb.KeyValue
-
 	switch v := actual.(type) {
 	case []*cpb.KeyValue:
-		actualKeyValues = v
+		return matcher.MatchProtos(v)
 	case *cpb.Log:
-		actualKeyValues = v.GetKeyvalues()
+		return matcher.MatchProtos(v.GetFields())
+	case []*lightstep_thrift.KeyValue:
+		return matcher.MatchThrift(v)
+	case *lightstep_thrift.LogRecord:
+		return matcher.MatchThrift(v.GetFields())
 	default:
-		return false, fmt.Errorf("HaveKeyValues matcher expects either a []*KeyValue or a *Log")
+		return false, fmt.Errorf("HaveKeyValues matcher expects either a []*KeyValue or a *Log/*LogRecord")
 	}
+}
 
+func (matcher haveKeyValuesMatcher) MatchProtos(actualKeyValues []*cpb.KeyValue) (bool, error) {
 	expectedKeyValues := []*cpb.KeyValue(matcher)
 	if len(expectedKeyValues) != len(actualKeyValues) {
 		return false, nil
 	}
 
-	for i, _ := range actualKeyValues {
+	for i := range actualKeyValues {
 		if !reflect.DeepEqual(actualKeyValues[i], expectedKeyValues[i]) {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func (matcher haveKeyValuesMatcher) MatchThrift(actualKeyValues []*lightstep_thrift.KeyValue) (bool, error) {
+	expectedKeyValues := []*cpb.KeyValue(matcher)
+	if len(expectedKeyValues) != len(actualKeyValues) {
+		return false, nil
+	}
+
+	for i := range actualKeyValues {
+		if !reflect.DeepEqual(actualKeyValues[i].Key, expectedKeyValues[i].Key) {
+			fmt.Println("KEY NOT EQUAL")
+			return false, nil
+		}
+
+		if len(expectedKeyValues[i].GetStringValue()) == 0 {
+			fmt.Println("NO STRING VALUE")
+			return false, nil
+		}
+
+		if !reflect.DeepEqual(actualKeyValues[i].Value, expectedKeyValues[i].GetStringValue()) {
+			fmt.Println("VALUE NOT EQUAL")
 			return false, nil
 		}
 	}
@@ -93,6 +124,10 @@ func KeyValue(key string, value interface{}, storeAsJson ...bool) *cpb.KeyValue 
 	return tag
 }
 
+//////////////////
+// GRPC HELPERS //
+//////////////////
+
 func getReportedGRPCSpans(fakeClient *cpbfakes.FakeCollectorServiceClient) []*cpb.Span {
 	callCount := fakeClient.ReportCallCount()
 	spans := make([]*cpb.Span, 0)
@@ -116,49 +151,6 @@ func fakeGrpcConnection(fakeClient *cpbfakes.FakeCollectorServiceClient) Connect
 ////////////////////
 // THRIFT HELPERS //
 ////////////////////
-type haveThriftKeyValuesMatcher []*lightstep_thrift.KeyValue
-
-func HaveThriftKeyValues(keyValues ...*lightstep_thrift.KeyValue) types.GomegaMatcher {
-	return haveThriftKeyValuesMatcher(keyValues)
-}
-
-func (matcher haveThriftKeyValuesMatcher) Match(actual interface{}) (bool, error) {
-	var actualKeyValues []*lightstep_thrift.KeyValue
-
-	switch v := actual.(type) {
-	case []*lightstep_thrift.KeyValue:
-		actualKeyValues = v
-	case *lightstep_thrift.LogRecord:
-		actualKeyValues = v.GetFields()
-	default:
-		return false, fmt.Errorf("HaveKeyValues matcher expects either a []*KeyValue or a *Log")
-	}
-
-	expectedKeyValues := []*lightstep_thrift.KeyValue(matcher)
-	if len(expectedKeyValues) != len(actualKeyValues) {
-		return false, nil
-	}
-
-	for i, _ := range actualKeyValues {
-		if !reflect.DeepEqual(actualKeyValues[i], expectedKeyValues[i]) {
-			return false, nil
-		}
-	}
-
-	return true, nil
-}
-
-func (matcher haveThriftKeyValuesMatcher) FailureMessage(actual interface{}) string {
-	return fmt.Sprintf("Expected '%v' to have key values '%v'", actual, matcher)
-}
-
-func (matcher haveThriftKeyValuesMatcher) NegatedFailureMessage(actual interface{}) string {
-	return fmt.Sprintf("Expected '%v' to not have key values '%v'", actual, matcher)
-}
-
-func ThriftKeyValue(key, value string) *lightstep_thrift.KeyValue {
-	return &lightstep_thrift.KeyValue{Key: key, Value: value}
-}
 
 func getReportedThriftSpans(fakeClient *thriftfakes.FakeReportingService) []*lightstep_thrift.SpanRecord {
 	callCount := fakeClient.ReportCallCount()

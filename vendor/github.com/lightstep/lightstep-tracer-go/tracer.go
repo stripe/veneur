@@ -1,8 +1,8 @@
+// package lightstep implements the LightStep OpenTracing client for Go.
 package lightstep
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 
 	"golang.org/x/net/context"
@@ -13,41 +13,21 @@ import (
 	ot "github.com/opentracing/opentracing-go"
 )
 
-var (
-	errPreviousReportInFlight = fmt.Errorf("a previous Report is still in flight; aborting Flush()")
-	errConnectionWasClosed    = fmt.Errorf("the connection was closed")
-	errTracerDisabled         = fmt.Errorf("tracer is disabled; aborting Flush()")
-)
+// Tracer extends the `opentracing.Tracer` interface with methods for manual
+// flushing and closing. To access these methods, you can take the global
+// tracer and typecast it to a `lightstep.Tracer`. As a convenience, the
+// lightstep package provides static functions which perform the typecasting.
+type Tracer interface {
+	ot.Tracer
 
-// FlushLightStepTracer forces a synchronous Flush.
-func FlushLightStepTracer(lsTracer ot.Tracer) error {
-	tracer, ok := lsTracer.(Tracer)
-	if !ok {
-		return fmt.Errorf("Not a LightStep Tracer type: %v", reflect.TypeOf(lsTracer))
-	}
-
-	tracer.Flush()
-	return nil
-}
-
-// GetLightStepAccessToken returns the currently configured AccessToken.
-func GetLightStepAccessToken(lsTracer ot.Tracer) (string, error) {
-	tracer, ok := lsTracer.(Tracer)
-	if !ok {
-		return "", fmt.Errorf("Not a LightStep Tracer type: %v", reflect.TypeOf(lsTracer))
-	}
-
-	return tracer.Options().AccessToken, nil
-}
-
-// CloseTracer synchronously flushes the tracer, then terminates it.
-func CloseTracer(tracer ot.Tracer) error {
-	lsTracer, ok := tracer.(Tracer)
-	if !ok {
-		return fmt.Errorf("Not a LightStep Tracer type: %v", reflect.TypeOf(tracer))
-	}
-
-	return lsTracer.Close()
+	// Close flushes and then terminates the LightStep collector
+	Close(context.Context)
+	// Flush sends all spans currently in the buffer to the LighStep collector
+	Flush(context.Context)
+	// Options gets the Options used in New() or NewWithOptions().
+	Options() Options
+	// Disable prevents the tracer from recording spans or flushing
+	Disable()
 }
 
 // Implements the `Tracer` interface. Buffers spans and forwards the to a Lightstep collector.
@@ -60,10 +40,13 @@ type tracerImpl struct {
 	// at runtime, in which case suitable changes may be needed
 	// for variables accessed during Flush.
 
-	reporterID       uint64 // the LightStep tracer guid
-	opts             Options
-	textPropagator   textMapPropagator
-	binaryPropagator lightstepBinaryPropagator
+	reporterID uint64 // the LightStep tracer guid
+	opts       Options
+
+	// report loop management
+	closeOnce               sync.Once
+	closeReportLoopChannel  chan struct{}
+	reportLoopClosedChannel chan struct{}
 
 	//////////////////////////////////////////////////////////
 	// MUTABLE MUTABLE MUTABLE MUTABLE MUTABLE MUTABLE MUTABLE
@@ -73,10 +56,8 @@ type tracerImpl struct {
 	lock sync.Mutex
 
 	// Remote service that will receive reports.
-	client       collectorClient
-	conn         Connection
-	closech      chan struct{}
-	reportLoopch chan struct{}
+	client     collectorClient
+	connection Connection
 
 	// Two buffers of data.
 	buffer   reportBuffer
@@ -100,7 +81,7 @@ type tracerImpl struct {
 func NewTracer(opts Options) Tracer {
 	err := opts.Initialize()
 	if err != nil {
-		fmt.Println(err.Error())
+		emitEvent(newEventStartError(err))
 		return nil
 	}
 
@@ -115,219 +96,221 @@ func NewTracer(opts Options) Tracer {
 
 	now := time.Now()
 	impl := &tracerImpl{
-		opts:       opts,
-		reporterID: genSeededGUID(),
-		buffer:     newSpansBuffer(opts.MaxBufferedSpans),
-		flushing:   newSpansBuffer(opts.MaxBufferedSpans),
+		opts:                    opts,
+		reporterID:              genSeededGUID(),
+		buffer:                  newSpansBuffer(opts.MaxBufferedSpans),
+		flushing:                newSpansBuffer(opts.MaxBufferedSpans),
+		closeReportLoopChannel:  make(chan struct{}),
+		reportLoopClosedChannel: make(chan struct{}),
 	}
 
 	impl.buffer.setCurrent(now)
 
-	if opts.UseThrift {
-		impl.client = newThriftCollectorClient(opts, impl.reporterID, attributes)
-	} else {
-		impl.client = newGrpcCollectorClient(opts, impl.reporterID, attributes)
-	}
-
-	conn, err := impl.client.ConnectClient()
-
+	impl.client, err = newCollectorClient(opts, impl.reporterID, attributes)
 	if err != nil {
-		fmt.Println("Failed to connect to Collector!", err)
+		fmt.Println("Failed to create to Collector client!", err)
 		return nil
 	}
 
-	impl.conn = conn
-	impl.closech = make(chan struct{})
-	impl.reportLoopch = make(chan struct{})
+	conn, err := impl.client.ConnectClient()
+	if err != nil {
+		emitEvent(newEventStartError(err))
+		return nil
+	}
+	impl.connection = conn
 
-	// Important! incase close is called before go routine is kicked off
-	closech := impl.closech
-	go func() {
-		impl.reportLoop(closech)
-		close(impl.reportLoopch)
-	}()
+	go impl.reportLoop()
 
 	return impl
 }
 
-func (impl *tracerImpl) Options() Options {
-	return impl.opts
+func (tracer *tracerImpl) Options() Options {
+	return tracer.opts
 }
 
-func (t *tracerImpl) StartSpan(
+func (tracer *tracerImpl) StartSpan(
 	operationName string,
 	sso ...ot.StartSpanOption,
 ) ot.Span {
-	return newSpan(operationName, t, sso)
+	return newSpan(operationName, tracer, sso)
 }
 
-func (t *tracerImpl) Inject(sc ot.SpanContext, format interface{}, carrier interface{}) error {
+func (tracer *tracerImpl) Inject(sc ot.SpanContext, format interface{}, carrier interface{}) error {
 	switch format {
 	case ot.TextMap, ot.HTTPHeaders:
-		return t.textPropagator.Inject(sc, carrier)
+		return theTextMapPropagator.Inject(sc, carrier)
 	case BinaryCarrier:
-		return t.binaryPropagator.Inject(sc, carrier)
+		return theBinaryPropagator.Inject(sc, carrier)
 	}
 	return ot.ErrUnsupportedFormat
 }
 
-func (t *tracerImpl) Extract(format interface{}, carrier interface{}) (ot.SpanContext, error) {
+func (tracer *tracerImpl) Extract(format interface{}, carrier interface{}) (ot.SpanContext, error) {
 	switch format {
 	case ot.TextMap, ot.HTTPHeaders:
-		return t.textPropagator.Extract(carrier)
+		return theTextMapPropagator.Extract(carrier)
 	case BinaryCarrier:
-		return t.binaryPropagator.Extract(carrier)
+		return theBinaryPropagator.Extract(carrier)
 	}
 	return nil, ot.ErrUnsupportedFormat
 }
 
-func (r *tracerImpl) reconnectClient(now time.Time) {
-	conn, err := r.client.ConnectClient()
+func (tracer *tracerImpl) reconnectClient(now time.Time) {
+	conn, err := tracer.client.ConnectClient()
 	if err != nil {
-		maybeLogInfof("could not reconnect client", r.opts.Verbose)
+		emitEvent(newEventConnectionError(err))
 	} else {
-		r.lock.Lock()
-		oldConn := r.conn
-		r.conn = conn
-		r.lock.Unlock()
+		tracer.lock.Lock()
+		oldConn := tracer.connection
+		tracer.connection = conn
+		tracer.lock.Unlock()
 
 		oldConn.Close()
-		maybeLogInfof("reconnected client connection", r.opts.Verbose)
 	}
 }
 
-// Close flushes and then terminates the LightStep collector.
-func (r *tracerImpl) Close() error {
-	r.lock.Lock()
-	closech := r.closech
-	r.closech = nil
-	r.lock.Unlock()
-
-	if closech != nil {
+// Close flushes and then terminates the LightStep collector. Close may only be
+// called once; subsequent calls to Close are no-ops.
+func (tracer *tracerImpl) Close(ctx context.Context) {
+	tracer.closeOnce.Do(func() {
 		// notify report loop that we are closing
-		close(closech)
-
-		// wait for report loop to finish
-		if r.reportLoopch != nil {
-			<-r.reportLoopch
+		close(tracer.closeReportLoopChannel)
+		select {
+		case <-tracer.reportLoopClosedChannel:
+			tracer.Flush(ctx)
+		case <-ctx.Done():
+			return
 		}
-	}
 
-	// now its safe to close the connection
-	r.lock.Lock()
-	conn := r.conn
-	r.conn = nil
-	r.reportLoopch = nil
-	r.lock.Unlock()
+		// now its safe to close the connection
+		tracer.lock.Lock()
+		conn := tracer.connection
+		tracer.connection = nil
+		tracer.lock.Unlock()
 
-	if conn == nil {
-		return nil
-	}
-
-	return conn.Close()
+		if conn != nil {
+			err := conn.Close()
+			if err != nil {
+				emitEvent(newEventConnectionError(err))
+			}
+		}
+	})
 }
 
 // RecordSpan records a finished Span.
-func (r *tracerImpl) RecordSpan(raw RawSpan) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
+func (tracer *tracerImpl) RecordSpan(raw RawSpan) {
+	tracer.lock.Lock()
 
 	// Early-out for disabled runtimes
-	if r.disabled {
+	if tracer.disabled {
+		tracer.lock.Unlock()
 		return
 	}
 
-	r.buffer.addSpan(raw)
+	tracer.buffer.addSpan(raw)
+	tracer.lock.Unlock()
 
-	if r.opts.Recorder != nil {
-		r.opts.Recorder.RecordSpan(raw)
+	if tracer.opts.Recorder != nil {
+		tracer.opts.Recorder.RecordSpan(raw)
 	}
 }
 
 // Flush sends all buffered data to the collector.
-func (r *tracerImpl) Flush() {
-	r.flushingLock.Lock()
-	defer r.flushingLock.Unlock()
+func (tracer *tracerImpl) Flush(ctx context.Context) {
+	tracer.flushingLock.Lock()
+	defer tracer.flushingLock.Unlock()
+	var flushErrorEvent *eventFlushError
 
-	err := r.preFlush()
-	if err != nil {
-		maybeLogError(err, r.opts.Verbose)
+	flushErrorEvent = tracer.preFlush()
+	if flushErrorEvent != nil {
+		emitEvent(flushErrorEvent)
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), r.opts.ReportTimeout)
+	ctx, cancel := context.WithTimeout(ctx, tracer.opts.ReportTimeout)
 	defer cancel()
-	resp, err := r.client.Report(ctx, &r.flushing)
 
-	if err != nil {
-		maybeLogError(err, r.opts.Verbose)
+	req, flushErr := tracer.client.Translate(ctx, &tracer.flushing)
+	resp, flushErr := tracer.client.Report(ctx, req)
+
+	if flushErr != nil {
+		flushErrorEvent = newEventFlushError(flushErr, FlushErrorTransport)
 	} else if len(resp.GetErrors()) > 0 {
-		// These should never occur, since this library should understand what
-		// makes for valid logs and spans, but just in case, log it anyway.
-		for _, err := range resp.GetErrors() {
-			maybeLogError(fmt.Errorf("Remote report returned error: %s", err), r.opts.Verbose)
-		}
-	} else {
-		maybeLogInfof("Report: resp=%v, err=%v", r.opts.Verbose, resp, err)
+		flushErrorEvent = newEventFlushError(fmt.Errorf(resp.GetErrors()[0]), FlushErrorReport)
 	}
 
-	r.postFlush(resp, err)
+	statusReportEvent := tracer.postFlush(flushErrorEvent)
+
+	if flushErrorEvent != nil {
+		emitEvent(flushErrorEvent)
+	}
+
+	emitEvent(statusReportEvent)
+
+	if flushErr == nil && resp.Disable() {
+		tracer.Disable()
+	}
 }
 
-func (r *tracerImpl) preFlush() error {
-	r.lock.Lock()
-	defer r.lock.Unlock()
+// preFlush handles lock-protected data manipulation before flushing
+func (tracer *tracerImpl) preFlush() *eventFlushError {
+	tracer.lock.Lock()
+	defer tracer.lock.Unlock()
 
-	if r.disabled {
-		return errTracerDisabled
+	if tracer.disabled {
+		return newEventFlushError(flushErrorTracerClosed, FlushErrorTracerDisabled)
 	}
 
-	if r.conn == nil {
-		return errConnectionWasClosed
+	if tracer.connection == nil {
+		return newEventFlushError(flushErrorTracerClosed, FlushErrorTracerClosed)
 	}
 
 	now := time.Now()
-	r.buffer, r.flushing = r.flushing, r.buffer
-	r.reportInFlight = true
-	r.flushing.setFlushing(now)
-	r.buffer.setCurrent(now)
-	r.lastReportAttempt = now
+	tracer.buffer, tracer.flushing = tracer.flushing, tracer.buffer
+	tracer.reportInFlight = true
+	tracer.flushing.setFlushing(now)
+	tracer.buffer.setCurrent(now)
+	tracer.lastReportAttempt = now
 	return nil
 }
 
-func (r *tracerImpl) postFlush(resp collectorResponse, err error) {
-	var droppedSent int64
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	r.reportInFlight = false
-	if err != nil {
-		// Restore the records that did not get sent correctly
-		r.buffer.mergeFrom(&r.flushing)
-	} else {
-		droppedSent = r.flushing.droppedSpanCount
-		r.flushing.clear()
+// postFlush handles lock-protected data manipulation after flushing
+func (tracer *tracerImpl) postFlush(flushEventError *eventFlushError) *eventStatusReport {
+	tracer.lock.Lock()
+	defer tracer.lock.Unlock()
 
-		if resp.Disable() {
-			r.Disable()
-		}
+	tracer.reportInFlight = false
+
+	statusReportEvent := newEventStatusReport(
+		tracer.flushing.reportStart,
+		tracer.flushing.reportEnd,
+		len(tracer.flushing.rawSpans),
+		int(tracer.flushing.droppedSpanCount+tracer.buffer.droppedSpanCount),
+		int(tracer.flushing.logEncoderErrorCount+tracer.buffer.logEncoderErrorCount),
+	)
+
+	if flushEventError != nil {
+		// Restore the records that did not get sent correctly
+		tracer.buffer.mergeFrom(&tracer.flushing)
+		statusReportEvent.SetSentSpans(0)
+	} else {
+		tracer.flushing.clear()
 	}
-	if droppedSent != 0 {
-		maybeLogInfof("client reported %d dropped spans", r.opts.Verbose, droppedSent)
-	}
+
+	return statusReportEvent
 }
 
-func (r *tracerImpl) Disable() {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
-	if r.disabled {
+func (tracer *tracerImpl) Disable() {
+	tracer.lock.Lock()
+	if tracer.disabled {
+		tracer.lock.Unlock()
 		return
 	}
+	tracer.disabled = true
+	tracer.buffer.clear()
+	tracer.lock.Unlock()
 
-	fmt.Printf("Disabling Runtime instance: %p", r)
-
-	r.buffer.clear()
-	r.disabled = true
+	emitEvent(newEventTracerDisabled())
 }
 
 // Every MinReportingPeriod the reporting loop wakes up and checks to see if
@@ -343,43 +326,40 @@ func (r *tracerImpl) Disable() {
 // runtime library, and we want to avoid that at all costs (even dropping data,
 // which can certainly happen with high data rates and/or unresponsive remote
 // peers).
-func (r *tracerImpl) shouldFlushLocked(now time.Time) bool {
-	if now.Add(r.opts.MinReportingPeriod).Sub(r.lastReportAttempt) > r.opts.ReportingPeriod {
-		// Flush timeout.
-		maybeLogInfof("--> timeout", r.opts.Verbose)
+
+func (tracer *tracerImpl) shouldFlushLocked(now time.Time) bool {
+	if now.Add(tracer.opts.MinReportingPeriod).Sub(tracer.lastReportAttempt) > tracer.opts.ReportingPeriod {
 		return true
-	} else if r.buffer.isHalfFull() {
-		// Too many queued span records.
-		maybeLogInfof("--> span queue", r.opts.Verbose)
+	} else if tracer.buffer.isHalfFull() {
 		return true
 	}
 	return false
 }
 
-func (r *tracerImpl) reportLoop(closech chan struct{}) {
-	tickerChan := time.Tick(r.opts.MinReportingPeriod)
+func (tracer *tracerImpl) reportLoop() {
+	tickerChan := time.Tick(tracer.opts.MinReportingPeriod)
 	for {
 		select {
 		case <-tickerChan:
 			now := time.Now()
 
-			r.lock.Lock()
-			disabled := r.disabled
-			reconnect := !r.reportInFlight && r.client.ShouldReconnect()
-			shouldFlush := r.shouldFlushLocked(now)
-			r.lock.Unlock()
+			tracer.lock.Lock()
+			disabled := tracer.disabled
+			reconnect := !tracer.reportInFlight && tracer.client.ShouldReconnect()
+			shouldFlush := tracer.shouldFlushLocked(now)
+			tracer.lock.Unlock()
 
 			if disabled {
 				return
 			}
 			if shouldFlush {
-				r.Flush()
+				tracer.Flush(context.Background())
 			}
 			if reconnect {
-				r.reconnectClient(now)
+				tracer.reconnectClient(now)
 			}
-		case <-closech:
-			r.Flush()
+		case <-tracer.closeReportLoopChannel:
+			close(tracer.reportLoopClosedChannel)
 			return
 		}
 	}

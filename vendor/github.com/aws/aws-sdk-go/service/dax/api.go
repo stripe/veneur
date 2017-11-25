@@ -14,19 +14,18 @@ const opCreateCluster = "CreateCluster"
 
 // CreateClusterRequest generates a "aws/request.Request" representing the
 // client's request for the CreateCluster operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See CreateCluster for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the CreateCluster method directly
-// instead.
+// See CreateCluster for more information on using the CreateCluster
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the CreateClusterRequest method.
 //    req, resp := client.CreateClusterRequest(params)
@@ -36,7 +35,7 @@ const opCreateCluster = "CreateCluster"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateCluster
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateCluster
 func (c *DAX) CreateClusterRequest(input *CreateClusterInput) (req *request.Request, output *CreateClusterOutput) {
 	op := &request.Operation{
 		Name:       opCreateCluster,
@@ -107,7 +106,7 @@ func (c *DAX) CreateClusterRequest(input *CreateClusterInput) (req *request.Requ
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateCluster
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateCluster
 func (c *DAX) CreateCluster(input *CreateClusterInput) (*CreateClusterOutput, error) {
 	req, out := c.CreateClusterRequest(input)
 	return out, req.Send()
@@ -133,19 +132,18 @@ const opCreateParameterGroup = "CreateParameterGroup"
 
 // CreateParameterGroupRequest generates a "aws/request.Request" representing the
 // client's request for the CreateParameterGroup operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See CreateParameterGroup for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the CreateParameterGroup method directly
-// instead.
+// See CreateParameterGroup for more information on using the CreateParameterGroup
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the CreateParameterGroupRequest method.
 //    req, resp := client.CreateParameterGroupRequest(params)
@@ -155,7 +153,7 @@ const opCreateParameterGroup = "CreateParameterGroup"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateParameterGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateParameterGroup
 func (c *DAX) CreateParameterGroupRequest(input *CreateParameterGroupInput) (req *request.Request, output *CreateParameterGroupOutput) {
 	op := &request.Operation{
 		Name:       opCreateParameterGroup,
@@ -200,7 +198,7 @@ func (c *DAX) CreateParameterGroupRequest(input *CreateParameterGroupInput) (req
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateParameterGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateParameterGroup
 func (c *DAX) CreateParameterGroup(input *CreateParameterGroupInput) (*CreateParameterGroupOutput, error) {
 	req, out := c.CreateParameterGroupRequest(input)
 	return out, req.Send()
@@ -226,19 +224,18 @@ const opCreateSubnetGroup = "CreateSubnetGroup"
 
 // CreateSubnetGroupRequest generates a "aws/request.Request" representing the
 // client's request for the CreateSubnetGroup operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See CreateSubnetGroup for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the CreateSubnetGroup method directly
-// instead.
+// See CreateSubnetGroup for more information on using the CreateSubnetGroup
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the CreateSubnetGroupRequest method.
 //    req, resp := client.CreateSubnetGroupRequest(params)
@@ -248,7 +245,7 @@ const opCreateSubnetGroup = "CreateSubnetGroup"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateSubnetGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateSubnetGroup
 func (c *DAX) CreateSubnetGroupRequest(input *CreateSubnetGroupInput) (req *request.Request, output *CreateSubnetGroupOutput) {
 	op := &request.Operation{
 		Name:       opCreateSubnetGroup,
@@ -291,7 +288,7 @@ func (c *DAX) CreateSubnetGroupRequest(input *CreateSubnetGroupInput) (req *requ
 //   * ErrCodeInvalidSubnet "InvalidSubnet"
 //   An invalid subnet identifier was specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateSubnetGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateSubnetGroup
 func (c *DAX) CreateSubnetGroup(input *CreateSubnetGroupInput) (*CreateSubnetGroupOutput, error) {
 	req, out := c.CreateSubnetGroupRequest(input)
 	return out, req.Send()
@@ -317,19 +314,18 @@ const opDecreaseReplicationFactor = "DecreaseReplicationFactor"
 
 // DecreaseReplicationFactorRequest generates a "aws/request.Request" representing the
 // client's request for the DecreaseReplicationFactor operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DecreaseReplicationFactor for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DecreaseReplicationFactor method directly
-// instead.
+// See DecreaseReplicationFactor for more information on using the DecreaseReplicationFactor
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DecreaseReplicationFactorRequest method.
 //    req, resp := client.DecreaseReplicationFactorRequest(params)
@@ -339,7 +335,7 @@ const opDecreaseReplicationFactor = "DecreaseReplicationFactor"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DecreaseReplicationFactor
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DecreaseReplicationFactor
 func (c *DAX) DecreaseReplicationFactorRequest(input *DecreaseReplicationFactorInput) (req *request.Request, output *DecreaseReplicationFactorOutput) {
 	op := &request.Operation{
 		Name:       opDecreaseReplicationFactor,
@@ -386,7 +382,7 @@ func (c *DAX) DecreaseReplicationFactorRequest(input *DecreaseReplicationFactorI
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DecreaseReplicationFactor
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DecreaseReplicationFactor
 func (c *DAX) DecreaseReplicationFactor(input *DecreaseReplicationFactorInput) (*DecreaseReplicationFactorOutput, error) {
 	req, out := c.DecreaseReplicationFactorRequest(input)
 	return out, req.Send()
@@ -412,19 +408,18 @@ const opDeleteCluster = "DeleteCluster"
 
 // DeleteClusterRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteCluster operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DeleteCluster for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DeleteCluster method directly
-// instead.
+// See DeleteCluster for more information on using the DeleteCluster
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DeleteClusterRequest method.
 //    req, resp := client.DeleteClusterRequest(params)
@@ -434,7 +429,7 @@ const opDeleteCluster = "DeleteCluster"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteCluster
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteCluster
 func (c *DAX) DeleteClusterRequest(input *DeleteClusterInput) (req *request.Request, output *DeleteClusterOutput) {
 	op := &request.Operation{
 		Name:       opDeleteCluster,
@@ -478,7 +473,7 @@ func (c *DAX) DeleteClusterRequest(input *DeleteClusterInput) (req *request.Requ
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteCluster
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteCluster
 func (c *DAX) DeleteCluster(input *DeleteClusterInput) (*DeleteClusterOutput, error) {
 	req, out := c.DeleteClusterRequest(input)
 	return out, req.Send()
@@ -504,19 +499,18 @@ const opDeleteParameterGroup = "DeleteParameterGroup"
 
 // DeleteParameterGroupRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteParameterGroup operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DeleteParameterGroup for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DeleteParameterGroup method directly
-// instead.
+// See DeleteParameterGroup for more information on using the DeleteParameterGroup
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DeleteParameterGroupRequest method.
 //    req, resp := client.DeleteParameterGroupRequest(params)
@@ -526,7 +520,7 @@ const opDeleteParameterGroup = "DeleteParameterGroup"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteParameterGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteParameterGroup
 func (c *DAX) DeleteParameterGroupRequest(input *DeleteParameterGroupInput) (req *request.Request, output *DeleteParameterGroupOutput) {
 	op := &request.Operation{
 		Name:       opDeleteParameterGroup,
@@ -568,7 +562,7 @@ func (c *DAX) DeleteParameterGroupRequest(input *DeleteParameterGroupInput) (req
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteParameterGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteParameterGroup
 func (c *DAX) DeleteParameterGroup(input *DeleteParameterGroupInput) (*DeleteParameterGroupOutput, error) {
 	req, out := c.DeleteParameterGroupRequest(input)
 	return out, req.Send()
@@ -594,19 +588,18 @@ const opDeleteSubnetGroup = "DeleteSubnetGroup"
 
 // DeleteSubnetGroupRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteSubnetGroup operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DeleteSubnetGroup for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DeleteSubnetGroup method directly
-// instead.
+// See DeleteSubnetGroup for more information on using the DeleteSubnetGroup
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DeleteSubnetGroupRequest method.
 //    req, resp := client.DeleteSubnetGroupRequest(params)
@@ -616,7 +609,7 @@ const opDeleteSubnetGroup = "DeleteSubnetGroup"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteSubnetGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteSubnetGroup
 func (c *DAX) DeleteSubnetGroupRequest(input *DeleteSubnetGroupInput) (req *request.Request, output *DeleteSubnetGroupOutput) {
 	op := &request.Operation{
 		Name:       opDeleteSubnetGroup,
@@ -653,7 +646,7 @@ func (c *DAX) DeleteSubnetGroupRequest(input *DeleteSubnetGroupInput) (req *requ
 //   * ErrCodeSubnetGroupNotFoundFault "SubnetGroupNotFoundFault"
 //   The requested subnet group name does not refer to an existing subnet group.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteSubnetGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteSubnetGroup
 func (c *DAX) DeleteSubnetGroup(input *DeleteSubnetGroupInput) (*DeleteSubnetGroupOutput, error) {
 	req, out := c.DeleteSubnetGroupRequest(input)
 	return out, req.Send()
@@ -679,19 +672,18 @@ const opDescribeClusters = "DescribeClusters"
 
 // DescribeClustersRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeClusters operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DescribeClusters for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DescribeClusters method directly
-// instead.
+// See DescribeClusters for more information on using the DescribeClusters
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DescribeClustersRequest method.
 //    req, resp := client.DescribeClustersRequest(params)
@@ -701,7 +693,7 @@ const opDescribeClusters = "DescribeClusters"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeClusters
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeClusters
 func (c *DAX) DescribeClustersRequest(input *DescribeClustersInput) (req *request.Request, output *DescribeClustersOutput) {
 	op := &request.Operation{
 		Name:       opDescribeClusters,
@@ -755,7 +747,7 @@ func (c *DAX) DescribeClustersRequest(input *DescribeClustersInput) (req *reques
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeClusters
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeClusters
 func (c *DAX) DescribeClusters(input *DescribeClustersInput) (*DescribeClustersOutput, error) {
 	req, out := c.DescribeClustersRequest(input)
 	return out, req.Send()
@@ -781,19 +773,18 @@ const opDescribeDefaultParameters = "DescribeDefaultParameters"
 
 // DescribeDefaultParametersRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeDefaultParameters operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DescribeDefaultParameters for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DescribeDefaultParameters method directly
-// instead.
+// See DescribeDefaultParameters for more information on using the DescribeDefaultParameters
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DescribeDefaultParametersRequest method.
 //    req, resp := client.DescribeDefaultParametersRequest(params)
@@ -803,7 +794,7 @@ const opDescribeDefaultParameters = "DescribeDefaultParameters"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeDefaultParameters
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeDefaultParameters
 func (c *DAX) DescribeDefaultParametersRequest(input *DescribeDefaultParametersInput) (req *request.Request, output *DescribeDefaultParametersOutput) {
 	op := &request.Operation{
 		Name:       opDescribeDefaultParameters,
@@ -838,7 +829,7 @@ func (c *DAX) DescribeDefaultParametersRequest(input *DescribeDefaultParametersI
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeDefaultParameters
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeDefaultParameters
 func (c *DAX) DescribeDefaultParameters(input *DescribeDefaultParametersInput) (*DescribeDefaultParametersOutput, error) {
 	req, out := c.DescribeDefaultParametersRequest(input)
 	return out, req.Send()
@@ -864,19 +855,18 @@ const opDescribeEvents = "DescribeEvents"
 
 // DescribeEventsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeEvents operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DescribeEvents for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DescribeEvents method directly
-// instead.
+// See DescribeEvents for more information on using the DescribeEvents
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DescribeEventsRequest method.
 //    req, resp := client.DescribeEventsRequest(params)
@@ -886,7 +876,7 @@ const opDescribeEvents = "DescribeEvents"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeEvents
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeEvents
 func (c *DAX) DescribeEventsRequest(input *DescribeEventsInput) (req *request.Request, output *DescribeEventsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeEvents,
@@ -926,7 +916,7 @@ func (c *DAX) DescribeEventsRequest(input *DescribeEventsInput) (req *request.Re
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeEvents
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeEvents
 func (c *DAX) DescribeEvents(input *DescribeEventsInput) (*DescribeEventsOutput, error) {
 	req, out := c.DescribeEventsRequest(input)
 	return out, req.Send()
@@ -952,19 +942,18 @@ const opDescribeParameterGroups = "DescribeParameterGroups"
 
 // DescribeParameterGroupsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeParameterGroups operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DescribeParameterGroups for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DescribeParameterGroups method directly
-// instead.
+// See DescribeParameterGroups for more information on using the DescribeParameterGroups
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DescribeParameterGroupsRequest method.
 //    req, resp := client.DescribeParameterGroupsRequest(params)
@@ -974,7 +963,7 @@ const opDescribeParameterGroups = "DescribeParameterGroups"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParameterGroups
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParameterGroups
 func (c *DAX) DescribeParameterGroupsRequest(input *DescribeParameterGroupsInput) (req *request.Request, output *DescribeParameterGroupsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeParameterGroups,
@@ -1013,7 +1002,7 @@ func (c *DAX) DescribeParameterGroupsRequest(input *DescribeParameterGroupsInput
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParameterGroups
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParameterGroups
 func (c *DAX) DescribeParameterGroups(input *DescribeParameterGroupsInput) (*DescribeParameterGroupsOutput, error) {
 	req, out := c.DescribeParameterGroupsRequest(input)
 	return out, req.Send()
@@ -1039,19 +1028,18 @@ const opDescribeParameters = "DescribeParameters"
 
 // DescribeParametersRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeParameters operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DescribeParameters for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DescribeParameters method directly
-// instead.
+// See DescribeParameters for more information on using the DescribeParameters
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DescribeParametersRequest method.
 //    req, resp := client.DescribeParametersRequest(params)
@@ -1061,7 +1049,7 @@ const opDescribeParameters = "DescribeParameters"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParameters
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParameters
 func (c *DAX) DescribeParametersRequest(input *DescribeParametersInput) (req *request.Request, output *DescribeParametersOutput) {
 	op := &request.Operation{
 		Name:       opDescribeParameters,
@@ -1099,7 +1087,7 @@ func (c *DAX) DescribeParametersRequest(input *DescribeParametersInput) (req *re
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParameters
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParameters
 func (c *DAX) DescribeParameters(input *DescribeParametersInput) (*DescribeParametersOutput, error) {
 	req, out := c.DescribeParametersRequest(input)
 	return out, req.Send()
@@ -1125,19 +1113,18 @@ const opDescribeSubnetGroups = "DescribeSubnetGroups"
 
 // DescribeSubnetGroupsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeSubnetGroups operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See DescribeSubnetGroups for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the DescribeSubnetGroups method directly
-// instead.
+// See DescribeSubnetGroups for more information on using the DescribeSubnetGroups
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the DescribeSubnetGroupsRequest method.
 //    req, resp := client.DescribeSubnetGroupsRequest(params)
@@ -1147,7 +1134,7 @@ const opDescribeSubnetGroups = "DescribeSubnetGroups"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeSubnetGroups
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeSubnetGroups
 func (c *DAX) DescribeSubnetGroupsRequest(input *DescribeSubnetGroupsInput) (req *request.Request, output *DescribeSubnetGroupsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeSubnetGroups,
@@ -1180,7 +1167,7 @@ func (c *DAX) DescribeSubnetGroupsRequest(input *DescribeSubnetGroupsInput) (req
 //   * ErrCodeSubnetGroupNotFoundFault "SubnetGroupNotFoundFault"
 //   The requested subnet group name does not refer to an existing subnet group.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeSubnetGroups
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeSubnetGroups
 func (c *DAX) DescribeSubnetGroups(input *DescribeSubnetGroupsInput) (*DescribeSubnetGroupsOutput, error) {
 	req, out := c.DescribeSubnetGroupsRequest(input)
 	return out, req.Send()
@@ -1206,19 +1193,18 @@ const opIncreaseReplicationFactor = "IncreaseReplicationFactor"
 
 // IncreaseReplicationFactorRequest generates a "aws/request.Request" representing the
 // client's request for the IncreaseReplicationFactor operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See IncreaseReplicationFactor for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the IncreaseReplicationFactor method directly
-// instead.
+// See IncreaseReplicationFactor for more information on using the IncreaseReplicationFactor
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the IncreaseReplicationFactorRequest method.
 //    req, resp := client.IncreaseReplicationFactorRequest(params)
@@ -1228,7 +1214,7 @@ const opIncreaseReplicationFactor = "IncreaseReplicationFactor"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/IncreaseReplicationFactor
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/IncreaseReplicationFactor
 func (c *DAX) IncreaseReplicationFactorRequest(input *IncreaseReplicationFactorInput) (req *request.Request, output *IncreaseReplicationFactorOutput) {
 	op := &request.Operation{
 		Name:       opIncreaseReplicationFactor,
@@ -1282,7 +1268,7 @@ func (c *DAX) IncreaseReplicationFactorRequest(input *IncreaseReplicationFactorI
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/IncreaseReplicationFactor
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/IncreaseReplicationFactor
 func (c *DAX) IncreaseReplicationFactor(input *IncreaseReplicationFactorInput) (*IncreaseReplicationFactorOutput, error) {
 	req, out := c.IncreaseReplicationFactorRequest(input)
 	return out, req.Send()
@@ -1308,19 +1294,18 @@ const opListTags = "ListTags"
 
 // ListTagsRequest generates a "aws/request.Request" representing the
 // client's request for the ListTags operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See ListTags for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the ListTags method directly
-// instead.
+// See ListTags for more information on using the ListTags
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the ListTagsRequest method.
 //    req, resp := client.ListTagsRequest(params)
@@ -1330,7 +1315,7 @@ const opListTags = "ListTags"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/ListTags
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/ListTags
 func (c *DAX) ListTagsRequest(input *ListTagsInput) (req *request.Request, output *ListTagsOutput) {
 	op := &request.Operation{
 		Name:       opListTags,
@@ -1375,7 +1360,7 @@ func (c *DAX) ListTagsRequest(input *ListTagsInput) (req *request.Request, outpu
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/ListTags
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/ListTags
 func (c *DAX) ListTags(input *ListTagsInput) (*ListTagsOutput, error) {
 	req, out := c.ListTagsRequest(input)
 	return out, req.Send()
@@ -1401,19 +1386,18 @@ const opRebootNode = "RebootNode"
 
 // RebootNodeRequest generates a "aws/request.Request" representing the
 // client's request for the RebootNode operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See RebootNode for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the RebootNode method directly
-// instead.
+// See RebootNode for more information on using the RebootNode
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the RebootNodeRequest method.
 //    req, resp := client.RebootNodeRequest(params)
@@ -1423,7 +1407,7 @@ const opRebootNode = "RebootNode"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/RebootNode
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/RebootNode
 func (c *DAX) RebootNodeRequest(input *RebootNodeInput) (req *request.Request, output *RebootNodeOutput) {
 	op := &request.Operation{
 		Name:       opRebootNode,
@@ -1468,7 +1452,7 @@ func (c *DAX) RebootNodeRequest(input *RebootNodeInput) (req *request.Request, o
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/RebootNode
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/RebootNode
 func (c *DAX) RebootNode(input *RebootNodeInput) (*RebootNodeOutput, error) {
 	req, out := c.RebootNodeRequest(input)
 	return out, req.Send()
@@ -1494,19 +1478,18 @@ const opTagResource = "TagResource"
 
 // TagResourceRequest generates a "aws/request.Request" representing the
 // client's request for the TagResource operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See TagResource for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the TagResource method directly
-// instead.
+// See TagResource for more information on using the TagResource
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the TagResourceRequest method.
 //    req, resp := client.TagResourceRequest(params)
@@ -1516,7 +1499,7 @@ const opTagResource = "TagResource"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/TagResource
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/TagResource
 func (c *DAX) TagResourceRequest(input *TagResourceInput) (req *request.Request, output *TagResourceOutput) {
 	op := &request.Operation{
 		Name:       opTagResource,
@@ -1564,7 +1547,7 @@ func (c *DAX) TagResourceRequest(input *TagResourceInput) (req *request.Request,
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/TagResource
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/TagResource
 func (c *DAX) TagResource(input *TagResourceInput) (*TagResourceOutput, error) {
 	req, out := c.TagResourceRequest(input)
 	return out, req.Send()
@@ -1590,19 +1573,18 @@ const opUntagResource = "UntagResource"
 
 // UntagResourceRequest generates a "aws/request.Request" representing the
 // client's request for the UntagResource operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See UntagResource for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the UntagResource method directly
-// instead.
+// See UntagResource for more information on using the UntagResource
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the UntagResourceRequest method.
 //    req, resp := client.UntagResourceRequest(params)
@@ -1612,7 +1594,7 @@ const opUntagResource = "UntagResource"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UntagResource
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UntagResource
 func (c *DAX) UntagResourceRequest(input *UntagResourceInput) (req *request.Request, output *UntagResourceOutput) {
 	op := &request.Operation{
 		Name:       opUntagResource,
@@ -1660,7 +1642,7 @@ func (c *DAX) UntagResourceRequest(input *UntagResourceInput) (req *request.Requ
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UntagResource
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UntagResource
 func (c *DAX) UntagResource(input *UntagResourceInput) (*UntagResourceOutput, error) {
 	req, out := c.UntagResourceRequest(input)
 	return out, req.Send()
@@ -1686,19 +1668,18 @@ const opUpdateCluster = "UpdateCluster"
 
 // UpdateClusterRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateCluster operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See UpdateCluster for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the UpdateCluster method directly
-// instead.
+// See UpdateCluster for more information on using the UpdateCluster
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the UpdateClusterRequest method.
 //    req, resp := client.UpdateClusterRequest(params)
@@ -1708,7 +1689,7 @@ const opUpdateCluster = "UpdateCluster"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateCluster
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateCluster
 func (c *DAX) UpdateClusterRequest(input *UpdateClusterInput) (req *request.Request, output *UpdateClusterOutput) {
 	op := &request.Operation{
 		Name:       opUpdateCluster,
@@ -1757,7 +1738,7 @@ func (c *DAX) UpdateClusterRequest(input *UpdateClusterInput) (req *request.Requ
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateCluster
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateCluster
 func (c *DAX) UpdateCluster(input *UpdateClusterInput) (*UpdateClusterOutput, error) {
 	req, out := c.UpdateClusterRequest(input)
 	return out, req.Send()
@@ -1783,19 +1764,18 @@ const opUpdateParameterGroup = "UpdateParameterGroup"
 
 // UpdateParameterGroupRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateParameterGroup operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See UpdateParameterGroup for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the UpdateParameterGroup method directly
-// instead.
+// See UpdateParameterGroup for more information on using the UpdateParameterGroup
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the UpdateParameterGroupRequest method.
 //    req, resp := client.UpdateParameterGroupRequest(params)
@@ -1805,7 +1785,7 @@ const opUpdateParameterGroup = "UpdateParameterGroup"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateParameterGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateParameterGroup
 func (c *DAX) UpdateParameterGroupRequest(input *UpdateParameterGroupInput) (req *request.Request, output *UpdateParameterGroupOutput) {
 	op := &request.Operation{
 		Name:       opUpdateParameterGroup,
@@ -1847,7 +1827,7 @@ func (c *DAX) UpdateParameterGroupRequest(input *UpdateParameterGroupInput) (req
 //   * ErrCodeInvalidParameterCombinationException "InvalidParameterCombinationException"
 //   Two or more incompatible parameters were specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateParameterGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateParameterGroup
 func (c *DAX) UpdateParameterGroup(input *UpdateParameterGroupInput) (*UpdateParameterGroupOutput, error) {
 	req, out := c.UpdateParameterGroupRequest(input)
 	return out, req.Send()
@@ -1873,19 +1853,18 @@ const opUpdateSubnetGroup = "UpdateSubnetGroup"
 
 // UpdateSubnetGroupRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateSubnetGroup operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See UpdateSubnetGroup for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the UpdateSubnetGroup method directly
-// instead.
+// See UpdateSubnetGroup for more information on using the UpdateSubnetGroup
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the UpdateSubnetGroupRequest method.
 //    req, resp := client.UpdateSubnetGroupRequest(params)
@@ -1895,7 +1874,7 @@ const opUpdateSubnetGroup = "UpdateSubnetGroup"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateSubnetGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateSubnetGroup
 func (c *DAX) UpdateSubnetGroupRequest(input *UpdateSubnetGroupInput) (req *request.Request, output *UpdateSubnetGroupOutput) {
 	op := &request.Operation{
 		Name:       opUpdateSubnetGroup,
@@ -1937,7 +1916,7 @@ func (c *DAX) UpdateSubnetGroupRequest(input *UpdateSubnetGroupInput) (req *requ
 //   * ErrCodeInvalidSubnet "InvalidSubnet"
 //   An invalid subnet identifier was specified.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateSubnetGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateSubnetGroup
 func (c *DAX) UpdateSubnetGroup(input *UpdateSubnetGroupInput) (*UpdateSubnetGroupOutput, error) {
 	req, out := c.UpdateSubnetGroupRequest(input)
 	return out, req.Send()
@@ -1960,7 +1939,7 @@ func (c *DAX) UpdateSubnetGroupWithContext(ctx aws.Context, input *UpdateSubnetG
 }
 
 // Contains all of the attributes of a specific DAX cluster.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/Cluster
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/Cluster
 type Cluster struct {
 	_ struct{} `type:"structure"`
 
@@ -2130,7 +2109,7 @@ func (s *Cluster) SetTotalNodes(v int64) *Cluster {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateClusterRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateClusterRequest
 type CreateClusterInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2333,7 +2312,7 @@ func (s *CreateClusterInput) SetTags(v []*Tag) *CreateClusterInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateClusterResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateClusterResponse
 type CreateClusterOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2357,7 +2336,7 @@ func (s *CreateClusterOutput) SetCluster(v *Cluster) *CreateClusterOutput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateParameterGroupRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateParameterGroupRequest
 type CreateParameterGroupInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2406,7 +2385,7 @@ func (s *CreateParameterGroupInput) SetParameterGroupName(v string) *CreateParam
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateParameterGroupResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateParameterGroupResponse
 type CreateParameterGroupOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2430,7 +2409,7 @@ func (s *CreateParameterGroupOutput) SetParameterGroup(v *ParameterGroup) *Creat
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateSubnetGroupRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateSubnetGroupRequest
 type CreateSubnetGroupInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2492,7 +2471,7 @@ func (s *CreateSubnetGroupInput) SetSubnetIds(v []*string) *CreateSubnetGroupInp
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateSubnetGroupResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/CreateSubnetGroupResponse
 type CreateSubnetGroupOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2516,7 +2495,7 @@ func (s *CreateSubnetGroupOutput) SetSubnetGroup(v *SubnetGroup) *CreateSubnetGr
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DecreaseReplicationFactorRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DecreaseReplicationFactorRequest
 type DecreaseReplicationFactorInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2587,7 +2566,7 @@ func (s *DecreaseReplicationFactorInput) SetNodeIdsToRemove(v []*string) *Decrea
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DecreaseReplicationFactorResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DecreaseReplicationFactorResponse
 type DecreaseReplicationFactorOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2612,7 +2591,7 @@ func (s *DecreaseReplicationFactorOutput) SetCluster(v *Cluster) *DecreaseReplic
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteClusterRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteClusterRequest
 type DeleteClusterInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2651,7 +2630,7 @@ func (s *DeleteClusterInput) SetClusterName(v string) *DeleteClusterInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteClusterResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteClusterResponse
 type DeleteClusterOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2675,7 +2654,7 @@ func (s *DeleteClusterOutput) SetCluster(v *Cluster) *DeleteClusterOutput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteParameterGroupRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteParameterGroupRequest
 type DeleteParameterGroupInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2714,7 +2693,7 @@ func (s *DeleteParameterGroupInput) SetParameterGroupName(v string) *DeleteParam
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteParameterGroupResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteParameterGroupResponse
 type DeleteParameterGroupOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2739,7 +2718,7 @@ func (s *DeleteParameterGroupOutput) SetDeletionMessage(v string) *DeleteParamet
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteSubnetGroupRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteSubnetGroupRequest
 type DeleteSubnetGroupInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2778,7 +2757,7 @@ func (s *DeleteSubnetGroupInput) SetSubnetGroupName(v string) *DeleteSubnetGroup
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteSubnetGroupResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DeleteSubnetGroupResponse
 type DeleteSubnetGroupOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2803,7 +2782,7 @@ func (s *DeleteSubnetGroupOutput) SetDeletionMessage(v string) *DeleteSubnetGrou
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeClustersRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeClustersRequest
 type DescribeClustersInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2851,7 +2830,7 @@ func (s *DescribeClustersInput) SetNextToken(v string) *DescribeClustersInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeClustersResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeClustersResponse
 type DescribeClustersOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2885,7 +2864,7 @@ func (s *DescribeClustersOutput) SetNextToken(v string) *DescribeClustersOutput 
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeDefaultParametersRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeDefaultParametersRequest
 type DescribeDefaultParametersInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2924,7 +2903,7 @@ func (s *DescribeDefaultParametersInput) SetNextToken(v string) *DescribeDefault
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeDefaultParametersResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeDefaultParametersResponse
 type DescribeDefaultParametersOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2957,7 +2936,7 @@ func (s *DescribeDefaultParametersOutput) SetParameters(v []*Parameter) *Describ
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeEventsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeEventsRequest
 type DescribeEventsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3045,7 +3024,7 @@ func (s *DescribeEventsInput) SetStartTime(v time.Time) *DescribeEventsInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeEventsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeEventsResponse
 type DescribeEventsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3078,7 +3057,7 @@ func (s *DescribeEventsOutput) SetNextToken(v string) *DescribeEventsOutput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParameterGroupsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParameterGroupsRequest
 type DescribeParameterGroupsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3126,7 +3105,7 @@ func (s *DescribeParameterGroupsInput) SetParameterGroupNames(v []*string) *Desc
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParameterGroupsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParameterGroupsResponse
 type DescribeParameterGroupsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3160,7 +3139,7 @@ func (s *DescribeParameterGroupsOutput) SetParameterGroups(v []*ParameterGroup) 
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParametersRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParametersRequest
 type DescribeParametersInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3233,7 +3212,7 @@ func (s *DescribeParametersInput) SetSource(v string) *DescribeParametersInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParametersResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeParametersResponse
 type DescribeParametersOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3267,7 +3246,7 @@ func (s *DescribeParametersOutput) SetParameters(v []*Parameter) *DescribeParame
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeSubnetGroupsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeSubnetGroupsRequest
 type DescribeSubnetGroupsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3315,7 +3294,7 @@ func (s *DescribeSubnetGroupsInput) SetSubnetGroupNames(v []*string) *DescribeSu
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeSubnetGroupsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/DescribeSubnetGroupsResponse
 type DescribeSubnetGroupsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3352,7 +3331,7 @@ func (s *DescribeSubnetGroupsOutput) SetSubnetGroups(v []*SubnetGroup) *Describe
 // Represents the information required for client programs to connect to the
 // configuration endpoint for a DAX cluster, or to an individual node within
 // the cluster.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/Endpoint
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/Endpoint
 type Endpoint struct {
 	_ struct{} `type:"structure"`
 
@@ -3388,7 +3367,7 @@ func (s *Endpoint) SetPort(v int64) *Endpoint {
 // Represents a single occurrence of something interesting within the system.
 // Some examples of events are creating a DAX cluster, adding or removing a
 // node, or rebooting a node.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/Event
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/Event
 type Event struct {
 	_ struct{} `type:"structure"`
 
@@ -3441,7 +3420,7 @@ func (s *Event) SetSourceType(v string) *Event {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/IncreaseReplicationFactorRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/IncreaseReplicationFactorRequest
 type IncreaseReplicationFactorInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3505,7 +3484,7 @@ func (s *IncreaseReplicationFactorInput) SetNewReplicationFactor(v int64) *Incre
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/IncreaseReplicationFactorResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/IncreaseReplicationFactorResponse
 type IncreaseReplicationFactorOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3529,7 +3508,7 @@ func (s *IncreaseReplicationFactorOutput) SetCluster(v *Cluster) *IncreaseReplic
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/ListTagsRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/ListTagsRequest
 type ListTagsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3579,7 +3558,7 @@ func (s *ListTagsInput) SetResourceName(v string) *ListTagsInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/ListTagsResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/ListTagsResponse
 type ListTagsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3614,7 +3593,7 @@ func (s *ListTagsOutput) SetTags(v []*Tag) *ListTagsOutput {
 }
 
 // Represents an individual node within a DAX cluster.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/Node
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/Node
 type Node struct {
 	_ struct{} `type:"structure"`
 
@@ -3688,7 +3667,7 @@ func (s *Node) SetParameterGroupStatus(v string) *Node {
 }
 
 // Represents a parameter value that is applicable to a particular node type.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/NodeTypeSpecificValue
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/NodeTypeSpecificValue
 type NodeTypeSpecificValue struct {
 	_ struct{} `type:"structure"`
 
@@ -3724,7 +3703,7 @@ func (s *NodeTypeSpecificValue) SetValue(v string) *NodeTypeSpecificValue {
 // Describes a notification topic and its status. Notification topics are used
 // for publishing DAX events to subscribers using Amazon Simple Notification
 // Service (SNS).
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/NotificationConfiguration
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/NotificationConfiguration
 type NotificationConfiguration struct {
 	_ struct{} `type:"structure"`
 
@@ -3758,7 +3737,7 @@ func (s *NotificationConfiguration) SetTopicStatus(v string) *NotificationConfig
 }
 
 // Describes an individual setting that controls some aspect of DAX behavior.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/Parameter
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/Parameter
 type Parameter struct {
 	_ struct{} `type:"structure"`
 
@@ -3868,7 +3847,7 @@ func (s *Parameter) SetSource(v string) *Parameter {
 }
 
 // A named set of parameters that are applied to all of the nodes in a DAX cluster.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/ParameterGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/ParameterGroup
 type ParameterGroup struct {
 	_ struct{} `type:"structure"`
 
@@ -3902,7 +3881,7 @@ func (s *ParameterGroup) SetParameterGroupName(v string) *ParameterGroup {
 }
 
 // The status of a parameter group.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/ParameterGroupStatus
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/ParameterGroupStatus
 type ParameterGroupStatus struct {
 	_ struct{} `type:"structure"`
 
@@ -3945,7 +3924,7 @@ func (s *ParameterGroupStatus) SetParameterGroupName(v string) *ParameterGroupSt
 }
 
 // An individual DAX parameter.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/ParameterNameValue
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/ParameterNameValue
 type ParameterNameValue struct {
 	_ struct{} `type:"structure"`
 
@@ -3978,7 +3957,7 @@ func (s *ParameterNameValue) SetParameterValue(v string) *ParameterNameValue {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/RebootNodeRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/RebootNodeRequest
 type RebootNodeInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4031,7 +4010,7 @@ func (s *RebootNodeInput) SetNodeId(v string) *RebootNodeInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/RebootNodeResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/RebootNodeResponse
 type RebootNodeOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4056,7 +4035,7 @@ func (s *RebootNodeOutput) SetCluster(v *Cluster) *RebootNodeOutput {
 }
 
 // An individual VPC security group and its status.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/SecurityGroupMembership
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/SecurityGroupMembership
 type SecurityGroupMembership struct {
 	_ struct{} `type:"structure"`
 
@@ -4092,7 +4071,7 @@ func (s *SecurityGroupMembership) SetStatus(v string) *SecurityGroupMembership {
 // Represents the subnet associated with a DAX cluster. This parameter refers
 // to subnets defined in Amazon Virtual Private Cloud (Amazon VPC) and used
 // with DAX.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/Subnet
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/Subnet
 type Subnet struct {
 	_ struct{} `type:"structure"`
 
@@ -4130,7 +4109,7 @@ func (s *Subnet) SetSubnetIdentifier(v string) *Subnet {
 //    * CreateSubnetGroup
 //
 //    * ModifySubnetGroup
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/SubnetGroup
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/SubnetGroup
 type SubnetGroup struct {
 	_ struct{} `type:"structure"`
 
@@ -4189,7 +4168,7 @@ func (s *SubnetGroup) SetVpcId(v string) *SubnetGroup {
 // the tag limit of 50. User-assigned tag names have the prefix user:.
 //
 // You cannot backdate the application of a tag.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/Tag
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/Tag
 type Tag struct {
 	_ struct{} `type:"structure"`
 
@@ -4224,7 +4203,7 @@ func (s *Tag) SetValue(v string) *Tag {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/TagResourceRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/TagResourceRequest
 type TagResourceInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4277,7 +4256,7 @@ func (s *TagResourceInput) SetTags(v []*Tag) *TagResourceInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/TagResourceResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/TagResourceResponse
 type TagResourceOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4301,7 +4280,7 @@ func (s *TagResourceOutput) SetTags(v []*Tag) *TagResourceOutput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UntagResourceRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UntagResourceRequest
 type UntagResourceInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4355,7 +4334,7 @@ func (s *UntagResourceInput) SetTagKeys(v []*string) *UntagResourceInput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UntagResourceResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UntagResourceResponse
 type UntagResourceOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4379,7 +4358,7 @@ func (s *UntagResourceOutput) SetTags(v []*Tag) *UntagResourceOutput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateClusterRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateClusterRequest
 type UpdateClusterInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4476,7 +4455,7 @@ func (s *UpdateClusterInput) SetSecurityGroupIds(v []*string) *UpdateClusterInpu
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateClusterResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateClusterResponse
 type UpdateClusterOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4500,7 +4479,7 @@ func (s *UpdateClusterOutput) SetCluster(v *Cluster) *UpdateClusterOutput {
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateParameterGroupRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateParameterGroupRequest
 type UpdateParameterGroupInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4554,7 +4533,7 @@ func (s *UpdateParameterGroupInput) SetParameterNameValues(v []*ParameterNameVal
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateParameterGroupResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateParameterGroupResponse
 type UpdateParameterGroupOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4578,7 +4557,7 @@ func (s *UpdateParameterGroupOutput) SetParameterGroup(v *ParameterGroup) *Updat
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateSubnetGroupRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateSubnetGroupRequest
 type UpdateSubnetGroupInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4635,7 +4614,7 @@ func (s *UpdateSubnetGroupInput) SetSubnetIds(v []*string) *UpdateSubnetGroupInp
 	return s
 }
 
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateSubnetGroupResponse
+// See also, https://docs.aws.amazon.com/goto/WebAPI/dax-2017-04-19/UpdateSubnetGroupResponse
 type UpdateSubnetGroupOutput struct {
 	_ struct{} `type:"structure"`
 

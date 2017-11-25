@@ -9,7 +9,7 @@ GOTOOLS = \
 	github.com/axw/gocov/gocov \
 	gopkg.in/matm/v1/gocov-html
 
-GOTAGS ?= consul
+GOTAGS ?=
 GOFILES ?= $(shell go list ./... | grep -v /vendor/)
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
@@ -58,8 +58,8 @@ cov:
 
 test: dev-build vet
 	go test -tags '$(GOTAGS)' -i ./...
-	go test $(GOTEST_FLAGS) -tags '$(GOTAGS)' -timeout 7m -v ./... 2>&1 >test$(GOTEST_FLAGS).log ; echo $$? > exit-code
-	@echo "Exit code: `cat exit-code`" >> test$(GOTEST_FLAGS).log
+	go test $(GOTEST_FLAGS) -tags '$(GOTAGS)' -timeout 7m -v ./... 2>&1 >test.log ; echo $$? > exit-code
+	@echo "Exit code: `cat exit-code`" >> test.log
 	@echo "----"
 	@grep -A5 'DATA RACE' test.log || true
 	@grep -A10 'panic: test timed out' test.log || true

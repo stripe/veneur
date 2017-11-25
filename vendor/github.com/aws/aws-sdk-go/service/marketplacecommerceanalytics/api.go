@@ -14,19 +14,18 @@ const opGenerateDataSet = "GenerateDataSet"
 
 // GenerateDataSetRequest generates a "aws/request.Request" representing the
 // client's request for the GenerateDataSet operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See GenerateDataSet for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the GenerateDataSet method directly
-// instead.
+// See GenerateDataSet for more information on using the GenerateDataSet
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the GenerateDataSetRequest method.
 //    req, resp := client.GenerateDataSetRequest(params)
@@ -36,7 +35,7 @@ const opGenerateDataSet = "GenerateDataSet"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/GenerateDataSet
+// See also, https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/GenerateDataSet
 func (c *MarketplaceCommerceAnalytics) GenerateDataSetRequest(input *GenerateDataSetInput) (req *request.Request, output *GenerateDataSetOutput) {
 	op := &request.Operation{
 		Name:       opGenerateDataSet,
@@ -77,7 +76,7 @@ func (c *MarketplaceCommerceAnalytics) GenerateDataSetRequest(input *GenerateDat
 //   * ErrCodeException "Exception"
 //   This exception is thrown when an internal service error occurs.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/GenerateDataSet
+// See also, https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/GenerateDataSet
 func (c *MarketplaceCommerceAnalytics) GenerateDataSet(input *GenerateDataSetInput) (*GenerateDataSetOutput, error) {
 	req, out := c.GenerateDataSetRequest(input)
 	return out, req.Send()
@@ -103,19 +102,18 @@ const opStartSupportDataExport = "StartSupportDataExport"
 
 // StartSupportDataExportRequest generates a "aws/request.Request" representing the
 // client's request for the StartSupportDataExport operation. The "output" return
-// value can be used to capture response data after the request's "Send" method
-// is called.
+// value will be populated with the request's response once the request complets
+// successfuly.
 //
-// See StartSupportDataExport for usage and error information.
+// Use "Send" method on the returned Request to send the API call to the service.
+// the "output" return value is not valid until after Send returns without error.
 //
-// Creating a request object using this method should be used when you want to inject
-// custom logic into the request's lifecycle using a custom handler, or if you want to
-// access properties on the request object before or after sending the request. If
-// you just want the service response, call the StartSupportDataExport method directly
-// instead.
+// See StartSupportDataExport for more information on using the StartSupportDataExport
+// API call, and error handling.
 //
-// Note: You must call the "Send" method on the returned request object in order
-// to execute the request.
+// This method is useful when you want to inject custom logic or configuration
+// into the SDK's request lifecycle. Such as custom headers, or retry logic.
+//
 //
 //    // Example sending a request using the StartSupportDataExportRequest method.
 //    req, resp := client.StartSupportDataExportRequest(params)
@@ -125,7 +123,7 @@ const opStartSupportDataExport = "StartSupportDataExport"
 //        fmt.Println(resp)
 //    }
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/StartSupportDataExport
+// See also, https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/StartSupportDataExport
 func (c *MarketplaceCommerceAnalytics) StartSupportDataExportRequest(input *StartSupportDataExportInput) (req *request.Request, output *StartSupportDataExportOutput) {
 	op := &request.Operation{
 		Name:       opStartSupportDataExport,
@@ -167,7 +165,7 @@ func (c *MarketplaceCommerceAnalytics) StartSupportDataExportRequest(input *Star
 //   * ErrCodeException "Exception"
 //   This exception is thrown when an internal service error occurs.
 //
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/StartSupportDataExport
+// See also, https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/StartSupportDataExport
 func (c *MarketplaceCommerceAnalytics) StartSupportDataExport(input *StartSupportDataExportInput) (*StartSupportDataExportOutput, error) {
 	req, out := c.StartSupportDataExportRequest(input)
 	return out, req.Send()
@@ -190,7 +188,7 @@ func (c *MarketplaceCommerceAnalytics) StartSupportDataExportWithContext(ctx aws
 }
 
 // Container for the parameters to the GenerateDataSet operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/GenerateDataSetRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/GenerateDataSetRequest
 type GenerateDataSetInput struct {
 	_ struct{} `type:"structure"`
 
@@ -423,7 +421,7 @@ func (s *GenerateDataSetInput) SetSnsTopicArn(v string) *GenerateDataSetInput {
 }
 
 // Container for the result of the GenerateDataSet operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/GenerateDataSetResult
+// See also, https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/GenerateDataSetResult
 type GenerateDataSetOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -450,7 +448,7 @@ func (s *GenerateDataSetOutput) SetDataSetRequestId(v string) *GenerateDataSetOu
 }
 
 // Container for the parameters to the StartSupportDataExport operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/StartSupportDataExportRequest
+// See also, https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/StartSupportDataExportRequest
 type StartSupportDataExportInput struct {
 	_ struct{} `type:"structure"`
 
@@ -599,7 +597,7 @@ func (s *StartSupportDataExportInput) SetSnsTopicArn(v string) *StartSupportData
 }
 
 // Container for the result of the StartSupportDataExport operation.
-// Please also see https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/StartSupportDataExportResult
+// See also, https://docs.aws.amazon.com/goto/WebAPI/marketplacecommerceanalytics-2015-07-01/StartSupportDataExportResult
 type StartSupportDataExportOutput struct {
 	_ struct{} `type:"structure"`
 
