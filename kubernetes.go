@@ -42,6 +42,10 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 
 		var forwardPort string
 
+		if pod.PodPhase != metav1.PodRunning {
+			continue
+		}
+
 		// TODO don't assume there is only one container for the veneur global
 		log.WithField("index", podIndex).Debugf("Found pod %#v", pod)
 		log.WithField("index", podIndex).Debugf("Containers are %#v", pod.Spec.Containers)
