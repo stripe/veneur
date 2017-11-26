@@ -42,15 +42,14 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 
 		var forwardPort string
 
+		if pod.Status.Phase != v1.PodRunning {
+			continue
+		}
+
 		// TODO don't assume there is only one container for the veneur global
-		log.WithField("index", podIndex).Debugf("Found pod %#v", pod)
-		log.WithField("index", podIndex).Debugf("Containers are %#v", pod.Spec.Containers)
 		if len(pod.Spec.Containers) > 0 {
-			var i int
-			var container v1.Container
-			for i, container = range pod.Spec.Containers {
-				log.WithField("index", container).Debugf("Container %d is %#v", i, container)
-				log.WithField("index", container).Debugf("Container ports are %#v", container.Ports)
+			for _, container := range pod.Spec.Containers {
+				log.Debugf("Container ports are %#v", container.Ports)
 				for _, port := range container.Ports {
 					if port.Name == "http" {
 						forwardPort = strconv.Itoa(int(port.ContainerPort))
@@ -77,6 +76,15 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 				"PodIP":       pod.Status.PodIP,
 				"forwardPort": forwardPort,
 			}).Error("Could not find valid port for forwarding")
+			continue
+		}
+
+		if pod.Status.PodIP == "" {
+			log.WithFields(logrus.Fields{
+				"podIndex":    podIndex,
+				"PodIP":       pod.Status.PodIP,
+				"forwardPort": forwardPort,
+			}).Error("Could not find valid podIP for forwarding")
 			continue
 		}
 
