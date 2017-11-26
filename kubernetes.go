@@ -42,16 +42,14 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 
 		var forwardPort string
 
-		if pod.PodPhase != metav1.PodRunning {
+		if pod.Status.Phase != v1.PodRunning {
 			continue
 		}
 
 		// TODO don't assume there is only one container for the veneur global
 		if len(pod.Spec.Containers) > 0 {
-			var i int
-			var container v1.Container
-			for i, container = range pod.Spec.Containers {
-				log.WithField("index", container).Debugf("Container ports are %#v", container.Ports)
+			for _, container := range pod.Spec.Containers {
+				log.Debugf("Container ports are %#v", container.Ports)
 				for _, port := range container.Ports {
 					if port.Name == "http" {
 						forwardPort = strconv.Itoa(int(port.ContainerPort))
