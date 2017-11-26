@@ -37,13 +37,13 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 	}
 
 	ips := make([]string, 0, len(pods.Items))
-	for _, pod := range pods.Items {
+	for podIndex, pod := range pods.Items {
 
 		var forwardPort string
 
 		// TODO don't assume there is only one container for the veneur global
-		log.Debug("Found pod %#v", pod)
-		log.Debug("Containers are %#v", pod.Spec.Containers)
+		log.WithField("index", podIndex).Debug("Found pod %#v", pod)
+		log.WithField("index", podIndex).Debug("Containers are %#v", pod.Spec.Containers)
 		if len(pod.Spec.Containers) > 0 {
 			var i int
 			var container v1.Container
