@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/sirupsen/logrus"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -42,8 +43,8 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 		var forwardPort string
 
 		// TODO don't assume there is only one container for the veneur global
-		log.WithField("index", podIndex).Debug("Found pod %#v", pod)
-		log.WithField("index", podIndex).Debug("Containers are %#v", pod.Spec.Containers)
+		log.WithField("index", podIndex).Debugf("Found pod %#v", pod)
+		log.WithField("index", podIndex).Debugf("Containers are %#v", pod.Spec.Containers)
 		if len(pod.Spec.Containers) > 0 {
 			var i int
 			var container v1.Container
@@ -53,7 +54,10 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 				for _, port := range container.Ports {
 					if port.Name == "http" {
 						forwardPort = strconv.Itoa(int(port.HostPort))
-						log.WithField("port", forwardPort).Debug("Found http port")
+						log.WithFields(logrus.Fields{
+							"forwardPort": forwardPort,
+							"hostPort":    port.HostPort,
+						}).Debug("Found http port")
 						break
 					}
 
@@ -67,7 +71,12 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 		}
 
 		if forwardPort == "" {
-			log.Error("Could not find valid port for forwarding")
+			log.WithFields(logrus.Fields{
+				"podIndex":    podIndex,
+				"PodIP":       pod.Status.PodIP,
+				"forwardPort": forwardPort,
+			}).Error("Could not find valid port for forwarding")
+			continue
 		}
 
 		podIp := fmt.Sprintf("%s:%s", pod.Status.PodIP, forwardPort)
