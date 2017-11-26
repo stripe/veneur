@@ -59,10 +59,6 @@ func handleSpans(p *Proxy) http.Handler {
 // metrics to the global veneur instance.
 func handleImport(s *Server) http.Handler {
 	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-		log.WithFields(logrus.Fields{
-			"path": r.URL.Path,
-			"host": r.URL.Host,
-		}).Debug("Importing metrics on global")
 		span, jsonMetrics, err := unmarshalMetricsFromHTTP(ctx, s.Statsd, w, r)
 		if err != nil {
 			log.WithError(err).Error("Error unmarshalling metrics in global import")
