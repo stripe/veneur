@@ -82,6 +82,10 @@ func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
 		return
 	}
 	p.Statsd.Namespace = "veneur_proxy."
+	log.WithFields(logrus.Fields{
+		"address":   conf.StatsAddress,
+		"namespace": p.Statsd.Namespace,
+	}).Info("Configured metrics client")
 
 	p.enableProfiling = conf.EnableProfiling
 
