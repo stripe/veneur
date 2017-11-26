@@ -436,12 +436,16 @@ func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination stri
 		return
 	}
 
-	err := vhttp.PostHelper(ctx, p.HTTPClient, p.TraceClient, http.MethodPost, fmt.Sprintf("%s/import", destination), batch, "forward", true, log)
+	endpoint := fmt.Sprintf("%s/import", destination)
+	err := vhttp.PostHelper(ctx, p.HTTPClient, p.TraceClient, http.MethodPost, endpoint, batch, "forward", true, log)
 	if err == nil {
 		log.WithField("metrics", batchSize).Debug("Completed forward to upstream Veneur")
 	} else {
 		samples.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "post"}))
-		log.WithError(err).Warn("Failed to POST metrics to destination")
+		log.WithError(err).WithFields(logrus.Fields{
+			"endpoint":  endpoint,
+			"batchSize": batchSize,
+		}).Warn("Failed to POST metrics to destination")
 	}
 	samples.Add(ssf.Gauge("metrics_by_destination", float32(batchSize), map[string]string{"destination": destination}))
 }
