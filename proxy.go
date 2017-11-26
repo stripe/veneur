@@ -412,6 +412,14 @@ func (p *Proxy) doPost(wg *sync.WaitGroup, destination string, batch []samplers.
 		return
 	}
 
+	for _, metric := range batch {
+		log.WithFields(logrus.Fields{
+			"key":   metric.MetricKey,
+			"tags":  metric.Tags,
+			"value": metric.Value,
+		}).Debug("Proxying metric")
+	}
+
 	// always re-resolve the host to avoid dns caching
 	log.WithField("destination", destination).Debug("Beginning flush forward")
 	endpoint, err := resolveEndpoint(fmt.Sprintf("%s/import", destination))
