@@ -94,6 +94,13 @@ func (dd *datadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 	wg.Wait()
 	dd.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(flushStart).Nanoseconds()), []string{"part:post"}, 1.0)
 
+	for _, metric := range metrics {
+		log.WithFields(logrus.Fields{
+			"metricName": metric.Name,
+			"tags":       metric.Tags,
+		}).Debug("Flushing metric to Datadog")
+	}
+
 	log.WithField("metrics", len(metrics)).Info("Completed flush to Datadog")
 	return nil
 }
