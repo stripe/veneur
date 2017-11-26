@@ -351,9 +351,10 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 	}
 }
 
-// given a url, attempts to resolve the url's host, and returns a new url whose
+// resolveEndpoint attempts to resolve the url's host, and returns a new url whose
 // host has been replaced by the first resolved address
-// on failure, it returns the argument, and the resulting error
+// on failure, it returns the argument, and the resulting error.
+// HTTP is the only supported scheme.
 func resolveEndpoint(endpoint string) (string, error) {
 	origURL, err := url.Parse(endpoint)
 	if err != nil {
@@ -378,6 +379,7 @@ func resolveEndpoint(endpoint string) (string, error) {
 		}
 	}
 
+	origURL.Scheme = "http"
 	origURL.Host = net.JoinHostPort(resolvedNames[0], origPort)
 	return origURL.String(), nil
 }

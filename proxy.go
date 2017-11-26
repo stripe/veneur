@@ -431,7 +431,10 @@ func (p *Proxy) doPost(wg *sync.WaitGroup, destination string, batch []samplers.
 		log.WithField("metrics", batchSize).Debug("Completed forward to upstream Veneur")
 	} else {
 		p.Statsd.Count("forward.error_total", 1, []string{"cause:post"}, 1.0)
-		log.WithError(err).Warn("Failed to POST metrics to destination")
+		log.WithError(err).WithFields(logrus.Fields{
+			"endpoint":  endpoint,
+			"batchSize": batchSize,
+		}).Warn("Failed to POST metrics to destination")
 	}
 	p.Statsd.Gauge("metrics_by_destination", float64(batchSize), []string{fmt.Sprintf("destination:%s", destination)}, 1.0)
 }
