@@ -25,7 +25,7 @@ func (ch contextHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func handleProxy(p *Proxy) http.Handler {
 	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-		span, jsonMetrics, err := unmarshalMetricsFromHTTP(ctx, p.Statsd, w, r)
+		span, jsonMetrics, err := unmarshalMetricsFromHTTP(ctx, p.Statsd, trace.DefaultClient, w, r)
 		if err != nil {
 			return
 		}
@@ -37,7 +37,7 @@ func handleProxy(p *Proxy) http.Handler {
 
 func handleSpans(p *Proxy) http.Handler {
 	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-		span, traces, err := handleTraceRequest(ctx, p.Statsd, w, r)
+		span, traces, err := handleTraceRequest(ctx, p.Statsd, trace.DefaultClient, w, r)
 
 		if err != nil {
 			return
@@ -52,7 +52,7 @@ func handleSpans(p *Proxy) http.Handler {
 // metrics to the global veneur instance.
 func handleImport(s *Server) http.Handler {
 	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-		span, jsonMetrics, err := unmarshalMetricsFromHTTP(ctx, s.Statsd, w, r)
+		span, jsonMetrics, err := unmarshalMetricsFromHTTP(ctx, s.Statsd, s.TraceClient, w, r)
 		if err != nil {
 			return
 		}
@@ -62,7 +62,7 @@ func handleImport(s *Server) http.Handler {
 	})
 }
 
-func handleTraceRequest(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []DatadogTraceSpan, error) {
+func handleTraceRequest(ctx context.Context, stats *statsd.Client, client *trace.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []DatadogTraceSpan, error) {
 	var (
 		traces []DatadogTraceSpan
 		err    error
@@ -76,7 +76,7 @@ func handleTraceRequest(ctx context.Context, stats *statsd.Client, w http.Respon
 	} else {
 		log.WithField("trace", span.Trace).Info("Extracted span from request")
 	}
-	defer span.Finish()
+	defer span.ClientFinish(client)
 
 	innerLogger := log.WithField("client", r.RemoteAddr)
 
@@ -107,7 +107,7 @@ func handleTraceRequest(ctx context.Context, stats *statsd.Client, w http.Respon
 
 // unmarshalMetricsFromHTTP takes care of the common need to unmarshal a slice of metrics from a request body,
 // dealing with error handling, decoding, tracing, and the associated metrics.
-func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []samplers.JSONMetric, error) {
+func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, client *trace.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []samplers.JSONMetric, error) {
 	var (
 		jsonMetrics []samplers.JSONMetric
 		body        io.ReadCloser
@@ -123,7 +123,7 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 	} else {
 		log.WithField("trace", span.Trace).Debug("Extracted span from request")
 	}
-	defer span.Finish()
+	defer span.ClientFinish(client)
 
 	innerLogger := log.WithField("client", r.RemoteAddr)
 
@@ -170,7 +170,7 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 	// because that is usually the sign that we are unmarshalling
 	// into the wrong struct type
 
-	if !nonEmpty(span.Attach(ctx), jsonMetrics) {
+	if !nonEmpty(span.Attach(ctx), client, jsonMetrics) {
 		const msg = "Received empty or improperly-formed metrics"
 		http.Error(w, msg, http.StatusBadRequest)
 		span.Error(errors.New(msg))
@@ -189,10 +189,10 @@ func unmarshalMetricsFromHTTP(ctx context.Context, stats *statsd.Client, w http.
 
 // nonEmpty returns true if there is at least one non-empty
 // metric
-func nonEmpty(ctx context.Context, jsonMetrics []samplers.JSONMetric) bool {
+func nonEmpty(ctx context.Context, client *trace.Client, jsonMetrics []samplers.JSONMetric) bool {
 
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.import.nonEmpty")
-	defer span.Finish()
+	defer span.ClientFinish(client)
 
 	sentinel := samplers.JSONMetric{}
 	for _, metric := range jsonMetrics {

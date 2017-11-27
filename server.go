@@ -114,7 +114,8 @@ type Server struct {
 
 	traceLightstepAccessToken string
 
-	TraceClient *trace.Client
+	TraceClient  *trace.Client
+	traceBackend *internalTraceBackend
 }
 
 // NewFromConfig creates a new veneur server from a configuration specification.
@@ -292,6 +293,12 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 		trace.Enable()
 
+		ret.traceBackend = &internalTraceBackend{}
+		ret.TraceClient, err = trace.NewBackendClient(ret.traceBackend, trace.Capacity(200))
+		if err != nil {
+			return
+		}
+
 		// configure Datadog as a Span sink
 		if conf.DatadogTraceAPIAddress != "" {
 
@@ -380,17 +387,12 @@ func (s *Server) Start() {
 
 	if len(s.spanSinks) > 0 {
 		// Set up our internal trace client:
-		tb := &internalTraceBackend{}
-		var err error
-		s.TraceClient, err = trace.NewBackendClient(tb, trace.Capacity(200))
-		if err != nil {
-			log.WithError(err).Error("Could not set up internal trace backend")
-			panic(err)
-		}
 		s.SpanWorker = NewSpanWorker(s.spanSinks, s.Statsd)
 		// Now that we have a span worker, set the trace
 		// backend up to send spans to it:
-		tb.spanWorker = s.SpanWorker
+		if s.traceBackend != nil {
+			s.traceBackend.spanWorker = s.SpanWorker
+		}
 	} else {
 		trace.Disable()
 	}
