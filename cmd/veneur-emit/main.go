@@ -30,7 +30,6 @@ var (
 	hostport     = flag.String("hostport", "", "Address of destination (hostport or listening address URL).")
 	mode         = flag.String("mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
 	debug        = flag.Bool("debug", false, "Turns on debug messages.")
-	command      = flag.String("command", "", "Command to time. This will exec 'command', time it, and emit a timer metric.")
 	shellCommand = flag.Bool("shellCommand", false, "Turns on timeCommand mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.")
 
 	// Metric flags

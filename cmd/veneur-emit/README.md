@@ -17,8 +17,6 @@ Full usage:
 
 ```
 Usage of veneur-emit:
-  -command string
-        Command to time. This will exec 'command', time it, and emit a timer metric.
   -count int
         Report a 'count' metric. Value must be an integer.
   -debug
