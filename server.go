@@ -299,7 +299,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 		ret.traceBackend = &internalTraceBackend{statsd: ret.Statsd}
 		ret.TraceClient, err = trace.NewBackendClient(ret.traceBackend, trace.Capacity(200))
 		if err != nil {
-			return
+			return ret, err
 		}
 
 		// configure Datadog as a Span sink
