@@ -276,13 +276,13 @@ func NewFromConfig(conf Config) (*Server, error) {
 	}
 
 	if conf.DatadogAPIKey != "" {
-		ddSink, err2 := datadog.NewDatadogMetricSink(
+		ddSink, err := datadog.NewDatadogMetricSink(
 			ret.interval.Seconds(), conf.FlushMaxPerBody, conf.Hostname, ret.Tags,
 			conf.DatadogAPIHostname, conf.DatadogAPIKey, ret.HTTPClient, ret.Statsd,
 			log,
 		)
-		if err2 != nil {
-			return ret, err2
+		if err != nil {
+			return ret, err
 		}
 		ret.metricSinks = append(ret.metricSinks, ddSink)
 	}
