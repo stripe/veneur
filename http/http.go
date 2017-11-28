@@ -120,7 +120,7 @@ func PostHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		stats.Count(action+".error_total", 1, []string{fmt.Sprintf("cause:%d", resp.StatusCode)}, 1.0)
-		resultLogger.Error("Could not POST")
+		resultLogger.WithError(err).Warn("Could not POST")
 		return err
 	}
 
