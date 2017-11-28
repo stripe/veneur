@@ -93,7 +93,10 @@ func PostHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 			err = urlErr.Err
 		}
 		stats.Count(action+".error_total", 1, []string{"cause:io"}, 1.0)
-		innerLogger.WithError(err).Error("Could not execute request")
+		// Log at Warn level instead of Error, because we don't want to create
+		// Sentry events for these (they're only important in large numbers, and
+		// we already have Datadog metrics for them)
+		innerLogger.WithError(err).Warn("Could not execute request")
 		return err
 	}
 	stats.TimeInMilliseconds(action+".duration_ns", float64(time.Since(requestStart).Nanoseconds()), []string{"part:post"}, 1.0)
