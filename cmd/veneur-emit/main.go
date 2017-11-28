@@ -183,26 +183,27 @@ func tags(tag string) []string {
 	return tags
 }
 
-func destination(passedFlags map[string]flag.Value, hostport *string, useSSF bool) (addr string, network string, err error) {
-	network = "udp"
+func destination(passedFlags map[string]flag.Value, hostport *string, useSSF bool) (string, string, error) {
+	var network = "udp"
+	var addr string
 	if passedFlags["hostport"] != nil {
 		addr = passedFlags["hostport"].String()
 	} else if hostport != nil {
 		addr = *hostport
 	} else {
-		err = errors.New("you must specify a valid hostport")
-		return
+		err := errors.New("you must specify a valid hostport")
+		return addr, network, err
 	}
 	address, parseErr := protocol.ResolveAddr(addr)
 	if parseErr != nil {
 		// This is fine - we can attempt to treat the
 		// host:port combination as a UDP address.
-		return
+		return addr, network, nil
 	}
 	// Looks like we got a listener spec URL, translate that into an address:
 	network = address.Network()
 	addr = address.String()
-	return addr, network, err
+	return addr, network, nil
 }
 
 func timeCommand(client MinimalClient, command []string, name string, tags []string) (int, error) {
