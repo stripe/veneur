@@ -127,7 +127,7 @@ func (dd *datadogMetricSink) FlushEventsChecks(ctx context.Context, events []sam
 			"events": {
 				"api": events,
 			},
-		}, "flush_events", true, log)
+		}, "flush_events", true, false, log)
 		if err == nil {
 			log.WithField("events", len(events)).Info("Completed flushing events to Datadog")
 		} else {
@@ -141,7 +141,7 @@ func (dd *datadogMetricSink) FlushEventsChecks(ctx context.Context, events []sam
 		// this endpoint is not documented to take an array... but it does
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
-		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.statsd, dd.traceClient, fmt.Sprintf("%s/api/v1/check_run?api_key=%s", dd.ddHostname, dd.apiKey), checks, "flush_checks", false, log)
+		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.statsd, dd.traceClient, fmt.Sprintf("%s/api/v1/check_run?api_key=%s", dd.ddHostname, dd.apiKey), checks, "flush_checks", false, false, log)
 		if err == nil {
 			log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
 		} else {
@@ -222,7 +222,7 @@ func (dd *datadogMetricSink) flushPart(ctx context.Context, metricSlice []DDMetr
 	time.Sleep(jitter)
 	vhttp.PostHelper(ctx, dd.HTTPClient, dd.statsd, dd.traceClient, fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.ddHostname, dd.apiKey), map[string][]DDMetric{
 		"series": metricSlice,
-	}, "flush", true, log)
+	}, "flush", true, false, log)
 }
 
 type blackholeMetricSink struct {

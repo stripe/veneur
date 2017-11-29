@@ -24,7 +24,7 @@ var tracer = trace.GlobalTracer
 // this function - probably a static string for each callsite
 // you can disable compression with compress=false for endpoints that don't
 // support it
-func PostHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Client, tc *trace.Client, endpoint string, bodyObject interface{}, action string, compress bool, log *logrus.Logger) error {
+func PostHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Client, tc *trace.Client, endpoint string, bodyObject interface{}, action string, compress bool, closeConnection bool, log *logrus.Logger) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	span.SetTag("action", action)
 	defer span.ClientFinish(tc)
@@ -76,7 +76,7 @@ func PostHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 		req.Header.Set("Content-Encoding", "deflate")
 	}
 	// we only make http requests at flush time, so keepalive is not a big win
-	req.Close = true
+	req.Close = closeConnection
 
 	err = tracer.InjectRequest(span.Trace, req)
 	if err != nil {
