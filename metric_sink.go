@@ -2,7 +2,9 @@ package veneur
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
+	"math/big"
 	"net/http"
 	"strings"
 	"sync"
@@ -210,6 +212,14 @@ func (dd *datadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []D
 
 func (dd *datadogMetricSink) flushPart(ctx context.Context, metricSlice []DDMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
+	var jitter time.Duration
+
+	interval := time.Duration(int64(dd.interval)) * time.Second
+	bigJitter, err := rand.Int(rand.Reader, big.NewInt(int64(interval)/2))
+	if err == nil {
+		jitter = time.Duration(bigJitter.Int64()) / time.Millisecond
+	}
+	time.Sleep(jitter)
 	vhttp.PostHelper(ctx, dd.HTTPClient, dd.statsd, dd.traceClient, fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.ddHostname, dd.apiKey), map[string][]DDMetric{
 		"series": metricSlice,
 	}, "flush", true, log)
