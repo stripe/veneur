@@ -1,19 +1,19 @@
-# 1.8.0, pending
+# 1.8.0, 2017-11-29
 
 ## Added
 * New 'blackhole' sink for testing and benchmark purposes. Thanks [gphat](https://github.com/gphat)!
 
 ## Improvements
-* Veneur no longer **requires** the use of Datadog as a target for flushes. Veneur can now use one or more of any of it's supported sinks as a backend. This realizes our desire for Veneur to be fully vendor agnostic. Thanks [gphat](https://github.com/gphat)!
+* Veneur no longer **requires** the use of Datadog as a target for flushes. Veneur can now use one or more of any of its supported sinks as a backend. This realizes our desire for Veneur to be fully vendor agnostic. Thanks [gphat](https://github.com/gphat)!
 * The package `github.com/stripe/veneur/trace` now depends on fewer other packages across veneur, making it easier to pull in `trace` as a dependency. Thanks [antifuchs](https://github.com/antifuchs)!
 * A veneur server with tracing enabled now submits traces and spans concerning its own operation to itself internally without sending them over UDP. Thanks [antifuchs](https://github.com/antifuchs)!
 * veneur-prometheus and veneur-proxy executables are now included in the docker images. Thanks [jac](https://github.com/jac-stripe)
 * All veneur executables are now in $PATH in the docker images. Thanks [jac](https://github.com/jac-stripe)
 * When using Lightstep as a tracing sink, spans can be load-balanced more evenly across collectors by configuring the `trace_lightstep_num_clients` option to multiplex across multiple clients. Thanks [aditya](https://github.com/chimeracoder)!
-* When starting, Veneur will now delay it's first metric to be aligned with an `interval` boundary on the local clock. This will effectively "synchronize" Veneur instances across your deployment assuming reasonable clock behavior. The result is a metric timestamps in your TSDB that mostly line up improving bucketing behavior. Thanks [gphat](https://github.com/gphat)!
+* When starting, Veneur will now delay its first metric to be aligned with an `interval` boundary on the local clock. This will effectively "synchronize" Veneur instances across your deployment assuming reasonable clock behavior. The result is a metric timestamps in your TSDB that mostly line up improving bucketing behavior. Thanks [gphat](https://github.com/gphat)!
 * Cleaned up some linter warnings. Thanks [gphat](https://github.com/gphat)!
 * Tests no longer depend on implicit presence of a Datadog metric or span sink. Thanks [gphat](https://github.com/gphat)!
-* Refactor internal HTTP helper into it's own package fix up possible circular deps. Thanks [gphat](https://github.com/gphat)!
+* Refactor internal HTTP helper into its own package fix up possible circular deps. Thanks [gphat](https://github.com/gphat)!
 
 ## Bugfixes
 * Fix a panic when using `veneur-emit` to emit metrics via `-ssf` when no tags are specified. Thanks [myndzi](https://github.com/myndzi)
@@ -51,7 +51,7 @@
 ## Added
 * Veneur-emit [can now time any shell command](https://github.com/stripe/veneur/pull/222) and emit its duration as a Timing metric. Thanks [redsn0w422](https://github.com/redsn0w422)!
 * Config options can now be provided via environment variables using [envconfig](https://github.com/kelseyhightower/envconfig) for veneur and veneur-proxy. Thanks [gphat](https://github.com/gphat)!
-* [SSF](https://github.com/stripe/veneur/tree/master/ssf) now includes a boolean `indicator` field for signaling that this span is useful as a [Service Level Indicator](https://en.wikipedia.org/wiki/Service_level_indicator) for it's service.
+* [SSF](https://github.com/stripe/veneur/tree/master/ssf) now includes a boolean `indicator` field for signaling that this span is useful as a [Service Level Indicator](https://en.wikipedia.org/wiki/Service_level_indicator) for its service.
 * A type `SSFSpanCollection` has been added but is not yet used.
 * The `veneur-prometheus` command can be used to [scrape prometheus endpoints and emit those metrics to Veneur](https://github.com/stripe/veneur/pull/221). Thanks [gphat](https://github.com/gphat) and [jvns](https://github.com/jvns)
 
@@ -196,7 +196,7 @@ Secondly, the shift in *not* buffering spans on their way to LightStep should be
 * Fix typos in README
 
 ## Improvements
-* Add `omit_empty_hostname` option. If true and `hostname` tag is set to empty, Veneur will not add a host tag to it's own metrics. Thanks [evanj](https://github.com/evanj)!
+* Add `omit_empty_hostname` option. If true and `hostname` tag is set to empty, Veneur will not add a host tag to its own metrics. Thanks [evanj](https://github.com/evanj)!
 * Support "all interfaces" addresses (`:1234`) for listening configuration. Thanks [evanj](https://github.com/evanj)!
 * Add support for receiving statsd packets over authenticated TLS connections. Thanks [evanj](https://github.com/evanj)!
 * [EXPERIMENTAL] Add [InfluxDB](https://www.influxdata.com) support.
