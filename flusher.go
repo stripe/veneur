@@ -101,6 +101,7 @@ type metricsSummary struct {
 	totalTimers     int
 
 	totalGlobalCounters int
+	totalGlobalGauges   int
 
 	totalLocalHistograms int
 	totalLocalSets       int
@@ -133,6 +134,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 		ms.totalTimers += len(wm.timers)
 
 		ms.totalGlobalCounters += len(wm.globalCounters)
+		ms.totalGlobalGauges += len(wm.globalGauges)
 
 		ms.totalLocalHistograms += len(wm.localHistograms)
 		ms.totalLocalSets += len(wm.localSets)
@@ -156,6 +158,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 	if !s.IsLocal() {
 		ms.totalLength += ms.totalSets
 		ms.totalLength += ms.totalGlobalCounters
+		ms.totalLength += ms.totalGlobalGauges
 	}
 
 	return tempMetrics, ms
@@ -214,6 +217,11 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 			// there's nothing to flush
 			for _, gc := range wm.globalCounters {
 				finalMetrics = append(finalMetrics, gc.Flush(s.interval)...)
+			}
+
+			// and global gauges
+			for _, gg := range wm.globalGauges {
+				finalMetrics = append(finalMetrics, gg.Flush()...)
 			}
 		}
 	}

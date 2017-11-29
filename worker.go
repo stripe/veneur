@@ -45,6 +45,8 @@ type WorkerMetrics struct {
 
 	// this is for counters which are globally aggregated
 	globalCounters map[samplers.MetricKey]*samplers.Counter
+	// and gauges which are global
+	globalGauges map[samplers.MetricKey]*samplers.Gauge
 
 	// these are used for metrics that shouldn't be forwarded
 	localHistograms map[samplers.MetricKey]*samplers.Histo
@@ -57,6 +59,7 @@ func NewWorkerMetrics() WorkerMetrics {
 	return WorkerMetrics{
 		counters:        make(map[samplers.MetricKey]*samplers.Counter),
 		globalCounters:  make(map[samplers.MetricKey]*samplers.Counter),
+		globalGauges:    make(map[samplers.MetricKey]*samplers.Gauge),
 		gauges:          make(map[samplers.MetricKey]*samplers.Gauge),
 		histograms:      make(map[samplers.MetricKey]*samplers.Histo),
 		sets:            make(map[samplers.MetricKey]*samplers.Set),
@@ -84,8 +87,14 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 			}
 		}
 	case gaugeTypeName:
-		if _, present = wm.gauges[mk]; !present {
-			wm.gauges[mk] = samplers.NewGauge(mk.Name, tags)
+		if Scope == samplers.GlobalOnly {
+			if _, present = wm.globalGauges[mk]; !present {
+				wm.globalGauges[mk] = samplers.NewGauge(mk.Name, tags)
+			}
+		} else {
+			if _, present = wm.gauges[mk]; !present {
+				wm.gauges[mk] = samplers.NewGauge(mk.Name, tags)
+			}
 		}
 	case histogramTypeName:
 		if Scope == samplers.LocalOnly {
@@ -184,7 +193,11 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 			w.wm.counters[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		}
 	case gaugeTypeName:
-		w.wm.gauges[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+		if m.Scope == samplers.GlobalOnly {
+			w.wm.globalGauges[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+		} else {
+			w.wm.gauges[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+		}
 	case histogramTypeName:
 		if m.Scope == samplers.LocalOnly {
 			w.wm.localHistograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
@@ -216,7 +229,7 @@ func (w *Worker) ImportMetric(other samplers.JSONMetric) {
 	// we don't increment the processed metric counter here, it was already
 	// counted by the original veneur that sent this to us
 	w.imported++
-	if other.Type == counterTypeName {
+	if other.Type == counterTypeName || other.Type == gaugeTypeName {
 		// this is an odd special case -- counters that are imported are global
 		w.wm.Upsert(other.MetricKey, samplers.GlobalOnly, other.Tags)
 	} else {

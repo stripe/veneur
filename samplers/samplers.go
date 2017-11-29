@@ -170,6 +170,41 @@ func (g *Gauge) Flush() []InterMetric {
 	}}
 }
 
+// Export converts a Gauge into a JSONMetric.
+func (g *Gauge) Export() (JSONMetric, error) {
+	var buf bytes.Buffer
+
+	err := binary.Write(&buf, binary.LittleEndian, g.value)
+	if err != nil {
+		return JSONMetric{}, err
+	}
+
+	return JSONMetric{
+		MetricKey: MetricKey{
+			Name:       g.Name,
+			Type:       "gauge",
+			JoinedTags: strings.Join(g.Tags, ","),
+		},
+		Tags:  g.Tags,
+		Value: buf.Bytes(),
+	}, nil
+}
+
+// Combine is pretty lame for Gauges, as it just overwrites the value.
+func (g *Gauge) Combine(other []byte) error {
+	var otherValue float64
+	buf := bytes.NewReader(other)
+	err := binary.Read(buf, binary.LittleEndian, &otherValue)
+
+	if err != nil {
+		return err
+	}
+
+	g.value = otherValue
+
+	return nil
+}
+
 // NewGauge genearaaaa who am I kidding just getting rid of the warning.
 func NewGauge(Name string, Tags []string) *Gauge {
 	return &Gauge{Name: Name, Tags: Tags}
