@@ -189,11 +189,56 @@ func TestParseSSFIndicatorSpan(t *testing.T) {
 		assert.Equal(t, "timer_name", m.Name)
 		assert.Equal(t, "histogram", m.Type)
 		assert.InEpsilon(t, float32(duration*time.Millisecond), m.Value, 0.001)
-		if assert.Equal(t, 2, len(m.Tags)) {
+		if assert.Equal(t, 3, len(m.Tags)) {
 			var tags sort.StringSlice = m.Tags
 			sort.Sort(tags)
-			assert.Equal(t, fmt.Sprintf("name:%s", span.Name), tags[0])
-			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[1])
+			assert.Equal(t, "error:false", tags[0])
+			assert.Equal(t, fmt.Sprintf("name:%s", span.Name), tags[1])
+			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[2])
+		}
+	}
+}
+
+func TestParseSSFIndicatorSpanWithError(t *testing.T) {
+	duration := 5 * time.Second
+	start := time.Now()
+	end := start.Add(duration)
+
+	span := &ssf.SSFSpan{}
+	span.Id = 1
+	span.TraceId = 5
+	span.Name = "foo"
+	span.StartTimestamp = start.UnixNano()
+	span.EndTimestamp = end.UnixNano()
+	span.Indicator = true
+	span.Service = "bar-srv"
+	span.Tags = map[string]string{
+		"this-tag":       "definitely gets ignored",
+		"this-other-tag": "also gets dropped",
+	}
+	span.Metrics = make([]*ssf.SSFSample, 0)
+	span.Error = true
+	buff, err := proto.Marshal(span)
+	assert.Nil(t, err)
+	msg, err := protocol.ParseSSF(buff)
+	assert.NoError(t, err)
+	require.NotNil(t, msg)
+	inSpan, err := msg.TraceSpan()
+	require.NoError(t, err)
+
+	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "timer_name")
+	assert.NoError(t, err)
+	if assert.Equal(t, 1, len(metrics)) {
+		m := metrics[0]
+		assert.Equal(t, "timer_name", m.Name)
+		assert.Equal(t, "histogram", m.Type)
+		assert.InEpsilon(t, float32(duration*time.Millisecond), m.Value, 0.001)
+		if assert.Equal(t, 3, len(m.Tags)) {
+			var tags sort.StringSlice = m.Tags
+			sort.Sort(tags)
+			assert.Equal(t, "error:true", tags[0])
+			assert.Equal(t, fmt.Sprintf("name:%s", span.Name), tags[1])
+			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[2])
 		}
 	}
 }
