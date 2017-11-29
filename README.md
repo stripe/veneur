@@ -188,7 +188,9 @@ If you want a metric to be strictly host-local, you can tell Veneur not to forwa
 
 #### Counters
 
-Relatedly, if you want to forward a counter to the global Veneur instance to reduce tag cardinality, you can tell Veneur to flush it to the global instance by including a `veneurglobalonly` tag in the count's metric packet. This tag will also not appear in Datadog. Note: for global counters to report correctly, the local and global Veneur instances should be configured to have the same flush interval.
+Relatedly, if you want to forward a counter or gauge to the global Veneur instance to reduce tag cardinality, you can tell Veneur to flush it to the global instance by including a `veneurglobalonly` tag in the metric's packet. This `veneurglobalonly` tag is stripped and will not be passed on to sinks.
+
+**Note**: for global counters to report correctly, the local and global Veneur instances should be configured to have the same flush interval.
 
 #### Hostname and Device
 
