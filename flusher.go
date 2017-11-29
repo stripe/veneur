@@ -247,7 +247,7 @@ func (s *Server) reportMetricsFlushCounts(ms metricsSummary) {
 }
 
 // reportGlobalMetricsFlushCounts reports the counts of
-// globalCounters, totalHistograms, totalSets, and totalTimers,
+// globalCounters, globalGauges, totalHistograms, totalSets, and totalTimers,
 // which are the three metrics reported *only* by the global
 // veneur instance.
 func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
@@ -257,6 +257,7 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 	// histograms that it received, and then a global veneur reports them
 	// again
 	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalGlobalCounters), []string{"metric_type:global_counter"}, 1.0)
+	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalGlobalGauges), []string{"metric_type:global_gauge"}, 1.0)
 	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalHistograms), []string{"metric_type:histogram"}, 1.0)
 	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalSets), []string{"metric_type:set"}, 1.0)
 	s.Statsd.Count("worker.metrics_flushed_total", int64(ms.totalTimers), []string{"metric_type:timer"}, 1.0)
@@ -282,6 +283,18 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 					logrus.ErrorKey: err,
 					"type":          "counter",
 					"name":          count.Name,
+				}).Error("Could not export metric")
+				continue
+			}
+			jsonMetrics = append(jsonMetrics, jm)
+		}
+		for _, gauge := range wm.globalGauges {
+			jm, err := gauge.Export()
+			if err != nil {
+				log.WithFields(logrus.Fields{
+					logrus.ErrorKey: err,
+					"type":          "gauge",
+					"name":          gauge.Name,
 				}).Error("Could not export metric")
 				continue
 			}
