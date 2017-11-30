@@ -31,6 +31,7 @@ type Config struct {
 	SsfListenAddresses            []string  `yaml:"ssf_listen_addresses"`
 	StatsAddress                  string    `yaml:"stats_address"`
 	StatsdListenAddresses         []string  `yaml:"statsd_listen_addresses"`
+	SynchronizeWithInterval       bool      `yaml:"synchronize_with_interval"`
 	Tags                          []string  `yaml:"tags"`
 	TcpAddress                    string    `yaml:"tcp_address"`
 	TLSAuthorityCertificate       string    `yaml:"tls_authority_certificate"`

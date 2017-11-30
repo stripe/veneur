@@ -45,6 +45,11 @@ forward_address: ""
 # series data.
 interval: "10s"
 
+# Veneur can "sychronize" it's flushes with the system clock, flushing at even
+# intervals i.e. 0, 10, 20… to align with the `interval`. This is disabled by
+# default for now, as it can cause thundering herds in large installations.
+synchronize_with_interval: false
+
 # Veneur emits its own metrics; this configures where we send them. It's ok
 # to point veneur at itself for metrics consumption!
 stats_address: "localhost:8126"

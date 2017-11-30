@@ -90,6 +90,7 @@ type Server struct {
 	RcvbufBytes       int
 
 	interval            time.Duration
+	synchronizeInterval bool
 	numReaders          int
 	metricMaxLength     int
 	traceMaxLengthBytes int
@@ -132,6 +133,8 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			mappedTags[splt[0]] = splt[1]
 		}
 	}
+
+	ret.synchronizeInterval = conf.SynchronizeWithInterval
 
 	ret.TagsAsMap = mappedTags
 	ret.traceLightstepAccessToken = conf.TraceLightstepAccessToken
@@ -463,9 +466,11 @@ func (s *Server) Start() {
 			ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
 		}()
 
-		// We want to align our ticker to a multiple of its duration for
-		// convenience of bucketing.
-		<-time.After(CalculateTickDelay(s.interval, time.Now()))
+		if s.synchronizeInterval {
+			// We want to align our ticker to a multiple of its duration for
+			// convenience of bucketing.
+			<-time.After(CalculateTickDelay(s.interval, time.Now()))
+		}
 
 		// We aligned the ticker to our interval above. It's worth noting that just
 		// because we aligned once we're not guaranteed to be perfect on each
