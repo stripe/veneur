@@ -190,7 +190,7 @@ func (g *Gauge) Export() (JSONMetric, error) {
 	}, nil
 }
 
-// Combine is pretty lame for Gauges, as it just overwrites the value.
+// Combine is pretty naïve for Gauges, as it just overwrites the value.
 func (g *Gauge) Combine(other []byte) error {
 	var otherValue float64
 	buf := bytes.NewReader(other)

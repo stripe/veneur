@@ -102,7 +102,7 @@ Veneur expires all metrics on each flush. If a metric is no longer being sent (o
 
 To clarify how each metric type behaves in Veneur, please use the following:
 * Counters: Locally accrued, flushed to Datadog (see [magic tags](#magic-tag) for global version)
-* Gauges: Locally accrued, flushed to Datadog
+* Gauges: Locally accrued, flushed to Datadog  (see [magic tags](#magic-tag) for global version)
 * Histograms: Locally accrued, count, max and min flushed to Datadog, percentiles forwarded to `forward_address` for global aggregation when set.
 * Timers: Locally accrued, count, max and min flushed to Datadog, percentiles forwarded to `forward_address` for global aggregation when set.
 * Sets: Locally accrued, forwarded to `forward_address` for global aggregation when set.
@@ -186,11 +186,13 @@ For static configuration you need one Veneur, which we'll call the _global_ inst
 
 If you want a metric to be strictly host-local, you can tell Veneur not to forward it by including a `veneurlocalonly` tag in the metric packet, eg `foo:1|h|#veneurlocalonly`. This tag will not actually appear in DataDog; Veneur removes it.
 
-#### Counters
+#### Global Counters And Gauges
 
 Relatedly, if you want to forward a counter or gauge to the global Veneur instance to reduce tag cardinality, you can tell Veneur to flush it to the global instance by including a `veneurglobalonly` tag in the metric's packet. This `veneurglobalonly` tag is stripped and will not be passed on to sinks.
 
-**Note**: for global counters to report correctly, the local and global Veneur instances should be configured to have the same flush interval.
+**Note**: For global counters to report correctly, the local and global Veneur instances should be configured to have the same flush interval.
+
+**Note**: Global gauges are "random write wins" since they are merged in a non-deterministic order at the global Veneur.
 
 #### Hostname and Device
 
