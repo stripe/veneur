@@ -217,7 +217,7 @@ func (dd *datadogMetricSink) flushPart(ctx context.Context, metricSlice []DDMetr
 	interval := time.Duration(int64(dd.interval)) * time.Second
 	bigJitter, err := rand.Int(rand.Reader, big.NewInt(int64(interval)/2))
 	if err == nil {
-		jitter = time.Duration(bigJitter.Int64()) / time.Millisecond
+		jitter = time.Duration(bigJitter.Int64())
 	}
 	time.Sleep(jitter)
 	vhttp.PostHelper(ctx, dd.HTTPClient, dd.statsd, dd.traceClient, fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.ddHostname, dd.apiKey), map[string][]DDMetric{
