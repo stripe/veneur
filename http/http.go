@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -18,9 +20,76 @@ import (
 
 var tracer = trace.GlobalTracer
 
-// shared code for POSTing to an endpoint, that consumes JSON, that is zlib-
+type HTTPClientTracer struct {
+	prefix      string
+	stats       *statsd.Client
+	mutex       *sync.Mutex
+	ctx         context.Context
+	currentSpan *trace.Span
+}
+
+func NewHTTPClientTrace(ctx context.Context, stats *statsd.Client, prefix string) *HTTPClientTracer {
+	// TODO Should be a child of PostHelper but isn't
+	span, _ := trace.StartSpanFromContext(ctx, "http.start")
+	return &HTTPClientTracer{
+		prefix:      prefix,
+		stats:       stats,
+		mutex:       &sync.Mutex{},
+		ctx:         ctx,
+		currentSpan: span,
+	}
+}
+
+func (hct *HTTPClientTracer) GetClientTrace() *httptrace.ClientTrace {
+	return &httptrace.ClientTrace{
+		GotConn:              hct.GotConn,
+		DNSStart:             hct.DNSStart,
+		GotFirstResponseByte: hct.GotFirstResponseByte,
+		ConnectStart:         hct.ConnectStart,
+		WroteRequest:         hct.WroteRequest,
+	}
+}
+
+func (hct *HTTPClientTracer) StartSpan(name string) *trace.Span {
+	hct.mutex.Lock()
+	defer hct.mutex.Unlock()
+	newSpan, _ := trace.StartSpanFromContext(hct.ctx, name)
+	hct.currentSpan.ClientFinish(trace.DefaultClient) // TODO Fix client
+
+	hct.currentSpan = newSpan
+	return newSpan
+}
+
+func (hct *HTTPClientTracer) GotConn(info httptrace.GotConnInfo) {
+	state := "new"
+	if info.Reused {
+		state = "reused"
+	}
+	hct.StartSpan(fmt.Sprintf("http.gotConnection.%s", state))
+
+	hct.stats.Count(hct.prefix+".connections_used_total", 1, []string{fmt.Sprintf("state:%s", state)}, 1.0)
+}
+
+func (hct *HTTPClientTracer) DNSStart(info httptrace.DNSStartInfo) {
+	hct.StartSpan("http.resolvingDNS")
+}
+
+func (hct *HTTPClientTracer) GotFirstResponseByte() {
+	// TODO Is this working?
+	hct.StartSpan("http.gotFirstByte")
+}
+
+func (hct *HTTPClientTracer) ConnectStart(network, addr string) {
+	hct.StartSpan("http.connecting")
+}
+
+func (hct *HTTPClientTracer) WroteRequest(info httptrace.WroteRequestInfo) {
+	hct.StartSpan("http.finishedWrite")
+}
+
+// shared code for POSTing to an endpoint, that consumes JSON, is zlib-
 // compressed, that returns 202 on success, that has a small response
-// action is a string used for statsd metric names and log messages emitted from
+// action as a string used for statsd metric names and log messages emitted from
 // this function - probably a static string for each callsite
 // you can disable compression with compress=false for endpoints that don't
 // support it
@@ -75,16 +144,20 @@ func PostHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 	if compress {
 		req.Header.Set("Content-Encoding", "deflate")
 	}
-	// we only make http requests at flush time, so keepalive is not a big win
-	req.Close = true
 
+	// TODO: Use the HCT span to set the trace here.
 	err = tracer.InjectRequest(span.Trace, req)
 	if err != nil {
 		stats.Count("veneur.opentracing.flush.inject.errors", 1, nil, 1.0)
 		innerLogger.WithError(err).Error("Error injecting header")
 	}
 
-	requestStart := time.Now()
+	// Attach a ClientTrace that emits metrics for all our HTTP bits. n.b. this
+	// clienttrace can only measure _reused_ connections as the final `PutIdleConn`
+	// callback is only invoked for connections returned to the idle pool.
+	hct := NewHTTPClientTrace(span.Attach(ctx), stats, action)
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), hct.GetClientTrace()))
+
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		if urlErr, ok := err.(*url.Error); ok {
@@ -99,7 +172,6 @@ func PostHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 		innerLogger.WithError(err).Warn("Could not execute request")
 		return err
 	}
-	stats.TimeInMilliseconds(action+".duration_ns", float64(time.Since(requestStart).Nanoseconds()), []string{"part:post"}, 1.0)
 	defer resp.Body.Close()
 
 	responseBody, err := ioutil.ReadAll(resp.Body)

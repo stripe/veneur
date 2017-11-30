@@ -3,8 +3,6 @@ package veneur
 import (
 	"context"
 	"fmt"
-	"net"
-	"net/url"
 	"runtime"
 	"sync"
 	"time"
@@ -347,53 +345,11 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 		return
 	}
 
-	// always re-resolve the host to avoid dns caching
-	dnsStart := time.Now()
-	endpoint, err := resolveEndpoint(fmt.Sprintf("%s/import", s.ForwardAddr))
-	if err != nil {
-		// not a fatal error if we fail
-		// we'll just try to use the host as it was given to us
-		s.Statsd.Count("forward.error_total", 1, []string{"cause:dns"}, 1.0)
-		log.WithError(err).Warn("Could not re-resolve host for forward")
-	}
-	s.Statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(dnsStart).Nanoseconds()), []string{"part:dns"}, 1.0)
-
 	// the error has already been logged (if there was one), so we only care
 	// about the success case
-	if http.PostHelper(span.Attach(ctx), s.HTTPClient, s.Statsd, s.TraceClient, endpoint, jsonMetrics, "forward", true, log) == nil {
+	if http.PostHelper(span.Attach(ctx), s.HTTPClient, s.Statsd, s.TraceClient, fmt.Sprintf("%s/import", s.ForwardAddr), jsonMetrics, "forward", true, log) == nil {
 		log.WithField("metrics", len(jsonMetrics)).Info("Completed forward to upstream Veneur")
 	}
-}
-
-// given a url, attempts to resolve the url's host, and returns a new url whose
-// host has been replaced by the first resolved address
-// on failure, it returns the argument, and the resulting error
-func resolveEndpoint(endpoint string) (string, error) {
-	origURL, err := url.Parse(endpoint)
-	if err != nil {
-		// caution: this error contains the endpoint itself, so if the endpoint
-		// has secrets in it, you have to remove them
-		return endpoint, err
-	}
-
-	origHost, origPort, err := net.SplitHostPort(origURL.Host)
-	if err != nil {
-		return endpoint, err
-	}
-
-	resolvedNames, err := net.LookupHost(origHost)
-	if err != nil {
-		return endpoint, err
-	}
-	if len(resolvedNames) == 0 {
-		return endpoint, &net.DNSError{
-			Err:  "no hosts found",
-			Name: origHost,
-		}
-	}
-
-	origURL.Host = net.JoinHostPort(resolvedNames[0], origPort)
-	return origURL.String(), nil
 }
 
 func (s *Server) flushTraces(ctx context.Context) {
