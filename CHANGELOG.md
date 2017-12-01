@@ -6,7 +6,7 @@
 ## Improvements
 * Veneur no longer **requires** the use of Datadog as a target for flushes. Veneur can now use one or more of any of its supported sinks as a backend. This realizes our desire for Veneur to be fully vendor agnostic. Thanks [gphat](https://github.com/gphat)!
 * The package `github.com/stripe/veneur/trace` now depends on fewer other packages across veneur, making it easier to pull in `trace` as a dependency. Thanks [antifuchs](https://github.com/antifuchs)!
-* A Veneur server with tracing enabled now submits traces and spans concerning its own operation to itself internally without sending them over UDP. Note that this means metrics measuring the number of packets sent, such as veneur.ssf.spans.received_total, may drop, as Veneur is no longer sending traces over the network. Thanks [antifuchs](https://github.com/antifuchs)!
+* A Veneur server with tracing enabled now submits traces and spans concerning its own operation to itself internally without sending them over UDP. See the "Upgrade Notes" section below for metrics affected by this change. Thanks [antifuchs](https://github.com/antifuchs)!
 * veneur-prometheus and veneur-proxy executables are now included in the docker images. Thanks [jac](https://github.com/jac-stripe)
 * All Veneur executables are now in $PATH in the docker images. Thanks [jac](https://github.com/jac-stripe)
 * When using Lightstep as a tracing sink, spans can be load-balanced more evenly across collectors by configuring the `trace_lightstep_num_clients` option to multiplex across multiple clients. Thanks [aditya](https://github.com/chimeracoder)!
@@ -23,7 +23,7 @@
 * Removed the InfluxDB plugin as it was experimental and wasn't working. We can make a sink for it in the future if desired. Thanks [gphat](https://github.com/gphat)!
 
 ## Upgrade Notes
-* Due to veneur sending itself SSF spans internally, you will see a drop in the `veneur.ssf.packet_size` histogram.
+* Due to veneur sending itself SSF spans internally, its metrics will reflect fewer packets being received. You will see a drop in the `veneur.ssf.packet_size` histogram, and the `veneur.ssf.spans.received_total` metric will be recorded under the tag `ssf_format:internal` now.
 
 # 1.7.0, 2017-10-19
 
