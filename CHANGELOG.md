@@ -22,6 +22,9 @@
 ## Removals
 * Removed the InfluxDB plugin as it was experimental and wasn't working. We can make a sink for it in the future if desired. Thanks [gphat](https://github.com/gphat)!
 
+## Upgrade Notes
+* Due to veneur sending itself SSF spans internally, you will see a drop in the `veneur.ssf.packet_size` histogram.
+
 # 1.7.0, 2017-10-19
 
 ## Notes for upgrading from previous versions

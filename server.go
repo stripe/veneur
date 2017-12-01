@@ -296,7 +296,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 		trace.Enable()
 
-		ret.traceBackend = &internalTraceBackend{}
+		ret.traceBackend = &internalTraceBackend{statsd: ret.Statsd}
 		ret.TraceClient, err = trace.NewBackendClient(ret.traceBackend, trace.Capacity(200))
 		if err != nil {
 			return
@@ -899,6 +899,7 @@ func (s *Server) TracingEnabled() bool {
 
 type internalTraceBackend struct {
 	spanWorker *SpanWorker
+	statsd     *statsd.Client
 }
 
 // Close is a no-op on the internal backend.
@@ -918,6 +919,14 @@ func (tb *internalTraceBackend) SendSync(ctx context.Context, span *ssf.SSFSpan)
 	}()
 	select {
 	case <-ch:
+		if tb.statsd != nil {
+			tags := []string{
+				fmt.Sprintf("service:%s", span.Service),
+				"ssf_format:internal",
+			}
+			tb.statsd.Incr("ssf.spans.received_total", tags, .1)
+			tb.statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, .1)
+		}
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
