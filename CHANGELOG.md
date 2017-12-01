@@ -6,9 +6,9 @@
 ## Improvements
 * Veneur no longer **requires** the use of Datadog as a target for flushes. Veneur can now use one or more of any of its supported sinks as a backend. This realizes our desire for Veneur to be fully vendor agnostic. Thanks [gphat](https://github.com/gphat)!
 * The package `github.com/stripe/veneur/trace` now depends on fewer other packages across veneur, making it easier to pull in `trace` as a dependency. Thanks [antifuchs](https://github.com/antifuchs)!
-* A veneur server with tracing enabled now submits traces and spans concerning its own operation to itself internally without sending them over UDP. Note that this means metrics measuring the number of packets sent, such as veneur.ssf.spans.received_total, may drop, as veneur is no longer sending traces over the network. Thanks [antifuchs](https://github.com/antifuchs)!
+* A Veneur server with tracing enabled now submits traces and spans concerning its own operation to itself internally without sending them over UDP. Note that this means metrics measuring the number of packets sent, such as veneur.ssf.spans.received_total, may drop, as Veneur is no longer sending traces over the network. Thanks [antifuchs](https://github.com/antifuchs)!
 * veneur-prometheus and veneur-proxy executables are now included in the docker images. Thanks [jac](https://github.com/jac-stripe)
-* All veneur executables are now in $PATH in the docker images. Thanks [jac](https://github.com/jac-stripe)
+* All Veneur executables are now in $PATH in the docker images. Thanks [jac](https://github.com/jac-stripe)
 * When using Lightstep as a tracing sink, spans can be load-balanced more evenly across collectors by configuring the `trace_lightstep_num_clients` option to multiplex across multiple clients. Thanks [aditya](https://github.com/chimeracoder)!
 * sync_with_interval is a new configuration option! If enabled, when starting, Veneur will now delay its first metric to be aligned with an `interval` boundary on the local clock. This will effectively "synchronize" Veneur instances across your deployment assuming reasonable clock behavior. The result is a metric timestamps in your TSDB that mostly line up improving bucketing behavior. Thanks [gphat](https://github.com/gphat)!
 * Cleaned up some linter warnings. Thanks [gphat](https://github.com/gphat)!
@@ -25,11 +25,11 @@
 # 1.7.0, 2017-10-19
 
 ## Notes for upgrading from previous versions
-* The `set` data structure serialization format for communiation with a global veneur server has changed in an incompatible way. If your infrastructure relies on a global veneur installation, they will drop `set` data from non-matching versions until the entire fleet and the global veneur are all at the same version.
+* The `set` data structure serialization format for communiation with a global Veneur server has changed in an incompatible way. If your infrastructure relies on a global Veneur installation, they will drop `set` data from non-matching versions until the entire fleet and the global Veneur are all at the same version.
 * The metrics for SSF packets (and spans) received have changed names: They used to be `veneur.packet.received_total` and `veneur.packet.spans.received_total`, respectively, and they are now named `veneur.ssf.received_total` and `veneur.ssf.spans.received_total`.
 
 ## Added
-* New [configuration option](https://github.com/stripe/veneur/pull/233) `statsd_listen_addresses`, a list of URIs indicating on which ports (and protocols) veneur should listen on for statsd metrics. This deprecates both the `udp_address` and `tcp_address` settings. Thanks [antifuchs](https://github.com/antifuchs)!
+* New [configuration option](https://github.com/stripe/veneur/pull/233) `statsd_listen_addresses`, a list of URIs indicating on which ports (and protocols) Veneur should listen on for statsd metrics. This deprecates both the `udp_address` and `tcp_address` settings. Thanks [antifuchs](https://github.com/antifuchs)!
 * New package `github.com/stripe/veneur/protocol`, containing a wire protocol for sending/reading SSF over a streaming connection. Thanks [antifuchs](https://github.com/antifuchs)!
 * `github.com/veneur/trace` now contains [customizable `Client`s](https://github.com/stripe/veneur/pull/262) that support streaming connections.
 * [veneur-prometheus](https://github.com/stripe/veneur/tree/master/cmd/veneur-prometheus) now has a `-p` option for specifying a prefix for all metrics. Thanks [gphat](https://github.com/gphat)!
@@ -50,7 +50,7 @@
 
 ## Added
 * Veneur-emit [can now time any shell command](https://github.com/stripe/veneur/pull/222) and emit its duration as a Timing metric. Thanks [redsn0w422](https://github.com/redsn0w422)!
-* Config options can now be provided via environment variables using [envconfig](https://github.com/kelseyhightower/envconfig) for veneur and veneur-proxy. Thanks [gphat](https://github.com/gphat)!
+* Config options can now be provided via environment variables using [envconfig](https://github.com/kelseyhightower/envconfig) for Veneur and veneur-proxy. Thanks [gphat](https://github.com/gphat)!
 * [SSF](https://github.com/stripe/veneur/tree/master/ssf) now includes a boolean `indicator` field for signaling that this span is useful as a [Service Level Indicator](https://en.wikipedia.org/wiki/Service_level_indicator) for its service.
 * A type `SSFSpanCollection` has been added but is not yet used.
 * The `veneur-prometheus` command can be used to [scrape prometheus endpoints and emit those metrics to Veneur](https://github.com/stripe/veneur/pull/221). Thanks [gphat](https://github.com/gphat) and [jvns](https://github.com/jvns)
@@ -115,7 +115,7 @@ Secondly, the shift in *not* buffering spans on their way to LightStep should be
 * Fixed an error in graceful shutdown of the TCP listener. Thanks [evanj](https://github.com/evanj)!
 * Don't hang if we call `log.Fatal` and we aren't hooked up to a Sentry. Thanks [evanj](https://github.com/evanj)!
 * Fix flusher_test being called more than once resulting in flappy failure. Thanks [evanj](https://github.com/evanj)!
-* Improve flusher test to not start veneur, fixing flapping test. Thanks [evanj](https://github.com/evanj)!
+* Improve flusher test to not start Veneur, fixing flapping test. Thanks [evanj](https://github.com/evanj)!
 
 ## Added
 * `veneur-emit` can now emit metrics using the [SSF protocol](https://github.com/stripe/veneur/tree/master/ssf#readme). Thanks [redsn0w422](https://github.com/redsn0w422)!
