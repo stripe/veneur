@@ -1,3 +1,8 @@
+# 1.8.1, pending
+
+## Improvements
+* Veneur now tracks statsd metrics for SSF spans concerning its own operation. This means that the `veneur.ssf.spans.received_total` counter and the `veneur.ssf.packet_size` histogram again reflect trace spans routed internally. Thanks, [antifuchs](https://github.com/antifuchs)!
+
 # 1.8.0, 2017-11-29
 
 ## Added
@@ -21,9 +26,6 @@
 
 ## Removals
 * Removed the InfluxDB plugin as it was experimental and wasn't working. We can make a sink for it in the future if desired. Thanks [gphat](https://github.com/gphat)!
-
-## Upgrade Notes
-* Due to veneur sending itself SSF spans internally, its metrics will reflect fewer packets being received. You will see a drop in the `veneur.ssf.packet_size` histogram, and the `veneur.ssf.spans.received_total` metric will be recorded under the tag `ssf_format:internal` now.
 
 # 1.7.0, 2017-10-19
 
