@@ -53,7 +53,6 @@ func (hct *httpClientTracer) getClientTrace() *httptrace.ClientTrace {
 		GotFirstResponseByte: hct.gotFirstResponseByte,
 		ConnectStart:         hct.connectStart,
 		WroteRequest:         hct.wroteRequest,
-		PutIdleConn:          hct.putIdleConn,
 	}
 }
 
@@ -101,8 +100,8 @@ func (hct *httpClientTracer) wroteRequest(info httptrace.WroteRequestInfo) {
 	hct.startSpan("http.finishedWrite")
 }
 
-// putIdleConn is the last thing called, so wrap up any pending spans
-func (hct *httpClientTracer) putIdleConn(err error) {
+// finishSpan is called to ensure we're done tracing
+func (hct *httpClientTracer) finishSpan() {
 	hct.currentSpan.ClientFinish(hct.traceClient)
 }
 
@@ -170,11 +169,10 @@ func PostHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 		innerLogger.WithError(err).Error("Error injecting header")
 	}
 
-	// Attach a ClientTrace that emits metrics for all our HTTP bits. n.b. this
-	// clienttrace can only measure _reused_ connections as the final `PutIdleConn`
-	// callback is only invoked for connections returned to the idle pool.
+	// Attach a ClientTrace that emits span for all our HTTP bits.
 	hct := newHTTPClientTracer(span.Attach(ctx), stats, tc, action)
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), hct.getClientTrace()))
+	defer hct.finishSpan()
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
