@@ -53,6 +53,7 @@ func (hct *httpClientTracer) getClientTrace() *httptrace.ClientTrace {
 		GotFirstResponseByte: hct.gotFirstResponseByte,
 		ConnectStart:         hct.connectStart,
 		WroteRequest:         hct.wroteRequest,
+		PutIdleConn:          hct.putIdleConn,
 	}
 }
 
@@ -98,6 +99,11 @@ func (hct *httpClientTracer) connectStart(network, addr string) {
 // wroteRequest marks the write being completed
 func (hct *httpClientTracer) wroteRequest(info httptrace.WroteRequestInfo) {
 	hct.startSpan("http.finishedWrite")
+}
+
+// putIdleConn is the last thing called, so wrap up any pending spans
+func (hct *httpClientTracer) putIdleConn(err error) {
+	hct.currentSpan.ClientFinish(hct.traceClient)
 }
 
 // PostHelper is shared code for POSTing to an endpoint, that consumes JSON, is zlib-
