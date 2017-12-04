@@ -20,26 +20,32 @@ import (
 
 var tracer = trace.GlobalTracer
 
+// HTTPClientTracer is a wrapper around a `net/http/httptrace` that handles
+// proper tracing and metric emission.
 type HTTPClientTracer struct {
 	prefix      string
 	stats       *statsd.Client
+	traceClient *trace.Client
 	mutex       *sync.Mutex
 	ctx         context.Context
 	currentSpan *trace.Span
 }
 
-func NewHTTPClientTrace(ctx context.Context, stats *statsd.Client, prefix string) *HTTPClientTracer {
-	// TODO Should be a child of PostHelper but isn't
+// NewHTTPClientTrace makes a new HTTPClientTracer with new span created from
+// the context.
+func NewHTTPClientTrace(ctx context.Context, stats *statsd.Client, tc *trace.Client, prefix string) *HTTPClientTracer {
 	span, _ := trace.StartSpanFromContext(ctx, "http.start")
 	return &HTTPClientTracer{
 		prefix:      prefix,
 		stats:       stats,
+		traceClient: tc,
 		mutex:       &sync.Mutex{},
 		ctx:         ctx,
 		currentSpan: span,
 	}
 }
 
+// GetClientTrace is a convenience to return a filled-in `ClientTrace`.
 func (hct *HTTPClientTracer) GetClientTrace() *httptrace.ClientTrace {
 	return &httptrace.ClientTrace{
 		GotConn:              hct.GotConn,
@@ -50,16 +56,20 @@ func (hct *HTTPClientTracer) GetClientTrace() *httptrace.ClientTrace {
 	}
 }
 
+// StartSpan is a convenience that replaces the current span in our
+// tracer and flushes the outgoing one.
 func (hct *HTTPClientTracer) StartSpan(name string) *trace.Span {
 	hct.mutex.Lock()
 	defer hct.mutex.Unlock()
 	newSpan, _ := trace.StartSpanFromContext(hct.ctx, name)
-	hct.currentSpan.ClientFinish(trace.DefaultClient) // TODO Fix client
+	hct.currentSpan.ClientFinish(hct.traceClient)
 
 	hct.currentSpan = newSpan
 	return newSpan
 }
 
+//  GotConn signals that the connection — be it new or reused — was fetched
+// from the pool.
 func (hct *HTTPClientTracer) GotConn(info httptrace.GotConnInfo) {
 	state := "new"
 	if info.Reused {
@@ -70,24 +80,27 @@ func (hct *HTTPClientTracer) GotConn(info httptrace.GotConnInfo) {
 	hct.stats.Count(hct.prefix+".connections_used_total", 1, []string{fmt.Sprintf("state:%s", state)}, 1.0)
 }
 
+// DNSStart marks the beginning of the DNS lookup
 func (hct *HTTPClientTracer) DNSStart(info httptrace.DNSStartInfo) {
 	hct.StartSpan("http.resolvingDNS")
 }
 
+// GotFirstResponseByte marks us receiving our first byte
 func (hct *HTTPClientTracer) GotFirstResponseByte() {
-	// TODO Is this working?
 	hct.StartSpan("http.gotFirstByte")
 }
 
+// ConnectStart marks beginning of the connect process
 func (hct *HTTPClientTracer) ConnectStart(network, addr string) {
 	hct.StartSpan("http.connecting")
 }
 
+// WroteRequest marks the write being completed
 func (hct *HTTPClientTracer) WroteRequest(info httptrace.WroteRequestInfo) {
 	hct.StartSpan("http.finishedWrite")
 }
 
-// shared code for POSTing to an endpoint, that consumes JSON, is zlib-
+// PostHelper is shared code for POSTing to an endpoint, that consumes JSON, is zlib-
 // compressed, that returns 202 on success, that has a small response
 // action as a string used for statsd metric names and log messages emitted from
 // this function - probably a static string for each callsite
@@ -145,7 +158,6 @@ func PostHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 		req.Header.Set("Content-Encoding", "deflate")
 	}
 
-	// TODO: Use the HCT span to set the trace here.
 	err = tracer.InjectRequest(span.Trace, req)
 	if err != nil {
 		stats.Count("veneur.opentracing.flush.inject.errors", 1, nil, 1.0)
@@ -155,7 +167,7 @@ func PostHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 	// Attach a ClientTrace that emits metrics for all our HTTP bits. n.b. this
 	// clienttrace can only measure _reused_ connections as the final `PutIdleConn`
 	// callback is only invoked for connections returned to the idle pool.
-	hct := NewHTTPClientTrace(span.Attach(ctx), stats, action)
+	hct := NewHTTPClientTrace(span.Attach(ctx), stats, tc, action)
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), hct.GetClientTrace()))
 
 	resp, err := httpClient.Do(req)
