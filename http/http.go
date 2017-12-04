@@ -102,6 +102,8 @@ func (hct *httpClientTracer) wroteRequest(info httptrace.WroteRequestInfo) {
 
 // finishSpan is called to ensure we're done tracing
 func (hct *httpClientTracer) finishSpan() {
+	hct.mutex.Lock()
+	defer hct.mutex.Unlock()
 	hct.currentSpan.ClientFinish(hct.traceClient)
 }
 
