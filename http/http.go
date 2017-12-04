@@ -20,9 +20,9 @@ import (
 
 var tracer = trace.GlobalTracer
 
-// HTTPClientTracer is a wrapper around a `net/http/httptrace` that handles
+// httpClientTracer is a wrapper around a `net/http/httptrace` that handles
 // proper tracing and metric emission.
-type HTTPClientTracer struct {
+type httpClientTracer struct {
 	prefix      string
 	stats       *statsd.Client
 	traceClient *trace.Client
@@ -31,11 +31,11 @@ type HTTPClientTracer struct {
 	currentSpan *trace.Span
 }
 
-// NewHTTPClientTrace makes a new HTTPClientTracer with new span created from
+// newHTTPClientTracer makes a new HTTPClientTracer with new span created from
 // the context.
-func NewHTTPClientTrace(ctx context.Context, stats *statsd.Client, tc *trace.Client, prefix string) *HTTPClientTracer {
+func newHTTPClientTracer(ctx context.Context, stats *statsd.Client, tc *trace.Client, prefix string) *httpClientTracer {
 	span, _ := trace.StartSpanFromContext(ctx, "http.start")
-	return &HTTPClientTracer{
+	return &httpClientTracer{
 		prefix:      prefix,
 		stats:       stats,
 		traceClient: tc,
@@ -45,20 +45,20 @@ func NewHTTPClientTrace(ctx context.Context, stats *statsd.Client, tc *trace.Cli
 	}
 }
 
-// GetClientTrace is a convenience to return a filled-in `ClientTrace`.
-func (hct *HTTPClientTracer) GetClientTrace() *httptrace.ClientTrace {
+// getClientTrace is a convenience to return a filled-in `ClientTrace`.
+func (hct *httpClientTracer) getClientTrace() *httptrace.ClientTrace {
 	return &httptrace.ClientTrace{
-		GotConn:              hct.GotConn,
-		DNSStart:             hct.DNSStart,
-		GotFirstResponseByte: hct.GotFirstResponseByte,
-		ConnectStart:         hct.ConnectStart,
-		WroteRequest:         hct.WroteRequest,
+		GotConn:              hct.gotConn,
+		DNSStart:             hct.dnsStart,
+		GotFirstResponseByte: hct.gotFirstResponseByte,
+		ConnectStart:         hct.connectStart,
+		WroteRequest:         hct.wroteRequest,
 	}
 }
 
-// StartSpan is a convenience that replaces the current span in our
+// startSpan is a convenience that replaces the current span in our
 // tracer and flushes the outgoing one.
-func (hct *HTTPClientTracer) StartSpan(name string) *trace.Span {
+func (hct *httpClientTracer) startSpan(name string) *trace.Span {
 	hct.mutex.Lock()
 	defer hct.mutex.Unlock()
 	newSpan, _ := trace.StartSpanFromContext(hct.ctx, name)
@@ -68,36 +68,36 @@ func (hct *HTTPClientTracer) StartSpan(name string) *trace.Span {
 	return newSpan
 }
 
-//  GotConn signals that the connection — be it new or reused — was fetched
+// gotConn signals that the connection — be it new or reused — was fetched
 // from the pool.
-func (hct *HTTPClientTracer) GotConn(info httptrace.GotConnInfo) {
+func (hct *httpClientTracer) gotConn(info httptrace.GotConnInfo) {
 	state := "new"
 	if info.Reused {
 		state = "reused"
 	}
-	hct.StartSpan(fmt.Sprintf("http.gotConnection.%s", state))
+	hct.startSpan(fmt.Sprintf("http.gotConnection.%s", state))
 
 	hct.stats.Count(hct.prefix+".connections_used_total", 1, []string{fmt.Sprintf("state:%s", state)}, 1.0)
 }
 
-// DNSStart marks the beginning of the DNS lookup
-func (hct *HTTPClientTracer) DNSStart(info httptrace.DNSStartInfo) {
-	hct.StartSpan("http.resolvingDNS")
+// dnsStart marks the beginning of the DNS lookup
+func (hct *httpClientTracer) dnsStart(info httptrace.DNSStartInfo) {
+	hct.startSpan("http.resolvingDNS")
 }
 
-// GotFirstResponseByte marks us receiving our first byte
-func (hct *HTTPClientTracer) GotFirstResponseByte() {
-	hct.StartSpan("http.gotFirstByte")
+// gotFirstResponseByte marks us receiving our first byte
+func (hct *httpClientTracer) gotFirstResponseByte() {
+	hct.startSpan("http.gotFirstByte")
 }
 
-// ConnectStart marks beginning of the connect process
-func (hct *HTTPClientTracer) ConnectStart(network, addr string) {
-	hct.StartSpan("http.connecting")
+// connectStart marks beginning of the connect process
+func (hct *httpClientTracer) connectStart(network, addr string) {
+	hct.startSpan("http.connecting")
 }
 
-// WroteRequest marks the write being completed
-func (hct *HTTPClientTracer) WroteRequest(info httptrace.WroteRequestInfo) {
-	hct.StartSpan("http.finishedWrite")
+// wroteRequest marks the write being completed
+func (hct *httpClientTracer) wroteRequest(info httptrace.WroteRequestInfo) {
+	hct.startSpan("http.finishedWrite")
 }
 
 // PostHelper is shared code for POSTing to an endpoint, that consumes JSON, is zlib-
@@ -167,8 +167,8 @@ func PostHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 	// Attach a ClientTrace that emits metrics for all our HTTP bits. n.b. this
 	// clienttrace can only measure _reused_ connections as the final `PutIdleConn`
 	// callback is only invoked for connections returned to the idle pool.
-	hct := NewHTTPClientTrace(span.Attach(ctx), stats, tc, action)
-	req = req.WithContext(httptrace.WithClientTrace(req.Context(), hct.GetClientTrace()))
+	hct := newHTTPClientTracer(span.Attach(ctx), stats, tc, action)
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), hct.getClientTrace()))
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
