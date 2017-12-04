@@ -15,6 +15,12 @@ Because we want to:
 * collect and combine the great ideas from our [inspiration](https://github.com/stripe/veneur/tree/master/ssf#inspiration)
 * add some of [our own ideas](https://github.com/stripe/veneur/tree/master/ssf#philosophy)
 
+# Using SSF
+
+* You can send SSF as UDP packets to Veneur's `ssf_listen_addresses`.
+* Veneur can also read SSF as a [wire protocol](https://github.com/stripe/veneur/blob/master/protocol/wire.go) over connection protocols such as TCP or UNIX domain sockets
+* You can use the CLI tool [veneur-emit](https://github.com/stripe/veneur/tree/master/cmd/veneur-emit).
+
 # Philosophy
 
 We've got some novel ideas that we've put in to SSF. It might help to be familiar with the concepts in our [inspiration](https://github.com/stripe/veneur/tree/master/ssf#inspiration). Here is our founding philosophy of SSF:
