@@ -1,4 +1,4 @@
-# 1.8.1, pending
+# 1.8.1, 2017-12-05
 
 ## Improvements
 * Veneur now tracks statsd metrics for SSF spans concerning its own operation. This means that the `veneur.ssf.spans.received_total` counter and the `veneur.ssf.packet_size` histogram again reflect trace spans routed internally. Thanks, [antifuchs](https://github.com/antifuchs)!
