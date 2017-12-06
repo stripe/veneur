@@ -20,6 +20,7 @@ Because we want to:
 * You can send SSF as UDP packets to Veneur's `ssf_listen_addresses`.
 * Veneur can also read SSF as a [wire protocol](https://github.com/stripe/veneur/blob/master/protocol/wire.go) over connection protocols such as TCP or UNIX domain sockets
 * You can use the CLI tool [veneur-emit](https://github.com/stripe/veneur/tree/master/cmd/veneur-emit).
+* You can use an SSF trace client in [Go](github.com/stripe/veneur/trace) or [Ruby](https://github.com/stripe/ssf-ruby).
 
 # Philosophy
 
