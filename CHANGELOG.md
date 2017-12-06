@@ -1,3 +1,8 @@
+# 1.8.1, 2017-12-05
+
+## Improvements
+* Veneur now tracks statsd metrics for SSF spans concerning its own operation. This means that the `veneur.ssf.spans.received_total` counter and the `veneur.ssf.packet_size` histogram again reflect trace spans routed internally. Thanks, [antifuchs](https://github.com/antifuchs)!
+
 # 1.8.0, 2017-11-29
 
 ## Added
@@ -6,7 +11,7 @@
 ## Improvements
 * Veneur no longer **requires** the use of Datadog as a target for flushes. Veneur can now use one or more of any of its supported sinks as a backend. This realizes our desire for Veneur to be fully vendor agnostic. Thanks [gphat](https://github.com/gphat)!
 * The package `github.com/stripe/veneur/trace` now depends on fewer other packages across veneur, making it easier to pull in `trace` as a dependency. Thanks [antifuchs](https://github.com/antifuchs)!
-* A Veneur server with tracing enabled now submits traces and spans concerning its own operation to itself internally without sending them over UDP. Note that this means metrics measuring the number of packets sent, such as veneur.ssf.spans.received_total, may drop, as Veneur is no longer sending traces over the network. Thanks [antifuchs](https://github.com/antifuchs)!
+* A Veneur server with tracing enabled now submits traces and spans concerning its own operation to itself internally without sending them over UDP. See the "Upgrade Notes" section below for metrics affected by this change. Thanks [antifuchs](https://github.com/antifuchs)!
 * veneur-prometheus and veneur-proxy executables are now included in the docker images. Thanks [jac](https://github.com/jac-stripe)
 * All Veneur executables are now in $PATH in the docker images. Thanks [jac](https://github.com/jac-stripe)
 * When using Lightstep as a tracing sink, spans can be load-balanced more evenly across collectors by configuring the `trace_lightstep_num_clients` option to multiplex across multiple clients. Thanks [aditya](https://github.com/chimeracoder)!
