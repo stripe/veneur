@@ -1,3 +1,8 @@
+# 2.0.0, in progress
+
+## Added
+* Buffered trace clients in `github.com/stripe/veneur/trace` now have a new option to automatically flush them in a periodic interval. Thanks, [antifuchs](https://github.com/antifuchs)!
+
 # 1.8.1, 2017-12-05
 
 ## Improvements

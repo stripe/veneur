@@ -36,6 +36,7 @@ type Client struct {
 	backend ClientBackend
 	cap     uint
 	cancel  context.CancelFunc
+	flush   func(context.Context)
 	ops     chan op
 }
 
@@ -53,6 +54,9 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) run(ctx context.Context) {
+	if c.flush != nil {
+		go c.flush(ctx)
+	}
 	for {
 		do, ok := <-c.ops
 		if !ok {
@@ -89,12 +93,22 @@ func Capacity(n uint) ClientParam {
 // Buffered sets the client to be buffered with the default buffer
 // size (enough to accomodate a single, maximum-sized SSF frame,
 // currently about 16MB).
+//
+// When using buffered clients, since buffers tend to be large and SSF
+// packets are fairly small, it might appear as if buffered clients
+// are not sending any spans at all.
+//
+// Code using a buffered client should ensure that the client gets
+// flushed in a reasonable interval, either by calling Flush manually
+// in an appropriate goroutine, or by also using the FlushInterval
+// functional option.
 func Buffered(cl *Client) error {
 	return BufferedSize(uint(BufferSize))(cl)
 }
 
-// BufferedSize indicates that a client should have a buffer size bytes
-// large.
+// BufferedSize indicates that a client should have a buffer size
+// bytes large. See the note on the Buffered option about flushing the
+// buffer.
 func BufferedSize(size uint) ClientParam {
 	return func(cl *Client) error {
 		if nb, ok := cl.backend.(networkBackend); ok {
@@ -102,6 +116,45 @@ func BufferedSize(size uint) ClientParam {
 			return nil
 		}
 		return ErrClientNotNetworked
+	}
+}
+
+// FlushInterval sets up a buffered client to perform one synchronous
+// flush per time interval in a new goroutine. The goroutine closes
+// down when the Client's Close method is called.
+//
+// This uses a time.Ticker to trigger the flush, so will not trigger
+// multiple times if flushing should be slower than the trigger
+// interval.
+func FlushInterval(interval time.Duration) ClientParam {
+	t := time.NewTicker(interval)
+	return FlushChannel(t.C, t.Stop)
+}
+
+// FlushChannel sets up a buffered client to perform one synchronous
+// flush any time the given channel has a Time element ready. When the
+// Client is closed, FlushWith invokes the passed stop function.
+//
+// This functional option is mostly useful for tests; code intended to
+// be used in production should rely on FlushInterval instead, as
+// time.Ticker is set up to deal with slow flushes.
+func FlushChannel(ch <-chan time.Time, stop func()) ClientParam {
+	return func(cl *Client) error {
+		if _, ok := cl.backend.(networkBackend); !ok {
+			return ErrClientNotNetworked
+		}
+		cl.flush = func(ctx context.Context) {
+			defer stop()
+			for {
+				select {
+				case <-ch:
+					_ = Flush(cl)
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+		return nil
 	}
 }
 

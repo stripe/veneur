@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -133,6 +134,55 @@ func TestUNIXBuffered(t *testing.T) {
 	}
 	assert.Equal(t, 0, len(outPkg), "Should not have sent any packets yet")
 	err = Flush(client)
+	assert.NoError(t, err)
+	for i := 0; i < 4; i++ {
+		<-outPkg
+	}
+}
+
+func TestUNIXBufferedFlushing(t *testing.T) {
+	dir, err := ioutil.TempDir("", "test_unix")
+	require.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	sockName := filepath.Join(dir, "sock")
+	laddr, err := net.ResolveUnixAddr("unix", sockName)
+	require.NoError(t, err)
+
+	outPkg := make(chan *protocol.Message, 4)
+	cleanup := serveUNIX(t, laddr, func(in net.Conn) {
+		for {
+			pkg, err := protocol.ReadSSF(in)
+			if err == io.EOF {
+				return
+			}
+			assert.NoError(t, err)
+			outPkg <- pkg
+		}
+	})
+	defer cleanup()
+	flushChan := make(chan time.Time)
+
+	client, err := NewClient((&url.URL{Scheme: "unix", Path: sockName}).String(),
+		Capacity(4),
+		Buffered,
+		FlushChannel(flushChan, func() {}))
+	require.NoError(t, err)
+	defer client.Close()
+
+	sentCh := make(chan error)
+	for i := 0; i < 4; i++ {
+		name := fmt.Sprintf("Testing-%d", i)
+		tr := StartTrace(name)
+		tr.Sent = sentCh
+		err = tr.ClientRecord(client, name, map[string]string{})
+		assert.NoError(t, err)
+	}
+	for i := 0; i < 4; i++ {
+		assert.NoError(t, <-sentCh)
+	}
+	assert.Equal(t, 0, len(outPkg), "Should not have sent any packets yet")
+	flushChan <- time.Now()
 	assert.NoError(t, err)
 	for i := 0; i < 4; i++ {
 		<-outPkg
