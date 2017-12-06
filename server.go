@@ -690,7 +690,7 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 			if protocol.IsFramingError(err) {
 				log.WithError(err).
 					WithField("remote", serverConn.RemoteAddr()).
-					Error("Frame error reading from SSF connection. Closing.")
+					Info("Frame error reading from SSF connection. Closing.")
 				s.Statsd.Incr("ssf.error_total",
 					append([]string{"packet_type:unknown", "reason:framing"}, tags...),
 					1.0)
