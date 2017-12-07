@@ -58,7 +58,10 @@ stats_address: "localhost:8126"
 # http_address: "einhorn@0"
 http_address: "localhost:8127"
 
-
+# The name of timer metrics that "indicator" spans should be tracked
+# under. If this is unset, veneur doesn't report an additional timer
+# metric for indicator spans.
+indicator_span_timer_name: "indicator_span.duration_ms"
 
 # == METRICS CONFIGURATION ==
 

@@ -115,6 +115,8 @@ type Server struct {
 
 	traceLightstepAccessToken string
 
+	indicatorSpanTimerName string
+
 	TraceClient  *trace.Client
 	traceBackend *internalTraceBackend
 }
@@ -377,6 +379,8 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		log.Info(fmt.Sprintf("Local file logging to %s", conf.FlushFile))
 	}
 
+	ret.indicatorSpanTimerName = conf.IndicatorSpanTimerName
+
 	// closed in Shutdown; Same approach and http.Shutdown
 	ret.shutdown = make(chan struct{})
 
@@ -598,12 +602,22 @@ func (s *Server) handleSSF(msg *protocol.Message, tags []string) {
 		}
 		return
 	}
-
 	tags = append([]string{fmt.Sprintf("service:%s", span.Service)}, tags...)
 
 	s.Statsd.Incr("ssf.spans.received_total", tags, .1)
 	s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, .1)
 	s.SpanWorker.SpanChan <- *span
+
+	indicatorMetrics, err := samplers.ConvertIndicatorMetrics(span, s.indicatorSpanTimerName)
+	if err != nil {
+		log.WithError(err).
+			WithField("span_name", span.Name).
+			Warn("Couldn't extract indicator metrics for span")
+		return
+	}
+	for _, metric := range indicatorMetrics {
+		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- metric
+	}
 }
 
 // ReadMetricSocket listens for available packets to handle.

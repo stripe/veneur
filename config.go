@@ -17,6 +17,7 @@ type Config struct {
 	ForwardAddress                string    `yaml:"forward_address"`
 	Hostname                      string    `yaml:"hostname"`
 	HTTPAddress                   string    `yaml:"http_address"`
+	IndicatorSpanTimerName        string    `yaml:"indicator_span_timer_name"`
 	Interval                      string    `yaml:"interval"`
 	Key                           string    `yaml:"key"`
 	MetricMaxLength               int       `yaml:"metric_max_length"`
