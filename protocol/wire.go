@@ -101,13 +101,23 @@ func (m *Message) TraceSpan() (*ssf.SSFSpan, error) {
 
 // ValidTrace takes in an SSF span and determines if it is valid or not.
 // It also makes sure the Tags is non-nil, since we use it later.
-func ValidTrace(sample *ssf.SSFSpan) bool {
+func ValidTrace(span *ssf.SSFSpan) bool {
 	ret := true
-	ret = ret && sample.Id != 0
-	ret = ret && sample.TraceId != 0
-	ret = ret && sample.StartTimestamp != 0
-	ret = ret && sample.EndTimestamp != 0
+	ret = ret && span.Id != 0
+	ret = ret && span.TraceId != 0
+	ret = ret && span.StartTimestamp != 0
+	ret = ret && span.EndTimestamp != 0
 	return ret
+}
+
+// ValidateTrace takes in an SSF span and determines if it is valid or
+// not.  It also makes sure the Tags is non-nil, since we use it
+// later. If the span is not valid, it returns an error.
+func ValidateTrace(span *ssf.SSFSpan) error {
+	if !ValidTrace(span) {
+		return &InvalidTrace{span}
+	}
+	return nil
 }
 
 // Metrics returns the ssf samples contained in an SSF span. It does
