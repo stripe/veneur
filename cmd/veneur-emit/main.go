@@ -27,10 +27,10 @@ import (
 
 var (
 	// Generic flags
-	hostport     = flag.String("hostport", "", "Address of destination (hostport or listening address URL).")
-	mode         = flag.String("mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
-	debug        = flag.Bool("debug", false, "Turns on debug messages.")
-	shellCommand = flag.Bool("shellCommand", false, "Turns on timeCommand mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.")
+	hostport = flag.String("hostport", "", "Address of destination (hostport or listening address URL).")
+	mode     = flag.String("mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
+	debug    = flag.Bool("debug", false, "Turns on debug messages.")
+	command  = flag.Bool("command", false, "Turns on command-timing mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.")
 
 	// Metric flags
 	name   = flag.String("name", "", "Name of metric to report. Ex: 'daemontools.service.starts'")
@@ -272,7 +272,7 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 	var err error
 	status := 0
 	if *mode == "metric" {
-		if *shellCommand {
+		if *command {
 			var start, ended time.Time
 
 			status, start, ended, err = timeCommand(flag.Args())

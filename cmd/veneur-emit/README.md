@@ -61,7 +61,7 @@ Usage of veneur-emit:
         Tag(s) for service check, comma separated. Ex: 'service:airflow,host_type:qa'
   -sc_time string
         Add timestamp to check. Default is current Unix epoch timestamp.
-  -shellCommand
+  -command
         Turns on timeCommand mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.
   -ssf
         Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)
@@ -90,7 +90,7 @@ veneur-emit -hostport udp://127.0.0.1:8200 -name that.metric.name -tag hi:there 
 Time a command in dogstatsd mode:
 
 ``` sh
-veneur-emit -hostport udp://127.0.0.1:8200 -name some.command.timer -tag purpose:demonstration -shellCommand sleep 30
+veneur-emit -hostport udp://127.0.0.1:8200 -name some.command.timer -tag purpose:demonstration -command sleep 30
 ```
 
 Submit a service check in dogstatsd mode (this isn't supported in SSF yet):
@@ -120,7 +120,7 @@ veneur-emit -ssf -hostport unix:///var/run/veneur/ssf.sock -name that.metric.nam
 Time a command in SSF mode:
 
 ``` sh
-veneur-emit -ssf -hostport unix:///var/run/veneur/ssf.sock -name some.command.timer -tag purpose:demonstration -shellCommand sleep 30
+veneur-emit -ssf -hostport unix:///var/run/veneur/ssf.sock -name some.command.timer -tag purpose:demonstration -command sleep 30
 ```
 
 Time a command in SSF mode and submit a trace span for the process
@@ -128,5 +128,5 @@ Time a command in SSF mode and submit a trace span for the process
 the values from the parent of whatever is calling veneur-emit):
 
 ``` sh
-veneur-emit -ssf -hostport unix:///var/run/veneur/ssf.sock -trace_id 99 -parent_span_id 9999 -name some.command.timer -tag purpose:demonstration -shellCommand sleep 30
+veneur-emit -ssf -hostport unix:///var/run/veneur/ssf.sock -trace_id 99 -parent_span_id 9999 -name some.command.timer -tag purpose:demonstration -command sleep 30
 ```
