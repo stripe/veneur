@@ -34,10 +34,14 @@ type SpanSink interface {
 	// background processing tasks that the sink might have to run
 	// in the background. It's invoked when the server starts.
 	Start(*trace.Client) error
+
+	// Name returns the span sink's name for debugging purposes
 	Name() string
+
 	// Flush receives `SSFSpan`s from Veneur **as they arrive**. If the sink wants
 	// to buffer spans it may do so and defer sending until `Flush` is called.
-	Ingest(ssf.SSFSpan) error
+	Ingest(*ssf.SSFSpan) error
+
 	// Invoked at the same interval as metric flushes, this can be used as a
 	// signal for the sink to write out if it was buffering or something.
 	Flush()

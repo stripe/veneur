@@ -355,7 +355,7 @@ func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck)
 
 // SpanWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type SpanWorker struct {
-	SpanChan chan ssf.SSFSpan
+	SpanChan chan *ssf.SSFSpan
 	sinks    []sinks.SpanSink
 	stats    *statsd.Client
 }
@@ -363,7 +363,7 @@ type SpanWorker struct {
 // NewSpanWorker creates an SpanWorker ready to collect events and service checks.
 func NewSpanWorker(sinks []sinks.SpanSink, stats *statsd.Client) *SpanWorker {
 	return &SpanWorker{
-		SpanChan: make(chan ssf.SSFSpan),
+		SpanChan: make(chan *ssf.SSFSpan),
 		sinks:    sinks,
 		stats:    stats,
 	}

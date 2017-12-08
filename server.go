@@ -623,7 +623,7 @@ func (s *Server) handleSSF(msg *protocol.Message, tags []string) {
 
 	s.Statsd.Incr("ssf.spans.received_total", tags, .1)
 	s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, .1)
-	s.SpanWorker.SpanChan <- *span
+	s.SpanWorker.SpanChan <- span
 
 	indicatorMetrics, err := samplers.ConvertIndicatorMetrics(span, s.indicatorSpanTimerName)
 	if err != nil {
@@ -945,7 +945,7 @@ func (tb *internalTraceBackend) SendSync(ctx context.Context, span *ssf.SSFSpan)
 	}
 	ch := make(chan struct{})
 	go func() {
-		tb.spanWorker.SpanChan <- *span
+		tb.spanWorker.SpanChan <- span
 		close(ch)
 	}()
 	select {

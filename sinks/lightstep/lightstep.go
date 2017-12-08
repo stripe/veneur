@@ -115,7 +115,7 @@ func (ls *LightStepSpanSink) Name() string {
 
 // Ingest takes in a span and passed it along to the LS client after
 // some sanity checks and improvements are made.
-func (ls *LightStepSpanSink) Ingest(ssfSpan ssf.SSFSpan) error {
+func (ls *LightStepSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	parentID := ssfSpan.ParentId
 	if parentID <= 0 {
 		parentID = 0

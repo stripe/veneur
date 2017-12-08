@@ -109,7 +109,7 @@ func TestLSSpanSinkIngest(t *testing.T) {
 	start := time.Now()
 	end := start.Add(2 * time.Second)
 
-	testSpan := ssf.SSFSpan{
+	testSpan := &ssf.SSFSpan{
 		TraceId:        1,
 		ParentId:       1,
 		Id:             2,

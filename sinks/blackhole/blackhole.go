@@ -58,7 +58,7 @@ func (b *blackholeSpanSink) Start(*trace.Client) error {
 	return nil
 }
 
-func (b *blackholeSpanSink) Ingest(ssf.SSFSpan) error {
+func (b *blackholeSpanSink) Ingest(*ssf.SSFSpan) error {
 	return nil
 }
 
