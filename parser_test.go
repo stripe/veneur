@@ -84,15 +84,14 @@ func TestParseSSFValidTraceInvalidMetric(t *testing.T) {
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)
 
-	msg, err := protocol.ParseSSF(buff)
+	span, err := protocol.ParseSSF(buff)
 	assert.Nil(t, err)
-	if assert.NotNil(t, msg) {
-		span, err := msg.TraceSpan()
-		assert.NoError(t, err)
+	if assert.NotNil(t, span) {
+		assert.NoError(t, protocol.ValidateTrace(span))
 		assert.NotNil(t, span)
 		assert.NotNil(t, span.Tags)
 
-		metrics, err := samplers.ConvertMetrics(msg)
+		metrics, err := samplers.ConvertMetrics(span)
 		assert.NoError(t, err)
 		assert.Empty(t, metrics)
 	}
@@ -108,10 +107,10 @@ func TestParseSSFInvalidTraceValidMetric(t *testing.T) {
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)
 
-	msg, err := protocol.ParseSSF(buff)
+	span, err := protocol.ParseSSF(buff)
 	assert.NoError(t, err)
-	if assert.NotNil(t, msg) {
-		metrics, err := samplers.ConvertMetrics(msg)
+	if assert.NotNil(t, span) {
+		metrics, err := samplers.ConvertMetrics(span)
 		assert.NoError(t, err)
 		if assert.Equal(t, 1, len(metrics)) {
 			m := metrics[0]
@@ -120,10 +119,10 @@ func TestParseSSFInvalidTraceValidMetric(t *testing.T) {
 			assert.Equal(t, "counter", m.Type, "Type")
 		}
 
-		span, err := msg.TraceSpan()
+		err = protocol.ValidateTrace(span)
 		_, isInvalid := err.(*protocol.InvalidTrace)
 		assert.True(t, isInvalid)
-		assert.Nil(t, span)
+		assert.NotNil(t, span)
 	}
 }
 
@@ -176,11 +175,10 @@ func TestParseSSFIndicatorSpan(t *testing.T) {
 	span.Metrics = make([]*ssf.SSFSample, 0)
 	buff, err := proto.Marshal(span)
 	assert.Nil(t, err)
-	msg, err := protocol.ParseSSF(buff)
+	inSpan, err := protocol.ParseSSF(buff)
 	assert.NoError(t, err)
-	require.NotNil(t, msg)
-	inSpan, err := msg.TraceSpan()
-	require.NoError(t, err)
+	require.NotNil(t, inSpan)
+	require.NoError(t, protocol.ValidateTrace(span))
 
 	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "timer_name")
 	assert.NoError(t, err)
@@ -220,11 +218,10 @@ func TestParseSSFIndicatorSpanWithError(t *testing.T) {
 	span.Error = true
 	buff, err := proto.Marshal(span)
 	assert.Nil(t, err)
-	msg, err := protocol.ParseSSF(buff)
+	inSpan, err := protocol.ParseSSF(buff)
 	assert.NoError(t, err)
-	require.NotNil(t, msg)
-	inSpan, err := msg.TraceSpan()
-	require.NoError(t, err)
+	require.NotNil(t, span)
+	require.NoError(t, protocol.ValidateTrace(span))
 
 	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "timer_name")
 	assert.NoError(t, err)
@@ -263,11 +260,10 @@ func TestParseSSFIndicatorSpanNotNamed(t *testing.T) {
 	span.Metrics = make([]*ssf.SSFSample, 0)
 	buff, err := proto.Marshal(span)
 	assert.Nil(t, err)
-	msg, err := protocol.ParseSSF(buff)
+	inSpan, err := protocol.ParseSSF(buff)
 	assert.NoError(t, err)
-	require.NotNil(t, msg)
-	inSpan, err := msg.TraceSpan()
-	require.NoError(t, err)
+	require.NotNil(t, inSpan)
+	require.NoError(t, protocol.ValidateTrace(inSpan))
 
 	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "")
 	assert.NoError(t, err)
@@ -295,10 +291,10 @@ func TestParseSSFNonIndicatorSpan(t *testing.T) {
 
 	buff, err := proto.Marshal(span)
 	assert.Nil(t, err)
-	msg, err := protocol.ParseSSF(buff)
-	require.NotNil(t, msg)
-	inSpan, err := msg.TraceSpan()
+	inSpan, err := protocol.ParseSSF(buff)
+	require.NotNil(t, inSpan)
 	require.NoError(t, err)
+	require.NoError(t, protocol.ValidateTrace(inSpan))
 
 	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "timer_name")
 	assert.NoError(t, err)
@@ -317,10 +313,10 @@ func TestParseSSFBadMetric(t *testing.T) {
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)
 
-	msg, err := protocol.ParseSSF(buff)
+	span, err := protocol.ParseSSF(buff)
 	assert.NoError(t, err)
-	if assert.NotNil(t, msg) {
-		metrics, err := samplers.ConvertMetrics(msg)
+	if assert.NotNil(t, span) {
+		metrics, err := samplers.ConvertMetrics(span)
 		assert.Error(t, err)
 		assert.Equal(t, 0, len(metrics))
 		invalid, ok := err.(samplers.InvalidMetrics)
@@ -615,15 +611,10 @@ func TestConsecutiveParseSSF(t *testing.T) {
 	// Because ParseSSF reuses buffers via a Pool when parsing we
 	// want to ensure that subsequent calls properly reset and
 	// don't bleed into each other, so "parse" each and check.
-	msg, err := protocol.ParseSSF(buff1)
+	span1, err := protocol.ParseSSF(buff1)
 	assert.Nil(t, err)
-	msg2, err := protocol.ParseSSF(buff2)
+	span2, err := protocol.ParseSSF(buff2)
 	assert.Nil(t, err)
-
-	span1, err := msg.TraceSpan()
-	assert.NoError(t, err)
-	span2, err := msg2.TraceSpan()
-	assert.NoError(t, err)
 
 	assert.Equal(t, int64(12345678), span1.Id)
 	assert.Equal(t, "bar", span1.Tags["foo"], "Tagful span has no tags!")

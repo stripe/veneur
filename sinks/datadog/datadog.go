@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	vhttp "github.com/stripe/veneur/http"
+	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
@@ -277,6 +278,9 @@ func (dd *DatadogSpanSink) Start(cl *trace.Client) error {
 
 // Ingest takes the span and adds it to the ringbuffer.
 func (dd *DatadogSpanSink) Ingest(span *ssf.SSFSpan) error {
+	if err := protocol.ValidateTrace(span); err != nil {
+		return err
+	}
 	dd.mutex.Lock()
 	defer dd.mutex.Unlock()
 

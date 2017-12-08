@@ -12,6 +12,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
@@ -116,6 +117,10 @@ func (ls *LightStepSpanSink) Name() string {
 // Ingest takes in a span and passed it along to the LS client after
 // some sanity checks and improvements are made.
 func (ls *LightStepSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
+	if err := protocol.ValidateTrace(ssfSpan); err != nil {
+		return err
+	}
+
 	parentID := ssfSpan.ParentId
 	if parentID <= 0 {
 		parentID = 0

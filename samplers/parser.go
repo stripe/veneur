@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/ssf"
 )
 
@@ -57,8 +56,8 @@ func (m *MetricKey) String() string {
 // error occurs in processing any of the metrics, ExtractMetrics
 // collects them into the error type InvalidMetrics and returns this
 // error alongside any valid metrics that could be parsed.
-func ConvertMetrics(m *protocol.Message) ([]UDPMetric, error) {
-	samples := m.Metrics()
+func ConvertMetrics(m *ssf.SSFSpan) ([]UDPMetric, error) {
+	samples := m.Metrics
 	metrics := make([]UDPMetric, 0, len(samples)+1)
 	invalid := []*ssf.SSFSample{}
 

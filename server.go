@@ -576,18 +576,18 @@ func (s *Server) HandleTracePacket(packet []byte) {
 
 	s.Statsd.Histogram("ssf.packet_size", float64(len(packet)), nil, .1)
 
-	msg, err := protocol.ParseSSF(packet)
+	span, err := protocol.ParseSSF(packet)
 	if err != nil {
 		reason := fmt.Sprintf("reason:%s", err.Error())
 		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:ssf_metric", reason}, 1.0)
 		log.WithError(err).Warn("ParseSSF")
 		return
 	}
-	s.handleSSF(msg, []string{"ssf_format:packet"})
+	s.handleSSF(span, []string{"ssf_format:packet"})
 }
 
-func (s *Server) handleSSF(msg *protocol.Message, tags []string) {
-	metrics, err := samplers.ConvertMetrics(msg)
+func (s *Server) handleSSF(span *ssf.SSFSpan, tags []string) {
+	metrics, err := samplers.ConvertMetrics(span)
 	if err != nil {
 		if _, ok := err.(samplers.InvalidMetrics); ok {
 			log.WithError(err).Warn("Could not parse metrics from SSF Message")
@@ -612,17 +612,12 @@ func (s *Server) handleSSF(msg *protocol.Message, tags []string) {
 		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- metric
 	}
 
-	span, err := msg.TraceSpan()
-	if err != nil {
-		if _, ok := err.(*protocol.InvalidTrace); !ok {
-			log.WithError(err).Warn("Unexpected error extracting trace span from SSF Message")
-		}
-		return
-	}
-	tags = append([]string{fmt.Sprintf("service:%s", span.Service)}, tags...)
+	if err := protocol.ValidateTrace(span); err != nil {
+		tags = append([]string{fmt.Sprintf("service:%s", span.Service)}, tags...)
 
-	s.Statsd.Incr("ssf.spans.received_total", tags, .1)
-	s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, .1)
+		s.Statsd.Incr("ssf.spans.received_total", tags, .1)
+		s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, .1)
+	}
 	s.SpanWorker.SpanChan <- span
 
 	indicatorMetrics, err := samplers.ConvertIndicatorMetrics(span, s.indicatorSpanTimerName)
