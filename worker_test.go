@@ -49,6 +49,39 @@ func TestWorkerLocal(t *testing.T) {
 	assert.Len(t, wm.histograms, 0, "number of global histograms")
 }
 
+func TestWorkerGlobal(t *testing.T) {
+	w := NewWorker(1, nil, logrus.New())
+
+	gc := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "counter",
+		},
+		Value:      1.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}
+	w.ProcessMetric(&gc)
+
+	gg := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "b.c.a",
+			Type: "gauge",
+		},
+		Value:      1.0,
+		Digest:     12346,
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}
+	w.ProcessMetric(&gg)
+
+	assert.Equal(t, 1, len(w.wm.globalGauges), "should have 1 global gauge")
+	assert.Equal(t, 0, len(w.wm.gauges), "should have no normal gauges")
+	assert.Equal(t, 1, len(w.wm.globalCounters), "should have 1 global counter")
+	assert.Equal(t, 0, len(w.wm.counters), "should have no local counters")
+}
+
 func TestWorkerImportSet(t *testing.T) {
 	w := NewWorker(1, nil, logrus.New())
 	testset := samplers.NewSet("a.b.c", nil)

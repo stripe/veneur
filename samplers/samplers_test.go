@@ -72,6 +72,21 @@ func TestCounterMerge(t *testing.T) {
 	assert.Equal(t, float64(38), metrics[0].Value)
 }
 
+func TestGaugeMerge(t *testing.T) {
+	g := NewGauge("a.b.c", []string{"tag:val"})
+
+	g.Sample(5, 1.0)
+	jm, err := g.Export()
+	assert.NoError(t, err, "should have exported gauge succcesfully")
+
+	gGlobal := NewGauge("a.b.c", []string{"tag2: val2"})
+	gGlobal.value = 1 // So we can overwrite it
+	assert.NoError(t, gGlobal.Combine(jm.Value), "should have combined gauges successfully")
+
+	metrics := gGlobal.Flush()
+	assert.Equal(t, float64(5), metrics[0].Value)
+}
+
 func TestGauge(t *testing.T) {
 	g := NewGauge("a.b.c", []string{"a:b"})
 
