@@ -172,7 +172,7 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 	server.Start()
 
 	go server.HTTPServe()
-	return &server
+	return server
 }
 
 type channelMetricSink struct {

@@ -119,7 +119,9 @@ type Server struct {
 }
 
 // NewFromConfig creates a new veneur server from a configuration specification.
-func NewFromConfig(conf Config) (ret Server, err error) {
+func NewFromConfig(conf Config) (*Server, error) {
+	ret := &Server{}
+
 	ret.Hostname = conf.Hostname
 	ret.Tags = conf.Tags
 
@@ -148,9 +150,10 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		ret.HistogramAggregates.Count = len(conf.Aggregates)
 	}
 
+	var err error
 	ret.interval, err = time.ParseDuration(conf.Interval)
 	if err != nil {
-		return
+		return ret, err
 	}
 	ret.HTTPClient = &http.Client{
 		// make sure that POSTs to datadog do not overflow the flush interval
@@ -160,7 +163,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 	ret.Statsd, err = statsd.NewBuffered(conf.StatsAddress, 1024)
 	if err != nil {
-		return
+		return ret, err
 	}
 	ret.Statsd.Namespace = "veneur."
 	ret.Statsd.Tags = append(ret.Tags, "veneurlocalonly")
@@ -170,7 +173,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	if conf.SentryDsn != "" {
 		ret.Sentry, err = raven.New(conf.SentryDsn)
 		if err != nil {
-			return
+			return ret, err
 		}
 	}
 
@@ -242,14 +245,14 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	if conf.TLSKey != "" {
 		if conf.TLSCertificate == "" {
 			err = errors.New("tls_key is set; must set tls_certificate")
-			return
+			return ret, err
 		}
 
 		// load the TLS key and certificate
 		var cert tls.Certificate
 		cert, err = tls.X509KeyPair([]byte(conf.TLSCertificate), []byte(conf.TLSKey))
 		if err != nil {
-			return
+			return ret, err
 		}
 
 		clientAuthMode := tls.NoClientCert
@@ -261,7 +264,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 			ok := clientCAs.AppendCertsFromPEM([]byte(conf.TLSAuthorityCertificate))
 			if !ok {
 				err = errors.New("tls_authority_certificate: Could not load any certificates")
-				return
+				return ret, err
 			}
 		}
 
@@ -273,13 +276,13 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 	}
 
 	if conf.DatadogAPIKey != "" {
-		ddSink, err2 := datadog.NewDatadogMetricSink(
+		ddSink, err := datadog.NewDatadogMetricSink(
 			ret.interval.Seconds(), conf.FlushMaxPerBody, conf.Hostname, ret.Tags,
 			conf.DatadogAPIHostname, conf.DatadogAPIKey, ret.HTTPClient, ret.Statsd,
 			log,
 		)
-		if err2 != nil {
-			return
+		if err != nil {
+			return ret, err
 		}
 		ret.metricSinks = append(ret.metricSinks, ddSink)
 	}
@@ -296,7 +299,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 		ret.traceBackend = &internalTraceBackend{statsd: ret.Statsd}
 		ret.TraceClient, err = trace.NewBackendClient(ret.traceBackend, trace.Capacity(200))
 		if err != nil {
-			return
+			return ret, err
 		}
 
 		// configure Datadog as a Span sink
@@ -330,7 +333,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 				conf.TraceLightstepAccessToken, ret.Statsd, ret.TagsAsMap, log,
 			)
 			if err != nil {
-				return
+				return ret, err
 			}
 			ret.spanSinks = append(ret.spanSinks, lsSink)
 
@@ -398,7 +401,7 @@ func NewFromConfig(conf Config) (ret Server, err error) {
 
 	log.WithField("config", conf).Debug("Initialized server")
 
-	return
+	return ret, err
 }
 
 // Start spins up the Server to do actual work, firing off goroutines for
