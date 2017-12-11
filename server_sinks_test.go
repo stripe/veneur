@@ -3,7 +3,6 @@ package veneur
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -13,90 +12,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/sinks/datadog"
+	"github.com/stripe/veneur/sinks/lightstep"
 )
 
-func TestDatadogRate(t *testing.T) {
-	ddSink := datadogMetricSink{
-		hostname: "somehostname",
-		tags:     []string{"a:b", "c:d"},
-		interval: 10,
-	}
-
-	metrics := []samplers.InterMetric{{
-		Name:      "foo.bar.baz",
-		Timestamp: time.Now().Unix(),
-		Value:     float64(10),
-		Tags:      []string{"gorch:frobble", "x:e"},
-		Type:      samplers.CounterMetric,
-	}}
-	ddMetrics := ddSink.finalizeMetrics(metrics)
-	assert.Equal(t, "rate", ddMetrics[0].MetricType, "Metric type should be rate")
-	assert.Equal(t, float64(1.0), ddMetrics[0].Value[0][1], "Metric rate wasnt computed correctly")
-}
-
-func TestServerTags(t *testing.T) {
-	ddSink := datadogMetricSink{
-		hostname: "somehostname",
-		tags:     []string{"a:b", "c:d"},
-		interval: 10,
-	}
-
-	metrics := []samplers.InterMetric{{
-		Name:      "foo.bar.baz",
-		Timestamp: time.Now().Unix(),
-		Value:     float64(10),
-		Tags:      []string{"gorch:frobble", "x:e"},
-		Type:      samplers.CounterMetric,
-	}}
-
-	ddMetrics := ddSink.finalizeMetrics(metrics)
-	assert.Equal(t, "somehostname", ddMetrics[0].Hostname, "Metric hostname uses argument")
-	assert.Contains(t, ddMetrics[0].Tags, "a:b", "Tags should contain server tags")
-}
-
-func TestHostMagicTag(t *testing.T) {
-	ddSink := datadogMetricSink{
-		hostname: "badhostname",
-		tags:     []string{"a:b", "c:d"},
-	}
-
-	metrics := []samplers.InterMetric{{
-		Name:      "foo.bar.baz",
-		Timestamp: time.Now().Unix(),
-		Value:     float64(10),
-		Tags:      []string{"gorch:frobble", "host:abc123", "x:e"},
-		Type:      samplers.CounterMetric,
-	}}
-
-	ddMetrics := ddSink.finalizeMetrics(metrics)
-	assert.Equal(t, "abc123", ddMetrics[0].Hostname, "Metric hostname should be from tag")
-	assert.NotContains(t, ddMetrics[0].Tags, "host:abc123", "Host tag should be removed")
-	assert.Contains(t, ddMetrics[0].Tags, "x:e", "Last tag is still around")
-}
-
-func TestDeviceMagicTag(t *testing.T) {
-	ddSink := datadogMetricSink{
-		hostname: "badhostname",
-		tags:     []string{"a:b", "c:d"},
-	}
-
-	metrics := []samplers.InterMetric{{
-		Name:      "foo.bar.baz",
-		Timestamp: time.Now().Unix(),
-		Value:     float64(10),
-		Tags:      []string{"gorch:frobble", "device:abc123", "x:e"},
-		Type:      samplers.CounterMetric,
-	}}
-
-	ddMetrics := ddSink.finalizeMetrics(metrics)
-	assert.Equal(t, "abc123", ddMetrics[0].DeviceName, "Metric devicename should be from tag")
-	assert.NotContains(t, ddMetrics[0].Tags, "device:abc123", "Host tag should be removed")
-	assert.Contains(t, ddMetrics[0].Tags, "x:e", "Last tag is still around")
-}
-
-func TestFlushTracesDatadog(t *testing.T) {
+func TestFlushTracesBySink(t *testing.T) {
 	type TestCase struct {
 		Name         string
 		ProtobufFile string
@@ -131,7 +53,7 @@ func TestFlushTracesDatadog(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("%s_%s", tc.Name, "lightstep"), func(t *testing.T) {
+		t.Run(tc.Name, func(t *testing.T) {
 			pb, err := os.Open(tc.ProtobufFile)
 			assert.NoError(t, err)
 			defer pb.Close()
@@ -167,7 +89,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	server := setupVeneurServer(t, config, nil, nil, nil)
 	defer server.Shutdown()
 
-	ddSink, err := NewDatadogSpanSink(&config, server.Statsd, server.HTTPClient, server.TagsAsMap)
+	ddSink, err := datadog.NewDatadogSpanSink("http://example.com", 100, server.Statsd, server.HTTPClient, server.TagsAsMap, logrus.New())
 
 	server.TraceClient = nil
 	server.spanSinks = append(server.spanSinks, ddSink)
@@ -197,11 +119,12 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 	config := globalConfig()
 
 	// this can be anything as long as it's not empty
-	config.DatadogTraceAPIAddress = "http://example.org"
+	config.TraceLightstepAccessToken = "secret"
 	server := setupVeneurServer(t, config, nil, nil, nil)
 	defer server.Shutdown()
 
-	lsSink, err := NewLightStepSpanSink(&config, server.Statsd, server.TagsAsMap)
+	//collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string
+	lsSink, err := lightstep.NewLightStepSpanSink("example.com", "5m", 10000, 1, "secret", server.Statsd, server.TagsAsMap, log)
 	server.spanSinks = append(server.spanSinks, lsSink)
 
 	packet, err := ioutil.ReadAll(protobuf)
@@ -211,4 +134,29 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 
 	assert.NoError(t, err)
 	server.Flush(context.Background())
+}
+
+// This test lives here because is tests the server's behavior when making a
+// datadog metric sink
+func TestNewDatadogMetricSinkConfig(t *testing.T) {
+	// test the variables that have been renamed
+	config := Config{
+		DatadogAPIKey:          "apikey",
+		DatadogAPIHostname:     "http://api",
+		DatadogTraceAPIAddress: "http://trace",
+		SsfAddress:             "127.0.0.1:99",
+
+		// required or NewFromConfig fails
+		Interval:     "10s",
+		StatsAddress: "localhost:62251",
+	}
+	server, err := NewFromConfig(config)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	sink := server.metricSinks[0].(*datadog.DatadogMetricSink)
+	assert.Equal(t, "datadog", sink.Name())
+	// Verify that the values got set	assert.Equal(t, "apikey", sink.APIKey)
+	assert.Equal(t, "http://api", sink.DDHostname)
 }

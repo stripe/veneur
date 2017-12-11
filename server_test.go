@@ -28,6 +28,7 @@ import (
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
+	"github.com/stripe/veneur/sinks/blackhole"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/tdigest"
 	"github.com/stripe/veneur/trace"
@@ -136,30 +137,6 @@ func generateMetrics() (metricValues []float64, expectedMetrics map[string]float
 	return metricValues, expectedMetrics
 }
 
-// assertMetrics checks that all expected metrics are present
-// and have the correct value
-func assertMetrics(t *testing.T, metrics DDMetricsRequest, expectedMetrics map[string]float64) {
-	// it doesn't count as accidentally quadratic if it's intentional
-	for metricName, expectedValue := range expectedMetrics {
-		assertMetric(t, metrics, metricName, expectedValue)
-	}
-}
-
-func assertMetric(t *testing.T, metrics DDMetricsRequest, metricName string, value float64) {
-	defer func() {
-		if r := recover(); r != nil {
-			assert.Fail(t, "error extracting metrics", r)
-		}
-	}()
-	for _, metric := range metrics.Series {
-		if metric.Name == metricName {
-			assert.Equal(t, int(value+.5), int(metric.Value[0][1]+.5), "Incorrect value for metric %s", metricName)
-			return
-		}
-	}
-	assert.Fail(t, "did not find expected metric", metricName)
-}
-
 // setupVeneurServer creates a local server from the specified config
 // and starts listening for requests. It returns the server for inspection.
 // If no metricSink or spanSink are provided then a `black hole` sink be used
@@ -180,14 +157,14 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 
 	if mSink == nil {
 		// Install a blackhole sink if we have no other sinks
-		bhs, _ := NewBlackholeMetricSink()
+		bhs, _ := blackhole.NewBlackholeMetricSink()
 		mSink = bhs
 	}
 	server.metricSinks = append(server.metricSinks, mSink)
 
 	if sSink == nil {
 		// Install a blackhole sink if we have no other sinks
-		bhs, _ := NewBlackholeSpanSink()
+		bhs, _ := blackhole.NewBlackholeSpanSink()
 		sSink = bhs
 	}
 	server.spanSinks = append(server.spanSinks, sSink)
@@ -196,13 +173,6 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 
 	go server.HTTPServe()
 	return &server
-}
-
-// DDMetricsRequest represents the body of the POST request
-// for sending metrics data to Datadog
-// Eventually we'll want to define this symmetrically.
-type DDMetricsRequest struct {
-	Series []DDMetric
 }
 
 type channelMetricSink struct {
@@ -1055,7 +1025,7 @@ func BenchmarkServerFlush(b *testing.B) {
 	config.StatsdListenAddresses = nil
 	f := newFixture(b, config, nil, nil)
 
-	bhs, _ := NewBlackholeMetricSink()
+	bhs, _ := blackhole.NewBlackholeMetricSink()
 	f.server.metricSinks = []sinks.MetricSink{bhs}
 	defer f.Close()
 
