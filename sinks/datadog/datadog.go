@@ -57,6 +57,7 @@ func NewDatadogMetricSink(interval float64, flushMaxPerBody int, hostname string
 		flushMaxPerBody: flushMaxPerBody,
 		hostname:        hostname,
 		tags:            tags,
+		log:             log,
 	}, nil
 }
 
