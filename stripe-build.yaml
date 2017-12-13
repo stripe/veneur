@@ -1,0 +1,12 @@
+bazel:
+  version: "0.8.1"
+henson_tarball:
+  docker:
+    dockerfile: Dockerfile
+container_images:
+  - artifact_name: "veneur-image-debian-sid"
+    docker:
+      dockerfile: public-docker-images/Dockerfile-debian-sid
+  - artifact_name: "veneur-image-alpine"
+    docker:
+      dockerfile: public-docker-images/Dockerfile-alpine
