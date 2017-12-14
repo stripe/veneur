@@ -63,6 +63,7 @@ var (
 	// Tracing flags
 	traceID  = flag.Int64("trace_id", 0, "ID for the trace (top-level) span. Setting a trace ID activated tracing.")
 	parentID = flag.Int64("parent_span_id", 0, "ID of the parent span.")
+	service  = flag.String("span_service", "veneur-emit", "Service name to associate with the span.")
 )
 
 // MinimalClient represents the functions that we call on Clients in veneur-emit.
@@ -229,6 +230,7 @@ func setupSpan(traceID, parentID *int64, name, tags string) (*ssf.SSFSpan, error
 		span.Id = bigid.Int64()
 		span.Name = name
 		span.Tags = ssfTags(tags)
+		span.Service = *service
 	}
 	return span, nil
 }

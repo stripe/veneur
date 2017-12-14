@@ -128,5 +128,5 @@ Time a command in SSF mode and submit a trace span for the process
 the values from the parent of whatever is calling veneur-emit):
 
 ``` sh
-veneur-emit -ssf -hostport unix:///var/run/veneur/ssf.sock -trace_id 99 -parent_span_id 9999 -name some.command.timer -tag purpose:demonstration -command sleep 30
+veneur-emit -ssf -hostport unix:///var/run/veneur/ssf.sock -span_service 'testing' -trace_id 99 -parent_span_id 9999 -name some.command.timer -tag purpose:demonstration -command sleep 30
 ```

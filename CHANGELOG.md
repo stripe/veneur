@@ -6,7 +6,7 @@
 ## Added
 * Buffered trace clients in `github.com/stripe/veneur/trace` now have a new option to automatically flush them in a periodic interval. Thanks, [antifuchs](https://github.com/antifuchs)!
 * Gauges can now be marked as `veneurglobalonly` to be globally "last write wins". Thanks [gphat](https://github.com/gphat)!
-* `veneur-emit` now takes a `-trace_id` and `-parent_id` argument, which (combined with `-ssf`) lets it submit spans for tracing when recording timing data for commands. In addition, `-timing` with `-ssf` now works, too.
+* `veneur-emit` now takes `-span_service`, `-trace_id`, and `-parent_id` arguments. These (combined with `-ssf`) allow submitting spans for tracing when recording timing data for commands. In addition, `-timing` with `-ssf` now works, too.
 
 ## Improvements
 * Veneur now emits a timer metric for every "indicator" span that it receives, if you configure the setting `indicator_span_timer_name`. Thanks, [antifuchs](https://github.com/antifuchs)!
