@@ -203,24 +203,24 @@ trace_lightstep_num_clients: 1
 
 # == Kafka ==
 
-# Comma-delimited list of brokers suitable for Sarama's [NewSyncProducer](https://godoc.org/github.com/Shopify/sarama#NewSyncProducer)
-kafka_broker: ""
+# Comma-delimited list of brokers suitable for Sarama's [NewAsyncProducer](https://godoc.org/github.com/Shopify/sarama#NewSyncProducer)
+kafka_broker: "localhost:9092"
 
 # Name of the topic we'll be publishing checks to
-kafka_check_topic: ""
+kafka_check_topic: "veneur_checks"
 
 # Name of the topic we'll be publishing events to
-kafka_event_topic: ""
+kafka_event_topic: "veneur_events"
 
 # Name of the topic we'll be publishing metrics to
 kafka_metric_topic: ""
 
 # Name of the topic we'll be publishing spans to
-kafka_span_topic: ""
+kafka_span_topic: "veneur_spans"
 
 kafka_metric_buffer_bytes: 0
 
-kafka_metric_buffer_mesages: 0
+kafka_metric_buffer_messages: 0
 
 kafka_metric_buffer_frequency: ""
 
@@ -239,7 +239,7 @@ kafka_span_buffer_bytes: 0
 
 kafka_span_buffer_mesages: 0
 
-kafka_span_buffer_frquency: ""
+kafka_span_buffer_frequency: ""
 
 # The number of retries before giving up.
 kafka_retry_max: 0

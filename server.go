@@ -375,21 +375,31 @@ func NewFromConfig(conf Config) (*Server, error) {
 
 	if conf.KafkaBroker != "" {
 		if conf.KafkaMetricTopic != "" {
-			kSink, err := kafka.NewKafkaMetricSink(
+			kSink := kafka.NewKafkaMetricSink(
 				log, conf.KafkaBroker, conf.KafkaCheckTopic, conf.KafkaEventTopic,
 				conf.KafkaMetricTopic, conf.KafkaMetricRequireAcks,
 				conf.KafkaPartitioner, conf.KafkaRetryMax,
-				conf.KafkaMetricBufferBytes, conf.KafkaMetricBufferMesages,
+				conf.KafkaMetricBufferBytes, conf.KafkaMetricBufferMessages,
 				conf.KafkaMetricBufferFrequency, conf.KafkaSerializationFormat,
 				ret.Statsd,
 			)
-		}
-		// 	plugin := kafka.NewKafkaPlugin(
-		// 		log, conf.KafkaBroker, conf.KafkaTopic, conf.KafkaPartitioner, conf.KafkaRetryMax, conf.KafkaBatchedMetrics, ret.Statsd,
-		// 	)
-		// 	ret.registerPlugin(plugin)
-		// }
 
+			ret.metricSinks = append(ret.metricSinks, kSink)
+
+			log.Info("Configured Kafka metric sink")
+		}
+
+		if conf.KafkaSpanTopic != "" {
+			sink := kafka.NewKafkaSpanSink(log, conf.KafkaBroker, conf.KafkaSpanTopic,
+				conf.KafkaPartitioner, conf.KafkaMetricRequireAcks, conf.KafkaRetryMax,
+				conf.KafkaMetricBufferBytes, conf.KafkaMetricBufferMessages,
+				conf.KafkaMetricBufferFrequency, conf.KafkaSerializationFormat,
+				ret.Statsd,
+			)
+
+			ret.spanSinks = append(ret.spanSinks, sink)
+			log.Info("Configured Kafka span sink")
+		}
 	}
 
 	var svc s3iface.S3API

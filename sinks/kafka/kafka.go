@@ -10,6 +10,7 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Shopify/sarama"
+	"github.com/gogo/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
@@ -197,7 +198,7 @@ func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.Int
 			}
 			enc = sarama.StringEncoder(j)
 		case "protobuf":
-			// TODO
+			// p, err := proto.Marshal(metric)
 		default:
 			return errors.New(fmt.Sprintf("Unknown serialization format for encoding Kafka message: %s", k.serializer))
 		}
@@ -220,7 +221,7 @@ func (k *KafkaMetricSink) FlushEventsChecks(ctx context.Context, events []sample
 }
 
 // NewKafkaSpanSink creates a new Kafka Plugin.
-func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, partitioner string, ackRequirement string, retries int, bufferBytes int, bufferMessages int, bufferFrequency time.Duration, serializationFormat string, stats *statsd.Client) *KafkaSpanSink {
+func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, partitioner string, ackRequirement string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, serializationFormat string, stats *statsd.Client) *KafkaSpanSink {
 
 	finalTopic := topic
 	if finalTopic == "" {
@@ -232,9 +233,16 @@ func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, parti
 	serializer := serializationFormat
 	if serializer != "json" && serializer != "protobuf" {
 		ll.WithField("serializer", serializer).Warn("Unknown serializer, defaulting to protobuf")
+		serializer = "protobuf"
 	}
 
-	config, _ := newProducerConfig(ll, ackRequirement, partitioner, retries, bufferBytes, bufferMessages, bufferFrequency)
+	var finalBufferDuration time.Duration
+	if bufferDuration != "" {
+		finalBufferDuration, _ = time.ParseDuration(bufferDuration)
+		// TODO Return an error!
+	}
+
+	config, _ := newProducerConfig(ll, ackRequirement, partitioner, retries, bufferBytes, bufferMessages, finalBufferDuration)
 
 	ll.WithFields(logrus.Fields{
 		"brokers":         brokers,
@@ -245,11 +253,12 @@ func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, parti
 	})
 
 	return &KafkaSpanSink{
-		logger:  ll,
-		statsd:  stats,
-		topic:   finalTopic,
-		brokers: brokers,
-		config:  config,
+		logger:     ll,
+		statsd:     stats,
+		topic:      finalTopic,
+		brokers:    brokers,
+		config:     config,
+		serializer: serializer,
 	}
 }
 
@@ -271,18 +280,34 @@ func (k *KafkaSpanSink) Start(cl *trace.Client) error {
 // Ingest takes the span and adds it to the ringbuffer.
 func (k *KafkaSpanSink) Ingest(span ssf.SSFSpan) error {
 
-	j, err := json.Marshal(span)
-
-	if err != nil {
-		k.logger.WithError(err).Error("Error marshaling span")
-		k.statsd.Count("kafka.marshal.error_total", 1, nil, 1.0)
-	} else {
-		k.producer.Input() <- &sarama.ProducerMessage{
-			Topic: k.topic,
-			Value: sarama.StringEncoder(j),
+	var enc sarama.Encoder
+	switch k.serializer {
+	case "json":
+		j, err := json.Marshal(span)
+		if err != nil {
+			k.logger.Error("Error marshalling span")
+			k.statsd.Count("kafka.marshal.error_total", 1, nil, 1.0)
+			return err
 		}
-		k.statsd.Count("kafka.producer.success_total", 1, nil, 1.0)
+		enc = sarama.StringEncoder(j)
+	case "protobuf":
+		p, err := proto.Marshal(&span)
+		fmt.Println(p)
+		if err != nil {
+			k.logger.Error("Error marshalling span")
+			k.statsd.Count("kafka.marshal.error_total", 1, nil, 1.0)
+			return err
+		}
+		enc = sarama.ByteEncoder(p)
+	default:
+		return errors.New(fmt.Sprintf("Unknown serialization format for encoding Kafka message: %s", k.serializer))
 	}
+
+	k.producer.Input() <- &sarama.ProducerMessage{
+		Topic: k.topic,
+		Value: enc,
+	}
+	k.statsd.Count("kafka.producer.success_total", 1, nil, 1.0)
 
 	return nil
 }
