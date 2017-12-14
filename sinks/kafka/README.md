@@ -2,7 +2,7 @@
 
 The Kafka plugin sends flushed metrics to a [Kafka](https://kafka.apache.org/) topic.
 
-This plugin is still in an experimental state.
+**Note: This plugin is still in an experimental state.**
 
 # Configuration
 
