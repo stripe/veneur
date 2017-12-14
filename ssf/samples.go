@@ -4,8 +4,9 @@ package ssf
 // a counter. It's a convenience wrapper around constructing SSFSample
 // objects.
 func Count(name string, value float32, tags map[string]string) *SSFSample {
-	return *SSFSample{
+	return &SSFSample{
 		Metric:     SSFSample_COUNTER,
+		Name:       name,
 		Value:      value,
 		Tags:       tags,
 		SampleRate: 1.0,
@@ -18,6 +19,7 @@ func Count(name string, value float32, tags map[string]string) *SSFSample {
 func Gauge(name string, value float32, tags map[string]string) *SSFSample {
 	return &SSFSample{
 		Metric:     SSFSample_GAUGE,
+		Name:       name,
 		Value:      value,
 		Tags:       tags,
 		SampleRate: 1.0,
@@ -30,6 +32,7 @@ func Gauge(name string, value float32, tags map[string]string) *SSFSample {
 func Histogram(name string, value float32, tags map[string]string) *SSFSample {
 	return &SSFSample{
 		Metric:     SSFSample_HISTOGRAM,
+		Name:       name,
 		Value:      value,
 		Tags:       tags,
 		SampleRate: 1.0,
