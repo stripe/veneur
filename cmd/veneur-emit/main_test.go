@@ -175,17 +175,10 @@ func TestNilHostport(t *testing.T) {
 }
 
 func TestTags(t *testing.T) {
-	testTag := "tag1,tag2,tag3"
-	expectedOutput := []string{"tag1", "tag2", "tag3"}
-	output := tags(testTag)
-	if len(expectedOutput) != len(output) {
-		t.Error("Did not return correct tags array.")
-	}
-	for i := 0; i < len(output); i++ {
-		if expectedOutput[i] != output[i] {
-			t.Error("Did not return correct tags array.")
-		}
-	}
+	testTag := "tag1,tag2,tag3,,tag4:value"
+	expectedOutput := map[string]string{"tag1": "", "tag2": "", "tag3": "", "tag4": "value"}
+	output := ssfTags(testTag)
+	assert.Equal(t, expectedOutput, output)
 }
 
 func TestFlags(t *testing.T) {

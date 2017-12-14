@@ -174,13 +174,22 @@ func flags() map[string]flag.Value {
 	return passedFlags
 }
 
-func tags(tag string) []string {
-	var tags []string
-	if len(tag) == 0 {
+func ssfTags(csv string) map[string]string {
+	tags := map[string]string{}
+	if len(csv) == 0 {
 		return tags
 	}
-	for _, elem := range strings.Split(tag, ",") {
-		tags = append(tags, elem)
+	for _, elem := range strings.Split(csv, ",") {
+		if len(elem) == 0 {
+			continue
+		}
+		tag := strings.Split(elem, ":")
+		switch len(tag) {
+		case 2:
+			tags[tag[0]] = tag[1]
+		case 1:
+			tags[tag[0]] = ""
+		}
 	}
 	return tags
 }
@@ -219,11 +228,7 @@ func setupSpan(traceID, parentID *int64, name, tags string) (*ssf.SSFSpan, error
 		}
 		span.Id = bigid.Int64()
 		span.Name = name
-		span.Tags = map[string]string{}
-		for _, elem := range strings.Split(tags, ",") {
-			tag := strings.Split(elem, ":")
-			span.Tags[tag[0]] = tag[1]
-		}
+		span.Tags = ssfTags(tags)
 	}
 	return span, nil
 }
