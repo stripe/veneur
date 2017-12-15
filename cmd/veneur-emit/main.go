@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"flag"
+	"math"
+	"math/big"
 	"net"
 	"os"
 	"os/exec"
@@ -14,20 +16,21 @@ import (
 	"fmt"
 	"strconv"
 
+	"crypto/rand"
+
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/gogo/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/trace"
 )
 
 var (
 	// Generic flags
-	hostport     = flag.String("hostport", "", "Address of destination (hostport or listening address URL).")
-	mode         = flag.String("mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
-	debug        = flag.Bool("debug", false, "Turns on debug messages.")
-	command      = flag.String("command", "", "Command to time. This will exec 'command', time it, and emit a timer metric.")
-	shellCommand = flag.Bool("shellCommand", false, "Turns on timeCommand mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.")
+	hostport = flag.String("hostport", "", "Address of destination (hostport or listening address URL).")
+	mode     = flag.String("mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
+	debug    = flag.Bool("debug", false, "Turns on debug messages.")
+	command  = flag.Bool("command", false, "Turns on command-timing mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.")
 
 	// Metric flags
 	name   = flag.String("name", "", "Name of metric to report. Ex: 'daemontools.service.starts'")
@@ -56,6 +59,11 @@ var (
 	scHostname  = flag.String("sc_hostname", "", "Add hostname to the event.")
 	scTags      = flag.String("sc_tags", "", "Tag(s) for service check, comma separated. Ex: 'service:airflow,host_type:qa'")
 	scMsg       = flag.String("sc_msg", "", "Message describing state of current state of service check.")
+
+	// Tracing flags
+	traceID  = flag.Int64("trace_id", 0, "ID for the trace (top-level) span. Setting a trace ID activated tracing.")
+	parentID = flag.Int64("parent_span_id", 0, "ID of the parent span.")
+	service  = flag.String("span_service", "veneur-emit", "Service name to associate with the span.")
 )
 
 // MinimalClient represents the functions that we call on Clients in veneur-emit.
@@ -77,161 +85,179 @@ func main() {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	addr, network, err := destination(passedFlags, hostport, *toSSF)
+	addr, netAddr, err := destination(hostport, *toSSF)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error getting destination address.")
 	}
-	logrus.WithField("net", network).
-		WithField("addr", addr).
+	logrus.WithField("net", netAddr.Network()).
+		WithField("addr", netAddr.String()).
 		Debugf("destination")
 
-	if *shellCommand {
-		var conn MinimalClient
-		conn, err = statsd.New(addr)
-		if err != nil {
-			logrus.WithError(err).
-				WithField("addr", addr).
-				WithField("network", network).
-				Fatal("Could not create statsd client")
-		}
-
-		var status int
-		status, err = timeCommand(conn, flag.Args(), *name, tags(*tag))
-		if err != nil {
-			logrus.WithError(err).Fatal("Error timing command.")
-		}
-		os.Exit(status)
-	} else if *mode == "metric" {
-		logrus.Debug("Sending metric")
+	if *mode == "event" {
 		if *toSSF {
-			var nconn net.Conn
-			nconn, err = net.Dial(network, addr)
-			if err != nil {
-				logrus.WithError(err).
-					WithField("addr", addr).
-					WithField("network", network).
-					Fatal("Could not connect")
-			}
-
-			var span *ssf.SSFSpan
-			span, err = createMetrics(passedFlags, *name, *tag)
-			if err != nil {
-				logrus.WithError(err).Fatal("Error creating metric(s).")
-			}
-
-			err = sendSpan(nconn, span)
-			if err != nil {
-				logrus.WithError(err).Fatal("Error sending metric(s).")
-			}
-		} else {
-			var conn MinimalClient
-			conn, err = statsd.New(addr)
-			if err != nil {
-				logrus.WithError(err).
-					WithField("addr", addr).
-					WithField("network", network).
-					Fatal("Could not create statsd client")
-			}
-
-			tags := tags(*tag)
-			err = sendMetrics(conn, passedFlags, *name, tags)
-			if err != nil {
-				logrus.WithError(err).Fatal("Error sending metric(s).")
-			}
+			logrus.WithField("mode", *mode).
+				Fatal("Unsupported mode with SSF")
 		}
-	} else if *mode == "event" {
 		logrus.Debug("Sending event")
-		nconn, _ := net.Dial(network, addr)
+		nconn, _ := net.Dial(netAddr.Network(), netAddr.String())
 		pkt, err := buildEventPacket(passedFlags)
 		if err != nil {
 			logrus.WithError(err).Fatal("build event")
 		}
 		nconn.Write(pkt.Bytes())
 		logrus.Debugf("Buffer string: %s", pkt.String())
-	} else if *mode == "sc" {
+		return
+	}
+
+	if *mode == "sc" {
+		if *toSSF {
+			logrus.WithField("mode", *mode).
+				Fatal("Unsupported mode with SSF")
+		}
 		logrus.Debug("Sending service check")
-		nconn, _ := net.Dial(network, addr)
+		nconn, _ := net.Dial(netAddr.Network(), netAddr.String())
 		pkt, err := buildSCPacket(passedFlags)
 		if err != nil {
 			logrus.WithError(err).Fatal("build event")
 		}
 		nconn.Write(pkt.Bytes())
 		logrus.Debugf("Buffer string: %s", pkt.String())
-	} else {
-		logrus.Fatalf("Mode '%s' is invalid.", *mode)
+		return
 	}
+
+	span, err := setupSpan(traceID, parentID, *name, *tag)
+	if err != nil {
+		logrus.WithError(err).
+			Fatal("Couldn't set up the main span")
+	}
+	if span.TraceId != 0 {
+		logrus.WithField("trace_id", span.TraceId).
+			WithField("span_id", span.Id).
+			WithField("parent_id", span.ParentId).
+			WithField("name", span.Name).
+			Debug("Tracing is activated")
+	}
+
+	status, err := createMetric(span, passedFlags, *name, *tag)
+	if err != nil {
+		logrus.WithError(err).Fatal("Error creating metrics.")
+	}
+	if *toSSF {
+		client, err := trace.NewClient(addr)
+		if err != nil {
+			logrus.WithError(err).
+				WithField("address", addr).
+				Fatal("Could not construct client")
+		}
+		defer client.Close()
+		err = sendSSF(client, span)
+		if err != nil {
+			logrus.WithError(err).Fatal("Could not send SSF span")
+		}
+	} else {
+		if netAddr.Network() != "udp" {
+			logrus.WithField("address", addr).
+				WithField("network", netAddr.Network()).
+				Fatal("hostport must be a UDP address for statsd metrics")
+		}
+		sendStatsd(netAddr.String(), span)
+	}
+	os.Exit(status)
 }
 
 func flags() map[string]flag.Value {
 	flag.Parse()
 	// hacky way to detect which flags were *actually* set
-	passedFlags := make(map[string]flag.Value)
+	passedFlags := map[string]flag.Value{}
 	flag.Visit(func(f *flag.Flag) {
 		passedFlags[f.Name] = f.Value
 	})
 	return passedFlags
 }
 
-func tags(tag string) []string {
-	var tags []string
-	if len(tag) == 0 {
+func ssfTags(csv string) map[string]string {
+	tags := map[string]string{}
+	if len(csv) == 0 {
 		return tags
 	}
-	for _, elem := range strings.Split(tag, ",") {
-		tags = append(tags, elem)
+	for _, elem := range strings.Split(csv, ",") {
+		if len(elem) == 0 {
+			continue
+		}
+		tag := strings.Split(elem, ":")
+		switch len(tag) {
+		case 2:
+			tags[tag[0]] = tag[1]
+		case 1:
+			tags[tag[0]] = ""
+		}
 	}
 	return tags
 }
 
-func destination(passedFlags map[string]flag.Value, hostport *string, useSSF bool) (string, string, error) {
-	var network = "udp"
+func destination(hostport *string, useSSF bool) (string, net.Addr, error) {
 	var addr string
-	if passedFlags["hostport"] != nil {
-		addr = passedFlags["hostport"].String()
-	} else if hostport != nil {
+	if hostport != nil {
 		addr = *hostport
 	} else {
-		err := errors.New("you must specify a valid hostport")
-		return addr, network, err
+		return "", nil, errors.New("you must specify a valid hostport")
 	}
-	address, parseErr := protocol.ResolveAddr(addr)
-	if parseErr != nil {
+	netAddr, err := protocol.ResolveAddr(addr)
+	if err != nil {
 		// This is fine - we can attempt to treat the
-		// host:port combination as a UDP address.
-		return addr, network, nil
+		// host:port combination as a UDP address:
+		addr = fmt.Sprintf("udp://%s", addr)
+		udpAddr, err := protocol.ResolveAddr(addr)
+		if err != nil {
+			return "", nil, err
+		}
+		return addr, udpAddr, nil
 	}
-	// Looks like we got a listener spec URL, translate that into an address:
-	network = address.Network()
-	addr = address.String()
-	return addr, network, nil
+	return addr, netAddr, nil
 }
 
-func timeCommand(client MinimalClient, command []string, name string, tags []string) (int, error) {
+func setupSpan(traceID, parentID *int64, name, tags string) (*ssf.SSFSpan, error) {
+	span := &ssf.SSFSpan{}
+	if traceID != nil {
+		span.TraceId = *traceID
+		if parentID != nil {
+			span.ParentId = *parentID
+		}
+		bigid, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+		if err != nil {
+			return nil, err
+		}
+		span.Id = bigid.Int64()
+		span.Name = name
+		span.Tags = ssfTags(tags)
+		span.Service = *service
+	}
+	return span, nil
+}
+
+func timeCommand(command []string) (exitStatus int, start time.Time, ended time.Time, err error) {
 	logrus.Debugf("Timing %q...", command)
 	cmd := exec.Command(command[0], command[1:]...)
-	exitStatus := 0
-	start := time.Now()
-	err := cmd.Run()
+	start = time.Now()
+	err = cmd.Run()
+	ended = time.Now()
 	if err != nil {
 		exitError, ok := err.(*exec.ExitError)
 		if !ok {
-			return 1, err
+			exitStatus = 1
+			return
 		}
 		status := exitError.ProcessState.Sys().(syscall.WaitStatus)
 		exitStatus = status.ExitStatus()
 	}
-	elapsed := time.Since(start)
-	exitTag := fmt.Sprintf("exit_status:%d", exitStatus)
-	tags = append(tags, exitTag)
-	logrus.Debugf("%q took %s", command, elapsed)
-	err = client.Timing(name, elapsed, tags, 1)
-	return exitStatus, err
+	logrus.Debugf("%q took %s", command, ended.Sub(start))
+	return
 }
 
 func bareMetric(name string, tags string) *ssf.SSFSample {
 	metric := &ssf.SSFSample{}
 	metric.Name = name
-	metric.Tags = make(map[string]string)
+	metric.Tags = map[string]string{}
 	if tags != "" {
 		for _, elem := range strings.Split(tags, ",") {
 			tag := strings.Split(elem, ":")
@@ -241,46 +267,106 @@ func bareMetric(name string, tags string) *ssf.SSFSample {
 	return metric
 }
 
-func createMetrics(passedFlags map[string]flag.Value, name string, tags string) (*ssf.SSFSpan, error) {
-	var err error
-	span := &ssf.SSFSpan{}
-	if passedFlags["gauge"] != nil {
-		logrus.Debugf("Sending gauge '%s' -> %f", name, passedFlags["gauge"].String())
-		value, err := strconv.ParseFloat(passedFlags["gauge"].String(), 32)
-		if err != nil {
-			return nil, err
-		}
-		metric := bareMetric(name, tags)
-		metric.Metric = ssf.SSFSample_GAUGE
-		metric.Value = float32(value)
-		span.Metrics = append(span.Metrics, metric)
-	}
-	// TODO: figure out timing metrics
-	if passedFlags["count"] != nil {
-		logrus.Debugf("Sending count '%s' -> %s", name, passedFlags["count"].String())
-		value, err := strconv.ParseInt(passedFlags["count"].String(), 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		metric := bareMetric(name, tags)
-		metric.Metric = ssf.SSFSample_COUNTER
-		metric.Value = float32(value)
-		span.Metrics = append(span.Metrics, metric)
-	}
-	return span, err
+func timingSample(duration time.Duration, name string, tags string) *ssf.SSFSample {
+	m := bareMetric(name, tags)
+	m.Metric = ssf.SSFSample_HISTOGRAM
+	m.Unit = "ms"
+	m.Value = float32(duration / time.Millisecond)
+	return m
 }
 
-func sendSpan(conn MinimalConn, span *ssf.SSFSpan) error {
+func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name string, tags string) (int, error) {
 	var err error
-	var data []byte
-	data, err = proto.Marshal(span)
+	status := 0
+	if *mode == "metric" {
+		if *command {
+			var start, ended time.Time
+
+			status, start, ended, err = timeCommand(flag.Args())
+			if err != nil {
+				return status, err
+			}
+			span.StartTimestamp = start.UnixNano()
+			span.EndTimestamp = ended.UnixNano()
+			span.Metrics = append(span.Metrics, timingSample(ended.Sub(start), name, tags))
+		}
+
+		if passedFlags["timing"] != nil {
+			duration, err := time.ParseDuration(passedFlags["timing"].String())
+			if err != nil {
+				return 0, err
+			}
+			span.Metrics = append(span.Metrics, timingSample(duration, name, tags))
+		}
+
+		if passedFlags["gauge"] != nil {
+			logrus.Debugf("Sending gauge '%s' -> %f", name, passedFlags["gauge"].String())
+			value, err := strconv.ParseFloat(passedFlags["gauge"].String(), 32)
+			if err != nil {
+				return status, err
+			}
+			metric := bareMetric(name, tags)
+			metric.Metric = ssf.SSFSample_GAUGE
+			metric.Value = float32(value)
+			span.Metrics = append(span.Metrics, metric)
+		}
+
+		if passedFlags["count"] != nil {
+			logrus.Debugf("Sending count '%s' -> %s", name, passedFlags["count"].String())
+			value, err := strconv.ParseInt(passedFlags["count"].String(), 10, 64)
+			if err != nil {
+				return status, err
+			}
+			metric := bareMetric(name, tags)
+			metric.Metric = ssf.SSFSample_COUNTER
+			metric.Value = float32(value)
+			span.Metrics = append(span.Metrics, metric)
+		}
+	}
+	return status, err
+}
+
+// sendSSF sends a whole span to an SSF receiver.
+func sendSSF(client *trace.Client, span *ssf.SSFSpan) error {
+	done := make(chan error)
+	err := trace.Record(client, span, done)
 	if err != nil {
 		return err
 	}
+	return <-done
+}
 
-	_, err = conn.Write(data)
+// sendStatsd sends the metrics gathered in a span to a dogstatsd
+// endpoint.
+func sendStatsd(addr string, span *ssf.SSFSpan) error {
+	client, err := statsd.New(addr)
 	if err != nil {
 		return err
+	}
+	// Report all the metrics in the span:
+	for _, metric := range span.Metrics {
+		tags := make([]string, 0, len(metric.Tags))
+		for name, val := range metric.Tags {
+			tags = append(tags, fmt.Sprintf("%s:%s", name, val))
+		}
+		switch metric.Metric {
+		case ssf.SSFSample_COUNTER:
+			err = client.Count(metric.Name, int64(metric.Value), tags, 1.0)
+		case ssf.SSFSample_GAUGE:
+			err = client.Gauge(metric.Name, float64(metric.Value), tags, 1.0)
+		case ssf.SSFSample_HISTOGRAM:
+			if metric.Unit == "ms" {
+				// Treating the "ms" unit special is a
+				// bit wonky, but it seems like the
+				// right tool for the job here:
+				err = client.TimeInMilliseconds(metric.Name, float64(metric.Value), tags, 1.0)
+			} else {
+				err = client.Histogram(metric.Name, float64(metric.Value), tags, 1.0)
+			}
+		}
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -372,46 +458,4 @@ func buildSCPacket(passedFlags map[string]flag.Value) (bytes.Buffer, error) {
 	}
 
 	return buffer, nil
-}
-
-func sendMetrics(client MinimalClient, passedFlags map[string]flag.Value, name string, tags []string) error {
-	var err error
-	if passedFlags["gauge"] != nil {
-		logrus.Debugf("Sending gauge '%s' -> %f", name, passedFlags["gauge"].String())
-		value, err := strconv.ParseFloat(passedFlags["gauge"].String(), 64)
-		if err != nil {
-			return err
-		}
-		err = client.Gauge(name, value, tags, 1)
-		if err != nil {
-			return err
-		}
-	}
-	if passedFlags["timing"] != nil {
-		logrus.Debugf("Sending timing '%s' -> %f", name, passedFlags["timing"].String())
-		value, err := time.ParseDuration(passedFlags["timing"].String())
-		if err != nil {
-			return err
-		}
-		err = client.Timing(name, value, tags, 1)
-		if err != nil {
-			return err
-		}
-	}
-	if passedFlags["count"] != nil {
-		logrus.Debugf("Sending count '%s' -> %s", name, passedFlags["count"].String())
-		value, err := strconv.ParseInt(passedFlags["count"].String(), 10, 64)
-		if err != nil {
-			return err
-		}
-		err = client.Count(name, value, tags, 1)
-		if err != nil {
-			return err
-		}
-	}
-	if passedFlags["gauge"] == nil && passedFlags["timing"] == nil && passedFlags["timeinms"] == nil && passedFlags["count"] == nil {
-		logrus.Info("No metrics reported.")
-	}
-	return err
-	// TODO: error on no metrics?
 }
