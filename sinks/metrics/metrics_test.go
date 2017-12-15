@@ -16,7 +16,7 @@ func TestMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(0, nil, logger)
 	workers := []metrics.Processor{worker}
-	sink, err := metrics.NewMetricExtractionSink(workers, "foo")
+	sink, err := metrics.NewMetricExtractionSink(workers, "foo", logger)
 	require.NoError(t, err)
 
 	start := time.Now()
@@ -56,7 +56,7 @@ func TestIndicatorMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(0, nil, logger)
 	workers := []metrics.Processor{worker}
-	sink, err := metrics.NewMetricExtractionSink(workers, "foo")
+	sink, err := metrics.NewMetricExtractionSink(workers, "foo", logger)
 	require.NoError(t, err)
 
 	start := time.Now()

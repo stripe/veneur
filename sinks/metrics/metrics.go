@@ -13,6 +13,7 @@ import (
 type metricExtractionSink struct {
 	workers                []Processor
 	indicatorSpanTimerName string
+	log                    *logrus.Logger
 }
 
 var _ sinks.SpanSink = &metricExtractionSink{}
@@ -26,8 +27,12 @@ type Processor interface {
 // NewMetricExtractionSink sets up and creates a span sink that
 // extracts metrics ("samples") from SSF spans and reports them to a
 // veneur's metrics workers.
-func NewMetricExtractionSink(mw []Processor, timerName string) (sinks.SpanSink, error) {
-	return &metricExtractionSink{mw, timerName}, nil
+func NewMetricExtractionSink(mw []Processor, timerName string, log *logrus.Logger) (sinks.SpanSink, error) {
+	return &metricExtractionSink{
+		workers:                mw,
+		indicatorSpanTimerName: timerName,
+		log: log,
+	}, nil
 }
 
 // Name returns "metric_extraction".
@@ -61,7 +66,7 @@ func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 	metrics, err := samplers.ConvertMetrics(span)
 	if err != nil {
 		if _, ok := err.(samplers.InvalidMetrics); ok {
-			logrus.WithError(err).
+			m.log.WithError(err).
 				Warn("Could not parse metrics from SSF Message")
 			m.sendSample(ssf.Count("veneur.ssf.error_total", 1, map[string]string{
 				"packet_type": "ssf_metric",
@@ -69,7 +74,7 @@ func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 				"reason":      "invalid_metrics",
 			}))
 		} else {
-			logrus.WithError(err).Error("Unexpected error extracting metrics from SSF Message")
+			m.log.WithError(err).Error("Unexpected error extracting metrics from SSF Message")
 			m.sendSample(ssf.Count("veneur.ssf.error_total", 1, map[string]string{
 				"packet_type": "ssf_metric",
 				"step":        "extract_metrics",
@@ -87,7 +92,7 @@ func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 
 	indicatorMetrics, err := samplers.ConvertIndicatorMetrics(span, m.indicatorSpanTimerName)
 	if err != nil {
-		logrus.WithError(err).
+		m.log.WithError(err).
 			WithField("span_name", span.Name).
 			Warn("Couldn't extract indicator metrics for span")
 		return err

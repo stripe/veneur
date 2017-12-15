@@ -228,7 +228,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 	for i, w := range ret.Workers {
 		processors[i] = w
 	}
-	metricSink, err := metrics.NewMetricExtractionSink(processors, ret.indicatorSpanTimerName)
+	metricSink, err := metrics.NewMetricExtractionSink(processors, ret.indicatorSpanTimerName, log)
 	if err != nil {
 		return ret, err
 	}
