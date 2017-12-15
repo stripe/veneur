@@ -203,7 +203,7 @@ trace_lightstep_num_clients: 1
 
 # == Kafka ==
 
-# Comma-delimited list of brokers suitable for Sarama's [NewAsyncProducer](https://godoc.org/github.com/Shopify/sarama#NewSyncProducer)
+# Comma-delimited list of brokers suitable for Sarama's [NewAsyncProducer](https://godoc.org/github.com/Shopify/sarama#NewAsyncProducer)
 kafka_broker: "localhost:9092"
 
 # Name of the topic we'll be publishing checks to
