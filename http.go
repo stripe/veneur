@@ -32,12 +32,7 @@ func (s *Server) Handler() http.Handler {
 	})
 
 	mux.HandleFuncC(pat.Get("/healthcheck/tracing"), func(c context.Context, w http.ResponseWriter, r *http.Request) {
-		if s.TracingEnabled() {
-			w.Write([]byte("ok\n"))
-		} else {
-			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte("nok\n"))
-		}
+		w.Write([]byte("ok\n"))
 	})
 
 	mux.Handle(pat.Post("/import"), handleImport(s))

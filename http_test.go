@@ -286,7 +286,7 @@ func TestOkTraceHealthCheck(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code, "Trace healthcheck did not succeed")
 }
 
-func TestNokTraceHealthCheck(t *testing.T) {
+func TestNoTracingConfiguredTraceHealthCheck(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/healthcheck/tracing", nil)
 
 	config := localConfig()
@@ -303,7 +303,7 @@ func TestNokTraceHealthCheck(t *testing.T) {
 	handler := server.Handler()
 	handler.ServeHTTP(w, r)
 
-	assert.Equal(t, http.StatusForbidden, w.Code, "Trace healthcheck succeeded when disabled")
+	assert.Equal(t, http.StatusOK, w.Code, "Trace healthcheck reports tracing is enabled")
 }
 
 func TestBuildDate(t *testing.T) {

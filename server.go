@@ -417,16 +417,13 @@ func NewFromConfig(conf Config) (*Server, error) {
 func (s *Server) Start() {
 	log.WithField("version", VERSION).Info("Starting server")
 
-	if len(s.spanSinks) > 0 {
-		// Set up our internal trace client:
-		s.SpanWorker = NewSpanWorker(s.spanSinks, s.Statsd)
-		// Now that we have a span worker, set the trace
-		// backend up to send spans to it:
-		if s.traceBackend != nil {
-			s.traceBackend.spanWorker = s.SpanWorker
-		}
-	} else {
-		trace.Disable()
+	// Set up the processor for spans:
+	s.SpanWorker = NewSpanWorker(s.spanSinks, s.Statsd)
+
+	// Now that we have a span worker, set the trace
+	// backend up to send spans to it:
+	if s.traceBackend != nil {
+		s.traceBackend.spanWorker = s.SpanWorker
 	}
 
 	go func() {
@@ -437,16 +434,13 @@ func (s *Server) Start() {
 		s.EventWorker.Work()
 	}()
 
-	if s.TracingEnabled() {
-
-		log.Info("Starting Trace worker")
-		go func() {
-			defer func() {
-				ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
-			}()
-			s.SpanWorker.Work()
+	log.Info("Starting Trace worker")
+	go func() {
+		defer func() {
+			ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
 		}()
-	}
+		s.SpanWorker.Work()
+	}()
 
 	statsdPool := &sync.Pool{
 		// We +1 this so we an "detect" when someone sends us too long of a metric!
@@ -481,7 +475,7 @@ func (s *Server) Start() {
 	}
 
 	// Read Traces Forever!
-	if s.TracingEnabled() && len(s.SSFListenAddrs) > 0 {
+	if len(s.SSFListenAddrs) > 0 {
 		for _, addr := range s.SSFListenAddrs {
 			StartSSF(s, addr, tracePool)
 		}
@@ -885,12 +879,6 @@ func (s *Server) getPlugins() []plugins.Plugin {
 	copy(plugins, s.plugins)
 	s.pluginMtx.Unlock()
 	return plugins
-}
-
-// TracingEnabled returns true if tracing is enabled.
-func (s *Server) TracingEnabled() bool {
-	//TODO we now need to check that the backends are flushing the data too
-	return s.SpanWorker != nil
 }
 
 type internalTraceBackend struct {
