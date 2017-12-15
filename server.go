@@ -38,6 +38,7 @@ import (
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/sinks/datadog"
 	"github.com/stripe/veneur/sinks/lightstep"
+	"github.com/stripe/veneur/sinks/metrics"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
@@ -223,7 +224,11 @@ func NewFromConfig(conf Config) (*Server, error) {
 
 	// Set up a span sink that extracts metrics from SSF spans and
 	// reports them via the metric workers:
-	metricSink, err := NewMetricExtractionSink(ret.Workers, ret.indicatorSpanTimerName)
+	processors := make([]metrics.Processor, len(ret.Workers))
+	for i, w := range ret.Workers {
+		processors[i] = w
+	}
+	metricSink, err := metrics.NewMetricExtractionSink(processors, ret.indicatorSpanTimerName)
 	if err != nil {
 		return ret, err
 	}

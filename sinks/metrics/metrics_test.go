@@ -1,4 +1,4 @@
-package internal
+package metrics_test
 
 import (
 	"testing"
@@ -6,16 +6,18 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur"
+	"github.com/stripe/veneur/sinks/metrics"
 	"github.com/stripe/veneur/ssf"
 )
 
 func TestMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
-	sink := metricExtractionSink{
-		workers:                []*veneur.Worker{veneur.NewWorker(0, nil, logger)},
-		indicatorSpanTimerName: "foo",
-	}
+	worker := veneur.NewWorker(0, nil, logger)
+	workers := []metrics.Processor{worker}
+	sink, err := metrics.NewMetricExtractionSink(workers, "foo")
+	require.NoError(t, err)
 
 	start := time.Now()
 	end := start.Add(5 * time.Second)
@@ -32,7 +34,7 @@ func TestMetricExtractor(t *testing.T) {
 	done := make(chan int)
 	go func() {
 		n := 0
-		for m := range sink.workers[0].PacketChan {
+		for m := range worker.PacketChan {
 			hasP := false
 			for _, tag := range m.Tags {
 				hasP = (tag == "purpose:testing")
@@ -46,16 +48,16 @@ func TestMetricExtractor(t *testing.T) {
 		done <- n
 	}()
 	assert.NoError(t, sink.Ingest(span))
-	close(sink.workers[0].PacketChan)
+	close(worker.PacketChan)
 	assert.Equal(t, 2, <-done, "Should have sent the right number of metrics")
 }
 
 func TestIndicatorMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
-	sink := metricExtractionSink{
-		workers:                []*veneur.Worker{veneur.NewWorker(0, nil, logger)},
-		indicatorSpanTimerName: "foo",
-	}
+	worker := veneur.NewWorker(0, nil, logger)
+	workers := []metrics.Processor{worker}
+	sink, err := metrics.NewMetricExtractionSink(workers, "foo")
+	require.NoError(t, err)
 
 	start := time.Now()
 	end := start.Add(5 * time.Second)
@@ -70,7 +72,7 @@ func TestIndicatorMetricExtractor(t *testing.T) {
 	done := make(chan int)
 	go func() {
 		n := 0
-		for m := range sink.workers[0].PacketChan {
+		for m := range worker.PacketChan {
 			hasP := false
 			for _, tag := range m.Tags {
 				hasP = (tag == "service:indicator_testing")
@@ -84,6 +86,6 @@ func TestIndicatorMetricExtractor(t *testing.T) {
 		done <- n
 	}()
 	assert.NoError(t, sink.Ingest(span))
-	close(sink.workers[0].PacketChan)
+	close(worker.PacketChan)
 	assert.Equal(t, 1, <-done, "Should have sent the right number of metrics")
 }

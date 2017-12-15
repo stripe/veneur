@@ -32,6 +32,11 @@ type Worker struct {
 	wm         WorkerMetrics
 }
 
+// IngestUDP on a Worker feeds the metric into the worker's PacketChan.
+func (w *Worker) IngestUDP(metric samplers.UDPMetric) {
+	w.PacketChan <- metric
+}
+
 // WorkerMetrics is just a plain struct bundling together the flushed contents of a worker
 type WorkerMetrics struct {
 	// we do not want to key on the metric's Digest here, because those could

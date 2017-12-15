@@ -1,9 +1,8 @@
-// Package internal provides sinks that are used by veneur internally.
-package internal
+// Package metrics provides sinks that are used by veneur internally.
+package metrics
 
 import (
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
@@ -12,16 +11,22 @@ import (
 )
 
 type metricExtractionSink struct {
-	workers                []*veneur.Worker
+	workers                []Processor
 	indicatorSpanTimerName string
 }
 
 var _ sinks.SpanSink = &metricExtractionSink{}
 
+// Processor represents a thing that can process UDPMetrics.
+type Processor interface {
+	// IngestUDP takes a single UDPMetric and processes it in the worker.
+	IngestUDP(samplers.UDPMetric)
+}
+
 // NewMetricExtractionSink sets up and creates a span sink that
 // extracts metrics ("samples") from SSF spans and reports them to a
 // veneur's metrics workers.
-func NewMetricExtractionSink(mw []*veneur.Worker, timerName string) (sinks.SpanSink, error) {
+func NewMetricExtractionSink(mw []Processor, timerName string) (sinks.SpanSink, error) {
 	return &metricExtractionSink{mw, timerName}, nil
 }
 
@@ -37,7 +42,7 @@ func (m metricExtractionSink) Start(*trace.Client) error {
 
 func (m *metricExtractionSink) sendMetrics(metrics []samplers.UDPMetric) {
 	for _, metric := range metrics {
-		m.workers[metric.Digest%uint32(len(m.workers))].PacketChan <- metric
+		m.workers[metric.Digest%uint32(len(m.workers))].IngestUDP(metric)
 	}
 }
 
