@@ -587,49 +587,11 @@ func (s *Server) HandleTracePacket(packet []byte) {
 }
 
 func (s *Server) handleSSF(span *ssf.SSFSpan, tags []string) {
-	metrics, err := samplers.ConvertMetrics(span)
-	if err != nil {
-		if _, ok := err.(samplers.InvalidMetrics); ok {
-			log.WithError(err).Warn("Could not parse metrics from SSF Message")
-			s.Statsd.Count("ssf.error_total", 1, append([]string{
-				"packet_type:ssf_metric",
-				"step:extract_metrics",
-				"reason:invalid_metrics",
-			}, tags...), 1.0)
-		} else {
-			log.WithError(err).Error("Unexpected error extracting metrics from SSF Message")
-			errorTag := fmt.Sprintf("error:%s", err.Error())
-			s.Statsd.Count("ssf.error_total", 1, append([]string{
-				"packet_type:ssf_metric",
-				"step:extract_metrics",
-				"reason:unexpected_error",
-				errorTag,
-			}, tags...), 1.0)
-			return
-		}
-	}
-	for _, metric := range metrics {
-		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- metric
-	}
+	tags = append([]string{fmt.Sprintf("service:%s", span.Service)}, tags...)
+	s.Statsd.Incr("ssf.spans.received_total", tags, .1)
+	s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, .1)
 
-	if err := protocol.ValidateTrace(span); err != nil {
-		tags = append([]string{fmt.Sprintf("service:%s", span.Service)}, tags...)
-
-		s.Statsd.Incr("ssf.spans.received_total", tags, .1)
-		s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, .1)
-	}
 	s.SpanWorker.SpanChan <- span
-
-	indicatorMetrics, err := samplers.ConvertIndicatorMetrics(span, s.indicatorSpanTimerName)
-	if err != nil {
-		log.WithError(err).
-			WithField("span_name", span.Name).
-			Warn("Couldn't extract indicator metrics for span")
-		return
-	}
-	for _, metric := range indicatorMetrics {
-		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- metric
-	}
 }
 
 // ReadMetricSocket listens for available packets to handle.
