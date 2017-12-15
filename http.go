@@ -31,6 +31,7 @@ func (s *Server) Handler() http.Handler {
 		w.Write([]byte(VERSION))
 	})
 
+	// TODO3.0: Maybe remove this endpoint as it is kinda useless now that tracing is always on.
 	mux.HandleFuncC(pat.Get("/healthcheck/tracing"), func(c context.Context, w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok\n"))
 	})
