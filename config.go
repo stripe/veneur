@@ -29,11 +29,11 @@ type Config struct {
 	KafkaMetricTopic              string    `yaml:"kafka_metric_topic"`
 	KafkaPartitioner              string    `yaml:"kafka_partitioner"`
 	KafkaRetryMax                 int       `yaml:"kafka_retry_max"`
-	KafkaSerializationFormat      string    `yaml:"kafka_serialization_format"`
 	KafkaSpanBufferBytes          int       `yaml:"kafka_span_buffer_bytes"`
 	KafkaSpanBufferFrequency      string    `yaml:"kafka_span_buffer_frequency"`
 	KafkaSpanBufferMesages        int       `yaml:"kafka_span_buffer_mesages"`
 	KafkaSpanRequireAcks          string    `yaml:"kafka_span_require_acks"`
+	KafkaSpanSerializationFormat  string    `yaml:"kafka_span_serialization_format"`
 	KafkaSpanTopic                string    `yaml:"kafka_span_topic"`
 	Key                           string    `yaml:"key"`
 	MetricMaxLength               int       `yaml:"metric_max_length"`

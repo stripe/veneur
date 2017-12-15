@@ -224,7 +224,7 @@ kafka_metric_buffer_messages: 0
 
 kafka_metric_buffer_frequency: ""
 
-kafka_serialization_format: "protobuf"
+kafka_span_serialization_format: "protobuf"
 
 # The type of partitioner to use.
 kafka_partitioner: "hash"

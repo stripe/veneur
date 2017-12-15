@@ -380,7 +380,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 				conf.KafkaMetricTopic, conf.KafkaMetricRequireAcks,
 				conf.KafkaPartitioner, conf.KafkaRetryMax,
 				conf.KafkaMetricBufferBytes, conf.KafkaMetricBufferMessages,
-				conf.KafkaMetricBufferFrequency, conf.KafkaSerializationFormat,
+				conf.KafkaMetricBufferFrequency
 				ret.Statsd,
 			)
 
@@ -392,8 +392,8 @@ func NewFromConfig(conf Config) (*Server, error) {
 		if conf.KafkaSpanTopic != "" {
 			sink := kafka.NewKafkaSpanSink(log, conf.KafkaBroker, conf.KafkaSpanTopic,
 				conf.KafkaPartitioner, conf.KafkaMetricRequireAcks, conf.KafkaRetryMax,
-				conf.KafkaMetricBufferBytes, conf.KafkaMetricBufferMessages,
-				conf.KafkaMetricBufferFrequency, conf.KafkaSerializationFormat,
+				conf.KafkaSpanBufferBytes, conf.KafkaSpanBufferMesages,
+				conf.KafkaSpanBufferFrequency, conf.KafkaSpanSerializationFormat,
 				ret.Statsd,
 			)
 

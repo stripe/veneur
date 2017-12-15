@@ -1,8 +1,10 @@
-# Kafka Plugin
+# Kafka Sink
 
-The Kafka plugin sends flushed metrics to a [Kafka](https://kafka.apache.org/) topic.
+The Kafka sink allows flushing of metrics or spans to to a [Kafka](https://kafka.apache.org/) topic.
 
-**Note: This plugin is still in an experimental state.**
+# Status
+
+**This sink is experimental**.
 
 # Configuration
 
@@ -11,3 +13,7 @@ See the various `kafka_*` keys in [example.yaml](https://github.com/stripe/veneu
 * batching
 * ack requirements
 * publishing of Protobuf or JSON formatted messages
+
+# Format
+
+Metrics or spans may be published in one of either
