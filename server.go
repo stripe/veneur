@@ -221,6 +221,14 @@ func NewFromConfig(conf Config) (*Server, error) {
 
 	ret.EventWorker = NewEventWorker(ret.Statsd)
 
+	// Set up a span sink that extracts metrics from SSF spans and
+	// reports them via the metric workers:
+	metricSink, err := NewMetricExtractionSink(ret.Workers, ret.indicatorSpanTimerName)
+	if err != nil {
+		return ret, err
+	}
+	ret.spanSinks = append(ret.spanSinks, metricSink)
+
 	for _, addrStr := range conf.StatsdListenAddresses {
 		addr, err := protocol.ResolveAddr(addrStr)
 		if err != nil {
