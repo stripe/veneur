@@ -259,30 +259,17 @@ func timeCommand(command []string) (exitStatus int, start time.Time, ended time.
 	return
 }
 
-func bareMetric(name string, tags string) *ssf.SSFSample {
-	metric := &ssf.SSFSample{}
-	metric.Name = name
-	metric.Tags = map[string]string{}
-	if tags != "" {
-		for _, elem := range strings.Split(tags, ",") {
-			tag := strings.Split(elem, ":")
-			metric.Tags[tag[0]] = tag[1]
-		}
-	}
-	return metric
-}
-
-func timingSample(duration time.Duration, name string, tags string) *ssf.SSFSample {
-	m := bareMetric(name, tags)
-	m.Metric = ssf.SSFSample_HISTOGRAM
-	m.Unit = "ms"
-	m.Value = float32(duration / time.Millisecond)
-	return m
-}
-
-func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name string, tags string) (int, error) {
+func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name string, tagStr string) (int, error) {
 	var err error
 	status := 0
+	tags := map[string]string{}
+	if tagStr != "" {
+		for _, elem := range strings.Split(tagStr, ",") {
+			tag := strings.Split(elem, ":")
+			tags[tag[0]] = tag[1]
+		}
+	}
+
 	if *mode == "metric" {
 		if *command {
 			var start, ended time.Time
@@ -293,7 +280,7 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 			}
 			span.StartTimestamp = start.UnixNano()
 			span.EndTimestamp = ended.UnixNano()
-			span.Metrics = append(span.Metrics, timingSample(ended.Sub(start), name, tags))
+			span.Metrics = append(span.Metrics, ssf.Timing(name, ended.Sub(start), time.Millisecond, tags))
 		}
 
 		if passedFlags["timing"] != nil {
@@ -301,7 +288,7 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 			if err != nil {
 				return 0, err
 			}
-			span.Metrics = append(span.Metrics, timingSample(duration, name, tags))
+			span.Metrics = append(span.Metrics, ssf.Timing(name, duration, time.Millisecond, tags))
 		}
 
 		if passedFlags["gauge"] != nil {
@@ -310,10 +297,7 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 			if err != nil {
 				return status, err
 			}
-			metric := bareMetric(name, tags)
-			metric.Metric = ssf.SSFSample_GAUGE
-			metric.Value = float32(value)
-			span.Metrics = append(span.Metrics, metric)
+			span.Metrics = append(span.Metrics, ssf.Gauge(name, float32(value), tags))
 		}
 
 		if passedFlags["count"] != nil {
@@ -322,10 +306,7 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 			if err != nil {
 				return status, err
 			}
-			metric := bareMetric(name, tags)
-			metric.Metric = ssf.SSFSample_COUNTER
-			metric.Value = float32(value)
-			span.Metrics = append(span.Metrics, metric)
+			span.Metrics = append(span.Metrics, ssf.Count(name, float32(value), tags))
 		}
 	}
 	return status, err

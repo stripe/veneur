@@ -189,21 +189,6 @@ func TestFlags(t *testing.T) {
 	}
 }
 
-func TestBareMetrics(t *testing.T) {
-	metric := bareMetric("test_name", "tag1:value1,tag2:value2")
-	if metric.Name != "test_name" {
-		t.Error("Bare metric does not have correct name.")
-	}
-	testTag1 := metric.Tags["tag1"]
-	testTag2 := metric.Tags["tag2"]
-	if testTag1 != "value1" || testTag2 != "value2" {
-		t.Error("Bare metric does not have correct tags.")
-	}
-	if metric.Value != 0 {
-		t.Error("Bare metric is not bare.")
-	}
-}
-
 func TestCreateMetrics(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 

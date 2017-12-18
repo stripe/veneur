@@ -24,6 +24,30 @@ func TestValidity(t *testing.T) {
 	}
 }
 
+func TestTimingMS(t *testing.T) {
+	tests := []struct {
+		res  time.Duration
+		name string
+	}{
+		{time.Nanosecond, "ns"},
+		{time.Microsecond, "µs"},
+		{time.Millisecond, "ms"},
+		{time.Second, "s"},
+		{time.Minute, "min"},
+		{time.Hour, "h"},
+	}
+	for _, elt := range tests {
+		test := elt
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			sample := Timing("foo", 20*test.res, test.res, nil)
+			assert.Equal(t, float32(20), sample.Value)
+			assert.Equal(t, test.name, sample.Unit)
+
+		})
+	}
+}
+
 func TestOptions(t *testing.T) {
 	then := time.Now().Add(-20 * time.Second)
 	testFuns := map[string]constructor{"count": Count, "gauge": Gauge, "histogram": Histogram}
