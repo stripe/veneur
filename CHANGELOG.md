@@ -5,6 +5,7 @@
 
 ## Added
 * A [SignalFX sink](https://github.com/stripe/veneur/tree/master/sinks/signalfx) has been added for flushing metrics to [SignalFX](https://signalfx.com/). Thanks, [gphat](https://github.com/gphat)!
+* A [Kafka sink](https://github.com/stripe/veneur/tree/master/sinks/kafka) has been added for publishing spans or metrics. Thanks, [parabuzzle](https://github.com/parabuzzle) and [gphat](https://github.com/gphat)!
 * Buffered trace clients in `github.com/stripe/veneur/trace` now have a new option to automatically flush them in a periodic interval. Thanks, [antifuchs](https://github.com/antifuchs)!
 * Gauges can now be marked as `veneurglobalonly` to be globally "last write wins". Thanks [gphat](https://github.com/gphat)!
 * `veneur-emit` now takes `-span_service`, `-trace_id`, `-parent_id`, and `-indicator` arguments. These (combined with `-ssf`) allow submitting spans for tracing when recording timing data for commands. In addition, `-timing` with `-ssf` now works, too.

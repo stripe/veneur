@@ -29,7 +29,8 @@ func TestMetricFlush(t *testing.T) {
 	logger := logrus.StandardLogger()
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
-	sink := NewKafkaMetricSink(logger, "testing", "testCheckTopic", "testEventTopic", "testMetricTopic", "all", "hash", 0, 0, 0, "", stats)
+	sink, err := NewKafkaMetricSink(logger, "testing", "testCheckTopic", "testEventTopic", "testMetricTopic", "all", "hash", 0, 0, 0, "", stats)
+	assert.NoError(t, err)
 	sink.Start(trace.DefaultClient)
 
 	sink.producer = producerMock
@@ -43,8 +44,8 @@ func TestMetricFlush(t *testing.T) {
 		},
 		Type: samplers.GaugeMetric,
 	}
-	err := sink.Flush(context.Background(), []samplers.InterMetric{metric})
-	assert.NoError(t, err)
+	ferr := sink.Flush(context.Background(), []samplers.InterMetric{metric})
+	assert.NoError(t, ferr)
 
 	msg := <-producerMock.Successes()
 	assert.Equal(t, "testMetricTopic", msg.Topic)
@@ -53,16 +54,86 @@ func TestMetricFlush(t *testing.T) {
 	assert.Contains(t, string(contents), metric.Name)
 }
 
-func TestNewDefaults(t *testing.T) {
+func TestMetricConstructor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
-	sink, err := NewKafkaSpanSink(logger, "testing", "", "hash", "all", 0, 0, 0, "", "", stats)
+	sink, err := NewKafkaMetricSink(logger, "testing", "veneur_checks", "veneur_events", "veneur_metrics", "all", "hash", 1, 2, 3, "10s", stats)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "kafka", sink.Name())
+
+	assert.Equal(t, "veneur_checks", sink.checkTopic, "check topic did not set correctly")
+	assert.Equal(t, "veneur_events", sink.eventTopic, "event topic did not set correctly")
+	assert.Equal(t, "veneur_metrics", sink.metricTopic, "metric topic did not set correctly")
+
+	assert.Equal(t, sarama.WaitForAll, sink.config.Producer.RequiredAcks, "ack did not set correctly")
+	assert.Equal(t, 1, sink.config.Producer.Retry.Max, "retries did not set correctly")
+	assert.Equal(t, 2, sink.config.Producer.Flush.Bytes, "buffer bytes did not set correctly")
+	assert.Equal(t, 3, sink.config.Producer.Flush.Messages, "buffer messages did not set correctly")
+	assert.Equal(t, time.Second*10, sink.config.Producer.Flush.Frequency, "flush frequency did not set correctly")
+}
+
+func TestMetricInstantiateFailure(t *testing.T) {
+	logger := logrus.StandardLogger()
+	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
+
+	// Busted duration
+	_, err1 := NewKafkaMetricSink(logger, "testing", "veneur_checks", "veneur_events", "veneur_metrics", "all", "hash", 1, 2, 3, "farts", stats)
+	assert.Error(t, err1)
+
+	// No topics
+	_, err := NewKafkaMetricSink(logger, "testing", "", "", "", "all", "hash", 1, 2, 3, "10s", stats)
+	assert.Error(t, err)
+}
+
+func TestSpanInstantiateFailure(t *testing.T) {
+	logger := logrus.StandardLogger()
+	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
+
+	// Busted duration
+	_, err := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "farts", "", stats)
+	assert.Error(t, err)
+
+	// Missing topic
+	_, err2 := NewKafkaSpanSink(logger, "testing", "", "hash", "all", 1, 2, 3, "farts", "", stats)
+	assert.Error(t, err2)
+
+	// Missing brokers
+	_, err3 := NewKafkaSpanSink(logger, "", "farts", "hash", "all", 1, 2, 3, "farts", "", stats)
+	assert.Error(t, err3)
+}
+
+func TestSpanConstructorAck(t *testing.T) {
+	logger := logrus.StandardLogger()
+	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
+
+	sink1, _ := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "none", 1, 2, 3, "10s", "", stats)
+	assert.Equal(t, sarama.NoResponse, sink1.config.Producer.RequiredAcks, "ack did not set correctly")
+
+	sink2, _ := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "local", 1, 2, 3, "10s", "", stats)
+	assert.Equal(t, sarama.WaitForLocal, sink2.config.Producer.RequiredAcks, "ack did not set correctly")
+
+	sink3, _ := NewKafkaSpanSink(logger, "testing", "veneur_spans", "random", "farts", 1, 2, 3, "10s", "", stats)
+	assert.Equal(t, sarama.WaitForAll, sink3.config.Producer.RequiredAcks, "ack did not default correctly")
+}
+
+func TestSpanConstructor(t *testing.T) {
+	logger := logrus.StandardLogger()
+	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
+
+	sink, err := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", stats)
 	assert.NoError(t, err)
 	assert.Equal(t, "kafka", sink.Name())
 
 	assert.Equal(t, "protobuf", sink.serializer, "Serializer did not default correctly")
-	assert.Equal(t, "veneur_spans", sink.topic, "Topic did not default correctly")
+	assert.Equal(t, "veneur_spans", sink.topic, "Topic did not set correctly")
+
+	assert.Equal(t, sarama.WaitForAll, sink.config.Producer.RequiredAcks, "ack did not set correctly")
+	assert.Equal(t, 1, sink.config.Producer.Retry.Max, "retries did not set correctly")
+	assert.Equal(t, 2, sink.config.Producer.Flush.Bytes, "buffer bytes did not set correctly")
+	assert.Equal(t, 3, sink.config.Producer.Flush.Messages, "buffer messages did not set correctly")
+	assert.Equal(t, time.Second*10, sink.config.Producer.Flush.Frequency, "flush frequency did not set correctly")
 }
 
 func TestBadDuration(t *testing.T) {

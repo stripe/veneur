@@ -45,55 +45,47 @@ type KafkaSpanSink struct {
 }
 
 // NewKafkaMetricSink creates a new Kafka Plugin.
-func NewKafkaMetricSink(logger *logrus.Logger, brokers string, checkTopic string, eventTopic string, metricTopic string, ackRequirement string, partitioner string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, stats *statsd.Client) *KafkaMetricSink {
+func NewKafkaMetricSink(logger *logrus.Logger, brokers string, checkTopic string, eventTopic string, metricTopic string, ackRequirement string, partitioner string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, stats *statsd.Client) (*KafkaMetricSink, error) {
 
-	finalCheckTopic := metricTopic
-	if finalCheckTopic == "" {
-		finalCheckTopic = "veneur_checks"
-	}
-
-	finalEventTopic := eventTopic
-	if finalEventTopic == "" {
-		finalEventTopic = "veneur_events"
-	}
-
-	finalMetricTopic := metricTopic
-	if finalMetricTopic == "" {
-		finalMetricTopic = "veneur_metrics"
+	if checkTopic == "" && eventTopic == "" && metricTopic == "" {
+		return nil, errors.New("Unable to start Kafka sink with no valid topic names")
 	}
 
 	ll := logger.WithField("metric_sink", "kafka")
 
 	var finalBufferDuration time.Duration
 	if bufferDuration != "" {
-		finalBufferDuration, _ = time.ParseDuration(bufferDuration)
-		// TODO Return an error!
+		var err error
+		finalBufferDuration, err = time.ParseDuration(bufferDuration)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	config, _ := newProducerConfig(ll, ackRequirement, partitioner, retries, bufferBytes, bufferMessages, finalBufferDuration)
 
 	ll.WithFields(logrus.Fields{
 		"brokers":         brokers,
-		"check topic":     finalCheckTopic,
-		"event topic":     finalEventTopic,
-		"metric topic":    finalMetricTopic,
+		"check_topic":     checkTopic,
+		"event_topic":     eventTopic,
+		"metric_topic":    metricTopic,
 		"partitioner":     partitioner,
-		"ack requirement": ackRequirement,
-		"max retries":     retries,
-		"buffer bytes":    bufferBytes,
-		"buffer messages": bufferMessages,
-		"buffer duration": bufferDuration,
+		"ack_requirement": ackRequirement,
+		"max_retries":     retries,
+		"buffer_bytes":    bufferBytes,
+		"buffer_messages": bufferMessages,
+		"buffer_duration": bufferDuration,
 	}).Info("Created Kafka metric sink")
 
 	return &KafkaMetricSink{
 		logger:      ll,
 		statsd:      stats,
-		checkTopic:  finalCheckTopic,
-		eventTopic:  finalEventTopic,
-		metricTopic: finalMetricTopic,
+		checkTopic:  checkTopic,
+		eventTopic:  eventTopic,
+		metricTopic: metricTopic,
 		brokers:     brokers,
 		config:      config,
-	}
+	}, nil
 }
 
 func newProducerConfig(logger *logrus.Entry, ackRequirement string, partitioner string, retries int, bufferBytes int, bufferMessages int, bufferFrequency time.Duration) (*sarama.Config, error) {
@@ -171,7 +163,6 @@ func (k *KafkaMetricSink) Start(cl *trace.Client) error {
 
 // Flush sends a slice of metrics to Kafka
 func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
-	k.statsd.Gauge("flush.kafka.metrics_total", float64(len(interMetrics)), nil, 1.0)
 
 	if len(interMetrics) == 0 {
 		k.logger.Info("Nothing to flush, skipping.")
@@ -211,9 +202,8 @@ func (k *KafkaMetricSink) FlushEventsChecks(ctx context.Context, events []sample
 // NewKafkaSpanSink creates a new Kafka Plugin.
 func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, partitioner string, ackRequirement string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, serializationFormat string, stats *statsd.Client) (*KafkaSpanSink, error) {
 
-	finalTopic := topic
-	if finalTopic == "" {
-		finalTopic = "veneur_spans"
+	if topic == "" {
+		return nil, errors.New("Cannot start Kafka span sink with no span topic")
 	}
 
 	ll := logger.WithField("span_sink", "kafka")
@@ -237,19 +227,19 @@ func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, parti
 
 	ll.WithFields(logrus.Fields{
 		"brokers":         brokers,
-		"topic":           finalTopic,
+		"topic":           topic,
 		"partitioner":     partitioner,
-		"ack requirement": ackRequirement,
-		"max retries":     retries,
-		"buffer bytes":    bufferBytes,
-		"buffer messages": bufferMessages,
-		"buffer duration": bufferDuration,
+		"ack_requirement": ackRequirement,
+		"max_retries":     retries,
+		"buffer_bytes":    bufferBytes,
+		"buffer_messages": bufferMessages,
+		"buffer_duration": bufferDuration,
 	}).Info("Started Kafka span sink")
 
 	return &KafkaSpanSink{
 		logger:     ll,
 		statsd:     stats,
-		topic:      finalTopic,
+		topic:      topic,
 		brokers:    brokers,
 		config:     config,
 		serializer: serializer,
@@ -305,7 +295,8 @@ func (k *KafkaSpanSink) Ingest(span ssf.SSFSpan) error {
 	return nil
 }
 
-// Flush TODO TODO
+// Flush emits metrics, since the spans have already been ingested and are
+// sending async.
 func (k *KafkaSpanSink) Flush() {
 
 	k.statsd.Count("kafka.spans_flushed_total", atomic.LoadInt64(&k.spansFlushed), nil, 1.0)

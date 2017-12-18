@@ -374,31 +374,41 @@ func NewFromConfig(conf Config) (*Server, error) {
 	}
 
 	if conf.KafkaBroker != "" {
-		if conf.KafkaMetricTopic != "" {
-			kSink := kafka.NewKafkaMetricSink(
+		if conf.KafkaMetricTopic != "" || conf.KafkaCheckTopic != "" || conf.KafkaEventTopic != "" {
+			kSink, err := kafka.NewKafkaMetricSink(
 				log, conf.KafkaBroker, conf.KafkaCheckTopic, conf.KafkaEventTopic,
 				conf.KafkaMetricTopic, conf.KafkaMetricRequireAcks,
 				conf.KafkaPartitioner, conf.KafkaRetryMax,
 				conf.KafkaMetricBufferBytes, conf.KafkaMetricBufferMessages,
-				conf.KafkaMetricBufferFrequency
+				conf.KafkaMetricBufferFrequency,
 				ret.Statsd,
 			)
+			if err != nil {
+				return ret, err
+			}
 
 			ret.metricSinks = append(ret.metricSinks, kSink)
 
 			log.Info("Configured Kafka metric sink")
+		} else {
+			log.Warn("Kafka metric sink skipped due to missing metric, check and event topic")
 		}
 
 		if conf.KafkaSpanTopic != "" {
-			sink := kafka.NewKafkaSpanSink(log, conf.KafkaBroker, conf.KafkaSpanTopic,
+			sink, err := kafka.NewKafkaSpanSink(log, conf.KafkaBroker, conf.KafkaSpanTopic,
 				conf.KafkaPartitioner, conf.KafkaMetricRequireAcks, conf.KafkaRetryMax,
 				conf.KafkaSpanBufferBytes, conf.KafkaSpanBufferMesages,
 				conf.KafkaSpanBufferFrequency, conf.KafkaSpanSerializationFormat,
 				ret.Statsd,
 			)
+			if err != nil {
+				return ret, err
+			}
 
 			ret.spanSinks = append(ret.spanSinks, sink)
 			log.Info("Configured Kafka span sink")
+		} else {
+			log.Warn("Kafka span sink skipped due to missing span topic")
 		}
 	}
 

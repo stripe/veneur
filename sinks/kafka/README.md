@@ -16,4 +16,10 @@ See the various `kafka_*` keys in [example.yaml](https://github.com/stripe/veneu
 
 # Format
 
-Metrics or spans may be published in one of either
+Metrics are published in JSON in the form of:
+
+```
+TODO Format
+```
+
+Spans are published in one of JSON or Protobuf. The form is defined in [SSF's probuf and codegen output](https://github.com/stripe/veneur/tree/master/ssf). Note that it has a `version` field for compatibility in the future.
