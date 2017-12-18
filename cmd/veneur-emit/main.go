@@ -91,6 +91,7 @@ func main() {
 	}
 	logrus.WithField("net", netAddr.Network()).
 		WithField("addr", netAddr.String()).
+		WithField("ssf", *toSSF).
 		Debugf("destination")
 
 	if *mode == "event" {
@@ -131,6 +132,10 @@ func main() {
 			Fatal("Couldn't set up the main span")
 	}
 	if span.TraceId != 0 {
+		if !*toSSF {
+			logrus.WithField("ssf", *toSSF).
+				Fatal("Can's use tracing in non-ssf operation: Use -ssf to emit trace spans.")
+		}
 		logrus.WithField("trace_id", span.TraceId).
 			WithField("span_id", span.Id).
 			WithField("parent_id", span.ParentId).
