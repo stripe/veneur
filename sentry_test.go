@@ -14,14 +14,14 @@ func consumeAndCatchPanic(s *Server) (result interface{}) {
 	defer func() {
 		result = recover()
 	}()
-	ConsumePanic(s.Sentry, s.Statsd, s.Hostname, "panic")
+	ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, "panic")
 	return
 }
 
 func TestConsumePanicWithoutSentry(t *testing.T) {
 	s := &Server{}
 	// does nothing
-	ConsumePanic(s.Sentry, s.Statsd, s.Hostname, nil)
+	ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, nil)
 
 	recovered := consumeAndCatchPanic(s)
 	if recovered != "panic" {
@@ -49,7 +49,7 @@ func TestConsumePanicWithSentry(t *testing.T) {
 	s.Sentry.Transport = fakeTransport
 
 	// nil does nothing
-	ConsumePanic(s.Sentry, s.Statsd, s.Hostname, nil)
+	ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, nil)
 	if len(fakeTransport.packets) != 0 {
 		t.Error("ConsumePanic(nil) should not send data:", fakeTransport.packets)
 	}

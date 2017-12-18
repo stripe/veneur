@@ -1,15 +1,15 @@
 package veneur
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/metrics"
 )
 
 const counterTypeName = "counter"
@@ -20,16 +20,16 @@ const timerTypeName = "timer"
 
 // Worker is the doodad that does work.
 type Worker struct {
-	id         int
-	PacketChan chan samplers.UDPMetric
-	ImportChan chan []samplers.JSONMetric
-	QuitChan   chan struct{}
-	processed  int64
-	imported   int64
-	mutex      *sync.Mutex
-	stats      *statsd.Client
-	logger     *logrus.Logger
-	wm         WorkerMetrics
+	id          int
+	PacketChan  chan samplers.UDPMetric
+	ImportChan  chan []samplers.JSONMetric
+	QuitChan    chan struct{}
+	processed   int64
+	imported    int64
+	mutex       *sync.Mutex
+	traceClient *trace.Client
+	logger      *logrus.Logger
+	wm          WorkerMetrics
 }
 
 // IngestUDP on a Worker feeds the metric into the worker's PacketChan.
@@ -138,18 +138,18 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, stats *statsd.Client, logger *logrus.Logger) *Worker {
+func NewWorker(id int, cl *trace.Client, logger *logrus.Logger) *Worker {
 	return &Worker{
-		id:         id,
-		PacketChan: make(chan samplers.UDPMetric),
-		ImportChan: make(chan []samplers.JSONMetric),
-		QuitChan:   make(chan struct{}),
-		processed:  0,
-		imported:   0,
-		mutex:      &sync.Mutex{},
-		stats:      stats,
-		logger:     logger,
-		wm:         NewWorkerMetrics(),
+		id:          id,
+		PacketChan:  make(chan samplers.UDPMetric),
+		ImportChan:  make(chan []samplers.JSONMetric),
+		QuitChan:    make(chan struct{}),
+		processed:   0,
+		imported:    0,
+		mutex:       &sync.Mutex{},
+		traceClient: cl,
+		logger:      logger,
+		wm:          NewWorkerMetrics(),
 	}
 }
 
@@ -284,15 +284,11 @@ func (w *Worker) Flush() WorkerMetrics {
 	w.mutex.Unlock()
 
 	// Track how much time each worker takes to flush.
-	w.stats.TimeInMilliseconds(
-		"flush.worker_duration_ns",
-		float64(time.Since(start).Nanoseconds()),
-		nil,
-		1.0,
-	)
-
-	w.stats.Count("worker.metrics_processed_total", processed, []string{}, 1.0)
-	w.stats.Count("worker.metrics_imported_total", imported, []string{}, 1.0)
+	metrics.ReportBatch(w.traceClient, []*ssf.SSFSample{
+		ssf.Timing("flush.worker_duration_ns", time.Since(start), time.Millisecond, nil),
+		ssf.Count("worker.metrics_processed_total", float32(processed), nil),
+		ssf.Count("worker.metrics_imported_total", float32(imported), nil),
+	})
 
 	return ret
 }
@@ -311,16 +307,16 @@ type EventWorker struct {
 	mutex            *sync.Mutex
 	events           []samplers.UDPEvent
 	checks           []samplers.UDPServiceCheck
-	stats            *statsd.Client
+	traceClient      *trace.Client
 }
 
 // NewEventWorker creates an EventWorker ready to collect events and service checks.
-func NewEventWorker(stats *statsd.Client) *EventWorker {
+func NewEventWorker(cl *trace.Client) *EventWorker {
 	return &EventWorker{
 		EventChan:        make(chan samplers.UDPEvent),
 		ServiceCheckChan: make(chan samplers.UDPServiceCheck),
 		mutex:            &sync.Mutex{},
-		stats:            stats,
+		traceClient:      cl,
 	}
 }
 
@@ -354,23 +350,23 @@ func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck)
 	ew.checks = nil
 
 	ew.mutex.Unlock()
-	ew.stats.TimeInMilliseconds("flush.event_worker_duration_ns", float64(time.Since(start).Nanoseconds()), nil, 1.0)
+	metrics.ReportOne(ew.traceClient, ssf.Timing("flush.event_worker_duration_ns", time.Since(start), time.Nanosecond, nil))
 	return retevts, retsvchecks
 }
 
 // SpanWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type SpanWorker struct {
-	SpanChan chan *ssf.SSFSpan
-	sinks    []sinks.SpanSink
-	stats    *statsd.Client
+	SpanChan    chan *ssf.SSFSpan
+	sinks       []sinks.SpanSink
+	traceClient *trace.Client
 }
 
 // NewSpanWorker creates an SpanWorker ready to collect events and service checks.
-func NewSpanWorker(sinks []sinks.SpanSink, stats *statsd.Client) *SpanWorker {
+func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client) *SpanWorker {
 	return &SpanWorker{
-		SpanChan: make(chan *ssf.SSFSpan),
-		sinks:    sinks,
-		stats:    stats,
+		SpanChan:    make(chan *ssf.SSFSpan),
+		sinks:       sinks,
+		traceClient: cl,
 	}
 }
 
@@ -382,9 +378,11 @@ func (tw *SpanWorker) Work() {
 		for _, s := range tw.sinks {
 			err := s.Ingest(m)
 			if err != nil {
-				// If a sink goes wacko and errors a lot, we stand to emit a loooot of metrics
-				// here since span ingest rates can be very high. C'est la vie.
-				tw.stats.Count("worker.span.ingest_error_total", 1, []string{fmt.Sprintf("sink:%s", s.Name())}, 1.0)
+				// If a sink goes wacko and errors a lot, we stand to emit a
+				// loooot of metrics towards all span workers here since
+				// span ingest rates can be very high. C'est la vie.
+				metrics.ReportOne(tw.traceClient,
+					ssf.Count("worker.span.ingest_error_total", 1, map[string]string{"sink": s.Name()}))
 			}
 		}
 	}
@@ -397,6 +395,7 @@ func (tw *SpanWorker) Flush() {
 	for _, s := range tw.sinks {
 		sinkFlushStart := time.Now()
 		s.Flush()
-		tw.stats.TimeInMilliseconds("worker.span.flush_duration_ns", float64(time.Since(sinkFlushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", s.Name())}, 1.0)
+		metrics.ReportOne(tw.traceClient,
+			ssf.Timing("worker.span.flush_duration_ns", time.Since(sinkFlushStart), time.Nanosecond, map[string]string{"sink": s.Name()}))
 	}
 }

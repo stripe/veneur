@@ -2,23 +2,22 @@
 package ssfmetrics
 
 import (
-	"fmt"
 	"sync/atomic"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/metrics"
 )
 
 type metricExtractionSink struct {
 	workers                []Processor
 	indicatorSpanTimerName string
 	log                    *logrus.Logger
-	statsd                 *statsd.Client
+	traceClient            *trace.Client
 	spansProcessed         int64
 	metricsGenerated       int64
 }
@@ -34,11 +33,11 @@ type Processor interface {
 // NewMetricExtractionSink sets up and creates a span sink that
 // extracts metrics ("samples") from SSF spans and reports them to a
 // veneur's metrics workers.
-func NewMetricExtractionSink(mw []Processor, timerName string, statsd *statsd.Client, log *logrus.Logger) (sinks.SpanSink, error) {
+func NewMetricExtractionSink(mw []Processor, timerName string, cl *trace.Client, log *logrus.Logger) (sinks.SpanSink, error) {
 	return &metricExtractionSink{
 		workers:                mw,
 		indicatorSpanTimerName: timerName,
-		statsd:                 statsd,
+		traceClient:            cl,
 		log:                    log,
 	}, nil
 }
@@ -76,14 +75,14 @@ func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 		if _, ok := err.(samplers.InvalidMetrics); ok {
 			m.log.WithError(err).
 				Warn("Could not parse metrics from SSF Message")
-			m.sendSample(ssf.Count("veneur.ssf.error_total", 1, map[string]string{
+			m.sendSample(ssf.Count("ssf.error_total", 1, map[string]string{
 				"packet_type": "ssf_metric",
 				"step":        "extract_metrics",
 				"reason":      "invalid_metrics",
 			}))
 		} else {
 			m.log.WithError(err).Error("Unexpected error extracting metrics from SSF Message")
-			m.sendSample(ssf.Count("veneur.ssf.error_total", 1, map[string]string{
+			m.sendSample(ssf.Count("ssf.error_total", 1, map[string]string{
 				"packet_type": "ssf_metric",
 				"step":        "extract_metrics",
 				"reason":      "unexpected_error",
@@ -112,8 +111,11 @@ func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 }
 
 func (m metricExtractionSink) Flush() {
-	m.statsd.Count(sinks.MetricKeyTotalSpansFlushed, atomic.LoadInt64(&m.spansProcessed), []string{fmt.Sprintf("sink:%s", m.Name())}, 1.0)
-	m.statsd.Count(sinks.MetricKeyTotalMetricsFlushed, atomic.LoadInt64(&m.metricsGenerated), []string{fmt.Sprintf("sink:%s", m.Name())}, 1.0)
+	tags := map[string]string{"sink": m.Name()}
+	metrics.ReportBatch(m.traceClient, []*ssf.SSFSample{
+		ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(atomic.LoadInt64(&m.spansProcessed)), tags),
+		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(atomic.LoadInt64(&m.metricsGenerated)), tags),
+	})
 
 	atomic.SwapInt64(&m.spansProcessed, 0)
 	atomic.SwapInt64(&m.metricsGenerated, 0)

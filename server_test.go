@@ -32,7 +32,7 @@ import (
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/tdigest"
 	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/ssfmetrics"
+	"github.com/stripe/veneur/trace/metrics"
 )
 
 const ε = .00002
@@ -141,7 +141,10 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 	if transport != nil {
 		server.HTTPClient.Transport = transport
 	}
+
+	// Make sure we don't send internal metrics when testing:
 	server.TraceClient = nil
+	server.traceBackend = nil
 
 	if mSink == nil {
 		// Install a blackhole sink if we have no other sinks
@@ -1158,7 +1161,6 @@ func TestInternalSSFMetricsEndToEnd(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tdir)
 
-	HTTPAddrPort++
 	path := filepath.Join(tdir, "test.sock")
 	ssfAddr := "unix://" + path
 
@@ -1175,7 +1177,7 @@ func TestInternalSSFMetricsEndToEnd(t *testing.T) {
 	require.NoError(t, err)
 
 	done := make(chan error)
-	err = ssfmetrics.ReportAsync(client, []*ssf.SSFSample{
+	err = metrics.ReportAsync(client, []*ssf.SSFSample{
 		ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
 		ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
 	}, done)

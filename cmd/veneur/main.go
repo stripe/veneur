@@ -65,7 +65,7 @@ func main() {
 	ssf.NamePrefix = "veneur."
 
 	defer func() {
-		veneur.ConsumePanic(server.Sentry, server.Statsd, server.Hostname, recover())
+		veneur.ConsumePanic(server.Sentry, server.TraceClient, server.Hostname, recover())
 	}()
 
 	if server.TraceClient != nil {

@@ -13,14 +13,15 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/DataDog/datadog-go/statsd"
 	raven "github.com/getsentry/raven-go"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/profile"
 	"github.com/sirupsen/logrus"
 	vhttp "github.com/stripe/veneur/http"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/metrics"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
 	"stathat.com/c/consistent"
@@ -42,14 +43,13 @@ type Proxy struct {
 	TraceDestinationsMtx   sync.Mutex
 	HTTPAddr               string
 	HTTPClient             *http.Client
-	Statsd                 *statsd.Client
 	AcceptingForwards      bool
 	AcceptingTraces        bool
 	ForwardTimeout         time.Duration
 
 	usingConsul     bool
 	enableProfiling bool
-	traceClient     *trace.Client
+	TraceClient     *trace.Client
 }
 
 func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err error) {
@@ -74,13 +74,6 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 	p.HTTPAddr = conf.HTTPAddress
 	// TODO Timeout?
 	p.HTTPClient = &http.Client{}
-
-	p.Statsd, err = statsd.NewBuffered(conf.StatsAddress, 1024)
-	if err != nil {
-		logger.WithError(err).Error("Failed to create stats instance")
-		return
-	}
-	p.Statsd.Namespace = "veneur_proxy."
 
 	p.enableProfiling = conf.EnableProfiling
 
@@ -139,7 +132,7 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 		}
 		logger.WithField("interval", conf.ConsulRefreshInterval).Info("Will use Consul for service discovery")
 	}
-	p.traceClient = trace.DefaultClient
+	p.TraceClient = trace.DefaultClient
 
 	// TODO Size of replicas in config?
 	//ret.ForwardDestinations.NumberOfReplicas = ???
@@ -186,7 +179,7 @@ func (p *Proxy) Start() {
 	if p.usingConsul {
 		go func() {
 			defer func() {
-				ConsumePanic(p.Sentry, p.Statsd, p.Hostname, recover())
+				ConsumePanic(p.Sentry, p.TraceClient, p.Hostname, recover())
 			}()
 			ticker := time.NewTicker(p.ConsulInterval)
 			for range ticker.C {
@@ -250,13 +243,16 @@ func (p *Proxy) HTTPServe() {
 // for flushing. This should be called periodically to ensure we have
 // the latest data.
 func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consistent, mtx *sync.Mutex) {
+	samples := &ssf.Samples{}
+	defer metrics.Report(p.TraceClient, samples)
+	srvTags := map[string]string{"service": serviceName}
 
 	start := time.Now()
 	destinations, err := p.Discoverer.GetDestinationsForService(serviceName)
-	p.Statsd.TimeInMilliseconds("discoverer.update_duration_ns", float64(time.Since(start).Nanoseconds()), []string{fmt.Sprintf("service:%s", serviceName)}, 1.0)
+	samples.Add(ssf.Timing("discoverer.update_duration_ns", time.Since(start), time.Nanosecond, srvTags))
 	if err != nil || len(destinations) == 0 {
 		log.WithError(err).WithField("service", serviceName).Error("Discoverer returned an error, destinations may be stale!")
-		p.Statsd.Incr("discoverer.errors", []string{fmt.Sprintf("service:%s", serviceName)}, 1.0)
+		samples.Add(ssf.Count("discoverer.errors", 1, srvTags))
 		// Return since we got no hosts. We don't want to zero out the list. This
 		// should result in us leaving the "last good" values in the ring.
 		return
@@ -269,7 +265,7 @@ func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consist
 	mtx.Lock()
 	defer mtx.Unlock()
 	ring.Set(destinations)
-	p.Statsd.Gauge("discoverer.destination_number", float64(len(destinations)), []string{fmt.Sprintf("service:%s", serviceName)}, 1.0)
+	samples.Add(ssf.Gauge("discoverer.destination_number", float32(len(destinations)), srvTags))
 }
 
 // Handler returns the Handler responsible for routing request processing.
@@ -294,7 +290,7 @@ func (p *Proxy) Handler() http.Handler {
 
 func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxy.proxy_traces")
-	defer span.ClientFinish(p.traceClient)
+	defer span.ClientFinish(p.TraceClient)
 	if p.ForwardTimeout > 0 {
 		var cancel func()
 		ctx, cancel = context.WithTimeout(ctx, p.ForwardTimeout)
@@ -312,14 +308,11 @@ func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
 	}
 
 	for dest, batch := range tracesByDestination {
-
 		if len(batch) != 0 {
-
 			// this endpoint is not documented to take an array... but it does
 			// another curious constraint of this endpoint is that it does not
 			// support "Content-Encoding: deflate"
-			err := vhttp.PostHelper(span.Attach(ctx), p.HTTPClient, p.Statsd, p.traceClient, http.MethodPost, fmt.Sprintf("%s/spans", dest), batch, "flush_traces", false, log)
-
+			err := vhttp.PostHelper(span.Attach(ctx), p.HTTPClient, p.TraceClient, http.MethodPost, fmt.Sprintf("%s/spans", dest), batch, "flush_traces", false, log)
 			if err == nil {
 				log.WithFields(logrus.Fields{
 					"traces":      len(batch),
@@ -341,17 +334,17 @@ func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
 // multiple HTTP requests by MetricKey using the hash ring.
 func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMetric, origin string) {
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxy.proxy_metrics")
-	defer span.ClientFinish(p.traceClient)
+	defer span.ClientFinish(p.TraceClient)
 
 	if p.ForwardTimeout > 0 {
 		var cancel func()
 		ctx, cancel = context.WithTimeout(ctx, p.ForwardTimeout)
 		defer cancel()
 	}
-	p.Statsd.Count("import.metrics_total", int64(len(jsonMetrics)), []string{
-		"remote_addr:" + origin,
-		"veneurglobalonly",
-	}, 1.0)
+	span.Add(ssf.Count("import.metrics_total", float32(len(jsonMetrics)), map[string]string{
+		"remote_addr":      origin,
+		"veneurglobalonly": "",
+	}))
 
 	jsonMetricsByDestination := make(map[string][]samplers.JSONMetric)
 	for _, h := range p.ForwardDestinations.Members() {
@@ -371,25 +364,28 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 		go p.doPost(ctx, &wg, dest, batch)
 	}
 	wg.Wait() // Wait for all the above goroutines to complete
-	p.Statsd.TimeInMilliseconds("proxy.duration_ns", float64(time.Since(span.Start).Nanoseconds()), nil, 1.0)
+	span.Add(ssf.Timing("proxy.duration_ns", time.Since(span.Start), time.Nanosecond, nil))
 }
 
 func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination string, batch []samplers.JSONMetric) {
 	defer wg.Done()
+
+	samples := &ssf.Samples{}
+	defer metrics.Report(p.TraceClient, samples)
 
 	batchSize := len(batch)
 	if batchSize < 1 {
 		return
 	}
 
-	err := vhttp.PostHelper(ctx, p.HTTPClient, p.Statsd, p.traceClient, http.MethodPost, fmt.Sprintf("%s/import", destination), batch, "forward", true, log)
+	err := vhttp.PostHelper(ctx, p.HTTPClient, p.TraceClient, http.MethodPost, fmt.Sprintf("%s/import", destination), batch, "forward", true, log)
 	if err == nil {
 		log.WithField("metrics", batchSize).Debug("Completed forward to upstream Veneur")
 	} else {
-		p.Statsd.Count("forward.error_total", 1, []string{"cause:post"}, 1.0)
+		samples.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "post"}))
 		log.WithError(err).Warn("Failed to POST metrics to destination")
 	}
-	p.Statsd.Gauge("metrics_by_destination", float64(batchSize), []string{fmt.Sprintf("destination:%s", destination)}, 1.0)
+	samples.Add(ssf.Gauge("metrics_by_destination", float32(batchSize), map[string]string{"destination": destination}))
 }
 
 // Shutdown signals the server to shut down after closing all

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/signalfx/golib/datapoint"
 	"github.com/signalfx/golib/datapoint/dpsink"
 	"github.com/signalfx/golib/event"
@@ -14,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
+	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
 
@@ -23,13 +23,12 @@ type SignalFxSink struct {
 	hostnameTag      string
 	hostname         string
 	commonDimensions map[string]string
-	statsd           *statsd.Client
 	log              *logrus.Logger
 	traceClient      *trace.Client
 }
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(apiKey string, endpoint string, hostnameTag string, hostname string, commonDimensions map[string]string, stats *statsd.Client, log *logrus.Logger, client dpsink.Sink) (*SignalFxSink, error) {
+func NewSignalFxSink(apiKey string, endpoint string, hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client dpsink.Sink) (*SignalFxSink, error) {
 	if client == nil {
 		httpSink := sfxclient.NewHTTPSink()
 		httpSink.AuthToken = apiKey
@@ -44,7 +43,6 @@ func NewSignalFxSink(apiKey string, endpoint string, hostnameTag string, hostnam
 		hostnameTag:      hostnameTag,
 		hostname:         hostname,
 		commonDimensions: commonDimensions,
-		statsd:           stats,
 		log:              log,
 	}, nil
 }
@@ -98,8 +96,9 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	if err != nil {
 		span.Error(err)
 	}
-	sfx.statsd.TimeInMilliseconds(sinks.MetricKeyMetricFlushDuration, float64(time.Since(flushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", sfx.Name())}, 1.0)
-	sfx.statsd.Count(sinks.MetricKeyTotalMetricsFlushed, int64(len(points)), []string{fmt.Sprintf("sink:%s", sfx.Name())}, 1.0)
+	tags := map[string]string{"sink": "signalfx"}
+	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags))
+	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(points)), tags))
 	sfx.log.WithField("metrics", len(interMetrics)).Info("Completed flush to SignalFx")
 
 	return err
