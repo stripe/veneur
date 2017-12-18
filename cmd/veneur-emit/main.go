@@ -91,6 +91,7 @@ func main() {
 	}
 	logrus.WithField("net", netAddr.Network()).
 		WithField("addr", netAddr.String()).
+		WithField("ssf", *toSSF).
 		Debugf("destination")
 
 	if *mode == "event" {
