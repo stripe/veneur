@@ -3,6 +3,7 @@ package ssf
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -20,13 +21,44 @@ func TestValidity(t *testing.T) {
 			assert.Equal(t, float32(1), sample.Value)
 			assert.Equal(t, map[string]string{"purpose": "testing"}, sample.Tags)
 		})
-		t.Run(fmt.Sprintf("%s/unit", name), func(t *testing.T) {
+	}
+}
+
+func TestOptions(t *testing.T) {
+	then := time.Now().Add(-20 * time.Second)
+	testFuns := map[string]constructor{"count": Count, "gauge": Gauge, "histogram": Histogram}
+	testOpts := []struct {
+		name  string
+		cons  SampleOption
+		check func(*SSFSample)
+	}{
+		{
+			"unit",
+			Unit("frobnizzles"),
+			func(s *SSFSample) {
+				assert.Equal(t, "frobnizzles", s.Unit)
+			},
+		},
+		{
+			"ts",
+			Timestamp(then),
+			func(s *SSFSample) {
+				assert.Equal(t, then.UnixNano(), s.Timestamp)
+			},
+		},
+	}
+	for name, elt := range testFuns {
+		test := elt
+		t.Run(fmt.Sprintf("%s", name), func(t *testing.T) {
 			t.Parallel()
-			sample := test("foo", 1, map[string]string{"purpose": "testing"}, Unit("farts"))
-			assert.Equal(t, "foo", sample.Name)
-			assert.Equal(t, float32(1), sample.Value)
-			assert.Equal(t, map[string]string{"purpose": "testing"}, sample.Tags)
-			assert.Equal(t, "farts", sample.Unit)
+			for _, elt := range testOpts {
+				opt := elt
+				t.Run(opt.name, func(t *testing.T) {
+					t.Parallel()
+					sample := test("foo", 1, map[string]string{"purpose": "testing"}, opt.cons)
+					opt.check(sample)
+				})
+			}
 		})
 	}
 }
