@@ -1,7 +1,10 @@
 package datadog
 
 import (
+	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -9,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/ssf"
 )
 
 // DDMetricsRequest represents the body of the POST request
@@ -110,4 +114,60 @@ func TestNewDatadogSpanSinkConfig(t *testing.T) {
 	}
 
 	assert.Equal(t, "http://example.com", ddSink.traceAddress)
+}
+
+type DatadogRoundTripper struct {
+	Endpoint      string
+	Contains      string
+	GotCalled     bool
+	ThingReceived bool
+}
+
+func (rt *DatadogRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	rec := httptest.NewRecorder()
+	if strings.HasPrefix(req.URL.Path, rt.Endpoint) {
+		body, _ := ioutil.ReadAll(req.Body)
+		defer req.Body.Close()
+		if strings.Contains(string(body), rt.Contains) {
+			rt.ThingReceived = true
+		}
+
+		rec.Code = http.StatusOK
+		rt.GotCalled = true
+	}
+
+	return rec.Result(), nil
+}
+
+func TestDatadogFlushSpans(t *testing.T) {
+	// test the variables that have been renamed
+	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
+
+	transport := &DatadogRoundTripper{Endpoint: "/spans", Contains: "farts-srv"}
+
+	ddSink, err := NewDatadogSpanSink("http://example.com", 100, stats, &http.Client{Transport: transport}, nil, logrus.New())
+	assert.NoError(t, err)
+
+	start := time.Now()
+	end := start.Add(2 * time.Second)
+
+	testSpan := &ssf.SSFSpan{
+		TraceId:        1,
+		ParentId:       1,
+		Id:             2,
+		StartTimestamp: int64(start.UnixNano()),
+		EndTimestamp:   int64(end.UnixNano()),
+		Error:          false,
+		Service:        "farts-srv",
+		Tags: map[string]string{
+			"baz": "qux",
+		},
+		Indicator: false,
+		Name:      "farting farty farts",
+	}
+	err = ddSink.Ingest(testSpan)
+	assert.NoError(t, err)
+
+	ddSink.Flush()
+	assert.Equal(t, true, transport.GotCalled, "Did not call spans endpoint")
 }
