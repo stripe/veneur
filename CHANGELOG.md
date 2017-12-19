@@ -13,6 +13,7 @@
 * Veneur now emits a timer metric for every "indicator" span that it receives, if you configure the setting `indicator_span_timer_name`. Thanks, [antifuchs](https://github.com/antifuchs)!
 * All sinks have been moved to their own packages for smaller code and better interfaces. Thanks [gphat](https://github.com/gphat)!
 * Removed noisy Sentry events that duplicated Datadog error reporting. Thanks, [aditya](https://github.com/chimeracoder)!
+* Veneur now reuses HTTP connections for forwarding and Datadog flushes. Furthermore each phase of the HTTP request is traced and can be seen using the trace sink of your choice. This should drastically improve performance and reliability for installs with large numbers of instances. Thanks [gphat](https://github.com/gphat)!
 
 # 1.8.1, 2017-12-05
 

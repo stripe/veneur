@@ -156,10 +156,15 @@ func NewFromConfig(conf Config) (*Server, error) {
 	if err != nil {
 		return ret, err
 	}
+
+	transport := &http.Transport{
+		IdleConnTimeout: ret.interval * 2, // If we're idle more than one interval something is up
+	}
+
 	ret.HTTPClient = &http.Client{
 		// make sure that POSTs to datadog do not overflow the flush interval
-		Timeout: ret.interval * 9 / 10,
-		// we're fine with using the default transport and redirect behavior
+		Timeout:   ret.interval * 9 / 10,
+		Transport: transport,
 	}
 
 	ret.Statsd, err = statsd.NewBuffered(conf.StatsAddress, 1024)

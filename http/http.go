@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -18,9 +20,96 @@ import (
 
 var tracer = trace.GlobalTracer
 
-// shared code for POSTing to an endpoint, that consumes JSON, that is zlib-
+// httpClientTracer is a wrapper around a `net/http/httptrace` that handles
+// proper tracing and metric emission.
+type httpClientTracer struct {
+	prefix      string
+	stats       *statsd.Client
+	traceClient *trace.Client
+	mutex       *sync.Mutex
+	ctx         context.Context
+	currentSpan *trace.Span
+}
+
+// newHTTPClientTracer makes a new HTTPClientTracer with new span created from
+// the context.
+func newHTTPClientTracer(ctx context.Context, stats *statsd.Client, tc *trace.Client, prefix string) *httpClientTracer {
+	span, _ := trace.StartSpanFromContext(ctx, "http.start")
+	return &httpClientTracer{
+		prefix:      prefix,
+		stats:       stats,
+		traceClient: tc,
+		mutex:       &sync.Mutex{},
+		ctx:         ctx,
+		currentSpan: span,
+	}
+}
+
+// getClientTrace is a convenience to return a filled-in `ClientTrace`.
+func (hct *httpClientTracer) getClientTrace() *httptrace.ClientTrace {
+	return &httptrace.ClientTrace{
+		GotConn:              hct.gotConn,
+		DNSStart:             hct.dnsStart,
+		GotFirstResponseByte: hct.gotFirstResponseByte,
+		ConnectStart:         hct.connectStart,
+		WroteRequest:         hct.wroteRequest,
+	}
+}
+
+// startSpan is a convenience that replaces the current span in our
+// tracer and flushes the outgoing one.
+func (hct *httpClientTracer) startSpan(name string) *trace.Span {
+	hct.mutex.Lock()
+	defer hct.mutex.Unlock()
+	newSpan, _ := trace.StartSpanFromContext(hct.ctx, name)
+	hct.currentSpan.ClientFinish(hct.traceClient)
+
+	hct.currentSpan = newSpan
+	return newSpan
+}
+
+// gotConn signals that the connection — be it new or reused — was fetched
+// from the pool.
+func (hct *httpClientTracer) gotConn(info httptrace.GotConnInfo) {
+	state := "new"
+	if info.Reused {
+		state = "reused"
+	}
+	hct.startSpan(fmt.Sprintf("http.gotConnection.%s", state))
+
+	hct.stats.Count(hct.prefix+".connections_used_total", 1, []string{fmt.Sprintf("state:%s", state)}, 1.0)
+}
+
+// dnsStart marks the beginning of the DNS lookup
+func (hct *httpClientTracer) dnsStart(info httptrace.DNSStartInfo) {
+	hct.startSpan("http.resolvingDNS")
+}
+
+// gotFirstResponseByte marks us receiving our first byte
+func (hct *httpClientTracer) gotFirstResponseByte() {
+	hct.startSpan("http.gotFirstByte")
+}
+
+// connectStart marks beginning of the connect process
+func (hct *httpClientTracer) connectStart(network, addr string) {
+	hct.startSpan("http.connecting")
+}
+
+// wroteRequest marks the write being completed
+func (hct *httpClientTracer) wroteRequest(info httptrace.WroteRequestInfo) {
+	hct.startSpan("http.finishedWrite")
+}
+
+// finishSpan is called to ensure we're done tracing
+func (hct *httpClientTracer) finishSpan() {
+	hct.mutex.Lock()
+	defer hct.mutex.Unlock()
+	hct.currentSpan.ClientFinish(hct.traceClient)
+}
+
+// PostHelper is shared code for POSTing to an endpoint, that consumes JSON, is zlib-
 // compressed, that returns 202 on success, that has a small response
-// action is a string used for statsd metric names and log messages emitted from
+// action as a string used for statsd metric names and log messages emitted from
 // this function - probably a static string for each callsite
 // you can disable compression with compress=false for endpoints that don't
 // support it
@@ -75,8 +164,6 @@ func PostHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 	if compress {
 		req.Header.Set("Content-Encoding", "deflate")
 	}
-	// we only make http requests at flush time, so keepalive is not a big win
-	req.Close = true
 
 	err = tracer.InjectRequest(span.Trace, req)
 	if err != nil {
@@ -84,7 +171,11 @@ func PostHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 		innerLogger.WithError(err).Error("Error injecting header")
 	}
 
-	requestStart := time.Now()
+	// Attach a ClientTrace that emits span for all our HTTP bits.
+	hct := newHTTPClientTracer(span.Attach(ctx), stats, tc, action)
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), hct.getClientTrace()))
+	defer hct.finishSpan()
+
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		if urlErr, ok := err.(*url.Error); ok {
@@ -99,7 +190,6 @@ func PostHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 		innerLogger.WithError(err).Warn("Could not execute request")
 		return err
 	}
-	stats.TimeInMilliseconds(action+".duration_ns", float64(time.Since(requestStart).Nanoseconds()), []string{"part:post"}, 1.0)
 	defer resp.Body.Close()
 
 	responseBody, err := ioutil.ReadAll(resp.Body)
