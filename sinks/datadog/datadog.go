@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	vhttp "github.com/stripe/veneur/http"
+	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
@@ -276,7 +277,10 @@ func (dd *DatadogSpanSink) Start(cl *trace.Client) error {
 }
 
 // Ingest takes the span and adds it to the ringbuffer.
-func (dd *DatadogSpanSink) Ingest(span ssf.SSFSpan) error {
+func (dd *DatadogSpanSink) Ingest(span *ssf.SSFSpan) error {
+	if err := protocol.ValidateTrace(span); err != nil {
+		return err
+	}
 	dd.mutex.Lock()
 	defer dd.mutex.Unlock()
 
@@ -291,14 +295,14 @@ func (dd *DatadogSpanSink) Ingest(span ssf.SSFSpan) error {
 func (dd *DatadogSpanSink) Flush() {
 	dd.mutex.Lock()
 
-	ssfSpans := make([]ssf.SSFSpan, 0, dd.buffer.Len())
+	ssfSpans := make([]*ssf.SSFSpan, 0, dd.buffer.Len())
 
 	dd.buffer.Do(func(t interface{}) {
 		const tooEarly = 1497
 		const tooLate = 1497629343000000
 
 		if t != nil {
-			ssfSpan, ok := t.(ssf.SSFSpan)
+			ssfSpan, ok := t.(*ssf.SSFSpan)
 			if !ok {
 				dd.log.Error("Got an unknown object in tracing ring!")
 				// We'll just skip this one so we don't poison pill or anything.

@@ -67,13 +67,6 @@ func readFrame(in io.Reader, length int) ([]byte, error) {
 	}
 }
 
-// A Message struct represents a parsed SSF message. It encapsulates
-// an ssf.SSFSpan object, which can contain a trace span and/or a set
-// of metrics.
-type Message struct {
-	span *ssf.SSFSpan
-}
-
 // InvalidTrace is an error type indicating that an SSF span was
 // invalid.
 type InvalidTrace struct {
@@ -84,36 +77,25 @@ func (e *InvalidTrace) Error() string {
 	return fmt.Sprintf("not a valid trace span: %#v", e.span)
 }
 
-// TraceSpan checks if an SSF message is a valid trace. If so, it
-// returns a pointer to that original span. If the span is not a valid
-// trace, TraceSpan returns nil and an *InvalidTrace error type.
-//
-// The span returned from TraceSpan does contain the (unparsed) metric
-// samples contained in the span. Note also that since the data
-// returned is a pointer to the original span, it's not advisable to
-// modify that span directly.
-func (m *Message) TraceSpan() (*ssf.SSFSpan, error) {
-	if !ValidTrace(m.span) {
-		return nil, &InvalidTrace{m.span}
-	}
-	return m.span, nil
-}
-
 // ValidTrace takes in an SSF span and determines if it is valid or not.
 // It also makes sure the Tags is non-nil, since we use it later.
-func ValidTrace(sample *ssf.SSFSpan) bool {
+func ValidTrace(span *ssf.SSFSpan) bool {
 	ret := true
-	ret = ret && sample.Id != 0
-	ret = ret && sample.TraceId != 0
-	ret = ret && sample.StartTimestamp != 0
-	ret = ret && sample.EndTimestamp != 0
+	ret = ret && span.Id != 0
+	ret = ret && span.TraceId != 0
+	ret = ret && span.StartTimestamp != 0
+	ret = ret && span.EndTimestamp != 0
 	return ret
 }
 
-// Metrics returns the ssf samples contained in an SSF span. It does
-// not perform any parsing or conversion.
-func (m *Message) Metrics() []*ssf.SSFSample {
-	return m.span.Metrics
+// ValidateTrace takes in an SSF span and determines if it is valid or
+// not.  It also makes sure the Tags is non-nil, since we use it
+// later. If the span is not valid, it returns an error.
+func ValidateTrace(span *ssf.SSFSpan) error {
+	if !ValidTrace(span) {
+		return &InvalidTrace{span}
+	}
+	return nil
 }
 
 // ReadSSF reads a framed SSF span from a stream and returns a parsed
@@ -124,7 +106,7 @@ func (m *Message) Metrics() []*ssf.SSFSample {
 // unrecoverably broken. The error is EOF only if no bytes were read
 // at the start of a message (e.g. if a connection was closed after
 // the last message).
-func ReadSSF(in io.Reader) (*Message, error) {
+func ReadSSF(in io.Reader) (*ssf.SSFSpan, error) {
 	var version uint8
 	var length uint32
 	if err := binary.Read(in, binary.BigEndian, &version); err != nil {
@@ -153,7 +135,7 @@ func ReadSSF(in io.Reader) (*Message, error) {
 
 // ParseSSF takes in a byte slice and returns: a normalized SSFSpan
 // and an error if any errors in parsing the SSF packet occur.
-func ParseSSF(packet []byte) (*Message, error) {
+func ParseSSF(packet []byte) (*ssf.SSFSpan, error) {
 	span := &ssf.SSFSpan{}
 	scratchBuff := pbufPool.Get().(*proto.Buffer)
 	defer func() {
@@ -188,7 +170,7 @@ func ParseSSF(packet []byte) (*Message, error) {
 			sample.SampleRate = 1
 		}
 	}
-	return &Message{span}, nil
+	return span, nil
 }
 
 var pbufPool = sync.Pool{

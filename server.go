@@ -38,6 +38,7 @@ import (
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/sinks/datadog"
 	"github.com/stripe/veneur/sinks/lightstep"
+	"github.com/stripe/veneur/sinks/metrics"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
@@ -220,6 +221,18 @@ func NewFromConfig(conf Config) (*Server, error) {
 	}
 
 	ret.EventWorker = NewEventWorker(ret.Statsd)
+
+	// Set up a span sink that extracts metrics from SSF spans and
+	// reports them via the metric workers:
+	processors := make([]metrics.Processor, len(ret.Workers))
+	for i, w := range ret.Workers {
+		processors[i] = w
+	}
+	metricSink, err := metrics.NewMetricExtractionSink(processors, ret.indicatorSpanTimerName, log)
+	if err != nil {
+		return ret, err
+	}
+	ret.spanSinks = append(ret.spanSinks, metricSink)
 
 	for _, addrStr := range conf.StatsdListenAddresses {
 		addr, err := protocol.ResolveAddr(addrStr)
@@ -409,16 +422,13 @@ func NewFromConfig(conf Config) (*Server, error) {
 func (s *Server) Start() {
 	log.WithField("version", VERSION).Info("Starting server")
 
-	if len(s.spanSinks) > 0 {
-		// Set up our internal trace client:
-		s.SpanWorker = NewSpanWorker(s.spanSinks, s.Statsd)
-		// Now that we have a span worker, set the trace
-		// backend up to send spans to it:
-		if s.traceBackend != nil {
-			s.traceBackend.spanWorker = s.SpanWorker
-		}
-	} else {
-		trace.Disable()
+	// Set up the processor for spans:
+	s.SpanWorker = NewSpanWorker(s.spanSinks, s.Statsd)
+
+	// Now that we have a span worker, set the trace
+	// backend up to send spans to it:
+	if s.traceBackend != nil {
+		s.traceBackend.spanWorker = s.SpanWorker
 	}
 
 	go func() {
@@ -429,16 +439,13 @@ func (s *Server) Start() {
 		s.EventWorker.Work()
 	}()
 
-	if s.TracingEnabled() {
-
-		log.Info("Starting Trace worker")
-		go func() {
-			defer func() {
-				ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
-			}()
-			s.SpanWorker.Work()
+	log.Info("Starting Trace worker")
+	go func() {
+		defer func() {
+			ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
 		}()
-	}
+		s.SpanWorker.Work()
+	}()
 
 	statsdPool := &sync.Pool{
 		// We +1 this so we an "detect" when someone sends us too long of a metric!
@@ -473,7 +480,7 @@ func (s *Server) Start() {
 	}
 
 	// Read Traces Forever!
-	if s.TracingEnabled() && len(s.SSFListenAddrs) > 0 {
+	if len(s.SSFListenAddrs) > 0 {
 		for _, addr := range s.SSFListenAddrs {
 			StartSSF(s, addr, tracePool)
 		}
@@ -576,65 +583,22 @@ func (s *Server) HandleTracePacket(packet []byte) {
 
 	s.Statsd.Histogram("ssf.packet_size", float64(len(packet)), nil, .1)
 
-	msg, err := protocol.ParseSSF(packet)
+	span, err := protocol.ParseSSF(packet)
 	if err != nil {
 		reason := fmt.Sprintf("reason:%s", err.Error())
 		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:ssf_metric", reason}, 1.0)
 		log.WithError(err).Warn("ParseSSF")
 		return
 	}
-	s.handleSSF(msg, []string{"ssf_format:packet"})
+	s.handleSSF(span, []string{"ssf_format:packet"})
 }
 
-func (s *Server) handleSSF(msg *protocol.Message, tags []string) {
-	metrics, err := samplers.ConvertMetrics(msg)
-	if err != nil {
-		if _, ok := err.(samplers.InvalidMetrics); ok {
-			log.WithError(err).Warn("Could not parse metrics from SSF Message")
-			s.Statsd.Count("ssf.error_total", 1, append([]string{
-				"packet_type:ssf_metric",
-				"step:extract_metrics",
-				"reason:invalid_metrics",
-			}, tags...), 1.0)
-		} else {
-			log.WithError(err).Error("Unexpected error extracting metrics from SSF Message")
-			errorTag := fmt.Sprintf("error:%s", err.Error())
-			s.Statsd.Count("ssf.error_total", 1, append([]string{
-				"packet_type:ssf_metric",
-				"step:extract_metrics",
-				"reason:unexpected_error",
-				errorTag,
-			}, tags...), 1.0)
-			return
-		}
-	}
-	for _, metric := range metrics {
-		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- metric
-	}
-
-	span, err := msg.TraceSpan()
-	if err != nil {
-		if _, ok := err.(*protocol.InvalidTrace); !ok {
-			log.WithError(err).Warn("Unexpected error extracting trace span from SSF Message")
-		}
-		return
-	}
+func (s *Server) handleSSF(span *ssf.SSFSpan, tags []string) {
 	tags = append([]string{fmt.Sprintf("service:%s", span.Service)}, tags...)
-
 	s.Statsd.Incr("ssf.spans.received_total", tags, .1)
 	s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, .1)
-	s.SpanWorker.SpanChan <- *span
 
-	indicatorMetrics, err := samplers.ConvertIndicatorMetrics(span, s.indicatorSpanTimerName)
-	if err != nil {
-		log.WithError(err).
-			WithField("span_name", span.Name).
-			Warn("Couldn't extract indicator metrics for span")
-		return
-	}
-	for _, metric := range indicatorMetrics {
-		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- metric
-	}
+	s.SpanWorker.SpanChan <- span
 }
 
 // ReadMetricSocket listens for available packets to handle.
@@ -922,12 +886,6 @@ func (s *Server) getPlugins() []plugins.Plugin {
 	return plugins
 }
 
-// TracingEnabled returns true if tracing is enabled.
-func (s *Server) TracingEnabled() bool {
-	//TODO we now need to check that the backends are flushing the data too
-	return s.SpanWorker != nil
-}
-
 type internalTraceBackend struct {
 	spanWorker *SpanWorker
 	statsd     *statsd.Client
@@ -945,7 +903,7 @@ func (tb *internalTraceBackend) SendSync(ctx context.Context, span *ssf.SSFSpan)
 	}
 	ch := make(chan struct{})
 	go func() {
-		tb.spanWorker.SpanChan <- *span
+		tb.spanWorker.SpanChan <- span
 		close(ch)
 	}()
 	select {

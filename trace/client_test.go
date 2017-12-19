@@ -62,7 +62,7 @@ func TestUNIX(t *testing.T) {
 	laddr, err := net.ResolveUnixAddr("unix", sockName)
 	require.NoError(t, err)
 
-	outPkg := make(chan *protocol.Message, 4)
+	outPkg := make(chan *ssf.SSFSpan, 4)
 	cleanup := serveUNIX(t, laddr, func(in net.Conn) {
 		for {
 			pkg, err := protocol.ReadSSF(in)
@@ -102,7 +102,7 @@ func TestUNIXBuffered(t *testing.T) {
 	laddr, err := net.ResolveUnixAddr("unix", sockName)
 	require.NoError(t, err)
 
-	outPkg := make(chan *protocol.Message, 4)
+	outPkg := make(chan *ssf.SSFSpan, 4)
 	cleanup := serveUNIX(t, laddr, func(in net.Conn) {
 		for {
 			pkg, err := protocol.ReadSSF(in)
@@ -149,7 +149,7 @@ func TestUNIXBufferedFlushing(t *testing.T) {
 	laddr, err := net.ResolveUnixAddr("unix", sockName)
 	require.NoError(t, err)
 
-	outPkg := make(chan *protocol.Message, 4)
+	outPkg := make(chan *ssf.SSFSpan, 4)
 	cleanup := serveUNIX(t, laddr, func(in net.Conn) {
 		for {
 			pkg, err := protocol.ReadSSF(in)
@@ -255,7 +255,7 @@ func TestReconnectUNIX(t *testing.T) {
 	laddr, err := net.ResolveUnixAddr("unix", sockName)
 	require.NoError(t, err)
 
-	outPkg := make(chan *protocol.Message, 4)
+	outPkg := make(chan *ssf.SSFSpan, 4)
 	// A server that can read one span and then immediately closes
 	// the connection:
 	cleanup := serveUNIX(t, laddr, func(in net.Conn) {
@@ -323,7 +323,7 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 	laddr, err := net.ResolveUnixAddr("unix", sockName)
 	require.NoError(t, err)
 
-	outPkg := make(chan *protocol.Message, 4)
+	outPkg := make(chan *ssf.SSFSpan, 4)
 	// A server that can read one span and then immediately closes
 	// the connection:
 	cleanup := serveUNIX(t, laddr, func(in net.Conn) {

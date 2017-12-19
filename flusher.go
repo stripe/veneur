@@ -397,9 +397,5 @@ func resolveEndpoint(endpoint string) (string, error) {
 }
 
 func (s *Server) flushTraces(ctx context.Context) {
-	if !s.TracingEnabled() {
-		return
-	}
-
 	s.SpanWorker.Flush()
 }

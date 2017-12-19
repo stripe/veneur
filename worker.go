@@ -32,6 +32,11 @@ type Worker struct {
 	wm         WorkerMetrics
 }
 
+// IngestUDP on a Worker feeds the metric into the worker's PacketChan.
+func (w *Worker) IngestUDP(metric samplers.UDPMetric) {
+	w.PacketChan <- metric
+}
+
 // WorkerMetrics is just a plain struct bundling together the flushed contents of a worker
 type WorkerMetrics struct {
 	// we do not want to key on the metric's Digest here, because those could
@@ -355,7 +360,7 @@ func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck)
 
 // SpanWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type SpanWorker struct {
-	SpanChan chan ssf.SSFSpan
+	SpanChan chan *ssf.SSFSpan
 	sinks    []sinks.SpanSink
 	stats    *statsd.Client
 }
@@ -363,7 +368,7 @@ type SpanWorker struct {
 // NewSpanWorker creates an SpanWorker ready to collect events and service checks.
 func NewSpanWorker(sinks []sinks.SpanSink, stats *statsd.Client) *SpanWorker {
 	return &SpanWorker{
-		SpanChan: make(chan ssf.SSFSpan),
+		SpanChan: make(chan *ssf.SSFSpan),
 		sinks:    sinks,
 		stats:    stats,
 	}

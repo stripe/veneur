@@ -31,13 +31,9 @@ func (s *Server) Handler() http.Handler {
 		w.Write([]byte(VERSION))
 	})
 
+	// TODO3.0: Maybe remove this endpoint as it is kinda useless now that tracing is always on.
 	mux.HandleFuncC(pat.Get("/healthcheck/tracing"), func(c context.Context, w http.ResponseWriter, r *http.Request) {
-		if s.TracingEnabled() {
-			w.Write([]byte("ok\n"))
-		} else {
-			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte("nok\n"))
-		}
+		w.Write([]byte("ok\n"))
 	})
 
 	mux.Handle(pat.Post("/import"), handleImport(s))

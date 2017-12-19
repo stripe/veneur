@@ -32,15 +32,14 @@ func TestTagNameSetNameNotSet(t *testing.T) {
 	buf, err := proto.Marshal(&sample)
 	assert.NoError(t, err, "Eror when marshalling sample")
 
-	msg, errSSF := protocol.ParseSSF(buf)
+	span, errSSF := protocol.ParseSSF(buf)
 	assert.NoError(t, err)
-	if assert.NotNil(t, msg) {
-		newSample, err := msg.TraceSpan()
+	if assert.NotNil(t, span) {
 		assert.NoError(t, err)
-		if assert.NotNil(t, newSample) {
-			assert.Equal(t, sample.Tags["name"], newSample.Name, "Name via Tag did not propogate")
+		if assert.NotNil(t, span) {
+			assert.Equal(t, sample.Tags["name"], span.Name, "Name via Tag did not propogate")
 			assert.NoError(t, errSSF)
-			assert.Empty(t, newSample.Tags["name"])
+			assert.Empty(t, span.Tags["name"])
 		}
 	}
 }
@@ -57,15 +56,14 @@ func TestTagNameSetNameSet(t *testing.T) {
 	buf, err := proto.Marshal(&sample)
 	assert.NoError(t, err, "Error when marshalling sample")
 
-	msg, errSSF := protocol.ParseSSF(buf)
+	span, errSSF := protocol.ParseSSF(buf)
 	assert.NoError(t, err)
-	if assert.NotNil(t, msg) {
-		newSample, err := msg.TraceSpan()
+	if assert.NotNil(t, span) {
 		assert.NoError(t, err)
-		if assert.NotNil(t, newSample) {
-			assert.Equal(t, sample.Name, newSample.Name, "Name did not propogate")
+		if assert.NotNil(t, span) {
+			assert.Equal(t, sample.Name, span.Name, "Name did not propogate")
 			assert.NoError(t, errSSF)
-			assert.NotEmpty(t, newSample.Tags["name"])
+			assert.NotEmpty(t, span.Tags["name"])
 		}
 	}
 }
@@ -77,13 +75,12 @@ func TestNoTagName(t *testing.T) {
 	buf, err := proto.Marshal(&sample)
 	assert.NoError(t, err)
 
-	msg, errSSF := protocol.ParseSSF(buf)
+	span, errSSF := protocol.ParseSSF(buf)
 	assert.NoError(t, err)
-	if assert.NotNil(t, msg) {
-		newSample, err := msg.TraceSpan()
+	if assert.NotNil(t, span) {
 		assert.NoError(t, err)
-		if assert.NotNil(t, newSample) {
-			assert.Equal(t, sample.Name, newSample.Name, "Name did not propogate")
+		if assert.NotNil(t, span) {
+			assert.Equal(t, sample.Name, span.Name, "Name did not propogate")
 			assert.NoError(t, errSSF)
 		}
 	}
@@ -98,14 +95,13 @@ func TestOperation(t *testing.T) {
 	packet, err := ioutil.ReadAll(pb)
 	assert.NoError(t, err)
 
-	msg, errSSF := protocol.ParseSSF(packet)
+	span, errSSF := protocol.ParseSSF(packet)
 	assert.NoError(t, errSSF)
-	if assert.NotNil(t, msg) {
-		sample, errSSF := msg.TraceSpan()
+	if assert.NotNil(t, span) {
 		assert.NoError(t, err)
-		if assert.NotNil(t, sample) {
+		if assert.NotNil(t, span) {
 			assert.NoError(t, errSSF)
-			assert.NotNil(t, sample)
+			assert.NotNil(t, span)
 		}
 	}
 }

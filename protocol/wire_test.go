@@ -28,17 +28,13 @@ func TestReadSSFStream(t *testing.T) {
 	require.NoError(t, err)
 	// Read the first frame:
 	{
-		read, err := ReadSSF(buf)
-		require.NoError(t, err)
-		span, err := read.TraceSpan()
+		span, err := ReadSSF(buf)
 		require.NoError(t, err)
 		assert.Equal(t, *msg, *span)
 	}
 	// Read the second frame:
 	{
-		read, err := ReadSSF(buf)
-		require.NoError(t, err)
-		span, err := read.TraceSpan()
+		span, err := ReadSSF(buf)
 		require.NoError(t, err)
 		assert.Equal(t, *msg, *span)
 	}
