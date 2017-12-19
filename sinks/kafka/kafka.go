@@ -261,7 +261,9 @@ func (k *KafkaSpanSink) Start(cl *trace.Client) error {
 	return nil
 }
 
-// Ingest takes the span and adds it to the ringbuffer.
+// Ingest takes the span and adds it to Kafka producer for async flushing. The
+// flushing is driven by the settings from KafkaSpanSink's constructor. Tune
+// the bytes, messages and interval settings to your tastes!
 func (k *KafkaSpanSink) Ingest(span ssf.SSFSpan) error {
 
 	var enc sarama.Encoder
@@ -298,6 +300,8 @@ func (k *KafkaSpanSink) Ingest(span ssf.SSFSpan) error {
 // Flush emits metrics, since the spans have already been ingested and are
 // sending async.
 func (k *KafkaSpanSink) Flush() {
-
+	// TODO We have no stuff in here for detecting failed writes from the async
+	// producer. We should add that.
 	k.statsd.Count("kafka.spans_flushed_total", atomic.LoadInt64(&k.spansFlushed), nil, 1.0)
+	atomic.SwapInt64(&k.spansFlushed, 0)
 }
