@@ -17,6 +17,8 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
+const indicatorSpanTagName = "indicator"
+
 const lightstepDefaultPort = 8080
 const lightstepDefaultInterval = 5 * time.Minute
 
@@ -151,6 +153,7 @@ func (ls *LightStepSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 
 	sp.SetTag(trace.ResourceKey, ssfSpan.Tags[trace.ResourceKey]) // TODO Why is this here?
 	sp.SetTag(lightstep.ComponentNameKey, ssfSpan.Service)
+	sp.SetTag(indicatorSpanTagName, strconv.FormatBool(ssfSpan.Indicator))
 	// TODO don't hardcode
 	sp.SetTag("type", "http")
 	sp.SetTag("error-code", errorCode)
