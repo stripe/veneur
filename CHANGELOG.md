@@ -8,6 +8,7 @@
 * Gauges can now be marked as `veneurglobalonly` to be globally "last write wins". Thanks [gphat](https://github.com/gphat)!
 * `veneur-emit` now takes `-span_service`, `-trace_id`, and `-parent_id` arguments. These (combined with `-ssf`) allow submitting spans for tracing when recording timing data for commands. In addition, `-timing` with `-ssf` now works, too.
 * The `github.com/stripe/veneur/ssf` package now has a few helper functions to create samples that can be attached to spans: `Count`, `Gauge`, `Histogram`, `Timing`. In addition, veneur now has a span sink that extracts these samples and treats them as metrics. Thanks, [antifuchs](https://github.com/antifuchs)
+* Spans sent to Lightstep now have an `indicator` tag set, indicating whether the span is an indicator span or not. Thanks, [aditya](https://github.com/chimeracoder)!
 
 ## Improvements
 * Veneur now emits a timer metric for every "indicator" span that it receives, if you configure the setting `indicator_span_timer_name`. Thanks, [antifuchs](https://github.com/antifuchs)!
