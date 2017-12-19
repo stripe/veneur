@@ -146,7 +146,7 @@ func TestDatadogFlushSpans(t *testing.T) {
 	// test the variables that have been renamed
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
-	transport := &DatadogRoundTripper{Endpoint: "/spans", Contains: "farts-srv"}
+	transport := &DatadogRoundTripper{Endpoint: "/v0.3/traces", Contains: "farts-srv"}
 
 	ddSink, err := NewDatadogSpanSink("http://example.com", 100, stats, &http.Client{Transport: transport}, nil, logrus.New())
 	assert.NoError(t, err)
