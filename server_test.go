@@ -32,6 +32,7 @@ import (
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/tdigest"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/ssfmetrics"
 )
 
 const ε = .00002
@@ -1138,6 +1139,52 @@ func TestSSFMetricsEndToEnd(t *testing.T) {
 	keepFlushing(ctx, f.server)
 
 	n := 0
+	metrics := <-metricsChan
+	for _, m := range metrics {
+		for _, tag := range m.Tags {
+			if tag == "purpose:testing" {
+				n++
+			}
+		}
+	}
+	assert.Equal(t, 2, n, "Should have gotten the right number of metrics")
+}
+
+// TestInternalSSFMetricsEndToEnd reports an SSF span with some
+// attached metrics to a live veneur through an internal trace
+// backeng, like that veneur server itself would be.
+func TestInternalSSFMetricsEndToEnd(t *testing.T) {
+	tdir, err := ioutil.TempDir("", "e2etest")
+	require.NoError(t, err)
+	defer os.RemoveAll(tdir)
+
+	HTTPAddrPort++
+	path := filepath.Join(tdir, "test.sock")
+	ssfAddr := "unix://" + path
+
+	config := localConfig()
+	config.SsfListenAddresses = []string{ssfAddr}
+	metricsChan := make(chan []samplers.InterMetric, 10)
+	defer close(metricsChan)
+	cms, _ := NewChannelMetricSink(metricsChan)
+	f := newFixture(t, config, cms, nil)
+	defer f.Close()
+
+	backend := &internalTraceBackend{spanWorker: f.server.SpanWorker}
+	client, err := trace.NewBackendClient(backend, trace.Capacity(20))
+	require.NoError(t, err)
+
+	done := make(chan error)
+	err = ssfmetrics.ReportAsync(client, []*ssf.SSFSample{
+		ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+		ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+	}, done)
+	require.NoError(t, err)
+	require.NoError(t, <-done)
+
+	n := 0
+	time.Sleep(2 * time.Second)
+	f.server.Flush(context.TODO())
 	metrics := <-metricsChan
 	for _, m := range metrics {
 		for _, tag := range m.Tags {
