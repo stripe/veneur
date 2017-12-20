@@ -1027,3 +1027,56 @@ func BenchmarkServerFlush(b *testing.B) {
 		f.server.Flush(context.Background())
 	}
 }
+
+// TestSSFMetricsEndToEnd reports an SSF span with some attached
+// metrics to a live veneur through a UNIX domain socket and verifies
+// that the metrics have been received and processed.
+func TestSSFMetricsEndToEnd(t *testing.T) {
+	tdir, err := ioutil.TempDir("", "e2etest")
+	require.NoError(t, err)
+	defer os.RemoveAll(tdir)
+
+	path := filepath.Join(tdir, "test.sock")
+	ssfAddr := "unix://" + path
+
+	config := localConfig()
+	config.SsfListenAddresses = []string{ssfAddr}
+	metricsChan := make(chan []samplers.InterMetric, 10)
+	defer close(metricsChan)
+	cms, _ := NewChannelMetricSink(metricsChan)
+	f := newFixture(t, config, cms, nil)
+	defer f.Close()
+
+	client, err := trace.NewClient(ssfAddr, trace.Capacity(20))
+	require.NoError(t, err)
+
+	start := time.Now()
+	end := start.Add(5 * time.Second)
+	span := &ssf.SSFSpan{
+		Id:             5,
+		TraceId:        5,
+		Service:        "e2e_test",
+		StartTimestamp: start.UnixNano(),
+		EndTimestamp:   end.UnixNano(),
+		Indicator:      false,
+		Metrics: []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		},
+	}
+	done := make(chan error)
+	err = trace.Record(client, span, done)
+	require.NoError(t, err)
+	require.NoError(t, <-done)
+
+	n := 0
+	metrics := <-metricsChan
+	for _, m := range metrics {
+		for _, tag := range m.Tags {
+			if tag == "purpose:testing" {
+				n++
+			}
+		}
+	}
+	assert.Equal(t, 2, n, "Should have gotten the right number of metrics")
+}
