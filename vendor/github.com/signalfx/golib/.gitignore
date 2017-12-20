@@ -1,0 +1,5 @@
+/.integration_test_config.ini
+*.iml
+authinfo.json
+.vscode
+.idea/

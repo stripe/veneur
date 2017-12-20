@@ -1,0 +1,25 @@
+[vars]
+  duplLimit = "300"
+  testCoverage = 100.0
+  testFlags = ["-covermode", "atomic", "-race", "-timeout", "60s", "-cpu", "4", "-parallel", "8"]
+
+[metalinter]
+  [metalinter.ignored]
+    go14= "^.*has no field or method Cancel.*$" 
+    go14trace= "^.*Trace not declared by package pprof.*$" 
+    logargs = "no args in Log call"
+    logval = "in Log call is a function value, not a function call"
+    coverageignored = "ignored is unused"
+    unrecognizedverb = "^.*unrecognized printf verb 'n'.*$"
+  [metalinter.enabled]
+    golint = true
+    gofmt = true
+    varcheck = true
+    maligned = true
+    gocyclo = true
+    vet = true
+    deadcode = true
+    unconvert = true
+    structcheck = true
+    ineffassign = true
+    errcheck = true

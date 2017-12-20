@@ -27,6 +27,8 @@ type Config struct {
 	Percentiles                   []float64 `yaml:"percentiles"`
 	ReadBufferSizeBytes           int       `yaml:"read_buffer_size_bytes"`
 	SentryDsn                     string    `yaml:"sentry_dsn"`
+	SignalfxAPIKey                string    `yaml:"signalfx_api_key"`
+	SignalfxHostname              string    `yaml:"signalfx_hostname"`
 	SsfAddress                    string    `yaml:"ssf_address"`
 	SsfBufferSize                 int       `yaml:"ssf_buffer_size"`
 	SsfListenAddresses            []string  `yaml:"ssf_listen_addresses"`

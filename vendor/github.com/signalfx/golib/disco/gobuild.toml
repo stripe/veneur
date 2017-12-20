@@ -1,0 +1,3 @@
+[metalinter]
+  [metalinter.ignored]
+    calctest = "calc_test\\.go"
