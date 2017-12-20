@@ -2,8 +2,8 @@ package log
 
 import (
 	"bytes"
+	"context"
 	. "github.com/smartystreets/goconvey/convey"
-	"golang.org/x/net/context"
 	"testing"
 )
 

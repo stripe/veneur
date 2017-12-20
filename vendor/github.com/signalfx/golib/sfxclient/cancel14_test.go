@@ -3,7 +3,7 @@
 package sfxclient
 
 import "net/http"
-import "golang.org/x/net/context"
+import "context"
 import "testing"
 
 func cancelChanFromReq(req *http.Request) <-chan struct{} {

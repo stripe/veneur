@@ -7,12 +7,12 @@ import (
 
 	"sync/atomic"
 
+	"context"
 	"github.com/signalfx/golib/datapoint"
 	"github.com/signalfx/golib/datapoint/dptest"
 	"github.com/signalfx/golib/event"
 	"github.com/signalfx/golib/log"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 )
 
 const numTests = 7

@@ -12,11 +12,11 @@ import (
 
 	"bytes"
 
+	"context"
 	"github.com/boltdb/bolt"
 	"github.com/signalfx/golib/log"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/context"
 )
 
 type testSetup struct {
@@ -44,7 +44,7 @@ func (t *testSetup) FailNow() {
 
 func (t *testSetup) Close() error {
 	require.NoError(t, t.cdb.Close())
-	require.NoError(t, t.cdb.db.Close())
+	require.NoError(t, t.cdb.DB().Close())
 	require.NoError(t, os.Remove(t.filename))
 	return nil
 }
@@ -114,7 +114,7 @@ func (t *testSetup) canCycle() {
 }
 
 func (t *testSetup) canClose() {
-	require.NoError(t, t.cdb.db.Close())
+	require.NoError(t, t.cdb.DB().Close())
 }
 
 func (t *testSetup) isVerified() {
@@ -137,7 +137,7 @@ func TestErrUnexpectedNonBucket(t *testing.T) {
 	defer func() {
 		log.IfErr(log.Panic, testRun.Close())
 	}()
-	require.NoError(t, testRun.cdb.db.Update(func(tx *bolt.Tx) error {
+	require.NoError(t, testRun.cdb.DB().Update(func(tx *bolt.Tx) error {
 		return tx.Bucket(testRun.cdb.bucketTimesIn).Put([]byte("hi"), []byte("world"))
 	}))
 	require.Equal(t, errUnexpectedNonBucket, errors.Tail(testRun.cdb.VerifyBuckets()))
@@ -153,7 +153,7 @@ func TestErrUnexpectedBucketBytes(t *testing.T) {
 	defer func() {
 		log.IfErr(log.Panic, testRun.Close())
 	}()
-	require.NoError(t, testRun.cdb.db.Update(func(tx *bolt.Tx) error {
+	require.NoError(t, testRun.cdb.DB().Update(func(tx *bolt.Tx) error {
 		_, err := tx.Bucket(testRun.cdb.bucketTimesIn).CreateBucket([]byte("_"))
 		return err
 	}))
@@ -188,7 +188,7 @@ func TestErrNoLastBucket(t *testing.T) {
 		log.IfErr(log.Panic, testRun.Close())
 	}()
 	testRun.cdb.bucketTimesIn = []byte("empty_bucket")
-	require.NoError(t, testRun.cdb.db.Update(func(tx *bolt.Tx) error {
+	require.NoError(t, testRun.cdb.DB().Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucket(testRun.cdb.bucketTimesIn)
 		log.IfErr(log.Panic, b.Put([]byte("hello"), []byte("invalid_setup")))
 		return err
@@ -196,7 +196,7 @@ func TestErrNoLastBucket(t *testing.T) {
 	require.Equal(t, errNoLastBucket, testRun.cdb.moveRecentReads(nil))
 	require.Equal(t, errNoLastBucket, testRun.cdb.Write([]KvPair{}))
 
-	require.NoError(t, testRun.cdb.db.Update(func(tx *bolt.Tx) error {
+	require.NoError(t, testRun.cdb.DB().Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(testRun.cdb.bucketTimesIn)
 		return b.Delete([]byte("hello"))
 	}))
@@ -279,8 +279,9 @@ func TestAsyncWrite(t *testing.T) {
 		Convey("and channel is full", func() {
 			c.readMovements = make(chan readToLocation)
 			Convey("Async write should timeout", func() {
-				ctx, _ := context.WithTimeout(context.Background(), time.Millisecond)
+				ctx, cancelfunc := context.WithTimeout(context.Background(), time.Millisecond)
 				c.AsyncWrite(ctx, []KvPair{{}})
+				cancelfunc()
 			})
 		})
 	})
@@ -311,7 +312,7 @@ func TestErrOnDelete(t *testing.T) {
 	testRun.canWrite("hello", "world")
 	testRun.canCycle()
 
-	err := testRun.cdb.db.View(func(tx *bolt.Tx) error {
+	err := testRun.cdb.DB().View(func(tx *bolt.Tx) error {
 		var bucketName [8]byte
 		binary.BigEndian.PutUint64(bucketName[:], 1)
 		cur := tx.Bucket(testRun.cdb.bucketTimesIn).Bucket(bucketName[:]).Cursor()
@@ -348,7 +349,7 @@ func TestDatabaseInit(t *testing.T) {
 	}()
 	testRun.canClose()
 	testRun.canOpen()
-	_, err := New(testRun.cdb.db, BucketTimesIn([]byte{}))
+	_, err := New(testRun.cdb.DB(), BucketTimesIn([]byte{}))
 	require.Error(t, err)
 }
 
@@ -358,7 +359,7 @@ func TestCycleNodes(t *testing.T) {
 		log.IfErr(log.Panic, testRun.Close())
 	}()
 	testRun.cdb.minNumOldBuckets = 0
-	require.NoError(t, testRun.cdb.db.Update(func(tx *bolt.Tx) error {
+	require.NoError(t, testRun.cdb.DB().Update(func(tx *bolt.Tx) error {
 		return tx.Bucket(testRun.cdb.bucketTimesIn).Put([]byte("hi"), []byte("world"))
 	}))
 	require.Equal(t, bolt.ErrIncompatibleValue, errors.Tail(testRun.cdb.CycleNodes()))

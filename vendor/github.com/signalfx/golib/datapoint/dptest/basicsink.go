@@ -3,9 +3,9 @@ package dptest
 import (
 	"sync"
 
+	"context"
 	"github.com/signalfx/golib/datapoint"
 	"github.com/signalfx/golib/event"
-	"golang.org/x/net/context"
 )
 
 // BasicSink is a pure testing sink that blocks forwarded points onto a channel

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // CloseHeader is used to control when connections should signal they should be closed

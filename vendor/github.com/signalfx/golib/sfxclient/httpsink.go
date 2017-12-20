@@ -12,12 +12,12 @@ import (
 	"time"
 	"unicode"
 
+	"context"
 	"github.com/golang/protobuf/proto"
 	"github.com/signalfx/com_signalfx_metrics_protobuf"
 	"github.com/signalfx/golib/datapoint"
 	"github.com/signalfx/golib/errors"
 	"github.com/signalfx/golib/event"
-	"golang.org/x/net/context"
 )
 
 // ClientVersion is the version of this library and is embedded into the user agent
@@ -49,6 +49,16 @@ type HTTPSink struct {
 	}
 }
 
+// SFXAPIError is returned when the API returns a status code other than 200.
+type SFXAPIError struct {
+	StatusCode   int
+	ResponseBody string
+}
+
+func (se SFXAPIError) Error() string {
+	return fmt.Sprintf("invalid status code %d", se.StatusCode)
+}
+
 func (h *HTTPSink) handleResponse(resp *http.Response, respErr error) (err error) {
 	if respErr != nil {
 		return errors.Annotatef(respErr, "failed to send/recieve http request")
@@ -63,7 +73,10 @@ func (h *HTTPSink) handleResponse(resp *http.Response, respErr error) (err error
 		return errors.Annotate(err, "cannot fully read response body")
 	}
 	if resp.StatusCode != http.StatusOK {
-		return errors.Errorf("invalid status code %d", resp.StatusCode)
+		return SFXAPIError{
+			StatusCode:   resp.StatusCode,
+			ResponseBody: string(respBody),
+		}
 	}
 	var bodyStr string
 	err = json.Unmarshal(respBody, &bodyStr)

@@ -1,13 +1,13 @@
 package dpsink
 
 import (
+	"context"
 	"encoding/json"
 	"expvar"
 	"fmt"
 	"github.com/signalfx/golib/datapoint"
 	"github.com/signalfx/golib/event"
 	"github.com/signalfx/golib/log"
-	"golang.org/x/net/context"
 	"net/http"
 	"sync"
 	"sync/atomic"

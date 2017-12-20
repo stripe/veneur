@@ -1,8 +1,8 @@
 package web
 
 import (
+	"context"
 	"github.com/signalfx/golib/log"
-	"golang.org/x/net/context"
 	"math/rand"
 	"net/http"
 	"strconv"

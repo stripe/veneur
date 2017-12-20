@@ -5,10 +5,10 @@ import (
 	"sync"
 	"testing"
 
+	"context"
 	"github.com/signalfx/golib/datapoint"
 	"github.com/signalfx/golib/log"
 	. "github.com/smartystreets/goconvey/convey"
-	"golang.org/x/net/context"
 )
 
 func dpNamed(name string, dps []*datapoint.Datapoint) *datapoint.Datapoint {

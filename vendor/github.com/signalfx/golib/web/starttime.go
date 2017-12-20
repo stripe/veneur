@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // AddRequestTime is a web context that adds the current time to the request's context

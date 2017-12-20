@@ -4,9 +4,9 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"context"
 	"github.com/signalfx/golib/datapoint"
 	. "github.com/smartystreets/goconvey/convey"
-	"golang.org/x/net/context"
 )
 
 func TestNewMultiCollector(t *testing.T) {

@@ -4,10 +4,10 @@ import (
 	"runtime"
 	"testing"
 
+	"context"
 	"github.com/signalfx/golib/datapoint"
 	"github.com/signalfx/golib/datapoint/dptest"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 )
 
 func TestEmptyMetricFilter(t *testing.T) {

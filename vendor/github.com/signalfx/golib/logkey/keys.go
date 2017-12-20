@@ -43,4 +43,26 @@ var (
 	ExplorableParts = log.Key("parts")
 	// URL is a URL endpoint
 	URL = log.Key("url")
+
+	// Endpoint is the URL endpoint that metrics go to
+	Endpoint = log.Key("endpoint")
+	// Name is the name of some item or group of things
+	Name = log.Key("name")
+
+	// PublishAddr is the address a server listens on
+	PublishAddr = log.Key("publishAddr")
+	// Size is the length of some set
+	Size = log.Key("size")
+	// Index is an integer index into an array
+	Index = log.Key("index")
+	// RetryAttempt is an index retrying an action
+	RetryAttempt = log.Key("retry_attempt")
+	// Env is the os environment
+	Env = log.Key("env")
+	// ConnCount is a count of connections
+	ConnCount = log.Key("connection_count")
+	// Time that a log event happens at
+	Time = log.Key("time")
+	// Caller is the file/line of the log statement
+	Caller = log.Key("caller")
 )

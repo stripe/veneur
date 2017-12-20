@@ -3,7 +3,8 @@ language: go
 sudo: false
 
 go:
-  - 1.6
+  - 1.8
+  - 1.9
 
 before_install:
   - go get -u github.com/signalfx/gobuild
@@ -14,7 +15,11 @@ install:
   - echo -e "Host heroku.com\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
   - echo -e "Host github.com\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
   - echo -e "Host git.apache.org\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
-  - go get -d -v -t ./... 
+  - go get -d -v -t ./...
+  - CUR=$PWD
+  - cd "$GOPATH/src/git.apache.org/thrift.git/"
+  - git checkout 53dd39833a08ce33582e5ff31fa18bb4735d6731
+  - cd "$CUR"
 
 script:
   - export PATH=$HOME/gopath/bin:$PATH

@@ -5,7 +5,7 @@ package sfxclient
 import (
 	"net/http"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 func (h *HTTPSink) withCancel(ctx context.Context, req *http.Request) (err error) {

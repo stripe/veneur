@@ -9,8 +9,8 @@ import (
 
 	"github.com/signalfx/golib/errors"
 
+	"context"
 	"github.com/boltdb/bolt"
-	"golang.org/x/net/context"
 )
 
 // CycleDB allows you to use a bolt.DB as a pseudo-LRU using a cycle of buckets
@@ -59,7 +59,8 @@ type Stats struct {
 	SizeOfBacklogToCopy           int
 }
 
-func (s *Stats) atomicClone() Stats {
+// AtomicClone creates a new stats with somewhat atomically
+func (s *Stats) AtomicClone() Stats {
 	return Stats{
 		TotalItemsRecopied:            atomic.LoadInt64(&s.TotalItemsRecopied),
 		TotalItemsAsyncPut:            atomic.LoadInt64(&s.TotalItemsAsyncPut),
@@ -157,18 +158,23 @@ func New(db *bolt.DB, optionalParameters ...DBConfiguration) (*CycleDB, error) {
 // Stats returns introspection stats about the Database.  The members are considered alpha and
 // subject to change or rename.
 func (c *CycleDB) Stats() Stats {
-	ret := c.stats.atomicClone()
+	ret := c.stats.AtomicClone()
 	ret.SizeOfBacklogToCopy = len(c.readMovements)
 	return ret
 }
 
-// Close ends the goroutine that moves read items to the latest bucket
+// Close ends the goroutine that moves read items to the latest bucket and now closes the DB itself...
 func (c *CycleDB) Close() error {
 	if !c.db.IsReadOnly() {
 		close(c.readMovements)
 	}
 	c.wg.Wait()
-	return nil
+	return c.db.Close()
+}
+
+// DB exposes raw bolt db
+func (c *CycleDB) DB() *bolt.DB {
+	return c.db
 }
 
 type stringCursor struct {

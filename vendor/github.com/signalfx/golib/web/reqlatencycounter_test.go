@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/signalfx/golib/timekeeper/timekeepertest"
 	. "github.com/smartystreets/goconvey/convey"

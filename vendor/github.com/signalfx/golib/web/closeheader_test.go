@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"context"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
 )
 
 func TestCloseHeader(t *testing.T) {

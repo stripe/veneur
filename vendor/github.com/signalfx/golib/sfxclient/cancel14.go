@@ -5,7 +5,7 @@ package sfxclient
 import (
 	"net/http"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 type canceler interface {

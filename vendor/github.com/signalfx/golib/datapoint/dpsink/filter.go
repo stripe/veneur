@@ -3,8 +3,8 @@ package dpsink
 import (
 	"sync/atomic"
 
+	"context"
 	"github.com/signalfx/golib/datapoint"
-	"golang.org/x/net/context"
 )
 
 // EmptyMetricFilter filters empty metric name datapoints

@@ -1,7 +1,7 @@
 package web
 
 import (
-	"golang.org/x/net/context"
+	"context"
 	"net/http"
 )
 

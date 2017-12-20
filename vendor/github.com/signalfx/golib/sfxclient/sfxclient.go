@@ -64,10 +64,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"context"
 	"github.com/signalfx/golib/errors"
 	"github.com/signalfx/golib/log"
 	"github.com/signalfx/golib/timekeeper"
-	"golang.org/x/net/context"
 )
 
 // DefaultReportingDelay is the default interval Scheduler users to report metrics to SignalFx

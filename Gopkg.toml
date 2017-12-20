@@ -95,3 +95,8 @@
 [[constraint]]
   branch = "master"
   name = "github.com/theckman/go-flock"
+
+[[constraint]]
+  name = "github.com/signalfx/golib"
+  revision = "9903a08c245ee6c06a365af98dac468dc1ef519a"
+

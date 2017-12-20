@@ -1,6 +1,6 @@
 package log
 
-import "golang.org/x/net/context"
+import "context"
 
 // CtxDimensions can propagate log dimensions inside a context object
 type CtxDimensions struct {

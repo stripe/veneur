@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"sync"
 
-	"golang.org/x/net/context"
+	"context"
 )
 
 // Note: Borrowed greatly from goji, but I would rather use context as the middleware context than

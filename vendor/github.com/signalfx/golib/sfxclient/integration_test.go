@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"context"
 	"github.com/signalfx/golib/datapoint"
 	. "github.com/smartystreets/goconvey/convey"
-	"golang.org/x/net/context"
 )
 
 type tokenInfo struct {

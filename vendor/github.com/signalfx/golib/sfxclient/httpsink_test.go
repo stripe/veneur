@@ -11,6 +11,7 @@ import (
 	"net"
 	"strings"
 
+	"context"
 	"github.com/golang/protobuf/proto"
 	"github.com/signalfx/com_signalfx_metrics_protobuf"
 	"github.com/signalfx/golib/datapoint"
@@ -18,7 +19,6 @@ import (
 	"github.com/signalfx/golib/event"
 	"github.com/signalfx/golib/log"
 	. "github.com/smartystreets/goconvey/convey"
-	"golang.org/x/net/context"
 )
 
 type errReader struct {
@@ -267,6 +267,7 @@ func TestHTTPDatapointSink(t *testing.T) {
 				if !strings.Contains(s, "canceled") && !strings.Contains(s, "closed") {
 					t.Errorf("Bad error string %s", s)
 				}
+				cancelCallback()
 			})
 			Convey("timeouts should work", func() {
 				blockResponse = make(chan struct{})
@@ -473,6 +474,7 @@ func TestHTTPEventSink(t *testing.T) {
 				if !strings.Contains(s, "canceled") && !strings.Contains(s, "closed") {
 					t.Errorf("Bad error string %s", s)
 				}
+				cancelCallback()
 			})
 			Convey("timeouts should work", func() {
 				blockResponse = make(chan struct{})

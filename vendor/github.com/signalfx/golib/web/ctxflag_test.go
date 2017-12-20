@@ -1,9 +1,9 @@
 package web
 
 import (
+	"context"
 	"github.com/signalfx/golib/log"
 	. "github.com/smartystreets/goconvey/convey"
-	"golang.org/x/net/context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
