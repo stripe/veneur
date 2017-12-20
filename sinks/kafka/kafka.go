@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -46,6 +47,9 @@ type KafkaSpanSink struct {
 
 // NewKafkaMetricSink creates a new Kafka Plugin.
 func NewKafkaMetricSink(logger *logrus.Logger, brokers string, checkTopic string, eventTopic string, metricTopic string, ackRequirement string, partitioner string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, stats *statsd.Client) (*KafkaMetricSink, error) {
+	if logger == nil {
+		logger = &logrus.Logger{Out: ioutil.Discard}
+	}
 
 	if checkTopic == "" && eventTopic == "" && metricTopic == "" {
 		return nil, errors.New("Unable to start Kafka sink with no valid topic names")
@@ -202,6 +206,10 @@ func (k *KafkaMetricSink) FlushEventsChecks(ctx context.Context, events []sample
 // NewKafkaSpanSink creates a new Kafka Plugin.
 func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, partitioner string, ackRequirement string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, serializationFormat string, stats *statsd.Client) (*KafkaSpanSink, error) {
 
+	if logger == nil {
+		logger = &logrus.Logger{Out: ioutil.Discard}
+	}
+
 	if topic == "" {
 		return nil, errors.New("Cannot start Kafka span sink with no span topic")
 	}
@@ -264,7 +272,7 @@ func (k *KafkaSpanSink) Start(cl *trace.Client) error {
 // Ingest takes the span and adds it to Kafka producer for async flushing. The
 // flushing is driven by the settings from KafkaSpanSink's constructor. Tune
 // the bytes, messages and interval settings to your tastes!
-func (k *KafkaSpanSink) Ingest(span ssf.SSFSpan) error {
+func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 
 	var enc sarama.Encoder
 	switch k.serializer {
@@ -277,7 +285,7 @@ func (k *KafkaSpanSink) Ingest(span ssf.SSFSpan) error {
 		}
 		enc = sarama.StringEncoder(j)
 	case "protobuf":
-		p, err := proto.Marshal(&span)
+		p, err := proto.Marshal(span)
 		if err != nil {
 			k.logger.Error("Error marshalling span")
 			k.statsd.Count("kafka.span_marshal_error_total", 1, nil, 1.0)

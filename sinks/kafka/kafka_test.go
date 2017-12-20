@@ -178,7 +178,7 @@ func TestSpanFlushJson(t *testing.T) {
 		Indicator: false,
 		Name:      "farting farty farts",
 	}
-	sink.Ingest(testSpan)
+	sink.Ingest(&testSpan)
 	assert.NoError(t, err)
 
 	msg := <-producerMock.Successes()
@@ -222,7 +222,7 @@ func TestSpanFlushProtobuf(t *testing.T) {
 		Indicator: false,
 		Name:      "farting farty farts",
 	}
-	sink.Ingest(testSpan)
+	sink.Ingest(&testSpan)
 	assert.NoError(t, err)
 
 	msg := <-producerMock.Successes()
