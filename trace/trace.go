@@ -92,6 +92,10 @@ type Trace struct {
 	// error (or nil) when the span has been serialized and sent.
 	Sent chan<- error
 
+	// Samples holds a list of samples / metrics to be reported
+	// alongside a span.
+	Samples []*ssf.SSFSample
+
 	error bool
 }
 
@@ -154,9 +158,15 @@ func (t *Trace) SSFSpan() *ssf.SSFSpan {
 		Name:           name,
 		Tags:           t.Tags,
 		Service:        Service,
+		Metrics:        t.Samples,
 	}
 
 	return span
+}
+
+// Add adds a number of metrics/samples to a Trace.
+func (t *Trace) Add(samples ...*ssf.SSFSample) {
+	t.Samples = append(t.Samples, samples...)
 }
 
 // ProtoMarshalTo writes the Trace as a protocol buffer
