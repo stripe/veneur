@@ -114,8 +114,6 @@ type Server struct {
 	spanSinks   []sinks.SpanSink
 	metricSinks []sinks.MetricSink
 
-	indicatorSpanTimerName string
-
 	TraceClient  *trace.Client
 	traceBackend *internalTraceBackend
 }
@@ -238,7 +236,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 	for i, w := range ret.Workers {
 		processors[i] = w
 	}
-	metricSink, err := metrics.NewMetricExtractionSink(processors, ret.indicatorSpanTimerName, log)
+	metricSink, err := metrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, log)
 	if err != nil {
 		return ret, err
 	}
@@ -417,8 +415,6 @@ func NewFromConfig(conf Config) (*Server, error) {
 		ret.registerPlugin(localFilePlugin)
 		log.Info(fmt.Sprintf("Local file logging to %s", conf.FlushFile))
 	}
-
-	ret.indicatorSpanTimerName = conf.IndicatorSpanTimerName
 
 	// closed in Shutdown; Same approach and http.Shutdown
 	ret.shutdown = make(chan struct{})
