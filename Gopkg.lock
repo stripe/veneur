@@ -8,6 +8,15 @@
   version = "1.1.0"
 
 [[projects]]
+  name = "github.com/Shopify/sarama"
+  packages = [
+    ".",
+    "mocks"
+  ]
+  revision = "3b1b38866a79f06deddf0487d5c27ba0697ccd65"
+  version = "v1.15.0"
+
+[[projects]]
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -71,6 +80,24 @@
   revision = "0f6473574cdfd7be3962c41fb23dc4768b1f7deb"
 
 [[projects]]
+  name = "github.com/eapache/go-resiliency"
+  packages = ["breaker"]
+  revision = "6800482f2c813e689c88b7ed3282262385011890"
+  version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/eapache/go-xerial-snappy"
+  packages = ["."]
+  revision = "bb955e01b9346ac19dc29eb16586c90ded99a98c"
+
+[[projects]]
+  name = "github.com/eapache/queue"
+  packages = ["."]
+  revision = "44cc805cf13205b55f69e14bcb69867d1ae92f98"
+  version = "v1.1.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/getsentry/raven-go"
   packages = ["."]
@@ -97,6 +124,12 @@
     "ptypes/timestamp"
   ]
   revision = "748d386b5c1ea99658fd69fe9f03991ce86a90c1"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/golang/snappy"
+  packages = ["."]
+  revision = "553a641470496b2327abcac10b36396bd98e45c9"
 
 [[projects]]
   name = "github.com/hashicorp/consul"
@@ -175,6 +208,18 @@
   version = "v1.0.2"
 
 [[projects]]
+  name = "github.com/pierrec/lz4"
+  packages = ["."]
+  revision = "2fcda4cb7018ce05a25959d2fe08c83e3329f169"
+  version = "v1.1"
+
+[[projects]]
+  name = "github.com/pierrec/xxHash"
+  packages = ["xxHash32"]
+  revision = "f051bb7f1d1aaf1b5a665d74fb6b0217712c69f7"
+  version = "v0.1.1"
+
+[[projects]]
   name = "github.com/pkg/profile"
   packages = ["."]
   revision = "5b67d428864e92711fcbd2f8629456121a56d91f"
@@ -201,6 +246,12 @@
     "model"
   ]
   revision = "61f87aac8082fa8c3c5655c7608d7478d46ac2ad"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/rcrowley/go-metrics"
+  packages = ["."]
+  revision = "e181e095bae94582363434144c61a9653aff6e50"
 
 [[projects]]
   branch = "master"
@@ -368,6 +419,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d1168a70a5fb5acc41c54b5c0c867396867c3ed772d1660e901a01e165bac1c3"
+  inputs-digest = "49121eeb9b7987b7822c95f96d7504350bdd2b35cc93cbedece9487057620e09"
   solver-name = "gps-cdcl"
   solver-version = 1
