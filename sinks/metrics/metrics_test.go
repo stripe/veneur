@@ -75,7 +75,7 @@ func TestIndicatorMetricExtractor(t *testing.T) {
 		for m := range worker.PacketChan {
 			hasP := false
 			for _, tag := range m.Tags {
-				hasP = (tag == "service:indicator_testing")
+				hasP = hasP || (tag == "service:indicator_testing")
 			}
 			if !hasP {
 				t.Logf("Received unexpected additional metric %#v", m)

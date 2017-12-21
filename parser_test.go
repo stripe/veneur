@@ -191,8 +191,8 @@ func TestParseSSFIndicatorSpan(t *testing.T) {
 			var tags sort.StringSlice = m.Tags
 			sort.Sort(tags)
 			assert.Equal(t, "error:false", tags[0])
-			assert.Equal(t, fmt.Sprintf("name:%s", span.Name), tags[1])
-			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[2])
+			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[1])
+			assert.Equal(t, fmt.Sprintf("span_name:%s", span.Name), tags[2])
 		}
 	}
 }
@@ -235,8 +235,8 @@ func TestParseSSFIndicatorSpanWithError(t *testing.T) {
 			var tags sort.StringSlice = m.Tags
 			sort.Sort(tags)
 			assert.Equal(t, "error:true", tags[0])
-			assert.Equal(t, fmt.Sprintf("name:%s", span.Name), tags[1])
-			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[2])
+			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[1])
+			assert.Equal(t, fmt.Sprintf("span_name:%s", span.Name), tags[2])
 		}
 	}
 }
