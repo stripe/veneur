@@ -61,9 +61,10 @@ var (
 	scMsg       = flag.String("sc_msg", "", "Message describing state of current state of service check.")
 
 	// Tracing flags
-	traceID  = flag.Int64("trace_id", 0, "ID for the trace (top-level) span. Setting a trace ID activated tracing.")
-	parentID = flag.Int64("parent_span_id", 0, "ID of the parent span.")
-	service  = flag.String("span_service", "veneur-emit", "Service name to associate with the span.")
+	traceID   = flag.Int64("trace_id", 0, "ID for the trace (top-level) span. Setting a trace ID activated tracing.")
+	parentID  = flag.Int64("parent_span_id", 0, "ID of the parent span.")
+	service   = flag.String("span_service", "veneur-emit", "Service name to associate with the span.")
+	indicator = flag.Bool("indicator", false, "Mark the reported span as an indicator span")
 )
 
 // MinimalClient represents the functions that we call on Clients in veneur-emit.
@@ -236,6 +237,7 @@ func setupSpan(traceID, parentID *int64, name, tags string) (*ssf.SSFSpan, error
 		span.Name = name
 		span.Tags = ssfTags(tags)
 		span.Service = *service
+		span.Indicator = *indicator
 	}
 	return span, nil
 }
