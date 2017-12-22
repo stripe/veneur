@@ -5,6 +5,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur"
+	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
 
@@ -31,6 +32,8 @@ func main() {
 	logger := logrus.StandardLogger()
 	proxy, err := veneur.NewProxyFromConfig(logger, conf)
 	veneur.SetLogger(logger)
+
+	ssf.NamePrefix = "veneur_proxy."
 
 	if err != nil {
 		logrus.WithError(err).Fatal("Could not initialize proxy")
