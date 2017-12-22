@@ -1,4 +1,4 @@
-package metrics_test
+package ssfmetrics_test
 
 import (
 	"testing"
@@ -9,16 +9,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur"
-	"github.com/stripe/veneur/sinks/metrics"
+	"github.com/stripe/veneur/sinks/ssfmetrics"
 	"github.com/stripe/veneur/ssf"
 )
 
 func TestMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(0, nil, logger)
-	workers := []metrics.Processor{worker}
+	workers := []ssfmetrics.Processor{worker}
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
-	sink, err := metrics.NewMetricExtractionSink(workers, "foo", stats, logger)
+	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", stats, logger)
 	require.NoError(t, err)
 
 	start := time.Now()
@@ -57,9 +57,9 @@ func TestMetricExtractor(t *testing.T) {
 func TestIndicatorMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(0, nil, logger)
-	workers := []metrics.Processor{worker}
+	workers := []ssfmetrics.Processor{worker}
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
-	sink, err := metrics.NewMetricExtractionSink(workers, "foo", stats, logger)
+	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", stats, logger)
 	require.NoError(t, err)
 
 	start := time.Now()

@@ -1,5 +1,5 @@
-// Package metrics provides sinks that are used by veneur internally.
-package metrics
+// Package ssfmetrics provides sinks that are used by veneur internally.
+package ssfmetrics
 
 import (
 	"fmt"
