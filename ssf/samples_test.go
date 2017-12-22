@@ -70,6 +70,13 @@ func TestOptions(t *testing.T) {
 				assert.Equal(t, then.UnixNano(), s.Timestamp)
 			},
 		},
+		{
+			"prefix",
+			Prefix("the_prefix."),
+			func(s *SSFSample) {
+				assert.Equal(t, "the_prefix.foo", s.Name)
+			},
+		},
 	}
 	for name, elt := range testFuns {
 		test := elt

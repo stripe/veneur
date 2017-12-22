@@ -69,6 +69,16 @@ func TimeUnit(resolution time.Duration) SampleOption {
 	}
 }
 
+// Prefix prepends the given prefix to a sample. Due to the
+// by-order-of-arguments nature of applying these arguments, if more
+// than one Prefix argument is given, the leftmost Prefix argument
+// will be the rightmost name component on the final name.
+func Prefix(prefix string) SampleOption {
+	return func(s *SSFSample) {
+		s.Name = prefix + s.Name
+	}
+}
+
 func create(base *SSFSample, opts []SampleOption) *SSFSample {
 	for _, opt := range DefaultSampleOptions {
 		opt(base)
