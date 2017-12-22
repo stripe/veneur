@@ -19,6 +19,22 @@ type Config struct {
 	HTTPAddress                   string    `yaml:"http_address"`
 	IndicatorSpanTimerName        string    `yaml:"indicator_span_timer_name"`
 	Interval                      string    `yaml:"interval"`
+	KafkaBroker                   string    `yaml:"kafka_broker"`
+	KafkaCheckTopic               string    `yaml:"kafka_check_topic"`
+	KafkaEventTopic               string    `yaml:"kafka_event_topic"`
+	KafkaMetricBufferBytes        int       `yaml:"kafka_metric_buffer_bytes"`
+	KafkaMetricBufferFrequency    string    `yaml:"kafka_metric_buffer_frequency"`
+	KafkaMetricBufferMessages     int       `yaml:"kafka_metric_buffer_messages"`
+	KafkaMetricRequireAcks        string    `yaml:"kafka_metric_require_acks"`
+	KafkaMetricTopic              string    `yaml:"kafka_metric_topic"`
+	KafkaPartitioner              string    `yaml:"kafka_partitioner"`
+	KafkaRetryMax                 int       `yaml:"kafka_retry_max"`
+	KafkaSpanBufferBytes          int       `yaml:"kafka_span_buffer_bytes"`
+	KafkaSpanBufferFrequency      string    `yaml:"kafka_span_buffer_frequency"`
+	KafkaSpanBufferMesages        int       `yaml:"kafka_span_buffer_mesages"`
+	KafkaSpanRequireAcks          string    `yaml:"kafka_span_require_acks"`
+	KafkaSpanSerializationFormat  string    `yaml:"kafka_span_serialization_format"`
+	KafkaSpanTopic                string    `yaml:"kafka_span_topic"`
 	Key                           string    `yaml:"key"`
 	MetricMaxLength               int       `yaml:"metric_max_length"`
 	NumReaders                    int       `yaml:"num_readers"`

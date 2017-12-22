@@ -25,6 +25,10 @@
   version = "1.1.0"
 
 [[constraint]]
+  name = "github.com/Shopify/sarama"
+  version = "v1.15.0"
+
+[[constraint]]
   name = "github.com/sirupsen/logrus"
   revision = "89742aefa4b206dcf400792f3bd35b542998eb3b"
 
@@ -99,4 +103,3 @@
 [[constraint]]
   name = "github.com/signalfx/golib"
   revision = "9903a08c245ee6c06a365af98dac468dc1ef519a"
-

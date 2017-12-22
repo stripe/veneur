@@ -22,29 +22,6 @@ type DDMetricsRequest struct {
 	Series []DDMetric
 }
 
-type DatadogRoundTripper struct {
-	Endpoint      string
-	Contains      string
-	GotCalled     bool
-	ThingReceived bool
-}
-
-func (rt *DatadogRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	rec := httptest.NewRecorder()
-	if strings.HasPrefix(req.URL.Path, rt.Endpoint) {
-		body, _ := ioutil.ReadAll(req.Body)
-		defer req.Body.Close()
-		if strings.Contains(string(body), rt.Contains) {
-			rt.ThingReceived = true
-		}
-
-		rec.Code = http.StatusOK
-		rt.GotCalled = true
-	}
-
-	return rec.Result(), nil
-}
-
 func TestDatadogRate(t *testing.T) {
 	ddSink := DatadogMetricSink{
 		hostname: "somehostname",
@@ -137,6 +114,29 @@ func TestNewDatadogSpanSinkConfig(t *testing.T) {
 	}
 
 	assert.Equal(t, "http://example.com", ddSink.traceAddress)
+}
+
+type DatadogRoundTripper struct {
+	Endpoint      string
+	Contains      string
+	GotCalled     bool
+	ThingReceived bool
+}
+
+func (rt *DatadogRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	rec := httptest.NewRecorder()
+	if strings.HasPrefix(req.URL.Path, rt.Endpoint) {
+		body, _ := ioutil.ReadAll(req.Body)
+		defer req.Body.Close()
+		if strings.Contains(string(body), rt.Contains) {
+			rt.ThingReceived = true
+		}
+
+		rec.Code = http.StatusOK
+		rt.GotCalled = true
+	}
+
+	return rec.Result(), nil
 }
 
 func TestDatadogFlushSpans(t *testing.T) {
