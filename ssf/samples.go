@@ -5,6 +5,12 @@ import (
 	"time"
 )
 
+// DefaultSampleOptions is a set of SampleOptions that get applied to
+// all samples created in this package, before the more specific
+// sample options get applied. These are convenient for setting metric
+// name prefixes or process-wide sample rates.
+var DefaultSampleOptions []SampleOption
+
 // SampleOption is a functional option that can be used for less
 // commonly needed fields in sample creation helper functions.
 type SampleOption func(*SSFSample)
@@ -64,6 +70,9 @@ func TimeUnit(resolution time.Duration) SampleOption {
 }
 
 func create(base *SSFSample, opts []SampleOption) *SSFSample {
+	for _, opt := range DefaultSampleOptions {
+		opt(base)
+	}
 	for _, opt := range opts {
 		opt(base)
 	}
