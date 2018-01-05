@@ -10,6 +10,35 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestRouting(t *testing.T) {
+	tests := []struct {
+		name      string
+		tags      []string
+		sinks     RouteInformation
+		sinkNames []string
+	}{
+		{"no sinks", []string{"foo:bar", "veneurlocalonly"}, nil, []string{}},
+		{"one sink", []string{"veneursinkonly:foobar"}, map[string]struct{}{"foobar": struct{}{}}, []string{"foobar"}},
+		{
+			"multiple sinks",
+			[]string{"veneursinkonly:foobar", "veneursinkonly:baz"},
+			map[string]struct{}{"foobar": struct{}{}, "baz": struct{}{}},
+			[]string{"foobar", "baz"},
+		},
+	}
+	for _, elt := range tests {
+		test := elt
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			info := routeInfo(test.tags)
+			assert.Equal(t, test.sinks, info)
+			for _, sink := range test.sinkNames {
+				assert.True(t, info.RouteTo(sink), "Should route to %q", sink)
+			}
+		})
+	}
+}
+
 func TestCounterEmpty(t *testing.T) {
 	c := NewCounter("a.b.c", []string{"a:b"})
 	c.Sample(1, 1.0)

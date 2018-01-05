@@ -23,6 +23,22 @@ const (
 	GaugeMetric
 )
 
+// RouteInformation maps sink names to whether they're supposed to
+// receive a metric. A nil value corresponds to the "every sink"
+// value.
+type RouteInformation map[string]struct{}
+
+// RouteTo returns true if the named sink should receive a metric
+// according to the route table. A nil route table causes any sink to
+// be eligible for the metric.
+func (ri RouteInformation) RouteTo(name string) bool {
+	if ri == nil {
+		return true
+	}
+	_, ok := ri[name]
+	return ok
+}
+
 // InterMetric represents a metric that has been completed and is ready for
 // flushing by sinks.
 type InterMetric struct {
@@ -31,6 +47,7 @@ type InterMetric struct {
 	Value     float64
 	Tags      []string
 	Type      MetricType
+	Sinks     RouteInformation
 }
 
 type Aggregate int
@@ -78,6 +95,22 @@ type JSONMetric struct {
 	// the Value is an internal representation of the metric's contents, eg a
 	// gob-encoded histogram or hyperloglog.
 	Value []byte `json:"value"`
+}
+
+const sinkPrefix string = "veneursinkonly:"
+
+func routeInfo(tags []string) RouteInformation {
+	var info RouteInformation
+	for _, tag := range tags {
+		if !strings.HasPrefix(tag, sinkPrefix) {
+			continue
+		}
+		if info == nil {
+			info = make(RouteInformation)
+		}
+		info[tag[len(sinkPrefix):]] = struct{}{}
+	}
+	return info
 }
 
 // Counter is an accumulator
