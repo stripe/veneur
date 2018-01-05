@@ -47,7 +47,11 @@ type InterMetric struct {
 	Value     float64
 	Tags      []string
 	Type      MetricType
-	Sinks     RouteInformation
+
+	// Sinks, if non-nil, indicates which metric sinks a metric
+	// should be inserted into. If nil, that means the metric is
+	// meant to go to every sink.
+	Sinks RouteInformation
 }
 
 type Aggregate int

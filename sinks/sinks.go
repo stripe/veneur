@@ -16,12 +16,24 @@ type MetricSink interface {
 	// background processing tasks that the sink might have to run
 	// in the background. It's invoked when the server starts.
 	Start(traceClient *trace.Client) error
-	// Flush receives `InterMetric`s from Veneur and is responsible for "sinking"
-	// these metrics to whatever it's backend wants. Note that the sink must
-	// **not** mutate the incoming metrics as they are shared with other sinks.
+	// Flush receives `InterMetric`s from Veneur and is
+	// responsible for "sinking" these metrics to whatever it's
+	// backend wants. Note that the sink must **not** mutate the
+	// incoming metrics as they are shared with other sinks. Sinks
+	// must also check each metric with IsAcceptableMetric to
+	// verify they are eligible to consume the metric.
 	Flush(context.Context, []samplers.InterMetric) error
 	// This one is temporary?
 	FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck)
+}
+
+// IsAcceptableMetric returns true if a metric is meant to be ingested
+// by a given sink.
+func IsAcceptableMetric(metric samplers.InterMetric, sink MetricSink) bool {
+	if metric.Sinks == nil {
+		return true
+	}
+	return metric.Sinks.RouteTo(sink.Name())
 }
 
 // SpanSink is a receiver of spans that handles sending those spans to some
