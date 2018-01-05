@@ -17,7 +17,7 @@ func TestRouting(t *testing.T) {
 		sinks     RouteInformation
 		sinkNames []string
 	}{
-		{"no sinks", []string{"foo:bar", "veneurlocalonly"}, nil, []string{}},
+		{"none specified", []string{"foo:bar", "veneurlocalonly"}, nil, []string{"foosink", "barsink"}},
 		{"one sink", []string{"veneursinkonly:foobar"}, map[string]struct{}{"foobar": struct{}{}}, []string{"foobar"}},
 		{
 			"multiple sinks",
@@ -34,6 +34,9 @@ func TestRouting(t *testing.T) {
 			assert.Equal(t, test.sinks, info)
 			for _, sink := range test.sinkNames {
 				assert.True(t, info.RouteTo(sink), "Should route to %q", sink)
+			}
+			if test.sinks != nil {
+				assert.False(t, info.RouteTo("never_to_this_sink"))
 			}
 		})
 	}
