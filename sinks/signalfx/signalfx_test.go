@@ -8,6 +8,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/signalfx/golib/datapoint"
 	"github.com/signalfx/golib/event"
+	"github.com/signalfx/golib/sfxclient"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/samplers"
@@ -45,6 +46,13 @@ func TestNewSignalFxSink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	httpsink, ok := sink.client.(*sfxclient.HTTPSink)
+	if !ok {
+		assert.Fail(t, "SignalFX sink isn't the correct type")
+	}
+	assert.Equal(t, "http://www.example.com/v2/datapoint", httpsink.DatapointEndpoint)
+	assert.Equal(t, "http://www.example.com/v2/event", httpsink.EventEndpoint)
 
 	assert.Equal(t, "http://www.example.com", sink.hostname)
 	assert.Equal(t, "signalfx", sink.Name())

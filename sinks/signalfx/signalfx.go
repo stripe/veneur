@@ -2,6 +2,7 @@ package signalfx
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -28,6 +29,8 @@ func NewSignalFXSink(apiKey string, hostname string, stats *statsd.Client, log *
 	if client == nil {
 		httpSink := sfxclient.NewHTTPSink()
 		httpSink.AuthToken = apiKey
+		httpSink.DatapointEndpoint = fmt.Sprintf("%s/v2/datapoint", hostname)
+		httpSink.EventEndpoint = fmt.Sprintf("%s/v2/event", hostname)
 		client = httpSink
 	}
 
