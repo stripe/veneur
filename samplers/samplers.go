@@ -135,6 +135,7 @@ func (c *Counter) Flush(interval time.Duration) []InterMetric {
 		Value:     float64(c.value),
 		Tags:      tags,
 		Type:      CounterMetric,
+		Sinks:     routeInfo(tags),
 	}}
 }
 
@@ -200,6 +201,7 @@ func (g *Gauge) Flush() []InterMetric {
 		Value:     float64(g.value),
 		Tags:      tags,
 		Type:      GaugeMetric,
+		Sinks:     routeInfo(tags),
 	}}
 }
 
@@ -278,6 +280,7 @@ func (s *Set) Flush() []InterMetric {
 		Value:     float64(s.Hll.Estimate()),
 		Tags:      tags,
 		Type:      GaugeMetric,
+		Sinks:     routeInfo(tags),
 	}}
 }
 
@@ -362,6 +365,7 @@ func NewHist(Name string, Tags []string) *Histo {
 func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates HistogramAggregates) []InterMetric {
 	now := time.Now().Unix()
 	metrics := make([]InterMetric, 0, aggregates.Count+len(percentiles))
+	sinks := routeInfo(h.Tags)
 
 	if (aggregates.Value&AggregateMax) == AggregateMax && !math.IsInf(h.LocalMax, 0) {
 		// Defensively recopy tags to avoid aliasing bugs in case multiple InterMetrics share the same
@@ -374,6 +378,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Value:     float64(h.LocalMax),
 			Tags:      tags,
 			Type:      GaugeMetric,
+			Sinks:     sinks,
 		})
 	}
 	if (aggregates.Value&AggregateMin) == AggregateMin && !math.IsInf(h.LocalMin, 0) {
@@ -385,6 +390,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Value:     float64(h.LocalMin),
 			Tags:      tags,
 			Type:      GaugeMetric,
+			Sinks:     sinks,
 		})
 	}
 
@@ -397,6 +403,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Value:     float64(h.LocalSum),
 			Tags:      tags,
 			Type:      GaugeMetric,
+			Sinks:     sinks,
 		})
 	}
 
@@ -411,6 +418,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Value:     float64(h.LocalSum / h.LocalWeight),
 			Tags:      tags,
 			Type:      GaugeMetric,
+			Sinks:     sinks,
 		})
 	}
 
@@ -426,6 +434,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Value:     float64(h.LocalWeight),
 			Tags:      tags,
 			Type:      CounterMetric,
+			Sinks:     sinks,
 		})
 	}
 
@@ -440,6 +449,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 				Value:     float64(h.Value.Quantile(0.5)),
 				Tags:      tags,
 				Type:      GaugeMetric,
+				Sinks:     sinks,
 			},
 		)
 	}
@@ -455,6 +465,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Value:     float64(h.LocalWeight / h.LocalReciprocalSum),
 			Tags:      tags,
 			Type:      GaugeMetric,
+			Sinks:     sinks,
 		})
 	}
 
@@ -470,6 +481,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 				Value:     float64(h.Value.Quantile(p)),
 				Tags:      tags,
 				Type:      GaugeMetric,
+				Sinks:     sinks,
 			},
 		)
 	}
