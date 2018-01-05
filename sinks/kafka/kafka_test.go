@@ -54,6 +54,101 @@ func TestMetricFlush(t *testing.T) {
 	assert.Contains(t, string(contents), metric.Name)
 }
 
+func TestMetricFlushRouting(t *testing.T) {
+	tests := []struct {
+		name   string
+		metric samplers.InterMetric
+		expect bool
+	}{
+		{
+			"any sink",
+			samplers.InterMetric{
+				Name:      "to.any.sink",
+				Timestamp: 1476119058,
+				Value:     float64(100),
+				Tags: []string{
+					"foo:bar",
+					"baz:quz",
+				},
+				Type: samplers.GaugeMetric,
+			},
+			true,
+		},
+		{
+			"kafka directly",
+			samplers.InterMetric{
+				Name:      "exactly.kafka",
+				Timestamp: 1476119058,
+				Value:     float64(100),
+				Tags: []string{
+					"foo:bar",
+					"baz:quz",
+					"veneursinkonly:kafka",
+				},
+				Type:  samplers.GaugeMetric,
+				Sinks: samplers.RouteInformation{"kafka": struct{}{}},
+			},
+			true,
+		},
+		{
+			"not us",
+			samplers.InterMetric{
+				Name:      "not.us",
+				Timestamp: 1476119058,
+				Value:     float64(100),
+				Tags: []string{
+					"foo:bar",
+					"baz:quz",
+					"veneursinkonly:anyone_else",
+				},
+				Type:  samplers.GaugeMetric,
+				Sinks: samplers.RouteInformation{"anyone_else": struct{}{}},
+			},
+			false,
+		},
+	}
+	for _, elt := range tests {
+		test := elt
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			config := sarama.NewConfig()
+			config.Producer.Return.Successes = true
+			producerMock := mocks.NewAsyncProducer(t, config)
+			if test.expect {
+				producerMock.ExpectInputAndSucceed()
+			}
+
+			// I would use the logrus test logger but the package needs to be
+			// updated from Sirupsen/logrus to sirupsen/logrus
+			// https://github.com/stripe/veneur/issues/277
+			logger := logrus.StandardLogger()
+			stats, _ := statsd.NewBuffered("localhost:1235", 1024)
+
+			sink, err := NewKafkaMetricSink(logger, "testing", "testCheckTopic", "testEventTopic", "testMetricTopic", "all", "hash", 0, 0, 0, "", stats)
+			assert.NoError(t, err)
+			sink.Start(trace.DefaultClient)
+
+			sink.producer = producerMock
+
+			ferr := sink.Flush(context.Background(), []samplers.InterMetric{test.metric})
+			producerMock.Close()
+			assert.NoError(t, ferr)
+			if test.expect {
+				contents, err := (<-producerMock.Successes()).Value.Encode()
+				assert.NoError(t, err)
+				assert.Contains(t, string(contents), test.metric.Name)
+			} else {
+				select {
+				case _, ok := <-producerMock.Successes():
+					if ok {
+						t.Fatal("Expected no input for this case")
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestMetricConstructor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
