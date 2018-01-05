@@ -1,7 +1,10 @@
 package datadog
 
 import (
+	"compress/zlib"
+	"context"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,6 +14,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 )
@@ -125,9 +129,11 @@ type DatadogRoundTripper struct {
 
 func (rt *DatadogRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	rec := httptest.NewRecorder()
+	log.Printf("Got a request to %v", req.URL)
 	if strings.HasPrefix(req.URL.Path, rt.Endpoint) {
 		body, _ := ioutil.ReadAll(req.Body)
 		defer req.Body.Close()
+		log.Printf("body: %v", string(body))
 		if strings.Contains(string(body), rt.Contains) {
 			rt.ThingReceived = true
 		}
@@ -170,4 +176,107 @@ func TestDatadogFlushSpans(t *testing.T) {
 
 	ddSink.Flush()
 	assert.Equal(t, true, transport.GotCalled, "Did not call spans endpoint")
+}
+
+type result struct {
+	received  bool
+	contained bool
+}
+
+func ddTestServer(t *testing.T, endpoint, contains string) (*httptest.Server, chan result) {
+	received := make(chan result)
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		res := result{}
+		bstream := r.Body
+		if r.Header.Get("Content-Encoding") == "deflate" {
+			bstream, _ = zlib.NewReader(r.Body)
+		}
+		body, _ := ioutil.ReadAll(bstream)
+		defer bstream.Close()
+		if strings.HasPrefix(r.URL.Path, endpoint) {
+			res.received = true
+			res.contained = strings.Contains(string(body), contains)
+		}
+		w.WriteHeader(200)
+		received <- res
+	})
+	return httptest.NewServer(handler), received
+}
+
+func TestDatadogMetricRouting(t *testing.T) {
+	// test the variables that have been renamed
+	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
+	client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
+
+	tests := []struct {
+		metric samplers.InterMetric
+		expect bool
+	}{
+		{
+			samplers.InterMetric{
+				Name:      "to.anybody.in.particular",
+				Timestamp: time.Now().Unix(),
+				Value:     float64(10),
+				Tags:      []string{"gorch:frobble", "x:e"},
+				Type:      samplers.CounterMetric,
+			},
+			true,
+		},
+		{
+			samplers.InterMetric{
+				Name:      "to.datadog",
+				Timestamp: time.Now().Unix(),
+				Value:     float64(10),
+				Tags:      []string{"gorch:frobble", "x:e"},
+				Type:      samplers.CounterMetric,
+				Sinks:     samplers.RouteInformation{"datadog": struct{}{}},
+			},
+			true,
+		},
+		{
+			samplers.InterMetric{
+				Name:      "to.kafka.only",
+				Timestamp: time.Now().Unix(),
+				Value:     float64(10),
+				Tags:      []string{"gorch:frobble", "x:e"},
+				Type:      samplers.CounterMetric,
+				Sinks:     samplers.RouteInformation{"kafka": struct{}{}},
+			},
+			false,
+		},
+	}
+	for _, elt := range tests {
+		test := elt
+		t.Run(test.metric.Name, func(t *testing.T) {
+			t.Parallel()
+			srv, rcved := ddTestServer(t, "/api/v1/series", test.metric.Name)
+			ddSink := DatadogMetricSink{
+				DDHostname:      srv.URL,
+				HTTPClient:      client,
+				flushMaxPerBody: 15,
+				log:             logrus.New(),
+				tags:            []string{"a:b", "c:d"},
+				interval:        10,
+				statsd:          stats,
+			}
+			done := make(chan struct{})
+			go func() {
+				result, ok := <-rcved
+				if test.expect {
+					// TODO: negative case
+					assert.True(t, result.contained, "Should have sent the metric")
+				} else {
+					if ok {
+						assert.False(t, result.contained, "Should definitely not have sent the metric!")
+					}
+				}
+				close(done)
+			}()
+			err := ddSink.Flush(context.TODO(), []samplers.InterMetric{test.metric})
+			require.NoError(t, err)
+			close(rcved)
+			<-done
+		})
+	}
+
 }
