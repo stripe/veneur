@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"errors"
 	"flag"
+	"io"
 	"math"
 	"math/big"
 	"net"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -242,11 +244,44 @@ func setupSpan(traceID, parentID *int64, name, tags string) (*ssf.SSFSpan, error
 	return span, nil
 }
 
+func streamOutput(wg *sync.WaitGroup, in io.Reader, out io.Writer) {
+	if in == nil {
+		return
+	}
+	wg.Add(1)
+	go func() {
+		_, err := io.Copy(out, in)
+		if err != nil && err != io.EOF {
+			logrus.WithError(err).Info("Could not stream output")
+		}
+		wg.Done()
+	}()
+}
+
 func timeCommand(command []string) (exitStatus int, start time.Time, ended time.Time, err error) {
 	logrus.Debugf("Timing %q...", command)
 	cmd := exec.Command(command[0], command[1:]...)
 	start = time.Now()
-	err = cmd.Run()
+	var wg sync.WaitGroup
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		logrus.WithError(err).Warn("Could not get stdout pipe from command")
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		logrus.WithError(err).Warn("Could not get stderr pipe from command")
+	}
+	err = cmd.Start()
+	if err != nil {
+		logrus.WithError(err).WithField("command", command).Error("Could not start command")
+		exitStatus = 1
+		return
+	}
+	streamOutput(&wg, stdout, os.Stdout)
+	streamOutput(&wg, stderr, os.Stderr)
+	wg.Wait()
+
+	err = cmd.Wait()
 	ended = time.Now()
 	if err != nil {
 		exitError, ok := err.(*exec.ExitError)
