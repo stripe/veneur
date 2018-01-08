@@ -4,7 +4,6 @@ import (
 	"compress/zlib"
 	"context"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -129,11 +128,9 @@ type DatadogRoundTripper struct {
 
 func (rt *DatadogRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	rec := httptest.NewRecorder()
-	log.Printf("Got a request to %v", req.URL)
 	if strings.HasPrefix(req.URL.Path, rt.Endpoint) {
 		body, _ := ioutil.ReadAll(req.Body)
 		defer req.Body.Close()
-		log.Printf("body: %v", string(body))
 		if strings.Contains(string(body), rt.Contains) {
 			rt.ThingReceived = true
 		}
