@@ -198,6 +198,10 @@ Relatedly, if you want to forward a counter or gauge to the global Veneur instan
 
 Veneur also honors the same "magic" tags that the dogstatsd daemon includes in the datadog agent. The tag `host` will override `Hostname` in the metric and `device` will override `DeviceName`.
 
+#### Routing metrics
+
+Veneur supports specifying that metrics should only be routed to a specific metric sink, with the `veneursinkonly:<sink_name>` tag. The `<sink_name>` value can be any configured metric sink. Currently, that's `datadog`, `kafka`, `signalfx`. It's possible to specify multiple sink destination tags on a metric, which will cause the metric to be routed to each sink specified.
+
 # Configuration
 
 Veneur expects to have a config file supplied via `-f PATH`. The included `example.yaml` outlines the options:
