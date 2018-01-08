@@ -23,9 +23,10 @@ const (
 	GaugeMetric
 )
 
-// RouteInformation maps sink names to whether they're supposed to
-// receive a metric. A nil value corresponds to the "every sink"
-// value.
+// RouteInformation is a key-only map indicating sink names that are
+// supposed to receive a metric. A nil RouteInformation value
+// corresponds to the "every sink" value; an entry in a non-nil
+// RouteInformation means that the key should receive the metric.
 type RouteInformation map[string]struct{}
 
 // RouteTo returns true if the named sink should receive a metric
@@ -112,6 +113,9 @@ func routeInfo(tags []string) RouteInformation {
 		if info == nil {
 			info = make(RouteInformation)
 		}
+		// Take the tag suffix (the part after the ':' in
+		// "veneursinkonly:", and make that the key in our
+		// route information map:
 		info[tag[len(sinkPrefix):]] = struct{}{}
 	}
 	return info
