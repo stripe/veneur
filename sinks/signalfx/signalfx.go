@@ -13,6 +13,7 @@ import (
 	"github.com/signalfx/golib/sfxclient"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/trace"
 )
 
@@ -61,6 +62,9 @@ func (sfx *SignalFXSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	flushStart := time.Now()
 	points := []*datapoint.Datapoint{}
 	for _, metric := range interMetrics {
+		if !sinks.IsAcceptableMetric(metric, sfx) {
+			continue
+		}
 		dims := map[string]string{}
 		for _, tag := range metric.Tags {
 			kv := strings.SplitN(tag, ":", 2)

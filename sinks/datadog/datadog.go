@@ -14,6 +14,7 @@ import (
 	vhttp "github.com/stripe/veneur/http"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
@@ -157,8 +158,11 @@ func (dd *DatadogMetricSink) FlushEventsChecks(ctx context.Context, events []sam
 }
 
 func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []DDMetric {
-	ddMetrics := make([]DDMetric, len(metrics))
-	for i, m := range metrics {
+	ddMetrics := make([]DDMetric, 0, len(metrics))
+	for _, m := range metrics {
+		if !sinks.IsAcceptableMetric(m, dd) {
+			continue
+		}
 		// Defensively copy tags since we're gonna mutate it
 		tags := make([]string, len(dd.tags))
 		copy(tags, dd.tags)
@@ -208,7 +212,7 @@ func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []D
 			// No magic tag, set the hostname
 			ddMetric.Hostname = dd.hostname
 		}
-		ddMetrics[i] = ddMetric
+		ddMetrics = append(ddMetrics, ddMetric)
 	}
 
 	return ddMetrics

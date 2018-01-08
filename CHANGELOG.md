@@ -12,6 +12,7 @@
 * The `github.com/stripe/veneur/ssf` package now has a few helper functions to create samples that can be attached to spans: `Count`, `Gauge`, `Histogram`, `Timing`. In addition, veneur now has a span sink that extracts these samples and treats them as metrics. Thanks, [antifuchs](https://github.com/antifuchs)
 * Spans sent to Lightstep now have an `indicator` tag set, indicating whether the span is an indicator span or not. Thanks, [aditya](https://github.com/chimeracoder)!
 * `veneur-emit -command` now streams output from the invoked program's stdout/stderr to its own stdout/stderr. Thanks, [antifuchs](https://github.com/antifuchs)!
+* Veneur now supports the tag `veneursinkonly:<sink_name>` on metrics, which routes the metric to only the sink specified. See [the docs](README.md#routing-metrics) here. Thanks, [antifuchs](https://github.com/antifuchs)!
 
 ## Improvements
 * Veneur now emits a timer metric giving the duration (in nanoseconds) of every "indicator" span that it receives, if you configure the setting `indicator_span_timer_name`. Thanks, [antifuchs](https://github.com/antifuchs)!

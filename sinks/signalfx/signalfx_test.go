@@ -2,6 +2,7 @@ package signalfx
 
 import (
 	"context"
+	"sort"
 	"testing"
 	"time"
 
@@ -56,6 +57,60 @@ func TestNewSignalFxSink(t *testing.T) {
 
 	assert.Equal(t, "http://www.example.com", sink.hostname)
 	assert.Equal(t, "signalfx", sink.Name())
+}
+
+func TestSignalFxFlushRouting(t *testing.T) {
+	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
+	fakeSink := NewFakeSink()
+	sink, err := NewSignalFXSink("secret", "http://www.example.com", stats, logrus.New(), fakeSink)
+
+	assert.NoError(t, err)
+
+	interMetrics := []samplers.InterMetric{samplers.InterMetric{
+		Name:      "any",
+		Timestamp: 1476119058,
+		Value:     float64(100),
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+		},
+		Type: samplers.GaugeMetric,
+	},
+		samplers.InterMetric{
+			Name:      "sfx",
+			Timestamp: 1476119058,
+			Value:     float64(100),
+			Tags: []string{
+				"foo:bar",
+				"baz:quz",
+				"veneursinkonly:signalfx",
+			},
+			Type:  samplers.GaugeMetric,
+			Sinks: samplers.RouteInformation{"signalfx": struct{}{}},
+		},
+		samplers.InterMetric{
+			Name:      "not.us",
+			Timestamp: 1476119058,
+			Value:     float64(100),
+			Tags: []string{
+				"foo:bar",
+				"baz:quz",
+				"veneursinkonly:anyone_else",
+			},
+			Type:  samplers.GaugeMetric,
+			Sinks: samplers.RouteInformation{"anyone_else": struct{}{}},
+		},
+	}
+
+	sink.Flush(context.TODO(), interMetrics)
+
+	assert.Equal(t, 2, len(fakeSink.points))
+	metrics := make([]string, 0, len(fakeSink.points))
+	for _, pt := range fakeSink.points {
+		metrics = append(metrics, pt.Metric)
+	}
+	sort.Strings(metrics)
+	assert.Equal(t, []string{"any", "sfx"}, metrics)
 }
 
 func TestSignalFxFlushGauge(t *testing.T) {
