@@ -44,7 +44,7 @@ type Config struct {
 	ReadBufferSizeBytes           int       `yaml:"read_buffer_size_bytes"`
 	SentryDsn                     string    `yaml:"sentry_dsn"`
 	SignalfxAPIKey                string    `yaml:"signalfx_api_key"`
-	SignalfxEndpoint              string    `yaml:"signalfx_endpoint"`
+	SignalfxEndpointBase          string    `yaml:"signalfx_endpoint_base"`
 	SignalfxHostnameTag           string    `yaml:"signalfx_hostname_tag"`
 	SsfAddress                    string    `yaml:"ssf_address"`
 	SsfBufferSize                 int       `yaml:"ssf_buffer_size"`
