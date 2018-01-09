@@ -141,10 +141,11 @@ func TestSignalFxFlushGauge(t *testing.T) {
 	assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
 	assert.Equal(t, datapoint.Gauge, point.MetricType, "Metric has wrong type")
 	dims := point.Dimensions
-	assert.Equal(t, 3, len(dims), "Metric has incorrect tag count")
+	assert.Equal(t, 4, len(dims), "Metric has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Metric is missing common tag")
+	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
 }
 
 func TestSignalFxFlushCounter(t *testing.T) {
@@ -173,11 +174,12 @@ func TestSignalFxFlushCounter(t *testing.T) {
 	assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
 	assert.Equal(t, datapoint.Count, point.MetricType, "Metric has wrong type")
 	dims := point.Dimensions
-	assert.Equal(t, 4, len(dims), "Metric has incorrect tag count")
+	assert.Equal(t, 5, len(dims), "Metric has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
 	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Metric is missing a common tag")
+	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
 }
 
 func TestSignalFxEventFlush(t *testing.T) {
@@ -198,9 +200,10 @@ func TestSignalFxEventFlush(t *testing.T) {
 	event := fakeSink.events[0]
 	assert.Equal(t, ev.Title, event.EventType)
 	dims := event.Dimensions
-	assert.Equal(t, 4, len(dims), "Event has incorrect tag count")
+	assert.Equal(t, 5, len(dims), "Event has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Event has a busted tag")
 	assert.Equal(t, "gorch", dims["baz"], "Event has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Event missing a common tag")
 	assert.Equal(t, "", dims["novalue"], "Event has a busted tag")
+	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
 }

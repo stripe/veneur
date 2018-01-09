@@ -72,6 +72,8 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 			continue
 		}
 		dims := map[string]string{}
+		// Set the hostname as a tag, since SFx doesn't have a first-class hostname field
+		dims[sfx.hostnameTag] = sfx.hostname
 		for _, tag := range metric.Tags {
 			kv := strings.SplitN(tag, ":", 2)
 			if len(kv) == 1 {
@@ -114,6 +116,8 @@ func (sfx *SignalFxSink) FlushEventsChecks(ctx context.Context, events []sampler
 		// getting []string. We should fix this, as it feels less icky for sinks to
 		// get `map[string]string`.
 		dims := map[string]string{}
+		// Set the hostname as a tag, since SFx doesn't have a first-class hostname field
+		dims[sfx.hostnameTag] = sfx.hostname
 		for _, tag := range udpEvent.Tags {
 			parts := strings.SplitN(tag, ":", 2)
 			if len(parts) == 1 {
