@@ -18,15 +18,18 @@ import (
 )
 
 type SignalFXSink struct {
-	client      dpsink.Sink
-	endpoint    string
-	statsd      *statsd.Client
-	log         *logrus.Logger
-	traceClient *trace.Client
+	client           dpsink.Sink
+	endpoint         string
+	hostnameTag      string
+	hostname         string
+	commonDimensions map[string]string
+	statsd           *statsd.Client
+	log              *logrus.Logger
+	traceClient      *trace.Client
 }
 
 // NewSignalFXSink creates a new SignalFX sink for metrics.
-func NewSignalFXSink(apiKey string, endpoint string, stats *statsd.Client, log *logrus.Logger, client dpsink.Sink) (*SignalFXSink, error) {
+func NewSignalFXSink(apiKey string, endpoint string, hostnameTag string, hostname string, commonDimensions map[string]string, stats *statsd.Client, log *logrus.Logger, client dpsink.Sink) (*SignalFXSink, error) {
 	if client == nil {
 		httpSink := sfxclient.NewHTTPSink()
 		httpSink.AuthToken = apiKey
@@ -36,10 +39,13 @@ func NewSignalFXSink(apiKey string, endpoint string, stats *statsd.Client, log *
 	}
 
 	return &SignalFXSink{
-		client:   client,
-		endpoint: endpoint,
-		statsd:   stats,
-		log:      log,
+		client:           client,
+		endpoint:         endpoint,
+		hostnameTag:      hostnameTag,
+		hostname:         hostname,
+		commonDimensions: commonDimensions,
+		statsd:           stats,
+		log:              log,
 	}, nil
 }
 
@@ -74,6 +80,11 @@ func (sfx *SignalFXSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 				dims[kv[0]] = kv[1]
 			}
 		}
+		// Copy common dimensions
+		for k, v := range sfx.commonDimensions {
+			dims[k] = v
+		}
+
 		if metric.Type == samplers.GaugeMetric {
 			points = append(points, sfxclient.GaugeF(metric.Name, dims, metric.Value))
 		} else if metric.Type == samplers.CounterMetric {
@@ -110,6 +121,10 @@ func (sfx *SignalFXSink) FlushEventsChecks(ctx context.Context, events []sampler
 			} else {
 				dims[parts[0]] = parts[1]
 			}
+		}
+		// Copy common dimensions in
+		for k, v := range sfx.commonDimensions {
+			dims[k] = v
 		}
 
 		ev := event.Event{
