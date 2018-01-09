@@ -301,7 +301,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 	}
 
 	if conf.SignalfxAPIKey != "" {
-		sfxSink, err := signalfx.NewSignalFXSink(conf.SignalfxAPIKey, conf.SignalfxHostname, ret.Statsd, log, nil)
+		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxAPIKey, conf.SignalfxHostname, ret.Statsd, log, nil)
 		if err != nil {
 			return ret, err
 		}
