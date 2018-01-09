@@ -1,4 +1,4 @@
-# 2.0.0, in progress
+# 2.0.0, 2018-01-09
 
 ## Incompatible changes
 * The semantics around `veneur-emit` command timing have changed: `-shellCommand` argument has been renamed to `-command`, and `-command` is now gone. The only way to time a command is to provide the command and its arguments as separate arguments, the method of passing in a shell-escaped string is no longer supported.
