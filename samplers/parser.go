@@ -56,13 +56,13 @@ func (m *MetricKey) String() string {
 // error occurs in processing any of the metrics, ExtractMetrics
 // collects them into the error type InvalidMetrics and returns this
 // error alongside any valid metrics that could be parsed.
-func ConvertMetrics(m *ssf.SSFSpan) ([]UDPMetric, error) {
+func ConvertMetrics(m *ssf.SSFSpan, commonTags []string) ([]UDPMetric, error) {
 	samples := m.Metrics
 	metrics := make([]UDPMetric, 0, len(samples)+1)
 	invalid := []*ssf.SSFSample{}
 
 	for _, metricPacket := range samples {
-		metric, err := ParseMetricSSF(metricPacket)
+		metric, err := ParseMetricSSF(metricPacket, commonTags)
 		if err != nil || !ValidMetric(metric) {
 			invalid = append(invalid, metricPacket)
 			continue
@@ -79,7 +79,7 @@ func ConvertMetrics(m *ssf.SSFSpan) ([]UDPMetric, error) {
 // span and returns metrics that can be determined from that
 // span. Currently, it converts the span to a timer metric for the
 // duration of the span.
-func ConvertIndicatorMetrics(span *ssf.SSFSpan, timerName string) (metrics []UDPMetric, err error) {
+func ConvertIndicatorMetrics(span *ssf.SSFSpan, timerName string, commonTags []string) (metrics []UDPMetric, err error) {
 	if !span.Indicator || timerName == "" {
 		// No-op if this isn't an indicator span
 		return
@@ -96,7 +96,7 @@ func ConvertIndicatorMetrics(span *ssf.SSFSpan, timerName string) (metrics []UDP
 		tags["error"] = "true"
 	}
 	ssfTimer := ssf.Timing(timerName, end.Sub(start), time.Nanosecond, tags)
-	timer, err := ParseMetricSSF(ssfTimer)
+	timer, err := ParseMetricSSF(ssfTimer, commonTags)
 	if err != nil {
 		return metrics, err
 	}
@@ -133,7 +133,7 @@ func (err *invalidMetrics) Samples() []*ssf.SSFSample {
 }
 
 // ParseMetricSSF converts an incoming SSF packet to a Metric.
-func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
+func ParseMetricSSF(metric *ssf.SSFSample, commonTags []string) (UDPMetric, error) {
 	ret := UDPMetric{
 		SampleRate: 1.0,
 	}
@@ -159,7 +159,12 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 		ret.Value = float64(metric.Value)
 	}
 	ret.SampleRate = metric.SampleRate
-	tempTags := make([]string, 0)
+
+	// Take the tags we were supplied by the caller and copy them so we can add
+	// new ones from the incoming metric.
+	tempTags := make([]string, len(commonTags))
+	copy(tempTags, commonTags)
+
 	for key, value := range metric.Tags {
 		if key == "veneurlocalonly" {
 			// delete the tag from the list
@@ -173,6 +178,7 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 			tempTags = append(tempTags, fmt.Sprintf("%s:%s", key, value))
 		}
 	}
+
 	sort.Strings(tempTags)
 	ret.Tags = tempTags
 	ret.JoinedTags = strings.Join(tempTags, ",")
@@ -183,7 +189,7 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 
 // ParseMetric converts the incoming packet from Datadog DogStatsD
 // Datagram format in to a Metric. http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
-func ParseMetric(packet []byte) (*UDPMetric, error) {
+func ParseMetric(packet []byte, commonTags []string) (*UDPMetric, error) {
 	ret := &UDPMetric{
 		SampleRate: 1.0,
 	}
@@ -273,27 +279,31 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 			if ret.Tags != nil {
 				return nil, errors.New("Invalid metric packet, multiple tag sections specified")
 			}
-			tags := strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
-			sort.Strings(tags)
-			for i, tag := range tags {
+			packetTags := strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
+			sort.Strings(packetTags)
+			for i, tag := range packetTags {
 				// we use this tag as an escape hatch for metrics that always
 				// want to be host-local
 				if tag == "veneurlocalonly" {
 					// delete the tag from the list
-					tags = append(tags[:i], tags[i+1:]...)
+					packetTags = append(packetTags[:i], packetTags[i+1:]...)
 					ret.Scope = LocalOnly
 					break
 				} else if tag == "veneurglobalonly" {
 					// delete the tag from the list
-					tags = append(tags[:i], tags[i+1:]...)
+					packetTags = append(packetTags[:i], packetTags[i+1:]...)
 					ret.Scope = GlobalOnly
 					break
 				}
 			}
-			ret.Tags = tags
+
+			// Copy the tags from our caller into our tags from the packet
+			packetTags = append(packetTags, commonTags...)
+
+			ret.Tags = packetTags
 			// we specifically need the sorted version here so that hashing over
 			// tags behaves deterministically
-			ret.JoinedTags = strings.Join(tags, ",")
+			ret.JoinedTags = strings.Join(packetTags, ",")
 			h.Write([]byte(ret.JoinedTags))
 
 		default:
@@ -320,7 +330,7 @@ type UDPEvent struct {
 }
 
 // ParseEvent parses a packet that represents a UDPEvent.
-func ParseEvent(packet []byte) (*UDPEvent, error) {
+func ParseEvent(packet []byte, commonTags []string) (*UDPEvent, error) {
 	ret := &UDPEvent{
 		Timestamp:  time.Now().Unix(),
 		Priority:   "normal",
@@ -451,6 +461,14 @@ func ParseEvent(packet []byte) (*UDPEvent, error) {
 		}
 	}
 
+	if len(commonTags) > 0 {
+		if ret.Tags == nil {
+			// If it's nil we need to put a slice here for the subsequent append
+			ret.Tags = []string{}
+		}
+		ret.Tags = append(ret.Tags, commonTags...)
+	}
+
 	return ret, nil
 }
 
@@ -465,7 +483,7 @@ type UDPServiceCheck struct {
 }
 
 // ParseServiceCheck parses a packet that represents a UDPServiceCheck.
-func ParseServiceCheck(packet []byte) (*UDPServiceCheck, error) {
+func ParseServiceCheck(packet []byte, commonTags []string) (*UDPServiceCheck, error) {
 	ret := &UDPServiceCheck{
 		Timestamp: time.Now().Unix(),
 	}
@@ -548,6 +566,14 @@ func ParseServiceCheck(packet []byte) (*UDPServiceCheck, error) {
 		default:
 			return nil, errors.New("Invalid service check packet, unrecognized metadata section")
 		}
+	}
+
+	if len(commonTags) > 0 {
+		if ret.Tags == nil {
+			// If it's nil we need to put a slice here for the subsequent append
+			ret.Tags = []string{}
+		}
+		ret.Tags = append(ret.Tags, commonTags...)
 	}
 
 	return ret, nil

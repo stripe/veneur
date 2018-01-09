@@ -52,7 +52,7 @@ func (m *metricExtractionSink) sendMetrics(metrics []samplers.UDPMetric) {
 }
 
 func (m *metricExtractionSink) sendSample(sample *ssf.SSFSample) error {
-	metric, err := samplers.ParseMetricSSF(sample)
+	metric, err := samplers.ParseMetricSSF(sample, nil)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func (m *metricExtractionSink) sendSample(sample *ssf.SSFSample) error {
 // Ingest extracts metrics from an SSF span, and feeds them into the
 // appropriate metric sinks.
 func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
-	metrics, err := samplers.ConvertMetrics(span)
+	metrics, err := samplers.ConvertMetrics(span, nil)
 	if err != nil {
 		if _, ok := err.(samplers.InvalidMetrics); ok {
 			m.log.WithError(err).
@@ -90,7 +90,7 @@ func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 		return err
 	}
 
-	indicatorMetrics, err := samplers.ConvertIndicatorMetrics(span, m.indicatorSpanTimerName)
+	indicatorMetrics, err := samplers.ConvertIndicatorMetrics(span, m.indicatorSpanTimerName, nil)
 	if err != nil {
 		m.log.WithError(err).
 			WithField("span_name", span.Name).

@@ -32,7 +32,7 @@ func TestTagNameSetNameNotSet(t *testing.T) {
 	buf, err := proto.Marshal(&sample)
 	assert.NoError(t, err, "Eror when marshalling sample")
 
-	span, errSSF := protocol.ParseSSF(buf)
+	span, errSSF := protocol.ParseSSF(buf, nil)
 	assert.NoError(t, err)
 	if assert.NotNil(t, span) {
 		assert.NoError(t, err)
@@ -56,7 +56,7 @@ func TestTagNameSetNameSet(t *testing.T) {
 	buf, err := proto.Marshal(&sample)
 	assert.NoError(t, err, "Error when marshalling sample")
 
-	span, errSSF := protocol.ParseSSF(buf)
+	span, errSSF := protocol.ParseSSF(buf, nil)
 	assert.NoError(t, err)
 	if assert.NotNil(t, span) {
 		assert.NoError(t, err)
@@ -75,7 +75,7 @@ func TestNoTagName(t *testing.T) {
 	buf, err := proto.Marshal(&sample)
 	assert.NoError(t, err)
 
-	span, errSSF := protocol.ParseSSF(buf)
+	span, errSSF := protocol.ParseSSF(buf, nil)
 	assert.NoError(t, err)
 	if assert.NotNil(t, span) {
 		assert.NoError(t, err)
@@ -95,7 +95,7 @@ func TestOperation(t *testing.T) {
 	packet, err := ioutil.ReadAll(pb)
 	assert.NoError(t, err)
 
-	span, errSSF := protocol.ParseSSF(packet)
+	span, errSSF := protocol.ParseSSF(packet, nil)
 	assert.NoError(t, errSSF)
 	if assert.NotNil(t, span) {
 		assert.NoError(t, err)

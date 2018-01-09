@@ -39,7 +39,7 @@ func (fs *FakeSink) AddEvents(ctx context.Context, events []*event.Event) (err e
 func TestNewSignalFxSink(t *testing.T) {
 	// test the variables that have been renamed
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
-	sink, err := NewSignalFXSink("secret", "http://www.example.com", stats, logrus.New(), nil)
+	sink, err := NewSignalFXSink("secret", "http://www.example.com", "host", "glooblestoots", stats, logrus.New(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,14 +55,16 @@ func TestNewSignalFxSink(t *testing.T) {
 	assert.Equal(t, "http://www.example.com/v2/datapoint", httpsink.DatapointEndpoint)
 	assert.Equal(t, "http://www.example.com/v2/event", httpsink.EventEndpoint)
 
-	assert.Equal(t, "http://www.example.com", sink.hostname)
+	assert.Equal(t, "http://www.example.com", sink.endpoint)
+	assert.Equal(t, "host", sink.hostnameTag)
+	assert.Equal(t, "glooblestoots", sink.hostname)
 	assert.Equal(t, "signalfx", sink.Name())
 }
 
 func TestSignalFxFlushRouting(t *testing.T) {
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFXSink("secret", "http://www.example.com", stats, logrus.New(), fakeSink)
+	sink, err := NewSignalFXSink("secret", "http://www.example.com", "host", "glooblestoots", stats, logrus.New(), fakeSink)
 
 	assert.NoError(t, err)
 
@@ -116,7 +118,7 @@ func TestSignalFxFlushRouting(t *testing.T) {
 func TestSignalFxFlushGauge(t *testing.T) {
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFXSink("secret", "http://www.example.com", stats, logrus.New(), fakeSink)
+	sink, err := NewSignalFXSink("secret", "http://www.example.com", "host", "glooblestoots", stats, logrus.New(), fakeSink)
 
 	assert.NoError(t, err)
 
@@ -138,15 +140,16 @@ func TestSignalFxFlushGauge(t *testing.T) {
 	assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
 	assert.Equal(t, datapoint.Gauge, point.MetricType, "Metric has wrong type")
 	dims := point.Dimensions
-	assert.Equal(t, 2, len(dims), "Metric has incorrect tag count")
+	assert.Equal(t, 3, len(dims), "Metric has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
+	assert.Equal(t, "glooblestoots", dims["host"], "Metric has a busted host tag")
 }
 
 func TestSignalFxFlushCounter(t *testing.T) {
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFXSink("secret", "http://www.example.com", stats, logrus.New(), fakeSink)
+	sink, err := NewSignalFXSink("secret", "http://www.example.com", "host", "glooblestoots", stats, logrus.New(), fakeSink)
 
 	assert.NoError(t, err)
 
@@ -169,16 +172,17 @@ func TestSignalFxFlushCounter(t *testing.T) {
 	assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
 	assert.Equal(t, datapoint.Count, point.MetricType, "Metric has wrong type")
 	dims := point.Dimensions
-	assert.Equal(t, 3, len(dims), "Metric has incorrect tag count")
+	assert.Equal(t, 4, len(dims), "Metric has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
+	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
 	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
 }
 
 func TestSignalFxEventFlush(t *testing.T) {
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFXSink("secret", "http://www.example.com", stats, logrus.New(), fakeSink)
+	sink, err := NewSignalFXSink("secret", "http://www.example.com", "host", "glooblestoots", stats, logrus.New(), fakeSink)
 
 	assert.NoError(t, err)
 
@@ -193,8 +197,9 @@ func TestSignalFxEventFlush(t *testing.T) {
 	event := fakeSink.events[0]
 	assert.Equal(t, ev.Title, event.EventType)
 	dims := event.Dimensions
-	assert.Equal(t, 3, len(dims), "Event has incorrect tag count")
-	assert.Equal(t, "bar", dims["foo"], "Event has a busted tag")
+	assert.Equal(t, 4, len(dims), "Event has incorrect tag count")
+	assert.Equal(t, "glooblestoots", dims["host"], "Event is missing hostname tag")
+	assert.Equal(t, "bar", dims["foo"], "Event has a busted default tag")
 	assert.Equal(t, "gorch", dims["baz"], "Event has a busted tag")
 	assert.Equal(t, "", dims["novalue"], "Event has a busted tag")
 }

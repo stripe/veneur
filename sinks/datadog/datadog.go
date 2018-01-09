@@ -30,7 +30,6 @@ type DatadogMetricSink struct {
 	hostname        string
 	flushMaxPerBody int
 	statsd          *statsd.Client
-	tags            []string
 	interval        float64
 	traceClient     *trace.Client
 	log             *logrus.Logger
@@ -49,7 +48,7 @@ type DDMetric struct {
 }
 
 // NewDatadogMetricSink creates a new Datadog sink for trace spans.
-func NewDatadogMetricSink(interval float64, flushMaxPerBody int, hostname string, tags []string, ddHostname string, apiKey string, httpClient *http.Client, stats *statsd.Client, log *logrus.Logger) (*DatadogMetricSink, error) {
+func NewDatadogMetricSink(interval float64, flushMaxPerBody int, hostname string, ddHostname string, apiKey string, httpClient *http.Client, stats *statsd.Client, log *logrus.Logger) (*DatadogMetricSink, error) {
 	return &DatadogMetricSink{
 		HTTPClient:      httpClient,
 		APIKey:          apiKey,
@@ -58,7 +57,6 @@ func NewDatadogMetricSink(interval float64, flushMaxPerBody int, hostname string
 		interval:        interval,
 		flushMaxPerBody: flushMaxPerBody,
 		hostname:        hostname,
-		tags:            tags,
 		log:             log,
 	}, nil
 }
@@ -114,13 +112,11 @@ func (dd *DatadogMetricSink) FlushEventsChecks(ctx context.Context, events []sam
 		if events[i].Hostname == "" {
 			events[i].Hostname = dd.hostname
 		}
-		events[i].Tags = append(events[i].Tags, dd.tags...)
 	}
 	for i := range checks {
 		if checks[i].Hostname == "" {
 			checks[i].Hostname = dd.hostname
 		}
-		checks[i].Tags = append(checks[i].Tags, dd.tags...)
 	}
 
 	if len(events) != 0 {
@@ -163,9 +159,6 @@ func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []D
 		if !sinks.IsAcceptableMetric(m, dd) {
 			continue
 		}
-		// Defensively copy tags since we're gonna mutate it
-		tags := make([]string, len(dd.tags))
-		copy(tags, dd.tags)
 
 		metricType := ""
 		value := m.Value
@@ -189,7 +182,8 @@ func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []D
 					float64(m.Timestamp), value,
 				},
 			},
-			Tags:       tags,
+			// We'll fill up the tags slice below, as we might filter some out
+			Tags:       []string{},
 			MetricType: metricType,
 			Interval:   int32(dd.interval),
 		}

@@ -124,7 +124,7 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 	defer server.Shutdown()
 
 	//collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string
-	lsSink, err := lightstep.NewLightStepSpanSink("example.com", "5m", 10000, 1, "secret", server.Statsd, server.TagsAsMap, log)
+	lsSink, err := lightstep.NewLightStepSpanSink("example.com", "5m", 10000, 1, "secret", server.Statsd, log)
 	server.spanSinks = append(server.spanSinks, lsSink)
 
 	packet, err := ioutil.ReadAll(protobuf)

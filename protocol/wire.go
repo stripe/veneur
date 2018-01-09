@@ -106,7 +106,7 @@ func ValidateTrace(span *ssf.SSFSpan) error {
 // unrecoverably broken. The error is EOF only if no bytes were read
 // at the start of a message (e.g. if a connection was closed after
 // the last message).
-func ReadSSF(in io.Reader) (*ssf.SSFSpan, error) {
+func ReadSSF(in io.Reader, commonTags map[string]string) (*ssf.SSFSpan, error) {
 	var version uint8
 	var length uint32
 	if err := binary.Read(in, binary.BigEndian, &version); err != nil {
@@ -130,12 +130,12 @@ func ReadSSF(in io.Reader) (*ssf.SSFSpan, error) {
 	if err != nil {
 		return nil, &errFramingIO{err}
 	}
-	return ParseSSF(bts)
+	return ParseSSF(bts, commonTags)
 }
 
 // ParseSSF takes in a byte slice and returns: a normalized SSFSpan
 // and an error if any errors in parsing the SSF packet occur.
-func ParseSSF(packet []byte) (*ssf.SSFSpan, error) {
+func ParseSSF(packet []byte, commonTags map[string]string) (*ssf.SSFSpan, error) {
 	span := &ssf.SSFSpan{}
 	scratchBuff := pbufPool.Get().(*proto.Buffer)
 	defer func() {
@@ -152,6 +152,10 @@ func ParseSSF(packet []byte) (*ssf.SSFSpan, error) {
 	// Normalize the span:
 	if span.Tags == nil {
 		span.Tags = map[string]string{}
+	}
+	// Copy our common tags into the incoming span
+	for k, v := range commonTags {
+		span.Tags[k] = v
 	}
 	if span.Name == "" {
 		// Even though incoming packets should have Name set,

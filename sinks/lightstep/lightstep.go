@@ -30,7 +30,6 @@ const totalSpansFlushedMetricKey = "worker.spans_flushed_total"
 type LightStepSpanSink struct {
 	tracers      []opentracing.Tracer
 	stats        *statsd.Client
-	commonTags   map[string]string
 	mutex        *sync.Mutex
 	serviceCount map[string]int64
 	traceClient  *trace.Client
@@ -38,7 +37,7 @@ type LightStepSpanSink struct {
 }
 
 // NewLightStepSpanSink creates a new instance of a LightStepSpanSink.
-func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string, stats *statsd.Client, commonTags map[string]string, log *logrus.Logger) (*LightStepSpanSink, error) {
+func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string, stats *statsd.Client, log *logrus.Logger) (*LightStepSpanSink, error) {
 
 	var host *url.URL
 	host, err := url.Parse(collector)
@@ -158,10 +157,6 @@ func (ls *LightStepSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	sp.SetTag("type", "http")
 	sp.SetTag("error-code", errorCode)
 	for k, v := range ssfSpan.Tags {
-		sp.SetTag(k, v)
-	}
-	// And now set any veneur common tags
-	for k, v := range ls.commonTags {
 		sp.SetTag(k, v)
 	}
 	// TODO add metrics as tags to the span as well?

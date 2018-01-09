@@ -102,7 +102,6 @@ func TestLSSpanSinkIngest(t *testing.T) {
 	tracer := &testLSTracer{}
 	ls := &LightStepSpanSink{
 		tracers:      []opentracing.Tracer{tracer},
-		commonTags:   map[string]string{"foo": "bar"},
 		serviceCount: make(map[string]int64),
 		mutex:        &sync.Mutex{},
 	}
@@ -134,6 +133,5 @@ func TestLSSpanSinkIngest(t *testing.T) {
 		span := tracer.finishedSpans[0]
 		assert.Equal(t, "farting farty farts", span.name)
 		assert.Contains(t, span.tags, "baz")
-		assert.Contains(t, span.tags, "foo")
 	}
 }

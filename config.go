@@ -45,6 +45,7 @@ type Config struct {
 	SentryDsn                     string    `yaml:"sentry_dsn"`
 	SignalfxAPIKey                string    `yaml:"signalfx_api_key"`
 	SignalfxHostname              string    `yaml:"signalfx_hostname"`
+	SignalfxHostnameTag           string    `yaml:"signalfx_hostname_tag"`
 	SsfAddress                    string    `yaml:"ssf_address"`
 	SsfBufferSize                 int       `yaml:"ssf_buffer_size"`
 	SsfListenAddresses            []string  `yaml:"ssf_listen_addresses"`

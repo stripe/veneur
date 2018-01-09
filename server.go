@@ -301,7 +301,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 	}
 
 	if conf.SignalfxAPIKey != "" {
-		sfxSink, err := signalfx.NewSignalFXSink(conf.SignalfxAPIKey, conf.SignalfxHostname, ret.Statsd, log, nil)
+		sfxSink, err := signalfx.NewSignalFXSink(conf.SignalfxAPIKey, conf.SignalfxHostname, conf.SignalfxHostnameTag, ret.Hostname, ret.Statsd, log, nil)
 		if err != nil {
 			return ret, err
 		}
@@ -309,7 +309,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 	}
 	if conf.DatadogAPIKey != "" {
 		ddSink, err := datadog.NewDatadogMetricSink(
-			ret.interval.Seconds(), conf.FlushMaxPerBody, conf.Hostname, ret.Tags,
+			ret.interval.Seconds(), conf.FlushMaxPerBody, conf.Hostname,
 			conf.DatadogAPIHostname, conf.DatadogAPIKey, ret.HTTPClient, ret.Statsd,
 			log,
 		)
@@ -362,7 +362,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 			lsSink, err = lightstep.NewLightStepSpanSink(
 				conf.TraceLightstepCollectorHost, conf.TraceLightstepReconnectPeriod,
 				conf.TraceLightstepMaximumSpans, conf.TraceLightstepNumClients,
-				conf.TraceLightstepAccessToken, ret.Statsd, ret.TagsAsMap, log,
+				conf.TraceLightstepAccessToken, ret.Statsd, log,
 			)
 			if err != nil {
 				return ret, err
@@ -590,7 +590,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 	}
 
 	if bytes.HasPrefix(packet, []byte{'_', 'e', '{'}) {
-		event, err := samplers.ParseEvent(packet)
+		event, err := samplers.ParseEvent(packet, s.Tags)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
@@ -601,7 +601,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 		}
 		s.EventWorker.EventChan <- *event
 	} else if bytes.HasPrefix(packet, []byte{'_', 's', 'c'}) {
-		svcheck, err := samplers.ParseServiceCheck(packet)
+		svcheck, err := samplers.ParseServiceCheck(packet, s.Tags)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
@@ -612,7 +612,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 		}
 		s.EventWorker.ServiceCheckChan <- *svcheck
 	} else {
-		metric, err := samplers.ParseMetric(packet)
+		metric, err := samplers.ParseMetric(packet, s.Tags)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
@@ -640,7 +640,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 
 	s.Statsd.Histogram("ssf.packet_size", float64(len(packet)), nil, .1)
 
-	span, err := protocol.ParseSSF(packet)
+	span, err := protocol.ParseSSF(packet, s.TagsAsMap)
 	if err != nil {
 		reason := fmt.Sprintf("reason:%s", err.Error())
 		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:ssf_metric", reason}, 1.0)
@@ -732,7 +732,7 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 	}()
 	tags := []string{"ssf_format:framed"}
 	for {
-		msg, err := protocol.ReadSSF(serverConn)
+		msg, err := protocol.ReadSSF(serverConn, s.TagsAsMap)
 		if err != nil {
 			if err == io.EOF {
 				// Client hangup, close this

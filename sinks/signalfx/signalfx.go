@@ -19,6 +19,8 @@ import (
 
 type SignalFXSink struct {
 	client      dpsink.Sink
+	endpoint    string
+	hostnameTag string
 	hostname    string
 	statsd      *statsd.Client
 	log         *logrus.Logger
@@ -26,20 +28,22 @@ type SignalFXSink struct {
 }
 
 // NewSignalFXSink creates a new SignalFX sink for metrics.
-func NewSignalFXSink(apiKey string, hostname string, stats *statsd.Client, log *logrus.Logger, client dpsink.Sink) (*SignalFXSink, error) {
+func NewSignalFXSink(apiKey string, endpoint string, hostnameTag string, hostname string, stats *statsd.Client, log *logrus.Logger, client dpsink.Sink) (*SignalFXSink, error) {
 	if client == nil {
 		httpSink := sfxclient.NewHTTPSink()
 		httpSink.AuthToken = apiKey
-		httpSink.DatapointEndpoint = fmt.Sprintf("%s/v2/datapoint", hostname)
-		httpSink.EventEndpoint = fmt.Sprintf("%s/v2/event", hostname)
+		httpSink.DatapointEndpoint = fmt.Sprintf("%s/v2/datapoint", endpoint)
+		httpSink.EventEndpoint = fmt.Sprintf("%s/v2/event", endpoint)
 		client = httpSink
 	}
 
 	return &SignalFXSink{
-		client:   client,
-		hostname: hostname,
-		statsd:   stats,
-		log:      log,
+		client:      client,
+		endpoint:    endpoint,
+		hostnameTag: hostnameTag,
+		hostname:    hostname,
+		statsd:      stats,
+		log:         log,
 	}, nil
 }
 
@@ -65,7 +69,11 @@ func (sfx *SignalFXSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 		if !sinks.IsAcceptableMetric(metric, sfx) {
 			continue
 		}
+
 		dims := map[string]string{}
+		// Put a hostname in the configured tag
+		dims[sfx.hostnameTag] = sfx.hostname
+
 		for _, tag := range metric.Tags {
 			kv := strings.SplitN(tag, ":", 2)
 			if len(kv) == 1 {
@@ -99,10 +107,13 @@ func (sfx *SignalFXSink) FlushEventsChecks(ctx context.Context, events []sampler
 
 	for _, udpEvent := range events {
 
+		dims := map[string]string{}
+		// Put a hostname in the configured tag
+		dims[sfx.hostnameTag] = sfx.hostname
+
 		// TODO: SignalFx wants `map[string]string` for tags but at this point we're
 		// getting []string. We should fix this, as it feels less icky for sinks to
 		// get `map[string]string`.
-		dims := map[string]string{}
 		for _, tag := range udpEvent.Tags {
 			parts := strings.SplitN(tag, ":", 2)
 			if len(parts) == 1 {

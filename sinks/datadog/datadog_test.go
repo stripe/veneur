@@ -28,7 +28,6 @@ type DDMetricsRequest struct {
 func TestDatadogRate(t *testing.T) {
 	ddSink := DatadogMetricSink{
 		hostname: "somehostname",
-		tags:     []string{"a:b", "c:d"},
 		interval: 10,
 	}
 
@@ -44,30 +43,9 @@ func TestDatadogRate(t *testing.T) {
 	assert.Equal(t, float64(1.0), ddMetrics[0].Value[0][1], "Metric rate wasnt computed correctly")
 }
 
-func TestServerTags(t *testing.T) {
-	ddSink := DatadogMetricSink{
-		hostname: "somehostname",
-		tags:     []string{"a:b", "c:d"},
-		interval: 10,
-	}
-
-	metrics := []samplers.InterMetric{{
-		Name:      "foo.bar.baz",
-		Timestamp: time.Now().Unix(),
-		Value:     float64(10),
-		Tags:      []string{"gorch:frobble", "x:e"},
-		Type:      samplers.CounterMetric,
-	}}
-
-	ddMetrics := ddSink.finalizeMetrics(metrics)
-	assert.Equal(t, "somehostname", ddMetrics[0].Hostname, "Metric hostname uses argument")
-	assert.Contains(t, ddMetrics[0].Tags, "a:b", "Tags should contain server tags")
-}
-
 func TestHostMagicTag(t *testing.T) {
 	ddSink := DatadogMetricSink{
 		hostname: "badhostname",
-		tags:     []string{"a:b", "c:d"},
 	}
 
 	metrics := []samplers.InterMetric{{
@@ -87,7 +65,6 @@ func TestHostMagicTag(t *testing.T) {
 func TestDeviceMagicTag(t *testing.T) {
 	ddSink := DatadogMetricSink{
 		hostname: "badhostname",
-		tags:     []string{"a:b", "c:d"},
 	}
 
 	metrics := []samplers.InterMetric{{
@@ -252,7 +229,6 @@ func TestDatadogMetricRouting(t *testing.T) {
 				HTTPClient:      client,
 				flushMaxPerBody: 15,
 				log:             logrus.New(),
-				tags:            []string{"a:b", "c:d"},
 				interval:        10,
 				statsd:          stats,
 			}
