@@ -69,6 +69,11 @@ var (
 	indicator = flag.Bool("indicator", false, "Mark the reported span as an indicator span")
 )
 
+const (
+	envTraceID = "VENEUR_EMIT_TRACE_ID"
+	envSpanID  = "VENEUR_EMIT_PARENT_SPAN_ID"
+)
+
 // MinimalClient represents the functions that we call on Clients in veneur-emit.
 type MinimalClient interface {
 	Gauge(name string, value float64, tags []string, rate float64) error
@@ -258,10 +263,17 @@ func streamOutput(wg *sync.WaitGroup, in io.Reader, out io.Writer) {
 	}()
 }
 
-func timeCommand(command []string) (exitStatus int, start time.Time, ended time.Time, err error) {
+func timeCommand(span *ssf.SSFSpan, command []string) (exitStatus int, start time.Time, ended time.Time, err error) {
 	logrus.Debugf("Timing %q...", command)
 	cmd := exec.Command(command[0], command[1:]...)
-	start = time.Now()
+
+	// pass span IDs through on the environment so veneur-emits
+	// further down the line can pick them up and construct a tree:
+	cmd.Env = os.Environ()
+	if span.TraceId != 0 {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%d", envTraceID, span.TraceId))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%d", envSpanID, span.Id))
+	}
 	var wg sync.WaitGroup
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -271,6 +283,7 @@ func timeCommand(command []string) (exitStatus int, start time.Time, ended time.
 	if err != nil {
 		logrus.WithError(err).Warn("Could not get stderr pipe from command")
 	}
+	start = time.Now()
 	err = cmd.Start()
 	if err != nil {
 		logrus.WithError(err).WithField("command", command).Error("Could not start command")
@@ -311,7 +324,7 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 		if *command {
 			var start, ended time.Time
 
-			status, start, ended, err = timeCommand(flag.Args())
+			status, start, ended, err = timeCommand(span, flag.Args())
 			if err != nil {
 				return status, err
 			}

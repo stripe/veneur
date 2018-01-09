@@ -57,7 +57,7 @@ func TestMain(m *testing.M) {
 func TestTimeCommand(t *testing.T) {
 	t.Run("basic", func(t *testing.T) {
 		command := []string{"true"}
-		st, start, ended, err := timeCommand(command)
+		st, start, ended, err := timeCommand(&ssf.SSFSpan{}, command)
 
 		assert.NoError(t, err, "timeCommand had an error")
 		assert.NotZero(t, start)
@@ -67,7 +67,7 @@ func TestTimeCommand(t *testing.T) {
 
 	t.Run("badCall", func(t *testing.T) {
 		command := []string{"false"}
-		st, _, _, err := timeCommand(command)
+		st, _, _, err := timeCommand(&ssf.SSFSpan{}, command)
 		assert.Error(t, err, "timeCommand did not throw error.")
 		assert.NotZero(t, st)
 	})
