@@ -134,6 +134,18 @@ func main() {
 		return
 	}
 
+	if err := inferTraceIDInt(traceID, envTraceID); err != nil {
+		logrus.WithError(err).
+			WithField("env_var", envTraceID).
+			WithField("ID", "trace_id").
+			Warn("Could not infer ID from environment")
+	}
+	if err := inferTraceIDInt(parentID, envSpanID); err != nil {
+		logrus.WithError(err).
+			WithField("env_var", envSpanID).
+			WithField("ID", "parent_span_id").
+			Warn("Could not infer ID from environment")
+	}
 	span, err := setupSpan(traceID, parentID, *name, *tag)
 	if err != nil {
 		logrus.WithError(err).
@@ -147,6 +159,7 @@ func main() {
 		logrus.WithField("trace_id", span.TraceId).
 			WithField("span_id", span.Id).
 			WithField("parent_id", span.ParentId).
+			WithField("service", span.Service).
 			WithField("name", span.Name).
 			Debug("Tracing is activated")
 	}
@@ -229,9 +242,25 @@ func destination(hostport *string, useSSF bool) (string, net.Addr, error) {
 	return addr, netAddr, nil
 }
 
+func inferTraceIDInt(id *int64, envKey string) (err error) {
+	if id != nil && *id != 0 {
+		return nil // nothing to do
+	}
+	if strID, ok := os.LookupEnv(envKey); ok {
+		*id, err = strconv.ParseInt(strID, 10, 64)
+		if err != nil {
+			return
+		}
+		logrus.WithField("env_var", envKey).
+			WithField("value", *id).
+			Debug("Inferred ID from environment")
+	}
+	return nil
+}
+
 func setupSpan(traceID, parentID *int64, name, tags string) (*ssf.SSFSpan, error) {
 	span := &ssf.SSFSpan{}
-	if traceID != nil {
+	if traceID != nil && *traceID != 0 {
 		span.TraceId = *traceID
 		if parentID != nil {
 			span.ParentId = *parentID
