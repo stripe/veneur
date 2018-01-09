@@ -20,6 +20,7 @@
 * Buffered trace clients in `github.com/stripe/veneur/trace` now have a new option to automatically flush them in a periodic interval. Thanks, [antifuchs](https://github.com/antifuchs)!
 * Gauges can now be marked as `veneurglobalonly` to be globally "last write wins". Thanks [gphat](https://github.com/gphat)!
 * `veneur-emit` now takes `-span_service`, `-trace_id`, `-parent_span_id`, and `-indicator` arguments. These (combined with `-ssf`) allow submitting spans for tracing when recording timing data for commands. In addition, `-timing` with `-ssf` now works, too.
+* Additionally, `veneur-emit` infers parent and trace IDs from the environment (environment variables `VENEUR_EMIT_TRACE_ID` and `VENEUR_EMIT_PARENT_SPAN_ID`) and sets these environment variables from its `-trace_id` and `parent_span_id` when timing commands, allowing for convenient construction of trace trees. Thanks, [antifuchs](https://github.com/antifuchs)
 * The `github.com/stripe/veneur/ssf` package now has a few helper functions to create samples that can be attached to spans: `Count`, `Gauge`, `Histogram`, `Timing`. In addition, veneur now has a span sink that extracts these samples and treats them as metrics. Thanks, [antifuchs](https://github.com/antifuchs)
 * Spans sent to Lightstep now have an `indicator` tag set, indicating whether the span is an indicator span or not. Thanks, [aditya](https://github.com/chimeracoder)!
 * `veneur-emit -command` now streams output from the invoked program's stdout/stderr to its own stdout/stderr. Thanks, [antifuchs](https://github.com/antifuchs)!
