@@ -55,7 +55,7 @@ func TestNewSignalFxSink(t *testing.T) {
 	assert.Equal(t, "http://www.example.com/v2/datapoint", httpsink.DatapointEndpoint)
 	assert.Equal(t, "http://www.example.com/v2/event", httpsink.EventEndpoint)
 
-	assert.Equal(t, "http://www.example.com", sink.hostname)
+	assert.Equal(t, "http://www.example.com", sink.endpoint)
 	assert.Equal(t, "signalfx", sink.Name())
 }
 

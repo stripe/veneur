@@ -19,25 +19,25 @@ import (
 
 type SignalFXSink struct {
 	client      dpsink.Sink
-	hostname    string
+	endpoint    string
 	statsd      *statsd.Client
 	log         *logrus.Logger
 	traceClient *trace.Client
 }
 
 // NewSignalFXSink creates a new SignalFX sink for metrics.
-func NewSignalFXSink(apiKey string, hostname string, stats *statsd.Client, log *logrus.Logger, client dpsink.Sink) (*SignalFXSink, error) {
+func NewSignalFXSink(apiKey string, endpoint string, stats *statsd.Client, log *logrus.Logger, client dpsink.Sink) (*SignalFXSink, error) {
 	if client == nil {
 		httpSink := sfxclient.NewHTTPSink()
 		httpSink.AuthToken = apiKey
-		httpSink.DatapointEndpoint = fmt.Sprintf("%s/v2/datapoint", hostname)
-		httpSink.EventEndpoint = fmt.Sprintf("%s/v2/event", hostname)
+		httpSink.DatapointEndpoint = fmt.Sprintf("%s/v2/datapoint", endpoint)
+		httpSink.EventEndpoint = fmt.Sprintf("%s/v2/event", endpoint)
 		client = httpSink
 	}
 
 	return &SignalFXSink{
 		client:   client,
-		hostname: hostname,
+		endpoint: endpoint,
 		statsd:   stats,
 		log:      log,
 	}, nil
