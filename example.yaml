@@ -164,12 +164,15 @@ datadog_api_key: "farts"
 # Hostname to send Datadog trace data to.
 datadog_trace_api_address: "http://localhost:7777"
 
-# == SignalFX ==
-# SignalFX can be a sink for metrics.
+# == SignalFx ==
+# SignalFx can be a sink for metrics.
 signalfx_api_key: "abc123"
 
 # Where to send metrics
-signalfx_hostname: "https://ingest.signalfx.com"
+signalfx_endpoint_base: "https://ingest.signalfx.com"
+
+# The tag we'll add to each metric that contains the hostname we came from
+signalfx_hostname_tag: "host"
 
 # == LightStep ==
 # LightStep can be a sink for trace spans.

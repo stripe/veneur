@@ -17,45 +17,51 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
-type SignalFXSink struct {
-	client      dpsink.Sink
-	hostname    string
-	statsd      *statsd.Client
-	log         *logrus.Logger
-	traceClient *trace.Client
+type SignalFxSink struct {
+	client           dpsink.Sink
+	endpoint         string
+	hostnameTag      string
+	hostname         string
+	commonDimensions map[string]string
+	statsd           *statsd.Client
+	log              *logrus.Logger
+	traceClient      *trace.Client
 }
 
-// NewSignalFXSink creates a new SignalFX sink for metrics.
-func NewSignalFXSink(apiKey string, hostname string, stats *statsd.Client, log *logrus.Logger, client dpsink.Sink) (*SignalFXSink, error) {
+// NewSignalFxSink creates a new SignalFx sink for metrics.
+func NewSignalFxSink(apiKey string, endpoint string, hostnameTag string, hostname string, commonDimensions map[string]string, stats *statsd.Client, log *logrus.Logger, client dpsink.Sink) (*SignalFxSink, error) {
 	if client == nil {
 		httpSink := sfxclient.NewHTTPSink()
 		httpSink.AuthToken = apiKey
-		httpSink.DatapointEndpoint = fmt.Sprintf("%s/v2/datapoint", hostname)
-		httpSink.EventEndpoint = fmt.Sprintf("%s/v2/event", hostname)
+		httpSink.DatapointEndpoint = fmt.Sprintf("%s/v2/datapoint", endpoint)
+		httpSink.EventEndpoint = fmt.Sprintf("%s/v2/event", endpoint)
 		client = httpSink
 	}
 
-	return &SignalFXSink{
-		client:   client,
-		hostname: hostname,
-		statsd:   stats,
-		log:      log,
+	return &SignalFxSink{
+		client:           client,
+		endpoint:         endpoint,
+		hostnameTag:      hostnameTag,
+		hostname:         hostname,
+		commonDimensions: commonDimensions,
+		statsd:           stats,
+		log:              log,
 	}, nil
 }
 
 // Name returns the name of this sink.
-func (sfx *SignalFXSink) Name() string {
+func (sfx *SignalFxSink) Name() string {
 	return "signalfx"
 }
 
 // Start begins the sink. For SignalFx this is a noop.
-func (sfx *SignalFXSink) Start(traceClient *trace.Client) error {
+func (sfx *SignalFxSink) Start(traceClient *trace.Client) error {
 	sfx.traceClient = traceClient
 	return nil
 }
 
 // Flush sends metrics to SignalFx
-func (sfx *SignalFXSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
+func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sfx.traceClient)
 
@@ -66,6 +72,8 @@ func (sfx *SignalFXSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 			continue
 		}
 		dims := map[string]string{}
+		// Set the hostname as a tag, since SFx doesn't have a first-class hostname field
+		dims[sfx.hostnameTag] = sfx.hostname
 		for _, tag := range metric.Tags {
 			kv := strings.SplitN(tag, ":", 2)
 			if len(kv) == 1 {
@@ -74,6 +82,11 @@ func (sfx *SignalFXSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 				dims[kv[0]] = kv[1]
 			}
 		}
+		// Copy common dimensions
+		for k, v := range sfx.commonDimensions {
+			dims[k] = v
+		}
+
 		if metric.Type == samplers.GaugeMetric {
 			points = append(points, sfxclient.GaugeF(metric.Name, dims, metric.Value))
 		} else if metric.Type == samplers.CounterMetric {
@@ -87,13 +100,13 @@ func (sfx *SignalFXSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	}
 	sfx.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(flushStart).Nanoseconds()), []string{"plugin:signalfx"}, 1.0)
 	// TODO Fix these metrics to be per-metric sink
-	sfx.log.WithField("metrics", len(interMetrics)).Info("Completed flush to SignalFX")
+	sfx.log.WithField("metrics", len(interMetrics)).Info("Completed flush to SignalFx")
 
 	return err
 }
 
 // FlushEventsChecks sends events to SignalFx. It does not support checks. It is also currently disabled.
-func (sfx *SignalFXSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
+func (sfx *SignalFxSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sfx.traceClient)
 
@@ -103,6 +116,8 @@ func (sfx *SignalFXSink) FlushEventsChecks(ctx context.Context, events []sampler
 		// getting []string. We should fix this, as it feels less icky for sinks to
 		// get `map[string]string`.
 		dims := map[string]string{}
+		// Set the hostname as a tag, since SFx doesn't have a first-class hostname field
+		dims[sfx.hostnameTag] = sfx.hostname
 		for _, tag := range udpEvent.Tags {
 			parts := strings.SplitN(tag, ":", 2)
 			if len(parts) == 1 {
@@ -110,6 +125,10 @@ func (sfx *SignalFXSink) FlushEventsChecks(ctx context.Context, events []sampler
 			} else {
 				dims[parts[0]] = parts[1]
 			}
+		}
+		// Copy common dimensions in
+		for k, v := range sfx.commonDimensions {
+			dims[k] = v
 		}
 
 		ev := event.Event{

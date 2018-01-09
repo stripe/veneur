@@ -39,7 +39,7 @@ func (fs *FakeSink) AddEvents(ctx context.Context, events []*event.Event) (err e
 func TestNewSignalFxSink(t *testing.T) {
 	// test the variables that have been renamed
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
-	sink, err := NewSignalFXSink("secret", "http://www.example.com", stats, logrus.New(), nil)
+	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, stats, logrus.New(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,19 +50,22 @@ func TestNewSignalFxSink(t *testing.T) {
 
 	httpsink, ok := sink.client.(*sfxclient.HTTPSink)
 	if !ok {
-		assert.Fail(t, "SignalFX sink isn't the correct type")
+		assert.Fail(t, "SignalFx sink isn't the correct type")
 	}
 	assert.Equal(t, "http://www.example.com/v2/datapoint", httpsink.DatapointEndpoint)
 	assert.Equal(t, "http://www.example.com/v2/event", httpsink.EventEndpoint)
 
-	assert.Equal(t, "http://www.example.com", sink.hostname)
+	assert.Equal(t, "http://www.example.com", sink.endpoint)
 	assert.Equal(t, "signalfx", sink.Name())
+	assert.Equal(t, "host", sink.hostnameTag)
+	assert.Equal(t, "glooblestoots", sink.hostname)
+	assert.Equal(t, map[string]string{"yay": "pie"}, sink.commonDimensions)
 }
 
 func TestSignalFxFlushRouting(t *testing.T) {
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFXSink("secret", "http://www.example.com", stats, logrus.New(), fakeSink)
+	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, stats, logrus.New(), fakeSink)
 
 	assert.NoError(t, err)
 
@@ -116,7 +119,7 @@ func TestSignalFxFlushRouting(t *testing.T) {
 func TestSignalFxFlushGauge(t *testing.T) {
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFXSink("secret", "http://www.example.com", stats, logrus.New(), fakeSink)
+	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, stats, logrus.New(), fakeSink)
 
 	assert.NoError(t, err)
 
@@ -138,15 +141,17 @@ func TestSignalFxFlushGauge(t *testing.T) {
 	assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
 	assert.Equal(t, datapoint.Gauge, point.MetricType, "Metric has wrong type")
 	dims := point.Dimensions
-	assert.Equal(t, 2, len(dims), "Metric has incorrect tag count")
+	assert.Equal(t, 4, len(dims), "Metric has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
+	assert.Equal(t, "pie", dims["yay"], "Metric is missing common tag")
+	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
 }
 
 func TestSignalFxFlushCounter(t *testing.T) {
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFXSink("secret", "http://www.example.com", stats, logrus.New(), fakeSink)
+	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, stats, logrus.New(), fakeSink)
 
 	assert.NoError(t, err)
 
@@ -169,16 +174,18 @@ func TestSignalFxFlushCounter(t *testing.T) {
 	assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
 	assert.Equal(t, datapoint.Count, point.MetricType, "Metric has wrong type")
 	dims := point.Dimensions
-	assert.Equal(t, 3, len(dims), "Metric has incorrect tag count")
+	assert.Equal(t, 5, len(dims), "Metric has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
 	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
+	assert.Equal(t, "pie", dims["yay"], "Metric is missing a common tag")
+	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
 }
 
 func TestSignalFxEventFlush(t *testing.T) {
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFXSink("secret", "http://www.example.com", stats, logrus.New(), fakeSink)
+	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, stats, logrus.New(), fakeSink)
 
 	assert.NoError(t, err)
 
@@ -193,8 +200,10 @@ func TestSignalFxEventFlush(t *testing.T) {
 	event := fakeSink.events[0]
 	assert.Equal(t, ev.Title, event.EventType)
 	dims := event.Dimensions
-	assert.Equal(t, 3, len(dims), "Event has incorrect tag count")
+	assert.Equal(t, 5, len(dims), "Event has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Event has a busted tag")
 	assert.Equal(t, "gorch", dims["baz"], "Event has a busted tag")
+	assert.Equal(t, "pie", dims["yay"], "Event missing a common tag")
 	assert.Equal(t, "", dims["novalue"], "Event has a busted tag")
+	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
 }
