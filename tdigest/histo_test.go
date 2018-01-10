@@ -13,7 +13,7 @@ func TestMergingDigest(t *testing.T) {
 
 	td := NewMerging(1000, false)
 
-	for i := 0; i < 1000000; i++ {
+	for i := 0; i < 100000; i++ {
 		td.Add(rand.Float64(), 1.0)
 	}
 	validateMergingDigest(t, td)
