@@ -134,13 +134,13 @@ func main() {
 		return
 	}
 
-	if err := inferTraceIDInt(traceID, envTraceID); err != nil {
+	if *traceID, err = inferTraceIDInt(*traceID, envTraceID); err != nil {
 		logrus.WithError(err).
 			WithField("env_var", envTraceID).
 			WithField("ID", "trace_id").
 			Warn("Could not infer ID from environment")
 	}
-	if err := inferTraceIDInt(parentID, envSpanID); err != nil {
+	if *parentID, err = inferTraceIDInt(*parentID, envSpanID); err != nil {
 		logrus.WithError(err).
 			WithField("env_var", envSpanID).
 			WithField("ID", "parent_span_id").
@@ -242,20 +242,21 @@ func destination(hostport *string, useSSF bool) (string, net.Addr, error) {
 	return addr, netAddr, nil
 }
 
-func inferTraceIDInt(id *int64, envKey string) (err error) {
-	if id != nil && *id != 0 {
-		return nil // nothing to do
+func inferTraceIDInt(existingID int64, envKey string) (id int64, err error) {
+	if existingID != 0 {
+		return existingID, nil // nothing to do
 	}
 	if strID, ok := os.LookupEnv(envKey); ok {
-		*id, err = strconv.ParseInt(strID, 10, 64)
+		id, err = strconv.ParseInt(strID, 10, 64)
 		if err != nil {
 			return
 		}
-		logrus.WithField("env_var", envKey).
-			WithField("value", *id).
-			Debug("Inferred ID from environment")
+		logrus.WithFields(logrus.Fields{
+			"env_var": envKey,
+			"value":   id,
+		}).Debug("Inferred ID from environment")
 	}
-	return nil
+	return
 }
 
 func setupSpan(traceID, parentID *int64, name, tags string) (*ssf.SSFSpan, error) {

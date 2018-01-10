@@ -229,15 +229,15 @@ func TestInferID(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			env := newEnvID()
 			if test.env != "" {
-				os.Setenv(env, test.env)
+				require.NoError(t, os.Setenv(env, test.env))
 			}
-			err := inferTraceIDInt(&test.parameter, env)
+			id, err := inferTraceIDInt(test.parameter, env)
 			if test.error {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
 			}
-			assert.Equal(t, test.expected, test.parameter)
+			assert.Equal(t, test.expected, id)
 		})
 	}
 }
