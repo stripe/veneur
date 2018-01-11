@@ -79,7 +79,7 @@ omit_empty_hostname: false
 tags:
   - ""
 
-# Set to floating point values that you'd like to putput percentiles for from
+# Set to floating point values that you'd like to output percentiles for from
 # histograms.
 percentiles:
   - 0.5
@@ -220,6 +220,13 @@ kafka_metric_topic: ""
 
 # Name of the topic we'll be publishing spans to
 kafka_span_topic: "veneur_spans"
+
+# Name of a tag to hash on for sampling; if empty, all spans are sampled
+kafka_span_sample_tag: ""
+
+# Set to the floating point sampling rate on a particular tag.
+# If set above 1.0, this will default to 1.0
+kafka_span_sample_rate: 1.1
 
 kafka_metric_buffer_bytes: 0
 

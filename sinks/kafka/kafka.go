@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io/ioutil"
 	"strings"
 	"sync/atomic"
@@ -35,14 +36,16 @@ type KafkaMetricSink struct {
 }
 
 type KafkaSpanSink struct {
-	logger       *logrus.Entry
-	producer     sarama.AsyncProducer
-	statsd       *statsd.Client
-	topic        string
-	brokers      string
-	serializer   string
-	config       *sarama.Config
-	spansFlushed int64
+	logger          *logrus.Entry
+	producer        sarama.AsyncProducer
+	statsd          *statsd.Client
+	topic           string
+	brokers         string
+	serializer      string
+	sampleTag       string
+	sampleThreshold uint32
+	config          *sarama.Config
+	spansFlushed    int64
 }
 
 // NewKafkaMetricSink creates a new Kafka Plugin.
@@ -207,7 +210,7 @@ func (k *KafkaMetricSink) FlushEventsChecks(ctx context.Context, events []sample
 }
 
 // NewKafkaSpanSink creates a new Kafka Plugin.
-func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, partitioner string, ackRequirement string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, serializationFormat string, stats *statsd.Client) (*KafkaSpanSink, error) {
+func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, partitioner string, ackRequirement string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, serializationFormat string, sampleTag string, sampleRate float64, stats *statsd.Client) (*KafkaSpanSink, error) {
 
 	if logger == nil {
 		logger = &logrus.Logger{Out: ioutil.Discard}
@@ -224,6 +227,15 @@ func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, parti
 		ll.WithField("serializer", serializer).Warn("Unknown serializer, defaulting to protobuf")
 		serializer = "protobuf"
 	}
+
+	if sampleRate <= 0.0 {
+		return nil, errors.New("Span sample rate must be greater than 0.0")
+	} else if sampleRate > 1.0 {
+		ll.WithField("sampleRate", sampleRate).Warn("Span sample rate is set greater than 1.0; using 1.0 instead")
+		sampleRate = 1.0
+	}
+
+	sampleThreshold := uint32(sampleRate * 4294967295)
 
 	var finalBufferDuration time.Duration
 	if bufferDuration != "" {
@@ -248,12 +260,14 @@ func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, parti
 	}).Info("Started Kafka span sink")
 
 	return &KafkaSpanSink{
-		logger:     ll,
-		statsd:     stats,
-		topic:      topic,
-		brokers:    brokers,
-		config:     config,
-		serializer: serializer,
+		logger:          ll,
+		statsd:          stats,
+		topic:           topic,
+		brokers:         brokers,
+		config:          config,
+		serializer:      serializer,
+		sampleTag:       sampleTag,
+		sampleThreshold: sampleThreshold,
 	}, nil
 }
 
@@ -276,6 +290,27 @@ func (k *KafkaSpanSink) Start(cl *trace.Client) error {
 // flushing is driven by the settings from KafkaSpanSink's constructor. Tune
 // the bytes, messages and interval settings to your tastes!
 func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
+
+	if k.sampleTag != "" && k.sampleThreshold < 4294967295 {
+		var hashKey uint32
+		sampleTag, exists := span.Tags[k.sampleTag]
+		if exists {
+			if len(sampleTag) < 64 {
+				var scratch [64]byte
+				copy(scratch[:], sampleTag)
+				hashKey = crc32.ChecksumIEEE(scratch[:len(sampleTag)])
+			} else {
+				hashKey = crc32.ChecksumIEEE([]byte(sampleTag))
+			}
+			if hashKey > k.sampleThreshold {
+				k.logger.Debug("Rejected span with appropriate tag based off of sampling rules")
+				return nil
+			}
+		} else {
+			k.logger.Debug("Rejected span without appropriate tag")
+			return nil
+		}
+	}
 
 	var enc sarama.Encoder
 	switch k.serializer {

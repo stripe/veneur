@@ -187,15 +187,15 @@ func TestSpanInstantiateFailure(t *testing.T) {
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
 	// Busted duration
-	_, err := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "farts", "", stats)
+	_, err := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "farts", "", "", 1.0, stats)
 	assert.Error(t, err)
 
 	// Missing topic
-	_, err2 := NewKafkaSpanSink(logger, "testing", "", "hash", "all", 1, 2, 3, "farts", "", stats)
+	_, err2 := NewKafkaSpanSink(logger, "testing", "", "hash", "all", 1, 2, 3, "farts", "", "", 1.0, stats)
 	assert.Error(t, err2)
 
 	// Missing brokers
-	_, err3 := NewKafkaSpanSink(logger, "", "farts", "hash", "all", 1, 2, 3, "farts", "", stats)
+	_, err3 := NewKafkaSpanSink(logger, "", "farts", "hash", "all", 1, 2, 3, "farts", "", "", 1.0, stats)
 	assert.Error(t, err3)
 }
 
@@ -203,13 +203,13 @@ func TestSpanConstructorAck(t *testing.T) {
 	logger := logrus.StandardLogger()
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
-	sink1, _ := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "none", 1, 2, 3, "10s", "", stats)
+	sink1, _ := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "none", 1, 2, 3, "10s", "", "", 1.0, stats)
 	assert.Equal(t, sarama.NoResponse, sink1.config.Producer.RequiredAcks, "ack did not set correctly")
 
-	sink2, _ := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "local", 1, 2, 3, "10s", "", stats)
+	sink2, _ := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "local", 1, 2, 3, "10s", "", "", 1.0, stats)
 	assert.Equal(t, sarama.WaitForLocal, sink2.config.Producer.RequiredAcks, "ack did not set correctly")
 
-	sink3, _ := NewKafkaSpanSink(logger, "testing", "veneur_spans", "random", "farts", 1, 2, 3, "10s", "", stats)
+	sink3, _ := NewKafkaSpanSink(logger, "testing", "veneur_spans", "random", "farts", 1, 2, 3, "10s", "", "", 1.0, stats)
 	assert.Equal(t, sarama.WaitForAll, sink3.config.Producer.RequiredAcks, "ack did not default correctly")
 }
 
@@ -217,7 +217,7 @@ func TestSpanConstructor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
-	sink, err := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", stats)
+	sink, err := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", 1.0, stats)
 	assert.NoError(t, err)
 	assert.Equal(t, "kafka", sink.Name())
 
@@ -231,11 +231,103 @@ func TestSpanConstructor(t *testing.T) {
 	assert.Equal(t, time.Second*10, sink.config.Producer.Flush.Frequency, "flush frequency did not set correctly")
 }
 
+func TestSpanSampling(t *testing.T) {
+	config := sarama.NewConfig()
+	config.Producer.Return.Successes = true
+	producerMock := mocks.NewAsyncProducer(t, config)
+
+	producerMock.ExpectInputAndSucceed()
+
+	// I would use the logrus test logger but the package needs to be
+	// updated from Sirupsen/logrus to sirupsen/logrus
+	// https://github.com/stripe/veneur/issues/277
+	logger := logrus.StandardLogger()
+	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
+
+	sink, err := NewKafkaSpanSink(logger, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "json", "baz", 0.5, stats)
+	assert.NoError(t, err)
+
+	sink.producer = producerMock
+
+	start := time.Now()
+	end := start.Add(2 * time.Second)
+	testSpanBad := ssf.SSFSpan{
+		TraceId:        1,
+		ParentId:       1,
+		Id:             2,
+		StartTimestamp: int64(start.UnixNano()),
+		EndTimestamp:   int64(end.UnixNano()),
+		Error:          false,
+		Service:        "farts-srv",
+		Tags: map[string]string{
+			"bar": "qux",
+		},
+		Indicator: false,
+		Name:      "farting farty farts",
+	}
+	testSpanGood := ssf.SSFSpan{
+		TraceId:        1,
+		ParentId:       1,
+		Id:             2,
+		StartTimestamp: int64(start.UnixNano()),
+		EndTimestamp:   int64(end.UnixNano()),
+		Error:          false,
+		Service:        "farts2-srv",
+		Tags: map[string]string{
+			"baz": "farts0",
+		},
+		Indicator: false,
+		Name:      "farting farty farts",
+	}
+	testSpanLongRejected := ssf.SSFSpan{
+		TraceId:        1,
+		ParentId:       1,
+		Id:             2,
+		StartTimestamp: int64(start.UnixNano()),
+		EndTimestamp:   int64(end.UnixNano()),
+		Error:          false,
+		Service:        "farts2-srv",
+		Tags: map[string]string{
+			"baz": "pthbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbt290",
+		},
+		Indicator: false,
+		Name:      "farting farty farts",
+	}
+	testSpanRejected := ssf.SSFSpan{
+		TraceId:        1,
+		ParentId:       1,
+		Id:             2,
+		StartTimestamp: int64(start.UnixNano()),
+		EndTimestamp:   int64(end.UnixNano()),
+		Error:          false,
+		Service:        "farts2-srv",
+		Tags: map[string]string{
+			"baz": "farts3",
+		},
+		Indicator: false,
+		Name:      "farting farty farts",
+	}
+
+	sink.Ingest(&testSpanGood)
+	sink.Ingest(&testSpanBad)
+	sink.Ingest(&testSpanRejected)
+	sink.Ingest(&testSpanLongRejected)
+
+	err = producerMock.Close()
+	assert.NoError(t, err)
+
+	for msg := range producerMock.Successes() {
+		contents, err := msg.Value.Encode()
+		assert.NoError(t, err)
+		assert.Contains(t, string(contents), testSpanGood.Tags["baz"])
+	}
+}
+
 func TestBadDuration(t *testing.T) {
 	logger := logrus.StandardLogger()
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
-	_, err := NewKafkaSpanSink(logger, "testing", "", "hash", "all", 0, 0, 0, "pthbbbbbt", "", stats)
+	_, err := NewKafkaSpanSink(logger, "testing", "", "hash", "all", 0, 0, 0, "pthbbbbbt", "", "", 1.0, stats)
 	assert.Error(t, err)
 }
 
@@ -252,7 +344,7 @@ func TestSpanFlushJson(t *testing.T) {
 	logger := logrus.StandardLogger()
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
-	sink, err := NewKafkaSpanSink(logger, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "json", stats)
+	sink, err := NewKafkaSpanSink(logger, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "json", "", 1.0, stats)
 	assert.NoError(t, err)
 
 	sink.producer = producerMock
@@ -296,7 +388,7 @@ func TestSpanFlushProtobuf(t *testing.T) {
 	logger := logrus.StandardLogger()
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
-	sink, err := NewKafkaSpanSink(logger, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "protobuf", stats)
+	sink, err := NewKafkaSpanSink(logger, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "protobuf", "", 1.0, stats)
 	assert.NoError(t, err)
 
 	sink.producer = producerMock

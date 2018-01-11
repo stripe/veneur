@@ -32,6 +32,8 @@ type Config struct {
 	KafkaSpanBufferFrequency      string    `yaml:"kafka_span_buffer_frequency"`
 	KafkaSpanBufferMesages        int       `yaml:"kafka_span_buffer_mesages"`
 	KafkaSpanRequireAcks          string    `yaml:"kafka_span_require_acks"`
+	KafkaSpanSampleRate           float64   `yaml:"kafka_span_sample_rate"`
+	KafkaSpanSampleTag            string    `yaml:"kafka_span_sample_tag"`
 	KafkaSpanSerializationFormat  string    `yaml:"kafka_span_serialization_format"`
 	KafkaSpanTopic                string    `yaml:"kafka_span_topic"`
 	MetricMaxLength               int       `yaml:"metric_max_length"`
