@@ -118,7 +118,7 @@ To clarify how each metric type behaves in Veneur, please use the following:
 veneur -f example.yaml
 ```
 
-See example.yaml for a sample config. Be sure to set your Datadog API `key`!
+See example.yaml for a sample config. Be sure to set your `datadog_api_key`!
 
 # Plugins
 
@@ -144,9 +144,8 @@ Veneur is capable of ingesting:
 
 To use clients with Veneur you need only configure your client of choice to the proper host and port combination. This port should match one of:
 
-* `udp_address` for UDP-based clients
-* `tcp_address` for TCP-based clients
-* `ssf_address` for SSF-based clients
+* `statsd_listen_addresses` for UDP- and TCP-based clients
+* `ssf_listen_addresses` for SSF-based clients using UDP or UNIX domain sockets.
 
 ## Einhorn Usage
 
@@ -180,7 +179,7 @@ See [more documentation for Proxy Veneur](https://github.com/stripe/veneur/tree/
 
 ### Static Configuration
 
-For static configuration you need one Veneur, which we'll call the _global_ instance, and one or more other Veneurs, which we'll call _local_ instances. The local instances should have their `forward_address` configured to the global instance's `http_address`. The global instance should have an empty `forward_address` (ie just don't set it). You can then report metrics to any Veneur's `udp_address` as usual.
+For static configuration you need one Veneur, which we'll call the _global_ instance, and one or more other Veneurs, which we'll call _local_ instances. The local instances should have their `forward_address` configured to the global instance's `http_address`. The global instance should have an empty `forward_address` (ie just don't set it). You can then report metrics to any Veneur's `statsd_listen_addresses` as usual.
 
 ### Magic Tag
 
@@ -386,10 +385,11 @@ openssl req -new -sha256 -key clientkey.pem -out clientkey.csr -days 1095 -subj 
 openssl x509 -req -in clientkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out clientcert.pem -days 1095
 ```
 
-Set `tcp_address`, `tls_key`, `tls_certificate`, and `tls_authority_certificate`:
+Set `statsd_listen_addresses`, `tls_key`, `tls_certificate`, and `tls_authority_certificate`:
 
 ```
-tcp_address: "localhost:8129"
+statsd_listen_addresses:
+  - "tcp://localhost:8129"
 tls_certificate: |
   -----BEGIN CERTIFICATE-----
   MIIC8TCCAdkCCQDc2V7P5nCDLjANBgkqhkiG9w0BAQsFADBAMRUwEwYDVQQKEwxC

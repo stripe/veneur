@@ -259,34 +259,3 @@ aws_s3_bucket: ""
 # == LocalFile Output ==
 # Include this if you want to archive data to a local file (which should then be rotated/cleaned)
 flush_file: ""
-
-
-# == DEPRECATED FIELDS ==
-# The options below here have newer analogs above. They are listed here for the
-# sake of documentation and code-generation.
-
-# The address on which to listen for metrics sent to this instance over UDP,
-# leave empty to disable.
-# This option is deprecated. Use statsd_listen_addresses instead.
-udp_address: ""
-
-# The address on which to listen for metrics sent to this instance over TCP,
-# leave empty to disable.
-# This option is deprecated. Use statsd_listen_addresses instead.
-tcp_address: ""
-
-# The address on which we will listen for SSF packets via UDP
-# This option is deprecated. Use ssf_listen_addresses instead.
-ssf_address: ""
-
-# This is deprecated and will be removed in 2.0; use datadog_api_key
-key: ""
-
-# This is deprecated and will be removed in 2.0; use datadog_api_hostname
-api_hostname: ""
-
-# This is deprecated and will be removed in 2.0; use datadog_trace_api_address
-trace_api_address: ""
-
-# The address on which we will listen for UDP trace data
-trace_address: ""

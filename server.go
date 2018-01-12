@@ -460,7 +460,6 @@ func NewFromConfig(conf Config) (*Server, error) {
 	ret.shutdown = make(chan struct{})
 
 	// Don't emit keys into logs now that we're done with them.
-	conf.Key = REDACTED
 	conf.SentryDsn = REDACTED
 	conf.TLSKey = REDACTED
 	conf.DatadogAPIKey = REDACTED

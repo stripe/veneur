@@ -2,7 +2,6 @@ package veneur
 
 type Config struct {
 	Aggregates                    []string  `yaml:"aggregates"`
-	APIHostname                   string    `yaml:"api_hostname"`
 	AwsAccessKeyID                string    `yaml:"aws_access_key_id"`
 	AwsRegion                     string    `yaml:"aws_region"`
 	AwsS3Bucket                   string    `yaml:"aws_s3_bucket"`
@@ -35,7 +34,6 @@ type Config struct {
 	KafkaSpanRequireAcks          string    `yaml:"kafka_span_require_acks"`
 	KafkaSpanSerializationFormat  string    `yaml:"kafka_span_serialization_format"`
 	KafkaSpanTopic                string    `yaml:"kafka_span_topic"`
-	Key                           string    `yaml:"key"`
 	MetricMaxLength               int       `yaml:"metric_max_length"`
 	NumReaders                    int       `yaml:"num_readers"`
 	NumWorkers                    int       `yaml:"num_workers"`
@@ -46,24 +44,19 @@ type Config struct {
 	SignalfxAPIKey                string    `yaml:"signalfx_api_key"`
 	SignalfxEndpointBase          string    `yaml:"signalfx_endpoint_base"`
 	SignalfxHostnameTag           string    `yaml:"signalfx_hostname_tag"`
-	SsfAddress                    string    `yaml:"ssf_address"`
 	SsfBufferSize                 int       `yaml:"ssf_buffer_size"`
 	SsfListenAddresses            []string  `yaml:"ssf_listen_addresses"`
 	StatsAddress                  string    `yaml:"stats_address"`
 	StatsdListenAddresses         []string  `yaml:"statsd_listen_addresses"`
 	SynchronizeWithInterval       bool      `yaml:"synchronize_with_interval"`
 	Tags                          []string  `yaml:"tags"`
-	TcpAddress                    string    `yaml:"tcp_address"`
 	TLSAuthorityCertificate       string    `yaml:"tls_authority_certificate"`
 	TLSCertificate                string    `yaml:"tls_certificate"`
 	TLSKey                        string    `yaml:"tls_key"`
-	TraceAddress                  string    `yaml:"trace_address"`
-	TraceAPIAddress               string    `yaml:"trace_api_address"`
 	TraceLightstepAccessToken     string    `yaml:"trace_lightstep_access_token"`
 	TraceLightstepCollectorHost   string    `yaml:"trace_lightstep_collector_host"`
 	TraceLightstepMaximumSpans    int       `yaml:"trace_lightstep_maximum_spans"`
 	TraceLightstepNumClients      int       `yaml:"trace_lightstep_num_clients"`
 	TraceLightstepReconnectPeriod string    `yaml:"trace_lightstep_reconnect_period"`
 	TraceMaxLengthBytes           int       `yaml:"trace_max_length_bytes"`
-	UdpAddress                    string    `yaml:"udp_address"`
 }

@@ -88,7 +88,7 @@ func generateConfig(forwardAddr string) Config {
 
 		// Use a shorter interval for tests
 		Interval:              DefaultFlushInterval.String(),
-		Key:                   "",
+		DatadogAPIKey:         "",
 		MetricMaxLength:       4096,
 		Percentiles:           []float64{.5, .75, .99},
 		Aggregates:            []string{"min", "max", "count"},
