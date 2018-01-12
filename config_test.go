@@ -93,3 +93,30 @@ func TestHostname(t *testing.T) {
 		ReadBufferSizeBytes: defaultBufferSizeBytes,
 		OmitEmptyHostname:   true})
 }
+
+func TestVeneurExamples(t *testing.T) {
+	tests := []string{
+		"example.yaml",
+		"example_host.yaml",
+	}
+	for _, elt := range tests {
+		test := elt
+		t.Run(test, func(t *testing.T) {
+			t.Parallel()
+			_, err := ReadConfig(test)
+			assert.NoError(t, err)
+		})
+	}
+}
+
+func TestProxyExamples(t *testing.T) {
+	tests := []string{"example_proxy.yaml"}
+	for _, elt := range tests {
+		test := elt
+		t.Run(test, func(t *testing.T) {
+			t.Parallel()
+			_, err := ReadProxyConfig(test)
+			assert.NoError(t, err)
+		})
+	}
+}

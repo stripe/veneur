@@ -1,12 +1,12 @@
 ---
-api_hostname: https://app.datadoghq.com
+datadog_api_hostname: https://app.datadoghq.com
+datadog_api_key: "farts"
 metric_max_length: 4096
 trace_max_length_bytes: 16384
 flush_max_per_body: 25000
 debug: true
 enable_profiling: true
 interval: "10s"
-key: "farts"
 # Numbers larger than 1 will enable the use of SO_REUSEPORT, make sure
 # this is supported on your platform!
 num_workers: 96
@@ -24,7 +24,8 @@ stats_address: "localhost:8125"
 tags:
  - "foo:bar"
  - "baz:quz"
-udp_address: "localhost:8126"
+statsd_listen_addresses:
+  - "udp://localhost:8126"
 #http_address: "einhorn@0"
 http_address: ""
 
