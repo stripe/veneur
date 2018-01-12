@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -197,6 +198,10 @@ func TestSpanInstantiateFailure(t *testing.T) {
 	// Missing brokers
 	_, err3 := NewKafkaSpanSink(logger, "", "farts", "hash", "all", 1, 2, 3, "farts", "", "", 1.0, stats)
 	assert.Error(t, err3)
+
+	// Sampling rate set to 0
+	_, err4 := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", 0.0, stats)
+	assert.Error(t, err4)
 }
 
 func TestSpanConstructorAck(t *testing.T) {
@@ -231,6 +236,15 @@ func TestSpanConstructor(t *testing.T) {
 	assert.Equal(t, time.Second*10, sink.config.Producer.Flush.Frequency, "flush frequency did not set correctly")
 }
 
+func TestSpanSamplingTooHigh(t *testing.T) {
+	logger := logrus.StandardLogger()
+	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
+
+	sink, err := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", 1.1, stats)
+	assert.NoError(t, err)
+	assert.Equal(t, uint32(math.MaxUint32), sink.sampleThreshold)
+}
+
 func TestSpanSampling(t *testing.T) {
 	config := sarama.NewConfig()
 	config.Producer.Return.Successes = true
@@ -242,6 +256,7 @@ func TestSpanSampling(t *testing.T) {
 	// updated from Sirupsen/logrus to sirupsen/logrus
 	// https://github.com/stripe/veneur/issues/277
 	logger := logrus.StandardLogger()
+	logger.SetLevel(logrus.DebugLevel)
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
 	sink, err := NewKafkaSpanSink(logger, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "json", "baz", 0.5, stats)
@@ -265,6 +280,7 @@ func TestSpanSampling(t *testing.T) {
 		Indicator: false,
 		Name:      "farting farty farts",
 	}
+	// This span's value for the "baz" tag is determined to hash correctly so that it'll pass at 50%
 	testSpanGood := ssf.SSFSpan{
 		TraceId:        1,
 		ParentId:       1,
@@ -279,6 +295,7 @@ func TestSpanSampling(t *testing.T) {
 		Indicator: false,
 		Name:      "farting farty farts",
 	}
+	// This span's value for the "baz" tag is determined to hash correctly so that it'll be dropped at 50%
 	testSpanLongRejected := ssf.SSFSpan{
 		TraceId:        1,
 		ParentId:       1,
@@ -293,6 +310,7 @@ func TestSpanSampling(t *testing.T) {
 		Indicator: false,
 		Name:      "farting farty farts",
 	}
+	// This span's value for the "baz" tag is determined to hash correctly so that it'll be dropped at 50%
 	testSpanRejected := ssf.SSFSpan{
 		TraceId:        1,
 		ParentId:       1,

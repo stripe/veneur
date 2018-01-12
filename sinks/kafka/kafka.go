@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io/ioutil"
+	"math"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -228,14 +229,18 @@ func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, parti
 		serializer = "protobuf"
 	}
 
+	var sampleThreshold uint32
 	if sampleRate <= 0.0 {
 		return nil, errors.New("Span sample rate must be greater than 0.0")
 	} else if sampleRate > 1.0 {
 		ll.WithField("sampleRate", sampleRate).Warn("Span sample rate is set greater than 1.0; using 1.0 instead")
-		sampleRate = 1.0
+		sampleThreshold = math.MaxUint32
+	} else {
+		// Set the sample threshold to (sample rate) * (maximum value of uint32), so that
+		// we can store it as a uint32 instead of a float64 and compare apples-to-apples
+		// with the output of our hashing algorithm.
+		sampleThreshold = uint32(sampleRate * float64(math.MaxUint32))
 	}
-
-	sampleThreshold := uint32(sampleRate * 4294967295)
 
 	var finalBufferDuration time.Duration
 	if bufferDuration != "" {
@@ -291,10 +296,20 @@ func (k *KafkaSpanSink) Start(cl *trace.Client) error {
 // the bytes, messages and interval settings to your tastes!
 func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 
-	if k.sampleTag != "" && k.sampleThreshold < 4294967295 {
+	// if we've set a sampleTag, we need to determine whether a span should be
+	// sampled.
+	if k.sampleTag != "" {
 		var hashKey uint32
 		sampleTag, exists := span.Tags[k.sampleTag]
-		if exists {
+		if !exists {
+			// If the span isn't tagged appropriately, we should drop it, regardless
+			// of our sample rate.
+			k.logger.Debug("Rejected span without appropriate tag")
+			return nil
+		} else {
+			// Lifted from https://github.com/stathat/consistent/blob/75142be0209ec69bb014c7a1ac7d1a3c892c6424/consistent.go#L238-L245:
+			// if the sample tag value that we're hashing is shorter than 64 bytes, we
+			// need to pad it with zeroes for the crc32.ChecksumIEEE function.
 			if len(sampleTag) < 64 {
 				var scratch [64]byte
 				copy(scratch[:], sampleTag)
@@ -302,13 +317,12 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 			} else {
 				hashKey = crc32.ChecksumIEEE([]byte(sampleTag))
 			}
+			// Reject any spans whose hash keys end up greater than the threshold that
+			// we previously computed.
 			if hashKey > k.sampleThreshold {
-				k.logger.Debug("Rejected span with appropriate tag based off of sampling rules")
+				k.logger.WithField("hashKey", hashKey).WithField("sampleThreshold", k.sampleThreshold).Debug("Rejected span with appropriate tag based off of sampling rules")
 				return nil
 			}
-		} else {
-			k.logger.Debug("Rejected span without appropriate tag")
-			return nil
 		}
 	}
 
