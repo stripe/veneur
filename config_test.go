@@ -39,6 +39,34 @@ func TestReadBadConfig(t *testing.T) {
 	assert.Equal(t, c, Config{}, "Parsing invalid config file should return zero struct")
 }
 
+func TestReadUnknownKeysConfig(t *testing.T) {
+	const config = `---
+no_such_key: 1
+hostname: foobar
+`
+	r := strings.NewReader(config)
+	c, err := readConfig(r)
+	assert.Error(t, err)
+	_, ok := err.(*UnknownConfigKeys)
+	t.Log(err)
+	assert.True(t, ok, "Returned error should indicate a strictness error")
+	assert.Equal(t, "foobar", c.Hostname)
+}
+
+func TestReadUnknownKeysProxyConfig(t *testing.T) {
+	const config = `---
+no_such_key: 1
+debug: true
+`
+	r := strings.NewReader(config)
+	c, err := readProxyConfig(r)
+	assert.Error(t, err)
+	_, ok := err.(*UnknownConfigKeys)
+	t.Log(err)
+	assert.True(t, ok, "Returned error should indicate a strictness error")
+	assert.Equal(t, true, c.Debug)
+}
+
 func TestHostname(t *testing.T) {
 	const hostnameConfig = "hostname: foo"
 	r := strings.NewReader(hostnameConfig)

@@ -20,14 +20,20 @@ func ReadProxyConfig(path string) (c ProxyConfig, err error) {
 		return c, err
 	}
 	defer f.Close()
+	return readProxyConfig(f)
+}
 
-	bts, err := ioutil.ReadAll(f)
+func readProxyConfig(r io.Reader) (ProxyConfig, error) {
+	var c ProxyConfig
+	bts, err := ioutil.ReadAll(r)
 	if err != nil {
-		return
+		return c, err
 	}
-	err = yaml.Unmarshal(bts, &c)
-	if err != nil {
-		return
+	unmarshalErr := unmarshalSemiStrictly(bts, &c)
+	if unmarshalErr != nil {
+		if _, ok := err.(*UnknownConfigKeys); !ok {
+			return c, unmarshalErr
+		}
 	}
 
 	err = envconfig.Process("veneur", &c)
@@ -35,10 +41,23 @@ func ReadProxyConfig(path string) (c ProxyConfig, err error) {
 		return c, err
 	}
 
-	return c, nil
+	return c, unmarshalErr
 }
 
-// ReadConfig unmarshals the config file and slurps in it's data.
+// UnknownConfigKeys represents a failure to strictly parse a
+// configuration YAML file has failed, indicating that the file
+// contains unknown keys.
+type UnknownConfigKeys struct {
+	err error
+}
+
+func (e *UnknownConfigKeys) Error() string {
+	return e.err.Error()
+}
+
+// ReadConfig unmarshals the config file and slurps in its
+// data. ReadConfig can return an error of type *UnknownConfigKeys,
+// which means that the file is usable, but contains unknown fields.
 func ReadConfig(path string) (c Config, err error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -48,18 +67,34 @@ func ReadConfig(path string) (c Config, err error) {
 	return readConfig(f)
 }
 
-func readConfig(r io.Reader) (c Config, err error) {
+func unmarshalSemiStrictly(bts []byte, into interface{}) error {
+	strictErr := yaml.UnmarshalStrict(bts, into)
+	if strictErr == nil {
+		return nil
+	}
+
+	looseErr := yaml.Unmarshal(bts, into)
+	if looseErr != nil {
+		return looseErr
+	}
+	return &UnknownConfigKeys{strictErr}
+}
+
+func readConfig(r io.Reader) (Config, error) {
+	var c Config
 	// Unfortunately the YAML package does not
 	// support reader inputs
 	// TODO(aditya) convert this when the
 	// upstream PR lands
 	bts, err := ioutil.ReadAll(r)
 	if err != nil {
-		return
+		return c, err
 	}
-	err = yaml.Unmarshal(bts, &c)
-	if err != nil {
-		return
+	unmarshalErr := unmarshalSemiStrictly(bts, &c)
+	if unmarshalErr != nil {
+		if _, ok := err.(*UnknownConfigKeys); !ok {
+			return c, unmarshalErr
+		}
 	}
 
 	err = envconfig.Process("veneur", &c)
@@ -74,7 +109,9 @@ func readConfig(r io.Reader) (c Config, err error) {
 	if c.ReadBufferSizeBytes == 0 {
 		c.ReadBufferSizeBytes = defaultBufferSizeBytes
 	}
-	return c, nil
+
+	// pass back an error about any unknown fields:
+	return c, unmarshalErr
 }
 
 // ParseInterval handles parsing the flush interval as a time.Duration
