@@ -144,7 +144,7 @@ func TestNewDatadogMetricSinkConfig(t *testing.T) {
 		DatadogAPIKey:          "apikey",
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
-		SsfAddress:             "127.0.0.1:99",
+		SsfListenAddresses:     []string{"udp://127.0.0.1:99"},
 
 		// required or NewFromConfig fails
 		Interval:     "10s",

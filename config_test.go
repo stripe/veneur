@@ -39,46 +39,6 @@ func TestReadBadConfig(t *testing.T) {
 	assert.Equal(t, c, Config{}, "Parsing invalid config file should return zero struct")
 }
 
-func TestReadConfigBackwardsCompatible(t *testing.T) {
-	// set the deprecated config options
-	const config = `
-api_hostname: "http://api"
-key: apikey
-trace_api_address: http://trace_api
-trace_address: trace_address:12345
-udp_address: 127.0.0.1:8002
-tcp_address: 127.0.0.1:8003
-`
-	c, err := readConfig(strings.NewReader(config))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// they should get copied to the new config options
-	assert.Equal(t, "http://api", c.DatadogAPIHostname)
-	assert.Equal(t, "apikey", c.DatadogAPIKey)
-	assert.Equal(t, "http://trace_api", c.DatadogTraceAPIAddress)
-	assert.Equal(t, "trace_address:12345", c.SsfAddress)
-	assert.Contains(t, c.StatsdListenAddresses, "udp://127.0.0.1:8002")
-	assert.Contains(t, c.StatsdListenAddresses, "tcp://127.0.0.1:8003")
-	assert.Contains(t, c.SsfListenAddresses, "udp://trace_address:12345")
-}
-
-func TestReadSSFConfigBackwardsCompatible(t *testing.T) {
-	// set the deprecated config options
-	const config = `
-trace_api_address: http://trace_api
-ssf_address: trace_address:12345
-`
-	c, err := readConfig(strings.NewReader(config))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// they should get copied to the new config options
-	assert.Equal(t, c.SsfListenAddresses, []string{"udp://trace_address:12345"})
-}
-
 func TestHostname(t *testing.T) {
 	const hostnameConfig = "hostname: foo"
 	r := strings.NewReader(hostnameConfig)
