@@ -406,8 +406,6 @@ func (dd *DatadogSpanSink) Flush() {
 
 		if err == nil {
 			dd.log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
-			dd.stats.Count(totalSpansFlushedMetricKey, int64(len(ssfSpans)), []string{"sink:datadog"}, 1)
-			// TODO: Per service counters?
 		} else {
 			dd.log.WithFields(logrus.Fields{
 				"traces":        len(finalTraces),
