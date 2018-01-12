@@ -1,3 +1,14 @@
+# 3.0.0, in development
+
+## Incompatible changes
+* These deprecated configuration keys are no longer supported and will cause an error on startup if used in a veneur config file:
+** `api_hostname` - replaced in 1.5.0 by `datadog_api_hostname`
+** `key` - replaced in 1.5.0 by `datadog_api_key`
+** `trace_address` - replaced in 1.7.0 by `ssf_listen_addresses`
+** `trace_api_address` - replaced in 1.5.0 by `datadog_trace_api_address`
+** `ssf_address` - replaced in 1.7.0 by `ssf_listen_addresses`
+** `tcp_address` and `udp_address` - replaced in 1.7.0 by `statsd_listen_addresses`
+
 # 2.0.0, 2018-01-09
 
 ## Incompatible changes
