@@ -21,7 +21,8 @@ import (
 
 const DatadogResourceKey = "resource"
 const datadogNameKey = "name"
-const totalSpansFlushedMetricKey = "worker.spans_flushed_total"
+const totalMetricsFlushedMetricKey = "sink.metrics_flushed_total"
+const totalSpansFlushedMetricKey = "sink.spans_flushed_total"
 
 type DatadogMetricSink struct {
 	HTTPClient      *http.Client
@@ -99,7 +100,8 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 		go dd.flushPart(span.Attach(ctx), chunk, &wg)
 	}
 	wg.Wait()
-	dd.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(flushStart).Nanoseconds()), []string{"part:post"}, 1.0)
+	dd.statsd.TimeInMilliseconds("sink.metric_flush_total_duration_ns", float64(time.Since(flushStart).Nanoseconds()), []string{"sink:datadog"}, 1.0)
+	dd.statsd.Count("sink.metrics_flushed_total", int64(len(metrics)), []string{"sink:datadog"}, 1.0)
 
 	dd.log.WithField("metrics", len(metrics)).Info("Completed flush to Datadog")
 	return nil

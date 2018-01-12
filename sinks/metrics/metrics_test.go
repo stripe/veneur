@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,7 +17,8 @@ func TestMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(0, nil, logger)
 	workers := []metrics.Processor{worker}
-	sink, err := metrics.NewMetricExtractionSink(workers, "foo", logger)
+	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
+	sink, err := metrics.NewMetricExtractionSink(workers, "foo", stats, logger)
 	require.NoError(t, err)
 
 	start := time.Now()
@@ -56,7 +58,8 @@ func TestIndicatorMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(0, nil, logger)
 	workers := []metrics.Processor{worker}
-	sink, err := metrics.NewMetricExtractionSink(workers, "foo", logger)
+	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
+	sink, err := metrics.NewMetricExtractionSink(workers, "foo", stats, logger)
 	require.NoError(t, err)
 
 	start := time.Now()
