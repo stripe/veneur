@@ -170,8 +170,6 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 	server.spanSinks = append(server.spanSinks, sSink)
 
 	server.Start()
-
-	go server.HTTPServe()
 	return server
 }
 
