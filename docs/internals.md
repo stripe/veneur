@@ -82,7 +82,7 @@ method calls each worker's `Flush` method ---
 to collect the data that needs forwarding, then sends that data to
 the appropriate Sink.
 
-#### `MetricSink`s - submitting metrics upstream
+#### `MetricSink`s - submitting metrics to storage
 
 First, we have to talk about what package `samplers` does:
 
@@ -110,33 +110,43 @@ Set or a Histogram), it is converted to
 a [`JSONMetric`](https://godoc.org/github.com/stripe/veneur/samplers#JSONMetric) and
 then submitted as an HTTP POST.
 
-Phew! This is all fairly complex wordy, so here's a diagram to maybe clear
-this up a little:
+**Note:** Only the veneur server that ends up submitting a metric to a metric
+sink converts that metric to an `InterMetric`, and all `InterMetric`s
+are submitted to the sink directly!
+
+Phew! This is all fairly complex wordy, so here's a diagram to maybe
+clear up how a UDP counter data flow looks:
 
 ```
-┌─Veneur server──────────────────────┐
-│ ╔══════════Metric Worker══════════╗│
-│ ║     ┌─────────────────────┐     ║│
-│ ║     │      UDPMetric      │     ║│
-│ ║     └─────────────────────┘     ║│
-│ ║                │                ║│
-│ ║                │                ║│
-│ ║                ▼                ║│
-│ ║     ┌─────────────────────┐     ║│
-│ ║     │       Counter       │     ║│
-│ ║     └─────────────────────┘     ║│
-│ ║                │                ║│
-│ ║                │                ║│
-│ ║                ▼                ║│
-│ ║     ┌─────────────────────┐     ║│
-│ ║     │     InterMetric     │     ║│
-│ ║     └─────────────────────┘     ║│
-│ ║                │                ║│
-│ ╚════════════════╬════════════════╝│
-│                  │                 │
-│                  ▼                 │
-│       ╔═════════════════════╗      │
-│       ║     Metric Sink     ║      │
-│       ╚═════════════════════╝      │
-└────────────────────────────────────┘
+┌─Veneur server───────────────────────┐
+│ ╔══════════Metric Worker══════════╗ │
+│ ║     ┌─────────────────────┐     ║ │
+│ ║     │      UDPMetric      │     ║ │
+│ ║     └─────────────────────┘     ║ │
+│ ║                │                ║ │
+│ ║                │                ║ │
+│ ║                ▼                ║ │
+│ ║     ┌─────────────────────┐     ║ │
+│ ║     │       Counter       │     ║ │
+│ ║     └─────────────────────┘     ║ │
+│ ║                │                ║ │
+│ ║                │                ║ │
+│ ║                ▼                ║ │
+│ ║     ┌─────────────────────┐     ║ │
+│ ║     │     InterMetric     │     ║ │
+│ ║     └─────────────────────┘     ║ │
+│ ║                │                ║ │
+│ ╚════════════════╬════════════════╝ │
+│                  │                  │
+│                  ▼                  │
+│       ╔═════════════════════╗       │
+│       ║     Metric Sink     ║       │
+│       ╚═════════════════════╝       │
+└─────────────────────────────────────┘
 ```
+
+There are multiple metric sinks,
+with [`datadog.DatadogMetricSink`](https://godoc.org/github.com/stripe/veneur/sinks/datadog#DatadogMetricSink)
+being the most prominent one. Each metric sink is responsible for
+submitting all the data passed to its `.Flush` method to the metrics
+storage.
