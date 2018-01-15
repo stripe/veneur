@@ -76,13 +76,28 @@ func (ff *forwardFixture) Flush(ctx context.Context) {
 	ff.global.Flush(ctx)
 }
 
+// IngestSpan synchronously writes a span to the forwarding fixture's
+// local veneur's span worker. The fixture must be flushed via the
+// (*forwardFixture).Flush method so the ingestion effects can be
+// observed.
+func (ff *forwardFixture) IngestSpan(span *ssf.SSFSpan) {
+	ff.server.SpanWorker.SpanChan <- span
+}
+
+// IngestMetric synchronously writes a metric to the forwarding
+// fixture's local veneur span worker. The fixture must be flushed via
+// the (*forwardFixture).Flush method so the ingestion effects can be
+// observed.
+func (ff *forwardFixture) IngestMetric(m *samplers.UDPMetric) {
+	ff.server.Workers[0].ProcessMetric(m)
+}
+
 // TestForwardingIndicatorMetrics ensures that the metrics extracted
 // from indicator spans make it across the entire chain, from a local
 // veneur, through a proxy, to a global veneur & get reported
 // on the global veneur.
-func TestForwardingIndicatorMetrics(t *testing.T) {
+func TestE2EForwardingIndicatorMetrics(t *testing.T) {
 	t.Parallel()
-
 	ch := make(chan []samplers.InterMetric)
 	sink, _ := NewChannelMetricSink(ch)
 	cfg := localConfig()
@@ -100,13 +115,56 @@ func TestForwardingIndicatorMetrics(t *testing.T) {
 		EndTimestamp:   end.UnixNano(),
 		Indicator:      true,
 	}
-	ffx.server.SpanWorker.SpanChan <- span
+	ffx.IngestSpan(span)
 	done := make(chan struct{})
 	go func() {
 		metrics := <-ch
 		require.Equal(t, 3, len(metrics), "metrics:\n%#v", metrics)
 		for _, suffix := range []string{".50percentile", ".75percentile", ".99percentile"} {
 			mName := "indicator.span.timer" + suffix
+			found := false
+			for _, m := range metrics {
+				if m.Name == mName {
+					found = true
+				}
+			}
+			assert.True(t, found, "Metric named %s missing", mName)
+		}
+		close(done)
+	}()
+	ffx.Flush(context.TODO())
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("Timed out waiting for a metric after 5 seconds")
+	}
+}
+
+func TestE2EForwardMetric(t *testing.T) {
+	t.Parallel()
+	ch := make(chan []samplers.InterMetric)
+	sink, _ := NewChannelMetricSink(ch)
+	cfg := localConfig()
+	cfg.IndicatorSpanTimerName = "indicator.span.timer"
+	ffx := newForwardingFixture(t, cfg, nil, sink)
+	defer ffx.Close()
+
+	ffx.IngestMetric(&samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "histogram",
+		},
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.MixedScope,
+	})
+	done := make(chan struct{})
+	go func() {
+		metrics := <-ch
+		require.Equal(t, 3, len(metrics), "metrics:\n%#v", metrics)
+		for _, suffix := range []string{".50percentile", ".75percentile", ".99percentile"} {
+			mName := "a.b.c" + suffix
 			found := false
 			for _, m := range metrics {
 				if m.Name == mName {
