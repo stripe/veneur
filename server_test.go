@@ -142,12 +142,13 @@ func generateMetrics() (metricValues []float64, expectedMetrics map[string]float
 // If no metricSink or spanSink are provided then a `black hole` sink be used
 // so that flushes to these sinks do "nothing".
 func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper, mSink sinks.MetricSink, sSink sinks.SpanSink) *Server {
-	server, err := NewFromConfig(config)
-	if transport != nil {
-		server.HTTPClient.Transport = transport
-	}
+	logger := logrus.New()
+	server, err := newFromConfig(logger, config)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if transport != nil {
+		server.HTTPClient.Transport = transport
 	}
 
 	if transport != nil {

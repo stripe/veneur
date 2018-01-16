@@ -121,6 +121,10 @@ type Server struct {
 
 // NewFromConfig creates a new veneur server from a configuration specification.
 func NewFromConfig(conf Config) (*Server, error) {
+	return newFromConfig(log, conf)
+}
+
+func newFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret := &Server{}
 
 	ret.Hostname = conf.Hostname
@@ -184,7 +188,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 	}
 
 	if conf.Debug {
-		log.SetLevel(logrus.DebugLevel)
+		logger.SetLevel(logrus.DebugLevel)
 	}
 
 	if conf.EnableProfiling {
@@ -196,8 +200,8 @@ func NewFromConfig(conf Config) (*Server, error) {
 	// such as those made in testing. By skipping this we avoid a race
 	// condition in logrus discussed here:
 	// https://github.com/sirupsen/logrus/issues/295
-	if _, ok := log.Hooks[logrus.FatalLevel]; !ok {
-		log.AddHook(sentryHook{
+	if _, ok := logger.Hooks[logrus.FatalLevel]; !ok {
+		logger.AddHook(sentryHook{
 			c:        ret.Sentry,
 			hostname: ret.Hostname,
 			lv: []logrus.Level{
@@ -208,11 +212,11 @@ func NewFromConfig(conf Config) (*Server, error) {
 		})
 	}
 
-	// After log hooks are configured, if any further errors are found during
-	// setup we should use log.Fatal or log.Panic, because that will give us
-	// breakage monitoring through Sentry.
-
-	log.WithField("number", conf.NumWorkers).Info("Preparing workers")
+	// After log hooks are configured, if any further errors are
+	// found during setup we should use logger.Fatal or
+	// logger.Panic, because that will give us breakage monitoring
+	// through Sentry.
+	logger.WithField("number", conf.NumWorkers).Info("Preparing workers")
 	// Allocate the slice, we'll fill it with workers later.
 	ret.Workers = make([]*Worker, conf.NumWorkers)
 	ret.numReaders = conf.NumReaders
@@ -267,7 +271,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 	if conf.TLSKey != "" {
 		if conf.TLSCertificate == "" {
 			err = errors.New("tls_key is set; must set tls_certificate")
-			log.WithError(err).Error("Improper TLS configuration")
+			logger.WithError(err).Error("Improper TLS configuration")
 			return ret, err
 		}
 
@@ -275,7 +279,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 		var cert tls.Certificate
 		cert, err = tls.X509KeyPair([]byte(conf.TLSCertificate), []byte(conf.TLSKey))
 		if err != nil {
-			log.WithError(err).Error("Improper TLS configuration")
+			logger.WithError(err).Error("Improper TLS configuration")
 			return ret, err
 		}
 
@@ -288,7 +292,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 			ok := clientCAs.AppendCertsFromPEM([]byte(conf.TLSAuthorityCertificate))
 			if !ok {
 				err = errors.New("tls_authority_certificate: Could not load any certificates")
-				log.WithError(err).Error("Improper TLS configuration")
+				logger.WithError(err).Error("Improper TLS configuration")
 				return ret, err
 			}
 		}
@@ -331,7 +335,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 		ret.traceBackend = &internalTraceBackend{statsd: ret.Statsd}
 		ret.TraceClient, err = trace.NewBackendClient(ret.traceBackend, trace.Capacity(200))
 		if err != nil {
-			log.WithError(err).Panic("Error configuring Datadog tracing")
+			logger.WithError(err).Panic("Error configuring Datadog tracing")
 		}
 
 		// configure Datadog as a Span sink
@@ -346,7 +350,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 			}
 
 			ret.spanSinks = append(ret.spanSinks, ddSink)
-			log.Info("Configured Datadog trace sink")
+			logger.Info("Configured Datadog trace sink")
 		}
 
 		// configure Lightstep as a Span Sink
@@ -355,7 +359,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 			maxSpans := conf.TraceLightstepMaximumSpans
 			if maxSpans == 0 {
 				maxSpans = conf.SsfBufferSize
-				log.WithField("max spans", maxSpans).Info("Using default maximum spans — ssf_buffer_size — for LightStep")
+				logger.WithField("max spans", maxSpans).Info("Using default maximum spans — ssf_buffer_size — for LightStep")
 			}
 
 			var lsSink sinks.SpanSink
@@ -369,7 +373,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 			}
 			ret.spanSinks = append(ret.spanSinks, lsSink)
 
-			log.Info("Configured Lightstep trace sink")
+			logger.Info("Configured Lightstep trace sink")
 		}
 	}
 
@@ -389,9 +393,9 @@ func NewFromConfig(conf Config) (*Server, error) {
 
 			ret.metricSinks = append(ret.metricSinks, kSink)
 
-			log.Info("Configured Kafka metric sink")
+			logger.Info("Configured Kafka metric sink")
 		} else {
-			log.Warn("Kafka metric sink skipped due to missing metric, check and event topic")
+			logger.Warn("Kafka metric sink skipped due to missing metric, check and event topic")
 		}
 
 		if conf.KafkaSpanTopic != "" {
@@ -406,9 +410,9 @@ func NewFromConfig(conf Config) (*Server, error) {
 			}
 
 			ret.spanSinks = append(ret.spanSinks, sink)
-			log.Info("Configured Kafka span sink")
+			logger.Info("Configured Kafka span sink")
 		} else {
-			log.Warn("Kafka span sink skipped due to missing span topic")
+			logger.Warn("Kafka span sink skipped due to missing span topic")
 		}
 	}
 
@@ -423,10 +427,10 @@ func NewFromConfig(conf Config) (*Server, error) {
 		})
 
 		if err != nil {
-			log.Info("error getting AWS session: %s", err)
+			logger.Info("error getting AWS session: %s", err)
 			svc = nil
 		} else {
-			log.Info("Successfully created AWS session")
+			logger.Info("Successfully created AWS session")
 			svc = s3.New(sess)
 
 			plugin := &s3p.S3Plugin{
@@ -438,13 +442,13 @@ func NewFromConfig(conf Config) (*Server, error) {
 			ret.registerPlugin(plugin)
 		}
 	} else {
-		log.Info("AWS credentials not found")
+		logger.Info("AWS credentials not found")
 	}
 
 	if svc == nil {
-		log.Info("S3 archives are disabled")
+		logger.Info("S3 archives are disabled")
 	} else {
-		log.Info("S3 archives are enabled")
+		logger.Info("S3 archives are enabled")
 	}
 
 	if conf.FlushFile != "" {
@@ -453,7 +457,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 			Logger:   log,
 		}
 		ret.registerPlugin(localFilePlugin)
-		log.Info(fmt.Sprintf("Local file logging to %s", conf.FlushFile))
+		logger.Info(fmt.Sprintf("Local file logging to %s", conf.FlushFile))
 	}
 
 	// closed in Shutdown; Same approach and http.Shutdown
@@ -468,7 +472,7 @@ func NewFromConfig(conf Config) (*Server, error) {
 	conf.AwsAccessKeyID = REDACTED
 	conf.AwsSecretAccessKey = REDACTED
 
-	log.WithField("config", conf).Debug("Initialized server")
+	logger.WithField("config", conf).Debug("Initialized server")
 
 	return ret, err
 }
