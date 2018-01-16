@@ -57,7 +57,7 @@ func TestMain(m *testing.M) {
 func TestTimeCommand(t *testing.T) {
 	t.Run("basic", func(t *testing.T) {
 		command := []string{"true"}
-		st, start, ended, err := timeCommand(command)
+		st, start, ended, err := timeCommand(&ssf.SSFSpan{}, command)
 
 		assert.NoError(t, err, "timeCommand had an error")
 		assert.NotZero(t, start)
@@ -67,7 +67,7 @@ func TestTimeCommand(t *testing.T) {
 
 	t.Run("badCall", func(t *testing.T) {
 		command := []string{"false"}
-		st, _, _, err := timeCommand(command)
+		st, _, _, err := timeCommand(&ssf.SSFSpan{}, command)
 		assert.Error(t, err, "timeCommand did not throw error.")
 		assert.NotZero(t, st)
 	})
@@ -201,6 +201,44 @@ func TestCreateMetrics(t *testing.T) {
 	for _, metric := range span.Metrics {
 		assert.Equal(t, "test.metric", metric.Name)
 		assert.Equal(t, "value1", metric.Tags["tag1"])
+	}
+}
+
+func TestInferID(t *testing.T) {
+	lastEnvID := 0
+	newEnvID := func() string {
+		return fmt.Sprintf("__veneur_emit_testing_id_%d", lastEnvID)
+	}
+
+	tests := []struct {
+		name      string
+		parameter int64
+		env       string
+		expected  int64
+		error     bool
+	}{
+		{"unset parameter, unset env", 0, "", 0, false},
+		{"unset parameter, set env", 0, "99", 99, false},
+		{"set parameter, unset env", 11, "", 11, false},
+		{"set parameter, set env", 11, "99", 11, false},
+		{"set parameter, bad env", 11, "farts", 11, false},
+		{"unset parameter, bad env=error", 0, "farts", 0, true},
+	}
+	for _, elt := range tests {
+		test := elt
+		t.Run(test.name, func(t *testing.T) {
+			env := newEnvID()
+			if test.env != "" {
+				require.NoError(t, os.Setenv(env, test.env))
+			}
+			id, err := inferTraceIDInt(test.parameter, env)
+			if test.error {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, test.expected, id)
+		})
 	}
 }
 
