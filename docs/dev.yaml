@@ -1,0 +1,12 @@
+---
+# A minimal config file for running veneur in development. Note that
+# this won't submit aggregated metrics or spans anywhere - for that,
+# you'll need upstream sink config.
+stats_address: 127.0.0.1:8200
+ssf_listen_addresses:
+  - unix:///tmp/veneur.sock
+statsd_listen_addresses:
+  - udp://127.0.0.1:8200
+num_workers: 4
+interval: 10s
+debug: true
