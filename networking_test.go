@@ -27,7 +27,7 @@ func TestMultipleListeners(t *testing.T) {
 	addr, ok := addrNet.(*net.UnixAddr)
 	require.True(t, ok)
 
-	done := startSSFUnix(srv, addr)
+	done, _ := startSSFUnix(srv, addr)
 	assert.Panics(t, func() {
 		srv2 := &Server{}
 		startSSFUnix(srv2, addr)

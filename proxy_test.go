@@ -15,16 +15,7 @@ import (
 	"github.com/stripe/veneur/samplers"
 )
 
-// On the CI server, we can't be guaranteed that the port will be
-// released immediately after the server is shut down. Instead, use
-// a unique port for each test. As long as we don't have an insane number
-// of integration tests, we should be fine.
-var ProxyHTTPAddrPort = 8229
-
 func generateProxyConfig() ProxyConfig {
-	port := ProxyHTTPAddrPort
-	ProxyHTTPAddrPort++
-
 	return ProxyConfig{
 		Debug: false,
 		ConsulRefreshInterval:    "86400s",
@@ -32,7 +23,7 @@ func generateProxyConfig() ProxyConfig {
 		ConsulTraceServiceName:   "traceServiceName",
 		TraceAddress:             "127.0.0.1:8128",
 		TraceAPIAddress:          "127.0.0.1:8135",
-		HTTPAddress:              fmt.Sprintf("127.0.0.1:%d", port),
+		HTTPAddress:              "127.0.0.1:0",
 		StatsAddress:             "127.0.0.1:8201",
 	}
 }
@@ -149,14 +140,15 @@ func TestConsistentForward(t *testing.T) {
 	defer server.Shutdown()
 
 	server.Start()
-	go server.HTTPServe()
+	srv := httptest.NewServer(server.Handler())
+	defer srv.Close()
 
 	// Make sure we're sane first
 	assert.Len(t, server.ForwardDestinations.Members(), 2, "Incorrect host count in ring")
 
 	// Cool, now let's make a veneur to process some bits!
 	config := localConfig()
-	config.ForwardAddress = fmt.Sprintf("http://%s", proxyConfig.HTTPAddress)
+	config.ForwardAddress = srv.URL
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 

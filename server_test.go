@@ -55,12 +55,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// On the CI server, we can't be guaranteed that the port will be
-// released immediately after the server is shut down. Instead, use
-// a unique port for each test. As long as we don't have an insane number
-// of integration tests, we should be fine.
-var HTTPAddrPort = 8129
-
 // set up a boilerplate local config for later use
 func localConfig() Config {
 	return generateConfig("http://localhost")
@@ -74,14 +68,6 @@ func globalConfig() Config {
 // generateConfig is not called config to avoid
 // accidental variable shadowing
 func generateConfig(forwardAddr string) Config {
-	// we don't shut down ports so avoid address in use errors
-	port := HTTPAddrPort
-	HTTPAddrPort++
-	metricsPort := HTTPAddrPort
-	HTTPAddrPort++
-	tracePort := HTTPAddrPort
-	HTTPAddrPort++
-
 	return Config{
 		Debug:    DebugMode,
 		Hostname: "localhost",
@@ -93,8 +79,8 @@ func generateConfig(forwardAddr string) Config {
 		Percentiles:           []float64{.5, .75, .99},
 		Aggregates:            []string{"min", "max", "count"},
 		ReadBufferSizeBytes:   2097152,
-		StatsdListenAddresses: []string{fmt.Sprintf("udp://localhost:%d", metricsPort)},
-		HTTPAddress:           fmt.Sprintf("localhost:%d", port),
+		StatsdListenAddresses: []string{"udp://localhost:0"},
+		HTTPAddress:           fmt.Sprintf("localhost:0"),
 		ForwardAddress:        forwardAddr,
 		NumWorkers:            4,
 		FlushFile:             "",
@@ -112,7 +98,7 @@ func generateConfig(forwardAddr string) Config {
 		FlushMaxPerBody: 1024,
 
 		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
-		SsfListenAddresses:  []string{fmt.Sprintf("udp://127.0.0.1:%d", tracePort)},
+		SsfListenAddresses:  []string{"udp://127.0.0.1:0"},
 		TraceMaxLengthBytes: 4096,
 		SsfBufferSize:       32,
 	}
@@ -526,11 +512,15 @@ func TestTCPConfig(t *testing.T) {
 	}
 }
 
-func sendTCPMetrics(addr string, tlsConfig *tls.Config, f *fixture) error {
+func sendTCPMetrics(a *net.TCPAddr, tlsConfig *tls.Config, f *fixture) error {
 	// TODO: attempt to ensure the accept goroutine opens the port before we attempt to connect
 	// connect and send stats in two parts
 	var conn net.Conn
 	var err error
+
+	// Need to construct an address based on "localhost", as
+	// that's the name that the TLS certs are issued for:
+	addr := fmt.Sprintf("localhost:%d", a.Port)
 	if tlsConfig != nil {
 		conn, err = tls.Dial("tcp", addr, tlsConfig)
 	} else {
@@ -564,15 +554,14 @@ func TestUDPMetrics(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.Interval = "60s"
-	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
-	HTTPAddrPort++
-	config.StatsdListenAddresses = []string{fmt.Sprintf("udp://%s", addr)}
+	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0"}
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 	// Add a bit of delay to ensure things get listening
 	time.Sleep(20 * time.Millisecond)
 
-	conn, err := net.Dial("udp", addr)
+	addr := f.server.StatsdListenAddrs[0]
+	conn, err := net.Dial(addr.Network(), addr.String())
 	assert.NoError(t, err)
 	defer conn.Close()
 
@@ -586,22 +575,20 @@ func TestMultipleUDPSockets(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.Interval = "60s"
-	addr1 := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
-	HTTPAddrPort++
-	addr2 := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
-	HTTPAddrPort++
-	config.StatsdListenAddresses = []string{fmt.Sprintf("udp://%s", addr1), fmt.Sprintf("udp://%s", addr2)}
+	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 	// Add a bit of delay to ensure things get listening
 	time.Sleep(20 * time.Millisecond)
 
-	conn, err := net.Dial("udp", addr1)
+	addr1 := f.server.StatsdListenAddrs[0]
+	addr2 := f.server.StatsdListenAddrs[1]
+	conn, err := net.Dial("udp", addr1.String())
 	assert.NoError(t, err)
 	defer conn.Close()
 	conn.Write([]byte("foo.bar:1|c|#baz:gorch"))
 
-	conn2, err := net.Dial("udp", addr2)
+	conn2, err := net.Dial("udp", addr2.String())
 	assert.NoError(t, err)
 	defer conn2.Close()
 	conn2.Write([]byte("foo.bar:1|c|#baz:gorch"))
@@ -615,15 +602,14 @@ func TestUDPMetricsSSF(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.Interval = "60s"
-	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
-	config.SsfListenAddresses = []string{fmt.Sprintf("udp://%s", addr)}
-	HTTPAddrPort++
+	config.SsfListenAddresses = []string{"udp://127.0.0.1:0"}
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 	// listen delay
 	time.Sleep(20 * time.Millisecond)
 
-	conn, err := net.Dial("udp", addr)
+	addr := f.server.SSFListenAddrs[0]
+	conn, err := net.Dial("udp", addr.String())
 	assert.NoError(t, err)
 	defer conn.Close()
 
@@ -654,7 +640,6 @@ func TestUNIXMetricsSSF(t *testing.T) {
 	config.Interval = "60s"
 	path := filepath.Join(tdir, "test.sock")
 	config.SsfListenAddresses = []string{fmt.Sprintf("unix://%s", path)}
-	HTTPAddrPort++
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 	// listen delay
@@ -691,15 +676,14 @@ func TestIgnoreLongUDPMetrics(t *testing.T) {
 	config.NumWorkers = 1
 	config.MetricMaxLength = 31
 	config.Interval = "60s"
-	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
-	config.StatsdListenAddresses = []string{fmt.Sprintf("udp://%s", addr)}
-	HTTPAddrPort++
+	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0"}
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 	// Add a bit of delay to ensure things get listening
 	time.Sleep(20 * time.Millisecond)
 
-	conn, err := net.Dial("udp", addr)
+	addr := f.server.StatsdListenAddrs[0]
+	conn, err := net.Dial("udp", addr.String())
 	assert.NoError(t, err)
 	defer conn.Close()
 
@@ -769,42 +753,41 @@ func TestTCPMetrics(t *testing.T) {
 		{"TLS correct cert", correctConfig},
 	}
 
-	for _, serverConfig := range serverConfigs {
-		config := localConfig()
-		config.Interval = "60s"
-		config.NumWorkers = 1
-		// Use a unique port to avoid race with shutting down accept goroutine on Linux
-		addr := fmt.Sprintf("localhost:%d", HTTPAddrPort)
-		HTTPAddrPort++
-		config.StatsdListenAddresses = []string{fmt.Sprintf("tcp://%s", addr)}
-		config.TLSKey = serverConfig.serverKey
-		config.TLSCertificate = serverConfig.serverCertificate
-		config.TLSAuthorityCertificate = serverConfig.authorityCertificate
-		f := newFixture(t, config, nil, nil)
-		defer f.Close() // ensure shutdown if the test aborts
+	for _, entry := range serverConfigs {
+		serverConfig := entry
+		t.Run(serverConfig.name, func(t *testing.T) {
+			config := localConfig()
+			config.Interval = "60s"
+			config.NumWorkers = 1
+			config.StatsdListenAddresses = []string{"tcp://127.0.0.1:0"}
+			config.TLSKey = serverConfig.serverKey
+			config.TLSCertificate = serverConfig.serverCertificate
+			config.TLSAuthorityCertificate = serverConfig.authorityCertificate
+			f := newFixture(t, config, nil, nil)
+			defer f.Close() // ensure shutdown if the test aborts
 
-		// attempt to connect and send stats with each of the client configurations
-		for i, clientConfig := range clientConfigs {
-			expectedSuccess := serverConfig.expectedConnectResults[i]
-			err := sendTCPMetrics(addr, clientConfig.tlsConfig, f)
-			if err != nil {
-				if expectedSuccess {
-					t.Errorf("server config: '%s' client config: '%s' failed: %s",
-						serverConfig.name, clientConfig.name, err.Error())
+			addr := f.server.StatsdListenAddrs[0].(*net.TCPAddr)
+			// attempt to connect and send stats with each of the client configurations
+			for i, clientConfig := range clientConfigs {
+				expectedSuccess := serverConfig.expectedConnectResults[i]
+				err := sendTCPMetrics(addr, clientConfig.tlsConfig, f)
+				if err != nil {
+					if expectedSuccess {
+						t.Errorf("server config: '%s' client config: '%s' failed: %s",
+							serverConfig.name, clientConfig.name, err.Error())
+					} else {
+						fmt.Printf("SUCCESS server config: '%s' client config: '%s' got expected error: %s\n",
+							serverConfig.name, clientConfig.name, err.Error())
+					}
+				} else if !expectedSuccess {
+					t.Errorf("server config: '%s' client config: '%s' worked; should fail!",
+						serverConfig.name, clientConfig.name)
 				} else {
-					fmt.Printf("SUCCESS server config: '%s' client config: '%s' got expected error: %s\n",
-						serverConfig.name, clientConfig.name, err.Error())
+					fmt.Printf("SUCCESS server config: '%s' client config: '%s'\n",
+						serverConfig.name, clientConfig.name)
 				}
-			} else if !expectedSuccess {
-				t.Errorf("server config: '%s' client config: '%s' worked; should fail!",
-					serverConfig.name, clientConfig.name)
-			} else {
-				fmt.Printf("SUCCESS server config: '%s' client config: '%s'\n",
-					serverConfig.name, clientConfig.name)
 			}
-		}
-
-		f.Close()
+		})
 	}
 }
 
@@ -885,7 +868,6 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 	tdir, err := ioutil.TempDir("", "unixmetrics_ssf")
 	require.NoError(b, err)
 	defer os.RemoveAll(tdir)
-	HTTPAddrPort++
 
 	path := filepath.Join(tdir, "test.sock")
 	// test the variables that have been renamed
@@ -948,14 +930,12 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 // is almost an inversion of the SSFUNIX benchmark above, as UDP does
 // lose packets and we don't want to loop forever.
 func BenchmarkSendSSFUDP(b *testing.B) {
-	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
-	HTTPAddrPort++
 	// test the variables that have been renamed
 	config := Config{
 		DatadogAPIKey:          "apikey",
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
-		SsfListenAddresses:     []string{fmt.Sprintf("udp://%s", addr)},
+		SsfListenAddresses:     []string{"udp://127.0.0.1:0"},
 		ReadBufferSizeBytes:    16 * 1024,
 		TraceMaxLengthBytes:    900 * 1024,
 
@@ -973,7 +953,7 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 		},
 	}
 	// Simulate listening for UDP SSF on the server:
-	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	udpAddr := s.StatsdListenAddrs[0].(*net.UDPAddr)
 	require.NoError(b, err)
 	l, err := NewSocket(udpAddr, s.RcvbufBytes, false)
 	require.NoError(b, err)
@@ -992,7 +972,7 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 		testMetric.Tags["tag"] = "tagValue"
 		testSpan.Metrics = append(testSpan.Metrics, testMetric)
 
-		conn, err := net.Dial("udp", addr)
+		conn, err := net.Dial("udp", udpAddr.String())
 		require.NoError(b, err)
 		defer conn.Close()
 		for {

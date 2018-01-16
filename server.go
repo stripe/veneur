@@ -535,17 +535,21 @@ func (s *Server) Start() {
 	}
 
 	// Read Metrics Forever!
+	concreteAddrs := make([]net.Addr, 0, len(s.StatsdListenAddrs))
 	for _, addr := range s.StatsdListenAddrs {
-		StartStatsd(s, addr, statsdPool)
+		concreteAddrs = append(concreteAddrs, StartStatsd(s, addr, statsdPool))
 	}
+	s.StatsdListenAddrs = concreteAddrs
 
 	// Read Traces Forever!
 	if len(s.SSFListenAddrs) > 0 {
+		concreteAddrs := make([]net.Addr, 0, len(s.StatsdListenAddrs))
 		for _, addr := range s.SSFListenAddrs {
-			StartSSF(s, addr, tracePool)
+			concreteAddrs = append(concreteAddrs, StartSSF(s, addr, tracePool))
 		}
+		s.SSFListenAddrs = concreteAddrs
 	} else {
-		logrus.Info("Tracing sockets are configured - not reading trace socket")
+		logrus.Info("Tracing sockets are not configured - not reading trace socket")
 	}
 
 	// Flush every Interval forever!

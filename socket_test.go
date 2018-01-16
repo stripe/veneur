@@ -6,30 +6,37 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func writeReadUDP(t *testing.T, sock net.PacketConn, addr string) {
-	client, err := net.Dial("udp", addr)
-	assert.NoError(t, err, "should have connected to socket")
-	_, err = client.Write([]byte("hello world"))
-	assert.NoError(t, err, "should have written to socket")
+func writeReadUDP(listenAddr string, sendHost string) func(*testing.T) {
+	return func(t *testing.T) {
+		t.Parallel()
+		addr, err := net.ResolveUDPAddr("udp", listenAddr)
+		require.NoError(t, err, "should have resolved udp address %s correctly", listenAddr)
 
-	b := make([]byte, 15)
-	n, laddr, err := sock.ReadFrom(b)
-	assert.NoError(t, err, "should have read from socket")
-	assert.Equal(t, n, 11, "should have read 11 bytes from socket")
-	assert.Equal(t, "hello world", string(b[:n]), "should have gotten message from socket")
-	assert.Equal(t, client.LocalAddr().String(), laddr.String(), "should have gotten message from client's address")
-	err = client.Close()
-	assert.NoError(t, err, "client.Close should not fail")
+		sock, err := NewSocket(addr, 2*1024*1024, false)
+		require.NoError(t, err, "should have constructed socket correctly")
+		defer func() { assert.NoError(t, sock.Close(), "sock.Close should not fail") }()
+
+		sendAddr := fmt.Sprintf("%s:%d", sendHost, sock.LocalAddr().(*net.UDPAddr).Port)
+		client, err := net.Dial("udp", sendAddr)
+		require.NoError(t, err, "should have connected to socket")
+		defer func() { assert.NoError(t, client.Close(), "client.Close should not fail") }()
+
+		_, err = client.Write([]byte("hello world"))
+		assert.NoError(t, err, "should have written to socket")
+
+		b := make([]byte, 15)
+		n, laddr, err := sock.ReadFrom(b)
+		assert.NoError(t, err, "should have read from socket")
+		assert.Equal(t, n, 11, "should have read 11 bytes from socket")
+		assert.Equal(t, "hello world", string(b[:n]), "should have gotten message from socket")
+		assert.Equal(t, client.LocalAddr().String(), laddr.String(), "should have gotten message from client's address")
+	}
 }
 
 func TestSocket(t *testing.T) {
-	HTTPAddrPort++
-	portString := fmt.Sprintf("%d", HTTPAddrPort)
-	v4Localhost := "127.0.0.1:" + portString
-	v6Localhost := "[::1]:" + portString
-
 	// see if the system supports ipv6 by listening to a port
 	systemSupportsV6 := true
 	conn, err := net.ListenPacket("udp", "[::1]:0")
@@ -40,34 +47,21 @@ func TestSocket(t *testing.T) {
 	}
 
 	tests := []struct {
-		addr         string
-		supportsIPv4 bool
-		supportsIPv6 bool
+		addr     string
+		sendAddr string
+		isIPv6   bool
 	}{
-		{v4Localhost, true, false},
-		{v6Localhost, false, true},
-		{":" + portString, true, true},
+		{"127.0.0.1:0", "127.0.0.1", false},
+		{"[::1]:0", "[::1]", true},
+		{":0", "127.0.0.1", false},
+		{":0", "[::1]", true},
 	}
 
-	for _, test := range tests {
-		if test.addr == v6Localhost && !systemSupportsV6 {
+	for _, elt := range tests {
+		test := elt
+		if test.isIPv6 && !systemSupportsV6 {
 			continue
 		}
-
-		addr, err := net.ResolveUDPAddr("udp", test.addr)
-		assert.NoError(t, err, "should have resolved udp address %s correctly", test.addr)
-
-		sock, err := NewSocket(addr, 2*1024*1024, false)
-		assert.NoError(t, err, "should have constructed socket correctly")
-
-		if test.supportsIPv4 {
-			writeReadUDP(t, sock, v4Localhost)
-		}
-		if test.supportsIPv6 && systemSupportsV6 {
-			writeReadUDP(t, sock, v6Localhost)
-		}
-
-		err = sock.Close()
-		assert.NoError(t, err, "close should not fail")
+		t.Run(fmt.Sprintf("%s to %s", test.sendAddr, test.addr), writeReadUDP(test.addr, test.sendAddr))
 	}
 }

@@ -276,7 +276,6 @@ func TestOkTraceHealthCheck(t *testing.T) {
 	config.TraceLightstepAccessToken = "farts"
 	s := setupVeneurServer(t, config, nil, nil, nil)
 	defer s.Shutdown()
-	HTTPAddrPort++
 
 	w := httptest.NewRecorder()
 
@@ -296,8 +295,6 @@ func TestNoTracingConfiguredTraceHealthCheck(t *testing.T) {
 	server.Start()
 	defer server.Shutdown()
 
-	HTTPAddrPort++
-
 	w := httptest.NewRecorder()
 
 	handler := server.Handler()
@@ -313,7 +310,6 @@ func TestBuildDate(t *testing.T) {
 	config.SsfListenAddresses = []string{}
 	s := setupVeneurServer(t, config, nil, nil, nil)
 	defer s.Shutdown()
-	HTTPAddrPort++
 
 	w := httptest.NewRecorder()
 
@@ -346,7 +342,6 @@ func TestVersion(t *testing.T) {
 	config.SsfListenAddresses = []string{}
 	s := setupVeneurServer(t, config, nil, nil, nil)
 	defer s.Shutdown()
-	HTTPAddrPort++
 
 	w := httptest.NewRecorder()
 
@@ -372,7 +367,6 @@ func testServerImportHelper(t *testing.T, data interface{}) {
 	config := localConfig()
 	s := setupVeneurServer(t, config, nil, nil, nil)
 	defer s.Shutdown()
-	HTTPAddrPort++
 
 	handler := handleImport(s)
 	handler.ServeHTTP(w, r)
