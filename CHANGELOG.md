@@ -11,6 +11,7 @@
 
 ## Added
 * `veneur-emit` now infers parent and trace IDs from the environment (using the variables `VENEUR_EMIT_TRACE_ID` and `VENEUR_EMIT_PARENT_SPAN_ID`) and sets these environment variables from its `-trace_id` and `parent_span_id` when timing commands, allowing for convenient construction of trace trees if traced programs call `veneur-emit` themselves. Thanks, [antifuchs](https://github.com/antifuchs)
+* The Kafka sink for spans can now sample spans based off of a tag and its values (configurable via `kafka_span_sample_tag` and `kafka_span_sample_rate_percent`) to consistently pick off spans with relevant information. Thanks, [rhwlo](https://github.com/rhwlo)!
 
 # 2.0.0, 2018-01-09
 

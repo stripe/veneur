@@ -19,6 +19,21 @@ See the various `kafka_*` keys in [example.yaml](https://github.com/stripe/veneu
 * ack requirements
 * publishing of Protobuf or JSON formatted messages
 
+## Span Sampling
+
+The Kafka sink supports span sampling: configurable by `kafka_span_sample_tag` and
+`kafka_span_sample_rate_percent`. For example, imagine the following configuration:
+
+```
+kafka_span_sample_tag: "request_id"
+kafka_span_sample_rate_percent: 75
+```
+
+With this configuration, spans _without_ the `"request_id"` tag will be rejected,
+and spans _with_ the `"request_id"` will be sampled at 75%, based off of a hash
+of their `"request_id"` value; in this way, you can sample all values relevant to
+a particular tag value.
+
 # Format
 
 Metrics are published in JSON in the form of:
