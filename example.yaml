@@ -221,7 +221,8 @@ kafka_metric_topic: ""
 # Name of the topic we'll be publishing spans to
 kafka_span_topic: "veneur_spans"
 
-# Name of a tag to hash on for sampling; if empty, all spans are sampled
+# Name of a tag to hash on for sampling; if empty, spans are sampled based off
+# of traceID
 kafka_span_sample_tag: ""
 
 # Sample rate in percent (as an integer)

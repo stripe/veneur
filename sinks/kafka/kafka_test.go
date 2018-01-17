@@ -243,7 +243,68 @@ func TestSpanConstructor(t *testing.T) {
 	assert.Equal(t, time.Second*10, sink.config.Producer.Flush.Frequency, "flush frequency did not set correctly")
 }
 
-func TestSpanSampling(t *testing.T) {
+func TestSpanTraceIdSampling(t *testing.T) {
+	config := sarama.NewConfig()
+	config.Producer.Return.Successes = true
+	producerMock := mocks.NewAsyncProducer(t, config)
+
+	producerMock.ExpectInputAndSucceed()
+
+	// I would use the logrus test logger but the package needs to be
+	// updated from Sirupsen/logrus to sirupsen/logrus
+	// https://github.com/stripe/veneur/issues/277
+	logger := logrus.StandardLogger()
+	logger.SetLevel(logrus.DebugLevel)
+	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
+
+	sink, err := NewKafkaSpanSink(logger, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "json", "", 50, stats)
+	assert.NoError(t, err)
+
+	sink.producer = producerMock
+
+	start := time.Now()
+	end := start.Add(2 * time.Second)
+	// This span's traceID is set so that it will hash in a way that will not allow it to pass
+	testSpanBad := ssf.SSFSpan{
+		TraceId:        1,
+		ParentId:       1,
+		Id:             2,
+		StartTimestamp: int64(start.UnixNano()),
+		EndTimestamp:   int64(end.UnixNano()),
+		Error:          false,
+		Service:        "farts-srv",
+		Tags:           map[string]string{},
+		Indicator:      false,
+		Name:           "farting farty farts",
+	}
+	// This span's traceID is set so that it will hash in a way that will allow it to pass
+	testSpanGood := ssf.SSFSpan{
+		TraceId:        3,
+		ParentId:       3,
+		Id:             4,
+		StartTimestamp: int64(start.UnixNano()),
+		EndTimestamp:   int64(end.UnixNano()),
+		Error:          false,
+		Service:        "farts2-srv",
+		Tags:           map[string]string{},
+		Indicator:      false,
+		Name:           "farting farty farts",
+	}
+
+	sink.Ingest(&testSpanGood)
+	sink.Ingest(&testSpanBad)
+
+	err = producerMock.Close()
+	assert.NoError(t, err)
+
+	for msg := range producerMock.Successes() {
+		contents, err := msg.Value.Encode()
+		assert.NoError(t, err)
+		assert.Contains(t, string(contents), testSpanGood.Tags["baz"])
+	}
+}
+
+func TestSpanTagSampling(t *testing.T) {
 	config := sarama.NewConfig()
 	config.Producer.Return.Successes = true
 	producerMock := mocks.NewAsyncProducer(t, config)

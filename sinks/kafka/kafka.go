@@ -8,6 +8,7 @@ import (
 	"hash/crc32"
 	"io/ioutil"
 	"math"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -293,16 +294,27 @@ func (k *KafkaSpanSink) Start(cl *trace.Client) error {
 // the bytes, messages and interval settings to your tastes!
 func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 
-	// if we've set a sampleTag, we need to determine whether a span should be
-	// sampled.
-	if k.sampleTag != "" {
+	// If we're sampling less than 100%, we should check whether a span should
+	// be sampled:
+	if k.sampleTag != "" || k.sampleThreshold < uint32(math.MaxUint32) {
 		var hashKey uint32
-		sampleTagValue, exists := span.Tags[k.sampleTag]
-		if !exists {
-			// If the span isn't tagged appropriately, we should drop it, regardless
-			// of our sample rate.
-			k.logger.Debug("Rejected span without appropriate tag")
-			return nil
+		var sampleTagValue string
+
+		if k.sampleTag == "" {
+			// If we haven't set a sampleTag, we'll be hashing based on the traceID
+
+			sampleTagValue = strconv.FormatInt(span.TraceId, 10)
+		} else {
+			// If we've set a sampleTag, we'll be hashing based off of that tag's value.
+
+			var exists bool
+			sampleTagValue, exists = span.Tags[k.sampleTag]
+			if !exists {
+				// If the span isn't tagged appropriately, we should drop it, regardless
+				// of our sample rate.
+				k.logger.Debug("Rejected span without appropriate tag")
+				return nil
+			}
 		}
 
 		// Lifted from https://github.com/stathat/consistent/blob/75142be0209ec69bb014c7a1ac7d1a3c892c6424/consistent.go#L238-L245:
@@ -315,10 +327,11 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 		} else {
 			hashKey = crc32.ChecksumIEEE([]byte(sampleTagValue))
 		}
+
 		// Reject any spans whose hash keys end up greater than the threshold that
 		// we previously computed.
 		if hashKey > k.sampleThreshold {
-			k.logger.WithField("sampleTag", k.sampleTag).WithField("sampleTagValue", sampleTagValue).WithField("hashKey", hashKey).WithField("sampleThreshold", k.sampleThreshold).Debug("Rejected span with appropriate tag based off of sampling rules")
+			k.logger.WithField("traceId", span.TraceId).WithField("sampleTag", k.sampleTag).WithField("sampleTagValue", sampleTagValue).WithField("hashKey", hashKey).WithField("sampleThreshold", k.sampleThreshold).Debug("Rejected span based off of sampling rules")
 			return nil
 		}
 	}
