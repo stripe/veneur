@@ -31,7 +31,9 @@ func main() {
 		logrus.WithError(err).Fatal("Error reading config file")
 	}
 
-	server, err := veneur.NewFromConfig(conf)
+	logger := logrus.StandardLogger()
+	server, err := veneur.NewFromConfig(logger, conf)
+	veneur.SetLogger(logger)
 	if err != nil {
 		e := err
 

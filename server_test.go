@@ -129,7 +129,7 @@ func generateMetrics() (metricValues []float64, expectedMetrics map[string]float
 // so that flushes to these sinks do "nothing".
 func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper, mSink sinks.MetricSink, sSink sinks.SpanSink) *Server {
 	logger := logrus.New()
-	server, err := newFromConfig(logger, config)
+	server, err := NewFromConfig(logger, config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -478,9 +478,10 @@ func readTestKeysCerts() (map[string]string, error) {
 // TestTCPConfig checks that invalid configurations are errors
 func TestTCPConfig(t *testing.T) {
 	config := localConfig()
+	logger := logrus.New()
 
 	config.StatsdListenAddresses = []string{"tcp://invalid:invalid"}
-	_, err := NewFromConfig(config)
+	_, err := NewFromConfig(logger, config)
 	if err == nil {
 		t.Error("invalid TCP address is a config error")
 	}
@@ -488,7 +489,7 @@ func TestTCPConfig(t *testing.T) {
 	config.StatsdListenAddresses = []string{"tcp://localhost:8129"}
 	config.TLSKey = "somekey"
 	config.TLSCertificate = ""
-	_, err = NewFromConfig(config)
+	_, err = NewFromConfig(logger, config)
 	if err == nil {
 		t.Error("key without certificate is a config error")
 	}
@@ -499,14 +500,14 @@ func TestTCPConfig(t *testing.T) {
 	}
 	config.TLSKey = pems["serverkey.pem"]
 	config.TLSCertificate = "somecert"
-	_, err = NewFromConfig(config)
+	_, err = NewFromConfig(logger, config)
 	if err == nil {
 		t.Error("invalid key and certificate is a config error")
 	}
 
 	config.TLSKey = pems["serverkey.pem"]
 	config.TLSCertificate = pems["servercert.pem"]
-	_, err = NewFromConfig(config)
+	_, err = NewFromConfig(logger, config)
 	if err != nil {
 		t.Error("expected valid config")
 	}
@@ -881,7 +882,7 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 		Interval:     "10s",
 		StatsAddress: "localhost:62251",
 	}
-	s, err := NewFromConfig(config)
+	s, err := NewFromConfig(logrus.New(), config)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -943,7 +944,7 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 		Interval:     "10s",
 		StatsAddress: "localhost:62251",
 	}
-	s, err := NewFromConfig(config)
+	s, err := NewFromConfig(logrus.New(), config)
 	if err != nil {
 		b.Fatal(err)
 	}

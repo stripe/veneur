@@ -119,12 +119,15 @@ type Server struct {
 	traceBackend *internalTraceBackend
 }
 
-// NewFromConfig creates a new veneur server from a configuration specification.
-func NewFromConfig(conf Config) (*Server, error) {
-	return newFromConfig(log, conf)
+// SetLogger sets the default logger in veneur to the passed value.
+func SetLogger(logger *logrus.Logger) {
+	log = logger
 }
 
-func newFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
+// NewFromConfig creates a new veneur server from a configuration
+// specification and sets up the passed logger according to the
+// configuration.
+func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret := &Server{}
 
 	ret.Hostname = conf.Hostname

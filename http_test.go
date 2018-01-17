@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/samplers"
 )
@@ -291,7 +292,7 @@ func TestNoTracingConfiguredTraceHealthCheck(t *testing.T) {
 	config := localConfig()
 
 	config.SsfListenAddresses = []string{}
-	server, _ := NewFromConfig(config)
+	server, _ := NewFromConfig(logrus.New(), config)
 	server.Start()
 	defer server.Shutdown()
 
