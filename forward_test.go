@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/samplers"
@@ -43,7 +44,7 @@ func newForwardingFixture(t testing.TB, localConfig Config, transport http.Round
 	proxyCfg.ForwardAddress = ff.globalTS.URL
 	proxyCfg.ConsulTraceServiceName = ""
 	proxyCfg.ConsulForwardServiceName = ""
-	proxy, err := NewProxyFromConfig(proxyCfg)
+	proxy, err := NewProxyFromConfig(logrus.New(), proxyCfg)
 	require.NoError(t, err)
 	ff.proxy = &proxy
 

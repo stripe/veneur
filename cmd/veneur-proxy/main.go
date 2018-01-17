@@ -28,7 +28,9 @@ func main() {
 		logrus.WithError(err).Fatal("Error reading config file")
 	}
 
-	proxy, err := veneur.NewProxyFromConfig(conf)
+	logger := logrus.StandardLogger()
+	proxy, err := veneur.NewProxyFromConfig(logger, conf)
+	veneur.SetLogger(logger)
 
 	if err != nil {
 		logrus.WithError(err).Fatal("Could not initialize proxy")

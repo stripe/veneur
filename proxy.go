@@ -51,16 +51,16 @@ type Proxy struct {
 	traceClient     *trace.Client
 }
 
-func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
+func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err error) {
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.WithError(err).Error("Error finding hostname")
+		logger.WithError(err).Error("Error finding hostname")
 		return
 	}
 	p.Hostname = hostname
 
-	log.AddHook(sentryHook{
+	logger.AddHook(sentryHook{
 		c:        p.Sentry,
 		hostname: hostname,
 		lv: []logrus.Level{
@@ -76,7 +76,7 @@ func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
 
 	p.Statsd, err = statsd.NewBuffered(conf.StatsAddress, 1024)
 	if err != nil {
-		log.WithError(err).Error("Failed to create stats instance")
+		logger.WithError(err).Error("Failed to create stats instance")
 		return
 	}
 	p.Statsd.Namespace = "veneur_proxy."
@@ -111,7 +111,7 @@ func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
 
 	if !p.AcceptingForwards && !p.AcceptingTraces {
 		err = errors.New("refusing to start with no Consul service names or static addresses in config")
-		log.WithError(err).WithFields(logrus.Fields{
+		logger.WithError(err).WithFields(logrus.Fields{
 			"consul_forward_service_name": p.ConsulForwardService,
 			"consul_trace_service_name":   p.ConsulTraceService,
 			"forward_address":             conf.ForwardAddress,
@@ -123,10 +123,10 @@ func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
 	if p.usingConsul {
 		p.ConsulInterval, err = time.ParseDuration(conf.ConsulRefreshInterval)
 		if err != nil {
-			log.WithError(err).Error("Error parsing Consul refresh interval")
+			logger.WithError(err).Error("Error parsing Consul refresh interval")
 			return
 		}
-		log.WithField("interval", conf.ConsulRefreshInterval).Info("Will use Consul for service discovery")
+		logger.WithField("interval", conf.ConsulRefreshInterval).Info("Will use Consul for service discovery")
 	}
 	p.traceClient = trace.DefaultClient
 
@@ -134,10 +134,10 @@ func NewProxyFromConfig(conf ProxyConfig) (p Proxy, err error) {
 	//ret.ForwardDestinations.NumberOfReplicas = ???
 
 	if conf.Debug {
-		log.SetLevel(logrus.DebugLevel)
+		logger.SetLevel(logrus.DebugLevel)
 	}
 
-	log.WithField("config", conf).Debug("Initialized server")
+	logger.WithField("config", conf).Debug("Initialized server")
 
 	return
 }

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/samplers"
 )
@@ -91,7 +92,7 @@ func TestAllowStaticServices(t *testing.T) {
 	proxyConfig.ForwardAddress = "localhost:1234"
 	proxyConfig.TraceAddress = "localhost:1234"
 
-	server, error := NewProxyFromConfig(proxyConfig)
+	server, error := NewProxyFromConfig(logrus.New(), proxyConfig)
 	assert.NoError(t, error, "Should start with just static services")
 	assert.False(t, server.usingConsul, "Server isn't using consul")
 }
@@ -103,7 +104,7 @@ func TestMissingServices(t *testing.T) {
 	proxyConfig.ConsulForwardServiceName = ""
 	proxyConfig.ConsulTraceServiceName = ""
 
-	_, error := NewProxyFromConfig(proxyConfig)
+	_, error := NewProxyFromConfig(logrus.New(), proxyConfig)
 	assert.Error(t, error, "No consul services means Proxy won't start")
 }
 
@@ -112,7 +113,7 @@ func TestAcceptingBooleans(t *testing.T) {
 	proxyConfig.ConsulTraceServiceName = ""
 	proxyConfig.TraceAddress = ""
 
-	server, _ := NewProxyFromConfig(proxyConfig)
+	server, _ := NewProxyFromConfig(logrus.New(), proxyConfig)
 	assert.True(t, server.AcceptingForwards, "Server accepts forwards")
 	assert.False(t, server.AcceptingTraces, "Server does not forward traces")
 }
@@ -134,7 +135,7 @@ func TestConsistentForward(t *testing.T) {
 		t:  t,
 		wg: &wg,
 	}
-	server, _ := NewProxyFromConfig(proxyConfig)
+	server, _ := NewProxyFromConfig(logrus.New(), proxyConfig)
 
 	server.HTTPClient.Transport = transport
 	defer server.Shutdown()
