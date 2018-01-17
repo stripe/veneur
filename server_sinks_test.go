@@ -150,7 +150,7 @@ func TestNewDatadogMetricSinkConfig(t *testing.T) {
 		Interval:     "10s",
 		StatsAddress: "localhost:62251",
 	}
-	server, err := NewFromConfig(config)
+	server, err := NewFromConfig(logrus.New(), config)
 
 	if err != nil {
 		t.Fatal(err)

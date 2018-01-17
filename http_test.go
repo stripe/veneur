@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/samplers"
 )
@@ -276,7 +277,6 @@ func TestOkTraceHealthCheck(t *testing.T) {
 	config.TraceLightstepAccessToken = "farts"
 	s := setupVeneurServer(t, config, nil, nil, nil)
 	defer s.Shutdown()
-	HTTPAddrPort++
 
 	w := httptest.NewRecorder()
 
@@ -292,11 +292,9 @@ func TestNoTracingConfiguredTraceHealthCheck(t *testing.T) {
 	config := localConfig()
 
 	config.SsfListenAddresses = []string{}
-	server, _ := NewFromConfig(config)
+	server, _ := NewFromConfig(logrus.New(), config)
 	server.Start()
 	defer server.Shutdown()
-
-	HTTPAddrPort++
 
 	w := httptest.NewRecorder()
 
@@ -313,7 +311,6 @@ func TestBuildDate(t *testing.T) {
 	config.SsfListenAddresses = []string{}
 	s := setupVeneurServer(t, config, nil, nil, nil)
 	defer s.Shutdown()
-	HTTPAddrPort++
 
 	w := httptest.NewRecorder()
 
@@ -346,7 +343,6 @@ func TestVersion(t *testing.T) {
 	config.SsfListenAddresses = []string{}
 	s := setupVeneurServer(t, config, nil, nil, nil)
 	defer s.Shutdown()
-	HTTPAddrPort++
 
 	w := httptest.NewRecorder()
 
@@ -372,7 +368,6 @@ func testServerImportHelper(t *testing.T, data interface{}) {
 	config := localConfig()
 	s := setupVeneurServer(t, config, nil, nil, nil)
 	defer s.Shutdown()
-	HTTPAddrPort++
 
 	handler := handleImport(s)
 	handler.ServeHTTP(w, r)
