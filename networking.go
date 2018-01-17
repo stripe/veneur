@@ -34,6 +34,7 @@ func startStatsdUDP(s *Server, addr *net.UDPAddr, packetPool *sync.Pool) net.Add
 	// call results in a contrete port.
 	if reusePort {
 		sock, err := NewSocket(addr, s.RcvbufBytes, reusePort)
+		defer sock.Close()
 		if err != nil {
 			panic(fmt.Sprintf("couldn't listen on UDP socket %v: %v", addr, err))
 		}
@@ -50,7 +51,7 @@ func startStatsdUDP(s *Server, addr *net.UDPAddr, packetPool *sync.Pool) net.Add
 			// if the sockets support SO_REUSEPORT, then this will cause the
 			// kernel to distribute datagrams across them, for better read
 			// performance
-			sock, err := NewSocket(addr, s.RcvbufBytes, s.numReaders != 1)
+			sock, err := NewSocket(addr, s.RcvbufBytes, reusePort)
 			if err != nil {
 				// if any goroutine fails to create the socket, we can't really
 				// recover, so we just blow up
@@ -58,6 +59,9 @@ func startStatsdUDP(s *Server, addr *net.UDPAddr, packetPool *sync.Pool) net.Add
 				// SO_REUSEPORT support
 				panic(fmt.Sprintf("couldn't listen on UDP socket %v: %v", addr, err))
 			}
+			// Pass the address that we are listening on
+			// back to whoever spawned this goroutine so
+			// it can return that address.
 			once.Do(func() {
 				addrChan <- sock.LocalAddr()
 				log.WithField("address", sock.LocalAddr()).
