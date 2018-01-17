@@ -188,33 +188,37 @@ func TestSpanInstantiateFailure(t *testing.T) {
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
 	// Busted duration
-	_, err := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "farts", "", "", 1.0, stats)
+	_, err := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "farts", "", "", 100, stats)
 	assert.Error(t, err)
 
 	// Missing topic
-	_, err2 := NewKafkaSpanSink(logger, "testing", "", "hash", "all", 1, 2, 3, "farts", "", "", 1.0, stats)
+	_, err2 := NewKafkaSpanSink(logger, "testing", "", "hash", "all", 1, 2, 3, "farts", "", "", 100, stats)
 	assert.Error(t, err2)
 
 	// Missing brokers
-	_, err3 := NewKafkaSpanSink(logger, "", "farts", "hash", "all", 1, 2, 3, "farts", "", "", 1.0, stats)
+	_, err3 := NewKafkaSpanSink(logger, "", "farts", "hash", "all", 1, 2, 3, "farts", "", "", 100, stats)
 	assert.Error(t, err3)
 
-	// Sampling rate set to 0
-	_, err4 := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", 0.0, stats)
+	// Sampling rate set <= 0%
+	_, err4 := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", 0, stats)
 	assert.Error(t, err4)
+
+	// Sampling rate set > 100%
+	_, err5 := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", 101, stats)
+	assert.Error(t, err5)
 }
 
 func TestSpanConstructorAck(t *testing.T) {
 	logger := logrus.StandardLogger()
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
-	sink1, _ := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "none", 1, 2, 3, "10s", "", "", 1.0, stats)
+	sink1, _ := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "none", 1, 2, 3, "10s", "", "", 100, stats)
 	assert.Equal(t, sarama.NoResponse, sink1.config.Producer.RequiredAcks, "ack did not set correctly")
 
-	sink2, _ := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "local", 1, 2, 3, "10s", "", "", 1.0, stats)
+	sink2, _ := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "local", 1, 2, 3, "10s", "", "", 100, stats)
 	assert.Equal(t, sarama.WaitForLocal, sink2.config.Producer.RequiredAcks, "ack did not set correctly")
 
-	sink3, _ := NewKafkaSpanSink(logger, "testing", "veneur_spans", "random", "farts", 1, 2, 3, "10s", "", "", 1.0, stats)
+	sink3, _ := NewKafkaSpanSink(logger, "testing", "veneur_spans", "random", "farts", 1, 2, 3, "10s", "", "", 100, stats)
 	assert.Equal(t, sarama.WaitForAll, sink3.config.Producer.RequiredAcks, "ack did not default correctly")
 }
 
@@ -222,7 +226,7 @@ func TestSpanConstructor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
-	sink, err := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", 1.0, stats)
+	sink, err := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "foo", 100, stats)
 	assert.NoError(t, err)
 	assert.Equal(t, "kafka", sink.Name())
 
@@ -234,15 +238,6 @@ func TestSpanConstructor(t *testing.T) {
 	assert.Equal(t, 2, sink.config.Producer.Flush.Bytes, "buffer bytes did not set correctly")
 	assert.Equal(t, 3, sink.config.Producer.Flush.Messages, "buffer messages did not set correctly")
 	assert.Equal(t, time.Second*10, sink.config.Producer.Flush.Frequency, "flush frequency did not set correctly")
-}
-
-func TestSpanSamplingTooHigh(t *testing.T) {
-	logger := logrus.StandardLogger()
-	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
-
-	sink, err := NewKafkaSpanSink(logger, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", 1.1, stats)
-	assert.NoError(t, err)
-	assert.Equal(t, uint32(math.MaxUint32), sink.sampleThreshold)
 }
 
 func TestSpanSampling(t *testing.T) {
@@ -259,7 +254,7 @@ func TestSpanSampling(t *testing.T) {
 	logger.SetLevel(logrus.DebugLevel)
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
-	sink, err := NewKafkaSpanSink(logger, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "json", "baz", 0.5, stats)
+	sink, err := NewKafkaSpanSink(logger, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "json", "baz", 50, stats)
 	assert.NoError(t, err)
 
 	sink.producer = producerMock
@@ -345,7 +340,7 @@ func TestBadDuration(t *testing.T) {
 	logger := logrus.StandardLogger()
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
-	_, err := NewKafkaSpanSink(logger, "testing", "", "hash", "all", 0, 0, 0, "pthbbbbbt", "", "", 1.0, stats)
+	_, err := NewKafkaSpanSink(logger, "testing", "", "hash", "all", 0, 0, 0, "pthbbbbbt", "", "", 100, stats)
 	assert.Error(t, err)
 }
 
@@ -362,7 +357,7 @@ func TestSpanFlushJson(t *testing.T) {
 	logger := logrus.StandardLogger()
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
-	sink, err := NewKafkaSpanSink(logger, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "json", "", 1.0, stats)
+	sink, err := NewKafkaSpanSink(logger, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "json", "", 100, stats)
 	assert.NoError(t, err)
 
 	sink.producer = producerMock
@@ -406,7 +401,7 @@ func TestSpanFlushProtobuf(t *testing.T) {
 	logger := logrus.StandardLogger()
 	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
-	sink, err := NewKafkaSpanSink(logger, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "protobuf", "", 1.0, stats)
+	sink, err := NewKafkaSpanSink(logger, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "protobuf", "", 100, stats)
 	assert.NoError(t, err)
 
 	sink.producer = producerMock

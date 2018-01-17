@@ -224,9 +224,10 @@ kafka_span_topic: "veneur_spans"
 # Name of a tag to hash on for sampling; if empty, all spans are sampled
 kafka_span_sample_tag: ""
 
-# Set to the floating point sampling rate on a particular tag.
-# If set above 1.0, this will default to 1.0
-kafka_span_sample_rate: 1.1
+# Sample rate in percent (as an integer)
+# This should ideally be a floating point number, but at the time this was
+# written, gojson interpreted whole-number floats in yaml as integers.
+kafka_span_sample_rate_percent: 100
 
 kafka_metric_buffer_bytes: 0
 
