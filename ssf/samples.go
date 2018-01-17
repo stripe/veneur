@@ -89,11 +89,12 @@ func create(base *SSFSample, opts []SampleOption) *SSFSample {
 	return base
 }
 
-// Sampled takes a rate and a set of measurements, and returns them as
-// if sampling had been performed: Each measurement gets
-// rejected/included in the result based on a random roll of the RNG
-// according to the rate, and each measurement has its SampleRate
-// field adjusted to match the existing SampleRate * rate.
+// Sampled takes a rate and a set of measurements, and returns a new
+// set of measurements as if sampling had been performed: Each
+// original measurement gets rejected/included in the result based on
+// a random roll of the RNG according to the rate, and each included
+// measurement has its SampleRate field adjusted to be its original
+// SampleRate * rate.
 func Sampled(rate float32, samples ...*SSFSample) []*SSFSample {
 	res := make([]*SSFSample, 0, len(samples))
 
