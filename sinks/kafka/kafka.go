@@ -297,29 +297,29 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 	// sampled.
 	if k.sampleTag != "" {
 		var hashKey uint32
-		sampleTag, exists := span.Tags[k.sampleTag]
+		sampleTagValue, exists := span.Tags[k.sampleTag]
 		if !exists {
 			// If the span isn't tagged appropriately, we should drop it, regardless
 			// of our sample rate.
 			k.logger.Debug("Rejected span without appropriate tag")
 			return nil
+		}
+
+		// Lifted from https://github.com/stathat/consistent/blob/75142be0209ec69bb014c7a1ac7d1a3c892c6424/consistent.go#L238-L245:
+		// if the sample tag value that we're hashing is shorter than 64 bytes, we
+		// need to pad it with zeroes for the crc32.ChecksumIEEE function.
+		if len(sampleTagValue) < 64 {
+			var scratch [64]byte
+			copy(scratch[:], sampleTagValue)
+			hashKey = crc32.ChecksumIEEE(scratch[:len(sampleTagValue)])
 		} else {
-			// Lifted from https://github.com/stathat/consistent/blob/75142be0209ec69bb014c7a1ac7d1a3c892c6424/consistent.go#L238-L245:
-			// if the sample tag value that we're hashing is shorter than 64 bytes, we
-			// need to pad it with zeroes for the crc32.ChecksumIEEE function.
-			if len(sampleTag) < 64 {
-				var scratch [64]byte
-				copy(scratch[:], sampleTag)
-				hashKey = crc32.ChecksumIEEE(scratch[:len(sampleTag)])
-			} else {
-				hashKey = crc32.ChecksumIEEE([]byte(sampleTag))
-			}
-			// Reject any spans whose hash keys end up greater than the threshold that
-			// we previously computed.
-			if hashKey > k.sampleThreshold {
-				k.logger.WithField("hashKey", hashKey).WithField("sampleThreshold", k.sampleThreshold).Debug("Rejected span with appropriate tag based off of sampling rules")
-				return nil
-			}
+			hashKey = crc32.ChecksumIEEE([]byte(sampleTagValue))
+		}
+		// Reject any spans whose hash keys end up greater than the threshold that
+		// we previously computed.
+		if hashKey > k.sampleThreshold {
+			k.logger.WithField("sampleTag", k.sampleTag).WithField("sampleTagValue", sampleTagValue).WithField("hashKey", hashKey).WithField("sampleThreshold", k.sampleThreshold).Debug("Rejected span with appropriate tag based off of sampling rules")
+			return nil
 		}
 	}
 

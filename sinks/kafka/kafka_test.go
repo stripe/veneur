@@ -233,6 +233,9 @@ func TestSpanConstructor(t *testing.T) {
 	assert.Equal(t, "protobuf", sink.serializer, "Serializer did not default correctly")
 	assert.Equal(t, "veneur_spans", sink.topic, "Topic did not set correctly")
 
+	assert.Equal(t, uint32(math.MaxUint32), sink.sampleThreshold, "Sample threshold did not set correctly")
+	assert.Equal(t, "foo", sink.sampleTag, "Sample tag did not set correctly")
+
 	assert.Equal(t, sarama.WaitForAll, sink.config.Producer.RequiredAcks, "ack did not set correctly")
 	assert.Equal(t, 1, sink.config.Producer.Retry.Max, "retries did not set correctly")
 	assert.Equal(t, 2, sink.config.Producer.Flush.Bytes, "buffer bytes did not set correctly")
