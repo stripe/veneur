@@ -8,6 +8,11 @@
 ** `trace_api_address` - replaced in 1.5.0 by `datadog_trace_api_address`
 ** `ssf_address` - replaced in 1.7.0 by `ssf_listen_addresses`
 ** `tcp_address` and `udp_address` - replaced in 1.7.0 by `statsd_listen_addresses`
+* These metrics have changed names:
+** Datadog, MetricExtraction, and SignalFx sinks now emit `veneur.sink.metric_flush_total_duration_ns` for metric flush duration and tag it with `sink`
+** Datadog, Kafka, MetricExtraction, and SignalFx sinks now emits `sink.metrics_flushed_total` for metric flush counts and tag it with `sink`
+** Datadog and LightStep sinks now emit `veneur.sink.span_flush_total_duration_ns` for span flush duration and tag it with `sink`
+** Datadog, Kafka, MetricExtraction, and LightStep sinks now emit `sink.spans_flushed_total` for metric flush counts and tag it with `sink`
 
 ## Added
 * `veneur-emit` now infers parent and trace IDs from the environment (using the variables `VENEUR_EMIT_TRACE_ID` and `VENEUR_EMIT_PARENT_SPAN_ID`) and sets these environment variables from its `-trace_id` and `parent_span_id` when timing commands, allowing for convenient construction of trace trees if traced programs call `veneur-emit` themselves. Thanks, [antifuchs](https://github.com/antifuchs)
