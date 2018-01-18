@@ -234,6 +234,8 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 	return finalMetrics
 }
 
+const flushTotalMetric = "worker.metrics_flushed_total"
+
 // computeMetricsFlushCounts reports the counts of
 // Counters, Gauges, LocalHistograms, LocalSets, and LocalTimers
 // as metrics. These are shared by both global and local flush operations.
@@ -243,11 +245,11 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 // that should happen *after* the flush-forward operation.
 func (s *Server) computeMetricsFlushCounts(ms metricsSummary) []*ssf.SSFSample {
 	return []*ssf.SSFSample{
-		ssf.Count("worker.metrics_flushed_total", float32(ms.totalCounters), map[string]string{"metric_type": "counter"}),
-		ssf.Count("worker.metrics_flushed_total", float32(ms.totalGauges), map[string]string{"metric_type": "gauge"}),
-		ssf.Count("worker.metrics_flushed_total", float32(ms.totalLocalHistograms), map[string]string{"metric_type": "local_histogram"}),
-		ssf.Count("worker.metrics_flushed_total", float32(ms.totalLocalSets), map[string]string{"metric_type": "local_set"}),
-		ssf.Count("worker.metrics_flushed_total", float32(ms.totalLocalTimers), map[string]string{"metric_type": "local_timer"}),
+		ssf.Count(flushTotalMetric, float32(ms.totalCounters), map[string]string{"metric_type": "counter"}),
+		ssf.Count(flushTotalMetric, float32(ms.totalGauges), map[string]string{"metric_type": "gauge"}),
+		ssf.Count(flushTotalMetric, float32(ms.totalLocalHistograms), map[string]string{"metric_type": "local_histogram"}),
+		ssf.Count(flushTotalMetric, float32(ms.totalLocalSets), map[string]string{"metric_type": "local_set"}),
+		ssf.Count(flushTotalMetric, float32(ms.totalLocalTimers), map[string]string{"metric_type": "local_timer"}),
 	}
 }
 
@@ -262,11 +264,11 @@ func (s *Server) computeGlobalMetricsFlushCounts(ms metricsSummary) []*ssf.SSFSa
 	// histograms that it received, and then a global veneur reports them
 	// again
 	return []*ssf.SSFSample{
-		ssf.Count("worker.metrics_flushed_total", float32(ms.totalGlobalCounters), map[string]string{"metric_type": "global_counter"}),
-		ssf.Count("worker.metrics_flushed_total", float32(ms.totalGlobalGauges), map[string]string{"metric_type": "global_gauge"}),
-		ssf.Count("worker.metrics_flushed_total", float32(ms.totalHistograms), map[string]string{"metric_type": "histogram"}),
-		ssf.Count("worker.metrics_flushed_total", float32(ms.totalSets), map[string]string{"metric_type": "set"}),
-		ssf.Count("worker.metrics_flushed_total", float32(ms.totalTimers), map[string]string{"metric_type": "timer"}),
+		ssf.Count(flushTotalMetric, float32(ms.totalGlobalCounters), map[string]string{"metric_type": "global_counter"}),
+		ssf.Count(flushTotalMetric, float32(ms.totalGlobalGauges), map[string]string{"metric_type": "global_gauge"}),
+		ssf.Count(flushTotalMetric, float32(ms.totalHistograms), map[string]string{"metric_type": "histogram"}),
+		ssf.Count(flushTotalMetric, float32(ms.totalSets), map[string]string{"metric_type": "set"}),
+		ssf.Count(flushTotalMetric, float32(ms.totalTimers), map[string]string{"metric_type": "timer"}),
 	}
 }
 
