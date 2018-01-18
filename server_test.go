@@ -556,20 +556,22 @@ func TestUDPMetrics(t *testing.T) {
 	config.NumWorkers = 1
 	config.Interval = "60s"
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0"}
-	f := newFixture(t, config, nil, nil)
+	ch := make(chan []samplers.InterMetric, 20)
+	sink, _ := NewChannelMetricSink(ch)
+	f := newFixture(t, config, sink, nil)
 	defer f.Close()
-	// Add a bit of delay to ensure things get listening
-	time.Sleep(20 * time.Millisecond)
 
 	addr := f.server.StatsdListenAddrs[0]
-	conn, err := net.Dial(addr.Network(), addr.String())
-	assert.NoError(t, err)
-	defer conn.Close()
+	conn := connectToAddress(t, "udp", addr.String(), 20*time.Millisecond)
 
 	conn.Write([]byte("foo.bar:1|c|#baz:gorch"))
-	// Add a bit of delay to ensure things get processed
-	time.Sleep(20 * time.Millisecond)
-	assert.Equal(t, int64(1), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+	ctx, cancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
+	defer cancel()
+	keepFlushing(ctx, f.server)
+
+	metrics := <-ch
+	require.Equal(t, 1, len(metrics), "we got a single metric")
+	assert.Equal(t, "foo.bar", metrics[0].Name, "worker processed the metric")
 }
 
 func TestMultipleUDPSockets(t *testing.T) {
@@ -577,26 +579,38 @@ func TestMultipleUDPSockets(t *testing.T) {
 	config.NumWorkers = 1
 	config.Interval = "60s"
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}
-	f := newFixture(t, config, nil, nil)
+	ch := make(chan []samplers.InterMetric, 20)
+	sink, _ := NewChannelMetricSink(ch)
+	f := newFixture(t, config, sink, nil)
 	defer f.Close()
-	// Add a bit of delay to ensure things get listening
-	time.Sleep(20 * time.Millisecond)
 
 	addr1 := f.server.StatsdListenAddrs[0]
 	addr2 := f.server.StatsdListenAddrs[1]
-	conn, err := net.Dial("udp", addr1.String())
-	assert.NoError(t, err)
-	defer conn.Close()
-	conn.Write([]byte("foo.bar:1|c|#baz:gorch"))
+	conn1 := connectToAddress(t, "udp", addr1.String(), 20*time.Millisecond)
+	defer conn1.Close()
+	conn1.Write([]byte("foo.bar:1|c|#baz:gorch"))
 
-	conn2, err := net.Dial("udp", addr2.String())
-	assert.NoError(t, err)
+	{
+		ctx, cancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
+		defer cancel()
+		keepFlushing(ctx, f.server)
+		metrics := <-ch
+		require.Equal(t, 1, len(metrics), "we got a single metric")
+		assert.Equal(t, "foo.bar", metrics[0].Name, "worker processed the metric")
+		cancel()
+	}
+
+	conn2 := connectToAddress(t, "udp", addr2.String(), 20*time.Millisecond)
 	defer conn2.Close()
 	conn2.Write([]byte("foo.bar:1|c|#baz:gorch"))
-
-	// Add a bit of delay to ensure things get processed
-	time.Sleep(20 * time.Millisecond)
-	assert.Equal(t, int64(2), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+	{
+		ctx, cancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
+		defer cancel()
+		keepFlushing(ctx, f.server)
+		metrics := <-ch
+		require.Equal(t, 1, len(metrics), "we got a single metric")
+		assert.Equal(t, "foo.bar", metrics[0].Name, "worker processed the metric")
+	}
 }
 
 func TestUDPMetricsSSF(t *testing.T) {
@@ -604,14 +618,13 @@ func TestUDPMetricsSSF(t *testing.T) {
 	config.NumWorkers = 1
 	config.Interval = "60s"
 	config.SsfListenAddresses = []string{"udp://127.0.0.1:0"}
-	f := newFixture(t, config, nil, nil)
+	ch := make(chan []samplers.InterMetric, 20)
+	sink, _ := NewChannelMetricSink(ch)
+	f := newFixture(t, config, sink, nil)
 	defer f.Close()
-	// listen delay
-	time.Sleep(20 * time.Millisecond)
 
 	addr := f.server.SSFListenAddrs[0]
-	conn, err := net.Dial("udp", addr.String())
-	assert.NoError(t, err)
+	conn := connectToAddress(t, "udp", addr.String(), 20*time.Millisecond)
 	defer conn.Close()
 
 	testSample := &ssf.SSFSpan{}
@@ -626,12 +639,57 @@ func TestUDPMetricsSSF(t *testing.T) {
 	packet, err := proto.Marshal(testSample)
 	assert.NoError(t, err)
 	conn.Write(packet)
+	// unfortunately, we don't know when the UDP packet made it,
+	// so we'll have to wait a little while here:
 
-	time.Sleep(20 * time.Millisecond)
-	assert.Equal(t, int64(1), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+	ctx, cancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
+	defer cancel()
+	keepFlushing(ctx, f.server)
+	metrics := <-ch
+	require.Equal(t, 1, len(metrics), "we got a single metric")
+	assert.Equal(t, "test.metric", metrics[0].Name, "worker processed the metric")
+}
+
+func connectToAddress(t *testing.T, network string, addr string, timeout time.Duration) net.Conn {
+	ch := make(chan net.Conn)
+	go func() {
+		for {
+			conn, err := net.Dial(network, addr)
+			if err != nil {
+				time.Sleep(30 * time.Microsecond)
+				continue
+			}
+			ch <- conn
+			return
+		}
+	}()
+	select {
+	case conn := <-ch:
+		return conn
+	case <-time.After(timeout):
+		t.Fatalf("timed out connecting after %v", timeout)
+	}
+	return nil // this should not be reached
+}
+
+// keepFlushing flushes a veneur server in a tight loop until the
+// context is canceled.
+func keepFlushing(ctx context.Context, server *Server) {
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				server.Flush(ctx)
+				time.Sleep(time.Millisecond)
+			}
+		}
+	}()
 }
 
 func TestUNIXMetricsSSF(t *testing.T) {
+	ctx := context.TODO()
 	tdir, err := ioutil.TempDir("", "unixmetrics_ssf")
 	require.NoError(t, err)
 	defer os.RemoveAll(tdir)
@@ -641,13 +699,12 @@ func TestUNIXMetricsSSF(t *testing.T) {
 	config.Interval = "60s"
 	path := filepath.Join(tdir, "test.sock")
 	config.SsfListenAddresses = []string{fmt.Sprintf("unix://%s", path)}
-	f := newFixture(t, config, nil, nil)
+	ch := make(chan []samplers.InterMetric, 20)
+	sink, _ := NewChannelMetricSink(ch)
+	f := newFixture(t, config, sink, nil)
 	defer f.Close()
-	// listen delay
-	time.Sleep(20 * time.Millisecond)
 
-	conn, err := net.Dial("unix", path)
-	assert.NoError(t, err)
+	conn := connectToAddress(t, "unix", path, 500*time.Millisecond)
 	defer conn.Close()
 
 	testSpan := &ssf.SSFSpan{}
@@ -659,16 +716,27 @@ func TestUNIXMetricsSSF(t *testing.T) {
 	testMetric.Tags["tag"] = "tagValue"
 	testSpan.Metrics = append(testSpan.Metrics, testMetric)
 
+	t.Log("Writing the first metric")
 	_, err = protocol.WriteSSF(conn, testSpan)
+	firstCtx, firstCancel := context.WithTimeout(ctx, 20*time.Millisecond)
+	defer firstCancel()
+	keepFlushing(firstCtx, f.server)
 	if assert.NoError(t, err) {
-		time.Sleep(20 * time.Millisecond)
-		assert.Equal(t, int64(1), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+		metrics := <-ch
+		require.Equal(t, 1, len(metrics), "we sent a single metric")
+		assert.Equal(t, "test.metric", metrics[0].Name, "worker processed the first metric")
 	}
+	firstCancel() // stop flushing like mad
 
+	t.Log("Writing the second metric")
+	secondCtx, secondCancel := context.WithTimeout(ctx, 20*time.Millisecond)
+	defer secondCancel()
 	_, err = protocol.WriteSSF(conn, testSpan)
+	keepFlushing(secondCtx, f.server)
 	if assert.NoError(t, err) {
-		time.Sleep(20 * time.Millisecond)
-		assert.Equal(t, int64(2), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+		metrics := <-ch
+		require.Equal(t, 1, len(metrics), "we sent a single metric")
+		assert.Equal(t, "test.metric", metrics[0].Name, "worker processed the second metric")
 	}
 }
 
@@ -680,12 +748,8 @@ func TestIgnoreLongUDPMetrics(t *testing.T) {
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0"}
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
-	// Add a bit of delay to ensure things get listening
-	time.Sleep(20 * time.Millisecond)
 
-	addr := f.server.StatsdListenAddrs[0]
-	conn, err := net.Dial("udp", addr.String())
-	assert.NoError(t, err)
+	conn := connectToAddress(t, "udp", f.server.StatsdListenAddrs[0].String(), 20*time.Millisecond)
 	defer conn.Close()
 
 	// nb this metric is bad because it's too long based on the `MetricMaxLength`
@@ -1068,6 +1132,10 @@ func TestSSFMetricsEndToEnd(t *testing.T) {
 	err = trace.Record(client, span, done)
 	require.NoError(t, err)
 	require.NoError(t, <-done)
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
+	defer cancel()
+	keepFlushing(ctx, f.server)
 
 	n := 0
 	metrics := <-metricsChan
