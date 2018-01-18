@@ -2,6 +2,7 @@
 package metrics
 
 import (
+	"fmt"
 	"sync/atomic"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -12,6 +13,9 @@ import (
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
+
+const totalMetricsFlushedMetricKey = "sink.metrics_flushed_total"
+const totalSpansFlushedMetricKey = "sink.spans_flushed_total"
 
 type metricExtractionSink struct {
 	workers                []Processor
@@ -111,8 +115,8 @@ func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 }
 
 func (m metricExtractionSink) Flush() {
-	m.statsd.Count("sink.spans_processed_total", atomic.LoadInt64(&m.spansProcessed), []string{"sink:metric_extraction"}, 1.0)
-	m.statsd.Count("sink.metrics_generated_total", atomic.LoadInt64(&m.metricsGenerated), []string{"sink:metric_extraction"}, 1.0)
+	m.statsd.Count(totalSpansFlushedMetricKey, atomic.LoadInt64(&m.spansProcessed), []string{fmt.Sprintf("sink:%s", m.Name())}, 1.0)
+	m.statsd.Count(totalMetricsFlushedMetricKey, atomic.LoadInt64(&m.metricsGenerated), []string{fmt.Sprintf("sink:%s", m.Name())}, 1.0)
 
 	atomic.SwapInt64(&m.spansProcessed, 0)
 	atomic.SwapInt64(&m.metricsGenerated, 0)

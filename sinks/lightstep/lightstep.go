@@ -24,7 +24,7 @@ const lightstepDefaultInterval = 5 * time.Minute
 
 const lightStepOperationKey = "name"
 
-const totalSpansFlushedMetricKey = "worker.spans_flushed_total"
+const totalSpansFlushedMetricKey = "sink.spans_flushed_total"
 
 // LightStepSpanSink is a sink for spans to be sent to the LightStep client.
 type LightStepSpanSink struct {
@@ -198,7 +198,7 @@ func (ls *LightStepSpanSink) Flush() {
 	totalCount := int64(0)
 	for service, count := range ls.serviceCount {
 		totalCount += count
-		ls.stats.Count(totalSpansFlushedMetricKey, count, []string{"sink:lightstep", fmt.Sprintf("service:%s", service)}, 1)
+		ls.stats.Count(totalSpansFlushedMetricKey, count, []string{fmt.Sprintf("sink:%s", ls.Name()), fmt.Sprintf("service:%s", service)}, 1)
 	}
 	ls.serviceCount = make(map[string]int64)
 	ls.log.WithField("total_spans", totalCount).Debug("Checkpointing flushed spans for Lightstep")

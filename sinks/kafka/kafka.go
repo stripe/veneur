@@ -23,6 +23,9 @@ import (
 var _ sinks.MetricSink = &KafkaMetricSink{}
 var _ sinks.SpanSink = &KafkaSpanSink{}
 
+const totalMetricsFlushedMetricKey = "sink.metrics_flushed_total"
+const totalSpansFlushedMetricKey = "sink.spans_flushed_total"
+
 type KafkaMetricSink struct {
 	logger      *logrus.Entry
 	producer    sarama.AsyncProducer
@@ -173,8 +176,6 @@ func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.Int
 		return nil
 	}
 
-	sendMetricStart := time.Now()
-
 	successes := int64(0)
 	for _, metric := range interMetrics {
 		if !sinks.IsAcceptableMetric(metric, k) {
@@ -196,8 +197,7 @@ func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.Int
 		successes++
 	}
 
-	k.statsd.TimeInMilliseconds("sink.metric_flush_total_duration_ns", float64(time.Since(sendMetricStart).Nanoseconds()), []string{"sink:kafka"}, 1.0)
-	k.statsd.Count("sink.metrics_flushed_total", int64(successes), []string{"sink:kafka"}, 1.0)
+	k.statsd.Count(totalMetricsFlushedMetricKey, int64(successes), []string{fmt.Sprintf("sink:%s", k.Name())}, 1.0)
 	return nil
 }
 
@@ -313,6 +313,6 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 func (k *KafkaSpanSink) Flush() {
 	// TODO We have no stuff in here for detecting failed writes from the async
 	// producer. We should add that.
-	k.statsd.Count("sink.spans_flushed_total", atomic.LoadInt64(&k.spansFlushed), []string{"sink:kafka"}, 1.0)
+	k.statsd.Count(totalSpansFlushedMetricKey, atomic.LoadInt64(&k.spansFlushed), []string{fmt.Sprintf("sink:%s", k.Name())}, 1.0)
 	atomic.SwapInt64(&k.spansFlushed, 0)
 }
