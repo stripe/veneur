@@ -8,8 +8,14 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
-// MetricSinks should emit these metrics, tagged with `sink:sink.Name()`.
+// MetricKeyMetricFlushDuration should be emitted as a timer by a MetricSink
+// if possible. Tagged with `sink:sink.Name()`. The `Flush` function is a great
+// place to do this.
 const MetricKeyMetricFlushDuration = "sink.metric_flush_total_duration_ns"
+
+// MetricKeyTotalMetricsFlushed should be emitted as a counter by a MetricSink
+// if possible. Tagged with `sink:sink.Name()`. The `Flush` function is a great
+// place to do this.
 const MetricKeyTotalMetricsFlushed = "sink.metrics_flushed_total"
 
 // MetricSink is a receiver of `InterMetric`s when Veneur periodically flushes
@@ -40,8 +46,14 @@ func IsAcceptableMetric(metric samplers.InterMetric, sink MetricSink) bool {
 	return metric.Sinks.RouteTo(sink.Name())
 }
 
-// SpanSinks should emit these metrics, tagged with `sink:sink.Name()`.
+// MetricKeySpanFlushDuration should be emitted as a timer by a SpanSink
+// if possible. Tagged with `sink:sink.Name()`. The `Flush` function is a great
+// place to do this. If your sync does async sends, this might not be necessary.
 const MetricKeySpanFlushDuration = "sink.span_flush_total_duration_ns"
+
+// MetricKeyTotalSpansFlushed should be emitted as a counter by a SpanSink
+// if possible. Tagged with `sink:sink.Name()`. The `Flush` function is a great
+// place to do this.
 const MetricKeyTotalSpansFlushed = "sink.spans_flushed_total"
 
 // SpanSink is a receiver of spans that handles sending those spans to some
