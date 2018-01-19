@@ -244,7 +244,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	for i, w := range ret.Workers {
 		processors[i] = w
 	}
-	metricSink, err := metrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, log)
+	metricSink, err := metrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, ret.Statsd, log)
 	if err != nil {
 		return ret, err
 	}

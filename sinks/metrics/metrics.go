@@ -2,6 +2,10 @@
 package metrics
 
 import (
+	"fmt"
+	"sync/atomic"
+
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
@@ -14,6 +18,9 @@ type metricExtractionSink struct {
 	workers                []Processor
 	indicatorSpanTimerName string
 	log                    *logrus.Logger
+	statsd                 *statsd.Client
+	spansProcessed         int64
+	metricsGenerated       int64
 }
 
 var _ sinks.SpanSink = &metricExtractionSink{}
@@ -27,11 +34,12 @@ type Processor interface {
 // NewMetricExtractionSink sets up and creates a span sink that
 // extracts metrics ("samples") from SSF spans and reports them to a
 // veneur's metrics workers.
-func NewMetricExtractionSink(mw []Processor, timerName string, log *logrus.Logger) (sinks.SpanSink, error) {
+func NewMetricExtractionSink(mw []Processor, timerName string, statsd *statsd.Client, log *logrus.Logger) (sinks.SpanSink, error) {
 	return &metricExtractionSink{
 		workers:                mw,
 		indicatorSpanTimerName: timerName,
-		log: log,
+		statsd:                 statsd,
+		log:                    log,
 	}, nil
 }
 
@@ -84,6 +92,8 @@ func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 			return err
 		}
 	}
+	atomic.AddInt64(&m.spansProcessed, 1)
+	atomic.AddInt64(&m.metricsGenerated, int64(len(metrics)))
 	m.sendMetrics(metrics)
 
 	if err := protocol.ValidateTrace(span); err != nil {
@@ -102,5 +112,10 @@ func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 }
 
 func (m metricExtractionSink) Flush() {
+	m.statsd.Count(sinks.MetricKeyTotalSpansFlushed, atomic.LoadInt64(&m.spansProcessed), []string{fmt.Sprintf("sink:%s", m.Name())}, 1.0)
+	m.statsd.Count(sinks.MetricKeyTotalMetricsFlushed, atomic.LoadInt64(&m.metricsGenerated), []string{fmt.Sprintf("sink:%s", m.Name())}, 1.0)
+
+	atomic.SwapInt64(&m.spansProcessed, 0)
+	atomic.SwapInt64(&m.metricsGenerated, 0)
 	return
 }
