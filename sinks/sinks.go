@@ -8,6 +8,10 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
+// MetricSinks should emit these metrics, tagged with `sink:sink.Name()`.
+const MetricKeyMetricFlushDuration = "sink.metric_flush_total_duration_ns"
+const MetricKeyTotalMetricsFlushed = "sink.metrics_flushed_total"
+
 // MetricSink is a receiver of `InterMetric`s when Veneur periodically flushes
 // it's aggregated metrics.
 type MetricSink interface {
@@ -35,6 +39,10 @@ func IsAcceptableMetric(metric samplers.InterMetric, sink MetricSink) bool {
 	}
 	return metric.Sinks.RouteTo(sink.Name())
 }
+
+// SpanSinks should emit these metrics, tagged with `sink:sink.Name()`.
+const MetricKeySpanFlushDuration = "sink.span_flush_total_duration_ns"
+const MetricKeyTotalSpansFlushed = "sink.spans_flushed_total"
 
 // SpanSink is a receiver of spans that handles sending those spans to some
 // downstream sink. Calls to `Ingest(span)` are meant to give the sink control

@@ -21,10 +21,6 @@ import (
 
 const DatadogResourceKey = "resource"
 const datadogNameKey = "name"
-const metricFlushDurationMetricKey = "sink.metric_flush_total_duration_ns"
-const totalMetricsFlushedMetricKey = "sink.metrics_flushed_total"
-const spanFlushDurationMetricKey = "sink.metric_flush_total_duration_ns"
-const totalSpansFlushedMetricKey = "sink.spans_flushed_total"
 
 type DatadogMetricSink struct {
 	HTTPClient      *http.Client
@@ -102,8 +98,8 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 		go dd.flushPart(span.Attach(ctx), chunk, &wg)
 	}
 	wg.Wait()
-	dd.statsd.TimeInMilliseconds(metricFlushDurationMetricKey, float64(time.Since(flushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", dd.Name())}, 1.0)
-	dd.statsd.Count(totalMetricsFlushedMetricKey, int64(len(metrics)), []string{fmt.Sprintf("sink:%s", dd.Name())}, 1.0)
+	dd.statsd.TimeInMilliseconds(sinks.MetricKeyMetricFlushDuration, float64(time.Since(flushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", dd.Name())}, 1.0)
+	dd.statsd.Count(sinks.MetricKeyTotalMetricsFlushed, int64(len(metrics)), []string{fmt.Sprintf("sink:%s", dd.Name())}, 1.0)
 
 	dd.log.WithField("metrics", len(metrics)).Info("Completed flush to Datadog")
 	return nil
@@ -416,9 +412,9 @@ func (dd *DatadogSpanSink) Flush() {
 				logrus.ErrorKey: err}).Warn("Error flushing traces to Datadog")
 		}
 		for service, count := range serviceCount {
-			dd.stats.Count(totalSpansFlushedMetricKey, count, []string{fmt.Sprintf("sink:%s", dd.Name()), fmt.Sprintf("service:%s", service)}, 1)
+			dd.stats.Count(sinks.MetricKeyTotalSpansFlushed, count, []string{fmt.Sprintf("sink:%s", dd.Name()), fmt.Sprintf("service:%s", service)}, 1)
 		}
-		dd.stats.TimeInMilliseconds(spanFlushDurationMetricKey, float64(time.Since(flushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", dd.Name())}, 1.0)
+		dd.stats.TimeInMilliseconds(sinks.MetricKeySpanFlushDuration, float64(time.Since(flushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", dd.Name())}, 1.0)
 	} else {
 		dd.log.Info("No traces to flush to Datadog, skipping.")
 	}

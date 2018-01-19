@@ -17,9 +17,6 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
-const metricFlushDurationMetricKey = "sink.metric_flush_total_duration_ns"
-const totalMetricsFlushedMetricKey = "sink.metrics_flushed_total"
-
 type SignalFxSink struct {
 	client           dpsink.Sink
 	endpoint         string
@@ -101,8 +98,8 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	if err != nil {
 		span.Error(err)
 	}
-	sfx.statsd.TimeInMilliseconds(metricFlushDurationMetricKey, float64(time.Since(flushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", sfx.Name())}, 1.0)
-	sfx.statsd.Count(totalMetricsFlushedMetricKey, int64(len(points)), []string{fmt.Sprintf("sink:%s", sfx.Name())}, 1.0)
+	sfx.statsd.TimeInMilliseconds(sinks.MetricKeyMetricFlushDuration, float64(time.Since(flushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", sfx.Name())}, 1.0)
+	sfx.statsd.Count(sinks.MetricKeyTotalMetricsFlushed, int64(len(points)), []string{fmt.Sprintf("sink:%s", sfx.Name())}, 1.0)
 	sfx.log.WithField("metrics", len(interMetrics)).Info("Completed flush to SignalFx")
 
 	return err
