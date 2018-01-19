@@ -98,8 +98,8 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	if err != nil {
 		span.Error(err)
 	}
-	sfx.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(flushStart).Nanoseconds()), []string{"plugin:signalfx"}, 1.0)
-	// TODO Fix these metrics to be per-metric sink
+	sfx.statsd.TimeInMilliseconds(sinks.MetricKeyMetricFlushDuration, float64(time.Since(flushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", sfx.Name())}, 1.0)
+	sfx.statsd.Count(sinks.MetricKeyTotalMetricsFlushed, int64(len(points)), []string{fmt.Sprintf("sink:%s", sfx.Name())}, 1.0)
 	sfx.log.WithField("metrics", len(interMetrics)).Info("Completed flush to SignalFx")
 
 	return err

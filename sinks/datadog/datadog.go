@@ -21,7 +21,6 @@ import (
 
 const DatadogResourceKey = "resource"
 const datadogNameKey = "name"
-const totalSpansFlushedMetricKey = "worker.spans_flushed_total"
 
 type DatadogMetricSink struct {
 	HTTPClient      *http.Client
@@ -99,7 +98,8 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 		go dd.flushPart(span.Attach(ctx), chunk, &wg)
 	}
 	wg.Wait()
-	dd.statsd.TimeInMilliseconds("flush.total_duration_ns", float64(time.Since(flushStart).Nanoseconds()), []string{"part:post"}, 1.0)
+	dd.statsd.TimeInMilliseconds(sinks.MetricKeyMetricFlushDuration, float64(time.Since(flushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", dd.Name())}, 1.0)
+	dd.statsd.Count(sinks.MetricKeyTotalMetricsFlushed, int64(len(metrics)), []string{fmt.Sprintf("sink:%s", dd.Name())}, 1.0)
 
 	dd.log.WithField("metrics", len(metrics)).Info("Completed flush to Datadog")
 	return nil
@@ -299,6 +299,7 @@ func (dd *DatadogSpanSink) Ingest(span *ssf.SSFSpan) error {
 func (dd *DatadogSpanSink) Flush() {
 	dd.mutex.Lock()
 
+	flushStart := time.Now()
 	ssfSpans := make([]*ssf.SSFSpan, 0, dd.buffer.Len())
 
 	dd.buffer.Do(func(t interface{}) {
@@ -309,6 +310,7 @@ func (dd *DatadogSpanSink) Flush() {
 			ssfSpan, ok := t.(*ssf.SSFSpan)
 			if !ok {
 				dd.log.Error("Got an unknown object in tracing ring!")
+				dd.mutex.Unlock()
 				// We'll just skip this one so we don't poison pill or anything.
 				return
 			}
@@ -404,16 +406,15 @@ func (dd *DatadogSpanSink) Flush() {
 
 		if err == nil {
 			dd.log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
-			dd.stats.Count(totalSpansFlushedMetricKey, int64(len(ssfSpans)), []string{"sink:datadog"}, 1)
-			// TODO: Per service counters?
 		} else {
 			dd.log.WithFields(logrus.Fields{
 				"traces":        len(finalTraces),
 				logrus.ErrorKey: err}).Warn("Error flushing traces to Datadog")
 		}
 		for service, count := range serviceCount {
-			dd.stats.Count(totalSpansFlushedMetricKey, count, []string{"sink:datadog", fmt.Sprintf("service:%s", service)}, 1)
+			dd.stats.Count(sinks.MetricKeyTotalSpansFlushed, count, []string{fmt.Sprintf("sink:%s", dd.Name()), fmt.Sprintf("service:%s", service)}, 1)
 		}
+		dd.stats.TimeInMilliseconds(sinks.MetricKeySpanFlushDuration, float64(time.Since(flushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", dd.Name())}, 1.0)
 	} else {
 		dd.log.Info("No traces to flush to Datadog, skipping.")
 	}

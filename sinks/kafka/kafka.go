@@ -178,8 +178,6 @@ func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.Int
 		return nil
 	}
 
-	sendMetricStart := time.Now()
-
 	successes := int64(0)
 	for _, metric := range interMetrics {
 		if !sinks.IsAcceptableMetric(metric, k) {
@@ -200,9 +198,8 @@ func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.Int
 		}
 		successes++
 	}
-	k.statsd.Count("kafka.metrics_success_total", successes, nil, 1.0)
-	k.statsd.TimeInMilliseconds("kafka.metrics_flush_duration_ns", float64(time.Now().Sub(sendMetricStart).Nanoseconds()), nil, 1.0)
 
+	k.statsd.Count(sinks.MetricKeyTotalMetricsFlushed, int64(successes), []string{fmt.Sprintf("sink:%s", k.Name())}, 1.0)
 	return nil
 }
 
@@ -372,6 +369,6 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 func (k *KafkaSpanSink) Flush() {
 	// TODO We have no stuff in here for detecting failed writes from the async
 	// producer. We should add that.
-	k.statsd.Count("kafka.spans_flushed_total", atomic.LoadInt64(&k.spansFlushed), nil, 1.0)
+	k.statsd.Count(sinks.MetricKeyTotalSpansFlushed, atomic.LoadInt64(&k.spansFlushed), []string{fmt.Sprintf("sink:%s", k.Name())}, 1.0)
 	atomic.SwapInt64(&k.spansFlushed, 0)
 }
