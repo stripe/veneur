@@ -1,16 +1,14 @@
-[
-  {
-    "duration": 45565,
-    "error": 0,
-    "meta": {},
-    "metrics": null,
-    "name": "veneur.(*Server).flushEventsChecks",
-    "parent_id": 759030388714467718,
-    "resource": "flush",
-    "service": "",
-    "span_id": 6609809824038723702,
-    "start": 1496959028355075485,
-    "trace_id": 2952322985753260966,
-    "type": "http"
-  }
-]
+{
+  "duration": 45565,
+  "error": 0,
+  "meta": {},
+  "metrics": null,
+  "name": "veneur.(*Server).flushEventsChecks",
+  "parent_id": 759030388714467718,
+  "resource": "flush",
+  "service": "",
+  "span_id": 6609809824038723702,
+  "start": 1496959028355075485,
+  "trace_id": 2952322985753260966,
+  "type": "web"
+}

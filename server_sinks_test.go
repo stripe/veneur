@@ -68,13 +68,13 @@ func TestFlushTracesBySink(t *testing.T) {
 }
 
 func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
-	var expected []*DatadogTraceSpan
+	var expected *DatadogTraceSpan
 	err := json.NewDecoder(jsn).Decode(&expected)
 	assert.NoError(t, err)
 
-	remoteResponseChan := make(chan []*DatadogTraceSpan, 1)
+	remoteResponseChan := make(chan [][]*DatadogTraceSpan, 1)
 	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var actual []*DatadogTraceSpan
+		var actual [][]*DatadogTraceSpan
 		err = json.NewDecoder(r.Body).Decode(&actual)
 		assert.NoError(t, err)
 
@@ -103,7 +103,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	// wait for remoteServer to process the POST
 	select {
 	case actual := <-remoteResponseChan:
-		assert.Equal(t, expected, actual)
+		assert.Equal(t, expected, actual[0][0])
 		// all is safe
 		break
 	case <-time.After(10 * time.Second):
