@@ -79,7 +79,7 @@ omit_empty_hostname: false
 tags:
   - ""
 
-# Set to floating point values that you'd like to putput percentiles for from
+# Set to floating point values that you'd like to output percentiles for from
 # histograms.
 percentiles:
   - 0.5
@@ -220,6 +220,15 @@ kafka_metric_topic: ""
 
 # Name of the topic we'll be publishing spans to
 kafka_span_topic: "veneur_spans"
+
+# Name of a tag to hash on for sampling; if empty, spans are sampled based off
+# of traceID
+kafka_span_sample_tag: ""
+
+# Sample rate in percent (as an integer)
+# This should ideally be a floating point number, but at the time this was
+# written, gojson interpreted whole-number floats in yaml as integers.
+kafka_span_sample_rate_percent: 100
 
 kafka_metric_buffer_bytes: 0
 

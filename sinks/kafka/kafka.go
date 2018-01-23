@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/crc32"
 	"io/ioutil"
+	"math"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -35,14 +38,16 @@ type KafkaMetricSink struct {
 }
 
 type KafkaSpanSink struct {
-	logger       *logrus.Entry
-	producer     sarama.AsyncProducer
-	statsd       *statsd.Client
-	topic        string
-	brokers      string
-	serializer   string
-	config       *sarama.Config
-	spansFlushed int64
+	logger          *logrus.Entry
+	producer        sarama.AsyncProducer
+	statsd          *statsd.Client
+	topic           string
+	brokers         string
+	serializer      string
+	sampleTag       string
+	sampleThreshold uint32
+	config          *sarama.Config
+	spansFlushed    int64
 }
 
 // NewKafkaMetricSink creates a new Kafka Plugin.
@@ -204,7 +209,7 @@ func (k *KafkaMetricSink) FlushEventsChecks(ctx context.Context, events []sample
 }
 
 // NewKafkaSpanSink creates a new Kafka Plugin.
-func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, partitioner string, ackRequirement string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, serializationFormat string, stats *statsd.Client) (*KafkaSpanSink, error) {
+func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, partitioner string, ackRequirement string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, serializationFormat string, sampleTag string, sampleRatePercentage int, stats *statsd.Client) (*KafkaSpanSink, error) {
 
 	if logger == nil {
 		logger = &logrus.Logger{Out: ioutil.Discard}
@@ -221,6 +226,16 @@ func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, parti
 		ll.WithField("serializer", serializer).Warn("Unknown serializer, defaulting to protobuf")
 		serializer = "protobuf"
 	}
+
+	var sampleThreshold uint32
+	if sampleRatePercentage <= 0 || sampleRatePercentage > 100 {
+		return nil, errors.New("Span sample rate percentage must be greater than 0%% and less than or equal to 100%%")
+	}
+
+	// Set the sample threshold to (sample rate) * (maximum value of uint32), so that
+	// we can store it as a uint32 instead of a float64 and compare apples-to-apples
+	// with the output of our hashing algorithm.
+	sampleThreshold = uint32(sampleRatePercentage * math.MaxUint32 / 100)
 
 	var finalBufferDuration time.Duration
 	if bufferDuration != "" {
@@ -245,12 +260,14 @@ func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, parti
 	}).Info("Started Kafka span sink")
 
 	return &KafkaSpanSink{
-		logger:     ll,
-		statsd:     stats,
-		topic:      topic,
-		brokers:    brokers,
-		config:     config,
-		serializer: serializer,
+		logger:          ll,
+		statsd:          stats,
+		topic:           topic,
+		brokers:         brokers,
+		config:          config,
+		serializer:      serializer,
+		sampleTag:       sampleTag,
+		sampleThreshold: sampleThreshold,
 	}, nil
 }
 
@@ -273,6 +290,48 @@ func (k *KafkaSpanSink) Start(cl *trace.Client) error {
 // flushing is driven by the settings from KafkaSpanSink's constructor. Tune
 // the bytes, messages and interval settings to your tastes!
 func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
+
+	// If we're sampling less than 100%, we should check whether a span should
+	// be sampled:
+	if k.sampleTag != "" || k.sampleThreshold < uint32(math.MaxUint32) {
+		var hashKey uint32
+		var sampleTagValue string
+
+		if k.sampleTag == "" {
+			// If we haven't set a sampleTag, we'll be hashing based on the traceID
+
+			sampleTagValue = strconv.FormatInt(span.TraceId, 10)
+		} else {
+			// If we've set a sampleTag, we'll be hashing based off of that tag's value.
+
+			var exists bool
+			sampleTagValue, exists = span.Tags[k.sampleTag]
+			if !exists {
+				// If the span isn't tagged appropriately, we should drop it, regardless
+				// of our sample rate.
+				k.logger.Debug("Rejected span without appropriate tag")
+				return nil
+			}
+		}
+
+		// Lifted from https://github.com/stathat/consistent/blob/75142be0209ec69bb014c7a1ac7d1a3c892c6424/consistent.go#L238-L245:
+		// if the sample tag value that we're hashing is shorter than 64 bytes, we
+		// need to pad it with zeroes for the crc32.ChecksumIEEE function.
+		if len(sampleTagValue) < 64 {
+			var scratch [64]byte
+			copy(scratch[:], sampleTagValue)
+			hashKey = crc32.ChecksumIEEE(scratch[:len(sampleTagValue)])
+		} else {
+			hashKey = crc32.ChecksumIEEE([]byte(sampleTagValue))
+		}
+
+		// Reject any spans whose hash keys end up greater than the threshold that
+		// we previously computed.
+		if hashKey > k.sampleThreshold {
+			k.logger.WithField("traceId", span.TraceId).WithField("sampleTag", k.sampleTag).WithField("sampleTagValue", sampleTagValue).WithField("hashKey", hashKey).WithField("sampleThreshold", k.sampleThreshold).Debug("Rejected span based off of sampling rules")
+			return nil
+		}
+	}
 
 	var enc sarama.Encoder
 	switch k.serializer {
