@@ -37,10 +37,6 @@
   version = "1.10.16"
 
 [[constraint]]
-  name = "github.com/axiomhq/hyperloglog"
-  revision = "8300947202c9fbce15a5a299b27c8b0f5092a520"
-
-[[constraint]]
   branch = "master"
   name = "github.com/getsentry/raven-go"
 
@@ -103,3 +99,9 @@
 [[constraint]]
   name = "github.com/signalfx/golib"
   revision = "9903a08c245ee6c06a365af98dac468dc1ef519a"
+
+[[constraint]]
+  name = "github.com/axiomhq/hyperloglog"
+  # Updating to any version later than 8300947202c9fbce15a5a299b27c8b0f5092a520
+  # will require dropping support for Go 1.8.x
+  revision = "8300947202c9fbce15a5a299b27c8b0f5092a520"
