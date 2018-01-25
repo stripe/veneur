@@ -169,7 +169,7 @@ func TestStandaloneSign_WithPort(t *testing.T) {
 
 	cases := []struct {
 		description string
-		url            string
+		url         string
 		expectedSig string
 	}{
 		{
@@ -213,7 +213,7 @@ func TestStandalonePresign_WithPort(t *testing.T) {
 
 	cases := []struct {
 		description string
-		url            string
+		url         string
 		expectedSig string
 	}{
 		{
@@ -241,7 +241,7 @@ func TestStandalonePresign_WithPort(t *testing.T) {
 	for _, c := range cases {
 		signer := v4.NewSigner(unit.Session.Config.Credentials)
 		req, _ := http.NewRequest("GET", c.url, nil)
-		_, err := signer.Presign(req, nil, "es", "us-east-1", 5 * time.Minute, time.Unix(0, 0))
+		_, err := signer.Presign(req, nil, "es", "us-east-1", 5*time.Minute, time.Unix(0, 0))
 		if err != nil {
 			t.Fatalf("expect no error, got %v", err)
 		}

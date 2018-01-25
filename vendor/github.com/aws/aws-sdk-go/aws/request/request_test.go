@@ -22,13 +22,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/client/metadata"
 	"github.com/aws/aws-sdk-go/aws/corehandlers"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/signer/v4"
 	"github.com/aws/aws-sdk-go/awstesting"
 	"github.com/aws/aws-sdk-go/awstesting/unit"
 	"github.com/aws/aws-sdk-go/private/protocol/jsonrpc"
 	"github.com/aws/aws-sdk-go/private/protocol/rest"
-	"github.com/aws/aws-sdk-go/aws/defaults"
 )
 
 type testData struct {
@@ -961,7 +961,7 @@ func TestRequest_Presign(t *testing.T) {
 		}
 	}
 }
-  
+
 func TestNew_EndpointWithDefaultPort(t *testing.T) {
 	endpoint := "https://estest.us-east-1.es.amazonaws.com:443"
 	expectedRequestHost := "estest.us-east-1.es.amazonaws.com"
@@ -983,7 +983,7 @@ func TestNew_EndpointWithDefaultPort(t *testing.T) {
 
 func TestSanitizeHostForHeader(t *testing.T) {
 	cases := []struct {
-		url            string
+		url                 string
 		expectedRequestHost string
 	}{
 		{"https://estest.us-east-1.es.amazonaws.com:443", "estest.us-east-1.es.amazonaws.com"},
@@ -999,6 +999,6 @@ func TestSanitizeHostForHeader(t *testing.T) {
 
 		if h := r.Host; h != c.expectedRequestHost {
 			t.Errorf("expect %v host, got %q", c.expectedRequestHost, h)
-    }
-  }
+		}
+	}
 }
