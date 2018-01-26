@@ -19,6 +19,11 @@
 ## Added
 * `veneur-emit` now infers parent and trace IDs from the environment (using the variables `VENEUR_EMIT_TRACE_ID` and `VENEUR_EMIT_PARENT_SPAN_ID`) and sets these environment variables from its `-trace_id` and `parent_span_id` when timing commands, allowing for convenient construction of trace trees if traced programs call `veneur-emit` themselves. Thanks, [antifuchs](https://github.com/antifuchs)
 * The Kafka sink for spans can now sample spans (at a rate determined by `kafka_span_sample_rate_percent`) based off of traceIDs (by default) or a tag's values (configurable via `kafka_span_sample_tag`) to consistently sample spans related to each other. Thanks, [rhwlo](https://github.com/rhwlo)!
+* Improvements in SSF metrics reporting - thanks, [antifuchs](https://github.com/antifuchs)
+** Function `ssf.Sampled` that takes an array of samples and a sample rate and randomly drops those samples, adjusting the kept samples' rates
+** Functional parameter `ssf.Prefix` that adjusts a metric's name prefix, and `ssf.DefaultSampleOptions`, allowing client code to set a common set of options for all samples reported (such as a common metric name prefix!).
+** Package `trace/metrics`, containing functions that allow reporting metrics through a trace client.
+** Method `trace.(*Trace).Add`, which allows adding metrics to a trace span.
 
 # 2.0.0, 2018-01-09
 
