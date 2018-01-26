@@ -13,6 +13,8 @@
 ** Datadog, Kafka, MetricExtraction, and SignalFx sinks now emits `sink.metrics_flushed_total` for metric flush counts and tag it with `sink`
 ** Datadog and LightStep sinks now emit `veneur.sink.span_flush_total_duration_ns` for span flush duration and tag it with `sink`
 ** Datadog, Kafka, MetricExtraction, and LightStep sinks now emit `sink.spans_flushed_total` for metric flush counts and tag it with `sink`
+* Veneur's internal metrics are no longer tagged with `veneurlocalonly`. This means that percentile metrics (such as timers) will now be aggregated globally.
+
 
 ## Added
 * `veneur-emit` now infers parent and trace IDs from the environment (using the variables `VENEUR_EMIT_TRACE_ID` and `VENEUR_EMIT_PARENT_SPAN_ID`) and sets these environment variables from its `-trace_id` and `parent_span_id` when timing commands, allowing for convenient construction of trace trees if traced programs call `veneur-emit` themselves. Thanks, [antifuchs](https://github.com/antifuchs)

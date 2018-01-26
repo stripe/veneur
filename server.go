@@ -179,7 +179,6 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		return ret, err
 	}
 	ret.Statsd.Namespace = "veneur."
-	ret.Statsd.Tags = append(ret.Tags, "veneurlocalonly")
 
 	// nil is a valid sentry client that noops all methods, if there is no DSN
 	// we can just leave it as nil
