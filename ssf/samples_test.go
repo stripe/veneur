@@ -70,13 +70,6 @@ func TestOptions(t *testing.T) {
 				assert.Equal(t, then.UnixNano(), s.Timestamp)
 			},
 		},
-		{
-			"prefix",
-			Prefix("the_prefix."),
-			func(s *SSFSample) {
-				assert.Equal(t, "the_prefix.foo", s.Name)
-			},
-		},
 	}
 	for name, elt := range testFuns {
 		test := elt
@@ -90,6 +83,18 @@ func TestOptions(t *testing.T) {
 					opt.check(sample)
 				})
 			}
+		})
+	}
+}
+
+func TestPrefix(t *testing.T) {
+	testFuns := map[string]constructor{"count": Count, "gauge": Gauge, "histogram": Histogram}
+	NamePrefix = "testing.the.prefix."
+	for name, elt := range testFuns {
+		test := elt
+		t.Run(fmt.Sprintf("%s", name), func(t *testing.T) {
+			sample := test("foo", 1, nil)
+			assert.Equal(t, "testing.the.prefix.foo", sample.Name)
 		})
 	}
 }

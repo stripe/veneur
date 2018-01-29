@@ -5,14 +5,16 @@ import (
 	"time"
 )
 
-// DefaultSampleOptions is a set of SampleOptions that get applied to
-// all samples created in this package, before the more specific
-// sample options get applied. These are convenient for setting metric
-// name prefixes or process-wide sample rates.
-var DefaultSampleOptions []SampleOption
+// NamePrefix is a string prepended to every SSFSample name generated
+// by the constructors in this package. As no separator is added
+// between this prefix and the metric name, users must take care to
+// attach any separators to the prefix themselves.
+var NamePrefix string
 
 // SampleOption is a functional option that can be used for less
-// commonly needed fields in sample creation helper functions.
+// commonly needed fields in sample creation helper functions. The
+// options are applied by order of arguments (left to right), so when
+// setting multiple of the same option, the rightmost wins.
 type SampleOption func(*SSFSample)
 
 // Unit is a functional option for creating an SSFSample. It sets the
@@ -69,20 +71,8 @@ func TimeUnit(resolution time.Duration) SampleOption {
 	}
 }
 
-// Prefix prepends the given prefix to a sample. Due to the
-// by-order-of-arguments nature of applying these arguments, if more
-// than one Prefix argument is given, the leftmost Prefix argument
-// will be the rightmost name component on the final name.
-func Prefix(prefix string) SampleOption {
-	return func(s *SSFSample) {
-		s.Name = prefix + s.Name
-	}
-}
-
 func create(base *SSFSample, opts []SampleOption) *SSFSample {
-	for _, opt := range DefaultSampleOptions {
-		opt(base)
-	}
+	base.Name = NamePrefix + base.Name
 	for _, opt := range opts {
 		opt(base)
 	}

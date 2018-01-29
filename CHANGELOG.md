@@ -21,7 +21,7 @@
 * The Kafka sink for spans can now sample spans (at a rate determined by `kafka_span_sample_rate_percent`) based off of traceIDs (by default) or a tag's values (configurable via `kafka_span_sample_tag`) to consistently sample spans related to each other. Thanks, [rhwlo](https://github.com/rhwlo)!
 * Improvements in SSF metrics reporting - thanks, [antifuchs](https://github.com/antifuchs)
 ** Function `ssf.Sampled` that takes an array of samples and a sample rate and randomly drops those samples, adjusting the kept samples' rates
-** Functional parameter `ssf.Prefix` that adjusts a metric's name prefix, and `ssf.DefaultSampleOptions`, allowing client code to set a common set of options for all samples reported (such as a common metric name prefix!).
+** New variable `ssf.NamePrefix` that can be used to prepend a common name prefix to SSF sample names.
 ** Package `trace/metrics`, containing functions that allow reporting metrics through a trace client.
 ** Method `trace.(*Trace).Add`, which allows adding metrics to a trace span.
 
