@@ -99,11 +99,11 @@ func TestPrefix(t *testing.T) {
 	}
 }
 
-func BenchmarkSampled(b *testing.B) {
+func BenchmarkRandomlySample(b *testing.B) {
 	samples := make([]*SSFSample, 1000000)
 	for i := range samples {
 		samples[i] = Count("testing.counter", float32(i), nil)
 	}
 	b.ResetTimer()
-	samples = Sampled(0.2, samples...)
+	samples = RandomlySample(0.2, samples...)
 }
