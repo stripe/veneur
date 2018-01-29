@@ -27,12 +27,20 @@ ADD . /go/src/github.com/stripe/veneur
 # the last commit
 RUN git reset --hard HEAD && git status
 
+# After 1.9 hits stable, delete this section
+# It is only used for gofmt
+RUN wget https://storage.googleapis.com/golang/go1.9.linux-amd64.tar.gz
+RUN tar -C /tmp -xvf go1.9.linux-amd64.tar.gz go/bin/gofmt
+RUN mv /tmp/go/bin/gofmt /go/bin/gofmt
+RUN rm go1.9.linux-amd64.tar.gz
+
 # Unlike the travis build file, we do NOT need to
 # ignore changes to protobuf-generated output
 # because we are guaranteed only one version of Go
 # used to build protoc-gen-go
 RUN go generate
 RUN dep ensure -v
+
 RUN gofmt -w .
 
 # Stage any changes caused by go generate and gofmt,
