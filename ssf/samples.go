@@ -1,9 +1,20 @@
 package ssf
 
-import "time"
+import (
+	"math/rand"
+	"time"
+)
+
+// NamePrefix is a string prepended to every SSFSample name generated
+// by the constructors in this package. As no separator is added
+// between this prefix and the metric name, users must take care to
+// attach any separators to the prefix themselves.
+var NamePrefix string
 
 // SampleOption is a functional option that can be used for less
-// commonly needed fields in sample creation helper functions.
+// commonly needed fields in sample creation helper functions. The
+// options are applied by order of arguments (left to right), so when
+// setting multiple of the same option, the rightmost wins.
 type SampleOption func(*SSFSample)
 
 // Unit is a functional option for creating an SSFSample. It sets the
@@ -19,6 +30,19 @@ func Unit(name string) SampleOption {
 func Timestamp(ts time.Time) SampleOption {
 	return func(s *SSFSample) {
 		s.Timestamp = ts.UnixNano()
+	}
+}
+
+// SampleRate sets the rate at which a measurement is sampled. The
+// rate is a number on the interval (0..1] (1 means that the value is
+// not sampled). Any numbers outside this interval result in no change
+// to the sample rate (by default, all SSFSamples created with the
+// helpers in this package have a SampleRate=1).
+func SampleRate(rate float32) SampleOption {
+	return func(s *SSFSample) {
+		if rate > 0 && rate <= 1 {
+			s.SampleRate = rate
+		}
 	}
 }
 
@@ -48,10 +72,31 @@ func TimeUnit(resolution time.Duration) SampleOption {
 }
 
 func create(base *SSFSample, opts []SampleOption) *SSFSample {
+	base.Name = NamePrefix + base.Name
 	for _, opt := range opts {
 		opt(base)
 	}
 	return base
+}
+
+// RandomlySample takes a rate and a set of measurements, and returns
+// a new set of measurements as if sampling had been performed: Each
+// original measurement gets rejected/included in the result based on
+// a random roll of the RNG according to the rate, and each included
+// measurement has its SampleRate field adjusted to be its original
+// SampleRate * rate.
+func RandomlySample(rate float32, samples ...*SSFSample) []*SSFSample {
+	res := make([]*SSFSample, 0, len(samples))
+
+	for _, s := range samples {
+		if rand.Float32() <= rate {
+			if rate > 0 && rate <= 1 {
+				s.SampleRate = s.SampleRate * rate
+			}
+			res = append(res, s)
+		}
+	}
+	return res
 }
 
 // Count returns an SSFSample representing an increment / decrement of

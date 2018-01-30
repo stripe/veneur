@@ -39,8 +39,8 @@ import (
 	"github.com/stripe/veneur/sinks/datadog"
 	"github.com/stripe/veneur/sinks/kafka"
 	"github.com/stripe/veneur/sinks/lightstep"
-	"github.com/stripe/veneur/sinks/metrics"
 	"github.com/stripe/veneur/sinks/signalfx"
+	"github.com/stripe/veneur/sinks/ssfmetrics"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
@@ -239,11 +239,11 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 	// Set up a span sink that extracts metrics from SSF spans and
 	// reports them via the metric workers:
-	processors := make([]metrics.Processor, len(ret.Workers))
+	processors := make([]ssfmetrics.Processor, len(ret.Workers))
 	for i, w := range ret.Workers {
 		processors[i] = w
 	}
-	metricSink, err := metrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, ret.Statsd, log)
+	metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, ret.Statsd, log)
 	if err != nil {
 		return ret, err
 	}

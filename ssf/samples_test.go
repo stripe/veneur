@@ -86,3 +86,24 @@ func TestOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestPrefix(t *testing.T) {
+	testFuns := map[string]constructor{"count": Count, "gauge": Gauge, "histogram": Histogram}
+	NamePrefix = "testing.the.prefix."
+	for name, elt := range testFuns {
+		test := elt
+		t.Run(fmt.Sprintf("%s", name), func(t *testing.T) {
+			sample := test("foo", 1, nil)
+			assert.Equal(t, "testing.the.prefix.foo", sample.Name)
+		})
+	}
+}
+
+func BenchmarkRandomlySample(b *testing.B) {
+	samples := make([]*SSFSample, 1000000)
+	for i := range samples {
+		samples[i] = Count("testing.counter", float32(i), nil)
+	}
+	b.ResetTimer()
+	samples = RandomlySample(0.2, samples...)
+}
