@@ -162,7 +162,7 @@ datadog_api_hostname: https://app.datadoghq.com
 datadog_api_key: "farts"
 
 # Hostname to send Datadog trace data to.
-datadog_trace_api_address: "http://localhost:7777"
+datadog_trace_api_address: ""
 
 # == SignalFx ==
 # SignalFx can be a sink for metrics.
