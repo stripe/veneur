@@ -226,10 +226,8 @@ kafka_span_topic: "veneur_spans"
 # of traceID
 kafka_span_sample_tag: ""
 
-# Sample rate in percent (as an integer)
-# This should ideally be a floating point number, but at the time this was
-# written, gojson interpreted whole-number floats in yaml as integers.
-kafka_span_sample_rate_percent: 100
+# Sample rate in percent (as a floating-point number)
+kafka_span_sample_rate: 1.0
 
 kafka_metric_buffer_bytes: 0
 

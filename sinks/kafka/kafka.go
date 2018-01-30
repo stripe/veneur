@@ -209,7 +209,7 @@ func (k *KafkaMetricSink) FlushEventsChecks(ctx context.Context, events []sample
 }
 
 // NewKafkaSpanSink creates a new Kafka Plugin.
-func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, partitioner string, ackRequirement string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, serializationFormat string, sampleTag string, sampleRatePercentage int, stats *statsd.Client) (*KafkaSpanSink, error) {
+func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, partitioner string, ackRequirement string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, serializationFormat string, sampleTag string, sampleRate float64, stats *statsd.Client) (*KafkaSpanSink, error) {
 
 	if logger == nil {
 		logger = &logrus.Logger{Out: ioutil.Discard}
@@ -228,14 +228,14 @@ func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, parti
 	}
 
 	var sampleThreshold uint32
-	if sampleRatePercentage <= 0 || sampleRatePercentage > 100 {
-		return nil, errors.New("Span sample rate percentage must be greater than 0%% and less than or equal to 100%%")
+	if sampleRate <= 0 || sampleRate > 1.0 {
+		return nil, errors.New("Span sample rate percentage must be greater than 0 and less than or equal to 1.0")
 	}
 
 	// Set the sample threshold to (sample rate) * (maximum value of uint32), so that
 	// we can store it as a uint32 instead of a float64 and compare apples-to-apples
 	// with the output of our hashing algorithm.
-	sampleThreshold = uint32(sampleRatePercentage * math.MaxUint32 / 100)
+	sampleThreshold = uint32(sampleRate * math.MaxUint32)
 
 	var finalBufferDuration time.Duration
 	if bufferDuration != "" {
