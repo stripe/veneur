@@ -15,6 +15,20 @@ func (nm NoMetrics) Error() string {
 	return "No metrics to send."
 }
 
+// Report sends one-off metric samples encapsulated in a Samples
+// structure to a trace client without waiting for a reply.  If the
+// batch of metrics is empty, an error NoMetrics is returned.
+func Report(cl *trace.Client, samples *ssf.Samples) error {
+	return ReportBatch(cl, samples.Batch)
+}
+
+// ReportBatch sends a batch of one-off metrics to a trace client without
+// waiting for a reply.  If the batch of metrics is empty, an error
+// NoMetrics is returned.
+func ReportBatch(cl *trace.Client, samples []*ssf.SSFSample) error {
+	return ReportAsync(cl, samples, nil)
+}
+
 // ReportAsync sends a batch of one-off metrics to a trace client
 // asynchronously. The channel done receives an error (or nil) when
 // the span containing the batch of metrics has been sent.
@@ -22,18 +36,11 @@ func (nm NoMetrics) Error() string {
 // If metrics is empty, an error NoMetrics is returned and done does
 // not receive any data.
 func ReportAsync(cl *trace.Client, metrics []*ssf.SSFSample, done chan<- error) error {
-	if len(metrics) == 0 {
+	if metrics == nil || len(metrics) == 0 {
 		return NoMetrics{}
 	}
 	span := &ssf.SSFSpan{Metrics: metrics}
 	return trace.Record(cl, span, done)
-}
-
-// Report sends a batch of one-off metrics to a trace client without
-// waiting for a reply.  If metrics is empty, an error NoMetrics is
-// returned
-func Report(cl *trace.Client, metrics []*ssf.SSFSample) error {
-	return ReportAsync(cl, metrics, nil)
 }
 
 // ReportOne sends a single metric to a veneur using a trace client
