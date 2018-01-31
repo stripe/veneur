@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
@@ -378,11 +379,13 @@ func (tw *SpanWorker) Work() {
 		for _, s := range tw.sinks {
 			err := s.Ingest(m)
 			if err != nil {
-				// If a sink goes wacko and errors a lot, we stand to emit a
-				// loooot of metrics towards all span workers here since
-				// span ingest rates can be very high. C'est la vie.
-				metrics.ReportOne(tw.traceClient,
-					ssf.Count("worker.span.ingest_error_total", 1, map[string]string{"sink": s.Name()}))
+				if _, isNoTrace := err.(*protocol.InvalidTrace); !isNoTrace {
+					// If a sink goes wacko and errors a lot, we stand to emit a
+					// loooot of metrics towards all span workers here since
+					// span ingest rates can be very high. C'est la vie.
+					metrics.ReportOne(tw.traceClient,
+						ssf.Count("worker.span.ingest_error_total", 1, map[string]string{"sink": s.Name()}))
+				}
 			}
 		}
 	}
