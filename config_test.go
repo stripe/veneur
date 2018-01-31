@@ -25,9 +25,6 @@ func TestReadConfig(t *testing.T) {
 	interval, err := c.ParseInterval()
 	assert.NoError(t, err)
 	assert.Equal(t, interval, 10*time.Second)
-
-	assert.Equal(t, "http://localhost:7777", c.DatadogTraceAPIAddress)
-
 }
 
 func TestReadBadConfig(t *testing.T) {
