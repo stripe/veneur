@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -657,6 +658,11 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		log.WithError(err).Warn("ParseSSF")
 		return
 	}
+	setTags := []string{
+		fmt.Sprintf("indicator:%s", strconv.FormatBool(span.Indicator)),
+		fmt.Sprintf("service:%s", span.Service),
+	}
+	s.Statsd.Set("ssf.names_unique", span.Name, setTags, 0.1)
 	s.handleSSF(span, []string{"ssf_format:packet"})
 }
 
