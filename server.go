@@ -986,6 +986,11 @@ func (tb *internalTraceBackend) SendSync(ctx context.Context, span *ssf.SSFSpan)
 				fmt.Sprintf("service:%s", span.Service),
 				"ssf_format:internal",
 			}
+			setTags := []string{
+				fmt.Sprintf("indicator:%s", strconv.FormatBool(span.Indicator)),
+				fmt.Sprintf("service:%s", span.Service),
+			}
+			tb.statsd.Set("ssf.names_unique", span.Name, setTags, 0.1)
 			tb.statsd.Incr("ssf.spans.received_total", tags, .1)
 			tb.statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, .1)
 		}
