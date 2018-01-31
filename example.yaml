@@ -207,7 +207,8 @@ trace_lightstep_num_clients: 1
 # == Kafka ==
 
 # Comma-delimited list of brokers suitable for Sarama's [NewAsyncProducer](https://godoc.org/github.com/Shopify/sarama#NewAsyncProducer)
-kafka_broker: "localhost:9092"
+# in the form hostname:port, such as localhost:9092
+kafka_broker: ""
 
 # Name of the topic we'll be publishing checks to
 kafka_check_topic: "veneur_checks"
