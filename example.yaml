@@ -56,7 +56,7 @@ stats_address: "localhost:8126"
 
 # The address on which to listen for HTTP imports and/or healthchecks.
 # http_address: "einhorn@0"
-http_address: "localhost:8127"
+http_address: "0.0.0.0:8127"
 
 # The name of timer metrics that "indicator" spans should be tracked
 # under. If this is unset, veneur doesn't report an additional timer
