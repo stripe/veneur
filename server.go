@@ -405,7 +405,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 				conf.KafkaPartitioner, conf.KafkaMetricRequireAcks, conf.KafkaRetryMax,
 				conf.KafkaSpanBufferBytes, conf.KafkaSpanBufferMesages,
 				conf.KafkaSpanBufferFrequency, conf.KafkaSpanSerializationFormat,
-				conf.KafkaSpanSampleTag, conf.KafkaSpanSampleRatePercent,
+				conf.KafkaSpanSampleTag, conf.KafkaSpanSampleRate,
 				ret.Statsd,
 			)
 			if err != nil {

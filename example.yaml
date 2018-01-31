@@ -217,7 +217,7 @@ kafka_check_topic: "veneur_checks"
 kafka_event_topic: "veneur_events"
 
 # Name of the topic we'll be publishing metrics to
-kafka_metric_topic: ""
+kafka_metric_topic: "veneur_metrics"
 
 # Name of the topic we'll be publishing spans to
 kafka_span_topic: "veneur_spans"
@@ -226,10 +226,8 @@ kafka_span_topic: "veneur_spans"
 # of traceID
 kafka_span_sample_tag: ""
 
-# Sample rate in percent (as an integer)
-# This should ideally be a floating point number, but at the time this was
-# written, gojson interpreted whole-number floats in yaml as integers.
-kafka_span_sample_rate_percent: 100
+# Kafka span sample rate ratio (must be > 0.0 and <= 1.0)
+kafka_span_sample_rate: 1.0
 
 kafka_metric_buffer_bytes: 0
 

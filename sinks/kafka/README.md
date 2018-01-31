@@ -21,14 +21,14 @@ See the various `kafka_*` keys in [example.yaml](https://github.com/stripe/veneu
 
 ## Span Sampling
 
-The Kafka sink supports span sampling! By default, setting `kafka_span_sample_rate_percent`
-less than 100 will sample based off of traceId (meaning that if one span with a particular
+The Kafka sink supports span sampling! By default, setting `kafka_span_sample_rate`
+less than 1.0 will sample based off of traceId (meaning that if one span with a particular
 traceId is selected, all spans with that traceId will be selected), but that behavior
 can be configured to use a tag instead via `kafka_span_sample_tag`. For example,
 
 ```
 kafka_span_sample_tag: "request_id"
-kafka_span_sample_rate_percent: 75
+kafka_span_sample_rate: 0.75
 ```
 
 With this configuration, spans _without_ the `"request_id"` tag will be rejected,
