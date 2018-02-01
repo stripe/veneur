@@ -132,7 +132,16 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 		}
 		logger.WithField("interval", conf.ConsulRefreshInterval).Info("Will use Consul for service discovery")
 	}
+
 	p.TraceClient = trace.DefaultClient
+	if conf.SsfDestinationAddress != "" {
+		p.TraceClient, err = trace.NewClient(conf.SsfDestinationAddress)
+		if err != nil {
+			logger.WithField("ssf_destination_address", conf.SsfDestinationAddress).
+				WithError(err).
+				Fatal("Error using SSF destination address")
+		}
+	}
 
 	// TODO Size of replicas in config?
 	//ret.ForwardDestinations.NumberOfReplicas = ???

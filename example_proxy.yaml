@@ -6,7 +6,12 @@ http_address: "localhost:8127"
 # How often to refresh from Consul's healthy nodes
 consul_refresh_interval: "30s"
 
+# This field is deprecated - use ssf_destination_address instead!
 stats_address: "localhost:8125"
+
+# The address to which to send SSF spans and metrics - this is the
+# same format as on the veneur server's `ssf_listen_addresses`.
+ssf_destination_address: "udp://localhost:8200"
 
 ### FORWARDING
 # Use a static host for forwarding
