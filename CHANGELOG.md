@@ -14,6 +14,7 @@
 ** Datadog and LightStep sinks now emit `veneur.sink.span_flush_total_duration_ns` for span flush duration and tag it with `sink`
 ** Datadog, Kafka, MetricExtraction, and LightStep sinks now emit `sink.spans_flushed_total` for metric flush counts and tag it with `sink`
 * Veneur's internal metrics are no longer tagged with `veneurlocalonly`. This means that percentile metrics (such as timers) will now be aggregated globally.
+* The `ssf.names_unique` metric counts the number of unique SSF span names per flush interval.
 
 ## Bugfixes
 * LightStep sink was hardcoded to use plaintext, now adjusts based on URL scheme (http versus https). Thanks [gphat](https://github.com/gphat)!
