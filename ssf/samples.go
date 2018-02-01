@@ -5,6 +5,20 @@ import (
 	"time"
 )
 
+// Samples is a batch of SSFSamples, not attached to an SSF span, that
+// can be submitted with package metrics's Report function.
+type Samples struct {
+	Batch []*SSFSample
+}
+
+// Add appends a sample to the batch of samples.
+func (s *Samples) Add(sample ...*SSFSample) {
+	if s.Batch == nil {
+		s.Batch = []*SSFSample{}
+	}
+	s.Batch = append(s.Batch, sample...)
+}
+
 // NamePrefix is a string prepended to every SSFSample name generated
 // by the constructors in this package. As no separator is added
 // between this prefix and the metric name, users must take care to

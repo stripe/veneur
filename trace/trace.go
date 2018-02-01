@@ -141,7 +141,7 @@ func (t *Trace) Duration() time.Duration {
 	return t.End.Sub(t.Start)
 }
 
-// SSFSample converts the Trace to an SSFSpan type.
+// SSFSpan converts the Trace to an SSFSpan type.
 // It sets the duration, so it assumes the span has already ended.
 // (It is safe to call on a span that has not ended, but the duration
 // field will be invalid)
