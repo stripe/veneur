@@ -84,6 +84,11 @@ func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans
 
 	tracers := make([]opentracing.Tracer, 0, lightstepMultiplexTracerNum)
 
+	plaintext := false
+	if host.Scheme == "http" {
+		plaintext = true
+	}
+
 	for i := 0; i < lightstepMultiplexTracerNum; i++ {
 		tracers = append(tracers, lightstep.NewTracer(lightstep.Options{
 			AccessToken:     accessToken,
@@ -91,7 +96,7 @@ func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans
 			Collector: lightstep.Endpoint{
 				Host:      host.Hostname(),
 				Port:      port,
-				Plaintext: true,
+				Plaintext: plaintext,
 			},
 			UseGRPC:          true,
 			MaxBufferedSpans: maximumSpans,
