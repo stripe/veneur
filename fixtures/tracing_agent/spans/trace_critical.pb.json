@@ -1,19 +1,21 @@
 [
-  {
-    "duration": 881,
-    "error": 2,
-    "meta": {
-      "error.msg": "an error occurred!",
-      "error.stack": "insert\nlots\nof\nstuff",
-      "error.type": "type error interface"
-    },
-    "metrics": null,
-    "name": "veneur.trace.test",
-    "resource": "Robert'); DROP TABLE students;",
-    "service": "veneur-test",
-    "span_id": 8890541568593727407,
-    "start": 1497026085338874599,
-    "trace_id": 8890541568593727407,
-    "type": "web"
-  }
+  [
+    {
+      "duration": 881,
+      "error": 2,
+      "meta": {
+        "error.msg": "an error occurred!",
+        "error.stack": "insert\nlots\nof\nstuff",
+        "error.type": "type error interface"
+      },
+      "metrics": null,
+      "name": "veneur.trace.test",
+      "resource": "Robert'); DROP TABLE students;",
+      "service": "veneur-test",
+      "span_id": 8890541568593727407,
+      "start": 1497026085338874599,
+      "trace_id": 8890541568593727407,
+      "type": "web"
+    }
+  ]
 ]
