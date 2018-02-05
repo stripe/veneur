@@ -323,9 +323,11 @@ func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
 
 // ProxyMetrics takes a sliceof JSONMetrics and breaks them up into multiple
 // HTTP requests by MetricKey using the hash ring.
-func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMetric) {
+func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMetric, origin string) {
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxy.proxy_metrics")
 	defer span.ClientFinish(p.traceClient)
+
+	p.Statsd.Count("import.metrics_total", int64(len(jsonMetrics)), []string{"remote_addr:" + origin, "veneurglobalonly"}, 1.0)
 
 	jsonMetricsByDestination := make(map[string][]samplers.JSONMetric)
 	for _, h := range p.ForwardDestinations.Members() {
