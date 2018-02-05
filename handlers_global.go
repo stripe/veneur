@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -31,7 +32,7 @@ func handleProxy(p *Proxy) http.Handler {
 		}
 		// the server usually waits for this to return before finalizing the
 		// response, so this part must be done asynchronously
-		go p.ProxyMetrics(span.Attach(ctx), jsonMetrics, r.RemoteAddr)
+		go p.ProxyMetrics(span.Attach(ctx), jsonMetrics, strings.SplitN(r.RemoteAddr, ":", 2)[0])
 	})
 }
 
