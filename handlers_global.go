@@ -31,7 +31,7 @@ func handleProxy(p *Proxy) http.Handler {
 		}
 		// the server usually waits for this to return before finalizing the
 		// response, so this part must be done asynchronously
-		go p.ProxyMetrics(span.Attach(ctx), jsonMetrics)
+		go p.ProxyMetrics(span.Attach(ctx), jsonMetrics, r.RemoteAddr)
 	})
 }
 
