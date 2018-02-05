@@ -327,7 +327,10 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxy.proxy_metrics")
 	defer span.ClientFinish(p.traceClient)
 
-	p.Statsd.Count("import.metrics_total", int64(len(jsonMetrics)), []string{"remote_addr:" + origin, "veneurglobalonly"}, 1.0)
+	p.Statsd.Count("import.metrics_total", int64(len(jsonMetrics)), []string{
+		"remote_addr:" + origin,
+		"veneurglobalonly",
+	}, 1.0)
 
 	jsonMetricsByDestination := make(map[string][]samplers.JSONMetric)
 	for _, h := range p.ForwardDestinations.Members() {
