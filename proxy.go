@@ -45,6 +45,7 @@ type Proxy struct {
 	Statsd                 *statsd.Client
 	AcceptingForwards      bool
 	AcceptingTraces        bool
+	ForwardTimeout         time.Duration
 
 	usingConsul     bool
 	enableProfiling bool
@@ -100,6 +101,16 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 
 	p.ForwardDestinations = consistent.New()
 	p.TraceDestinations = consistent.New()
+
+	if conf.ForwardTimeout != "" {
+		p.ForwardTimeout, err = time.ParseDuration(conf.ForwardTimeout)
+		if err != nil {
+			logger.WithError(err).
+				WithField("value", conf.ForwardTimeout).
+				Error("Could not parse forward timeout")
+			return
+		}
+	}
 
 	// We got a static forward address, stick it in the destination!
 	if p.ConsulForwardService == "" && conf.ForwardAddress != "" {
@@ -284,6 +295,11 @@ func (p *Proxy) Handler() http.Handler {
 func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxy.proxy_traces")
 	defer span.ClientFinish(p.traceClient)
+	if p.ForwardTimeout > 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, p.ForwardTimeout)
+		defer cancel()
+	}
 
 	tracesByDestination := make(map[string][]*DatadogTraceSpan)
 	for _, h := range p.TraceDestinations.Members() {
@@ -327,6 +343,11 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxy.proxy_metrics")
 	defer span.ClientFinish(p.traceClient)
 
+	if p.ForwardTimeout > 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, p.ForwardTimeout)
+		defer cancel()
+	}
 	p.Statsd.Count("import.metrics_total", int64(len(jsonMetrics)), []string{
 		"remote_addr:" + origin,
 		"veneurglobalonly",

@@ -28,6 +28,7 @@
 ** Package `trace/metrics`, containing functions that allow reporting metrics through a trace client.
 ** New type `ssf.Samples` holding a batch of samples which can be submitted conveniently through `trace/metrics`.
 ** Method `trace.(*Trace).Add`, which allows adding metrics to a trace span.
+* `veneur-proxy` has a new configuration option `forward_timeout` which allows specifying how long forwarding a batch to global veneur servers may take in total. Thanks, [antifuchs](https://github.com/antifuchs)!
 
 # 2.0.0, 2018-01-09
 

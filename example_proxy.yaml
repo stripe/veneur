@@ -14,6 +14,12 @@ forward_address: "http://veneur.example.com"
 # Or use a consul service for consistent forwarding.
 consul_forward_service_name: "forwardServiceName"
 
+# Maximum time that forwarding each batch of metrics can take;
+# note that forwarding to multiple global veneur servers happens in
+# parallel, so every forwarding operation is expected to complete
+# within this time.
+forward_timeout: 10s
+
 ### TRACING
 # The address on which we will listen for trace data
 trace_address: "127.0.0.1:8128"
