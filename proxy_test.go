@@ -2,6 +2,7 @@ package veneur
 
 import (
 	"compress/zlib"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/samplers"
 )
 
@@ -185,5 +187,43 @@ func TestConsistentForward(t *testing.T) {
 		fmt.Println("GOT 'IM")
 	case <-time.After(3 * time.Second):
 		assert.Fail(t, "Failed to receive all metrics before timeout")
+	}
+}
+
+func TestTimeout(t *testing.T) {
+	cfg := generateProxyConfig()
+	cfg.ConsulTraceServiceName = ""
+	cfg.ConsulForwardServiceName = ""
+
+	never := make(chan struct{})
+	defer close(never)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-never
+	}))
+	defer ts.Close()
+
+	cfg.ForwardAddress = ts.URL
+	cfg.ForwardTimeout = "1ns" // just really really short
+	server, _ := NewProxyFromConfig(logrus.New(), cfg)
+
+	ctr := samplers.Counter{Name: "foo", Tags: []string{}}
+	ctr.Sample(20.0, 1.0)
+	jsonCtr, err := ctr.Export()
+	require.NoError(t, err)
+	metrics := []samplers.JSONMetric{jsonCtr}
+
+	// Now send the metrics to a server that never responds; we
+	// expect this to return before our (sufficiently long)
+	// timeout:
+	ch := make(chan struct{})
+	go func() {
+		server.ProxyMetrics(context.Background(), metrics, "foo.com")
+		close(ch)
+	}()
+	select {
+	case <-ch:
+		t.Log("Returned quickly, great.")
+	case <-time.After(3 * time.Second):
+		t.Fatal("Proxy took too long to time out. Is the deadline behavior working?")
 	}
 }
