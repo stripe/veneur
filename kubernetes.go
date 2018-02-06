@@ -83,7 +83,7 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 		}
 
 		// prepend with // so that it is a valid URL parseable by url.Parse
-		podIp := fmt.Sprintf("//%s:%s", pod.Status.PodIP, forwardPort)
+		podIp := fmt.Sprintf("http://%s:%s", pod.Status.PodIP, forwardPort)
 		ips = append(ips, podIp)
 	}
 	return ips, nil
