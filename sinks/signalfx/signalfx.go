@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/signalfx/golib/datapoint"
@@ -17,9 +18,81 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
+type destinations struct {
+	fallback dpsink.Sink
+	byKey    map[string]dpsink.Sink
+}
+
+func (d *destinations) getClient(key string) dpsink.Sink {
+	if cl, ok := d.byKey[key]; ok {
+		return cl
+	}
+	return d.fallback
+}
+
+type collection struct {
+	points       []*datapoint.Datapoint
+	pointsByKey  map[string][]*datapoint.Datapoint
+	destinations *destinations
+}
+
+func (d *destinations) pointCollection() *collection {
+	return &collection{
+		destinations: d,
+		points:       []*datapoint.Datapoint{},
+		pointsByKey:  map[string][]*datapoint.Datapoint{},
+	}
+}
+
+func (c *collection) addPoint(key string, point *datapoint.Datapoint) {
+	if c.destinations.byKey != nil {
+		if _, ok := c.destinations.byKey[key]; ok {
+			c.pointsByKey[key] = append(c.pointsByKey[key], point)
+			return
+		}
+	}
+	logrus.WithField("key", key).WithField("pbk", c.pointsByKey).Info("I have a fallback")
+
+	c.points = append(c.points, point)
+}
+
+func (c *collection) submit(ctx context.Context, cl *trace.Client) error {
+	wg := &sync.WaitGroup{}
+	errorCh := make(chan error, len(c.pointsByKey)+1)
+
+	submitOne := func(client dpsink.Sink, points []*datapoint.Datapoint) {
+		span, _ := trace.StartSpanFromContext(ctx, "")
+		defer span.ClientFinish(cl)
+		err := client.AddDatapoints(ctx, points)
+		if err != nil {
+			span.Error(err)
+			errorCh <- err
+		}
+		wg.Done()
+	}
+
+	wg.Add(1)
+	go submitOne(c.destinations.fallback, c.points)
+	for key, points := range c.pointsByKey {
+		wg.Add(1)
+		go submitOne(c.destinations.getClient(key), points)
+	}
+	wg.Wait()
+	close(errorCh)
+	errors := []error{}
+	for err := range errorCh {
+		errors = append(errors, err)
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf("Could not submit to all sfx sinks: %v", errors)
+	}
+	return nil
+}
+
 type SignalFxSink struct {
-	client           dpsink.Sink
-	endpoint         string
+	clients          *destinations
+	keyClients       map[string]dpsink.Sink
+	varyBy           string
 	hostnameTag      string
 	hostname         string
 	commonDimensions map[string]string
@@ -28,23 +101,25 @@ type SignalFxSink struct {
 	excludedTags     map[string]struct{}
 }
 
-// NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(apiKey string, endpoint string, hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client dpsink.Sink) (*SignalFxSink, error) {
-	if client == nil {
-		httpSink := sfxclient.NewHTTPSink()
-		httpSink.AuthToken = apiKey
-		httpSink.DatapointEndpoint = fmt.Sprintf("%s/v2/datapoint", endpoint)
-		httpSink.EventEndpoint = fmt.Sprintf("%s/v2/event", endpoint)
-		client = httpSink
-	}
+// NewClient constructs a new signalfx HTTP client for the given
+// endpoint and API token.
+func NewClient(endpoint, apiKey string) dpsink.Sink {
+	httpSink := sfxclient.NewHTTPSink()
+	httpSink.AuthToken = apiKey
+	httpSink.DatapointEndpoint = fmt.Sprintf("%s/v2/datapoint", endpoint)
+	httpSink.EventEndpoint = fmt.Sprintf("%s/v2/event", endpoint)
+	return httpSink
+}
 
+// NewSignalFxSink creates a new SignalFx sink for metrics.
+func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client dpsink.Sink, varyBy string, perTagClients map[string]dpsink.Sink) (*SignalFxSink, error) {
 	return &SignalFxSink{
-		client:           client,
-		endpoint:         endpoint,
+		clients:          &destinations{fallback: client, byKey: perTagClients},
 		hostnameTag:      hostnameTag,
 		hostname:         hostname,
 		commonDimensions: commonDimensions,
 		log:              log,
+		varyBy:           varyBy,
 	}, nil
 }
 
@@ -65,7 +140,9 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	defer span.ClientFinish(sfx.traceClient)
 
 	flushStart := time.Now()
-	points := []*datapoint.Datapoint{}
+	coll := sfx.clients.pointCollection()
+	numPoints := 0
+
 	for _, metric := range interMetrics {
 		if !sinks.IsAcceptableMetric(metric, sfx) {
 			continue
@@ -94,21 +171,30 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 		for k, v := range sfx.commonDimensions {
 			dims[k] = v
 		}
+		metricKey := ""
+		if sfx.varyBy != "" {
+			if val, ok := dims[sfx.varyBy]; ok {
+				metricKey = val
+			}
+		}
 
+		var point *datapoint.Datapoint
 		if metric.Type == samplers.GaugeMetric {
-			points = append(points, sfxclient.GaugeF(metric.Name, dims, metric.Value))
+			point = sfxclient.GaugeF(metric.Name, dims, metric.Value)
 		} else if metric.Type == samplers.CounterMetric {
 			// TODO I am not certain if this should be a Counter or a Cumulative
-			points = append(points, sfxclient.Counter(metric.Name, dims, int64(metric.Value)))
+			point = sfxclient.Counter(metric.Name, dims, int64(metric.Value))
 		}
+		coll.addPoint(metricKey, point)
+		numPoints++
 	}
-	err := sfx.client.AddDatapoints(ctx, points)
+	err := coll.submit(ctx, sfx.traceClient)
 	if err != nil {
 		span.Error(err)
 	}
 	tags := map[string]string{"sink": "signalfx"}
 	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags))
-	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(points)), tags))
+	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(numPoints), tags))
 	sfx.log.WithField("metrics", len(interMetrics)).Info("Completed flush to SignalFx")
 
 	return err
@@ -157,7 +243,8 @@ func (sfx *SignalFxSink) FlushEventsChecks(ctx context.Context, events []sampler
 			Dimensions: dims,
 			Timestamp:  time.Unix(udpEvent.Timestamp, 0),
 		}
-		sfx.client.AddEvents(ctx, []*event.Event{&ev})
+		// TODO: Split events out the same way as points
+		sfx.clients.fallback.AddEvents(ctx, []*event.Event{&ev})
 	}
 }
 

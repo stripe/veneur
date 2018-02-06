@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/getsentry/raven-go"
+	"github.com/signalfx/golib/datapoint/dpsink"
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
@@ -310,7 +311,12 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 
 	if conf.SignalfxAPIKey != "" {
-		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxAPIKey, conf.SignalfxEndpointBase, conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, nil)
+		fallback := signalfx.NewClient(conf.SignalfxEndpointBase, conf.SignalfxAPIKey)
+		byTagClients := map[string]dpsink.Sink{}
+		for _, perTag := range conf.SignalfxPerTagAPIKeys {
+			byTagClients[perTag.Name] = signalfx.NewClient(conf.SignalfxEndpointBase, perTag.APIKey)
+		}
+		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback, conf.SignalfxVaryKeyBy, byTagClients)
 		if err != nil {
 			return ret, err
 		}

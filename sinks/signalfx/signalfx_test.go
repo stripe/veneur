@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/signalfx/golib/datapoint"
+	"github.com/signalfx/golib/datapoint/dpsink"
 	"github.com/signalfx/golib/event"
 	"github.com/signalfx/golib/sfxclient"
 	"github.com/sirupsen/logrus"
@@ -37,7 +38,8 @@ func (fs *FakeSink) AddEvents(ctx context.Context, events []*event.Event) (err e
 
 func TestNewSignalFxSink(t *testing.T) {
 	// test the variables that have been renamed
-	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), nil)
+	client := NewClient("http://www.example.com", "secret")
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), client, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,14 +48,13 @@ func TestNewSignalFxSink(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	httpsink, ok := sink.client.(*sfxclient.HTTPSink)
+	httpsink, ok := client.(*sfxclient.HTTPSink)
 	if !ok {
 		assert.Fail(t, "SignalFx sink isn't the correct type")
 	}
 	assert.Equal(t, "http://www.example.com/v2/datapoint", httpsink.DatapointEndpoint)
 	assert.Equal(t, "http://www.example.com/v2/event", httpsink.EventEndpoint)
 
-	assert.Equal(t, "http://www.example.com", sink.endpoint)
 	assert.Equal(t, "signalfx", sink.Name())
 	assert.Equal(t, "host", sink.hostnameTag)
 	assert.Equal(t, "glooblestoots", sink.hostname)
@@ -62,7 +63,7 @@ func TestNewSignalFxSink(t *testing.T) {
 
 func TestSignalFxFlushRouting(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
 
 	assert.NoError(t, err)
 
@@ -115,7 +116,7 @@ func TestSignalFxFlushRouting(t *testing.T) {
 
 func TestSignalFxFlushGauge(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
 
 	assert.NoError(t, err)
 
@@ -146,8 +147,7 @@ func TestSignalFxFlushGauge(t *testing.T) {
 
 func TestSignalFxFlushCounter(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink)
-
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{samplers.InterMetric{
@@ -179,8 +179,7 @@ func TestSignalFxFlushCounter(t *testing.T) {
 
 func TestSignalFxEventFlush(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink)
-
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
 	assert.NoError(t, err)
 
 	ev := samplers.UDPEvent{
@@ -204,8 +203,7 @@ func TestSignalFxEventFlush(t *testing.T) {
 
 func TestSignalFxSetExcludeTags(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink)
-
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
 	sink.SetExcludedTags([]string{"foo", "host"})
 	assert.NoError(t, err)
 
@@ -256,4 +254,67 @@ func TestSignalFxSetExcludeTags(t *testing.T) {
 	assert.Equal(t, "pie", dims["yay"], "Event missing a common tag")
 	assert.Equal(t, "", dims["novalue"], "Event has a busted tag")
 	assert.Equal(t, "", dims["host"], "Event has host tag despite exclude rule")
+}
+
+func TestSignalFxFlushMultiKey(t *testing.T) {
+	fallback := NewFakeSink()
+	specialized := NewFakeSink()
+
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]dpsink.Sink{"available": specialized})
+
+	assert.NoError(t, err)
+
+	interMetrics := []samplers.InterMetric{
+		samplers.InterMetric{
+			Name:      "a.b.c",
+			Timestamp: 1476119058,
+			Value:     float64(100),
+			Tags: []string{
+				"foo:bar",
+				"baz:quz",
+				"test_by:needs_fallback",
+			},
+			Type: samplers.GaugeMetric,
+		},
+		samplers.InterMetric{
+			Name:      "a.b.c",
+			Timestamp: 1476119058,
+			Value:     float64(100),
+			Tags: []string{
+				"foo:bar",
+				"baz:quz",
+				"test_by:available",
+			},
+			Type: samplers.GaugeMetric,
+		},
+	}
+
+	sink.Flush(context.TODO(), interMetrics)
+
+	assert.Equal(t, 1, len(fallback.points))
+	assert.Equal(t, 1, len(specialized.points))
+	{
+		point := fallback.points[0]
+		assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
+		assert.Equal(t, datapoint.Gauge, point.MetricType, "Metric has wrong type")
+		dims := point.Dimensions
+		assert.Equal(t, 5, len(dims), "Metric has incorrect tag count")
+		assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
+		assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
+		assert.Equal(t, "pie", dims["yay"], "Metric is missing common tag")
+		assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
+		assert.Equal(t, "needs_fallback", dims["test_by"], "Metric should have the right test_by tag")
+	}
+	{
+		point := specialized.points[0]
+		assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
+		assert.Equal(t, datapoint.Gauge, point.MetricType, "Metric has wrong type")
+		dims := point.Dimensions
+		assert.Equal(t, 5, len(dims), "Metric has incorrect tag count")
+		assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
+		assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
+		assert.Equal(t, "pie", dims["yay"], "Metric is missing common tag")
+		assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
+		assert.Equal(t, "available", dims["test_by"], "Metric should have the right test_by tag")
+	}
 }
