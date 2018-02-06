@@ -166,7 +166,7 @@ datadog_trace_api_address: ""
 
 # == SignalFx ==
 # SignalFx can be a sink for metrics.
-signalfx_api_key: "abc123"
+signalfx_api_key: ""
 
 # Where to send metrics
 signalfx_endpoint_base: "https://ingest.signalfx.com"
