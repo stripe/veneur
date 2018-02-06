@@ -337,8 +337,8 @@ func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
 	}
 }
 
-// ProxyMetrics takes a sliceof JSONMetrics and breaks them up into multiple
-// HTTP requests by MetricKey using the hash ring.
+// ProxyMetrics takes a slice of JSONMetrics and breaks them up into
+// multiple HTTP requests by MetricKey using the hash ring.
 func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMetric, origin string) {
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxy.proxy_metrics")
 	defer span.ClientFinish(p.traceClient)
@@ -368,13 +368,13 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 	wg.Add(len(jsonMetricsByDestination)) // Make our waitgroup the size of our destinations
 
 	for dest, batch := range jsonMetricsByDestination {
-		go p.doPost(&wg, dest, batch)
+		go p.doPost(ctx, &wg, dest, batch)
 	}
 	wg.Wait() // Wait for all the above goroutines to complete
 	p.Statsd.TimeInMilliseconds("proxy.duration_ns", float64(time.Since(span.Start).Nanoseconds()), nil, 1.0)
 }
 
-func (p *Proxy) doPost(wg *sync.WaitGroup, destination string, batch []samplers.JSONMetric) {
+func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination string, batch []samplers.JSONMetric) {
 	defer wg.Done()
 
 	batchSize := len(batch)
@@ -382,7 +382,7 @@ func (p *Proxy) doPost(wg *sync.WaitGroup, destination string, batch []samplers.
 		return
 	}
 
-	err := vhttp.PostHelper(context.TODO(), p.HTTPClient, p.Statsd, p.traceClient, fmt.Sprintf("%s/import", destination), batch, "forward", true, log)
+	err := vhttp.PostHelper(ctx, p.HTTPClient, p.Statsd, p.traceClient, fmt.Sprintf("%s/import", destination), batch, "forward", true, log)
 	if err == nil {
 		log.WithField("metrics", batchSize).Debug("Completed forward to upstream Veneur")
 	} else {
