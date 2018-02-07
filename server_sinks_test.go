@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +17,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/sinks/datadog"
 	"github.com/stripe/veneur/sinks/lightstep"
+	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/trace"
 )
 
 func TestFlushTracesBySink(t *testing.T) {
@@ -161,4 +164,57 @@ func TestNewDatadogMetricSinkConfig(t *testing.T) {
 	assert.Equal(t, "datadog", sink.Name())
 	// Verify that the values got set	assert.Equal(t, "apikey", sink.APIKey)
 	assert.Equal(t, "http://api", sink.DDHostname)
+}
+
+type sadSpanSink struct {
+	t    *testing.T
+	done chan struct{}
+	once sync.Once
+}
+
+func newSadSpanSink(t *testing.T, done chan struct{}) *sadSpanSink {
+	return &sadSpanSink{
+		t:    t,
+		done: done,
+		once: sync.Once{},
+	}
+}
+
+func (*sadSpanSink) Start(*trace.Client) error {
+	return nil
+}
+
+func (*sadSpanSink) Name() string {
+	return "sad_span_sink"
+}
+
+func (*sadSpanSink) Ingest(*ssf.SSFSpan) error {
+	return nil
+}
+
+func (sss *sadSpanSink) Flush(ctx context.Context) {
+	defer sss.once.Do(func() { close(sss.done) })
+	select {
+	case <-ctx.Done():
+		sss.t.Log("Correctly timed out")
+	case <-time.After(2 * time.Second):
+		sss.t.Fatal("Did not time-constrain trace flush")
+		close(sss.done)
+	}
+}
+
+func TestSpanFlushTimeouts(t *testing.T) {
+	cfg := localConfig()
+	cfg.IndicatorSpanTimerName = "indicator.span.timer"
+	cfg.SpanFlushTimeout = "1ns"
+
+	// We use the forwarding fixture, but we're only really using the server:
+	done := make(chan struct{})
+	srv := setupVeneurServer(t, cfg, nil, nil, newSadSpanSink(t, done))
+
+	// The server is responsible for creating its own context with
+	// an appropriate short timeout. A failure to do so should
+	// result in a test timeout & panic:
+	srv.Flush(context.TODO())
+	<-done
 }

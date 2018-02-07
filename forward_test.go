@@ -13,6 +13,7 @@ import (
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/trace"
 )
 
 type forwardFixture struct {
@@ -181,4 +182,49 @@ func TestE2EForwardMetric(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("Timed out waiting for a metric after 5 seconds")
 	}
+}
+
+// sadMetricSink implements a sink that only times out
+type sadMetricSink struct{ t *testing.T }
+
+func (sms *sadMetricSink) Name() string {
+	return "sad_metrics_sink"
+}
+
+func (sms *sadMetricSink) Start(traceClient *trace.Client) error {
+	return nil
+}
+
+func (sms *sadMetricSink) Flush(ctx context.Context, ms []samplers.InterMetric) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func (sms *sadMetricSink) FlushOtherSamples(ctx context.Context, events []ssf.SSFSample) {
+	<-ctx.Done()
+}
+
+func TestForwardTimeouts(t *testing.T) {
+	cfg := localConfig()
+	cfg.IndicatorSpanTimerName = "indicator.span.timer"
+	cfg.ForwardTimeout = "1ns"
+	cfg.MetricsFlushTimeout = "1ns"
+
+	// We use the forwarding fixture, but we're only really using the server:
+	srv := setupVeneurServer(t, cfg, nil, &sadMetricSink{}, nil)
+	srv.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "histogram",
+		},
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.MixedScope,
+	})
+
+	// The server is responsible for creating its own context with
+	// an appropriate short timeout. A failure to do so should
+	// result in a test timeout & panic:
+	srv.Flush(context.TODO())
 }
