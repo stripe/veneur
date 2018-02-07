@@ -92,6 +92,8 @@ type Server struct {
 	SSFListenAddrs    []net.Addr
 	RcvbufBytes       int
 
+	DangerousSleepDelay time.Duration
+
 	interval            time.Duration
 	synchronizeInterval bool
 	numReaders          int

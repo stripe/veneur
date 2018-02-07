@@ -57,7 +57,7 @@ func handleImport(s *Server) http.Handler {
 		if err != nil {
 			return
 		}
-		time.Sleep(12 * time.Second)
+		time.Sleep(s.DangerousSleepDelay)
 		// the server usually waits for this to return before finalizing the
 		// response, so this part must be done asynchronously
 		go s.ImportMetrics(span.Attach(ctx), jsonMetrics)

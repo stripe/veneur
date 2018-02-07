@@ -71,6 +71,7 @@ func main() {
 		}
 		trace.DefaultClient = server.TraceClient
 	}
+	server.DangerousSleepDelay = 12 * time.Second
 	server.Start()
 
 	if conf.HTTPAddress != "" {
