@@ -385,7 +385,7 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 
 // Flush emits metrics, since the spans have already been ingested and are
 // sending async.
-func (k *KafkaSpanSink) Flush() {
+func (k *KafkaSpanSink) Flush(context.Context) {
 	// TODO We have no stuff in here for detecting failed writes from the async
 	// producer. We should add that.
 	metrics.ReportOne(k.traceClient, ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(atomic.LoadInt64(&k.spansFlushed)), map[string]string{"sink": k.Name()}))

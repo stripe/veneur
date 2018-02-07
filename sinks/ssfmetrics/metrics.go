@@ -2,6 +2,7 @@
 package ssfmetrics
 
 import (
+	"context"
 	"sync/atomic"
 
 	"github.com/sirupsen/logrus"
@@ -135,7 +136,7 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 	return nil
 }
 
-func (m *metricExtractionSink) Flush() {
+func (m *metricExtractionSink) Flush(context.Context) {
 	tags := map[string]string{"sink": m.Name()}
 	metrics.ReportBatch(m.traceClient, []*ssf.SSFSample{
 		ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(atomic.SwapInt64(&m.spansProcessed, 0)), tags),

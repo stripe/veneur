@@ -226,7 +226,7 @@ func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ss
 		// the official dd-agent
 		// we don't actually pass all the body keys that dd-agent passes here... but
 		// it still works
-		err := vhttp.PostHelper(context.Background(), dd.HTTPClient, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/intake?api_key=%s", dd.DDHostname, dd.APIKey), map[string]map[string][]DDEvent{
+		err := vhttp.PostHelper(ctx, dd.HTTPClient, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/intake?api_key=%s", dd.DDHostname, dd.APIKey), map[string]map[string][]DDEvent{
 			"events": {
 				"api": events,
 			},
@@ -399,7 +399,7 @@ func (dd *DatadogSpanSink) Ingest(span *ssf.SSFSpan) error {
 // Flush signals the sink to send it's spans to their destination. For this
 // sync it means we'll be making an HTTP request to send them along. We assume
 // it's beneficial to performance to defer these until the normal 10s flush.
-func (dd *DatadogSpanSink) Flush() {
+func (dd *DatadogSpanSink) Flush(ctx context.Context) {
 	samples := &ssf.Samples{}
 	defer metrics.Report(dd.traceClient, samples)
 	dd.mutex.Lock()
@@ -512,7 +512,7 @@ func (dd *DatadogSpanSink) Flush() {
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
 
-		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPut, fmt.Sprintf("%s/v0.3/traces", dd.traceAddress), finalTraces, "flush_traces", false, map[string]string{"sink": "datadog"}, dd.log)
+		err := vhttp.PostHelper(ctx, dd.HTTPClient, dd.traceClient, http.MethodPut, fmt.Sprintf("%s/v0.3/traces", dd.traceAddress), finalTraces, "flush_traces", false, map[string]string{"sink": "datadog"}, dd.log)
 		if err == nil {
 			dd.log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
 		} else {

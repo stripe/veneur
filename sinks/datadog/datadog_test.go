@@ -187,7 +187,7 @@ func TestDatadogFlushSpans(t *testing.T) {
 	err = ddSink.Ingest(testSpan)
 	assert.NoError(t, err)
 
-	ddSink.Flush()
+	ddSink.Flush(context.TODO())
 	assert.Equal(t, true, transport.GotCalled, "Did not call spans endpoint")
 }
 

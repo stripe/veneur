@@ -18,6 +18,7 @@ type Config struct {
 	FlushFile                    string    `yaml:"flush_file"`
 	FlushMaxPerBody              int       `yaml:"flush_max_per_body"`
 	ForwardAddress               string    `yaml:"forward_address"`
+	ForwardTimeout               string    `yaml:"forward_timeout"`
 	Hostname                     string    `yaml:"hostname"`
 	HTTPAddress                  string    `yaml:"http_address"`
 	IndicatorSpanTimerName       string    `yaml:"indicator_span_timer_name"`
@@ -46,6 +47,7 @@ type Config struct {
 	LightstepNumClients          int       `yaml:"lightstep_num_clients"`
 	LightstepReconnectPeriod     string    `yaml:"lightstep_reconnect_period"`
 	MetricMaxLength              int       `yaml:"metric_max_length"`
+	MetricsFlushTimeout          string    `yaml:"metrics_flush_timeout"`
 	MutexProfileFraction         int       `yaml:"mutex_profile_fraction"`
 	NumReaders                   int       `yaml:"num_readers"`
 	NumSpanWorkers               int       `yaml:"num_span_workers"`
@@ -63,6 +65,7 @@ type Config struct {
 	} `yaml:"signalfx_per_tag_api_keys"`
 	SignalfxVaryKeyBy             string   `yaml:"signalfx_vary_key_by"`
 	SpanChannelCapacity           int      `yaml:"span_channel_capacity"`
+	SpanFlushTimeout              string   `yaml:"span_flush_timeout"`
 	SsfBufferSize                 int      `yaml:"ssf_buffer_size"`
 	SsfListenAddresses            []string `yaml:"ssf_listen_addresses"`
 	StatsAddress                  string   `yaml:"stats_address"`

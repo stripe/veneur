@@ -1,6 +1,7 @@
 package lightstep
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"reflect"
@@ -202,7 +203,7 @@ func (ls *LightStepSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 
 // Flush doesn't need to do anything to the LS tracer, so we emit metrics
 // instead.
-func (ls *LightStepSpanSink) Flush() {
+func (ls *LightStepSpanSink) Flush(context.Context) {
 	ls.mutex.Lock()
 	defer ls.mutex.Unlock()
 

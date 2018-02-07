@@ -62,6 +62,6 @@ func (b *blackholeSpanSink) Ingest(*ssf.SSFSpan) error {
 	return nil
 }
 
-func (b *blackholeSpanSink) Flush() {
+func (b *blackholeSpanSink) Flush(context.Context) {
 	return
 }

@@ -137,10 +137,7 @@ func (gs *GRPCSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 
 // Flush reports total counts of the number of sent and dropped spans since the
 // last flush.
-//
-// No data is sent to the target sink by this call, as this sink dispatches all
-// spans directly via gRPC during Ingest().
-func (gs *GRPCSpanSink) Flush() {
+func (gs *GRPCSpanSink) Flush(ctx context.Context) {
 	samples := &ssf.Samples{}
 	samples.Add(
 		ssf.Count(
