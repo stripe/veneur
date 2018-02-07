@@ -7,6 +7,7 @@ type ProxyConfig struct {
 	Debug                    bool   `yaml:"debug"`
 	EnableProfiling          bool   `yaml:"enable_profiling"`
 	ForwardAddress           string `yaml:"forward_address"`
+	ForwardTimeout           string `yaml:"forward_timeout"`
 	HTTPAddress              string `yaml:"http_address"`
 	SentryDsn                string `yaml:"sentry_dsn"`
 	StatsAddress             string `yaml:"stats_address"`

@@ -45,6 +45,7 @@ type Proxy struct {
 	Statsd                 *statsd.Client
 	AcceptingForwards      bool
 	AcceptingTraces        bool
+	ForwardTimeout         time.Duration
 
 	usingConsul     bool
 	enableProfiling bool
@@ -100,6 +101,16 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 
 	p.ForwardDestinations = consistent.New()
 	p.TraceDestinations = consistent.New()
+
+	if conf.ForwardTimeout != "" {
+		p.ForwardTimeout, err = time.ParseDuration(conf.ForwardTimeout)
+		if err != nil {
+			logger.WithError(err).
+				WithField("value", conf.ForwardTimeout).
+				Error("Could not parse forward timeout")
+			return
+		}
+	}
 
 	// We got a static forward address, stick it in the destination!
 	if p.ConsulForwardService == "" && conf.ForwardAddress != "" {
@@ -284,6 +295,11 @@ func (p *Proxy) Handler() http.Handler {
 func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxy.proxy_traces")
 	defer span.ClientFinish(p.traceClient)
+	if p.ForwardTimeout > 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, p.ForwardTimeout)
+		defer cancel()
+	}
 
 	tracesByDestination := make(map[string][]*DatadogTraceSpan)
 	for _, h := range p.TraceDestinations.Members() {
@@ -321,12 +337,17 @@ func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
 	}
 }
 
-// ProxyMetrics takes a sliceof JSONMetrics and breaks them up into multiple
-// HTTP requests by MetricKey using the hash ring.
+// ProxyMetrics takes a slice of JSONMetrics and breaks them up into
+// multiple HTTP requests by MetricKey using the hash ring.
 func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMetric, origin string) {
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxy.proxy_metrics")
 	defer span.ClientFinish(p.traceClient)
 
+	if p.ForwardTimeout > 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, p.ForwardTimeout)
+		defer cancel()
+	}
 	p.Statsd.Count("import.metrics_total", int64(len(jsonMetrics)), []string{
 		"remote_addr:" + origin,
 		"veneurglobalonly",
@@ -347,13 +368,13 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 	wg.Add(len(jsonMetricsByDestination)) // Make our waitgroup the size of our destinations
 
 	for dest, batch := range jsonMetricsByDestination {
-		go p.doPost(&wg, dest, batch)
+		go p.doPost(ctx, &wg, dest, batch)
 	}
 	wg.Wait() // Wait for all the above goroutines to complete
 	p.Statsd.TimeInMilliseconds("proxy.duration_ns", float64(time.Since(span.Start).Nanoseconds()), nil, 1.0)
 }
 
-func (p *Proxy) doPost(wg *sync.WaitGroup, destination string, batch []samplers.JSONMetric) {
+func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination string, batch []samplers.JSONMetric) {
 	defer wg.Done()
 
 	batchSize := len(batch)
@@ -361,7 +382,7 @@ func (p *Proxy) doPost(wg *sync.WaitGroup, destination string, batch []samplers.
 		return
 	}
 
-	err := vhttp.PostHelper(context.TODO(), p.HTTPClient, p.Statsd, p.traceClient, fmt.Sprintf("%s/import", destination), batch, "forward", true, log)
+	err := vhttp.PostHelper(ctx, p.HTTPClient, p.Statsd, p.traceClient, fmt.Sprintf("%s/import", destination), batch, "forward", true, log)
 	if err == nil {
 		log.WithField("metrics", batchSize).Debug("Completed forward to upstream Veneur")
 	} else {

@@ -154,6 +154,7 @@ func PostHelper(ctx context.Context, httpClient *http.Client, stats *statsd.Clie
 	stats.Histogram(action+".content_length_bytes", float64(bodyLength), nil, 1.0)
 
 	req, err := http.NewRequest(http.MethodPost, endpoint, &bodyBuffer)
+	req = req.WithContext(ctx)
 
 	if err != nil {
 		stats.Count(action+".error_total", 1, []string{"cause:construct"}, 1.0)
