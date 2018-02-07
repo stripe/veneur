@@ -308,7 +308,7 @@ func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consist
 			"service":         serviceName,
 			"errorType":       reflect.TypeOf(err),
 			"numDestinations": len(destinations),
-		}).Error("Discoverer returned an error, destinations may be stale!")
+		}).Error("Discoverer found zero destinations and/or returned an error. Destinations may be stale!")
 		samples.Add(ssf.Count("discoverer.errors", 1, srvTags))
 		// Return since we got no hosts. We don't want to zero out the list. This
 		// should result in us leaving the "last good" values in the ring.
