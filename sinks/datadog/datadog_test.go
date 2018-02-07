@@ -417,3 +417,35 @@ func TestDatadogFlushServiceCheck(t *testing.T) {
 	assert.Subset(t, ddFixtureCheck.Tags, ddChecks[0].Tags, "Check posted to DD does not have matching tags")
 
 }
+
+func TestTimeoutsOnMetrics(t *testing.T) {
+	client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
+	srv, rcved := ddTestServer(t, "/api/v1/series", "never.actually.acked")
+	defer close(rcved)
+
+	ddSink := DatadogMetricSink{
+		DDHostname:      srv.URL,
+		HTTPClient:      client,
+		flushMaxPerBody: 15,
+		log:             logrus.New(),
+		tags:            []string{"a:b", "c:d"},
+		interval:        10,
+	}
+
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Nanosecond)
+	defer cancel()
+
+	// A failure to consider the context should result in a test
+	// timeout:
+	ddSink.Flush(ctx, []samplers.InterMetric{
+		samplers.InterMetric{
+			Name:      "never.actually.acked",
+			Timestamp: time.Now().Unix(),
+			Value:     float64(10),
+			Tags:      []string{"gorch:frobble", "x:e"},
+			Type:      samplers.CounterMetric,
+			Sinks:     samplers.RouteInformation{},
+		},
+	})
+}
