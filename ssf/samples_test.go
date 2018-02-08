@@ -48,9 +48,26 @@ func TestTimingMS(t *testing.T) {
 	}
 }
 
+var testTypes = []string{"count", "gauge", "histogram", "set"}
+
+func testSample(t *testing.T, name string, args ...SampleOption) *SSFSample {
+	tags := map[string]string{"purpose": "testing"}
+	switch name {
+	case "count":
+		return Count("foo", 1, tags, args...)
+	case "gauge":
+		return Gauge("foo", 1, tags, args...)
+	case "histogram":
+		return Histogram("foo", 1, tags, args...)
+	case "set":
+		return Set("foo", "bar", tags, args...)
+	}
+	t.Fatalf("Unknown sample type %s", name)
+	return nil // not reached
+}
+
 func TestOptions(t *testing.T) {
 	then := time.Now().Add(-20 * time.Second)
-	testFuns := map[string]constructor{"count": Count, "gauge": Gauge, "histogram": Histogram}
 	testOpts := []struct {
 		name  string
 		cons  SampleOption
@@ -71,15 +88,15 @@ func TestOptions(t *testing.T) {
 			},
 		},
 	}
-	for name, elt := range testFuns {
-		test := elt
+	for _, name := range testTypes {
+		test := name
 		t.Run(fmt.Sprintf("%s", name), func(t *testing.T) {
 			t.Parallel()
 			for _, elt := range testOpts {
 				opt := elt
 				t.Run(opt.name, func(t *testing.T) {
 					t.Parallel()
-					sample := test("foo", 1, map[string]string{"purpose": "testing"}, opt.cons)
+					sample := testSample(t, test, opt.cons)
 					opt.check(sample)
 				})
 			}
@@ -88,12 +105,11 @@ func TestOptions(t *testing.T) {
 }
 
 func TestPrefix(t *testing.T) {
-	testFuns := map[string]constructor{"count": Count, "gauge": Gauge, "histogram": Histogram}
 	NamePrefix = "testing.the.prefix."
-	for name, elt := range testFuns {
+	for _, elt := range testTypes {
 		test := elt
-		t.Run(fmt.Sprintf("%s", name), func(t *testing.T) {
-			sample := test("foo", 1, nil)
+		t.Run(fmt.Sprintf("%s", test), func(t *testing.T) {
+			sample := testSample(t, elt)
 			assert.Equal(t, "testing.the.prefix.foo", sample.Name)
 		})
 	}
