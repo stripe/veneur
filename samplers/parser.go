@@ -162,16 +162,14 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 	tempTags := make([]string, 0)
 	for key, value := range metric.Tags {
 		if key == "veneurlocalonly" {
-			// delete the tag from the list
 			ret.Scope = LocalOnly
-			break
-		} else if key == "veneurglobalonly" {
-			// delete the tag from the list
-			ret.Scope = GlobalOnly
-			break
-		} else {
-			tempTags = append(tempTags, fmt.Sprintf("%s:%s", key, value))
+			continue
 		}
+		if key == "veneurglobalonly" {
+			ret.Scope = GlobalOnly
+			continue
+		}
+		tempTags = append(tempTags, fmt.Sprintf("%s:%s", key, value))
 	}
 	sort.Strings(tempTags)
 	ret.Tags = tempTags
