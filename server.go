@@ -442,6 +442,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 				Svc:      svc,
 				S3Bucket: conf.AwsS3Bucket,
 				Hostname: ret.Hostname,
+				Interval: ret.interval.Seconds(),
 			}
 			ret.registerPlugin(plugin)
 		}
@@ -459,6 +460,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		localFilePlugin := &localfilep.Plugin{
 			FilePath: conf.FlushFile,
 			Logger:   log,
+			Interval: ret.interval.Seconds(),
 		}
 		ret.registerPlugin(localFilePlugin)
 		logger.Info(fmt.Sprintf("Local file logging to %s", conf.FlushFile))

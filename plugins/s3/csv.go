@@ -53,7 +53,7 @@ var tsvSchema = [...]string{
 // The caller is responsible for setting w.Comma as the appropriate delimiter.
 // For performance, encodeCSV does not flush after every call; the caller is
 // expected to flush at the end of the operation cycle
-func EncodeInterMetricCSV(d samplers.InterMetric, w *csv.Writer, partitionDate *time.Time, hostName string, interval int) error {
+func EncodeInterMetricCSV(d samplers.InterMetric, w *csv.Writer, partitionDate *time.Time, hostName string, interval float64) error {
 	// TODO(aditya) some better error handling for this
 	// to guarantee that the result is proper JSON
 	tags := "{" + strings.Join(d.Tags, ",") + "}"
@@ -62,7 +62,7 @@ func EncodeInterMetricCSV(d samplers.InterMetric, w *csv.Writer, partitionDate *
 	metricValue := d.Value
 	switch d.Type {
 	case samplers.CounterMetric:
-		metricValue = d.Value / float64(interval)
+		metricValue = d.Value / interval
 		metricType = "rate"
 
 	case samplers.GaugeMetric:
@@ -77,7 +77,7 @@ func EncodeInterMetricCSV(d samplers.InterMetric, w *csv.Writer, partitionDate *
 		TsvName:           d.Name,
 		TsvTags:           tags,
 		TsvMetricType:     metricType,
-		TsvInterval:       strconv.Itoa(interval),
+		TsvInterval:       strconv.FormatFloat(interval, 'f', -1, 64),
 		TsvVeneurHostname: hostName,
 		TsvValue:          strconv.FormatFloat(metricValue, 'f', -1, 64),
 

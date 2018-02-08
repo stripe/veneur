@@ -22,7 +22,7 @@ type Plugin struct {
 	FilePath string
 	Logger   *logrus.Logger
 	hostname string
-	interval int
+	Interval float64
 }
 
 // Delimiter defines what kind of delimiter we'll use in the CSV format -- in this case, we want TSV
@@ -36,11 +36,11 @@ func (p *Plugin) Flush(ctx context.Context, metrics []samplers.InterMetric) erro
 	if err != nil {
 		return fmt.Errorf("couldn't open %s for appending: %s", p.FilePath, err)
 	}
-	appendToWriter(f, metrics, p.hostname, p.interval)
+	appendToWriter(f, metrics, p.hostname, p.Interval)
 	return nil
 }
 
-func appendToWriter(appender io.Writer, metrics []samplers.InterMetric, hostname string, interval int) error {
+func appendToWriter(appender io.Writer, metrics []samplers.InterMetric, hostname string, interval float64) error {
 	gzW := gzip.NewWriter(appender)
 	csvW := csv.NewWriter(gzW)
 	csvW.Comma = Delimiter
