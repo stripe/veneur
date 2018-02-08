@@ -2,7 +2,7 @@
 package ssfmetrics
 
 import (
-	"sync/atomic"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
@@ -14,6 +14,7 @@ import (
 )
 
 type metricExtractionSink struct {
+	mutex                  sync.Mutex
 	workers                []Processor
 	indicatorSpanTimerName string
 	log                    *logrus.Logger
@@ -43,12 +44,12 @@ func NewMetricExtractionSink(mw []Processor, timerName string, cl *trace.Client,
 }
 
 // Name returns "metric_extraction".
-func (m metricExtractionSink) Name() string {
+func (m *metricExtractionSink) Name() string {
 	return "metric_extraction"
 }
 
 // Start is a no-op.
-func (m metricExtractionSink) Start(*trace.Client) error {
+func (m *metricExtractionSink) Start(*trace.Client) error {
 	return nil
 }
 
@@ -69,7 +70,14 @@ func (m *metricExtractionSink) sendSample(sample *ssf.SSFSample) error {
 
 // Ingest extracts metrics from an SSF span, and feeds them into the
 // appropriate metric sinks.
-func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
+func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
+	var metricsCount int
+	defer func() {
+		m.mutex.Lock()
+		defer m.mutex.Unlock()
+		m.metricsGenerated += int64(metricsCount)
+		m.spansProcessed++
+	}()
 	metrics, err := samplers.ConvertMetrics(span)
 	if err != nil {
 		if _, ok := err.(samplers.InvalidMetrics); ok {
@@ -91,8 +99,7 @@ func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 			return err
 		}
 	}
-	atomic.AddInt64(&m.spansProcessed, 1)
-	atomic.AddInt64(&m.metricsGenerated, int64(len(metrics)))
+	metricsCount += len(metrics)
 	m.sendMetrics(metrics)
 
 	if err := protocol.ValidateTrace(span); err != nil {
@@ -106,18 +113,19 @@ func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 			Warn("Couldn't extract indicator metrics for span")
 		return err
 	}
+	metricsCount += len(indicatorMetrics)
 	m.sendMetrics(indicatorMetrics)
 	return nil
 }
 
-func (m metricExtractionSink) Flush() {
+func (m *metricExtractionSink) Flush() {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 	tags := map[string]string{"sink": m.Name()}
 	metrics.ReportBatch(m.traceClient, []*ssf.SSFSample{
-		ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(atomic.LoadInt64(&m.spansProcessed)), tags),
-		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(atomic.LoadInt64(&m.metricsGenerated)), tags),
+		ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(m.spansProcessed), tags),
+		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(m.metricsGenerated), tags),
 	})
-
-	atomic.SwapInt64(&m.spansProcessed, 0)
-	atomic.SwapInt64(&m.metricsGenerated, 0)
-	return
+	m.spansProcessed = 0
+	m.metricsGenerated = 0
 }
