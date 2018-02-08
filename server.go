@@ -12,7 +12,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -658,7 +657,6 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		log.WithError(err).Warn("ParseSSF")
 		return
 	}
-	reportSpanName(s.Statsd, span)
 	s.handleSSF(span, []string{"ssf_format:packet"})
 }
 
@@ -983,8 +981,6 @@ func (tb *internalTraceBackend) SendSync(ctx context.Context, span *ssf.SSFSpan)
 				"ssf_format:internal",
 			}
 			tb.statsd.Incr("ssf.spans.received_total", tags, .1)
-
-			reportSpanName(tb.statsd, span)
 			tb.statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, .1)
 		}
 		return nil
@@ -1006,14 +1002,4 @@ var _ trace.ClientBackend = &internalTraceBackend{}
 // multiple of `interval`, then adds `interval` back to find the "next" tick.
 func CalculateTickDelay(interval time.Duration, t time.Time) time.Duration {
 	return t.Truncate(interval).Add(interval).Sub(t)
-}
-
-func reportSpanName(statsd *statsd.Client, span *ssf.SSFSpan) {
-	setTags := []string{
-		fmt.Sprintf("indicator:%s", strconv.FormatBool(span.Indicator)),
-		fmt.Sprintf("service:%s", span.Service),
-		fmt.Sprintf("root_span:%s", strconv.FormatBool(span.Id == span.TraceId)),
-	}
-
-	statsd.Set("ssf.names_unique", span.Name, setTags, 0.1)
 }
