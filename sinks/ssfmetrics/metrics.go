@@ -105,6 +105,8 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 	if err := protocol.ValidateTrace(span); err != nil {
 		return err
 	}
+	// If we made it here, we are dealing with a fully-fledged
+	// trace span, not just a mere carrier for Samples:
 
 	indicatorMetrics, err := samplers.ConvertIndicatorMetrics(span, m.indicatorSpanTimerName)
 	if err != nil {
@@ -114,7 +116,17 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 		return err
 	}
 	metricsCount += len(indicatorMetrics)
-	m.sendMetrics(indicatorMetrics)
+
+	spanMetrics, err := samplers.ConvertSpanUniquenessMetrics(span, 0.1)
+	if err != nil {
+		m.log.WithError(err).
+			WithField("span_name", span.Name).
+			Warn("Couldn't extract uniqueness metrics for span")
+		return err
+	}
+	metricsCount += len(spanMetrics)
+
+	m.sendMetrics(append(indicatorMetrics, spanMetrics...))
 	return nil
 }
 

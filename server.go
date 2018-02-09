@@ -12,7 +12,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -652,7 +651,6 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		log.WithError(err).Warn("ParseSSF")
 		return
 	}
-	samples.Add(ssf.RandomlySample(0.1, uniqueSpanNameMetric(span))...)
 	s.handleSSF(span, map[string]string{"ssf_format": "packet"})
 }
 
@@ -985,8 +983,7 @@ func (tb *internalTraceBackend) SendSync(ctx context.Context, span *ssf.SSFSpan)
 		metrics.ReportBatch(tb.tc,
 			ssf.RandomlySample(0.1,
 				ssf.Count("ssf.spans.received_total", 1, tags),
-				ssf.Histogram("ssf.spans.tags_per_span", float32(len(span.Tags)), tags),
-				uniqueSpanNameMetric(span)))
+				ssf.Histogram("ssf.spans.tags_per_span", float32(len(span.Tags)), tags)))
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -1006,12 +1003,4 @@ var _ trace.ClientBackend = &internalTraceBackend{}
 // multiple of `interval`, then adds `interval` back to find the "next" tick.
 func CalculateTickDelay(interval time.Duration, t time.Time) time.Duration {
 	return t.Truncate(interval).Add(interval).Sub(t)
-}
-
-func uniqueSpanNameMetric(span *ssf.SSFSpan) *ssf.SSFSample {
-	return ssf.Set("ssf.names_unique", span.Name, map[string]string{
-		"indicator": strconv.FormatBool(span.Indicator),
-		"service":   span.Service,
-		"root_span": strconv.FormatBool(span.Id == span.TraceId),
-	})
 }

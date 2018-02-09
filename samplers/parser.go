@@ -104,6 +104,33 @@ func ConvertIndicatorMetrics(span *ssf.SSFSpan, timerName string) (metrics []UDP
 	return metrics, nil
 }
 
+// ConvertSpanUniquenessMetrics takes a trace span and computes
+// uniqueness metrics about it, returning UDPMetrics sampled at
+// rate. Currently, the only metric returned is a Set counting the
+// unique names per indicator span/service.
+func ConvertSpanUniquenessMetrics(span *ssf.SSFSpan, rate float32) ([]UDPMetric, error) {
+	if span.Service == "" {
+		return []UDPMetric{}, nil
+	}
+	ssfMetrics := []*ssf.SSFSample{}
+	ssfMetrics = append(ssfMetrics,
+		ssf.RandomlySample(rate,
+			ssf.Set("ssf.names_unique", span.Name, map[string]string{
+				"indicator": strconv.FormatBool(span.Indicator),
+				"service":   span.Service,
+				"root_span": strconv.FormatBool(span.Id == span.TraceId),
+			}))...)
+	metrics := []UDPMetric{}
+	for _, m := range ssfMetrics {
+		udpM, err := ParseMetricSSF(m)
+		if err != nil {
+			return []UDPMetric{}, err
+		}
+		metrics = append(metrics, udpM)
+	}
+	return metrics, nil
+}
+
 // ValidMetric takes in an SSF sample and determines if it is valid or not.
 func ValidMetric(sample UDPMetric) bool {
 	ret := true
