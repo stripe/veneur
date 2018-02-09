@@ -137,7 +137,7 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 	if conf.SsfDestinationAddress != "" {
 		p.TraceClient, err = trace.NewClient(conf.SsfDestinationAddress,
 			trace.Buffered,
-			trace.FlushInterval(10*time.Second),
+			trace.FlushInterval(3*time.Second),
 		)
 		if err != nil {
 			logger.WithField("ssf_destination_address", conf.SsfDestinationAddress).
