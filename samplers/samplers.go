@@ -327,32 +327,32 @@ func (s *Set) Combine(other []byte) error {
 // Histo is a collection of values that generates max, min, count, and
 // percentiles over time.
 type Histo struct {
-	Name  string
-	Tags  []string
-	Value *tdigest.MergingDigest
+	Name    string
+	Tags    []string
+	tDigest *tdigest.MergingDigest
 	// these values are computed from only the samples that came through this
 	// veneur instance, ignoring any histograms merged from elsewhere
 	// we separate them because they're easy to aggregate on the backend without
 	// loss of granularity, and having host-local information on them might be
 	// useful
-	Weight        float64
-	Min           float64
-	Max           float64
-	Sum           float64
-	ReciprocalSum float64
+	weight        float64
+	min           float64
+	max           float64
+	sum           float64
+	reciprocalSum float64
 }
 
 // Sample adds the supplied value to the histogram.
 func (h *Histo) Sample(sample float64, sampleRate float32) {
 	weight := float64(1 / sampleRate)
-	h.Value.Add(sample, weight)
+	h.tDigest.Add(sample, weight)
 
-	h.Weight += weight
-	h.Min = math.Min(h.Min, sample)
-	h.Max = math.Max(h.Max, sample)
-	h.Sum += sample * weight
+	h.weight += weight
+	h.min = math.Min(h.min, sample)
+	h.max = math.Max(h.max, sample)
+	h.sum += sample * weight
 
-	h.ReciprocalSum += (1 / sample) * weight
+	h.reciprocalSum += (1 / sample) * weight
 }
 
 // NewHist generates a new Histo and returns it.
@@ -361,10 +361,10 @@ func NewHist(Name string, Tags []string) *Histo {
 		Name: Name,
 		Tags: Tags,
 		// we're going to allocate a lot of these, so we don't want them to be huge
-		Value: tdigest.NewMerging(100, false),
-		Min:   math.Inf(+1),
-		Max:   math.Inf(-1),
-		Sum:   0,
+		tDigest: tdigest.NewMerging(100, false),
+		min:     math.Inf(+1),
+		max:     math.Inf(-1),
+		sum:     0,
 	}
 }
 
@@ -375,7 +375,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 	metrics := make([]InterMetric, 0, aggregates.Count+len(percentiles))
 	sinks := routeInfo(h.Tags)
 
-	if (aggregates.Value&AggregateMax) == AggregateMax && !math.IsInf(h.Max, 0) {
+	if (aggregates.Value&AggregateMax) == AggregateMax && !math.IsInf(h.max, 0) {
 		// Defensively recopy tags to avoid aliasing bugs in case multiple InterMetrics share the same
 		// tag array in the future
 		tags := make([]string, len(h.Tags))
@@ -383,39 +383,39 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.max", h.Name),
 			Timestamp: now,
-			Value:     float64(h.Max),
+			Value:     float64(h.max),
 			Tags:      tags,
 			Type:      GaugeMetric,
 			Sinks:     sinks,
 		})
 	}
-	if (aggregates.Value&AggregateMin) == AggregateMin && !math.IsInf(h.Min, 0) {
+	if (aggregates.Value&AggregateMin) == AggregateMin && !math.IsInf(h.min, 0) {
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.min", h.Name),
 			Timestamp: now,
-			Value:     float64(h.Min),
+			Value:     float64(h.min),
 			Tags:      tags,
 			Type:      GaugeMetric,
 			Sinks:     sinks,
 		})
 	}
 
-	if (aggregates.Value&AggregateSum) == AggregateSum && h.Sum != 0 {
+	if (aggregates.Value&AggregateSum) == AggregateSum && h.sum != 0 {
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.sum", h.Name),
 			Timestamp: now,
-			Value:     float64(h.Sum),
+			Value:     float64(h.sum),
 			Tags:      tags,
 			Type:      GaugeMetric,
 			Sinks:     sinks,
 		})
 	}
 
-	if (aggregates.Value&AggregateAverage) == AggregateAverage && h.Sum != 0 && h.Weight != 0 {
+	if (aggregates.Value&AggregateAverage) == AggregateAverage && h.sum != 0 && h.weight != 0 {
 		// we need both a rate and a non-zero sum before it will make sense
 		// to submit an average
 		tags := make([]string, len(h.Tags))
@@ -423,14 +423,14 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.avg", h.Name),
 			Timestamp: now,
-			Value:     float64(h.Sum / h.Weight),
+			Value:     float64(h.sum / h.weight),
 			Tags:      tags,
 			Type:      GaugeMetric,
 			Sinks:     sinks,
 		})
 	}
 
-	if (aggregates.Value&AggregateCount) == AggregateCount && h.Weight != 0 {
+	if (aggregates.Value&AggregateCount) == AggregateCount && h.weight != 0 {
 		// if we haven't received any local samples, then leave this sparse,
 		// otherwise it can lead to some misleading zeroes in between the
 		// flushes of downstream instances
@@ -439,7 +439,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.count", h.Name),
 			Timestamp: now,
-			Value:     float64(h.Weight),
+			Value:     float64(h.weight),
 			Tags:      tags,
 			Type:      CounterMetric,
 			Sinks:     sinks,
@@ -454,7 +454,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			InterMetric{
 				Name:      fmt.Sprintf("%s.median", h.Name),
 				Timestamp: now,
-				Value:     float64(h.Value.Quantile(0.5)),
+				Value:     float64(h.tDigest.Quantile(0.5)),
 				Tags:      tags,
 				Type:      GaugeMetric,
 				Sinks:     sinks,
@@ -462,7 +462,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		)
 	}
 
-	if (aggregates.Value&AggregateHarmonicMean) == AggregateHarmonicMean && h.ReciprocalSum != 0 && h.Weight != 0 {
+	if (aggregates.Value&AggregateHarmonicMean) == AggregateHarmonicMean && h.reciprocalSum != 0 && h.weight != 0 {
 		// we need both a rate and a non-zero sum before it will make sense
 		// to submit an average
 		tags := make([]string, len(h.Tags))
@@ -470,7 +470,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.hmean", h.Name),
 			Timestamp: now,
-			Value:     float64(h.Weight / h.ReciprocalSum),
+			Value:     float64(h.weight / h.reciprocalSum),
 			Tags:      tags,
 			Type:      GaugeMetric,
 			Sinks:     sinks,
@@ -486,7 +486,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			InterMetric{
 				Name:      fmt.Sprintf("%s.%dpercentile", h.Name, int(p*100)),
 				Timestamp: now,
-				Value:     float64(h.Value.Quantile(p)),
+				Value:     float64(h.tDigest.Quantile(p)),
 				Tags:      tags,
 				Type:      GaugeMetric,
 				Sinks:     sinks,
@@ -499,7 +499,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 
 // Export converts a Histogram into a JSONMetric
 func (h *Histo) Export() (JSONMetric, error) {
-	val, err := h.Value.GobEncode()
+	val, err := h.tDigest.GobEncode()
 	if err != nil {
 		return JSONMetric{}, err
 	}
@@ -521,6 +521,6 @@ func (h *Histo) Combine(other []byte) error {
 	if err := otherHistogram.GobDecode(other); err != nil {
 		return err
 	}
-	h.Value.Merge(otherHistogram)
+	h.tDigest.Merge(otherHistogram)
 	return nil
 }
