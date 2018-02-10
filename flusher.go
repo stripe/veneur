@@ -240,11 +240,10 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 
 			// If this is global, always submit both percentiles and
 			// aggregates for "global" histogram types
-			for _, gh := range wm.globalHistograms {
-				finalMetrics = append(finalMetrics, gh.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
-			}
-			for _, gt := range wm.globalTimers {
-				finalMetrics = append(finalMetrics, gt.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
+			for _, histos := range []histoMap{wm.globalHistograms, wm.globalTimers} {
+				for _, h := range histos {
+					finalMetrics = append(finalMetrics, h.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
+				}
 			}
 		}
 	}
@@ -328,17 +327,19 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 			}
 			jsonMetrics = append(jsonMetrics, jm)
 		}
-		for _, histo := range wm.histograms {
-			jm, err := histo.Export()
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "histogram",
-					"name":          histo.Name,
-				}).Error("Could not export metric")
-				continue
+		for _, histos := range []histoMap{wm.histograms, wm.globalHistograms} {
+			for _, histo := range histos {
+				jm, err := histo.Export()
+				if err != nil {
+					log.WithFields(logrus.Fields{
+						logrus.ErrorKey: err,
+						"type":          "histogram",
+						"name":          histo.Name,
+					}).Error("Could not export metric")
+					continue
+				}
+				jsonMetrics = append(jsonMetrics, jm)
 			}
-			jsonMetrics = append(jsonMetrics, jm)
 		}
 		for _, set := range wm.sets {
 			jm, err := set.Export()
@@ -352,19 +353,21 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 			}
 			jsonMetrics = append(jsonMetrics, jm)
 		}
-		for _, timer := range wm.timers {
-			jm, err := timer.Export()
-			if err != nil {
-				log.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "timer",
-					"name":          timer.Name,
-				}).Error("Could not export metric")
-				continue
+		for _, timers := range []histoMap{wm.timers, wm.globalTimers} {
+			for _, timer := range timers {
+				jm, err := timer.Export()
+				if err != nil {
+					log.WithFields(logrus.Fields{
+						logrus.ErrorKey: err,
+						"type":          "timer",
+						"name":          timer.Name,
+					}).Error("Could not export metric")
+					continue
+				}
+				// the exporter doesn't know that these two are "different"
+				jm.Type = "timer"
+				jsonMetrics = append(jsonMetrics, jm)
 			}
-			// the exporter doesn't know that these two are "different"
-			jm.Type = "timer"
-			jsonMetrics = append(jsonMetrics, jm)
 		}
 	}
 	span.Add(ssf.Timing("forward.duration_ns", time.Since(exportStart), time.Nanosecond, map[string]string{"part": "export"}),

@@ -64,21 +64,26 @@ type WorkerMetrics struct {
 	localTimers     map[samplers.MetricKey]*samplers.Histo
 }
 
+type counterMap = map[samplers.MetricKey]*samplers.Counter
+type gaugeMap = map[samplers.MetricKey]*samplers.Gauge
+type setMap = map[samplers.MetricKey]*samplers.Set
+type histoMap = map[samplers.MetricKey]*samplers.Histo
+
 // NewWorkerMetrics initializes a WorkerMetrics struct
 func NewWorkerMetrics() WorkerMetrics {
 	return WorkerMetrics{
-		counters:         make(map[samplers.MetricKey]*samplers.Counter),
-		globalCounters:   make(map[samplers.MetricKey]*samplers.Counter),
-		globalGauges:     make(map[samplers.MetricKey]*samplers.Gauge),
-		gauges:           make(map[samplers.MetricKey]*samplers.Gauge),
-		histograms:       make(map[samplers.MetricKey]*samplers.Histo),
-		sets:             make(map[samplers.MetricKey]*samplers.Set),
-		timers:           make(map[samplers.MetricKey]*samplers.Histo),
-		localHistograms:  make(map[samplers.MetricKey]*samplers.Histo),
-		localSets:        make(map[samplers.MetricKey]*samplers.Set),
-		localTimers:      make(map[samplers.MetricKey]*samplers.Histo),
-		globalHistograms: make(map[samplers.MetricKey]*samplers.Histo),
-		globalTimers:     make(map[samplers.MetricKey]*samplers.Histo),
+		counters:         make(counterMap),
+		globalCounters:   make(counterMap),
+		globalGauges:     make(gaugeMap),
+		gauges:           make(gaugeMap),
+		histograms:       make(histoMap),
+		sets:             make(setMap),
+		timers:           make(histoMap),
+		localHistograms:  make(histoMap),
+		localSets:        make(setMap),
+		localTimers:      make(histoMap),
+		globalHistograms: make(histoMap),
+		globalTimers:     make(histoMap),
 	}
 }
 
