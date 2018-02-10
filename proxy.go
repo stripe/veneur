@@ -382,7 +382,7 @@ func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination stri
 		return
 	}
 
-	err := vhttp.PostHelper(context.TODO(), p.HTTPClient, p.Statsd, p.traceClient, http.MethodPost, fmt.Sprintf("%s/import", destination), batch, "forward", true, log)
+	err := vhttp.PostHelper(ctx, p.HTTPClient, p.Statsd, p.traceClient, http.MethodPost, fmt.Sprintf("%s/import", destination), batch, "forward", true, log)
 	if err == nil {
 		log.WithField("metrics", batchSize).Debug("Completed forward to upstream Veneur")
 	} else {

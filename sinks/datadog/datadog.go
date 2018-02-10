@@ -19,8 +19,12 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
-const DatadogResourceKey = "resource"
 const datadogNameKey = "name"
+const datadogResourceKey = "resource"
+
+// At present Veneur has no way to differentiate between types. This could likely
+// be changed to a tag conversion (e.g. tag type is removed and used for this value)
+const datadogSpanType = "web"
 
 type DatadogMetricSink struct {
 	HTTPClient      *http.Client
@@ -366,11 +370,11 @@ func (dd *DatadogSpanSink) Flush() {
 			tags[k] = v
 		}
 
-		resource := span.Tags[DatadogResourceKey]
+		resource := span.Tags[datadogResourceKey]
 		if resource == "" {
 			resource = "unknown"
 		}
-		delete(tags, DatadogResourceKey)
+		delete(tags, datadogResourceKey)
 
 		name := span.Name
 		if name == "" {
@@ -391,10 +395,9 @@ func (dd *DatadogSpanSink) Flush() {
 			Resource: resource,
 			Start:    span.StartTimestamp,
 			Duration: span.EndTimestamp - span.StartTimestamp,
-			// TODO don't hardcode
-			Type:  "web",
-			Error: errorCode,
-			Meta:  tags,
+			Type:     datadogSpanType,
+			Error:    errorCode,
+			Meta:     tags,
 		}
 		serviceCount[span.Service]++
 		if _, ok := traceMap[span.TraceId]; !ok {
