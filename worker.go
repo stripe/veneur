@@ -53,6 +53,10 @@ type WorkerMetrics struct {
 	globalCounters map[samplers.MetricKey]*samplers.Counter
 	// and gauges which are global
 	globalGauges map[samplers.MetricKey]*samplers.Gauge
+	// these only submit aggregations (min, max, count, etc.) from a global
+	// instance
+	globalHistograms map[samplers.MetricKey]*samplers.Histo
+	globalTimers     map[samplers.MetricKey]*samplers.Histo
 
 	// these are used for metrics that shouldn't be forwarded
 	localHistograms map[samplers.MetricKey]*samplers.Histo
@@ -63,16 +67,18 @@ type WorkerMetrics struct {
 // NewWorkerMetrics initializes a WorkerMetrics struct
 func NewWorkerMetrics() WorkerMetrics {
 	return WorkerMetrics{
-		counters:        make(map[samplers.MetricKey]*samplers.Counter),
-		globalCounters:  make(map[samplers.MetricKey]*samplers.Counter),
-		globalGauges:    make(map[samplers.MetricKey]*samplers.Gauge),
-		gauges:          make(map[samplers.MetricKey]*samplers.Gauge),
-		histograms:      make(map[samplers.MetricKey]*samplers.Histo),
-		sets:            make(map[samplers.MetricKey]*samplers.Set),
-		timers:          make(map[samplers.MetricKey]*samplers.Histo),
-		localHistograms: make(map[samplers.MetricKey]*samplers.Histo),
-		localSets:       make(map[samplers.MetricKey]*samplers.Set),
-		localTimers:     make(map[samplers.MetricKey]*samplers.Histo),
+		counters:         make(map[samplers.MetricKey]*samplers.Counter),
+		globalCounters:   make(map[samplers.MetricKey]*samplers.Counter),
+		globalGauges:     make(map[samplers.MetricKey]*samplers.Gauge),
+		gauges:           make(map[samplers.MetricKey]*samplers.Gauge),
+		histograms:       make(map[samplers.MetricKey]*samplers.Histo),
+		sets:             make(map[samplers.MetricKey]*samplers.Set),
+		timers:           make(map[samplers.MetricKey]*samplers.Histo),
+		localHistograms:  make(map[samplers.MetricKey]*samplers.Histo),
+		localSets:        make(map[samplers.MetricKey]*samplers.Set),
+		localTimers:      make(map[samplers.MetricKey]*samplers.Histo),
+		globalHistograms: make(map[samplers.MetricKey]*samplers.Histo),
+		globalTimers:     make(map[samplers.MetricKey]*samplers.Histo),
 	}
 }
 
@@ -103,14 +109,16 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 			}
 		}
 	case histogramTypeName:
-		if Scope == samplers.LocalOnly {
-			if _, present = wm.localHistograms[mk]; !present {
-				wm.localHistograms[mk] = samplers.NewHist(mk.Name, tags)
-			}
-		} else {
-			if _, present = wm.histograms[mk]; !present {
-				wm.histograms[mk] = samplers.NewHist(mk.Name, tags)
-			}
+		m := wm.histograms
+		switch Scope {
+		case samplers.LocalOnly:
+			m = wm.localHistograms
+		case samplers.GlobalOnly:
+			m = wm.globalHistograms
+		}
+
+		if _, present := m[mk]; !present {
+			m[mk] = samplers.NewHist(mk.Name, tags)
 		}
 	case setTypeName:
 		if Scope == samplers.LocalOnly {
@@ -123,14 +131,16 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 			}
 		}
 	case timerTypeName:
-		if Scope == samplers.LocalOnly {
-			if _, present = wm.localTimers[mk]; !present {
-				wm.localTimers[mk] = samplers.NewHist(mk.Name, tags)
-			}
-		} else {
-			if _, present = wm.timers[mk]; !present {
-				wm.timers[mk] = samplers.NewHist(mk.Name, tags)
-			}
+		m := wm.timers
+		switch Scope {
+		case samplers.LocalOnly:
+			m = wm.localTimers
+		case samplers.GlobalOnly:
+			m = wm.globalTimers
+		}
+
+		if _, present := m[mk]; !present {
+			m[mk] = samplers.NewHist(mk.Name, tags)
 		}
 		// no need to raise errors on unknown types
 		// the caller will probably end up doing that themselves
