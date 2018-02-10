@@ -1,6 +1,7 @@
 package samplers
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"strconv"
@@ -417,4 +418,43 @@ func TestMetricKeyEquality(t *testing.T) {
 	// Make sure we can stringify that key and get equal!
 	assert.Equal(t, ce1.MetricKey.String(), ce2.MetricKey.String())
 	assert.NotEqual(t, ce1.MetricKey.String(), ce3.MetricKey.String())
+}
+
+func BenchmarkHistoExport(b *testing.B) {
+	rand.Seed(time.Now().Unix())
+
+	for _, samples := range []int{10, 100, 1000, 10000} {
+		h := histoWithSamples("a.b.c", []string{"a:b"}, samples)
+		b.Run(fmt.Sprintf("Samples=%d", samples), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				h.Export()
+			}
+		})
+	}
+}
+
+func BenchmarkHistoCombine(b *testing.B) {
+	rand.Seed(time.Now().Unix())
+
+	for _, samples := range []int{10, 100, 1000, 10000} {
+		h := histoWithSamples("a.b.c", []string{"a:b"}, samples)
+
+		other := histoWithSamples("c.d.e", []string{"c:d"}, samples)
+		marshalled, err := other.Export()
+		assert.NoError(b, err, "should have exported successfully")
+
+		b.Run(fmt.Sprintf("Samples=%d", samples), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				h.Combine(marshalled.Value)
+			}
+		})
+	}
+}
+
+func histoWithSamples(name string, tags []string, samples int) *Histo {
+	h := NewHist(name, tags)
+	for i := 0; i < samples; i++ {
+		h.Sample(rand.NormFloat64(), 1.0)
+	}
+	return h
 }
