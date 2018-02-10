@@ -3,7 +3,7 @@ package samplers
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
+	"encoding/gob"
 	"fmt"
 	"math"
 	"strings"
@@ -498,26 +498,30 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 	return metrics
 }
 
+// histoValue is a serializable version of a Histo that will be sent as the
+// Value of a JSONMetric, gob-encoded.
 type histoValue struct {
-	TDigest       *tdigest.MergingDigest `json:"tdigest"`
-	Weight        float64                `json:"weight"`
-	Min           float64                `json:"min"`
-	Max           float64                `json:"max"`
-	Sum           float64                `json:"sum"`
-	ReciprocalSum float64                `json:"reciprocal_sum"`
+	TDigest       *tdigest.MergingDigest
+	Weight        float64
+	Min           float64
+	Max           float64
+	Sum           float64
+	ReciprocalSum float64
 }
 
 // Export converts a Histogram into a JSONMetric
 func (h *Histo) Export() (JSONMetric, error) {
-	val, err := json.Marshal(histoValue{
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	hval := histoValue{
 		TDigest:       h.tDigest,
 		Weight:        h.weight,
 		Min:           h.min,
 		Max:           h.max,
 		Sum:           h.sum,
 		ReciprocalSum: h.reciprocalSum,
-	})
-	if err != nil {
+	}
+	if err := enc.Encode(hval); err != nil {
 		return JSONMetric{}, err
 	}
 	return JSONMetric{
@@ -527,7 +531,7 @@ func (h *Histo) Export() (JSONMetric, error) {
 			JoinedTags: strings.Join(h.Tags, ","),
 		},
 		Tags:  h.Tags,
-		Value: val,
+		Value: buf.Bytes(),
 	}, nil
 }
 
@@ -535,7 +539,9 @@ func (h *Histo) Export() (JSONMetric, error) {
 // (marshalled as a byte slice)
 func (h *Histo) Combine(other []byte) error {
 	var val histoValue
-	if err := json.Unmarshal(other, &val); err != nil {
+	dec := gob.NewDecoder(bytes.NewReader(other))
+
+	if err := dec.Decode(&val); err != nil {
 		return fmt.Errorf("failed to unmarshal the Histo value: %v", err)
 	}
 

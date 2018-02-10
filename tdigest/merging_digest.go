@@ -10,8 +10,6 @@ package tdigest
 import (
 	"bytes"
 	"encoding/gob"
-	"encoding/json"
-	"fmt"
 	"math"
 	"math/rand"
 	"sort"
@@ -357,9 +355,6 @@ func (td *MergingDigest) Merge(other *MergingDigest) {
 	}
 }
 
-var _ gob.GobEncoder = &MergingDigest{}
-var _ gob.GobDecoder = &MergingDigest{}
-
 func (td *MergingDigest) GobEncode() ([]byte, error) {
 	td.mergeAllTemps()
 
@@ -426,23 +421,4 @@ func (td *MergingDigest) Centroids() []Centroid {
 	}
 	td.mergeAllTemps()
 	return td.mainCentroids
-}
-
-func (td *MergingDigest) MarshalJSON() ([]byte, error) {
-	b, err := td.GobEncode()
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode the digest: %v")
-	}
-
-	return json.Marshal(b)
-}
-
-func (td *MergingDigest) UnmarshalJSON(b []byte) error {
-	var enc []byte
-	err := json.Unmarshal(b, &enc)
-	if err != nil {
-		return err
-	}
-
-	return td.GobDecode(enc)
 }
