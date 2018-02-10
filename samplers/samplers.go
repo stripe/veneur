@@ -3,6 +3,7 @@ package samplers
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strings"
@@ -497,9 +498,25 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 	return metrics
 }
 
+type histoValue struct {
+	TDigest       *tdigest.MergingDigest `json:"tdigest"`
+	Weight        float64                `json:"weight"`
+	Min           float64                `json:"min"`
+	Max           float64                `json:"max"`
+	Sum           float64                `json:"sum"`
+	ReciprocalSum float64                `json:"reciprocal_sum"`
+}
+
 // Export converts a Histogram into a JSONMetric
 func (h *Histo) Export() (JSONMetric, error) {
-	val, err := h.tDigest.GobEncode()
+	val, err := json.Marshal(histoValue{
+		TDigest:       h.tDigest,
+		Weight:        h.weight,
+		Min:           h.min,
+		Max:           h.max,
+		Sum:           h.sum,
+		ReciprocalSum: h.reciprocalSum,
+	})
 	if err != nil {
 		return JSONMetric{}, err
 	}
@@ -517,10 +534,16 @@ func (h *Histo) Export() (JSONMetric, error) {
 // Combine merges the values of a histogram with another histogram
 // (marshalled as a byte slice)
 func (h *Histo) Combine(other []byte) error {
-	otherHistogram := tdigest.NewMerging(100, false)
-	if err := otherHistogram.GobDecode(other); err != nil {
-		return err
+	var val histoValue
+	if err := json.Unmarshal(other, &val); err != nil {
+		return fmt.Errorf("failed to unmarshal the Histo value: %v", err)
 	}
-	h.tDigest.Merge(otherHistogram)
+
+	h.tDigest.Merge(val.TDigest)
+	h.weight += val.Weight
+	h.min = math.Min(h.min, val.Min)
+	h.max = math.Max(h.max, val.Max)
+	h.sum += val.Sum
+	h.reciprocalSum += val.ReciprocalSum
 	return nil
 }
