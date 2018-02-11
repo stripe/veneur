@@ -274,7 +274,7 @@ func TestOkTraceHealthCheck(t *testing.T) {
 	config := localConfig()
 	// We must enable tracing, as it's disabled by default, by turning on one
 	// of the tracing sinks.
-	config.TraceLightstepAccessToken = "farts"
+	config.LightstepAccessToken = "farts"
 	s := setupVeneurServer(t, config, nil, nil, nil)
 	defer s.Shutdown()
 

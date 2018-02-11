@@ -26,6 +26,10 @@ const datadogResourceKey = "resource"
 // be changed to a tag conversion (e.g. tag type is removed and used for this value)
 const datadogSpanType = "web"
 
+// datadogSpanBufferSize is the default maximum number of spans that
+// we can flush per flush-interval
+const datadogSpanBufferSize = 1 << 14
+
 type DatadogMetricSink struct {
 	HTTPClient      *http.Client
 	APIKey          string
@@ -75,6 +79,7 @@ func (dd *DatadogMetricSink) Start(cl *trace.Client) error {
 	return nil
 }
 
+// Flush sends metrics to Datadog
 func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(dd.traceClient)
@@ -260,6 +265,10 @@ type DatadogSpanSink struct {
 
 // NewDatadogSpanSink creates a new Datadog sink for trace spans.
 func NewDatadogSpanSink(address string, bufferSize int, httpClient *http.Client, commonTags map[string]string, log *logrus.Logger) (*DatadogSpanSink, error) {
+	if bufferSize == 0 {
+		bufferSize = datadogSpanBufferSize
+	}
+
 	return &DatadogSpanSink{
 		HTTPClient:   httpClient,
 		bufferSize:   bufferSize,

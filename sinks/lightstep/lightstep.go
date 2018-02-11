@@ -23,8 +23,6 @@ const indicatorSpanTagName = "indicator"
 const lightstepDefaultPort = 8080
 const lightstepDefaultInterval = 5 * time.Minute
 
-const lightStepOperationKey = "name"
-
 // LightStepSpanSink is a sink for spans to be sent to the LightStep client.
 type LightStepSpanSink struct {
 	tracers      []opentracing.Tracer
@@ -110,6 +108,7 @@ func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans
 	}, nil
 }
 
+// Start performs final adjustments on the sink.
 func (ls *LightStepSpanSink) Start(cl *trace.Client) error {
 	ls.traceClient = cl
 	return nil

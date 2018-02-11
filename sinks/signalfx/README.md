@@ -6,12 +6,24 @@ This sink sends Veneur metrics to [SignalFx](https://signalfx.com/).
 
 **This sink is experimental**. This sink does not yet provide all of the functionality that SignalFx allows. Some of Veneur's primitives still need to be mapped to those of SignalFx.
 
+# Capabilities
+
+## Metrics
+
+Enabled if `signalfx_api_key` is set to a non-empty value.
+
+* Counters are counters.
+* Gauges are gauges.
+
+The following tags are mapped to SignalFx fields as follows:
+
+* The configured Veneur `hostname` field is sent to SignalFx as the value from `signalfx_hostname_tag`.
+
 # Configuration
 
-* `signalfx_api_key` to set the API key.
-* `signalfx_endpoint_base` to adjust where metrics are sent. If you use a proxy or something in front of SignalFx's API this is the place! Do not add a path (i.e. `https://ingest.signalfx.com` is right!)
-* `signalfx_hostname_tag` to adjust the tag in which the hostname of this instance will be added. SignalFx doesn't have a first-class hostname field, so this tag handles that.
+See the various `signalfx_*` keys in [example.yaml](https://github.com/stripe/veneur/blob/master/example.yaml) for all available configuration options.
 
 # TODO
 
-* Does not handle events correctly yet, only copies timestamp, title and tags
+* Does not handle events correctly yet, only copies timestamp, title and tags.
+* SignalFx does not have a formal concept of per-metric hosts, so `signalfx_hostname_tag` may need some work.

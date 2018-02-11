@@ -71,8 +71,8 @@ hostname: ""
 # If true and hostname is "" or absent, don't add the host tag
 omit_empty_hostname: false
 
-# Tags supplied here will be added to all metrics ingested by this instance.
-# Example:
+# Tags supplied here will be added to all metrics and spans ingested by this
+# instance. Example:
 # tags:
 #  - "foo:bar"
 #  - "baz:quz"
@@ -123,19 +123,9 @@ metric_max_length: 4096
 # How big of a buffer to allocate for incoming traces.
 trace_max_length_bytes: 16384
 
-# The number of SSF packets that can be processed
-# per flush interval
-ssf_buffer_size: 16384
-
 # The size of the buffer we'll use to buffer socket reads. Tune this if you
 # you think Veneur needs more room to keep up with all packets.
 read_buffer_size_bytes: 2097152
-
-# How many metrics to include in the body of each POST to Datadog. Veneur
-# will post multiple times in parallel if the limit is exceeded.
-flush_max_per_body: 25000
-
-
 
 # == DIAGNOSTICS ==
 
@@ -161,8 +151,16 @@ datadog_api_hostname: https://app.datadoghq.com
 # API key for acessing Datadog
 datadog_api_key: "farts"
 
+# How many metrics to include in the body of each POST to Datadog. Veneur
+# will post multiple times in parallel if the limit is exceeded.
+datadog_flush_max_per_body: 25000
+
 # Hostname to send Datadog trace data to.
 datadog_trace_api_address: ""
+
+# The size of the ring buffer used for retaining spans during a flush interval.
+datadog_span_buffer_size: 16384
+
 
 # == SignalFx ==
 # SignalFx can be a sink for metrics.
@@ -180,15 +178,15 @@ signalfx_hostname_tag: "host"
 # If present, lightstep will be enabled as a tracing sink
 # and this access token will be used
 # Access token for accessing LightStep
-trace_lightstep_access_token: ""
+lightstep_access_token: ""
 
 # Host to send trace data to
-trace_lightstep_collector_host: ""
+lightstep_collector_host: ""
 
 # How often LightStep should reconnect to collectors. If your workload is
 # imbalanced — some veneur instances see more spans than others — then you may
 # want to reconnect more often.
-trace_lightstep_reconnect_period: "5m"
+lightstep_reconnect_period: "5m"
 
 # The LightStep client has internal throttling to prevent you overwhelming
 # things. Anything that exceeds this many spans in the reporting period
@@ -196,13 +194,13 @@ trace_lightstep_reconnect_period: "5m"
 # — will be dropped. In other words, you can only submit this many spans per
 # flush! If left at zero, veneur will set the maximum to the size of
 # `ssf_buffer_size`.
-trace_lightstep_maximum_spans: 0
+lightstep_maximum_spans: 0
 
 # Multiple clients can be used to load-balance spans cross multiple collectors,
 # improving span indexing success rates.
 # If missing (or set to zero), it will default
 # to a minimum of one client
-trace_lightstep_num_clients: 1
+lightstep_num_clients: 1
 
 # == Kafka ==
 
