@@ -16,12 +16,6 @@ const (
 	// The input value that was provided is not valid.
 	ErrCodeInvalidInputException = "InvalidInputException"
 
-	// ErrCodeOAuthProviderException for service response error code
-	// "OAuthProviderException".
-	//
-	// There was a problem with the underlying OAuth provider.
-	ErrCodeOAuthProviderException = "OAuthProviderException"
-
 	// ErrCodeResourceAlreadyExistsException for service response error code
 	// "ResourceAlreadyExistsException".
 	//

@@ -1,13 +1,13 @@
 package s3_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/awstesting/unit"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSSECustomerKeyOverHTTPError(t *testing.T) {
@@ -20,15 +20,9 @@ func TestSSECustomerKeyOverHTTPError(t *testing.T) {
 	})
 	err := req.Build()
 
-	if err == nil {
-		t.Error("expected an error")
-	}
-	if e, a := "ConfigError", err.(awserr.Error).Code(); e != a {
-		t.Errorf("expected %s, but received %s", e, a)
-	}
-	if !strings.Contains(err.(awserr.Error).Message(), "cannot send SSE keys over HTTP") {
-		t.Errorf("expected error to contain 'cannot send SSE keys over HTTP', but received %s", err.(awserr.Error).Message())
-	}
+	assert.Error(t, err)
+	assert.Equal(t, "ConfigError", err.(awserr.Error).Code())
+	assert.Contains(t, err.(awserr.Error).Message(), "cannot send SSE keys over HTTP")
 }
 
 func TestCopySourceSSECustomerKeyOverHTTPError(t *testing.T) {
@@ -41,15 +35,9 @@ func TestCopySourceSSECustomerKeyOverHTTPError(t *testing.T) {
 	})
 	err := req.Build()
 
-	if err == nil {
-		t.Error("expected an error")
-	}
-	if e, a := "ConfigError", err.(awserr.Error).Code(); e != a {
-		t.Errorf("expected %s, but received %s", e, a)
-	}
-	if !strings.Contains(err.(awserr.Error).Message(), "cannot send SSE keys over HTTP") {
-		t.Errorf("expected error to contain 'cannot send SSE keys over HTTP', but received %s", err.(awserr.Error).Message())
-	}
+	assert.Error(t, err)
+	assert.Equal(t, "ConfigError", err.(awserr.Error).Code())
+	assert.Contains(t, err.(awserr.Error).Message(), "cannot send SSE keys over HTTP")
 }
 
 func TestComputeSSEKeys(t *testing.T) {
@@ -63,21 +51,11 @@ func TestComputeSSEKeys(t *testing.T) {
 	})
 	err := req.Build()
 
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
-	if e, a := "a2V5", req.HTTPRequest.Header.Get("x-amz-server-side-encryption-customer-key"); e != a {
-		t.Errorf("expected %s, but received %s", e, a)
-	}
-	if e, a := "a2V5", req.HTTPRequest.Header.Get("x-amz-copy-source-server-side-encryption-customer-key"); e != a {
-		t.Errorf("expected %s, but received %s", e, a)
-	}
-	if e, a := "PG4LipwVIkqCKLmpjKFTHQ==", req.HTTPRequest.Header.Get("x-amz-server-side-encryption-customer-key-md5"); e != a {
-		t.Errorf("expected %s, but received %s", e, a)
-	}
-	if e, a := "PG4LipwVIkqCKLmpjKFTHQ==", req.HTTPRequest.Header.Get("x-amz-copy-source-server-side-encryption-customer-key-md5"); e != a {
-		t.Errorf("expected %s, but received %s", e, a)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "a2V5", req.HTTPRequest.Header.Get("x-amz-server-side-encryption-customer-key"))
+	assert.Equal(t, "a2V5", req.HTTPRequest.Header.Get("x-amz-copy-source-server-side-encryption-customer-key"))
+	assert.Equal(t, "PG4LipwVIkqCKLmpjKFTHQ==", req.HTTPRequest.Header.Get("x-amz-server-side-encryption-customer-key-md5"))
+	assert.Equal(t, "PG4LipwVIkqCKLmpjKFTHQ==", req.HTTPRequest.Header.Get("x-amz-copy-source-server-side-encryption-customer-key-md5"))
 }
 
 func TestComputeSSEKeysShortcircuit(t *testing.T) {
@@ -93,19 +71,9 @@ func TestComputeSSEKeysShortcircuit(t *testing.T) {
 	})
 	err := req.Build()
 
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
-	if e, a := "a2V5", req.HTTPRequest.Header.Get("x-amz-server-side-encryption-customer-key"); e != a {
-		t.Errorf("expected %s, but received %s", e, a)
-	}
-	if e, a := "a2V5", req.HTTPRequest.Header.Get("x-amz-copy-source-server-side-encryption-customer-key"); e != a {
-		t.Errorf("expected %s, but received %s", e, a)
-	}
-	if e, a := "MD5", req.HTTPRequest.Header.Get("x-amz-server-side-encryption-customer-key-md5"); e != a {
-		t.Errorf("expected %s, but received %s", e, a)
-	}
-	if e, a := "MD5", req.HTTPRequest.Header.Get("x-amz-copy-source-server-side-encryption-customer-key-md5"); e != a {
-		t.Errorf("expected %s, but received %s", e, a)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "a2V5", req.HTTPRequest.Header.Get("x-amz-server-side-encryption-customer-key"))
+	assert.Equal(t, "a2V5", req.HTTPRequest.Header.Get("x-amz-copy-source-server-side-encryption-customer-key"))
+	assert.Equal(t, "MD5", req.HTTPRequest.Header.Get("x-amz-server-side-encryption-customer-key-md5"))
+	assert.Equal(t, "MD5", req.HTTPRequest.Header.Get("x-amz-copy-source-server-side-encryption-customer-key-md5"))
 }

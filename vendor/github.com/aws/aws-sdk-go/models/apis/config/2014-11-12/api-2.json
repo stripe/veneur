@@ -222,20 +222,6 @@
         {"shape":"InvalidParameterValueException"}
       ]
     },
-    "GetDiscoveredResourceCounts":{
-      "name":"GetDiscoveredResourceCounts",
-      "http":{
-        "method":"POST",
-        "requestUri":"/"
-      },
-      "input":{"shape":"GetDiscoveredResourceCountsRequest"},
-      "output":{"shape":"GetDiscoveredResourceCountsResponse"},
-      "errors":[
-        {"shape":"ValidationException"},
-        {"shape":"InvalidLimitException"},
-        {"shape":"InvalidNextTokenException"}
-      ]
-    },
     "GetResourceConfigHistory":{
       "name":"GetResourceConfigHistory",
       "http":{
@@ -373,11 +359,6 @@
     "AllSupported":{"type":"boolean"},
     "AvailabilityZone":{"type":"string"},
     "AwsRegion":{"type":"string"},
-    "BaseResourceId":{
-      "type":"string",
-      "max":768,
-      "min":1
-    },
     "Boolean":{"type":"boolean"},
     "ChannelName":{
       "type":"string",
@@ -413,7 +394,7 @@
       "type":"structure",
       "members":{
         "ResourceType":{"shape":"StringWithCharLimit256"},
-        "ResourceId":{"shape":"BaseResourceId"},
+        "ResourceId":{"shape":"StringWithCharLimit256"},
         "Compliance":{"shape":"Compliance"}
       }
     },
@@ -726,7 +707,7 @@
       "type":"structure",
       "members":{
         "ResourceType":{"shape":"StringWithCharLimit256"},
-        "ResourceId":{"shape":"BaseResourceId"},
+        "ResourceId":{"shape":"StringWithCharLimit256"},
         "ComplianceTypes":{"shape":"ComplianceTypes"},
         "Limit":{"shape":"Limit"},
         "NextToken":{"shape":"NextToken"}
@@ -832,7 +813,7 @@
       ],
       "members":{
         "ComplianceResourceType":{"shape":"StringWithCharLimit256"},
-        "ComplianceResourceId":{"shape":"BaseResourceId"},
+        "ComplianceResourceId":{"shape":"StringWithCharLimit256"},
         "ComplianceType":{"shape":"ComplianceType"},
         "Annotation":{"shape":"StringWithCharLimit256"},
         "OrderingTimestamp":{"shape":"OrderingTimestamp"}
@@ -861,7 +842,7 @@
       "members":{
         "ConfigRuleName":{"shape":"StringWithCharLimit64"},
         "ResourceType":{"shape":"StringWithCharLimit256"},
-        "ResourceId":{"shape":"BaseResourceId"}
+        "ResourceId":{"shape":"StringWithCharLimit256"}
       }
     },
     "EvaluationResults":{
@@ -903,7 +884,7 @@
       ],
       "members":{
         "ResourceType":{"shape":"StringWithCharLimit256"},
-        "ResourceId":{"shape":"BaseResourceId"},
+        "ResourceId":{"shape":"StringWithCharLimit256"},
         "ComplianceTypes":{"shape":"ComplianceTypes"},
         "NextToken":{"shape":"String"}
       }
@@ -931,22 +912,6 @@
       "type":"structure",
       "members":{
         "ComplianceSummariesByResourceType":{"shape":"ComplianceSummariesByResourceType"}
-      }
-    },
-    "GetDiscoveredResourceCountsRequest":{
-      "type":"structure",
-      "members":{
-        "resourceTypes":{"shape":"ResourceTypes"},
-        "limit":{"shape":"Limit"},
-        "nextToken":{"shape":"NextToken"}
-      }
-    },
-    "GetDiscoveredResourceCountsResponse":{
-      "type":"structure",
-      "members":{
-        "totalDiscoveredResources":{"shape":"Long"},
-        "resourceCounts":{"shape":"ResourceCounts"},
-        "nextToken":{"shape":"NextToken"}
       }
     },
     "GetResourceConfigHistoryRequest":{
@@ -1089,7 +1054,6 @@
         "nextToken":{"shape":"NextToken"}
       }
     },
-    "Long":{"type":"long"},
     "MaxNumberOfConfigRulesExceededException":{
       "type":"structure",
       "members":{
@@ -1261,17 +1225,6 @@
       "member":{"shape":"Relationship"}
     },
     "RelationshipName":{"type":"string"},
-    "ResourceCount":{
-      "type":"structure",
-      "members":{
-        "resourceType":{"shape":"ResourceType"},
-        "count":{"shape":"Long"}
-      }
-    },
-    "ResourceCounts":{
-      "type":"list",
-      "member":{"shape":"ResourceCount"}
-    },
     "ResourceCreationTime":{"type":"timestamp"},
     "ResourceDeletionTime":{"type":"timestamp"},
     "ResourceId":{"type":"string"},
@@ -1342,22 +1295,7 @@
         "AWS::Redshift::ClusterSecurityGroup",
         "AWS::Redshift::ClusterSubnetGroup",
         "AWS::Redshift::EventSubscription",
-        "AWS::CloudWatch::Alarm",
-        "AWS::CloudFormation::Stack",
-        "AWS::DynamoDB::Table",
-        "AWS::AutoScaling::AutoScalingGroup",
-        "AWS::AutoScaling::LaunchConfiguration",
-        "AWS::AutoScaling::ScalingPolicy",
-        "AWS::AutoScaling::ScheduledAction",
-        "AWS::CodeBuild::Project",
-        "AWS::WAF::RateBasedRule",
-        "AWS::WAF::Rule",
-        "AWS::WAF::WebACL",
-        "AWS::WAFRegional::RateBasedRule",
-        "AWS::WAFRegional::Rule",
-        "AWS::WAFRegional::WebACL",
-        "AWS::CloudFront::Distribution",
-        "AWS::CloudFront::StreamingDistribution"
+        "AWS::CloudWatch::Alarm"
       ]
     },
     "ResourceTypeList":{
@@ -1381,7 +1319,7 @@
         "ComplianceResourceTypes":{"shape":"ComplianceResourceTypes"},
         "TagKey":{"shape":"StringWithCharLimit128"},
         "TagValue":{"shape":"StringWithCharLimit256"},
-        "ComplianceResourceId":{"shape":"BaseResourceId"}
+        "ComplianceResourceId":{"shape":"StringWithCharLimit256"}
       }
     },
     "Source":{

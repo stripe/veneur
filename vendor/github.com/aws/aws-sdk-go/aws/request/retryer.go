@@ -70,8 +70,8 @@ func isCodeExpiredCreds(code string) bool {
 }
 
 var validParentCodes = map[string]struct{}{
-	ErrCodeSerialization: {},
-	ErrCodeRead:          {},
+	ErrCodeSerialization: struct{}{},
+	ErrCodeRead:          struct{}{},
 }
 
 type temporaryError interface {

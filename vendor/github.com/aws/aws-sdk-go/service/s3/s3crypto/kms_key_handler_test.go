@@ -1,14 +1,14 @@
 package s3crypto
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/awstesting/unit"
@@ -18,9 +18,7 @@ import (
 func TestBuildKMSEncryptHandler(t *testing.T) {
 	svc := kms.New(unit.Session)
 	handler := NewKMSKeyGenerator(svc, "testid")
-	if handler == nil {
-		t.Error("expected non-nil handler")
-	}
+	assert.NotNil(t, handler)
 }
 
 func TestBuildKMSEncryptHandlerWithMatDesc(t *testing.T) {
@@ -28,19 +26,14 @@ func TestBuildKMSEncryptHandlerWithMatDesc(t *testing.T) {
 	handler := NewKMSKeyGeneratorWithMatDesc(svc, "testid", MaterialDescription{
 		"Testing": aws.String("123"),
 	})
-	if handler == nil {
-		t.Error("expected non-nil handler")
-	}
+	assert.NotNil(t, handler)
 
 	kmsHandler := handler.(*kmsKeyHandler)
 	expected := MaterialDescription{
 		"kms_cmk_id": aws.String("testid"),
 		"Testing":    aws.String("123"),
 	}
-
-	if !reflect.DeepEqual(expected, kmsHandler.CipherData.MaterialDescription) {
-		t.Errorf("expected %v, but received %v", expected, kmsHandler.CipherData.MaterialDescription)
-	}
+	assert.Equal(t, expected, kmsHandler.CipherData.MaterialDescription)
 }
 
 func TestKMSGenerateCipherData(t *testing.T) {
@@ -63,15 +56,11 @@ func TestKMSGenerateCipherData(t *testing.T) {
 	ivSize := 16
 
 	cd, err := handler.GenerateCipherData(keySize, ivSize)
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
-	if keySize != len(cd.Key) {
-		t.Errorf("expected %d, but received %d", keySize, len(cd.Key))
-	}
-	if ivSize != len(cd.IV) {
-		t.Errorf("expected %d, but received %d", ivSize, len(cd.IV))
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, keySize, len(cd.Key))
+	assert.Equal(t, ivSize, len(cd.IV))
+	assert.NotEmpty(t, cd.Key)
+	assert.NotEmpty(t, cd.IV)
 }
 
 func TestKMSDecrypt(t *testing.T) {
@@ -89,18 +78,11 @@ func TestKMSDecrypt(t *testing.T) {
 		Region:           aws.String("us-west-2"),
 	})
 	handler, err := (kmsKeyHandler{kms: kms.New(sess)}).decryptHandler(Envelope{MatDesc: `{"kms_cmk_id":"test"}`})
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 
 	plaintextKey, err := handler.DecryptKey([]byte{1, 2, 3, 4})
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
-
-	if !bytes.Equal(key, plaintextKey) {
-		t.Errorf("expected %v, but received %v", key, plaintextKey)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, key, plaintextKey)
 }
 
 func TestKMSDecryptBadJSON(t *testing.T) {
@@ -119,7 +101,5 @@ func TestKMSDecryptBadJSON(t *testing.T) {
 	})
 
 	_, err := (kmsKeyHandler{kms: kms.New(sess)}).decryptHandler(Envelope{MatDesc: `{"kms_cmk_id":"test"`})
-	if err == nil {
-		t.Errorf("expected error, but received none")
-	}
+	assert.Error(t, err)
 }

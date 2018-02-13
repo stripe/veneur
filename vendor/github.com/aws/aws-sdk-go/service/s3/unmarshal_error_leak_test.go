@@ -1,6 +1,7 @@
 package s3
 
 import (
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
 
@@ -26,15 +27,7 @@ func TestUnmarhsalErrorLeak(t *testing.T) {
 	reader := req.HTTPResponse.Body.(*awstesting.ReadCloser)
 	unmarshalError(req)
 
-	if req.Error == nil {
-		t.Error("expected an error, but received none")
-	}
-
-	if !reader.Closed {
-		t.Error("expected reader to be closed")
-	}
-
-	if e, a := 0, reader.Size; e != a {
-		t.Errorf("expected %d, but received %d", e, a)
-	}
+	assert.NotNil(t, req.Error)
+	assert.Equal(t, reader.Closed, true)
+	assert.Equal(t, reader.Size, 0)
 }

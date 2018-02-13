@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/awstesting/unit"
 	"github.com/aws/aws-sdk-go/service/kms"
@@ -29,17 +31,10 @@ func TestWrapFactory(t *testing.T) {
 		MatDesc: `{"kms_cmk_id":""}`,
 	}
 	wrap, err := c.wrapFromEnvelope(env)
-	w, ok := wrap.(*kmsKeyHandler)
-
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
-	if wrap == nil {
-		t.Error("expected non-nil value")
-	}
-	if !ok {
-		t.Errorf("expected kmsKeyHandler, but received %v", *w)
-	}
+	_, ok := wrap.(*kmsKeyHandler)
+	assert.NoError(t, err)
+	assert.NotNil(t, wrap)
+	assert.True(t, ok)
 }
 func TestWrapFactoryErrorNoWrap(t *testing.T) {
 	c := DecryptionClient{
@@ -57,13 +52,8 @@ func TestWrapFactoryErrorNoWrap(t *testing.T) {
 		MatDesc: `{"kms_cmk_id":""}`,
 	}
 	wrap, err := c.wrapFromEnvelope(env)
-
-	if err == nil {
-		t.Error("expected error, but received none")
-	}
-	if wrap != nil {
-		t.Errorf("expected nil wrap value, received %v", wrap)
-	}
+	assert.Error(t, err)
+	assert.Nil(t, wrap)
 }
 
 func TestWrapFactoryCustomEntry(t *testing.T) {
@@ -82,13 +72,8 @@ func TestWrapFactoryCustomEntry(t *testing.T) {
 		MatDesc: `{"kms_cmk_id":""}`,
 	}
 	wrap, err := c.wrapFromEnvelope(env)
-
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
-	if wrap == nil {
-		t.Errorf("expected nil wrap value, received %v", wrap)
-	}
+	assert.NoError(t, err)
+	assert.NotNil(t, wrap)
 }
 
 func TestCEKFactory(t *testing.T) {
@@ -121,15 +106,11 @@ func TestCEKFactory(t *testing.T) {
 		},
 	}
 	iv, err := hex.DecodeString("0d18e06c7c725ac9e362e1ce")
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 	ivB64 := base64.URLEncoding.EncodeToString(iv)
 
 	cipherKey, err := hex.DecodeString("31bdadd96698c204aa9ce1448ea94ae1fb4a9a0b3c9d773b51bb1822666b8f22")
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 	cipherKeyB64 := base64.URLEncoding.EncodeToString(cipherKey)
 
 	env := Envelope{
@@ -141,13 +122,8 @@ func TestCEKFactory(t *testing.T) {
 	}
 	wrap, err := c.wrapFromEnvelope(env)
 	cek, err := c.cekFromEnvelope(env, wrap)
-
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
-	if cek == nil {
-		t.Errorf("expected non-nil cek")
-	}
+	assert.NoError(t, err)
+	assert.NotNil(t, cek)
 }
 
 func TestCEKFactoryNoCEK(t *testing.T) {
@@ -180,15 +156,11 @@ func TestCEKFactoryNoCEK(t *testing.T) {
 		},
 	}
 	iv, err := hex.DecodeString("0d18e06c7c725ac9e362e1ce")
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 	ivB64 := base64.URLEncoding.EncodeToString(iv)
 
 	cipherKey, err := hex.DecodeString("31bdadd96698c204aa9ce1448ea94ae1fb4a9a0b3c9d773b51bb1822666b8f22")
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 	cipherKeyB64 := base64.URLEncoding.EncodeToString(cipherKey)
 
 	env := Envelope{
@@ -200,13 +172,8 @@ func TestCEKFactoryNoCEK(t *testing.T) {
 	}
 	wrap, err := c.wrapFromEnvelope(env)
 	cek, err := c.cekFromEnvelope(env, wrap)
-
-	if err == nil {
-		t.Error("expected error, but received none")
-	}
-	if cek != nil {
-		t.Errorf("expected nil cek value, received %v", wrap)
-	}
+	assert.Error(t, err)
+	assert.Nil(t, cek)
 }
 
 func TestCEKFactoryCustomEntry(t *testing.T) {
@@ -237,15 +204,11 @@ func TestCEKFactoryCustomEntry(t *testing.T) {
 		PadderRegistry: map[string]Padder{},
 	}
 	iv, err := hex.DecodeString("0d18e06c7c725ac9e362e1ce")
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 	ivB64 := base64.URLEncoding.EncodeToString(iv)
 
 	cipherKey, err := hex.DecodeString("31bdadd96698c204aa9ce1448ea94ae1fb4a9a0b3c9d773b51bb1822666b8f22")
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 	cipherKeyB64 := base64.URLEncoding.EncodeToString(cipherKey)
 
 	env := Envelope{
@@ -257,11 +220,6 @@ func TestCEKFactoryCustomEntry(t *testing.T) {
 	}
 	wrap, err := c.wrapFromEnvelope(env)
 	cek, err := c.cekFromEnvelope(env, wrap)
-
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
-	if cek == nil {
-		t.Errorf("expected non-nil cek")
-	}
+	assert.NoError(t, err)
+	assert.NotNil(t, cek)
 }

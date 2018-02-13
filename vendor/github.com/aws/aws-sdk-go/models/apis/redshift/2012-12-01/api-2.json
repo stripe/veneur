@@ -545,8 +545,7 @@
         "resultWrapper":"DescribeEventSubscriptionsResult"
       },
       "errors":[
-        {"shape":"SubscriptionNotFoundFault"},
-        {"shape":"InvalidTagFault"}
+        {"shape":"SubscriptionNotFoundFault"}
       ]
     },
     "DescribeEvents":{
@@ -2098,9 +2097,7 @@
       "members":{
         "SubscriptionName":{"shape":"String"},
         "MaxRecords":{"shape":"IntegerOptional"},
-        "Marker":{"shape":"String"},
-        "TagKeys":{"shape":"TagKeyList"},
-        "TagValues":{"shape":"TagValueList"}
+        "Marker":{"shape":"String"}
       }
     },
     "DescribeEventsMessage":{

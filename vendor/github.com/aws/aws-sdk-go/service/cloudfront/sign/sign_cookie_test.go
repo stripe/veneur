@@ -4,6 +4,8 @@ import (
 	"crypto/rsa"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewCookieSigner(t *testing.T) {
@@ -13,42 +15,26 @@ func TestNewCookieSigner(t *testing.T) {
 	}
 
 	signer := NewCookieSigner("keyID", privKey)
-	if e, a := "keyID", signer.keyID; e != a {
-		t.Errorf("expect %v, got %v", e, a)
-	}
-	if e, a := privKey, signer.privKey; e != a {
-		t.Errorf("expect %v, got %v", e, a)
-	}
+	assert.Equal(t, "keyID", signer.keyID)
+	assert.Equal(t, privKey, signer.privKey)
 }
 
 func TestSignCookie(t *testing.T) {
 	privKey, err := rsa.GenerateKey(randReader, 1024)
-	if err != nil {
-		t.Errorf("expect no error, got %v", err)
-	}
+	assert.NoError(t, err)
 
 	signer := NewCookieSigner("keyID", privKey)
 	cookies, err := signer.Sign("http*://*", time.Now().Add(1*time.Hour))
 
-	if err != nil {
-		t.Errorf("expect no error, got %v", err)
-	}
-	if e, a := CookiePolicyName, cookies[0].Name; e != a {
-		t.Errorf("expect %v, got %v", e, a)
-	}
-	if e, a := CookieSignatureName, cookies[1].Name; e != a {
-		t.Errorf("expect %v, got %v", e, a)
-	}
-	if e, a := CookieKeyIDName, cookies[2].Name; e != a {
-		t.Errorf("expect %v, got %v", e, a)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, CookiePolicyName, cookies[0].Name)
+	assert.Equal(t, CookieSignatureName, cookies[1].Name)
+	assert.Equal(t, CookieKeyIDName, cookies[2].Name)
 }
 
 func TestSignCookie_WithPolicy(t *testing.T) {
 	privKey, err := rsa.GenerateKey(randReader, 1024)
-	if err != nil {
-		t.Errorf("expect no error, got %v", err)
-	}
+	assert.NoError(t, err)
 
 	p := &Policy{
 		Statements: []Statement{
@@ -64,25 +50,15 @@ func TestSignCookie_WithPolicy(t *testing.T) {
 	signer := NewCookieSigner("keyID", privKey)
 	cookies, err := signer.SignWithPolicy(p)
 
-	if err != nil {
-		t.Errorf("expect no error, got %v", err)
-	}
-	if e, a := CookiePolicyName, cookies[0].Name; e != a {
-		t.Errorf("expect %v, got %v", e, a)
-	}
-	if e, a := CookieSignatureName, cookies[1].Name; e != a {
-		t.Errorf("expect %v, got %v", e, a)
-	}
-	if e, a := CookieKeyIDName, cookies[2].Name; e != a {
-		t.Errorf("expect %v, got %v", e, a)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, CookiePolicyName, cookies[0].Name)
+	assert.Equal(t, CookieSignatureName, cookies[1].Name)
+	assert.Equal(t, CookieKeyIDName, cookies[2].Name)
 }
 
 func TestSignCookie_WithCookieOptions(t *testing.T) {
 	privKey, err := rsa.GenerateKey(randReader, 1024)
-	if err != nil {
-		t.Errorf("expect no error, got %v", err)
-	}
+	assert.NoError(t, err)
 
 	expires := time.Now().Add(1 * time.Hour)
 
@@ -94,28 +70,14 @@ func TestSignCookie_WithCookieOptions(t *testing.T) {
 
 	})
 
-	if err != nil {
-		t.Errorf("expect no error, got %v", err)
-	}
-	if e, a := CookiePolicyName, cookies[0].Name; e != a {
-		t.Errorf("expect %v, got %v", e, a)
-	}
-	if e, a := CookieSignatureName, cookies[1].Name; e != a {
-		t.Errorf("expect %v, got %v", e, a)
-	}
-	if e, a := CookieKeyIDName, cookies[2].Name; e != a {
-		t.Errorf("expect %v, got %v", e, a)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, CookiePolicyName, cookies[0].Name)
+	assert.Equal(t, CookieSignatureName, cookies[1].Name)
+	assert.Equal(t, CookieKeyIDName, cookies[2].Name)
 
 	for _, c := range cookies {
-		if e, a := "/", c.Path; e != a {
-			t.Errorf("expect %v, got %v", e, a)
-		}
-		if e, a := ".example.com", c.Domain; e != a {
-			t.Errorf("expect %v, got %v", e, a)
-		}
-		if !c.Secure {
-			t.Errorf("expect to be true")
-		}
+		assert.Equal(t, "/", c.Path)
+		assert.Equal(t, ".example.com", c.Domain)
+		assert.True(t, c.Secure)
 	}
 }

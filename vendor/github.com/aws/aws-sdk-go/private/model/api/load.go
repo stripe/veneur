@@ -58,8 +58,6 @@ func (a *API) Setup() {
 	if !a.NoRenameToplevelShapes {
 		a.renameToplevelShapes()
 	}
-
-	a.renameCollidingFields()
 	a.updateTopLevelShapeReferences()
 	a.createInputOutputShapes()
 	a.customizationPasses()

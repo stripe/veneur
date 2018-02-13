@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"io/ioutil"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // AES GCM
@@ -50,32 +52,22 @@ func aesgcmTest(t *testing.T, iv, key, plaintext, expected, tag []byte) {
 		IV:  iv,
 	}
 	gcm, err := newAESGCM(cd)
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
-
+	assert.NoError(t, err)
 	cipherdata := gcm.Encrypt(bytes.NewReader(plaintext))
 
 	ciphertext, err := ioutil.ReadAll(cipherdata)
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 
 	// splitting tag and ciphertext
 	etag := ciphertext[len(ciphertext)-16:]
-	if !bytes.Equal(etag, tag) {
-		t.Errorf("expected tags to be equivalent")
-	}
-	if !bytes.Equal(ciphertext, expected) {
-		t.Errorf("expected ciphertext to be equivalent")
-	}
+	assert.Equal(t, etag, tag)
+	assert.Equal(t, len(ciphertext), len(expected))
+	assert.Equal(t, ciphertext, expected)
 
 	data := gcm.Decrypt(bytes.NewReader(ciphertext))
+	assert.NoError(t, err)
 	text, err := ioutil.ReadAll(data)
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
-	if !bytes.Equal(plaintext, text) {
-		t.Errorf("expected ciphertext to be equivalent")
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, len(text), len(plaintext))
+	assert.Equal(t, text, plaintext)
 }

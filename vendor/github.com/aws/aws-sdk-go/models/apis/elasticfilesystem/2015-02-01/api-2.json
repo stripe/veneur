@@ -205,9 +205,7 @@
       "required":["CreationToken"],
       "members":{
         "CreationToken":{"shape":"CreationToken"},
-        "PerformanceMode":{"shape":"PerformanceMode"},
-        "Encrypted":{"shape":"Encrypted"},
-        "KmsKeyId":{"shape":"KmsKeyId"}
+        "PerformanceMode":{"shape":"PerformanceMode"}
       }
     },
     "CreateMountTargetRequest":{
@@ -404,7 +402,6 @@
         "NextMarker":{"shape":"Marker"}
       }
     },
-    "Encrypted":{"type":"boolean"},
     "ErrorCode":{
       "type":"string",
       "min":1
@@ -445,9 +442,7 @@
         "Name":{"shape":"TagValue"},
         "NumberOfMountTargets":{"shape":"MountTargetCount"},
         "SizeInBytes":{"shape":"FileSystemSize"},
-        "PerformanceMode":{"shape":"PerformanceMode"},
-        "Encrypted":{"shape":"Encrypted"},
-        "KmsKeyId":{"shape":"KmsKeyId"}
+        "PerformanceMode":{"shape":"PerformanceMode"}
       }
     },
     "FileSystemDescriptions":{
@@ -537,11 +532,6 @@
       },
       "error":{"httpStatusCode":409},
       "exception":true
-    },
-    "KmsKeyId":{
-      "type":"string",
-      "max":2048,
-      "min":1
     },
     "LifeCycleState":{
       "type":"string",

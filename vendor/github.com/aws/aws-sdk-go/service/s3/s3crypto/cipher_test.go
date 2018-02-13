@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/aws/aws-sdk-go/service/s3/s3crypto"
 )
 
@@ -14,12 +16,8 @@ func TestCryptoReadCloserRead(t *testing.T) {
 	rc := &s3crypto.CryptoReadCloser{Body: ioutil.NopCloser(str), Decrypter: str}
 
 	b, err := ioutil.ReadAll(rc)
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
-	if expectedStr != string(b) {
-		t.Errorf("expected %s, but received %s", expectedStr, string(b))
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, expectedStr, string(b))
 }
 
 func TestCryptoReadCloserClose(t *testing.T) {
@@ -31,10 +29,6 @@ func TestCryptoReadCloserClose(t *testing.T) {
 	rc.Close()
 
 	b, err := ioutil.ReadAll(rc)
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
-	if expectedStr != string(b) {
-		t.Errorf("expected %s, but received %s", expectedStr, string(b))
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, expectedStr, string(b))
 }

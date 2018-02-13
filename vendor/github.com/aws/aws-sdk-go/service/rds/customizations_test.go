@@ -4,29 +4,25 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
-	"regexp"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/awstesting"
 	"github.com/aws/aws-sdk-go/awstesting/unit"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPresignWithPresignNotSet(t *testing.T) {
 	reqs := map[string]*request.Request{}
 	svc := New(unit.Session, &aws.Config{Region: aws.String("us-west-2")})
 
-	f := func() {
+	assert.NotPanics(t, func() {
 		// Doesn't panic on nil input
 		req, _ := svc.CopyDBSnapshotRequest(nil)
 		req.Sign()
-	}
-	if paniced, p := awstesting.DidPanic(f); paniced {
-		t.Errorf("expect no panic, got %v", p)
-	}
+	})
 
 	reqs[opCopyDBSnapshot], _ = svc.CopyDBSnapshotRequest(&CopyDBSnapshotInput{
 		SourceRegion:               aws.String("us-west-1"),
@@ -46,11 +42,7 @@ func TestPresignWithPresignNotSet(t *testing.T) {
 		q, _ := url.ParseQuery(string(b))
 
 		u, _ := url.QueryUnescape(q.Get("PreSignedUrl"))
-
-		exp := fmt.Sprintf(`^https://rds.us-west-1\.amazonaws\.com/\?Action=%s.+?DestinationRegion=us-west-2.+`, op)
-		if re, a := regexp.MustCompile(exp), u; !re.MatchString(a) {
-			t.Errorf("expect %s to match %s", re, a)
-		}
+		assert.Regexp(t, fmt.Sprintf(`^https://rds.us-west-1\.amazonaws\.com/\?Action=%s.+?DestinationRegion=us-west-2.+`, op), u)
 	}
 }
 
@@ -58,14 +50,11 @@ func TestPresignWithPresignSet(t *testing.T) {
 	reqs := map[string]*request.Request{}
 	svc := New(unit.Session, &aws.Config{Region: aws.String("us-west-2")})
 
-	f := func() {
+	assert.NotPanics(t, func() {
 		// Doesn't panic on nil input
 		req, _ := svc.CopyDBSnapshotRequest(nil)
 		req.Sign()
-	}
-	if paniced, p := awstesting.DidPanic(f); paniced {
-		t.Errorf("expect no panic, got %v", p)
-	}
+	})
 
 	reqs[opCopyDBSnapshot], _ = svc.CopyDBSnapshotRequest(&CopyDBSnapshotInput{
 		SourceRegion:               aws.String("us-west-1"),
@@ -88,9 +77,7 @@ func TestPresignWithPresignSet(t *testing.T) {
 		q, _ := url.ParseQuery(string(b))
 
 		u, _ := url.QueryUnescape(q.Get("PreSignedUrl"))
-		if e, a := "presignedURL", u; !strings.Contains(a, e) {
-			t.Errorf("expect %s to be in %s", e, a)
-		}
+		assert.Regexp(t, `presignedURL`, u)
 	}
 }
 
@@ -98,14 +85,11 @@ func TestPresignWithSourceNotSet(t *testing.T) {
 	reqs := map[string]*request.Request{}
 	svc := New(unit.Session, &aws.Config{Region: aws.String("us-west-2")})
 
-	f := func() {
+	assert.NotPanics(t, func() {
 		// Doesn't panic on nil input
 		req, _ := svc.CopyDBSnapshotRequest(nil)
 		req.Sign()
-	}
-	if paniced, p := awstesting.DidPanic(f); paniced {
-		t.Errorf("expect no panic, got %v", p)
-	}
+	})
 
 	reqs[opCopyDBSnapshot], _ = svc.CopyDBSnapshotRequest(&CopyDBSnapshotInput{
 		SourceDBSnapshotIdentifier: aws.String("foo"),

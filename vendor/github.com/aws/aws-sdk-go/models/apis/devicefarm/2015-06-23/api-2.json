@@ -781,10 +781,6 @@
       "type":"list",
       "member":{"shape":"AmazonResourceName"}
     },
-    "AndroidPaths":{
-      "type":"list",
-      "member":{"shape":"String"}
-    },
     "AppPackagesCleanup":{"type":"boolean"},
     "ArgumentException":{
       "type":"structure",
@@ -838,9 +834,7 @@
         "EXPLORER_SUMMARY_LOG",
         "APPLICATION_CRASH_REPORT",
         "XCTEST_LOG",
-        "VIDEO",
-        "CUSTOMER_ARTIFACT",
-        "CUSTOMER_ARTIFACT_LOG"
+        "VIDEO"
       ]
     },
     "Artifacts":{
@@ -862,11 +856,6 @@
         "architecture":{"shape":"String"},
         "clock":{"shape":"Double"}
       }
-    },
-    "ClientId":{
-      "type":"string",
-      "max":64,
-      "min":0
     },
     "ContentType":{
       "type":"string",
@@ -961,10 +950,7 @@
       "members":{
         "projectArn":{"shape":"AmazonResourceName"},
         "deviceArn":{"shape":"AmazonResourceName"},
-        "sshPublicKey":{"shape":"SshPublicKey"},
-        "remoteDebugEnabled":{"shape":"Boolean"},
         "name":{"shape":"Name"},
-        "clientId":{"shape":"ClientId"},
         "configuration":{"shape":"CreateRemoteAccessSessionConfiguration"}
       }
     },
@@ -997,14 +983,6 @@
     "CurrencyCode":{
       "type":"string",
       "enum":["USD"]
-    },
-    "CustomerArtifactPaths":{
-      "type":"structure",
-      "members":{
-        "iosPaths":{"shape":"IosPaths"},
-        "androidPaths":{"shape":"AndroidPaths"},
-        "deviceHostPaths":{"shape":"DeviceHostPaths"}
-      }
     },
     "DateTime":{"type":"timestamp"},
     "DeleteDevicePoolRequest":{
@@ -1097,7 +1075,6 @@
         "carrier":{"shape":"String"},
         "radio":{"shape":"String"},
         "remoteAccessEnabled":{"shape":"Boolean"},
-        "remoteDebugEnabled":{"shape":"Boolean"},
         "fleetType":{"shape":"String"},
         "fleetName":{"shape":"String"}
       }
@@ -1110,7 +1087,6 @@
         "FORM_FACTOR",
         "MANUFACTURER",
         "REMOTE_ACCESS_ENABLED",
-        "REMOTE_DEBUG_ENABLED",
         "APPIUM_VERSION"
       ]
     },
@@ -1120,10 +1096,6 @@
         "PHONE",
         "TABLET"
       ]
-    },
-    "DeviceHostPaths":{
-      "type":"list",
-      "member":{"shape":"String"}
     },
     "DeviceMinutes":{
       "type":"structure",
@@ -1197,10 +1169,6 @@
         "ERRORED",
         "STOPPED"
       ]
-    },
-    "ExecutionResultCode":{
-      "type":"string",
-      "enum":["PARSING_FAILED"]
     },
     "ExecutionStatus":{
       "type":"string",
@@ -1393,10 +1361,6 @@
         "upload":{"shape":"Upload"}
       }
     },
-    "HostAddress":{
-      "type":"string",
-      "max":1024
-    },
     "IdempotencyException":{
       "type":"structure",
       "members":{
@@ -1433,10 +1397,6 @@
       }
     },
     "Integer":{"type":"integer"},
-    "IosPaths":{
-      "type":"list",
-      "member":{"shape":"String"}
-    },
     "Job":{
       "type":"structure",
       "members":{
@@ -1959,13 +1919,9 @@
         "started":{"shape":"DateTime"},
         "stopped":{"shape":"DateTime"},
         "device":{"shape":"Device"},
-        "remoteDebugEnabled":{"shape":"Boolean"},
-        "hostAddress":{"shape":"HostAddress"},
-        "clientId":{"shape":"ClientId"},
         "billingMethod":{"shape":"BillingMethod"},
         "deviceMinutes":{"shape":"DeviceMinutes"},
-        "endpoint":{"shape":"String"},
-        "deviceUdid":{"shape":"String"}
+        "endpoint":{"shape":"String"}
       }
     },
     "RemoteAccessSessions":{
@@ -2033,10 +1989,7 @@
         "completedJobs":{"shape":"Integer"},
         "billingMethod":{"shape":"BillingMethod"},
         "deviceMinutes":{"shape":"DeviceMinutes"},
-        "networkProfile":{"shape":"NetworkProfile"},
-        "parsingResultUrl":{"shape":"String"},
-        "resultCode":{"shape":"ExecutionResultCode"},
-        "customerArtifactPaths":{"shape":"CustomerArtifactPaths"}
+        "networkProfile":{"shape":"NetworkProfile"}
       }
     },
     "Runs":{
@@ -2084,7 +2037,6 @@
         "networkProfileArn":{"shape":"AmazonResourceName"},
         "locale":{"shape":"String"},
         "location":{"shape":"Location"},
-        "customerArtifactPaths":{"shape":"CustomerArtifactPaths"},
         "radios":{"shape":"Radios"},
         "auxiliaryApps":{"shape":"AmazonResourceNames"},
         "billingMethod":{"shape":"BillingMethod"}
@@ -2129,11 +2081,6 @@
         "message":{"shape":"Message"}
       },
       "exception":true
-    },
-    "SshPublicKey":{
-      "type":"string",
-      "max":8192,
-      "min":0
     },
     "StopRemoteAccessSessionRequest":{
       "type":"structure",

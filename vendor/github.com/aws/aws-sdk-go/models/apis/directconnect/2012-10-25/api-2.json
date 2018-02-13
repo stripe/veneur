@@ -168,32 +168,6 @@
         {"shape":"DirectConnectClientException"}
       ]
     },
-    "CreateDirectConnectGateway":{
-      "name":"CreateDirectConnectGateway",
-      "http":{
-        "method":"POST",
-        "requestUri":"/"
-      },
-      "input":{"shape":"CreateDirectConnectGatewayRequest"},
-      "output":{"shape":"CreateDirectConnectGatewayResult"},
-      "errors":[
-        {"shape":"DirectConnectServerException"},
-        {"shape":"DirectConnectClientException"}
-      ]
-    },
-    "CreateDirectConnectGatewayAssociation":{
-      "name":"CreateDirectConnectGatewayAssociation",
-      "http":{
-        "method":"POST",
-        "requestUri":"/"
-      },
-      "input":{"shape":"CreateDirectConnectGatewayAssociationRequest"},
-      "output":{"shape":"CreateDirectConnectGatewayAssociationResult"},
-      "errors":[
-        {"shape":"DirectConnectServerException"},
-        {"shape":"DirectConnectClientException"}
-      ]
-    },
     "CreateInterconnect":{
       "name":"CreateInterconnect",
       "http":{
@@ -267,32 +241,6 @@
       },
       "input":{"shape":"DeleteConnectionRequest"},
       "output":{"shape":"Connection"},
-      "errors":[
-        {"shape":"DirectConnectServerException"},
-        {"shape":"DirectConnectClientException"}
-      ]
-    },
-    "DeleteDirectConnectGateway":{
-      "name":"DeleteDirectConnectGateway",
-      "http":{
-        "method":"POST",
-        "requestUri":"/"
-      },
-      "input":{"shape":"DeleteDirectConnectGatewayRequest"},
-      "output":{"shape":"DeleteDirectConnectGatewayResult"},
-      "errors":[
-        {"shape":"DirectConnectServerException"},
-        {"shape":"DirectConnectClientException"}
-      ]
-    },
-    "DeleteDirectConnectGatewayAssociation":{
-      "name":"DeleteDirectConnectGatewayAssociation",
-      "http":{
-        "method":"POST",
-        "requestUri":"/"
-      },
-      "input":{"shape":"DeleteDirectConnectGatewayAssociationRequest"},
-      "output":{"shape":"DeleteDirectConnectGatewayAssociationResult"},
       "errors":[
         {"shape":"DirectConnectServerException"},
         {"shape":"DirectConnectClientException"}
@@ -377,45 +325,6 @@
         {"shape":"DirectConnectClientException"}
       ],
       "deprecated":true
-    },
-    "DescribeDirectConnectGatewayAssociations":{
-      "name":"DescribeDirectConnectGatewayAssociations",
-      "http":{
-        "method":"POST",
-        "requestUri":"/"
-      },
-      "input":{"shape":"DescribeDirectConnectGatewayAssociationsRequest"},
-      "output":{"shape":"DescribeDirectConnectGatewayAssociationsResult"},
-      "errors":[
-        {"shape":"DirectConnectServerException"},
-        {"shape":"DirectConnectClientException"}
-      ]
-    },
-    "DescribeDirectConnectGatewayAttachments":{
-      "name":"DescribeDirectConnectGatewayAttachments",
-      "http":{
-        "method":"POST",
-        "requestUri":"/"
-      },
-      "input":{"shape":"DescribeDirectConnectGatewayAttachmentsRequest"},
-      "output":{"shape":"DescribeDirectConnectGatewayAttachmentsResult"},
-      "errors":[
-        {"shape":"DirectConnectServerException"},
-        {"shape":"DirectConnectClientException"}
-      ]
-    },
-    "DescribeDirectConnectGateways":{
-      "name":"DescribeDirectConnectGateways",
-      "http":{
-        "method":"POST",
-        "requestUri":"/"
-      },
-      "input":{"shape":"DescribeDirectConnectGatewaysRequest"},
-      "output":{"shape":"DescribeDirectConnectGatewaysResult"},
-      "errors":[
-        {"shape":"DirectConnectServerException"},
-        {"shape":"DirectConnectClientException"}
-      ]
     },
     "DescribeHostedConnections":{
       "name":"DescribeHostedConnections",
@@ -744,11 +653,13 @@
     },
     "ConfirmPrivateVirtualInterfaceRequest":{
       "type":"structure",
-      "required":["virtualInterfaceId"],
+      "required":[
+        "virtualInterfaceId",
+        "virtualGatewayId"
+      ],
       "members":{
         "virtualInterfaceId":{"shape":"VirtualInterfaceId"},
-        "virtualGatewayId":{"shape":"VirtualGatewayId"},
-        "directConnectGatewayId":{"shape":"DirectConnectGatewayId"}
+        "virtualGatewayId":{"shape":"VirtualGatewayId"}
       }
     },
     "ConfirmPrivateVirtualInterfaceResponse":{
@@ -840,37 +751,6 @@
         "lagId":{"shape":"LagId"}
       }
     },
-    "CreateDirectConnectGatewayAssociationRequest":{
-      "type":"structure",
-      "required":[
-        "directConnectGatewayId",
-        "virtualGatewayId"
-      ],
-      "members":{
-        "directConnectGatewayId":{"shape":"DirectConnectGatewayId"},
-        "virtualGatewayId":{"shape":"VirtualGatewayId"}
-      }
-    },
-    "CreateDirectConnectGatewayAssociationResult":{
-      "type":"structure",
-      "members":{
-        "directConnectGatewayAssociation":{"shape":"DirectConnectGatewayAssociation"}
-      }
-    },
-    "CreateDirectConnectGatewayRequest":{
-      "type":"structure",
-      "required":["directConnectGatewayName"],
-      "members":{
-        "directConnectGatewayName":{"shape":"DirectConnectGatewayName"},
-        "amazonSideAsn":{"shape":"LongAsn"}
-      }
-    },
-    "CreateDirectConnectGatewayResult":{
-      "type":"structure",
-      "members":{
-        "directConnectGateway":{"shape":"DirectConnectGateway"}
-      }
-    },
     "CreateInterconnectRequest":{
       "type":"structure",
       "required":[
@@ -945,36 +825,6 @@
         "connectionId":{"shape":"ConnectionId"}
       }
     },
-    "DeleteDirectConnectGatewayAssociationRequest":{
-      "type":"structure",
-      "required":[
-        "directConnectGatewayId",
-        "virtualGatewayId"
-      ],
-      "members":{
-        "directConnectGatewayId":{"shape":"DirectConnectGatewayId"},
-        "virtualGatewayId":{"shape":"VirtualGatewayId"}
-      }
-    },
-    "DeleteDirectConnectGatewayAssociationResult":{
-      "type":"structure",
-      "members":{
-        "directConnectGatewayAssociation":{"shape":"DirectConnectGatewayAssociation"}
-      }
-    },
-    "DeleteDirectConnectGatewayRequest":{
-      "type":"structure",
-      "required":["directConnectGatewayId"],
-      "members":{
-        "directConnectGatewayId":{"shape":"DirectConnectGatewayId"}
-      }
-    },
-    "DeleteDirectConnectGatewayResult":{
-      "type":"structure",
-      "members":{
-        "directConnectGateway":{"shape":"DirectConnectGateway"}
-      }
-    },
     "DeleteInterconnectRequest":{
       "type":"structure",
       "required":["interconnectId"],
@@ -1034,53 +884,6 @@
       "type":"structure",
       "members":{
         "connectionId":{"shape":"ConnectionId"}
-      }
-    },
-    "DescribeDirectConnectGatewayAssociationsRequest":{
-      "type":"structure",
-      "members":{
-        "directConnectGatewayId":{"shape":"DirectConnectGatewayId"},
-        "virtualGatewayId":{"shape":"VirtualGatewayId"},
-        "maxResults":{"shape":"MaxResultSetSize"},
-        "nextToken":{"shape":"PaginationToken"}
-      }
-    },
-    "DescribeDirectConnectGatewayAssociationsResult":{
-      "type":"structure",
-      "members":{
-        "directConnectGatewayAssociations":{"shape":"DirectConnectGatewayAssociationList"},
-        "nextToken":{"shape":"PaginationToken"}
-      }
-    },
-    "DescribeDirectConnectGatewayAttachmentsRequest":{
-      "type":"structure",
-      "members":{
-        "directConnectGatewayId":{"shape":"DirectConnectGatewayId"},
-        "virtualInterfaceId":{"shape":"VirtualInterfaceId"},
-        "maxResults":{"shape":"MaxResultSetSize"},
-        "nextToken":{"shape":"PaginationToken"}
-      }
-    },
-    "DescribeDirectConnectGatewayAttachmentsResult":{
-      "type":"structure",
-      "members":{
-        "directConnectGatewayAttachments":{"shape":"DirectConnectGatewayAttachmentList"},
-        "nextToken":{"shape":"PaginationToken"}
-      }
-    },
-    "DescribeDirectConnectGatewaysRequest":{
-      "type":"structure",
-      "members":{
-        "directConnectGatewayId":{"shape":"DirectConnectGatewayId"},
-        "maxResults":{"shape":"MaxResultSetSize"},
-        "nextToken":{"shape":"PaginationToken"}
-      }
-    },
-    "DescribeDirectConnectGatewaysResult":{
-      "type":"structure",
-      "members":{
-        "directConnectGateways":{"shape":"DirectConnectGatewayList"},
-        "nextToken":{"shape":"PaginationToken"}
       }
     },
     "DescribeHostedConnectionsRequest":{
@@ -1152,80 +955,6 @@
         "message":{"shape":"ErrorMessage"}
       },
       "exception":true
-    },
-    "DirectConnectGateway":{
-      "type":"structure",
-      "members":{
-        "directConnectGatewayId":{"shape":"DirectConnectGatewayId"},
-        "directConnectGatewayName":{"shape":"DirectConnectGatewayName"},
-        "amazonSideAsn":{"shape":"LongAsn"},
-        "ownerAccount":{"shape":"OwnerAccount"},
-        "directConnectGatewayState":{"shape":"DirectConnectGatewayState"},
-        "stateChangeError":{"shape":"StateChangeError"}
-      }
-    },
-    "DirectConnectGatewayAssociation":{
-      "type":"structure",
-      "members":{
-        "directConnectGatewayId":{"shape":"DirectConnectGatewayId"},
-        "virtualGatewayId":{"shape":"VirtualGatewayId"},
-        "virtualGatewayRegion":{"shape":"VirtualGatewayRegion"},
-        "virtualGatewayOwnerAccount":{"shape":"OwnerAccount"},
-        "associationState":{"shape":"DirectConnectGatewayAssociationState"},
-        "stateChangeError":{"shape":"StateChangeError"}
-      }
-    },
-    "DirectConnectGatewayAssociationList":{
-      "type":"list",
-      "member":{"shape":"DirectConnectGatewayAssociation"}
-    },
-    "DirectConnectGatewayAssociationState":{
-      "type":"string",
-      "enum":[
-        "associating",
-        "associated",
-        "disassociating",
-        "disassociated"
-      ]
-    },
-    "DirectConnectGatewayAttachment":{
-      "type":"structure",
-      "members":{
-        "directConnectGatewayId":{"shape":"DirectConnectGatewayId"},
-        "virtualInterfaceId":{"shape":"VirtualInterfaceId"},
-        "virtualInterfaceRegion":{"shape":"VirtualInterfaceRegion"},
-        "virtualInterfaceOwnerAccount":{"shape":"OwnerAccount"},
-        "attachmentState":{"shape":"DirectConnectGatewayAttachmentState"},
-        "stateChangeError":{"shape":"StateChangeError"}
-      }
-    },
-    "DirectConnectGatewayAttachmentList":{
-      "type":"list",
-      "member":{"shape":"DirectConnectGatewayAttachment"}
-    },
-    "DirectConnectGatewayAttachmentState":{
-      "type":"string",
-      "enum":[
-        "attaching",
-        "attached",
-        "detaching",
-        "detached"
-      ]
-    },
-    "DirectConnectGatewayId":{"type":"string"},
-    "DirectConnectGatewayList":{
-      "type":"list",
-      "member":{"shape":"DirectConnectGateway"}
-    },
-    "DirectConnectGatewayName":{"type":"string"},
-    "DirectConnectGatewayState":{
-      "type":"string",
-      "enum":[
-        "pending",
-        "available",
-        "deleting",
-        "deleted"
-      ]
     },
     "DirectConnectServerException":{
       "type":"structure",
@@ -1361,11 +1090,6 @@
         "locations":{"shape":"LocationList"}
       }
     },
-    "LongAsn":{"type":"long"},
-    "MaxResultSetSize":{
-      "type":"integer",
-      "box":true
-    },
     "NewBGPPeer":{
       "type":"structure",
       "members":{
@@ -1381,7 +1105,8 @@
       "required":[
         "virtualInterfaceName",
         "vlan",
-        "asn"
+        "asn",
+        "virtualGatewayId"
       ],
       "members":{
         "virtualInterfaceName":{"shape":"VirtualInterfaceName"},
@@ -1391,8 +1116,7 @@
         "amazonAddress":{"shape":"AmazonAddress"},
         "customerAddress":{"shape":"CustomerAddress"},
         "addressFamily":{"shape":"AddressFamily"},
-        "virtualGatewayId":{"shape":"VirtualGatewayId"},
-        "directConnectGatewayId":{"shape":"DirectConnectGatewayId"}
+        "virtualGatewayId":{"shape":"VirtualGatewayId"}
       }
     },
     "NewPrivateVirtualInterfaceAllocation":{
@@ -1449,7 +1173,6 @@
       }
     },
     "OwnerAccount":{"type":"string"},
-    "PaginationToken":{"type":"string"},
     "PartnerName":{"type":"string"},
     "ProviderName":{"type":"string"},
     "Region":{"type":"string"},
@@ -1480,7 +1203,6 @@
       "member":{"shape":"RouteFilterPrefix"}
     },
     "RouterConfig":{"type":"string"},
-    "StateChangeError":{"type":"string"},
     "Tag":{
       "type":"structure",
       "required":["key"],
@@ -1570,7 +1292,6 @@
       "type":"list",
       "member":{"shape":"VirtualGateway"}
     },
-    "VirtualGatewayRegion":{"type":"string"},
     "VirtualGatewayState":{"type":"string"},
     "VirtualGateways":{
       "type":"structure",
@@ -1589,7 +1310,6 @@
         "virtualInterfaceName":{"shape":"VirtualInterfaceName"},
         "vlan":{"shape":"VLAN"},
         "asn":{"shape":"ASN"},
-        "amazonSideAsn":{"shape":"LongAsn"},
         "authKey":{"shape":"BGPAuthKey"},
         "amazonAddress":{"shape":"AmazonAddress"},
         "customerAddress":{"shape":"CustomerAddress"},
@@ -1597,7 +1317,6 @@
         "virtualInterfaceState":{"shape":"VirtualInterfaceState"},
         "customerRouterConfig":{"shape":"RouterConfig"},
         "virtualGatewayId":{"shape":"VirtualGatewayId"},
-        "directConnectGatewayId":{"shape":"DirectConnectGatewayId"},
         "routeFilterPrefixes":{"shape":"RouteFilterPrefixList"},
         "bgpPeers":{"shape":"BGPPeerList"}
       }
@@ -1608,7 +1327,6 @@
       "member":{"shape":"VirtualInterface"}
     },
     "VirtualInterfaceName":{"type":"string"},
-    "VirtualInterfaceRegion":{"type":"string"},
     "VirtualInterfaceState":{
       "type":"string",
       "enum":[

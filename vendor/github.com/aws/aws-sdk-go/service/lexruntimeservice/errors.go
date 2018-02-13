@@ -15,7 +15,7 @@ const (
 	// "BadRequestException".
 	//
 	// Request validation failed, there is no usable message in the context, or
-	// the bot build failed, is still in progress, or contains unbuilt changes.
+	// the bot build failed.
 	ErrCodeBadRequestException = "BadRequestException"
 
 	// ErrCodeConflictException for service response error code
@@ -27,16 +27,9 @@ const (
 	// ErrCodeDependencyFailedException for service response error code
 	// "DependencyFailedException".
 	//
-	// One of the dependencies, such as AWS Lambda or Amazon Polly, threw an exception.
-	// For example,
-	//
-	//    * If Amazon Lex does not have sufficient permissions to call a Lambda
-	//    function.
-	//
-	//    * If a Lambda function takes longer than 30 seconds to execute.
-	//
-	//    * If a fulfillment Lambda function returns a Delegate dialog action without
-	//    removing any slot values.
+	// One of the downstream dependencies, such as AWS Lambda or Amazon Polly, threw
+	// an exception. For example, if Amazon Lex does not have sufficient permissions
+	// to call a Lambda function, it results in Lambda throwing an exception.
 	ErrCodeDependencyFailedException = "DependencyFailedException"
 
 	// ErrCodeInternalFailureException for service response error code
@@ -54,7 +47,8 @@ const (
 	// ErrCodeLoopDetectedException for service response error code
 	// "LoopDetectedException".
 	//
-	// This exception is not used.
+	// Lambda fulfilment function returned DelegateDialogAction to Amazon Lex without
+	// changing any slot values.
 	ErrCodeLoopDetectedException = "LoopDetectedException"
 
 	// ErrCodeNotAcceptableException for service response error code

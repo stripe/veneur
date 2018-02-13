@@ -426,23 +426,6 @@
         {"shape":"ElasticBeanstalkServiceException"}
       ]
     },
-    "ListTagsForResource":{
-      "name":"ListTagsForResource",
-      "http":{
-        "method":"POST",
-        "requestUri":"/"
-      },
-      "input":{"shape":"ListTagsForResourceMessage"},
-      "output":{
-        "shape":"ResourceTagsDescriptionMessage",
-        "resultWrapper":"ListTagsForResourceResult"
-      },
-      "errors":[
-        {"shape":"InsufficientPrivilegesException"},
-        {"shape":"ResourceNotFoundException"},
-        {"shape":"ResourceTypeNotSupportedException"}
-      ]
-    },
     "RebuildEnvironment":{
       "name":"RebuildEnvironment",
       "http":{
@@ -574,21 +557,6 @@
       "errors":[
         {"shape":"InsufficientPrivilegesException"},
         {"shape":"TooManyBucketsException"}
-      ]
-    },
-    "UpdateTagsForResource":{
-      "name":"UpdateTagsForResource",
-      "http":{
-        "method":"POST",
-        "requestUri":"/"
-      },
-      "input":{"shape":"UpdateTagsForResourceMessage"},
-      "errors":[
-        {"shape":"InsufficientPrivilegesException"},
-        {"shape":"OperationInProgressException"},
-        {"shape":"TooManyTagsException"},
-        {"shape":"ResourceNotFoundException"},
-        {"shape":"ResourceTypeNotSupportedException"}
       ]
     },
     "ValidateConfigurationSettings":{
@@ -1257,9 +1225,7 @@
         "EnvironmentIds":{"shape":"EnvironmentIdList"},
         "EnvironmentNames":{"shape":"EnvironmentNamesList"},
         "IncludeDeleted":{"shape":"IncludeDeleted"},
-        "IncludedDeletedBackTo":{"shape":"IncludeDeletedBackTo"},
-        "MaxRecords":{"shape":"MaxRecords"},
-        "NextToken":{"shape":"Token"}
+        "IncludedDeletedBackTo":{"shape":"IncludeDeletedBackTo"}
       }
     },
     "DescribeEventsMessage":{
@@ -1321,7 +1287,6 @@
       "exception":true
     },
     "EndpointURL":{"type":"string"},
-    "EnvironmentArn":{"type":"string"},
     "EnvironmentDescription":{
       "type":"structure",
       "members":{
@@ -1343,8 +1308,7 @@
         "HealthStatus":{"shape":"EnvironmentHealthStatus"},
         "Resources":{"shape":"EnvironmentResourcesDescription"},
         "Tier":{"shape":"EnvironmentTier"},
-        "EnvironmentLinks":{"shape":"EnvironmentLinks"},
-        "EnvironmentArn":{"shape":"EnvironmentArn"}
+        "EnvironmentLinks":{"shape":"EnvironmentLinks"}
       }
     },
     "EnvironmentDescriptionsList":{
@@ -1354,8 +1318,7 @@
     "EnvironmentDescriptionsMessage":{
       "type":"structure",
       "members":{
-        "Environments":{"shape":"EnvironmentDescriptionsList"},
-        "NextToken":{"shape":"Token"}
+        "Environments":{"shape":"EnvironmentDescriptionsList"}
       }
     },
     "EnvironmentHealth":{
@@ -1670,13 +1633,6 @@
         "NextToken":{"shape":"Token"}
       }
     },
-    "ListTagsForResourceMessage":{
-      "type":"structure",
-      "required":["ResourceArn"],
-      "members":{
-        "ResourceArn":{"shape":"ResourceArn"}
-      }
-    },
     "Listener":{
       "type":"structure",
       "members":{
@@ -1973,41 +1929,11 @@
       }
     },
     "RequestId":{"type":"string"},
-    "ResourceArn":{"type":"string"},
     "ResourceId":{"type":"string"},
     "ResourceName":{
       "type":"string",
       "max":256,
       "min":1
-    },
-    "ResourceNotFoundException":{
-      "type":"structure",
-      "members":{
-      },
-      "error":{
-        "code":"ResourceNotFoundException",
-        "httpStatusCode":400,
-        "senderFault":true
-      },
-      "exception":true
-    },
-    "ResourceTagsDescriptionMessage":{
-      "type":"structure",
-      "members":{
-        "ResourceArn":{"shape":"ResourceArn"},
-        "ResourceTags":{"shape":"TagList"}
-      }
-    },
-    "ResourceTypeNotSupportedException":{
-      "type":"structure",
-      "members":{
-      },
-      "error":{
-        "code":"ResourceTypeNotSupportedException",
-        "httpStatusCode":400,
-        "senderFault":true
-      },
-      "exception":true
     },
     "RestartAppServerMessage":{
       "type":"structure",
@@ -2195,14 +2121,6 @@
       "max":128,
       "min":1
     },
-    "TagKeyList":{
-      "type":"list",
-      "member":{"shape":"TagKey"}
-    },
-    "TagList":{
-      "type":"list",
-      "member":{"shape":"Tag"}
-    },
     "TagValue":{
       "type":"string",
       "max":256,
@@ -2288,17 +2206,6 @@
       },
       "exception":true
     },
-    "TooManyTagsException":{
-      "type":"structure",
-      "members":{
-      },
-      "error":{
-        "code":"TooManyTagsException",
-        "httpStatusCode":400,
-        "senderFault":true
-      },
-      "exception":true
-    },
     "Trigger":{
       "type":"structure",
       "members":{
@@ -2370,15 +2277,6 @@
         "PlatformArn":{"shape":"PlatformArn"},
         "OptionSettings":{"shape":"ConfigurationOptionSettingsList"},
         "OptionsToRemove":{"shape":"OptionsSpecifierList"}
-      }
-    },
-    "UpdateTagsForResourceMessage":{
-      "type":"structure",
-      "required":["ResourceArn"],
-      "members":{
-        "ResourceArn":{"shape":"ResourceArn"},
-        "TagsToAdd":{"shape":"TagList"},
-        "TagsToRemove":{"shape":"TagKeyList"}
       }
     },
     "UserDefinedOption":{"type":"boolean"},

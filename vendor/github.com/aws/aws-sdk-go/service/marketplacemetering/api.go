@@ -15,18 +15,19 @@ const opBatchMeterUsage = "BatchMeterUsage"
 
 // BatchMeterUsageRequest generates a "aws/request.Request" representing the
 // client's request for the BatchMeterUsage operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See BatchMeterUsage for usage and error information.
 //
-// See BatchMeterUsage for more information on using the BatchMeterUsage
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the BatchMeterUsage method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the BatchMeterUsageRequest method.
 //    req, resp := client.BatchMeterUsageRequest(params)
@@ -36,7 +37,7 @@ const opBatchMeterUsage = "BatchMeterUsage"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/BatchMeterUsage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/BatchMeterUsage
 func (c *MarketplaceMetering) BatchMeterUsageRequest(input *BatchMeterUsageInput) (req *request.Request, output *BatchMeterUsageOutput) {
 	op := &request.Operation{
 		Name:       opBatchMeterUsage,
@@ -95,7 +96,7 @@ func (c *MarketplaceMetering) BatchMeterUsageRequest(input *BatchMeterUsageInput
 //   * ErrCodeThrottlingException "ThrottlingException"
 //   The calls to the MeterUsage API are throttled.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/BatchMeterUsage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/BatchMeterUsage
 func (c *MarketplaceMetering) BatchMeterUsage(input *BatchMeterUsageInput) (*BatchMeterUsageOutput, error) {
 	req, out := c.BatchMeterUsageRequest(input)
 	return out, req.Send()
@@ -121,18 +122,19 @@ const opMeterUsage = "MeterUsage"
 
 // MeterUsageRequest generates a "aws/request.Request" representing the
 // client's request for the MeterUsage operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See MeterUsage for usage and error information.
 //
-// See MeterUsage for more information on using the MeterUsage
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the MeterUsage method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the MeterUsageRequest method.
 //    req, resp := client.MeterUsageRequest(params)
@@ -142,7 +144,7 @@ const opMeterUsage = "MeterUsage"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/MeterUsage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/MeterUsage
 func (c *MarketplaceMetering) MeterUsageRequest(input *MeterUsageInput) (req *request.Request, output *MeterUsageOutput) {
 	op := &request.Operation{
 		Name:       opMeterUsage,
@@ -202,7 +204,7 @@ func (c *MarketplaceMetering) MeterUsageRequest(input *MeterUsageInput) (req *re
 //   * ErrCodeThrottlingException "ThrottlingException"
 //   The calls to the MeterUsage API are throttled.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/MeterUsage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/MeterUsage
 func (c *MarketplaceMetering) MeterUsage(input *MeterUsageInput) (*MeterUsageOutput, error) {
 	req, out := c.MeterUsageRequest(input)
 	return out, req.Send()
@@ -228,18 +230,19 @@ const opResolveCustomer = "ResolveCustomer"
 
 // ResolveCustomerRequest generates a "aws/request.Request" representing the
 // client's request for the ResolveCustomer operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ResolveCustomer for usage and error information.
 //
-// See ResolveCustomer for more information on using the ResolveCustomer
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ResolveCustomer method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ResolveCustomerRequest method.
 //    req, resp := client.ResolveCustomerRequest(params)
@@ -249,7 +252,7 @@ const opResolveCustomer = "ResolveCustomer"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/ResolveCustomer
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/ResolveCustomer
 func (c *MarketplaceMetering) ResolveCustomerRequest(input *ResolveCustomerInput) (req *request.Request, output *ResolveCustomerOutput) {
 	op := &request.Operation{
 		Name:       opResolveCustomer,
@@ -297,7 +300,7 @@ func (c *MarketplaceMetering) ResolveCustomerRequest(input *ResolveCustomerInput
 //   An internal error has occurred. Retry your request. If the problem persists,
 //   post a message with details on the AWS forums.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/ResolveCustomer
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/ResolveCustomer
 func (c *MarketplaceMetering) ResolveCustomer(input *ResolveCustomerInput) (*ResolveCustomerOutput, error) {
 	req, out := c.ResolveCustomerRequest(input)
 	return out, req.Send()
@@ -321,7 +324,7 @@ func (c *MarketplaceMetering) ResolveCustomerWithContext(ctx aws.Context, input 
 
 // A BatchMeterUsageRequest contains UsageRecords, which indicate quantities
 // of usage within your application.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/BatchMeterUsageRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/BatchMeterUsageRequest
 type BatchMeterUsageInput struct {
 	_ struct{} `type:"structure"`
 
@@ -392,7 +395,7 @@ func (s *BatchMeterUsageInput) SetUsageRecords(v []*UsageRecord) *BatchMeterUsag
 
 // Contains the UsageRecords processed by BatchMeterUsage and any records that
 // have failed due to transient error.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/BatchMeterUsageResult
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/BatchMeterUsageResult
 type BatchMeterUsageOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -428,7 +431,7 @@ func (s *BatchMeterUsageOutput) SetUnprocessedRecords(v []*UsageRecord) *BatchMe
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/MeterUsageRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/MeterUsageRequest
 type MeterUsageInput struct {
 	_ struct{} `type:"structure"`
 
@@ -535,7 +538,7 @@ func (s *MeterUsageInput) SetUsageQuantity(v int64) *MeterUsageInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/MeterUsageResult
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/MeterUsageResult
 type MeterUsageOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -559,7 +562,7 @@ func (s *MeterUsageOutput) SetMeteringRecordId(v string) *MeterUsageOutput {
 }
 
 // Contains input to the ResolveCustomer operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/ResolveCustomerRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/ResolveCustomerRequest
 type ResolveCustomerInput struct {
 	_ struct{} `type:"structure"`
 
@@ -602,7 +605,7 @@ func (s *ResolveCustomerInput) SetRegistrationToken(v string) *ResolveCustomerIn
 
 // The result of the ResolveCustomer operation. Contains the CustomerIdentifier
 // and product code.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/ResolveCustomerResult
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/ResolveCustomerResult
 type ResolveCustomerOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -644,7 +647,7 @@ func (s *ResolveCustomerOutput) SetProductCode(v string) *ResolveCustomerOutput 
 //
 // Multiple requests with the same UsageRecords as input will be deduplicated
 // to prevent double charges.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/UsageRecord
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/UsageRecord
 type UsageRecord struct {
 	_ struct{} `type:"structure"`
 
@@ -740,7 +743,7 @@ func (s *UsageRecord) SetTimestamp(v time.Time) *UsageRecord {
 
 // A UsageRecordResult indicates the status of a given UsageRecord processed
 // by BatchMeterUsage.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/UsageRecordResult
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/meteringmarketplace-2016-01-14/UsageRecordResult
 type UsageRecordResult struct {
 	_ struct{} `type:"structure"`
 

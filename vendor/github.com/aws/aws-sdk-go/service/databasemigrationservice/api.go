@@ -15,18 +15,19 @@ const opAddTagsToResource = "AddTagsToResource"
 
 // AddTagsToResourceRequest generates a "aws/request.Request" representing the
 // client's request for the AddTagsToResource operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See AddTagsToResource for usage and error information.
 //
-// See AddTagsToResource for more information on using the AddTagsToResource
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the AddTagsToResource method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the AddTagsToResourceRequest method.
 //    req, resp := client.AddTagsToResourceRequest(params)
@@ -36,7 +37,7 @@ const opAddTagsToResource = "AddTagsToResource"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/AddTagsToResource
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/AddTagsToResource
 func (c *DatabaseMigrationService) AddTagsToResourceRequest(input *AddTagsToResourceInput) (req *request.Request, output *AddTagsToResourceOutput) {
 	op := &request.Operation{
 		Name:       opAddTagsToResource,
@@ -71,7 +72,7 @@ func (c *DatabaseMigrationService) AddTagsToResourceRequest(input *AddTagsToReso
 //   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
 //   The resource could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/AddTagsToResource
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/AddTagsToResource
 func (c *DatabaseMigrationService) AddTagsToResource(input *AddTagsToResourceInput) (*AddTagsToResourceOutput, error) {
 	req, out := c.AddTagsToResourceRequest(input)
 	return out, req.Send()
@@ -97,18 +98,19 @@ const opCreateEndpoint = "CreateEndpoint"
 
 // CreateEndpointRequest generates a "aws/request.Request" representing the
 // client's request for the CreateEndpoint operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateEndpoint for usage and error information.
 //
-// See CreateEndpoint for more information on using the CreateEndpoint
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateEndpoint method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateEndpointRequest method.
 //    req, resp := client.CreateEndpointRequest(params)
@@ -118,7 +120,7 @@ const opCreateEndpoint = "CreateEndpoint"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEndpoint
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEndpoint
 func (c *DatabaseMigrationService) CreateEndpointRequest(input *CreateEndpointInput) (req *request.Request, output *CreateEndpointOutput) {
 	op := &request.Operation{
 		Name:       opCreateEndpoint,
@@ -166,7 +168,7 @@ func (c *DatabaseMigrationService) CreateEndpointRequest(input *CreateEndpointIn
 //   * ErrCodeAccessDeniedFault "AccessDeniedFault"
 //   AWS DMS was denied access to the endpoint.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEndpoint
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEndpoint
 func (c *DatabaseMigrationService) CreateEndpoint(input *CreateEndpointInput) (*CreateEndpointOutput, error) {
 	req, out := c.CreateEndpointRequest(input)
 	return out, req.Send()
@@ -192,18 +194,19 @@ const opCreateEventSubscription = "CreateEventSubscription"
 
 // CreateEventSubscriptionRequest generates a "aws/request.Request" representing the
 // client's request for the CreateEventSubscription operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateEventSubscription for usage and error information.
 //
-// See CreateEventSubscription for more information on using the CreateEventSubscription
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateEventSubscription method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateEventSubscriptionRequest method.
 //    req, resp := client.CreateEventSubscriptionRequest(params)
@@ -213,7 +216,7 @@ const opCreateEventSubscription = "CreateEventSubscription"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEventSubscription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEventSubscription
 func (c *DatabaseMigrationService) CreateEventSubscriptionRequest(input *CreateEventSubscriptionInput) (req *request.Request, output *CreateEventSubscriptionOutput) {
 	op := &request.Operation{
 		Name:       opCreateEventSubscription,
@@ -273,7 +276,7 @@ func (c *DatabaseMigrationService) CreateEventSubscriptionRequest(input *CreateE
 //   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
 //   The resource could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEventSubscription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEventSubscription
 func (c *DatabaseMigrationService) CreateEventSubscription(input *CreateEventSubscriptionInput) (*CreateEventSubscriptionOutput, error) {
 	req, out := c.CreateEventSubscriptionRequest(input)
 	return out, req.Send()
@@ -299,18 +302,19 @@ const opCreateReplicationInstance = "CreateReplicationInstance"
 
 // CreateReplicationInstanceRequest generates a "aws/request.Request" representing the
 // client's request for the CreateReplicationInstance operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateReplicationInstance for usage and error information.
 //
-// See CreateReplicationInstance for more information on using the CreateReplicationInstance
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateReplicationInstance method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateReplicationInstanceRequest method.
 //    req, resp := client.CreateReplicationInstanceRequest(params)
@@ -320,7 +324,7 @@ const opCreateReplicationInstance = "CreateReplicationInstance"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationInstance
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationInstance
 func (c *DatabaseMigrationService) CreateReplicationInstanceRequest(input *CreateReplicationInstanceInput) (req *request.Request, output *CreateReplicationInstanceOutput) {
 	op := &request.Operation{
 		Name:       opCreateReplicationInstance,
@@ -381,7 +385,7 @@ func (c *DatabaseMigrationService) CreateReplicationInstanceRequest(input *Creat
 //   * ErrCodeKMSKeyNotAccessibleFault "KMSKeyNotAccessibleFault"
 //   AWS DMS cannot access the KMS key.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationInstance
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationInstance
 func (c *DatabaseMigrationService) CreateReplicationInstance(input *CreateReplicationInstanceInput) (*CreateReplicationInstanceOutput, error) {
 	req, out := c.CreateReplicationInstanceRequest(input)
 	return out, req.Send()
@@ -407,18 +411,19 @@ const opCreateReplicationSubnetGroup = "CreateReplicationSubnetGroup"
 
 // CreateReplicationSubnetGroupRequest generates a "aws/request.Request" representing the
 // client's request for the CreateReplicationSubnetGroup operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateReplicationSubnetGroup for usage and error information.
 //
-// See CreateReplicationSubnetGroup for more information on using the CreateReplicationSubnetGroup
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateReplicationSubnetGroup method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateReplicationSubnetGroupRequest method.
 //    req, resp := client.CreateReplicationSubnetGroupRequest(params)
@@ -428,7 +433,7 @@ const opCreateReplicationSubnetGroup = "CreateReplicationSubnetGroup"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationSubnetGroup
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationSubnetGroup
 func (c *DatabaseMigrationService) CreateReplicationSubnetGroupRequest(input *CreateReplicationSubnetGroupInput) (req *request.Request, output *CreateReplicationSubnetGroupOutput) {
 	op := &request.Operation{
 		Name:       opCreateReplicationSubnetGroup,
@@ -476,7 +481,7 @@ func (c *DatabaseMigrationService) CreateReplicationSubnetGroupRequest(input *Cr
 //   * ErrCodeInvalidSubnet "InvalidSubnet"
 //   The subnet provided is invalid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationSubnetGroup
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationSubnetGroup
 func (c *DatabaseMigrationService) CreateReplicationSubnetGroup(input *CreateReplicationSubnetGroupInput) (*CreateReplicationSubnetGroupOutput, error) {
 	req, out := c.CreateReplicationSubnetGroupRequest(input)
 	return out, req.Send()
@@ -502,18 +507,19 @@ const opCreateReplicationTask = "CreateReplicationTask"
 
 // CreateReplicationTaskRequest generates a "aws/request.Request" representing the
 // client's request for the CreateReplicationTask operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateReplicationTask for usage and error information.
 //
-// See CreateReplicationTask for more information on using the CreateReplicationTask
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateReplicationTask method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateReplicationTaskRequest method.
 //    req, resp := client.CreateReplicationTaskRequest(params)
@@ -523,7 +529,7 @@ const opCreateReplicationTask = "CreateReplicationTask"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationTask
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationTask
 func (c *DatabaseMigrationService) CreateReplicationTaskRequest(input *CreateReplicationTaskInput) (req *request.Request, output *CreateReplicationTaskOutput) {
 	op := &request.Operation{
 		Name:       opCreateReplicationTask,
@@ -571,7 +577,7 @@ func (c *DatabaseMigrationService) CreateReplicationTaskRequest(input *CreateRep
 //   * ErrCodeResourceQuotaExceededFault "ResourceQuotaExceededFault"
 //   The quota for this resource quota has been exceeded.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationTask
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationTask
 func (c *DatabaseMigrationService) CreateReplicationTask(input *CreateReplicationTaskInput) (*CreateReplicationTaskOutput, error) {
 	req, out := c.CreateReplicationTaskRequest(input)
 	return out, req.Send()
@@ -597,18 +603,19 @@ const opDeleteCertificate = "DeleteCertificate"
 
 // DeleteCertificateRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteCertificate operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteCertificate for usage and error information.
 //
-// See DeleteCertificate for more information on using the DeleteCertificate
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteCertificate method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteCertificateRequest method.
 //    req, resp := client.DeleteCertificateRequest(params)
@@ -618,7 +625,7 @@ const opDeleteCertificate = "DeleteCertificate"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteCertificate
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteCertificate
 func (c *DatabaseMigrationService) DeleteCertificateRequest(input *DeleteCertificateInput) (req *request.Request, output *DeleteCertificateOutput) {
 	op := &request.Operation{
 		Name:       opDeleteCertificate,
@@ -654,7 +661,7 @@ func (c *DatabaseMigrationService) DeleteCertificateRequest(input *DeleteCertifi
 //   The resource is in a state that prevents it from being used for database
 //   migration.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteCertificate
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteCertificate
 func (c *DatabaseMigrationService) DeleteCertificate(input *DeleteCertificateInput) (*DeleteCertificateOutput, error) {
 	req, out := c.DeleteCertificateRequest(input)
 	return out, req.Send()
@@ -680,18 +687,19 @@ const opDeleteEndpoint = "DeleteEndpoint"
 
 // DeleteEndpointRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteEndpoint operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteEndpoint for usage and error information.
 //
-// See DeleteEndpoint for more information on using the DeleteEndpoint
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteEndpoint method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteEndpointRequest method.
 //    req, resp := client.DeleteEndpointRequest(params)
@@ -701,7 +709,7 @@ const opDeleteEndpoint = "DeleteEndpoint"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEndpoint
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEndpoint
 func (c *DatabaseMigrationService) DeleteEndpointRequest(input *DeleteEndpointInput) (req *request.Request, output *DeleteEndpointOutput) {
 	op := &request.Operation{
 		Name:       opDeleteEndpoint,
@@ -740,7 +748,7 @@ func (c *DatabaseMigrationService) DeleteEndpointRequest(input *DeleteEndpointIn
 //   The resource is in a state that prevents it from being used for database
 //   migration.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEndpoint
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEndpoint
 func (c *DatabaseMigrationService) DeleteEndpoint(input *DeleteEndpointInput) (*DeleteEndpointOutput, error) {
 	req, out := c.DeleteEndpointRequest(input)
 	return out, req.Send()
@@ -766,18 +774,19 @@ const opDeleteEventSubscription = "DeleteEventSubscription"
 
 // DeleteEventSubscriptionRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteEventSubscription operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteEventSubscription for usage and error information.
 //
-// See DeleteEventSubscription for more information on using the DeleteEventSubscription
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteEventSubscription method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteEventSubscriptionRequest method.
 //    req, resp := client.DeleteEventSubscriptionRequest(params)
@@ -787,7 +796,7 @@ const opDeleteEventSubscription = "DeleteEventSubscription"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEventSubscription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEventSubscription
 func (c *DatabaseMigrationService) DeleteEventSubscriptionRequest(input *DeleteEventSubscriptionInput) (req *request.Request, output *DeleteEventSubscriptionOutput) {
 	op := &request.Operation{
 		Name:       opDeleteEventSubscription,
@@ -823,7 +832,7 @@ func (c *DatabaseMigrationService) DeleteEventSubscriptionRequest(input *DeleteE
 //   The resource is in a state that prevents it from being used for database
 //   migration.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEventSubscription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEventSubscription
 func (c *DatabaseMigrationService) DeleteEventSubscription(input *DeleteEventSubscriptionInput) (*DeleteEventSubscriptionOutput, error) {
 	req, out := c.DeleteEventSubscriptionRequest(input)
 	return out, req.Send()
@@ -849,18 +858,19 @@ const opDeleteReplicationInstance = "DeleteReplicationInstance"
 
 // DeleteReplicationInstanceRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteReplicationInstance operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteReplicationInstance for usage and error information.
 //
-// See DeleteReplicationInstance for more information on using the DeleteReplicationInstance
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteReplicationInstance method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteReplicationInstanceRequest method.
 //    req, resp := client.DeleteReplicationInstanceRequest(params)
@@ -870,7 +880,7 @@ const opDeleteReplicationInstance = "DeleteReplicationInstance"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationInstance
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationInstance
 func (c *DatabaseMigrationService) DeleteReplicationInstanceRequest(input *DeleteReplicationInstanceInput) (req *request.Request, output *DeleteReplicationInstanceOutput) {
 	op := &request.Operation{
 		Name:       opDeleteReplicationInstance,
@@ -909,7 +919,7 @@ func (c *DatabaseMigrationService) DeleteReplicationInstanceRequest(input *Delet
 //   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
 //   The resource could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationInstance
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationInstance
 func (c *DatabaseMigrationService) DeleteReplicationInstance(input *DeleteReplicationInstanceInput) (*DeleteReplicationInstanceOutput, error) {
 	req, out := c.DeleteReplicationInstanceRequest(input)
 	return out, req.Send()
@@ -935,18 +945,19 @@ const opDeleteReplicationSubnetGroup = "DeleteReplicationSubnetGroup"
 
 // DeleteReplicationSubnetGroupRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteReplicationSubnetGroup operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteReplicationSubnetGroup for usage and error information.
 //
-// See DeleteReplicationSubnetGroup for more information on using the DeleteReplicationSubnetGroup
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteReplicationSubnetGroup method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteReplicationSubnetGroupRequest method.
 //    req, resp := client.DeleteReplicationSubnetGroupRequest(params)
@@ -956,7 +967,7 @@ const opDeleteReplicationSubnetGroup = "DeleteReplicationSubnetGroup"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationSubnetGroup
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationSubnetGroup
 func (c *DatabaseMigrationService) DeleteReplicationSubnetGroupRequest(input *DeleteReplicationSubnetGroupInput) (req *request.Request, output *DeleteReplicationSubnetGroupOutput) {
 	op := &request.Operation{
 		Name:       opDeleteReplicationSubnetGroup,
@@ -992,7 +1003,7 @@ func (c *DatabaseMigrationService) DeleteReplicationSubnetGroupRequest(input *De
 //   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
 //   The resource could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationSubnetGroup
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationSubnetGroup
 func (c *DatabaseMigrationService) DeleteReplicationSubnetGroup(input *DeleteReplicationSubnetGroupInput) (*DeleteReplicationSubnetGroupOutput, error) {
 	req, out := c.DeleteReplicationSubnetGroupRequest(input)
 	return out, req.Send()
@@ -1018,18 +1029,19 @@ const opDeleteReplicationTask = "DeleteReplicationTask"
 
 // DeleteReplicationTaskRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteReplicationTask operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteReplicationTask for usage and error information.
 //
-// See DeleteReplicationTask for more information on using the DeleteReplicationTask
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteReplicationTask method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteReplicationTaskRequest method.
 //    req, resp := client.DeleteReplicationTaskRequest(params)
@@ -1039,7 +1051,7 @@ const opDeleteReplicationTask = "DeleteReplicationTask"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationTask
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationTask
 func (c *DatabaseMigrationService) DeleteReplicationTaskRequest(input *DeleteReplicationTaskInput) (req *request.Request, output *DeleteReplicationTaskOutput) {
 	op := &request.Operation{
 		Name:       opDeleteReplicationTask,
@@ -1075,7 +1087,7 @@ func (c *DatabaseMigrationService) DeleteReplicationTaskRequest(input *DeleteRep
 //   The resource is in a state that prevents it from being used for database
 //   migration.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationTask
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationTask
 func (c *DatabaseMigrationService) DeleteReplicationTask(input *DeleteReplicationTaskInput) (*DeleteReplicationTaskOutput, error) {
 	req, out := c.DeleteReplicationTaskRequest(input)
 	return out, req.Send()
@@ -1101,18 +1113,19 @@ const opDescribeAccountAttributes = "DescribeAccountAttributes"
 
 // DescribeAccountAttributesRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeAccountAttributes operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeAccountAttributes for usage and error information.
 //
-// See DescribeAccountAttributes for more information on using the DescribeAccountAttributes
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeAccountAttributes method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeAccountAttributesRequest method.
 //    req, resp := client.DescribeAccountAttributesRequest(params)
@@ -1122,7 +1135,7 @@ const opDescribeAccountAttributes = "DescribeAccountAttributes"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeAccountAttributes
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeAccountAttributes
 func (c *DatabaseMigrationService) DescribeAccountAttributesRequest(input *DescribeAccountAttributesInput) (req *request.Request, output *DescribeAccountAttributesOutput) {
 	op := &request.Operation{
 		Name:       opDescribeAccountAttributes,
@@ -1154,7 +1167,7 @@ func (c *DatabaseMigrationService) DescribeAccountAttributesRequest(input *Descr
 //
 // See the AWS API reference guide for AWS Database Migration Service's
 // API operation DescribeAccountAttributes for usage and error information.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeAccountAttributes
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeAccountAttributes
 func (c *DatabaseMigrationService) DescribeAccountAttributes(input *DescribeAccountAttributesInput) (*DescribeAccountAttributesOutput, error) {
 	req, out := c.DescribeAccountAttributesRequest(input)
 	return out, req.Send()
@@ -1180,18 +1193,19 @@ const opDescribeCertificates = "DescribeCertificates"
 
 // DescribeCertificatesRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeCertificates operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeCertificates for usage and error information.
 //
-// See DescribeCertificates for more information on using the DescribeCertificates
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeCertificates method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeCertificatesRequest method.
 //    req, resp := client.DescribeCertificatesRequest(params)
@@ -1201,7 +1215,7 @@ const opDescribeCertificates = "DescribeCertificates"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeCertificates
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeCertificates
 func (c *DatabaseMigrationService) DescribeCertificatesRequest(input *DescribeCertificatesInput) (req *request.Request, output *DescribeCertificatesOutput) {
 	op := &request.Operation{
 		Name:       opDescribeCertificates,
@@ -1239,7 +1253,7 @@ func (c *DatabaseMigrationService) DescribeCertificatesRequest(input *DescribeCe
 //   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
 //   The resource could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeCertificates
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeCertificates
 func (c *DatabaseMigrationService) DescribeCertificates(input *DescribeCertificatesInput) (*DescribeCertificatesOutput, error) {
 	req, out := c.DescribeCertificatesRequest(input)
 	return out, req.Send()
@@ -1315,18 +1329,19 @@ const opDescribeConnections = "DescribeConnections"
 
 // DescribeConnectionsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeConnections operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeConnections for usage and error information.
 //
-// See DescribeConnections for more information on using the DescribeConnections
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeConnections method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeConnectionsRequest method.
 //    req, resp := client.DescribeConnectionsRequest(params)
@@ -1336,7 +1351,7 @@ const opDescribeConnections = "DescribeConnections"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeConnections
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeConnections
 func (c *DatabaseMigrationService) DescribeConnectionsRequest(input *DescribeConnectionsInput) (req *request.Request, output *DescribeConnectionsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeConnections,
@@ -1375,7 +1390,7 @@ func (c *DatabaseMigrationService) DescribeConnectionsRequest(input *DescribeCon
 //   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
 //   The resource could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeConnections
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeConnections
 func (c *DatabaseMigrationService) DescribeConnections(input *DescribeConnectionsInput) (*DescribeConnectionsOutput, error) {
 	req, out := c.DescribeConnectionsRequest(input)
 	return out, req.Send()
@@ -1451,18 +1466,19 @@ const opDescribeEndpointTypes = "DescribeEndpointTypes"
 
 // DescribeEndpointTypesRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeEndpointTypes operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeEndpointTypes for usage and error information.
 //
-// See DescribeEndpointTypes for more information on using the DescribeEndpointTypes
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeEndpointTypes method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeEndpointTypesRequest method.
 //    req, resp := client.DescribeEndpointTypesRequest(params)
@@ -1472,7 +1488,7 @@ const opDescribeEndpointTypes = "DescribeEndpointTypes"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpointTypes
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpointTypes
 func (c *DatabaseMigrationService) DescribeEndpointTypesRequest(input *DescribeEndpointTypesInput) (req *request.Request, output *DescribeEndpointTypesOutput) {
 	op := &request.Operation{
 		Name:       opDescribeEndpointTypes,
@@ -1505,7 +1521,7 @@ func (c *DatabaseMigrationService) DescribeEndpointTypesRequest(input *DescribeE
 //
 // See the AWS API reference guide for AWS Database Migration Service's
 // API operation DescribeEndpointTypes for usage and error information.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpointTypes
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpointTypes
 func (c *DatabaseMigrationService) DescribeEndpointTypes(input *DescribeEndpointTypesInput) (*DescribeEndpointTypesOutput, error) {
 	req, out := c.DescribeEndpointTypesRequest(input)
 	return out, req.Send()
@@ -1581,18 +1597,19 @@ const opDescribeEndpoints = "DescribeEndpoints"
 
 // DescribeEndpointsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeEndpoints operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeEndpoints for usage and error information.
 //
-// See DescribeEndpoints for more information on using the DescribeEndpoints
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeEndpoints method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeEndpointsRequest method.
 //    req, resp := client.DescribeEndpointsRequest(params)
@@ -1602,7 +1619,7 @@ const opDescribeEndpoints = "DescribeEndpoints"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpoints
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpoints
 func (c *DatabaseMigrationService) DescribeEndpointsRequest(input *DescribeEndpointsInput) (req *request.Request, output *DescribeEndpointsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeEndpoints,
@@ -1640,7 +1657,7 @@ func (c *DatabaseMigrationService) DescribeEndpointsRequest(input *DescribeEndpo
 //   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
 //   The resource could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpoints
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpoints
 func (c *DatabaseMigrationService) DescribeEndpoints(input *DescribeEndpointsInput) (*DescribeEndpointsOutput, error) {
 	req, out := c.DescribeEndpointsRequest(input)
 	return out, req.Send()
@@ -1716,18 +1733,19 @@ const opDescribeEventCategories = "DescribeEventCategories"
 
 // DescribeEventCategoriesRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeEventCategories operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeEventCategories for usage and error information.
 //
-// See DescribeEventCategories for more information on using the DescribeEventCategories
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeEventCategories method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeEventCategoriesRequest method.
 //    req, resp := client.DescribeEventCategoriesRequest(params)
@@ -1737,7 +1755,7 @@ const opDescribeEventCategories = "DescribeEventCategories"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventCategories
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventCategories
 func (c *DatabaseMigrationService) DescribeEventCategoriesRequest(input *DescribeEventCategoriesInput) (req *request.Request, output *DescribeEventCategoriesOutput) {
 	op := &request.Operation{
 		Name:       opDescribeEventCategories,
@@ -1767,7 +1785,7 @@ func (c *DatabaseMigrationService) DescribeEventCategoriesRequest(input *Describ
 //
 // See the AWS API reference guide for AWS Database Migration Service's
 // API operation DescribeEventCategories for usage and error information.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventCategories
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventCategories
 func (c *DatabaseMigrationService) DescribeEventCategories(input *DescribeEventCategoriesInput) (*DescribeEventCategoriesOutput, error) {
 	req, out := c.DescribeEventCategoriesRequest(input)
 	return out, req.Send()
@@ -1793,18 +1811,19 @@ const opDescribeEventSubscriptions = "DescribeEventSubscriptions"
 
 // DescribeEventSubscriptionsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeEventSubscriptions operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeEventSubscriptions for usage and error information.
 //
-// See DescribeEventSubscriptions for more information on using the DescribeEventSubscriptions
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeEventSubscriptions method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeEventSubscriptionsRequest method.
 //    req, resp := client.DescribeEventSubscriptionsRequest(params)
@@ -1814,7 +1833,7 @@ const opDescribeEventSubscriptions = "DescribeEventSubscriptions"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventSubscriptions
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventSubscriptions
 func (c *DatabaseMigrationService) DescribeEventSubscriptionsRequest(input *DescribeEventSubscriptionsInput) (req *request.Request, output *DescribeEventSubscriptionsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeEventSubscriptions,
@@ -1857,7 +1876,7 @@ func (c *DatabaseMigrationService) DescribeEventSubscriptionsRequest(input *Desc
 //   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
 //   The resource could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventSubscriptions
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventSubscriptions
 func (c *DatabaseMigrationService) DescribeEventSubscriptions(input *DescribeEventSubscriptionsInput) (*DescribeEventSubscriptionsOutput, error) {
 	req, out := c.DescribeEventSubscriptionsRequest(input)
 	return out, req.Send()
@@ -1933,18 +1952,19 @@ const opDescribeEvents = "DescribeEvents"
 
 // DescribeEventsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeEvents operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeEvents for usage and error information.
 //
-// See DescribeEvents for more information on using the DescribeEvents
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeEvents method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeEventsRequest method.
 //    req, resp := client.DescribeEventsRequest(params)
@@ -1954,7 +1974,7 @@ const opDescribeEvents = "DescribeEvents"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEvents
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEvents
 func (c *DatabaseMigrationService) DescribeEventsRequest(input *DescribeEventsInput) (req *request.Request, output *DescribeEventsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeEvents,
@@ -1989,7 +2009,7 @@ func (c *DatabaseMigrationService) DescribeEventsRequest(input *DescribeEventsIn
 //
 // See the AWS API reference guide for AWS Database Migration Service's
 // API operation DescribeEvents for usage and error information.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEvents
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEvents
 func (c *DatabaseMigrationService) DescribeEvents(input *DescribeEventsInput) (*DescribeEventsOutput, error) {
 	req, out := c.DescribeEventsRequest(input)
 	return out, req.Send()
@@ -2065,18 +2085,19 @@ const opDescribeOrderableReplicationInstances = "DescribeOrderableReplicationIns
 
 // DescribeOrderableReplicationInstancesRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeOrderableReplicationInstances operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeOrderableReplicationInstances for usage and error information.
 //
-// See DescribeOrderableReplicationInstances for more information on using the DescribeOrderableReplicationInstances
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeOrderableReplicationInstances method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeOrderableReplicationInstancesRequest method.
 //    req, resp := client.DescribeOrderableReplicationInstancesRequest(params)
@@ -2086,7 +2107,7 @@ const opDescribeOrderableReplicationInstances = "DescribeOrderableReplicationIns
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeOrderableReplicationInstances
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeOrderableReplicationInstances
 func (c *DatabaseMigrationService) DescribeOrderableReplicationInstancesRequest(input *DescribeOrderableReplicationInstancesInput) (req *request.Request, output *DescribeOrderableReplicationInstancesOutput) {
 	op := &request.Operation{
 		Name:       opDescribeOrderableReplicationInstances,
@@ -2120,7 +2141,7 @@ func (c *DatabaseMigrationService) DescribeOrderableReplicationInstancesRequest(
 //
 // See the AWS API reference guide for AWS Database Migration Service's
 // API operation DescribeOrderableReplicationInstances for usage and error information.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeOrderableReplicationInstances
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeOrderableReplicationInstances
 func (c *DatabaseMigrationService) DescribeOrderableReplicationInstances(input *DescribeOrderableReplicationInstancesInput) (*DescribeOrderableReplicationInstancesOutput, error) {
 	req, out := c.DescribeOrderableReplicationInstancesRequest(input)
 	return out, req.Send()
@@ -2196,18 +2217,19 @@ const opDescribeRefreshSchemasStatus = "DescribeRefreshSchemasStatus"
 
 // DescribeRefreshSchemasStatusRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeRefreshSchemasStatus operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeRefreshSchemasStatus for usage and error information.
 //
-// See DescribeRefreshSchemasStatus for more information on using the DescribeRefreshSchemasStatus
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeRefreshSchemasStatus method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeRefreshSchemasStatusRequest method.
 //    req, resp := client.DescribeRefreshSchemasStatusRequest(params)
@@ -2217,7 +2239,7 @@ const opDescribeRefreshSchemasStatus = "DescribeRefreshSchemasStatus"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeRefreshSchemasStatus
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeRefreshSchemasStatus
 func (c *DatabaseMigrationService) DescribeRefreshSchemasStatusRequest(input *DescribeRefreshSchemasStatusInput) (req *request.Request, output *DescribeRefreshSchemasStatusOutput) {
 	op := &request.Operation{
 		Name:       opDescribeRefreshSchemasStatus,
@@ -2253,7 +2275,7 @@ func (c *DatabaseMigrationService) DescribeRefreshSchemasStatusRequest(input *De
 //   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
 //   The resource could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeRefreshSchemasStatus
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeRefreshSchemasStatus
 func (c *DatabaseMigrationService) DescribeRefreshSchemasStatus(input *DescribeRefreshSchemasStatusInput) (*DescribeRefreshSchemasStatusOutput, error) {
 	req, out := c.DescribeRefreshSchemasStatusRequest(input)
 	return out, req.Send()
@@ -2279,18 +2301,19 @@ const opDescribeReplicationInstances = "DescribeReplicationInstances"
 
 // DescribeReplicationInstancesRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeReplicationInstances operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeReplicationInstances for usage and error information.
 //
-// See DescribeReplicationInstances for more information on using the DescribeReplicationInstances
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeReplicationInstances method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeReplicationInstancesRequest method.
 //    req, resp := client.DescribeReplicationInstancesRequest(params)
@@ -2300,7 +2323,7 @@ const opDescribeReplicationInstances = "DescribeReplicationInstances"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationInstances
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationInstances
 func (c *DatabaseMigrationService) DescribeReplicationInstancesRequest(input *DescribeReplicationInstancesInput) (req *request.Request, output *DescribeReplicationInstancesOutput) {
 	op := &request.Operation{
 		Name:       opDescribeReplicationInstances,
@@ -2339,7 +2362,7 @@ func (c *DatabaseMigrationService) DescribeReplicationInstancesRequest(input *De
 //   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
 //   The resource could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationInstances
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationInstances
 func (c *DatabaseMigrationService) DescribeReplicationInstances(input *DescribeReplicationInstancesInput) (*DescribeReplicationInstancesOutput, error) {
 	req, out := c.DescribeReplicationInstancesRequest(input)
 	return out, req.Send()
@@ -2415,18 +2438,19 @@ const opDescribeReplicationSubnetGroups = "DescribeReplicationSubnetGroups"
 
 // DescribeReplicationSubnetGroupsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeReplicationSubnetGroups operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeReplicationSubnetGroups for usage and error information.
 //
-// See DescribeReplicationSubnetGroups for more information on using the DescribeReplicationSubnetGroups
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeReplicationSubnetGroups method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeReplicationSubnetGroupsRequest method.
 //    req, resp := client.DescribeReplicationSubnetGroupsRequest(params)
@@ -2436,7 +2460,7 @@ const opDescribeReplicationSubnetGroups = "DescribeReplicationSubnetGroups"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationSubnetGroups
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationSubnetGroups
 func (c *DatabaseMigrationService) DescribeReplicationSubnetGroupsRequest(input *DescribeReplicationSubnetGroupsInput) (req *request.Request, output *DescribeReplicationSubnetGroupsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeReplicationSubnetGroups,
@@ -2474,7 +2498,7 @@ func (c *DatabaseMigrationService) DescribeReplicationSubnetGroupsRequest(input 
 //   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
 //   The resource could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationSubnetGroups
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationSubnetGroups
 func (c *DatabaseMigrationService) DescribeReplicationSubnetGroups(input *DescribeReplicationSubnetGroupsInput) (*DescribeReplicationSubnetGroupsOutput, error) {
 	req, out := c.DescribeReplicationSubnetGroupsRequest(input)
 	return out, req.Send()
@@ -2546,158 +2570,23 @@ func (c *DatabaseMigrationService) DescribeReplicationSubnetGroupsPagesWithConte
 	return p.Err()
 }
 
-const opDescribeReplicationTaskAssessmentResults = "DescribeReplicationTaskAssessmentResults"
-
-// DescribeReplicationTaskAssessmentResultsRequest generates a "aws/request.Request" representing the
-// client's request for the DescribeReplicationTaskAssessmentResults operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
-//
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
-//
-// See DescribeReplicationTaskAssessmentResults for more information on using the DescribeReplicationTaskAssessmentResults
-// API call, and error handling.
-//
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
-//
-//    // Example sending a request using the DescribeReplicationTaskAssessmentResultsRequest method.
-//    req, resp := client.DescribeReplicationTaskAssessmentResultsRequest(params)
-//
-//    err := req.Send()
-//    if err == nil { // resp is now filled
-//        fmt.Println(resp)
-//    }
-//
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationTaskAssessmentResults
-func (c *DatabaseMigrationService) DescribeReplicationTaskAssessmentResultsRequest(input *DescribeReplicationTaskAssessmentResultsInput) (req *request.Request, output *DescribeReplicationTaskAssessmentResultsOutput) {
-	op := &request.Operation{
-		Name:       opDescribeReplicationTaskAssessmentResults,
-		HTTPMethod: "POST",
-		HTTPPath:   "/",
-		Paginator: &request.Paginator{
-			InputTokens:     []string{"Marker"},
-			OutputTokens:    []string{"Marker"},
-			LimitToken:      "MaxRecords",
-			TruncationToken: "",
-		},
-	}
-
-	if input == nil {
-		input = &DescribeReplicationTaskAssessmentResultsInput{}
-	}
-
-	output = &DescribeReplicationTaskAssessmentResultsOutput{}
-	req = c.newRequest(op, input, output)
-	return
-}
-
-// DescribeReplicationTaskAssessmentResults API operation for AWS Database Migration Service.
-//
-// Returns the task assessment results from Amazon S3. This action always returns
-// the latest results.
-//
-// Returns awserr.Error for service API and SDK errors. Use runtime type assertions
-// with awserr.Error's Code and Message methods to get detailed information about
-// the error.
-//
-// See the AWS API reference guide for AWS Database Migration Service's
-// API operation DescribeReplicationTaskAssessmentResults for usage and error information.
-//
-// Returned Error Codes:
-//   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
-//   The resource could not be found.
-//
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationTaskAssessmentResults
-func (c *DatabaseMigrationService) DescribeReplicationTaskAssessmentResults(input *DescribeReplicationTaskAssessmentResultsInput) (*DescribeReplicationTaskAssessmentResultsOutput, error) {
-	req, out := c.DescribeReplicationTaskAssessmentResultsRequest(input)
-	return out, req.Send()
-}
-
-// DescribeReplicationTaskAssessmentResultsWithContext is the same as DescribeReplicationTaskAssessmentResults with the addition of
-// the ability to pass a context and additional request options.
-//
-// See DescribeReplicationTaskAssessmentResults for details on how to use this API operation.
-//
-// The context must be non-nil and will be used for request cancellation. If
-// the context is nil a panic will occur. In the future the SDK may create
-// sub-contexts for http.Requests. See https://golang.org/pkg/context/
-// for more information on using Contexts.
-func (c *DatabaseMigrationService) DescribeReplicationTaskAssessmentResultsWithContext(ctx aws.Context, input *DescribeReplicationTaskAssessmentResultsInput, opts ...request.Option) (*DescribeReplicationTaskAssessmentResultsOutput, error) {
-	req, out := c.DescribeReplicationTaskAssessmentResultsRequest(input)
-	req.SetContext(ctx)
-	req.ApplyOptions(opts...)
-	return out, req.Send()
-}
-
-// DescribeReplicationTaskAssessmentResultsPages iterates over the pages of a DescribeReplicationTaskAssessmentResults operation,
-// calling the "fn" function with the response data for each page. To stop
-// iterating, return false from the fn function.
-//
-// See DescribeReplicationTaskAssessmentResults method for more information on how to use this operation.
-//
-// Note: This operation can generate multiple requests to a service.
-//
-//    // Example iterating over at most 3 pages of a DescribeReplicationTaskAssessmentResults operation.
-//    pageNum := 0
-//    err := client.DescribeReplicationTaskAssessmentResultsPages(params,
-//        func(page *DescribeReplicationTaskAssessmentResultsOutput, lastPage bool) bool {
-//            pageNum++
-//            fmt.Println(page)
-//            return pageNum <= 3
-//        })
-//
-func (c *DatabaseMigrationService) DescribeReplicationTaskAssessmentResultsPages(input *DescribeReplicationTaskAssessmentResultsInput, fn func(*DescribeReplicationTaskAssessmentResultsOutput, bool) bool) error {
-	return c.DescribeReplicationTaskAssessmentResultsPagesWithContext(aws.BackgroundContext(), input, fn)
-}
-
-// DescribeReplicationTaskAssessmentResultsPagesWithContext same as DescribeReplicationTaskAssessmentResultsPages except
-// it takes a Context and allows setting request options on the pages.
-//
-// The context must be non-nil and will be used for request cancellation. If
-// the context is nil a panic will occur. In the future the SDK may create
-// sub-contexts for http.Requests. See https://golang.org/pkg/context/
-// for more information on using Contexts.
-func (c *DatabaseMigrationService) DescribeReplicationTaskAssessmentResultsPagesWithContext(ctx aws.Context, input *DescribeReplicationTaskAssessmentResultsInput, fn func(*DescribeReplicationTaskAssessmentResultsOutput, bool) bool, opts ...request.Option) error {
-	p := request.Pagination{
-		NewRequest: func() (*request.Request, error) {
-			var inCpy *DescribeReplicationTaskAssessmentResultsInput
-			if input != nil {
-				tmp := *input
-				inCpy = &tmp
-			}
-			req, _ := c.DescribeReplicationTaskAssessmentResultsRequest(inCpy)
-			req.SetContext(ctx)
-			req.ApplyOptions(opts...)
-			return req, nil
-		},
-	}
-
-	cont := true
-	for p.Next() && cont {
-		cont = fn(p.Page().(*DescribeReplicationTaskAssessmentResultsOutput), !p.HasNextPage())
-	}
-	return p.Err()
-}
-
 const opDescribeReplicationTasks = "DescribeReplicationTasks"
 
 // DescribeReplicationTasksRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeReplicationTasks operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeReplicationTasks for usage and error information.
 //
-// See DescribeReplicationTasks for more information on using the DescribeReplicationTasks
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeReplicationTasks method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeReplicationTasksRequest method.
 //    req, resp := client.DescribeReplicationTasksRequest(params)
@@ -2707,7 +2596,7 @@ const opDescribeReplicationTasks = "DescribeReplicationTasks"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationTasks
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationTasks
 func (c *DatabaseMigrationService) DescribeReplicationTasksRequest(input *DescribeReplicationTasksInput) (req *request.Request, output *DescribeReplicationTasksOutput) {
 	op := &request.Operation{
 		Name:       opDescribeReplicationTasks,
@@ -2746,7 +2635,7 @@ func (c *DatabaseMigrationService) DescribeReplicationTasksRequest(input *Descri
 //   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
 //   The resource could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationTasks
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationTasks
 func (c *DatabaseMigrationService) DescribeReplicationTasks(input *DescribeReplicationTasksInput) (*DescribeReplicationTasksOutput, error) {
 	req, out := c.DescribeReplicationTasksRequest(input)
 	return out, req.Send()
@@ -2822,18 +2711,19 @@ const opDescribeSchemas = "DescribeSchemas"
 
 // DescribeSchemasRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeSchemas operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeSchemas for usage and error information.
 //
-// See DescribeSchemas for more information on using the DescribeSchemas
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeSchemas method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeSchemasRequest method.
 //    req, resp := client.DescribeSchemasRequest(params)
@@ -2843,7 +2733,7 @@ const opDescribeSchemas = "DescribeSchemas"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeSchemas
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeSchemas
 func (c *DatabaseMigrationService) DescribeSchemasRequest(input *DescribeSchemasInput) (req *request.Request, output *DescribeSchemasOutput) {
 	op := &request.Operation{
 		Name:       opDescribeSchemas,
@@ -2885,7 +2775,7 @@ func (c *DatabaseMigrationService) DescribeSchemasRequest(input *DescribeSchemas
 //   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
 //   The resource could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeSchemas
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeSchemas
 func (c *DatabaseMigrationService) DescribeSchemas(input *DescribeSchemasInput) (*DescribeSchemasOutput, error) {
 	req, out := c.DescribeSchemasRequest(input)
 	return out, req.Send()
@@ -2961,18 +2851,19 @@ const opDescribeTableStatistics = "DescribeTableStatistics"
 
 // DescribeTableStatisticsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeTableStatistics operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeTableStatistics for usage and error information.
 //
-// See DescribeTableStatistics for more information on using the DescribeTableStatistics
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeTableStatistics method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeTableStatisticsRequest method.
 //    req, resp := client.DescribeTableStatisticsRequest(params)
@@ -2982,7 +2873,7 @@ const opDescribeTableStatistics = "DescribeTableStatistics"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeTableStatistics
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeTableStatistics
 func (c *DatabaseMigrationService) DescribeTableStatisticsRequest(input *DescribeTableStatisticsInput) (req *request.Request, output *DescribeTableStatisticsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeTableStatistics,
@@ -3010,10 +2901,6 @@ func (c *DatabaseMigrationService) DescribeTableStatisticsRequest(input *Describ
 // Returns table statistics on the database migration task, including table
 // name, rows inserted, rows updated, and rows deleted.
 //
-// Note that the "last updated" column the DMS console only indicates the time
-// that AWS DMS last updated the table statistics record for a table. It does
-// not indicate the time of the last update to the table.
-//
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
 // the error.
@@ -3029,7 +2916,7 @@ func (c *DatabaseMigrationService) DescribeTableStatisticsRequest(input *Describ
 //   The resource is in a state that prevents it from being used for database
 //   migration.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeTableStatistics
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeTableStatistics
 func (c *DatabaseMigrationService) DescribeTableStatistics(input *DescribeTableStatisticsInput) (*DescribeTableStatisticsOutput, error) {
 	req, out := c.DescribeTableStatisticsRequest(input)
 	return out, req.Send()
@@ -3105,18 +2992,19 @@ const opImportCertificate = "ImportCertificate"
 
 // ImportCertificateRequest generates a "aws/request.Request" representing the
 // client's request for the ImportCertificate operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ImportCertificate for usage and error information.
 //
-// See ImportCertificate for more information on using the ImportCertificate
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ImportCertificate method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ImportCertificateRequest method.
 //    req, resp := client.ImportCertificateRequest(params)
@@ -3126,7 +3014,7 @@ const opImportCertificate = "ImportCertificate"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ImportCertificate
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ImportCertificate
 func (c *DatabaseMigrationService) ImportCertificateRequest(input *ImportCertificateInput) (req *request.Request, output *ImportCertificateOutput) {
 	op := &request.Operation{
 		Name:       opImportCertificate,
@@ -3161,7 +3049,7 @@ func (c *DatabaseMigrationService) ImportCertificateRequest(input *ImportCertifi
 //   * ErrCodeInvalidCertificateFault "InvalidCertificateFault"
 //   The certificate was not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ImportCertificate
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ImportCertificate
 func (c *DatabaseMigrationService) ImportCertificate(input *ImportCertificateInput) (*ImportCertificateOutput, error) {
 	req, out := c.ImportCertificateRequest(input)
 	return out, req.Send()
@@ -3187,18 +3075,19 @@ const opListTagsForResource = "ListTagsForResource"
 
 // ListTagsForResourceRequest generates a "aws/request.Request" representing the
 // client's request for the ListTagsForResource operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListTagsForResource for usage and error information.
 //
-// See ListTagsForResource for more information on using the ListTagsForResource
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListTagsForResource method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListTagsForResourceRequest method.
 //    req, resp := client.ListTagsForResourceRequest(params)
@@ -3208,7 +3097,7 @@ const opListTagsForResource = "ListTagsForResource"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ListTagsForResource
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ListTagsForResource
 func (c *DatabaseMigrationService) ListTagsForResourceRequest(input *ListTagsForResourceInput) (req *request.Request, output *ListTagsForResourceOutput) {
 	op := &request.Operation{
 		Name:       opListTagsForResource,
@@ -3240,7 +3129,7 @@ func (c *DatabaseMigrationService) ListTagsForResourceRequest(input *ListTagsFor
 //   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
 //   The resource could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ListTagsForResource
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ListTagsForResource
 func (c *DatabaseMigrationService) ListTagsForResource(input *ListTagsForResourceInput) (*ListTagsForResourceOutput, error) {
 	req, out := c.ListTagsForResourceRequest(input)
 	return out, req.Send()
@@ -3266,18 +3155,19 @@ const opModifyEndpoint = "ModifyEndpoint"
 
 // ModifyEndpointRequest generates a "aws/request.Request" representing the
 // client's request for the ModifyEndpoint operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ModifyEndpoint for usage and error information.
 //
-// See ModifyEndpoint for more information on using the ModifyEndpoint
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ModifyEndpoint method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ModifyEndpointRequest method.
 //    req, resp := client.ModifyEndpointRequest(params)
@@ -3287,7 +3177,7 @@ const opModifyEndpoint = "ModifyEndpoint"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEndpoint
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEndpoint
 func (c *DatabaseMigrationService) ModifyEndpointRequest(input *ModifyEndpointInput) (req *request.Request, output *ModifyEndpointOutput) {
 	op := &request.Operation{
 		Name:       opModifyEndpoint,
@@ -3332,7 +3222,7 @@ func (c *DatabaseMigrationService) ModifyEndpointRequest(input *ModifyEndpointIn
 //   * ErrCodeAccessDeniedFault "AccessDeniedFault"
 //   AWS DMS was denied access to the endpoint.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEndpoint
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEndpoint
 func (c *DatabaseMigrationService) ModifyEndpoint(input *ModifyEndpointInput) (*ModifyEndpointOutput, error) {
 	req, out := c.ModifyEndpointRequest(input)
 	return out, req.Send()
@@ -3358,18 +3248,19 @@ const opModifyEventSubscription = "ModifyEventSubscription"
 
 // ModifyEventSubscriptionRequest generates a "aws/request.Request" representing the
 // client's request for the ModifyEventSubscription operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ModifyEventSubscription for usage and error information.
 //
-// See ModifyEventSubscription for more information on using the ModifyEventSubscription
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ModifyEventSubscription method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ModifyEventSubscriptionRequest method.
 //    req, resp := client.ModifyEventSubscriptionRequest(params)
@@ -3379,7 +3270,7 @@ const opModifyEventSubscription = "ModifyEventSubscription"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEventSubscription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEventSubscription
 func (c *DatabaseMigrationService) ModifyEventSubscriptionRequest(input *ModifyEventSubscriptionInput) (req *request.Request, output *ModifyEventSubscriptionOutput) {
 	op := &request.Operation{
 		Name:       opModifyEventSubscription,
@@ -3420,7 +3311,7 @@ func (c *DatabaseMigrationService) ModifyEventSubscriptionRequest(input *ModifyE
 //   * ErrCodeSNSNoAuthorizationFault "SNSNoAuthorizationFault"
 //   You are not authorized for the SNS subscription.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEventSubscription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEventSubscription
 func (c *DatabaseMigrationService) ModifyEventSubscription(input *ModifyEventSubscriptionInput) (*ModifyEventSubscriptionOutput, error) {
 	req, out := c.ModifyEventSubscriptionRequest(input)
 	return out, req.Send()
@@ -3446,18 +3337,19 @@ const opModifyReplicationInstance = "ModifyReplicationInstance"
 
 // ModifyReplicationInstanceRequest generates a "aws/request.Request" representing the
 // client's request for the ModifyReplicationInstance operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ModifyReplicationInstance for usage and error information.
 //
-// See ModifyReplicationInstance for more information on using the ModifyReplicationInstance
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ModifyReplicationInstance method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ModifyReplicationInstanceRequest method.
 //    req, resp := client.ModifyReplicationInstanceRequest(params)
@@ -3467,7 +3359,7 @@ const opModifyReplicationInstance = "ModifyReplicationInstance"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationInstance
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationInstance
 func (c *DatabaseMigrationService) ModifyReplicationInstanceRequest(input *ModifyReplicationInstanceInput) (req *request.Request, output *ModifyReplicationInstanceOutput) {
 	op := &request.Operation{
 		Name:       opModifyReplicationInstance,
@@ -3519,7 +3411,7 @@ func (c *DatabaseMigrationService) ModifyReplicationInstanceRequest(input *Modif
 //   * ErrCodeUpgradeDependencyFailureFault "UpgradeDependencyFailureFault"
 //   An upgrade dependency is preventing the database migration.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationInstance
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationInstance
 func (c *DatabaseMigrationService) ModifyReplicationInstance(input *ModifyReplicationInstanceInput) (*ModifyReplicationInstanceOutput, error) {
 	req, out := c.ModifyReplicationInstanceRequest(input)
 	return out, req.Send()
@@ -3545,18 +3437,19 @@ const opModifyReplicationSubnetGroup = "ModifyReplicationSubnetGroup"
 
 // ModifyReplicationSubnetGroupRequest generates a "aws/request.Request" representing the
 // client's request for the ModifyReplicationSubnetGroup operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ModifyReplicationSubnetGroup for usage and error information.
 //
-// See ModifyReplicationSubnetGroup for more information on using the ModifyReplicationSubnetGroup
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ModifyReplicationSubnetGroup method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ModifyReplicationSubnetGroupRequest method.
 //    req, resp := client.ModifyReplicationSubnetGroupRequest(params)
@@ -3566,7 +3459,7 @@ const opModifyReplicationSubnetGroup = "ModifyReplicationSubnetGroup"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationSubnetGroup
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationSubnetGroup
 func (c *DatabaseMigrationService) ModifyReplicationSubnetGroupRequest(input *ModifyReplicationSubnetGroupInput) (req *request.Request, output *ModifyReplicationSubnetGroupOutput) {
 	op := &request.Operation{
 		Name:       opModifyReplicationSubnetGroup,
@@ -3614,7 +3507,7 @@ func (c *DatabaseMigrationService) ModifyReplicationSubnetGroupRequest(input *Mo
 //   * ErrCodeInvalidSubnet "InvalidSubnet"
 //   The subnet provided is invalid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationSubnetGroup
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationSubnetGroup
 func (c *DatabaseMigrationService) ModifyReplicationSubnetGroup(input *ModifyReplicationSubnetGroupInput) (*ModifyReplicationSubnetGroupOutput, error) {
 	req, out := c.ModifyReplicationSubnetGroupRequest(input)
 	return out, req.Send()
@@ -3640,18 +3533,19 @@ const opModifyReplicationTask = "ModifyReplicationTask"
 
 // ModifyReplicationTaskRequest generates a "aws/request.Request" representing the
 // client's request for the ModifyReplicationTask operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ModifyReplicationTask for usage and error information.
 //
-// See ModifyReplicationTask for more information on using the ModifyReplicationTask
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ModifyReplicationTask method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ModifyReplicationTaskRequest method.
 //    req, resp := client.ModifyReplicationTaskRequest(params)
@@ -3661,7 +3555,7 @@ const opModifyReplicationTask = "ModifyReplicationTask"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationTask
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationTask
 func (c *DatabaseMigrationService) ModifyReplicationTaskRequest(input *ModifyReplicationTaskInput) (req *request.Request, output *ModifyReplicationTaskOutput) {
 	op := &request.Operation{
 		Name:       opModifyReplicationTask,
@@ -3709,7 +3603,7 @@ func (c *DatabaseMigrationService) ModifyReplicationTaskRequest(input *ModifyRep
 //   * ErrCodeKMSKeyNotAccessibleFault "KMSKeyNotAccessibleFault"
 //   AWS DMS cannot access the KMS key.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationTask
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationTask
 func (c *DatabaseMigrationService) ModifyReplicationTask(input *ModifyReplicationTaskInput) (*ModifyReplicationTaskOutput, error) {
 	req, out := c.ModifyReplicationTaskRequest(input)
 	return out, req.Send()
@@ -3735,18 +3629,19 @@ const opRefreshSchemas = "RefreshSchemas"
 
 // RefreshSchemasRequest generates a "aws/request.Request" representing the
 // client's request for the RefreshSchemas operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See RefreshSchemas for usage and error information.
 //
-// See RefreshSchemas for more information on using the RefreshSchemas
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the RefreshSchemas method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the RefreshSchemasRequest method.
 //    req, resp := client.RefreshSchemasRequest(params)
@@ -3756,7 +3651,7 @@ const opRefreshSchemas = "RefreshSchemas"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RefreshSchemas
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RefreshSchemas
 func (c *DatabaseMigrationService) RefreshSchemasRequest(input *RefreshSchemasInput) (req *request.Request, output *RefreshSchemasOutput) {
 	op := &request.Operation{
 		Name:       opRefreshSchemas,
@@ -3800,7 +3695,7 @@ func (c *DatabaseMigrationService) RefreshSchemasRequest(input *RefreshSchemasIn
 //   * ErrCodeResourceQuotaExceededFault "ResourceQuotaExceededFault"
 //   The quota for this resource quota has been exceeded.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RefreshSchemas
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RefreshSchemas
 func (c *DatabaseMigrationService) RefreshSchemas(input *RefreshSchemasInput) (*RefreshSchemasOutput, error) {
 	req, out := c.RefreshSchemasRequest(input)
 	return out, req.Send()
@@ -3826,18 +3721,19 @@ const opReloadTables = "ReloadTables"
 
 // ReloadTablesRequest generates a "aws/request.Request" representing the
 // client's request for the ReloadTables operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ReloadTables for usage and error information.
 //
-// See ReloadTables for more information on using the ReloadTables
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ReloadTables method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ReloadTablesRequest method.
 //    req, resp := client.ReloadTablesRequest(params)
@@ -3847,7 +3743,7 @@ const opReloadTables = "ReloadTables"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReloadTables
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReloadTables
 func (c *DatabaseMigrationService) ReloadTablesRequest(input *ReloadTablesInput) (req *request.Request, output *ReloadTablesOutput) {
 	op := &request.Operation{
 		Name:       opReloadTables,
@@ -3883,7 +3779,7 @@ func (c *DatabaseMigrationService) ReloadTablesRequest(input *ReloadTablesInput)
 //   The resource is in a state that prevents it from being used for database
 //   migration.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReloadTables
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReloadTables
 func (c *DatabaseMigrationService) ReloadTables(input *ReloadTablesInput) (*ReloadTablesOutput, error) {
 	req, out := c.ReloadTablesRequest(input)
 	return out, req.Send()
@@ -3909,18 +3805,19 @@ const opRemoveTagsFromResource = "RemoveTagsFromResource"
 
 // RemoveTagsFromResourceRequest generates a "aws/request.Request" representing the
 // client's request for the RemoveTagsFromResource operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See RemoveTagsFromResource for usage and error information.
 //
-// See RemoveTagsFromResource for more information on using the RemoveTagsFromResource
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the RemoveTagsFromResource method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the RemoveTagsFromResourceRequest method.
 //    req, resp := client.RemoveTagsFromResourceRequest(params)
@@ -3930,7 +3827,7 @@ const opRemoveTagsFromResource = "RemoveTagsFromResource"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RemoveTagsFromResource
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RemoveTagsFromResource
 func (c *DatabaseMigrationService) RemoveTagsFromResourceRequest(input *RemoveTagsFromResourceInput) (req *request.Request, output *RemoveTagsFromResourceOutput) {
 	op := &request.Operation{
 		Name:       opRemoveTagsFromResource,
@@ -3962,7 +3859,7 @@ func (c *DatabaseMigrationService) RemoveTagsFromResourceRequest(input *RemoveTa
 //   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
 //   The resource could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RemoveTagsFromResource
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RemoveTagsFromResource
 func (c *DatabaseMigrationService) RemoveTagsFromResource(input *RemoveTagsFromResourceInput) (*RemoveTagsFromResourceOutput, error) {
 	req, out := c.RemoveTagsFromResourceRequest(input)
 	return out, req.Send()
@@ -3988,18 +3885,19 @@ const opStartReplicationTask = "StartReplicationTask"
 
 // StartReplicationTaskRequest generates a "aws/request.Request" representing the
 // client's request for the StartReplicationTask operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See StartReplicationTask for usage and error information.
 //
-// See StartReplicationTask for more information on using the StartReplicationTask
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the StartReplicationTask method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the StartReplicationTaskRequest method.
 //    req, resp := client.StartReplicationTaskRequest(params)
@@ -4009,7 +3907,7 @@ const opStartReplicationTask = "StartReplicationTask"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StartReplicationTask
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StartReplicationTask
 func (c *DatabaseMigrationService) StartReplicationTaskRequest(input *StartReplicationTaskInput) (req *request.Request, output *StartReplicationTaskOutput) {
 	op := &request.Operation{
 		Name:       opStartReplicationTask,
@@ -4048,7 +3946,7 @@ func (c *DatabaseMigrationService) StartReplicationTaskRequest(input *StartRepli
 //   The resource is in a state that prevents it from being used for database
 //   migration.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StartReplicationTask
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StartReplicationTask
 func (c *DatabaseMigrationService) StartReplicationTask(input *StartReplicationTaskInput) (*StartReplicationTaskOutput, error) {
 	req, out := c.StartReplicationTaskRequest(input)
 	return out, req.Send()
@@ -4070,106 +3968,23 @@ func (c *DatabaseMigrationService) StartReplicationTaskWithContext(ctx aws.Conte
 	return out, req.Send()
 }
 
-const opStartReplicationTaskAssessment = "StartReplicationTaskAssessment"
-
-// StartReplicationTaskAssessmentRequest generates a "aws/request.Request" representing the
-// client's request for the StartReplicationTaskAssessment operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
-//
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
-//
-// See StartReplicationTaskAssessment for more information on using the StartReplicationTaskAssessment
-// API call, and error handling.
-//
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
-//
-//    // Example sending a request using the StartReplicationTaskAssessmentRequest method.
-//    req, resp := client.StartReplicationTaskAssessmentRequest(params)
-//
-//    err := req.Send()
-//    if err == nil { // resp is now filled
-//        fmt.Println(resp)
-//    }
-//
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StartReplicationTaskAssessment
-func (c *DatabaseMigrationService) StartReplicationTaskAssessmentRequest(input *StartReplicationTaskAssessmentInput) (req *request.Request, output *StartReplicationTaskAssessmentOutput) {
-	op := &request.Operation{
-		Name:       opStartReplicationTaskAssessment,
-		HTTPMethod: "POST",
-		HTTPPath:   "/",
-	}
-
-	if input == nil {
-		input = &StartReplicationTaskAssessmentInput{}
-	}
-
-	output = &StartReplicationTaskAssessmentOutput{}
-	req = c.newRequest(op, input, output)
-	return
-}
-
-// StartReplicationTaskAssessment API operation for AWS Database Migration Service.
-//
-// Starts the replication task assessment for unsupported data types in the
-// source database.
-//
-// Returns awserr.Error for service API and SDK errors. Use runtime type assertions
-// with awserr.Error's Code and Message methods to get detailed information about
-// the error.
-//
-// See the AWS API reference guide for AWS Database Migration Service's
-// API operation StartReplicationTaskAssessment for usage and error information.
-//
-// Returned Error Codes:
-//   * ErrCodeInvalidResourceStateFault "InvalidResourceStateFault"
-//   The resource is in a state that prevents it from being used for database
-//   migration.
-//
-//   * ErrCodeResourceNotFoundFault "ResourceNotFoundFault"
-//   The resource could not be found.
-//
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StartReplicationTaskAssessment
-func (c *DatabaseMigrationService) StartReplicationTaskAssessment(input *StartReplicationTaskAssessmentInput) (*StartReplicationTaskAssessmentOutput, error) {
-	req, out := c.StartReplicationTaskAssessmentRequest(input)
-	return out, req.Send()
-}
-
-// StartReplicationTaskAssessmentWithContext is the same as StartReplicationTaskAssessment with the addition of
-// the ability to pass a context and additional request options.
-//
-// See StartReplicationTaskAssessment for details on how to use this API operation.
-//
-// The context must be non-nil and will be used for request cancellation. If
-// the context is nil a panic will occur. In the future the SDK may create
-// sub-contexts for http.Requests. See https://golang.org/pkg/context/
-// for more information on using Contexts.
-func (c *DatabaseMigrationService) StartReplicationTaskAssessmentWithContext(ctx aws.Context, input *StartReplicationTaskAssessmentInput, opts ...request.Option) (*StartReplicationTaskAssessmentOutput, error) {
-	req, out := c.StartReplicationTaskAssessmentRequest(input)
-	req.SetContext(ctx)
-	req.ApplyOptions(opts...)
-	return out, req.Send()
-}
-
 const opStopReplicationTask = "StopReplicationTask"
 
 // StopReplicationTaskRequest generates a "aws/request.Request" representing the
 // client's request for the StopReplicationTask operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See StopReplicationTask for usage and error information.
 //
-// See StopReplicationTask for more information on using the StopReplicationTask
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the StopReplicationTask method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the StopReplicationTaskRequest method.
 //    req, resp := client.StopReplicationTaskRequest(params)
@@ -4179,7 +3994,7 @@ const opStopReplicationTask = "StopReplicationTask"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StopReplicationTask
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StopReplicationTask
 func (c *DatabaseMigrationService) StopReplicationTaskRequest(input *StopReplicationTaskInput) (req *request.Request, output *StopReplicationTaskOutput) {
 	op := &request.Operation{
 		Name:       opStopReplicationTask,
@@ -4215,7 +4030,7 @@ func (c *DatabaseMigrationService) StopReplicationTaskRequest(input *StopReplica
 //   The resource is in a state that prevents it from being used for database
 //   migration.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StopReplicationTask
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StopReplicationTask
 func (c *DatabaseMigrationService) StopReplicationTask(input *StopReplicationTaskInput) (*StopReplicationTaskOutput, error) {
 	req, out := c.StopReplicationTaskRequest(input)
 	return out, req.Send()
@@ -4241,18 +4056,19 @@ const opTestConnection = "TestConnection"
 
 // TestConnectionRequest generates a "aws/request.Request" representing the
 // client's request for the TestConnection operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See TestConnection for usage and error information.
 //
-// See TestConnection for more information on using the TestConnection
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the TestConnection method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the TestConnectionRequest method.
 //    req, resp := client.TestConnectionRequest(params)
@@ -4262,7 +4078,7 @@ const opTestConnection = "TestConnection"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/TestConnection
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/TestConnection
 func (c *DatabaseMigrationService) TestConnectionRequest(input *TestConnectionInput) (req *request.Request, output *TestConnectionOutput) {
 	op := &request.Operation{
 		Name:       opTestConnection,
@@ -4304,7 +4120,7 @@ func (c *DatabaseMigrationService) TestConnectionRequest(input *TestConnectionIn
 //   * ErrCodeResourceQuotaExceededFault "ResourceQuotaExceededFault"
 //   The quota for this resource quota has been exceeded.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/TestConnection
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/TestConnection
 func (c *DatabaseMigrationService) TestConnection(input *TestConnectionInput) (*TestConnectionOutput, error) {
 	req, out := c.TestConnectionRequest(input)
 	return out, req.Send()
@@ -4328,7 +4144,7 @@ func (c *DatabaseMigrationService) TestConnectionWithContext(ctx aws.Context, in
 
 // Describes a quota for an AWS account, for example, the number of replication
 // instances allowed.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/AccountQuota
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/AccountQuota
 type AccountQuota struct {
 	_ struct{} `type:"structure"`
 
@@ -4370,7 +4186,7 @@ func (s *AccountQuota) SetUsed(v int64) *AccountQuota {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/AddTagsToResourceMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/AddTagsToResourceMessage
 type AddTagsToResourceInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4384,7 +4200,7 @@ type AddTagsToResourceInput struct {
 	// The tag to be assigned to the DMS resource.
 	//
 	// Tags is a required field
-	Tags []*Tag `type:"list" required:"true"`
+	Tags []*Tag `locationNameList:"Tag" type:"list" required:"true"`
 }
 
 // String returns the string representation
@@ -4425,7 +4241,7 @@ func (s *AddTagsToResourceInput) SetTags(v []*Tag) *AddTagsToResourceInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/AddTagsToResourceResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/AddTagsToResourceResponse
 type AddTagsToResourceOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -4440,7 +4256,7 @@ func (s AddTagsToResourceOutput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/AvailabilityZone
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/AvailabilityZone
 type AvailabilityZone struct {
 	_ struct{} `type:"structure"`
 
@@ -4466,7 +4282,7 @@ func (s *AvailabilityZone) SetName(v string) *AvailabilityZone {
 
 // The SSL certificate that can be used to encrypt connections between the endpoints
 // and the replication instance.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/Certificate
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/Certificate
 type Certificate struct {
 	_ struct{} `type:"structure"`
 
@@ -4574,7 +4390,7 @@ func (s *Certificate) SetValidToDate(v time.Time) *Certificate {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/Connection
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/Connection
 type Connection struct {
 	_ struct{} `type:"structure"`
 
@@ -4646,11 +4462,11 @@ func (s *Connection) SetStatus(v string) *Connection {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEndpointMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEndpointMessage
 type CreateEndpointInput struct {
 	_ struct{} `type:"structure"`
 
-	// The Amazon Resource Name (ARN) for the certificate.
+	// The Amazon Resource Number (ARN) for the certificate.
 	CertificateArn *string `type:"string"`
 
 	// The name of the endpoint database.
@@ -4719,7 +4535,7 @@ type CreateEndpointInput struct {
 	SslMode *string `type:"string" enum:"DmsSslModeValue"`
 
 	// Tags to be added to the endpoint.
-	Tags []*Tag `type:"list"`
+	Tags []*Tag `locationNameList:"Tag" type:"list"`
 
 	// The user name to be used to login to the endpoint database.
 	Username *string `type:"string"`
@@ -4855,7 +4671,7 @@ func (s *CreateEndpointInput) SetUsername(v string) *CreateEndpointInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEndpointResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEndpointResponse
 type CreateEndpointOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -4879,7 +4695,7 @@ func (s *CreateEndpointOutput) SetEndpoint(v *Endpoint) *CreateEndpointOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEventSubscriptionMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEventSubscriptionMessage
 type CreateEventSubscriptionInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4892,7 +4708,7 @@ type CreateEventSubscriptionInput struct {
 	// DescribeEventCategories action or in the topic  Working with Events and Notifications
 	// (http://docs.aws.amazon.com/dms/latest/userguide/CHAP_Events.html) in the
 	// AWS Database Migration Service User Guide.
-	EventCategories []*string `type:"list"`
+	EventCategories []*string `locationNameList:"EventCategory" type:"list"`
 
 	// The Amazon Resource Name (ARN) of the Amazon SNS topic created for event
 	// notification. The ARN is created by Amazon SNS when you create a topic and
@@ -4905,7 +4721,7 @@ type CreateEventSubscriptionInput struct {
 	// If not specified, then all sources are included in the response. An identifier
 	// must begin with a letter and must contain only ASCII letters, digits, and
 	// hyphens; it cannot end with a hyphen or contain two consecutive hyphens.
-	SourceIds []*string `type:"list"`
+	SourceIds []*string `locationNameList:"SourceId" type:"list"`
 
 	// The type of AWS DMS resource that generates the events. For example, if you
 	// want to be notified of events generated by a replication instance, you set
@@ -4923,7 +4739,7 @@ type CreateEventSubscriptionInput struct {
 	SubscriptionName *string `type:"string" required:"true"`
 
 	// A tag to be attached to the event subscription.
-	Tags []*Tag `type:"list"`
+	Tags []*Tag `locationNameList:"Tag" type:"list"`
 }
 
 // String returns the string representation
@@ -4994,7 +4810,7 @@ func (s *CreateEventSubscriptionInput) SetTags(v []*Tag) *CreateEventSubscriptio
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEventSubscriptionResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateEventSubscriptionResponse
 type CreateEventSubscriptionOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5018,7 +4834,7 @@ func (s *CreateEventSubscriptionOutput) SetEventSubscription(v *EventSubscriptio
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationInstanceMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationInstanceMessage
 type CreateReplicationInstanceInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5100,12 +4916,12 @@ type CreateReplicationInstanceInput struct {
 	ReplicationSubnetGroupIdentifier *string `type:"string"`
 
 	// Tags to be associated with the replication instance.
-	Tags []*Tag `type:"list"`
+	Tags []*Tag `locationNameList:"Tag" type:"list"`
 
 	// Specifies the VPC security group to be used with the replication instance.
 	// The VPC security group must work with the VPC containing the replication
 	// instance.
-	VpcSecurityGroupIds []*string `type:"list"`
+	VpcSecurityGroupIds []*string `locationNameList:"VpcSecurityGroupId" type:"list"`
 }
 
 // String returns the string representation
@@ -5212,7 +5028,7 @@ func (s *CreateReplicationInstanceInput) SetVpcSecurityGroupIds(v []*string) *Cr
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationInstanceResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationInstanceResponse
 type CreateReplicationInstanceOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5236,7 +5052,7 @@ func (s *CreateReplicationInstanceOutput) SetReplicationInstance(v *ReplicationI
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationSubnetGroupMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationSubnetGroupMessage
 type CreateReplicationSubnetGroupInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5259,10 +5075,10 @@ type CreateReplicationSubnetGroupInput struct {
 	// The EC2 subnet IDs for the subnet group.
 	//
 	// SubnetIds is a required field
-	SubnetIds []*string `type:"list" required:"true"`
+	SubnetIds []*string `locationNameList:"SubnetIdentifier" type:"list" required:"true"`
 
 	// The tag to be assigned to the subnet group.
-	Tags []*Tag `type:"list"`
+	Tags []*Tag `locationNameList:"Tag" type:"list"`
 }
 
 // String returns the string representation
@@ -5318,7 +5134,7 @@ func (s *CreateReplicationSubnetGroupInput) SetTags(v []*Tag) *CreateReplication
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationSubnetGroupResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationSubnetGroupResponse
 type CreateReplicationSubnetGroupOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5342,7 +5158,7 @@ func (s *CreateReplicationSubnetGroupOutput) SetReplicationSubnetGroup(v *Replic
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationTaskMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationTaskMessage
 type CreateReplicationTaskInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5392,7 +5208,7 @@ type CreateReplicationTaskInput struct {
 	TableMappings *string `type:"string" required:"true"`
 
 	// Tags to be added to the replication instance.
-	Tags []*Tag `type:"list"`
+	Tags []*Tag `locationNameList:"Tag" type:"list"`
 
 	// The Amazon Resource Name (ARN) string that uniquely identifies the endpoint.
 	//
@@ -5492,7 +5308,7 @@ func (s *CreateReplicationTaskInput) SetTargetEndpointArn(v string) *CreateRepli
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationTaskResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/CreateReplicationTaskResponse
 type CreateReplicationTaskOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5516,7 +5332,7 @@ func (s *CreateReplicationTaskOutput) SetReplicationTask(v *ReplicationTask) *Cr
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteCertificateMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteCertificateMessage
 type DeleteCertificateInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5555,7 +5371,7 @@ func (s *DeleteCertificateInput) SetCertificateArn(v string) *DeleteCertificateI
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteCertificateResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteCertificateResponse
 type DeleteCertificateOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5579,7 +5395,7 @@ func (s *DeleteCertificateOutput) SetCertificate(v *Certificate) *DeleteCertific
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEndpointMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEndpointMessage
 type DeleteEndpointInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5618,7 +5434,7 @@ func (s *DeleteEndpointInput) SetEndpointArn(v string) *DeleteEndpointInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEndpointResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEndpointResponse
 type DeleteEndpointOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5642,7 +5458,7 @@ func (s *DeleteEndpointOutput) SetEndpoint(v *Endpoint) *DeleteEndpointOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEventSubscriptionMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEventSubscriptionMessage
 type DeleteEventSubscriptionInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5681,7 +5497,7 @@ func (s *DeleteEventSubscriptionInput) SetSubscriptionName(v string) *DeleteEven
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEventSubscriptionResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteEventSubscriptionResponse
 type DeleteEventSubscriptionOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5705,7 +5521,7 @@ func (s *DeleteEventSubscriptionOutput) SetEventSubscription(v *EventSubscriptio
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationInstanceMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationInstanceMessage
 type DeleteReplicationInstanceInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5744,7 +5560,7 @@ func (s *DeleteReplicationInstanceInput) SetReplicationInstanceArn(v string) *De
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationInstanceResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationInstanceResponse
 type DeleteReplicationInstanceOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5768,7 +5584,7 @@ func (s *DeleteReplicationInstanceOutput) SetReplicationInstance(v *ReplicationI
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationSubnetGroupMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationSubnetGroupMessage
 type DeleteReplicationSubnetGroupInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5807,7 +5623,7 @@ func (s *DeleteReplicationSubnetGroupInput) SetReplicationSubnetGroupIdentifier(
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationSubnetGroupResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationSubnetGroupResponse
 type DeleteReplicationSubnetGroupOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -5822,7 +5638,7 @@ func (s DeleteReplicationSubnetGroupOutput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationTaskMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationTaskMessage
 type DeleteReplicationTaskInput struct {
 	_ struct{} `type:"structure"`
 
@@ -5861,7 +5677,7 @@ func (s *DeleteReplicationTaskInput) SetReplicationTaskArn(v string) *DeleteRepl
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationTaskResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DeleteReplicationTaskResponse
 type DeleteReplicationTaskOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -5885,7 +5701,7 @@ func (s *DeleteReplicationTaskOutput) SetReplicationTask(v *ReplicationTask) *De
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeAccountAttributesMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeAccountAttributesMessage
 type DescribeAccountAttributesInput struct {
 	_ struct{} `type:"structure"`
 }
@@ -5900,12 +5716,12 @@ func (s DescribeAccountAttributesInput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeAccountAttributesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeAccountAttributesResponse
 type DescribeAccountAttributesOutput struct {
 	_ struct{} `type:"structure"`
 
 	// Account quota information.
-	AccountQuotas []*AccountQuota `type:"list"`
+	AccountQuotas []*AccountQuota `locationNameList:"AccountQuota" type:"list"`
 }
 
 // String returns the string representation
@@ -5924,12 +5740,12 @@ func (s *DescribeAccountAttributesOutput) SetAccountQuotas(v []*AccountQuota) *D
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeCertificatesMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeCertificatesMessage
 type DescribeCertificatesInput struct {
 	_ struct{} `type:"structure"`
 
 	// Filters applied to the certificate described in the form of key-value pairs.
-	Filters []*Filter `type:"list"`
+	Filters []*Filter `locationNameList:"Filter" type:"list"`
 
 	// An optional pagination token provided by a previous request. If this parameter
 	// is specified, the response includes only records beyond the marker, up to
@@ -5992,13 +5808,13 @@ func (s *DescribeCertificatesInput) SetMaxRecords(v int64) *DescribeCertificates
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeCertificatesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeCertificatesResponse
 type DescribeCertificatesOutput struct {
 	_ struct{} `type:"structure"`
 
 	// The Secure Sockets Layer (SSL) certificates associated with the replication
 	// instance.
-	Certificates []*Certificate `type:"list"`
+	Certificates []*Certificate `locationNameList:"Certificate" type:"list"`
 
 	// The pagination token.
 	Marker *string `type:"string"`
@@ -6026,14 +5842,14 @@ func (s *DescribeCertificatesOutput) SetMarker(v string) *DescribeCertificatesOu
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeConnectionsMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeConnectionsMessage
 type DescribeConnectionsInput struct {
 	_ struct{} `type:"structure"`
 
 	// The filters applied to the connection.
 	//
 	// Valid filter names: endpoint-arn | replication-instance-arn
-	Filters []*Filter `type:"list"`
+	Filters []*Filter `locationNameList:"Filter" type:"list"`
 
 	// An optional pagination token provided by a previous request. If this parameter
 	// is specified, the response includes only records beyond the marker, up to
@@ -6098,12 +5914,12 @@ func (s *DescribeConnectionsInput) SetMaxRecords(v int64) *DescribeConnectionsIn
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeConnectionsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeConnectionsResponse
 type DescribeConnectionsOutput struct {
 	_ struct{} `type:"structure"`
 
 	// A description of the connections.
-	Connections []*Connection `type:"list"`
+	Connections []*Connection `locationNameList:"Connection" type:"list"`
 
 	// An optional pagination token provided by a previous request. If this parameter
 	// is specified, the response includes only records beyond the marker, up to
@@ -6133,14 +5949,14 @@ func (s *DescribeConnectionsOutput) SetMarker(v string) *DescribeConnectionsOutp
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpointTypesMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpointTypesMessage
 type DescribeEndpointTypesInput struct {
 	_ struct{} `type:"structure"`
 
 	// Filters applied to the describe action.
 	//
 	// Valid filter names: engine-name | endpoint-type
-	Filters []*Filter `type:"list"`
+	Filters []*Filter `locationNameList:"Filter" type:"list"`
 
 	// An optional pagination token provided by a previous request. If this parameter
 	// is specified, the response includes only records beyond the marker, up to
@@ -6205,7 +6021,7 @@ func (s *DescribeEndpointTypesInput) SetMaxRecords(v int64) *DescribeEndpointTyp
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpointTypesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpointTypesResponse
 type DescribeEndpointTypesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -6215,7 +6031,7 @@ type DescribeEndpointTypesOutput struct {
 	Marker *string `type:"string"`
 
 	// The type of endpoints that are supported.
-	SupportedEndpointTypes []*SupportedEndpointType `type:"list"`
+	SupportedEndpointTypes []*SupportedEndpointType `locationNameList:"SupportedEndpointType" type:"list"`
 }
 
 // String returns the string representation
@@ -6240,14 +6056,14 @@ func (s *DescribeEndpointTypesOutput) SetSupportedEndpointTypes(v []*SupportedEn
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpointsMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpointsMessage
 type DescribeEndpointsInput struct {
 	_ struct{} `type:"structure"`
 
 	// Filters applied to the describe action.
 	//
 	// Valid filter names: endpoint-arn | endpoint-type | endpoint-id | engine-name
-	Filters []*Filter `type:"list"`
+	Filters []*Filter `locationNameList:"Filter" type:"list"`
 
 	// An optional pagination token provided by a previous request. If this parameter
 	// is specified, the response includes only records beyond the marker, up to
@@ -6312,12 +6128,12 @@ func (s *DescribeEndpointsInput) SetMaxRecords(v int64) *DescribeEndpointsInput 
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpointsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEndpointsResponse
 type DescribeEndpointsOutput struct {
 	_ struct{} `type:"structure"`
 
 	// Endpoint description.
-	Endpoints []*Endpoint `type:"list"`
+	Endpoints []*Endpoint `locationNameList:"Endpoint" type:"list"`
 
 	// An optional pagination token provided by a previous request. If this parameter
 	// is specified, the response includes only records beyond the marker, up to
@@ -6347,12 +6163,12 @@ func (s *DescribeEndpointsOutput) SetMarker(v string) *DescribeEndpointsOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventCategoriesMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventCategoriesMessage
 type DescribeEventCategoriesInput struct {
 	_ struct{} `type:"structure"`
 
 	// Filters applied to the action.
-	Filters []*Filter `type:"list"`
+	Filters []*Filter `locationNameList:"Filter" type:"list"`
 
 	// The type of AWS DMS resource that generates events.
 	//
@@ -6402,12 +6218,12 @@ func (s *DescribeEventCategoriesInput) SetSourceType(v string) *DescribeEventCat
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventCategoriesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventCategoriesResponse
 type DescribeEventCategoriesOutput struct {
 	_ struct{} `type:"structure"`
 
 	// A list of event categories.
-	EventCategoryGroupList []*EventCategoryGroup `type:"list"`
+	EventCategoryGroupList []*EventCategoryGroup `locationNameList:"EventCategoryGroup" type:"list"`
 }
 
 // String returns the string representation
@@ -6426,12 +6242,12 @@ func (s *DescribeEventCategoriesOutput) SetEventCategoryGroupList(v []*EventCate
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventSubscriptionsMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventSubscriptionsMessage
 type DescribeEventSubscriptionsInput struct {
 	_ struct{} `type:"structure"`
 
 	// Filters applied to the action.
-	Filters []*Filter `type:"list"`
+	Filters []*Filter `locationNameList:"Filter" type:"list"`
 
 	// An optional pagination token provided by a previous request. If this parameter
 	// is specified, the response includes only records beyond the marker, up to
@@ -6505,12 +6321,12 @@ func (s *DescribeEventSubscriptionsInput) SetSubscriptionName(v string) *Describ
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventSubscriptionsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventSubscriptionsResponse
 type DescribeEventSubscriptionsOutput struct {
 	_ struct{} `type:"structure"`
 
 	// A list of event subscriptions.
-	EventSubscriptionsList []*EventSubscription `type:"list"`
+	EventSubscriptionsList []*EventSubscription `locationNameList:"EventSubscription" type:"list"`
 
 	// An optional pagination token provided by a previous request. If this parameter
 	// is specified, the response includes only records beyond the marker, up to
@@ -6540,7 +6356,7 @@ func (s *DescribeEventSubscriptionsOutput) SetMarker(v string) *DescribeEventSub
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventsMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventsMessage
 type DescribeEventsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6551,10 +6367,10 @@ type DescribeEventsInput struct {
 	EndTime *time.Time `type:"timestamp" timestampFormat:"unix"`
 
 	// A list of event categories for a source type that you want to subscribe to.
-	EventCategories []*string `type:"list"`
+	EventCategories []*string `locationNameList:"EventCategory" type:"list"`
 
 	// Filters applied to the action.
-	Filters []*Filter `type:"list"`
+	Filters []*Filter `locationNameList:"Filter" type:"list"`
 
 	// An optional pagination token provided by a previous request. If this parameter
 	// is specified, the response includes only records beyond the marker, up to
@@ -6668,12 +6484,12 @@ func (s *DescribeEventsInput) SetStartTime(v time.Time) *DescribeEventsInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeEventsResponse
 type DescribeEventsOutput struct {
 	_ struct{} `type:"structure"`
 
 	// The events described.
-	Events []*Event `type:"list"`
+	Events []*Event `locationNameList:"Event" type:"list"`
 
 	// An optional pagination token provided by a previous request. If this parameter
 	// is specified, the response includes only records beyond the marker, up to
@@ -6703,7 +6519,7 @@ func (s *DescribeEventsOutput) SetMarker(v string) *DescribeEventsOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeOrderableReplicationInstancesMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeOrderableReplicationInstancesMessage
 type DescribeOrderableReplicationInstancesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6744,7 +6560,7 @@ func (s *DescribeOrderableReplicationInstancesInput) SetMaxRecords(v int64) *Des
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeOrderableReplicationInstancesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeOrderableReplicationInstancesResponse
 type DescribeOrderableReplicationInstancesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -6754,7 +6570,7 @@ type DescribeOrderableReplicationInstancesOutput struct {
 	Marker *string `type:"string"`
 
 	// The order-able replication instances available.
-	OrderableReplicationInstances []*OrderableReplicationInstance `type:"list"`
+	OrderableReplicationInstances []*OrderableReplicationInstance `locationNameList:"OrderableReplicationInstance" type:"list"`
 }
 
 // String returns the string representation
@@ -6779,7 +6595,7 @@ func (s *DescribeOrderableReplicationInstancesOutput) SetOrderableReplicationIns
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeRefreshSchemasStatusMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeRefreshSchemasStatusMessage
 type DescribeRefreshSchemasStatusInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6818,7 +6634,7 @@ func (s *DescribeRefreshSchemasStatusInput) SetEndpointArn(v string) *DescribeRe
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeRefreshSchemasStatusResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeRefreshSchemasStatusResponse
 type DescribeRefreshSchemasStatusOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -6842,7 +6658,7 @@ func (s *DescribeRefreshSchemasStatusOutput) SetRefreshSchemasStatus(v *RefreshS
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationInstancesMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationInstancesMessage
 type DescribeReplicationInstancesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -6850,7 +6666,7 @@ type DescribeReplicationInstancesInput struct {
 	//
 	// Valid filter names: replication-instance-arn | replication-instance-id |
 	// replication-instance-class | engine-version
-	Filters []*Filter `type:"list"`
+	Filters []*Filter `locationNameList:"Filter" type:"list"`
 
 	// An optional pagination token provided by a previous request. If this parameter
 	// is specified, the response includes only records beyond the marker, up to
@@ -6915,7 +6731,7 @@ func (s *DescribeReplicationInstancesInput) SetMaxRecords(v int64) *DescribeRepl
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationInstancesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationInstancesResponse
 type DescribeReplicationInstancesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -6925,7 +6741,7 @@ type DescribeReplicationInstancesOutput struct {
 	Marker *string `type:"string"`
 
 	// The replication instances described.
-	ReplicationInstances []*ReplicationInstance `type:"list"`
+	ReplicationInstances []*ReplicationInstance `locationNameList:"ReplicationInstance" type:"list"`
 }
 
 // String returns the string representation
@@ -6950,12 +6766,12 @@ func (s *DescribeReplicationInstancesOutput) SetReplicationInstances(v []*Replic
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationSubnetGroupsMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationSubnetGroupsMessage
 type DescribeReplicationSubnetGroupsInput struct {
 	_ struct{} `type:"structure"`
 
 	// Filters applied to the describe action.
-	Filters []*Filter `type:"list"`
+	Filters []*Filter `locationNameList:"Filter" type:"list"`
 
 	// An optional pagination token provided by a previous request. If this parameter
 	// is specified, the response includes only records beyond the marker, up to
@@ -7020,7 +6836,7 @@ func (s *DescribeReplicationSubnetGroupsInput) SetMaxRecords(v int64) *DescribeR
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationSubnetGroupsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationSubnetGroupsResponse
 type DescribeReplicationSubnetGroupsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7030,7 +6846,7 @@ type DescribeReplicationSubnetGroupsOutput struct {
 	Marker *string `type:"string"`
 
 	// A description of the replication subnet groups.
-	ReplicationSubnetGroups []*ReplicationSubnetGroup `type:"list"`
+	ReplicationSubnetGroups []*ReplicationSubnetGroup `locationNameList:"ReplicationSubnetGroup" type:"list"`
 }
 
 // String returns the string representation
@@ -7055,103 +6871,7 @@ func (s *DescribeReplicationSubnetGroupsOutput) SetReplicationSubnetGroups(v []*
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationTaskAssessmentResultsMessage
-type DescribeReplicationTaskAssessmentResultsInput struct {
-	_ struct{} `type:"structure"`
-
-	// An optional pagination token provided by a previous request. If this parameter
-	// is specified, the response includes only records beyond the marker, up to
-	// the value specified by MaxRecords.
-	Marker *string `type:"string"`
-
-	// The maximum number of records to include in the response. If more records
-	// exist than the specified MaxRecords value, a pagination token called a marker
-	// is included in the response so that the remaining results can be retrieved.
-	//
-	// Default: 100
-	//
-	// Constraints: Minimum 20, maximum 100.
-	MaxRecords *int64 `type:"integer"`
-
-	// - The Amazon Resource Name (ARN) string that uniquely identifies the task.
-	// When this input parameter is specified the API will return only one result
-	// and ignore the values of the max-records and marker parameters.
-	ReplicationTaskArn *string `type:"string"`
-}
-
-// String returns the string representation
-func (s DescribeReplicationTaskAssessmentResultsInput) String() string {
-	return awsutil.Prettify(s)
-}
-
-// GoString returns the string representation
-func (s DescribeReplicationTaskAssessmentResultsInput) GoString() string {
-	return s.String()
-}
-
-// SetMarker sets the Marker field's value.
-func (s *DescribeReplicationTaskAssessmentResultsInput) SetMarker(v string) *DescribeReplicationTaskAssessmentResultsInput {
-	s.Marker = &v
-	return s
-}
-
-// SetMaxRecords sets the MaxRecords field's value.
-func (s *DescribeReplicationTaskAssessmentResultsInput) SetMaxRecords(v int64) *DescribeReplicationTaskAssessmentResultsInput {
-	s.MaxRecords = &v
-	return s
-}
-
-// SetReplicationTaskArn sets the ReplicationTaskArn field's value.
-func (s *DescribeReplicationTaskAssessmentResultsInput) SetReplicationTaskArn(v string) *DescribeReplicationTaskAssessmentResultsInput {
-	s.ReplicationTaskArn = &v
-	return s
-}
-
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationTaskAssessmentResultsResponse
-type DescribeReplicationTaskAssessmentResultsOutput struct {
-	_ struct{} `type:"structure"`
-
-	// - The Amazon S3 bucket where the task assessment report is located.
-	BucketName *string `type:"string"`
-
-	// An optional pagination token provided by a previous request. If this parameter
-	// is specified, the response includes only records beyond the marker, up to
-	// the value specified by MaxRecords.
-	Marker *string `type:"string"`
-
-	// The task assessment report.
-	ReplicationTaskAssessmentResults []*ReplicationTaskAssessmentResult `type:"list"`
-}
-
-// String returns the string representation
-func (s DescribeReplicationTaskAssessmentResultsOutput) String() string {
-	return awsutil.Prettify(s)
-}
-
-// GoString returns the string representation
-func (s DescribeReplicationTaskAssessmentResultsOutput) GoString() string {
-	return s.String()
-}
-
-// SetBucketName sets the BucketName field's value.
-func (s *DescribeReplicationTaskAssessmentResultsOutput) SetBucketName(v string) *DescribeReplicationTaskAssessmentResultsOutput {
-	s.BucketName = &v
-	return s
-}
-
-// SetMarker sets the Marker field's value.
-func (s *DescribeReplicationTaskAssessmentResultsOutput) SetMarker(v string) *DescribeReplicationTaskAssessmentResultsOutput {
-	s.Marker = &v
-	return s
-}
-
-// SetReplicationTaskAssessmentResults sets the ReplicationTaskAssessmentResults field's value.
-func (s *DescribeReplicationTaskAssessmentResultsOutput) SetReplicationTaskAssessmentResults(v []*ReplicationTaskAssessmentResult) *DescribeReplicationTaskAssessmentResultsOutput {
-	s.ReplicationTaskAssessmentResults = v
-	return s
-}
-
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationTasksMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationTasksMessage
 type DescribeReplicationTasksInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7159,7 +6879,7 @@ type DescribeReplicationTasksInput struct {
 	//
 	// Valid filter names: replication-task-arn | replication-task-id | migration-type
 	// | endpoint-arn | replication-instance-arn
-	Filters []*Filter `type:"list"`
+	Filters []*Filter `locationNameList:"Filter" type:"list"`
 
 	// An optional pagination token provided by a previous request. If this parameter
 	// is specified, the response includes only records beyond the marker, up to
@@ -7224,7 +6944,7 @@ func (s *DescribeReplicationTasksInput) SetMaxRecords(v int64) *DescribeReplicat
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationTasksResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeReplicationTasksResponse
 type DescribeReplicationTasksOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7234,7 +6954,7 @@ type DescribeReplicationTasksOutput struct {
 	Marker *string `type:"string"`
 
 	// A description of the replication tasks.
-	ReplicationTasks []*ReplicationTask `type:"list"`
+	ReplicationTasks []*ReplicationTask `locationNameList:"ReplicationTask" type:"list"`
 }
 
 // String returns the string representation
@@ -7259,7 +6979,7 @@ func (s *DescribeReplicationTasksOutput) SetReplicationTasks(v []*ReplicationTas
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeSchemasMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeSchemasMessage
 type DescribeSchemasInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7324,7 +7044,7 @@ func (s *DescribeSchemasInput) SetMaxRecords(v int64) *DescribeSchemasInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeSchemasResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeSchemasResponse
 type DescribeSchemasOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7359,17 +7079,9 @@ func (s *DescribeSchemasOutput) SetSchemas(v []*string) *DescribeSchemasOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeTableStatisticsMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeTableStatisticsMessage
 type DescribeTableStatisticsInput struct {
 	_ struct{} `type:"structure"`
-
-	// Filters applied to the describe table statistics action.
-	//
-	// Valid filter names: schema-name | table-name | table-state
-	//
-	// A combination of filters creates an AND condition where each record matches
-	// all specified filters.
-	Filters []*Filter `type:"list"`
 
 	// An optional pagination token provided by a previous request. If this parameter
 	// is specified, the response includes only records beyond the marker, up to
@@ -7382,7 +7094,7 @@ type DescribeTableStatisticsInput struct {
 	//
 	// Default: 100
 	//
-	// Constraints: Minimum 20, maximum 500.
+	// Constraints: Minimum 20, maximum 100.
 	MaxRecords *int64 `type:"integer"`
 
 	// The Amazon Resource Name (ARN) of the replication task.
@@ -7407,27 +7119,11 @@ func (s *DescribeTableStatisticsInput) Validate() error {
 	if s.ReplicationTaskArn == nil {
 		invalidParams.Add(request.NewErrParamRequired("ReplicationTaskArn"))
 	}
-	if s.Filters != nil {
-		for i, v := range s.Filters {
-			if v == nil {
-				continue
-			}
-			if err := v.Validate(); err != nil {
-				invalidParams.AddNested(fmt.Sprintf("%s[%v]", "Filters", i), err.(request.ErrInvalidParams))
-			}
-		}
-	}
 
 	if invalidParams.Len() > 0 {
 		return invalidParams
 	}
 	return nil
-}
-
-// SetFilters sets the Filters field's value.
-func (s *DescribeTableStatisticsInput) SetFilters(v []*Filter) *DescribeTableStatisticsInput {
-	s.Filters = v
-	return s
 }
 
 // SetMarker sets the Marker field's value.
@@ -7448,7 +7144,7 @@ func (s *DescribeTableStatisticsInput) SetReplicationTaskArn(v string) *Describe
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeTableStatisticsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DescribeTableStatisticsResponse
 type DescribeTableStatisticsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -7492,7 +7188,7 @@ func (s *DescribeTableStatisticsOutput) SetTableStatistics(v []*TableStatistics)
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DynamoDbSettings
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/DynamoDbSettings
 type DynamoDbSettings struct {
 	_ struct{} `type:"structure"`
 
@@ -7531,7 +7227,7 @@ func (s *DynamoDbSettings) SetServiceAccessRoleArn(v string) *DynamoDbSettings {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/Endpoint
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/Endpoint
 type Endpoint struct {
 	_ struct{} `type:"structure"`
 
@@ -7716,7 +7412,7 @@ func (s *Endpoint) SetUsername(v string) *Endpoint {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/Event
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/Event
 type Event struct {
 	_ struct{} `type:"structure"`
 
@@ -7724,7 +7420,7 @@ type Event struct {
 	Date *time.Time `type:"timestamp" timestampFormat:"unix"`
 
 	// The event categories available for the specified source type.
-	EventCategories []*string `type:"list"`
+	EventCategories []*string `locationNameList:"EventCategory" type:"list"`
 
 	// The event message.
 	Message *string `type:"string"`
@@ -7782,12 +7478,12 @@ func (s *Event) SetSourceType(v string) *Event {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/EventCategoryGroup
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/EventCategoryGroup
 type EventCategoryGroup struct {
 	_ struct{} `type:"structure"`
 
 	// A list of event categories for a SourceType that you want to subscribe to.
-	EventCategories []*string `type:"list"`
+	EventCategories []*string `locationNameList:"EventCategory" type:"list"`
 
 	// The type of AWS DMS resource that generates events.
 	//
@@ -7818,7 +7514,7 @@ func (s *EventCategoryGroup) SetSourceType(v string) *EventCategoryGroup {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/EventSubscription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/EventSubscription
 type EventSubscription struct {
 	_ struct{} `type:"structure"`
 
@@ -7832,13 +7528,13 @@ type EventSubscription struct {
 	Enabled *bool `type:"boolean"`
 
 	// A lists of event categories.
-	EventCategoriesList []*string `type:"list"`
+	EventCategoriesList []*string `locationNameList:"EventCategory" type:"list"`
 
 	// The topic ARN of the AWS DMS event notification subscription.
 	SnsTopicArn *string `type:"string"`
 
 	// A list of source Ids for the event subscription.
-	SourceIdsList []*string `type:"list"`
+	SourceIdsList []*string `locationNameList:"SourceId" type:"list"`
 
 	// The type of AWS DMS resource that generates events.
 	//
@@ -7926,7 +7622,7 @@ func (s *EventSubscription) SetSubscriptionCreationTime(v string) *EventSubscrip
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/Filter
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/Filter
 type Filter struct {
 	_ struct{} `type:"structure"`
 
@@ -7938,7 +7634,7 @@ type Filter struct {
 	// The filter value.
 	//
 	// Values is a required field
-	Values []*string `type:"list" required:"true"`
+	Values []*string `locationNameList:"Value" type:"list" required:"true"`
 }
 
 // String returns the string representation
@@ -7979,7 +7675,7 @@ func (s *Filter) SetValues(v []*string) *Filter {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ImportCertificateMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ImportCertificateMessage
 type ImportCertificateInput struct {
 	_ struct{} `type:"structure"`
 
@@ -7998,7 +7694,7 @@ type ImportCertificateInput struct {
 	CertificateWallet []byte `type:"blob"`
 
 	// The tags associated with the certificate.
-	Tags []*Tag `type:"list"`
+	Tags []*Tag `locationNameList:"Tag" type:"list"`
 }
 
 // String returns the string representation
@@ -8048,7 +7744,7 @@ func (s *ImportCertificateInput) SetTags(v []*Tag) *ImportCertificateInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ImportCertificateResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ImportCertificateResponse
 type ImportCertificateOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -8072,7 +7768,7 @@ func (s *ImportCertificateOutput) SetCertificate(v *Certificate) *ImportCertific
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ListTagsForResourceMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ListTagsForResourceMessage
 type ListTagsForResourceInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8112,12 +7808,12 @@ func (s *ListTagsForResourceInput) SetResourceArn(v string) *ListTagsForResource
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ListTagsForResourceResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ListTagsForResourceResponse
 type ListTagsForResourceOutput struct {
 	_ struct{} `type:"structure"`
 
 	// A list of tags for the resource.
-	TagList []*Tag `type:"list"`
+	TagList []*Tag `locationNameList:"Tag" type:"list"`
 }
 
 // String returns the string representation
@@ -8136,7 +7832,7 @@ func (s *ListTagsForResourceOutput) SetTagList(v []*Tag) *ListTagsForResourceOut
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEndpointMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEndpointMessage
 type ModifyEndpointInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8170,8 +7866,7 @@ type ModifyEndpointInput struct {
 	// MONGODB, SYBASE, and SQLSERVER.
 	EngineName *string `type:"string"`
 
-	// Additional attributes associated with the connection. To reset this parameter,
-	// pass the empty string ("") as an argument.
+	// Additional attributes associated with the connection.
 	ExtraConnectionAttributes *string `type:"string"`
 
 	// Settings in JSON format for the source MongoDB endpoint. For more information
@@ -8323,7 +8018,7 @@ func (s *ModifyEndpointInput) SetUsername(v string) *ModifyEndpointInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEndpointResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEndpointResponse
 type ModifyEndpointOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -8347,7 +8042,7 @@ func (s *ModifyEndpointOutput) SetEndpoint(v *Endpoint) *ModifyEndpointOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEventSubscriptionMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEventSubscriptionMessage
 type ModifyEventSubscriptionInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8356,7 +8051,7 @@ type ModifyEventSubscriptionInput struct {
 
 	// A list of event categories for a source type that you want to subscribe to.
 	// Use the DescribeEventCategories action to see a list of event categories.
-	EventCategories []*string `type:"list"`
+	EventCategories []*string `locationNameList:"EventCategory" type:"list"`
 
 	// The Amazon Resource Name (ARN) of the Amazon SNS topic created for event
 	// notification. The ARN is created by Amazon SNS when you create a topic and
@@ -8428,7 +8123,7 @@ func (s *ModifyEventSubscriptionInput) SetSubscriptionName(v string) *ModifyEven
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEventSubscriptionResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyEventSubscriptionResponse
 type ModifyEventSubscriptionOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -8452,7 +8147,7 @@ func (s *ModifyEventSubscriptionOutput) SetEventSubscription(v *EventSubscriptio
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationInstanceMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationInstanceMessage
 type ModifyReplicationInstanceInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8523,7 +8218,7 @@ type ModifyReplicationInstanceInput struct {
 	// Specifies the VPC security group to be used with the replication instance.
 	// The VPC security group must work with the VPC containing the replication
 	// instance.
-	VpcSecurityGroupIds []*string `type:"list"`
+	VpcSecurityGroupIds []*string `locationNameList:"VpcSecurityGroupId" type:"list"`
 }
 
 // String returns the string representation
@@ -8615,7 +8310,7 @@ func (s *ModifyReplicationInstanceInput) SetVpcSecurityGroupIds(v []*string) *Mo
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationInstanceResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationInstanceResponse
 type ModifyReplicationInstanceOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -8639,7 +8334,7 @@ func (s *ModifyReplicationInstanceOutput) SetReplicationInstance(v *ReplicationI
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationSubnetGroupMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationSubnetGroupMessage
 type ModifyReplicationSubnetGroupInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8654,7 +8349,7 @@ type ModifyReplicationSubnetGroupInput struct {
 	// A list of subnet IDs.
 	//
 	// SubnetIds is a required field
-	SubnetIds []*string `type:"list" required:"true"`
+	SubnetIds []*string `locationNameList:"SubnetIdentifier" type:"list" required:"true"`
 }
 
 // String returns the string representation
@@ -8701,7 +8396,7 @@ func (s *ModifyReplicationSubnetGroupInput) SetSubnetIds(v []*string) *ModifyRep
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationSubnetGroupResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationSubnetGroupResponse
 type ModifyReplicationSubnetGroupOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -8725,7 +8420,7 @@ func (s *ModifyReplicationSubnetGroupOutput) SetReplicationSubnetGroup(v *Replic
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationTaskMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationTaskMessage
 type ModifyReplicationTaskInput struct {
 	_ struct{} `type:"structure"`
 
@@ -8823,7 +8518,7 @@ func (s *ModifyReplicationTaskInput) SetTableMappings(v string) *ModifyReplicati
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationTaskResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ModifyReplicationTaskResponse
 type ModifyReplicationTaskOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -8847,7 +8542,7 @@ func (s *ModifyReplicationTaskOutput) SetReplicationTask(v *ReplicationTask) *Mo
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/MongoDbSettings
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/MongoDbSettings
 type MongoDbSettings struct {
 	_ struct{} `type:"structure"`
 
@@ -8984,7 +8679,7 @@ func (s *MongoDbSettings) SetUsername(v string) *MongoDbSettings {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/OrderableReplicationInstance
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/OrderableReplicationInstance
 type OrderableReplicationInstance struct {
 	_ struct{} `type:"structure"`
 
@@ -9069,7 +8764,7 @@ func (s *OrderableReplicationInstance) SetStorageType(v string) *OrderableReplic
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RefreshSchemasMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RefreshSchemasMessage
 type RefreshSchemasInput struct {
 	_ struct{} `type:"structure"`
 
@@ -9122,7 +8817,7 @@ func (s *RefreshSchemasInput) SetReplicationInstanceArn(v string) *RefreshSchema
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RefreshSchemasResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RefreshSchemasResponse
 type RefreshSchemasOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -9146,7 +8841,7 @@ func (s *RefreshSchemasOutput) SetRefreshSchemasStatus(v *RefreshSchemasStatus) 
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RefreshSchemasStatus
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RefreshSchemasStatus
 type RefreshSchemasStatus struct {
 	_ struct{} `type:"structure"`
 
@@ -9206,7 +8901,7 @@ func (s *RefreshSchemasStatus) SetStatus(v string) *RefreshSchemasStatus {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReloadTablesMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReloadTablesMessage
 type ReloadTablesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -9259,7 +8954,7 @@ func (s *ReloadTablesInput) SetTablesToReload(v []*TableToReload) *ReloadTablesI
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReloadTablesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReloadTablesResponse
 type ReloadTablesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -9283,7 +8978,7 @@ func (s *ReloadTablesOutput) SetReplicationTaskArn(v string) *ReloadTablesOutput
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RemoveTagsFromResourceMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RemoveTagsFromResourceMessage
 type RemoveTagsFromResourceInput struct {
 	_ struct{} `type:"structure"`
 
@@ -9337,7 +9032,7 @@ func (s *RemoveTagsFromResourceInput) SetTagKeys(v []*string) *RemoveTagsFromRes
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RemoveTagsFromResourceResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/RemoveTagsFromResourceResponse
 type RemoveTagsFromResourceOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -9352,7 +9047,7 @@ func (s RemoveTagsFromResourceOutput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReplicationInstance
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReplicationInstance
 type ReplicationInstance struct {
 	_ struct{} `type:"structure"`
 
@@ -9440,7 +9135,7 @@ type ReplicationInstance struct {
 	SecondaryAvailabilityZone *string `type:"string"`
 
 	// The VPC security group for the instance.
-	VpcSecurityGroups []*VpcSecurityGroupMembership `type:"list"`
+	VpcSecurityGroups []*VpcSecurityGroupMembership `locationNameList:"VpcSecurityGroupMembership" type:"list"`
 }
 
 // String returns the string representation
@@ -9579,7 +9274,7 @@ func (s *ReplicationInstance) SetVpcSecurityGroups(v []*VpcSecurityGroupMembersh
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReplicationPendingModifiedValues
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReplicationPendingModifiedValues
 type ReplicationPendingModifiedValues struct {
 	_ struct{} `type:"structure"`
 
@@ -9635,7 +9330,7 @@ func (s *ReplicationPendingModifiedValues) SetReplicationInstanceClass(v string)
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReplicationSubnetGroup
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReplicationSubnetGroup
 type ReplicationSubnetGroup struct {
 	_ struct{} `type:"structure"`
 
@@ -9649,7 +9344,7 @@ type ReplicationSubnetGroup struct {
 	SubnetGroupStatus *string `type:"string"`
 
 	// The subnets that are in the subnet group.
-	Subnets []*Subnet `type:"list"`
+	Subnets []*Subnet `locationNameList:"Subnet" type:"list"`
 
 	// The ID of the VPC.
 	VpcId *string `type:"string"`
@@ -9695,7 +9390,7 @@ func (s *ReplicationSubnetGroup) SetVpcId(v string) *ReplicationSubnetGroup {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReplicationTask
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReplicationTask
 type ReplicationTask struct {
 	_ struct{} `type:"structure"`
 
@@ -9845,87 +9540,7 @@ func (s *ReplicationTask) SetTargetEndpointArn(v string) *ReplicationTask {
 	return s
 }
 
-// The task assessment report in JSON format.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReplicationTaskAssessmentResult
-type ReplicationTaskAssessmentResult struct {
-	_ struct{} `type:"structure"`
-
-	// The task assessment results in JSON format.
-	AssessmentResults *string `type:"string"`
-
-	// The file containing the results of the task assessment.
-	AssessmentResultsFile *string `type:"string"`
-
-	// The status of the task assessment.
-	AssessmentStatus *string `type:"string"`
-
-	// The Amazon Resource Name (ARN) of the replication task.
-	ReplicationTaskArn *string `type:"string"`
-
-	// The replication task identifier of the task on which the task assessment
-	// was run.
-	ReplicationTaskIdentifier *string `type:"string"`
-
-	// The date the task assessment was completed.
-	ReplicationTaskLastAssessmentDate *time.Time `type:"timestamp" timestampFormat:"unix"`
-
-	// The URL of the S3 object containing the task assessment results.
-	S3ObjectUrl *string `type:"string"`
-}
-
-// String returns the string representation
-func (s ReplicationTaskAssessmentResult) String() string {
-	return awsutil.Prettify(s)
-}
-
-// GoString returns the string representation
-func (s ReplicationTaskAssessmentResult) GoString() string {
-	return s.String()
-}
-
-// SetAssessmentResults sets the AssessmentResults field's value.
-func (s *ReplicationTaskAssessmentResult) SetAssessmentResults(v string) *ReplicationTaskAssessmentResult {
-	s.AssessmentResults = &v
-	return s
-}
-
-// SetAssessmentResultsFile sets the AssessmentResultsFile field's value.
-func (s *ReplicationTaskAssessmentResult) SetAssessmentResultsFile(v string) *ReplicationTaskAssessmentResult {
-	s.AssessmentResultsFile = &v
-	return s
-}
-
-// SetAssessmentStatus sets the AssessmentStatus field's value.
-func (s *ReplicationTaskAssessmentResult) SetAssessmentStatus(v string) *ReplicationTaskAssessmentResult {
-	s.AssessmentStatus = &v
-	return s
-}
-
-// SetReplicationTaskArn sets the ReplicationTaskArn field's value.
-func (s *ReplicationTaskAssessmentResult) SetReplicationTaskArn(v string) *ReplicationTaskAssessmentResult {
-	s.ReplicationTaskArn = &v
-	return s
-}
-
-// SetReplicationTaskIdentifier sets the ReplicationTaskIdentifier field's value.
-func (s *ReplicationTaskAssessmentResult) SetReplicationTaskIdentifier(v string) *ReplicationTaskAssessmentResult {
-	s.ReplicationTaskIdentifier = &v
-	return s
-}
-
-// SetReplicationTaskLastAssessmentDate sets the ReplicationTaskLastAssessmentDate field's value.
-func (s *ReplicationTaskAssessmentResult) SetReplicationTaskLastAssessmentDate(v time.Time) *ReplicationTaskAssessmentResult {
-	s.ReplicationTaskLastAssessmentDate = &v
-	return s
-}
-
-// SetS3ObjectUrl sets the S3ObjectUrl field's value.
-func (s *ReplicationTaskAssessmentResult) SetS3ObjectUrl(v string) *ReplicationTaskAssessmentResult {
-	s.S3ObjectUrl = &v
-	return s
-}
-
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReplicationTaskStats
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/ReplicationTaskStats
 type ReplicationTaskStats struct {
 	_ struct{} `type:"structure"`
 
@@ -9994,7 +9609,7 @@ func (s *ReplicationTaskStats) SetTablesQueued(v int64) *ReplicationTaskStats {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/S3Settings
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/S3Settings
 type S3Settings struct {
 	_ struct{} `type:"structure"`
 
@@ -10077,77 +9692,14 @@ func (s *S3Settings) SetServiceAccessRoleArn(v string) *S3Settings {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StartReplicationTaskAssessmentMessage
-type StartReplicationTaskAssessmentInput struct {
-	_ struct{} `type:"structure"`
-
-	// The Amazon Resource Name (ARN) of the replication task.
-	//
-	// ReplicationTaskArn is a required field
-	ReplicationTaskArn *string `type:"string" required:"true"`
-}
-
-// String returns the string representation
-func (s StartReplicationTaskAssessmentInput) String() string {
-	return awsutil.Prettify(s)
-}
-
-// GoString returns the string representation
-func (s StartReplicationTaskAssessmentInput) GoString() string {
-	return s.String()
-}
-
-// Validate inspects the fields of the type to determine if they are valid.
-func (s *StartReplicationTaskAssessmentInput) Validate() error {
-	invalidParams := request.ErrInvalidParams{Context: "StartReplicationTaskAssessmentInput"}
-	if s.ReplicationTaskArn == nil {
-		invalidParams.Add(request.NewErrParamRequired("ReplicationTaskArn"))
-	}
-
-	if invalidParams.Len() > 0 {
-		return invalidParams
-	}
-	return nil
-}
-
-// SetReplicationTaskArn sets the ReplicationTaskArn field's value.
-func (s *StartReplicationTaskAssessmentInput) SetReplicationTaskArn(v string) *StartReplicationTaskAssessmentInput {
-	s.ReplicationTaskArn = &v
-	return s
-}
-
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StartReplicationTaskAssessmentResponse
-type StartReplicationTaskAssessmentOutput struct {
-	_ struct{} `type:"structure"`
-
-	// The assessed replication task.
-	ReplicationTask *ReplicationTask `type:"structure"`
-}
-
-// String returns the string representation
-func (s StartReplicationTaskAssessmentOutput) String() string {
-	return awsutil.Prettify(s)
-}
-
-// GoString returns the string representation
-func (s StartReplicationTaskAssessmentOutput) GoString() string {
-	return s.String()
-}
-
-// SetReplicationTask sets the ReplicationTask field's value.
-func (s *StartReplicationTaskAssessmentOutput) SetReplicationTask(v *ReplicationTask) *StartReplicationTaskAssessmentOutput {
-	s.ReplicationTask = v
-	return s
-}
-
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StartReplicationTaskMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StartReplicationTaskMessage
 type StartReplicationTaskInput struct {
 	_ struct{} `type:"structure"`
 
 	// The start time for the Change Data Capture (CDC) operation.
 	CdcStartTime *time.Time `type:"timestamp" timestampFormat:"unix"`
 
-	// The Amazon Resource Name (ARN) of the replication task to be started.
+	// The Amazon Resource Number (ARN) of the replication task to be started.
 	//
 	// ReplicationTaskArn is a required field
 	ReplicationTaskArn *string `type:"string" required:"true"`
@@ -10202,7 +9754,7 @@ func (s *StartReplicationTaskInput) SetStartReplicationTaskType(v string) *Start
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StartReplicationTaskResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StartReplicationTaskResponse
 type StartReplicationTaskOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -10226,11 +9778,11 @@ func (s *StartReplicationTaskOutput) SetReplicationTask(v *ReplicationTask) *Sta
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StopReplicationTaskMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StopReplicationTaskMessage
 type StopReplicationTaskInput struct {
 	_ struct{} `type:"structure"`
 
-	// The Amazon Resource Name(ARN) of the replication task to be stopped.
+	// The Amazon Resource Number(ARN) of the replication task to be stopped.
 	//
 	// ReplicationTaskArn is a required field
 	ReplicationTaskArn *string `type:"string" required:"true"`
@@ -10265,7 +9817,7 @@ func (s *StopReplicationTaskInput) SetReplicationTaskArn(v string) *StopReplicat
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StopReplicationTaskResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/StopReplicationTaskResponse
 type StopReplicationTaskOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -10289,7 +9841,7 @@ func (s *StopReplicationTaskOutput) SetReplicationTask(v *ReplicationTask) *Stop
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/Subnet
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/Subnet
 type Subnet struct {
 	_ struct{} `type:"structure"`
 
@@ -10331,7 +9883,7 @@ func (s *Subnet) SetSubnetStatus(v string) *Subnet {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/SupportedEndpointType
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/SupportedEndpointType
 type SupportedEndpointType struct {
 	_ struct{} `type:"structure"`
 
@@ -10375,7 +9927,7 @@ func (s *SupportedEndpointType) SetSupportsCDC(v bool) *SupportedEndpointType {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/TableStatistics
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/TableStatistics
 type TableStatistics struct {
 	_ struct{} `type:"structure"`
 
@@ -10409,50 +9961,11 @@ type TableStatistics struct {
 	// The name of the table.
 	TableName *string `type:"string"`
 
-	// The state of the tables described.
-	//
-	// Valid states: Table does not exist | Before load | Full load | Table completed
-	// | Table cancelled | Table error | Table all | Table updates | Table is being
-	// reloaded
+	// The state of the table.
 	TableState *string `type:"string"`
 
 	// The number of update actions performed on a table.
 	Updates *int64 `type:"long"`
-
-	// The number of records that failed validation.
-	ValidationFailedRecords *int64 `type:"long"`
-
-	// The number of records that have yet to be validated.
-	ValidationPendingRecords *int64 `type:"long"`
-
-	// The validation state of the table.
-	//
-	// The parameter can have the following values
-	//
-	//    * Not enabled—Validation is not enabled for the table in the migration
-	//    task.
-	//
-	//    * Pending records—Some records in the table are waiting for validation.
-	//
-	//    * Mismatched records—Some records in the table do not match between the
-	//    source and target.
-	//
-	//    * Suspended records—Some records in the table could not be validated.
-	//
-	//    * No primary key—The table could not be validated because it had no primary
-	//    key.
-	//
-	//    * Table error—The table was not validated because it was in an error state
-	//    and some data was not migrated.
-	//
-	//    * Validated—All rows in the table were validated. If the table is updated,
-	//    the status can change from Validated.
-	//
-	//    * Error—The table could not be validated because of an unexpected error.
-	ValidationState *string `type:"string"`
-
-	// The number of records that could not be validated.
-	ValidationSuspendedRecords *int64 `type:"long"`
 }
 
 // String returns the string representation
@@ -10531,31 +10044,7 @@ func (s *TableStatistics) SetUpdates(v int64) *TableStatistics {
 	return s
 }
 
-// SetValidationFailedRecords sets the ValidationFailedRecords field's value.
-func (s *TableStatistics) SetValidationFailedRecords(v int64) *TableStatistics {
-	s.ValidationFailedRecords = &v
-	return s
-}
-
-// SetValidationPendingRecords sets the ValidationPendingRecords field's value.
-func (s *TableStatistics) SetValidationPendingRecords(v int64) *TableStatistics {
-	s.ValidationPendingRecords = &v
-	return s
-}
-
-// SetValidationState sets the ValidationState field's value.
-func (s *TableStatistics) SetValidationState(v string) *TableStatistics {
-	s.ValidationState = &v
-	return s
-}
-
-// SetValidationSuspendedRecords sets the ValidationSuspendedRecords field's value.
-func (s *TableStatistics) SetValidationSuspendedRecords(v int64) *TableStatistics {
-	s.ValidationSuspendedRecords = &v
-	return s
-}
-
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/TableToReload
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/TableToReload
 type TableToReload struct {
 	_ struct{} `type:"structure"`
 
@@ -10588,7 +10077,7 @@ func (s *TableToReload) SetTableName(v string) *TableToReload {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/Tag
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/Tag
 type Tag struct {
 	_ struct{} `type:"structure"`
 
@@ -10627,7 +10116,7 @@ func (s *Tag) SetValue(v string) *Tag {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/TestConnectionMessage
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/TestConnectionMessage
 type TestConnectionInput struct {
 	_ struct{} `type:"structure"`
 
@@ -10680,7 +10169,7 @@ func (s *TestConnectionInput) SetReplicationInstanceArn(v string) *TestConnectio
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/TestConnectionResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/TestConnectionResponse
 type TestConnectionOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -10704,7 +10193,7 @@ func (s *TestConnectionOutput) SetConnection(v *Connection) *TestConnectionOutpu
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/VpcSecurityGroupMembership
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/dms-2016-01-01/VpcSecurityGroupMembership
 type VpcSecurityGroupMembership struct {
 	_ struct{} `type:"structure"`
 

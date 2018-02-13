@@ -5,7 +5,6 @@
     "endpointPrefix":"polly",
     "protocol":"rest-json",
     "serviceFullName":"Amazon Polly",
-    "serviceId":"Polly",
     "signatureVersion":"v4",
     "uid":"polly-2016-06-10"
   },
@@ -225,7 +224,6 @@
         "fr-FR",
         "is-IS",
         "it-IT",
-        "ko-KR",
         "ja-JP",
         "nb-NO",
         "nl-NL",
@@ -500,7 +498,6 @@
         "Justin",
         "Kendra",
         "Kimberly",
-        "Matthew",
         "Salli",
         "Conchita",
         "Enrique",
@@ -530,10 +527,7 @@
         "Tatyana",
         "Astrid",
         "Filiz",
-        "Vicki",
-        "Takumi",
-        "Seoyeon",
-        "Aditi"
+        "Vicki"
       ]
     },
     "VoiceList":{

@@ -37,9 +37,6 @@
       "eu-west-2" : {
         "description" : "EU (London)"
       },
-      "eu-west-3" : {
-        "description" : "EU (Paris)"
-      },
       "sa-east-1" : {
         "description" : "South America (Sao Paulo)"
       },
@@ -68,23 +65,11 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
           "us-west-1" : { },
           "us-west-2" : { }
-        }
-      },
-      "api.pricing" : {
-        "defaults" : {
-          "credentialScope" : {
-            "service" : "pricing"
-          }
-        },
-        "endpoints" : {
-          "ap-south-1" : { },
-          "us-east-1" : { }
         }
       },
       "apigateway" : {
@@ -98,7 +83,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -124,7 +108,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -150,8 +133,6 @@
         "endpoints" : {
           "ap-northeast-1" : { },
           "ap-southeast-1" : { },
-          "ap-southeast-2" : { },
-          "eu-central-1" : { },
           "eu-west-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -172,7 +153,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -183,7 +163,6 @@
       "batch" : {
         "endpoints" : {
           "ap-northeast-1" : { },
-          "ap-southeast-1" : { },
           "ap-southeast-2" : { },
           "eu-central-1" : { },
           "eu-west-1" : { },
@@ -227,7 +206,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -251,21 +229,6 @@
       "cloudhsm" : {
         "endpoints" : {
           "ap-northeast-1" : { },
-          "ap-southeast-1" : { },
-          "ap-southeast-2" : { },
-          "ca-central-1" : { },
-          "eu-central-1" : { },
-          "eu-west-1" : { },
-          "us-east-1" : { },
-          "us-east-2" : { },
-          "us-west-1" : { },
-          "us-west-2" : { }
-        }
-      },
-      "cloudhsmv2" : {
-        "endpoints" : {
-          "ap-northeast-1" : { },
-          "ap-south-1" : { },
           "ap-southeast-1" : { },
           "ap-southeast-2" : { },
           "ca-central-1" : { },
@@ -302,7 +265,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -313,7 +275,6 @@
       "codebuild" : {
         "endpoints" : {
           "ap-northeast-1" : { },
-          "ap-northeast-2" : { },
           "ap-southeast-1" : { },
           "ap-southeast-2" : { },
           "ca-central-1" : { },
@@ -355,7 +316,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -366,8 +326,6 @@
       "codepipeline" : {
         "endpoints" : {
           "ap-northeast-1" : { },
-          "ap-northeast-2" : { },
-          "ap-south-1" : { },
           "ap-southeast-1" : { },
           "ap-southeast-2" : { },
           "ca-central-1" : { },
@@ -383,16 +341,9 @@
       },
       "codestar" : {
         "endpoints" : {
-          "ap-northeast-1" : { },
-          "ap-southeast-1" : { },
-          "ap-southeast-2" : { },
-          "ca-central-1" : { },
-          "eu-central-1" : { },
           "eu-west-1" : { },
-          "eu-west-2" : { },
           "us-east-1" : { },
           "us-east-2" : { },
-          "us-west-1" : { },
           "us-west-2" : { }
         }
       },
@@ -401,7 +352,6 @@
           "ap-northeast-1" : { },
           "ap-northeast-2" : { },
           "ap-south-1" : { },
-          "ap-southeast-1" : { },
           "ap-southeast-2" : { },
           "eu-central-1" : { },
           "eu-west-1" : { },
@@ -416,7 +366,6 @@
           "ap-northeast-1" : { },
           "ap-northeast-2" : { },
           "ap-south-1" : { },
-          "ap-southeast-1" : { },
           "ap-southeast-2" : { },
           "eu-central-1" : { },
           "eu-west-1" : { },
@@ -431,7 +380,6 @@
           "ap-northeast-1" : { },
           "ap-northeast-2" : { },
           "ap-south-1" : { },
-          "ap-southeast-1" : { },
           "ap-southeast-2" : { },
           "eu-central-1" : { },
           "eu-west-1" : { },
@@ -452,7 +400,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -492,17 +439,6 @@
           "us-west-2" : { }
         }
       },
-      "dax" : {
-        "endpoints" : {
-          "ap-northeast-1" : { },
-          "ap-south-1" : { },
-          "eu-west-1" : { },
-          "sa-east-1" : { },
-          "us-east-1" : { },
-          "us-west-1" : { },
-          "us-west-2" : { }
-        }
-      },
       "devicefarm" : {
         "endpoints" : {
           "us-west-2" : { }
@@ -519,7 +455,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -543,7 +478,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -555,17 +489,14 @@
         "endpoints" : {
           "ap-northeast-1" : { },
           "ap-northeast-2" : { },
-          "ap-south-1" : { },
           "ap-southeast-1" : { },
           "ap-southeast-2" : { },
           "ca-central-1" : { },
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
-          "us-west-1" : { },
           "us-west-2" : { }
         }
       },
@@ -583,7 +514,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "local" : {
             "credentialScope" : {
               "region" : "us-east-1"
@@ -612,7 +542,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -623,16 +552,12 @@
       "ecr" : {
         "endpoints" : {
           "ap-northeast-1" : { },
-          "ap-northeast-2" : { },
-          "ap-south-1" : { },
           "ap-southeast-1" : { },
           "ap-southeast-2" : { },
           "ca-central-1" : { },
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
-          "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
           "us-west-1" : { },
@@ -642,16 +567,12 @@
       "ecs" : {
         "endpoints" : {
           "ap-northeast-1" : { },
-          "ap-northeast-2" : { },
-          "ap-south-1" : { },
           "ap-southeast-1" : { },
           "ap-southeast-2" : { },
           "ca-central-1" : { },
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
-          "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
           "us-west-1" : { },
@@ -669,7 +590,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -688,7 +608,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -699,7 +618,6 @@
       "elasticfilesystem" : {
         "endpoints" : {
           "ap-southeast-2" : { },
-          "eu-central-1" : { },
           "eu-west-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -708,7 +626,7 @@
       },
       "elasticloadbalancing" : {
         "defaults" : {
-          "protocols" : [ "https" ]
+          "protocols" : [ "http", "https" ]
         },
         "endpoints" : {
           "ap-northeast-1" : { },
@@ -720,7 +638,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -745,7 +662,6 @@
           },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : {
             "sslCommonName" : "{service}.{region}.{dnsSuffix}"
@@ -795,7 +711,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -814,7 +729,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -824,14 +738,8 @@
       },
       "firehose" : {
         "endpoints" : {
-          "ap-northeast-1" : { },
-          "ap-southeast-1" : { },
-          "ap-southeast-2" : { },
-          "eu-central-1" : { },
           "eu-west-1" : { },
           "us-east-1" : { },
-          "us-east-2" : { },
-          "us-west-1" : { },
           "us-west-2" : { }
         }
       },
@@ -841,15 +749,10 @@
           "ap-northeast-2" : { },
           "ap-south-1" : { },
           "ap-southeast-1" : { },
-          "ap-southeast-2" : { },
-          "ca-central-1" : { },
           "eu-central-1" : { },
           "eu-west-1" : { },
-          "eu-west-2" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
-          "us-east-2" : { },
-          "us-west-1" : { },
           "us-west-2" : { }
         }
       },
@@ -861,25 +764,14 @@
           "ap-northeast-1" : { },
           "ap-northeast-2" : { },
           "ap-south-1" : { },
-          "ap-southeast-1" : { },
           "ap-southeast-2" : { },
           "ca-central-1" : { },
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "us-east-1" : { },
           "us-east-2" : { },
           "us-west-1" : { },
-          "us-west-2" : { }
-        }
-      },
-      "glue" : {
-        "endpoints" : {
-          "ap-northeast-1" : { },
-          "eu-west-1" : { },
-          "us-east-1" : { },
-          "us-east-2" : { },
           "us-west-2" : { }
         }
       },
@@ -888,7 +780,6 @@
           "protocols" : [ "https" ]
         },
         "endpoints" : {
-          "ap-northeast-1" : { },
           "ap-southeast-2" : { },
           "eu-central-1" : { },
           "us-east-1" : { },
@@ -933,7 +824,6 @@
           "ap-northeast-2" : { },
           "ap-south-1" : { },
           "ap-southeast-2" : { },
-          "eu-central-1" : { },
           "eu-west-1" : { },
           "us-east-1" : { },
           "us-west-1" : { },
@@ -970,7 +860,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -996,7 +885,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -1015,7 +903,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -1048,7 +935,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -1090,11 +976,6 @@
           "us-west-2" : { }
         }
       },
-      "mgh" : {
-        "endpoints" : {
-          "us-west-2" : { }
-        }
-      },
       "mobileanalytics" : {
         "endpoints" : {
           "us-east-1" : { }
@@ -1124,7 +1005,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -1151,7 +1031,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -1190,20 +1069,9 @@
       },
       "polly" : {
         "endpoints" : {
-          "ap-northeast-1" : { },
-          "ap-northeast-2" : { },
-          "ap-south-1" : { },
-          "ap-southeast-1" : { },
-          "ap-southeast-2" : { },
-          "ca-central-1" : { },
-          "eu-central-1" : { },
           "eu-west-1" : { },
-          "eu-west-2" : { },
-          "eu-west-3" : { },
-          "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
-          "us-west-1" : { },
           "us-west-2" : { }
         }
       },
@@ -1218,7 +1086,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : {
             "sslCommonName" : "{service}.{dnsSuffix}"
@@ -1239,7 +1106,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -1251,7 +1117,6 @@
         "endpoints" : {
           "eu-west-1" : { },
           "us-east-1" : { },
-          "us-east-2" : { },
           "us-west-2" : { }
         }
       },
@@ -1279,7 +1144,6 @@
           }
         },
         "endpoints" : {
-          "eu-west-1" : { },
           "us-east-1" : { }
         }
       },
@@ -1290,27 +1154,26 @@
         },
         "endpoints" : {
           "ap-northeast-1" : {
-            "hostname" : "s3.ap-northeast-1.amazonaws.com",
+            "hostname" : "s3-ap-northeast-1.amazonaws.com",
             "signatureVersions" : [ "s3", "s3v4" ]
           },
           "ap-northeast-2" : { },
           "ap-south-1" : { },
           "ap-southeast-1" : {
-            "hostname" : "s3.ap-southeast-1.amazonaws.com",
+            "hostname" : "s3-ap-southeast-1.amazonaws.com",
             "signatureVersions" : [ "s3", "s3v4" ]
           },
           "ap-southeast-2" : {
-            "hostname" : "s3.ap-southeast-2.amazonaws.com",
+            "hostname" : "s3-ap-southeast-2.amazonaws.com",
             "signatureVersions" : [ "s3", "s3v4" ]
           },
           "ca-central-1" : { },
           "eu-central-1" : { },
           "eu-west-1" : {
-            "hostname" : "s3.eu-west-1.amazonaws.com",
+            "hostname" : "s3-eu-west-1.amazonaws.com",
             "signatureVersions" : [ "s3", "s3v4" ]
           },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "s3-external-1" : {
             "credentialScope" : {
               "region" : "us-east-1"
@@ -1319,7 +1182,7 @@
             "signatureVersions" : [ "s3", "s3v4" ]
           },
           "sa-east-1" : {
-            "hostname" : "s3.sa-east-1.amazonaws.com",
+            "hostname" : "s3-sa-east-1.amazonaws.com",
             "signatureVersions" : [ "s3", "s3v4" ]
           },
           "us-east-1" : {
@@ -1328,11 +1191,11 @@
           },
           "us-east-2" : { },
           "us-west-1" : {
-            "hostname" : "s3.us-west-1.amazonaws.com",
+            "hostname" : "s3-us-west-1.amazonaws.com",
             "signatureVersions" : [ "s3", "s3v4" ]
           },
           "us-west-2" : {
-            "hostname" : "s3.us-west-2.amazonaws.com",
+            "hostname" : "s3-us-west-2.amazonaws.com",
             "signatureVersions" : [ "s3", "s3v4" ]
           }
         },
@@ -1360,19 +1223,14 @@
       "servicecatalog" : {
         "endpoints" : {
           "ap-northeast-1" : { },
-          "ap-northeast-2" : { },
-          "ap-south-1" : { },
           "ap-southeast-1" : { },
           "ap-southeast-2" : { },
           "ca-central-1" : { },
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
-          "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
-          "us-west-1" : { },
           "us-west-2" : { }
         }
       },
@@ -1395,23 +1253,18 @@
           "ca-central-1" : { },
           "eu-central-1" : { },
           "eu-west-1" : { },
-          "eu-west-3" : { },
           "us-east-1" : { },
           "us-east-2" : { },
-          "us-west-1" : { },
           "us-west-2" : { }
         }
       },
       "snowball" : {
         "endpoints" : {
-          "ap-northeast-1" : { },
           "ap-south-1" : { },
           "ap-southeast-2" : { },
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
-          "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
           "us-west-1" : { },
@@ -1432,7 +1285,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -1455,7 +1307,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : {
             "sslCommonName" : "queue.{dnsSuffix}"
@@ -1476,7 +1327,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -1490,7 +1340,6 @@
           "ap-southeast-2" : { },
           "eu-central-1" : { },
           "eu-west-1" : { },
-          "eu-west-2" : { },
           "us-east-1" : { },
           "us-east-2" : { },
           "us-west-2" : { }
@@ -1507,7 +1356,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -1532,7 +1380,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "local" : {
             "credentialScope" : {
               "region" : "us-east-1"
@@ -1570,7 +1417,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-1-fips" : {
@@ -1619,7 +1465,6 @@
           "eu-central-1" : { },
           "eu-west-1" : { },
           "eu-west-2" : { },
-          "eu-west-3" : { },
           "sa-east-1" : { },
           "us-east-1" : { },
           "us-east-2" : { },
@@ -1662,7 +1507,6 @@
           "ap-northeast-1" : { },
           "eu-west-1" : { },
           "us-east-1" : { },
-          "us-west-1" : { },
           "us-west-2" : { }
         }
       },
@@ -1683,7 +1527,6 @@
           "ap-southeast-2" : { },
           "eu-central-1" : { },
           "eu-west-1" : { },
-          "eu-west-2" : { },
           "us-east-1" : { },
           "us-west-2" : { }
         }
@@ -1720,72 +1563,40 @@
     "regions" : {
       "cn-north-1" : {
         "description" : "China (Beijing)"
-      },
-      "cn-northwest-1" : {
-        "description" : "China (Ningxia)"
       }
     },
     "services" : {
-      "apigateway" : {
-        "endpoints" : {
-          "cn-north-1" : { }
-        }
-      },
-      "application-autoscaling" : {
-        "defaults" : {
-          "credentialScope" : {
-            "service" : "application-autoscaling"
-          },
-          "hostname" : "autoscaling.{region}.amazonaws.com",
-          "protocols" : [ "http", "https" ]
-        },
-        "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
-        }
-      },
       "autoscaling" : {
         "defaults" : {
           "protocols" : [ "http", "https" ]
         },
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "cloudformation" : {
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "cloudtrail" : {
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "codedeploy" : {
-        "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
-        }
-      },
-      "cognito-identity" : {
         "endpoints" : {
           "cn-north-1" : { }
         }
       },
       "config" : {
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "directconnect" : {
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "dynamodb" : {
@@ -1793,8 +1604,7 @@
           "protocols" : [ "http", "https" ]
         },
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "ec2" : {
@@ -1802,8 +1612,7 @@
           "protocols" : [ "http", "https" ]
         },
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "ecr" : {
@@ -1818,23 +1627,20 @@
       },
       "elasticache" : {
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "elasticbeanstalk" : {
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "elasticloadbalancing" : {
         "defaults" : {
-          "protocols" : [ "https" ]
+          "protocols" : [ "http", "https" ]
         },
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "elasticmapreduce" : {
@@ -1842,19 +1648,12 @@
           "protocols" : [ "http", "https" ]
         },
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
-        }
-      },
-      "es" : {
-        "endpoints" : {
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "events" : {
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "glacier" : {
@@ -1862,8 +1661,7 @@
           "protocols" : [ "http", "https" ]
         },
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "iam" : {
@@ -1878,31 +1676,14 @@
         "isRegionalized" : false,
         "partitionEndpoint" : "aws-cn-global"
       },
-      "iot" : {
-        "defaults" : {
-          "credentialScope" : {
-            "service" : "execute-api"
-          }
-        },
-        "endpoints" : {
-          "cn-north-1" : { }
-        }
-      },
       "kinesis" : {
-        "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
-        }
-      },
-      "lambda" : {
         "endpoints" : {
           "cn-north-1" : { }
         }
       },
       "logs" : {
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "monitoring" : {
@@ -1910,20 +1691,17 @@
           "protocols" : [ "http", "https" ]
         },
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "rds" : {
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "redshift" : {
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "s3" : {
@@ -1931,12 +1709,6 @@
           "protocols" : [ "http", "https" ],
           "signatureVersions" : [ "s3v4" ]
         },
-        "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
-        }
-      },
-      "snowball" : {
         "endpoints" : {
           "cn-north-1" : { }
         }
@@ -1946,8 +1718,7 @@
           "protocols" : [ "http", "https" ]
         },
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "sqs" : {
@@ -1956,14 +1727,12 @@
           "sslCommonName" : "{region}.queue.{dnsSuffix}"
         },
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "ssm" : {
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "storagegateway" : {
@@ -1979,20 +1748,17 @@
           "protocols" : [ "http", "https" ]
         },
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "sts" : {
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "swf" : {
         "endpoints" : {
-          "cn-north-1" : { },
-          "cn-northwest-1" : { }
+          "cn-north-1" : { }
         }
       },
       "tagging" : {
@@ -2017,16 +1783,6 @@
       }
     },
     "services" : {
-      "acm" : {
-        "endpoints" : {
-          "us-gov-west-1" : { }
-        }
-      },
-      "apigateway" : {
-        "endpoints" : {
-          "us-gov-west-1" : { }
-        }
-      },
       "autoscaling" : {
         "endpoints" : {
           "us-gov-west-1" : {
@@ -2064,20 +1820,9 @@
           "us-gov-west-1" : { }
         }
       },
-      "dms" : {
-        "endpoints" : {
-          "us-gov-west-1" : { }
-        }
-      },
       "dynamodb" : {
         "endpoints" : {
-          "us-gov-west-1" : { },
-          "us-gov-west-1-fips" : {
-            "credentialScope" : {
-              "region" : "us-gov-west-1"
-            },
-            "hostname" : "dynamodb.us-gov-west-1.amazonaws.com"
-          }
+          "us-gov-west-1" : { }
         }
       },
       "ec2" : {
@@ -2086,11 +1831,6 @@
         }
       },
       "elasticache" : {
-        "endpoints" : {
-          "us-gov-west-1" : { }
-        }
-      },
-      "elasticbeanstalk" : {
         "endpoints" : {
           "us-gov-west-1" : { }
         }
@@ -2185,7 +1925,7 @@
             "hostname" : "s3-fips-us-gov-west-1.amazonaws.com"
           },
           "us-gov-west-1" : {
-            "hostname" : "s3.us-gov-west-1.amazonaws.com",
+            "hostname" : "s3-us-gov-west-1.amazonaws.com",
             "protocols" : [ "http", "https" ]
           }
         }
@@ -2227,13 +1967,7 @@
           }
         },
         "endpoints" : {
-          "us-gov-west-1" : { },
-          "us-gov-west-1-fips" : {
-            "credentialScope" : {
-              "region" : "us-gov-west-1"
-            },
-            "hostname" : "dynamodb.us-gov-west-1.amazonaws.com"
-          }
+          "us-gov-west-1" : { }
         }
       },
       "sts" : {

@@ -13,6 +13,6 @@ const (
 	// ErrCodeInternalServerErrorException for service response error code
 	// "InternalServerErrorException".
 	//
-	// The server encountered an unexpected error.
+	// This request was invalid.
 	ErrCodeInternalServerErrorException = "InternalServerErrorException"
 )

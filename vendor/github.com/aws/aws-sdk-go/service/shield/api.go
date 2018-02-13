@@ -14,18 +14,19 @@ const opCreateProtection = "CreateProtection"
 
 // CreateProtectionRequest generates a "aws/request.Request" representing the
 // client's request for the CreateProtection operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateProtection for usage and error information.
 //
-// See CreateProtection for more information on using the CreateProtection
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateProtection method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateProtectionRequest method.
 //    req, resp := client.CreateProtectionRequest(params)
@@ -35,7 +36,7 @@ const opCreateProtection = "CreateProtection"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateProtection
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateProtection
 func (c *Shield) CreateProtectionRequest(input *CreateProtectionInput) (req *request.Request, output *CreateProtectionOutput) {
 	op := &request.Operation{
 		Name:       opCreateProtection,
@@ -56,7 +57,7 @@ func (c *Shield) CreateProtectionRequest(input *CreateProtectionInput) (req *req
 //
 // Enables AWS Shield Advanced for a specific AWS resource. The resource can
 // be an Amazon CloudFront distribution, Elastic Load Balancing load balancer,
-// Elastic IP Address, or an Amazon Route 53 hosted zone.
+// or an Amazon Route 53 hosted zone.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
@@ -81,10 +82,6 @@ func (c *Shield) CreateProtectionRequest(input *CreateProtectionInput) (req *req
 //   * ErrCodeLimitsExceededException "LimitsExceededException"
 //   Exception that indicates that the operation would exceed a limit.
 //
-//   Type is the type of limit that would be exceeded.
-//
-//   Limit is the threshold that would be exceeded.
-//
 //   * ErrCodeResourceAlreadyExistsException "ResourceAlreadyExistsException"
 //   Exception indicating the specified resource already exists.
 //
@@ -95,7 +92,7 @@ func (c *Shield) CreateProtectionRequest(input *CreateProtectionInput) (req *req
 //   * ErrCodeResourceNotFoundException "ResourceNotFoundException"
 //   Exception indicating the specified resource does not exist.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateProtection
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateProtection
 func (c *Shield) CreateProtection(input *CreateProtectionInput) (*CreateProtectionOutput, error) {
 	req, out := c.CreateProtectionRequest(input)
 	return out, req.Send()
@@ -121,18 +118,19 @@ const opCreateSubscription = "CreateSubscription"
 
 // CreateSubscriptionRequest generates a "aws/request.Request" representing the
 // client's request for the CreateSubscription operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateSubscription for usage and error information.
 //
-// See CreateSubscription for more information on using the CreateSubscription
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateSubscription method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateSubscriptionRequest method.
 //    req, resp := client.CreateSubscriptionRequest(params)
@@ -142,7 +140,7 @@ const opCreateSubscription = "CreateSubscription"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateSubscription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateSubscription
 func (c *Shield) CreateSubscriptionRequest(input *CreateSubscriptionInput) (req *request.Request, output *CreateSubscriptionOutput) {
 	op := &request.Operation{
 		Name:       opCreateSubscription,
@@ -178,7 +176,7 @@ func (c *Shield) CreateSubscriptionRequest(input *CreateSubscriptionInput) (req 
 //   * ErrCodeResourceAlreadyExistsException "ResourceAlreadyExistsException"
 //   Exception indicating the specified resource already exists.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateSubscription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateSubscription
 func (c *Shield) CreateSubscription(input *CreateSubscriptionInput) (*CreateSubscriptionOutput, error) {
 	req, out := c.CreateSubscriptionRequest(input)
 	return out, req.Send()
@@ -204,18 +202,19 @@ const opDeleteProtection = "DeleteProtection"
 
 // DeleteProtectionRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteProtection operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteProtection for usage and error information.
 //
-// See DeleteProtection for more information on using the DeleteProtection
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteProtection method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteProtectionRequest method.
 //    req, resp := client.DeleteProtectionRequest(params)
@@ -225,7 +224,7 @@ const opDeleteProtection = "DeleteProtection"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteProtection
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteProtection
 func (c *Shield) DeleteProtectionRequest(input *DeleteProtectionInput) (req *request.Request, output *DeleteProtectionOutput) {
 	op := &request.Operation{
 		Name:       opDeleteProtection,
@@ -265,7 +264,7 @@ func (c *Shield) DeleteProtectionRequest(input *DeleteProtectionInput) (req *req
 //   Exception that indicates that the protection state has been modified by another
 //   client. You can retry the request.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteProtection
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteProtection
 func (c *Shield) DeleteProtection(input *DeleteProtectionInput) (*DeleteProtectionOutput, error) {
 	req, out := c.DeleteProtectionRequest(input)
 	return out, req.Send()
@@ -291,18 +290,19 @@ const opDeleteSubscription = "DeleteSubscription"
 
 // DeleteSubscriptionRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteSubscription operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteSubscription for usage and error information.
 //
-// See DeleteSubscription for more information on using the DeleteSubscription
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteSubscription method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteSubscriptionRequest method.
 //    req, resp := client.DeleteSubscriptionRequest(params)
@@ -312,7 +312,7 @@ const opDeleteSubscription = "DeleteSubscription"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteSubscription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteSubscription
 func (c *Shield) DeleteSubscriptionRequest(input *DeleteSubscriptionInput) (req *request.Request, output *DeleteSubscriptionOutput) {
 	op := &request.Operation{
 		Name:       opDeleteSubscription,
@@ -331,9 +331,7 @@ func (c *Shield) DeleteSubscriptionRequest(input *DeleteSubscriptionInput) (req 
 
 // DeleteSubscription API operation for AWS Shield.
 //
-// Removes AWS Shield Advanced from an account. AWS Shield Advanced requires
-// a 1-year subscription commitment. You cannot delete a subscription prior
-// to the completion of that commitment.
+// Removes AWS Shield Advanced from an account.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
@@ -348,13 +346,13 @@ func (c *Shield) DeleteSubscriptionRequest(input *DeleteSubscriptionInput) (req 
 //   You can retry the request.
 //
 //   * ErrCodeLockedSubscriptionException "LockedSubscriptionException"
-//   Exception that indicates that the subscription you are trying to delete has
-//   not yet completed the 1-year commitment. You cannot delete this subscription.
+//   Exception that indicates that the subscription has been modified by another
+//   client. You can retry the request.
 //
 //   * ErrCodeResourceNotFoundException "ResourceNotFoundException"
 //   Exception indicating the specified resource does not exist.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteSubscription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteSubscription
 func (c *Shield) DeleteSubscription(input *DeleteSubscriptionInput) (*DeleteSubscriptionOutput, error) {
 	req, out := c.DeleteSubscriptionRequest(input)
 	return out, req.Send()
@@ -380,18 +378,19 @@ const opDescribeAttack = "DescribeAttack"
 
 // DescribeAttackRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeAttack operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeAttack for usage and error information.
 //
-// See DescribeAttack for more information on using the DescribeAttack
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeAttack method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeAttackRequest method.
 //    req, resp := client.DescribeAttackRequest(params)
@@ -401,7 +400,7 @@ const opDescribeAttack = "DescribeAttack"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeAttack
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeAttack
 func (c *Shield) DescribeAttackRequest(input *DescribeAttackInput) (req *request.Request, output *DescribeAttackOutput) {
 	op := &request.Operation{
 		Name:       opDescribeAttack,
@@ -437,7 +436,7 @@ func (c *Shield) DescribeAttackRequest(input *DescribeAttackInput) (req *request
 //   * ErrCodeInvalidParameterException "InvalidParameterException"
 //   Exception that indicates that the parameters passed to the API are invalid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeAttack
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeAttack
 func (c *Shield) DescribeAttack(input *DescribeAttackInput) (*DescribeAttackOutput, error) {
 	req, out := c.DescribeAttackRequest(input)
 	return out, req.Send()
@@ -463,18 +462,19 @@ const opDescribeProtection = "DescribeProtection"
 
 // DescribeProtectionRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeProtection operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeProtection for usage and error information.
 //
-// See DescribeProtection for more information on using the DescribeProtection
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeProtection method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeProtectionRequest method.
 //    req, resp := client.DescribeProtectionRequest(params)
@@ -484,7 +484,7 @@ const opDescribeProtection = "DescribeProtection"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeProtection
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeProtection
 func (c *Shield) DescribeProtectionRequest(input *DescribeProtectionInput) (req *request.Request, output *DescribeProtectionOutput) {
 	op := &request.Operation{
 		Name:       opDescribeProtection,
@@ -520,7 +520,7 @@ func (c *Shield) DescribeProtectionRequest(input *DescribeProtectionInput) (req 
 //   * ErrCodeResourceNotFoundException "ResourceNotFoundException"
 //   Exception indicating the specified resource does not exist.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeProtection
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeProtection
 func (c *Shield) DescribeProtection(input *DescribeProtectionInput) (*DescribeProtectionOutput, error) {
 	req, out := c.DescribeProtectionRequest(input)
 	return out, req.Send()
@@ -546,18 +546,19 @@ const opDescribeSubscription = "DescribeSubscription"
 
 // DescribeSubscriptionRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeSubscription operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeSubscription for usage and error information.
 //
-// See DescribeSubscription for more information on using the DescribeSubscription
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeSubscription method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeSubscriptionRequest method.
 //    req, resp := client.DescribeSubscriptionRequest(params)
@@ -567,7 +568,7 @@ const opDescribeSubscription = "DescribeSubscription"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeSubscription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeSubscription
 func (c *Shield) DescribeSubscriptionRequest(input *DescribeSubscriptionInput) (req *request.Request, output *DescribeSubscriptionOutput) {
 	op := &request.Operation{
 		Name:       opDescribeSubscription,
@@ -603,7 +604,7 @@ func (c *Shield) DescribeSubscriptionRequest(input *DescribeSubscriptionInput) (
 //   * ErrCodeResourceNotFoundException "ResourceNotFoundException"
 //   Exception indicating the specified resource does not exist.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeSubscription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeSubscription
 func (c *Shield) DescribeSubscription(input *DescribeSubscriptionInput) (*DescribeSubscriptionOutput, error) {
 	req, out := c.DescribeSubscriptionRequest(input)
 	return out, req.Send()
@@ -625,102 +626,23 @@ func (c *Shield) DescribeSubscriptionWithContext(ctx aws.Context, input *Describ
 	return out, req.Send()
 }
 
-const opGetSubscriptionState = "GetSubscriptionState"
-
-// GetSubscriptionStateRequest generates a "aws/request.Request" representing the
-// client's request for the GetSubscriptionState operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
-//
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
-//
-// See GetSubscriptionState for more information on using the GetSubscriptionState
-// API call, and error handling.
-//
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
-//
-//    // Example sending a request using the GetSubscriptionStateRequest method.
-//    req, resp := client.GetSubscriptionStateRequest(params)
-//
-//    err := req.Send()
-//    if err == nil { // resp is now filled
-//        fmt.Println(resp)
-//    }
-//
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/GetSubscriptionState
-func (c *Shield) GetSubscriptionStateRequest(input *GetSubscriptionStateInput) (req *request.Request, output *GetSubscriptionStateOutput) {
-	op := &request.Operation{
-		Name:       opGetSubscriptionState,
-		HTTPMethod: "POST",
-		HTTPPath:   "/",
-	}
-
-	if input == nil {
-		input = &GetSubscriptionStateInput{}
-	}
-
-	output = &GetSubscriptionStateOutput{}
-	req = c.newRequest(op, input, output)
-	return
-}
-
-// GetSubscriptionState API operation for AWS Shield.
-//
-// Returns the SubscriptionState, either Active or Inactive.
-//
-// Returns awserr.Error for service API and SDK errors. Use runtime type assertions
-// with awserr.Error's Code and Message methods to get detailed information about
-// the error.
-//
-// See the AWS API reference guide for AWS Shield's
-// API operation GetSubscriptionState for usage and error information.
-//
-// Returned Error Codes:
-//   * ErrCodeInternalErrorException "InternalErrorException"
-//   Exception that indicates that a problem occurred with the service infrastructure.
-//   You can retry the request.
-//
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/GetSubscriptionState
-func (c *Shield) GetSubscriptionState(input *GetSubscriptionStateInput) (*GetSubscriptionStateOutput, error) {
-	req, out := c.GetSubscriptionStateRequest(input)
-	return out, req.Send()
-}
-
-// GetSubscriptionStateWithContext is the same as GetSubscriptionState with the addition of
-// the ability to pass a context and additional request options.
-//
-// See GetSubscriptionState for details on how to use this API operation.
-//
-// The context must be non-nil and will be used for request cancellation. If
-// the context is nil a panic will occur. In the future the SDK may create
-// sub-contexts for http.Requests. See https://golang.org/pkg/context/
-// for more information on using Contexts.
-func (c *Shield) GetSubscriptionStateWithContext(ctx aws.Context, input *GetSubscriptionStateInput, opts ...request.Option) (*GetSubscriptionStateOutput, error) {
-	req, out := c.GetSubscriptionStateRequest(input)
-	req.SetContext(ctx)
-	req.ApplyOptions(opts...)
-	return out, req.Send()
-}
-
 const opListAttacks = "ListAttacks"
 
 // ListAttacksRequest generates a "aws/request.Request" representing the
 // client's request for the ListAttacks operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListAttacks for usage and error information.
 //
-// See ListAttacks for more information on using the ListAttacks
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListAttacks method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListAttacksRequest method.
 //    req, resp := client.ListAttacksRequest(params)
@@ -730,7 +652,7 @@ const opListAttacks = "ListAttacks"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListAttacks
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListAttacks
 func (c *Shield) ListAttacksRequest(input *ListAttacksInput) (req *request.Request, output *ListAttacksOutput) {
 	op := &request.Operation{
 		Name:       opListAttacks,
@@ -771,7 +693,7 @@ func (c *Shield) ListAttacksRequest(input *ListAttacksInput) (req *request.Reque
 //   Exception that indicates that the operation would not cause any change to
 //   occur.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListAttacks
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListAttacks
 func (c *Shield) ListAttacks(input *ListAttacksInput) (*ListAttacksOutput, error) {
 	req, out := c.ListAttacksRequest(input)
 	return out, req.Send()
@@ -797,18 +719,19 @@ const opListProtections = "ListProtections"
 
 // ListProtectionsRequest generates a "aws/request.Request" representing the
 // client's request for the ListProtections operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListProtections for usage and error information.
 //
-// See ListProtections for more information on using the ListProtections
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListProtections method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListProtectionsRequest method.
 //    req, resp := client.ListProtectionsRequest(params)
@@ -818,7 +741,7 @@ const opListProtections = "ListProtections"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListProtections
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListProtections
 func (c *Shield) ListProtectionsRequest(input *ListProtectionsInput) (req *request.Request, output *ListProtectionsOutput) {
 	op := &request.Operation{
 		Name:       opListProtections,
@@ -854,7 +777,7 @@ func (c *Shield) ListProtectionsRequest(input *ListProtectionsInput) (req *reque
 //   * ErrCodeResourceNotFoundException "ResourceNotFoundException"
 //   Exception indicating the specified resource does not exist.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListProtections
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListProtections
 func (c *Shield) ListProtections(input *ListProtectionsInput) (*ListProtectionsOutput, error) {
 	req, out := c.ListProtectionsRequest(input)
 	return out, req.Send()
@@ -877,7 +800,7 @@ func (c *Shield) ListProtectionsWithContext(ctx aws.Context, input *ListProtecti
 }
 
 // The details of a DDoS attack.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/AttackDetail
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/AttackDetail
 type AttackDetail struct {
 	_ struct{} `type:"structure"`
 
@@ -887,11 +810,7 @@ type AttackDetail struct {
 	// The unique identifier (ID) of the attack.
 	AttackId *string `min:"1" type:"string"`
 
-	// The array of AttackProperty objects.
-	AttackProperties []*AttackProperty `type:"list"`
-
-	// The time the attack ended, in Unix time in seconds. For more information
-	// see timestamp (http://docs.aws.amazon.com/cli/latest/userguide/cli-using-param.html#parameter-types).
+	// The time the attack ended, in the format 2016-12-16T13:50Z.
 	EndTime *time.Time `type:"timestamp" timestampFormat:"unix"`
 
 	// List of mitigation actions taken for the attack.
@@ -900,8 +819,7 @@ type AttackDetail struct {
 	// The ARN (Amazon Resource Name) of the resource that was attacked.
 	ResourceArn *string `min:"1" type:"string"`
 
-	// The time the attack started, in Unix time in seconds. For more information
-	// see timestamp (http://docs.aws.amazon.com/cli/latest/userguide/cli-using-param.html#parameter-types).
+	// The time the attack started, in the format 2016-12-16T13:50Z.
 	StartTime *time.Time `type:"timestamp" timestampFormat:"unix"`
 
 	// If applicable, additional detail about the resource being attacked, for example,
@@ -928,12 +846,6 @@ func (s *AttackDetail) SetAttackCounters(v []*SummarizedCounter) *AttackDetail {
 // SetAttackId sets the AttackId field's value.
 func (s *AttackDetail) SetAttackId(v string) *AttackDetail {
 	s.AttackId = &v
-	return s
-}
-
-// SetAttackProperties sets the AttackProperties field's value.
-func (s *AttackDetail) SetAttackProperties(v []*AttackProperty) *AttackDetail {
-	s.AttackProperties = v
 	return s
 }
 
@@ -967,72 +879,8 @@ func (s *AttackDetail) SetSubResources(v []*SubResourceSummary) *AttackDetail {
 	return s
 }
 
-// Details of the described attack.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/AttackProperty
-type AttackProperty struct {
-	_ struct{} `type:"structure"`
-
-	// The type of DDoS event that was observed. NETWORK indicates layer 3 and layer
-	// 4 events and APPLICATION indicates layer 7 events.
-	AttackLayer *string `type:"string" enum:"AttackLayer"`
-
-	// Defines the DDoS attack property information that is provided.
-	AttackPropertyIdentifier *string `type:"string" enum:"AttackPropertyIdentifier"`
-
-	// The array of Contributor objects that includes the top five contributors
-	// to an attack.
-	TopContributors []*Contributor `type:"list"`
-
-	// The total contributions made to this attack by all contributors, not just
-	// the five listed in the TopContributors list.
-	Total *int64 `type:"long"`
-
-	// The unit of the Value of the contributions.
-	Unit *string `type:"string" enum:"Unit"`
-}
-
-// String returns the string representation
-func (s AttackProperty) String() string {
-	return awsutil.Prettify(s)
-}
-
-// GoString returns the string representation
-func (s AttackProperty) GoString() string {
-	return s.String()
-}
-
-// SetAttackLayer sets the AttackLayer field's value.
-func (s *AttackProperty) SetAttackLayer(v string) *AttackProperty {
-	s.AttackLayer = &v
-	return s
-}
-
-// SetAttackPropertyIdentifier sets the AttackPropertyIdentifier field's value.
-func (s *AttackProperty) SetAttackPropertyIdentifier(v string) *AttackProperty {
-	s.AttackPropertyIdentifier = &v
-	return s
-}
-
-// SetTopContributors sets the TopContributors field's value.
-func (s *AttackProperty) SetTopContributors(v []*Contributor) *AttackProperty {
-	s.TopContributors = v
-	return s
-}
-
-// SetTotal sets the Total field's value.
-func (s *AttackProperty) SetTotal(v int64) *AttackProperty {
-	s.Total = &v
-	return s
-}
-
-// SetUnit sets the Unit field's value.
-func (s *AttackProperty) SetUnit(v string) *AttackProperty {
-	s.Unit = &v
-	return s
-}
-
 // Summarizes all DDoS attacks for a specified time period.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/AttackSummary
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/AttackSummary
 type AttackSummary struct {
 	_ struct{} `type:"structure"`
 
@@ -1042,15 +890,13 @@ type AttackSummary struct {
 	// The list of attacks for a specified time period.
 	AttackVectors []*AttackVectorDescription `type:"list"`
 
-	// The end time of the attack, in Unix time in seconds. For more information
-	// see timestamp (http://docs.aws.amazon.com/cli/latest/userguide/cli-using-param.html#parameter-types).
+	// The end time of the attack, in the format 2016-12-16T13:50Z.
 	EndTime *time.Time `type:"timestamp" timestampFormat:"unix"`
 
 	// The ARN (Amazon Resource Name) of the resource that was attacked.
 	ResourceArn *string `type:"string"`
 
-	// The start time of the attack, in Unix time in seconds. For more information
-	// see timestamp (http://docs.aws.amazon.com/cli/latest/userguide/cli-using-param.html#parameter-types).
+	// The start time of the attack, in the format 2016-12-16T13:50Z.
 	StartTime *time.Time `type:"timestamp" timestampFormat:"unix"`
 }
 
@@ -1095,41 +941,11 @@ func (s *AttackSummary) SetStartTime(v time.Time) *AttackSummary {
 }
 
 // Describes the attack.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/AttackVectorDescription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/AttackVectorDescription
 type AttackVectorDescription struct {
 	_ struct{} `type:"structure"`
 
-	// The attack type. Valid values:
-	//
-	//    * UDP_TRAFFIC
-	//
-	//    * UDP_FRAGMENT
-	//
-	//    * GENERIC_UDP_REFLECTION
-	//
-	//    * DNS_REFLECTION
-	//
-	//    * NTP_REFLECTION
-	//
-	//    * CHARGEN_REFLECTION
-	//
-	//    * SSDP_REFLECTION
-	//
-	//    * PORT_MAPPER
-	//
-	//    * RIP_REFLECTION
-	//
-	//    * SNMP_REFLECTION
-	//
-	//    * MSSQL_REFLECTION
-	//
-	//    * NET_BIOS_REFLECTION
-	//
-	//    * SYN_FLOOD
-	//
-	//    * ACK_FLOOD
-	//
-	//    * REQUEST_FLOOD
+	// The attack type, for example, SNMP reflection or SYN flood.
 	//
 	// VectorType is a required field
 	VectorType *string `type:"string" required:"true"`
@@ -1151,44 +967,7 @@ func (s *AttackVectorDescription) SetVectorType(v string) *AttackVectorDescripti
 	return s
 }
 
-// A contributor to the attack and their contribution.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/Contributor
-type Contributor struct {
-	_ struct{} `type:"structure"`
-
-	// The name of the contributor. This is dependent on the AttackPropertyIdentifier.
-	// For example, if the AttackPropertyIdentifier is SOURCE_COUNTRY, the Name
-	// could be United States.
-	Name *string `type:"string"`
-
-	// The contribution of this contributor expressed in Protection units. For example
-	// 10,000.
-	Value *int64 `type:"long"`
-}
-
-// String returns the string representation
-func (s Contributor) String() string {
-	return awsutil.Prettify(s)
-}
-
-// GoString returns the string representation
-func (s Contributor) GoString() string {
-	return s.String()
-}
-
-// SetName sets the Name field's value.
-func (s *Contributor) SetName(v string) *Contributor {
-	s.Name = &v
-	return s
-}
-
-// SetValue sets the Value field's value.
-func (s *Contributor) SetValue(v int64) *Contributor {
-	s.Value = &v
-	return s
-}
-
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateProtectionRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateProtectionRequest
 type CreateProtectionInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1198,18 +977,6 @@ type CreateProtectionInput struct {
 	Name *string `min:"1" type:"string" required:"true"`
 
 	// The ARN (Amazon Resource Name) of the resource to be protected.
-	//
-	// The ARN should be in one of the following formats:
-	//
-	//    * For an Application Load Balancer: arn:aws:elasticloadbalancing:region:account-id:loadbalancer/app/load-balancer-name/load-balancer-id
-	//
-	//    * For an Elastic Load Balancer (Classic Load Balancer): arn:aws:elasticloadbalancing:region:account-id:loadbalancer/load-balancer-name
-	//
-	//    * For AWS CloudFront distribution: arn:aws:cloudfront::account-id:distribution/distribution-id
-	//
-	//    * For Amazon Route 53: arn:aws:route53::account-id:hostedzone/hosted-zone-id
-	//
-	//    * For an Elastic IP address: arn:aws:ec2:region:account-id:eip-allocation/allocation-id
 	//
 	// ResourceArn is a required field
 	ResourceArn *string `min:"1" type:"string" required:"true"`
@@ -1259,7 +1026,7 @@ func (s *CreateProtectionInput) SetResourceArn(v string) *CreateProtectionInput 
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateProtectionResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateProtectionResponse
 type CreateProtectionOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -1283,7 +1050,7 @@ func (s *CreateProtectionOutput) SetProtectionId(v string) *CreateProtectionOutp
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateSubscriptionRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateSubscriptionRequest
 type CreateSubscriptionInput struct {
 	_ struct{} `type:"structure"`
 }
@@ -1298,7 +1065,7 @@ func (s CreateSubscriptionInput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateSubscriptionResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/CreateSubscriptionResponse
 type CreateSubscriptionOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -1313,7 +1080,7 @@ func (s CreateSubscriptionOutput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteProtectionRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteProtectionRequest
 type DeleteProtectionInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1355,7 +1122,7 @@ func (s *DeleteProtectionInput) SetProtectionId(v string) *DeleteProtectionInput
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteProtectionResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteProtectionResponse
 type DeleteProtectionOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -1370,7 +1137,7 @@ func (s DeleteProtectionOutput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteSubscriptionRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteSubscriptionRequest
 type DeleteSubscriptionInput struct {
 	_ struct{} `type:"structure"`
 }
@@ -1385,7 +1152,7 @@ func (s DeleteSubscriptionInput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteSubscriptionResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DeleteSubscriptionResponse
 type DeleteSubscriptionOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -1400,7 +1167,7 @@ func (s DeleteSubscriptionOutput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeAttackRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeAttackRequest
 type DescribeAttackInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1442,7 +1209,7 @@ func (s *DescribeAttackInput) SetAttackId(v string) *DescribeAttackInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeAttackResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeAttackResponse
 type DescribeAttackOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -1466,7 +1233,7 @@ func (s *DescribeAttackOutput) SetAttack(v *AttackDetail) *DescribeAttackOutput 
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeProtectionRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeProtectionRequest
 type DescribeProtectionInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1508,7 +1275,7 @@ func (s *DescribeProtectionInput) SetProtectionId(v string) *DescribeProtectionI
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeProtectionResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeProtectionResponse
 type DescribeProtectionOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -1532,7 +1299,7 @@ func (s *DescribeProtectionOutput) SetProtection(v *Protection) *DescribeProtect
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeSubscriptionRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeSubscriptionRequest
 type DescribeSubscriptionInput struct {
 	_ struct{} `type:"structure"`
 }
@@ -1547,7 +1314,7 @@ func (s DescribeSubscriptionInput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeSubscriptionResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/DescribeSubscriptionResponse
 type DescribeSubscriptionOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -1571,55 +1338,11 @@ func (s *DescribeSubscriptionOutput) SetSubscription(v *Subscription) *DescribeS
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/GetSubscriptionStateRequest
-type GetSubscriptionStateInput struct {
-	_ struct{} `type:"structure"`
-}
-
-// String returns the string representation
-func (s GetSubscriptionStateInput) String() string {
-	return awsutil.Prettify(s)
-}
-
-// GoString returns the string representation
-func (s GetSubscriptionStateInput) GoString() string {
-	return s.String()
-}
-
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/GetSubscriptionStateResponse
-type GetSubscriptionStateOutput struct {
-	_ struct{} `type:"structure"`
-
-	// The status of the subscription.
-	//
-	// SubscriptionState is a required field
-	SubscriptionState *string `type:"string" required:"true" enum:"SubscriptionState"`
-}
-
-// String returns the string representation
-func (s GetSubscriptionStateOutput) String() string {
-	return awsutil.Prettify(s)
-}
-
-// GoString returns the string representation
-func (s GetSubscriptionStateOutput) GoString() string {
-	return s.String()
-}
-
-// SetSubscriptionState sets the SubscriptionState field's value.
-func (s *GetSubscriptionStateOutput) SetSubscriptionState(v string) *GetSubscriptionStateOutput {
-	s.SubscriptionState = &v
-	return s
-}
-
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListAttacksRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListAttacksRequest
 type ListAttacksInput struct {
 	_ struct{} `type:"structure"`
 
-	// The end of the time period for the attacks. This is a timestamp type. The
-	// sample request above indicates a number type because the default used by
-	// WAF is Unix time in seconds. However any valid timestamp format (http://docs.aws.amazon.com/cli/latest/userguide/cli-using-param.html#parameter-types)
-	// is allowed.
+	// The end of the time period for the attacks.
 	EndTime *TimeRange `type:"structure"`
 
 	// The maximum number of AttackSummary objects to be returned. If this is left
@@ -1634,10 +1357,7 @@ type ListAttacksInput struct {
 	// is left blank, all applicable resources for this account will be included.
 	ResourceArns []*string `type:"list"`
 
-	// The start of the time period for the attacks. This is a timestamp type. The
-	// sample request above indicates a number type because the default used by
-	// WAF is Unix time in seconds. However any valid timestamp format (http://docs.aws.amazon.com/cli/latest/userguide/cli-using-param.html#parameter-types)
-	// is allowed.
+	// The time period for the attacks.
 	StartTime *TimeRange `type:"structure"`
 }
 
@@ -1694,7 +1414,7 @@ func (s *ListAttacksInput) SetStartTime(v *TimeRange) *ListAttacksInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListAttacksResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListAttacksResponse
 type ListAttacksOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -1730,7 +1450,7 @@ func (s *ListAttacksOutput) SetNextToken(v string) *ListAttacksOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListProtectionsRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListProtectionsRequest
 type ListProtectionsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1778,7 +1498,7 @@ func (s *ListProtectionsInput) SetNextToken(v string) *ListProtectionsInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListProtectionsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/ListProtectionsResponse
 type ListProtectionsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -1816,7 +1536,7 @@ func (s *ListProtectionsOutput) SetProtections(v []*Protection) *ListProtections
 }
 
 // The mitigation applied to a DDoS attack.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/Mitigation
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/Mitigation
 type Mitigation struct {
 	_ struct{} `type:"structure"`
 
@@ -1841,7 +1561,7 @@ func (s *Mitigation) SetMitigationName(v string) *Mitigation {
 }
 
 // An object that represents a resource that is under DDoS protection.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/Protection
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/Protection
 type Protection struct {
 	_ struct{} `type:"structure"`
 
@@ -1884,7 +1604,7 @@ func (s *Protection) SetResourceArn(v string) *Protection {
 }
 
 // The attack information for the specified SubResource.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/SubResourceSummary
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/SubResourceSummary
 type SubResourceSummary struct {
 	_ struct{} `type:"structure"`
 
@@ -1936,12 +1656,11 @@ func (s *SubResourceSummary) SetType(v string) *SubResourceSummary {
 }
 
 // Information about the AWS Shield Advanced subscription for an account.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/Subscription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/Subscription
 type Subscription struct {
 	_ struct{} `type:"structure"`
 
-	// The start time of the subscription, in Unix time in seconds. For more information
-	// see timestamp (http://docs.aws.amazon.com/cli/latest/userguide/cli-using-param.html#parameter-types).
+	// The start time of the subscription, in the format "2016-12-16T13:50Z".
 	StartTime *time.Time `type:"timestamp" timestampFormat:"unix"`
 
 	// The length, in seconds, of the AWS Shield Advanced subscription for the account.
@@ -1971,7 +1690,7 @@ func (s *Subscription) SetTimeCommitmentInSeconds(v int64) *Subscription {
 }
 
 // A summary of information about the attack.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/SummarizedAttackVector
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/SummarizedAttackVector
 type SummarizedAttackVector struct {
 	_ struct{} `type:"structure"`
 
@@ -2007,7 +1726,7 @@ func (s *SummarizedAttackVector) SetVectorType(v string) *SummarizedAttackVector
 }
 
 // The counter that describes a DDoS attack.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/SummarizedCounter
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/SummarizedCounter
 type SummarizedCounter struct {
 	_ struct{} `type:"structure"`
 
@@ -2077,16 +1796,14 @@ func (s *SummarizedCounter) SetUnit(v string) *SummarizedCounter {
 }
 
 // The time range.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/TimeRange
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/shield-2016-06-02/TimeRange
 type TimeRange struct {
 	_ struct{} `type:"structure"`
 
-	// The start time, in Unix time in seconds. For more information see timestamp
-	// (http://docs.aws.amazon.com/cli/latest/userguide/cli-using-param.html#parameter-types).
+	// The start time, in the format 2016-12-16T13:50Z.
 	FromInclusive *time.Time `type:"timestamp" timestampFormat:"unix"`
 
-	// The end time, in Unix time in seconds. For more information see timestamp
-	// (http://docs.aws.amazon.com/cli/latest/userguide/cli-using-param.html#parameter-types).
+	// The end time, in the format 2016-12-16T15:50Z.
 	ToExclusive *time.Time `type:"timestamp" timestampFormat:"unix"`
 }
 
@@ -2113,59 +1830,9 @@ func (s *TimeRange) SetToExclusive(v time.Time) *TimeRange {
 }
 
 const (
-	// AttackLayerNetwork is a AttackLayer enum value
-	AttackLayerNetwork = "NETWORK"
-
-	// AttackLayerApplication is a AttackLayer enum value
-	AttackLayerApplication = "APPLICATION"
-)
-
-const (
-	// AttackPropertyIdentifierDestinationUrl is a AttackPropertyIdentifier enum value
-	AttackPropertyIdentifierDestinationUrl = "DESTINATION_URL"
-
-	// AttackPropertyIdentifierReferrer is a AttackPropertyIdentifier enum value
-	AttackPropertyIdentifierReferrer = "REFERRER"
-
-	// AttackPropertyIdentifierSourceAsn is a AttackPropertyIdentifier enum value
-	AttackPropertyIdentifierSourceAsn = "SOURCE_ASN"
-
-	// AttackPropertyIdentifierSourceCountry is a AttackPropertyIdentifier enum value
-	AttackPropertyIdentifierSourceCountry = "SOURCE_COUNTRY"
-
-	// AttackPropertyIdentifierSourceIpAddress is a AttackPropertyIdentifier enum value
-	AttackPropertyIdentifierSourceIpAddress = "SOURCE_IP_ADDRESS"
-
-	// AttackPropertyIdentifierSourceUserAgent is a AttackPropertyIdentifier enum value
-	AttackPropertyIdentifierSourceUserAgent = "SOURCE_USER_AGENT"
-)
-
-const (
 	// SubResourceTypeIp is a SubResourceType enum value
 	SubResourceTypeIp = "IP"
 
 	// SubResourceTypeUrl is a SubResourceType enum value
 	SubResourceTypeUrl = "URL"
-)
-
-const (
-	// SubscriptionStateActive is a SubscriptionState enum value
-	SubscriptionStateActive = "ACTIVE"
-
-	// SubscriptionStateInactive is a SubscriptionState enum value
-	SubscriptionStateInactive = "INACTIVE"
-)
-
-const (
-	// UnitBits is a Unit enum value
-	UnitBits = "BITS"
-
-	// UnitBytes is a Unit enum value
-	UnitBytes = "BYTES"
-
-	// UnitPackets is a Unit enum value
-	UnitPackets = "PACKETS"
-
-	// UnitRequests is a Unit enum value
-	UnitRequests = "REQUESTS"
 )

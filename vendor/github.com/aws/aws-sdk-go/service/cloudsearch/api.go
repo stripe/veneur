@@ -14,18 +14,19 @@ const opBuildSuggesters = "BuildSuggesters"
 
 // BuildSuggestersRequest generates a "aws/request.Request" representing the
 // client's request for the BuildSuggesters operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See BuildSuggesters for usage and error information.
 //
-// See BuildSuggesters for more information on using the BuildSuggesters
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the BuildSuggesters method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the BuildSuggestersRequest method.
 //    req, resp := client.BuildSuggestersRequest(params)
@@ -100,18 +101,19 @@ const opCreateDomain = "CreateDomain"
 
 // CreateDomainRequest generates a "aws/request.Request" representing the
 // client's request for the CreateDomain operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateDomain for usage and error information.
 //
-// See CreateDomain for more information on using the CreateDomain
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateDomain method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateDomainRequest method.
 //    req, resp := client.CreateDomainRequest(params)
@@ -185,18 +187,19 @@ const opDefineAnalysisScheme = "DefineAnalysisScheme"
 
 // DefineAnalysisSchemeRequest generates a "aws/request.Request" representing the
 // client's request for the DefineAnalysisScheme operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DefineAnalysisScheme for usage and error information.
 //
-// See DefineAnalysisScheme for more information on using the DefineAnalysisScheme
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DefineAnalysisScheme method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DefineAnalysisSchemeRequest method.
 //    req, resp := client.DefineAnalysisSchemeRequest(params)
@@ -278,18 +281,19 @@ const opDefineExpression = "DefineExpression"
 
 // DefineExpressionRequest generates a "aws/request.Request" representing the
 // client's request for the DefineExpression operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DefineExpression for usage and error information.
 //
-// See DefineExpression for more information on using the DefineExpression
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DefineExpression method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DefineExpressionRequest method.
 //    req, resp := client.DefineExpressionRequest(params)
@@ -371,18 +375,19 @@ const opDefineIndexField = "DefineIndexField"
 
 // DefineIndexFieldRequest generates a "aws/request.Request" representing the
 // client's request for the DefineIndexField operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DefineIndexField for usage and error information.
 //
-// See DefineIndexField for more information on using the DefineIndexField
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DefineIndexField method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DefineIndexFieldRequest method.
 //    req, resp := client.DefineIndexFieldRequest(params)
@@ -468,18 +473,19 @@ const opDefineSuggester = "DefineSuggester"
 
 // DefineSuggesterRequest generates a "aws/request.Request" representing the
 // client's request for the DefineSuggester operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DefineSuggester for usage and error information.
 //
-// See DefineSuggester for more information on using the DefineSuggester
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DefineSuggester method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DefineSuggesterRequest method.
 //    req, resp := client.DefineSuggesterRequest(params)
@@ -563,18 +569,19 @@ const opDeleteAnalysisScheme = "DeleteAnalysisScheme"
 
 // DeleteAnalysisSchemeRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteAnalysisScheme operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteAnalysisScheme for usage and error information.
 //
-// See DeleteAnalysisScheme for more information on using the DeleteAnalysisScheme
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteAnalysisScheme method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteAnalysisSchemeRequest method.
 //    req, resp := client.DeleteAnalysisSchemeRequest(params)
@@ -652,18 +659,19 @@ const opDeleteDomain = "DeleteDomain"
 
 // DeleteDomainRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteDomain operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteDomain for usage and error information.
 //
-// See DeleteDomain for more information on using the DeleteDomain
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteDomain method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteDomainRequest method.
 //    req, resp := client.DeleteDomainRequest(params)
@@ -735,18 +743,19 @@ const opDeleteExpression = "DeleteExpression"
 
 // DeleteExpressionRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteExpression operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteExpression for usage and error information.
 //
-// See DeleteExpression for more information on using the DeleteExpression
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteExpression method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteExpressionRequest method.
 //    req, resp := client.DeleteExpressionRequest(params)
@@ -824,18 +833,19 @@ const opDeleteIndexField = "DeleteIndexField"
 
 // DeleteIndexFieldRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteIndexField operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteIndexField for usage and error information.
 //
-// See DeleteIndexField for more information on using the DeleteIndexField
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteIndexField method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteIndexFieldRequest method.
 //    req, resp := client.DeleteIndexFieldRequest(params)
@@ -913,18 +923,19 @@ const opDeleteSuggester = "DeleteSuggester"
 
 // DeleteSuggesterRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteSuggester operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteSuggester for usage and error information.
 //
-// See DeleteSuggester for more information on using the DeleteSuggester
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteSuggester method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteSuggesterRequest method.
 //    req, resp := client.DeleteSuggesterRequest(params)
@@ -1002,18 +1013,19 @@ const opDescribeAnalysisSchemes = "DescribeAnalysisSchemes"
 
 // DescribeAnalysisSchemesRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeAnalysisSchemes operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeAnalysisSchemes for usage and error information.
 //
-// See DescribeAnalysisSchemes for more information on using the DescribeAnalysisSchemes
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeAnalysisSchemes method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeAnalysisSchemesRequest method.
 //    req, resp := client.DescribeAnalysisSchemesRequest(params)
@@ -1092,18 +1104,19 @@ const opDescribeAvailabilityOptions = "DescribeAvailabilityOptions"
 
 // DescribeAvailabilityOptionsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeAvailabilityOptions operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeAvailabilityOptions for usage and error information.
 //
-// See DescribeAvailabilityOptions for more information on using the DescribeAvailabilityOptions
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeAvailabilityOptions method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeAvailabilityOptionsRequest method.
 //    req, resp := client.DescribeAvailabilityOptionsRequest(params)
@@ -1189,18 +1202,19 @@ const opDescribeDomains = "DescribeDomains"
 
 // DescribeDomainsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeDomains operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeDomains for usage and error information.
 //
-// See DescribeDomains for more information on using the DescribeDomains
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeDomains method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeDomainsRequest method.
 //    req, resp := client.DescribeDomainsRequest(params)
@@ -1274,18 +1288,19 @@ const opDescribeExpressions = "DescribeExpressions"
 
 // DescribeExpressionsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeExpressions operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeExpressions for usage and error information.
 //
-// See DescribeExpressions for more information on using the DescribeExpressions
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeExpressions method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeExpressionsRequest method.
 //    req, resp := client.DescribeExpressionsRequest(params)
@@ -1363,18 +1378,19 @@ const opDescribeIndexFields = "DescribeIndexFields"
 
 // DescribeIndexFieldsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeIndexFields operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeIndexFields for usage and error information.
 //
-// See DescribeIndexFields for more information on using the DescribeIndexFields
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeIndexFields method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeIndexFieldsRequest method.
 //    req, resp := client.DescribeIndexFieldsRequest(params)
@@ -1452,18 +1468,19 @@ const opDescribeScalingParameters = "DescribeScalingParameters"
 
 // DescribeScalingParametersRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeScalingParameters operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeScalingParameters for usage and error information.
 //
-// See DescribeScalingParameters for more information on using the DescribeScalingParameters
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeScalingParameters method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeScalingParametersRequest method.
 //    req, resp := client.DescribeScalingParametersRequest(params)
@@ -1539,18 +1556,19 @@ const opDescribeServiceAccessPolicies = "DescribeServiceAccessPolicies"
 
 // DescribeServiceAccessPoliciesRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeServiceAccessPolicies operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeServiceAccessPolicies for usage and error information.
 //
-// See DescribeServiceAccessPolicies for more information on using the DescribeServiceAccessPolicies
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeServiceAccessPolicies method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeServiceAccessPoliciesRequest method.
 //    req, resp := client.DescribeServiceAccessPoliciesRequest(params)
@@ -1628,18 +1646,19 @@ const opDescribeSuggesters = "DescribeSuggesters"
 
 // DescribeSuggestersRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeSuggesters operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeSuggesters for usage and error information.
 //
-// See DescribeSuggesters for more information on using the DescribeSuggesters
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeSuggesters method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeSuggestersRequest method.
 //    req, resp := client.DescribeSuggestersRequest(params)
@@ -1718,18 +1737,19 @@ const opIndexDocuments = "IndexDocuments"
 
 // IndexDocumentsRequest generates a "aws/request.Request" representing the
 // client's request for the IndexDocuments operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See IndexDocuments for usage and error information.
 //
-// See IndexDocuments for more information on using the IndexDocuments
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the IndexDocuments method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the IndexDocumentsRequest method.
 //    req, resp := client.IndexDocumentsRequest(params)
@@ -1804,18 +1824,19 @@ const opListDomainNames = "ListDomainNames"
 
 // ListDomainNamesRequest generates a "aws/request.Request" representing the
 // client's request for the ListDomainNames operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListDomainNames for usage and error information.
 //
-// See ListDomainNames for more information on using the ListDomainNames
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListDomainNames method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListDomainNamesRequest method.
 //    req, resp := client.ListDomainNamesRequest(params)
@@ -1880,18 +1901,19 @@ const opUpdateAvailabilityOptions = "UpdateAvailabilityOptions"
 
 // UpdateAvailabilityOptionsRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateAvailabilityOptions operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See UpdateAvailabilityOptions for usage and error information.
 //
-// See UpdateAvailabilityOptions for more information on using the UpdateAvailabilityOptions
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the UpdateAvailabilityOptions method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the UpdateAvailabilityOptionsRequest method.
 //    req, resp := client.UpdateAvailabilityOptionsRequest(params)
@@ -1978,18 +2000,19 @@ const opUpdateScalingParameters = "UpdateScalingParameters"
 
 // UpdateScalingParametersRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateScalingParameters operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See UpdateScalingParameters for usage and error information.
 //
-// See UpdateScalingParameters for more information on using the UpdateScalingParameters
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the UpdateScalingParameters method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the UpdateScalingParametersRequest method.
 //    req, resp := client.UpdateScalingParametersRequest(params)
@@ -2075,18 +2098,19 @@ const opUpdateServiceAccessPolicies = "UpdateServiceAccessPolicies"
 
 // UpdateServiceAccessPoliciesRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateServiceAccessPolicies operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See UpdateServiceAccessPolicies for usage and error information.
 //
-// See UpdateServiceAccessPolicies for more information on using the UpdateServiceAccessPolicies
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the UpdateServiceAccessPolicies method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the UpdateServiceAccessPoliciesRequest method.
 //    req, resp := client.UpdateServiceAccessPoliciesRequest(params)

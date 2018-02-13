@@ -14,18 +14,19 @@ const opAssociateNode = "AssociateNode"
 
 // AssociateNodeRequest generates a "aws/request.Request" representing the
 // client's request for the AssociateNode operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See AssociateNode for usage and error information.
 //
-// See AssociateNode for more information on using the AssociateNode
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the AssociateNode method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the AssociateNodeRequest method.
 //    req, resp := client.AssociateNodeRequest(params)
@@ -35,7 +36,7 @@ const opAssociateNode = "AssociateNode"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/AssociateNode
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/AssociateNode
 func (c *OpsWorksCM) AssociateNodeRequest(input *AssociateNodeInput) (req *request.Request, output *AssociateNodeOutput) {
 	op := &request.Operation{
 		Name:       opAssociateNode,
@@ -54,20 +55,9 @@ func (c *OpsWorksCM) AssociateNodeRequest(input *AssociateNodeInput) (req *reque
 
 // AssociateNode API operation for AWS OpsWorks for Chef Automate.
 //
-// Associates a new node with the server. For more information about how to
-// disassociate a node, see DisassociateNode.
-//
-// On a Chef server: This command is an alternative to knife bootstrap.
-//
-// Example (Chef): aws opsworks-cm associate-node --server-name MyServer --node-name
-// MyManagedNode --engine-attributes "Name=CHEF_ORGANIZATION,Value=default"
-// "Name=CHEF_NODE_PUBLIC_KEY,Value=public-key-pem"
-//
-// On a Puppet server, this command is an alternative to the puppet cert sign
-// command that signs a Puppet node CSR.
-//
-// Example (Chef): aws opsworks-cm associate-node --server-name MyServer --node-name
-// MyManagedNode --engine-attributes "Name=PUPPET_NODE_CSR,Value=csr-pem"
+// Associates a new node with the Chef server. This command is an alternative
+// to knife bootstrap. For more information about how to disassociate a node,
+// see DisassociateNode.
 //
 // A node can can only be associated with servers that are in a HEALTHY state.
 // Otherwise, an InvalidStateException is thrown. A ResourceNotFoundException
@@ -75,6 +65,9 @@ func (c *OpsWorksCM) AssociateNodeRequest(input *AssociateNodeInput) (req *reque
 // when parameters of the request are not valid. The AssociateNode API call
 // can be integrated into Auto Scaling configurations, AWS Cloudformation templates,
 // or the user data of a server's instance.
+//
+// Example: aws opsworks-cm associate-node --server-name MyServer --node-name
+// MyManagedNode --engine-attributes "Name=MyOrganization,Value=default" "Name=Chef_node_public_key,Value=Public_key_contents"
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
@@ -94,7 +87,7 @@ func (c *OpsWorksCM) AssociateNodeRequest(input *AssociateNodeInput) (req *reque
 //   * ErrCodeValidationException "ValidationException"
 //   One or more of the provided request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/AssociateNode
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/AssociateNode
 func (c *OpsWorksCM) AssociateNode(input *AssociateNodeInput) (*AssociateNodeOutput, error) {
 	req, out := c.AssociateNodeRequest(input)
 	return out, req.Send()
@@ -120,18 +113,19 @@ const opCreateBackup = "CreateBackup"
 
 // CreateBackupRequest generates a "aws/request.Request" representing the
 // client's request for the CreateBackup operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateBackup for usage and error information.
 //
-// See CreateBackup for more information on using the CreateBackup
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateBackup method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateBackupRequest method.
 //    req, resp := client.CreateBackupRequest(params)
@@ -141,7 +135,7 @@ const opCreateBackup = "CreateBackup"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateBackup
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateBackup
 func (c *OpsWorksCM) CreateBackupRequest(input *CreateBackupInput) (req *request.Request, output *CreateBackupOutput) {
 	op := &request.Operation{
 		Name:       opCreateBackup,
@@ -196,7 +190,7 @@ func (c *OpsWorksCM) CreateBackupRequest(input *CreateBackupInput) (req *request
 //   * ErrCodeValidationException "ValidationException"
 //   One or more of the provided request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateBackup
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateBackup
 func (c *OpsWorksCM) CreateBackup(input *CreateBackupInput) (*CreateBackupOutput, error) {
 	req, out := c.CreateBackupRequest(input)
 	return out, req.Send()
@@ -222,18 +216,19 @@ const opCreateServer = "CreateServer"
 
 // CreateServerRequest generates a "aws/request.Request" representing the
 // client's request for the CreateServer operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateServer for usage and error information.
 //
-// See CreateServer for more information on using the CreateServer
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateServer method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateServerRequest method.
 //    req, resp := client.CreateServerRequest(params)
@@ -243,7 +238,7 @@ const opCreateServer = "CreateServer"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateServer
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateServer
 func (c *OpsWorksCM) CreateServerRequest(input *CreateServerInput) (req *request.Request, output *CreateServerOutput) {
 	op := &request.Operation{
 		Name:       opCreateServer,
@@ -275,18 +270,12 @@ func (c *OpsWorksCM) CreateServerRequest(input *CreateServerInput) (req *request
 // request are not valid.
 //
 // If you do not specify a security group by adding the SecurityGroupIds parameter,
-// AWS OpsWorks creates a new security group.
+// AWS OpsWorks creates a new security group. The default security group opens
+// the Chef server to the world on TCP port 443. If a KeyName is present, AWS
+// OpsWorks enables SSH access. SSH is also open to the world on TCP port 22.
 //
-// Chef Automate: The default security group opens the Chef server to the world
-// on TCP port 443. If a KeyName is present, AWS OpsWorks enables SSH access.
-// SSH is also open to the world on TCP port 22.
-//
-// Puppet Enterprise: The default security group opens TCP ports 22, 443, 4433,
-// 8140, 8142, 8143, and 8170. If a KeyName is present, AWS OpsWorks enables
-// SSH access. SSH is also open to the world on TCP port 22.
-//
-// By default, your server is accessible from any IP address. We recommend that
-// you update your security group rules to allow access from known IP addresses
+// By default, the Chef Server is accessible from any IP address. We recommend
+// that you update your security group rules to allow access from known IP addresses
 // and address ranges only. To edit security group rules, open Security Groups
 // in the navigation pane of the EC2 management console.
 //
@@ -310,7 +299,7 @@ func (c *OpsWorksCM) CreateServerRequest(input *CreateServerInput) (req *request
 //   * ErrCodeValidationException "ValidationException"
 //   One or more of the provided request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateServer
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateServer
 func (c *OpsWorksCM) CreateServer(input *CreateServerInput) (*CreateServerOutput, error) {
 	req, out := c.CreateServerRequest(input)
 	return out, req.Send()
@@ -336,18 +325,19 @@ const opDeleteBackup = "DeleteBackup"
 
 // DeleteBackupRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteBackup operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteBackup for usage and error information.
 //
-// See DeleteBackup for more information on using the DeleteBackup
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteBackup method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteBackupRequest method.
 //    req, resp := client.DeleteBackupRequest(params)
@@ -357,7 +347,7 @@ const opDeleteBackup = "DeleteBackup"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteBackup
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteBackup
 func (c *OpsWorksCM) DeleteBackupRequest(input *DeleteBackupInput) (req *request.Request, output *DeleteBackupOutput) {
 	op := &request.Operation{
 		Name:       opDeleteBackup,
@@ -401,7 +391,7 @@ func (c *OpsWorksCM) DeleteBackupRequest(input *DeleteBackupInput) (req *request
 //   * ErrCodeValidationException "ValidationException"
 //   One or more of the provided request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteBackup
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteBackup
 func (c *OpsWorksCM) DeleteBackup(input *DeleteBackupInput) (*DeleteBackupOutput, error) {
 	req, out := c.DeleteBackupRequest(input)
 	return out, req.Send()
@@ -427,18 +417,19 @@ const opDeleteServer = "DeleteServer"
 
 // DeleteServerRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteServer operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteServer for usage and error information.
 //
-// See DeleteServer for more information on using the DeleteServer
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteServer method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteServerRequest method.
 //    req, resp := client.DeleteServerRequest(params)
@@ -448,7 +439,7 @@ const opDeleteServer = "DeleteServer"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteServer
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteServer
 func (c *OpsWorksCM) DeleteServerRequest(input *DeleteServerInput) (req *request.Request, output *DeleteServerOutput) {
 	op := &request.Operation{
 		Name:       opDeleteServer,
@@ -467,7 +458,7 @@ func (c *OpsWorksCM) DeleteServerRequest(input *DeleteServerInput) (req *request
 
 // DeleteServer API operation for AWS OpsWorks for Chef Automate.
 //
-// Deletes the server and the underlying AWS CloudFormation stacks (including
+// Deletes the server and the underlying AWS CloudFormation stack (including
 // the server's EC2 instance). When you run this command, the server state is
 // updated to DELETING. After the server is deleted, it is no longer returned
 // by DescribeServer requests. If the AWS CloudFormation stack cannot be deleted,
@@ -497,7 +488,7 @@ func (c *OpsWorksCM) DeleteServerRequest(input *DeleteServerInput) (req *request
 //   * ErrCodeValidationException "ValidationException"
 //   One or more of the provided request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteServer
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteServer
 func (c *OpsWorksCM) DeleteServer(input *DeleteServerInput) (*DeleteServerOutput, error) {
 	req, out := c.DeleteServerRequest(input)
 	return out, req.Send()
@@ -523,18 +514,19 @@ const opDescribeAccountAttributes = "DescribeAccountAttributes"
 
 // DescribeAccountAttributesRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeAccountAttributes operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeAccountAttributes for usage and error information.
 //
-// See DescribeAccountAttributes for more information on using the DescribeAccountAttributes
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeAccountAttributes method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeAccountAttributesRequest method.
 //    req, resp := client.DescribeAccountAttributesRequest(params)
@@ -544,7 +536,7 @@ const opDescribeAccountAttributes = "DescribeAccountAttributes"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeAccountAttributes
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeAccountAttributes
 func (c *OpsWorksCM) DescribeAccountAttributesRequest(input *DescribeAccountAttributesInput) (req *request.Request, output *DescribeAccountAttributesOutput) {
 	op := &request.Operation{
 		Name:       opDescribeAccountAttributes,
@@ -574,7 +566,7 @@ func (c *OpsWorksCM) DescribeAccountAttributesRequest(input *DescribeAccountAttr
 //
 // See the AWS API reference guide for AWS OpsWorks for Chef Automate's
 // API operation DescribeAccountAttributes for usage and error information.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeAccountAttributes
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeAccountAttributes
 func (c *OpsWorksCM) DescribeAccountAttributes(input *DescribeAccountAttributesInput) (*DescribeAccountAttributesOutput, error) {
 	req, out := c.DescribeAccountAttributesRequest(input)
 	return out, req.Send()
@@ -600,18 +592,19 @@ const opDescribeBackups = "DescribeBackups"
 
 // DescribeBackupsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeBackups operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeBackups for usage and error information.
 //
-// See DescribeBackups for more information on using the DescribeBackups
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeBackups method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeBackupsRequest method.
 //    req, resp := client.DescribeBackupsRequest(params)
@@ -621,7 +614,7 @@ const opDescribeBackups = "DescribeBackups"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeBackups
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeBackups
 func (c *OpsWorksCM) DescribeBackupsRequest(input *DescribeBackupsInput) (req *request.Request, output *DescribeBackupsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeBackups,
@@ -665,7 +658,7 @@ func (c *OpsWorksCM) DescribeBackupsRequest(input *DescribeBackupsInput) (req *r
 //   * ErrCodeInvalidNextTokenException "InvalidNextTokenException"
 //   This occurs when the provided nextToken is not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeBackups
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeBackups
 func (c *OpsWorksCM) DescribeBackups(input *DescribeBackupsInput) (*DescribeBackupsOutput, error) {
 	req, out := c.DescribeBackupsRequest(input)
 	return out, req.Send()
@@ -691,18 +684,19 @@ const opDescribeEvents = "DescribeEvents"
 
 // DescribeEventsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeEvents operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeEvents for usage and error information.
 //
-// See DescribeEvents for more information on using the DescribeEvents
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeEvents method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeEventsRequest method.
 //    req, resp := client.DescribeEventsRequest(params)
@@ -712,7 +706,7 @@ const opDescribeEvents = "DescribeEvents"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeEvents
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeEvents
 func (c *OpsWorksCM) DescribeEventsRequest(input *DescribeEventsInput) (req *request.Request, output *DescribeEventsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeEvents,
@@ -756,7 +750,7 @@ func (c *OpsWorksCM) DescribeEventsRequest(input *DescribeEventsInput) (req *req
 //   * ErrCodeResourceNotFoundException "ResourceNotFoundException"
 //   The requested resource does not exist, or access was denied.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeEvents
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeEvents
 func (c *OpsWorksCM) DescribeEvents(input *DescribeEventsInput) (*DescribeEventsOutput, error) {
 	req, out := c.DescribeEventsRequest(input)
 	return out, req.Send()
@@ -782,18 +776,19 @@ const opDescribeNodeAssociationStatus = "DescribeNodeAssociationStatus"
 
 // DescribeNodeAssociationStatusRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeNodeAssociationStatus operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeNodeAssociationStatus for usage and error information.
 //
-// See DescribeNodeAssociationStatus for more information on using the DescribeNodeAssociationStatus
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeNodeAssociationStatus method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeNodeAssociationStatusRequest method.
 //    req, resp := client.DescribeNodeAssociationStatusRequest(params)
@@ -803,7 +798,7 @@ const opDescribeNodeAssociationStatus = "DescribeNodeAssociationStatus"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeNodeAssociationStatus
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeNodeAssociationStatus
 func (c *OpsWorksCM) DescribeNodeAssociationStatusRequest(input *DescribeNodeAssociationStatusInput) (req *request.Request, output *DescribeNodeAssociationStatusOutput) {
 	op := &request.Operation{
 		Name:       opDescribeNodeAssociationStatus,
@@ -842,7 +837,7 @@ func (c *OpsWorksCM) DescribeNodeAssociationStatusRequest(input *DescribeNodeAss
 //   * ErrCodeValidationException "ValidationException"
 //   One or more of the provided request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeNodeAssociationStatus
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeNodeAssociationStatus
 func (c *OpsWorksCM) DescribeNodeAssociationStatus(input *DescribeNodeAssociationStatusInput) (*DescribeNodeAssociationStatusOutput, error) {
 	req, out := c.DescribeNodeAssociationStatusRequest(input)
 	return out, req.Send()
@@ -868,18 +863,19 @@ const opDescribeServers = "DescribeServers"
 
 // DescribeServersRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeServers operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeServers for usage and error information.
 //
-// See DescribeServers for more information on using the DescribeServers
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeServers method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeServersRequest method.
 //    req, resp := client.DescribeServersRequest(params)
@@ -889,7 +885,7 @@ const opDescribeServers = "DescribeServers"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeServers
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeServers
 func (c *OpsWorksCM) DescribeServersRequest(input *DescribeServersInput) (req *request.Request, output *DescribeServersOutput) {
 	op := &request.Operation{
 		Name:       opDescribeServers,
@@ -910,7 +906,7 @@ func (c *OpsWorksCM) DescribeServersRequest(input *DescribeServersInput) (req *r
 //
 // Lists all configuration management servers that are identified with your
 // account. Only the stored results from Amazon DynamoDB are returned. AWS OpsWorks
-// CM does not query other services.
+// for Chef Automate does not query other services.
 //
 // This operation is synchronous.
 //
@@ -934,7 +930,7 @@ func (c *OpsWorksCM) DescribeServersRequest(input *DescribeServersInput) (req *r
 //   * ErrCodeInvalidNextTokenException "InvalidNextTokenException"
 //   This occurs when the provided nextToken is not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeServers
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeServers
 func (c *OpsWorksCM) DescribeServers(input *DescribeServersInput) (*DescribeServersOutput, error) {
 	req, out := c.DescribeServersRequest(input)
 	return out, req.Send()
@@ -960,18 +956,19 @@ const opDisassociateNode = "DisassociateNode"
 
 // DisassociateNodeRequest generates a "aws/request.Request" representing the
 // client's request for the DisassociateNode operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DisassociateNode for usage and error information.
 //
-// See DisassociateNode for more information on using the DisassociateNode
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DisassociateNode method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DisassociateNodeRequest method.
 //    req, resp := client.DisassociateNodeRequest(params)
@@ -981,7 +978,7 @@ const opDisassociateNode = "DisassociateNode"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DisassociateNode
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DisassociateNode
 func (c *OpsWorksCM) DisassociateNodeRequest(input *DisassociateNodeInput) (req *request.Request, output *DisassociateNodeOutput) {
 	op := &request.Operation{
 		Name:       opDisassociateNode,
@@ -1000,10 +997,10 @@ func (c *OpsWorksCM) DisassociateNodeRequest(input *DisassociateNodeInput) (req 
 
 // DisassociateNode API operation for AWS OpsWorks for Chef Automate.
 //
-// Disassociates a node from an AWS OpsWorks CM server, and removes the node
-// from the server's managed nodes. After a node is disassociated, the node
-// key pair is no longer valid for accessing the configuration manager's API.
-// For more information about how to associate a node, see AssociateNode.
+// Disassociates a node from a Chef server, and removes the node from the Chef
+// server's managed nodes. After a node is disassociated, the node key pair
+// is no longer valid for accessing the Chef API. For more information about
+// how to associate a node, see AssociateNode.
 //
 // A node can can only be disassociated from a server that is in a HEALTHY state.
 // Otherwise, an InvalidStateException is thrown. A ResourceNotFoundException
@@ -1028,7 +1025,7 @@ func (c *OpsWorksCM) DisassociateNodeRequest(input *DisassociateNodeInput) (req 
 //   * ErrCodeValidationException "ValidationException"
 //   One or more of the provided request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DisassociateNode
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DisassociateNode
 func (c *OpsWorksCM) DisassociateNode(input *DisassociateNodeInput) (*DisassociateNodeOutput, error) {
 	req, out := c.DisassociateNodeRequest(input)
 	return out, req.Send()
@@ -1054,18 +1051,19 @@ const opRestoreServer = "RestoreServer"
 
 // RestoreServerRequest generates a "aws/request.Request" representing the
 // client's request for the RestoreServer operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See RestoreServer for usage and error information.
 //
-// See RestoreServer for more information on using the RestoreServer
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the RestoreServer method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the RestoreServerRequest method.
 //    req, resp := client.RestoreServerRequest(params)
@@ -1075,7 +1073,7 @@ const opRestoreServer = "RestoreServer"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/RestoreServer
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/RestoreServer
 func (c *OpsWorksCM) RestoreServerRequest(input *RestoreServerInput) (req *request.Request, output *RestoreServerOutput) {
 	op := &request.Operation{
 		Name:       opRestoreServer,
@@ -1124,7 +1122,7 @@ func (c *OpsWorksCM) RestoreServerRequest(input *RestoreServerInput) (req *reque
 //   * ErrCodeValidationException "ValidationException"
 //   One or more of the provided request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/RestoreServer
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/RestoreServer
 func (c *OpsWorksCM) RestoreServer(input *RestoreServerInput) (*RestoreServerOutput, error) {
 	req, out := c.RestoreServerRequest(input)
 	return out, req.Send()
@@ -1150,18 +1148,19 @@ const opStartMaintenance = "StartMaintenance"
 
 // StartMaintenanceRequest generates a "aws/request.Request" representing the
 // client's request for the StartMaintenance operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See StartMaintenance for usage and error information.
 //
-// See StartMaintenance for more information on using the StartMaintenance
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the StartMaintenance method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the StartMaintenanceRequest method.
 //    req, resp := client.StartMaintenanceRequest(params)
@@ -1171,7 +1170,7 @@ const opStartMaintenance = "StartMaintenance"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/StartMaintenance
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/StartMaintenance
 func (c *OpsWorksCM) StartMaintenanceRequest(input *StartMaintenanceInput) (req *request.Request, output *StartMaintenanceOutput) {
 	op := &request.Operation{
 		Name:       opStartMaintenance,
@@ -1218,7 +1217,7 @@ func (c *OpsWorksCM) StartMaintenanceRequest(input *StartMaintenanceInput) (req 
 //   * ErrCodeValidationException "ValidationException"
 //   One or more of the provided request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/StartMaintenance
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/StartMaintenance
 func (c *OpsWorksCM) StartMaintenance(input *StartMaintenanceInput) (*StartMaintenanceOutput, error) {
 	req, out := c.StartMaintenanceRequest(input)
 	return out, req.Send()
@@ -1244,18 +1243,19 @@ const opUpdateServer = "UpdateServer"
 
 // UpdateServerRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateServer operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See UpdateServer for usage and error information.
 //
-// See UpdateServer for more information on using the UpdateServer
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the UpdateServer method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the UpdateServerRequest method.
 //    req, resp := client.UpdateServerRequest(params)
@@ -1265,7 +1265,7 @@ const opUpdateServer = "UpdateServer"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServer
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServer
 func (c *OpsWorksCM) UpdateServerRequest(input *UpdateServerInput) (req *request.Request, output *UpdateServerOutput) {
 	op := &request.Operation{
 		Name:       opUpdateServer,
@@ -1306,7 +1306,7 @@ func (c *OpsWorksCM) UpdateServerRequest(input *UpdateServerInput) (req *request
 //   * ErrCodeValidationException "ValidationException"
 //   One or more of the provided request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServer
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServer
 func (c *OpsWorksCM) UpdateServer(input *UpdateServerInput) (*UpdateServerOutput, error) {
 	req, out := c.UpdateServerRequest(input)
 	return out, req.Send()
@@ -1332,18 +1332,19 @@ const opUpdateServerEngineAttributes = "UpdateServerEngineAttributes"
 
 // UpdateServerEngineAttributesRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateServerEngineAttributes operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See UpdateServerEngineAttributes for usage and error information.
 //
-// See UpdateServerEngineAttributes for more information on using the UpdateServerEngineAttributes
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the UpdateServerEngineAttributes method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the UpdateServerEngineAttributesRequest method.
 //    req, resp := client.UpdateServerEngineAttributesRequest(params)
@@ -1353,7 +1354,7 @@ const opUpdateServerEngineAttributes = "UpdateServerEngineAttributes"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServerEngineAttributes
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServerEngineAttributes
 func (c *OpsWorksCM) UpdateServerEngineAttributesRequest(input *UpdateServerEngineAttributesInput) (req *request.Request, output *UpdateServerEngineAttributesOutput) {
 	op := &request.Operation{
 		Name:       opUpdateServerEngineAttributes,
@@ -1374,9 +1375,8 @@ func (c *OpsWorksCM) UpdateServerEngineAttributesRequest(input *UpdateServerEngi
 //
 // Updates engine-specific attributes on a specified server. The server enters
 // the MODIFYING state when this operation is in progress. Only one update can
-// occur at a time. You can use this command to reset a Chef server's private
-// key (CHEF_PIVOTAL_KEY), a Chef server's admin password (CHEF_DELIVERY_ADMIN_PASSWORD),
-// or a Puppet server's admin password (PUPPET_ADMIN_PASSWORD).
+// occur at a time. You can use this command to reset the Chef server's private
+// key (CHEF_PIVOTAL_KEY).
 //
 // This operation is asynchronous.
 //
@@ -1403,7 +1403,7 @@ func (c *OpsWorksCM) UpdateServerEngineAttributesRequest(input *UpdateServerEngi
 //   * ErrCodeValidationException "ValidationException"
 //   One or more of the provided request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServerEngineAttributes
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServerEngineAttributes
 func (c *OpsWorksCM) UpdateServerEngineAttributes(input *UpdateServerEngineAttributesInput) (*UpdateServerEngineAttributesOutput, error) {
 	req, out := c.UpdateServerEngineAttributesRequest(input)
 	return out, req.Send()
@@ -1426,7 +1426,7 @@ func (c *OpsWorksCM) UpdateServerEngineAttributesWithContext(ctx aws.Context, in
 }
 
 // Stores account attributes.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/AccountAttribute
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/AccountAttribute
 type AccountAttribute struct {
 	_ struct{} `type:"structure"`
 
@@ -1476,13 +1476,13 @@ func (s *AccountAttribute) SetUsed(v int64) *AccountAttribute {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/AssociateNodeRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/AssociateNodeRequest
 type AssociateNodeInput struct {
 	_ struct{} `type:"structure"`
 
 	// Engine attributes used for associating the node.
 	//
-	// Attributes accepted in a AssociateNode request for Chef
+	// Attributes accepted in a AssociateNode request:
 	//
 	//    * CHEF_ORGANIZATION: The Chef organization with which the node is associated.
 	//    By default only one organization named default can exist.
@@ -1490,15 +1490,10 @@ type AssociateNodeInput struct {
 	//    * CHEF_NODE_PUBLIC_KEY: A PEM-formatted public key. This key is required
 	//    for the chef-client agent to access the Chef API.
 	//
-	// Attributes accepted in a AssociateNode request for Puppet
-	//
-	//    * PUPPET_NODE_CSR: A PEM-formatted certificate-signing request (CSR) that
-	//    is created by the node.
-	//
 	// EngineAttributes is a required field
 	EngineAttributes []*EngineAttribute `type:"list" required:"true"`
 
-	// The name of the node.
+	// The name of the Chef client node.
 	//
 	// NodeName is a required field
 	NodeName *string `type:"string" required:"true"`
@@ -1559,7 +1554,7 @@ func (s *AssociateNodeInput) SetServerName(v string) *AssociateNodeInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/AssociateNodeResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/AssociateNodeResponse
 type AssociateNodeOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -1585,7 +1580,7 @@ func (s *AssociateNodeOutput) SetNodeAssociationStatusToken(v string) *Associate
 }
 
 // Describes a single backup.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/Backup
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/Backup
 type Backup struct {
 	_ struct{} `type:"structure"`
 
@@ -1662,8 +1657,8 @@ type Backup struct {
 	// The subnet IDs that are obtained from the server when the backup is created.
 	SubnetIds []*string `type:"list"`
 
-	// The version of AWS OpsWorks CM-specific tools that is obtained from the server
-	// when the backup is created.
+	// The version of AWS OpsWorks for Chef Automate-specific tools that is obtained
+	// from the server when the backup is created.
 	ToolsVersion *string `type:"string"`
 
 	// The IAM user ARN of the requester for manual backups. This field is empty
@@ -1825,7 +1820,7 @@ func (s *Backup) SetUserArn(v string) *Backup {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateBackupRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateBackupRequest
 type CreateBackupInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1876,7 +1871,7 @@ func (s *CreateBackupInput) SetServerName(v string) *CreateBackupInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateBackupResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateBackupResponse
 type CreateBackupOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -1900,7 +1895,7 @@ func (s *CreateBackupOutput) SetBackup(v *Backup) *CreateBackupOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateServerRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateServerRequest
 type CreateServerInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1908,31 +1903,30 @@ type CreateServerInput struct {
 	// values are true or false. The default value is true.
 	AssociatePublicIpAddress *bool `type:"boolean"`
 
-	// If you specify this field, AWS OpsWorks CM creates the server by using the
-	// backup represented by BackupId.
+	// If you specify this field, AWS OpsWorks for Chef Automate creates the server
+	// by using the backup represented by BackupId.
 	BackupId *string `type:"string"`
 
 	// The number of automated backups that you want to keep. Whenever a new backup
-	// is created, AWS OpsWorks CM deletes the oldest backups if this number is
-	// exceeded. The default value is 1.
+	// is created, AWS OpsWorks for Chef Automate deletes the oldest backups if
+	// this number is exceeded. The default value is 1.
 	BackupRetentionCount *int64 `min:"1" type:"integer"`
 
 	// Enable or disable scheduled backups. Valid values are true or false. The
 	// default value is true.
 	DisableAutomatedBackup *bool `type:"boolean"`
 
-	// The configuration management engine to use. Valid values include Chef and
-	// Puppet.
+	// The configuration management engine to use. Valid values include Chef.
 	Engine *string `type:"string"`
 
 	// Optional engine attributes on a specified server.
 	//
-	// Attributes accepted in a Chef createServer request:
+	// Attributes accepted in a createServer request:
 	//
 	//    * CHEF_PIVOTAL_KEY: A base64-encoded RSA private key that is not stored
-	//    by AWS OpsWorks for Chef Automate. This private key is required to access
-	//    the Chef API. When no CHEF_PIVOTAL_KEY is set, one is generated and returned
-	//    in the response.
+	//    by AWS OpsWorks for Chef. This private key is required to access the Chef
+	//    API. When no CHEF_PIVOTAL_KEY is set, one is generated and returned in
+	//    the response.
 	//
 	//    * CHEF_DELIVERY_ADMIN_PASSWORD: The password for the administrative user
 	//    in the Chef Automate GUI. The password length is a minimum of eight characters,
@@ -1941,20 +1935,13 @@ type CreateServerInput struct {
 	//    case letter, one upper case letter, one number, and one special character.
 	//    When no CHEF_DELIVERY_ADMIN_PASSWORD is set, one is generated and returned
 	//    in the response.
-	//
-	// Attributes accepted in a Puppet createServer request:
-	//
-	//    * PUPPET_ADMIN_PASSWORD: To work with the Puppet Enterprise console, a
-	//    password must use ASCII characters.
 	EngineAttributes []*EngineAttribute `type:"list"`
 
-	// The engine model of the server. Valid values in this release include Monolithic
-	// for Puppet and Single for Chef.
+	// The engine model, or option. Valid values include Single.
 	EngineModel *string `type:"string"`
 
-	// The major release version of the engine that you want to use. For a Chef
-	// server, the valid value for EngineVersion is currently 12. For a Puppet server,
-	// the valid value is 2017.
+	// The major release version of the engine that you want to use. Values depend
+	// on the engine that you choose.
 	EngineVersion *string `type:"string"`
 
 	// The ARN of the instance profile that your Amazon EC2 instances use. Although
@@ -1967,8 +1954,9 @@ type CreateServerInput struct {
 	// InstanceProfileArn is a required field
 	InstanceProfileArn *string `type:"string" required:"true"`
 
-	// The Amazon EC2 instance type to use. For example, m4.large. Recommended instance
-	// types include t2.medium and greater, m4.*, or c4.xlarge and greater.
+	// The Amazon EC2 instance type to use. Valid values must be specified in the
+	// following format: ^([cm][34]|t2).* For example, m4.large. Valid values are
+	// t2.medium, m4.large, or m4.2xlarge.
 	//
 	// InstanceType is a required field
 	InstanceType *string `type:"string" required:"true"`
@@ -1978,9 +1966,9 @@ type CreateServerInput struct {
 	// using SSH.
 	KeyPair *string `type:"string"`
 
-	// The start time for a one-hour period during which AWS OpsWorks CM backs up
-	// application-level data on your server if automated backups are enabled. Valid
-	// values must be specified in one of the following formats:
+	// The start time for a one-hour period during which AWS OpsWorks for Chef Automate
+	// backs up application-level data on your server if automated backups are enabled.
+	// Valid values must be specified in one of the following formats:
 	//
 	//    * HH:MM for daily backups
 	//
@@ -1996,10 +1984,11 @@ type CreateServerInput struct {
 	PreferredBackupWindow *string `type:"string"`
 
 	// The start time for a one-hour period each week during which AWS OpsWorks
-	// CM performs maintenance on the instance. Valid values must be specified in
-	// the following format: DDD:HH:MM. The specified time is in coordinated universal
-	// time (UTC). The default value is a random one-hour period on Tuesday, Wednesday,
-	// or Friday. See TimeWindowDefinition for more information.
+	// for Chef Automate performs maintenance on the instance. Valid values must
+	// be specified in the following format: DDD:HH:MM. The specified time is in
+	// coordinated universal time (UTC). The default value is a random one-hour
+	// period on Tuesday, Wednesday, or Friday. See TimeWindowDefinition for more
+	// information.
 	//
 	// Example:Mon:08:00, which represents a start time of every Monday at 08:00
 	// UTC. (8:00 a.m.)
@@ -2009,8 +1998,9 @@ type CreateServerInput struct {
 	// add this parameter, the specified security groups must be within the VPC
 	// that is specified by SubnetIds.
 	//
-	// If you do not specify this parameter, AWS OpsWorks CM creates one new security
-	// group that uses TCP ports 22 and 443, open to 0.0.0.0/0 (everyone).
+	// If you do not specify this parameter, AWS OpsWorks for Chef Automate creates
+	// one new security group that uses TCP ports 22 and 443, open to 0.0.0.0/0
+	// (everyone).
 	SecurityGroupIds []*string `type:"list"`
 
 	// The name of the server. The server name must be unique within your AWS account,
@@ -2020,12 +2010,13 @@ type CreateServerInput struct {
 	// ServerName is a required field
 	ServerName *string `min:"1" type:"string" required:"true"`
 
-	// The service role that the AWS OpsWorks CM service backend uses to work with
-	// your account. Although the AWS OpsWorks management console typically creates
-	// the service role for you, if you are using the AWS CLI or API commands, run
-	// the service-role-creation.yaml AWS CloudFormation template, located at https://s3.amazonaws.com/opsworks-cm-us-east-1-prod-default-assets/misc/opsworks-cm-roles.yaml.
+	// The service role that the AWS OpsWorks for Chef Automate service backend
+	// uses to work with your account. Although the AWS OpsWorks management console
+	// typically creates the service role for you, if you are using the AWS CLI
+	// or API commands, run the service-role-creation.yaml AWS CloudFormation template,
+	// located at https://s3.amazonaws.com/opsworks-stuff/latest/service-role-creation.yaml.
 	// This template creates a CloudFormation stack that includes the service role
-	// and instance profile that you need.
+	// that you need.
 	//
 	// ServiceRoleArn is a required field
 	ServiceRoleArn *string `type:"string" required:"true"`
@@ -2041,7 +2032,7 @@ type CreateServerInput struct {
 	// enabled.
 	//
 	// For more information about supported Amazon EC2 platforms, see Supported
-	// Platforms (http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-supported-platforms.html).
+	// Platforms (http://docs.aws.amazon.com/https:/docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-supported-platforms.html).
 	SubnetIds []*string `type:"list"`
 }
 
@@ -2185,7 +2176,7 @@ func (s *CreateServerInput) SetSubnetIds(v []*string) *CreateServerInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateServerResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/CreateServerResponse
 type CreateServerOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2209,7 +2200,7 @@ func (s *CreateServerOutput) SetServer(v *Server) *CreateServerOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteBackupRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteBackupRequest
 type DeleteBackupInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2249,7 +2240,7 @@ func (s *DeleteBackupInput) SetBackupId(v string) *DeleteBackupInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteBackupResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteBackupResponse
 type DeleteBackupOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -2264,7 +2255,7 @@ func (s DeleteBackupOutput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteServerRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteServerRequest
 type DeleteServerInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2306,7 +2297,7 @@ func (s *DeleteServerInput) SetServerName(v string) *DeleteServerInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteServerResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DeleteServerResponse
 type DeleteServerOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -2321,7 +2312,7 @@ func (s DeleteServerOutput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeAccountAttributesRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeAccountAttributesRequest
 type DescribeAccountAttributesInput struct {
 	_ struct{} `type:"structure"`
 }
@@ -2336,7 +2327,7 @@ func (s DescribeAccountAttributesInput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeAccountAttributesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeAccountAttributesResponse
 type DescribeAccountAttributesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2360,7 +2351,7 @@ func (s *DescribeAccountAttributesOutput) SetAttributes(v []*AccountAttribute) *
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeBackupsRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeBackupsRequest
 type DescribeBackupsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2438,7 +2429,7 @@ func (s *DescribeBackupsInput) SetServerName(v string) *DescribeBackupsInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeBackupsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeBackupsResponse
 type DescribeBackupsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2478,7 +2469,7 @@ func (s *DescribeBackupsOutput) SetNextToken(v string) *DescribeBackupsOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeEventsRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeEventsRequest
 type DescribeEventsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2552,7 +2543,7 @@ func (s *DescribeEventsInput) SetServerName(v string) *DescribeEventsInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeEventsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeEventsResponse
 type DescribeEventsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2592,12 +2583,10 @@ func (s *DescribeEventsOutput) SetServerEvents(v []*ServerEvent) *DescribeEvents
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeNodeAssociationStatusRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeNodeAssociationStatusRequest
 type DescribeNodeAssociationStatusInput struct {
 	_ struct{} `type:"structure"`
 
-	// The token returned in either the AssociateNodeResponse or the DisassociateNodeResponse.
-	//
 	// NodeAssociationStatusToken is a required field
 	NodeAssociationStatusToken *string `type:"string" required:"true"`
 
@@ -2648,13 +2637,9 @@ func (s *DescribeNodeAssociationStatusInput) SetServerName(v string) *DescribeNo
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeNodeAssociationStatusResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeNodeAssociationStatusResponse
 type DescribeNodeAssociationStatusOutput struct {
 	_ struct{} `type:"structure"`
-
-	// Attributes specific to the node association. In Puppet, the attibute PUPPET_NODE_CERT
-	// contains the signed certificate (the result of the CSR).
-	EngineAttributes []*EngineAttribute `type:"list"`
 
 	// The status of the association or disassociation request.
 	//
@@ -2678,19 +2663,13 @@ func (s DescribeNodeAssociationStatusOutput) GoString() string {
 	return s.String()
 }
 
-// SetEngineAttributes sets the EngineAttributes field's value.
-func (s *DescribeNodeAssociationStatusOutput) SetEngineAttributes(v []*EngineAttribute) *DescribeNodeAssociationStatusOutput {
-	s.EngineAttributes = v
-	return s
-}
-
 // SetNodeAssociationStatus sets the NodeAssociationStatus field's value.
 func (s *DescribeNodeAssociationStatusOutput) SetNodeAssociationStatus(v string) *DescribeNodeAssociationStatusOutput {
 	s.NodeAssociationStatus = &v
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeServersRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeServersRequest
 type DescribeServersInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2759,7 +2738,7 @@ func (s *DescribeServersInput) SetServerName(v string) *DescribeServersInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeServersResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DescribeServersResponse
 type DescribeServersOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2774,11 +2753,6 @@ type DescribeServersOutput struct {
 	NextToken *string `type:"string"`
 
 	// Contains the response to a DescribeServers request.
-	//
-	// For Puppet Server:DescribeServersResponse$Servers$EngineAttributes contains
-	// PUPPET_API_CA_CERT. This is the PEM-encoded CA certificate that is used by
-	// the Puppet API over TCP port number 8140. The CA certificate is also used
-	// to sign node certificates.
 	Servers []*Server `type:"list"`
 }
 
@@ -2804,20 +2778,19 @@ func (s *DescribeServersOutput) SetServers(v []*Server) *DescribeServersOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DisassociateNodeRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DisassociateNodeRequest
 type DisassociateNodeInput struct {
 	_ struct{} `type:"structure"`
 
-	// Engine attributes that are used for disassociating the node. No attributes
-	// are required for Puppet.
+	// Engine attributes used for disassociating the node.
 	//
-	// Attributes required in a DisassociateNode request for Chef
+	// Attributes accepted in a DisassociateNode request:
 	//
 	//    * CHEF_ORGANIZATION: The Chef organization with which the node was associated.
 	//    By default only one organization named default can exist.
 	EngineAttributes []*EngineAttribute `type:"list"`
 
-	// The name of the client node.
+	// The name of the Chef client node.
 	//
 	// NodeName is a required field
 	NodeName *string `type:"string" required:"true"`
@@ -2875,7 +2848,7 @@ func (s *DisassociateNodeInput) SetServerName(v string) *DisassociateNodeInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DisassociateNodeResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/DisassociateNodeResponse
 type DisassociateNodeOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2901,7 +2874,7 @@ func (s *DisassociateNodeOutput) SetNodeAssociationStatusToken(v string) *Disass
 }
 
 // A name and value pair that is specific to the engine of the server.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/EngineAttribute
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/EngineAttribute
 type EngineAttribute struct {
 	_ struct{} `type:"structure"`
 
@@ -2934,7 +2907,7 @@ func (s *EngineAttribute) SetValue(v string) *EngineAttribute {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/RestoreServerRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/RestoreServerRequest
 type RestoreServerInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3012,7 +2985,7 @@ func (s *RestoreServerInput) SetServerName(v string) *RestoreServerInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/RestoreServerResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/RestoreServerResponse
 type RestoreServerOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -3028,7 +3001,7 @@ func (s RestoreServerOutput) GoString() string {
 }
 
 // Describes a configuration management server.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/Server
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/Server
 type Server struct {
 	_ struct{} `type:"structure"`
 
@@ -3051,15 +3024,15 @@ type Server struct {
 	// A DNS name that can be used to access the engine. Example: myserver-asdfghjkl.us-east-1.opsworks.io
 	Endpoint *string `type:"string"`
 
-	// The engine type of the server. Valid values in this release include Chef
-	// and Puppet.
+	// The engine type of the server. The valid value in this release is Chef.
 	Engine *string `type:"string"`
 
 	// The response of a createServer() request returns the master credential to
 	// access the server in EngineAttributes. These credentials are not stored by
-	// AWS OpsWorks CM; they are returned only as part of the result of createServer().
+	// AWS OpsWorks for Chef Automate; they are returned only as part of the result
+	// of createServer().
 	//
-	// Attributes returned in a createServer response for Chef
+	// Attributes returned in a createServer response:
 	//
 	//    * CHEF_PIVOTAL_KEY: A base64-encoded RSA private key that is generated
 	//    by AWS OpsWorks for Chef Automate. This private key is required to access
@@ -3070,24 +3043,13 @@ type Server struct {
 	//    required RSA private key. Save this file, unzip it, and then change to
 	//    the directory where you've unzipped the file contents. From this directory,
 	//    you can run Knife commands.
-	//
-	// Attributes returned in a createServer response for Puppet
-	//
-	//    * PUPPET_STARTER_KIT: A base64-encoded ZIP file. The ZIP file contains
-	//    a Puppet starter kit, including a README and a required private key. Save
-	//    this file, unzip it, and then change to the directory where you've unzipped
-	//    the file contents.
-	//
-	//    * PUPPET_ADMIN_PASSWORD: An administrator password that you can use to
-	//    sign in to the Puppet Enterprise console after the server is online.
 	EngineAttributes []*EngineAttribute `type:"list"`
 
-	// The engine model of the server. Valid values in this release include Monolithic
-	// for Puppet and Single for Chef.
+	// The engine model of the server. The valid value in this release is Single.
 	EngineModel *string `type:"string"`
 
-	// The engine version of the server. For a Chef server, the valid value for
-	// EngineVersion is currently 12. For a Puppet server, the valid value is 2017.
+	// The engine version of the server. Because Chef is the engine available in
+	// this release, the valid value for EngineVersion is 12.
 	EngineVersion *string `type:"string"`
 
 	// The instance profile ARN of the server.
@@ -3287,7 +3249,7 @@ func (s *Server) SetSubnetIds(v []*string) *Server {
 
 // An event that is related to the server, such as the start of maintenance
 // or backup.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/ServerEvent
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/ServerEvent
 type ServerEvent struct {
 	_ struct{} `type:"structure"`
 
@@ -3338,13 +3300,9 @@ func (s *ServerEvent) SetServerName(v string) *ServerEvent {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/StartMaintenanceRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/StartMaintenanceRequest
 type StartMaintenanceInput struct {
 	_ struct{} `type:"structure"`
-
-	// Engine attributes that are specific to the server on which you want to run
-	// maintenance.
-	EngineAttributes []*EngineAttribute `type:"list"`
 
 	// The name of the server on which to run maintenance.
 	//
@@ -3378,19 +3336,13 @@ func (s *StartMaintenanceInput) Validate() error {
 	return nil
 }
 
-// SetEngineAttributes sets the EngineAttributes field's value.
-func (s *StartMaintenanceInput) SetEngineAttributes(v []*EngineAttribute) *StartMaintenanceInput {
-	s.EngineAttributes = v
-	return s
-}
-
 // SetServerName sets the ServerName field's value.
 func (s *StartMaintenanceInput) SetServerName(v string) *StartMaintenanceInput {
 	s.ServerName = &v
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/StartMaintenanceResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/StartMaintenanceResponse
 type StartMaintenanceOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3414,7 +3366,7 @@ func (s *StartMaintenanceOutput) SetServer(v *Server) *StartMaintenanceOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServerEngineAttributesRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServerEngineAttributesRequest
 type UpdateServerEngineAttributesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3482,7 +3434,7 @@ func (s *UpdateServerEngineAttributesInput) SetServerName(v string) *UpdateServe
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServerEngineAttributesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServerEngineAttributesResponse
 type UpdateServerEngineAttributesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3506,7 +3458,7 @@ func (s *UpdateServerEngineAttributesOutput) SetServer(v *Server) *UpdateServerE
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServerRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServerRequest
 type UpdateServerInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3591,7 +3543,7 @@ func (s *UpdateServerInput) SetServerName(v string) *UpdateServerInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServerResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/opsworkscm-2016-11-01/UpdateServerResponse
 type UpdateServerOutput struct {
 	_ struct{} `type:"structure"`
 

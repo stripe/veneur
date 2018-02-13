@@ -14,18 +14,19 @@ const opAddTagsToResource = "AddTagsToResource"
 
 // AddTagsToResourceRequest generates a "aws/request.Request" representing the
 // client's request for the AddTagsToResource operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See AddTagsToResource for usage and error information.
 //
-// See AddTagsToResource for more information on using the AddTagsToResource
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the AddTagsToResource method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the AddTagsToResourceRequest method.
 //    req, resp := client.AddTagsToResourceRequest(params)
@@ -35,7 +36,7 @@ const opAddTagsToResource = "AddTagsToResource"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/AddTagsToResource
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/AddTagsToResource
 func (c *CloudHSM) AddTagsToResourceRequest(input *AddTagsToResourceInput) (req *request.Request, output *AddTagsToResourceOutput) {
 	op := &request.Operation{
 		Name:       opAddTagsToResource,
@@ -53,15 +54,6 @@ func (c *CloudHSM) AddTagsToResourceRequest(input *AddTagsToResourceInput) (req 
 }
 
 // AddTagsToResource API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Adds or overwrites one or more tags for the specified AWS CloudHSM resource.
 //
@@ -84,7 +76,7 @@ func (c *CloudHSM) AddTagsToResourceRequest(input *AddTagsToResourceInput) (req 
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/AddTagsToResource
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/AddTagsToResource
 func (c *CloudHSM) AddTagsToResource(input *AddTagsToResourceInput) (*AddTagsToResourceOutput, error) {
 	req, out := c.AddTagsToResourceRequest(input)
 	return out, req.Send()
@@ -110,18 +102,19 @@ const opCreateHapg = "CreateHapg"
 
 // CreateHapgRequest generates a "aws/request.Request" representing the
 // client's request for the CreateHapg operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateHapg for usage and error information.
 //
-// See CreateHapg for more information on using the CreateHapg
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateHapg method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateHapgRequest method.
 //    req, resp := client.CreateHapgRequest(params)
@@ -131,7 +124,7 @@ const opCreateHapg = "CreateHapg"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHapg
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHapg
 func (c *CloudHSM) CreateHapgRequest(input *CreateHapgInput) (req *request.Request, output *CreateHapgOutput) {
 	op := &request.Operation{
 		Name:       opCreateHapg,
@@ -149,15 +142,6 @@ func (c *CloudHSM) CreateHapgRequest(input *CreateHapgInput) (req *request.Reque
 }
 
 // CreateHapg API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Creates a high-availability partition group. A high-availability partition
 // group is a group of partitions that spans multiple physical HSMs.
@@ -179,7 +163,7 @@ func (c *CloudHSM) CreateHapgRequest(input *CreateHapgInput) (req *request.Reque
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHapg
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHapg
 func (c *CloudHSM) CreateHapg(input *CreateHapgInput) (*CreateHapgOutput, error) {
 	req, out := c.CreateHapgRequest(input)
 	return out, req.Send()
@@ -205,18 +189,19 @@ const opCreateHsm = "CreateHsm"
 
 // CreateHsmRequest generates a "aws/request.Request" representing the
 // client's request for the CreateHsm operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateHsm for usage and error information.
 //
-// See CreateHsm for more information on using the CreateHsm
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateHsm method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateHsmRequest method.
 //    req, resp := client.CreateHsmRequest(params)
@@ -226,7 +211,7 @@ const opCreateHsm = "CreateHsm"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHsm
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHsm
 func (c *CloudHSM) CreateHsmRequest(input *CreateHsmInput) (req *request.Request, output *CreateHsmOutput) {
 	op := &request.Operation{
 		Name:       opCreateHsm,
@@ -245,21 +230,12 @@ func (c *CloudHSM) CreateHsmRequest(input *CreateHsmInput) (req *request.Request
 
 // CreateHsm API operation for Amazon CloudHSM.
 //
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
-//
 // Creates an uninitialized HSM instance.
 //
 // There is an upfront fee charged for each HSM instance that you create with
 // the CreateHsm operation. If you accidentally provision an HSM and want to
 // request a refund, delete the instance using the DeleteHsm operation, go to
-// the AWS Support Center (https://console.aws.amazon.com/support/home), create
+// the AWS Support Center (https://console.aws.amazon.com/support/home#/), create
 // a new case, and select Account and Billing Support.
 //
 // It can take up to 20 minutes to create and provision an HSM. You can monitor
@@ -283,7 +259,7 @@ func (c *CloudHSM) CreateHsmRequest(input *CreateHsmInput) (req *request.Request
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHsm
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHsm
 func (c *CloudHSM) CreateHsm(input *CreateHsmInput) (*CreateHsmOutput, error) {
 	req, out := c.CreateHsmRequest(input)
 	return out, req.Send()
@@ -309,18 +285,19 @@ const opCreateLunaClient = "CreateLunaClient"
 
 // CreateLunaClientRequest generates a "aws/request.Request" representing the
 // client's request for the CreateLunaClient operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateLunaClient for usage and error information.
 //
-// See CreateLunaClient for more information on using the CreateLunaClient
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateLunaClient method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateLunaClientRequest method.
 //    req, resp := client.CreateLunaClientRequest(params)
@@ -330,7 +307,7 @@ const opCreateLunaClient = "CreateLunaClient"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateLunaClient
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateLunaClient
 func (c *CloudHSM) CreateLunaClientRequest(input *CreateLunaClientInput) (req *request.Request, output *CreateLunaClientOutput) {
 	op := &request.Operation{
 		Name:       opCreateLunaClient,
@@ -348,15 +325,6 @@ func (c *CloudHSM) CreateLunaClientRequest(input *CreateLunaClientInput) (req *r
 }
 
 // CreateLunaClient API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Creates an HSM client.
 //
@@ -377,7 +345,7 @@ func (c *CloudHSM) CreateLunaClientRequest(input *CreateLunaClientInput) (req *r
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateLunaClient
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateLunaClient
 func (c *CloudHSM) CreateLunaClient(input *CreateLunaClientInput) (*CreateLunaClientOutput, error) {
 	req, out := c.CreateLunaClientRequest(input)
 	return out, req.Send()
@@ -403,18 +371,19 @@ const opDeleteHapg = "DeleteHapg"
 
 // DeleteHapgRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteHapg operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteHapg for usage and error information.
 //
-// See DeleteHapg for more information on using the DeleteHapg
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteHapg method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteHapgRequest method.
 //    req, resp := client.DeleteHapgRequest(params)
@@ -424,7 +393,7 @@ const opDeleteHapg = "DeleteHapg"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHapg
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHapg
 func (c *CloudHSM) DeleteHapgRequest(input *DeleteHapgInput) (req *request.Request, output *DeleteHapgOutput) {
 	op := &request.Operation{
 		Name:       opDeleteHapg,
@@ -442,15 +411,6 @@ func (c *CloudHSM) DeleteHapgRequest(input *DeleteHapgInput) (req *request.Reque
 }
 
 // DeleteHapg API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Deletes a high-availability partition group.
 //
@@ -471,7 +431,7 @@ func (c *CloudHSM) DeleteHapgRequest(input *DeleteHapgInput) (req *request.Reque
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHapg
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHapg
 func (c *CloudHSM) DeleteHapg(input *DeleteHapgInput) (*DeleteHapgOutput, error) {
 	req, out := c.DeleteHapgRequest(input)
 	return out, req.Send()
@@ -497,18 +457,19 @@ const opDeleteHsm = "DeleteHsm"
 
 // DeleteHsmRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteHsm operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteHsm for usage and error information.
 //
-// See DeleteHsm for more information on using the DeleteHsm
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteHsm method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteHsmRequest method.
 //    req, resp := client.DeleteHsmRequest(params)
@@ -518,7 +479,7 @@ const opDeleteHsm = "DeleteHsm"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHsm
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHsm
 func (c *CloudHSM) DeleteHsmRequest(input *DeleteHsmInput) (req *request.Request, output *DeleteHsmOutput) {
 	op := &request.Operation{
 		Name:       opDeleteHsm,
@@ -536,15 +497,6 @@ func (c *CloudHSM) DeleteHsmRequest(input *DeleteHsmInput) (req *request.Request
 }
 
 // DeleteHsm API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Deletes an HSM. After completion, this operation cannot be undone and your
 // key material cannot be recovered.
@@ -566,7 +518,7 @@ func (c *CloudHSM) DeleteHsmRequest(input *DeleteHsmInput) (req *request.Request
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHsm
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHsm
 func (c *CloudHSM) DeleteHsm(input *DeleteHsmInput) (*DeleteHsmOutput, error) {
 	req, out := c.DeleteHsmRequest(input)
 	return out, req.Send()
@@ -592,18 +544,19 @@ const opDeleteLunaClient = "DeleteLunaClient"
 
 // DeleteLunaClientRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteLunaClient operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteLunaClient for usage and error information.
 //
-// See DeleteLunaClient for more information on using the DeleteLunaClient
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteLunaClient method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteLunaClientRequest method.
 //    req, resp := client.DeleteLunaClientRequest(params)
@@ -613,7 +566,7 @@ const opDeleteLunaClient = "DeleteLunaClient"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteLunaClient
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteLunaClient
 func (c *CloudHSM) DeleteLunaClientRequest(input *DeleteLunaClientInput) (req *request.Request, output *DeleteLunaClientOutput) {
 	op := &request.Operation{
 		Name:       opDeleteLunaClient,
@@ -631,15 +584,6 @@ func (c *CloudHSM) DeleteLunaClientRequest(input *DeleteLunaClientInput) (req *r
 }
 
 // DeleteLunaClient API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Deletes a client.
 //
@@ -660,7 +604,7 @@ func (c *CloudHSM) DeleteLunaClientRequest(input *DeleteLunaClientInput) (req *r
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteLunaClient
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteLunaClient
 func (c *CloudHSM) DeleteLunaClient(input *DeleteLunaClientInput) (*DeleteLunaClientOutput, error) {
 	req, out := c.DeleteLunaClientRequest(input)
 	return out, req.Send()
@@ -686,18 +630,19 @@ const opDescribeHapg = "DescribeHapg"
 
 // DescribeHapgRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeHapg operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeHapg for usage and error information.
 //
-// See DescribeHapg for more information on using the DescribeHapg
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeHapg method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeHapgRequest method.
 //    req, resp := client.DescribeHapgRequest(params)
@@ -707,7 +652,7 @@ const opDescribeHapg = "DescribeHapg"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHapg
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHapg
 func (c *CloudHSM) DescribeHapgRequest(input *DescribeHapgInput) (req *request.Request, output *DescribeHapgOutput) {
 	op := &request.Operation{
 		Name:       opDescribeHapg,
@@ -725,15 +670,6 @@ func (c *CloudHSM) DescribeHapgRequest(input *DescribeHapgInput) (req *request.R
 }
 
 // DescribeHapg API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Retrieves information about a high-availability partition group.
 //
@@ -754,7 +690,7 @@ func (c *CloudHSM) DescribeHapgRequest(input *DescribeHapgInput) (req *request.R
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHapg
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHapg
 func (c *CloudHSM) DescribeHapg(input *DescribeHapgInput) (*DescribeHapgOutput, error) {
 	req, out := c.DescribeHapgRequest(input)
 	return out, req.Send()
@@ -780,18 +716,19 @@ const opDescribeHsm = "DescribeHsm"
 
 // DescribeHsmRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeHsm operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeHsm for usage and error information.
 //
-// See DescribeHsm for more information on using the DescribeHsm
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeHsm method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeHsmRequest method.
 //    req, resp := client.DescribeHsmRequest(params)
@@ -801,7 +738,7 @@ const opDescribeHsm = "DescribeHsm"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHsm
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHsm
 func (c *CloudHSM) DescribeHsmRequest(input *DescribeHsmInput) (req *request.Request, output *DescribeHsmOutput) {
 	op := &request.Operation{
 		Name:       opDescribeHsm,
@@ -819,15 +756,6 @@ func (c *CloudHSM) DescribeHsmRequest(input *DescribeHsmInput) (req *request.Req
 }
 
 // DescribeHsm API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Retrieves information about an HSM. You can identify the HSM by its ARN or
 // its serial number.
@@ -849,7 +777,7 @@ func (c *CloudHSM) DescribeHsmRequest(input *DescribeHsmInput) (req *request.Req
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHsm
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHsm
 func (c *CloudHSM) DescribeHsm(input *DescribeHsmInput) (*DescribeHsmOutput, error) {
 	req, out := c.DescribeHsmRequest(input)
 	return out, req.Send()
@@ -875,18 +803,19 @@ const opDescribeLunaClient = "DescribeLunaClient"
 
 // DescribeLunaClientRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeLunaClient operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeLunaClient for usage and error information.
 //
-// See DescribeLunaClient for more information on using the DescribeLunaClient
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeLunaClient method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeLunaClientRequest method.
 //    req, resp := client.DescribeLunaClientRequest(params)
@@ -896,7 +825,7 @@ const opDescribeLunaClient = "DescribeLunaClient"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeLunaClient
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeLunaClient
 func (c *CloudHSM) DescribeLunaClientRequest(input *DescribeLunaClientInput) (req *request.Request, output *DescribeLunaClientOutput) {
 	op := &request.Operation{
 		Name:       opDescribeLunaClient,
@@ -914,15 +843,6 @@ func (c *CloudHSM) DescribeLunaClientRequest(input *DescribeLunaClientInput) (re
 }
 
 // DescribeLunaClient API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Retrieves information about an HSM client.
 //
@@ -943,7 +863,7 @@ func (c *CloudHSM) DescribeLunaClientRequest(input *DescribeLunaClientInput) (re
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeLunaClient
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeLunaClient
 func (c *CloudHSM) DescribeLunaClient(input *DescribeLunaClientInput) (*DescribeLunaClientOutput, error) {
 	req, out := c.DescribeLunaClientRequest(input)
 	return out, req.Send()
@@ -969,18 +889,19 @@ const opGetConfig = "GetConfig"
 
 // GetConfigRequest generates a "aws/request.Request" representing the
 // client's request for the GetConfig operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See GetConfig for usage and error information.
 //
-// See GetConfig for more information on using the GetConfig
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the GetConfig method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the GetConfigRequest method.
 //    req, resp := client.GetConfigRequest(params)
@@ -990,7 +911,7 @@ const opGetConfig = "GetConfig"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/GetConfig
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/GetConfig
 func (c *CloudHSM) GetConfigRequest(input *GetConfigInput) (req *request.Request, output *GetConfigOutput) {
 	op := &request.Operation{
 		Name:       opGetConfig,
@@ -1008,15 +929,6 @@ func (c *CloudHSM) GetConfigRequest(input *GetConfigInput) (req *request.Request
 }
 
 // GetConfig API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Gets the configuration files necessary to connect to all high availability
 // partition groups the client is associated with.
@@ -1038,7 +950,7 @@ func (c *CloudHSM) GetConfigRequest(input *GetConfigInput) (req *request.Request
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/GetConfig
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/GetConfig
 func (c *CloudHSM) GetConfig(input *GetConfigInput) (*GetConfigOutput, error) {
 	req, out := c.GetConfigRequest(input)
 	return out, req.Send()
@@ -1064,18 +976,19 @@ const opListAvailableZones = "ListAvailableZones"
 
 // ListAvailableZonesRequest generates a "aws/request.Request" representing the
 // client's request for the ListAvailableZones operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListAvailableZones for usage and error information.
 //
-// See ListAvailableZones for more information on using the ListAvailableZones
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListAvailableZones method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListAvailableZonesRequest method.
 //    req, resp := client.ListAvailableZonesRequest(params)
@@ -1085,7 +998,7 @@ const opListAvailableZones = "ListAvailableZones"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListAvailableZones
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListAvailableZones
 func (c *CloudHSM) ListAvailableZonesRequest(input *ListAvailableZonesInput) (req *request.Request, output *ListAvailableZonesOutput) {
 	op := &request.Operation{
 		Name:       opListAvailableZones,
@@ -1103,15 +1016,6 @@ func (c *CloudHSM) ListAvailableZonesRequest(input *ListAvailableZonesInput) (re
 }
 
 // ListAvailableZones API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Lists the Availability Zones that have available AWS CloudHSM capacity.
 //
@@ -1132,7 +1036,7 @@ func (c *CloudHSM) ListAvailableZonesRequest(input *ListAvailableZonesInput) (re
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListAvailableZones
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListAvailableZones
 func (c *CloudHSM) ListAvailableZones(input *ListAvailableZonesInput) (*ListAvailableZonesOutput, error) {
 	req, out := c.ListAvailableZonesRequest(input)
 	return out, req.Send()
@@ -1158,18 +1062,19 @@ const opListHapgs = "ListHapgs"
 
 // ListHapgsRequest generates a "aws/request.Request" representing the
 // client's request for the ListHapgs operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListHapgs for usage and error information.
 //
-// See ListHapgs for more information on using the ListHapgs
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListHapgs method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListHapgsRequest method.
 //    req, resp := client.ListHapgsRequest(params)
@@ -1179,7 +1084,7 @@ const opListHapgs = "ListHapgs"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHapgs
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHapgs
 func (c *CloudHSM) ListHapgsRequest(input *ListHapgsInput) (req *request.Request, output *ListHapgsOutput) {
 	op := &request.Operation{
 		Name:       opListHapgs,
@@ -1197,15 +1102,6 @@ func (c *CloudHSM) ListHapgsRequest(input *ListHapgsInput) (req *request.Request
 }
 
 // ListHapgs API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Lists the high-availability partition groups for the account.
 //
@@ -1231,7 +1127,7 @@ func (c *CloudHSM) ListHapgsRequest(input *ListHapgsInput) (req *request.Request
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHapgs
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHapgs
 func (c *CloudHSM) ListHapgs(input *ListHapgsInput) (*ListHapgsOutput, error) {
 	req, out := c.ListHapgsRequest(input)
 	return out, req.Send()
@@ -1257,18 +1153,19 @@ const opListHsms = "ListHsms"
 
 // ListHsmsRequest generates a "aws/request.Request" representing the
 // client's request for the ListHsms operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListHsms for usage and error information.
 //
-// See ListHsms for more information on using the ListHsms
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListHsms method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListHsmsRequest method.
 //    req, resp := client.ListHsmsRequest(params)
@@ -1278,7 +1175,7 @@ const opListHsms = "ListHsms"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHsms
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHsms
 func (c *CloudHSM) ListHsmsRequest(input *ListHsmsInput) (req *request.Request, output *ListHsmsOutput) {
 	op := &request.Operation{
 		Name:       opListHsms,
@@ -1296,15 +1193,6 @@ func (c *CloudHSM) ListHsmsRequest(input *ListHsmsInput) (req *request.Request, 
 }
 
 // ListHsms API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Retrieves the identifiers of all of the HSMs provisioned for the current
 // customer.
@@ -1331,7 +1219,7 @@ func (c *CloudHSM) ListHsmsRequest(input *ListHsmsInput) (req *request.Request, 
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHsms
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHsms
 func (c *CloudHSM) ListHsms(input *ListHsmsInput) (*ListHsmsOutput, error) {
 	req, out := c.ListHsmsRequest(input)
 	return out, req.Send()
@@ -1357,18 +1245,19 @@ const opListLunaClients = "ListLunaClients"
 
 // ListLunaClientsRequest generates a "aws/request.Request" representing the
 // client's request for the ListLunaClients operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListLunaClients for usage and error information.
 //
-// See ListLunaClients for more information on using the ListLunaClients
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListLunaClients method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListLunaClientsRequest method.
 //    req, resp := client.ListLunaClientsRequest(params)
@@ -1378,7 +1267,7 @@ const opListLunaClients = "ListLunaClients"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListLunaClients
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListLunaClients
 func (c *CloudHSM) ListLunaClientsRequest(input *ListLunaClientsInput) (req *request.Request, output *ListLunaClientsOutput) {
 	op := &request.Operation{
 		Name:       opListLunaClients,
@@ -1396,15 +1285,6 @@ func (c *CloudHSM) ListLunaClientsRequest(input *ListLunaClientsInput) (req *req
 }
 
 // ListLunaClients API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Lists all of the clients.
 //
@@ -1430,7 +1310,7 @@ func (c *CloudHSM) ListLunaClientsRequest(input *ListLunaClientsInput) (req *req
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListLunaClients
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListLunaClients
 func (c *CloudHSM) ListLunaClients(input *ListLunaClientsInput) (*ListLunaClientsOutput, error) {
 	req, out := c.ListLunaClientsRequest(input)
 	return out, req.Send()
@@ -1456,18 +1336,19 @@ const opListTagsForResource = "ListTagsForResource"
 
 // ListTagsForResourceRequest generates a "aws/request.Request" representing the
 // client's request for the ListTagsForResource operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListTagsForResource for usage and error information.
 //
-// See ListTagsForResource for more information on using the ListTagsForResource
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListTagsForResource method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListTagsForResourceRequest method.
 //    req, resp := client.ListTagsForResourceRequest(params)
@@ -1477,7 +1358,7 @@ const opListTagsForResource = "ListTagsForResource"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListTagsForResource
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListTagsForResource
 func (c *CloudHSM) ListTagsForResourceRequest(input *ListTagsForResourceInput) (req *request.Request, output *ListTagsForResourceOutput) {
 	op := &request.Operation{
 		Name:       opListTagsForResource,
@@ -1495,15 +1376,6 @@ func (c *CloudHSM) ListTagsForResourceRequest(input *ListTagsForResourceInput) (
 }
 
 // ListTagsForResource API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Returns a list of all tags for the specified AWS CloudHSM resource.
 //
@@ -1524,7 +1396,7 @@ func (c *CloudHSM) ListTagsForResourceRequest(input *ListTagsForResourceInput) (
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListTagsForResource
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListTagsForResource
 func (c *CloudHSM) ListTagsForResource(input *ListTagsForResourceInput) (*ListTagsForResourceOutput, error) {
 	req, out := c.ListTagsForResourceRequest(input)
 	return out, req.Send()
@@ -1550,18 +1422,19 @@ const opModifyHapg = "ModifyHapg"
 
 // ModifyHapgRequest generates a "aws/request.Request" representing the
 // client's request for the ModifyHapg operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ModifyHapg for usage and error information.
 //
-// See ModifyHapg for more information on using the ModifyHapg
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ModifyHapg method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ModifyHapgRequest method.
 //    req, resp := client.ModifyHapgRequest(params)
@@ -1571,7 +1444,7 @@ const opModifyHapg = "ModifyHapg"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHapg
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHapg
 func (c *CloudHSM) ModifyHapgRequest(input *ModifyHapgInput) (req *request.Request, output *ModifyHapgOutput) {
 	op := &request.Operation{
 		Name:       opModifyHapg,
@@ -1589,15 +1462,6 @@ func (c *CloudHSM) ModifyHapgRequest(input *ModifyHapgInput) (req *request.Reque
 }
 
 // ModifyHapg API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Modifies an existing high-availability partition group.
 //
@@ -1618,7 +1482,7 @@ func (c *CloudHSM) ModifyHapgRequest(input *ModifyHapgInput) (req *request.Reque
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHapg
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHapg
 func (c *CloudHSM) ModifyHapg(input *ModifyHapgInput) (*ModifyHapgOutput, error) {
 	req, out := c.ModifyHapgRequest(input)
 	return out, req.Send()
@@ -1644,18 +1508,19 @@ const opModifyHsm = "ModifyHsm"
 
 // ModifyHsmRequest generates a "aws/request.Request" representing the
 // client's request for the ModifyHsm operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ModifyHsm for usage and error information.
 //
-// See ModifyHsm for more information on using the ModifyHsm
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ModifyHsm method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ModifyHsmRequest method.
 //    req, resp := client.ModifyHsmRequest(params)
@@ -1665,7 +1530,7 @@ const opModifyHsm = "ModifyHsm"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHsm
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHsm
 func (c *CloudHSM) ModifyHsmRequest(input *ModifyHsmInput) (req *request.Request, output *ModifyHsmOutput) {
 	op := &request.Operation{
 		Name:       opModifyHsm,
@@ -1683,15 +1548,6 @@ func (c *CloudHSM) ModifyHsmRequest(input *ModifyHsmInput) (req *request.Request
 }
 
 // ModifyHsm API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Modifies an HSM.
 //
@@ -1718,7 +1574,7 @@ func (c *CloudHSM) ModifyHsmRequest(input *ModifyHsmInput) (req *request.Request
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHsm
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHsm
 func (c *CloudHSM) ModifyHsm(input *ModifyHsmInput) (*ModifyHsmOutput, error) {
 	req, out := c.ModifyHsmRequest(input)
 	return out, req.Send()
@@ -1744,18 +1600,19 @@ const opModifyLunaClient = "ModifyLunaClient"
 
 // ModifyLunaClientRequest generates a "aws/request.Request" representing the
 // client's request for the ModifyLunaClient operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ModifyLunaClient for usage and error information.
 //
-// See ModifyLunaClient for more information on using the ModifyLunaClient
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ModifyLunaClient method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ModifyLunaClientRequest method.
 //    req, resp := client.ModifyLunaClientRequest(params)
@@ -1765,7 +1622,7 @@ const opModifyLunaClient = "ModifyLunaClient"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyLunaClient
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyLunaClient
 func (c *CloudHSM) ModifyLunaClientRequest(input *ModifyLunaClientInput) (req *request.Request, output *ModifyLunaClientOutput) {
 	op := &request.Operation{
 		Name:       opModifyLunaClient,
@@ -1784,15 +1641,6 @@ func (c *CloudHSM) ModifyLunaClientRequest(input *ModifyLunaClientInput) (req *r
 
 // ModifyLunaClient API operation for Amazon CloudHSM.
 //
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
-//
 // Modifies the certificate used by the client.
 //
 // This action can potentially start a workflow to install the new certificate
@@ -1809,7 +1657,7 @@ func (c *CloudHSM) ModifyLunaClientRequest(input *ModifyLunaClientInput) (req *r
 //   * ErrCodeCloudHsmServiceException "CloudHsmServiceException"
 //   Indicates that an exception occurred in the AWS CloudHSM service.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyLunaClient
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyLunaClient
 func (c *CloudHSM) ModifyLunaClient(input *ModifyLunaClientInput) (*ModifyLunaClientOutput, error) {
 	req, out := c.ModifyLunaClientRequest(input)
 	return out, req.Send()
@@ -1835,18 +1683,19 @@ const opRemoveTagsFromResource = "RemoveTagsFromResource"
 
 // RemoveTagsFromResourceRequest generates a "aws/request.Request" representing the
 // client's request for the RemoveTagsFromResource operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See RemoveTagsFromResource for usage and error information.
 //
-// See RemoveTagsFromResource for more information on using the RemoveTagsFromResource
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the RemoveTagsFromResource method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the RemoveTagsFromResourceRequest method.
 //    req, resp := client.RemoveTagsFromResourceRequest(params)
@@ -1856,7 +1705,7 @@ const opRemoveTagsFromResource = "RemoveTagsFromResource"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/RemoveTagsFromResource
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/RemoveTagsFromResource
 func (c *CloudHSM) RemoveTagsFromResourceRequest(input *RemoveTagsFromResourceInput) (req *request.Request, output *RemoveTagsFromResourceOutput) {
 	op := &request.Operation{
 		Name:       opRemoveTagsFromResource,
@@ -1874,15 +1723,6 @@ func (c *CloudHSM) RemoveTagsFromResourceRequest(input *RemoveTagsFromResourceIn
 }
 
 // RemoveTagsFromResource API operation for Amazon CloudHSM.
-//
-// This is documentation for AWS CloudHSM Classic. For more information, see
-// AWS CloudHSM Classic FAQs (http://aws.amazon.com/cloudhsm/faqs-classic/),
-// the AWS CloudHSM Classic User Guide (http://docs.aws.amazon.com/cloudhsm/classic/userguide/),
-// and the AWS CloudHSM Classic API Reference (http://docs.aws.amazon.com/cloudhsm/classic/APIReference/).
-//
-// For information about the current version of AWS CloudHSM, see AWS CloudHSM
-// (http://aws.amazon.com/cloudhsm/), the AWS CloudHSM User Guide (http://docs.aws.amazon.com/cloudhsm/latest/userguide/),
-// and the AWS CloudHSM API Reference (http://docs.aws.amazon.com/cloudhsm/latest/APIReference/).
 //
 // Removes one or more tags from the specified AWS CloudHSM resource.
 //
@@ -1906,7 +1746,7 @@ func (c *CloudHSM) RemoveTagsFromResourceRequest(input *RemoveTagsFromResourceIn
 //   * ErrCodeInvalidRequestException "InvalidRequestException"
 //   Indicates that one or more of the request parameters are not valid.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/RemoveTagsFromResource
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/RemoveTagsFromResource
 func (c *CloudHSM) RemoveTagsFromResource(input *RemoveTagsFromResourceInput) (*RemoveTagsFromResourceOutput, error) {
 	req, out := c.RemoveTagsFromResourceRequest(input)
 	return out, req.Send()
@@ -1928,7 +1768,7 @@ func (c *CloudHSM) RemoveTagsFromResourceWithContext(ctx aws.Context, input *Rem
 	return out, req.Send()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/AddTagsToResourceRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/AddTagsToResourceRequest
 type AddTagsToResourceInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1991,7 +1831,7 @@ func (s *AddTagsToResourceInput) SetTagList(v []*Tag) *AddTagsToResourceInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/AddTagsToResourceResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/AddTagsToResourceResponse
 type AddTagsToResourceOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2018,7 +1858,7 @@ func (s *AddTagsToResourceOutput) SetStatus(v string) *AddTagsToResourceOutput {
 }
 
 // Contains the inputs for the CreateHapgRequest action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHapgRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHapgRequest
 type CreateHapgInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2058,7 +1898,7 @@ func (s *CreateHapgInput) SetLabel(v string) *CreateHapgInput {
 }
 
 // Contains the output of the CreateHAPartitionGroup action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHapgResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHapgResponse
 type CreateHapgOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2083,7 +1923,7 @@ func (s *CreateHapgOutput) SetHapgArn(v string) *CreateHapgOutput {
 }
 
 // Contains the inputs for the CreateHsm operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHsmRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHsmRequest
 type CreateHsmInput struct {
 	_ struct{} `locationName:"CreateHsmRequest" type:"structure"`
 
@@ -2119,7 +1959,6 @@ type CreateHsmInput struct {
 	// Specifies the type of subscription for the HSM.
 	//
 	//    * PRODUCTION - The HSM is being used in a production environment.
-	//
 	//    * TRIAL - The HSM is being used in a product trial.
 	//
 	// SubscriptionType is a required field
@@ -2211,7 +2050,7 @@ func (s *CreateHsmInput) SetSyslogIp(v string) *CreateHsmInput {
 }
 
 // Contains the output of the CreateHsm operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHsmResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateHsmResponse
 type CreateHsmOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2236,7 +2075,7 @@ func (s *CreateHsmOutput) SetHsmArn(v string) *CreateHsmOutput {
 }
 
 // Contains the inputs for the CreateLunaClient action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateLunaClientRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateLunaClientRequest
 type CreateLunaClientInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2289,7 +2128,7 @@ func (s *CreateLunaClientInput) SetLabel(v string) *CreateLunaClientInput {
 }
 
 // Contains the output of the CreateLunaClient action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateLunaClientResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/CreateLunaClientResponse
 type CreateLunaClientOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2314,7 +2153,7 @@ func (s *CreateLunaClientOutput) SetClientArn(v string) *CreateLunaClientOutput 
 }
 
 // Contains the inputs for the DeleteHapg action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHapgRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHapgRequest
 type DeleteHapgInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2354,7 +2193,7 @@ func (s *DeleteHapgInput) SetHapgArn(v string) *DeleteHapgInput {
 }
 
 // Contains the output of the DeleteHapg action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHapgResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHapgResponse
 type DeleteHapgOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2381,7 +2220,7 @@ func (s *DeleteHapgOutput) SetStatus(v string) *DeleteHapgOutput {
 }
 
 // Contains the inputs for the DeleteHsm operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHsmRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHsmRequest
 type DeleteHsmInput struct {
 	_ struct{} `locationName:"DeleteHsmRequest" type:"structure"`
 
@@ -2421,7 +2260,7 @@ func (s *DeleteHsmInput) SetHsmArn(v string) *DeleteHsmInput {
 }
 
 // Contains the output of the DeleteHsm operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHsmResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteHsmResponse
 type DeleteHsmOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2447,7 +2286,7 @@ func (s *DeleteHsmOutput) SetStatus(v string) *DeleteHsmOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteLunaClientRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteLunaClientRequest
 type DeleteLunaClientInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2486,7 +2325,7 @@ func (s *DeleteLunaClientInput) SetClientArn(v string) *DeleteLunaClientInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteLunaClientResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DeleteLunaClientResponse
 type DeleteLunaClientOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2513,7 +2352,7 @@ func (s *DeleteLunaClientOutput) SetStatus(v string) *DeleteLunaClientOutput {
 }
 
 // Contains the inputs for the DescribeHapg action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHapgRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHapgRequest
 type DescribeHapgInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2553,7 +2392,7 @@ func (s *DescribeHapgInput) SetHapgArn(v string) *DescribeHapgInput {
 }
 
 // Contains the output of the DescribeHapg action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHapgResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHapgResponse
 type DescribeHapgOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2651,7 +2490,7 @@ func (s *DescribeHapgOutput) SetState(v string) *DescribeHapgOutput {
 }
 
 // Contains the inputs for the DescribeHsm operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHsmRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHsmRequest
 type DescribeHsmInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2687,7 +2526,7 @@ func (s *DescribeHsmInput) SetHsmSerialNumber(v string) *DescribeHsmInput {
 }
 
 // Contains the output of the DescribeHsm operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHsmResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeHsmResponse
 type DescribeHsmOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2748,7 +2587,6 @@ type DescribeHsmOutput struct {
 	// Specifies the type of subscription for the HSM.
 	//
 	//    * PRODUCTION - The HSM is being used in a production environment.
-	//
 	//    * TRIAL - The HSM is being used in a product trial.
 	SubscriptionType *string `type:"string" enum:"SubscriptionType"`
 
@@ -2895,7 +2733,7 @@ func (s *DescribeHsmOutput) SetVpcId(v string) *DescribeHsmOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeLunaClientRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeLunaClientRequest
 type DescribeLunaClientInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2928,7 +2766,7 @@ func (s *DescribeLunaClientInput) SetClientArn(v string) *DescribeLunaClientInpu
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeLunaClientResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/DescribeLunaClientResponse
 type DescribeLunaClientOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2988,7 +2826,7 @@ func (s *DescribeLunaClientOutput) SetLastModifiedTimestamp(v string) *DescribeL
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/GetConfigRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/GetConfigRequest
 type GetConfigInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3056,7 +2894,7 @@ func (s *GetConfigInput) SetHapgList(v []*string) *GetConfigInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/GetConfigResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/GetConfigResponse
 type GetConfigOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3099,7 +2937,7 @@ func (s *GetConfigOutput) SetConfigType(v string) *GetConfigOutput {
 }
 
 // Contains the inputs for the ListAvailableZones action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListAvailableZonesRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListAvailableZonesRequest
 type ListAvailableZonesInput struct {
 	_ struct{} `type:"structure"`
 }
@@ -3114,7 +2952,7 @@ func (s ListAvailableZonesInput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListAvailableZonesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListAvailableZonesResponse
 type ListAvailableZonesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3138,7 +2976,7 @@ func (s *ListAvailableZonesOutput) SetAZList(v []*string) *ListAvailableZonesOut
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHapgsRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHapgsRequest
 type ListHapgsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3163,7 +3001,7 @@ func (s *ListHapgsInput) SetNextToken(v string) *ListHapgsInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHapgsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHapgsResponse
 type ListHapgsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3199,7 +3037,7 @@ func (s *ListHapgsOutput) SetNextToken(v string) *ListHapgsOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHsmsRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHsmsRequest
 type ListHsmsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3225,7 +3063,7 @@ func (s *ListHsmsInput) SetNextToken(v string) *ListHsmsInput {
 }
 
 // Contains the output of the ListHsms operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHsmsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListHsmsResponse
 type ListHsmsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3259,7 +3097,7 @@ func (s *ListHsmsOutput) SetNextToken(v string) *ListHsmsOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListLunaClientsRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListLunaClientsRequest
 type ListLunaClientsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3284,7 +3122,7 @@ func (s *ListLunaClientsInput) SetNextToken(v string) *ListLunaClientsInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListLunaClientsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListLunaClientsResponse
 type ListLunaClientsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3320,7 +3158,7 @@ func (s *ListLunaClientsOutput) SetNextToken(v string) *ListLunaClientsOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListTagsForResourceRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListTagsForResourceRequest
 type ListTagsForResourceInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3359,7 +3197,7 @@ func (s *ListTagsForResourceInput) SetResourceArn(v string) *ListTagsForResource
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListTagsForResourceResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ListTagsForResourceResponse
 type ListTagsForResourceOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3385,7 +3223,7 @@ func (s *ListTagsForResourceOutput) SetTagList(v []*Tag) *ListTagsForResourceOut
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHapgRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHapgRequest
 type ModifyHapgInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3443,7 +3281,7 @@ func (s *ModifyHapgInput) SetPartitionSerialList(v []*string) *ModifyHapgInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHapgResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHapgResponse
 type ModifyHapgOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3468,7 +3306,7 @@ func (s *ModifyHapgOutput) SetHapgArn(v string) *ModifyHapgOutput {
 }
 
 // Contains the inputs for the ModifyHsm operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHsmRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHsmRequest
 type ModifyHsmInput struct {
 	_ struct{} `locationName:"ModifyHsmRequest" type:"structure"`
 
@@ -3559,7 +3397,7 @@ func (s *ModifyHsmInput) SetSyslogIp(v string) *ModifyHsmInput {
 }
 
 // Contains the output of the ModifyHsm operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHsmResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyHsmResponse
 type ModifyHsmOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3583,7 +3421,7 @@ func (s *ModifyHsmOutput) SetHsmArn(v string) *ModifyHsmOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyLunaClientRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyLunaClientRequest
 type ModifyLunaClientInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3639,7 +3477,7 @@ func (s *ModifyLunaClientInput) SetClientArn(v string) *ModifyLunaClientInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyLunaClientResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/ModifyLunaClientResponse
 type ModifyLunaClientOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3663,7 +3501,7 @@ func (s *ModifyLunaClientOutput) SetClientArn(v string) *ModifyLunaClientOutput 
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/RemoveTagsFromResourceRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/RemoveTagsFromResourceRequest
 type RemoveTagsFromResourceInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3719,7 +3557,7 @@ func (s *RemoveTagsFromResourceInput) SetTagKeyList(v []*string) *RemoveTagsFrom
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/RemoveTagsFromResourceResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/RemoveTagsFromResourceResponse
 type RemoveTagsFromResourceOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3747,7 +3585,7 @@ func (s *RemoveTagsFromResourceOutput) SetStatus(v string) *RemoveTagsFromResour
 
 // A key-value pair that identifies or specifies metadata about an AWS CloudHSM
 // resource.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/Tag
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cloudhsm-2014-05-30/Tag
 type Tag struct {
 	_ struct{} `type:"structure"`
 
@@ -3848,7 +3686,6 @@ const (
 // Specifies the type of subscription for the HSM.
 //
 //    * PRODUCTION - The HSM is being used in a production environment.
-//
 //    * TRIAL - The HSM is being used in a product trial.
 const (
 	// SubscriptionTypeProduction is a SubscriptionType enum value

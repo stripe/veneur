@@ -8,7 +8,6 @@
     "protocol":"rest-xml",
     "serviceAbbreviation":"Amazon S3",
     "serviceFullName":"Amazon Simple Storage Service",
-    "serviceId":"S3",
     "signatureVersion":"s3",
     "timestampFormat":"rfc822",
     "uid":"s3-2006-03-01"
@@ -102,14 +101,6 @@
       },
       "input":{"shape":"DeleteBucketCorsRequest"},
       "documentationUrl":"http://docs.amazonwebservices.com/AmazonS3/latest/API/RESTBucketDELETEcors.html"
-    },
-    "DeleteBucketEncryption":{
-      "name":"DeleteBucketEncryption",
-      "http":{
-        "method":"DELETE",
-        "requestUri":"/{Bucket}?encryption"
-      },
-      "input":{"shape":"DeleteBucketEncryptionRequest"}
     },
     "DeleteBucketInventoryConfiguration":{
       "name":"DeleteBucketInventoryConfiguration",
@@ -238,15 +229,6 @@
       "input":{"shape":"GetBucketCorsRequest"},
       "output":{"shape":"GetBucketCorsOutput"},
       "documentationUrl":"http://docs.amazonwebservices.com/AmazonS3/latest/API/RESTBucketGETcors.html"
-    },
-    "GetBucketEncryption":{
-      "name":"GetBucketEncryption",
-      "http":{
-        "method":"GET",
-        "requestUri":"/{Bucket}?encryption"
-      },
-      "input":{"shape":"GetBucketEncryptionRequest"},
-      "output":{"shape":"GetBucketEncryptionOutput"}
     },
     "GetBucketInventoryConfiguration":{
       "name":"GetBucketInventoryConfiguration",
@@ -583,14 +565,6 @@
       "input":{"shape":"PutBucketCorsRequest"},
       "documentationUrl":"http://docs.amazonwebservices.com/AmazonS3/latest/API/RESTBucketPUTcors.html"
     },
-    "PutBucketEncryption":{
-      "name":"PutBucketEncryption",
-      "http":{
-        "method":"PUT",
-        "requestUri":"/{Bucket}?encryption"
-      },
-      "input":{"shape":"PutBucketEncryptionRequest"}
-    },
     "PutBucketInventoryConfiguration":{
       "name":"PutBucketInventoryConfiguration",
       "http":{
@@ -838,13 +812,6 @@
         "Owner":{"shape":"Owner"}
       }
     },
-    "AccessControlTranslation":{
-      "type":"structure",
-      "required":["Owner"],
-      "members":{
-        "Owner":{"shape":"OwnerOverride"}
-      }
-    },
     "AccountId":{"type":"string"},
     "AllowedHeader":{"type":"string"},
     "AllowedHeaders":{
@@ -1057,27 +1024,6 @@
       "member":{"shape":"CORSRule"},
       "flattened":true
     },
-    "CSVInput":{
-      "type":"structure",
-      "members":{
-        "FileHeaderInfo":{"shape":"FileHeaderInfo"},
-        "Comments":{"shape":"Comments"},
-        "QuoteEscapeCharacter":{"shape":"QuoteEscapeCharacter"},
-        "RecordDelimiter":{"shape":"RecordDelimiter"},
-        "FieldDelimiter":{"shape":"FieldDelimiter"},
-        "QuoteCharacter":{"shape":"QuoteCharacter"}
-      }
-    },
-    "CSVOutput":{
-      "type":"structure",
-      "members":{
-        "QuoteFields":{"shape":"QuoteFields"},
-        "QuoteEscapeCharacter":{"shape":"QuoteEscapeCharacter"},
-        "RecordDelimiter":{"shape":"RecordDelimiter"},
-        "FieldDelimiter":{"shape":"FieldDelimiter"},
-        "QuoteCharacter":{"shape":"QuoteCharacter"}
-      }
-    },
     "CacheControl":{"type":"string"},
     "CloudFunction":{"type":"string"},
     "CloudFunctionConfiguration":{
@@ -1098,7 +1044,6 @@
     },
     "CloudFunctionInvocationRole":{"type":"string"},
     "Code":{"type":"string"},
-    "Comments":{"type":"string"},
     "CommonPrefix":{
       "type":"structure",
       "members":{
@@ -1208,7 +1153,6 @@
         "KeyPrefixEquals":{"shape":"KeyPrefixEquals"}
       }
     },
-    "ConfirmRemoveSelfBucketAccess":{"type":"boolean"},
     "ContentDisposition":{"type":"string"},
     "ContentEncoding":{"type":"string"},
     "ContentLanguage":{"type":"string"},
@@ -1749,17 +1693,6 @@
         }
       }
     },
-    "DeleteBucketEncryptionRequest":{
-      "type":"structure",
-      "required":["Bucket"],
-      "members":{
-        "Bucket":{
-          "shape":"BucketName",
-          "location":"uri",
-          "locationName":"Bucket"
-        }
-      }
-    },
     "DeleteBucketInventoryConfigurationRequest":{
       "type":"structure",
       "required":[
@@ -2029,16 +1962,12 @@
       "flattened":true
     },
     "Delimiter":{"type":"string"},
-    "Description":{"type":"string"},
     "Destination":{
       "type":"structure",
       "required":["Bucket"],
       "members":{
         "Bucket":{"shape":"BucketName"},
-        "Account":{"shape":"AccountId"},
-        "StorageClass":{"shape":"StorageClass"},
-        "AccessControlTranslation":{"shape":"AccessControlTranslation"},
-        "EncryptionConfiguration":{"shape":"EncryptionConfiguration"}
+        "StorageClass":{"shape":"StorageClass"}
       }
     },
     "DisplayName":{"type":"string"},
@@ -2047,21 +1976,6 @@
     "EncodingType":{
       "type":"string",
       "enum":["url"]
-    },
-    "Encryption":{
-      "type":"structure",
-      "required":["EncryptionType"],
-      "members":{
-        "EncryptionType":{"shape":"ServerSideEncryption"},
-        "KMSKeyId":{"shape":"SSEKMSKeyId"},
-        "KMSContext":{"shape":"KMSContext"}
-      }
-    },
-    "EncryptionConfiguration":{
-      "type":"structure",
-      "members":{
-        "ReplicaKmsKeyID":{"shape":"ReplicaKmsKeyID"}
-      }
     },
     "Error":{
       "type":"structure",
@@ -2119,21 +2033,7 @@
       "member":{"shape":"ExposeHeader"},
       "flattened":true
     },
-    "Expression":{"type":"string"},
-    "ExpressionType":{
-      "type":"string",
-      "enum":["SQL"]
-    },
     "FetchOwner":{"type":"boolean"},
-    "FieldDelimiter":{"type":"string"},
-    "FileHeaderInfo":{
-      "type":"string",
-      "enum":[
-        "USE",
-        "IGNORE",
-        "NONE"
-      ]
-    },
     "FilterRule":{
       "type":"structure",
       "members":{
@@ -2228,24 +2128,6 @@
       }
     },
     "GetBucketCorsRequest":{
-      "type":"structure",
-      "required":["Bucket"],
-      "members":{
-        "Bucket":{
-          "shape":"BucketName",
-          "location":"uri",
-          "locationName":"Bucket"
-        }
-      }
-    },
-    "GetBucketEncryptionOutput":{
-      "type":"structure",
-      "members":{
-        "ServerSideEncryptionConfiguration":{"shape":"ServerSideEncryptionConfiguration"}
-      },
-      "payload":"ServerSideEncryptionConfiguration"
-    },
-    "GetBucketEncryptionRequest":{
       "type":"structure",
       "required":["Bucket"],
       "members":{
@@ -3156,12 +3038,6 @@
         "DisplayName":{"shape":"DisplayName"}
       }
     },
-    "InputSerialization":{
-      "type":"structure",
-      "members":{
-        "CSV":{"shape":"CSVInput"}
-      }
-    },
     "InventoryConfiguration":{
       "type":"structure",
       "required":[
@@ -3193,19 +3069,6 @@
         "S3BucketDestination":{"shape":"InventoryS3BucketDestination"}
       }
     },
-    "InventoryEncryption":{
-      "type":"structure",
-      "members":{
-        "SSES3":{
-          "shape":"SSES3",
-          "locationName":"SSE-S3"
-        },
-        "SSEKMS":{
-          "shape":"SSEKMS",
-          "locationName":"SSE-KMS"
-        }
-      }
-    },
     "InventoryFilter":{
       "type":"structure",
       "required":["Prefix"],
@@ -3215,10 +3078,7 @@
     },
     "InventoryFormat":{
       "type":"string",
-      "enum":[
-        "CSV",
-        "ORC"
-      ]
+      "enum":["CSV"]
     },
     "InventoryFrequency":{
       "type":"string",
@@ -3243,8 +3103,7 @@
         "StorageClass",
         "ETag",
         "IsMultipartUploaded",
-        "ReplicationStatus",
-        "EncryptionStatus"
+        "ReplicationStatus"
       ]
     },
     "InventoryOptionalFields":{
@@ -3264,8 +3123,7 @@
         "AccountId":{"shape":"AccountId"},
         "Bucket":{"shape":"BucketName"},
         "Format":{"shape":"InventoryFormat"},
-        "Prefix":{"shape":"Prefix"},
-        "Encryption":{"shape":"InventoryEncryption"}
+        "Prefix":{"shape":"Prefix"}
       }
     },
     "InventorySchedule":{
@@ -3278,7 +3136,6 @@
     "IsEnabled":{"type":"boolean"},
     "IsLatest":{"type":"boolean"},
     "IsTruncated":{"type":"boolean"},
-    "KMSContext":{"type":"string"},
     "KeyCount":{"type":"integer"},
     "KeyMarker":{"type":"string"},
     "KeyPrefixEquals":{"type":"string"},
@@ -3790,7 +3647,6 @@
       }
     },
     "Location":{"type":"string"},
-    "LocationPrefix":{"type":"string"},
     "LoggingEnabled":{
       "type":"structure",
       "members":{
@@ -3831,13 +3687,6 @@
         "COPY",
         "REPLACE"
       ]
-    },
-    "MetadataEntry":{
-      "type":"structure",
-      "members":{
-        "Name":{"shape":"MetadataKey"},
-        "Value":{"shape":"MetadataValue"}
-      }
     },
     "MetadataKey":{"type":"string"},
     "MetadataValue":{"type":"string"},
@@ -4057,28 +3906,12 @@
       "type":"string",
       "enum":["STANDARD"]
     },
-    "OutputLocation":{
-      "type":"structure",
-      "members":{
-        "S3":{"shape":"S3Location"}
-      }
-    },
-    "OutputSerialization":{
-      "type":"structure",
-      "members":{
-        "CSV":{"shape":"CSVOutput"}
-      }
-    },
     "Owner":{
       "type":"structure",
       "members":{
         "DisplayName":{"shape":"DisplayName"},
         "ID":{"shape":"ID"}
       }
-    },
-    "OwnerOverride":{
-      "type":"string",
-      "enum":["Destination"]
     },
     "Part":{
       "type":"structure",
@@ -4245,31 +4078,6 @@
         }
       },
       "payload":"CORSConfiguration"
-    },
-    "PutBucketEncryptionRequest":{
-      "type":"structure",
-      "required":[
-        "Bucket",
-        "ServerSideEncryptionConfiguration"
-      ],
-      "members":{
-        "Bucket":{
-          "shape":"BucketName",
-          "location":"uri",
-          "locationName":"Bucket"
-        },
-        "ContentMD5":{
-          "shape":"ContentMD5",
-          "location":"header",
-          "locationName":"Content-MD5"
-        },
-        "ServerSideEncryptionConfiguration":{
-          "shape":"ServerSideEncryptionConfiguration",
-          "locationName":"ServerSideEncryptionConfiguration",
-          "xmlNamespace":{"uri":"http://s3.amazonaws.com/doc/2006-03-01/"}
-        }
-      },
-      "payload":"ServerSideEncryptionConfiguration"
     },
     "PutBucketInventoryConfigurationRequest":{
       "type":"structure",
@@ -4448,11 +4256,6 @@
           "shape":"ContentMD5",
           "location":"header",
           "locationName":"Content-MD5"
-        },
-        "ConfirmRemoveSelfBucketAccess":{
-          "shape":"ConfirmRemoveSelfBucketAccess",
-          "location":"header",
-          "locationName":"x-amz-confirm-remove-self-bucket-access"
         },
         "Policy":{"shape":"Policy"}
       },
@@ -4939,17 +4742,7 @@
       "flattened":true
     },
     "Quiet":{"type":"boolean"},
-    "QuoteCharacter":{"type":"string"},
-    "QuoteEscapeCharacter":{"type":"string"},
-    "QuoteFields":{
-      "type":"string",
-      "enum":[
-        "ALWAYS",
-        "ASNEEDED"
-      ]
-    },
     "Range":{"type":"string"},
-    "RecordDelimiter":{"type":"string"},
     "Redirect":{
       "type":"structure",
       "members":{
@@ -4970,7 +4763,6 @@
     },
     "ReplaceKeyPrefixWith":{"type":"string"},
     "ReplaceKeyWith":{"type":"string"},
-    "ReplicaKmsKeyID":{"type":"string"},
     "ReplicationConfiguration":{
       "type":"structure",
       "required":[
@@ -4996,7 +4788,6 @@
         "ID":{"shape":"ID"},
         "Prefix":{"shape":"Prefix"},
         "Status":{"shape":"ReplicationRuleStatus"},
-        "SourceSelectionCriteria":{"shape":"SourceSelectionCriteria"},
         "Destination":{"shape":"Destination"}
       }
     },
@@ -5050,11 +4841,6 @@
           "shape":"RequestCharged",
           "location":"header",
           "locationName":"x-amz-request-charged"
-        },
-        "RestoreOutputPath":{
-          "shape":"RestoreOutputPath",
-          "location":"header",
-          "locationName":"x-amz-restore-output-path"
         }
       }
     },
@@ -5093,22 +4879,13 @@
       },
       "payload":"RestoreRequest"
     },
-    "RestoreOutputPath":{"type":"string"},
     "RestoreRequest":{
       "type":"structure",
+      "required":["Days"],
       "members":{
         "Days":{"shape":"Days"},
-        "GlacierJobParameters":{"shape":"GlacierJobParameters"},
-        "Type":{"shape":"RestoreRequestType"},
-        "Tier":{"shape":"Tier"},
-        "Description":{"shape":"Description"},
-        "SelectParameters":{"shape":"SelectParameters"},
-        "OutputLocation":{"shape":"OutputLocation"}
+        "GlacierJobParameters":{"shape":"GlacierJobParameters"}
       }
-    },
-    "RestoreRequestType":{
-      "type":"string",
-      "enum":["SELECT"]
     },
     "Role":{"type":"string"},
     "RoutingRule":{
@@ -5157,61 +4934,15 @@
         }
       }
     },
-    "S3Location":{
-      "type":"structure",
-      "required":[
-        "BucketName",
-        "Prefix"
-      ],
-      "members":{
-        "BucketName":{"shape":"BucketName"},
-        "Prefix":{"shape":"LocationPrefix"},
-        "Encryption":{"shape":"Encryption"},
-        "CannedACL":{"shape":"ObjectCannedACL"},
-        "AccessControlList":{"shape":"Grants"},
-        "Tagging":{"shape":"Tagging"},
-        "UserMetadata":{"shape":"UserMetadata"},
-        "StorageClass":{"shape":"StorageClass"}
-      }
-    },
     "SSECustomerAlgorithm":{"type":"string"},
     "SSECustomerKey":{
       "type":"string",
       "sensitive":true
     },
     "SSECustomerKeyMD5":{"type":"string"},
-    "SSEKMS":{
-      "type":"structure",
-      "required":["KeyId"],
-      "members":{
-        "KeyId":{"shape":"SSEKMSKeyId"}
-      },
-      "locationName":"SSE-KMS"
-    },
     "SSEKMSKeyId":{
       "type":"string",
       "sensitive":true
-    },
-    "SSES3":{
-      "type":"structure",
-      "members":{
-      },
-      "locationName":"SSE-S3"
-    },
-    "SelectParameters":{
-      "type":"structure",
-      "required":[
-        "InputSerialization",
-        "ExpressionType",
-        "Expression",
-        "OutputSerialization"
-      ],
-      "members":{
-        "InputSerialization":{"shape":"InputSerialization"},
-        "ExpressionType":{"shape":"ExpressionType"},
-        "Expression":{"shape":"Expression"},
-        "OutputSerialization":{"shape":"OutputSerialization"}
-      }
     },
     "ServerSideEncryption":{
       "type":"string",
@@ -5220,56 +4951,7 @@
         "aws:kms"
       ]
     },
-    "ServerSideEncryptionByDefault":{
-      "type":"structure",
-      "required":["SSEAlgorithm"],
-      "members":{
-        "SSEAlgorithm":{"shape":"ServerSideEncryption"},
-        "KMSMasterKeyID":{"shape":"SSEKMSKeyId"}
-      }
-    },
-    "ServerSideEncryptionConfiguration":{
-      "type":"structure",
-      "required":["Rules"],
-      "members":{
-        "Rules":{
-          "shape":"ServerSideEncryptionRules",
-          "locationName":"Rule"
-        }
-      }
-    },
-    "ServerSideEncryptionRule":{
-      "type":"structure",
-      "members":{
-        "ApplyServerSideEncryptionByDefault":{"shape":"ServerSideEncryptionByDefault"}
-      }
-    },
-    "ServerSideEncryptionRules":{
-      "type":"list",
-      "member":{"shape":"ServerSideEncryptionRule"},
-      "flattened":true
-    },
     "Size":{"type":"integer"},
-    "SourceSelectionCriteria":{
-      "type":"structure",
-      "members":{
-        "SseKmsEncryptedObjects":{"shape":"SseKmsEncryptedObjects"}
-      }
-    },
-    "SseKmsEncryptedObjects":{
-      "type":"structure",
-      "required":["Status"],
-      "members":{
-        "Status":{"shape":"SseKmsEncryptedObjectsStatus"}
-      }
-    },
-    "SseKmsEncryptedObjectsStatus":{
-      "type":"string",
-      "enum":[
-        "Enabled",
-        "Disabled"
-      ]
-    },
     "StartAfter":{"type":"string"},
     "StorageClass":{
       "type":"string",
@@ -5664,13 +5346,6 @@
         }
       },
       "payload":"Body"
-    },
-    "UserMetadata":{
-      "type":"list",
-      "member":{
-        "shape":"MetadataEntry",
-        "locationName":"MetadataEntry"
-      }
     },
     "Value":{"type":"string"},
     "VersionIdMarker":{"type":"string"},

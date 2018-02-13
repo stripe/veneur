@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/awstesting/unit"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/stretchr/testify/assert"
 )
 
 var s3LocationTests = []struct {
@@ -31,10 +32,7 @@ func TestGetBucketLocation(t *testing.T) {
 		})
 
 		resp, err := s.GetBucketLocation(&s3.GetBucketLocationInput{Bucket: aws.String("bucket")})
-		if err != nil {
-			t.Errorf("expected no error, but received %v", err)
-		}
-
+		assert.NoError(t, err)
 		if test.loc == "" {
 			if v := resp.LocationConstraint; v != nil {
 				t.Errorf("expect location constraint to be nil, got %s", *v)

@@ -10,10 +10,10 @@ import (
 	"io/ioutil"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"text/template"
-	"unicode"
 )
 
 // An API defines a service API's definition. and logic to serialize the definition.
@@ -94,53 +94,23 @@ func (a *API) InterfacePackageName() string {
 	return a.PackageName() + "iface"
 }
 
-var stripServiceNamePrefixes = []string{
-	"Amazon",
-	"AWS",
-}
+var nameRegex = regexp.MustCompile(`^Amazon|AWS\s*|\(.*|\s+|\W+`)
 
 // StructName returns the struct name for a given API.
 func (a *API) StructName() string {
-	if len(a.name) != 0 {
-		return a.name
-	}
+	if a.name == "" {
+		name := a.Metadata.ServiceAbbreviation
+		if name == "" {
+			name = a.Metadata.ServiceFullName
+		}
 
-	name := a.Metadata.ServiceAbbreviation
-	if len(name) == 0 {
-		name = a.Metadata.ServiceFullName
-	}
+		name = nameRegex.ReplaceAllString(name, "")
 
-	name = strings.TrimSpace(name)
-
-	// Strip out prefix names not reflected in service client symbol names.
-	for _, prefix := range stripServiceNamePrefixes {
-		if strings.HasPrefix(name, prefix) {
-			name = name[len(prefix):]
-			break
+		a.name = name
+		if name, ok := serviceAliases[strings.ToLower(name)]; ok {
+			a.name = name
 		}
 	}
-
-	// Replace all Non-letter/number values with space
-	runes := []rune(name)
-	for i := 0; i < len(runes); i++ {
-		if r := runes[i]; !(unicode.IsNumber(r) || unicode.IsLetter(r)) {
-			runes[i] = ' '
-		}
-	}
-	name = string(runes)
-
-	// Title case name so its readable as a symbol.
-	name = strings.Title(name)
-
-	// Strip out spaces.
-	name = strings.Replace(name, " ", "", -1)
-
-	// Swap out for alias name if one is defined.
-	if alias, ok := serviceAliases[strings.ToLower(name)]; ok {
-		name = alias
-	}
-
-	a.name = name
 	return a.name
 }
 
@@ -321,61 +291,32 @@ func (a *API) APIGoCode() string {
 }
 
 var noCrossLinkServices = map[string]struct{}{
-	"apigateway":        {},
-	"budgets":           {},
-	"cloudsearch":       {},
-	"cloudsearchdomain": {},
-	"elastictranscoder": {},
-	"es":                {},
-	"glacier":           {},
-	"importexport":      {},
-	"iot":               {},
-	"iot-data":          {},
-	"machinelearning":   {},
-	"rekognition":       {},
-	"sdb":               {},
-	"swf":               {},
+	"apigateway":        struct{}{},
+	"budgets":           struct{}{},
+	"cloudsearch":       struct{}{},
+	"cloudsearchdomain": struct{}{},
+	"discovery":         struct{}{},
+	"elastictranscoder": struct{}{},
+	"es":                struct{}{},
+	"glacier":           struct{}{},
+	"importexport":      struct{}{},
+	"iot":               struct{}{},
+	"iot-data":          struct{}{},
+	"lambda":            struct{}{},
+	"machinelearning":   struct{}{},
+	"rekognition":       struct{}{},
+	"sdb":               struct{}{},
+	"swf":               struct{}{},
 }
 
-// HasCrosslinks will return whether or not a service has crosslinking .
-func HasCrosslinks(service string) bool {
-	_, ok := noCrossLinkServices[service]
-	return !ok
-}
-
-// GetCrosslinkURL returns the crosslinking URL for the shape based on the name and
-// uid provided. Empty string is returned if no crosslink link could be determined.
-func GetCrosslinkURL(baseURL, uid string, params ...string) string {
-	if uid == "" || baseURL == "" {
-		return ""
+func GetCrosslinkURL(baseURL, name, uid string, params ...string) string {
+	_, ok := noCrossLinkServices[strings.ToLower(name)]
+	if uid != "" && baseURL != "" && !ok {
+		return strings.Join(append([]string{baseURL, "goto", "WebAPI", uid}, params...), "/")
 	}
-
-	if !HasCrosslinks(strings.ToLower(ServiceIDFromUID(uid))) {
-		return ""
-	}
-
-	return strings.Join(append([]string{baseURL, "goto", "WebAPI", uid}, params...), "/")
+	return ""
 }
 
-// ServiceIDFromUID will parse the service id from the uid and return
-// the service id that was found.
-func ServiceIDFromUID(uid string) string {
-	found := 0
-	i := len(uid) - 1
-	for ; i >= 0; i-- {
-		if uid[i] == '-' {
-			found++
-		}
-		// Terminate after the date component is found, e.g. es-2017-11-11
-		if found == 3 {
-			break
-		}
-	}
-
-	return uid[0:i]
-}
-
-// APIName returns the API's service name.
 func (a *API) APIName() string {
 	return a.name
 }
@@ -390,7 +331,7 @@ var tplServiceDoc = template.Must(template.New("service docs").Funcs(template.Fu
 //
 {{ .Documentation }}
 {{ end -}}
-{{ $crosslinkURL := GetCrosslinkURL $.BaseCrosslinkURL $.Metadata.UID -}}
+{{ $crosslinkURL := GetCrosslinkURL $.BaseCrosslinkURL $.APIName $.Metadata.UID -}}
 {{ if $crosslinkURL -}}
 //
 // See {{ $crosslinkURL }} for more information on this service.
@@ -401,19 +342,75 @@ var tplServiceDoc = template.Must(template.New("service docs").Funcs(template.Fu
 //
 // Using the Client
 //
-// To contact {{ .Metadata.ServiceFullName }} with the SDK use the New function to create
-// a new service client. With that client you can make API requests to the service.
-// These clients are safe to use concurrently.
+// To use the client for {{ .Metadata.ServiceFullName }} you will first need
+// to create a new instance of it. 
 //
-// See the SDK's documentation for more information on how to use the SDK.
+// When creating a client for an AWS service you'll first need to have a Session
+// already created. The Session provides configuration that can be shared
+// between multiple service clients. Additional configuration can be applied to
+// the Session and service's client when they are constructed. The aws package's
+// Config type contains several fields such as Region for the AWS Region the
+// client should make API requests too. The optional Config value can be provided
+// as the variadic argument for Sessions and client creation.
+//
+// Once the service's client is created you can use it to make API requests the
+// AWS service. These clients are safe to use concurrently.
+//
+//   // Create a session to share configuration, and load external configuration.
+//   sess := session.Must(session.NewSession())
+//
+//   // Create the service's client with the session.
+//   svc := {{ .PackageName }}.New(sess)
+//
+// See the SDK's documentation for more information on how to use service clients.
 // https://docs.aws.amazon.com/sdk-for-go/api/
 // 
-// See aws.Config documentation for more information on configuring SDK clients.
+// See aws package's Config type for more information on configuration options.
 // https://docs.aws.amazon.com/sdk-for-go/api/aws/#Config
 //
 // See the {{ .Metadata.ServiceFullName }} client {{ .StructName }} for more
-// information on creating client for this service.
+// information on creating the service's client.
 // https://docs.aws.amazon.com/sdk-for-go/api/service/{{ .PackageName }}/#New
+//
+{{ $opts := .OperationNames -}}
+{{ $optName := index $opts 0 -}}
+{{ $opt := index .Operations $optName -}}
+{{ $optInputName := $opt.InputRef.GoTypeWithPkgName -}}
+// Once the client is created you can make an API request to the service.
+// Each API method takes a input parameter, and returns the service response
+// and an error.
+//
+// The API method will document which error codes the service can be returned
+// by the operation if the service models the API operation's errors. These
+// errors will also be available as const strings prefixed with "ErrCode".
+//
+//   result, err := svc.{{ $opt.ExportedName }}(params)
+//   if err != nil {
+//       // Cast err to awserr.Error to handle specific error codes.
+//       aerr, ok := err.(awserr.Error)
+//       if ok && aerr.Code() == <error code to check for> {
+//           // Specific error code handling
+//       }
+//       return err
+//   }
+//
+//   fmt.Println("{{ $optName }} result:")
+//   fmt.Println(result)
+//
+// Using the Client with Context
+//
+// The service's client also provides methods to make API requests with a Context
+// value. This allows you to control the timeout, and cancellation of pending
+// requests. These methods also take request Option as variadic parameter to apply
+// additional configuration to the API request.
+//
+//   ctx := context.Background()
+//
+//   result, err := svc.{{ $opt.ExportedName }}WithContext(ctx, params)
+//
+// See the request package documentation for more information on using Context pattern
+// with the SDK.
+// https://docs.aws.amazon.com/sdk-for-go/api/aws/request/
 `))
 
 // A tplService defines the template for the service generated code.
@@ -610,7 +607,7 @@ func (a *API) ExampleGoCode() string {
 		"github.com/aws/aws-sdk-go/aws/session",
 		path.Join(a.SvcClientImportPath, a.PackageName()),
 	)
-	for k := range imports {
+	for k, _ := range imports {
 		code += fmt.Sprintf("%q\n", k)
 	}
 	code += ")\n\n"
@@ -628,7 +625,7 @@ var tplInterface = template.Must(template.New("interface").Parse(`
 //
 // The best way to use this interface is so the SDK's service client's calls
 // can be stubbed out for unit testing your code with the SDK without needing
-// to inject custom request handlers into the SDK's request pipeline.
+// to inject custom request handlers into the the SDK's request pipeline.
 //
 //    // myFunc uses an SDK service client to make a request to
 //    // {{.Metadata.ServiceFullName}}. {{ $opts := .OperationList }}{{ $opt := index $opts 0 }}

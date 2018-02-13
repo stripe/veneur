@@ -629,7 +629,7 @@
       "type":"structure",
       "members":{
         "WorkerId":{"shape":"CustomerId"},
-        "BonusAmount":{"shape":"CurrencyAmount"},
+        "BonusAmount":{"shape":"NumericValue"},
         "AssignmentId":{"shape":"EntityId"},
         "Reason":{"shape":"String"},
         "GrantTime":{"shape":"Timestamp"}
@@ -662,10 +662,7 @@
     },
     "CreateAdditionalAssignmentsForHITRequest":{
       "type":"structure",
-      "required":[
-        "HITId",
-        "NumberOfAdditionalAssignments"
-      ],
+      "required":["HITId"],
       "members":{
         "HITId":{"shape":"EntityId"},
         "NumberOfAdditionalAssignments":{"shape":"Integer"},
@@ -691,7 +688,7 @@
         "AutoApprovalDelayInSeconds":{"shape":"Long"},
         "LifetimeInSeconds":{"shape":"Long"},
         "AssignmentDurationInSeconds":{"shape":"Long"},
-        "Reward":{"shape":"CurrencyAmount"},
+        "Reward":{"shape":"NumericValue"},
         "Title":{"shape":"String"},
         "Keywords":{"shape":"String"},
         "Description":{"shape":"String"},
@@ -722,7 +719,7 @@
       "members":{
         "AutoApprovalDelayInSeconds":{"shape":"Long"},
         "AssignmentDurationInSeconds":{"shape":"Long"},
-        "Reward":{"shape":"CurrencyAmount"},
+        "Reward":{"shape":"NumericValue"},
         "Title":{"shape":"String"},
         "Keywords":{"shape":"String"},
         "Description":{"shape":"String"},
@@ -801,10 +798,6 @@
       "type":"structure",
       "members":{
       }
-    },
-    "CurrencyAmount":{
-      "type":"string",
-      "pattern":"^[0-9]+(\\.)?[0-9]{0,2}$"
     },
     "CustomerId":{
       "type":"string",
@@ -906,8 +899,8 @@
     "GetAccountBalanceResponse":{
       "type":"structure",
       "members":{
-        "AvailableBalance":{"shape":"CurrencyAmount"},
-        "OnHoldBalance":{"shape":"CurrencyAmount"}
+        "AvailableBalance":{"shape":"NumericValue"},
+        "OnHoldBalance":{"shape":"NumericValue"}
       }
     },
     "GetAssignmentRequest":{
@@ -998,7 +991,7 @@
         "Keywords":{"shape":"String"},
         "HITStatus":{"shape":"HITStatus"},
         "MaxAssignments":{"shape":"Integer"},
-        "Reward":{"shape":"CurrencyAmount"},
+        "Reward":{"shape":"NumericValue"},
         "AutoApprovalDelayInSeconds":{"shape":"Long"},
         "Expiration":{"shape":"Timestamp"},
         "AssignmentDurationInSeconds":{"shape":"Long"},
@@ -1012,10 +1005,6 @@
     },
     "HITLayoutParameter":{
       "type":"structure",
-      "required":[
-        "Name",
-        "Value"
-      ],
       "members":{
         "Name":{"shape":"String"},
         "Value":{"shape":"String"}
@@ -1250,9 +1239,7 @@
       "type":"structure",
       "required":[
         "Destination",
-        "Transport",
-        "Version",
-        "EventTypes"
+        "Transport"
       ],
       "members":{
         "Destination":{"shape":"String"},
@@ -1265,8 +1252,7 @@
       "type":"string",
       "enum":[
         "Email",
-        "SQS",
-        "SNS"
+        "SQS"
       ]
     },
     "NotifyWorkersFailureCode":{
@@ -1306,6 +1292,10 @@
       "members":{
         "NotifyWorkersFailureStatuses":{"shape":"NotifyWorkersFailureStatusList"}
       }
+    },
+    "NumericValue":{
+      "type":"string",
+      "pattern":"^[0-9]+(\\.)?[0-9]*$"
     },
     "PaginationToken":{
       "type":"string",
@@ -1421,10 +1411,7 @@
     },
     "RejectAssignmentRequest":{
       "type":"structure",
-      "required":[
-        "AssignmentId",
-        "RequesterFeedback"
-      ],
+      "required":["AssignmentId"],
       "members":{
         "AssignmentId":{"shape":"EntityId"},
         "RequesterFeedback":{"shape":"String"}
@@ -1489,7 +1476,6 @@
     },
     "ReviewPolicy":{
       "type":"structure",
-      "required":["PolicyName"],
       "members":{
         "PolicyName":{"shape":"String"},
         "Parameters":{"shape":"PolicyParameterList"}
@@ -1540,12 +1526,11 @@
       "required":[
         "WorkerId",
         "BonusAmount",
-        "AssignmentId",
-        "Reason"
+        "AssignmentId"
       ],
       "members":{
         "WorkerId":{"shape":"CustomerId"},
-        "BonusAmount":{"shape":"CurrencyAmount"},
+        "BonusAmount":{"shape":"NumericValue"},
         "AssignmentId":{"shape":"EntityId"},
         "Reason":{"shape":"String"},
         "UniqueRequestToken":{"shape":"IdempotencyToken"}
@@ -1590,10 +1575,7 @@
     "TurkErrorCode":{"type":"string"},
     "UpdateExpirationForHITRequest":{
       "type":"structure",
-      "required":[
-        "HITId",
-        "ExpireAt"
-      ],
+      "required":["HITId"],
       "members":{
         "HITId":{"shape":"EntityId"},
         "ExpireAt":{"shape":"Timestamp"}

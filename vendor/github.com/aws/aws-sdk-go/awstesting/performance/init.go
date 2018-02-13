@@ -9,6 +9,7 @@ import (
 	"runtime"
 
 	"github.com/gucumber/gucumber"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -31,12 +32,8 @@ func init() {
 	gucumber.Then(`^I should not have leaked any resources$`, func() {
 		runtime.GC()
 		err, ok := gucumber.World["error"].(awserr.Error)
-		if ok {
-			gucumber.T.Errorf("error returned")
-		}
-		if err != nil {
-			gucumber.T.Errorf("expect no error, got %v", err)
-		}
+		assert.False(gucumber.T, ok, "error returned")
+		assert.NoError(gucumber.T, err)
 	})
 
 	gucumber.And(`^I have a list of services$`, func() {

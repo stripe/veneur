@@ -5,7 +5,6 @@
     "endpointPrefix":"lambda",
     "protocol":"rest-json",
     "serviceFullName":"AWS Lambda",
-    "serviceId":"Lambda",
     "signatureVersion":"v4",
     "uid":"lambda-2015-03-31"
   },
@@ -124,21 +123,6 @@
         {"shape":"TooManyRequestsException"},
         {"shape":"InvalidParameterValueException"},
         {"shape":"ResourceConflictException"}
-      ]
-    },
-    "DeleteFunctionConcurrency":{
-      "name":"DeleteFunctionConcurrency",
-      "http":{
-        "method":"DELETE",
-        "requestUri":"/2017-10-31/functions/{FunctionName}/concurrency",
-        "responseCode":204
-      },
-      "input":{"shape":"DeleteFunctionConcurrencyRequest"},
-      "errors":[
-        {"shape":"ServiceException"},
-        {"shape":"ResourceNotFoundException"},
-        {"shape":"TooManyRequestsException"},
-        {"shape":"InvalidParameterValueException"}
       ]
     },
     "GetAccountSettings":{
@@ -378,22 +362,6 @@
         {"shape":"CodeStorageExceededException"}
       ]
     },
-    "PutFunctionConcurrency":{
-      "name":"PutFunctionConcurrency",
-      "http":{
-        "method":"PUT",
-        "requestUri":"/2017-10-31/functions/{FunctionName}/concurrency",
-        "responseCode":200
-      },
-      "input":{"shape":"PutFunctionConcurrencyRequest"},
-      "output":{"shape":"Concurrency"},
-      "errors":[
-        {"shape":"ServiceException"},
-        {"shape":"InvalidParameterValueException"},
-        {"shape":"ResourceNotFoundException"},
-        {"shape":"TooManyRequestsException"}
-      ]
-    },
     "RemovePermission":{
       "name":"RemovePermission",
       "http":{
@@ -514,8 +482,7 @@
         "TotalCodeSize":{"shape":"Long"},
         "CodeSizeUnzipped":{"shape":"Long"},
         "CodeSizeZipped":{"shape":"Long"},
-        "ConcurrentExecutions":{"shape":"Integer"},
-        "UnreservedConcurrentExecutions":{"shape":"UnreservedConcurrentExecutions"}
+        "ConcurrentExecutions":{"shape":"Integer"}
       }
     },
     "AccountUsage":{
@@ -562,17 +529,6 @@
         "Statement":{"shape":"String"}
       }
     },
-    "AdditionalVersion":{
-      "type":"string",
-      "max":1024,
-      "min":1,
-      "pattern":"[0-9]+"
-    },
-    "AdditionalVersionWeights":{
-      "type":"map",
-      "key":{"shape":"AdditionalVersion"},
-      "value":{"shape":"Weight"}
-    },
     "Alias":{
       "type":"string",
       "max":128,
@@ -585,19 +541,12 @@
         "AliasArn":{"shape":"FunctionArn"},
         "Name":{"shape":"Alias"},
         "FunctionVersion":{"shape":"Version"},
-        "Description":{"shape":"Description"},
-        "RoutingConfig":{"shape":"AliasRoutingConfiguration"}
+        "Description":{"shape":"Description"}
       }
     },
     "AliasList":{
       "type":"list",
       "member":{"shape":"AliasConfiguration"}
-    },
-    "AliasRoutingConfiguration":{
-      "type":"structure",
-      "members":{
-        "AdditionalVersionWeights":{"shape":"AdditionalVersionWeights"}
-      }
     },
     "Arn":{
       "type":"string",
@@ -626,12 +575,6 @@
       "error":{"httpStatusCode":400},
       "exception":true
     },
-    "Concurrency":{
-      "type":"structure",
-      "members":{
-        "ReservedConcurrentExecutions":{"shape":"ReservedConcurrentExecutions"}
-      }
-    },
     "CreateAliasRequest":{
       "type":"structure",
       "required":[
@@ -647,8 +590,7 @@
         },
         "Name":{"shape":"Alias"},
         "FunctionVersion":{"shape":"Version"},
-        "Description":{"shape":"Description"},
-        "RoutingConfig":{"shape":"AliasRoutingConfiguration"}
+        "Description":{"shape":"Description"}
       }
     },
     "CreateEventSourceMappingRequest":{
@@ -728,17 +670,6 @@
           "shape":"String",
           "location":"uri",
           "locationName":"UUID"
-        }
-      }
-    },
-    "DeleteFunctionConcurrencyRequest":{
-      "type":"structure",
-      "required":["FunctionName"],
-      "members":{
-        "FunctionName":{
-          "shape":"FunctionName",
-          "location":"uri",
-          "locationName":"FunctionName"
         }
       }
     },
@@ -1003,8 +934,7 @@
       "members":{
         "Configuration":{"shape":"FunctionConfiguration"},
         "Code":{"shape":"FunctionCodeLocation"},
-        "Tags":{"shape":"Tags"},
-        "Concurrency":{"shape":"Concurrency"}
+        "Tags":{"shape":"Tags"}
       }
     },
     "GetPolicyRequest":{
@@ -1140,12 +1070,7 @@
           "location":"header",
           "locationName":"X-Amz-Log-Result"
         },
-        "Payload":{"shape":"Blob"},
-        "ExecutedVersion":{
-          "shape":"Version",
-          "location":"header",
-          "locationName":"X-Amz-Executed-Version"
-        }
+        "Payload":{"shape":"Blob"}
       },
       "payload":"Payload"
     },
@@ -1385,7 +1310,7 @@
     },
     "MemorySize":{
       "type":"integer",
-      "max":3008,
+      "max":1536,
       "min":128
     },
     "NameSpacedFunctionArn":{
@@ -1430,21 +1355,6 @@
         "Description":{"shape":"Description"}
       }
     },
-    "PutFunctionConcurrencyRequest":{
-      "type":"structure",
-      "required":[
-        "FunctionName",
-        "ReservedConcurrentExecutions"
-      ],
-      "members":{
-        "FunctionName":{
-          "shape":"FunctionName",
-          "location":"uri",
-          "locationName":"FunctionName"
-        },
-        "ReservedConcurrentExecutions":{"shape":"ReservedConcurrentExecutions"}
-      }
-    },
     "Qualifier":{
       "type":"string",
       "max":128,
@@ -1484,10 +1394,6 @@
       "error":{"httpStatusCode":413},
       "exception":true
     },
-    "ReservedConcurrentExecutions":{
-      "type":"integer",
-      "min":0
-    },
     "ResourceArn":{
       "type":"string",
       "pattern":"(arn:aws:[a-z0-9-.]+:.*)|()"
@@ -1524,9 +1430,7 @@
         "python2.7",
         "python3.6",
         "dotnetcore1.0",
-        "dotnetcore2.0",
-        "nodejs4.3-edge",
-        "go1.x"
+        "nodejs4.3-edge"
       ]
     },
     "S3Bucket":{
@@ -1621,8 +1525,6 @@
       "enum":[
         "ConcurrentInvocationLimitExceeded",
         "FunctionInvocationRateLimitExceeded",
-        "ReservedFunctionConcurrentInvocationLimitExceeded",
-        "ReservedFunctionInvocationRateLimitExceeded",
         "CallerRateLimitExceeded"
       ]
     },
@@ -1664,10 +1566,6 @@
         "Active",
         "PassThrough"
       ]
-    },
-    "UnreservedConcurrentExecutions":{
-      "type":"integer",
-      "min":0
     },
     "UnsupportedMediaTypeException":{
       "type":"structure",
@@ -1715,8 +1613,7 @@
           "locationName":"Name"
         },
         "FunctionVersion":{"shape":"Version"},
-        "Description":{"shape":"Description"},
-        "RoutingConfig":{"shape":"AliasRoutingConfiguration"}
+        "Description":{"shape":"Description"}
       }
     },
     "UpdateEventSourceMappingRequest":{
@@ -1793,11 +1690,6 @@
         "VpcId":{"shape":"VpcId"}
       }
     },
-    "VpcId":{"type":"string"},
-    "Weight":{
-      "type":"double",
-      "max":1.0,
-      "min":0.0
-    }
+    "VpcId":{"type":"string"}
   }
 }

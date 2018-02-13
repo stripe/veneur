@@ -17,18 +17,19 @@ const opCreateIdentityPool = "CreateIdentityPool"
 
 // CreateIdentityPoolRequest generates a "aws/request.Request" representing the
 // client's request for the CreateIdentityPool operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateIdentityPool for usage and error information.
 //
-// See CreateIdentityPool for more information on using the CreateIdentityPool
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateIdentityPool method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateIdentityPoolRequest method.
 //    req, resp := client.CreateIdentityPoolRequest(params)
@@ -38,7 +39,7 @@ const opCreateIdentityPool = "CreateIdentityPool"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/CreateIdentityPool
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/CreateIdentityPool
 func (c *CognitoIdentity) CreateIdentityPoolRequest(input *CreateIdentityPoolInput) (req *request.Request, output *IdentityPool) {
 	op := &request.Operation{
 		Name:       opCreateIdentityPool,
@@ -100,7 +101,7 @@ func (c *CognitoIdentity) CreateIdentityPoolRequest(input *CreateIdentityPoolInp
 //   * ErrCodeLimitExceededException "LimitExceededException"
 //   Thrown when the total number of user pools has exceeded a preset limit.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/CreateIdentityPool
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/CreateIdentityPool
 func (c *CognitoIdentity) CreateIdentityPool(input *CreateIdentityPoolInput) (*IdentityPool, error) {
 	req, out := c.CreateIdentityPoolRequest(input)
 	return out, req.Send()
@@ -126,18 +127,19 @@ const opDeleteIdentities = "DeleteIdentities"
 
 // DeleteIdentitiesRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteIdentities operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteIdentities for usage and error information.
 //
-// See DeleteIdentities for more information on using the DeleteIdentities
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteIdentities method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteIdentitiesRequest method.
 //    req, resp := client.DeleteIdentitiesRequest(params)
@@ -147,7 +149,7 @@ const opDeleteIdentities = "DeleteIdentities"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentities
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentities
 func (c *CognitoIdentity) DeleteIdentitiesRequest(input *DeleteIdentitiesInput) (req *request.Request, output *DeleteIdentitiesOutput) {
 	op := &request.Operation{
 		Name:       opDeleteIdentities,
@@ -188,7 +190,7 @@ func (c *CognitoIdentity) DeleteIdentitiesRequest(input *DeleteIdentitiesInput) 
 //   * ErrCodeInternalErrorException "InternalErrorException"
 //   Thrown when the service encounters an error during processing the request.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentities
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentities
 func (c *CognitoIdentity) DeleteIdentities(input *DeleteIdentitiesInput) (*DeleteIdentitiesOutput, error) {
 	req, out := c.DeleteIdentitiesRequest(input)
 	return out, req.Send()
@@ -214,18 +216,19 @@ const opDeleteIdentityPool = "DeleteIdentityPool"
 
 // DeleteIdentityPoolRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteIdentityPool operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteIdentityPool for usage and error information.
 //
-// See DeleteIdentityPool for more information on using the DeleteIdentityPool
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteIdentityPool method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteIdentityPoolRequest method.
 //    req, resp := client.DeleteIdentityPoolRequest(params)
@@ -235,7 +238,7 @@ const opDeleteIdentityPool = "DeleteIdentityPool"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentityPool
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentityPool
 func (c *CognitoIdentity) DeleteIdentityPoolRequest(input *DeleteIdentityPoolInput) (req *request.Request, output *DeleteIdentityPoolOutput) {
 	op := &request.Operation{
 		Name:       opDeleteIdentityPool,
@@ -285,7 +288,7 @@ func (c *CognitoIdentity) DeleteIdentityPoolRequest(input *DeleteIdentityPoolInp
 //   * ErrCodeInternalErrorException "InternalErrorException"
 //   Thrown when the service encounters an error during processing the request.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentityPool
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentityPool
 func (c *CognitoIdentity) DeleteIdentityPool(input *DeleteIdentityPoolInput) (*DeleteIdentityPoolOutput, error) {
 	req, out := c.DeleteIdentityPoolRequest(input)
 	return out, req.Send()
@@ -311,18 +314,19 @@ const opDescribeIdentity = "DescribeIdentity"
 
 // DescribeIdentityRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeIdentity operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeIdentity for usage and error information.
 //
-// See DescribeIdentity for more information on using the DescribeIdentity
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeIdentity method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeIdentityRequest method.
 //    req, resp := client.DescribeIdentityRequest(params)
@@ -332,7 +336,7 @@ const opDescribeIdentity = "DescribeIdentity"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DescribeIdentity
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DescribeIdentity
 func (c *CognitoIdentity) DescribeIdentityRequest(input *DescribeIdentityInput) (req *request.Request, output *IdentityDescription) {
 	op := &request.Operation{
 		Name:       opDescribeIdentity,
@@ -380,7 +384,7 @@ func (c *CognitoIdentity) DescribeIdentityRequest(input *DescribeIdentityInput) 
 //   * ErrCodeInternalErrorException "InternalErrorException"
 //   Thrown when the service encounters an error during processing the request.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DescribeIdentity
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DescribeIdentity
 func (c *CognitoIdentity) DescribeIdentity(input *DescribeIdentityInput) (*IdentityDescription, error) {
 	req, out := c.DescribeIdentityRequest(input)
 	return out, req.Send()
@@ -406,18 +410,19 @@ const opDescribeIdentityPool = "DescribeIdentityPool"
 
 // DescribeIdentityPoolRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeIdentityPool operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeIdentityPool for usage and error information.
 //
-// See DescribeIdentityPool for more information on using the DescribeIdentityPool
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeIdentityPool method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeIdentityPoolRequest method.
 //    req, resp := client.DescribeIdentityPoolRequest(params)
@@ -427,7 +432,7 @@ const opDescribeIdentityPool = "DescribeIdentityPool"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DescribeIdentityPool
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DescribeIdentityPool
 func (c *CognitoIdentity) DescribeIdentityPoolRequest(input *DescribeIdentityPoolInput) (req *request.Request, output *IdentityPool) {
 	op := &request.Operation{
 		Name:       opDescribeIdentityPool,
@@ -475,7 +480,7 @@ func (c *CognitoIdentity) DescribeIdentityPoolRequest(input *DescribeIdentityPoo
 //   * ErrCodeInternalErrorException "InternalErrorException"
 //   Thrown when the service encounters an error during processing the request.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DescribeIdentityPool
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DescribeIdentityPool
 func (c *CognitoIdentity) DescribeIdentityPool(input *DescribeIdentityPoolInput) (*IdentityPool, error) {
 	req, out := c.DescribeIdentityPoolRequest(input)
 	return out, req.Send()
@@ -501,18 +506,19 @@ const opGetCredentialsForIdentity = "GetCredentialsForIdentity"
 
 // GetCredentialsForIdentityRequest generates a "aws/request.Request" representing the
 // client's request for the GetCredentialsForIdentity operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See GetCredentialsForIdentity for usage and error information.
 //
-// See GetCredentialsForIdentity for more information on using the GetCredentialsForIdentity
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the GetCredentialsForIdentity method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the GetCredentialsForIdentityRequest method.
 //    req, resp := client.GetCredentialsForIdentityRequest(params)
@@ -522,7 +528,7 @@ const opGetCredentialsForIdentity = "GetCredentialsForIdentity"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetCredentialsForIdentity
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetCredentialsForIdentity
 func (c *CognitoIdentity) GetCredentialsForIdentityRequest(input *GetCredentialsForIdentityInput) (req *request.Request, output *GetCredentialsForIdentityOutput) {
 	op := &request.Operation{
 		Name:       opGetCredentialsForIdentity,
@@ -584,7 +590,7 @@ func (c *CognitoIdentity) GetCredentialsForIdentityRequest(input *GetCredentials
 //   An exception thrown when a dependent service such as Facebook or Twitter
 //   is not responding
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetCredentialsForIdentity
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetCredentialsForIdentity
 func (c *CognitoIdentity) GetCredentialsForIdentity(input *GetCredentialsForIdentityInput) (*GetCredentialsForIdentityOutput, error) {
 	req, out := c.GetCredentialsForIdentityRequest(input)
 	return out, req.Send()
@@ -610,18 +616,19 @@ const opGetId = "GetId"
 
 // GetIdRequest generates a "aws/request.Request" representing the
 // client's request for the GetId operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See GetId for usage and error information.
 //
-// See GetId for more information on using the GetId
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the GetId method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the GetIdRequest method.
 //    req, resp := client.GetIdRequest(params)
@@ -631,7 +638,7 @@ const opGetId = "GetId"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetId
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetId
 func (c *CognitoIdentity) GetIdRequest(input *GetIdInput) (req *request.Request, output *GetIdOutput) {
 	op := &request.Operation{
 		Name:       opGetId,
@@ -690,7 +697,7 @@ func (c *CognitoIdentity) GetIdRequest(input *GetIdInput) (req *request.Request,
 //   An exception thrown when a dependent service such as Facebook or Twitter
 //   is not responding
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetId
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetId
 func (c *CognitoIdentity) GetId(input *GetIdInput) (*GetIdOutput, error) {
 	req, out := c.GetIdRequest(input)
 	return out, req.Send()
@@ -716,18 +723,19 @@ const opGetIdentityPoolRoles = "GetIdentityPoolRoles"
 
 // GetIdentityPoolRolesRequest generates a "aws/request.Request" representing the
 // client's request for the GetIdentityPoolRoles operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See GetIdentityPoolRoles for usage and error information.
 //
-// See GetIdentityPoolRoles for more information on using the GetIdentityPoolRoles
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the GetIdentityPoolRoles method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the GetIdentityPoolRolesRequest method.
 //    req, resp := client.GetIdentityPoolRolesRequest(params)
@@ -737,7 +745,7 @@ const opGetIdentityPoolRoles = "GetIdentityPoolRoles"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetIdentityPoolRoles
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetIdentityPoolRoles
 func (c *CognitoIdentity) GetIdentityPoolRolesRequest(input *GetIdentityPoolRolesInput) (req *request.Request, output *GetIdentityPoolRolesOutput) {
 	op := &request.Operation{
 		Name:       opGetIdentityPoolRoles,
@@ -788,7 +796,7 @@ func (c *CognitoIdentity) GetIdentityPoolRolesRequest(input *GetIdentityPoolRole
 //   * ErrCodeInternalErrorException "InternalErrorException"
 //   Thrown when the service encounters an error during processing the request.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetIdentityPoolRoles
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetIdentityPoolRoles
 func (c *CognitoIdentity) GetIdentityPoolRoles(input *GetIdentityPoolRolesInput) (*GetIdentityPoolRolesOutput, error) {
 	req, out := c.GetIdentityPoolRolesRequest(input)
 	return out, req.Send()
@@ -814,18 +822,19 @@ const opGetOpenIdToken = "GetOpenIdToken"
 
 // GetOpenIdTokenRequest generates a "aws/request.Request" representing the
 // client's request for the GetOpenIdToken operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See GetOpenIdToken for usage and error information.
 //
-// See GetOpenIdToken for more information on using the GetOpenIdToken
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the GetOpenIdToken method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the GetOpenIdTokenRequest method.
 //    req, resp := client.GetOpenIdTokenRequest(params)
@@ -835,7 +844,7 @@ const opGetOpenIdToken = "GetOpenIdToken"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdToken
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdToken
 func (c *CognitoIdentity) GetOpenIdTokenRequest(input *GetOpenIdTokenInput) (req *request.Request, output *GetOpenIdTokenOutput) {
 	op := &request.Operation{
 		Name:       opGetOpenIdToken,
@@ -894,7 +903,7 @@ func (c *CognitoIdentity) GetOpenIdTokenRequest(input *GetOpenIdTokenInput) (req
 //   An exception thrown when a dependent service such as Facebook or Twitter
 //   is not responding
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdToken
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdToken
 func (c *CognitoIdentity) GetOpenIdToken(input *GetOpenIdTokenInput) (*GetOpenIdTokenOutput, error) {
 	req, out := c.GetOpenIdTokenRequest(input)
 	return out, req.Send()
@@ -920,18 +929,19 @@ const opGetOpenIdTokenForDeveloperIdentity = "GetOpenIdTokenForDeveloperIdentity
 
 // GetOpenIdTokenForDeveloperIdentityRequest generates a "aws/request.Request" representing the
 // client's request for the GetOpenIdTokenForDeveloperIdentity operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See GetOpenIdTokenForDeveloperIdentity for usage and error information.
 //
-// See GetOpenIdTokenForDeveloperIdentity for more information on using the GetOpenIdTokenForDeveloperIdentity
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the GetOpenIdTokenForDeveloperIdentity method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the GetOpenIdTokenForDeveloperIdentityRequest method.
 //    req, resp := client.GetOpenIdTokenForDeveloperIdentityRequest(params)
@@ -941,7 +951,7 @@ const opGetOpenIdTokenForDeveloperIdentity = "GetOpenIdTokenForDeveloperIdentity
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdTokenForDeveloperIdentity
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdTokenForDeveloperIdentity
 func (c *CognitoIdentity) GetOpenIdTokenForDeveloperIdentityRequest(input *GetOpenIdTokenForDeveloperIdentityInput) (req *request.Request, output *GetOpenIdTokenForDeveloperIdentityOutput) {
 	op := &request.Operation{
 		Name:       opGetOpenIdTokenForDeveloperIdentity,
@@ -1009,7 +1019,7 @@ func (c *CognitoIdentity) GetOpenIdTokenForDeveloperIdentityRequest(input *GetOp
 //   The provided developer user identifier is already registered with Cognito
 //   under a different identity ID.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdTokenForDeveloperIdentity
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdTokenForDeveloperIdentity
 func (c *CognitoIdentity) GetOpenIdTokenForDeveloperIdentity(input *GetOpenIdTokenForDeveloperIdentityInput) (*GetOpenIdTokenForDeveloperIdentityOutput, error) {
 	req, out := c.GetOpenIdTokenForDeveloperIdentityRequest(input)
 	return out, req.Send()
@@ -1035,18 +1045,19 @@ const opListIdentities = "ListIdentities"
 
 // ListIdentitiesRequest generates a "aws/request.Request" representing the
 // client's request for the ListIdentities operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListIdentities for usage and error information.
 //
-// See ListIdentities for more information on using the ListIdentities
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListIdentities method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListIdentitiesRequest method.
 //    req, resp := client.ListIdentitiesRequest(params)
@@ -1056,7 +1067,7 @@ const opListIdentities = "ListIdentities"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentities
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentities
 func (c *CognitoIdentity) ListIdentitiesRequest(input *ListIdentitiesInput) (req *request.Request, output *ListIdentitiesOutput) {
 	op := &request.Operation{
 		Name:       opListIdentities,
@@ -1103,7 +1114,7 @@ func (c *CognitoIdentity) ListIdentitiesRequest(input *ListIdentitiesInput) (req
 //   * ErrCodeInternalErrorException "InternalErrorException"
 //   Thrown when the service encounters an error during processing the request.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentities
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentities
 func (c *CognitoIdentity) ListIdentities(input *ListIdentitiesInput) (*ListIdentitiesOutput, error) {
 	req, out := c.ListIdentitiesRequest(input)
 	return out, req.Send()
@@ -1129,18 +1140,19 @@ const opListIdentityPools = "ListIdentityPools"
 
 // ListIdentityPoolsRequest generates a "aws/request.Request" representing the
 // client's request for the ListIdentityPools operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListIdentityPools for usage and error information.
 //
-// See ListIdentityPools for more information on using the ListIdentityPools
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListIdentityPools method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListIdentityPoolsRequest method.
 //    req, resp := client.ListIdentityPoolsRequest(params)
@@ -1150,7 +1162,7 @@ const opListIdentityPools = "ListIdentityPools"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentityPools
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentityPools
 func (c *CognitoIdentity) ListIdentityPoolsRequest(input *ListIdentityPoolsInput) (req *request.Request, output *ListIdentityPoolsOutput) {
 	op := &request.Operation{
 		Name:       opListIdentityPools,
@@ -1193,7 +1205,7 @@ func (c *CognitoIdentity) ListIdentityPoolsRequest(input *ListIdentityPoolsInput
 //   * ErrCodeInternalErrorException "InternalErrorException"
 //   Thrown when the service encounters an error during processing the request.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentityPools
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentityPools
 func (c *CognitoIdentity) ListIdentityPools(input *ListIdentityPoolsInput) (*ListIdentityPoolsOutput, error) {
 	req, out := c.ListIdentityPoolsRequest(input)
 	return out, req.Send()
@@ -1219,18 +1231,19 @@ const opLookupDeveloperIdentity = "LookupDeveloperIdentity"
 
 // LookupDeveloperIdentityRequest generates a "aws/request.Request" representing the
 // client's request for the LookupDeveloperIdentity operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See LookupDeveloperIdentity for usage and error information.
 //
-// See LookupDeveloperIdentity for more information on using the LookupDeveloperIdentity
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the LookupDeveloperIdentity method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the LookupDeveloperIdentityRequest method.
 //    req, resp := client.LookupDeveloperIdentityRequest(params)
@@ -1240,7 +1253,7 @@ const opLookupDeveloperIdentity = "LookupDeveloperIdentity"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/LookupDeveloperIdentity
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/LookupDeveloperIdentity
 func (c *CognitoIdentity) LookupDeveloperIdentityRequest(input *LookupDeveloperIdentityInput) (req *request.Request, output *LookupDeveloperIdentityOutput) {
 	op := &request.Operation{
 		Name:       opLookupDeveloperIdentity,
@@ -1298,7 +1311,7 @@ func (c *CognitoIdentity) LookupDeveloperIdentityRequest(input *LookupDeveloperI
 //   * ErrCodeInternalErrorException "InternalErrorException"
 //   Thrown when the service encounters an error during processing the request.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/LookupDeveloperIdentity
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/LookupDeveloperIdentity
 func (c *CognitoIdentity) LookupDeveloperIdentity(input *LookupDeveloperIdentityInput) (*LookupDeveloperIdentityOutput, error) {
 	req, out := c.LookupDeveloperIdentityRequest(input)
 	return out, req.Send()
@@ -1324,18 +1337,19 @@ const opMergeDeveloperIdentities = "MergeDeveloperIdentities"
 
 // MergeDeveloperIdentitiesRequest generates a "aws/request.Request" representing the
 // client's request for the MergeDeveloperIdentities operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See MergeDeveloperIdentities for usage and error information.
 //
-// See MergeDeveloperIdentities for more information on using the MergeDeveloperIdentities
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the MergeDeveloperIdentities method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the MergeDeveloperIdentitiesRequest method.
 //    req, resp := client.MergeDeveloperIdentitiesRequest(params)
@@ -1345,7 +1359,7 @@ const opMergeDeveloperIdentities = "MergeDeveloperIdentities"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/MergeDeveloperIdentities
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/MergeDeveloperIdentities
 func (c *CognitoIdentity) MergeDeveloperIdentitiesRequest(input *MergeDeveloperIdentitiesInput) (req *request.Request, output *MergeDeveloperIdentitiesOutput) {
 	op := &request.Operation{
 		Name:       opMergeDeveloperIdentities,
@@ -1402,7 +1416,7 @@ func (c *CognitoIdentity) MergeDeveloperIdentitiesRequest(input *MergeDeveloperI
 //   * ErrCodeInternalErrorException "InternalErrorException"
 //   Thrown when the service encounters an error during processing the request.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/MergeDeveloperIdentities
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/MergeDeveloperIdentities
 func (c *CognitoIdentity) MergeDeveloperIdentities(input *MergeDeveloperIdentitiesInput) (*MergeDeveloperIdentitiesOutput, error) {
 	req, out := c.MergeDeveloperIdentitiesRequest(input)
 	return out, req.Send()
@@ -1428,18 +1442,19 @@ const opSetIdentityPoolRoles = "SetIdentityPoolRoles"
 
 // SetIdentityPoolRolesRequest generates a "aws/request.Request" representing the
 // client's request for the SetIdentityPoolRoles operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See SetIdentityPoolRoles for usage and error information.
 //
-// See SetIdentityPoolRoles for more information on using the SetIdentityPoolRoles
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the SetIdentityPoolRoles method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the SetIdentityPoolRolesRequest method.
 //    req, resp := client.SetIdentityPoolRolesRequest(params)
@@ -1449,7 +1464,7 @@ const opSetIdentityPoolRoles = "SetIdentityPoolRoles"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/SetIdentityPoolRoles
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/SetIdentityPoolRoles
 func (c *CognitoIdentity) SetIdentityPoolRolesRequest(input *SetIdentityPoolRolesInput) (req *request.Request, output *SetIdentityPoolRolesOutput) {
 	op := &request.Operation{
 		Name:       opSetIdentityPoolRoles,
@@ -1506,7 +1521,7 @@ func (c *CognitoIdentity) SetIdentityPoolRolesRequest(input *SetIdentityPoolRole
 //   * ErrCodeConcurrentModificationException "ConcurrentModificationException"
 //   Thrown if there are parallel requests to modify a resource.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/SetIdentityPoolRoles
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/SetIdentityPoolRoles
 func (c *CognitoIdentity) SetIdentityPoolRoles(input *SetIdentityPoolRolesInput) (*SetIdentityPoolRolesOutput, error) {
 	req, out := c.SetIdentityPoolRolesRequest(input)
 	return out, req.Send()
@@ -1532,18 +1547,19 @@ const opUnlinkDeveloperIdentity = "UnlinkDeveloperIdentity"
 
 // UnlinkDeveloperIdentityRequest generates a "aws/request.Request" representing the
 // client's request for the UnlinkDeveloperIdentity operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See UnlinkDeveloperIdentity for usage and error information.
 //
-// See UnlinkDeveloperIdentity for more information on using the UnlinkDeveloperIdentity
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the UnlinkDeveloperIdentity method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the UnlinkDeveloperIdentityRequest method.
 //    req, resp := client.UnlinkDeveloperIdentityRequest(params)
@@ -1553,7 +1569,7 @@ const opUnlinkDeveloperIdentity = "UnlinkDeveloperIdentity"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkDeveloperIdentity
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkDeveloperIdentity
 func (c *CognitoIdentity) UnlinkDeveloperIdentityRequest(input *UnlinkDeveloperIdentityInput) (req *request.Request, output *UnlinkDeveloperIdentityOutput) {
 	op := &request.Operation{
 		Name:       opUnlinkDeveloperIdentity,
@@ -1609,7 +1625,7 @@ func (c *CognitoIdentity) UnlinkDeveloperIdentityRequest(input *UnlinkDeveloperI
 //   * ErrCodeInternalErrorException "InternalErrorException"
 //   Thrown when the service encounters an error during processing the request.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkDeveloperIdentity
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkDeveloperIdentity
 func (c *CognitoIdentity) UnlinkDeveloperIdentity(input *UnlinkDeveloperIdentityInput) (*UnlinkDeveloperIdentityOutput, error) {
 	req, out := c.UnlinkDeveloperIdentityRequest(input)
 	return out, req.Send()
@@ -1635,18 +1651,19 @@ const opUnlinkIdentity = "UnlinkIdentity"
 
 // UnlinkIdentityRequest generates a "aws/request.Request" representing the
 // client's request for the UnlinkIdentity operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See UnlinkIdentity for usage and error information.
 //
-// See UnlinkIdentity for more information on using the UnlinkIdentity
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the UnlinkIdentity method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the UnlinkIdentityRequest method.
 //    req, resp := client.UnlinkIdentityRequest(params)
@@ -1656,7 +1673,7 @@ const opUnlinkIdentity = "UnlinkIdentity"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkIdentity
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkIdentity
 func (c *CognitoIdentity) UnlinkIdentityRequest(input *UnlinkIdentityInput) (req *request.Request, output *UnlinkIdentityOutput) {
 	op := &request.Operation{
 		Name:       opUnlinkIdentity,
@@ -1715,7 +1732,7 @@ func (c *CognitoIdentity) UnlinkIdentityRequest(input *UnlinkIdentityInput) (req
 //   An exception thrown when a dependent service such as Facebook or Twitter
 //   is not responding
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkIdentity
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkIdentity
 func (c *CognitoIdentity) UnlinkIdentity(input *UnlinkIdentityInput) (*UnlinkIdentityOutput, error) {
 	req, out := c.UnlinkIdentityRequest(input)
 	return out, req.Send()
@@ -1741,18 +1758,19 @@ const opUpdateIdentityPool = "UpdateIdentityPool"
 
 // UpdateIdentityPoolRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateIdentityPool operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See UpdateIdentityPool for usage and error information.
 //
-// See UpdateIdentityPool for more information on using the UpdateIdentityPool
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the UpdateIdentityPool method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the UpdateIdentityPoolRequest method.
 //    req, resp := client.UpdateIdentityPoolRequest(params)
@@ -1762,7 +1780,7 @@ const opUpdateIdentityPool = "UpdateIdentityPool"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UpdateIdentityPool
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UpdateIdentityPool
 func (c *CognitoIdentity) UpdateIdentityPoolRequest(input *IdentityPool) (req *request.Request, output *IdentityPool) {
 	op := &request.Operation{
 		Name:       opUpdateIdentityPool,
@@ -1819,7 +1837,7 @@ func (c *CognitoIdentity) UpdateIdentityPoolRequest(input *IdentityPool) (req *r
 //   * ErrCodeLimitExceededException "LimitExceededException"
 //   Thrown when the total number of user pools has exceeded a preset limit.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UpdateIdentityPool
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UpdateIdentityPool
 func (c *CognitoIdentity) UpdateIdentityPool(input *IdentityPool) (*IdentityPool, error) {
 	req, out := c.UpdateIdentityPoolRequest(input)
 	return out, req.Send()
@@ -1842,7 +1860,7 @@ func (c *CognitoIdentity) UpdateIdentityPoolWithContext(ctx aws.Context, input *
 }
 
 // Input to the CreateIdentityPool action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/CreateIdentityPoolInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/CreateIdentityPoolInput
 type CreateIdentityPoolInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1964,7 +1982,7 @@ func (s *CreateIdentityPoolInput) SetSupportedLoginProviders(v map[string]*strin
 }
 
 // Credentials for the provided identity ID.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/Credentials
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/Credentials
 type Credentials struct {
 	_ struct{} `type:"structure"`
 
@@ -2016,7 +2034,7 @@ func (s *Credentials) SetSessionToken(v string) *Credentials {
 }
 
 // Input to the DeleteIdentities action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentitiesInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentitiesInput
 type DeleteIdentitiesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2059,7 +2077,7 @@ func (s *DeleteIdentitiesInput) SetIdentityIdsToDelete(v []*string) *DeleteIdent
 }
 
 // Returned in response to a successful DeleteIdentities operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentitiesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentitiesResponse
 type DeleteIdentitiesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2085,7 +2103,7 @@ func (s *DeleteIdentitiesOutput) SetUnprocessedIdentityIds(v []*UnprocessedIdent
 }
 
 // Input to the DeleteIdentityPool action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentityPoolInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentityPoolInput
 type DeleteIdentityPoolInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2127,7 +2145,7 @@ func (s *DeleteIdentityPoolInput) SetIdentityPoolId(v string) *DeleteIdentityPoo
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentityPoolOutput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DeleteIdentityPoolOutput
 type DeleteIdentityPoolOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -2143,7 +2161,7 @@ func (s DeleteIdentityPoolOutput) GoString() string {
 }
 
 // Input to the DescribeIdentity action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DescribeIdentityInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DescribeIdentityInput
 type DescribeIdentityInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2186,7 +2204,7 @@ func (s *DescribeIdentityInput) SetIdentityId(v string) *DescribeIdentityInput {
 }
 
 // Input to the DescribeIdentityPool action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DescribeIdentityPoolInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/DescribeIdentityPoolInput
 type DescribeIdentityPoolInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2229,7 +2247,7 @@ func (s *DescribeIdentityPoolInput) SetIdentityPoolId(v string) *DescribeIdentit
 }
 
 // Input to the GetCredentialsForIdentity action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetCredentialsForIdentityInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetCredentialsForIdentityInput
 type GetCredentialsForIdentityInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2296,7 +2314,7 @@ func (s *GetCredentialsForIdentityInput) SetLogins(v map[string]*string) *GetCre
 }
 
 // Returned in response to a successful GetCredentialsForIdentity operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetCredentialsForIdentityResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetCredentialsForIdentityResponse
 type GetCredentialsForIdentityOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2330,7 +2348,7 @@ func (s *GetCredentialsForIdentityOutput) SetIdentityId(v string) *GetCredential
 }
 
 // Input to the GetId action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetIdInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetIdInput
 type GetIdInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2407,7 +2425,7 @@ func (s *GetIdInput) SetLogins(v map[string]*string) *GetIdInput {
 }
 
 // Returned in response to a GetId request.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetIdResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetIdResponse
 type GetIdOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2432,7 +2450,7 @@ func (s *GetIdOutput) SetIdentityId(v string) *GetIdOutput {
 }
 
 // Input to the GetIdentityPoolRoles action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetIdentityPoolRolesInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetIdentityPoolRolesInput
 type GetIdentityPoolRolesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2475,7 +2493,7 @@ func (s *GetIdentityPoolRolesInput) SetIdentityPoolId(v string) *GetIdentityPool
 }
 
 // Returned in response to a successful GetIdentityPoolRoles operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetIdentityPoolRolesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetIdentityPoolRolesResponse
 type GetIdentityPoolRolesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2521,7 +2539,7 @@ func (s *GetIdentityPoolRolesOutput) SetRoles(v map[string]*string) *GetIdentity
 }
 
 // Input to the GetOpenIdTokenForDeveloperIdentity action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdTokenForDeveloperIdentityInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdTokenForDeveloperIdentityInput
 type GetOpenIdTokenForDeveloperIdentityInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2617,7 +2635,7 @@ func (s *GetOpenIdTokenForDeveloperIdentityInput) SetTokenDuration(v int64) *Get
 }
 
 // Returned in response to a successful GetOpenIdTokenForDeveloperIdentity request.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdTokenForDeveloperIdentityResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdTokenForDeveloperIdentityResponse
 type GetOpenIdTokenForDeveloperIdentityOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2651,7 +2669,7 @@ func (s *GetOpenIdTokenForDeveloperIdentityOutput) SetToken(v string) *GetOpenId
 }
 
 // Input to the GetOpenIdToken action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdTokenInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdTokenInput
 type GetOpenIdTokenInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2707,7 +2725,7 @@ func (s *GetOpenIdTokenInput) SetLogins(v map[string]*string) *GetOpenIdTokenInp
 }
 
 // Returned in response to a successful GetOpenIdToken request.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdTokenResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/GetOpenIdTokenResponse
 type GetOpenIdTokenOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2742,7 +2760,7 @@ func (s *GetOpenIdTokenOutput) SetToken(v string) *GetOpenIdTokenOutput {
 }
 
 // A description of the identity.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/IdentityDescription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/IdentityDescription
 type IdentityDescription struct {
 	_ struct{} `type:"structure"`
 
@@ -2794,7 +2812,7 @@ func (s *IdentityDescription) SetLogins(v []*string) *IdentityDescription {
 }
 
 // An object representing an Amazon Cognito identity pool.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/IdentityPool
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/IdentityPool
 type IdentityPool struct {
 	_ struct{} `type:"structure"`
 
@@ -2927,7 +2945,7 @@ func (s *IdentityPool) SetSupportedLoginProviders(v map[string]*string) *Identit
 }
 
 // A description of the identity pool.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/IdentityPoolShortDescription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/IdentityPoolShortDescription
 type IdentityPoolShortDescription struct {
 	_ struct{} `type:"structure"`
 
@@ -2961,7 +2979,7 @@ func (s *IdentityPoolShortDescription) SetIdentityPoolName(v string) *IdentityPo
 }
 
 // Input to the ListIdentities action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentitiesInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentitiesInput
 type ListIdentitiesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3044,7 +3062,7 @@ func (s *ListIdentitiesInput) SetNextToken(v string) *ListIdentitiesInput {
 }
 
 // The response to a ListIdentities request.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentitiesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentitiesResponse
 type ListIdentitiesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3087,7 +3105,7 @@ func (s *ListIdentitiesOutput) SetNextToken(v string) *ListIdentitiesOutput {
 }
 
 // Input to the ListIdentityPools action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentityPoolsInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentityPoolsInput
 type ListIdentityPoolsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3142,7 +3160,7 @@ func (s *ListIdentityPoolsInput) SetNextToken(v string) *ListIdentityPoolsInput 
 }
 
 // The result of a successful ListIdentityPools action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentityPoolsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/ListIdentityPoolsResponse
 type ListIdentityPoolsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3176,7 +3194,7 @@ func (s *ListIdentityPoolsOutput) SetNextToken(v string) *ListIdentityPoolsOutpu
 }
 
 // Input to the LookupDeveloperIdentityInput action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/LookupDeveloperIdentityInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/LookupDeveloperIdentityInput
 type LookupDeveloperIdentityInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3274,7 +3292,7 @@ func (s *LookupDeveloperIdentityInput) SetNextToken(v string) *LookupDeveloperId
 }
 
 // Returned in response to a successful LookupDeveloperIdentity action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/LookupDeveloperIdentityResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/LookupDeveloperIdentityResponse
 type LookupDeveloperIdentityOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3325,7 +3343,7 @@ func (s *LookupDeveloperIdentityOutput) SetNextToken(v string) *LookupDeveloperI
 
 // A rule that maps a claim name, a claim value, and a match type to a role
 // ARN.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/MappingRule
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/MappingRule
 type MappingRule struct {
 	_ struct{} `type:"structure"`
 
@@ -3418,7 +3436,7 @@ func (s *MappingRule) SetValue(v string) *MappingRule {
 }
 
 // Input to the MergeDeveloperIdentities action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/MergeDeveloperIdentitiesInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/MergeDeveloperIdentitiesInput
 type MergeDeveloperIdentitiesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3516,7 +3534,7 @@ func (s *MergeDeveloperIdentitiesInput) SetSourceUserIdentifier(v string) *Merge
 }
 
 // Returned in response to a successful MergeDeveloperIdentities action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/MergeDeveloperIdentitiesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/MergeDeveloperIdentitiesResponse
 type MergeDeveloperIdentitiesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -3542,7 +3560,7 @@ func (s *MergeDeveloperIdentitiesOutput) SetIdentityId(v string) *MergeDeveloper
 
 // A provider representing an Amazon Cognito Identity User Pool and its client
 // ID.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/CognitoIdentityProvider
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/CognitoIdentityProvider
 type Provider struct {
 	_ struct{} `type:"structure"`
 
@@ -3603,7 +3621,7 @@ func (s *Provider) SetServerSideTokenCheck(v bool) *Provider {
 }
 
 // A role mapping.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/RoleMapping
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/RoleMapping
 type RoleMapping struct {
 	_ struct{} `type:"structure"`
 
@@ -3674,7 +3692,7 @@ func (s *RoleMapping) SetType(v string) *RoleMapping {
 }
 
 // A container for rules.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/RulesConfigurationType
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/RulesConfigurationType
 type RulesConfigurationType struct {
 	_ struct{} `type:"structure"`
 
@@ -3729,7 +3747,7 @@ func (s *RulesConfigurationType) SetRules(v []*MappingRule) *RulesConfigurationT
 }
 
 // Input to the SetIdentityPoolRoles action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/SetIdentityPoolRolesInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/SetIdentityPoolRolesInput
 type SetIdentityPoolRolesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3810,7 +3828,7 @@ func (s *SetIdentityPoolRolesInput) SetRoles(v map[string]*string) *SetIdentityP
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/SetIdentityPoolRolesOutput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/SetIdentityPoolRolesOutput
 type SetIdentityPoolRolesOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -3826,7 +3844,7 @@ func (s SetIdentityPoolRolesOutput) GoString() string {
 }
 
 // Input to the UnlinkDeveloperIdentity action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkDeveloperIdentityInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkDeveloperIdentityInput
 type UnlinkDeveloperIdentityInput struct {
 	_ struct{} `type:"structure"`
 
@@ -3919,7 +3937,7 @@ func (s *UnlinkDeveloperIdentityInput) SetIdentityPoolId(v string) *UnlinkDevelo
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkDeveloperIdentityOutput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkDeveloperIdentityOutput
 type UnlinkDeveloperIdentityOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -3935,7 +3953,7 @@ func (s UnlinkDeveloperIdentityOutput) GoString() string {
 }
 
 // Input to the UnlinkIdentity action.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkIdentityInput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkIdentityInput
 type UnlinkIdentityInput struct {
 	_ struct{} `type:"structure"`
 
@@ -4005,7 +4023,7 @@ func (s *UnlinkIdentityInput) SetLoginsToRemove(v []*string) *UnlinkIdentityInpu
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkIdentityOutput
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnlinkIdentityOutput
 type UnlinkIdentityOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -4022,7 +4040,7 @@ func (s UnlinkIdentityOutput) GoString() string {
 
 // An array of UnprocessedIdentityId objects, each of which contains an ErrorCode
 // and IdentityId.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnprocessedIdentityId
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/cognito-identity-2014-06-30/UnprocessedIdentityId
 type UnprocessedIdentityId struct {
 	_ struct{} `type:"structure"`
 

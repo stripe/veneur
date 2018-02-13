@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/gucumber/gucumber"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -30,9 +31,7 @@ func init() {
 				Bucket: aws.String(bucket),
 				Prefix: aws.String(baseFolder + "/" + prefix),
 			})
-			if err != nil {
-				gucumber.T.Errorf("expect no error, got %v", err)
-			}
+			assert.NoError(gucumber.T, err)
 
 			plaintexts := make(map[string][]byte)
 			for _, obj := range out.Contents {
@@ -41,14 +40,10 @@ func init() {
 					Bucket: aws.String(bucket),
 					Key:    plaintextKey,
 				})
-				if err != nil {
-					gucumber.T.Errorf("expect no error, got %v", err)
-				}
+				assert.NoError(gucumber.T, err)
 				caseKey := strings.TrimPrefix(*plaintextKey, baseFolder+"/"+prefix)
 				plaintext, err := ioutil.ReadAll(ptObj.Body)
-				if err != nil {
-					gucumber.T.Errorf("expect no error, got %v", err)
-				}
+				assert.NoError(gucumber.T, err)
 
 				plaintexts[caseKey] = plaintext
 			}
@@ -89,14 +84,10 @@ func init() {
 				Key:    &cipherKey,
 			},
 			)
-			if err != nil {
-				gucumber.T.Errorf("expect no error, got %v", err)
-			}
+			assert.NoError(gucumber.T, err)
 
 			ciphertext, err := ioutil.ReadAll(ctObj.Body)
-			if err != nil {
-				gucumber.T.Errorf("expect no error, got %v", err)
-			}
+			assert.NoError(gucumber.T, err)
 			ciphertexts[caseKey] = ciphertext
 		}
 		gucumber.World["decrypted"] = ciphertexts
@@ -106,12 +97,8 @@ func init() {
 		plaintexts := gucumber.World["plaintexts"].(map[string][]byte)
 		ciphertexts := gucumber.World["decrypted"].(map[string][]byte)
 		for caseKey, ciphertext := range ciphertexts {
-			if e, a := len(plaintexts[caseKey]), len(ciphertext); e != a {
-				gucumber.T.Errorf("expect %v, got %v", e, a)
-			}
-			if e, a := plaintexts[caseKey], ciphertext; !bytes.Equal(e, a) {
-				gucumber.T.Errorf("expect %v, got %v", e, a)
-			}
+			assert.Equal(gucumber.T, len(plaintexts[caseKey]), len(ciphertext))
+			assert.True(gucumber.T, bytes.Equal(plaintexts[caseKey], ciphertext))
 		}
 	})
 
@@ -121,22 +108,16 @@ func init() {
 		switch kek {
 		case "kms":
 			arn, err := getAliasInformation(v1, v2)
-			if err != nil {
-				gucumber.T.Errorf("expect nil, got %v", nil)
-			}
+			assert.Nil(gucumber.T, err)
 
 			b64Arn := base64.StdEncoding.EncodeToString([]byte(arn))
-			if err != nil {
-				gucumber.T.Errorf("expect nil, got %v", nil)
-			}
+			assert.Nil(gucumber.T, err)
 			gucumber.World["Masterkey"] = b64Arn
 
 			handler = s3crypto.NewKMSKeyGenerator(kms.New(session.New(&aws.Config{
 				Region: &v2,
 			})), arn)
-			if err != nil {
-				gucumber.T.Errorf("expect nil, got %v", nil)
-			}
+			assert.Nil(gucumber.T, err)
 		default:
 			gucumber.T.Skip()
 		}
@@ -176,9 +157,7 @@ func init() {
 			}
 
 			_, err := c.PutObject(input)
-			if err != nil {
-				gucumber.T.Errorf("expect nil, got %v", nil)
-			}
+			assert.Nil(gucumber.T, err)
 		}
 	})
 }

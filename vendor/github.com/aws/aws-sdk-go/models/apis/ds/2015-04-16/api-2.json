@@ -910,8 +910,7 @@
         "ShortName":{"shape":"DirectoryShortName"},
         "Password":{"shape":"Password"},
         "Description":{"shape":"Description"},
-        "VpcSettings":{"shape":"DirectoryVpcSettings"},
-        "Edition":{"shape":"DirectoryEdition"}
+        "VpcSettings":{"shape":"DirectoryVpcSettings"}
       }
     },
     "CreateMicrosoftADResult":{
@@ -1166,7 +1165,6 @@
         "Name":{"shape":"DirectoryName"},
         "ShortName":{"shape":"DirectoryShortName"},
         "Size":{"shape":"DirectorySize"},
-        "Edition":{"shape":"DirectoryEdition"},
         "Alias":{"shape":"AliasName"},
         "AccessUrl":{"shape":"AccessUrl"},
         "Description":{"shape":"Description"},
@@ -1187,13 +1185,6 @@
     "DirectoryDescriptions":{
       "type":"list",
       "member":{"shape":"DirectoryDescription"}
-    },
-    "DirectoryEdition":{
-      "type":"string",
-      "enum":[
-        "Enterprise",
-        "Standard"
-      ]
     },
     "DirectoryId":{
       "type":"string",

@@ -14,18 +14,19 @@ const opCreateReplicationJob = "CreateReplicationJob"
 
 // CreateReplicationJobRequest generates a "aws/request.Request" representing the
 // client's request for the CreateReplicationJob operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateReplicationJob for usage and error information.
 //
-// See CreateReplicationJob for more information on using the CreateReplicationJob
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateReplicationJob method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateReplicationJobRequest method.
 //    req, resp := client.CreateReplicationJobRequest(params)
@@ -35,7 +36,7 @@ const opCreateReplicationJob = "CreateReplicationJob"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/CreateReplicationJob
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/CreateReplicationJob
 func (c *SMS) CreateReplicationJobRequest(input *CreateReplicationJobInput) (req *request.Request, output *CreateReplicationJobOutput) {
 	op := &request.Operation{
 		Name:       opCreateReplicationJob,
@@ -96,7 +97,7 @@ func (c *SMS) CreateReplicationJobRequest(input *CreateReplicationJobInput) (req
 //   * ErrCodeInternalError "InternalError"
 //   An internal error has occured.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/CreateReplicationJob
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/CreateReplicationJob
 func (c *SMS) CreateReplicationJob(input *CreateReplicationJobInput) (*CreateReplicationJobOutput, error) {
 	req, out := c.CreateReplicationJobRequest(input)
 	return out, req.Send()
@@ -122,18 +123,19 @@ const opDeleteReplicationJob = "DeleteReplicationJob"
 
 // DeleteReplicationJobRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteReplicationJob operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteReplicationJob for usage and error information.
 //
-// See DeleteReplicationJob for more information on using the DeleteReplicationJob
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteReplicationJob method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteReplicationJobRequest method.
 //    req, resp := client.DeleteReplicationJobRequest(params)
@@ -143,7 +145,7 @@ const opDeleteReplicationJob = "DeleteReplicationJob"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteReplicationJob
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteReplicationJob
 func (c *SMS) DeleteReplicationJobRequest(input *DeleteReplicationJobInput) (req *request.Request, output *DeleteReplicationJobOutput) {
 	op := &request.Operation{
 		Name:       opDeleteReplicationJob,
@@ -194,7 +196,7 @@ func (c *SMS) DeleteReplicationJobRequest(input *DeleteReplicationJobInput) (req
 //   * ErrCodeReplicationJobNotFoundException "ReplicationJobNotFoundException"
 //   The specified Replication Job cannot be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteReplicationJob
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteReplicationJob
 func (c *SMS) DeleteReplicationJob(input *DeleteReplicationJobInput) (*DeleteReplicationJobOutput, error) {
 	req, out := c.DeleteReplicationJobRequest(input)
 	return out, req.Send()
@@ -220,18 +222,19 @@ const opDeleteServerCatalog = "DeleteServerCatalog"
 
 // DeleteServerCatalogRequest generates a "aws/request.Request" representing the
 // client's request for the DeleteServerCatalog operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeleteServerCatalog for usage and error information.
 //
-// See DeleteServerCatalog for more information on using the DeleteServerCatalog
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeleteServerCatalog method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeleteServerCatalogRequest method.
 //    req, resp := client.DeleteServerCatalogRequest(params)
@@ -241,7 +244,7 @@ const opDeleteServerCatalog = "DeleteServerCatalog"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteServerCatalog
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteServerCatalog
 func (c *SMS) DeleteServerCatalogRequest(input *DeleteServerCatalogInput) (req *request.Request, output *DeleteServerCatalogOutput) {
 	op := &request.Operation{
 		Name:       opDeleteServerCatalog,
@@ -288,7 +291,7 @@ func (c *SMS) DeleteServerCatalogRequest(input *DeleteServerCatalogInput) (req *
 //   The request is missing a required parameter. Ensure that you have supplied
 //   all the required parameters for the request.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteServerCatalog
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteServerCatalog
 func (c *SMS) DeleteServerCatalog(input *DeleteServerCatalogInput) (*DeleteServerCatalogOutput, error) {
 	req, out := c.DeleteServerCatalogRequest(input)
 	return out, req.Send()
@@ -314,18 +317,19 @@ const opDisassociateConnector = "DisassociateConnector"
 
 // DisassociateConnectorRequest generates a "aws/request.Request" representing the
 // client's request for the DisassociateConnector operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DisassociateConnector for usage and error information.
 //
-// See DisassociateConnector for more information on using the DisassociateConnector
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DisassociateConnector method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DisassociateConnectorRequest method.
 //    req, resp := client.DisassociateConnectorRequest(params)
@@ -335,7 +339,7 @@ const opDisassociateConnector = "DisassociateConnector"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DisassociateConnector
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DisassociateConnector
 func (c *SMS) DisassociateConnectorRequest(input *DisassociateConnectorInput) (req *request.Request, output *DisassociateConnectorOutput) {
 	op := &request.Operation{
 		Name:       opDisassociateConnector,
@@ -381,7 +385,7 @@ func (c *SMS) DisassociateConnectorRequest(input *DisassociateConnectorInput) (r
 //   A parameter specified in the request is not valid, is unsupported, or cannot
 //   be used.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DisassociateConnector
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DisassociateConnector
 func (c *SMS) DisassociateConnector(input *DisassociateConnectorInput) (*DisassociateConnectorOutput, error) {
 	req, out := c.DisassociateConnectorRequest(input)
 	return out, req.Send()
@@ -407,18 +411,19 @@ const opGetConnectors = "GetConnectors"
 
 // GetConnectorsRequest generates a "aws/request.Request" representing the
 // client's request for the GetConnectors operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See GetConnectors for usage and error information.
 //
-// See GetConnectors for more information on using the GetConnectors
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the GetConnectors method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the GetConnectorsRequest method.
 //    req, resp := client.GetConnectorsRequest(params)
@@ -428,7 +433,7 @@ const opGetConnectors = "GetConnectors"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetConnectors
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetConnectors
 func (c *SMS) GetConnectorsRequest(input *GetConnectorsInput) (req *request.Request, output *GetConnectorsOutput) {
 	op := &request.Operation{
 		Name:       opGetConnectors,
@@ -467,7 +472,7 @@ func (c *SMS) GetConnectorsRequest(input *GetConnectorsInput) (req *request.Requ
 //   * ErrCodeUnauthorizedOperationException "UnauthorizedOperationException"
 //   This user does not have permissions to perform this operation.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetConnectors
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetConnectors
 func (c *SMS) GetConnectors(input *GetConnectorsInput) (*GetConnectorsOutput, error) {
 	req, out := c.GetConnectorsRequest(input)
 	return out, req.Send()
@@ -543,18 +548,19 @@ const opGetReplicationJobs = "GetReplicationJobs"
 
 // GetReplicationJobsRequest generates a "aws/request.Request" representing the
 // client's request for the GetReplicationJobs operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See GetReplicationJobs for usage and error information.
 //
-// See GetReplicationJobs for more information on using the GetReplicationJobs
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the GetReplicationJobs method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the GetReplicationJobsRequest method.
 //    req, resp := client.GetReplicationJobsRequest(params)
@@ -564,7 +570,7 @@ const opGetReplicationJobs = "GetReplicationJobs"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationJobs
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationJobs
 func (c *SMS) GetReplicationJobsRequest(input *GetReplicationJobsInput) (req *request.Request, output *GetReplicationJobsOutput) {
 	op := &request.Operation{
 		Name:       opGetReplicationJobs,
@@ -612,7 +618,7 @@ func (c *SMS) GetReplicationJobsRequest(input *GetReplicationJobsInput) (req *re
 //   * ErrCodeUnauthorizedOperationException "UnauthorizedOperationException"
 //   This user does not have permissions to perform this operation.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationJobs
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationJobs
 func (c *SMS) GetReplicationJobs(input *GetReplicationJobsInput) (*GetReplicationJobsOutput, error) {
 	req, out := c.GetReplicationJobsRequest(input)
 	return out, req.Send()
@@ -688,18 +694,19 @@ const opGetReplicationRuns = "GetReplicationRuns"
 
 // GetReplicationRunsRequest generates a "aws/request.Request" representing the
 // client's request for the GetReplicationRuns operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See GetReplicationRuns for usage and error information.
 //
-// See GetReplicationRuns for more information on using the GetReplicationRuns
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the GetReplicationRuns method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the GetReplicationRunsRequest method.
 //    req, resp := client.GetReplicationRunsRequest(params)
@@ -709,7 +716,7 @@ const opGetReplicationRuns = "GetReplicationRuns"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationRuns
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationRuns
 func (c *SMS) GetReplicationRunsRequest(input *GetReplicationRunsInput) (req *request.Request, output *GetReplicationRunsOutput) {
 	op := &request.Operation{
 		Name:       opGetReplicationRuns,
@@ -757,7 +764,7 @@ func (c *SMS) GetReplicationRunsRequest(input *GetReplicationRunsInput) (req *re
 //   * ErrCodeUnauthorizedOperationException "UnauthorizedOperationException"
 //   This user does not have permissions to perform this operation.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationRuns
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationRuns
 func (c *SMS) GetReplicationRuns(input *GetReplicationRunsInput) (*GetReplicationRunsOutput, error) {
 	req, out := c.GetReplicationRunsRequest(input)
 	return out, req.Send()
@@ -833,18 +840,19 @@ const opGetServers = "GetServers"
 
 // GetServersRequest generates a "aws/request.Request" representing the
 // client's request for the GetServers operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See GetServers for usage and error information.
 //
-// See GetServers for more information on using the GetServers
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the GetServers method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the GetServersRequest method.
 //    req, resp := client.GetServersRequest(params)
@@ -854,7 +862,7 @@ const opGetServers = "GetServers"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetServers
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetServers
 func (c *SMS) GetServersRequest(input *GetServersInput) (req *request.Request, output *GetServersOutput) {
 	op := &request.Operation{
 		Name:       opGetServers,
@@ -893,7 +901,7 @@ func (c *SMS) GetServersRequest(input *GetServersInput) (req *request.Request, o
 //   * ErrCodeUnauthorizedOperationException "UnauthorizedOperationException"
 //   This user does not have permissions to perform this operation.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetServers
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetServers
 func (c *SMS) GetServers(input *GetServersInput) (*GetServersOutput, error) {
 	req, out := c.GetServersRequest(input)
 	return out, req.Send()
@@ -969,18 +977,19 @@ const opImportServerCatalog = "ImportServerCatalog"
 
 // ImportServerCatalogRequest generates a "aws/request.Request" representing the
 // client's request for the ImportServerCatalog operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ImportServerCatalog for usage and error information.
 //
-// See ImportServerCatalog for more information on using the ImportServerCatalog
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ImportServerCatalog method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ImportServerCatalogRequest method.
 //    req, resp := client.ImportServerCatalogRequest(params)
@@ -990,7 +999,7 @@ const opImportServerCatalog = "ImportServerCatalog"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/ImportServerCatalog
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/ImportServerCatalog
 func (c *SMS) ImportServerCatalogRequest(input *ImportServerCatalogInput) (req *request.Request, output *ImportServerCatalogOutput) {
 	op := &request.Operation{
 		Name:       opImportServerCatalog,
@@ -1042,7 +1051,7 @@ func (c *SMS) ImportServerCatalogRequest(input *ImportServerCatalogInput) (req *
 //   No connectors are available to handle this request. Please associate connector(s)
 //   and verify any existing connectors are healthy and can respond to requests.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/ImportServerCatalog
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/ImportServerCatalog
 func (c *SMS) ImportServerCatalog(input *ImportServerCatalogInput) (*ImportServerCatalogOutput, error) {
 	req, out := c.ImportServerCatalogRequest(input)
 	return out, req.Send()
@@ -1068,18 +1077,19 @@ const opStartOnDemandReplicationRun = "StartOnDemandReplicationRun"
 
 // StartOnDemandReplicationRunRequest generates a "aws/request.Request" representing the
 // client's request for the StartOnDemandReplicationRun operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See StartOnDemandReplicationRun for usage and error information.
 //
-// See StartOnDemandReplicationRun for more information on using the StartOnDemandReplicationRun
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the StartOnDemandReplicationRun method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the StartOnDemandReplicationRunRequest method.
 //    req, resp := client.StartOnDemandReplicationRunRequest(params)
@@ -1089,7 +1099,7 @@ const opStartOnDemandReplicationRun = "StartOnDemandReplicationRun"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/StartOnDemandReplicationRun
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/StartOnDemandReplicationRun
 func (c *SMS) StartOnDemandReplicationRunRequest(input *StartOnDemandReplicationRunInput) (req *request.Request, output *StartOnDemandReplicationRunOutput) {
 	op := &request.Operation{
 		Name:       opStartOnDemandReplicationRun,
@@ -1141,7 +1151,7 @@ func (c *SMS) StartOnDemandReplicationRunRequest(input *StartOnDemandReplication
 //   * ErrCodeReplicationRunLimitExceededException "ReplicationRunLimitExceededException"
 //   This user has exceeded the maximum allowed Replication Run limit.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/StartOnDemandReplicationRun
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/StartOnDemandReplicationRun
 func (c *SMS) StartOnDemandReplicationRun(input *StartOnDemandReplicationRunInput) (*StartOnDemandReplicationRunOutput, error) {
 	req, out := c.StartOnDemandReplicationRunRequest(input)
 	return out, req.Send()
@@ -1167,18 +1177,19 @@ const opUpdateReplicationJob = "UpdateReplicationJob"
 
 // UpdateReplicationJobRequest generates a "aws/request.Request" representing the
 // client's request for the UpdateReplicationJob operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See UpdateReplicationJob for usage and error information.
 //
-// See UpdateReplicationJob for more information on using the UpdateReplicationJob
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the UpdateReplicationJob method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the UpdateReplicationJobRequest method.
 //    req, resp := client.UpdateReplicationJobRequest(params)
@@ -1188,7 +1199,7 @@ const opUpdateReplicationJob = "UpdateReplicationJob"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/UpdateReplicationJob
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/UpdateReplicationJob
 func (c *SMS) UpdateReplicationJobRequest(input *UpdateReplicationJobInput) (req *request.Request, output *UpdateReplicationJobOutput) {
 	op := &request.Operation{
 		Name:       opUpdateReplicationJob,
@@ -1244,7 +1255,7 @@ func (c *SMS) UpdateReplicationJobRequest(input *UpdateReplicationJobInput) (req
 //   * ErrCodeInternalError "InternalError"
 //   An internal error has occured.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/UpdateReplicationJob
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/UpdateReplicationJob
 func (c *SMS) UpdateReplicationJob(input *UpdateReplicationJobInput) (*UpdateReplicationJobOutput, error) {
 	req, out := c.UpdateReplicationJobRequest(input)
 	return out, req.Send()
@@ -1267,7 +1278,7 @@ func (c *SMS) UpdateReplicationJobWithContext(ctx aws.Context, input *UpdateRepl
 }
 
 // Object representing a Connector
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/Connector
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/Connector
 type Connector struct {
 	_ struct{} `type:"structure"`
 
@@ -1286,7 +1297,7 @@ type Connector struct {
 	// Hardware (MAC) address
 	MacAddress *string `locationName:"macAddress" type:"string"`
 
-	// Status of on-premises Connector
+	// Status of on-premise Connector
 	Status *string `locationName:"status" type:"string" enum:"ConnectorStatus"`
 
 	// Connector version string
@@ -1372,7 +1383,7 @@ func (s *Connector) SetVmManagerType(v string) *Connector {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/CreateReplicationJobRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/CreateReplicationJobRequest
 type CreateReplicationJobInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1468,7 +1479,7 @@ func (s *CreateReplicationJobInput) SetServerId(v string) *CreateReplicationJobI
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/CreateReplicationJobResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/CreateReplicationJobResponse
 type CreateReplicationJobOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -1492,7 +1503,7 @@ func (s *CreateReplicationJobOutput) SetReplicationJobId(v string) *CreateReplic
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteReplicationJobRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteReplicationJobRequest
 type DeleteReplicationJobInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1531,7 +1542,7 @@ func (s *DeleteReplicationJobInput) SetReplicationJobId(v string) *DeleteReplica
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteReplicationJobResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteReplicationJobResponse
 type DeleteReplicationJobOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -1546,7 +1557,7 @@ func (s DeleteReplicationJobOutput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteServerCatalogRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteServerCatalogRequest
 type DeleteServerCatalogInput struct {
 	_ struct{} `type:"structure"`
 }
@@ -1561,7 +1572,7 @@ func (s DeleteServerCatalogInput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteServerCatalogResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DeleteServerCatalogResponse
 type DeleteServerCatalogOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -1576,7 +1587,7 @@ func (s DeleteServerCatalogOutput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DisassociateConnectorRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DisassociateConnectorRequest
 type DisassociateConnectorInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1615,7 +1626,7 @@ func (s *DisassociateConnectorInput) SetConnectorId(v string) *DisassociateConne
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DisassociateConnectorResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/DisassociateConnectorResponse
 type DisassociateConnectorOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -1630,7 +1641,7 @@ func (s DisassociateConnectorOutput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetConnectorsRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetConnectorsRequest
 type GetConnectorsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1664,7 +1675,7 @@ func (s *GetConnectorsInput) SetNextToken(v string) *GetConnectorsInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetConnectorsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetConnectorsResponse
 type GetConnectorsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -1697,7 +1708,7 @@ func (s *GetConnectorsOutput) SetNextToken(v string) *GetConnectorsOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationJobsRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationJobsRequest
 type GetReplicationJobsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1740,7 +1751,7 @@ func (s *GetReplicationJobsInput) SetReplicationJobId(v string) *GetReplicationJ
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationJobsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationJobsResponse
 type GetReplicationJobsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -1773,7 +1784,7 @@ func (s *GetReplicationJobsOutput) SetReplicationJobList(v []*ReplicationJob) *G
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationRunsRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationRunsRequest
 type GetReplicationRunsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1831,7 +1842,7 @@ func (s *GetReplicationRunsInput) SetReplicationJobId(v string) *GetReplicationR
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationRunsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetReplicationRunsResponse
 type GetReplicationRunsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -1873,7 +1884,7 @@ func (s *GetReplicationRunsOutput) SetReplicationRunList(v []*ReplicationRun) *G
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetServersRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetServersRequest
 type GetServersInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1907,7 +1918,7 @@ func (s *GetServersInput) SetNextToken(v string) *GetServersInput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetServersResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/GetServersResponse
 type GetServersOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -1958,7 +1969,7 @@ func (s *GetServersOutput) SetServerList(v []*Server) *GetServersOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/ImportServerCatalogRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/ImportServerCatalogRequest
 type ImportServerCatalogInput struct {
 	_ struct{} `type:"structure"`
 }
@@ -1973,7 +1984,7 @@ func (s ImportServerCatalogInput) GoString() string {
 	return s.String()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/ImportServerCatalogResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/ImportServerCatalogResponse
 type ImportServerCatalogOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -1989,7 +2000,7 @@ func (s ImportServerCatalogOutput) GoString() string {
 }
 
 // Object representing a Replication Job
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/ReplicationJob
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/ReplicationJob
 type ReplicationJob struct {
 	_ struct{} `type:"structure"`
 
@@ -2133,7 +2144,7 @@ func (s *ReplicationJob) SetVmServer(v *VmServer) *ReplicationJob {
 }
 
 // Object representing a Replication Run
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/ReplicationRun
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/ReplicationRun
 type ReplicationRun struct {
 	_ struct{} `type:"structure"`
 
@@ -2221,7 +2232,7 @@ func (s *ReplicationRun) SetType(v string) *ReplicationRun {
 }
 
 // Object representing a server
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/Server
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/Server
 type Server struct {
 	_ struct{} `type:"structure"`
 
@@ -2281,7 +2292,7 @@ func (s *Server) SetVmServer(v *VmServer) *Server {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/StartOnDemandReplicationRunRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/StartOnDemandReplicationRunRequest
 type StartOnDemandReplicationRunInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2329,7 +2340,7 @@ func (s *StartOnDemandReplicationRunInput) SetReplicationJobId(v string) *StartO
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/StartOnDemandReplicationRunResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/StartOnDemandReplicationRunResponse
 type StartOnDemandReplicationRunOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2353,7 +2364,7 @@ func (s *StartOnDemandReplicationRunOutput) SetReplicationRunId(v string) *Start
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/UpdateReplicationJobRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/UpdateReplicationJobRequest
 type UpdateReplicationJobInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2439,7 +2450,7 @@ func (s *UpdateReplicationJobInput) SetRoleName(v string) *UpdateReplicationJobI
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/UpdateReplicationJobResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/UpdateReplicationJobResponse
 type UpdateReplicationJobOutput struct {
 	_ struct{} `type:"structure"`
 }
@@ -2455,7 +2466,7 @@ func (s UpdateReplicationJobOutput) GoString() string {
 }
 
 // Object representing a VM server
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/VmServer
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/VmServer
 type VmServer struct {
 	_ struct{} `type:"structure"`
 
@@ -2516,7 +2527,7 @@ func (s *VmServer) SetVmServerAddress(v *VmServerAddress) *VmServer {
 }
 
 // Object representing a server's location
-// See also, https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/VmServerAddress
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/sms-2016-10-24/VmServerAddress
 type VmServerAddress struct {
 	_ struct{} `type:"structure"`
 
@@ -2555,7 +2566,7 @@ const (
 	ConnectorCapabilityVsphere = "VSPHERE"
 )
 
-// Status of on-premises Connector
+// Status of on-premise Connector
 const (
 	// ConnectorStatusHealthy is a ConnectorStatus enum value
 	ConnectorStatusHealthy = "HEALTHY"

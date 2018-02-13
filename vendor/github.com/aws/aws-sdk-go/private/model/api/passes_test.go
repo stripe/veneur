@@ -22,7 +22,7 @@ func TestUniqueInputAndOutputs(t *testing.T) {
 	v.output = true
 	shamelist["FooService"]["OpBothNoRename"] = v
 
-	cases := [][]struct {
+	testCases := [][]struct {
 		expectedInput  string
 		expectedOutput string
 		operation      string
@@ -113,7 +113,7 @@ func TestUniqueInputAndOutputs(t *testing.T) {
 		},
 	}
 
-	for _, c := range cases {
+	for _, c := range testCases {
 		a := &API{
 			name:       "FooService",
 			Operations: map[string]*Operation{},
@@ -165,47 +165,5 @@ func TestUniqueInputAndOutputs(t *testing.T) {
 			}
 		}
 
-	}
-}
-
-func TestCollidingFields(t *testing.T) {
-	cases := []struct {
-		api      *API
-		expected []*Shapes
-	}{
-		{
-			&API{
-				name: "FooService",
-				Shapes: []*Shapes{
-					{
-						MemberRefs: map[string]*ShapeRef{
-							"String":   &ShapeRef{},
-							"GoString": &ShapeRef{},
-							"Validate": &ShapeRef{},
-							"Foo":      &ShapeRef{},
-							"SetFoo":   &ShapeRef{},
-						},
-					},
-				},
-			},
-			[]*Shapes{
-				{
-					MemberRefs: map[string]*ShapeRef{
-						"String_":   &ShapeRef{},
-						"GoString_": &ShapeRef{},
-						"Validate_": &ShapeRef{},
-						"Foo":       &ShapeRef{},
-						"SetFoo_":   &ShapeRef{},
-					},
-				},
-			},
-		},
-	}
-
-	for _, c := range testCases {
-		c.api.renameCollidingFields()
-		if !reflect.DeepEqual(c.api.Shapes, c.expected) {
-			t.Errorf("expected %v, but received %v", c.expected, c.api.Shapes)
-		}
 	}
 }

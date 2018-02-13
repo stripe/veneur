@@ -14,18 +14,19 @@ const opGetEntitlements = "GetEntitlements"
 
 // GetEntitlementsRequest generates a "aws/request.Request" representing the
 // client's request for the GetEntitlements operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See GetEntitlements for usage and error information.
 //
-// See GetEntitlements for more information on using the GetEntitlements
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the GetEntitlements method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the GetEntitlementsRequest method.
 //    req, resp := client.GetEntitlementsRequest(params)
@@ -35,7 +36,7 @@ const opGetEntitlements = "GetEntitlements"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/entitlement.marketplace-2017-01-11/GetEntitlements
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/entitlement.marketplace-2017-01-11/GetEntitlements
 func (c *MarketplaceEntitlementService) GetEntitlementsRequest(input *GetEntitlementsInput) (req *request.Request, output *GetEntitlementsOutput) {
 	op := &request.Operation{
 		Name:       opGetEntitlements,
@@ -75,7 +76,7 @@ func (c *MarketplaceEntitlementService) GetEntitlementsRequest(input *GetEntitle
 //   An internal error has occurred. Retry your request. If the problem persists,
 //   post a message with details on the AWS forums.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/entitlement.marketplace-2017-01-11/GetEntitlements
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/entitlement.marketplace-2017-01-11/GetEntitlements
 func (c *MarketplaceEntitlementService) GetEntitlements(input *GetEntitlementsInput) (*GetEntitlementsOutput, error) {
 	req, out := c.GetEntitlementsRequest(input)
 	return out, req.Send()
@@ -100,7 +101,7 @@ func (c *MarketplaceEntitlementService) GetEntitlementsWithContext(ctx aws.Conte
 // An entitlement represents capacity in a product owned by the customer. For
 // example, a customer might own some number of users or seats in an SaaS application
 // or some amount of data capacity in a multi-tenant database.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/entitlement.marketplace-2017-01-11/Entitlement
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/entitlement.marketplace-2017-01-11/Entitlement
 type Entitlement struct {
 	_ struct{} `type:"structure"`
 
@@ -172,7 +173,7 @@ func (s *Entitlement) SetValue(v *EntitlementValue) *Entitlement {
 
 // The EntitlementValue represents the amount of capacity that the customer
 // is entitled to for the product.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/entitlement.marketplace-2017-01-11/EntitlementValue
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/entitlement.marketplace-2017-01-11/EntitlementValue
 type EntitlementValue struct {
 	_ struct{} `type:"structure"`
 
@@ -228,7 +229,7 @@ func (s *EntitlementValue) SetStringValue(v string) *EntitlementValue {
 }
 
 // The GetEntitlementsRequest contains parameters for the GetEntitlements operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/entitlement.marketplace-2017-01-11/GetEntitlementsRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/entitlement.marketplace-2017-01-11/GetEntitlementsRequest
 type GetEntitlementsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -305,7 +306,7 @@ func (s *GetEntitlementsInput) SetProductCode(v string) *GetEntitlementsInput {
 }
 
 // The GetEntitlementsRequest contains results from the GetEntitlements operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/entitlement.marketplace-2017-01-11/GetEntitlementsResult
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/entitlement.marketplace-2017-01-11/GetEntitlementsResult
 type GetEntitlementsOutput struct {
 	_ struct{} `type:"structure"`
 

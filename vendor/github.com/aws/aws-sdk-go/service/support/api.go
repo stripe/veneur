@@ -12,18 +12,19 @@ const opAddAttachmentsToSet = "AddAttachmentsToSet"
 
 // AddAttachmentsToSetRequest generates a "aws/request.Request" representing the
 // client's request for the AddAttachmentsToSet operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See AddAttachmentsToSet for usage and error information.
 //
-// See AddAttachmentsToSet for more information on using the AddAttachmentsToSet
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the AddAttachmentsToSet method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the AddAttachmentsToSetRequest method.
 //    req, resp := client.AddAttachmentsToSetRequest(params)
@@ -33,7 +34,7 @@ const opAddAttachmentsToSet = "AddAttachmentsToSet"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddAttachmentsToSet
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddAttachmentsToSet
 func (c *Support) AddAttachmentsToSetRequest(input *AddAttachmentsToSetInput) (req *request.Request, output *AddAttachmentsToSetOutput) {
 	op := &request.Operation{
 		Name:       opAddAttachmentsToSet,
@@ -89,7 +90,7 @@ func (c *Support) AddAttachmentsToSetRequest(input *AddAttachmentsToSetInput) (r
 //   The limit for the number of attachment sets created in a short period of
 //   time has been exceeded.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddAttachmentsToSet
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddAttachmentsToSet
 func (c *Support) AddAttachmentsToSet(input *AddAttachmentsToSetInput) (*AddAttachmentsToSetOutput, error) {
 	req, out := c.AddAttachmentsToSetRequest(input)
 	return out, req.Send()
@@ -115,18 +116,19 @@ const opAddCommunicationToCase = "AddCommunicationToCase"
 
 // AddCommunicationToCaseRequest generates a "aws/request.Request" representing the
 // client's request for the AddCommunicationToCase operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See AddCommunicationToCase for usage and error information.
 //
-// See AddCommunicationToCase for more information on using the AddCommunicationToCase
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the AddCommunicationToCase method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the AddCommunicationToCaseRequest method.
 //    req, resp := client.AddCommunicationToCaseRequest(params)
@@ -136,7 +138,7 @@ const opAddCommunicationToCase = "AddCommunicationToCase"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddCommunicationToCase
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddCommunicationToCase
 func (c *Support) AddCommunicationToCaseRequest(input *AddCommunicationToCaseInput) (req *request.Request, output *AddCommunicationToCaseOutput) {
 	op := &request.Operation{
 		Name:       opAddCommunicationToCase,
@@ -185,7 +187,7 @@ func (c *Support) AddCommunicationToCaseRequest(input *AddCommunicationToCaseInp
 //   The expiration time of the attachment set has passed. The set expires 1 hour
 //   after it is created.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddCommunicationToCase
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddCommunicationToCase
 func (c *Support) AddCommunicationToCase(input *AddCommunicationToCaseInput) (*AddCommunicationToCaseOutput, error) {
 	req, out := c.AddCommunicationToCaseRequest(input)
 	return out, req.Send()
@@ -211,18 +213,19 @@ const opCreateCase = "CreateCase"
 
 // CreateCaseRequest generates a "aws/request.Request" representing the
 // client's request for the CreateCase operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CreateCase for usage and error information.
 //
-// See CreateCase for more information on using the CreateCase
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CreateCase method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CreateCaseRequest method.
 //    req, resp := client.CreateCaseRequest(params)
@@ -232,7 +235,7 @@ const opCreateCase = "CreateCase"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/CreateCase
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/CreateCase
 func (c *Support) CreateCaseRequest(input *CreateCaseInput) (req *request.Request, output *CreateCaseOutput) {
 	op := &request.Operation{
 		Name:       opCreateCase,
@@ -317,7 +320,7 @@ func (c *Support) CreateCaseRequest(input *CreateCaseInput) (req *request.Reques
 //   The expiration time of the attachment set has passed. The set expires 1 hour
 //   after it is created.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/CreateCase
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/CreateCase
 func (c *Support) CreateCase(input *CreateCaseInput) (*CreateCaseOutput, error) {
 	req, out := c.CreateCaseRequest(input)
 	return out, req.Send()
@@ -343,18 +346,19 @@ const opDescribeAttachment = "DescribeAttachment"
 
 // DescribeAttachmentRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeAttachment operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeAttachment for usage and error information.
 //
-// See DescribeAttachment for more information on using the DescribeAttachment
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeAttachment method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeAttachmentRequest method.
 //    req, resp := client.DescribeAttachmentRequest(params)
@@ -364,7 +368,7 @@ const opDescribeAttachment = "DescribeAttachment"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeAttachment
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeAttachment
 func (c *Support) DescribeAttachmentRequest(input *DescribeAttachmentInput) (req *request.Request, output *DescribeAttachmentOutput) {
 	op := &request.Operation{
 		Name:       opDescribeAttachment,
@@ -406,7 +410,7 @@ func (c *Support) DescribeAttachmentRequest(input *DescribeAttachmentInput) (req
 //   * ErrCodeAttachmentIdNotFound "AttachmentIdNotFound"
 //   An attachment with the specified ID could not be found.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeAttachment
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeAttachment
 func (c *Support) DescribeAttachment(input *DescribeAttachmentInput) (*DescribeAttachmentOutput, error) {
 	req, out := c.DescribeAttachmentRequest(input)
 	return out, req.Send()
@@ -432,18 +436,19 @@ const opDescribeCases = "DescribeCases"
 
 // DescribeCasesRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeCases operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeCases for usage and error information.
 //
-// See DescribeCases for more information on using the DescribeCases
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeCases method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeCasesRequest method.
 //    req, resp := client.DescribeCasesRequest(params)
@@ -453,7 +458,7 @@ const opDescribeCases = "DescribeCases"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCases
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCases
 func (c *Support) DescribeCasesRequest(input *DescribeCasesInput) (req *request.Request, output *DescribeCasesOutput) {
 	op := &request.Operation{
 		Name:       opDescribeCases,
@@ -508,7 +513,7 @@ func (c *Support) DescribeCasesRequest(input *DescribeCasesInput) (req *request.
 //   * ErrCodeCaseIdNotFound "CaseIdNotFound"
 //   The requested caseId could not be located.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCases
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCases
 func (c *Support) DescribeCases(input *DescribeCasesInput) (*DescribeCasesOutput, error) {
 	req, out := c.DescribeCasesRequest(input)
 	return out, req.Send()
@@ -584,18 +589,19 @@ const opDescribeCommunications = "DescribeCommunications"
 
 // DescribeCommunicationsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeCommunications operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeCommunications for usage and error information.
 //
-// See DescribeCommunications for more information on using the DescribeCommunications
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeCommunications method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeCommunicationsRequest method.
 //    req, resp := client.DescribeCommunicationsRequest(params)
@@ -605,7 +611,7 @@ const opDescribeCommunications = "DescribeCommunications"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCommunications
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCommunications
 func (c *Support) DescribeCommunicationsRequest(input *DescribeCommunicationsInput) (req *request.Request, output *DescribeCommunicationsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeCommunications,
@@ -655,7 +661,7 @@ func (c *Support) DescribeCommunicationsRequest(input *DescribeCommunicationsInp
 //   * ErrCodeCaseIdNotFound "CaseIdNotFound"
 //   The requested caseId could not be located.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCommunications
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCommunications
 func (c *Support) DescribeCommunications(input *DescribeCommunicationsInput) (*DescribeCommunicationsOutput, error) {
 	req, out := c.DescribeCommunicationsRequest(input)
 	return out, req.Send()
@@ -731,18 +737,19 @@ const opDescribeServices = "DescribeServices"
 
 // DescribeServicesRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeServices operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeServices for usage and error information.
 //
-// See DescribeServices for more information on using the DescribeServices
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeServices method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeServicesRequest method.
 //    req, resp := client.DescribeServicesRequest(params)
@@ -752,7 +759,7 @@ const opDescribeServices = "DescribeServices"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeServices
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeServices
 func (c *Support) DescribeServicesRequest(input *DescribeServicesInput) (req *request.Request, output *DescribeServicesOutput) {
 	op := &request.Operation{
 		Name:       opDescribeServices,
@@ -794,7 +801,7 @@ func (c *Support) DescribeServicesRequest(input *DescribeServicesInput) (req *re
 //   * ErrCodeInternalServerError "InternalServerError"
 //   An internal server error occurred.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeServices
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeServices
 func (c *Support) DescribeServices(input *DescribeServicesInput) (*DescribeServicesOutput, error) {
 	req, out := c.DescribeServicesRequest(input)
 	return out, req.Send()
@@ -820,18 +827,19 @@ const opDescribeSeverityLevels = "DescribeSeverityLevels"
 
 // DescribeSeverityLevelsRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeSeverityLevels operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeSeverityLevels for usage and error information.
 //
-// See DescribeSeverityLevels for more information on using the DescribeSeverityLevels
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeSeverityLevels method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeSeverityLevelsRequest method.
 //    req, resp := client.DescribeSeverityLevelsRequest(params)
@@ -841,7 +849,7 @@ const opDescribeSeverityLevels = "DescribeSeverityLevels"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeSeverityLevels
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeSeverityLevels
 func (c *Support) DescribeSeverityLevelsRequest(input *DescribeSeverityLevelsInput) (req *request.Request, output *DescribeSeverityLevelsOutput) {
 	op := &request.Operation{
 		Name:       opDescribeSeverityLevels,
@@ -875,7 +883,7 @@ func (c *Support) DescribeSeverityLevelsRequest(input *DescribeSeverityLevelsInp
 //   * ErrCodeInternalServerError "InternalServerError"
 //   An internal server error occurred.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeSeverityLevels
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeSeverityLevels
 func (c *Support) DescribeSeverityLevels(input *DescribeSeverityLevelsInput) (*DescribeSeverityLevelsOutput, error) {
 	req, out := c.DescribeSeverityLevelsRequest(input)
 	return out, req.Send()
@@ -901,18 +909,19 @@ const opDescribeTrustedAdvisorCheckRefreshStatuses = "DescribeTrustedAdvisorChec
 
 // DescribeTrustedAdvisorCheckRefreshStatusesRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeTrustedAdvisorCheckRefreshStatuses operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeTrustedAdvisorCheckRefreshStatuses for usage and error information.
 //
-// See DescribeTrustedAdvisorCheckRefreshStatuses for more information on using the DescribeTrustedAdvisorCheckRefreshStatuses
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeTrustedAdvisorCheckRefreshStatuses method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeTrustedAdvisorCheckRefreshStatusesRequest method.
 //    req, resp := client.DescribeTrustedAdvisorCheckRefreshStatusesRequest(params)
@@ -922,7 +931,7 @@ const opDescribeTrustedAdvisorCheckRefreshStatuses = "DescribeTrustedAdvisorChec
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckRefreshStatuses
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckRefreshStatuses
 func (c *Support) DescribeTrustedAdvisorCheckRefreshStatusesRequest(input *DescribeTrustedAdvisorCheckRefreshStatusesInput) (req *request.Request, output *DescribeTrustedAdvisorCheckRefreshStatusesOutput) {
 	op := &request.Operation{
 		Name:       opDescribeTrustedAdvisorCheckRefreshStatuses,
@@ -959,7 +968,7 @@ func (c *Support) DescribeTrustedAdvisorCheckRefreshStatusesRequest(input *Descr
 //   * ErrCodeInternalServerError "InternalServerError"
 //   An internal server error occurred.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckRefreshStatuses
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckRefreshStatuses
 func (c *Support) DescribeTrustedAdvisorCheckRefreshStatuses(input *DescribeTrustedAdvisorCheckRefreshStatusesInput) (*DescribeTrustedAdvisorCheckRefreshStatusesOutput, error) {
 	req, out := c.DescribeTrustedAdvisorCheckRefreshStatusesRequest(input)
 	return out, req.Send()
@@ -985,18 +994,19 @@ const opDescribeTrustedAdvisorCheckResult = "DescribeTrustedAdvisorCheckResult"
 
 // DescribeTrustedAdvisorCheckResultRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeTrustedAdvisorCheckResult operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeTrustedAdvisorCheckResult for usage and error information.
 //
-// See DescribeTrustedAdvisorCheckResult for more information on using the DescribeTrustedAdvisorCheckResult
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeTrustedAdvisorCheckResult method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeTrustedAdvisorCheckResultRequest method.
 //    req, resp := client.DescribeTrustedAdvisorCheckResultRequest(params)
@@ -1006,7 +1016,7 @@ const opDescribeTrustedAdvisorCheckResult = "DescribeTrustedAdvisorCheckResult"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckResult
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckResult
 func (c *Support) DescribeTrustedAdvisorCheckResultRequest(input *DescribeTrustedAdvisorCheckResultInput) (req *request.Request, output *DescribeTrustedAdvisorCheckResultOutput) {
 	op := &request.Operation{
 		Name:       opDescribeTrustedAdvisorCheckResult,
@@ -1057,7 +1067,7 @@ func (c *Support) DescribeTrustedAdvisorCheckResultRequest(input *DescribeTruste
 //   * ErrCodeInternalServerError "InternalServerError"
 //   An internal server error occurred.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckResult
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckResult
 func (c *Support) DescribeTrustedAdvisorCheckResult(input *DescribeTrustedAdvisorCheckResultInput) (*DescribeTrustedAdvisorCheckResultOutput, error) {
 	req, out := c.DescribeTrustedAdvisorCheckResultRequest(input)
 	return out, req.Send()
@@ -1083,18 +1093,19 @@ const opDescribeTrustedAdvisorCheckSummaries = "DescribeTrustedAdvisorCheckSumma
 
 // DescribeTrustedAdvisorCheckSummariesRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeTrustedAdvisorCheckSummaries operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeTrustedAdvisorCheckSummaries for usage and error information.
 //
-// See DescribeTrustedAdvisorCheckSummaries for more information on using the DescribeTrustedAdvisorCheckSummaries
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeTrustedAdvisorCheckSummaries method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeTrustedAdvisorCheckSummariesRequest method.
 //    req, resp := client.DescribeTrustedAdvisorCheckSummariesRequest(params)
@@ -1104,7 +1115,7 @@ const opDescribeTrustedAdvisorCheckSummaries = "DescribeTrustedAdvisorCheckSumma
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckSummaries
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckSummaries
 func (c *Support) DescribeTrustedAdvisorCheckSummariesRequest(input *DescribeTrustedAdvisorCheckSummariesInput) (req *request.Request, output *DescribeTrustedAdvisorCheckSummariesOutput) {
 	op := &request.Operation{
 		Name:       opDescribeTrustedAdvisorCheckSummaries,
@@ -1139,7 +1150,7 @@ func (c *Support) DescribeTrustedAdvisorCheckSummariesRequest(input *DescribeTru
 //   * ErrCodeInternalServerError "InternalServerError"
 //   An internal server error occurred.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckSummaries
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckSummaries
 func (c *Support) DescribeTrustedAdvisorCheckSummaries(input *DescribeTrustedAdvisorCheckSummariesInput) (*DescribeTrustedAdvisorCheckSummariesOutput, error) {
 	req, out := c.DescribeTrustedAdvisorCheckSummariesRequest(input)
 	return out, req.Send()
@@ -1165,18 +1176,19 @@ const opDescribeTrustedAdvisorChecks = "DescribeTrustedAdvisorChecks"
 
 // DescribeTrustedAdvisorChecksRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeTrustedAdvisorChecks operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeTrustedAdvisorChecks for usage and error information.
 //
-// See DescribeTrustedAdvisorChecks for more information on using the DescribeTrustedAdvisorChecks
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeTrustedAdvisorChecks method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeTrustedAdvisorChecksRequest method.
 //    req, resp := client.DescribeTrustedAdvisorChecksRequest(params)
@@ -1186,7 +1198,7 @@ const opDescribeTrustedAdvisorChecks = "DescribeTrustedAdvisorChecks"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorChecks
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorChecks
 func (c *Support) DescribeTrustedAdvisorChecksRequest(input *DescribeTrustedAdvisorChecksInput) (req *request.Request, output *DescribeTrustedAdvisorChecksOutput) {
 	op := &request.Operation{
 		Name:       opDescribeTrustedAdvisorChecks,
@@ -1221,7 +1233,7 @@ func (c *Support) DescribeTrustedAdvisorChecksRequest(input *DescribeTrustedAdvi
 //   * ErrCodeInternalServerError "InternalServerError"
 //   An internal server error occurred.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorChecks
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorChecks
 func (c *Support) DescribeTrustedAdvisorChecks(input *DescribeTrustedAdvisorChecksInput) (*DescribeTrustedAdvisorChecksOutput, error) {
 	req, out := c.DescribeTrustedAdvisorChecksRequest(input)
 	return out, req.Send()
@@ -1247,18 +1259,19 @@ const opRefreshTrustedAdvisorCheck = "RefreshTrustedAdvisorCheck"
 
 // RefreshTrustedAdvisorCheckRequest generates a "aws/request.Request" representing the
 // client's request for the RefreshTrustedAdvisorCheck operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See RefreshTrustedAdvisorCheck for usage and error information.
 //
-// See RefreshTrustedAdvisorCheck for more information on using the RefreshTrustedAdvisorCheck
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the RefreshTrustedAdvisorCheck method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the RefreshTrustedAdvisorCheckRequest method.
 //    req, resp := client.RefreshTrustedAdvisorCheckRequest(params)
@@ -1268,7 +1281,7 @@ const opRefreshTrustedAdvisorCheck = "RefreshTrustedAdvisorCheck"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/RefreshTrustedAdvisorCheck
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/RefreshTrustedAdvisorCheck
 func (c *Support) RefreshTrustedAdvisorCheckRequest(input *RefreshTrustedAdvisorCheckInput) (req *request.Request, output *RefreshTrustedAdvisorCheckOutput) {
 	op := &request.Operation{
 		Name:       opRefreshTrustedAdvisorCheck,
@@ -1316,7 +1329,7 @@ func (c *Support) RefreshTrustedAdvisorCheckRequest(input *RefreshTrustedAdvisor
 //   * ErrCodeInternalServerError "InternalServerError"
 //   An internal server error occurred.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/RefreshTrustedAdvisorCheck
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/RefreshTrustedAdvisorCheck
 func (c *Support) RefreshTrustedAdvisorCheck(input *RefreshTrustedAdvisorCheckInput) (*RefreshTrustedAdvisorCheckOutput, error) {
 	req, out := c.RefreshTrustedAdvisorCheckRequest(input)
 	return out, req.Send()
@@ -1342,18 +1355,19 @@ const opResolveCase = "ResolveCase"
 
 // ResolveCaseRequest generates a "aws/request.Request" representing the
 // client's request for the ResolveCase operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ResolveCase for usage and error information.
 //
-// See ResolveCase for more information on using the ResolveCase
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ResolveCase method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ResolveCaseRequest method.
 //    req, resp := client.ResolveCaseRequest(params)
@@ -1363,7 +1377,7 @@ const opResolveCase = "ResolveCase"
 //        fmt.Println(resp)
 //    }
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/ResolveCase
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/ResolveCase
 func (c *Support) ResolveCaseRequest(input *ResolveCaseInput) (req *request.Request, output *ResolveCaseOutput) {
 	op := &request.Operation{
 		Name:       opResolveCase,
@@ -1399,7 +1413,7 @@ func (c *Support) ResolveCaseRequest(input *ResolveCaseInput) (req *request.Requ
 //   * ErrCodeCaseIdNotFound "CaseIdNotFound"
 //   The requested caseId could not be located.
 //
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/ResolveCase
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/ResolveCase
 func (c *Support) ResolveCase(input *ResolveCaseInput) (*ResolveCaseOutput, error) {
 	req, out := c.ResolveCaseRequest(input)
 	return out, req.Send()
@@ -1421,7 +1435,7 @@ func (c *Support) ResolveCaseWithContext(ctx aws.Context, input *ResolveCaseInpu
 	return out, req.Send()
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddAttachmentsToSetRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddAttachmentsToSetRequest
 type AddAttachmentsToSetInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1475,7 +1489,7 @@ func (s *AddAttachmentsToSetInput) SetAttachments(v []*Attachment) *AddAttachmen
 
 // The ID and expiry time of the attachment set returned by the AddAttachmentsToSet
 // operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddAttachmentsToSetResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddAttachmentsToSetResponse
 type AddAttachmentsToSetOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -1512,7 +1526,7 @@ func (s *AddAttachmentsToSetOutput) SetExpiryTime(v string) *AddAttachmentsToSet
 }
 
 // To be written.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddCommunicationToCaseRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddCommunicationToCaseRequest
 type AddCommunicationToCaseInput struct {
 	_ struct{} `type:"structure"`
 
@@ -1585,7 +1599,7 @@ func (s *AddCommunicationToCaseInput) SetCommunicationBody(v string) *AddCommuni
 }
 
 // The result of the AddCommunicationToCase operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddCommunicationToCaseResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AddCommunicationToCaseResponse
 type AddCommunicationToCaseOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -1611,7 +1625,7 @@ func (s *AddCommunicationToCaseOutput) SetResult(v bool) *AddCommunicationToCase
 
 // An attachment to a case communication. The attachment consists of the file
 // name and the content of the file.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/Attachment
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/Attachment
 type Attachment struct {
 	_ struct{} `type:"structure"`
 
@@ -1648,7 +1662,7 @@ func (s *Attachment) SetFileName(v string) *Attachment {
 
 // The file name and ID of an attachment to a case communication. You can use
 // the ID to retrieve the attachment with the DescribeAttachment operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AttachmentDetails
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/AttachmentDetails
 type AttachmentDetails struct {
 	_ struct{} `type:"structure"`
 
@@ -1717,7 +1731,7 @@ func (s *AttachmentDetails) SetFileName(v string) *AttachmentDetails {
 //    * submittedBy. The email address of the account that submitted the case.
 //
 //    * timeCreated. The time the case was created, in ISO-8601 format.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/CaseDetails
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/CaseDetails
 type CaseDetails struct {
 	_ struct{} `type:"structure"`
 
@@ -1849,7 +1863,7 @@ func (s *CaseDetails) SetTimeCreated(v string) *CaseDetails {
 // A JSON-formatted name/value pair that represents the category name and category
 // code of the problem, selected from the DescribeServices response for each
 // AWS service.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/Category
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/Category
 type Category struct {
 	_ struct{} `type:"structure"`
 
@@ -1885,7 +1899,7 @@ func (s *Category) SetName(v string) *Category {
 // A communication associated with an AWS Support case. The communication consists
 // of the case ID, the message body, attachment information, the account email
 // address, and the date and time of the communication.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/Communication
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/Communication
 type Communication struct {
 	_ struct{} `type:"structure"`
 
@@ -1946,7 +1960,7 @@ func (s *Communication) SetTimeCreated(v string) *Communication {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/CreateCaseRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/CreateCaseRequest
 type CreateCaseInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2076,7 +2090,7 @@ func (s *CreateCaseInput) SetSubject(v string) *CreateCaseInput {
 
 // The AWS Support case ID returned by a successful completion of the CreateCase
 // operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/CreateCaseResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/CreateCaseResponse
 type CreateCaseOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2101,7 +2115,7 @@ func (s *CreateCaseOutput) SetCaseId(v string) *CreateCaseOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeAttachmentRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeAttachmentRequest
 type DescribeAttachmentInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2143,7 +2157,7 @@ func (s *DescribeAttachmentInput) SetAttachmentId(v string) *DescribeAttachmentI
 
 // The content and file name of the attachment returned by the DescribeAttachment
 // operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeAttachmentResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeAttachmentResponse
 type DescribeAttachmentOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2167,7 +2181,7 @@ func (s *DescribeAttachmentOutput) SetAttachment(v *Attachment) *DescribeAttachm
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCasesRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCasesRequest
 type DescribeCasesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2285,7 +2299,7 @@ func (s *DescribeCasesInput) SetNextToken(v string) *DescribeCasesInput {
 
 // Returns an array of CaseDetails objects and a nextToken that defines a point
 // for pagination in the result set.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCasesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCasesResponse
 type DescribeCasesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2318,7 +2332,7 @@ func (s *DescribeCasesOutput) SetNextToken(v string) *DescribeCasesOutput {
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCommunicationsRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCommunicationsRequest
 type DescribeCommunicationsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2400,7 +2414,7 @@ func (s *DescribeCommunicationsInput) SetNextToken(v string) *DescribeCommunicat
 }
 
 // The communications returned by the DescribeCommunications operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCommunicationsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeCommunicationsResponse
 type DescribeCommunicationsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2433,7 +2447,7 @@ func (s *DescribeCommunicationsOutput) SetNextToken(v string) *DescribeCommunica
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeServicesRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeServicesRequest
 type DescribeServicesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2469,7 +2483,7 @@ func (s *DescribeServicesInput) SetServiceCodeList(v []*string) *DescribeService
 }
 
 // The list of AWS services returned by the DescribeServices operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeServicesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeServicesResponse
 type DescribeServicesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2493,7 +2507,7 @@ func (s *DescribeServicesOutput) SetServices(v []*Service) *DescribeServicesOutp
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeSeverityLevelsRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeSeverityLevelsRequest
 type DescribeSeverityLevelsInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2520,7 +2534,7 @@ func (s *DescribeSeverityLevelsInput) SetLanguage(v string) *DescribeSeverityLev
 }
 
 // The list of severity levels returned by the DescribeSeverityLevels operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeSeverityLevelsResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeSeverityLevelsResponse
 type DescribeSeverityLevelsOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2545,7 +2559,7 @@ func (s *DescribeSeverityLevelsOutput) SetSeverityLevels(v []*SeverityLevel) *De
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckRefreshStatusesRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckRefreshStatusesRequest
 type DescribeTrustedAdvisorCheckRefreshStatusesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2588,7 +2602,7 @@ func (s *DescribeTrustedAdvisorCheckRefreshStatusesInput) SetCheckIds(v []*strin
 
 // The statuses of the Trusted Advisor checks returned by the DescribeTrustedAdvisorCheckRefreshStatuses
 // operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckRefreshStatusesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckRefreshStatusesResponse
 type DescribeTrustedAdvisorCheckRefreshStatusesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2614,7 +2628,7 @@ func (s *DescribeTrustedAdvisorCheckRefreshStatusesOutput) SetStatuses(v []*Trus
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckResultRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckResultRequest
 type DescribeTrustedAdvisorCheckResultInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2666,7 +2680,7 @@ func (s *DescribeTrustedAdvisorCheckResultInput) SetLanguage(v string) *Describe
 
 // The result of the Trusted Advisor check returned by the DescribeTrustedAdvisorCheckResult
 // operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckResultResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckResultResponse
 type DescribeTrustedAdvisorCheckResultOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2690,7 +2704,7 @@ func (s *DescribeTrustedAdvisorCheckResultOutput) SetResult(v *TrustedAdvisorChe
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckSummariesRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckSummariesRequest
 type DescribeTrustedAdvisorCheckSummariesInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2731,7 +2745,7 @@ func (s *DescribeTrustedAdvisorCheckSummariesInput) SetCheckIds(v []*string) *De
 
 // The summaries of the Trusted Advisor checks returned by the DescribeTrustedAdvisorCheckSummaries
 // operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckSummariesResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorCheckSummariesResponse
 type DescribeTrustedAdvisorCheckSummariesOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2757,7 +2771,7 @@ func (s *DescribeTrustedAdvisorCheckSummariesOutput) SetSummaries(v []*TrustedAd
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorChecksRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorChecksRequest
 type DescribeTrustedAdvisorChecksInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2800,7 +2814,7 @@ func (s *DescribeTrustedAdvisorChecksInput) SetLanguage(v string) *DescribeTrust
 
 // Information about the Trusted Advisor checks returned by the DescribeTrustedAdvisorChecks
 // operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorChecksResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/DescribeTrustedAdvisorChecksResponse
 type DescribeTrustedAdvisorChecksOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2827,7 +2841,7 @@ func (s *DescribeTrustedAdvisorChecksOutput) SetChecks(v []*TrustedAdvisorCheckD
 }
 
 // The five most recent communications associated with the case.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/RecentCaseCommunications
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/RecentCaseCommunications
 type RecentCaseCommunications struct {
 	_ struct{} `type:"structure"`
 
@@ -2860,7 +2874,7 @@ func (s *RecentCaseCommunications) SetNextToken(v string) *RecentCaseCommunicati
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/RefreshTrustedAdvisorCheckRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/RefreshTrustedAdvisorCheckRequest
 type RefreshTrustedAdvisorCheckInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2902,7 +2916,7 @@ func (s *RefreshTrustedAdvisorCheckInput) SetCheckId(v string) *RefreshTrustedAd
 }
 
 // The current refresh status of a Trusted Advisor check.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/RefreshTrustedAdvisorCheckResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/RefreshTrustedAdvisorCheckResponse
 type RefreshTrustedAdvisorCheckOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2929,7 +2943,7 @@ func (s *RefreshTrustedAdvisorCheckOutput) SetStatus(v *TrustedAdvisorCheckRefre
 	return s
 }
 
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/ResolveCaseRequest
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/ResolveCaseRequest
 type ResolveCaseInput struct {
 	_ struct{} `type:"structure"`
 
@@ -2955,7 +2969,7 @@ func (s *ResolveCaseInput) SetCaseId(v string) *ResolveCaseInput {
 }
 
 // The status of the case returned by the ResolveCase operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/ResolveCaseResponse
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/ResolveCaseResponse
 type ResolveCaseOutput struct {
 	_ struct{} `type:"structure"`
 
@@ -2989,7 +3003,7 @@ func (s *ResolveCaseOutput) SetInitialCaseStatus(v string) *ResolveCaseOutput {
 }
 
 // Information about an AWS service returned by the DescribeServices operation.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/Service
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/Service
 type Service struct {
 	_ struct{} `type:"structure"`
 
@@ -3037,7 +3051,7 @@ func (s *Service) SetName(v string) *Service {
 
 // A code and name pair that represent a severity level that can be applied
 // to a support case.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/SeverityLevel
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/SeverityLevel
 type SeverityLevel struct {
 	_ struct{} `type:"structure"`
 
@@ -3073,7 +3087,7 @@ func (s *SeverityLevel) SetName(v string) *SeverityLevel {
 
 // The container for summary information that relates to the category of the
 // Trusted Advisor check.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorCategorySpecificSummary
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorCategorySpecificSummary
 type TrustedAdvisorCategorySpecificSummary struct {
 	_ struct{} `type:"structure"`
 
@@ -3099,7 +3113,7 @@ func (s *TrustedAdvisorCategorySpecificSummary) SetCostOptimizing(v *TrustedAdvi
 }
 
 // The description and metadata for a Trusted Advisor check.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorCheckDescription
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorCheckDescription
 type TrustedAdvisorCheckDescription struct {
 	_ struct{} `type:"structure"`
 
@@ -3175,7 +3189,7 @@ func (s *TrustedAdvisorCheckDescription) SetName(v string) *TrustedAdvisorCheckD
 }
 
 // The refresh status of a Trusted Advisor check.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorCheckRefreshStatus
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorCheckRefreshStatus
 type TrustedAdvisorCheckRefreshStatus struct {
 	_ struct{} `type:"structure"`
 
@@ -3226,7 +3240,7 @@ func (s *TrustedAdvisorCheckRefreshStatus) SetStatus(v string) *TrustedAdvisorCh
 }
 
 // The results of a Trusted Advisor check returned by DescribeTrustedAdvisorCheckResult.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorCheckResult
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorCheckResult
 type TrustedAdvisorCheckResult struct {
 	_ struct{} `type:"structure"`
 
@@ -3312,7 +3326,7 @@ func (s *TrustedAdvisorCheckResult) SetTimestamp(v string) *TrustedAdvisorCheckR
 
 // A summary of a Trusted Advisor check result, including the alert status,
 // last refresh, and number of resources examined.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorCheckSummary
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorCheckSummary
 type TrustedAdvisorCheckSummary struct {
 	_ struct{} `type:"structure"`
 
@@ -3396,7 +3410,7 @@ func (s *TrustedAdvisorCheckSummary) SetTimestamp(v string) *TrustedAdvisorCheck
 
 // The estimated cost savings that might be realized if the recommended actions
 // are taken.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorCostOptimizingSummary
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorCostOptimizingSummary
 type TrustedAdvisorCostOptimizingSummary struct {
 	_ struct{} `type:"structure"`
 
@@ -3436,7 +3450,7 @@ func (s *TrustedAdvisorCostOptimizingSummary) SetEstimatedPercentMonthlySavings(
 }
 
 // Contains information about a resource identified by a Trusted Advisor check.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorResourceDetail
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorResourceDetail
 type TrustedAdvisorResourceDetail struct {
 	_ struct{} `type:"structure"`
 
@@ -3509,7 +3523,7 @@ func (s *TrustedAdvisorResourceDetail) SetStatus(v string) *TrustedAdvisorResour
 
 // Details about AWS resources that were analyzed in a call to Trusted Advisor
 // DescribeTrustedAdvisorCheckSummaries.
-// See also, https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorResourcesSummary
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/support-2013-04-15/TrustedAdvisorResourcesSummary
 type TrustedAdvisorResourcesSummary struct {
 	_ struct{} `type:"structure"`
 

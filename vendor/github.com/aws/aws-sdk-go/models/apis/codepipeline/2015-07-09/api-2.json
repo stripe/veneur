@@ -798,11 +798,7 @@
       "type":"string",
       "pattern":"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
     },
-    "ClientToken":{
-      "type":"string",
-      "max":256,
-      "min":1
-    },
+    "ClientToken":{"type":"string"},
     "Code":{"type":"string"},
     "ContinuationToken":{"type":"string"},
     "CreateCustomActionTypeInput":{
@@ -1022,8 +1018,7 @@
     "GetPipelineOutput":{
       "type":"structure",
       "members":{
-        "pipeline":{"shape":"PipelineDeclaration"},
-        "metadata":{"shape":"PipelineMetadata"}
+        "pipeline":{"shape":"PipelineDeclaration"}
       }
     },
     "GetPipelineStateInput":{
@@ -1260,11 +1255,7 @@
       "max":5,
       "min":0
     },
-    "NextToken":{
-      "type":"string",
-      "max":2048,
-      "min":1
-    },
+    "NextToken":{"type":"string"},
     "Nonce":{"type":"string"},
     "NotLatestPipelineExecutionException":{
       "type":"structure",
@@ -1287,10 +1278,6 @@
       "type":"integer",
       "max":100,
       "min":0
-    },
-    "PipelineArn":{
-      "type":"string",
-      "pattern":"arn:aws(-[\\w]+)*:codepipeline:.+:[0-9]{12}:.+"
     },
     "PipelineContext":{
       "type":"structure",
@@ -1361,14 +1348,6 @@
     "PipelineList":{
       "type":"list",
       "member":{"shape":"PipelineSummary"}
-    },
-    "PipelineMetadata":{
-      "type":"structure",
-      "members":{
-        "pipelineArn":{"shape":"PipelineArn"},
-        "created":{"shape":"Timestamp"},
-        "updated":{"shape":"Timestamp"}
-      }
     },
     "PipelineName":{
       "type":"string",

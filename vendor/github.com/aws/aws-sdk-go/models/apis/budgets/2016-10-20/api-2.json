@@ -188,8 +188,7 @@
       "errors":[
         {"shape":"InternalErrorException"},
         {"shape":"InvalidParameterException"},
-        {"shape":"NotFoundException"},
-        {"shape":"DuplicateRecordException"}
+        {"shape":"NotFoundException"}
       ]
     },
     "UpdateSubscriber":{
@@ -203,8 +202,7 @@
       "errors":[
         {"shape":"InternalErrorException"},
         {"shape":"InvalidParameterException"},
-        {"shape":"NotFoundException"},
-        {"shape":"DuplicateRecordException"}
+        {"shape":"NotFoundException"}
       ]
     }
   },
@@ -219,6 +217,7 @@
       "required":[
         "BudgetName",
         "BudgetLimit",
+        "CostTypes",
         "TimeUnit",
         "TimePeriod",
         "BudgetType"
@@ -274,18 +273,15 @@
     },
     "CostTypes":{
       "type":"structure",
+      "required":[
+        "IncludeTax",
+        "IncludeSubscription",
+        "UseBlended"
+      ],
       "members":{
-        "IncludeTax":{"shape":"NullableBoolean"},
-        "IncludeSubscription":{"shape":"NullableBoolean"},
-        "UseBlended":{"shape":"NullableBoolean"},
-        "IncludeRefund":{"shape":"NullableBoolean"},
-        "IncludeCredit":{"shape":"NullableBoolean"},
-        "IncludeUpfront":{"shape":"NullableBoolean"},
-        "IncludeRecurring":{"shape":"NullableBoolean"},
-        "IncludeOtherSubscription":{"shape":"NullableBoolean"},
-        "IncludeSupport":{"shape":"NullableBoolean"},
-        "IncludeDiscount":{"shape":"NullableBoolean"},
-        "UseAmortized":{"shape":"NullableBoolean"}
+        "IncludeTax":{"shape":"GenericBoolean"},
+        "IncludeSubscription":{"shape":"GenericBoolean"},
+        "UseBlended":{"shape":"GenericBoolean"}
       }
     },
     "CreateBudgetRequest":{
@@ -499,6 +495,7 @@
       },
       "exception":true
     },
+    "GenericBoolean":{"type":"boolean"},
     "GenericString":{"type":"string"},
     "GenericTimestamp":{"type":"timestamp"},
     "InternalErrorException":{
@@ -545,13 +542,12 @@
       "members":{
         "NotificationType":{"shape":"NotificationType"},
         "ComparisonOperator":{"shape":"ComparisonOperator"},
-        "Threshold":{"shape":"NotificationThreshold"},
-        "ThresholdType":{"shape":"ThresholdType"}
+        "Threshold":{"shape":"NotificationThreshold"}
       }
     },
     "NotificationThreshold":{
       "type":"double",
-      "max":1000000000,
+      "max":300,
       "min":0.1
     },
     "NotificationType":{
@@ -581,10 +577,6 @@
       "type":"list",
       "member":{"shape":"Notification"}
     },
-    "NullableBoolean":{
-      "type":"boolean",
-      "box":true
-    },
     "NumericValue":{
       "type":"string",
       "pattern":"[0-9]*(\\.)?[0-9]+"
@@ -608,12 +600,8 @@
       ],
       "members":{
         "SubscriptionType":{"shape":"SubscriptionType"},
-        "Address":{"shape":"SubscriberAddress"}
+        "Address":{"shape":"GenericString"}
       }
-    },
-    "SubscriberAddress":{
-      "type":"string",
-      "min":1
     },
     "Subscribers":{
       "type":"list",
@@ -626,13 +614,6 @@
       "enum":[
         "SNS",
         "EMAIL"
-      ]
-    },
-    "ThresholdType":{
-      "type":"string",
-      "enum":[
-        "PERCENTAGE",
-        "ABSOLUTE_VALUE"
       ]
     },
     "TimePeriod":{

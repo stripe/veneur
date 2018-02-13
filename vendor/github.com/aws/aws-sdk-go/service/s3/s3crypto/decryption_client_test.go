@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/request"
@@ -38,9 +40,7 @@ func TestGetObjectGCM(t *testing.T) {
 	})
 
 	c := s3crypto.NewDecryptionClient(sess)
-	if c == nil {
-		t.Error("expected non-nil value")
-	}
+	assert.NotNil(t, c)
 	input := &s3.GetObjectInput{
 		Key:    aws.String("test"),
 		Bucket: aws.String("test"),
@@ -49,14 +49,9 @@ func TestGetObjectGCM(t *testing.T) {
 	req.Handlers.Send.Clear()
 	req.Handlers.Send.PushBack(func(r *request.Request) {
 		iv, err := hex.DecodeString("0d18e06c7c725ac9e362e1ce")
-		if err != nil {
-			t.Errorf("expected no error, but received %v", err)
-		}
-
+		assert.NoError(t, err)
 		b, err := hex.DecodeString("fa4362189661d163fcd6a56d8bf0405ad636ac1bbedd5cc3ee727dc2ab4a9489")
-		if err != nil {
-			t.Errorf("expected no error, but received %v", err)
-		}
+		assert.NoError(t, err)
 
 		r.HTTPResponse = &http.Response{
 			StatusCode: 200,
@@ -74,21 +69,14 @@ func TestGetObjectGCM(t *testing.T) {
 		out.Metadata["x-amz-wrap-alg"] = aws.String(s3crypto.KMSWrap)
 	})
 	err := req.Send()
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 	b, err := ioutil.ReadAll(out.Body)
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 	expected, err := hex.DecodeString("2db5168e932556f8089a0622981d017d")
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 
-	if !bytes.Equal(expected, b) {
-		t.Error("expected bytes to be equivalent")
-	}
+	assert.Equal(t, len(expected), len(b))
+	assert.Equal(t, expected, b)
 }
 
 func TestGetObjectCBC(t *testing.T) {
@@ -109,9 +97,7 @@ func TestGetObjectCBC(t *testing.T) {
 	})
 
 	c := s3crypto.NewDecryptionClient(sess)
-	if c == nil {
-		t.Error("expected non-nil value")
-	}
+	assert.NotNil(t, c)
 	input := &s3.GetObjectInput{
 		Key:    aws.String("test"),
 		Bucket: aws.String("test"),
@@ -120,13 +106,9 @@ func TestGetObjectCBC(t *testing.T) {
 	req.Handlers.Send.Clear()
 	req.Handlers.Send.PushBack(func(r *request.Request) {
 		iv, err := hex.DecodeString("9dea7621945988f96491083849b068df")
-		if err != nil {
-			t.Errorf("expected no error, but received %v", err)
-		}
+		assert.NoError(t, err)
 		b, err := hex.DecodeString("e232cd6ef50047801ee681ec30f61d53cfd6b0bca02fd03c1b234baa10ea82ac9dab8b960926433a19ce6dea08677e34")
-		if err != nil {
-			t.Errorf("expected no error, but received %v", err)
-		}
+		assert.NoError(t, err)
 
 		r.HTTPResponse = &http.Response{
 			StatusCode: 200,
@@ -143,21 +125,14 @@ func TestGetObjectCBC(t *testing.T) {
 		out.Metadata["x-amz-wrap-alg"] = aws.String(s3crypto.KMSWrap)
 	})
 	err := req.Send()
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 	b, err := ioutil.ReadAll(out.Body)
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 	expected, err := hex.DecodeString("0397f4f6820b1f9386f14403be5ac16e50213bd473b4874b9bcbf5f318ee686b1d")
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 
-	if !bytes.Equal(expected, b) {
-		t.Error("expected bytes to be equivalent")
-	}
+	assert.Equal(t, len(expected), len(b))
+	assert.Equal(t, expected, b)
 }
 
 func TestGetObjectCBC2(t *testing.T) {
@@ -178,9 +153,7 @@ func TestGetObjectCBC2(t *testing.T) {
 	})
 
 	c := s3crypto.NewDecryptionClient(sess)
-	if c == nil {
-		t.Error("expected non-nil value")
-	}
+	assert.NotNil(t, c)
 	input := &s3.GetObjectInput{
 		Key:    aws.String("test"),
 		Bucket: aws.String("test"),
@@ -189,9 +162,7 @@ func TestGetObjectCBC2(t *testing.T) {
 	req.Handlers.Send.Clear()
 	req.Handlers.Send.PushBack(func(r *request.Request) {
 		b, err := hex.DecodeString("fd0c71ecb7ed16a9bf42ea5f75501d416df608f190890c3b4d8897f24744cd7f9ea4a0b212e60634302450e1c5378f047ff753ccefe365d411c36339bf22e301fae4c3a6226719a4b93dc74c1af79d0296659b5d56c0892315f2c7cc30190220db1eaafae3920d6d9c65d0aa366499afc17af493454e141c6e0fbdeb6a990cb4")
-		if err != nil {
-			t.Errorf("expected no error, but received %v", err)
-		}
+		assert.NoError(t, err)
 
 		r.HTTPResponse = &http.Response{
 			StatusCode: 200,
@@ -209,21 +180,14 @@ func TestGetObjectCBC2(t *testing.T) {
 		out.Metadata["x-amz-wrap-alg"] = aws.String(s3crypto.KMSWrap)
 	})
 	err := req.Send()
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 	b, err := ioutil.ReadAll(out.Body)
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 	expected, err := hex.DecodeString("a6ccd3482f5ce25c9ddeb69437cd0acbc0bdda2ef8696d90781de2b35704543529871b2032e68ef1c5baed1769aba8d420d1aca181341b49b8b3587a6580cdf1d809c68f06735f7735c16691f4b70c967d68fc08195b81ad71bcc4df452fd0a5799c1e1234f92f1cd929fc072167ccf9f2ac85b93170932b32")
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
+	assert.NoError(t, err)
 
-	if !bytes.Equal(expected, b) {
-		t.Error("expected bytes to be equivalent")
-	}
+	assert.Equal(t, len(expected), len(b))
+	assert.Equal(t, expected, b)
 }
 
 func TestGetObjectWithContext(t *testing.T) {

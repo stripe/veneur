@@ -27,9 +27,7 @@ const (
 	// ErrCodeExecutionAlreadyExists for service response error code
 	// "ExecutionAlreadyExists".
 	//
-	// The execution has the same name as another execution (but a different input).
-	//
-	// Executions with the same name and input are considered idempotent.
+	// An execution with the same name already exists.
 	ErrCodeExecutionAlreadyExists = "ExecutionAlreadyExists"
 
 	// ErrCodeExecutionDoesNotExist for service response error code
@@ -80,13 +78,6 @@ const (
 	//
 	// The provided token is invalid.
 	ErrCodeInvalidToken = "InvalidToken"
-
-	// ErrCodeMissingRequiredParameter for service response error code
-	// "MissingRequiredParameter".
-	//
-	// Request is missing a required parameter. This error occurs if both definition
-	// and roleArn are not specified.
-	ErrCodeMissingRequiredParameter = "MissingRequiredParameter"
 
 	// ErrCodeStateMachineAlreadyExists for service response error code
 	// "StateMachineAlreadyExists".

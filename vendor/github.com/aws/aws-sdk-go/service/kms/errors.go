@@ -28,8 +28,9 @@ const (
 	// "ExpiredImportTokenException".
 	//
 	// The request was rejected because the provided import token is expired. Use
-	// GetParametersForImport to get a new import token and public key, use the
-	// new public key to encrypt the key material, and then try the request again.
+	// GetParametersForImport to retrieve a new import token and public key, use
+	// the new public key to encrypt the key material, and then try the request
+	// again.
 	ErrCodeExpiredImportTokenException = "ExpiredImportTokenException"
 
 	// ErrCodeIncorrectKeyMaterialException for service response error code
@@ -62,9 +63,8 @@ const (
 	// ErrCodeInvalidCiphertextException for service response error code
 	// "InvalidCiphertextException".
 	//
-	// The request was rejected because the specified ciphertext, or additional
-	// authenticated data incorporated into the ciphertext, such as the encryption
-	// context, is corrupted, missing, or otherwise invalid.
+	// The request was rejected because the specified ciphertext has been corrupted
+	// or is otherwise invalid.
 	ErrCodeInvalidCiphertextException = "InvalidCiphertextException"
 
 	// ErrCodeInvalidGrantIdException for service response error code

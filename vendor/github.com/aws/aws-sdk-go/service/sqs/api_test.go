@@ -5,6 +5,8 @@ package sqs_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/awstesting/unit"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -22,13 +24,7 @@ func TestFlattenedTraits(t *testing.T) {
 		},
 	})
 
-	if err == nil {
-		t.Fatalf("expect error, got nil")
-	}
-	if e, a := "InvalidAddress", err.Code(); e != a {
-		t.Errorf("expect %v, got %v", e, a)
-	}
-	if e, a := "The address QUEUE is not valid for this endpoint.", err.Message(); e != a {
-		t.Errorf("expect %v, got %v", e, a)
-	}
+	assert.Error(t, err)
+	assert.Equal(t, "InvalidAddress", err.Code())
+	assert.Equal(t, "The address QUEUE is not valid for this endpoint.", err.Message())
 }

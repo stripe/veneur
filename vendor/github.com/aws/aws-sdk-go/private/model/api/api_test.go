@@ -1,4 +1,4 @@
-// +build go1.8,codegen
+// +build 1.6,codegen
 
 package api
 
@@ -6,66 +6,49 @@ import (
 	"testing"
 )
 
-func TestAPI_StructName(t *testing.T) {
-	origAliases := serviceAliases
-	defer func() { serviceAliases = origAliases }()
-
-	cases := map[string]struct {
-		Aliases    map[string]string
-		Metadata   Metadata
-		StructName string
-	}{
-		"FullName": {
-			Metadata: Metadata{
-				ServiceFullName: "Amazon Service Name-100",
-			},
-			StructName: "ServiceName100",
-		},
-		"Abbreviation": {
-			Metadata: Metadata{
-				ServiceFullName:     "Amazon Service Name-100",
-				ServiceAbbreviation: "AWS SN100",
-			},
-			StructName: "SN100",
-		},
-		"Lowercase Name": {
-			Metadata: Metadata{
-				EndpointPrefix:      "other",
-				ServiceFullName:     "AWS Lowercase service",
-				ServiceAbbreviation: "lowercase",
-			},
-			StructName: "Lowercase",
-		},
-		"Lowercase Name Mixed": {
-			Metadata: Metadata{
-				EndpointPrefix:      "other",
-				ServiceFullName:     "AWS Lowercase service",
-				ServiceAbbreviation: "lowercase name Goes heRe",
-			},
-			StructName: "LowercaseNameGoesHeRe",
-		},
-		"Alias": {
-			Aliases: map[string]string{
-				"elasticloadbalancing": "ELB",
-			},
-			Metadata: Metadata{
-				ServiceFullName: "Elastic Load Balancing",
-			},
-			StructName: "ELB",
+func TestStructNameWithFullName(t *testing.T) {
+	a := API{
+		Metadata: Metadata{
+			ServiceFullName: "Amazon Service Name-100",
 		},
 	}
+	if a.StructName() != "ServiceName100" {
+		t.Errorf("API struct name should have been %s, but received %s", "ServiceName100", a.StructName())
+	}
+}
 
-	for k, c := range cases {
-		t.Run(k, func(t *testing.T) {
-			serviceAliases = c.Aliases
+func TestStructNameWithAbbreviation(t *testing.T) {
+	a := API{
+		Metadata: Metadata{
+			ServiceFullName:     "AWS Service Name-100",
+			ServiceAbbreviation: "AWS SN100",
+		},
+	}
+	if a.StructName() != "SN100" {
+		t.Errorf("API struct name should have been %s, but received %s", "SN100", a.StructName())
+	}
+}
 
-			a := API{
-				Metadata: c.Metadata,
-			}
+func TestStructNameForExceptions(t *testing.T) {
+	serviceAliases = map[string]string{}
+	serviceAliases["elasticloadbalancing"] = "ELB"
+	serviceAliases["config"] = "ConfigService"
 
-			if e, o := c.StructName, a.StructName(); e != o {
-				t.Errorf("expect %v structName, got %v", e, o)
-			}
-		})
+	a := API{
+		Metadata: Metadata{
+			ServiceFullName: "Elastic Load Balancing",
+		},
+	}
+	if a.StructName() != "ELB" {
+		t.Errorf("API struct name should have been %s, but received %s", "ELB", a.StructName())
+	}
+
+	a = API{
+		Metadata: Metadata{
+			ServiceFullName: "AWS Config",
+		},
+	}
+	if a.StructName() != "ConfigService" {
+		t.Errorf("API struct name should have been %s, but received %s", "ConfigService", a.StructName())
 	}
 }

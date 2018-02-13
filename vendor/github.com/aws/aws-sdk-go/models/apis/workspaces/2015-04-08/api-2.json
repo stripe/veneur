@@ -210,9 +210,7 @@
       "enum":[
         "VALUE",
         "STANDARD",
-        "PERFORMANCE",
-        "POWER",
-        "GRAPHICS"
+        "PERFORMANCE"
       ]
     },
     "ComputeType":{
@@ -443,32 +441,6 @@
       "max":25,
       "min":1
     },
-    "ModificationResourceEnum":{
-      "type":"string",
-      "enum":[
-        "ROOT_VOLUME",
-        "USER_VOLUME",
-        "COMPUTE_TYPE"
-      ]
-    },
-    "ModificationState":{
-      "type":"structure",
-      "members":{
-        "Resource":{"shape":"ModificationResourceEnum"},
-        "State":{"shape":"ModificationStateEnum"}
-      }
-    },
-    "ModificationStateEnum":{
-      "type":"string",
-      "enum":[
-        "UPDATE_INITIATED",
-        "UPDATE_IN_PROGRESS"
-      ]
-    },
-    "ModificationStateList":{
-      "type":"list",
-      "member":{"shape":"ModificationState"}
-    },
     "ModifyWorkspacePropertiesRequest":{
       "type":"structure",
       "required":[
@@ -581,13 +553,6 @@
       },
       "exception":true
     },
-    "RootStorage":{
-      "type":"structure",
-      "members":{
-        "Capacity":{"shape":"NonEmptyString"}
-      }
-    },
-    "RootVolumeSizeGib":{"type":"integer"},
     "RunningMode":{
       "type":"string",
       "enum":[
@@ -728,7 +693,6 @@
         "Capacity":{"shape":"NonEmptyString"}
       }
     },
-    "UserVolumeSizeGib":{"type":"integer"},
     "VolumeEncryptionKey":{"type":"string"},
     "Workspace":{
       "type":"structure",
@@ -746,8 +710,7 @@
         "VolumeEncryptionKey":{"shape":"VolumeEncryptionKey"},
         "UserVolumeEncryptionEnabled":{"shape":"BooleanObject"},
         "RootVolumeEncryptionEnabled":{"shape":"BooleanObject"},
-        "WorkspaceProperties":{"shape":"WorkspaceProperties"},
-        "ModificationStates":{"shape":"ModificationStateList"}
+        "WorkspaceProperties":{"shape":"WorkspaceProperties"}
       }
     },
     "WorkspaceBundle":{
@@ -757,7 +720,6 @@
         "Name":{"shape":"NonEmptyString"},
         "Owner":{"shape":"BundleOwner"},
         "Description":{"shape":"Description"},
-        "RootStorage":{"shape":"RootStorage"},
         "UserStorage":{"shape":"UserStorage"},
         "ComputeType":{"shape":"ComputeType"}
       }
@@ -828,10 +790,7 @@
       "type":"structure",
       "members":{
         "RunningMode":{"shape":"RunningMode"},
-        "RunningModeAutoStopTimeoutInMinutes":{"shape":"RunningModeAutoStopTimeoutInMinutes"},
-        "RootVolumeSizeGib":{"shape":"RootVolumeSizeGib"},
-        "UserVolumeSizeGib":{"shape":"UserVolumeSizeGib"},
-        "ComputeTypeName":{"shape":"Compute"}
+        "RunningModeAutoStopTimeoutInMinutes":{"shape":"RunningModeAutoStopTimeoutInMinutes"}
       }
     },
     "WorkspaceRequest":{
@@ -872,7 +831,6 @@
         "TERMINATING",
         "TERMINATED",
         "SUSPENDED",
-        "UPDATING",
         "STOPPING",
         "STOPPED",
         "ERROR"

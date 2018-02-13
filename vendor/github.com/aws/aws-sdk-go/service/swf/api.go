@@ -17,18 +17,19 @@ const opCountClosedWorkflowExecutions = "CountClosedWorkflowExecutions"
 
 // CountClosedWorkflowExecutionsRequest generates a "aws/request.Request" representing the
 // client's request for the CountClosedWorkflowExecutions operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CountClosedWorkflowExecutions for usage and error information.
 //
-// See CountClosedWorkflowExecutions for more information on using the CountClosedWorkflowExecutions
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CountClosedWorkflowExecutions method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CountClosedWorkflowExecutionsRequest method.
 //    req, resp := client.CountClosedWorkflowExecutionsRequest(params)
@@ -129,18 +130,19 @@ const opCountOpenWorkflowExecutions = "CountOpenWorkflowExecutions"
 
 // CountOpenWorkflowExecutionsRequest generates a "aws/request.Request" representing the
 // client's request for the CountOpenWorkflowExecutions operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CountOpenWorkflowExecutions for usage and error information.
 //
-// See CountOpenWorkflowExecutions for more information on using the CountOpenWorkflowExecutions
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CountOpenWorkflowExecutions method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CountOpenWorkflowExecutionsRequest method.
 //    req, resp := client.CountOpenWorkflowExecutionsRequest(params)
@@ -241,18 +243,19 @@ const opCountPendingActivityTasks = "CountPendingActivityTasks"
 
 // CountPendingActivityTasksRequest generates a "aws/request.Request" representing the
 // client's request for the CountPendingActivityTasks operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CountPendingActivityTasks for usage and error information.
 //
-// See CountPendingActivityTasks for more information on using the CountPendingActivityTasks
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CountPendingActivityTasks method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CountPendingActivityTasksRequest method.
 //    req, resp := client.CountPendingActivityTasksRequest(params)
@@ -347,18 +350,19 @@ const opCountPendingDecisionTasks = "CountPendingDecisionTasks"
 
 // CountPendingDecisionTasksRequest generates a "aws/request.Request" representing the
 // client's request for the CountPendingDecisionTasks operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See CountPendingDecisionTasks for usage and error information.
 //
-// See CountPendingDecisionTasks for more information on using the CountPendingDecisionTasks
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the CountPendingDecisionTasks method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the CountPendingDecisionTasksRequest method.
 //    req, resp := client.CountPendingDecisionTasksRequest(params)
@@ -453,18 +457,19 @@ const opDeprecateActivityType = "DeprecateActivityType"
 
 // DeprecateActivityTypeRequest generates a "aws/request.Request" representing the
 // client's request for the DeprecateActivityType operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeprecateActivityType for usage and error information.
 //
-// See DeprecateActivityType for more information on using the DeprecateActivityType
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeprecateActivityType method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeprecateActivityTypeRequest method.
 //    req, resp := client.DeprecateActivityTypeRequest(params)
@@ -569,18 +574,19 @@ const opDeprecateDomain = "DeprecateDomain"
 
 // DeprecateDomainRequest generates a "aws/request.Request" representing the
 // client's request for the DeprecateDomain operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeprecateDomain for usage and error information.
 //
-// See DeprecateDomain for more information on using the DeprecateDomain
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeprecateDomain method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeprecateDomainRequest method.
 //    req, resp := client.DeprecateDomainRequest(params)
@@ -683,18 +689,19 @@ const opDeprecateWorkflowType = "DeprecateWorkflowType"
 
 // DeprecateWorkflowTypeRequest generates a "aws/request.Request" representing the
 // client's request for the DeprecateWorkflowType operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DeprecateWorkflowType for usage and error information.
 //
-// See DeprecateWorkflowType for more information on using the DeprecateWorkflowType
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DeprecateWorkflowType method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DeprecateWorkflowTypeRequest method.
 //    req, resp := client.DeprecateWorkflowTypeRequest(params)
@@ -800,18 +807,19 @@ const opDescribeActivityType = "DescribeActivityType"
 
 // DescribeActivityTypeRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeActivityType operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeActivityType for usage and error information.
 //
-// See DescribeActivityType for more information on using the DescribeActivityType
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeActivityType method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeActivityTypeRequest method.
 //    req, resp := client.DescribeActivityTypeRequest(params)
@@ -908,18 +916,19 @@ const opDescribeDomain = "DescribeDomain"
 
 // DescribeDomainRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeDomain operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeDomain for usage and error information.
 //
-// See DescribeDomain for more information on using the DescribeDomain
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeDomain method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeDomainRequest method.
 //    req, resp := client.DescribeDomainRequest(params)
@@ -1010,18 +1019,19 @@ const opDescribeWorkflowExecution = "DescribeWorkflowExecution"
 
 // DescribeWorkflowExecutionRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeWorkflowExecution operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeWorkflowExecution for usage and error information.
 //
-// See DescribeWorkflowExecution for more information on using the DescribeWorkflowExecution
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeWorkflowExecution method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeWorkflowExecutionRequest method.
 //    req, resp := client.DescribeWorkflowExecutionRequest(params)
@@ -1115,18 +1125,19 @@ const opDescribeWorkflowType = "DescribeWorkflowType"
 
 // DescribeWorkflowTypeRequest generates a "aws/request.Request" representing the
 // client's request for the DescribeWorkflowType operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See DescribeWorkflowType for usage and error information.
 //
-// See DescribeWorkflowType for more information on using the DescribeWorkflowType
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the DescribeWorkflowType method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the DescribeWorkflowTypeRequest method.
 //    req, resp := client.DescribeWorkflowTypeRequest(params)
@@ -1223,18 +1234,19 @@ const opGetWorkflowExecutionHistory = "GetWorkflowExecutionHistory"
 
 // GetWorkflowExecutionHistoryRequest generates a "aws/request.Request" representing the
 // client's request for the GetWorkflowExecutionHistory operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See GetWorkflowExecutionHistory for usage and error information.
 //
-// See GetWorkflowExecutionHistory for more information on using the GetWorkflowExecutionHistory
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the GetWorkflowExecutionHistory method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the GetWorkflowExecutionHistoryRequest method.
 //    req, resp := client.GetWorkflowExecutionHistoryRequest(params)
@@ -1385,18 +1397,19 @@ const opListActivityTypes = "ListActivityTypes"
 
 // ListActivityTypesRequest generates a "aws/request.Request" representing the
 // client's request for the ListActivityTypes operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListActivityTypes for usage and error information.
 //
-// See ListActivityTypes for more information on using the ListActivityTypes
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListActivityTypes method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListActivityTypesRequest method.
 //    req, resp := client.ListActivityTypesRequest(params)
@@ -1546,18 +1559,19 @@ const opListClosedWorkflowExecutions = "ListClosedWorkflowExecutions"
 
 // ListClosedWorkflowExecutionsRequest generates a "aws/request.Request" representing the
 // client's request for the ListClosedWorkflowExecutions operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListClosedWorkflowExecutions for usage and error information.
 //
-// See ListClosedWorkflowExecutions for more information on using the ListClosedWorkflowExecutions
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListClosedWorkflowExecutions method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListClosedWorkflowExecutionsRequest method.
 //    req, resp := client.ListClosedWorkflowExecutionsRequest(params)
@@ -1716,18 +1730,19 @@ const opListDomains = "ListDomains"
 
 // ListDomainsRequest generates a "aws/request.Request" representing the
 // client's request for the ListDomains operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListDomains for usage and error information.
 //
-// See ListDomains for more information on using the ListDomains
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListDomains method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListDomainsRequest method.
 //    req, resp := client.ListDomainsRequest(params)
@@ -1874,18 +1889,19 @@ const opListOpenWorkflowExecutions = "ListOpenWorkflowExecutions"
 
 // ListOpenWorkflowExecutionsRequest generates a "aws/request.Request" representing the
 // client's request for the ListOpenWorkflowExecutions operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListOpenWorkflowExecutions for usage and error information.
 //
-// See ListOpenWorkflowExecutions for more information on using the ListOpenWorkflowExecutions
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListOpenWorkflowExecutions method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListOpenWorkflowExecutionsRequest method.
 //    req, resp := client.ListOpenWorkflowExecutionsRequest(params)
@@ -2044,18 +2060,19 @@ const opListWorkflowTypes = "ListWorkflowTypes"
 
 // ListWorkflowTypesRequest generates a "aws/request.Request" representing the
 // client's request for the ListWorkflowTypes operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See ListWorkflowTypes for usage and error information.
 //
-// See ListWorkflowTypes for more information on using the ListWorkflowTypes
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the ListWorkflowTypes method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the ListWorkflowTypesRequest method.
 //    req, resp := client.ListWorkflowTypesRequest(params)
@@ -2203,18 +2220,19 @@ const opPollForActivityTask = "PollForActivityTask"
 
 // PollForActivityTaskRequest generates a "aws/request.Request" representing the
 // client's request for the PollForActivityTask operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See PollForActivityTask for usage and error information.
 //
-// See PollForActivityTask for more information on using the PollForActivityTask
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the PollForActivityTask method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the PollForActivityTaskRequest method.
 //    req, resp := client.PollForActivityTaskRequest(params)
@@ -2321,18 +2339,19 @@ const opPollForDecisionTask = "PollForDecisionTask"
 
 // PollForDecisionTaskRequest generates a "aws/request.Request" representing the
 // client's request for the PollForDecisionTask operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See PollForDecisionTask for usage and error information.
 //
-// See PollForDecisionTask for more information on using the PollForDecisionTask
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the PollForDecisionTask method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the PollForDecisionTaskRequest method.
 //    req, resp := client.PollForDecisionTaskRequest(params)
@@ -2505,18 +2524,19 @@ const opRecordActivityTaskHeartbeat = "RecordActivityTaskHeartbeat"
 
 // RecordActivityTaskHeartbeatRequest generates a "aws/request.Request" representing the
 // client's request for the RecordActivityTaskHeartbeat operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See RecordActivityTaskHeartbeat for usage and error information.
 //
-// See RecordActivityTaskHeartbeat for more information on using the RecordActivityTaskHeartbeat
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the RecordActivityTaskHeartbeat method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the RecordActivityTaskHeartbeatRequest method.
 //    req, resp := client.RecordActivityTaskHeartbeatRequest(params)
@@ -2631,18 +2651,19 @@ const opRegisterActivityType = "RegisterActivityType"
 
 // RegisterActivityTypeRequest generates a "aws/request.Request" representing the
 // client's request for the RegisterActivityType operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See RegisterActivityType for usage and error information.
 //
-// See RegisterActivityType for more information on using the RegisterActivityType
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the RegisterActivityType method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the RegisterActivityTypeRequest method.
 //    req, resp := client.RegisterActivityTypeRequest(params)
@@ -2757,18 +2778,19 @@ const opRegisterDomain = "RegisterDomain"
 
 // RegisterDomainRequest generates a "aws/request.Request" representing the
 // client's request for the RegisterDomain operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See RegisterDomain for usage and error information.
 //
-// See RegisterDomain for more information on using the RegisterDomain
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the RegisterDomain method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the RegisterDomainRequest method.
 //    req, resp := client.RegisterDomainRequest(params)
@@ -2865,18 +2887,19 @@ const opRegisterWorkflowType = "RegisterWorkflowType"
 
 // RegisterWorkflowTypeRequest generates a "aws/request.Request" representing the
 // client's request for the RegisterWorkflowType operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See RegisterWorkflowType for usage and error information.
 //
-// See RegisterWorkflowType for more information on using the RegisterWorkflowType
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the RegisterWorkflowType method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the RegisterWorkflowTypeRequest method.
 //    req, resp := client.RegisterWorkflowTypeRequest(params)
@@ -2994,18 +3017,19 @@ const opRequestCancelWorkflowExecution = "RequestCancelWorkflowExecution"
 
 // RequestCancelWorkflowExecutionRequest generates a "aws/request.Request" representing the
 // client's request for the RequestCancelWorkflowExecution operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See RequestCancelWorkflowExecution for usage and error information.
 //
-// See RequestCancelWorkflowExecution for more information on using the RequestCancelWorkflowExecution
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the RequestCancelWorkflowExecution method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the RequestCancelWorkflowExecutionRequest method.
 //    req, resp := client.RequestCancelWorkflowExecutionRequest(params)
@@ -3108,18 +3132,19 @@ const opRespondActivityTaskCanceled = "RespondActivityTaskCanceled"
 
 // RespondActivityTaskCanceledRequest generates a "aws/request.Request" representing the
 // client's request for the RespondActivityTaskCanceled operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See RespondActivityTaskCanceled for usage and error information.
 //
-// See RespondActivityTaskCanceled for more information on using the RespondActivityTaskCanceled
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the RespondActivityTaskCanceled method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the RespondActivityTaskCanceledRequest method.
 //    req, resp := client.RespondActivityTaskCanceledRequest(params)
@@ -3225,18 +3250,19 @@ const opRespondActivityTaskCompleted = "RespondActivityTaskCompleted"
 
 // RespondActivityTaskCompletedRequest generates a "aws/request.Request" representing the
 // client's request for the RespondActivityTaskCompleted operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See RespondActivityTaskCompleted for usage and error information.
 //
-// See RespondActivityTaskCompleted for more information on using the RespondActivityTaskCompleted
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the RespondActivityTaskCompleted method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the RespondActivityTaskCompletedRequest method.
 //    req, resp := client.RespondActivityTaskCompletedRequest(params)
@@ -3341,18 +3367,19 @@ const opRespondActivityTaskFailed = "RespondActivityTaskFailed"
 
 // RespondActivityTaskFailedRequest generates a "aws/request.Request" representing the
 // client's request for the RespondActivityTaskFailed operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See RespondActivityTaskFailed for usage and error information.
 //
-// See RespondActivityTaskFailed for more information on using the RespondActivityTaskFailed
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the RespondActivityTaskFailed method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the RespondActivityTaskFailedRequest method.
 //    req, resp := client.RespondActivityTaskFailedRequest(params)
@@ -3452,18 +3479,19 @@ const opRespondDecisionTaskCompleted = "RespondDecisionTaskCompleted"
 
 // RespondDecisionTaskCompletedRequest generates a "aws/request.Request" representing the
 // client's request for the RespondDecisionTaskCompleted operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See RespondDecisionTaskCompleted for usage and error information.
 //
-// See RespondDecisionTaskCompleted for more information on using the RespondDecisionTaskCompleted
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the RespondDecisionTaskCompleted method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the RespondDecisionTaskCompletedRequest method.
 //    req, resp := client.RespondDecisionTaskCompletedRequest(params)
@@ -3552,18 +3580,19 @@ const opSignalWorkflowExecution = "SignalWorkflowExecution"
 
 // SignalWorkflowExecutionRequest generates a "aws/request.Request" representing the
 // client's request for the SignalWorkflowExecution operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See SignalWorkflowExecution for usage and error information.
 //
-// See SignalWorkflowExecution for more information on using the SignalWorkflowExecution
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the SignalWorkflowExecution method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the SignalWorkflowExecutionRequest method.
 //    req, resp := client.SignalWorkflowExecutionRequest(params)
@@ -3664,18 +3693,19 @@ const opStartWorkflowExecution = "StartWorkflowExecution"
 
 // StartWorkflowExecutionRequest generates a "aws/request.Request" representing the
 // client's request for the StartWorkflowExecution operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See StartWorkflowExecution for usage and error information.
 //
-// See StartWorkflowExecution for more information on using the StartWorkflowExecution
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the StartWorkflowExecution method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the StartWorkflowExecutionRequest method.
 //    req, resp := client.StartWorkflowExecutionRequest(params)
@@ -3810,18 +3840,19 @@ const opTerminateWorkflowExecution = "TerminateWorkflowExecution"
 
 // TerminateWorkflowExecutionRequest generates a "aws/request.Request" representing the
 // client's request for the TerminateWorkflowExecution operation. The "output" return
-// value will be populated with the request's response once the request complets
-// successfuly.
+// value can be used to capture response data after the request's "Send" method
+// is called.
 //
-// Use "Send" method on the returned Request to send the API call to the service.
-// the "output" return value is not valid until after Send returns without error.
+// See TerminateWorkflowExecution for usage and error information.
 //
-// See TerminateWorkflowExecution for more information on using the TerminateWorkflowExecution
-// API call, and error handling.
+// Creating a request object using this method should be used when you want to inject
+// custom logic into the request's lifecycle using a custom handler, or if you want to
+// access properties on the request object before or after sending the request. If
+// you just want the service response, call the TerminateWorkflowExecution method directly
+// instead.
 //
-// This method is useful when you want to inject custom logic or configuration
-// into the SDK's request lifecycle. Such as custom headers, or retry logic.
-//
+// Note: You must call the "Send" method on the returned request object in order
+// to execute the request.
 //
 //    // Example sending a request using the TerminateWorkflowExecutionRequest method.
 //    req, resp := client.TerminateWorkflowExecutionRequest(params)

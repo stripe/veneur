@@ -11,20 +11,6 @@
     "uid":"logs-2014-03-28"
   },
   "operations":{
-    "AssociateKmsKey":{
-      "name":"AssociateKmsKey",
-      "http":{
-        "method":"POST",
-        "requestUri":"/"
-      },
-      "input":{"shape":"AssociateKmsKeyRequest"},
-      "errors":[
-        {"shape":"InvalidParameterException"},
-        {"shape":"ResourceNotFoundException"},
-        {"shape":"OperationAbortedException"},
-        {"shape":"ServiceUnavailableException"}
-      ]
-    },
     "CancelExportTask":{
       "name":"CancelExportTask",
       "http":{
@@ -141,19 +127,6 @@
         {"shape":"ServiceUnavailableException"}
       ]
     },
-    "DeleteResourcePolicy":{
-      "name":"DeleteResourcePolicy",
-      "http":{
-        "method":"POST",
-        "requestUri":"/"
-      },
-      "input":{"shape":"DeleteResourcePolicyRequest"},
-      "errors":[
-        {"shape":"InvalidParameterException"},
-        {"shape":"ResourceNotFoundException"},
-        {"shape":"ServiceUnavailableException"}
-      ]
-    },
     "DeleteRetentionPolicy":{
       "name":"DeleteRetentionPolicy",
       "http":{
@@ -249,19 +222,6 @@
         {"shape":"ServiceUnavailableException"}
       ]
     },
-    "DescribeResourcePolicies":{
-      "name":"DescribeResourcePolicies",
-      "http":{
-        "method":"POST",
-        "requestUri":"/"
-      },
-      "input":{"shape":"DescribeResourcePoliciesRequest"},
-      "output":{"shape":"DescribeResourcePoliciesResponse"},
-      "errors":[
-        {"shape":"InvalidParameterException"},
-        {"shape":"ServiceUnavailableException"}
-      ]
-    },
     "DescribeSubscriptionFilters":{
       "name":"DescribeSubscriptionFilters",
       "http":{
@@ -273,20 +233,6 @@
       "errors":[
         {"shape":"InvalidParameterException"},
         {"shape":"ResourceNotFoundException"},
-        {"shape":"ServiceUnavailableException"}
-      ]
-    },
-    "DisassociateKmsKey":{
-      "name":"DisassociateKmsKey",
-      "http":{
-        "method":"POST",
-        "requestUri":"/"
-      },
-      "input":{"shape":"DisassociateKmsKeyRequest"},
-      "errors":[
-        {"shape":"InvalidParameterException"},
-        {"shape":"ResourceNotFoundException"},
-        {"shape":"OperationAbortedException"},
         {"shape":"ServiceUnavailableException"}
       ]
     },
@@ -389,20 +335,6 @@
         {"shape":"ServiceUnavailableException"}
       ]
     },
-    "PutResourcePolicy":{
-      "name":"PutResourcePolicy",
-      "http":{
-        "method":"POST",
-        "requestUri":"/"
-      },
-      "input":{"shape":"PutResourcePolicyRequest"},
-      "output":{"shape":"PutResourcePolicyResponse"},
-      "errors":[
-        {"shape":"InvalidParameterException"},
-        {"shape":"LimitExceededException"},
-        {"shape":"ServiceUnavailableException"}
-      ]
-    },
     "PutRetentionPolicy":{
       "name":"PutRetentionPolicy",
       "http":{
@@ -475,17 +407,6 @@
       "min":1
     },
     "Arn":{"type":"string"},
-    "AssociateKmsKeyRequest":{
-      "type":"structure",
-      "required":[
-        "logGroupName",
-        "kmsKeyId"
-      ],
-      "members":{
-        "logGroupName":{"shape":"LogGroupName"},
-        "kmsKeyId":{"shape":"KmsKeyId"}
-      }
-    },
     "CancelExportTaskRequest":{
       "type":"structure",
       "required":["taskId"],
@@ -522,7 +443,6 @@
       "required":["logGroupName"],
       "members":{
         "logGroupName":{"shape":"LogGroupName"},
-        "kmsKeyId":{"shape":"KmsKeyId"},
         "tags":{"shape":"Tags"}
       }
     },
@@ -580,12 +500,6 @@
       "members":{
         "logGroupName":{"shape":"LogGroupName"},
         "filterName":{"shape":"FilterName"}
-      }
-    },
-    "DeleteResourcePolicyRequest":{
-      "type":"structure",
-      "members":{
-        "policyName":{"shape":"PolicyName"}
       }
     },
     "DeleteRetentionPolicyRequest":{
@@ -695,20 +609,6 @@
         "nextToken":{"shape":"NextToken"}
       }
     },
-    "DescribeResourcePoliciesRequest":{
-      "type":"structure",
-      "members":{
-        "nextToken":{"shape":"NextToken"},
-        "limit":{"shape":"DescribeLimit"}
-      }
-    },
-    "DescribeResourcePoliciesResponse":{
-      "type":"structure",
-      "members":{
-        "resourcePolicies":{"shape":"ResourcePolicies"},
-        "nextToken":{"shape":"NextToken"}
-      }
-    },
     "DescribeSubscriptionFiltersRequest":{
       "type":"structure",
       "required":["logGroupName"],
@@ -750,13 +650,6 @@
     "Destinations":{
       "type":"list",
       "member":{"shape":"Destination"}
-    },
-    "DisassociateKmsKeyRequest":{
-      "type":"structure",
-      "required":["logGroupName"],
-      "members":{
-        "logGroupName":{"shape":"LogGroupName"}
-      }
     },
     "Distribution":{
       "type":"string",
@@ -956,10 +849,6 @@
       },
       "exception":true
     },
-    "KmsKeyId":{
-      "type":"string",
-      "max":256
-    },
     "LimitExceededException":{
       "type":"structure",
       "members":{
@@ -988,8 +877,7 @@
         "retentionInDays":{"shape":"Days"},
         "metricFilterCount":{"shape":"FilterCount"},
         "arn":{"shape":"Arn"},
-        "storedBytes":{"shape":"StoredBytes"},
-        "kmsKeyId":{"shape":"KmsKeyId"}
+        "storedBytes":{"shape":"StoredBytes"}
       }
     },
     "LogGroupName":{
@@ -1115,12 +1003,6 @@
       "type":"list",
       "member":{"shape":"OutputLogEvent"}
     },
-    "PolicyDocument":{
-      "type":"string",
-      "max":5120,
-      "min":1
-    },
-    "PolicyName":{"type":"string"},
     "PutDestinationPolicyRequest":{
       "type":"structure",
       "required":[
@@ -1187,19 +1069,6 @@
         "metricTransformations":{"shape":"MetricTransformations"}
       }
     },
-    "PutResourcePolicyRequest":{
-      "type":"structure",
-      "members":{
-        "policyName":{"shape":"PolicyName"},
-        "policyDocument":{"shape":"PolicyDocument"}
-      }
-    },
-    "PutResourcePolicyResponse":{
-      "type":"structure",
-      "members":{
-        "resourcePolicy":{"shape":"ResourcePolicy"}
-      }
-    },
     "PutRetentionPolicyRequest":{
       "type":"structure",
       "required":[
@@ -1247,18 +1116,6 @@
       "members":{
       },
       "exception":true
-    },
-    "ResourcePolicies":{
-      "type":"list",
-      "member":{"shape":"ResourcePolicy"}
-    },
-    "ResourcePolicy":{
-      "type":"structure",
-      "members":{
-        "policyName":{"shape":"PolicyName"},
-        "policyDocument":{"shape":"PolicyDocument"},
-        "lastUpdatedTime":{"shape":"Timestamp"}
-      }
     },
     "RoleArn":{
       "type":"string",

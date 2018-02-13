@@ -5,6 +5,7 @@ package smoke
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"reflect"
 	"regexp"
@@ -12,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/gucumber/gucumber"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -45,16 +47,12 @@ func init() {
 
 	gucumber.Then(`^the value at "(.+?)" should be a list$`, func(member string) {
 		vals, _ := awsutil.ValuesAtPath(gucumber.World["response"], member)
-		if vals == nil {
-			gucumber.T.Errorf("expect not nil, was")
-		}
+		assert.NotNil(gucumber.T, vals)
 	})
 
 	gucumber.Then(`^the response should contain a "(.+?)"$`, func(member string) {
 		vals, _ := awsutil.ValuesAtPath(gucumber.World["response"], member)
-		if len(vals) == 0 {
-			gucumber.T.Errorf("expect values, got none")
-		}
+		assert.NotEmpty(gucumber.T, vals)
 	})
 
 	gucumber.When(`^I attempt to call the "(.+?)" API with:$`, func(op string, args [][]string) {
@@ -63,33 +61,23 @@ func init() {
 
 	gucumber.Then(`^I expect the response error code to be "(.+?)"$`, func(code string) {
 		err, ok := gucumber.World["error"].(awserr.Error)
-		if !ok {
-			gucumber.T.Errorf("no error returned")
-		}
+		assert.True(gucumber.T, ok, "no error returned")
 		if ok {
-			if e, a := code, err.Code(); e != a {
-				gucumber.T.Errorf("Error: %v", err)
-			}
+			assert.Equal(gucumber.T, code, err.Code(), "Error: %v", err)
 		}
 	})
 
 	gucumber.And(`^I expect the response error message to include:$`, func(data string) {
 		err, ok := gucumber.World["error"].(awserr.Error)
-		if !ok {
-			gucumber.T.Errorf("no error returned")
-		}
+		assert.True(gucumber.T, ok, "no error returned")
 		if ok {
-			if a := err.Error(); len(a) == 0 {
-				gucumber.T.Errorf("expect string length to be greater than zero")
-			}
+			assert.Contains(gucumber.T, err.Error(), data)
 		}
 	})
 
 	gucumber.And(`^I expect the response error message to include one of:$`, func(table [][]string) {
 		err, ok := gucumber.World["error"].(awserr.Error)
-		if !ok {
-			gucumber.T.Errorf("no error returned")
-		}
+		assert.True(gucumber.T, ok, "no error returned")
 		if ok {
 			found := false
 			for _, row := range table {
@@ -99,20 +87,14 @@ func init() {
 				}
 			}
 
-			if !found {
-				gucumber.T.Errorf("no error messages matched: \"%s\"", err.Error())
-			}
+			assert.True(gucumber.T, found, fmt.Sprintf("no error messages matched: \"%s\"", err.Error()))
 		}
 	})
 
 	gucumber.And(`^I expect the response error message not be empty$`, func() {
 		err, ok := gucumber.World["error"].(awserr.Error)
-		if !ok {
-			gucumber.T.Errorf("no error returned")
-		}
-		if len(err.Message()) == 0 {
-			gucumber.T.Errorf("expect values, got none")
-		}
+		assert.True(gucumber.T, ok, "no error returned")
+		assert.NotEmpty(gucumber.T, err.Message())
 	})
 
 	gucumber.When(`^I call the "(.+?)" API with JSON:$`, func(s1 string, data string) {
@@ -125,42 +107,26 @@ func init() {
 
 	gucumber.Then(`^the error code should be "(.+?)"$`, func(s1 string) {
 		err, ok := gucumber.World["error"].(awserr.Error)
-		if !ok {
-			gucumber.T.Errorf("no error returned")
-		}
-		if e, a := s1, err.Code(); e != a {
-			gucumber.T.Errorf("expect %v, got %v", e, a)
-		}
+		assert.True(gucumber.T, ok, "no error returned")
+		assert.Equal(gucumber.T, s1, err.Code())
 	})
 
 	gucumber.And(`^the error message should contain:$`, func(data string) {
 		err, ok := gucumber.World["error"].(awserr.Error)
-		if !ok {
-			gucumber.T.Errorf("no error returned")
-		}
-		if a := err.Error(); len(a) == 0 {
-			gucumber.T.Errorf("expect string length to be greater than zero")
-		}
+		assert.True(gucumber.T, ok, "no error returned")
+		assert.Contains(gucumber.T, err.Error(), data)
 	})
 
 	gucumber.Then(`^the request should fail$`, func() {
 		err, ok := gucumber.World["error"].(awserr.Error)
-		if !ok {
-			gucumber.T.Errorf("no error returned")
-		}
-		if err == nil {
-			gucumber.T.Errorf("expect error, got none")
-		}
+		assert.True(gucumber.T, ok, "no error returned")
+		assert.Error(gucumber.T, err)
 	})
 
 	gucumber.Then(`^the request should be successful$`, func() {
 		err, ok := gucumber.World["error"].(awserr.Error)
-		if ok {
-			gucumber.T.Errorf("error returned")
-		}
-		if err != nil {
-			gucumber.T.Errorf("expect no error, got %v", err)
-		}
+		assert.False(gucumber.T, ok, "error returned")
+		assert.NoError(gucumber.T, err)
 	})
 }
 
@@ -194,12 +160,10 @@ func call(op string, args [][]string, allowError bool) {
 
 		if !allowError {
 			err, _ := gucumber.World["error"].(error)
-			if err != nil {
-				gucumber.T.Errorf("expect no error, got %v", err)
-			}
+			assert.NoError(gucumber.T, err)
 		}
 	} else {
-		gucumber.T.Errorf("failed to find operation " + op)
+		assert.Fail(gucumber.T, "failed to find operation "+op)
 	}
 }
 
@@ -251,12 +215,10 @@ func callWithJSON(op, j string, allowError bool) {
 
 		if !allowError {
 			err, _ := gucumber.World["error"].(error)
-			if err != nil {
-				gucumber.T.Errorf("expect no error, got %v", err)
-			}
+			assert.NoError(gucumber.T, err)
 		}
 	} else {
-		gucumber.T.Errorf("failed to find operation " + op)
+		assert.Fail(gucumber.T, "failed to find operation "+op)
 	}
 }
 

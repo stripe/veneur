@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/awstesting/unit"
 	"github.com/aws/aws-sdk-go/service/cognitoidentity"
+	"github.com/stretchr/testify/assert"
 )
 
 var svc = cognitoidentity.New(unit.Session)
@@ -16,13 +17,8 @@ func TestUnsignedRequest_GetID(t *testing.T) {
 	})
 
 	err := req.Sign()
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
-
-	if e, a := "", req.HTTPRequest.Header.Get("Authorization"); e != a {
-		t.Errorf("expected empty value '%v', but received, %v", e, a)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "", req.HTTPRequest.Header.Get("Authorization"))
 }
 
 func TestUnsignedRequest_GetOpenIDToken(t *testing.T) {
@@ -31,13 +27,8 @@ func TestUnsignedRequest_GetOpenIDToken(t *testing.T) {
 	})
 
 	err := req.Sign()
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
-
-	if e, a := "", req.HTTPRequest.Header.Get("Authorization"); e != a {
-		t.Errorf("expected empty value '%v', but received, %v", e, a)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "", req.HTTPRequest.Header.Get("Authorization"))
 }
 
 func TestUnsignedRequest_GetCredentialsForIdentity(t *testing.T) {
@@ -46,11 +37,6 @@ func TestUnsignedRequest_GetCredentialsForIdentity(t *testing.T) {
 	})
 
 	err := req.Sign()
-	if err != nil {
-		t.Errorf("expected no error, but received %v", err)
-	}
-
-	if e, a := "", req.HTTPRequest.Header.Get("Authorization"); e != a {
-		t.Errorf("expected empty value '%v', but received, %v", e, a)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, "", req.HTTPRequest.Header.Get("Authorization"))
 }

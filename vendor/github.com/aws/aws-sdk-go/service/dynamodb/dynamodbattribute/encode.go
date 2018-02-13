@@ -285,9 +285,7 @@ func (e *Encoder) encode(av *dynamodb.AttributeValue, v reflect.Value, fieldTag 
 func (e *Encoder) encodeStruct(av *dynamodb.AttributeValue, v reflect.Value, fieldTag tag) error {
 	// To maintain backwards compatibility with ConvertTo family of methods which
 	// converted time.Time structs to strings
-	if v.Type().ConvertibleTo(timeType) {
-		var t time.Time
-		t = v.Convert(timeType).Interface().(time.Time)
+	if t, ok := v.Interface().(time.Time); ok {
 		if fieldTag.AsUnixTime {
 			return UnixTime(t).MarshalDynamoDBAttributeValue(av)
 		}
@@ -362,10 +360,7 @@ func (e *Encoder) encodeMap(av *dynamodb.AttributeValue, v reflect.Value, fieldT
 func (e *Encoder) encodeSlice(av *dynamodb.AttributeValue, v reflect.Value, fieldTag tag) error {
 	switch v.Type().Elem().Kind() {
 	case reflect.Uint8:
-		slice := reflect.MakeSlice(byteSliceType, v.Len(), v.Len())
-		reflect.Copy(slice, v)
-
-		b := slice.Bytes()
+		b := v.Bytes()
 		if len(b) == 0 {
 			encodeNull(av)
 			return nil

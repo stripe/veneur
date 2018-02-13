@@ -35,17 +35,13 @@ const (
 	// "LimitsExceededException".
 	//
 	// Exception that indicates that the operation would exceed a limit.
-	//
-	// Type is the type of limit that would be exceeded.
-	//
-	// Limit is the threshold that would be exceeded.
 	ErrCodeLimitsExceededException = "LimitsExceededException"
 
 	// ErrCodeLockedSubscriptionException for service response error code
 	// "LockedSubscriptionException".
 	//
-	// Exception that indicates that the subscription you are trying to delete has
-	// not yet completed the 1-year commitment. You cannot delete this subscription.
+	// Exception that indicates that the subscription has been modified by another
+	// client. You can retry the request.
 	ErrCodeLockedSubscriptionException = "LockedSubscriptionException"
 
 	// ErrCodeOptimisticLockException for service response error code
