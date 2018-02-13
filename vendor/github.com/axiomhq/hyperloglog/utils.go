@@ -7,6 +7,8 @@ import (
 	metro "github.com/dgryski/go-metro"
 )
 
+var hash = hashFunc
+
 func beta14(ez float64) float64 {
 	zl := math.Log(ez + 1)
 	return -0.370393911*ez +
@@ -66,5 +68,3 @@ func bextr32(v uint32, start, length uint8) uint32 {
 func hashFunc(e []byte) uint64 {
 	return metro.Hash64(e, 1337)
 }
-
-var hash func(buf []byte) uint64
