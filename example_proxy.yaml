@@ -11,7 +11,7 @@ stats_address: "localhost:8125"
 
 # The address to which to send SSF spans and metrics - this is the
 # same format as on the veneur server's `ssf_listen_addresses`.
-ssf_destination_address: "udp://localhost:8200"
+ssf_destination_address: "udp://localhost:8126"
 
 ### FORWARDING
 # Use a static host for forwarding
