@@ -3,9 +3,9 @@ package state
 import (
 	"fmt"
 
-	"github.com/hashicorp/consul/agent/structs"
-	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/serf/coordinate"
 )
 
 // Coordinates is used to pull all the coordinates from the snapshot.
@@ -40,23 +40,26 @@ func (s *Restore) Coordinates(idx uint64, updates structs.Coordinates) error {
 	return nil
 }
 
-// Coordinate returns a map of coordinates for the given node, indexed by
-// network segment.
-func (s *Store) Coordinate(node string) (lib.CoordinateSet, error) {
+// CoordinateGetRaw queries for the coordinate of the given node. This is an
+// unusual state store method because it just returns the raw coordinate or
+// nil, none of the Raft or node information is returned. This hits the 90%
+// internal-to-Consul use case for this data, and this isn't exposed via an
+// endpoint, so it doesn't matter that the Raft info isn't available.
+func (s *Store) CoordinateGetRaw(node string) (*coordinate.Coordinate, error) {
 	tx := s.db.Txn(false)
 	defer tx.Abort()
 
-	iter, err := tx.Get("coordinates", "node", node)
+	// Pull the full coordinate entry.
+	coord, err := tx.First("coordinates", "id", node)
 	if err != nil {
 		return nil, fmt.Errorf("failed coordinate lookup: %s", err)
 	}
 
-	results := make(lib.CoordinateSet)
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		coord := raw.(*structs.Coordinate)
-		results[coord.Segment] = coord.Coord
+	// Pick out just the raw coordinate.
+	if coord != nil {
+		return coord.(*structs.Coordinate).Coord, nil
 	}
-	return results, nil
+	return nil, nil
 }
 
 // Coordinates queries for all nodes with coordinates.

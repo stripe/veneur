@@ -6,9 +6,8 @@ import (
 
 // CoordinateEntry represents a node and its associated network coordinate.
 type CoordinateEntry struct {
-	Node    string
-	Segment string
-	Coord   *coordinate.Coordinate
+	Node  string
+	Coord *coordinate.Coordinate
 }
 
 // CoordinateDatacenterMap has the coordinates for servers in a given datacenter

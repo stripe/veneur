@@ -9,11 +9,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"regexp"
-
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/agent/consul"
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/consul/lib"
 	"github.com/miekg/dns"
 )
@@ -31,8 +29,6 @@ const (
 
 	defaultMaxUDPSize = 512
 )
-
-var InvalidDnsRe = regexp.MustCompile(`[^A-Za-z0-9\\-]+`)
 
 // DNSServer is used to wrap an Agent and expose various
 // service discovery endpoints using a DNS interface.
@@ -122,8 +118,7 @@ START:
 func (d *DNSServer) handlePtr(resp dns.ResponseWriter, req *dns.Msg) {
 	q := req.Question[0]
 	defer func(s time.Time) {
-		metrics.MeasureSinceWithLabels([]string{"consul", "dns", "ptr_query"}, s,
-			[]metrics.Label{{Name: "node", Value: d.agent.config.NodeName}})
+		metrics.MeasureSince([]string{"consul", "dns", "ptr_query", d.agent.config.NodeName}, s)
 		d.logger.Printf("[DEBUG] dns: request for %v (%v) from client %s (%s)",
 			q, time.Now().Sub(s), resp.RemoteAddr().String(),
 			resp.RemoteAddr().Network())
@@ -138,7 +133,7 @@ func (d *DNSServer) handlePtr(resp dns.ResponseWriter, req *dns.Msg) {
 
 	// Only add the SOA if requested
 	if req.Question[0].Qtype == dns.TypeSOA {
-		d.addSOA(m)
+		d.addSOA(d.domain, m)
 	}
 
 	datacenter := d.agent.config.Datacenter
@@ -149,7 +144,7 @@ func (d *DNSServer) handlePtr(resp dns.ResponseWriter, req *dns.Msg) {
 	args := structs.DCSpecificRequest{
 		Datacenter: datacenter,
 		QueryOptions: structs.QueryOptions{
-			Token:      d.agent.tokens.UserToken(),
+			Token:      d.agent.config.ACLToken,
 			AllowStale: *d.config.AllowStale,
 		},
 	}
@@ -192,8 +187,7 @@ func (d *DNSServer) handlePtr(resp dns.ResponseWriter, req *dns.Msg) {
 func (d *DNSServer) handleQuery(resp dns.ResponseWriter, req *dns.Msg) {
 	q := req.Question[0]
 	defer func(s time.Time) {
-		metrics.MeasureSinceWithLabels([]string{"consul", "dns", "domain_query"}, s,
-			[]metrics.Label{{Name: "node", Value: d.agent.config.NodeName}})
+		metrics.MeasureSince([]string{"consul", "dns", "domain_query", d.agent.config.NodeName}, s)
 		d.logger.Printf("[DEBUG] dns: request for %v (%v) from client %s (%s)",
 			q, time.Now().Sub(s), resp.RemoteAddr().String(),
 			resp.RemoteAddr().Network())
@@ -212,26 +206,13 @@ func (d *DNSServer) handleQuery(resp dns.ResponseWriter, req *dns.Msg) {
 	m.Authoritative = true
 	m.RecursionAvailable = (len(d.recursors) > 0)
 
-	switch req.Question[0].Qtype {
-	case dns.TypeSOA:
-		ns, glue := d.nameservers(req.IsEdns0() != nil)
-		m.Answer = append(m.Answer, d.soa())
-		m.Ns = append(m.Ns, ns...)
-		m.Extra = append(m.Extra, glue...)
-		m.SetRcode(req, dns.RcodeSuccess)
-
-	case dns.TypeNS:
-		ns, glue := d.nameservers(req.IsEdns0() != nil)
-		m.Answer = ns
-		m.Extra = glue
-		m.SetRcode(req, dns.RcodeSuccess)
-
-	case dns.TypeAXFR:
-		m.SetRcode(req, dns.RcodeNotImplemented)
-
-	default:
-		d.dispatch(network, req, m)
+	// Only add the SOA if requested
+	if req.Question[0].Qtype == dns.TypeSOA {
+		d.addSOA(d.domain, m)
 	}
+
+	// Dispatch the correct handler
+	d.dispatch(network, req, m)
 
 	// Handle EDNS
 	if edns := req.IsEdns0(); edns != nil {
@@ -244,82 +225,24 @@ func (d *DNSServer) handleQuery(resp dns.ResponseWriter, req *dns.Msg) {
 	}
 }
 
-func (d *DNSServer) soa() *dns.SOA {
-	return &dns.SOA{
+// addSOA is used to add an SOA record to a message for the given domain
+func (d *DNSServer) addSOA(domain string, msg *dns.Msg) {
+	soa := &dns.SOA{
 		Hdr: dns.RR_Header{
-			Name:   d.domain,
+			Name:   domain,
 			Rrtype: dns.TypeSOA,
 			Class:  dns.ClassINET,
 			Ttl:    0,
 		},
-		Ns:     "ns." + d.domain,
-		Serial: uint32(time.Now().Unix()),
-
-		// todo(fs): make these configurable
-		Mbox:    "hostmaster." + d.domain,
+		Ns:      "ns." + domain,
+		Mbox:    "postmaster." + domain,
+		Serial:  uint32(time.Now().Unix()),
 		Refresh: 3600,
 		Retry:   600,
 		Expire:  86400,
 		Minttl:  0,
 	}
-}
-
-// addSOA is used to add an SOA record to a message for the given domain
-func (d *DNSServer) addSOA(msg *dns.Msg) {
-	msg.Ns = append(msg.Ns, d.soa())
-}
-
-// nameservers returns the names and ip addresses of up to three random servers
-// in the current cluster which serve as authoritative name servers for zone.
-func (d *DNSServer) nameservers(edns bool) (ns []dns.RR, extra []dns.RR) {
-	out, err := d.lookupServiceNodes(d.agent.config.Datacenter, structs.ConsulServiceName, "")
-	if err != nil {
-		d.logger.Printf("[WARN] dns: Unable to get list of servers: %s", err)
-		return nil, nil
-	}
-
-	if len(out.Nodes) == 0 {
-		d.logger.Printf("[WARN] dns: no servers found")
-		return
-	}
-
-	// shuffle the nodes to randomize the output
-	out.Nodes.Shuffle()
-
-	for _, o := range out.Nodes {
-		name, addr, dc := o.Node.Node, o.Node.Address, o.Node.Datacenter
-
-		if InvalidDnsRe.MatchString(name) {
-			d.logger.Printf("[WARN] dns: Skipping invalid node %q for NS records", name)
-			continue
-		}
-
-		fqdn := name + ".node." + dc + "." + d.domain
-		fqdn = dns.Fqdn(strings.ToLower(fqdn))
-
-		// NS record
-		nsrr := &dns.NS{
-			Hdr: dns.RR_Header{
-				Name:   d.domain,
-				Rrtype: dns.TypeNS,
-				Class:  dns.ClassINET,
-				Ttl:    uint32(d.config.NodeTTL / time.Second),
-			},
-			Ns: fqdn,
-		}
-		ns = append(ns, nsrr)
-
-		// A or AAAA glue record
-		glue := d.formatNodeRecord(addr, fqdn, dns.TypeANY, d.config.NodeTTL, edns)
-		extra = append(extra, glue...)
-
-		// don't provide more than 3 servers
-		if len(ns) >= 3 {
-			return
-		}
-	}
-
-	return
+	msg.Ns = append(msg.Ns, soa)
 }
 
 // dispatch is used to parse a request and invoke the correct handler
@@ -448,7 +371,7 @@ PARSE:
 	return
 INVALID:
 	d.logger.Printf("[WARN] dns: QName invalid: %s", qName)
-	d.addSOA(resp)
+	d.addSOA(d.domain, resp)
 	resp.SetRcode(req, dns.RcodeNameError)
 }
 
@@ -465,7 +388,7 @@ func (d *DNSServer) nodeLookup(network, datacenter, node string, req, resp *dns.
 		Datacenter: datacenter,
 		Node:       node,
 		QueryOptions: structs.QueryOptions{
-			Token:      d.agent.tokens.UserToken(),
+			Token:      d.agent.config.ACLToken,
 			AllowStale: *d.config.AllowStale,
 		},
 	}
@@ -490,7 +413,7 @@ RPC:
 
 	// If we have no address, return not found!
 	if out.NodeServices == nil {
-		d.addSOA(resp)
+		d.addSOA(d.domain, resp)
 		resp.SetRcode(req, dns.RcodeNameError)
 		return
 	}
@@ -499,14 +422,15 @@ RPC:
 	n := out.NodeServices.Node
 	edns := req.IsEdns0() != nil
 	addr := d.agent.TranslateAddress(datacenter, n.Address, n.TaggedAddresses)
-	records := d.formatNodeRecord(addr, req.Question[0].Name, qType, d.config.NodeTTL, edns)
+	records := d.formatNodeRecord(out.NodeServices.Node, addr,
+		req.Question[0].Name, qType, d.config.NodeTTL, edns)
 	if records != nil {
 		resp.Answer = append(resp.Answer, records...)
 	}
 }
 
 // formatNodeRecord takes a Node and returns an A, AAAA, or CNAME record
-func (d *DNSServer) formatNodeRecord(addr, qName string, qType uint16, ttl time.Duration, edns bool) (records []dns.RR) {
+func (d *DNSServer) formatNodeRecord(node *structs.Node, addr, qName string, qType uint16, ttl time.Duration, edns bool) (records []dns.RR) {
 	// Parse the IP
 	ip := net.ParseIP(addr)
 	var ipv4 net.IP
@@ -669,62 +593,37 @@ func trimUDPResponse(config *DNSConfig, req, resp *dns.Msg) (trimmed bool) {
 	return len(resp.Answer) < numAnswers
 }
 
-// lookupServiceNodes returns nodes with a given service.
-func (d *DNSServer) lookupServiceNodes(datacenter, service, tag string) (structs.IndexedCheckServiceNodes, error) {
+// serviceLookup is used to handle a service query
+func (d *DNSServer) serviceLookup(network, datacenter, service, tag string, req, resp *dns.Msg) {
+	// Make an RPC request
 	args := structs.ServiceSpecificRequest{
 		Datacenter:  datacenter,
 		ServiceName: service,
 		ServiceTag:  tag,
 		TagFilter:   tag != "",
 		QueryOptions: structs.QueryOptions{
-			Token:      d.agent.tokens.UserToken(),
+			Token:      d.agent.config.ACLToken,
 			AllowStale: *d.config.AllowStale,
 		},
 	}
-
 	var out structs.IndexedCheckServiceNodes
+RPC:
 	if err := d.agent.RPC("Health.ServiceNodes", &args, &out); err != nil {
-		return structs.IndexedCheckServiceNodes{}, err
-	}
-
-	if args.AllowStale && out.LastContact > staleCounterThreshold {
-		metrics.IncrCounter([]string{"consul", "dns", "stale_queries"}, 1)
-	}
-
-	// redo the request the response was too stale
-	if args.AllowStale && out.LastContact > d.config.MaxStale {
-		args.AllowStale = false
-		d.logger.Printf("[WARN] dns: Query results too stale, re-requesting")
-
-		if err := d.agent.RPC("Health.ServiceNodes", &args, &out); err != nil {
-			return structs.IndexedCheckServiceNodes{}, err
-		}
-	}
-
-	// Filter out any service nodes due to health checks
-	out.Nodes = out.Nodes.Filter(d.config.OnlyPassing)
-
-	return out, nil
-}
-
-// serviceLookup is used to handle a service query
-func (d *DNSServer) serviceLookup(network, datacenter, service, tag string, req, resp *dns.Msg) {
-	out, err := d.lookupServiceNodes(datacenter, service, tag)
-	if err != nil {
 		d.logger.Printf("[ERR] dns: rpc error: %v", err)
 		resp.SetRcode(req, dns.RcodeServerFailure)
 		return
 	}
 
-	// If we have no nodes, return not found!
-	if len(out.Nodes) == 0 {
-		d.addSOA(resp)
-		resp.SetRcode(req, dns.RcodeNameError)
-		return
+	// Verify that request is not too stale, redo the request
+	if args.AllowStale {
+		if out.LastContact > d.config.MaxStale {
+			args.AllowStale = false
+			d.logger.Printf("[WARN] dns: Query results too stale, re-requesting")
+			goto RPC
+		} else if out.LastContact > staleCounterThreshold {
+			metrics.IncrCounter([]string{"consul", "dns", "stale_queries"}, 1)
+		}
 	}
-
-	// Perform a random shuffle
-	out.Nodes.Shuffle()
 
 	// Determine the TTL
 	var ttl time.Duration
@@ -735,6 +634,19 @@ func (d *DNSServer) serviceLookup(network, datacenter, service, tag string, req,
 			ttl = d.config.ServiceTTL["*"]
 		}
 	}
+
+	// Filter out any service nodes due to health checks
+	out.Nodes = out.Nodes.Filter(d.config.OnlyPassing)
+
+	// If we have no nodes, return not found!
+	if len(out.Nodes) == 0 {
+		d.addSOA(d.domain, resp)
+		resp.SetRcode(req, dns.RcodeNameError)
+		return
+	}
+
+	// Perform a random shuffle
+	out.Nodes.Shuffle()
 
 	// Add various responses depending on the request
 	qType := req.Question[0].Qtype
@@ -756,7 +668,7 @@ func (d *DNSServer) serviceLookup(network, datacenter, service, tag string, req,
 
 	// If the answer is empty and the response isn't truncated, return not found
 	if len(resp.Answer) == 0 && !resp.Truncated {
-		d.addSOA(resp)
+		d.addSOA(d.domain, resp)
 		return
 	}
 }
@@ -768,7 +680,7 @@ func (d *DNSServer) preparedQueryLookup(network, datacenter, query string, req, 
 		Datacenter:    datacenter,
 		QueryIDOrName: query,
 		QueryOptions: structs.QueryOptions{
-			Token:      d.agent.tokens.UserToken(),
+			Token:      d.agent.config.ACLToken,
 			AllowStale: *d.config.AllowStale,
 		},
 
@@ -778,7 +690,6 @@ func (d *DNSServer) preparedQueryLookup(network, datacenter, query string, req, 
 		// relative to ourself on the server side.
 		Agent: structs.QuerySource{
 			Datacenter: d.agent.config.Datacenter,
-			Segment:    d.agent.config.Segment,
 			Node:       d.agent.config.NodeName,
 		},
 	}
@@ -798,7 +709,7 @@ RPC:
 		// not a full on server error. We have to use a string compare
 		// here since the RPC layer loses the type information.
 		if err.Error() == consul.ErrQueryNotFound.Error() {
-			d.addSOA(resp)
+			d.addSOA(d.domain, resp)
 			resp.SetRcode(req, dns.RcodeNameError)
 			return
 		}
@@ -840,7 +751,7 @@ RPC:
 
 	// If we have no nodes, return not found!
 	if len(out.Nodes) == 0 {
-		d.addSOA(resp)
+		d.addSOA(d.domain, resp)
 		resp.SetRcode(req, dns.RcodeNameError)
 		return
 	}
@@ -865,7 +776,7 @@ RPC:
 
 	// If the answer is empty and the response isn't truncated, return not found
 	if len(resp.Answer) == 0 && !resp.Truncated {
-		d.addSOA(resp)
+		d.addSOA(d.domain, resp)
 		return
 	}
 }
@@ -899,7 +810,7 @@ func (d *DNSServer) serviceNodeRecords(dc string, nodes structs.CheckServiceNode
 		handled[addr] = struct{}{}
 
 		// Add the node record
-		records := d.formatNodeRecord(addr, qName, qType, ttl, edns)
+		records := d.formatNodeRecord(node.Node, addr, qName, qType, ttl, edns)
 		if records != nil {
 			resp.Answer = append(resp.Answer, records...)
 		}
@@ -943,7 +854,7 @@ func (d *DNSServer) serviceSRVRecords(dc string, nodes structs.CheckServiceNodes
 		}
 
 		// Add the extra record
-		records := d.formatNodeRecord(addr, srvRec.Target, dns.TypeANY, ttl, edns)
+		records := d.formatNodeRecord(node.Node, addr, srvRec.Target, dns.TypeANY, ttl, edns)
 		if len(records) > 0 {
 			// Use the node address if it doesn't differ from the service address
 			if addr == node.Node.Address {

@@ -9,8 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/consul/acl"
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 )
 
 const (
@@ -22,7 +21,7 @@ const (
 func (s *HTTPServer) EventFire(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Mandate a PUT request
 	if req.Method != "PUT" {
-		resp.WriteHeader(http.StatusMethodNotAllowed)
+		resp.WriteHeader(405)
 		return nil, nil
 	}
 
@@ -33,7 +32,7 @@ func (s *HTTPServer) EventFire(resp http.ResponseWriter, req *http.Request) (int
 	event := &UserEvent{}
 	event.Name = strings.TrimPrefix(req.URL.Path, "/v1/event/fire/")
 	if event.Name == "" {
-		resp.WriteHeader(http.StatusBadRequest)
+		resp.WriteHeader(400)
 		fmt.Fprint(resp, "Missing name")
 		return nil, nil
 	}
@@ -64,12 +63,12 @@ func (s *HTTPServer) EventFire(resp http.ResponseWriter, req *http.Request) (int
 
 	// Try to fire the event
 	if err := s.agent.UserEvent(dc, token, event); err != nil {
-		if acl.IsErrPermissionDenied(err) {
-			resp.WriteHeader(http.StatusForbidden)
-			fmt.Fprint(resp, acl.ErrPermissionDenied.Error())
+		if strings.Contains(err.Error(), permissionDenied) {
+			resp.WriteHeader(403)
+			fmt.Fprint(resp, permissionDenied)
 			return nil, nil
 		}
-		resp.WriteHeader(http.StatusInternalServerError)
+		resp.WriteHeader(500)
 		return nil, err
 	}
 

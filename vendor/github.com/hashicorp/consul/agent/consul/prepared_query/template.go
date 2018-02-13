@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/hil"
 	"github.com/hashicorp/hil/ast"
 	"github.com/mitchellh/copystructure"
@@ -29,10 +29,6 @@ type CompiledTemplate struct {
 
 	// re is the compiled regexp, if they supplied one (this can be nil).
 	re *regexp.Regexp
-
-	// removeEmptyTags will cause the service tags to be stripped of any
-	// empty strings after interpolation.
-	removeEmptyTags bool
 }
 
 // Compile validates a prepared query template and returns an opaque compiled
@@ -45,8 +41,7 @@ func Compile(query *structs.PreparedQuery) (*CompiledTemplate, error) {
 
 	// Start compile.
 	ct := &CompiledTemplate{
-		trees:           make(map[string]ast.Node),
-		removeEmptyTags: query.Template.RemoveEmptyTags,
+		trees: make(map[string]ast.Node),
 	}
 
 	// Make a copy of the query to use as the basis for rendering later.
@@ -89,7 +84,7 @@ func Compile(query *structs.PreparedQuery) (*CompiledTemplate, error) {
 	// prefix it will be expected to run with. The results might not make
 	// sense and create a valid service to lookup, but it should render
 	// without any errors.
-	if _, err = ct.Render(ct.query.Name, structs.QuerySource{}); err != nil {
+	if _, err = ct.Render(ct.query.Name); err != nil {
 		return nil, err
 	}
 
@@ -99,7 +94,7 @@ func Compile(query *structs.PreparedQuery) (*CompiledTemplate, error) {
 // Render takes a compiled template and renders it for the given name. For
 // example, if the user looks up foobar.query.consul via DNS then we will call
 // this function with "foobar" on the compiled template.
-func (ct *CompiledTemplate) Render(name string, source structs.QuerySource) (*structs.PreparedQuery, error) {
+func (ct *CompiledTemplate) Render(name string) (*structs.PreparedQuery, error) {
 	// Make it "safe" to render a default structure.
 	if ct == nil {
 		return nil, fmt.Errorf("Cannot render an uncompiled template")
@@ -156,10 +151,6 @@ func (ct *CompiledTemplate) Render(name string, source structs.QuerySource) (*st
 					Type:  ast.TypeString,
 					Value: strings.TrimPrefix(name, query.Name),
 				},
-				"agent.segment": ast.Variable{
-					Type:  ast.TypeString,
-					Value: source.Segment,
-				},
 			},
 			FuncMap: map[string]ast.Function{
 				"match": match,
@@ -188,16 +179,6 @@ func (ct *CompiledTemplate) Render(name string, source structs.QuerySource) (*st
 	}
 	if err := walk(&query.Service, eval); err != nil {
 		return nil, err
-	}
-
-	if ct.removeEmptyTags {
-		tags := make([]string, 0, len(query.Service.Tags))
-		for _, tag := range query.Service.Tags {
-			if tag != "" {
-				tags = append(tags, tag)
-			}
-		}
-		query.Service.Tags = tags
 	}
 
 	return query, nil

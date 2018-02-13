@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/types"
 	"github.com/hashicorp/go-memdb"
@@ -370,12 +370,12 @@ func (s *Store) deleteNodeTxn(tx *memdb.Txn, idx uint64, nodeName string) error 
 		}
 	}
 
-	// Delete any coordinates associated with this node.
-	coords, err := tx.Get("coordinates", "node", nodeName)
+	// Delete any coordinate associated with this node.
+	coord, err := tx.First("coordinates", "id", nodeName)
 	if err != nil {
 		return fmt.Errorf("failed coordinate lookup: %s", err)
 	}
-	for coord := coords.Next(); coord != nil; coord = coords.Next() {
+	if coord != nil {
 		if err := tx.Delete("coordinates", coord); err != nil {
 			return fmt.Errorf("failed deleting coordinate: %s", err)
 		}

@@ -2,11 +2,11 @@ package consul
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/acl"
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/consul/testrpc"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
@@ -194,7 +194,7 @@ session "foo" {
 	var id2 string
 	s1.config.ACLEnforceVersion8 = true
 	err := msgpackrpc.CallWithCodec(codec, "Session.Apply", &arg, &id2)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -220,7 +220,7 @@ session "foo" {
 	s1.config.ACLEnforceVersion8 = true
 	arg.Session.ID = id2
 	err = msgpackrpc.CallWithCodec(codec, "Session.Apply", &arg, &out)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -770,7 +770,7 @@ session "foo" {
 	// Now turn on version 8 enforcement and the renew should be rejected.
 	s1.config.ACLEnforceVersion8 = true
 	err := msgpackrpc.CallWithCodec(codec, "Session.Renew", &renewR, &session)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 

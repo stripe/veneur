@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -189,7 +188,7 @@ func (t *testClient) run(control *Control) (time.Duration, time.Duration, time.D
 		if !ok {
 			panic("Tracer does not have a lightstep recorder")
 		}
-		recorder.Flush(context.Background())
+		recorder.Flush()
 		flushDur = time.Now().Sub(endTime)
 	}
 	return endTime.Sub(beginTest), flushDur, sleeps, answer

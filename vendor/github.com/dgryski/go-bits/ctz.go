@@ -1,4 +1,4 @@
-// +build gccgo !amd64 appengine
+// +build !amd64 appengine
 
 package bits
 

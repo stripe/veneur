@@ -7,14 +7,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/consul/tlsutil"
 	"github.com/hashicorp/consul/types"
-	"github.com/hashicorp/consul/version"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
-	"golang.org/x/time/rate"
 )
 
 const (
@@ -48,17 +46,6 @@ func init() {
 		2: 4,
 		3: 4,
 	}
-}
-
-// (Enterprise-only) NetworkSegment is the address and port configuration
-// for a network segment.
-type NetworkSegment struct {
-	Name       string
-	Bind       string
-	Port       int
-	Advertise  string
-	RPCAddr    *net.TCPAddr
-	SerfConfig *serf.Config
 }
 
 // Config is used to configure the server
@@ -116,13 +103,6 @@ type Config struct {
 
 	// RPCSrcAddr is the source address for outgoing RPC connections.
 	RPCSrcAddr *net.TCPAddr
-
-	// (Enterprise-only) The network segment this agent is part of.
-	Segment string
-
-	// (Enterprise-only) Segments is a list of network segments for a server to
-	// bind on.
-	Segments []NetworkSegment
 
 	// SerfLANConfig is the configuration for the intra-dc serf
 	SerfLANConfig *serf.Config
@@ -211,6 +191,16 @@ type Config struct {
 	// operators track which versions are actively deployed
 	Build string
 
+	// ACLToken is the default token to use when making a request.
+	// If not provided, the anonymous token is used. This enables
+	// backwards compatibility as well.
+	ACLToken string
+
+	// ACLAgentToken is the default token used to make requests for the agent
+	// itself, such as for registering itself with the catalog. If not
+	// configured, the ACLToken will be used.
+	ACLAgentToken string
+
 	// ACLMasterToken is used to bootstrap the ACL system. It should be specified
 	// on the servers in the ACLDatacenter. When the leader comes online, it ensures
 	// that the Master token is available. This provides the initial token.
@@ -238,8 +228,11 @@ type Config struct {
 	// "allow" can be used to allow all requests. This is not recommended.
 	ACLDownPolicy string
 
-	// EnableACLReplication is used to control ACL replication.
-	EnableACLReplication bool
+	// ACLReplicationToken is used to fetch ACLs from the ACLDatacenter in
+	// order to replicate them locally. Setting this to a non-empty value
+	// also enables replication. Replication is only available in datacenters
+	// other than the ACLDatacenter.
+	ACLReplicationToken string
 
 	// ACLReplicationInterval is the interval at which replication passes
 	// will occur. Queries to the ACLDatacenter may block, so replication
@@ -313,17 +306,6 @@ type Config struct {
 	// place, and a small jitter is applied to avoid a thundering herd.
 	RPCHoldTimeout time.Duration
 
-	// RPCRate and RPCMaxBurst control how frequently RPC calls are allowed
-	// to happen. In any large enough time interval, rate limiter limits the
-	// rate to RPCRate tokens per second, with a maximum burst size of
-	// RPCMaxBurst events. As a special case, if RPCRate == Inf (the infinite
-	// rate), RPCMaxBurst is ignored.
-	//
-	// See https://en.wikipedia.org/wiki/Token_bucket for more about token
-	// buckets.
-	RPCRate     rate.Limit
-	RPCMaxBurst int
-
 	// AutopilotConfig is used to apply the initial autopilot config when
 	// bootstrapping.
 	AutopilotConfig *structs.AutopilotConfig
@@ -375,7 +357,7 @@ func DefaultConfig() *Config {
 	}
 
 	conf := &Config{
-		Build:                    version.Version,
+		Build:                    "0.8.0",
 		Datacenter:               DefaultDC,
 		NodeName:                 hostname,
 		RPCAddr:                  DefaultRPCAddr,
@@ -406,9 +388,6 @@ func DefaultConfig() *Config {
 		// bit longer to try to cover that period. This should be more
 		// than enough when running in the high performance mode.
 		RPCHoldTimeout: 7 * time.Second,
-
-		RPCRate:     rate.Inf,
-		RPCMaxBurst: 1000,
 
 		TLSMinVersion: "tls10",
 
@@ -480,4 +459,16 @@ func (c *Config) tlsConfig() *tlsutil.Config {
 		PreferServerCipherSuites: c.TLSPreferServerCipherSuites,
 	}
 	return tlsConf
+}
+
+// GetTokenForAgent returns the token the agent should use for its own internal
+// operations, such as registering itself with the catalog.
+func (c *Config) GetTokenForAgent() string {
+	if c.ACLAgentToken != "" {
+		return c.ACLAgentToken
+	}
+	if c.ACLToken != "" {
+		return c.ACLToken
+	}
+	return ""
 }

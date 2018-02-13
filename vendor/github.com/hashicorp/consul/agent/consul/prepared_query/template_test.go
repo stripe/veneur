@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/mitchellh/copystructure"
 )
 
@@ -15,9 +15,8 @@ var (
 	bigBench = &structs.PreparedQuery{
 		Name: "hello",
 		Template: structs.QueryTemplateOptions{
-			Type:            structs.QueryTemplateTypeNamePrefixMatch,
-			Regexp:          "^hello-(.*)-(.*)$",
-			RemoveEmptyTags: true,
+			Type:   structs.QueryTemplateTypeNamePrefixMatch,
+			Regexp: "^hello-(.*)-(.*)$",
 		},
 		Service: structs.ServiceQuery{
 			Service: "${name.full}",
@@ -29,7 +28,6 @@ var (
 					"${match(0)}",
 					"${match(1)}",
 					"${match(2)}",
-					"${agent.segment}",
 				},
 			},
 			Tags: []string{
@@ -39,13 +37,11 @@ var (
 				"${match(0)}",
 				"${match(1)}",
 				"${match(2)}",
-				"${agent.segment}",
 			},
 			NodeMeta: map[string]string{
 				"foo": "${name.prefix}",
 				"bar": "${match(0)}",
 				"baz": "${match(1)}",
-				"zoo": "${agent.segment}",
 			},
 		},
 	}
@@ -86,7 +82,7 @@ func renderBench(b *testing.B, query *structs.PreparedQuery) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		_, err := compiled.Render("hello-bench-mark", structs.QuerySource{})
+		_, err := compiled.Render("hello-bench-mark")
 		if err != nil {
 			b.Fatalf("err: %v", err)
 		}
@@ -124,7 +120,7 @@ func TestTemplate_Compile(t *testing.T) {
 	query.Template.Type = structs.QueryTemplateTypeNamePrefixMatch
 	query.Template.Regexp = "^(hello)there$"
 	query.Service.Service = "${name.full}"
-	query.Service.Tags = []string{"${match(1)}", "${agent.segment}"}
+	query.Service.Tags = []string{"${match(1)}"}
 	backup, err := copystructure.Copy(query)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -138,7 +134,7 @@ func TestTemplate_Compile(t *testing.T) {
 	}
 
 	// Do a sanity check render on it.
-	actual, err := ct.Render("hellothere", structs.QuerySource{Segment: "segment-foo"})
+	actual, err := ct.Render("hellothere")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -153,7 +149,6 @@ func TestTemplate_Compile(t *testing.T) {
 			Service: "hellothere",
 			Tags: []string{
 				"hello",
-				"segment-foo",
 			},
 		},
 	}
@@ -205,7 +200,7 @@ func TestTemplate_Render(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
-		actual, err := ct.Render("unused", structs.QuerySource{})
+		actual, err := ct.Render("unused")
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -222,7 +217,7 @@ func TestTemplate_Render(t *testing.T) {
 			Regexp: "^(.*?)-(.*?)-(.*)$",
 		},
 		Service: structs.ServiceQuery{
-			Service: "${name.prefix} xxx ${name.full} xxx ${name.suffix} xxx ${agent.segment}",
+			Service: "${name.prefix} xxx ${name.full} xxx ${name.suffix}",
 			Tags: []string{
 				"${match(-1)}",
 				"${match(0)}",
@@ -242,7 +237,7 @@ func TestTemplate_Render(t *testing.T) {
 
 	// Run a case that matches the regexp.
 	{
-		actual, err := ct.Render("hello-foo-bar-none", structs.QuerySource{Segment: "segment-bar"})
+		actual, err := ct.Render("hello-foo-bar-none")
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -253,7 +248,7 @@ func TestTemplate_Render(t *testing.T) {
 				Regexp: "^(.*?)-(.*?)-(.*)$",
 			},
 			Service: structs.ServiceQuery{
-				Service: "hello- xxx hello-foo-bar-none xxx foo-bar-none xxx segment-bar",
+				Service: "hello- xxx hello-foo-bar-none xxx foo-bar-none",
 				Tags: []string{
 					"",
 					"hello-foo-bar-none",
@@ -273,7 +268,7 @@ func TestTemplate_Render(t *testing.T) {
 
 	// Run a case that doesn't match the regexp
 	{
-		actual, err := ct.Render("hello-nope", structs.QuerySource{Segment: "segment-bar"})
+		actual, err := ct.Render("hello-nope")
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -284,7 +279,7 @@ func TestTemplate_Render(t *testing.T) {
 				Regexp: "^(.*?)-(.*?)-(.*)$",
 			},
 			Service: structs.ServiceQuery{
-				Service: "hello- xxx hello-nope xxx nope xxx segment-bar",
+				Service: "hello- xxx hello-nope xxx nope",
 				Tags: []string{
 					"",
 					"",
@@ -295,86 +290,6 @@ func TestTemplate_Render(t *testing.T) {
 					"42",
 				},
 				NodeMeta: map[string]string{"foo": ""},
-			},
-		}
-		if !reflect.DeepEqual(actual, expected) {
-			t.Fatalf("bad: %#v", actual)
-		}
-	}
-
-	// Try all the variables and functions, removing empty tags.
-	query = &structs.PreparedQuery{
-		Name: "hello-",
-		Template: structs.QueryTemplateOptions{
-			Type:            structs.QueryTemplateTypeNamePrefixMatch,
-			Regexp:          "^(.*?)-(.*?)-(.*)$",
-			RemoveEmptyTags: true,
-		},
-		Service: structs.ServiceQuery{
-			Service: "${name.prefix} xxx ${name.full} xxx ${name.suffix} xxx ${agent.segment}",
-			Tags: []string{
-				"${match(-1)}",
-				"${match(0)}",
-				"${match(1)}",
-				"${match(2)}",
-				"${match(3)}",
-				"${match(4)}",
-				"${40 + 2}",
-			},
-		},
-	}
-	ct, err = Compile(query)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Run a case that matches the regexp, removing empty tags.
-	{
-		actual, err := ct.Render("hello-foo-bar-none", structs.QuerySource{Segment: "segment-baz"})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		expected := &structs.PreparedQuery{
-			Name: "hello-",
-			Template: structs.QueryTemplateOptions{
-				Type:            structs.QueryTemplateTypeNamePrefixMatch,
-				Regexp:          "^(.*?)-(.*?)-(.*)$",
-				RemoveEmptyTags: true,
-			},
-			Service: structs.ServiceQuery{
-				Service: "hello- xxx hello-foo-bar-none xxx foo-bar-none xxx segment-baz",
-				Tags: []string{
-					"hello-foo-bar-none",
-					"hello",
-					"foo",
-					"bar-none",
-					"42",
-				},
-			},
-		}
-		if !reflect.DeepEqual(actual, expected) {
-			t.Fatalf("bad:\n%#v\nexpected:\n%#v\n", actual, expected)
-		}
-	}
-
-	// Run a case that doesn't match the regexp, removing empty tags.
-	{
-		actual, err := ct.Render("hello-nope", structs.QuerySource{Segment: "segment-baz"})
-		if err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		expected := &structs.PreparedQuery{
-			Name: "hello-",
-			Template: structs.QueryTemplateOptions{
-				Type:            structs.QueryTemplateTypeNamePrefixMatch,
-				Regexp:          "^(.*?)-(.*?)-(.*)$",
-				RemoveEmptyTags: true,
-			},
-			Service: structs.ServiceQuery{
-				Service: "hello- xxx hello-nope xxx nope xxx segment-baz",
-				Tags: []string{
-					"42",
-				},
 			},
 		}
 		if !reflect.DeepEqual(actual, expected) {

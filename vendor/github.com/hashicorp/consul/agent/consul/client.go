@@ -5,17 +5,19 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
+	"github.com/hashicorp/consul/agent/consul/agent"
+	"github.com/hashicorp/consul/agent/consul/servers"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/consul/agent/pool"
-	"github.com/hashicorp/consul/agent/router"
-	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/serf/coordinate"
 	"github.com/hashicorp/serf/serf"
-	"golang.org/x/time/rate"
 )
 
 const (
@@ -50,13 +52,9 @@ type Client struct {
 	// Connection pool to consul servers
 	connPool *pool.ConnPool
 
-	// routers is responsible for the selection and maintenance of
+	// servers is responsible for the selection and maintenance of
 	// Consul servers this agent uses for RPC requests
-	routers *router.Manager
-
-	// rpcLimiter is used to rate limit the total number of RPCs initiated
-	// from an agent.
-	rpcLimiter *rate.Limiter
+	servers *servers.Manager
 
 	// eventCh is used to receive events from the
 	// serf cluster in the datacenter
@@ -121,11 +119,10 @@ func NewClientLogger(config *Config, logger *log.Logger) (*Client, error) {
 		ForceTLS:   config.VerifyOutgoing,
 	}
 
-	// Create client
+	// Create server
 	c := &Client{
 		config:     config,
 		connPool:   connPool,
-		rpcLimiter: rate.NewLimiter(config.RPCRate, config.RPCMaxBurst),
 		eventCh:    make(chan serf.Event, serfEventBacklog),
 		logger:     logger,
 		shutdownCh: make(chan struct{}),
@@ -143,10 +140,39 @@ func NewClientLogger(config *Config, logger *log.Logger) (*Client, error) {
 	}
 
 	// Start maintenance task for servers
-	c.routers = router.New(c.logger, c.shutdownCh, c.serf, c.connPool)
-	go c.routers.Start()
+	c.servers = servers.New(c.logger, c.shutdownCh, c.serf, c.connPool)
+	go c.servers.Start()
 
 	return c, nil
+}
+
+// setupSerf is used to setup and initialize a Serf
+func (c *Client) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (*serf.Serf, error) {
+	conf.Init()
+	conf.NodeName = c.config.NodeName
+	conf.Tags["role"] = "node"
+	conf.Tags["dc"] = c.config.Datacenter
+	conf.Tags["id"] = string(c.config.NodeID)
+	conf.Tags["vsn"] = fmt.Sprintf("%d", c.config.ProtocolVersion)
+	conf.Tags["vsn_min"] = fmt.Sprintf("%d", ProtocolVersionMin)
+	conf.Tags["vsn_max"] = fmt.Sprintf("%d", ProtocolVersionMax)
+	conf.Tags["build"] = c.config.Build
+	conf.MemberlistConfig.LogOutput = c.config.LogOutput
+	conf.LogOutput = c.config.LogOutput
+	conf.Logger = c.logger
+	conf.EventCh = ch
+	conf.SnapshotPath = filepath.Join(c.config.DataDir, path)
+	conf.ProtocolVersion = protocolVersionMap[c.config.ProtocolVersion]
+	conf.RejoinAfterLeave = c.config.RejoinAfterLeave
+	conf.Merge = &lanMergeDelegate{
+		dc:       c.config.Datacenter,
+		nodeID:   c.config.NodeID,
+		nodeName: c.config.NodeName,
+	}
+	if err := lib.EnsurePath(conf.SnapshotPath, false); err != nil {
+		return nil, err
+	}
+	return serf.Create(conf)
 }
 
 // Shutdown is used to shutdown the client
@@ -201,21 +227,6 @@ func (c *Client) LANMembers() []serf.Member {
 	return c.serf.Members()
 }
 
-// LANMembersAllSegments returns members from all segments.
-func (c *Client) LANMembersAllSegments() ([]serf.Member, error) {
-	return c.serf.Members(), nil
-}
-
-// LANSegmentMembers only returns our own segment's members, because clients
-// can't be in multiple segments.
-func (c *Client) LANSegmentMembers(segment string) ([]serf.Member, error) {
-	if segment == c.config.Segment {
-		return c.LANMembers(), nil
-	}
-
-	return nil, fmt.Errorf("segment %q not found", segment)
-}
-
 // RemoveFailedNode is used to remove a failed node from the cluster
 func (c *Client) RemoveFailedNode(node string) error {
 	return c.serf.RemoveFailedNode(node)
@@ -231,23 +242,108 @@ func (c *Client) Encrypted() bool {
 	return c.serf.EncryptionEnabled()
 }
 
+// lanEventHandler is used to handle events from the lan Serf cluster
+func (c *Client) lanEventHandler() {
+	var numQueuedEvents int
+	for {
+		numQueuedEvents = len(c.eventCh)
+		if numQueuedEvents > serfEventBacklogWarning {
+			c.logger.Printf("[WARN] consul: number of queued serf events above warning threshold: %d/%d", numQueuedEvents, serfEventBacklogWarning)
+		}
+
+		select {
+		case e := <-c.eventCh:
+			switch e.EventType() {
+			case serf.EventMemberJoin:
+				c.nodeJoin(e.(serf.MemberEvent))
+			case serf.EventMemberLeave, serf.EventMemberFailed:
+				c.nodeFail(e.(serf.MemberEvent))
+			case serf.EventUser:
+				c.localEvent(e.(serf.UserEvent))
+			case serf.EventMemberUpdate: // Ignore
+			case serf.EventMemberReap: // Ignore
+			case serf.EventQuery: // Ignore
+			default:
+				c.logger.Printf("[WARN] consul: unhandled LAN Serf Event: %#v", e)
+			}
+		case <-c.shutdownCh:
+			return
+		}
+	}
+}
+
+// nodeJoin is used to handle join events on the serf cluster
+func (c *Client) nodeJoin(me serf.MemberEvent) {
+	for _, m := range me.Members {
+		ok, parts := agent.IsConsulServer(m)
+		if !ok {
+			continue
+		}
+		if parts.Datacenter != c.config.Datacenter {
+			c.logger.Printf("[WARN] consul: server %s for datacenter %s has joined wrong cluster",
+				m.Name, parts.Datacenter)
+			continue
+		}
+		c.logger.Printf("[INFO] consul: adding server %s", parts)
+		c.servers.AddServer(parts)
+
+		// Trigger the callback
+		if c.config.ServerUp != nil {
+			c.config.ServerUp()
+		}
+	}
+}
+
+// nodeFail is used to handle fail events on the serf cluster
+func (c *Client) nodeFail(me serf.MemberEvent) {
+	for _, m := range me.Members {
+		ok, parts := agent.IsConsulServer(m)
+		if !ok {
+			continue
+		}
+		c.logger.Printf("[INFO] consul: removing server %s", parts)
+		c.servers.RemoveServer(parts)
+	}
+}
+
+// localEvent is called when we receive an event on the local Serf
+func (c *Client) localEvent(event serf.UserEvent) {
+	// Handle only consul events
+	if !strings.HasPrefix(event.Name, "consul:") {
+		return
+	}
+
+	switch name := event.Name; {
+	case name == newLeaderEvent:
+		c.logger.Printf("[INFO] consul: New leader elected: %s", event.Payload)
+
+		// Trigger the callback
+		if c.config.ServerUp != nil {
+			c.config.ServerUp()
+		}
+	case isUserEvent(name):
+		event.Name = rawUserEventName(name)
+		c.logger.Printf("[DEBUG] consul: user event: %s", event.Name)
+
+		// Trigger the callback
+		if c.config.UserEventHandler != nil {
+			c.config.UserEventHandler(event)
+		}
+	default:
+		c.logger.Printf("[WARN] consul: Unhandled local event: %v", event)
+	}
+}
+
 // RPC is used to forward an RPC call to a consul server, or fail if no servers
 func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
-	server := c.routers.FindServer()
+	server := c.servers.FindServer()
 	if server == nil {
 		return structs.ErrNoServers
 	}
 
-	// Enforce the RPC limit.
-	metrics.IncrCounter([]string{"consul", "client", "rpc"}, 1)
-	if !c.rpcLimiter.Allow() {
-		metrics.IncrCounter([]string{"consul", "client", "rpc", "exceeded"}, 1)
-		return structs.ErrRPCRateExceeded
-	}
-
-	// Make the request.
+	// Forward to remote Consul
 	if err := c.connPool.RPC(c.config.Datacenter, server.Addr, server.Version, method, server.UseTLS, args, reply); err != nil {
-		c.routers.NotifyFailedServer(server)
+		c.servers.NotifyFailedServer(server)
 		c.logger.Printf("[ERR] consul: RPC failed to server %s: %v", server.Addr, err)
 		return err
 	}
@@ -260,16 +356,11 @@ func (c *Client) RPC(method string, args interface{}, reply interface{}) error {
 // operation.
 func (c *Client) SnapshotRPC(args *structs.SnapshotRequest, in io.Reader, out io.Writer,
 	replyFn structs.SnapshotReplyFn) error {
-	server := c.routers.FindServer()
+
+	// Locate a server to make the request to.
+	server := c.servers.FindServer()
 	if server == nil {
 		return structs.ErrNoServers
-	}
-
-	// Enforce the RPC limit.
-	metrics.IncrCounter([]string{"consul", "client", "rpc"}, 1)
-	if !c.rpcLimiter.Allow() {
-		metrics.IncrCounter([]string{"consul", "client", "rpc", "exceeded"}, 1)
-		return structs.ErrRPCRateExceeded
 	}
 
 	// Request the operation.
@@ -304,7 +395,7 @@ func (c *Client) SnapshotRPC(args *structs.SnapshotRequest, in io.Reader, out io
 // Stats is used to return statistics for debugging and insight
 // for various sub-systems
 func (c *Client) Stats() map[string]map[string]string {
-	numServers := c.routers.NumServers()
+	numServers := c.servers.NumServers()
 
 	toString := func(v uint64) string {
 		return strconv.FormatUint(v, 10)
@@ -322,12 +413,6 @@ func (c *Client) Stats() map[string]map[string]string {
 
 // GetLANCoordinate returns the network coordinate of the current node, as
 // maintained by Serf.
-func (c *Client) GetLANCoordinate() (lib.CoordinateSet, error) {
-	lan, err := c.serf.GetCoordinate()
-	if err != nil {
-		return nil, err
-	}
-
-	cs := lib.CoordinateSet{c.config.Segment: lan}
-	return cs, nil
+func (c *Client) GetLANCoordinate() (*coordinate.Coordinate, error) {
+	return c.serf.GetCoordinate()
 }

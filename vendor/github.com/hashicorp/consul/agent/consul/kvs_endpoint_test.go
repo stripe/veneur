@@ -2,11 +2,11 @@ package consul
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/acl"
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/testrpc"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
@@ -113,7 +113,7 @@ func TestKVS_Apply_ACLDeny(t *testing.T) {
 	}
 	var outR bool
 	err := msgpackrpc.CallWithCodec(codec, "KVS.Apply", &argR, &outR)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -127,7 +127,7 @@ func TestKVS_Apply_ACLDeny(t *testing.T) {
 		WriteRequest: structs.WriteRequest{Token: id},
 	}
 	err = msgpackrpc.CallWithCodec(codec, "KVS.Apply", &argR, &outR)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 }

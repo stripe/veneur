@@ -6,66 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/acl"
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/consul/testrpc"
 	"github.com/hashicorp/consul/testutil/retry"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 )
-
-func TestACLEndpoint_Bootstrap(t *testing.T) {
-	t.Parallel()
-	dir1, s1 := testServerWithConfig(t, func(c *Config) {
-		c.Build = "0.8.0" // Too low for auto init of bootstrap.
-		c.ACLDatacenter = "dc1"
-	})
-	defer os.RemoveAll(dir1)
-	defer s1.Shutdown()
-	codec := rpcClient(t, s1)
-	defer codec.Close()
-
-	testrpc.WaitForLeader(t, s1.RPC, "dc1")
-
-	// Expect an error initially since ACL bootstrap is not initialized.
-	arg := structs.DCSpecificRequest{
-		Datacenter: "dc1",
-	}
-	var out structs.ACL
-	err := msgpackrpc.CallWithCodec(codec, "ACL.Bootstrap", &arg, &out)
-	if err.Error() != structs.ACLBootstrapNotInitializedErr.Error() {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Manually do an init.
-	req := structs.ACLRequest{
-		Datacenter: "dc1",
-		Op:         structs.ACLBootstrapInit,
-	}
-	_, err = s1.raftApply(structs.ACLRequestType, &req)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Try again, this time it should go through. We can only do some high
-	// level checks on the ACL since we don't have control over the UUID or
-	// Raft indexes at this level.
-	if err := msgpackrpc.CallWithCodec(codec, "ACL.Bootstrap", &arg, &out); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if len(out.ID) != len("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx") ||
-		out.Name != "Bootstrap Token" ||
-		out.Type != structs.ACLTypeManagement ||
-		out.CreateIndex == 0 || out.ModifyIndex == 0 {
-		t.Fatalf("bad: %#v", out)
-	}
-
-	// Finally, make sure that another attempt is rejected.
-	err = msgpackrpc.CallWithCodec(codec, "ACL.Bootstrap", &arg, &out)
-	if err.Error() != structs.ACLBootstrapNotAllowedErr.Error() {
-		t.Fatalf("err: %v", err)
-	}
-}
 
 func TestACLEndpoint_Apply(t *testing.T) {
 	t.Parallel()
@@ -199,7 +145,7 @@ func TestACLEndpoint_Update_PurgeCache(t *testing.T) {
 
 	// Resolve again
 	acl3, err := s1.resolveToken(id)
-	if !acl.IsErrNotFound(err) {
+	if err == nil || err.Error() != aclNotFound {
 		t.Fatalf("err: %v", err)
 	}
 	if acl3 != nil {
@@ -277,7 +223,7 @@ func TestACLEndpoint_Apply_Denied(t *testing.T) {
 	}
 	var out string
 	err := msgpackrpc.CallWithCodec(codec, "ACL.Apply", &arg, &out)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 }
@@ -527,7 +473,7 @@ func TestACLEndpoint_List_Denied(t *testing.T) {
 	}
 	var acls structs.IndexedACLs
 	err := msgpackrpc.CallWithCodec(codec, "ACL.List", &getR, &acls)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 }
@@ -536,10 +482,9 @@ func TestACLEndpoint_ReplicationStatus(t *testing.T) {
 	t.Parallel()
 	dir1, s1 := testServerWithConfig(t, func(c *Config) {
 		c.ACLDatacenter = "dc2"
-		c.EnableACLReplication = true
+		c.ACLReplicationToken = "secret"
 		c.ACLReplicationInterval = 10 * time.Millisecond
 	})
-	s1.tokens.UpdateACLReplicationToken("secret")
 	defer os.RemoveAll(dir1)
 	defer s1.Shutdown()
 	codec := rpcClient(t, s1)

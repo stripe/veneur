@@ -33,7 +33,6 @@ func (c *MembersCommand) Run(args []string) int {
 	var detailed bool
 	var wan bool
 	var statusFilter string
-	var segment string
 
 	f := c.BaseCommand.NewFlagSet(c)
 	f.BoolVar(&detailed, "detailed", false,
@@ -44,9 +43,6 @@ func (c *MembersCommand) Run(args []string) int {
 	f.StringVar(&statusFilter, "status", ".*",
 		"If provided, output is filtered to only nodes matching the regular "+
 			"expression for status.")
-	f.StringVar(&segment, "segment", consulapi.AllSegments,
-		"(Enterprise-only) If provided, output is filtered to only nodes in"+
-			"the given segment.")
 
 	if err := c.BaseCommand.Parse(args); err != nil {
 		return 1
@@ -65,12 +61,7 @@ func (c *MembersCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Make the request.
-	opts := consulapi.MembersOpts{
-		Segment: segment,
-		WAN:     wan,
-	}
-	members, err := client.Agent().MembersOpts(opts)
+	members, err := client.Agent().Members(wan)
 	if err != nil {
 		c.UI.Error(fmt.Sprintf("Error retrieving members: %s", err))
 		return 1
@@ -80,12 +71,6 @@ func (c *MembersCommand) Run(args []string) int {
 	n := len(members)
 	for i := 0; i < n; i++ {
 		member := members[i]
-		if member.Tags["segment"] == "" {
-			member.Tags["segment"] = "<default>"
-		}
-		if segment == consulapi.AllSegments && member.Tags["role"] == "consul" {
-			member.Tags["segment"] = "<all>"
-		}
 		statusString := serf.MemberStatus(member.Status).String()
 		if !statusRe.MatchString(statusString) {
 			members[i], members[n-1] = members[n-1], members[i]
@@ -101,7 +86,7 @@ func (c *MembersCommand) Run(args []string) int {
 		return 2
 	}
 
-	sort.Sort(ByMemberNameAndSegment(members))
+	sort.Sort(ByMemberName(members))
 
 	// Generate the output
 	var result []string
@@ -119,26 +104,17 @@ func (c *MembersCommand) Run(args []string) int {
 }
 
 // so we can sort members by name
-type ByMemberNameAndSegment []*consulapi.AgentMember
+type ByMemberName []*consulapi.AgentMember
 
-func (m ByMemberNameAndSegment) Len() int      { return len(m) }
-func (m ByMemberNameAndSegment) Swap(i, j int) { m[i], m[j] = m[j], m[i] }
-func (m ByMemberNameAndSegment) Less(i, j int) bool {
-	switch {
-	case m[i].Tags["segment"] < m[j].Tags["segment"]:
-		return true
-	case m[i].Tags["segment"] > m[j].Tags["segment"]:
-		return false
-	default:
-		return m[i].Name < m[j].Name
-	}
-}
+func (m ByMemberName) Len() int           { return len(m) }
+func (m ByMemberName) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
+func (m ByMemberName) Less(i, j int) bool { return m[i].Name < m[j].Name }
 
 // standardOutput is used to dump the most useful information about nodes
 // in a more human-friendly format
 func (c *MembersCommand) standardOutput(members []*consulapi.AgentMember) []string {
 	result := make([]string, 0, len(members))
-	header := "Node|Address|Status|Type|Build|Protocol|DC|Segment"
+	header := "Node|Address|Status|Type|Build|Protocol|DC"
 	result = append(result, header)
 	for _, member := range members {
 		addr := net.TCPAddr{IP: net.ParseIP(member.Addr), Port: int(member.Port)}
@@ -150,20 +126,19 @@ func (c *MembersCommand) standardOutput(members []*consulapi.AgentMember) []stri
 			build = build[:idx]
 		}
 		dc := member.Tags["dc"]
-		segment := member.Tags["segment"]
 
 		statusString := serf.MemberStatus(member.Status).String()
 		switch member.Tags["role"] {
 		case "node":
-			line := fmt.Sprintf("%s|%s|%s|client|%s|%s|%s|%s",
-				member.Name, addr.String(), statusString, build, protocol, dc, segment)
+			line := fmt.Sprintf("%s|%s|%s|client|%s|%s|%s",
+				member.Name, addr.String(), statusString, build, protocol, dc)
 			result = append(result, line)
 		case "consul":
-			line := fmt.Sprintf("%s|%s|%s|server|%s|%s|%s|%s",
-				member.Name, addr.String(), statusString, build, protocol, dc, segment)
+			line := fmt.Sprintf("%s|%s|%s|server|%s|%s|%s",
+				member.Name, addr.String(), statusString, build, protocol, dc)
 			result = append(result, line)
 		default:
-			line := fmt.Sprintf("%s|%s|%s|unknown||||",
+			line := fmt.Sprintf("%s|%s|%s|unknown|||",
 				member.Name, addr.String(), statusString)
 			result = append(result, line)
 		}

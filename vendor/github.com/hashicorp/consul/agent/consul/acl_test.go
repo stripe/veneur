@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/acl"
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/consul/testrpc"
 	"github.com/hashicorp/consul/testutil/retry"
 )
@@ -49,20 +49,20 @@ func TestACL_ResolveRootACL(t *testing.T) {
 	defer os.RemoveAll(dir1)
 	defer s1.Shutdown()
 
-	rule, err := s1.resolveToken("allow")
-	if !acl.IsErrRootDenied(err) {
+	acl, err := s1.resolveToken("allow")
+	if err == nil || err.Error() != rootDenied {
 		t.Fatalf("err: %v", err)
 	}
-	if rule != nil {
-		t.Fatalf("bad: %v", rule)
+	if acl != nil {
+		t.Fatalf("bad: %v", acl)
 	}
 
-	rule, err = s1.resolveToken("deny")
-	if !acl.IsErrRootDenied(err) {
+	acl, err = s1.resolveToken("deny")
+	if err == nil || err.Error() != rootDenied {
 		t.Fatalf("err: %v", err)
 	}
-	if rule != nil {
-		t.Fatalf("bad: %v", rule)
+	if acl != nil {
+		t.Fatalf("bad: %v", acl)
 	}
 }
 
@@ -78,11 +78,11 @@ func TestACL_Authority_NotFound(t *testing.T) {
 
 	testrpc.WaitForLeader(t, s1.RPC, "dc1")
 
-	rule, err := s1.resolveToken("does not exist")
-	if !acl.IsErrNotFound(err) {
+	acl, err := s1.resolveToken("does not exist")
+	if err == nil || err.Error() != aclNotFound {
 		t.Fatalf("err: %v", err)
 	}
-	if rule != nil {
+	if acl != nil {
 		t.Fatalf("got acl")
 	}
 }
@@ -249,11 +249,11 @@ func TestACL_NonAuthority_NotFound(t *testing.T) {
 		nonAuth = s2
 	}
 
-	rule, err := nonAuth.resolveToken("does not exist")
-	if !acl.IsErrNotFound(err) {
+	acl, err := nonAuth.resolveToken("does not exist")
+	if err == nil || err.Error() != aclNotFound {
 		t.Fatalf("err: %v", err)
 	}
-	if rule != nil {
+	if acl != nil {
 		t.Fatalf("got acl")
 	}
 }
@@ -598,11 +598,10 @@ func TestACL_Replication(t *testing.T) {
 		c.ACLDatacenter = "dc1"
 		c.ACLDefaultPolicy = "deny"
 		c.ACLDownPolicy = "extend-cache"
-		c.EnableACLReplication = true
+		c.ACLReplicationToken = "root"
 		c.ACLReplicationInterval = 10 * time.Millisecond
 		c.ACLReplicationApplyLimit = 1000000
 	})
-	s2.tokens.UpdateACLReplicationToken("root")
 	defer os.RemoveAll(dir2)
 	defer s2.Shutdown()
 
@@ -610,11 +609,10 @@ func TestACL_Replication(t *testing.T) {
 		c.Datacenter = "dc3"
 		c.ACLDatacenter = "dc1"
 		c.ACLDownPolicy = "deny"
-		c.EnableACLReplication = true
+		c.ACLReplicationToken = "root"
 		c.ACLReplicationInterval = 10 * time.Millisecond
 		c.ACLReplicationApplyLimit = 1000000
 	})
-	s3.tokens.UpdateACLReplicationToken("root")
 	defer os.RemoveAll(dir3)
 	defer s3.Shutdown()
 
@@ -1574,7 +1572,7 @@ node "node" {
 
 	// With that policy, the update should now be blocked for node reasons.
 	err = vetRegisterWithACL(perms, args, nil)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -1599,7 +1597,7 @@ node "node" {
 		ID:      "my-id",
 	}
 	err = vetRegisterWithACL(perms, args, ns)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -1629,7 +1627,7 @@ service "service" {
 		ID:      "my-id",
 	}
 	err = vetRegisterWithACL(perms, args, ns)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -1723,7 +1721,7 @@ service "other" {
 
 	// This should get rejected.
 	err = vetRegisterWithACL(perms, args, ns)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -1753,7 +1751,7 @@ node "node" {
 
 	// This should get rejected because there's a node-level check in here.
 	err = vetRegisterWithACL(perms, args, ns)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -1768,7 +1766,7 @@ node "node" {
 	// that gets rejected since they no longer have permissions.
 	args.Address = "127.0.0.2"
 	err = vetRegisterWithACL(perms, args, ns)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("bad: %v", err)
 	}
 }
@@ -1803,7 +1801,7 @@ service "service" {
 
 	// With that policy, the update should now be blocked for node reasons.
 	err = vetDeregisterWithACL(perms, args, nil, nil)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -1828,7 +1826,7 @@ service "service" {
 		ServiceName: "nope",
 	}
 	err = vetDeregisterWithACL(perms, args, nil, nc)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -1844,7 +1842,7 @@ service "service" {
 	nc.ServiceID = ""
 	nc.ServiceName = ""
 	err = vetDeregisterWithACL(perms, args, nil, nc)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -1868,7 +1866,7 @@ service "service" {
 		Service: "nope",
 	}
 	err = vetDeregisterWithACL(perms, args, ns, nil)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("bad: %v", err)
 	}
 

@@ -5,18 +5,16 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/acl"
-	"github.com/hashicorp/consul/agent/structs"
-	"github.com/hashicorp/consul/lib"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/consul/testrpc"
 	"github.com/hashicorp/consul/testutil/retry"
 	"github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/hashicorp/serf/coordinate"
-	"github.com/pascaldekloe/goe/verify"
 )
 
 // generateRandomCoordinate creates a random coordinate. This mucks with the
@@ -32,6 +30,15 @@ func generateRandomCoordinate() *coordinate.Coordinate {
 	coord.Error = rand.NormFloat64()
 	coord.Adjustment = rand.NormFloat64()
 	return coord
+}
+
+// verifyCoordinatesEqual will compare a and b and fail if they are not exactly
+// equal (no floating point fuzz is considered since we are trying to make sure
+// we are getting exactly the coordinates we expect, without math on them).
+func verifyCoordinatesEqual(t *testing.T, a, b *coordinate.Coordinate) {
+	if !reflect.DeepEqual(a, b) {
+		t.Fatalf("coordinates are not equal: %v != %v", a, b)
+	}
 }
 
 func TestCoordinate_Update(t *testing.T) {
@@ -86,17 +93,20 @@ func TestCoordinate_Update(t *testing.T) {
 	// Make sure the updates did not yet apply because the update period
 	// hasn't expired.
 	state := s1.fsm.State()
-	c, err := state.Coordinate("node1")
+	c, err := state.CoordinateGetRaw("node1")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	verify.Values(t, "", c, lib.CoordinateSet{})
-
-	c, err = state.Coordinate("node2")
+	if c != nil {
+		t.Fatalf("should be nil because the update should be batched")
+	}
+	c, err = state.CoordinateGetRaw("node2")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	verify.Values(t, "", c, lib.CoordinateSet{})
+	if c != nil {
+		t.Fatalf("should be nil because the update should be batched")
+	}
 
 	// Send another update for the second node. It should take precedence
 	// since there will be two updates in the same batch.
@@ -107,23 +117,22 @@ func TestCoordinate_Update(t *testing.T) {
 
 	// Wait a while and the updates should get picked up.
 	time.Sleep(3 * s1.config.CoordinateUpdatePeriod)
-	c, err = state.Coordinate("node1")
+	c, err = state.CoordinateGetRaw("node1")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	expected := lib.CoordinateSet{
-		"": arg1.Coord,
+	if c == nil {
+		t.Fatalf("should return a coordinate but it's nil")
 	}
-	verify.Values(t, "", c, expected)
-
-	c, err = state.Coordinate("node2")
+	verifyCoordinatesEqual(t, c, arg1.Coord)
+	c, err = state.CoordinateGetRaw("node2")
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	expected = lib.CoordinateSet{
-		"": arg2.Coord,
+	if c == nil {
+		t.Fatalf("should return a coordinate but it's nil")
 	}
-	verify.Values(t, "", c, expected)
+	verifyCoordinatesEqual(t, c, arg2.Coord)
 
 	// Register a bunch of additional nodes.
 	spamLen := s1.config.CoordinateUpdateBatchSize*s1.config.CoordinateUpdateMaxBatches + 1
@@ -155,11 +164,11 @@ func TestCoordinate_Update(t *testing.T) {
 	time.Sleep(3 * s1.config.CoordinateUpdatePeriod)
 	numDropped := 0
 	for i := 0; i < spamLen; i++ {
-		c, err = state.Coordinate(fmt.Sprintf("bogusnode%d", i))
+		c, err = state.CoordinateGetRaw(fmt.Sprintf("bogusnode%d", i))
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
-		if len(c) == 0 {
+		if c == nil {
 			numDropped++
 		}
 	}
@@ -228,7 +237,7 @@ func TestCoordinate_Update_ACLDeny(t *testing.T) {
 	// Now turn on version 8 enforcement and try again.
 	s1.config.ACLEnforceVersion8 = true
 	err := msgpackrpc.CallWithCodec(codec, "Coordinate.Update", &req, &out)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -261,7 +270,7 @@ node "node1" {
 	// But it should be blocked for the other node.
 	req.Node = "node2"
 	err = msgpackrpc.CallWithCodec(codec, "Coordinate.Update", &req, &out)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 }
@@ -294,7 +303,7 @@ func TestCoordinate_ListDatacenters(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
-	verify.Values(t, "", c, out[0].Coordinates[0].Coord)
+	verifyCoordinatesEqual(t, c, out[0].Coordinates[0].Coord)
 }
 
 func TestCoordinate_ListNodes(t *testing.T) {
@@ -364,9 +373,9 @@ func TestCoordinate_ListNodes(t *testing.T) {
 			resp.Coordinates[2].Node != "foo" {
 			r.Fatalf("bad: %v", resp.Coordinates)
 		}
-		verify.Values(t, "", resp.Coordinates[0].Coord, arg2.Coord) // bar
-		verify.Values(t, "", resp.Coordinates[1].Coord, arg3.Coord) // baz
-		verify.Values(t, "", resp.Coordinates[2].Coord, arg1.Coord) // foo
+		verifyCoordinatesEqual(t, resp.Coordinates[0].Coord, arg2.Coord) // bar
+		verifyCoordinatesEqual(t, resp.Coordinates[1].Coord, arg3.Coord) // baz
+		verifyCoordinatesEqual(t, resp.Coordinates[2].Coord, arg1.Coord) // foo
 	})
 }
 

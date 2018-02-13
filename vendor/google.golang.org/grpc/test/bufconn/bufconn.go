@@ -31,10 +31,10 @@ import (
 // Listener implements a net.Listener that creates local, buffered net.Conns
 // via its Accept and Dial method.
 type Listener struct {
-	mu   sync.Mutex
-	sz   int
-	ch   chan net.Conn
-	done chan struct{}
+	mu     sync.Mutex
+	sz     int
+	ch     chan net.Conn
+	closed bool
 }
 
 var errClosed = fmt.Errorf("Closed")
@@ -42,31 +42,28 @@ var errClosed = fmt.Errorf("Closed")
 // Listen returns a Listener that can only be contacted by its own Dialers and
 // creates buffered connections between the two.
 func Listen(sz int) *Listener {
-	return &Listener{sz: sz, ch: make(chan net.Conn), done: make(chan struct{})}
+	return &Listener{sz: sz, ch: make(chan net.Conn)}
 }
 
 // Accept blocks until Dial is called, then returns a net.Conn for the server
 // half of the connection.
 func (l *Listener) Accept() (net.Conn, error) {
-	select {
-	case <-l.done:
+	c := <-l.ch
+	if c == nil {
 		return nil, errClosed
-	case c := <-l.ch:
-		return c, nil
 	}
+	return c, nil
 }
 
 // Close stops the listener.
 func (l *Listener) Close() error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	select {
-	case <-l.done:
-		// Already closed.
-		break
-	default:
-		close(l.done)
+	if l.closed {
+		return nil
 	}
+	l.closed = true
+	close(l.ch)
 	return nil
 }
 
@@ -77,13 +74,14 @@ func (l *Listener) Addr() net.Addr { return addr{} }
 // providing it the server half of the connection, and returns the client half
 // of the connection.
 func (l *Listener) Dial() (net.Conn, error) {
-	p1, p2 := newPipe(l.sz), newPipe(l.sz)
-	select {
-	case <-l.done:
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.closed {
 		return nil, errClosed
-	case l.ch <- &conn{p1, p2}:
-		return &conn{p2, p1}, nil
 	}
+	p1, p2 := newPipe(l.sz), newPipe(l.sz)
+	l.ch <- &conn{p1, p2}
+	return &conn{p2, p1}, nil
 }
 
 type pipe struct {
@@ -101,11 +99,9 @@ type pipe struct {
 	buf  []byte
 	w, r int
 
-	wwait sync.Cond
-	rwait sync.Cond
-
-	closed      bool
-	writeClosed bool
+	wwait  sync.Cond
+	rwait  sync.Cond
+	closed bool
 }
 
 func newPipe(sz int) *pipe {
@@ -133,9 +129,6 @@ func (p *pipe) Read(b []byte) (n int, err error) {
 		}
 		if !p.empty() {
 			break
-		}
-		if p.writeClosed {
-			return 0, io.EOF
 		}
 		p.rwait.Wait()
 	}
@@ -165,7 +158,7 @@ func (p *pipe) Write(b []byte) (n int, err error) {
 	for len(b) > 0 {
 		// Block until p is not full.
 		for {
-			if p.closed || p.writeClosed {
+			if p.closed {
 				return 0, io.ErrClosedPipe
 			}
 			if !p.full() {
@@ -208,24 +201,14 @@ func (p *pipe) Close() error {
 	return nil
 }
 
-func (p *pipe) closeWrite() error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.writeClosed = true
-	// Signal all blocked readers and writers to return an error.
-	p.rwait.Broadcast()
-	p.wwait.Broadcast()
-	return nil
-}
-
 type conn struct {
-	io.Reader
-	io.Writer
+	io.ReadCloser
+	io.WriteCloser
 }
 
 func (c *conn) Close() error {
-	err1 := c.Reader.(*pipe).Close()
-	err2 := c.Writer.(*pipe).closeWrite()
+	err1 := c.ReadCloser.Close()
+	err2 := c.WriteCloser.Close()
 	if err1 != nil {
 		return err1
 	}

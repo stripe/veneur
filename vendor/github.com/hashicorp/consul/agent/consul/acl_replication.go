@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/consul/lib"
 )
 
@@ -154,7 +154,7 @@ func (s *Server) fetchRemoteACLs(lastRemoteIndex uint64) (*structs.IndexedACLs, 
 	args := structs.DCSpecificRequest{
 		Datacenter: s.config.ACLDatacenter,
 		QueryOptions: structs.QueryOptions{
-			Token:         s.tokens.ACLReplicationToken(),
+			Token:         s.config.ACLReplicationToken,
 			MinQueryIndex: lastRemoteIndex,
 			AllowStale:    true,
 		},
@@ -247,7 +247,7 @@ func (s *Server) replicateACLs(lastRemoteIndex uint64) (uint64, error) {
 func (s *Server) IsACLReplicationEnabled() bool {
 	authDC := s.config.ACLDatacenter
 	return len(authDC) > 0 && (authDC != s.config.Datacenter) &&
-		s.config.EnableACLReplication
+		len(s.config.ACLReplicationToken) > 0
 }
 
 // updateACLReplicationStatus safely updates the ACL replication status.

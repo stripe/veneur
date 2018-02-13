@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/go-memdb"
 )
 
@@ -554,7 +554,7 @@ func TestStateStore_PreparedQueryResolve(t *testing.T) {
 
 	// Try to lookup a query that's not there using something that looks
 	// like a real ID.
-	idx, actual, err := s.PreparedQueryResolve(query.ID, structs.QuerySource{})
+	idx, actual, err := s.PreparedQueryResolve(query.ID)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -567,7 +567,7 @@ func TestStateStore_PreparedQueryResolve(t *testing.T) {
 
 	// Try to lookup a query that's not there using something that looks
 	// like a name
-	idx, actual, err = s.PreparedQueryResolve(query.Name, structs.QuerySource{})
+	idx, actual, err = s.PreparedQueryResolve(query.Name)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -600,7 +600,7 @@ func TestStateStore_PreparedQueryResolve(t *testing.T) {
 			ModifyIndex: 3,
 		},
 	}
-	idx, actual, err = s.PreparedQueryResolve(query.ID, structs.QuerySource{})
+	idx, actual, err = s.PreparedQueryResolve(query.ID)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -612,7 +612,7 @@ func TestStateStore_PreparedQueryResolve(t *testing.T) {
 	}
 
 	// Read it back using the name and verify it again.
-	idx, actual, err = s.PreparedQueryResolve(query.Name, structs.QuerySource{})
+	idx, actual, err = s.PreparedQueryResolve(query.Name)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -625,7 +625,7 @@ func TestStateStore_PreparedQueryResolve(t *testing.T) {
 
 	// Make sure an empty lookup is well-behaved if there are actual queries
 	// in the state store.
-	idx, actual, err = s.PreparedQueryResolve("", structs.QuerySource{})
+	idx, actual, err = s.PreparedQueryResolve("")
 	if err != ErrMissingQueryID {
 		t.Fatalf("bad: %v ", err)
 	}
@@ -681,7 +681,7 @@ func TestStateStore_PreparedQueryResolve(t *testing.T) {
 			ModifyIndex: 4,
 		},
 	}
-	idx, actual, err = s.PreparedQueryResolve("prod-mongodb", structs.QuerySource{})
+	idx, actual, err = s.PreparedQueryResolve("prod-mongodb")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -708,7 +708,7 @@ func TestStateStore_PreparedQueryResolve(t *testing.T) {
 			ModifyIndex: 5,
 		},
 	}
-	idx, actual, err = s.PreparedQueryResolve("prod-redis-foobar", structs.QuerySource{})
+	idx, actual, err = s.PreparedQueryResolve("prod-redis-foobar")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -735,7 +735,7 @@ func TestStateStore_PreparedQueryResolve(t *testing.T) {
 			ModifyIndex: 4,
 		},
 	}
-	idx, actual, err = s.PreparedQueryResolve("prod-", structs.QuerySource{})
+	idx, actual, err = s.PreparedQueryResolve("prod-")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -748,7 +748,7 @@ func TestStateStore_PreparedQueryResolve(t *testing.T) {
 
 	// Make sure you can't run a prepared query template by ID, since that
 	// makes no sense.
-	_, _, err = s.PreparedQueryResolve(tmpl1.ID, structs.QuerySource{})
+	_, _, err = s.PreparedQueryResolve(tmpl1.ID)
 	if err == nil || !strings.Contains(err.Error(), "prepared query templates can only be resolved up by name") {
 		t.Fatalf("bad: %v", err)
 	}
@@ -960,7 +960,7 @@ func TestStateStore_PreparedQuery_Snapshot_Restore(t *testing.T) {
 
 		// Make sure the second query, which is a template, was compiled
 		// and can be resolved.
-		_, query, err := s.PreparedQueryResolve("bob-backwards-is-bob", structs.QuerySource{})
+		_, query, err := s.PreparedQueryResolve("bob-backwards-is-bob")
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}

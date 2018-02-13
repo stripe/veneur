@@ -16,8 +16,6 @@
  *
  */
 
-//go:generate protoc -I ../grpc_testing --go_out=plugins=grpc:../grpc_testing ../grpc_testing/metrics.proto
-
 // client starts an interop client to do stress test and a metrics server to report qps.
 package main
 
@@ -38,9 +36,7 @@ import (
 	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/interop"
 	testpb "google.golang.org/grpc/interop/grpc_testing"
-	"google.golang.org/grpc/status"
 	metricspb "google.golang.org/grpc/stress/grpc_testing"
-	"google.golang.org/grpc/testdata"
 )
 
 var (
@@ -53,7 +49,9 @@ var (
 	useTLS               = flag.Bool("use_tls", false, "Connection uses TLS if true, else plain TCP")
 	testCA               = flag.Bool("use_test_ca", false, "Whether to replace platform root CAs with test CA as the CA root")
 	tlsServerName        = flag.String("server_host_override", "foo.test.google.fr", "The server name use to verify the hostname returned by TLS handshake if it is not empty. Otherwise, --server_host is used.")
-	caFile               = flag.String("ca_file", "", "The file containning the CA root cert file")
+
+	// The test CA root cert file
+	testCAFile = "testdata/ca.pem"
 )
 
 // testCaseWithWeight contains the test case type and its weight.
@@ -177,7 +175,7 @@ func (s *server) GetGauge(ctx context.Context, in *metricspb.GaugeRequest) (*met
 	if g, ok := s.gauges[in.Name]; ok {
 		return &metricspb.GaugeResponse{Name: in.Name, Value: &metricspb.GaugeResponse_LongValue{LongValue: g.get()}}, nil
 	}
-	return nil, status.Errorf(codes.InvalidArgument, "gauge with name %s not found", in.Name)
+	return nil, grpc.Errorf(codes.InvalidArgument, "gauge with name %s not found", in.Name)
 }
 
 // createGauge creates a gauge using the given name in metrics server.
@@ -279,10 +277,7 @@ func newConn(address string, useTLS, testCA bool, tlsServerName string) (*grpc.C
 		var creds credentials.TransportCredentials
 		if testCA {
 			var err error
-			if *caFile == "" {
-				*caFile = testdata.Path("ca.pem")
-			}
-			creds, err = credentials.NewClientTLSFromFile(*caFile, sn)
+			creds, err = credentials.NewClientTLSFromFile(testCAFile, sn)
 			if err != nil {
 				grpclog.Fatalf("Failed to create TLS credentials %v", err)
 			}

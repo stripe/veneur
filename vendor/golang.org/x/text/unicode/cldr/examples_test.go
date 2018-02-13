@@ -7,7 +7,7 @@ import (
 )
 
 func ExampleSlice() {
-	var dr *cldr.CLDR // assume this is initialized
+	var dr *cldr.CLDR // assume this is initalized
 
 	x, _ := dr.LDML("en")
 	cs := x.Collations.Collation

@@ -129,9 +129,6 @@ func (c *KeyringCommand) Run(args []string) int {
 func (c *KeyringCommand) handleList(responses []*consulapi.KeyringResponse) {
 	for _, response := range responses {
 		pool := response.Datacenter + " (LAN)"
-		if response.Segment != "" {
-			pool += fmt.Sprintf(" [%s]", response.Segment)
-		}
 		if response.WAN {
 			pool = "WAN"
 		}

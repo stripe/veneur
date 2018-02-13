@@ -31,7 +31,7 @@ func TestStaticACL(t *testing.T) {
 	}
 
 	manage := ManageAll()
-	if _, ok := manage.(*StaticACL); !ok {
+	if _, ok := none.(*StaticACL); !ok {
 		t.Fatalf("expected static")
 	}
 

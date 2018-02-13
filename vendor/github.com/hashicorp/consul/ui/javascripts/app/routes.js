@@ -292,11 +292,10 @@ App.NodesShowRoute = App.BaseRoute.extend({
     var distances = [];
     dc.coordinates.forEach(function (node) {
       if (params.name == node.Node) {
-        var segment = node.Segment;
         dc.coordinates.forEach(function (other) {
-          if (node.Node != other.Node && other.Segment == segment) {
+          if (node.Node != other.Node) {
             var dist = distance(node, other);
-            distances.push({ node: other.Node, distance: dist, segment: segment });
+            distances.push({ node: other.Node, distance: dist });
             sum += dist;
             if (dist < min) {
               min = dist;

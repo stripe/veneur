@@ -3,8 +3,7 @@ package consul
 import (
 	"fmt"
 
-	"github.com/hashicorp/consul/acl"
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 )
 
 // AutopilotGetConfiguration is used to retrieve the current Autopilot configuration.
@@ -14,12 +13,12 @@ func (op *Operator) AutopilotGetConfiguration(args *structs.DCSpecificRequest, r
 	}
 
 	// This action requires operator read access.
-	rule, err := op.srv.resolveToken(args.Token)
+	acl, err := op.srv.resolveToken(args.Token)
 	if err != nil {
 		return err
 	}
-	if rule != nil && !rule.OperatorRead() {
-		return acl.ErrPermissionDenied
+	if acl != nil && !acl.OperatorRead() {
+		return errPermissionDenied
 	}
 
 	state := op.srv.fsm.State()
@@ -43,12 +42,12 @@ func (op *Operator) AutopilotSetConfiguration(args *structs.AutopilotSetConfigRe
 	}
 
 	// This action requires operator write access.
-	rule, err := op.srv.resolveToken(args.Token)
+	acl, err := op.srv.resolveToken(args.Token)
 	if err != nil {
 		return err
 	}
-	if rule != nil && !rule.OperatorWrite() {
-		return acl.ErrPermissionDenied
+	if acl != nil && !acl.OperatorWrite() {
+		return errPermissionDenied
 	}
 
 	// Apply the update
@@ -79,12 +78,12 @@ func (op *Operator) ServerHealth(args *structs.DCSpecificRequest, reply *structs
 	}
 
 	// This action requires operator read access.
-	rule, err := op.srv.resolveToken(args.Token)
+	acl, err := op.srv.resolveToken(args.Token)
 	if err != nil {
 		return err
 	}
-	if rule != nil && !rule.OperatorRead() {
-		return acl.ErrPermissionDenied
+	if acl != nil && !acl.OperatorRead() {
+		return errPermissionDenied
 	}
 
 	// Exit early if the min Raft version is too low

@@ -18,21 +18,37 @@ var (
 )
 
 const (
-	winLockfileFailImmediately = 0x00000001
-	winLockfileExclusiveLock   = 0x00000002
-	winLockfileSharedLock      = 0x00000000
+	LOCKFILE_FAIL_IMMEDIATELY = 0x00000001
+	LOCKFILE_EXCLUSIVE_LOCK   = 0x00000002
 )
 
-// Use of 0x00000000 for the shared lock is a guess based on some the MS Windows
-// `LockFileEX` docs, which document the `LOCKFILE_EXCLUSIVE_LOCK` flag as:
-//
-// > The function requests an exclusive lock. Otherwise, it requests a shared
-// > lock.
-//
-// https://msdn.microsoft.com/en-us/library/windows/desktop/aa365203(v=vs.85).aspx
+// Do the interface allocations only once for common
+// Errno values.
+const (
+	errnoERROR_IO_PENDING = 997
+)
 
-func lockFileEx(handle syscall.Handle, flags uint32, reserved uint32, numberOfBytesToLockLow uint32, numberOfBytesToLockHigh uint32, offset *syscall.Overlapped) (bool, syscall.Errno) {
-	r1, _, errNo := syscall.Syscall6(
+var (
+	errERROR_IO_PENDING error = syscall.Errno(errnoERROR_IO_PENDING)
+)
+
+// errnoErr returns common boxed Errno values, to prevent
+// allocations at runtime.
+func errnoErr(e syscall.Errno) error {
+	switch e {
+	case 0:
+		return nil
+	case errnoERROR_IO_PENDING:
+		return errERROR_IO_PENDING
+	}
+	// TODO: add more here, after collecting data on the common
+	// error values see on Windows. (perhaps when running
+	// all.bat?)
+	return e
+}
+
+func lockFileEx(handle syscall.Handle, flags uint32, reserved uint32, numberOfBytesToLockLow uint32, numberOfBytesToLockHigh uint32, offset *syscall.Overlapped) (success bool, err error) {
+	r1, _, e1 := syscall.Syscall6(
 		uintptr(procLockFileEx),
 		6,
 		uintptr(handle),
@@ -42,19 +58,19 @@ func lockFileEx(handle syscall.Handle, flags uint32, reserved uint32, numberOfBy
 		uintptr(numberOfBytesToLockHigh),
 		uintptr(unsafe.Pointer(offset)))
 
-	if r1 != 1 {
-		if errNo == 0 {
-			return false, syscall.EINVAL
+	success = r1 == 1
+	if !success {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
 		}
-
-		return false, errNo
 	}
-
-	return true, 0
+	return
 }
 
-func unlockFileEx(handle syscall.Handle, reserved uint32, numberOfBytesToLockLow uint32, numberOfBytesToLockHigh uint32, offset *syscall.Overlapped) (bool, syscall.Errno) {
-	r1, _, errNo := syscall.Syscall6(
+func unlockFileEx(handle syscall.Handle, reserved uint32, numberOfBytesToLockLow uint32, numberOfBytesToLockHigh uint32, offset *syscall.Overlapped) (success bool, err error) {
+	r1, _, e1 := syscall.Syscall6(
 		uintptr(procUnlockFileEx),
 		5,
 		uintptr(handle),
@@ -64,13 +80,13 @@ func unlockFileEx(handle syscall.Handle, reserved uint32, numberOfBytesToLockLow
 		uintptr(unsafe.Pointer(offset)),
 		0)
 
-	if r1 != 1 {
-		if errNo == 0 {
-			return false, syscall.EINVAL
+	success = r1 == 1
+	if !success {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
 		}
-
-		return false, errNo
 	}
-
-	return true, 0
+	return
 }

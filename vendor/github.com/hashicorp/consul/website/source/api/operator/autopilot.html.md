@@ -241,6 +241,3 @@ $ curl \
   - `Voter` is whether the server is a voting member of the Raft cluster.
 
   - `StableSince` is the time this server has been in its current `Healthy` state.
-  
-  The HTTP status code will indicate the health of the cluster. If `Healthy` is true, then a
-  status of 200 will be returned. If `Healthy` is false, then a status of 429 will be returned.

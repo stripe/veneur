@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/consul/testrpc"
@@ -171,8 +171,8 @@ func TestHealth_ChecksInState_DistanceSort(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	updates := structs.Coordinates{
-		{Node: "foo", Coord: lib.GenerateCoordinate(1 * time.Millisecond)},
-		{Node: "bar", Coord: lib.GenerateCoordinate(2 * time.Millisecond)},
+		{"foo", lib.GenerateCoordinate(1 * time.Millisecond)},
+		{"bar", lib.GenerateCoordinate(2 * time.Millisecond)},
 	}
 	if err := s1.fsm.State().CoordinateBatchUpdate(3, updates); err != nil {
 		t.Fatalf("err: %v", err)
@@ -444,8 +444,8 @@ func TestHealth_ServiceChecks_DistanceSort(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	updates := structs.Coordinates{
-		{Node: "foo", Coord: lib.GenerateCoordinate(1 * time.Millisecond)},
-		{Node: "bar", Coord: lib.GenerateCoordinate(2 * time.Millisecond)},
+		{"foo", lib.GenerateCoordinate(1 * time.Millisecond)},
+		{"bar", lib.GenerateCoordinate(2 * time.Millisecond)},
 	}
 	if err := s1.fsm.State().CoordinateBatchUpdate(3, updates); err != nil {
 		t.Fatalf("err: %v", err)
@@ -748,8 +748,8 @@ func TestHealth_ServiceNodes_DistanceSort(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	updates := structs.Coordinates{
-		{Node: "foo", Coord: lib.GenerateCoordinate(1 * time.Millisecond)},
-		{Node: "bar", Coord: lib.GenerateCoordinate(2 * time.Millisecond)},
+		{"foo", lib.GenerateCoordinate(1 * time.Millisecond)},
+		{"bar", lib.GenerateCoordinate(2 * time.Millisecond)},
 	}
 	if err := s1.fsm.State().CoordinateBatchUpdate(3, updates); err != nil {
 		t.Fatalf("err: %v", err)

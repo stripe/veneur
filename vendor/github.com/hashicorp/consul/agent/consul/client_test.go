@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/consul/testrpc"
 	"github.com/hashicorp/consul/testutil"
 	"github.com/hashicorp/consul/testutil/retry"
@@ -84,7 +84,7 @@ func TestClient_JoinLAN(t *testing.T) {
 	// Try to join
 	joinLAN(t, c1, s1)
 	retry.Run(t, func(r *retry.R) {
-		if got, want := c1.routers.NumServers(), 1; got != want {
+		if got, want := c1.servers.NumServers(), 1; got != want {
 			r.Fatalf("got %d servers want %d", got, want)
 		}
 		if got, want := len(s1.LANMembers()), 2; got != want {
@@ -254,7 +254,7 @@ func TestClient_RPC_ConsulServerPing(t *testing.T) {
 	}
 
 	// Sleep to allow Serf to sync, shuffle, and let the shuffle complete
-	c.routers.ResetRebalanceTimer()
+	c.servers.ResetRebalanceTimer()
 	time.Sleep(time.Second)
 
 	if len(c.LANMembers()) != numServers+numClients {
@@ -270,7 +270,7 @@ func TestClient_RPC_ConsulServerPing(t *testing.T) {
 	var pingCount int
 	for range servers {
 		time.Sleep(200 * time.Millisecond)
-		s := c.routers.FindServer()
+		s := c.servers.FindServer()
 		ok, err := c.connPool.Ping(s.Datacenter, s.Addr, s.Version, s.UseTLS)
 		if !ok {
 			t.Errorf("Unable to ping server %v: %s", s.String(), err)
@@ -279,7 +279,7 @@ func TestClient_RPC_ConsulServerPing(t *testing.T) {
 
 		// Artificially fail the server in order to rotate the server
 		// list
-		c.routers.NotifyFailedServer(s)
+		c.servers.NotifyFailedServer(s)
 	}
 
 	if pingCount != numServers {
@@ -333,36 +333,6 @@ func TestClient_RPC_TLS(t *testing.T) {
 	})
 }
 
-func TestClient_RPC_RateLimit(t *testing.T) {
-	t.Parallel()
-	dir1, conf1 := testServerConfig(t)
-	s1, err := NewServer(conf1)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer os.RemoveAll(dir1)
-	defer s1.Shutdown()
-	testrpc.WaitForLeader(t, s1.RPC, "dc1")
-
-	dir2, conf2 := testClientConfig(t)
-	conf2.RPCRate = 2
-	conf2.RPCMaxBurst = 2
-	c1, err := NewClient(conf2)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer os.RemoveAll(dir2)
-	defer c1.Shutdown()
-
-	joinLAN(t, c1, s1)
-	retry.Run(t, func(r *retry.R) {
-		var out struct{}
-		if err := c1.RPC("Status.Ping", struct{}{}, &out); err != structs.ErrRPCRateExceeded {
-			r.Fatalf("err: %v", err)
-		}
-	})
-}
-
 func TestClient_SnapshotRPC(t *testing.T) {
 	t.Parallel()
 	dir1, s1 := testServer(t)
@@ -378,10 +348,13 @@ func TestClient_SnapshotRPC(t *testing.T) {
 
 	// Try to join.
 	joinLAN(t, c1, s1)
+	if len(s1.LANMembers()) != 2 || len(c1.LANMembers()) != 2 {
+		t.Fatalf("Server has %v of %v expected members; Client has %v of %v expected members.", len(s1.LANMembers()), 2, len(c1.LANMembers()), 2)
+	}
 
 	// Wait until we've got a healthy server.
 	retry.Run(t, func(r *retry.R) {
-		if got, want := c1.routers.NumServers(), 1; got != want {
+		if got, want := c1.servers.NumServers(), 1; got != want {
 			r.Fatalf("got %d servers want %d", got, want)
 		}
 	})
@@ -401,42 +374,6 @@ func TestClient_SnapshotRPC(t *testing.T) {
 	if err := c1.SnapshotRPC(&args, &snap, nil, nil); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-}
-
-func TestClient_SnapshotRPC_RateLimit(t *testing.T) {
-	t.Parallel()
-	dir1, s1 := testServer(t)
-	defer os.RemoveAll(dir1)
-	defer s1.Shutdown()
-	testrpc.WaitForLeader(t, s1.RPC, "dc1")
-
-	dir2, conf1 := testClientConfig(t)
-	conf1.RPCRate = 2
-	conf1.RPCMaxBurst = 2
-	c1, err := NewClient(conf1)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	defer os.RemoveAll(dir2)
-	defer c1.Shutdown()
-
-	joinLAN(t, c1, s1)
-	retry.Run(t, func(r *retry.R) {
-		if got, want := c1.routers.NumServers(), 1; got != want {
-			r.Fatalf("got %d servers want %d", got, want)
-		}
-	})
-
-	retry.Run(t, func(r *retry.R) {
-		var snap bytes.Buffer
-		args := structs.SnapshotRequest{
-			Datacenter: "dc1",
-			Op:         structs.SnapshotSave,
-		}
-		if err := c1.SnapshotRPC(&args, bytes.NewReader([]byte("")), &snap, nil); err != structs.ErrRPCRateExceeded {
-			r.Fatalf("err: %v", err)
-		}
-	})
 }
 
 func TestClient_SnapshotRPC_TLS(t *testing.T) {
@@ -476,7 +413,7 @@ func TestClient_SnapshotRPC_TLS(t *testing.T) {
 		}
 
 		// Wait until we've got a healthy server.
-		if got, want := c1.routers.NumServers(), 1; got != want {
+		if got, want := c1.servers.NumServers(), 1; got != want {
 			r.Fatalf("got %d servers want %d", got, want)
 		}
 	})

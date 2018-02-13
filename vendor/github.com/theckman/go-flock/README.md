@@ -9,11 +9,7 @@ includes a non-blocking TryLock() function to allow locking without blocking exe
 ## License
 `flock` is released under the BSD 3-Clause License. See the `LICENSE` file for more details.
 
-## Go Compatibility
-This package makes use of the `context` package that was introduced in Go 1.7. As such, this
-package has an implicit dependency on Go 1.7+.
-
-## Installation
+## Intsallation
 ```
 go get -u github.com/theckman/go-flock
 ```

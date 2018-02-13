@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/hashicorp/consul/acl"
-	"github.com/hashicorp/consul/agent/metadata"
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/agent"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 )
@@ -18,12 +17,12 @@ func (op *Operator) RaftGetConfiguration(args *structs.DCSpecificRequest, reply 
 	}
 
 	// This action requires operator read access.
-	rule, err := op.srv.resolveToken(args.Token)
+	acl, err := op.srv.resolveToken(args.Token)
 	if err != nil {
 		return err
 	}
-	if rule != nil && !rule.OperatorRead() {
-		return acl.ErrPermissionDenied
+	if acl != nil && !acl.OperatorRead() {
+		return errPermissionDenied
 	}
 
 	// We can't fetch the leader and the configuration atomically with
@@ -36,7 +35,7 @@ func (op *Operator) RaftGetConfiguration(args *structs.DCSpecificRequest, reply 
 	// Index the Consul information about the servers.
 	serverMap := make(map[raft.ServerAddress]serf.Member)
 	for _, member := range op.srv.serfLAN.Members() {
-		valid, parts := metadata.IsConsulServer(member)
+		valid, parts := agent.IsConsulServer(member)
 		if !valid {
 			continue
 		}
@@ -77,12 +76,12 @@ func (op *Operator) RaftRemovePeerByAddress(args *structs.RaftRemovePeerRequest,
 
 	// This is a super dangerous operation that requires operator write
 	// access.
-	rule, err := op.srv.resolveToken(args.Token)
+	acl, err := op.srv.resolveToken(args.Token)
 	if err != nil {
 		return err
 	}
-	if rule != nil && !rule.OperatorWrite() {
-		return acl.ErrPermissionDenied
+	if acl != nil && !acl.OperatorWrite() {
+		return errPermissionDenied
 	}
 
 	// Since this is an operation designed for humans to use, we will return
@@ -144,12 +143,12 @@ func (op *Operator) RaftRemovePeerByID(args *structs.RaftRemovePeerRequest, repl
 
 	// This is a super dangerous operation that requires operator write
 	// access.
-	rule, err := op.srv.resolveToken(args.Token)
+	acl, err := op.srv.resolveToken(args.Token)
 	if err != nil {
 		return err
 	}
-	if rule != nil && !rule.OperatorWrite() {
-		return acl.ErrPermissionDenied
+	if acl != nil && !acl.OperatorWrite() {
+		return errPermissionDenied
 	}
 
 	// Since this is an operation designed for humans to use, we will return

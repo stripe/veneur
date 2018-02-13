@@ -15,7 +15,6 @@
 package ini
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -26,7 +25,6 @@ import (
 // Key represents a key under a section.
 type Key struct {
 	s               *Section
-	Comment         string
 	name            string
 	value           string
 	isAutoIncrement bool
@@ -35,7 +33,7 @@ type Key struct {
 	isShadow bool
 	shadows  []*Key
 
-	nestedValues []string
+	Comment string
 }
 
 // newKey simply return a key object with given values.
@@ -68,22 +66,6 @@ func (k *Key) AddShadow(val string) error {
 	return k.addShadow(val)
 }
 
-func (k *Key) addNestedValue(val string) error {
-	if k.isAutoIncrement || k.isBooleanType {
-		return errors.New("cannot add nested value to auto-increment or boolean key")
-	}
-
-	k.nestedValues = append(k.nestedValues, val)
-	return nil
-}
-
-func (k *Key) AddNestedValue(val string) error {
-	if !k.s.f.options.AllowNestedValues {
-		return errors.New("nested value is not allowed")
-	}
-	return k.addNestedValue(val)
-}
-
 // ValueMapper represents a mapping function for values, e.g. os.ExpandEnv
 type ValueMapper func(string) string
 
@@ -110,12 +92,6 @@ func (k *Key) ValueWithShadows() []string {
 	return vals
 }
 
-// NestedValues returns nested values stored in the key.
-// It is possible returned value is nil if no nested values stored in the key.
-func (k *Key) NestedValues() []string {
-	return k.nestedValues
-}
-
 // transformValue takes a raw value and transforms to its final string.
 func (k *Key) transformValue(val string) string {
 	if k.s.f.ValueMapper != nil {
@@ -138,7 +114,7 @@ func (k *Key) transformValue(val string) string {
 
 		// Search in the same section.
 		nk, err := k.s.GetKey(noption)
-		if err != nil || k == nk {
+		if err != nil {
 			// Search again in default section.
 			nk, _ = k.s.f.Section("").GetKey(noption)
 		}
@@ -468,39 +444,11 @@ func (k *Key) Strings(delim string) []string {
 		return []string{}
 	}
 
-	runes := []rune(str)
-	vals := make([]string, 0, 2)
-	var buf bytes.Buffer
-	escape := false
-	idx := 0
-	for {
-		if escape {
-			escape = false
-			if runes[idx] != '\\' && !strings.HasPrefix(string(runes[idx:]), delim) {
-				buf.WriteRune('\\')
-			}
-			buf.WriteRune(runes[idx])
-		} else {
-			if runes[idx] == '\\' {
-				escape = true
-			} else if strings.HasPrefix(string(runes[idx:]), delim) {
-				idx += len(delim) - 1
-				vals = append(vals, strings.TrimSpace(buf.String()))
-				buf.Reset()
-			} else {
-				buf.WriteRune(runes[idx])
-			}
-		}
-		idx += 1
-		if idx == len(runes) {
-			break
-		}
+	vals := strings.Split(str, delim)
+	for i := range vals {
+		// vals[i] = k.transformValue(strings.TrimSpace(vals[i]))
+		vals[i] = strings.TrimSpace(vals[i])
 	}
-
-	if buf.Len() > 0 {
-		vals = append(vals, strings.TrimSpace(buf.String()))
-	}
-
 	return vals
 }
 

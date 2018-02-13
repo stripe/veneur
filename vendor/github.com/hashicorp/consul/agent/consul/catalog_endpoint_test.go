@@ -8,8 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/consul/acl"
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/consul/structs"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/consul/testrpc"
@@ -165,7 +164,7 @@ service "foo" {
 	// This should fail since we are writing to the "db" service, which isn't
 	// allowed.
 	err := msgpackrpc.CallWithCodec(codec, "Catalog.Register", &argR, &outR)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -188,7 +187,7 @@ service "foo" {
 	// enforcement.
 	s1.config.ACLEnforceVersion8 = true
 	err = msgpackrpc.CallWithCodec(codec, "Catalog.Register", &argR, &outR)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -211,7 +210,7 @@ service "foo" {
 	argR.Service.ID = "my-id"
 	argR.Token = id
 	err = msgpackrpc.CallWithCodec(codec, "Catalog.Register", &argR, &outR)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 }
@@ -434,7 +433,7 @@ service "service" {
 			Datacenter: "dc1",
 			Node:       "node",
 			CheckID:    "service-check"}, &out)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 	err = msgpackrpc.CallWithCodec(codec, "Catalog.Deregister",
@@ -442,7 +441,7 @@ service "service" {
 			Datacenter: "dc1",
 			Node:       "node",
 			CheckID:    "node-check"}, &out)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 	err = msgpackrpc.CallWithCodec(codec, "Catalog.Deregister",
@@ -450,14 +449,14 @@ service "service" {
 			Datacenter: "dc1",
 			Node:       "node",
 			ServiceID:  "service"}, &out)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 	err = msgpackrpc.CallWithCodec(codec, "Catalog.Deregister",
 		&structs.DeregisterRequest{
 			Datacenter: "dc1",
 			Node:       "node"}, &out)
-	if !acl.IsErrPermissionDenied(err) {
+	if err == nil || !strings.Contains(err.Error(), permissionDenied) {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -890,9 +889,9 @@ func TestCatalog_ListNodes_DistanceSort(t *testing.T) {
 
 	// Set all but one of the nodes to known coordinates.
 	updates := structs.Coordinates{
-		{Node: "foo", Coord: lib.GenerateCoordinate(2 * time.Millisecond)},
-		{Node: "bar", Coord: lib.GenerateCoordinate(5 * time.Millisecond)},
-		{Node: "baz", Coord: lib.GenerateCoordinate(1 * time.Millisecond)},
+		{"foo", lib.GenerateCoordinate(2 * time.Millisecond)},
+		{"bar", lib.GenerateCoordinate(5 * time.Millisecond)},
+		{"baz", lib.GenerateCoordinate(1 * time.Millisecond)},
 	}
 	if err := s1.fsm.State().CoordinateBatchUpdate(5, updates); err != nil {
 		t.Fatalf("err: %v", err)
@@ -1495,9 +1494,9 @@ func TestCatalog_ListServiceNodes_DistanceSort(t *testing.T) {
 
 	// Set all but one of the nodes to known coordinates.
 	updates := structs.Coordinates{
-		{Node: "foo", Coord: lib.GenerateCoordinate(2 * time.Millisecond)},
-		{Node: "bar", Coord: lib.GenerateCoordinate(5 * time.Millisecond)},
-		{Node: "baz", Coord: lib.GenerateCoordinate(1 * time.Millisecond)},
+		{"foo", lib.GenerateCoordinate(2 * time.Millisecond)},
+		{"bar", lib.GenerateCoordinate(5 * time.Millisecond)},
+		{"baz", lib.GenerateCoordinate(1 * time.Millisecond)},
 	}
 	if err := s1.fsm.State().CoordinateBatchUpdate(9, updates); err != nil {
 		t.Fatalf("err: %v", err)
