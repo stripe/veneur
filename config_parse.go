@@ -119,9 +119,6 @@ func (c *Config) applyDefaults() {
 	if len(c.Aggregates) == 0 {
 		c.Aggregates = defaultConfig.Aggregates
 	}
-	if c.FlushMaxPerBody == 0 {
-		c.FlushMaxPerBody = defaultConfig.FlushMaxPerBody
-	}
 	if c.Hostname == "" && !c.OmitEmptyHostname {
 		c.Hostname, _ = os.Hostname()
 	}
@@ -133,6 +130,48 @@ func (c *Config) applyDefaults() {
 	}
 	if c.ReadBufferSizeBytes == 0 {
 		c.ReadBufferSizeBytes = defaultConfig.ReadBufferSizeBytes
+	}
+	if c.SsfBufferSize != 0 {
+		log.Warn("ssf_buffer_size configuration option has been replaced by datadog_span_buffer_size and will be removed in the next version")
+		if c.DatadogSpanBufferSize == 0 {
+			c.DatadogSpanBufferSize = c.SsfBufferSize
+		}
+	}
+	if c.FlushMaxPerBody != 0 {
+		log.Warn("flush_max_per_body configuration option has been replaced by datadog_flush_max_per_body and will be removed in the next version")
+		if c.DatadogFlushMaxPerBody == 0 {
+			c.DatadogFlushMaxPerBody = c.FlushMaxPerBody
+		}
+	}
+	if c.TraceLightstepNumClients != 0 {
+		log.Warn("trace_lightstep_num_clients configuration option has been replaced by lightstep_num_clients and will be removed in the next version")
+		if c.LightstepNumClients == 0 {
+			c.LightstepNumClients = c.TraceLightstepNumClients
+		}
+	}
+	if c.TraceLightstepCollectorHost != "" {
+		log.Warn("trace_lightstep_collector_host configuration option has been replaced by lightstep_collector_host and will be removed in the next version")
+		if c.LightstepCollectorHost == "" {
+			c.LightstepCollectorHost = c.TraceLightstepCollectorHost
+		}
+	}
+	if c.TraceLightstepAccessToken != "" {
+		log.Warn("trace_lightstep_access_token configuration option has been replaced by lightstep_access_token and will be removed in the next version")
+		if c.LightstepAccessToken == "" {
+			c.LightstepAccessToken = c.TraceLightstepAccessToken
+		}
+	}
+	if c.TraceLightstepMaximumSpans != 0 {
+		log.Warn("trace_lightstep_maximum_spans configuration option has been replaced by lightstep_maximum_spans and will be removed in the next version")
+		if c.LightstepMaximumSpans == 0 {
+			c.LightstepMaximumSpans = c.TraceLightstepMaximumSpans
+		}
+	}
+	if c.TraceLightstepReconnectPeriod != "" {
+		log.Warn("trace_lightstep_reconnect_period configuration option has been replaced by lightstep_reconnect_period and will be removed in the next version")
+		if c.LightstepReconnectPeriod == "" {
+			c.LightstepReconnectPeriod = c.TraceLightstepReconnectPeriod
+		}
 	}
 }
 

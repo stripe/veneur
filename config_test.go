@@ -129,3 +129,29 @@ func TestProxyExamples(t *testing.T) {
 		})
 	}
 }
+
+func TestReadConfigBackwardsCompatible(t *testing.T) {
+	// set the deprecated config options
+	const config = `
+flush_max_per_body: 1234
+ssf_buffer_size: 3456
+trace_lightstep_access_token: "123"
+trace_lightstep_collector_host: "456"
+trace_lightstep_reconnect_period: "789"
+trace_lightstep_maximum_spans: 1
+trace_lightstep_num_clients: 2
+`
+	c, err := readConfig(strings.NewReader(config))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// they should get copied to the new config options
+	assert.Equal(t, 1234, c.DatadogFlushMaxPerBody)
+	assert.Equal(t, 3456, c.DatadogSpanBufferSize)
+	assert.Equal(t, "123", c.LightstepAccessToken)
+	assert.Equal(t, "456", c.LightstepCollectorHost)
+	assert.Equal(t, "789", c.LightstepReconnectPeriod)
+	assert.Equal(t, 1, c.LightstepMaximumSpans)
+	assert.Equal(t, 2, c.LightstepNumClients)
+}

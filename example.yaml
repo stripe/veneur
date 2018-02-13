@@ -32,8 +32,6 @@ tls_certificate: ""
 # Authority certificate: requires clients to be authenticated
 tls_authority_certificate: ""
 
-
-
 # == BEHAVIOR ==
 
 # Use a static host for forwarding
@@ -100,7 +98,22 @@ aggregates:
  - "max"
  - "count"
 
+# == DEPRECATED ==
 
+# This configuration has been replaced by datadog_flush_max_per_body.
+flush_max_per_body: 0
+# This configuration has been replaced by datadog_span_buffer_size.
+ssf_buffer_size: 0
+# This has been replaced by lightstep_access_token
+trace_lightstep_access_token: ""
+# This has been replaced by lightstep_collector_host
+trace_lightstep_collector_host: ""
+# This has been replaced by lightstep_reconnect_period
+trace_lightstep_reconnect_period: ""
+# This has been replaced by lightstep_maximum_spans
+trace_lightstep_maximum_spans: 0
+# This has been replaced by lightstep_num_clients
+trace_lightstep_num_clients: 0
 
 # == PERFORMANCE ==
 
