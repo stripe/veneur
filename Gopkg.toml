@@ -37,8 +37,8 @@
   version = "1.10.16"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/clarkduvall/hyperloglog"
+  name = "github.com/axiomhq/hyperloglog"
+  revision = "8300947202c9fbce15a5a299b27c8b0f5092a520"
 
 [[constraint]]
   branch = "master"

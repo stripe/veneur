@@ -28,6 +28,7 @@ func nopHash(buf []byte) uint64 {
 	}
 	return binary.BigEndian.Uint64(buf)
 }
+
 func TestHLLTC_CardinalityHashed(t *testing.T) {
 	hlltc, err := new(14)
 	if err != nil {
@@ -67,6 +68,10 @@ func toByte(v uint64) []byte {
 }
 
 func TestHLLTC_Add_NoSparse(t *testing.T) {
+	hash = nopHash
+	defer func() {
+		hash = hashFunc
+	}()
 	sk := NewTestSketch(16)
 	sk.toNormal()
 
@@ -109,6 +114,10 @@ func TestHLLTC_Add_NoSparse(t *testing.T) {
 }
 
 func TestHLLTC_Precision_NoSparse(t *testing.T) {
+	hash = nopHash
+	defer func() {
+		hash = hashFunc
+	}()
 	sk := NewTestSketch(4)
 	sk.toNormal()
 
@@ -132,6 +141,10 @@ func TestHLLTC_Precision_NoSparse(t *testing.T) {
 }
 
 func TestHLLTC_toNormal(t *testing.T) {
+	hash = nopHash
+	defer func() {
+		hash = hashFunc
+	}()
 	sk := NewTestSketch(16)
 	sk.Insert(toByte(0x00010fffffffffff))
 	sk.toNormal()
@@ -173,6 +186,10 @@ func TestHLLTC_toNormal(t *testing.T) {
 }
 
 func TestHLLTC_Cardinality(t *testing.T) {
+	hash = nopHash
+	defer func() {
+		hash = hashFunc
+	}()
 	sk := NewTestSketch(16)
 
 	n := sk.Estimate()
@@ -208,6 +225,10 @@ func TestHLLTC_Cardinality(t *testing.T) {
 }
 
 func TestHLLTC_Merge_Error(t *testing.T) {
+	hash = nopHash
+	defer func() {
+		hash = hashFunc
+	}()
 	sk := NewTestSketch(16)
 	sk2 := NewTestSketch(10)
 
@@ -218,6 +239,10 @@ func TestHLLTC_Merge_Error(t *testing.T) {
 }
 
 func TestHLLTC_Merge_Sparse(t *testing.T) {
+	hash = nopHash
+	defer func() {
+		hash = hashFunc
+	}()
 	sk := NewTestSketch(16)
 	sk.Insert(toByte(0x00010fffffffffff))
 	sk.Insert(toByte(0x00020fffffffffff))
@@ -386,6 +411,10 @@ func TestHLLTC_Merge_Complex(t *testing.T) {
 }
 
 func TestHLLTC_EncodeDecode(t *testing.T) {
+	hash = nopHash
+	defer func() {
+		hash = hashFunc
+	}()
 	sk := NewTestSketch(8)
 	i, r := decodeHash(encodeHash(0xffffff8000000000, sk.p, pp), sk.p, pp)
 	if i != 0xff {
@@ -608,6 +637,54 @@ func TestHLLTC_Clone(t *testing.T) {
 	}
 }
 
+func TestHLLTC_Add_Hash(t *testing.T) {
+	hash = nopHash
+	defer func() {
+		hash = hashFunc
+	}()
+	sk := NewTestSketch(16)
+
+	n := sk.Estimate()
+	if n != 0 {
+		t.Error(n)
+	}
+
+	sk.InsertHash(0x00010fffffffffff)
+	sk.InsertHash(0x00020fffffffffff)
+	sk.InsertHash(0x00030fffffffffff)
+	sk.InsertHash(0x00040fffffffffff)
+	sk.InsertHash(0x00050fffffffffff)
+	sk.InsertHash(0x00050fffffffffff)
+
+	n = sk.Estimate()
+	if n != 5 {
+		t.Error(n)
+	}
+
+	sk.toNormal()
+	sk.InsertHash(0x10010f00ffffffff)
+	sk.InsertHash(0x20020f00ffffffff)
+	sk.InsertHash(0x30030f00ffffffff)
+	sk.InsertHash(0x40040f00ffffffff)
+	sk.InsertHash(0x50050f00ffffffff)
+	sk.InsertHash(0x60050f00ffffffff)
+
+	// not mutated, still returns correct count
+	n = sk.Estimate()
+	if n != 9 {
+		t.Error(n)
+	}
+
+	sk.InsertHash(0x00060fffffffffff)
+
+	// mutated
+	n = sk.Estimate()
+	if n != 11 {
+		t.Error(n)
+	}
+
+}
+
 func isSketchEqual(sk1, sk2 *Sketch) bool {
 	switch {
 	case sk1.alpha != sk2.alpha:
@@ -629,7 +706,6 @@ func isSketchEqual(sk1, sk2 *Sketch) bool {
 
 func NewTestSketch(p uint8) *Sketch {
 	sk, _ := new(p)
-	hash = nopHash
 	return sk
 }
 
@@ -762,4 +838,59 @@ func BenchmarkHll14(b *testing.B) {
 func BenchmarkHll16(b *testing.B) {
 	fmt.Println("")
 	benchmark(16, b.N)
+}
+
+func BenchmarkZipf(b *testing.B) {
+	cases := []struct {
+		s    float64 // skew
+		bits uint64  // log2 of the maximum zipf value
+	}{
+		{s: 1.1, bits: 3},
+		{s: 1.1, bits: 10},
+		{s: 1.1, bits: 64},
+		{s: 1.5, bits: 3},
+		{s: 1.5, bits: 10},
+		{s: 1.5, bits: 64},
+		{s: 2, bits: 3},
+		{s: 2, bits: 10},
+		{s: 2, bits: 64},
+		{s: 5, bits: 3},
+		{s: 5, bits: 10},
+		{s: 5, bits: 64},
+	}
+	for _, tc := range cases {
+		name := fmt.Sprintf("s%g/b%d", tc.s, tc.bits)
+		b.Run(name, func(b *testing.B) {
+			// Create a local rng using a seed from the global rand.
+			rng := rand.New(rand.NewSource(rand.Int63()))
+			zipf := rand.NewZipf(rng, tc.s, 1 /* v */, (uint64(1)<<tc.bits)-1)
+
+			sk := New14()
+			b.ResetTimer()
+			const batchSize = 1000
+			for i := 0; i < b.N/batchSize; i++ {
+				b.StopTimer()
+				// Generate a bunch of random values upfront; we don't want to
+				// benchmark the RNG.
+				var values [batchSize]uint64
+				for j := range values {
+					values[j] = zipf.Uint64()
+				}
+				b.StartTimer()
+				var tmp [8]byte
+				for _, v := range values {
+					tmp[0] = byte(v)
+					tmp[1] = byte(v >> 8)
+					tmp[2] = byte(v >> 16)
+					tmp[3] = byte(v >> 24)
+					tmp[4] = byte(v >> 32)
+					tmp[5] = byte(v >> 40)
+					tmp[6] = byte(v >> 48)
+					tmp[7] = byte(v >> 56)
+					sk.Insert(tmp[:])
+				}
+			}
+			b.Logf("Result: %d values, estimated cardinality %d", b.N/batchSize*batchSize, sk.Estimate())
+		})
+	}
 }
