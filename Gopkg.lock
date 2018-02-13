@@ -46,8 +46,8 @@
     "service/s3/s3iface",
     "service/sts"
   ]
-  revision = "decd990ddc5dcdf2f73309cbcab90d06b996ca28"
-  version = "v1.12.67"
+  revision = "e0223293ab40c06fad94970678748486705f8d0f"
+  version = "v1.10.17"
 
 [[projects]]
   name = "github.com/axiomhq/hyperloglog"

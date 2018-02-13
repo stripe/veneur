@@ -2,7 +2,6 @@ package lightstep
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/lightstep/lightstep-tracer-go/collectorpb"
@@ -12,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+	"errors"
 )
 
 var (
