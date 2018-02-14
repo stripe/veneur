@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/tdigest"
 )
 
 func TestRouting(t *testing.T) {
@@ -380,7 +381,7 @@ func TestHistoSampleRate(t *testing.T) {
 	assert.Equal(t, float64(10), count.Value, "count value")
 }
 
-func TestHistoMerge(t *testing.T) {
+func TestHistoMergeOneSideOnly(t *testing.T) {
 	rand.Seed(time.Now().Unix())
 
 	h := histoWithSamples("a.b.c", []string{"a:b"}, 100)
@@ -395,6 +396,86 @@ func TestHistoMerge(t *testing.T) {
 	assert.Equal(t, h.max, h2.max, "merged histogram should have the max of the other")
 	assert.Equal(t, h.sum, h2.sum, "merged histogram should have the sum of the other")
 	assert.Equal(t, h.reciprocalSum, h2.reciprocalSum, "merged histogram should have the reciprocal sum of the other")
+}
+
+func TestHistoMergeBoth(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+
+	h := &Histo{
+		Name:          "a.b",
+		tDigest:       tdigest.NewMerging(100, false),
+		min:           1,
+		max:           10,
+		sum:           1,
+		weight:        1,
+		reciprocalSum: 1,
+	}
+
+	type histValues struct {
+		weight        float64
+		min           float64
+		max           float64
+		sum           float64
+		reciprocalSum float64
+	}
+
+	testCases := []struct {
+		description string
+		toCombine   *Histo
+		expected    histValues
+	}{
+		{
+			description: "values on both sides",
+			toCombine: &Histo{
+				tDigest:       tdigest.NewMerging(100, false),
+				min:           0,
+				max:           9,
+				sum:           2,
+				weight:        2,
+				reciprocalSum: 2,
+			},
+			expected: histValues{
+				weight:        3,
+				min:           0,
+				max:           10,
+				sum:           3,
+				reciprocalSum: 3,
+			},
+		},
+		{
+			description: "one side uninitialized",
+			toCombine:   NewHist("b.c", []string{}),
+			expected: histValues{
+				weight:        h.weight,
+				min:           h.min,
+				max:           h.max,
+				sum:           h.sum,
+				reciprocalSum: h.reciprocalSum,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.description, func(t *testing.T) {
+			jm, err := h.Export()
+			assert.NoError(t, err, "the histo should have exported successfully")
+			assert.NoError(t, tc.toCombine.Combine(jm.Value), "combining the two should have succeeded")
+
+			assert.Equal(t, tc.expected.min, tc.toCombine.min,
+				"the merged min should be correct")
+			assert.Equal(t, tc.expected.weight, tc.toCombine.weight,
+				"merged histogram should have the weight of the other")
+			assert.Equal(t, tc.expected.min, tc.toCombine.min,
+				"merged histogram should have the min of the other")
+			assert.Equal(t, tc.expected.max, tc.toCombine.max,
+				"merged histogram should have the max of the other")
+			assert.Equal(t, tc.expected.sum, tc.toCombine.sum,
+				"merged histogram should have the sum of the other")
+			assert.Equal(t, tc.expected.reciprocalSum, tc.toCombine.reciprocalSum,
+				"merged histogram should have the reciprocal sum of the other")
+		})
+	}
 }
 
 func TestMetricKeyEquality(t *testing.T) {
