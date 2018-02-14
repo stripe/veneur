@@ -498,9 +498,9 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 	return metrics
 }
 
-// histoValue is a serializable version of a Histo that will be sent as the
+// HistoValue is a serializable version of a Histo that will be sent as the
 // Value of a JSONMetric, gob-encoded.
-type histoValue struct {
+type HistoValue struct {
 	TDigest       *tdigest.MergingDigest
 	Weight        float64
 	Min           float64
@@ -513,7 +513,7 @@ type histoValue struct {
 func (h *Histo) Export() (JSONMetric, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
-	hval := histoValue{
+	hval := HistoValue{
 		TDigest:       h.tDigest,
 		Weight:        h.weight,
 		Min:           h.min,
@@ -538,7 +538,7 @@ func (h *Histo) Export() (JSONMetric, error) {
 // Combine merges the values of a histogram with another histogram
 // (marshalled as a byte slice)
 func (h *Histo) Combine(other []byte) error {
-	var val histoValue
+	var val HistoValue
 	dec := gob.NewDecoder(bytes.NewReader(other))
 
 	if err := dec.Decode(&val); err != nil {

@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/gob"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -293,10 +294,18 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 	// test against the bytestream directly. But the two streams should unmarshal
 	// to t-digests that have the same key properties, so we can test
 	// those.
-	const ExpectedGobStream = "\r\xff\x87\x02\x01\x02\xff\x88\x00\x01\xff\x84\x00\x007\xff\x83\x03\x01\x01\bCentroid\x01\xff\x84\x00\x01\x03\x01\x04Mean\x01\b\x00\x01\x06Weight\x01\b\x00\x01\aSamples\x01\xff\x86\x00\x00\x00\x17\xff\x85\x02\x01\x01\t[]float64\x01\xff\x86\x00\x01\b\x00\x00/\xff\x88\x00\x05\x01\xfe\xf0?\x01\xfe\xf0?\x00\x01@\x01\xfe\xf0?\x00\x01\xfe\x1c@\x01\xfe\xf0?\x00\x01\xfe @\x01\xfe\xf0?\x00\x01\xfeY@\x01\xfe\xf0?\x00\x05\b\x00\xfeY@\x05\b\x00\xfe\xf0?\x05\b\x00\xfeY@"
+	const ExpectedDigestGobStream = "\r\xff\x87\x02\x01\x02\xff\x88\x00\x01\xff\x84\x00\x007\xff\x83\x03\x01\x01\bCentroid\x01\xff\x84\x00\x01\x03\x01\x04Mean\x01\b\x00\x01\x06Weight\x01\b\x00\x01\aSamples\x01\xff\x86\x00\x00\x00\x17\xff\x85\x02\x01\x01\t[]float64\x01\xff\x86\x00\x01\b\x00\x00/\xff\x88\x00\x05\x01\xfe\xf0?\x01\xfe\xf0?\x00\x01@\x01\xfe\xf0?\x00\x01\xfe\x1c@\x01\xfe\xf0?\x00\x01\xfe @\x01\xfe\xf0?\x00\x01\xfeY@\x01\xfe\xf0?\x00\x05\b\x00\xfeY@\x05\b\x00\xfe\xf0?\x05\b\x00\xfeY@"
 	tdExpected := tdigest.NewMerging(100, false)
-	err := tdExpected.GobDecode([]byte(ExpectedGobStream))
+	err := tdExpected.GobDecode([]byte(ExpectedDigestGobStream))
 	assert.NoError(t, err, "Should not have encountered error in decoding expected gob stream")
+	expectedHistoValue := samplers.HistoValue{
+		TDigest:       tdExpected,
+		Min:           1,
+		Max:           100,
+		Sum:           118,
+		ReciprocalSum: 1.7778571428571428,
+		Weight:        5,
+	}
 
 	var HistogramValues = []float64{1.0, 2.0, 7.0, 8.0, 100.0}
 
@@ -324,7 +333,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 	// This represents the global veneur instance, which receives request from
 	// the local veneur instances, aggregates the data, and sends it to the remote API
 	// (e.g. Datadog)
-	globalTD := make(chan *tdigest.MergingDigest)
+	globalVal := make(chan samplers.HistoValue)
 	globalVeneur := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, r.URL.Path, "/import", "Global veneur should receive request on /import path")
 
@@ -350,10 +359,11 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 
 		assert.Equal(t, 1, len(metrics), "incorrect number of elements in the flushed series")
 
-		td := tdigest.NewMerging(100, false)
-		err = td.GobDecode(metrics[0].Value)
+		var val samplers.HistoValue
+		dec := gob.NewDecoder(bytes.NewReader(metrics[0].Value))
+		err = dec.Decode(&val)
 		assert.NoError(t, err, "Should not have encountered error in decoding gob stream")
-		globalTD <- td
+		globalVal <- val
 		w.WriteHeader(http.StatusAccepted)
 	}))
 	defer globalVeneur.Close()
@@ -394,13 +404,13 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 	f.server.Flush(context.TODO())
 
 	// the global veneur instance should get valid data
-	td := <-globalTD
-	assert.Equal(t, expectedMetrics["a.b.c.min"], td.Min(), "Minimum value is incorrect")
-	assert.Equal(t, expectedMetrics["a.b.c.max"], td.Max(), "Maximum value is incorrect")
+	val := <-globalVal
+	assert.Equal(t, expectedMetrics["a.b.c.min"], val.TDigest.Min(), "Minimum value is incorrect")
+	assert.Equal(t, expectedMetrics["a.b.c.max"], val.TDigest.Max(), "Maximum value is incorrect")
 
 	// The remote server receives the raw count, *not* the normalized count
-	assert.InEpsilon(t, HistogramCountRaw, td.Count(), ε)
-	assert.Equal(t, tdExpected, td, "Underlying tdigest structure is incorrect")
+	assert.InEpsilon(t, HistogramCountRaw, val.TDigest.Count(), ε)
+	assert.Equal(t, expectedHistoValue, val, "Underlying tdigest structure is incorrect")
 }
 
 func TestSplitBytes(t *testing.T) {

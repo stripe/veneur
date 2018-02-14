@@ -327,19 +327,30 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 			}
 			jsonMetrics = append(jsonMetrics, jm)
 		}
-		for _, histos := range []histoMap{wm.histograms, wm.globalHistograms} {
-			for _, histo := range histos {
-				jm, err := histo.Export()
-				if err != nil {
-					log.WithFields(logrus.Fields{
-						logrus.ErrorKey: err,
-						"type":          "histogram",
-						"name":          histo.Name,
-					}).Error("Could not export metric")
-					continue
-				}
-				jsonMetrics = append(jsonMetrics, jm)
+		for _, histo := range wm.histograms {
+			jm, err := histo.Export()
+			if err != nil {
+				log.WithFields(logrus.Fields{
+					logrus.ErrorKey: err,
+					"type":          "histogram",
+					"name":          histo.Name,
+				}).Error("Could not export metric")
+				continue
 			}
+			jsonMetrics = append(jsonMetrics, jm)
+		}
+		for _, histo := range wm.globalHistograms {
+			jm, err := histo.Export()
+			if err != nil {
+				log.WithFields(logrus.Fields{
+					logrus.ErrorKey: err,
+					"type":          "histogram",
+					"name":          histo.Name,
+					"global":        true,
+				}).Error("Could not export metric")
+				continue
+			}
+			jsonMetrics = append(jsonMetrics, jm)
 		}
 		for _, set := range wm.sets {
 			jm, err := set.Export()
@@ -353,21 +364,34 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 			}
 			jsonMetrics = append(jsonMetrics, jm)
 		}
-		for _, timers := range []histoMap{wm.timers, wm.globalTimers} {
-			for _, timer := range timers {
-				jm, err := timer.Export()
-				if err != nil {
-					log.WithFields(logrus.Fields{
-						logrus.ErrorKey: err,
-						"type":          "timer",
-						"name":          timer.Name,
-					}).Error("Could not export metric")
-					continue
-				}
-				// the exporter doesn't know that these two are "different"
-				jm.Type = "timer"
-				jsonMetrics = append(jsonMetrics, jm)
+		for _, timer := range wm.timers {
+			jm, err := timer.Export()
+			if err != nil {
+				log.WithFields(logrus.Fields{
+					logrus.ErrorKey: err,
+					"type":          "timer",
+					"name":          timer.Name,
+				}).Error("Could not export metric")
+				continue
 			}
+			// the exporter doesn't know that these two are "different"
+			jm.Type = "timer"
+			jsonMetrics = append(jsonMetrics, jm)
+		}
+		for _, timer := range wm.globalTimers {
+			jm, err := timer.Export()
+			if err != nil {
+				log.WithFields(logrus.Fields{
+					logrus.ErrorKey: err,
+					"type":          "timer",
+					"name":          timer.Name,
+					"global":        true,
+				}).Error("Could not export metric")
+				continue
+			}
+			// the exporter doesn't know that these two are "different"
+			jm.Type = "timer"
+			jsonMetrics = append(jsonMetrics, jm)
 		}
 	}
 	span.Add(ssf.Timing("forward.duration_ns", time.Since(exportStart), time.Nanosecond, map[string]string{"part": "export"}),

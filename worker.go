@@ -220,11 +220,15 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 			w.wm.gauges[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		}
 	case histogramTypeName:
-		if m.Scope == samplers.LocalOnly {
-			w.wm.localHistograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
-		} else {
-			w.wm.histograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+		hs := w.wm.histograms
+		switch m.Scope {
+		case samplers.LocalOnly:
+			hs = w.wm.localHistograms
+		case samplers.GlobalOnly:
+			hs = w.wm.globalHistograms
 		}
+
+		hs[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 	case setTypeName:
 		if m.Scope == samplers.LocalOnly {
 			w.wm.localSets[m.MetricKey].Sample(m.Value.(string), m.SampleRate)
