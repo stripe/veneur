@@ -23,7 +23,7 @@ const DefaultServerTimeout = 100 * time.Millisecond
 
 var log = logrus.New()
 
-const S3TestBucket = "stripe-test-veneur"
+const s3TestBucket = "stripe-test-veneur"
 
 // stubS3 sets svc to a s3Mock.MockS3Client that will return 200 for all responses
 // useful for avoiding erroneous error log lines when testing things that aren't
@@ -58,6 +58,7 @@ func TestS3Post(t *testing.T) {
 	defer f.Close()
 
 	client.SetPutObject(func(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
+		assert.Equal(t, s3TestBucket, *input.Bucket)
 		// The data should be a gzipped TSV
 		gzr, err := gzip.NewReader(input.Body)
 		assert.NoError(t, err)
@@ -72,7 +73,7 @@ func TestS3Post(t *testing.T) {
 		return &s3.PutObjectOutput{ETag: aws.String("912ec803b2ce49e4a541068d495ab570")}, nil
 	})
 
-	s3p := &S3Plugin{Logger: log, Svc: client}
+	s3p := &S3Plugin{Logger: log, Svc: client, S3Bucket: s3TestBucket}
 
 	err = s3p.S3Post("testbox", f, tsvFt)
 	assert.NoError(t, err)
