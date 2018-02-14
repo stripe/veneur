@@ -542,7 +542,17 @@ func (h *Histo) Combine(other []byte) error {
 	dec := gob.NewDecoder(bytes.NewReader(other))
 
 	if err := dec.Decode(&val); err != nil {
-		return fmt.Errorf("failed to unmarshal the Histo value: %v", err)
+		// To support the old binary format, try to directly decode just
+		// a tdigest.  This should probably be removed in a future breaking
+		// release. This allows upgrading global instances first, while still
+		// being compatible with non-updated local instances.
+		otherHistogram := tdigest.NewMerging(100, false)
+		if err := otherHistogram.GobDecode(other); err != nil {
+			return fmt.Errorf("failed to unmarshal the Histo value: %v", err)
+		}
+
+		h.tDigest.Merge(otherHistogram)
+		return nil
 	}
 
 	h.tDigest.Merge(val.TDigest)

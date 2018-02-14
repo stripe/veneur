@@ -478,6 +478,49 @@ func TestHistoMergeBoth(t *testing.T) {
 	}
 }
 
+// This test can be removed once the code handling the old binary format in
+// Histo.Combine is removed.
+func TestHistoCombineOldFormat(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+
+	h := histoWithSamples("a.b", []string{}, 0)
+	other := histoWithSamples("a.b", []string{}, 100)
+
+	// Set these parameters to different values between the two
+	for i, hist := range []*Histo{h, other} {
+		val := float64(i + 1)
+		hist.weight = val
+		hist.min = val
+		hist.max = val
+		hist.sum = val
+		hist.reciprocalSum = val
+	}
+
+	encoded, err := other.tDigest.GobEncode()
+	assert.NoError(t, err, "the other histogram's tdigest should have been encoded")
+
+	err = h.Combine(encoded)
+	assert.NoError(t, err, "combining with the binary tdigest should have succeeded")
+
+	// The tdigests should have been merged
+	assert.Equal(t, other.tDigest.Quantile(0.5), h.tDigest.Quantile(0.5),
+		"the combined histogram should have the median of the merged tdigest")
+
+	// All the other values should've been unchanged
+	expected := float64(1)
+	assert.Equal(t, expected, h.weight, "the weight shouldn't have changed")
+	assert.Equal(t, expected, h.min, "the min shouldn't have changed")
+	assert.Equal(t, expected, h.max, "the max shouldn't have changed")
+	assert.Equal(t, expected, h.sum, "the sum shouldn't have changed")
+	assert.Equal(t, expected, h.reciprocalSum, "the reciprocal sum shouldn't have changed")
+}
+
+func TestHistoCombineInvalidData(t *testing.T) {
+	h := NewHist("a.b", []string{})
+	err := h.Combine([]byte("invalid data"))
+	assert.Error(t, err, "combining with invalid data should've failed")
+}
+
 func TestMetricKeyEquality(t *testing.T) {
 	c1 := NewCounter("a.b.c", []string{"a:b", "c:d"})
 	ce1, _ := c1.Export()
@@ -519,6 +562,26 @@ func BenchmarkHistoCombine(b *testing.B) {
 		b.Run(fmt.Sprintf("Samples=%d", samples), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				h.Combine(marshalled.Value)
+			}
+		})
+	}
+}
+
+// This can be removed once the code handling the old binary format in
+// Histo.Combine is removed.
+func BenchmarkHistoCombineOldFormat(b *testing.B) {
+	rand.Seed(time.Now().Unix())
+
+	for _, samples := range []int{10, 100, 1000, 10000} {
+		h := histoWithSamples("a.b.c", []string{"a:b"}, samples)
+
+		other := histoWithSamples("c.d.e", []string{"c:d"}, samples)
+		encoded, err := other.tDigest.GobEncode()
+		assert.NoError(b, err, "the other tdigest should have been encoded successfully")
+
+		b.Run(fmt.Sprintf("Samples=%d", samples), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				h.Combine(encoded)
 			}
 		})
 	}
