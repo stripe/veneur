@@ -2,9 +2,13 @@
 
 This sink sends Veneur metrics to [Datadog](https://www.datadoghq.com).
 
+# Configuration
+
+See the various `datadog_*` keys in [example.yaml](https://github.com/stripe/veneur/blob/master/example.yaml) for all available configuration options.
+
 # Status
 
-**This sink is production ready**.
+**This sink is stable**.
 
 # Capabilities
 
@@ -88,7 +92,3 @@ until it `interval` expires and the ring buffer is reset.
 As a side-effect of implementing [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/)
 Veneur parses both [Service Checks](https://docs.datadoghq.com/api/#service-checks)
 and [Events](https://docs.datadoghq.com/api/#events).
-
-# Configuration
-
-See the various `datadog_*` keys in [example.yaml](https://github.com/stripe/veneur/blob/master/example.yaml) for all available configuration options.

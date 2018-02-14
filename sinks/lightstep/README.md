@@ -2,9 +2,13 @@
 
 This sink sends Veneur spans to [LightStep](https://lightstep.com).
 
+# Configuration
+
+See the various `lightstep_*` keys in [example.yaml](https://github.com/stripe/veneur/blob/master/example.yaml) for all available configuration options.
+
 # Status
 
-**This sink is production ready**.
+**This sink is stable**.
 
 # Capabilities
 
@@ -26,7 +30,3 @@ is useful if you don't have a appropriate load-balancer for balancing gRPC
 connections. You can also set the `lightstep_reconnect_period` to change how
 often each of these connections reconnect. Using these together can help facilitate
 an even distribution of spans across collectors.
-
-# Configuration
-
-See the various `lightstep_*` keys in [example.yaml](https://github.com/stripe/veneur/blob/master/example.yaml) for all available configuration options.
