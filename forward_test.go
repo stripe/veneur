@@ -120,7 +120,6 @@ func TestE2EForwardingIndicatorMetrics(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		metrics := <-ch
-		require.Equal(t, 3, len(metrics), "metrics:\n%#v", metrics)
 		for _, suffix := range []string{".50percentile", ".75percentile", ".99percentile"} {
 			mName := "indicator.span.timer" + suffix
 			found := false

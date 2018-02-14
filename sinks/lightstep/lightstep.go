@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	lightstep "github.com/lightstep/lightstep-tracer-go"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
@@ -16,6 +15,7 @@ import (
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/metrics"
 )
 
 const indicatorSpanTagName = "indicator"
@@ -28,7 +28,6 @@ const lightStepOperationKey = "name"
 // LightStepSpanSink is a sink for spans to be sent to the LightStep client.
 type LightStepSpanSink struct {
 	tracers      []opentracing.Tracer
-	stats        *statsd.Client
 	commonTags   map[string]string
 	mutex        *sync.Mutex
 	serviceCount map[string]int64
@@ -39,7 +38,7 @@ type LightStepSpanSink struct {
 var _ sinks.SpanSink = &LightStepSpanSink{}
 
 // NewLightStepSpanSink creates a new instance of a LightStepSpanSink.
-func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string, stats *statsd.Client, commonTags map[string]string, log *logrus.Logger) (*LightStepSpanSink, error) {
+func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string, commonTags map[string]string, log *logrus.Logger) (*LightStepSpanSink, error) {
 
 	var host *url.URL
 	host, err := url.Parse(collector)
@@ -105,7 +104,6 @@ func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans
 
 	return &LightStepSpanSink{
 		tracers:      tracers,
-		stats:        stats,
 		serviceCount: make(map[string]int64),
 		mutex:        &sync.Mutex{},
 		log:          log,
@@ -201,10 +199,14 @@ func (ls *LightStepSpanSink) Flush() {
 	ls.mutex.Lock()
 	defer ls.mutex.Unlock()
 
+	samples := &ssf.Samples{}
+	defer metrics.Report(ls.traceClient, samples)
+
 	totalCount := int64(0)
 	for service, count := range ls.serviceCount {
 		totalCount += count
-		ls.stats.Count(sinks.MetricKeyTotalSpansFlushed, count, []string{fmt.Sprintf("sink:%s", ls.Name()), fmt.Sprintf("service:%s", service)}, 1)
+		samples.Add(ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(count),
+			map[string]string{"sink": ls.Name(), "service": service}))
 	}
 	ls.serviceCount = make(map[string]int64)
 	ls.log.WithField("total_spans", totalCount).Debug("Checkpointing flushed spans for Lightstep")

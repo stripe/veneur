@@ -8,6 +8,7 @@ import (
 	"github.com/getsentry/raven-go"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur"
+	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
 
@@ -61,8 +62,10 @@ func main() {
 
 		logrus.WithError(e).Fatal("Could not initialize server")
 	}
+	ssf.NamePrefix = "veneur."
+
 	defer func() {
-		veneur.ConsumePanic(server.Sentry, server.Statsd, server.Hostname, recover())
+		veneur.ConsumePanic(server.Sentry, server.TraceClient, server.Hostname, recover())
 	}()
 
 	if server.TraceClient != nil {

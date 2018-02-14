@@ -152,6 +152,18 @@ func Histogram(name string, value float32, tags map[string]string, opts ...Sampl
 	}, opts)
 }
 
+// Set returns an SSFSample representing a value on a set, useful for
+// counting the unique values that occur in a certain time bound.
+func Set(name string, value string, tags map[string]string, opts ...SampleOption) *SSFSample {
+	return create(&SSFSample{
+		Metric:     SSFSample_SET,
+		Name:       name,
+		Message:    value,
+		Tags:       tags,
+		SampleRate: 1.0,
+	}, opts)
+}
+
 // Timing returns an SSFSample (really a histogram) representing the
 // timing in the given resolution.
 func Timing(name string, value time.Duration, resolution time.Duration, tags map[string]string, opts ...SampleOption) *SSFSample {

@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -106,8 +105,7 @@ func TestDeviceMagicTag(t *testing.T) {
 
 func TestNewDatadogSpanSinkConfig(t *testing.T) {
 	// test the variables that have been renamed
-	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
-	ddSink, err := NewDatadogSpanSink("http://example.com", 100, stats, &http.Client{}, nil, logrus.New())
+	ddSink, err := NewDatadogSpanSink("http://example.com", 100, &http.Client{}, nil, logrus.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,11 +142,9 @@ func (rt *DatadogRoundTripper) RoundTrip(req *http.Request) (*http.Response, err
 
 func TestDatadogFlushSpans(t *testing.T) {
 	// test the variables that have been renamed
-	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 
 	transport := &DatadogRoundTripper{Endpoint: "/v0.3/traces", Contains: "farts-srv"}
-
-	ddSink, err := NewDatadogSpanSink("http://example.com", 100, stats, &http.Client{Transport: transport}, nil, logrus.New())
+	ddSink, err := NewDatadogSpanSink("http://example.com", 100, &http.Client{Transport: transport}, nil, logrus.New())
 	assert.NoError(t, err)
 
 	start := time.Now()
@@ -202,7 +198,6 @@ func ddTestServer(t *testing.T, endpoint, contains string) (*httptest.Server, ch
 
 func TestDatadogMetricRouting(t *testing.T) {
 	// test the variables that have been renamed
-	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
 	client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
 
 	tests := []struct {
@@ -254,7 +249,6 @@ func TestDatadogMetricRouting(t *testing.T) {
 				log:             logrus.New(),
 				tags:            []string{"a:b", "c:d"},
 				interval:        10,
-				statsd:          stats,
 			}
 			done := make(chan struct{})
 			go func() {

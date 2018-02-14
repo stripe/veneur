@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,8 +16,7 @@ func TestMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(0, nil, logger)
 	workers := []ssfmetrics.Processor{worker}
-	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
-	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", stats, logger)
+	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", nil, logger)
 	require.NoError(t, err)
 
 	start := time.Now()
@@ -58,8 +56,7 @@ func TestIndicatorMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(0, nil, logger)
 	workers := []ssfmetrics.Processor{worker}
-	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
-	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", stats, logger)
+	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", nil, logger)
 	require.NoError(t, err)
 
 	start := time.Now()
@@ -76,12 +73,8 @@ func TestIndicatorMetricExtractor(t *testing.T) {
 	go func() {
 		n := 0
 		for m := range worker.PacketChan {
-			hasP := false
-			for _, tag := range m.Tags {
-				hasP = hasP || (tag == "service:indicator_testing")
-			}
-			if !hasP {
-				t.Logf("Received unexpected additional metric %#v", m)
+			if m.Name != "foo" {
+				t.Logf("Received additional metric %#v", m)
 				continue
 			}
 			n++

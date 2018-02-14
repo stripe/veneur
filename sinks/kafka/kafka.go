@@ -13,7 +13,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/Shopify/sarama"
 	"github.com/gogo/protobuf/proto"
 	"github.com/sirupsen/logrus"
@@ -21,6 +20,7 @@ import (
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/metrics"
 )
 
 var _ sinks.MetricSink = &KafkaMetricSink{}
@@ -29,18 +29,17 @@ var _ sinks.SpanSink = &KafkaSpanSink{}
 type KafkaMetricSink struct {
 	logger      *logrus.Entry
 	producer    sarama.AsyncProducer
-	statsd      *statsd.Client
 	checkTopic  string
 	eventTopic  string
 	metricTopic string
 	brokers     string
 	config      *sarama.Config
+	traceClient *trace.Client
 }
 
 type KafkaSpanSink struct {
 	logger          *logrus.Entry
 	producer        sarama.AsyncProducer
-	statsd          *statsd.Client
 	topic           string
 	brokers         string
 	serializer      string
@@ -48,10 +47,11 @@ type KafkaSpanSink struct {
 	sampleThreshold uint32
 	config          *sarama.Config
 	spansFlushed    int64
+	traceClient     *trace.Client
 }
 
 // NewKafkaMetricSink creates a new Kafka Plugin.
-func NewKafkaMetricSink(logger *logrus.Logger, brokers string, checkTopic string, eventTopic string, metricTopic string, ackRequirement string, partitioner string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, stats *statsd.Client) (*KafkaMetricSink, error) {
+func NewKafkaMetricSink(logger *logrus.Logger, cl *trace.Client, brokers string, checkTopic string, eventTopic string, metricTopic string, ackRequirement string, partitioner string, retries int, bufferBytes int, bufferMessages int, bufferDuration string) (*KafkaMetricSink, error) {
 	if logger == nil {
 		logger = &logrus.Logger{Out: ioutil.Discard}
 	}
@@ -88,12 +88,12 @@ func NewKafkaMetricSink(logger *logrus.Logger, brokers string, checkTopic string
 
 	return &KafkaMetricSink{
 		logger:      ll,
-		statsd:      stats,
 		checkTopic:  checkTopic,
 		eventTopic:  eventTopic,
 		metricTopic: metricTopic,
 		brokers:     brokers,
 		config:      config,
+		traceClient: cl,
 	}, nil
 }
 
@@ -172,6 +172,8 @@ func (k *KafkaMetricSink) Start(cl *trace.Client) error {
 
 // Flush sends a slice of metrics to Kafka
 func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
+	samples := &ssf.Samples{}
+	defer metrics.Report(k.traceClient, samples)
 
 	if len(interMetrics) == 0 {
 		k.logger.Info("Nothing to flush, skipping.")
@@ -188,7 +190,7 @@ func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.Int
 		j, err := json.Marshal(metric)
 		if err != nil {
 			k.logger.Error("Error marshalling metric: ", metric.Name)
-			k.statsd.Count("kafka.marshal.error_total", 1, nil, 1.0)
+			samples.Add(ssf.Count("kafka.marshal.error_total", 1, nil))
 			return err
 		}
 
@@ -198,8 +200,7 @@ func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.Int
 		}
 		successes++
 	}
-
-	k.statsd.Count(sinks.MetricKeyTotalMetricsFlushed, int64(successes), []string{fmt.Sprintf("sink:%s", k.Name())}, 1.0)
+	samples.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(successes), map[string]string{"sink": k.Name()}))
 	return nil
 }
 
@@ -209,8 +210,7 @@ func (k *KafkaMetricSink) FlushEventsChecks(ctx context.Context, events []sample
 }
 
 // NewKafkaSpanSink creates a new Kafka Plugin.
-func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, partitioner string, ackRequirement string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, serializationFormat string, sampleTag string, sampleRatePercentage int, stats *statsd.Client) (*KafkaSpanSink, error) {
-
+func NewKafkaSpanSink(logger *logrus.Logger, cl *trace.Client, brokers string, topic string, partitioner string, ackRequirement string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, serializationFormat string, sampleTag string, sampleRatePercentage int) (*KafkaSpanSink, error) {
 	if logger == nil {
 		logger = &logrus.Logger{Out: ioutil.Discard}
 	}
@@ -261,7 +261,6 @@ func NewKafkaSpanSink(logger *logrus.Logger, brokers string, topic string, parti
 
 	return &KafkaSpanSink{
 		logger:          ll,
-		statsd:          stats,
 		topic:           topic,
 		brokers:         brokers,
 		config:          config,
@@ -290,7 +289,8 @@ func (k *KafkaSpanSink) Start(cl *trace.Client) error {
 // flushing is driven by the settings from KafkaSpanSink's constructor. Tune
 // the bytes, messages and interval settings to your tastes!
 func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
-
+	samples := &ssf.Samples{}
+	defer metrics.Report(k.traceClient, samples)
 	// If we're sampling less than 100%, we should check whether a span should
 	// be sampled:
 	if k.sampleTag != "" || k.sampleThreshold < uint32(math.MaxUint32) {
@@ -332,14 +332,13 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 			return nil
 		}
 	}
-
 	var enc sarama.Encoder
 	switch k.serializer {
 	case "json":
 		j, err := json.Marshal(span)
 		if err != nil {
 			k.logger.Error("Error marshalling span")
-			k.statsd.Count("kafka.span_marshal_error_total", 1, nil, 1.0)
+			samples.Add(ssf.Count("kafka.span_marshal_error_total", 1, nil))
 			return err
 		}
 		enc = sarama.StringEncoder(j)
@@ -347,7 +346,7 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 		p, err := proto.Marshal(span)
 		if err != nil {
 			k.logger.Error("Error marshalling span")
-			k.statsd.Count("kafka.span_marshal_error_total", 1, nil, 1.0)
+			samples.Add(ssf.Count("kafka.span_marshal_error_total", 1, nil))
 			return err
 		}
 		enc = sarama.ByteEncoder(p)
@@ -369,6 +368,6 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 func (k *KafkaSpanSink) Flush() {
 	// TODO We have no stuff in here for detecting failed writes from the async
 	// producer. We should add that.
-	k.statsd.Count(sinks.MetricKeyTotalSpansFlushed, atomic.LoadInt64(&k.spansFlushed), []string{fmt.Sprintf("sink:%s", k.Name())}, 1.0)
+	metrics.ReportOne(k.traceClient, ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(atomic.LoadInt64(&k.spansFlushed)), map[string]string{"sink": k.Name()}))
 	atomic.SwapInt64(&k.spansFlushed, 0)
 }

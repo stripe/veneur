@@ -2,23 +2,23 @@
 package ssfmetrics
 
 import (
-	"fmt"
-	"sync/atomic"
+	"sync"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/metrics"
 )
 
 type metricExtractionSink struct {
+	mutex                  sync.Mutex
 	workers                []Processor
 	indicatorSpanTimerName string
 	log                    *logrus.Logger
-	statsd                 *statsd.Client
+	traceClient            *trace.Client
 	spansProcessed         int64
 	metricsGenerated       int64
 }
@@ -34,22 +34,22 @@ type Processor interface {
 // NewMetricExtractionSink sets up and creates a span sink that
 // extracts metrics ("samples") from SSF spans and reports them to a
 // veneur's metrics workers.
-func NewMetricExtractionSink(mw []Processor, timerName string, statsd *statsd.Client, log *logrus.Logger) (sinks.SpanSink, error) {
+func NewMetricExtractionSink(mw []Processor, timerName string, cl *trace.Client, log *logrus.Logger) (sinks.SpanSink, error) {
 	return &metricExtractionSink{
 		workers:                mw,
 		indicatorSpanTimerName: timerName,
-		statsd:                 statsd,
+		traceClient:            cl,
 		log:                    log,
 	}, nil
 }
 
 // Name returns "metric_extraction".
-func (m metricExtractionSink) Name() string {
+func (m *metricExtractionSink) Name() string {
 	return "metric_extraction"
 }
 
 // Start is a no-op.
-func (m metricExtractionSink) Start(*trace.Client) error {
+func (m *metricExtractionSink) Start(*trace.Client) error {
 	return nil
 }
 
@@ -70,20 +70,27 @@ func (m *metricExtractionSink) sendSample(sample *ssf.SSFSample) error {
 
 // Ingest extracts metrics from an SSF span, and feeds them into the
 // appropriate metric sinks.
-func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
+func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
+	var metricsCount int
+	defer func() {
+		m.mutex.Lock()
+		defer m.mutex.Unlock()
+		m.metricsGenerated += int64(metricsCount)
+		m.spansProcessed++
+	}()
 	metrics, err := samplers.ConvertMetrics(span)
 	if err != nil {
 		if _, ok := err.(samplers.InvalidMetrics); ok {
 			m.log.WithError(err).
 				Warn("Could not parse metrics from SSF Message")
-			m.sendSample(ssf.Count("veneur.ssf.error_total", 1, map[string]string{
+			m.sendSample(ssf.Count("ssf.error_total", 1, map[string]string{
 				"packet_type": "ssf_metric",
 				"step":        "extract_metrics",
 				"reason":      "invalid_metrics",
 			}))
 		} else {
 			m.log.WithError(err).Error("Unexpected error extracting metrics from SSF Message")
-			m.sendSample(ssf.Count("veneur.ssf.error_total", 1, map[string]string{
+			m.sendSample(ssf.Count("ssf.error_total", 1, map[string]string{
 				"packet_type": "ssf_metric",
 				"step":        "extract_metrics",
 				"reason":      "unexpected_error",
@@ -92,13 +99,14 @@ func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 			return err
 		}
 	}
-	atomic.AddInt64(&m.spansProcessed, 1)
-	atomic.AddInt64(&m.metricsGenerated, int64(len(metrics)))
+	metricsCount += len(metrics)
 	m.sendMetrics(metrics)
 
 	if err := protocol.ValidateTrace(span); err != nil {
 		return err
 	}
+	// If we made it here, we are dealing with a fully-fledged
+	// trace span, not just a mere carrier for Samples:
 
 	indicatorMetrics, err := samplers.ConvertIndicatorMetrics(span, m.indicatorSpanTimerName)
 	if err != nil {
@@ -107,15 +115,29 @@ func (m metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 			Warn("Couldn't extract indicator metrics for span")
 		return err
 	}
-	m.sendMetrics(indicatorMetrics)
+	metricsCount += len(indicatorMetrics)
+
+	spanMetrics, err := samplers.ConvertSpanUniquenessMetrics(span, 0.1)
+	if err != nil {
+		m.log.WithError(err).
+			WithField("span_name", span.Name).
+			Warn("Couldn't extract uniqueness metrics for span")
+		return err
+	}
+	metricsCount += len(spanMetrics)
+
+	m.sendMetrics(append(indicatorMetrics, spanMetrics...))
 	return nil
 }
 
-func (m metricExtractionSink) Flush() {
-	m.statsd.Count(sinks.MetricKeyTotalSpansFlushed, atomic.LoadInt64(&m.spansProcessed), []string{fmt.Sprintf("sink:%s", m.Name())}, 1.0)
-	m.statsd.Count(sinks.MetricKeyTotalMetricsFlushed, atomic.LoadInt64(&m.metricsGenerated), []string{fmt.Sprintf("sink:%s", m.Name())}, 1.0)
-
-	atomic.SwapInt64(&m.spansProcessed, 0)
-	atomic.SwapInt64(&m.metricsGenerated, 0)
-	return
+func (m *metricExtractionSink) Flush() {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	tags := map[string]string{"sink": m.Name()}
+	metrics.ReportBatch(m.traceClient, []*ssf.SSFSample{
+		ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(m.spansProcessed), tags),
+		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(m.metricsGenerated), tags),
+	})
+	m.spansProcessed = 0
+	m.metricsGenerated = 0
 }

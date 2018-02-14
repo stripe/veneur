@@ -10,6 +10,7 @@ type ProxyConfig struct {
 	ForwardTimeout           string `yaml:"forward_timeout"`
 	HTTPAddress              string `yaml:"http_address"`
 	SentryDsn                string `yaml:"sentry_dsn"`
+	SsfDestinationAddress    string `yaml:"ssf_destination_address"`
 	StatsAddress             string `yaml:"stats_address"`
 	TraceAddress             string `yaml:"trace_address"`
 	TraceAPIAddress          string `yaml:"trace_api_address"`

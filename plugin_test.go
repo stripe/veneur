@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/sirupsen/logrus"
@@ -22,7 +21,6 @@ import (
 
 type dummyPlugin struct {
 	logger *logrus.Logger
-	statsd *statsd.Client
 	flush  func(context.Context, []samplers.InterMetric) error
 }
 
@@ -55,7 +53,7 @@ func TestGlobalServerPluginFlush(t *testing.T) {
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 
-	dp := &dummyPlugin{logger: log, statsd: f.server.Statsd}
+	dp := &dummyPlugin{logger: log}
 
 	dp.flush = func(ctx context.Context, metrics []samplers.InterMetric) error {
 		assert.Equal(t, len(expectedMetrics), len(metrics))

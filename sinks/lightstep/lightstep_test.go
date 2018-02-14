@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	opentracing "github.com/opentracing/opentracing-go"
 	otlog "github.com/opentracing/opentracing-go/log"
 	"github.com/sirupsen/logrus"
@@ -102,8 +101,7 @@ func (tls *testLSSpan) Log(data opentracing.LogData) {
 
 func TestLSSinkConstructor(t *testing.T) {
 
-	stats, _ := statsd.NewBuffered("localhost:1235", 1024)
-	_, err := NewLightStepSpanSink("http://example.com", "5m", 1000, 1, "secret", stats, map[string]string{"foo": "bar"}, logrus.New())
+	_, err := NewLightStepSpanSink("http://example.com", "5m", 1000, 1, "secret", map[string]string{"foo": "bar"}, logrus.New())
 	assert.NoError(t, err)
 }
 

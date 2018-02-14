@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	vhttp "github.com/stripe/veneur/http"
 	"github.com/stripe/veneur/protocol"
@@ -17,6 +16,7 @@ import (
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/metrics"
 )
 
 const datadogNameKey = "name"
@@ -32,7 +32,6 @@ type DatadogMetricSink struct {
 	DDHostname      string
 	hostname        string
 	flushMaxPerBody int
-	statsd          *statsd.Client
 	tags            []string
 	interval        float64
 	traceClient     *trace.Client
@@ -52,12 +51,11 @@ type DDMetric struct {
 }
 
 // NewDatadogMetricSink creates a new Datadog sink for trace spans.
-func NewDatadogMetricSink(interval float64, flushMaxPerBody int, hostname string, tags []string, ddHostname string, apiKey string, httpClient *http.Client, stats *statsd.Client, log *logrus.Logger) (*DatadogMetricSink, error) {
+func NewDatadogMetricSink(interval float64, flushMaxPerBody int, hostname string, tags []string, ddHostname string, apiKey string, httpClient *http.Client, log *logrus.Logger) (*DatadogMetricSink, error) {
 	return &DatadogMetricSink{
 		HTTPClient:      httpClient,
 		APIKey:          apiKey,
 		DDHostname:      ddHostname,
-		statsd:          stats,
 		interval:        interval,
 		flushMaxPerBody: flushMaxPerBody,
 		hostname:        hostname,
@@ -81,19 +79,19 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(dd.traceClient)
 
-	metrics := dd.finalizeMetrics(interMetrics)
+	ddmetrics := dd.finalizeMetrics(interMetrics)
 
 	// break the metrics into chunks of approximately equal size, such that
 	// each chunk is less than the limit
 	// we compute the chunks using rounding-up integer division
-	workers := ((len(metrics) - 1) / dd.flushMaxPerBody) + 1
-	chunkSize := ((len(metrics) - 1) / workers) + 1
+	workers := ((len(ddmetrics) - 1) / dd.flushMaxPerBody) + 1
+	chunkSize := ((len(ddmetrics) - 1) / workers) + 1
 	dd.log.WithField("workers", workers).Debug("Worker count chosen")
 	dd.log.WithField("chunkSize", chunkSize).Debug("Chunk size chosen")
 	var wg sync.WaitGroup
 	flushStart := time.Now()
 	for i := 0; i < workers; i++ {
-		chunk := metrics[i*chunkSize:]
+		chunk := ddmetrics[i*chunkSize:]
 		if i < workers-1 {
 			// trim to chunk size unless this is the last one
 			chunk = chunk[:chunkSize]
@@ -102,10 +100,12 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 		go dd.flushPart(span.Attach(ctx), chunk, &wg)
 	}
 	wg.Wait()
-	dd.statsd.TimeInMilliseconds(sinks.MetricKeyMetricFlushDuration, float64(time.Since(flushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", dd.Name())}, 1.0)
-	dd.statsd.Count(sinks.MetricKeyTotalMetricsFlushed, int64(len(metrics)), []string{fmt.Sprintf("sink:%s", dd.Name())}, 1.0)
-
-	dd.log.WithField("metrics", len(metrics)).Info("Completed flush to Datadog")
+	tags := map[string]string{"sink": dd.Name()}
+	span.Add(
+		ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags),
+		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(ddmetrics)), tags),
+	)
+	dd.log.WithField("metrics", len(ddmetrics)).Info("Completed flush to Datadog")
 	return nil
 }
 
@@ -132,7 +132,7 @@ func (dd *DatadogMetricSink) FlushEventsChecks(ctx context.Context, events []sam
 		// the official dd-agent
 		// we don't actually pass all the body keys that dd-agent passes here... but
 		// it still works
-		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.statsd, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/intake?api_key=%s", dd.DDHostname, dd.APIKey), map[string]map[string][]samplers.UDPEvent{
+		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/intake?api_key=%s", dd.DDHostname, dd.APIKey), map[string]map[string][]samplers.UDPEvent{
 			"events": {
 				"api": events,
 			},
@@ -150,7 +150,7 @@ func (dd *DatadogMetricSink) FlushEventsChecks(ctx context.Context, events []sam
 		// this endpoint is not documented to take an array... but it does
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
-		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.statsd, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/api/v1/check_run?api_key=%s", dd.DDHostname, dd.APIKey), checks, "flush_checks", false, dd.log)
+		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/api/v1/check_run?api_key=%s", dd.DDHostname, dd.APIKey), checks, "flush_checks", false, dd.log)
 		if err == nil {
 			dd.log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
 		} else {
@@ -224,7 +224,7 @@ func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []D
 
 func (dd *DatadogMetricSink) flushPart(ctx context.Context, metricSlice []DDMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
-	vhttp.PostHelper(ctx, dd.HTTPClient, dd.statsd, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.DDHostname, dd.APIKey), map[string][]DDMetric{
+	vhttp.PostHelper(ctx, dd.HTTPClient, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.DDHostname, dd.APIKey), map[string][]DDMetric{
 		"series": metricSlice,
 	}, "flush", true, dd.log)
 }
@@ -252,7 +252,6 @@ type DatadogSpanSink struct {
 	buffer       *ring.Ring
 	bufferSize   int
 	mutex        *sync.Mutex
-	stats        *statsd.Client
 	commonTags   map[string]string
 	traceAddress string
 	traceClient  *trace.Client
@@ -260,13 +259,12 @@ type DatadogSpanSink struct {
 }
 
 // NewDatadogSpanSink creates a new Datadog sink for trace spans.
-func NewDatadogSpanSink(address string, bufferSize int, stats *statsd.Client, httpClient *http.Client, commonTags map[string]string, log *logrus.Logger) (*DatadogSpanSink, error) {
+func NewDatadogSpanSink(address string, bufferSize int, httpClient *http.Client, commonTags map[string]string, log *logrus.Logger) (*DatadogSpanSink, error) {
 	return &DatadogSpanSink{
 		HTTPClient:   httpClient,
 		bufferSize:   bufferSize,
 		buffer:       ring.New(bufferSize),
 		mutex:        &sync.Mutex{},
-		stats:        stats,
 		commonTags:   commonTags,
 		traceAddress: address,
 		log:          log,
@@ -301,6 +299,8 @@ func (dd *DatadogSpanSink) Ingest(span *ssf.SSFSpan) error {
 // sync it means we'll be making an HTTP request to send them along. We assume
 // it's beneficial to performance to defer these until the normal 10s flush.
 func (dd *DatadogSpanSink) Flush() {
+	samples := &ssf.Samples{}
+	defer metrics.Report(dd.traceClient, samples)
 	dd.mutex.Lock()
 
 	flushStart := time.Now()
@@ -320,14 +320,16 @@ func (dd *DatadogSpanSink) Flush() {
 			}
 
 			var timeErr string
+
+			tags := map[string]string{} // TODO: tag as dd?
 			if ssfSpan.StartTimestamp < tooEarly {
-				timeErr = "type:tooEarly"
+				tags["type"] = "tooEarly"
 			}
 			if ssfSpan.StartTimestamp > tooLate {
-				timeErr = "type:tooLate"
+				tags["type"] = "tooLate"
 			}
 			if timeErr != "" {
-				dd.stats.Incr("worker.trace.sink.timestamp_error", []string{timeErr}, 1) // TODO tag as dd?
+				samples.Add(ssf.Count("worker.trace.sink.timestamp_error", 1, tags))
 			}
 
 			if ssfSpan.Tags == nil {
@@ -418,8 +420,7 @@ func (dd *DatadogSpanSink) Flush() {
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
 
-		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.stats, dd.traceClient, http.MethodPut, fmt.Sprintf("%s/v0.3/traces", dd.traceAddress), finalTraces, "flush_traces", false, dd.log)
-
+		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPut, fmt.Sprintf("%s/v0.3/traces", dd.traceAddress), finalTraces, "flush_traces", false, dd.log)
 		if err == nil {
 			dd.log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
 		} else {
@@ -428,9 +429,9 @@ func (dd *DatadogSpanSink) Flush() {
 				logrus.ErrorKey: err}).Warn("Error flushing traces to Datadog")
 		}
 		for service, count := range serviceCount {
-			dd.stats.Count(sinks.MetricKeyTotalSpansFlushed, count, []string{fmt.Sprintf("sink:%s", dd.Name()), fmt.Sprintf("service:%s", service)}, 1)
+			samples.Add(ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(count), map[string]string{"sink": dd.Name(), "service": service}))
 		}
-		dd.stats.TimeInMilliseconds(sinks.MetricKeySpanFlushDuration, float64(time.Since(flushStart).Nanoseconds()), []string{fmt.Sprintf("sink:%s", dd.Name())}, 1.0)
+		samples.Add(ssf.Timing(sinks.MetricKeySpanFlushDuration, time.Since(flushStart), time.Nanosecond, map[string]string{"sink": dd.Name()}))
 	} else {
 		dd.log.Info("No traces to flush to Datadog, skipping.")
 	}
