@@ -452,22 +452,30 @@
   name = "google.golang.org/grpc"
   packages = [
     ".",
+    "balancer",
+    "balancer/base",
+    "balancer/roundrobin",
     "codes",
+    "connectivity",
     "credentials",
-    "grpclb/grpc_lb_v1",
+    "encoding",
+    "grpclb/grpc_lb_v1/messages",
     "grpclog",
     "internal",
     "keepalive",
     "metadata",
     "naming",
     "peer",
+    "resolver",
+    "resolver/dns",
+    "resolver/passthrough",
     "stats",
     "status",
     "tap",
     "transport"
   ]
-  revision = "b8669c35455183da6d5c474ea6e72fbf55183274"
-  version = "v1.5.1"
+  revision = "6b51017f791ae1cfbec89c52efdf444b13b550ef"
+  version = "v1.9.2"
 
 [[projects]]
   name = "gopkg.in/inf.v0"
@@ -627,6 +635,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "661788763fd958e55f6fec7b0e41a931a0830523c6fd6eac36ceab8e9bea6abe"
+  inputs-digest = "4468b968eb1d8a59a55c631a69186ce76d9e0e354e5cc1c4c827108a1f716b67"
   solver-name = "gps-cdcl"
   solver-version = 1
