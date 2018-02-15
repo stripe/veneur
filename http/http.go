@@ -188,7 +188,10 @@ func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, 
 		// Log at Warn level instead of Error, because we don't want to create
 		// Sentry events for these (they're only important in large numbers, and
 		// we already have Datadog metrics for them)
-		innerLogger.WithError(err).Warn("Could not execute request")
+		innerLogger.WithError(err).WithFields(logrus.Fields{
+			"host": req.URL.Host,
+			"path": req.URL.Path,
+		}).Warn("Could not execute request")
 		return err
 	}
 	defer resp.Body.Close()

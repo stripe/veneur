@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 	"os"
+	"reflect"
 	"strconv"
 	"sync"
 	"syscall"
@@ -48,6 +49,7 @@ type Proxy struct {
 	ForwardTimeout         time.Duration
 
 	usingConsul     bool
+	usingKubernetes bool
 	enableProfiling bool
 	TraceClient     *trace.Client
 }
@@ -89,7 +91,22 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 
 	// We need a convenient way to know if we're even using Consul later
 	if p.ConsulForwardService != "" || p.ConsulTraceService != "" {
+		log.WithFields(logrus.Fields{
+			"consulForwardService": p.ConsulForwardService,
+			"consulTraceService":   p.ConsulTraceService,
+		}).Info("Using consul for service discovery")
 		p.usingConsul = true
+	}
+
+	// check if we are running on Kubernetes
+	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount"); !os.IsNotExist(err) {
+		log.Info("Using Kubernetes for service discovery")
+		p.usingKubernetes = true
+
+		//TODO don't overload this
+		if conf.ConsulForwardServiceName != "" {
+			p.AcceptingForwards = true
+		}
 	}
 
 	p.ForwardDestinations = consistent.New()
@@ -167,12 +184,24 @@ func (p *Proxy) Start() {
 	// Use the same HTTP Client we're using for other things, so we can leverage
 	// it for testing.
 	config.HttpClient = p.HTTPClient
-	disc, consulErr := NewConsul(config)
-	if consulErr != nil {
-		log.WithError(consulErr).Error("Error creating Consul discoverer")
-		return
+
+	if p.usingKubernetes {
+		disc, err := NewKubernetesDiscoverer()
+		if err != nil {
+			log.WithError(err).Error("Error creating KubernetesDiscoverer")
+			return
+		}
+		p.Discoverer = disc
+		log.Info("Set Kubernetes discoverer")
+	} else if p.usingConsul {
+		disc, consulErr := NewConsul(config)
+		if consulErr != nil {
+			log.WithError(consulErr).Error("Error creating Consul discoverer")
+			return
+		}
+		p.Discoverer = disc
+		log.Info("Set Consul discoverer")
 	}
-	p.Discoverer = disc
 
 	if p.AcceptingForwards && p.ConsulForwardService != "" {
 		p.RefreshDestinations(p.ConsulForwardService, p.ForwardDestinations, &p.ForwardDestinationsMtx)
@@ -188,13 +217,19 @@ func (p *Proxy) Start() {
 		}
 	}
 
-	if p.usingConsul {
+	if p.usingConsul || p.usingKubernetes {
+		log.Info("Creating service discovery goroutine")
 		go func() {
 			defer func() {
 				ConsumePanic(p.Sentry, p.TraceClient, p.Hostname, recover())
 			}()
 			ticker := time.NewTicker(p.ConsulInterval)
 			for range ticker.C {
+				log.WithFields(logrus.Fields{
+					"acceptingForwards":    p.AcceptingForwards,
+					"consulForwardService": p.ConsulForwardService,
+					"consulTraceService":   p.ConsulTraceService,
+				}).Debug("About to refresh destinations")
 				if p.AcceptingForwards && p.ConsulForwardService != "" {
 					p.RefreshDestinations(p.ConsulForwardService, p.ForwardDestinations, &p.ForwardDestinationsMtx)
 				}
@@ -262,8 +297,18 @@ func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consist
 	start := time.Now()
 	destinations, err := p.Discoverer.GetDestinationsForService(serviceName)
 	samples.Add(ssf.Timing("discoverer.update_duration_ns", time.Since(start), time.Nanosecond, srvTags))
+	log.WithFields(logrus.Fields{
+		"destinations": destinations,
+		"service":      serviceName,
+	}).Debug("Got destinations")
+
+	samples.Add(ssf.Timing("discoverer.update_duration_ns", time.Since(start), time.Nanosecond, srvTags))
 	if err != nil || len(destinations) == 0 {
-		log.WithError(err).WithField("service", serviceName).Error("Discoverer returned an error, destinations may be stale!")
+		log.WithError(err).WithFields(logrus.Fields{
+			"service":         serviceName,
+			"errorType":       reflect.TypeOf(err),
+			"numDestinations": len(destinations),
+		}).Error("Discoverer found zero destinations and/or returned an error. Destinations may be stale!")
 		samples.Add(ssf.Count("discoverer.errors", 1, srvTags))
 		// Return since we got no hosts. We don't want to zero out the list. This
 		// should result in us leaving the "last good" values in the ring.
@@ -377,6 +422,7 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 	}
 	wg.Wait() // Wait for all the above goroutines to complete
 	span.Add(ssf.Timing("proxy.duration_ns", time.Since(span.Start), time.Nanosecond, nil))
+	span.Add(ssf.Count("proxy.proxied_metrics_total", float32(len(jsonMetrics)), nil))
 }
 
 func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination string, batch []samplers.JSONMetric) {
@@ -390,12 +436,16 @@ func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination stri
 		return
 	}
 
-	err := vhttp.PostHelper(ctx, p.HTTPClient, p.TraceClient, http.MethodPost, fmt.Sprintf("%s/import", destination), batch, "forward", true, log)
+	endpoint := fmt.Sprintf("%s/import", destination)
+	err := vhttp.PostHelper(ctx, p.HTTPClient, p.TraceClient, http.MethodPost, endpoint, batch, "forward", true, log)
 	if err == nil {
-		log.WithField("metrics", batchSize).Debug("Completed forward to upstream Veneur")
+		log.WithField("metrics", batchSize).Info("Completed forward to upstream Veneur")
 	} else {
 		samples.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "post"}))
-		log.WithError(err).Warn("Failed to POST metrics to destination")
+		log.WithError(err).WithFields(logrus.Fields{
+			"endpoint":  endpoint,
+			"batchSize": batchSize,
+		}).Warn("Failed to POST metrics to destination")
 	}
 	samples.Add(ssf.Gauge("metrics_by_destination", float32(batchSize), map[string]string{"destination": destination}))
 }

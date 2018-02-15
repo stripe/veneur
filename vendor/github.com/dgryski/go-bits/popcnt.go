@@ -1,4 +1,4 @@
-// +build gccgo !amd64 appengine popcntgo
+// +build !amd64 appengine popcntgo
 
 package bits
 
