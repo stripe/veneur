@@ -7,6 +7,8 @@ import (
 	"net"
 	"time"
 
+	"sync/atomic"
+
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/ssf"
 )
@@ -38,6 +40,9 @@ type Client struct {
 	cancel  context.CancelFunc
 	flush   func(context.Context)
 	ops     chan op
+
+	failedFlushes int64
+	failedRecords int64
 }
 
 // Close tears down the entire client. It waits until the backend has
@@ -303,6 +308,7 @@ func Record(cl *Client, span *ssf.SSFSpan, done chan<- error) error {
 		return nil
 	default:
 	}
+	atomic.AddInt64(&cl.failedRecords, 1)
 	return ErrWouldBlock
 }
 
@@ -345,5 +351,6 @@ func FlushAsync(cl *Client, ch chan<- error) error {
 		return nil
 	default:
 	}
+	atomic.AddInt64(&cl.failedFlushes, 1)
 	return ErrWouldBlock
 }
