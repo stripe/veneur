@@ -100,7 +100,7 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 
 	// check if we are running on Kubernetes
 	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount"); !os.IsNotExist(err) {
-		log.Info("Using Kubernetes")
+		log.Info("Using Kubernetes for service discovery")
 		p.usingKubernetes = true
 
 		//TODO don't overload this
@@ -218,7 +218,7 @@ func (p *Proxy) Start() {
 	}
 
 	if p.usingConsul || p.usingKubernetes {
-		log.Info("Creating update goroutine")
+		log.Info("Creating service discovery goroutine")
 		go func() {
 			defer func() {
 				ConsumePanic(p.Sentry, p.TraceClient, p.Hostname, recover())

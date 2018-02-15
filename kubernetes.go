@@ -52,6 +52,7 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 				for _, port := range container.Ports {
 					if port.Name == "http" {
 						forwardPort = strconv.Itoa(int(port.ContainerPort))
+						log.WithField("port", forwardPort).Debug("Found http port")
 						break
 					}
 
