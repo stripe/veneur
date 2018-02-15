@@ -517,16 +517,20 @@ func TestGlobalOnlyEscape(t *testing.T) {
 func TestEvents(t *testing.T) {
 	evt, err := samplers.ParseEvent([]byte("_e{3,3}:foo|bar|k:foos|s:test|t:success|p:low|#foo:bar,baz:qux|d:1136239445|h:example.com"))
 	assert.NoError(t, err, "should have parsed correctly")
-	assert.EqualValues(t, &samplers.UDPEvent{
-		Title:       "foo",
-		Text:        "bar",
-		Timestamp:   1136239445,
-		Aggregation: "foos",
-		Source:      "test",
-		AlertLevel:  "success",
-		Priority:    "low",
-		Tags:        []string{"foo:bar", "baz:qux"},
-		Hostname:    "example.com",
+	assert.EqualValues(t, &ssf.SSFSample{
+		Name:      "foo",
+		Message:   "bar",
+		Timestamp: 1136239445,
+		Tags: map[string]string{
+			samplers.DogStatsDEventIdentifierKey:        "",
+			samplers.DogStatsDEventAggregationKeyTagKey: "foos",
+			samplers.DogStatsDEventSourceTypeTagKey:     "test",
+			samplers.DogStatsDEventAlertTypeTagKey:      "success",
+			samplers.DogStatsDEventPriorityTagKey:       "low",
+			samplers.DogStatsDEventHostnameTagKey:       "example.com",
+			"foo": "bar",
+			"baz": "qux",
+		},
 	}, evt, "should have parsed event")
 
 	table := map[string]string{
@@ -551,11 +555,14 @@ func TestEvents(t *testing.T) {
 func TestServiceChecks(t *testing.T) {
 	evt, err := samplers.ParseServiceCheck([]byte("_sc|foo.bar|0|d:1136239445|h:example.com"))
 	assert.NoError(t, err, "should have parsed correctly")
-	assert.EqualValues(t, &samplers.UDPServiceCheck{
+	assert.EqualValues(t, &ssf.SSFSample{
 		Name:      "foo.bar",
-		Status:    0,
+		Status:    ssf.SSFSample_OK,
 		Timestamp: 1136239445,
-		Hostname:  "example.com",
+		Tags: map[string]string{
+			samplers.DogStatsDCheckIdentifierKey:  "",
+			samplers.DogStatsDCheckHostnameTagKey: "example.com",
+		},
 	}, evt, "should have parsed event")
 
 	table := map[string]string{
@@ -576,7 +583,7 @@ func TestEventMessageUnescape(t *testing.T) {
 	packet := []byte("_e{3,15}:foo|foo\\nbar\\nbaz\\n")
 	evt, err := samplers.ParseEvent(packet)
 	assert.NoError(t, err, "Should have parsed correctly")
-	assert.Equal(t, "foo\nbar\nbaz\n", evt.Text, "Should contain newline")
+	assert.Equal(t, "foo\nbar\nbaz\n", evt.Message, "Should contain newline")
 }
 
 func TestServiceCheckMessageUnescape(t *testing.T) {
@@ -622,6 +629,14 @@ func TestConsecutiveParseSSF(t *testing.T) {
 
 	assert.Equal(t, int64(12345679), span2.Id)
 	assert.Equal(t, "", span2.Tags["foo"], "Tagless span has tags!")
+}
+
+func TestTagSliceToMap(t *testing.T) {
+	tags := []string{"foo:bar", "baz:gorch", "blerg"}
+	mappedTags := samplers.ParseTagSliceToMap(tags)
+	assert.Equal(t, "bar", mappedTags["foo"])
+	assert.Equal(t, "gorch", mappedTags["baz"])
+	assert.Equal(t, "", mappedTags["blerg"])
 }
 
 func BenchmarkParseSSF(b *testing.B) {

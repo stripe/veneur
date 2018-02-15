@@ -33,7 +33,7 @@ func (b *blackholeMetricSink) Flush(context.Context, []samplers.InterMetric) err
 	return nil
 }
 
-func (b *blackholeMetricSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
+func (b *blackholeMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
 	return
 }
 

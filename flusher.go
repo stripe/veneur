@@ -33,13 +33,12 @@ func (s *Server) Flush(ctx context.Context) {
 	)
 
 	// TODO Why is this not in the worker the way the trace worker is set up?
-	events, checks := s.EventWorker.Flush()
-	span.Add(ssf.Count("worker.events_flushed_total", float32(len(events)), nil),
-		ssf.Count("worker.checks_flushed_total", float32(len(checks)), nil))
+	samples := s.EventWorker.Flush()
+	span.Add(ssf.Count("worker.other_samples_flushed_total", float32(len(samples)), nil))
 
 	// TODO Concurrency
 	for _, sink := range s.metricSinks {
-		sink.FlushEventsChecks(span.Attach(ctx), events, checks)
+		sink.FlushOtherSamples(span.Attach(ctx), samples)
 	}
 
 	go s.flushTraces(span.Attach(ctx))

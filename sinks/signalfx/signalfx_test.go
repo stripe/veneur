@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/ssf"
 )
 
 type FakeSink struct {
@@ -181,16 +182,16 @@ func TestSignalFxEventFlush(t *testing.T) {
 	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
 	assert.NoError(t, err)
 
-	ev := samplers.UDPEvent{
-		Title:     "Farts farts farts",
+	ev := ssf.SSFSample{
+		Name:      "Farts farts farts",
 		Timestamp: time.Now().Unix(),
-		Tags:      []string{"foo:bar", "baz:gorch", "novalue"},
+		Tags:      map[string]string{"foo": "bar", "baz": "gorch", "novalue": "", samplers.DogStatsDEventIdentifierKey: ""},
 	}
-	sink.FlushEventsChecks(context.TODO(), []samplers.UDPEvent{ev}, nil)
+	sink.FlushOtherSamples(context.TODO(), []ssf.SSFSample{ev})
 
 	assert.Equal(t, 1, len(fakeSink.events))
 	event := fakeSink.events[0]
-	assert.Equal(t, ev.Title, event.EventType)
+	assert.Equal(t, ev.Name, event.EventType)
 	dims := event.Dimensions
 	assert.Equal(t, 5, len(dims), "Event has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Event has a busted tag")

@@ -33,8 +33,8 @@ type MetricSink interface {
 	// must also check each metric with IsAcceptableMetric to
 	// verify they are eligible to consume the metric.
 	Flush(context.Context, []samplers.InterMetric) error
-	// This one is temporary?
-	FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck)
+	// Handle non-metric, non-span samples.
+	FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample)
 }
 
 // IsAcceptableMetric returns true if a metric is meant to be ingested

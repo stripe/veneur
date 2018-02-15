@@ -192,7 +192,7 @@ func (c *channelMetricSink) Flush(ctx context.Context, metrics []samplers.InterM
 	return nil
 }
 
-func (c *channelMetricSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
+func (c *channelMetricSink) FlushOtherSamples(ctx context.Context, events []ssf.SSFSample) {
 	return
 }
 
