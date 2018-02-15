@@ -41,8 +41,10 @@ type Client struct {
 	flush   func(context.Context)
 	ops     chan op
 
-	failedFlushes int64
-	failedRecords int64
+	failedFlushes     int64
+	successfulFlushes int64
+	failedRecords     int64
+	successfulRecords int64
 }
 
 // Close tears down the entire client. It waits until the backend has
@@ -305,6 +307,7 @@ func Record(cl *Client, span *ssf.SSFSpan, done chan<- error) error {
 	}
 	select {
 	case cl.ops <- op:
+		atomic.AddInt64(&cl.successfulRecords, 1)
 		return nil
 	default:
 	}
@@ -348,6 +351,7 @@ func FlushAsync(cl *Client, ch chan<- error) error {
 	}
 	select {
 	case cl.ops <- op:
+		atomic.AddInt64(&cl.successfulFlushes, 1)
 		return nil
 	default:
 	}
