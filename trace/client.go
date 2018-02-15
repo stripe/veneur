@@ -9,6 +9,7 @@ import (
 
 	"sync/atomic"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/ssf"
 )
@@ -286,6 +287,17 @@ var ErrNoClient = errors.New("client is not initialized")
 // ErrWouldBlock indicates that a client is not able to send a span at
 // the current time.
 var ErrWouldBlock = errors.New("sending span would block")
+
+// SendClientStatistics uses the client's recorded backpressure
+// statistics (failed/successful flushes, failed/successful records)
+// and reports them with the given statsd client, and resets the
+// statistics to zero again.
+func SendClientStatistics(cl *Client, stats *statsd.Client, tags []string) {
+	stats.Count("trace_client.flushes_failed_total", atomic.SwapInt64(&cl.failedFlushes, 0), tags, 1.0)
+	stats.Count("trace_client.flushes_succeeded_total", atomic.SwapInt64(&cl.successfulFlushes, 0), tags, 1.0)
+	stats.Count("trace_client.records_failed_total", atomic.SwapInt64(&cl.failedRecords, 0), tags, 1.0)
+	stats.Count("trace_client.records_succeeded_total", atomic.SwapInt64(&cl.successfulRecords, 0), tags, 1.0)
+}
 
 // Record instructs the client to serialize and send a span. It does
 // not wait for a delivery attempt, instead the Client will send the
