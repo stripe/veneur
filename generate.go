@@ -1,5 +1,6 @@
 package veneur
 
+//go:generate protoc --gofast_out=plugins=grpc:. sinks/grpc/grpc_sink.proto
 //go:generate protoc --gofast_out=. ssf/sample.proto
 //go:generate gojson -input example.yaml -o config.go -fmt yaml -pkg veneur -name Config
 //go:generate gojson -input example_proxy.yaml -o config_proxy.go -fmt yaml -pkg veneur -name ProxyConfig
