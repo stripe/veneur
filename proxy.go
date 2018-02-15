@@ -8,12 +8,14 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"golang.org/x/net/context"
 
+	"github.com/DataDog/datadog-go/statsd"
 	raven "github.com/getsentry/raven-go"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/profile"
@@ -152,9 +154,20 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 
 	p.TraceClient = trace.DefaultClient
 	if conf.SsfDestinationAddress != "" {
+		stats, err := statsd.NewBuffered(conf.StatsAddress, 4096)
+		if err != nil {
+			return p, err
+		}
+		stats.Namespace = "veneur_proxy."
+		format := "ssf_format:packet"
+		if strings.HasPrefix(conf.SsfDestinationAddress, "unix://") {
+			format = "ssf_format:framed"
+		}
+
 		p.TraceClient, err = trace.NewClient(conf.SsfDestinationAddress,
 			trace.Buffered,
 			trace.FlushInterval(3*time.Second),
+			trace.ReportStatistics(stats, 1*time.Second, []string{format}),
 		)
 		if err != nil {
 			logger.WithField("ssf_destination_address", conf.SsfDestinationAddress).
