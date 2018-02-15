@@ -77,13 +77,30 @@ func TestHostname(t *testing.T) {
 	assert.Nil(t, err, "Should parsed valid config file: %s", noHostname)
 	currentHost, err := os.Hostname()
 	assert.Nil(t, err, "Could not get current hostname")
+	c.applyDefaults()
 	assert.Equal(t, c.Hostname, currentHost, "Should have used current hostname in Config")
 
 	const omitHostname = "omit_empty_hostname: true"
 	r = strings.NewReader(omitHostname)
 	c, err = readConfig(r)
 	assert.Nil(t, err, "Should parsed valid config file: %s", omitHostname)
+	c.applyDefaults()
 	assert.Equal(t, c.Hostname, "", "Should have respected omit_empty_hostname")
+}
+
+func TestConfigDefaults(t *testing.T) {
+	const emptyConfig = "---"
+	r := strings.NewReader(emptyConfig)
+	c, err := readConfig(r)
+	assert.Nil(t, err, "Should parsed empty config file: %s", emptyConfig)
+
+	expectedConfig := defaultConfig
+	currentHost, err := os.Hostname()
+	assert.Nil(t, err, "Could not get current hostname")
+	expectedConfig.Hostname = currentHost
+
+	c.applyDefaults()
+	assert.Equal(t, c, expectedConfig, "Should have applied all config defaults")
 }
 
 func TestVeneurExamples(t *testing.T) {
