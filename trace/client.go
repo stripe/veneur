@@ -7,6 +7,9 @@ import (
 	"net"
 	"time"
 
+	"sync/atomic"
+
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/ssf"
 )
@@ -37,7 +40,13 @@ type Client struct {
 	cap     uint
 	cancel  context.CancelFunc
 	flush   func(context.Context)
+	report  func(context.Context)
 	ops     chan op
+
+	failedFlushes     int64
+	successfulFlushes int64
+	failedRecords     int64
+	successfulRecords int64
 }
 
 // Close tears down the entire client. It waits until the backend has
@@ -56,6 +65,9 @@ func (c *Client) Close() error {
 func (c *Client) run(ctx context.Context) {
 	if c.flush != nil {
 		go c.flush(ctx)
+	}
+	if c.report != nil {
+		go c.report(ctx)
 	}
 	for {
 		do, ok := <-c.ops
@@ -200,6 +212,27 @@ func ConnectTimeout(t time.Duration) ClientParam {
 	}
 }
 
+// ReportStatistics sets up a goroutine that periodically (at
+// interval) sends statistics about backpressure experienced on the
+// client to a statsd server.
+func ReportStatistics(stats *statsd.Client, interval time.Duration, tags []string) ClientParam {
+	return func(cl *Client) error {
+		ticker := time.NewTicker(interval)
+		cl.report = func(ctx context.Context) {
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					SendClientStatistics(cl, stats, tags)
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+		return nil
+	}
+}
+
 // NewClient constructs a new client that will attempt to connect
 // to addrStr (an address in veneur URL format) using the parameters
 // in opts. It returns the constructed client or an error.
@@ -280,6 +313,17 @@ var ErrNoClient = errors.New("client is not initialized")
 // the current time.
 var ErrWouldBlock = errors.New("sending span would block")
 
+// SendClientStatistics uses the client's recorded backpressure
+// statistics (failed/successful flushes, failed/successful records)
+// and reports them with the given statsd client, and resets the
+// statistics to zero again.
+func SendClientStatistics(cl *Client, stats *statsd.Client, tags []string) {
+	stats.Count("trace_client.flushes_failed_total", atomic.SwapInt64(&cl.failedFlushes, 0), tags, 1.0)
+	stats.Count("trace_client.flushes_succeeded_total", atomic.SwapInt64(&cl.successfulFlushes, 0), tags, 1.0)
+	stats.Count("trace_client.records_failed_total", atomic.SwapInt64(&cl.failedRecords, 0), tags, 1.0)
+	stats.Count("trace_client.records_succeeded_total", atomic.SwapInt64(&cl.successfulRecords, 0), tags, 1.0)
+}
+
 // Record instructs the client to serialize and send a span. It does
 // not wait for a delivery attempt, instead the Client will send the
 // result from serializing and submitting the span to the channel
@@ -300,9 +344,11 @@ func Record(cl *Client, span *ssf.SSFSpan, done chan<- error) error {
 	}
 	select {
 	case cl.ops <- op:
+		atomic.AddInt64(&cl.successfulRecords, 1)
 		return nil
 	default:
 	}
+	atomic.AddInt64(&cl.failedRecords, 1)
 	return ErrWouldBlock
 }
 
@@ -342,8 +388,10 @@ func FlushAsync(cl *Client, ch chan<- error) error {
 	}
 	select {
 	case cl.ops <- op:
+		atomic.AddInt64(&cl.successfulFlushes, 1)
 		return nil
 	default:
 	}
+	atomic.AddInt64(&cl.failedFlushes, 1)
 	return ErrWouldBlock
 }

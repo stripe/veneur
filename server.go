@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -168,8 +169,17 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		Transport: transport,
 	}
 
+	stats, err := statsd.NewBuffered(conf.StatsAddress, 4096)
+	if err != nil {
+		return ret, err
+	}
+	stats.Namespace = "veneur."
+
 	ret.traceBackend = &internalTraceBackend{}
-	ret.TraceClient, err = trace.NewBackendClient(ret.traceBackend, trace.Capacity(200))
+	ret.TraceClient, err = trace.NewBackendClient(ret.traceBackend,
+		trace.Capacity(200),
+		trace.ReportStatistics(stats, 1*time.Second, []string{"ssf_format:internal"}),
+	)
 	if err != nil {
 		return ret, err
 	}
