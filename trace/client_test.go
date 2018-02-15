@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/protocol"
@@ -445,4 +446,82 @@ func TestInternalBackend(t *testing.T) {
 		assert.NoError(t, <-sent)
 	}
 	assert.NoError(t, cl.Close())
+}
+
+type successTestBackend struct {
+	t     *testing.T
+	block chan func()
+}
+
+func (tb *successTestBackend) Close() error {
+	// no-op
+	return nil
+}
+
+func (tb *successTestBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
+	tb.t.Logf("Sending span")
+	select {
+	case fun := <-tb.block:
+		fun()
+	default:
+	}
+	return nil
+}
+
+func (tb *successTestBackend) FlushSync(ctx context.Context) error {
+	tb.t.Logf("flushing")
+	select {
+	case fun := <-tb.block:
+		fun()
+	default:
+	}
+	return nil
+}
+
+func TestDropStatistics(t *testing.T) {
+	blockNext := make(chan func(), 1)
+	tb := successTestBackend{t, blockNext}
+
+	// Make a client that blocks if nothing listens:
+	cl, err := NewBackendClient(&tb, Capacity(0))
+	require.NoError(t, err)
+
+	somespan := func() error {
+		tr := StartTrace("hi there")
+		return tr.ClientRecord(cl, "hi there", map[string]string{})
+	}
+
+	for err = Flush(cl); err != nil; err = Flush(cl) {
+		// Wait until the client is ready (this can take a few
+		// cycles, as the goroutine to read ops must spin up)
+	}
+	// reset client stats:
+	stats, err := statsd.NewBuffered("127.0.0.1:8200", 4096)
+	require.NoError(t, err)
+	SendClientStatistics(cl, stats, nil)
+
+	// Actually test the client:
+	err = Flush(cl)
+	assert.NoError(t, err, "Flushing an empty client should succeed")
+	assert.Equal(t, int64(1), cl.successfulFlushes, "successful flushes")
+
+	done := make(chan struct{})
+	blockNext <- func() {
+		<-done
+	}
+	err = somespan()
+	assert.NoError(t, err, "Sending an expected metric should succeed")
+	assert.Equal(t, int64(1), cl.successfulRecords, "successful records")
+
+	err = somespan()
+	assert.Error(t, err)
+	assert.Equal(t, ErrWouldBlock, err, "Expected to report a blocked channel")
+	assert.Equal(t, int64(1), cl.failedRecords, "failed records")
+
+	err = Flush(cl)
+	assert.Error(t, err)
+	assert.Equal(t, ErrWouldBlock, err, "Expected to report a blocked channel")
+	assert.Equal(t, int64(1), cl.failedFlushes, "failed flushes")
+	close(done)
+	close(blockNext)
 }
