@@ -17,6 +17,8 @@
 
 ## Bugfixes
 * LightStep sink was hardcoded to use plaintext, now adjusts based on URL scheme (http versus https). Thanks [gphat](https://github.com/gphat)!
+* The Datadog sink will no longer panic if `flush_max_per_body` is not configured; a default is used instead. Thanks [silverlyra](https://github.com/silverlyra)!
+* The statsd source will no longer reject all packets if `metric_max_length` is not configured; a default is used instead. Thanks [silverlyra](https://github.com/silverlyra)!
 
 ## Added
 * `veneur-emit` now infers parent and trace IDs from the environment (using the variables `VENEUR_EMIT_TRACE_ID` and `VENEUR_EMIT_PARENT_SPAN_ID`) and sets these environment variables from its `-trace_id` and `parent_span_id` when timing commands, allowing for convenient construction of trace trees if traced programs call `veneur-emit` themselves. Thanks, [antifuchs](https://github.com/antifuchs)

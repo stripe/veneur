@@ -11,7 +11,13 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const defaultBufferSizeBytes = 1048576 * 2 // 2 MB
+var defaultConfig = Config{
+	Aggregates:          []string{"min", "max", "count"},
+	FlushMaxPerBody:     25000,
+	Interval:            "10s",
+	MetricMaxLength:     4096,
+	ReadBufferSizeBytes: 1048576 * 2, // 2 MiB
+}
 
 // ReadProxyConfig unmarshals the proxy config file and slurps in its data.
 func ReadProxyConfig(path string) (c ProxyConfig, err error) {
@@ -64,7 +70,10 @@ func ReadConfig(path string) (c Config, err error) {
 		return c, err
 	}
 	defer f.Close()
-	return readConfig(f)
+
+	c, err = readConfig(f)
+	c.applyDefaults()
+	return
 }
 
 func unmarshalSemiStrictly(bts []byte, into interface{}) error {
@@ -102,16 +111,29 @@ func readConfig(r io.Reader) (Config, error) {
 		return c, err
 	}
 
+	// pass back an error about any unknown fields:
+	return c, unmarshalErr
+}
+
+func (c *Config) applyDefaults() {
+	if len(c.Aggregates) == 0 {
+		c.Aggregates = defaultConfig.Aggregates
+	}
+	if c.FlushMaxPerBody == 0 {
+		c.FlushMaxPerBody = defaultConfig.FlushMaxPerBody
+	}
 	if c.Hostname == "" && !c.OmitEmptyHostname {
 		c.Hostname, _ = os.Hostname()
 	}
-
-	if c.ReadBufferSizeBytes == 0 {
-		c.ReadBufferSizeBytes = defaultBufferSizeBytes
+	if c.Interval == "" {
+		c.Interval = defaultConfig.Interval
 	}
-
-	// pass back an error about any unknown fields:
-	return c, unmarshalErr
+	if c.MetricMaxLength == 0 {
+		c.MetricMaxLength = defaultConfig.MetricMaxLength
+	}
+	if c.ReadBufferSizeBytes == 0 {
+		c.ReadBufferSizeBytes = defaultConfig.ReadBufferSizeBytes
+	}
 }
 
 // ParseInterval handles parsing the flush interval as a time.Duration

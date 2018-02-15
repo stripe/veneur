@@ -146,19 +146,14 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 	ret.TagsAsMap = mappedTags
 	ret.HistogramPercentiles = conf.Percentiles
-	if len(conf.Aggregates) == 0 {
-		ret.HistogramAggregates.Value = samplers.AggregateMin + samplers.AggregateMax + samplers.AggregateCount
-		ret.HistogramAggregates.Count = 3
-	} else {
-		ret.HistogramAggregates.Value = 0
-		for _, agg := range conf.Aggregates {
-			ret.HistogramAggregates.Value += samplers.AggregatesLookup[agg]
-		}
-		ret.HistogramAggregates.Count = len(conf.Aggregates)
+	ret.HistogramAggregates.Value = 0
+	for _, agg := range conf.Aggregates {
+		ret.HistogramAggregates.Value += samplers.AggregatesLookup[agg]
 	}
+	ret.HistogramAggregates.Count = len(conf.Aggregates)
 
 	var err error
-	ret.interval, err = time.ParseDuration(conf.Interval)
+	ret.interval, err = conf.ParseInterval()
 	if err != nil {
 		return ret, err
 	}
