@@ -144,7 +144,7 @@ func unmarshalMetricsFromHTTP(ctx context.Context, client *trace.Client, w http.
 			span.Error(err)
 			encLogger.WithError(err).Error("Could not read compressed request body")
 			span.Add(ssf.Count("import.request_error_total", 1, map[string]string{"cause": "deflate"}))
-			return nil, nil, err
+			return span, nil, err
 		}
 		defer body.Close()
 	default:
@@ -152,7 +152,7 @@ func unmarshalMetricsFromHTTP(ctx context.Context, client *trace.Client, w http.
 		span.Error(errors.New("Could not determine content-encoding of request"))
 		encLogger.Error("Could not determine content-encoding of request")
 		span.Add(ssf.Count("import.request_error_total", 1, map[string]string{"cause": "unknown_content_encoding"}))
-		return nil, nil, err
+		return span, nil, err
 	}
 
 	if err = json.NewDecoder(body).Decode(&jsonMetrics); err != nil {
@@ -160,7 +160,7 @@ func unmarshalMetricsFromHTTP(ctx context.Context, client *trace.Client, w http.
 		span.Error(err)
 		innerLogger.WithError(err).Error("Could not decode /import request")
 		span.Add(ssf.Count("import.request_error_total", 1, map[string]string{"cause": "json"}))
-		return nil, nil, err
+		return span, nil, err
 	}
 
 	if len(jsonMetrics) == 0 {
@@ -168,7 +168,7 @@ func unmarshalMetricsFromHTTP(ctx context.Context, client *trace.Client, w http.
 		http.Error(w, msg, http.StatusBadRequest)
 		span.Error(errors.New(msg))
 		innerLogger.WithError(err).Error(msg)
-		return nil, nil, err
+		return span, nil, err
 	}
 
 	// We want to make sure we have at least one entry
