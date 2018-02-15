@@ -40,6 +40,7 @@ type Client struct {
 	cap     uint
 	cancel  context.CancelFunc
 	flush   func(context.Context)
+	report  func(context.Context)
 	ops     chan op
 
 	failedFlushes     int64
@@ -64,6 +65,9 @@ func (c *Client) Close() error {
 func (c *Client) run(ctx context.Context) {
 	if c.flush != nil {
 		go c.flush(ctx)
+	}
+	if c.report != nil {
+		go c.report(ctx)
 	}
 	for {
 		do, ok := <-c.ops
@@ -205,6 +209,27 @@ func ConnectTimeout(t time.Duration) ClientParam {
 			return nil
 		}
 		return ErrClientNotNetworked
+	}
+}
+
+// ReportStatistics sets up a goroutine that periodically (at
+// interval) sends statistics about backpressure experienced on the
+// client to a statsd server.
+func ReportStatistics(stats *statsd.Client, interval time.Duration, tags []string) ClientParam {
+	return func(cl *Client) error {
+		ticker := time.NewTicker(interval)
+		cl.report = func(ctx context.Context) {
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					SendClientStatistics(cl, stats, tags)
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+		return nil
 	}
 }
 
