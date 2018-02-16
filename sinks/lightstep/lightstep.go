@@ -105,6 +105,7 @@ func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans
 	return &LightStepSpanSink{
 		tracers:      tracers,
 		serviceCount: make(map[string]int64),
+		commonTags:   commonTags,
 		mutex:        &sync.Mutex{},
 		log:          log,
 	}, nil
