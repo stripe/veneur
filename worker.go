@@ -254,6 +254,8 @@ func (w *Worker) ImportMetric(other samplers.JSONMetric) {
 	if other.Scope == samplers.LocalOnly {
 		log.Error("Local metrics cannot be imported")
 		return
+	} else if other.Type == counterTypeName || other.Type == gaugeTypeName {
+		other.Scope = samplers.GlobalOnly
 	}
 
 	w.imported++
