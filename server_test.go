@@ -1199,6 +1199,25 @@ func TestInternalSSFMetricsEndToEnd(t *testing.T) {
 	assert.Equal(t, 2, n, "Should have gotten the right number of metrics")
 }
 
+// scopedMetric is used in tests that check the forwarding and flushing
+// behavior of histograms
+type scopedMetric struct {
+	name  string
+	mType string
+	scope samplers.MetricScope
+}
+
+// multipleHistoMetrics are fixtures used in tests for the forwarding and
+// flushing functionality of histograms
+var multipleHistoMetrics = []scopedMetric{
+	scopedMetric{"histogram.mixed.scope", histogramTypeName, samplers.MixedScope},
+	scopedMetric{"histogram.global.scope", histogramTypeName, samplers.GlobalOnly},
+	scopedMetric{"histogram.local.scope", histogramTypeName, samplers.LocalOnly},
+	scopedMetric{"timer.mixed.scope", timerTypeName, samplers.MixedScope},
+	scopedMetric{"timer.global.scope", timerTypeName, samplers.GlobalOnly},
+	scopedMetric{"timer.local.scope", timerTypeName, samplers.LocalOnly},
+}
+
 // Test all of the different histogram forwarding scope, when submitted to
 // a local Veneur.
 func TestHistogramsMultipleScopesLocal(t *testing.T) {
@@ -1219,23 +1238,12 @@ func TestHistogramsMultipleScopesLocal(t *testing.T) {
 	defer local.Close()
 
 	metricValues, _ := generateMetrics()
-
-	type scopedMetric struct {
-		name  string
-		scope samplers.MetricScope
-	}
-	metrics := []scopedMetric{
-		scopedMetric{"mixed.scope", samplers.MixedScope},
-		scopedMetric{"global.scope", samplers.GlobalOnly},
-		scopedMetric{"local.scope", samplers.LocalOnly},
-	}
-
 	for _, value := range metricValues {
-		for _, m := range metrics {
+		for _, m := range multipleHistoMetrics {
 			local.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
 				MetricKey: samplers.MetricKey{
 					Name: m.name,
-					Type: histogramTypeName,
+					Type: m.mType,
 				},
 				Value:      value,
 				Digest:     12345,
@@ -1249,7 +1257,7 @@ func TestHistogramsMultipleScopesLocal(t *testing.T) {
 
 	// Check that the correct metrics were flushed locally
 	interMetrics := <-metricsChan
-	expectedMetrics := 2*len(config.Aggregates) + len(config.Percentiles)
+	expectedMetrics := 2 * (2*len(config.Aggregates) + len(config.Percentiles))
 	assert.Equal(t, expectedMetrics, len(interMetrics),
 		"Got the wrong number of metrics when submitting normal, local, and "+
 			"gloobal histograms together")
@@ -1258,10 +1266,20 @@ func TestHistogramsMultipleScopesLocal(t *testing.T) {
 	jsonMetrics := <-globalMetrics
 	var globals []scopedMetric
 	for _, m := range jsonMetrics {
-		globals = append(globals, scopedMetric{m.Name, m.Scope})
+		globals = append(globals, scopedMetric{m.Name, m.Type, m.Scope})
 	}
-	assert.Equal(t, metrics[:2], globals,
-		"The mixed and global metrics should've been forwarded")
+
+	expected := []scopedMetric{
+		multipleHistoMetrics[0],
+		multipleHistoMetrics[1],
+		multipleHistoMetrics[3],
+		multipleHistoMetrics[4],
+	}
+	assert.Len(t, globals, len(expected), "The list of forwarded metrics is the wrong length")
+	for _, metric := range expected {
+		assert.Contains(t, globals, metric,
+			"The metric wasn't present in the list of forwarded metrics")
+	}
 }
 
 // Test all of the different histogram forwarding scope, when submitted to
@@ -1277,23 +1295,14 @@ func TestHistogramsMultipleScopesGlobal(t *testing.T) {
 	defer local.Close()
 
 	metricValues, _ := generateMetrics()
-	type scopedMetric struct {
-		name  string
-		scope samplers.MetricScope
-	}
-	metrics := []scopedMetric{
-		scopedMetric{"mixed.scope", samplers.MixedScope},
-		scopedMetric{"global.scope", samplers.GlobalOnly},
-		scopedMetric{"local.scope", samplers.LocalOnly},
-	}
-
 	for _, value := range metricValues {
-		for _, m := range metrics {
+		for _, m := range multipleHistoMetrics {
 			h := samplers.NewHist(m.name, []string{})
 			h.Sample(value, 1)
 
 			jm, err := h.Export()
 			assert.NoError(t, err, "Exporting the histogram shouldn't have failed")
+			jm.Type = m.mType
 			jm.Scope = m.scope
 
 			local.server.Workers[0].ImportMetric(jm)
@@ -1308,7 +1317,7 @@ func TestHistogramsMultipleScopesGlobal(t *testing.T) {
 	// The mixed and global histograms should both output percentiles, the
 	// global should output aggregates, and the local histogram should be
 	// ignored completely
-	expectedMetrics := 2*len(config.Percentiles) + len(config.Aggregates)
+	expectedMetrics := 2 * (2*len(config.Percentiles) + len(config.Aggregates))
 	assert.Equal(t, expectedMetrics, len(interMetrics),
 		"Got the wrong number of metrics when importing normal, local, and "+
 			"gloobal histograms")

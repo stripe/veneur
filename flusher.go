@@ -51,7 +51,6 @@ func (s *Server) Flush(ctx context.Context) {
 		aggregates = samplers.HistogramAggregates{}
 	}
 
-	// TODO input aggregates here?
 	tempMetrics, ms := s.tallyMetrics(percentiles)
 
 	finalMetrics := s.generateInterMetrics(span.Attach(ctx), percentiles, aggregates, tempMetrics, ms)
@@ -285,8 +284,10 @@ func (s *Server) computeGlobalMetricsFlushCounts(ms metricsSummary) []*ssf.SSFSa
 		ssf.Count(flushTotalMetric, float32(ms.totalGlobalCounters), map[string]string{"metric_type": "global_counter"}),
 		ssf.Count(flushTotalMetric, float32(ms.totalGlobalGauges), map[string]string{"metric_type": "global_gauge"}),
 		ssf.Count(flushTotalMetric, float32(ms.totalHistograms), map[string]string{"metric_type": "histogram"}),
+		ssf.Count(flushTotalMetric, float32(ms.totalGlobalHistograms), map[string]string{"metric_type": "histogram"}),
 		ssf.Count(flushTotalMetric, float32(ms.totalSets), map[string]string{"metric_type": "set"}),
 		ssf.Count(flushTotalMetric, float32(ms.totalTimers), map[string]string{"metric_type": "timer"}),
+		ssf.Count(flushTotalMetric, float32(ms.totalGlobalTimers), map[string]string{"metric_type": "timer"}),
 	}
 }
 
