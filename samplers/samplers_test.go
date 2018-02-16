@@ -543,7 +543,9 @@ func BenchmarkHistoExport(b *testing.B) {
 		h := histoWithSamples("a.b.c", []string{"a:b"}, samples)
 		b.Run(fmt.Sprintf("Samples=%d", samples), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				h.Export()
+				if _, err := h.Export(); err != nil {
+					b.Fatalf("Failed to export a histogram: %v", err)
+				}
 			}
 		})
 	}
@@ -561,7 +563,10 @@ func BenchmarkHistoCombine(b *testing.B) {
 
 		b.Run(fmt.Sprintf("Samples=%d", samples), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				h.Combine(marshalled.Value)
+				if err := h.Combine(marshalled.Value); err != nil {
+					b.Fatalf("Failed to combine with the other histogram: %v",
+						err)
+				}
 			}
 		})
 	}
@@ -581,7 +586,10 @@ func BenchmarkHistoCombineOldFormat(b *testing.B) {
 
 		b.Run(fmt.Sprintf("Samples=%d", samples), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				h.Combine(encoded)
+				if err := h.Combine(encoded); err != nil {
+					b.Fatalf("Failed to combine with a previous-format "+
+						"(gob-encoded) histogram: %v", err)
+				}
 			}
 		})
 	}
