@@ -14,6 +14,7 @@
 ** Datadog and LightStep sinks now emit `veneur.sink.span_flush_total_duration_ns` for span flush duration and tag it with `sink`
 ** Datadog, Kafka, MetricExtraction, and LightStep sinks now emit `sink.spans_flushed_total` for metric flush counts and tag it with `sink`
 * Veneur's internal metrics are no longer tagged with `veneurlocalonly`. This means that percentile metrics (such as timers) will now be aggregated globally.
+* Histograms tagged with `veneurglobalonly` will only output global aggregates, rather than sending them locally.  Aggregations such as "sum", "min", or "max" will be submitted from the global Veneur without a host tag.
 
 ## Bugfixes
 * LightStep sink was hardcoded to use plaintext, now adjusts based on URL scheme (http versus https). Thanks [gphat](https://github.com/gphat)!
@@ -34,6 +35,7 @@
 
 ## Improvements
 * Updated Datadog span sink to latest version in Datadog tracing agent. Thanks, [gphat](https://github.com/gphat)!
+* Histograms tagged with `veneurglobalonly` submit agregates from the global Veneur rather than flushing locally to Datadog (fixes #155).  Thanks, [noahgoldman](https://github.com/noahgoldman)!
 
 # 2.0.0, 2018-01-09
 
