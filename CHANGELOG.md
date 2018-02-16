@@ -32,6 +32,7 @@
 
 ## Improvements
 * Updated Datadog span sink to latest version in Datadog tracing agent. Thanks, [gphat](https://github.com/gphat)!
+* Enable dep's automatic pruning options to cut down on the size of vendor/. Thanks, [sdboyer](https://github.com/sdboyer)!
 
 # 2.0.0, 2018-01-09
 
