@@ -15,7 +15,7 @@ import (
 )
 
 // GRPCStreamingSpanSink is a sink that streams spans to a configurable target
-// service over gRPC. The sink is only tied to the grpc_sink.proto defintion of
+// service over gRPC. The sink is only tied to the grpc_sink.proto definition of
 // a SpanSink service, and thus is generic with respect to the specific server
 // it is connecting to.
 type GRPCStreamingSpanSink struct {
