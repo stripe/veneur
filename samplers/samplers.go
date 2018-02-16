@@ -100,7 +100,8 @@ type JSONMetric struct {
 	Tags []string `json:"tags"`
 	// the Value is an internal representation of the metric's contents, eg a
 	// gob-encoded histogram or hyperloglog.
-	Value []byte `json:"value"`
+	Value []byte      `json:"value"`
+	Scope MetricScope `json:"scope"`
 }
 
 const sinkPrefix string = "veneursinkonly:"
@@ -183,6 +184,11 @@ func (c *Counter) Combine(other []byte) error {
 	return nil
 }
 
+// GetName returns the Name of the counter.
+func (c *Counter) GetName() string {
+	return c.Name
+}
+
 // NewCounter generates and returns a new Counter.
 func NewCounter(Name string, Tags []string) *Counter {
 	return &Counter{Name: Name, Tags: Tags}
@@ -247,6 +253,10 @@ func (g *Gauge) Combine(other []byte) error {
 	g.value = otherValue
 
 	return nil
+}
+
+func (g *Gauge) GetName() string {
+	return g.Name
 }
 
 // NewGauge genearaaaa who am I kidding just getting rid of the warning.
@@ -323,6 +333,10 @@ func (s *Set) Combine(other []byte) error {
 		return err
 	}
 	return nil
+}
+
+func (s *Set) GetName() string {
+	return s.Name
 }
 
 // Histo is a collection of values that generates max, min, count, and
@@ -562,4 +576,8 @@ func (h *Histo) Combine(other []byte) error {
 	h.sum += val.Sum
 	h.reciprocalSum += val.ReciprocalSum
 	return nil
+}
+
+func (h *Histo) GetName() string {
+	return h.Name
 }

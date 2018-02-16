@@ -225,6 +225,22 @@ func (f *fixture) Close() {
 	}
 }
 
+func newGlobalImportServer(t *testing.T, f func([]samplers.JSONMetric)) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, r.URL.Path, "/import", "Global veneur should receive request on /import path")
+
+		zr, err := zlib.NewReader(r.Body)
+		assert.NoError(t, err, "reading the compressed body shouldn't have failed")
+
+		var metrics []samplers.JSONMetric
+		err = json.NewDecoder(zr).Decode(&metrics)
+		assert.NoError(t, err, "decoding the JSON request body shouldn't have failed")
+
+		f(metrics)
+		w.WriteHeader(http.StatusAccepted)
+	}))
+}
+
 // TestLocalServerUnaggregatedMetrics tests the behavior of
 // the veneur client when operating without a global veneur
 // instance (ie, when sending data directly to the remote server)
@@ -333,40 +349,16 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 	// This represents the global veneur instance, which receives request from
 	// the local veneur instances, aggregates the data, and sends it to the remote API
 	// (e.g. Datadog)
-	globalVal := make(chan samplers.HistoValue)
-	globalVeneur := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, r.URL.Path, "/import", "Global veneur should receive request on /import path")
-
-		zr, err := zlib.NewReader(r.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		type requestItem struct {
-			Name      string      `json:"name"`
-			Tags      interface{} `json:"tags"`
-			Tagstring string      `json:"tagstring"`
-			Type      string      `json:"type"`
-			Value     []byte      `json:"value"`
-		}
-
-		var metrics []requestItem
-
-		err = json.NewDecoder(zr).Decode(&metrics)
-		if err != nil {
-			t.Fatal(err)
-		}
-
+	globalVal := make(chan samplers.HistoValue, 1)
+	globalVeneur := newGlobalImportServer(t, func(metrics []samplers.JSONMetric) {
 		assert.Equal(t, 1, len(metrics), "incorrect number of elements in the flushed series")
 
 		var val samplers.HistoValue
 		dec := gob.NewDecoder(bytes.NewReader(metrics[0].Value))
-		err = dec.Decode(&val)
+		err := dec.Decode(&val)
 		assert.NoError(t, err, "Should not have encountered error in decoding gob stream")
 		globalVal <- val
-		w.WriteHeader(http.StatusAccepted)
-	}))
-	defer globalVeneur.Close()
+	})
 
 	config := localConfig()
 	config.ForwardAddress = globalVeneur.URL
@@ -1205,4 +1197,119 @@ func TestInternalSSFMetricsEndToEnd(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 2, n, "Should have gotten the right number of metrics")
+}
+
+// Test all of the different histogram forwarding scope, when submitted to
+// a local Veneur.
+func TestHistogramsMultipleScopesLocal(t *testing.T) {
+	// initialize a local server
+	metricsChan := make(chan []samplers.InterMetric, 10)
+	cms, _ := NewChannelMetricSink(metricsChan)
+	defer close(metricsChan)
+
+	globalMetrics := make(chan []samplers.JSONMetric)
+	globalVeneur := newGlobalImportServer(t, func(metrics []samplers.JSONMetric) {
+		globalMetrics <- metrics
+	})
+	defer globalVeneur.Close()
+
+	config := localConfig()
+	config.ForwardAddress = globalVeneur.URL
+	local := newFixture(t, config, cms, nil)
+	defer local.Close()
+
+	metricValues, _ := generateMetrics()
+
+	type scopedMetric struct {
+		name  string
+		scope samplers.MetricScope
+	}
+	metrics := []scopedMetric{
+		scopedMetric{"mixed.scope", samplers.MixedScope},
+		scopedMetric{"global.scope", samplers.GlobalOnly},
+		scopedMetric{"local.scope", samplers.LocalOnly},
+	}
+
+	for _, value := range metricValues {
+		for _, m := range metrics {
+			local.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+				MetricKey: samplers.MetricKey{
+					Name: m.name,
+					Type: histogramTypeName,
+				},
+				Value:      value,
+				Digest:     12345,
+				SampleRate: 1.0,
+				Scope:      m.scope,
+			})
+		}
+	}
+
+	local.server.Flush(context.TODO())
+
+	// Check that the correct metrics were flushed locally
+	interMetrics := <-metricsChan
+	expectedMetrics := 2*len(config.Aggregates) + len(config.Percentiles)
+	assert.Equal(t, expectedMetrics, len(interMetrics),
+		"Got the wrong number of metrics when submitting normal, local, and "+
+			"gloobal histograms together")
+
+	// Check that the correct metrics were forwarded
+	jsonMetrics := <-globalMetrics
+	var globals []scopedMetric
+	for _, m := range jsonMetrics {
+		globals = append(globals, scopedMetric{m.Name, m.Scope})
+	}
+	assert.Equal(t, metrics[:2], globals,
+		"The mixed and global metrics should've been forwarded")
+}
+
+// Test all of the different histogram forwarding scope, when submitted to
+// a global Veneur.
+func TestHistogramsMultipleScopesGlobal(t *testing.T) {
+	// initialize a local server
+	metricsChan := make(chan []samplers.InterMetric, 10)
+	cms, _ := NewChannelMetricSink(metricsChan)
+	defer close(metricsChan)
+
+	config := globalConfig()
+	local := newFixture(t, config, cms, nil)
+	defer local.Close()
+
+	metricValues, _ := generateMetrics()
+	type scopedMetric struct {
+		name  string
+		scope samplers.MetricScope
+	}
+	metrics := []scopedMetric{
+		scopedMetric{"mixed.scope", samplers.MixedScope},
+		scopedMetric{"global.scope", samplers.GlobalOnly},
+		scopedMetric{"local.scope", samplers.LocalOnly},
+	}
+
+	for _, value := range metricValues {
+		for _, m := range metrics {
+			h := samplers.NewHist(m.name, []string{})
+			h.Sample(value, 1)
+
+			jm, err := h.Export()
+			assert.NoError(t, err, "Exporting the histogram shouldn't have failed")
+			jm.Scope = m.scope
+
+			local.server.Workers[0].ImportMetric(jm)
+		}
+	}
+
+	local.server.Flush(context.TODO())
+
+	// Check that the correct metrics were flushed
+	interMetrics := <-metricsChan
+
+	// The mixed and global histograms should both output percentiles, the
+	// global should output aggregates, and the local histogram should be
+	// ignored completely
+	expectedMetrics := 2*len(config.Percentiles) + len(config.Aggregates)
+	assert.Equal(t, expectedMetrics, len(interMetrics),
+		"Got the wrong number of metrics when importing normal, local, and "+
+			"gloobal histograms")
 }

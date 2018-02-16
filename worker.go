@@ -251,15 +251,13 @@ func (w *Worker) ImportMetric(other samplers.JSONMetric) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
-	// we don't increment the processed metric counter here, it was already
-	// counted by the original veneur that sent this to us
-	w.imported++
-	if other.Type == counterTypeName || other.Type == gaugeTypeName {
-		// this is an odd special case -- counters that are imported are global
-		w.wm.Upsert(other.MetricKey, samplers.GlobalOnly, other.Tags)
-	} else {
-		w.wm.Upsert(other.MetricKey, samplers.MixedScope, other.Tags)
+	if other.Scope == samplers.LocalOnly {
+		log.Error("Local metrics cannot be imported")
+		return
 	}
+
+	w.imported++
+	w.wm.Upsert(other.MetricKey, other.Scope, other.Tags)
 
 	switch other.Type {
 	case counterTypeName:
@@ -275,7 +273,12 @@ func (w *Worker) ImportMetric(other samplers.JSONMetric) {
 			log.WithError(err).Error("Could not merge sets")
 		}
 	case histogramTypeName:
-		if err := w.wm.histograms[other.MetricKey].Combine(other.Value); err != nil {
+		ms := w.wm.histograms
+		if other.Scope == samplers.GlobalOnly {
+			ms = w.wm.globalHistograms
+		}
+
+		if err := ms[other.MetricKey].Combine(other.Value); err != nil {
 			log.WithError(err).Error("Could not merge histograms")
 		}
 	case timerTypeName:
