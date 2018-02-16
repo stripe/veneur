@@ -31,15 +31,6 @@ type GRPCStreamingSpanSink struct {
 
 var _ sinks.SpanSink = &GRPCStreamingSpanSink{}
 
-// DefaultStreamConnOpts provides a set of default grpc.DialOptions that are
-// typically appropriate for Veneur's style of interaction with its sinks.
-// func DefaultStreamConnOpts() []grpc.DialOption {
-// 	return {
-// 		grpc.WithBlock(),
-// 		grpc.FailOnNonTempDialError(),
-// 	}
-// }
-
 // NewGRPCStreamingSpanSink creates a sinks.SpanSink that can write to any
 // compliant gRPC server.
 //
@@ -49,7 +40,7 @@ var _ sinks.SpanSink = &GRPCStreamingSpanSink{}
 //
 // Any grpc.CallOpts that are provided will be used while first establishing the
 // connection to the target server (in grpc.DialContext()).
-func NewGRPCStreamingSpanSink(ctx context.Context, target, name string, stats *statsd.Client, commonTags map[string]string, log *logrus.Logger, opts ...grpc.DialOption) (*GRPCStreamingSpanSink, error) {
+func NewGRPCStreamingSpanSink(ctx context.Context, target, name string, commonTags map[string]string, log *logrus.Logger, opts ...grpc.DialOption) (*GRPCStreamingSpanSink, error) {
 	name = "grpc-" + name
 	conn, err := grpc.DialContext(ctx, target, opts...)
 	if err != nil {
@@ -61,9 +52,9 @@ func NewGRPCStreamingSpanSink(ctx context.Context, target, name string, stats *s
 	}
 
 	return &GRPCStreamingSpanSink{
+		grpcConn:   conn,
 		name:       name,
 		sinkClient: NewSpanSinkClient(conn),
-		stats:      stats,
 		commonTags: commonTags,
 		log:        log,
 	}, nil
