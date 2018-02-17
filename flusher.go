@@ -239,10 +239,11 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 
 			// If this is global, always submit both percentiles and
 			// aggregates for "global" histogram types
-			for _, histos := range []histoMap{wm.globalHistograms, wm.globalTimers} {
-				for _, h := range histos {
-					finalMetrics = append(finalMetrics, h.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
-				}
+			for _, gh := range wm.globalHistograms {
+				finalMetrics = append(finalMetrics, gh.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
+			}
+			for _, gt := range wm.globalTimers {
+				finalMetrics = append(finalMetrics, gt.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
 			}
 		}
 	}
