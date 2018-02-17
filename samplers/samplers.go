@@ -255,6 +255,7 @@ func (g *Gauge) Combine(other []byte) error {
 	return nil
 }
 
+// GetName returns the Name of the Gauge
 func (g *Gauge) GetName() string {
 	return g.Name
 }
@@ -335,6 +336,7 @@ func (s *Set) Combine(other []byte) error {
 	return nil
 }
 
+// GetName returns the Name of the Set
 func (s *Set) GetName() string {
 	return s.Name
 }
@@ -578,6 +580,7 @@ func (h *Histo) Combine(other []byte) error {
 	return nil
 }
 
+// GetName returns the Name of the Histo
 func (h *Histo) GetName() string {
 	return h.Name
 }
