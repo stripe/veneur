@@ -254,6 +254,9 @@ func (w *Worker) ImportMetric(other samplers.JSONMetric) {
 		log.Error("Local metrics cannot be imported")
 		return
 	} else if other.Type == counterTypeName || other.Type == gaugeTypeName {
+		// This branch is only necessary to maintain compatibility with local
+		// Veneur's that don't send the `(JSONMetric).Scope` field.  It can be
+		// safely removed once all local instances are upgraded.
 		other.Scope = samplers.GlobalOnly
 	}
 
