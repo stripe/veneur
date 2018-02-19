@@ -18,6 +18,38 @@ import (
 	"github.com/stripe/veneur/ssf"
 )
 
+func mustRecord(t *testing.T, client *Client, tr *Trace) (retries int) {
+	for {
+		err := tr.ClientRecord(client, "", map[string]string{})
+		if err != ErrWouldBlock {
+			assert.NoError(t, err)
+			return
+		}
+		t.Log("retrying record")
+		retries++
+	}
+}
+
+func mustFlush(t *testing.T, client *Client) (retries int) {
+	anyBlockage := func(err *FlushError) bool {
+		for _, subErr := range err.Errors {
+			if subErr != ErrWouldBlock {
+				return false
+			}
+		}
+		return true
+	}
+	for {
+		err := Flush(client)
+		if err == nil || !anyBlockage(err.(*FlushError)) {
+			require.NoError(t, err)
+			return
+		}
+		t.Log("retrying flush")
+		retries++
+	}
+}
+
 func TestNoClient(t *testing.T) {
 	err := Record(nil, nil, nil)
 	assert.Equal(t, ErrNoClient, err)
@@ -84,8 +116,7 @@ func TestUNIX(t *testing.T) {
 		name := fmt.Sprintf("Testing-%d", i)
 		tr := StartTrace(name)
 		tr.Sent = sentCh
-		err = tr.ClientRecord(client, name, map[string]string{})
-		assert.NoError(t, err)
+		mustRecord(t, client, tr)
 	}
 	for i := 0; i < 4; i++ {
 		assert.NoError(t, <-sentCh)
@@ -127,15 +158,14 @@ func TestUNIXBuffered(t *testing.T) {
 		name := fmt.Sprintf("Testing-%d", i)
 		tr := StartTrace(name)
 		tr.Sent = sentCh
-		err = tr.ClientRecord(client, name, map[string]string{})
-		assert.NoError(t, err)
+		mustRecord(t, client, tr)
 	}
 	for i := 0; i < 4; i++ {
 		assert.NoError(t, <-sentCh)
 	}
 	assert.Equal(t, 0, len(outPkg), "Should not have sent any packets yet")
-	err = Flush(client)
-	assert.NoError(t, err)
+
+	mustFlush(t, client)
 	for i := 0; i < 4; i++ {
 		<-outPkg
 	}
@@ -185,8 +215,7 @@ func TestFailingUDP(t *testing.T) {
 		name := fmt.Sprintf("Testing-%d", i)
 		tr := StartTrace(name)
 		tr.Sent = sentCh
-		err = tr.ClientRecord(client, name, map[string]string{})
-		assert.NoError(t, err)
+		mustRecord(t, client, tr)
 	}
 	for i := 0; i < 4; i++ {
 		// Linux reports an error when sending to a
@@ -236,8 +265,7 @@ func TestReconnectUNIX(t *testing.T) {
 		tr := StartTrace(name)
 		tr.Sent = sentCh
 		t.Logf("submitting span")
-		err = tr.ClientRecord(client, name, map[string]string{})
-		assert.NoError(t, err)
+		mustRecord(t, client, tr)
 
 		// A span was successfully received by the server:
 		assert.NoError(t, <-sentCh)
@@ -248,8 +276,7 @@ func TestReconnectUNIX(t *testing.T) {
 		tr := StartTrace(name)
 		tr.Sent = sentCh
 		t.Logf("submitting span")
-		err = tr.ClientRecord(client, name, map[string]string{})
-		assert.NoError(t, err)
+		mustRecord(t, client, tr)
 
 		// Since reconnections throw away the span, nothing
 		// was received:
@@ -260,8 +287,7 @@ func TestReconnectUNIX(t *testing.T) {
 		tr := StartTrace(name)
 		tr.Sent = sentCh
 		t.Logf("submitting span")
-		err = tr.ClientRecord(client, name, map[string]string{})
-		assert.NoError(t, err)
+		mustRecord(t, client, tr)
 
 		// A span was successfully received by the server:
 		assert.NoError(t, <-sentCh)
@@ -307,12 +333,11 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 		tr := StartTrace(name)
 		tr.Sent = sentCh
 		t.Logf("submitting span")
-		err = tr.ClientRecord(client, name, map[string]string{})
-		assert.NoError(t, err)
+		mustRecord(t, client, tr)
 
 		assert.NoError(t, <-sentCh, "at %q", name)
 		t.Logf("Flushing")
-		go assert.NoError(t, Flush(client))
+		go mustFlush(t, client)
 		// A span was successfully received by the server:
 		<-outPkg
 	}
@@ -321,8 +346,7 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 		tr := StartTrace(name)
 		tr.Sent = sentCh
 		t.Logf("submitting span")
-		err = tr.ClientRecord(client, name, map[string]string{})
-		assert.NoError(t, err)
+		mustRecord(t, client, tr)
 
 		assert.NoError(t, <-sentCh)
 		t.Logf("Flushing")
@@ -335,13 +359,12 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 		tr := StartTrace(name)
 		tr.Sent = sentCh
 		t.Logf("submitting span")
-		err = tr.ClientRecord(client, name, map[string]string{})
-		assert.NoError(t, err)
+		mustRecord(t, client, tr)
 
 		assert.NoError(t, <-sentCh, "at %q", name)
 
 		t.Logf("Flushing")
-		go assert.NoError(t, Flush(client))
+		go mustFlush(t, client)
 		// A span was successfully received by the server:
 		<-outPkg
 	}
@@ -448,34 +471,28 @@ func TestDropStatistics(t *testing.T) {
 	cl, err := NewBackendClient(&tb, Capacity(0))
 	require.NoError(t, err)
 
-	somespan := func() error {
-		tr := StartTrace("hi there")
-		return tr.ClientRecord(cl, "hi there", map[string]string{})
-	}
-
 	// reset client stats:
 	stats, err := statsd.NewBuffered("127.0.0.1:8200", 4096)
 	require.NoError(t, err)
 	SendClientStatistics(cl, stats, nil)
 
 	// Actually test the client:
-	err = Flush(cl)
+	flushRetries := mustFlush(t, cl)
 	assert.NoError(t, err, "Flushing an empty client should succeed")
 	assert.Equal(t, int64(1), cl.successfulFlushes, "successful flushes")
 
 	done := make(chan struct{})
 	blockNext <- done
-	err = somespan()
-	assert.NoError(t, err, "Sending an expected metric should succeed")
+	retries := mustRecord(t, cl, StartTrace("hi there"))
 	assert.Equal(t, int64(1), cl.successfulRecords, "successful records")
 
-	err = somespan()
+	err = StartTrace("hi there").ClientRecord(cl, "", map[string]string{})
 	assert.Error(t, err)
 	assert.Equal(t, ErrWouldBlock, err, "Expected to report a blocked channel")
-	assert.Equal(t, int64(1), cl.failedRecords, "failed records")
+	assert.Equal(t, int64(1+retries), cl.failedRecords, "failed records")
 
 	err = Flush(cl)
-	assert.Equal(t, int64(1), cl.failedFlushes, "failed flushes")
+	assert.Equal(t, int64(1+flushRetries), cl.failedFlushes, "failed flushes")
 	close(done)
 	close(blockNext)
 }

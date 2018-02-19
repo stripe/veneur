@@ -1177,16 +1177,23 @@ func TestInternalSSFMetricsEndToEnd(t *testing.T) {
 	require.NoError(t, err)
 
 	done := make(chan error)
-	err = metrics.ReportAsync(client, []*ssf.SSFSample{
-		ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
-		ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
-	}, done)
+	for {
+		err = metrics.ReportAsync(client, []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		}, done)
+		if err != trace.ErrWouldBlock {
+			break
+		}
+	}
 	require.NoError(t, err)
 	require.NoError(t, <-done)
 
+	ctx, cancel := context.WithTimeout(context.TODO(), 1*time.Second)
+	defer cancel()
+	keepFlushing(ctx, f.server)
+
 	n := 0
-	time.Sleep(2 * time.Second)
-	f.server.Flush(context.TODO())
 	metrics := <-metricsChan
 	for _, m := range metrics {
 		for _, tag := range m.Tags {
