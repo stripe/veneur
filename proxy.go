@@ -411,10 +411,12 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 		ctx, cancel = context.WithTimeout(ctx, p.ForwardTimeout)
 		defer cancel()
 	}
-	span.Add(ssf.Count("import.metrics_total", float32(len(jsonMetrics)), map[string]string{
-		"remote_addr":      origin,
-		"veneurglobalonly": "",
-	}))
+	span.Add(ssf.RandomlySample(0.1,
+		ssf.Count("import.metrics_total", float32(len(jsonMetrics)), map[string]string{
+			"remote_addr":      origin,
+			"veneurglobalonly": "",
+		}),
+	)...)
 
 	jsonMetricsByDestination := make(map[string][]samplers.JSONMetric)
 	for _, h := range p.ForwardDestinations.Members() {
@@ -434,8 +436,10 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 		go p.doPost(ctx, &wg, dest, batch)
 	}
 	wg.Wait() // Wait for all the above goroutines to complete
-	span.Add(ssf.Timing("proxy.duration_ns", time.Since(span.Start), time.Nanosecond, nil))
-	span.Add(ssf.Count("proxy.proxied_metrics_total", float32(len(jsonMetrics)), nil))
+	span.Add(ssf.RandomlySample(0.1,
+		ssf.Timing("proxy.duration_ns", time.Since(span.Start), time.Nanosecond, nil),
+		ssf.Count("proxy.proxied_metrics_total", float32(len(jsonMetrics)), nil),
+	)...)
 }
 
 func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination string, batch []samplers.JSONMetric) {
@@ -460,7 +464,9 @@ func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination stri
 			"batchSize": batchSize,
 		}).Warn("Failed to POST metrics to destination")
 	}
-	samples.Add(ssf.Gauge("metrics_by_destination", float32(batchSize), map[string]string{"destination": destination}))
+	samples.Add(ssf.RandomlySample(0.1,
+		ssf.Gauge("metrics_by_destination", float32(batchSize), map[string]string{"destination": destination}),
+	)...)
 }
 
 // Shutdown signals the server to shut down after closing all

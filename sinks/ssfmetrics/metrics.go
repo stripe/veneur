@@ -117,7 +117,7 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 	}
 	metricsCount += len(indicatorMetrics)
 
-	spanMetrics, err := samplers.ConvertSpanUniquenessMetrics(span, 0.1)
+	spanMetrics, err := samplers.ConvertSpanUniquenessMetrics(span, 0.01)
 	if err != nil {
 		m.log.WithError(err).
 			WithField("span_name", span.Name).

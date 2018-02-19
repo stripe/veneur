@@ -759,7 +759,8 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 			metrics.ReportOne(s.TraceClient, sample)
 			continue
 		}
-		metrics.ReportOne(s.TraceClient, ssf.Count("ssf.received_total", 1, tags))
+		metrics.ReportBatch(s.TraceClient,
+			ssf.RandomlySample(0.01, ssf.Count("ssf.received_total", 1, tags)))
 		s.handleSSF(msg, tags)
 	}
 }
