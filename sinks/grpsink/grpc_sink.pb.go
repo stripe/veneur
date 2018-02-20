@@ -17,8 +17,10 @@ import fmt "fmt"
 import math "math"
 import ssf "github.com/stripe/veneur/ssf"
 
-import context "golang.org/x/net/context"
-import grpc "google.golang.org/grpc"
+import (
+	context "golang.org/x/net/context"
+	grpc "google.golang.org/grpc"
+)
 
 import io "io"
 
