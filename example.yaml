@@ -131,6 +131,12 @@ num_readers: 1
 # spans.
 num_span_workers: 10
 
+# Adjusts the number of spans that can be accomodated before the span
+# ingestion buffer blocks. This is good to tweak when you're seeing
+# spiky span ingestion patterns and a lot of spans get dropped. The
+# default for this is no channel capacity.
+span_channel_capacity: 100
+
 # == LIMITS ==
 
 # How big of a buffer to allocate for incoming metrics. Metrics longer than this

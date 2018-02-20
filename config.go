@@ -54,6 +54,7 @@ type Config struct {
 	SignalfxAPIKey                string    `yaml:"signalfx_api_key"`
 	SignalfxEndpointBase          string    `yaml:"signalfx_endpoint_base"`
 	SignalfxHostnameTag           string    `yaml:"signalfx_hostname_tag"`
+	SpanChannelCapacity           int       `yaml:"span_channel_capacity"`
 	SsfBufferSize                 int       `yaml:"ssf_buffer_size"`
 	SsfListenAddresses            []string  `yaml:"ssf_listen_addresses"`
 	StatsAddress                  string    `yaml:"stats_address"`
