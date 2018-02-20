@@ -171,7 +171,7 @@ func TestUNIXBuffered(t *testing.T) {
 	}
 }
 
-func serveUNIX(t *testing.T, laddr *net.UnixAddr, onconnect func(conn net.Conn)) (cleanup func() error) {
+func serveUNIX(t testing.TB, laddr *net.UnixAddr, onconnect func(conn net.Conn)) (cleanup func() error) {
 	srv, err := net.ListenUnix(laddr.Network(), laddr)
 	require.NoError(t, err)
 	cleanup = srv.Close
