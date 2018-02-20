@@ -2,6 +2,7 @@ package veneur
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -357,17 +358,19 @@ func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck)
 
 // SpanWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type SpanWorker struct {
-	SpanChan    chan *ssf.SSFSpan
-	sinks       []sinks.SpanSink
-	traceClient *trace.Client
+	SpanChan        <-chan *ssf.SSFSpan
+	sinks           []sinks.SpanSink
+	cumulativeTimes []int64
+	traceClient     *trace.Client
 }
 
 // NewSpanWorker creates an SpanWorker ready to collect events and service checks.
-func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan chan *ssf.SSFSpan) *SpanWorker {
+func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ssf.SSFSpan) *SpanWorker {
 	return &SpanWorker{
-		SpanChan:    spanChan,
-		sinks:       sinks,
-		traceClient: cl,
+		SpanChan:        spanChan,
+		sinks:           sinks,
+		cumulativeTimes: make([]int64, len(sinks)),
+		traceClient:     cl,
 	}
 }
 
@@ -376,9 +379,14 @@ func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan chan *ssf.
 func (tw *SpanWorker) Work() {
 	for m := range tw.SpanChan {
 		var wg sync.WaitGroup
-		for _, s := range tw.sinks {
+		for i, s := range tw.sinks {
 			wg.Add(1)
-			go func(sink sinks.SpanSink, span *ssf.SSFSpan, wg *sync.WaitGroup) {
+			go func(i int, sink sinks.SpanSink, span *ssf.SSFSpan, wg *sync.WaitGroup) {
+				start := time.Now()
+				defer func() {
+					atomic.AddInt64(&tw.cumulativeTimes[i],
+						int64(time.Since(start)/time.Nanosecond))
+				}()
 				// Give each sink a change to ingest.
 				err := sink.Ingest(span)
 				if err != nil {
@@ -392,7 +400,7 @@ func (tw *SpanWorker) Work() {
 					}
 				}
 				wg.Done()
-			}(s, m, &wg)
+			}(i, s, m, &wg)
 		}
 		wg.Wait()
 	}
@@ -400,12 +408,16 @@ func (tw *SpanWorker) Work() {
 
 // Flush invokes flush on each sink.
 func (tw *SpanWorker) Flush() {
+	samples := &ssf.Samples{}
+	defer metrics.Report(tw.traceClient, samples)
 
 	// Flush and time each sink.
-	for _, s := range tw.sinks {
+	for i, s := range tw.sinks {
+		tags := map[string]string{"sink": s.Name()}
 		sinkFlushStart := time.Now()
 		s.Flush()
-		metrics.ReportOne(tw.traceClient,
-			ssf.Timing("worker.span.flush_duration_ns", time.Since(sinkFlushStart), time.Nanosecond, map[string]string{"sink": s.Name()}))
+		samples.Add(ssf.Timing("worker.span.flush_duration_ns", time.Since(sinkFlushStart), time.Nanosecond, tags))
+		cumulative := time.Duration(atomic.SwapInt64(&tw.cumulativeTimes[i], 0)) * time.Nanosecond
+		samples.Add(ssf.Timing(sinks.MetricKeySpanIngestDuration, cumulative, time.Nanosecond, tags))
 	}
 }
