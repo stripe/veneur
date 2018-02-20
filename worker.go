@@ -363,9 +363,9 @@ type SpanWorker struct {
 }
 
 // NewSpanWorker creates an SpanWorker ready to collect events and service checks.
-func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client) *SpanWorker {
+func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan chan *ssf.SSFSpan) *SpanWorker {
 	return &SpanWorker{
-		SpanChan:    make(chan *ssf.SSFSpan),
+		SpanChan:    spanChan,
 		sinks:       sinks,
 		traceClient: cl,
 	}
@@ -375,19 +375,26 @@ func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client) *SpanWorker {
 // This function will never return.
 func (tw *SpanWorker) Work() {
 	for m := range tw.SpanChan {
-		// Give each sink a change to ingest.
+		var wg sync.WaitGroup
 		for _, s := range tw.sinks {
-			err := s.Ingest(m)
-			if err != nil {
-				if _, isNoTrace := err.(*protocol.InvalidTrace); !isNoTrace {
-					// If a sink goes wacko and errors a lot, we stand to emit a
-					// loooot of metrics towards all span workers here since
-					// span ingest rates can be very high. C'est la vie.
-					metrics.ReportOne(tw.traceClient,
-						ssf.Count("worker.span.ingest_error_total", 1, map[string]string{"sink": s.Name()}))
+			wg.Add(1)
+			go func(sink sinks.SpanSink, span *ssf.SSFSpan, wg *sync.WaitGroup) {
+				// Give each sink a change to ingest.
+				err := sink.Ingest(span)
+				if err != nil {
+					if _, isNoTrace := err.(*protocol.InvalidTrace); !isNoTrace {
+						// If a sink goes wacko and errors a lot, we stand to emit a
+						// loooot of metrics towards all span workers here since
+						// span ingest rates can be very high. C'est la vie.
+						metrics.ReportOne(tw.traceClient,
+							ssf.Count("worker.span.ingest_error_total", 1,
+								map[string]string{"sink": s.Name()}))
+					}
 				}
-			}
+				wg.Done()
+			}(s, m, &wg)
 		}
+		wg.Wait()
 	}
 }
 

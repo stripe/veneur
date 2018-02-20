@@ -368,5 +368,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 }
 
 func (s *Server) flushTraces(ctx context.Context) {
-	s.SpanWorker.Flush()
+	for _, w := range s.SpanWorkers {
+		w.Flush()
+	}
 }

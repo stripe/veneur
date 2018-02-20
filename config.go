@@ -45,6 +45,7 @@ type Config struct {
 	LightstepReconnectPeriod      string    `yaml:"lightstep_reconnect_period"`
 	MetricMaxLength               int       `yaml:"metric_max_length"`
 	NumReaders                    int       `yaml:"num_readers"`
+	NumSpanWorkers                int       `yaml:"num_span_workers"`
 	NumWorkers                    int       `yaml:"num_workers"`
 	OmitEmptyHostname             bool      `yaml:"omit_empty_hostname"`
 	Percentiles                   []float64 `yaml:"percentiles"`

@@ -82,7 +82,7 @@ func (ff *forwardFixture) Flush(ctx context.Context) {
 // (*forwardFixture).Flush method so the ingestion effects can be
 // observed.
 func (ff *forwardFixture) IngestSpan(span *ssf.SSFSpan) {
-	ff.server.SpanWorker.SpanChan <- span
+	ff.server.SpanChan <- span
 }
 
 // IngestMetric synchronously writes a metric to the forwarding
