@@ -12,11 +12,11 @@ import (
 )
 
 var defaultConfig = Config{
-	Aggregates:          []string{"min", "max", "count"},
-	FlushMaxPerBody:     25000,
-	Interval:            "10s",
-	MetricMaxLength:     4096,
-	ReadBufferSizeBytes: 1048576 * 2, // 2 MiB
+	Aggregates:             []string{"min", "max", "count"},
+	DatadogFlushMaxPerBody: 25000,
+	Interval:               "10s",
+	MetricMaxLength:        4096,
+	ReadBufferSizeBytes:    1048576 * 2, // 2 MiB
 }
 
 // ReadProxyConfig unmarshals the proxy config file and slurps in its data.
@@ -172,6 +172,10 @@ func (c *Config) applyDefaults() {
 		if c.LightstepReconnectPeriod == "" {
 			c.LightstepReconnectPeriod = c.TraceLightstepReconnectPeriod
 		}
+	}
+
+	if c.DatadogFlushMaxPerBody == 0 {
+		c.DatadogFlushMaxPerBody = defaultConfig.DatadogFlushMaxPerBody
 	}
 }
 

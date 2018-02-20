@@ -18,6 +18,7 @@ func TestReadConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	c.applyDefaults()
 
 	assert.Equal(t, "https://app.datadoghq.com", c.DatadogAPIHostname)
 	assert.Equal(t, 96, c.NumWorkers)
@@ -142,6 +143,7 @@ trace_lightstep_maximum_spans: 1
 trace_lightstep_num_clients: 2
 `
 	c, err := readConfig(strings.NewReader(config))
+	c.applyDefaults()
 	if err != nil {
 		t.Fatal(err)
 	}
