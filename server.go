@@ -65,10 +65,6 @@ var tracer = trace.GlobalTracer
 
 const defaultTCPReadTimeout = 10 * time.Minute
 
-// defaultSpanBufferSize is the default maximum number of spans that
-// we can flush per flush-interval
-const defaultSpanBufferSize = 1 << 14
-
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers     []*Worker
@@ -317,9 +313,9 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		}
 		ret.metricSinks = append(ret.metricSinks, sfxSink)
 	}
-	if conf.DatadogAPIKey != "" {
+	if conf.DatadogAPIKey != "" && conf.DatadogAPIHostname != "" {
 		ddSink, err := datadog.NewDatadogMetricSink(
-			ret.interval.Seconds(), conf.FlushMaxPerBody, conf.Hostname, ret.Tags,
+			ret.interval.Seconds(), conf.DatadogFlushMaxPerBody, conf.Hostname, ret.Tags,
 			conf.DatadogAPIHostname, conf.DatadogAPIKey, ret.HTTPClient, log,
 		)
 		if err != nil {
@@ -330,18 +326,13 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 	// Configure tracing sinks
 	if len(conf.SsfListenAddresses) > 0 {
-		// Set a sane default
-		if conf.SsfBufferSize == 0 {
-			conf.SsfBufferSize = defaultSpanBufferSize
-		}
 
 		trace.Enable()
 
 		// configure Datadog as a Span sink
-		if conf.DatadogTraceAPIAddress != "" {
-
+		if conf.DatadogAPIKey != "" && conf.DatadogTraceAPIAddress != "" {
 			ddSink, err := datadog.NewDatadogSpanSink(
-				conf.DatadogTraceAPIAddress, conf.SsfBufferSize,
+				conf.DatadogTraceAPIAddress, conf.DatadogSpanBufferSize,
 				ret.HTTPClient, ret.TagsAsMap, log,
 			)
 			if err != nil {
@@ -353,19 +344,13 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		}
 
 		// configure Lightstep as a Span Sink
-		if conf.TraceLightstepAccessToken != "" {
-
-			maxSpans := conf.TraceLightstepMaximumSpans
-			if maxSpans == 0 {
-				maxSpans = conf.SsfBufferSize
-				logger.WithField("max spans", maxSpans).Info("Using default maximum spans — ssf_buffer_size — for LightStep")
-			}
+		if conf.LightstepAccessToken != "" {
 
 			var lsSink sinks.SpanSink
 			lsSink, err = lightstep.NewLightStepSpanSink(
-				conf.TraceLightstepCollectorHost, conf.TraceLightstepReconnectPeriod,
-				conf.TraceLightstepMaximumSpans, conf.TraceLightstepNumClients,
-				conf.TraceLightstepAccessToken, ret.TagsAsMap, log,
+				conf.LightstepCollectorHost, conf.LightstepReconnectPeriod,
+				conf.LightstepMaximumSpans, conf.LightstepNumClients,
+				conf.LightstepAccessToken, ret.TagsAsMap, log,
 			)
 			if err != nil {
 				return ret, err
@@ -466,7 +451,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	conf.TLSKey = REDACTED
 	conf.DatadogAPIKey = REDACTED
 	conf.SignalfxAPIKey = REDACTED
-	conf.TraceLightstepAccessToken = REDACTED
+	conf.LightstepAccessToken = REDACTED
 	conf.AwsAccessKeyID = REDACTED
 	conf.AwsSecretAccessKey = REDACTED
 

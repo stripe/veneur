@@ -36,6 +36,22 @@ We've got some novel ideas that we've put in to SSF. It might help to be familia
   * improve the context of counters and gauges, as they are part of a span
 * provide a format containing the superset of many backend's features
 
+# Components
+
+You can examine the [protobuf definition](https://github.com/stripe/veneur/blob/master/ssf/sample.proto), but in a nutshell SSF provides the following:
+
+A `metric` field describing it's type as one of `COUNTER`, `GAUGE`, `HISTOGRAM` (supplanting a timer), `SET` and `STATUS`. Rounding out the traditional fields are `name`, `value`, `sample_rate` and `timestamp`. There is a map of `tags` string key-value pairs.
+
+## Others
+
+Beyond these StatsD-stye fields are also `message` for including an arbitrary string such as a log message and `unit` as a string describing the unit of the message such as `seconds`. Note that SSF does not have defined units at present. Only strings!
+
+## STATUS Samples
+A `Metric` of `STATUS` is most like a Nagios check result.
+
+## Log Samples?
+Since all fields are optional, one could leave out many fields and represent a log line in SSF by setting `timestamp`, `name` with a canonical name and `tags` for parameters. This is intended to be used in the future for Veneur to unify observability primitives.
+
 # Inspiration
 
 We build on the shoulders of giants, and are proud to have used and been inspired by these marvelous tools:

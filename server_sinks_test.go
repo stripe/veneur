@@ -84,6 +84,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	defer remoteServer.Close()
 
 	config := globalConfig()
+	config.DatadogAPIKey = "secret"
 	config.DatadogTraceAPIAddress = remoteServer.URL
 
 	server := setupVeneurServer(t, config, nil, nil, nil)
@@ -106,7 +107,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 		assert.Equal(t, expected, actual)
 		// all is safe
 		break
-	case <-time.After(10 * time.Second):
+	case <-time.After(2 * time.Second):
 		assert.Fail(t, "Global server did not complete all responses before test terminated!")
 	}
 }
@@ -119,7 +120,7 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 	config := globalConfig()
 
 	// this can be anything as long as it's not empty
-	config.TraceLightstepAccessToken = "secret"
+	config.LightstepAccessToken = "secret"
 	server := setupVeneurServer(t, config, nil, nil, nil)
 	defer server.Shutdown()
 
@@ -144,6 +145,7 @@ func TestNewDatadogMetricSinkConfig(t *testing.T) {
 		DatadogAPIKey:          "apikey",
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
+		DatadogSpanBufferSize:  32,
 		SsfListenAddresses:     []string{"udp://127.0.0.1:99"},
 
 		// required or NewFromConfig fails

@@ -93,15 +93,14 @@ func generateConfig(forwardAddr string) Config {
 		// Currently this points nowhere, which is intentional.
 		// We don't need internal metrics for the tests, and they make testing
 		// more complicated.
-		StatsAddress:    "localhost:8125",
-		Tags:            []string{},
-		SentryDsn:       "",
-		FlushMaxPerBody: 1024,
+		StatsAddress:           "localhost:8125",
+		Tags:                   []string{},
+		SentryDsn:              "",
+		DatadogFlushMaxPerBody: 1024,
 
 		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
 		SsfListenAddresses:  []string{"udp://127.0.0.1:0"},
 		TraceMaxLengthBytes: 4096,
-		SsfBufferSize:       32,
 	}
 }
 
@@ -210,7 +209,7 @@ func newFixture(t testing.TB, config Config, mSink sinks.MetricSink, sSink sinks
 
 	// Set up a remote server (the API that we're sending the data to)
 	// (e.g. Datadog)
-	f := &fixture{nil, &Server{}, interval, config.FlushMaxPerBody}
+	f := &fixture{nil, &Server{}, interval, config.DatadogFlushMaxPerBody}
 
 	config.NumWorkers = 1
 	f.server = setupVeneurServer(t, config, nil, mSink, sSink)

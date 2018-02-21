@@ -2,18 +2,18 @@
 
 The Kafka sink allows flushing of metrics or spans to to a [Kafka](https://kafka.apache.org/) topic.
 
+# Configuration
+
+See the various `kafka_*` keys in [example.yaml](https://github.com/stripe/veneur/blob/master/example.yaml) for all available configuration options. This sink supports the following features:
+
 # Status
 
-**This sink is experimental**.
+**This sink is stable**. Some some encoding or options may change. This sink is in active development.
 
 ## TODO
 
 * Uses the async client, but doesn't currently do anything on failure.
 * Does not currently handle writes of events or checks
-
-# Configuration
-
-See the various `kafka_*` keys in [example.yaml](https://github.com/stripe/veneur/blob/master/example.yaml) for all available configuration options. This sink supports the following features:
 
 * batching
 * ack requirements

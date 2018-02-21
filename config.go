@@ -8,6 +8,8 @@ type Config struct {
 	AwsSecretAccessKey            string    `yaml:"aws_secret_access_key"`
 	DatadogAPIHostname            string    `yaml:"datadog_api_hostname"`
 	DatadogAPIKey                 string    `yaml:"datadog_api_key"`
+	DatadogFlushMaxPerBody        int       `yaml:"datadog_flush_max_per_body"`
+	DatadogSpanBufferSize         int       `yaml:"datadog_span_buffer_size"`
 	DatadogTraceAPIAddress        string    `yaml:"datadog_trace_api_address"`
 	Debug                         bool      `yaml:"debug"`
 	EnableProfiling               bool      `yaml:"enable_profiling"`
@@ -36,6 +38,11 @@ type Config struct {
 	KafkaSpanSampleTag            string    `yaml:"kafka_span_sample_tag"`
 	KafkaSpanSerializationFormat  string    `yaml:"kafka_span_serialization_format"`
 	KafkaSpanTopic                string    `yaml:"kafka_span_topic"`
+	LightstepAccessToken          string    `yaml:"lightstep_access_token"`
+	LightstepCollectorHost        string    `yaml:"lightstep_collector_host"`
+	LightstepMaximumSpans         int       `yaml:"lightstep_maximum_spans"`
+	LightstepNumClients           int       `yaml:"lightstep_num_clients"`
+	LightstepReconnectPeriod      string    `yaml:"lightstep_reconnect_period"`
 	MetricMaxLength               int       `yaml:"metric_max_length"`
 	NumReaders                    int       `yaml:"num_readers"`
 	NumWorkers                    int       `yaml:"num_workers"`
