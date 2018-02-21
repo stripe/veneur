@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,12 +23,14 @@ var tags = map[string]string{"foo": "bar"}
 // MockSpanSinkServer is a mock of SpanSinkServer interface
 type MockSpanSinkServer struct {
 	spans []*ssf.SSFSpan
+	lock  sync.Mutex
 }
 
 // SendSpans mocks base method
 func (m *MockSpanSinkServer) SendSpans(stream SpanSink_SendSpansServer) error {
 	for {
 		span, err := stream.Recv()
+		m.lock.Lock()
 		if err != nil {
 			if err == io.EOF {
 				return stream.SendMsg(&SpanResponse{
@@ -37,7 +40,19 @@ func (m *MockSpanSinkServer) SendSpans(stream SpanSink_SendSpansServer) error {
 			return err
 		}
 		m.spans = append(m.spans, span)
+		m.lock.Unlock()
 	}
+}
+
+// Extra method and locking to avoid a weird data race
+func (m *MockSpanSinkServer) getFirstSpan() *ssf.SSFSpan {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	if len(m.spans) == 0 {
+		panic("no spans yet")
+	}
+
+	return m.spans[0]
 }
 
 func TestEndToEnd(t *testing.T) {
@@ -86,13 +101,13 @@ func TestEndToEnd(t *testing.T) {
 	err = sink.Ingest(testSpan)
 	// This should be enough to make it through loopback TCP. Bump up if flaky.
 	time.Sleep(50 * time.Millisecond)
-
-	assert.NoError(t, err)
 	testSpan.Tags = map[string]string{
 		"foo": "bar",
 		"baz": "qux",
 	}
-	assert.Equal(t, testSpan, mock.spans[0])
+
+	assert.NoError(t, err)
+	assert.Equal(t, testSpan, mock.getFirstSpan())
 
 	srv.Stop()
 }
