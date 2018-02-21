@@ -143,8 +143,8 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 	}
 
 	// Make sure we don't send internal metrics when testing:
+	trace.NeutralizeClient(server.TraceClient)
 	server.TraceClient = nil
-	server.traceBackend = nil
 
 	if mSink == nil {
 		// Install a blackhole sink if we have no other sinks
@@ -1172,8 +1172,7 @@ func TestInternalSSFMetricsEndToEnd(t *testing.T) {
 	f := newFixture(t, config, cms, nil)
 	defer f.Close()
 
-	backend := &internalTraceBackend{spanChan: f.server.SpanChan}
-	client, err := trace.NewBackendClient(backend, trace.Capacity(20))
+	client, err := trace.NewChannelClient(f.server.SpanChan)
 	require.NoError(t, err)
 
 	done := make(chan error)

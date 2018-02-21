@@ -112,8 +112,7 @@ type Server struct {
 	spanSinks   []sinks.SpanSink
 	metricSinks []sinks.MetricSink
 
-	TraceClient  *trace.Client
-	traceBackend *internalTraceBackend
+	TraceClient *trace.Client
 }
 
 // SetLogger sets the default logger in veneur to the passed value.
@@ -172,9 +171,8 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 	stats.Namespace = "veneur."
 
-	ret.traceBackend = &internalTraceBackend{}
-	ret.TraceClient, err = trace.NewBackendClient(ret.traceBackend,
-		trace.Capacity(200),
+	ret.SpanChan = make(chan *ssf.SSFSpan)
+	ret.TraceClient, err = trace.NewChannelClient(ret.SpanChan,
 		trace.ReportStatistics(stats, 1*time.Second, []string{"ssf_format:internal"}),
 	)
 	if err != nil {
@@ -365,7 +363,6 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		if conf.NumSpanWorkers > 0 {
 			workerCount = conf.NumSpanWorkers
 		}
-		ret.SpanChan = make(chan *ssf.SSFSpan)
 		ret.SpanWorkers = make([]*SpanWorker, workerCount)
 	}
 
@@ -478,13 +475,6 @@ func (s *Server) Start() {
 	// Use the pre-allocated Workers slice to know how many to start.
 	for i := range s.SpanWorkers {
 		s.SpanWorkers[i] = NewSpanWorker(s.spanSinks, s.TraceClient, s.SpanChan)
-	}
-
-	// Now that we have a span worker, set the trace
-	// backend up to send spans to it:
-	if s.traceBackend != nil {
-		s.traceBackend.spanChan = s.SpanChan
-		s.traceBackend.tc = s.TraceClient
 	}
 
 	go func() {
@@ -958,46 +948,6 @@ func (s *Server) getPlugins() []plugins.Plugin {
 	s.pluginMtx.Unlock()
 	return plugins
 }
-
-type internalTraceBackend struct {
-	spanChan chan *ssf.SSFSpan
-	tc       *trace.Client
-}
-
-// Close is a no-op on the internal backend.
-func (tb *internalTraceBackend) Close() error {
-	return nil
-}
-
-// SendSync sends the span directly into the veneur Server.
-func (tb *internalTraceBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
-	if tb.spanChan == nil {
-		return ErrNoSpanWorker
-	}
-	select {
-	case tb.spanChan <- span:
-		tags := map[string]string{
-			"service":    span.Service,
-			"ssf_format": "internal",
-		}
-		metrics.ReportBatch(tb.tc,
-			ssf.RandomlySample(0.1,
-				ssf.Count("ssf.spans.received_total", 1, tags),
-				ssf.Histogram("ssf.spans.tags_per_span", float32(len(span.Tags)), tags)))
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-// Flush on an internal trace backend is a no-op.
-func (tb *internalTraceBackend) FlushSync(ctx context.Context) error {
-	return nil
-}
-
-var ErrNoSpanWorker = fmt.Errorf("Can not submit traces to an unstarted server")
-
-var _ trace.ClientBackend = &internalTraceBackend{}
 
 // CalculateTickDelay takes the provided time, `Truncate`s it a rounded-down
 // multiple of `interval`, then adds `interval` back to find the "next" tick.
