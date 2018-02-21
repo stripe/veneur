@@ -39,10 +39,10 @@ FROM src AS test
 
 FROM test AS build
 RUN go install -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" .
-RUN go build -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur ./cmd/veneur
-RUN go build -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-emit ./cmd/veneur-emit
-RUN go build -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-prometheus ./cmd/veneur-prometheus
-RUN go build -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-proxy ./cmd/veneur-proxy
+RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur ./cmd/veneur
+RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-emit ./cmd/veneur-emit
+RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-prometheus ./cmd/veneur-prometheus
+RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-proxy ./cmd/veneur-proxy
 
 
 FROM alpine:3.6 AS release
