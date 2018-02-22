@@ -344,6 +344,7 @@ func (ew *EventWorker) Flush() []ssf.SSFSample {
 	ew.samples = nil
 
 	ew.mutex.Unlock()
+	metrics.ReportOne(ew.traceClient, ssf.Count("worker.other_samples_flushed_total", float32(len(retsamples)), nil))
 	metrics.ReportOne(ew.traceClient, ssf.Timing("flush.event_worker_duration_ns", time.Since(start), time.Nanosecond, nil))
 	return retsamples
 }

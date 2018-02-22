@@ -193,6 +193,7 @@ func TestSignalFxEventFlush(t *testing.T) {
 	event := fakeSink.events[0]
 	assert.Equal(t, ev.Name, event.EventType)
 	dims := event.Dimensions
+	// 5 because 5 passed in, 1 eliminated (identifier) and 1 added (host!)
 	assert.Equal(t, 5, len(dims), "Event has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Event has a busted tag")
 	assert.Equal(t, "gorch", dims["baz"], "Event has a busted tag")

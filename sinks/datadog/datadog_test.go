@@ -3,6 +3,7 @@ package datadog
 import (
 	"compress/zlib"
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -23,6 +24,25 @@ import (
 type DDMetricsRequest struct {
 	Series []DDMetric
 }
+
+type DDEventRequest struct {
+	Events struct {
+		Api []DDEvent
+	}
+}
+
+// Events struct {
+// 	Title       string   `json:"msg_title"`
+// 	Text        string   `json:"msg_text"`
+// 	Timestamp   int64    `json:"timestamp,omitempty"` // represented as a unix epoch
+// 	Hostname    string   `json:"host,omitempty"`
+// 	Aggregation string   `json:"aggregation_key,omitempty"`
+// 	Priority    string   `json:"priority,omitempty"`
+// 	Source      string   `json:"source_type_name,omitempty"`
+// 	AlertType   string   `json:"alert_type,omitempty"`
+// 	Tags        []string `json:"tags,omitempty"`
+// } `json:events`
+// }
 
 func TestDatadogRate(t *testing.T) {
 	ddSink := DatadogMetricSink{
@@ -122,16 +142,24 @@ type DatadogRoundTripper struct {
 	Contains      string
 	GotCalled     bool
 	ThingReceived bool
+	Contents      string
 }
 
 func (rt *DatadogRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	rec := httptest.NewRecorder()
 	if strings.HasPrefix(req.URL.Path, rt.Endpoint) {
-		body, _ := ioutil.ReadAll(req.Body)
-		defer req.Body.Close()
-		if strings.Contains(string(body), rt.Contains) {
-			rt.ThingReceived = true
+		bstream := req.Body
+		if req.Header.Get("Content-Encoding") == "deflate" {
+			bstream, _ = zlib.NewReader(req.Body)
 		}
+		body, _ := ioutil.ReadAll(bstream)
+		defer bstream.Close()
+		if rt.Contains != "" {
+			if strings.Contains(string(body), rt.Contains) {
+				rt.ThingReceived = true
+			}
+		}
+		rt.Contents = string(body)
 
 		rec.Code = http.StatusOK
 		rt.GotCalled = true
@@ -270,4 +298,91 @@ func TestDatadogMetricRouting(t *testing.T) {
 		})
 	}
 
+}
+
+func TestDatadogFlushEvents(t *testing.T) {
+	transport := &DatadogRoundTripper{Endpoint: "/intake", Contains: ""}
+	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New())
+	assert.NoError(t, err)
+
+	testEvent := ssf.SSFSample{
+		Name:      "foo",
+		Message:   "bar",
+		Timestamp: 1136239445,
+		Tags: map[string]string{
+			samplers.DogStatsDEventIdentifierKey:        "",
+			samplers.DogStatsDEventAggregationKeyTagKey: "foos",
+			samplers.DogStatsDEventSourceTypeTagKey:     "test",
+			samplers.DogStatsDEventAlertTypeTagKey:      "success",
+			samplers.DogStatsDEventPriorityTagKey:       "low",
+			samplers.DogStatsDEventHostnameTagKey:       "example.com",
+			"foo": "bar",
+			"baz": "qux",
+		},
+	}
+	ddFixtureEvent := DDEvent{
+		Title:       testEvent.Name,
+		Text:        testEvent.Message,
+		Timestamp:   testEvent.Timestamp,
+		Hostname:    testEvent.Tags[samplers.DogStatsDEventHostnameTagKey],
+		Aggregation: testEvent.Tags[samplers.DogStatsDEventAggregationKeyTagKey],
+		Source:      testEvent.Tags[samplers.DogStatsDEventSourceTypeTagKey],
+		Priority:    testEvent.Tags[samplers.DogStatsDEventPriorityTagKey],
+		AlertType:   testEvent.Tags[samplers.DogStatsDEventAlertTypeTagKey],
+		Tags: []string{
+			"foo:bar",
+			"baz:qux",
+			"gloobles:toots", // This one needs to be here because of the Sink's common tags!
+		},
+	}
+
+	ddSink.FlushOtherSamples(context.TODO(), []ssf.SSFSample{testEvent})
+	assert.NoError(t, err)
+
+	assert.Equal(t, true, transport.GotCalled, "Did not call endpoint")
+	ddEvents := DDEventRequest{}
+	jsonErr := json.Unmarshal([]byte(transport.Contents), &ddEvents)
+	assert.NoError(t, jsonErr)
+	event := ddEvents.Events.Api[0]
+	assert.EqualValues(t, ddFixtureEvent, event, "Event posted to DD did not match")
+}
+
+func TestDatadogFlushServiceChecks(t *testing.T) {
+	transport := &DatadogRoundTripper{Endpoint: "/api/v1/check_run", Contains: ""}
+	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New())
+	assert.NoError(t, err)
+
+	testCheck := ssf.SSFSample{
+		Name:      "foo",
+		Message:   "bar",
+		Status:    ssf.SSFSample_OK,
+		Timestamp: 1136239445,
+		Tags: map[string]string{
+			samplers.DogStatsDCheckIdentifierKey:  "",
+			samplers.DogStatsDCheckHostnameTagKey: "example.com",
+			"foo": "bar",
+			"baz": "qux",
+		},
+	}
+	ddFixtureCheck := DDServiceCheck{
+		Name:      testCheck.Name,
+		Status:    int(ssf.SSFSample_Status_value[testCheck.Status.String()]),
+		Hostname:  testCheck.Tags[samplers.DogStatsDCheckHostnameTagKey],
+		Timestamp: testCheck.Timestamp,
+		Message:   testCheck.Message,
+		Tags: []string{
+			"foo:bar",
+			"baz:qux",
+			"gloobles:toots", // This one needs to be here because of the Sink's common tags!
+		},
+	}
+
+	ddSink.FlushOtherSamples(context.TODO(), []ssf.SSFSample{testCheck})
+	assert.NoError(t, err)
+
+	assert.Equal(t, true, transport.GotCalled, "Did not call endpoint")
+	ddChecks := []DDServiceCheck{}
+	jsonErr := json.Unmarshal([]byte(transport.Contents), &ddChecks)
+	assert.NoError(t, jsonErr)
+	assert.EqualValues(t, []DDServiceCheck{ddFixtureCheck}, ddChecks, "Checks posted to DD did not match")
 }

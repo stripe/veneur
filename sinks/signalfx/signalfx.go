@@ -237,6 +237,8 @@ func (sfx *SignalFxSink) FlushOtherSamples(ctx context.Context, samples []ssf.SS
 		for k, v := range sfx.commonDimensions {
 			dims[k] = v
 		}
+		// And hostname
+		dims[sfx.hostnameTag] = sfx.hostname
 
 		ev := event.Event{
 			EventType:  sample.Name,

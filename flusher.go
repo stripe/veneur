@@ -32,9 +32,7 @@ func (s *Server) Flush(ctx context.Context) {
 		ssf.Gauge("worker.span_chan.total_capacity", float32(cap(s.SpanChan)), nil),
 	)
 
-	// TODO Why is this not in the worker the way the trace worker is set up?
 	samples := s.EventWorker.Flush()
-	span.Add(ssf.Count("worker.other_samples_flushed_total", float32(len(samples)), nil))
 
 	// TODO Concurrency
 	for _, sink := range s.metricSinks {
