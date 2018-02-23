@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/protocol"
+	"github.com/stripe/veneur/protocol/dogstatsd"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 )
@@ -522,12 +523,12 @@ func TestEvents(t *testing.T) {
 		Message:   "bar",
 		Timestamp: 1136239445,
 		Tags: map[string]string{
-			samplers.DogStatsDEventIdentifierKey:        "",
-			samplers.DogStatsDEventAggregationKeyTagKey: "foos",
-			samplers.DogStatsDEventSourceTypeTagKey:     "test",
-			samplers.DogStatsDEventAlertTypeTagKey:      "success",
-			samplers.DogStatsDEventPriorityTagKey:       "low",
-			samplers.DogStatsDEventHostnameTagKey:       "example.com",
+			dogstatsd.EventIdentifierKey:        "",
+			dogstatsd.EventAggregationKeyTagKey: "foos",
+			dogstatsd.EventSourceTypeTagKey:     "test",
+			dogstatsd.EventAlertTypeTagKey:      "success",
+			dogstatsd.EventPriorityTagKey:       "low",
+			dogstatsd.EventHostnameTagKey:       "example.com",
 			"foo": "bar",
 			"baz": "qux",
 		},
@@ -560,8 +561,8 @@ func TestServiceChecks(t *testing.T) {
 		Status:    ssf.SSFSample_OK,
 		Timestamp: 1136239445,
 		Tags: map[string]string{
-			samplers.DogStatsDCheckIdentifierKey:  "",
-			samplers.DogStatsDCheckHostnameTagKey: "example.com",
+			dogstatsd.CheckIdentifierKey:  "",
+			dogstatsd.CheckHostnameTagKey: "example.com",
 		},
 	}, evt, "should have parsed event")
 

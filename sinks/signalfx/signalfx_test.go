@@ -11,6 +11,7 @@ import (
 	"github.com/signalfx/golib/sfxclient"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/protocol/dogstatsd"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 )
@@ -185,7 +186,7 @@ func TestSignalFxEventFlush(t *testing.T) {
 	ev := ssf.SSFSample{
 		Name:      "Farts farts farts",
 		Timestamp: time.Now().Unix(),
-		Tags:      map[string]string{"foo": "bar", "baz": "gorch", "novalue": "", samplers.DogStatsDEventIdentifierKey: ""},
+		Tags:      map[string]string{"foo": "bar", "baz": "gorch", "novalue": "", dogstatsd.EventIdentifierKey: ""},
 	}
 	sink.FlushOtherSamples(context.TODO(), []ssf.SSFSample{ev})
 

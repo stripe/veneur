@@ -597,7 +597,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "event", "reason": "parse"}))
 			return err
 		}
-		s.EventWorker.SampleChan <- *event
+		s.EventWorker.sampleChan <- *event
 	} else if bytes.HasPrefix(packet, []byte{'_', 's', 'c'}) {
 		svcheck, err := samplers.ParseServiceCheck(packet)
 		if err != nil {
@@ -608,7 +608,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "service_check", "reason": "parse"}))
 			return err
 		}
-		s.EventWorker.SampleChan <- *svcheck
+		s.EventWorker.sampleChan <- *svcheck
 	} else {
 		metric, err := samplers.ParseMetric(packet)
 		if err != nil {

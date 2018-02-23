@@ -12,6 +12,7 @@ import (
 	"github.com/signalfx/golib/event"
 	"github.com/signalfx/golib/sfxclient"
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/protocol/dogstatsd"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
@@ -214,7 +215,7 @@ func (sfx *SignalFxSink) FlushOtherSamples(ctx context.Context, samples []ssf.SS
 
 	for _, sample := range samples {
 
-		if _, ok := sample.Tags[samplers.DogStatsDEventIdentifierKey]; !ok {
+		if _, ok := sample.Tags[dogstatsd.EventIdentifierKey]; !ok {
 			// This isn't an event, just continue
 			continue
 		}
@@ -222,7 +223,7 @@ func (sfx *SignalFxSink) FlushOtherSamples(ctx context.Context, samples []ssf.SS
 		// Defensively copy tags
 		dims := map[string]string{}
 		for k, v := range sample.Tags {
-			if k == samplers.DogStatsDEventIdentifierKey {
+			if k == dogstatsd.EventIdentifierKey {
 				// Don't copy this tag
 				continue
 			}

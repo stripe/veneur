@@ -305,7 +305,7 @@ func (w *Worker) Stop() {
 
 // EventWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type EventWorker struct {
-	SampleChan  chan ssf.SSFSample
+	sampleChan  chan ssf.SSFSample
 	mutex       *sync.Mutex
 	samples     []ssf.SSFSample
 	traceClient *trace.Client
@@ -314,7 +314,7 @@ type EventWorker struct {
 // NewEventWorker creates an EventWorker ready to collect events and service checks.
 func NewEventWorker(cl *trace.Client) *EventWorker {
 	return &EventWorker{
-		SampleChan:  make(chan ssf.SSFSample),
+		sampleChan:  make(chan ssf.SSFSample),
 		mutex:       &sync.Mutex{},
 		traceClient: cl,
 	}
@@ -325,7 +325,7 @@ func NewEventWorker(cl *trace.Client) *EventWorker {
 func (ew *EventWorker) Work() {
 	for {
 		select {
-		case s := <-ew.SampleChan:
+		case s := <-ew.sampleChan:
 			ew.mutex.Lock()
 			ew.samples = append(ew.samples, s)
 			ew.mutex.Unlock()
