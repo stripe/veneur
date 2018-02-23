@@ -12,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 	vhttp "github.com/stripe/veneur/http"
 	"github.com/stripe/veneur/protocol"
+	"github.com/stripe/veneur/protocol/dogstatsd"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
@@ -148,7 +149,7 @@ func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ss
 	// fill in the default hostname for packets that didn't set it
 	for _, sample := range samples {
 
-		if _, ok := sample.Tags[samplers.DogStatsDCheckIdentifierKey]; ok {
+		if _, ok := sample.Tags[dogstatsd.CheckIdentifierKey]; ok {
 			// This is a service check!
 			ret := DDServiceCheck{
 				Name:      sample.Name,
@@ -163,11 +164,11 @@ func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ss
 				tags[k] = v
 			}
 			// Remove the tag that flagged this as a service check
-			delete(tags, samplers.DogStatsDCheckIdentifierKey)
+			delete(tags, dogstatsd.CheckIdentifierKey)
 
-			if v, ok := tags[samplers.DogStatsDCheckHostnameTagKey]; ok {
+			if v, ok := tags[dogstatsd.CheckHostnameTagKey]; ok {
 				ret.Hostname = v
-				delete(tags, samplers.DogStatsDCheckHostnameTagKey)
+				delete(tags, dogstatsd.CheckHostnameTagKey)
 			} else {
 				// Default hostname since there isn't one
 				ret.Hostname = dd.hostname
@@ -182,7 +183,7 @@ func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ss
 
 			checks = append(checks, ret)
 
-		} else if _, ok := sample.Tags[samplers.DogStatsDEventIdentifierKey]; ok {
+		} else if _, ok := sample.Tags[dogstatsd.EventIdentifierKey]; ok {
 			// This is an event!
 			ret := DDEvent{
 				Title:     sample.Name,
@@ -198,30 +199,30 @@ func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ss
 				tags[k] = v
 			}
 			// Remove the tag that flagged this as an event
-			delete(tags, samplers.DogStatsDEventIdentifierKey)
+			delete(tags, dogstatsd.EventIdentifierKey)
 
 			// The parser uses special tags to encode the fields for us from DogStatsD
 			// that don't fit into a normal SSF Sample. We'll hunt for each one and
 			// delete the tag if we find it.
-			if v, ok := tags[samplers.DogStatsDEventAggregationKeyTagKey]; ok {
+			if v, ok := tags[dogstatsd.EventAggregationKeyTagKey]; ok {
 				ret.Aggregation = v
-				delete(tags, samplers.DogStatsDEventAggregationKeyTagKey)
+				delete(tags, dogstatsd.EventAggregationKeyTagKey)
 			}
-			if v, ok := tags[samplers.DogStatsDEventPriorityTagKey]; ok {
+			if v, ok := tags[dogstatsd.EventPriorityTagKey]; ok {
 				ret.Priority = v
-				delete(tags, samplers.DogStatsDEventPriorityTagKey)
+				delete(tags, dogstatsd.EventPriorityTagKey)
 			}
-			if v, ok := tags[samplers.DogStatsDEventSourceTypeTagKey]; ok {
+			if v, ok := tags[dogstatsd.EventSourceTypeTagKey]; ok {
 				ret.Source = v
-				delete(tags, samplers.DogStatsDEventSourceTypeTagKey)
+				delete(tags, dogstatsd.EventSourceTypeTagKey)
 			}
-			if v, ok := tags[samplers.DogStatsDEventAlertTypeTagKey]; ok {
+			if v, ok := tags[dogstatsd.EventAlertTypeTagKey]; ok {
 				ret.AlertType = v
-				delete(tags, samplers.DogStatsDEventAlertTypeTagKey)
+				delete(tags, dogstatsd.EventAlertTypeTagKey)
 			}
-			if v, ok := tags[samplers.DogStatsDEventHostnameTagKey]; ok {
+			if v, ok := tags[dogstatsd.EventHostnameTagKey]; ok {
 				ret.Hostname = v
-				delete(tags, samplers.DogStatsDEventHostnameTagKey)
+				delete(tags, dogstatsd.EventHostnameTagKey)
 			} else {
 				// Default hostname since there isn't one
 				ret.Hostname = dd.hostname

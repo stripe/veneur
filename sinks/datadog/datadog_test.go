@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stripe/veneur/protocol/dogstatsd"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 )
@@ -310,12 +311,12 @@ func TestDatadogFlushEvents(t *testing.T) {
 		Message:   "bar",
 		Timestamp: 1136239445,
 		Tags: map[string]string{
-			samplers.DogStatsDEventIdentifierKey:        "",
-			samplers.DogStatsDEventAggregationKeyTagKey: "foos",
-			samplers.DogStatsDEventSourceTypeTagKey:     "test",
-			samplers.DogStatsDEventAlertTypeTagKey:      "success",
-			samplers.DogStatsDEventPriorityTagKey:       "low",
-			samplers.DogStatsDEventHostnameTagKey:       "example.com",
+			dogstatsd.EventIdentifierKey:        "",
+			dogstatsd.EventAggregationKeyTagKey: "foos",
+			dogstatsd.EventSourceTypeTagKey:     "test",
+			dogstatsd.EventAlertTypeTagKey:      "success",
+			dogstatsd.EventPriorityTagKey:       "low",
+			dogstatsd.EventHostnameTagKey:       "example.com",
 			"foo": "bar",
 			"baz": "qux",
 		},
@@ -324,11 +325,11 @@ func TestDatadogFlushEvents(t *testing.T) {
 		Title:       testEvent.Name,
 		Text:        testEvent.Message,
 		Timestamp:   testEvent.Timestamp,
-		Hostname:    testEvent.Tags[samplers.DogStatsDEventHostnameTagKey],
-		Aggregation: testEvent.Tags[samplers.DogStatsDEventAggregationKeyTagKey],
-		Source:      testEvent.Tags[samplers.DogStatsDEventSourceTypeTagKey],
-		Priority:    testEvent.Tags[samplers.DogStatsDEventPriorityTagKey],
-		AlertType:   testEvent.Tags[samplers.DogStatsDEventAlertTypeTagKey],
+		Hostname:    testEvent.Tags[dogstatsd.EventHostnameTagKey],
+		Aggregation: testEvent.Tags[dogstatsd.EventAggregationKeyTagKey],
+		Source:      testEvent.Tags[dogstatsd.EventSourceTypeTagKey],
+		Priority:    testEvent.Tags[dogstatsd.EventPriorityTagKey],
+		AlertType:   testEvent.Tags[dogstatsd.EventAlertTypeTagKey],
 		Tags: []string{
 			"foo:bar",
 			"baz:qux",
@@ -358,8 +359,8 @@ func TestDatadogFlushServiceChecks(t *testing.T) {
 		Status:    ssf.SSFSample_OK,
 		Timestamp: 1136239445,
 		Tags: map[string]string{
-			samplers.DogStatsDCheckIdentifierKey:  "",
-			samplers.DogStatsDCheckHostnameTagKey: "example.com",
+			dogstatsd.CheckIdentifierKey:  "",
+			dogstatsd.CheckHostnameTagKey: "example.com",
 			"foo": "bar",
 			"baz": "qux",
 		},
@@ -367,7 +368,7 @@ func TestDatadogFlushServiceChecks(t *testing.T) {
 	ddFixtureCheck := DDServiceCheck{
 		Name:      testCheck.Name,
 		Status:    int(ssf.SSFSample_Status_value[testCheck.Status.String()]),
-		Hostname:  testCheck.Tags[samplers.DogStatsDCheckHostnameTagKey],
+		Hostname:  testCheck.Tags[dogstatsd.CheckHostnameTagKey],
 		Timestamp: testCheck.Timestamp,
 		Message:   testCheck.Message,
 		Tags: []string{

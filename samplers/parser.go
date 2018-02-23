@@ -11,17 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stripe/veneur/protocol/dogstatsd"
 	"github.com/stripe/veneur/ssf"
 )
-
-const DogStatsDCheckIdentifierKey = "dogstatsd_sc"
-const DogStatsDCheckHostnameTagKey = "dogstatsd_hostname"
-const DogStatsDEventAggregationKeyTagKey = "dogstatsd_ak"
-const DogStatsDEventAlertTypeTagKey = "dogstatsd_at"
-const DogStatsDEventHostnameTagKey = "dogstatsd_hostname"
-const DogStatsDEventIdentifierKey = "dogstatsd_ev"
-const DogStatsDEventPriorityTagKey = "dogstatsd_pri"
-const DogStatsDEventSourceTypeTagKey = "dogstatsd_st"
 
 var invalidMetricTypeError = errors.New("Invalid type for metric")
 
@@ -345,7 +337,7 @@ func ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 
 	ret := &ssf.SSFSample{
 		Timestamp: time.Now().Unix(),
-		Tags:      map[string]string{DogStatsDEventIdentifierKey: ""},
+		Tags:      map[string]string{dogstatsd.EventIdentifierKey: ""},
 	}
 
 	pipeSplitter := NewSplitBytes(packet, '|')
@@ -430,20 +422,20 @@ func ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 			if foundHostname {
 				return nil, errors.New("Invalid event packet, multiple hostname sections")
 			}
-			ret.Tags[DogStatsDEventHostnameTagKey] = string(pipeSplitter.Chunk()[2:])
+			ret.Tags[dogstatsd.EventHostnameTagKey] = string(pipeSplitter.Chunk()[2:])
 			foundHostname = true
 		case bytes.HasPrefix(pipeSplitter.Chunk(), []byte{'k', ':'}):
 			if foundAggregation == true {
 				return nil, errors.New("Invalid event packet, multiple aggregation key sections")
 			}
-			ret.Tags[DogStatsDEventAggregationKeyTagKey] = string(pipeSplitter.Chunk()[2:])
+			ret.Tags[dogstatsd.EventAggregationKeyTagKey] = string(pipeSplitter.Chunk()[2:])
 			foundAggregation = true
 		case bytes.HasPrefix(pipeSplitter.Chunk(), []byte{'p', ':'}):
 			if foundPriority == true {
 				return nil, errors.New("Invalid event packet, multiple priority sections")
 			}
-			ret.Tags[DogStatsDEventPriorityTagKey] = string(pipeSplitter.Chunk()[2:])
-			if ret.Tags[DogStatsDEventPriorityTagKey] != "normal" && ret.Tags[DogStatsDEventPriorityTagKey] != "low" {
+			ret.Tags[dogstatsd.EventPriorityTagKey] = string(pipeSplitter.Chunk()[2:])
+			if ret.Tags[dogstatsd.EventPriorityTagKey] != "normal" && ret.Tags[dogstatsd.EventPriorityTagKey] != "low" {
 				return nil, errors.New("Invalid event packet, priority must be normal or low")
 			}
 			foundPriority = true
@@ -451,19 +443,20 @@ func ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 			if foundSource == true {
 				return nil, errors.New("Invalid event packet, multiple source sections")
 			}
-			ret.Tags[DogStatsDEventSourceTypeTagKey] = string(pipeSplitter.Chunk()[2:])
+			ret.Tags[dogstatsd.EventSourceTypeTagKey] = string(pipeSplitter.Chunk()[2:])
 			foundSource = true
 		case bytes.HasPrefix(pipeSplitter.Chunk(), []byte{'t', ':'}):
 			if foundAlert == true {
 				return nil, errors.New("Invalid event packet, multiple alert sections")
 			}
-			ret.Tags[DogStatsDEventAlertTypeTagKey] = string(pipeSplitter.Chunk()[2:])
-			if ret.Tags[DogStatsDEventAlertTypeTagKey] != "error" &&
-				ret.Tags[DogStatsDEventAlertTypeTagKey] != "warning" &&
-				ret.Tags[DogStatsDEventAlertTypeTagKey] != "info" &&
-				ret.Tags[DogStatsDEventAlertTypeTagKey] != "success" {
+			aType := string(pipeSplitter.Chunk()[2:])
+			if aType != "error" &&
+				aType != "warning" &&
+				aType != "info" &&
+				aType != "success" {
 				return nil, errors.New("Invalid event packet, alert level must be error, warning, info or success")
 			}
+			ret.Tags[dogstatsd.EventAlertTypeTagKey] = aType
 			foundAlert = true
 		case pipeSplitter.Chunk()[0] == '#':
 			if foundTags == true {
@@ -489,7 +482,7 @@ func ParseServiceCheck(packet []byte) (*ssf.SSFSample, error) {
 
 	ret := &ssf.SSFSample{
 		Timestamp: time.Now().Unix(),
-		Tags:      map[string]string{DogStatsDCheckIdentifierKey: ""},
+		Tags:      map[string]string{dogstatsd.CheckIdentifierKey: ""},
 	}
 
 	pipeSplitter := NewSplitBytes(packet, '|')
@@ -551,7 +544,7 @@ func ParseServiceCheck(packet []byte) (*ssf.SSFSample, error) {
 			if foundHostname || foundMessage {
 				return nil, errors.New("Invalid service check packet, multiple hostname sections")
 			}
-			ret.Tags[DogStatsDCheckHostnameTagKey] = string(pipeSplitter.Chunk()[2:])
+			ret.Tags[dogstatsd.CheckHostnameTagKey] = string(pipeSplitter.Chunk()[2:])
 			foundHostname = true
 		case bytes.HasPrefix(pipeSplitter.Chunk(), []byte{'m', ':'}):
 			// this section must come last, so its flag also gets checked by
