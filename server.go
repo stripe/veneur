@@ -217,9 +217,13 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	// found during setup we should use logger.Fatal or
 	// logger.Panic, because that will give us breakage monitoring
 	// through Sentry.
-	logger.WithField("number", conf.NumWorkers).Info("Preparing workers")
+	numWorkers := 1
+	if conf.NumWorkers > 1 {
+		numWorkers = conf.NumWorkers
+	}
+	logger.WithField("number", numWorkers).Info("Preparing workers")
 	// Allocate the slice, we'll fill it with workers later.
-	ret.Workers = make([]*Worker, conf.NumWorkers)
+	ret.Workers = make([]*Worker, numWorkers)
 	ret.numReaders = conf.NumReaders
 
 	// Use the pre-allocated Workers slice to know how many to start.

@@ -117,18 +117,19 @@ trace_lightstep_num_clients: 0
 
 # == PERFORMANCE ==
 
-# Adjusts the number of metrics workers Veneur will distribute
-# aggregation across.  More decreases contention but has diminishing
-# returns.
+# Adjusts the number of metrics workers across which Veneur will
+# distribute aggregation.  More decreases contention but has
+# diminishing returns. The default value is 1, no parallel ingestion
+# of metrics.
 num_workers: 96
 
 # Numbers larger than 1 will enable the use of SO_REUSEPORT, make sure
 # this is supported on your platform!
 num_readers: 1
 
-# Adjusts the number of span workers Veneur will distribute span
-# ingestion across. The default value is 1, no parallel ingestion of
-# spans.
+# Adjusts the number of span workers across which Veneur will
+# distribute span ingestion. The default value is 1, no parallel
+# ingestion of spans.
 num_span_workers: 10
 
 # Adjusts the number of spans that can be accomodated before the span
