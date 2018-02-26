@@ -22,11 +22,9 @@ func init() {
 	DefaultClient = cl
 }
 
-// op is a function invoked on a backend, such as sending a span
-// synchronously, flushing the backend buffer, or closing the backend.
-type op func(context.Context, ClientBackend)
-
-type sendOp struct {
+// recordOp represents a call to Record. Each recordOp holds a span
+// and an optional result return channel.
+type recordOp struct {
 	span   *ssf.SSFSpan
 	result chan<- error
 }
@@ -57,7 +55,7 @@ type Client struct {
 	cancel        context.CancelFunc
 	flush         func(context.Context)
 	report        func(context.Context)
-	records       chan *sendOp
+	records       chan *recordOp
 	spans         chan<- *ssf.SSFSpan
 
 	// statistics:
@@ -91,7 +89,7 @@ func (c *Client) run(ctx context.Context) {
 	}
 }
 
-func runFlushableBackend(ctx context.Context, spans chan *sendOp, backend ClientBackend, flushNotify chan chan<- error) {
+func runFlushableBackend(ctx context.Context, spans chan *recordOp, backend ClientBackend, flushNotify chan chan<- error) {
 	defer backend.Close()
 
 	for {
@@ -309,7 +307,7 @@ func NewClient(addrStr string, opts ...ClientParam) (*Client, error) {
 			return nil, err
 		}
 	}
-	ch := make(chan *sendOp, cl.cap)
+	ch := make(chan *recordOp, cl.cap)
 	cl.records = ch
 
 	var ctx context.Context
@@ -349,7 +347,7 @@ func NewBackendClient(b ClientBackend, opts ...ClientParam) (*Client, error) {
 			return nil, err
 		}
 	}
-	cl.records = make(chan *sendOp, cl.cap)
+	cl.records = make(chan *recordOp, cl.cap)
 	ctx := context.Background()
 	ctx, cl.cancel = context.WithCancel(ctx)
 
@@ -440,7 +438,7 @@ func Record(cl *Client, span *ssf.SSFSpan, done chan<- error) error {
 		return ErrNoClient
 	}
 
-	op := &sendOp{span: span, result: done}
+	op := &recordOp{span: span, result: done}
 	select {
 	case cl.spans <- span:
 		atomic.AddInt64(&cl.successfulRecords, 1)
