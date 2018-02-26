@@ -359,6 +359,7 @@ func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck)
 // SpanWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type SpanWorker struct {
 	SpanChan        <-chan *ssf.SSFSpan
+	sinkTags        []map[string]string
 	sinks           []sinks.SpanSink
 	cumulativeTimes []int64
 	traceClient     *trace.Client
@@ -366,9 +367,16 @@ type SpanWorker struct {
 
 // NewSpanWorker creates an SpanWorker ready to collect events and service checks.
 func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ssf.SSFSpan) *SpanWorker {
+	tags := make([]map[string]string, len(sinks))
+	for i, sink := range sinks {
+		tags[i] = map[string]string{
+			"sink": sink.Name(),
+		}
+	}
 	return &SpanWorker{
 		SpanChan:        spanChan,
 		sinks:           sinks,
+		sinkTags:        tags,
 		cumulativeTimes: make([]int64, len(sinks)),
 		traceClient:     cl,
 	}
@@ -380,6 +388,7 @@ func (tw *SpanWorker) Work() {
 	for m := range tw.SpanChan {
 		var wg sync.WaitGroup
 		for i, s := range tw.sinks {
+			tags := tw.sinkTags[i]
 			wg.Add(1)
 			go func(i int, sink sinks.SpanSink, span *ssf.SSFSpan, wg *sync.WaitGroup) {
 				start := time.Now()
@@ -395,8 +404,7 @@ func (tw *SpanWorker) Work() {
 						// loooot of metrics towards all span workers here since
 						// span ingest rates can be very high. C'est la vie.
 						metrics.ReportOne(tw.traceClient,
-							ssf.Count("worker.span.ingest_error_total", 1,
-								map[string]string{"sink": s.Name()}))
+							ssf.Count("worker.span.ingest_error_total", 1, tags))
 					}
 				}
 				wg.Done()
@@ -413,7 +421,7 @@ func (tw *SpanWorker) Flush() {
 
 	// Flush and time each sink.
 	for i, s := range tw.sinks {
-		tags := map[string]string{"sink": s.Name()}
+		tags := tw.sinkTags[i]
 		sinkFlushStart := time.Now()
 		s.Flush()
 		samples.Add(ssf.Timing("worker.span.flush_duration_ns", time.Since(sinkFlushStart), time.Nanosecond, tags))
