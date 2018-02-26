@@ -1203,3 +1203,48 @@ func TestInternalSSFMetricsEndToEnd(t *testing.T) {
 	}
 	assert.Equal(t, 2, n, "Should have gotten the right number of metrics")
 }
+
+func TestGenerateExcludeTags(t *testing.T) {
+	type testCase struct {
+		name         string
+		sinkName     string
+		excludeRules []string
+		expected     []string
+	}
+
+	cases := []testCase{
+		{
+			name:         "GlobalExclude",
+			sinkName:     "datadog",
+			excludeRules: []string{"host"},
+			expected:     []string{"host"},
+		},
+		{
+			name:         "MultipleSinkSpecific",
+			sinkName:     "signalfx",
+			excludeRules: []string{"host", "ip|signalfx|datadog"},
+			expected:     []string{"host", "ip"},
+		},
+		{
+			name:         "MultipleSinkSpecificSecond",
+			sinkName:     "datadog",
+			excludeRules: []string{"host", "ip|signalfx|datadog"},
+			expected:     []string{"host", "ip"},
+		},
+		{
+			name:         "InapplicableSinkSpecific",
+			sinkName:     "signalfx",
+			excludeRules: []string{"host", "ip|datadog"},
+			expected:     []string{"host"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			excludes := generateExcludedTags(tc.excludeRules, tc.sinkName)
+			assert.Equal(t, len(tc.expected), len(excludes), "Received an incorrect number of excluded tags")
+			assert.Subsetf(t, tc.expected, excludes, "Excluded rules contain unexpected elements")
+			assert.Subsetf(t, excludes, tc.expected, "Did not generate all expected exclude-tags")
+		})
+	}
+}

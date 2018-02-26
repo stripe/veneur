@@ -25,6 +25,7 @@ type SignalFxSink struct {
 	commonDimensions map[string]string
 	log              *logrus.Logger
 	traceClient      *trace.Client
+	excludedTags     map[string]struct{}
 }
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
@@ -74,10 +75,17 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 		dims[sfx.hostnameTag] = sfx.hostname
 		for _, tag := range metric.Tags {
 			kv := strings.SplitN(tag, ":", 2)
+			key := kv[0]
+
+			// skip excluded tags
+			if _, ok := sfx.excludedTags[key]; ok {
+				continue
+			}
+
 			if len(kv) == 1 {
-				dims[kv[0]] = ""
+				dims[key] = ""
 			} else {
-				dims[kv[0]] = kv[1]
+				dims[key] = kv[1]
 			}
 		}
 		// Copy common dimensions
@@ -138,4 +146,15 @@ func (sfx *SignalFxSink) FlushEventsChecks(ctx context.Context, events []sampler
 		}
 		sfx.client.AddEvents(ctx, []*event.Event{&ev})
 	}
+}
+
+// SetTagExcludes sets the excluded tag names. Any tags with the
+// provided key (name) will be excluded.
+func (sfx *SignalFxSink) SetExcludedTags(excludes []string) {
+
+	tagsSet := map[string]struct{}{}
+	for _, tag := range excludes {
+		tagsSet[tag] = struct{}{}
+	}
+	sfx.excludedTags = tagsSet
 }

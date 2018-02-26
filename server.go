@@ -408,6 +408,9 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		}
 	}
 
+	// After all sinks are initialized, set the list of tags to exclude
+	setSinkExcludedTags(conf.TagsExclude, ret.metricSinks)
+
 	var svc s3iface.S3API
 	awsID := conf.AwsAccessKeyID
 	awsSecret := conf.AwsSecretAccessKey
@@ -957,4 +960,35 @@ func (s *Server) getPlugins() []plugins.Plugin {
 // multiple of `interval`, then adds `interval` back to find the "next" tick.
 func CalculateTickDelay(interval time.Duration, t time.Time) time.Duration {
 	return t.Truncate(interval).Add(interval).Sub(t)
+}
+
+// Set the list of tags to exclude on each sink
+func setSinkExcludedTags(excludeRules []string, metricSinks []sinks.MetricSink) {
+	type excludableSink interface {
+		SetExcludedTags([]string)
+	}
+
+	for _, sink := range metricSinks {
+		if s, ok := sink.(excludableSink); ok {
+			excludedTags := generateExcludedTags(excludeRules, sink.Name())
+			s.SetExcludedTags(excludedTags)
+		}
+	}
+}
+
+func generateExcludedTags(excludeRules []string, sinkName string) []string {
+	excludedTags := make([]string, 0, len(excludeRules))
+	for _, rule := range excludeRules {
+		splt := strings.Split(rule, "|")
+		if len(splt) == 1 {
+			excludedTags = append(excludedTags, splt[0])
+			continue
+		}
+		for _, name := range splt[1:] {
+			if name == sinkName {
+				excludedTags = append(excludedTags, splt[0])
+			}
+		}
+	}
+	return excludedTags
 }
