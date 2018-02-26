@@ -312,8 +312,9 @@ func NewClient(addrStr string, opts ...ClientParam) (*Client, error) {
 	}
 	ch := make(chan *sendOp, cl.cap)
 	cl.records = ch
-	ctx := context.Background()
-	ctx, cl.cancel = context.WithCancel(ctx)
+
+	var ctx context.Context
+	ctx, cl.cancel = context.WithCancel(context.Background())
 
 	fb := []flushNotifier{}
 	for i := uint(0); i < cl.nBackends; i++ {
