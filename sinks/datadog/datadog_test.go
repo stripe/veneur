@@ -345,7 +345,7 @@ func TestDatadogFlushEvents(t *testing.T) {
 	jsonErr := json.Unmarshal([]byte(transport.Contents), &ddEvents)
 	assert.NoError(t, jsonErr)
 	event := ddEvents.Events.Api[0]
-	assert.EqualValues(t, ddFixtureEvent, event, "Event posted to DD did not match")
+	assert.EqualValuesf(t, ddFixtureEvent, event, "Event posted to DD did not match")
 }
 
 func TestDatadogFlushServiceChecks(t *testing.T) {
@@ -385,5 +385,5 @@ func TestDatadogFlushServiceChecks(t *testing.T) {
 	ddChecks := []DDServiceCheck{}
 	jsonErr := json.Unmarshal([]byte(transport.Contents), &ddChecks)
 	assert.NoError(t, jsonErr)
-	assert.EqualValues(t, []DDServiceCheck{ddFixtureCheck}, ddChecks, "Checks posted to DD did not match")
+	assert.EqualValuesf(t, []DDServiceCheck{ddFixtureCheck}, ddChecks, "Checks posted to DD did not match")
 }
