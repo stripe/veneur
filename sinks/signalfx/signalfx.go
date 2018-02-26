@@ -127,13 +127,23 @@ func (sfx *SignalFxSink) FlushEventsChecks(ctx context.Context, events []sampler
 		dims := map[string]string{}
 
 		// Set the hostname as a tag, since SFx doesn't have a first-class hostname field
-		dims[sfx.hostnameTag] = sfx.hostname
+		if _, ok := sfx.excludedTags[sfx.hostnameTag]; !ok {
+			dims[sfx.hostnameTag] = sfx.hostname
+		}
+
 		for _, tag := range udpEvent.Tags {
 			parts := strings.SplitN(tag, ":", 2)
+			key := parts[0]
+
+			// skip excluded tags
+			if _, ok := sfx.excludedTags[key]; ok {
+				continue
+			}
+
 			if len(parts) == 1 {
-				dims[parts[0]] = ""
+				dims[key] = ""
 			} else {
-				dims[parts[0]] = parts[1]
+				dims[key] = parts[1]
 			}
 		}
 		// Copy common dimensions in

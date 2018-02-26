@@ -199,7 +199,7 @@ func TestSignalFxEventFlush(t *testing.T) {
 	assert.Equal(t, "gorch", dims["baz"], "Event has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Event missing a common tag")
 	assert.Equal(t, "", dims["novalue"], "Event has a busted tag")
-	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
+	assert.Equal(t, "glooblestoots", dims["host"], "Event is missing host tag")
 }
 
 func TestSignalFxSetExcludeTags(t *testing.T) {
@@ -220,8 +220,19 @@ func TestSignalFxSetExcludeTags(t *testing.T) {
 		},
 		Type: samplers.CounterMetric,
 	}}
+	sink.Flush(context.Background(), interMetrics)
 
-	sink.Flush(context.TODO(), interMetrics)
+	ev := samplers.UDPEvent{
+		Title:     "Test Event",
+		Timestamp: time.Now().Unix(),
+		Tags: []string{
+			"foo:bar",
+			"baz:gorch",
+			"novalue",
+		},
+	}
+
+	sink.FlushEventsChecks(context.Background(), []samplers.UDPEvent{ev}, nil)
 
 	assert.Equal(t, 1, len(fakeSink.points))
 	point := fakeSink.points[0]
@@ -234,4 +245,15 @@ func TestSignalFxSetExcludeTags(t *testing.T) {
 	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Metric is missing a common tag")
 	assert.Equal(t, "", dims["host"], "Metric has host tag despite exclude rule")
+
+	assert.Equal(t, 1, len(fakeSink.events))
+	event := fakeSink.events[0]
+	assert.Equal(t, ev.Title, event.EventType)
+	dims = event.Dimensions
+	assert.Equal(t, 3, len(dims), "Event has incorrect tag count")
+	assert.Equal(t, "", dims["foo"], "Event has a foo tag despite exclude rule")
+	assert.Equal(t, "gorch", dims["baz"], "Event has a busted tag")
+	assert.Equal(t, "pie", dims["yay"], "Event missing a common tag")
+	assert.Equal(t, "", dims["novalue"], "Event has a busted tag")
+	assert.Equal(t, "", dims["host"], "Event has host tag despite exclude rule")
 }
