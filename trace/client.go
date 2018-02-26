@@ -50,8 +50,7 @@ type flushNotifier struct {
 type Client struct {
 	flushBackends []flushNotifier
 
-	// Parameters adjusted by initialization / used to build a
-	// running client:
+	// Parameters adjusted by client initialization:
 	backendParams *backendParams
 	nBackends     uint
 	cap           uint
