@@ -201,3 +201,37 @@ func TestSignalFxEventFlush(t *testing.T) {
 	assert.Equal(t, "", dims["novalue"], "Event has a busted tag")
 	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
 }
+
+func TestSignalFxSetExcludeTags(t *testing.T) {
+	fakeSink := NewFakeSink()
+	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink)
+
+	sink.SetExcludedTags([]string{"foo", "host"})
+	assert.NoError(t, err)
+
+	interMetrics := []samplers.InterMetric{samplers.InterMetric{
+		Name:      "a.b.c",
+		Timestamp: 1476119058,
+		Value:     10,
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+			"novalue",
+		},
+		Type: samplers.CounterMetric,
+	}}
+
+	sink.Flush(context.TODO(), interMetrics)
+
+	assert.Equal(t, 1, len(fakeSink.points))
+	point := fakeSink.points[0]
+	assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
+	assert.Equal(t, datapoint.Count, point.MetricType, "Metric has wrong type")
+	dims := point.Dimensions
+	assert.Equal(t, 3, len(dims), "Metric has incorrect tag count")
+	assert.Equal(t, "", dims["foo"], "Metric has a foo tag despite exclude rule")
+	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
+	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
+	assert.Equal(t, "pie", dims["yay"], "Metric is missing a common tag")
+	assert.Equal(t, "", dims["host"], "Metric has host tag despite exclude rule")
+}
