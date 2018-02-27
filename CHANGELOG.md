@@ -2,6 +2,7 @@
 
 ## Added
 
+* The new `tags_exclude` parameter can be used to strip tags from all metrics Veneur processes, either for all supported sinks or a subset of sinks. Thanks, [aditya](https://github.com/chimeracoder)!
 * The SSF client now defaults to opening 8 connections in parallel to avoid blocking client code. Thanks, [antifuchs](https://github.com/antifuchs)!
 * New config settings `num_span_workers` and `span_channel_capacity` that allow you to customize the parallelism of span ingestion. Thanks, [antifuchs](https://github.com/antifuchs)!
 * New span sink utilization metrics - Thanks, [antifuchs](https://github.com/antifuchs):
