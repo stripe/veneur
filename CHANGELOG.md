@@ -1,18 +1,19 @@
-# 3.0.0, in development
+# 3.0.0, 2018-02-27
 
 ## Incompatible changes
+
 * These deprecated configuration keys are no longer supported and will cause an error on startup if used in a veneur config file:
-** `api_hostname` - replaced in 1.5.0 by `datadog_api_hostname`
-** `key` - replaced in 1.5.0 by `datadog_api_key`
-** `trace_address` - replaced in 1.7.0 by `ssf_listen_addresses`
-** `trace_api_address` - replaced in 1.5.0 by `datadog_trace_api_address`
-** `ssf_address` - replaced in 1.7.0 by `ssf_listen_addresses`
-** `tcp_address` and `udp_address` - replaced in 1.7.0 by `statsd_listen_addresses`
+  * `api_hostname` - replaced in 1.5.0 by `datadog_api_hostname`
+  * `key` - replaced in 1.5.0 by `datadog_api_key`
+  * `trace_address` - replaced in 1.7.0 by `ssf_listen_addresses`
+  * `trace_api_address` - replaced in 1.5.0 by `datadog_trace_api_address`
+  * `ssf_address` - replaced in 1.7.0 by `ssf_listen_addresses`
+  * `tcp_address` and `udp_address` - replaced in 1.7.0 by `statsd_listen_addresses`
 * These metrics have changed names:
-** Datadog, MetricExtraction, and SignalFx sinks now emit `veneur.sink.metric_flush_total_duration_ns` for metric flush duration and tag it with `sink`
-** Datadog, Kafka, MetricExtraction, and SignalFx sinks now emits `sink.metrics_flushed_total` for metric flush counts and tag it with `sink`
-** Datadog and LightStep sinks now emit `veneur.sink.span_flush_total_duration_ns` for span flush duration and tag it with `sink`
-** Datadog, Kafka, MetricExtraction, and LightStep sinks now emit `sink.spans_flushed_total` for metric flush counts and tag it with `sink`
+  * Datadog, MetricExtraction, and SignalFx sinks now emit `veneur.sink.metric_flush_total_duration_ns` for metric flush duration and tag it with `sink`
+  * Datadog, Kafka, MetricExtraction, and SignalFx sinks now emits `sink.metrics_flushed_total` for metric flush counts and tag it with `sink`
+  * Datadog and LightStep sinks now emit `veneur.sink.span_flush_total_duration_ns` for span flush duration and tag it with `sink`
+  * Datadog, Kafka, MetricExtraction, and LightStep sinks now emit `sink.spans_flushed_total` for metric flush counts and tag it with `sink`
 * Veneur's internal metrics are no longer tagged with `veneurlocalonly`. This means that percentile metrics (such as timers) will now be aggregated globally.
 
 ## Bugfixes
@@ -24,11 +25,11 @@
 * `veneur-emit` now infers parent and trace IDs from the environment (using the variables `VENEUR_EMIT_TRACE_ID` and `VENEUR_EMIT_PARENT_SPAN_ID`) and sets these environment variables from its `-trace_id` and `parent_span_id` when timing commands, allowing for convenient construction of trace trees if traced programs call `veneur-emit` themselves. Thanks, [antifuchs](https://github.com/antifuchs)
 * The Kafka sink for spans can now sample spans (at a rate determined by `kafka_span_sample_rate_percent`) based off of traceIDs (by default) or a tag's values (configurable via `kafka_span_sample_tag`) to consistently sample spans related to each other. Thanks, [rhwlo](https://github.com/rhwlo)!
 * Improvements in SSF metrics reporting - thanks, [antifuchs](https://github.com/antifuchs)!
-** Function `ssf.RandomlySample` that takes an array of samples and a sample rate and randomly drops those samples, adjusting the kept samples' rates
-** New variable `ssf.NamePrefix` that can be used to prepend a common name prefix to SSF sample names.
-** Package `trace/metrics`, containing functions that allow reporting metrics through a trace client.
-** New type `ssf.Samples` holding a batch of samples which can be submitted conveniently through `trace/metrics`.
-** Method `trace.(*Trace).Add`, which allows adding metrics to a trace span.
+  * Function `ssf.RandomlySample` that takes an array of samples and a sample rate and randomly drops those samples, adjusting the kept samples' rates
+  * New variable `ssf.NamePrefix` that can be used to prepend a common name prefix to SSF sample names.
+  * Package `trace/metrics`, containing functions that allow reporting metrics through a trace client.
+  * New type `ssf.Samples` holding a batch of samples which can be submitted conveniently through `trace/metrics`.
+  * Method `trace.(*Trace).Add`, which allows adding metrics to a trace span.
 * `veneur-proxy` has a new configuration option `forward_timeout` which allows specifying how long forwarding a batch to global veneur servers may take in total. Thanks, [antifuchs](https://github.com/antifuchs)!
 * Add native support for running Veneur within Kubernetes. Thanks, [aditya](https://github.com/chimeracoder)!
 
