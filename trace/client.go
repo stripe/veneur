@@ -70,9 +70,6 @@ type Client struct {
 // any error from closing the connection.
 func (c *Client) Close() error {
 	c.cancel()
-	if c.records != nil {
-		close(c.records)
-	}
 	return nil
 }
 
@@ -94,10 +91,7 @@ func runFlushableBackend(ctx context.Context, spans chan *recordOp, backend Clie
 
 	for {
 		select {
-		case op, ok := <-spans:
-			if !ok {
-				return
-			}
+		case op := <-spans:
 			err := backend.SendSync(ctx, op.span)
 			if op.result != nil {
 				op.result <- err
@@ -109,6 +103,8 @@ func runFlushableBackend(ctx context.Context, spans chan *recordOp, backend Clie
 			default:
 				errChan <- nil
 			}
+		case <-ctx.Done():
+			return
 		}
 	}
 }
