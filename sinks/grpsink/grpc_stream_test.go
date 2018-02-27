@@ -2,11 +2,8 @@ package grpsink
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net"
-	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -23,14 +20,12 @@ var tags = map[string]string{"foo": "bar"}
 // MockSpanSinkServer is a mock of SpanSinkServer interface
 type MockSpanSinkServer struct {
 	spans []*ssf.SSFSpan
-	lock  sync.Mutex
 }
 
 // SendSpans mocks base method
 func (m *MockSpanSinkServer) SendSpans(stream SpanSink_SendSpansServer) error {
 	for {
 		span, err := stream.Recv()
-		m.lock.Lock()
 		if err != nil {
 			if err == io.EOF {
 				return stream.SendMsg(&SpanResponse{
@@ -40,14 +35,11 @@ func (m *MockSpanSinkServer) SendSpans(stream SpanSink_SendSpansServer) error {
 			return err
 		}
 		m.spans = append(m.spans, span)
-		m.lock.Unlock()
 	}
 }
 
 // Extra method and locking to avoid a weird data race
 func (m *MockSpanSinkServer) getFirstSpan() *ssf.SSFSpan {
-	m.lock.Lock()
-	defer m.lock.Unlock()
 	if len(m.spans) == 0 {
 		panic("no spans yet")
 	}
@@ -59,19 +51,19 @@ func TestEndToEnd(t *testing.T) {
 	// Set up a server
 	lis, err := net.Listen("tcp", testaddr)
 	if err != nil {
-		fmt.Printf("Failed to set up net listener with err %s", err)
-		os.Exit(1)
+		t.Fatalf("Failed to set up net listener with err %s", err)
 	}
 
 	srv := grpc.NewServer()
 	mock := &MockSpanSinkServer{}
 	RegisterSpanSinkServer(srv, mock)
+
 	block := make(chan struct{})
 	go func() {
-		close(block)
+		<-block
 		srv.Serve(lis)
 	}()
-	<-block // Make sure the goroutine's started proceeding
+	block <- struct{}{} // Make sure the goroutine's started proceeding
 
 	sink, err := NewGRPCStreamingSpanSink(context.Background(), testaddr, "test1", tags, logrus.New(), grpc.WithInsecure())
 	assert.NoError(t, err)
@@ -110,4 +102,22 @@ func TestEndToEnd(t *testing.T) {
 	assert.Equal(t, testSpan, mock.getFirstSpan())
 
 	srv.Stop()
+
+	err = sink.Ingest(testSpan)
+	assert.NoError(t, err)
+
+	srv = grpc.NewServer()
+	RegisterSpanSinkServer(srv, mock)
+
+	go func() {
+		<-block
+		srv.Serve(lis)
+	}()
+	block <- struct{}{}
+	time.Sleep(500 * time.Millisecond)
+
+	err = sink.Ingest(testSpan)
+	assert.NoError(t, err)
+	err = sink.Ingest(testSpan)
+	assert.NoError(t, err)
 }

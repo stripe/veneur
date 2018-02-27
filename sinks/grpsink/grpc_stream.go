@@ -3,6 +3,7 @@ package grpsink
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
@@ -20,9 +21,11 @@ import (
 // it is connecting to.
 type GRPCStreamingSpanSink struct {
 	name        string
+	target      string
 	grpcConn    *grpc.ClientConn
 	sinkClient  SpanSinkClient
 	stream      SpanSink_SendSpansClient
+	streamMut   sync.Mutex
 	stats       *statsd.Client
 	commonTags  map[string]string
 	traceClient *trace.Client
@@ -54,6 +57,7 @@ func NewGRPCStreamingSpanSink(ctx context.Context, target, name string, commonTa
 	return &GRPCStreamingSpanSink{
 		grpcConn:   conn,
 		name:       name,
+		target:     target,
 		sinkClient: NewSpanSinkClient(conn),
 		commonTags: commonTags,
 		log:        log,
@@ -61,29 +65,21 @@ func NewGRPCStreamingSpanSink(ctx context.Context, target, name string, commonTa
 }
 
 func (gs *GRPCStreamingSpanSink) Start(cl *trace.Client) error {
+	gs.traceClient = cl
+
 	// TODO this API is experimental - perhaps we shouldn't use it yet
 	if !gs.grpcConn.WaitForStateChange(context.TODO(), connectivity.Ready) {
 		err := errors.New("gRPC connection failed to become ready")
 		gs.log.WithError(err).WithFields(logrus.Fields{
 			"name":          gs.name,
+			"target":        gs.target,
 			"current-state": gs.grpcConn.GetState().String(),
 		}).Error("Error establishing connection to gRPC server")
 		return err
 	}
 
 	// TODO How do we allow grpc.CallOption to be injected in here?
-	// TODO Setting this up here (probably) means one stream per lifecycle of this object. Is that the right design?
-	stream, err := gs.sinkClient.SendSpans(context.TODO())
-	if err != nil {
-		gs.log.WithFields(logrus.Fields{
-			"name":          gs.name,
-			logrus.ErrorKey: err,
-		}).Error("Failed to set up a gRPC stream to sink target")
-		return err
-	}
-
-	gs.stream, gs.traceClient = stream, cl
-	return nil
+	return gs.establishStream(context.TODO())
 }
 
 // Name returns this sink's name.
@@ -91,28 +87,68 @@ func (gs *GRPCStreamingSpanSink) Name() string {
 	return gs.name
 }
 
+// Ensure a stream over the existing connection to the target server is
+// established.
+//
+// Calls to this method must be guarded by the streamMut mutex.
+func (gs *GRPCStreamingSpanSink) establishStream(ctx context.Context) error {
+	if gs.stream != nil {
+		return nil
+	}
+
+	stream, err := gs.sinkClient.SendSpans(ctx, grpc.FailFast(false))
+	if err != nil {
+		gs.log.WithFields(logrus.Fields{
+			"name":          gs.name,
+			"target":        gs.target,
+			"current-state": gs.grpcConn.GetState().String(),
+			logrus.ErrorKey: err,
+		}).Error("Failed to set up a gRPC stream over connection to sink target")
+	} else {
+		gs.stream = stream
+	}
+
+	return err
+}
+
 // Ingest takes in a span and streams it over gRPC to the connected server.
 func (gs *GRPCStreamingSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	if err := protocol.ValidateTrace(ssfSpan); err != nil {
 		return err
 	}
-	// TODO validate gRPC connection state? Either that has to happen here, or we rely on an err from the Send() call below
 
-	// Apply any common tags, superseding
+	// Apply any common tags, superseding defaults passed in at sink creation
+	// in the event of overlap.
 	for k, v := range gs.commonTags {
 		ssfSpan.Tags[k] = v
 	}
 
 	// TODO validation of span, e.g. time bounds like in datadog span sink?
-	err := gs.stream.Send(ssfSpan)
-	if err != nil {
-		gs.log.WithError(err).WithFields(logrus.Fields{
-			"name": gs.name,
-		}).Warn("Error streaming traces to gRPC server")
+	// gRPC indicates that it is safe to send and receive on a stream at the same
+	// time, but it is not safe to simultaneously send. Guard against that with a
+	// mutex.
+	gs.streamMut.Lock()
+	if err := gs.establishStream(context.TODO()); err != nil {
+		gs.streamMut.Unlock()
 		return err
 	}
+	err := gs.stream.Send(ssfSpan)
+	if err != nil {
+		// An error means the stream is dead. Nil out the var; the next Ingest() call
+		// will automatically attempt to create a new stream.
+		gs.stream.CloseSend()
+		gs.stream = nil
+	}
+	gs.streamMut.Unlock()
 
-	return nil
+	if err != nil {
+		gs.log.WithFields(logrus.Fields{
+			logrus.ErrorKey: err,
+			"target":        gs.target,
+			"name":          gs.name,
+		}).Error("Error streaming traces to gRPC server")
+	}
+	return err
 }
 
 // Flush doesn't need to do anything to the LS tracer, so we emit metrics
