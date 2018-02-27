@@ -345,7 +345,16 @@ func TestDatadogFlushEvents(t *testing.T) {
 	jsonErr := json.Unmarshal([]byte(transport.Contents), &ddEvents)
 	assert.NoError(t, jsonErr)
 	event := ddEvents.Events.Api[0]
-	assert.EqualValuesf(t, ddFixtureEvent, event, "Event posted to DD did not match")
+
+	assert.Subset(t, ddFixtureEvent.Tags, event.Tags, "Event tags do not match")
+	assert.Equal(t, ddFixtureEvent.Aggregation, event.Aggregation, "Event aggregation doesn't match")
+	assert.Equal(t, ddFixtureEvent.AlertType, event.AlertType, "Event alert type doesn't match")
+	assert.Equal(t, ddFixtureEvent.Hostname, event.Hostname, "Event hostname doesn't match")
+	assert.Equal(t, ddFixtureEvent.Priority, event.Priority, "Event priority doesn't match")
+	assert.Equal(t, ddFixtureEvent.Source, event.Source, "Event source doesn't match")
+	assert.Equal(t, ddFixtureEvent.Text, event.Text, "Event text doesn't match")
+	assert.Equal(t, ddFixtureEvent.Timestamp, event.Timestamp, "Event timestamp doesn't match")
+	assert.Equal(t, ddFixtureEvent.Title, event.Title, "Event title doesn't match")
 }
 
 func TestDatadogFlushServiceChecks(t *testing.T) {
@@ -385,5 +394,11 @@ func TestDatadogFlushServiceChecks(t *testing.T) {
 	ddChecks := []DDServiceCheck{}
 	jsonErr := json.Unmarshal([]byte(transport.Contents), &ddChecks)
 	assert.NoError(t, jsonErr)
-	assert.EqualValuesf(t, []DDServiceCheck{ddFixtureCheck}, ddChecks, "Checks posted to DD did not match")
+
+	assert.Equal(t, ddFixtureCheck.Name, ddChecks[0].Name, "Check name doesn't match")
+	assert.Equal(t, ddFixtureCheck.Hostname, ddChecks[0].Hostname, "Check hostname doesn't match")
+	assert.Equal(t, ddFixtureCheck.Message, ddChecks[0].Message, "Check message doesn't match")
+	assert.Equal(t, ddFixtureCheck.Status, ddChecks[0].Status, "Check status doesn't match")
+	assert.Equal(t, ddFixtureCheck.Timestamp, ddChecks[0].Timestamp, "Check timestamp doesn't match")
+	assert.Subset(t, ddFixtureCheck.Tags, ddChecks[0].Tags, "Check posted to DD does not have matching tags")
 }
