@@ -971,6 +971,10 @@ func setSinkExcludedTags(excludeRules []string, metricSinks []sinks.MetricSink) 
 	for _, sink := range metricSinks {
 		if s, ok := sink.(excludableSink); ok {
 			excludedTags := generateExcludedTags(excludeRules, sink.Name())
+			log.WithFields(logrus.Fields{
+				"sink":         sink.Name(),
+				"excludedTags": excludedTags,
+			}).Debug("Setting excluded tags on sink")
 			s.SetExcludedTags(excludedTags)
 		}
 	}
