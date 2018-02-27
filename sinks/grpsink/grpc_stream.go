@@ -2,8 +2,8 @@ package grpsink
 
 import (
 	"context"
-	"errors"
 	"sync"
+	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
@@ -67,48 +67,80 @@ func NewGRPCStreamingSpanSink(ctx context.Context, target, name string, commonTa
 func (gs *GRPCStreamingSpanSink) Start(cl *trace.Client) error {
 	gs.traceClient = cl
 
-	// TODO this API is experimental - perhaps we shouldn't use it yet
-	if !gs.grpcConn.WaitForStateChange(context.TODO(), connectivity.Ready) {
-		err := errors.New("gRPC connection failed to become ready")
-		gs.log.WithError(err).WithFields(logrus.Fields{
+	// We want our stream in fail-fast mode (the default, but good to be explicit)
+	// because otherwise Ingest() calls will block while connections get re-established
+	// in the background, resulting in undesirable backpressure; it's preferable to
+	// just drop the spans instead.
+	var err error
+	gs.stream, err = gs.sinkClient.SendSpans(context.TODO(), grpc.FailFast(true))
+	if err != nil {
+		gs.log.WithFields(logrus.Fields{
 			"name":          gs.name,
 			"target":        gs.target,
-			"current-state": gs.grpcConn.GetState().String(),
-		}).Error("Error establishing connection to gRPC server")
+			"gchan-state":   gs.grpcConn.GetState().String(),
+			logrus.ErrorKey: err,
+		}).Error("Failed to set up a stream over gRPC channel to sink target")
 		return err
 	}
 
-	// TODO How do we allow grpc.CallOption to be injected in here?
-	return gs.establishStream(context.TODO())
+	// Run a goroutine in the background that reacts to state changes in the underlying
+	// connection by automatically attempting to re-establish the stream connection. See
+	// https://github.com/grpc/grpc/blob/master/doc/connectivity-semantics-and-api.mdA
+	// for information about gRPC's connectivity state machine.
+	go func() {
+		var state, laststate connectivity.State
+		for {
+			// This call will block on a channel receive until the gRPC connection
+			// becomes unhealthy. Then, spring into action!
+			state = gs.grpcConn.GetState()
+			switch state {
+			case connectivity.Ready, connectivity.Idle:
+				if laststate != connectivity.Ready && laststate != connectivity.Idle {
+					gs.streamMut.Lock()
+					stream, err := gs.sinkClient.SendSpans(context.TODO(), grpc.FailFast(true))
+					if err != nil {
+						// This is a weird case and probably shouldn't be reachable, but if
+						// stream setup fails after recovery, then just wait for a second
+						// and try again.
+						gs.log.WithFields(logrus.Fields{
+							"name":          gs.name,
+							"target":        gs.target,
+							"gchan-state":   gs.grpcConn.GetState().String(),
+							logrus.ErrorKey: err,
+						}).Error("Failed to set up a new stream after gRPC channel recovered")
+						time.Sleep(1 * time.Second)
+						gs.streamMut.Unlock()
+						continue
+					}
+					gs.stream = stream
+					gs.streamMut.Unlock()
+				}
+			case connectivity.Connecting:
+				// Nothing to do here except wait.
+			case connectivity.TransientFailure:
+				gs.log.WithFields(logrus.Fields{
+					"name":          gs.name,
+					"target":        gs.target,
+					"gchan-state":   state,
+					logrus.ErrorKey: err,
+				}).Warn("gRPC connection moved into transient failure mode")
+			case connectivity.Shutdown:
+				// The current design has no path to actually shutting down the
+				// connection, so this should be unreachable.
+				return
+			}
+
+			laststate = state
+			gs.grpcConn.WaitForStateChange(context.Background(), state)
+		}
+	}()
+
+	return nil
 }
 
 // Name returns this sink's name.
 func (gs *GRPCStreamingSpanSink) Name() string {
 	return gs.name
-}
-
-// Ensure a stream over the existing connection to the target server is
-// established.
-//
-// Calls to this method must be guarded by the streamMut mutex.
-func (gs *GRPCStreamingSpanSink) establishStream(ctx context.Context) error {
-	if gs.stream != nil {
-		return nil
-	}
-
-	stream, err := gs.sinkClient.SendSpans(ctx, grpc.FailFast(false))
-	if err != nil {
-		gs.log.WithFields(logrus.Fields{
-			"name":          gs.name,
-			"target":        gs.target,
-			"current-state": gs.grpcConn.GetState().String(),
-			logrus.ErrorKey: err,
-		}).Error("Failed to set up a gRPC stream over connection to sink target")
-	} else {
-		gs.stream = stream
-	}
-
-	return err
 }
 
 // Ingest takes in a span and streams it over gRPC to the connected server.
@@ -128,17 +160,7 @@ func (gs *GRPCStreamingSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	// time, but it is not safe to simultaneously send. Guard against that with a
 	// mutex.
 	gs.streamMut.Lock()
-	if err := gs.establishStream(context.TODO()); err != nil {
-		gs.streamMut.Unlock()
-		return err
-	}
 	err := gs.stream.Send(ssfSpan)
-	if err != nil {
-		// An error means the stream is dead. Nil out the var; the next Ingest() call
-		// will automatically attempt to create a new stream.
-		gs.stream.CloseSend()
-		gs.stream = nil
-	}
 	gs.streamMut.Unlock()
 
 	if err != nil {
@@ -146,7 +168,8 @@ func (gs *GRPCStreamingSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 			logrus.ErrorKey: err,
 			"target":        gs.target,
 			"name":          gs.name,
-		}).Error("Error streaming traces to gRPC server")
+			"gchan-state":   gs.grpcConn.GetState().String(),
+		}).Error("Error streaming trace to gRPC server")
 	}
 	return err
 }
