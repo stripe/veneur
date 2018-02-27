@@ -459,6 +459,7 @@
     "connectivity",
     "credentials",
     "encoding",
+    "encoding/proto",
     "grpclb/grpc_lb_v1/messages",
     "grpclog",
     "internal",
@@ -474,8 +475,8 @@
     "tap",
     "transport"
   ]
-  revision = "6b51017f791ae1cfbec89c52efdf444b13b550ef"
-  version = "v1.9.2"
+  revision = "8e4536a86ab602859c20df5ebfd0bd4228d08655"
+  version = "v1.10.0"
 
 [[projects]]
   name = "gopkg.in/inf.v0"
@@ -635,6 +636,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fbea60409715e34725f6c946c58403c4a01276b26164e270a7219a0605575a25"
+  inputs-digest = "0bd0b531f777f9b2ab40901683a35936ac58258d3e1f17b91926ff8dfd8f5559"
   solver-name = "gps-cdcl"
   solver-version = 1
