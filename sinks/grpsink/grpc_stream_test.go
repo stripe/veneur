@@ -22,6 +22,7 @@ var tags = map[string]string{"foo": "bar"}
 type MockSpanSinkServer struct {
 	spans []*ssf.SSFSpan
 	mut   sync.Mutex
+	got   chan struct{}
 }
 
 // SendSpans mocks base method
@@ -39,6 +40,7 @@ func (m *MockSpanSinkServer) SendSpans(stream SpanSink_SendSpansServer) error {
 		m.mut.Lock()
 		m.spans = append(m.spans, span)
 		m.mut.Unlock()
+		m.got <- struct{}{}
 	}
 }
 
@@ -66,7 +68,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("Failed to set up net listener with err %s", err)
 	}
 
-	mock, srv := &MockSpanSinkServer{}, grpc.NewServer()
+	mock, srv := &MockSpanSinkServer{got: make(chan struct{})}, grpc.NewServer()
 	RegisterSpanSinkServer(srv, mock)
 
 	block := make(chan struct{})
@@ -102,8 +104,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	err = sink.Ingest(testSpan)
-	// This should be enough to make it through loopback TCP. Bump up if flaky.
-	time.Sleep(time.Millisecond)
+	<-mock.got
 	testSpan.Tags = map[string]string{
 		"foo": "bar",
 		"baz": "qux",
@@ -113,12 +114,16 @@ func TestEndToEnd(t *testing.T) {
 	assert.Equal(t, testSpan, mock.firstSpan())
 	require.Equal(t, mock.spanCount(), 1)
 
-	srv.Stop()
-	time.Sleep(5 * time.Millisecond)
+	// Stoppage will happen in the background, and forward progress will be blocked by the wait sequence.
+	go srv.Stop()
+	waitThroughStateSequence(t, sink, 5*time.Second,
+		connectivity.Ready,
+		connectivity.TransientFailure,
+	)
 
 	err = sink.Ingest(testSpan)
 	require.Equal(t, mock.spanCount(), 1)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Set up new net listener and server; Stop() closes the listener we used before.
 	srv = grpc.NewServer()
@@ -133,23 +138,11 @@ func TestEndToEnd(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 	block <- struct{}{}
+	reconnectWithin(t, sink, 2*time.Second)
 
-	ctx, cf := context.WithTimeout(context.Background(), 1*time.Second)
-	if !sink.grpcConn.WaitForStateChange(ctx, connectivity.TransientFailure) {
-		t.Fatal("Connection never transitioned from TransientFailure")
-	}
-	cf()
-	ctx, cf = context.WithTimeout(context.Background(), 1*time.Second)
-	if !sink.grpcConn.WaitForStateChange(ctx, connectivity.Connecting) {
-		t.Fatal("Connection never transitioned from Connecting")
-	}
-	cf()
-
-	require.Equal(t, connectivity.Ready, sink.grpcConn.GetState())
-	time.Sleep(5 * time.Millisecond)
 	err = sink.Ingest(testSpan)
-	assert.NoError(t, err)
-	time.Sleep(5 * time.Millisecond)
+	require.NoError(t, err)
+	<-mock.got
 	require.Equal(t, mock.spanCount(), 2)
 }
 
@@ -157,14 +150,14 @@ func TestEndToEnd(t *testing.T) {
 // channel, but this test ensures we handle it properly in the event that it
 // does. It can be flaky, though (it's too dependent on sleep timings), so
 // it's disabled, but preserved for future debugging purposes.
-func testClientIdleRecovery(t *testing.T) {
+func TestClientIdleRecovery(t *testing.T) {
 	testaddr := "127.0.0.1:15112"
 	lis, err := net.Listen("tcp", testaddr)
 	if err != nil {
 		t.Fatalf("Failed to set up net listener with err %s", err)
 	}
 
-	mock, srv := &MockSpanSinkServer{}, grpc.NewServer()
+	mock, srv := &MockSpanSinkServer{got: make(chan struct{})}, grpc.NewServer()
 	RegisterSpanSinkServer(srv, mock)
 
 	block := make(chan struct{})
@@ -183,29 +176,17 @@ func testClientIdleRecovery(t *testing.T) {
 	)
 	require.NoError(t, err)
 	go func() {
-		<-block
-		sink.maintainStream()
+		sink.maintainStream(context.Background())
 	}()
-	block <- struct{}{}
 
 	// SUT here is the channel and stream maintenance system, so express the
 	// requirement as a series of states through which it should automatically
 	// proceed.
-	seq := []connectivity.State{
-		connectivity.Connecting,
-		connectivity.Ready,
+	waitThroughFiniteStateSequence(t, sink, 1*time.Second,
 		connectivity.Idle,
 		connectivity.Connecting,
-	}
-
-	for i, state := range seq {
-		ctx, cf := context.WithTimeout(context.Background(), 1*time.Second)
-		if !sink.grpcConn.WaitForStateChange(ctx, state) {
-			t.Fatalf("(seq %v) Connection never transitioned from %s", i, state)
-		}
-		cf()
-	}
-	require.Equal(t, connectivity.Ready, sink.grpcConn.GetState())
+		connectivity.Ready,
+	)
 
 	// Send a span, just to be sure.
 	start := time.Now()
@@ -226,8 +207,7 @@ func testClientIdleRecovery(t *testing.T) {
 	}
 
 	err = sink.Ingest(testSpan)
-	// This should be enough to make it through loopback TCP. Bump up if flaky.
-	time.Sleep(5 * time.Millisecond)
+	<-mock.got
 	testSpan.Tags = map[string]string{
 		"foo": "bar",
 		"baz": "qux",
