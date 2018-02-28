@@ -93,7 +93,7 @@ func (gs *GRPCStreamingSpanSink) Start(cl *trace.Client) error {
 		return err
 	}
 
-	go gs.maintainStream()
+	go gs.maintainStream(context.TODO())
 	return nil
 }
 
@@ -105,7 +105,7 @@ func (gs *GRPCStreamingSpanSink) Start(cl *trace.Client) error {
 // connection when it moves back into the 'READY' state. See
 // https://github.com/grpc/grpc/blob/master/doc/connectivity-semantics-and-api.mdA
 // for details about gRPC's connectivity state machine.
-func (gs *GRPCStreamingSpanSink) maintainStream() {
+func (gs *GRPCStreamingSpanSink) maintainStream(ctx context.Context) {
 	for {
 		// This call will block on a channel receive until the gRPC connection
 		// becomes unhealthy. Then, spring into action!
@@ -131,10 +131,7 @@ func (gs *GRPCStreamingSpanSink) maintainStream() {
 			fallthrough
 		case connectivity.Ready:
 			gs.streamMut.Lock()
-			// CAS inside the mutex so that we can't ever get a double-send of the
-			// "first time channel degradation" log error.
-			atomic.CompareAndSwapUint32(&gs.bad, 1, 0)
-			stream, err := gs.sinkClient.SendSpans(context.TODO())
+			stream, err := gs.sinkClient.SendSpans(ctx)
 			if err != nil {
 				// This is a weird case and probably shouldn't be reachable, but
 				// if stream setup fails after recovery, then just wait for a
@@ -145,10 +142,14 @@ func (gs *GRPCStreamingSpanSink) maintainStream() {
 					"chanstate":     gs.grpcConn.GetState().String(),
 					logrus.ErrorKey: err,
 				}).Error("Failed to set up a new stream after gRPC channel recovered")
-				time.Sleep(1 * time.Second)
 				gs.streamMut.Unlock()
+				// Wait for 1s before re-attempting to set up the stream.
+				time.Sleep(1 * time.Second)
 				continue
 			}
+			// CAS inside the mutex so that we can't ever get a double-send of the
+			// "first time channel degradation" log error.
+			atomic.CompareAndSwapUint32(&gs.bad, 1, 0)
 			gs.stream = stream
 			gs.streamMut.Unlock()
 			gs.log.WithFields(logrus.Fields{
@@ -257,16 +258,17 @@ func (gs *GRPCStreamingSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 // entirely over a stream on Ingest().
 func (gs *GRPCStreamingSpanSink) Flush() {
 	samples := &ssf.Samples{}
-	samples.Add(ssf.Count(
-		sinks.MetricKeyTotalSpansFlushed,
-		float32(atomic.LoadUint32(&gs.sentCount)),
-		map[string]string{"sink": gs.Name()},
-	))
-	samples.Add(ssf.Count(
-		sinks.MetricKeyTotalSpansDropped,
-		float32(atomic.LoadUint32(&gs.errCount)),
-		map[string]string{"sink": gs.Name()},
-	))
+	samples.Add(
+		ssf.Count(
+			sinks.MetricKeyTotalSpansFlushed,
+			float32(atomic.LoadUint32(&gs.sentCount)),
+			map[string]string{"sink": gs.Name()}),
+		ssf.Count(
+			sinks.MetricKeyTotalSpansDropped,
+			float32(atomic.LoadUint32(&gs.errCount)),
+			map[string]string{"sink": gs.Name()},
+		),
+	)
 
 	metrics.Report(gs.traceClient, samples)
 	return

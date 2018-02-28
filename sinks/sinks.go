@@ -58,9 +58,10 @@ const MetricKeyTotalSpansFlushed = "sink.spans_flushed_total"
 
 const MetricKeySpanIngestDuration = "sink.span_ingest_total_duration_ns"
 
-// MetricKeyTotalSpansDropped  should be emitted as a counter by a SpanSink
-// if possible. Tagged with `sink:sink.Name()`. The `Flush` function is a great
-// place to do this.
+// MetricKeyTotalSpansDropped tracks the number of spans that the sink is aware
+// it has dropped. It should be emitted as a counter by a SpanSink if possible.
+// Tagged with `sink:sink.Name()`. The `Flush` function is a great place to do
+// this.
 const MetricKeyTotalSpansDropped = "sink.spans_dropped_total"
 
 // SpanSink is a receiver of spans that handles sending those spans to some
