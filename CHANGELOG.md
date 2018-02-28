@@ -1,11 +1,13 @@
 # 4.0.0, in development
 
 ## Added
+
 * The SSF client now defaults to opening 8 connections in parallel to avoid blocking client code. Thanks, [antifuchs](https://github.com/antifuchs)!
 * New config settings `num_span_workers` and `span_channel_capacity` that allow you to customize the parallelism of span ingestion. Thanks, [antifuchs](https://github.com/antifuchs)!
 * New span sink utilization metrics - Thanks, [antifuchs](https://github.com/antifuchs):
-** `veneur.sink.span_ingest_total_duration_ns` gives the total time per `sink` spent ingesting spans
-** `veneur.worker.span_chan.total_elements` over `veneur.worker.span_chan.total_capacity` gives the utilization of the sink ingestion channel.
+  * `veneur.sink.span_ingest_total_duration_ns` gives the total time per `sink` spent ingesting spans
+  * `veneur.worker.span_chan.total_elements` over `veneur.worker.span_chan.total_capacity` gives the utilization of the sink ingestion channel.
+* Introduce a generic gRPC streaming backend for trace spans. Thanks, [sdboyer](https://github.com/sdboyer)!
 
 # 3.0.0, 2018-02-27
 
@@ -41,7 +43,6 @@
   * Method `trace.(*Trace).Add`, which allows adding metrics to a trace span.
 * `veneur-proxy` has a new configuration option `forward_timeout` which allows specifying how long forwarding a batch to global veneur servers may take in total. Thanks, [antifuchs](https://github.com/antifuchs)!
 * Add native support for running Veneur within Kubernetes. Thanks, [aditya](https://github.com/chimeracoder)!
-* Introduce a generic gRPC streaming backend for trace spans. Thanks, [sdboyer](https://github.com/sdboyer)!
 
 ## Improvements
 * Updated Datadog span sink to latest version in Datadog tracing agent. Thanks, [gphat](https://github.com/gphat)!
