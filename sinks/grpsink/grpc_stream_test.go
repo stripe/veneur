@@ -14,9 +14,8 @@ import (
 	"github.com/stripe/veneur/ssf"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/keepalive"
 )
-
-const testaddr = "127.0.0.1:15111"
 
 var tags = map[string]string{"foo": "bar"}
 
@@ -61,14 +60,13 @@ func (m *MockSpanSinkServer) spanCount() int {
 }
 
 func TestEndToEnd(t *testing.T) {
-	// Set up a server
+	testaddr := "127.0.0.1:15111"
 	lis, err := net.Listen("tcp", testaddr)
 	if err != nil {
 		t.Fatalf("Failed to set up net listener with err %s", err)
 	}
 
-	mock := &MockSpanSinkServer{}
-	srv := grpc.NewServer()
+	mock, srv := &MockSpanSinkServer{}, grpc.NewServer()
 	RegisterSpanSinkServer(srv, mock)
 
 	block := make(chan struct{})
@@ -76,15 +74,15 @@ func TestEndToEnd(t *testing.T) {
 		<-block
 		srv.Serve(lis)
 	}()
-	block <- struct{}{} // Make sure the goroutine's started proceeding
+	block <- struct{}{}
 
 	sink, err := NewGRPCStreamingSpanSink(context.Background(), testaddr, "test1", tags, logrus.New(), grpc.WithInsecure())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, sink.commonTags, tags)
 	assert.NotNil(t, sink.grpcConn)
 
 	err = sink.Start(nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	start := time.Now()
 	end := start.Add(2 * time.Second)
@@ -116,7 +114,7 @@ func TestEndToEnd(t *testing.T) {
 	require.Equal(t, mock.spanCount(), 1)
 
 	srv.Stop()
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(5 * time.Millisecond)
 
 	err = sink.Ingest(testSpan)
 	require.Equal(t, mock.spanCount(), 1)
@@ -147,9 +145,94 @@ func TestEndToEnd(t *testing.T) {
 	}
 	cf()
 
-	t.Log(sink.grpcConn.GetState().String())
+	require.Equal(t, connectivity.Ready, sink.grpcConn.GetState())
+	time.Sleep(time.Millisecond)
 	err = sink.Ingest(testSpan)
 	assert.NoError(t, err)
 	time.Sleep(time.Millisecond)
 	require.Equal(t, mock.spanCount(), 2)
+}
+
+// It should be nearly unreachable for an idle state to be reached by the
+// channel, but this test ensures we handle it properly in the event that it
+// does.
+func TestClientIdleRecovery(t *testing.T) {
+	testaddr := "127.0.0.1:15112"
+	lis, err := net.Listen("tcp", testaddr)
+	if err != nil {
+		t.Fatalf("Failed to set up net listener with err %s", err)
+	}
+
+	mock, srv := &MockSpanSinkServer{}, grpc.NewServer()
+	RegisterSpanSinkServer(srv, mock)
+
+	block := make(chan struct{})
+	go func() {
+		<-block
+		srv.Serve(lis)
+	}()
+	block <- struct{}{}
+
+	sink, err := NewGRPCStreamingSpanSink(context.Background(),
+		testaddr, "test1", tags, logrus.New(),
+		grpc.WithInsecure(),
+		// Very short timeout in order to ensure the channel becomes idle
+		// almost immediately.
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{Timeout: time.Millisecond}),
+	)
+	require.NoError(t, err)
+	go func() {
+		<-block
+		sink.maintainStream()
+	}()
+	block <- struct{}{}
+
+	// SUT here is the channel and stream maintenance system, so express the
+	// requirement as a series of states through which it should automatically
+	// proceed.
+	seq := []connectivity.State{
+		connectivity.Connecting,
+		connectivity.Ready,
+		connectivity.Idle,
+		connectivity.Connecting,
+	}
+
+	for i, state := range seq {
+		ctx, cf := context.WithTimeout(context.Background(), 1*time.Second)
+		if !sink.grpcConn.WaitForStateChange(ctx, state) {
+			t.Fatalf("(seq %v) Connection never transitioned from %s", i, state)
+		}
+		cf()
+	}
+	require.Equal(t, connectivity.Ready, sink.grpcConn.GetState())
+
+	// Send a span, just to be sure.
+	start := time.Now()
+	end := start.Add(2 * time.Second)
+	testSpan := &ssf.SSFSpan{
+		TraceId:        1,
+		ParentId:       1,
+		Id:             2,
+		StartTimestamp: int64(start.UnixNano()),
+		EndTimestamp:   int64(end.UnixNano()),
+		Error:          false,
+		Service:        "farts-srv",
+		Tags: map[string]string{
+			"baz": "qux",
+		},
+		Indicator: false,
+		Name:      "farting farty farts",
+	}
+
+	err = sink.Ingest(testSpan)
+	// This should be enough to make it through loopback TCP. Bump up if flaky.
+	time.Sleep(time.Millisecond)
+	testSpan.Tags = map[string]string{
+		"foo": "bar",
+		"baz": "qux",
+	}
+
+	assert.NoError(t, err)
+	assert.Equal(t, testSpan, mock.firstSpan())
+	require.Equal(t, mock.spanCount(), 1)
 }
