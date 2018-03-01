@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/protocol"
@@ -459,40 +458,4 @@ func (tb *successTestBackend) FlushSync(ctx context.Context) error {
 
 func (tb *successTestBackend) FlushChan() chan chan<- error {
 	return tb.flushChan
-}
-
-func TestDropStatistics(t *testing.T) {
-	blockNext := make(chan chan struct{}, 1)
-	flushChan := make(chan chan<- error)
-	defer close(flushChan)
-	tb := successTestBackend{t: t, block: blockNext, flushChan: flushChan}
-
-	// Make a client that blocks if nothing listens:
-	cl, err := NewBackendClient(&tb, Capacity(0))
-	require.NoError(t, err)
-
-	// reset client stats:
-	stats, err := statsd.NewBuffered("127.0.0.1:8200", 4096)
-	require.NoError(t, err)
-	SendClientStatistics(cl, stats, nil)
-
-	// Actually test the client:
-	flushRetries := mustFlush(t, cl)
-	assert.NoError(t, err, "Flushing an empty client should succeed")
-	assert.Equal(t, int64(1), cl.successfulFlushes, "successful flushes")
-
-	done := make(chan struct{})
-	blockNext <- done
-	retries := mustRecord(t, cl, StartTrace("hi there"))
-	assert.Equal(t, int64(1), cl.successfulRecords, "successful records")
-
-	err = StartTrace("hi there").ClientRecord(cl, "", map[string]string{})
-	assert.Error(t, err)
-	assert.Equal(t, ErrWouldBlock, err, "Expected to report a blocked channel")
-	assert.Equal(t, int64(1+retries), cl.failedRecords, "failed records")
-
-	err = Flush(cl)
-	assert.Equal(t, int64(1+flushRetries), cl.failedFlushes, "failed flushes")
-	close(done)
-	close(blockNext)
 }
