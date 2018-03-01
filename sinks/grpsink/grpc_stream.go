@@ -25,18 +25,26 @@ import (
 // a SpanSink service, and thus is generic with respect to the specific server
 // it is connecting to.
 type GRPCStreamingSpanSink struct {
-	name                 string
-	target               string
-	grpcConn             *grpc.ClientConn
-	sinkClient           SpanSinkClient
-	stream               SpanSink_SendSpansClient
-	streamMut            sync.Mutex
-	stats                *statsd.Client
-	commonTags           map[string]string
-	traceClient          *trace.Client
-	log                  *logrus.Logger
-	sentCount, dropCount uint32 // Total counts of sent and errors, respectively
-	bad                  uint32 // If 1, indicates that the current stream is dead (has seen an EOF)
+	name   string
+	target string
+	// The underlying gRPC connection ("channel") to the target server.
+	grpcConn *grpc.ClientConn
+	// The gRPC client that can generate stream connections.
+	sinkClient SpanSinkClient
+	stream     SpanSink_SendSpansClient
+	// streamMut guards two classes of interaction with the stream: actually
+	// sending over the stream (gRPC requires that only one goroutine send on
+	// a stream at a time), and automatically recreating the stream after a
+	// connection drops.
+	streamMut sync.Mutex
+	// Total counts of sent and dropped spans, respectively
+	sentCount, dropCount uint32
+	// If 1, indicates that the current stream is dead (has seen an EOF)
+	bad         uint32
+	stats       *statsd.Client
+	commonTags  map[string]string
+	traceClient *trace.Client
+	log         *logrus.Logger
 }
 
 var _ sinks.SpanSink = &GRPCStreamingSpanSink{}
@@ -136,8 +144,7 @@ func (gs *GRPCStreamingSpanSink) maintainStream(ctx context.Context) {
 			stream, err := gs.sinkClient.SendSpans(ctx)
 			if err != nil {
 				// This is a weird case and probably shouldn't be reachable, but
-				// if stream setup fails after recovery, then just wait for a
-				// second and try again.
+				// if stream setup fails after recovery, then just wait and retry.
 				gs.log.WithFields(logrus.Fields{
 					"name":          gs.name,
 					"target":        gs.target,
@@ -149,8 +156,8 @@ func (gs *GRPCStreamingSpanSink) maintainStream(ctx context.Context) {
 				time.Sleep(1 * time.Second)
 				continue
 			}
-			// CAS inside the mutex so that we can't ever get a double-send of the
-			// "first time channel degradation" log error.
+			// CAS inside the mutex means that it's impossible for for the same
+			// stream instance to log an io.EOF twice.
 			atomic.CompareAndSwapUint32(&gs.bad, 1, 0)
 			gs.stream = stream
 			gs.streamMut.Unlock()
@@ -247,10 +254,11 @@ func (gs *GRPCStreamingSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	return err
 }
 
-// Flush reports metrics about the number of failed and successful
+// Flush reports total counts of the number of sent and dropped spans over its
+// lifetime.
 //
-// No data is sent to the target sink on Flush(); this sink operates
-// entirely over a stream on Ingest().
+// No data is sent to the target sink on Flush(), as this sink operates entirely
+// over a stream on Ingest().
 func (gs *GRPCStreamingSpanSink) Flush() {
 	samples := &ssf.Samples{}
 	samples.Add(
