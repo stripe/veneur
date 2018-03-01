@@ -1,25 +1,25 @@
 package dogstatsd
 
 // CheckIdentifierKey flags a sample as a DogStatsD service check
-const CheckIdentifierKey = "dogstatsd_sc"
+const CheckIdentifierKey = "vdogstatsd_sc"
 
 // CheckHostnameTagKey is a tag key used to conduct the hostname of a service check to a sink
-const CheckHostnameTagKey = "dogstatsd_hostname"
+const CheckHostnameTagKey = "vdogstatsd_hostname"
 
 // EventAggregationKeyTagKey is a tag key used to conduct the aggregation key of an event to a sink
-const EventAggregationKeyTagKey = "dogstatsd_ak"
+const EventAggregationKeyTagKey = "vdogstatsd_ak"
 
 // EventAlertTypeTagKey is a tag key used to conduct the alert type of an event to a sink
-const EventAlertTypeTagKey = "dogstatsd_at"
+const EventAlertTypeTagKey = "vdogstatsd_at"
 
 // EventHostnameTagKey is a tag key used to conduct the hostname of an event to a sink
-const EventHostnameTagKey = "dogstatsd_hostname"
+const EventHostnameTagKey = "vdogstatsd_hostname"
 
 // EventIdentifierKey is a tag key used to conduct the event identifier of an event to a sink
-const EventIdentifierKey = "dogstatsd_ev"
+const EventIdentifierKey = "vdogstatsd_ev"
 
 // EventPriorityTagKey is a tag key used to conduct the priority of an event to a sink
-const EventPriorityTagKey = "dogstatsd_pri"
+const EventPriorityTagKey = "vdogstatsd_pri"
 
 // EventSourceTypeTagKey is a tag key used to conduct the source type of an event to a sink
-const EventSourceTypeTagKey = "dogstatsd_st"
+const EventSourceTypeTagKey = "vdogstatsd_st"
