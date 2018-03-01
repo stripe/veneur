@@ -156,8 +156,8 @@ func (gs *GRPCStreamingSpanSink) maintainStream(ctx context.Context) {
 				time.Sleep(1 * time.Second)
 				continue
 			}
-			// CAS inside the mutex means that it's impossible for for the same
-			// stream instance to log an io.EOF twice.
+			// CAS inside the mutex means that it's impossible for the same stream
+			// instance to log an io.EOF twice.
 			atomic.CompareAndSwapUint32(&gs.bad, 1, 0)
 			gs.stream = stream
 			gs.streamMut.Unlock()
