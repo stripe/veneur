@@ -208,13 +208,7 @@ func (gs *GRPCStreamingSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		ssfSpan.Tags[k] = v
 	}
 
-	// gRPC indicates that it is safe to send and receive on a stream at the
-	// same time, but it is not safe to simultaneously send. Guard against that
-	// with a mutex.
-	gs.streamMut.Lock()
-	err := gs.stream.Send(ssfSpan)
-	gs.streamMut.Unlock()
-
+	err := gs.send(ssfSpan)
 	if err != nil {
 		atomic.AddUint32(&gs.dropCount, 1)
 
@@ -252,6 +246,23 @@ func (gs *GRPCStreamingSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		atomic.AddUint32(&gs.sentCount, 1)
 	}
 
+	return err
+}
+
+// send dispatches a span to the backend over the stream.
+//
+// gRPC rules state that it is safe to send and receive on a stream at the
+// same time, but not safe to simultaneously send. Thus, we serialize
+// sends with a mutex.
+//
+// The same mutex is also used by the gRPC channel state machine manager,
+// maintainStream(), when it recreates the channel. This guarantees that
+// sends will never be attempted on a stream that is in the process of
+// being recreated.
+func (gs *GRPCStreamingSpanSink) send(ssfSpan *ssf.SSFSpan) error {
+	gs.streamMut.Lock()
+	err := gs.stream.Send(ssfSpan)
+	gs.streamMut.Unlock()
 	return err
 }
 
