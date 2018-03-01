@@ -3,6 +3,7 @@ package grpsink
 import (
 	"context"
 	"fmt"
+	"io"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -24,17 +25,18 @@ import (
 // a SpanSink service, and thus is generic with respect to the specific server
 // it is connecting to.
 type GRPCStreamingSpanSink struct {
-	name                     string
-	target                   string
-	grpcConn                 *grpc.ClientConn
-	sinkClient               SpanSinkClient
-	stream                   SpanSink_SendSpansClient
-	streamMut                sync.Mutex
-	stats                    *statsd.Client
-	commonTags               map[string]string
-	traceClient              *trace.Client
-	log                      *logrus.Logger
-	sentCount, errCount, bad uint32
+	name                 string
+	target               string
+	grpcConn             *grpc.ClientConn
+	sinkClient           SpanSinkClient
+	stream               SpanSink_SendSpansClient
+	streamMut            sync.Mutex
+	stats                *statsd.Client
+	commonTags           map[string]string
+	traceClient          *trace.Client
+	log                  *logrus.Logger
+	sentCount, dropCount uint32 // Total counts of sent and errors, respectively
+	bad                  uint32 // If 1, indicates that the current stream is dead (has seen an EOF)
 }
 
 var _ sinks.SpanSink = &GRPCStreamingSpanSink{}
@@ -206,35 +208,28 @@ func (gs *GRPCStreamingSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	gs.streamMut.Unlock()
 
 	if err != nil {
-		atomic.AddUint32(&gs.errCount, 1)
+		atomic.AddUint32(&gs.dropCount, 1)
 
 		// gRPC guarantees that an error returned from an RPC call will be of
 		// type status.Status. In the unexpected event that they're not, this
 		// call creates a dummy type, so there's no risk of panic.
 		serr := status.Convert(err)
-
 		state := gs.grpcConn.GetState()
-		// We also want to emit a log for the very first time a connection
-		// appears to go bad. This value is reset by the stream maintainer
-		// goroutine when the channel re-enters a good state.
-		if atomic.CompareAndSwapUint32(&gs.bad, 0, 1) {
-			gs.log.WithFields(logrus.Fields{
-				logrus.ErrorKey: err,
-				"target":        gs.target,
-				"name":          gs.name,
-				"chanstate":     state.String(),
-				"code":          serr.Code(),
-				"details":       serr.Details(),
-				"message":       serr.Message(),
-			}).Warn("Error sending trace to gRPC server")
 
-		} else if state == connectivity.Ready {
-			// We expect to see dropped spans while the connection is recovering
-			// from temporary failure. Logging every such failure would be a
-			// vector for write amplification. However, it's abnormal to see an
-			// error when the underlying connection is in a good (READY) state.
-			// (Note that may be possible for some spans to error before gRPC
-			// channel state transitions away from READY)
+		if err == io.EOF {
+			// EOF should be a terminal state for the stream; we only need to
+			// log that we've seen it once.
+			if atomic.CompareAndSwapUint32(&gs.bad, 0, 1) {
+				gs.log.WithFields(logrus.Fields{
+					logrus.ErrorKey: err,
+					"target":        gs.target,
+					"name":          gs.name,
+					"chanstate":     state.String(),
+				}).Warn("Target server closed the span stream")
+			}
+		} else {
+			// Errors that are not io.EOF are more interesting and, presumably,
+			// ephemeral. It's worth logging each one of them.
 			gs.log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"target":        gs.target,
@@ -243,7 +238,7 @@ func (gs *GRPCStreamingSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 				"code":          serr.Code(),
 				"details":       serr.Details(),
 				"message":       serr.Message(),
-			}).Error("gRPC chan state is READY but error was returned")
+			}).Warn("Error while streaming trace to gRPC target server")
 		}
 	} else {
 		atomic.AddUint32(&gs.sentCount, 1)
@@ -265,7 +260,7 @@ func (gs *GRPCStreamingSpanSink) Flush() {
 			map[string]string{"sink": gs.Name()}),
 		ssf.Count(
 			sinks.MetricKeyTotalSpansDropped,
-			float32(atomic.LoadUint32(&gs.errCount)),
+			float32(atomic.LoadUint32(&gs.dropCount)),
 			map[string]string{"sink": gs.Name()},
 		),
 	)
