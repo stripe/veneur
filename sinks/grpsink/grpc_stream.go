@@ -161,6 +161,7 @@ func (gs *GRPCStreamingSpanSink) maintainStream(ctx context.Context) {
 			atomic.CompareAndSwapUint32(&gs.bad, 1, 0)
 			gs.stream = stream
 			gs.streamMut.Unlock()
+
 			gs.log.WithFields(logrus.Fields{
 				"name":      gs.name,
 				"target":    gs.target,

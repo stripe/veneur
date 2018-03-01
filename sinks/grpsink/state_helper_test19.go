@@ -17,6 +17,8 @@ func waitThroughStateSequence(t *testing.T, sink *GRPCStreamingSpanSink, dur tim
 	t.Helper()
 
 	first, current := seq[0], sink.grpcConn.GetState()
+	// ObjectsAreEqual instead of assert/require.Equal because those funcs aren't
+	// smart about t.Helper() yet.
 	if !assert.ObjectsAreEqual(first, current) {
 		t.Fatalf("Wanted %q for initial connection state, but got %q", first, current)
 	}
@@ -36,6 +38,8 @@ func waitThroughFiniteStateSequence(t *testing.T, sink *GRPCStreamingSpanSink, d
 	waitThroughStateSequence(t, sink, dur, seq[:len(seq)-1]...)
 
 	last, current := seq[len(seq)-1], sink.grpcConn.GetState()
+	// ObjectsAreEqual instead of assert/require.Equal because those funcs aren't
+	// smart about t.Helper() yet.
 	if !assert.ObjectsAreEqual(last, current) {
 		t.Fatalf("Wanted %q for final connection state, but got %q", last, current)
 	}
@@ -50,7 +54,13 @@ func reconnectWithin(t *testing.T, sink *GRPCStreamingSpanSink, dur time.Duratio
 		case connectivity.Ready:
 			// Spin on the internal state marker that indicates the stream state is bad
 			for !atomic.CompareAndSwapUint32(&sink.bad, 0, 0) {
-				time.Sleep(time.Millisecond)
+				// Make sure ctx hasn't expired
+				select {
+				case <-ctx.Done():
+					t.Fatal("Connection is READY, but stream was not re-established within alloted time")
+				default:
+					time.Sleep(5 * time.Millisecond)
+				}
 			}
 			cf()
 			return
