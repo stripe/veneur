@@ -47,14 +47,15 @@ func TestSocket(t *testing.T) {
 	}
 
 	tests := []struct {
+		name     string
 		addr     string
 		sendAddr string
 		isIPv6   bool
 	}{
-		{"127.0.0.1:0", "127.0.0.1", false},
-		{"[::1]:0", "[::1]", true},
-		{":0", "127.0.0.1", false},
-		{":0", "[::1]", true},
+		{"IPv4 only", "127.0.0.1:0", "127.0.0.1", false},
+		{"IPv6 only", "[::1]:0", "[::1]", true},
+		{"IPv4 to any", ":0", "127.0.0.1", false},
+		{"IPv6 to any", ":0", "[::1]", true},
 	}
 
 	for _, elt := range tests {
@@ -62,6 +63,6 @@ func TestSocket(t *testing.T) {
 		if test.isIPv6 && !systemSupportsV6 {
 			continue
 		}
-		t.Run(fmt.Sprintf("%s to %s", test.sendAddr, test.addr), writeReadUDP(test.addr, test.sendAddr))
+		t.Run(test.name, writeReadUDP(test.addr, test.sendAddr))
 	}
 }
