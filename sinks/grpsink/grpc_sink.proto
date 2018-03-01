@@ -1,0 +1,12 @@
+syntax = "proto3";
+package grpsink;
+
+import "ssf/sample.proto";
+
+message SpanResponse {
+    string greeting = 1;
+}
+
+service SpanSink {
+    rpc SendSpans(stream ssf.SSFSpan) returns (SpanResponse) {}
+}
