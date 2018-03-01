@@ -69,7 +69,8 @@ const defaultTCPReadTimeout = 10 * time.Minute
 type Server struct {
 	Workers     []*Worker
 	EventWorker *EventWorker
-	SpanWorker  *SpanWorker
+	SpanChan    chan *ssf.SSFSpan
+	SpanWorkers []*SpanWorker
 
 	Sentry *raven.Client
 
@@ -111,8 +112,7 @@ type Server struct {
 	spanSinks   []sinks.SpanSink
 	metricSinks []sinks.MetricSink
 
-	TraceClient  *trace.Client
-	traceBackend *internalTraceBackend
+	TraceClient *trace.Client
 }
 
 // SetLogger sets the default logger in veneur to the passed value.
@@ -171,9 +171,8 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 	stats.Namespace = "veneur."
 
-	ret.traceBackend = &internalTraceBackend{}
-	ret.TraceClient, err = trace.NewBackendClient(ret.traceBackend,
-		trace.Capacity(200),
+	ret.SpanChan = make(chan *ssf.SSFSpan, conf.SpanChannelCapacity)
+	ret.TraceClient, err = trace.NewChannelClient(ret.SpanChan,
 		trace.ReportStatistics(stats, 1*time.Second, []string{"ssf_format:internal"}),
 	)
 	if err != nil {
@@ -218,9 +217,13 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	// found during setup we should use logger.Fatal or
 	// logger.Panic, because that will give us breakage monitoring
 	// through Sentry.
-	logger.WithField("number", conf.NumWorkers).Info("Preparing workers")
+	numWorkers := 1
+	if conf.NumWorkers > 1 {
+		numWorkers = conf.NumWorkers
+	}
+	logger.WithField("number", numWorkers).Info("Preparing workers")
 	// Allocate the slice, we'll fill it with workers later.
-	ret.Workers = make([]*Worker, conf.NumWorkers)
+	ret.Workers = make([]*Worker, numWorkers)
 	ret.numReaders = conf.NumReaders
 
 	// Use the pre-allocated Workers slice to know how many to start.
@@ -359,6 +362,12 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 			logger.Info("Configured Lightstep trace sink")
 		}
+		// Set up as many span workers as we need:
+		workerCount := 1
+		if conf.NumSpanWorkers > 0 {
+			workerCount = conf.NumSpanWorkers
+		}
+		ret.SpanWorkers = make([]*SpanWorker, workerCount)
 	}
 
 	if conf.KafkaBroker != "" {
@@ -465,14 +474,11 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 func (s *Server) Start() {
 	log.WithField("version", VERSION).Info("Starting server")
 
-	// Set up the processor for spans:
-	s.SpanWorker = NewSpanWorker(s.spanSinks, s.TraceClient)
+	// Set up the processors for spans:
 
-	// Now that we have a span worker, set the trace
-	// backend up to send spans to it:
-	if s.traceBackend != nil {
-		s.traceBackend.spanWorker = s.SpanWorker
-		s.traceBackend.tc = s.TraceClient
+	// Use the pre-allocated Workers slice to know how many to start.
+	for i := range s.SpanWorkers {
+		s.SpanWorkers[i] = NewSpanWorker(s.spanSinks, s.TraceClient, s.SpanChan)
 	}
 
 	go func() {
@@ -483,13 +489,15 @@ func (s *Server) Start() {
 		s.EventWorker.Work()
 	}()
 
-	log.Info("Starting Trace worker")
-	go func() {
-		defer func() {
-			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
-		}()
-		s.SpanWorker.Work()
-	}()
+	log.WithField("n", len(s.SpanWorkers)).Info("Starting Trace workers")
+	for i := range s.SpanWorkers {
+		go func(w *SpanWorker) {
+			defer func() {
+				ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+			}()
+			w.Work()
+		}(s.SpanWorkers[i])
+	}
 
 	statsdPool := &sync.Pool{
 		// We +1 this so we an "detect" when someone sends us too long of a metric!
@@ -655,7 +663,7 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, baseTags map[string]string) {
 		ssf.Histogram("ssf.spans.tags_per_span", float32(len(span.Tags)), tags),
 	})
 
-	s.SpanWorker.SpanChan <- span
+	s.SpanChan <- span
 }
 
 // ReadMetricSocket listens for available packets to handle.
@@ -759,7 +767,8 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 			metrics.ReportOne(s.TraceClient, sample)
 			continue
 		}
-		metrics.ReportOne(s.TraceClient, ssf.Count("ssf.received_total", 1, tags))
+		metrics.ReportBatch(s.TraceClient,
+			ssf.RandomlySample(0.01, ssf.Count("ssf.received_total", 1, tags)))
 		s.handleSSF(msg, tags)
 	}
 }
@@ -943,51 +952,6 @@ func (s *Server) getPlugins() []plugins.Plugin {
 	s.pluginMtx.Unlock()
 	return plugins
 }
-
-type internalTraceBackend struct {
-	spanWorker *SpanWorker
-	tc         *trace.Client
-}
-
-// Close is a no-op on the internal backend.
-func (tb *internalTraceBackend) Close() error {
-	return nil
-}
-
-// SendSync sends the span directly into the veneur Server.
-func (tb *internalTraceBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
-	if tb.spanWorker == nil {
-		return ErrNoSpanWorker
-	}
-	ch := make(chan struct{})
-	go func() {
-		tb.spanWorker.SpanChan <- span
-		close(ch)
-	}()
-	select {
-	case <-ch:
-		tags := map[string]string{
-			"service":    span.Service,
-			"ssf_format": "internal",
-		}
-		metrics.ReportBatch(tb.tc,
-			ssf.RandomlySample(0.1,
-				ssf.Count("ssf.spans.received_total", 1, tags),
-				ssf.Histogram("ssf.spans.tags_per_span", float32(len(span.Tags)), tags)))
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-// Flush on an internal trace backend is a no-op.
-func (tb *internalTraceBackend) FlushSync(ctx context.Context) error {
-	return nil
-}
-
-var ErrNoSpanWorker = fmt.Errorf("Can not submit traces to an unstarted server")
-
-var _ trace.ClientBackend = &internalTraceBackend{}
 
 // CalculateTickDelay takes the provided time, `Truncate`s it a rounded-down
 // multiple of `interval`, then adds `interval` back to find the "next" tick.

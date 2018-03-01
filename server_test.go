@@ -88,7 +88,8 @@ func generateConfig(forwardAddr string) Config {
 
 		// Use only one reader, so that we can run tests
 		// on platforms which do not support SO_REUSEPORT
-		NumReaders: 1,
+		NumReaders:     1,
+		NumSpanWorkers: 2,
 
 		// Currently this points nowhere, which is intentional.
 		// We don't need internal metrics for the tests, and they make testing
@@ -142,8 +143,8 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 	}
 
 	// Make sure we don't send internal metrics when testing:
+	trace.NeutralizeClient(server.TraceClient)
 	server.TraceClient = nil
-	server.traceBackend = nil
 
 	if mSink == nil {
 		// Install a blackhole sink if we have no other sinks
@@ -1171,21 +1172,27 @@ func TestInternalSSFMetricsEndToEnd(t *testing.T) {
 	f := newFixture(t, config, cms, nil)
 	defer f.Close()
 
-	backend := &internalTraceBackend{spanWorker: f.server.SpanWorker}
-	client, err := trace.NewBackendClient(backend, trace.Capacity(20))
+	client, err := trace.NewChannelClient(f.server.SpanChan)
 	require.NoError(t, err)
 
 	done := make(chan error)
-	err = metrics.ReportAsync(client, []*ssf.SSFSample{
-		ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
-		ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
-	}, done)
+	for {
+		err = metrics.ReportAsync(client, []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		}, done)
+		if err != trace.ErrWouldBlock {
+			break
+		}
+	}
 	require.NoError(t, err)
 	require.NoError(t, <-done)
 
+	ctx, cancel := context.WithTimeout(context.TODO(), 1*time.Second)
+	defer cancel()
+	keepFlushing(ctx, f.server)
+
 	n := 0
-	time.Sleep(2 * time.Second)
-	f.server.Flush(context.TODO())
 	metrics := <-metricsChan
 	for _, m := range metrics {
 		for _, tag := range m.Tags {

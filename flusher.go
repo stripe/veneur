@@ -27,7 +27,10 @@ func (s *Server) Flush(ctx context.Context) {
 
 	span.Add(ssf.Gauge("mem.heap_alloc_bytes", float32(mem.HeapAlloc), nil),
 		ssf.Gauge("gc.number", float32(mem.NumGC), nil),
-		ssf.Gauge("gc.pause_total_ns", float32(mem.PauseTotalNs), nil))
+		ssf.Gauge("gc.pause_total_ns", float32(mem.PauseTotalNs), nil),
+		ssf.Gauge("worker.span_chan.total_elements", float32(len(s.SpanChan)), nil),
+		ssf.Gauge("worker.span_chan.total_capacity", float32(cap(s.SpanChan)), nil),
+	)
 
 	// TODO Why is this not in the worker the way the trace worker is set up?
 	events, checks := s.EventWorker.Flush()
@@ -368,5 +371,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 }
 
 func (s *Server) flushTraces(ctx context.Context) {
-	s.SpanWorker.Flush()
+	for _, w := range s.SpanWorkers {
+		w.Flush()
+	}
 }

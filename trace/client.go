@@ -22,9 +22,19 @@ func init() {
 	DefaultClient = cl
 }
 
-// op is a function invoked on a backend, such as sending a span
-// synchronously, flushing the backend buffer, or closing the backend.
-type op func(context.Context, ClientBackend)
+// recordOp represents a call to Record. Each recordOp holds a span
+// and an optional result return channel.
+type recordOp struct {
+	span   *ssf.SSFSpan
+	result chan<- error
+}
+
+// flushNotifier holds a channel that lets the client notify a
+// backend to flush.
+type flushNotifier struct {
+	backend ClientBackend
+	notify  chan chan<- error
+}
 
 // Client is a Client that sends traces to Veneur over the network. It
 // represents a pump for span packets from user code to the network
@@ -36,13 +46,19 @@ type op func(context.Context, ClientBackend)
 // serialization part providing backpressure (the front end) and a
 // backend (which is called on a single goroutine).
 type Client struct {
-	backend ClientBackend
-	cap     uint
-	cancel  context.CancelFunc
-	flush   func(context.Context)
-	report  func(context.Context)
-	ops     chan op
+	flushBackends []flushNotifier
 
+	// Parameters adjusted by client initialization:
+	backendParams *backendParams
+	nBackends     uint
+	cap           uint
+	cancel        context.CancelFunc
+	flush         func(context.Context)
+	report        func(context.Context)
+	records       chan *recordOp
+	spans         chan<- *ssf.SSFSpan
+
+	// statistics:
 	failedFlushes     int64
 	successfulFlushes int64
 	failedRecords     int64
@@ -53,13 +69,8 @@ type Client struct {
 // closed the network connection (if one was established) and returns
 // any error from closing the connection.
 func (c *Client) Close() error {
-	ch := make(chan error)
 	c.cancel()
-	c.ops <- func(ctx context.Context, s ClientBackend) {
-		ch <- s.Close()
-	}
-	close(c.ops)
-	return <-ch
+	return nil
 }
 
 func (c *Client) run(ctx context.Context) {
@@ -69,12 +80,32 @@ func (c *Client) run(ctx context.Context) {
 	if c.report != nil {
 		go c.report(ctx)
 	}
+
+	for _, b := range c.flushBackends {
+		go runFlushableBackend(ctx, c.records, b.backend, b.notify)
+	}
+}
+
+func runFlushableBackend(ctx context.Context, spans chan *recordOp, backend ClientBackend, flushNotify chan chan<- error) {
+	defer backend.Close()
+
 	for {
-		do, ok := <-c.ops
-		if !ok {
+		select {
+		case op := <-spans:
+			err := backend.SendSync(ctx, op.span)
+			if op.result != nil {
+				op.result <- err
+			}
+		case errChan := <-flushNotify:
+			switch backend := backend.(type) {
+			case FlushableClientBackend:
+				errChan <- backend.FlushSync(ctx)
+			default:
+				errChan <- nil
+			}
+		case <-ctx.Done():
 			return
 		}
-		do(ctx, c.backend)
 	}
 }
 
@@ -123,8 +154,8 @@ func Buffered(cl *Client) error {
 // buffer.
 func BufferedSize(size uint) ClientParam {
 	return func(cl *Client) error {
-		if nb, ok := cl.backend.(networkBackend); ok {
-			nb.params().bufferSize = size
+		if cl.backendParams != nil {
+			cl.backendParams.bufferSize = size
 			return nil
 		}
 		return ErrClientNotNetworked
@@ -152,7 +183,7 @@ func FlushInterval(interval time.Duration) ClientParam {
 // time.Ticker is set up to deal with slow flushes.
 func FlushChannel(ch <-chan time.Time, stop func()) ClientParam {
 	return func(cl *Client) error {
-		if _, ok := cl.backend.(networkBackend); !ok {
+		if cl.backendParams == nil {
 			return ErrClientNotNetworked
 		}
 		cl.flush = func(ctx context.Context) {
@@ -175,8 +206,8 @@ func FlushChannel(ch <-chan time.Time, stop func()) ClientParam {
 // this option is not used, the backend uses DefaultBackoff.
 func BackoffTime(t time.Duration) ClientParam {
 	return func(cl *Client) error {
-		if nb, ok := cl.backend.(networkBackend); ok {
-			nb.params().backoff = t
+		if cl.backendParams != nil {
+			cl.backendParams.backoff = t
 			return nil
 		}
 		return ErrClientNotNetworked
@@ -188,8 +219,8 @@ func BackoffTime(t time.Duration) ClientParam {
 // DefaultMaxBackoff.
 func MaxBackoffTime(t time.Duration) ClientParam {
 	return func(cl *Client) error {
-		if nb, ok := cl.backend.(networkBackend); ok {
-			nb.params().maxBackoff = t
+		if cl.backendParams != nil {
+			cl.backendParams.maxBackoff = t
 			return nil
 		}
 		return ErrClientNotNetworked
@@ -204,8 +235,8 @@ func MaxBackoffTime(t time.Duration) ClientParam {
 // DefaultConnectTimeout.
 func ConnectTimeout(t time.Duration) ClientParam {
 	return func(cl *Client) error {
-		if nb, ok := cl.backend.(networkBackend); ok {
-			nb.params().connectTimeout = t
+		if cl.backendParams != nil {
+			cl.backendParams.connectTimeout = t
 			return nil
 		}
 		return ErrClientNotNetworked
@@ -233,6 +264,27 @@ func ReportStatistics(stats *statsd.Client, interval time.Duration, tags []strin
 	}
 }
 
+// ParallelBackends sets the number of parallel network backend
+// connections to send spans with. Each backend holds a connection to
+// an SSF receiver open.
+func ParallelBackends(nBackends uint) ClientParam {
+	return func(cl *Client) error {
+		if cl.backendParams == nil {
+			return ErrClientNotNetworked
+		}
+		cl.nBackends = nBackends
+		return nil
+	}
+}
+
+func newFlushNofifier(backend ClientBackend) flushNotifier {
+	fb := flushNotifier{backend: backend}
+	if _, ok := backend.(FlushableClientBackend); ok {
+		fb.notify = make(chan chan<- error)
+	}
+	return fb
+}
+
 // NewClient constructs a new client that will attempt to connect
 // to addrStr (an address in veneur URL format) using the parameters
 // in opts. It returns the constructed client or an error.
@@ -242,29 +294,37 @@ func NewClient(addrStr string, opts ...ClientParam) (*Client, error) {
 		return nil, err
 	}
 	cl := &Client{}
-	var nb networkBackend
-	switch addr := addr.(type) {
-	case *net.UDPAddr:
-		nb = &packetBackend{}
-	case *net.UnixAddr:
-		nb = &streamBackend{}
-	default:
-		return nil, fmt.Errorf("can not connect to %v addresses", addr.Network())
-	}
-	cl.backend = nb
-	params := nb.params()
-	params.addr = addr
+	cl.backendParams = &backendParams{}
+	cl.backendParams.addr = addr
 	cl.cap = DefaultCapacity
+	cl.nBackends = DefaultParallelism
 	for _, opt := range opts {
 		if err = opt(cl); err != nil {
 			return nil, err
 		}
 	}
-	ch := make(chan op, cl.cap)
-	cl.ops = ch
-	ctx := context.Background()
-	ctx, cl.cancel = context.WithCancel(ctx)
-	go cl.run(ctx)
+	ch := make(chan *recordOp, cl.cap)
+	cl.records = ch
+
+	var ctx context.Context
+	ctx, cl.cancel = context.WithCancel(context.Background())
+
+	fb := []flushNotifier{}
+	for i := uint(0); i < cl.nBackends; i++ {
+		switch addr := addr.(type) {
+		case *net.UDPAddr:
+			be := &packetBackend{backendParams: *cl.backendParams}
+			fb = append(fb, newFlushNofifier(be))
+		case *net.UnixAddr:
+			be := &streamBackend{backendParams: *cl.backendParams}
+			fb = append(fb, newFlushNofifier(be))
+		default:
+			return nil, fmt.Errorf("can not connect to %v addresses", addr.Network())
+		}
+	}
+	cl.flushBackends = fb
+	cl.run(ctx)
+
 	return cl, nil
 }
 
@@ -275,7 +335,7 @@ func NewClient(addrStr string, opts ...ClientParam) (*Client, error) {
 // trips over the network.
 func NewBackendClient(b ClientBackend, opts ...ClientParam) (*Client, error) {
 	cl := &Client{}
-	cl.backend = b
+	cl.flushBackends = []flushNotifier{newFlushNofifier(b)}
 	cl.cap = 1
 
 	for _, opt := range opts {
@@ -283,11 +343,45 @@ func NewBackendClient(b ClientBackend, opts ...ClientParam) (*Client, error) {
 			return nil, err
 		}
 	}
-	cl.ops = make(chan op, cl.cap)
+	cl.records = make(chan *recordOp, cl.cap)
 	ctx := context.Background()
 	ctx, cl.cancel = context.WithCancel(ctx)
-	go cl.run(ctx)
+
+	cl.run(ctx)
 	return cl, nil
+}
+
+// NewChannelClient constructs and returns a Client that can send
+// directly into a span receiver channel. It provides an alternative
+// interface to NewBackendClient for constructing internal and
+// test-only clients.
+func NewChannelClient(spanChan chan<- *ssf.SSFSpan, opts ...ClientParam) (*Client, error) {
+	cl := &Client{}
+	cl.flushBackends = []flushNotifier{}
+	cl.spans = spanChan
+
+	for _, opt := range opts {
+		if err := opt(cl); err != nil {
+			return nil, err
+		}
+	}
+
+	ctx := context.Background()
+	ctx, cl.cancel = context.WithCancel(ctx)
+
+	cl.run(ctx)
+	return cl, nil
+}
+
+// NeutralizeClient sets up a client such that all Record or Flush
+// operations result in ErrWouldBlock. It dashes all hope of a Client
+// ever successfully recording or flushing spans, and is mostly useful
+// in tests.
+func NeutralizeClient(client *Client) {
+	client.Close()
+	client.records = nil
+	client.spans = nil
+	client.flushBackends = []flushNotifier{}
 }
 
 // DefaultClient is the client that trace recording happens on by
@@ -301,6 +395,10 @@ var DefaultClient *Client
 // DefaultCapacity is the capacity of the span submission queue in a
 // veneur client.
 const DefaultCapacity = 64
+
+// DefaultParallelism is the number of span submission goroutines a
+// veneur client runs in parallel.
+const DefaultParallelism = 8
 
 // DefaultVeneurAddress is the address that a reasonable veneur should
 // listen on. Currently it defaults to UDP port 8128.
@@ -336,14 +434,15 @@ func Record(cl *Client, span *ssf.SSFSpan, done chan<- error) error {
 		return ErrNoClient
 	}
 
-	op := func(ctx context.Context, s ClientBackend) {
-		err := s.SendSync(ctx, span)
-		if done != nil {
-			done <- err
-		}
-	}
+	op := &recordOp{span: span, result: done}
 	select {
-	case cl.ops <- op:
+	case cl.spans <- span:
+		atomic.AddInt64(&cl.successfulRecords, 1)
+		if done != nil {
+			go func() { done <- nil }()
+		}
+		return nil
+	case cl.records <- op:
 		atomic.AddInt64(&cl.successfulRecords, 1)
 		return nil
 	default:
@@ -369,29 +468,49 @@ func Flush(cl *Client) error {
 	return <-ch
 }
 
+// FlushError is an aggregate error type indicating that one or more
+// backends failed to flush.
+type FlushError struct {
+	Errors []error
+}
+
+func (fe *FlushError) Error() string {
+	return fmt.Sprintf("Errors encountered flushing backends: %v", fe.Errors)
+}
+
 // FlushAsync instructs a buffered client to flush to the upstream
 // veneur all the spans that were serialized up until the moment that
 // the flush was received. Once the client has completed the flush,
 // any error (or nil) is sent down the error channel.
 //
-// FlushAsync returns ErrNoClient if client is nil and ErrWouldBlock
-// if the client is not able to take more requests.
+// FlushAsync returns ErrNoClient if client is nil.
 func FlushAsync(cl *Client, ch chan<- error) error {
 	if cl == nil {
 		return ErrNoClient
 	}
-	op := func(ctx context.Context, s ClientBackend) {
-		err := s.FlushSync(ctx)
-		if ch != nil {
-			ch <- err
+	go func() {
+		errors := []error{}
+		oneCh := make(chan error)
+		for _, fb := range cl.flushBackends {
+			if fb.notify == nil {
+				continue
+			}
+			select {
+			case fb.notify <- oneCh:
+				if err := <-oneCh; err != nil {
+					errors = append(errors, err)
+				}
+			default:
+				errors = append(errors, ErrWouldBlock)
+			}
 		}
-	}
-	select {
-	case cl.ops <- op:
+		if len(errors) > 0 {
+			atomic.AddInt64(&cl.failedFlushes, 1)
+			ch <- &FlushError{errors}
+			return
+		}
 		atomic.AddInt64(&cl.successfulFlushes, 1)
-		return nil
-	default:
-	}
-	atomic.AddInt64(&cl.failedFlushes, 1)
-	return ErrWouldBlock
+		ch <- nil
+	}()
+	return nil
 }

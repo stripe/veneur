@@ -2,6 +2,7 @@ package veneur
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -357,17 +358,27 @@ func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck)
 
 // SpanWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type SpanWorker struct {
-	SpanChan    chan *ssf.SSFSpan
-	sinks       []sinks.SpanSink
-	traceClient *trace.Client
+	SpanChan        <-chan *ssf.SSFSpan
+	sinkTags        []map[string]string
+	sinks           []sinks.SpanSink
+	cumulativeTimes []int64
+	traceClient     *trace.Client
 }
 
 // NewSpanWorker creates an SpanWorker ready to collect events and service checks.
-func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client) *SpanWorker {
+func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ssf.SSFSpan) *SpanWorker {
+	tags := make([]map[string]string, len(sinks))
+	for i, sink := range sinks {
+		tags[i] = map[string]string{
+			"sink": sink.Name(),
+		}
+	}
 	return &SpanWorker{
-		SpanChan:    make(chan *ssf.SSFSpan),
-		sinks:       sinks,
-		traceClient: cl,
+		SpanChan:        spanChan,
+		sinks:           sinks,
+		sinkTags:        tags,
+		cumulativeTimes: make([]int64, len(sinks)),
+		traceClient:     cl,
 	}
 }
 
@@ -375,30 +386,44 @@ func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client) *SpanWorker {
 // This function will never return.
 func (tw *SpanWorker) Work() {
 	for m := range tw.SpanChan {
-		// Give each sink a change to ingest.
-		for _, s := range tw.sinks {
-			err := s.Ingest(m)
-			if err != nil {
-				if _, isNoTrace := err.(*protocol.InvalidTrace); !isNoTrace {
-					// If a sink goes wacko and errors a lot, we stand to emit a
-					// loooot of metrics towards all span workers here since
-					// span ingest rates can be very high. C'est la vie.
-					metrics.ReportOne(tw.traceClient,
-						ssf.Count("worker.span.ingest_error_total", 1, map[string]string{"sink": s.Name()}))
+		var wg sync.WaitGroup
+		for i, s := range tw.sinks {
+			tags := tw.sinkTags[i]
+			wg.Add(1)
+			go func(i int, sink sinks.SpanSink, span *ssf.SSFSpan, wg *sync.WaitGroup) {
+				start := time.Now()
+				// Give each sink a change to ingest.
+				err := sink.Ingest(span)
+				if err != nil {
+					if _, isNoTrace := err.(*protocol.InvalidTrace); !isNoTrace {
+						// If a sink goes wacko and errors a lot, we stand to emit a
+						// loooot of metrics towards all span workers here since
+						// span ingest rates can be very high. C'est la vie.
+						metrics.ReportOne(tw.traceClient,
+							ssf.Count("worker.span.ingest_error_total", 1, tags))
+					}
 				}
-			}
+				atomic.AddInt64(&tw.cumulativeTimes[i],
+					int64(time.Since(start)/time.Nanosecond))
+				wg.Done()
+			}(i, s, m, &wg)
 		}
+		wg.Wait()
 	}
 }
 
 // Flush invokes flush on each sink.
 func (tw *SpanWorker) Flush() {
+	samples := &ssf.Samples{}
+	defer metrics.Report(tw.traceClient, samples)
 
 	// Flush and time each sink.
-	for _, s := range tw.sinks {
+	for i, s := range tw.sinks {
+		tags := tw.sinkTags[i]
 		sinkFlushStart := time.Now()
 		s.Flush()
-		metrics.ReportOne(tw.traceClient,
-			ssf.Timing("worker.span.flush_duration_ns", time.Since(sinkFlushStart), time.Nanosecond, map[string]string{"sink": s.Name()}))
+		samples.Add(ssf.Timing("worker.span.flush_duration_ns", time.Since(sinkFlushStart), time.Nanosecond, tags))
+		cumulative := time.Duration(atomic.SwapInt64(&tw.cumulativeTimes[i], 0)) * time.Nanosecond
+		samples.Add(ssf.Timing(sinks.MetricKeySpanIngestDuration, cumulative, time.Nanosecond, tags))
 	}
 }

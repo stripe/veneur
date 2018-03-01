@@ -185,11 +185,12 @@ func unmarshalMetricsFromHTTP(ctx context.Context, client *trace.Client, w http.
 	}
 
 	w.WriteHeader(http.StatusAccepted)
-	span.Add(ssf.Timing("import.response_duration_ns", time.Since(span.Start),
-		time.Nanosecond, map[string]string{
-			"part":     "request",
-			"encoding": encoding,
-		}))
+	span.Add(ssf.RandomlySample(0.1,
+		ssf.Timing("import.response_duration_ns", time.Since(span.Start),
+			time.Nanosecond, map[string]string{
+				"part":     "request",
+				"encoding": encoding,
+			}))...)
 	return span, jsonMetrics, nil
 }
 

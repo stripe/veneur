@@ -1,3 +1,12 @@
+# 4.0.0, in development
+
+## Added
+* The SSF client now defaults to opening 8 connections in parallel to avoid blocking client code. Thanks, [antifuchs](https://github.com/antifuchs)!
+* New config settings `num_span_workers` and `span_channel_capacity` that allow you to customize the parallelism of span ingestion. Thanks, [antifuchs](https://github.com/antifuchs)!
+* New span sink utilization metrics - Thanks, [antifuchs](https://github.com/antifuchs):
+** `veneur.sink.span_ingest_total_duration_ns` gives the total time per `sink` spent ingesting spans
+** `veneur.worker.span_chan.total_elements` over `veneur.worker.span_chan.total_capacity` gives the utilization of the sink ingestion channel.
+
 # 3.0.0, 2018-02-27
 
 ## Incompatible changes
