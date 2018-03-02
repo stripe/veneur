@@ -157,17 +157,10 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 		}
 		dims := map[string]string{}
 		// Set the hostname as a tag, since SFx doesn't have a first-class hostname field
-		if _, ok := sfx.excludedTags[sfx.hostnameTag]; !ok {
-			dims[sfx.hostnameTag] = sfx.hostname
-		}
+		dims[sfx.hostnameTag] = sfx.hostname
 		for _, tag := range metric.Tags {
 			kv := strings.SplitN(tag, ":", 2)
 			key := kv[0]
-
-			// skip excluded tags
-			if _, ok := sfx.excludedTags[key]; ok {
-				continue
-			}
 
 			if len(kv) == 1 {
 				dims[key] = ""
@@ -184,6 +177,10 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 			if val, ok := dims[sfx.varyBy]; ok {
 				metricKey = val
 			}
+		}
+
+		for k := range sfx.excludedTags {
+			delete(dims, k)
 		}
 
 		var point *datapoint.Datapoint
@@ -220,26 +217,26 @@ func (sfx *SignalFxSink) FlushOtherSamples(ctx context.Context, samples []ssf.SS
 			continue
 		}
 
-		// Defensively copy tags
 		dims := map[string]string{}
-		for k, v := range sample.Tags {
-			if k == dogstatsd.EventIdentifierKey {
-				// Don't copy this tag
-				continue
-			}
 
-			// skip excluded tags
-			if _, ok := sfx.excludedTags[k]; ok {
-				continue
-			}
-			dims[k] = v
-		}
 		// Copy common dimensions in
 		for k, v := range sfx.commonDimensions {
 			dims[k] = v
 		}
 		// And hostname
 		dims[sfx.hostnameTag] = sfx.hostname
+
+		for k, v := range sample.Tags {
+			if k == dogstatsd.EventIdentifierKey {
+				// Don't copy this tag
+				continue
+			}
+			dims[k] = v
+		}
+
+		for k := range sfx.excludedTags {
+			delete(dims, k)
+		}
 
 		ev := event.Event{
 			EventType:  sample.Name,
