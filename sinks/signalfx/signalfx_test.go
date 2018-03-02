@@ -199,5 +199,61 @@ func TestSignalFxEventFlush(t *testing.T) {
 	assert.Equal(t, "gorch", dims["baz"], "Event has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Event missing a common tag")
 	assert.Equal(t, "", dims["novalue"], "Event has a busted tag")
-	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
+	assert.Equal(t, "glooblestoots", dims["host"], "Event is missing host tag")
+}
+
+func TestSignalFxSetExcludeTags(t *testing.T) {
+	fakeSink := NewFakeSink()
+	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink)
+
+	sink.SetExcludedTags([]string{"foo", "host"})
+	assert.NoError(t, err)
+
+	interMetrics := []samplers.InterMetric{samplers.InterMetric{
+		Name:      "a.b.c",
+		Timestamp: 1476119058,
+		Value:     10,
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+			"novalue",
+		},
+		Type: samplers.CounterMetric,
+	}}
+	sink.Flush(context.Background(), interMetrics)
+
+	ev := samplers.UDPEvent{
+		Title:     "Test Event",
+		Timestamp: time.Now().Unix(),
+		Tags: []string{
+			"foo:bar",
+			"baz:gorch",
+			"novalue",
+		},
+	}
+
+	sink.FlushEventsChecks(context.Background(), []samplers.UDPEvent{ev}, nil)
+
+	assert.Equal(t, 1, len(fakeSink.points))
+	point := fakeSink.points[0]
+	assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
+	assert.Equal(t, datapoint.Count, point.MetricType, "Metric has wrong type")
+	dims := point.Dimensions
+	assert.Equal(t, 3, len(dims), "Metric has incorrect tag count")
+	assert.Equal(t, "", dims["foo"], "Metric has a foo tag despite exclude rule")
+	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
+	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
+	assert.Equal(t, "pie", dims["yay"], "Metric is missing a common tag")
+	assert.Equal(t, "", dims["host"], "Metric has host tag despite exclude rule")
+
+	assert.Equal(t, 1, len(fakeSink.events))
+	event := fakeSink.events[0]
+	assert.Equal(t, ev.Title, event.EventType)
+	dims = event.Dimensions
+	assert.Equal(t, 3, len(dims), "Event has incorrect tag count")
+	assert.Equal(t, "", dims["foo"], "Event has a foo tag despite exclude rule")
+	assert.Equal(t, "gorch", dims["baz"], "Event has a busted tag")
+	assert.Equal(t, "pie", dims["yay"], "Event missing a common tag")
+	assert.Equal(t, "", dims["novalue"], "Event has a busted tag")
+	assert.Equal(t, "", dims["host"], "Event has host tag despite exclude rule")
 }

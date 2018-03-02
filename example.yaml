@@ -77,6 +77,15 @@ omit_empty_hostname: false
 tags:
   - ""
 
+# Tags listed here will be excluded from sinks. A pipe ("|") delimiter
+# can be used to specify the name of a sink, in which case the tag will
+# only be excluded from that one sink.
+# Sinks must support this behavior by providing a SetExcludedTags method,
+# or the exclusion rule will not be applied.
+tags_exclude:
+  - "nonce"
+  - "host_env|signalfx"
+
 # Set to floating point values that you'd like to output percentiles for from
 # histograms.
 percentiles:
