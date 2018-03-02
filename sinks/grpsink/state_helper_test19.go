@@ -53,7 +53,7 @@ func reconnectWithin(t *testing.T, sink *GRPCStreamingSpanSink, dur time.Duratio
 		switch state {
 		case connectivity.Ready:
 			// Spin on the internal state marker that indicates the stream state is bad
-			for !atomic.CompareAndSwapUint32(&sink.bad, 0, 0) {
+			for atomic.LoadUint32(&sink.bad) != 0 {
 				// Make sure ctx hasn't expired
 				select {
 				case <-ctx.Done():

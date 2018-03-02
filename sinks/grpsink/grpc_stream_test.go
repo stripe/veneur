@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -179,14 +180,19 @@ func TestClientIdleRecovery(t *testing.T) {
 		sink.maintainStream(context.Background())
 	}()
 
+	// Pre-mark the stream as in a bad state.
+	atomic.StoreUint32(&sink.bad, 1)
+
 	// SUT here is the channel and stream maintenance system, so express the
 	// requirement as a series of states through which it should automatically
 	// proceed.
-	waitThroughFiniteStateSequence(t, sink, 1*time.Second,
+	waitThroughFiniteStateSequence(t, sink, 5*time.Second,
 		connectivity.Idle,
 		connectivity.Connecting,
 		connectivity.Ready,
 	)
+
+	reconnectWithin(t, sink, 5*time.Second)
 
 	// Send a span, just to be sure.
 	start := time.Now()
