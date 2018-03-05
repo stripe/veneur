@@ -525,6 +525,7 @@ func ParseServiceCheck(packet []byte) (*ssf.SSFSample, error) {
 		foundTimestamp bool
 		foundHostname  bool
 		foundMessage   bool
+		foundTags      bool
 	)
 	for pipeSplitter.Next() {
 		if len(pipeSplitter.Chunk()) == 0 {
@@ -560,14 +561,16 @@ func ParseServiceCheck(packet []byte) (*ssf.SSFSample, error) {
 			ret.Message = strings.Replace(string(pipeSplitter.Chunk()[2:]), "\\n", "\n", -1)
 			foundMessage = true
 		case pipeSplitter.Chunk()[0] == '#':
-			if ret.Tags != nil || foundMessage {
-				return nil, errors.New("Invalid service check packet, multiple tag sections")
+			if foundTags == true {
+				return nil, errors.New("Invalid service chack packet, multiple tag sections")
 			}
 			tags := strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
 			mappedTags := ParseTagSliceToMap(tags)
+			// We've already added some tags, so we'll just add these to the ones we've got.
 			for k, v := range mappedTags {
 				ret.Tags[k] = v
 			}
+			foundTags = true
 		default:
 			return nil, errors.New("Invalid service check packet, unrecognized metadata section")
 		}

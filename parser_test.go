@@ -554,7 +554,7 @@ func TestEvents(t *testing.T) {
 }
 
 func TestServiceChecks(t *testing.T) {
-	evt, err := samplers.ParseServiceCheck([]byte("_sc|foo.bar|0|d:1136239445|h:example.com"))
+	evt, err := samplers.ParseServiceCheck([]byte("_sc|foo.bar|0|#foo:bar|d:1136239445|h:example.com"))
 	assert.NoError(t, err, "should have parsed correctly")
 	assert.EqualValues(t, &ssf.SSFSample{
 		Name:      "foo.bar",
@@ -563,6 +563,7 @@ func TestServiceChecks(t *testing.T) {
 		Tags: map[string]string{
 			dogstatsd.CheckIdentifierKey:  "",
 			dogstatsd.CheckHostnameTagKey: "example.com",
+			"foo": "bar",
 		},
 	}, evt, "should have parsed event")
 
