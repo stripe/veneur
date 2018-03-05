@@ -1,5 +1,8 @@
 # 4.0.0, in development
 
+## Improvements
+* Receiving SSF in UDP packets now happens on `num_readers` goroutines. Thanks, [antifuchs](https://github.com/antifuchs)
+
 ## Added
 
 * The new `tags_exclude` parameter can be used to strip tags from all metrics Veneur processes, either for all supported sinks or a subset of sinks. Thanks, [aditya](https://github.com/chimeracoder)!

@@ -26,7 +26,15 @@ func StartStatsd(s *Server, a net.Addr, packetPool *sync.Pool) net.Addr {
 	}
 }
 
-func startStatsdUDP(s *Server, addr *net.UDPAddr, packetPool *sync.Pool) net.Addr {
+// udpProcessor is a function that reads packets from a socket, using
+// the pool provided.
+type udpProcessor func(net.PacketConn, *sync.Pool)
+
+// startProcessingOnUDP starts network num_readers listeners on the
+// given address in one goroutine each, using the passed pool. When
+// the listener is established, it starts the udpProcessor with the
+// listener.
+func startProcessingOnUDP(s *Server, protocol string, addr *net.UDPAddr, pool *sync.Pool, proc udpProcessor) net.Addr {
 	reusePort := s.numReaders != 1
 	// If we're reusing the port, make sure we're listening on the
 	// exact same address always; this is mostly relevant for
@@ -64,15 +72,22 @@ func startStatsdUDP(s *Server, addr *net.UDPAddr, packetPool *sync.Pool) net.Add
 			// it can return that address.
 			once.Do(func() {
 				addrChan <- sock.LocalAddr()
-				log.WithField("address", sock.LocalAddr()).
-					Info("Listening for statsd metrics on UDP socket")
+				log.WithFields(logrus.Fields{
+					"address":   sock.LocalAddr(),
+					"protocol":  protocol,
+					"listeners": s.numReaders,
+				}).Info("Listening on UDP address")
 				close(addrChan)
 			})
 
-			s.ReadMetricSocket(sock, packetPool)
+			proc(sock, pool)
 		}()
 	}
 	return <-addrChan
+}
+
+func startStatsdUDP(s *Server, addr *net.UDPAddr, packetPool *sync.Pool) net.Addr {
+	return startProcessingOnUDP(s, "statsd", addr, packetPool, s.ReadMetricSocket)
 }
 
 func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Addr {
@@ -137,23 +152,7 @@ func StartSSF(s *Server, a net.Addr, tracePool *sync.Pool) net.Addr {
 }
 
 func startSSFUDP(s *Server, addr *net.UDPAddr, tracePool *sync.Pool) net.Addr {
-	// TODO: Make this actually use readers / add a predicate
-	// function for testing if we should SO_REUSEPORT.
-	listener, err := NewSocket(addr, s.RcvbufBytes, s.numReaders > 1)
-	if err != nil {
-		// if any goroutine fails to create the socket, we can't really
-		// recover, so we just blow up
-		// this probably indicates a systemic issue, eg lack of
-		// SO_REUSEPORT support
-		panic(fmt.Sprintf("couldn't listen on UDP socket %v: %v", addr, err))
-	}
-	go func() {
-		defer func() {
-			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
-		}()
-		s.ReadSSFPacketSocket(listener, tracePool)
-	}()
-	return listener.LocalAddr()
+	return startProcessingOnUDP(s, "ssf", addr, tracePool, s.ReadSSFPacketSocket)
 }
 
 // startSSFUnix starts listening for connections that send framed SSF
