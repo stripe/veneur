@@ -362,11 +362,11 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 	// about the success case
 	endpoint := fmt.Sprintf("%s/import", s.ForwardAddr)
 	if vhttp.PostHelper(span.Attach(ctx), s.HTTPClient, s.TraceClient, http.MethodPost, endpoint, jsonMetrics, "forward", true, log) == nil {
-		log.WithFields(logrus.Fields{
+		verbose(log.WithFields(logrus.Fields{
 			"metrics":     len(jsonMetrics),
 			"endpoint":    endpoint,
 			"forwardAddr": s.ForwardAddr,
-		}).Info("Completed forward to upstream Veneur")
+		}), "Completed forward to upstream Veneur")
 	}
 }
 

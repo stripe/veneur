@@ -384,10 +384,10 @@ func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
 			// support "Content-Encoding: deflate"
 			err := vhttp.PostHelper(span.Attach(ctx), p.HTTPClient, p.TraceClient, http.MethodPost, fmt.Sprintf("%s/spans", dest), batch, "flush_traces", false, log)
 			if err == nil {
-				log.WithFields(logrus.Fields{
+				verbose(log.WithFields(logrus.Fields{
 					"traces":      len(batch),
 					"destination": dest,
-				}).Info("Completed flushing traces to Datadog")
+				}), "Completed flushing traces to Datadog")
 			} else {
 				log.WithFields(
 					logrus.Fields{
@@ -456,7 +456,7 @@ func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination stri
 	endpoint := fmt.Sprintf("%s/import", destination)
 	err := vhttp.PostHelper(ctx, p.HTTPClient, p.TraceClient, http.MethodPost, endpoint, batch, "forward", true, log)
 	if err == nil {
-		log.WithField("metrics", batchSize).Info("Completed forward to upstream Veneur")
+		verbose(log.WithField("metrics", batchSize), "Completed forward to upstream Veneur")
 	} else {
 		samples.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "post"}))
 		log.WithError(err).WithFields(logrus.Fields{

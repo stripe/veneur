@@ -172,6 +172,10 @@ sentry_dsn: ""
 # Enables Go profiling
 enable_profiling: false
 
+# Sets level for logs that appear periodically as part of normal
+# execution (currently "Completed..." logs).  Can be any logrus log
+# level (default INFO, can set to DEBUG).
+verbose_log_level: ""
 
 
 # == SINKS ==

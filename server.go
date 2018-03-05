@@ -61,6 +61,42 @@ var profileStartOnce = sync.Once{}
 
 var log = logrus.StandardLogger()
 
+type EntryLogger func(entry *logrus.Entry, args ...interface{})
+
+// verbose logs to some level on entry, possibly entry.Info.
+var verbose EntryLogger
+
+// makeLevelLogger returns a function that logs level on entry, possible entry.Info.
+func makeLevelLogger(level logrus.Level) EntryLogger {
+	switch level {
+	case logrus.PanicLevel:
+		return func(entry *logrus.Entry, args ...interface{}) { entry.Panic(args) }
+	case logrus.FatalLevel:
+		return func(entry *logrus.Entry, args ...interface{}) { entry.Fatal(args) }
+	case logrus.ErrorLevel:
+		return func(entry *logrus.Entry, args ...interface{}) { entry.Error(args) }
+	case logrus.WarnLevel:
+		return func(entry *logrus.Entry, args ...interface{}) { entry.Warn(args) }
+	case logrus.InfoLevel:
+		return func(entry *logrus.Entry, args ...interface{}) { entry.Info(args) }
+	case logrus.DebugLevel:
+		return func(entry *logrus.Entry, args ...interface{}) { entry.Debug(args) }
+	default:
+		log.Errorf("Unexpected verbose log level %v (using info)", level)
+		return func(entry *logrus.Entry, args ...interface{}) { entry.Info(args) }
+	}
+}
+
+// getVerboseLogLevel parses logLevelStr or Info if empty.
+func getVerboseLogLevel(logLevelStr string) logrus.Level {
+	if logLevelStr == "" {
+		return logrus.InfoLevel
+	}
+	// ParseLevel logs errors.
+	level, _ := logrus.ParseLevel(logLevelStr)
+	return level
+}
+
 var tracer = trace.GlobalTracer
 
 const defaultTCPReadTimeout = 10 * time.Minute
@@ -187,6 +223,8 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			return ret, err
 		}
 	}
+
+	verbose = makeLevelLogger(getVerboseLogLevel(conf.VerboseLogLevel))
 
 	if conf.Debug {
 		logger.SetLevel(logrus.DebugLevel)
