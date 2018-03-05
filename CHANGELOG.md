@@ -9,6 +9,7 @@
   * `veneur.sink.span_ingest_total_duration_ns` gives the total time per `sink` spent ingesting spans
   * `veneur.worker.span_chan.total_elements` over `veneur.worker.span_chan.total_capacity` gives the utilization of the sink ingestion channel.
 * Introduce a generic gRPC streaming backend for trace spans. Thanks, [sdboyer](https://github.com/sdboyer)!
+* Configurable "verbose" log level using `verbose_log_level`.  [arielshaqed](https://github.com/arielshaqed)
 
 # 3.0.0, 2018-02-27
 
