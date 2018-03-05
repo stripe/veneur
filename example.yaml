@@ -132,8 +132,9 @@ trace_lightstep_num_clients: 0
 # of metrics.
 num_workers: 96
 
-# Numbers larger than 1 will enable the use of SO_REUSEPORT, make sure
-# this is supported on your platform!
+# Adjusts the number of listening goroutines on any UDP listener
+# (statsd and SSF). Numbers larger than 1 will enable the use of
+# SO_REUSEPORT, so make sure this is supported on your platform!
 num_readers: 1
 
 # Adjusts the number of span workers across which Veneur will
