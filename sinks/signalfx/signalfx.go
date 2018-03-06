@@ -112,17 +112,18 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 			sent += len(points)
 
 			wg.Add(1)
+			sfx.log.WithField("num_points", len(points)).Info("Flushing a chunk from SignalFx")
 			go func() {
 				sfx.flushPoints(ctx, &wg, toFlush)
 			}()
-
-			sfx.log.WithField("num_points", len(points)).Info("Flushing a chunk from SignalFx")
+			// Empty out the points for the next chunk
 			points = []*datapoint.Datapoint{}
 		}
 	}
 	if len(points) > 0 {
 		sent += len(points)
 		wg.Add(1)
+		sfx.log.WithField("num_points", len(points)).Info("Flushing a chunk from SignalFx")
 		sfx.flushPoints(ctx, &wg, points)
 	}
 	wg.Wait()
