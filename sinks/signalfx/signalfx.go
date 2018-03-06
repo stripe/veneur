@@ -67,9 +67,8 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sfx.traceClient)
 
-	sizeWanted := 1000
-	sent := 0
-
+	// We need to keep track of the total number sent
+	totalSent := 0
 	var wg sync.WaitGroup
 	flushStart := time.Now()
 	points := []*datapoint.Datapoint{}
@@ -107,11 +106,11 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 		} else if metric.Type == samplers.CounterMetric {
 			points = append(points, sfxclient.Counter(metric.Name, dims, int64(metric.Value)))
 		}
-		if len(points) >= sizeWanted {
+		if len(points) >= sfx.chunkMetricCount {
 			// Copy the points so we can continue with a new one
 			toFlush := make([]*datapoint.Datapoint, len(points))
 			copy(toFlush, points)
-			sent += len(points)
+			totalSent += len(points)
 
 			wg.Add(1)
 			go func() {
@@ -122,7 +121,7 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 		}
 	}
 	if len(points) > 0 {
-		sent += len(points)
+		totalSent += len(points)
 		wg.Add(1)
 		sfx.flushPoints(ctx, &wg, points)
 	}
@@ -130,8 +129,8 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 
 	tags := map[string]string{"sink": "signalfx"}
 	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags))
-	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(sent), tags))
-	sfx.log.WithField("metrics", sent).Info("Completed flush to SignalFx")
+	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(totalSent), tags))
+	sfx.log.WithField("metrics", totalSent).Info("Completed flush to SignalFx")
 
 	return nil
 }
