@@ -104,8 +104,9 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 			// TODO I am not certain if this should be a Counter or a Cumulative
 			points = append(points, sfxclient.Counter(metric.Name, dims, int64(metric.Value)))
 		}
-		if len(points) == sizeWanted {
+		if len(points) >= sizeWanted {
 			sent += len(points)
+			sfx.log.WithField("num_points", len(points)).Info("Flushing a chunk from SignalFx")
 			err := sfx.client.AddDatapoints(ctx, points)
 			if sendError != nil {
 				sfx.log.WithField("num_points", len(points)).WithError(err).Warn("Failed to send metrics")
