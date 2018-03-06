@@ -146,6 +146,7 @@ func (sfx *SignalFxSink) flushPoints(ctx context.Context, wg *sync.WaitGroup, po
 		sfx.log.WithField("num_points", len(points)).WithError(err).Warn("Failed to send metrics")
 		span.Error(err)
 	}
+	sfx.log.Info("Completed chunk to SignalFx")
 
 	return err
 }
