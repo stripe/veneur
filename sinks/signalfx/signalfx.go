@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/signalfx/golib/datapoint"
@@ -66,7 +67,8 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 
 	sizeWanted := 1000
 	sent := 0
-	var sendError error
+
+	var wg sync.WaitGroup
 	flushStart := time.Now()
 	points := []*datapoint.Datapoint{}
 	for _, metric := range interMetrics {
@@ -101,38 +103,50 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 		if metric.Type == samplers.GaugeMetric {
 			points = append(points, sfxclient.GaugeF(metric.Name, dims, metric.Value))
 		} else if metric.Type == samplers.CounterMetric {
-			// TODO I am not certain if this should be a Counter or a Cumulative
 			points = append(points, sfxclient.Counter(metric.Name, dims, int64(metric.Value)))
 		}
 		if len(points) >= sizeWanted {
+			// Copy the points so we can continue with a new one
+			toFlush := make([]*datapoint.Datapoint, len(points))
+			copy(toFlush, points)
 			sent += len(points)
+
+			wg.Add(1)
+			go func() {
+				sfx.flushPoints(ctx, &wg, toFlush)
+			}()
+
 			sfx.log.WithField("num_points", len(points)).Info("Flushing a chunk from SignalFx")
-			err := sfx.client.AddDatapoints(ctx, points)
-			if sendError != nil {
-				sfx.log.WithField("num_points", len(points)).WithError(err).Warn("Failed to send metrics")
-				sendError = err
-			}
 			points = []*datapoint.Datapoint{}
 		}
 	}
-	if sendError != nil {
-		span.Error(sendError)
-	}
 	if len(points) > 0 {
 		sent += len(points)
-		err := sfx.client.AddDatapoints(ctx, points)
-		if err != nil {
-			span.Error(err)
-			sendError = err
-		}
+		wg.Add(1)
+		sfx.flushPoints(ctx, &wg, points)
 	}
+	wg.Wait()
 
 	tags := map[string]string{"sink": "signalfx"}
 	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags))
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(sent), tags))
 	sfx.log.WithField("metrics", len(interMetrics)).Info("Completed flush to SignalFx")
 
-	return sendError
+	return nil
+}
+
+func (sfx *SignalFxSink) flushPoints(ctx context.Context, wg *sync.WaitGroup, points []*datapoint.Datapoint) error {
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	defer span.ClientFinish(sfx.traceClient)
+	defer wg.Done()
+
+	err := sfx.client.AddDatapoints(ctx, points)
+	if err != nil {
+		sfx.log.WithField("num_points", len(points)).WithError(err).Warn("Failed to send metrics")
+		span.Error(err)
+	}
+
+	return err
 }
 
 // FlushEventsChecks sends events to SignalFx. It does not support checks. It is also currently disabled.
