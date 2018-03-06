@@ -140,7 +140,7 @@ func (sfx *SignalFxSink) flushPoints(ctx context.Context, wg *sync.WaitGroup, po
 	defer span.ClientFinish(sfx.traceClient)
 	defer wg.Done()
 
-	sfx.log.WithField("num_points", len(points)).Debug("Flushing a chunk from SignalFx")
+	sfx.log.WithField("num_points", len(points)).Info("Flushing a chunk from SignalFx")
 	err := sfx.client.AddDatapoints(ctx, points)
 	if err != nil {
 		sfx.log.WithField("num_points", len(points)).WithError(err).Warn("Failed to send metrics")
