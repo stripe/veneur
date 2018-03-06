@@ -114,7 +114,6 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 			sent += len(points)
 
 			wg.Add(1)
-			sfx.log.WithField("num_points", len(points)).Info("Flushing a chunk from SignalFx")
 			go func() {
 				sfx.flushPoints(ctx, &wg, toFlush)
 			}()
@@ -125,7 +124,6 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	if len(points) > 0 {
 		sent += len(points)
 		wg.Add(1)
-		sfx.log.WithField("num_points", len(points)).Info("Flushing a chunk from SignalFx")
 		sfx.flushPoints(ctx, &wg, points)
 	}
 	wg.Wait()
@@ -133,7 +131,7 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	tags := map[string]string{"sink": "signalfx"}
 	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags))
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(sent), tags))
-	sfx.log.WithField("metrics", len(interMetrics)).Info("Completed flush to SignalFx")
+	sfx.log.WithField("metrics", sent).Info("Completed flush to SignalFx")
 
 	return nil
 }
@@ -143,6 +141,7 @@ func (sfx *SignalFxSink) flushPoints(ctx context.Context, wg *sync.WaitGroup, po
 	defer span.ClientFinish(sfx.traceClient)
 	defer wg.Done()
 
+	sfx.log.WithField("num_points", len(points)).Debug("Flushing a chunk from SignalFx")
 	err := sfx.client.AddDatapoints(ctx, points)
 	if err != nil {
 		sfx.log.WithField("num_points", len(points)).WithError(err).Warn("Failed to send metrics")
