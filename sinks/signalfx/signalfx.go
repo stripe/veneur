@@ -19,8 +19,8 @@ import (
 )
 
 type destinations struct {
-	fallback dpsink.Sink
-	byKey    map[string]dpsink.Sink
+	fallback DPClient
+	byKey    map[string]DPClient
 }
 
 func (d *destinations) getClient(key string) dpsink.Sink {
@@ -89,6 +89,7 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client) error {
 	return nil
 }
 
+// SignalFxSink is a MetricsSink implementation.
 type SignalFxSink struct {
 	clients          *destinations
 	keyClients       map[string]dpsink.Sink
@@ -101,9 +102,13 @@ type SignalFxSink struct {
 	excludedTags     map[string]struct{}
 }
 
+// A DPClient is a client that can be used to submit signalfx data
+// points to an upstream consumer. It wraps the dpsink.Sink interface.
+type DPClient dpsink.Sink
+
 // NewClient constructs a new signalfx HTTP client for the given
 // endpoint and API token.
-func NewClient(endpoint, apiKey string) dpsink.Sink {
+func NewClient(endpoint, apiKey string) DPClient {
 	httpSink := sfxclient.NewHTTPSink()
 	httpSink.AuthToken = apiKey
 	httpSink.DatapointEndpoint = fmt.Sprintf("%s/v2/datapoint", endpoint)
@@ -112,7 +117,7 @@ func NewClient(endpoint, apiKey string) dpsink.Sink {
 }
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client dpsink.Sink, varyBy string, perTagClients map[string]dpsink.Sink) (*SignalFxSink, error) {
+func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient) (*SignalFxSink, error) {
 	return &SignalFxSink{
 		clients:          &destinations{fallback: client, byKey: perTagClients},
 		hostnameTag:      hostnameTag,

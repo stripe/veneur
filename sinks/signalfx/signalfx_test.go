@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/signalfx/golib/datapoint"
-	"github.com/signalfx/golib/datapoint/dpsink"
 	"github.com/signalfx/golib/event"
 	"github.com/signalfx/golib/sfxclient"
 	"github.com/sirupsen/logrus"
@@ -260,7 +259,7 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 	fallback := NewFakeSink()
 	specialized := NewFakeSink()
 
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]dpsink.Sink{"available": specialized})
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{"available": specialized})
 
 	assert.NoError(t, err)
 
