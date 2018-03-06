@@ -27,10 +27,11 @@ type SignalFxSink struct {
 	log              *logrus.Logger
 	traceClient      *trace.Client
 	excludedTags     map[string]struct{}
+	chunkMetricCount int
 }
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(apiKey string, endpoint string, hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client dpsink.Sink) (*SignalFxSink, error) {
+func NewSignalFxSink(apiKey string, endpoint string, hostnameTag string, hostname string, commonDimensions map[string]string, chunkMetricCount int, log *logrus.Logger, client dpsink.Sink) (*SignalFxSink, error) {
 	if client == nil {
 		httpSink := sfxclient.NewHTTPSink()
 		httpSink.AuthToken = apiKey
@@ -46,6 +47,7 @@ func NewSignalFxSink(apiKey string, endpoint string, hostnameTag string, hostnam
 		hostname:         hostname,
 		commonDimensions: commonDimensions,
 		log:              log,
+		chunkMetricCount: chunkMetricCount,
 	}, nil
 }
 
