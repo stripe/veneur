@@ -64,6 +64,9 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sfx.traceClient)
 
+	sizeWanted := 1000
+	sent := 0
+	var sendError error
 	flushStart := time.Now()
 	points := []*datapoint.Datapoint{}
 	for _, metric := range interMetrics {
@@ -101,17 +104,34 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 			// TODO I am not certain if this should be a Counter or a Cumulative
 			points = append(points, sfxclient.Counter(metric.Name, dims, int64(metric.Value)))
 		}
+		if len(points) == sizeWanted {
+			sent += len(points)
+			err := sfx.client.AddDatapoints(ctx, points)
+			if sendError != nil {
+				sfx.log.WithField("num_points", len(points)).WithError(err).Warn("Failed to send metrics")
+				sendError = err
+			}
+			points = []*datapoint.Datapoint{}
+		}
 	}
-	err := sfx.client.AddDatapoints(ctx, points)
-	if err != nil {
-		span.Error(err)
+	if sendError != nil {
+		span.Error(sendError)
 	}
+	if len(points) > 0 {
+		sent += len(points)
+		err := sfx.client.AddDatapoints(ctx, points)
+		if err != nil {
+			span.Error(err)
+			sendError = err
+		}
+	}
+
 	tags := map[string]string{"sink": "signalfx"}
 	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags))
-	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(points)), tags))
+	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(sent), tags))
 	sfx.log.WithField("metrics", len(interMetrics)).Info("Completed flush to SignalFx")
 
-	return err
+	return sendError
 }
 
 // FlushEventsChecks sends events to SignalFx. It does not support checks. It is also currently disabled.
