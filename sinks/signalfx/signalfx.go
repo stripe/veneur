@@ -18,35 +18,18 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
-type destinations struct {
-	fallback DPClient
-	byKey    map[string]DPClient
-}
-
-func (d *destinations) getClient(key string) dpsink.Sink {
-	if cl, ok := d.byKey[key]; ok {
-		return cl
-	}
-	return d.fallback
-}
-
+// collection is a structure that aggregates signalfx data points
+// per-endpoint. It takes care of collecting the metrics by the tag
+// values that identify where to send them, and
 type collection struct {
-	points       []*datapoint.Datapoint
-	pointsByKey  map[string][]*datapoint.Datapoint
-	destinations *destinations
-}
-
-func (d *destinations) pointCollection() *collection {
-	return &collection{
-		destinations: d,
-		points:       []*datapoint.Datapoint{},
-		pointsByKey:  map[string][]*datapoint.Datapoint{},
-	}
+	sink        *SignalFxSink
+	points      []*datapoint.Datapoint
+	pointsByKey map[string][]*datapoint.Datapoint
 }
 
 func (c *collection) addPoint(key string, point *datapoint.Datapoint) {
-	if c.destinations.byKey != nil {
-		if _, ok := c.destinations.byKey[key]; ok {
+	if c.sink.clientsByTagValue != nil {
+		if _, ok := c.sink.clientsByTagValue[key]; ok {
 			c.pointsByKey[key] = append(c.pointsByKey[key], point)
 			return
 		}
@@ -72,10 +55,10 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client) error {
 	}
 
 	wg.Add(1)
-	go submitOne(c.destinations.fallback, c.points)
+	go submitOne(c.sink.defaultClient, c.points)
 	for key, points := range c.pointsByKey {
 		wg.Add(1)
-		go submitOne(c.destinations.getClient(key), points)
+		go submitOne(c.sink.client(key), points)
 	}
 	wg.Wait()
 	close(errorCh)
@@ -91,15 +74,16 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client) error {
 
 // SignalFxSink is a MetricsSink implementation.
 type SignalFxSink struct {
-	clients          *destinations
-	keyClients       map[string]dpsink.Sink
-	varyBy           string
-	hostnameTag      string
-	hostname         string
-	commonDimensions map[string]string
-	log              *logrus.Logger
-	traceClient      *trace.Client
-	excludedTags     map[string]struct{}
+	defaultClient     DPClient
+	clientsByTagValue map[string]DPClient
+	keyClients        map[string]dpsink.Sink
+	varyBy            string
+	hostnameTag       string
+	hostname          string
+	commonDimensions  map[string]string
+	log               *logrus.Logger
+	traceClient       *trace.Client
+	excludedTags      map[string]struct{}
 }
 
 // A DPClient is a client that can be used to submit signalfx data
@@ -119,12 +103,13 @@ func NewClient(endpoint, apiKey string) DPClient {
 // NewSignalFxSink creates a new SignalFx sink for metrics.
 func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient) (*SignalFxSink, error) {
 	return &SignalFxSink{
-		clients:          &destinations{fallback: client, byKey: perTagClients},
-		hostnameTag:      hostnameTag,
-		hostname:         hostname,
-		commonDimensions: commonDimensions,
-		log:              log,
-		varyBy:           varyBy,
+		defaultClient:     client,
+		clientsByTagValue: perTagClients,
+		hostnameTag:       hostnameTag,
+		hostname:          hostname,
+		commonDimensions:  commonDimensions,
+		log:               log,
+		varyBy:            varyBy,
 	}, nil
 }
 
@@ -139,13 +124,32 @@ func (sfx *SignalFxSink) Start(traceClient *trace.Client) error {
 	return nil
 }
 
+// client returns a client that can be used to submit to vary-by tag's
+// value. If no client is specified for that tag value, the default
+// client is returned.
+func (sfx *SignalFxSink) client(key string) DPClient {
+	if cl, ok := sfx.clientsByTagValue[key]; ok {
+		return cl
+	}
+	return sfx.defaultClient
+}
+
+// newPointCollection creates an empty collection object and returns it
+func (sfx *SignalFxSink) newPointCollection() *collection {
+	return &collection{
+		sink:        sfx,
+		points:      []*datapoint.Datapoint{},
+		pointsByKey: map[string][]*datapoint.Datapoint{},
+	}
+}
+
 // Flush sends metrics to SignalFx
 func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sfx.traceClient)
 
 	flushStart := time.Now()
-	coll := sfx.clients.pointCollection()
+	coll := sfx.newPointCollection()
 	numPoints := 0
 
 	for _, metric := range interMetrics {
@@ -249,7 +253,7 @@ func (sfx *SignalFxSink) FlushEventsChecks(ctx context.Context, events []sampler
 			Timestamp:  time.Unix(udpEvent.Timestamp, 0),
 		}
 		// TODO: Split events out the same way as points
-		sfx.clients.fallback.AddEvents(ctx, []*event.Event{&ev})
+		sfx.defaultClient.AddEvents(ctx, []*event.Event{&ev})
 	}
 }
 
