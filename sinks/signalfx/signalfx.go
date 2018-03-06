@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/signalfx/golib/datapoint"
@@ -26,10 +27,11 @@ type SignalFxSink struct {
 	log              *logrus.Logger
 	traceClient      *trace.Client
 	excludedTags     map[string]struct{}
+	chunkMetricCount int
 }
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(apiKey string, endpoint string, hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client dpsink.Sink) (*SignalFxSink, error) {
+func NewSignalFxSink(apiKey string, endpoint string, hostnameTag string, hostname string, commonDimensions map[string]string, chunkMetricCount int, log *logrus.Logger, client dpsink.Sink) (*SignalFxSink, error) {
 	if client == nil {
 		httpSink := sfxclient.NewHTTPSink()
 		httpSink.AuthToken = apiKey
@@ -45,6 +47,7 @@ func NewSignalFxSink(apiKey string, endpoint string, hostnameTag string, hostnam
 		hostname:         hostname,
 		commonDimensions: commonDimensions,
 		log:              log,
+		chunkMetricCount: chunkMetricCount,
 	}, nil
 }
 
@@ -64,6 +67,9 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sfx.traceClient)
 
+	// We need to keep track of the total number sent
+	totalSent := 0
+	var wg sync.WaitGroup
 	flushStart := time.Now()
 	points := []*datapoint.Datapoint{}
 	for _, metric := range interMetrics {
@@ -98,18 +104,49 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 		if metric.Type == samplers.GaugeMetric {
 			points = append(points, sfxclient.GaugeF(metric.Name, dims, metric.Value))
 		} else if metric.Type == samplers.CounterMetric {
-			// TODO I am not certain if this should be a Counter or a Cumulative
 			points = append(points, sfxclient.Counter(metric.Name, dims, int64(metric.Value)))
 		}
+		if len(points) >= sfx.chunkMetricCount {
+			// Copy the points so we can continue with a new one
+			toFlush := make([]*datapoint.Datapoint, len(points))
+			copy(toFlush, points)
+			totalSent += len(points)
+
+			wg.Add(1)
+			go func() {
+				sfx.flushPoints(ctx, &wg, toFlush)
+			}()
+			// Empty out the points for the next chunk
+			points = []*datapoint.Datapoint{}
+		}
 	}
-	err := sfx.client.AddDatapoints(ctx, points)
-	if err != nil {
-		span.Error(err)
+	if len(points) > 0 {
+		totalSent += len(points)
+		wg.Add(1)
+		sfx.flushPoints(ctx, &wg, points)
 	}
+	wg.Wait()
+
 	tags := map[string]string{"sink": "signalfx"}
 	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags))
-	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(points)), tags))
-	sfx.log.WithField("metrics", len(interMetrics)).Info("Completed flush to SignalFx")
+	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(totalSent), tags))
+	sfx.log.WithField("metrics", totalSent).Info("Completed flush to SignalFx")
+
+	return nil
+}
+
+func (sfx *SignalFxSink) flushPoints(ctx context.Context, wg *sync.WaitGroup, points []*datapoint.Datapoint) error {
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	defer span.ClientFinish(sfx.traceClient)
+	defer wg.Done()
+
+	sfx.log.WithField("num_points", len(points)).Info("Flushing a chunk from SignalFx")
+	err := sfx.client.AddDatapoints(ctx, points)
+	if err != nil {
+		sfx.log.WithField("num_points", len(points)).WithError(err).Warn("Failed to send metrics")
+		span.Error(err)
+	}
+	sfx.log.Info("Completed chunk to SignalFx")
 
 	return err
 }

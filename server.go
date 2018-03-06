@@ -310,7 +310,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 
 	if conf.SignalfxAPIKey != "" {
-		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxAPIKey, conf.SignalfxEndpointBase, conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, nil)
+		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxAPIKey, conf.SignalfxEndpointBase, conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, 5000, log, nil)
 		if err != nil {
 			return ret, err
 		}

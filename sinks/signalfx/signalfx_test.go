@@ -37,7 +37,7 @@ func (fs *FakeSink) AddEvents(ctx context.Context, events []*event.Event) (err e
 
 func TestNewSignalFxSink(t *testing.T) {
 	// test the variables that have been renamed
-	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), nil)
+	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, 1000, logrus.New(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestNewSignalFxSink(t *testing.T) {
 
 func TestSignalFxFlushRouting(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink)
+	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, 1000, logrus.New(), fakeSink)
 
 	assert.NoError(t, err)
 
@@ -115,7 +115,7 @@ func TestSignalFxFlushRouting(t *testing.T) {
 
 func TestSignalFxFlushGauge(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink)
+	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, 1000, logrus.New(), fakeSink)
 
 	assert.NoError(t, err)
 
@@ -146,7 +146,7 @@ func TestSignalFxFlushGauge(t *testing.T) {
 
 func TestSignalFxFlushCounter(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink)
+	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, 1000, logrus.New(), fakeSink)
 
 	assert.NoError(t, err)
 
@@ -179,7 +179,7 @@ func TestSignalFxFlushCounter(t *testing.T) {
 
 func TestSignalFxEventFlush(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink)
+	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, 1000, logrus.New(), fakeSink)
 
 	assert.NoError(t, err)
 
@@ -204,7 +204,7 @@ func TestSignalFxEventFlush(t *testing.T) {
 
 func TestSignalFxSetExcludeTags(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink)
+	sink, err := NewSignalFxSink("secret", "http://www.example.com", "host", "glooblestoots", map[string]string{"yay": "pie"}, 1000, logrus.New(), fakeSink)
 
 	sink.SetExcludedTags([]string{"foo", "host"})
 	assert.NoError(t, err)
