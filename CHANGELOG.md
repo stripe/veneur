@@ -12,6 +12,7 @@
   * `veneur.sink.span_ingest_total_duration_ns` gives the total time per `sink` spent ingesting spans
   * `veneur.worker.span_chan.total_elements` over `veneur.worker.span_chan.total_capacity` gives the utilization of the sink ingestion channel.
 * Introduce a generic gRPC streaming backend for trace spans. Thanks, [sdboyer](https://github.com/sdboyer)!
+* New config keys `signalfx_vary_key_by` and `signalfx_per_tag_api_keys` which which allow sending signalfx data points with an API key specific to these data points' dimensions. Thanks, [antifuchs](https://github.com/antifuchs)!
 
 # 3.0.0, 2018-02-27
 
