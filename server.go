@@ -246,11 +246,11 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	for i, w := range ret.Workers {
 		processors[i] = w
 	}
-	metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, ret.TraceClient, log)
-	if err != nil {
-		return ret, err
-	}
-	ret.spanSinks = append(ret.spanSinks, metricSink)
+	// metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, ret.TraceClient, log)
+	// if err != nil {
+	// 	return ret, err
+	// }
+	// ret.spanSinks = append(ret.spanSinks, metricSink)
 
 	for _, addrStr := range conf.StatsdListenAddresses {
 		addr, err := protocol.ResolveAddr(addrStr)
