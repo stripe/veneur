@@ -97,7 +97,7 @@ func (ff *forwardFixture) IngestMetric(m *samplers.UDPMetric) {
 // from indicator spans make it across the entire chain, from a local
 // veneur, through a proxy, to a global veneur & get reported
 // on the global veneur.
-func TestE2EForwardingIndicatorMetrics(t *testing.T) {
+func testE2EForwardingIndicatorMetrics(t *testing.T) {
 	t.Parallel()
 	ch := make(chan []samplers.InterMetric)
 	sink, _ := NewChannelMetricSink(ch)

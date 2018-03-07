@@ -617,7 +617,7 @@ func TestMultipleUDPSockets(t *testing.T) {
 	}
 }
 
-func TestUDPMetricsSSF(t *testing.T) {
+func testUDPMetricsSSF(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.Interval = "60s"
@@ -692,7 +692,7 @@ func keepFlushing(ctx context.Context, server *Server) {
 	}()
 }
 
-func TestUNIXMetricsSSF(t *testing.T) {
+func testUNIXMetricsSSF(t *testing.T) {
 	ctx := context.TODO()
 	tdir, err := ioutil.TempDir("", "unixmetrics_ssf")
 	require.NoError(t, err)
@@ -1099,7 +1099,7 @@ func BenchmarkServerFlush(b *testing.B) {
 // TestSSFMetricsEndToEnd reports an SSF span with some attached
 // metrics to a live veneur through a UNIX domain socket and verifies
 // that the metrics have been received and processed.
-func TestSSFMetricsEndToEnd(t *testing.T) {
+func testSSFMetricsEndToEnd(t *testing.T) {
 	tdir, err := ioutil.TempDir("", "e2etest")
 	require.NoError(t, err)
 	defer os.RemoveAll(tdir)
@@ -1156,7 +1156,7 @@ func TestSSFMetricsEndToEnd(t *testing.T) {
 // TestInternalSSFMetricsEndToEnd reports an SSF span with some
 // attached metrics to a live veneur through an internal trace
 // backeng, like that veneur server itself would be.
-func TestInternalSSFMetricsEndToEnd(t *testing.T) {
+func testInternalSSFMetricsEndToEnd(t *testing.T) {
 	tdir, err := ioutil.TempDir("", "e2etest")
 	require.NoError(t, err)
 	defer os.RemoveAll(tdir)
