@@ -191,6 +191,9 @@ func TestConsistentForward(t *testing.T) {
 }
 
 func TestTimeout(t *testing.T) {
+	defer log.SetLevel(log.Level)
+	log.SetLevel(logrus.ErrorLevel)
+
 	cfg := generateProxyConfig()
 	cfg.ConsulTraceServiceName = ""
 	cfg.ConsulForwardServiceName = ""
