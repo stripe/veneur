@@ -63,6 +63,9 @@ func (m *MockSpanSinkServer) spanCount() int {
 }
 
 func TestEndToEnd(t *testing.T) {
+	defer log.SetLevel(log.Level)
+	log.SetLevel(logrus.ErrorLevel)
+
 	testaddr := "127.0.0.1:15111"
 	lis, err := net.Listen("tcp", testaddr)
 	if err != nil {
