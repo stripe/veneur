@@ -17,7 +17,6 @@ import (
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 	"github.com/stripe/veneur/trace/metrics"
-	"google.golang.org/grpc"
 )
 
 // Flush collects sampler's metrics and passes them to sinks.
@@ -407,20 +406,13 @@ func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
 		"metrics":     len(metrics),
 		"destination": s.ForwardAddr,
 		"protocol":    "grpc",
+		"grpcstate":   s.grpcForwardConn.GetState().String(),
 	})
 
-	conn, err := grpc.Dial(s.ForwardAddr, grpc.WithInsecure())
-	if err != nil {
-		span.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "conn-failed"}))
-		entry.WithError(err).Error("Failed to initialize a GRPC connection")
-		return
-	}
-	defer conn.Close()
-
-	c := forwardrpc.NewForwardClient(conn)
+	c := forwardrpc.NewForwardClient(s.grpcForwardConn)
 
 	grpcStart := time.Now()
-	_, err = c.SendMetrics(ctx, &forwardrpc.MetricList{Metrics: metrics})
+	_, err := c.SendMetrics(ctx, &forwardrpc.MetricList{Metrics: metrics})
 	if err != nil {
 		span.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "send"}))
 		entry.WithError(err).Error("Failed to forward to an upstream Veneur")

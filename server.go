@@ -27,6 +27,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
+	"google.golang.org/grpc"
 
 	"github.com/pkg/profile"
 
@@ -116,9 +117,12 @@ type Server struct {
 
 	TraceClient *trace.Client
 
-	// grpc
+	// gRPC server
 	grpcListenAddress string
 	grpcServer        *importsrv.Server
+
+	// gRPC forward clients
+	grpcForwardConn *grpc.ClientConn
 }
 
 // SetLogger sets the default logger in veneur to the passed value.
@@ -573,6 +577,17 @@ func (s *Server) Start() {
 		logrus.Info("Tracing sockets are not configured - not reading trace socket")
 	}
 
+	// Initialize a gRPC connection for forwarding
+	if s.forwardUseGRPC {
+		var err error
+		s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure())
+		if err != nil {
+			log.WithError(err).WithFields(logrus.Fields{
+				"forwardAddr": s.ForwardAddr,
+			}).Fatal("Failed to initialize a gRPC connection for forwarding")
+		}
+	}
+
 	// Flush every Interval forever!
 	go func() {
 		defer func() {
@@ -1022,6 +1037,11 @@ func (s *Server) Shutdown() {
 	close(s.shutdown)
 	graceful.Shutdown()
 	s.GRPCStop()
+
+	// Close the gRPC connection for forwarding
+	if s.grpcForwardConn != nil {
+		s.grpcForwardConn.Close()
+	}
 }
 
 // IsLocal indicates whether veneur is running as a local instance
