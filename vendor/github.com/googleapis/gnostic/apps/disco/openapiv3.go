@@ -18,8 +18,8 @@ import (
 	"net/url"
 	"strings"
 
-	openapi3 "github.com/googleapis/gnostic/OpenAPIv3"
 	discovery "github.com/googleapis/gnostic/discovery"
+	openapi3 "github.com/googleapis/gnostic/OpenAPIv3"
 )
 
 func pathForMethod(path string) string {
