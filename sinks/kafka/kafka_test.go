@@ -166,7 +166,7 @@ func TestMetricConstructor(t *testing.T) {
 	assert.Equal(t, time.Second*10, sink.config.Producer.Flush.Frequency, "flush frequency did not set correctly")
 }
 
-func TestMetricInstantiateFailure(t *testing.T) {
+func TestMetricInstantiateError(t *testing.T) {
 	logger := logrus.StandardLogger()
 
 	// Busted duration
@@ -178,7 +178,7 @@ func TestMetricInstantiateFailure(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestSpanInstantiateFailure(t *testing.T) {
+func TestSpanInstantiateError(t *testing.T) {
 	logger := logrus.StandardLogger()
 
 	// Busted duration

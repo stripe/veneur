@@ -189,7 +189,7 @@ func serveUNIX(t testing.TB, laddr *net.UnixAddr, onconnect func(conn net.Conn))
 	return
 }
 
-func TestFailingUDP(t *testing.T) {
+func TestUDPError(t *testing.T) {
 	// arbitrary
 	const BufferSize = 1087152
 

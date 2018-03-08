@@ -483,6 +483,7 @@ func readTestKeysCerts() (map[string]string, error) {
 func TestTCPConfig(t *testing.T) {
 	config := localConfig()
 	logger := logrus.New()
+	logger.Out = ioutil.Discard
 
 	config.StatsdListenAddresses = []string{"tcp://invalid:invalid"}
 	_, err := NewFromConfig(logger, config)

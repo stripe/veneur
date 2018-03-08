@@ -63,6 +63,9 @@ func (m *MockSpanSinkServer) spanCount() int {
 }
 
 func TestEndToEnd(t *testing.T) {
+	log := logrus.New()
+	log.SetLevel(logrus.ErrorLevel)
+
 	testaddr := "127.0.0.1:15111"
 	lis, err := net.Listen("tcp", testaddr)
 	if err != nil {
@@ -79,7 +82,7 @@ func TestEndToEnd(t *testing.T) {
 	}()
 	block <- struct{}{}
 
-	sink, err := NewGRPCStreamingSpanSink(context.Background(), testaddr, "test1", tags, logrus.New(), grpc.WithInsecure())
+	sink, err := NewGRPCStreamingSpanSink(context.Background(), testaddr, "test1", tags, log, grpc.WithInsecure())
 	require.NoError(t, err)
 	assert.Equal(t, sink.commonTags, tags)
 	assert.NotNil(t, sink.grpcConn)
