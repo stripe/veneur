@@ -8,14 +8,15 @@ package proxysrv
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/forwardrpc"
 	"github.com/stripe/veneur/samplers"
@@ -92,7 +93,7 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 	return &empty.Empty{}, nil
 }
 
-func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) (res error) {
+func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) error {
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxysrv.send_metrics")
 	defer span.ClientFinish(s.opts.traceClient)
 
@@ -107,11 +108,13 @@ func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 		"protocol":         "grpc",
 	}))
 
+	var errs []error
+
 	dests := make(map[string][]*metricpb.Metric)
 	for _, metric := range metrics {
 		dest, err := s.destForMetric(metric)
 		if err != nil {
-			res = multierror.Append(res, s.recordError(span, err, "no-destination",
+			errs = append(errs, s.recordError(span, err, "no-destination",
 				"failed to get a destination for a metric", 1))
 		} else {
 			// Lazily initialize keys in the map as necessary
@@ -130,7 +133,7 @@ func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 		go func(dest string, batch []*metricpb.Metric) {
 			defer wg.Done()
 			if err := s.forward(ctx, dest, batch); err != nil {
-				res = multierror.Append(res, s.recordError(span, err, "forward",
+				errs = append(errs, s.recordError(span, err, "forward",
 					fmt.Sprintf("failed to forward %d metrics to the host '%s'",
 						len(batch), dest),
 					len(batch)))
@@ -152,7 +155,7 @@ func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 		"duration": time.Since(span.Start),
 	}).Info("Completed forwarding to downstream Veneurs")
 
-	return res
+	return errSliceToErr(errs)
 }
 
 // recordError records when an error has resulted in some metrics not being
@@ -216,4 +219,20 @@ func (s *Server) forward(ctx context.Context, dest string, ms []*metricpb.Metric
 	))
 
 	return nil
+}
+
+// errSliceToErr merges a slice of errors into a single error.  If errs is
+// empty, it returns nil
+func errSliceToErr(errs []error) error {
+	if len(errs) == 0 {
+		return nil
+	}
+
+	// convert the errors into a slice of strings
+	strs := make([]string, len(errs))
+	for i, err := range errs {
+		strs[i] = err.Error()
+	}
+
+	return errors.New(strings.Join(strs, "\n * "))
 }

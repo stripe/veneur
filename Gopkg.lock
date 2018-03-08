@@ -117,9 +117,7 @@
 [[projects]]
   name = "github.com/gogo/protobuf"
   packages = [
-    "gogoproto",
     "proto",
-    "protoc-gen-gogo/descriptor",
     "sortkeys"
   ]
   revision = "342cbe0a04158f6dcb03ca0079991a51a4248c02"
@@ -139,7 +137,6 @@
     "ptypes",
     "ptypes/any",
     "ptypes/duration",
-    "ptypes/empty",
     "ptypes/timestamp"
   ]
   revision = "748d386b5c1ea99658fd69fe9f03991ce86a90c1"
@@ -189,21 +186,9 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/hashicorp/errwrap"
-  packages = ["."]
-  revision = "7554cd9344cec97297fa6649b055a8c98c2a1e55"
-
-[[projects]]
-  branch = "master"
   name = "github.com/hashicorp/go-cleanhttp"
   packages = ["."]
   revision = "3573b8b52aa7b37b9358d966a898feb387f62437"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/hashicorp/go-multierror"
-  packages = ["."]
-  revision = "b7773ae218740a7be65057fc60b366a49b538a44"
 
 [[projects]]
   branch = "master"
@@ -651,6 +636,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d53489399598e868d66b79c6a981ef3b71aa04afbd51ab19017d0e554da4a127"
+  inputs-digest = "5b1b65dcd3fc400a7a6b245cea1931d676ac05c9d5657e797d248f5ae73e926f"
   solver-name = "gps-cdcl"
   solver-version = 1
