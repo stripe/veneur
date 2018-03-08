@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/stretchr/testify/assert"
@@ -349,10 +350,17 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 		mustRecord(t, client, tr)
 
 		assert.NoError(t, <-sentCh)
-		t.Logf("Flushing")
-		go assert.Error(t, Flush(client))
-		// Since reconnections throw away the span, nothing
-		// was received.
+		t.Logf("Flushing to the closed socket")
+		flushErr := make(chan error)
+		// Just keep trying until we get a flush kicked off
+		for FlushAsync(client, flushErr) != nil {
+			t.Log("Retrying flush on closed socket")
+			time.Sleep(1 * time.Millisecond)
+		}
+		// ...and this flush should have resulted in an error
+		// (going to a closed socket and all), nothing will be
+		// received by the other side.
+		assert.Error(t, <-flushErr, "expected an error flushing at %q", name)
 	}
 	{
 		name := "Testing-success2"
@@ -365,7 +373,7 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 
 		t.Logf("Flushing")
 		go mustFlush(t, client)
-		// A span was successfully received by the server:
+		// A span was successfully received by the server again:
 		<-outPkg
 	}
 }
