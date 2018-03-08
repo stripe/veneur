@@ -83,7 +83,8 @@ type Server struct {
 
 	HTTPAddr string
 
-	ForwardAddr string
+	ForwardAddr    string
+	forwardUseGRPC bool
 
 	StatsdListenAddrs []net.Addr
 	SSFListenAddrs    []net.Addr
@@ -476,6 +477,8 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	conf.LightstepAccessToken = REDACTED
 	conf.AwsAccessKeyID = REDACTED
 	conf.AwsSecretAccessKey = REDACTED
+
+	ret.forwardUseGRPC = conf.ForwardUseGrpc
 
 	// Setup the grpc server if it was configured
 	ret.grpcListenAddress = conf.GrpcAddress
