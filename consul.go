@@ -3,7 +3,6 @@ package veneur
 import (
 	"errors"
 	"fmt"
-	"net/url"
 
 	"github.com/hashicorp/consul/api"
 )
@@ -27,7 +26,7 @@ func NewConsul(config *api.Config) (*Consul, error) {
 }
 
 // GetDestinationsForService updates the list of destinations based on healthy nodes
-// found via Consul.
+// found via Consul.  It returns destinations in the form "<host>:<port>".
 func (c *Consul) GetDestinationsForService(serviceName string) ([]string, error) {
 	serviceEntries, _, err := c.ConsulHealth.Service(serviceName, "", true, &api.QueryOptions{})
 	if err != nil {
@@ -41,14 +40,7 @@ func (c *Consul) GetDestinationsForService(serviceName string) ([]string, error)
 	// Make a slice to hold our returned hosts
 	hosts := make([]string, numHosts)
 	for index, se := range serviceEntries {
-		service := se.Service
-
-		dest := url.URL{
-			Scheme: "http",
-			Host:   fmt.Sprintf("%s:%d", se.Node.Address, service.Port),
-		}
-
-		hosts[index] = dest.String()
+		hosts[index] = fmt.Sprintf("%s:%d", se.Node.Address, se.Service.Port)
 	}
 
 	return hosts, nil
