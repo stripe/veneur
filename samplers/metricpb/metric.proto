@@ -1,0 +1,50 @@
+syntax = "proto3";
+package metricpb;
+
+import "tdigest/tdigest.proto";
+
+// Metric is a common container for any metric type. Common fields such as
+// Name, Tags, and Type are all present for all types, while the value can
+// vary.
+message Metric {
+    string name = 1;
+    repeated string tags = 2;
+    Type type = 3;
+
+    oneof value {
+        CounterValue counter = 5;
+        GaugeValue gauge = 6;
+        HistogramValue histogram = 7;
+        SetValue set = 8;
+    }
+}
+
+// Type can be any of the valid metric types recognized by Veneur.
+enum Type {
+    Counter = 0;
+    Gauge = 1;
+    Histogram = 2;
+    Set = 3;
+    Timer = 4;
+}
+
+// CounterValue wraps the value of a counter
+message CounterValue {
+    int64 value = 1;
+}
+
+// GaugeValue wraps the value of a gauge
+message GaugeValue {
+    double value = 1;
+}
+
+// HistogramValue for now just includes the t-digest.  This can be expanded
+// to include the other values such as the sum, average, etc.
+message HistogramValue {
+    tdigest.MergingDigestData t_digest = 1;
+}
+
+// SetValue contains a binary-encoded HyperLogLog
+message SetValue {
+    bytes hyper_log_log = 1;
+}
