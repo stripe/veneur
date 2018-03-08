@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	vhttp "github.com/stripe/veneur/http"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/samplers/metricpb"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
@@ -374,4 +375,10 @@ func (s *Server) flushTraces(ctx context.Context) {
 	for _, w := range s.SpanWorkers {
 		w.Flush()
 	}
+}
+
+// A type implemented by all valid samplers
+type metricExporter interface {
+	GetName() string
+	Metric() (*metricpb.Metric, error)
 }

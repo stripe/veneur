@@ -6,6 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/samplers/metricpb"
 )
 
 func TestWorker(t *testing.T) {
@@ -110,4 +111,79 @@ func TestWorkerImportHistogram(t *testing.T) {
 
 	wm := w.Flush()
 	assert.Len(t, wm.histograms, 1, "number of flushed histograms")
+}
+
+func exportMetricAndFlush(t testing.TB, exp metricExporter) WorkerMetrics {
+	w := NewWorker(1, nil, logrus.New())
+	m, err := exp.Metric()
+	assert.NoErrorf(t, err, "exporting the metric '%s' shouldn't have failed",
+		exp.GetName())
+
+	assert.NoError(t, w.ImportMetricGRPC(m), "importing a metric shouldn't "+
+		"have failed")
+	return w.Flush()
+}
+
+func TestWorkerImportMetricGRPC(t *testing.T) {
+	t.Run("histogram", func(t *testing.T) {
+		t.Parallel()
+		h := samplers.NewHist("test.histo", nil)
+		h.Sample(1.0, 1.0)
+
+		assert.Len(t, exportMetricAndFlush(t, h).histograms, 1,
+			"The number of flushed histograms is not correct")
+	})
+	t.Run("gauge", func(t *testing.T) {
+		t.Parallel()
+		g := samplers.NewGauge("test.gauge", nil)
+		g.Sample(2.0, 1.0)
+
+		assert.Len(t, exportMetricAndFlush(t, g).globalGauges, 1,
+			"The number of flushed gauges is not correct")
+	})
+	t.Run("counter", func(t *testing.T) {
+		t.Parallel()
+		c := samplers.NewCounter("test.counter", nil)
+		c.Sample(2.0, 1.0)
+
+		assert.Len(t, exportMetricAndFlush(t, c).globalCounters, 1,
+			"The number of flushed counters is not correct")
+	})
+	t.Run("timer", func(t *testing.T) {
+		t.Parallel()
+		w := NewWorker(1, nil, logrus.New())
+		h := samplers.NewHist("test.timer", nil)
+		h.Sample(1.0, 1.0)
+
+		m, err := h.Metric()
+		assert.NoErrorf(t, err, "exporting the histogram shouldn't have failed")
+		m.Type = metricpb.Type_Timer
+
+		assert.NoError(t, w.ImportMetricGRPC(m), "importing a timer shouldn't "+
+			"have failed")
+		assert.Len(t, w.Flush().timers, 1, "The number of flushed "+
+			"timers is not correct")
+	})
+	t.Run("set", func(t *testing.T) {
+		t.Parallel()
+		s := samplers.NewSet("test.set", nil)
+		s.Sample("value", 1.0)
+
+		assert.Len(t, exportMetricAndFlush(t, s).sets, 1,
+			"The number of flushed sets is not correct")
+	})
+}
+
+func TestWorkerImportMetricGRPCNilValue(t *testing.T) {
+	t.Parallel()
+
+	w := NewWorker(1, nil, logrus.New())
+	metric := &metricpb.Metric{
+		Name:  "test",
+		Type:  metricpb.Type_Histogram,
+		Value: nil,
+	}
+
+	assert.Error(t, w.ImportMetricGRPC(metric), "Importing a metric with "+
+		"a nil value should have failed")
 }
