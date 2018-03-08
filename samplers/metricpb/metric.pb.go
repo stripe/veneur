@@ -36,6 +36,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
+// Type can be any of the valid metric types recognized by Veneur.
 type Type int32
 
 const (
@@ -66,6 +67,9 @@ func (x Type) String() string {
 }
 func (Type) EnumDescriptor() ([]byte, []int) { return fileDescriptorMetric, []int{0} }
 
+// Metric is a common container for any metric type. Common fields such as
+// Name, Tags, and Type are all present for all types, while the value can
+// vary.
 type Metric struct {
 	Name string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Tags []string `protobuf:"bytes,2,rep,name=tags" json:"tags,omitempty"`
@@ -275,6 +279,7 @@ func _Metric_OneofSizer(msg proto.Message) (n int) {
 	return n
 }
 
+// CounterValue wraps the value of a counter
 type CounterValue struct {
 	Value int64 `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`
 }
@@ -291,6 +296,7 @@ func (m *CounterValue) GetValue() int64 {
 	return 0
 }
 
+// GaugeValue wraps the value of a gauge
 type GaugeValue struct {
 	Value float64 `protobuf:"fixed64,1,opt,name=value,proto3" json:"value,omitempty"`
 }
@@ -307,10 +313,8 @@ func (m *GaugeValue) GetValue() float64 {
 	return 0
 }
 
-// HistogramValue includes fields that should be serialized into the Value
-// field of a JSONMetric.  Typically there shouldn't be any reason to use
-// this type directly, as converting a Histo to a JSONMetric and back should
-// be done with (*Histo).Export and (*Histo).Combine
+// HistogramValue for now just includes the t-digest.  This can be expanded
+// to include the other values such as the sum, average, etc.
 type HistogramValue struct {
 	TDigest *tdigest.MergingDigestData `protobuf:"bytes,1,opt,name=t_digest,json=tDigest" json:"t_digest,omitempty"`
 }
@@ -327,6 +331,7 @@ func (m *HistogramValue) GetTDigest() *tdigest.MergingDigestData {
 	return nil
 }
 
+// SetValue contains a binary-encoded HyperLogLog
 type SetValue struct {
 	HyperLogLog []byte `protobuf:"bytes,1,opt,name=hyper_log_log,json=hyperLogLog,proto3" json:"hyper_log_log,omitempty"`
 }

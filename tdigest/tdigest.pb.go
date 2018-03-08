@@ -37,6 +37,8 @@ const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 // This type should generally just be used when serializing MergingDigest's,
 // and doesn't have much of a purpose on its own.
 type MergingDigestData struct {
+	// Use values rather than pointers for the Centroid array.  This avoids
+	// a ton of code changes and probably a lot of allocations as well.
 	MainCentroids []Centroid `protobuf:"bytes,1,rep,name=main_centroids,json=mainCentroids" json:"main_centroids"`
 	Compression   float64    `protobuf:"fixed64,2,opt,name=compression,proto3" json:"compression,omitempty"`
 	Min           float64    `protobuf:"fixed64,3,opt,name=min,proto3" json:"min,omitempty"`

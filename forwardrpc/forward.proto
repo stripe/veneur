@@ -2,7 +2,7 @@ syntax = "proto3";
 package forwardrpc;
 
 import "samplers/metricpb/metric.proto";
-import "github.com/golang/protobuf/ptypes/empty/empty.proto";
+import "google/protobuf/empty.proto";
 
 // Forward defines a service that can be used to forward metrics from one
 // Veneur to another.
