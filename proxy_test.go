@@ -63,7 +63,7 @@ func (rt *ConsulTwoMetricRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 		z, _ := zlib.NewReader(req.Body)
 		body, _ := ioutil.ReadAll(z)
 		defer req.Body.Close()
-		if strings.Contains(string(body), "a.b.c") {
+		if strings.Contains(string(body), "y.b.c") {
 			rt.aReceived = true
 		}
 		rec.Code = http.StatusOK

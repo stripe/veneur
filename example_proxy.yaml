@@ -2,6 +2,7 @@
 debug: true
 enable_profiling: false
 http_address: "localhost:8127"
+grpc_address: "localhost:8128"
 
 # How often to refresh from Consul's healthy nodes
 consul_refresh_interval: "30s"
@@ -18,6 +19,12 @@ ssf_destination_address: "udp://localhost:8126"
 forward_address: "http://veneur.example.com"
 # Or use a consul service for consistent forwarding.
 consul_forward_service_name: "forwardServiceName"
+
+### gRPC forwarding
+# Use a static host for forwarding (without a prefix)
+grpc_forward_address: "veneur-grpc.example.com:8128"
+# Or use a consul service for consistent forwarding.
+consul_forward_grpc_service_name: "grpcForwardServiceName"
 
 # Maximum time that forwarding each batch of metrics can take;
 # note that forwarding to multiple global veneur servers happens in
