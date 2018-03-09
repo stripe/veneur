@@ -36,6 +36,8 @@ type Server struct {
 	*grpc.Server
 	destinations *consistent.Consistent
 	opts         *options
+	conns        *clientConnMap
+	updateMtx    sync.Mutex
 }
 
 // Option modifies an internal options type.
@@ -49,11 +51,11 @@ type options struct {
 
 // New creates a new Server with the provided destinations. The server returned
 // is unstarted.
-func New(destinations *consistent.Consistent, opts ...Option) *Server {
+func New(destinations *consistent.Consistent, opts ...Option) (*Server, error) {
 	res := &Server{
-		Server:       grpc.NewServer(),
-		destinations: destinations,
-		opts:         &options{},
+		Server: grpc.NewServer(),
+		opts:   &options{},
+		conns:  newClientConnMap(grpc.WithInsecure()),
 	}
 
 	for _, opt := range opts {
@@ -66,22 +68,75 @@ func New(destinations *consistent.Consistent, opts ...Option) *Server {
 		res.opts.log = logrus.NewEntry(log)
 	}
 
+	if err := res.SetDestinations(destinations); err != nil {
+		return nil, fmt.Errorf("failed to set the destinations: %v", err)
+	}
+
 	forwardrpc.RegisterForwardServer(res.Server, res)
 
-	return res
+	return res, nil
 }
 
 // Serve starts a gRPC listener on the specified address and blocks while
 // listening for requests. If listening is iterrupted by some means other than
 // Stop or GracefulStop being called, it returns a non-nil error.
-func (s *Server) Serve(addr string) error {
+func (s *Server) Serve(addr string) (err error) {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to bind the proxy server to '%s': %v",
 			addr, err)
 	}
+	defer func() {
+		if cerr := ln.Close(); err == nil && cerr != nil {
+			err = cerr
+		}
+	}()
 
 	return s.Server.Serve(ln)
+}
+
+// Stop stops the gRPC server (if it was started) and closes all gRPC client
+// connections
+func (s *Server) Stop() {
+	s.Server.Stop()
+	s.conns.Clear()
+}
+
+// SetDestinations updates the ring of hosts that are forwarded to by
+// the server.  If new hosts are being added, a gRPC connection is initialized
+// for each.
+//
+// This also prunes the list of open connections.  If a connection exists to
+// a host that wasn't in either the current list or the last one, the
+// connection is closed.
+func (s *Server) SetDestinations(dests *consistent.Consistent) error {
+	s.updateMtx.Lock()
+	defer s.updateMtx.Unlock()
+
+	var current []string
+	if s.destinations != nil {
+		current = s.destinations.Members()
+	}
+	new := dests.Members()
+
+	// for every connection in the map that isn't in either the current or
+	// previous list of destinations, delete it
+	for _, k := range s.conns.Keys() {
+		if !strInSlice(k, current) && !strInSlice(k, new) {
+			s.conns.Delete(k)
+		}
+	}
+
+	// create a connection for each destination
+	for _, dest := range new {
+		if err := s.conns.Add(dest); err != nil {
+			return fmt.Errorf("failed to setup a connection for the "+
+				"destination '%s': %v", dest, err)
+		}
+	}
+
+	s.destinations = dests
+	return nil
 }
 
 // SendMetrics spawns a new goroutine that forwards metrics to the destinations
@@ -196,15 +251,10 @@ func (s *Server) destForMetric(m *metricpb.Metric) (string, error) {
 // forward sends a set of metrics to the destination address, and returns
 // an error if necessary.
 func (s *Server) forward(ctx context.Context, dest string, ms []*metricpb.Metric) (err error) {
-	conn, err := grpc.Dial(dest, grpc.WithInsecure())
-	if err != nil {
-		return fmt.Errorf("failed to create a gRPC connection: %v", err)
+	conn, ok := s.conns.Get(dest)
+	if !ok {
+		return fmt.Errorf("no connection was found for the host '%s'", dest)
 	}
-	defer func() {
-		if cerr := conn.Close(); err == nil && cerr != nil {
-			err = cerr
-		}
-	}()
 
 	c := forwardrpc.NewForwardClient(conn)
 	_, err = c.SendMetrics(ctx, &forwardrpc.MetricList{Metrics: ms})
@@ -235,4 +285,13 @@ func errSliceToErr(errs []error) error {
 	}
 
 	return errors.New(strings.Join(strs, "\n * "))
+}
+
+func strInSlice(s string, slice []string) bool {
+	for _, val := range slice {
+		if val == s {
+			return true
+		}
+	}
+	return false
 }

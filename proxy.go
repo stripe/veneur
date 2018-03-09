@@ -198,11 +198,14 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 
 	if conf.GrpcAddress != "" {
 		p.grpcListenAddress = conf.GrpcAddress
-		p.grpcServer = proxysrv.New(p.ForwardGRPCDestinations,
+		p.grpcServer, err = proxysrv.New(p.ForwardGRPCDestinations,
 			proxysrv.WithForwardTimeout(p.ForwardTimeout),
 			proxysrv.WithLog(logrus.NewEntry(log)),
 			proxysrv.WithTraceClient(p.TraceClient),
 		)
+		if err != nil {
+			logger.WithError(err).Fatal("Failed to initialize the gRPC server")
+		}
 	}
 
 	// TODO Size of replicas in config?
@@ -264,6 +267,7 @@ func (p *Proxy) Start() {
 		if len(p.ForwardGRPCDestinations.Members()) == 0 {
 			log.WithField("serviceName", p.ConsulForwardGRPCService).Fatal("Refusing to start with zero destinations for forwarding over gRPC.")
 		}
+		p.grpcServer.SetDestinations(p.ForwardGRPCDestinations)
 	}
 
 	if p.usingConsul || p.usingKubernetes {
@@ -288,6 +292,7 @@ func (p *Proxy) Start() {
 				}
 				if p.AcceptingGRPCForwards && p.ConsulForwardGRPCService != "" {
 					p.RefreshDestinations(p.ConsulForwardGRPCService, p.ForwardGRPCDestinations, &p.ForwardGRPCDestinationsMtx)
+					p.grpcServer.SetDestinations(p.ForwardGRPCDestinations)
 				}
 			}
 		}()

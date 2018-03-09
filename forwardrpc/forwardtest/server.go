@@ -38,7 +38,7 @@ func NewServer(handler SendMetricHandler) *Server {
 // Start starts the gRPC server listening on the loopback interface on a
 // random port.  The address it is listening on can be retrieved from
 // (*Server).Addr()
-func (s *Server) Start(t *testing.T) {
+func (s *Server) Start(t testing.TB) {
 	s.startMtx.Lock()
 	defer s.startMtx.Unlock()
 
