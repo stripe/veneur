@@ -34,7 +34,7 @@ func (c *collection) addPoint(key string, point *datapoint.Datapoint) {
 			return
 		}
 	}
-	logrus.WithField("key", key).WithField("pbk", c.pointsByKey).Info("I have a fallback")
+	logrus.WithField("key", key).WithField("pbk", c.pointsByKey).Debug("I have a fallback")
 
 	c.points = append(c.points, point)
 }
