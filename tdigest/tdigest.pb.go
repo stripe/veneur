@@ -18,7 +18,7 @@ import fmt "fmt"
 import math "math"
 import _ "github.com/gogo/protobuf/gogoproto"
 
-import binary "encoding/binary"
+import encoding_binary "encoding/binary"
 
 import io "io"
 
@@ -144,19 +144,19 @@ func (m *MergingDigestData) MarshalTo(dAtA []byte) (int, error) {
 	if m.Compression != 0 {
 		dAtA[i] = 0x11
 		i++
-		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Compression))))
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Compression))))
 		i += 8
 	}
 	if m.Min != 0 {
 		dAtA[i] = 0x19
 		i++
-		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Min))))
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Min))))
 		i += 8
 	}
 	if m.Max != 0 {
 		dAtA[i] = 0x21
 		i++
-		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Max))))
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Max))))
 		i += 8
 	}
 	return i, nil
@@ -180,13 +180,13 @@ func (m *Centroid) MarshalTo(dAtA []byte) (int, error) {
 	if m.Mean != 0 {
 		dAtA[i] = 0x9
 		i++
-		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Mean))))
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Mean))))
 		i += 8
 	}
 	if m.Weight != 0 {
 		dAtA[i] = 0x11
 		i++
-		binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Weight))))
+		encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(math.Float64bits(float64(m.Weight))))
 		i += 8
 	}
 	if len(m.Samples) > 0 {
@@ -195,7 +195,7 @@ func (m *Centroid) MarshalTo(dAtA []byte) (int, error) {
 		i = encodeVarintTdigest(dAtA, i, uint64(len(m.Samples)*8))
 		for _, num := range m.Samples {
 			f1 := math.Float64bits(float64(num))
-			binary.LittleEndian.PutUint64(dAtA[i:], uint64(f1))
+			encoding_binary.LittleEndian.PutUint64(dAtA[i:], uint64(f1))
 			i += 8
 		}
 	}
@@ -328,7 +328,7 @@ func (m *MergingDigestData) Unmarshal(dAtA []byte) error {
 			if (iNdEx + 8) > l {
 				return io.ErrUnexpectedEOF
 			}
-			v = uint64(binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
 			iNdEx += 8
 			m.Compression = float64(math.Float64frombits(v))
 		case 3:
@@ -339,7 +339,7 @@ func (m *MergingDigestData) Unmarshal(dAtA []byte) error {
 			if (iNdEx + 8) > l {
 				return io.ErrUnexpectedEOF
 			}
-			v = uint64(binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
 			iNdEx += 8
 			m.Min = float64(math.Float64frombits(v))
 		case 4:
@@ -350,7 +350,7 @@ func (m *MergingDigestData) Unmarshal(dAtA []byte) error {
 			if (iNdEx + 8) > l {
 				return io.ErrUnexpectedEOF
 			}
-			v = uint64(binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
 			iNdEx += 8
 			m.Max = float64(math.Float64frombits(v))
 		default:
@@ -411,7 +411,7 @@ func (m *Centroid) Unmarshal(dAtA []byte) error {
 			if (iNdEx + 8) > l {
 				return io.ErrUnexpectedEOF
 			}
-			v = uint64(binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
 			iNdEx += 8
 			m.Mean = float64(math.Float64frombits(v))
 		case 2:
@@ -422,7 +422,7 @@ func (m *Centroid) Unmarshal(dAtA []byte) error {
 			if (iNdEx + 8) > l {
 				return io.ErrUnexpectedEOF
 			}
-			v = uint64(binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+			v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
 			iNdEx += 8
 			m.Weight = float64(math.Float64frombits(v))
 		case 3:
@@ -431,7 +431,7 @@ func (m *Centroid) Unmarshal(dAtA []byte) error {
 				if (iNdEx + 8) > l {
 					return io.ErrUnexpectedEOF
 				}
-				v = uint64(binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+				v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
 				iNdEx += 8
 				v2 := float64(math.Float64frombits(v))
 				m.Samples = append(m.Samples, v2)
@@ -463,7 +463,7 @@ func (m *Centroid) Unmarshal(dAtA []byte) error {
 					if (iNdEx + 8) > l {
 						return io.ErrUnexpectedEOF
 					}
-					v = uint64(binary.LittleEndian.Uint64(dAtA[iNdEx:]))
+					v = uint64(encoding_binary.LittleEndian.Uint64(dAtA[iNdEx:]))
 					iNdEx += 8
 					v2 := float64(math.Float64frombits(v))
 					m.Samples = append(m.Samples, v2)

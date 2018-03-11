@@ -18,8 +18,10 @@ import math "math"
 import metricpb "github.com/stripe/veneur/samplers/metricpb"
 import google_protobuf1 "github.com/golang/protobuf/ptypes/empty"
 
-import context "golang.org/x/net/context"
-import grpc "google.golang.org/grpc"
+import (
+	context "golang.org/x/net/context"
+	grpc "google.golang.org/grpc"
+)
 
 import io "io"
 
