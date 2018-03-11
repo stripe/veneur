@@ -284,7 +284,7 @@ func (g *Gauge) Metric() (*metricpb.Metric, error) {
 		Name:  g.Name,
 		Tags:  g.Tags,
 		Type:  metricpb.Type_Gauge,
-		Value: &metricpb.Metric_Gauge{&metricpb.GaugeValue{Value: 1}},
+		Value: &metricpb.Metric_Gauge{&metricpb.GaugeValue{Value: g.value}},
 	}, nil
 }
 

@@ -104,6 +104,30 @@ func TestCounterMerge(t *testing.T) {
 	assert.Equal(t, float64(38), metrics[0].Value)
 }
 
+// Test the Metric() and Merge methods on Counter
+func TestCounterMergeMetric(t *testing.T) {
+	c := NewCounter("a.b.c", []string{"tag:val"})
+	c.Sample(5, 0.5)
+	m, err := c.Metric()
+	assert.NoError(t, err, "should have created a metric from a counter successfully")
+
+	// test with a different interval, and ensure the correct rate is passed on
+	c2 := NewCounter("a.b.c", []string{"tag:val"})
+	c2.Sample(14, 0.5)
+	m2, err := c2.Metric()
+	assert.NoError(t, err, "should have created a metric from a counter")
+
+	cGlobal := NewCounter("a.b.c", []string{"tag2: val2"})
+
+	cGlobal.Merge(m.GetCounter())
+	metrics := cGlobal.Flush(10 * time.Second)
+	assert.Equal(t, float64(10), metrics[0].Value)
+
+	cGlobal.Merge(m2.GetCounter())
+	metrics = cGlobal.Flush(10 * time.Second)
+	assert.Equal(t, float64(38), metrics[0].Value)
+}
+
 func TestGaugeMerge(t *testing.T) {
 	g := NewGauge("a.b.c", []string{"tag:val"})
 
@@ -138,6 +162,22 @@ func TestGauge(t *testing.T) {
 	assert.Equal(t, tags[0], "a:b", "Tag contents")
 
 	assert.Equal(t, float64(5), m1.Value, "Value")
+}
+
+// Test the Metric and Merge function on Gauge
+func TestGaugeMergeMetric(t *testing.T) {
+	g := NewGauge("a.b.c", []string{"tag:val"})
+
+	g.Sample(5, 1.0)
+	m, err := g.Metric()
+	assert.NoError(t, err, "a gauge should be able to create a metric")
+
+	gGlobal := NewGauge("a.b.c", []string{"tag2: val2"})
+	gGlobal.value = 1 // So we can overwrite it
+	gGlobal.Merge(m.GetGauge())
+
+	metrics := gGlobal.Flush()
+	assert.Equal(t, float64(5), metrics[0].Value)
 }
 
 func TestSet(t *testing.T) {
@@ -180,6 +220,29 @@ func TestSetMerge(t *testing.T) {
 
 	s2 := NewSet("a.b.c", []string{"a:b"})
 	assert.NoError(t, s2.Combine(jm.Value), "should have combined successfully")
+	// HLLs are approximate, and we've seen error of +-1 here in the past, so
+	// we're giving the test some room for error to reduce flakes
+	count1 := int(s.Hll.Estimate())
+	count2 := int(s2.Hll.Estimate())
+	countDifference := count1 - count2
+	assert.True(t, -1 <= countDifference && countDifference <= 1, "counts did not match after merging (%d and %d)", count1, count2)
+}
+
+// Test the Metric and Merge function on Set
+func TestSetMergeMetric(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+
+	s := NewSet("a.b.c", []string{"a:b"})
+	for i := 0; i < 100; i++ {
+		s.Sample(strconv.Itoa(rand.Int()), 1.0)
+	}
+	assert.Equal(t, uint64(100), s.Hll.Estimate(), "counts did not match")
+
+	m, err := s.Metric()
+	assert.NoError(t, err, "should have made a metric from a set")
+
+	s2 := NewSet("a.b.c", []string{"a:b"})
+	assert.NoError(t, s2.Merge(m.GetSet()), "should have combined successfully")
 	// HLLs are approximate, and we've seen error of +-1 here in the past, so
 	// we're giving the test some room for error to reduce flakes
 	count1 := int(s.Hll.Estimate())
@@ -393,6 +456,31 @@ func TestHistoMerge(t *testing.T) {
 
 	h2 := NewHist("a.b.c", []string{"a:b"})
 	assert.NoError(t, h2.Combine(jm.Value), "should have combined successfully")
+	assert.InEpsilon(t, h.Value.Quantile(0.5), h2.Value.Quantile(0.5), 0.02, "50th percentiles did not match after merging")
+	assert.InDelta(t, 0, h2.LocalWeight, 0.02, "merged histogram should have count of zero")
+	assert.True(t, math.IsInf(h2.LocalMin, +1), "merged histogram should have local minimum of +inf")
+	assert.True(t, math.IsInf(h2.LocalMax, -1), "merged histogram should have local minimum of -inf")
+
+	h2.Sample(1.0, 1.0)
+	assert.InDelta(t, 1.0, h2.LocalWeight, 0.02, "merged histogram should have count of 1 after adding a value")
+	assert.InDelta(t, 1.0, h2.LocalMin, 0.02, "merged histogram should have min of 1 after adding a value")
+	assert.InDelta(t, 1.0, h2.LocalMax, 0.02, "merged histogram should have max of 1 after adding a value")
+}
+
+// Test the Metric and Merge function on Set
+func TestHistoMergeMetric(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+
+	h := NewHist("a.b.c", []string{"a:b"})
+	for i := 0; i < 100; i++ {
+		h.Sample(rand.NormFloat64(), 1.0)
+	}
+
+	m, err := h.Metric()
+	assert.NoError(t, err, "should have created a metricpb.Metric from a Histo")
+
+	h2 := NewHist("a.b.c", []string{"a:b"})
+	h2.Merge(m.GetHistogram())
 	assert.InEpsilon(t, h.Value.Quantile(0.5), h2.Value.Quantile(0.5), 0.02, "50th percentiles did not match after merging")
 	assert.InDelta(t, 0, h2.LocalWeight, 0.02, "merged histogram should have count of zero")
 	assert.True(t, math.IsInf(h2.LocalMin, +1), "merged histogram should have local minimum of +inf")
