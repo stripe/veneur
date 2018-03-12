@@ -120,6 +120,7 @@ func ExampleHTTPSink() {
 func TestHTTPDatapointSink(t *testing.T) {
 	Convey("A default sink", t, func() {
 		s := NewHTTPSink()
+		s.DisableCompression = true
 		ctx := context.Background()
 		dps := GoMetricsSource.Datapoints()
 		Convey("should timeout", func() {
@@ -341,6 +342,7 @@ func BenchmarkHTTPSinkAddSeveralEvents(b *testing.B) {
 func TestHTTPEventSink(t *testing.T) {
 	Convey("A default event sink", t, func() {
 		s := NewHTTPSink()
+		s.DisableCompression = true
 		ctx := context.Background()
 		dps := GoEventSource.Events()
 		Convey("should timeout", func() {
