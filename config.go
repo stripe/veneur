@@ -76,4 +76,6 @@ type Config struct {
 	TraceLightstepNumClients      int      `yaml:"trace_lightstep_num_clients"`
 	TraceLightstepReconnectPeriod string   `yaml:"trace_lightstep_reconnect_period"`
 	TraceMaxLengthBytes           int      `yaml:"trace_max_length_bytes"`
+	XrayAddress                   string   `yaml:"xray_address"`
+	XraySamplePercentage          int      `yaml:"xray_sample_percentage"`
 }
