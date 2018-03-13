@@ -1,6 +1,6 @@
 # golib [![Build Status](https://travis-ci.org/signalfx/golib.svg?branch=master)](https://travis-ci.org/signalfx/golib)
 
-Various golang libraries we've found useful.
+Various golang libraries we've found useful. The SignalFx client library (SDK) for Go is available [here](https://github.com/signalfx/golib/tree/master/sfxclient) along with instructions for installing the library and using the included functions.
 
 ## Dependencies
 

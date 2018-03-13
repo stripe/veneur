@@ -12,12 +12,15 @@ import (
 	"time"
 	"unicode"
 
+	"compress/gzip"
 	"context"
 	"github.com/golang/protobuf/proto"
 	"github.com/signalfx/com_signalfx_metrics_protobuf"
 	"github.com/signalfx/golib/datapoint"
 	"github.com/signalfx/golib/errors"
 	"github.com/signalfx/golib/event"
+	"io"
+	"sync"
 )
 
 // ClientVersion is the version of this library and is embedded into the user agent
@@ -37,12 +40,14 @@ const DefaultTimeout = time.Second * 5
 
 // HTTPSink -
 type HTTPSink struct {
-	AuthToken         string
-	UserAgent         string
-	EventEndpoint     string
-	DatapointEndpoint string
-	Client            http.Client
-	protoMarshaler    func(pb proto.Message) ([]byte, error)
+	AuthToken          string
+	UserAgent          string
+	EventEndpoint      string
+	DatapointEndpoint  string
+	Client             http.Client
+	protoMarshaler     func(pb proto.Message) ([]byte, error)
+	DisableCompression bool
+	zippers            sync.Pool
 
 	stats struct {
 		readingBody int64
@@ -94,28 +99,35 @@ var _ Sink = &HTTPSink{}
 // TokenHeaderName is the header key for the auth token in the HTTP request
 const TokenHeaderName = "X-Sf-Token"
 
+func (h *HTTPSink) doBottom(ctx context.Context, f func() (io.Reader, bool, error), contentType, endpoint string) error {
+	if ctx.Err() != nil {
+		return errors.Annotate(ctx.Err(), "context already closed")
+	}
+	body, compressed, err := f()
+	if err != nil {
+		return errors.Annotate(err, "cannot encode datapoints into "+contentType)
+	}
+	req, err := http.NewRequest("POST", endpoint, body)
+	if err != nil {
+		return errors.Annotatef(err, "cannot parse new HTTP request to %s", endpoint)
+	}
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set(TokenHeaderName, h.AuthToken)
+	req.Header.Set("User-Agent", h.UserAgent)
+	req.Header.Set("Connection", "Keep-Alive")
+	if compressed {
+		req.Header.Set("Content-Encoding", "gzip")
+	}
+
+	return h.withCancel(ctx, req)
+}
+
 // AddDatapoints forwards the datapoints to SignalFx.
 func (h *HTTPSink) AddDatapoints(ctx context.Context, points []*datapoint.Datapoint) (err error) {
 	if len(points) == 0 {
 		return nil
 	}
-	if ctx.Err() != nil {
-		return errors.Annotate(ctx.Err(), "context already closed")
-	}
-	body, err := h.encodePostBodyProtobufV2(points)
-	if err != nil {
-		return errors.Annotate(err, "cannot encode datapoints into protocol buffers")
-	}
-	req, err := http.NewRequest("POST", h.DatapointEndpoint, bytes.NewReader(body))
-	if err != nil {
-		return errors.Annotatef(err, "cannot parse new HTTP request to %s", h.DatapointEndpoint)
-	}
-	req.Header.Set("Content-Type", "application/x-protobuf")
-	req.Header.Set(TokenHeaderName, h.AuthToken)
-	req.Header.Set("User-Agent", h.UserAgent)
-	req.Header.Set("Connection", "Keep-Alive")
-
-	return h.withCancel(ctx, req)
+	return h.doBottom(ctx, func() (io.Reader, bool, error) { return h.encodePostBodyProtobufV2(points) }, "application/x-protobuf", h.DatapointEndpoint)
 }
 
 var toMTMap = map[datapoint.MetricType]com_signalfx_metrics_protobuf.MetricType{
@@ -167,11 +179,11 @@ func mapToDimensions(dimensions map[string]string) []*com_signalfx_metrics_proto
 		// If someone knows a better way to do this, let me know.  I can't just take the &
 		// of k and v because their content changes as the range iterates
 		copyOfK := filterSignalfxKey(string([]byte(k)))
-		copyOfV := (string([]byte(v)))
-		ret = append(ret, (&com_signalfx_metrics_protobuf.Dimension{
+		copyOfV := string([]byte(v))
+		ret = append(ret, &com_signalfx_metrics_protobuf.Dimension{
 			Key:   &copyOfK,
 			Value: &copyOfV,
-		}))
+		})
 	}
 	return ret
 }
@@ -242,7 +254,26 @@ func (h *HTTPSink) coreDatapointToProtobuf(point *datapoint.Datapoint) *com_sign
 	return dp
 }
 
-func (h *HTTPSink) encodePostBodyProtobufV2(datapoints []*datapoint.Datapoint) ([]byte, error) {
+// avoid attempting to compress things that fit into a single ethernet frame
+func (h *HTTPSink) getReader(b []byte) (io.Reader, bool, error) {
+	var err error
+	if !h.DisableCompression && len(b) > 1500 {
+		buf := new(bytes.Buffer)
+		w := h.zippers.Get().(*gzip.Writer)
+		defer h.zippers.Put(w)
+		w.Reset(buf)
+		_, err = w.Write(b)
+		if err == nil {
+			err = w.Close()
+			if err == nil {
+				return buf, true, nil
+			}
+		}
+	}
+	return bytes.NewReader(b), false, err
+}
+
+func (h *HTTPSink) encodePostBodyProtobufV2(datapoints []*datapoint.Datapoint) (io.Reader, bool, error) {
 	dps := make([]*com_signalfx_metrics_protobuf.DataPoint, 0, len(datapoints))
 	for _, dp := range datapoints {
 		dps = append(dps, h.coreDatapointToProtobuf(dp))
@@ -252,9 +283,9 @@ func (h *HTTPSink) encodePostBodyProtobufV2(datapoints []*datapoint.Datapoint) (
 	}
 	body, err := h.protoMarshaler(msg)
 	if err != nil {
-		return nil, errors.Annotate(err, "protobuf marshal failed")
+		return nil, false, errors.Annotate(err, "protobuf marshal failed")
 	}
-	return body, nil
+	return h.getReader(body)
 }
 
 // AddEvents forwards the events to SignalFx.
@@ -262,26 +293,10 @@ func (h *HTTPSink) AddEvents(ctx context.Context, events []*event.Event) (err er
 	if len(events) == 0 {
 		return nil
 	}
-	if ctx.Err() != nil {
-		return errors.Annotate(ctx.Err(), "context already closed")
-	}
-	body, err := h.encodePostBodyProtobufV2Events(events)
-	if err != nil {
-		return errors.Annotate(err, "cannot encode events into protocol buffers")
-	}
-	req, err := http.NewRequest("POST", h.EventEndpoint, bytes.NewReader(body))
-	if err != nil {
-		return errors.Annotatef(err, "cannot parse new HTTP request to %s", h.EventEndpoint)
-	}
-	req.Header.Set("Content-Type", "application/x-protobuf")
-	req.Header.Set(TokenHeaderName, h.AuthToken)
-	req.Header.Set("User-Agent", h.UserAgent)
-	req.Header.Set("Connection", "Keep-Alive")
-
-	return h.withCancel(ctx, req)
+	return h.doBottom(ctx, func() (io.Reader, bool, error) { return h.encodePostBodyProtobufV2Events(events) }, "application/x-protobuf", h.EventEndpoint)
 }
 
-func (h *HTTPSink) encodePostBodyProtobufV2Events(events []*event.Event) ([]byte, error) {
+func (h *HTTPSink) encodePostBodyProtobufV2Events(events []*event.Event) (io.Reader, bool, error) {
 	evs := make([]*com_signalfx_metrics_protobuf.Event, 0, len(events))
 	for _, ev := range events {
 		evs = append(evs, h.coreEventToProtobuf(ev))
@@ -291,9 +306,9 @@ func (h *HTTPSink) encodePostBodyProtobufV2Events(events []*event.Event) ([]byte
 	}
 	body, err := h.protoMarshaler(msg)
 	if err != nil {
-		return nil, errors.Annotate(err, "protobuf marshal failed")
+		return nil, false, errors.Annotate(err, "protobuf marshal failed")
 	}
-	return body, nil
+	return h.getReader(body)
 }
 
 func (h *HTTPSink) coreEventToProtobuf(event *event.Event) *com_signalfx_metrics_protobuf.Event {
@@ -343,5 +358,8 @@ func NewHTTPSink() *HTTPSink {
 			Timeout: DefaultTimeout,
 		},
 		protoMarshaler: proto.Marshal,
+		zippers: sync.Pool{New: func() interface{} {
+			return gzip.NewWriter(nil)
+		}},
 	}
 }
