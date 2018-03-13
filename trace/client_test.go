@@ -353,10 +353,16 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 		t.Logf("Flushing to the closed socket")
 		flushErr := make(chan error)
 		// Just keep trying until we get a flush kicked off
-		for FlushAsync(client, flushErr) != nil {
+		for {
+			err := FlushAsync(client, flushErr)
+			if err != ErrWouldBlock {
+				break
+			}
 			t.Log("Retrying flush on closed socket")
 			time.Sleep(1 * time.Millisecond)
 		}
+		require.NoError(t, err)
+
 		// ...and this flush should have resulted in an error
 		// (going to a closed socket and all), nothing will be
 		// received by the other side.
