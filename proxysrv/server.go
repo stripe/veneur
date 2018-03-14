@@ -8,7 +8,6 @@ package proxysrv
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -163,14 +162,14 @@ func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 		"protocol":         "grpc",
 	}))
 
-	var errs []error
+	var errs forwardErrors
 
 	dests := make(map[string][]*metricpb.Metric)
 	for _, metric := range metrics {
 		dest, err := s.destForMetric(metric)
 		if err != nil {
-			errs = append(errs, s.recordError(span, err, "no-destination",
-				"failed to get a destination for a metric", 1))
+			errs = append(errs, forwardError{err: err, cause: "no-destination",
+				msg: "failed to get a destination for a metric", numMetrics: 1})
 		} else {
 			// Lazily initialize keys in the map as necessary
 			if _, ok := dests[dest]; !ok {
@@ -183,20 +182,28 @@ func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 	// Wait for all of the forward to finish
 	wg := sync.WaitGroup{}
 	wg.Add(len(dests))
+	errCh := make(chan forwardError)
 
 	for dest, batch := range dests {
 		go func(dest string, batch []*metricpb.Metric) {
 			defer wg.Done()
 			if err := s.forward(ctx, dest, batch); err != nil {
-				errs = append(errs, s.recordError(span, err, "forward",
-					fmt.Sprintf("failed to forward %d metrics to the host '%s'",
-						len(batch), dest),
-					len(batch)))
+				msg := fmt.Sprintf("failed to forward to the host '%s'", dest)
+				errCh <- forwardError{err: err, cause: "forward", msg: msg,
+					numMetrics: len(batch)}
 			}
 		}(dest, batch)
 	}
 
-	wg.Wait() // Wait for all the above goroutines to complete
+	go func() {
+		wg.Wait() // Wait for all the above goroutines to complete
+		close(errCh)
+	}()
+
+	// read errors and block until all the forward complete
+	for err := range errCh {
+		errs = append(errs, err)
+	}
 
 	protocolTags := map[string]string{"protocol": "grpc"}
 	span.Add(ssf.RandomlySample(0.1,
@@ -205,35 +212,25 @@ func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 		ssf.Count("proxy.proxied_metrics_total", float32(len(metrics)), protocolTags),
 	)...)
 
-	s.opts.log.WithFields(logrus.Fields{
+	var res error
+	log := s.opts.log.WithFields(logrus.Fields{
 		"protocol": "grpc",
 		"duration": time.Since(span.Start),
-	}).Info("Completed forwarding to downstream Veneurs")
+	})
 
-	return errSliceToErr(errs)
-}
-
-// recordError records when an error has resulted in some metrics not being
-// forwarded.  It submits diagnostic metrics, logs an error, and then returns
-// a wrapped error.
-func (s *Server) recordError(
-	span *trace.Span,
-	err error,
-	cause string,
-	message string,
-	numMetrics int,
-) error {
-	tags := map[string]string{
-		"cause":    cause,
-		"protocol": "grpc",
+	if len(errs) > 0 {
+		// if there were errors, report stats and log them
+		for _, err := range errs {
+			err.reportMetrics(span)
+		}
+		log.WithError(res).Error("Proxying failed")
+		res = errs
+	} else {
+		// otherwise just print a success message
+		log.Info("Completed forwarding to downstream Veneurs")
 	}
-	span.Add(ssf.Count("proxy.proxied_metrics_failed", float32(numMetrics), tags))
-	span.Add(ssf.Count("proxy.forward_errors", 1, tags))
-	s.opts.log.WithError(err).WithFields(logrus.Fields{
-		"cause": cause,
-	}).Error(message)
 
-	return fmt.Errorf("%s: %v", message, err)
+	return res
 }
 
 // destForMetric returns a destination for the input metric.
@@ -271,22 +268,6 @@ func (s *Server) forward(ctx context.Context, dest string, ms []*metricpb.Metric
 	return nil
 }
 
-// errSliceToErr merges a slice of errors into a single error.  If errs is
-// empty, it returns nil
-func errSliceToErr(errs []error) error {
-	if len(errs) == 0 {
-		return nil
-	}
-
-	// convert the errors into a slice of strings
-	strs := make([]string, len(errs))
-	for i, err := range errs {
-		strs[i] = err.Error()
-	}
-
-	return errors.New(strings.Join(strs, "\n * "))
-}
-
 func strInSlice(s string, slice []string) bool {
 	for _, val := range slice {
 		if val == s {
@@ -294,4 +275,56 @@ func strInSlice(s string, slice []string) bool {
 		}
 	}
 	return false
+}
+
+// forwardError is a common error type used in sendMetrics
+type forwardError struct {
+	err        error
+	cause      string
+	msg        string
+	numMetrics int
+}
+
+// Error returns a summary of the data in a forwardError
+func (e forwardError) Error() string {
+	return fmt.Sprintf("%s (cause=%s, metrics=%d): %v", e.msg, e.cause,
+		e.numMetrics, e.err)
+}
+
+// reportMetrics adds various metrics to an input span
+func (e forwardError) reportMetrics(span *trace.Span) {
+	tags := map[string]string{
+		"cause":    e.cause,
+		"protocol": "grpc",
+	}
+	span.Add(
+		ssf.Count("proxy.proxied_metrics_failed", float32(e.numMetrics), tags),
+		ssf.Count("proxy.forward_errors", 1, tags),
+	)
+}
+
+// forwardErrors wraps a slice of errors and implements the "error" type
+type forwardErrors []forwardError
+
+// Error prints the first 10 errors
+func (errs forwardErrors) Error() string {
+	// Only print 10 errors
+	strsLen := len(errs)
+	if len(errs) > 10 {
+		strsLen = 10
+	}
+
+	// convert the errors into a slice of strings
+	strs := make([]string, strsLen)
+	for i, err := range errs[:len(strs)] {
+		strs[i] = err.Error()
+	}
+
+	// If there are errors that weren't printed, add a message to the end
+	str := strings.Join(strs, "\n * ")
+	if len(strs) < len(errs) {
+		str += fmt.Sprintf("\nand %d more...", len(errs)-len(strs))
+	}
+
+	return str
 }

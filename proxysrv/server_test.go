@@ -98,14 +98,22 @@ func TestTimeout(t *testing.T) {
 }
 
 func TestSetDestinations(t *testing.T) {
+	// create a set of servers that we will use first (the "original" servers)
 	receivedByOriginal := false
+	var originalMtx sync.Mutex
 	original := createTestForwardServers(t, 3, func(_ []*metricpb.Metric) {
+		originalMtx.Lock()
+		defer originalMtx.Unlock()
 		receivedByOriginal = true
 	})
 	defer stopTestForwardServers(original)
 
+	// create a set of test servers
 	receivedByNew := false
+	var newMtx sync.Mutex
 	new := createTestForwardServers(t, 3, func(_ []*metricpb.Metric) {
+		newMtx.Lock()
+		defer newMtx.Unlock()
 		receivedByNew = true
 	})
 	defer stopTestForwardServers(new)
