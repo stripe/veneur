@@ -2,6 +2,7 @@ language: go
 go:
   - 1.8
   - 1.9
+  - "1.10"
   - tip
 
 install:
@@ -12,10 +13,10 @@ install:
   - rm protoc-3.1.0-linux-x86_64.zip
   # After 1.9 hits stable, replace this link
   # It is only used for gofmt
-  - wget https://storage.googleapis.com/golang/go1.9.linux-amd64.tar.gz
-  - tar -C /tmp -xvf go1.9.linux-amd64.tar.gz go/bin/gofmt
+  - wget https://storage.googleapis.com/golang/go1.10.linux-amd64.tar.gz
+  - tar -C /tmp -xvf go1.10.linux-amd64.tar.gz go/bin/gofmt
   - sudo mv /tmp/go/bin/gofmt /usr/bin/gofmt
-  - rm go1.9.linux-amd64.tar.gz
+  - rm go1.10.linux-amd64.tar.gz
 
 before_script:
   - go get -u github.com/ChimeraCoder/gojson/gojson
