@@ -19,7 +19,8 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
-const EVENT_NAME_MAX_LENGTH = 256
+const EventNameMaxLength = 256
+const EventDescriptionMaxLength = 256
 
 // collection is a structure that aggregates signalfx data points
 // per-endpoint. It takes care of collecting the metrics by the tag
@@ -240,8 +241,12 @@ func (sfx *SignalFxSink) FlushOtherSamples(ctx context.Context, samples []ssf.SS
 			delete(dims, k)
 		}
 		name := sample.Name
-		if len(name) > EVENT_NAME_MAX_LENGTH {
-			name = name[0:EVENT_NAME_MAX_LENGTH]
+		if len(name) > EventNameMaxLength {
+			name = name[0:EventNameMaxLength]
+		}
+		message := sample.Message
+		if len(message) > EventDescriptionMaxLength {
+			message = message[0:EventDescriptionMaxLength]
 		}
 
 		ev := event.Event{
@@ -250,7 +255,7 @@ func (sfx *SignalFxSink) FlushOtherSamples(ctx context.Context, samples []ssf.SS
 			Dimensions: dims,
 			Timestamp:  time.Unix(sample.Timestamp, 0),
 			Properties: map[string]interface{}{
-				"description": sample.Message,
+				"description": message,
 			},
 		}
 		// TODO: Split events out the same way as points
