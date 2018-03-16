@@ -105,7 +105,3 @@
   # Updating to any version later than 8300947202c9fbce15a5a299b27c8b0f5092a520
   # will require dropping support for Go 1.8.x
   revision = "8300947202c9fbce15a5a299b27c8b0f5092a520"
-
-[[constraint]]
-  name = "github.com/ryanuber/go-glob"
-  version = "0.1.0"

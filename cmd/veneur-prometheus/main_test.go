@@ -1,6 +1,7 @@
 package main
 
 import (
+	"regexp"
 	"testing"
 
 	dto "github.com/prometheus/client_model/go"
@@ -33,12 +34,12 @@ func TestGetTags(t *testing.T) {
 		label1Pair, label2Pair, label3Pair,
 	}
 
-	blockedLabels := []string{
-		"*5*",
-		"*abel1*",
+	ignoredLabels := []*regexp.Regexp{
+		regexp.MustCompile(".*5.*"),
+		regexp.MustCompile(".*abel1.*"),
 	}
 
-	tags := getTags(labels, blockedLabels)
+	tags := getTags(labels, ignoredLabels)
 	expectedTags := []string{
 		"label2Name:label2Value",
 		"label3Name:label3Value",
@@ -54,9 +55,12 @@ func TestShouldExportMetric(t *testing.T) {
 		Name: &metric1Name,
 	}
 
-	blockedMetrics1 := []string{"*0*", "*1*"}
-	blockedMetrics2 := []string{"*2*"}
+	ignoredMetrics1 := []*regexp.Regexp{
+		regexp.MustCompile(".*0.*"),
+		regexp.MustCompile(".*1.*"),
+	}
+	ignoredMetrics2 := []*regexp.Regexp{regexp.MustCompile(".*2.*")}
 
-	assert.False(t, shouldExportMetric(mf, blockedMetrics1))
-	assert.True(t, shouldExportMetric(mf, blockedMetrics2))
+	assert.False(t, shouldExportMetric(mf, ignoredMetrics1))
+	assert.True(t, shouldExportMetric(mf, ignoredMetrics2))
 }

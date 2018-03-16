@@ -6,13 +6,13 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
-	glob "github.com/ryanuber/go-glob"
 	"github.com/sirupsen/logrus"
 )
 
@@ -20,8 +20,8 @@ var (
 	debug             = flag.Bool("d", false, "Enable debug mode")
 	metricsHost       = flag.String("h", "http://localhost:9090/metrics", "The full URL — like 'http://localhost:9090/metrics' to query for Prometheus metrics.")
 	interval          = flag.String("i", "10s", "The interval at which to query. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).")
-	blockedLabelsStr  = flag.String("l", "", "A comma-seperated list of label name globs to not export")
-	blockedMetricsStr = flag.String("m", "", "A comma-seperated list of metric name globs to not export")
+	ignoredLabelsStr  = flag.String("ignored-labels", "", "A comma-seperated list of label name regexes to not export")
+	ignoredMetricsStr = flag.String("ignored-metrics", "", "A comma-seperated list of metric name regexes to not export")
 	prefix            = flag.String("p", "", "A prefix to append to any metrics emitted. Do not include a trailing period.")
 	statsHost         = flag.String("s", "127.0.0.1:8126", "The host and port — like '127.0.0.1:8126' — to send our metrics to.")
 )
@@ -40,12 +40,19 @@ func main() {
 		logrus.WithError(err).Fatalf("Failed to parse interval '%s'", *interval)
 	}
 
-	blockedLabels := strings.Split(*blockedLabelsStr, ",")
-	blockedMetrics := strings.Split(*blockedMetricsStr, ",")
+	ignoredLabels := []*regexp.Regexp{}
+	ignoredMetrics := []*regexp.Regexp{}
+
+	for _, ignoredLabelStr := range strings.Split(*ignoredLabelsStr, ",") {
+		ignoredLabels = append(ignoredLabels, regexp.MustCompile(ignoredLabelStr))
+	}
+	for _, ignoredMetricStr := range strings.Split(*ignoredMetricsStr, ",") {
+		ignoredMetrics = append(ignoredLabels, regexp.MustCompile(ignoredMetricStr))
+	}
 
 	ticker := time.NewTicker(i)
 	for _ = range ticker.C {
-		collect(c, blockedLabels, blockedMetrics)
+		collect(c, ignoredLabels, ignoredMetrics)
 	}
 
 	if *prefix != "" {
@@ -53,7 +60,7 @@ func main() {
 	}
 }
 
-func collect(c *statsd.Client, blockedLabels []string, blockedMetrics []string) {
+func collect(c *statsd.Client, ignoredLabels []*regexp.Regexp, ignoredMetrics []*regexp.Regexp) {
 	logrus.WithFields(logrus.Fields{
 		"stats_host":   *statsHost,
 		"metrics_host": *metricsHost,
@@ -73,7 +80,7 @@ func collect(c *statsd.Client, blockedLabels []string, blockedMetrics []string) 
 			break
 		}
 
-		if !shouldExportMetric(mf, blockedMetrics) {
+		if !shouldExportMetric(mf, ignoredMetrics) {
 			continue
 		}
 
@@ -81,19 +88,19 @@ func collect(c *statsd.Client, blockedLabels []string, blockedMetrics []string) 
 		switch mf.GetType() {
 		case dto.MetricType_COUNTER:
 			for _, counter := range mf.GetMetric() {
-				tags := getTags(counter.GetLabel(), blockedLabels)
+				tags := getTags(counter.GetLabel(), ignoredLabels)
 				c.Count(mf.GetName(), int64(counter.GetCounter().GetValue()), tags, 1.0)
 				metricCount++
 			}
 		case dto.MetricType_GAUGE:
 			for _, gauge := range mf.GetMetric() {
-				tags := getTags(gauge.GetLabel(), blockedLabels)
+				tags := getTags(gauge.GetLabel(), ignoredLabels)
 				c.Gauge(mf.GetName(), float64(gauge.GetGauge().GetValue()), tags, 1.0)
 				metricCount++
 			}
 		case dto.MetricType_HISTOGRAM, dto.MetricType_SUMMARY:
 			for _, histo := range mf.GetMetric() {
-				tags := getTags(histo.GetLabel(), blockedLabels)
+				tags := getTags(histo.GetLabel(), ignoredLabels)
 				hname := mf.GetName()
 				summ := histo.GetSummary()
 				c.Gauge(fmt.Sprintf("%s.sum", hname), summ.GetSampleSum(), tags, 1.0)
@@ -113,7 +120,7 @@ func collect(c *statsd.Client, blockedLabels []string, blockedMetrics []string) 
 	}
 }
 
-func getTags(labels []*dto.LabelPair, blockedLabels []string) []string {
+func getTags(labels []*dto.LabelPair, ignoredLabels []*regexp.Regexp) []string {
 	var tags []string
 
 	for _, pair := range labels {
@@ -121,8 +128,8 @@ func getTags(labels []*dto.LabelPair, blockedLabels []string) []string {
 		labelValue := pair.GetValue()
 		include := true
 
-		for _, blockedLabel := range blockedLabels {
-			if glob.Glob(blockedLabel, labelName) {
+		for _, ignoredLabel := range ignoredLabels {
+			if ignoredLabel.MatchString(labelName) {
 				include = false
 				break
 			}
@@ -136,11 +143,11 @@ func getTags(labels []*dto.LabelPair, blockedLabels []string) []string {
 	return tags
 }
 
-func shouldExportMetric(mf dto.MetricFamily, blockedMetrics []string) bool {
-	for _, blockedMetric := range blockedMetrics {
+func shouldExportMetric(mf dto.MetricFamily, ignoredMetrics []*regexp.Regexp) bool {
+	for _, ignoredMetric := range ignoredMetrics {
 		metricName := mf.GetName()
 
-		if glob.Glob(blockedMetric, metricName) {
+		if ignoredMetric.MatchString(metricName) {
 			return false
 		}
 	}

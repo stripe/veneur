@@ -325,12 +325,6 @@
   revision = "e181e095bae94582363434144c61a9653aff6e50"
 
 [[projects]]
-  name = "github.com/ryanuber/go-glob"
-  packages = ["."]
-  revision = "572520ed46dbddaed19ea3d9541bdd0494163693"
-  version = "v0.1"
-
-[[projects]]
   branch = "master"
   name = "github.com/signalfx/com_signalfx_metrics_protobuf"
   packages = ["."]
@@ -642,6 +636,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a4dab5e7a1f5673b023842141de1264a3ffa2e30b610064d76350bb1bb2825f8"
+  inputs-digest = "387d1ea42404e79734ed7074ae2da0421823412ec6a61dca1ff0a2a0db0ebe3e"
   solver-name = "gps-cdcl"
   solver-version = 1
