@@ -336,7 +336,7 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 		t.Logf("submitting span")
 		mustRecord(t, client, tr)
 
-		assert.NoError(t, <-sentCh, "at %q", name)
+		require.NoError(t, <-sentCh, "at %q", name)
 		t.Logf("Flushing")
 		go mustFlush(t, client)
 		// A span was successfully received by the server:
@@ -349,7 +349,7 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 		t.Logf("submitting span")
 		mustRecord(t, client, tr)
 
-		assert.NoError(t, <-sentCh)
+		require.NoError(t, <-sentCh)
 		t.Logf("Flushing to the closed socket")
 		flushErr := make(chan error)
 		// Just keep trying until we get a flush kicked off
@@ -375,12 +375,17 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 		t.Logf("submitting span")
 		mustRecord(t, client, tr)
 
-		assert.NoError(t, <-sentCh, "at %q", name)
+		require.NoError(t, <-sentCh, "at %q", name)
 
 		t.Logf("Flushing")
 		go mustFlush(t, client)
 		// A span was successfully received by the server again:
-		<-outPkg
+		select {
+		case <-outPkg:
+			return
+		case <-time.After(4 * time.Second):
+			t.Fatal("Timed out waiting for the succeeded packet after 4s")
+		}
 	}
 }
 
