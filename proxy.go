@@ -387,7 +387,7 @@ func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
 				log.WithFields(logrus.Fields{
 					"traces":      len(batch),
 					"destination": dest,
-				}).Info("Completed flushing traces to Datadog")
+				}).Debug("Completed flushing traces to Datadog")
 			} else {
 				log.WithFields(
 					logrus.Fields{
@@ -411,8 +411,9 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 		ctx, cancel = context.WithTimeout(ctx, p.ForwardTimeout)
 		defer cancel()
 	}
+	metricCount := len(jsonMetrics)
 	span.Add(ssf.RandomlySample(0.1,
-		ssf.Count("import.metrics_total", float32(len(jsonMetrics)), map[string]string{
+		ssf.Count("import.metrics_total", float32(metricCount), map[string]string{
 			"remote_addr":      origin,
 			"veneurglobalonly": "",
 		}),
@@ -436,6 +437,8 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 		go p.doPost(ctx, &wg, dest, batch)
 	}
 	wg.Wait() // Wait for all the above goroutines to complete
+	log.WithField("count", metricCount).Info("Completed forward")
+
 	span.Add(ssf.RandomlySample(0.1,
 		ssf.Timing("proxy.duration_ns", time.Since(span.Start), time.Nanosecond, nil),
 		ssf.Count("proxy.proxied_metrics_total", float32(len(jsonMetrics)), nil),
@@ -456,7 +459,7 @@ func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination stri
 	endpoint := fmt.Sprintf("%s/import", destination)
 	err := vhttp.PostHelper(ctx, p.HTTPClient, p.TraceClient, http.MethodPost, endpoint, batch, "forward", true, log)
 	if err == nil {
-		log.WithField("metrics", batchSize).Info("Completed forward to upstream Veneur")
+		log.WithField("metrics", batchSize).Debug("Completed forward to Veneur")
 	} else {
 		samples.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "post"}))
 		log.WithError(err).WithFields(logrus.Fields{
