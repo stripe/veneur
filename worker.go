@@ -143,8 +143,8 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 func NewWorker(id int, cl *trace.Client, logger *logrus.Logger) *Worker {
 	return &Worker{
 		id:          id,
-		PacketChan:  make(chan samplers.UDPMetric),
-		ImportChan:  make(chan []samplers.JSONMetric),
+		PacketChan:  make(chan samplers.UDPMetric, 32),
+		ImportChan:  make(chan []samplers.JSONMetric, 32),
 		QuitChan:    make(chan struct{}),
 		processed:   0,
 		imported:    0,
