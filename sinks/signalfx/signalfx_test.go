@@ -183,8 +183,11 @@ func TestSignalFxEventFlush(t *testing.T) {
 	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
 	assert.NoError(t, err)
 
+	evMessage := "[an example link](http://catchpoint.com/session_id \"Title\")"
 	ev := ssf.SSFSample{
-		Name:      "Farts farts farts",
+		Name: "Farts farts farts",
+		// Include the markdown bits DD expects, we'll trim it out hopefully!
+		Message:   "%%% \n " + evMessage + " \n %%%",
 		Timestamp: time.Now().Unix(),
 		Tags:      map[string]string{"foo": "bar", "baz": "gorch", "novalue": "", dogstatsd.EventIdentifierKey: ""},
 	}
@@ -193,6 +196,8 @@ func TestSignalFxEventFlush(t *testing.T) {
 	assert.Equal(t, 1, len(fakeSink.events))
 	event := fakeSink.events[0]
 	assert.Equal(t, ev.Name, event.EventType)
+	// We're checking this to ensure the above markdown is also gone!
+	assert.Equal(t, event.Properties["description"], evMessage)
 	dims := event.Dimensions
 	// 5 because 5 passed in, 1 eliminated (identifier) and 1 added (host!)
 	assert.Equal(t, 5, len(dims), "Event has incorrect tag count")

@@ -248,6 +248,13 @@ func (sfx *SignalFxSink) FlushOtherSamples(ctx context.Context, samples []ssf.SS
 		if len(message) > EventDescriptionMaxLength {
 			message = message[0:EventDescriptionMaxLength]
 		}
+		// Datadog requires some weird chars to do markdown… SignalFx does not so
+		// we'll chop those out
+		// https://docs.datadoghq.com/graphing/event_stream/#markdown-events
+		message = strings.Replace(message, "%%% \n", "", 1)
+		message = strings.Replace(message, "\n %%%", "", 1)
+		// Sometimes there are leading and trailing spaces
+		message = strings.TrimSpace(message)
 
 		ev := event.Event{
 			EventType:  name,
