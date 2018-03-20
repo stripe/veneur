@@ -130,9 +130,7 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 func (m *metricExtractionSink) Flush() {
 	tags := map[string]string{"sink": m.Name()}
 	metrics.ReportBatch(m.traceClient, []*ssf.SSFSample{
-		ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(m.spansProcessed), tags),
-		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(m.metricsGenerated), tags),
+		ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(atomic.SwapInt64(&m.spansProcessed, 0)), tags),
+		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(atomic.SwapInt64(&m.metricsGenerated, 0)), tags),
 	})
-	m.spansProcessed = 0
-	m.metricsGenerated = 0
 }

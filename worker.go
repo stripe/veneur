@@ -1,7 +1,6 @@
 package veneur
 
 import (
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -366,12 +365,10 @@ type SpanWorker struct {
 	cumulativeTimes []int64
 	traceClient     *trace.Client
 	capCount        int64
-	workerNum       int
-	workerTags      map[string]string
 }
 
 // NewSpanWorker creates a SpanWorker ready to collect events and service checks.
-func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ssf.SSFSpan, workerNum int) *SpanWorker {
+func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ssf.SSFSpan) *SpanWorker {
 	tags := make([]map[string]string, len(sinks))
 	for i, sink := range sinks {
 		tags[i] = map[string]string{
@@ -385,10 +382,6 @@ func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ss
 		sinkTags:        tags,
 		cumulativeTimes: make([]int64, len(sinks)),
 		traceClient:     cl,
-		workerNum:       workerNum,
-		workerTags: map[string]string{
-			"worker-number": strconv.Itoa(workerNum),
-		},
 	}
 }
 
@@ -444,5 +437,5 @@ func (tw *SpanWorker) Flush() {
 
 	metrics.Report(tw.traceClient, samples)
 	metrics.ReportOne(tw.traceClient,
-		ssf.Count("worker.span.hit_chan_cap", float32(atomic.LoadInt64(&tw.capCount)), tw.workerTags))
+		ssf.Count("worker.span.hit_chan_cap", float32(atomic.SwapInt64(&tw.capCount, 0)), nil))
 }

@@ -67,10 +67,11 @@ const defaultTCPReadTimeout = 10 * time.Minute
 
 // A Server is the actual veneur instance that will be run.
 type Server struct {
-	Workers     []*Worker
-	EventWorker *EventWorker
-	SpanChan    chan *ssf.SSFSpan
-	SpanWorkers []*SpanWorker
+	Workers              []*Worker
+	EventWorker          *EventWorker
+	SpanChan             chan *ssf.SSFSpan
+	SpanWorker           *SpanWorker
+	SpanWorkerGoroutines int
 
 	Sentry *raven.Client
 
@@ -368,11 +369,10 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			logger.Info("Configured Lightstep trace sink")
 		}
 		// Set up as many span workers as we need:
-		workerCount := 1
+		ret.SpanWorkerGoroutines = 1
 		if conf.NumSpanWorkers > 0 {
-			workerCount = conf.NumSpanWorkers
+			ret.SpanWorkerGoroutines = conf.NumSpanWorkers
 		}
-		ret.SpanWorkers = make([]*SpanWorker, workerCount)
 	}
 
 	if conf.KafkaBroker != "" {
@@ -485,9 +485,7 @@ func (s *Server) Start() {
 	// Set up the processors for spans:
 
 	// Use the pre-allocated Workers slice to know how many to start.
-	for i := range s.SpanWorkers {
-		s.SpanWorkers[i] = NewSpanWorker(s.spanSinks, s.TraceClient, s.SpanChan, i)
-	}
+	s.SpanWorker = NewSpanWorker(s.spanSinks, s.TraceClient, s.SpanChan)
 
 	go func() {
 		log.Info("Starting Event worker")
@@ -497,14 +495,14 @@ func (s *Server) Start() {
 		s.EventWorker.Work()
 	}()
 
-	log.WithField("n", len(s.SpanWorkers)).Info("Starting Trace workers")
-	for i := range s.SpanWorkers {
-		go func(w *SpanWorker) {
+	log.WithField("n", s.SpanWorkerGoroutines).Info("Starting Trace workers")
+	for i := 0; i < s.SpanWorkerGoroutines; i++ {
+		go func() {
 			defer func() {
 				ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
 			}()
-			w.Work()
-		}(s.SpanWorkers[i])
+			s.SpanWorker.Work()
+		}()
 	}
 
 	statsdPool := &sync.Pool{
