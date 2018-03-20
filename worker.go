@@ -276,12 +276,13 @@ func (w *Worker) Flush() WorkerMetrics {
 	// This is a critical spot. The worker can't process metrics while this
 	// mutex is held! So we try and minimize it by copying the maps of values
 	// and assigning new ones.
+	wm := NewWorkerMetrics()
 	w.mutex.Lock()
 	ret := w.wm
 	processed := w.processed
 	imported := w.imported
 
-	w.wm = NewWorkerMetrics()
+	w.wm = wm
 	w.processed = 0
 	w.imported = 0
 	w.mutex.Unlock()
