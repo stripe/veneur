@@ -495,7 +495,7 @@ func (s *Server) Start() {
 		s.EventWorker.Work()
 	}()
 
-	log.WithField("n", s.SpanWorkerGoroutines).Info("Starting Trace workers")
+	log.WithField("n", s.SpanWorkerGoroutines).Info("Starting span workers")
 	for i := 0; i < s.SpanWorkerGoroutines; i++ {
 		go func() {
 			defer func() {
