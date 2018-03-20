@@ -2,7 +2,7 @@
 package ssfmetrics
 
 import (
-	"sync"
+	"sync/atomic"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
@@ -14,7 +14,6 @@ import (
 )
 
 type metricExtractionSink struct {
-	mutex                  sync.Mutex
 	workers                []Processor
 	indicatorSpanTimerName string
 	log                    *logrus.Logger
@@ -73,10 +72,8 @@ func (m *metricExtractionSink) sendSample(sample *ssf.SSFSample) error {
 func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 	var metricsCount int
 	defer func() {
-		m.mutex.Lock()
-		defer m.mutex.Unlock()
-		m.metricsGenerated += int64(metricsCount)
-		m.spansProcessed++
+		atomic.AddInt64(&m.metricsGenerated, int64(metricsCount))
+		atomic.AddInt64(&m.spansProcessed, 1)
 	}()
 	metrics, err := samplers.ConvertMetrics(span)
 	if err != nil {
@@ -131,8 +128,6 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 }
 
 func (m *metricExtractionSink) Flush() {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
 	tags := map[string]string{"sink": m.Name()}
 	metrics.ReportBatch(m.traceClient, []*ssf.SSFSample{
 		ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(m.spansProcessed), tags),
