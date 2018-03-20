@@ -111,7 +111,7 @@ type jsonMetricsByWorker struct {
 }
 
 // iterate over a sorted set of jsonmetrics, returning them in contiguous
-// nonempty chunks such that each chunk correpsonds to a single worker
+// nonempty chunks such that each chunk corresponds to a single worker.
 func newJSONMetricsByWorker(metrics []samplers.JSONMetric, numWorkers int) *jsonMetricsByWorker {
 	ret := &jsonMetricsByWorker{
 		sjm: newSortableJSONMetrics(metrics, numWorkers),
@@ -119,6 +119,7 @@ func newJSONMetricsByWorker(metrics []samplers.JSONMetric, numWorkers int) *json
 	sort.Sort(ret.sjm)
 	return ret
 }
+
 func (jmbw *jsonMetricsByWorker) Next() bool {
 	if jmbw.sjm.Len() == jmbw.nextStart {
 		return false

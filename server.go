@@ -486,7 +486,7 @@ func (s *Server) Start() {
 
 	// Use the pre-allocated Workers slice to know how many to start.
 	for i := range s.SpanWorkers {
-		s.SpanWorkers[i] = NewSpanWorker(s.spanSinks, s.TraceClient, s.SpanChan)
+		s.SpanWorkers[i] = NewSpanWorker(s.spanSinks, s.TraceClient, s.SpanChan, i)
 	}
 
 	go func() {
