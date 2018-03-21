@@ -69,6 +69,73 @@ var (
 	indicator = flag.Bool("indicator", false, "Mark the reported span as an indicator span")
 )
 
+type EmitMode uint
+
+const (
+	MetricMode EmitMode = 1 << iota
+	EventMode
+	ServiceCheckMode
+	AllModes = MetricMode | EventMode | ServiceCheckMode
+)
+
+func (m EmitMode) String() string {
+	switch m {
+	case MetricMode:
+		return "metric"
+	case EventMode:
+		return "event"
+	case ServiceCheckMode:
+		return "sc"
+	case AllModes:
+		return "any"
+	}
+
+	return ""
+}
+
+var flagModeMappings = map[string]EmitMode{}
+
+func init() {
+	for mode, flags := range map[EmitMode][]string{
+		AllModes: []string{
+			"hostport",
+			"debug",
+			"command",
+		},
+		MetricMode: []string{
+			"name",
+			"gauge",
+			"timing",
+			"count",
+			"tag",
+			"ssf",
+		},
+		EventMode: []string{
+			"e_title",
+			"e_text",
+			"e_time",
+			"e_hostname",
+			"e_aggr_key",
+			"e_priority",
+			"e_source_type",
+			"e_alert_type",
+			"e_event_tags",
+		},
+		ServiceCheckMode: []string{
+			"sc_name",
+			"sc_status",
+			"sc_time",
+			"sc_hostname",
+			"sc_tags",
+			"sc_msg",
+		},
+	} {
+		for _, flag := range flags {
+			flagModeMappings[flag] = mode
+		}
+	}
+}
+
 const (
 	envTraceID = "VENEUR_EMIT_TRACE_ID"
 	envSpanID  = "VENEUR_EMIT_PARENT_SPAN_ID"
@@ -92,6 +159,8 @@ func main() {
 	if *debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
+
+	validateFlagCombinations(passedFlags)
 
 	addr, netAddr, err := destination(hostport, *toSSF)
 	if err != nil {
@@ -345,8 +414,17 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 	tags := map[string]string{}
 	if tagStr != "" {
 		for _, elem := range strings.Split(tagStr, ",") {
+			if len(elem) == 0 {
+				// Gracefully ignore a trailing comma.
+				continue
+			}
+
 			tag := strings.Split(elem, ":")
-			tags[tag[0]] = tag[1]
+			if len(tag) == 2 {
+				tags[tag[0]] = tag[1]
+			} else {
+				logrus.Fatalf("Arguments to -tag should be of the form <key>:<value>, got %q", elem)
+			}
 		}
 	}
 
@@ -435,6 +513,31 @@ func sendStatsd(addr string, span *ssf.SSFSpan) error {
 		}
 	}
 	return nil
+}
+
+func validateFlagCombinations(passedFlags map[string]flag.Value) {
+	// Figure out which mode we're in
+	var mode EmitMode
+	mv, has := passedFlags["mode"]
+	// "metric" is the default mode, so assume that if the flag wasn't passed.
+	if !has {
+		mode = MetricMode
+	} else {
+		switch mv.String() {
+		case "metric":
+			mode = MetricMode
+		case "event":
+			mode = EventMode
+		case "sc":
+			mode = ServiceCheckMode
+		}
+	}
+
+	for flagname := range passedFlags {
+		if fmode, has := flagModeMappings[flagname]; has && (fmode&mode) != mode {
+			logrus.Fatalf("Flag %q is only valid with \"-mode %s\"", flagname, fmode)
+		}
+	}
 }
 
 func buildEventPacket(passedFlags map[string]flag.Value) (bytes.Buffer, error) {
