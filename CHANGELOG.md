@@ -4,6 +4,7 @@
 * Receiving SSF in UDP packets now happens on `num_readers` goroutines. Thanks, [antifuchs](https://github.com/antifuchs)
 * Updated [SignalFx library](https://github.com/signalfx/golib) dependency so that compression is enabled by default, saving significant time on large metric bodies. Thanks, [gphat](https://github.com/gphat)
 * Decreased logging output of veneur-proxy. Thanks, [gphat](https://github.com/gphat)!
+* Better warnings when invalid flag combinations are passed to `veneur-emit`. Thanks, [sdboyer](https://github.com/sdboyer)!
 
 ## Added
 
