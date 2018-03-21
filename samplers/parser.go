@@ -482,7 +482,12 @@ func ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 	return ret, nil
 }
 
-// ParseServiceCheck parses a packet that represents a UDPServiceCheck.
+// ParseServiceCheck parses a packet that represents a UDPServiceCheck. To facilitate
+// the many Datadog-specific values that are present in a DogStatsD service check
+// but not in an SSF sample, a series of special tags are set as defined in
+// protocol/dogstatsd/protocol.go. Any sink that wants to consume these service
+// checks will then need to implement FlushOtherSamples and unwind these special
+// tags into whatever is appropriate for that sink.
 func ParseServiceCheck(packet []byte) (*ssf.SSFSample, error) {
 
 	ret := &ssf.SSFSample{
