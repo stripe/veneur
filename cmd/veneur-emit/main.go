@@ -519,6 +519,7 @@ func validateFlagCombinations(passedFlags map[string]flag.Value) {
 	// Figure out which mode we're in
 	var mode EmitMode
 	mv, has := passedFlags["mode"]
+	// "metric" is the default mode, so assume that if the flag wasn't passed.
 	if !has {
 		mode = MetricMode
 	} else {
