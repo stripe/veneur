@@ -414,8 +414,17 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 	tags := map[string]string{}
 	if tagStr != "" {
 		for _, elem := range strings.Split(tagStr, ",") {
+			if len(elem) == 0 {
+				// Gracefully ignore a trailing comma.
+				continue
+			}
+
 			tag := strings.Split(elem, ":")
-			tags[tag[0]] = tag[1]
+			if len(tag) == 2 {
+				tags[tag[0]] = tag[1]
+			} else {
+				logrus.Fatalf("Arguments to -tag should be of the form <key>:<value>, got %q", elem)
+			}
 		}
 	}
 
