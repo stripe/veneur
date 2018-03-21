@@ -143,8 +143,8 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 func NewWorker(id int, cl *trace.Client, logger *logrus.Logger) *Worker {
 	return &Worker{
 		id:          id,
-		PacketChan:  make(chan samplers.UDPMetric),
-		ImportChan:  make(chan []samplers.JSONMetric),
+		PacketChan:  make(chan samplers.UDPMetric, 32),
+		ImportChan:  make(chan []samplers.JSONMetric, 32),
 		QuitChan:    make(chan struct{}),
 		processed:   0,
 		imported:    0,
@@ -275,12 +275,13 @@ func (w *Worker) Flush() WorkerMetrics {
 	// This is a critical spot. The worker can't process metrics while this
 	// mutex is held! So we try and minimize it by copying the maps of values
 	// and assigning new ones.
+	wm := NewWorkerMetrics()
 	w.mutex.Lock()
 	ret := w.wm
 	processed := w.processed
 	imported := w.imported
 
-	w.wm = NewWorkerMetrics()
+	w.wm = wm
 	w.processed = 0
 	w.imported = 0
 	w.mutex.Unlock()
@@ -363,9 +364,10 @@ type SpanWorker struct {
 	sinks           []sinks.SpanSink
 	cumulativeTimes []int64
 	traceClient     *trace.Client
+	capCount        int64
 }
 
-// NewSpanWorker creates an SpanWorker ready to collect events and service checks.
+// NewSpanWorker creates a SpanWorker ready to collect events and service checks.
 func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ssf.SSFSpan) *SpanWorker {
 	tags := make([]map[string]string, len(sinks))
 	for i, sink := range sinks {
@@ -373,6 +375,7 @@ func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ss
 			"sink": sink.Name(),
 		}
 	}
+
 	return &SpanWorker{
 		SpanChan:        spanChan,
 		sinks:           sinks,
@@ -385,7 +388,13 @@ func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ss
 // Work will start the SpanWorker listening for spans.
 // This function will never return.
 func (tw *SpanWorker) Work() {
+	capcmp := cap(tw.SpanChan) - 1
 	for m := range tw.SpanChan {
+		// If we are at or one below cap, increment the counter.
+		if len(tw.SpanChan) >= capcmp {
+			atomic.AddInt64(&tw.capCount, 1)
+		}
+
 		var wg sync.WaitGroup
 		for i, s := range tw.sinks {
 			tags := tw.sinkTags[i]
@@ -415,7 +424,6 @@ func (tw *SpanWorker) Work() {
 // Flush invokes flush on each sink.
 func (tw *SpanWorker) Flush() {
 	samples := &ssf.Samples{}
-	defer metrics.Report(tw.traceClient, samples)
 
 	// Flush and time each sink.
 	for i, s := range tw.sinks {
@@ -426,4 +434,8 @@ func (tw *SpanWorker) Flush() {
 		cumulative := time.Duration(atomic.SwapInt64(&tw.cumulativeTimes[i], 0)) * time.Nanosecond
 		samples.Add(ssf.Timing(sinks.MetricKeySpanIngestDuration, cumulative, time.Nanosecond, tags))
 	}
+
+	metrics.Report(tw.traceClient, samples)
+	metrics.ReportOne(tw.traceClient,
+		ssf.Count("worker.span.hit_chan_cap", float32(atomic.SwapInt64(&tw.capCount, 0)), nil))
 }
