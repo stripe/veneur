@@ -32,19 +32,6 @@ type DDEventRequest struct {
 	}
 }
 
-// Events struct {
-// 	Title       string   `json:"msg_title"`
-// 	Text        string   `json:"msg_text"`
-// 	Timestamp   int64    `json:"timestamp,omitempty"` // represented as a unix epoch
-// 	Hostname    string   `json:"host,omitempty"`
-// 	Aggregation string   `json:"aggregation_key,omitempty"`
-// 	Priority    string   `json:"priority,omitempty"`
-// 	Source      string   `json:"source_type_name,omitempty"`
-// 	AlertType   string   `json:"alert_type,omitempty"`
-// 	Tags        []string `json:"tags,omitempty"`
-// } `json:events`
-// }
-
 func TestDatadogRate(t *testing.T) {
 	ddSink := DatadogMetricSink{
 		hostname: "somehostname",
