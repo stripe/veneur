@@ -74,10 +74,19 @@ func (s *Server) Flush(ctx context.Context) {
 	for _, sink := range s.metricSinks {
 		wg.Add(1)
 		go func(ms sinks.MetricSink) {
+			samples := &ssf.Samples{}
+			defer metrics.Report(s.TraceClient, samples)
+
+			finalTags := map[string]string{"sink": ms.Name()}
+			start := time.Now()
 			err := ms.Flush(span.Attach(ctx), finalMetrics)
+			samples.Add(ssf.Timing("flush.sinks.total_duration_ns", time.Since(start), time.Nanosecond, map[string]string{"part": "post", "sink": ms.Name()}))
 			if err != nil {
-				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
+				log.WithError(err).WithField("sink", ms.Name()).WithField("metric_count", len(finalMetrics)).Warn("Error flushing sink")
+				finalTags["error"] = "true"
+				samples.Add(ssf.Count("flush.sinks.error_total", 1, finalTags))
 			}
+			samples.Add(ssf.Gauge("flush.sinks.post_metrics_total", float32(len(finalMetrics)), finalTags))
 			wg.Done()
 		}(sink)
 	}

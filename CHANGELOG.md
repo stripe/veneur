@@ -50,6 +50,9 @@
   * Method `trace.(*Trace).Add`, which allows adding metrics to a trace span.
 * `veneur-proxy` has a new configuration option `forward_timeout` which allows specifying how long forwarding a batch to global veneur servers may take in total. Thanks, [antifuchs](https://github.com/antifuchs)!
 * Add native support for running Veneur within Kubernetes. Thanks, [aditya](https://github.com/chimeracoder)!
+* Improvements in instrumentation on flushing sinks – thanks, [rhwlo](https://github.com/rhwlo)!
+** New metrics `flush.sinks.total_duration_ns`, `flush.sinks.error_total`, and `flush.sinks.post_metrics_total` (each tagged with `sink:` and the sink name), to mirror the metrics being reported for plugin flushing.
+** New field on the warning line for `Error flushing sink` to indicate how many metrics were in the flush that encountered an error.
 
 ## Improvements
 * Updated Datadog span sink to latest version in Datadog tracing agent. Thanks, [gphat](https://github.com/gphat)!
