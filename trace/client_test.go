@@ -353,20 +353,29 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 		t.Logf("Flushing to the closed socket")
 		flushErr := make(chan error)
 		// Just keep trying until we get a flush kicked off
+	FlushRetries:
 		for {
 			err := FlushAsync(client, flushErr)
-			if err != ErrWouldBlock {
-				break
+			switch err {
+			case ErrWouldBlock:
+				// Just retry below
+			case nil:
+				// Attempt to retrieve the flush error
+				// - note that kicking off the flush
+				// can return an ErrWouldBlock again,
+				// so we have to be prepared to retry
+				// for that too:
+				err = <-flushErr
+				if err != ErrWouldBlock {
+					require.Error(t, err, "Expected an error flushing on the broken socket")
+					break FlushRetries
+				}
+			default:
+				t.Fatalf("Unexpected error kicking off the flush: %v", err)
 			}
 			t.Log("Retrying flush on closed socket")
 			time.Sleep(1 * time.Millisecond)
 		}
-		require.NoError(t, err)
-
-		// ...and this flush should have resulted in an error
-		// (going to a closed socket and all), nothing will be
-		// received by the other side.
-		assert.Error(t, <-flushErr, "expected an error flushing at %q", name)
 	}
 	{
 		name := "Testing-success2"
