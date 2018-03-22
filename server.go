@@ -130,7 +130,15 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.Hostname = conf.Hostname
 	ret.Tags = conf.Tags
 
-	mappedTags := samplers.ParseTagSliceToMap(ret.Tags)
+	mappedTags := make(map[string]string)
+	for _, tag := range ret.Tags {
+		splt := strings.SplitN(tag, ":", 2)
+		if len(splt) < 2 {
+			mappedTags[splt[0]] = ""
+		} else {
+			mappedTags[splt[0]] = splt[1]
+		}
+	}
 
 	ret.synchronizeInterval = conf.SynchronizeWithInterval
 
@@ -598,7 +606,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "event", "reason": "parse"}))
 			return err
 		}
-		s.EventWorker.sampleChan <- *event
+		s.EventWorker.EventChan <- *event
 	} else if bytes.HasPrefix(packet, []byte{'_', 's', 'c'}) {
 		svcheck, err := samplers.ParseServiceCheck(packet)
 		if err != nil {
@@ -609,7 +617,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "service_check", "reason": "parse"}))
 			return err
 		}
-		s.EventWorker.sampleChan <- *svcheck
+		s.EventWorker.ServiceCheckChan <- *svcheck
 	} else {
 		metric, err := samplers.ParseMetric(packet)
 		if err != nil {
