@@ -21,6 +21,7 @@ import (
 	"crypto/rand"
 
 	"github.com/DataDog/datadog-go/statsd"
+	"github.com/araddon/dateparse"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/ssf"
@@ -65,6 +66,8 @@ var (
 	// Tracing flags
 	traceID   = flag.Int64("trace_id", 0, "ID for the trace (top-level) span. Setting a trace ID activated tracing.")
 	parentID  = flag.Int64("parent_span_id", 0, "ID of the parent span.")
+	spanStart = flag.String("span_starttime", "", "Date/time to set for the start of the span. See https://github.com/araddon/dateparse#extended-example for formatting.")
+	spanEnd   = flag.String("span_endtime", "", "Date/time to set for the end of the span. Format is same as -span_starttime.")
 	service   = flag.String("span_service", "veneur-emit", "Service name to associate with the span.")
 	indicator = flag.Bool("indicator", false, "Mark the reported span as an indicator span")
 )
@@ -439,6 +442,29 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 			span.StartTimestamp = start.UnixNano()
 			span.EndTimestamp = ended.UnixNano()
 			span.Metrics = append(span.Metrics, ssf.Timing(name, ended.Sub(start), time.Millisecond, tags))
+		}
+
+		sf, shas := passedFlags["span_starttime"]
+		ef, ehas := passedFlags["span_endtime"]
+		if shas != ehas {
+			logrus.Fatal("Must provide both -span_startime and -span_endtime, or neither")
+		}
+
+		if shas || ehas {
+			var start, end time.Time
+
+			start, err = dateparse.ParseAny(sf.String())
+			if err != nil {
+				logrus.WithError(err).Fatal("Error parsing -span_starttime")
+			}
+
+			end, err = dateparse.ParseAny(ef.String())
+			if err != nil {
+				logrus.WithError(err).Fatal("Error parsing -span_endtime")
+			}
+
+			span.StartTimestamp = start.UnixNano()
+			span.EndTimestamp = end.UnixNano()
 		}
 
 		if passedFlags["timing"] != nil {
