@@ -3,6 +3,9 @@ debug: true
 enable_profiling: false
 http_address: "localhost:8127"
 
+# How often to flush metrics about the Go runtime (heap, GC, etc)
+runtime_metrics_interval: "10s"
+
 # How often to refresh from Consul's healthy nodes
 consul_refresh_interval: "30s"
 

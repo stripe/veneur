@@ -16,6 +16,7 @@
   * `veneur.worker.span_chan.total_elements` over `veneur.worker.span_chan.total_capacity` gives the utilization of the sink ingestion channel.
 * Introduce a generic gRPC streaming backend for trace spans. Thanks, [sdboyer](https://github.com/sdboyer)!
 * New config keys `signalfx_vary_key_by` and `signalfx_per_tag_api_keys` which which allow sending signalfx data points with an API key specific to these data points' dimensions. Thanks, [antifuchs](https://github.com/antifuchs)!
+* veneur-proxy now reports runtime metrics (with the prefix `veneur-proxy.`) at a configurable interval controlled by `runtime_metrics_interval`. It defaults to 10s. Thanks [gphat](https://github.com/gphat)!
 
 # 3.0.0, 2018-02-27
 
