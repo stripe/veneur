@@ -12,7 +12,6 @@ import (
 	"github.com/sirupsen/logrus"
 	vhttp "github.com/stripe/veneur/http"
 	"github.com/stripe/veneur/protocol"
-	"github.com/stripe/veneur/protocol/dogstatsd"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
@@ -43,19 +42,6 @@ type DatadogMetricSink struct {
 	log             *logrus.Logger
 }
 
-// DDEvent represents the structure of datadog's undocumented /intake endpoint
-type DDEvent struct {
-	Title       string   `json:"msg_title"`
-	Text        string   `json:"msg_text"`
-	Timestamp   int64    `json:"timestamp,omitempty"` // represented as a unix epoch
-	Hostname    string   `json:"host,omitempty"`
-	Aggregation string   `json:"aggregation_key,omitempty"`
-	Priority    string   `json:"priority,omitempty"`
-	Source      string   `json:"source_type_name,omitempty"`
-	AlertType   string   `json:"alert_type,omitempty"`
-	Tags        []string `json:"tags,omitempty"`
-}
-
 // DDMetric is a data structure that represents the JSON that Datadog
 // wants when posting to the API
 type DDMetric struct {
@@ -66,16 +52,6 @@ type DDMetric struct {
 	Hostname   string        `json:"host,omitempty"`
 	DeviceName string        `json:"device_name,omitempty"`
 	Interval   int32         `json:"interval,omitempty"`
-}
-
-// DDServiceCheck is a representation of the service check.
-type DDServiceCheck struct {
-	Name      string   `json:"check"`
-	Status    int      `json:"status"`
-	Hostname  string   `json:"host_name"`
-	Timestamp int64    `json:"timestamp,omitempty"` // represented as a unix epoch
-	Tags      []string `json:"tags,omitempty"`
-	Message   string   `json:"message,omitempty"`
 }
 
 // NewDatadogMetricSink creates a new Datadog sink for trace spans.
@@ -138,106 +114,22 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 	return nil
 }
 
-func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
-
-	events := []DDEvent{}
-	checks := []DDServiceCheck{}
-
+func (dd *DatadogMetricSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(dd.traceClient)
 
 	// fill in the default hostname for packets that didn't set it
-	for _, sample := range samples {
-
-		if _, ok := sample.Tags[dogstatsd.CheckIdentifierKey]; ok {
-			// This is a service check!
-			ret := DDServiceCheck{
-				Name:      sample.Name,
-				Message:   sample.Message,
-				Timestamp: sample.Timestamp,
-				Status:    0, // How to intify? TODO TKTK
-			}
-
-			// Defensively copy the tags that came in
-			tags := map[string]string{}
-			for k, v := range sample.Tags {
-				tags[k] = v
-			}
-			// Remove the tag that flagged this as a service check
-			delete(tags, dogstatsd.CheckIdentifierKey)
-
-			if v, ok := tags[dogstatsd.CheckHostnameTagKey]; ok {
-				ret.Hostname = v
-				delete(tags, dogstatsd.CheckHostnameTagKey)
-			} else {
-				// Default hostname since there isn't one
-				ret.Hostname = dd.hostname
-			}
-
-			// Do our last bit of tag housekeeping
-			finalTags := []string{}
-			for k, v := range tags {
-				finalTags = append(finalTags, fmt.Sprintf("%s:%s", k, v))
-			}
-			ret.Tags = append(finalTags, dd.tags...)
-
-			checks = append(checks, ret)
-
-		} else if _, ok := sample.Tags[dogstatsd.EventIdentifierKey]; ok {
-			// This is an event!
-			ret := DDEvent{
-				Title:     sample.Name,
-				Text:      sample.Message,
-				Timestamp: sample.Timestamp,
-				Priority:  "normal",
-				AlertType: "info",
-			}
-
-			// Defensively copy the tags that came in
-			tags := map[string]string{}
-			for k, v := range sample.Tags {
-				tags[k] = v
-			}
-			// Remove the tag that flagged this as an event
-			delete(tags, dogstatsd.EventIdentifierKey)
-
-			// The parser uses special tags to encode the fields for us from DogStatsD
-			// that don't fit into a normal SSF Sample. We'll hunt for each one and
-			// delete the tag if we find it.
-			if v, ok := tags[dogstatsd.EventAggregationKeyTagKey]; ok {
-				ret.Aggregation = v
-				delete(tags, dogstatsd.EventAggregationKeyTagKey)
-			}
-			if v, ok := tags[dogstatsd.EventPriorityTagKey]; ok {
-				ret.Priority = v
-				delete(tags, dogstatsd.EventPriorityTagKey)
-			}
-			if v, ok := tags[dogstatsd.EventSourceTypeTagKey]; ok {
-				ret.Source = v
-				delete(tags, dogstatsd.EventSourceTypeTagKey)
-			}
-			if v, ok := tags[dogstatsd.EventAlertTypeTagKey]; ok {
-				ret.AlertType = v
-				delete(tags, dogstatsd.EventAlertTypeTagKey)
-			}
-			if v, ok := tags[dogstatsd.EventHostnameTagKey]; ok {
-				ret.Hostname = v
-				delete(tags, dogstatsd.EventHostnameTagKey)
-			} else {
-				// Default hostname since there isn't one
-				ret.Hostname = dd.hostname
-			}
-			// Do our last bit of tag housekeeping
-			finalTags := []string{}
-			for k, v := range tags {
-				finalTags = append(finalTags, fmt.Sprintf("%s:%s", k, v))
-			}
-
-			ret.Tags = append(finalTags, dd.tags...)
-			events = append(events, ret)
-		} else {
-			dd.log.Warn("Received an SSF Sample that wasn't an event or service check, ack!")
+	for i := range events {
+		if events[i].Hostname == "" {
+			events[i].Hostname = dd.hostname
 		}
+		events[i].Tags = append(events[i].Tags, dd.tags...)
+	}
+	for i := range checks {
+		if checks[i].Hostname == "" {
+			checks[i].Hostname = dd.hostname
+		}
+		checks[i].Tags = append(checks[i].Tags, dd.tags...)
 	}
 
 	if len(events) != 0 {
@@ -245,7 +137,7 @@ func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ss
 		// the official dd-agent
 		// we don't actually pass all the body keys that dd-agent passes here... but
 		// it still works
-		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/intake?api_key=%s", dd.DDHostname, dd.APIKey), map[string]map[string][]DDEvent{
+		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/intake?api_key=%s", dd.DDHostname, dd.APIKey), map[string]map[string][]samplers.UDPEvent{
 			"events": {
 				"api": events,
 			},

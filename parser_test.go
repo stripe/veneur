@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/protocol"
-	"github.com/stripe/veneur/protocol/dogstatsd"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 )
@@ -518,20 +517,16 @@ func TestGlobalOnlyEscape(t *testing.T) {
 func TestEvents(t *testing.T) {
 	evt, err := samplers.ParseEvent([]byte("_e{3,3}:foo|bar|k:foos|s:test|t:success|p:low|#foo:bar,baz:qux|d:1136239445|h:example.com"))
 	assert.NoError(t, err, "should have parsed correctly")
-	assert.EqualValues(t, &ssf.SSFSample{
-		Name:      "foo",
-		Message:   "bar",
-		Timestamp: 1136239445,
-		Tags: map[string]string{
-			dogstatsd.EventIdentifierKey:        "",
-			dogstatsd.EventAggregationKeyTagKey: "foos",
-			dogstatsd.EventSourceTypeTagKey:     "test",
-			dogstatsd.EventAlertTypeTagKey:      "success",
-			dogstatsd.EventPriorityTagKey:       "low",
-			dogstatsd.EventHostnameTagKey:       "example.com",
-			"foo": "bar",
-			"baz": "qux",
-		},
+	assert.EqualValues(t, &samplers.UDPEvent{
+		Title:       "foo",
+		Text:        "bar",
+		Timestamp:   1136239445,
+		Aggregation: "foos",
+		Source:      "test",
+		AlertLevel:  "success",
+		Priority:    "low",
+		Tags:        []string{"foo:bar", "baz:qux"},
+		Hostname:    "example.com",
 	}, evt, "should have parsed event")
 
 	table := map[string]string{
@@ -554,17 +549,13 @@ func TestEvents(t *testing.T) {
 }
 
 func TestServiceChecks(t *testing.T) {
-	evt, err := samplers.ParseServiceCheck([]byte("_sc|foo.bar|0|#foo:bar|d:1136239445|h:example.com"))
+	evt, err := samplers.ParseServiceCheck([]byte("_sc|foo.bar|0|d:1136239445|h:example.com"))
 	assert.NoError(t, err, "should have parsed correctly")
-	assert.EqualValues(t, &ssf.SSFSample{
+	assert.EqualValues(t, &samplers.UDPServiceCheck{
 		Name:      "foo.bar",
-		Status:    ssf.SSFSample_OK,
+		Status:    0,
 		Timestamp: 1136239445,
-		Tags: map[string]string{
-			dogstatsd.CheckIdentifierKey:  "",
-			dogstatsd.CheckHostnameTagKey: "example.com",
-			"foo": "bar",
-		},
+		Hostname:  "example.com",
 	}, evt, "should have parsed event")
 
 	table := map[string]string{
@@ -585,7 +576,7 @@ func TestEventMessageUnescape(t *testing.T) {
 	packet := []byte("_e{3,15}:foo|foo\\nbar\\nbaz\\n")
 	evt, err := samplers.ParseEvent(packet)
 	assert.NoError(t, err, "Should have parsed correctly")
-	assert.Equal(t, "foo\nbar\nbaz\n", evt.Message, "Should contain newline")
+	assert.Equal(t, "foo\nbar\nbaz\n", evt.Text, "Should contain newline")
 }
 
 func TestServiceCheckMessageUnescape(t *testing.T) {
@@ -631,14 +622,6 @@ func TestConsecutiveParseSSF(t *testing.T) {
 
 	assert.Equal(t, int64(12345679), span2.Id)
 	assert.Equal(t, "", span2.Tags["foo"], "Tagless span has tags!")
-}
-
-func TestTagSliceToMap(t *testing.T) {
-	tags := []string{"foo:bar", "baz:gorch", "blerg"}
-	mappedTags := samplers.ParseTagSliceToMap(tags)
-	assert.Equal(t, "bar", mappedTags["foo"])
-	assert.Equal(t, "gorch", mappedTags["baz"])
-	assert.Equal(t, "", mappedTags["blerg"])
 }
 
 func BenchmarkParseSSF(b *testing.B) {

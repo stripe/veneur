@@ -11,9 +11,7 @@ import (
 	"github.com/signalfx/golib/sfxclient"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/stripe/veneur/protocol/dogstatsd"
 	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/ssf"
 )
 
 type FakeSink struct {
@@ -183,23 +181,17 @@ func TestSignalFxEventFlush(t *testing.T) {
 	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
 	assert.NoError(t, err)
 
-	evMessage := "[an example link](http://catchpoint.com/session_id \"Title\")"
-	ev := ssf.SSFSample{
-		Name: "Farts farts farts",
-		// Include the markdown bits DD expects, we'll trim it out hopefully!
-		Message:   "%%% \n " + evMessage + " \n %%%",
+	ev := samplers.UDPEvent{
+		Title:     "Farts farts farts",
 		Timestamp: time.Now().Unix(),
-		Tags:      map[string]string{"foo": "bar", "baz": "gorch", "novalue": "", dogstatsd.EventIdentifierKey: ""},
+		Tags:      []string{"foo:bar", "baz:gorch", "novalue"},
 	}
-	sink.FlushOtherSamples(context.TODO(), []ssf.SSFSample{ev})
+	sink.FlushEventsChecks(context.TODO(), []samplers.UDPEvent{ev}, nil)
 
 	assert.Equal(t, 1, len(fakeSink.events))
 	event := fakeSink.events[0]
-	assert.Equal(t, ev.Name, event.EventType)
-	// We're checking this to ensure the above markdown is also gone!
-	assert.Equal(t, event.Properties["description"], evMessage)
+	assert.Equal(t, ev.Title, event.EventType)
 	dims := event.Dimensions
-	// 5 because 5 passed in, 1 eliminated (identifier) and 1 added (host!)
 	assert.Equal(t, 5, len(dims), "Event has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Event has a busted tag")
 	assert.Equal(t, "gorch", dims["baz"], "Event has a busted tag")
@@ -210,9 +202,8 @@ func TestSignalFxEventFlush(t *testing.T) {
 
 func TestSignalFxSetExcludeTags(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie", "boo": "snakes"}, logrus.New(), fakeSink, "", nil)
-
-	sink.SetExcludedTags([]string{"foo", "boo", "host"})
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
+	sink.SetExcludedTags([]string{"foo", "host"})
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{samplers.InterMetric{
@@ -228,18 +219,17 @@ func TestSignalFxSetExcludeTags(t *testing.T) {
 	}}
 	sink.Flush(context.Background(), interMetrics)
 
-	ev := ssf.SSFSample{
-		Name:      "Test Event",
+	ev := samplers.UDPEvent{
+		Title:     "Test Event",
 		Timestamp: time.Now().Unix(),
-		Tags: map[string]string{
-			dogstatsd.EventIdentifierKey: "",
-			"foo":     "bar",
-			"baz":     "gorch",
-			"novalue": "",
+		Tags: []string{
+			"foo:bar",
+			"baz:gorch",
+			"novalue",
 		},
 	}
 
-	sink.FlushOtherSamples(context.Background(), []ssf.SSFSample{ev})
+	sink.FlushEventsChecks(context.Background(), []samplers.UDPEvent{ev}, nil)
 
 	assert.Equal(t, 1, len(fakeSink.points))
 	point := fakeSink.points[0]
@@ -251,18 +241,18 @@ func TestSignalFxSetExcludeTags(t *testing.T) {
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
 	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Metric is missing a common tag")
-	assert.Equal(t, "", dims["boo"], "Metric has host tag despite exclude rule")
+	assert.Equal(t, "", dims["host"], "Metric has host tag despite exclude rule")
 
 	assert.Equal(t, 1, len(fakeSink.events))
 	event := fakeSink.events[0]
-	assert.Equal(t, ev.Name, event.EventType)
+	assert.Equal(t, ev.Title, event.EventType)
 	dims = event.Dimensions
 	assert.Equal(t, 3, len(dims), "Event has incorrect tag count")
 	assert.Equal(t, "", dims["foo"], "Event has a foo tag despite exclude rule")
 	assert.Equal(t, "gorch", dims["baz"], "Event has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Event missing a common tag")
 	assert.Equal(t, "", dims["novalue"], "Event has a busted tag")
-	assert.Equal(t, "", dims["boo"], "Event has host tag despite exclude rule")
+	assert.Equal(t, "", dims["host"], "Event has host tag despite exclude rule")
 }
 
 func TestSignalFxFlushMultiKey(t *testing.T) {
