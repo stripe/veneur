@@ -305,21 +305,18 @@ func (w *Worker) Stop() {
 
 // EventWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type EventWorker struct {
-	EventChan        chan samplers.UDPEvent
-	ServiceCheckChan chan samplers.UDPServiceCheck
-	mutex            *sync.Mutex
-	events           []samplers.UDPEvent
-	checks           []samplers.UDPServiceCheck
-	traceClient      *trace.Client
+	sampleChan  chan ssf.SSFSample
+	mutex       *sync.Mutex
+	samples     []ssf.SSFSample
+	traceClient *trace.Client
 }
 
 // NewEventWorker creates an EventWorker ready to collect events and service checks.
 func NewEventWorker(cl *trace.Client) *EventWorker {
 	return &EventWorker{
-		EventChan:        make(chan samplers.UDPEvent),
-		ServiceCheckChan: make(chan samplers.UDPServiceCheck),
-		mutex:            &sync.Mutex{},
-		traceClient:      cl,
+		sampleChan:  make(chan ssf.SSFSample),
+		mutex:       &sync.Mutex{},
+		traceClient: cl,
 	}
 }
 
@@ -328,13 +325,9 @@ func NewEventWorker(cl *trace.Client) *EventWorker {
 func (ew *EventWorker) Work() {
 	for {
 		select {
-		case evt := <-ew.EventChan:
+		case s := <-ew.sampleChan:
 			ew.mutex.Lock()
-			ew.events = append(ew.events, evt)
-			ew.mutex.Unlock()
-		case svcheck := <-ew.ServiceCheckChan:
-			ew.mutex.Lock()
-			ew.checks = append(ew.checks, svcheck)
+			ew.samples = append(ew.samples, s)
 			ew.mutex.Unlock()
 		}
 	}
@@ -342,19 +335,18 @@ func (ew *EventWorker) Work() {
 
 // Flush returns the EventWorker's stored events and service checks and
 // resets the stored contents.
-func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck) {
+func (ew *EventWorker) Flush() []ssf.SSFSample {
 	start := time.Now()
 	ew.mutex.Lock()
 
-	retevts := ew.events
-	retsvchecks := ew.checks
+	retsamples := ew.samples
 	// these slices will be allocated again at append time
-	ew.events = nil
-	ew.checks = nil
+	ew.samples = nil
 
 	ew.mutex.Unlock()
+	metrics.ReportOne(ew.traceClient, ssf.Count("worker.other_samples_flushed_total", float32(len(retsamples)), nil))
 	metrics.ReportOne(ew.traceClient, ssf.Timing("flush.event_worker_duration_ns", time.Since(start), time.Nanosecond, nil))
-	return retevts, retsvchecks
+	return retsamples
 }
 
 // SpanWorker is similar to a Worker but it collects events and service checks instead of metrics.
