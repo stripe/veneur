@@ -12,11 +12,15 @@ import (
 	"github.com/signalfx/golib/event"
 	"github.com/signalfx/golib/sfxclient"
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/protocol/dogstatsd"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 )
+
+const EventNameMaxLength = 256
+const EventDescriptionMaxLength = 256
 
 // collection is a structure that aggregates signalfx data points
 // per-endpoint. It takes care of collecting the metrics by the tag
@@ -156,17 +160,10 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 		}
 		dims := map[string]string{}
 		// Set the hostname as a tag, since SFx doesn't have a first-class hostname field
-		if _, ok := sfx.excludedTags[sfx.hostnameTag]; !ok {
-			dims[sfx.hostnameTag] = sfx.hostname
-		}
+		dims[sfx.hostnameTag] = sfx.hostname
 		for _, tag := range metric.Tags {
 			kv := strings.SplitN(tag, ":", 2)
 			key := kv[0]
-
-			// skip excluded tags
-			if _, ok := sfx.excludedTags[key]; ok {
-				continue
-			}
 
 			if len(kv) == 1 {
 				dims[key] = ""
@@ -183,6 +180,10 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 			if val, ok := dims[sfx.varyBy]; ok {
 				metricKey = val
 			}
+		}
+
+		for k := range sfx.excludedTags {
+			delete(dims, k)
 		}
 
 		var point *datapoint.Datapoint
@@ -207,48 +208,62 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	return err
 }
 
-// FlushEventsChecks sends events to SignalFx. It does not support checks. It is also currently disabled.
-func (sfx *SignalFxSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
+// FlushEventsChecks sends events to SignalFx. It does not support checks.
+func (sfx *SignalFxSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sfx.traceClient)
 
-	for _, udpEvent := range events {
+	for _, sample := range samples {
 
-		// TODO: SignalFx wants `map[string]string` for tags but at this point we're
-		// getting []string. We should fix this, as it feels less icky for sinks to
-		// get `map[string]string`.
+		if _, ok := sample.Tags[dogstatsd.EventIdentifierKey]; !ok {
+			// This isn't an event, just continue
+			continue
+		}
+
 		dims := map[string]string{}
 
-		// Set the hostname as a tag, since SFx doesn't have a first-class hostname field
-		if _, ok := sfx.excludedTags[sfx.hostnameTag]; !ok {
-			dims[sfx.hostnameTag] = sfx.hostname
-		}
-
-		for _, tag := range udpEvent.Tags {
-			parts := strings.SplitN(tag, ":", 2)
-			key := parts[0]
-
-			// skip excluded tags
-			if _, ok := sfx.excludedTags[key]; ok {
-				continue
-			}
-
-			if len(parts) == 1 {
-				dims[key] = ""
-			} else {
-				dims[key] = parts[1]
-			}
-		}
 		// Copy common dimensions in
 		for k, v := range sfx.commonDimensions {
 			dims[k] = v
 		}
+		// And hostname
+		dims[sfx.hostnameTag] = sfx.hostname
+
+		for k, v := range sample.Tags {
+			if k == dogstatsd.EventIdentifierKey {
+				// Don't copy this tag
+				continue
+			}
+			dims[k] = v
+		}
+
+		for k := range sfx.excludedTags {
+			delete(dims, k)
+		}
+		name := sample.Name
+		if len(name) > EventNameMaxLength {
+			name = name[0:EventNameMaxLength]
+		}
+		message := sample.Message
+		if len(message) > EventDescriptionMaxLength {
+			message = message[0:EventDescriptionMaxLength]
+		}
+		// Datadog requires some weird chars to do markdown… SignalFx does not so
+		// we'll chop those out
+		// https://docs.datadoghq.com/graphing/event_stream/#markdown-events
+		message = strings.Replace(message, "%%% \n", "", 1)
+		message = strings.Replace(message, "\n %%%", "", 1)
+		// Sometimes there are leading and trailing spaces
+		message = strings.TrimSpace(message)
 
 		ev := event.Event{
-			EventType:  udpEvent.Title,
+			EventType:  name,
 			Category:   event.USERDEFINED,
 			Dimensions: dims,
-			Timestamp:  time.Unix(udpEvent.Timestamp, 0),
+			Timestamp:  time.Unix(sample.Timestamp, 0),
+			Properties: map[string]interface{}{
+				"description": message,
+			},
 		}
 		// TODO: Split events out the same way as points
 		sfx.defaultClient.AddEvents(ctx, []*event.Event{&ev})

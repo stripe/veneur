@@ -204,8 +204,8 @@ func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.Int
 	return nil
 }
 
-// FlushEventsChecks flushes Events and Checks
-func (k *KafkaMetricSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
+// FlushOtherSamples flushes non-metric, non-span samples
+func (k *KafkaMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
 	// TODO
 }
 
