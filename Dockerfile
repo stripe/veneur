@@ -1,10 +1,22 @@
-FROM golang:1.10.0
+FROM golang:1.10
 MAINTAINER The Stripe Observability Team <support@stripe.com>
 
 RUN mkdir -p /build
 ENV GOPATH=/go
 RUN apt-get update
 RUN apt-get install -y zip
+
+
+RUN mkdir /gosrc
+WORKDIR /gosrc
+RUN git clone https://go.googlesource.com/go
+WORKDIR /gosrc/go/src
+RUN ./all.bash
+RUN mv /gosrc/go/bin/go /usr/local/go/bin/go
+RUN go version
+
+
+
 RUN go get -u -v github.com/ChimeraCoder/gojson/gojson
 RUN go get -u -v github.com/golang/protobuf/protoc-gen-go
 RUN go get -d -v github.com/gogo/protobuf/protoc-gen-gofast
