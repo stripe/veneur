@@ -51,6 +51,7 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client) error {
 		err := client.AddDatapoints(ctx, points)
 		if err != nil {
 			span.Error(err)
+			span.Add(ssf.Count("flush.error_total", 1, map[string]string{"cause": "io", "sink": "signalfx"}))
 			errorCh <- err
 		}
 		wg.Done()
