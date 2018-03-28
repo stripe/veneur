@@ -41,7 +41,7 @@ func (c *collection) addPoint(key string, point *datapoint.Datapoint) {
 	c.points = append(c.points, point)
 }
 
-func (c *collection) submit(ctx context.Context, cl *trace.Client) error {
+func (c *collection) submit(ctx context.Context, cl *trace.Client, maxPerBody int) error {
 	wg := &sync.WaitGroup{}
 	errorCh := make(chan error, len(c.pointsByKey)+1)
 
@@ -60,8 +60,16 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client) error {
 	wg.Add(1)
 	go submitOne(c.sink.defaultClient, c.points)
 	for key, points := range c.pointsByKey {
-		wg.Add(1)
-		go submitOne(c.sink.client(key), points)
+		workers := ((len(points) - 1) / maxPerBody) + 1
+		chunkSize := ((len(points) - 1) / workers) + 1
+		for i := 0; i < workers; i++ {
+			chunk := points[i*chunkSize:]
+			if i < workers-1 {
+				chunk = chunk[:chunkSize]
+			}
+			wg.Add(1)
+			go submitOne(c.sink.client(key), chunk)
+		}
 	}
 	wg.Wait()
 	close(errorCh)
@@ -87,6 +95,7 @@ type SignalFxSink struct {
 	log               *logrus.Logger
 	traceClient       *trace.Client
 	excludedTags      map[string]struct{}
+	flushMaxPerBody   int
 }
 
 // A DPClient is a client that can be used to submit signalfx data
@@ -104,7 +113,7 @@ func NewClient(endpoint, apiKey string) DPClient {
 }
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient) (*SignalFxSink, error) {
+func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, flushMaxPerBody int) (*SignalFxSink, error) {
 	return &SignalFxSink{
 		defaultClient:     client,
 		clientsByTagValue: perTagClients,
@@ -113,6 +122,7 @@ func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[s
 		commonDimensions:  commonDimensions,
 		log:               log,
 		varyBy:            varyBy,
+		flushMaxPerBody:   flushMaxPerBody,
 	}, nil
 }
 
@@ -197,7 +207,7 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 		coll.addPoint(metricKey, point)
 		numPoints++
 	}
-	err := coll.submit(ctx, sfx.traceClient)
+	err := coll.submit(ctx, sfx.traceClient, sfx.flushMaxPerBody)
 	if err != nil {
 		span.Error(err)
 	}

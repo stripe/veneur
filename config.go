@@ -53,6 +53,7 @@ type Config struct {
 	SentryDsn                    string    `yaml:"sentry_dsn"`
 	SignalfxAPIKey               string    `yaml:"signalfx_api_key"`
 	SignalfxEndpointBase         string    `yaml:"signalfx_endpoint_base"`
+	SignalfxFlushMaxPerBody      int       `yaml:"signalfx_flush_max_per_body"`
 	SignalfxHostnameTag          string    `yaml:"signalfx_hostname_tag"`
 	SignalfxPerTagAPIKeys        []struct {
 		APIKey string `yaml:"api_key"`

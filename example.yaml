@@ -210,6 +210,10 @@ signalfx_endpoint_base: "https://ingest.signalfx.com"
 # The tag we'll add to each metric that contains the hostname we came from
 signalfx_hostname_tag: "host"
 
+# How many metrics to include in the body of each POST to SignalFx. Veneur
+# will post multiple times in parallel if the limit is exceeded.
+signalfx_flush_max_per_body: 25000
+
 # The tag that we'll (optionally) use to look up values in
 # signalfx_per_tag_api_keys. If this is empty, the SignalFX sink uses
 # only signalfx_api_key.
