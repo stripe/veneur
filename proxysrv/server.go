@@ -1,4 +1,4 @@
-// Package proxysrv proxies metrics over gRPC to global Veneur's using
+// Package proxysrv proxies metrics over gRPC to global veneurs using
 // consistent hashing
 //
 // The Server provided accepts a hash ring of destinations, and then listens
@@ -77,7 +77,7 @@ func New(destinations *consistent.Consistent, opts ...Option) (*Server, error) {
 }
 
 // Serve starts a gRPC listener on the specified address and blocks while
-// listening for requests. If listening is iterrupted by some means other than
+// listening for requests. If listening is interrupted by some means other than
 // Stop or GracefulStop being called, it returns a non-nil error.
 func (s *Server) Serve(addr string) (err error) {
 	ln, err := net.Listen("tcp", addr)
@@ -277,7 +277,7 @@ func strInSlice(s string, slice []string) bool {
 	return false
 }
 
-// forwardError is a common error type used in sendMetrics
+// forwardError is a common error type used in sendMetrics.
 type forwardError struct {
 	err        error
 	cause      string
@@ -285,13 +285,13 @@ type forwardError struct {
 	numMetrics int
 }
 
-// Error returns a summary of the data in a forwardError
+// Error returns a summary of the data in a forwardError.
 func (e forwardError) Error() string {
 	return fmt.Sprintf("%s (cause=%s, metrics=%d): %v", e.msg, e.cause,
 		e.numMetrics, e.err)
 }
 
-// reportMetrics adds various metrics to an input span
+// reportMetrics adds various metrics to an input span.
 func (e forwardError) reportMetrics(span *trace.Span) {
 	tags := map[string]string{
 		"cause":    e.cause,
@@ -303,10 +303,10 @@ func (e forwardError) reportMetrics(span *trace.Span) {
 	)
 }
 
-// forwardErrors wraps a slice of errors and implements the "error" type
+// forwardErrors wraps a slice of errors and implements the "error" type.
 type forwardErrors []forwardError
 
-// Error prints the first 10 errors
+// Error prints the first 10 errors.
 func (errs forwardErrors) Error() string {
 	// Only print 10 errors
 	strsLen := len(errs)

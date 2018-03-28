@@ -1023,8 +1023,7 @@ func (s *Server) GRPCStop() {
 	case <-done:
 		return
 	case <-time.After(10 * time.Second):
-		log.Info("Force-stopping the GRPC server after waiting for a " +
-			"a graceful shutdown")
+		log.Info("Force-stopping the gRPC server after waiting for a graceful shutdown")
 		s.grpcServer.Stop()
 	}
 }

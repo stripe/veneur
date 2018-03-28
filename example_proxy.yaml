@@ -21,7 +21,7 @@ forward_address: "http://veneur.example.com"
 consul_forward_service_name: "forwardServiceName"
 
 ### gRPC forwarding
-# Use a static host for forwarding (without a prefix)
+# Use a static host for forwarding (without a protocol).
 grpc_forward_address: "veneur-grpc.example.com:8128"
 # Or use a consul service for consistent forwarding.
 consul_forward_grpc_service_name: "grpcForwardServiceName"

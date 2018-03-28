@@ -23,7 +23,7 @@ func newClientConnMap(opts ...grpc.DialOption) *clientConnMap {
 }
 
 // Return a gRPC connection for the input destination.  The ok value indicates
-// if the key was found in the map
+// if the key was found in the map.
 func (m *clientConnMap) Get(dest string) (conn *grpc.ClientConn, ok bool) {
 	m.RLock()
 	conn, ok = m.conns[dest]
@@ -68,7 +68,7 @@ func (m *clientConnMap) Delete(dest string) {
 	delete(m.conns, dest)
 }
 
-// Keys returns all of the destinations in the map
+// Keys returns all of the destinations in the map.
 func (m *clientConnMap) Keys() []string {
 	m.RLock()
 	defer m.RUnlock()
@@ -81,7 +81,7 @@ func (m *clientConnMap) Keys() []string {
 	return res
 }
 
-// Clear removes all keys from the map and closes each associated connection
+// Clear removes all keys from the map and closes each associated connection.
 func (m *clientConnMap) Clear() {
 	m.Lock()
 	defer m.Unlock()
