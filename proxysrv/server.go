@@ -98,7 +98,7 @@ func (s *Server) Serve(addr string) (err error) {
 }
 
 // Stop stops the gRPC server (if it was started) and closes all gRPC client
-// connections
+// connections.
 func (s *Server) Stop() {
 	s.Server.Stop()
 	s.conns.Clear()
@@ -160,10 +160,7 @@ func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 		defer cancel()
 	}
 	metrics := mlist.Metrics
-	span.Add(ssf.Count("import.metrics_total", float32(len(metrics)), map[string]string{
-		"veneurglobalonly": "",
-		"protocol":         "grpc",
-	}))
+	span.Add(ssf.Count("import.metrics_total", float32(len(metrics)), globalProtocolTags))
 
 	var errs forwardErrors
 
@@ -208,7 +205,6 @@ func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 		errs = append(errs, err)
 	}
 
-	protocolTags := map[string]string{"protocol": "grpc"}
 	span.Add(ssf.RandomlySample(0.1,
 		ssf.Timing("proxy.duration_ns", time.Since(span.Start), time.Nanosecond,
 			protocolTags),
@@ -330,4 +326,13 @@ func (errs forwardErrors) Error() string {
 	}
 
 	return str
+}
+
+// protocolTags and globalProtocolTags can be used as arguments to various
+// ssf metric types.  These are declared at the package-level  here to avoid
+// repeated operation allocations per request.
+var protocolTags = map[string]string{"protocol": "grpc"}
+var globalProtocolTags = map[string]string{
+	"veneurglobalonly": "",
+	"protocol":         "grpc",
 }

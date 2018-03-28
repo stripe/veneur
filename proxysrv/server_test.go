@@ -155,7 +155,8 @@ func TestSetDestinations(t *testing.T) {
 }
 
 func BenchmarkProxyServerSendMetrics(b *testing.B) {
-	rand.Seed(time.Now().Unix())
+	// Use a consistent seed for predictably comparable results
+	rand.Seed(1522191080)
 
 	ring := consistent.New()
 	servers := make([]*forwardtest.Server, 5)
