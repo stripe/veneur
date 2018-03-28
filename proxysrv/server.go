@@ -91,7 +91,10 @@ func (s *Server) Serve(addr string) (err error) {
 		}
 	}()
 
-	return s.Server.Serve(ln)
+	// Start the server and block.  This explicitly sets err so that the
+	// deferred listener close can set an error if this didn't exit with one.
+	err = s.Server.Serve(ln)
+	return err
 }
 
 // Stop stops the gRPC server (if it was started) and closes all gRPC client
