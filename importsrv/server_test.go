@@ -18,8 +18,8 @@ type testMetricIngester struct {
 	metrics []*metricpb.Metric
 }
 
-func (mi *testMetricIngester) IngestMetric(m *metricpb.Metric) {
-	mi.metrics = append(mi.metrics, m)
+func (mi *testMetricIngester) IngestMetrics(ms []*metricpb.Metric) {
+	mi.metrics = append(mi.metrics, ms...)
 }
 
 func (mi *testMetricIngester) clear() {
@@ -81,13 +81,13 @@ func TestOptions_WithTraceClient(t *testing.T) {
 }
 
 type noopChannelMetricIngester struct {
-	in   chan *metricpb.Metric
+	in   chan []*metricpb.Metric
 	quit chan struct{}
 }
 
 func newNoopChannelMetricIngester() *noopChannelMetricIngester {
 	return &noopChannelMetricIngester{
-		in:   make(chan *metricpb.Metric),
+		in:   make(chan []*metricpb.Metric),
 		quit: make(chan struct{}),
 	}
 }
@@ -108,8 +108,8 @@ func (mi *noopChannelMetricIngester) stop() {
 	mi.quit <- struct{}{}
 }
 
-func (mi *noopChannelMetricIngester) IngestMetric(m *metricpb.Metric) {
-	mi.in <- m
+func (mi *noopChannelMetricIngester) IngestMetrics(ms []*metricpb.Metric) {
+	mi.in <- ms
 }
 
 func BenchmarkImportServerSendMetrics(b *testing.B) {

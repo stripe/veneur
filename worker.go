@@ -28,7 +28,7 @@ type Worker struct {
 	id               int
 	PacketChan       chan samplers.UDPMetric
 	ImportChan       chan []samplers.JSONMetric
-	ImportMetricChan chan *metricpb.Metric
+	ImportMetricChan chan []*metricpb.Metric
 	QuitChan         chan struct{}
 	processed        int64
 	imported         int64
@@ -43,8 +43,8 @@ func (w *Worker) IngestUDP(metric samplers.UDPMetric) {
 	w.PacketChan <- metric
 }
 
-func (w *Worker) IngestMetric(m *metricpb.Metric) {
-	w.ImportMetricChan <- m
+func (w *Worker) IngestMetrics(ms []*metricpb.Metric) {
+	w.ImportMetricChan <- ms
 }
 
 // WorkerMetrics is just a plain struct bundling together the flushed contents of a worker
@@ -153,7 +153,7 @@ func NewWorker(id int, cl *trace.Client, logger *logrus.Logger) *Worker {
 		id:               id,
 		PacketChan:       make(chan samplers.UDPMetric),
 		ImportChan:       make(chan []samplers.JSONMetric),
-		ImportMetricChan: make(chan *metricpb.Metric),
+		ImportMetricChan: make(chan []*metricpb.Metric),
 		QuitChan:         make(chan struct{}),
 		processed:        0,
 		imported:         0,
@@ -175,8 +175,10 @@ func (w *Worker) Work() {
 			for _, j := range m {
 				w.ImportMetric(j)
 			}
-		case m := <-w.ImportMetricChan:
-			w.ImportMetricGRPC(m)
+		case ms := <-w.ImportMetricChan:
+			for _, m := range ms {
+				w.ImportMetricGRPC(m)
+			}
 		case <-w.QuitChan:
 			// We have been asked to stop.
 			log.WithField("worker", w.id).Error("Stopping")

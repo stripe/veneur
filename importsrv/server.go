@@ -23,7 +23,7 @@ import (
 
 // MetricIngester reads metrics from protobufs
 type MetricIngester interface {
-	IngestMetric(*metricpb.Metric)
+	IngestMetrics([]*metricpb.Metric)
 }
 
 // Server wraps a gRPC server and implements the forwardrpc.Forward service.
@@ -32,8 +32,9 @@ type MetricIngester interface {
 // should always be routed to the same MetricIngester.
 type Server struct {
 	*grpc.Server
-	metricOuts []MetricIngester
-	opts       *options
+	metricOuts   []MetricIngester
+	opts         *options
+	internalTags map[string]string
 }
 
 type options struct {
@@ -59,6 +60,10 @@ func New(metricOuts []MetricIngester, opts ...Option) *Server {
 
 	if res.opts.traceClient == nil {
 		res.opts.traceClient = trace.DefaultClient
+	}
+
+	res.internalTags = map[string]string{
+		"protocol": "grpc",
 	}
 
 	forwardrpc.RegisterForwardServer(res.Server, res)
@@ -87,7 +92,9 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 	defer span.ClientFinish(s.opts.traceClient)
 
 	h := fnv.New32a()
+	dests := make([][]*metricpb.Metric, len(s.metricOuts))
 
+	// group metrics by their destination
 	for _, m := range mlist.Metrics {
 		h.Reset()
 
@@ -99,15 +106,22 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 			continue
 		}
 
-		workerIdx := h.Sum32() % uint32(len(s.metricOuts))
-		s.metricOuts[workerIdx].IngestMetric(m)
+		workerIdx := h.Sum32() % uint32(len(dests))
+		dests[workerIdx] = append(dests[workerIdx], m)
+	}
+
+	// send each set of metrics to its destination.  Since this is typically
+	// implemented with channels, batching the metrics together avoids
+	// repeated channel send operations
+	for i, ms := range dests {
+		if len(ms) > 0 {
+			s.metricOuts[i].IngestMetrics(ms)
+		}
 	}
 
 	span.Add(
-		ssf.Timing("import.response_duration_ns", time.Since(span.Start),
-			time.Nanosecond, map[string]string{"part": "merge"}),
-		ssf.Count("import.metrics_total", float32(len(mlist.Metrics)),
-			map[string]string{"protocol": "grpc"}),
+		ssf.Timing("import.response_duration_ns", time.Since(span.Start), time.Nanosecond, s.internalTags),
+		ssf.Count("import.metrics_total", float32(len(mlist.Metrics)), s.internalTags),
 	)
 
 	return &empty.Empty{}, nil
