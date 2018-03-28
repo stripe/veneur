@@ -16,8 +16,8 @@ type Config struct {
 	FlushFile                    string    `yaml:"flush_file"`
 	FlushMaxPerBody              int       `yaml:"flush_max_per_body"`
 	ForwardAddress               string    `yaml:"forward_address"`
-	ForwardUseGrpc               bool      `yaml:"forward_use_grpc"`
 	GrpcAddress                  string    `yaml:"grpc_address"`
+	GrpcForwardAddress           string    `yaml:"grpc_forward_address"`
 	Hostname                     string    `yaml:"hostname"`
 	HTTPAddress                  string    `yaml:"http_address"`
 	IndicatorSpanTimerName       string    `yaml:"indicator_span_timer_name"`

@@ -1248,3 +1248,41 @@ func TestGenerateExcludeTags(t *testing.T) {
 		})
 	}
 }
+
+// Test that the various forwarding configuration parameters are properly
+// exclusive when initializing a server.
+func TestForwardConfigMultiple(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		httpForward bool
+		grpcForward bool
+		hasErr      bool
+	}{
+		{httpForward: false, grpcForward: false, hasErr: false},
+		{httpForward: true, grpcForward: false, hasErr: false},
+		{httpForward: false, grpcForward: true, hasErr: false},
+		{httpForward: true, grpcForward: true, hasErr: true},
+	}
+
+	for _, tc := range testCases {
+		name := fmt.Sprintf("HTTP-enabled=%t -- gRPC-enabled=%t", tc.httpForward, tc.grpcForward)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			conf := generateConfig("")
+			if tc.httpForward {
+				conf.ForwardAddress = "http://test.com"
+			}
+			if tc.grpcForward {
+				conf.GrpcForwardAddress = "test:1"
+			}
+
+			_, err := NewFromConfig(logrus.New(), conf)
+			if err == nil && tc.hasErr {
+				t.Errorf("Creating a Server should have failed, but didn't")
+			} else if err != nil && !tc.hasErr {
+				t.Errorf("Creating a Server failed when it shouldn't have: %v", err)
+			}
+		})
+	}
+}

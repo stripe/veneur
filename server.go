@@ -281,7 +281,17 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.traceMaxLengthBytes = conf.TraceMaxLengthBytes
 	ret.RcvbufBytes = conf.ReadBufferSizeBytes
 	ret.HTTPAddr = conf.HTTPAddress
-	ret.ForwardAddr = conf.ForwardAddress
+
+	if conf.ForwardAddress != "" && conf.GrpcForwardAddress != "" {
+		err = errors.New("Both HTTP and gRPC forwarding is enabled. Make sure that only one is configured.")
+		logger.WithError(err).Error("Incorrect forwarding configuration")
+		return ret, err
+	} else if conf.ForwardAddress != "" { // HTTP forwarding is enabled
+		ret.ForwardAddr = conf.ForwardAddress
+	} else if conf.GrpcForwardAddress != "" { // gRPC forwarding is enabled
+		ret.ForwardAddr = conf.GrpcForwardAddress
+		ret.forwardUseGRPC = true
+	}
 
 	if conf.TLSKey != "" {
 		if conf.TLSCertificate == "" {
@@ -481,8 +491,6 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	conf.LightstepAccessToken = REDACTED
 	conf.AwsAccessKeyID = REDACTED
 	conf.AwsSecretAccessKey = REDACTED
-
-	ret.forwardUseGRPC = conf.ForwardUseGrpc
 
 	// Setup the grpc server if it was configured
 	ret.grpcListenAddress = conf.GrpcAddress

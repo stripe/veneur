@@ -34,15 +34,15 @@ tls_authority_certificate: ""
 
 # == BEHAVIOR ==
 
-# Use a static host for forwarding
+# Use a static host for forwarding over HTTP.  This option is exclusive with
+# "grpc_forward_address"
 #forward_address: "http://veneur.example.com"
-# Do not add a prefix when setting the forward address for gRPC
-#forward_address: "veneur.example.com"
 forward_address: ""
 
-# Whether or not to forward to an upstream Veneur over gRPC.  If this is false
-# or unset, HTTP will be used.
-forward_use_grpc: false
+# Forward to a static host over gRPC. Do not include a protocol in this address.
+# This option is exclusive with "forward_address".
+# grpc_forward_address: "veneur.example.com:8128"
+grpc_forward_address: ""
 
 # How often to flush. When flushing to Datadog, changing this
 # value when you've already emitted metrics will break your time
