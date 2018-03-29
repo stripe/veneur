@@ -414,7 +414,7 @@ func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
 			// this endpoint is not documented to take an array... but it does
 			// another curious constraint of this endpoint is that it does not
 			// support "Content-Encoding: deflate"
-			err := vhttp.PostHelper(span.Attach(ctx), p.HTTPClient, p.TraceClient, http.MethodPost, fmt.Sprintf("%s/spans", dest), batch, "flush_traces", false, log)
+			err := vhttp.PostHelper(span.Attach(ctx), p.HTTPClient, p.TraceClient, http.MethodPost, fmt.Sprintf("%s/spans", dest), batch, "flush_traces", false, nil, log)
 			if err == nil {
 				log.WithFields(logrus.Fields{
 					"traces":      len(batch),
@@ -489,7 +489,7 @@ func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination stri
 	}
 
 	endpoint := fmt.Sprintf("%s/import", destination)
-	err := vhttp.PostHelper(ctx, p.HTTPClient, p.TraceClient, http.MethodPost, endpoint, batch, "forward", true, log)
+	err := vhttp.PostHelper(ctx, p.HTTPClient, p.TraceClient, http.MethodPost, endpoint, batch, "forward", true, nil, log)
 	if err == nil {
 		log.WithField("metrics", batchSize).Debug("Completed forward to Veneur")
 	} else {

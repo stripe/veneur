@@ -358,7 +358,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 	// the error has already been logged (if there was one), so we only care
 	// about the success case
 	endpoint := fmt.Sprintf("%s/import", s.ForwardAddr)
-	if vhttp.PostHelper(span.Attach(ctx), s.HTTPClient, s.TraceClient, http.MethodPost, endpoint, jsonMetrics, "forward", true, log) == nil {
+	if vhttp.PostHelper(span.Attach(ctx), s.HTTPClient, s.TraceClient, http.MethodPost, endpoint, jsonMetrics, "forward", true, nil, log) == nil {
 		log.WithFields(logrus.Fields{
 			"metrics":     len(jsonMetrics),
 			"endpoint":    endpoint,
