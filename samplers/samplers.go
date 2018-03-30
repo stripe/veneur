@@ -21,6 +21,8 @@ const (
 	CounterMetric MetricType = iota
 	// GaugeMetric is a gauge
 	GaugeMetric
+	// StatusMetric is a status (synonymous with a service check)
+	StatusMetric
 )
 
 // RouteInformation is a key-only map indicating sink names that are
@@ -251,6 +253,72 @@ func (g *Gauge) Combine(other []byte) error {
 // NewGauge genearaaaa who am I kidding just getting rid of the warning.
 func NewGauge(Name string, Tags []string) *Gauge {
 	return &Gauge{Name: Name, Tags: Tags}
+}
+
+// StatusCheck retains whatever the last value was.
+type StatusCheck struct {
+	Name  string
+	Tags  []string
+	value float64
+}
+
+// Sample takes on whatever value is passed in as a sample.
+func (g *StatusCheck) Sample(sample float64, sampleRate float32) {
+	g.value = sample
+}
+
+// Flush generates an InterMetric from the current state of this status check.
+func (g *StatusCheck) Flush() []InterMetric {
+	tags := make([]string, len(g.Tags))
+	copy(tags, g.Tags)
+	return []InterMetric{{
+		Name:      g.Name,
+		Timestamp: time.Now().Unix(),
+		Value:     float64(g.value),
+		Tags:      tags,
+		Type:      StatusMetric,
+		Sinks:     routeInfo(tags),
+	}}
+}
+
+// Export converts a StatusCheck into a JSONMetric.
+func (g *StatusCheck) Export() (JSONMetric, error) {
+	var buf bytes.Buffer
+
+	err := binary.Write(&buf, binary.LittleEndian, g.value)
+	if err != nil {
+		return JSONMetric{}, err
+	}
+
+	return JSONMetric{
+		MetricKey: MetricKey{
+			Name:       g.Name,
+			Type:       "status",
+			JoinedTags: strings.Join(g.Tags, ","),
+		},
+		Tags:  g.Tags,
+		Value: buf.Bytes(),
+	}, nil
+}
+
+// Combine is pretty naïve for StatusChecks, as it just overwrites the value.
+func (g *StatusCheck) Combine(other []byte) error {
+	var otherValue float64
+	buf := bytes.NewReader(other)
+	err := binary.Read(buf, binary.LittleEndian, &otherValue)
+
+	if err != nil {
+		return err
+	}
+
+	g.value = otherValue
+
+	return nil
+}
+
+// NewStatusCheck genearaaaa who am I kidding just getting rid of the warning.
+func NewStatusCheck(Name string, Tags []string) *StatusCheck {
+	return &StatusCheck{Name: Name, Tags: Tags}
 }
 
 // Set is a list of unique values seen.

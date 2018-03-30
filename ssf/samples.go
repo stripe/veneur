@@ -170,3 +170,15 @@ func Timing(name string, value time.Duration, resolution time.Duration, tags map
 	time := float32(value / resolution)
 	return Histogram(name, time, tags, append(opts, TimeUnit(resolution))...)
 }
+
+// Status returns an SSFSample capturing the reported state
+// of a service
+func Status(name string, state SSFSample_Status, tags map[string]string, opts ...SampleOption) *SSFSample {
+	return create(&SSFSample{
+		Metric:     SSFSample_STATUS,
+		Name:       name,
+		Status:     state,
+		Tags:       tags,
+		SampleRate: 1.0,
+	}, opts)
+}

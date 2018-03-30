@@ -88,6 +88,7 @@ type SignalFxSink struct {
 	log               *logrus.Logger
 	traceClient       *trace.Client
 	excludedTags      map[string]struct{}
+	derivedMetrics    samplers.DerivedMetricsProcessor
 }
 
 // A DPClient is a client that can be used to submit signalfx data
@@ -106,7 +107,7 @@ func NewClient(endpoint, apiKey string, client http.Client) DPClient {
 }
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient) (*SignalFxSink, error) {
+func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, derivedMetrics samplers.DerivedMetricsProcessor) (*SignalFxSink, error) {
 	return &SignalFxSink{
 		defaultClient:     client,
 		clientsByTagValue: perTagClients,
@@ -115,6 +116,7 @@ func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[s
 		commonDimensions:  commonDimensions,
 		log:               log,
 		varyBy:            varyBy,
+		derivedMetrics:    derivedMetrics,
 	}, nil
 }
 
@@ -188,13 +190,17 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 		for k := range sfx.excludedTags {
 			delete(dims, k)
 		}
+		delete(dims, "veneursinkonly")
 
 		var point *datapoint.Datapoint
-		if metric.Type == samplers.GaugeMetric {
+		switch metric.Type {
+		case samplers.GaugeMetric:
 			point = sfxclient.GaugeF(metric.Name, dims, metric.Value)
-		} else if metric.Type == samplers.CounterMetric {
+		case samplers.CounterMetric:
 			// TODO I am not certain if this should be a Counter or a Cumulative
 			point = sfxclient.Counter(metric.Name, dims, int64(metric.Value))
+		case samplers.StatusMetric:
+			point = sfxclient.GaugeF(metric.Name, dims, metric.Value)
 		}
 		coll.addPoint(metricKey, point)
 		numPoints++
@@ -211,69 +217,43 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	return err
 }
 
-// FlushEventsChecks sends events to SignalFx. It does not support checks.
+var successSpanTags = map[string]string{"sink": "signalfx", "results": "success"}
+var failureSpanTags = map[string]string{"sink": "signalfx", "results": "failure"}
+
+// FlushOtherSamples sends events to SignalFx. Event type samples will be serialized as SFX
+// Events directly. Service check type samples will be enqueued as a gauge metric during
+// metric sink flushing.
 func (sfx *SignalFxSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sfx.traceClient)
-
+	var countFailed = 0
+	var countSuccess = 0
 	for _, sample := range samples {
-
-		if _, ok := sample.Tags[dogstatsd.EventIdentifierKey]; !ok {
-			// This isn't an event, just continue
+		switch ddOtherSampleKind(sample.Tags) {
+		case ddSampleEvent:
+			sfx.reportEvent(ctx, &sample)
+		case ddSampleServiceCheck:
+			err := sfx.reportServiceCheck(&sample)
+			if err != nil {
+				countFailed++
+			} else {
+				countSuccess++
+			}
+			// report svchk
+		default:
+			// currently only supports a service check and an event; other types are discarded
 			continue
 		}
-
-		dims := map[string]string{}
-
-		// Copy common dimensions in
-		for k, v := range sfx.commonDimensions {
-			dims[k] = v
-		}
-		// And hostname
-		dims[sfx.hostnameTag] = sfx.hostname
-
-		for k, v := range sample.Tags {
-			if k == dogstatsd.EventIdentifierKey {
-				// Don't copy this tag
-				continue
-			}
-			dims[k] = v
-		}
-
-		for k := range sfx.excludedTags {
-			delete(dims, k)
-		}
-		name := sample.Name
-		if len(name) > EventNameMaxLength {
-			name = name[0:EventNameMaxLength]
-		}
-		message := sample.Message
-		if len(message) > EventDescriptionMaxLength {
-			message = message[0:EventDescriptionMaxLength]
-		}
-		// Datadog requires some weird chars to do markdown… SignalFx does not so
-		// we'll chop those out
-		// https://docs.datadoghq.com/graphing/event_stream/#markdown-events
-		message = strings.Replace(message, "%%% \n", "", 1)
-		message = strings.Replace(message, "\n %%%", "", 1)
-		// Sometimes there are leading and trailing spaces
-		message = strings.TrimSpace(message)
-
-		ev := event.Event{
-			EventType:  name,
-			Category:   event.USERDEFINED,
-			Dimensions: dims,
-			Timestamp:  time.Unix(sample.Timestamp, 0),
-			Properties: map[string]interface{}{
-				"description": message,
-			},
-		}
-		// TODO: Split events out the same way as points
-		sfx.defaultClient.AddEvents(ctx, []*event.Event{&ev})
+	}
+	if countSuccess > 0 {
+		span.Add(ssf.Count(sinks.ServiceCheckConversionCount, float32(countSuccess), successSpanTags))
+	}
+	if countFailed > 0 {
+		span.Add(ssf.Count(sinks.ServiceCheckConversionCount, float32(countFailed), failureSpanTags))
 	}
 }
 
-// SetTagExcludes sets the excluded tag names. Any tags with the
+// SetExcludedTags sets the excluded tag names. Any tags with the
 // provided key (name) will be excluded.
 func (sfx *SignalFxSink) SetExcludedTags(excludes []string) {
 
@@ -282,4 +262,90 @@ func (sfx *SignalFxSink) SetExcludedTags(excludes []string) {
 		tagsSet[tag] = struct{}{}
 	}
 	sfx.excludedTags = tagsSet
+}
+
+type ddSampleKind int
+
+const (
+	ddSampleUnknown ddSampleKind = iota
+	ddSampleEvent
+	ddSampleServiceCheck
+)
+
+func ddOtherSampleKind(tags map[string]string) ddSampleKind {
+	if _, ok := tags[dogstatsd.CheckIdentifierKey]; ok {
+		return ddSampleServiceCheck
+	}
+	if _, ok := tags[dogstatsd.EventIdentifierKey]; ok {
+		return ddSampleEvent
+	}
+	return ddSampleUnknown
+}
+
+func (sfx *SignalFxSink) reportServiceCheck(sample *ssf.SSFSample) error {
+	name := sample.Name
+	tags := map[string]string{}
+	for k, v := range sample.Tags {
+		if k != dogstatsd.CheckIdentifierKey {
+			tags[k] = v
+		}
+	}
+	tags[sfx.hostnameTag] = sfx.hostname
+	tags["veneursinkonly"] = sfx.Name()
+	for k, v := range sfx.commonDimensions {
+		tags[k] = v
+	}
+	statusCheckSample := ssf.Status(name, sample.Status, tags)
+	return sfx.derivedMetrics.SendSample(statusCheckSample)
+}
+
+func (sfx *SignalFxSink) reportEvent(ctx context.Context, sample *ssf.SSFSample) {
+	// Copy common dimensions in
+	dims := map[string]string{}
+	for k, v := range sfx.commonDimensions {
+		dims[k] = v
+	}
+	// And hostname
+	dims[sfx.hostnameTag] = sfx.hostname
+
+	for k, v := range sample.Tags {
+		if k == dogstatsd.EventIdentifierKey {
+			// Don't copy this tag
+			continue
+		}
+		dims[k] = v
+	}
+
+	for k := range sfx.excludedTags {
+		delete(dims, k)
+	}
+	name := sample.Name
+	if len(name) > EventNameMaxLength {
+		name = name[0:EventNameMaxLength]
+	}
+	message := sample.Message
+	if len(message) > EventDescriptionMaxLength {
+		message = message[0:EventDescriptionMaxLength]
+	}
+	// Datadog requires some weird chars to do markdown… SignalFx does not so
+	// we'll chop those out
+	// https://docs.datadoghq.com/graphing/event_stream/#markdown-events
+	message = strings.Replace(message, "%%% \n", "", 1)
+	message = strings.Replace(message, "\n %%%", "", 1)
+	// Sometimes there are leading and trailing spaces
+	message = strings.TrimSpace(message)
+
+	ev := event.Event{
+		EventType:  name,
+		Category:   event.USERDEFINED,
+		Dimensions: dims,
+		Timestamp:  time.Unix(sample.Timestamp, 0),
+		Properties: map[string]interface{}{
+			"description": message,
+		},
+	}
+
+	// TODO: Split events out the same way as points
+	// report evt
+	sfx.defaultClient.AddEvents(ctx, []*event.Event{&ev})
 }

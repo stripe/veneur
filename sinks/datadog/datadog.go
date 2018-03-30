@@ -138,6 +138,8 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 	return nil
 }
 
+// FlushOtherSamples serializes Events or Service Checks directly to datadog.
+// May make 2 external calls to the datadog client.
 func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
 
 	events := []DDEvent{}
