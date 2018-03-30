@@ -233,11 +233,11 @@ func TestTracerInjectExtractHeader(t *testing.T) {
 	assert.Equal(t, trace.Resource, ctx.Resource())
 }
 
-func TestTraceExtractHeaderEnvoy(t *testing.T) {
+func TestTraceExtractHeaderEnvoyLightstep(t *testing.T) {
 	tracer := Tracer{}
 	tm := textMapReaderWriter(map[string]string{
 		"x-request-id":      "12345",
-		"x-client-trace-id": "67890",
+		"x-ot-span-context": "67890",
 	})
 
 	c, _ := tracer.Extract(opentracing.TextMap, tm)
