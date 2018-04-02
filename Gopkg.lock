@@ -20,7 +20,7 @@
   branch = "master"
   name = "github.com/araddon/dateparse"
   packages = ["."]
-  revision = "1d3842569f46602b6885966f0b025c0a3d0d9442"
+  revision = "f58c961370c5e74008eb4147e8926e8c036393f9"
 
 [[projects]]
   name = "github.com/aws/aws-sdk-go"
