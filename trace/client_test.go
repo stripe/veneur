@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/stretchr/testify/assert"
@@ -189,7 +190,7 @@ func serveUNIX(t testing.TB, laddr *net.UnixAddr, onconnect func(conn net.Conn))
 	return
 }
 
-func TestFailingUDP(t *testing.T) {
+func TestUDPError(t *testing.T) {
 	// arbitrary
 	const BufferSize = 1087152
 
@@ -335,7 +336,7 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 		t.Logf("submitting span")
 		mustRecord(t, client, tr)
 
-		assert.NoError(t, <-sentCh, "at %q", name)
+		require.NoError(t, <-sentCh, "at %q", name)
 		t.Logf("Flushing")
 		go mustFlush(t, client)
 		// A span was successfully received by the server:
@@ -348,11 +349,33 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 		t.Logf("submitting span")
 		mustRecord(t, client, tr)
 
-		assert.NoError(t, <-sentCh)
-		t.Logf("Flushing")
-		go assert.Error(t, Flush(client))
-		// Since reconnections throw away the span, nothing
-		// was received.
+		require.NoError(t, <-sentCh)
+		t.Logf("Flushing to the closed socket")
+		flushErr := make(chan error)
+		// Just keep trying until we get a flush kicked off
+	FlushRetries:
+		for {
+			err := FlushAsync(client, flushErr)
+			switch err {
+			case ErrWouldBlock:
+				// Just retry below
+			case nil:
+				// Attempt to retrieve the flush error
+				// - note that kicking off the flush
+				// can return an ErrWouldBlock again,
+				// so we have to be prepared to retry
+				// for that too:
+				err = <-flushErr
+				if err != ErrWouldBlock {
+					require.Error(t, err, "Expected an error flushing on the broken socket")
+					break FlushRetries
+				}
+			default:
+				t.Fatalf("Unexpected error kicking off the flush: %v", err)
+			}
+			t.Log("Retrying flush on closed socket")
+			time.Sleep(1 * time.Millisecond)
+		}
 	}
 	{
 		name := "Testing-success2"
@@ -361,12 +384,17 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 		t.Logf("submitting span")
 		mustRecord(t, client, tr)
 
-		assert.NoError(t, <-sentCh, "at %q", name)
+		require.NoError(t, <-sentCh, "at %q", name)
 
 		t.Logf("Flushing")
 		go mustFlush(t, client)
-		// A span was successfully received by the server:
-		<-outPkg
+		// A span was successfully received by the server again:
+		select {
+		case <-outPkg:
+			return
+		case <-time.After(4 * time.Second):
+			t.Fatal("Timed out waiting for the succeeded packet after 4s")
+		}
 	}
 }
 

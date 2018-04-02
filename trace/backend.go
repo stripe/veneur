@@ -188,7 +188,7 @@ func (ds *streamBackend) connection(conn net.Conn) {
 	}
 }
 
-// SendSync on a DirectStream attempts to write the packet on the
+// SendSync on a streamBackend attempts to write the packet on the
 // connection to the upstream veneur directly. If it encounters a
 // protocol error, SendSync will return the original protocol error once
 // the connection is re-established.

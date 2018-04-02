@@ -34,14 +34,11 @@ func (s *Server) Flush(ctx context.Context) {
 		ssf.Gauge("worker.span_chan.total_capacity", float32(cap(s.SpanChan)), nil),
 	)
 
-	// TODO Why is this not in the worker the way the trace worker is set up?
-	events, checks := s.EventWorker.Flush()
-	span.Add(ssf.Count("worker.events_flushed_total", float32(len(events)), nil),
-		ssf.Count("worker.checks_flushed_total", float32(len(checks)), nil))
+	samples := s.EventWorker.Flush()
 
 	// TODO Concurrency
 	for _, sink := range s.metricSinks {
-		sink.FlushEventsChecks(span.Attach(ctx), events, checks)
+		sink.FlushOtherSamples(span.Attach(ctx), samples)
 	}
 
 	go s.flushTraces(span.Attach(ctx))
@@ -368,7 +365,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 	// the error has already been logged (if there was one), so we only care
 	// about the success case
 	endpoint := fmt.Sprintf("%s/import", s.ForwardAddr)
-	if vhttp.PostHelper(span.Attach(ctx), s.HTTPClient, s.TraceClient, http.MethodPost, endpoint, jsonMetrics, "forward", true, log) == nil {
+	if vhttp.PostHelper(span.Attach(ctx), s.HTTPClient, s.TraceClient, http.MethodPost, endpoint, jsonMetrics, "forward", true, nil, log) == nil {
 		log.WithFields(logrus.Fields{
 			"metrics":     len(jsonMetrics),
 			"endpoint":    endpoint,
@@ -378,9 +375,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 }
 
 func (s *Server) flushTraces(ctx context.Context) {
-	for _, w := range s.SpanWorkers {
-		w.Flush()
-	}
+	s.SpanWorker.Flush()
 }
 
 // forwardGRPC forwards all input metrics to a downstream Veneur, over gRPC.

@@ -17,6 +17,12 @@
   version = "v1.15.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/araddon/dateparse"
+  packages = ["."]
+  revision = "1d3842569f46602b6885966f0b025c0a3d0d9442"
+
+[[projects]]
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -351,7 +357,7 @@
     "sfxclient",
     "timekeeper"
   ]
-  revision = "9903a08c245ee6c06a365af98dac468dc1ef519a"
+  revision = "8321403a729d6c8fa60a3dcf2c60bf20f71f6062"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -639,6 +645,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0c1921e73f4469264ef32366a6cf45f2a5e31ec63b66458ceb688a6b11a00330"
+  inputs-digest = "b2e9c95a39a85b5489eaf8394e5a3429430ab8e8d20b18ed3263a6587aa22d02"
   solver-name = "gps-cdcl"
   solver-version = 1

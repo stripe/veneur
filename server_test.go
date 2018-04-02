@@ -192,7 +192,7 @@ func (c *channelMetricSink) Flush(ctx context.Context, metrics []samplers.InterM
 	return nil
 }
 
-func (c *channelMetricSink) FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck) {
+func (c *channelMetricSink) FlushOtherSamples(ctx context.Context, events []ssf.SSFSample) {
 	return
 }
 
@@ -483,6 +483,7 @@ func readTestKeysCerts() (map[string]string, error) {
 func TestTCPConfig(t *testing.T) {
 	config := localConfig()
 	logger := logrus.New()
+	logger.Out = ioutil.Discard
 
 	config.StatsdListenAddresses = []string{"tcp://invalid:invalid"}
 	_, err := NewFromConfig(logger, config)

@@ -17,6 +17,7 @@ var defaultConfig = Config{
 	Interval:               "10s",
 	MetricMaxLength:        4096,
 	ReadBufferSizeBytes:    1048576 * 2, // 2 MiB
+	SpanChannelCapacity:    100,
 }
 
 // ReadProxyConfig unmarshals the proxy config file and slurps in its data.
@@ -176,6 +177,10 @@ func (c *Config) applyDefaults() {
 
 	if c.DatadogFlushMaxPerBody == 0 {
 		c.DatadogFlushMaxPerBody = defaultConfig.DatadogFlushMaxPerBody
+	}
+
+	if c.SpanChannelCapacity == 0 {
+		c.SpanChannelCapacity = defaultConfig.SpanChannelCapacity
 	}
 }
 

@@ -21,6 +21,7 @@ import (
 	"crypto/rand"
 
 	"github.com/DataDog/datadog-go/statsd"
+	"github.com/araddon/dateparse"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/ssf"
@@ -65,9 +66,78 @@ var (
 	// Tracing flags
 	traceID   = flag.Int64("trace_id", 0, "ID for the trace (top-level) span. Setting a trace ID activated tracing.")
 	parentID  = flag.Int64("parent_span_id", 0, "ID of the parent span.")
+	spanStart = flag.String("span_starttime", "", "Date/time to set for the start of the span. See https://github.com/araddon/dateparse#extended-example for formatting.")
+	spanEnd   = flag.String("span_endtime", "", "Date/time to set for the end of the span. Format is same as -span_starttime.")
 	service   = flag.String("span_service", "veneur-emit", "Service name to associate with the span.")
 	indicator = flag.Bool("indicator", false, "Mark the reported span as an indicator span")
 )
+
+type EmitMode uint
+
+const (
+	MetricMode EmitMode = 1 << iota
+	EventMode
+	ServiceCheckMode
+	AllModes = MetricMode | EventMode | ServiceCheckMode
+)
+
+func (m EmitMode) String() string {
+	switch m {
+	case MetricMode:
+		return "metric"
+	case EventMode:
+		return "event"
+	case ServiceCheckMode:
+		return "sc"
+	case AllModes:
+		return "any"
+	}
+
+	return ""
+}
+
+var flagModeMappings = map[string]EmitMode{}
+
+func init() {
+	for mode, flags := range map[EmitMode][]string{
+		AllModes: []string{
+			"hostport",
+			"debug",
+			"command",
+		},
+		MetricMode: []string{
+			"name",
+			"gauge",
+			"timing",
+			"count",
+			"tag",
+			"ssf",
+		},
+		EventMode: []string{
+			"e_title",
+			"e_text",
+			"e_time",
+			"e_hostname",
+			"e_aggr_key",
+			"e_priority",
+			"e_source_type",
+			"e_alert_type",
+			"e_event_tags",
+		},
+		ServiceCheckMode: []string{
+			"sc_name",
+			"sc_status",
+			"sc_time",
+			"sc_hostname",
+			"sc_tags",
+			"sc_msg",
+		},
+	} {
+		for _, flag := range flags {
+			flagModeMappings[flag] = mode
+		}
+	}
+}
 
 const (
 	envTraceID = "VENEUR_EMIT_TRACE_ID"
@@ -92,6 +162,8 @@ func main() {
 	if *debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
+
+	validateFlagCombinations(passedFlags)
 
 	addr, netAddr, err := destination(hostport, *toSSF)
 	if err != nil {
@@ -345,8 +417,17 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 	tags := map[string]string{}
 	if tagStr != "" {
 		for _, elem := range strings.Split(tagStr, ",") {
+			if len(elem) == 0 {
+				// Gracefully ignore a trailing comma.
+				continue
+			}
+
 			tag := strings.Split(elem, ":")
-			tags[tag[0]] = tag[1]
+			if len(tag) == 2 {
+				tags[tag[0]] = tag[1]
+			} else {
+				logrus.Fatalf("Arguments to -tag should be of the form <key>:<value>, got %q", elem)
+			}
 		}
 	}
 
@@ -361,6 +442,29 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 			span.StartTimestamp = start.UnixNano()
 			span.EndTimestamp = ended.UnixNano()
 			span.Metrics = append(span.Metrics, ssf.Timing(name, ended.Sub(start), time.Millisecond, tags))
+		}
+
+		sf, shas := passedFlags["span_starttime"]
+		ef, ehas := passedFlags["span_endtime"]
+		if shas != ehas {
+			logrus.Fatal("Must provide both -span_startime and -span_endtime, or neither")
+		}
+
+		if shas || ehas {
+			var start, end time.Time
+
+			start, err = dateparse.ParseAny(sf.String())
+			if err != nil {
+				logrus.WithError(err).Fatal("Error parsing -span_starttime")
+			}
+
+			end, err = dateparse.ParseAny(ef.String())
+			if err != nil {
+				logrus.WithError(err).Fatal("Error parsing -span_endtime")
+			}
+
+			span.StartTimestamp = start.UnixNano()
+			span.EndTimestamp = end.UnixNano()
 		}
 
 		if passedFlags["timing"] != nil {
@@ -435,6 +539,31 @@ func sendStatsd(addr string, span *ssf.SSFSpan) error {
 		}
 	}
 	return nil
+}
+
+func validateFlagCombinations(passedFlags map[string]flag.Value) {
+	// Figure out which mode we're in
+	var mode EmitMode
+	mv, has := passedFlags["mode"]
+	// "metric" is the default mode, so assume that if the flag wasn't passed.
+	if !has {
+		mode = MetricMode
+	} else {
+		switch mv.String() {
+		case "metric":
+			mode = MetricMode
+		case "event":
+			mode = EventMode
+		case "sc":
+			mode = ServiceCheckMode
+		}
+	}
+
+	for flagname := range passedFlags {
+		if fmode, has := flagModeMappings[flagname]; has && (fmode&mode) != mode {
+			logrus.Fatalf("Flag %q is only valid with \"-mode %s\"", flagname, fmode)
+		}
+	}
 }
 
 func buildEventPacket(passedFlags map[string]flag.Value) (bytes.Buffer, error) {

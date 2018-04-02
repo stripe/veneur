@@ -12,6 +12,7 @@ type ProxyConfig struct {
 	GrpcAddress                  string `yaml:"grpc_address"`
 	GrpcForwardAddress           string `yaml:"grpc_forward_address"`
 	HTTPAddress                  string `yaml:"http_address"`
+	RuntimeMetricsInterval       string `yaml:"runtime_metrics_interval"`
 	SentryDsn                    string `yaml:"sentry_dsn"`
 	SsfDestinationAddress        string `yaml:"ssf_destination_address"`
 	StatsAddress                 string `yaml:"stats_address"`

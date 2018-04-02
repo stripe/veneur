@@ -151,9 +151,9 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 func NewWorker(id int, cl *trace.Client, logger *logrus.Logger) *Worker {
 	return &Worker{
 		id:               id,
-		PacketChan:       make(chan samplers.UDPMetric),
-		ImportChan:       make(chan []samplers.JSONMetric),
-		ImportMetricChan: make(chan []*metricpb.Metric),
+		PacketChan:       make(chan samplers.UDPMetric, 32),
+		ImportChan:       make(chan []samplers.JSONMetric, 32),
+		ImportMetricChan: make(chan []*metricpb.Metric, 32),
 		QuitChan:         make(chan struct{}),
 		processed:        0,
 		imported:         0,
@@ -338,12 +338,13 @@ func (w *Worker) Flush() WorkerMetrics {
 	// This is a critical spot. The worker can't process metrics while this
 	// mutex is held! So we try and minimize it by copying the maps of values
 	// and assigning new ones.
+	wm := NewWorkerMetrics()
 	w.mutex.Lock()
 	ret := w.wm
 	processed := w.processed
 	imported := w.imported
 
-	w.wm = NewWorkerMetrics()
+	w.wm = wm
 	w.processed = 0
 	w.imported = 0
 	w.mutex.Unlock()
@@ -367,21 +368,18 @@ func (w *Worker) Stop() {
 
 // EventWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type EventWorker struct {
-	EventChan        chan samplers.UDPEvent
-	ServiceCheckChan chan samplers.UDPServiceCheck
-	mutex            *sync.Mutex
-	events           []samplers.UDPEvent
-	checks           []samplers.UDPServiceCheck
-	traceClient      *trace.Client
+	sampleChan  chan ssf.SSFSample
+	mutex       *sync.Mutex
+	samples     []ssf.SSFSample
+	traceClient *trace.Client
 }
 
 // NewEventWorker creates an EventWorker ready to collect events and service checks.
 func NewEventWorker(cl *trace.Client) *EventWorker {
 	return &EventWorker{
-		EventChan:        make(chan samplers.UDPEvent),
-		ServiceCheckChan: make(chan samplers.UDPServiceCheck),
-		mutex:            &sync.Mutex{},
-		traceClient:      cl,
+		sampleChan:  make(chan ssf.SSFSample),
+		mutex:       &sync.Mutex{},
+		traceClient: cl,
 	}
 }
 
@@ -390,13 +388,9 @@ func NewEventWorker(cl *trace.Client) *EventWorker {
 func (ew *EventWorker) Work() {
 	for {
 		select {
-		case evt := <-ew.EventChan:
+		case s := <-ew.sampleChan:
 			ew.mutex.Lock()
-			ew.events = append(ew.events, evt)
-			ew.mutex.Unlock()
-		case svcheck := <-ew.ServiceCheckChan:
-			ew.mutex.Lock()
-			ew.checks = append(ew.checks, svcheck)
+			ew.samples = append(ew.samples, s)
 			ew.mutex.Unlock()
 		}
 	}
@@ -404,19 +398,18 @@ func (ew *EventWorker) Work() {
 
 // Flush returns the EventWorker's stored events and service checks and
 // resets the stored contents.
-func (ew *EventWorker) Flush() ([]samplers.UDPEvent, []samplers.UDPServiceCheck) {
+func (ew *EventWorker) Flush() []ssf.SSFSample {
 	start := time.Now()
 	ew.mutex.Lock()
 
-	retevts := ew.events
-	retsvchecks := ew.checks
+	retsamples := ew.samples
 	// these slices will be allocated again at append time
-	ew.events = nil
-	ew.checks = nil
+	ew.samples = nil
 
 	ew.mutex.Unlock()
-	metrics.ReportOne(ew.traceClient, ssf.Timing("flush.event_worker_duration_ns", time.Since(start), time.Nanosecond, nil))
-	return retevts, retsvchecks
+	metrics.ReportOne(ew.traceClient, ssf.Count("worker.other_samples_flushed_total", float32(len(retsamples)), nil))
+	metrics.ReportOne(ew.traceClient, ssf.Timing("flush.other_samples_duration_ns", time.Since(start), time.Nanosecond, nil))
+	return retsamples
 }
 
 // SpanWorker is similar to a Worker but it collects events and service checks instead of metrics.
@@ -426,9 +419,10 @@ type SpanWorker struct {
 	sinks           []sinks.SpanSink
 	cumulativeTimes []int64
 	traceClient     *trace.Client
+	capCount        int64
 }
 
-// NewSpanWorker creates an SpanWorker ready to collect events and service checks.
+// NewSpanWorker creates a SpanWorker ready to collect events and service checks.
 func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ssf.SSFSpan) *SpanWorker {
 	tags := make([]map[string]string, len(sinks))
 	for i, sink := range sinks {
@@ -436,6 +430,7 @@ func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ss
 			"sink": sink.Name(),
 		}
 	}
+
 	return &SpanWorker{
 		SpanChan:        spanChan,
 		sinks:           sinks,
@@ -448,7 +443,13 @@ func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ss
 // Work will start the SpanWorker listening for spans.
 // This function will never return.
 func (tw *SpanWorker) Work() {
+	capcmp := cap(tw.SpanChan) - 1
 	for m := range tw.SpanChan {
+		// If we are at or one below cap, increment the counter.
+		if len(tw.SpanChan) >= capcmp {
+			atomic.AddInt64(&tw.capCount, 1)
+		}
+
 		var wg sync.WaitGroup
 		for i, s := range tw.sinks {
 			tags := tw.sinkTags[i]
@@ -478,7 +479,6 @@ func (tw *SpanWorker) Work() {
 // Flush invokes flush on each sink.
 func (tw *SpanWorker) Flush() {
 	samples := &ssf.Samples{}
-	defer metrics.Report(tw.traceClient, samples)
 
 	// Flush and time each sink.
 	for i, s := range tw.sinks {
@@ -489,4 +489,8 @@ func (tw *SpanWorker) Flush() {
 		cumulative := time.Duration(atomic.SwapInt64(&tw.cumulativeTimes[i], 0)) * time.Nanosecond
 		samples.Add(ssf.Timing(sinks.MetricKeySpanIngestDuration, cumulative, time.Nanosecond, tags))
 	}
+
+	metrics.Report(tw.traceClient, samples)
+	metrics.ReportOne(tw.traceClient,
+		ssf.Count("worker.span.hit_chan_cap", float32(atomic.SwapInt64(&tw.capCount, 0)), nil))
 }
