@@ -22,6 +22,7 @@
 * veneur-proxy now reports runtime metrics (with the prefix `veneur-proxy.`) at a configurable interval controlled by `runtime_metrics_interval`. It defaults to 10s. Thanks [gphat](https://github.com/gphat)!
 * Allow specifying trace start/end times on `veneur-emit`. Thanks, [sdboyer](https://github.com/sdboyer)!
 * Default `span_channel_capacity` to a non-zero value so we don't drop most spans in a minimal configuration. Thanks, [gphat](http://github.com/gphat)!
+* Added tests for parsing floating point timers and histograms, just in case! Thanks [gphat](https://github.com/gphat)!
 
 # 3.0.0, 2018-02-27
 

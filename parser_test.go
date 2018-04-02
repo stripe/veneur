@@ -414,6 +414,14 @@ func TestParserHistogram(t *testing.T) {
 	assert.Equal(t, "histogram", m.Type, "Type")
 }
 
+func TestParserHistogramFloat(t *testing.T) {
+	m, _ := samplers.ParseMetric([]byte("a.b.c:1.234|h"))
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, "a.b.c", m.Name, "Name")
+	assert.Equal(t, float64(1.234), m.Value, "Value")
+	assert.Equal(t, "histogram", m.Type, "Type")
+}
+
 func TestParserTimer(t *testing.T) {
 	m, _ := samplers.ParseMetric([]byte("a.b.c:1|ms"))
 	assert.NotNil(t, m, "Got nil metric!")
