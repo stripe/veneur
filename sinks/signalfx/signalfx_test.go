@@ -2,6 +2,7 @@ package signalfx
 
 import (
 	"context"
+	"net/http"
 	"sort"
 	"testing"
 	"time"
@@ -39,7 +40,7 @@ func (fs *FakeSink) AddEvents(ctx context.Context, events []*event.Event) (err e
 
 func TestNewSignalFxSink(t *testing.T) {
 	// test the variables that have been renamed
-	client := NewClient("http://www.example.com", "secret")
+	client := NewClient("http://www.example.com", "secret", *http.DefaultClient)
 	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), client, "", nil)
 	if err != nil {
 		t.Fatal(err)

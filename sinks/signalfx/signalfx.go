@@ -3,6 +3,7 @@ package signalfx
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -95,11 +96,12 @@ type DPClient dpsink.Sink
 
 // NewClient constructs a new signalfx HTTP client for the given
 // endpoint and API token.
-func NewClient(endpoint, apiKey string) DPClient {
+func NewClient(endpoint, apiKey string, client http.Client) DPClient {
 	httpSink := sfxclient.NewHTTPSink()
 	httpSink.AuthToken = apiKey
 	httpSink.DatapointEndpoint = fmt.Sprintf("%s/v2/datapoint", endpoint)
 	httpSink.EventEndpoint = fmt.Sprintf("%s/v2/event", endpoint)
+	httpSink.Client = client
 	return httpSink
 }
 
