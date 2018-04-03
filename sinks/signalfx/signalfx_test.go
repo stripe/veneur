@@ -3,6 +3,7 @@ package signalfx
 import (
 	"context"
 	"sort"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,18 +18,21 @@ import (
 )
 
 type FakeSink struct {
-	points []*datapoint.Datapoint
-	events []*event.Event
+	points           []*datapoint.Datapoint
+	events           []*event.Event
+	addPointsCounter uint32
 }
 
 func NewFakeSink() *FakeSink {
 	return &FakeSink{
-		points: []*datapoint.Datapoint{},
+		points:           []*datapoint.Datapoint{},
+		addPointsCounter: 0,
 	}
 }
 
 func (fs *FakeSink) AddDatapoints(ctx context.Context, points []*datapoint.Datapoint) (err error) {
 	fs.points = append(fs.points, points...)
+	atomic.AddUint32(&fs.addPointsCounter, 1)
 	return nil
 }
 
@@ -40,7 +44,7 @@ func (fs *FakeSink) AddEvents(ctx context.Context, events []*event.Event) (err e
 func TestNewSignalFxSink(t *testing.T) {
 	// test the variables that have been renamed
 	client := NewClient("http://www.example.com", "secret")
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), client, "", nil)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, 1000, logrus.New(), client, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +68,7 @@ func TestNewSignalFxSink(t *testing.T) {
 
 func TestSignalFxFlushRouting(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, 1000, logrus.New(), fakeSink, "", nil)
 
 	assert.NoError(t, err)
 
@@ -117,7 +121,7 @@ func TestSignalFxFlushRouting(t *testing.T) {
 
 func TestSignalFxFlushGauge(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, 1000, logrus.New(), fakeSink, "", nil)
 
 	assert.NoError(t, err)
 
@@ -148,7 +152,7 @@ func TestSignalFxFlushGauge(t *testing.T) {
 
 func TestSignalFxFlushCounter(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, 1000, logrus.New(), fakeSink, "", nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{samplers.InterMetric{
@@ -180,7 +184,7 @@ func TestSignalFxFlushCounter(t *testing.T) {
 
 func TestSignalFxEventFlush(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, 1000, logrus.New(), fakeSink, "", nil)
 	assert.NoError(t, err)
 
 	evMessage := "[an example link](http://catchpoint.com/session_id \"Title\")"
@@ -210,7 +214,7 @@ func TestSignalFxEventFlush(t *testing.T) {
 
 func TestSignalFxSetExcludeTags(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie", "boo": "snakes"}, logrus.New(), fakeSink, "", nil)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie", "boo": "snakes"}, 1000, logrus.New(), fakeSink, "", nil)
 
 	sink.SetExcludedTags([]string{"foo", "boo", "host"})
 	assert.NoError(t, err)
@@ -265,11 +269,118 @@ func TestSignalFxSetExcludeTags(t *testing.T) {
 	assert.Equal(t, "", dims["boo"], "Event has host tag despite exclude rule")
 }
 
+func TestSignalFxFlushMultiKeyWithChunking(t *testing.T) {
+	fallback := NewFakeSink()
+	specialized := NewFakeSink()
+
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, 3, logrus.New(), fallback, "test_by", map[string]DPClient{"available": specialized})
+
+	assert.NoError(t, err)
+
+	interMetrics := []samplers.InterMetric{
+		samplers.InterMetric{
+			Name:      "a.a.y",
+			Timestamp: 1476119058,
+			Value:     float64(100),
+			Tags: []string{
+				"foo:bar",
+				"baz:quz",
+				"test_by:needs_fallback",
+			},
+			Type: samplers.GaugeMetric,
+		},
+		samplers.InterMetric{
+			Name:      "a.a.z",
+			Timestamp: 1476119058,
+			Value:     float64(100),
+			Tags: []string{
+				"foo:bar",
+				"baz:quz",
+				"test_by:needs_fallback",
+			},
+			Type: samplers.GaugeMetric,
+		},
+		samplers.InterMetric{
+			Name:      "a.b.a",
+			Timestamp: 1476119058,
+			Value:     float64(100),
+			Tags: []string{
+				"foo:bar",
+				"baz:quz",
+				"test_by:needs_fallback",
+			},
+			Type: samplers.GaugeMetric,
+		},
+		samplers.InterMetric{
+			Name:      "a.b.b",
+			Timestamp: 1476119058,
+			Value:     float64(100),
+			Tags: []string{
+				"foo:bar",
+				"baz:quz",
+				"test_by:needs_fallback",
+			},
+			Type: samplers.GaugeMetric,
+		},
+		samplers.InterMetric{
+			Name:      "a.b.c",
+			Timestamp: 1476119058,
+			Value:     float64(100),
+			Tags: []string{
+				"foo:bar",
+				"baz:quz",
+				"test_by:available",
+			},
+			Type: samplers.GaugeMetric,
+		},
+		samplers.InterMetric{
+			Name:      "a.b.d",
+			Timestamp: 1476119058,
+			Value:     float64(100),
+			Tags: []string{
+				"foo:bar",
+				"baz:quz",
+				"test_by:available",
+			},
+			Type: samplers.GaugeMetric,
+		},
+		samplers.InterMetric{
+			Name:      "a.b.e",
+			Timestamp: 1476119058,
+			Value:     float64(100),
+			Tags: []string{
+				"foo:bar",
+				"baz:quz",
+				"test_by:available",
+			},
+			Type: samplers.GaugeMetric,
+		},
+		samplers.InterMetric{
+			Name:      "a.b.f",
+			Timestamp: 1476119058,
+			Value:     float64(100),
+			Tags: []string{
+				"foo:bar",
+				"baz:quz",
+				"test_by:available",
+			},
+			Type: samplers.GaugeMetric,
+		},
+	}
+
+	sink.Flush(context.TODO(), interMetrics)
+
+	assert.Equal(t, 4, len(fallback.points))
+	assert.Equal(t, uint32(2), atomic.LoadUint32(&fallback.addPointsCounter))
+	assert.Equal(t, 4, len(specialized.points))
+	assert.Equal(t, uint32(2), atomic.LoadUint32(&specialized.addPointsCounter))
+}
+
 func TestSignalFxFlushMultiKey(t *testing.T) {
 	fallback := NewFakeSink()
 	specialized := NewFakeSink()
 
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{"available": specialized})
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, 1000, logrus.New(), fallback, "test_by", map[string]DPClient{"available": specialized})
 
 	assert.NoError(t, err)
 

@@ -41,7 +41,7 @@ func (c *collection) addPoint(key string, point *datapoint.Datapoint) {
 	c.points = append(c.points, point)
 }
 
-func (c *collection) submit(ctx context.Context, cl *trace.Client) error {
+func (c *collection) submit(ctx context.Context, cl *trace.Client, chunkSize int) error {
 	wg := &sync.WaitGroup{}
 	errorCh := make(chan error, len(c.pointsByKey)+1)
 
@@ -57,11 +57,32 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client) error {
 		wg.Done()
 	}
 
-	wg.Add(1)
-	go submitOne(c.sink.defaultClient, c.points)
-	for key, points := range c.pointsByKey {
+	defaultPointLength := len(c.points)
+	// Iterate through the "default" key points submitting each in a chunk of no
+	// more than chunkSize. This parallelism prevents a single huge POST
+	for i := 0; i < defaultPointLength; i += chunkSize {
+		end := i + chunkSize
+		// Make sure we don't run off the end of the slice
+		if end > defaultPointLength {
+			end = defaultPointLength
+		}
+		// Ensure we increment the waitgroup for this goroutine
 		wg.Add(1)
-		go submitOne(c.sink.client(key), points)
+		// Submit at most chunkSize metrics
+		go submitOne(c.sink.defaultClient, c.points[i:end])
+	}
+
+	for key, points := range c.pointsByKey {
+		perKeyPointLength := len(points)
+		// Same chunking as above, but for the per-key points
+		for i := 0; i < defaultPointLength; i += chunkSize {
+			end := i + chunkSize
+			if end > perKeyPointLength {
+				end = perKeyPointLength
+			}
+			wg.Add(1)
+			go submitOne(c.sink.client(key), points[i:end])
+		}
 	}
 	wg.Wait()
 	close(errorCh)
@@ -87,6 +108,7 @@ type SignalFxSink struct {
 	log               *logrus.Logger
 	traceClient       *trace.Client
 	excludedTags      map[string]struct{}
+	chunkMetricCount  int
 }
 
 // A DPClient is a client that can be used to submit signalfx data
@@ -104,7 +126,7 @@ func NewClient(endpoint, apiKey string) DPClient {
 }
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient) (*SignalFxSink, error) {
+func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, chunkMetricCount int, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient) (*SignalFxSink, error) {
 	return &SignalFxSink{
 		defaultClient:     client,
 		clientsByTagValue: perTagClients,
@@ -113,6 +135,7 @@ func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[s
 		commonDimensions:  commonDimensions,
 		log:               log,
 		varyBy:            varyBy,
+		chunkMetricCount:  chunkMetricCount,
 	}, nil
 }
 
@@ -197,7 +220,7 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 		coll.addPoint(metricKey, point)
 		numPoints++
 	}
-	err := coll.submit(ctx, sfx.traceClient)
+	err := coll.submit(ctx, sfx.traceClient, sfx.chunkMetricCount)
 	if err != nil {
 		span.Error(err)
 	}

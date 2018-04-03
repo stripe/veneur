@@ -228,6 +228,10 @@ signalfx_per_tag_api_keys:
   - name: "asf"
     api_key: "definitely_no_farts"
 
+# The maximum number of points allowed in a single post body to SignalFx,
+# larger bodies will be chunked accordingly and dispatched in parallel.
+signalfx_metric_chunk_size: 25000
+
 # == LightStep ==
 # LightStep can be a sink for trace spans.
 

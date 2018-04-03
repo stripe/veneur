@@ -12,12 +12,13 @@ import (
 )
 
 var defaultConfig = Config{
-	Aggregates:             []string{"min", "max", "count"},
-	DatadogFlushMaxPerBody: 25000,
-	Interval:               "10s",
-	MetricMaxLength:        4096,
-	ReadBufferSizeBytes:    1048576 * 2, // 2 MiB
-	SpanChannelCapacity:    100,
+	Aggregates:              []string{"min", "max", "count"},
+	DatadogFlushMaxPerBody:  25000,
+	Interval:                "10s",
+	MetricMaxLength:         4096,
+	ReadBufferSizeBytes:     1048576 * 2, // 2 MiB
+	SpanChannelCapacity:     100,
+	SignalfxMetricChunkSize: 25000,
 }
 
 // ReadProxyConfig unmarshals the proxy config file and slurps in its data.
@@ -181,6 +182,10 @@ func (c *Config) applyDefaults() {
 
 	if c.SpanChannelCapacity == 0 {
 		c.SpanChannelCapacity = defaultConfig.SpanChannelCapacity
+	}
+
+	if c.SignalfxMetricChunkSize == 0 {
+		c.SignalfxMetricChunkSize = defaultConfig.SignalfxMetricChunkSize
 	}
 }
 
