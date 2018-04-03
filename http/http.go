@@ -169,6 +169,7 @@ func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, 
 	req = req.WithContext(ctx)
 
 	if err != nil {
+		span.Error(err)
 		span.Add(ssf.Count(action+".error_total", 1, mergeTags(extraTags, "cause", "construct")))
 		innerLogger.WithError(err).Error("Could not construct request")
 		return err
@@ -196,6 +197,7 @@ func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, 
 			// and ditch the url (which might contain secrets)
 			err = urlErr.Err
 		}
+		span.Error(err)
 		span.Add(ssf.Count(action+".error_total", 1, mergeTags(extraTags, "cause", "io")))
 		// Log at Warn level instead of Error, because we don't want to create
 		// Sentry events for these (they're only important in large numbers, and
@@ -212,6 +214,7 @@ func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, 
 	if err != nil {
 		// this error is not fatal, since we only need the body for reporting
 		// purposes
+		span.Error(err)
 		span.Add(ssf.Count(action+".error_total", 1, mergeTags(extraTags, "cause", "readresponse")))
 		innerLogger.WithError(err).Error("Could not read response body")
 	}
@@ -225,6 +228,8 @@ func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, 
 	})
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
+		err := fmt.Errorf("%v", resp.StatusCode)
+		span.Error(err)
 		span.Add(ssf.Count(action+".error_total", 1, mergeTags(extraTags, "cause", strconv.Itoa(resp.StatusCode))))
 		resultLogger.WithError(err).Warn("Could not POST")
 		return err
