@@ -355,23 +355,15 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 		// Just keep trying until we get a flush kicked off
 	FlushRetries:
 		for {
-			err := FlushAsync(client, flushErr)
-			switch err {
-			case ErrWouldBlock:
-				// Just retry below
-			case nil:
-				// Attempt to retrieve the flush error
-				// - note that kicking off the flush
-				// can return an ErrWouldBlock again,
-				// so we have to be prepared to retry
-				// for that too:
-				err = <-flushErr
+			require.NoError(t, FlushAsync(client, flushErr))
+			err := (<-flushErr).(*FlushError)
+			// same as the number of parallel backends
+			require.Len(t, err.Errors, 1)
+			for _, err := range err.Errors {
 				if err != ErrWouldBlock {
 					require.Error(t, err, "Expected an error flushing on the broken socket")
 					break FlushRetries
 				}
-			default:
-				t.Fatalf("Unexpected error kicking off the flush: %v", err)
 			}
 			t.Log("Retrying flush on closed socket")
 			time.Sleep(1 * time.Millisecond)
