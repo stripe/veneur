@@ -3,6 +3,7 @@ package signalfx
 import (
 	"context"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -21,16 +22,20 @@ type FakeSink struct {
 	points           []*datapoint.Datapoint
 	events           []*event.Event
 	addPointsCounter uint32
+	pointMutex       *sync.Mutex
 }
 
 func NewFakeSink() *FakeSink {
 	return &FakeSink{
 		points:           []*datapoint.Datapoint{},
 		addPointsCounter: 0,
+		pointMutex:       &sync.Mutex{},
 	}
 }
 
 func (fs *FakeSink) AddDatapoints(ctx context.Context, points []*datapoint.Datapoint) (err error) {
+	fs.pointMutex.Lock()
+	defer fs.pointMutex.Unlock()
 	fs.points = append(fs.points, points...)
 	atomic.AddUint32(&fs.addPointsCounter, 1)
 	return nil
