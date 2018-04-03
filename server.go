@@ -148,14 +148,21 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		return ret, err
 	}
 
-	transport := &http.Transport{
-		IdleConnTimeout: ret.interval * 2, // If we're idle more than one interval something is up
-	}
-
 	ret.HTTPClient = &http.Client{
 		// make sure that POSTs to datadog do not overflow the flush interval
-		Timeout:   ret.interval * 9 / 10,
-		Transport: transport,
+		Timeout: ret.interval * 9 / 10,
+		Transport: &http.Transport{
+			// If we're idle more than one interval something is up
+			IdleConnTimeout: ret.interval * 2,
+			// Configure TCP keepalive as well
+			DialContext: (&net.Dialer{
+				// Note that this timeout is for establishing the connection,
+				// not the whole roundtrip
+				Timeout:   ret.interval * 9 / 10,
+				KeepAlive: ret.interval * 2,
+				DualStack: true,
+			}).DialContext,
+		},
 	}
 
 	stats, err := statsd.NewBuffered(conf.StatsAddress, 4096)
