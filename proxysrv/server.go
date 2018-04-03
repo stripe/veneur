@@ -7,7 +7,6 @@
 package proxysrv
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -17,15 +16,16 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/net/context" // This can be replace with "context" after Go 1.8 support is dropped
+	"google.golang.org/grpc"
+	"stathat.com/c/consistent"
+
 	"github.com/stripe/veneur/forwardrpc"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/samplers/metricpb"
-	"github.com/stripe/veneur/trace/metrics"
-
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
-	"google.golang.org/grpc"
-	"stathat.com/c/consistent"
+	"github.com/stripe/veneur/trace/metrics"
 )
 
 // Server is a gRPC server that implements the forwardrpc.Forward service.

@@ -6,19 +6,20 @@
 package importsrv
 
 import (
-	"context"
 	"fmt"
 	"hash/fnv"
 	"net"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"golang.org/x/net/context" // This can be replace with "context" after Go 1.8 support is dropped
+	"google.golang.org/grpc"
+
 	"github.com/stripe/veneur/forwardrpc"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/samplers/metricpb"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
-	"google.golang.org/grpc"
 )
 
 // MetricIngester reads metrics from protobufs

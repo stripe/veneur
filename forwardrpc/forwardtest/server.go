@@ -1,15 +1,16 @@
 package forwardtest
 
 import (
-	"context"
 	"net"
 	"sync"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"golang.org/x/net/context" // This can be replace with "context" after Go 1.8 support is dropped
+	"google.golang.org/grpc"
+
 	"github.com/stripe/veneur/forwardrpc"
 	"github.com/stripe/veneur/samplers/metricpb"
-	"google.golang.org/grpc"
 )
 
 // SendMetricHandler is a handler that is called when a Server gets a

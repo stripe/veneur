@@ -17,8 +17,6 @@ import (
 )
 
 func createTestForwardServers(t *testing.T, n int, handler forwardtest.SendMetricHandler) []*forwardtest.Server {
-	t.Helper()
-
 	res := make([]*forwardtest.Server, n)
 	for i := range res {
 		res[i] = forwardtest.NewServer(handler)
@@ -189,8 +187,6 @@ func addrsFromServers(a []*forwardtest.Server) []string {
 }
 
 func newServer(t testing.TB, ring *consistent.Consistent, opts ...Option) *Server {
-	t.Helper()
-
 	s, err := New(ring, opts...)
 	assert.NoError(t, err, "creating a server shouldn't have returned an error")
 	return s
