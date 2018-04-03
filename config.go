@@ -54,6 +54,7 @@ type Config struct {
 	SignalfxAPIKey               string    `yaml:"signalfx_api_key"`
 	SignalfxEndpointBase         string    `yaml:"signalfx_endpoint_base"`
 	SignalfxHostnameTag          string    `yaml:"signalfx_hostname_tag"`
+	SignalfxMetricChunkSize      int       `yaml:"signalfx_metric_chunk_size"`
 	SignalfxPerTagAPIKeys        []struct {
 		APIKey string `yaml:"api_key"`
 		Name   string `yaml:"name"`
