@@ -1111,7 +1111,6 @@ func TestSSFMetricsEndToEnd(t *testing.T) {
 	config := localConfig()
 	config.SsfListenAddresses = []string{ssfAddr}
 	metricsChan := make(chan []samplers.InterMetric, 10)
-	defer close(metricsChan)
 	cms, _ := NewChannelMetricSink(metricsChan)
 	f := newFixture(t, config, cms, nil)
 	defer f.Close()
@@ -1140,14 +1139,19 @@ func TestSSFMetricsEndToEnd(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
 	defer cancel()
+	go func() {
+		<-ctx.Done()
+		close(metricsChan)
+	}()
 	keepFlushing(ctx, f.server)
 
 	n := 0
-	metrics := <-metricsChan
-	for _, m := range metrics {
-		for _, tag := range m.Tags {
-			if tag == "purpose:testing" {
-				n++
+	for metrics := range metricsChan {
+		for _, m := range metrics {
+			for _, tag := range m.Tags {
+				if tag == "purpose:testing" {
+					n++
+				}
 			}
 		}
 	}
@@ -1168,7 +1172,6 @@ func TestInternalSSFMetricsEndToEnd(t *testing.T) {
 	config := localConfig()
 	config.SsfListenAddresses = []string{ssfAddr}
 	metricsChan := make(chan []samplers.InterMetric, 10)
-	defer close(metricsChan)
 	cms, _ := NewChannelMetricSink(metricsChan)
 	f := newFixture(t, config, cms, nil)
 	defer f.Close()
@@ -1191,14 +1194,19 @@ func TestInternalSSFMetricsEndToEnd(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 1*time.Second)
 	defer cancel()
+	go func() {
+		<-ctx.Done()
+		close(metricsChan)
+	}()
 	keepFlushing(ctx, f.server)
 
 	n := 0
-	metrics := <-metricsChan
-	for _, m := range metrics {
-		for _, tag := range m.Tags {
-			if tag == "purpose:testing" {
-				n++
+	for metrics := range metricsChan {
+		for _, m := range metrics {
+			for _, tag := range m.Tags {
+				if tag == "purpose:testing" {
+					n++
+				}
 			}
 		}
 	}
