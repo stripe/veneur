@@ -12,6 +12,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -28,6 +29,14 @@ import (
 	"github.com/stripe/veneur/trace/metrics"
 )
 
+const (
+	// By default, cancel forwarding operations after 10 seconds
+	defaultForwardTimeout = 10 * time.Second
+
+	// Report server statistics every 10 seconds
+	reportStatsInterval = 10 * time.Second
+)
+
 // Server is a gRPC server that implements the forwardrpc.Forward service.
 // It receives metrics and forwards them consistently to a destination, based
 // on the metric name, type and tags.
@@ -37,6 +46,10 @@ type Server struct {
 	opts         *options
 	conns        *clientConnMap
 	updateMtx    sync.Mutex
+
+	// A simple counter to track the number of goroutines spawned to handle
+	// proxying metrics
+	activeProxyHandlers *int64
 }
 
 // Option modifies an internal options type.
@@ -53,8 +66,11 @@ type options struct {
 func New(destinations *consistent.Consistent, opts ...Option) (*Server, error) {
 	res := &Server{
 		Server: grpc.NewServer(),
-		opts:   &options{},
-		conns:  newClientConnMap(grpc.WithInsecure()),
+		opts: &options{
+			forwardTimeout: defaultForwardTimeout,
+		},
+		conns:               newClientConnMap(grpc.WithInsecure()),
+		activeProxyHandlers: new(int64),
 	}
 
 	for _, opt := range opts {
@@ -91,9 +107,28 @@ func (s *Server) Serve(addr string) (err error) {
 		}
 	}()
 
+	// Start up a goroutine to periodically report statistics about the
+	// server.
+	done := make(chan struct{})
+	ticker := time.NewTicker(reportStatsInterval)
+	go func() {
+		for {
+			select {
+			case <-done:
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				s.reportStats()
+			}
+		}
+	}()
+
 	// Start the server and block.  This explicitly sets err so that the
 	// deferred listener close can set an error if this didn't exit with one.
 	err = s.Server.Serve(ln)
+
+	// Close the statistics goroutine
+	done <- struct{}{}
 	return err
 }
 
@@ -145,7 +180,10 @@ func (s *Server) SetDestinations(dests *consistent.Consistent) error {
 // and exist immediately.
 func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) (*empty.Empty, error) {
 	go func() {
+		// Track the number of active goroutines in a counter
+		atomic.AddInt64(s.activeProxyHandlers, 1)
 		_ = s.sendMetrics(context.Background(), mlist)
+		atomic.AddInt64(s.activeProxyHandlers, -1)
 	}()
 	return &empty.Empty{}, nil
 }
@@ -160,7 +198,7 @@ func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 		defer cancel()
 	}
 	metrics := mlist.Metrics
-	span.Add(ssf.Count("import.metrics_total", float32(len(metrics)), globalProtocolTags))
+	span.Add(ssf.Count("proxy.metrics_total", float32(len(metrics)), globalProtocolTags))
 
 	var errs forwardErrors
 
@@ -265,6 +303,12 @@ func (s *Server) forward(ctx context.Context, dest string, ms []*metricpb.Metric
 	))
 
 	return nil
+}
+
+// reportStats reports statistics about the server to the internal trace client
+func (s *Server) reportStats() {
+	metrics.ReportOne(s.opts.traceClient,
+		ssf.Gauge("proxy.active_goroutines", float32(*s.activeProxyHandlers), globalProtocolTags))
 }
 
 func strInSlice(s string, slice []string) bool {
