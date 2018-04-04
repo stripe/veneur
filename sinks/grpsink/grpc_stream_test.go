@@ -66,11 +66,12 @@ func TestEndToEnd(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.ErrorLevel)
 
-	testaddr := "127.0.0.1:15111"
+	testaddr := "127.0.0.1:0"
 	lis, err := net.Listen("tcp", testaddr)
 	if err != nil {
 		t.Fatalf("Failed to set up net listener with err %s", err)
 	}
+	testaddr = lis.Addr().String()
 
 	mock, srv := &MockSpanSinkServer{got: make(chan struct{})}, grpc.NewServer()
 	RegisterSpanSinkServer(srv, mock)
@@ -155,11 +156,12 @@ func TestEndToEnd(t *testing.T) {
 // does. It can be flaky, though (it's too dependent on sleep timings), so
 // it's disabled, but preserved for future debugging purposes.
 func TestClientIdleRecovery(t *testing.T) {
-	testaddr := "127.0.0.1:15112"
+	testaddr := "127.0.0.1:0"
 	lis, err := net.Listen("tcp", testaddr)
 	if err != nil {
 		t.Fatalf("Failed to set up net listener with err %s", err)
 	}
+	testaddr = lis.Addr().String()
 
 	mock, srv := &MockSpanSinkServer{got: make(chan struct{})}, grpc.NewServer()
 	RegisterSpanSinkServer(srv, mock)
