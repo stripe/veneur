@@ -77,7 +77,7 @@ func New(metricOuts []MetricIngester, opts ...Option) *Server {
 }
 
 // Serve starts a gRPC listener on the specified address and blocks while
-// listening for requests. If listening is iterrupted by some means other
+// listening for requests. If listening is interrupted by some means other
 // than Stop or GracefulStop being called, it returns a non-nil error.
 func (s *Server) Serve(addr string) error {
 	ln, err := net.Listen("tcp", addr)

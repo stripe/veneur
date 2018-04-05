@@ -52,7 +52,7 @@ func TestServerFlushGRPC(t *testing.T) {
 	}
 }
 
-// Just test that a flushing to a bad address is handled
+// Just test that flushing to a bad address is handled
 func TestServerFlushGRPCBadAddress(t *testing.T) {
 	localCfg := localConfig()
 	localCfg.ForwardAddress = ""
