@@ -23,6 +23,7 @@
 * Allow specifying trace start/end times on `veneur-emit`. Thanks, [sdboyer](https://github.com/sdboyer)!
 * Default `span_channel_capacity` to a non-zero value so we don't drop most spans in a minimal configuration. Thanks, [gphat](http://github.com/gphat)!
 * Added tests for parsing floating point timers and histograms, just in case! Thanks [gphat](https://github.com/gphat)!
+* New `ignored-labels` and `ignored-metrics` flags added to veneur-prometheus to selectively restrict exports to Veneur. Thanks, [yolken](https://github.com/yolken)!
 
 # 3.0.0, 2018-02-27
 
