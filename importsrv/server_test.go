@@ -47,7 +47,7 @@ func TestSendMetrics_ConsistentHash(t *testing.T) {
 
 	// Send the same inputs many times
 	for i := 0; i < 10; i++ {
-		s.SendMetrics(context.TODO(), &forwardrpc.MetricList{inputs})
+		s.SendMetrics(context.Background(), &forwardrpc.MetricList{inputs})
 
 		assert.Equal(t, []*metricpb.Metric{inputs[0], inputs[4]},
 			ingesters[0].metrics, "Ingester 0 has the wrong metrics")

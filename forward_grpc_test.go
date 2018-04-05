@@ -184,8 +184,8 @@ func TestE2EForwardingGRPCMetrics(t *testing.T) {
 			"The global Veneur didn't flush the right metrics")
 		close(done)
 	}()
-	ff.local.Flush(context.TODO())
-	ff.global.Flush(context.TODO())
+	ff.local.Flush(context.Background())
+	ff.global.Flush(context.Background())
 	select {
 	case <-done:
 	case <-time.After(3 * time.Second):

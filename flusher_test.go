@@ -33,7 +33,7 @@ func TestServerFlushGRPC(t *testing.T) {
 		local.Workers[0].ProcessMetric(input)
 	}
 
-	local.Flush(context.TODO())
+	local.Flush(context.Background())
 
 	expected := []string{
 		testGRPCMetric("histogram"),
@@ -61,5 +61,5 @@ func TestServerFlushGRPCBadAddress(t *testing.T) {
 	defer local.Shutdown()
 
 	local.Workers[0].ProcessMetric(forwardGRPCTestMetrics()[0])
-	local.Flush(context.TODO())
+	local.Flush(context.Background())
 }
