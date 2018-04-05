@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stripe/veneur/forwardrpc/forwardtest"
+	"github.com/stripe/veneur/internal/forwardtest"
 	"github.com/stripe/veneur/samplers/metricpb"
 )
 

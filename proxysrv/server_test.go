@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/forwardrpc"
-	"github.com/stripe/veneur/forwardrpc/forwardtest"
+	"github.com/stripe/veneur/internal/forwardtest"
 	"github.com/stripe/veneur/samplers/metricpb"
 	metrictest "github.com/stripe/veneur/samplers/metricpb/testutils"
 	"stathat.com/c/consistent"
