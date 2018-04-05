@@ -4,7 +4,6 @@ package grpsink
 
 import (
 	"context"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -38,10 +37,6 @@ func reconnectWithin(t *testing.T, sink *GRPCStreamingSpanSink, dur time.Duratio
 		state := sink.grpcConn.GetState()
 		switch state {
 		case connectivity.Ready:
-			// Spin on the internal state marker that indicates the stream state is bad
-			for !atomic.CompareAndSwapUint32(&sink.bad, 0, 0) {
-				time.Sleep(time.Millisecond)
-			}
 			cf()
 			return
 		default:
