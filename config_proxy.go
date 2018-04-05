@@ -9,6 +9,7 @@ type ProxyConfig struct {
 	ForwardAddress           string `yaml:"forward_address"`
 	ForwardTimeout           string `yaml:"forward_timeout"`
 	HTTPAddress              string `yaml:"http_address"`
+	RuntimeMetricsInterval   string `yaml:"runtime_metrics_interval"`
 	SentryDsn                string `yaml:"sentry_dsn"`
 	SsfDestinationAddress    string `yaml:"ssf_destination_address"`
 	StatsAddress             string `yaml:"stats_address"`

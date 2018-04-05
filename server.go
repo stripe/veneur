@@ -67,10 +67,11 @@ const defaultTCPReadTimeout = 10 * time.Minute
 
 // A Server is the actual veneur instance that will be run.
 type Server struct {
-	Workers     []*Worker
-	EventWorker *EventWorker
-	SpanChan    chan *ssf.SSFSpan
-	SpanWorkers []*SpanWorker
+	Workers              []*Worker
+	EventWorker          *EventWorker
+	SpanChan             chan *ssf.SSFSpan
+	SpanWorker           *SpanWorker
+	SpanWorkerGoroutines int
 
 	Sentry *raven.Client
 
@@ -129,15 +130,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.Hostname = conf.Hostname
 	ret.Tags = conf.Tags
 
-	mappedTags := make(map[string]string)
-	for _, tag := range ret.Tags {
-		splt := strings.SplitN(tag, ":", 2)
-		if len(splt) < 2 {
-			mappedTags[splt[0]] = ""
-		} else {
-			mappedTags[splt[0]] = splt[1]
-		}
-	}
+	mappedTags := samplers.ParseTagSliceToMap(ret.Tags)
 
 	ret.synchronizeInterval = conf.SynchronizeWithInterval
 
@@ -368,11 +361,10 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			logger.Info("Configured Lightstep trace sink")
 		}
 		// Set up as many span workers as we need:
-		workerCount := 1
+		ret.SpanWorkerGoroutines = 1
 		if conf.NumSpanWorkers > 0 {
-			workerCount = conf.NumSpanWorkers
+			ret.SpanWorkerGoroutines = conf.NumSpanWorkers
 		}
-		ret.SpanWorkers = make([]*SpanWorker, workerCount)
 	}
 
 	if conf.KafkaBroker != "" {
@@ -485,9 +477,7 @@ func (s *Server) Start() {
 	// Set up the processors for spans:
 
 	// Use the pre-allocated Workers slice to know how many to start.
-	for i := range s.SpanWorkers {
-		s.SpanWorkers[i] = NewSpanWorker(s.spanSinks, s.TraceClient, s.SpanChan)
-	}
+	s.SpanWorker = NewSpanWorker(s.spanSinks, s.TraceClient, s.SpanChan)
 
 	go func() {
 		log.Info("Starting Event worker")
@@ -497,14 +487,14 @@ func (s *Server) Start() {
 		s.EventWorker.Work()
 	}()
 
-	log.WithField("n", len(s.SpanWorkers)).Info("Starting Trace workers")
-	for i := range s.SpanWorkers {
-		go func(w *SpanWorker) {
+	log.WithField("n", s.SpanWorkerGoroutines).Info("Starting span workers")
+	for i := 0; i < s.SpanWorkerGoroutines; i++ {
+		go func() {
 			defer func() {
 				ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
 			}()
-			w.Work()
-		}(s.SpanWorkers[i])
+			s.SpanWorker.Work()
+		}()
 	}
 
 	statsdPool := &sync.Pool{
@@ -608,7 +598,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "event", "reason": "parse"}))
 			return err
 		}
-		s.EventWorker.EventChan <- *event
+		s.EventWorker.sampleChan <- *event
 	} else if bytes.HasPrefix(packet, []byte{'_', 's', 'c'}) {
 		svcheck, err := samplers.ParseServiceCheck(packet)
 		if err != nil {
@@ -619,7 +609,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "service_check", "reason": "parse"}))
 			return err
 		}
-		s.EventWorker.ServiceCheckChan <- *svcheck
+		s.EventWorker.sampleChan <- *svcheck
 	} else {
 		metric, err := samplers.ParseMetric(packet)
 		if err != nil {

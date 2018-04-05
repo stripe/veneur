@@ -7,6 +7,7 @@ import (
 	"net/http/pprof"
 	"os"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -42,6 +43,7 @@ type Proxy struct {
 	ConsulForwardService   string
 	ConsulTraceService     string
 	ConsulInterval         time.Duration
+	MetricsInterval        time.Duration
 	ForwardDestinationsMtx sync.Mutex
 	TraceDestinationsMtx   sync.Mutex
 	HTTPAddr               string
@@ -53,6 +55,7 @@ type Proxy struct {
 	usingConsul     bool
 	usingKubernetes bool
 	enableProfiling bool
+	shutdown        chan struct{}
 	TraceClient     *trace.Client
 }
 
@@ -64,6 +67,7 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 		return
 	}
 	p.Hostname = hostname
+	p.shutdown = make(chan struct{})
 
 	logger.AddHook(sentryHook{
 		c:        p.Sentry,
@@ -150,6 +154,15 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 			return
 		}
 		logger.WithField("interval", conf.ConsulRefreshInterval).Info("Will use Consul for service discovery")
+	}
+
+	p.MetricsInterval = time.Second * 10
+	if conf.RuntimeMetricsInterval != "" {
+		p.MetricsInterval, err = time.ParseDuration(conf.RuntimeMetricsInterval)
+		if err != nil {
+			logger.WithError(err).Error("Error parsing metric refresh interval")
+			return
+		}
 	}
 
 	p.TraceClient = trace.DefaultClient
@@ -252,6 +265,25 @@ func (p *Proxy) Start() {
 			}
 		}()
 	}
+
+	go func() {
+		hostname, _ := os.Hostname()
+		defer func() {
+			ConsumePanic(p.Sentry, p.TraceClient, hostname, recover())
+		}()
+		ticker := time.NewTicker(p.MetricsInterval)
+		for {
+			select {
+			case <-p.shutdown:
+				// stop flushing on graceful shutdown
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				p.ReportRuntimeMetrics()
+			}
+		}
+	}()
+
 }
 
 // HTTPServe starts the HTTP server and listens perpetually until it encounters an unrecoverable error.
@@ -382,12 +414,12 @@ func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
 			// this endpoint is not documented to take an array... but it does
 			// another curious constraint of this endpoint is that it does not
 			// support "Content-Encoding: deflate"
-			err := vhttp.PostHelper(span.Attach(ctx), p.HTTPClient, p.TraceClient, http.MethodPost, fmt.Sprintf("%s/spans", dest), batch, "flush_traces", false, log)
+			err := vhttp.PostHelper(span.Attach(ctx), p.HTTPClient, p.TraceClient, http.MethodPost, fmt.Sprintf("%s/spans", dest), batch, "flush_traces", false, nil, log)
 			if err == nil {
 				log.WithFields(logrus.Fields{
 					"traces":      len(batch),
 					"destination": dest,
-				}).Info("Completed flushing traces to Datadog")
+				}).Debug("Completed flushing traces to Datadog")
 			} else {
 				log.WithFields(
 					logrus.Fields{
@@ -411,8 +443,9 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 		ctx, cancel = context.WithTimeout(ctx, p.ForwardTimeout)
 		defer cancel()
 	}
+	metricCount := len(jsonMetrics)
 	span.Add(ssf.RandomlySample(0.1,
-		ssf.Count("import.metrics_total", float32(len(jsonMetrics)), map[string]string{
+		ssf.Count("import.metrics_total", float32(metricCount), map[string]string{
 			"remote_addr":      origin,
 			"veneurglobalonly": "",
 		}),
@@ -436,6 +469,8 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 		go p.doPost(ctx, &wg, dest, batch)
 	}
 	wg.Wait() // Wait for all the above goroutines to complete
+	log.WithField("count", metricCount).Info("Completed forward")
+
 	span.Add(ssf.RandomlySample(0.1,
 		ssf.Timing("proxy.duration_ns", time.Since(span.Start), time.Nanosecond, nil),
 		ssf.Count("proxy.proxied_metrics_total", float32(len(jsonMetrics)), nil),
@@ -454,9 +489,9 @@ func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination stri
 	}
 
 	endpoint := fmt.Sprintf("%s/import", destination)
-	err := vhttp.PostHelper(ctx, p.HTTPClient, p.TraceClient, http.MethodPost, endpoint, batch, "forward", true, log)
+	err := vhttp.PostHelper(ctx, p.HTTPClient, p.TraceClient, http.MethodPost, endpoint, batch, "forward", true, nil, log)
 	if err == nil {
-		log.WithField("metrics", batchSize).Info("Completed forward to upstream Veneur")
+		log.WithField("metrics", batchSize).Debug("Completed forward to Veneur")
 	} else {
 		samples.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "post"}))
 		log.WithError(err).WithFields(logrus.Fields{
@@ -469,9 +504,20 @@ func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination stri
 	)...)
 }
 
+func (p *Proxy) ReportRuntimeMetrics() {
+	mem := &runtime.MemStats{}
+	runtime.ReadMemStats(mem)
+	metrics.ReportBatch(p.TraceClient, []*ssf.SSFSample{
+		ssf.Gauge("mem.heap_alloc_bytes", float32(mem.HeapAlloc), nil),
+		ssf.Gauge("gc.number", float32(mem.NumGC), nil),
+		ssf.Gauge("gc.pause_total_ns", float32(mem.PauseTotalNs), nil),
+	})
+}
+
 // Shutdown signals the server to shut down after closing all
 // current connections.
 func (p *Proxy) Shutdown() {
 	log.Info("Shutting down server gracefully")
+	close(p.shutdown)
 	graceful.Shutdown()
 }

@@ -105,15 +105,27 @@ func (hct *httpClientTracer) finishSpan() {
 	hct.currentSpan.ClientFinish(hct.traceClient)
 }
 
+func mergeTags(tags map[string]string, k, v string) map[string]string {
+	ret := make(map[string]string, len(tags)+1)
+	for k, v := range tags {
+		ret[k] = v
+	}
+	ret[k] = v
+	return ret
+}
+
 // PostHelper is shared code for POSTing to an endpoint, that consumes JSON, is zlib-
 // compressed, that returns 202 on success, that has a small response
 // action as a string used for statsd metric names and log messages emitted from
 // this function - probably a static string for each callsite
 // you can disable compression with compress=false for endpoints that don't
 // support it
-func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, method string, endpoint string, bodyObject interface{}, action string, compress bool, log *logrus.Logger) error {
+func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, method string, endpoint string, bodyObject interface{}, action string, compress bool, extraTags map[string]string, log *logrus.Logger) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	span.SetTag("action", action)
+	for k, v := range extraTags {
+		span.SetTag(k, v)
+	}
 	defer span.ClientFinish(tc)
 
 	// attach this field to all the logs we generate
@@ -133,7 +145,7 @@ func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, 
 	}
 	if err := encoder.Encode(bodyObject); err != nil {
 		span.Error(err)
-		span.Add(ssf.Count(action+".error_total", 1, map[string]string{"cause": "json"}))
+		span.Add(ssf.Count(action+".error_total", 1, mergeTags(extraTags, "cause", "json")))
 		innerLogger.WithError(err).Error("Could not render JSON")
 		return err
 	}
@@ -141,12 +153,12 @@ func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, 
 		// don't forget to flush leftover compressed bytes to the buffer
 		if err := compressor.Close(); err != nil {
 			span.Error(err)
-			span.Add(ssf.Count(action+".error_total", 1, map[string]string{"cause": "compress"}))
+			span.Add(ssf.Count(action+".error_total", 1, mergeTags(extraTags, "cause", "compress")))
 			innerLogger.WithError(err).Error("Could not finalize compression")
 			return err
 		}
 	}
-	span.Add(ssf.Timing(action+".duration_ns", time.Since(marshalStart), time.Nanosecond, map[string]string{"part": "json"}))
+	span.Add(ssf.Timing(action+".duration_ns", time.Since(marshalStart), time.Nanosecond, mergeTags(extraTags, "part", "json")))
 
 	// Len reports the unread length, so we have to record this before the
 	// http client consumes it
@@ -157,7 +169,8 @@ func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, 
 	req = req.WithContext(ctx)
 
 	if err != nil {
-		span.Add(ssf.Count(action+".error_total", 1, map[string]string{"cause": "construct"}))
+		span.Error(err)
+		span.Add(ssf.Count(action+".error_total", 1, mergeTags(extraTags, "cause", "construct")))
 		innerLogger.WithError(err).Error("Could not construct request")
 		return err
 	}
@@ -184,7 +197,8 @@ func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, 
 			// and ditch the url (which might contain secrets)
 			err = urlErr.Err
 		}
-		span.Add(ssf.Count(action+".error_total", 1, map[string]string{"cause": "io"}))
+		span.Error(err)
+		span.Add(ssf.Count(action+".error_total", 1, mergeTags(extraTags, "cause", "io")))
 		// Log at Warn level instead of Error, because we don't want to create
 		// Sentry events for these (they're only important in large numbers, and
 		// we already have Datadog metrics for them)
@@ -200,7 +214,8 @@ func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, 
 	if err != nil {
 		// this error is not fatal, since we only need the body for reporting
 		// purposes
-		span.Add(ssf.Count(action+".error_total", 1, map[string]string{"cause": "readresponse"}))
+		span.Error(err)
+		span.Add(ssf.Count(action+".error_total", 1, mergeTags(extraTags, "cause", "readresponse")))
 		innerLogger.WithError(err).Error("Could not read response body")
 	}
 	resultLogger := innerLogger.WithFields(logrus.Fields{
@@ -213,7 +228,9 @@ func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, 
 	})
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		span.Add(ssf.Count(action+".error_total", 1, map[string]string{"cause": strconv.Itoa(resp.StatusCode)}))
+		err := fmt.Errorf("%v", resp.StatusCode)
+		span.Error(err)
+		span.Add(ssf.Count(action+".error_total", 1, mergeTags(extraTags, "cause", strconv.Itoa(resp.StatusCode))))
 		resultLogger.WithError(err).Warn("Could not POST")
 		return err
 	}
