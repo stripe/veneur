@@ -8,6 +8,7 @@
 * Revamped how sinks handle DogStatsD's events and service checks. Thanks, [gphat](https://github.com/gphat)
   * `veneur.worker.events_flushed_total` and `veneur.worker.checks_flushed_total` have been replaced by `veneur.worker.other_samples_flushed_total`
   * `veneur.flush.event_worker_duration_ns` has been replaced by `veneur.flush.other_samples_duration_ns`
+* Converted the grpsink to use unary instead of stream RPCs. Thanks, [sdboyer](https://github.com/sdboyer)!
 
 ## Added
 
