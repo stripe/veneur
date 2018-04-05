@@ -60,35 +60,36 @@ func (m *clientConnMap) Add(dest string) error {
 // is a no-op if the destination doesn't exist.
 func (m *clientConnMap) Delete(dest string) {
 	m.Lock()
-	defer m.Unlock()
 
 	if conn, ok := m.conns[dest]; ok {
 		_ = conn.Close()
 	}
 	delete(m.conns, dest)
+
+	m.Unlock()
 }
 
 // Keys returns all of the destinations in the map.
 func (m *clientConnMap) Keys() []string {
 	m.RLock()
-	defer m.RUnlock()
 
 	res := make([]string, 0, len(m.conns))
 	for k := range m.conns {
 		res = append(res, k)
 	}
 
+	m.RUnlock()
 	return res
 }
 
 // Clear removes all keys from the map and closes each associated connection.
 func (m *clientConnMap) Clear() {
 	m.Lock()
-	defer m.Unlock()
 
 	for _, conn := range m.conns {
 		_ = conn.Close()
 	}
 
 	m.conns = make(map[string]*grpc.ClientConn)
+	m.Unlock()
 }
