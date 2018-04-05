@@ -37,13 +37,6 @@ type MergingDigest struct {
 	debug bool
 }
 
-// fields must be exported to allow encoding
-type Centroid struct {
-	Mean    float64
-	Weight  float64
-	Samples []float64
-}
-
 var _ sort.Interface = centroidList{}
 
 // sort centroids by their mean

@@ -1,0 +1,23 @@
+syntax = "proto3";
+package tdigest;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+// MergingDigestData contains all fields necessary to generate a MergingDigest.
+// This type should generally just be used when serializing MergingDigest's,
+// and doesn't have much of a purpose on its own.
+message MergingDigestData {
+    // Use values rather than pointers for the Centroid array.  This avoids
+    // a ton of code changes and probably a lot of allocations as well.
+    repeated Centroid main_centroids = 1 [(gogoproto.nullable) = false];
+
+    double compression = 2;
+    double min = 3;
+    double max = 4;
+}
+
+message Centroid {
+    double mean = 1;
+    double weight = 2;
+    repeated double samples = 3;
+}
