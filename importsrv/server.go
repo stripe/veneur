@@ -22,6 +22,10 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
+const (
+	responseDurationMetric = "import.response_duration_ns"
+)
+
 // MetricIngester reads metrics from protobufs
 type MetricIngester interface {
 	IngestMetrics([]*metricpb.Metric)
@@ -85,6 +89,16 @@ func (s *Server) Serve(addr string) error {
 	return s.Server.Serve(ln)
 }
 
+// Static maps of tags used in the SendMetrics handler
+var responseGroupTags = map[string]string{
+	"protocol": "grpc",
+	"part":     "group",
+}
+var responseSendTags = map[string]string{
+	"protocol": "grpc",
+	"part":     "send",
+}
+
 // SendMetrics takes a list of metrics and hashes each one (based on the
 // metric key) to a specific metric ingester.
 func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) (*empty.Empty, error) {
@@ -96,6 +110,7 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 	dests := make([][]*metricpb.Metric, len(s.metricOuts))
 
 	// group metrics by their destination
+	groupStart := time.Now()
 	for _, m := range mlist.Metrics {
 		h.Reset()
 
@@ -110,10 +125,12 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 		workerIdx := h.Sum32() % uint32(len(dests))
 		dests[workerIdx] = append(dests[workerIdx], m)
 	}
+	span.Add(ssf.Timing(responseDurationMetric, time.Since(groupStart), time.Nanosecond, responseGroupTags))
 
 	// send each set of metrics to its destination.  Since this is typically
 	// implemented with channels, batching the metrics together avoids
 	// repeated channel send operations
+	sendStart := time.Now()
 	for i, ms := range dests {
 		if len(ms) > 0 {
 			s.metricOuts[i].IngestMetrics(ms)
@@ -121,7 +138,7 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 	}
 
 	span.Add(
-		ssf.Timing("import.response_duration_ns", time.Since(span.Start), time.Nanosecond, s.internalTags),
+		ssf.Timing(responseDurationMetric, time.Since(sendStart), time.Nanosecond, responseSendTags),
 		ssf.Count("import.metrics_total", float32(len(mlist.Metrics)), s.internalTags),
 	)
 
