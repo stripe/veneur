@@ -16,11 +16,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// GRPCStreamingSpanSink is a sink that streams spans to a configurable target
+// GRPCSpanSink is a generic sink that sends spans to a configurable target
 // service over gRPC. The sink is only tied to the grpc_sink.proto definition of
-// a SpanSink service, and thus is generic with respect to the specific server
+// a SpanSink service, and thus is agnostic with respect to the specific server
 // it is connecting to.
-type GRPCStreamingSpanSink struct {
+type GRPCSpanSink struct {
 	name   string
 	target string
 	// The underlying gRPC connection ("channel") to the target server.
@@ -37,9 +37,9 @@ type GRPCStreamingSpanSink struct {
 	log                   *logrus.Logger
 }
 
-var _ sinks.SpanSink = &GRPCStreamingSpanSink{}
+var _ sinks.SpanSink = &GRPCSpanSink{}
 
-// NewGRPCStreamingSpanSink creates a sinks.SpanSink that can write to any
+// NewGRPCSpanSink creates a sinks.SpanSink that can write to any
 // compliant gRPC server.
 //
 // The target parameter should be of the "host:port"; the name parameter is
@@ -48,7 +48,7 @@ var _ sinks.SpanSink = &GRPCStreamingSpanSink{}
 //
 // Any grpc.CallOpts that are provided will be used while first establishing the
 // connection to the target server (in grpc.DialContext()).
-func NewGRPCStreamingSpanSink(ctx context.Context, target, name string, commonTags map[string]string, log *logrus.Logger, opts ...grpc.DialOption) (*GRPCStreamingSpanSink, error) {
+func NewGRPCSpanSink(ctx context.Context, target, name string, commonTags map[string]string, log *logrus.Logger, opts ...grpc.DialOption) (*GRPCSpanSink, error) {
 	name = "grpc-" + name
 	conn, err := grpc.DialContext(ctx, target, opts...)
 	if err != nil {
@@ -59,7 +59,7 @@ func NewGRPCStreamingSpanSink(ctx context.Context, target, name string, commonTa
 		return nil, err
 	}
 
-	return &GRPCStreamingSpanSink{
+	return &GRPCSpanSink{
 		grpcConn:   conn,
 		name:       name,
 		target:     target,
@@ -70,39 +70,31 @@ func NewGRPCStreamingSpanSink(ctx context.Context, target, name string, commonTa
 
 // Start performs final preparations on the sink before it is
 // ready to begin ingesting spans.
-func (gs *GRPCStreamingSpanSink) Start(cl *trace.Client) error {
+func (gs *GRPCSpanSink) Start(cl *trace.Client) error {
 	gs.traceClient = cl
 
-	go gs.maintainStream()
+	// Run a background goroutine to do a little bit of connection state
+	// tracking.
+	go func() {
+		for {
+			// This call will block on a channel receive until the gRPC connection
+			// state changes. When it does, flip the marker over to allow another
+			// error to be logged from Ingest().
+			gs.grpcConn.WaitForStateChange(context.Background(), gs.grpcConn.GetState())
+			atomic.StoreUint32(&gs.loggedSinceTransition, 0)
+		}
+	}()
 	return nil
-}
-
-// maintainStream is intended to be run in a background goroutine. It is kicked
-// off by Start(), and is only kept as a standalone method for testing purposes.
-//
-// This method runs an endless loop that reacts to state changes in the
-// underlying channel by automatically attempting to re-establish the stream
-// connection when it moves back into the 'READY' state. See
-// https://github.com/grpc/grpc/blob/master/doc/connectivity-semantics-and-api.mdA
-// for details about gRPC's connectivity state machine.
-func (gs *GRPCStreamingSpanSink) maintainStream() {
-	for {
-		// This call will block on a channel receive until the gRPC connection
-		// state changes. When it does, flip the marker over to allow another
-		// error to be logged from Ingest().
-		gs.grpcConn.WaitForStateChange(context.Background(), gs.grpcConn.GetState())
-		atomic.StoreUint32(&gs.loggedSinceTransition, 0)
-	}
 }
 
 // Name returns this sink's name. As the gRPC sink is generic, it's expected
 // that this is set via configuration and injected.
-func (gs *GRPCStreamingSpanSink) Name() string {
+func (gs *GRPCSpanSink) Name() string {
 	return gs.name
 }
 
 // Ingest takes in a span and streams it over gRPC to the connected server.
-func (gs *GRPCStreamingSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
+func (gs *GRPCSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	if err := protocol.ValidateTrace(ssfSpan); err != nil {
 		return err
 	}
@@ -153,7 +145,7 @@ func (gs *GRPCStreamingSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 //
 // No data is sent to the target sink on Flush(), as this sink operates entirely
 // over a stream on Ingest().
-func (gs *GRPCStreamingSpanSink) Flush() {
+func (gs *GRPCSpanSink) Flush() {
 	samples := &ssf.Samples{}
 	samples.Add(
 		ssf.Count(

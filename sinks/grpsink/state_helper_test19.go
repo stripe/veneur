@@ -12,7 +12,7 @@ import (
 	"google.golang.org/grpc/connectivity"
 )
 
-func waitThroughStateSequence(t *testing.T, sink *GRPCStreamingSpanSink, dur time.Duration, seq ...connectivity.State) {
+func waitThroughStateSequence(t *testing.T, sink *GRPCSpanSink, dur time.Duration, seq ...connectivity.State) {
 	t.Helper()
 
 	first, current := seq[0], sink.grpcConn.GetState()
@@ -31,7 +31,7 @@ func waitThroughStateSequence(t *testing.T, sink *GRPCStreamingSpanSink, dur tim
 	}
 }
 
-func waitThroughFiniteStateSequence(t *testing.T, sink *GRPCStreamingSpanSink, dur time.Duration, seq ...connectivity.State) {
+func waitThroughFiniteStateSequence(t *testing.T, sink *GRPCSpanSink, dur time.Duration, seq ...connectivity.State) {
 	t.Helper()
 
 	waitThroughStateSequence(t, sink, dur, seq[:len(seq)-1]...)
@@ -44,7 +44,7 @@ func waitThroughFiniteStateSequence(t *testing.T, sink *GRPCStreamingSpanSink, d
 	}
 }
 
-func reconnectWithin(t *testing.T, sink *GRPCStreamingSpanSink, dur time.Duration) {
+func reconnectWithin(t *testing.T, sink *GRPCSpanSink, dur time.Duration) {
 	t.Helper()
 	ctx, cf := context.WithTimeout(context.Background(), dur)
 	for {
