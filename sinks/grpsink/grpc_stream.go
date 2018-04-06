@@ -272,7 +272,7 @@ func (gs *GRPCStreamingSpanSink) send(ssfSpan *ssf.SSFSpan) error {
 // No data is sent to the target sink on Flush(), as this sink operates entirely
 // over a stream on Ingest().
 func (gs *GRPCStreamingSpanSink) Flush() {
-	samples := &ssf.Samples{}
+	samples := ssf.Samples{}
 	samples.Add(
 		ssf.Count(
 			sinks.MetricKeyTotalSpansFlushed,

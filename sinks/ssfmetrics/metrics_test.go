@@ -29,7 +29,7 @@ func TestMetricExtractor(t *testing.T) {
 		TraceId:        5,
 		StartTimestamp: start.UnixNano(),
 		EndTimestamp:   end.UnixNano(),
-		Metrics: []*ssf.SSFSample{
+		Metrics: []ssf.SSFSample{
 			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
 			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
 		},
@@ -71,7 +71,7 @@ func setupBench() (*ssf.SSFSpan, sinks.SpanSink) {
 		TraceId:        5,
 		StartTimestamp: start.UnixNano(),
 		EndTimestamp:   end.UnixNano(),
-		Metrics: []*ssf.SSFSample{
+		Metrics: []ssf.SSFSample{
 			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
 			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
 		},

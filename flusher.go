@@ -82,7 +82,6 @@ func (s *Server) Flush(ctx context.Context) {
 
 	go func() {
 		samples := &ssf.Samples{}
-		defer metrics.Report(s.TraceClient, samples)
 
 		tags := map[string]string{"part": "post"}
 		for _, p := range s.getPlugins() {
@@ -94,6 +93,7 @@ func (s *Server) Flush(ctx context.Context) {
 			}
 			samples.Add(ssf.Gauge(fmt.Sprintf("flush.plugins.%s.post_metrics_total", p.Name()), float32(len(finalMetrics)), nil))
 		}
+		metrics.Report(s.TraceClient, *samples)
 	}()
 }
 
@@ -243,8 +243,8 @@ const flushTotalMetric = "worker.metrics_flushed_total"
 // because those are only performed by the global veneur instance.
 // It also does not report the total metrics posted, because on the local veneur,
 // that should happen *after* the flush-forward operation.
-func (s *Server) computeMetricsFlushCounts(ms metricsSummary) []*ssf.SSFSample {
-	return []*ssf.SSFSample{
+func (s *Server) computeMetricsFlushCounts(ms metricsSummary) []ssf.SSFSample {
+	return []ssf.SSFSample{
 		ssf.Count(flushTotalMetric, float32(ms.totalCounters), map[string]string{"metric_type": "counter"}),
 		ssf.Count(flushTotalMetric, float32(ms.totalGauges), map[string]string{"metric_type": "gauge"}),
 		ssf.Count(flushTotalMetric, float32(ms.totalLocalHistograms), map[string]string{"metric_type": "local_histogram"}),
@@ -257,13 +257,13 @@ func (s *Server) computeMetricsFlushCounts(ms metricsSummary) []*ssf.SSFSample {
 // globalCounters, globalGauges, totalHistograms, totalSets, and totalTimers,
 // which are the three metrics reported *only* by the global
 // veneur instance.
-func (s *Server) computeGlobalMetricsFlushCounts(ms metricsSummary) []*ssf.SSFSample {
+func (s *Server) computeGlobalMetricsFlushCounts(ms metricsSummary) []ssf.SSFSample {
 	// we only report these lengths in FlushGlobal
 	// since if we're the global veneur instance responsible for flushing them
 	// this avoids double-counting problems where a local veneur reports
 	// histograms that it received, and then a global veneur reports them
 	// again
-	return []*ssf.SSFSample{
+	return []ssf.SSFSample{
 		ssf.Count(flushTotalMetric, float32(ms.totalGlobalCounters), map[string]string{"metric_type": "global_counter"}),
 		ssf.Count(flushTotalMetric, float32(ms.totalGlobalGauges), map[string]string{"metric_type": "global_gauge"}),
 		ssf.Count(flushTotalMetric, float32(ms.totalHistograms), map[string]string{"metric_type": "histogram"}),

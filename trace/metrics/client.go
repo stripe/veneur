@@ -18,14 +18,14 @@ func (nm NoMetrics) Error() string {
 // Report sends one-off metric samples encapsulated in a Samples
 // structure to a trace client without waiting for a reply.  If the
 // batch of metrics is empty, an error NoMetrics is returned.
-func Report(cl *trace.Client, samples *ssf.Samples) error {
+func Report(cl *trace.Client, samples ssf.Samples) error {
 	return ReportBatch(cl, samples.Batch)
 }
 
 // ReportBatch sends a batch of one-off metrics to a trace client without
 // waiting for a reply.  If the batch of metrics is empty, an error
 // NoMetrics is returned.
-func ReportBatch(cl *trace.Client, samples []*ssf.SSFSample) error {
+func ReportBatch(cl *trace.Client, samples []ssf.SSFSample) error {
 	return ReportAsync(cl, samples, nil)
 }
 
@@ -35,16 +35,22 @@ func ReportBatch(cl *trace.Client, samples []*ssf.SSFSample) error {
 //
 // If metrics is empty, an error NoMetrics is returned and done does
 // not receive any data.
-func ReportAsync(cl *trace.Client, metrics []*ssf.SSFSample, done chan<- error) error {
+func ReportAsync(cl *trace.Client, metrics []ssf.SSFSample, done chan<- error) error {
 	if metrics == nil || len(metrics) == 0 {
 		return NoMetrics{}
 	}
-	span := &ssf.SSFSpan{Metrics: metrics}
+
+	mtrs := make([]*ssf.SSFSample, len(metrics))
+	for i, _ := range metrics {
+		mtrs[i] = &metrics[i]
+	}
+
+	span := ssf.SSFSpan{Metrics: mtrs}
 	return trace.Record(cl, span, done)
 }
 
 // ReportOne sends a single metric to a veneur using a trace client
 // without waiting for a reply.
-func ReportOne(cl *trace.Client, metric *ssf.SSFSample) error {
-	return ReportAsync(cl, []*ssf.SSFSample{metric}, nil)
+func ReportOne(cl *trace.Client, metric ssf.SSFSample) error {
+	return ReportAsync(cl, []ssf.SSFSample{metric}, nil)
 }

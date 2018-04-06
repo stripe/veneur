@@ -173,7 +173,7 @@ func (k *KafkaMetricSink) Start(cl *trace.Client) error {
 // Flush sends a slice of metrics to Kafka
 func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
 	samples := &ssf.Samples{}
-	defer metrics.Report(k.traceClient, samples)
+	defer metrics.Report(k.traceClient, *samples)
 
 	if len(interMetrics) == 0 {
 		k.logger.Info("Nothing to flush, skipping.")
@@ -290,7 +290,6 @@ func (k *KafkaSpanSink) Start(cl *trace.Client) error {
 // the bytes, messages and interval settings to your tastes!
 func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 	samples := &ssf.Samples{}
-	defer metrics.Report(k.traceClient, samples)
 	// If we're sampling less than 100%, we should check whether a span should
 	// be sampled:
 	if k.sampleTag != "" || k.sampleThreshold < uint32(math.MaxUint32) {
@@ -360,6 +359,7 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 	}
 	atomic.AddInt64(&k.spansFlushed, 1)
 
+	metrics.Report(k.traceClient, *samples)
 	return nil
 }
 

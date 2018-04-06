@@ -586,7 +586,6 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 		return nil
 	}
 	samples := &ssf.Samples{}
-	defer metrics.Report(s.TraceClient, samples)
 
 	if bytes.HasPrefix(packet, []byte{'_', 'e', '{'}) {
 		event, err := samplers.ParseEvent(packet)
@@ -622,6 +621,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 		}
 		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
 	}
+	metrics.Report(s.TraceClient, *samples)
 	return nil
 }
 
@@ -629,7 +629,6 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 // appropriate worker.
 func (s *Server) HandleTracePacket(packet []byte) {
 	samples := &ssf.Samples{}
-	defer metrics.Report(s.TraceClient, samples)
 
 	samples.Add(ssf.Count("ssf.received_total", 1, nil))
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
@@ -648,6 +647,7 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		return
 	}
 	s.handleSSF(span, map[string]string{"ssf_format": "packet"})
+	metrics.Report(s.TraceClient, *samples)
 }
 
 func (s *Server) handleSSF(span *ssf.SSFSpan, baseTags map[string]string) {
@@ -656,7 +656,7 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, baseTags map[string]string) {
 		tags[k] = v
 	}
 	tags["service"] = span.Service
-	defer metrics.ReportBatch(s.TraceClient, []*ssf.SSFSample{
+	defer metrics.ReportBatch(s.TraceClient, []ssf.SSFSample{
 		ssf.Count("ssf.spans.received_total", 1, tags),
 		ssf.Histogram("ssf.spans.tags_per_span", float32(len(span.Tags)), tags),
 	})

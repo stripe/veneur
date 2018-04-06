@@ -58,7 +58,7 @@ func (m *metricExtractionSink) sendMetrics(metrics []samplers.UDPMetric) {
 	}
 }
 
-func (m *metricExtractionSink) sendSample(sample *ssf.SSFSample) error {
+func (m *metricExtractionSink) sendSample(sample ssf.SSFSample) error {
 	metric, err := samplers.ParseMetricSSF(sample)
 	if err != nil {
 		return err
@@ -129,7 +129,7 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 
 func (m *metricExtractionSink) Flush() {
 	tags := map[string]string{"sink": m.Name()}
-	metrics.ReportBatch(m.traceClient, []*ssf.SSFSample{
+	metrics.ReportBatch(m.traceClient, []ssf.SSFSample{
 		ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(atomic.SwapInt64(&m.spansProcessed, 0)), tags),
 		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(atomic.SwapInt64(&m.metricsGenerated, 0)), tags),
 	})

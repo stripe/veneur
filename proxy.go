@@ -336,7 +336,6 @@ func (p *Proxy) HTTPServe() {
 // the latest data.
 func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consistent, mtx *sync.Mutex) {
 	samples := &ssf.Samples{}
-	defer metrics.Report(p.TraceClient, samples)
 	srvTags := map[string]string{"service": serviceName}
 
 	start := time.Now()
@@ -368,6 +367,7 @@ func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consist
 	defer mtx.Unlock()
 	ring.Set(destinations)
 	samples.Add(ssf.Gauge("discoverer.destination_number", float32(len(destinations)), srvTags))
+	metrics.Report(p.TraceClient, *samples)
 }
 
 // Handler returns the Handler responsible for routing request processing.
@@ -481,7 +481,6 @@ func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination stri
 	defer wg.Done()
 
 	samples := &ssf.Samples{}
-	defer metrics.Report(p.TraceClient, samples)
 
 	batchSize := len(batch)
 	if batchSize < 1 {
@@ -502,12 +501,13 @@ func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination stri
 	samples.Add(ssf.RandomlySample(0.1,
 		ssf.Gauge("metrics_by_destination", float32(batchSize), map[string]string{"destination": destination}),
 	)...)
+	metrics.Report(p.TraceClient, *samples)
 }
 
 func (p *Proxy) ReportRuntimeMetrics() {
 	mem := &runtime.MemStats{}
 	runtime.ReadMemStats(mem)
-	metrics.ReportBatch(p.TraceClient, []*ssf.SSFSample{
+	metrics.ReportBatch(p.TraceClient, []ssf.SSFSample{
 		ssf.Gauge("mem.heap_alloc_bytes", float32(mem.HeapAlloc), nil),
 		ssf.Gauge("gc.number", float32(mem.NumGC), nil),
 		ssf.Gauge("gc.pause_total_ns", float32(mem.PauseTotalNs), nil),

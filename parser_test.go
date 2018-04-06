@@ -15,8 +15,8 @@ import (
 	"github.com/stripe/veneur/ssf"
 )
 
-func freshSSFMetric() *ssf.SSFSample {
-	return &ssf.SSFSample{
+func freshSSFMetric() ssf.SSFSample {
+	return ssf.SSFSample{
 		Metric:     0,
 		Name:       "test.ssf_metric",
 		Value:      5,

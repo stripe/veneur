@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type constructor func(name string, value float32, tags map[string]string) *SSFSample
+type constructor func(name string, value float32, tags map[string]string) SSFSample
 
 func TestValidity(t *testing.T) {
 	tests := map[string]constructor{"count": Count, "gauge": Gauge, "histogram": Histogram}
@@ -50,7 +50,7 @@ func TestTimingMS(t *testing.T) {
 
 var testTypes = []string{"count", "gauge", "histogram", "set"}
 
-func testSample(t *testing.T, name string) *SSFSample {
+func testSample(t *testing.T, name string) SSFSample {
 	tags := map[string]string{"purpose": "testing"}
 	switch name {
 	case "count":
@@ -63,14 +63,14 @@ func testSample(t *testing.T, name string) *SSFSample {
 		return Set("foo", "bar", tags)
 	}
 	t.Fatalf("Unknown sample type %s", name)
-	return nil // not reached
+	return SSFSample{} // not reached
 }
 
 func TestOptions(t *testing.T) {
 	testOpts := []struct {
 		name  string
-		cons  SampleOption
-		check func(*SSFSample)
+		cons  func(SSFSample)
+		check func(SSFSample)
 	}{
 		{
 			"unit",

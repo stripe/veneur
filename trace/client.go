@@ -25,7 +25,7 @@ func init() {
 // recordOp represents a call to Record. Each recordOp holds a span
 // and an optional result return channel.
 type recordOp struct {
-	span   *ssf.SSFSpan
+	span   ssf.SSFSpan
 	result chan<- error
 }
 
@@ -92,7 +92,7 @@ func runFlushableBackend(ctx context.Context, spans chan *recordOp, backend Clie
 	for {
 		select {
 		case op := <-spans:
-			err := backend.SendSync(ctx, op.span)
+			err := backend.SendSync(ctx, &op.span)
 			if op.result != nil {
 				op.result <- err
 			}
@@ -429,14 +429,14 @@ func SendClientStatistics(cl *Client, stats *statsd.Client, tags []string) {
 //
 // Record returns ErrNoClient if client is nil and ErrWouldBlock if
 // the client is not able to accomodate another span.
-func Record(cl *Client, span *ssf.SSFSpan, done chan<- error) error {
+func Record(cl *Client, span ssf.SSFSpan, done chan<- error) error {
 	if cl == nil {
 		return ErrNoClient
 	}
 
 	op := &recordOp{span: span, result: done}
 	select {
-	case cl.spans <- span:
+	case cl.spans <- &span:
 		atomic.AddInt64(&cl.successfulRecords, 1)
 		if done != nil {
 			go func() { done <- nil }()

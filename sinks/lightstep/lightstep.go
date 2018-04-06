@@ -199,7 +199,6 @@ func (ls *LightStepSpanSink) Flush() {
 	defer ls.mutex.Unlock()
 
 	samples := &ssf.Samples{}
-	defer metrics.Report(ls.traceClient, samples)
 
 	totalCount := int64(0)
 	for service, count := range ls.serviceCount {
@@ -209,4 +208,5 @@ func (ls *LightStepSpanSink) Flush() {
 	}
 	ls.serviceCount = make(map[string]int64)
 	ls.log.WithField("total_spans", totalCount).Debug("Checkpointing flushed spans for Lightstep")
+	metrics.Report(ls.traceClient, *samples)
 }

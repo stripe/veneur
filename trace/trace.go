@@ -165,8 +165,16 @@ func (t *Trace) SSFSpan() *ssf.SSFSpan {
 }
 
 // Add adds a number of metrics/samples to a Trace.
-func (t *Trace) Add(samples ...*ssf.SSFSample) {
-	t.Samples = append(t.Samples, samples...)
+func (t *Trace) Add(samples ...ssf.SSFSample) {
+	samplePtrs := make([]*ssf.SSFSample, 0, len(samples)+len(t.Samples))
+
+	for i, _ := range samples {
+		samplePtrs = append(samplePtrs, &samples[i])
+	}
+
+	samplePtrs = append(samplePtrs, t.Samples...)
+
+	t.Samples = samplePtrs
 }
 
 // ProtoMarshalTo writes the Trace as a protocol buffer
@@ -204,7 +212,7 @@ func (t *Trace) ClientRecord(cl *Client, name string, tags map[string]string) er
 	span := t.SSFSpan()
 	span.Name = name
 
-	return Record(cl, span, t.Sent)
+	return Record(cl, *span, t.Sent)
 }
 
 func (t *Trace) Error(err error) {

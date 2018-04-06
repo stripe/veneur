@@ -418,7 +418,6 @@ func (dd *DatadogSpanSink) Ingest(span *ssf.SSFSpan) error {
 // it's beneficial to performance to defer these until the normal 10s flush.
 func (dd *DatadogSpanSink) Flush() {
 	samples := &ssf.Samples{}
-	defer metrics.Report(dd.traceClient, samples)
 	dd.mutex.Lock()
 
 	flushStart := time.Now()
@@ -553,4 +552,5 @@ func (dd *DatadogSpanSink) Flush() {
 	} else {
 		dd.log.Info("No traces to flush to Datadog, skipping.")
 	}
+	defer metrics.Report(dd.traceClient, *samples)
 }

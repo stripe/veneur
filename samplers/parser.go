@@ -63,7 +63,7 @@ func ConvertMetrics(m *ssf.SSFSpan) ([]UDPMetric, error) {
 	invalid := []*ssf.SSFSample{}
 
 	for _, metricPacket := range samples {
-		metric, err := ParseMetricSSF(metricPacket)
+		metric, err := ParseMetricSSF(*metricPacket)
 		if err != nil || !ValidMetric(metric) {
 			invalid = append(invalid, metricPacket)
 			continue
@@ -113,7 +113,7 @@ func ConvertSpanUniquenessMetrics(span *ssf.SSFSpan, rate float32) ([]UDPMetric,
 	if span.Service == "" {
 		return []UDPMetric{}, nil
 	}
-	ssfMetrics := []*ssf.SSFSample{}
+	ssfMetrics := []ssf.SSFSample{}
 	ssfMetrics = append(ssfMetrics,
 		ssf.RandomlySample(rate,
 			ssf.Set("ssf.names_unique", span.Name, map[string]string{
@@ -161,7 +161,7 @@ func (err *invalidMetrics) Samples() []*ssf.SSFSample {
 }
 
 // ParseMetricSSF converts an incoming SSF packet to a Metric.
-func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
+func ParseMetricSSF(metric ssf.SSFSample) (UDPMetric, error) {
 	ret := UDPMetric{
 		SampleRate: 1.0,
 	}

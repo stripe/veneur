@@ -287,7 +287,7 @@ func (w *Worker) Flush() WorkerMetrics {
 	w.mutex.Unlock()
 
 	// Track how much time each worker takes to flush.
-	metrics.ReportBatch(w.traceClient, []*ssf.SSFSample{
+	metrics.ReportBatch(w.traceClient, []ssf.SSFSample{
 		ssf.Timing("flush.worker_duration_ns", time.Since(start), time.Millisecond, nil),
 		ssf.Count("worker.metrics_processed_total", float32(processed), nil),
 		ssf.Count("worker.metrics_imported_total", float32(imported), nil),
@@ -427,7 +427,7 @@ func (tw *SpanWorker) Flush() {
 		samples.Add(ssf.Timing(sinks.MetricKeySpanIngestDuration, cumulative, time.Nanosecond, tags))
 	}
 
-	metrics.Report(tw.traceClient, samples)
+	metrics.Report(tw.traceClient, *samples)
 	metrics.ReportOne(tw.traceClient,
 		ssf.Count("worker.span.hit_chan_cap", float32(atomic.SwapInt64(&tw.capCount, 0)), nil))
 }
