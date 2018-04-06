@@ -97,17 +97,13 @@ func New(destinations *consistent.Consistent, opts ...Option) (*Server, error) {
 // Serve starts a gRPC listener on the specified address and blocks while
 // listening for requests. If listening is interrupted by some means other than
 // Stop or GracefulStop being called, it returns a non-nil error.
-func (s *Server) Serve(addr string) (err error) {
+func (s *Server) Serve(addr string) error {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to bind the proxy server to '%s': %v",
 			addr, err)
 	}
-	defer func() {
-		if cerr := ln.Close(); err == nil && cerr != nil {
-			err = cerr
-		}
-	}()
+	defer ln.Close()
 
 	// Start up a goroutine to periodically report statistics about the
 	// server.
