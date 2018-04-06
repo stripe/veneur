@@ -303,10 +303,10 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 
 	if conf.SignalfxAPIKey != "" {
-		fallback := signalfx.NewClient(conf.SignalfxEndpointBase, conf.SignalfxAPIKey)
+		fallback := signalfx.NewClient(conf.SignalfxEndpointBase, conf.SignalfxAPIKey, *ret.HTTPClient)
 		byTagClients := map[string]signalfx.DPClient{}
 		for _, perTag := range conf.SignalfxPerTagAPIKeys {
-			byTagClients[perTag.Name] = signalfx.NewClient(conf.SignalfxEndpointBase, perTag.APIKey)
+			byTagClients[perTag.Name] = signalfx.NewClient(conf.SignalfxEndpointBase, perTag.APIKey, *ret.HTTPClient)
 		}
 		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback, conf.SignalfxVaryKeyBy, byTagClients)
 		if err != nil {
