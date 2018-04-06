@@ -441,7 +441,9 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 			}
 			span.StartTimestamp = start.UnixNano()
 			span.EndTimestamp = ended.UnixNano()
-			span.Metrics = append(span.Metrics, ssf.Timing(name, ended.Sub(start), time.Millisecond, tags))
+
+			timing := ssf.Timing(name, ended.Sub(start), time.Millisecond, tags)
+			span.Metrics = append(span.Metrics, &timing)
 		}
 
 		sf, shas := passedFlags["span_starttime"]
@@ -472,7 +474,8 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 			if err != nil {
 				return 0, err
 			}
-			span.Metrics = append(span.Metrics, ssf.Timing(name, duration, time.Millisecond, tags))
+			timing := ssf.Timing(name, duration, time.Millisecond, tags)
+			span.Metrics = append(span.Metrics, &timing)
 		}
 
 		if passedFlags["gauge"] != nil {
@@ -481,7 +484,9 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 			if err != nil {
 				return status, err
 			}
-			span.Metrics = append(span.Metrics, ssf.Gauge(name, float32(value), tags))
+
+			gauge := ssf.Gauge(name, float32(value), tags)
+			span.Metrics = append(span.Metrics, &gauge)
 		}
 
 		if passedFlags["count"] != nil {
@@ -490,7 +495,8 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 			if err != nil {
 				return status, err
 			}
-			span.Metrics = append(span.Metrics, ssf.Count(name, float32(value), tags))
+			cnt := ssf.Count(name, float32(value), tags)
+			span.Metrics = append(span.Metrics, &cnt)
 		}
 	}
 	return status, err
@@ -499,7 +505,7 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 // sendSSF sends a whole span to an SSF receiver.
 func sendSSF(client *trace.Client, span *ssf.SSFSpan) error {
 	done := make(chan error)
-	err := trace.Record(client, span, done)
+	err := trace.Record(client, *span, done)
 	if err != nil {
 		return err
 	}

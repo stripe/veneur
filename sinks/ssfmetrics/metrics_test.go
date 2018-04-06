@@ -22,6 +22,9 @@ func TestMetricExtractor(t *testing.T) {
 	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", nil, logger)
 	require.NoError(t, err)
 
+	cnt := ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"})
+	gauge := ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"})
+
 	start := time.Now()
 	end := start.Add(5 * time.Second)
 	span := &ssf.SSFSpan{
@@ -29,9 +32,9 @@ func TestMetricExtractor(t *testing.T) {
 		TraceId:        5,
 		StartTimestamp: start.UnixNano(),
 		EndTimestamp:   end.UnixNano(),
-		Metrics: []ssf.SSFSample{
-			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
-			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		Metrics: []*ssf.SSFSample{
+			&cnt,
+			&gauge,
 		},
 	}
 	done := make(chan int)
@@ -64,6 +67,9 @@ func setupBench() (*ssf.SSFSpan, sinks.SpanSink) {
 		panic(err)
 	}
 
+	cnt := ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"})
+	gauge := ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"})
+
 	start := time.Now()
 	end := start.Add(5 * time.Second)
 	span := &ssf.SSFSpan{
@@ -71,9 +77,9 @@ func setupBench() (*ssf.SSFSpan, sinks.SpanSink) {
 		TraceId:        5,
 		StartTimestamp: start.UnixNano(),
 		EndTimestamp:   end.UnixNano(),
-		Metrics: []ssf.SSFSample{
-			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
-			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		Metrics: []*ssf.SSFSample{
+			&cnt,
+			&gauge,
 		},
 	}
 

@@ -66,36 +66,6 @@ func testSample(t *testing.T, name string) SSFSample {
 	return SSFSample{} // not reached
 }
 
-func TestOptions(t *testing.T) {
-	testOpts := []struct {
-		name  string
-		cons  func(SSFSample)
-		check func(SSFSample)
-	}{
-		{
-			"unit",
-			Unit("frobnizzles"),
-			func(s *SSFSample) {
-				assert.Equal(t, "frobnizzles", s.Unit, "units do not match")
-			},
-		},
-	}
-	for _, name := range testTypes {
-		test := name
-		t.Run(fmt.Sprintf("%s", name), func(t *testing.T) {
-			t.Parallel()
-			for _, elt := range testOpts {
-				opt := elt
-				t.Run(opt.name, func(t *testing.T) {
-					t.Parallel()
-					sample := testSample(t, test)
-					opt.check(sample)
-				})
-			}
-		})
-	}
-}
-
 func TestPrefix(t *testing.T) {
 	NamePrefix = "testing.the.prefix."
 	for _, elt := range testTypes {
@@ -108,9 +78,10 @@ func TestPrefix(t *testing.T) {
 }
 
 func BenchmarkRandomlySample(b *testing.B) {
-	samples := make([]*SSFSample, 1000000)
+	samples := make([]SSFSample, 1000000)
 	for i := range samples {
-		samples[i] = Count("testing.counter", float32(i), nil)
+		cnt := Count("testing.counter", float32(i), nil)
+		samples[i] = cnt
 	}
 	b.ResetTimer()
 	samples = RandomlySample(0.2, samples...)

@@ -11,15 +11,15 @@ import (
 )
 
 func TestEmptyMetrics(t *testing.T) {
-	err := Report(trace.DefaultClient, &ssf.Samples{})
+	err := Report(trace.DefaultClient, ssf.Samples{})
 	assert.Error(t, err)
 	assert.IsType(t, NoMetrics{}, err)
 
-	assert.Error(t, ReportBatch(trace.DefaultClient, []*ssf.SSFSample{}))
+	assert.Error(t, ReportBatch(trace.DefaultClient, []ssf.SSFSample{}))
 	assert.Error(t, err)
 	assert.IsType(t, NoMetrics{}, err)
 
-	assert.Error(t, ReportAsync(trace.DefaultClient, []*ssf.SSFSample{}, nil))
+	assert.Error(t, ReportAsync(trace.DefaultClient, []ssf.SSFSample{}, nil))
 	assert.Error(t, err)
 	assert.IsType(t, NoMetrics{}, err)
 }
@@ -56,9 +56,9 @@ func TestDeferring(t *testing.T) {
 	}()
 
 	samples := &ssf.Samples{}
-	defer Report(client, samples)
 
 	samples.Add(ssf.Count("foo", 1, nil))
 	samples.Add(ssf.Count("bar", 2, nil),
 		ssf.Gauge("baz", 3, nil))
+	Report(client, *samples)
 }

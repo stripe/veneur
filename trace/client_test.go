@@ -52,7 +52,7 @@ func mustFlush(t *testing.T, client *Client) (retries int) {
 }
 
 func TestNoClient(t *testing.T) {
-	err := Record(nil, nil, nil)
+	err := Record(nil, ssf.SSFSpan{}, nil)
 	assert.Equal(t, ErrNoClient, err)
 }
 

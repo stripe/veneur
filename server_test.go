@@ -1118,6 +1118,9 @@ func TestSSFMetricsEndToEnd(t *testing.T) {
 	client, err := trace.NewClient(ssfAddr, trace.Capacity(20))
 	require.NoError(t, err)
 
+	cnt := ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"})
+	gauge := ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"})
+
 	start := time.Now()
 	end := start.Add(5 * time.Second)
 	span := &ssf.SSFSpan{
@@ -1128,12 +1131,12 @@ func TestSSFMetricsEndToEnd(t *testing.T) {
 		EndTimestamp:   end.UnixNano(),
 		Indicator:      false,
 		Metrics: []*ssf.SSFSample{
-			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
-			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+			&cnt,
+			&gauge,
 		},
 	}
 	done := make(chan error)
-	err = trace.Record(client, span, done)
+	err = trace.Record(client, *span, done)
 	require.NoError(t, err)
 	require.NoError(t, <-done)
 
@@ -1181,7 +1184,7 @@ func TestInternalSSFMetricsEndToEnd(t *testing.T) {
 
 	done := make(chan error)
 	for {
-		err = metrics.ReportAsync(client, []*ssf.SSFSample{
+		err = metrics.ReportAsync(client, []ssf.SSFSample{
 			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
 			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
 		}, done)

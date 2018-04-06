@@ -103,7 +103,7 @@ func TestParseSSFInvalidTraceValidMetric(t *testing.T) {
 
 	trace := &ssf.SSFSpan{}
 	trace.Metrics = make([]*ssf.SSFSample, 0)
-	trace.Metrics = append(trace.Metrics, metric)
+	trace.Metrics = append(trace.Metrics, &metric)
 
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)
@@ -137,7 +137,7 @@ func TestParseSSFValid(t *testing.T) {
 	trace.EndTimestamp = 5
 
 	trace.Metrics = make([]*ssf.SSFSample, 0)
-	trace.Metrics = append(trace.Metrics, metric)
+	trace.Metrics = append(trace.Metrics, &metric)
 
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)
@@ -310,7 +310,7 @@ func TestParseSSFBadMetric(t *testing.T) {
 	trace := &ssf.SSFSpan{}
 
 	trace.Metrics = make([]*ssf.SSFSample, 0)
-	trace.Metrics = append(trace.Metrics, metric)
+	trace.Metrics = append(trace.Metrics, &metric)
 
 	buff, err := proto.Marshal(trace)
 	assert.Nil(t, err)

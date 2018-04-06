@@ -27,8 +27,8 @@ var NamePrefix string
 
 // Unit is a functional option for creating an SSFSample. It sets the
 // sample's unit name to the name passed.
-func Unit(name string) func(*SSFSample) {
-	return func(s *SSFSample) {
+func Unit(name string) func(SSFSample) {
+	return func(s SSFSample) {
 		s.Unit = name
 	}
 }

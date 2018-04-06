@@ -23,6 +23,6 @@ func ExampleRandomlySample() {
 		ssf.Count("expensive.counter", 20, nil))...)
 
 	// Report these metrics:
-	metrics.Report(trace.DefaultClient, samples)
+	metrics.Report(trace.DefaultClient, *samples)
 	// Output:
 }
