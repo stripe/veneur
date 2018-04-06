@@ -8,6 +8,7 @@
 * Revamped how sinks handle DogStatsD's events and service checks. Thanks, [gphat](https://github.com/gphat)
   * `veneur.worker.events_flushed_total` and `veneur.worker.checks_flushed_total` have been replaced by `veneur.worker.other_samples_flushed_total`
   * `veneur.flush.event_worker_duration_ns` has been replaced by `veneur.flush.other_samples_duration_ns`
+* Converted the grpsink to use unary instead of stream RPCs. Thanks, [sdboyer](https://github.com/sdboyer)!
 
 ## Added
 
@@ -23,6 +24,7 @@
 * Allow specifying trace start/end times on `veneur-emit`. Thanks, [sdboyer](https://github.com/sdboyer)!
 * Default `span_channel_capacity` to a non-zero value so we don't drop most spans in a minimal configuration. Thanks, [gphat](http://github.com/gphat)!
 * Added tests for parsing floating point timers and histograms, just in case! Thanks [gphat](https://github.com/gphat)!
+* New `ignored-labels` and `ignored-metrics` flags added to veneur-prometheus to selectively restrict exports to Veneur. Thanks, [yolken](https://github.com/yolken)!
 
 # 3.0.0, 2018-02-27
 
