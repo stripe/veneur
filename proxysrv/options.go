@@ -22,6 +22,14 @@ func WithLog(e *logrus.Entry) Option {
 	}
 }
 
+// WithStatsInterval sets the time interval at which diagnostic metrics about
+// the server will be emitted.
+func WithStatsInterval(d time.Duration) Option {
+	return func(opts *options) {
+		opts.statsInterval = d
+	}
+}
+
 // WithTraceClient sets the trace client used by the server.
 func WithTraceClient(c *trace.Client) Option {
 	return func(opts *options) {

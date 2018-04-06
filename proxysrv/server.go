@@ -34,7 +34,7 @@ const (
 	defaultForwardTimeout = 10 * time.Second
 
 	// Report server statistics every 10 seconds
-	reportStatsInterval = 10 * time.Second
+	defaultReportStatsInterval = 10 * time.Second
 )
 
 // Server is a gRPC server that implements the forwardrpc.Forward service.
@@ -59,6 +59,7 @@ type options struct {
 	log            *logrus.Entry
 	forwardTimeout time.Duration
 	traceClient    *trace.Client
+	statsInterval  time.Duration
 }
 
 // New creates a new Server with the provided destinations. The server returned
@@ -68,6 +69,7 @@ func New(destinations *consistent.Consistent, opts ...Option) (*Server, error) {
 		Server: grpc.NewServer(),
 		opts: &options{
 			forwardTimeout: defaultForwardTimeout,
+			statsInterval:  defaultReportStatsInterval,
 		},
 		conns:               newClientConnMap(grpc.WithInsecure()),
 		activeProxyHandlers: new(int64),
@@ -110,7 +112,7 @@ func (s *Server) Serve(addr string) (err error) {
 	// Start up a goroutine to periodically report statistics about the
 	// server.
 	done := make(chan struct{})
-	ticker := time.NewTicker(reportStatsInterval)
+	ticker := time.NewTicker(s.opts.statsInterval)
 	go func() {
 		for {
 			select {
@@ -307,8 +309,8 @@ func (s *Server) forward(ctx context.Context, dest string, ms []*metricpb.Metric
 
 // reportStats reports statistics about the server to the internal trace client
 func (s *Server) reportStats() {
-	metrics.ReportOne(s.opts.traceClient,
-		ssf.Gauge("proxy.active_goroutines", float32(*s.activeProxyHandlers), globalProtocolTags))
+	_ = metrics.ReportOne(s.opts.traceClient,
+		ssf.Gauge("proxy.active_goroutines", float32(atomic.LoadInt64(s.activeProxyHandlers)), globalProtocolTags))
 }
 
 func strInSlice(s string, slice []string) bool {
