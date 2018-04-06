@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/stripe/veneur/protocol/dogstatsd"
+	"github.com/stripe/veneur/samplers/metricpb"
 	"github.com/stripe/veneur/ssf"
 )
 
@@ -43,8 +44,18 @@ type MetricKey struct {
 	JoinedTags string `json:"tagstring"` // tags in deterministic order, joined with commas
 }
 
+// NewMetricKeyFromMetric initializes a MetricKey from the protobuf-compatible
+// metricpb.Metric
+func NewMetricKeyFromMetric(m *metricpb.Metric) MetricKey {
+	return MetricKey{
+		Name:       m.Name,
+		Type:       strings.ToLower(m.Type.String()),
+		JoinedTags: strings.Join(m.Tags, ","),
+	}
+}
+
 // ToString returns a string representation of this MetricKey
-func (m *MetricKey) String() string {
+func (m MetricKey) String() string {
 	var buff bytes.Buffer
 	buff.WriteString(m.Name)
 	buff.WriteString(m.Type)

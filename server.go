@@ -27,9 +27,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
+	"google.golang.org/grpc"
 
 	"github.com/pkg/profile"
 
+	"github.com/stripe/veneur/importsrv"
 	"github.com/stripe/veneur/plugins"
 	localfilep "github.com/stripe/veneur/plugins/localfile"
 	s3p "github.com/stripe/veneur/plugins/s3"
@@ -83,7 +85,8 @@ type Server struct {
 
 	HTTPAddr string
 
-	ForwardAddr string
+	ForwardAddr    string
+	forwardUseGRPC bool
 
 	StatsdListenAddrs []net.Addr
 	SSFListenAddrs    []net.Addr
@@ -114,6 +117,13 @@ type Server struct {
 	metricSinks []sinks.MetricSink
 
 	TraceClient *trace.Client
+
+	// gRPC server
+	grpcListenAddress string
+	grpcServer        *importsrv.Server
+
+	// gRPC forward clients
+	grpcForwardConn *grpc.ClientConn
 }
 
 // SetLogger sets the default logger in veneur to the passed value.
@@ -264,7 +274,17 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.traceMaxLengthBytes = conf.TraceMaxLengthBytes
 	ret.RcvbufBytes = conf.ReadBufferSizeBytes
 	ret.HTTPAddr = conf.HTTPAddress
-	ret.ForwardAddr = conf.ForwardAddress
+
+	if conf.ForwardAddress != "" && conf.GrpcForwardAddress != "" {
+		err = errors.New("Both HTTP and gRPC forwarding is enabled. Make sure that only one is configured.")
+		logger.WithError(err).Error("Incorrect forwarding configuration")
+		return ret, err
+	} else if conf.ForwardAddress != "" { // HTTP forwarding is enabled
+		ret.ForwardAddr = conf.ForwardAddress
+	} else if conf.GrpcForwardAddress != "" { // gRPC forwarding is enabled
+		ret.ForwardAddr = conf.GrpcForwardAddress
+		ret.forwardUseGRPC = true
+	}
 
 	if conf.TLSKey != "" {
 		if conf.TLSCertificate == "" {
@@ -464,6 +484,19 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	conf.AwsAccessKeyID = REDACTED
 	conf.AwsSecretAccessKey = REDACTED
 
+	// Setup the grpc server if it was configured
+	ret.grpcListenAddress = conf.GrpcAddress
+	if ret.grpcListenAddress != "" {
+		// convert all the workers to the proper interface
+		ingesters := make([]importsrv.MetricIngester, len(ret.Workers))
+		for i, worker := range ret.Workers {
+			ingesters[i] = worker
+		}
+
+		ret.grpcServer = importsrv.New(ingesters,
+			importsrv.WithTraceClient(ret.TraceClient))
+	}
+
 	logger.WithField("config", conf).Debug("Initialized server")
 
 	return ret, err
@@ -540,6 +573,17 @@ func (s *Server) Start() {
 		s.SSFListenAddrs = concreteAddrs
 	} else {
 		logrus.Info("Tracing sockets are not configured - not reading trace socket")
+	}
+
+	// Initialize a gRPC connection for forwarding
+	if s.forwardUseGRPC {
+		var err error
+		s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure())
+		if err != nil {
+			log.WithError(err).WithFields(logrus.Fields{
+				"forwardAddr": s.ForwardAddr,
+			}).Fatal("Failed to initialize a gRPC connection for forwarding")
+		}
 	}
 
 	// Flush every Interval forever!
@@ -873,6 +917,31 @@ func (s *Server) ReadTCPSocket(listener net.Listener) {
 	}
 }
 
+// Start all of the the configured servers (gRPC or HTTP) and block until
+// one of them exist.  At that point, stop them both.
+func (s *Server) Serve() {
+	done := make(chan struct{})
+
+	if s.HTTPAddr != "" {
+		go func() {
+			s.HTTPServe()
+			done <- struct{}{}
+		}()
+	}
+
+	if s.grpcListenAddress != "" {
+		go func() {
+			s.GRPCServe()
+			done <- struct{}{}
+		}()
+	}
+
+	// wait until at least one of the servers has shut down
+	<-done
+	graceful.Shutdown()
+	s.GRPCStop()
+}
+
 // HTTPServe starts the HTTP server and listens perpetually until it encounters an unrecoverable error.
 func (s *Server) HTTPServe() {
 	var prf interface {
@@ -918,6 +987,45 @@ func (s *Server) HTTPServe() {
 	graceful.Shutdown()
 }
 
+// Start the gRPC server and block until an error is encountered, or the server
+// is shutdown.
+//
+// TODO this doesn't handle SIGUSR2 and SIGHUP on it's own, unlike HTTPServe
+// As long as both are running this is actually fine, as Serve will stop
+// the gRPC server when the HTTP one exits.  When running just gRPC however,
+// the signal handling won't work.
+func (s *Server) GRPCServe() {
+	entry := log.WithFields(logrus.Fields{"address": s.grpcListenAddress})
+	entry.Info("Starting gRPC server")
+	if err := s.grpcServer.Serve(s.grpcListenAddress); err != nil {
+		entry.WithError(err).Error("grpc server was not shut down cleanly")
+	}
+
+	entry.Info("Stopped gRPC server")
+}
+
+// Try to perform a graceful stop of the gRPC server.  If it takes more than
+// 10 seconds, timeout and force-stop.
+func (s *Server) GRPCStop() {
+	if s.grpcServer == nil {
+		return
+	}
+
+	done := make(chan struct{})
+	go func() {
+		s.grpcServer.GracefulStop()
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-done:
+		return
+	case <-time.After(10 * time.Second):
+		log.Info("Force-stopping the gRPC server after waiting for a graceful shutdown")
+		s.grpcServer.Stop()
+	}
+}
+
 // Shutdown signals the server to shut down after closing all
 // current connections.
 func (s *Server) Shutdown() {
@@ -925,6 +1033,12 @@ func (s *Server) Shutdown() {
 	log.Info("Shutting down server gracefully")
 	close(s.shutdown)
 	graceful.Shutdown()
+	s.GRPCStop()
+
+	// Close the gRPC connection for forwarding
+	if s.grpcForwardConn != nil {
+		s.grpcForwardConn.Close()
+	}
 }
 
 // IsLocal indicates whether veneur is running as a local instance

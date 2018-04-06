@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"net/url"
 	"os"
 	"reflect"
 	"runtime"
@@ -22,6 +23,7 @@ import (
 	"github.com/pkg/profile"
 	"github.com/sirupsen/logrus"
 	vhttp "github.com/stripe/veneur/http"
+	"github.com/stripe/veneur/proxysrv"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
@@ -35,28 +37,36 @@ import (
 )
 
 type Proxy struct {
-	Sentry                 *raven.Client
-	Hostname               string
-	ForwardDestinations    *consistent.Consistent
-	TraceDestinations      *consistent.Consistent
-	Discoverer             Discoverer
-	ConsulForwardService   string
-	ConsulTraceService     string
-	ConsulInterval         time.Duration
-	MetricsInterval        time.Duration
-	ForwardDestinationsMtx sync.Mutex
-	TraceDestinationsMtx   sync.Mutex
-	HTTPAddr               string
-	HTTPClient             *http.Client
-	AcceptingForwards      bool
-	AcceptingTraces        bool
-	ForwardTimeout         time.Duration
+	Sentry                     *raven.Client
+	Hostname                   string
+	ForwardDestinations        *consistent.Consistent
+	TraceDestinations          *consistent.Consistent
+	ForwardGRPCDestinations    *consistent.Consistent
+	Discoverer                 Discoverer
+	ConsulForwardService       string
+	ConsulTraceService         string
+	ConsulForwardGRPCService   string
+	ConsulInterval             time.Duration
+	MetricsInterval            time.Duration
+	ForwardDestinationsMtx     sync.Mutex
+	TraceDestinationsMtx       sync.Mutex
+	ForwardGRPCDestinationsMtx sync.Mutex
+	HTTPAddr                   string
+	HTTPClient                 *http.Client
+	AcceptingForwards          bool
+	AcceptingTraces            bool
+	AcceptingGRPCForwards      bool
+	ForwardTimeout             time.Duration
 
 	usingConsul     bool
 	usingKubernetes bool
 	enableProfiling bool
 	shutdown        chan struct{}
 	TraceClient     *trace.Client
+
+	// gRPC
+	grpcServer        *proxysrv.Server
+	grpcListenAddress string
 }
 
 func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err error) {
@@ -87,6 +97,7 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 
 	p.ConsulForwardService = conf.ConsulForwardServiceName
 	p.ConsulTraceService = conf.ConsulTraceServiceName
+	p.ConsulForwardGRPCService = conf.ConsulForwardGrpcServiceName
 
 	if p.ConsulForwardService != "" || conf.ForwardAddress != "" {
 		p.AcceptingForwards = true
@@ -94,12 +105,16 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 	if p.ConsulTraceService != "" || conf.TraceAddress != "" {
 		p.AcceptingTraces = true
 	}
+	if p.ConsulForwardGRPCService != "" || conf.GrpcForwardAddress != "" {
+		p.AcceptingGRPCForwards = true
+	}
 
 	// We need a convenient way to know if we're even using Consul later
-	if p.ConsulForwardService != "" || p.ConsulTraceService != "" {
+	if p.ConsulForwardService != "" || p.ConsulTraceService != "" || p.ConsulForwardGRPCService != "" {
 		log.WithFields(logrus.Fields{
-			"consulForwardService": p.ConsulForwardService,
-			"consulTraceService":   p.ConsulTraceService,
+			"consulForwardService":     p.ConsulForwardService,
+			"consulTraceService":       p.ConsulTraceService,
+			"consulGRPCForwardService": p.ConsulForwardGRPCService,
 		}).Info("Using consul for service discovery")
 		p.usingConsul = true
 	}
@@ -117,6 +132,7 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 
 	p.ForwardDestinations = consistent.New()
 	p.TraceDestinations = consistent.New()
+	p.ForwardGRPCDestinations = consistent.New()
 
 	if conf.ForwardTimeout != "" {
 		p.ForwardTimeout, err = time.ParseDuration(conf.ForwardTimeout)
@@ -135,14 +151,18 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 	if p.ConsulTraceService == "" && conf.TraceAddress != "" {
 		p.TraceDestinations.Add(conf.TraceAddress)
 	}
+	if p.ConsulForwardGRPCService == "" && conf.GrpcForwardAddress != "" {
+		p.ForwardGRPCDestinations.Add(conf.GrpcForwardAddress)
+	}
 
-	if !p.AcceptingForwards && !p.AcceptingTraces {
+	if !p.AcceptingForwards && !p.AcceptingTraces && !p.AcceptingGRPCForwards {
 		err = errors.New("refusing to start with no Consul service names or static addresses in config")
 		logger.WithError(err).WithFields(logrus.Fields{
-			"consul_forward_service_name": p.ConsulForwardService,
-			"consul_trace_service_name":   p.ConsulTraceService,
-			"forward_address":             conf.ForwardAddress,
-			"trace_address":               conf.TraceAddress,
+			"consul_forward_service_name":      p.ConsulForwardService,
+			"consul_trace_service_name":        p.ConsulTraceService,
+			"consul_forward_grpc_service_name": p.ConsulForwardGRPCService,
+			"forward_address":                  conf.ForwardAddress,
+			"trace_address":                    conf.TraceAddress,
 		}).Error("Oops")
 		return
 	}
@@ -186,6 +206,18 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 			logger.WithField("ssf_destination_address", conf.SsfDestinationAddress).
 				WithError(err).
 				Fatal("Error using SSF destination address")
+		}
+	}
+
+	if conf.GrpcAddress != "" {
+		p.grpcListenAddress = conf.GrpcAddress
+		p.grpcServer, err = proxysrv.New(p.ForwardGRPCDestinations,
+			proxysrv.WithForwardTimeout(p.ForwardTimeout),
+			proxysrv.WithLog(logrus.NewEntry(log)),
+			proxysrv.WithTraceClient(p.TraceClient),
+		)
+		if err != nil {
+			logger.WithError(err).Fatal("Failed to initialize the gRPC server")
 		}
 	}
 
@@ -243,6 +275,14 @@ func (p *Proxy) Start() {
 		}
 	}
 
+	if p.AcceptingGRPCForwards && p.ConsulForwardGRPCService != "" {
+		p.RefreshDestinations(p.ConsulForwardGRPCService, p.ForwardGRPCDestinations, &p.ForwardGRPCDestinationsMtx)
+		if len(p.ForwardGRPCDestinations.Members()) == 0 {
+			log.WithField("serviceName", p.ConsulForwardGRPCService).Fatal("Refusing to start with zero destinations for forwarding over gRPC.")
+		}
+		p.grpcServer.SetDestinations(p.ForwardGRPCDestinations)
+	}
+
 	if p.usingConsul || p.usingKubernetes {
 		log.Info("Creating service discovery goroutine")
 		go func() {
@@ -252,15 +292,20 @@ func (p *Proxy) Start() {
 			ticker := time.NewTicker(p.ConsulInterval)
 			for range ticker.C {
 				log.WithFields(logrus.Fields{
-					"acceptingForwards":    p.AcceptingForwards,
-					"consulForwardService": p.ConsulForwardService,
-					"consulTraceService":   p.ConsulTraceService,
+					"acceptingForwards":        p.AcceptingForwards,
+					"consulForwardService":     p.ConsulForwardService,
+					"consulTraceService":       p.ConsulTraceService,
+					"consulForwardGRPCService": p.ConsulForwardGRPCService,
 				}).Debug("About to refresh destinations")
 				if p.AcceptingForwards && p.ConsulForwardService != "" {
 					p.RefreshDestinations(p.ConsulForwardService, p.ForwardDestinations, &p.ForwardDestinationsMtx)
 				}
 				if p.AcceptingTraces && p.ConsulTraceService != "" {
 					p.RefreshDestinations(p.ConsulTraceService, p.TraceDestinations, &p.TraceDestinationsMtx)
+				}
+				if p.AcceptingGRPCForwards && p.ConsulForwardGRPCService != "" {
+					p.RefreshDestinations(p.ConsulForwardGRPCService, p.ForwardGRPCDestinations, &p.ForwardGRPCDestinationsMtx)
+					p.grpcServer.SetDestinations(p.ForwardGRPCDestinations)
 				}
 			}
 		}()
@@ -284,6 +329,29 @@ func (p *Proxy) Start() {
 		}
 	}()
 
+}
+
+// Start all of the the configured servers (gRPC or HTTP) and block until
+// one of them exist.  At that point, stop them both.
+func (p *Proxy) Serve() {
+	done := make(chan struct{})
+
+	go func() {
+		p.HTTPServe()
+		done <- struct{}{}
+	}()
+
+	if p.grpcListenAddress != "" {
+		go func() {
+			p.GRPCServe()
+			done <- struct{}{}
+		}()
+	}
+
+	// wait until at least one of the servers has shut down
+	<-done
+	graceful.Shutdown()
+	p.GRPCStop()
 }
 
 // HTTPServe starts the HTTP server and listens perpetually until it encounters an unrecoverable error.
@@ -329,6 +397,46 @@ func (p *Proxy) HTTPServe() {
 	}
 
 	graceful.Shutdown()
+}
+
+// Start the gRPC server and block until an error is encountered, or the server
+// is shutdown.
+//
+// TODO this doesn't handle SIGUSR2 and SIGHUP on it's own, unlike HTTPServe
+// As long as both are running this is actually fine, as Serve will stop
+// the gRPC server when the HTTP one exits.  When running just gRPC however,
+// the signal handling won't work.
+func (p *Proxy) GRPCServe() {
+	entry := log.WithField("address", p.grpcListenAddress)
+	entry.Info("Starting gRPC server")
+	if err := p.grpcServer.Serve(p.grpcListenAddress); err != nil {
+		entry.WithError(err).Error("gRPC server was not shut down cleanly")
+	} else {
+		entry.Info("Stopped gRPC server")
+	}
+}
+
+// Try to perform a graceful stop of the gRPC server.  If it takes more than
+// 10 seconds, timeout and force-stop.
+func (p *Proxy) GRPCStop() {
+	if p.grpcServer == nil {
+		return
+	}
+
+	done := make(chan struct{})
+	go func() {
+		p.grpcServer.GracefulStop()
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-done:
+		return
+	case <-time.After(10 * time.Second):
+		log.Info("Force-stopping the GRPC server after waiting for a " +
+			"a graceful shutdown")
+		p.grpcServer.Stop()
+	}
 }
 
 // RefreshDestinations updates the server's list of valid destinations
@@ -486,6 +594,12 @@ func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination stri
 	batchSize := len(batch)
 	if batchSize < 1 {
 		return
+	}
+
+	// Make sure the destination always has a valid 'http' prefix.
+	if !strings.HasPrefix(destination, "http") {
+		u := url.URL{Scheme: "http", Host: destination}
+		destination = u.String()
 	}
 
 	endpoint := fmt.Sprintf("%s/import", destination)

@@ -34,9 +34,15 @@ tls_authority_certificate: ""
 
 # == BEHAVIOR ==
 
-# Use a static host for forwarding
+# Use a static host for forwarding over HTTP.  This option is exclusive with
+# "grpc_forward_address"
 #forward_address: "http://veneur.example.com"
 forward_address: ""
+
+# Forward to a static host over gRPC. Do not include a protocol in this address.
+# This option is exclusive with "forward_address".
+# grpc_forward_address: "veneur.example.com:8128"
+grpc_forward_address: ""
 
 # How often to flush. When flushing to Datadog, changing this
 # value when you've already emitted metrics will break your time
@@ -55,6 +61,9 @@ stats_address: "localhost:8126"
 # The address on which to listen for HTTP imports and/or healthchecks.
 # http_address: "einhorn@0"
 http_address: "0.0.0.0:8127"
+
+# The address on which to listen for imports over gRPC.
+grpc_address: "0.0.0.0:8128"
 
 # The name of timer metrics that "indicator" spans should be tracked
 # under. If this is unset, veneur doesn't report an additional timer

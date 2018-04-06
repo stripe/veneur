@@ -50,5 +50,5 @@ func main() {
 	}
 	proxy.Start()
 
-	proxy.HTTPServe()
+	proxy.Serve()
 }

@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/forwardrpc"
 	vhttp "github.com/stripe/veneur/http"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/samplers/metricpb"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
@@ -57,7 +59,12 @@ func (s *Server) Flush(ctx context.Context) {
 	span.Add(s.computeMetricsFlushCounts(ms)...)
 
 	if s.IsLocal() {
-		go s.flushForward(span.Attach(ctx), tempMetrics)
+		// Forward over gRPC or HTTP depending on the configuration
+		if s.forwardUseGRPC {
+			go s.forwardGRPC(span.Attach(ctx), tempMetrics)
+		} else {
+			go s.flushForward(span.Attach(ctx), tempMetrics)
+		}
 	} else {
 		span.Add(s.computeGlobalMetricsFlushCounts(ms)...)
 	}
@@ -369,4 +376,109 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 
 func (s *Server) flushTraces(ctx context.Context) {
 	s.SpanWorker.Flush()
+}
+
+// forwardGRPC forwards all input metrics to a downstream Veneur, over gRPC.
+func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	span.SetTag("protocol", "grpc")
+	defer span.ClientFinish(s.TraceClient)
+
+	exportStart := time.Now()
+	metrics := s.exportForwardMetrics(wms)
+	span.Add(
+		ssf.Timing("forward.duration_ns", time.Since(exportStart),
+			time.Nanosecond, map[string]string{"part": "export"}),
+		ssf.Gauge("forward.post_metrics_total", float32(len(metrics)), nil),
+	)
+
+	if len(metrics) == 0 {
+		log.Debug("Nothing to forward, skipping.")
+		return
+	}
+
+	entry := log.WithFields(logrus.Fields{
+		"metrics":     len(metrics),
+		"destination": s.ForwardAddr,
+		"protocol":    "grpc",
+		"grpcstate":   s.grpcForwardConn.GetState().String(),
+	})
+
+	c := forwardrpc.NewForwardClient(s.grpcForwardConn)
+
+	grpcStart := time.Now()
+	_, err := c.SendMetrics(ctx, &forwardrpc.MetricList{Metrics: metrics})
+	if err != nil {
+		span.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "send"}))
+		entry.WithError(err).Error("Failed to forward to an upstream Veneur")
+	} else {
+		entry.Info("Completed forward to an upstream Veneur")
+	}
+
+	span.Add(
+		ssf.Timing("forward.duration_ns", time.Since(grpcStart), time.Nanosecond,
+			map[string]string{"part": "grpc"}),
+		ssf.Count("forward.error_total", 0, nil),
+	)
+}
+
+// exportForwardedMetrics converts a slice of WorkerMetrics to a slice
+// of protobuf-compatible metrics for use in forwarding over gRPC
+func (s *Server) exportForwardMetrics(wms []WorkerMetrics) []*metricpb.Metric {
+	bufLen := 0
+	for _, wm := range wms {
+		bufLen += len(wm.histograms) + len(wm.sets) + len(wm.timers) +
+			len(wm.globalCounters) + len(wm.globalGauges)
+	}
+
+	metrics := make([]*metricpb.Metric, 0, bufLen)
+	for _, wm := range wms {
+		for _, count := range wm.globalCounters {
+			metrics = s.appendExportMetric(metrics, count, metricpb.Type_Counter)
+		}
+		for _, gauge := range wm.globalGauges {
+			metrics = s.appendExportMetric(metrics, gauge, metricpb.Type_Gauge)
+		}
+		for _, histo := range wm.histograms {
+			metrics = s.appendExportMetric(metrics, histo, metricpb.Type_Histogram)
+		}
+		for _, set := range wm.sets {
+			metrics = s.appendExportMetric(metrics, set, metricpb.Type_Set)
+		}
+		for _, timer := range wm.timers {
+			metrics = s.appendExportMetric(metrics, timer, metricpb.Type_Timer)
+		}
+	}
+
+	return metrics
+}
+
+// A type implemented by all valid samplers
+type metricExporter interface {
+	GetName() string
+	Metric() (*metricpb.Metric, error)
+}
+
+// appendExportMetric appends the exported version of the input metric, with
+// the inputted type.  If the export fails, the original slice is returned
+// and an error is logged
+func (s *Server) appendExportMetric(res []*metricpb.Metric, exp metricExporter, mType metricpb.Type) []*metricpb.Metric {
+	m, err := exp.Metric()
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			logrus.ErrorKey: err,
+			"type":          mType,
+			"name":          exp.GetName(),
+		}).Error("Could not export metric")
+		metrics.ReportOne(
+			s.TraceClient,
+			ssf.Count("forward.export_metric.errors", 1, map[string]string{
+				"type": mType.String(),
+			}),
+		)
+		return res
+	}
+
+	m.Type = mType
+	return append(res, m)
 }

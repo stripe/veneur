@@ -63,7 +63,7 @@ func (rt *ConsulTwoMetricRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 		z, _ := zlib.NewReader(req.Body)
 		body, _ := ioutil.ReadAll(z)
 		defer req.Body.Close()
-		if strings.Contains(string(body), "a.b.c") {
+		if strings.Contains(string(body), "y.b.c") {
 			rt.aReceived = true
 		}
 		rec.Code = http.StatusOK
@@ -71,7 +71,7 @@ func (rt *ConsulTwoMetricRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 		z, _ := zlib.NewReader(req.Body)
 		body, _ := ioutil.ReadAll(z)
 		defer req.Body.Close()
-		if strings.Contains(string(body), "x.b.c") {
+		if strings.Contains(string(body), "a.b.c") {
 			rt.bReceived = true
 		}
 		rec.Code = http.StatusOK
@@ -167,7 +167,7 @@ func TestConsistentForward(t *testing.T) {
 	})
 	f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
-			Name: "x.b.c",
+			Name: "y.b.c",
 			Type: "histogram",
 		},
 		Value:      float64(100),
