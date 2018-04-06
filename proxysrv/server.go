@@ -318,7 +318,9 @@ func strInSlice(s string, slice []string) bool {
 	return false
 }
 
-// forwardError is a common error type used in sendMetrics.
+// forwardError represents an error that caused a number of metrics to not be
+// forwarded.  The type records the original error, as well as the number of
+// metrics that failed forwarding.
 type forwardError struct {
 	err        error
 	cause      string
