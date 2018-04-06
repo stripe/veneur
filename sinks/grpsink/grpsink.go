@@ -131,7 +131,7 @@ func (gs *GRPCSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 				"code":          serr.Code(),
 				"details":       serr.Details(),
 				"message":       serr.Message(),
-			}).Warn("Error sending span to gRPC sink target")
+			}).Error("Error sending span to gRPC sink target")
 		}
 	} else {
 		atomic.AddUint32(&gs.sentCount, 1)
