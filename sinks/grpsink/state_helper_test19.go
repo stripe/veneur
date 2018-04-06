@@ -4,7 +4,6 @@ package grpsink
 
 import (
 	"context"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -13,7 +12,7 @@ import (
 	"google.golang.org/grpc/connectivity"
 )
 
-func waitThroughStateSequence(t *testing.T, sink *GRPCStreamingSpanSink, dur time.Duration, seq ...connectivity.State) {
+func waitThroughStateSequence(t *testing.T, sink *GRPCSpanSink, dur time.Duration, seq ...connectivity.State) {
 	t.Helper()
 
 	first, current := seq[0], sink.grpcConn.GetState()
@@ -32,7 +31,7 @@ func waitThroughStateSequence(t *testing.T, sink *GRPCStreamingSpanSink, dur tim
 	}
 }
 
-func waitThroughFiniteStateSequence(t *testing.T, sink *GRPCStreamingSpanSink, dur time.Duration, seq ...connectivity.State) {
+func waitThroughFiniteStateSequence(t *testing.T, sink *GRPCSpanSink, dur time.Duration, seq ...connectivity.State) {
 	t.Helper()
 
 	waitThroughStateSequence(t, sink, dur, seq[:len(seq)-1]...)
@@ -45,23 +44,13 @@ func waitThroughFiniteStateSequence(t *testing.T, sink *GRPCStreamingSpanSink, d
 	}
 }
 
-func reconnectWithin(t *testing.T, sink *GRPCStreamingSpanSink, dur time.Duration) {
+func reconnectWithin(t *testing.T, sink *GRPCSpanSink, dur time.Duration) {
 	t.Helper()
 	ctx, cf := context.WithTimeout(context.Background(), dur)
 	for {
 		state := sink.grpcConn.GetState()
 		switch state {
 		case connectivity.Ready:
-			// Spin on the internal state marker that indicates the stream state is bad
-			for atomic.LoadUint32(&sink.bad) != 0 {
-				// Make sure ctx hasn't expired
-				select {
-				case <-ctx.Done():
-					t.Fatal("Connection is READY, but stream was not re-established within alloted time")
-				default:
-					time.Sleep(5 * time.Millisecond)
-				}
-			}
 			cf()
 			return
 		default:

@@ -8,7 +8,7 @@
 		sinks/grpsink/grpc_sink.proto
 
 	It has these top-level messages:
-		SpanResponse
+		Empty
 */
 package grpsink
 
@@ -35,24 +35,16 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-type SpanResponse struct {
-	Greeting string `protobuf:"bytes,1,opt,name=greeting,proto3" json:"greeting,omitempty"`
+type Empty struct {
 }
 
-func (m *SpanResponse) Reset()                    { *m = SpanResponse{} }
-func (m *SpanResponse) String() string            { return proto.CompactTextString(m) }
-func (*SpanResponse) ProtoMessage()               {}
-func (*SpanResponse) Descriptor() ([]byte, []int) { return fileDescriptorGrpcSink, []int{0} }
-
-func (m *SpanResponse) GetGreeting() string {
-	if m != nil {
-		return m.Greeting
-	}
-	return ""
-}
+func (m *Empty) Reset()                    { *m = Empty{} }
+func (m *Empty) String() string            { return proto.CompactTextString(m) }
+func (*Empty) ProtoMessage()               {}
+func (*Empty) Descriptor() ([]byte, []int) { return fileDescriptorGrpcSink, []int{0} }
 
 func init() {
-	proto.RegisterType((*SpanResponse)(nil), "grpsink.SpanResponse")
+	proto.RegisterType((*Empty)(nil), "grpsink.Empty")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -66,7 +58,7 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for SpanSink service
 
 type SpanSinkClient interface {
-	SendSpans(ctx context.Context, opts ...grpc.CallOption) (SpanSink_SendSpansClient, error)
+	SendSpan(ctx context.Context, in *ssf.SSFSpan, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type spanSinkClient struct {
@@ -77,91 +69,57 @@ func NewSpanSinkClient(cc *grpc.ClientConn) SpanSinkClient {
 	return &spanSinkClient{cc}
 }
 
-func (c *spanSinkClient) SendSpans(ctx context.Context, opts ...grpc.CallOption) (SpanSink_SendSpansClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_SpanSink_serviceDesc.Streams[0], c.cc, "/grpsink.SpanSink/SendSpans", opts...)
+func (c *spanSinkClient) SendSpan(ctx context.Context, in *ssf.SSFSpan, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
+	err := grpc.Invoke(ctx, "/grpsink.SpanSink/SendSpan", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &spanSinkSendSpansClient{stream}
-	return x, nil
-}
-
-type SpanSink_SendSpansClient interface {
-	Send(*ssf.SSFSpan) error
-	CloseAndRecv() (*SpanResponse, error)
-	grpc.ClientStream
-}
-
-type spanSinkSendSpansClient struct {
-	grpc.ClientStream
-}
-
-func (x *spanSinkSendSpansClient) Send(m *ssf.SSFSpan) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *spanSinkSendSpansClient) CloseAndRecv() (*SpanResponse, error) {
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	m := new(SpanResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
+	return out, nil
 }
 
 // Server API for SpanSink service
 
 type SpanSinkServer interface {
-	SendSpans(SpanSink_SendSpansServer) error
+	SendSpan(context.Context, *ssf.SSFSpan) (*Empty, error)
 }
 
 func RegisterSpanSinkServer(s *grpc.Server, srv SpanSinkServer) {
 	s.RegisterService(&_SpanSink_serviceDesc, srv)
 }
 
-func _SpanSink_SendSpans_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(SpanSinkServer).SendSpans(&spanSinkSendSpansServer{stream})
-}
-
-type SpanSink_SendSpansServer interface {
-	SendAndClose(*SpanResponse) error
-	Recv() (*ssf.SSFSpan, error)
-	grpc.ServerStream
-}
-
-type spanSinkSendSpansServer struct {
-	grpc.ServerStream
-}
-
-func (x *spanSinkSendSpansServer) SendAndClose(m *SpanResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *spanSinkSendSpansServer) Recv() (*ssf.SSFSpan, error) {
-	m := new(ssf.SSFSpan)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
+func _SpanSink_SendSpan_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ssf.SSFSpan)
+	if err := dec(in); err != nil {
 		return nil, err
 	}
-	return m, nil
+	if interceptor == nil {
+		return srv.(SpanSinkServer).SendSpan(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/grpsink.SpanSink/SendSpan",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SpanSinkServer).SendSpan(ctx, req.(*ssf.SSFSpan))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 var _SpanSink_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "grpsink.SpanSink",
 	HandlerType: (*SpanSinkServer)(nil),
-	Methods:     []grpc.MethodDesc{},
-	Streams: []grpc.StreamDesc{
+	Methods: []grpc.MethodDesc{
 		{
-			StreamName:    "SendSpans",
-			Handler:       _SpanSink_SendSpans_Handler,
-			ClientStreams: true,
+			MethodName: "SendSpan",
+			Handler:    _SpanSink_SendSpan_Handler,
 		},
 	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "sinks/grpsink/grpc_sink.proto",
 }
 
-func (m *SpanResponse) Marshal() (dAtA []byte, err error) {
+func (m *Empty) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalTo(dAtA)
@@ -171,17 +129,11 @@ func (m *SpanResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SpanResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *Empty) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
-	if len(m.Greeting) > 0 {
-		dAtA[i] = 0xa
-		i++
-		i = encodeVarintGrpcSink(dAtA, i, uint64(len(m.Greeting)))
-		i += copy(dAtA[i:], m.Greeting)
-	}
 	return i, nil
 }
 
@@ -194,13 +146,9 @@ func encodeVarintGrpcSink(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return offset + 1
 }
-func (m *SpanResponse) Size() (n int) {
+func (m *Empty) Size() (n int) {
 	var l int
 	_ = l
-	l = len(m.Greeting)
-	if l > 0 {
-		n += 1 + l + sovGrpcSink(uint64(l))
-	}
 	return n
 }
 
@@ -217,7 +165,7 @@ func sovGrpcSink(x uint64) (n int) {
 func sozGrpcSink(x uint64) (n int) {
 	return sovGrpcSink(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *SpanResponse) Unmarshal(dAtA []byte) error {
+func (m *Empty) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -240,41 +188,12 @@ func (m *SpanResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SpanResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: Empty: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SpanResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: Empty: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Greeting", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowGrpcSink
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthGrpcSink
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Greeting = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGrpcSink(dAtA[iNdEx:])
@@ -404,16 +323,14 @@ var (
 func init() { proto.RegisterFile("sinks/grpsink/grpc_sink.proto", fileDescriptorGrpcSink) }
 
 var fileDescriptorGrpcSink = []byte{
-	// 172 bytes of a gzipped FileDescriptorProto
+	// 141 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x2d, 0xce, 0xcc, 0xcb,
 	0x2e, 0xd6, 0x4f, 0x2f, 0x2a, 0x00, 0x31, 0x40, 0x74, 0x72, 0x3c, 0x88, 0xa5, 0x57, 0x50, 0x94,
 	0x5f, 0x92, 0x2f, 0xc4, 0x0e, 0x95, 0x90, 0x12, 0x28, 0x2e, 0x4e, 0xd3, 0x2f, 0x4e, 0xcc, 0x2d,
-	0xc8, 0x49, 0x85, 0x48, 0x29, 0x69, 0x71, 0xf1, 0x04, 0x17, 0x24, 0xe6, 0x05, 0xa5, 0x16, 0x17,
-	0xe4, 0xe7, 0x15, 0xa7, 0x0a, 0x49, 0x71, 0x71, 0xa4, 0x17, 0xa5, 0xa6, 0x96, 0x64, 0xe6, 0xa5,
-	0x4b, 0x30, 0x2a, 0x30, 0x6a, 0x70, 0x06, 0xc1, 0xf9, 0x46, 0x0e, 0x5c, 0x1c, 0x20, 0xb5, 0xc1,
-	0x99, 0x79, 0xd9, 0x42, 0x26, 0x5c, 0x9c, 0xc1, 0xa9, 0x79, 0x29, 0x20, 0x7e, 0xb1, 0x10, 0x8f,
-	0x5e, 0x71, 0x71, 0x9a, 0x5e, 0x70, 0xb0, 0x1b, 0x88, 0x2b, 0x25, 0xaa, 0x07, 0xb5, 0x4e, 0x0f,
-	0xd9, 0x64, 0x25, 0x06, 0x0d, 0x46, 0x27, 0x81, 0x13, 0x8f, 0xe4, 0x18, 0x2f, 0x3c, 0x92, 0x63,
-	0x7c, 0xf0, 0x48, 0x8e, 0x71, 0xc6, 0x63, 0x39, 0x86, 0x24, 0x36, 0xb0, 0x33, 0x8c, 0x01, 0x01,
-	0x00, 0x00, 0xff, 0xff, 0x03, 0x45, 0x35, 0xd2, 0xc2, 0x00, 0x00, 0x00,
+	0xc8, 0x49, 0x85, 0x48, 0x29, 0xb1, 0x73, 0xb1, 0xba, 0xe6, 0x16, 0x94, 0x54, 0x1a, 0x99, 0x70,
+	0x71, 0x04, 0x17, 0x24, 0xe6, 0x05, 0x67, 0xe6, 0x65, 0x0b, 0x69, 0x70, 0x71, 0x04, 0xa7, 0xe6,
+	0xa5, 0x80, 0xf8, 0x42, 0x3c, 0x7a, 0xc5, 0xc5, 0x69, 0x7a, 0xc1, 0xc1, 0x6e, 0x20, 0x9e, 0x14,
+	0x9f, 0x1e, 0xd4, 0x28, 0x3d, 0xb0, 0x2e, 0x27, 0x81, 0x13, 0x8f, 0xe4, 0x18, 0x2f, 0x3c, 0x92,
+	0x63, 0x7c, 0xf0, 0x48, 0x8e, 0x71, 0xc6, 0x63, 0x39, 0x86, 0x24, 0x36, 0xb0, 0xb9, 0xc6, 0x80,
+	0x00, 0x00, 0x00, 0xff, 0xff, 0x55, 0xfd, 0x0a, 0x10, 0x93, 0x00, 0x00, 0x00,
 }
