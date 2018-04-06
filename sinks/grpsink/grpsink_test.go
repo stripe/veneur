@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	ocontext "golang.org/x/net/context"
+
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +25,7 @@ type MockSpanSinkServer struct {
 }
 
 // SendSpans mocks base method
-func (m *MockSpanSinkServer) SendSpan(ctx context.Context, span *ssf.SSFSpan) (*Empty, error) {
+func (m *MockSpanSinkServer) SendSpan(ctx ocontext.Context, span *ssf.SSFSpan) (*Empty, error) {
 	m.mut.Lock()
 	m.spans = append(m.spans, span)
 	m.mut.Unlock()
