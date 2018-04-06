@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync/atomic"
 
+	ocontext "golang.org/x/net/context"
+
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
@@ -50,7 +52,7 @@ var _ sinks.SpanSink = &GRPCSpanSink{}
 // connection to the target server (in grpc.DialContext()).
 func NewGRPCSpanSink(ctx context.Context, target, name string, commonTags map[string]string, log *logrus.Logger, opts ...grpc.DialOption) (*GRPCSpanSink, error) {
 	name = "grpc-" + name
-	conn, err := grpc.DialContext(ctx, target, opts...)
+	conn, err := grpc.DialContext(convertContext(ctx), target, opts...)
 	if err != nil {
 		log.WithError(err).WithFields(logrus.Fields{
 			"name":   name,
@@ -80,7 +82,7 @@ func (gs *GRPCSpanSink) Start(cl *trace.Client) error {
 			// This call will block on a channel receive until the gRPC connection
 			// state changes. When it does, flip the marker over to allow another
 			// error to be logged from Ingest().
-			gs.grpcConn.WaitForStateChange(context.Background(), gs.grpcConn.GetState())
+			gs.grpcConn.WaitForStateChange(ocontext.Background(), gs.grpcConn.GetState())
 			atomic.StoreUint32(&gs.loggedSinceTransition, 0)
 		}
 	}()
@@ -106,7 +108,7 @@ func (gs *GRPCSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	}
 
 	client := NewSpanSinkClient(gs.grpcConn)
-	_, err := client.SendSpan(context.Background(), ssfSpan)
+	_, err := client.SendSpan(ocontext.Background(), ssfSpan)
 
 	if err != nil {
 		atomic.AddUint32(&gs.dropCount, 1)
