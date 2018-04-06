@@ -20,6 +20,8 @@ func BenchmarkConvertSpanUniquenessMetrics(b *testing.B) {
 			b.Fatalf("Error generating data: %s", err)
 		}
 		span := &ssf.SSFSpan{
+			Name:    "my.test.span." + string(p[:2]),
+			Service: "bigmouth",
 			Metrics: []*ssf.SSFSample{
 				{
 					Name:       "my.test.metric",
@@ -64,9 +66,12 @@ func BenchmarkConvertSpanUniquenessMetrics(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err := ConvertSpanUniquenessMetrics(spans[(i%LEN)], .01)
+		result, err := ConvertSpanUniquenessMetrics(spans[(i%LEN)], 1)
 		if err != nil {
 			b.Fatalf("Error converting span uniqueness metrics: %s", err)
+		}
+		if len(result) == 0 {
+			b.Fatalf("Received zero-length uniqueness metric")
 		}
 	}
 }
