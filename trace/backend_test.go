@@ -96,7 +96,7 @@ func BenchmarkSerialization(b *testing.B) {
 		},
 		Metrics: []*ssf.SSFSample{
 			ssf.Count("oh.hai", 1, map[string]string{"purpose": "testing"}),
-			ssf.Histogram("hello.there", 1, map[string]string{"purpose": "testing"}, ssf.Unit("absolute")),
+			ssf.Histogram("hello.there", 1, map[string]string{"purpose": "testing"}),
 		},
 	}
 
@@ -115,7 +115,7 @@ func BenchmarkSerialization(b *testing.B) {
 	emptySpanWithMetrics := &ssf.SSFSpan{
 		Metrics: []*ssf.SSFSample{
 			ssf.Count("oh.hai", 1, map[string]string{"purpose": "testing"}),
-			ssf.Histogram("hello.there", 1, map[string]string{"purpose": "testing"}, ssf.Unit("lad")),
+			ssf.Histogram("hello.there", 1, map[string]string{"purpose": "testing"}),
 		},
 	}
 

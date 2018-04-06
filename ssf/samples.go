@@ -39,14 +39,6 @@ func Unit(name string) SampleOption {
 	}
 }
 
-// Timestamp is a functional option for creating an SSFSample. It sets
-// the timestamp field on the sample to the timestamp passed.
-func Timestamp(ts time.Time) SampleOption {
-	return func(s *SSFSample) {
-		s.Timestamp = ts.UnixNano()
-	}
-}
-
 // SampleRate sets the rate at which a measurement is sampled. The
 // rate is a number on the interval (0..1] (1 means that the value is
 // not sampled). Any numbers outside this interval result in no change
@@ -85,11 +77,7 @@ func TimeUnit(resolution time.Duration) SampleOption {
 	}
 }
 
-func create(base *SSFSample, opts []SampleOption) *SSFSample {
-	base.Name = NamePrefix + base.Name
-	for _, opt := range opts {
-		opt(base)
-	}
+func create(base *SSFSample) *SSFSample {
 	return base
 }
 
@@ -116,57 +104,63 @@ func RandomlySample(rate float32, samples ...*SSFSample) []*SSFSample {
 // Count returns an SSFSample representing an increment / decrement of
 // a counter. It's a convenience wrapper around constructing SSFSample
 // objects.
-func Count(name string, value float32, tags map[string]string, opts ...SampleOption) *SSFSample {
+func Count(name string, value float32, tags map[string]string) *SSFSample {
 	return create(&SSFSample{
 		Metric:     SSFSample_COUNTER,
-		Name:       name,
+		Name:       NamePrefix + name,
 		Value:      value,
 		Tags:       tags,
 		SampleRate: 1.0,
-	}, opts)
+	})
 }
 
 // Gauge returns an SSFSample representing a gauge at a certain
 // value. It's a convenience wrapper around constructing SSFSample
 // objects.
-func Gauge(name string, value float32, tags map[string]string, opts ...SampleOption) *SSFSample {
+func Gauge(name string, value float32, tags map[string]string) *SSFSample {
 	return create(&SSFSample{
 		Metric:     SSFSample_GAUGE,
-		Name:       name,
+		Name:       NamePrefix + name,
 		Value:      value,
 		Tags:       tags,
 		SampleRate: 1.0,
-	}, opts)
+	})
 }
 
 // Histogram returns an SSFSample representing a value on a histogram,
 // like a timer or other range. It's a convenience wrapper around
 // constructing SSFSample objects.
-func Histogram(name string, value float32, tags map[string]string, opts ...SampleOption) *SSFSample {
+func Histogram(name string, value float32, tags map[string]string) *SSFSample {
 	return create(&SSFSample{
 		Metric:     SSFSample_HISTOGRAM,
-		Name:       name,
+		Name:       NamePrefix + name,
 		Value:      value,
 		Tags:       tags,
 		SampleRate: 1.0,
-	}, opts)
+	})
 }
 
 // Set returns an SSFSample representing a value on a set, useful for
 // counting the unique values that occur in a certain time bound.
-func Set(name string, value string, tags map[string]string, opts ...SampleOption) *SSFSample {
+func Set(name string, value string, tags map[string]string) *SSFSample {
 	return create(&SSFSample{
 		Metric:     SSFSample_SET,
-		Name:       name,
+		Name:       NamePrefix + name,
 		Message:    value,
 		Tags:       tags,
 		SampleRate: 1.0,
-	}, opts)
+	})
 }
 
+// TODO FIX THIS
 // Timing returns an SSFSample (really a histogram) representing the
 // timing in the given resolution.
-func Timing(name string, value time.Duration, resolution time.Duration, tags map[string]string, opts ...SampleOption) *SSFSample {
+func Timing(name string, value time.Duration, resolution time.Duration, tags map[string]string) *SSFSample {
 	time := float32(value / resolution)
-	return Histogram(name, time, tags, append(opts, TimeUnit(resolution))...)
+	ssfsample := *Histogram(name, time, tags)
+
+	TimeUnit(resolution)(&ssfsample)
+
+	return &ssfsample
+
 }

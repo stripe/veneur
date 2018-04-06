@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type constructor func(name string, value float32, tags map[string]string, opts ...SampleOption) *SSFSample
+type constructor func(name string, value float32, tags map[string]string) *SSFSample
 
 func TestValidity(t *testing.T) {
 	tests := map[string]constructor{"count": Count, "gauge": Gauge, "histogram": Histogram}
@@ -50,24 +50,23 @@ func TestTimingMS(t *testing.T) {
 
 var testTypes = []string{"count", "gauge", "histogram", "set"}
 
-func testSample(t *testing.T, name string, args ...SampleOption) *SSFSample {
+func testSample(t *testing.T, name string) *SSFSample {
 	tags := map[string]string{"purpose": "testing"}
 	switch name {
 	case "count":
-		return Count("foo", 1, tags, args...)
+		return Count("foo", 1, tags)
 	case "gauge":
-		return Gauge("foo", 1, tags, args...)
+		return Gauge("foo", 1, tags)
 	case "histogram":
-		return Histogram("foo", 1, tags, args...)
+		return Histogram("foo", 1, tags)
 	case "set":
-		return Set("foo", "bar", tags, args...)
+		return Set("foo", "bar", tags)
 	}
 	t.Fatalf("Unknown sample type %s", name)
 	return nil // not reached
 }
 
 func TestOptions(t *testing.T) {
-	then := time.Now().Add(-20 * time.Second)
 	testOpts := []struct {
 		name  string
 		cons  SampleOption
@@ -77,14 +76,7 @@ func TestOptions(t *testing.T) {
 			"unit",
 			Unit("frobnizzles"),
 			func(s *SSFSample) {
-				assert.Equal(t, "frobnizzles", s.Unit)
-			},
-		},
-		{
-			"ts",
-			Timestamp(then),
-			func(s *SSFSample) {
-				assert.Equal(t, then.UnixNano(), s.Timestamp)
+				assert.Equal(t, "frobnizzles", s.Unit, "units do not match")
 			},
 		},
 	}
@@ -96,7 +88,7 @@ func TestOptions(t *testing.T) {
 				opt := elt
 				t.Run(opt.name, func(t *testing.T) {
 					t.Parallel()
-					sample := testSample(t, test, opt.cons)
+					sample := testSample(t, test)
 					opt.check(sample)
 				})
 			}
@@ -110,7 +102,7 @@ func TestPrefix(t *testing.T) {
 		test := elt
 		t.Run(fmt.Sprintf("%s", test), func(t *testing.T) {
 			sample := testSample(t, elt)
-			assert.Equal(t, "testing.the.prefix.foo", sample.Name)
+			assert.Equal(t, "testing.the.prefix.foo", sample.Name, "prefix does not match")
 		})
 	}
 }
