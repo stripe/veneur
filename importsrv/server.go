@@ -7,16 +7,15 @@ package importsrv
 
 import (
 	"fmt"
-	"hash/fnv"
 	"net"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/segmentio/fasthash/fnv1a"
 	"golang.org/x/net/context" // This can be replace with "context" after Go 1.8 support is dropped
 	"google.golang.org/grpc"
 
 	"github.com/stripe/veneur/forwardrpc"
-	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/samplers/metricpb"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
@@ -102,23 +101,12 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 	span.SetTag("protocol", "grpc")
 	defer span.ClientFinish(s.opts.traceClient)
 
-	h := fnv.New32a()
 	dests := make([][]*metricpb.Metric, len(s.metricOuts))
 
 	// group metrics by their destination
 	groupStart := time.Now()
 	for _, m := range mlist.Metrics {
-		h.Reset()
-
-		// Add the MetricKey to the hash
-		key := samplers.NewMetricKeyFromMetric(m).String()
-		if _, err := h.Write([]byte(key)); err != nil {
-			span.Add(ssf.Count("import.metric_error_total", 1,
-				map[string]string{"cause": "io"}))
-			continue
-		}
-
-		workerIdx := h.Sum32() % uint32(len(dests))
+		workerIdx := s.hashMetric(m) % uint32(len(dests))
 		dests[workerIdx] = append(dests[workerIdx], m)
 	}
 	span.Add(ssf.Timing(responseDurationMetric, time.Since(groupStart), time.Nanosecond, responseGroupTags))
@@ -139,4 +127,19 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 	)
 
 	return &empty.Empty{}, nil
+}
+
+// hashMetric returns a 32-bit hash from the input metric based on its name,
+// type, and tags.
+//
+// The fnv1a package is used as opposed to fnv from the standard library, as
+// it avoids allocations by not using the hash.Hash interface and by avoiding
+// string to []byte conversions.
+func (s *Server) hashMetric(m *metricpb.Metric) uint32 {
+	h := fnv1a.HashString32(m.Name)
+	h = fnv1a.AddString32(h, m.Type.String())
+	for _, tag := range m.Tags {
+		h = fnv1a.AddString32(h, tag)
+	}
+	return h
 }
