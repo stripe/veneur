@@ -469,3 +469,34 @@ func TestParseMetricSSF(t *testing.T) {
 	assert.Equal(t, udpMetric.Tags, expected.Tags)
 	assert.Equal(t, udpMetric.Scope, expected.Scope)
 }
+
+func BenchmarkParseMetricSSF(b *testing.B) {
+
+	const LEN = 10000
+
+	samples := make([]*ssf.SSFSample, LEN)
+
+	for i, _ := range samples {
+		p := make([]byte, 10)
+		_, err := rand.Read(p)
+		if err != nil {
+			b.Fatalf("Error generating data: %s", err)
+		}
+		sample := ssf.SSFSample{
+			Name:       "my.test.metric",
+			Value:      rand.Float32(),
+			Timestamp:  time.Now().Unix(),
+			SampleRate: rand.Float32(),
+			Tags: map[string]string{
+				"keats":       "false",
+				"yeats":       "false",
+				"wilde":       "true",
+				string(p[:5]): string(p[5:]),
+			},
+		}
+		samples[i] = &sample
+	}
+	for i := 0; i < b.N; i++ {
+		ParseMetricSSF(samples[i%LEN])
+	}
+}
