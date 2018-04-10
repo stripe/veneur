@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"math"
 	"sort"
 	"strconv"
@@ -248,8 +247,8 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 		return nil, errors.New("Invalid metric packet, metric type not specified")
 	}
 
-	h := fnv.New32a()
-	h.Write(nameChunk)
+	h := fnv1a.Init32
+	h = fnv1a.AddString32(h, string(nameChunk))
 	ret.Name = string(nameChunk)
 
 	// Decide on a type
@@ -268,7 +267,7 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 		return nil, invalidMetricTypeError
 	}
 	// Add the type to the digest
-	h.Write([]byte(ret.Type))
+	h = fnv1a.AddString32(h, ret.Type)
 
 	// Now convert the metric's value
 	if ret.Type == "set" {
@@ -332,14 +331,14 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 			// we specifically need the sorted version here so that hashing over
 			// tags behaves deterministically
 			ret.JoinedTags = strings.Join(tags, ",")
-			h.Write([]byte(ret.JoinedTags))
+			h = fnv1a.AddString32(h, ret.JoinedTags)
 
 		default:
 			return nil, fmt.Errorf("Invalid metric packet, contains unknown section %q", pipeSplitter.Chunk())
 		}
 	}
 
-	ret.Digest = h.Sum32()
+	ret.Digest = h
 
 	return ret, nil
 }
