@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/segmentio/fasthash/fnv1a"
 	"github.com/stripe/veneur/protocol/dogstatsd"
 	"github.com/stripe/veneur/samplers/metricpb"
 	"github.com/stripe/veneur/ssf"
@@ -176,8 +177,8 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 	ret := UDPMetric{
 		SampleRate: 1.0,
 	}
-	h := fnv.New32a()
-	h.Write([]byte(metric.Name))
+	h := fnv1a.Init32
+	h = fnv1a.AddString32(h, metric.Name)
 	ret.Name = metric.Name
 	switch metric.Metric {
 	case ssf.SSFSample_COUNTER:
@@ -191,7 +192,7 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 	default:
 		return UDPMetric{}, invalidMetricTypeError
 	}
-	h.Write([]byte(ret.Type))
+	h = fnv1a.AddString32(h, ret.Type)
 	if metric.Metric == ssf.SSFSample_SET {
 		ret.Value = metric.Message
 	} else {
@@ -213,8 +214,8 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 	sort.Strings(tempTags)
 	ret.Tags = tempTags
 	ret.JoinedTags = strings.Join(tempTags, ",")
-	h.Write([]byte(ret.JoinedTags))
-	ret.Digest = h.Sum32()
+	h = fnv1a.AddString32(h, ret.JoinedTags)
+	ret.Digest = h
 	return ret, nil
 }
 
