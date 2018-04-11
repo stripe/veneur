@@ -496,6 +496,7 @@ func BenchmarkParseMetricSSF(b *testing.B) {
 		}
 		samples[i] = &sample
 	}
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ParseMetricSSF(samples[i%LEN])
 	}
