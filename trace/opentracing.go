@@ -465,7 +465,13 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 // InjectRequest injects a trace into an HTTP request header.
 // It is a convenience function for Inject.
 func (tracer Tracer) InjectRequest(t *Trace, req *http.Request) error {
-	carrier := opentracing.HTTPHeadersCarrier(req.Header)
+	return tracer.InjectHeader(t, req.Header)
+}
+
+// InjectHeader injects a trace into an HTTP header.
+// It is a convenience function for Inject.
+func (tracer Tracer) InjectHeader(t *Trace, h http.Header) error {
+	carrier := opentracing.HTTPHeadersCarrier(h)
 	return tracer.Inject(t.context(), opentracing.HTTPHeaders, carrier)
 }
 
