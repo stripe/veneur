@@ -2,6 +2,7 @@
 package ssfmetrics
 
 import (
+	"log"
 	"sync/atomic"
 
 	"github.com/sirupsen/logrus"
@@ -117,6 +118,10 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 	}
 	metricsCount += len(indicatorMetrics)
 	indicatorMetricsGenerated += len(indicatorMetrics)
+
+	for _, metric := range indicatorMetrics {
+		log.Printf("metric is %#v", metric)
+	}
 
 	spanMetrics, err := samplers.ConvertSpanUniquenessMetrics(span, 0.01)
 	if err != nil {
