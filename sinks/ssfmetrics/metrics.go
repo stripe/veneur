@@ -14,12 +14,13 @@ import (
 )
 
 type metricExtractionSink struct {
-	workers                []Processor
-	indicatorSpanTimerName string
-	log                    *logrus.Logger
-	traceClient            *trace.Client
-	spansProcessed         int64
-	metricsGenerated       int64
+	workers                   []Processor
+	indicatorSpanTimerName    string
+	log                       *logrus.Logger
+	traceClient               *trace.Client
+	spansProcessed            int64
+	metricsGenerated          int64
+	indicatorMetricsGenerated int64
 }
 
 var _ sinks.SpanSink = &metricExtractionSink{}
@@ -71,9 +72,11 @@ func (m *metricExtractionSink) sendSample(sample *ssf.SSFSample) error {
 // appropriate metric sinks.
 func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 	var metricsCount int
+	var indicatorMetricsGenerated int
 	defer func() {
 		atomic.AddInt64(&m.metricsGenerated, int64(metricsCount))
 		atomic.AddInt64(&m.spansProcessed, 1)
+		atomic.AddInt64(&m.indicatorMetricsGenerated, int64(indicatorMetricsGenerated))
 	}()
 	metrics, err := samplers.ConvertMetrics(span)
 	if err != nil {
@@ -113,6 +116,7 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 		return err
 	}
 	metricsCount += len(indicatorMetrics)
+	indicatorMetricsGenerated += len(indicatorMetrics)
 
 	spanMetrics, err := samplers.ConvertSpanUniquenessMetrics(span, 0.01)
 	if err != nil {
@@ -132,5 +136,6 @@ func (m *metricExtractionSink) Flush() {
 	metrics.ReportBatch(m.traceClient, []*ssf.SSFSample{
 		ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(atomic.SwapInt64(&m.spansProcessed, 0)), tags),
 		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(atomic.SwapInt64(&m.metricsGenerated, 0)), tags),
+		ssf.Count("sink.indicator_metrics_flushed_total", float32(atomic.SwapInt64(&m.indicatorMetricsGenerated, 0)), tags),
 	})
 }
