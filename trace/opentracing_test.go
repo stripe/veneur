@@ -308,13 +308,15 @@ func TestInjectRequestInjectHeaderExtractRequestChild(t *testing.T) {
 	req, err := http.NewRequest(http.MethodPost, "/test", bytes.NewBuffer(nil))
 	assert.NoError(t, err)
 
-	header := req.Header
+	req2, err := http.NewRequest(http.MethodPost, "/test2", bytes.NewBuffer(nil))
+	assert.NoError(t, err)
+
 	err = tracer.InjectRequest(trace, req)
 	assert.NoError(t, err)
 
-	err = tracer.InjectHeader(trace, header)
+	err = tracer.InjectHeader(trace, req2.Header)
 	assert.NoError(t, err)
-	assert.True(t, reflect.DeepEqual(req.Header, header), "injected HTTP headers should be the same")
+	assert.True(t, reflect.DeepEqual(req.Header, req2.Header), "injected HTTP headers should be the same")
 
 	span, err := tracer.ExtractRequestChild(childResource, req, traceName)
 	assert.NoError(t, err)
