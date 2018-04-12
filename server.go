@@ -30,6 +30,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
+	"google.golang.org/grpc"
 
 	"github.com/pkg/profile"
 
@@ -40,6 +41,7 @@ import (
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/sinks/datadog"
+	"github.com/stripe/veneur/sinks/falconer"
 	"github.com/stripe/veneur/sinks/kafka"
 	"github.com/stripe/veneur/sinks/lightstep"
 	"github.com/stripe/veneur/sinks/signalfx"
@@ -391,6 +393,17 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 			logger.Info("Configured Lightstep trace sink")
 		}
+
+		if conf.FalconerAddress != "" {
+			falsink, err := falconer.NewSpanSink(context.Background(), conf.FalconerAddress, ret.TagsAsMap, log, grpc.WithInsecure())
+			if err != nil {
+				return ret, err
+			}
+
+			ret.spanSinks = append(ret.spanSinks, falsink)
+			logger.Info("Configured Falconer trace sink")
+		}
+
 		// Set up as many span workers as we need:
 		ret.SpanWorkerGoroutines = 1
 		if conf.NumSpanWorkers > 0 {

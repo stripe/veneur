@@ -14,6 +14,7 @@ type Config struct {
 	DatadogTraceAPIAddress       string    `yaml:"datadog_trace_api_address"`
 	Debug                        bool      `yaml:"debug"`
 	EnableProfiling              bool      `yaml:"enable_profiling"`
+	FalconerAddress              string    `yaml:"falconer_address"`
 	FlushFile                    string    `yaml:"flush_file"`
 	FlushMaxPerBody              int       `yaml:"flush_max_per_body"`
 	ForwardAddress               string    `yaml:"forward_address"`

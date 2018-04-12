@@ -323,6 +323,12 @@ kafka_span_buffer_frequency: ""
 # The number of retries before giving up.
 kafka_retry_max: 0
 
+# == Falconer ==
+#
+# Falconer is an ephemeral (in-memory) trace data sink. Communication happens over gRPC.
+
+falconer_address: "falconer.service.consul"
+
 # == PLUGINS ==
 
 # == S3 Output ==
