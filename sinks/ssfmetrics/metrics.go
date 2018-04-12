@@ -13,6 +13,7 @@ import (
 	"github.com/stripe/veneur/trace/metrics"
 )
 
+// metricExtractionSink enqueues ssf spans or udp metrics for processing in the next pipeline iteration.
 type metricExtractionSink struct {
 	workers                []Processor
 	indicatorSpanTimerName string
@@ -30,10 +31,16 @@ type Processor interface {
 	IngestUDP(samplers.UDPMetric)
 }
 
+// DerivedMetricsSink composes the functionality of a SpanSink and DerivedMetricsProcessor
+type DerivedMetricsSink interface {
+	sinks.SpanSink
+	samplers.DerivedMetricsProcessor
+}
+
 // NewMetricExtractionSink sets up and creates a span sink that
 // extracts metrics ("samples") from SSF spans and reports them to a
 // veneur's metrics workers.
-func NewMetricExtractionSink(mw []Processor, timerName string, cl *trace.Client, log *logrus.Logger) (sinks.SpanSink, error) {
+func NewMetricExtractionSink(mw []Processor, timerName string, cl *trace.Client, log *logrus.Logger) (DerivedMetricsSink, error) {
 	return &metricExtractionSink{
 		workers:                mw,
 		indicatorSpanTimerName: timerName,
@@ -52,13 +59,14 @@ func (m *metricExtractionSink) Start(*trace.Client) error {
 	return nil
 }
 
+// sendMetrics enqueues the metrics into the worker channels
 func (m *metricExtractionSink) sendMetrics(metrics []samplers.UDPMetric) {
 	for _, metric := range metrics {
 		m.workers[metric.Digest%uint32(len(m.workers))].IngestUDP(metric)
 	}
 }
 
-func (m *metricExtractionSink) sendSample(sample *ssf.SSFSample) error {
+func (m *metricExtractionSink) SendSample(sample *ssf.SSFSample) error {
 	metric, err := samplers.ParseMetricSSF(sample)
 	if err != nil {
 		return err
@@ -80,14 +88,14 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 		if _, ok := err.(samplers.InvalidMetrics); ok {
 			m.log.WithError(err).
 				Warn("Could not parse metrics from SSF Message")
-			m.sendSample(ssf.Count("ssf.error_total", 1, map[string]string{
+			m.SendSample(ssf.Count("ssf.error_total", 1, map[string]string{
 				"packet_type": "ssf_metric",
 				"step":        "extract_metrics",
 				"reason":      "invalid_metrics",
 			}))
 		} else {
 			m.log.WithError(err).Error("Unexpected error extracting metrics from SSF Message")
-			m.sendSample(ssf.Count("ssf.error_total", 1, map[string]string{
+			m.SendSample(ssf.Count("ssf.error_total", 1, map[string]string{
 				"packet_type": "ssf_metric",
 				"step":        "extract_metrics",
 				"reason":      "unexpected_error",

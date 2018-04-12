@@ -4,9 +4,9 @@ package samplers
 
 import "strconv"
 
-const _MetricType_name = "CounterMetricGaugeMetric"
+const _MetricType_name = "CounterMetricGaugeMetricStatusMetric"
 
-var _MetricType_index = [...]uint8{0, 13, 24}
+var _MetricType_index = [...]uint8{0, 13, 24, 36}
 
 func (i MetricType) String() string {
 	if i < 0 || i >= MetricType(len(_MetricType_index)-1) {

@@ -38,10 +38,26 @@ func (fs *FakeSink) AddEvents(ctx context.Context, events []*event.Event) (err e
 	return nil
 }
 
+type testDerivedSink struct {
+	samples []*ssf.SSFSample
+}
+
+func (d *testDerivedSink) SendSample(sample *ssf.SSFSample) error {
+	d.samples = append(d.samples, sample)
+	return nil
+}
+
+func newDerivedProcessor() *testDerivedSink {
+	return &testDerivedSink{
+		samples: []*ssf.SSFSample{},
+	}
+}
+
 func TestNewSignalFxSink(t *testing.T) {
 	// test the variables that have been renamed
 	client := NewClient("http://www.example.com", "secret", *http.DefaultClient)
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), client, "", nil)
+	derived := newDerivedProcessor()
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), client, "", nil, derived)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +81,8 @@ func TestNewSignalFxSink(t *testing.T) {
 
 func TestSignalFxFlushRouting(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
+	derived := newDerivedProcessor()
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, derived)
 
 	assert.NoError(t, err)
 
@@ -118,7 +135,8 @@ func TestSignalFxFlushRouting(t *testing.T) {
 
 func TestSignalFxFlushGauge(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
+	derived := newDerivedProcessor()
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, derived)
 
 	assert.NoError(t, err)
 
@@ -145,11 +163,13 @@ func TestSignalFxFlushGauge(t *testing.T) {
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Metric is missing common tag")
 	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
+	assert.Empty(t, derived.samples, "Gauges should not generated derived metrics")
 }
 
 func TestSignalFxFlushCounter(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
+	derived := newDerivedProcessor()
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, derived)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{samplers.InterMetric{
@@ -177,11 +197,84 @@ func TestSignalFxFlushCounter(t *testing.T) {
 	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Metric is missing a common tag")
 	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
+	assert.Empty(t, derived.samples, "Counters should not generated derived metrics")
+}
+
+func TestSignalFxFlushStatus(t *testing.T) {
+	fakeSink := NewFakeSink()
+	derived := newDerivedProcessor()
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, derived)
+	assert.NoError(t, err)
+
+	interMetrics := []samplers.InterMetric{samplers.InterMetric{
+		Name:      "a.b.c",
+		Timestamp: 1476119058,
+		Value:     float64(ssf.SSFSample_UNKNOWN),
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+			"novalue",
+			"veneursinkonly:signalfx", // should not be present in the reported metric
+		},
+		Type: samplers.StatusMetric,
+	}}
+
+	sink.Flush(context.TODO(), interMetrics)
+
+	assert.Equal(t, 1, len(fakeSink.points))
+	point := fakeSink.points[0]
+	assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
+	assert.Equal(t, datapoint.Gauge, point.MetricType, "Metric has wrong type")
+	dims := point.Dimensions
+	assert.Equal(t, 5, len(dims), "Metric has incorrect tag count")
+	assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
+	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
+	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
+	assert.Equal(t, "pie", dims["yay"], "Metric is missing a common tag")
+	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
+	assert.Empty(t, derived.samples, "Counters should not generated derived metrics")
+}
+
+func TestSignalFxServiceCheckFlushOther(t *testing.T) {
+	fakeSink := NewFakeSink()
+	derived := newDerivedProcessor()
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, derived)
+	assert.NoError(t, err)
+
+	serviceCheckMsg := "Service Farts starting[an example link](http://catchpoint.com/session_id \"Title\")"
+	ev := ssf.SSFSample{
+		Name: "Farts farts farts",
+		// Include the markdown bits DD expects, we'll trim it out hopefully!
+		Message:   "%%% \n " + serviceCheckMsg + " \n %%%",
+		Timestamp: time.Now().Unix(),
+		Tags:      map[string]string{"foo": "bar", "baz": "gorch", "novalue": "", dogstatsd.CheckIdentifierKey: ""},
+		Status:    ssf.SSFSample_CRITICAL,
+	}
+	sink.FlushOtherSamples(context.TODO(), []ssf.SSFSample{ev})
+
+	assert.Empty(t, fakeSink.events)
+	assert.NotEmpty(t, derived.samples, "Should convert service check to a gauge")
+	sample := derived.samples[0]
+	assert.Equal(t, ev.Name, sample.Name, "Sample name should be the service check name")
+	assert.Equal(t, ev.Status, sample.Status, "Sample check should be the converted service check status value")
+	assert.Equal(t, ssf.SSFSample_STATUS, sample.Metric, "Derived metric should be a 'status'")
+	// We're checking this to ensure the above markdown is also gone!
+	dims := sample.Tags
+	// 6 because 6 passed in, 1 eliminated (service check identifier) and 2 added (host and sink filter!)
+	assert.Equal(t, 6, len(dims), "Derived metric has incorrect tag count")
+	assert.Equal(t, "bar", dims["foo"], "Derived metric has a busted tag")
+	assert.Equal(t, "gorch", dims["baz"], "Derived metric has a busted tag")
+	assert.Equal(t, "pie", dims["yay"], "Derived metric missing a common tag")
+	assert.Equal(t, "", dims["novalue"], "Derived metric has a busted tag")
+	assert.Equal(t, "glooblestoots", dims["host"], "Derived metric is missing host tag")
+	assert.Equal(t, sink.Name(), dims["veneursinkonly"], "Derived metric should be restricted to run only to SignalFX Sink")
+	assert.NotContains(t, dogstatsd.CheckIdentifierKey, dims, "Should not have the service check identifier")
 }
 
 func TestSignalFxEventFlush(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil)
+	derived := newDerivedProcessor()
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, derived)
 	assert.NoError(t, err)
 
 	evMessage := "[an example link](http://catchpoint.com/session_id \"Title\")"
@@ -200,7 +293,7 @@ func TestSignalFxEventFlush(t *testing.T) {
 	// We're checking this to ensure the above markdown is also gone!
 	assert.Equal(t, event.Properties["description"], evMessage)
 	dims := event.Dimensions
-	// 5 because 5 passed in, 1 eliminated (identifier) and 1 added (host!)
+	// 5 because 5 passed in, 1 eliminated (event identifier) and 1 added (host!)
 	assert.Equal(t, 5, len(dims), "Event has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Event has a busted tag")
 	assert.Equal(t, "gorch", dims["baz"], "Event has a busted tag")
@@ -211,7 +304,8 @@ func TestSignalFxEventFlush(t *testing.T) {
 
 func TestSignalFxSetExcludeTags(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie", "boo": "snakes"}, logrus.New(), fakeSink, "", nil)
+	derived := newDerivedProcessor()
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie", "boo": "snakes"}, logrus.New(), fakeSink, "", nil, derived)
 
 	sink.SetExcludedTags([]string{"foo", "boo", "host"})
 	assert.NoError(t, err)
@@ -264,13 +358,15 @@ func TestSignalFxSetExcludeTags(t *testing.T) {
 	assert.Equal(t, "pie", dims["yay"], "Event missing a common tag")
 	assert.Equal(t, "", dims["novalue"], "Event has a busted tag")
 	assert.Equal(t, "", dims["boo"], "Event has host tag despite exclude rule")
+	assert.Empty(t, derived.samples, "Events should not generated derived metrics")
 }
 
 func TestSignalFxFlushMultiKey(t *testing.T) {
 	fallback := NewFakeSink()
 	specialized := NewFakeSink()
 
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{"available": specialized})
+	derived := newDerivedProcessor()
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{"available": specialized}, derived)
 
 	assert.NoError(t, err)
 
@@ -327,4 +423,5 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 		assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
 		assert.Equal(t, "available", dims["test_by"], "Metric should have the right test_by tag")
 	}
+	assert.Empty(t, derived.samples, "Gauges should not generated derived metrics")
 }

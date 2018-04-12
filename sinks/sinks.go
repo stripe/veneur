@@ -18,6 +18,9 @@ const MetricKeyMetricFlushDuration = "sink.metric_flush_total_duration_ns"
 // place to do this.
 const MetricKeyTotalMetricsFlushed = "sink.metrics_flushed_total"
 
+// ServiceCheckConversionCount number of service checks converted to a metric
+const ServiceCheckConversionCount = "sink.service_check_conversion"
+
 // MetricSink is a receiver of `InterMetric`s when Veneur periodically flushes
 // it's aggregated metrics.
 type MetricSink interface {
