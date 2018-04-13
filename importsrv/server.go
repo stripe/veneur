@@ -48,7 +48,7 @@ type options struct {
 // "With..."
 type Option func(*options)
 
-// New creates a unstarted Server with the input MetricIngester's to send
+// New creates an unstarted Server with the input MetricIngester's to send
 // output to.
 func New(metricOuts []MetricIngester, opts ...Option) *Server {
 	res := &Server{
