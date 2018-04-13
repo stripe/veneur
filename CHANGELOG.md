@@ -1,4 +1,6 @@
-# 4.0.0, in development
+# 5.0.0, in development
+
+# 4.0.0, 2018-04-13
 
 ## Improvements
 * Receiving SSF in UDP packets now happens on `num_readers` goroutines. Thanks, [antifuchs](https://github.com/antifuchs)
