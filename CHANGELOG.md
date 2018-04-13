@@ -1,17 +1,19 @@
 # 5.0.0, in development
 
+## Improvements
+* SignalFX sink can now handle and convert ssf service checks (represented as a gauge). Thanks, [stealthcode](https://github.com/stealthcode)!
+* Converted the grpsink to use unary instead of stream RPCs. Thanks, [sdboyer](https://github.com/sdboyer)!
+
 # 4.0.0, 2018-04-13
 
 ## Improvements
 * Receiving SSF in UDP packets now happens on `num_readers` goroutines. Thanks, [antifuchs](https://github.com/antifuchs)
 * Updated [SignalFx library](https://github.com/signalfx/golib) dependency so that compression is enabled by default, saving significant time on large metric bodies. Thanks, [gphat](https://github.com/gphat)
-* SignalFX sink can now handle and convert ssf service checks (represented as a gauge). Thanks, [stealthcode](https://github.com/stealthcode)!
 * Decreased logging output of veneur-proxy. Thanks, [gphat](https://github.com/gphat)!
 * Better warnings when invalid flag combinations are passed to `veneur-emit`. Thanks, [sdboyer](https://github.com/sdboyer)!
 * Revamped how sinks handle DogStatsD's events and service checks. Thanks, [gphat](https://github.com/gphat)
   * `veneur.worker.events_flushed_total` and `veneur.worker.checks_flushed_total` have been replaced by `veneur.worker.other_samples_flushed_total`
   * `veneur.flush.event_worker_duration_ns` has been replaced by `veneur.flush.other_samples_duration_ns`
-* Converted the grpsink to use unary instead of stream RPCs. Thanks, [sdboyer](https://github.com/sdboyer)!
 
 ## Added
 
