@@ -335,6 +335,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/segmentio/fasthash"
+  packages = ["fnv1a"]
+  revision = "a72b379d632eab4b49e4f4b2c765cfebf0a74796"
+
+[[projects]]
+  branch = "master"
   name = "github.com/signalfx/com_signalfx_metrics_protobuf"
   packages = ["."]
   revision = "93e507b42f43f458a109ca278d1542a26a0b87fc"
@@ -645,6 +651,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "4781d35b91bcee0fc1dc4be69225c3d06d1da3d69bb98f1156100281804c78f1"
+  inputs-digest = "e5b41c2cf3c0db563deb76f216cc2782da7189b60e43b0a6af65736f4ad8f120"
   solver-name = "gps-cdcl"
   solver-version = 1
