@@ -73,6 +73,7 @@ type Server struct {
 	SpanWorker           *SpanWorker
 	SpanWorkerGoroutines int
 
+	Statsd *statsd.Client
 	Sentry *raven.Client
 
 	Hostname  string
@@ -168,6 +169,11 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.TraceClient, err = trace.NewChannelClient(ret.SpanChan,
 		trace.ReportStatistics(stats, 1*time.Second, []string{"ssf_format:internal"}),
 	)
+	if err != nil {
+		return ret, err
+	}
+
+	ret.Statsd, err = statsd.NewBuffered(conf.StatsAddress, 1024)
 	if err != nil {
 		return ret, err
 	}
@@ -631,35 +637,31 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	samples := &ssf.Samples{}
 	defer metrics.Report(s.TraceClient, samples)
 
-	samples.Add(ssf.Count("ssf.received_total", 1, nil))
+	s.Statsd.Incr("ssf.received_total", nil, .1)
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
-		samples.Add(ssf.Count("ssf.error_total", 1, map[string]string{"ssf_format": "packet", "packet_type": "unknown", "reason": "zerolength"}))
+		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:unknown", "reason:zerolength"}, 1.0)
 		log.Warn("received zero-length trace packet")
 		return
 	}
 
-	samples.Add(ssf.Histogram("ssf.packet_size", float32(len(packet)), nil))
+	s.Statsd.Histogram("ssf.packet_size", float64(len(packet)), nil, .1)
 
 	span, err := protocol.ParseSSF(packet)
 	if err != nil {
-		samples.Add(ssf.Count("ssf.error_total", 1, map[string]string{"ssf_format": "packet", "packet_type": "ssf_metric", "reason": err.Error()}))
+		reason := "reason:" + err.Error()
+		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:ssf_metric", reason}, 1.0)
 		log.WithError(err).Warn("ParseSSF")
 		return
 	}
-	s.handleSSF(span, map[string]string{"ssf_format": "packet"})
+	s.handleSSF(span, []string{"ssf_format:packet"})
 }
 
-func (s *Server) handleSSF(span *ssf.SSFSpan, baseTags map[string]string) {
-	tags := map[string]string{}
-	for k, v := range baseTags {
-		tags[k] = v
-	}
-	tags["service"] = span.Service
-	defer metrics.ReportBatch(s.TraceClient, []*ssf.SSFSample{
-		ssf.Count("ssf.spans.received_total", 1, tags),
-		ssf.Histogram("ssf.spans.tags_per_span", float32(len(span.Tags)), tags),
-	})
+func (s *Server) handleSSF(span *ssf.SSFSpan, baseTags []string) {
+	tags := append(baseTags, "service:"+span.Service)
+
+	s.Statsd.Incr("ssf.spans.received_total", tags, .1)
+	s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, .1)
 
 	s.SpanChan <- span
 }
@@ -767,7 +769,7 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 		}
 		metrics.ReportBatch(s.TraceClient,
 			ssf.RandomlySample(0.01, ssf.Count("ssf.received_total", 1, tags)))
-		s.handleSSF(msg, tags)
+		s.handleSSF(msg, []string{"ssf_format:framed"})
 	}
 }
 
