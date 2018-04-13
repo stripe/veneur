@@ -84,15 +84,17 @@ func (s *Server) Serve(addr string) error {
 }
 
 // Static maps of tags used in the SendMetrics handler
-var grpcTags = map[string]string{"protocol": "grpc"}
-var responseGroupTags = map[string]string{
-	"protocol": "grpc",
-	"part":     "group",
-}
-var responseSendTags = map[string]string{
-	"protocol": "grpc",
-	"part":     "send",
-}
+var (
+	grpcTags          = map[string]string{"protocol": "grpc"}
+	responseGroupTags = map[string]string{
+		"protocol": "grpc",
+		"part":     "group",
+	}
+	responseSendTags = map[string]string{
+		"protocol": "grpc",
+		"part":     "send",
+	}
+)
 
 // SendMetrics takes a list of metrics and hashes each one (based on the
 // metric key) to a specific metric ingester.
