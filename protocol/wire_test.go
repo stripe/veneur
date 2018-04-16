@@ -2,8 +2,10 @@ package protocol
 
 import (
 	"bytes"
+	"crypto/rand"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -126,6 +128,43 @@ func TestReadSSFStreamBad(t *testing.T) {
 				assert.False(t, IsFramingError(err))
 			}
 			assert.Nil(t, read)
+		}
+	}
+}
+
+func BenchmarkParseSSF(b *testing.B) {
+	const Len = 1000
+	input := make([][]byte, Len)
+	for i, _ := range input {
+		p := make([]byte, 10)
+		_, err := rand.Read(p)
+		if err != nil {
+			b.Fatalf("Error generating data: %s", err)
+		}
+		msg := &ssf.SSFSpan{
+			Version:        1,
+			TraceId:        1,
+			Id:             2,
+			ParentId:       3,
+			StartTimestamp: time.Now().Unix(),
+			EndTimestamp:   time.Now().Add(5 * time.Second).Unix(),
+			Tags: map[string]string{
+				string(p[:4]):  string(p[5:]),
+				string(p[3:7]): string(p[1:3]),
+			},
+		}
+
+		data, err := msg.Marshal()
+		assert.NoError(b, err)
+
+		input[i] = data
+	}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err := ParseSSF(input[i%Len])
+		if err != nil {
+			b.Fatalf("Error parsing SSF %s", err)
 		}
 	}
 }

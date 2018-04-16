@@ -1257,3 +1257,72 @@ func TestGenerateExcludeTags(t *testing.T) {
 		})
 	}
 }
+
+func generateSSFPackets(tb testing.TB, length int) [][]byte {
+	input := make([][]byte, length)
+	for i, _ := range input {
+		p := make([]byte, 10)
+		_, err := rand.Read(p)
+		if err != nil {
+			tb.Fatalf("Error generating data: %s", err)
+		}
+		msg := &ssf.SSFSpan{
+			Version:        1,
+			TraceId:        1,
+			Id:             2,
+			ParentId:       3,
+			StartTimestamp: time.Now().Unix(),
+			EndTimestamp:   time.Now().Add(5 * time.Second).Unix(),
+			Tags: map[string]string{
+				string(p[:4]):  string(p[5:]),
+				string(p[3:7]): string(p[1:3]),
+			},
+		}
+
+		data, err := msg.Marshal()
+		assert.NoError(tb, err)
+
+		input[i] = data
+	}
+	return input
+}
+
+func BenchmarkHandleTracePacket(b *testing.B) {
+	const LEN = 1000
+	input := generateSSFPackets(b, LEN)
+
+	config := localConfig()
+	f := newFixture(b, config, nil, nil)
+
+	defer f.Close()
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		f.server.HandleTracePacket(input[i%LEN])
+	}
+}
+
+func BenchmarkHandleSSF(b *testing.B) {
+	const LEN = 1000
+	packets := generateSSFPackets(b, LEN)
+	spans := make([]*ssf.SSFSpan, len(packets))
+
+	for i, _ := range spans {
+		span, err := protocol.ParseSSF(packets[i])
+		assert.NoError(b, err)
+		spans[i] = span
+	}
+
+	config := localConfig()
+	f := newFixture(b, config, nil, nil)
+	defer f.Close()
+
+	baseTags := []string{"ssf_format:packet"}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		f.server.handleSSF(spans[i%LEN], baseTags)
+	}
+}
