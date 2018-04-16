@@ -1,7 +1,6 @@
 package veneur
 
 import (
-	"hash/fnv"
 	"net/http"
 	"net/http/pprof"
 	"sort"
@@ -12,6 +11,7 @@ import (
 	"github.com/stripe/veneur/trace"
 	"github.com/stripe/veneur/trace/metrics"
 
+	"github.com/segmentio/fasthash/fnv1a"
 	"goji.io"
 	"goji.io/pat"
 	"golang.org/x/net/context"
@@ -82,11 +82,11 @@ func newSortableJSONMetrics(metrics []samplers.JSONMetric, numWorkers int) *sort
 		workerIndices: make([]uint32, 0, len(metrics)),
 	}
 	for _, j := range metrics {
-		h := fnv.New32a()
-		h.Write([]byte(j.Name))
-		h.Write([]byte(j.Type))
-		h.Write([]byte(j.JoinedTags))
-		ret.workerIndices = append(ret.workerIndices, h.Sum32()%uint32(numWorkers))
+		h := fnv1a.Init32
+		h = fnv1a.AddString32(h, j.Name)
+		h = fnv1a.AddString32(h, j.Type)
+		h = fnv1a.AddString32(h, j.JoinedTags)
+		ret.workerIndices = append(ret.workerIndices, h%uint32(numWorkers))
 	}
 	return &ret
 }

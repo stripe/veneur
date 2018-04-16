@@ -8,7 +8,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/ssf"
 )
+
+const ε = .01
 
 func TestRouting(t *testing.T) {
 	tests := []struct {
@@ -417,4 +420,84 @@ func TestMetricKeyEquality(t *testing.T) {
 	// Make sure we can stringify that key and get equal!
 	assert.Equal(t, ce1.MetricKey.String(), ce2.MetricKey.String())
 	assert.NotEqual(t, ce1.MetricKey.String(), ce3.MetricKey.String())
+}
+
+func TestParseMetricSSF(t *testing.T) {
+	sample := ssf.SSFSample{
+		Metric: ssf.SSFSample_GAUGE,
+
+		Name:       "my.test.metric",
+		Value:      rand.Float32(),
+		Timestamp:  time.Now().Unix(),
+		Message:    "arbitrary test message",
+		Status:     ssf.SSFSample_WARNING,
+		SampleRate: rand.Float32(),
+		Tags: map[string]string{
+			"keats":            "false",
+			"yeats":            "false",
+			"wilde":            "true",
+			"veneurglobalonly": "true",
+		},
+		Unit: "frobs per second",
+	}
+
+	expected := UDPMetric{
+		MetricKey: MetricKey{
+			Name:       "my.test.metric",
+			Type:       "gauge",
+			JoinedTags: "keats:false,wilde:true,yeats:false",
+		},
+		Digest:     0x7ae783ad,
+		Value:      sample.Value,
+		SampleRate: sample.SampleRate,
+		Tags: []string{
+			"keats:false",
+			"wilde:true",
+			"yeats:false",
+		},
+		Scope: 2,
+	}
+
+	udpMetric, err := ParseMetricSSF(&sample)
+	assert.NoError(t, err)
+	assert.Equal(t, udpMetric.MetricKey, expected.MetricKey)
+	assert.Equal(t, udpMetric.Type, expected.Type)
+	assert.Equal(t, udpMetric.Digest, expected.Digest)
+	assert.InEpsilon(t, udpMetric.Value, expected.Value, ε)
+	assert.InEpsilon(t, udpMetric.SampleRate, expected.SampleRate, ε)
+	assert.Equal(t, udpMetric.JoinedTags, expected.JoinedTags)
+	assert.Equal(t, udpMetric.Tags, expected.Tags)
+	assert.Equal(t, udpMetric.Scope, expected.Scope)
+}
+
+func BenchmarkParseMetricSSF(b *testing.B) {
+
+	const LEN = 10000
+
+	samples := make([]*ssf.SSFSample, LEN)
+
+	for i, _ := range samples {
+		p := make([]byte, 10)
+		_, err := rand.Read(p)
+		if err != nil {
+			b.Fatalf("Error generating data: %s", err)
+		}
+		sample := ssf.SSFSample{
+			Name:       "my.test.metric",
+			Value:      rand.Float32(),
+			Timestamp:  time.Now().Unix(),
+			SampleRate: rand.Float32(),
+			Tags: map[string]string{
+				"keats":       "false",
+				"yeats":       "false",
+				"wilde":       "true",
+				string(p[:5]): string(p[5:]),
+			},
+		}
+		samples[i] = &sample
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		ParseMetricSSF(samples[i%LEN])
+	}
 }

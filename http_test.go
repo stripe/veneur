@@ -3,6 +3,7 @@ package veneur
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,6 +16,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/stripe/veneur/trace"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -373,4 +376,27 @@ func testServerImportHelper(t *testing.T, data interface{}) {
 	handler.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code, "Test server returned wrong HTTP response code")
+}
+
+func BenchmarkNewSortableJSONMetrics(b *testing.B) {
+	const numWorkers = 100
+	filename := filepath.Join("fixtures", "import.deflate")
+	contentEncoding := "deflate"
+
+	f, err := os.Open(filename)
+	assert.NoError(b, err, "Error reading response fixture")
+	defer f.Close()
+
+	r := httptest.NewRequest(http.MethodPost, "/import", f)
+	r.Header.Set("Content-Encoding", contentEncoding)
+
+	w := httptest.NewRecorder()
+
+	_, jsonMetrics, err := unmarshalMetricsFromHTTP(context.Background(), trace.DefaultClient, w, r)
+	assert.NoError(b, err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		newSortableJSONMetrics(jsonMetrics, numWorkers)
+	}
 }
