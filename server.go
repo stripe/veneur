@@ -588,7 +588,6 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 		// newline, it's easier to just let them be
 		return nil
 	}
-	fmt.Println(string(packet))
 	samples := &ssf.Samples{}
 	defer metrics.Report(s.TraceClient, samples)
 
