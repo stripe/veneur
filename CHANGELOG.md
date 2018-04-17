@@ -3,6 +3,7 @@
 ## Improvements
 * SignalFX sink can now handle and convert ssf service checks (represented as a gauge). Thanks, [stealthcode](https://github.com/stealthcode)!
 * Converted the grpsink to use unary instead of stream RPCs. Thanks, [sdboyer](https://github.com/sdboyer)!
+* Bumped version of [SignalFx go client](https://github.com/signalfx/golib) to prevent accidental removal of `-` from tag keys. Thanks, [gphat](https://github.com/gphat)!
 
 # 4.0.0, 2018-04-13
 

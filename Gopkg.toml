@@ -98,7 +98,7 @@
 
 [[constraint]]
   name = "github.com/signalfx/golib"
-  revision = "8321403a729d6c8fa60a3dcf2c60bf20f71f6062"
+  revision = "93885a1b911579ca2ce6caf133916e0554e9ab37"
 
 [[constraint]]
   name = "github.com/axiomhq/hyperloglog"

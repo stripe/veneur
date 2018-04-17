@@ -363,7 +363,7 @@
     "sfxclient",
     "timekeeper"
   ]
-  revision = "8321403a729d6c8fa60a3dcf2c60bf20f71f6062"
+  revision = "93885a1b911579ca2ce6caf133916e0554e9ab37"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -651,6 +651,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "e5b41c2cf3c0db563deb76f216cc2782da7189b60e43b0a6af65736f4ad8f120"
+  inputs-digest = "0a3554efddd1f94ef045b315c07a582ce672c49a98b8c83230bfcb73ec62d0a2"
   solver-name = "gps-cdcl"
   solver-version = 1
