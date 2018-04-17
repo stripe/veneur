@@ -598,7 +598,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Warn("Could not parse packet")
-			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "event", "reason": "parse"}))
+			s.Statsd.Count("packet.error_total", 1, []string{"packet_type:event", "reason:parse"}, 1.0)
 			return err
 		}
 		s.EventWorker.sampleChan <- *event
@@ -609,7 +609,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Warn("Could not parse packet")
-			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "service_check", "reason": "parse"}))
+			s.Statsd.Count("packet.error_total", 1, []string{"packet_type:service_check", "reason:parse"}, 1.0)
 			return err
 		}
 		s.EventWorker.sampleChan <- *svcheck
@@ -620,7 +620,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Warn("Could not parse packet")
-			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "metric", "reason": "parse"}))
+			s.Statsd.Count("packet.error_total", 1, []string{"packet_type:metric", "reason:parse"}, 1.0)
 			return err
 		}
 		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
