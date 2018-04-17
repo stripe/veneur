@@ -165,15 +165,12 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 	stats.Namespace = "veneur."
 
+	ret.Statsd = stats
+
 	ret.SpanChan = make(chan *ssf.SSFSpan, conf.SpanChannelCapacity)
 	ret.TraceClient, err = trace.NewChannelClient(ret.SpanChan,
 		trace.ReportStatistics(stats, 1*time.Second, []string{"ssf_format:internal"}),
 	)
-	if err != nil {
-		return ret, err
-	}
-
-	ret.Statsd, err = statsd.NewBuffered(conf.StatsAddress, 1024)
 	if err != nil {
 		return ret, err
 	}
