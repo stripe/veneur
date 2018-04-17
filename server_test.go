@@ -82,6 +82,7 @@ func generateConfig(forwardAddr string) Config {
 		ReadBufferSizeBytes:   2097152,
 		StatsdListenAddresses: []string{"udp://localhost:0"},
 		HTTPAddress:           fmt.Sprintf("localhost:0"),
+		GrpcAddress:           fmt.Sprintf("localhost:0"),
 		ForwardAddress:        forwardAddr,
 		NumWorkers:            4,
 		FlushFile:             "",
@@ -1285,6 +1286,32 @@ func generateSSFPackets(tb testing.TB, length int) [][]byte {
 		input[i] = data
 	}
 	return input
+}
+
+// Test that Serve quits when just the gRPC server is stopped.  This should
+// stop the HTTP listener as well.
+//
+// The opposite behavior for HTTP is much harder to test due to the way
+// the graceful package is implemented.
+func TestServeStopGRPC(t *testing.T) {
+	s, err := NewFromConfig(logrus.New(), globalConfig())
+	assert.NoError(t, err, "Creating a server shouldn't have caused an error")
+
+	done := make(chan struct{})
+	go func() {
+		s.Serve()
+		defer s.Shutdown()
+		done <- struct{}{}
+	}()
+
+	// Stop the GRPC server only.  This should cause Serve to exit
+	s.gRPCStop()
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		assert.Fail(t, "Stopping the Server over HTTP did not stop both listeners")
+	}
 }
 
 func BenchmarkHandleTracePacket(b *testing.B) {

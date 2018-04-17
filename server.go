@@ -34,6 +34,7 @@ import (
 
 	"github.com/pkg/profile"
 
+	"github.com/stripe/veneur/importsrv"
 	"github.com/stripe/veneur/plugins"
 	localfilep "github.com/stripe/veneur/plugins/localfile"
 	s3p "github.com/stripe/veneur/plugins/s3"
@@ -122,6 +123,10 @@ type Server struct {
 	TraceClient *trace.Client
 
 	ssfInternalMetrics sync.Map
+
+	// gRPC server
+	grpcListenAddress string
+	grpcServer        *importsrv.Server
 }
 
 // ssfServiceSpanMetrics refer to the span metrics that will
@@ -507,6 +512,19 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	conf.LightstepAccessToken = REDACTED
 	conf.AwsAccessKeyID = REDACTED
 	conf.AwsSecretAccessKey = REDACTED
+
+	// Setup the grpc server if it was configured
+	ret.grpcListenAddress = conf.GrpcAddress
+	if ret.grpcListenAddress != "" {
+		// convert all the workers to the proper interface
+		ingesters := make([]importsrv.MetricIngester, len(ret.Workers))
+		for i, worker := range ret.Workers {
+			ingesters[i] = worker
+		}
+
+		ret.grpcServer = importsrv.New(ingesters,
+			importsrv.WithTraceClient(ret.TraceClient))
+	}
 
 	logger.WithField("config", conf).Debug("Initialized server")
 
@@ -952,6 +970,31 @@ func (s *Server) ReadTCPSocket(listener net.Listener) {
 	}
 }
 
+// Start all of the the configured servers (gRPC or HTTP) and block until
+// one of them exist.  At that point, stop them both.
+func (s *Server) Serve() {
+	done := make(chan struct{})
+
+	if s.HTTPAddr != "" {
+		go func() {
+			s.HTTPServe()
+			done <- struct{}{}
+		}()
+	}
+
+	if s.grpcListenAddress != "" {
+		go func() {
+			s.gRPCServe()
+			done <- struct{}{}
+		}()
+	}
+
+	// wait until at least one of the servers has shut down
+	<-done
+	graceful.Shutdown()
+	s.gRPCStop()
+}
+
 // HTTPServe starts the HTTP server and listens perpetually until it encounters an unrecoverable error.
 func (s *Server) HTTPServe() {
 	var prf interface {
@@ -993,8 +1036,48 @@ func (s *Server) HTTPServe() {
 	if err := graceful.Serve(httpSocket, s.Handler()); err != nil {
 		log.WithError(err).Error("HTTP server shut down due to error")
 	}
+	log.Info("Stopped HTTP server")
 
 	graceful.Shutdown()
+}
+
+// gRPCServe starts the gRPC server and block until an error is encountered,
+// or the server is shutdown.
+//
+// TODO this doesn't handle SIGUSR2 and SIGHUP on it's own, unlike HTTPServe
+// As long as both are running this is actually fine, as Serve will stop
+// the gRPC server when the HTTP one exits.  When running just gRPC however,
+// the signal handling won't work.
+func (s *Server) gRPCServe() {
+	entry := log.WithFields(logrus.Fields{"address": s.grpcListenAddress})
+	entry.Info("Starting gRPC server")
+	if err := s.grpcServer.Serve(s.grpcListenAddress); err != nil {
+		entry.WithError(err).Error("gRPC server was not shut down cleanly")
+	}
+
+	entry.Info("Stopped gRPC server")
+}
+
+// Try to perform a graceful stop of the gRPC server.  If it takes more than
+// 10 seconds, timeout and force-stop.
+func (s *Server) gRPCStop() {
+	if s.grpcServer == nil {
+		return
+	}
+
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		s.grpcServer.GracefulStop()
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		log.Info("Force-stopping the gRPC server after waiting for a graceful shutdown")
+		s.grpcServer.Stop()
+	}
 }
 
 // Shutdown signals the server to shut down after closing all
@@ -1004,6 +1087,7 @@ func (s *Server) Shutdown() {
 	log.Info("Shutting down server gracefully")
 	close(s.shutdown)
 	graceful.Shutdown()
+	s.gRPCStop()
 }
 
 // IsLocal indicates whether veneur is running as a local instance

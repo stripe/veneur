@@ -28,6 +28,9 @@
 * The `veneur.ssf.received_total` metric has been removed, as it is mostly redundant with `veneur.ssf.spans.received_total`, and was not reported consistently between packet and framed formats.
 * The `veneur.ssf.spans.received_total` metric now tracks all SSF data received, in either packet or framed format, whether or not a valid span was extracted.
 
+## Added
+* Metrics can be imported over gRPC if the `grpc_address` parameter is set.  Thanks, [noahgoldman](https://github.com/noahgoldman)!
+
 # 4.0.0, 2018-04-13
 
 ## Improvements
