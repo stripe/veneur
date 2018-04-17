@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 
+	crand "crypto/rand"
+	"math/big"
 	"math/rand"
 	"net"
 	"net/http"
@@ -1328,6 +1330,21 @@ func BenchmarkHandleSSF(b *testing.B) {
 	}
 }
 
+func RandomString(tb testing.TB, length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+	bts := make([]byte, length)
+	for i := range bts {
+		n, err := crand.Int(crand.Reader, big.NewInt(int64(len(charset))))
+		if err != nil {
+			tb.Fatalf("error generating random data: %s", err)
+		}
+
+		bts[i] = charset[n.Int64()]
+	}
+	return string(bts)
+}
+
 func BenchmarkHandleMetricPacket(b *testing.B) {
 	// generate test data with veneur-emit
 	// $ nc -u -l 127.0.0.1 8125
@@ -1344,17 +1361,17 @@ func BenchmarkHandleMetricPacket(b *testing.B) {
 			b.Fatalf("Error generating data: %s", err)
 		}
 
-		metricName := string(p[:10])
-		metricValue := p[15]
+		metricName := RandomString(b, 10)
+		metricValue := rune(RandomString(b, 1)[0])
 		metricType := "c"
-		if p[12]%2 == 0 {
+		if metricValue%2 == 0 {
 			// make half of them timers
 			metricType = "ms"
 		}
 		metricTags := strings.Join(
 			[]string{
-				fmt.Sprintf("%s:%s", string(p[12:17]), string(p[18:25])),
-				fmt.Sprintf("%s:%s", string(p[25:30]), string(p[11:27])),
+				fmt.Sprintf("%s:%s", RandomString(b, 10), RandomString(b, 8)),
+				fmt.Sprintf("%s:%s", RandomString(b, 6), RandomString(b, 20)),
 			},
 			",")
 
@@ -1362,17 +1379,16 @@ func BenchmarkHandleMetricPacket(b *testing.B) {
 
 	}
 
-	packet := []byte(counter)
-
 	config := localConfig()
 	f := newFixture(b, config, nil, nil)
 	defer f.Close()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		err := f.server.HandleMetricPacket(packet)
+		err := f.server.HandleMetricPacket(packets[i%Len])
 		if err != nil {
-			b.Fatalf("error: %s", err)
+			log.WithError(err).WithField("packet", string(packets[i%Len])).Error("Error parsing packet")
+			b.Fatalf("error parsing packet: %s ", err)
 		}
 	}
 }
