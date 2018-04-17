@@ -245,7 +245,7 @@ func (p *AddArgs) Read(iprot thrift.TProtocol) error {
 
 func (p *AddArgs) readField1(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadI32(); err != nil {
-		return fmt.Errorf("error reading field 1: %s")
+		return fmt.Errorf("error reading field 1: %s", p)
 	} else {
 		p.Num1 = v
 	}
@@ -254,7 +254,7 @@ func (p *AddArgs) readField1(iprot thrift.TProtocol) error {
 
 func (p *AddArgs) readField2(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadI32(); err != nil {
-		return fmt.Errorf("error reading field 2: %s")
+		return fmt.Errorf("error reading field 2: %s", p)
 	} else {
 		p.Num2 = v
 	}
@@ -272,10 +272,10 @@ func (p *AddArgs) Write(oprot thrift.TProtocol) error {
 		return err
 	}
 	if err := oprot.WriteFieldStop(); err != nil {
-		return fmt.Errorf("%T write field stop error: %s", err)
+		return fmt.Errorf("%T write field stop error: %s", p, err)
 	}
 	if err := oprot.WriteStructEnd(); err != nil {
-		return fmt.Errorf("%T write struct stop error: %s", err)
+		return fmt.Errorf("%T write struct stop error: %s", p, err)
 	}
 	return nil
 }
@@ -285,7 +285,7 @@ func (p *AddArgs) writeField1(oprot thrift.TProtocol) (err error) {
 		return fmt.Errorf("%T write field begin error 1:num1: %s", p, err)
 	}
 	if err := oprot.WriteI32(int32(p.Num1)); err != nil {
-		return fmt.Errorf("%T.num1 (1) field write error: %s", p)
+		return fmt.Errorf("%T.num1 (1) field write error: %s", p, err)
 	}
 	if err := oprot.WriteFieldEnd(); err != nil {
 		return fmt.Errorf("%T write field end error 1:num1: %s", p, err)
@@ -298,7 +298,7 @@ func (p *AddArgs) writeField2(oprot thrift.TProtocol) (err error) {
 		return fmt.Errorf("%T write field begin error 2:num2: %s", p, err)
 	}
 	if err := oprot.WriteI32(int32(p.Num2)); err != nil {
-		return fmt.Errorf("%T.num2 (2) field write error: %s", p)
+		return fmt.Errorf("%T.num2 (2) field write error: %s", p, err)
 	}
 	if err := oprot.WriteFieldEnd(); err != nil {
 		return fmt.Errorf("%T write field end error 2:num2: %s", p, err)
@@ -355,7 +355,7 @@ func (p *AddResult) Read(iprot thrift.TProtocol) error {
 
 func (p *AddResult) readField0(iprot thrift.TProtocol) error {
 	if v, err := iprot.ReadI32(); err != nil {
-		return fmt.Errorf("error reading field 0: %s")
+		return fmt.Errorf("error reading field 0: %s", p)
 	} else {
 		p.Success = v
 	}
@@ -373,10 +373,10 @@ func (p *AddResult) Write(oprot thrift.TProtocol) error {
 		}
 	}
 	if err := oprot.WriteFieldStop(); err != nil {
-		return fmt.Errorf("%T write field stop error: %s", err)
+		return fmt.Errorf("%T write field stop error: %s", p, err)
 	}
 	if err := oprot.WriteStructEnd(); err != nil {
-		return fmt.Errorf("%T write struct stop error: %s", err)
+		return fmt.Errorf("%T write struct stop error: %s", p, err)
 	}
 	return nil
 }
@@ -386,7 +386,7 @@ func (p *AddResult) writeField0(oprot thrift.TProtocol) (err error) {
 		return fmt.Errorf("%T write field begin error 0:success: %s", p, err)
 	}
 	if err := oprot.WriteI32(int32(p.Success)); err != nil {
-		return fmt.Errorf("%T.success (0) field write error: %s", p)
+		return fmt.Errorf("%T.success (0) field write error: %s", p, err)
 	}
 	if err := oprot.WriteFieldEnd(); err != nil {
 		return fmt.Errorf("%T write field end error 0:success: %s", p, err)
