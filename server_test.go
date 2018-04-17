@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"strings"
 	"sync"
 
 	crand "crypto/rand"
@@ -34,6 +33,7 @@ import (
 	"github.com/stripe/veneur/sinks/blackhole"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/tdigest"
+	"github.com/stripe/veneur/testhelpers"
 	"github.com/stripe/veneur/trace"
 	"github.com/stripe/veneur/trace/metrics"
 )
@@ -1350,36 +1350,11 @@ func BenchmarkHandleMetricPacket(b *testing.B) {
 	// $ nc -u -l 127.0.0.1 8125
 
 	const Len = 1000
-	const MetricFormat = "%s:%d|%s|#%s"
-
-	packets := make([][]byte, Len)
-
-	for i, _ := range packets {
-		p := make([]byte, 30)
-		_, err := rand.Read(p)
-		if err != nil {
-			b.Fatalf("Error generating data: %s", err)
-		}
-
-		metricName := RandomString(b, 10)
-		metricValue := rune(RandomString(b, 1)[0])
-		metricType := "c"
-		if metricValue%2 == 0 {
-			// make half of them timers
-			metricType = "ms"
-		}
-		metricTags := strings.Join(
-			[]string{
-				fmt.Sprintf("%s:%s", RandomString(b, 10), RandomString(b, 8)),
-				fmt.Sprintf("%s:%s", RandomString(b, 6), RandomString(b, 20)),
-			},
-			",")
-
-		packets[i] = []byte(fmt.Sprintf(MetricFormat, metricName, metricValue, metricType, metricTags))
-
-	}
+	packets := testhelpers.GenerateRandomStatsdMetricPackets(b, Len)
 
 	config := localConfig()
+	config.Interval = "5s"
+	config.NumWorkers = 2
 	f := newFixture(b, config, nil, nil)
 	defer f.Close()
 
