@@ -44,10 +44,14 @@ func main() {
 	ignoredMetrics := []*regexp.Regexp{}
 
 	for _, ignoredLabelStr := range strings.Split(*ignoredLabelsStr, ",") {
-		ignoredLabels = append(ignoredLabels, regexp.MustCompile(ignoredLabelStr))
+		if len(ignoredLabelStr) > 0 {
+			ignoredLabels = append(ignoredLabels, regexp.MustCompile(ignoredLabelStr))
+		}
 	}
 	for _, ignoredMetricStr := range strings.Split(*ignoredMetricsStr, ",") {
-		ignoredMetrics = append(ignoredMetrics, regexp.MustCompile(ignoredMetricStr))
+		if len(ignoredMetricStr) > 0 {
+			ignoredMetrics = append(ignoredMetrics, regexp.MustCompile(ignoredMetricStr))
+		}
 	}
 
 	ticker := time.NewTicker(i)
