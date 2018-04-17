@@ -66,9 +66,9 @@ func main() {
 
 func collect(c *statsd.Client, ignoredLabels []*regexp.Regexp, ignoredMetrics []*regexp.Regexp) {
 	logrus.WithFields(logrus.Fields{
-		"stats_host":   *statsHost,
-		"metrics_host": *metricsHost,
-		"ignored_labels": ignoredLabels,
+		"stats_host":      *statsHost,
+		"metrics_host":    *metricsHost,
+		"ignored_labels":  ignoredLabels,
 		"ignored_metrics": ignoredMetrics,
 	}).Debug("Beginning collection")
 
