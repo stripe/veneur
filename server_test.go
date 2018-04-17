@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"strings"
 	"sync"
 
 	"math/rand"
@@ -1324,5 +1325,54 @@ func BenchmarkHandleSSF(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		f.server.handleSSF(spans[i%LEN], baseTags)
+	}
+}
+
+func BenchmarkHandleMetricPacket(b *testing.B) {
+	// generate test data with veneur-emit
+	// $ nc -u -l 127.0.0.1 8125
+
+	const Len = 1000
+	const MetricFormat = "%s:%d|%s|#%s"
+
+	packets := make([][]byte, Len)
+
+	for i, _ := range packets {
+		p := make([]byte, 30)
+		_, err := rand.Read(p)
+		if err != nil {
+			b.Fatalf("Error generating data: %s", err)
+		}
+
+		metricName := string(p[:10])
+		metricValue := p[15]
+		metricType := "c"
+		if p[12]%2 == 0 {
+			// make half of them timers
+			metricType = "ms"
+		}
+		metricTags := strings.Join(
+			[]string{
+				fmt.Sprintf("%s:%s", string(p[12:17]), string(p[18:25])),
+				fmt.Sprintf("%s:%s", string(p[25:30]), string(p[11:27])),
+			},
+			",")
+
+		packets[i] = []byte(fmt.Sprintf(MetricFormat, metricName, metricValue, metricType, metricTags))
+
+	}
+
+	packet := []byte(counter)
+
+	config := localConfig()
+	f := newFixture(b, config, nil, nil)
+	defer f.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err := f.server.HandleMetricPacket(packet)
+		if err != nil {
+			b.Fatalf("error: %s", err)
+		}
 	}
 }
