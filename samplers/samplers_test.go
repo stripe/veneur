@@ -503,7 +503,7 @@ func BenchmarkParseMetricSSF(b *testing.B) {
 	}
 }
 
-func BenchmarkParseMetric(b *testing.B) {
+func BenchmarkParseMetricStatsd(b *testing.B) {
 	const Len = 1000
 	packets := testhelpers.GenerateRandomStatsdMetricPackets(b, Len)
 
