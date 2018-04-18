@@ -44,10 +44,14 @@ func main() {
 	ignoredMetrics := []*regexp.Regexp{}
 
 	for _, ignoredLabelStr := range strings.Split(*ignoredLabelsStr, ",") {
-		ignoredLabels = append(ignoredLabels, regexp.MustCompile(ignoredLabelStr))
+		if len(ignoredLabelStr) > 0 {
+			ignoredLabels = append(ignoredLabels, regexp.MustCompile(ignoredLabelStr))
+		}
 	}
 	for _, ignoredMetricStr := range strings.Split(*ignoredMetricsStr, ",") {
-		ignoredMetrics = append(ignoredLabels, regexp.MustCompile(ignoredMetricStr))
+		if len(ignoredMetricStr) > 0 {
+			ignoredMetrics = append(ignoredMetrics, regexp.MustCompile(ignoredMetricStr))
+		}
 	}
 
 	ticker := time.NewTicker(i)
@@ -62,8 +66,10 @@ func main() {
 
 func collect(c *statsd.Client, ignoredLabels []*regexp.Regexp, ignoredMetrics []*regexp.Regexp) {
 	logrus.WithFields(logrus.Fields{
-		"stats_host":   *statsHost,
-		"metrics_host": *metricsHost,
+		"stats_host":      *statsHost,
+		"metrics_host":    *metricsHost,
+		"ignored_labels":  ignoredLabels,
+		"ignored_metrics": ignoredMetrics,
 	}).Debug("Beginning collection")
 
 	resp, _ := http.Get(*metricsHost)
