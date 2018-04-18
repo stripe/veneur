@@ -191,7 +191,10 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 	if conf.MutexProfileFraction > 0 {
 		mpf := runtime.SetMutexProfileFraction(conf.MutexProfileFraction)
-		log.WithField("MutexProfileFraction", mpf).Info("Set mutex profile fraction")
+		log.WithFields(logrus.Fields{
+			"MutexProfileFraction":         conf.MutexProfileFraction,
+			"previousMutexProfileFraction": mpf,
+		}).Info("Set mutex profile fraction")
 	}
 
 	if conf.BlockProfileRate > 0 {
