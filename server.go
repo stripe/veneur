@@ -662,7 +662,8 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		log.WithError(err).Warn("ParseSSF")
 		return
 	}
-	s.handleSSF(span, []string{"ssf_format:packet"})
+	tags := make([]string, 0, 2)
+	s.handleSSF(span, append(tags, "ssf_format:packet"))
 }
 
 func (s *Server) handleSSF(span *ssf.SSFSpan, baseTags []string) {
