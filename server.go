@@ -772,7 +772,7 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 			s.Statsd.Incr("ssf.error_total", tags, 1.0)
 			continue
 		}
-		s.Statsd.Incr("ssf.received_total", tags, .01)
+		s.Statsd.Incr("ssf.received_total", tags, 1)
 		s.handleSSF(msg, []string{"ssf_format:framed"})
 	}
 }
