@@ -42,17 +42,27 @@ func GenerateRandomStatsdMetricPackets(tb testing.TB, length int) [][]byte {
 			// make half of them timers
 			metricType = "ms"
 		}
-		metricTags := strings.Join(
-			[]string{
-				fmt.Sprintf("%s:%s", RandomString(tb, 10), RandomString(tb, 8)),
-				fmt.Sprintf("%s:%s", RandomString(tb, 7), RandomString(tb, 8)),
-				fmt.Sprintf("%s:%s", RandomString(tb, 9), RandomString(tb, 18)),
-				fmt.Sprintf("%s:%s", RandomString(tb, 1), RandomString(tb, 28)),
-				fmt.Sprintf("%s:%s", RandomString(tb, 6), RandomString(tb, 20)),
-			},
-			",")
+		metricTags := []string{
+			fmt.Sprintf("%s:%s", RandomString(tb, 10), RandomString(tb, 8)),
+			fmt.Sprintf("%s:%s", RandomString(tb, 7), RandomString(tb, 8)),
+			fmt.Sprintf("%s:%s", RandomString(tb, 9), RandomString(tb, 18)),
+			fmt.Sprintf("%s:%s", RandomString(tb, 1), RandomString(tb, 28)),
+			fmt.Sprintf("%s:%s", RandomString(tb, 4), RandomString(tb, 9)),
+			fmt.Sprintf("%s:%s", RandomString(tb, 20), RandomString(tb, 19)),
+			fmt.Sprintf("%s:%s", RandomString(tb, 6), RandomString(tb, 20)),
+		}
 
-		packets[i] = []byte(fmt.Sprintf(MetricFormat, metricName, metricValue, metricType, metricTags))
+		if metricValue%11 == 0 {
+			metricTags = append(metricTags, "veneurglobalonly")
+		}
+
+		if metricValue%13 == 0 {
+			metricTags = append(metricTags, "veneurlocalonly")
+		}
+
+		metricTagsJoined := strings.Join(metricTags, ",")
+
+		packets[i] = []byte(fmt.Sprintf(MetricFormat, metricName, metricValue, metricType, metricTagsJoined))
 
 	}
 	return packets
