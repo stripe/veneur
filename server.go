@@ -742,37 +742,37 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 	defer func() {
 		serverConn.Close()
 	}()
-	tags := map[string]string{"ssf_format": "framed"}
+
+	// initialize the capacity to the max size
+	// based on the number of tags we add later
+	tags := make([]string, 1, 3)
+	tags[0] = "ssf_format:framed"
+
 	for {
 		msg, err := protocol.ReadSSF(serverConn)
 		if err != nil {
 			if err == io.EOF {
 				// Client hangup, close this
-				metrics.ReportOne(s.TraceClient, ssf.Count("frames.disconnects", 1, nil))
+				s.Statsd.Count("frames.disconnects", 1, nil, 1.0)
 				return
 			}
 			if protocol.IsFramingError(err) {
 				log.WithError(err).
 					WithField("remote", serverConn.RemoteAddr()).
 					Info("Frame error reading from SSF connection. Closing.")
-				sample := ssf.Count("ssf.error_total", 1, tags)
-				sample.Tags["packet_type"] = "unknown"
-				sample.Tags["reason"] = "framing"
-				metrics.ReportOne(s.TraceClient, sample)
+				tags = append(tags, []string{"packet_type:unknown", "reason:framing"}...)
+				s.Statsd.Incr("ssf.error_total", tags, 1.0)
 				return
 			}
 			// Non-frame errors means we can continue reading:
 			log.WithError(err).
 				WithField("remote", serverConn.RemoteAddr()).
 				Error("Error processing an SSF frame")
-			sample := ssf.Count("ssf.error_total", 1, tags)
-			sample.Tags["packet_type"] = "unknown"
-			sample.Tags["reason"] = "processing"
-			metrics.ReportOne(s.TraceClient, sample)
+			tags = append(tags, []string{"packet_type:unknown", "reason:processing"}...)
+			s.Statsd.Incr("ssf.error_total", tags, 1.0)
 			continue
 		}
-		metrics.ReportBatch(s.TraceClient,
-			ssf.RandomlySample(0.01, ssf.Count("ssf.received_total", 1, tags)))
+		s.Statsd.Incr("ssf.received_total", tags, .01)
 		s.handleSSF(msg, []string{"ssf_format:framed"})
 	}
 }
