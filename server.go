@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -45,6 +46,12 @@ import (
 	"github.com/stripe/veneur/trace"
 	"github.com/stripe/veneur/trace/metrics"
 )
+
+func init() {
+	runtime.SetMutexProfileFraction(100)
+	runtime.SetBlockProfileRate(1000000)
+
+}
 
 // VERSION stores the current veneur version.
 // It must be a var so it can be set at link time.
