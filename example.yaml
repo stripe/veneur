@@ -168,7 +168,7 @@ read_buffer_size_bytes: 2097152
 debug: true
 
 # runtime.SetMutexProfileFraction
-# Default (0) disables mutex profilinmg
+# Default (0) disables mutex profiling
 mutex_profile_fraction: 0
 
 # runtime.SetBlockProfileRate.
