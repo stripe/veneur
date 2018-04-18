@@ -675,10 +675,16 @@ func (s *Server) HandleTracePacket(packet []byte) {
 }
 
 func (s *Server) handleSSF(span *ssf.SSFSpan, baseTags []string) {
+	// 1/sampleRate packets will be chosen
+	const sampleRate = 10
+
 	tags := append(baseTags, "service:"+span.Service)
 
-	s.Statsd.Incr("ssf.spans.received_total", tags, .1)
-	s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, .1)
+	sampled := (span.Id % sampleRate) == 0
+	if sampled {
+		s.Statsd.Incr("ssf.spans.received_total", tags, 1)
+		s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, 1)
+	}
 
 	s.SpanChan <- span
 }
