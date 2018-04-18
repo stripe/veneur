@@ -662,6 +662,14 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		log.WithError(err).Warn("ParseSSF")
 		return
 	}
+	// we want to keep track of this, because it's a client problem, but still
+	// handle the span normally
+	if span.Id == 0 {
+		reason := "reason:" + "empty_id"
+		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:ssf_metric", reason}, 1.0)
+		log.WithError(err).Warn("ParseSSF")
+	}
+
 	tags := make([]string, 0, 2)
 	s.handleSSF(span, append(tags, "ssf_format:packet"))
 }
