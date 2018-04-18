@@ -5,6 +5,9 @@
 * Converted the grpsink to use unary instead of stream RPCs. Thanks, [sdboyer](https://github.com/sdboyer)!
 * Bumped version of [SignalFx go client](https://github.com/signalfx/golib) to prevent accidental removal of `-` from tag keys. Thanks, [gphat](https://github.com/gphat)!
 
+## Bugfixes
+* The `ignored-labels` and `ignored-metrics` flags for veneur-prometheus will filter no metrics or labels if no filter is specified. Thanks, [arjenvanderende](https://github.com/arjenvanderende)!
+
 # 4.0.0, 2018-04-13
 
 ## Improvements
