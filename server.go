@@ -47,12 +47,6 @@ import (
 	"github.com/stripe/veneur/trace/metrics"
 )
 
-func init() {
-	runtime.SetMutexProfileFraction(100)
-	runtime.SetBlockProfileRate(1000000)
-
-}
-
 // VERSION stores the current veneur version.
 // It must be a var so it can be set at link time.
 var VERSION = defaultLinkValue
@@ -193,6 +187,16 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 	if conf.Debug {
 		logger.SetLevel(logrus.DebugLevel)
+	}
+
+	if conf.MutexProfileFraction > 0 {
+		mpf := runtime.SetMutexProfileFraction(conf.MutexProfileFraction)
+		log.WithField("MutexProfileFraction", mpf).Info("Set mutex profile fraction")
+	}
+
+	if conf.BlockProfileRate > 0 {
+		runtime.SetBlockProfileRate(conf.BlockProfileRate)
+		log.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
 	}
 
 	if conf.EnableProfiling {

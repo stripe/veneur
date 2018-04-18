@@ -167,6 +167,14 @@ read_buffer_size_bytes: 2097152
 # Sets the log level to DEBUG
 debug: true
 
+# runtime.SetMutexProfileFraction
+# Default (0) disables mutex profilinmg
+mutex_profile_fraction: 0
+
+# runtime.SetBlockProfileRate.
+# Default (0) disables block profiling
+block_profile_rate: 0
+
 # Providing a Sentry DSN here will send internal exceptions to Sentry
 sentry_dsn: ""
 
