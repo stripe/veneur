@@ -683,8 +683,7 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, baseTags []string) {
 
 	tags := append(baseTags, "service:"+span.Service)
 
-	sampled := (span.Id % sampleRate) == 0
-	if sampled {
+	if (span.Id % sampleRate) == 1 {
 		s.Statsd.Incr("ssf.spans.received_total", tags, 1)
 		s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, 1)
 	}
