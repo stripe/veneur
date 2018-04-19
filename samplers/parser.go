@@ -188,13 +188,18 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 		ret.Type = "histogram"
 	case ssf.SSFSample_SET:
 		ret.Type = "set"
+	case ssf.SSFSample_STATUS:
+		ret.Type = "status"
 	default:
 		return UDPMetric{}, invalidMetricTypeError
 	}
 	h = fnv1a.AddString32(h, ret.Type)
-	if metric.Metric == ssf.SSFSample_SET {
+	switch metric.Metric {
+	case ssf.SSFSample_SET:
 		ret.Value = metric.Message
-	} else {
+	case ssf.SSFSample_STATUS:
+		ret.Value = metric.Status
+	default:
 		ret.Value = float64(metric.Value)
 	}
 	ret.SampleRate = metric.SampleRate

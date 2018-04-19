@@ -3,6 +3,8 @@ package veneur
 import (
 	"testing"
 
+	"github.com/stripe/veneur/ssf"
+
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/samplers"
@@ -110,4 +112,25 @@ func TestWorkerImportHistogram(t *testing.T) {
 
 	wm := w.Flush()
 	assert.Len(t, wm.histograms, 1, "number of flushed histograms")
+}
+
+func TestWorkerStatusMetric(t *testing.T) {
+	w := NewWorker(1, nil, logrus.New())
+
+	m := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "status",
+		},
+		Value:      ssf.SSFSample_CRITICAL,
+		Digest:     12345,
+		SampleRate: 1.0,
+	}
+	w.ProcessMetric(&m)
+
+	wm := w.Flush()
+	assert.Len(t, wm.statusChecks, 1, "Number of flushed metrics")
+
+	nometrics := w.Flush()
+	assert.Len(t, nometrics.statusChecks, 0, "Should flush no metrics")
 }

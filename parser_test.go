@@ -390,6 +390,18 @@ func TestParserSSFWithSampleRateAndTags(t *testing.T) {
 	assert.Len(t, m.Tags, 2, "Tags")
 }
 
+func TestParserSSFWithStatusCheck(t *testing.T) {
+	standardMetric := freshSSFMetric()
+	standardMetric.Metric = ssf.SSFSample_STATUS
+	standardMetric.Status = ssf.SSFSample_UNKNOWN
+	m, _ := samplers.ParseMetricSSF(standardMetric)
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, standardMetric.Name, m.Name, "Name")
+	assert.Equal(t, ssf.SSFSample_UNKNOWN, m.Value, "Value")
+	assert.Equal(t, "status", m.Type, "Type")
+	assert.Len(t, m.Tags, 2, "Tags")
+}
+
 func TestParser(t *testing.T) {
 	m, _ := samplers.ParseMetric([]byte("a.b.c:1|c"))
 	assert.NotNil(t, m, "Got nil metric!")

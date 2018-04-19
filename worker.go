@@ -239,10 +239,11 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 			w.wm.timers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		}
 	case statusTypeName:
+		v := float64(m.Value.(ssf.SSFSample_Status))
 		if m.Scope == samplers.LocalOnly {
-			w.wm.localStatusChecks[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+			w.wm.localStatusChecks[m.MetricKey].Sample(v, m.SampleRate)
 		} else {
-			w.wm.statusChecks[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+			w.wm.statusChecks[m.MetricKey].Sample(v, m.SampleRate)
 		}
 	default:
 		log.WithField("type", m.Type).Error("Unknown metric type for processing")
