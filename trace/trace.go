@@ -27,10 +27,6 @@ import (
 // Experimental
 const ResourceKey = "resource"
 
-func init() {
-	rand.Seed(time.Now().Unix())
-}
-
 // (Experimental)
 // If this is set to true,
 // traces will be generated but not actually sent.

@@ -2,8 +2,12 @@ package trace
 
 import (
 	"context"
+	crand "crypto/rand"
 	"errors"
 	"fmt"
+	"math"
+	"math/big"
+	"math/rand"
 	"net"
 	"time"
 
@@ -289,6 +293,12 @@ func newFlushNofifier(backend ClientBackend) flushNotifier {
 // to addrStr (an address in veneur URL format) using the parameters
 // in opts. It returns the constructed client or an error.
 func NewClient(addrStr string, opts ...ClientParam) (*Client, error) {
+	n, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		return nil, err
+	}
+	rand.Seed(n.Int64())
+
 	addr, err := protocol.ResolveAddr(addrStr)
 	if err != nil {
 		return nil, err
