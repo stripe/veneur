@@ -6,7 +6,6 @@ type Config struct {
 	AwsRegion                    string    `yaml:"aws_region"`
 	AwsS3Bucket                  string    `yaml:"aws_s3_bucket"`
 	AwsSecretAccessKey           string    `yaml:"aws_secret_access_key"`
-	BlockProfileRate             int       `yaml:"block_profile_rate"`
 	DatadogAPIHostname           string    `yaml:"datadog_api_hostname"`
 	DatadogAPIKey                string    `yaml:"datadog_api_key"`
 	DatadogFlushMaxPerBody       int       `yaml:"datadog_flush_max_per_body"`
@@ -45,7 +44,6 @@ type Config struct {
 	LightstepNumClients          int       `yaml:"lightstep_num_clients"`
 	LightstepReconnectPeriod     string    `yaml:"lightstep_reconnect_period"`
 	MetricMaxLength              int       `yaml:"metric_max_length"`
-	MutexProfileFraction         int       `yaml:"mutex_profile_fraction"`
 	NumReaders                   int       `yaml:"num_readers"`
 	NumSpanWorkers               int       `yaml:"num_span_workers"`
 	NumWorkers                   int       `yaml:"num_workers"`
