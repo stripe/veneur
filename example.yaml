@@ -167,18 +167,6 @@ read_buffer_size_bytes: 2097152
 # Sets the log level to DEBUG
 debug: true
 
-# runtime.SetMutexProfileFraction
-# The fraction of mutex contention events that are reported in the mutex profile.
-# On average, 1/n events are reported, so higher numbers will sample fewer events.
-# Default (0) disables mutex profiling altogether.
-mutex_profile_fraction: 0
-
-# runtime.SetBlockProfileRate.
-# The fraction of goroutine blocking events that are reported in the blocking profile.
-# On average, one blocking event will be sampled for every N nanoseconds spent blocked.
-# Default (0) disables block profiling altogether.
-block_profile_rate: 0
-
 # Providing a Sentry DSN here will send internal exceptions to Sentry
 sentry_dsn: ""
 
