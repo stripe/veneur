@@ -158,9 +158,12 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	flushStart := time.Now()
 	coll := sfx.newPointCollection()
 	numPoints := 0
+	countSkipped := 0
+	countStatusMetrics := 0
 
 	for _, metric := range interMetrics {
 		if !sinks.IsAcceptableMetric(metric, sfx) {
+			countSkipped++
 			continue
 		}
 		dims := map[string]string{}
@@ -200,16 +203,18 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 			// TODO I am not certain if this should be a Counter or a Cumulative
 			point = sfxclient.Counter(metric.Name, dims, int64(metric.Value))
 		case samplers.StatusMetric:
+			countStatusMetrics++
 			point = sfxclient.GaugeF(metric.Name, dims, metric.Value)
 		}
 		coll.addPoint(metricKey, point)
 		numPoints++
 	}
+	tags := map[string]string{"sink": "signalfx"}
+	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsSkipped, float32(countSkipped), tags))
 	err := coll.submit(ctx, sfx.traceClient)
 	if err != nil {
 		span.Error(err)
 	}
-	tags := map[string]string{"sink": "signalfx"}
 	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags))
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(numPoints), tags))
 	sfx.log.WithField("metrics", len(interMetrics)).Info("Completed flush to SignalFx")

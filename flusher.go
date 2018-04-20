@@ -111,9 +111,11 @@ type metricsSummary struct {
 	totalGlobalCounters int
 	totalGlobalGauges   int
 
-	totalLocalHistograms int
-	totalLocalSets       int
-	totalLocalTimers     int
+	totalLocalHistograms   int
+	totalLocalSets         int
+	totalLocalTimers       int
+	totalStatusChecks      int
+	totalLocalStatusChecks int
 
 	totalLength int
 }
@@ -147,6 +149,9 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 		ms.totalLocalHistograms += len(wm.localHistograms)
 		ms.totalLocalSets += len(wm.localSets)
 		ms.totalLocalTimers += len(wm.localTimers)
+
+		ms.totalStatusChecks += len(wm.statusChecks)
+		ms.totalLocalStatusChecks += len(wm.localStatusChecks)
 	}
 
 	metrics.ReportOne(s.TraceClient, ssf.Timing("flush.total_duration_ns", time.Since(gatherStart), time.Nanosecond, map[string]string{"part": "gather"}))
@@ -196,6 +201,9 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 		for _, t := range wm.timers {
 			finalMetrics = append(finalMetrics, t.Flush(s.interval, percentiles, s.HistogramAggregates)...)
 		}
+		for _, status := range wm.statusChecks {
+			finalMetrics = append(finalMetrics, status.Flush()...)
+		}
 
 		// local-only samplers should be flushed in their entirety, since they
 		// will not be forwarded
@@ -209,6 +217,10 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 		}
 		for _, t := range wm.localTimers {
 			finalMetrics = append(finalMetrics, t.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
+		}
+
+		for _, status := range wm.localStatusChecks {
+			finalMetrics = append(finalMetrics, status.Flush()...)
 		}
 
 		// TODO (aditya) refactor this out so we don't
