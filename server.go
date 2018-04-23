@@ -831,6 +831,7 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 				Error("Error processing an SSF frame")
 			tags = append(tags, []string{"packet_type:unknown", "reason:processing"}...)
 			s.Statsd.Incr("ssf.error_total", tags, 1.0)
+			tags = tags[:1]
 			continue
 		}
 		s.Statsd.Incr("ssf.received_total", tags, 1)
