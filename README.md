@@ -66,7 +66,7 @@ We wanted percentiles, histograms and sets to be global. We wanted to unify our 
 
 Veneur is currently handling all metrics for Stripe and is considered production ready. It is under active development and maintenance! Starting with v1.6, Veneur operates on a six-week release cycle, and all releases are tagged in git. If you'd like to contribute, see [CONTRIBUTING](https://github.com/stripe/veneur/blob/master/CONTRIBUTING.md)!
 
-Building Veneur requires Go 1.8 or later.
+Building Veneur requires Go 1.9 or later.
 
 # Features
 
