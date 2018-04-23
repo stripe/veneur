@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -186,6 +187,19 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 	if conf.Debug {
 		logger.SetLevel(logrus.DebugLevel)
+	}
+
+	if conf.MutexProfileFraction > 0 {
+		mpf := runtime.SetMutexProfileFraction(conf.MutexProfileFraction)
+		log.WithFields(logrus.Fields{
+			"MutexProfileFraction":         conf.MutexProfileFraction,
+			"previousMutexProfileFraction": mpf,
+		}).Info("Set mutex profile fraction")
+	}
+
+	if conf.BlockProfileRate > 0 {
+		runtime.SetBlockProfileRate(conf.BlockProfileRate)
+		log.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
 	}
 
 	if conf.EnableProfiling {
@@ -651,14 +665,28 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		log.WithError(err).Warn("ParseSSF")
 		return
 	}
-	s.handleSSF(span, []string{"ssf_format:packet"})
+	// we want to keep track of this, because it's a client problem, but still
+	// handle the span normally
+	if span.Id == 0 {
+		reason := "reason:" + "empty_id"
+		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:ssf_metric", reason}, 1.0)
+		log.WithError(err).Warn("ParseSSF")
+	}
+
+	tags := make([]string, 0, 2)
+	s.handleSSF(span, append(tags, "ssf_format:packet"))
 }
 
 func (s *Server) handleSSF(span *ssf.SSFSpan, baseTags []string) {
+	// 1/sampleRate packets will be chosen
+	const sampleRate = 10
+
 	tags := append(baseTags, "service:"+span.Service)
 
-	s.Statsd.Incr("ssf.spans.received_total", tags, .1)
-	s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, .1)
+	if (span.Id % sampleRate) == 1 {
+		s.Statsd.Incr("ssf.spans.received_total", tags, 1)
+		s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, 1)
+	}
 
 	s.SpanChan <- span
 }
@@ -735,37 +763,37 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 	defer func() {
 		serverConn.Close()
 	}()
-	tags := map[string]string{"ssf_format": "framed"}
+
+	// initialize the capacity to the max size
+	// based on the number of tags we add later
+	tags := make([]string, 1, 3)
+	tags[0] = "ssf_format:framed"
+
 	for {
 		msg, err := protocol.ReadSSF(serverConn)
 		if err != nil {
 			if err == io.EOF {
 				// Client hangup, close this
-				metrics.ReportOne(s.TraceClient, ssf.Count("frames.disconnects", 1, nil))
+				s.Statsd.Count("frames.disconnects", 1, nil, 1.0)
 				return
 			}
 			if protocol.IsFramingError(err) {
 				log.WithError(err).
 					WithField("remote", serverConn.RemoteAddr()).
 					Info("Frame error reading from SSF connection. Closing.")
-				sample := ssf.Count("ssf.error_total", 1, tags)
-				sample.Tags["packet_type"] = "unknown"
-				sample.Tags["reason"] = "framing"
-				metrics.ReportOne(s.TraceClient, sample)
+				tags = append(tags, []string{"packet_type:unknown", "reason:framing"}...)
+				s.Statsd.Incr("ssf.error_total", tags, 1.0)
 				return
 			}
 			// Non-frame errors means we can continue reading:
 			log.WithError(err).
 				WithField("remote", serverConn.RemoteAddr()).
 				Error("Error processing an SSF frame")
-			sample := ssf.Count("ssf.error_total", 1, tags)
-			sample.Tags["packet_type"] = "unknown"
-			sample.Tags["reason"] = "processing"
-			metrics.ReportOne(s.TraceClient, sample)
+			tags = append(tags, []string{"packet_type:unknown", "reason:processing"}...)
+			s.Statsd.Incr("ssf.error_total", tags, 1.0)
 			continue
 		}
-		metrics.ReportBatch(s.TraceClient,
-			ssf.RandomlySample(0.01, ssf.Count("ssf.received_total", 1, tags)))
+		s.Statsd.Incr("ssf.received_total", tags, 1)
 		s.handleSSF(msg, []string{"ssf_format:framed"})
 	}
 }
