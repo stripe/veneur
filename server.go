@@ -697,6 +697,9 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string) {
 	key := "service:" + span.Service + "," + "ssf_format:" + ssfFormat
 
 	if (span.Id % sampleRate) == 1 {
+		// we can't avoid emitting this metric synchronously by aggregating in-memory, but that's okay
+		s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), []string{"service:" + span.Service, "ssf_format:" + ssfFormat}, 1)
+
 		metrics, ok := s.ssfInternalMetrics.Load(key)
 
 		if !ok {
