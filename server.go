@@ -68,6 +68,9 @@ var tracer = trace.GlobalTracer
 
 const defaultTCPReadTimeout = 10 * time.Minute
 
+// 1/internalMetricSampleRate packets will be chosen
+const internalMetricSampleRate = 10
+
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers              []*Worker
@@ -662,7 +665,6 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	samples := &ssf.Samples{}
 	defer metrics.Report(s.TraceClient, samples)
 
-	s.Statsd.Incr("ssf.received_total", nil, .1)
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
 		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:unknown", "reason:zerolength"}, 1.0)
@@ -691,12 +693,9 @@ func (s *Server) HandleTracePacket(packet []byte) {
 }
 
 func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string) {
-	// 1/sampleRate packets will be chosen
-	const sampleRate = 10
-
 	key := "service:" + span.Service + "," + "ssf_format:" + ssfFormat
 
-	if (span.Id % sampleRate) == 1 {
+	if (span.Id % internalMetricSampleRate) == 1 {
 		// we can't avoid emitting this metric synchronously by aggregating in-memory, but that's okay
 		s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), []string{"service:" + span.Service, "ssf_format:" + ssfFormat}, 1)
 
@@ -834,7 +833,6 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 			tags = tags[:1]
 			continue
 		}
-		s.Statsd.Incr("ssf.received_total", tags, 1)
 		s.handleSSF(msg, "framed")
 	}
 }

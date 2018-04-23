@@ -399,7 +399,7 @@ func (s *Server) flushTraces(ctx context.Context) {
 			}).Error("received key of incorrect format")
 		}
 
-		spansReceivedTotal := atomic.SwapInt64(&value.ssfSpansReceivedTotal, 0)
+		spansReceivedTotal := atomic.SwapInt64(&value.ssfSpansReceivedTotal, 0) * internalMetricSampleRate
 		s.Statsd.Count("ssf.spans.received_total", spansReceivedTotal, tags, 1.0)
 		return true
 	})

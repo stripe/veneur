@@ -1,5 +1,9 @@
 # 5.0.0, in development
 
+
+## Removed
+* The `veneur.ssf.received_total` metric has been removed, as it is mostly redundant with `veneur.ssf.spans.received_total`, and was not reported consistently between packet and framed formats.
+
 ## Improvements
 * SignalFX sink can now handle and convert ssf service checks (represented as a gauge). Thanks, [stealthcode](https://github.com/stealthcode)!
 * Converted the grpsink to use unary instead of stream RPCs. Thanks, [sdboyer](https://github.com/sdboyer)!
