@@ -61,6 +61,7 @@ type Client struct {
 	report        func(context.Context)
 	records       chan *recordOp
 	spans         chan<- *ssf.SSFSpan
+	samples       chan<- []*ssf.SSFSample
 
 	// statistics:
 	failedFlushes     int64
@@ -362,13 +363,14 @@ func NewBackendClient(b ClientBackend, opts ...ClientParam) (*Client, error) {
 }
 
 // NewChannelClient constructs and returns a Client that can send
-// directly into a span receiver channel. It provides an alternative
-// interface to NewBackendClient for constructing internal and
-// test-only clients.
-func NewChannelClient(spanChan chan<- *ssf.SSFSpan, opts ...ClientParam) (*Client, error) {
+// directly into a span and a sample receiver channel. It provides an
+// alternative interface to NewBackendClient for constructing internal
+// and test-only clients.
+func NewChannelClient(spanChan chan<- *ssf.SSFSpan, sampleChan chan<- []*ssf.SSFSample, opts ...ClientParam) (*Client, error) {
 	cl := &Client{}
 	cl.flushBackends = []flushNotifier{}
 	cl.spans = spanChan
+	cl.samples = sampleChan
 
 	for _, opt := range opts {
 		if err := opt(cl); err != nil {
@@ -391,6 +393,7 @@ func NeutralizeClient(client *Client) {
 	client.Close()
 	client.records = nil
 	client.spans = nil
+	client.samples = nil
 	client.flushBackends = []flushNotifier{}
 }
 
@@ -454,6 +457,32 @@ func Record(cl *Client, span *ssf.SSFSpan, done chan<- error) error {
 		return nil
 	case cl.records <- op:
 		atomic.AddInt64(&cl.successfulRecords, 1)
+		return nil
+	default:
+	}
+	atomic.AddInt64(&cl.failedRecords, 1)
+	return ErrWouldBlock
+}
+
+// RecordSamples sends a batch of SSF samples (metrics or events or
+// service checks) through a trace client asynchronously. The channel
+// done receives an error (or nil) when the span containing the batch
+// of metrics has been sent.
+func RecordSamples(cl *Client, samples []*ssf.SSFSample, done chan<- error) error {
+	if cl == nil {
+		return ErrNoClient
+	}
+	if cl.samples == nil {
+		// We don't have a dedicated channel for metrics,
+		// record them as part of a span:
+		return Record(cl, &ssf.SSFSpan{Metrics: samples}, done)
+	}
+	select {
+	case cl.samples <- samples:
+		atomic.AddInt64(&cl.successfulRecords, 1)
+		if done != nil {
+			go func() { done <- nil }()
+		}
 		return nil
 	default:
 	}

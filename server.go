@@ -167,8 +167,9 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 	ret.Statsd = stats
 
+	metricsChan := make(chan []*ssf.SSFSample, conf.SpanChannelCapacity) // TODO: come up with a better number
 	ret.SpanChan = make(chan *ssf.SSFSpan, conf.SpanChannelCapacity)
-	ret.TraceClient, err = trace.NewChannelClient(ret.SpanChan,
+	ret.TraceClient, err = trace.NewChannelClient(ret.SpanChan, metricsChan,
 		trace.ReportStatistics(stats, 1*time.Second, []string{"ssf_format:internal"}),
 	)
 	if err != nil {
@@ -233,6 +234,18 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			w.Work()
 		}(ret.Workers[i])
 	}
+	go func() {
+		for ssfMetrics := range metricsChan {
+			for _, m := range ssfMetrics {
+				metric, err := samplers.ParseMetricSSF(m)
+				if err != nil {
+					// TODO: increment a metric?
+					continue
+				}
+				ret.Workers[metric.Digest%uint32(len(ret.Workers))].IngestUDP(metric)
+			}
+		}
+	}()
 
 	ret.EventWorker = NewEventWorker(ret.TraceClient)
 

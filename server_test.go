@@ -1176,7 +1176,7 @@ func TestInternalSSFMetricsEndToEnd(t *testing.T) {
 	f := newFixture(t, config, cms, nil)
 	defer f.Close()
 
-	client, err := trace.NewChannelClient(f.server.SpanChan)
+	client, err := trace.NewChannelClient(f.server.SpanChan, nil)
 	require.NoError(t, err)
 
 	done := make(chan error)
