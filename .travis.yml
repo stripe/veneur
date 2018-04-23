@@ -1,6 +1,5 @@
 language: go
 go:
-  - 1.8
   - 1.9
   - "1.10"
   - tip
@@ -11,7 +10,7 @@ install:
   - sudo cp /tmp/bin/protoc /usr/bin/protoc
   - sudo chmod 777 /usr/bin/protoc
   - rm protoc-3.1.0-linux-x86_64.zip
-  # After 1.9 hits stable, replace this link
+  # After a new major version hits stable, replace this link
   # It is only used for gofmt
   - wget https://storage.googleapis.com/golang/go1.10.linux-amd64.tar.gz
   - tar -C /tmp -xvf go1.10.linux-amd64.tar.gz go/bin/gofmt
@@ -29,10 +28,6 @@ before_script:
   - go install github.com/gogo/protobuf/protoc-gen-gofast
   - go get -u github.com/golang/dep/cmd/dep
   - go get -u golang.org/x/tools/cmd/stringer
-
-  # This is needed to fix https://github.com/golang/go/issues/21387
-  - if [ "$TRAVIS_GO_VERSION" = "1.8" ]; then go install; fi
-
 
   - go generate
   # We need to ignore changes to this one file
@@ -54,5 +49,4 @@ before_script:
   - git diff-index --cached --exit-code HEAD
 
 script:
-  - if [ "$TRAVIS_GO_VERSION" = "1.8" ]; then go list ./... | grep -v vendor | xargs go test -race -v -timeout 60s; fi
-  - if [ "$TRAVIS_GO_VERSION" != "1.8" ]; then echo $TRAVIS_GO_VERSION; go test -race -v -timeout 60s ./...; fi
+  - go test -race -v -timeout 60s ./...
