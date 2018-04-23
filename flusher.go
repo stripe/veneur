@@ -4,8 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"reflect"
 	"runtime"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -369,5 +372,37 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 }
 
 func (s *Server) flushTraces(ctx context.Context) {
+	s.ssfInternalMetrics.Range(func(keyI, valueI interface{}) bool {
+		key, ok := keyI.(string)
+		if !ok {
+			log.WithFields(logrus.Fields{
+				"key":  key,
+				"type": reflect.TypeOf(key),
+			}).Error("received non-string key")
+			return true
+		}
+
+		value, ok := valueI.(*ssfServiceSpanMetrics)
+		if !ok {
+			log.WithFields(logrus.Fields{
+				"value": value,
+				"type":  reflect.TypeOf(value),
+			}).Error("received non-struct value")
+			return true
+		}
+
+		tags := strings.Split(key, ",")
+		if len(tags) != 2 {
+			log.WithFields(logrus.Fields{
+				"key":    key,
+				"length": len(tags),
+			}).Error("received key of incorrect format")
+		}
+
+		spansReceivedTotal := atomic.SwapInt64(&value.ssfSpansReceivedTotal, 0)
+		s.Statsd.Count("ssf.spans.received_total", spansReceivedTotal, tags, 1.0)
+		return true
+	})
+
 	s.SpanWorker.Flush()
 }

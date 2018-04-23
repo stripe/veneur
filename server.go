@@ -12,9 +12,11 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -116,6 +118,16 @@ type Server struct {
 	metricSinks []sinks.MetricSink
 
 	TraceClient *trace.Client
+
+	ssfInternalMetrics sync.Map
+}
+
+// ssfServiceSpanMetrics refer to the span metrics that will
+// be emitted for single (service,ssf_format) combination on each flush.
+// It is expected the values on the struct will only be handled
+// using atomic operations
+type ssfServiceSpanMetrics struct {
+	ssfSpansReceivedTotal int64
 }
 
 // SetLogger sets the default logger in veneur to the passed value.
@@ -675,19 +687,42 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		log.WithError(err).Warn("ParseSSF")
 	}
 
-	tags := make([]string, 0, 2)
-	s.handleSSF(span, append(tags, "ssf_format:packet"))
+	s.handleSSF(span, "packet")
 }
 
-func (s *Server) handleSSF(span *ssf.SSFSpan, baseTags []string) {
+func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string) {
 	// 1/sampleRate packets will be chosen
 	const sampleRate = 10
 
-	tags := append(baseTags, "service:"+span.Service)
+	key := "service:" + span.Service + "," + "ssf_format:" + ssfFormat
 
 	if (span.Id % sampleRate) == 1 {
-		s.Statsd.Incr("ssf.spans.received_total", tags, 1)
-		s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, 1)
+		metrics, ok := s.ssfInternalMetrics.Load(key)
+
+		if !ok {
+			// ensure that the value is in the map
+			// we only do this if the value was not found in the map once already, to save an
+			// allocation and more expensive operation in the typical case
+			metrics, ok = s.ssfInternalMetrics.LoadOrStore(key, &ssfServiceSpanMetrics{})
+			if metrics == nil {
+				log.WithFields(logrus.Fields{
+					"service":   span.Service,
+					"ssfFormat": ssfFormat,
+				}).Error("found nil value in ssfInternalMetrics map")
+			}
+		}
+
+		metricsStruct, ok := metrics.(*ssfServiceSpanMetrics)
+		if !ok {
+			log.WithField("type", reflect.TypeOf(metrics)).Error()
+			log.WithFields(logrus.Fields{
+				"type":      reflect.TypeOf(metrics),
+				"service":   span.Service,
+				"ssfFormat": ssfFormat,
+			}).Error("Unexpected type in ssfInternalMetrics map")
+		}
+
+		atomic.AddInt64(&metricsStruct.ssfSpansReceivedTotal, 1)
 	}
 
 	s.SpanChan <- span
@@ -796,7 +831,7 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 			continue
 		}
 		s.Statsd.Incr("ssf.received_total", tags, 1)
-		s.handleSSF(msg, []string{"ssf_format:framed"})
+		s.handleSSF(msg, "framed")
 	}
 }
 
