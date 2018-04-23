@@ -58,12 +58,12 @@ func (s *Server) Flush(ctx context.Context) {
 
 	finalMetrics = s.generateInterMetrics(span.Attach(ctx), percentiles, tempMetrics, ms)
 
-	span.Add(s.computeMetricsFlushCounts(ms)...)
+	s.reportMetricsFlushCounts(ms)
 
 	if s.IsLocal() {
 		go s.flushForward(span.Attach(ctx), tempMetrics)
 	} else {
-		span.Add(s.computeGlobalMetricsFlushCounts(ms)...)
+		s.reportGlobalMetricsFlushCounts(ms)
 	}
 
 	// If there's nothing to flush, don't bother calling the plugins and stuff.
@@ -240,40 +240,37 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 
 const flushTotalMetric = "worker.metrics_flushed_total"
 
-// computeMetricsFlushCounts reports the counts of
+// reportMetricsFlushCounts reports the counts of
 // Counters, Gauges, LocalHistograms, LocalSets, and LocalTimers
 // as metrics. These are shared by both global and local flush operations.
 // It does *not* report the totalHistograms, totalSets, or totalTimers
 // because those are only performed by the global veneur instance.
 // It also does not report the total metrics posted, because on the local veneur,
 // that should happen *after* the flush-forward operation.
-func (s *Server) computeMetricsFlushCounts(ms metricsSummary) []*ssf.SSFSample {
-	return []*ssf.SSFSample{
-		ssf.Count(flushTotalMetric, float32(ms.totalCounters), map[string]string{"metric_type": "counter"}),
-		ssf.Count(flushTotalMetric, float32(ms.totalGauges), map[string]string{"metric_type": "gauge"}),
-		ssf.Count(flushTotalMetric, float32(ms.totalLocalHistograms), map[string]string{"metric_type": "local_histogram"}),
-		ssf.Count(flushTotalMetric, float32(ms.totalLocalSets), map[string]string{"metric_type": "local_set"}),
-		ssf.Count(flushTotalMetric, float32(ms.totalLocalTimers), map[string]string{"metric_type": "local_timer"}),
-	}
+func (s *Server) reportMetricsFlushCounts(ms metricsSummary) {
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalCounters), []string{"metric_type:counter"}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalGauges), []string{"metric_type:gauge"}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalHistograms), []string{"metric_type:local_histogram"}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalSets), []string{"metric_type:local_set"}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalTimers), []string{"metric_type:local_timer"}, 1.0)
 }
 
-// computeGlobalMetricsFlushCounts reports the counts of
+// reportGlobalMetricsFlushCounts reports the counts of
 // globalCounters, globalGauges, totalHistograms, totalSets, and totalTimers,
 // which are the three metrics reported *only* by the global
 // veneur instance.
-func (s *Server) computeGlobalMetricsFlushCounts(ms metricsSummary) []*ssf.SSFSample {
+func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 	// we only report these lengths in FlushGlobal
 	// since if we're the global veneur instance responsible for flushing them
 	// this avoids double-counting problems where a local veneur reports
 	// histograms that it received, and then a global veneur reports them
 	// again
-	return []*ssf.SSFSample{
-		ssf.Count(flushTotalMetric, float32(ms.totalGlobalCounters), map[string]string{"metric_type": "global_counter"}),
-		ssf.Count(flushTotalMetric, float32(ms.totalGlobalGauges), map[string]string{"metric_type": "global_gauge"}),
-		ssf.Count(flushTotalMetric, float32(ms.totalHistograms), map[string]string{"metric_type": "histogram"}),
-		ssf.Count(flushTotalMetric, float32(ms.totalSets), map[string]string{"metric_type": "set"}),
-		ssf.Count(flushTotalMetric, float32(ms.totalTimers), map[string]string{"metric_type": "timer"}),
-	}
+
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalGlobalCounters), []string{"metric_type:global_counter"}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalGlobalGauges), []string{"metric_type:global_gauge"}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalHistograms), []string{"metric_type:histogram"}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalSets), []string{"metric_type:set"}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalTimers), []string{"metric_type:timer"}, 1.0)
 }
 
 func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
@@ -352,8 +349,8 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 			jsonMetrics = append(jsonMetrics, jm)
 		}
 	}
-	span.Add(ssf.Timing("forward.duration_ns", time.Since(exportStart), time.Nanosecond, map[string]string{"part": "export"}),
-		ssf.Gauge("forward.post_metrics_total", float32(len(jsonMetrics)), nil))
+	s.Statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(exportStart).Nanoseconds()), []string{"part:export"}, 1.0)
+	s.Statsd.Gauge("forward.post_metrics_total", float64(len(jsonMetrics)), nil, 1.0)
 	if len(jsonMetrics) == 0 {
 		log.Debug("Nothing to forward, skipping.")
 		return

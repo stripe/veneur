@@ -17,7 +17,7 @@ import (
 
 func TestMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
-	worker := veneur.NewWorker(0, nil, logger)
+	worker := veneur.NewWorker(0, nil, logger, nil)
 	workers := []ssfmetrics.Processor{worker}
 	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", nil, logger)
 	require.NoError(t, err)
@@ -57,7 +57,7 @@ func TestMetricExtractor(t *testing.T) {
 
 func setupBench() (*ssf.SSFSpan, sinks.SpanSink) {
 	logger := logrus.StandardLogger()
-	worker := veneur.NewWorker(0, nil, logger)
+	worker := veneur.NewWorker(0, nil, logger, nil)
 	workers := []ssfmetrics.Processor{worker}
 	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", nil, logger)
 	if err != nil {
@@ -134,7 +134,7 @@ func BenchmarkParallelMetricExtractor(b *testing.B) {
 
 func TestIndicatorMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
-	worker := veneur.NewWorker(0, nil, logger)
+	worker := veneur.NewWorker(0, nil, logger, nil)
 	workers := []ssfmetrics.Processor{worker}
 	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", nil, logger)
 	require.NoError(t, err)
