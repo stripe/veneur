@@ -11,7 +11,7 @@ import (
 )
 
 func TestWorker(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New())
+	w := NewWorker(1, nil, logrus.New(), nil)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -32,7 +32,7 @@ func TestWorker(t *testing.T) {
 }
 
 func TestWorkerLocal(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New())
+	w := NewWorker(1, nil, logrus.New(), nil)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -52,7 +52,7 @@ func TestWorkerLocal(t *testing.T) {
 }
 
 func TestWorkerGlobal(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New())
+	w := NewWorker(1, nil, logrus.New(), nil)
 
 	gc := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -85,7 +85,7 @@ func TestWorkerGlobal(t *testing.T) {
 }
 
 func TestWorkerImportSet(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New())
+	w := NewWorker(1, nil, logrus.New(), nil)
 	testset := samplers.NewSet("a.b.c", nil)
 	testset.Sample("foo", 1.0)
 	testset.Sample("bar", 1.0)
@@ -100,7 +100,7 @@ func TestWorkerImportSet(t *testing.T) {
 }
 
 func TestWorkerImportHistogram(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New())
+	w := NewWorker(1, nil, logrus.New(), nil)
 	testhisto := samplers.NewHist("a.b.c", nil)
 	testhisto.Sample(1.0, 1.0)
 	testhisto.Sample(2.0, 1.0)
@@ -115,7 +115,7 @@ func TestWorkerImportHistogram(t *testing.T) {
 }
 
 func TestWorkerStatusMetric(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New())
+	w := NewWorker(1, nil, logrus.New(), nil)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{

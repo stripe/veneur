@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
@@ -33,6 +34,7 @@ type Worker struct {
 	traceClient *trace.Client
 	logger      *logrus.Logger
 	wm          WorkerMetrics
+	stats       *statsd.Client
 }
 
 // IngestUDP on a Worker feeds the metric into the worker's PacketChan.
@@ -155,7 +157,7 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, cl *trace.Client, logger *logrus.Logger) *Worker {
+func NewWorker(id int, cl *trace.Client, logger *logrus.Logger, stats *statsd.Client) *Worker {
 	return &Worker{
 		id:          id,
 		PacketChan:  make(chan samplers.UDPMetric, 32),
@@ -167,6 +169,7 @@ func NewWorker(id int, cl *trace.Client, logger *logrus.Logger) *Worker {
 		traceClient: cl,
 		logger:      logger,
 		wm:          NewWorkerMetrics(),
+		stats:       stats,
 	}
 }
 
@@ -313,11 +316,14 @@ func (w *Worker) Flush() WorkerMetrics {
 	w.mutex.Unlock()
 
 	// Track how much time each worker takes to flush.
-	metrics.ReportBatch(w.traceClient, []*ssf.SSFSample{
-		ssf.Timing("flush.worker_duration_ns", time.Since(start), time.Millisecond, nil),
-		ssf.Count("worker.metrics_processed_total", float32(processed), nil),
-		ssf.Count("worker.metrics_imported_total", float32(imported), nil),
-	})
+	w.stats.TimeInMilliseconds(
+		"flush.worker_duration_ns",
+		float64(time.Since(start).Nanoseconds()),
+		nil,
+		1.0,
+	)
+	w.stats.Count("worker.metrics_processed_total", processed, []string{}, 1.0)
+	w.stats.Count("worker.metrics_imported_total", imported, []string{}, 1.0)
 
 	return ret
 }
@@ -335,14 +341,16 @@ type EventWorker struct {
 	mutex       *sync.Mutex
 	samples     []ssf.SSFSample
 	traceClient *trace.Client
+	stats       *statsd.Client
 }
 
 // NewEventWorker creates an EventWorker ready to collect events and service checks.
-func NewEventWorker(cl *trace.Client) *EventWorker {
+func NewEventWorker(cl *trace.Client, stats *statsd.Client) *EventWorker {
 	return &EventWorker{
 		sampleChan:  make(chan ssf.SSFSample),
 		mutex:       &sync.Mutex{},
 		traceClient: cl,
+		stats:       stats,
 	}
 }
 
@@ -370,8 +378,8 @@ func (ew *EventWorker) Flush() []ssf.SSFSample {
 	ew.samples = nil
 
 	ew.mutex.Unlock()
-	metrics.ReportOne(ew.traceClient, ssf.Count("worker.other_samples_flushed_total", float32(len(retsamples)), nil))
-	metrics.ReportOne(ew.traceClient, ssf.Timing("flush.other_samples_duration_ns", time.Since(start), time.Nanosecond, nil))
+	ew.stats.Count("worker.other_samples_flushed_total", int64(len(retsamples)), nil, 1.0)
+	ew.stats.TimeInMilliseconds("flush.other_samples_duration_ns", float64(time.Since(start).Nanoseconds()), nil, 1.0)
 	return retsamples
 }
 

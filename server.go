@@ -224,7 +224,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 	// Use the pre-allocated Workers slice to know how many to start.
 	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.TraceClient, log)
+		ret.Workers[i] = NewWorker(i+1, ret.TraceClient, log, ret.Statsd)
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {
@@ -234,7 +234,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		}(ret.Workers[i])
 	}
 
-	ret.EventWorker = NewEventWorker(ret.TraceClient)
+	ret.EventWorker = NewEventWorker(ret.TraceClient, ret.Statsd)
 
 	// Set up a span sink that extracts metrics from SSF spans and
 	// reports them via the metric workers:
