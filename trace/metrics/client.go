@@ -39,8 +39,7 @@ func ReportAsync(cl *trace.Client, metrics []*ssf.SSFSample, done chan<- error) 
 	if metrics == nil || len(metrics) == 0 {
 		return NoMetrics{}
 	}
-	span := &ssf.SSFSpan{Metrics: metrics}
-	return trace.Record(cl, span, done)
+	return trace.RecordSamples(cl, metrics, done)
 }
 
 // ReportOne sends a single metric to a veneur using a trace client
