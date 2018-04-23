@@ -114,7 +114,8 @@ type Server struct {
 	spanSinks   []sinks.SpanSink
 	metricSinks []sinks.MetricSink
 
-	TraceClient *trace.Client
+	internalMetricsChan chan []*ssf.SSFSample
+	TraceClient         *trace.Client
 }
 
 // SetLogger sets the default logger in veneur to the passed value.
@@ -167,9 +168,9 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 	ret.Statsd = stats
 
-	metricsChan := make(chan []*ssf.SSFSample, conf.SpanChannelCapacity) // TODO: come up with a better number
+	ret.internalMetricsChan = make(chan []*ssf.SSFSample, conf.SpanChannelCapacity) // TODO: come up with a better number
 	ret.SpanChan = make(chan *ssf.SSFSpan, conf.SpanChannelCapacity)
-	ret.TraceClient, err = trace.NewChannelClient(ret.SpanChan, metricsChan,
+	ret.TraceClient, err = trace.NewChannelClient(ret.SpanChan, ret.internalMetricsChan,
 		trace.ReportStatistics(stats, 1*time.Second, []string{"ssf_format:internal"}),
 	)
 	if err != nil {
@@ -234,19 +235,6 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			w.Work()
 		}(ret.Workers[i])
 	}
-	go func() {
-		for ssfMetrics := range metricsChan {
-			for _, m := range ssfMetrics {
-				metric, err := samplers.ParseMetricSSF(m)
-				if err != nil {
-					// TODO: increment a metric?
-					continue
-				}
-				ret.Workers[metric.Digest%uint32(len(ret.Workers))].IngestUDP(metric)
-			}
-		}
-	}()
-
 	ret.EventWorker = NewEventWorker(ret.TraceClient)
 
 	// Set up a span sink that extracts metrics from SSF spans and
@@ -539,6 +527,25 @@ func (s *Server) Start() {
 			logrus.WithError(err).WithField("sink", sink).Fatal("Error starting metric sink")
 		}
 	}
+
+	// Read internal metrics and process them
+	go func() {
+		for {
+			select {
+			case ssfMetrics := <-s.internalMetricsChan:
+				for _, m := range ssfMetrics {
+					metric, err := samplers.ParseMetricSSF(m)
+					if err != nil {
+						// TODO: increment a metric?
+						continue
+					}
+					s.Workers[metric.Digest%uint32(len(s.Workers))].IngestUDP(metric)
+				}
+			case <-s.shutdown:
+				return
+			}
+		}
+	}()
 
 	// Read Metrics Forever!
 	concreteAddrs := make([]net.Addr, 0, len(s.StatsdListenAddrs))
