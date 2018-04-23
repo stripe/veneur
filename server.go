@@ -189,18 +189,20 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		logger.SetLevel(logrus.DebugLevel)
 	}
 
+	mpf := 0
 	if conf.MutexProfileFraction > 0 {
-		mpf := runtime.SetMutexProfileFraction(conf.MutexProfileFraction)
-		log.WithFields(logrus.Fields{
-			"MutexProfileFraction":         conf.MutexProfileFraction,
-			"previousMutexProfileFraction": mpf,
-		}).Info("Set mutex profile fraction")
+		mpf = runtime.SetMutexProfileFraction(conf.MutexProfileFraction)
 	}
+
+	log.WithFields(logrus.Fields{
+		"MutexProfileFraction":         conf.MutexProfileFraction,
+		"previousMutexProfileFraction": mpf,
+	}).Info("Set mutex profile fraction")
 
 	if conf.BlockProfileRate > 0 {
 		runtime.SetBlockProfileRate(conf.BlockProfileRate)
-		log.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
 	}
+	log.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
 
 	if conf.EnableProfiling {
 		ret.enableProfiling = true
