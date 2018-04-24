@@ -2,8 +2,21 @@ package ssf
 
 import (
 	"math/rand"
+	"sync"
 	"time"
 )
+
+var rngPool = sync.Pool{
+	New: func() interface{} {
+		return rand.New(rand.NewSource(rand.Int63()))
+	},
+}
+
+// defaultRandFloat32 returns a random float32
+// using the default math/rand source
+func defaultRandFloat32() float32 {
+	return rand.Float32()
+}
 
 // Samples is a batch of SSFSamples, not attached to an SSF span, that
 // can be submitted with package metrics's Report function.
@@ -102,8 +115,19 @@ func create(base *SSFSample, opts []SampleOption) *SSFSample {
 func RandomlySample(rate float32, samples ...*SSFSample) []*SSFSample {
 	res := make([]*SSFSample, 0, len(samples))
 
+	randFloat := defaultRandFloat32
+
+	r, ok := rngPool.Get().(*rand.Rand)
+	if ok {
+		randFloat = func() float32 {
+			return r.Float32()
+		}
+
+		defer rngPool.Put(r)
+	}
+
 	for _, s := range samples {
-		if rand.Float32() <= rate {
+		if randFloat() <= rate {
 			if rate > 0 && rate <= 1 {
 				s.SampleRate = s.SampleRate * rate
 			}
