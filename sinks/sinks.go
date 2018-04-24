@@ -18,6 +18,11 @@ const MetricKeyMetricFlushDuration = "sink.metric_flush_total_duration_ns"
 // place to do this.
 const MetricKeyTotalMetricsFlushed = "sink.metrics_flushed_total"
 
+// MetricKeyTotalMetricsSkipped should be emitted as a counter by a MetricSink
+// if possible. Tagged with `sink:sink.Name()`. Track the number of metrics
+// skipped, not applicable to this MetricSink.
+const MetricKeyTotalMetricsSkipped = "sink.metrics_skipped_total"
+
 // ServiceCheckConversionCount number of service checks converted to a metric
 const ServiceCheckConversionCount = "sink.service_check_conversion"
 

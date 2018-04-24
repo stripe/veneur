@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"sort"
+	"strconv"
 	"testing"
 	"time"
 
@@ -157,6 +158,9 @@ func TestSignalFxFlushGauge(t *testing.T) {
 	point := fakeSink.points[0]
 	assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
 	assert.Equal(t, datapoint.Gauge, point.MetricType, "Metric has wrong type")
+	val, err := strconv.Atoi(point.Value.String())
+	assert.Nil(t, err, "Failed to parse value as integer")
+	assert.Equal(t, int(interMetrics[0].Value), val, "Status translates to gauge Value")
 	dims := point.Dimensions
 	assert.Equal(t, 4, len(dims), "Metric has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
@@ -190,6 +194,9 @@ func TestSignalFxFlushCounter(t *testing.T) {
 	point := fakeSink.points[0]
 	assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
 	assert.Equal(t, datapoint.Count, point.MetricType, "Metric has wrong type")
+	val, err := strconv.Atoi(point.Value.String())
+	assert.Nil(t, err, "Failed to parse value as integer")
+	assert.Equal(t, int(interMetrics[0].Value), val, "Status translates to gauge Value")
 	dims := point.Dimensions
 	assert.Equal(t, 5, len(dims), "Metric has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
@@ -225,6 +232,9 @@ func TestSignalFxFlushStatus(t *testing.T) {
 	point := fakeSink.points[0]
 	assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
 	assert.Equal(t, datapoint.Gauge, point.MetricType, "Metric has wrong type")
+	val, err := strconv.Atoi(point.Value.String())
+	assert.Nil(t, err, "Failed to parse value as integer")
+	assert.Equal(t, int(ssf.SSFSample_UNKNOWN), val, "Status translates to gauge Value")
 	dims := point.Dimensions
 	assert.Equal(t, 5, len(dims), "Metric has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
@@ -340,6 +350,9 @@ func TestSignalFxSetExcludeTags(t *testing.T) {
 	point := fakeSink.points[0]
 	assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
 	assert.Equal(t, datapoint.Count, point.MetricType, "Metric has wrong type")
+	val, err := strconv.Atoi(point.Value.String())
+	assert.Nil(t, err, "Failed to parse value as integer")
+	assert.Equal(t, int(interMetrics[0].Value), val, "Status translates to gauge Value")
 	dims := point.Dimensions
 	assert.Equal(t, 3, len(dims), "Metric has incorrect tag count")
 	assert.Equal(t, "", dims["foo"], "Metric has a foo tag despite exclude rule")
@@ -385,7 +398,7 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 		samplers.InterMetric{
 			Name:      "a.b.c",
 			Timestamp: 1476119058,
-			Value:     float64(100),
+			Value:     float64(99),
 			Tags: []string{
 				"foo:bar",
 				"baz:quz",
@@ -403,6 +416,9 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 		point := fallback.points[0]
 		assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
 		assert.Equal(t, datapoint.Gauge, point.MetricType, "Metric has wrong type")
+		val, err := strconv.Atoi(point.Value.String())
+		assert.Nil(t, err, "Failed to parse value as integer")
+		assert.Equal(t, int(interMetrics[0].Value), val, "Status translates to gauge Value")
 		dims := point.Dimensions
 		assert.Equal(t, 5, len(dims), "Metric has incorrect tag count")
 		assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
@@ -415,6 +431,9 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 		point := specialized.points[0]
 		assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
 		assert.Equal(t, datapoint.Gauge, point.MetricType, "Metric has wrong type")
+		val, err := strconv.Atoi(point.Value.String())
+		assert.Nil(t, err, "Failed to parse value as integer")
+		assert.Equal(t, int(interMetrics[1].Value), val, "Status translates to gauge Value")
 		dims := point.Dimensions
 		assert.Equal(t, 5, len(dims), "Metric has incorrect tag count")
 		assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")

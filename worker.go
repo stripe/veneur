@@ -142,11 +142,11 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 		}
 	case statusTypeName:
 		if Scope == samplers.LocalOnly {
-			if _, present = wm.localTimers[mk]; !present {
+			if _, present = wm.localStatusChecks[mk]; !present {
 				wm.localStatusChecks[mk] = samplers.NewStatusCheck(mk.Name, tags)
 			}
 		} else {
-			if _, present = wm.timers[mk]; !present {
+			if _, present = wm.statusChecks[mk]; !present {
 				wm.statusChecks[mk] = samplers.NewStatusCheck(mk.Name, tags)
 			}
 		}
