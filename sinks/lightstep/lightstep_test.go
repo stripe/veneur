@@ -100,9 +100,10 @@ func (tls *testLSSpan) Log(data opentracing.LogData) {
 }
 
 func TestLSSinkConstructor(t *testing.T) {
-
-	_, err := NewLightStepSpanSink("http://example.com", "5m", 1000, 1, "secret", map[string]string{"foo": "bar"}, logrus.New())
+	tags := map[string]string{"foo": "bar"}
+	sink, err := NewLightStepSpanSink("http://example.com", "5m", 1000, 1, "secret", tags, logrus.New())
 	assert.NoError(t, err)
+	assert.Equal(t, tags, sink.commonTags)
 }
 
 func TestLSSpanSinkIngest(t *testing.T) {
