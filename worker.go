@@ -407,6 +407,10 @@ func (tw *SpanWorker) Work() {
 			atomic.AddInt64(&tw.capCount, 1)
 		}
 
+		if m.Tags == nil && len(tw.commonTags) != 0 {
+			m.Tags = make(map[string]string, len(tw.commonTags))
+		}
+
 		for k, v := range tw.commonTags {
 			if _, has := m.Tags[k]; !has {
 				m.Tags[k] = v
