@@ -68,9 +68,6 @@ var tracer = trace.GlobalTracer
 
 const defaultTCPReadTimeout = 10 * time.Minute
 
-// 1/internalMetricSampleRate packets will be chosen
-const internalMetricSampleRate = 10
-
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers              []*Worker
@@ -693,6 +690,9 @@ func (s *Server) HandleTracePacket(packet []byte) {
 }
 
 func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string) {
+	// 1/internalMetricSampleRate packets will be chosen
+	const internalMetricSampleRate = 1000
+
 	key := "service:" + span.Service + "," + "ssf_format:" + ssfFormat
 
 	if (span.Id % internalMetricSampleRate) == 1 {
