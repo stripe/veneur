@@ -384,7 +384,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			lsSink, err = lightstep.NewLightStepSpanSink(
 				conf.LightstepCollectorHost, conf.LightstepReconnectPeriod,
 				conf.LightstepMaximumSpans, conf.LightstepNumClients,
-				conf.LightstepAccessToken, ret.TagsAsMap, log,
+				conf.LightstepAccessToken, log,
 			)
 			if err != nil {
 				return ret, err
@@ -395,7 +395,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		}
 
 		if conf.FalconerAddress != "" {
-			falsink, err := falconer.NewSpanSink(context.Background(), conf.FalconerAddress, ret.TagsAsMap, log, grpc.WithInsecure())
+			falsink, err := falconer.NewSpanSink(context.Background(), conf.FalconerAddress, log, grpc.WithInsecure())
 			if err != nil {
 				return ret, err
 			}
@@ -521,7 +521,7 @@ func (s *Server) Start() {
 	// Set up the processors for spans:
 
 	// Use the pre-allocated Workers slice to know how many to start.
-	s.SpanWorker = NewSpanWorker(s.spanSinks, s.TraceClient, s.SpanChan)
+	s.SpanWorker = NewSpanWorker(s.spanSinks, s.TraceClient, s.SpanChan, s.TagsAsMap)
 
 	go func() {
 		log.Info("Starting Event worker")

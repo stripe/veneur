@@ -26,7 +26,6 @@ const lightstepDefaultInterval = 5 * time.Minute
 // LightStepSpanSink is a sink for spans to be sent to the LightStep client.
 type LightStepSpanSink struct {
 	tracers      []opentracing.Tracer
-	commonTags   map[string]string
 	mutex        *sync.Mutex
 	serviceCount map[string]int64
 	traceClient  *trace.Client
@@ -36,8 +35,7 @@ type LightStepSpanSink struct {
 var _ sinks.SpanSink = &LightStepSpanSink{}
 
 // NewLightStepSpanSink creates a new instance of a LightStepSpanSink.
-func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string, commonTags map[string]string, log *logrus.Logger) (*LightStepSpanSink, error) {
-
+func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string, log *logrus.Logger) (*LightStepSpanSink, error) {
 	var host *url.URL
 	host, err := url.Parse(collector)
 	if err != nil {
@@ -161,10 +159,6 @@ func (ls *LightStepSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	sp.SetTag("type", "http")
 	sp.SetTag("error-code", errorCode)
 	for k, v := range ssfSpan.Tags {
-		sp.SetTag(k, v)
-	}
-	// And now set any veneur common tags
-	for k, v := range ls.commonTags {
 		sp.SetTag(k, v)
 	}
 	// TODO add metrics as tags to the span as well?

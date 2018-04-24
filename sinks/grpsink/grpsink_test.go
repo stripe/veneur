@@ -17,8 +17,6 @@ import (
 	"google.golang.org/grpc/connectivity"
 )
 
-var tags = map[string]string{"foo": "bar"}
-
 type MockSpanSinkServer struct {
 	spans []*ssf.SSFSpan
 	mut   sync.Mutex
@@ -70,9 +68,8 @@ func TestEndToEnd(t *testing.T) {
 	}()
 	block <- struct{}{}
 
-	sink, err := NewGRPCSpanSink(context.Background(), testaddr, "test1", tags, log, grpc.WithInsecure())
+	sink, err := NewGRPCSpanSink(context.Background(), testaddr, "test1", log, grpc.WithInsecure())
 	require.NoError(t, err)
-	assert.Equal(t, sink.commonTags, tags)
 	assert.NotNil(t, sink.grpcConn)
 
 	err = sink.Start(nil)
@@ -96,10 +93,6 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	err = sink.Ingest(testSpan)
-	testSpan.Tags = map[string]string{
-		"foo": "bar",
-		"baz": "qux",
-	}
 
 	assert.NoError(t, err)
 	assert.Equal(t, testSpan, mock.firstSpan())

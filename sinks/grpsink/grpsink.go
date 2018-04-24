@@ -34,7 +34,6 @@ type GRPCSpanSink struct {
 	// change.
 	loggedSinceTransition uint32
 	stats                 *statsd.Client
-	commonTags            map[string]string
 	traceClient           *trace.Client
 	log                   *logrus.Logger
 }
@@ -50,7 +49,7 @@ var _ sinks.SpanSink = &GRPCSpanSink{}
 //
 // Any grpc.CallOpts that are provided will be used while first establishing the
 // connection to the target server (in grpc.DialContext()).
-func NewGRPCSpanSink(ctx context.Context, target, name string, commonTags map[string]string, log *logrus.Logger, opts ...grpc.DialOption) (*GRPCSpanSink, error) {
+func NewGRPCSpanSink(ctx context.Context, target, name string, log *logrus.Logger, opts ...grpc.DialOption) (*GRPCSpanSink, error) {
 	name = "grpc-" + name
 	conn, err := grpc.DialContext(convertContext(ctx), target, opts...)
 	if err != nil {
@@ -62,11 +61,10 @@ func NewGRPCSpanSink(ctx context.Context, target, name string, commonTags map[st
 	}
 
 	return &GRPCSpanSink{
-		grpcConn:   conn,
-		name:       name,
-		target:     target,
-		commonTags: commonTags,
-		log:        log,
+		grpcConn: conn,
+		name:     name,
+		target:   target,
+		log:      log,
 	}, nil
 }
 
@@ -99,12 +97,6 @@ func (gs *GRPCSpanSink) Name() string {
 func (gs *GRPCSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	if err := protocol.ValidateTrace(ssfSpan); err != nil {
 		return err
-	}
-
-	// Apply any common tags, superseding defaults passed in at sink creation
-	// in the event of overlap.
-	for k, v := range gs.commonTags {
-		ssfSpan.Tags[k] = v
 	}
 
 	client := NewSpanSinkClient(gs.grpcConn)

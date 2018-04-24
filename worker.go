@@ -371,6 +371,7 @@ func (ew *EventWorker) Flush() []ssf.SSFSample {
 type SpanWorker struct {
 	SpanChan        <-chan *ssf.SSFSpan
 	sinkTags        []map[string]string
+	commonTags      map[string]string
 	sinks           []sinks.SpanSink
 	cumulativeTimes []int64
 	traceClient     *trace.Client
@@ -378,7 +379,7 @@ type SpanWorker struct {
 }
 
 // NewSpanWorker creates a SpanWorker ready to collect events and service checks.
-func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ssf.SSFSpan) *SpanWorker {
+func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ssf.SSFSpan, commonTags map[string]string) *SpanWorker {
 	tags := make([]map[string]string, len(sinks))
 	for i, sink := range sinks {
 		tags[i] = map[string]string{
@@ -390,6 +391,7 @@ func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ss
 		SpanChan:        spanChan,
 		sinks:           sinks,
 		sinkTags:        tags,
+		commonTags:      commonTags,
 		cumulativeTimes: make([]int64, len(sinks)),
 		traceClient:     cl,
 	}
@@ -403,6 +405,12 @@ func (tw *SpanWorker) Work() {
 		// If we are at or one below cap, increment the counter.
 		if len(tw.SpanChan) >= capcmp {
 			atomic.AddInt64(&tw.capCount, 1)
+		}
+
+		for k, v := range tw.commonTags {
+			if _, has := m.Tags[k]; !has {
+				m.Tags[k] = v
+			}
 		}
 
 		var wg sync.WaitGroup
