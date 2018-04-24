@@ -352,7 +352,7 @@ func TestDatadogFlushServiceChecks(t *testing.T) {
 	testCheck := ssf.SSFSample{
 		Name:      "foo",
 		Message:   "bar",
-		Status:    ssf.SSFSample_OK,
+		Status:    ssf.SSFSample_WARNING, // Notably setting this to something that isn't the default value to ensure it works
 		Timestamp: 1136239445,
 		Tags: map[string]string{
 			dogstatsd.CheckIdentifierKey:  "",

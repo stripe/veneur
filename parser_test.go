@@ -623,6 +623,14 @@ func TestServiceCheckMessageUnescape(t *testing.T) {
 	assert.Equal(t, "foo\nbar\nbaz\n", svcheck.Message, "Should contain newline")
 }
 
+func TestServiceCheckMessageStatus(t *testing.T) {
+	packet := []byte("_sc|foo|1|m:foo")
+	svcheck, err := samplers.ParseServiceCheck(packet)
+	assert.NoError(t, err, "Should have parsed correctly")
+	assert.Equal(t, "foo", svcheck.Message, "Should contain newline")
+	assert.Equal(t, ssf.SSFSample_WARNING, svcheck.Status, "Should parse status correctly")
+}
+
 func TestConsecutiveParseSSF(t *testing.T) {
 
 	span := &ssf.SSFSpan{
