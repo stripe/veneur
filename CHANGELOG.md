@@ -7,6 +7,7 @@
 
 ## Bugfixes
 * The `ignored-labels` and `ignored-metrics` flags for veneur-prometheus will filter no metrics or labels if no filter is specified. Thanks, [arjenvanderende](https://github.com/arjenvanderende)!
+* Fixed problem where all Datadog service checks were set to `OK` instead of the supplied value. Thanks, [gphat](https://github.com/gphat)!
 
 ## Removed
 * Official support for building Veneur's binaries with Go 1.8 has been dropped. Supported versions of Go for building Veneur 1.9, 1.10, or tip.

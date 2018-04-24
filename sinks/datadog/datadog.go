@@ -157,7 +157,7 @@ func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ss
 				Name:      sample.Name,
 				Message:   sample.Message,
 				Timestamp: sample.Timestamp,
-				Status:    0, // How to intify? TODO TKTK
+				Status:    int(ssf.SSFSample_Status_value[sample.Status.String()]),
 			}
 
 			// Defensively copy the tags that came in
