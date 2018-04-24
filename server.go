@@ -12,8 +12,11 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"reflect"
+	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -65,6 +68,9 @@ var tracer = trace.GlobalTracer
 
 const defaultTCPReadTimeout = 10 * time.Minute
 
+// 1/internalMetricSampleRate packets will be chosen
+const internalMetricSampleRate = 10
+
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers              []*Worker
@@ -115,6 +121,16 @@ type Server struct {
 	metricSinks []sinks.MetricSink
 
 	TraceClient *trace.Client
+
+	ssfInternalMetrics sync.Map
+}
+
+// ssfServiceSpanMetrics refer to the span metrics that will
+// be emitted for single (service,ssf_format) combination on each flush.
+// It is expected the values on the struct will only be handled
+// using atomic operations
+type ssfServiceSpanMetrics struct {
+	ssfSpansReceivedTotal int64
 }
 
 // SetLogger sets the default logger in veneur to the passed value.
@@ -187,6 +203,21 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	if conf.Debug {
 		logger.SetLevel(logrus.DebugLevel)
 	}
+
+	mpf := 0
+	if conf.MutexProfileFraction > 0 {
+		mpf = runtime.SetMutexProfileFraction(conf.MutexProfileFraction)
+	}
+
+	log.WithFields(logrus.Fields{
+		"MutexProfileFraction":         conf.MutexProfileFraction,
+		"previousMutexProfileFraction": mpf,
+	}).Info("Set mutex profile fraction")
+
+	if conf.BlockProfileRate > 0 {
+		runtime.SetBlockProfileRate(conf.BlockProfileRate)
+	}
+	log.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
 
 	if conf.EnableProfiling {
 		ret.enableProfiling = true
@@ -634,7 +665,6 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	samples := &ssf.Samples{}
 	defer metrics.Report(s.TraceClient, samples)
 
-	s.Statsd.Incr("ssf.received_total", nil, .1)
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
 		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:unknown", "reason:zerolength"}, 1.0)
@@ -651,14 +681,51 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		log.WithError(err).Warn("ParseSSF")
 		return
 	}
-	s.handleSSF(span, []string{"ssf_format:packet"})
+	// we want to keep track of this, because it's a client problem, but still
+	// handle the span normally
+	if span.Id == 0 {
+		reason := "reason:" + "empty_id"
+		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:ssf_metric", reason}, 1.0)
+		log.WithError(err).Warn("ParseSSF")
+	}
+
+	s.handleSSF(span, "packet")
 }
 
-func (s *Server) handleSSF(span *ssf.SSFSpan, baseTags []string) {
-	tags := append(baseTags, "service:"+span.Service)
+func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string) {
+	key := "service:" + span.Service + "," + "ssf_format:" + ssfFormat
 
-	s.Statsd.Incr("ssf.spans.received_total", tags, .1)
-	s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), tags, .1)
+	if (span.Id % internalMetricSampleRate) == 1 {
+		// we can't avoid emitting this metric synchronously by aggregating in-memory, but that's okay
+		s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), []string{"service:" + span.Service, "ssf_format:" + ssfFormat}, 1)
+
+		metrics, ok := s.ssfInternalMetrics.Load(key)
+
+		if !ok {
+			// ensure that the value is in the map
+			// we only do this if the value was not found in the map once already, to save an
+			// allocation and more expensive operation in the typical case
+			metrics, ok = s.ssfInternalMetrics.LoadOrStore(key, &ssfServiceSpanMetrics{})
+			if metrics == nil {
+				log.WithFields(logrus.Fields{
+					"service":   span.Service,
+					"ssfFormat": ssfFormat,
+				}).Error("found nil value in ssfInternalMetrics map")
+			}
+		}
+
+		metricsStruct, ok := metrics.(*ssfServiceSpanMetrics)
+		if !ok {
+			log.WithField("type", reflect.TypeOf(metrics)).Error()
+			log.WithFields(logrus.Fields{
+				"type":      reflect.TypeOf(metrics),
+				"service":   span.Service,
+				"ssfFormat": ssfFormat,
+			}).Error("Unexpected type in ssfInternalMetrics map")
+		}
+
+		atomic.AddInt64(&metricsStruct.ssfSpansReceivedTotal, 1)
+	}
 
 	s.SpanChan <- span
 }
@@ -735,38 +802,38 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 	defer func() {
 		serverConn.Close()
 	}()
-	tags := map[string]string{"ssf_format": "framed"}
+
+	// initialize the capacity to the max size
+	// based on the number of tags we add later
+	tags := make([]string, 1, 3)
+	tags[0] = "ssf_format:framed"
+
 	for {
 		msg, err := protocol.ReadSSF(serverConn)
 		if err != nil {
 			if err == io.EOF {
 				// Client hangup, close this
-				metrics.ReportOne(s.TraceClient, ssf.Count("frames.disconnects", 1, nil))
+				s.Statsd.Count("frames.disconnects", 1, nil, 1.0)
 				return
 			}
 			if protocol.IsFramingError(err) {
 				log.WithError(err).
 					WithField("remote", serverConn.RemoteAddr()).
 					Info("Frame error reading from SSF connection. Closing.")
-				sample := ssf.Count("ssf.error_total", 1, tags)
-				sample.Tags["packet_type"] = "unknown"
-				sample.Tags["reason"] = "framing"
-				metrics.ReportOne(s.TraceClient, sample)
+				tags = append(tags, []string{"packet_type:unknown", "reason:framing"}...)
+				s.Statsd.Incr("ssf.error_total", tags, 1.0)
 				return
 			}
 			// Non-frame errors means we can continue reading:
 			log.WithError(err).
 				WithField("remote", serverConn.RemoteAddr()).
 				Error("Error processing an SSF frame")
-			sample := ssf.Count("ssf.error_total", 1, tags)
-			sample.Tags["packet_type"] = "unknown"
-			sample.Tags["reason"] = "processing"
-			metrics.ReportOne(s.TraceClient, sample)
+			tags = append(tags, []string{"packet_type:unknown", "reason:processing"}...)
+			s.Statsd.Incr("ssf.error_total", tags, 1.0)
+			tags = tags[:1]
 			continue
 		}
-		metrics.ReportBatch(s.TraceClient,
-			ssf.RandomlySample(0.01, ssf.Count("ssf.received_total", 1, tags)))
-		s.handleSSF(msg, []string{"ssf_format:framed"})
+		s.handleSSF(msg, "framed")
 	}
 }
 

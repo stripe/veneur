@@ -1318,11 +1318,9 @@ func BenchmarkHandleSSF(b *testing.B) {
 	f := newFixture(b, config, nil, nil)
 	defer f.Close()
 
-	baseTags := []string{"ssf_format:packet"}
-
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		f.server.handleSSF(spans[i%LEN], baseTags)
+		f.server.handleSSF(spans[i%LEN], "packet")
 	}
 }
