@@ -123,3 +123,18 @@ func BenchmarkRandomlySample(b *testing.B) {
 	b.ResetTimer()
 	samples = RandomlySample(0.2, samples...)
 }
+
+func BenchmarkRandomlySampleParallel(b *testing.B) {
+
+	samples := make([]*SSFSample, 1000000)
+	for i := range samples {
+		samples[i] = Count("testing.counter", float32(i), nil)
+	}
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			samples = RandomlySample(0.2, samples...)
+		}
+	})
+}
