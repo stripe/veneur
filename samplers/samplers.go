@@ -50,6 +50,8 @@ type InterMetric struct {
 	Value     float64
 	Tags      []string
 	Type      MetricType
+	Message   string
+	HostName  string
 
 	// Sinks, if non-nil, indicates which metric sinks a metric
 	// should be inserted into. If nil, that means the metric is
@@ -213,6 +215,7 @@ func (g *Gauge) Flush() []InterMetric {
 		Type:      GaugeMetric,
 		Sinks:     routeInfo(tags),
 	}}
+
 }
 
 // Export converts a Gauge into a JSONMetric.
@@ -257,52 +260,46 @@ func NewGauge(Name string, Tags []string) *Gauge {
 
 // StatusCheck retains whatever the last value was.
 type StatusCheck struct {
-	Name  string
-	Tags  []string
-	value float64
+	InterMetric
 }
 
 // Sample takes on whatever value is passed in as a sample.
-func (g *StatusCheck) Sample(sample float64, sampleRate float32) {
-	g.value = sample
+func (s *StatusCheck) Sample(sample float64, sampleRate float32, message string, hostname string) {
+	s.Value = sample
+	s.Message = message
+	s.HostName = hostname
 }
 
 // Flush generates an InterMetric from the current state of this status check.
-func (g *StatusCheck) Flush() []InterMetric {
-	tags := make([]string, len(g.Tags))
-	copy(tags, g.Tags)
-	return []InterMetric{{
-		Name:      g.Name,
-		Timestamp: time.Now().Unix(),
-		Value:     float64(g.value),
-		Tags:      tags,
-		Type:      StatusMetric,
-		Sinks:     routeInfo(tags),
-	}}
+func (s *StatusCheck) Flush() []InterMetric {
+	s.Timestamp = time.Now().Unix()
+	s.Type = StatusMetric
+	s.Sinks = routeInfo(s.Tags)
+	return []InterMetric{s.InterMetric}
 }
 
 // Export converts a StatusCheck into a JSONMetric.
-func (g *StatusCheck) Export() (JSONMetric, error) {
+func (s *StatusCheck) Export() (JSONMetric, error) {
 	var buf bytes.Buffer
 
-	err := binary.Write(&buf, binary.LittleEndian, g.value)
+	err := binary.Write(&buf, binary.LittleEndian, s.Value)
 	if err != nil {
 		return JSONMetric{}, err
 	}
 
 	return JSONMetric{
 		MetricKey: MetricKey{
-			Name:       g.Name,
+			Name:       s.Name,
 			Type:       "status",
-			JoinedTags: strings.Join(g.Tags, ","),
+			JoinedTags: strings.Join(s.Tags, ","),
 		},
-		Tags:  g.Tags,
+		Tags:  s.Tags,
 		Value: buf.Bytes(),
 	}, nil
 }
 
 // Combine is pretty naïve for StatusChecks, as it just overwrites the value.
-func (g *StatusCheck) Combine(other []byte) error {
+func (s *StatusCheck) Combine(other []byte) error {
 	var otherValue float64
 	buf := bytes.NewReader(other)
 	err := binary.Read(buf, binary.LittleEndian, &otherValue)
@@ -311,14 +308,14 @@ func (g *StatusCheck) Combine(other []byte) error {
 		return err
 	}
 
-	g.value = otherValue
+	s.Value = otherValue
 
 	return nil
 }
 
 // NewStatusCheck genearaaaa who am I kidding just getting rid of the warning.
 func NewStatusCheck(Name string, Tags []string) *StatusCheck {
-	return &StatusCheck{Name: Name, Tags: Tags}
+	return &StatusCheck{InterMetric{Name: Name, Tags: Tags}}
 }
 
 // Set is a list of unique values seen.

@@ -47,12 +47,11 @@ type WorkerMetrics struct {
 	// we do not want to key on the metric's Digest here, because those could
 	// collide, and then we'd have to implement a hashtable on top of go maps,
 	// which would be silly
-	counters     map[samplers.MetricKey]*samplers.Counter
-	gauges       map[samplers.MetricKey]*samplers.Gauge
-	histograms   map[samplers.MetricKey]*samplers.Histo
-	sets         map[samplers.MetricKey]*samplers.Set
-	timers       map[samplers.MetricKey]*samplers.Histo
-	statusChecks map[samplers.MetricKey]*samplers.StatusCheck
+	counters   map[samplers.MetricKey]*samplers.Counter
+	gauges     map[samplers.MetricKey]*samplers.Gauge
+	histograms map[samplers.MetricKey]*samplers.Histo
+	sets       map[samplers.MetricKey]*samplers.Set
+	timers     map[samplers.MetricKey]*samplers.Histo
 
 	// this is for counters which are globally aggregated
 	globalCounters map[samplers.MetricKey]*samplers.Counter
@@ -76,7 +75,6 @@ func NewWorkerMetrics() WorkerMetrics {
 		histograms:        map[samplers.MetricKey]*samplers.Histo{},
 		sets:              map[samplers.MetricKey]*samplers.Set{},
 		timers:            map[samplers.MetricKey]*samplers.Histo{},
-		statusChecks:      map[samplers.MetricKey]*samplers.StatusCheck{},
 		localHistograms:   map[samplers.MetricKey]*samplers.Histo{},
 		localSets:         map[samplers.MetricKey]*samplers.Set{},
 		localTimers:       map[samplers.MetricKey]*samplers.Histo{},
@@ -141,14 +139,8 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 			}
 		}
 	case statusTypeName:
-		if Scope == samplers.LocalOnly {
-			if _, present = wm.localStatusChecks[mk]; !present {
-				wm.localStatusChecks[mk] = samplers.NewStatusCheck(mk.Name, tags)
-			}
-		} else {
-			if _, present = wm.statusChecks[mk]; !present {
-				wm.statusChecks[mk] = samplers.NewStatusCheck(mk.Name, tags)
-			}
+		if _, present = wm.localStatusChecks[mk]; !present {
+			wm.localStatusChecks[mk] = samplers.NewStatusCheck(mk.Name, tags)
 		}
 		// no need to raise errors on unknown types
 		// the caller will probably end up doing that themselves
@@ -243,11 +235,7 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 		}
 	case statusTypeName:
 		v := float64(m.Value.(ssf.SSFSample_Status))
-		if m.Scope == samplers.LocalOnly {
-			w.wm.localStatusChecks[m.MetricKey].Sample(v, m.SampleRate)
-		} else {
-			w.wm.statusChecks[m.MetricKey].Sample(v, m.SampleRate)
-		}
+		w.wm.localStatusChecks[m.MetricKey].Sample(v, m.SampleRate, m.Message, m.HostName)
 	default:
 		log.WithField("type", m.Type).Error("Unknown metric type for processing")
 	}
@@ -288,10 +276,6 @@ func (w *Worker) ImportMetric(other samplers.JSONMetric) {
 	case timerTypeName:
 		if err := w.wm.timers[other.MetricKey].Combine(other.Value); err != nil {
 			log.WithError(err).Error("Could not merge timers")
-		}
-	case statusTypeName:
-		if err := w.wm.statusChecks[other.MetricKey].Combine(other.Value); err != nil {
-			log.WithError(err).Error("Could not merge status")
 		}
 	default:
 		log.WithField("type", other.Type).Error("Unknown metric type for importing")

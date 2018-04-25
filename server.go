@@ -640,7 +640,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "service_check", "reason": "parse"}))
 			return err
 		}
-		s.EventWorker.sampleChan <- *svcheck
+		s.Workers[svcheck.Digest%uint32(len(s.Workers))].PacketChan <- *svcheck
 	} else {
 		metric, err := samplers.ParseMetric(packet)
 		if err != nil {

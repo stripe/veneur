@@ -117,7 +117,6 @@ type metricsSummary struct {
 	totalLocalHistograms   int
 	totalLocalSets         int
 	totalLocalTimers       int
-	totalStatusChecks      int
 	totalLocalStatusChecks int
 
 	totalLength int
@@ -153,7 +152,6 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 		ms.totalLocalSets += len(wm.localSets)
 		ms.totalLocalTimers += len(wm.localTimers)
 
-		ms.totalStatusChecks += len(wm.statusChecks)
 		ms.totalLocalStatusChecks += len(wm.localStatusChecks)
 	}
 
@@ -203,9 +201,6 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 		}
 		for _, t := range wm.timers {
 			finalMetrics = append(finalMetrics, t.Flush(s.interval, percentiles, s.HistogramAggregates)...)
-		}
-		for _, status := range wm.statusChecks {
-			finalMetrics = append(finalMetrics, status.Flush()...)
 		}
 
 		// local-only samplers should be flushed in their entirety, since they
@@ -268,6 +263,7 @@ func (s *Server) reportMetricsFlushCounts(ms metricsSummary) {
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalHistograms), []string{"metric_type:local_histogram"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalSets), []string{"metric_type:local_set"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalTimers), []string{"metric_type:local_timer"}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalStatusChecks), []string{"metric_type:status"}, 1.0)
 }
 
 // reportGlobalMetricsFlushCounts reports the counts of
