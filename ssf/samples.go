@@ -119,10 +119,7 @@ func RandomlySample(rate float32, samples ...*SSFSample) []*SSFSample {
 
 	r, ok := rngPool.Get().(*rand.Rand)
 	if ok {
-		randFloat = func() float32 {
-			return r.Float32()
-		}
-
+		randFloat = r.Float32
 		defer rngPool.Put(r)
 	}
 
