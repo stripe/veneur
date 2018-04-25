@@ -219,9 +219,9 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 		}
 	case gaugeTypeName:
 		if m.Scope == samplers.GlobalOnly {
-			w.wm.globalGauges[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+			w.wm.globalGauges[m.MetricKey].Sample(m.Value.(float64), m.SampleRate, m.HostName)
 		} else {
-			w.wm.gauges[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+			w.wm.gauges[m.MetricKey].Sample(m.Value.(float64), m.SampleRate, , m.HostName)
 		}
 	case histogramTypeName:
 		if m.Scope == samplers.LocalOnly {
@@ -244,9 +244,9 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 	case statusTypeName:
 		v := float64(m.Value.(ssf.SSFSample_Status))
 		if m.Scope == samplers.LocalOnly {
-			w.wm.localStatusChecks[m.MetricKey].Sample(v, m.SampleRate)
+			w.wm.localStatusChecks[m.MetricKey].Sample(v, m.SampleRate, m.Message, m.HostName)
 		} else {
-			w.wm.statusChecks[m.MetricKey].Sample(v, m.SampleRate)
+			w.wm.statusChecks[m.MetricKey].Sample(v, m.SampleRate, m.Message, m.HostName)
 		}
 	default:
 		log.WithField("type", m.Type).Error("Unknown metric type for processing")

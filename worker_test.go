@@ -122,15 +122,24 @@ func TestWorkerStatusMetric(t *testing.T) {
 			Name: "a.b.c",
 			Type: "status",
 		},
-		Value:      ssf.SSFSample_CRITICAL,
-		Digest:     12345,
-		SampleRate: 1.0,
+		Value:   ssf.SSFSample_CRITICAL,
+		Digest:  12345,
+		Message: "you've got mail!",
 	}
 	w.ProcessMetric(&m)
 
 	wm := w.Flush()
 	assert.Len(t, wm.statusChecks, 1, "Number of flushed metrics")
+	var datapoint *samplers.StatusCheck
+	for _, v := range wm.statusChecks {
+		datapoint = v
+		break
+	}
+	assert.NotNil(t, datapoint, "Expected a service check to be in the worker metrics map, but none found")
 
+	assert.Equal(t, float64(m.Value.(ssf.SSFSample_Status)), float64(datapoint.Value), "The value of the status check should be the same value as the UDPMetric input")
+	assert.Equal(t, m.Message, datapoint.Message, "The message of the status check should be the same message as the UDPMetric input")
+	assert.Equal(t, m.Name, datapoint.Name, "The name of the status check should be the same name as the UDPMetric input")
 	nometrics := w.Flush()
 	assert.Len(t, nometrics.statusChecks, 0, "Should flush no metrics")
 }

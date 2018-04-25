@@ -50,6 +50,8 @@ type InterMetric struct {
 	Value     float64
 	Tags      []string
 	Type      MetricType
+	Message   string
+	HostName  string
 
 	// Sinks, if non-nil, indicates which metric sinks a metric
 	// should be inserted into. If nil, that means the metric is
@@ -191,35 +193,28 @@ func NewCounter(Name string, Tags []string) *Counter {
 
 // Gauge retains whatever the last value was.
 type Gauge struct {
-	Name  string
-	Tags  []string
-	value float64
+	InterMetric
 }
 
 // Sample takes on whatever value is passed in as a sample.
-func (g *Gauge) Sample(sample float64, sampleRate float32) {
-	g.value = sample
+func (g *Gauge) Sample(sample float64, sampleRate float32, hostname string) {
+	g.Value = sample
+	g.HostName = hostname
 }
 
 // Flush generates an InterMetric from the current state of this gauge.
 func (g *Gauge) Flush() []InterMetric {
-	tags := make([]string, len(g.Tags))
-	copy(tags, g.Tags)
-	return []InterMetric{{
-		Name:      g.Name,
-		Timestamp: time.Now().Unix(),
-		Value:     float64(g.value),
-		Tags:      tags,
-		Type:      GaugeMetric,
-		Sinks:     routeInfo(tags),
-	}}
+	g.Sinks = routeInfo(g.Tags)
+	g.Type = GaugeMetric
+	g.Timestamp = time.Now().Unix()
+	return []InterMetric{g.InterMetric}
 }
 
 // Export converts a Gauge into a JSONMetric.
 func (g *Gauge) Export() (JSONMetric, error) {
 	var buf bytes.Buffer
 
-	err := binary.Write(&buf, binary.LittleEndian, g.value)
+	err := binary.Write(&buf, binary.LittleEndian, g.Value)
 	if err != nil {
 		return JSONMetric{}, err
 	}
@@ -245,47 +240,41 @@ func (g *Gauge) Combine(other []byte) error {
 		return err
 	}
 
-	g.value = otherValue
+	g.Value = otherValue
 
 	return nil
 }
 
 // NewGauge genearaaaa who am I kidding just getting rid of the warning.
 func NewGauge(Name string, Tags []string) *Gauge {
-	return &Gauge{Name: Name, Tags: Tags}
+	return &Gauge{InterMetric{Name: Name, Tags: Tags}}
 }
 
 // StatusCheck retains whatever the last value was.
 type StatusCheck struct {
-	Name  string
-	Tags  []string
-	value float64
+	InterMetric
 }
 
 // Sample takes on whatever value is passed in as a sample.
-func (g *StatusCheck) Sample(sample float64, sampleRate float32) {
-	g.value = sample
+func (g *StatusCheck) Sample(sample float64, sampleRate float32, message string, hostname string) {
+	g.Value = sample
+	g.Message = message
+	g.HostName = hostname
 }
 
 // Flush generates an InterMetric from the current state of this status check.
 func (g *StatusCheck) Flush() []InterMetric {
-	tags := make([]string, len(g.Tags))
-	copy(tags, g.Tags)
-	return []InterMetric{{
-		Name:      g.Name,
-		Timestamp: time.Now().Unix(),
-		Value:     float64(g.value),
-		Tags:      tags,
-		Type:      StatusMetric,
-		Sinks:     routeInfo(tags),
-	}}
+	g.Timestamp = time.Now().Unix()
+	g.Type = StatusMetric
+	g.Sinks = routeInfo(g.Tags)
+	return []InterMetric{g.InterMetric}
 }
 
 // Export converts a StatusCheck into a JSONMetric.
 func (g *StatusCheck) Export() (JSONMetric, error) {
 	var buf bytes.Buffer
 
-	err := binary.Write(&buf, binary.LittleEndian, g.value)
+	err := binary.Write(&buf, binary.LittleEndian, g.Value)
 	if err != nil {
 		return JSONMetric{}, err
 	}
@@ -311,14 +300,14 @@ func (g *StatusCheck) Combine(other []byte) error {
 		return err
 	}
 
-	g.value = otherValue
+	g.Value = otherValue
 
 	return nil
 }
 
 // NewStatusCheck genearaaaa who am I kidding just getting rid of the warning.
 func NewStatusCheck(Name string, Tags []string) *StatusCheck {
-	return &StatusCheck{Name: Name, Tags: Tags}
+	return &StatusCheck{InterMetric{Name: Name, Tags: Tags}}
 }
 
 // Set is a list of unique values seen.

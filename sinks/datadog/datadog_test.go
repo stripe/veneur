@@ -46,7 +46,8 @@ func TestDatadogRate(t *testing.T) {
 		Tags:      []string{"gorch:frobble", "x:e"},
 		Type:      samplers.CounterMetric,
 	}}
-	ddMetrics := ddSink.finalizeMetrics(metrics)
+	ddMetrics, serviceChecks := ddSink.finalizeMetrics(metrics)
+	assert.Empty(t, serviceChecks, "No service check metrics are reported")
 	assert.Equal(t, "rate", ddMetrics[0].MetricType, "Metric type should be rate")
 	assert.Equal(t, float64(1.0), ddMetrics[0].Value[0][1], "Metric rate wasnt computed correctly")
 }
@@ -66,7 +67,8 @@ func TestServerTags(t *testing.T) {
 		Type:      samplers.CounterMetric,
 	}}
 
-	ddMetrics := ddSink.finalizeMetrics(metrics)
+	ddMetrics, serviceChecks := ddSink.finalizeMetrics(metrics)
+	assert.Empty(t, serviceChecks, "No service check metrics are reported")
 	assert.Equal(t, "somehostname", ddMetrics[0].Hostname, "Metric hostname uses argument")
 	assert.Contains(t, ddMetrics[0].Tags, "a:b", "Tags should contain server tags")
 }
@@ -85,7 +87,8 @@ func TestHostMagicTag(t *testing.T) {
 		Type:      samplers.CounterMetric,
 	}}
 
-	ddMetrics := ddSink.finalizeMetrics(metrics)
+	ddMetrics, serviceChecks := ddSink.finalizeMetrics(metrics)
+	assert.Empty(t, serviceChecks, "No service check metrics are reported")
 	assert.Equal(t, "abc123", ddMetrics[0].Hostname, "Metric hostname should be from tag")
 	assert.NotContains(t, ddMetrics[0].Tags, "host:abc123", "Host tag should be removed")
 	assert.Contains(t, ddMetrics[0].Tags, "x:e", "Last tag is still around")
@@ -105,7 +108,8 @@ func TestDeviceMagicTag(t *testing.T) {
 		Type:      samplers.CounterMetric,
 	}}
 
-	ddMetrics := ddSink.finalizeMetrics(metrics)
+	ddMetrics, serviceChecks := ddSink.finalizeMetrics(metrics)
+	assert.Empty(t, serviceChecks, "No service check metrics are reported")
 	assert.Equal(t, "abc123", ddMetrics[0].DeviceName, "Metric devicename should be from tag")
 	assert.NotContains(t, ddMetrics[0].Tags, "device:abc123", "Host tag should be removed")
 	assert.Contains(t, ddMetrics[0].Tags, "x:e", "Last tag is still around")
@@ -344,7 +348,7 @@ func TestDatadogFlushEvents(t *testing.T) {
 	assert.Equal(t, ddFixtureEvent.Title, event.Title, "Event title doesn't match")
 }
 
-func TestDatadogFlushServiceChecks(t *testing.T) {
+func TestDatadogFlushOtherMetricsForServiceChecks(t *testing.T) {
 	transport := &DatadogRoundTripper{Endpoint: "/api/v1/check_run", Contains: ""}
 	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New())
 	assert.NoError(t, err)
@@ -355,16 +359,44 @@ func TestDatadogFlushServiceChecks(t *testing.T) {
 		Status:    ssf.SSFSample_OK,
 		Timestamp: 1136239445,
 		Tags: map[string]string{
-			dogstatsd.CheckIdentifierKey:  "",
-			dogstatsd.CheckHostnameTagKey: "example.com",
-			"foo": "bar",
-			"baz": "qux",
+			"host": "example.com",
+			"foo":  "bar",
+			"baz":  "qux",
 		},
 	}
+
+	ddSink.FlushOtherSamples(context.TODO(), []ssf.SSFSample{testCheck})
+	assert.NoError(t, err)
+
+	assert.Equal(t, false, transport.GotCalled, "Was not supposed to log a service check in the FlushOtherSamples")
+}
+
+func TestDatadogFlushServiceCheck(t *testing.T) {
+	transport := &DatadogRoundTripper{Endpoint: "/api/v1/check_run", Contains: ""}
+	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New())
+	assert.NoError(t, err)
+
+	testCheck := samplers.InterMetric{
+		Name:      "foo",
+		Type:      samplers.StatusMetric,
+		Message:   "bar",
+		Timestamp: 1136239445,
+		Value:     float64(ssf.SSFSample_OK),
+		Tags: []string{
+			"foo:bar",
+			"baz:qux",
+		},
+	}
+
+	ddSink.Flush(context.TODO(), []samplers.InterMetric{testCheck})
+	assert.NoError(t, err)
+
+	assert.Equal(t, true, transport.GotCalled, "Should have called the datadog transport")
+
 	ddFixtureCheck := DDServiceCheck{
 		Name:      testCheck.Name,
-		Status:    int(ssf.SSFSample_Status_value[testCheck.Status.String()]),
-		Hostname:  testCheck.Tags[dogstatsd.CheckHostnameTagKey],
+		Status:    int(testCheck.Value),
+		Hostname:  "example.com",
 		Timestamp: testCheck.Timestamp,
 		Message:   testCheck.Message,
 		Tags: []string{
@@ -373,11 +405,6 @@ func TestDatadogFlushServiceChecks(t *testing.T) {
 			"gloobles:toots", // This one needs to be here because of the Sink's common tags!
 		},
 	}
-
-	ddSink.FlushOtherSamples(context.TODO(), []ssf.SSFSample{testCheck})
-	assert.NoError(t, err)
-
-	assert.Equal(t, true, transport.GotCalled, "Did not call endpoint")
 	ddChecks := []DDServiceCheck{}
 	jsonErr := json.Unmarshal([]byte(transport.Contents), &ddChecks)
 	assert.NoError(t, jsonErr)
@@ -388,4 +415,5 @@ func TestDatadogFlushServiceChecks(t *testing.T) {
 	assert.Equal(t, ddFixtureCheck.Status, ddChecks[0].Status, "Check status doesn't match")
 	assert.Equal(t, ddFixtureCheck.Timestamp, ddChecks[0].Timestamp, "Check timestamp doesn't match")
 	assert.Subset(t, ddFixtureCheck.Tags, ddChecks[0].Tags, "Check posted to DD does not have matching tags")
+
 }

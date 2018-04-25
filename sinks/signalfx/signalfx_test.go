@@ -257,28 +257,13 @@ func TestSignalFxServiceCheckFlushOther(t *testing.T) {
 		// Include the markdown bits DD expects, we'll trim it out hopefully!
 		Message:   "%%% \n " + serviceCheckMsg + " \n %%%",
 		Timestamp: time.Now().Unix(),
-		Tags:      map[string]string{"foo": "bar", "baz": "gorch", "novalue": "", dogstatsd.CheckIdentifierKey: ""},
+		Tags:      map[string]string{"foo": "bar", "baz": "gorch", "novalue": ""},
 		Status:    ssf.SSFSample_CRITICAL,
 	}
 	sink.FlushOtherSamples(context.TODO(), []ssf.SSFSample{ev})
 
 	assert.Empty(t, fakeSink.events)
-	assert.NotEmpty(t, derived.samples, "Should convert service check to a gauge")
-	sample := derived.samples[0]
-	assert.Equal(t, ev.Name, sample.Name, "Sample name should be the service check name")
-	assert.Equal(t, ev.Status, sample.Status, "Sample check should be the converted service check status value")
-	assert.Equal(t, ssf.SSFSample_STATUS, sample.Metric, "Derived metric should be a 'status'")
-	// We're checking this to ensure the above markdown is also gone!
-	dims := sample.Tags
-	// 6 because 6 passed in, 1 eliminated (service check identifier) and 2 added (host and sink filter!)
-	assert.Equal(t, 6, len(dims), "Derived metric has incorrect tag count")
-	assert.Equal(t, "bar", dims["foo"], "Derived metric has a busted tag")
-	assert.Equal(t, "gorch", dims["baz"], "Derived metric has a busted tag")
-	assert.Equal(t, "pie", dims["yay"], "Derived metric missing a common tag")
-	assert.Equal(t, "", dims["novalue"], "Derived metric has a busted tag")
-	assert.Equal(t, "glooblestoots", dims["host"], "Derived metric is missing host tag")
-	assert.Equal(t, sink.Name(), dims["veneursinkonly"], "Derived metric should be restricted to run only to SignalFX Sink")
-	assert.NotContains(t, dogstatsd.CheckIdentifierKey, dims, "Should not have the service check identifier")
+	assert.Empty(t, derived.samples, "Should ignore any service check")
 }
 
 func TestSignalFxEventFlush(t *testing.T) {

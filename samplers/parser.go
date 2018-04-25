@@ -27,6 +27,9 @@ type UDPMetric struct {
 	SampleRate float32
 	Tags       []string
 	Scope      MetricScope
+	Timestamp  int64
+	Message    string
+	HostName   string
 }
 
 type MetricScope int
@@ -315,6 +318,9 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 			if ret.Tags != nil {
 				return nil, errors.New("Invalid metric packet, multiple tag sections specified")
 			}
+			// should we be filtering known key tags from here?
+			// in order to prevent extremely high cardinality in the global stats?
+			// see worker.go line 273
 			tags := strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
 			sort.Strings(tags)
 			for i, tag := range tags {
@@ -498,19 +504,17 @@ func ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 	return ret, nil
 }
 
-// ParseServiceCheck parses a packet that represents a Datadog service check and
-// returns an SSFSample or an error on failure. To facilitate the many Datadog
-// -specific values that are present in a DogStatsD service check but not in an
-// SSF sample, a series of special tags are set as defined in
-// protocol/dogstatsd/protocol.go. Any sink that wants to consume these service
-// checks will then need to implement FlushOtherSamples and unwind these special
-// tags into whatever is appropriate for that sink.
-func ParseServiceCheck(packet []byte) (*ssf.SSFSample, error) {
-
-	ret := &ssf.SSFSample{
-		Timestamp: time.Now().Unix(),
-		Tags:      map[string]string{dogstatsd.CheckIdentifierKey: ""},
+// ParseServiceCheck parses a packet that represents a service status check and
+// returns a UDPMetric or an error on failure. The UDPMetric struct has explicit
+// fields for each value of a service status check and does not require
+// overloading magical tags for conversion.
+func ParseServiceCheck(packet []byte) (*UDPMetric, error) {
+	ret := &UDPMetric{
+		SampleRate: 1.0,
+		Timestamp:  time.Now().Unix(),
+		Tags:       []string{},
 	}
+	ret.Type = "status"
 
 	pipeSplitter := NewSplitBytes(packet, '|')
 	pipeSplitter.Next()
@@ -532,13 +536,13 @@ func ParseServiceCheck(packet []byte) (*ssf.SSFSample, error) {
 	}
 	switch {
 	case bytes.Equal(pipeSplitter.Chunk(), []byte{'0'}):
-		ret.Status = ssf.SSFSample_OK
+		ret.Value = ssf.SSFSample_OK
 	case bytes.Equal(pipeSplitter.Chunk(), []byte{'1'}):
-		ret.Status = ssf.SSFSample_WARNING
+		ret.Value = ssf.SSFSample_WARNING
 	case bytes.Equal(pipeSplitter.Chunk(), []byte{'2'}):
-		ret.Status = ssf.SSFSample_CRITICAL
+		ret.Value = ssf.SSFSample_CRITICAL
 	case bytes.Equal(pipeSplitter.Chunk(), []byte{'3'}):
-		ret.Status = ssf.SSFSample_UNKNOWN
+		ret.Value = ssf.SSFSample_UNKNOWN
 	default:
 		return nil, errors.New("Invalid service check packet, must have status of 0, 1, 2, or 3")
 	}
@@ -572,7 +576,7 @@ func ParseServiceCheck(packet []byte) (*ssf.SSFSample, error) {
 			if foundHostname || foundMessage {
 				return nil, errors.New("Invalid service check packet, multiple hostname sections")
 			}
-			ret.Tags[dogstatsd.CheckHostnameTagKey] = string(pipeSplitter.Chunk()[2:])
+			ret.HostName = string(pipeSplitter.Chunk()[2:])
 			foundHostname = true
 		case bytes.HasPrefix(pipeSplitter.Chunk(), []byte{'m', ':'}):
 			// this section must come last, so its flag also gets checked by
@@ -590,7 +594,7 @@ func ParseServiceCheck(packet []byte) (*ssf.SSFSample, error) {
 			mappedTags := ParseTagSliceToMap(tags)
 			// We've already added some tags, so we'll just add these to the ones we've got.
 			for k, v := range mappedTags {
-				ret.Tags[k] = v
+				ret.Tags = append(ret.Tags, k+":"+v)
 			}
 			foundTags = true
 		default:

@@ -1,11 +1,5 @@
 package dogstatsd
 
-// CheckIdentifierKey flags a sample as a DogStatsD service check
-const CheckIdentifierKey = "vdogstatsd_sc"
-
-// CheckHostnameTagKey is a tag key used to conduct the hostname of a service check to a sink
-const CheckHostnameTagKey = "vdogstatsd_hostname"
-
 // EventAggregationKeyTagKey is a tag key used to conduct the aggregation key of an event to a sink
 const EventAggregationKeyTagKey = "vdogstatsd_ak"
 

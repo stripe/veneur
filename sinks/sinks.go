@@ -23,8 +23,9 @@ const MetricKeyTotalMetricsFlushed = "sink.metrics_flushed_total"
 // skipped, not applicable to this MetricSink.
 const MetricKeyTotalMetricsSkipped = "sink.metrics_skipped_total"
 
-// ServiceCheckConversionCount number of service checks converted to a metric
-const ServiceCheckConversionCount = "sink.service_check_conversion"
+// EventReportedCount number of events processed by a sink. Tagged with
+// `sink:sink.Name()`.
+const EventReportedCount = "sink.events_reported_total"
 
 // MetricSink is a receiver of `InterMetric`s when Veneur periodically flushes
 // it's aggregated metrics.

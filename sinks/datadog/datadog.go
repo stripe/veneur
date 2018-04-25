@@ -108,7 +108,21 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(dd.traceClient)
 
-	ddmetrics := dd.finalizeMetrics(interMetrics)
+	ddmetrics, checks := dd.finalizeMetrics(interMetrics)
+
+	if len(checks) != 0 {
+		// this endpoint is not documented to take an array... but it does
+		// another curious constraint of this endpoint is that it does not
+		// support "Content-Encoding: deflate"
+		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/api/v1/check_run?api_key=%s", dd.DDHostname, dd.APIKey), checks, "flush_checks", false, map[string]string{"sink": "datadog"}, dd.log)
+		if err == nil {
+			dd.log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
+		} else {
+			dd.log.WithFields(logrus.Fields{
+				"checks":        len(checks),
+				logrus.ErrorKey: err}).Warn("Error flushing checks to Datadog")
+		}
+	}
 
 	// break the metrics into chunks of approximately equal size, such that
 	// each chunk is less than the limit
@@ -143,7 +157,6 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
 
 	events := []DDEvent{}
-	checks := []DDServiceCheck{}
 
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(dd.traceClient)
@@ -151,41 +164,7 @@ func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ss
 	// fill in the default hostname for packets that didn't set it
 	for _, sample := range samples {
 
-		if _, ok := sample.Tags[dogstatsd.CheckIdentifierKey]; ok {
-			// This is a service check!
-			ret := DDServiceCheck{
-				Name:      sample.Name,
-				Message:   sample.Message,
-				Timestamp: sample.Timestamp,
-				Status:    0, // How to intify? TODO TKTK
-			}
-
-			// Defensively copy the tags that came in
-			tags := map[string]string{}
-			for k, v := range sample.Tags {
-				tags[k] = v
-			}
-			// Remove the tag that flagged this as a service check
-			delete(tags, dogstatsd.CheckIdentifierKey)
-
-			if v, ok := tags[dogstatsd.CheckHostnameTagKey]; ok {
-				ret.Hostname = v
-				delete(tags, dogstatsd.CheckHostnameTagKey)
-			} else {
-				// Default hostname since there isn't one
-				ret.Hostname = dd.hostname
-			}
-
-			// Do our last bit of tag housekeeping
-			finalTags := []string{}
-			for k, v := range tags {
-				finalTags = append(finalTags, fmt.Sprintf("%s:%s", k, v))
-			}
-			ret.Tags = append(finalTags, dd.tags...)
-
-			checks = append(checks, ret)
-
-		} else if _, ok := sample.Tags[dogstatsd.EventIdentifierKey]; ok {
+		if _, ok := sample.Tags[dogstatsd.EventIdentifierKey]; ok {
 			// This is an event!
 			ret := DDEvent{
 				Title:     sample.Name,
@@ -261,24 +240,12 @@ func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ss
 				logrus.ErrorKey: err}).Warn("Error flushing events to Datadog")
 		}
 	}
-
-	if len(checks) != 0 {
-		// this endpoint is not documented to take an array... but it does
-		// another curious constraint of this endpoint is that it does not
-		// support "Content-Encoding: deflate"
-		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/api/v1/check_run?api_key=%s", dd.DDHostname, dd.APIKey), checks, "flush_checks", false, map[string]string{"sink": "datadog"}, dd.log)
-		if err == nil {
-			dd.log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
-		} else {
-			dd.log.WithFields(logrus.Fields{
-				"checks":        len(checks),
-				logrus.ErrorKey: err}).Warn("Error flushing checks to Datadog")
-		}
-	}
 }
 
-func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []DDMetric {
+func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) ([]DDMetric, []DDServiceCheck) {
 	ddMetrics := make([]DDMetric, 0, len(metrics))
+	checks := []DDServiceCheck{}
+
 	for _, m := range metrics {
 		if !sinks.IsAcceptableMetric(m, dd) {
 			continue
@@ -286,7 +253,40 @@ func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []D
 		// Defensively copy tags since we're gonna mutate it
 		tags := make([]string, len(dd.tags))
 		copy(tags, dd.tags)
+		var hostname, devicename string
+		// Let's look for "magic tags" that override metric fields host and device.
+		for _, tag := range m.Tags {
+			// This overrides hostname
+			if strings.HasPrefix(tag, "host:") {
+				// Override the hostname with the tag, trimming off the prefix.
+				hostname = tag[5:]
+			} else if strings.HasPrefix(tag, "device:") {
+				// Same as above, but device this time
+				devicename = tag[7:]
+			} else {
+				// Add it, no reason to exclude it.
+				tags = append(tags, tag)
+			}
+		}
+		if hostname == "" {
+			// No magic tag, set the hostname
+			hostname = dd.hostname
+		}
 
+		if m.Type == samplers.StatusMetric {
+			// This is a service check!
+			ret := DDServiceCheck{
+				Name:      m.Name,
+				Message:   m.Message,
+				Timestamp: m.Timestamp,
+				Tags:      tags,
+				Status:    int(m.Value),
+				Hostname:  hostname,
+			}
+			// Do our last bit of tag housekeeping
+			checks = append(checks, ret)
+			continue
+		}
 		metricType := ""
 		value := m.Value
 
@@ -312,30 +312,13 @@ func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) []D
 			Tags:       tags,
 			MetricType: metricType,
 			Interval:   int32(dd.interval),
-		}
-
-		// Let's look for "magic tags" that override metric fields host and device.
-		for _, tag := range m.Tags {
-			// This overrides hostname
-			if strings.HasPrefix(tag, "host:") {
-				// Override the hostname with the tag, trimming off the prefix.
-				ddMetric.Hostname = tag[5:]
-			} else if strings.HasPrefix(tag, "device:") {
-				// Same as above, but device this time
-				ddMetric.DeviceName = tag[7:]
-			} else {
-				// Add it, no reason to exclude it.
-				ddMetric.Tags = append(ddMetric.Tags, tag)
-			}
-		}
-		if ddMetric.Hostname == "" {
-			// No magic tag, set the hostname
-			ddMetric.Hostname = dd.hostname
+			Hostname:   hostname,
+			DeviceName: devicename,
 		}
 		ddMetrics = append(ddMetrics, ddMetric)
 	}
 
-	return ddMetrics
+	return ddMetrics, checks
 }
 
 func (dd *DatadogMetricSink) flushPart(ctx context.Context, metricSlice []DDMetric, wg *sync.WaitGroup) {
