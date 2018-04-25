@@ -3,6 +3,7 @@
 
 ## Removed
 * The `veneur.ssf.received_total` metric has been removed, as it is mostly redundant with `veneur.ssf.spans.received_total`, and was not reported consistently between packet and framed formats.
+* The `veneur.ssf.spans.received_total` metric now tracks all SSF data received, in either packet or framed format, whether or not a valid span was extracted.
 
 ## Improvements
 * SignalFX sink can now handle and convert ssf service checks (represented as a gauge). Thanks, [stealthcode](https://github.com/stealthcode)!
