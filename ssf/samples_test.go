@@ -116,24 +116,32 @@ func TestPrefix(t *testing.T) {
 }
 
 func BenchmarkRandomlySample(b *testing.B) {
+	// allocate these outside the loop, so we are measuring
+	// only the performance of RandomlySample
+	// This benchmark is serialized, so even if RandomlySample
+	// mutates the data, that is fine
 	samples := make([]*SSFSample, 1000000)
 	for i := range samples {
 		samples[i] = Count("testing.counter", float32(i), nil)
 	}
 	b.ResetTimer()
-	samples = RandomlySample(0.2, samples...)
+	for i := 0; i < b.N; i++ {
+		samples = RandomlySample(0.2, samples...)
+	}
 }
 
 func BenchmarkRandomlySampleParallel(b *testing.B) {
-
-	samples := make([]*SSFSample, 1000000)
-	for i := range samples {
-		samples[i] = Count("testing.counter", float32(i), nil)
-	}
-	b.ResetTimer()
-
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
+			// Because this benchmark is parallelized and RandomlySample
+			// mutates the samples, we need to allocate them fresh for each
+			// run. This benchmark will overestimate the time taken in RandomlySample,
+			// but only by a constant factor, and the overall difference between implementations
+			// is what we care about.
+			samples := make([]*SSFSample, 10)
+			for i := range samples {
+				samples[i] = Count("testing.counter", float32(i), nil)
+			}
 			samples = RandomlySample(0.2, samples...)
 		}
 	})
