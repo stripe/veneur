@@ -90,7 +90,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	server := setupVeneurServer(t, config, nil, nil, nil)
 	defer server.Shutdown()
 
-	ddSink, err := datadog.NewDatadogSpanSink("http://example.com", 100, server.HTTPClient, server.TagsAsMap, logrus.New())
+	ddSink, err := datadog.NewDatadogSpanSink("http://example.com", 100, server.HTTPClient, logrus.New())
 
 	server.TraceClient = nil
 	server.spanSinks = append(server.spanSinks, ddSink)

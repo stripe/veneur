@@ -367,7 +367,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		if conf.DatadogAPIKey != "" && conf.DatadogTraceAPIAddress != "" {
 			ddSink, err := datadog.NewDatadogSpanSink(
 				conf.DatadogTraceAPIAddress, conf.DatadogSpanBufferSize,
-				ret.HTTPClient, ret.TagsAsMap, log,
+				ret.HTTPClient, log,
 			)
 			if err != nil {
 				return ret, err
