@@ -68,9 +68,6 @@ var tracer = trace.GlobalTracer
 
 const defaultTCPReadTimeout = 10 * time.Minute
 
-// 1/internalMetricSampleRate packets will be chosen
-const internalMetricSampleRate = 10
-
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers              []*Worker
@@ -693,39 +690,42 @@ func (s *Server) HandleTracePacket(packet []byte) {
 }
 
 func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string) {
+	// 1/internalMetricSampleRate packets will be chosen
+	const internalMetricSampleRate = 1000
+
 	key := "service:" + span.Service + "," + "ssf_format:" + ssfFormat
 
 	if (span.Id % internalMetricSampleRate) == 1 {
 		// we can't avoid emitting this metric synchronously by aggregating in-memory, but that's okay
 		s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), []string{"service:" + span.Service, "ssf_format:" + ssfFormat}, 1)
+	}
 
-		metrics, ok := s.ssfInternalMetrics.Load(key)
+	metrics, ok := s.ssfInternalMetrics.Load(key)
 
-		if !ok {
-			// ensure that the value is in the map
-			// we only do this if the value was not found in the map once already, to save an
-			// allocation and more expensive operation in the typical case
-			metrics, ok = s.ssfInternalMetrics.LoadOrStore(key, &ssfServiceSpanMetrics{})
-			if metrics == nil {
-				log.WithFields(logrus.Fields{
-					"service":   span.Service,
-					"ssfFormat": ssfFormat,
-				}).Error("found nil value in ssfInternalMetrics map")
-			}
-		}
-
-		metricsStruct, ok := metrics.(*ssfServiceSpanMetrics)
-		if !ok {
-			log.WithField("type", reflect.TypeOf(metrics)).Error()
+	if !ok {
+		// ensure that the value is in the map
+		// we only do this if the value was not found in the map once already, to save an
+		// allocation and more expensive operation in the typical case
+		metrics, ok = s.ssfInternalMetrics.LoadOrStore(key, &ssfServiceSpanMetrics{})
+		if metrics == nil {
 			log.WithFields(logrus.Fields{
-				"type":      reflect.TypeOf(metrics),
 				"service":   span.Service,
 				"ssfFormat": ssfFormat,
-			}).Error("Unexpected type in ssfInternalMetrics map")
+			}).Error("found nil value in ssfInternalMetrics map")
 		}
-
-		atomic.AddInt64(&metricsStruct.ssfSpansReceivedTotal, 1)
 	}
+
+	metricsStruct, ok := metrics.(*ssfServiceSpanMetrics)
+	if !ok {
+		log.WithField("type", reflect.TypeOf(metrics)).Error()
+		log.WithFields(logrus.Fields{
+			"type":      reflect.TypeOf(metrics),
+			"service":   span.Service,
+			"ssfFormat": ssfFormat,
+		}).Error("Unexpected type in ssfInternalMetrics map")
+	}
+
+	atomic.AddInt64(&metricsStruct.ssfSpansReceivedTotal, 1)
 
 	s.SpanChan <- span
 }
