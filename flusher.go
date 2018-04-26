@@ -114,9 +114,10 @@ type metricsSummary struct {
 	totalGlobalCounters int
 	totalGlobalGauges   int
 
-	totalLocalHistograms int
-	totalLocalSets       int
-	totalLocalTimers     int
+	totalLocalHistograms   int
+	totalLocalSets         int
+	totalLocalTimers       int
+	totalLocalStatusChecks int
 
 	totalLength int
 }
@@ -150,6 +151,8 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 		ms.totalLocalHistograms += len(wm.localHistograms)
 		ms.totalLocalSets += len(wm.localSets)
 		ms.totalLocalTimers += len(wm.localTimers)
+
+		ms.totalLocalStatusChecks += len(wm.localStatusChecks)
 	}
 
 	metrics.ReportOne(s.TraceClient, ssf.Timing("flush.total_duration_ns", time.Since(gatherStart), time.Nanosecond, map[string]string{"part": "gather"}))
@@ -214,6 +217,10 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 			finalMetrics = append(finalMetrics, t.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
 		}
 
+		for _, status := range wm.localStatusChecks {
+			finalMetrics = append(finalMetrics, status.Flush()...)
+		}
+
 		// TODO (aditya) refactor this out so we don't
 		// have to call IsLocal again
 		if !s.IsLocal() {
@@ -256,6 +263,7 @@ func (s *Server) reportMetricsFlushCounts(ms metricsSummary) {
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalHistograms), []string{"metric_type:local_histogram"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalSets), []string{"metric_type:local_set"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalTimers), []string{"metric_type:local_timer"}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalStatusChecks), []string{"metric_type:status"}, 1.0)
 }
 
 // reportGlobalMetricsFlushCounts reports the counts of

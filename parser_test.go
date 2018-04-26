@@ -582,18 +582,23 @@ func TestEvents(t *testing.T) {
 }
 
 func TestServiceChecks(t *testing.T) {
-	evt, err := samplers.ParseServiceCheck([]byte("_sc|foo.bar|0|#foo:bar|d:1136239445|h:example.com"))
+	svcCheck, err := samplers.ParseServiceCheck([]byte("_sc|foo.bar|0|#foo:bar|d:1136239445|h:example.com"))
 	assert.NoError(t, err, "should have parsed correctly")
-	assert.EqualValues(t, &ssf.SSFSample{
-		Name:      "foo.bar",
-		Status:    ssf.SSFSample_OK,
-		Timestamp: 1136239445,
-		Tags: map[string]string{
-			dogstatsd.CheckIdentifierKey:  "",
-			dogstatsd.CheckHostnameTagKey: "example.com",
-			"foo": "bar",
+	expected := &samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name:       "foo.bar",
+			Type:       "status",
+			JoinedTags: "",
 		},
-	}, evt, "should have parsed event")
+		SampleRate: 1.0,
+		Value:      ssf.SSFSample_OK,
+		Timestamp:  1136239445,
+		HostName:   "example.com",
+		Tags: []string{
+			"foo:bar",
+		},
+	}
+	assert.EqualValues(t, expected, svcCheck, "should have parsed event")
 
 	table := map[string]string{
 		"foo.bar|0":           "_sc",
@@ -628,7 +633,7 @@ func TestServiceCheckMessageStatus(t *testing.T) {
 	svcheck, err := samplers.ParseServiceCheck(packet)
 	assert.NoError(t, err, "Should have parsed correctly")
 	assert.Equal(t, "foo", svcheck.Message, "Should contain newline")
-	assert.Equal(t, ssf.SSFSample_WARNING, svcheck.Status, "Should parse status correctly")
+	assert.Equal(t, ssf.SSFSample_WARNING, svcheck.Value, "Should parse status correctly")
 }
 
 func TestConsecutiveParseSSF(t *testing.T) {

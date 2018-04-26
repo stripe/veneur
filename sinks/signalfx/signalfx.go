@@ -158,9 +158,12 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	flushStart := time.Now()
 	coll := sfx.newPointCollection()
 	numPoints := 0
+	countSkipped := 0
+	countStatusMetrics := 0
 
 	for _, metric := range interMetrics {
 		if !sinks.IsAcceptableMetric(metric, sfx) {
+			countSkipped++
 			continue
 		}
 		dims := map[string]string{}
@@ -200,16 +203,18 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 			// TODO I am not certain if this should be a Counter or a Cumulative
 			point = sfxclient.Counter(metric.Name, dims, int64(metric.Value))
 		case samplers.StatusMetric:
+			countStatusMetrics++
 			point = sfxclient.GaugeF(metric.Name, dims, metric.Value)
 		}
 		coll.addPoint(metricKey, point)
 		numPoints++
 	}
+	tags := map[string]string{"sink": "signalfx"}
+	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsSkipped, float32(countSkipped), tags))
 	err := coll.submit(ctx, sfx.traceClient)
 	if err != nil {
 		span.Error(err)
 	}
-	tags := map[string]string{"sink": "signalfx"}
 	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags))
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(numPoints), tags))
 	sfx.log.WithField("metrics", len(interMetrics)).Info("Completed flush to SignalFx")
@@ -221,35 +226,27 @@ var successSpanTags = map[string]string{"sink": "signalfx", "results": "success"
 var failureSpanTags = map[string]string{"sink": "signalfx", "results": "failure"}
 
 // FlushOtherSamples sends events to SignalFx. Event type samples will be serialized as SFX
-// Events directly. Service check type samples will be enqueued as a gauge metric during
-// metric sink flushing.
+// Events directly. All other metric types are ignored
 func (sfx *SignalFxSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sfx.traceClient)
 	var countFailed = 0
 	var countSuccess = 0
 	for _, sample := range samples {
-		switch ddOtherSampleKind(sample.Tags) {
-		case ddSampleEvent:
-			sfx.reportEvent(ctx, &sample)
-		case ddSampleServiceCheck:
-			err := sfx.reportServiceCheck(&sample)
+		if _, ok := sample.Tags[dogstatsd.EventIdentifierKey]; ok {
+			err := sfx.reportEvent(ctx, &sample)
 			if err != nil {
 				countFailed++
 			} else {
 				countSuccess++
 			}
-			// report svchk
-		default:
-			// currently only supports a service check and an event; other types are discarded
-			continue
 		}
 	}
 	if countSuccess > 0 {
-		span.Add(ssf.Count(sinks.ServiceCheckConversionCount, float32(countSuccess), successSpanTags))
+		span.Add(ssf.Count(sinks.EventReportedCount, float32(countSuccess), successSpanTags))
 	}
 	if countFailed > 0 {
-		span.Add(ssf.Count(sinks.ServiceCheckConversionCount, float32(countFailed), failureSpanTags))
+		span.Add(ssf.Count(sinks.EventReportedCount, float32(countFailed), failureSpanTags))
 	}
 }
 
@@ -272,34 +269,7 @@ const (
 	ddSampleServiceCheck
 )
 
-func ddOtherSampleKind(tags map[string]string) ddSampleKind {
-	if _, ok := tags[dogstatsd.CheckIdentifierKey]; ok {
-		return ddSampleServiceCheck
-	}
-	if _, ok := tags[dogstatsd.EventIdentifierKey]; ok {
-		return ddSampleEvent
-	}
-	return ddSampleUnknown
-}
-
-func (sfx *SignalFxSink) reportServiceCheck(sample *ssf.SSFSample) error {
-	name := sample.Name
-	tags := map[string]string{}
-	for k, v := range sample.Tags {
-		if k != dogstatsd.CheckIdentifierKey {
-			tags[k] = v
-		}
-	}
-	tags[sfx.hostnameTag] = sfx.hostname
-	tags["veneursinkonly"] = sfx.Name()
-	for k, v := range sfx.commonDimensions {
-		tags[k] = v
-	}
-	statusCheckSample := ssf.Status(name, sample.Status, tags)
-	return sfx.derivedMetrics.SendSample(statusCheckSample)
-}
-
-func (sfx *SignalFxSink) reportEvent(ctx context.Context, sample *ssf.SSFSample) {
+func (sfx *SignalFxSink) reportEvent(ctx context.Context, sample *ssf.SSFSample) error {
 	// Copy common dimensions in
 	dims := map[string]string{}
 	for k, v := range sfx.commonDimensions {
@@ -347,5 +317,5 @@ func (sfx *SignalFxSink) reportEvent(ctx context.Context, sample *ssf.SSFSample)
 
 	// TODO: Split events out the same way as points
 	// report evt
-	sfx.defaultClient.AddEvents(ctx, []*event.Event{&ev})
+	return sfx.defaultClient.AddEvents(ctx, []*event.Event{&ev})
 }
