@@ -109,7 +109,7 @@ func TestLSSpanSinkIngest(t *testing.T) {
 	tracer := &testLSTracer{}
 	ls := &LightStepSpanSink{
 		tracers:      []opentracing.Tracer{tracer},
-		serviceCount: make(map[string]int64),
+		serviceCount: sync.Map{},
 		mutex:        &sync.Mutex{},
 	}
 	start := time.Now()
@@ -133,9 +133,9 @@ func TestLSSpanSinkIngest(t *testing.T) {
 	assert.NoError(t, err)
 
 	if assert.Equal(t, 1, len(tracer.finishedSpans)) {
-		count, ok := ls.serviceCount["farts-srv"]
+		count, ok := ls.serviceCount.Load("farts-srv")
 		assert.True(t, ok, "should have counted")
-		assert.EqualValues(t, 1, count)
+		assert.EqualValues(t, 1, *count.(*int64))
 
 		span := tracer.finishedSpans[0]
 		assert.Equal(t, "farting farty farts", span.name)

@@ -3,8 +3,10 @@ package lightstep
 import (
 	"fmt"
 	"net/url"
+	"reflect"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	lightstep "github.com/lightstep/lightstep-tracer-go"
@@ -23,11 +25,13 @@ const indicatorSpanTagName = "indicator"
 const lightstepDefaultPort = 8080
 const lightstepDefaultInterval = 5 * time.Minute
 
+var unexpectedCountTypeErr = fmt.Errorf("Received unexpected count type")
+
 // LightStepSpanSink is a sink for spans to be sent to the LightStep client.
 type LightStepSpanSink struct {
 	tracers      []opentracing.Tracer
 	mutex        *sync.Mutex
-	serviceCount map[string]int64
+	serviceCount sync.Map
 	traceClient  *trace.Client
 	log          *logrus.Logger
 }
@@ -100,7 +104,7 @@ func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans
 
 	return &LightStepSpanSink{
 		tracers:      tracers,
-		serviceCount: make(map[string]int64),
+		serviceCount: sync.Map{},
 		mutex:        &sync.Mutex{},
 		log:          log,
 	}, nil
@@ -178,11 +182,21 @@ func (ls *LightStepSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		service = "unknown"
 	}
 
-	// Protect mutating the service count with a mutex
-	ls.mutex.Lock()
-	defer ls.mutex.Unlock()
-	ls.serviceCount[service]++
+	count, ok := ls.serviceCount.Load(service)
+	if !ok {
+		// ensure the value is in the map
+		// we only do this if the value was not found in the map once already, to save an
+		// allocation and more expensive operation in the typical case
+		var c int64 = 0
+		count, _ = ls.serviceCount.LoadOrStore(service, &c)
+	}
 
+	c, ok := count.(*int64)
+	if !ok {
+		ls.log.WithField("type", reflect.TypeOf(count)).Debug(unexpectedCountTypeErr.Error())
+		return unexpectedCountTypeErr
+	}
+	atomic.AddInt64(c, 1)
 	return nil
 }
 
@@ -196,11 +210,33 @@ func (ls *LightStepSpanSink) Flush() {
 	defer metrics.Report(ls.traceClient, samples)
 
 	totalCount := int64(0)
-	for service, count := range ls.serviceCount {
+
+	ls.serviceCount.Range(func(keyI, valueI interface{}) bool {
+		service, ok := keyI.(string)
+		if !ok {
+			ls.log.WithFields(logrus.Fields{
+				"key":  keyI,
+				"type": reflect.TypeOf(keyI),
+			}).Error("Invalid key type in map when flushing Lightstep client")
+			return true
+		}
+
+		value, ok := valueI.(*int64)
+		if !ok {
+			ls.log.WithFields(logrus.Fields{
+				"value": valueI,
+				"type":  reflect.TypeOf(valueI),
+			}).Error("Invalid value type in map when flushing Lightstep client")
+			return true
+		}
+
+		count := atomic.SwapInt64(value, 0)
 		totalCount += count
 		samples.Add(ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(count),
 			map[string]string{"sink": ls.Name(), "service": service}))
-	}
-	ls.serviceCount = make(map[string]int64)
+
+		return true
+	})
+
 	ls.log.WithField("total_spans", totalCount).Debug("Checkpointing flushed spans for Lightstep")
 }
