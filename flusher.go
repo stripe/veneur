@@ -384,8 +384,8 @@ func (s *Server) flushTraces(ctx context.Context) {
 		key, ok := keyI.(string)
 		if !ok {
 			log.WithFields(logrus.Fields{
-				"key":  key,
-				"type": reflect.TypeOf(key),
+				"key":  keyI,
+				"type": reflect.TypeOf(keyI),
 			}).Error("received non-string key")
 			return true
 		}
@@ -393,8 +393,8 @@ func (s *Server) flushTraces(ctx context.Context) {
 		value, ok := valueI.(*ssfServiceSpanMetrics)
 		if !ok {
 			log.WithFields(logrus.Fields{
-				"value": value,
-				"type":  reflect.TypeOf(value),
+				"value": valueI,
+				"type":  reflect.TypeOf(valueI),
 			}).Error("received non-struct value")
 			return true
 		}
