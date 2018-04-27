@@ -29,7 +29,11 @@ func main() {
 
 	conf, err := veneur.ReadConfig(*configFile)
 	if err != nil {
-		logrus.WithError(err).Fatal("Error reading config file")
+		if _, ok := err.(*veneur.UnknownConfigKeys); ok {
+			logrus.WithError(err).Warn("Config contains invalid or deprecated keys")
+		} else {
+			logrus.WithError(err).Fatal("Error reading config file")
+		}
 	}
 
 	logger := logrus.StandardLogger()
