@@ -101,7 +101,7 @@ func (tls *testLSSpan) Log(data opentracing.LogData) {
 
 func TestLSSinkConstructor(t *testing.T) {
 
-	_, err := NewLightStepSpanSink("http://example.com", "5m", 1000, 1, "secret", map[string]string{"foo": "bar"}, logrus.New())
+	_, err := NewLightStepSpanSink("http://example.com", "5m", 1000, 1, "secret", logrus.New())
 	assert.NoError(t, err)
 }
 
@@ -109,7 +109,6 @@ func TestLSSpanSinkIngest(t *testing.T) {
 	tracer := &testLSTracer{}
 	ls := &LightStepSpanSink{
 		tracers:      []opentracing.Tracer{tracer},
-		commonTags:   map[string]string{"foo": "bar"},
 		serviceCount: make(map[string]int64),
 		mutex:        &sync.Mutex{},
 	}
@@ -141,6 +140,5 @@ func TestLSSpanSinkIngest(t *testing.T) {
 		span := tracer.finishedSpans[0]
 		assert.Equal(t, "farting farty farts", span.name)
 		assert.Contains(t, span.tags, "baz")
-		assert.Contains(t, span.tags, "foo")
 	}
 }

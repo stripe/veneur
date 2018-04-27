@@ -30,6 +30,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
+	"google.golang.org/grpc"
 
 	"github.com/pkg/profile"
 
@@ -40,6 +41,7 @@ import (
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/sinks/datadog"
+	"github.com/stripe/veneur/sinks/falconer"
 	"github.com/stripe/veneur/sinks/kafka"
 	"github.com/stripe/veneur/sinks/lightstep"
 	"github.com/stripe/veneur/sinks/signalfx"
@@ -365,7 +367,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		if conf.DatadogAPIKey != "" && conf.DatadogTraceAPIAddress != "" {
 			ddSink, err := datadog.NewDatadogSpanSink(
 				conf.DatadogTraceAPIAddress, conf.DatadogSpanBufferSize,
-				ret.HTTPClient, ret.TagsAsMap, log,
+				ret.HTTPClient, log,
 			)
 			if err != nil {
 				return ret, err
@@ -382,7 +384,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			lsSink, err = lightstep.NewLightStepSpanSink(
 				conf.LightstepCollectorHost, conf.LightstepReconnectPeriod,
 				conf.LightstepMaximumSpans, conf.LightstepNumClients,
-				conf.LightstepAccessToken, ret.TagsAsMap, log,
+				conf.LightstepAccessToken, log,
 			)
 			if err != nil {
 				return ret, err
@@ -391,6 +393,17 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 			logger.Info("Configured Lightstep trace sink")
 		}
+
+		if conf.FalconerAddress != "" {
+			falsink, err := falconer.NewSpanSink(context.Background(), conf.FalconerAddress, log, grpc.WithInsecure())
+			if err != nil {
+				return ret, err
+			}
+
+			ret.spanSinks = append(ret.spanSinks, falsink)
+			logger.Info("Configured Falconer trace sink")
+		}
+
 		// Set up as many span workers as we need:
 		ret.SpanWorkerGoroutines = 1
 		if conf.NumSpanWorkers > 0 {
@@ -508,7 +521,7 @@ func (s *Server) Start() {
 	// Set up the processors for spans:
 
 	// Use the pre-allocated Workers slice to know how many to start.
-	s.SpanWorker = NewSpanWorker(s.spanSinks, s.TraceClient, s.SpanChan)
+	s.SpanWorker = NewSpanWorker(s.spanSinks, s.TraceClient, s.SpanChan, s.TagsAsMap)
 
 	go func() {
 		log.Info("Starting Event worker")

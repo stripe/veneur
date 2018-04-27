@@ -351,14 +351,13 @@ type DatadogSpanSink struct {
 	buffer       *ring.Ring
 	bufferSize   int
 	mutex        *sync.Mutex
-	commonTags   map[string]string
 	traceAddress string
 	traceClient  *trace.Client
 	log          *logrus.Logger
 }
 
 // NewDatadogSpanSink creates a new Datadog sink for trace spans.
-func NewDatadogSpanSink(address string, bufferSize int, httpClient *http.Client, commonTags map[string]string, log *logrus.Logger) (*DatadogSpanSink, error) {
+func NewDatadogSpanSink(address string, bufferSize int, httpClient *http.Client, log *logrus.Logger) (*DatadogSpanSink, error) {
 	if bufferSize == 0 {
 		bufferSize = datadogSpanBufferSize
 	}
@@ -368,7 +367,6 @@ func NewDatadogSpanSink(address string, bufferSize int, httpClient *http.Client,
 		bufferSize:   bufferSize,
 		buffer:       ring.New(bufferSize),
 		mutex:        &sync.Mutex{},
-		commonTags:   commonTags,
 		traceAddress: address,
 		log:          log,
 	}, nil
@@ -435,15 +433,6 @@ func (dd *DatadogSpanSink) Flush() {
 				samples.Add(ssf.Count("worker.trace.sink.timestamp_error", 1, tags))
 			}
 
-			if ssfSpan.Tags == nil {
-				ssfSpan.Tags = make(map[string]string)
-			}
-
-			// Add common tags from veneur's config
-			// this will overwrite tags already present on the span
-			for k, v := range dd.commonTags {
-				ssfSpan.Tags[k] = v
-			}
 			ssfSpans = append(ssfSpans, ssfSpan)
 		}
 	})

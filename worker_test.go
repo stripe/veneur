@@ -1,12 +1,18 @@
 package veneur
 
 import (
+	"context"
+	"sync"
 	"testing"
+	"time"
 
+	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/trace"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/samplers"
 )
 
@@ -142,4 +148,127 @@ func TestWorkerStatusMetric(t *testing.T) {
 	assert.Equal(t, m.Name, datapoint.Name, "The name of the status check should be the same name as the UDPMetric input")
 	nometrics := w.Flush()
 	assert.Len(t, nometrics.localStatusChecks, 0, "Should flush no metrics")
+}
+
+func TestSpanWorkerTagApplication(t *testing.T) {
+	tags := map[string]func() map[string]string{
+		"foo": func() map[string]string {
+			return map[string]string{
+				"foo": "bar",
+			}
+		},
+		"foo2": func() map[string]string {
+			return map[string]string{
+				"foo": "other",
+			}
+		},
+		"baz": func() map[string]string {
+			return map[string]string{
+				"baz": "qux",
+			}
+		},
+		"both": func() map[string]string {
+			return map[string]string{
+				"foo": "bar",
+				"baz": "qux",
+			}
+		},
+	}
+
+	testSpan := func(tags map[string]string) *ssf.SSFSpan {
+		return &ssf.SSFSpan{
+			TraceId:        1,
+			ParentId:       1,
+			Id:             2,
+			StartTimestamp: int64(time.Now().UnixNano()),
+			EndTimestamp:   int64(time.Now().UnixNano()),
+			Tags:           tags,
+			Error:          false,
+			Service:        "farts-srv",
+			Indicator:      false,
+			Name:           "farting farty farts",
+		}
+	}
+
+	cl, clch := newTestClient(t, 1)
+	quitch := make(chan struct{})
+	go func() {
+		for range clch {
+		}
+	}()
+
+	fake := &fakeSpanSink{wg: &sync.WaitGroup{}}
+	spanChanNone := make(chan *ssf.SSFSpan)
+	spanChanFoo := make(chan *ssf.SSFSpan)
+
+	go NewSpanWorker([]sinks.SpanSink{fake}, cl, spanChanNone, nil).Work()
+	go NewSpanWorker([]sinks.SpanSink{fake}, cl, spanChanFoo, tags["foo"]()).Work()
+
+	sendAndWait := func(spanChan chan<- *ssf.SSFSpan, span *ssf.SSFSpan) {
+		fake.wg.Add(1)
+		spanChan <- span
+		fake.wg.Wait()
+	}
+
+	// Don't allocate a map if there's no common tags and not tag map on the
+	// span already
+	sendAndWait(spanChanNone, testSpan(nil))
+	require.Nil(t, fake.latestSpan().Tags)
+
+	// Change nothing when commonTags is nil
+	sendAndWait(spanChanNone, testSpan(tags["foo"]()))
+	require.Equal(t, tags["foo"](), fake.latestSpan().Tags)
+
+	// Allocate map and add tags if no map on span and there are commonTags
+	sendAndWait(spanChanFoo, testSpan(nil))
+	require.Equal(t, tags["foo"](), fake.latestSpan().Tags)
+
+	// Do not override existing tags if keys match
+	sendAndWait(spanChanFoo, testSpan(tags["foo2"]()))
+	require.Equal(t, tags["foo2"](), fake.latestSpan().Tags)
+
+	// Combine keys when no match
+	sendAndWait(spanChanFoo, testSpan(tags["baz"]()))
+	require.Equal(t, tags["both"](), fake.latestSpan().Tags)
+
+	close(quitch)
+}
+
+type fakeSpanSink struct {
+	wg    *sync.WaitGroup
+	spans []*ssf.SSFSpan
+}
+
+func (s *fakeSpanSink) Start(*trace.Client) error { return nil }
+func (s *fakeSpanSink) Name() string              { return "fake" }
+func (s *fakeSpanSink) Flush()                    {}
+func (s *fakeSpanSink) latestSpan() *ssf.SSFSpan  { return s.spans[len(s.spans)-1] }
+func (s *fakeSpanSink) Ingest(span *ssf.SSFSpan) error {
+	s.spans = append(s.spans, span)
+	s.wg.Done()
+	return nil
+}
+
+type testBackend struct {
+	spans chan *ssf.SSFSpan
+}
+
+func (be *testBackend) Close() error {
+	return nil
+}
+
+func (be *testBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
+	be.spans <- span
+	return nil
+}
+
+func (be *testBackend) FlushSync(ctx context.Context) error {
+	return nil
+}
+
+func newTestClient(t *testing.T, num int) (*trace.Client, chan *ssf.SSFSpan) {
+	ch := make(chan *ssf.SSFSpan, num)
+	cl, err := trace.NewBackendClient(&testBackend{ch})
+	require.NoError(t, err)
+	return cl, ch
 }

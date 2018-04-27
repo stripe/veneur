@@ -117,7 +117,7 @@ func TestDeviceMagicTag(t *testing.T) {
 
 func TestNewDatadogSpanSinkConfig(t *testing.T) {
 	// test the variables that have been renamed
-	ddSink, err := NewDatadogSpanSink("http://example.com", 100, &http.Client{}, nil, logrus.New())
+	ddSink, err := NewDatadogSpanSink("http://example.com", 100, &http.Client{}, logrus.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func TestDatadogFlushSpans(t *testing.T) {
 	// test the variables that have been renamed
 
 	transport := &DatadogRoundTripper{Endpoint: "/v0.3/traces", Contains: "farts-srv"}
-	ddSink, err := NewDatadogSpanSink("http://example.com", 100, &http.Client{Transport: transport}, nil, logrus.New())
+	ddSink, err := NewDatadogSpanSink("http://example.com", 100, &http.Client{Transport: transport}, logrus.New())
 	assert.NoError(t, err)
 
 	start := time.Now()
