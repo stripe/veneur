@@ -31,7 +31,6 @@ func (s *Server) Flush(ctx context.Context) {
 	span.Add(ssf.Gauge("mem.heap_alloc_bytes", float32(mem.HeapAlloc), nil),
 		ssf.Gauge("gc.number", float32(mem.NumGC), nil),
 		ssf.Gauge("gc.pause_total_ns", float32(mem.PauseTotalNs), nil),
-		ssf.Gauge("gc.alloc_heap_bytes", float32(mem.HeapAlloc), nil),
 		ssf.Gauge("gc.alloc_heap_bytes_total", float32(mem.TotalAlloc), nil),
 		ssf.Gauge("gc.mallocs_objects_total", float32(mem.Mallocs), nil),
 		ssf.Gauge("gc.GCCPUFraction", float32(mem.GCCPUFraction), nil),

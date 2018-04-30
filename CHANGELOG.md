@@ -9,6 +9,11 @@
 * SignalFX sink can now handle and convert ssf service checks (represented as a gauge). Thanks, [stealthcode](https://github.com/stealthcode)!
 * Converted the grpsink to use unary instead of stream RPCs. Thanks, [sdboyer](https://github.com/sdboyer)!
 * Bumped version of [SignalFx go client](https://github.com/signalfx/golib) to prevent accidental removal of `-` from tag keys. Thanks, [gphat](https://github.com/gphat)!
+* Added additional metrics for internal memory usage. Thanks, [aditya](https://github.com/chimeracoder)!
+  * `gc.alloc_heap_bytes_total`
+  * `gc.mallocs_objects_total`
+  * `gc.GCCPUFraction`
+
 
 ## Bugfixes
 * The `ignored-labels` and `ignored-metrics` flags for veneur-prometheus will filter no metrics or labels if no filter is specified. Thanks, [arjenvanderende](https://github.com/arjenvanderende)!
