@@ -144,11 +144,11 @@ func (gs *GRPCSpanSink) Flush() {
 	samples.Add(
 		ssf.Count(
 			sinks.MetricKeyTotalSpansFlushed,
-			float32(atomic.LoadUint32(&gs.sentCount)),
+			float32(atomic.SwapUint32(&gs.sentCount, 0)),
 			map[string]string{"sink": gs.Name()}),
 		ssf.Count(
 			sinks.MetricKeyTotalSpansDropped,
-			float32(atomic.LoadUint32(&gs.dropCount)),
+			float32(atomic.SwapUint32(&gs.dropCount, 0)),
 			map[string]string{"sink": gs.Name()},
 		),
 	)
