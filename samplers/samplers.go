@@ -253,7 +253,7 @@ func (g *Gauge) Combine(other []byte) error {
 	return nil
 }
 
-// NewGauge genearaaaa who am I kidding just getting rid of the warning.
+// NewGauge generates an empty (valueless) Gauge
 func NewGauge(Name string, Tags []string) *Gauge {
 	return &Gauge{Name: Name, Tags: Tags}
 }
@@ -313,7 +313,7 @@ func (s *StatusCheck) Combine(other []byte) error {
 	return nil
 }
 
-// NewStatusCheck genearaaaa who am I kidding just getting rid of the warning.
+// NewStatusCheck generates an empty (valueless) StatusCheck
 func NewStatusCheck(Name string, Tags []string) *StatusCheck {
 	return &StatusCheck{InterMetric{Name: Name, Tags: Tags}}
 }
