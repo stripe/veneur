@@ -458,12 +458,11 @@ func (tw *SpanWorker) Flush() {
 		}
 		sinkFlushStart := time.Now()
 		s.Flush()
-		samples.Add(ssf.Timing("worker.span.flush_duration_ns", time.Since(sinkFlushStart), time.Nanosecond, tw.sinkTags[i]))
+		tw.statsd.TimeInMilliseconds("worker.span.flush_duration_ns", float64(time.Since(sinkFlushStart).Nanoseconds()), tags, 1.0)
 		cumulative := time.Duration(atomic.LoadInt64(&tw.cumulativeTimes[i])) * time.Nanosecond
 		tw.statsd.TimeInMilliseconds(sinks.MetricKeySpanIngestDuration, float64(cumulative), tags, 1.0)
 	}
 
 	metrics.Report(tw.traceClient, samples)
-	metrics.ReportOne(tw.traceClient,
-		ssf.Count("worker.span.hit_chan_cap", float32(atomic.SwapInt64(&tw.capCount, 0)), nil))
+	tw.statsd.Count("worker.span.hit_chan_cap", atomic.SwapInt64(&tw.capCount, 0), nil, 1.0)
 }
