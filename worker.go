@@ -455,7 +455,7 @@ func (tw *SpanWorker) Flush() {
 		sinkFlushStart := time.Now()
 		s.Flush()
 		tw.statsd.TimeInMilliseconds("worker.span.flush_duration_ns", float64(time.Since(sinkFlushStart).Nanoseconds()), tags, 1.0)
-		cumulative := time.Duration(atomic.LoadInt64(&tw.cumulativeTimes[i])) * time.Nanosecond
+		cumulative := time.Duration(atomic.SwapInt64(&tw.cumulativeTimes[i], 0)) * time.Nanosecond
 		tw.statsd.TimeInMilliseconds(sinks.MetricKeySpanIngestDuration, float64(cumulative), tags, 1.0)
 	}
 
