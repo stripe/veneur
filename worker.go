@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -375,11 +376,12 @@ type SpanWorker struct {
 	sinks           []sinks.SpanSink
 	cumulativeTimes []int64
 	traceClient     *trace.Client
+	statsd          *statsd.Client
 	capCount        int64
 }
 
 // NewSpanWorker creates a SpanWorker ready to collect events and service checks.
-func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ssf.SSFSpan, commonTags map[string]string) *SpanWorker {
+func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, statsd *statsd.Client, spanChan <-chan *ssf.SSFSpan, commonTags map[string]string) *SpanWorker {
 	tags := make([]map[string]string, len(sinks))
 	for i, sink := range sinks {
 		tags[i] = map[string]string{
@@ -394,6 +396,7 @@ func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ss
 		commonTags:      commonTags,
 		cumulativeTimes: make([]int64, len(sinks)),
 		traceClient:     cl,
+		statsd:          statsd,
 	}
 }
 
@@ -449,12 +452,15 @@ func (tw *SpanWorker) Flush() {
 
 	// Flush and time each sink.
 	for i, s := range tw.sinks {
-		tags := tw.sinkTags[i]
+		tags := make([]string, 0, len(tw.sinkTags[i]))
+		for k, v := range tw.sinkTags[i] {
+			tags = append(tags, fmt.Sprintf("%s:%s", k, v))
+		}
 		sinkFlushStart := time.Now()
 		s.Flush()
-		samples.Add(ssf.Timing("worker.span.flush_duration_ns", time.Since(sinkFlushStart), time.Nanosecond, tags))
-		cumulative := time.Duration(atomic.SwapInt64(&tw.cumulativeTimes[i], 0)) * time.Nanosecond
-		samples.Add(ssf.Timing(sinks.MetricKeySpanIngestDuration, cumulative, time.Nanosecond, tags))
+		samples.Add(ssf.Timing("worker.span.flush_duration_ns", time.Since(sinkFlushStart), time.Nanosecond, tw.sinkTags[i]))
+		cumulative := time.Duration(atomic.LoadInt64(&tw.cumulativeTimes[i])) * time.Nanosecond
+		tw.statsd.TimeInMilliseconds(sinks.MetricKeySpanIngestDuration, float64(cumulative), tags, 1.0)
 	}
 
 	metrics.Report(tw.traceClient, samples)
