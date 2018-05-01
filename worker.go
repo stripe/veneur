@@ -420,11 +420,9 @@ func (tw *SpanWorker) Work() {
 			}
 		}
 
-		var wg sync.WaitGroup
 		for i, s := range tw.sinks {
 			tags := tw.sinkTags[i]
-			wg.Add(1)
-			go func(i int, sink sinks.SpanSink, span *ssf.SSFSpan, wg *sync.WaitGroup) {
+			go func(i int, sink sinks.SpanSink, span *ssf.SSFSpan) {
 				start := time.Now()
 				// Give each sink a change to ingest.
 				err := sink.Ingest(span)
@@ -439,10 +437,8 @@ func (tw *SpanWorker) Work() {
 				}
 				atomic.AddInt64(&tw.cumulativeTimes[i],
 					int64(time.Since(start)/time.Nanosecond))
-				wg.Done()
-			}(i, s, m, &wg)
+			}(i, s, m)
 		}
-		wg.Wait()
 	}
 }
 
