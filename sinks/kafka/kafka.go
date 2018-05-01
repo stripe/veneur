@@ -15,6 +15,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/gogo/protobuf/proto"
+	gometrics "github.com/rcrowley/go-metrics"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
@@ -22,6 +23,10 @@ import (
 	"github.com/stripe/veneur/trace"
 	"github.com/stripe/veneur/trace/metrics"
 )
+
+func init() {
+	gometrics.UseNilMetrics = true
+}
 
 var _ sinks.MetricSink = &KafkaMetricSink{}
 var _ sinks.SpanSink = &KafkaSpanSink{}
