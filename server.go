@@ -521,7 +521,7 @@ func (s *Server) Start() {
 	// Set up the processors for spans:
 
 	// Use the pre-allocated Workers slice to know how many to start.
-	s.SpanWorker = NewSpanWorker(s.spanSinks, s.TraceClient, s.SpanChan, s.TagsAsMap)
+	s.SpanWorker = NewSpanWorker(s.spanSinks, s.TraceClient, s.Statsd, s.SpanChan, s.TagsAsMap)
 
 	go func() {
 		log.Info("Starting Event worker")

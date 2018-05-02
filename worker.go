@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -375,11 +376,12 @@ type SpanWorker struct {
 	sinks           []sinks.SpanSink
 	cumulativeTimes []int64
 	traceClient     *trace.Client
+	statsd          *statsd.Client
 	capCount        int64
 }
 
 // NewSpanWorker creates a SpanWorker ready to collect events and service checks.
-func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ssf.SSFSpan, commonTags map[string]string) *SpanWorker {
+func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, statsd *statsd.Client, spanChan <-chan *ssf.SSFSpan, commonTags map[string]string) *SpanWorker {
 	tags := make([]map[string]string, len(sinks))
 	for i, sink := range sinks {
 		tags[i] = map[string]string{
@@ -394,6 +396,7 @@ func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, spanChan <-chan *ss
 		commonTags:      commonTags,
 		cumulativeTimes: make([]int64, len(sinks)),
 		traceClient:     cl,
+		statsd:          statsd,
 	}
 }
 
@@ -417,11 +420,9 @@ func (tw *SpanWorker) Work() {
 			}
 		}
 
-		var wg sync.WaitGroup
 		for i, s := range tw.sinks {
 			tags := tw.sinkTags[i]
-			wg.Add(1)
-			go func(i int, sink sinks.SpanSink, span *ssf.SSFSpan, wg *sync.WaitGroup) {
+			go func(i int, sink sinks.SpanSink, span *ssf.SSFSpan) {
 				start := time.Now()
 				// Give each sink a change to ingest.
 				err := sink.Ingest(span)
@@ -436,10 +437,8 @@ func (tw *SpanWorker) Work() {
 				}
 				atomic.AddInt64(&tw.cumulativeTimes[i],
 					int64(time.Since(start)/time.Nanosecond))
-				wg.Done()
-			}(i, s, m, &wg)
+			}(i, s, m)
 		}
-		wg.Wait()
 	}
 }
 
@@ -449,15 +448,17 @@ func (tw *SpanWorker) Flush() {
 
 	// Flush and time each sink.
 	for i, s := range tw.sinks {
-		tags := tw.sinkTags[i]
+		tags := make([]string, 0, len(tw.sinkTags[i]))
+		for k, v := range tw.sinkTags[i] {
+			tags = append(tags, fmt.Sprintf("%s:%s", k, v))
+		}
 		sinkFlushStart := time.Now()
 		s.Flush()
-		samples.Add(ssf.Timing("worker.span.flush_duration_ns", time.Since(sinkFlushStart), time.Nanosecond, tags))
+		tw.statsd.TimeInMilliseconds("worker.span.flush_duration_ns", float64(time.Since(sinkFlushStart).Nanoseconds()), tags, 1.0)
 		cumulative := time.Duration(atomic.SwapInt64(&tw.cumulativeTimes[i], 0)) * time.Nanosecond
-		samples.Add(ssf.Timing(sinks.MetricKeySpanIngestDuration, cumulative, time.Nanosecond, tags))
+		tw.statsd.TimeInMilliseconds(sinks.MetricKeySpanIngestDuration, float64(cumulative), tags, 1.0)
 	}
 
 	metrics.Report(tw.traceClient, samples)
-	metrics.ReportOne(tw.traceClient,
-		ssf.Count("worker.span.hit_chan_cap", float32(atomic.SwapInt64(&tw.capCount, 0)), nil))
+	tw.statsd.Count("worker.span.hit_chan_cap", atomic.SwapInt64(&tw.capCount, 0), nil, 1.0)
 }

@@ -201,8 +201,8 @@ func TestSpanWorkerTagApplication(t *testing.T) {
 	spanChanNone := make(chan *ssf.SSFSpan)
 	spanChanFoo := make(chan *ssf.SSFSpan)
 
-	go NewSpanWorker([]sinks.SpanSink{fake}, cl, spanChanNone, nil).Work()
-	go NewSpanWorker([]sinks.SpanSink{fake}, cl, spanChanFoo, tags["foo"]()).Work()
+	go NewSpanWorker([]sinks.SpanSink{fake}, cl, nil, spanChanNone, nil).Work()
+	go NewSpanWorker([]sinks.SpanSink{fake}, cl, nil, spanChanFoo, tags["foo"]()).Work()
 
 	sendAndWait := func(spanChan chan<- *ssf.SSFSpan, span *ssf.SSFSpan) {
 		fake.wg.Add(1)
