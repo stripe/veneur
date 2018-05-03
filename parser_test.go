@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/segmentio/fasthash/fnv1a"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/protocol"
@@ -582,13 +583,13 @@ func TestEvents(t *testing.T) {
 }
 
 func TestServiceChecks(t *testing.T) {
-	svcCheck, err := samplers.ParseServiceCheck([]byte("_sc|foo.bar|0|#foo:bar|d:1136239445|h:example.com"))
+	svcCheck, err := samplers.ParseServiceCheck([]byte("_sc|foo.bar|0|#foo:bar,qux:dor|d:1136239445|h:example.com"))
 	assert.NoError(t, err, "should have parsed correctly")
 	expected := &samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
 			Name:       "foo.bar",
 			Type:       "status",
-			JoinedTags: "",
+			JoinedTags: "foo:bar,qux:dor",
 		},
 		SampleRate: 1.0,
 		Value:      ssf.SSFSample_OK,
@@ -596,8 +597,15 @@ func TestServiceChecks(t *testing.T) {
 		HostName:   "example.com",
 		Tags: []string{
 			"foo:bar",
+			"qux:dor",
 		},
 	}
+	h := fnv1a.Init32
+	h = fnv1a.AddString32(h, expected.Name)
+	h = fnv1a.AddString32(h, expected.Type)
+	h = fnv1a.AddString32(h, expected.JoinedTags)
+	expected.Digest = h
+
 	assert.EqualValues(t, expected, svcCheck, "should have parsed event")
 
 	table := map[string]string{
