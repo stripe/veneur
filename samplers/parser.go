@@ -256,8 +256,9 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 	}
 
 	h := fnv1a.Init32
-	h = fnv1a.AddString32(h, string(nameChunk))
+
 	ret.Name = string(nameChunk)
+	h = fnv1a.AddString32(h, ret.Name)
 
 	// Decide on a type
 	switch typeChunk[0] {
@@ -591,16 +592,34 @@ func ParseServiceCheck(packet []byte) (*UDPMetric, error) {
 				return nil, errors.New("Invalid service chack packet, multiple tag sections")
 			}
 			tags := strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
-			mappedTags := ParseTagSliceToMap(tags)
-			// We've already added some tags, so we'll just add these to the ones we've got.
-			for k, v := range mappedTags {
-				ret.Tags = append(ret.Tags, k+":"+v)
+			sort.Strings(tags)
+			for i, tag := range tags {
+				// we use this tag as an escape hatch for metrics that always
+				// want to be host-local
+				if tag == "veneurlocalonly" {
+					// delete the tag from the list
+					tags = append(tags[:i], tags[i+1:]...)
+					ret.Scope = LocalOnly
+					break
+				} else if tag == "veneurglobalonly" {
+					// delete the tag from the list
+					tags = append(tags[:i], tags[i+1:]...)
+					ret.Scope = GlobalOnly
+					break
+				}
 			}
+			ret.Tags = tags
 			foundTags = true
 		default:
 			return nil, errors.New("Invalid service check packet, unrecognized metadata section")
 		}
 	}
+	h := fnv1a.Init32
+	h = fnv1a.AddString32(h, ret.Name)
+	h = fnv1a.AddString32(h, ret.Type)
+	ret.JoinedTags = strings.Join(ret.Tags, ",")
+	h = fnv1a.AddString32(h, ret.JoinedTags)
+	ret.Digest = h
 
 	return ret, nil
 }
