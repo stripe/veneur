@@ -301,9 +301,9 @@ func (w *Worker) Flush() WorkerMetrics {
 	w.mutex.Unlock()
 
 	// Track how much time each worker takes to flush.
-	w.stats.TimeInMilliseconds(
+	w.stats.Timing(
 		"flush.worker_duration_ns",
-		float64(time.Since(start).Nanoseconds()),
+		time.Since(start),
 		nil,
 		1.0,
 	)
@@ -370,10 +370,12 @@ func (ew *EventWorker) Flush() []ssf.SSFSample {
 
 // SpanWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type SpanWorker struct {
-	SpanChan        <-chan *ssf.SSFSpan
-	sinkTags        []map[string]string
-	commonTags      map[string]string
-	sinks           []sinks.SpanSink
+	SpanChan   <-chan *ssf.SSFSpan
+	sinkTags   []map[string]string
+	commonTags map[string]string
+	sinks      []sinks.SpanSink
+
+	// cumulative time spent per sink, in nanoseconds
 	cumulativeTimes []int64
 	traceClient     *trace.Client
 	statsd          *statsd.Client
@@ -436,7 +438,7 @@ func (tw *SpanWorker) Work() {
 					}
 				}
 				atomic.AddInt64(&tw.cumulativeTimes[i],
-					int64(time.Since(start)/time.Nanosecond))
+					int64(time.Since(start)))
 			}(i, s, m)
 		}
 	}
@@ -454,9 +456,11 @@ func (tw *SpanWorker) Flush() {
 		}
 		sinkFlushStart := time.Now()
 		s.Flush()
-		tw.statsd.TimeInMilliseconds("worker.span.flush_duration_ns", float64(time.Since(sinkFlushStart).Nanoseconds()), tags, 1.0)
+		tw.statsd.Timing("worker.span.flush_duration_ns", time.Since(sinkFlushStart), tags, 1.0)
+
+		// cumulative time is measured in nanoseconds
 		cumulative := time.Duration(atomic.SwapInt64(&tw.cumulativeTimes[i], 0)) * time.Nanosecond
-		tw.statsd.TimeInMilliseconds(sinks.MetricKeySpanIngestDuration, float64(cumulative), tags, 1.0)
+		tw.statsd.Timing(sinks.MetricKeySpanIngestDuration, cumulative, tags, 1.0)
 	}
 
 	metrics.Report(tw.traceClient, samples)
