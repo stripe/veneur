@@ -1,8 +1,6 @@
 package ssfmetrics_test
 
 import (
-	"runtime"
-	"sync"
 	"testing"
 	"time"
 
@@ -100,36 +98,11 @@ func BenchmarkMetricExtractor(b *testing.B) {
 
 func BenchmarkParallelMetricExtractor(b *testing.B) {
 	span, sink := setupBench()
-	wg, wg2 := sync.WaitGroup{}, sync.WaitGroup{}
-
-	var max int
-	maxProcs, numCPU := runtime.GOMAXPROCS(0), runtime.NumCPU()
-	if maxProcs < numCPU {
-		max = maxProcs
-	} else {
-		max = numCPU
-	}
-
-	max = 16
-	b.Logf("Running with parallelism %v", max)
-	wg.Add(max)
-	wg2.Add(max)
-
-	f := func() {
-		wg.Add(-1)
-		wg.Wait()
-		for i := 0; i < b.N; i++ {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
 			sink.Ingest(span)
 		}
-		wg2.Done()
-	}
-	b.ResetTimer()
-
-	for i := 0; i < max; i++ {
-		go f()
-	}
-
-	wg2.Wait()
+	})
 }
 
 func TestIndicatorMetricExtractor(t *testing.T) {
