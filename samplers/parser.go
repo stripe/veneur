@@ -135,7 +135,7 @@ func ConvertSpanUniquenessMetrics(span *ssf.SSFSpan, rate float32) ([]UDPMetric,
 				"service":   span.Service,
 				"root_span": strconv.FormatBool(span.Id == span.TraceId),
 			}))...)
-	metrics := []UDPMetric{}
+	metrics := make([]UDPMetric, 0, len(ssfMetrics))
 	for _, m := range ssfMetrics {
 		udpM, err := ParseMetricSSF(m)
 		if err != nil {
@@ -206,7 +206,7 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 		ret.Value = float64(metric.Value)
 	}
 	ret.SampleRate = metric.SampleRate
-	tempTags := make([]string, 0)
+	tempTags := make([]string, 0, len(metric.Tags))
 	for key, value := range metric.Tags {
 		if key == "veneurlocalonly" {
 			ret.Scope = LocalOnly
@@ -216,7 +216,7 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 			ret.Scope = GlobalOnly
 			continue
 		}
-		tempTags = append(tempTags, fmt.Sprintf("%s:%s", key, value))
+		tempTags = append(tempTags, key+":"+value)
 	}
 	sort.Strings(tempTags)
 	ret.Tags = tempTags
