@@ -422,9 +422,11 @@ func (tw *SpanWorker) Work() {
 			}
 		}
 
+		var wg sync.WaitGroup
 		for i, s := range tw.sinks {
 			tags := tw.sinkTags[i]
-			go func(i int, sink sinks.SpanSink, span *ssf.SSFSpan) {
+			wg.Add(1)
+			go func(i int, sink sinks.SpanSink, span *ssf.SSFSpan, wg *sync.WaitGroup) {
 				start := time.Now()
 				// Give each sink a change to ingest.
 				err := sink.Ingest(span)
@@ -437,10 +439,11 @@ func (tw *SpanWorker) Work() {
 							ssf.Count("worker.span.ingest_error_total", 1, tags))
 					}
 				}
-				atomic.AddInt64(&tw.cumulativeTimes[i],
-					int64(time.Since(start)))
-			}(i, s, m)
+				atomic.AddInt64(&tw.cumulativeTimes[i], int64(time.Since(start)/time.Nanosecond))
+				wg.Done()
+			}(i, s, m, &wg)
 		}
+		wg.Wait()
 	}
 }
 
