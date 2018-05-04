@@ -435,10 +435,12 @@ func (tw *SpanWorker) Work() {
 						// If a sink goes wacko and errors a lot, we stand to emit a
 						// loooot of metrics towards all span workers here since
 						// span ingest rates can be very high. C'est la vie.
-						t := make([]string, 0, len(tags))
+						t := make([]string, 0, len(tags)+1)
 						for k, v := range tags {
 							t = append(t, k+":"+v)
 						}
+
+						t = append(t, "sink:"+sink.Name())
 						tw.statsd.Incr("worker.span.ingest_error_total", t, 1.0)
 					}
 				}
