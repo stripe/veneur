@@ -28,6 +28,10 @@ func init() {
 	gometrics.UseNilMetrics = true
 }
 
+const IngestTimeout = 5 * time.Second
+
+var IngestTimeoutError = errors.New("Timed out writing to Kafka producer")
+
 var _ sinks.MetricSink = &KafkaMetricSink{}
 var _ sinks.SpanSink = &KafkaSpanSink{}
 
@@ -359,13 +363,20 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 		return fmt.Errorf("Unknown serialization format for encoding Kafka message: %s", k.serializer)
 	}
 
-	k.producer.Input() <- &sarama.ProducerMessage{
+	message := &sarama.ProducerMessage{
 		Topic: k.topic,
 		Value: enc,
 	}
-	atomic.AddInt64(&k.spansFlushed, 1)
 
-	return nil
+	select {
+	case k.producer.Input() <- message:
+		atomic.AddInt64(&k.spansFlushed, 1)
+		return nil
+	case err := <-k.producer.Errors():
+		return err
+	case _ = <-time.After(IngestTimeout):
+		return IngestTimeoutError
+	}
 }
 
 // Flush emits metrics, since the spans have already been ingested and are
