@@ -405,6 +405,7 @@ func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, statsd *statsd.Clie
 // Work will start the SpanWorker listening for spans.
 // This function will never return.
 func (tw *SpanWorker) Work() {
+	const Timeout = 9 * time.Second
 	capcmp := cap(tw.SpanChan) - 1
 	for m := range tw.SpanChan {
 		// If we are at or one below cap, increment the counter.
@@ -427,22 +428,45 @@ func (tw *SpanWorker) Work() {
 			tags := tw.sinkTags[i]
 			wg.Add(1)
 			go func(i int, sink sinks.SpanSink, span *ssf.SSFSpan, wg *sync.WaitGroup) {
-				start := time.Now()
-				// Give each sink a change to ingest.
-				err := sink.Ingest(span)
-				if err != nil {
-					if _, isNoTrace := err.(*protocol.InvalidTrace); !isNoTrace {
-						// If a sink goes wacko and errors a lot, we stand to emit a
-						// loooot of metrics towards all span workers here since
-						// span ingest rates can be very high. C'est la vie.
-						t := make([]string, 0, len(tags)+1)
-						for k, v := range tags {
-							t = append(t, k+":"+v)
-						}
 
-						t = append(t, "sink:"+sink.Name())
-						tw.statsd.Incr("worker.span.ingest_error_total", t, 1.0)
+				done := make(chan struct{})
+				start := time.Now()
+
+				go func() {
+					// Give each sink a change to ingest.
+					err := sink.Ingest(span)
+					if err != nil {
+						if _, isNoTrace := err.(*protocol.InvalidTrace); !isNoTrace {
+							// If a sink goes wacko and errors a lot, we stand to emit a
+							// loooot of metrics towards all span workers here since
+							// span ingest rates can be very high. C'est la vie.
+							t := make([]string, 0, len(tags)+1)
+							for k, v := range tags {
+								t = append(t, k+":"+v)
+							}
+
+							t = append(t, "sink:"+sink.Name())
+							tw.statsd.Incr("worker.span.ingest_error_total", t, 1.0)
+						}
 					}
+					done <- struct{}{}
+				}()
+
+				select {
+				case _ = <-done:
+				case <-time.After(Timeout):
+					log.WithFields(logrus.Fields{
+						"sink":  sink.Name(),
+						"index": i,
+					}).Error("Timed out on sink ingestion")
+
+					t := make([]string, 0, len(tags)+1)
+					for k, v := range tags {
+						t = append(t, k+":"+v)
+					}
+
+					t = append(t, "sink:"+sink.Name())
+					tw.statsd.Incr("worker.span.ingest_timeout_total", t, 1.0)
 				}
 				atomic.AddInt64(&tw.cumulativeTimes[i], int64(time.Since(start)/time.Nanosecond))
 				wg.Done()
