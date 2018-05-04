@@ -435,8 +435,11 @@ func (tw *SpanWorker) Work() {
 						// If a sink goes wacko and errors a lot, we stand to emit a
 						// loooot of metrics towards all span workers here since
 						// span ingest rates can be very high. C'est la vie.
-						metrics.ReportOne(tw.traceClient,
-							ssf.Count("worker.span.ingest_error_total", 1, tags))
+						t := make([]string, 0, len(tags))
+						for k, v := range tags {
+							t = append(t, k+":"+v)
+						}
+						tw.statsd.Incr("worker.span.ingest_error_total", t, 1.0)
 					}
 				}
 				atomic.AddInt64(&tw.cumulativeTimes[i], int64(time.Since(start)/time.Nanosecond))
