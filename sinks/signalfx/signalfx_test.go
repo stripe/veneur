@@ -3,6 +3,7 @@ package signalfx
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"sort"
 	"strconv"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/signalfx/golib/sfxclient"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/protocol/dogstatsd"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
@@ -428,4 +430,36 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 		assert.Equal(t, "available", dims["test_by"], "Metric should have the right test_by tag")
 	}
 	assert.Empty(t, derived.samples, "Gauges should not generated derived metrics")
+}
+
+func TestSignalFxMetricsTimeout(t *testing.T) {
+	never := make(chan struct{})
+	defer close(never)
+
+	derived := newDerivedProcessor()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-never
+	}))
+	fallback := NewClient(srv.URL, "fakekey", *http.DefaultClient)
+	defer srv.Close()
+	sink, err := NewSignalFxSink("host", srv.URL, map[string]string{"yay": "pie"}, logrus.New(), fallback, "", nil, derived)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Nanosecond)
+	defer cancel()
+
+	interMetrics := []samplers.InterMetric{samplers.InterMetric{
+		Name:      "a.b.c",
+		Timestamp: 1476119058,
+		Value:     float64(100),
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+		},
+		Type: samplers.GaugeMetric,
+	}}
+	// Failure to account for the timeout will cause a test
+	// timeout here:
+	require.Error(t, sink.Flush(ctx, interMetrics))
 }
