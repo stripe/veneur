@@ -1,7 +1,10 @@
 # 5.0.0, in development
 
+## Added
+* Added a timeout for sink ingestion to all sinks, which prevents a single slow sink from blocking ingestion on other span sinks indefinitely. Thanks, [aditya](https://github.com/chimeracoder)!
+
 ## Bugfixes
-* Add a timeout to the Kafka sink, which prevents the Kafka client from blocking other span sinks. Thanks, [aditya](https://github.com/chimeracoder)!
+* Added a timeout to the Kafka sink, which prevents the Kafka client from blocking other span sinks. Thanks, [aditya](https://github.com/chimeracoder)!
 
 ## Removed
 * The `veneur.ssf.received_total` metric has been removed, as it is mostly redundant with `veneur.ssf.spans.received_total`, and was not reported consistently between packet and framed formats.
