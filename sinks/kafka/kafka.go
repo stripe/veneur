@@ -142,6 +142,12 @@ func newProducerConfig(logger *logrus.Entry, ackRequirement string, partitioner 
 
 	config.Producer.Retry.Max = retries
 
+	// If either of these is set to true, you must
+	// read from the corresponding channels in a separate
+	// goroutine. Otherwise, the entire sink will back up.
+	config.Producer.Return.Successes = false
+	config.Producer.Return.Errors = false
+
 	return config, nil
 }
 
@@ -372,8 +378,6 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 	case k.producer.Input() <- message:
 		atomic.AddInt64(&k.spansFlushed, 1)
 		return nil
-	case err := <-k.producer.Errors():
-		return err
 	case _ = <-time.After(IngestTimeout):
 		return IngestTimeoutError
 	}
