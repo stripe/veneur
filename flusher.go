@@ -40,6 +40,25 @@ func (s *Server) flushMetricSinks(ctx context.Context, finalMetrics []samplers.I
 	wg.Wait()
 }
 
+func (s *Server) flushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
+	span := tracer.StartSpan("flushOtherSamples").(*trace.Span)
+	defer span.ClientFinish(s.TraceClient)
+	if s.MetricFlushTimeout > 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, s.MetricFlushTimeout)
+		defer cancel()
+	}
+	wg := sync.WaitGroup{}
+	for _, sink := range s.metricSinks {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup) {
+			sink.FlushOtherSamples(span.Attach(ctx), samples)
+			wg.Done()
+		}(&wg)
+	}
+	wg.Wait()
+}
+
 // Flush collects sampler's metrics and passes them to sinks.
 func (s *Server) Flush(ctx context.Context) {
 	span := tracer.StartSpan("flush").(*trace.Span)
@@ -57,12 +76,7 @@ func (s *Server) Flush(ctx context.Context) {
 	s.Statsd.Gauge("gc.mallocs_objects_total", float64(mem.Mallocs), nil, 1.0)
 	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
 
-	samples := s.EventWorker.Flush()
-
-	// TODO Concurrency
-	for _, sink := range s.metricSinks {
-		sink.FlushOtherSamples(span.Attach(ctx), samples)
-	}
+	s.flushOtherSamples(span.Attach(ctx), s.EventWorker.Flush())
 
 	go s.flushTraces(span.Attach(ctx))
 
