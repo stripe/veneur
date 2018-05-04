@@ -428,6 +428,7 @@ func (tw *SpanWorker) Work() {
 			tags := tw.sinkTags[i]
 			wg.Add(1)
 			go func(i int, sink sinks.SpanSink, span *ssf.SSFSpan, wg *sync.WaitGroup) {
+				defer wg.Done()
 
 				done := make(chan struct{})
 				start := time.Now()
@@ -469,7 +470,6 @@ func (tw *SpanWorker) Work() {
 					tw.statsd.Incr("worker.span.ingest_timeout_total", t, 1.0)
 				}
 				atomic.AddInt64(&tw.cumulativeTimes[i], int64(time.Since(start)/time.Nanosecond))
-				wg.Done()
 			}(i, s, m, &wg)
 		}
 		wg.Wait()
