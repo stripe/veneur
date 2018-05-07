@@ -3,6 +3,10 @@
 ## Added
 * Added a timeout for sink ingestion to all sinks, which prevents a single slow sink from blocking ingestion on other span sinks indefinitely. Thanks, [aditya](https://github.com/chimeracoder)!
 
+## Changes
+* `kafka_span_sample_rate_percent` now allows floating-point values. `kafka.NewKafkaSpanSink` now takes a floating point sample rate, accordingly. Thanks [chimeracoder](https://github.com/chimeracoder)!
+
+
 ## Bugfixes
 * Added a timeout to the Kafka sink, which prevents the Kafka client from blocking other span sinks. Thanks, [aditya](https://github.com/chimeracoder)!
 
