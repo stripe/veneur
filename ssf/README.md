@@ -40,7 +40,7 @@ We've got some novel ideas that we've put in to SSF. It might help to be familia
 
 You can examine the [protobuf definition](https://github.com/stripe/veneur/blob/master/ssf/sample.proto), but in a nutshell SSF provides the following:
 
-A `metric` field describing it's type as one of `COUNTER`, `GAUGE`, `HISTOGRAM` (supplanting a timer), `SET` and `STATUS`. Rounding out the traditional fields are `name`, `value`, `sample_rate` and `timestamp`. There is a map of `tags` string key-value pairs.
+A `metric` field describing its type as one of `COUNTER`, `GAUGE`, `HISTOGRAM` (supplanting a timer), `SET` and `STATUS`. Rounding out the traditional fields are `name`, `value`, `sample_rate` and `timestamp`. There is a map of `tags` string key-value pairs.
 
 ## Others
 
