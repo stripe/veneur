@@ -33,6 +33,7 @@ type GRPCSpanSink struct {
 	// transition. Allows us to guarantee only one error message per state
 	// change.
 	loggedSinceTransition uint32
+	ssc                   SpanSinkClient
 	stats                 *statsd.Client
 	traceClient           *trace.Client
 	log                   *logrus.Logger
@@ -62,6 +63,7 @@ func NewGRPCSpanSink(ctx context.Context, target, name string, log *logrus.Logge
 
 	return &GRPCSpanSink{
 		grpcConn: conn,
+		ssc:      NewSpanSinkClient(conn),
 		name:     name,
 		target:   target,
 		log:      log,
@@ -99,8 +101,7 @@ func (gs *GRPCSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		return err
 	}
 
-	client := NewSpanSinkClient(gs.grpcConn)
-	_, err := client.SendSpan(ocontext.Background(), ssfSpan)
+	_, err := gs.ssc.SendSpan(ocontext.Background(), ssfSpan)
 
 	if err != nil {
 		atomic.AddUint32(&gs.dropCount, 1)
@@ -134,11 +135,11 @@ func (gs *GRPCSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	return err
 }
 
-// Flush reports total counts of the number of sent and dropped spans over its
-// lifetime.
+// Flush reports total counts of the number of sent and dropped spans since the
+// last flush.
 //
-// No data is sent to the target sink on Flush(), as this sink operates entirely
-// over a stream on Ingest().
+// No data is sent to the target sink by this call, as this sink dispatches all
+// spans directly via gRPC during Ingest().
 func (gs *GRPCSpanSink) Flush() {
 	samples := &ssf.Samples{}
 	samples.Add(
