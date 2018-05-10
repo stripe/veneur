@@ -14,6 +14,7 @@ import (
 	"github.com/stripe/veneur/trace"
 	"github.com/stripe/veneur/trace/metrics"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/status"
 )
@@ -117,7 +118,12 @@ func (gs *GRPCSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		// should be a reasonable heuristic to get an indicator that problems
 		// are occurring, without resulting in massive log spew while
 		// connections are under duress.
-		if state == connectivity.Ready || atomic.CompareAndSwapUint32(&gs.loggedSinceTransition, 0, 1) {
+		//
+		// Also, don't log unavailable connection errors if the connectivity
+		// state is now reporting Ready - it could have become ready in the time
+		// between when the rpc was issued and now.
+		if (state == connectivity.Ready && serr.Code() != codes.Unavailable) ||
+			atomic.CompareAndSwapUint32(&gs.loggedSinceTransition, 0, 1) {
 			gs.log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"target":        gs.target,
