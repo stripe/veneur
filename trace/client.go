@@ -19,6 +19,10 @@ import (
 )
 
 func init() {
+	initializeDefaultClient()
+}
+
+func initializeDefaultClient() {
 	cl, err := NewClient(DefaultVeneurAddress)
 	if err != nil {
 		return
@@ -391,7 +395,9 @@ func SetDefaultClient(client *Client) {
 	DefaultClient = client
 
 	// Ensure the old client is closed so it does not leak connections
-	oldClient.Close()
+	if oldClient != nil {
+		oldClient.Close()
+	}
 }
 
 // NeutralizeClient sets up a client such that all Record or Flush
