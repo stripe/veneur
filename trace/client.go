@@ -383,6 +383,17 @@ func NewChannelClient(spanChan chan<- *ssf.SSFSpan, opts ...ClientParam) (*Clien
 	return cl, nil
 }
 
+// SetDefaultClient overrides the default client used for recording
+// traces, and gracefully closes the existing one.
+// This is not safe to run concurrently with other goroutines.
+func SetDefaultClient(client *Client) {
+	oldClient := DefaultClient
+	DefaultClient = client
+
+	// Ensure the old client is closed so it does not leak connections
+	oldClient.Close()
+}
+
 // NeutralizeClient sets up a client such that all Record or Flush
 // operations result in ErrWouldBlock. It dashes all hope of a Client
 // ever successfully recording or flushing spans, and is mostly useful
