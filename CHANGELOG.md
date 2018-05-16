@@ -2,6 +2,7 @@
 
 ## Added
 * Added a timeout for sink ingestion to all sinks, which prevents a single slow sink from blocking ingestion on other span sinks indefinitely. Thanks, [aditya](https://github.com/chimeracoder)!
+* Added `trace.SetDefaultClient` to handle overridding the default trace client, and closing the existing one. Thanks, [franklinhu](https://github.com/franklinhu)
 
 ## Bugfixes
 * Added a timeout to the Kafka sink, which prevents the Kafka client from blocking other span sinks. Thanks, [aditya](https://github.com/chimeracoder)!

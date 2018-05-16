@@ -19,6 +19,10 @@ import (
 )
 
 func init() {
+	initializeDefaultClient()
+}
+
+func initializeDefaultClient() {
 	cl, err := NewClient(DefaultVeneurAddress)
 	if err != nil {
 		return
@@ -381,6 +385,19 @@ func NewChannelClient(spanChan chan<- *ssf.SSFSpan, opts ...ClientParam) (*Clien
 
 	cl.run(ctx)
 	return cl, nil
+}
+
+// SetDefaultClient overrides the default client used for recording
+// traces, and gracefully closes the existing one.
+// This is not safe to run concurrently with other goroutines.
+func SetDefaultClient(client *Client) {
+	oldClient := DefaultClient
+	DefaultClient = client
+
+	// Ensure the old client is closed so it does not leak connections
+	if oldClient != nil {
+		oldClient.Close()
+	}
 }
 
 // NeutralizeClient sets up a client such that all Record or Flush

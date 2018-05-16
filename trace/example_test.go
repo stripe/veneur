@@ -15,10 +15,6 @@ func ExampleNewClient() {
 	}
 
 	// Replace the old client:
-	oldCl := trace.DefaultClient
-
-	// Now close the old default client so we don't leak connections
-	trace.DefaultClient = cl
-	oldCl.Close()
+	trace.SetDefaultClient(cl)
 	// Output:
 }

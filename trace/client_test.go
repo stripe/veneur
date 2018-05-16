@@ -56,6 +56,23 @@ func TestNoClient(t *testing.T) {
 	assert.Equal(t, ErrNoClient, err)
 }
 
+func TestSetDefaultClient(t *testing.T) {
+	newClient, err := NewBackendClient(&testBackend{})
+	assert.NoError(t, err)
+
+	defer initializeDefaultClient()
+
+	var nilClient *Client = nil
+
+	// Setting nil works
+	SetDefaultClient(nilClient)
+	assert.Equal(t, nilClient, DefaultClient)
+
+	// Replacing nil and setting a client works
+	SetDefaultClient(newClient)
+	assert.Equal(t, newClient, DefaultClient)
+}
+
 func TestUDP(t *testing.T) {
 	// arbitrary
 	const BufferSize = 1087152
