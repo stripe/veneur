@@ -1,32 +1,31 @@
-# 5.0.0, in development
+# 5.0.0, 2018-05-17
 
 ## Added
 * Added a timeout for sink ingestion to all sinks, which prevents a single slow sink from blocking ingestion on other span sinks indefinitely. Thanks, [aditya](https://github.com/chimeracoder)!
 
-## Bugfixes
-* Added a timeout to the Kafka sink, which prevents the Kafka client from blocking other span sinks. Thanks, [aditya](https://github.com/chimeracoder)!
-
-## Removed
-* The `veneur.ssf.received_total` metric has been removed, as it is mostly redundant with `veneur.ssf.spans.received_total`, and was not reported consistently between packet and framed formats.
-* The `veneur.ssf.spans.received_total` metric now tracks all SSF data received, in either packet or framed format, whether or not a valid span was extracted.
-
 ## Improvements
+* Veneur's key performance indicator metrics for metrics processing are reported through the statsd client. This way, KPI metrics are affected only by the metrics pipeline, not the tracing pipeline as well.
 * SignalFX sink can now handle and convert ssf service checks (represented as a gauge). Thanks, [stealthcode](https://github.com/stealthcode)!
 * Converted the grpsink to use unary instead of stream RPCs. Thanks, [sdboyer](https://github.com/sdboyer)!
 * Bumped version of [SignalFx go client](https://github.com/signalfx/golib) to prevent accidental removal of `-` from tag keys. Thanks, [gphat](https://github.com/gphat)!
+* Switched to a [faster consistent hash implementation](https://github.com/segmentio/fasthash). Thanks, [aditya](https://github.com/chimeracoder) and [noahgoldman](https://github.com/noahgoldman)!
+* Reduce mutex contention around the default RNG in the math/rand standard library package. Thanks, [aditya](https://github.com/chimeracoder)!
+* Improve performance of `ssf.RandomlySample` by a factor of one million. Thanks, [aditya](https://github.com/chimeracoder)!
 * Added additional metrics for internal memory usage. Thanks, [aditya](https://github.com/chimeracoder)!
   * `gc.alloc_heap_bytes_total`
   * `gc.mallocs_objects_total`
   * `gc.GCCPUFraction`
 
-
 ## Bugfixes
 * The `ignored-labels` and `ignored-metrics` flags for veneur-prometheus will filter no metrics or labels if no filter is specified. Thanks, [arjenvanderende](https://github.com/arjenvanderende)!
 * Fixed problem where all Datadog service checks were set to `OK` instead of the supplied value. Thanks, [gphat](https://github.com/gphat)!
+* Added a timeout to the Kafka sink, which prevents the Kafka client from blocking other span sinks. Thanks, [aditya](https://github.com/chimeracoder)!
 
 ## Removed
 * Official support for building Veneur's binaries with Go 1.8 has been dropped. Supported versions of Go for building Veneur 1.9, 1.10, or tip.
 * Veneur's trace client library can still be used in applications that are built with Go 1.8, but it is no longer tested against Go 1.8.
+* The `veneur.ssf.received_total` metric has been removed, as it is mostly redundant with `veneur.ssf.spans.received_total`, and was not reported consistently between packet and framed formats.
+* The `veneur.ssf.spans.received_total` metric now tracks all SSF data received, in either packet or framed format, whether or not a valid span was extracted.
 
 # 4.0.0, 2018-04-13
 
