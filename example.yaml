@@ -93,7 +93,7 @@ percentiles:
   - 0.75
   - 0.99
 
-# Aggregations you'd like to putput for histograms. Possible values can be any
+# Aggregations you'd like to output for histograms. Possible values can be any
 # or all of:
 # - `min`: the minimum value in the histogram during the flush period
 # - `max`: the maximum value in the histogram during the flush period
