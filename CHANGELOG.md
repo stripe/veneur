@@ -1,3 +1,8 @@
+# 6.0.0, in development
+
+## Added
+* `veneur` has new configuration options `forward_timeout`, `metrics_flush_timeout`, and `span_flush_timeout`. They control how long veneur will allow for each flush operation to take and report an error if the flush takes longer than expected. Thanks, [antifuchs](https://github.com/antifuchs)!
+
 # 5.0.0, 2018-05-17
 
 ## Added

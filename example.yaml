@@ -162,6 +162,24 @@ trace_max_length_bytes: 16384
 # you think Veneur needs more room to keep up with all packets.
 read_buffer_size_bytes: 2097152
 
+# Time out forwarding metrics to a global veneur and report an error
+# after this much time has elapsed. If you run veneur-proxy servers,
+# the forward_timeout on veneur servers should be slightly longer than
+# the proxies', to avoid duplicate errors for the same issue being
+# reported.
+forward_timeout: "15s"
+
+# Time out and report an error if flushing all metric sinks to storage
+# (this happens in parallel) does not complete before this time has
+# elapsed.
+metrics_flush_timeout: "10s"
+
+# Time out and report an error if flushing span sinks does not
+# complete in this time.
+span_flush_timeout: "10s"
+
+
+
 # == DIAGNOSTICS ==
 
 # Sets the log level to DEBUG

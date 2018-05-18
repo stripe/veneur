@@ -241,7 +241,7 @@ type fakeSpanSink struct {
 
 func (s *fakeSpanSink) Start(*trace.Client) error { return nil }
 func (s *fakeSpanSink) Name() string              { return "fake" }
-func (s *fakeSpanSink) Flush()                    {}
+func (s *fakeSpanSink) Flush(_ context.Context)   {}
 func (s *fakeSpanSink) latestSpan() *ssf.SSFSpan  { return s.spans[len(s.spans)-1] }
 func (s *fakeSpanSink) Ingest(span *ssf.SSFSpan) error {
 	s.spans = append(s.spans, span)

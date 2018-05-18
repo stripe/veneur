@@ -20,6 +20,45 @@ import (
 	"github.com/stripe/veneur/trace/metrics"
 )
 
+func (s *Server) flushMetricSinks(ctx context.Context, finalMetrics []samplers.InterMetric) {
+	if s.MetricFlushTimeout > 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, s.MetricFlushTimeout)
+		defer cancel()
+	}
+	wg := sync.WaitGroup{}
+	for _, sink := range s.metricSinks {
+		wg.Add(1)
+		go func(ms sinks.MetricSink) {
+			err := ms.Flush(ctx, finalMetrics)
+			if err != nil {
+				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
+			}
+			wg.Done()
+		}(sink)
+	}
+	wg.Wait()
+}
+
+func (s *Server) flushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
+	span := tracer.StartSpan("flushOtherSamples").(*trace.Span)
+	defer span.ClientFinish(s.TraceClient)
+	if s.MetricFlushTimeout > 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, s.MetricFlushTimeout)
+		defer cancel()
+	}
+	wg := sync.WaitGroup{}
+	for _, sink := range s.metricSinks {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup) {
+			sink.FlushOtherSamples(span.Attach(ctx), samples)
+			wg.Done()
+		}(&wg)
+	}
+	wg.Wait()
+}
+
 // Flush collects sampler's metrics and passes them to sinks.
 func (s *Server) Flush(ctx context.Context) {
 	span := tracer.StartSpan("flush").(*trace.Span)
@@ -37,12 +76,7 @@ func (s *Server) Flush(ctx context.Context) {
 	s.Statsd.Gauge("gc.mallocs_objects_total", float64(mem.Mallocs), nil, 1.0)
 	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
 
-	samples := s.EventWorker.Flush()
-
-	// TODO Concurrency
-	for _, sink := range s.metricSinks {
-		sink.FlushOtherSamples(span.Attach(ctx), samples)
-	}
+	s.flushOtherSamples(span.Attach(ctx), s.EventWorker.Flush())
 
 	go s.flushTraces(span.Attach(ctx))
 
@@ -72,18 +106,7 @@ func (s *Server) Flush(ctx context.Context) {
 		return
 	}
 
-	wg := sync.WaitGroup{}
-	for _, sink := range s.metricSinks {
-		wg.Add(1)
-		go func(ms sinks.MetricSink) {
-			err := ms.Flush(span.Attach(ctx), finalMetrics)
-			if err != nil {
-				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
-			}
-			wg.Done()
-		}(sink)
-	}
-	wg.Wait()
+	s.flushMetricSinks(span.Attach(ctx), finalMetrics)
 
 	go func() {
 		samples := &ssf.Samples{}
@@ -283,6 +306,12 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 }
 
 func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
+	if s.ForwardTimeout > 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, s.ForwardTimeout)
+		defer cancel()
+	}
+
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.TraceClient)
 	jmLength := 0
@@ -378,6 +407,11 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 }
 
 func (s *Server) flushTraces(ctx context.Context) {
+	if s.SpanFlushTimeout > 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, s.SpanFlushTimeout)
+		defer cancel()
+	}
 	s.ssfInternalMetrics.Range(func(keyI, valueI interface{}) bool {
 		key, ok := keyI.(string)
 		if !ok {
@@ -410,5 +444,5 @@ func (s *Server) flushTraces(ctx context.Context) {
 		return true
 	})
 
-	s.SpanWorker.Flush()
+	s.SpanWorker.Flush(ctx)
 }

@@ -95,6 +95,10 @@ type Server struct {
 	SSFListenAddrs    []net.Addr
 	RcvbufBytes       int
 
+	ForwardTimeout     time.Duration
+	MetricFlushTimeout time.Duration
+	SpanFlushTimeout   time.Duration
+
 	interval            time.Duration
 	synchronizeInterval bool
 	numReaders          int
@@ -162,6 +166,25 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.interval, err = conf.ParseInterval()
 	if err != nil {
 		return ret, err
+	}
+
+	if conf.SpanFlushTimeout != "" {
+		ret.SpanFlushTimeout, err = time.ParseDuration(conf.SpanFlushTimeout)
+		if err != nil {
+			return ret, err
+		}
+	}
+	if conf.MetricsFlushTimeout != "" {
+		ret.MetricFlushTimeout, err = time.ParseDuration(conf.MetricsFlushTimeout)
+		if err != nil {
+			return ret, err
+		}
+	}
+	if conf.ForwardTimeout != "" {
+		ret.ForwardTimeout, err = time.ParseDuration(conf.ForwardTimeout)
+		if err != nil {
+			return ret, err
+		}
 	}
 
 	transport := &http.Transport{
@@ -611,7 +634,7 @@ func (s *Server) Start() {
 				ticker.Stop()
 				return
 			case <-ticker.C:
-				s.Flush(context.TODO())
+				s.Flush(context.Background())
 			}
 		}
 	}()
