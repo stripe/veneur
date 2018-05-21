@@ -1041,7 +1041,7 @@ func (s *Server) HTTPServe() {
 	graceful.Shutdown()
 }
 
-// gRPCServe starts the gRPC server and block until an error is encountered,
+// gRPCServe starts the gRPC server and blocks until an error is encountered,
 // or the server is shutdown.
 //
 // TODO this doesn't handle SIGUSR2 and SIGHUP on it's own, unlike HTTPServe
