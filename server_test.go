@@ -33,6 +33,7 @@ import (
 	"github.com/stripe/veneur/tdigest"
 	"github.com/stripe/veneur/trace"
 	"github.com/stripe/veneur/trace/metrics"
+	"github.com/zenazn/goji/graceful"
 )
 
 const ε = .00002
@@ -1291,8 +1292,9 @@ func generateSSFPackets(tb testing.TB, length int) [][]byte {
 // Test that Serve quits when just the gRPC server is stopped.  This should
 // stop the HTTP listener as well.
 //
-// The opposite behavior for HTTP is much harder to test due to the way
-// the graceful package is implemented.
+// This test also verifies that it is safe to call (*Server).gRPCStop()
+// multiple times as Serve should try to call it again after the gRPC server
+// exits.
 func TestServeStopGRPC(t *testing.T) {
 	s, err := NewFromConfig(logrus.New(), globalConfig())
 	assert.NoError(t, err, "Creating a server shouldn't have caused an error")
@@ -1304,8 +1306,54 @@ func TestServeStopGRPC(t *testing.T) {
 		done <- struct{}{}
 	}()
 
-	// Stop the GRPC server only.  This should cause Serve to exit
+	// Stop the gRPC server only.  This should cause Serve to exit
 	s.gRPCStop()
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		assert.Fail(t, "Stopping the Server over gRPC did not stop both listeners")
+	}
+}
+
+// waitForHTTPStart blocks until the Server's HTTP server is started, or until
+// the specified duration is elapsed.
+func waitForHTTPStart(t *testing.T, s *Server, timeout time.Duration) {
+	tickCh := time.Tick(10 * time.Millisecond)
+	timeoutCh := time.After(timeout)
+
+	for {
+		select {
+		case <-tickCh:
+			if s.isListeningHTTP() {
+				return
+			}
+		case <-timeoutCh:
+			t.Errorf("The HTTP server did not start within the specified duration")
+		}
+	}
+}
+
+// Test that stopping the HTTP server causes the Server to stop.  As Serve will
+// attempt to close any open HTTP servers again, this also tests that
+// graceful.Shutdown is safe to be called multiple times.
+func TestServeStopHTTP(t *testing.T) {
+	t.Skipf("Testing stopping the Server over HTTP requires a slow pause, and " +
+		"this test probably doesn't need to be run all the time.")
+
+	s, err := NewFromConfig(logrus.New(), globalConfig())
+	assert.NoError(t, err, "Creating a server shouldn't have caused an error")
+
+	done := make(chan struct{})
+	go func() {
+		s.Serve()
+		defer s.Shutdown()
+		done <- struct{}{}
+	}()
+
+	// Stop the HTTP server only, causing Serve to exit.
+	waitForHTTPStart(t, s, 3*time.Second)
+	graceful.ShutdownNow()
 
 	select {
 	case <-done:

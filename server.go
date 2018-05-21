@@ -88,7 +88,8 @@ type Server struct {
 
 	HTTPClient *http.Client
 
-	HTTPAddr string
+	HTTPAddr         string
+	numListeningHTTP *int32 // An atomic boolean for whether or not the HTTP server is running
 
 	ForwardAddr string
 
@@ -302,6 +303,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.traceMaxLengthBytes = conf.TraceMaxLengthBytes
 	ret.RcvbufBytes = conf.ReadBufferSizeBytes
 	ret.HTTPAddr = conf.HTTPAddress
+	ret.numListeningHTTP = new(int32)
 	ret.ForwardAddr = conf.ForwardAddress
 
 	if conf.TLSKey != "" {
@@ -1031,6 +1033,10 @@ func (s *Server) HTTPServe() {
 	graceful.AddSignal(syscall.SIGUSR2, syscall.SIGHUP)
 	graceful.HandleSignals()
 	log.WithField("address", s.HTTPAddr).Info("HTTP server listening")
+
+	// Signal that the HTTP server is starting
+	atomic.AddInt32(s.numListeningHTTP, 1)
+	defer atomic.AddInt32(s.numListeningHTTP, -1)
 	bind.Ready()
 
 	if err := graceful.Serve(httpSocket, s.Handler()); err != nil {
@@ -1095,6 +1101,11 @@ func (s *Server) Shutdown() {
 // instance (sending all data directly to the final destination).
 func (s *Server) IsLocal() bool {
 	return s.ForwardAddr != ""
+}
+
+// isListeningHTTP returns if the Server is currently listening over HTTP
+func (s *Server) isListeningHTTP() bool {
+	return atomic.LoadInt32(s.numListeningHTTP) > 0
 }
 
 // registerPlugin registers a plugin for use
