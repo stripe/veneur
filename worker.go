@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -10,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/samplers/metricpb"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
@@ -25,22 +27,27 @@ const statusTypeName = "status"
 
 // Worker is the doodad that does work.
 type Worker struct {
-	id          int
-	PacketChan  chan samplers.UDPMetric
-	ImportChan  chan []samplers.JSONMetric
-	QuitChan    chan struct{}
-	processed   int64
-	imported    int64
-	mutex       *sync.Mutex
-	traceClient *trace.Client
-	logger      *logrus.Logger
-	wm          WorkerMetrics
-	stats       *statsd.Client
+	id               int
+	PacketChan       chan samplers.UDPMetric
+	ImportChan       chan []samplers.JSONMetric
+	ImportMetricChan chan []*metricpb.Metric
+	QuitChan         chan struct{}
+	processed        int64
+	imported         int64
+	mutex            *sync.Mutex
+	traceClient      *trace.Client
+	logger           *logrus.Logger
+	wm               WorkerMetrics
+	stats            *statsd.Client
 }
 
 // IngestUDP on a Worker feeds the metric into the worker's PacketChan.
 func (w *Worker) IngestUDP(metric samplers.UDPMetric) {
 	w.PacketChan <- metric
+}
+
+func (w *Worker) IngestMetrics(ms []*metricpb.Metric) {
+	w.ImportMetricChan <- ms
 }
 
 // WorkerMetrics is just a plain struct bundling together the flushed contents of a worker
@@ -152,17 +159,18 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 // NewWorker creates, and returns a new Worker object.
 func NewWorker(id int, cl *trace.Client, logger *logrus.Logger, stats *statsd.Client) *Worker {
 	return &Worker{
-		id:          id,
-		PacketChan:  make(chan samplers.UDPMetric, 32),
-		ImportChan:  make(chan []samplers.JSONMetric, 32),
-		QuitChan:    make(chan struct{}),
-		processed:   0,
-		imported:    0,
-		mutex:       &sync.Mutex{},
-		traceClient: cl,
-		logger:      logger,
-		wm:          NewWorkerMetrics(),
-		stats:       stats,
+		id:               id,
+		PacketChan:       make(chan samplers.UDPMetric, 32),
+		ImportChan:       make(chan []samplers.JSONMetric, 32),
+		ImportMetricChan: make(chan []*metricpb.Metric, 32),
+		QuitChan:         make(chan struct{}),
+		processed:        0,
+		imported:         0,
+		mutex:            &sync.Mutex{},
+		traceClient:      cl,
+		logger:           logger,
+		wm:               NewWorkerMetrics(),
+		stats:            stats,
 	}
 }
 
@@ -176,6 +184,10 @@ func (w *Worker) Work() {
 		case m := <-w.ImportChan:
 			for _, j := range m {
 				w.ImportMetric(j)
+			}
+		case ms := <-w.ImportMetricChan:
+			for _, m := range ms {
+				w.ImportMetricGRPC(m)
 			}
 		case <-w.QuitChan:
 			// We have been asked to stop.
@@ -281,6 +293,54 @@ func (w *Worker) ImportMetric(other samplers.JSONMetric) {
 	default:
 		log.WithField("type", other.Type).Error("Unknown metric type for importing")
 	}
+}
+
+// ImportMetricGRPC receives a metric from another veneur instance over gRPC
+func (w *Worker) ImportMetricGRPC(other *metricpb.Metric) (err error) {
+	w.mutex.Lock()
+	defer w.mutex.Unlock()
+
+	key := samplers.NewMetricKeyFromMetric(other)
+
+	scope := samplers.MixedScope
+	if other.Type == metricpb.Type_Counter || other.Type == metricpb.Type_Gauge {
+		scope = samplers.GlobalOnly
+	}
+
+	w.wm.Upsert(key, scope, other.Tags)
+	w.imported++
+
+	switch v := other.GetValue().(type) {
+	case *metricpb.Metric_Counter:
+		w.wm.globalCounters[key].Merge(v.Counter)
+	case *metricpb.Metric_Gauge:
+		w.wm.globalGauges[key].Merge(v.Gauge)
+	case *metricpb.Metric_Set:
+		if merr := w.wm.sets[key].Merge(v.Set); merr != nil {
+			err = fmt.Errorf("could not merge a set: %v", err)
+		}
+	case *metricpb.Metric_Histogram:
+		switch other.Type {
+		case metricpb.Type_Histogram:
+			w.wm.histograms[key].Merge(v.Histogram)
+		case metricpb.Type_Timer:
+			w.wm.timers[key].Merge(v.Histogram)
+		}
+	case nil:
+		err = errors.New("Can't import a metric with a nil value")
+	default:
+		err = fmt.Errorf("Unknown metric type for importing: %T", v)
+	}
+
+	if err != nil {
+		log.WithError(err).WithFields(logrus.Fields{
+			"type":     other.Type,
+			"name":     other.Name,
+			"protocol": "grpc",
+		}).Error("Failed to import a metric")
+	}
+
+	return err
 }
 
 // Flush resets the worker's internal metrics and returns their contents.

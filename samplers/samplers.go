@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/axiomhq/hyperloglog"
+	"github.com/stripe/veneur/samplers/metricpb"
 	"github.com/stripe/veneur/tdigest"
 )
 
@@ -132,6 +133,11 @@ type Counter struct {
 	value int64
 }
 
+// GetName returns the name of the counter.
+func (c *Counter) GetName() string {
+	return c.Name
+}
+
 // Sample adds a sample to the counter.
 func (c *Counter) Sample(sample float64, sampleRate float32) {
 	c.value += int64(sample) * int64(1/sampleRate)
@@ -184,6 +190,23 @@ func (c *Counter) Combine(other []byte) error {
 	c.value += otherCounts
 
 	return nil
+}
+
+// Metric returns a protobuf-compatible metricpb.Metric with values set
+// at the time this function was called.  This should be used to export
+// a Counter for forwarding.
+func (c *Counter) Metric() (*metricpb.Metric, error) {
+	return &metricpb.Metric{
+		Name:  c.Name,
+		Tags:  c.Tags,
+		Type:  metricpb.Type_Counter,
+		Value: &metricpb.Metric_Counter{&metricpb.CounterValue{Value: c.value}},
+	}, nil
+}
+
+// Merge adds the value from the input CounterValue to this one.
+func (c *Counter) Merge(v *metricpb.CounterValue) {
+	c.value += v.Value
 }
 
 // NewCounter generates and returns a new Counter.
@@ -251,6 +274,28 @@ func (g *Gauge) Combine(other []byte) error {
 	g.value = otherValue
 
 	return nil
+}
+
+// GetName returns the name of the gauge.
+func (g *Gauge) GetName() string {
+	return g.Name
+}
+
+// Metric returns a protobuf-compatible metricpb.Metric with values set
+// at the time this function was called.  This should be used to export
+// a Gauge for forwarding.
+func (g *Gauge) Metric() (*metricpb.Metric, error) {
+	return &metricpb.Metric{
+		Name:  g.Name,
+		Tags:  g.Tags,
+		Type:  metricpb.Type_Gauge,
+		Value: &metricpb.Metric_Gauge{&metricpb.GaugeValue{Value: g.value}},
+	}, nil
+}
+
+// Merge sets the value of this Gauge to the value of the other.
+func (g *Gauge) Merge(v *metricpb.GaugeValue) {
+	g.value = v.Value
 }
 
 // NewGauge generates an empty (valueless) Gauge
@@ -387,6 +432,34 @@ func (s *Set) Combine(other []byte) error {
 		return err
 	}
 	return nil
+}
+
+// GetName returns the name of the set.
+func (s *Set) GetName() string {
+	return s.Name
+}
+
+// Metric returns a protobuf-compatible metricpb.Metric with values set
+// at the time this function was called.  This should be used to export
+// a Set for forwarding.
+func (s *Set) Metric() (*metricpb.Metric, error) {
+	encoded, err := s.Hll.MarshalBinary()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode the HyperLogLog: %v", err)
+	}
+
+	return &metricpb.Metric{
+		Name:  s.Name,
+		Tags:  s.Tags,
+		Type:  metricpb.Type_Set,
+		Value: &metricpb.Metric_Set{&metricpb.SetValue{HyperLogLog: encoded}},
+	}, nil
+}
+
+// Merge combines the HyperLogLog with that of the input Set.  Since the
+// HyperLogLog is marshalled in the value, it unmarshals it first.
+func (s *Set) Merge(v *metricpb.SetValue) error {
+	return s.Combine(v.HyperLogLog)
 }
 
 // Histo is a collection of values that generates max, min, count, and
@@ -588,4 +661,31 @@ func (h *Histo) Combine(other []byte) error {
 	}
 	h.Value.Merge(otherHistogram)
 	return nil
+}
+
+// GetName returns the name of the Histo.
+func (h *Histo) GetName() string {
+	return h.Name
+}
+
+// Metric returns a protobuf-compatible metricpb.Metric with values set
+// at the time this function was called.  This should be used to export
+// a Histo for forwarding.
+func (h *Histo) Metric() (*metricpb.Metric, error) {
+	return &metricpb.Metric{
+		Name: h.Name,
+		Tags: h.Tags,
+		Type: metricpb.Type_Histogram,
+		Value: &metricpb.Metric_Histogram{&metricpb.HistogramValue{
+			TDigest: h.Value.Data(),
+		}},
+	}, nil
+}
+
+// Merge merges the t-digests of the two histograms and mutates the state
+// of this one.
+func (h *Histo) Merge(v *metricpb.HistogramValue) {
+	if v.TDigest != nil {
+		h.Value.Merge(tdigest.NewMergingFromData(v.TDigest))
+	}
 }

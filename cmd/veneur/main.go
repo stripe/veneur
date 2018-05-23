@@ -80,8 +80,8 @@ func main() {
 	}
 	server.Start()
 
-	if conf.HTTPAddress != "" {
-		server.HTTPServe()
+	if conf.HTTPAddress != "" || conf.GrpcAddress != "" {
+		server.Serve()
 	} else {
 		select {}
 	}

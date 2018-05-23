@@ -77,6 +77,27 @@ func NewMerging(compression float64, debug bool) *MergingDigest {
 	}
 }
 
+// NewMergingFromData returns a MergingDigest with values initialized from
+// MergingDigestData.  This should be the way to generate a MergingDigest
+// from a serialized protobuf.
+func NewMergingFromData(d *MergingDigestData) *MergingDigest {
+	td := &MergingDigest{
+		compression:   d.Compression,
+		mainCentroids: d.MainCentroids,
+		tempCentroids: make([]Centroid, 0, estimateTempBuffer(d.Compression)),
+		min:           d.Min,
+		max:           d.Max,
+	}
+
+	// Initialize the weight to the sum of the weights of the centroids
+	td.mainWeight = 0
+	for _, c := range td.mainCentroids {
+		td.mainWeight += c.Weight
+	}
+
+	return td
+}
+
 func estimateTempBuffer(compression float64) int {
 	// this heuristic comes from Dunning's paper
 	// 925 is the maximum point of this quadratic equation
@@ -417,4 +438,17 @@ func (td *MergingDigest) Centroids() []Centroid {
 	}
 	td.mergeAllTemps()
 	return td.mainCentroids
+}
+
+// Data returns a MergingDigestData based on the MergingDigest (which contains
+// just a subset of the fields).  This can be used with proto.Marshal to
+// encode a MergingDigest as a protobuf.
+func (td *MergingDigest) Data() *MergingDigestData {
+	td.mergeAllTemps()
+	return &MergingDigestData{
+		MainCentroids: td.mainCentroids,
+		Compression:   td.compression,
+		Min:           td.min,
+		Max:           td.max,
+	}
 }
