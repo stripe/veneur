@@ -1,3 +1,8 @@
+# 6.0.0
+
+## Added
+* Metrics can be imported over gRPC if the `grpc_address` parameter is set.  Thanks, [noahgoldman](https://github.com/noahgoldman) and [Quantcast](https://github.com/quantcast)!
+
 # 5.0.0, 2018-05-17
 
 ## Added
@@ -27,9 +32,6 @@
 * Veneur's trace client library can still be used in applications that are built with Go 1.8, but it is no longer tested against Go 1.8.
 * The `veneur.ssf.received_total` metric has been removed, as it is mostly redundant with `veneur.ssf.spans.received_total`, and was not reported consistently between packet and framed formats.
 * The `veneur.ssf.spans.received_total` metric now tracks all SSF data received, in either packet or framed format, whether or not a valid span was extracted.
-
-## Added
-* Metrics can be imported over gRPC if the `grpc_address` parameter is set.  Thanks, [noahgoldman](https://github.com/noahgoldman)!
 
 # 4.0.0, 2018-04-13
 
