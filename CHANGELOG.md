@@ -2,6 +2,7 @@
 
 ## Added
 * Metrics can be imported over gRPC if the `grpc_address` parameter is set.  Thanks, [noahgoldman](https://github.com/noahgoldman) and [Quantcast](https://github.com/quantcast)!
+* Metrics can be forwarded over gRPC (currently only to a single Veneur) using `forward_use_grpc`. Thanks, [noahgoldman](https://github.com/noahgoldman) and [Quantcast](https://github.com/quantcast)!
 
 # 5.0.0, 2018-05-17
 
