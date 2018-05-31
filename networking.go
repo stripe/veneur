@@ -42,10 +42,10 @@ func startProcessingOnUDP(s *Server, protocol string, addr *net.UDPAddr, pool *s
 	// call results in a contrete port.
 	if reusePort {
 		sock, err := NewSocket(addr, s.RcvbufBytes, reusePort)
-		defer sock.Close()
 		if err != nil {
 			panic(fmt.Sprintf("couldn't listen on UDP socket %v: %v", addr, err))
 		}
+		defer sock.Close()
 		addr = sock.LocalAddr().(*net.UDPAddr)
 	}
 	addrChan := make(chan net.Addr, 1)
