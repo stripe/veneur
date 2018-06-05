@@ -2,6 +2,7 @@
 
 ## Added
 * Metrics can be imported over gRPC if the `grpc_address` parameter is set.  Thanks, [noahgoldman](https://github.com/noahgoldman) and [Quantcast](https://github.com/quantcast)!
+* When timing commands, `veneur-emit` now passes stdin, stdout and stderr through to the child process unmodified. Thanks [antifuchs](https://github.com/antifuchs) and [sdboyer](https://github.com/sdboyer)!
 
 ## Bugfixes
 * Fix a possible crash-before-panic when unable to open UDP socket. Thanks, [gphat](https://github.com/gphat)
