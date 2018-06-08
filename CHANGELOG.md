@@ -6,6 +6,7 @@
 
 ## Bugfixes
 * Fix a possible crash-before-panic when unable to open UDP socket. Thanks, [gphat](https://github.com/gphat)
+* The `StartSpan` method on `tracer.Tracer` will default to the provided `operationName` if provided. This function is provided for compatibility with OpenTracing, but the package-level `trace.StartSpanFromContext` function is recommended for new users.
 
 # 5.0.0, 2018-05-17
 
