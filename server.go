@@ -470,7 +470,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		})
 
 		if err != nil {
-			logger.Info("error getting AWS session: %s", err)
+			logger.Infof("error getting AWS session: %s", err)
 			svc = nil
 		} else {
 			logger.Info("Successfully created AWS session")

@@ -103,9 +103,8 @@ func ConvertIndicatorMetrics(span *ssf.SSFSpan, timerName string) (metrics []UDP
 	end := time.Unix(span.EndTimestamp/1e9, span.EndTimestamp%1e9)
 	start := time.Unix(span.StartTimestamp/1e9, span.StartTimestamp%1e9)
 	tags := map[string]string{
-		"span_name": span.Name,
-		"service":   span.Service,
-		"error":     "false",
+		"service": span.Service,
+		"error":   "false",
 	}
 	if span.Error {
 		tags["error"] = "true"

@@ -8,6 +8,9 @@
 * Fix a possible crash-before-panic when unable to open UDP socket. Thanks, [gphat](https://github.com/gphat)
 * The `StartSpan` method on `tracer.Tracer` will default to the provided `operationName` if provided. This function is provided for compatibility with OpenTracing, but the package-level `trace.StartSpanFromContext` function is recommended for new users.
 
+## Removed
+* The tag `span_name` has been removed from the timer metric generated for indicator spans. Thanks, [aditya](https://github.com/chimeracoder)!
+
 # 5.0.0, 2018-05-17
 
 ## Added
