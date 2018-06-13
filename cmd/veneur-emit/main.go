@@ -453,7 +453,7 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 		}
 
 		if passedFlags["gauge"] != nil {
-			logrus.Debugf("Sending gauge '%s' -> %f", name, passedFlags["gauge"].String())
+			logrus.Debugf("Sending gauge '%s' -> %s", name, passedFlags["gauge"].String())
 			value, err := strconv.ParseFloat(passedFlags["gauge"].String(), 32)
 			if err != nil {
 				return status, err
