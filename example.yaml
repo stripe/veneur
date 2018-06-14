@@ -40,7 +40,7 @@ tls_authority_certificate: ""
 #forward_address: "veneur.example.com"
 forward_address: ""
 
-# Weather or not to forward to an upstream Veneur over gRPC.  If this is false
+# Whether or not to forward to an upstream Veneur over gRPC.  If this is false
 # or unset, HTTP will be used.
 forward_use_grpc: false
 

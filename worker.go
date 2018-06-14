@@ -190,13 +190,8 @@ type metricExporter interface {
 
 // appendExportedMetric appends the exported version of the input metric, with
 // the inputted type.  If the export fails, the original slice is returned
-// and an error is logged
-func (wm WorkerMetrics) appendExportedMetric(
-	res []*metricpb.Metric,
-	exp metricExporter,
-	mType metricpb.Type,
-	cl *trace.Client,
-) []*metricpb.Metric {
+// and an error is logged.
+func (wm WorkerMetrics) appendExportedMetric(res []*metricpb.Metric, exp metricExporter, mType metricpb.Type, cl *trace.Client) []*metricpb.Metric {
 	m, err := exp.Metric()
 	if err != nil {
 		log.WithFields(logrus.Fields{
