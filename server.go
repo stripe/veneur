@@ -91,7 +91,8 @@ type Server struct {
 	HTTPAddr         string
 	numListeningHTTP *int32 // An atomic boolean for whether or not the HTTP server is running
 
-	ForwardAddr string
+	ForwardAddr    string
+	forwardUseGRPC bool
 
 	StatsdListenAddrs []net.Addr
 	SSFListenAddrs    []net.Addr
@@ -128,6 +129,9 @@ type Server struct {
 	// gRPC server
 	grpcListenAddress string
 	grpcServer        *importsrv.Server
+
+	// gRPC forward clients
+	grpcForwardConn *grpc.ClientConn
 }
 
 // ssfServiceSpanMetrics refer to the span metrics that will
@@ -515,6 +519,8 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	conf.AwsAccessKeyID = REDACTED
 	conf.AwsSecretAccessKey = REDACTED
 
+	ret.forwardUseGRPC = conf.ForwardUseGrpc
+
 	// Setup the grpc server if it was configured
 	ret.grpcListenAddress = conf.GrpcAddress
 	if ret.grpcListenAddress != "" {
@@ -604,6 +610,17 @@ func (s *Server) Start() {
 		s.SSFListenAddrs = concreteAddrs
 	} else {
 		logrus.Info("Tracing sockets are not configured - not reading trace socket")
+	}
+
+	// Initialize a gRPC connection for forwarding
+	if s.forwardUseGRPC {
+		var err error
+		s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure())
+		if err != nil {
+			log.WithError(err).WithFields(logrus.Fields{
+				"forwardAddr": s.ForwardAddr,
+			}).Fatal("Failed to initialize a gRPC connection for forwarding")
+		}
 	}
 
 	// Flush every Interval forever!
@@ -1094,6 +1111,11 @@ func (s *Server) Shutdown() {
 	close(s.shutdown)
 	graceful.Shutdown()
 	s.gRPCStop()
+
+	// Close the gRPC connection for forwarding
+	if s.grpcForwardConn != nil {
+		s.grpcForwardConn.Close()
+	}
 }
 
 // IsLocal indicates whether veneur is running as a local instance

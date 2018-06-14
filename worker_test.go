@@ -2,6 +2,7 @@ package veneur
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -352,4 +353,94 @@ func TestWorkerImportMetricGRPCNilValue(t *testing.T) {
 
 	assert.Error(t, w.ImportMetricGRPC(metric), "Importing a metric with "+
 		"a nil value should have failed")
+}
+
+// Test that (WorkerMetrics).ForwardableMetrics produces the right output with
+// a variety of inputs.
+func TestWorkerMetricsForwardableMetrics(t *testing.T) {
+	t.Parallel()
+
+	type testMetric struct {
+		name  string
+		scope samplers.MetricScope
+		mType string
+	}
+
+	testCases := []struct {
+		name     string
+		inputs   []testMetric
+		expected []testMetric
+	}{
+		{
+			name: "no global metrics",
+			inputs: []testMetric{
+				testMetric{
+					name:  "test.gauge",
+					scope: samplers.MixedScope,
+					mType: gaugeTypeName,
+				},
+				testMetric{
+					name:  "test.counter",
+					scope: samplers.LocalOnly,
+					mType: counterTypeName,
+				},
+			},
+			expected: []testMetric{},
+		},
+		{
+			name: "some global metrics",
+			inputs: []testMetric{
+				testMetric{
+					name:  "test.gauge",
+					scope: samplers.MixedScope,
+					mType: gaugeTypeName,
+				},
+				testMetric{
+					name:  "test.mixed.histo",
+					scope: samplers.MixedScope,
+					mType: histogramTypeName,
+				},
+			},
+			expected: []testMetric{
+				testMetric{
+					name:  "test.mixed.histo",
+					scope: samplers.MixedScope,
+					mType: histogramTypeName,
+				},
+			},
+		},
+		{
+			name:     "no metrics",
+			inputs:   []testMetric{},
+			expected: []testMetric{},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			wm := NewWorkerMetrics()
+
+			// Add all of the test metrics
+			for _, m := range tc.inputs {
+				mk := samplers.MetricKey{Name: m.name, Type: m.mType}
+				wm.Upsert(mk, m.scope, []string{})
+			}
+
+			ms := wm.ForwardableMetrics(nil)
+
+			// Convert all of the forwardable metrics into testMetric's
+			// and then compare them
+			actual := make([]testMetric, len(ms))
+			for i, m := range ms {
+				actual[i] = testMetric{
+					name:  m.GetName(),
+					mType: strings.ToLower(m.GetType().String()),
+				}
+			}
+
+			assert.ElementsMatch(t, tc.expected, actual,
+				"The output of ForwardableMetrics doesn't have the right metrics")
+		})
+	}
 }

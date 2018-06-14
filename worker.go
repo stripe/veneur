@@ -156,6 +156,61 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 	return !present
 }
 
+// ForwardableMetrics converts all metrics that should be forwarded to
+// metricpb.Metric (protobuf-compatible).
+func (wm WorkerMetrics) ForwardableMetrics(cl *trace.Client) []*metricpb.Metric {
+	bufLen := len(wm.histograms) + len(wm.sets) + len(wm.timers) +
+		len(wm.globalCounters) + len(wm.globalGauges)
+
+	metrics := make([]*metricpb.Metric, 0, bufLen)
+	for _, count := range wm.globalCounters {
+		metrics = wm.appendExportedMetric(metrics, count, metricpb.Type_Counter, cl)
+	}
+	for _, gauge := range wm.globalGauges {
+		metrics = wm.appendExportedMetric(metrics, gauge, metricpb.Type_Gauge, cl)
+	}
+	for _, histo := range wm.histograms {
+		metrics = wm.appendExportedMetric(metrics, histo, metricpb.Type_Histogram, cl)
+	}
+	for _, set := range wm.sets {
+		metrics = wm.appendExportedMetric(metrics, set, metricpb.Type_Set, cl)
+	}
+	for _, timer := range wm.timers {
+		metrics = wm.appendExportedMetric(metrics, timer, metricpb.Type_Timer, cl)
+	}
+
+	return metrics
+}
+
+// A type implemented by all valid samplers
+type metricExporter interface {
+	GetName() string
+	Metric() (*metricpb.Metric, error)
+}
+
+// appendExportedMetric appends the exported version of the input metric, with
+// the inputted type.  If the export fails, the original slice is returned
+// and an error is logged.
+func (wm WorkerMetrics) appendExportedMetric(res []*metricpb.Metric, exp metricExporter, mType metricpb.Type, cl *trace.Client) []*metricpb.Metric {
+	m, err := exp.Metric()
+	if err != nil {
+		log.WithFields(logrus.Fields{
+			logrus.ErrorKey: err,
+			"type":          mType,
+			"name":          exp.GetName(),
+		}).Error("Could not export metric")
+		metrics.ReportOne(cl,
+			ssf.Count("worker_metrics.export_metric.errors", 1, map[string]string{
+				"type": mType.String(),
+			}),
+		)
+		return res
+	}
+
+	m.Type = mType
+	return append(res, m)
+}
+
 // NewWorker creates, and returns a new Worker object.
 func NewWorker(id int, cl *trace.Client, logger *logrus.Logger, stats *statsd.Client) *Worker {
 	return &Worker{

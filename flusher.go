@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/forwardrpc"
 	vhttp "github.com/stripe/veneur/http"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/samplers/metricpb"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
@@ -62,7 +64,12 @@ func (s *Server) Flush(ctx context.Context) {
 	s.reportMetricsFlushCounts(ms)
 
 	if s.IsLocal() {
-		go s.flushForward(span.Attach(ctx), tempMetrics)
+		// Forward over gRPC or HTTP depending on the configuration
+		if s.forwardUseGRPC {
+			go s.forwardGRPC(span.Attach(ctx), tempMetrics)
+		} else {
+			go s.flushForward(span.Attach(ctx), tempMetrics)
+		}
 	} else {
 		s.reportGlobalMetricsFlushCounts(ms)
 	}
@@ -411,4 +418,56 @@ func (s *Server) flushTraces(ctx context.Context) {
 	})
 
 	s.SpanWorker.Flush()
+}
+
+// forwardGRPC forwards all input metrics to a downstream Veneur, over gRPC.
+func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	span.SetTag("protocol", "grpc")
+	defer span.ClientFinish(s.TraceClient)
+
+	exportStart := time.Now()
+
+	// Collect all of the forwardable metrics from the various WorkerMetrics.
+	var metrics []*metricpb.Metric
+	for _, wm := range wms {
+		metrics = append(metrics, wm.ForwardableMetrics(s.TraceClient)...)
+	}
+
+	span.Add(
+		ssf.Timing("forward.duration_ns", time.Since(exportStart),
+			time.Nanosecond, map[string]string{"part": "export"}),
+		ssf.Gauge("forward.metrics_total", float32(len(metrics)), nil),
+		// Maintain compatibility with metrics used in HTTP-based forwarding
+		ssf.Gauge("forward.post_metrics_total", float32(len(metrics)), nil),
+	)
+
+	if len(metrics) == 0 {
+		log.Debug("Nothing to forward, skipping.")
+		return
+	}
+
+	entry := log.WithFields(logrus.Fields{
+		"metrics":     len(metrics),
+		"destination": s.ForwardAddr,
+		"protocol":    "grpc",
+		"grpcstate":   s.grpcForwardConn.GetState().String(),
+	})
+
+	c := forwardrpc.NewForwardClient(s.grpcForwardConn)
+
+	grpcStart := time.Now()
+	_, err := c.SendMetrics(ctx, &forwardrpc.MetricList{Metrics: metrics})
+	if err != nil {
+		span.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "send"}))
+		entry.WithError(err).Error("Failed to forward to an upstream Veneur")
+	} else {
+		entry.Info("Completed forward to an upstream Veneur")
+	}
+
+	span.Add(
+		ssf.Timing("forward.duration_ns", time.Since(grpcStart), time.Nanosecond,
+			map[string]string{"part": "grpc"}),
+		ssf.Count("forward.error_total", 0, nil),
+	)
 }
