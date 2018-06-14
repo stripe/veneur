@@ -438,6 +438,9 @@ func (t Tracer) StartSpan(operationName string, opts ...opentracing.StartSpanOpt
 			Trace:  trace,
 			tracer: t,
 		}
+		if operationName != "" {
+			span.Name = operationName
+		}
 	}
 
 	for k, v := range sso.Tags {

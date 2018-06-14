@@ -2,7 +2,15 @@
 
 ## Added
 * Metrics can be imported over gRPC if the `grpc_address` parameter is set.  Thanks, [noahgoldman](https://github.com/noahgoldman) and [Quantcast](https://github.com/quantcast)!
+* When timing commands, `veneur-emit` now passes stdin, stdout and stderr through to the child process unmodified. Thanks [antifuchs](https://github.com/antifuchs) and [sdboyer](https://github.com/sdboyer)!
 * Metrics can be forwarded over gRPC (currently only to a single Veneur) using `forward_use_grpc`. Thanks, [noahgoldman](https://github.com/noahgoldman) and [Quantcast](https://github.com/quantcast)!
+
+## Bugfixes
+* Fix a possible crash-before-panic when unable to open UDP socket. Thanks, [gphat](https://github.com/gphat)
+* The `StartSpan` method on `tracer.Tracer` will default to the provided `operationName` if provided. This function is provided for compatibility with OpenTracing, but the package-level `trace.StartSpanFromContext` function is recommended for new users.
+
+## Removed
+* The tag `span_name` has been removed from the timer metric generated for indicator spans. Thanks, [aditya](https://github.com/chimeracoder)!
 
 # 5.0.0, 2018-05-17
 
