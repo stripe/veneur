@@ -21,6 +21,7 @@ func TestRouting(t *testing.T) {
 		sinkNames []string
 	}{
 		{"none specified", []string{"foo:bar", "veneurlocalonly"}, nil, []string{"foosink", "barsink"}},
+		{"none specified", []string{"foo:bar", "veneurlocalonly:"}, nil, []string{"foosink", "barsink"}},
 		{"one sink", []string{"veneursinkonly:foobar"}, map[string]struct{}{"foobar": struct{}{}}, []string{"foobar"}},
 		{
 			"multiple sinks",
