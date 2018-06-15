@@ -21,11 +21,13 @@ before_script:
   - go get -u github.com/ChimeraCoder/gojson/gojson
   - go get -u github.com/golang/protobuf/protoc-gen-go
   - go get -d -v github.com/gogo/protobuf/protoc-gen-gofast
+  - go get -d -v github.com/gogo/protobuf/protoc-gen-gogofaster
   - pushd $GOPATH/src/github.com/gogo/protobuf
   - git fetch
   - git checkout v0.5
   - popd
   - go install github.com/gogo/protobuf/protoc-gen-gofast
+  - go install github.com/gogo/protobuf/protoc-gen-gogofaster
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
   - go get -u golang.org/x/tools/cmd/stringer
   - pushd $GOPATH/src/golang.org/x/tools/cmd/stringer
