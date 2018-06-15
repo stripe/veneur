@@ -326,12 +326,12 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 			for i, tag := range tags {
 				// we use this tag as an escape hatch for metrics that always
 				// want to be host-local
-				if tag == "veneurlocalonly" {
+				if strings.HasPrefix(tag, "veneurlocalonly") {
 					// delete the tag from the list
 					tags = append(tags[:i], tags[i+1:]...)
 					ret.Scope = LocalOnly
 					break
-				} else if tag == "veneurglobalonly" {
+				} else if strings.HasPrefix(tag, "veneurglobalonly") {
 					// delete the tag from the list
 					tags = append(tags[:i], tags[i+1:]...)
 					ret.Scope = GlobalOnly
