@@ -110,6 +110,8 @@ func ConvertIndicatorMetrics(span *ssf.SSFSpan, timerName string) (metrics []UDP
 		tags["error"] = "true"
 	}
 	ssfTimer := ssf.Timing(timerName, end.Sub(start), time.Nanosecond, tags)
+	ssfTimer.Name = timerName // Ensure the name is free from any name prefixes, like "veneur."
+
 	timer, err := ParseMetricSSF(ssfTimer)
 	if err != nil {
 		return metrics, err
