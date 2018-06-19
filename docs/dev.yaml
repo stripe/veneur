@@ -12,4 +12,10 @@ trace_max_length_bytes: 16000
 num_workers: 4
 num_readers: 1
 interval: 10s
+percentiles:
+  - 0.50
+  - 0.90
+
 debug: true
+debug_ingested_spans: true
+debug_flushed_metrics: true
