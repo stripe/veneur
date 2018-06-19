@@ -13,6 +13,8 @@ type Config struct {
 	DatadogSpanBufferSize        int       `yaml:"datadog_span_buffer_size"`
 	DatadogTraceAPIAddress       string    `yaml:"datadog_trace_api_address"`
 	Debug                        bool      `yaml:"debug"`
+	DebugFlushedMetrics          bool      `yaml:"debug_flushed_metrics"`
+	DebugIngestedSpans           bool      `yaml:"debug_ingested_spans"`
 	EnableProfiling              bool      `yaml:"enable_profiling"`
 	FalconerAddress              string    `yaml:"falconer_address"`
 	FlushFile                    string    `yaml:"flush_file"`

@@ -33,7 +33,7 @@ tool called `veneur-emit`. Much like veneur itself, you don't need to
 compile it before running either:
 
 ``` sh
- run ./cmd/veneur-emit/main.go -ssf -hostport unix:///tmp/veneur.sock -trace_id 999 -parent_span_id 9999 -name hi.there -span_service veneur_ssf_investigation -debug -command /usr/bin/true
+go run ./cmd/veneur-emit/main.go -ssf -hostport unix:///tmp/veneur.sock -trace_id 999 -parent_span_id 9999 -name hi.there -span_service veneur_ssf_investigation -debug -command /usr/bin/true
  ```
 
 This will time the command `/usr/bin/true` and submit an SSF span

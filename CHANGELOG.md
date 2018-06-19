@@ -1,5 +1,8 @@
 # 6.1.0
 
+## Added
+* Two new options, `debug_ingested_spans` and `debug_flushed_metrics` make veneur log (at level DEBUG) information about the metrics and spans it processes. Thanks, [antifuchs](https://github.com/antifuchs)!
+
 ## Bugfixes
 * When creating timer metrics from indicator spans, veneur no longer prefixes `indicator_span_timer_name` with the string `veneur.`. Thanks, [antifuchs](https://github.com/antifuchs)!
 
