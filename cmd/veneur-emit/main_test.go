@@ -110,6 +110,18 @@ func TestTiming(t *testing.T) {
 	assert.Equal(t, float32(3.0), span.Metrics[0].Value)
 }
 
+func TestSet(t *testing.T) {
+	testFlag := make(map[string]flag.Value)
+	testFlag["set"] = newValue("farts")
+	span := &ssf.SSFSpan{}
+	_, err := createMetric(span, testFlag, "testMetric", "")
+	assert.NoError(t, err)
+	assert.Len(t, span.Metrics, 1)
+	assert.Equal(t, ssf.SSFSample_SET, span.Metrics[0].Metric)
+	assert.Equal(t, "testMetric", span.Metrics[0].Name)
+	assert.Equal(t, "farts", span.Metrics[0].Message)
+}
+
 func TestMultiple(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testFlag["gauge"] = newValue("3")
