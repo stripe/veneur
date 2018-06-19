@@ -176,6 +176,16 @@ read_buffer_size_bytes: 2097152
 # Sets the log level to DEBUG
 debug: true
 
+# Log (at level DEBUG) information about every ingested span. Be
+# careful with this setting in a real deployment - it is extremely
+# verbose.
+debug_ingested_spans: false
+
+# Log (at level DEBUG) information about every batch of flushed
+# metrics. Be careful with this setting in a real deployment - it is
+# extremely verbose.
+debug_flushed_metrics: false
+
 # runtime.SetMutexProfileFraction
 # The fraction of mutex contention events that are reported in the mutex profile.
 # On average, 1/n events are reported, so higher numbers will sample fewer events.

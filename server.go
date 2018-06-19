@@ -42,6 +42,7 @@ import (
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/sinks/datadog"
+	"github.com/stripe/veneur/sinks/debug"
 	"github.com/stripe/veneur/sinks/falconer"
 	"github.com/stripe/veneur/sinks/kafka"
 	"github.com/stripe/veneur/sinks/lightstep"
@@ -457,6 +458,16 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			logger.Info("Configured Kafka span sink")
 		} else {
 			logger.Warn("Kafka span sink skipped due to missing span topic")
+		}
+	}
+
+	{
+		mtx := sync.Mutex{}
+		if conf.DebugFlushedMetrics {
+			ret.metricSinks = append(ret.metricSinks, debug.NewDebugMetricSink(&mtx, log))
+		}
+		if conf.DebugIngestedSpans {
+			ret.spanSinks = append(ret.spanSinks, debug.NewDebugSpanSink(&mtx, log))
 		}
 	}
 
