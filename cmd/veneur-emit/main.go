@@ -38,6 +38,7 @@ var (
 	gauge  = flag.Float64("gauge", 0, "Report a 'gauge' metric. Value must be float64.")
 	timing = flag.Duration("timing", 0*time.Millisecond, "Report a 'timing' metric. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).")
 	count  = flag.Int64("count", 0, "Report a 'count' metric. Value must be an integer.")
+	set    = flag.String("set", "", "Report a 'set' metric with an arbitrary string value.")
 	tag    = flag.String("tag", "", "Tag(s) for metric, comma separated. Ex: 'service:airflow'")
 	toSSF  = flag.Bool("ssf", false, "Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)")
 
@@ -108,6 +109,7 @@ func init() {
 			"gauge",
 			"timing",
 			"count",
+			"set",
 			"tag",
 			"ssf",
 		},
@@ -469,6 +471,11 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 			}
 			span.Metrics = append(span.Metrics, ssf.Count(name, float32(value), tags))
 		}
+
+		if passedFlags["set"] != nil {
+			logrus.Debugf("Sending set '%s' -> %s", name, passedFlags["set"].String())
+			span.Metrics = append(span.Metrics, ssf.Set(name, passedFlags["set"].String(), tags))
+		}
 	}
 	return status, err
 }
@@ -510,6 +517,8 @@ func sendStatsd(addr string, span *ssf.SSFSpan) error {
 			} else {
 				err = client.Histogram(metric.Name, float64(metric.Value), tags, 1.0)
 			}
+		case ssf.SSFSample_SET:
+			err = client.Set(metric.Name, metric.Message, tags, 1.0)
 		}
 		if err != nil {
 			return err

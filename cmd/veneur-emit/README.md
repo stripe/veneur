@@ -17,6 +17,8 @@ Full usage:
 
 ```
 Usage of veneur-emit:
+  -command
+        Turns on command-timing mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.
   -count int
         Report a 'count' metric. Value must be an integer.
   -debug
@@ -43,6 +45,8 @@ Usage of veneur-emit:
         Report a 'gauge' metric. Value must be float64.
   -hostport string
         Address of destination (hostport or listening address URL).
+  -indicator
+        Mark the reported span as an indicator span
   -mode string
         Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'. (default "metric")
   -name string
@@ -61,8 +65,14 @@ Usage of veneur-emit:
         Tag(s) for service check, comma separated. Ex: 'service:airflow,host_type:qa'
   -sc_time string
         Add timestamp to check. Default is current Unix epoch timestamp.
-  -command
-        Turns on timeCommand mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.
+  -set string
+        Report a 'set' metric with an arbitrary string value.
+  -span_endtime string
+        Date/time to set for the end of the span. Format is same as -span_starttime.
+  -span_service string
+        Service name to associate with the span. (default "veneur-emit")
+  -span_starttime string
+        Date/time to set for the start of the span. See https://github.com/araddon/dateparse#extended-example for formatting.
   -ssf
         Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)
   -tag string
@@ -103,6 +113,12 @@ Submit an event in dogstatsd mode (this isn't supported in SSF yet):
 
 ``` sh
 veneur-emit -hostport udp://127.0.0.1:8200 -e_text "Something went wrong:\\n\\nTell a lie, it's all good." -e_title "I'm just testing" -e_source_type "demonstration"
+```
+
+Submit a "set" metric (the count of unique values across a time interval):
+
+``` sh
+veneur-emit -hostport udp://127.0.0.1:8200 -name some.set.metric -set customer_a
 ```
 
 ## SSF mode
