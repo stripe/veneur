@@ -6,9 +6,11 @@
 
 ## Bugfixes
 * When creating timer metrics from indicator spans, veneur no longer prefixes `indicator_span_timer_name` with the string `veneur.`. Thanks, [antifuchs](https://github.com/antifuchs)!
+* `veneur-prometheus` now exports Histograms properly, with a statsd tag for each bucket
 
 ## Updated
 * Metric sampler parse function now looks for `veneurlocalonly` and `veneurglobalonly` by prefix instead of direct equality for times where value can't/shouldn't be excluded even if it's blank. Thanks [joeybloggs](https://github.com/joeybloggs)
+* `veneur-prometheus` now exports a tag for each quartile rather than a seperate metric
 
 # 6.0.0
 
