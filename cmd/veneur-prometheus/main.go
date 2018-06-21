@@ -104,20 +104,37 @@ func collect(c *statsd.Client, ignoredLabels []*regexp.Regexp, ignoredMetrics []
 				c.Gauge(mf.GetName(), float64(gauge.GetGauge().GetValue()), tags, 1.0)
 				metricCount++
 			}
-		case dto.MetricType_HISTOGRAM, dto.MetricType_SUMMARY:
-			for _, histo := range mf.GetMetric() {
-				tags := getTags(histo.GetLabel(), ignoredLabels)
-				hname := mf.GetName()
-				summ := histo.GetSummary()
-				c.Gauge(fmt.Sprintf("%s.sum", hname), summ.GetSampleSum(), tags, 1.0)
-				c.Gauge(fmt.Sprintf("%s.count", hname), float64(summ.GetSampleCount()), tags, 1.0)
-				for _, quantile := range summ.GetQuantile() {
+		case dto.MetricType_SUMMARY:
+			for _, summary := range mf.GetMetric() {
+				tags := getTags(summary.GetLabel(), ignoredLabels)
+				name := mf.GetName()
+				data := summary.GetSummary()
+				c.Gauge(fmt.Sprintf("%s.sum", name), data.GetSampleSum(), tags, 1.0)
+				c.Gauge(fmt.Sprintf("%s.count", name), float64(data.GetSampleCount()), tags, 1.0)
+				for _, quantile := range data.GetQuantile() {
 					v := quantile.GetValue()
 					if !math.IsNaN(v) {
-						c.Gauge(fmt.Sprintf("%s.%dpercentile", hname, int(quantile.GetQuantile()*100)), v, tags, 1.0)
-						metricCount++
+						t := append(tags, fmt.Sprintf("%dpercentile", int(quantile.GetQuantile()*100)))
+						c.Gauge(name, v, t, 1.0)
 					}
 				}
+				metricCount += 3 // One for sum, one for count, one for bucketed summary
+			}
+		case dto.MetricType_HISTOGRAM:
+			for _, histo := range mf.GetMetric() {
+				tags := getTags(histo.GetLabel(), ignoredLabels)
+				name := mf.GetName()
+				data := histo.GetHistogram()
+				c.Gauge(fmt.Sprintf("%s.sum", name), data.GetSampleSum(), tags, 1.0)
+				c.Gauge(fmt.Sprintf("%s.count", name), float64(data.GetSampleCount()), tags, 1.0)
+				for _, bucket := range data.GetBucket() {
+					b := bucket.GetUpperBound()
+					if !math.IsNaN(b) {
+						t := append(tags, fmt.Sprintf("le%f", b))
+						c.Count(name, int64(bucket.GetCumulativeCount()), t, 1.0)
+					}
+				}
+				metricCount += 3 // One for sum, one for count, one for bucketed histogram
 			}
 		default:
 			c.Count("veneur.prometheus.unknown_metric_type_total", 1, nil, 1.0)
