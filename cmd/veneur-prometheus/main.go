@@ -104,17 +104,36 @@ func collect(c *statsd.Client, ignoredLabels []*regexp.Regexp, ignoredMetrics []
 				c.Gauge(mf.GetName(), float64(gauge.GetGauge().GetValue()), tags, 1.0)
 				metricCount++
 			}
-		case dto.MetricType_HISTOGRAM, dto.MetricType_SUMMARY:
-			for _, histo := range mf.GetMetric() {
-				tags := getTags(histo.GetLabel(), ignoredLabels)
-				hname := mf.GetName()
-				summ := histo.GetSummary()
-				c.Gauge(fmt.Sprintf("%s.sum", hname), summ.GetSampleSum(), tags, 1.0)
-				c.Gauge(fmt.Sprintf("%s.count", hname), float64(summ.GetSampleCount()), tags, 1.0)
-				for _, quantile := range summ.GetQuantile() {
+		case dto.MetricType_SUMMARY:
+			for _, summary := range mf.GetMetric() {
+				tags := getTags(summary.GetLabel(), ignoredLabels)
+				name := mf.GetName()
+				data := summary.GetSummary()
+				c.Gauge(fmt.Sprintf("%s.sum", name), data.GetSampleSum(), tags, 1.0)
+				c.Count(fmt.Sprintf("%s.count", name), int64(data.GetSampleCount()), tags, 1.0)
+				metricCount += 2 // One for sum, one for count, one for each percentile bucket
+
+				for _, quantile := range data.GetQuantile() {
 					v := quantile.GetValue()
 					if !math.IsNaN(v) {
-						c.Gauge(fmt.Sprintf("%s.%dpercentile", hname, int(quantile.GetQuantile()*100)), v, tags, 1.0)
+						c.Gauge(fmt.Sprintf("%s.%dpercentile", name, int(quantile.GetQuantile()*100)), v, tags, 1.0)
+						metricCount++
+					}
+				}
+			}
+		case dto.MetricType_HISTOGRAM:
+			for _, histo := range mf.GetMetric() {
+				tags := getTags(histo.GetLabel(), ignoredLabels)
+				name := mf.GetName()
+				data := histo.GetHistogram()
+				c.Gauge(fmt.Sprintf("%s.sum", name), data.GetSampleSum(), tags, 1.0)
+				c.Count(fmt.Sprintf("%s.count", name), int64(data.GetSampleCount()), tags, 1.0)
+				metricCount += 2 // One for sum, one for count, one for each histo bucket
+
+				for _, bucket := range data.GetBucket() {
+					b := bucket.GetUpperBound()
+					if !math.IsNaN(b) {
+						c.Count(fmt.Sprintf("%s.le%f", name, b), int64(bucket.GetCumulativeCount()), tags, 1.0)
 						metricCount++
 					}
 				}
