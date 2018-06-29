@@ -192,6 +192,7 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 	defer span.ClientFinish(s.TraceClient)
 
 	finalMetrics := make([]samplers.InterMetric, 0, ms.totalLength)
+	s.checkStates.MaybeReset(time.Now())
 	for _, wm := range tempMetrics {
 		for _, c := range wm.counters {
 			finalMetrics = append(finalMetrics, c.Flush(s.interval)...)
@@ -223,7 +224,7 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 		}
 
 		for _, status := range wm.localStatusChecks {
-			finalMetrics = append(finalMetrics, status.Flush()...)
+			finalMetrics = append(finalMetrics, status.Flush(s.checkStates)...)
 		}
 
 		// TODO (aditya) refactor this out so we don't

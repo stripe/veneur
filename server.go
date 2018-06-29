@@ -119,6 +119,7 @@ type Server struct {
 	enableProfiling bool
 
 	HistogramAggregates samplers.HistogramAggregates
+	checkStates         *samplers.CheckStates
 
 	spanSinks   []sinks.SpanSink
 	metricSinks []sinks.MetricSink
@@ -173,6 +174,14 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.interval, err = conf.ParseInterval()
 	if err != nil {
 		return ret, err
+	}
+
+	if conf.OkCheckStatusInterval != "" {
+		interval, err := time.ParseDuration(conf.OkCheckStatusInterval)
+		if err != nil {
+			return ret, err
+		}
+		ret.checkStates = samplers.NewCheckStatusTracker(interval)
 	}
 
 	transport := &http.Transport{

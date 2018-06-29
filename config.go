@@ -54,6 +54,7 @@ type Config struct {
 	NumReaders                   int       `yaml:"num_readers"`
 	NumSpanWorkers               int       `yaml:"num_span_workers"`
 	NumWorkers                   int       `yaml:"num_workers"`
+	OkCheckStatusInterval        string    `yaml:"ok_check_status_interval"`
 	OmitEmptyHostname            bool      `yaml:"omit_empty_hostname"`
 	Percentiles                  []float64 `yaml:"percentiles"`
 	ReadBufferSizeBytes          int       `yaml:"read_buffer_size_bytes"`
