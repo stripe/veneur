@@ -1,5 +1,10 @@
 # 7.0.0, in progress
 
+## Added
+* Veneur can be set to flush steady OK values for service checks only once per configurable time interval. Veneur will still emit non-OK values and changes to OK from other values. Thanks, [antifuchs][antifuchs]!
+
+[antifuchs]: https://github.com/antifuchs
+
 # 6.0.0, 2018-06-28
 
 ## Added

@@ -49,7 +49,7 @@ forward_use_grpc: false
 # series data.
 interval: "10s"
 
-# Veneur can "sychronize" it's flushes with the system clock, flushing at even
+# Veneur can "sychronize" its flushes with the system clock, flushing at even
 # intervals i.e. 0, 10, 20… to align with the `interval`. This is disabled by
 # default for now, as it can cause thundering herds in large installations.
 synchronize_with_interval: false
@@ -115,6 +115,13 @@ aggregates:
  - "min"
  - "max"
  - "count"
+
+# Report OK service check states only once in this interval (veneur
+# will still report as soon as a non-OK state turns OK), effectively
+# sampling on output. If this interval is set to "", veneur will not
+# sample OK check statuses and report them upstream whenever it
+# receives them in a flush interval.
+ok_check_status_interval: "5min"
 
 # == DEPRECATED ==
 

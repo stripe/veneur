@@ -496,6 +496,47 @@ func TestHistoMergeMetric(t *testing.T) {
 	assert.InDelta(t, 1.0, h2.LocalMax, 0.02, "merged histogram should have max of 1 after adding a value")
 }
 
+func TestSampleOneStatusCheck(t *testing.T) {
+	tracker := NewCheckStatusTracker(5 * time.Second)
+
+	s1 := NewStatusCheck("foo", []string{"b:c", "a:z"})
+	s1.Sample(float64(ssf.SSFSample_OK), 1, "hi", "localhost")
+
+	assert.NotEmpty(t, s1.Flush(tracker))
+	// Doesn't send two OK results in a row:
+	assert.Empty(t, s1.Flush(tracker))
+
+	s2 := NewStatusCheck("foo", []string{"a:z", "b:c"})
+	s2.Sample(float64(ssf.SSFSample_CRITICAL), 1, "hi", "localhost")
+	assert.NotEmpty(t, s2.Flush(tracker))
+
+	// last result is not OK, should send the sample:
+	assert.NotEmpty(t, s1.Flush(tracker))
+
+	// Sends the second OK result after a reset:
+	tracker.MaybeReset(time.Now().Add(10 * time.Second))
+	assert.NotEmpty(t, s1.Flush(tracker))
+}
+
+func TestSampleMultipleStatusChecks(t *testing.T) {
+	tracker := NewCheckStatusTracker(5 * time.Second)
+
+	s1 := NewStatusCheck("foo", []string{"farts:no"})
+	s1.Sample(float64(ssf.SSFSample_OK), 1, "hi", "localhost")
+	s2 := NewStatusCheck("foo", []string{"farts:yes"})
+	s2.Sample(float64(ssf.SSFSample_OK), 1, "hi", "localhost")
+
+	assert.NotEmpty(t, s1.Flush(tracker))
+	assert.NotEmpty(t, s2.Flush(tracker))
+	assert.Empty(t, s1.Flush(tracker))
+
+	tracker.MaybeReset(time.Now().Add(10 * time.Second))
+	assert.NotEmpty(t, s1.Flush(tracker))
+	assert.Empty(t, s1.Flush(tracker))
+	assert.NotEmpty(t, s2.Flush(tracker))
+	assert.Empty(t, s2.Flush(tracker))
+}
+
 func TestMetricKeyEquality(t *testing.T) {
 	c1 := NewCounter("a.b.c", []string{"a:b", "c:d"})
 	ce1, _ := c1.Export()

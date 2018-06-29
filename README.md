@@ -123,7 +123,8 @@ Via an optional [magic tag](#magic-tag) Veneur will forward counters to a global
 
 To clarify how each metric type behaves in Veneur, please use the following:
 * Counters: Locally accrued, flushed to sinks (see [magic tags](#magic-tag) for global version)
-* Gauges: Locally accrued, flushed to sinks  (see [magic tags](#magic-tag) for global version)
+* Gauges: Locally accrued, flushed to sinks (see [magic tags](#magic-tag) for global version)
+* Status Checks: Locally accrued, flushed to sinks (see [magic tags](#magic-tag) for global version)
 * Histograms: Locally accrued, count, max and min flushed to sinks, percentiles forwarded to `forward_address` for global aggregation when set.
 * Timers: Locally accrued, count, max and min flushed to sinks, percentiles forwarded to `forward_address` for global aggregation when set.
 * Sets: Locally accrued, forwarded to `forward_address` for sinks aggregation when set.
@@ -131,6 +132,12 @@ To clarify how each metric type behaves in Veneur, please use the following:
 ## Expiration
 
 Veneur expires all metrics on each flush. If a metric is no longer being sent (or is sent sparsely) Veneur will not send it as zeros! This was chosen because the combination of the approximation's features and the additional hysteresis imposed by *retaining* these approximations over time was deemed more complex than desirable.
+
+## Status Checks
+
+Also known as "service checks" in datadog parlance, these special samples indicate the current status of a service, identified by the check name and its tags. As your infrastructure will ideally have a lot of service checks returning OK, you can limit the amount of data points transferred for each service check that remains at OK, but still send every data point for checks that have a non-OK status (or change status from non-OK to OK).
+
+Configure the [configuration setting](#configuration) `ok_check_status_interval` to tell veneur that it should only report unchanged OK status checks once in this inverval.
 
 ## Other Notes
 

@@ -316,7 +316,10 @@ func (s *StatusCheck) Sample(sample float64, sampleRate float32, message string,
 }
 
 // Flush generates an InterMetric from the current state of this status check.
-func (s *StatusCheck) Flush() []InterMetric {
+func (s *StatusCheck) Flush(overall *CheckStates) []InterMetric {
+	if !overall.ShouldRecord(s) {
+		return []InterMetric{}
+	}
 	s.Timestamp = time.Now().Unix()
 	s.Type = StatusMetric
 	s.Sinks = routeInfo(s.Tags)
