@@ -69,7 +69,7 @@ var (
 	spanEnd   = flag.String("span_endtime", "", "Date/time to set for the end of the span. Format is same as -span_starttime.")
 	service   = flag.String("span_service", "veneur-emit", "Service name to associate with the span.")
 	indicator = flag.Bool("indicator", false, "Mark the reported span as an indicator span")
-	sTag      = flag.String("span_tags", "", "Tag(s) for span, comma separated. Ex 'service:airflow,host_type:qa'")
+	sTag      = flag.String("span_tags", "", "Tag(s) for span, comma separated. Useful for avoiding high cardinality tags. Ex 'user_id:ac0b23,widget_id:284802'")
 )
 
 type EmitMode uint
