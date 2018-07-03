@@ -283,6 +283,8 @@ func tagsFromString(csv string) map[string]string {
 		if len(elem) == 0 {
 			continue
 		}
+		// Use SplitN here so we don't mess up on
+		// values with colons inside them
 		tag := strings.SplitN(elem, ":", 2)
 		switch len(tag) {
 		case 2:
