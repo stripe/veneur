@@ -69,6 +69,7 @@ var (
 	spanEnd   = flag.String("span_endtime", "", "Date/time to set for the end of the span. Format is same as -span_starttime.")
 	service   = flag.String("span_service", "veneur-emit", "Service name to associate with the span.")
 	indicator = flag.Bool("indicator", false, "Mark the reported span as an indicator span")
+	sTag      = flag.String("span_tags", "", "Tag(s) for span, comma separated. Ex 'service:airflow,host_type:qa'")
 )
 
 type EmitMode uint
@@ -218,7 +219,7 @@ func main() {
 			WithField("ID", "parent_span_id").
 			Warn("Could not infer ID from environment")
 	}
-	span, err := setupSpan(traceID, parentID, *name, *tag)
+	span, err := setupSpan(traceID, parentID, *name, *tag, *sTag)
 	if err != nil {
 		logrus.WithError(err).
 			Fatal("Couldn't set up the main span")
@@ -273,7 +274,7 @@ func flags() map[string]flag.Value {
 	return passedFlags
 }
 
-func ssfTags(csv string) map[string]string {
+func tagsFromString(csv string) map[string]string {
 	tags := map[string]string{}
 	if len(csv) == 0 {
 		return tags
@@ -331,7 +332,7 @@ func inferTraceIDInt(existingID int64, envKey string) (id int64, err error) {
 	return
 }
 
-func setupSpan(traceID, parentID *int64, name, tags string) (*ssf.SSFSpan, error) {
+func setupSpan(traceID, parentID *int64, name, tags string, spanTags string) (*ssf.SSFSpan, error) {
 	span := &ssf.SSFSpan{}
 	if traceID != nil && *traceID != 0 {
 		span.TraceId = *traceID
@@ -344,7 +345,10 @@ func setupSpan(traceID, parentID *int64, name, tags string) (*ssf.SSFSpan, error
 		}
 		span.Id = bigid.Int64()
 		span.Name = name
-		span.Tags = ssfTags(tags)
+		span.Tags = tagsFromString(tags)
+		for k, v := range tagsFromString(spanTags) {
+			span.Tags[k] = v
+		}
 		span.Service = *service
 		span.Indicator = *indicator
 	}
@@ -393,22 +397,7 @@ func timeCommand(span *ssf.SSFSpan, command []string) (exitStatus int, start tim
 func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name string, tagStr string) (int, error) {
 	var err error
 	status := 0
-	tags := map[string]string{}
-	if tagStr != "" {
-		for _, elem := range strings.Split(tagStr, ",") {
-			if len(elem) == 0 {
-				// Gracefully ignore a trailing comma.
-				continue
-			}
-
-			tag := strings.Split(elem, ":")
-			if len(tag) == 2 {
-				tags[tag[0]] = tag[1]
-			} else {
-				logrus.Fatalf("Arguments to -tag should be of the form <key>:<value>, got %q", elem)
-			}
-		}
-	}
+	tags := tagsFromString(tagStr)
 
 	if *mode == "metric" {
 		if *command {

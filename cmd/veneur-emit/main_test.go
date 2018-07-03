@@ -189,7 +189,7 @@ func TestNilHostport(t *testing.T) {
 func TestTags(t *testing.T) {
 	testTag := "tag1,tag2,tag3,,tag4:value"
 	expectedOutput := map[string]string{"tag1": "", "tag2": "", "tag3": "", "tag4": "value"}
-	output := ssfTags(testTag)
+	output := tagsFromString(testTag)
 	assert.Equal(t, expectedOutput, output)
 }
 
@@ -278,18 +278,20 @@ func (tb *testBackend) FlushSync(ctx context.Context) error {
 }
 
 func TestSetupSpanWithTracing(t *testing.T) {
-	span, err := setupSpan(proto.Int64(1), proto.Int64(2), "oink", "hi:there")
+	span, err := setupSpan(proto.Int64(1), proto.Int64(2), "oink", "hi:there", "foo:bar")
 	if assert.NoError(t, err) {
 		assert.NotZero(t, span.Id)
 		assert.Equal(t, int64(1), span.TraceId)
 		assert.Equal(t, int64(2), span.ParentId)
 		assert.Equal(t, "oink", span.Name)
-		assert.Equal(t, 1, len(span.Tags))
+		assert.Equal(t, 2, len(span.Tags))
+		assert.Equal(t, span.Tags["hi"], "there")
+		assert.Equal(t, span.Tags["foo"], "bar")
 	}
 }
 
 func TestSetupSpanWithoutTracing(t *testing.T) {
-	span, err := setupSpan(nil, nil, "oink", "hi:there")
+	span, err := setupSpan(nil, nil, "oink", "hi:there", "")
 	if assert.NoError(t, err) {
 		assert.Zero(t, span.Id)
 		assert.Zero(t, span.TraceId)
