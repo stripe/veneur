@@ -359,21 +359,27 @@ func TestBuildEventPacketError(t *testing.T) {
 func TestBuildEventPacket(t *testing.T) {
 	myTitle := "myTitle"
 	myText := "myText"
-
-	testFlag := make(map[string]flag.Value)
+	myTag := "foo:bar"
+	myEventTag := "baz:gorch"
 
 	t.Run("simple", func(t *testing.T) {
+		testFlag := make(map[string]flag.Value)
 		testFlag["e_title"] = newValue(myTitle)
 		testFlag["e_text"] = newValue(myText)
+		testFlag["tag"] = newValue(myTag)
+		testFlag["e_event_tags"] = newValue(myEventTag)
 
 		pkt, err := buildEventPacket(testFlag)
 		assert.Nil(t, err, "Returned non-nil error.")
 
 		expected := fmt.Sprintf("_e{%d,%d}:%s|%s", len(myTitle), len(myText), myTitle, myText)
-		assert.Equal(t, pkt.String(), expected, "Bad event packet.")
+		assert.Contains(t, pkt.String(), expected, "Bad event packet (front matter).")
+		assert.Contains(t, pkt.String(), myTag, "Bad event packet (tags).")
+		assert.Contains(t, pkt.String(), myEventTag, "Bad event packet (tags).")
 	})
 
 	t.Run("basic", func(t *testing.T) {
+		testFlag := make(map[string]flag.Value)
 		testFlag["e_title"] = newValue("An exception occurred")
 		testFlag["e_text"] = newValue("Cannot parse CSV file from 10.0.0.17")
 		testFlag["e_alert_type"] = newValue("warning")
@@ -384,12 +390,13 @@ func TestBuildEventPacket(t *testing.T) {
 		assert.Nil(t, err, "Returned non-nil error.")
 
 		suffix := fmt.Sprintf("#%s", tags)
-		assert.True(t, strings.HasSuffix(pkt.String(), suffix), "Tags not at end of event packet.")
+		assert.True(t, strings.Contains(pkt.String(), suffix), "Tags not at end of event packet.")
 
 		assert.True(t, strings.HasPrefix(pkt.String(), "_e"))
 	})
 
 	t.Run("newline", func(t *testing.T) {
+		testFlag := make(map[string]flag.Value)
 		testFlag["e_title"] = newValue("An exception occurred")
 		testFlag["e_text"] = newValue("Cannot parse JSON request:\n{'foo': 'bar'}")
 		testFlag["e_priority"] = newValue("low")
@@ -397,11 +404,11 @@ func TestBuildEventPacket(t *testing.T) {
 
 		pkt, err := buildEventPacket(testFlag)
 		assert.Nil(t, err, "Returned non-nil error.")
-
 		assert.Contains(t, pkt.String(), "\\n", "Did not parse newline.")
 	})
 
 	t.Run("all", func(t *testing.T) {
+		testFlag := make(map[string]flag.Value)
 		testFlag["e_title"] = newValue("An exception occurred")
 		testFlag["e_text"] = newValue("Cannot parse CSV file from 10.0.0.17")
 		testFlag["e_time"] = newValue("1501002564")
@@ -446,9 +453,8 @@ func TestBuilldSCPacket(t *testing.T) {
 	myName := "myName"
 	myStatus := "1" // Corresponds to WARNING
 
-	testFlag := make(map[string]flag.Value)
-
 	t.Run("simple", func(t *testing.T) {
+		testFlag := make(map[string]flag.Value)
 		testFlag["sc_name"] = newValue(myName)
 		testFlag["sc_status"] = newValue(myStatus)
 
@@ -460,6 +466,7 @@ func TestBuilldSCPacket(t *testing.T) {
 	})
 
 	t.Run("basic", func(t *testing.T) {
+		testFlag := make(map[string]flag.Value)
 		msg := "Redis connection timed out after 10s"
 		testFlag["sc_name"] = newValue("Redis connection")
 		testFlag["sc_status"] = newValue("2")
@@ -476,11 +483,13 @@ func TestBuilldSCPacket(t *testing.T) {
 	})
 
 	t.Run("all", func(t *testing.T) {
+		testFlag := make(map[string]flag.Value)
 		msg := "Redis connection timed out after 10s"
 		testFlag["sc_name"] = newValue("Redis connection")
 		testFlag["sc_status"] = newValue("2")
 		testFlag["sc_time"] = newValue("1501002564")
 		testFlag["sc_hostname"] = newValue("tester.host")
+		testFlag["tag"] = newValue("foo:bar")
 		testFlag["sc_tags"] = newValue("redis_instance:10.0.0.16:6379")
 		testFlag["sc_msg"] = newValue(msg)
 
@@ -491,7 +500,8 @@ func TestBuilldSCPacket(t *testing.T) {
 		assert.True(t, strings.HasPrefix(data, "_sc"), "Missing _sc at beginning.")
 		assert.Contains(t, data, "|d:1501002564", "Missing timestamp.")
 		assert.Contains(t, data, "|h:tester.host", "Missing hostname.")
-		assert.Contains(t, data, "|#redis_instance:10.0.0.16:6379", "Missing service check tags.")
+		assert.Contains(t, data, "redis_instance:10.0.0.16:6379", "Missing service check tags.")
+		assert.Contains(t, data, "foo:bar")
 		suffix := fmt.Sprintf("|m:%s", msg)
 		assert.True(t, strings.HasSuffix(data, suffix), "Missing message at end of packet.")
 	})

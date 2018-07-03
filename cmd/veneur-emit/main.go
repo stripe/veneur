@@ -39,7 +39,7 @@ var (
 	timing = flag.Duration("timing", 0*time.Millisecond, "Report a 'timing' metric. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).")
 	count  = flag.Int64("count", 0, "Report a 'count' metric. Value must be an integer.")
 	set    = flag.String("set", "", "Report a 'set' metric with an arbitrary string value.")
-	tag    = flag.String("tag", "", "Tag(s) for metric, comma separated. Ex: 'service:airflow'")
+	tag    = flag.String("tag", "", "Tag(s) for metric, comma separated. Ex: 'service:airflow'. Note: Any tags here are applied to all emitted data. See also mode-specific tag options (e.g. span_tags)")
 	toSSF  = flag.Bool("ssf", false, "Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)")
 
 	// Event flags
@@ -283,7 +283,7 @@ func tagsFromString(csv string) map[string]string {
 		if len(elem) == 0 {
 			continue
 		}
-		tag := strings.Split(elem, ":")
+		tag := strings.SplitN(elem, ":", 2)
 		switch len(tag) {
 		case 2:
 			tags[tag[0]] = tag[1]
@@ -586,8 +586,21 @@ func buildEventPacket(passedFlags map[string]flag.Value) (bytes.Buffer, error) {
 		buffer.WriteString(fmt.Sprintf("|t:%s", passedFlags["e_alert_type"].String()))
 	}
 
+	finalTags := map[string]string{}
 	if passedFlags["e_event_tags"] != nil {
-		buffer.WriteString(fmt.Sprintf("|#%s", passedFlags["e_event_tags"].String()))
+		finalTags = tagsFromString(passedFlags["e_event_tags"].String())
+	}
+	if passedFlags["tag"] != nil {
+		for k, v := range tagsFromString(passedFlags["tag"].String()) {
+			finalTags[k] = v
+		}
+	}
+	if len(finalTags) > 0 {
+		buffer.WriteString("|#") // Write the tag prefix bytes
+		for k, v := range finalTags {
+			buffer.WriteString(fmt.Sprintf("%s:%s,", k, v))
+		}
+		buffer.Truncate(buffer.Len() - 1) // Drop the last comma for cleanliness
 	}
 
 	return buffer, nil
@@ -619,8 +632,21 @@ func buildSCPacket(passedFlags map[string]flag.Value) (bytes.Buffer, error) {
 		buffer.WriteString(fmt.Sprintf("|h:%s", passedFlags["sc_hostname"].String()))
 	}
 
+	finalTags := map[string]string{}
 	if passedFlags["sc_tags"] != nil {
-		buffer.WriteString(fmt.Sprintf("|#%s", passedFlags["sc_tags"].String()))
+		finalTags = tagsFromString(passedFlags["sc_tags"].String())
+	}
+	if passedFlags["tag"] != nil {
+		for k, v := range tagsFromString(passedFlags["tag"].String()) {
+			finalTags[k] = v
+		}
+	}
+	if len(finalTags) > 0 {
+		buffer.WriteString("|#") // Write the tag prefix bytes
+		for k, v := range finalTags {
+			buffer.WriteString(fmt.Sprintf("%s:%s,", k, v))
+		}
+		buffer.Truncate(buffer.Len() - 1) // Drop the last comma for cleanliness
 	}
 
 	if passedFlags["sc_msg"] != nil {
