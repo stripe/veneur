@@ -136,6 +136,8 @@ func TestParseSSFValid(t *testing.T) {
 	trace.TraceId = 1
 	trace.StartTimestamp = 1
 	trace.EndTimestamp = 5
+	trace.Tags = map[string]string{}
+	trace.Tags["foo"] = "bar"
 
 	trace.Metrics = make([]*ssf.SSFSample, 0)
 	trace.Metrics = append(trace.Metrics, metric)
@@ -153,6 +155,7 @@ func TestParseSSFValid(t *testing.T) {
 			assert.Equal(t, metric.Name, m.Name, "Name")
 			assert.Equal(t, float64(metric.Value), m.Value, "Value")
 			assert.Equal(t, "counter", m.Type, "Type")
+			assert.NotContains(t, m.Tags, "foo", "Metric should not inherit tags from its parent span")
 		}
 	}
 }

@@ -15,6 +15,10 @@ RUN go install github.com/gogo/protobuf/protoc-gen-gofast
 WORKDIR /go
 RUN go get -u github.com/golang/dep/cmd/dep
 RUN go get -u -v golang.org/x/tools/cmd/stringer
+WORKDIR /go/src/golang.org/x/tools/cmd/stringer
+RUN git checkout d11f6ec946130207fd66b479a9a6def585b5110b
+RUN go install
+WORKDIR /go
 RUN wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
 RUN unzip protoc-3.1.0-linux-x86_64.zip
 RUN cp bin/protoc /usr/bin/protoc
