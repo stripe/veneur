@@ -51,6 +51,7 @@ func (hct *httpClientTracer) getClientTrace() *httptrace.ClientTrace {
 		DNSStart:             hct.dnsStart,
 		GotFirstResponseByte: hct.gotFirstResponseByte,
 		ConnectStart:         hct.connectStart,
+		WroteHeaders:         hct.wroteHeaders,
 		WroteRequest:         hct.wroteRequest,
 	}
 }
@@ -75,6 +76,7 @@ func (hct *httpClientTracer) gotConn(info httptrace.GotConnInfo) {
 		state = "reused"
 	}
 	sp := hct.startSpan(fmt.Sprintf("http.gotConnection.%s", state))
+	sp.SetTag("was_idle", info.WasIdle)
 	sp.Add(ssf.Count(hct.prefix+".connections_used_total", 1, map[string]string{"state": state}))
 }
 
@@ -91,6 +93,11 @@ func (hct *httpClientTracer) gotFirstResponseByte() {
 // connectStart marks beginning of the connect process
 func (hct *httpClientTracer) connectStart(network, addr string) {
 	hct.startSpan("http.connecting")
+}
+
+// wroteHeaders marks the write being started
+func (hct *httpClientTracer) wroteHeaders() {
+	hct.startSpan("http.finishedHeaders")
 }
 
 // wroteRequest marks the write being completed
