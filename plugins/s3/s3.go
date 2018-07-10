@@ -71,7 +71,8 @@ const (
 	tsvGzFt          = "tsv.gz"
 )
 
-var S3Bucket = "stripe-veneur"
+// S3Bucket name of S3 bucket to post to
+var S3Bucket string
 
 var S3ClientUninitializedError = errors.New("s3 client has not been initialized")
 
