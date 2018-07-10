@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 
+	"context"
 	"git.apache.org/thrift.git/lib/go/thrift"
 )
 
@@ -87,15 +88,11 @@ func (p *CalculatorClient) recvAdd() (value int32, err error) {
 	}
 	if mTypeId == thrift.EXCEPTION {
 		error2 := thrift.NewTApplicationException(thrift.UNKNOWN_APPLICATION_EXCEPTION, "Unknown Exception")
-		var error3 error
-		error3, err = error2.Read(iprot)
+		err = error2.Read(iprot)
 		if err != nil {
 			return
 		}
-		if err = iprot.ReadMessageEnd(); err != nil {
-			return
-		}
-		err = error3
+		err = iprot.ReadMessageEnd()
 		return
 	}
 	if p.SeqId != seqId {
@@ -134,13 +131,13 @@ func NewCalculatorProcessor(handler Calculator) *CalculatorProcessor {
 	return self4
 }
 
-func (p *CalculatorProcessor) Process(iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+func (p *CalculatorProcessor) Process(ctx context.Context, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
 	name, _, seqId, err := iprot.ReadMessageBegin()
 	if err != nil {
 		return false, err
 	}
 	if processor, ok := p.GetProcessorFunction(name); ok {
-		return processor.Process(seqId, iprot, oprot)
+		return processor.Process(context.Background(), seqId, iprot, oprot)
 	}
 	iprot.Skip(thrift.STRUCT)
 	iprot.ReadMessageEnd()
@@ -157,7 +154,7 @@ type calculatorProcessorAdd struct {
 	handler Calculator
 }
 
-func (p *calculatorProcessorAdd) Process(seqId int32, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
+func (p *calculatorProcessorAdd) Process(ctx context.Context, seqId int32, iprot, oprot thrift.TProtocol) (success bool, err thrift.TException) {
 	args := NewAddArgs()
 	if err = args.Read(iprot); err != nil {
 		iprot.ReadMessageEnd()

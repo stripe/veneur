@@ -61,7 +61,8 @@ func (s filterSet) shouldFilter(search string) bool {
 }
 
 func (e *Handler) initialDump(w io.Writer, onlyFetch filterSet) {
-	fmt.Fprintf(w, "{")
+	_, err := fmt.Fprintf(w, "{")
+	log.IfErr(e.Logger, err)
 	first := true
 	usedKeys := map[string]struct{}{}
 	f := func(kv expvar.KeyValue) {
@@ -72,10 +73,12 @@ func (e *Handler) initialDump(w io.Writer, onlyFetch filterSet) {
 			return
 		}
 		if !first {
-			fmt.Fprintf(w, ",")
+			_, err = fmt.Fprintf(w, ",")
+			log.IfErr(e.Logger, err)
 		}
 		first = false
-		fmt.Fprintf(w, "%q:%s", kv.Key, kv.Value)
+		_, err = fmt.Fprintf(w, "%q:%s", kv.Key, kv.Value)
+		log.IfErr(e.Logger, err)
 	}
 	for k, v := range e.Exported {
 		f(expvar.KeyValue{
@@ -85,7 +88,8 @@ func (e *Handler) initialDump(w io.Writer, onlyFetch filterSet) {
 		usedKeys[k] = struct{}{}
 	}
 	expvar.Do(f)
-	fmt.Fprintf(w, "}")
+	_, err = fmt.Fprintf(w, "}")
+	log.IfErr(e.Logger, err)
 }
 
 func asSet(items []string) filterSet {

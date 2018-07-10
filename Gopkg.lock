@@ -254,6 +254,17 @@
   revision = "ea8cdd9df8635eca5fcde3e602f52c4b7971adcd"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/mailru/easyjson"
+  packages = [
+    ".",
+    "buffer",
+    "jlexer",
+    "jwriter"
+  ]
+  revision = "3fdea8d05856a0c8df22ed4bc71b3219245e4485"
+
+[[projects]]
   name = "github.com/matttproud/golang_protobuf_extensions"
   packages = ["pbutil"]
   revision = "3247c84500bff8d9fb6d579d800f20b3e091582c"
@@ -361,9 +372,12 @@
     "eventcounter",
     "log",
     "sfxclient",
-    "timekeeper"
+    "timekeeper",
+    "trace",
+    "trace/format"
   ]
-  revision = "93885a1b911579ca2ce6caf133916e0554e9ab37"
+  revision = "271e7b77c46c2cb201be901a302cb181a9d1645a"
+  version = "v2.0.0"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -402,6 +416,7 @@
   version = "v1.0"
 
 [[projects]]
+  branch = "net-context"
   name = "goji.io"
   packages = [
     ".",
@@ -410,7 +425,6 @@
     "pattern"
   ]
   revision = "bc2e9e7dc2769805d1b6ce4dc48ec23a03ae82ec"
-  version = "v1.1"
 
 [[projects]]
   branch = "master"
@@ -651,6 +665,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "0e2a924965542647fcbd9042b27e4e748f3fcc6c09ae90fd18e5665807933da1"
+  inputs-digest = "c89639d28c976527c95b966413b711ac70cb8f09b54fd5042f4907e176dd3808"
   solver-name = "gps-cdcl"
   solver-version = 1

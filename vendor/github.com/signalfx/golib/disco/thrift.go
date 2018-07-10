@@ -112,6 +112,12 @@ var ErrNoInstanceOpen = errors.New("no thrift instances is open")
 // NextConnection will connect this transport to another random disco service, or return an error
 // if no disco service can be dialed
 func (d *ThriftTransport) NextConnection() error {
+	return d.NextConnectionN(-1)
+}
+
+// NextConnectionN will connect this transport disco service, or return an error
+// if no disco service can be dialed
+func (d *ThriftTransport) NextConnectionN(startIndex int) error {
 	if d.currentTransport != nil && d.currentTransport.IsOpen() {
 		// TODO: Log errors on Close
 		log.IfErr(d.logger, d.currentTransport.Close())
@@ -120,7 +126,9 @@ func (d *ThriftTransport) NextConnection() error {
 	if len(instances) == 0 {
 		return ErrNoInstance
 	}
-	startIndex := d.randSource.Intn(len(instances))
+	if startIndex < 0 {
+		startIndex = d.randSource.Intn(len(instances))
+	}
 	for i := 0; i < len(instances); i++ {
 		instance := &instances[(startIndex+i)%len(instances)]
 		conn, err := d.Dialer.Dial("tcp", instance.DialString())
@@ -128,8 +136,8 @@ func (d *ThriftTransport) NextConnection() error {
 			d.logger.Log(log.Err, err, "Unable to dial instance")
 			continue
 		}
-		d.currentTransport = d.WrappedFactory.GetTransport(thrift.NewTSocketFromConnTimeout(conn, d.Dialer.Timeout))
-		return nil
+		d.currentTransport, err = d.WrappedFactory.GetTransport(thrift.NewTSocketFromConnTimeout(conn, d.Dialer.Timeout))
+		return err
 	}
 	d.currentTransport = nil
 	return ErrNoInstanceOpen

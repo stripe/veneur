@@ -11,6 +11,7 @@ import (
 	"github.com/signalfx/golib/datapoint"
 	"github.com/signalfx/golib/event"
 	"github.com/signalfx/golib/log"
+	"github.com/signalfx/golib/trace"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -49,6 +50,7 @@ func TestFilter(t *testing.T) {
 			So(chain.AddEvents(ctx, []*event.Event{ev1, ev2}), ShouldBeNil)
 			So(i.HasEventFlag(ev1), ShouldBeFalse)
 			So(i.HasEventFlag(ev2), ShouldBeFalse)
+			So(i.AddSpans(ctx, []*trace.Span{}, Discard), ShouldBeNil)
 		})
 		Convey("should flag if context is flagged", func() {
 			flagCheck = boolFlagCheck(true)

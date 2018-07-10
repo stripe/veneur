@@ -105,7 +105,7 @@ type Disco struct {
 	eventLoopDone        chan struct{}
 	ninjaMode            bool
 
-	watchedMutex    sync.Mutex
+	watchedMutex    sync.RWMutex
 	watchedServices map[string]*Service
 
 	manualEvents chan zk.Event
@@ -239,9 +239,36 @@ func (d *Disco) processZkEvent(e *zk.Event) error {
 	return nil
 }
 
+// DeleteAdvertisedServices deletes all advertised services
+func (d *Disco) DeleteAdvertisedServices() {
+	d.watchedMutex.RLock()
+	services := make([]string, 0, len(d.myAdvertisedServices))
+	for s := range d.myAdvertisedServices {
+		services = append(services, s)
+	}
+	d.watchedMutex.RUnlock()
+	for _, serviceName := range services {
+		d.DeleteAdvertisedService(serviceName)
+	}
+}
+
+// DeleteAdvertisedService deletes a specific advertised service name
+func (d *Disco) DeleteAdvertisedService(serviceName string) {
+	l := log.NewContext(d.stateLog).With(logkey.DiscoService, serviceName)
+	servicePath := d.servicePath(serviceName)
+	exists, stat, _, err := d.zkConn.ExistsW(servicePath)
+	if err == nil && exists {
+		d.watchedMutex.Lock()
+		defer d.watchedMutex.Unlock()
+		l.Log(logkey.Name, serviceName, "deleting advertised service")
+		log.IfErr(l, d.zkConn.Delete(servicePath, stat.Version))
+		delete(d.myAdvertisedServices, serviceName)
+	}
+}
+
 // Close any open disco connections making this disco unreliable for future updates
-// TODO(jack): Close should also delete advertised services
 func (d *Disco) Close() {
+	d.DeleteAdvertisedServices()
 	close(d.shouldQuit)
 	<-d.eventLoopDone
 	d.zkConn.Close()
@@ -429,9 +456,27 @@ func (d *Disco) Services(serviceName string) (*Service, error) {
 	return nil, errors.Annotatef(refreshRes, "cannot refresh service %s", serviceName)
 }
 
+type serviceInstanceList []ServiceInstance
+
+func (x serviceInstanceList) Len() int {
+	return len(x)
+}
+
+func (x serviceInstanceList) Less(i, j int) bool {
+	return x[i].RegistrationTimeUTC < x[j].RegistrationTimeUTC
+}
+
+func (x serviceInstanceList) Swap(i, j int) {
+	x[i], x[j] = x[j], x[i]
+}
+
 // ServiceInstances that represent instances of this service in your system
 func (s *Service) ServiceInstances() []ServiceInstance {
-	return s.services.Load().([]ServiceInstance)
+	svcs := s.services.Load().([]ServiceInstance)
+	ret := make([]ServiceInstance, len(svcs))
+	copy(ret, svcs)
+	sort.Sort(serviceInstanceList(ret))
+	return ret
 }
 
 // ForceInstances overrides a disco service to have exactly the passed instances forever.  Useful

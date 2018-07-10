@@ -280,8 +280,8 @@ type HTTPSink struct {
 	AuthToken          string
 	UserAgent          string
 	DatapointEndpoint  string
-    EventEndpoint      string
-	Client             http.Client
+	EventEndpoint      string
+	Client             *http.Client
 }
 ```
 

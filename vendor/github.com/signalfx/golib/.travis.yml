@@ -3,8 +3,8 @@ language: go
 sudo: false
 
 go:
-  - 1.8
   - 1.9
+  - "1.10"
 
 before_install:
   - go get -u github.com/signalfx/gobuild
@@ -18,7 +18,7 @@ install:
   - go get -d -v -t ./...
   - CUR=$PWD
   - cd "$GOPATH/src/git.apache.org/thrift.git/"
-  - git checkout 53dd39833a08ce33582e5ff31fa18bb4735d6731
+  - git checkout 327ebb6c2b6df8bf075da02ef45a2a034e9b79ba
   - cd "$CUR"
 
 script:

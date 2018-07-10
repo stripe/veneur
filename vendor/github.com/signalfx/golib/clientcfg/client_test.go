@@ -54,15 +54,17 @@ func TestClient(t *testing.T) {
 		})
 		Convey("HTTPSink should wrap", func() {
 			hsink := sfxclient.NewHTTPSink()
-			sink := WatchSinkChanges(hsink, conf, logger)
+			sink := WatchSinkChanges(hsink, conf, logger).(*ClientConfigChangerSink)
 			So(sink, ShouldNotEqual, hsink)
 			hsink.DatapointEndpoint = ""
 			So(sink.AddDatapoints(ctx, nil), ShouldBeNil)
+			So(sink.AddSpans(ctx, nil), ShouldBeNil)
+			So(sink.AddEvents(ctx, nil), ShouldBeNil)
 			Convey("Only hostname should append v2/datapoint", func() {
 				mem.Write("sf.metrics.statsendpoint", []byte("https://ingest-2.signalfx.com"))
 				So(hsink.DatapointEndpoint, ShouldEqual, "https://ingest-2.signalfx.com/v2/datapoint")
 				Convey("Failing URL parses should be OK", func() {
-					sink.(*ClientConfigChangerSink).urlParse = func(string) (*url.URL, error) {
+					sink.urlParse = func(string) (*url.URL, error) {
 						return nil, errors.New("nope")
 					}
 					mem.Write("sf.metrics.statsendpoint", []byte("_will_not_parse"))

@@ -16,6 +16,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"sort"
 )
 
 func TestUnableToConn(t *testing.T) {
@@ -256,6 +257,13 @@ func TestInvalidServiceJson(t *testing.T) {
 	_, err = d1.Services("badservice")
 	require.Error(t, err)
 
+}
+
+func TestSort(t *testing.T) {
+	svcs := []ServiceInstance{{RegistrationTimeUTC: 1}, {RegistrationTimeUTC: 0}}
+	sort.Sort(serviceInstanceList(svcs))
+	assert.Equal(t, svcs[0].RegistrationTimeUTC, int64(0))
+	assert.Equal(t, svcs[1].RegistrationTimeUTC, int64(1))
 }
 
 func TestAdvertise(t *testing.T) {

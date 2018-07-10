@@ -11,10 +11,12 @@ import (
 	"github.com/signalfx/golib/datapoint"
 	"github.com/signalfx/golib/distconf"
 	"github.com/signalfx/golib/errors"
+	"github.com/signalfx/golib/event"
 	"github.com/signalfx/golib/log"
 	"github.com/signalfx/golib/logkey"
 	"github.com/signalfx/golib/sfxclient"
 	"github.com/signalfx/golib/timekeeper"
+	"github.com/signalfx/golib/trace"
 )
 
 // ClientConfig configures a SfxClient
@@ -66,6 +68,11 @@ func WatchSinkChanges(sink sfxclient.Sink, Conf *ClientConfig, logger log.Logger
 	if !ok {
 		return sink
 	}
+	return WatchHTTPSinkChange(httpSink, Conf, logger)
+}
+
+// WatchHTTPSinkChange returns anew ClientConfigChangerSink that takes an http sink, instead of a regular sinc
+func WatchHTTPSinkChange(httpSink *sfxclient.HTTPSink, Conf *ClientConfig, logger log.Logger) *ClientConfigChangerSink {
 	ret := &ClientConfigChangerSink{
 		Destination: httpSink,
 		urlParse:    url.Parse,
@@ -81,10 +88,24 @@ func WatchSinkChanges(sink sfxclient.Sink, Conf *ClientConfig, logger log.Logger
 }
 
 // AddDatapoints forwards the call to Destination
-func (s *ClientConfigChangerSink) AddDatapoints(ctx context.Context, points []*datapoint.Datapoint) (err error) {
+func (s *ClientConfigChangerSink) AddDatapoints(ctx context.Context, points []*datapoint.Datapoint) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.Destination.AddDatapoints(ctx, points)
+}
+
+// AddSpans forwards the call to Destination
+func (s *ClientConfigChangerSink) AddSpans(ctx context.Context, spans []*trace.Span) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.Destination.AddSpans(ctx, spans)
+}
+
+// AddEvents forwards the call to Destination
+func (s *ClientConfigChangerSink) AddEvents(ctx context.Context, events []*event.Event) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.Destination.AddEvents(ctx, events)
 }
 
 func (s *ClientConfigChangerSink) disableCompressionWatch(new *distconf.Bool, old bool) {
