@@ -105,6 +105,32 @@ func (hct *httpClientTracer) finishSpan() {
 	hct.currentSpan.ClientFinish(hct.traceClient)
 }
 
+type TraceRoundTripper struct {
+	inner  http.RoundTripper
+	tc     *trace.Client
+	prefix string
+}
+
+func NewTraceRoundTripper(inner http.RoundTripper, tc *trace.Client, prefix string) http.RoundTripper {
+	return &TraceRoundTripper{
+		inner:  inner,
+		tc:     tc,
+		prefix: prefix,
+	}
+}
+
+func (tripper *TraceRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	span, _ := trace.StartSpanFromContext(req.Context(), "")
+	span.SetTag("action", tripper.prefix)
+	defer span.ClientFinish(tripper.tc)
+
+	hct := newHTTPClientTracer(span.Attach(req.Context()), tripper.tc, tripper.prefix)
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), hct.getClientTrace()))
+	defer hct.finishSpan()
+
+	return tripper.inner.RoundTrip(req)
+}
+
 func mergeTags(tags map[string]string, k, v string) map[string]string {
 	ret := make(map[string]string, len(tags)+1)
 	for k, v := range tags {

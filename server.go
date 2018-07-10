@@ -34,6 +34,7 @@ import (
 
 	"github.com/pkg/profile"
 
+	vhttp "github.com/stripe/veneur/http"
 	"github.com/stripe/veneur/importsrv"
 	"github.com/stripe/veneur/plugins"
 	localfilep "github.com/stripe/veneur/plugins/localfile"
@@ -348,10 +349,13 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 
 	if conf.SignalfxAPIKey != "" {
-		fallback := signalfx.NewClient(conf.SignalfxEndpointBase, conf.SignalfxAPIKey, ret.HTTPClient)
+		tracedHTTP := *ret.HTTPClient
+		tracedHTTP.Transport = vhttp.NewTraceRoundTripper(tracedHTTP.Transport, ret.TraceClient, "signalfx")
+
+		fallback := signalfx.NewClient(conf.SignalfxEndpointBase, conf.SignalfxAPIKey, &tracedHTTP)
 		byTagClients := map[string]signalfx.DPClient{}
 		for _, perTag := range conf.SignalfxPerTagAPIKeys {
-			byTagClients[perTag.Name] = signalfx.NewClient(conf.SignalfxEndpointBase, perTag.APIKey, ret.HTTPClient)
+			byTagClients[perTag.Name] = signalfx.NewClient(conf.SignalfxEndpointBase, perTag.APIKey, &tracedHTTP)
 		}
 		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback, conf.SignalfxVaryKeyBy, byTagClients, metricSink)
 		if err != nil {
