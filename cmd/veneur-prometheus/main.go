@@ -72,7 +72,12 @@ func collect(c *statsd.Client, ignoredLabels []*regexp.Regexp, ignoredMetrics []
 		"ignored_metrics": ignoredMetrics,
 	}).Debug("Beginning collection")
 
-	resp, _ := http.Get(*metricsHost)
+	resp, err := http.Get(*metricsHost)
+	if err != nil {
+		logrus.WithError(err).WithField("metrics_host", *metricsHost).Warn(fmt.Sprintf("Failed to collect metrics"))
+		return
+	}
+
 	d := expfmt.NewDecoder(resp.Body, expfmt.FmtText)
 	var mf dto.MetricFamily
 	for {
