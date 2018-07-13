@@ -8,6 +8,7 @@ import (
 	"github.com/signalfx/golib/datapoint"
 	"github.com/signalfx/golib/event"
 	"github.com/signalfx/golib/log"
+	"github.com/signalfx/golib/trace"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,6 +25,12 @@ func TestBasicSinkEvent(t *testing.T) {
 	assert.NoError(t, b.AddEvents(context.Background(), []*event.Event{}))
 	assert.Equal(t, 1, len(b.EventsChan))
 }
+func TestBasicSinkTrace(t *testing.T) {
+	b := NewBasicSink()
+	b.TracesChan = make(chan []*trace.Span, 2)
+	assert.NoError(t, b.AddSpans(context.Background(), []*trace.Span{}))
+	assert.Equal(t, 1, len(b.TracesChan))
+}
 
 func TestBasicSinkErr(t *testing.T) {
 	b := NewBasicSink()
@@ -35,6 +42,12 @@ func TestBasicSinkErrEvent(t *testing.T) {
 	b := NewBasicSink()
 	b.RetError(errors.New("nope"))
 	assert.Error(t, b.AddEvents(context.Background(), []*event.Event{}))
+}
+
+func TestBasicSinkErrTrace(t *testing.T) {
+	b := NewBasicSink()
+	b.RetError(errors.New("nope"))
+	assert.Error(t, b.AddSpans(context.Background(), []*trace.Span{}))
 }
 
 func TestContextError(t *testing.T) {
@@ -58,6 +71,18 @@ func TestContextErrorEvent(t *testing.T) {
 		close(progressChan)
 	}()
 	assert.Equal(t, context.Canceled, b.AddEvents(ctx, []*event.Event{}))
+	<-progressChan
+}
+
+func TestContextErrorTrace(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	progressChan := make(chan struct{})
+	b := NewBasicSink()
+	go func() {
+		cancel()
+		close(progressChan)
+	}()
+	assert.Equal(t, context.Canceled, b.AddSpans(ctx, []*trace.Span{}))
 	<-progressChan
 }
 

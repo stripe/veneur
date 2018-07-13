@@ -47,7 +47,7 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client) error {
 	errorCh := make(chan error, len(c.pointsByKey)+1)
 
 	submitOne := func(client dpsink.Sink, points []*datapoint.Datapoint) {
-		span, _ := trace.StartSpanFromContext(ctx, "")
+		span, ctx := trace.StartSpanFromContext(ctx, "")
 		defer span.ClientFinish(cl)
 		err := client.AddDatapoints(ctx, points)
 		if err != nil {
@@ -97,7 +97,7 @@ type DPClient dpsink.Sink
 
 // NewClient constructs a new signalfx HTTP client for the given
 // endpoint and API token.
-func NewClient(endpoint, apiKey string, client http.Client) DPClient {
+func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 	httpSink := sfxclient.NewHTTPSink()
 	httpSink.AuthToken = apiKey
 	httpSink.DatapointEndpoint = fmt.Sprintf("%s/v2/datapoint", endpoint)
@@ -152,7 +152,7 @@ func (sfx *SignalFxSink) newPointCollection() *collection {
 
 // Flush sends metrics to SignalFx
 func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
-	span, _ := trace.StartSpanFromContext(ctx, "")
+	span, ctx := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sfx.traceClient)
 
 	flushStart := time.Now()

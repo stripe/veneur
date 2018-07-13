@@ -51,6 +51,7 @@ func (hct *httpClientTracer) getClientTrace() *httptrace.ClientTrace {
 		DNSStart:             hct.dnsStart,
 		GotFirstResponseByte: hct.gotFirstResponseByte,
 		ConnectStart:         hct.connectStart,
+		WroteHeaders:         hct.wroteHeaders,
 		WroteRequest:         hct.wroteRequest,
 	}
 }
@@ -75,6 +76,7 @@ func (hct *httpClientTracer) gotConn(info httptrace.GotConnInfo) {
 		state = "reused"
 	}
 	sp := hct.startSpan(fmt.Sprintf("http.gotConnection.%s", state))
+	sp.SetTag("was_idle", info.WasIdle)
 	sp.Add(ssf.Count(hct.prefix+".connections_used_total", 1, map[string]string{"state": state}))
 }
 
@@ -93,6 +95,11 @@ func (hct *httpClientTracer) connectStart(network, addr string) {
 	hct.startSpan("http.connecting")
 }
 
+// wroteHeaders marks the write being started
+func (hct *httpClientTracer) wroteHeaders() {
+	hct.startSpan("http.finishedHeaders")
+}
+
 // wroteRequest marks the write being completed
 func (hct *httpClientTracer) wroteRequest(info httptrace.WroteRequestInfo) {
 	hct.startSpan("http.finishedWrite")
@@ -103,6 +110,32 @@ func (hct *httpClientTracer) finishSpan() {
 	hct.mutex.Lock()
 	defer hct.mutex.Unlock()
 	hct.currentSpan.ClientFinish(hct.traceClient)
+}
+
+type TraceRoundTripper struct {
+	inner  http.RoundTripper
+	tc     *trace.Client
+	prefix string
+}
+
+func NewTraceRoundTripper(inner http.RoundTripper, tc *trace.Client, prefix string) http.RoundTripper {
+	return &TraceRoundTripper{
+		inner:  inner,
+		tc:     tc,
+		prefix: prefix,
+	}
+}
+
+func (tripper *TraceRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	span, _ := trace.StartSpanFromContext(req.Context(), "")
+	span.SetTag("action", tripper.prefix)
+	defer span.ClientFinish(tripper.tc)
+
+	hct := newHTTPClientTracer(span.Attach(req.Context()), tripper.tc, tripper.prefix)
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), hct.getClientTrace()))
+	defer hct.finishSpan()
+
+	return tripper.inner.RoundTrip(req)
 }
 
 func mergeTags(tags map[string]string, k, v string) map[string]string {

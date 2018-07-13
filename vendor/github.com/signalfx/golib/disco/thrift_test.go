@@ -206,7 +206,7 @@ func (c *calcHandler) Add(num1 int32, num2 int32) (r int32, err error) {
 	return num1 + num2, nil
 }
 
-func TestThriftConnect(t *testing.T) {
+func testThriftConnect(t *testing.T) {
 	h1 := calcHandler{}
 	h2 := calcHandler{}
 	port1 := nettest.FreeTCPPort()

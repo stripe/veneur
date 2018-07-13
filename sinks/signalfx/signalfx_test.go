@@ -56,7 +56,7 @@ func newDerivedProcessor() *testDerivedSink {
 
 func TestNewSignalFxSink(t *testing.T) {
 	// test the variables that have been renamed
-	client := NewClient("http://www.example.com", "secret", *http.DefaultClient)
+	client := NewClient("http://www.example.com", "secret", http.DefaultClient)
 	derived := newDerivedProcessor()
 	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), client, "", nil, derived)
 	if err != nil {

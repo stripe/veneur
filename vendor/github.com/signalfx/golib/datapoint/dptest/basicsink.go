@@ -6,6 +6,7 @@ import (
 	"context"
 	"github.com/signalfx/golib/datapoint"
 	"github.com/signalfx/golib/event"
+	"github.com/signalfx/golib/trace"
 )
 
 // BasicSink is a pure testing sink that blocks forwarded points onto a channel
@@ -13,6 +14,7 @@ type BasicSink struct {
 	RetErr     error
 	PointsChan chan []*datapoint.Datapoint
 	EventsChan chan []*event.Event
+	TracesChan chan []*trace.Span
 
 	mu sync.Mutex
 }
@@ -67,6 +69,21 @@ func (f *BasicSink) AddEvents(ctx context.Context, points []*event.Event) error 
 	}
 }
 
+// AddSpans buffers the trace on an internal chan or returns errors if RetErr is set
+func (f *BasicSink) AddSpans(ctx context.Context, points []*trace.Span) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.RetErr != nil {
+		return f.RetErr
+	}
+	select {
+	case f.TracesChan <- points:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 // RetError sets an error that is returned on AddDatapoints calls
 func (f *BasicSink) RetError(err error) {
 	f.mu.Lock()
@@ -83,6 +100,7 @@ func (f *BasicSink) Resize(size int) {
 	}
 	f.PointsChan = make(chan []*datapoint.Datapoint, size)
 	f.EventsChan = make(chan []*event.Event, size)
+	f.TracesChan = make(chan []*trace.Span, size)
 }
 
 // NewBasicSink creates a BasicSink with an unbuffered chan.  Note, calls to AddDatapoints will then
@@ -91,5 +109,6 @@ func NewBasicSink() *BasicSink {
 	return &BasicSink{
 		PointsChan: make(chan []*datapoint.Datapoint),
 		EventsChan: make(chan []*event.Event),
+		TracesChan: make(chan []*trace.Span),
 	}
 }
