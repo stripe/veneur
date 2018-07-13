@@ -13,7 +13,7 @@ RUN git fetch
 RUN git checkout v0.5
 RUN go install github.com/gogo/protobuf/protoc-gen-gofast
 WORKDIR /go
-RUN go get -u github.com/golang/dep/cmd/dep
+RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 RUN go get -u -v golang.org/x/tools/cmd/stringer
 WORKDIR /go/src/golang.org/x/tools/cmd/stringer
 RUN git checkout d11f6ec946130207fd66b479a9a6def585b5110b
