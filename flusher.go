@@ -294,6 +294,8 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 	defer span.ClientFinish(s.TraceClient)
 	jmLength := 0
 	for _, wm := range wms {
+		jmLength += len(wm.globalCounters)
+		jmLength += len(wm.globalGauges)
 		jmLength += len(wm.histograms)
 		jmLength += len(wm.sets)
 		jmLength += len(wm.timers)
