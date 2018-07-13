@@ -26,7 +26,7 @@ before_script:
   - git checkout v0.5
   - popd
   - go install github.com/gogo/protobuf/protoc-gen-gofast
-  - go get -u github.com/golang/dep/cmd/dep
+  - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
   - go get -u golang.org/x/tools/cmd/stringer
   - pushd $GOPATH/src/golang.org/x/tools/cmd/stringer
   - git checkout 25101aadb97aa42907eee6a238d6d26a6cb3c756
