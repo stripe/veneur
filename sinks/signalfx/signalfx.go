@@ -47,15 +47,16 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client) error {
 	errorCh := make(chan error, len(c.pointsByKey)+1)
 
 	submitOne := func(client dpsink.Sink, points []*datapoint.Datapoint) {
-		span, ctx := trace.StartSpanFromContext(ctx, "")
+		span, childCtx := trace.StartSpanFromContext(ctx, "")
+		span.SetTag("datapoint_count", len(points))
 		defer span.ClientFinish(cl)
-		err := client.AddDatapoints(ctx, points)
+		defer wg.Done()
+		err := client.AddDatapoints(childCtx, points)
 		if err != nil {
 			span.Error(err)
 			span.Add(ssf.Count("flush.error_total", 1, map[string]string{"cause": "io", "sink": "signalfx"}))
 			errorCh <- err
 		}
-		wg.Done()
 	}
 
 	wg.Add(1)
@@ -152,7 +153,7 @@ func (sfx *SignalFxSink) newPointCollection() *collection {
 
 // Flush sends metrics to SignalFx
 func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
-	span, ctx := trace.StartSpanFromContext(ctx, "")
+	span, subCtx := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sfx.traceClient)
 
 	flushStart := time.Now()
@@ -211,7 +212,7 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	}
 	tags := map[string]string{"sink": "signalfx"}
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsSkipped, float32(countSkipped), tags))
-	err := coll.submit(ctx, sfx.traceClient)
+	err := coll.submit(subCtx, sfx.traceClient)
 	if err != nil {
 		span.Error(err)
 	}

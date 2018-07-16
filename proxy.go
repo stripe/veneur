@@ -360,13 +360,9 @@ func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consist
 		return
 	}
 
-	// At the last moment, lock the mutex and defer so we unlock after setting.
-	// We do this after we've fetched info so we don't hold the lock during long
-	// queries, timeouts or errors. The flusher can lock the mutex and prevent us
-	// from updating at the same time.
 	mtx.Lock()
-	defer mtx.Unlock()
 	ring.Set(destinations)
+	mtx.Unlock()
 	samples.Add(ssf.Gauge("discoverer.destination_number", float32(len(destinations)), srvTags))
 }
 
@@ -500,7 +496,7 @@ func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination stri
 		}).Warn("Failed to POST metrics to destination")
 	}
 	samples.Add(ssf.RandomlySample(0.1,
-		ssf.Gauge("metrics_by_destination", float32(batchSize), map[string]string{"destination": destination}),
+		ssf.Count("metrics_by_destination", float32(batchSize), map[string]string{"destination": destination}),
 	)...)
 }
 
