@@ -368,7 +368,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 		}
 	}
 	s.Statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(exportStart).Nanoseconds()), []string{"part:export"}, 1.0)
-	s.Statsd.Gauge("forward.post_metrics_total", float64(len(jsonMetrics)), nil, 1.0)
+	s.Statsd.Count("forward.post_metrics_total", int64(len(jsonMetrics)), nil, 1.0)
 	if len(jsonMetrics) == 0 {
 		log.Debug("Nothing to forward, skipping.")
 		return
