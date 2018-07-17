@@ -196,7 +196,7 @@ func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, 
 	// Len reports the unread length, so we have to record this before the
 	// http client consumes it
 	bodyLength := bodyBuffer.Len()
-	span.Add(ssf.Histogram(action+".content_length_bytes", float32(bodyLength), nil))
+	span.Add(ssf.Count(action+".content_length_bytes", float32(bodyLength), nil))
 
 	req, err := http.NewRequest(method, endpoint, &bodyBuffer)
 	req = req.WithContext(ctx)
