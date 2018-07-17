@@ -4,6 +4,9 @@
 * `veneur-emit` now takes a new option `-span_tags` for tags that should be applied only to spans. This allows span-specific tags that are not applied to other emitted values. Thanks [gphat](https://github.com/gphat)!
 * `veneur-emit`'s `-tag` flag now applies the supplied tags to any value emitted, be it a span, metric, service check or event. Use other, mode specific flags (e.g. span_tags) to add tags only to those modes. Thanks [gphat](https://github.com/gphat)!
 
+## Bugfixes
+* `veneur-prometheus` no longer crashes when the metrics host is unreachable. Thanks, [arjenvanderende](https://github.com/arjenvanderende)!
+
 # 6.0.0, 2018-06-28
 
 ## Added
