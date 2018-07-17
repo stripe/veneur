@@ -192,6 +192,7 @@ func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, 
 		}
 	}
 	span.Add(ssf.Timing(action+".duration_ns", time.Since(marshalStart), time.Nanosecond, mergeTags(extraTags, "part", "json")))
+	span.Add(ssf.Count(action+".bytes", float32(bodyBuffer.Len()), extraTags))
 
 	// Len reports the unread length, so we have to record this before the
 	// http client consumes it

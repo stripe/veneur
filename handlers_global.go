@@ -154,6 +154,7 @@ func unmarshalMetricsFromHTTP(ctx context.Context, client *trace.Client, w http.
 		span.Add(ssf.Count("import.request_error_total", 1, map[string]string{"cause": "unknown_content_encoding"}))
 		return span, nil, err
 	}
+	span.Add(ssf.Count("import.bytes", float32(r.ContentLength), nil, nil))
 
 	if err = json.NewDecoder(body).Decode(&jsonMetrics); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
