@@ -440,12 +440,7 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 		defer cancel()
 	}
 	metricCount := len(jsonMetrics)
-	span.Add(ssf.RandomlySample(0.1,
-		ssf.Count("import.metrics_total", float32(metricCount), map[string]string{
-			"remote_addr":      origin,
-			"veneurglobalonly": "",
-		}),
-	)...)
+	span.Add(ssf.Count("import.metrics_total", float32(metricCount), map[string]string{"veneurglobalonly": ""}))
 
 	jsonMetricsByDestination := make(map[string][]samplers.JSONMetric)
 	for _, h := range p.ForwardDestinations.Members() {
@@ -467,10 +462,9 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 	wg.Wait() // Wait for all the above goroutines to complete
 	log.WithField("count", metricCount).Info("Completed forward")
 
-	span.Add(ssf.RandomlySample(0.1,
+	span.Add(
 		ssf.Timing("proxy.duration_ns", time.Since(span.Start), time.Nanosecond, nil),
-		ssf.Count("proxy.proxied_metrics_total", float32(len(jsonMetrics)), nil),
-	)...)
+		ssf.Count("proxy.proxied_metrics_total", float32(len(jsonMetrics)), nil))
 }
 
 func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination string, batch []samplers.JSONMetric) {
