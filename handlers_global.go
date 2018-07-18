@@ -1,11 +1,13 @@
 package veneur
 
 import (
+	"bytes"
 	"compress/zlib"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
@@ -154,14 +156,20 @@ func unmarshalMetricsFromHTTP(ctx context.Context, client *trace.Client, w http.
 		span.Add(ssf.Count("import.request_error_total", 1, map[string]string{"cause": "unknown_content_encoding"}))
 		return span, nil, err
 	}
+	var teeBuffer bytes.Buffer
+	tee := io.TeeReader(body, &teeBuffer)
 	span.Add(ssf.Count("import.bytes", float32(r.ContentLength), nil))
-
-	if err = json.NewDecoder(body).Decode(&jsonMetrics); err != nil {
+	if err = json.NewDecoder(tee).Decode(&jsonMetrics); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		span.Error(err)
 		innerLogger.WithError(err).Error("Could not decode /import request")
 		span.Add(ssf.Count("import.request_error_total", 1, map[string]string{"cause": "json"}))
 		return span, nil, err
+	}
+
+	unpackedBody, err := ioutil.ReadAll(&teeBuffer)
+	if err == nil {
+		span.Add(ssf.Count("import.bytes.unpacked", float32(len(unpackedBody)), nil))
 	}
 
 	if len(jsonMetrics) == 0 {
