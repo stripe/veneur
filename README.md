@@ -56,19 +56,17 @@ More generically, Veneur is a convenient sink for various observability primitiv
 
 ## Use Case
 
-Once you cross a threshold into O(hundreds) of machines emitting metric data for an application, you've moved into that world where data about individual hosts is uninteresting
-except in aggregate form. Instead of paying to store tons of data points and then doing read-time aggregates later, Veneur can calculate global percentiles and forward those
-along to your TSDB, etc.
+Once you cross a threshold into dozens, hunreds or (gasp!) thousands of machines emitting metric data for an application, you've moved into that world where data about individual hosts is uninteresting except in aggregate form. Instead of paying to store tons of data points and then aggregating them later at read-time, Veneur can calculate global aggregates, like percentiles and forward those along to your time series database, etc.
 
 Veneur is also a StatsD or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) protocol transport, fowarding the locally collected metrics over more reliable TCP
 implementations.
 
-Here are some examples of why Veneur has been used:
-* reduce cost by pre-aggregating metrics like timers into percentiles
-* create a vendor agnostic metric collection pipeline
-* consolidate disparate observability data (trace spans to metrics, etc)
-* improve efficiency over other metric aggregator implementations
-* improve reliability by building a more resilient forwarding system over single points of failure
+Here are some examples of why Stripe and other companies are using Veneur today:
+* reducing cost by pre-aggregating metrics such as timers into percentiles
+* creating a vendor-agnostic metric collection pipeline
+* consolidating disparate observability data (from trace spans to metrics, and more!)
+* improving efficiency over other metric aggregator implementations
+* improving reliability by building a more resilient forwarding system over single points of failure
 
 ## See Also
 
