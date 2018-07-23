@@ -8,6 +8,8 @@
 # Table of Contents
 
    * [What Is Veneur?](#what-is-veneur)
+      * [Use Case](#use-case)
+      * [See Also](#see-also)
    * [Status](#status)
    * [Features](#features)
       * [Vendor And Backend Agnostic](#vendor-and-backend-agnostic)
@@ -52,7 +54,23 @@ Veneur  (`/vɛnˈʊr/`, rhymes with “assure”) is a distributed, fault-tolera
 
 More generically, Veneur is a convenient sink for various observability primitives with lots of outputs!
 
-See also:
+## Use Case
+
+Once you cross a threshold into O(hundreds) of machines emitting metric data for an application, you've moved into that world where data about individual hosts is uninteresting
+except in aggregate form. Instead of paying to store tons of data points and then doing read-time aggregates later, Veneur can calculate global percentiles and forward those
+along to your TSDB, etc.
+
+Veneur is also a StatsD or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) protocol transport, fowarding the locally collected metrics over more reliable TCP
+implementations.
+
+Here are some examples of why Veneur has been used:
+* reduce cost by pre-aggregating metrics like timers into percentiles
+* create a vendor agnostic metric collection pipeline
+* consolidate disparate observability data (trace spans to metrics, etc)
+* improve efficiency over other metric aggregator implementations
+* improve reliability by building a more resilient forwarding system over single points of failure
+
+## See Also
 
 * A unified, standard format for observability primitives, the [SSF](https://github.com/stripe/veneur/tree/master/ssf/#readme)
 * A proxy for resilient distributed aggregation, [veneur-proxy](https://github.com/stripe/veneur/tree/master/cmd/veneur-proxy/#readme)
