@@ -56,7 +56,7 @@ More generically, Veneur is a convenient sink for various observability primitiv
 
 ## Use Case
 
-Once you cross a threshold into dozens, hunreds or (gasp!) thousands of machines emitting metric data for an application, you've moved into that world where data about individual hosts is uninteresting except in aggregate form. Instead of paying to store tons of data points and then aggregating them later at read-time, Veneur can calculate global aggregates, like percentiles and forward those along to your time series database, etc.
+Once you cross a threshold into dozens, hundreds or (gasp!) thousands of machines emitting metric data for an application, you've moved into that world where data about individual hosts is uninteresting except in aggregate form. Instead of paying to store tons of data points and then aggregating them later at read-time, Veneur can calculate global aggregates, like percentiles and forward those along to your time series database, etc.
 
 Veneur is also a StatsD or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) protocol transport, fowarding the locally collected metrics over more reliable TCP
 implementations.
