@@ -81,19 +81,21 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 
 	p.HTTPAddr = conf.HTTPAddress
 
+	var idleTimeout time.Duration
+	if conf.IdleConnectionTimeout != "" {
+		idleTimeout, err = time.ParseDuration(conf.IdleConnectionTimeout)
+		if err != nil {
+			return p, err
+		}
+	}
 	transport := &http.Transport{
+		IdleConnTimeout: idleTimeout,
 		// Each of these properties DTRT (according to Go docs) when supplied with
 		// zero values as of Go 0.10.3
 		MaxIdleConns:        conf.MaxIdleConns,
 		MaxIdleConnsPerHost: conf.MaxIdleConnsPerHost,
 	}
-	if conf.IdleConnectionTimeout != "" {
-		idleTimeout, err := time.ParseDuration(conf.IdleConnectionTimeout)
-		if err != nil {
-			return p, err
-		}
-		transport.IdleConnTimeout = idleTimeout
-	}
+
 	p.HTTPClient = &http.Client{
 		Transport: transport,
 	}
