@@ -28,6 +28,7 @@
 * The `StartSpan` method on `tracer.Tracer` will default to the provided `operationName` if provided. This function is provided for compatibility with OpenTracing, but the package-level `trace.StartSpanFromContext` function is recommended for new users.
 * When creating timer metrics from indicator spans, veneur no longer prefixes `indicator_span_timer_name` with the string `veneur.`. Thanks, [antifuchs](https://github.com/antifuchs)!
 * `veneur-prometheus` now exports Histograms properly, with a statsd tag for each bucket
+* Environment config for `veneur-proxy` now uses `VENEUR_PROXY_` as a prefix. Previously used `VENEUR_` which was a bug!
 
 ## Updated
 * Metric sampler parse function now looks for `veneurlocalonly` and `veneurglobalonly` by prefix instead of direct equality for times where value can't/shouldn't be excluded even if it's blank. Thanks [joeybloggs](https://github.com/joeybloggs)
