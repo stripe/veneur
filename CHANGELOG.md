@@ -6,10 +6,13 @@
 * Isolated a potential resource starvation issue. Added new configuration options for `veneur-proxy` that configure it's [http.Transport](https://golang.org/pkg/net/http/#Transport):
   * `idle_connection_timeout` for controlling how long connections may idle before timing out, corresponds to `IdleConnTimeout`
   * `max_idle_conns` for controlling the maximum number of idle connections in total
-  * `max_idle_conns_per_host` for controlling the maximum number of idle connections per host
+  * `max_idle_conns_per_host` for controlling the maximum number of idle connections per host. Not that this now defaults to `100` for safety!
 
 ## Bugfixes
 * `veneur-prometheus` no longer crashes when the metrics host is unreachable. Thanks, [arjenvanderende](https://github.com/arjenvanderende)!
+
+## Removals
+* `veneur-proxy` now only logs forward counts at Debug level, drastically reducing log volume.
 
 # 6.0.0, 2018-06-28
 
