@@ -80,14 +80,17 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 	})
 
 	p.HTTPAddr = conf.HTTPAddress
-	idleTimeout, err := time.ParseDuration(conf.IdleConnectionTimeout)
-	if err != nil {
-		return p, err
-	}
+
 	transport := &http.Transport{
-		IdleConnTimeout:     idleTimeout,
 		MaxIdleConns:        conf.MaxIdleConns,
 		MaxIdleConnsPerHost: conf.MaxIdleConnsPerHost,
+	}
+	if conf.IdleConnectionTimeout != "" {
+		idleTimeout, err := time.ParseDuration(conf.IdleConnectionTimeout)
+		if err != nil {
+			return p, err
+		}
+		transport.IdleConnTimeout = idleTimeout
 	}
 	p.HTTPClient = &http.Client{
 		Transport: transport,
