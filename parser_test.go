@@ -103,6 +103,9 @@ func TestParseSSFInvalidTraceValidMetric(t *testing.T) {
 	metric := freshSSFMetric()
 
 	trace := &ssf.SSFSpan{}
+	trace.Tags = map[string]string{
+		"foo": "bar",
+	}
 	trace.Metrics = make([]*ssf.SSFSample, 0)
 	trace.Metrics = append(trace.Metrics, metric)
 
@@ -119,6 +122,7 @@ func TestParseSSFInvalidTraceValidMetric(t *testing.T) {
 			assert.Equal(t, metric.Name, m.Name, "Name")
 			assert.Equal(t, float64(metric.Value), m.Value, "Value")
 			assert.Equal(t, "counter", m.Type, "Type")
+			assert.NotContains(t, "foo:bar", m.Tags, "Should not pick up tag from parent span")
 		}
 
 		err = protocol.ValidateTrace(span)
