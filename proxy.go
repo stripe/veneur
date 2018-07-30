@@ -82,6 +82,8 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 	p.HTTPAddr = conf.HTTPAddress
 
 	transport := &http.Transport{
+		// Each of these properties DTRT (according to Go docs) when supplied with
+		// zero values as of Go 0.10.3
 		MaxIdleConns:        conf.MaxIdleConns,
 		MaxIdleConnsPerHost: conf.MaxIdleConnsPerHost,
 	}
