@@ -3,6 +3,10 @@
 ## Added
 * `veneur-emit` now takes a new option `-span_tags` for tags that should be applied only to spans. This allows span-specific tags that are not applied to other emitted values. Thanks [gphat](https://github.com/gphat)!
 * `veneur-emit`'s `-tag` flag now applies the supplied tags to any value emitted, be it a span, metric, service check or event. Use other, mode specific flags (e.g. span_tags) to add tags only to those modes. Thanks [gphat](https://github.com/gphat)!
+* Isolated a potential resource starvation issue. Added new configuration options for `veneur-proxy` that configure it's [http.Transport](https://golang.org/pkg/net/http/#Transport):
+  * `idle_connection_timeout` for controlling how long connections may idle before timing out, corresponds to `IdleConnTimeout`
+  * `max_idle_conns` for controlling the maximum number of idle connections in total
+  * `max_idle_conns_per_host` for controlling the maximum number of idle connections per host
 
 ## Bugfixes
 * `veneur-prometheus` no longer crashes when the metrics host is unreachable. Thanks, [arjenvanderende](https://github.com/arjenvanderende)!
