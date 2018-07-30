@@ -28,6 +28,17 @@ consul_forward_service_name: "forwardServiceName"
 # within this time.
 forward_timeout: 10s
 
+# Maximum idle time per host, correspends to Go's Transport.IdleConnTimeout
+idle_connection_timeout: 90s
+
+# Maximum number of idle connections across all host, corresponds to Go's
+# Transport.MaxIdleConns
+max_idle_conns: 100
+
+# Maximum number of idle connections per-host, corresponds to Go's
+# Transport.MaxIdleConnsPerHost
+max_idle_conns_per_host: 100
+
 ### TRACING
 # The address on which we will listen for trace data
 trace_address: "127.0.0.1:8128"

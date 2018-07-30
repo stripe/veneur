@@ -43,7 +43,7 @@ func readProxyConfig(r io.Reader) (ProxyConfig, error) {
 		}
 	}
 
-	err = envconfig.Process("veneur", &c)
+	err = envconfig.Process("veneur_proxy", &c)
 	if err != nil {
 		return c, err
 	}
