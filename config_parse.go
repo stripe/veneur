@@ -20,6 +20,10 @@ var defaultConfig = Config{
 	SpanChannelCapacity:    100,
 }
 
+var defaultProxyConfig = ProxyConfig{
+	MaxIdleConnsPerHost: 100,
+}
+
 // ReadProxyConfig unmarshals the proxy config file and slurps in its data.
 func ReadProxyConfig(path string) (c ProxyConfig, err error) {
 	f, err := os.Open(path)
@@ -27,7 +31,22 @@ func ReadProxyConfig(path string) (c ProxyConfig, err error) {
 		return c, err
 	}
 	defer f.Close()
-	return readProxyConfig(f)
+	c, err = readProxyConfig(f)
+	c.applyDefaults()
+	return
+}
+
+func (c *ProxyConfig) applyDefaults() {
+	if c.MaxIdleConnsPerHost == 0 {
+		// It's dangerous to leave this as the default. Since veneur-proxy is
+		// designed for HA environments with lots of globalstats backends we
+		// need higher defaults lest we have too small a connection pool and cause
+		// a glut of TIME_WAIT connections, so set a default.
+		log.WithField(
+			"new value", defaultProxyConfig.MaxIdleConnsPerHost,
+		).Warn("max_idle_conns_per_host being unset may lead to unsafe operations, defaulting!")
+		c.MaxIdleConnsPerHost = defaultProxyConfig.MaxIdleConnsPerHost
+	}
 }
 
 func readProxyConfig(r io.Reader) (ProxyConfig, error) {
@@ -43,7 +62,7 @@ func readProxyConfig(r io.Reader) (ProxyConfig, error) {
 		}
 	}
 
-	err = envconfig.Process("veneur", &c)
+	err = envconfig.Process("veneur_proxy", &c)
 	if err != nil {
 		return c, err
 	}

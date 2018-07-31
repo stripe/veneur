@@ -104,6 +104,17 @@ func TestConfigDefaults(t *testing.T) {
 	assert.Equal(t, c, expectedConfig, "Should have applied all config defaults")
 }
 
+func TestProxyConfigDefaults(t *testing.T) {
+	const emptyConfig = "---"
+	r := strings.NewReader(emptyConfig)
+	c, err := readProxyConfig(r)
+	assert.Nil(t, err, "Should parsed empty config file: %s", emptyConfig)
+
+	expectedConfig := defaultProxyConfig
+	c.applyDefaults()
+	assert.Equal(t, c, expectedConfig, "Should have applied all config defaults")
+}
+
 func TestVeneurExamples(t *testing.T) {
 	tests := []string{
 		"example.yaml",

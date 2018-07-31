@@ -262,7 +262,7 @@ func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 		res = errs
 	} else {
 		// otherwise just print a success message
-		log.Info("Completed forwarding to downstream Veneurs")
+		log.Debug("Completed forwarding to downstream Veneurs")
 	}
 
 	return res

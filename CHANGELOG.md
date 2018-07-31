@@ -3,9 +3,16 @@
 ## Added
 * `veneur-emit` now takes a new option `-span_tags` for tags that should be applied only to spans. This allows span-specific tags that are not applied to other emitted values. Thanks [gphat](https://github.com/gphat)!
 * `veneur-emit`'s `-tag` flag now applies the supplied tags to any value emitted, be it a span, metric, service check or event. Use other, mode specific flags (e.g. span_tags) to add tags only to those modes. Thanks [gphat](https://github.com/gphat)!
+* Isolated a potential resource starvation issue. Added new configuration options for `veneur-proxy` that configure it's [http.Transport](https://golang.org/pkg/net/http/#Transport):
+  * `idle_connection_timeout` for controlling how long connections may idle before timing out, corresponds to `IdleConnTimeout`
+  * `max_idle_conns` for controlling the maximum number of idle connections in total
+  * `max_idle_conns_per_host` for controlling the maximum number of idle connections per host. Not that this now defaults to `100` for safety!
 
 ## Bugfixes
 * `veneur-prometheus` no longer crashes when the metrics host is unreachable. Thanks, [arjenvanderende](https://github.com/arjenvanderende)!
+
+## Removals
+* `veneur-proxy` now only logs forward counts at Debug level, drastically reducing log volume.
 
 # 6.0.0, 2018-06-28
 
@@ -21,6 +28,7 @@
 * The `StartSpan` method on `tracer.Tracer` will default to the provided `operationName` if provided. This function is provided for compatibility with OpenTracing, but the package-level `trace.StartSpanFromContext` function is recommended for new users.
 * When creating timer metrics from indicator spans, veneur no longer prefixes `indicator_span_timer_name` with the string `veneur.`. Thanks, [antifuchs](https://github.com/antifuchs)!
 * `veneur-prometheus` now exports Histograms properly, with a statsd tag for each bucket
+* Environment config for `veneur-proxy` now uses `VENEUR_PROXY_` as a prefix. Previously used `VENEUR_` which was a bug!
 
 ## Updated
 * Metric sampler parse function now looks for `veneurlocalonly` and `veneurglobalonly` by prefix instead of direct equality for times where value can't/shouldn't be excluded even if it's blank. Thanks [joeybloggs](https://github.com/joeybloggs)
