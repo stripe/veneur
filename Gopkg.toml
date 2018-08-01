@@ -113,3 +113,9 @@
 [[constraint]]
   branch = "master"
   name = "github.com/segmentio/fasthash"
+
+[prune]
+  go-tests = true
+  unused-packages = true
+  non-go = true
+
