@@ -39,12 +39,8 @@ before_script:
   # fileDescriptor0 depending on which version of Go was used
   # to build protoc-gen-go.
   - git checkout ssf/sample.pb.go
-  - dep ensure -v
-
-  # We need to use gofmt built with 1.9+
-  # on *all* builds
-  # because some vendored files use type alias syntax
-  - /usr/bin/gofmt -w .
+  - dep check
+  - mv vendor ../ && /usr/bin/gofmt -w . && mv ../vendor .
 
   # See the corresponding lines in the Dockerfile for an explanation
   # of this logic
