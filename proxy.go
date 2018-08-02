@@ -196,7 +196,7 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 
 		p.TraceClient, err = trace.NewClient(conf.SsfDestinationAddress,
 			trace.Buffered,
-			trace.Capacity(128),
+			trace.Capacity(1024),
 			trace.FlushInterval(3*time.Second),
 			trace.ReportStatistics(stats, 1*time.Second, []string{format}),
 		)
