@@ -17,7 +17,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/metrics"
 )
 
 var tracer = trace.GlobalTracer
@@ -76,35 +75,39 @@ func (hct *httpClientTracer) gotConn(info httptrace.GotConnInfo) {
 	if info.Reused {
 		state = "reused"
 	}
-	// sp := hct.startSpan(fmt.Sprintf("http.gotConnection.%s", state))
-	// sp.SetTag("was_idle", info.WasIdle)
-	// sp.Add(ssf.Count(hct.prefix+".connections_used_total", 1, map[string]string{"state": state}))
-	metrics.ReportOne(hct.traceClient, ssf.Count(hct.prefix+".connections_used_total", 1, map[string]string{"state": state}))
+	sp := hct.startSpan(fmt.Sprintf("http.gotConnection.%s", state))
+	sp.SetTag("was_idle", info.WasIdle)
+	sp.Add(ssf.Count(hct.prefix+".connections_used_total", 1, map[string]string{"state": state}))
+	// samples := &ssf.Samples{}
+	// samples.Add(ssf.RandomlySample(0.1,
+	// 	ssf.Count(hct.prefix+".connections_used_total", 1, map[string]string{"state": state}),
+	// )...)
+	// metrics.Report(hct.traceClient, samples)
 }
 
 // dnsStart marks the beginning of the DNS lookup
 func (hct *httpClientTracer) dnsStart(info httptrace.DNSStartInfo) {
-	// hct.startSpan("http.resolvingDNS")
+	hct.startSpan("http.resolvingDNS")
 }
 
 // gotFirstResponseByte marks us receiving our first byte
 func (hct *httpClientTracer) gotFirstResponseByte() {
-	// hct.startSpan("http.gotFirstByte")
+	hct.startSpan("http.gotFirstByte")
 }
 
 // connectStart marks beginning of the connect process
 func (hct *httpClientTracer) connectStart(network, addr string) {
-	// hct.startSpan("http.connecting")
+	hct.startSpan("http.connecting")
 }
 
 // wroteHeaders marks the write being started
 func (hct *httpClientTracer) wroteHeaders() {
-	// hct.startSpan("http.finishedHeaders")
+	hct.startSpan("http.finishedHeaders")
 }
 
 // wroteRequest marks the write being completed
 func (hct *httpClientTracer) wroteRequest(info httptrace.WroteRequestInfo) {
-	// hct.startSpan("http.finishedWrite")
+	hct.startSpan("http.finishedWrite")
 }
 
 // finishSpan is called to ensure we're done tracing
