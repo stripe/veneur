@@ -17,6 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/metrics"
 )
 
 var tracer = trace.GlobalTracer
@@ -75,9 +76,10 @@ func (hct *httpClientTracer) gotConn(info httptrace.GotConnInfo) {
 	if info.Reused {
 		state = "reused"
 	}
-	sp := hct.startSpan(fmt.Sprintf("http.gotConnection.%s", state))
-	sp.SetTag("was_idle", info.WasIdle)
-	sp.Add(ssf.Count(hct.prefix+".connections_used_total", 1, map[string]string{"state": state}))
+	// sp := hct.startSpan(fmt.Sprintf("http.gotConnection.%s", state))
+	// sp.SetTag("was_idle", info.WasIdle)
+	// sp.Add(ssf.Count(hct.prefix+".connections_used_total", 1, map[string]string{"state": state}))
+	metrics.ReportOne(hct.traceClient, ssf.Count(hct.prefix+".connections_used_total", 1, map[string]string{"state": state}))
 }
 
 // dnsStart marks the beginning of the DNS lookup
