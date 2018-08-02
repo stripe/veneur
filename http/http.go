@@ -78,11 +78,6 @@ func (hct *httpClientTracer) gotConn(info httptrace.GotConnInfo) {
 	sp := hct.startSpan(fmt.Sprintf("http.gotConnection.%s", state))
 	sp.SetTag("was_idle", info.WasIdle)
 	sp.Add(ssf.Count(hct.prefix+".connections_used_total", 1, map[string]string{"state": state}))
-	// samples := &ssf.Samples{}
-	// samples.Add(ssf.RandomlySample(0.1,
-	// 	ssf.Count(hct.prefix+".connections_used_total", 1, map[string]string{"state": state}),
-	// )...)
-	// metrics.Report(hct.traceClient, samples)
 }
 
 // dnsStart marks the beginning of the DNS lookup
