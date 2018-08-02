@@ -7,9 +7,14 @@
   * `idle_connection_timeout` for controlling how long connections may idle before timing out, corresponds to `IdleConnTimeout`
   * `max_idle_conns` for controlling the maximum number of idle connections in total
   * `max_idle_conns_per_host` for controlling the maximum number of idle connections per host. Not that this now defaults to `100` for safety!
+* Added configuration options and improved defaults for the following tracing client parameters:
+  * `tracing_client_capacity` for controlling the depth of a buffer that holds tracing spans when they can't be emitted, defaults to `1024`, up from `64`
+  * `tracing_client_flush_interval` for controlling how often the tracing client's backing buffer will be emptied (as an alternative to when it is full), defaults to `500ms` from `3s`
+  * `tracing_client_metrics_interval` for controlling how often thew tracing client will send metrics about it's own operations, defaults to `1s` and is unchanged
 
 ## Bugfixes
 * `veneur-prometheus` no longer crashes when the metrics host is unreachable. Thanks, [arjenvanderende](https://github.com/arjenvanderende)!
+
 
 ## Removals
 * `veneur-proxy` now only logs forward counts at Debug level, drastically reducing log volume.

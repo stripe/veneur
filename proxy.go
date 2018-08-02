@@ -194,10 +194,22 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 			format = "ssf_format:framed"
 		}
 
+		traceFlushInterval, err := time.ParseDuration(conf.TracingClientFlushInterval)
+		if err != nil {
+			logger.WithError(err).Error("Error parsing tracing flush interval")
+			return p, err
+		}
+		traceMetricsInterval, err := time.ParseDuration(conf.TracingClientMetricsInterval)
+		if err != nil {
+			logger.WithError(err).Error("Error parsing tracing metrics interval")
+			return p, err
+		}
+
 		p.TraceClient, err = trace.NewClient(conf.SsfDestinationAddress,
 			trace.Buffered,
-			trace.FlushInterval(3*time.Second),
-			trace.ReportStatistics(stats, 1*time.Second, []string{format}),
+			trace.Capacity(uint(conf.TracingClientCapacity)),
+			trace.FlushInterval(traceFlushInterval),
+			trace.ReportStatistics(stats, traceMetricsInterval, []string{format}),
 		)
 		if err != nil {
 			logger.WithField("ssf_destination_address", conf.SsfDestinationAddress).

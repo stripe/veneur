@@ -21,7 +21,10 @@ var defaultConfig = Config{
 }
 
 var defaultProxyConfig = ProxyConfig{
-	MaxIdleConnsPerHost: 100,
+	MaxIdleConnsPerHost:          100,
+	TracingClientCapacity:        1024,
+	TracingClientFlushInterval:   "500ms",
+	TracingClientMetricsInterval: "1s",
 }
 
 // ReadProxyConfig unmarshals the proxy config file and slurps in its data.
@@ -46,6 +49,15 @@ func (c *ProxyConfig) applyDefaults() {
 			"new value", defaultProxyConfig.MaxIdleConnsPerHost,
 		).Warn("max_idle_conns_per_host being unset may lead to unsafe operations, defaulting!")
 		c.MaxIdleConnsPerHost = defaultProxyConfig.MaxIdleConnsPerHost
+	}
+	if c.TracingClientCapacity == 0 {
+		c.TracingClientCapacity = defaultProxyConfig.TracingClientCapacity
+	}
+	if c.TracingClientFlushInterval == "" {
+		c.TracingClientFlushInterval = defaultProxyConfig.TracingClientFlushInterval
+	}
+	if c.TracingClientMetricsInterval == "" {
+		c.TracingClientMetricsInterval = defaultProxyConfig.TracingClientMetricsInterval
 	}
 }
 

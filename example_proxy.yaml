@@ -39,6 +39,20 @@ max_idle_conns: 100
 # Transport.MaxIdleConnsPerHost
 max_idle_conns_per_host: 100
 
+# Configures the tracing client used by veneur-proxy to have a buffer of the
+# specified size. This smooths out drops that might occur due to synchronous
+# flushes. You can probably leave this alone.
+tracing_client_capacity: 1024
+
+# Configures the tracing client used by veneur-proxy to flush at the specified
+# interval or when it fills up, whichever comes first. You can probably leave
+# this alone.
+tracing_client_flush_interval: 500ms
+
+# Configures the tracing client used by veneur-proxy to emit metrics about it's
+# success at the specified interval.
+tracing_client_metrics_interval: 1s
+
 ### TRACING
 # The address on which we will listen for trace data
 trace_address: "127.0.0.1:8128"
