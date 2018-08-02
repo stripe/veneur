@@ -82,27 +82,27 @@ func (hct *httpClientTracer) gotConn(info httptrace.GotConnInfo) {
 
 // dnsStart marks the beginning of the DNS lookup
 func (hct *httpClientTracer) dnsStart(info httptrace.DNSStartInfo) {
-	hct.startSpan("http.resolvingDNS")
+	// hct.startSpan("http.resolvingDNS")
 }
 
 // gotFirstResponseByte marks us receiving our first byte
 func (hct *httpClientTracer) gotFirstResponseByte() {
-	hct.startSpan("http.gotFirstByte")
+	// hct.startSpan("http.gotFirstByte")
 }
 
 // connectStart marks beginning of the connect process
 func (hct *httpClientTracer) connectStart(network, addr string) {
-	hct.startSpan("http.connecting")
+	// hct.startSpan("http.connecting")
 }
 
 // wroteHeaders marks the write being started
 func (hct *httpClientTracer) wroteHeaders() {
-	hct.startSpan("http.finishedHeaders")
+	// hct.startSpan("http.finishedHeaders")
 }
 
 // wroteRequest marks the write being completed
 func (hct *httpClientTracer) wroteRequest(info httptrace.WroteRequestInfo) {
-	hct.startSpan("http.finishedWrite")
+	// hct.startSpan("http.finishedWrite")
 }
 
 // finishSpan is called to ensure we're done tracing
