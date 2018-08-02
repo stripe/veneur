@@ -541,6 +541,16 @@ func validateFlagCombinations(passedFlags map[string]flag.Value) {
 			logrus.Fatalf("Flag %q is only valid with \"-mode %s\"", flagname, fmode)
 		}
 	}
+
+	// Sniff for args that were missing a dash.
+	for _, arg := range flag.Args() {
+		if fmode, has := flagModeMappings[arg]; has && (fmode&mode) == mode {
+			if _, has := passedFlags[arg]; !has {
+				logrus.Fatalf("Passed %q as an argument, but it's a parameter name. Did you mean \"-%s\"?", arg, arg)
+			}
+		}
+	}
+
 }
 
 func buildEventPacket(passedFlags map[string]flag.Value) (bytes.Buffer, error) {
