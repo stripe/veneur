@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/profile"
 	"github.com/sirupsen/logrus"
 	vhttp "github.com/stripe/veneur/http"
+	"github.com/stripe/veneur/proxysrv"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
@@ -52,6 +53,10 @@ type Proxy struct {
 	AcceptingTraces        bool
 	ForwardTimeout         time.Duration
 
+	// gRPC server
+	grpcListenAddress string
+	grpcServer        *proxysrv.Server
+
 	usingConsul     bool
 	usingKubernetes bool
 	enableProfiling bool
@@ -79,25 +84,28 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 		},
 	})
 
-	p.HTTPAddr = conf.HTTPAddress
+	if conf.HTTPAddress != "" {
+		p.HTTPAddr = conf.HTTPAddress
 
-	var idleTimeout time.Duration
-	if conf.IdleConnectionTimeout != "" {
-		idleTimeout, err = time.ParseDuration(conf.IdleConnectionTimeout)
-		if err != nil {
-			return p, err
+		var idleTimeout time.Duration
+		if conf.IdleConnectionTimeout != "" {
+			idleTimeout, err = time.ParseDuration(conf.IdleConnectionTimeout)
+			if err != nil {
+				return p, err
+			}
 		}
-	}
-	transport := &http.Transport{
-		IdleConnTimeout: idleTimeout,
-		// Each of these properties DTRT (according to Go docs) when supplied with
-		// zero values as of Go 0.10.3
-		MaxIdleConns:        conf.MaxIdleConns,
-		MaxIdleConnsPerHost: conf.MaxIdleConnsPerHost,
-	}
+		transport := &http.Transport{
+			IdleConnTimeout: idleTimeout,
+			// Each of these properties DTRT (according to Go docs) when supplied with
+			// zero values as of Go 0.10.3
+			MaxIdleConns:        conf.MaxIdleConns,
+			MaxIdleConnsPerHost: conf.MaxIdleConnsPerHost,
+		}
 
-	p.HTTPClient = &http.Client{
-		Transport: transport,
+		p.HTTPClient = &http.Client{
+			Transport: transport,
+		}
+		logger.WithField("config", conf).Debug("Initialized HTTP listener")
 	}
 
 	p.enableProfiling = conf.EnableProfiling
@@ -218,6 +226,20 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 		}
 	}
 
+	// Setup the grpc server if it was configured
+	p.grpcListenAddress = conf.GrpcAddress
+	if p.grpcListenAddress != "" {
+		// TODO Timeout?
+		rpcServer, err := proxysrv.New(p.ForwardDestinations,
+			proxysrv.WithTraceClient(p.TraceClient))
+		if err != nil {
+			logger.WithError(err).Error("Error creating forwarding gRPC service")
+			return p, err
+		}
+		p.grpcServer = rpcServer
+		logger.WithField("config", conf).Debug("Initialized gRPC listener")
+	}
+
 	// TODO Size of replicas in config?
 	//ret.ForwardDestinations.NumberOfReplicas = ???
 
@@ -312,7 +334,30 @@ func (p *Proxy) Start() {
 			}
 		}
 	}()
+}
 
+// Start all of the the configured servers (gRPC or HTTP) and block until
+// one of them exist.  At that point, stop them both.
+func (p *Proxy) Serve() {
+	done := make(chan struct{})
+
+	if p.HTTPAddr != "" {
+		go func() {
+			p.HTTPServe()
+			done <- struct{}{}
+		}()
+	}
+	if p.grpcServer != nil {
+		go func() {
+			p.gRPCServe()
+			done <- struct{}{}
+		}()
+	}
+
+	// wait until at least one of the servers has shut down
+	<-done
+	graceful.Shutdown()
+	// TODO SHUTDOWN RIGHT
 }
 
 // HTTPServe starts the HTTP server and listens perpetually until it encounters an unrecoverable error.
@@ -358,6 +403,45 @@ func (p *Proxy) HTTPServe() {
 	}
 
 	graceful.Shutdown()
+}
+
+// gRPCServe starts the gRPC server and blocks until an error is encountered,
+// or the server is shutdown.
+//
+// TODO this doesn't handle SIGUSR2 and SIGHUP on it's own, unlike HTTPServe
+// As long as both are running this is actually fine, as Serve will stop
+// the gRPC server when the HTTP one exits.  When running just gRPC however,
+// the signal handling won't work.
+func (p *Proxy) gRPCServe() {
+	entry := log.WithFields(logrus.Fields{"address": p.grpcListenAddress})
+	entry.Info("Starting gRPC server")
+	if err := p.grpcServer.Serve(p.grpcListenAddress); err != nil {
+		entry.WithError(err).Error("gRPC server was not shut down cleanly")
+	}
+
+	entry.Info("Stopped gRPC server")
+}
+
+// Try to perform a graceful stop of the gRPC server.  If it takes more than
+// 10 seconds, timeout and force-stop.
+func (p *Proxy) gRPCStop() {
+	if p.grpcServer == nil {
+		return
+	}
+
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		p.grpcServer.GracefulStop()
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		log.Info("Force-stopping the gRPC server after waiting for a graceful shutdown")
+		p.grpcServer.Stop()
+	}
 }
 
 // RefreshDestinations updates the server's list of valid destinations

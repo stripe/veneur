@@ -8,6 +8,7 @@ type ProxyConfig struct {
 	EnableProfiling              bool   `yaml:"enable_profiling"`
 	ForwardAddress               string `yaml:"forward_address"`
 	ForwardTimeout               string `yaml:"forward_timeout"`
+	GrpcAddress                  string `yaml:"grpc_address"`
 	HTTPAddress                  string `yaml:"http_address"`
 	IdleConnectionTimeout        string `yaml:"idle_connection_timeout"`
 	MaxIdleConns                 int    `yaml:"max_idle_conns"`
