@@ -256,18 +256,17 @@ func (w *Worker) Work() {
 // that allows us to fetch the Worker's processed count
 // in a non-racey way.
 func (w *Worker) MetricsProcessedCount() int64 {
-	w.mutex.Lock()
-	defer w.mutex.Unlock()
-	return w.processed
+	return atomic.LoadInt64(&w.processed)
 }
 
 // ProcessMetric takes a Metric and samples it
 //
 // This is standalone to facilitate testing
 func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
+	atomic.AddInt64(&w.processed, 1)
+
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
-	w.processed++
 	w.wm.Upsert(m.MetricKey, m.Scope, m.Tags)
 
 	switch m.Type {
@@ -316,7 +315,7 @@ func (w *Worker) ImportMetric(other samplers.JSONMetric) {
 
 	// we don't increment the processed metric counter here, it was already
 	// counted by the original veneur that sent this to us
-	w.imported++
+	atomic.AddInt64(&w.imported, 1)
 	if other.Type == counterTypeName || other.Type == gaugeTypeName {
 		// this is an odd special case -- counters that are imported are global
 		w.wm.Upsert(other.MetricKey, samplers.GlobalOnly, other.Tags)
@@ -363,7 +362,7 @@ func (w *Worker) ImportMetricGRPC(other *metricpb.Metric) (err error) {
 	}
 
 	w.wm.Upsert(key, scope, other.Tags)
-	w.imported++
+	atomic.AddInt64(&w.imported, 1)
 
 	switch v := other.GetValue().(type) {
 	case *metricpb.Metric_Counter:
@@ -405,15 +404,15 @@ func (w *Worker) Flush() WorkerMetrics {
 	// mutex is held! So we try and minimize it by copying the maps of values
 	// and assigning new ones.
 	wm := NewWorkerMetrics()
-	w.mutex.Lock()
 	ret := w.wm
-	processed := w.processed
-	imported := w.imported
-
+	w.mutex.Lock()
 	w.wm = wm
-	w.processed = 0
-	w.imported = 0
 	w.mutex.Unlock()
+
+	// We're doing the swap outside of the lock because it's ok if we miss a
+	// few increments and it keeps the lock duration shorter.
+	processed := atomic.SwapInt64(&w.processed, 0)
+	imported := atomic.SwapInt64(&w.imported, 0)
 
 	// Track how much time each worker takes to flush.
 	w.stats.Timing(
