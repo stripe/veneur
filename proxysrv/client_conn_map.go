@@ -39,7 +39,6 @@ func (m *clientConnMap) Add(dest string) error {
 	if _, ok := m.Get(dest); ok {
 		return nil
 	}
-
 	conn, err := grpc.Dial(dest, m.options...)
 
 	m.Lock()

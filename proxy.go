@@ -548,6 +548,7 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 	defer span.ClientFinish(p.TraceClient)
 
 	if p.ForwardTimeout > 0 {
+		fmt.Printf("TIMOUT PROXY %d\n", p.ForwardTimeout)
 		var cancel func()
 		ctx, cancel = context.WithTimeout(ctx, p.ForwardTimeout)
 		defer cancel()
