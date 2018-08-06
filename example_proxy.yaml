@@ -22,6 +22,9 @@ forward_address: "http://veneur.example.com"
 # Or use a consul service for consistent forwarding.
 consul_forward_service_name: "forwardServiceName"
 
+# The address on which to listen for imports over gRPC.
+grpc_address: "0.0.0.0:8200"
+
 # Maximum time that forwarding each batch of metrics can take;
 # note that forwarding to multiple global veneur servers happens in
 # parallel, so every forwarding operation is expected to complete

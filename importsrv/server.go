@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/segmentio/fasthash/fnv1a"
 	"golang.org/x/net/context" // This can be replace with "context" after Go 1.8 support is dropped
 	"google.golang.org/grpc"
@@ -52,7 +53,11 @@ type Option func(*options)
 // output to.
 func New(metricOuts []MetricIngester, opts ...Option) *Server {
 	res := &Server{
-		Server:     grpc.NewServer(),
+		Server: grpc.NewServer(grpc.UnaryInterceptor(
+			grpc_middleware.ChainUnaryServer(
+				trace.UnaryServerTracingInterceptor(trace.DefaultClient),
+			),
+		)),
 		metricOuts: metricOuts,
 		opts:       &options{},
 	}
@@ -79,7 +84,6 @@ func (s *Server) Serve(addr string) error {
 		return fmt.Errorf("failed to bind the import server to '%s': %v",
 			addr, err)
 	}
-
 	return s.Server.Serve(ln)
 }
 

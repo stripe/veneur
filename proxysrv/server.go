@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context" // This can be replace with "context" after Go 1.8 support is dropped
 	"google.golang.org/grpc"
@@ -66,12 +67,19 @@ type options struct {
 // is unstarted.
 func New(destinations *consistent.Consistent, opts ...Option) (*Server, error) {
 	res := &Server{
-		Server: grpc.NewServer(),
+		Server: grpc.NewServer(grpc.UnaryInterceptor(
+			grpc_middleware.ChainUnaryServer(
+				trace.UnaryServerTracingInterceptor(trace.DefaultClient),
+			),
+		)),
 		opts: &options{
 			forwardTimeout: defaultForwardTimeout,
 			statsInterval:  defaultReportStatsInterval,
 		},
-		conns:               newClientConnMap(grpc.WithInsecure()),
+		conns: newClientConnMap(
+			grpc.WithInsecure(),
+			grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(trace.UnaryClientTracingInterceptor())),
+		),
 		activeProxyHandlers: new(int64),
 	}
 
@@ -177,22 +185,27 @@ func (s *Server) SetDestinations(dests *consistent.Consistent) error {
 // SendMetrics spawns a new goroutine that forwards metrics to the destinations
 // and exist immediately.
 func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) (*empty.Empty, error) {
+
+	// This is wrong, what is canceling this?
+	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxysrv.send_metrics")
+	nctx := span.Attach(context.Background())
+
 	go func() {
 		// Track the number of active goroutines in a counter
 		atomic.AddInt64(s.activeProxyHandlers, 1)
-		_ = s.sendMetrics(context.Background(), mlist)
+		_ = s.sendMetrics(nctx, mlist)
 		atomic.AddInt64(s.activeProxyHandlers, -1)
 	}()
 	return &empty.Empty{}, nil
 }
 
 func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) error {
-	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxysrv.send_metrics")
+	span, nctx := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxysrv.send_metrics")
 	defer span.ClientFinish(s.opts.traceClient)
 
 	if s.opts.forwardTimeout > 0 {
 		var cancel func()
-		ctx, cancel = context.WithTimeout(ctx, s.opts.forwardTimeout)
+		nctx, cancel = context.WithTimeout(nctx, s.opts.forwardTimeout)
 		defer cancel()
 	}
 	metrics := mlist.Metrics
@@ -219,11 +232,10 @@ func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 	wg := sync.WaitGroup{}
 	wg.Add(len(dests))
 	errCh := make(chan forwardError)
-
 	for dest, batch := range dests {
 		go func(dest string, batch []*metricpb.Metric) {
 			defer wg.Done()
-			if err := s.forward(ctx, dest, batch); err != nil {
+			if err := s.forward(nctx, dest, batch); err != nil {
 				msg := fmt.Sprintf("failed to forward to the host '%s'", dest)
 				errCh <- forwardError{err: err, cause: "forward", msg: msg,
 					numMetrics: len(batch)}

@@ -548,7 +548,8 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		}
 
 		ret.grpcServer = importsrv.New(ingesters,
-			importsrv.WithTraceClient(ret.TraceClient))
+			importsrv.WithTraceClient(ret.TraceClient),
+		)
 	}
 
 	logger.WithField("config", conf).Debug("Initialized server")
@@ -632,7 +633,11 @@ func (s *Server) Start() {
 	// Initialize a gRPC connection for forwarding
 	if s.forwardUseGRPC {
 		var err error
-		s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure())
+		s.grpcForwardConn, err = grpc.Dial(
+			s.ForwardAddr,
+			grpc.WithUnaryInterceptor(trace.UnaryClientTracingInterceptor()),
+			grpc.WithInsecure(),
+		)
 		if err != nil {
 			log.WithError(err).WithFields(logrus.Fields{
 				"forwardAddr": s.ForwardAddr,
