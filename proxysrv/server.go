@@ -258,8 +258,8 @@ func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 		for _, err := range errs {
 			err.reportMetrics(span)
 		}
-		log.WithError(res).Error("Proxying failed")
 		res = errs
+		log.WithError(res).Error("Proxying failed")
 	} else {
 		// otherwise just print a success message
 		log.Debug("Completed forwarding to downstream Veneurs")

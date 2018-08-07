@@ -35,6 +35,7 @@ func newForwardGRPCFixture(t testing.TB, localConfig Config, sink sinks.MetricSi
 	go func() {
 		global.Serve()
 	}()
+	waitForHTTPStart(t, global, 3*time.Second)
 
 	// Create a proxy Veneur
 	proxyCfg := generateProxyConfig()
@@ -42,10 +43,11 @@ func newForwardGRPCFixture(t testing.TB, localConfig Config, sink sinks.MetricSi
 	proxyCfg.GrpcAddress = unusedLocalTCPAddress(t)
 	proxyCfg.ConsulForwardServiceName = ""
 	proxy, err := NewProxyFromConfig(logrus.New(), proxyCfg)
+	assert.NoError(t, err)
 	go func() {
 		proxy.Serve()
 	}()
-	assert.NoError(t, err)
+	waitForHTTPStart(t, &proxy, 3*time.Second)
 
 	localConfig.ForwardAddress = proxyCfg.GrpcAddress
 	localConfig.ForwardUseGrpc = true
