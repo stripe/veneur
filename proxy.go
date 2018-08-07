@@ -70,7 +70,7 @@ type Proxy struct {
 	grpcListenAddress string
 
 	// HTTP
-	// An atomic boolean for weather or not the HTTP server is listenting
+	// An atomic boolean for whether or not the HTTP server is listening
 	numListeningHTTP *int32
 }
 
@@ -657,7 +657,7 @@ func (p *Proxy) Shutdown() {
 	p.gRPCStop()
 }
 
-// isListeningHTTP returns if the Proxy is currently listenting over HTTP
+// isListeningHTTP returns if the Proxy is currently listening over HTTP
 func (p *Proxy) isListeningHTTP() bool {
 	return atomic.LoadInt32(p.numListeningHTTP) > 0
 }
