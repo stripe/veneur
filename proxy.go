@@ -345,6 +345,24 @@ func (p *Proxy) Start() {
 			}
 		}()
 	}
+
+	go func() {
+		hostname, _ := os.Hostname()
+		defer func() {
+			ConsumePanic(p.Sentry, p.TraceClient, hostname, recover())
+		}()
+		ticker := time.NewTicker(p.MetricsInterval)
+		for {
+			select {
+			case <-p.shutdown:
+				// stop flushing on graceful shutdown
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				p.ReportRuntimeMetrics()
+			}
+		}
+	}()
 }
 
 // Start all of the the configured servers (gRPC or HTTP) and block until
