@@ -368,7 +368,7 @@ func (p *Proxy) Start() {
 // Start all of the the configured servers (gRPC or HTTP) and block until
 // one of them exist.  At that point, stop them both.
 func (p *Proxy) Serve() {
-	done := make(chan struct{})
+	done := make(chan struct{}, 2)
 
 	go func() {
 		p.HTTPServe()
