@@ -462,10 +462,9 @@ func (p *Proxy) gRPCStop() {
 	}
 
 	done := make(chan struct{})
-	defer close(done)
 	go func() {
 		p.grpcServer.GracefulStop()
-		done <- struct{}{}
+		close(done)
 	}()
 
 	select {

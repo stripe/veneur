@@ -248,7 +248,7 @@ func TestProxyStopGRPC(t *testing.T) {
 	go func() {
 		p.Serve()
 		defer p.Shutdown()
-		done <- struct{}{}
+		close(done)
 	}()
 
 	// Only stop the gRPC server. This should cause (*Proxy).Serve to exit.
@@ -272,7 +272,7 @@ func TestProxyServeStopHTTP(t *testing.T) {
 	go func() {
 		p.Serve()
 		defer p.Shutdown()
-		done <- struct{}{}
+		close(done)
 	}()
 
 	// Stop the HTTP server only, causing Serve to exit.
