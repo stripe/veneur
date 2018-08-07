@@ -1322,7 +1322,7 @@ type testHTTPStarter interface {
 
 // waitForHTTPStart blocks until the Server's HTTP server is started, or until
 // the specified duration is elapsed.
-func waitForHTTPStart(t *testing.T, s testHTTPStarter, timeout time.Duration) {
+func waitForHTTPStart(t testing.TB, s testHTTPStarter, timeout time.Duration) {
 	tickCh := time.Tick(10 * time.Millisecond)
 	timeoutCh := time.After(timeout)
 

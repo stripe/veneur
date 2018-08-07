@@ -423,6 +423,7 @@ func (p *Proxy) HTTPServe() {
 	// when *not* running under einhorn.
 	graceful.AddSignal(syscall.SIGUSR2, syscall.SIGHUP)
 	graceful.HandleSignals()
+	gracefulSocket := graceful.WrapListener(httpSocket)
 	log.WithField("address", p.HTTPAddr).Info("HTTP server listening")
 
 	// Signal that the HTTP server is listening
@@ -430,9 +431,10 @@ func (p *Proxy) HTTPServe() {
 	defer atomic.AddInt32(p.numListeningHTTP, -1)
 	bind.Ready()
 
-	if err := graceful.Serve(httpSocket, p.Handler()); err != nil {
+	if err := http.Serve(gracefulSocket, p.Handler()); err != nil {
 		log.WithError(err).Error("HTTP server shut down due to error")
 	}
+	log.Info("Stopped HTTP server")
 
 	graceful.Shutdown()
 }
