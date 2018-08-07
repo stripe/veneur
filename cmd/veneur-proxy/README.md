@@ -24,11 +24,14 @@ Use the `consul_refresh_interval` to specify how often Veneur should refresh it'
 * `debug`: Enable or disable debug logging with true/false.
 * `enable_profiling`: Enable or disable go profiling. Danger, might fill up your disk if not cared for.
 * `http_address`: The `host:port` pair in which this program will listen for HTTP commands.
+* `grpc_address`: The `host:port` pair to listen on for metric forwards over gRPC.
 * `consul_refresh_interval`: How often to refresh from Consul's healthy nodes. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration)
 * `ssf_destination_address`: The `host:port` address of a Veneur to send `veneur_proxy`'s metrics to over SSF.
 * `stats_address`: The `host:port` destination to send metrics to over StatsD when `veneur-proxy` experiences backpressure on submitting to `ssf_destination_address`.
-* `forward_address`: Use a static host for forwarding…
-* `consul_forward_service_name`: The name of a consul service for consistent forwarding.
+* `forward_address`: Use a static host for forwarding over HTTP.
+* `grpc_forward_address`: Use a static host for forwarding (over gRPC).
+* `consul_forward_service_name`: The name of a consul service for consistent forwarding over HTTP.
+* `consul_forward_grpc_service_name`: The name of a consul service for consistent forwarding over gRPC.
 * `sentry_dsn`: A [Sentry](https://sentry.io) DSN to which errors will be sent.
 
 ## Concerns
