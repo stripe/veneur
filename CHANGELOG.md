@@ -1,3 +1,8 @@
+# 8.0.0
+
+## Added
+* Metrics can be forwarded over gRPC using veneur-proxy (and Consul).  Thanks, [noahgoldman](https://github.com/noahgoldman) and [Quantcast](https://github.com/quantcast)!
+
 # 7.0.0, in progress
 
 ## Added
