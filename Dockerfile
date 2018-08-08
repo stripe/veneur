@@ -6,12 +6,11 @@ ENV GOPATH=/go
 RUN apt-get update
 RUN apt-get install -y zip
 RUN go get -u -v github.com/ChimeraCoder/gojson/gojson
-RUN go get -u -v github.com/golang/protobuf/protoc-gen-go
-RUN go get -d -v github.com/gogo/protobuf/protoc-gen-gofast
+RUN go get -d -v github.com/gogo/protobuf/protoc-gen-gogofaster
 WORKDIR /go/src/github.com/gogo/protobuf
 RUN git fetch
 RUN git checkout v0.5
-RUN go install github.com/gogo/protobuf/protoc-gen-gofast
+RUN go install github.com/gogo/protobuf/protoc-gen-gogofaster
 WORKDIR /go
 RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 RUN go get -u -v golang.org/x/tools/cmd/stringer
