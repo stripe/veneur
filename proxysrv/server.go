@@ -296,8 +296,8 @@ func (s *Server) forward(ctx context.Context, dest string, ms []*metricpb.Metric
 	}
 
 	_ = metrics.ReportBatch(s.opts.traceClient, ssf.RandomlySample(0.1,
-		ssf.Gauge("metrics_by_destination", float32(len(ms)),
-			map[string]string{"destination": dest}),
+		ssf.Count("metrics_by_destination", float32(len(ms)),
+			map[string]string{"destination": dest, "protocol": "grpc"}),
 	))
 
 	return nil
