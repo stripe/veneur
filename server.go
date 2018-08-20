@@ -410,6 +410,12 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			logger.Info("Configured Lightstep trace sink")
 		}
 
+		if conf.SplunkAccessToken != "" {
+			sss := splunk.SplunkSpanSink{}
+
+			ret.spanSinks = append(ret.spanSinks, sss)
+		}
+
 		if conf.FalconerAddress != "" {
 			falsink, err := falconer.NewSpanSink(context.Background(), conf.FalconerAddress, log, grpc.WithInsecure())
 			if err != nil {
