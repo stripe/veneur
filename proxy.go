@@ -649,7 +649,7 @@ func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination stri
 		}).Warn("Failed to POST metrics to destination")
 	}
 	samples.Add(ssf.RandomlySample(0.1,
-		ssf.Count("metrics_by_destination", float32(batchSize), map[string]string{"destination": destination}),
+		ssf.Count("metrics_by_destination", float32(batchSize), map[string]string{"destination": destination, "protocol": "http"}),
 	)...)
 }
 
