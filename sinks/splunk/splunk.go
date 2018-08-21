@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"net/http"
+	"strconv"
 	"time"
 
 	hec "github.com/fuyufjh/splunk-hec-go"
@@ -53,12 +54,44 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	return sss.writeSpan(ctx, ssfSpan)
 }
 
+// Splunk can't handle int64s, and we don't
+// want to round our traceID to the thousands place.
+// This is mildly redundant, but oh well
+type serializedSSF struct {
+	TraceId        string            `json:"trace_id"`
+	Id             string            `json:"id"`
+	ParentId       string            `json:"parent_id"`
+	StartTimestamp string            `json:"start_timestamp"`
+	EndTimestamp   string            `json:"end_timestamp"`
+	Error          bool              `json:"error"`
+	Service        string            `json:"service"`
+	Tags           map[string]string `json:"tags"`
+	Indicator      bool              `json:"indicator"`
+	Name           string            `json:"name"`
+}
+
 func (sss *splunkSpanSink) writeSpan(ctx context.Context, ssfSpan *ssf.SSFSpan) error {
-	return sss.WriteEventWithContext(ctx, &hec.Event{
-		// TODO: We're just serializing the regular SSF span
-		// to JSON; we might want to do some translation to
-		// fields so they look better in splunk (and also
-		// maybe filter out some fields).
-		Event: ssfSpan,
-	})
+
+	serialized := serializedSSF{
+		TraceId:        strconv.FormatInt(ssfSpan.TraceId, 10),
+		Id:             strconv.FormatInt(ssfSpan.Id, 10),
+		ParentId:       strconv.FormatInt(ssfSpan.ParentId, 10),
+		StartTimestamp: strconv.FormatInt(ssfSpan.StartTimestamp, 10),
+		EndTimestamp:   strconv.FormatInt(ssfSpan.EndTimestamp, 10),
+		Error:          ssfSpan.Error,
+		Service:        ssfSpan.Service,
+		Tags:           ssfSpan.Tags,
+		Indicator:      ssfSpan.Indicator,
+		Name:           ssfSpan.Name,
+	}
+
+	start := time.Unix(int64((time.Duration(ssfSpan.StartTimestamp) / time.Second)), 0)
+
+	event := &hec.Event{
+		Event: serialized,
+	}
+
+	event.SetTime(start)
+
+	return sss.WriteEventWithContext(ctx, event)
 }
