@@ -349,6 +349,14 @@ kafka_retry_max: 0
 
 falconer_address: "falconer.service.consul"
 
+# == Splunk ==
+#
+# Veneur can feed spans to splunk through the HEC interface
+# (http://dev.splunk.com/view/event-collector/SP-CAAAE6M)
+
+splunk_hec_address: "https://localhost:8088"
+splunk_hec_token: "00000000-0000-0000-0000-000000000000"
+
 # == PLUGINS ==
 
 # == S3 Output ==

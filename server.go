@@ -48,6 +48,7 @@ import (
 	"github.com/stripe/veneur/sinks/kafka"
 	"github.com/stripe/veneur/sinks/lightstep"
 	"github.com/stripe/veneur/sinks/signalfx"
+	"github.com/stripe/veneur/sinks/splunk"
 	"github.com/stripe/veneur/sinks/ssfmetrics"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
@@ -410,8 +411,15 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			logger.Info("Configured Lightstep trace sink")
 		}
 
-		if conf.SplunkAccessToken != "" {
-			sss := splunk.SplunkSpanSink{}
+		if (conf.SplunkHecToken != "" && conf.SplunkHecAddress == "") ||
+			(conf.SplunkHecToken == "" && conf.SplunkHecAddress != "") {
+			return ret, fmt.Errorf("both splunk_hec_address and splunk_hec_token need to be set!")
+		}
+		if conf.SplunkHecToken != "" && conf.SplunkHecAddress != "" {
+			sss, err := splunk.NewSplunkSpanSink(conf.SplunkHecAddress, conf.SplunkHecToken)
+			if err != nil {
+				return ret, err
+			}
 
 			ret.spanSinks = append(ret.spanSinks, sss)
 		}

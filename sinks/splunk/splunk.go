@@ -24,7 +24,7 @@ func (*splunkSpanSink) Start(*trace.Client) error {
 }
 
 func (*splunkSpanSink) Flush() {
-	// nothing to do.
+	// nothing to do. Eventually, we should submit batches instead.
 }
 
 // Name returns this sink's name
