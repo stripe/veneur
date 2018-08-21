@@ -114,8 +114,11 @@
   branch = "master"
   name = "github.com/segmentio/fasthash"
 
+[[constraint]]
+  branch = "master"
+  name = "github.com/fuyufjh/splunk-hec-go"
+
 [prune]
   go-tests = true
   unused-packages = true
   non-go = true
-
