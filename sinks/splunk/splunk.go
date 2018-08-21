@@ -2,6 +2,8 @@ package splunk
 
 import (
 	"context"
+	"crypto/tls"
+	"net/http"
 	"time"
 
 	hec "github.com/fuyufjh/splunk-hec-go"
@@ -15,8 +17,16 @@ type splunkSpanSink struct {
 }
 
 func NewSplunkSpanSink(server string, token string) (sinks.SpanSink, error) {
-	client := hec.NewClient(server, token)
-	return &splunkSpanSink{Client: client.(*hec.Client)}, nil
+	client := hec.NewClient(server, token).(*hec.Client)
+
+	tlsCfg := &tls.Config{}
+	tlsCfg.InsecureSkipVerify = true // TODO: make the CA cert and host names configurable
+
+	trnsp := &http.Transport{TLSClientConfig: tlsCfg}
+	httpC := &http.Client{Transport: trnsp}
+	client.SetHTTPClient(httpC)
+
+	return &splunkSpanSink{Client: client}, nil
 }
 
 func (*splunkSpanSink) Start(*trace.Client) error {
