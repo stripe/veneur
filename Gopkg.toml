@@ -118,6 +118,10 @@
   branch = "master"
   name = "github.com/fuyufjh/splunk-hec-go"
 
+[[override]]
+  branch = "master"
+  name = "github.com/satori/go.uuid"
+
 [prune]
   go-tests = true
   unused-packages = true
