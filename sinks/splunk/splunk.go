@@ -45,7 +45,7 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 		client.SetHTTPClient(httpC)
 	}
 
-	return &splunkSpanSink{Client: client, hostname: localHostname}, nil
+	return &splunkSpanSink{Client: client, hostname: localHostname, log: log}, nil
 }
 
 func (sss *splunkSpanSink) Start(cl *trace.Client) error {
