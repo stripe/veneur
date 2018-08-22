@@ -137,8 +137,11 @@ func (sss *splunkSpanSink) writeSpan(ctx context.Context, ssfSpan *ssf.SSFSpan) 
 	if err != nil {
 		atomic.AddUint32(&sss.dropCount, 1)
 
-		// TODO: get rid of this, it'll get suuuper chunderous:
-		sss.log.WithError(err).Error("Couldn't flush span to HEC")
+		if ctx.Err() == nil {
+			// We're not interested in deadline-exceeded, but also
+			// TODO: get rid of this, it'll get suuuper chunderous:
+			sss.log.WithError(err).Error("Couldn't flush span to HEC")
+		}
 	} else {
 		atomic.AddUint32(&sss.sentCount, 1)
 	}
