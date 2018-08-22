@@ -67,8 +67,8 @@ type serializedSSF struct {
 	TraceId        string            `json:"trace_id"`
 	Id             string            `json:"id"`
 	ParentId       string            `json:"parent_id"`
-	StartTimestamp string            `json:"start_timestamp"`
-	EndTimestamp   string            `json:"end_timestamp"`
+	StartTimestamp time.Time         `json:"start_timestamp"`
+	EndTimestamp   time.Time         `json:"end_timestamp"`
 	Error          bool              `json:"error"`
 	Service        string            `json:"service"`
 	Tags           map[string]string `json:"tags"`
@@ -77,13 +77,12 @@ type serializedSSF struct {
 }
 
 func (sss *splunkSpanSink) writeSpan(ctx context.Context, ssfSpan *ssf.SSFSpan) error {
-
 	serialized := serializedSSF{
 		TraceId:        strconv.FormatInt(ssfSpan.TraceId, 10),
 		Id:             strconv.FormatInt(ssfSpan.Id, 10),
 		ParentId:       strconv.FormatInt(ssfSpan.ParentId, 10),
-		StartTimestamp: strconv.FormatInt(ssfSpan.StartTimestamp, 10),
-		EndTimestamp:   strconv.FormatInt(ssfSpan.EndTimestamp, 10),
+		StartTimestamp: time.Unix(0, ssfSpan.StartTimestamp),
+		EndTimestamp:   time.Unix(0, ssfSpan.EndTimestamp),
 		Error:          ssfSpan.Error,
 		Service:        ssfSpan.Service,
 		Tags:           ssfSpan.Tags,
