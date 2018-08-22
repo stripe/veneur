@@ -95,6 +95,7 @@ func (sss *splunkSpanSink) writeSpan(ctx context.Context, ssfSpan *ssf.SSFSpan) 
 	event := &hec.Event{
 		Event: serialized,
 	}
+	event.SetTime(time.Unix(0, ssfSpan.StartTimestamp))
 
 	event.SetTime(start)
 
