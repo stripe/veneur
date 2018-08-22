@@ -5,17 +5,27 @@ import (
 	"crypto/tls"
 	"net/http"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	hec "github.com/fuyufjh/splunk-hec-go"
+	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/metrics"
 )
 
 type splunkSpanSink struct {
 	*hec.Client
 	hostname string
+
+	// Total counts of sent and dropped spans, respectively
+	sentCount, dropCount uint32
+
+	traceClient *trace.Client
+	log         *logrus.Logger
 }
 
 // NewSplunkSpanSink constructs a new splunk span sink from the server
@@ -23,7 +33,7 @@ type splunkSpanSink struct {
 // veneur. An optional argument, validateServerName is used (if
 // non-empty) to instruct go to validate a different hostname than the
 // one on the server URL.
-func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string) (sinks.SpanSink, error) {
+func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger) (sinks.SpanSink, error) {
 	client := hec.NewClient(server, token).(*hec.Client)
 
 	if validateServerName != "" {
@@ -38,12 +48,27 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 	return &splunkSpanSink{Client: client, hostname: localHostname}, nil
 }
 
-func (*splunkSpanSink) Start(*trace.Client) error {
+func (sss *splunkSpanSink) Start(cl *trace.Client) error {
+	sss.traceClient = cl
 	return nil
 }
 
-func (*splunkSpanSink) Flush() {
-	// nothing to do. Eventually, we should submit batches instead.
+func (sss *splunkSpanSink) Flush() {
+	samples := &ssf.Samples{}
+	samples.Add(
+		ssf.Count(
+			sinks.MetricKeyTotalSpansFlushed,
+			float32(atomic.SwapUint32(&sss.sentCount, 0)),
+			map[string]string{"sink": sss.Name()}),
+		ssf.Count(
+			sinks.MetricKeyTotalSpansDropped,
+			float32(atomic.SwapUint32(&sss.dropCount, 0)),
+			map[string]string{"sink": sss.Name()},
+		),
+	)
+
+	metrics.Report(sss.traceClient, samples)
+	return
 }
 
 // Name returns this sink's name
@@ -54,6 +79,11 @@ func (*splunkSpanSink) Name() string {
 // Ingest takes in a span and passes it to Splunk using the
 // HTTP Event Collector
 func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
+	// Only send properly filled-out spans to the HEC:
+	if err := protocol.ValidateTrace(ssfSpan); err != nil {
+		return err
+	}
+
 	// Fake up a context with a reasonable timeout:
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Millisecond)
@@ -103,5 +133,14 @@ func (sss *splunkSpanSink) writeSpan(ctx context.Context, ssfSpan *ssf.SSFSpan) 
 
 	event.SetTime(start)
 
-	return sss.WriteEventWithContext(ctx, event)
+	err := sss.WriteEventWithContext(ctx, event)
+	if err != nil {
+		atomic.AddUint32(&sss.dropCount, 1)
+
+		// TODO: get rid of this, it'll get suuuper chunderous:
+		sss.log.WithError(err).Error("Couldn't flush span to HEC")
+	} else {
+		atomic.AddUint32(&sss.sentCount, 1)
+	}
+	return err
 }
