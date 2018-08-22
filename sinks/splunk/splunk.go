@@ -17,15 +17,21 @@ type splunkSpanSink struct {
 	*hec.Client
 }
 
-func NewSplunkSpanSink(server string, token string) (sinks.SpanSink, error) {
+// NewSplunkSpanSink constructs a new splunk span sink from the server
+// name and token provided. A third argument, validateServerName is
+// used (if non-empty) to instruct go to validate a different hostname
+// than the one on the server URL.
+func NewSplunkSpanSink(server string, token string, validateServerName string) (sinks.SpanSink, error) {
 	client := hec.NewClient(server, token).(*hec.Client)
 
-	tlsCfg := &tls.Config{}
-	tlsCfg.InsecureSkipVerify = true // TODO: make the CA cert and host names configurable
+	if validateServerName != "" {
+		tlsCfg := &tls.Config{}
+		tlsCfg.ServerName = validateServerName
 
-	trnsp := &http.Transport{TLSClientConfig: tlsCfg}
-	httpC := &http.Client{Transport: trnsp}
-	client.SetHTTPClient(httpC)
+		trnsp := &http.Transport{TLSClientConfig: tlsCfg}
+		httpC := &http.Client{Transport: trnsp}
+		client.SetHTTPClient(httpC)
+	}
 
 	return &splunkSpanSink{Client: client}, nil
 }

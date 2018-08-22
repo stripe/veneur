@@ -351,11 +351,20 @@ falconer_address: "falconer.service.consul"
 
 # == Splunk ==
 #
-# Veneur can feed spans to splunk through the HEC interface
-# (http://dev.splunk.com/view/event-collector/SP-CAAAE6M)
+# Veneur can feed spans to splunk through the HTTP Event Consumer
+# (HEC) interface
+# See also http://dev.splunk.com/view/event-collector/SP-CAAAE6M
 
+# The URL to use for a connection to the splunk
 splunk_hec_address: "https://localhost:8088"
+
+# The authentication token veneur will use to authenticate to the HEC
 splunk_hec_token: "00000000-0000-0000-0000-000000000000"
+
+# (optional) server name set on the TLS configuration. This is useful
+# if the host you're reaching identifies with a different name than on
+# the URL.
+splunk_hec_tls_validate_hostname: "some-other-hostname"
 
 # == PLUGINS ==
 
