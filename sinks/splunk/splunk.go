@@ -15,13 +15,15 @@ import (
 
 type splunkSpanSink struct {
 	*hec.Client
+	hostname string
 }
 
 // NewSplunkSpanSink constructs a new splunk span sink from the server
-// name and token provided. A third argument, validateServerName is
-// used (if non-empty) to instruct go to validate a different hostname
-// than the one on the server URL.
-func NewSplunkSpanSink(server string, token string, validateServerName string) (sinks.SpanSink, error) {
+// name and token provided, using the local hostname configured for
+// veneur. An optional argument, validateServerName is used (if
+// non-empty) to instruct go to validate a different hostname than the
+// one on the server URL.
+func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string) (sinks.SpanSink, error) {
 	client := hec.NewClient(server, token).(*hec.Client)
 
 	if validateServerName != "" {
@@ -33,7 +35,7 @@ func NewSplunkSpanSink(server string, token string, validateServerName string) (
 		client.SetHTTPClient(httpC)
 	}
 
-	return &splunkSpanSink{Client: client}, nil
+	return &splunkSpanSink{Client: client, hostname: localHostname}, nil
 }
 
 func (*splunkSpanSink) Start(*trace.Client) error {
@@ -96,6 +98,8 @@ func (sss *splunkSpanSink) writeSpan(ctx context.Context, ssfSpan *ssf.SSFSpan) 
 		Event: serialized,
 	}
 	event.SetTime(time.Unix(0, ssfSpan.StartTimestamp))
+	event.SetHost(sss.hostname)
+	event.SetSourceType(ssfSpan.Service)
 
 	event.SetTime(start)
 
