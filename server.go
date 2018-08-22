@@ -416,7 +416,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			return ret, fmt.Errorf("both splunk_hec_address and splunk_hec_token need to be set!")
 		}
 		if conf.SplunkHecToken != "" && conf.SplunkHecAddress != "" {
-			sss, err := splunk.NewSplunkSpanSink(conf.SplunkHecAddress, conf.SplunkHecToken, conf.SplunkHecTLSValidateHostname, conf.Hostname, log)
+			sss, err := splunk.NewSplunkSpanSink(conf.SplunkHecAddress, conf.SplunkHecToken, conf.Hostname, conf.SplunkHecTLSValidateHostname, log)
 			if err != nil {
 				return ret, err
 			}
