@@ -114,22 +114,14 @@ type SerializedSSF struct {
 	Name           string            `json:"name"`
 }
 
-// splunkTS converts the input timestamp into a floating-point
-// timestamp of seconds since the UNIX epoch.
-func splunkTS(t time.Time) float64 {
-	return float64(t.UnixNano()) / float64(time.Second)
-}
-
 func (sss *splunkSpanSink) writeSpan(ctx context.Context, ssfSpan *ssf.SSFSpan) error {
-	start := time.Unix(0, ssfSpan.StartTimestamp)
-	end := time.Unix(0, ssfSpan.EndTimestamp)
 	serialized := SerializedSSF{
 		TraceId:        strconv.FormatInt(ssfSpan.TraceId, 10),
 		Id:             strconv.FormatInt(ssfSpan.Id, 10),
 		ParentId:       strconv.FormatInt(ssfSpan.ParentId, 10),
-		StartTimestamp: splunkTS(start),
-		EndTimestamp:   splunkTS(end),
-		Duration:       end.Sub(start).Nanoseconds(),
+		StartTimestamp: float64(ssfSpan.StartTimestamp) / float64(time.Second),
+		EndTimestamp:   float64(ssfSpan.EndTimestamp) / float64(time.Second),
+		Duration:       ssfSpan.EndTimestamp - ssfSpan.StartTimestamp,
 		Error:          ssfSpan.Error,
 		Service:        ssfSpan.Service,
 		Tags:           ssfSpan.Tags,
@@ -144,7 +136,7 @@ func (sss *splunkSpanSink) writeSpan(ctx context.Context, ssfSpan *ssf.SSFSpan) 
 	event.SetHost(sss.hostname)
 	event.SetSourceType(ssfSpan.Service)
 
-	event.SetTime(start)
+	event.SetTime(time.Unix(0, ssfSpan.StartTimestamp))
 
 	err := sss.WriteEventWithContext(ctx, event)
 	if err != nil {
