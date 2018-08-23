@@ -3,6 +3,9 @@
 ## Added
 * Metrics can be forwarded over gRPC using veneur-proxy (and Consul).  Thanks, [noahgoldman](https://github.com/noahgoldman) and [Quantcast](https://github.com/quantcast)!
 
+## Removals
+* Go 1.9 is no longer supported.
+
 # 7.0.0, 2018-08-08
 
 ## Added
