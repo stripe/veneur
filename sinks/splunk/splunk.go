@@ -19,7 +19,8 @@ import (
 
 type splunkSpanSink struct {
 	*hec.Client
-	hostname string
+	hostname    string
+	sendTimeout time.Duration
 
 	// Total counts of sent and dropped spans, respectively
 	sentCount, dropCount uint32
@@ -33,7 +34,7 @@ type splunkSpanSink struct {
 // veneur. An optional argument, validateServerName is used (if
 // non-empty) to instruct go to validate a different hostname than the
 // one on the server URL.
-func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger) (sinks.SpanSink, error) {
+func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, sendTimeout time.Duration) (sinks.SpanSink, error) {
 	client := hec.NewClient(server, token).(*hec.Client)
 
 	if validateServerName != "" {
@@ -45,7 +46,7 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 		client.SetHTTPClient(httpC)
 	}
 
-	return &splunkSpanSink{Client: client, hostname: localHostname, log: log}, nil
+	return &splunkSpanSink{Client: client, hostname: localHostname, log: log, sendTimeout: sendTimeout}, nil
 }
 
 func (sss *splunkSpanSink) Start(cl *trace.Client) error {
@@ -86,8 +87,11 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 
 	// Fake up a context with a reasonable timeout:
 	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Millisecond)
-	defer cancel()
+	if sss.sendTimeout != 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, 10*time.Millisecond)
+		defer cancel()
+	}
 
 	return sss.writeSpan(ctx, ssfSpan)
 }

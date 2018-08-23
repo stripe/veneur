@@ -366,6 +366,11 @@ splunk_hec_token: "00000000-0000-0000-0000-000000000000"
 # the URL.
 splunk_hec_tls_validate_hostname: "some-other-hostname"
 
+# (optional) The maximum amount of time to wait before timing out
+# sending a span to the Splunk HEC. If omitted / set to 0, sending
+# spans happens without a timeout.
+splunk_hec_send_timeout: "10ms"
+
 # == PLUGINS ==
 
 # == S3 Output ==

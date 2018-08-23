@@ -45,7 +45,7 @@ func TestSpanIngest(t *testing.T) {
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
 	defer ts.Close()
 	sink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger)
+		"test-host", "", logger, time.Duration(0))
 	require.NoError(t, err)
 
 	start := time.Unix(100000, 1000000)
