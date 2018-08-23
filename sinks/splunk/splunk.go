@@ -110,20 +110,20 @@ type SerializedSSF struct {
 }
 
 func (sss *splunkSpanSink) writeSpan(ctx context.Context, ssfSpan *ssf.SSFSpan) error {
+	start := time.Unix(0, ssfSpan.StartTimestamp)
+	end := time.Unix(0, ssfSpan.EndTimestamp)
 	serialized := SerializedSSF{
 		TraceId:        strconv.FormatInt(ssfSpan.TraceId, 10),
 		Id:             strconv.FormatInt(ssfSpan.Id, 10),
 		ParentId:       strconv.FormatInt(ssfSpan.ParentId, 10),
-		StartTimestamp: time.Unix(0, ssfSpan.StartTimestamp),
-		EndTimestamp:   time.Unix(0, ssfSpan.EndTimestamp),
+		StartTimestamp: start,
+		EndTimestamp:   end,
 		Error:          ssfSpan.Error,
 		Service:        ssfSpan.Service,
 		Tags:           ssfSpan.Tags,
 		Indicator:      ssfSpan.Indicator,
 		Name:           ssfSpan.Name,
 	}
-
-	start := time.Unix(int64((time.Duration(ssfSpan.StartTimestamp) / time.Second)), 0)
 
 	event := &hec.Event{
 		Event: serialized,

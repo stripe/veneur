@@ -2,7 +2,6 @@ package splunk_test
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -28,7 +27,6 @@ func jsonEndpoint(t *testing.T, ch chan<- hec.Event) http.Handler {
 			t.Errorf("Decoding JSON: %v", err)
 			failed = true
 		}
-		log.Print(*input.Time)
 
 		if failed {
 			w.WriteHeader(400)
@@ -86,8 +84,8 @@ func TestSpanIngest(t *testing.T) {
 	output := splunk.SerializedSSF{}
 	err = json.Unmarshal(spanB, &output)
 
-	assert.Equal(t, time.Unix(0, span.StartTimestamp), output.StartTimestamp)
-	assert.Equal(t, time.Unix(0, span.EndTimestamp), output.EndTimestamp)
+	assert.Equal(t, span.StartTimestamp, output.StartTimestamp.UnixNano())
+	assert.Equal(t, span.EndTimestamp, output.EndTimestamp.UnixNano())
 	assert.Equal(t, strconv.FormatInt(span.Id, 10), output.Id)
 	assert.Equal(t, strconv.FormatInt(span.ParentId, 10), output.ParentId)
 	assert.Equal(t, strconv.FormatInt(span.TraceId, 10), output.TraceId)
