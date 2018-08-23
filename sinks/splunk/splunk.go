@@ -104,13 +104,20 @@ type SerializedSSF struct {
 	TraceId        string            `json:"trace_id"`
 	Id             string            `json:"id"`
 	ParentId       string            `json:"parent_id"`
-	StartTimestamp time.Time         `json:"start_timestamp"`
-	EndTimestamp   time.Time         `json:"end_timestamp"`
+	StartTimestamp float64           `json:"start_timestamp"`
+	EndTimestamp   float64           `json:"end_timestamp"`
+	Duration       int64             `json:"duration_ns"`
 	Error          bool              `json:"error"`
 	Service        string            `json:"service"`
 	Tags           map[string]string `json:"tags"`
 	Indicator      bool              `json:"indicator"`
 	Name           string            `json:"name"`
+}
+
+// splunkTS converts the input timestamp into a floating-point
+// timestamp of seconds since the UNIX epoch.
+func splunkTS(t time.Time) float64 {
+	return float64(t.UnixNano()) / float64(time.Second)
 }
 
 func (sss *splunkSpanSink) writeSpan(ctx context.Context, ssfSpan *ssf.SSFSpan) error {
@@ -120,8 +127,9 @@ func (sss *splunkSpanSink) writeSpan(ctx context.Context, ssfSpan *ssf.SSFSpan) 
 		TraceId:        strconv.FormatInt(ssfSpan.TraceId, 10),
 		Id:             strconv.FormatInt(ssfSpan.Id, 10),
 		ParentId:       strconv.FormatInt(ssfSpan.ParentId, 10),
-		StartTimestamp: start,
-		EndTimestamp:   end,
+		StartTimestamp: splunkTS(start),
+		EndTimestamp:   splunkTS(end),
+		Duration:       end.Sub(start).Nanoseconds(),
 		Error:          ssfSpan.Error,
 		Service:        ssfSpan.Service,
 		Tags:           ssfSpan.Tags,

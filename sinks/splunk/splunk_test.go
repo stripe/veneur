@@ -84,8 +84,9 @@ func TestSpanIngest(t *testing.T) {
 	output := splunk.SerializedSSF{}
 	err = json.Unmarshal(spanB, &output)
 
-	assert.Equal(t, span.StartTimestamp, output.StartTimestamp.UnixNano())
-	assert.Equal(t, span.EndTimestamp, output.EndTimestamp.UnixNano())
+	assert.Equal(t, float64(span.StartTimestamp)/float64(time.Second), output.StartTimestamp)
+	assert.Equal(t, float64(span.EndTimestamp)/float64(time.Second), output.EndTimestamp)
+
 	assert.Equal(t, strconv.FormatInt(span.Id, 10), output.Id)
 	assert.Equal(t, strconv.FormatInt(span.ParentId, 10), output.ParentId)
 	assert.Equal(t, strconv.FormatInt(span.TraceId, 10), output.TraceId)
