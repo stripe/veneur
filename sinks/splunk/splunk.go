@@ -92,10 +92,11 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	return sss.writeSpan(ctx, ssfSpan)
 }
 
-// Splunk can't handle int64s, and we don't
-// want to round our traceID to the thousands place.
-// This is mildly redundant, but oh well
-type serializedSSF struct {
+// SerializedSSF holds a set of fields in a format that Splunk can
+// handle (it can't handle int64s, and we don't want to round our
+// traceID to the thousands place).  This is mildly redundant, but oh
+// well.
+type SerializedSSF struct {
 	TraceId        string            `json:"trace_id"`
 	Id             string            `json:"id"`
 	ParentId       string            `json:"parent_id"`
@@ -109,7 +110,7 @@ type serializedSSF struct {
 }
 
 func (sss *splunkSpanSink) writeSpan(ctx context.Context, ssfSpan *ssf.SSFSpan) error {
-	serialized := serializedSSF{
+	serialized := SerializedSSF{
 		TraceId:        strconv.FormatInt(ssfSpan.TraceId, 10),
 		Id:             strconv.FormatInt(ssfSpan.Id, 10),
 		ParentId:       strconv.FormatInt(ssfSpan.ParentId, 10),
