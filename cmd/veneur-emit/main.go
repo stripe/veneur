@@ -32,6 +32,7 @@ var (
 	mode     = flag.String("mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
 	debug    = flag.Bool("debug", false, "Turns on debug messages.")
 	command  = flag.Bool("command", false, "Turns on command-timing mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.")
+	timeout  = flag.Duration("timeout", 5*time.Second, "How long to wait for emission to complete, to protect against network/DNS failure. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).")
 
 	// Metric flags
 	name   = flag.String("name", "", "Name of metric to report. Ex: 'daemontools.service.starts'")
@@ -166,6 +167,24 @@ func main() {
 
 	validateFlagCombinations(passedFlags)
 
+	completion := make(chan int, 1)
+	go func() {
+		doEmission(passedFlags)
+		completion <- 0
+	}()
+
+	select {
+	case status := <-completion:
+		os.Exit(status)
+	case <-time.After(*timeout):
+		logrus.WithField("timeout", timeout.String()).
+			Fatal("Timeout exceeded for emission")
+		os.Exit(1)
+	}
+
+}
+
+func doEmission(passedFlags map[string]flag.Value) int {
 	addr, netAddr, err := destination(hostport, *toSSF)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error getting destination address.")
@@ -188,7 +207,7 @@ func main() {
 		}
 		nconn.Write(pkt.Bytes())
 		logrus.Debugf("Buffer string: %s", pkt.String())
-		return
+		return 1
 	}
 
 	if *mode == "sc" {
@@ -204,7 +223,7 @@ func main() {
 		}
 		nconn.Write(pkt.Bytes())
 		logrus.Debugf("Buffer string: %s", pkt.String())
-		return
+		return 1
 	}
 
 	if *traceID, err = inferTraceIDInt(*traceID, envTraceID); err != nil {
@@ -261,7 +280,8 @@ func main() {
 		}
 		sendStatsd(netAddr.String(), span)
 	}
-	os.Exit(status)
+
+	return status
 }
 
 func flags() map[string]flag.Value {
