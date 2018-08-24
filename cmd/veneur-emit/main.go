@@ -167,7 +167,7 @@ func main() {
 
 	validateFlagCombinations(passedFlags)
 
-	completion := make(chan int, 1)
+	completion := make(chan int)
 	go func() {
 		doEmission(passedFlags)
 		completion <- 0
@@ -179,7 +179,6 @@ func main() {
 	case <-time.After(*timeout):
 		logrus.WithField("timeout", timeout.String()).
 			Fatal("Timeout exceeded for emission")
-		os.Exit(1)
 	}
 
 }
