@@ -7,15 +7,15 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/stripe/veneur/ssf"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/ssf"
 )
 
 // Test that the Tracer can correctly create a root-level
@@ -297,9 +297,9 @@ func assertTagEqual(t *testing.T, tagName string, expected *Trace, sample *ssf.S
 	assert.Equal(t, expected.Tags[tagName], sample.Tags[tagName], "Tag '%s' has wrong value", tagName)
 }
 
-// TestInjectRequestExtractRequestChild tests the InjectRequest
+// TestInjectRequestExtractRequestChild tests the InjectRequest, InjectHeader,
 // and ExtractRequestChild helper functions
-func TestInjectRequestExtractRequestChild(t *testing.T) {
+func TestInjectRequestInjectHeaderExtractRequestChild(t *testing.T) {
 	const childResource = "my child resource"
 	const traceName = "my.child.name"
 	trace := DummySpan().Trace
@@ -308,8 +308,15 @@ func TestInjectRequestExtractRequestChild(t *testing.T) {
 	req, err := http.NewRequest(http.MethodPost, "/test", bytes.NewBuffer(nil))
 	assert.NoError(t, err)
 
+	req2, err := http.NewRequest(http.MethodPost, "/test2", bytes.NewBuffer(nil))
+	assert.NoError(t, err)
+
 	err = tracer.InjectRequest(trace, req)
 	assert.NoError(t, err)
+
+	err = tracer.InjectHeader(trace, req2.Header)
+	assert.NoError(t, err)
+	assert.True(t, reflect.DeepEqual(req.Header, req2.Header), "injected HTTP headers should be the same")
 
 	span, err := tracer.ExtractRequestChild(childResource, req, traceName)
 	assert.NoError(t, err)

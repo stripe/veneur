@@ -2,6 +2,7 @@
 
 ## Added
 * Metrics can be forwarded over gRPC using veneur-proxy (and Consul).  Thanks, [noahgoldman](https://github.com/noahgoldman) and [Quantcast](https://github.com/quantcast)!
+* Added tracer.InjectHeader convenience function for... convenience! Thanks, [mikeh](https://github.com/mikeh-stripe)!
 
 ## Removals
 * Go 1.9 is no longer supported.
