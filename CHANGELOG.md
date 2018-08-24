@@ -2,6 +2,7 @@
 
 ## Added
 * Metrics can be forwarded over gRPC using veneur-proxy (and Consul).  Thanks, [noahgoldman](https://github.com/noahgoldman) and [Quantcast](https://github.com/quantcast)!
+* `veneur-emit` now takes a new option `-timeout` for setting a configurable timeout when performing any emission. The timeout defaults to `5s`. This prevents uses of Veneur emit from blocking indefinitely.
 
 ## Removals
 * Go 1.9 is no longer supported.
