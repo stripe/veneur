@@ -169,8 +169,7 @@ func main() {
 
 	completion := make(chan int)
 	go func() {
-		doEmission(passedFlags)
-		completion <- 0
+		completion <- doEmission(passedFlags)
 	}()
 
 	select {
