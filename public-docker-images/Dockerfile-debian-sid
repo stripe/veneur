@@ -1,4 +1,4 @@
-FROM golang:1.9.1 AS base
+FROM golang:1.11.0 AS base
 MAINTAINER The Stripe Observability Team <support@stripe.com>
 
 
