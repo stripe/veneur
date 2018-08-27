@@ -174,7 +174,7 @@ read_buffer_size_bytes: 2097152
 # == DIAGNOSTICS ==
 
 # Sets the log level to DEBUG
-debug: true
+debug: false
 
 # Log (at level DEBUG) information about every ingested span. Be
 # careful with this setting in a real deployment - it is extremely
