@@ -21,7 +21,7 @@ import (
 
 func generateProxyConfig() ProxyConfig {
 	return ProxyConfig{
-		Debug: false,
+		Debug:                    false,
 		ConsulRefreshInterval:    "86400s",
 		ConsulForwardServiceName: "forwardServiceName",
 		ConsulTraceServiceName:   "traceServiceName",
