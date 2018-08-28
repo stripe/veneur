@@ -128,6 +128,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:31c2969530015c039d7f33400368f54d37d4f4dbdf95baabd0c89857a3cacb5b"
+  name = "github.com/fuyufjh/splunk-hec-go"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "3e5842a6937536b4f7221bc797f35500b1fa0ff7"
+
+[[projects]]
+  branch = "master"
   digest = "1:d0bf01f4719fd005c2c19f805f539c52c3c50ce44a9639ef4b53b93240574893"
   name = "github.com/getsentry/raven-go"
   packages = ["."]
@@ -435,6 +443,14 @@
   packages = ["."]
   pruneopts = "NUT"
   revision = "e181e095bae94582363434144c61a9653aff6e50"
+
+[[projects]]
+  branch = "master"
+  digest = "1:8737b20e873c7cad069dfafd6382659b4cdf9e80359cdc159b8ec464893c932e"
+  name = "github.com/satori/go.uuid"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e"
 
 [[projects]]
   branch = "master"
@@ -816,6 +832,7 @@
     "github.com/aws/aws-sdk-go/service/s3",
     "github.com/aws/aws-sdk-go/service/s3/s3iface",
     "github.com/axiomhq/hyperloglog",
+    "github.com/fuyufjh/splunk-hec-go",
     "github.com/getsentry/raven-go",
     "github.com/gogo/protobuf/gogoproto",
     "github.com/gogo/protobuf/proto",
