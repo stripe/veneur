@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"net/http"
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	hec "github.com/fuyufjh/splunk-hec-go"
@@ -22,8 +21,8 @@ type splunkSpanSink struct {
 	hostname    string
 	sendTimeout time.Duration
 
-	// Total counts of sent and dropped spans, respectively
-	sentCount, dropCount uint32
+	ingest chan *hec.Event
+	flush  chan []*hec.Event
 
 	traceClient *trace.Client
 	log         *logrus.Logger
@@ -46,24 +45,74 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 		client.SetHTTPClient(httpC)
 	}
 
-	return &splunkSpanSink{Client: client, hostname: localHostname, log: log, sendTimeout: sendTimeout}, nil
+	return &splunkSpanSink{
+		Client:      client,
+		ingest:      make(chan *hec.Event),
+		flush:       make(chan []*hec.Event),
+		hostname:    localHostname,
+		log:         log,
+		sendTimeout: sendTimeout,
+	}, nil
 }
 
 func (sss *splunkSpanSink) Start(cl *trace.Client) error {
 	sss.traceClient = cl
+	go sss.batchAndSend()
+
 	return nil
 }
 
+func (sss *splunkSpanSink) batchAndSend() {
+	batch := make([]*hec.Event, 0, 1)
+
+	for {
+		select {
+		case ev := <-sss.ingest:
+			batch = append(batch, ev)
+		case sss.flush <- batch:
+			// We could flush the batch - get us a new one.
+			batch = make([]*hec.Event, 0, len(batch))
+		}
+
+	}
+}
+
+// Flush takes the batched-up events and sends them to the HEC
+// endpoint for ingestion. If set, it uses the send timeout configured
+// for the span batch.
 func (sss *splunkSpanSink) Flush() {
+	flushed := 0
+	dropped := 0
+	batch := <-sss.flush
+
+	// TODO: Ideally, Flush() would get a context of its own:
+	ctx := context.Background()
+	if sss.sendTimeout != 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, sss.sendTimeout)
+		defer cancel()
+	}
+	err := sss.Client.WriteBatchWithContext(ctx, batch)
+	if err != nil {
+		dropped += len(batch)
+		if ctx.Err() == nil {
+			sss.log.WithError(err).
+				WithField("n_spans", len(batch)).
+				Error("Couldn't flush batch to HEC")
+		}
+	} else {
+		flushed += len(batch)
+	}
+
 	samples := &ssf.Samples{}
 	samples.Add(
 		ssf.Count(
 			sinks.MetricKeyTotalSpansFlushed,
-			float32(atomic.SwapUint32(&sss.sentCount, 0)),
+			float32(flushed),
 			map[string]string{"sink": sss.Name()}),
 		ssf.Count(
 			sinks.MetricKeyTotalSpansDropped,
-			float32(atomic.SwapUint32(&sss.dropCount, 0)),
+			float32(dropped),
 			map[string]string{"sink": sss.Name()},
 		),
 	)
@@ -77,44 +126,13 @@ func (*splunkSpanSink) Name() string {
 	return "splunk"
 }
 
-// Ingest takes in a span and passes it to Splunk using the
-// HTTP Event Collector
+// Ingest takes in a span and batches it up to be sent in the next
+// Flush() iteration.
 func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	// Only send properly filled-out spans to the HEC:
 	if err := protocol.ValidateTrace(ssfSpan); err != nil {
 		return err
 	}
-
-	// Fake up a context with a reasonable timeout:
-	ctx := context.Background()
-	if sss.sendTimeout != 0 {
-		var cancel func()
-		ctx, cancel = context.WithTimeout(ctx, 10*time.Millisecond)
-		defer cancel()
-	}
-
-	return sss.writeSpan(ctx, ssfSpan)
-}
-
-// SerializedSSF holds a set of fields in a format that Splunk can
-// handle (it can't handle int64s, and we don't want to round our
-// traceID to the thousands place).  This is mildly redundant, but oh
-// well.
-type SerializedSSF struct {
-	TraceId        string            `json:"trace_id"`
-	Id             string            `json:"id"`
-	ParentId       string            `json:"parent_id"`
-	StartTimestamp float64           `json:"start_timestamp"`
-	EndTimestamp   float64           `json:"end_timestamp"`
-	Duration       int64             `json:"duration_ns"`
-	Error          bool              `json:"error"`
-	Service        string            `json:"service"`
-	Tags           map[string]string `json:"tags"`
-	Indicator      bool              `json:"indicator"`
-	Name           string            `json:"name"`
-}
-
-func (sss *splunkSpanSink) writeSpan(ctx context.Context, ssfSpan *ssf.SSFSpan) error {
 	serialized := SerializedSSF{
 		TraceId:        strconv.FormatInt(ssfSpan.TraceId, 10),
 		Id:             strconv.FormatInt(ssfSpan.Id, 10),
@@ -137,18 +155,24 @@ func (sss *splunkSpanSink) writeSpan(ctx context.Context, ssfSpan *ssf.SSFSpan) 
 	event.SetSourceType(ssfSpan.Service)
 
 	event.SetTime(time.Unix(0, ssfSpan.StartTimestamp))
+	sss.ingest <- event
+	return nil
+}
 
-	err := sss.WriteEventWithContext(ctx, event)
-	if err != nil {
-		atomic.AddUint32(&sss.dropCount, 1)
-
-		if ctx.Err() == nil {
-			// We're not interested in deadline-exceeded, but also
-			// TODO: get rid of this, it'll get suuuper chunderous:
-			sss.log.WithError(err).Error("Couldn't flush span to HEC")
-		}
-	} else {
-		atomic.AddUint32(&sss.sentCount, 1)
-	}
-	return err
+// SerializedSSF holds a set of fields in a format that Splunk can
+// handle (it can't handle int64s, and we don't want to round our
+// traceID to the thousands place).  This is mildly redundant, but oh
+// well.
+type SerializedSSF struct {
+	TraceId        string            `json:"trace_id"`
+	Id             string            `json:"id"`
+	ParentId       string            `json:"parent_id"`
+	StartTimestamp float64           `json:"start_timestamp"`
+	EndTimestamp   float64           `json:"end_timestamp"`
+	Duration       int64             `json:"duration_ns"`
+	Error          bool              `json:"error"`
+	Service        string            `json:"service"`
+	Tags           map[string]string `json:"tags"`
+	Indicator      bool              `json:"indicator"`
+	Name           string            `json:"name"`
 }
