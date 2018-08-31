@@ -3,8 +3,10 @@ package splunk
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net/http"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	hec "github.com/fuyufjh/splunk-hec-go"
@@ -18,8 +20,10 @@ import (
 
 type splunkSpanSink struct {
 	*hec.Client
-	hostname    string
-	sendTimeout time.Duration
+	hostname        string
+	sendTimeout     time.Duration
+	maxSpanCapacity int
+	ingestedSpans   uint32
 
 	ingest chan *hec.Event
 	flush  chan []*hec.Event
@@ -28,12 +32,17 @@ type splunkSpanSink struct {
 	log         *logrus.Logger
 }
 
+// ErrTooManySpans is an error returned when the number of spans
+// ingested in a flush interval exceeds the maximum number configured
+// for this sink. See the splunk_hec_max_capacity config setting.
+var ErrTooManySpans = fmt.Errorf("Ingested spans exceed the configured limit.")
+
 // NewSplunkSpanSink constructs a new splunk span sink from the server
 // name and token provided, using the local hostname configured for
 // veneur. An optional argument, validateServerName is used (if
 // non-empty) to instruct go to validate a different hostname than the
 // one on the server URL.
-func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, sendTimeout time.Duration) (sinks.SpanSink, error) {
+func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, sendTimeout time.Duration, maxSpanCapacity int) (sinks.SpanSink, error) {
 	client := hec.NewClient(server, token).(*hec.Client)
 
 	if validateServerName != "" {
@@ -46,12 +55,13 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 	}
 
 	return &splunkSpanSink{
-		Client:      client,
-		ingest:      make(chan *hec.Event),
-		flush:       make(chan []*hec.Event),
-		hostname:    localHostname,
-		log:         log,
-		sendTimeout: sendTimeout,
+		Client:          client,
+		ingest:          make(chan *hec.Event),
+		flush:           make(chan []*hec.Event),
+		hostname:        localHostname,
+		log:             log,
+		sendTimeout:     sendTimeout,
+		maxSpanCapacity: maxSpanCapacity,
 	}, nil
 }
 
@@ -63,15 +73,14 @@ func (sss *splunkSpanSink) Start(cl *trace.Client) error {
 }
 
 func (sss *splunkSpanSink) batchAndSend() {
-	batch := make([]*hec.Event, 0, 1)
-
+	batch := make([]*hec.Event, 0, sss.maxSpanCapacity)
 	for {
 		select {
 		case ev := <-sss.ingest:
 			batch = append(batch, ev)
 		case sss.flush <- batch:
 			// We could flush the batch - get us a new one.
-			batch = make([]*hec.Event, 0, len(batch))
+			batch = make([]*hec.Event, 0, sss.maxSpanCapacity)
 		}
 
 	}
@@ -84,6 +93,7 @@ func (sss *splunkSpanSink) Flush() {
 	flushed := 0
 	dropped := 0
 	batch := <-sss.flush
+	atomic.StoreUint32(&sss.ingestedSpans, 0)
 
 	// TODO: Ideally, Flush() would get a context of its own:
 	ctx := context.Background()
@@ -133,6 +143,10 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	if err := protocol.ValidateTrace(ssfSpan); err != nil {
 		return err
 	}
+	if sss.maxSpanCapacity != 0 && atomic.LoadUint32(&sss.ingestedSpans) >= uint32(sss.maxSpanCapacity) {
+		return ErrTooManySpans
+	}
+	atomic.AddUint32(&sss.ingestedSpans, 1)
 	serialized := SerializedSSF{
 		TraceId:        strconv.FormatInt(ssfSpan.TraceId, 10),
 		Id:             strconv.FormatInt(ssfSpan.Id, 10),

@@ -361,6 +361,13 @@ splunk_hec_address: "https://localhost:8088"
 # The authentication token veneur will use to authenticate to the HEC
 splunk_hec_token: "00000000-0000-0000-0000-000000000000"
 
+# (optional) The maximum number of spans to keep between flushes of
+# the splunk HEC sink. If it ingests more than this number of spans,
+# ingestion of each span into the sink will report an error. If no
+# capacity is given, the number of spans buffered can grow without
+# bounds.
+splunk_hec_max_capacity: 160000
+
 # (optional) server name set on the TLS configuration. This is useful
 # if the host you're reaching identifies with a different name than on
 # the URL.
