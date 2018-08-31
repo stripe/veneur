@@ -17,11 +17,13 @@ import (
 	"github.com/stripe/veneur/ssf"
 )
 
-func jsonEndpoint(t *testing.T, ch chan<- hec.Event) http.Handler {
+func jsonEndpoint(t testing.TB, ch chan<- hec.Event) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		failed := false
 		input := hec.Event{}
 		j := json.NewDecoder(r.Body)
+		defer r.Body.Close()
+
 		j.DisallowUnknownFields()
 		for {
 			err := j.Decode(&input)
@@ -31,15 +33,17 @@ func jsonEndpoint(t *testing.T, ch chan<- hec.Event) http.Handler {
 				}
 				t.Errorf("Decoding JSON: %v", err)
 				failed = true
+				break
 			}
-
-			if failed {
-				w.WriteHeader(400)
-				w.Write([]byte(`{"text": "Error processing event", "code": 90}`))
-			} else {
-				w.Write([]byte(`{"text":"Success","code":0}`))
+			if ch != nil {
 				ch <- input
 			}
+		}
+		if failed {
+			w.WriteHeader(400)
+			w.Write([]byte(`{"text": "Error processing event", "code": 90}`))
+		} else {
+			w.Write([]byte(`{"text":"Success","code":0}`))
 		}
 	})
 }
@@ -108,5 +112,100 @@ func TestSpanIngestBatch(t *testing.T) {
 		assert.Equal(t, map[string]string{"farts": "mandatory"}, output.Tags)
 		assert.Equal(t, true, output.Indicator)
 		assert.Equal(t, true, output.Error)
+	}
+}
+
+func BenchmarkBatchFlushing(b *testing.B) {
+	const flushSpans = 1000 // number of spans to accumulate before flushing
+	logger := logrus.StandardLogger()
+
+	// set up a null responder that we can flush to:
+	ts := httptest.NewServer(jsonEndpoint(b, nil))
+	defer ts.Close()
+	sink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
+		"test-host", "", logger, time.Duration(0))
+	require.NoError(b, err)
+	err = sink.Start(nil)
+	require.NoError(b, err)
+
+	start := time.Unix(100000, 1000000)
+	end := start.Add(5 * time.Second)
+	span := &ssf.SSFSpan{
+		ParentId:       4,
+		TraceId:        6,
+		Id:             0,
+		StartTimestamp: start.UnixNano(),
+		EndTimestamp:   end.UnixNano(),
+		Service:        "test-srv",
+		Name:           "test-span",
+		Indicator:      true,
+		Error:          true,
+		Tags: map[string]string{
+			"farts": "mandatory",
+		},
+		Metrics: []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		},
+	}
+
+	b.ResetTimer()
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		span.Id = int64(i + 1)
+		err = sink.Ingest(span)
+		require.NoError(b, err)
+		if i != 0 && i%flushSpans == 0 {
+			b.StartTimer()
+			sink.Flush()
+			b.StopTimer()
+		}
+	}
+}
+
+func BenchmarkBatchIngest(b *testing.B) {
+	const flushSpans = 400000 // number of spans to accumulate before flushing
+	logger := logrus.StandardLogger()
+
+	// set up a null responder that we can flush to:
+	ts := httptest.NewServer(jsonEndpoint(b, nil))
+	defer ts.Close()
+	sink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
+		"test-host", "", logger, time.Duration(0))
+	require.NoError(b, err)
+	err = sink.Start(nil)
+	require.NoError(b, err)
+
+	start := time.Unix(100000, 1000000)
+	end := start.Add(5 * time.Second)
+	span := &ssf.SSFSpan{
+		ParentId:       4,
+		TraceId:        6,
+		Id:             0,
+		StartTimestamp: start.UnixNano(),
+		EndTimestamp:   end.UnixNano(),
+		Service:        "test-srv",
+		Name:           "test-span",
+		Indicator:      true,
+		Error:          true,
+		Tags: map[string]string{
+			"farts": "mandatory",
+		},
+		Metrics: []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		},
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		span.Id = int64(i + 1)
+		err = sink.Ingest(span)
+		require.NoError(b, err)
+		if i != 0 && i%flushSpans == 0 {
+			b.StopTimer()
+			sink.Flush()
+			b.StartTimer()
+		}
 	}
 }
