@@ -2,6 +2,7 @@ package splunk_test
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -22,37 +23,44 @@ func jsonEndpoint(t *testing.T, ch chan<- hec.Event) http.Handler {
 		input := hec.Event{}
 		j := json.NewDecoder(r.Body)
 		j.DisallowUnknownFields()
-		err := j.Decode(&input)
-		if err != nil {
-			t.Errorf("Decoding JSON: %v", err)
-			failed = true
-		}
+		for {
+			err := j.Decode(&input)
+			if err != nil {
+				if err == io.EOF {
+					return
+				}
+				t.Errorf("Decoding JSON: %v", err)
+				failed = true
+			}
 
-		if failed {
-			w.WriteHeader(400)
-			w.Write([]byte(`{"text": "Error processing event", "code": 90}`))
-		} else {
-			w.Write([]byte(`{"text":"Success","code":0}`))
-			ch <- input
+			if failed {
+				w.WriteHeader(400)
+				w.Write([]byte(`{"text": "Error processing event", "code": 90}`))
+			} else {
+				w.Write([]byte(`{"text":"Success","code":0}`))
+				ch <- input
+			}
 		}
 	})
 }
 
-func TestSpanIngest(t *testing.T) {
+func TestSpanIngestBatch(t *testing.T) {
+	const nToFlush = 10
 	logger := logrus.StandardLogger()
 
-	ch := make(chan hec.Event, 1)
+	ch := make(chan hec.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
 	defer ts.Close()
 	sink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
 		"test-host", "", logger, time.Duration(0))
+	require.NoError(t, err)
+	err = sink.Start(nil)
 	require.NoError(t, err)
 
 	start := time.Unix(100000, 1000000)
 	end := start.Add(5 * time.Second)
 	span := &ssf.SSFSpan{
 		ParentId:       4,
-		Id:             5,
 		TraceId:        6,
 		StartTimestamp: start.UnixNano(),
 		EndTimestamp:   end.UnixNano(),
@@ -68,30 +76,37 @@ func TestSpanIngest(t *testing.T) {
 			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
 		},
 	}
-	err = sink.Ingest(span)
-	require.NoError(t, err)
-	event := <-ch
+	for i := 0; i < nToFlush; i++ {
+		span.Id = int64(i + 1)
+		err = sink.Ingest(span)
+		require.NoError(t, err)
+	}
 
-	fakeEvent := hec.Event{}
-	fakeEvent.SetTime(start)
+	sink.Flush()
 
-	assert.Equal(t, *fakeEvent.Time, *event.Time)
-	assert.Equal(t, "test-srv", *event.SourceType)
-	assert.Equal(t, "test-host", *event.Host)
+	for i := 0; i < nToFlush; i++ {
+		event := <-ch
+		fakeEvent := hec.Event{}
+		fakeEvent.SetTime(start)
 
-	spanB, err := json.Marshal(event.Event)
-	require.NoError(t, err)
-	output := splunk.SerializedSSF{}
-	err = json.Unmarshal(spanB, &output)
+		assert.Equal(t, *fakeEvent.Time, *event.Time)
+		assert.Equal(t, "test-srv", *event.SourceType)
+		assert.Equal(t, "test-host", *event.Host)
 
-	assert.Equal(t, float64(span.StartTimestamp)/float64(time.Second), output.StartTimestamp)
-	assert.Equal(t, float64(span.EndTimestamp)/float64(time.Second), output.EndTimestamp)
+		spanB, err := json.Marshal(event.Event)
+		require.NoError(t, err)
+		output := splunk.SerializedSSF{}
+		err = json.Unmarshal(spanB, &output)
 
-	assert.Equal(t, strconv.FormatInt(span.Id, 10), output.Id)
-	assert.Equal(t, strconv.FormatInt(span.ParentId, 10), output.ParentId)
-	assert.Equal(t, strconv.FormatInt(span.TraceId, 10), output.TraceId)
-	assert.Equal(t, "test-span", output.Name)
-	assert.Equal(t, map[string]string{"farts": "mandatory"}, output.Tags)
-	assert.Equal(t, true, output.Indicator)
-	assert.Equal(t, true, output.Error)
+		assert.Equal(t, float64(span.StartTimestamp)/float64(time.Second), output.StartTimestamp)
+		assert.Equal(t, float64(span.EndTimestamp)/float64(time.Second), output.EndTimestamp)
+
+		assert.Equal(t, strconv.FormatInt(int64(i+1), 10), output.Id)
+		assert.Equal(t, strconv.FormatInt(span.ParentId, 10), output.ParentId)
+		assert.Equal(t, strconv.FormatInt(span.TraceId, 10), output.TraceId)
+		assert.Equal(t, "test-span", output.Name)
+		assert.Equal(t, map[string]string{"farts": "mandatory"}, output.Tags)
+		assert.Equal(t, true, output.Indicator)
+		assert.Equal(t, true, output.Error)
+	}
 }
