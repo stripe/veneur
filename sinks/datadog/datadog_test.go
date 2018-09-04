@@ -308,8 +308,8 @@ func TestDatadogFlushEvents(t *testing.T) {
 			dogstatsd.EventAlertTypeTagKey:      "success",
 			dogstatsd.EventPriorityTagKey:       "low",
 			dogstatsd.EventHostnameTagKey:       "example.com",
-			"foo": "bar",
-			"baz": "qux",
+			"foo":                               "bar",
+			"baz":                               "qux",
 		},
 	}
 	ddFixtureEvent := DDEvent{
