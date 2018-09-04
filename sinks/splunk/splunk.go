@@ -77,6 +77,9 @@ func (sss *splunkSpanSink) batchAndSend() {
 	for {
 		select {
 		case ev := <-sss.ingest:
+			// Note that Ingest checks whether the span
+			// limit is exceeded, so here we can
+			// unconditionally add the span to the batch.
 			batch = append(batch, ev)
 		case sss.flush <- batch:
 			// We could flush the batch - get us a new one.
