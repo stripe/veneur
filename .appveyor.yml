@@ -1,0 +1,8 @@
+clone_folder: c:\gopath\src\github.com\stripe\veneur
+
+environment:
+    GOPATH: c:\gopath
+
+build_script:
+    - go get .
+    - go test -race -v -timeout 120s
