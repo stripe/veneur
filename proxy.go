@@ -37,6 +37,8 @@ import (
 	"goji.io/pat"
 )
 
+var proxyProtocolTags = map[string]string{"protocol": "grpc"}
+
 type Proxy struct {
 	Sentry                     *raven.Client
 	Hostname                   string
@@ -615,8 +617,8 @@ func (p *Proxy) ProxyMetrics(ctx context.Context, jsonMetrics []samplers.JSONMet
 	log.WithField("count", metricCount).Debug("Completed forward")
 
 	span.Add(ssf.RandomlySample(0.1,
-		ssf.Timing("proxy.duration_ns", time.Since(span.Start), time.Nanosecond, nil),
-		ssf.Count("proxy.proxied_metrics_total", float32(len(jsonMetrics)), nil),
+		ssf.Timing("proxy.duration_ns", time.Since(span.Start), time.Nanosecond, proxyProtocolTags),
+		ssf.Count("proxy.proxied_metrics_total", float32(len(jsonMetrics)), proxyProtocolTags),
 	)...)
 }
 
