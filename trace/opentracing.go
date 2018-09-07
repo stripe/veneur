@@ -1,4 +1,4 @@
-package trace
+package trac
 
 import (
 	"context"
@@ -27,10 +27,12 @@ type HeaderGroup struct {
 // Veneur supports multiple tracing header formats. We try each set of headers until we find one that exists.
 // Note: textMapReaderGet is case insensitive, so the capitalization of these headers is not important.
 var HeaderFormats = []HeaderGroup{
-	// Envoy format. We check Envoy first because Envoy sits between services and will most likely be the nearest parent.
+	// Envoy format. We check Envoy first because, if Envoy is used, Envoy sits between services and will most likely be the nearest parent.
+	// Envoy (and OpenTracing) allow multiple header formats; this is the naming scheme used by Envoy configured with Lightstep, though
+	// it does not require usage of Lightstep.
 	HeaderGroup{
-		TraceID: "x-request-id",
-		SpanID:  "x-client-trace-id",
+		TraceID: "ot-tracer-traceid",
+		SpanID:  "ot-tracer-spanid",
 	},
 	// OpenTracing format.
 	HeaderGroup{

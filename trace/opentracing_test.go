@@ -236,8 +236,8 @@ func TestTracerInjectExtractHeader(t *testing.T) {
 func TestTraceExtractHeaderEnvoy(t *testing.T) {
 	tracer := Tracer{}
 	tm := textMapReaderWriter(map[string]string{
-		"x-request-id":      "12345",
-		"x-client-trace-id": "67890",
+		"ot-tracer-traceid": "12345",
+		"ot-tracer-spanid":  "67890",
 	})
 
 	c, _ := tracer.Extract(opentracing.TextMap, tm)
