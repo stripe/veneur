@@ -92,6 +92,11 @@ type Trace struct {
 	// alongside a span.
 	Samples []*ssf.SSFSample
 
+	// An indicator span is one that represents an action that is included in a
+	// service's Service Level Indicators (https://en.wikipedia.org/wiki/Service_level_indicator)
+	// For more information, see the SSF definition at https://github.com/stripe/veneur/tree/master/ssf
+	Indicator bool
+
 	error bool
 }
 
@@ -155,6 +160,7 @@ func (t *Trace) SSFSpan() *ssf.SSFSpan {
 		Tags:           t.Tags,
 		Service:        Service,
 		Metrics:        t.Samples,
+		Indicator:      t.Indicator,
 	}
 
 	return span
