@@ -1,4 +1,4 @@
-package trac
+package trace
 
 import (
 	"context"
@@ -20,9 +20,17 @@ import (
 
 // Lists the names of headers that a specification uses for representing trace information.
 type HeaderGroup struct {
-	TraceID string
-	SpanID  string
+	TraceID   string
+	SpanID    string
+	numFormat headerGroupNumFormat
 }
+
+type headerGroupNumFormat int
+
+const (
+	decimal headerGroupNumFormat = iota
+	hexadecimal
+)
 
 // Veneur supports multiple tracing header formats. We try each set of headers until we find one that exists.
 // Note: textMapReaderGet is case insensitive, so the capitalization of these headers is not important.
@@ -31,8 +39,9 @@ var HeaderFormats = []HeaderGroup{
 	// Envoy (and OpenTracing) allow multiple header formats; this is the naming scheme used by Envoy configured with Lightstep, though
 	// it does not require usage of Lightstep.
 	HeaderGroup{
-		TraceID: "ot-tracer-traceid",
-		SpanID:  "ot-tracer-spanid",
+		TraceID:   "ot-tracer-traceid",
+		SpanID:    "ot-tracer-spanid",
+		numFormat: hexadecimal,
 	},
 	// OpenTracing format.
 	HeaderGroup{
@@ -586,8 +595,14 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 		var traceID int64
 		var spanID int64
 		for _, headers := range HeaderFormats {
-			traceID, _ = strconv.ParseInt(textMapReaderGet(tm, headers.TraceID), 10, 64)
-			spanID, _ = strconv.ParseInt(textMapReaderGet(tm, headers.SpanID), 10, 64)
+
+			base := 10
+			if headers.numFormat == hexadecimal {
+				base = 16
+			}
+
+			traceID, _ = strconv.ParseInt(textMapReaderGet(tm, headers.TraceID), base, 64)
+			spanID, _ = strconv.ParseInt(textMapReaderGet(tm, headers.SpanID), base, 64)
 
 			if traceID != 0 && spanID != 0 {
 				break
