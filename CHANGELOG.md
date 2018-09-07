@@ -5,6 +5,7 @@
 * Added tracer.InjectHeader convenience function for... convenience! Thanks, [mikeh](https://github.com/mikeh-stripe)!
 * Veneur has a new sink that can be configured to send spans as events into a [Splunk HEC](http://dev.splunk.com/view/event-collector/SP-CAAAE6M) endpoint. Thanks, [antifuchs](https://github.com/antifuchs) and [aditya](https://github.com/chimeracoder)!
 * Go 1.11 is now supported and used for all public Docker images. Thanks, [aditya](https://github.com/chimeracoder)!
+* The `veneur/trace` package now supports setting the indicator bit on a span manually. Thanks, [aditya](https://github.com/chimeracoder)!
 
 ## Bugfixes
 * The trace client can now correctly parse trace headers emitted by Envoy. Thanks, [aditya](https://github.com/chimeracoder)!
