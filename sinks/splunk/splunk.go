@@ -37,6 +37,8 @@ type splunkSpanSink struct {
 	log         *logrus.Logger
 }
 
+const DefaultMaxContentLength = 1000000
+
 // ErrTooManySpans is an error returned when the number of spans
 // ingested in a flush interval exceeds the maximum number configured
 // for this sink. See the splunk_hec_max_capacity config setting.
@@ -49,6 +51,8 @@ var ErrTooManySpans = fmt.Errorf("ingested spans exceed the configured limit.")
 // one on the server URL.
 func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, ingestTimeout time.Duration, sendTimeout time.Duration, maxSpanCapacity int, earlyFlushThreshold int) (sinks.SpanSink, error) {
 	client := hec.NewClient(server, token).(*hec.Client)
+	client.SetMaxRetry(0)
+	client.SetMaxContentLength(DefaultMaxContentLength)
 
 	if validateServerName != "" {
 		tlsCfg := &tls.Config{}
