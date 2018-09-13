@@ -117,7 +117,7 @@ func (sss *splunkSpanSink) submitBatch(ctx context.Context, batch []*hec.Event) 
 	} else {
 		samples.Add(ssf.Count("splunk.span_submitted_total", float32(len(batch)), map[string]string{}))
 	}
-	samples.Add(ssf.Timing("splunk.span_submission_duration_ns", start.Sub(time.Now()), time.Nanosecond, map[string]string{}))
+	samples.Add(ssf.Timing("splunk.span_submission_duration_ns", time.Now().Sub(start), time.Nanosecond, map[string]string{}))
 }
 
 func (sss *splunkSpanSink) batchAndSend() {
