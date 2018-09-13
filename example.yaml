@@ -368,6 +368,11 @@ splunk_hec_token: "00000000-0000-0000-0000-000000000000"
 # bounds.
 splunk_hec_max_capacity: 160000
 
+# (optional) The number of spans at which to attempt to flush a batch
+# of accumulated spans early (that is, between the configured flush
+# interval). If this is unset, no early flushes are attempted.
+splunk_hec_early_flush_threshold: 80000
+
 # (optional) server name set on the TLS configuration. This is useful
 # if the host you're reaching identifies with a different name than on
 # the URL.
@@ -377,6 +382,11 @@ splunk_hec_tls_validate_hostname: "some-other-hostname"
 # sending a batch of spans to the Splunk HEC. If omitted / set to 0,
 # sending batches happens without a timeout.
 splunk_hec_send_timeout: "10ms"
+
+# (optional) The maximum amount of time to wait before timing out
+# ingesting a single span to the Splunk HEC sink. If omitted / set to
+# 0, ingestion will wait indefintely until the span can be ingested.
+splunk_hec_ingest_timeout: "10ms"
 
 # == PLUGINS ==
 
