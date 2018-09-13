@@ -3,13 +3,14 @@ package splunk
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
+	"encoding/json"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"sync/atomic"
 	"time"
 
-	hec "github.com/fuyufjh/splunk-hec-go"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/sinks"
@@ -19,124 +20,228 @@ import (
 )
 
 type splunkSpanSink struct {
-	*hec.Client
-	hostname        string
-	sendTimeout     time.Duration
-	maxSpanCapacity int
-	ingestedSpans   uint32
+	hec           *hecClient
+	httpClient    *http.Client
+	hostname      string
+	sendTimeout   time.Duration
+	ingestTimeout time.Duration
 
-	ingest chan *hec.Event
-	flush  chan []*hec.Event
+	workers int
+
+	maxSpanCapacity      int
+	hecSubmissionWorkers int
+	ingestedSpans        uint32
+	droppedSpans         uint32
+
+	ingest chan *Event
 
 	traceClient *trace.Client
 	log         *logrus.Logger
 }
-
-// ErrTooManySpans is an error returned when the number of spans
-// ingested in a flush interval exceeds the maximum number configured
-// for this sink. See the splunk_hec_max_capacity config setting.
-var ErrTooManySpans = fmt.Errorf("Ingested spans exceed the configured limit.")
 
 // NewSplunkSpanSink constructs a new splunk span sink from the server
 // name and token provided, using the local hostname configured for
 // veneur. An optional argument, validateServerName is used (if
 // non-empty) to instruct go to validate a different hostname than the
 // one on the server URL.
-func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, sendTimeout time.Duration, maxSpanCapacity int) (sinks.SpanSink, error) {
-	client := hec.NewClient(server, token).(*hec.Client)
+func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, ingestTimeout time.Duration, sendTimeout time.Duration, maxSpanCapacity int, workers int) (sinks.SpanSink, error) {
+	client, err := newHecClient(server, token)
+	if err != nil {
+		return nil, err
+	}
 
+	trnsp := &http.Transport{}
+	httpC := &http.Client{Transport: trnsp}
 	if validateServerName != "" {
 		tlsCfg := &tls.Config{}
 		tlsCfg.ServerName = validateServerName
-
-		trnsp := &http.Transport{TLSClientConfig: tlsCfg}
-		httpC := &http.Client{Transport: trnsp}
-		client.SetHTTPClient(httpC)
+		trnsp.TLSClientConfig = tlsCfg
+	}
+	if sendTimeout > 0 {
+		trnsp.ResponseHeaderTimeout = sendTimeout
 	}
 
 	return &splunkSpanSink{
-		Client:          client,
-		ingest:          make(chan *hec.Event),
-		flush:           make(chan []*hec.Event),
+		hec:             client,
+		httpClient:      httpC,
+		ingest:          make(chan *Event),
 		hostname:        localHostname,
 		log:             log,
 		sendTimeout:     sendTimeout,
+		ingestTimeout:   ingestTimeout,
 		maxSpanCapacity: maxSpanCapacity,
 	}, nil
 }
 
+// Name returns this sink's name
+func (*splunkSpanSink) Name() string {
+	return "splunk"
+}
+
 func (sss *splunkSpanSink) Start(cl *trace.Client) error {
 	sss.traceClient = cl
-	go sss.batchAndSend()
+
+	workers := 1
+	if sss.workers > 0 {
+		workers = sss.workers
+	}
+	for i := 0; i < workers; i++ {
+		go sss.submitter()
+	}
 
 	return nil
 }
 
-func (sss *splunkSpanSink) batchAndSend() {
-	batch := make([]*hec.Event, 0, sss.maxSpanCapacity)
-	for {
-		select {
-		case ev := <-sss.ingest:
-			// Note that Ingest checks whether the span
-			// limit is exceeded, so here we can
-			// unconditionally add the span to the batch.
-			batch = append(batch, ev)
-		case sss.flush <- batch:
-			// We could flush the batch - get us a new one.
-			batch = make([]*hec.Event, 0, sss.maxSpanCapacity)
-		}
-
+// Close shuts down the sink. This is useful only in testing.
+func Close(sink sinks.SpanSink) (ok bool) {
+	var sss *splunkSpanSink
+	if sss, ok = sink.(*splunkSpanSink); ok {
+		close(sss.ingest)
 	}
+	return
+}
+
+func (sss *splunkSpanSink) submitter() {
+	for {
+		var req *http.Request
+		hecReq, err := sss.hec.newRequest()
+
+		ingested := 0
+		enc := hecReq.GetEncoder()
+		for {
+			ev, ok := <-sss.ingest
+			if !ok {
+				// The sink is shutting down; close
+				// the writer and terminate.
+				hecReq.Close()
+				return
+			}
+			ingested++
+
+			if req == nil {
+				req, err = hecReq.Start()
+				if err != nil {
+					sss.log.WithError(err).
+						Warn("Could not create HEC request")
+					time.Sleep(1 * time.Second)
+					break
+				}
+				go sss.makeHTTPRequest(req)
+			}
+			err = enc.Encode(ev)
+			if err != nil {
+				sss.log.WithError(err).
+					WithField("event", ev).
+					Warn("Could not json-encode HEC event")
+				continue
+			}
+			if ingested >= sss.maxSpanCapacity {
+				// we consumed the batch size's worth, let's send it:
+				hecReq.Close()
+				break
+			}
+		}
+	}
+}
+
+func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request) {
+	samples := &ssf.Samples{}
+	defer metrics.Report(sss.traceClient, samples)
+	const successMetric = "splunk.hec_submission_success_total"
+	const failureMetric = "splunk.hec_submission_failed_total"
+	const timingMetric = "splunk.span_submission_lifetime_ns"
+	start := time.Now()
+	defer func() {
+		samples.Add(ssf.Timing(timingMetric, time.Now().Sub(start),
+			time.Nanosecond, map[string]string{}))
+	}()
+
+	resp, err := sss.httpClient.Do(req)
+	if err != nil {
+		sss.log.WithError(err).
+			Error("Could not execute HEC request")
+		samples.Add(ssf.Count(failureMetric, 1, map[string]string{
+			"cause": "execution",
+		}))
+		return
+	}
+
+	// We know a few status codes and their meanings. No need to
+	// parse JSON for those:
+	discardBody := false
+	defer func() {
+		if discardBody {
+			io.Copy(ioutil.Discard, resp.Body)
+		}
+	}()
+
+	var cause string
+	var statusCode int
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		// Everything went well - discard the body so the
+		// connection stays alive and early-return (the rest
+		// of this function is dedicated to error handling):
+		discardBody = true
+		samples.Add(ssf.Count(successMetric, 1, map[string]string{}))
+		return
+	case http.StatusInternalServerError:
+		discardBody = true
+		cause = "internal_server_error"
+		statusCode = 8
+	case http.StatusServiceUnavailable:
+		// This status happens when splunk is out of capacity,
+		// no need to report a bug or parse the body for it:
+		discardBody = true
+		cause = "service_unavailable"
+		statusCode = 9
+	default:
+		// Something else is wrong, let's parse the body and
+		// report a detailed error:
+		var parsed Response
+		dec := json.NewDecoder(resp.Body)
+		err := dec.Decode(&parsed)
+		if err != nil {
+			sss.log.WithError(err).
+				WithField("http_status_code", resp.StatusCode).
+				Warn("Could not parse response from splunk HEC")
+			return
+		}
+		cause = "error"
+		statusCode = parsed.Code
+		sss.log.WithFields(logrus.Fields{
+			"http_status_code":  resp.StatusCode,
+			"hec_status_code":   parsed.Code,
+			"hec_response_text": parsed.Text,
+			"event_number":      parsed.InvalidEventNumber,
+		}).Error("Error response from Splunk HEC")
+	}
+	samples.Add(ssf.Count(failureMetric, 1, map[string]string{
+		"cause":       cause,
+		"status_code": strconv.Itoa(statusCode),
+	}))
 }
 
 // Flush takes the batched-up events and sends them to the HEC
 // endpoint for ingestion. If set, it uses the send timeout configured
 // for the span batch.
 func (sss *splunkSpanSink) Flush() {
-	flushed := 0
-	dropped := 0
-	batch := <-sss.flush
-	atomic.StoreUint32(&sss.ingestedSpans, 0)
-
-	// TODO: Ideally, Flush() would get a context of its own:
-	ctx := context.Background()
-	if sss.sendTimeout != 0 {
-		var cancel func()
-		ctx, cancel = context.WithTimeout(ctx, sss.sendTimeout)
-		defer cancel()
-	}
-	err := sss.Client.WriteBatchWithContext(ctx, batch)
-	if err != nil {
-		dropped += len(batch)
-		if ctx.Err() == nil {
-			sss.log.WithError(err).
-				WithField("n_spans", len(batch)).
-				Error("Couldn't flush batch to HEC")
-		}
-	} else {
-		flushed += len(batch)
-	}
-
 	samples := &ssf.Samples{}
 	samples.Add(
 		ssf.Count(
 			sinks.MetricKeyTotalSpansFlushed,
-			float32(flushed),
+			float32(atomic.SwapUint32(&sss.ingestedSpans, 0)),
 			map[string]string{"sink": sss.Name()}),
 		ssf.Count(
 			sinks.MetricKeyTotalSpansDropped,
-			float32(dropped),
+			float32(atomic.SwapUint32(&sss.droppedSpans, 0)),
 			map[string]string{"sink": sss.Name()},
 		),
 	)
 
 	metrics.Report(sss.traceClient, samples)
 	return
-}
-
-// Name returns this sink's name
-func (*splunkSpanSink) Name() string {
-	return "splunk"
 }
 
 // Ingest takes in a span and batches it up to be sent in the next
@@ -146,10 +251,14 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	if err := protocol.ValidateTrace(ssfSpan); err != nil {
 		return err
 	}
-	if sss.maxSpanCapacity != 0 && atomic.LoadUint32(&sss.ingestedSpans) >= uint32(sss.maxSpanCapacity) {
-		return ErrTooManySpans
+
+	ctx := context.Background()
+	if sss.ingestTimeout > 0 {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, sss.ingestTimeout)
+		defer cancel()
 	}
-	atomic.AddUint32(&sss.ingestedSpans, 1)
+
 	serialized := SerializedSSF{
 		TraceId:        strconv.FormatInt(ssfSpan.TraceId, 10),
 		Id:             strconv.FormatInt(ssfSpan.Id, 10),
@@ -164,7 +273,7 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		Name:           ssfSpan.Name,
 	}
 
-	event := &hec.Event{
+	event := &Event{
 		Event: serialized,
 	}
 	event.SetTime(time.Unix(0, ssfSpan.StartTimestamp))
@@ -172,7 +281,12 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	event.SetSourceType(ssfSpan.Service)
 
 	event.SetTime(time.Unix(0, ssfSpan.StartTimestamp))
-	sss.ingest <- event
+	select {
+	case sss.ingest <- event:
+		atomic.AddUint32(&sss.ingestedSpans, 1)
+	case <-ctx.Done():
+		atomic.AddUint32(&sss.droppedSpans, 1)
+	}
 	return nil
 }
 
