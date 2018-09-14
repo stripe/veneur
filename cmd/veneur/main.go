@@ -13,7 +13,9 @@ import (
 )
 
 var (
-	configFile = flag.String("f", "", "The config file to read for settings.")
+	configFile           = flag.String("f", "", "The config file to read for settings.")
+	validateConfig       = flag.Bool("validate-config", false, "Validate the config file is valid YAML with correct value types, then immediately exit.")
+	validateConfigStrict = flag.Bool("validate-config-strict", false, "Validate as with -validate-config, but also fail if there are any unknown fields.")
 )
 
 func init() {
@@ -30,10 +32,18 @@ func main() {
 	conf, err := veneur.ReadConfig(*configFile)
 	if err != nil {
 		if _, ok := err.(*veneur.UnknownConfigKeys); ok {
-			logrus.WithError(err).Warn("Config contains invalid or deprecated keys")
+			if *validateConfigStrict {
+				logrus.WithError(err).Fatal("Config contains invalid or deprecated keys")
+			} else {
+				logrus.WithError(err).Warn("Config contains invalid or deprecated keys")
+			}
 		} else {
 			logrus.WithError(err).Fatal("Error reading config file")
 		}
+	}
+
+	if *validateConfig {
+		os.Exit(0)
 	}
 
 	logger := logrus.StandardLogger()

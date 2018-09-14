@@ -232,6 +232,11 @@ Veneur supports specifying that metrics should only be routed to a specific metr
 
 Veneur expects to have a config file supplied via `-f PATH`. The included [example.yaml](https://github.com/stripe/veneur/blob/master/example.yaml) explains all the options!
 
+The config file can be validated using a pair of flags:
+
+* `-validate-config`: checks that the config file specified via `-f` is valid YAML, and has correct datatypes for all fields.
+* `-validate-config-strict`: checks the above, and also that there are no unknown fields.
+
 ## Configuration via Environment Variables
 
 Veneur and veneur-proxy each allow configuration via environment variables using [envconfig](https://github.com/kelseyhightower/envconfig). Options provided via environment variables take precedent over those in config. This allows stuff like:
