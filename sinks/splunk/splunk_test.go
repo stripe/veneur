@@ -56,7 +56,7 @@ func TestSpanIngestBatch(t *testing.T) {
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
 	defer ts.Close()
 	sink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), 0)
+		"test-host", "", logger, time.Duration(0), time.Duration(0), 0, 0)
 	require.NoError(t, err)
 	err = sink.Start(nil)
 	require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestSpanIngestBatch(t *testing.T) {
 	for i := 0; i < nToFlush; i++ {
 		span.Id = int64(i + 1)
 		err = sink.Ingest(span)
-		require.NoError(t, err)
+		require.NoError(t, err, "error ingesting the %dth span", i)
 	}
 
 	sink.Flush()
@@ -121,7 +121,7 @@ func TestSpanIngestLimits(t *testing.T) {
 	ts := httptest.NewServer(jsonEndpoint(t, nil))
 	defer ts.Close()
 	sink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), 1)
+		"test-host", "", logger, time.Duration(10*time.Millisecond), time.Duration(0), 1, 0)
 	require.NoError(t, err)
 	err = sink.Start(nil)
 	require.NoError(t, err)
@@ -148,7 +148,7 @@ func TestSpanIngestLimits(t *testing.T) {
 	}
 	// First ingest should succeed:
 	err = sink.Ingest(span)
-	require.NoError(t, err)
+	require.NoError(t, err, "first ingest")
 
 	// Now it's at capacity, next one should fail:
 	err = sink.Ingest(span)
@@ -158,7 +158,7 @@ func TestSpanIngestLimits(t *testing.T) {
 	// After flushing, it should succeed again:
 	sink.Flush()
 	err = sink.Ingest(span)
-	require.NoError(t, err)
+	require.NoError(t, err, "second ingest")
 }
 
 func BenchmarkBatchFlushing(b *testing.B) {
@@ -169,7 +169,7 @@ func BenchmarkBatchFlushing(b *testing.B) {
 	ts := httptest.NewServer(jsonEndpoint(b, nil))
 	defer ts.Close()
 	sink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), 0)
+		"test-host", "", logger, time.Duration(0), time.Duration(0), 0, 0)
 	require.NoError(b, err)
 	err = sink.Start(nil)
 	require.NoError(b, err)
@@ -217,7 +217,7 @@ func BenchmarkBatchIngest(b *testing.B) {
 	ts := httptest.NewServer(jsonEndpoint(b, nil))
 	defer ts.Close()
 	sink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), 0)
+		"test-host", "", logger, time.Duration(0), time.Duration(0), 0, 0)
 	require.NoError(b, err)
 	err = sink.Start(nil)
 	require.NoError(b, err)
