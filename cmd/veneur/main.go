@@ -13,7 +13,8 @@ import (
 )
 
 var (
-	configFile = flag.String("f", "", "The config file to read for settings.")
+	configFile     = flag.String("f", "", "The config file to read for settings.")
+	validateConfig = flag.Bool("validate-config", false, "Validate the config file, then immediately exit.")
 )
 
 func init() {
@@ -28,12 +29,18 @@ func main() {
 	}
 
 	conf, err := veneur.ReadConfig(*configFile)
+	var exitcode int
 	if err != nil {
+		exitcode = 1
 		if _, ok := err.(*veneur.UnknownConfigKeys); ok {
 			logrus.WithError(err).Warn("Config contains invalid or deprecated keys")
 		} else {
 			logrus.WithError(err).Fatal("Error reading config file")
 		}
+	}
+
+	if *validateConfig {
+		os.Exit(exitcode)
 	}
 
 	logger := logrus.StandardLogger()
