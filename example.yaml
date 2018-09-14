@@ -366,12 +366,12 @@ splunk_hec_token: "00000000-0000-0000-0000-000000000000"
 # ingestion of each span into the sink will report an error. If no
 # capacity is given, the number of spans buffered can grow without
 # bounds.
-splunk_hec_max_capacity: 160000
+splunk_hec_max_capacity: 1000
 
-# (optional) The number of spans at which to attempt to flush a batch
-# of accumulated spans early (that is, between the configured flush
-# interval). If this is unset, no early flushes are attempted.
-splunk_hec_early_flush_threshold: 80000
+# (optional) The maximum number of parallell submissions to do to the
+# splunk HEC endpoint. If this setting is omitted or zero, submissions
+# to HEC only happen at the configured flush interval.
+splunk_hec_submission_workers: 3
 
 # (optional) server name set on the TLS configuration. This is useful
 # if the host you're reaching identifies with a different name than on

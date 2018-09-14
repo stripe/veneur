@@ -23,11 +23,13 @@ import (
 
 type splunkSpanSink struct {
 	*hec.Client
-	hostname             string
-	sendTimeout          time.Duration
-	ingestTimeout        time.Duration
+	hostname      string
+	sendTimeout   time.Duration
+	ingestTimeout time.Duration
+
+	workers int
+
 	maxSpanCapacity      int
-	earlyFlushThreshold  int
 	hecSubmissionWorkers int
 	ingestedSpans        uint32
 	droppedSpans         uint32
@@ -52,7 +54,7 @@ var ErrTooManySpans = fmt.Errorf("ingested spans exceed the configured limit.")
 // veneur. An optional argument, validateServerName is used (if
 // non-empty) to instruct go to validate a different hostname than the
 // one on the server URL.
-func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, ingestTimeout time.Duration, sendTimeout time.Duration, maxSpanCapacity int, earlyFlushThreshold int) (sinks.SpanSink, error) {
+func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, ingestTimeout time.Duration, sendTimeout time.Duration, maxSpanCapacity int, workers int) (sinks.SpanSink, error) {
 	client := hec.NewClient(server, token).(*hec.Client)
 	client.SetMaxRetry(0)
 	client.SetMaxContentLength(DefaultMaxContentLength)
@@ -88,7 +90,7 @@ func (sss *splunkSpanSink) Start(cl *trace.Client) error {
 	sss.traceClient = cl
 	go sss.batchAndSend()
 
-	if sss.earlyFlushThreshold > 0 {
+	for i := 0; i < sss.workers; i++ {
 		go sss.submitter()
 	}
 
@@ -172,16 +174,6 @@ func (sss *splunkSpanSink) batchAndSend() {
 		select {
 		case ev := <-sss.ingest:
 			leftover, success = batch.addEvent(ev)
-			if sss.earlyFlushThreshold != 0 && batch.nSpans >= sss.earlyFlushThreshold {
-				select {
-				case sss.flushForSize <- batch:
-					batch = newFlushRequest()
-					if leftover != nil {
-						batch.addBytes(leftover)
-					}
-				default:
-				}
-			}
 		case sss.flushForTime <- batch:
 			batch = newFlushRequest()
 		}
