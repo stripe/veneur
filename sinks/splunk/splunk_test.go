@@ -121,7 +121,7 @@ func TestSpanIngestLimits(t *testing.T) {
 	ts := httptest.NewServer(jsonEndpoint(t, nil))
 	defer ts.Close()
 	sink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(1*time.Millisecond), time.Duration(0), 1, 0)
+		"test-host", "", logger, time.Duration(10*time.Millisecond), time.Duration(0), 1, 0)
 	require.NoError(t, err)
 	err = sink.Start(nil)
 	require.NoError(t, err)
