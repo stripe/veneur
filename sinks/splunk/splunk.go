@@ -96,37 +96,46 @@ func (sss *splunkSpanSink) Start(cl *trace.Client) error {
 }
 
 type flushRequest struct {
-	data    io.ReadSeeker
-	encoder *json.Encoder
-	nSpans  int
+	data   *bytes.Buffer
+	nSpans int
 }
 
 func newFlushRequest() *flushRequest {
 	b := &bytes.Buffer{}
 	b.Grow(DefaultMaxContentLength)
-	enc := json.NewEncoder(b)
 
 	return &flushRequest{
-		data:    NewBufferReadSeeker(b),
-		encoder: enc,
-		nSpans:  0,
+		data:   b,
+		nSpans: 0,
 	}
 }
 
-func (fr *flushRequest) addEvent(ev *hec.Event) error {
-	err := fr.encoder.Encode(ev)
+func (fr *flushRequest) addEvent(ev *hec.Event) ([]byte, bool) {
+	b, err := json.Marshal(ev)
 	if err != nil {
-		return err
+		return nil, true // do not expect JSON encoding errors.
+	}
+	if ok := fr.addBytes(b); !ok {
+		return nil, ok
 	}
 	fr.nSpans++
-	return nil
+	return b, true
+}
+
+func (fr *flushRequest) addBytes(b []byte) bool {
+	if fr.data.Len()+len(b) >= DefaultMaxContentLength {
+		return false
+	}
+	fr.data.Write(b)
+	return true
 }
 
 func (sss *splunkSpanSink) submitter() {
 	ctx := context.Background()
 	for {
 		batch := <-sss.flushForSize
-		sss.submitBatch(ctx, batch.data, batch.nSpans)
+		rs := NewBufferReadSeeker(batch.data)
+		sss.submitBatch(ctx, rs, batch.nSpans)
 	}
 }
 
@@ -158,29 +167,34 @@ func (sss *splunkSpanSink) submitBatch(ctx context.Context, batch io.ReadSeeker,
 func (sss *splunkSpanSink) batchAndSend() {
 	batch := newFlushRequest()
 	for {
+		success := true
+		var leftover []byte
 		select {
 		case ev := <-sss.ingest:
-			batch.addEvent(ev)
-			// attempt to flush the batch if it's growing too large:
-			if sss.earlyFlushThreshold != 0 && batch.nSpans > sss.earlyFlushThreshold {
+			leftover, success = batch.addEvent(ev)
+			if sss.earlyFlushThreshold != 0 && batch.nSpans >= sss.earlyFlushThreshold {
 				select {
 				case sss.flushForSize <- batch:
 					batch = newFlushRequest()
+					if leftover != nil {
+						batch.addBytes(leftover)
+					}
 				default:
 				}
 			}
 		case sss.flushForTime <- batch:
 			batch = newFlushRequest()
 		}
-
-		// If we're at capacity, block the ingestion channel
-		// and attempt to flush the batch:
-		if sss.maxSpanCapacity != 0 && batch.nSpans == sss.maxSpanCapacity {
+		if !success || (sss.maxSpanCapacity != 0 && batch.nSpans >= sss.maxSpanCapacity) {
+			// we can't ingest more; block the ingestion
+			// channel and try to flush what we have:
 			select {
-			case sss.flushForTime <- batch:
-				batch = newFlushRequest()
 			case sss.flushForSize <- batch:
-				batch = newFlushRequest()
+			case sss.flushForTime <- batch:
+			}
+			batch = newFlushRequest()
+			if leftover != nil {
+				batch.addBytes(leftover)
 			}
 		}
 	}
@@ -194,7 +208,9 @@ func (sss *splunkSpanSink) Flush() {
 
 	// TODO: Ideally, Flush() would get a context of its own:
 	ctx := context.Background()
-	sss.submitBatch(ctx, batch.data, batch.nSpans)
+
+	rs := NewBufferReadSeeker(batch.data)
+	sss.submitBatch(ctx, rs, batch.nSpans)
 
 	samples := &ssf.Samples{}
 	samples.Add(
