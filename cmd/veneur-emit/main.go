@@ -227,7 +227,7 @@ func main() {
 	if span.TraceId != 0 {
 		if !*toSSF {
 			logrus.WithField("ssf", *toSSF).
-				Fatal("Can's use tracing in non-ssf operation: Use -ssf to emit trace spans.")
+				Fatal("Can't use tracing in non-ssf operation: Use -ssf to emit trace spans.")
 		}
 		logrus.WithField("trace_id", span.TraceId).
 			WithField("span_id", span.Id).
@@ -240,6 +240,9 @@ func main() {
 	status, err := createMetric(span, passedFlags, *name, *tag)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error creating metrics.")
+	}
+	if len(span.Metrics) == 0 {
+		logrus.Fatal("No metrics to send. Must pass metric data via at least one of -count, -gauge, -timing, or -set.")
 	}
 	if *toSSF {
 		client, err := trace.NewClient(addr)
