@@ -4,8 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"sync/atomic"
@@ -166,13 +164,8 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request) {
 		return
 	}
 
-	// We know a few status codes and their meanings. No need to
-	// parse JSON for those:
-	discardBody := false
 	defer func() {
-		if discardBody {
-			io.Copy(ioutil.Discard, resp.Body)
-		}
+		resp.Body.Close()
 	}()
 
 	var cause string
@@ -183,17 +176,14 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request) {
 		// Everything went well - discard the body so the
 		// connection stays alive and early-return (the rest
 		// of this function is dedicated to error handling):
-		discardBody = true
 		samples.Add(ssf.Count(successMetric, 1, map[string]string{}))
 		return
 	case http.StatusInternalServerError:
-		discardBody = true
 		cause = "internal_server_error"
 		statusCode = 8
 	case http.StatusServiceUnavailable:
 		// This status happens when splunk is out of capacity,
 		// no need to report a bug or parse the body for it:
-		discardBody = true
 		cause = "service_unavailable"
 		statusCode = 9
 	default:
