@@ -57,9 +57,10 @@ func TestSpanIngestBatch(t *testing.T) {
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
 	defer ts.Close()
-	sink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(0), 1, 0)
+	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
+		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0)
 	require.NoError(t, err)
+	sink := gsink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)
 	require.NoError(t, err)
 
@@ -88,7 +89,7 @@ func TestSpanIngestBatch(t *testing.T) {
 		require.NoError(t, err, "error ingesting the %dth span", i)
 	}
 
-	sink.Flush()
+	sink.Sync()
 
 	for i := 0; i < nToFlush; i++ {
 		event := <-ch
@@ -107,7 +108,12 @@ func TestSpanIngestBatch(t *testing.T) {
 		assert.Equal(t, float64(span.StartTimestamp)/float64(time.Second), output.StartTimestamp)
 		assert.Equal(t, float64(span.EndTimestamp)/float64(time.Second), output.EndTimestamp)
 
-		assert.Equal(t, strconv.FormatInt(int64(i+1), 10), output.Id)
+		// span IDs can arrive out of order:
+		spanID, err := strconv.Atoi(output.Id)
+		require.NoError(t, err)
+		assert.True(t, spanID < nToFlush+1, "Expected %d to be < %d", spanID, nToFlush)
+		assert.True(t, spanID > 0, "Expected %d to be > 0", spanID)
+
 		assert.Equal(t, strconv.FormatInt(span.ParentId, 10), output.ParentId)
 		assert.Equal(t, strconv.FormatInt(span.TraceId, 10), output.TraceId)
 		assert.Equal(t, "test-span", output.Name)
@@ -115,27 +121,25 @@ func TestSpanIngestBatch(t *testing.T) {
 		assert.Equal(t, true, output.Indicator)
 		assert.Equal(t, true, output.Error)
 	}
-	splunk.Close(sink)
+	sink.Stop()
 }
 
 const benchmarkCapacity = 100
 const benchmarkWorkers = 3
 
 func BenchmarkBatchIngest(b *testing.B) {
-	const flushSpans = 400000 // number of spans to accumulate before flushing
 	logger := logrus.StandardLogger()
 
 	// set up a null responder that we can flush to:
 	ts := httptest.NewServer(jsonEndpoint(b, nil))
 	defer ts.Close()
-	sink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
+	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
 		"test-host", "", logger, time.Duration(0), time.Duration(0), benchmarkCapacity, benchmarkWorkers)
 	require.NoError(b, err)
+	sink := gsink.(splunk.TestableSplunkSpanSink)
 
 	err = sink.Start(nil)
 	require.NoError(b, err)
-
-	defer splunk.Close(sink)
 
 	start := time.Unix(100000, 1000000)
 	end := start.Add(5 * time.Second)
@@ -163,10 +167,7 @@ func BenchmarkBatchIngest(b *testing.B) {
 		span.Id = int64(i + 1)
 		err = sink.Ingest(span)
 		require.NoError(b, err)
-		if i != 0 && i%flushSpans == 0 {
-			b.StopTimer()
-			sink.Flush()
-			b.StartTimer()
-		}
 	}
+	b.StopTimer()
+	sink.Stop()
 }

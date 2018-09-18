@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -16,6 +17,21 @@ import (
 	"github.com/stripe/veneur/trace"
 	"github.com/stripe/veneur/trace/metrics"
 )
+
+// TestableSplunkSpanSink provides methods that are useful for testing
+// a splunk span sink.
+type TestableSplunkSpanSink interface {
+	sinks.SpanSink
+
+	// Stop shuts down the sink's submission workers by finishing
+	// each worker's last submission HTTP request.
+	Stop()
+
+	// Sync instructs all submission workers to finish submitting
+	// their current request and start a new one. It returns when
+	// the last worker's submission is done.
+	Sync()
+}
 
 type splunkSpanSink struct {
 	hec           *hecClient
@@ -35,7 +51,19 @@ type splunkSpanSink struct {
 
 	traceClient *trace.Client
 	log         *logrus.Logger
+
+	// these fields are for testing only:
+
+	// sync holds one channel per submission worker.
+	sync []chan struct{}
+
+	// synced is marked Done by each submission worker, when the
+	// submission has happened.
+	synced sync.WaitGroup
 }
+
+var _ sinks.SpanSink = &splunkSpanSink{}
+var _ TestableSplunkSpanSink = &splunkSpanSink{}
 
 // NewSplunkSpanSink constructs a new splunk span sink from the server
 // name and token provided, using the local hostname configured for
@@ -83,60 +111,74 @@ func (sss *splunkSpanSink) Start(cl *trace.Client) error {
 	if sss.workers > 0 {
 		workers = sss.workers
 	}
+
+	sss.sync = make([]chan struct{}, workers)
+
 	for i := 0; i < workers; i++ {
-		go sss.submitter()
+		ch := make(chan struct{})
+		go sss.submitter(ch)
+		sss.sync[i] = ch
 	}
 
 	return nil
 }
 
-// Close shuts down the sink. This is useful only in testing.
-func Close(sink sinks.SpanSink) (ok bool) {
-	var sss *splunkSpanSink
-	if sss, ok = sink.(*splunkSpanSink); ok {
-		close(sss.ingest)
+func (sss *splunkSpanSink) Stop() {
+	for _, signal := range sss.sync {
+		close(signal)
 	}
-	return
 }
 
-func (sss *splunkSpanSink) submitter() {
+func (sss *splunkSpanSink) Sync() {
+	sss.synced.Add(len(sss.sync))
+	for _, signal := range sss.sync {
+		signal <- struct{}{}
+	}
+	sss.synced.Wait()
+}
+
+func (sss *splunkSpanSink) submitter(sync chan struct{}) {
 	for {
 		var req *http.Request
 		hecReq, err := sss.hec.newRequest()
 
 		ingested := 0
 		enc := hecReq.GetEncoder()
+	Batch:
 		for {
-			ev, ok := <-sss.ingest
-			if !ok {
-				// The sink is shutting down; close
-				// the writer and terminate.
+			select {
+			case _, ok := <-sync:
 				hecReq.Close()
-				return
-			}
-			ingested++
-
-			if req == nil {
-				req, err = hecReq.Start()
+				if !ok {
+					// sink is shutting down, exit forever:
+					return
+				}
+				sss.synced.Done()
+				break Batch
+			case ev := <-sss.ingest:
+				ingested++
+				if req == nil {
+					req, err = hecReq.Start()
+					if err != nil {
+						sss.log.WithError(err).
+							Warn("Could not create HEC request")
+						time.Sleep(1 * time.Second)
+						break Batch
+					}
+					go sss.makeHTTPRequest(req)
+				}
+				err = enc.Encode(ev)
 				if err != nil {
 					sss.log.WithError(err).
-						Warn("Could not create HEC request")
-					time.Sleep(1 * time.Second)
-					break
+						WithField("event", ev).
+						Warn("Could not json-encode HEC event")
+					continue Batch
 				}
-				go sss.makeHTTPRequest(req)
-			}
-			err = enc.Encode(ev)
-			if err != nil {
-				sss.log.WithError(err).
-					WithField("event", ev).
-					Warn("Could not json-encode HEC event")
-				continue
-			}
-			if ingested >= sss.maxSpanCapacity {
-				// we consumed the batch size's worth, let's send it:
-				hecReq.Close()
-				break
+				if ingested >= sss.maxSpanCapacity {
+					// we consumed the batch size's worth, let's send it:
+					hecReq.Close()
+					break Batch
+				}
 			}
 		}
 	}
