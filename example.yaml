@@ -361,10 +361,10 @@ splunk_hec_address: "https://localhost:8088"
 # The authentication token veneur will use to authenticate to the HEC
 splunk_hec_token: "00000000-0000-0000-0000-000000000000"
 
-# (optional) The maximum number of spans to submit in a single request
-# to the Splunk HEC endpoint. If unset, defaults to 100 (the
-# recommended maximum event count per batch according to Splunk).
-splunk_hec_max_capacity: 100
+# (optional) The number of spans to submit in a single request to the
+# Splunk HEC endpoint. If unset, defaults to 100 (the recommended
+# maximum event count per batch according to Splunk).
+splunk_hec_batch_size: 100
 
 # (optional) The maximum number of parallel submissions to do to the
 # splunk HEC endpoint. Must be greater than 0. If this setting is

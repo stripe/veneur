@@ -42,7 +42,7 @@ type splunkSpanSink struct {
 
 	workers int
 
-	maxSpanCapacity      int
+	batchSize            int
 	hecSubmissionWorkers int
 	ingestedSpans        uint32
 	droppedSpans         uint32
@@ -70,7 +70,7 @@ var _ TestableSplunkSpanSink = &splunkSpanSink{}
 // veneur. An optional argument, validateServerName is used (if
 // non-empty) to instruct go to validate a different hostname than the
 // one on the server URL.
-func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, ingestTimeout time.Duration, sendTimeout time.Duration, maxSpanCapacity int, workers int) (sinks.SpanSink, error) {
+func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, ingestTimeout time.Duration, sendTimeout time.Duration, batchSize int, workers int) (sinks.SpanSink, error) {
 	client, err := newHecClient(server, token)
 	if err != nil {
 		return nil, err
@@ -88,14 +88,14 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 	}
 
 	return &splunkSpanSink{
-		hec:             client,
-		httpClient:      httpC,
-		ingest:          make(chan *Event),
-		hostname:        localHostname,
-		log:             log,
-		sendTimeout:     sendTimeout,
-		ingestTimeout:   ingestTimeout,
-		maxSpanCapacity: maxSpanCapacity,
+		hec:           client,
+		httpClient:    httpC,
+		ingest:        make(chan *Event),
+		hostname:      localHostname,
+		log:           log,
+		sendTimeout:   sendTimeout,
+		ingestTimeout: ingestTimeout,
+		batchSize:     batchSize,
 	}, nil
 }
 
@@ -174,7 +174,7 @@ func (sss *splunkSpanSink) submitter(sync chan struct{}) {
 						Warn("Could not json-encode HEC event")
 					continue Batch
 				}
-				if ingested >= sss.maxSpanCapacity {
+				if ingested >= sss.batchSize {
 					// we consumed the batch size's worth, let's send it:
 					hecReq.Close()
 					break Batch
