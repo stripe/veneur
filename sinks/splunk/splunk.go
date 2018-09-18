@@ -259,6 +259,10 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request) {
 // endpoint for ingestion. If set, it uses the send timeout configured
 // for the span batch.
 func (sss *splunkSpanSink) Flush() {
+	// make the submitters open a new HTTP request:
+	sss.Sync()
+
+	// report the sink stats:
 	samples := &ssf.Samples{}
 	samples.Add(
 		ssf.Count(
