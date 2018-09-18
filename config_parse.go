@@ -18,6 +18,7 @@ var defaultConfig = Config{
 	MetricMaxLength:        4096,
 	ReadBufferSizeBytes:    1048576 * 2, // 2 MiB
 	SpanChannelCapacity:    100,
+	SplunkHecBatchSize:     100,
 }
 
 var defaultProxyConfig = ProxyConfig{
@@ -212,6 +213,10 @@ func (c *Config) applyDefaults() {
 
 	if c.SpanChannelCapacity == 0 {
 		c.SpanChannelCapacity = defaultConfig.SpanChannelCapacity
+	}
+
+	if c.SplunkHecBatchSize == 0 {
+		c.SplunkHecBatchSize = defaultConfig.SplunkHecBatchSize
 	}
 }
 
