@@ -1,4 +1,8 @@
-package hec
+package splunk
+
+// This entire file is ~copied from the HEC event definition found at
+// <https://github.com/fuyufjh/splunk-hec-go/blob/3e5842a6937536b4f7221bc797f35500b1fa0ff7/event.go>.
+// Licensed under Apache-2.0.
 
 import (
 	"fmt"

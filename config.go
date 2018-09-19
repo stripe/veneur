@@ -68,8 +68,10 @@ type Config struct {
 	SignalfxVaryKeyBy             string   `yaml:"signalfx_vary_key_by"`
 	SpanChannelCapacity           int      `yaml:"span_channel_capacity"`
 	SplunkHecAddress              string   `yaml:"splunk_hec_address"`
-	SplunkHecMaxCapacity          int      `yaml:"splunk_hec_max_capacity"`
+	SplunkHecBatchSize            int      `yaml:"splunk_hec_batch_size"`
+	SplunkHecIngestTimeout        string   `yaml:"splunk_hec_ingest_timeout"`
 	SplunkHecSendTimeout          string   `yaml:"splunk_hec_send_timeout"`
+	SplunkHecSubmissionWorkers    int      `yaml:"splunk_hec_submission_workers"`
 	SplunkHecTLSValidateHostname  string   `yaml:"splunk_hec_tls_validate_hostname"`
 	SplunkHecToken                string   `yaml:"splunk_hec_token"`
 	SsfBufferSize                 int      `yaml:"ssf_buffer_size"`

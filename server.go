@@ -416,14 +416,20 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			return ret, fmt.Errorf("both splunk_hec_address and splunk_hec_token need to be set!")
 		}
 		if conf.SplunkHecToken != "" && conf.SplunkHecAddress != "" {
-			var timeout time.Duration
+			var sendTimeout, ingestTimeout time.Duration
 			if conf.SplunkHecSendTimeout != "" {
-				timeout, err = time.ParseDuration(conf.SplunkHecSendTimeout)
+				sendTimeout, err = time.ParseDuration(conf.SplunkHecSendTimeout)
 				if err != nil {
 					return ret, err
 				}
 			}
-			sss, err := splunk.NewSplunkSpanSink(conf.SplunkHecAddress, conf.SplunkHecToken, conf.Hostname, conf.SplunkHecTLSValidateHostname, log, timeout, conf.SplunkHecMaxCapacity)
+			if conf.SplunkHecIngestTimeout != "" {
+				ingestTimeout, err = time.ParseDuration(conf.SplunkHecIngestTimeout)
+				if err != nil {
+					return ret, err
+				}
+			}
+			sss, err := splunk.NewSplunkSpanSink(conf.SplunkHecAddress, conf.SplunkHecToken, conf.Hostname, conf.SplunkHecTLSValidateHostname, log, ingestTimeout, sendTimeout, conf.SplunkHecBatchSize, conf.SplunkHecSubmissionWorkers)
 			if err != nil {
 				return ret, err
 			}
