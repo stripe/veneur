@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -197,6 +198,13 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request) {
 	}()
 
 	resp, err := sss.httpClient.Do(req)
+	if uerr, ok := err.(*url.Error); ok && uerr.Timeout() {
+		// don't report a sentry-able error for timeouts:
+		samples.Add(ssf.Count(failureMetric, 1, map[string]string{
+			"cause": "submission_timeout",
+		}))
+		return
+	}
 	if err != nil {
 		sss.log.WithError(err).
 			Error("Could not execute HEC request")
