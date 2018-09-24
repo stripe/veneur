@@ -69,6 +69,7 @@ type Config struct {
 	SpanChannelCapacity           int      `yaml:"span_channel_capacity"`
 	SplunkHecAddress              string   `yaml:"splunk_hec_address"`
 	SplunkHecBatchSize            int      `yaml:"splunk_hec_batch_size"`
+	SplunkHecBatchSizeJitter      int      `yaml:"splunk_hec_batch_size_jitter"`
 	SplunkHecIngestTimeout        string   `yaml:"splunk_hec_ingest_timeout"`
 	SplunkHecSendTimeout          string   `yaml:"splunk_hec_send_timeout"`
 	SplunkHecSubmissionWorkers    int      `yaml:"splunk_hec_submission_workers"`

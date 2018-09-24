@@ -429,7 +429,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 					return ret, err
 				}
 			}
-			sss, err := splunk.NewSplunkSpanSink(conf.SplunkHecAddress, conf.SplunkHecToken, conf.Hostname, conf.SplunkHecTLSValidateHostname, log, ingestTimeout, sendTimeout, conf.SplunkHecBatchSize, conf.SplunkHecSubmissionWorkers, conf.SplunkSpanSampleRate)
+			sss, err := splunk.NewSplunkSpanSink(conf.SplunkHecAddress, conf.SplunkHecToken, conf.Hostname, conf.SplunkHecTLSValidateHostname, log, ingestTimeout, sendTimeout, conf.SplunkHecBatchSize, conf.SplunkHecBatchSizeJitter, conf.SplunkHecSubmissionWorkers, conf.SplunkSpanSampleRate)
 			if err != nil {
 				return ret, err
 			}

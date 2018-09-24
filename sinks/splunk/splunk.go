@@ -2,10 +2,12 @@ package splunk
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -46,6 +48,7 @@ type splunkSpanSink struct {
 	workers int
 
 	batchSize            int
+	batchSizeJitter      int
 	hecSubmissionWorkers int
 	ingestedSpans        uint32
 	droppedSpans         uint32
@@ -80,11 +83,7 @@ var _ TestableSplunkSpanSink = &splunkSpanSink{}
 // that all spans in the trace will be chosen for the sample is 1/spanSampleRate.
 // Sampling is performed on the trace ID, so either all spans within a given trace
 // will be chosen, or none will.
-func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, ingestTimeout time.Duration, sendTimeout time.Duration, batchSize int, workers int, spanSampleRate int) (sinks.SpanSink, error) {
-	if spanSampleRate < 1 {
-		spanSampleRate = 1
-	}
-
+func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, ingestTimeout time.Duration, sendTimeout time.Duration, batchSize int, batchSizeJitter int, workers int, spanSampleRate int) (sinks.SpanSink, error) {
 	client, err := newHecClient(server, token)
 	if err != nil {
 		return nil, err
@@ -106,15 +105,16 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 	}
 
 	return &splunkSpanSink{
-		hec:            client,
-		httpClient:     httpC,
-		ingest:         make(chan *Event),
-		hostname:       localHostname,
-		log:            log,
-		sendTimeout:    sendTimeout,
-		ingestTimeout:  ingestTimeout,
-		batchSize:      batchSize,
-		spanSampleRate: int64(spanSampleRate),
+		hec:             client,
+		httpClient:      httpC,
+		ingest:          make(chan *Event),
+		hostname:        localHostname,
+		log:             log,
+		sendTimeout:     sendTimeout,
+		ingestTimeout:   ingestTimeout,
+		batchSize:       batchSize,
+		batchSizeJitter: batchSizeJitter,
+		spanSampleRate:  int64(spanSampleRate),
 	}, nil
 }
 
@@ -134,8 +134,17 @@ func (sss *splunkSpanSink) Start(cl *trace.Client) error {
 	sss.sync = make([]chan struct{}, workers)
 
 	for i := 0; i < workers; i++ {
+		batchSize := sss.batchSize
+		if sss.batchSizeJitter > 0 {
+			jitter, err := rand.Int(rand.Reader, big.NewInt(int64(sss.batchSizeJitter)))
+			if err != nil {
+				return err
+			}
+			batchSize += int(jitter.Int64())
+		}
+
 		ch := make(chan struct{})
-		go sss.submitter(ch)
+		go sss.submitter(ch, batchSize)
 		sss.sync[i] = ch
 	}
 
@@ -156,7 +165,7 @@ func (sss *splunkSpanSink) Sync() {
 	sss.synced.Wait()
 }
 
-func (sss *splunkSpanSink) submitter(sync chan struct{}) {
+func (sss *splunkSpanSink) submitter(sync chan struct{}, batchSize int) {
 	for {
 		var req *http.Request
 		hecReq, err := sss.hec.newRequest()
@@ -193,7 +202,7 @@ func (sss *splunkSpanSink) submitter(sync chan struct{}) {
 						Warn("Could not json-encode HEC event")
 					continue Batch
 				}
-				if ingested >= sss.batchSize {
+				if ingested >= batchSize {
 					// we consumed the batch size's worth, let's send it:
 					hecReq.Close()
 					break Batch

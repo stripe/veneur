@@ -366,6 +366,18 @@ splunk_hec_token: "00000000-0000-0000-0000-000000000000"
 # maximum event count per batch according to Splunk).
 splunk_hec_batch_size: 100
 
+# (optional) The maximum number of additional spans (in addition to
+# splunk_hec_batch_size) to allow for as jitter in each submission
+# period, to avoid all workers blocking span ingestion at the same
+# time.
+#
+# On startup, each worker picks a random number less than or equal to
+# the jitter set here, and will batch up to batch_size spans + that
+# jitter for each submission.
+#
+# If unset, this defaults to 0.
+splunk_hec_batch_size_jitter: 50
+
 # (optional) The maximum number of parallel submissions to do to the
 # splunk HEC endpoint. Must be greater than 0. If this setting is
 # omitted, defaults to 1.
