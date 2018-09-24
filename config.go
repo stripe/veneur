@@ -73,6 +73,7 @@ type Config struct {
 	SplunkHecIngestTimeout        string   `yaml:"splunk_hec_ingest_timeout"`
 	SplunkHecSendTimeout          string   `yaml:"splunk_hec_send_timeout"`
 	SplunkHecSubmissionWorkers    int      `yaml:"splunk_hec_submission_workers"`
+	SplunkHecSyncJitter           string   `yaml:"splunk_hec_sync_jitter"`
 	SplunkHecTLSValidateHostname  string   `yaml:"splunk_hec_tls_validate_hostname"`
 	SplunkHecToken                string   `yaml:"splunk_hec_token"`
 	SplunkSpanSampleRate          int      `yaml:"splunk_span_sample_rate"`

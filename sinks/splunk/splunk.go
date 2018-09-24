@@ -44,6 +44,7 @@ type splunkSpanSink struct {
 	hostname      string
 	sendTimeout   time.Duration
 	ingestTimeout time.Duration
+	syncJitter    time.Duration
 
 	workers int
 
@@ -83,7 +84,7 @@ var _ TestableSplunkSpanSink = &splunkSpanSink{}
 // that all spans in the trace will be chosen for the sample is 1/spanSampleRate.
 // Sampling is performed on the trace ID, so either all spans within a given trace
 // will be chosen, or none will.
-func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, ingestTimeout time.Duration, sendTimeout time.Duration, batchSize int, batchSizeJitter int, workers int, spanSampleRate int) (sinks.SpanSink, error) {
+func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, ingestTimeout time.Duration, sendTimeout time.Duration, syncJitter time.Duration, batchSize int, batchSizeJitter int, workers int, spanSampleRate int) (sinks.SpanSink, error) {
 	client, err := newHecClient(server, token)
 	if err != nil {
 		return nil, err
@@ -112,6 +113,7 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 		log:             log,
 		sendTimeout:     sendTimeout,
 		ingestTimeout:   ingestTimeout,
+		syncJitter:      syncJitter,
 		batchSize:       batchSize,
 		batchSizeJitter: batchSizeJitter,
 		spanSampleRate:  int64(spanSampleRate),
@@ -142,9 +144,16 @@ func (sss *splunkSpanSink) Start(cl *trace.Client) error {
 			}
 			batchSize += int(jitter.Int64())
 		}
-
+		syncJitter := time.Duration(0)
+		if sss.syncJitter != time.Duration(0) {
+			jitter, err := rand.Int(rand.Reader, big.NewInt(int64(sss.syncJitter)))
+			if err != nil {
+				return err
+			}
+			syncJitter = time.Duration(jitter.Int64())
+		}
 		ch := make(chan struct{})
-		go sss.submitter(ch, batchSize)
+		go sss.submitter(ch, batchSize, syncJitter)
 		sss.sync[i] = ch
 	}
 
@@ -165,7 +174,11 @@ func (sss *splunkSpanSink) Sync() {
 	sss.synced.Wait()
 }
 
-func (sss *splunkSpanSink) submitter(sync chan struct{}, batchSize int) {
+func (sss *splunkSpanSink) submitter(sync chan struct{}, batchSize int, syncJitter time.Duration) {
+	syncTimer := time.NewTimer(0)
+	if !syncTimer.Stop() {
+		<-syncTimer.C
+	}
 	for {
 		var req *http.Request
 		hecReq, err := sss.hec.newRequest()
@@ -176,11 +189,19 @@ func (sss *splunkSpanSink) submitter(sync chan struct{}, batchSize int) {
 		for {
 			select {
 			case _, ok := <-sync:
-				hecReq.Close()
 				if !ok {
-					// sink is shutting down, exit forever:
+					// sink is shutting down, exit forever now:
+					hecReq.Close()
 					return
 				}
+				// If the timer was already running,
+				// kick the sync off immediately;
+				// otherwise, wait for jitter seconds:
+				if !syncTimer.Stop() {
+					syncTimer.Reset(syncJitter)
+				}
+			case <-syncTimer.C:
+				hecReq.Close()
 				sss.synced.Done()
 				break Batch
 			case ev := <-sss.ingest:

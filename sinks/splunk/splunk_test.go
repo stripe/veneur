@@ -61,7 +61,8 @@ func TestSpanIngestBatch(t *testing.T) {
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
 	defer ts.Close()
 	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0, 0, 1)
+		"test-host", "", logger, time.Duration(0), time.Duration(0), time.Duration(0),
+		nToFlush, 0, 0, 1)
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)
@@ -153,7 +154,8 @@ func TestTimeout(t *testing.T) {
 	}))
 	defer ts.Close()
 	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(10*time.Millisecond), nToFlush, 0, 0, 1)
+		"test-host", "", logger, time.Duration(0), time.Duration(10*time.Millisecond), time.Duration(0),
+		nToFlush, 0, 0, 1)
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 
@@ -214,7 +216,8 @@ func BenchmarkBatchIngest(b *testing.B) {
 	ts := httptest.NewServer(jsonEndpoint(b, nil))
 	defer ts.Close()
 	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(0), benchmarkCapacity, benchmarkJitter, benchmarkWorkers, 1)
+		"test-host", "", logger, time.Duration(0), time.Duration(0), time.Duration(0),
+		benchmarkCapacity, benchmarkJitter, benchmarkWorkers, 1)
 	require.NoError(b, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 
@@ -259,7 +262,7 @@ func TestSampling(t *testing.T) {
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
 	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0, 10)
+		"test-host", "", logger, time.Duration(0), time.Duration(0), time.Duration(0), nToFlush, 0, 0, 10)
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)
@@ -320,7 +323,7 @@ func TestSamplingIndicators(t *testing.T) {
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
 	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0, 10)
+		"test-host", "", logger, time.Duration(0), time.Duration(0), time.Duration(0), nToFlush, 0, 0, 10)
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)

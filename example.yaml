@@ -398,7 +398,6 @@ splunk_hec_send_timeout: "10ms"
 # 0, ingestion will wait indefintely until the span can be ingested.
 splunk_hec_ingest_timeout: "10ms"
 
-
 # (optional) The fraction of traces that are chosen to be reported to
 # Splunk.  On average, 1/N traces will be chosen to be reported to
 # Splunk. Setting this value to 1 or 0 disables sampling, reporting
@@ -407,6 +406,13 @@ splunk_hec_ingest_timeout: "10ms"
 # or none will.  Spans get excluded from sampling if they have
 # indicator=true set, or if they have a trace ID of 0.
 splunk_span_sample_rate: 10
+
+# (optional) The maximum (random) duration to wait, per worker, to
+# submit and re-open an HTTP request per flush period. If unset, the
+# splunk span sink does not wait and closes & re-opens every worker at
+# the same time, blocking span ingestion into the sink for the
+# duration it takes to make at least one HTTP request.
+splunk_hec_sync_jitter: "1s"
 
 # == PLUGINS ==
 
