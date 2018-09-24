@@ -1,5 +1,8 @@
 # 9.0.0, in progress
 
+## Added
+* The splunk span sink's workers now jitter their submission intervals by a configurable number of spans, using the `splunk_hec_batch_size_jitter` configuration setting. Thanks, [antifuchs](https://github.com/antifuchs)!
+
 ## Bugfixes
 * The splunk span sink no longer reports an internal error for timeouts encountered in event submissions; instead, it reports a failure metric with a cause tag set to `submission_timeout`. Thanks, [antifuchs](https://github.com/antifuchs)!
 * The splunk span sink now honors `Connection: keep-alive` from the HEC endpoint and keeps around as many idle HTTP connections in reserve as it has HEC submission workers. Thanks, [antifuchs](https://github.com/antifuchs)!
