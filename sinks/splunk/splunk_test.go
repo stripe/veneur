@@ -1,11 +1,13 @@
 package splunk_test
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/sinks/splunk"
 	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/trace"
 )
 
 func jsonEndpoint(t testing.TB, ch chan<- splunk.Event) http.Handler {
@@ -121,6 +124,82 @@ func TestSpanIngestBatch(t *testing.T) {
 		assert.Equal(t, true, output.Indicator)
 		assert.Equal(t, true, output.Error)
 	}
+	sink.Stop()
+}
+
+type testBackend struct {
+	spans chan *ssf.SSFSpan
+}
+
+func (be *testBackend) Close() error {
+	return nil
+}
+
+func (be *testBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
+	be.spans <- span
+	return nil
+}
+
+func (be *testBackend) FlushSync(ctx context.Context) error {
+	return nil
+}
+
+func TestTimeout(t *testing.T) {
+	const nToFlush = 10
+	logger := logrus.StandardLogger()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(time.Duration(100 * time.Millisecond))
+	}))
+	defer ts.Close()
+	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
+		"test-host", "", logger, time.Duration(0), time.Duration(10*time.Millisecond), nToFlush, 0)
+	require.NoError(t, err)
+	sink := gsink.(splunk.TestableSplunkSpanSink)
+
+	spans := make(chan *ssf.SSFSpan)
+	traceClient, err := trace.NewBackendClient(&testBackend{spans})
+	require.NoError(t, err)
+	err = sink.Start(traceClient)
+	require.NoError(t, err)
+
+	start := time.Unix(100000, 1000000)
+	end := start.Add(5 * time.Second)
+	span := &ssf.SSFSpan{
+		ParentId:       4,
+		TraceId:        6,
+		StartTimestamp: start.UnixNano(),
+		EndTimestamp:   end.UnixNano(),
+		Service:        "test-srv",
+		Name:           "test-span",
+		Indicator:      true,
+		Error:          true,
+		Tags: map[string]string{
+			"farts": "mandatory",
+		},
+		Metrics: []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		},
+	}
+	for i := 0; i < nToFlush; i++ {
+		span.Id = int64(i + 1)
+		err = sink.Ingest(span)
+		require.NoError(t, err, "error ingesting the %dth span", i)
+	}
+
+	sink.Sync()
+	ms := <-spans
+	require.NotNil(t, ms)
+	var found *ssf.SSFSample
+	for _, sample := range ms.Metrics {
+		if strings.HasSuffix(sample.Name, "splunk.hec_submission_failed_total") {
+			found = sample
+			break
+		}
+	}
+	require.NotNil(t, found, "Expected a timeout metric to be reported")
+	assert.Equal(t, found.Tags["cause"], "submission_timeout")
 	sink.Stop()
 }
 
