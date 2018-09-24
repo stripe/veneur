@@ -1,5 +1,8 @@
 # 9.0.0, in progress
 
+## Bugfixes
+* The splunk span sink no longer reports an internal error for timeouts encountered in event submissions; instead, it reports a failure metric with a cause tag set to `submission_timeout`. Thanks, [antifuchs](https://github.com/antifuchs)!
+
 # 8.0.0, 2018-09-20
 
 ## Added
