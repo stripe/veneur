@@ -79,6 +79,10 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 
 	trnsp := &http.Transport{}
 	httpC := &http.Client{Transport: trnsp}
+
+	// keep an idle connection in reserve for every worker:
+	trnsp.MaxIdleConnsPerHost = workers
+
 	if validateServerName != "" {
 		tlsCfg := &tls.Config{}
 		tlsCfg.ServerName = validateServerName
