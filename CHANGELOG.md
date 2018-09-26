@@ -12,6 +12,7 @@
 * Go 1.11 is now supported and used for all public Docker images. Thanks, [aditya](https://github.com/chimeracoder)!
 * The `veneur/trace` package now supports setting the indicator bit on a span manually. Thanks, [aditya](https://github.com/chimeracoder)!
 * The `-validate-config` and `validate-config-strict` flags will make veneur exit appropriately after checking the specified (`-f`) config file. Thanks, [sdboyer](https://github.com/sdboyer)!
+* `veneur-emit` will now exit with an error if no data would have been sent. Thanks, [sdboyer](https://github.com/sdboyer)!
 
 ## Bugfixes
 * The trace client can now correctly parse trace headers emitted by Envoy. Thanks, [aditya](https://github.com/chimeracoder)!
