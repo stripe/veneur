@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -219,6 +221,7 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request) {
 	}
 
 	defer func() {
+		_, _ = io.Copy(ioutil.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 
