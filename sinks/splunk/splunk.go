@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -79,6 +81,10 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 
 	trnsp := &http.Transport{}
 	httpC := &http.Client{Transport: trnsp}
+
+	// keep an idle connection in reserve for every worker:
+	trnsp.MaxIdleConnsPerHost = workers
+
 	if validateServerName != "" {
 		tlsCfg := &tls.Config{}
 		tlsCfg.ServerName = validateServerName
@@ -215,6 +221,7 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request) {
 	}
 
 	defer func() {
+		_, _ = io.Copy(ioutil.Discard, resp.Body)
 		resp.Body.Close()
 	}()
 
