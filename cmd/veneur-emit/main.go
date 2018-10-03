@@ -241,9 +241,6 @@ func main() {
 	if err != nil {
 		logrus.WithError(err).Fatal("Error creating metrics.")
 	}
-	if len(span.Metrics) == 0 {
-		logrus.Fatal("No metrics to send. Must pass metric data via at least one of -count, -gauge, -timing, or -set.")
-	}
 	if *toSSF {
 		client, err := trace.NewClient(addr)
 		if err != nil {
@@ -261,6 +258,9 @@ func main() {
 			logrus.WithField("address", addr).
 				WithField("network", netAddr.Network()).
 				Fatal("hostport must be a UDP address for statsd metrics")
+		}
+		if len(span.Metrics) == 0 {
+			logrus.Fatal("No metrics to send. Must pass metric data via at least one of -count, -gauge, -timing, or -set.")
 		}
 		sendStatsd(netAddr.String(), span)
 	}
