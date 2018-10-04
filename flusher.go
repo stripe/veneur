@@ -20,6 +20,7 @@ import (
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 	"github.com/stripe/veneur/trace/metrics"
+	"google.golang.org/grpc/status"
 )
 
 // Flush collects sampler's metrics and passes them to sinks.
@@ -461,8 +462,15 @@ func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
 	grpcStart := time.Now()
 	_, err := c.SendMetrics(ctx, &forwardrpc.MetricList{Metrics: metrics})
 	if err != nil {
-		span.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "send"}))
-		entry.WithError(err).Error("Failed to forward to an upstream Veneur")
+		if statErr, ok := status.FromError(err); ok && (statErr.Message() == "all SubConns are in TransientFailure" || statErr.Message() == "transport is closing") {
+			// We could check statErr.Code() == codes.Unavailable, but we don't know all of the cases that
+			// could return that code. These two particular cases are fairly safe and usually associated
+			// with connection rebalancing or host replacement, so we don't want them going to sentry.
+			span.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "transient_unavailable"}))
+		} else {
+			span.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "send"}))
+			entry.WithError(err).Error("Failed to forward to an upstream Veneur")
+		}
 	} else {
 		entry.Info("Completed forward to an upstream Veneur")
 	}
