@@ -73,6 +73,10 @@ const MetricKeySpanIngestDuration = "sink.span_ingest_total_duration_ns"
 // this.
 const MetricKeyTotalSpansDropped = "sink.spans_dropped_total"
 
+// MetricKeyTotalSpansSkipped tracks the number of spans that are skipped due to
+// sampling, if sampling is enabled.
+const MetricKeyTotalSpansSkipped = "sink.spans_skipped_total"
+
 // SpanSink is a receiver of spans that handles sending those spans to some
 // downstream sink. Calls to `Ingest(span)` are meant to give the sink control
 // of the span, with periodic calls to flush as a signal for sinks that don't
