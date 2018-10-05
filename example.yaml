@@ -386,6 +386,14 @@ splunk_hec_send_timeout: "10ms"
 # 0, ingestion will wait indefintely until the span can be ingested.
 splunk_hec_ingest_timeout: "10ms"
 
+
+# (optional) The fraction of traces that are chosen to be reported to Splunk.
+# On average, 1/N traces will be chosen to be reported to Splunk. Setting this
+# value to 1 or 0 disables sampling, reporting all spans from all traces to Splunk.
+# Sampling is performed on the trace ID, so either all spans from a given trace
+# will be reported, or none will.
+splunk_span_sample_rate: 99
+
 # == PLUGINS ==
 
 # == S3 Output ==

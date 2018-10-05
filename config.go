@@ -74,6 +74,7 @@ type Config struct {
 	SplunkHecSubmissionWorkers    int      `yaml:"splunk_hec_submission_workers"`
 	SplunkHecTLSValidateHostname  string   `yaml:"splunk_hec_tls_validate_hostname"`
 	SplunkHecToken                string   `yaml:"splunk_hec_token"`
+	SplunkSpanSampleRate          int      `yaml:"splunk_span_sample_rate"`
 	SsfBufferSize                 int      `yaml:"ssf_buffer_size"`
 	SsfListenAddresses            []string `yaml:"ssf_listen_addresses"`
 	StatsAddress                  string   `yaml:"stats_address"`

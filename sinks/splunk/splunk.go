@@ -55,6 +55,8 @@ type splunkSpanSink struct {
 	traceClient *trace.Client
 	log         *logrus.Logger
 
+	spanSampleRate int64
+
 	// these fields are for testing only:
 
 	// sync holds one channel per submission worker.
@@ -73,7 +75,15 @@ var _ TestableSplunkSpanSink = &splunkSpanSink{}
 // veneur. An optional argument, validateServerName is used (if
 // non-empty) to instruct go to validate a different hostname than the
 // one on the server URL.
-func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, ingestTimeout time.Duration, sendTimeout time.Duration, batchSize int, workers int) (sinks.SpanSink, error) {
+// The spanSampleRate is an integer. For any given trace ID, the probability
+// that all spans in the trace will be chosen for the sample is 1/spanSampleRate.
+// Sampling is performed on the trace ID, so either all spans within a given trace
+// will be chosen, or none will.
+func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, ingestTimeout time.Duration, sendTimeout time.Duration, batchSize int, workers int, spanSampleRate int) (sinks.SpanSink, error) {
+	if spanSampleRate < 1 {
+		spanSampleRate = 1
+	}
+
 	client, err := newHecClient(server, token)
 	if err != nil {
 		return nil, err
@@ -95,14 +105,15 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 	}
 
 	return &splunkSpanSink{
-		hec:           client,
-		httpClient:    httpC,
-		ingest:        make(chan *Event),
-		hostname:      localHostname,
-		log:           log,
-		sendTimeout:   sendTimeout,
-		ingestTimeout: ingestTimeout,
-		batchSize:     batchSize,
+		hec:            client,
+		httpClient:     httpC,
+		ingest:         make(chan *Event),
+		hostname:       localHostname,
+		log:            log,
+		sendTimeout:    sendTimeout,
+		ingestTimeout:  ingestTimeout,
+		batchSize:      batchSize,
+		spanSampleRate: int64(spanSampleRate),
 	}, nil
 }
 
@@ -299,6 +310,13 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	// Only send properly filled-out spans to the HEC:
 	if err := protocol.ValidateTrace(ssfSpan); err != nil {
 		return err
+	}
+
+	// choose (1/spanSampleRate) spans for sampling
+	// if any spans have the traceID of 0, they will always
+	// be chosen, regardless of the sample rate.
+	if ssfSpan.TraceId%sss.spanSampleRate != 0 {
+		return nil
 	}
 
 	ctx := context.Background()
