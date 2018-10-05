@@ -212,8 +212,6 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request) {
 		return
 	}
 	if err != nil {
-		sss.log.WithError(err).
-			Error("Could not execute HEC request")
 		samples.Add(ssf.Count(failureMetric, 1, map[string]string{
 			"cause": "execution",
 		}))
