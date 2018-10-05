@@ -56,6 +56,7 @@ type splunkSpanSink struct {
 	log         *logrus.Logger
 
 	spanSampleRate int64
+	skippedSpans   uint32
 
 	// these fields are for testing only:
 
@@ -298,6 +299,11 @@ func (sss *splunkSpanSink) Flush() {
 			float32(atomic.SwapUint32(&sss.droppedSpans, 0)),
 			map[string]string{"sink": sss.Name()},
 		),
+		ssf.Count(
+			sinks.MetricKeyTotalSpansSkipped,
+			float32(atomic.SwapUint32(&sss.skippedSpans, 0)),
+			map[string]string{"sink": sss.Name()},
+		),
 	)
 
 	metrics.Report(sss.traceClient, samples)
@@ -316,6 +322,7 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	// if any spans have the traceID of 0, they will always
 	// be chosen, regardless of the sample rate.
 	if ssfSpan.TraceId%sss.spanSampleRate != 0 {
+		atomic.AddUint32(&sss.skippedSpans, 1)
 		return nil
 	}
 
