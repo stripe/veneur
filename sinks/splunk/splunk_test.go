@@ -252,7 +252,7 @@ func BenchmarkBatchIngest(b *testing.B) {
 }
 
 func TestSampling(t *testing.T) {
-	const nToFlush = 100
+	const nToFlush = 1000
 	logger := logrus.StandardLogger()
 
 	ch := make(chan splunk.Event, nToFlush)
@@ -293,13 +293,19 @@ func TestSampling(t *testing.T) {
 
 	// Ensure nothing sends into the channel anymore:
 	sink.Stop()
-	ts.Close()
-	close(ch)
 
 	// check how many events we got:
 	events := 0
 	for _ = range ch {
 		events++
+		// Don't close the receiving end until the first
+		// span, to avoid failing the test by racing the
+		// receiver:
+		if ch != nil {
+			ts.Close()
+			close(ch)
+			ch = nil
+		}
 	}
 	assert.True(t, events > 0, "Should have sent around 1/10 of spans, but received zero")
 	assert.True(t, events < nToFlush/2, "Should have sent less than all the spans, but received %d of %d", events, nToFlush)
@@ -348,13 +354,19 @@ func TestSamplingIndicators(t *testing.T) {
 
 	// Ensure nothing sends into the channel anymore:
 	sink.Stop()
-	ts.Close()
-	close(ch)
 
 	// check how many events we got:
 	events := 0
 	for _ = range ch {
 		events++
+		// Don't close the receiving end until the first
+		// span, to avoid failing the test by racing the
+		// receiver:
+		if ch != nil {
+			ts.Close()
+			close(ch)
+			ch = nil
+		}
 	}
 	assert.Equal(t, events, nToFlush, "Should have sent all the spans, but received %d of %d", events, nToFlush)
 	t.Logf("Received %d of %d events", events, nToFlush)
