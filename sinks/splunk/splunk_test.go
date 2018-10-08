@@ -250,3 +250,112 @@ func BenchmarkBatchIngest(b *testing.B) {
 	b.StopTimer()
 	sink.Stop()
 }
+
+func TestSampling(t *testing.T) {
+	const nToFlush = 100
+	logger := logrus.StandardLogger()
+
+	ch := make(chan splunk.Event, nToFlush)
+	ts := httptest.NewServer(jsonEndpoint(t, ch))
+	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
+		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0, 10)
+	require.NoError(t, err)
+	sink := gsink.(splunk.TestableSplunkSpanSink)
+	err = sink.Start(nil)
+	require.NoError(t, err)
+
+	start := time.Unix(100000, 1000000)
+	end := start.Add(5 * time.Second)
+	span := &ssf.SSFSpan{
+		ParentId:       4,
+		StartTimestamp: start.UnixNano(),
+		EndTimestamp:   end.UnixNano(),
+		Service:        "test-srv",
+		Name:           "test-span",
+		Indicator:      false,
+		Error:          true,
+		Tags: map[string]string{
+			"farts": "mandatory",
+		},
+		Metrics: []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		},
+	}
+	for i := 0; i < nToFlush; i++ {
+		span.Id = int64(i + 1)
+		span.TraceId = int64(i + 1)
+		err = sink.Ingest(span)
+		require.NoError(t, err, "error ingesting the %dth span", i)
+	}
+
+	sink.Sync()
+
+	// Ensure nothing sends into the channel anymore:
+	sink.Stop()
+	ts.Close()
+	close(ch)
+
+	// check how many events we got:
+	events := 0
+	for _ = range ch {
+		events++
+	}
+	assert.True(t, events > 0, "Should have sent around 1/10 of spans, but received zero")
+	assert.True(t, events < nToFlush/2, "Should have sent less than all the spans, but received %d of %d", events, nToFlush)
+	t.Logf("Received %d of %d events", events, nToFlush)
+}
+
+func TestSamplingIndicators(t *testing.T) {
+	const nToFlush = 100
+	logger := logrus.StandardLogger()
+
+	ch := make(chan splunk.Event, nToFlush)
+	ts := httptest.NewServer(jsonEndpoint(t, ch))
+	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
+		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0, 10)
+	require.NoError(t, err)
+	sink := gsink.(splunk.TestableSplunkSpanSink)
+	err = sink.Start(nil)
+	require.NoError(t, err)
+
+	start := time.Unix(100000, 1000000)
+	end := start.Add(5 * time.Second)
+	span := &ssf.SSFSpan{
+		ParentId:       4,
+		StartTimestamp: start.UnixNano(),
+		EndTimestamp:   end.UnixNano(),
+		Service:        "test-srv",
+		Name:           "test-span",
+		Indicator:      true,
+		Error:          true,
+		Tags: map[string]string{
+			"farts": "mandatory",
+		},
+		Metrics: []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		},
+	}
+	for i := 0; i < nToFlush; i++ {
+		span.Id = int64(i + 1)
+		span.TraceId = int64(i + 1)
+		err = sink.Ingest(span)
+		require.NoError(t, err, "error ingesting the %dth span", i)
+	}
+
+	sink.Sync()
+
+	// Ensure nothing sends into the channel anymore:
+	sink.Stop()
+	ts.Close()
+	close(ch)
+
+	// check how many events we got:
+	events := 0
+	for _ = range ch {
+		events++
+	}
+	assert.Equal(t, events, nToFlush, "Should have sent all the spans, but received %d of %d", events, nToFlush)
+	t.Logf("Received %d of %d events", events, nToFlush)
+}

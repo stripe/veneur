@@ -318,10 +318,10 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		return err
 	}
 
-	// choose (1/spanSampleRate) spans for sampling
-	// if any spans have the traceID of 0, they will always
-	// be chosen, regardless of the sample rate.
-	if ssfSpan.TraceId%sss.spanSampleRate != 0 {
+	// choose (1/spanSampleRate) spans for sampling if any spans
+	// have the traceID of 0 or are declared indicator spans, they
+	// will always be chosen, regardless of the sample rate.
+	if !ssfSpan.Indicator && ssfSpan.TraceId%sss.spanSampleRate != 0 {
 		atomic.AddUint32(&sss.skippedSpans, 1)
 		return nil
 	}
