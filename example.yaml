@@ -392,7 +392,7 @@ splunk_hec_ingest_timeout: "10ms"
 # value to 1 or 0 disables sampling, reporting all spans from all traces to Splunk.
 # Sampling is performed on the trace ID, so either all spans from a given trace
 # will be reported, or none will.
-splunk_span_sample_rate: 99
+splunk_span_sample_rate: 10
 
 # == PLUGINS ==
 
