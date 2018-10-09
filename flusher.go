@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"reflect"
 	"runtime"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/golang/protobuf/jsonpb"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/forwardrpc"
 	vhttp "github.com/stripe/veneur/http"
@@ -448,6 +450,11 @@ func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
 	if len(metrics) == 0 {
 		log.Debug("Nothing to forward, skipping.")
 		return
+	}
+
+	if file, err := os.OpenFile("/pay/tmp/metricfwd.json", os.O_RDWR|os.O_CREATE|os.O_EXCL, 0644); err == nil {
+		var m jsonpb.Marshaler
+		m.Marshal(file, &forwardrpc.MetricList{Metrics: metrics})
 	}
 
 	entry := log.WithFields(logrus.Fields{

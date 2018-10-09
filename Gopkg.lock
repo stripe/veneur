@@ -173,14 +173,16 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:7fcbebf3c4c2332bd658e831366627ad31cb86589fb11a9add1b078aa954b707"
+  digest = "1:6bbeda5bacfc606f21633551ffbf9f7517a31b94f2ef1fbbca9952acdaa90a22"
   name = "github.com/golang/protobuf"
   packages = [
+    "jsonpb",
     "proto",
     "ptypes",
     "ptypes/any",
     "ptypes/duration",
     "ptypes/empty",
+    "ptypes/struct",
     "ptypes/timestamp",
   ]
   pruneopts = "NUT"
@@ -828,6 +830,7 @@
     "github.com/getsentry/raven-go",
     "github.com/gogo/protobuf/gogoproto",
     "github.com/gogo/protobuf/proto",
+    "github.com/golang/protobuf/jsonpb",
     "github.com/golang/protobuf/proto",
     "github.com/golang/protobuf/ptypes/empty",
     "github.com/hashicorp/consul/api",
