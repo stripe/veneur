@@ -28,7 +28,7 @@ type Server struct {
 // NewServer creates an unstarted Server with the specified handler
 func NewServer(handler SendMetricHandler) *Server {
 	res := &Server{
-		Server:  grpc.NewServer(),
+		Server:  grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor())),
 		handler: handler,
 	}
 

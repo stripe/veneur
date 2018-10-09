@@ -673,7 +673,7 @@ func (s *Server) Start() {
 	// Initialize a gRPC connection for forwarding
 	if s.forwardUseGRPC {
 		var err error
-		s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure())
+		s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure(), grpc.WithCompressor(grpc.NewGZIPCompressor()), grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
 		if err != nil {
 			log.WithError(err).WithFields(logrus.Fields{
 				"forwardAddr": s.ForwardAddr,

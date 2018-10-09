@@ -66,12 +66,12 @@ type options struct {
 // is unstarted.
 func New(destinations *consistent.Consistent, opts ...Option) (*Server, error) {
 	res := &Server{
-		Server: grpc.NewServer(),
+		Server: grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor())),
 		opts: &options{
 			forwardTimeout: defaultForwardTimeout,
 			statsInterval:  defaultReportStatsInterval,
 		},
-		conns:               newClientConnMap(grpc.WithInsecure()),
+		conns:               newClientConnMap(grpc.WithInsecure(), grpc.WithCompressor(grpc.NewGZIPCompressor()), grpc.WithDecompressor(grpc.NewGZIPDecompressor())),
 		activeProxyHandlers: new(int64),
 	}
 
