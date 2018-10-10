@@ -223,7 +223,21 @@ func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, 
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), hct.getClientTrace()))
 	defer hct.finishSpan()
 
+	retry := 3
 	resp, err := httpClient.Do(req)
+
+	// If our initial request fails, we want to try again
+	if err != nil {
+		for i := 0; i < retry; i++ {
+			resp, err = httpClient.Do(req)
+			if err == nil {
+				break
+			}
+			// 50ms
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
 	if err != nil {
 		if urlErr, ok := err.(*url.Error); ok {
 			// if the error has the url in it, then retrieve the inner error
