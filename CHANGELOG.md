@@ -6,6 +6,7 @@
 
 ## Added
 * The splunk span sink can be configured with a sample rate for non-indicator spans with the `splunk_span_sample_rate` setting. Thanks, [aditya](https://github.com/chimeracoder)!
+* Added retry logic to POST requests if they fail due to IO exceptions (such as timeouts and connection resets). Requests now are tried four times; One initially and another three if the 1st request fails. Thanks, [volfco](https://github.com/volfco)!
 
 # 8.0.0, 2018-09-20
 
