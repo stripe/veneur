@@ -1,11 +1,22 @@
 language: go
+
 os:
   - "linux"
+  - "windows"
 
 go:
   - "1.10"
   - "1.11"
   - tip
+
+matrix:
+  include:
+    - os: linux
+      go: "1.10"
+    - os: linux
+      go: "1.11"
+    - os: linux
+      go: tip
 
 install:
   - wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
