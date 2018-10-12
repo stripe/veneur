@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gogo/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,7 +76,7 @@ func TestGauge(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testFlag["gauge"] = newValue("3")
 	span := &ssf.SSFSpan{}
-	_, err := createMetric(span, testFlag, "testMetric", "")
+	_, err := createMetric(span, testFlag, "testMetric", "", false, nil)
 	assert.NoError(t, err)
 	assert.Len(t, span.Metrics, 1)
 	assert.Equal(t, ssf.SSFSample_GAUGE, span.Metrics[0].Metric)
@@ -89,7 +88,7 @@ func TestCount(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testFlag["count"] = newValue("3")
 	span := &ssf.SSFSpan{}
-	_, err := createMetric(span, testFlag, "testMetric", "")
+	_, err := createMetric(span, testFlag, "testMetric", "", false, nil)
 	assert.NoError(t, err)
 	assert.Len(t, span.Metrics, 1)
 	assert.Equal(t, ssf.SSFSample_COUNTER, span.Metrics[0].Metric)
@@ -101,7 +100,7 @@ func TestTiming(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testFlag["timing"] = newValue("3ms")
 	span := &ssf.SSFSpan{}
-	_, err := createMetric(span, testFlag, "testMetric", "")
+	_, err := createMetric(span, testFlag, "testMetric", "", false, nil)
 	assert.NoError(t, err)
 	assert.Len(t, span.Metrics, 1)
 	assert.Equal(t, ssf.SSFSample_HISTOGRAM, span.Metrics[0].Metric)
@@ -114,7 +113,7 @@ func TestSet(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testFlag["set"] = newValue("farts")
 	span := &ssf.SSFSpan{}
-	_, err := createMetric(span, testFlag, "testMetric", "")
+	_, err := createMetric(span, testFlag, "testMetric", "", false, nil)
 	assert.NoError(t, err)
 	assert.Len(t, span.Metrics, 1)
 	assert.Equal(t, ssf.SSFSample_SET, span.Metrics[0].Metric)
@@ -127,7 +126,7 @@ func TestMultiple(t *testing.T) {
 	testFlag["gauge"] = newValue("3")
 	testFlag["count"] = newValue("2")
 	span := &ssf.SSFSpan{}
-	_, err := createMetric(span, testFlag, "testMetric", "")
+	_, err := createMetric(span, testFlag, "testMetric", "", false, nil)
 	assert.NoError(t, err)
 	assert.Len(t, span.Metrics, 2)
 	assert.Equal(t, "testMetric", span.Metrics[1].Name)
@@ -137,7 +136,7 @@ func TestMultiple(t *testing.T) {
 func TestNone(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	span := &ssf.SSFSpan{}
-	_, err := createMetric(span, testFlag, "testMetric", "")
+	_, err := createMetric(span, testFlag, "testMetric", "", false, nil)
 	assert.NoError(t, err)
 	assert.Len(t, span.Metrics, 0)
 }
@@ -147,17 +146,17 @@ func TestBadCalls(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	testFlag["gauge"] = newValue("notanumber")
 	span := &ssf.SSFSpan{}
-	_, err = createMetric(span, testFlag, "testBadMetric", "")
+	_, err = createMetric(span, testFlag, "testBadMetric", "", false, nil)
 	assert.Error(t, err)
 
 	testFlag = make(map[string]flag.Value)
 	testFlag["timing"] = newValue("40megayears")
-	_, err = createMetric(span, testFlag, "testBadMetric", "")
+	_, err = createMetric(span, testFlag, "testBadMetric", "", false, nil)
 	assert.Error(t, err)
 
 	testFlag = make(map[string]flag.Value)
 	testFlag["count"] = newValue("four")
-	_, err = createMetric(span, testFlag, "testBadMetric", "")
+	_, err = createMetric(span, testFlag, "testBadMetric", "", false, nil)
 	assert.Error(t, err)
 }
 
@@ -194,11 +193,8 @@ func TestTags(t *testing.T) {
 }
 
 func TestFlags(t *testing.T) {
-	os.Args = append(os.Args, "-name='testname'")
-	outputFlags := flags()
-	if outputFlags["name"] == nil {
-		t.Error("Did not properly parse flags.")
-	}
+	_, outputFlags := flags([]string{"veneur-emit", "-name=testname"})
+	assert.NotNil(t, outputFlags["name"])
 }
 
 func TestCreateMetrics(t *testing.T) {
@@ -207,7 +203,7 @@ func TestCreateMetrics(t *testing.T) {
 	testFlag["gauge"] = newValue("3.14")
 	testFlag["count"] = newValue("2")
 	span := &ssf.SSFSpan{}
-	_, err := createMetric(span, testFlag, "test.metric", "tag1:value1")
+	_, err := createMetric(span, testFlag, "test.metric", "tag1:value1", false, nil)
 	assert.NoError(t, err)
 	assert.Len(t, span.Metrics, 2)
 	for _, metric := range span.Metrics {
@@ -278,12 +274,13 @@ func (tb *testBackend) FlushSync(ctx context.Context) error {
 }
 
 func TestSetupSpanWithTracing(t *testing.T) {
-	span, err := setupSpan(proto.Int64(1), proto.Int64(2), "oink", "hi:there", "foo:bar")
+	span, err := setupSpan(1, 2, "oink", "hi:there", "oink-srv", "foo:bar", false)
 	if assert.NoError(t, err) {
 		assert.NotZero(t, span.Id)
 		assert.Equal(t, int64(1), span.TraceId)
 		assert.Equal(t, int64(2), span.ParentId)
 		assert.Equal(t, "oink", span.Name)
+		assert.Equal(t, "oink-srv", span.Service)
 		assert.Equal(t, 2, len(span.Tags))
 		assert.Equal(t, span.Tags["hi"], "there")
 		assert.Equal(t, span.Tags["foo"], "bar")
@@ -291,7 +288,7 @@ func TestSetupSpanWithTracing(t *testing.T) {
 }
 
 func TestSetupSpanWithoutTracing(t *testing.T) {
-	span, err := setupSpan(nil, nil, "oink", "hi:there", "")
+	span, err := setupSpan(0, 0, "oink", "hi:there", "oink-srv", "", false)
 	if assert.NoError(t, err) {
 		assert.Zero(t, span.Id)
 		assert.Zero(t, span.TraceId)
@@ -305,7 +302,7 @@ func TestSendSpan(t *testing.T) {
 	testFlag := make(map[string]flag.Value)
 	dataWritten = []byte{}
 	span := &ssf.SSFSpan{}
-	_, _ = createMetric(span, testFlag, "test.metric", "tag1:value1")
+	_, _ = createMetric(span, testFlag, "test.metric", "tag1:value1", false, nil)
 
 	ch := make(chan *ssf.SSFSpan, 1)
 	errors := make(chan error, 1)
@@ -327,7 +324,7 @@ func TestBadSendSpan(t *testing.T) {
 	dataWritten = []byte{}
 
 	span := &ssf.SSFSpan{}
-	_, _ = createMetric(span, testFlag, "test.metric", "tag1:value1")
+	_, _ = createMetric(span, testFlag, "test.metric", "tag1:value1", false, nil)
 
 	ch := make(chan *ssf.SSFSpan, 1)
 	errors := make(chan error, 1)
