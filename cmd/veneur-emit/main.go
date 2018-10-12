@@ -26,53 +26,54 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
-var (
-	// Generic flags
-	hostport = flag.String("hostport", "", "Address of destination (hostport or listening address URL).")
-	mode     = flag.String("mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
-	debug    = flag.Bool("debug", false, "Turns on debug messages.")
-	command  = flag.Bool("command", false, "Turns on command-timing mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.")
-
-	// Metric flags
-	name   = flag.String("name", "", "Name of metric to report. Ex: 'daemontools.service.starts'")
-	gauge  = flag.Float64("gauge", 0, "Report a 'gauge' metric. Value must be float64.")
-	timing = flag.Duration("timing", 0*time.Millisecond, "Report a 'timing' metric. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).")
-	count  = flag.Int64("count", 0, "Report a 'count' metric. Value must be an integer.")
-	set    = flag.String("set", "", "Report a 'set' metric with an arbitrary string value.")
-	tag    = flag.String("tag", "", "Tag(s) for metric, comma separated. Ex: 'service:airflow'. Note: Any tags here are applied to all emitted data. See also mode-specific tag options (e.g. span_tags)")
-	toSSF  = flag.Bool("ssf", false, "Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)")
-
-	// Event flags
-	// TODO: what should flags be called?
-	eTitle      = flag.String("e_title", "", "Title of event. Ex: 'An exception occurred' *")
-	eText       = flag.String("e_text", "", "Text of event. Insert line breaks with an esaped slash (\\\\n) *")
-	eTimestamp  = flag.String("e_time", "", "Add timestamp to the event. Default is the current Unix epoch timestamp.")
-	eHostname   = flag.String("e_hostname", "", "Hostname for the event.")
-	eAggrKey    = flag.String("e_aggr_key", "", "Add an aggregation key to group event with others with same key.")
-	ePriority   = flag.String("e_priority", "normal", "Priority of event. Must be 'low' or 'normal'.")
-	eSourceType = flag.String("e_source_type", "", "Add source type to the event.")
-	eAlertType  = flag.String("e_alert_type", "info", "Alert type must be 'error', 'warning', 'info', or 'success'.")
-	eTag        = flag.String("e_event_tags", "", "Tag(s) for event, comma separated. Ex: 'service:airflow,host_type:qa'")
-
-	// Service check flags
-	scName      = flag.String("sc_name", "", "Service check name. *")
-	scStatus    = flag.String("sc_status", "", "Integer corresponding to check status. (OK = 0, WARNING = 1, CRITICAL = 2, UNKNOWN = 3)*")
-	scTimestamp = flag.String("sc_time", "", "Add timestamp to check. Default is current Unix epoch timestamp.")
-	scHostname  = flag.String("sc_hostname", "", "Add hostname to the event.")
-	scTags      = flag.String("sc_tags", "", "Tag(s) for service check, comma separated. Ex: 'service:airflow,host_type:qa'")
-	scMsg       = flag.String("sc_msg", "", "Message describing state of current state of service check.")
-
-	// Tracing flags
-	traceID   = flag.Int64("trace_id", 0, "ID for the trace (top-level) span. Setting a trace ID activated tracing.")
-	parentID  = flag.Int64("parent_span_id", 0, "ID of the parent span.")
-	spanStart = flag.String("span_starttime", "", "Date/time to set for the start of the span. See https://github.com/araddon/dateparse#extended-example for formatting.")
-	spanEnd   = flag.String("span_endtime", "", "Date/time to set for the end of the span. Format is same as -span_starttime.")
-	service   = flag.String("span_service", "veneur-emit", "Service name to associate with the span.")
-	indicator = flag.Bool("indicator", false, "Mark the reported span as an indicator span")
-	sTag      = flag.String("span_tags", "", "Tag(s) for span, comma separated. Useful for avoiding high cardinality tags. Ex 'user_id:ac0b23,widget_id:284802'")
-)
-
 type EmitMode uint
+
+type Flags struct {
+	HostPort  string
+	Mode      string
+	Debug     bool
+	Command   bool
+	ExtraArgs []string
+
+	Name   string
+	Gauge  float64
+	Timing time.Duration
+	Count  int64
+	Set    string
+	Tag    string
+	ToSSF  bool
+
+	Event struct {
+		Title      string
+		Text       string
+		Time       string
+		Hostname   string
+		AggrKey    string
+		Priority   string
+		SourceType string
+		AlertType  string
+		Tags       string
+	}
+
+	ServiceCheck struct {
+		Name      string
+		Status    string
+		Timestamp string
+		Hostname  string
+		Tags      string
+		Msg       string
+	}
+
+	Span struct {
+		TraceID   int64
+		ParentID  int64
+		StartTime string
+		EndTime   string
+		Service   string
+		Indicator bool
+		Tags      string
+	}
+}
 
 const (
 	MetricMode EmitMode = 1 << iota
@@ -158,26 +159,26 @@ type MinimalConn interface {
 }
 
 func main() {
-	passedFlags := flags()
+	flagStruct, passedFlags := flags(os.Args)
 
-	if *debug {
+	if flagStruct.Debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	validateFlagCombinations(passedFlags)
+	validateFlagCombinations(passedFlags, flagStruct.ExtraArgs)
 
-	addr, netAddr, err := destination(hostport, *toSSF)
+	addr, netAddr, err := destination(&flagStruct.HostPort, flagStruct.ToSSF)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error getting destination address.")
 	}
 	logrus.WithField("net", netAddr.Network()).
 		WithField("addr", netAddr.String()).
-		WithField("ssf", *toSSF).
+		WithField("ssf", flagStruct.ToSSF).
 		Debugf("destination")
 
-	if *mode == "event" {
-		if *toSSF {
-			logrus.WithField("mode", *mode).
+	if flagStruct.Mode == "event" {
+		if flagStruct.ToSSF {
+			logrus.WithField("mode", flagStruct.Mode).
 				Fatal("Unsupported mode with SSF")
 		}
 		logrus.Debug("Sending event")
@@ -191,9 +192,9 @@ func main() {
 		return
 	}
 
-	if *mode == "sc" {
-		if *toSSF {
-			logrus.WithField("mode", *mode).
+	if flagStruct.Mode == "sc" {
+		if flagStruct.ToSSF {
+			logrus.WithField("mode", flagStruct.Mode).
 				Fatal("Unsupported mode with SSF")
 		}
 		logrus.Debug("Sending service check")
@@ -207,26 +208,26 @@ func main() {
 		return
 	}
 
-	if *traceID, err = inferTraceIDInt(*traceID, envTraceID); err != nil {
+	if flagStruct.Span.TraceID, err = inferTraceIDInt(flagStruct.Span.TraceID, envTraceID); err != nil {
 		logrus.WithError(err).
 			WithField("env_var", envTraceID).
 			WithField("ID", "trace_id").
 			Warn("Could not infer ID from environment")
 	}
-	if *parentID, err = inferTraceIDInt(*parentID, envSpanID); err != nil {
+	if flagStruct.Span.ParentID, err = inferTraceIDInt(flagStruct.Span.ParentID, envSpanID); err != nil {
 		logrus.WithError(err).
 			WithField("env_var", envSpanID).
 			WithField("ID", "parent_span_id").
 			Warn("Could not infer ID from environment")
 	}
-	span, err := setupSpan(traceID, parentID, *name, *tag, *sTag)
+	span, err := setupSpan(flagStruct.Span.TraceID, flagStruct.Span.ParentID, flagStruct.Name, flagStruct.Tag, flagStruct.Span.Service, flagStruct.Span.Tags, flagStruct.Span.Indicator)
 	if err != nil {
 		logrus.WithError(err).
 			Fatal("Couldn't set up the main span")
 	}
 	if span.TraceId != 0 {
-		if !*toSSF {
-			logrus.WithField("ssf", *toSSF).
+		if !flagStruct.ToSSF {
+			logrus.WithField("ssf", flagStruct.ToSSF).
 				Fatal("Can't use tracing in non-ssf operation: Use -ssf to emit trace spans.")
 		}
 		logrus.WithField("trace_id", span.TraceId).
@@ -237,11 +238,11 @@ func main() {
 			Debug("Tracing is activated")
 	}
 
-	status, err := createMetric(span, passedFlags, *name, *tag)
+	status, err := createMetric(span, passedFlags, flagStruct.Name, flagStruct.Tag, flagStruct.Command, flagStruct.ExtraArgs)
 	if err != nil {
 		logrus.WithError(err).Fatal("Error creating metrics.")
 	}
-	if *toSSF {
+	if flagStruct.ToSSF {
 		client, err := trace.NewClient(addr)
 		if err != nil {
 			logrus.WithError(err).
@@ -267,14 +268,65 @@ func main() {
 	os.Exit(status)
 }
 
-func flags() map[string]flag.Value {
-	flag.Parse()
+func flags(args []string) (Flags, map[string]flag.Value) {
+	var flagStruct Flags
+	flagset := flag.NewFlagSet(args[0], flag.ExitOnError)
+
+	// Generic flags
+	flagset.StringVar(&flagStruct.HostPort, "hostport", "", "Address of destination (hostport or listening address URL).")
+	flagset.StringVar(&flagStruct.Mode, "mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
+	flagset.BoolVar(&flagStruct.Debug, "debug", false, "Turns on debug messages.")
+	flagset.BoolVar(&flagStruct.Command, "command", false, "Turns on command-timing mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.")
+
+	// Metric flags
+	flagset.StringVar(&flagStruct.Name, "name", "", "Name of metric to report. Ex: 'daemontools.service.starts'")
+	flagset.Float64Var(&flagStruct.Gauge, "gauge", 0, "Report a 'gauge' metric. Value must be float64.")
+	flagset.DurationVar(&flagStruct.Timing, "timing", 0*time.Millisecond, "Report a 'timing' metric. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).")
+	flagset.Int64Var(&flagStruct.Count, "count", 0, "Report a 'count' metric. Value must be an integer.")
+	flagset.StringVar(&flagStruct.Set, "set", "", "Report a 'set' metric with an arbitrary string value.")
+	flagset.StringVar(&flagStruct.Tag, "tag", "", "Tag(s) for metric, comma separated. Ex: 'service:airflow'. Note: Any tags here are applied to all emitted data. See also mode-specific tag options (e.g. span_tags)")
+	flagset.BoolVar(&flagStruct.ToSSF, "ssf", false, "Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)")
+
+	// Event flags
+	// TODO: what should flags be called?
+	flagset.StringVar(&flagStruct.Event.Title, "e_title", "", "Title of event. Ex: 'An exception occurred' *")
+	flagset.StringVar(&flagStruct.Event.Text, "e_text", "", "Text of event. Insert line breaks with an esaped slash (\\\\n) *")
+	flagset.StringVar(&flagStruct.Event.Time, "e_time", "", "Add timestamp to the event. Default is the current Unix epoch timestamp.")
+	flagset.StringVar(&flagStruct.Event.Hostname, "e_hostname", "", "Hostname for the event.")
+	flagset.StringVar(&flagStruct.Event.AggrKey, "e_aggr_key", "", "Add an aggregation key to group event with others with same key.")
+	flagset.StringVar(&flagStruct.Event.Priority, "e_priority", "normal", "Priority of event. Must be 'low' or 'normal'.")
+	flagset.StringVar(&flagStruct.Event.SourceType, "e_source_type", "", "Add source type to the event.")
+	flagset.StringVar(&flagStruct.Event.AlertType, "e_alert_type", "info", "Alert type must be 'error', 'warning', 'info', or 'success'.")
+	flagset.StringVar(&flagStruct.Event.Tags, "e_event_tags", "", "Tag(s) for event, comma separated. Ex: 'service:airflow,host_type:qa'")
+
+	// Service check flags
+	flagset.StringVar(&flagStruct.ServiceCheck.Name, "sc_name", "", "Service check name. *")
+	flagset.StringVar(&flagStruct.ServiceCheck.Status, "sc_status", "", "Integer corresponding to check status. (OK = 0, WARNING = 1, CRITICAL = 2, UNKNOWN = 3)*")
+	flagset.StringVar(&flagStruct.ServiceCheck.Timestamp, "sc_time", "", "Add timestamp to check. Default is current Unix epoch timestamp.")
+	flagset.StringVar(&flagStruct.ServiceCheck.Hostname, "sc_hostname", "", "Add hostname to the event.")
+	flagset.StringVar(&flagStruct.ServiceCheck.Tags, "sc_tags", "", "Tag(s) for service check, comma separated. Ex: 'service:airflow,host_type:qa'")
+	flagset.StringVar(&flagStruct.ServiceCheck.Msg, "sc_msg", "", "Message describing state of current state of service check.")
+
+	// Tracing flags
+	flagset.Int64Var(&flagStruct.Span.TraceID, "trace_id", 0, "ID for the trace (top-level) span. Setting a trace ID activated tracing.")
+	flagset.Int64Var(&flagStruct.Span.ParentID, "parent_span_id", 0, "ID of the parent span.")
+	flagset.StringVar(&flagStruct.Span.StartTime, "span_starttime", "", "Date/time to set for the start of the span. See https://github.com/araddon/dateparse#extended-example for formatting.")
+	flagset.StringVar(&flagStruct.Span.EndTime, "span_endtime", "", "Date/time to set for the end of the span. Format is same as -span_starttime.")
+	flagset.StringVar(&flagStruct.Span.Service, "span_service", "veneur-emit", "Service name to associate with the span.")
+	flagset.BoolVar(&flagStruct.Span.Indicator, "indicator", false, "Mark the reported span as an indicator span")
+	flagset.StringVar(&flagStruct.Span.Tags, "span_tags", "", "Tag(s) for span, comma separated. Useful for avoiding high cardinality tags. Ex 'user_id:ac0b23,widget_id:284802'")
+
+	flagset.Parse(args[1:])
+
+	flagStruct.ExtraArgs = make([]string, len(flagset.Args()))
+	copy(flagStruct.ExtraArgs, flagset.Args())
+
 	// hacky way to detect which flags were *actually* set
 	passedFlags := map[string]flag.Value{}
-	flag.Visit(func(f *flag.Flag) {
+	flagset.Visit(func(f *flag.Flag) {
 		passedFlags[f.Name] = f.Value
 	})
-	return passedFlags
+	return flagStruct, passedFlags
 }
 
 func tagsFromString(csv string) map[string]string {
@@ -337,13 +389,11 @@ func inferTraceIDInt(existingID int64, envKey string) (id int64, err error) {
 	return
 }
 
-func setupSpan(traceID, parentID *int64, name, tags string, spanTags string) (*ssf.SSFSpan, error) {
+func setupSpan(traceID, parentID int64, name, tags, service, spanTags string, indicator bool) (*ssf.SSFSpan, error) {
 	span := &ssf.SSFSpan{}
-	if traceID != nil && *traceID != 0 {
-		span.TraceId = *traceID
-		if parentID != nil {
-			span.ParentId = *parentID
-		}
+	if traceID != 0 {
+		span.TraceId = traceID
+		span.ParentId = parentID
 		bigid, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
 		if err != nil {
 			return nil, err
@@ -354,8 +404,8 @@ func setupSpan(traceID, parentID *int64, name, tags string, spanTags string) (*s
 		for k, v := range tagsFromString(spanTags) {
 			span.Tags[k] = v
 		}
-		span.Service = *service
-		span.Indicator = *indicator
+		span.Service = service
+		span.Indicator = indicator
 	}
 	return span, nil
 }
@@ -399,77 +449,78 @@ func timeCommand(span *ssf.SSFSpan, command []string) (exitStatus int, start tim
 	return
 }
 
-func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name string, tagStr string) (int, error) {
+func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name string, tagStr string, command bool, extraArgs []string) (int, error) {
 	var err error
 	status := 0
 	tags := tagsFromString(tagStr)
 
-	if *mode == "metric" {
-		if *command {
-			var start, ended time.Time
+	if command {
+		var start, ended time.Time
 
-			status, start, ended, err = timeCommand(span, flag.Args())
-			if err != nil {
-				return status, err
-			}
-			span.StartTimestamp = start.UnixNano()
-			span.EndTimestamp = ended.UnixNano()
-			span.Metrics = append(span.Metrics, ssf.Timing(name, ended.Sub(start), time.Millisecond, tags))
+		status, start, ended, err = timeCommand(span, extraArgs)
+		if err != nil {
+			return status, err
+		}
+		span.StartTimestamp = start.UnixNano()
+		span.EndTimestamp = ended.UnixNano()
+		span.Metrics = append(span.Metrics, ssf.Timing(name, ended.Sub(start), time.Millisecond, tags))
+	}
+
+	sf, shas := passedFlags["span_starttime"]
+	ef, ehas := passedFlags["span_endtime"]
+	if shas != ehas {
+		logrus.Fatal("Must provide both -span_startime and -span_endtime, or neither")
+	}
+
+	if shas || ehas {
+		var start, end time.Time
+
+		start, err = dateparse.ParseAny(sf.String())
+		if err != nil {
+			logrus.WithError(err).Fatal("Error parsing -span_starttime")
 		}
 
-		sf, shas := passedFlags["span_starttime"]
-		ef, ehas := passedFlags["span_endtime"]
-		if shas != ehas {
-			logrus.Fatal("Must provide both -span_startime and -span_endtime, or neither")
+		end, err = dateparse.ParseAny(ef.String())
+		if err != nil {
+			logrus.WithError(err).Fatal("Error parsing -span_endtime")
 		}
 
-		if shas || ehas {
-			var start, end time.Time
+		span.StartTimestamp = start.UnixNano()
+		span.EndTimestamp = end.UnixNano()
+	}
 
-			start, err = dateparse.ParseAny(sf.String())
-			if err != nil {
-				logrus.WithError(err).Fatal("Error parsing -span_starttime")
-			}
-
-			end, err = dateparse.ParseAny(ef.String())
-			if err != nil {
-				logrus.WithError(err).Fatal("Error parsing -span_endtime")
-			}
-
-			span.StartTimestamp = start.UnixNano()
-			span.EndTimestamp = end.UnixNano()
+	// have to use passedFlags here so we can tell the difference between
+	// zero (you explicitly passed zero) and zero (you didn't pass the flag at all)
+	if passedFlags["timing"] != nil {
+		logrus.Debugf("Sending timing '%s' -> %s", name, passedFlags["timing"].String())
+		duration, err := time.ParseDuration(passedFlags["timing"].String())
+		if err != nil {
+			return 0, err
 		}
+		span.Metrics = append(span.Metrics, ssf.Timing(name, duration, time.Millisecond, tags))
+	}
 
-		if passedFlags["timing"] != nil {
-			duration, err := time.ParseDuration(passedFlags["timing"].String())
-			if err != nil {
-				return 0, err
-			}
-			span.Metrics = append(span.Metrics, ssf.Timing(name, duration, time.Millisecond, tags))
+	if passedFlags["gauge"] != nil {
+		logrus.Debugf("Sending gauge '%s' -> %s", name, passedFlags["gauge"].String())
+		value, err := strconv.ParseFloat(passedFlags["gauge"].String(), 32)
+		if err != nil {
+			return status, err
 		}
+		span.Metrics = append(span.Metrics, ssf.Gauge(name, float32(value), tags))
+	}
 
-		if passedFlags["gauge"] != nil {
-			logrus.Debugf("Sending gauge '%s' -> %s", name, passedFlags["gauge"].String())
-			value, err := strconv.ParseFloat(passedFlags["gauge"].String(), 32)
-			if err != nil {
-				return status, err
-			}
-			span.Metrics = append(span.Metrics, ssf.Gauge(name, float32(value), tags))
+	if passedFlags["count"] != nil {
+		logrus.Debugf("Sending count '%s' -> %s", name, passedFlags["count"].String())
+		value, err := strconv.ParseInt(passedFlags["count"].String(), 10, 64)
+		if err != nil {
+			return status, err
 		}
+		span.Metrics = append(span.Metrics, ssf.Count(name, float32(value), tags))
+	}
 
-		if passedFlags["count"] != nil {
-			logrus.Debugf("Sending count '%s' -> %s", name, passedFlags["count"].String())
-			value, err := strconv.ParseInt(passedFlags["count"].String(), 10, 64)
-			if err != nil {
-				return status, err
-			}
-			span.Metrics = append(span.Metrics, ssf.Count(name, float32(value), tags))
-		}
-
-		if passedFlags["set"] != nil {
-			logrus.Debugf("Sending set '%s' -> %s", name, passedFlags["set"].String())
-			span.Metrics = append(span.Metrics, ssf.Set(name, passedFlags["set"].String(), tags))
-		}
+	if passedFlags["set"] != nil {
+		logrus.Debugf("Sending set '%s' -> %s", name, passedFlags["set"].String())
+		span.Metrics = append(span.Metrics, ssf.Set(name, passedFlags["set"].String(), tags))
 	}
 	return status, err
 }
@@ -521,7 +572,7 @@ func sendStatsd(addr string, span *ssf.SSFSpan) error {
 	return nil
 }
 
-func validateFlagCombinations(passedFlags map[string]flag.Value) {
+func validateFlagCombinations(passedFlags map[string]flag.Value, extraArgs []string) {
 	// Figure out which mode we're in
 	var mode EmitMode
 	mv, has := passedFlags["mode"]
@@ -546,7 +597,7 @@ func validateFlagCombinations(passedFlags map[string]flag.Value) {
 	}
 
 	// Sniff for args that were missing a dash.
-	for _, arg := range flag.Args() {
+	for _, arg := range extraArgs {
 		if fmode, has := flagModeMappings[arg]; has && (fmode&mode) == mode {
 			if _, has := passedFlags[arg]; !has {
 				logrus.Fatalf("Passed %q as an argument, but it's a parameter name. Did you mean \"-%s\"?", arg, arg)
