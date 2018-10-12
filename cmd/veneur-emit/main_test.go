@@ -65,10 +65,10 @@ func TestTimeCommand(t *testing.T) {
 	})
 
 	t.Run("badCall", func(t *testing.T) {
-		command := []string{"false"}
+		command := []string{"sh", "-c", "exit 42"}
 		st, _, _, err := timeCommand(&ssf.SSFSpan{}, command)
-		assert.Error(t, err, "timeCommand did not throw error.")
-		assert.NotZero(t, st)
+		assert.NoError(t, err, "timeCommand threw an error.")
+		assert.Equal(t, 42, st)
 	})
 }
 
@@ -162,7 +162,7 @@ func TestBadCalls(t *testing.T) {
 
 func TestHostport(t *testing.T) {
 	testHostport := "127.0.0.1:8200"
-	addr, netAddr, err := destination(&testHostport, false)
+	addr, netAddr, err := destination(testHostport, false)
 	assert.NoError(t, err)
 	assert.Equal(t, "udp://127.0.0.1:8200", addr)
 	assert.Equal(t, "127.0.0.1:8200", netAddr.String())
@@ -171,7 +171,7 @@ func TestHostport(t *testing.T) {
 
 func TestHostportAsURL(t *testing.T) {
 	testHostport := "tcp://127.0.0.1:8200"
-	addr, netAddr, err := destination(&testHostport, false)
+	addr, netAddr, err := destination(testHostport, false)
 	assert.NoError(t, err)
 	assert.Equal(t, "tcp://127.0.0.1:8200", addr)
 	assert.Equal(t, "tcp", netAddr.Network())
@@ -179,7 +179,7 @@ func TestHostportAsURL(t *testing.T) {
 }
 
 func TestNilHostport(t *testing.T) {
-	addr, netAddr, err := destination(nil, false)
+	addr, netAddr, err := destination("", false)
 	assert.Empty(t, addr)
 	assert.Nil(t, netAddr)
 	assert.Error(t, err)
@@ -193,8 +193,10 @@ func TestTags(t *testing.T) {
 }
 
 func TestFlags(t *testing.T) {
-	_, outputFlags := flags([]string{"veneur-emit", "-name=testname"})
+	flagStruct, outputFlags, err := flags([]string{"veneur-emit", "-name=testname"})
+	assert.NoError(t, err)
 	assert.NotNil(t, outputFlags["name"])
+	assert.Equal(t, "testname", flagStruct.Name)
 }
 
 func TestCreateMetrics(t *testing.T) {
@@ -504,8 +506,95 @@ func TestBuilldSCPacket(t *testing.T) {
 	})
 }
 
-func resetMap(m map[string]bool) {
-	for key := range m {
-		m[key] = false
-	}
+func TestInvocations(t *testing.T) {
+	// span with no metrics
+	assert.Zero(t, Main([]string{
+		"veneur-emit",
+		"-ssf",
+		"-hostport",
+		"localhost:8128",
+		"-span_service",
+		"dog-manager-srv",
+		"-name",
+		"let_dogs_out",
+		"-trace_id",
+		"662907781595716422",
+		"-span_tags",
+		"dog_id:235803",
+		"-tag",
+		"dog_type:pupper",
+		"-span_starttime",
+		"1538606608882",
+		"-span_endtime",
+		"1538606608882",
+	}))
+
+	// span with nonzero command
+	assert.Equal(t, 42, Main([]string{
+		"veneur-emit",
+		"-ssf",
+		"-hostport",
+		"localhost:8128",
+		"-span_service",
+		"dog-manager-srv",
+		"-name",
+		"let_dogs_out",
+		"-trace_id",
+		"662907781595716422",
+		"-span_tags",
+		"dog_id:235803",
+		"-tag",
+		"dog_type:pupper",
+		"-command",
+		"sh",
+		"-c",
+		"exit 42",
+	}))
+
+	// udp span
+	assert.NotZero(t, Main([]string{
+		"veneur-emit",
+		"-hostport",
+		"localhost:8200",
+		"-span_service",
+		"dog-manager-srv",
+		"-name",
+		"let_dogs_out",
+		"-trace_id",
+		"662907781595716422",
+		"-span_tags",
+		"dog_id:235803",
+		"-tag",
+		"dog_type:pupper",
+		"-hostport",
+		"localhost:8128",
+		"-span_starttime",
+		"1538606608882",
+		"-span_endtime",
+		"1538606608882",
+	}))
+
+	// udp metrics
+	assert.Zero(t, Main([]string{
+		"veneur-emit",
+		"-hostport",
+		"localhost:8200",
+		"-tag",
+		"dog_type:doggo",
+		"-name",
+		"dogs.let_out",
+		"-count",
+		"1",
+	}))
+
+	// udp with no metrics
+	assert.NotZero(t, Main([]string{
+		"veneur-emit",
+		"-hostport",
+		"localhost:8200",
+		"-tag",
+		"dog_type:doggo",
+		"-name",
+		"dogs.let_out",
+	}))
 }

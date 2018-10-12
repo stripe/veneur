@@ -159,7 +159,15 @@ type MinimalConn interface {
 }
 
 func main() {
-	flagStruct, passedFlags := flags(os.Args)
+	os.Exit(Main(os.Args))
+}
+
+func Main(args []string) int {
+	flagStruct, passedFlags, err := flags(args)
+	if err != nil {
+		logrus.WithError(err).Error("Could not parse flags.")
+		return 1
+	}
 
 	if flagStruct.Debug {
 		logrus.SetLevel(logrus.DebugLevel)
@@ -167,9 +175,10 @@ func main() {
 
 	validateFlagCombinations(passedFlags, flagStruct.ExtraArgs)
 
-	addr, netAddr, err := destination(&flagStruct.HostPort, flagStruct.ToSSF)
+	addr, netAddr, err := destination(flagStruct.HostPort, flagStruct.ToSSF)
 	if err != nil {
-		logrus.WithError(err).Fatal("Error getting destination address.")
+		logrus.WithError(err).Error("Error getting destination address.")
+		return 1
 	}
 	logrus.WithField("net", netAddr.Network()).
 		WithField("addr", netAddr.String()).
@@ -179,33 +188,37 @@ func main() {
 	if flagStruct.Mode == "event" {
 		if flagStruct.ToSSF {
 			logrus.WithField("mode", flagStruct.Mode).
-				Fatal("Unsupported mode with SSF")
+				Error("Unsupported mode with SSF")
+			return 1
 		}
 		logrus.Debug("Sending event")
 		nconn, _ := net.Dial(netAddr.Network(), netAddr.String())
 		pkt, err := buildEventPacket(passedFlags)
 		if err != nil {
-			logrus.WithError(err).Fatal("build event")
+			logrus.WithError(err).Error("build event")
+			return 1
 		}
 		nconn.Write(pkt.Bytes())
 		logrus.Debugf("Buffer string: %s", pkt.String())
-		return
+		return 0
 	}
 
 	if flagStruct.Mode == "sc" {
 		if flagStruct.ToSSF {
 			logrus.WithField("mode", flagStruct.Mode).
-				Fatal("Unsupported mode with SSF")
+				Error("Unsupported mode with SSF")
+			return 1
 		}
 		logrus.Debug("Sending service check")
 		nconn, _ := net.Dial(netAddr.Network(), netAddr.String())
 		pkt, err := buildSCPacket(passedFlags)
 		if err != nil {
-			logrus.WithError(err).Fatal("build event")
+			logrus.WithError(err).Error("build event")
+			return 1
 		}
 		nconn.Write(pkt.Bytes())
 		logrus.Debugf("Buffer string: %s", pkt.String())
-		return
+		return 0
 	}
 
 	if flagStruct.Span.TraceID, err = inferTraceIDInt(flagStruct.Span.TraceID, envTraceID); err != nil {
@@ -223,12 +236,14 @@ func main() {
 	span, err := setupSpan(flagStruct.Span.TraceID, flagStruct.Span.ParentID, flagStruct.Name, flagStruct.Tag, flagStruct.Span.Service, flagStruct.Span.Tags, flagStruct.Span.Indicator)
 	if err != nil {
 		logrus.WithError(err).
-			Fatal("Couldn't set up the main span")
+			Error("Couldn't set up the main span")
+		return 1
 	}
 	if span.TraceId != 0 {
 		if !flagStruct.ToSSF {
 			logrus.WithField("ssf", flagStruct.ToSSF).
-				Fatal("Can't use tracing in non-ssf operation: Use -ssf to emit trace spans.")
+				Error("Can't use tracing in non-ssf operation: Use -ssf to emit trace spans.")
+			return 1
 		}
 		logrus.WithField("trace_id", span.TraceId).
 			WithField("span_id", span.Id).
@@ -240,37 +255,46 @@ func main() {
 
 	status, err := createMetric(span, passedFlags, flagStruct.Name, flagStruct.Tag, flagStruct.Command, flagStruct.ExtraArgs)
 	if err != nil {
-		logrus.WithError(err).Fatal("Error creating metrics.")
+		logrus.WithError(err).Error("Error creating metrics.")
+		return 1
 	}
 	if flagStruct.ToSSF {
 		client, err := trace.NewClient(addr)
 		if err != nil {
 			logrus.WithError(err).
 				WithField("address", addr).
-				Fatal("Could not construct client")
+				Error("Could not construct client")
+			return 1
 		}
 		defer client.Close()
 		err = sendSSF(client, span)
 		if err != nil {
-			logrus.WithError(err).Fatal("Could not send SSF span")
+			logrus.WithError(err).Error("Could not send SSF span")
+			return 1
 		}
 	} else {
 		if netAddr.Network() != "udp" {
 			logrus.WithField("address", addr).
 				WithField("network", netAddr.Network()).
-				Fatal("hostport must be a UDP address for statsd metrics")
+				Error("hostport must be a UDP address for statsd metrics")
+			return 1
 		}
 		if len(span.Metrics) == 0 {
-			logrus.Fatal("No metrics to send. Must pass metric data via at least one of -count, -gauge, -timing, or -set.")
+			logrus.Error("No metrics to send. Must pass metric data via at least one of -count, -gauge, -timing, or -set.")
+			return 1
 		}
-		sendStatsd(netAddr.String(), span)
+		err = sendStatsd(netAddr.String(), span)
+		if err != nil {
+			logrus.WithError(err).Error("Could not send UDP metrics")
+			return 1
+		}
 	}
-	os.Exit(status)
+	return status
 }
 
-func flags(args []string) (Flags, map[string]flag.Value) {
+func flags(args []string) (Flags, map[string]flag.Value, error) {
 	var flagStruct Flags
-	flagset := flag.NewFlagSet(args[0], flag.ExitOnError)
+	flagset := flag.NewFlagSet(args[0], flag.ContinueOnError)
 
 	// Generic flags
 	flagset.StringVar(&flagStruct.HostPort, "hostport", "", "Address of destination (hostport or listening address URL).")
@@ -316,7 +340,10 @@ func flags(args []string) (Flags, map[string]flag.Value) {
 	flagset.BoolVar(&flagStruct.Span.Indicator, "indicator", false, "Mark the reported span as an indicator span")
 	flagset.StringVar(&flagStruct.Span.Tags, "span_tags", "", "Tag(s) for span, comma separated. Useful for avoiding high cardinality tags. Ex 'user_id:ac0b23,widget_id:284802'")
 
-	flagset.Parse(args[1:])
+	err := flagset.Parse(args[1:])
+	if err != nil {
+		return flagStruct, nil, err
+	}
 
 	flagStruct.ExtraArgs = make([]string, len(flagset.Args()))
 	copy(flagStruct.ExtraArgs, flagset.Args())
@@ -326,7 +353,7 @@ func flags(args []string) (Flags, map[string]flag.Value) {
 	flagset.Visit(func(f *flag.Flag) {
 		passedFlags[f.Name] = f.Value
 	})
-	return flagStruct, passedFlags
+	return flagStruct, passedFlags, nil
 }
 
 func tagsFromString(csv string) map[string]string {
@@ -351,25 +378,22 @@ func tagsFromString(csv string) map[string]string {
 	return tags
 }
 
-func destination(hostport *string, useSSF bool) (string, net.Addr, error) {
-	var addr string
-	if hostport != nil {
-		addr = *hostport
-	} else {
+func destination(hostport string, useSSF bool) (string, net.Addr, error) {
+	if hostport == "" {
 		return "", nil, errors.New("you must specify a valid hostport")
 	}
-	netAddr, err := protocol.ResolveAddr(addr)
+	netAddr, err := protocol.ResolveAddr(hostport)
 	if err != nil {
 		// This is fine - we can attempt to treat the
 		// host:port combination as a UDP address:
-		addr = fmt.Sprintf("udp://%s", addr)
-		udpAddr, err := protocol.ResolveAddr(addr)
+		hostport = fmt.Sprintf("udp://%s", hostport)
+		udpAddr, err := protocol.ResolveAddr(hostport)
 		if err != nil {
 			return "", nil, err
 		}
-		return addr, udpAddr, nil
+		return hostport, udpAddr, nil
 	}
-	return addr, netAddr, nil
+	return hostport, netAddr, nil
 }
 
 func inferTraceIDInt(existingID int64, envKey string) (id int64, err error) {
@@ -444,6 +468,9 @@ func timeCommand(span *ssf.SSFSpan, command []string) (exitStatus int, start tim
 		}
 		status := exitError.ProcessState.Sys().(syscall.WaitStatus)
 		exitStatus = status.ExitStatus()
+		// if the inner command returned nonzero, we will propagate its exit code
+		// we don't need to also return an error
+		err = nil
 	}
 	logrus.Debugf("%q took %s", command, ended.Sub(start))
 	return
@@ -469,7 +496,7 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 	sf, shas := passedFlags["span_starttime"]
 	ef, ehas := passedFlags["span_endtime"]
 	if shas != ehas {
-		logrus.Fatal("Must provide both -span_startime and -span_endtime, or neither")
+		return 0, errors.New("Must provide both -span_startime and -span_endtime, or neither")
 	}
 
 	if shas || ehas {
@@ -477,12 +504,12 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 
 		start, err = dateparse.ParseAny(sf.String())
 		if err != nil {
-			logrus.WithError(err).Fatal("Error parsing -span_starttime")
+			return 0, err
 		}
 
 		end, err = dateparse.ParseAny(ef.String())
 		if err != nil {
-			logrus.WithError(err).Fatal("Error parsing -span_endtime")
+			return 0, err
 		}
 
 		span.StartTimestamp = start.UnixNano()
@@ -572,7 +599,7 @@ func sendStatsd(addr string, span *ssf.SSFSpan) error {
 	return nil
 }
 
-func validateFlagCombinations(passedFlags map[string]flag.Value, extraArgs []string) {
+func validateFlagCombinations(passedFlags map[string]flag.Value, extraArgs []string) error {
 	// Figure out which mode we're in
 	var mode EmitMode
 	mv, has := passedFlags["mode"]
@@ -592,7 +619,7 @@ func validateFlagCombinations(passedFlags map[string]flag.Value, extraArgs []str
 
 	for flagname := range passedFlags {
 		if fmode, has := flagModeMappings[flagname]; has && (fmode&mode) != mode {
-			logrus.Fatalf("Flag %q is only valid with \"-mode %s\"", flagname, fmode)
+			return fmt.Errorf("Flag %q is only valid with \"-mode %s\"", flagname, fmode)
 		}
 	}
 
@@ -600,11 +627,11 @@ func validateFlagCombinations(passedFlags map[string]flag.Value, extraArgs []str
 	for _, arg := range extraArgs {
 		if fmode, has := flagModeMappings[arg]; has && (fmode&mode) == mode {
 			if _, has := passedFlags[arg]; !has {
-				logrus.Fatalf("Passed %q as an argument, but it's a parameter name. Did you mean \"-%s\"?", arg, arg)
+				return fmt.Errorf("Passed %q as an argument, but it's a parameter name. Did you mean \"-%s\"?", arg, arg)
 			}
 		}
 	}
-
+	return nil
 }
 
 func buildEventPacket(passedFlags map[string]flag.Value) (bytes.Buffer, error) {
