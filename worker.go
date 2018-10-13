@@ -400,7 +400,6 @@ func (w *Worker) ImportMetricGRPC(other *metricpb.Metric) (err error) {
 
 // Flush resets the worker's internal metrics and returns their contents.
 func (w *Worker) Flush() WorkerMetrics {
-	start := time.Now()
 	// This is a critical spot. The worker can't process metrics while this
 	// mutex is held! So we try and minimize it by copying the maps of values
 	// and assigning new ones.
@@ -415,13 +414,6 @@ func (w *Worker) Flush() WorkerMetrics {
 	w.imported = 0
 	w.mutex.Unlock()
 
-	// Track how much time each worker takes to flush.
-	w.stats.Timing(
-		"flush.worker_duration_ns",
-		time.Since(start),
-		nil,
-		1.0,
-	)
 	w.stats.Count("worker.metrics_processed_total", processed, []string{}, 1.0)
 	w.stats.Count("worker.metrics_imported_total", imported, []string{}, 1.0)
 

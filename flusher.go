@@ -137,7 +137,6 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 	// the []WorkerMetrics together one at a time
 	tempMetrics := make([]WorkerMetrics, 0, len(s.Workers))
 
-	gatherStart := time.Now()
 	ms := metricsSummary{}
 
 	for i, w := range s.Workers {
@@ -160,8 +159,6 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 
 		ms.totalLocalStatusChecks += len(wm.localStatusChecks)
 	}
-
-	metrics.ReportOne(s.TraceClient, ssf.Timing("flush.total_duration_ns", time.Since(gatherStart), time.Nanosecond, map[string]string{"part": "gather"}))
 
 	ms.totalLength = ms.totalCounters + ms.totalGauges +
 		// histograms and timers each report a metric point for each percentile
@@ -250,7 +247,6 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 		}
 	}
 
-	metrics.ReportOne(s.TraceClient, ssf.Timing("flush.total_duration_ns", time.Since(span.Start), time.Nanosecond, map[string]string{"part": "combine"}))
 	return finalMetrics
 }
 
@@ -442,7 +438,7 @@ func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
 			time.Nanosecond, map[string]string{"part": "export"}),
 		ssf.Gauge("forward.metrics_total", float32(len(metrics)), nil),
 		// Maintain compatibility with metrics used in HTTP-based forwarding
-		ssf.Gauge("forward.post_metrics_total", float32(len(metrics)), nil),
+		ssf.Count("forward.post_metrics_total", float32(len(metrics)), nil),
 	)
 
 	if len(metrics) == 0 {
