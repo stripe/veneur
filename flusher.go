@@ -33,11 +33,8 @@ func (s *Server) Flush(ctx context.Context) {
 
 	s.Statsd.Gauge("worker.span_chan.total_elements", float64(len(s.SpanChan)), nil, 1.0)
 	s.Statsd.Gauge("worker.span_chan.total_capacity", float64(cap(s.SpanChan)), nil, 1.0)
-	s.Statsd.Gauge("gc.GCCPUFraction", float64(mem.GCCPUFraction), nil, 1.0)
 	s.Statsd.Gauge("gc.number", float64(mem.NumGC), nil, 1.0)
 	s.Statsd.Gauge("gc.pause_total_ns", float64(mem.PauseTotalNs), nil, 1.0)
-	s.Statsd.Gauge("gc.alloc_heap_bytes_total", float64(mem.TotalAlloc), nil, 1.0)
-	s.Statsd.Gauge("gc.mallocs_objects_total", float64(mem.Mallocs), nil, 1.0)
 	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
 
 	samples := s.EventWorker.Flush()

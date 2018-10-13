@@ -14,6 +14,7 @@
 
 ## Removed
 * The metrics `veneur.flush.total_duration_ns` and `veneur.flush.worker_duration_ns` were removed, please use the per-sink `veneur.sink.metric_flush_total_duration_ns` to monitor flush durations.
+* The metrics `veneur.gc.GCCPUFraction`, `veneur.gc.alloc_heap_bytes_total`, `veneur.gc.mallocs_objects_total` metrics were removed. Also from veneur proxy. Thanks, [gphat](https://github.com/gphat)!
 
 # 8.0.0, 2018-09-20
 
