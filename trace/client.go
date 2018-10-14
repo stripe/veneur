@@ -443,9 +443,13 @@ var ErrWouldBlock = errors.New("sending span would block")
 // and reports them with the given statsd client, and resets the
 // statistics to zero again.
 func SendClientStatistics(cl *Client, stats *statsd.Client, tags []string) {
-	stats.Count("trace_client.flushes_failed_total", atomic.SwapInt64(&cl.failedFlushes, 0), tags, 1.0)
+	if atomic.LoadInt64(&cl.failedFlushes) != 0 {
+		stats.Count("trace_client.flushes_failed_total", atomic.SwapInt64(&cl.failedFlushes, 0), tags, 1.0)
+	}
 	stats.Count("trace_client.flushes_succeeded_total", atomic.SwapInt64(&cl.successfulFlushes, 0), tags, 1.0)
-	stats.Count("trace_client.records_failed_total", atomic.SwapInt64(&cl.failedRecords, 0), tags, 1.0)
+	if atomic.LoadInt64(&cl.failedRecords) != 0 {
+		stats.Count("trace_client.records_failed_total", atomic.SwapInt64(&cl.failedRecords, 0), tags, 1.0)
+	}
 	stats.Count("trace_client.records_succeeded_total", atomic.SwapInt64(&cl.successfulRecords, 0), tags, 1.0)
 }
 

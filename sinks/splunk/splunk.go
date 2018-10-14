@@ -294,12 +294,12 @@ func (sss *splunkSpanSink) Flush() {
 			sinks.MetricKeyTotalSpansFlushed,
 			float32(atomic.SwapUint32(&sss.ingestedSpans, 0)),
 			map[string]string{"sink": sss.Name()}),
-		ssf.Count(
+		ssf.CountNonZero(
 			sinks.MetricKeyTotalSpansDropped,
 			float32(atomic.SwapUint32(&sss.droppedSpans, 0)),
 			map[string]string{"sink": sss.Name()},
 		),
-		ssf.Count(
+		ssf.CountNonZero(
 			sinks.MetricKeyTotalSpansSkipped,
 			float32(atomic.SwapUint32(&sss.skippedSpans, 0)),
 			map[string]string{"sink": sss.Name()},
