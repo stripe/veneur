@@ -462,7 +462,6 @@ func (ew *EventWorker) Work() {
 // Flush returns the EventWorker's stored events and service checks and
 // resets the stored contents.
 func (ew *EventWorker) Flush() []ssf.SSFSample {
-	start := time.Now()
 	ew.mutex.Lock()
 
 	retsamples := ew.samples
@@ -470,8 +469,9 @@ func (ew *EventWorker) Flush() []ssf.SSFSample {
 	ew.samples = nil
 
 	ew.mutex.Unlock()
-	ew.stats.Count("worker.other_samples_flushed_total", int64(len(retsamples)), nil, 1.0)
-	ew.stats.TimeInMilliseconds("flush.other_samples_duration_ns", float64(time.Since(start).Nanoseconds()), nil, 1.0)
+	if len(retsamples) != 0 {
+		ew.stats.Count("worker.other_samples_flushed_total", int64(len(retsamples)), nil, 1.0)
+	}
 	return retsamples
 }
 
