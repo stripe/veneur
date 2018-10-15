@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"math"
 	"math/big"
+	mrand "math/rand"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -61,6 +63,7 @@ type splunkSpanSink struct {
 
 	spanSampleRate int64
 	skippedSpans   uint32
+	rand           *mrand.Rand
 
 	// these fields are for testing only:
 
@@ -105,6 +108,11 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 		trnsp.ResponseHeaderTimeout = sendTimeout
 	}
 
+	seed, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		return nil, err
+	}
+
 	return &splunkSpanSink{
 		hec:             client,
 		httpClient:      httpC,
@@ -117,6 +125,7 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 		batchSize:       batchSize,
 		batchSizeJitter: batchSizeJitter,
 		spanSampleRate:  int64(spanSampleRate),
+		rand:            mrand.New(mrand.NewSource(seed.Int64())),
 	}, nil
 }
 
@@ -136,24 +145,8 @@ func (sss *splunkSpanSink) Start(cl *trace.Client) error {
 	sss.sync = make([]chan struct{}, workers)
 
 	for i := 0; i < workers; i++ {
-		batchSize := sss.batchSize
-		if sss.batchSizeJitter > 0 {
-			jitter, err := rand.Int(rand.Reader, big.NewInt(int64(sss.batchSizeJitter)))
-			if err != nil {
-				return err
-			}
-			batchSize += int(jitter.Int64())
-		}
-		syncJitter := time.Duration(0)
-		if sss.syncJitter != time.Duration(0) {
-			jitter, err := rand.Int(rand.Reader, big.NewInt(int64(sss.syncJitter)))
-			if err != nil {
-				return err
-			}
-			syncJitter = time.Duration(jitter.Int64())
-		}
 		ch := make(chan struct{})
-		go sss.submitter(ch, batchSize, syncJitter)
+		go sss.submitter(ch)
 		sss.sync[i] = ch
 	}
 
@@ -174,7 +167,8 @@ func (sss *splunkSpanSink) Sync() {
 	sss.synced.Wait()
 }
 
-func (sss *splunkSpanSink) submitter(sync chan struct{}, batchSize int, syncJitter time.Duration) {
+func (sss *splunkSpanSink) submitter(sync chan struct{}) {
+	syncJitter := time.Duration(0)
 	syncTimer := time.NewTimer(0)
 	if !syncTimer.Stop() {
 		<-syncTimer.C
@@ -185,6 +179,14 @@ func (sss *splunkSpanSink) submitter(sync chan struct{}, batchSize int, syncJitt
 
 		ingested := 0
 		enc := hecReq.GetEncoder()
+
+		batchSize := sss.batchSize
+		if sss.batchSizeJitter > 0 {
+			batchSize += sss.rand.Intn(sss.batchSizeJitter)
+		}
+		if sss.syncJitter > 0 {
+			syncJitter = time.Duration(sss.rand.Int63n(int64(sss.syncJitter)))
+		}
 	Batch:
 		for {
 			select {
