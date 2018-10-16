@@ -371,9 +371,9 @@ splunk_hec_batch_size: 100
 # period, to avoid all workers blocking span ingestion at the same
 # time.
 #
-# On startup, each worker picks a random number less than or equal to
-# the jitter set here, and will batch up to batch_size spans + that
-# jitter for each submission.
+# For each submission batch, every worker picks a new random maximum
+# batch size that lies between (splunk_hec_batch_size) and
+# (splunk_hec_batch_size)+(splunk_hec_batch_size_jitter).
 #
 # If unset, this defaults to 0.
 splunk_hec_batch_size_jitter: 50
