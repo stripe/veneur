@@ -259,6 +259,18 @@ signalfx_per_tag_api_keys:
   - name: "asf"
     api_key: "definitely_no_farts"
 
+# A list of metric *prefixes* to drop. Note that this is not the whole string
+# and not a regepx. Just a prefix. Any metrics that have this prefix as a name
+# (not a tag!) will be dropped before sending to SignalFx.
+signalfx_metric_name_prefix_drops:
+  - ""
+
+# A list of literal tag `key:value` pairs to drop. Not keys, not tags, and
+# not regexes. Only case-insensitive string literals like: `foo:bar` will drop
+# *any* metric with that tag present.
+signalfx_metric_tag_literal_drops:
+  - ""
+
 # == LightStep ==
 # LightStep can be a sink for trace spans.
 
