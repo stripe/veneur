@@ -237,7 +237,7 @@ func TestSignalFxFlushWithDrops(t *testing.T) {
 			Type: samplers.CounterMetric,
 		},
 		samplers.InterMetric{
-			Name:      "fart.farts",
+			Name:      "fart.farts2",
 			Timestamp: 1476119058,
 			Value:     10,
 			Tags: []string{
@@ -253,7 +253,7 @@ func TestSignalFxFlushWithDrops(t *testing.T) {
 
 	assert.Equal(t, 1, len(fakeSink.points))
 	point := fakeSink.points[0]
-	assert.Equal(t, "a.b.c", point.Metric, "Metric has wrong name")
+	assert.Equal(t, "fart.farts", point.Metric, "Metric has wrong name")
 }
 
 func TestSignalFxFlushStatus(t *testing.T) {
@@ -263,7 +263,7 @@ func TestSignalFxFlushStatus(t *testing.T) {
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{samplers.InterMetric{
-		Name:      "fart.farts",
+		Name:      "a.b.c",
 		Timestamp: 1476119058,
 		Value:     float64(ssf.SSFSample_UNKNOWN),
 		Tags: []string{
@@ -372,9 +372,9 @@ func TestSignalFxSetExcludeTags(t *testing.T) {
 		Timestamp: time.Now().Unix(),
 		Tags: map[string]string{
 			dogstatsd.EventIdentifierKey: "",
-			"foo":                        "bar",
-			"baz":                        "gorch",
-			"novalue":                    "",
+			"foo":     "bar",
+			"baz":     "gorch",
+			"novalue": "",
 		},
 	}
 

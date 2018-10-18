@@ -166,6 +166,7 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	countSkipped := 0
 	countStatusMetrics := 0
 
+METRICLOOP: // Convenience label so that inner nested loops and `continue` easily
 	for _, metric := range interMetrics {
 		if !sinks.IsAcceptableMetric(metric, sfx) {
 			countSkipped++
@@ -175,7 +176,7 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 			for _, pre := range sfx.metricNamePrefixDrops {
 				if strings.HasPrefix(metric.Name, pre) {
 					countSkipped++
-					continue
+					continue METRICLOOP
 				}
 			}
 		}
@@ -184,7 +185,7 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 				for _, tag := range metric.Tags {
 					if strings.EqualFold(tag, dropTag) {
 						countSkipped++
-						continue
+						continue METRICLOOP
 					}
 				}
 			}
