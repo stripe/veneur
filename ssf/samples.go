@@ -147,15 +147,6 @@ func Count(name string, value float32, tags map[string]string, opts ...SampleOpt
 	}, opts)
 }
 
-// CountNonZero ignores 0s, saving 0-value counters. This allows callers to opt-in to counters
-// that don't emit if they are zero.
-func CountNonZero(name string, value float32, tags map[string]string, opts ...SampleOption) *SSFSample {
-	if value == 0 {
-		return nil
-	}
-	return Count(name, value, tags, opts...)
-}
-
 // Gauge returns an SSFSample representing a gauge at a certain
 // value. It's a convenience wrapper around constructing SSFSample
 // objects.

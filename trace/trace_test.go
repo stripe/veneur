@@ -136,17 +136,6 @@ func TestRecordManualTime(t *testing.T) {
 	assert.Equal(t, end.UnixNano(), sample.EndTimestamp)
 }
 
-func TestSamples(t *testing.T) {
-	trace := StartTrace("test-trace")
-	trace.Add(
-		ssf.CountNonZero("didnthappen", 0, nil),
-		ssf.Count("didhappen", 2, nil),
-	)
-	assert.Len(t, trace.Samples, 2, "Samples don't match")
-	assert.Nil(t, trace.Samples[0], "CountNonZero is not nil")
-	assert.Equal(t, float32(2), trace.Samples[1].Value, "Counter isn't the right value")
-}
-
 func TestAttach(t *testing.T) {
 	const resource = "Robert'); DROP TABLE students;"
 	ctx := context.Background()

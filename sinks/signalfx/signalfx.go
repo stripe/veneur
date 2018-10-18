@@ -211,7 +211,7 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 		numPoints++
 	}
 	tags := map[string]string{"sink": "signalfx"}
-	span.Add(ssf.CountNonZero(sinks.MetricKeyTotalMetricsSkipped, float32(countSkipped), tags))
+	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsSkipped, float32(countSkipped), tags))
 	err := coll.submit(subCtx, sfx.traceClient)
 	if err != nil {
 		span.Error(err)
