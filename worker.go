@@ -178,25 +178,25 @@ func (wm WorkerMetrics) ForwardableMetrics(cl *trace.Client) []*metricpb.Metric 
 
 	metrics := make([]*metricpb.Metric, 0, bufLen)
 	for _, count := range wm.globalCounters {
-		metrics = wm.appendExportedMetric(metrics, count, metricpb.Type_Counter, cl)
+		metrics = wm.appendExportedMetric(metrics, count, metricpb.Type_Counter, cl, samplers.GlobalOnly)
 	}
 	for _, gauge := range wm.globalGauges {
-		metrics = wm.appendExportedMetric(metrics, gauge, metricpb.Type_Gauge, cl)
+		metrics = wm.appendExportedMetric(metrics, gauge, metricpb.Type_Gauge, cl, samplers.GlobalOnly)
 	}
 	for _, histo := range wm.histograms {
-		metrics = wm.appendExportedMetric(metrics, histo, metricpb.Type_Histogram, cl)
+		metrics = wm.appendExportedMetric(metrics, histo, metricpb.Type_Histogram, cl, samplers.MixedScope)
 	}
 	for _, histo := range wm.globalHistograms {
-		metrics = wm.appendExportedMetric(metrics, histo, metricpb.Type_Histogram, cl)
+		metrics = wm.appendExportedMetric(metrics, histo, metricpb.Type_Histogram, cl, samplers.GlobalOnly)
 	}
 	for _, set := range wm.sets {
-		metrics = wm.appendExportedMetric(metrics, set, metricpb.Type_Set, cl)
+		metrics = wm.appendExportedMetric(metrics, set, metricpb.Type_Set, cl, samplers.MixedScope)
 	}
 	for _, timer := range wm.timers {
-		metrics = wm.appendExportedMetric(metrics, timer, metricpb.Type_Timer, cl)
+		metrics = wm.appendExportedMetric(metrics, timer, metricpb.Type_Timer, cl, samplers.MixedScope)
 	}
 	for _, histo := range wm.globalTimers {
-		metrics = wm.appendExportedMetric(metrics, histo, metricpb.Type_Timer, cl)
+		metrics = wm.appendExportedMetric(metrics, histo, metricpb.Type_Timer, cl, samplers.GlobalOnly)
 	}
 
 	return metrics
@@ -211,8 +211,10 @@ type metricExporter interface {
 // appendExportedMetric appends the exported version of the input metric, with
 // the inputted type.  If the export fails, the original slice is returned
 // and an error is logged.
-func (wm WorkerMetrics) appendExportedMetric(res []*metricpb.Metric, exp metricExporter, mType metricpb.Type, cl *trace.Client) []*metricpb.Metric {
+func (wm WorkerMetrics) appendExportedMetric(res []*metricpb.Metric, exp metricExporter, mType metricpb.Type, cl *trace.Client, scope samplers.MetricScope) []*metricpb.Metric {
 	m, err := exp.Metric()
+	// TODO_BEFORE_SHIP(clin): Same as other note, map these values explicitly, not implicitly.
+	m.Scope = metricpb.Scope(scope)
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
