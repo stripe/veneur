@@ -159,7 +159,7 @@ Veneur expires all metrics on each flush. If a metric is no longer being sent (o
 veneur -f example.yaml
 ```
 
-See example.yaml for a sample config. Be sure to set your `datadog_api_key`!
+See example.yaml for a sample config. Be sure to set the appropriate `*_api_key`!
 
 # Setup
 
@@ -194,11 +194,11 @@ Einhorn handling code to bind to the file descriptor for HTTP.
 
 Veneur instances can be configured to forward their global metrics to another Veneur instance. You can use this feature to get the best of both worlds: metrics that benefit from global aggregation can be passed up to a single global Veneur, but other metrics can be published locally with host-scoped information. Note: **Forwarding adds an additional delay to metric availability corresponding to the value of the `interval` configuration option**, as the local veneur will flush it to its configured upstream, which will then flush any recieved metrics when its interval expires.
 
-If a local instance receives a histogram or set, it will publish the local parts of that metric (the count, min and max) directly to DataDog, but instead of publishing percentiles, it will package the entire histogram and send it to the global instance. The global instance will aggregate all the histograms together and publish their percentiles to DataDog.
+If a local instance receives a histogram or set, it will publish the local parts of that metric (the count, min and max) directly to sinks, but instead of publishing percentiles, it will package the entire histogram and send it to the global instance. The global instance will aggregate all the histograms together and publish their percentiles to sinks.
 
 Note that the global instance can also receive metrics over UDP. It will publish a count, min and max for the samples that were sent directly to it, but not counting any samples from other Veneur instances (this ensures that things don't get double-counted). You can even chain multiple levels of forwarding together if you want. This might be useful if, for example, your global Veneur is under too much load. The root of the tree will be the Veneur instance that has an empty `forward_address`. (Do not tell a Veneur instance to forward metrics to itself. We don't support that and it doesn't really make sense in the first place.)
 
-With respect to the `tags` configuration option, the tags that will be added are those of the Veneur that actually publishes to DataDog. If a local instance forwards its histograms and sets to a global instance, the local instance's tags will not be attached to the forwarded structures. It will still use its own tags for the other metrics it publishes, but the percentiles will get extra tags only from the global instance.
+With respect to the `tags` configuration option, the tags that will be added are those of the Veneur that actually publishes to a sink. If a local instance forwards its histograms and sets to a global instance, the local instance's tags will not be attached to the forwarded structures. It will still use its own tags for the other metrics it publishes, but the percentiles will get extra tags only from the global instance.
 
 ### Proxy
 
@@ -214,7 +214,7 @@ For static configuration you need one Veneur, which we'll call the _global_ inst
 
 ### Magic Tag
 
-If you want a metric to be strictly host-local, you can tell Veneur not to forward it by including a `veneurlocalonly` tag in the metric packet, eg `foo:1|h|#veneurlocalonly`. This tag will not actually appear in DataDog; Veneur removes it.
+If you want a metric to be strictly host-local, you can tell Veneur not to forward it by including a `veneurlocalonly` tag in the metric packet, eg `foo:1|h|#veneurlocalonly`. This tag will not actually appear in storage; Veneur removes it.
 
 #### Global Counters And Gauges
 
@@ -256,8 +256,7 @@ Here are the important things to monitor with Veneur:
 ## At Local Node
 
 When running as a local instance, you will be primarily concerned with the following metrics:
-* `veneur.flush*.error_total` as a count of errors when flushing metrics to Datadog. This should rarely happen. Occasional errors are fine, but sustained is bad.
-* `veneur.flush.total_duration_ns` and `veneur.flush.total_duration_ns.count`. These metrics track the per-host time spent performing a flush to Datadog. The time should be minimal!
+* `veneur.flush*.error_total` as a count of errors when flushing metrics. This should rarely happen. Occasional errors are fine, but sustained is bad.
 
 ### Forwarding
 
@@ -276,16 +275,13 @@ When forwarding you'll want to also monitor the global nodes you're using for ag
 
 Veneur will emit metrics to the `stats_address` configured above in DogStatsD form. Those metrics are:
 
+* `veneur.sink.metric_flush_total_duration_ns.*` - Duration of flushes *per-sink*, tagged by `sink`.
 * `veneur.packet.error_total` - Number of packets that Veneur could not parse due to some sort of formatting error by the client. Tagged by `packet_type` and `reason`.
-* `veneur.flush.post_metrics_total` - The total number of time-series points that will be submitted to Datadog via POST. Datadog's rate limiting is roughly proportional to this number.
 * `veneur.forward.post_metrics_total` - Indicates how many metrics are being forwarded in a given POST request. A "metric", in this context, refers to a unique combination of name, tags and metric type.
 * `veneur.*.content_length_bytes.*` - The number of bytes in a single POST body. Remember that Veneur POSTs large sets of metrics in multiple separate bodies in parallel. Uses a histogram, so there are multiple metrics generated depending on your local DogStatsD config.
-* `veneur.flush.duration_ns` - Time taken for a single POST transaction to the Datadog API. Tagged by `part` for each sub-part `marshal` (assembling the request body) and `post` (blocking on an HTTP response).
 * `veneur.forward.duration_ns` - Same as `flush.duration_ns`, but for forwarding requests.
-* `veneur.flush.total_duration_ns` - Total time spent POSTing to Datadog, across all parallel requests. Under most circumstances, this should be roughly equal to the total `veneur.flush.duration_ns`. If it's not, then some of the POSTs are happening in sequence, which suggests some kind of goroutine scheduling issue.
-* `veneur.flush.error_total` - Number of errors received POSTing to Datadog.
+* `veneur.flush.error_total` - Number of errors received POSTing via sinks.
 * `veneur.forward.error_total` - Number of errors received POSTing to an upstream Veneur. See also `import.request_error_total` below.
-* `veneur.flush.worker_duration_ns` - Per-worker timing — tagged by `worker` - for flush. This is important as it is the time in which the worker holds a lock and is unavailable for other work.
 * `veneur.gc.number` - Number of completed GC cycles.
 * `veneur.gc.pause_total_ns` - Total seconds of STW GC since the program started.
 * `veneur.mem.heap_alloc_bytes` - Total number of reachable and unreachable but uncollected heap objects in bytes.

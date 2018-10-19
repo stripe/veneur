@@ -1,11 +1,21 @@
 # 9.0.0, in progress
 
 ## Bugfixes
-* The splunk span sink no longer reports an internal error for timeouts encountered in event submissions; instead, it reports a failure metric with a cause tag set to `submission_timeout`. Thanks, [antifuchs](https://github.com/antifuchs)!
-* The splunk span sink now honors `Connection: keep-alive` from the HEC endpoint and keeps around as many idle HTTP connections in reserve as it has HEC submission workers. Thanks, [antifuchs](https://github.com/antifuchs)!
+* The Splunk span sink no longer reports an internal error for timeouts encountered in event submissions; instead, it reports a failure metric with a cause tag set to `submission_timeout`. Thanks, [antifuchs](https://github.com/antifuchs)!
+* The Splunk span sink now honors `Connection: keep-alive` from the HEC endpoint and keeps around as many idle HTTP connections in reserve as it has HEC submission workers. Thanks, [antifuchs](https://github.com/antifuchs)!
+* The metric `veneur.forward.post_metrics_total` was being emitted both as a gauge and a counter. The errant gauge was removed. Thanks, [gphat](https://github.com/gphat)!
 
 ## Added
 * The splunk span sink can be configured with a sample rate for non-indicator spans with the `splunk_span_sample_rate` setting. Thanks, [aditya](https://github.com/chimeracoder)!
+
+## Updated
+* The README's [Metrics section](https://github.com/stripe/veneur#metrics) has been updated, as it referred to some missing metrics. Thanks, [gphat](https://github.com/gphat)!
+* Various references to Datadog were removed from the README, Veneur is vendor agnostic. Thanks, [gphat](https://github.com/gphat)!
+
+## Removed
+* The metrics `veneur.flush.total_duration_ns` and `veneur.flush.worker_duration_ns` were removed, please use the per-sink `veneur.sink.metric_flush_total_duration_ns` to monitor flush durations.
+* The metrics `veneur.gc.GCCPUFraction`, `veneur.gc.alloc_heap_bytes_total`, `veneur.gc.mallocs_objects_total` metrics were removed. Also from veneur proxy. Thanks, [gphat](https://github.com/gphat)!
+* The metric `veneur.flush.other_samples_duration_ns` was removed. Thanks, [gphat](https://github.com/gphat)!
 
 # 8.0.0, 2018-09-20
 
@@ -22,7 +32,7 @@
 * The trace client can now correctly parse trace headers emitted by Envoy. Thanks, [aditya](https://github.com/chimeracoder)!
 
 
-## Removals
+## Removed
 * Go 1.9 is no longer supported.
 
 # 7.0.0, 2018-08-08
@@ -43,7 +53,7 @@
 * `veneur-prometheus` no longer crashes when the metrics host is unreachable. Thanks, [arjenvanderende](https://github.com/arjenvanderende)!
 
 
-## Removals
+## Removed
 * `veneur-proxy` now only logs forward counts at Debug level, drastically reducing log volume.
 
 # 6.0.0, 2018-06-28
@@ -212,7 +222,7 @@
 * Fix a panic when using `veneur-emit` to emit metrics via `-ssf` when no tags are specified. Thanks [myndzi](https://github.com/myndzi)
 * Remove spurious warnings about unset configuration settings. Thanks [antifuchs](https://github.com/antifuchs)
 
-## Removals
+## Removed
 * Removed the InfluxDB plugin as it was experimental and wasn't working. We can make a sink for it in the future if desired. Thanks [gphat](https://github.com/gphat)!
 
 # 1.7.0, 2017-10-19
