@@ -114,8 +114,10 @@ type metricsSummary struct {
 	totalSets       int
 	totalTimers     int
 
-	totalGlobalCounters int
-	totalGlobalGauges   int
+	totalGlobalCounters   int
+	totalGlobalGauges     int
+	totalGlobalHistograms int
+	totalGlobalTimers     int
 
 	totalLocalHistograms   int
 	totalLocalSets         int
@@ -149,6 +151,8 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 
 		ms.totalGlobalCounters += len(wm.globalCounters)
 		ms.totalGlobalGauges += len(wm.globalGauges)
+		ms.totalGlobalHistograms += len(wm.globalHistograms)
+		ms.totalGlobalTimers += len(wm.globalTimers)
 
 		ms.totalLocalHistograms += len(wm.localHistograms)
 		ms.totalLocalSets += len(wm.localSets)
@@ -173,6 +177,8 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 		ms.totalLength += ms.totalSets
 		ms.totalLength += ms.totalGlobalCounters
 		ms.totalLength += ms.totalGlobalGauges
+		ms.totalLength += ms.totalGlobalHistograms * (s.HistogramAggregates.Count + len(s.HistogramPercentiles))
+		ms.totalLength += ms.totalGlobalTimers * (s.HistogramAggregates.Count + len(s.HistogramPercentiles))
 	}
 
 	return tempMetrics, ms
@@ -278,6 +284,8 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalGlobalCounters), []string{"metric_type:global_counter"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalGlobalGauges), []string{"metric_type:global_gauge"}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalGlobalHistograms), []string{"metric_type:global_histogram"}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalGlobalTimers), []string{"metric_type:global_timers"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalHistograms), []string{"metric_type:histogram"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalSets), []string{"metric_type:set"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalTimers), []string{"metric_type:timer"}, 1.0)

@@ -65,6 +65,10 @@ type WorkerMetrics struct {
 	globalCounters map[samplers.MetricKey]*samplers.Counter
 	// and gauges which are global
 	globalGauges map[samplers.MetricKey]*samplers.Gauge
+	// This means that no histo related stats are emitted locally, not even max min etc.
+	// Instead, everything is forwarded.
+	globalHistograms map[samplers.MetricKey]*samplers.Histo
+	globalTimers     map[samplers.MetricKey]*samplers.Histo
 
 	// these are used for metrics that shouldn't be forwarded
 	localHistograms   map[samplers.MetricKey]*samplers.Histo
@@ -79,6 +83,8 @@ func NewWorkerMetrics() WorkerMetrics {
 		counters:          map[samplers.MetricKey]*samplers.Counter{},
 		globalCounters:    map[samplers.MetricKey]*samplers.Counter{},
 		globalGauges:      map[samplers.MetricKey]*samplers.Gauge{},
+		globalHistograms:  map[samplers.MetricKey]*samplers.Histo{},
+		globalTimers:      map[samplers.MetricKey]*samplers.Histo{},
 		gauges:            map[samplers.MetricKey]*samplers.Gauge{},
 		histograms:        map[samplers.MetricKey]*samplers.Histo{},
 		sets:              map[samplers.MetricKey]*samplers.Set{},
@@ -121,6 +127,10 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 			if _, present = wm.localHistograms[mk]; !present {
 				wm.localHistograms[mk] = samplers.NewHist(mk.Name, tags)
 			}
+		} else if Scope == samplers.GlobalOnly {
+			if _, present = wm.globalHistograms[mk]; !present {
+				wm.globalHistograms[mk] = samplers.NewHist(mk.Name, tags)
+			}
 		} else {
 			if _, present = wm.histograms[mk]; !present {
 				wm.histograms[mk] = samplers.NewHist(mk.Name, tags)
@@ -140,6 +150,10 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 		if Scope == samplers.LocalOnly {
 			if _, present = wm.localTimers[mk]; !present {
 				wm.localTimers[mk] = samplers.NewHist(mk.Name, tags)
+			}
+		} else if Scope == samplers.GlobalOnly {
+			if _, present = wm.globalTimers[mk]; !present {
+				wm.globalTimers[mk] = samplers.NewHist(mk.Name, tags)
 			}
 		} else {
 			if _, present = wm.timers[mk]; !present {
@@ -172,11 +186,17 @@ func (wm WorkerMetrics) ForwardableMetrics(cl *trace.Client) []*metricpb.Metric 
 	for _, histo := range wm.histograms {
 		metrics = wm.appendExportedMetric(metrics, histo, metricpb.Type_Histogram, cl)
 	}
+	for _, histo := range wm.globalHistograms {
+		metrics = wm.appendExportedMetric(metrics, histo, metricpb.Type_Histogram, cl)
+	}
 	for _, set := range wm.sets {
 		metrics = wm.appendExportedMetric(metrics, set, metricpb.Type_Set, cl)
 	}
 	for _, timer := range wm.timers {
 		metrics = wm.appendExportedMetric(metrics, timer, metricpb.Type_Timer, cl)
+	}
+	for _, histo := range wm.globalTimers {
+		metrics = wm.appendExportedMetric(metrics, histo, metricpb.Type_Timer, cl)
 	}
 
 	return metrics
@@ -262,8 +282,6 @@ func (w *Worker) MetricsProcessedCount() int64 {
 }
 
 // ProcessMetric takes a Metric and samples it
-//
-// This is standalone to facilitate testing
 func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
@@ -286,6 +304,8 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 	case histogramTypeName:
 		if m.Scope == samplers.LocalOnly {
 			w.wm.localHistograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+		} else if m.Scope == samplers.GlobalOnly {
+			w.wm.globalHistograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		} else {
 			w.wm.histograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		}
@@ -298,6 +318,8 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 	case timerTypeName:
 		if m.Scope == samplers.LocalOnly {
 			w.wm.localTimers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
+		} else if m.Scope == samplers.GlobalOnly {
+			w.wm.globalTimers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		} else {
 			w.wm.timers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		}
