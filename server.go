@@ -358,7 +358,11 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		for _, perTag := range conf.SignalfxPerTagAPIKeys {
 			byTagClients[perTag.Name] = signalfx.NewClient(conf.SignalfxEndpointBase, perTag.APIKey, &tracedHTTP)
 		}
+<<<<<<< HEAD
 		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback, conf.SignalfxVaryKeyBy, byTagClients, conf.SignalfxMetricNamePrefixDrops, conf.SignalfxMetricTagPrefixDrops, metricSink)
+=======
+		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback, conf.SignalfxVaryKeyBy, byTagClients, conf.SignalfxEmitZeroCounters, metricSink)
+>>>>>>> Add option to skip zero values for counters in SignalFx
 		if err != nil {
 			return ret, err
 		}

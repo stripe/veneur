@@ -92,6 +92,7 @@ type SignalFxSink struct {
 	metricNamePrefixDrops []string
 	metricTagPrefixDrops  []string
 	derivedMetrics        samplers.DerivedMetricsProcessor
+	dropZeroCounters      bool
 }
 
 // A DPClient is a client that can be used to submit signalfx data
@@ -110,7 +111,7 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 }
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagPrefixDrops []string, derivedMetrics samplers.DerivedMetricsProcessor) (*SignalFxSink, error) {
+func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagPrefixDrops []string, dropZeroCounters bool, derivedMetrics samplers.DerivedMetricsProcessor) (*SignalFxSink, error) {
 	return &SignalFxSink{
 		defaultClient:         client,
 		clientsByTagValue:     perTagClients,
@@ -122,6 +123,7 @@ func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[s
 		metricNamePrefixDrops: metricNamePrefixDrops,
 		metricTagPrefixDrops:  metricTagPrefixDrops,
 		derivedMetrics:        derivedMetrics,
+		dropZeroCounters:      dropZeroCounters,
 	}, nil
 }
 
@@ -190,6 +192,13 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 				}
 			}
 		}
+
+		if sfx.dropZeroCounters {
+			if metric.Type == samplers.CounterMetric && metric.Value == 0 {
+				countSkipped++
+				continue
+			}
+		}
 		dims := map[string]string{}
 		// Set the hostname as a tag, since SFx doesn't have a first-class hostname field
 		dims[sfx.hostnameTag] = sfx.hostname
@@ -224,7 +233,6 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		case samplers.GaugeMetric:
 			point = sfxclient.GaugeF(metric.Name, dims, metric.Value)
 		case samplers.CounterMetric:
-			// TODO I am not certain if this should be a Counter or a Cumulative
 			point = sfxclient.Counter(metric.Name, dims, int64(metric.Value))
 		case samplers.StatusMetric:
 			countStatusMetrics++
