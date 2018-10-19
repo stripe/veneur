@@ -90,7 +90,7 @@ type SignalFxSink struct {
 	traceClient           *trace.Client
 	excludedTags          map[string]struct{}
 	metricNamePrefixDrops []string
-	metricTagLiteralDrops []string
+	metricTagPrefixDrops  []string
 	derivedMetrics        samplers.DerivedMetricsProcessor
 }
 
@@ -110,7 +110,7 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 }
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagLiteralDrops []string, derivedMetrics samplers.DerivedMetricsProcessor) (*SignalFxSink, error) {
+func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagPrefixDrops []string, derivedMetrics samplers.DerivedMetricsProcessor) (*SignalFxSink, error) {
 	return &SignalFxSink{
 		defaultClient:         client,
 		clientsByTagValue:     perTagClients,
@@ -120,7 +120,7 @@ func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[s
 		log:                   log,
 		varyBy:                varyBy,
 		metricNamePrefixDrops: metricNamePrefixDrops,
-		metricTagLiteralDrops: metricTagLiteralDrops,
+		metricTagPrefixDrops:  metricTagPrefixDrops,
 		derivedMetrics:        derivedMetrics,
 	}, nil
 }
@@ -180,8 +180,8 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 				}
 			}
 		}
-		if len(sfx.metricTagLiteralDrops) > 0 {
-			for _, dropTag := range sfx.metricTagLiteralDrops {
+		if len(sfx.metricTagPrefixDrops) > 0 {
+			for _, dropTag := range sfx.metricTagPrefixDrops {
 				for _, tag := range metric.Tags {
 					if strings.EqualFold(tag, dropTag) {
 						countSkipped++

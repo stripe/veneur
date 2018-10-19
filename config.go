@@ -62,7 +62,7 @@ type Config struct {
 	SignalfxEndpointBase          string    `yaml:"signalfx_endpoint_base"`
 	SignalfxHostnameTag           string    `yaml:"signalfx_hostname_tag"`
 	SignalfxMetricNamePrefixDrops []string  `yaml:"signalfx_metric_name_prefix_drops"`
-	SignalfxMetricTagLiteralDrops []string  `yaml:"signalfx_metric_tag_literal_drops"`
+	SignalfxMetricTagPrefixDrops  []string  `yaml:"signalfx_metric_tag_prefix_drops"`
 	SignalfxPerTagAPIKeys         []struct {
 		APIKey string `yaml:"api_key"`
 		Name   string `yaml:"name"`

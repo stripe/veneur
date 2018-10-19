@@ -260,15 +260,17 @@ signalfx_per_tag_api_keys:
     api_key: "definitely_no_farts"
 
 # A list of metric *prefixes* to drop. Note that this is not the whole string
-# and not a regepx. Just a prefix. Any metrics that have this prefix as a name
+# and not a regexp. Just a prefix. Any metrics that have this prefix as a name
 # (not a tag!) will be dropped before sending to SignalFx.
 signalfx_metric_name_prefix_drops:
   - ""
 
-# A list of literal tag `key:value` pairs to drop. Not keys, not tags, and
-# not regexes. Only case-insensitive string literals like: `foo:bar` will drop
-# *any* metric with that tag present.
-signalfx_metric_tag_literal_drops:
+# A list of tag `key:value` *prefixes* pairs to drop. Note that this is not the
+# whole string and not a regexp. Just a prefix. You can use it in a few ways:
+# * `foo:` will match any tag key, so you can ignore the value
+# * `foo:bar` will match the key and value (well, unless there's `foo:barsnort`)
+# * `foo` to matching things like `foobar:gorch` and `foofart:fighter`
+signalfx_metric_tag_prefix_drops:
   - ""
 
 # == LightStep ==
