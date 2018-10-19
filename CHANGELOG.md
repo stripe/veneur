@@ -28,6 +28,10 @@
 * The `-validate-config` and `validate-config-strict` flags will make veneur exit appropriately after checking the specified (`-f`) config file. Thanks, [sdboyer](https://github.com/sdboyer)!
 * `veneur-emit` will now exit with an error if no data would have been sent. Thanks, [sdboyer](https://github.com/sdboyer)!
 
+## Changes
+* `kafka_span_sample_rate_percent` now allows floating-point values. `kafka.NewKafkaSpanSink` now takes a floating point sample rate, accordingly. Thanks [chimeracoder](https://github.com/chimeracoder)!
+
+
 ## Bugfixes
 * The trace client can now correctly parse trace headers emitted by Envoy. Thanks, [aditya](https://github.com/chimeracoder)!
 
