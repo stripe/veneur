@@ -183,7 +183,7 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		if len(sfx.metricTagPrefixDrops) > 0 {
 			for _, dropTag := range sfx.metricTagPrefixDrops {
 				for _, tag := range metric.Tags {
-					if strings.EqualFold(tag, dropTag) {
+					if strings.HasPrefix(tag, dropTag) {
 						countSkipped++
 						continue METRICLOOP
 					}
