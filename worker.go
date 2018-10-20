@@ -374,16 +374,24 @@ func (w *Worker) ImportMetric(other samplers.JSONMetric) {
 	}
 }
 
-// ImportMetricGRPC receives a metric from another veneur instance over gRPC
+// ImportMetricGRPC receives a metric from another veneur instance over gRPC.
+//
+// In practice, this is only called when in the aggregation tier, so we don't
+// handle LocalOnly scope.
 func (w *Worker) ImportMetricGRPC(other *metricpb.Metric) (err error) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
 	key := samplers.NewMetricKeyFromMetric(other)
 
-	scope := samplers.MixedScope
+	// TODO_BEFORE_SHIP(clin): Avoid implicit mapping of pb type to internal type.
+	scope := samplers.MetricScope(other.Scope)
 	if other.Type == metricpb.Type_Counter || other.Type == metricpb.Type_Gauge {
 		scope = samplers.GlobalOnly
+	}
+
+	if scope == samplers.LocalOnly {
+		return fmt.Errorf("gRPC import does not accept local metrics")
 	}
 
 	w.wm.Upsert(key, scope, other.Tags)
@@ -401,9 +409,17 @@ func (w *Worker) ImportMetricGRPC(other *metricpb.Metric) (err error) {
 	case *metricpb.Metric_Histogram:
 		switch other.Type {
 		case metricpb.Type_Histogram:
-			w.wm.histograms[key].Merge(v.Histogram)
+			if other.Scope == metricpb.Scope_Mixed {
+				w.wm.histograms[key].Merge(v.Histogram)
+			} else if other.Scope == metricpb.Scope_Global {
+				w.wm.globalHistograms[key].Merge(v.Histogram)
+			}
 		case metricpb.Type_Timer:
-			w.wm.timers[key].Merge(v.Histogram)
+			if other.Scope == metricpb.Scope_Mixed {
+				w.wm.timers[key].Merge(v.Histogram)
+			} else if other.Scope == metricpb.Scope_Global {
+				w.wm.globalTimers[key].Merge(v.Histogram)
+			}
 		}
 	case nil:
 		err = errors.New("Can't import a metric with a nil value")
