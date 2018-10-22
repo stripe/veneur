@@ -277,7 +277,7 @@ signalfx_metric_tag_prefix_drops:
 # that can be defaulted on the SignalFx-side. This is an optimization — similar
 # to StatsD's `deleteCounters` — but for situations where clients may be blindly
 # emitting counters that have accumulated no zeros. (Veneur itself does this!)
-signalfx_drop_zero_counters: true
+signalfx_drop_zero_counters: false
 
 # == LightStep ==
 # LightStep can be a sink for trace spans.
