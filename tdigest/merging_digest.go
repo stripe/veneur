@@ -31,8 +31,9 @@ type MergingDigest struct {
 	// total weight of unmerged centroids
 	tempWeight float64
 
-	min float64
-	max float64
+	min           float64
+	max           float64
+	reciprocalSum float64
 
 	debug bool
 }
@@ -119,6 +120,7 @@ func (td *MergingDigest) Add(value float64, weight float64) {
 
 	td.min = math.Min(td.min, value)
 	td.max = math.Max(td.max, value)
+	td.reciprocalSum += (1 / value) * weight
 
 	next := Centroid{
 		Mean:   value,
@@ -334,6 +336,16 @@ func (td *MergingDigest) Max() float64 {
 }
 func (td *MergingDigest) Count() float64 {
 	return td.mainWeight + td.tempWeight
+}
+func (td *MergingDigest) ReciprocalSum() float64 {
+	return td.reciprocalSum
+}
+func (td *MergingDigest) Sum() float64 {
+	var s float64
+	for _, cent := range td.Centroids() {
+		s += cent.Mean * cent.GetWeight()
+	}
+	return s
 }
 
 // we assume each centroid contains a uniform distribution of values
