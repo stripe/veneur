@@ -395,9 +395,9 @@ func TestSignalFxSetExcludeTags(t *testing.T) {
 		Timestamp: time.Now().Unix(),
 		Tags: map[string]string{
 			dogstatsd.EventIdentifierKey: "",
-			"foo":     "bar",
-			"baz":     "gorch",
-			"novalue": "",
+			"foo":                        "bar",
+			"baz":                        "gorch",
+			"novalue":                    "",
 		},
 	}
 
