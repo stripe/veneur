@@ -79,17 +79,19 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client) error {
 
 // SignalFxSink is a MetricsSink implementation.
 type SignalFxSink struct {
-	defaultClient     DPClient
-	clientsByTagValue map[string]DPClient
-	keyClients        map[string]dpsink.Sink
-	varyBy            string
-	hostnameTag       string
-	hostname          string
-	commonDimensions  map[string]string
-	log               *logrus.Logger
-	traceClient       *trace.Client
-	excludedTags      map[string]struct{}
-	derivedMetrics    samplers.DerivedMetricsProcessor
+	defaultClient         DPClient
+	clientsByTagValue     map[string]DPClient
+	keyClients            map[string]dpsink.Sink
+	varyBy                string
+	hostnameTag           string
+	hostname              string
+	commonDimensions      map[string]string
+	log                   *logrus.Logger
+	traceClient           *trace.Client
+	excludedTags          map[string]struct{}
+	metricNamePrefixDrops []string
+	metricTagPrefixDrops  []string
+	derivedMetrics        samplers.DerivedMetricsProcessor
 }
 
 // A DPClient is a client that can be used to submit signalfx data
@@ -108,16 +110,18 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 }
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, derivedMetrics samplers.DerivedMetricsProcessor) (*SignalFxSink, error) {
+func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagPrefixDrops []string, derivedMetrics samplers.DerivedMetricsProcessor) (*SignalFxSink, error) {
 	return &SignalFxSink{
-		defaultClient:     client,
-		clientsByTagValue: perTagClients,
-		hostnameTag:       hostnameTag,
-		hostname:          hostname,
-		commonDimensions:  commonDimensions,
-		log:               log,
-		varyBy:            varyBy,
-		derivedMetrics:    derivedMetrics,
+		defaultClient:         client,
+		clientsByTagValue:     perTagClients,
+		hostnameTag:           hostnameTag,
+		hostname:              hostname,
+		commonDimensions:      commonDimensions,
+		log:                   log,
+		varyBy:                varyBy,
+		metricNamePrefixDrops: metricNamePrefixDrops,
+		metricTagPrefixDrops:  metricTagPrefixDrops,
+		derivedMetrics:        derivedMetrics,
 	}, nil
 }
 
@@ -162,10 +166,29 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	countSkipped := 0
 	countStatusMetrics := 0
 
+METRICLOOP: // Convenience label so that inner nested loops and `continue` easily
 	for _, metric := range interMetrics {
 		if !sinks.IsAcceptableMetric(metric, sfx) {
 			countSkipped++
 			continue
+		}
+		if len(sfx.metricNamePrefixDrops) > 0 {
+			for _, pre := range sfx.metricNamePrefixDrops {
+				if strings.HasPrefix(metric.Name, pre) {
+					countSkipped++
+					continue METRICLOOP
+				}
+			}
+		}
+		if len(sfx.metricTagPrefixDrops) > 0 {
+			for _, dropTag := range sfx.metricTagPrefixDrops {
+				for _, tag := range metric.Tags {
+					if strings.HasPrefix(tag, dropTag) {
+						countSkipped++
+						continue METRICLOOP
+					}
+				}
+			}
 		}
 		dims := map[string]string{}
 		// Set the hostname as a tag, since SFx doesn't have a first-class hostname field
