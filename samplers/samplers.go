@@ -508,7 +508,7 @@ func NewHist(Name string, Tags []string) *Histo {
 
 // Flush generates InterMetrics for the current state of the Histo. percentiles
 // indicates what percentiles should be exported from the histogram.
-func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates HistogramAggregates) []InterMetric {
+func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates HistogramAggregates, global bool) []InterMetric {
 	now := time.Now().Unix()
 	metrics := make([]InterMetric, 0, aggregates.Count+len(percentiles))
 	sinks := routeInfo(h.Tags)
@@ -518,10 +518,15 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		// tag array in the future
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
+
+		val := float64(h.LocalMax)
+		if global {
+			val = h.Value.Max()
+		}
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.max", h.Name),
 			Timestamp: now,
-			Value:     float64(h.LocalMax),
+			Value:     val,
 			Tags:      tags,
 			Type:      GaugeMetric,
 			Sinks:     sinks,
@@ -530,10 +535,14 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 	if (aggregates.Value&AggregateMin) == AggregateMin && !math.IsInf(h.LocalMin, 0) {
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
+		val := float64(h.LocalMin)
+		if global {
+			val = h.Value.Min()
+		}
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.min", h.Name),
 			Timestamp: now,
-			Value:     float64(h.LocalMin),
+			Value:     val,
 			Tags:      tags,
 			Type:      GaugeMetric,
 			Sinks:     sinks,
@@ -543,6 +552,10 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 	if (aggregates.Value&AggregateSum) == AggregateSum && h.LocalSum != 0 {
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
+		val := float64(h.LocalSum
+		if global {
+			val = h.Value.Sum()
+		}
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.sum", h.Name),
 			Timestamp: now,
@@ -558,6 +571,10 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		// to submit an average
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
+		val := float64(h.LocalMax)
+		if global {
+			val = h.Value.Max()
+		}
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.avg", h.Name),
 			Timestamp: now,
@@ -574,6 +591,10 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		// flushes of downstream instances
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
+		val := float64(h.LocalMax)
+		if global {
+			val = h.Value.Max()
+		}
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.count", h.Name),
 			Timestamp: now,
@@ -587,6 +608,10 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 	if (aggregates.Value & AggregateMedian) == AggregateMedian {
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
+		val := float64(h.LocalMax)
+		if global {
+			val = h.Value.Max()
+		}
 		metrics = append(
 			metrics,
 			InterMetric{
@@ -605,6 +630,10 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		// to submit an average
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
+		val := float64(h.LocalMax)
+		if global {
+			val = h.Value.Max()
+		}
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.hmean", h.Name),
 			Timestamp: now,

@@ -22,6 +22,8 @@ func TestMergingDigest(t *testing.T) {
 	assert.InEpsilon(t, 0.5, td.Quantile(0.5), 0.02, "median was %v, not 0.5", td.Quantile(0.5))
 	assert.True(t, td.Min() >= 0, "minimum was %v, expected non-negative", td.Min())
 	assert.True(t, td.Max() < 1, "maximum was %v, expected below 1", td.Max())
+	assert.True(t, td.Sum() > 0, "sum was not greater than 0")
+	assert.True(t, td.ReciprocalSum() > 0, "reciprocal sum was not greater than 0")
 }
 
 func TestMergeSparseDigest(t *testing.T) {
@@ -38,6 +40,8 @@ func TestMergeSparseDigest(t *testing.T) {
 	assert.InDelta(t, 0, td.Quantile(0.5), 0.02, "median was %v, not 0", td.Quantile(0.5))
 	assert.InEpsilon(t, td.Min(), td.Quantile(0), 0.02, "minimum was %v", td.Quantile(0))
 	assert.InEpsilon(t, td.Max(), td.Quantile(1), 0.02, "maximum was %v", td.Quantile(1))
+	assert.InDelta(t, 0, td.Sum(), 0.01)
+	assert.InDelta(t, 0, other.ReciprocalSum(), 0.01)
 }
 
 // check the basic validity of a merging t-digest
@@ -84,6 +88,8 @@ func TestGobEncoding(t *testing.T) {
 	assert.InEpsilon(t, td.Min(), td2.Min(), 0.02, "minimums did not match")
 	assert.InEpsilon(t, td.Max(), td2.Max(), 0.02, "maximums did not match")
 	assert.InEpsilon(t, td.Quantile(0.5), td2.Quantile(0.5), 0.02, "50%% quantiles did not match")
+	assert.Equal(t, td.Sum(), td2.Sum())
+	assert.Equal(t, td.ReciprocalSum(), td2.ReciprocalSum())
 }
 
 // Test that creating a MergingDigestData (for protobuf-encoding) and
@@ -104,6 +110,8 @@ func TestMergingDigestData(t *testing.T) {
 	assert.InEpsilon(t, td.Min(), td2.Min(), 0.02, "minimums did not match")
 	assert.InEpsilon(t, td.Max(), td2.Max(), 0.02, "maximums did not match")
 	assert.InEpsilon(t, td.Quantile(0.5), td2.Quantile(0.5), 0.02, "50%% quantiles did not match")
+	assert.Equal(t, td.Sum(), td2.Sum())
+	assert.Equal(t, td.ReciprocalSum(), td2.ReciprocalSum())
 }
 
 func BenchmarkAdd(b *testing.B) {

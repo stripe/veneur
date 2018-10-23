@@ -32,6 +32,7 @@ type UDPMetric struct {
 	HostName   string
 }
 
+// MetricScope describes where the metric will be emitted.
 type MetricScope int
 
 const (
