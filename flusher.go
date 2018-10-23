@@ -213,10 +213,10 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 		//
 		// if we're a global veneur, aggregates will be nil.
 		for _, h := range wm.histograms {
-			finalMetrics = append(finalMetrics, h.Flush(s.interval, percentiles, aggregates)...)
+			finalMetrics = append(finalMetrics, h.Flush(s.interval, percentiles, aggregates, false)...)
 		}
 		for _, t := range wm.timers {
-			finalMetrics = append(finalMetrics, t.Flush(s.interval, percentiles, aggregates)...)
+			finalMetrics = append(finalMetrics, t.Flush(s.interval, percentiles, aggregates, false)...)
 		}
 
 		// local-only samplers should be flushed in their entirety, since they

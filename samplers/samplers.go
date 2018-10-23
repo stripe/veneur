@@ -513,7 +513,21 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 	metrics := make([]InterMetric, 0, aggregates.Count+len(percentiles))
 	sinks := routeInfo(h.Tags)
 
-	if (aggregates.Value&AggregateMax) == AggregateMax && !math.IsInf(h.LocalMax, 0) {
+	// The second clause in this if statement can be confusing.
+	//
+	// The infinity check ensures we don't submit mixed scope histogram summaries. These values
+	// are initialized to infinity and reset when a value is sampled locally. This never happens
+	// for mixed scope values since we only consume them through the merge path.
+	//
+	// The global check overrides this for global scope histograms. In this case, we're going to
+	// use values from the merged histogram struct.
+	//
+	// The proliferation of flags here suggests this method is the wrong abstraction, since it
+	// requires a lot of forking for different paths. (Read: https://www.sandimetz.com/blog/2016/1/20/the-wrong-abstraction)
+	//
+	// Think twice before adding to complexity here--it may be worth refactoring how histograms
+	// are modeled in mixed scope before continuing with new features.
+	if (aggregates.Value&AggregateMax) == AggregateMax && (!math.IsInf(h.LocalMax, 0) || global) {
 		// Defensively recopy tags to avoid aliasing bugs in case multiple InterMetrics share the same
 		// tag array in the future
 		tags := make([]string, len(h.Tags))
@@ -532,7 +546,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Sinks:     sinks,
 		})
 	}
-	if (aggregates.Value&AggregateMin) == AggregateMin && !math.IsInf(h.LocalMin, 0) {
+	if (aggregates.Value&AggregateMin) == AggregateMin && (!math.IsInf(h.LocalMin, 0) || global) {
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
 		val := float64(h.LocalMin)
@@ -549,56 +563,56 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		})
 	}
 
-	if (aggregates.Value&AggregateSum) == AggregateSum && h.LocalSum != 0 {
+	if (aggregates.Value&AggregateSum) == AggregateSum && (h.LocalSum != 0 || global) {
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
-		val := float64(h.LocalSum
+		val := float64(h.LocalSum)
 		if global {
 			val = h.Value.Sum()
 		}
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.sum", h.Name),
 			Timestamp: now,
-			Value:     float64(h.LocalSum),
+			Value:     val,
 			Tags:      tags,
 			Type:      GaugeMetric,
 			Sinks:     sinks,
 		})
 	}
 
-	if (aggregates.Value&AggregateAverage) == AggregateAverage && h.LocalSum != 0 && h.LocalWeight != 0 {
+	if (aggregates.Value&AggregateAverage) == AggregateAverage && (global || h.LocalSum != 0 && h.LocalWeight != 0) {
 		// we need both a rate and a non-zero sum before it will make sense
 		// to submit an average
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
-		val := float64(h.LocalMax)
+		val := float64(h.LocalSum / h.LocalWeight)
 		if global {
-			val = h.Value.Max()
+			val = h.Value.Sum() / h.Value.Count()
 		}
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.avg", h.Name),
 			Timestamp: now,
-			Value:     float64(h.LocalSum / h.LocalWeight),
+			Value:     val,
 			Tags:      tags,
 			Type:      GaugeMetric,
 			Sinks:     sinks,
 		})
 	}
 
-	if (aggregates.Value&AggregateCount) == AggregateCount && h.LocalWeight != 0 {
+	if (aggregates.Value&AggregateCount) == AggregateCount && (h.LocalWeight != 0 || global) {
 		// if we haven't received any local samples, then leave this sparse,
 		// otherwise it can lead to some misleading zeroes in between the
 		// flushes of downstream instances
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
-		val := float64(h.LocalMax)
+		val := float64(h.LocalWeight)
 		if global {
-			val = h.Value.Max()
+			val = h.Value.Count()
 		}
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.count", h.Name),
 			Timestamp: now,
-			Value:     float64(h.LocalWeight),
+			Value:     val,
 			Tags:      tags,
 			Type:      CounterMetric,
 			Sinks:     sinks,
@@ -608,10 +622,6 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 	if (aggregates.Value & AggregateMedian) == AggregateMedian {
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
-		val := float64(h.LocalMax)
-		if global {
-			val = h.Value.Max()
-		}
 		metrics = append(
 			metrics,
 			InterMetric{
@@ -625,19 +635,19 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		)
 	}
 
-	if (aggregates.Value&AggregateHarmonicMean) == AggregateHarmonicMean && h.LocalReciprocalSum != 0 && h.LocalWeight != 0 {
+	if (aggregates.Value&AggregateHarmonicMean) == AggregateHarmonicMean && (global || h.LocalReciprocalSum != 0 && h.LocalWeight != 0) {
 		// we need both a rate and a non-zero sum before it will make sense
 		// to submit an average
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
-		val := float64(h.LocalMax)
+		val := float64(h.LocalWeight / h.LocalReciprocalSum)
 		if global {
-			val = h.Value.Max()
+			val = h.Value.Count() / h.Value.ReciprocalSum()
 		}
 		metrics = append(metrics, InterMetric{
 			Name:      fmt.Sprintf("%s.hmean", h.Name),
 			Timestamp: now,
-			Value:     float64(h.LocalWeight / h.LocalReciprocalSum),
+			Value:     val,
 			Tags:      tags,
 			Type:      GaugeMetric,
 			Sinks:     sinks,
