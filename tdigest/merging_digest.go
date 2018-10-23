@@ -88,6 +88,7 @@ func NewMergingFromData(d *MergingDigestData) *MergingDigest {
 		tempCentroids: make([]Centroid, 0, estimateTempBuffer(d.Compression)),
 		min:           d.Min,
 		max:           d.Max,
+		reciprocalSum: d.ReciprocalSum,
 	}
 
 	// Initialize the weight to the sum of the weights of the centroids
@@ -342,7 +343,8 @@ func (td *MergingDigest) ReciprocalSum() float64 {
 }
 func (td *MergingDigest) Sum() float64 {
 	var s float64
-	for _, cent := range td.Centroids() {
+	td.mergeAllTemps()
+	for _, cent := range td.mainCentroids {
 		s += cent.Mean * cent.GetWeight()
 	}
 	return s
@@ -368,6 +370,7 @@ func (td *MergingDigest) centroidUpperBound(i int) float64 {
 // Merge another digest into this one. Neither td nor other can be shared
 // concurrently during the execution of this method.
 func (td *MergingDigest) Merge(other *MergingDigest) {
+	oldReciprocalSum := td.reciprocalSum
 	shuffledIndices := rand.Perm(len(other.mainCentroids))
 
 	for _, i := range shuffledIndices {
@@ -379,6 +382,10 @@ func (td *MergingDigest) Merge(other *MergingDigest) {
 	for i := range other.tempCentroids {
 		td.Add(other.tempCentroids[i].Mean, other.tempCentroids[i].Weight)
 	}
+
+	td.reciprocalSum = oldReciprocalSum + other.reciprocalSum
+	td.min = math.Min(other.min, td.min)
+	td.max = math.Max(other.max, td.max)
 }
 
 var _ gob.GobEncoder = &MergingDigest{}
@@ -402,6 +409,9 @@ func (td *MergingDigest) GobEncode() ([]byte, error) {
 	if err := enc.Encode(td.max); err != nil {
 		return nil, err
 	}
+	if err := enc.Encode(td.reciprocalSum); err != nil {
+		return nil, err
+	}
 	return buf.Bytes(), nil
 }
 
@@ -418,6 +428,9 @@ func (td *MergingDigest) GobDecode(b []byte) error {
 		return err
 	}
 	if err := dec.Decode(&td.max); err != nil {
+		return err
+	}
+	if err := dec.Decode(&td.reciprocalSum); err != nil {
 		return err
 	}
 
@@ -462,5 +475,6 @@ func (td *MergingDigest) Data() *MergingDigestData {
 		Compression:   td.compression,
 		Min:           td.min,
 		Max:           td.max,
+		ReciprocalSum: td.reciprocalSum,
 	}
 }
