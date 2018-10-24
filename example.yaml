@@ -416,10 +416,10 @@ splunk_span_sample_rate: 10
 # ingested. This defaults to the flush `interval` setting (10s).
 splunk_hec_max_connection_lifetime: "10s"
 
-# (optional) The maximum (random) time to jitter an HEC request
-# lifetime by. This can help reduce the number of submission workers
-# that close & re-open their HTTP connections at the same time. If set
-# to 0, there will be no jitter.
+# (optional) The maximum (random) amount of jitter to add to
+# splunk_hec_max_connection_lifetime. This can help reduce the number
+# of submission workers that close & re-open their HTTP connections at
+# the same time. If set to 0, there will be no jitter.
 splunk_hec_connection_lifetime_jitter: "10s"
 
 # == PLUGINS ==
