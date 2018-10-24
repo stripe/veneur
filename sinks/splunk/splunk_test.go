@@ -36,6 +36,10 @@ func jsonEndpoint(t testing.TB, ch chan<- splunk.Event) http.Handler {
 				if err == io.EOF {
 					return
 				}
+				if err == io.ErrUnexpectedEOF {
+					t.Log("Encountered unexpected EOF, stopping")
+					return
+				}
 				t.Errorf("Decoding JSON: %v", err)
 				failed = true
 				break
