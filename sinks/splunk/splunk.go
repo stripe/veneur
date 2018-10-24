@@ -157,12 +157,19 @@ func (sss *splunkSpanSink) Sync() {
 }
 
 func (sss *splunkSpanSink) submitter(sync chan struct{}) {
+	batchTimeout := time.NewTimer(time.Duration(0))
 	for {
 		var req *http.Request
 		hecReq, err := sss.hec.newRequest()
 
 		ingested := 0
 		enc := hecReq.GetEncoder()
+
+		lifetime := time.Duration(10 * time.Second) // TODO: configure & jitter
+		if !batchTimeout.Stop() {
+			<-batchTimeout.C
+		}
+		batchTimeout.Reset(lifetime)
 	Batch:
 		for {
 			select {
@@ -173,6 +180,9 @@ func (sss *splunkSpanSink) submitter(sync chan struct{}) {
 					return
 				}
 				sss.synced.Done()
+				break Batch
+			case <-batchTimeout.C:
+				hecReq.Close()
 				break Batch
 			case ev := <-sss.ingest:
 				ingested++
@@ -284,9 +294,6 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request) {
 // endpoint for ingestion. If set, it uses the send timeout configured
 // for the span batch.
 func (sss *splunkSpanSink) Flush() {
-	// make the submitters open a new HTTP request:
-	sss.Sync()
-
 	// report the sink stats:
 	samples := &ssf.Samples{}
 	samples.Add(
