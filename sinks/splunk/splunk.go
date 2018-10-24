@@ -159,14 +159,22 @@ func (sss *splunkSpanSink) Sync() {
 func (sss *splunkSpanSink) submitter(sync chan struct{}) {
 	batchTimeout := time.NewTimer(time.Duration(0))
 	for {
-		var req *http.Request
 		hecReq, err := sss.hec.newRequest()
 
 		ingested := 0
-		enc := hecReq.GetEncoder()
+		req, enc, err := hecReq.Start()
+		if err != nil {
+			sss.log.WithError(err).
+				Warn("Could not create HEC request")
+			time.Sleep(1 * time.Second)
+			continue
+		}
 
 		lifetime := time.Duration(10 * time.Second) // TODO: configure & jitter
 		if !batchTimeout.Stop() {
+		// At this point, we have a workable HTTP connection;
+		// open it in the background:
+		go sss.makeHTTPRequest(req)
 			<-batchTimeout.C
 		}
 		batchTimeout.Reset(lifetime)
@@ -186,16 +194,6 @@ func (sss *splunkSpanSink) submitter(sync chan struct{}) {
 				break Batch
 			case ev := <-sss.ingest:
 				ingested++
-				if req == nil {
-					req, err = hecReq.Start()
-					if err != nil {
-						sss.log.WithError(err).
-							Warn("Could not create HEC request")
-						time.Sleep(1 * time.Second)
-						break Batch
-					}
-					go sss.makeHTTPRequest(req)
-				}
 				err = enc.Encode(ev)
 				if err != nil {
 					sss.log.WithError(err).
