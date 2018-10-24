@@ -151,12 +151,15 @@ func (sss *splunkSpanSink) Start(cl *trace.Client) error {
 
 	sss.sync = make([]chan struct{}, workers)
 
+	ready := make(chan struct{})
+	var signalReady sync.Once
 	for i := 0; i < workers; i++ {
 		ch := make(chan struct{})
-		go sss.submitter(ch)
+		go sss.submitter(ch, signalReady, ready)
 		sss.sync[i] = ch
 	}
 
+	<-ready
 	return nil
 }
 
@@ -174,7 +177,7 @@ func (sss *splunkSpanSink) Sync() {
 	sss.synced.Wait()
 }
 
-func (sss *splunkSpanSink) submitter(sync chan struct{}) {
+func (sss *splunkSpanSink) submitter(sync chan struct{}, signalReady sync.Once, ready chan struct{}) {
 	timedOut := false
 	batchTimeout := time.NewTimer(time.Duration(0))
 	for {
@@ -213,6 +216,7 @@ func (sss *splunkSpanSink) submitter(sync chan struct{}) {
 			batchTimeout.Reset(lifetime)
 		}
 		timedOut = false
+		signalReady.Do(func() { close(ready) })
 	Batch:
 		for {
 			select {
