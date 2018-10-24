@@ -178,10 +178,16 @@ func (sss *splunkSpanSink) submitter(sync chan struct{}) {
 	timedOut := false
 	batchTimeout := time.NewTimer(time.Duration(0))
 	for {
+		// We're not using cancelation for anything other than
+		// tests, but does allow neat control over the
+		// lifetime of a connection:
+		ctx := context.Background()
+		ctx, cancel := context.WithCancel(ctx)
+
 		hecReq, err := sss.hec.newRequest()
 
 		ingested := 0
-		req, enc, err := hecReq.Start()
+		req, enc, err := hecReq.Start(ctx)
 		if err != nil {
 			sss.log.WithError(err).
 				Warn("Could not create HEC request")
@@ -191,7 +197,7 @@ func (sss *splunkSpanSink) submitter(sync chan struct{}) {
 
 		// At this point, we have a workable HTTP connection;
 		// open it in the background:
-		go sss.makeHTTPRequest(req)
+		go sss.makeHTTPRequest(req, cancel)
 
 		// Set the maximum lifetime of the connection:
 		lifetime := sss.maxConnLifetime
@@ -214,6 +220,7 @@ func (sss *splunkSpanSink) submitter(sync chan struct{}) {
 				hecReq.Close()
 				if !ok {
 					// sink is shutting down, exit forever:
+					cancel()
 					return
 				}
 				sss.synced.Done()
@@ -241,7 +248,7 @@ func (sss *splunkSpanSink) submitter(sync chan struct{}) {
 	}
 }
 
-func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request) {
+func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request, cancel func()) {
 	samples := &ssf.Samples{}
 	defer metrics.Report(sss.traceClient, samples)
 	const successMetric = "splunk.hec_submission_success_total"
@@ -249,6 +256,7 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request) {
 	const timingMetric = "splunk.span_submission_lifetime_ns"
 	start := time.Now()
 	defer func() {
+		cancel()
 		samples.Add(ssf.Timing(timingMetric, time.Now().Sub(start),
 			time.Nanosecond, map[string]string{}))
 	}()
