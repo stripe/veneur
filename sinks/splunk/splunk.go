@@ -6,12 +6,18 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"math/big"
+
+	"crypto/rand"
+	mrand "math/rand"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
@@ -58,6 +64,10 @@ type splunkSpanSink struct {
 	spanSampleRate int64
 	skippedSpans   uint32
 
+	maxConnLifetime    time.Duration
+	connLifetimeJitter time.Duration
+	rand               *mrand.Rand
+
 	// these fields are for testing only:
 
 	// sync holds one channel per submission worker.
@@ -80,7 +90,7 @@ var _ TestableSplunkSpanSink = &splunkSpanSink{}
 // that all spans in the trace will be chosen for the sample is 1/spanSampleRate.
 // Sampling is performed on the trace ID, so either all spans within a given trace
 // will be chosen, or none will.
-func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, ingestTimeout time.Duration, sendTimeout time.Duration, batchSize int, workers int, spanSampleRate int) (sinks.SpanSink, error) {
+func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, ingestTimeout time.Duration, sendTimeout time.Duration, batchSize int, workers int, spanSampleRate int, maxConnLifetime time.Duration, connLifetimeJitter time.Duration) (sinks.SpanSink, error) {
 	if spanSampleRate < 1 {
 		spanSampleRate = 1
 	}
@@ -105,16 +115,24 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 		trnsp.ResponseHeaderTimeout = sendTimeout
 	}
 
+	seed, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		return nil, err
+	}
+
 	return &splunkSpanSink{
-		hec:            client,
-		httpClient:     httpC,
-		ingest:         make(chan *Event),
-		hostname:       localHostname,
-		log:            log,
-		sendTimeout:    sendTimeout,
-		ingestTimeout:  ingestTimeout,
-		batchSize:      batchSize,
-		spanSampleRate: int64(spanSampleRate),
+		hec:                client,
+		httpClient:         httpC,
+		ingest:             make(chan *Event),
+		hostname:           localHostname,
+		log:                log,
+		sendTimeout:        sendTimeout,
+		ingestTimeout:      ingestTimeout,
+		batchSize:          batchSize,
+		spanSampleRate:     int64(spanSampleRate),
+		rand:               mrand.New(mrand.NewSource(seed.Int64())),
+		maxConnLifetime:    maxConnLifetime,
+		connLifetimeJitter: connLifetimeJitter,
 	}, nil
 }
 
@@ -157,6 +175,7 @@ func (sss *splunkSpanSink) Sync() {
 }
 
 func (sss *splunkSpanSink) submitter(sync chan struct{}) {
+	timedOut := false
 	batchTimeout := time.NewTimer(time.Duration(0))
 	for {
 		hecReq, err := sss.hec.newRequest()
@@ -170,14 +189,24 @@ func (sss *splunkSpanSink) submitter(sync chan struct{}) {
 			continue
 		}
 
-		lifetime := time.Duration(10 * time.Second) // TODO: configure & jitter
-		if !batchTimeout.Stop() {
 		// At this point, we have a workable HTTP connection;
 		// open it in the background:
 		go sss.makeHTTPRequest(req)
+
+		// Set the maximum lifetime of the connection:
+		lifetime := sss.maxConnLifetime
+		if !timedOut && !batchTimeout.Stop() {
+			// the Stop call raced with the timer firing,
+			// drain the channel:
 			<-batchTimeout.C
 		}
-		batchTimeout.Reset(lifetime)
+		if sss.connLifetimeJitter > 0 {
+			lifetime += time.Duration(sss.rand.Int63n(int64(sss.connLifetimeJitter)))
+		}
+		if lifetime > 0 {
+			batchTimeout.Reset(lifetime)
+		}
+		timedOut = false
 	Batch:
 		for {
 			select {
@@ -190,6 +219,7 @@ func (sss *splunkSpanSink) submitter(sync chan struct{}) {
 				sss.synced.Done()
 				break Batch
 			case <-batchTimeout.C:
+				timedOut = true
 				hecReq.Close()
 				break Batch
 			case ev := <-sss.ingest:
