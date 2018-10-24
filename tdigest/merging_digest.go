@@ -10,6 +10,7 @@ package tdigest
 import (
 	"bytes"
 	"encoding/gob"
+	"git.corp.stripe.com/stripe-internal/gocode/bazel-gocode/external/com_github_pkg_errors"
 	"io"
 	"math"
 	"math/rand"
@@ -418,22 +419,22 @@ func (td *MergingDigest) GobDecode(b []byte) error {
 	dec := gob.NewDecoder(bytes.NewReader(b))
 
 	if err := dec.Decode(&td.mainCentroids); err != nil {
-		return err
+		return errors.Wrapf(err, "error decoding gob: %v", len(b))
 	}
 	if err := dec.Decode(&td.compression); err != nil {
-		return err
+		return errors.Wrapf(err, "error decoding gob: %v", len(b))
 	}
 	if err := dec.Decode(&td.min); err != nil {
-		return err
+		return errors.Wrapf(err, "error decoding gob: %v", len(b))
 	}
 	if err := dec.Decode(&td.max); err != nil {
-		return err
+		return errors.Wrapf(err, "error decoding gob: %v", len(b))
 	}
 	// fail open for EOFs for backwards compatability. Older veneurs may not have this value.
 	//
 	// Be sure to do this for any values added in the future.
 	if err := dec.Decode(&td.reciprocalSum); err != nil && err != io.EOF {
-		return err
+		return errors.Wrapf(err, "error decoding gob: %v", len(b))
 	}
 
 	// reinitialize the remaining variables

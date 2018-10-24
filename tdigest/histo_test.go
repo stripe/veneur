@@ -1,9 +1,14 @@
 package tdigest
 
 import (
+	"encoding/base64"
+	"io/ioutil"
 	"math/rand"
+	"os"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -90,6 +95,65 @@ func TestGobEncoding(t *testing.T) {
 	assert.InEpsilon(t, td.Quantile(0.5), td2.Quantile(0.5), 0.02, "50%% quantiles did not match")
 	assert.Equal(t, td.Sum(), td2.Sum())
 	assert.Equal(t, td.ReciprocalSum(), td2.ReciprocalSum())
+}
+
+func serializeGob(t *testing.T, buf []byte, fname string) error {
+	f, err := os.Create(fname)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	encoder := base64.NewEncoder(base64.StdEncoding, f)
+	defer encoder.Close()
+
+	_, err = encoder.Write(buf)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func encodedGob(t *testing.T) ([]byte, error) {
+	td := NewMerging(1000, false)
+	for i := 0; i < 1000; i++ {
+		td.Add(float64(i), 1.0)
+	}
+	validateMergingDigest(t, td)
+
+	return td.GobEncode()
+
+}
+
+func deserializeGob(t *testing.T, fname string) []byte {
+	f, err := os.Open("oldgob.base64")
+	require.NoError(t, err)
+	buf, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, f))
+	require.NoError(t, err)
+	return buf
+}
+
+// TestGobDecodeOldGob ensures the decoding path is backwards compatible with
+// the first version of the interface. If necessary, you can record other
+// possible gobs using the commented code.
+func TestGobDecodeOldGob(t *testing.T) {
+	// uncomment these lines if you need to record a new gob to test
+	// a different interface change.
+	//
+	//gobTDigest, _ := encodedGob(t)
+	//require.NoError(t, serializeGob(t, gobTDigest, "oldgob.base64"))
+
+	td := NewMerging(1000, false)
+	buf := deserializeGob(t, "oldgob.base64")
+	assert.NoError(t, td.GobDecode(buf), "should have decoded successfully")
+
+	assert.InEpsilon(t, 1000, td.Count(), 0.02, "counts did not match")
+	assert.InDelta(t, 0.01, td.Min(), 0.02, "minimums did not match")
+	assert.InEpsilon(t, 1000, td.Max(), 0.02, "maximums did not match")
+	assert.InEpsilon(t, 500, td.Quantile(0.5), 0.02, "50%% quantiles did not match")
+	assert.Equal(t, float64(499500), td.Sum())
+	assert.Equal(t, float64(0), td.ReciprocalSum())
+
 }
 
 // Test that creating a MergingDigestData (for protobuf-encoding) and

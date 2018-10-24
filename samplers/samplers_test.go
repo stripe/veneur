@@ -276,7 +276,7 @@ func TestHisto(t *testing.T) {
 
 	percentiles := []float64{0.90}
 
-	metrics := h.Flush(10*time.Second, percentiles, aggregates)
+	metrics := h.Flush(10*time.Second, percentiles, aggregates, true)
 	// We get lots of metrics back for histograms!
 	// One for each of the aggregates specified, plus
 	// one for the explicit percentile we are asking for
@@ -367,7 +367,7 @@ func TestHistoAvgOnly(t *testing.T) {
 
 	percentiles := []float64{}
 
-	metrics := h.Flush(10*time.Second, percentiles, aggregates)
+	metrics := h.Flush(10*time.Second, percentiles, aggregates, true)
 	// We get lots of metrics back for histograms!
 	// One for each of the aggregates specified, plus
 	// one for the explicit percentile we are asking for
@@ -401,7 +401,7 @@ func TestHistoHMeanOnly(t *testing.T) {
 
 	percentiles := []float64{}
 
-	metrics := h.Flush(10*time.Second, percentiles, aggregates)
+	metrics := h.Flush(10*time.Second, percentiles, aggregates, true)
 	// We get lots of metrics back for histograms!
 	// One for each of the aggregates specified, plus
 	// one for the explicit percentile we are asking for
@@ -434,7 +434,7 @@ func TestHistoSampleRate(t *testing.T) {
 	aggregates.Value = AggregateMin | AggregateMax | AggregateCount
 	aggregates.Count = 3
 
-	metrics := h.Flush(10*time.Second, []float64{0.50}, aggregates)
+	metrics := h.Flush(10*time.Second, []float64{0.50}, aggregates, true)
 	assert.Len(t, metrics, 4, "Metrics flush length")
 
 	// First the max
