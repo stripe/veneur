@@ -12,13 +12,14 @@ import (
 )
 
 var defaultConfig = Config{
-	Aggregates:             []string{"min", "max", "count"},
-	DatadogFlushMaxPerBody: 25000,
-	Interval:               "10s",
-	MetricMaxLength:        4096,
-	ReadBufferSizeBytes:    1048576 * 2, // 2 MiB
-	SpanChannelCapacity:    100,
-	SplunkHecBatchSize:     100,
+	Aggregates:                     []string{"min", "max", "count"},
+	DatadogFlushMaxPerBody:         25000,
+	Interval:                       "10s",
+	MetricMaxLength:                4096,
+	ReadBufferSizeBytes:            1048576 * 2, // 2 MiB
+	SpanChannelCapacity:            100,
+	SplunkHecBatchSize:             100,
+	SplunkHecMaxConnectionLifetime: "10s", // same as Interval
 }
 
 var defaultProxyConfig = ProxyConfig{
@@ -217,6 +218,10 @@ func (c *Config) applyDefaults() {
 
 	if c.SplunkHecBatchSize == 0 {
 		c.SplunkHecBatchSize = defaultConfig.SplunkHecBatchSize
+	}
+
+	if c.SplunkHecMaxConnectionLifetime == "" {
+		c.SplunkHecMaxConnectionLifetime = defaultConfig.SplunkHecMaxConnectionLifetime
 	}
 }
 
