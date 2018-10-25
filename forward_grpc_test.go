@@ -107,6 +107,16 @@ func forwardGRPCTestMetrics() []*samplers.UDPMetric {
 		},
 		&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
+				Name: testGRPCMetric("histogram_global"),
+				Type: histogramTypeName,
+			},
+			Value:      20.0,
+			Digest:     12345,
+			SampleRate: 1.0,
+			Scope:      samplers.GlobalOnly,
+		},
+		&samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
 				Name: testGRPCMetric("gauge"),
 				Type: gaugeTypeName,
 			},
@@ -122,6 +132,16 @@ func forwardGRPCTestMetrics() []*samplers.UDPMetric {
 			Value:      2.0,
 			SampleRate: 1.0,
 			Scope:      samplers.GlobalOnly,
+		},
+		&samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: testGRPCMetric("timer_mixed"),
+				Type: timerTypeName,
+			},
+			Value:      100.0,
+			Digest:     12345,
+			SampleRate: 1.0,
+			Scope:      samplers.MixedScope,
 		},
 		&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
@@ -178,9 +198,21 @@ func TestE2EForwardingGRPCMetrics(t *testing.T) {
 			testGRPCMetric("histogram.50percentile"),
 			testGRPCMetric("histogram.75percentile"),
 			testGRPCMetric("histogram.99percentile"),
+			testGRPCMetric("histogram_global.99percentile"),
+			testGRPCMetric("histogram_global.50percentile"),
+			testGRPCMetric("histogram_global.75percentile"),
+			testGRPCMetric("histogram_global.max"),
+			testGRPCMetric("histogram_global.min"),
+			testGRPCMetric("histogram_global.count"),
+			testGRPCMetric("timer_mixed.50percentile"),
+			testGRPCMetric("timer_mixed.75percentile"),
+			testGRPCMetric("timer_mixed.99percentile"),
 			testGRPCMetric("timer.50percentile"),
 			testGRPCMetric("timer.75percentile"),
 			testGRPCMetric("timer.99percentile"),
+			testGRPCMetric("timer.max"),
+			testGRPCMetric("timer.min"),
+			testGRPCMetric("timer.count"),
 			testGRPCMetric("counter"),
 			testGRPCMetric("gauge"),
 			testGRPCMetric("set"),

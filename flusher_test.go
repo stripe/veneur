@@ -37,7 +37,9 @@ func TestServerFlushGRPC(t *testing.T) {
 
 	expected := []string{
 		testGRPCMetric("histogram"),
+		testGRPCMetric("histogram_global"),
 		testGRPCMetric("timer"),
+		testGRPCMetric("timer_mixed"),
 		testGRPCMetric("counter"),
 		testGRPCMetric("gauge"),
 		testGRPCMetric("set"),

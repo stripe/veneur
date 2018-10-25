@@ -32,7 +32,35 @@ type UDPMetric struct {
 	HostName   string
 }
 
+// MetricScope describes where the metric will be emitted.
 type MetricScope int
+
+// ToPB maps the metric scope to a protobuf Scope type.
+func (m MetricScope) ToPB() metricpb.Scope {
+	switch m {
+	case MixedScope:
+		return metricpb.Scope_Mixed
+	case LocalOnly:
+		return metricpb.Scope_Local
+	case GlobalOnly:
+		return metricpb.Scope_Global
+	}
+	return 0
+}
+
+// ScopeFromPB creates an internal MetricScope type from the protobuf Scope type.
+func ScopeFromPB(scope metricpb.Scope) MetricScope {
+	switch scope {
+	case metricpb.Scope_Global:
+		return GlobalOnly
+	case metricpb.Scope_Local:
+		return LocalOnly
+	case metricpb.Scope_Mixed:
+		return MixedScope
+	}
+
+	return 0
+}
 
 const (
 	MixedScope MetricScope = iota
