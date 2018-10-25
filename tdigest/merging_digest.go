@@ -10,7 +10,7 @@ package tdigest
 import (
 	"bytes"
 	"encoding/gob"
-	"git.corp.stripe.com/stripe-internal/gocode/bazel-gocode/external/com_github_pkg_errors"
+	"github.com/pkg/errors"
 	"io"
 	"math"
 	"math/rand"
