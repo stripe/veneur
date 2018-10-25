@@ -49,7 +49,7 @@ func (m MetricScope) ToPB() metricpb.Scope {
 }
 
 // ScopeFromPB creates an internal MetricScope type from the protobuf Scope type.
-func ScopeFromPB(scope metricpb.Scope) MetricScope  {
+func ScopeFromPB(scope metricpb.Scope) MetricScope {
 	switch scope {
 	case metricpb.Scope_Global:
 		return GlobalOnly
