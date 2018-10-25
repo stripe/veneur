@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stripe/veneur/tdigest"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/ssf"
 )
@@ -253,6 +255,57 @@ func TestSetMergeMetric(t *testing.T) {
 	count2 := int(s2.Hll.Estimate())
 	countDifference := count1 - count2
 	assert.True(t, -1 <= countDifference && countDifference <= 1, "counts did not match after merging (%d and %d)", count1, count2)
+}
+
+func digest(values []float64) *tdigest.MergingDigest {
+	td := tdigest.NewMerging(100, false)
+	for _, v := range values {
+		td.Add(v, 1.0)
+	}
+	return td
+}
+
+// ensure histogram with no local samples flush aggregates for global flushes
+// but no aggregates for non-global (mixed scope) flushes.
+func TestGlobalHistoFlushBehavior(t *testing.T) {
+	aggregates := HistogramAggregates{
+		Value: AggregateMin,
+		Count: 1,
+	}
+	var percentiles []float64
+
+	h := NewHist("test", []string{})
+	h.Value = digest([]float64{1.0})
+
+	m := h.Flush(10*time.Second, percentiles, aggregates, true)
+	assert.Len(t, m, 1, "global histogram didn't return aggregates for global flush")
+	assert.Equal(t, float64(1), m[0].Value, "global histogram returned invalid value for global flush")
+
+	m = h.Flush(10*time.Second, percentiles, aggregates, false)
+	assert.Empty(t, m, "global histogram returned aggregates for mixed scope flush")
+}
+
+// ensure histogram with local samples flush global aggregates for global flushes
+// but local aggregates for non-global (mixed scope) flushes.
+func TestLocalHistoFlushedBehavior(t *testing.T) {
+	aggregates := HistogramAggregates{
+		Value: AggregateCount,
+		Count: 1,
+	}
+	var percentiles []float64
+
+	// the local count for this histogram should be 1. the global count should be 0.
+	h := NewHist("test", []string{})
+	h.Sample(1.0, 1.0)
+	h.Value = tdigest.NewMerging(100, false)
+
+	m := h.Flush(10*time.Second, percentiles, aggregates, true)
+	assert.Len(t, m, 1, "histogram didn't return aggregates for global flush")
+	assert.Equal(t, float64(0), m[0].Value, "histogram returned value for local count during global flush")
+
+	m = h.Flush(10*time.Second, percentiles, aggregates, false)
+	assert.Len(t, m, 1, "histogram returned no aggregates for mixed scope flush")
+	assert.Equal(t, float64(1), m[0].Value, "histogram returned global value for mixed scope flush.")
 }
 
 func TestHisto(t *testing.T) {
