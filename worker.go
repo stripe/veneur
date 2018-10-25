@@ -213,8 +213,7 @@ type metricExporter interface {
 // and an error is logged.
 func (wm WorkerMetrics) appendExportedMetric(res []*metricpb.Metric, exp metricExporter, mType metricpb.Type, cl *trace.Client, scope samplers.MetricScope) []*metricpb.Metric {
 	m, err := exp.Metric()
-	// TODO_BEFORE_SHIP(clin): Same as other note, map these values explicitly, not implicitly.
-	m.Scope = metricpb.Scope(scope)
+	m.Scope = scope.ToPB()
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
@@ -384,8 +383,7 @@ func (w *Worker) ImportMetricGRPC(other *metricpb.Metric) (err error) {
 
 	key := samplers.NewMetricKeyFromMetric(other)
 
-	// TODO_BEFORE_SHIP(clin): Avoid implicit mapping of pb type to internal type.
-	scope := samplers.MetricScope(other.Scope)
+	scope := samplers.ScopeFromPB(other.Scope)
 	if other.Type == metricpb.Type_Counter || other.Type == metricpb.Type_Gauge {
 		scope = samplers.GlobalOnly
 	}
