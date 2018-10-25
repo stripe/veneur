@@ -1,0 +1,19 @@
+---
+# A config file for testing a local -> global veneur setup.
+#
+# Use in conjunction with dev-local.yaml.
+stats_address: 127.0.0.1:8200
+ssf_listen_addresses:
+trace_max_length_bytes: 16000
+num_workers: 4
+num_readers: 1
+interval: 10s
+percentiles:
+- 0.50
+- 0.90
+aggregates: ['min', 'max', 'count', 'sum']
+grpc_address: localhost:8202
+
+debug: true
+debug_ingested_spans: true
+debug_flushed_metrics: true
