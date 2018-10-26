@@ -416,7 +416,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			return ret, fmt.Errorf("both splunk_hec_address and splunk_hec_token need to be set!")
 		}
 		if conf.SplunkHecToken != "" && conf.SplunkHecAddress != "" {
-			var sendTimeout, ingestTimeout time.Duration
+			var sendTimeout, ingestTimeout, connLifetime, connJitter time.Duration
 			if conf.SplunkHecSendTimeout != "" {
 				sendTimeout, err = time.ParseDuration(conf.SplunkHecSendTimeout)
 				if err != nil {
@@ -429,7 +429,20 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 					return ret, err
 				}
 			}
-			sss, err := splunk.NewSplunkSpanSink(conf.SplunkHecAddress, conf.SplunkHecToken, conf.Hostname, conf.SplunkHecTLSValidateHostname, log, ingestTimeout, sendTimeout, conf.SplunkHecBatchSize, conf.SplunkHecSubmissionWorkers, conf.SplunkSpanSampleRate)
+			if conf.SplunkHecMaxConnectionLifetime != "" {
+				connLifetime, err = time.ParseDuration(conf.SplunkHecMaxConnectionLifetime)
+				if err != nil {
+					return ret, err
+				}
+			}
+			if conf.SplunkHecConnectionLifetimeJitter != "" {
+				connJitter, err = time.ParseDuration(conf.SplunkHecConnectionLifetimeJitter)
+				if err != nil {
+					return ret, err
+				}
+			}
+
+			sss, err := splunk.NewSplunkSpanSink(conf.SplunkHecAddress, conf.SplunkHecToken, conf.Hostname, conf.SplunkHecTLSValidateHostname, log, ingestTimeout, sendTimeout, conf.SplunkHecBatchSize, conf.SplunkHecSubmissionWorkers, conf.SplunkSpanSampleRate, connLifetime, connJitter)
 			if err != nil {
 				return ret, err
 			}
