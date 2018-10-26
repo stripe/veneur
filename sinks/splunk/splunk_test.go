@@ -40,6 +40,9 @@ func jsonEndpoint(t testing.TB, ch chan<- splunk.Event) http.Handler {
 					t.Log("Encountered unexpected EOF, stopping")
 					return
 				}
+				if strings.Contains(err.Error(), "use of closed network connection") {
+					return
+				}
 				t.Errorf("Decoding JSON: %v", err)
 				failed = true
 				break
