@@ -463,6 +463,7 @@ func timeCommand(span *ssf.SSFSpan, command []string) (exitStatus int, start tim
 	if err != nil {
 		exitError, ok := err.(*exec.ExitError)
 		if !ok {
+			logrus.WithError(err).WithField("command", command).Error("Abnormal exit from program")
 			exitStatus = 1
 			return
 		}
