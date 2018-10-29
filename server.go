@@ -142,7 +142,8 @@ type Server struct {
 // It is expected the values on the struct will only be handled
 // using atomic operations
 type ssfServiceSpanMetrics struct {
-	ssfSpansReceivedTotal int64
+	ssfSpansReceivedTotal     int64
+	ssfRootSpansReceivedTotal int64
 }
 
 // SetLogger sets the default logger in veneur to the passed value.
@@ -833,6 +834,10 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string) {
 	}
 
 	atomic.AddInt64(&metricsStruct.ssfSpansReceivedTotal, 1)
+
+	if span.Id == span.TraceId {
+		atomic.AddInt64(&metricsStruct.ssfRootSpansReceivedTotal, 1)
+	}
 
 	s.SpanChan <- span
 }
