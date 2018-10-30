@@ -256,6 +256,7 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request, cancel func()) {
 	samples := &ssf.Samples{}
 	defer metrics.Report(sss.traceClient, samples)
 	const successMetric = "splunk.hec_submission_success_total"
+	const emptyMetric = "splunk.hec_submission_empty_total"
 	const failureMetric = "splunk.hec_submission_failed_total"
 	const timingMetric = "splunk.span_submission_lifetime_ns"
 	start := time.Now()
@@ -288,6 +289,9 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request, cancel func()) {
 	var cause string
 	var statusCode int
 
+	// See
+	// http://docs.splunk.com/Documentation/Splunk/7.2.0/Data/TroubleshootHTTPEventCollector#Possible_error_codes
+	// for a list of possible status codes / error kinds
 	switch resp.StatusCode {
 	case http.StatusOK:
 		// Everything went well - discard the body so the
@@ -317,6 +321,13 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request, cancel func()) {
 		}
 		cause = "error"
 		statusCode = parsed.Code
+		if statusCode == 5 {
+			// "No data": This is peaceful and indicates
+			// that no data was sent over a connection
+			// that we closed.
+			samples.Add(ssf.Count(emptyMetric, 1, map[string]string{}))
+			return
+		}
 		sss.log.WithFields(logrus.Fields{
 			"http_status_code":  resp.StatusCode,
 			"hec_status_code":   parsed.Code,
