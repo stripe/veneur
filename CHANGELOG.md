@@ -9,6 +9,7 @@
 * The Splunk span sink can be configured with a sample rate for non-indicator spans with the `splunk_span_sample_rate` setting. Thanks, [aditya](https://github.com/chimeracoder)!
 * The splunk span sink now has configuration parameters `splunk_hec_max_connection_lifetime` and `splunk_hec_connection_lifetime_jitter` to regulate how long HTTP connections can be kept alive for. Thanks, [antifuchs](https://github.com/antifuchs)!
 * The SignalFx sink can now filter metric names by prefix with `signalfx_metric_name_prefix_drops` and tag literals (case-insensitive) with `signalfx_metric_tag_literal_drops`. Thanks [gphat](https://github.com/gphat)!
+* Histograms and timers now support global scope. Histograms and timers tagged with "veneurglobalonly" will now emit *all* metrics from the global veneur. The default behavior is to emit aggregates like max, min locally and percentiles globally. Thanks, [clin](https://github.com/clin88)!
 
 ## Updated
 * The README's [Metrics section](https://github.com/stripe/veneur#metrics) has been updated, as it referred to some missing metrics. Thanks, [gphat](https://github.com/gphat)!
