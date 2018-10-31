@@ -1,6 +1,7 @@
 package splunk
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -55,17 +56,15 @@ type hecRequest struct {
 	authHeader string
 }
 
-func (r *hecRequest) Start() (*http.Request, error) {
+func (r *hecRequest) Start(ctx context.Context) (*http.Request, *json.Encoder, error) {
 	req, err := http.NewRequest("POST", r.url, r.r)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	req.Header.Add("Authorization", r.authHeader)
-	return req, nil
-}
+	req = req.WithContext(ctx)
 
-func (r *hecRequest) GetEncoder() *json.Encoder {
-	return json.NewEncoder(r.w)
+	return req, json.NewEncoder(r.w), nil
 }
 
 func (r *hecRequest) Close() error {

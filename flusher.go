@@ -434,7 +434,9 @@ func (s *Server) flushTraces(ctx context.Context) {
 		}
 
 		spansReceivedTotal := atomic.SwapInt64(&value.ssfSpansReceivedTotal, 0)
+		spansRootReceivedTotal := atomic.SwapInt64(&value.ssfRootSpansReceivedTotal, 0)
 		s.Statsd.Count("ssf.spans.received_total", spansReceivedTotal, tags, 1.0)
+		s.Statsd.Count("ssf.spans.root.received_total", spansRootReceivedTotal, append(tags, "veneurglobalonly:true"), 1.0)
 		return true
 	})
 

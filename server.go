@@ -142,7 +142,8 @@ type Server struct {
 // It is expected the values on the struct will only be handled
 // using atomic operations
 type ssfServiceSpanMetrics struct {
-	ssfSpansReceivedTotal int64
+	ssfSpansReceivedTotal     int64
+	ssfRootSpansReceivedTotal int64
 }
 
 // SetLogger sets the default logger in veneur to the passed value.
@@ -416,7 +417,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			return ret, fmt.Errorf("both splunk_hec_address and splunk_hec_token need to be set!")
 		}
 		if conf.SplunkHecToken != "" && conf.SplunkHecAddress != "" {
-			var sendTimeout, ingestTimeout time.Duration
+			var sendTimeout, ingestTimeout, connLifetime, connJitter time.Duration
 			if conf.SplunkHecSendTimeout != "" {
 				sendTimeout, err = time.ParseDuration(conf.SplunkHecSendTimeout)
 				if err != nil {
@@ -429,7 +430,20 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 					return ret, err
 				}
 			}
-			sss, err := splunk.NewSplunkSpanSink(conf.SplunkHecAddress, conf.SplunkHecToken, conf.Hostname, conf.SplunkHecTLSValidateHostname, log, ingestTimeout, sendTimeout, conf.SplunkHecBatchSize, conf.SplunkHecSubmissionWorkers, conf.SplunkSpanSampleRate)
+			if conf.SplunkHecMaxConnectionLifetime != "" {
+				connLifetime, err = time.ParseDuration(conf.SplunkHecMaxConnectionLifetime)
+				if err != nil {
+					return ret, err
+				}
+			}
+			if conf.SplunkHecConnectionLifetimeJitter != "" {
+				connJitter, err = time.ParseDuration(conf.SplunkHecConnectionLifetimeJitter)
+				if err != nil {
+					return ret, err
+				}
+			}
+
+			sss, err := splunk.NewSplunkSpanSink(conf.SplunkHecAddress, conf.SplunkHecToken, conf.Hostname, conf.SplunkHecTLSValidateHostname, log, ingestTimeout, sendTimeout, conf.SplunkHecBatchSize, conf.SplunkHecSubmissionWorkers, conf.SplunkSpanSampleRate, connLifetime, connJitter)
 			if err != nil {
 				return ret, err
 			}
@@ -820,6 +834,10 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string) {
 	}
 
 	atomic.AddInt64(&metricsStruct.ssfSpansReceivedTotal, 1)
+
+	if span.Id == span.TraceId {
+		atomic.AddInt64(&metricsStruct.ssfRootSpansReceivedTotal, 1)
+	}
 
 	s.SpanChan <- span
 }
