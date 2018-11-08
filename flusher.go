@@ -46,26 +46,18 @@ func (s *Server) Flush(ctx context.Context) {
 
 	go s.flushTraces(span.Attach(ctx))
 
+	// don't publish percentiles if we're a local veneur; that's the global
+	// veneur's job
+	var percentiles []float64
 	var finalMetrics []samplers.InterMetric
 
-	// This ensures that mixedscope histograms and timers behave correctly.
-	// That is, they should emit aggregates when forwarding, but no percentiles.
-	// Similarly, they should emit percentiles when global, but no aggregates.
-	//
-	// This serves two purposes:
-	//   * Percentiles are only accurate when aggregated globally.
-	//   * Avoid double counting and breaking existing queries (if count is also
-	//     emitted globally, queries that sum over counts double!)
-	var percentiles []float64
-	aggregates := s.HistogramAggregates
 	if !s.IsLocal() {
 		percentiles = s.HistogramPercentiles
-		aggregates = samplers.HistogramAggregates{}
 	}
 
 	tempMetrics, ms := s.tallyMetrics(percentiles)
 
-	finalMetrics = s.generateInterMetrics(span.Attach(ctx), percentiles, aggregates, tempMetrics, ms)
+	finalMetrics = s.generateInterMetrics(span.Attach(ctx), percentiles, tempMetrics, ms)
 
 	s.reportMetricsFlushCounts(ms)
 
@@ -122,10 +114,8 @@ type metricsSummary struct {
 	totalSets       int
 	totalTimers     int
 
-	totalGlobalCounters   int
-	totalGlobalGauges     int
-	totalGlobalHistograms int
-	totalGlobalTimers     int
+	totalGlobalCounters int
+	totalGlobalGauges   int
 
 	totalLocalHistograms   int
 	totalLocalSets         int
@@ -159,8 +149,6 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 
 		ms.totalGlobalCounters += len(wm.globalCounters)
 		ms.totalGlobalGauges += len(wm.globalGauges)
-		ms.totalGlobalHistograms += len(wm.globalHistograms)
-		ms.totalGlobalTimers += len(wm.globalTimers)
 
 		ms.totalLocalHistograms += len(wm.localHistograms)
 		ms.totalLocalSets += len(wm.localSets)
@@ -185,8 +173,6 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 		ms.totalLength += ms.totalSets
 		ms.totalLength += ms.totalGlobalCounters
 		ms.totalLength += ms.totalGlobalGauges
-		ms.totalLength += ms.totalGlobalHistograms * (s.HistogramAggregates.Count + len(s.HistogramPercentiles))
-		ms.totalLength += ms.totalGlobalTimers * (s.HistogramAggregates.Count + len(s.HistogramPercentiles))
 	}
 
 	return tempMetrics, ms
@@ -195,7 +181,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 // generateInterMetrics calls the Flush method on each
 // counter/gauge/histogram/timer/set in order to
 // generate an InterMetric corresponding to that value
-func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64, aggregates samplers.HistogramAggregates, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.InterMetric {
+func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64, tempMetrics []WorkerMetrics, ms metricsSummary) []samplers.InterMetric {
 
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.TraceClient)
@@ -210,13 +196,11 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 		}
 		// if we're a local veneur, then percentiles=nil, and only the local
 		// parts (count, min, max) will be flushed
-		//
-		// if we're a global veneur, aggregates will be nil.
 		for _, h := range wm.histograms {
-			finalMetrics = append(finalMetrics, h.Flush(s.interval, percentiles, aggregates, false)...)
+			finalMetrics = append(finalMetrics, h.Flush(s.interval, percentiles, s.HistogramAggregates)...)
 		}
 		for _, t := range wm.timers {
-			finalMetrics = append(finalMetrics, t.Flush(s.interval, percentiles, aggregates, false)...)
+			finalMetrics = append(finalMetrics, t.Flush(s.interval, percentiles, s.HistogramAggregates)...)
 		}
 
 		// local-only samplers should be flushed in their entirety, since they
@@ -224,13 +208,13 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 		// we still want percentiles for these, even if we're a local veneur, so
 		// we use the original percentile list when flushing them
 		for _, h := range wm.localHistograms {
-			finalMetrics = append(finalMetrics, h.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates, false)...)
+			finalMetrics = append(finalMetrics, h.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
 		}
 		for _, s := range wm.localSets {
 			finalMetrics = append(finalMetrics, s.Flush()...)
 		}
 		for _, t := range wm.localTimers {
-			finalMetrics = append(finalMetrics, t.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates, false)...)
+			finalMetrics = append(finalMetrics, t.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates)...)
 		}
 
 		for _, status := range wm.localStatusChecks {
@@ -256,13 +240,6 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 			// and global gauges
 			for _, gg := range wm.globalGauges {
 				finalMetrics = append(finalMetrics, gg.Flush()...)
-			}
-
-			for _, h := range wm.globalHistograms {
-				finalMetrics = append(finalMetrics, h.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates, true)...)
-			}
-			for _, h := range wm.globalTimers {
-				finalMetrics = append(finalMetrics, h.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates, true)...)
 			}
 		}
 	}
@@ -301,8 +278,6 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalGlobalCounters), []string{"metric_type:global_counter"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalGlobalGauges), []string{"metric_type:global_gauge"}, 1.0)
-	s.Statsd.Count(flushTotalMetric, int64(ms.totalGlobalHistograms), []string{"metric_type:global_histogram"}, 1.0)
-	s.Statsd.Count(flushTotalMetric, int64(ms.totalGlobalTimers), []string{"metric_type:global_timers"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalHistograms), []string{"metric_type:histogram"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalSets), []string{"metric_type:set"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalTimers), []string{"metric_type:timer"}, 1.0)

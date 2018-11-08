@@ -10,8 +10,6 @@ package tdigest
 import (
 	"bytes"
 	"encoding/gob"
-	"github.com/pkg/errors"
-	"io"
 	"math"
 	"math/rand"
 	"sort"
@@ -33,9 +31,8 @@ type MergingDigest struct {
 	// total weight of unmerged centroids
 	tempWeight float64
 
-	min           float64
-	max           float64
-	reciprocalSum float64
+	min float64
+	max float64
 
 	debug bool
 }
@@ -90,7 +87,6 @@ func NewMergingFromData(d *MergingDigestData) *MergingDigest {
 		tempCentroids: make([]Centroid, 0, estimateTempBuffer(d.Compression)),
 		min:           d.Min,
 		max:           d.Max,
-		reciprocalSum: d.ReciprocalSum,
 	}
 
 	// Initialize the weight to the sum of the weights of the centroids
@@ -123,7 +119,6 @@ func (td *MergingDigest) Add(value float64, weight float64) {
 
 	td.min = math.Min(td.min, value)
 	td.max = math.Max(td.max, value)
-	td.reciprocalSum += (1 / value) * weight
 
 	next := Centroid{
 		Mean:   value,
@@ -340,17 +335,6 @@ func (td *MergingDigest) Max() float64 {
 func (td *MergingDigest) Count() float64 {
 	return td.mainWeight + td.tempWeight
 }
-func (td *MergingDigest) ReciprocalSum() float64 {
-	return td.reciprocalSum
-}
-func (td *MergingDigest) Sum() float64 {
-	var s float64
-	td.mergeAllTemps()
-	for _, cent := range td.mainCentroids {
-		s += cent.Mean * cent.GetWeight()
-	}
-	return s
-}
 
 // we assume each centroid contains a uniform distribution of values
 // the lower bound of the distribution is the midpoint between this centroid and
@@ -372,7 +356,6 @@ func (td *MergingDigest) centroidUpperBound(i int) float64 {
 // Merge another digest into this one. Neither td nor other can be shared
 // concurrently during the execution of this method.
 func (td *MergingDigest) Merge(other *MergingDigest) {
-	oldReciprocalSum := td.reciprocalSum
 	shuffledIndices := rand.Perm(len(other.mainCentroids))
 
 	for _, i := range shuffledIndices {
@@ -384,8 +367,6 @@ func (td *MergingDigest) Merge(other *MergingDigest) {
 	for i := range other.tempCentroids {
 		td.Add(other.tempCentroids[i].Mean, other.tempCentroids[i].Weight)
 	}
-
-	td.reciprocalSum = oldReciprocalSum + other.reciprocalSum
 }
 
 var _ gob.GobEncoder = &MergingDigest{}
@@ -409,9 +390,6 @@ func (td *MergingDigest) GobEncode() ([]byte, error) {
 	if err := enc.Encode(td.max); err != nil {
 		return nil, err
 	}
-	if err := enc.Encode(td.reciprocalSum); err != nil {
-		return nil, err
-	}
 	return buf.Bytes(), nil
 }
 
@@ -419,22 +397,16 @@ func (td *MergingDigest) GobDecode(b []byte) error {
 	dec := gob.NewDecoder(bytes.NewReader(b))
 
 	if err := dec.Decode(&td.mainCentroids); err != nil {
-		return errors.Wrapf(err, "error decoding gob: %v", len(b))
+		return err
 	}
 	if err := dec.Decode(&td.compression); err != nil {
-		return errors.Wrapf(err, "error decoding gob: %v", len(b))
+		return err
 	}
 	if err := dec.Decode(&td.min); err != nil {
-		return errors.Wrapf(err, "error decoding gob: %v", len(b))
+		return err
 	}
 	if err := dec.Decode(&td.max); err != nil {
-		return errors.Wrapf(err, "error decoding gob: %v", len(b))
-	}
-	// fail open for EOFs for backwards compatability. Older veneurs may not have this value.
-	//
-	// Be sure to do this for any values added in the future.
-	if err := dec.Decode(&td.reciprocalSum); err != nil && err != io.EOF {
-		return errors.Wrapf(err, "error decoding gob: %v", len(b))
+		return err
 	}
 
 	// reinitialize the remaining variables
@@ -478,6 +450,5 @@ func (td *MergingDigest) Data() *MergingDigestData {
 		Compression:   td.compression,
 		Min:           td.min,
 		Max:           td.max,
-		ReciprocalSum: td.reciprocalSum,
 	}
 }

@@ -393,14 +393,6 @@
   version = "v0.1.1"
 
 [[projects]]
-  digest = "1:5cf3f025cbee5951a4ee961de067c8a89fc95a5adabead774f82822efabab121"
-  name = "github.com/pkg/errors"
-  packages = ["."]
-  pruneopts = "NUT"
-  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
-  version = "v0.8.0"
-
-[[projects]]
   digest = "1:de406937d444963016a8644b65e56e2f241a1d81f76418ce59ed12257fabb5ad"
   name = "github.com/pkg/profile"
   packages = ["."]
@@ -844,7 +836,6 @@
     "github.com/opentracing/opentracing-go",
     "github.com/opentracing/opentracing-go/ext",
     "github.com/opentracing/opentracing-go/log",
-    "github.com/pkg/errors",
     "github.com/pkg/profile",
     "github.com/prometheus/client_model/go",
     "github.com/prometheus/common/expfmt",

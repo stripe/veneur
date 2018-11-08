@@ -291,9 +291,16 @@ func TestGlobalServerFlush(t *testing.T) {
 	assert.Equal(t, len(expectedMetrics), len(interMetrics), "incorrect number of elements in the flushed series on the remote server")
 }
 
-// TestLocalServerMixedMetrics ensures that stuff tagged as local only or local parts of mixed
-// scope metrics are sent directly to sinks while global metrics are forwarded.
 func TestLocalServerMixedMetrics(t *testing.T) {
+	// The exact gob stream that we will receive might differ, so we can't
+	// test against the bytestream directly. But the two streams should unmarshal
+	// to t-digests that have the same key properties, so we can test
+	// those.
+	const ExpectedGobStream = "\r\xff\x87\x02\x01\x02\xff\x88\x00\x01\xff\x84\x00\x007\xff\x83\x03\x01\x01\bCentroid\x01\xff\x84\x00\x01\x03\x01\x04Mean\x01\b\x00\x01\x06Weight\x01\b\x00\x01\aSamples\x01\xff\x86\x00\x00\x00\x17\xff\x85\x02\x01\x01\t[]float64\x01\xff\x86\x00\x01\b\x00\x00/\xff\x88\x00\x05\x01\xfe\xf0?\x01\xfe\xf0?\x00\x01@\x01\xfe\xf0?\x00\x01\xfe\x1c@\x01\xfe\xf0?\x00\x01\xfe @\x01\xfe\xf0?\x00\x01\xfeY@\x01\xfe\xf0?\x00\x05\b\x00\xfeY@\x05\b\x00\xfe\xf0?\x05\b\x00\xfeY@"
+	tdExpected := tdigest.NewMerging(100, false)
+	err := tdExpected.GobDecode([]byte(ExpectedGobStream))
+	assert.NoError(t, err, "Should not have encountered error in decoding expected gob stream")
+
 	var HistogramValues = []float64{1.0, 2.0, 7.0, 8.0, 100.0}
 
 	// Number of events observed (in 50ms interval)
@@ -396,10 +403,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 
 	// The remote server receives the raw count, *not* the normalized count
 	assert.InEpsilon(t, HistogramCountRaw, td.Count(), ε)
-	assert.InEpsilon(t, 100, td.Max(), ε)
-	assert.InEpsilon(t, 1, td.Min(), ε)
-	assert.InEpsilon(t, 7, td.Quantile(.5), 0.2)
-	assert.InEpsilon(t, 1.777, td.ReciprocalSum(), 0.01)
+	assert.Equal(t, tdExpected, td, "Underlying tdigest structure is incorrect")
 }
 
 func TestSplitBytes(t *testing.T) {

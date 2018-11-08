@@ -17,15 +17,6 @@ message Metric {
         HistogramValue histogram = 7;
         SetValue set = 8;
     }
-
-    Scope scope = 9;
-}
-
-// Scope describes at which level the metric will be emitted.
-enum Scope {
-    Mixed = 0;
-    Local = 1;
-    Global = 2;
 }
 
 // Type can be any of the valid metric types recognized by Veneur.
