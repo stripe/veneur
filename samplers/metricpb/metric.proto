@@ -19,6 +19,7 @@ message Metric {
     }
 
     Scope scope = 9;
+    string hostname = 10;
 }
 
 // Scope describes at which level the metric will be emitted.

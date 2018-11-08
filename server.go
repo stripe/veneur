@@ -20,6 +20,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/stripe/veneur/metricingester"
+
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -583,12 +585,8 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.grpcListenAddress = conf.GrpcAddress
 	if ret.grpcListenAddress != "" {
 		// convert all the workers to the proper interface
-		ingesters := make([]importsrv.MetricIngester, len(ret.Workers))
-		for i, worker := range ret.Workers {
-			ingesters[i] = worker
-		}
 
-		ret.grpcServer = importsrv.New(ingesters,
+		ret.grpcServer = importsrv.New(metricingester.AggregatingIngestor{},
 			importsrv.WithTraceClient(ret.TraceClient))
 	}
 
