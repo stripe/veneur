@@ -439,24 +439,24 @@ func checkBufferSplit(t *testing.T, buf []byte) {
 
 func readTestKeysCerts() (map[string]string, error) {
 	// reads the insecure test keys and certificates in fixtures generated with:
-	// # Generate the authority key and certificate (512-bit RSA signed using SHA-256)
-	// openssl genrsa -out cakey.pem 512
+	// # Generate the authority key and certificate (1024-bit RSA signed using SHA-256)
+	// openssl genrsa -out cakey.pem 1024
 	// openssl req -new -x509 -key cakey.pem -out cacert.pem -days 1095 -subj "/O=Example Inc/CN=Example Certificate Authority"
 
 	// # Generate the server key and certificate, signed by the authority
-	// openssl genrsa -out serverkey.pem 512
+	// openssl genrsa -out serverkey.pem 1024
 	// openssl req -new -key serverkey.pem -out serverkey.csr -days 1095 -subj "/O=Example Inc/CN=localhost"
 	// openssl x509 -req -in serverkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out servercert.pem -days 1095
 
 	// # Generate a client key and certificate, signed by the authority
-	// openssl genrsa -out clientkey.pem 512
+	// openssl genrsa -out clientkey.pem 1024
 	// openssl req -new -key clientkey.pem -out clientkey.csr -days 1095 -subj "/O=Example Inc/CN=Veneur client key"
-	// openssl x509 -req -in clientkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out clientcert.pem -days 1095
+	// openssl x509 -req -in clientkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out clientcert_correct.pem -days 1095
 
 	// # Generate another ca and sign the client key
-	// openssl genrsa -out wrongcakey.pem 512
+	// openssl genrsa -out wrongcakey.pem 1024
 	// openssl req -new -x509 -key wrongcakey.pem -out wrongcacert.pem -days 1095 -subj "/O=Wrong Inc/CN=Wrong Certificate Authority"
-	// openssl x509 -req -in clientkey.csr -CA wrongcacert.pem -CAkey wrongcakey.pem -CAcreateserial -out wrongclientcert.pem -days 1095
+	// openssl x509 -req -in clientkey.csr -CA wrongcacert.pem -CAkey wrongcakey.pem -CAcreateserial -out clientcert_wrong.pem -days 1095
 
 	pems := map[string]string{}
 	pemFileNames := []string{

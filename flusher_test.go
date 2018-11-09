@@ -5,7 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stripe/veneur/samplers"
+
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/internal/forwardtest"
 	"github.com/stripe/veneur/samplers/metricpb"
 )
@@ -64,4 +67,41 @@ func TestServerFlushGRPCBadAddress(t *testing.T) {
 
 	local.Workers[0].ProcessMetric(forwardGRPCTestMetrics()[0])
 	local.Flush(context.Background())
+}
+
+// Ensure that if someone sends a histogram to the global stats box directly,
+// it emits both aggregates and percentiles (basically behaves like a global
+// histo).
+func TestGlobalAcceptsHistogramsOverUDP(t *testing.T) {
+	rcv := make(chan []samplers.InterMetric, 10)
+	sink, err := NewChannelMetricSink(rcv)
+	require.NoError(t, err)
+
+	cfg := globalConfig()
+	cfg.Percentiles = []float64{}
+	cfg.Aggregates = []string{"min"}
+	global := setupVeneurServer(t, cfg, nil, sink, nil)
+	defer global.Shutdown()
+
+	// simulate introducing a histogram to a global veneur.
+	m := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "histo",
+			Type: histogramTypeName,
+		},
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.MixedScope,
+	}
+	global.Workers[0].ProcessMetric(&m)
+	global.Flush(context.Background())
+
+	select {
+	case results := <-rcv:
+		assert.Len(t, results, 1, "too many metrics for global histo flush")
+		assert.Equal(t, "histo.min", results[0].Name, "flushed global metric was incorrect aggregate")
+	case <-time.After(time.Second * 5):
+		t.Fatal("timed out waiting for global veneur flush")
+	}
 }
