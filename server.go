@@ -31,6 +31,7 @@ import (
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
 	"google.golang.org/grpc"
+	_ "google.golang.org/grpc/encoding/gzip"
 
 	"github.com/pkg/profile"
 
@@ -673,7 +674,7 @@ func (s *Server) Start() {
 	// Initialize a gRPC connection for forwarding
 	if s.forwardUseGRPC {
 		var err error
-		s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure(), grpc.WithCompressor(grpc.NewGZIPCompressor()), grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
+		s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.UseCompressor("gzip")))
 		if err != nil {
 			log.WithError(err).WithFields(logrus.Fields{
 				"forwardAddr": s.ForwardAddr,

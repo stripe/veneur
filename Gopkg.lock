@@ -617,7 +617,7 @@
   revision = "b0a3dcfcd1a9bd48e63634bd8802960804cf8315"
 
 [[projects]]
-  digest = "1:6134b1973a1161ed8b4183bcac7135566211a165db9f81f501d69c0747d73cbd"
+  digest = "1:e2d00ff2be72d71552da40d820b4e151a1129480742cc9d7af7af5b6dc63af15"
   name = "google.golang.org/grpc"
   packages = [
     ".",
@@ -628,6 +628,7 @@
     "connectivity",
     "credentials",
     "encoding",
+    "encoding/gzip",
     "encoding/proto",
     "grpclb/grpc_lb_v1/messages",
     "grpclog",
@@ -867,6 +868,7 @@
     "golang.org/x/sys/unix",
     "google.golang.org/grpc",
     "google.golang.org/grpc/connectivity",
+    "google.golang.org/grpc/encoding/gzip",
     "google.golang.org/grpc/metadata",
     "google.golang.org/grpc/status",
     "gopkg.in/yaml.v2",

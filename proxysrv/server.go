@@ -19,6 +19,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context" // This can be replace with "context" after Go 1.8 support is dropped
 	"google.golang.org/grpc"
+	_ "google.golang.org/grpc/encoding/gzip"
 	"stathat.com/c/consistent"
 
 	"github.com/stripe/veneur/forwardrpc"
@@ -71,7 +72,7 @@ func New(destinations *consistent.Consistent, opts ...Option) (*Server, error) {
 			forwardTimeout: defaultForwardTimeout,
 			statsInterval:  defaultReportStatsInterval,
 		},
-		conns:               newClientConnMap(grpc.WithInsecure(), grpc.WithCompressor(grpc.NewGZIPCompressor()), grpc.WithDecompressor(grpc.NewGZIPDecompressor())),
+		conns:               newClientConnMap(grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.UseCompressor("gzip"))),
 		activeProxyHandlers: new(int64),
 	}
 
