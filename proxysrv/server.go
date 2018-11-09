@@ -66,7 +66,7 @@ type options struct {
 // is unstarted.
 func New(destinations *consistent.Consistent, opts ...Option) (*Server, error) {
 	res := &Server{
-		Server: grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor())),
+		Server: grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor())),
 		opts: &options{
 			forwardTimeout: defaultForwardTimeout,
 			statsInterval:  defaultReportStatsInterval,

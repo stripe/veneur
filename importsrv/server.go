@@ -52,7 +52,7 @@ type Option func(*options)
 // output to.
 func New(metricOuts []MetricIngester, opts ...Option) *Server {
 	res := &Server{
-		Server:     grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor())),
+		Server:     grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor())),
 		metricOuts: metricOuts,
 		opts:       &options{},
 	}
