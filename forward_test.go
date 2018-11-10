@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stripe/veneur/sinks/channel"
+
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -100,7 +102,7 @@ func (ff *forwardFixture) IngestMetric(m *samplers.UDPMetric) {
 func TestE2EForwardingIndicatorMetrics(t *testing.T) {
 	t.Parallel()
 	ch := make(chan []samplers.InterMetric)
-	sink, _ := NewChannelMetricSink(ch)
+	sink, _ := channel.NewChannelMetricSink(ch)
 	cfg := localConfig()
 	cfg.IndicatorSpanTimerName = "indicator.span.timer"
 	ffx := newForwardingFixture(t, cfg, nil, sink)
@@ -143,7 +145,7 @@ func TestE2EForwardingIndicatorMetrics(t *testing.T) {
 func TestE2EForwardMetric(t *testing.T) {
 	t.Parallel()
 	ch := make(chan []samplers.InterMetric)
-	sink, _ := NewChannelMetricSink(ch)
+	sink, _ := channel.NewChannelMetricSink(ch)
 	cfg := localConfig()
 	cfg.IndicatorSpanTimerName = "indicator.span.timer"
 	ffx := newForwardingFixture(t, cfg, nil, sink)
