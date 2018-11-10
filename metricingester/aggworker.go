@@ -12,6 +12,15 @@ type aggWorker struct {
 	flush  chan chan<- samplerEnvelope
 }
 
+func newAggWorker() aggWorker {
+	return aggWorker{
+		samplers: newSamplerEnvelope(),
+		inC:      make(chan Metric),
+		mergeC:   make(chan Digest),
+		flush:    make(chan chan<- samplerEnvelope),
+	}
+}
+
 func (a aggWorker) Start() {
 	go func() {
 		for {
@@ -44,7 +53,7 @@ func (a aggWorker) Merge(d Digest) {
 
 func (a aggWorker) Stop() {
 	close(a.inC)
-	close(a.flush)
+	close(a.mergeC)
 }
 
 func (a aggWorker) Flush() samplerEnvelope {

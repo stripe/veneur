@@ -1,12 +1,56 @@
 package metricingester
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type AggregatingIngestor struct {
-	workers  []aggWorker
-	flusher  func(samplerEnvelope) error
-	interval time.Duration
-	quit     chan struct{}
+	workers []aggWorker
+	flusher flusher
+	ticker  *time.Ticker
+	tickerC <-chan time.Time
+	quit    chan struct{}
+}
+
+type flusher interface {
+	Flush(ctx context.Context, envelope samplerEnvelope)
+}
+
+type ingesterOption func(AggregatingIngestor) AggregatingIngestor
+
+// Override the ticker channel that triggers flushing. Useful for testing.
+func FlushChan(tckr <-chan time.Time) ingesterOption {
+	return func(option AggregatingIngestor) AggregatingIngestor {
+		option.tickerC = tckr
+		return option
+	}
+}
+
+// NewFlushingIngester creates an ingester that flushes metrics to the specified sinks.
+func NewFlushingIngester(
+	workers int,
+	interval time.Duration,
+	sinks []Sink,
+	options ...ingesterOption,
+) AggregatingIngestor {
+	var aggW []aggWorker
+	for i := 0; i < workers; i++ {
+		aggW = append(aggW, newAggWorker())
+	}
+
+	t := time.NewTicker(interval)
+	ing := AggregatingIngestor{
+		workers: aggW,
+		flusher: newSinkFlusher(sinks),
+		ticker:  t,
+		tickerC: t.C,
+		quit:    make(chan struct{}),
+	}
+	for _, opt := range options {
+		ing = opt(ing)
+	}
+	return ing
 }
 
 // TODO(clin): This needs to take ctx.
@@ -23,11 +67,14 @@ func (a AggregatingIngestor) Merge(d Digest) error {
 }
 
 func (a AggregatingIngestor) Start() {
+	for _, w := range a.workers {
+		w.Start()
+	}
+
 	go func() {
-		ticker := time.NewTicker(a.interval)
 		for {
 			select {
-			case <-ticker.C:
+			case <-a.tickerC:
 				a.flush()
 			case <-a.quit:
 				return
@@ -37,11 +84,17 @@ func (a AggregatingIngestor) Start() {
 }
 
 func (a AggregatingIngestor) Stop() {
+	a.ticker.Stop()
 	close(a.quit)
+	for _, w := range a.workers {
+		w.Stop()
+	}
 }
 
 func (a AggregatingIngestor) flush() {
 	for _, w := range a.workers {
-		go a.flusher(w.Flush())
+		go func(worker aggWorker) {
+			a.flusher.Flush(context.Background(), worker.Flush())
+		}(w)
 	}
 }

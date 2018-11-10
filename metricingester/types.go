@@ -1,6 +1,7 @@
 package metricingester
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/stripe/veneur/samplers"
@@ -60,6 +61,7 @@ func (m Metric) Hash() metricHash {
 //
 // tags are assumed to be inC sorted order.
 func NewCounter(name string, v int64, tags []string, samplerate float32, hostname string) Metric {
+	sort.Sort(sort.StringSlice(tags))
 	return Metric{
 		name:         name,
 		countervalue: v,
@@ -74,6 +76,7 @@ func NewCounter(name string, v int64, tags []string, samplerate float32, hostnam
 //
 // tags are assumed to be inC sorted order.
 func NewGauge(name string, v float64, tags []string, samplerate float32, hostname string) Metric {
+	sort.Sort(sort.StringSlice(tags))
 	return Metric{
 		name:       name,
 		gaugevalue: v,
@@ -130,6 +133,7 @@ func NewHistogramDigest(
 	tags []string,
 	hostname string,
 ) Digest {
+	sort.Sort(sort.StringSlice(tags))
 	return Digest{
 		name:        name,
 		tags:        tags,
@@ -145,6 +149,7 @@ func NewMixedHistogramDigest(
 	tags []string,
 	hostname string,
 ) Digest {
+	sort.Sort(sort.StringSlice(tags))
 	return Digest{
 		name:        name,
 		tags:        tags,
@@ -162,6 +167,7 @@ func NewSetDigest(
 	tags []string,
 	hostname string,
 ) Digest {
+	sort.Sort(sort.StringSlice(tags))
 	return Digest{
 		name:       name,
 		tags:       tags,

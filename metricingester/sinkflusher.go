@@ -5,26 +5,45 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/trace"
 )
 
 type sinkFlusher struct {
 	aggregates  samplers.HistogramAggregates
 	percentiles []float64
-	sinks       []sink
-
-	log   *logrus.Logger
-	trace trace.Client
+	sinks       []Sink
 }
 
-type sink interface {
+type sinkFlusherOpt func(sinkFlusher) sinkFlusher
+
+func optPercentiles(ps []float64) sinkFlusherOpt {
+	return func(f sinkFlusher) sinkFlusher {
+		f.percentiles = ps
+		return f
+	}
+}
+
+func optAggregates(as samplers.HistogramAggregates) sinkFlusherOpt {
+	return func(f sinkFlusher) sinkFlusher {
+		f.aggregates = as
+		return f
+	}
+}
+
+func newSinkFlusher(sinks []Sink, opts ...sinkFlusherOpt) sinkFlusher {
+	sf := sinkFlusher{sinks: sinks}
+	for _, opt := range opts {
+		sf = opt(sf)
+	}
+	return sf
+}
+
+type Sink interface {
 	Name() string
 	Flush(context.Context, []samplers.InterMetric) error
 }
 
-func (s sinkFlusher) Flush(ctx context.Context, envelope samplerEnvelope) error {
+func (s sinkFlusher) Flush(ctx context.Context, envelope samplerEnvelope) {
 	metrics := make([]samplers.InterMetric, 0, countMetrics(envelope))
 	// get metrics from envelope
 	for _, sampler := range envelope.counters {
@@ -44,23 +63,23 @@ func (s sinkFlusher) Flush(ctx context.Context, envelope samplerEnvelope) error 
 	}
 
 	if len(metrics) == 0 {
-		return nil
+		return
 	}
 
 	// TODO(clin): Add back metrics once we finalize the metrics client pull request.
 	wg := sync.WaitGroup{}
 	for _, sinkInstance := range s.sinks {
 		wg.Add(1)
-		go func(ms sink) {
+		go func(ms Sink) {
 			err := ms.Flush(ctx, metrics)
 			if err != nil {
-				s.log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
+				//s.log.WithError(err).WithField("Sink", ms.Name()).Warn("Error flushing Sink")
 			}
 			wg.Done()
 		}(sinkInstance)
 	}
 	wg.Wait()
-	return nil
+	return
 }
 
 func countMetrics(samplers samplerEnvelope) (count int) {
