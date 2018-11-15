@@ -3,6 +3,8 @@ package metricingester
 import (
 	"context"
 	"time"
+
+	"github.com/stripe/veneur/samplers"
 )
 
 type AggregatingIngestor struct {
@@ -32,6 +34,8 @@ func NewFlushingIngester(
 	workers int,
 	interval time.Duration,
 	sinks []Sink,
+	percentiles []float64,
+	aggregates samplers.Aggregate,
 	options ...ingesterOption,
 ) AggregatingIngestor {
 	var aggW []aggWorker
@@ -42,7 +46,11 @@ func NewFlushingIngester(
 	t := time.NewTicker(interval)
 	ing := AggregatingIngestor{
 		workers: aggW,
-		flusher: newSinkFlusher(sinks),
+		flusher: sinkFlusher{
+			sinks:       sinks,
+			percentiles: percentiles,
+			aggregates:  samplers.HistogramAggregates{aggregates, 4},
+		},
 		ticker:  t,
 		tickerC: t.C,
 		quit:    make(chan struct{}),

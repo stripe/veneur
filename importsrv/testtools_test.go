@@ -2,6 +2,7 @@ package importsrv_test
 
 import (
 	"github.com/stripe/veneur/samplers/metricpb"
+	"github.com/stripe/veneur/tdigest"
 )
 
 //
@@ -61,7 +62,20 @@ func pbgauge(name string, value float64, opts ...func(m *metricpb.Metric)) *metr
 }
 
 func pbhisto(name string, values []float64, opts ...func(m *metricpb.Metric)) *metricpb.Metric {
-	return nil
+	td := tdigest.NewMerging(1000, true)
+	for _, s := range values {
+		td.Add(s, 1)
+	}
+	m := &metricpb.Metric{
+		Name:  name,
+		Value: &metricpb.Metric_Histogram{Histogram: &metricpb.HistogramValue{TDigest: td.Data()}},
+		Type:  metricpb.Type_Histogram,
+	}
+
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
 }
 
 func pbset(name string, values []string, opts ...func(m *metricpb.Metric)) *metricpb.Metric {

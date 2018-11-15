@@ -134,7 +134,7 @@ var testE2EFlushingCases = []struct {
 			samplers.TGauge("test.count", 3, samplers.OptHostname("a")),
 			samplers.TGauge("test.p99", 3),
 		),
-		"mixed histos not reporting host level aggregates",
+		"mixed histos not reporting host level aggregates for one host",
 	},
 	{
 		pbmetrics(
@@ -148,9 +148,10 @@ var testE2EFlushingCases = []struct {
 			samplers.TGauge("test.min", 4, samplers.OptHostname("b")),
 			samplers.TGauge("test.max", 6, samplers.OptHostname("b")),
 			samplers.TGauge("test.count", 3, samplers.OptHostname("b")),
-			samplers.TGauge("test.p99", 6),
+			samplers.TGauge("test.50percentile", 3.5),
+			samplers.TGauge("test.99percentile", 5.984999999999999),
 		),
-		"mixed histos not reporting host level aggregates",
+		"mixed histos not reporting host level aggregates for two hosts",
 	},
 
 	// sink tests
@@ -182,6 +183,8 @@ func test(in []*metricpb.Metric, out []samplers.TestMetric, msg string) func(*te
 			workers, // we want to test the parallel case
 			1,       // this field is practically meaningless since we override the flush channel
 			[]metricingester.Sink{cms},
+			[]float64{0.5, 0.95},
+			samplers.AggregateMin|samplers.AggregateMax|samplers.AggregateCount,
 			metricingester.FlushChan(flushc), // override the flush ticker channel so we control when flush
 		)
 		s := importsrv.New(ing)
@@ -201,16 +204,22 @@ func test(in []*metricpb.Metric, out []samplers.TestMetric, msg string) func(*te
 		for i := 0; i < workers; i++ {
 			select {
 			case result := <-rc:
-				//t.Logf("result: %v", result)
 				results = append(results, result...)
-			case <-time.After(10 * time.Second):
-				t.Fatal("took too long to flush metric results")
+			case <-time.After(1 * time.Second):
+				t.Fatal("took too long to flush metric results or no metrics to flush!")
 			}
 		}
 
 		// ASSERT
 
-		assert.ElementsMatch(t, out, samplers.ToTestMetrics(results), "MSG: %v // VALUES : %v", msg, results)
+		assert.ElementsMatch(
+			t,
+			out,
+			samplers.ToTestMetrics(results),
+			"EXPECTED: %+v\nACTUAL: %+v",
+			out,
+			samplers.ToTestMetrics(results),
+		)
 	}
 }
 

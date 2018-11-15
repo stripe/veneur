@@ -1,6 +1,7 @@
 package samplers
 
 import (
+	"encoding/json"
 	"strings"
 )
 
@@ -12,6 +13,14 @@ type TestMetric struct {
 	Type     MetricType
 	Message  string
 	Sinks    RouteInformation
+}
+
+func (t TestMetric) String() string {
+	m, err := json.MarshalIndent(t, "", "    ")
+	if err != nil {
+		return ""
+	}
+	return string(m)
 }
 
 func TMetrics(rs ...TestMetric) []TestMetric {

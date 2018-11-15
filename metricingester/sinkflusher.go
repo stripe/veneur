@@ -16,28 +16,6 @@ type sinkFlusher struct {
 
 type sinkFlusherOpt func(sinkFlusher) sinkFlusher
 
-func optPercentiles(ps []float64) sinkFlusherOpt {
-	return func(f sinkFlusher) sinkFlusher {
-		f.percentiles = ps
-		return f
-	}
-}
-
-func optAggregates(as samplers.HistogramAggregates) sinkFlusherOpt {
-	return func(f sinkFlusher) sinkFlusher {
-		f.aggregates = as
-		return f
-	}
-}
-
-func newSinkFlusher(sinks []Sink, opts ...sinkFlusherOpt) sinkFlusher {
-	sf := sinkFlusher{sinks: sinks}
-	for _, opt := range opts {
-		sf = opt(sf)
-	}
-	return sf
-}
-
 type Sink interface {
 	Name() string
 	Flush(context.Context, []samplers.InterMetric) error
@@ -59,26 +37,22 @@ func (s sinkFlusher) Flush(ctx context.Context, envelope samplerEnvelope) {
 		metrics = append(metrics, sampler.Flush(time.Second, s.percentiles, s.aggregates, true)...)
 	}
 	for _, sampler := range envelope.mixedHistograms {
-		metrics = append(metrics, sampler.Flush(time.Second, s.percentiles, s.aggregates, true)...)
+		metrics = append(metrics, sampler.Flush(s.percentiles, s.aggregates)...)
 	}
 
 	if len(metrics) == 0 {
 		return
 	}
 
-	// TODO(clin): Add back metrics once we finalize the metrics client pull request.
-	wg := sync.WaitGroup{}
 	for _, sinkInstance := range s.sinks {
-		wg.Add(1)
+		// TODO(clin): Add back metrics once we finalize the metrics client pull request.
 		go func(ms Sink) {
 			err := ms.Flush(ctx, metrics)
 			if err != nil {
 				//s.log.WithError(err).WithField("Sink", ms.Name()).Warn("Error flushing Sink")
 			}
-			wg.Done()
 		}(sinkInstance)
 	}
-	wg.Wait()
 	return
 }
 

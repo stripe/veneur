@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	"github.com/stripe/veneur/samplers/metricpb"
+	"github.com/stripe/veneur/tdigest"
 )
 
 // NewMixedHisto creates a new mixed histogram.
@@ -94,4 +97,16 @@ func getDefault(m map[string]float64, key string, def float64) float64 {
 		return v
 	}
 	return def
+}
+
+// Merge merges in a histogram.
+func (m MixedHisto) Merge(host string, v *metricpb.HistogramValue) {
+	merging := tdigest.NewMergingFromData(v.GetTDigest())
+	m.histo.Value.Merge(merging)
+
+	m.min[host] = math.Min(merging.Min(), getDefault(m.min, host, math.Inf(+1)))
+	m.max[host] = math.Max(merging.Max(), getDefault(m.max, host, math.Inf(-1)))
+	m.weight[host] += merging.Count()
+	m.sum[host] += merging.Sum()
+	m.reciprocalSum[host] += merging.ReciprocalSum()
 }
