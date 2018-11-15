@@ -2,7 +2,6 @@ package importsrv_test
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -159,21 +158,6 @@ var testE2EFlushingCases = []struct {
 	// crazy random "real world" tests
 }
 
-func toResults(ms []samplers.InterMetric) (outs []samplers.TestMetric) {
-	for _, inm := range ms {
-		outs = append(outs, samplers.TestMetric{
-			Name:     inm.Name,
-			Tags:     strings.Join(inm.Tags, ","),
-			Value:    inm.Value,
-			Type:     inm.Type,
-			Message:  inm.Message,
-			Hostname: inm.HostName,
-			Sinks:    inm.Sinks,
-		})
-	}
-	return outs
-}
-
 // TestE2EFlushingIngester tests the integration of the import endpoint with
 // the flushing ingester.
 func TestE2EFlushingIngester(t *testing.T) {
@@ -226,7 +210,7 @@ func test(in []*metricpb.Metric, out []samplers.TestMetric, msg string) func(*te
 
 		// ASSERT
 
-		assert.ElementsMatch(t, out, toResults(results), "MSG: %v // VALUES : %v", msg, results)
+		assert.ElementsMatch(t, out, samplers.ToTestMetrics(results), "MSG: %v // VALUES : %v", msg, results)
 	}
 }
 

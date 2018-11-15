@@ -67,9 +67,3 @@ func pbhisto(name string, values []float64, opts ...func(m *metricpb.Metric)) *m
 func pbset(name string, values []string, opts ...func(m *metricpb.Metric)) *metricpb.Metric {
 	return nil
 }
-
-//
-// RESULTS
-//
-
-// opts

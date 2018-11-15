@@ -1,6 +1,8 @@
 package samplers
 
-import "strings"
+import (
+	"strings"
+)
 
 type TestMetric struct {
 	Name     string
@@ -78,4 +80,19 @@ func OptSinks(ri RouteInformation) func(r TestMetric) TestMetric {
 		r.Sinks = ri
 		return r
 	}
+}
+
+func ToTestMetrics(ms []InterMetric) (outs []TestMetric) {
+	for _, inm := range ms {
+		outs = append(outs, TestMetric{
+			Name:     inm.Name,
+			Tags:     strings.Join(inm.Tags, ","),
+			Value:    inm.Value,
+			Type:     inm.Type,
+			Message:  inm.Message,
+			Hostname: inm.HostName,
+			Sinks:    inm.Sinks,
+		})
+	}
+	return outs
 }
