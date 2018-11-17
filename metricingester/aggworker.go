@@ -89,14 +89,21 @@ func (a aggWorker) ingest(m Metric) {
 }
 
 func (a aggWorker) merge(d Digest) {
-	key := d.Key()
 	switch d.digestType {
+	case mixedHistoDigest:
+		key := d.MixedKey()
+		if _, present := a.samplers.mixedHistograms[key]; !present {
+			a.samplers.mixedHistograms[key] = samplers.NewMixedHisto(d.name, d.tags)
+		}
+		a.samplers.mixedHistograms[key].Merge(d.hostname, d.histodigest)
 	case histoDigest:
+		key := d.Key()
 		if _, present := a.samplers.histograms[key]; !present {
 			a.samplers.histograms[key] = samplers.NewHist(d.name, d.tags)
 		}
 		a.samplers.histograms[key].Merge(d.histodigest)
 	case setDigest:
+		key := d.Key()
 		if _, present := a.samplers.sets[key]; !present {
 			a.samplers.sets[key] = samplers.NewSet(d.name, d.tags)
 		}

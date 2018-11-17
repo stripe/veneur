@@ -69,7 +69,12 @@ func (a AggregatingIngestor) Ingest(m Metric) error {
 }
 
 func (a AggregatingIngestor) Merge(d Digest) error {
-	workerid := d.Hash() % metricHash(len(a.workers))
+	var workerid metricHash
+	if d.digestType == mixedHistoDigest {
+		workerid = d.MixedHash() % metricHash(len(a.workers))
+	} else {
+		workerid = d.Hash() % metricHash(len(a.workers))
+	}
 	a.workers[workerid].Merge(d)
 	return nil
 }

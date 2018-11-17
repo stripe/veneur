@@ -121,8 +121,23 @@ func (d Digest) Key() metricKey {
 	}
 }
 
+// MixedKey is the key used to identify mixed histograms, which need to be aggregated
+// without consideration of host.
+func (d Digest) MixedKey() metricKey {
+	return metricKey{
+		name: d.name,
+		tags: strings.Join(d.tags, ","),
+	}
+}
+
 func (d Digest) Hash() metricHash {
 	return metricHash(hash(d.name, d.hostname, d.tags))
+}
+
+// MixedHash is the hash used to shard mixed histograms, which need to be aggregated
+// without consideration of host.
+func (d Digest) MixedHash() metricHash {
+	return metricHash(hash(d.name, "", d.tags))
 }
 
 //
@@ -133,6 +148,7 @@ func NewHistogramDigest(
 	tags []string,
 	hostname string,
 ) Digest {
+	// TODO(clin): Ensure tags are always sorted.
 	sort.Sort(sort.StringSlice(tags))
 	return Digest{
 		name:        name,
@@ -196,7 +212,7 @@ type samplerEnvelope struct {
 	counters        map[metricKey]*samplers.Counter
 	gauges          map[metricKey]*samplers.Gauge
 	histograms      map[metricKey]*samplers.Histo
-	mixedHistograms map[metricKey]*samplers.Histo
+	mixedHistograms map[metricKey]samplers.MixedHisto
 	sets            map[metricKey]*samplers.Set
 }
 
@@ -205,7 +221,7 @@ func newSamplerEnvelope() samplerEnvelope {
 		counters:        make(map[metricKey]*samplers.Counter),
 		gauges:          make(map[metricKey]*samplers.Gauge),
 		histograms:      make(map[metricKey]*samplers.Histo),
-		mixedHistograms: make(map[metricKey]*samplers.Histo),
+		mixedHistograms: make(map[metricKey]samplers.MixedHisto),
 		sets:            make(map[metricKey]*samplers.Set),
 	}
 }

@@ -2,7 +2,6 @@ package metricingester
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/stripe/veneur/samplers"

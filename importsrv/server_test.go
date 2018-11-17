@@ -36,7 +36,13 @@ var testE2EFlushingCases = []struct {
 	},
 	{
 		pbmetrics(pbhisto("test", []float64{1, 2, 3})),
-		samplers.TMetrics(samplers.TGauge("test.min", 1), samplers.TGauge("test.max", 3), samplers.TCounter("test.count", 3)),
+		samplers.TMetrics(
+			samplers.TGauge("test.min", 1),
+			samplers.TGauge("test.max", 3),
+			samplers.TGauge("test.count", 3),
+			samplers.TGauge("test.50percentile", 2),
+			samplers.TGauge("test.95percentile", 2.925),
+		),
 		"histo not present",
 	},
 	{
@@ -132,7 +138,8 @@ var testE2EFlushingCases = []struct {
 			samplers.TGauge("test.min", 1, samplers.OptHostname("a")),
 			samplers.TGauge("test.max", 3, samplers.OptHostname("a")),
 			samplers.TGauge("test.count", 3, samplers.OptHostname("a")),
-			samplers.TGauge("test.p99", 3),
+			samplers.TGauge("test.50percentile", 2),
+			samplers.TGauge("test.95percentile", 2.925),
 		),
 		"mixed histos not reporting host level aggregates for one host",
 	},
@@ -149,7 +156,7 @@ var testE2EFlushingCases = []struct {
 			samplers.TGauge("test.max", 6, samplers.OptHostname("b")),
 			samplers.TGauge("test.count", 3, samplers.OptHostname("b")),
 			samplers.TGauge("test.50percentile", 3.5),
-			samplers.TGauge("test.99percentile", 5.984999999999999),
+			samplers.TGauge("test.95percentile", 5.85),
 		),
 		"mixed histos not reporting host level aggregates for two hosts",
 	},
