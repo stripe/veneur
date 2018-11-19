@@ -9,16 +9,29 @@ import (
 	"github.com/stripe/veneur/tdigest"
 )
 
+type optMixedHisto func(MixedHisto) MixedHisto
+
+func OptMixedHistoHostname(hn string) optMixedHisto {
+	return func(histo MixedHisto) MixedHisto {
+		histo.hostname = hn
+		return histo
+	}
+}
+
 // NewMixedHisto creates a new mixed histogram.
-func NewMixedHisto(name string, tags []string) MixedHisto {
-	return MixedHisto{
-		histo:         NewHist(name, tags),
+func NewMixedHisto(name string, tags []string, opts ...optMixedHisto) MixedHisto {
+	m := MixedHisto{
 		min:           make(map[string]float64),
 		max:           make(map[string]float64),
 		weight:        make(map[string]float64),
 		sum:           make(map[string]float64),
 		reciprocalSum: make(map[string]float64),
 	}
+	for _, opt := range opts {
+		m = opt(m)
+	}
+	m.histo = NewHist(name, tags)
+	return m
 }
 
 // MixedHisto is a sampler for the MixedScope histogram case.
@@ -33,6 +46,7 @@ func NewMixedHisto(name string, tags []string) MixedHisto {
 // Note that we don't support the "median" aggregate for mixed histograms.
 type MixedHisto struct {
 	histo         *Histo
+	hostname      string
 	min           map[string]float64
 	max           map[string]float64
 	weight        map[string]float64

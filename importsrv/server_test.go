@@ -11,9 +11,8 @@ import (
 	"github.com/stripe/veneur/importsrv"
 	"github.com/stripe/veneur/metricingester"
 	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/sinks/channel"
-
 	"github.com/stripe/veneur/samplers/metricpb"
+	"github.com/stripe/veneur/sinks/channel"
 )
 
 var testE2EFlushingCases = []struct {
@@ -46,7 +45,7 @@ var testE2EFlushingCases = []struct {
 		"histo not present",
 	},
 	{
-		pbmetrics(pbset("test", []string{"asf"})),
+		pbmetrics(pbset("test", []string{"asf", "clin", "aditya"})),
 		samplers.TMetrics(samplers.TGauge("test", 3)),
 		"set not present",
 	},

@@ -128,9 +128,10 @@ func routeInfo(tags []string) RouteInformation {
 
 // Counter is an accumulator
 type Counter struct {
-	Name  string
-	Tags  []string
-	value int64
+	Name     string
+	Tags     []string
+	Hostname string
+	value    int64
 }
 
 // GetName returns the name of the counter.
@@ -154,6 +155,7 @@ func (c *Counter) Flush(interval time.Duration) []InterMetric {
 		Tags:      tags,
 		Type:      CounterMetric,
 		Sinks:     routeInfo(tags),
+		HostName:  c.Hostname,
 	}}
 }
 
@@ -216,9 +218,10 @@ func NewCounter(Name string, Tags []string) *Counter {
 
 // Gauge retains whatever the last value was.
 type Gauge struct {
-	Name  string
-	Tags  []string
-	value float64
+	Name     string
+	Tags     []string
+	Hostname string
+	value    float64
 }
 
 // Sample takes on whatever value is passed in as a sample.
@@ -234,6 +237,7 @@ func (g *Gauge) Flush() []InterMetric {
 		Name:      g.Name,
 		Timestamp: time.Now().Unix(),
 		Value:     float64(g.value),
+		HostName:  g.Hostname,
 		Tags:      tags,
 		Type:      GaugeMetric,
 		Sinks:     routeInfo(tags),
@@ -365,9 +369,10 @@ func NewStatusCheck(Name string, Tags []string) *StatusCheck {
 
 // Set is a list of unique values seen.
 type Set struct {
-	Name string
-	Tags []string
-	Hll  *hyperloglog.Sketch
+	Name     string
+	Tags     []string
+	Hostname string
+	Hll      *hyperloglog.Sketch
 }
 
 // Sample checks if the supplied value has is already in the filter. If not, it increments
@@ -376,16 +381,28 @@ func (s *Set) Sample(sample string, sampleRate float32) {
 	s.Hll.Insert([]byte(sample))
 }
 
+type setOpt func(*Set)
+
+func OptSetHostname(hn string) setOpt {
+	return func(s *Set) {
+		s.Hostname = hn
+	}
+}
+
 // NewSet generates a new Set and returns it
-func NewSet(Name string, Tags []string) *Set {
+func NewSet(Name string, Tags []string, opts ...setOpt) *Set {
 	// error is only returned if precision is outside the 4-18 range
 	// TODO: this is the maximum precision, should it be configurable?
 	Hll := hyperloglog.New()
-	return &Set{
+	s := &Set{
 		Name: Name,
 		Tags: Tags,
 		Hll:  Hll,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // Flush generates an InterMetric for the state of this Set.
@@ -465,9 +482,10 @@ func (s *Set) Merge(v *metricpb.SetValue) error {
 // Histo is a collection of values that generates max, min, count, and
 // percentiles over time.
 type Histo struct {
-	Name  string
-	Tags  []string
-	Value *tdigest.MergingDigest
+	Name     string
+	Tags     []string
+	Value    *tdigest.MergingDigest
+	Hostname string
 	// these values are computed from only the samples that came through this
 	// veneur instance, ignoring any histograms merged from elsewhere
 	// we separate them because they're easy to aggregate on the backend without
@@ -493,9 +511,17 @@ func (h *Histo) Sample(sample float64, sampleRate float32) {
 	h.LocalReciprocalSum += (1 / sample) * weight
 }
 
+type histOpt func(*Histo)
+
+func OptHistHostname(hn string) histOpt {
+	return func(h *Histo) {
+		h.Hostname = hn
+	}
+}
+
 // NewHist generates a new Histo and returns it.
-func NewHist(Name string, Tags []string) *Histo {
-	return &Histo{
+func NewHist(Name string, Tags []string, opts ...histOpt) *Histo {
+	h := &Histo{
 		Name: Name,
 		Tags: Tags,
 		// we're going to allocate a lot of these, so we don't want them to be huge
@@ -504,6 +530,10 @@ func NewHist(Name string, Tags []string) *Histo {
 		LocalMax: math.Inf(-1),
 		LocalSum: 0,
 	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
 }
 
 // Flush generates InterMetrics for the current state of the Histo. percentiles
@@ -541,6 +571,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Name:      fmt.Sprintf("%s.max", h.Name),
 			Timestamp: now,
 			Value:     val,
+			HostName:  h.Hostname,
 			Tags:      tags,
 			Type:      GaugeMetric,
 			Sinks:     sinks,
@@ -557,6 +588,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Name:      fmt.Sprintf("%s.min", h.Name),
 			Timestamp: now,
 			Value:     val,
+			HostName:  h.Hostname,
 			Tags:      tags,
 			Type:      GaugeMetric,
 			Sinks:     sinks,
@@ -574,6 +606,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Name:      fmt.Sprintf("%s.sum", h.Name),
 			Timestamp: now,
 			Value:     val,
+			HostName:  h.Hostname,
 			Tags:      tags,
 			Type:      GaugeMetric,
 			Sinks:     sinks,
@@ -593,6 +626,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Name:      fmt.Sprintf("%s.avg", h.Name),
 			Timestamp: now,
 			Value:     val,
+			HostName:  h.Hostname,
 			Tags:      tags,
 			Type:      GaugeMetric,
 			Sinks:     sinks,
@@ -613,6 +647,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Name:      fmt.Sprintf("%s.count", h.Name),
 			Timestamp: now,
 			Value:     val,
+			HostName:  h.Hostname,
 			Tags:      tags,
 			Type:      CounterMetric,
 			Sinks:     sinks,
@@ -628,6 +663,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 				Name:      fmt.Sprintf("%s.median", h.Name),
 				Timestamp: now,
 				Value:     float64(h.Value.Quantile(0.5)),
+				HostName:  h.Hostname,
 				Tags:      tags,
 				Type:      GaugeMetric,
 				Sinks:     sinks,
@@ -648,6 +684,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Name:      fmt.Sprintf("%s.hmean", h.Name),
 			Timestamp: now,
 			Value:     val,
+			HostName:  h.Hostname,
 			Tags:      tags,
 			Type:      GaugeMetric,
 			Sinks:     sinks,
@@ -664,6 +701,7 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 				Name:      fmt.Sprintf("%s.%dpercentile", h.Name, int(p*100)),
 				Timestamp: now,
 				Value:     float64(h.Value.Quantile(p)),
+				HostName:  h.Hostname,
 				Tags:      tags,
 				Type:      GaugeMetric,
 				Sinks:     sinks,

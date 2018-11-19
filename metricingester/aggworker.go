@@ -67,22 +67,30 @@ func (a aggWorker) ingest(m Metric) {
 	switch m.metricType {
 	case counter:
 		if _, present := a.samplers.counters[key]; !present {
-			a.samplers.counters[key] = samplers.NewCounter(m.name, m.tags)
+			a.samplers.counters[key] = &samplers.Counter{
+				Name:     m.name,
+				Hostname: m.hostname,
+				Tags:     m.tags,
+			}
 		}
 		a.samplers.counters[key].Sample(float64(m.countervalue), m.samplerate)
 	case gauge:
 		if _, present := a.samplers.gauges[key]; !present {
-			a.samplers.gauges[key] = samplers.NewGauge(m.name, m.tags)
+			a.samplers.gauges[key] = &samplers.Gauge{
+				Name:     m.name,
+				Hostname: m.hostname,
+				Tags:     m.tags,
+			}
 		}
 		a.samplers.gauges[key].Sample(m.gaugevalue, m.samplerate)
 	case set:
 		if _, present := a.samplers.sets[key]; !present {
-			a.samplers.sets[key] = samplers.NewSet(m.name, m.tags)
+			a.samplers.sets[key] = samplers.NewSet(m.name, m.tags, samplers.OptSetHostname(m.hostname))
 		}
 		a.samplers.sets[key].Sample(m.setvalue, m.samplerate)
 	case histogram:
 		if _, present := a.samplers.histograms[key]; !present {
-			a.samplers.histograms[key] = samplers.NewHist(m.name, m.tags)
+			a.samplers.histograms[key] = samplers.NewHist(m.name, m.tags, samplers.OptHistHostname(m.hostname))
 		}
 		a.samplers.histograms[key].Sample(m.histovalue, m.samplerate)
 	}
@@ -93,19 +101,19 @@ func (a aggWorker) merge(d Digest) {
 	case mixedHistoDigest:
 		key := d.MixedKey()
 		if _, present := a.samplers.mixedHistograms[key]; !present {
-			a.samplers.mixedHistograms[key] = samplers.NewMixedHisto(d.name, d.tags)
+			a.samplers.mixedHistograms[key] = samplers.NewMixedHisto(d.name, d.tags, samplers.OptMixedHistoHostname(d.hostname))
 		}
 		a.samplers.mixedHistograms[key].Merge(d.hostname, d.histodigest)
 	case histoDigest:
 		key := d.Key()
 		if _, present := a.samplers.histograms[key]; !present {
-			a.samplers.histograms[key] = samplers.NewHist(d.name, d.tags)
+			a.samplers.histograms[key] = samplers.NewHist(d.name, d.tags, samplers.OptHistHostname(d.hostname))
 		}
 		a.samplers.histograms[key].Merge(d.histodigest)
 	case setDigest:
 		key := d.Key()
 		if _, present := a.samplers.sets[key]; !present {
-			a.samplers.sets[key] = samplers.NewSet(d.name, d.tags)
+			a.samplers.sets[key] = samplers.NewSet(d.name, d.tags, samplers.OptSetHostname(d.hostname))
 		}
 		a.samplers.sets[key].Merge(d.setdigest)
 	}

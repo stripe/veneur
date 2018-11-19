@@ -38,6 +38,10 @@ func NewFlushingIngester(
 	aggregates samplers.Aggregate,
 	options ...ingesterOption,
 ) AggregatingIngestor {
+	if workers < 1 {
+		panic("more than one worker required")
+	}
+
 	var aggW []aggWorker
 	for i := 0; i < workers; i++ {
 		aggW = append(aggW, newAggWorker())
@@ -97,6 +101,7 @@ func (a AggregatingIngestor) Start() {
 }
 
 func (a AggregatingIngestor) Stop() {
+	// nb: tickers must be explicitly stopped to be GCed.
 	a.ticker.Stop()
 	close(a.quit)
 	for _, w := range a.workers {

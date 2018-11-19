@@ -1,6 +1,7 @@
 package importsrv_test
 
 import (
+	"github.com/axiomhq/hyperloglog"
 	"github.com/stripe/veneur/samplers/metricpb"
 	"github.com/stripe/veneur/tdigest"
 )
@@ -79,5 +80,23 @@ func pbhisto(name string, values []float64, opts ...func(m *metricpb.Metric)) *m
 }
 
 func pbset(name string, values []string, opts ...func(m *metricpb.Metric)) *metricpb.Metric {
-	return nil
+	hll := hyperloglog.New()
+	for _, s := range values {
+		hll.Insert([]byte(s))
+	}
+
+	v, err := hll.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+	m := &metricpb.Metric{
+		Name:  name,
+		Value: &metricpb.Metric_Set{Set: &metricpb.SetValue{HyperLogLog: v}},
+		Type:  metricpb.Type_Set,
+	}
+
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
 }
