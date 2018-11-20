@@ -37,8 +37,9 @@
   version = "1.10.16"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/getsentry/raven-go"
+  source = "github.com/stripe/raven-go"
+  revision = "a646e49f77dbb79f6a36a7043425b6c3d40397bd"
 
 [[constraint]]
   name = "github.com/gogo/protobuf"

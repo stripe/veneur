@@ -127,12 +127,12 @@
   version = "v1.1.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:d0bf01f4719fd005c2c19f805f539c52c3c50ce44a9639ef4b53b93240574893"
+  digest = "1:57525c9b66ac402b4a1573acc520bcb3897e9225f57eeedf17a943b6606eeb7b"
   name = "github.com/getsentry/raven-go"
   packages = ["."]
   pruneopts = "NUT"
-  revision = "d175f85701dfbf44cb0510114c9943e665e60907"
+  revision = "a646e49f77dbb79f6a36a7043425b6c3d40397bd"
+  source = "github.com/stripe/raven-go"
 
 [[projects]]
   digest = "1:81466b4218bf6adddac2572a30ac733a9255919bc2f470b4827a317bd4ee1756"
