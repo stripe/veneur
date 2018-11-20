@@ -10,11 +10,12 @@ package tdigest
 import (
 	"bytes"
 	"encoding/gob"
-	"github.com/pkg/errors"
 	"io"
 	"math"
 	"math/rand"
 	"sort"
+
+	"github.com/pkg/errors"
 )
 
 // A t-digest using the merging implementation. MergingDigest is not safe for

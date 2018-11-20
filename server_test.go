@@ -139,8 +139,7 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 		bhs, _ := blackhole.NewBlackholeMetricSink()
 		mSink = bhs
 	}
-	config.AdditionalMetricSinks = append(config.AdditionalMetricSinks, mSink)
-	server, err := NewFromConfig(logger, config)
+	server, err := NewFromConfig(logger, config, mSink)
 	if err != nil {
 		t.Fatal(err)
 	}

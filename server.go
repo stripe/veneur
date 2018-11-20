@@ -156,7 +156,7 @@ func SetLogger(logger *logrus.Logger) {
 // NewFromConfig creates a new veneur server from a configuration
 // specification and sets up the passed logger according to the
 // configuration.
-func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
+func NewFromConfig(logger *logrus.Logger, conf Config, moreSinks ...metricingester.Sink) (*Server, error) {
 	ret := &Server{}
 
 	ret.Hostname = conf.Hostname
@@ -587,7 +587,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		// convert all the workers to the proper interface
 		var sinks []metricingester.Sink
 
-		sinks = append(sinks, conf.AdditionalMetricSinks...)
+		sinks = append(sinks, moreSinks...)
 
 		for _, s := range ret.metricSinks {
 			sinks = append(sinks, s)
