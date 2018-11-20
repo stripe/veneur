@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/stripe/veneur/trace/metrics"
+
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/trace"
 )
 
 type sinkFlusher struct {
@@ -15,6 +18,7 @@ type sinkFlusher struct {
 	percentiles []float64
 	sinks       []Sink
 	log         *logrus.Logger
+	tc          *trace.Client
 }
 
 type Sink interface {
@@ -24,50 +28,50 @@ type Sink interface {
 
 func (s sinkFlusher) Flush(ctx context.Context, envelope samplerEnvelope) {
 	logger := traceLogger(s.log, ctx)
-	mc := traceMetrics(ctx)
-
-	metrics := make([]samplers.InterMetric, 0, countMetrics(envelope))
-	// get metrics from envelope
+	ms := make([]samplers.InterMetric, 0, countMetrics(envelope))
+	// get ms from envelope
 	for _, sampler := range envelope.counters {
-		metrics = append(metrics, sampler.Flush(time.Second)...)
+		ms = append(ms, sampler.Flush(time.Second)...)
 	}
 	for _, sampler := range envelope.sets {
-		metrics = append(metrics, sampler.Flush()...)
+		ms = append(ms, sampler.Flush()...)
 	}
 	for _, sampler := range envelope.gauges {
-		metrics = append(metrics, sampler.Flush()...)
+		ms = append(ms, sampler.Flush()...)
 	}
 	for _, sampler := range envelope.histograms {
-		metrics = append(metrics, sampler.Flush(time.Second, s.percentiles, s.aggregates, true)...)
+		ms = append(ms, sampler.Flush(time.Second, s.percentiles, s.aggregates, true)...)
 	}
 	for _, sampler := range envelope.mixedHistograms {
-		metrics = append(metrics, sampler.Flush(s.percentiles, s.aggregates, envelope.mixedHosts)...)
+		ms = append(ms, sampler.Flush(s.percentiles, s.aggregates, envelope.mixedHosts)...)
 	}
 
-	if len(metrics) == 0 {
+	if len(ms) == 0 {
 		return
 	}
 
 	tags := map[string]string{"part": "post"}
 	for _, sinkInstance := range s.sinks {
-		// TODO(clin): Add back metrics once we finalize the metrics client pull request.
-		go func(ms Sink) {
+		// TODO(clin): Add back ms once we finalize the ms client pull request.
+		go func(sink Sink) {
+			samples := &ssf.Samples{}
+			defer metrics.Report(s.tc, samples)
 			start := time.Now()
-			err := ms.Flush(ctx, metrics)
+			err := sink.Flush(ctx, ms)
 			if err != nil {
-				mc.Add(
-					ssf.Count(fmt.Sprintf("flush.plugins.%s.error_total", ms.Name()), 1, nil),
+				samples.Add(
+					ssf.Count(fmt.Sprintf("flush.plugins.%s.error_total", sink.Name()), 1, nil),
 				)
-				logger.WithError(err).WithField("Sink", ms.Name()).Warn("Error flushing Sink")
+				logger.WithError(err).WithField("Sink", sink.Name()).Warn("Error flushing Sink")
 			}
-			mc.Add(
+			samples.Add(
 				ssf.Timing(
-					fmt.Sprintf("flush.plugins.%s.total_duration_ns", ms.Name()),
+					fmt.Sprintf("flush.plugins.%s.total_duration_ns", sink.Name()),
 					time.Since(start),
 					time.Nanosecond,
 					tags,
 				),
-				ssf.Gauge(fmt.Sprintf("flush.plugins.%s.post_metrics_total", ms.Name()), float32(len(metrics)), nil),
+				ssf.Gauge(fmt.Sprintf("flush.plugins.%s.post_metrics_total", sink.Name()), float32(len(ms)), nil),
 			)
 		}(sinkInstance)
 	}

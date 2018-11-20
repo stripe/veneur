@@ -18,6 +18,7 @@ type AggregatingIngestor struct {
 	tickerC <-chan time.Time
 	quit    chan struct{}
 	logger  *logrus.Logger
+	tc      *trace.Client
 }
 
 type flusher interface {
@@ -37,6 +38,13 @@ func OptFlushChan(tckr <-chan time.Time) ingesterOption {
 func OptLogger(logger *logrus.Logger) ingesterOption {
 	return func(option AggregatingIngestor) AggregatingIngestor {
 		option.logger = logger
+		return option
+	}
+}
+
+func OptTraceClient(tc *trace.Client) ingesterOption {
+	return func(option AggregatingIngestor) AggregatingIngestor {
+		option.tc = tc
 		return option
 	}
 }
@@ -62,6 +70,7 @@ func NewFlushingIngester(
 		tickerC: t.C,
 		quit:    make(chan struct{}),
 		logger:  logrus.StandardLogger(),
+		tc:      trace.DefaultClient,
 	}
 	for _, opt := range options {
 		ing = opt(ing)
@@ -72,6 +81,7 @@ func NewFlushingIngester(
 		percentiles: percentiles,
 		aggregates:  samplers.HistogramAggregates{aggregates, 4},
 		log:         ing.logger,
+		tc:          ing.tc,
 	}
 	ing.flusher = flusher
 	return ing

@@ -602,6 +602,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config, moreSinks ...metricingest
 			sinks,
 			conf.Percentiles,
 			ret.HistogramAggregates.Value,
+			metricingester.OptTraceClient(ret.TraceClient),
 		)
 		ing.Start()
 		ret.grpcServer = importsrv.New(
