@@ -4,6 +4,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/stripe/veneur/trace"
+
 	"github.com/stripe/veneur/samplers"
 )
 
@@ -13,6 +17,7 @@ type AggregatingIngestor struct {
 	ticker  *time.Ticker
 	tickerC <-chan time.Time
 	quit    chan struct{}
+	logger  *logrus.Logger
 }
 
 type flusher interface {
@@ -22,9 +27,16 @@ type flusher interface {
 type ingesterOption func(AggregatingIngestor) AggregatingIngestor
 
 // Override the ticker channel that triggers flushing. Useful for testing.
-func FlushChan(tckr <-chan time.Time) ingesterOption {
+func OptFlushChan(tckr <-chan time.Time) ingesterOption {
 	return func(option AggregatingIngestor) AggregatingIngestor {
 		option.tickerC = tckr
+		return option
+	}
+}
+
+func OptLogger(logger *logrus.Logger) ingesterOption {
+	return func(option AggregatingIngestor) AggregatingIngestor {
+		option.logger = logger
 		return option
 	}
 }
@@ -46,18 +58,22 @@ func NewFlushingIngester(
 	t := time.NewTicker(interval)
 	ing := AggregatingIngestor{
 		workers: aggW,
-		flusher: sinkFlusher{
-			sinks:       sinks,
-			percentiles: percentiles,
-			aggregates:  samplers.HistogramAggregates{aggregates, 4},
-		},
 		ticker:  t,
 		tickerC: t.C,
 		quit:    make(chan struct{}),
+		logger:  logrus.StandardLogger(),
 	}
 	for _, opt := range options {
 		ing = opt(ing)
 	}
+
+	flusher := sinkFlusher{
+		sinks:       sinks,
+		percentiles: percentiles,
+		aggregates:  samplers.HistogramAggregates{aggregates, 4},
+		log:         ing.logger,
+	}
+	ing.flusher = flusher
 	return ing
 }
 
@@ -108,7 +124,9 @@ func (a AggregatingIngestor) Stop() {
 func (a AggregatingIngestor) flush() {
 	for _, w := range a.workers {
 		go func(worker aggWorker) {
-			a.flusher.Flush(context.Background(), worker.Flush())
+			span, ctx := trace.StartSpanFromContext(context.Background(), "flush")
+			defer span.Finish()
+			a.flusher.Flush(ctx, worker.Flush())
 		}(w)
 	}
 }

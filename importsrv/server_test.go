@@ -220,7 +220,7 @@ func test(in []*metricpb.Metric, out []samplers.TestMetric, msg string) func(*te
 			[]metricingester.Sink{cms},
 			[]float64{0.5, 0.95},
 			samplers.AggregateMin|samplers.AggregateMax|samplers.AggregateCount,
-			metricingester.FlushChan(flushc), // override the flush ticker channel so we control when flush
+			metricingester.OptFlushChan(flushc), // override the flush ticker channel so we control when flush
 		)
 		s := importsrv.New(ing)
 		defer s.Stop()
