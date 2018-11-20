@@ -34,7 +34,7 @@ var testE2EFlushingCases = []struct {
 		"gauge not present",
 	},
 	{
-		pbmetrics(pbhisto("test", []float64{1, 2, 3})),
+		pbmetrics(pbhisto("test", []float64{1, 2, 3}, pbscope(metricpb.Scope_MixedGlobal))),
 		samplers.TMetrics(
 			samplers.TGauge("test.min", 1),
 			samplers.TGauge("test.max", 3),
@@ -42,7 +42,15 @@ var testE2EFlushingCases = []struct {
 			samplers.TGauge("test.50percentile", 2),
 			samplers.TGauge("test.95percentile", 2.925),
 		),
-		"histo not present",
+		"mixed global histo not present",
+	},
+	{
+		pbmetrics(pbhisto("test", []float64{1, 2, 3}, pbscope(metricpb.Scope_Mixed))),
+		samplers.TMetrics(
+			samplers.TGauge("test.50percentile", 2),
+			samplers.TGauge("test.95percentile", 2.925),
+		),
+		"mixed histo not correct",
 	},
 	{
 		pbmetrics(pbset("test", []string{"asf", "clin", "aditya"})),
@@ -131,7 +139,7 @@ var testE2EFlushingCases = []struct {
 
 	{
 		pbmetrics(
-			pbhisto("test", []float64{1, 2, 3}, pbscope(metricpb.Scope_Mixed), pbhostname("a")),
+			pbhisto("test", []float64{1, 2, 3}, pbscope(metricpb.Scope_MixedGlobal), pbhostname("a")),
 		),
 		samplers.TMetrics(
 			samplers.TGauge("test.min", 1, samplers.OptHostname("a")),
@@ -140,12 +148,22 @@ var testE2EFlushingCases = []struct {
 			samplers.TGauge("test.50percentile", 2),
 			samplers.TGauge("test.95percentile", 2.925),
 		),
-		"mixed histos not reporting host level aggregates for one host",
+		"global mixed histos not reporting host level aggregates for one host",
 	},
 	{
 		pbmetrics(
 			pbhisto("test", []float64{1, 2, 3}, pbscope(metricpb.Scope_Mixed), pbhostname("a")),
-			pbhisto("test", []float64{4, 5, 6}, pbscope(metricpb.Scope_Mixed), pbhostname("b")),
+		),
+		samplers.TMetrics(
+			samplers.TGauge("test.50percentile", 2),
+			samplers.TGauge("test.95percentile", 2.925),
+		),
+		"mixed histos should not report host metrics",
+	},
+	{
+		pbmetrics(
+			pbhisto("test", []float64{1, 2, 3}, pbscope(metricpb.Scope_MixedGlobal), pbhostname("a")),
+			pbhisto("test", []float64{4, 5, 6}, pbscope(metricpb.Scope_MixedGlobal), pbhostname("b")),
 		),
 		samplers.TMetrics(
 			samplers.TGauge("test.min", 1, samplers.OptHostname("a")),
@@ -154,6 +172,17 @@ var testE2EFlushingCases = []struct {
 			samplers.TGauge("test.min", 4, samplers.OptHostname("b")),
 			samplers.TGauge("test.max", 6, samplers.OptHostname("b")),
 			samplers.TGauge("test.count", 3, samplers.OptHostname("b")),
+			samplers.TGauge("test.50percentile", 3.5),
+			samplers.TGauge("test.95percentile", 5.85),
+		),
+		"global mixed histos not reporting host level aggregates for two hosts",
+	},
+	{
+		pbmetrics(
+			pbhisto("test", []float64{1, 2, 3}, pbscope(metricpb.Scope_Mixed), pbhostname("a")),
+			pbhisto("test", []float64{4, 5, 6}, pbscope(metricpb.Scope_Mixed), pbhostname("b")),
+		),
+		samplers.TMetrics(
 			samplers.TGauge("test.50percentile", 3.5),
 			samplers.TGauge("test.95percentile", 5.85),
 		),

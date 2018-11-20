@@ -122,14 +122,25 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 			// min/max/count values locally.
 			//
 			// We need a special metric type to represent this: the MixedHistogram.
+			//
+			// We also need to distinguish between the behavior before all metrics were forwarded
+			// to the behavior after. The before case is represented by Scope_Mixed, which makes that host's
+			// "min/max/count" not get emitted by the central veneur, since the local veneur is emitting it
+			// still. Scoped_MixedGlobal makes the central veneur emit the min/max/count.
+			//
+			// TODO(clin): After we completely migrate to the new veneur, delete support for this latter distinction!
 			switch m.GetScope() {
+			case metricpb.Scope_Mixed:
+				s.ingester.Merge(
+					metricingester.NewMixedHistogramDigest(m.Name, v.Histogram, tags, hostname, false),
+				)
+			case metricpb.Scope_MixedGlobal:
+				s.ingester.Merge(
+					metricingester.NewMixedHistogramDigest(m.Name, v.Histogram, tags, hostname, true),
+				)
 			case metricpb.Scope_Local, metricpb.Scope_Global:
 				s.ingester.Merge(
 					metricingester.NewHistogramDigest(m.Name, v.Histogram, tags, hostname),
-				)
-			case metricpb.Scope_Mixed:
-				s.ingester.Merge(
-					metricingester.NewMixedHistogramDigest(m.Name, v.Histogram, tags, hostname),
 				)
 			}
 		case nil:

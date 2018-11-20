@@ -100,11 +100,13 @@ func testSample(ps []float64, aggs Aggregate, inms []sampleCase, ts []TestMetric
 	return func(t *testing.T) {
 		t.Parallel()
 		mh := NewMixedHisto("test", nil)
+		mixedServers := make(map[string]struct{})
 		for _, inm := range inms {
 			mh.Sample(inm.val, 1, inm.host)
+			mixedServers[inm.host] = struct{}{}
 		}
 
-		results := ToTestMetrics(mh.Flush(ps, HistogramAggregates{aggs, 0}))
+		results := ToTestMetrics(mh.Flush(ps, HistogramAggregates{aggs, 0}, mixedServers))
 		assert.ElementsMatch(
 			t,
 			results,
@@ -283,11 +285,13 @@ func testMerge(ps []float64, aggs Aggregate, mergeCase []mergeCase, ts []TestMet
 	return func(t *testing.T) {
 		t.Parallel()
 		mh := NewMixedHisto("test", nil)
+		mixedServers := make(map[string]struct{})
 		for _, c := range mergeCase {
 			mh.Merge(c.host, histvalue(c.samples))
+			mixedServers[c.host] = struct{}{}
 		}
 
-		results := ToTestMetrics(mh.Flush(ps, HistogramAggregates{aggs, 0}))
+		results := ToTestMetrics(mh.Flush(ps, HistogramAggregates{aggs, 0}, mixedServers))
 		assert.ElementsMatch(
 			t,
 			results,

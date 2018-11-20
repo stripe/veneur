@@ -1,5 +1,7 @@
 package veneur
 
+import "github.com/stripe/veneur/metricingester"
+
 type Config struct {
 	Aggregates                    []string  `yaml:"aggregates"`
 	AwsAccessKeyID                string    `yaml:"aws_access_key_id"`
@@ -95,4 +97,6 @@ type Config struct {
 	TraceLightstepNumClients          int      `yaml:"trace_lightstep_num_clients"`
 	TraceLightstepReconnectPeriod     string   `yaml:"trace_lightstep_reconnect_period"`
 	TraceMaxLengthBytes               int      `yaml:"trace_max_length_bytes"`
+
+	AdditionalMetricSinks []metricingester.Sink
 }

@@ -67,7 +67,7 @@ func (m MixedHisto) Sample(sample float64, sampleRate float32, host string) {
 }
 
 // Flush returns metrics for the specified percentiles and aggregates.
-func (m MixedHisto) Flush(percentiles []float64, aggregates HistogramAggregates) []InterMetric {
+func (m MixedHisto) Flush(percentiles []float64, aggregates HistogramAggregates, mixedHosts map[string]struct{}) []InterMetric {
 	ms := m.histo.Flush(0, percentiles, HistogramAggregates{}, false)
 
 	// doesn't support median! Would require implementing separated digests.
@@ -84,6 +84,9 @@ func (m MixedHisto) Flush(percentiles []float64, aggregates HistogramAggregates)
 		}
 	}
 	for host, _ := range m.max {
+		if _, ok := mixedHosts[host]; !ok {
+			continue
+		}
 		if (aggregates.Value & AggregateMax) != 0 {
 			ms = append(ms, metric("max", m.max[host], host))
 		}

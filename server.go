@@ -585,9 +585,29 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.grpcListenAddress = conf.GrpcAddress
 	if ret.grpcListenAddress != "" {
 		// convert all the workers to the proper interface
+		var sinks []metricingester.Sink
 
-		ret.grpcServer = importsrv.New(metricingester.AggregatingIngestor{},
-			importsrv.WithTraceClient(ret.TraceClient))
+		sinks = append(sinks, conf.AdditionalMetricSinks...)
+
+		for _, s := range ret.metricSinks {
+			sinks = append(sinks, s)
+		}
+		for _, s := range ret.plugins {
+			sinks = append(sinks, s)
+		}
+
+		ing := metricingester.NewFlushingIngester(
+			conf.NumWorkers,
+			ret.interval,
+			sinks,
+			conf.Percentiles,
+			ret.HistogramAggregates.Value,
+		)
+		ing.Start()
+		ret.grpcServer = importsrv.New(
+			ing,
+			importsrv.WithTraceClient(ret.TraceClient),
+		)
 	}
 
 	logger.WithField("config", conf).Debug("Initialized server")

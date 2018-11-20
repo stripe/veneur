@@ -134,6 +134,12 @@ func generateMetrics() (metricValues []float64, expectedMetrics map[string]float
 // so that flushes to these sinks do "nothing".
 func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper, mSink sinks.MetricSink, sSink sinks.SpanSink) *Server {
 	logger := logrus.New()
+	if mSink == nil {
+		// Install a blackhole sink if we have no other sinks
+		bhs, _ := blackhole.NewBlackholeMetricSink()
+		mSink = bhs
+	}
+	config.AdditionalMetricSinks = append(config.AdditionalMetricSinks, mSink)
 	server, err := NewFromConfig(logger, config)
 	if err != nil {
 		t.Fatal(err)
@@ -150,11 +156,6 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 	trace.NeutralizeClient(server.TraceClient)
 	server.TraceClient = nil
 
-	if mSink == nil {
-		// Install a blackhole sink if we have no other sinks
-		bhs, _ := blackhole.NewBlackholeMetricSink()
-		mSink = bhs
-	}
 	server.metricSinks = append(server.metricSinks, mSink)
 
 	if sSink == nil {

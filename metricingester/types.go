@@ -96,6 +96,7 @@ type digestType int
 const (
 	histoDigest digestType = iota + 1
 	mixedHistoDigest
+	mixedGlobalHistoDigest
 	setDigest
 )
 
@@ -109,6 +110,8 @@ type Digest struct {
 
 	histodigest *metricpb.HistogramValue
 	setdigest   *metricpb.SetValue
+
+	flushMixed bool
 }
 
 // TODO(clin): Ideally merge this with Hash when we choose an algorithm with sufficiently
@@ -164,12 +167,30 @@ func NewMixedHistogramDigest(
 	digest *metricpb.HistogramValue,
 	tags []string,
 	hostname string,
+	flushMixed bool,
 ) Digest {
 	sort.Sort(sort.StringSlice(tags))
 	return Digest{
 		name:        name,
 		tags:        tags,
 		digestType:  mixedHistoDigest,
+		hostname:    hostname,
+		histodigest: digest,
+		flushMixed:  flushMixed,
+	}
+}
+
+func NewMixedGlobalHistogramDigest(
+	name string,
+	digest *metricpb.HistogramValue,
+	tags []string,
+	hostname string,
+) Digest {
+	sort.Sort(sort.StringSlice(tags))
+	return Digest{
+		name:        name,
+		tags:        tags,
+		digestType:  mixedGlobalHistoDigest,
 		hostname:    hostname,
 		histodigest: digest,
 	}
@@ -214,6 +235,8 @@ type samplerEnvelope struct {
 	histograms      map[metricKey]*samplers.Histo
 	mixedHistograms map[metricKey]samplers.MixedHisto
 	sets            map[metricKey]*samplers.Set
+
+	mixedHosts map[string]struct{}
 }
 
 func newSamplerEnvelope() samplerEnvelope {
@@ -223,5 +246,7 @@ func newSamplerEnvelope() samplerEnvelope {
 		histograms:      make(map[metricKey]*samplers.Histo),
 		mixedHistograms: make(map[metricKey]samplers.MixedHisto),
 		sets:            make(map[metricKey]*samplers.Set),
+
+		mixedHosts: make(map[string]struct{}),
 	}
 }

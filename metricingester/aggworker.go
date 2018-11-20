@@ -104,6 +104,9 @@ func (a aggWorker) merge(d Digest) {
 			a.samplers.mixedHistograms[key] = samplers.NewMixedHisto(d.name, d.tags, samplers.OptMixedHistoHostname(d.hostname))
 		}
 		a.samplers.mixedHistograms[key].Merge(d.hostname, d.histodigest)
+		if d.flushMixed {
+			a.samplers.mixedHosts[d.hostname] = struct{}{}
+		}
 	case histoDigest:
 		key := d.Key()
 		if _, present := a.samplers.histograms[key]; !present {

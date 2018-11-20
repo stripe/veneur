@@ -27,6 +27,7 @@ enum Scope {
     Mixed = 0;
     Local = 1;
     Global = 2;
+    MixedGlobal = 3;
 }
 
 // Type can be any of the valid metric types recognized by Veneur.

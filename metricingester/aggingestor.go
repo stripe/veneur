@@ -38,10 +38,6 @@ func NewFlushingIngester(
 	aggregates samplers.Aggregate,
 	options ...ingesterOption,
 ) AggregatingIngestor {
-	if workers < 1 {
-		panic("more than one worker required")
-	}
-
 	var aggW []aggWorker
 	for i := 0; i < workers; i++ {
 		aggW = append(aggW, newAggWorker())
@@ -74,7 +70,7 @@ func (a AggregatingIngestor) Ingest(m Metric) error {
 
 func (a AggregatingIngestor) Merge(d Digest) error {
 	var workerid metricHash
-	if d.digestType == mixedHistoDigest {
+	if d.digestType == mixedHistoDigest || d.digestType == mixedGlobalHistoDigest {
 		workerid = d.MixedHash() % metricHash(len(a.workers))
 	} else {
 		workerid = d.Hash() % metricHash(len(a.workers))

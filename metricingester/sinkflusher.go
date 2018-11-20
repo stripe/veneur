@@ -36,7 +36,7 @@ func (s sinkFlusher) Flush(ctx context.Context, envelope samplerEnvelope) {
 		metrics = append(metrics, sampler.Flush(time.Second, s.percentiles, s.aggregates, true)...)
 	}
 	for _, sampler := range envelope.mixedHistograms {
-		metrics = append(metrics, sampler.Flush(s.percentiles, s.aggregates)...)
+		metrics = append(metrics, sampler.Flush(s.percentiles, s.aggregates, envelope.mixedHosts)...)
 	}
 
 	if len(metrics) == 0 {
