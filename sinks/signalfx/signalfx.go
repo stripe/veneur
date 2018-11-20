@@ -193,6 +193,9 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		dims := map[string]string{}
 		// Set the hostname as a tag, since SFx doesn't have a first-class hostname field
 		dims[sfx.hostnameTag] = sfx.hostname
+		if metric.HostName != "" {
+			dims[sfx.hostnameTag] = metric.HostName
+		}
 		for _, tag := range metric.Tags {
 			kv := strings.SplitN(tag, ":", 2)
 			key := kv[0]
