@@ -2,9 +2,9 @@ package testbackend
 
 import (
 	"context"
+	"sync"
 
 	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
 )
 
 // FlushErrorSource is a function that a test can provide. It returns
@@ -27,6 +27,8 @@ func FlushErrors(src FlushErrorSource) FlushingBackendOption {
 // does, but also supports flushing. On flush, it sends the number of
 // spans contained in each batch.
 type FlushingBackend struct {
+	mutex sync.Mutex
+
 	errorSrc FlushErrorSource
 	batch    []*ssf.SSFSpan
 	flushCh  chan<- []*ssf.SSFSpan
@@ -34,19 +36,7 @@ type FlushingBackend struct {
 
 // FlushSync sends the batch of submitted spans back.
 func (be *FlushingBackend) FlushSync(ctx context.Context) error {
-	if be.errorSrc != nil {
-		if err := be.errorSrc(be.batch); err != nil {
-			return err
-		}
-	}
-
-	select {
-	case be.flushCh <- be.batch:
-		be.batch = []*ssf.SSFSpan{}
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return be.Flush()
 }
 
 // Close is a no-op.
@@ -56,7 +46,27 @@ func (be *FlushingBackend) Close() error {
 
 // SendSync sends the span into the FlushingBackend's channel and counts it.
 func (be *FlushingBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
+	be.mutex.Lock()
+	defer be.mutex.Unlock()
+
 	be.batch = append(be.batch, span)
+	return nil
+}
+
+// Flush on a FlushingBackend is an alternative to the Client's flush
+// functionality for tests. It flushes spans deterministically and so
+// ensures that the flush actually happens.
+func (be *FlushingBackend) Flush() error {
+	be.mutex.Lock()
+	defer be.mutex.Unlock()
+
+	if be.errorSrc != nil {
+		if err := be.errorSrc(be.batch); err != nil {
+			return err
+		}
+	}
+	be.flushCh <- be.batch
+	be.batch = make([]*ssf.SSFSpan, 0)
 	return nil
 }
 
@@ -64,7 +74,7 @@ func (be *FlushingBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) erro
 // collect the metrics submitted to it in an array (the order of Spans
 // in the array represents the order in which the backend's SendSync
 // was called).
-func NewFlushingBackend(ch chan<- []*ssf.SSFSpan, opts ...FlushingBackendOption) trace.FlushableClientBackend {
+func NewFlushingBackend(ch chan<- []*ssf.SSFSpan, opts ...FlushingBackendOption) *FlushingBackend {
 	be := &FlushingBackend{
 		flushCh:  ch,
 		errorSrc: nil,
