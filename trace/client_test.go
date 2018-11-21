@@ -407,6 +407,8 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 	}
 }
 
+// testBackend is a variant of testbackend.Backend that's here so we
+// can avoid an import cycle.
 type testBackend struct {
 	t  *testing.T
 	ch chan *ssf.SSFSpan

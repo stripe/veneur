@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/testbackend"
 )
 
 var (
@@ -252,29 +252,6 @@ func TestInferID(t *testing.T) {
 	}
 }
 
-type testBackend struct {
-	t      *testing.T
-	ch     chan *ssf.SSFSpan
-	errors chan error
-}
-
-func (tb *testBackend) Close() error {
-	tb.t.Logf("Closing backend")
-	close(tb.ch)
-	close(tb.errors)
-	return nil
-}
-
-func (tb *testBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
-	tb.t.Logf("Sending span")
-	tb.ch <- span
-	return <-tb.errors
-}
-
-func (tb *testBackend) FlushSync(ctx context.Context) error {
-	return nil
-}
-
 func TestSetupSpanWithTracing(t *testing.T) {
 	span, err := setupSpan(1, 2, "oink", "hi:there", "oink-srv", "foo:bar", false)
 	if assert.NoError(t, err) {
@@ -307,13 +284,10 @@ func TestSendSpan(t *testing.T) {
 	_, _ = createMetric(span, testFlag, "test.metric", "tag1:value1", false, nil)
 
 	ch := make(chan *ssf.SSFSpan, 1)
-	errors := make(chan error, 1)
-	be := &testBackend{t: t, ch: ch, errors: errors}
-	defer be.Close()
-	cl, err := trace.NewBackendClient(be)
+	cl, err := trace.NewBackendClient(testbackend.NewBackend(ch,
+		testbackend.SendErrors(func(*ssf.SSFSpan) error { return nil })))
 	require.NoError(t, err)
 
-	be.errors <- nil
 	err = sendSSF(cl, span)
 	assert.NoError(t, err)
 
@@ -329,13 +303,10 @@ func TestBadSendSpan(t *testing.T) {
 	_, _ = createMetric(span, testFlag, "test.metric", "tag1:value1", false, nil)
 
 	ch := make(chan *ssf.SSFSpan, 1)
-	errors := make(chan error, 1)
-	be := &testBackend{t: t, ch: ch, errors: errors}
-	defer be.Close()
-	cl, err := trace.NewBackendClient(be)
+	cl, err := trace.NewBackendClient(testbackend.NewBackend(ch,
+		testbackend.SendErrors(func(*ssf.SSFSpan) error { return fmt.Errorf("a potential error in sending") })))
 	require.NoError(t, err)
 
-	errors <- fmt.Errorf("a potential error in sending")
 	err = sendSSF(cl, span)
 	assert.Error(t, err)
 }
