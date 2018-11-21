@@ -1,0 +1,77 @@
+package testbackend
+
+import (
+	"context"
+
+	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/trace"
+)
+
+// FlushErrorSource is a function that a test can provide. It returns
+// whether flushing a batch of spans should return an error or not.
+type FlushErrorSource func([]*ssf.SSFSpan) error
+
+// FlushingBackendOption is a functional option for Backends provided by this
+// package.
+type FlushingBackendOption func(*FlushingBackend)
+
+// FlushErrors allows tests to provide a function that will be
+// consulted on whether a send operation should return an error.
+func FlushErrors(src FlushErrorSource) FlushingBackendOption {
+	return func(be *FlushingBackend) {
+		be.errorSrc = src
+	}
+}
+
+// FlushingBackend is a ClientBackend that behaves much like Backend
+// does, but also supports flushing. On flush, it sends the number of
+// spans contained in each batch.
+type FlushingBackend struct {
+	errorSrc FlushErrorSource
+	batch    []*ssf.SSFSpan
+	flushCh  chan<- []*ssf.SSFSpan
+}
+
+// FlushSync sends the batch of submitted spans back.
+func (be *FlushingBackend) FlushSync(ctx context.Context) error {
+	if be.errorSrc != nil {
+		if err := be.errorSrc(be.batch); err != nil {
+			return err
+		}
+	}
+
+	select {
+	case be.flushCh <- be.batch:
+		be.batch = []*ssf.SSFSpan{}
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// Close is a no-op.
+func (be *FlushingBackend) Close() error {
+	return nil
+}
+
+// SendSync sends the span into the FlushingBackend's channel and counts it.
+func (be *FlushingBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
+	be.batch = append(be.batch, span)
+	return nil
+}
+
+// NewFlushingBackend constructs a new FlushableClientBackend. It will
+// collect the metrics submitted to it in an array (the order of Spans
+// in the array represents the order in which the backend's SendSync
+// was called).
+func NewFlushingBackend(ch chan<- []*ssf.SSFSpan, opts ...FlushingBackendOption) trace.FlushableClientBackend {
+	be := &FlushingBackend{
+		flushCh:  ch,
+		errorSrc: nil,
+		batch:    []*ssf.SSFSpan{},
+	}
+	for _, opt := range opts {
+		opt(be)
+	}
+	return be
+}
