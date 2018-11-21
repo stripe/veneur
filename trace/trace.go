@@ -1,9 +1,3 @@
-// Package trace provies an experimental API for initiating
-// traces. Veneur's tracing API also provides
-// an opentracing compatibility layer. The Veneur tracing API
-// is completely independent of the opentracing
-// compatibility layer, with the exception of one convenience
-// function.
 package trace
 
 import (
@@ -42,8 +36,8 @@ type key string
 
 const traceKey key = "trace"
 
-// Service is our service name and should be set exactly once,
-// at startup
+// Service is our service name and must be set exactly once,
+// at startup.
 var Service = ""
 
 // For an error to be recorded correctly in DataDog, these three tags
@@ -235,7 +229,12 @@ func (t *Trace) Attach(c context.Context) context.Context {
 }
 
 // SpanFromContext is used to create a child span
-// when the parent trace is in the context
+// when the parent trace is in the context.
+//
+// Stability
+//
+// SpanFromContext is considered experimental. Prefer
+// StartSpanFromContext instead.
 func SpanFromContext(c context.Context) *Trace {
 	parent, ok := c.Value(traceKey).(*Trace)
 	if !ok {
@@ -244,8 +243,23 @@ func SpanFromContext(c context.Context) *Trace {
 	return StartChildSpan(parent)
 }
 
-// StartSpanFromContext is used to create a child span
-// when the parent trace is in the context
+// StartSpanFromContext creates a span that fits into a span tree -
+// child or root. It makes a new span, find a parent span if it exists
+// on the context and fills in the data in the newly-created span to
+// ensure a proper parent-child relationship (if no parent exists, is
+// sets the new span up as a root Span, i.e., a Trace). Then
+// StartSpanFromContext sets the newly-created span as the current
+// span on a child Context. That child context is returned also.
+//
+// Name inference
+//
+// StartSpanFromContext takes a name argument. If passed "", it will
+// infer the current function's name as the span name.
+//
+// Stability
+//
+// StartSpanFromContext is the recommended way to create trace spans in a
+// program.
 func StartSpanFromContext(ctx context.Context, name string, opts ...opentracing.StartSpanOption) (s *Span, c context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
