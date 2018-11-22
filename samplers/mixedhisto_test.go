@@ -52,7 +52,7 @@ var sampleCases = []struct {
 			TGauge("test.min", 1),
 			TGauge("test.max", 3),
 			TGauge("test.avg", 2),
-			TGauge("test.count", 3),
+			TCounter("test.count", 3),
 			TGauge("test.sum", 6),
 		),
 		"an aggregate value is incorrect",
@@ -207,7 +207,7 @@ var mergeCases = []struct {
 		},
 		TMetrics(
 			TGauge("test.avg", 3),
-			TGauge("test.count", 5),
+			TCounter("test.count", 5),
 		),
 		"count or average is incorrect",
 	},

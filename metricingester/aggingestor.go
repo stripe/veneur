@@ -88,7 +88,13 @@ func NewFlushingIngester(
 }
 
 func (a AggregatingIngestor) Ingest(ctx context.Context, m Metric) error {
-	workerid := m.Hash() % metricHash(len(a.workers))
+	var workerid metricHash
+	switch m.metricType {
+	case mixedHistogram:
+		workerid = m.MixedHash() % metricHash(len(a.workers))
+	default:
+		workerid = m.Hash() % metricHash(len(a.workers))
+	}
 	a.workers[workerid].Ingest(m)
 	return nil
 }
