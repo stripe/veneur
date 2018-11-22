@@ -257,38 +257,3 @@ func test(in []*metricpb.Metric, out []samplers.TestMetric, msg string) func(*te
 		)
 	}
 }
-
-//func TestOptions_WithTraceClient(t *testing.T) {
-//	c, err := trace.NewClient(trace.DefaultVeneurAddress)
-//	if err != nil {
-//		t.Fatalf("failed to initialize a trace client: %v", err)
-//	}
-//
-//	s := New([]MetricIngester{}, WithTraceClient(c))
-//	assert.Equal(t, c, s.opts.traceClient, "WithTraceClient didn't correctly "+
-//		"set the trace client")
-//}
-//
-//func BenchmarkImportServerSendMetrics(b *testing.B) {
-//	rand.Seed(time.Now().Unix())
-//
-//	metrics := metrictest.RandomForwardMetrics(10000)
-//	for _, inputSize := range []int{10, 100, 1000, 10000} {
-//		ingesters := make([]MetricIngester, 100)
-//		for i := range ingesters {
-//			ingester := newNoopChannelMetricIngester()
-//			ingester.start()
-//			defer ingester.stop()
-//			ingesters[i] = ingester
-//		}
-//		s := New(ingesters)
-//		ctx := context.Background()
-//		input := &forwardrpc.MetricList{Metrics: metrics[:inputSize]}
-//
-//		b.Run(fmt.Sprintf("InputSize=%d", inputSize), func(b *testing.B) {
-//			for i := 0; i < b.N; i++ {
-//				s.SendMetrics(ctx, input)
-//			}
-//		})
-//	}
-//}

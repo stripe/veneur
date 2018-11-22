@@ -52,7 +52,6 @@ func (s sinkFlusher) Flush(ctx context.Context, envelope samplerEnvelope) {
 
 	tags := map[string]string{"part": "post"}
 	for _, sinkInstance := range s.sinks {
-		// TODO(clin): Add back ms once we finalize the ms client pull request.
 		go func(sink Sink) {
 			samples := &ssf.Samples{}
 			defer metrics.Report(s.tc, samples)
