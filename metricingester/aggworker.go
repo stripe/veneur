@@ -101,7 +101,7 @@ func (a aggWorker) merge(d Digest) {
 	case mixedHistoDigest:
 		key := d.MixedKey()
 		if _, present := a.samplers.mixedHistograms[key]; !present {
-			a.samplers.mixedHistograms[key] = samplers.NewMixedHisto(d.name, d.tags, samplers.OptMixedHistoHostname(d.hostname))
+			a.samplers.mixedHistograms[key] = samplers.NewMixedHisto(d.name, d.tags)
 		}
 		a.samplers.mixedHistograms[key].Merge(d.hostname, d.histodigest)
 		if d.flushMixed {

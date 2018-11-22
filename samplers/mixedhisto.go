@@ -11,13 +11,6 @@ import (
 
 type optMixedHisto func(MixedHisto) MixedHisto
 
-func OptMixedHistoHostname(hn string) optMixedHisto {
-	return func(histo MixedHisto) MixedHisto {
-		histo.hostname = hn
-		return histo
-	}
-}
-
 // NewMixedHisto creates a new mixed histogram.
 func NewMixedHisto(name string, tags []string, opts ...optMixedHisto) MixedHisto {
 	m := MixedHisto{
@@ -46,7 +39,6 @@ func NewMixedHisto(name string, tags []string, opts ...optMixedHisto) MixedHisto
 // Note that we don't support the "median" aggregate for mixed histograms.
 type MixedHisto struct {
 	histo         *Histo
-	hostname      string
 	min           map[string]float64
 	max           map[string]float64
 	weight        map[string]float64
