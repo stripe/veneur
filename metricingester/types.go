@@ -20,7 +20,9 @@ const (
 	gauge metricType = iota + 1
 	counter
 	histogram
+	mixedHistogram
 	set
+	statusCheck
 )
 
 type metricHash uint32
@@ -33,10 +35,11 @@ type Metric struct {
 	hostname   string
 	metricType metricType
 
-	gaugevalue   float64
-	countervalue int64
-	setvalue     string
-	histovalue   float64
+	gaugevalue       float64
+	countervalue     int64
+	setvalue         string
+	histovalue       float64
+	statusCheckValue string
 }
 
 type metricKey struct {
@@ -57,34 +60,98 @@ func (m Metric) Hash() metricHash {
 	return metricHash(hash(m.name, m.hostname, m.tags))
 }
 
+// MixedKey is the key used to identify mixed histograms, which need to be aggregated
+// without consideration of host.
+func (m Metric) MixedKey() metricKey {
+	return metricKey{
+		name: m.name,
+		tags: strings.Join(m.tags, ","),
+	}
+}
+
+func (m Metric) MixedHash() metricHash {
+	return metricHash(hash(m.name, "", m.tags))
+}
+
+func createMetric(m Metric) Metric {
+	sort.Sort(sort.StringSlice(m.tags))
+	return m
+}
+
 // NewCounter constructs a Metric that represents whole number values that accumulate.
 //
 // tags are assumed to be inC sorted order.
 func NewCounter(name string, v int64, tags []string, samplerate float32, hostname string) Metric {
-	sort.Sort(sort.StringSlice(tags))
-	return Metric{
+	return createMetric(Metric{
 		name:         name,
 		countervalue: v,
 		tags:         tags,
 		samplerate:   samplerate,
 		metricType:   counter,
 		hostname:     hostname,
-	}
+	})
 }
 
 // NewGauge constructs a Metric that represents arbitrary floating point readings.
 //
 // tags are assumed to be inC sorted order.
 func NewGauge(name string, v float64, tags []string, samplerate float32, hostname string) Metric {
-	sort.Sort(sort.StringSlice(tags))
-	return Metric{
+	return createMetric(Metric{
 		name:       name,
 		gaugevalue: v,
 		tags:       tags,
 		samplerate: samplerate,
 		metricType: gauge,
 		hostname:   hostname,
-	}
+	})
+}
+
+// NewStatusCheck constructs a metric that represents a status check.
+func NewStatusCheck(name string, message string, tags []string, samplerate float32, hostname string) Metric {
+	return createMetric(Metric{
+		name:             name,
+		statusCheckValue: message,
+		tags:             tags,
+		samplerate:       samplerate,
+		metricType:       statusCheck,
+		hostname:         hostname,
+	})
+}
+
+// NewHisto constructs a metric that represents a histogram value.
+func NewHisto(name string, v float64, tags []string, samplerate float32, hostname string) Metric {
+	return createMetric(Metric{
+		name:       name,
+		histovalue: v,
+		tags:       tags,
+		samplerate: samplerate,
+		metricType: histogram,
+		hostname:   hostname,
+	})
+}
+
+// NewMixedHisto constructs a metric that represents a mixed histogram value.
+func NewMixedHisto(name string, v float64, tags []string, samplerate float32, hostname string) Metric {
+	return createMetric(Metric{
+		name:       name,
+		histovalue: v,
+		tags:       tags,
+		samplerate: samplerate,
+		metricType: mixedHistogram,
+		hostname:   hostname,
+	})
+}
+
+// NewSet constructs a metric that represents a set value.
+func NewSet(name string, v string, tags []string, samplerate float32, hostname string) Metric {
+	return createMetric(Metric{
+		name:       name,
+		setvalue:   v,
+		tags:       tags,
+		samplerate: samplerate,
+		metricType: set,
+		hostname:   hostname,
+	})
 }
 
 /***********
@@ -196,8 +263,6 @@ func NewMixedGlobalHistogramDigest(
 	}
 }
 
-//
-// tags are assumed to be inC sorted order.
 func NewSetDigest(
 	name string,
 	digest *metricpb.SetValue,
@@ -235,6 +300,7 @@ type samplerEnvelope struct {
 	histograms      map[metricKey]*samplers.Histo
 	mixedHistograms map[metricKey]samplers.MixedHisto
 	sets            map[metricKey]*samplers.Set
+	statusChecks    map[metricKey]*samplers.StatusCheck
 
 	mixedHosts map[string]struct{}
 }
@@ -246,6 +312,7 @@ func newSamplerEnvelope() samplerEnvelope {
 		histograms:      make(map[metricKey]*samplers.Histo),
 		mixedHistograms: make(map[metricKey]samplers.MixedHisto),
 		sets:            make(map[metricKey]*samplers.Set),
+		statusChecks:    make(map[metricKey]*samplers.StatusCheck),
 
 		mixedHosts: make(map[string]struct{}),
 	}

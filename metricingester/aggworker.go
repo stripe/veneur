@@ -93,6 +93,18 @@ func (a aggWorker) ingest(m Metric) {
 			a.samplers.histograms[key] = samplers.NewHist(m.name, m.tags, samplers.OptHistHostname(m.hostname))
 		}
 		a.samplers.histograms[key].Sample(m.histovalue, m.samplerate)
+	case mixedHistogram:
+		key = m.MixedKey()
+		if _, present := a.samplers.mixedHistograms[key]; !present {
+			a.samplers.mixedHistograms[key] = samplers.NewMixedHisto(m.name, m.tags)
+		}
+		a.samplers.mixedHosts[m.hostname] = struct{}{}
+		a.samplers.mixedHistograms[key].Sample(m.histovalue, m.samplerate, m.hostname)
+	case statusCheck:
+		if _, present := a.samplers.statusChecks[key]; !present {
+			a.samplers.statusChecks[key] = samplers.NewStatusCheck(m.name, m.tags)
+		}
+		a.samplers.statusChecks[key].Sample(m.histovalue, m.samplerate, m.statusCheckValue, m.hostname)
 	}
 }
 
