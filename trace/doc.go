@@ -18,6 +18,20 @@
 // The trace API is built on three abstractions: the
 // Client, the ClientBackend and the Span.
 //
+// Context
+//
+// Since it is very common for networked code to use context.Context,
+// veneur's trace API is designed to be used together with
+// Contexts. The API uses Contexts to store the current Span, and will
+// automatically pick the appropriate parent span from the Context.
+//
+// To effectively use the trace API, user code needs to ensure that
+// all functions that communicate externally (which includes using
+// traces) take Contexts as parameters, and pass them down.
+//
+// See https://blog.golang.org/context for an introduction to using
+// Context.
+//
 // Spans
 //
 // Spans represent the duration of a "unit of work" in a system: They
@@ -111,7 +125,7 @@
 // In the future, veneur may add information that allows linking the
 // extracted metrics to the spans on which they were reported.
 //
-// See the ssf package and the metrics sub-package for details on
+// See the ssf package and the trace/metrics package for details on
 // using Samples effectively.
 //
 // Indicator Spans
@@ -131,4 +145,16 @@
 // To report an indicator span, use:
 //
 //   span.Indicator = true
+//
+// OpenTracing Compatibility
+//
+// Package trace's data structure implement the OpenTracing
+// interfaces. This allows users to apply all of OpenTracing's helper
+// functions, e.g. to extract a Span from the context, use
+// SpanFromContext and a type assertion:
+//
+//   span, ok := opentracing.SpanFromContext(ctx).(*trace.Span)
+//
+// See https://godoc.org/github.com/opentracing/opentracing-go for
+// details on the OpenTracing API.
 package trace
