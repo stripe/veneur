@@ -87,14 +87,13 @@ func NewFlushingIngester(
 	return ing
 }
 
-// TODO(clin): This needs to take ctx.
-func (a AggregatingIngestor) Ingest(m Metric) error {
+func (a AggregatingIngestor) Ingest(ctx context.Context, m Metric) error {
 	workerid := m.Hash() % metricHash(len(a.workers))
 	a.workers[workerid].Ingest(m)
 	return nil
 }
 
-func (a AggregatingIngestor) Merge(d Digest) error {
+func (a AggregatingIngestor) Merge(ctx context.Context, d Digest) error {
 	var workerid metricHash
 	if d.digestType == mixedHistoDigest || d.digestType == mixedGlobalHistoDigest {
 		workerid = d.MixedHash() % metricHash(len(a.workers))
