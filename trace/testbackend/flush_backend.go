@@ -15,11 +15,13 @@ type FlushErrorSource func([]*ssf.SSFSpan) error
 // package.
 type FlushingBackendOption func(*FlushingBackend)
 
-// FlushErrors allows tests to provide a function that will be
-// consulted on whether a send operation should return an error.
-func FlushErrors(src FlushErrorSource) FlushingBackendOption {
+// FlushErrors allows tests to provide functions that will be
+// consulted on whether a send or flush operation should return an
+// error.
+func FlushErrors(sendSrc SendErrorSource, src FlushErrorSource) FlushingBackendOption {
 	return func(be *FlushingBackend) {
 		be.errorSrc = src
+		be.sendErrorSrc = sendSrc
 	}
 }
 
@@ -29,9 +31,10 @@ func FlushErrors(src FlushErrorSource) FlushingBackendOption {
 type FlushingBackend struct {
 	mutex sync.Mutex
 
-	errorSrc FlushErrorSource
-	batch    []*ssf.SSFSpan
-	flushCh  chan<- []*ssf.SSFSpan
+	sendErrorSrc SendErrorSource
+	errorSrc     FlushErrorSource
+	batch        []*ssf.SSFSpan
+	flushCh      chan<- []*ssf.SSFSpan
 }
 
 // FlushSync sends the batch of submitted spans back.
@@ -46,6 +49,12 @@ func (be *FlushingBackend) Close() error {
 
 // SendSync sends the span into the FlushingBackend's channel and counts it.
 func (be *FlushingBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
+	if be.sendErrorSrc != nil {
+		if err := be.sendErrorSrc(span); err != nil {
+			return err
+		}
+	}
+
 	be.mutex.Lock()
 	defer be.mutex.Unlock()
 

@@ -438,11 +438,17 @@ var ErrNoClient = errors.New("client is not initialized")
 // the current time.
 var ErrWouldBlock = errors.New("sending span would block")
 
+// StatsCounter is an interface corresponding to statsd's. It's useful
+// for stubbing in tests to validate the right statistics get sent.
+type StatsCounter interface {
+	Count(metric string, n int64, tags []string, rate float64) error
+}
+
 // SendClientStatistics uses the client's recorded backpressure
 // statistics (failed/successful flushes, failed/successful records)
 // and reports them with the given statsd client, and resets the
 // statistics to zero again.
-func SendClientStatistics(cl *Client, stats *statsd.Client, tags []string) {
+func SendClientStatistics(cl *Client, stats StatsCounter, tags []string) {
 	if atomic.LoadInt64(&cl.failedFlushes) != 0 {
 		stats.Count("trace_client.flushes_failed_total", atomic.SwapInt64(&cl.failedFlushes, 0), tags, 1.0)
 	}
