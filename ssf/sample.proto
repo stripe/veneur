@@ -13,6 +13,7 @@ message SSFSample {
       HISTOGRAM = 2;
       SET = 3;
       STATUS = 4;
+      GLOBAL_HISTOGRAM = 5;
   }
   enum Status {
       OK = 0;

@@ -27,12 +27,16 @@ type metricHash uint32
 
 // Metric represents a single metric sample.
 type Metric struct {
+	// metadata
 	name       string
 	samplerate float32
 	tags       []string
 	hostname   string
+
+	// type
 	metricType metricType
 
+	// values
 	gaugevalue    float64
 	countervalue  int64
 	setvalue      string
