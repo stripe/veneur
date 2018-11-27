@@ -3,8 +3,8 @@
 // provides an experimental opentracing compatibility layer.
 //
 // The Veneur tracing API is completely independent of the opentracing
-// compatibility layer, with the exception of one convenience
-// function.
+// compatibility layer, with the exception of the function
+// StartSpanFromContext.
 //
 // Setup and Structure of the API
 //
