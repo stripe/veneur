@@ -1,3 +1,6 @@
+# For running Veneur under Docker, you probably want either the pre-built images
+# published at https://hub.docker.com/r/stripe/veneur/
+# or the Dockerfiles in https://github.com/stripe/veneur/tree/master/public-docker-images
 FROM golang:1.11
 MAINTAINER The Stripe Observability Team <support@stripe.com>
 
