@@ -59,15 +59,19 @@
 // processes them. To do that, package trace exports a trace
 // Client. Typical applications will want to use the DefaultClient
 // exposed by this package. By default, it is set up to send spans to
-// veneur listening on the default SSF UDP port, 8128. Client code can
-// use SetDefaultClient to change the default client.
+// veneur listening on the default SSF UDP port, 8128. An application
+// can use SetDefaultClient to change the default client in its main
+// function.
 //
 // To allow testing user code's Span reporting behavior, it is
-// sometimes desirable to take a Client argument and report spans to
-// it explicitly:
+// desirable to take a Client argument in tested functions and report
+// spans to that client explicitly:
 //
 //   span, ctx := trace.StartSpanFromContext(ctx, "")
 //   defer span.ClientFinish(trace.DefaultClient)
+//
+// In case it is desired to submit no Spans at all, nil is a supported
+// trace Client value.
 //
 // Client Backends
 //
