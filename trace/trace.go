@@ -232,7 +232,7 @@ func (t *Trace) Attach(c context.Context) context.Context {
 // SpanFromContext is used to create a child span
 // when the parent trace is in the context.
 //
-// Stability
+// Recommended usage
 //
 // SpanFromContext is considered experimental. Prefer
 // StartSpanFromContext instead.
@@ -257,7 +257,7 @@ func SpanFromContext(c context.Context) *Trace {
 // StartSpanFromContext takes a name argument. If passed "", it will
 // infer the current function's name as the span name.
 //
-// Stability
+// Recommended usage
 //
 // StartSpanFromContext is the recommended way to create trace spans in a
 // program.
