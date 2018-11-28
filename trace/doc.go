@@ -60,13 +60,12 @@
 //
 // Once constructed, SSF Spans must be reported to a system that
 // processes them. To do that, package trace exports a trace
-// Client. Typical applications will want to use the DefaultClient
-// exposed by this package. By default, it is set up to send spans to
-// veneur listening on the default SSF UDP port, 8128. An application
-// can use SetDefaultClient to change the default client in its main
-// function.
+// Client. Typical applications should use the DefaultClient exposed
+// by this package. By default, it is set up to send spans to veneur
+// listening on the default SSF UDP port, 8128. An application can use
+// SetDefaultClient to change the default client in its main package.
 //
-// To allow testing user code's Span reporting behavior, it is
+// To allow testing an application's Span reporting behavior, it is
 // desirable to take a Client argument in tested functions and report
 // spans to that client explicitly:
 //
