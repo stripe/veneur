@@ -2,9 +2,9 @@
 // traces and attaching spans to them. Veneur's tracing API also
 // provides an experimental opentracing compatibility layer.
 //
-// The Veneur tracing API is completely independent of the opentracing
-// compatibility layer, with the exception of the function
-// StartSpanFromContext.
+// The Veneur tracing API is mostly independent of the opentracing
+// compatibility layer, however OpenTracing compatibility may be
+// removed in a future release.
 //
 // Setup and Structure of the API
 //
