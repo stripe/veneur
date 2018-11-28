@@ -236,6 +236,14 @@ func (t *Trace) Attach(c context.Context) context.Context {
 //
 // SpanFromContext is considered experimental. Prefer
 // StartSpanFromContext instead.
+//
+// Compatibility with OpenTracing
+//
+// SpanFromContext behaves differently from
+// opentracing.SpanFromContext: The opentracing function returns the
+// exact span that is stored on the Context, but this function
+// allocates a new span with a parent ID set to that of the span
+// stored on the context.
 func SpanFromContext(c context.Context) *Trace {
 	parent, ok := c.Value(traceKey).(*Trace)
 	if !ok {
