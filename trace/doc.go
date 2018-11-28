@@ -78,11 +78,15 @@
 //
 // Client Backends
 //
-// The trace Client can use various transports to send (and possibly
-// serialize) spans somewhere. Package trace exports some networked
-// backends (using UDP and UNIX domain sockets), and allows users to
-// define their own ClientBackends, which is useful in tests. See the
-// interface's documentation for details.
+// The trace Client can use various transports to send spans to a
+// destination. It is the Backend's job to perform any necessary
+// serialization.
+//
+// Package trace exports some networked backends (sending
+// protobuf-encoded SSF spans over UDP and UNIX domain sockets), and
+// allows users to define their own ClientBackends, which can be
+// useful in tests. See the ClientBackend interface's documentation
+// for details.
 //
 // Additional information on Spans
 //
