@@ -36,8 +36,9 @@ type key string
 
 const traceKey key = "trace"
 
-// Service is our service name and must be set exactly once,
-// at startup.
+// Service is our service name and must be set exactly once, by the
+// main package. It is recommended to set this value in an init()
+// function or at the beginning of the main() function.
 var Service = ""
 
 // For an error to be recorded correctly in DataDog, these three tags

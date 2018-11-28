@@ -11,7 +11,8 @@
 // To use the API, user code must set its service name via the global
 // variable Service, which is used by trace visualization tools to
 // tell apart the spans reported by different services. Code using the
-// trace API must set its Service, and set it only once, in main():
+// trace API must set its Service, and set it only once, in the
+// application's main package, ideally in the init() function:
 //
 //    trace.Service = "my-awesome-service"
 //
