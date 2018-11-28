@@ -16,15 +16,17 @@
 //
 //    trace.Service = "my-awesome-service"
 //
-// The trace API is built on three abstractions: the
-// Client, the ClientBackend and the Span.
+// The trace API makes heavy use of the go stdlib's Contexts and is
+// built on three abstractions: the Client, the ClientBackend and the
+// Span.
 //
-// Context
+// Contexts
 //
-// Since it is very common for networked code to use context.Context,
-// veneur's trace API is designed to be used together with
-// Contexts. The API uses Contexts to store the current Span, and will
-// automatically pick the appropriate parent span from the Context.
+// Since it is very common for networked code to use the go stdlib's
+// Context interface, veneur's trace API is designed to be used
+// together with Contexts. The API uses Contexts to store the current
+// Span, and will automatically pick the appropriate parent span from
+// the Context.
 //
 // To effectively use the trace API, user code needs to ensure that
 // all functions that communicate externally (which includes using
@@ -44,10 +46,10 @@
 // and report it via a defer statement.
 //
 // To create a new Span, use StartSpanFromContext. This function will
-// create a trace parented to the traces that came before it in the
-// Context. Typically, users should pass "" as the name to let
-// StartSpanFromContext figure out the correct name from caller
-// information.
+// create a Span with a parent ID pointing to the to the trace that
+// came before it in the Context. Typically, users should pass "" as
+// the name to let StartSpanFromContext figure out the correct name
+// from caller information.
 //
 //   span, ctx := trace.StartSpanFromContext(ctx, "")
 //   // report the span with the default client when this function returns:
