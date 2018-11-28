@@ -149,8 +149,8 @@
 //
 // Concretely, the veneur server privileges these Indicator Spans by
 // doing exactly the above: It reports a timer metric tagged with the
-// service name on the span, and a flag indicating whether the span
-// had Error set.
+// service name on the span, and an "error" tag set to "true" if the
+// span had Error set.
 //
 // To report an indicator span, use:
 //
