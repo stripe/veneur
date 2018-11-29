@@ -164,6 +164,9 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	}
 
 	name := string(x.nameRegex.ReplaceAll([]byte(ssfSpan.Service), []byte("_")))
+	if ssfSpan.Indicator {
+		name = fmt.Sprintf("ind/%s", name)
+	}
 	if len(name) > 200 {
 		name = name[:200]
 	}
