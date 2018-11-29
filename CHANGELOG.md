@@ -1,5 +1,8 @@
 # 10.0.0, in progress
 
+## Added
+* A new package `github.com/stripe/veneur/trace/testbackend` contains two trace client backends that can be used to test the trace data emitted by applications. Thanks, [antifuchs](https://github.com/antifuchs)!
+
 # 9.0.0, 2018-11-08
 
 ## Bugfixes

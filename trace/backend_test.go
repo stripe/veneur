@@ -42,6 +42,24 @@ func benchmarkFlushingCombination(backend FlushableClientBackend, span *ssf.SSFS
 	}
 }
 
+func serveUNIX(t testing.TB, laddr *net.UnixAddr, onconnect func(conn net.Conn)) (cleanup func() error) {
+	srv, err := net.ListenUnix(laddr.Network(), laddr)
+	require.NoError(t, err)
+	cleanup = srv.Close
+
+	go func() {
+		for {
+			in, err := srv.Accept()
+			if err != nil {
+				return
+			}
+			go onconnect(in)
+		}
+	}()
+
+	return
+}
+
 // BenchmarkSerialization tests how long the serialization of a span
 // over each kind of network link can take: UNIX with no buffer, UNIX
 // with a buffer, UDP (only unbuffered); combined with the kinds of

@@ -1,7 +1,6 @@
 package splunk_test
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -17,6 +16,7 @@ import (
 	"github.com/stripe/veneur/sinks/splunk"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/testbackend"
 )
 
 func jsonEndpoint(t testing.TB, ch chan<- splunk.Event) http.Handler {
@@ -134,23 +134,6 @@ func TestSpanIngestBatch(t *testing.T) {
 	sink.Stop()
 }
 
-type testBackend struct {
-	spans chan *ssf.SSFSpan
-}
-
-func (be *testBackend) Close() error {
-	return nil
-}
-
-func (be *testBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
-	be.spans <- span
-	return nil
-}
-
-func (be *testBackend) FlushSync(ctx context.Context) error {
-	return nil
-}
-
 func TestTimeout(t *testing.T) {
 	const nToFlush = 10
 	logger := logrus.StandardLogger()
@@ -165,7 +148,7 @@ func TestTimeout(t *testing.T) {
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 
 	spans := make(chan *ssf.SSFSpan)
-	traceClient, err := trace.NewBackendClient(&testBackend{spans})
+	traceClient, err := trace.NewBackendClient(testbackend.NewBackend(spans))
 	require.NoError(t, err)
 	err = sink.Start(traceClient)
 	require.NoError(t, err)
