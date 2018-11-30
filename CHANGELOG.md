@@ -3,6 +3,11 @@
 ## Added
 * A new package `github.com/stripe/veneur/trace/testbackend` contains two trace client backends that can be used to test the trace data emitted by applications. Thanks, [antifuchs](https://github.com/antifuchs)!
 
+## Updated
+* Updated the vendored version of x/net, which picks up a package rename that
+  can lead issues when integrating veneur into other codebases. Thanks
+  [nicktrav](https://github.com/nicktrav)!
+
 # 9.0.0, 2018-11-08
 
 ## Bugfixes

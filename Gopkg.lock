@@ -565,19 +565,19 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:83d4a02520541e35c9070f237ecc84cee65e8418992211acf0cbf9bfb88d0d53"
+  digest = "1:dc5dcbb306af980306fab456d4788e88c880177227bd488a92d5bef7d8743497"
   name = "golang.org/x/net"
   packages = [
     "context",
+    "http/httpguts",
     "http2",
     "http2/hpack",
     "idna",
     "internal/timeseries",
-    "lex/httplex",
     "trace",
   ]
   pruneopts = "NUT"
-  revision = "f5079bd7f6f74e23c4d65efa0f4ce14cbd6a3c0f"
+  revision = "fae4c4e3ad76c295c3d6d259f898136b4bf833a8"
 
 [[projects]]
   branch = "master"
