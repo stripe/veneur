@@ -20,6 +20,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/stripe/veneur/metricingester/dns_connecter"
+
 	"github.com/stripe/veneur/metricingester"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -137,6 +139,12 @@ type Server struct {
 
 	// gRPC forward clients
 	grpcForwardConn *grpc.ClientConn
+
+	mi metricIngester
+}
+
+type metricIngester interface {
+	Ingest(context.Context, metricingester.Metric) error
 }
 
 // ssfServiceSpanMetrics refer to the span metrics that will
@@ -282,18 +290,6 @@ func NewFromConfig(logger *logrus.Logger, conf Config, moreSinks ...metricingest
 
 	ret.EventWorker = NewEventWorker(ret.TraceClient, ret.Statsd)
 
-	// Set up a span sink that extracts metrics from SSF spans and
-	// reports them via the metric workers:
-	processors := make([]ssfmetrics.Processor, len(ret.Workers))
-	for i, w := range ret.Workers {
-		processors[i] = w
-	}
-	metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, ret.TraceClient, log)
-	if err != nil {
-		return ret, err
-	}
-	ret.spanSinks = append(ret.spanSinks, metricSink)
-
 	for _, addrStr := range conf.StatsdListenAddresses {
 		addr, err := protocol.ResolveAddr(addrStr)
 		if err != nil {
@@ -361,7 +357,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config, moreSinks ...metricingest
 		for _, perTag := range conf.SignalfxPerTagAPIKeys {
 			byTagClients[perTag.Name] = signalfx.NewClient(conf.SignalfxEndpointBase, perTag.APIKey, &tracedHTTP)
 		}
-		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback, conf.SignalfxVaryKeyBy, byTagClients, conf.SignalfxMetricNamePrefixDrops, conf.SignalfxMetricTagPrefixDrops, metricSink)
+		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback, conf.SignalfxVaryKeyBy, byTagClients, conf.SignalfxMetricNamePrefixDrops, conf.SignalfxMetricTagPrefixDrops)
 		if err != nil {
 			return ret, err
 		}
@@ -581,35 +577,47 @@ func NewFromConfig(logger *logrus.Logger, conf Config, moreSinks ...metricingest
 
 	ret.forwardUseGRPC = conf.ForwardUseGrpc
 
+	// convert all the workers to the proper interface
+	var sinks []metricingester.Sink
+	sinks = append(sinks, moreSinks...)
+
+	for _, s := range ret.metricSinks {
+		sinks = append(sinks, s)
+	}
+	for _, s := range ret.plugins {
+		sinks = append(sinks, s)
+	}
+
+	forwarder := metricingester.NewForwardingIngester(dns_connecter.NewStripeDNSUDP(ret.interval, "veneur-srv"))
+	aggregator := metricingester.NewFlushingIngester(
+		conf.NumWorkers,
+		ret.interval,
+		sinks,
+		conf.Percentiles,
+		ret.HistogramAggregates.Value,
+		metricingester.OptTraceClient(ret.TraceClient),
+		metricingester.OptLogger(logger),
+	)
+	if conf.ForwardAddress != "" {
+		ret.mi = forwarder
+	} else {
+		ret.mi = aggregator
+	}
+
 	// Setup the grpc server if it was configured
 	ret.grpcListenAddress = conf.GrpcAddress
 	if ret.grpcListenAddress != "" {
-		// convert all the workers to the proper interface
-		var sinks []metricingester.Sink
-
-		sinks = append(sinks, moreSinks...)
-
-		for _, s := range ret.metricSinks {
-			sinks = append(sinks, s)
-		}
-		for _, s := range ret.plugins {
-			sinks = append(sinks, s)
-		}
-
-		ing := metricingester.NewFlushingIngester(
-			conf.NumWorkers,
-			ret.interval,
-			sinks,
-			conf.Percentiles,
-			ret.HistogramAggregates.Value,
-			metricingester.OptTraceClient(ret.TraceClient),
-		)
-		ing.Start()
 		ret.grpcServer = importsrv.New(
-			ing,
+			aggregator,
 			importsrv.WithTraceClient(ret.TraceClient),
 		)
 	}
+
+	metricSink, err := ssfmetrics.NewMetricExtractionSink(ret.mi, conf.IndicatorSpanTimerName, ret.TraceClient, log)
+	if err != nil {
+		return ret, err
+	}
+	ret.spanSinks = append(ret.spanSinks, metricSink)
 
 	logger.WithField("config", conf).Debug("Initialized server")
 
@@ -767,7 +775,11 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "service_check", "reason": "parse"}))
 			return err
 		}
-		s.Workers[svcheck.Digest%uint32(len(s.Workers))].PacketChan <- *svcheck
+		m, err := metricingester.ToMetric(*svcheck)
+		if err != nil {
+			log.WithError(err).WithField("packet", string(packet)).Error("could not convert UDPMetric")
+		}
+		s.mi.Ingest(context.TODO(), m)
 	} else {
 		metric, err := samplers.ParseMetric(packet)
 		if err != nil {
@@ -778,7 +790,11 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "metric", "reason": "parse"}))
 			return err
 		}
-		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
+		m, err := metricingester.ToMetric(*metric)
+		if err != nil {
+			log.WithError(err).WithField("packet", string(packet)).Error("could not convert UDPMetric")
+		}
+		s.mi.Ingest(context.TODO(), m)
 	}
 	return nil
 }

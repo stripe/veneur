@@ -2,7 +2,10 @@
 package ssfmetrics
 
 import (
+	"context"
 	"sync/atomic"
+
+	"github.com/stripe/veneur/metricingester"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
@@ -15,12 +18,16 @@ import (
 
 // metricExtractionSink enqueues ssf spans or udp metrics for processing in the next pipeline iteration.
 type metricExtractionSink struct {
-	workers                []Processor
+	mi                     metricIngester
 	indicatorSpanTimerName string
 	log                    *logrus.Logger
 	traceClient            *trace.Client
 	spansProcessed         int64
 	metricsGenerated       int64
+}
+
+type metricIngester interface {
+	Ingest(ctx context.Context, m metricingester.Metric) error
 }
 
 var _ sinks.SpanSink = &metricExtractionSink{}
@@ -40,9 +47,9 @@ type DerivedMetricsSink interface {
 // NewMetricExtractionSink sets up and creates a span sink that
 // extracts metrics ("samples") from SSF spans and reports them to a
 // veneur's metrics workers.
-func NewMetricExtractionSink(mw []Processor, timerName string, cl *trace.Client, log *logrus.Logger) (DerivedMetricsSink, error) {
+func NewMetricExtractionSink(mi metricIngester, timerName string, cl *trace.Client, log *logrus.Logger) (DerivedMetricsSink, error) {
 	return &metricExtractionSink{
-		workers:                mw,
+		mi:                     mi,
 		indicatorSpanTimerName: timerName,
 		traceClient:            cl,
 		log:                    log,
@@ -62,7 +69,14 @@ func (m *metricExtractionSink) Start(*trace.Client) error {
 // sendMetrics enqueues the metrics into the worker channels
 func (m *metricExtractionSink) sendMetrics(metrics []samplers.UDPMetric) {
 	for _, metric := range metrics {
-		m.workers[metric.Digest%uint32(len(m.workers))].IngestUDP(metric)
+		met, err := metricingester.ToMetric(metric)
+		if err != nil {
+			m.log.WithError(err).Error("failed converting UDPMetric")
+		}
+
+		if err := m.mi.Ingest(context.Background(), met); err != nil {
+			m.log.WithError(err).Error("error ingesting metrics in metric extraction sink")
+		}
 	}
 }
 

@@ -91,7 +91,6 @@ type SignalFxSink struct {
 	excludedTags          map[string]struct{}
 	metricNamePrefixDrops []string
 	metricTagPrefixDrops  []string
-	derivedMetrics        samplers.DerivedMetricsProcessor
 }
 
 // A DPClient is a client that can be used to submit signalfx data
@@ -110,7 +109,7 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 }
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagPrefixDrops []string, derivedMetrics samplers.DerivedMetricsProcessor) (*SignalFxSink, error) {
+func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagPrefixDrops []string) (*SignalFxSink, error) {
 	return &SignalFxSink{
 		defaultClient:         client,
 		clientsByTagValue:     perTagClients,
@@ -121,7 +120,6 @@ func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[s
 		varyBy:                varyBy,
 		metricNamePrefixDrops: metricNamePrefixDrops,
 		metricTagPrefixDrops:  metricTagPrefixDrops,
-		derivedMetrics:        derivedMetrics,
 	}, nil
 }
 

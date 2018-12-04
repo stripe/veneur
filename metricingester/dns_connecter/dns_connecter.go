@@ -17,6 +17,7 @@ var _ metricingester.Connecter = StripeDNSUDP{}
 
 // StripeDNSUDP is a connecter designed for Stripe's SRV record based DNS discovery and UDP usage.
 type StripeDNSUDP struct {
+	service    string
 	ticker     *time.Ticker
 	tC         <-chan time.Time
 	dialer     *net.Dialer
@@ -40,11 +41,12 @@ func OptDiscoverer(d func() ([]string, error)) option {
 	}
 }
 
-func NewStripeDNSUDP(interval time.Duration, opts ...option) StripeDNSUDP {
+func NewStripeDNSUDP(interval time.Duration, service string, opts ...option) StripeDNSUDP {
 	tckr := time.NewTicker(interval)
 	s := StripeDNSUDP{
+		service:    service,
 		ring:       consistent.New(),
-		discoverer: func() ([]string, error) { return dnssrv("veneur-srv") },
+		discoverer: func() ([]string, error) { return dnssrv(service) },
 		dialer:     &net.Dialer{},
 		ticker:     tckr,
 		tC:         tckr.C,

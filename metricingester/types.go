@@ -1,6 +1,7 @@
 package metricingester
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -320,4 +321,35 @@ func newSamplerEnvelope() samplerEnvelope {
 
 		mixedHosts: make(map[string]struct{}),
 	}
+}
+
+/***********
+ * MAPPING *
+ ***********/
+
+func ToMetric(u samplers.UDPMetric) (Metric, error) {
+	var i64 int64
+	var f64 float64
+	switch v := u.Value.(type) {
+	case int64:
+		i64 = v
+	case float64:
+		f64 = v
+	}
+
+	switch u.Type {
+	case "counter":
+		return NewCounter(u.Name, i64, u.Tags, u.SampleRate, u.HostName), nil
+	case "gauge":
+		return NewGauge(u.Name, f64, u.Tags, u.SampleRate, u.HostName), nil
+	case "histogram":
+		return NewHisto(u.Name, f64, u.Tags, u.SampleRate, u.HostName), nil
+	case "timer":
+		return NewHisto(u.Name, f64, u.Tags, u.SampleRate, u.HostName), nil
+	case "set":
+		return NewSet(u.Name, u.Message, u.Tags, u.SampleRate, u.HostName), nil
+	case "status":
+		return NewStatusCheck(u.Name, f64, u.Message, u.Tags, u.SampleRate, u.HostName), nil
+	}
+	return Metric{}, fmt.Errorf("invalid UDPMetric type: %+v", u)
 }

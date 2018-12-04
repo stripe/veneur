@@ -60,11 +60,7 @@ func test(in metricingester.Metric, out *ssf.SSFSpan) func(*testing.T) {
 		fwd := metricingester.NewForwardingIngester(connecter{laddr.String()})
 
 		// EXECUTE TEST
-
-		require.NoError(t, fwd.Ingest(
-			context.Background(),
-			in,
-		))
+		require.NoError(t, fwd.Ingest(context.Background(), in))
 
 		// COLLECT AND ASSERT RESULTS
 		result := <-rc

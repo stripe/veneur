@@ -25,6 +25,7 @@ func TestDNSConnector(t *testing.T) {
 	f := &fake{vs: []string{l.LocalAddr().String()}}
 	d := NewStripeDNSUDP(
 		1,
+		"veneur-srv",
 		OptDiscoverer(f.discover),
 		OptTickerChan(nil),
 	)
