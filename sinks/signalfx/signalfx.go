@@ -2,8 +2,10 @@ package signalfx
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -233,6 +235,13 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		coll.addPoint(metricKey, point)
 		numPoints++
 	}
+	if f, err := os.OpenFile("/pay/tmp/sfxflush.json", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644); err == nil {
+		json.NewEncoder(f).Encode(map[string]interface{}{
+			"points_unkeyed": coll.points,
+			"points_keyed":   coll.pointsByKey,
+		})
+	}
+
 	tags := map[string]string{"sink": "signalfx"}
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsSkipped, float32(countSkipped), tags))
 	err := coll.submit(subCtx, sfx.traceClient)
