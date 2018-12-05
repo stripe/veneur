@@ -19,8 +19,6 @@ import (
 	"github.com/stripe/veneur/trace/metrics"
 )
 
-const subsegmentType = "subsegment"
-
 var segmentHeader = []byte(`{"format": "json", "version": 1}` + "\n")
 
 const XRayTagNameClientIP = "xray_client_ip"
@@ -51,7 +49,6 @@ type XRaySegment struct {
 	ParentID    string            `json:"parent_id,omitempty"`
 	StartTime   float64           `json:"start_time"`
 	EndTime     float64           `json:"end_time"`
-	SegmentType string            `json:"type,omitempty"`
 	Namespace   string            `json:"namespace"`
 	Error       bool              `json:"error"`
 	Annotations map[string]string `json:"annotations,omitempty"`
@@ -197,7 +194,6 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	}
 	if ssfSpan.ParentId != 0 {
 		segment.ParentID = fmt.Sprintf("%016x", ssfSpan.ParentId)
-		segment.SegmentType = subsegmentType
 	}
 	b, err := json.Marshal(segment)
 	if err != nil {
