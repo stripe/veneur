@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -83,7 +84,7 @@ func TestIngestSpans(t *testing.T) {
 
 	select {
 	case seg := <-segments:
-		assert.Equal(t, string(fixtureSegment), seg)
+		assert.Equal(t, strings.TrimSpace(string(fixtureSegment)), seg)
 	case <-time.After(1 * time.Second):
 		assert.Fail(t, "Did not receive segment from xray ingest")
 	}
@@ -183,7 +184,7 @@ func TestSampleSpans(t *testing.T) {
 
 	select {
 	case seg := <-segments:
-		assert.Equal(t, string(fixtureSegment), seg)
+		assert.Equal(t, strings.TrimSpace(string(fixtureSegment)), seg)
 	case <-time.After(1 * time.Second):
 		assert.Fail(t, "Did not receive segment from xray ingest")
 	}
