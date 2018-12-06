@@ -400,7 +400,13 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			if conf.XraySamplePercentage == 0 {
 				log.Warn("XRay sample percentage is 0, no segments will be sent.")
 			} else {
-				xraySink, err := xray.NewXRaySpanSink(conf.XrayAddress, conf.XraySamplePercentage, ret.TagsAsMap, conf.XrayAnnotationTags, log)
+
+				annotationTags := make([]string, 0, len(conf.XrayAnnotationTags))
+				for _, tag := range conf.XrayAnnotationTags {
+					annotationTags = append(annotationTags, strings.Split(tag, ":")[0])
+				}
+
+				xraySink, err := xray.NewXRaySpanSink(conf.XrayAddress, conf.XraySamplePercentage, ret.TagsAsMap, annotationTags, log)
 				if err != nil {
 					return ret, err
 				}
@@ -408,7 +414,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 				logger.WithFields(logrus.Fields{
 					"sample_percentage":   conf.XraySamplePercentage,
-					"num_annotation_tags": len(conf.XrayAnnotationTags),
+					"num_annotation_tags": annotationTags,
 				}).Info("Configured X-Ray span sink")
 			}
 		}
