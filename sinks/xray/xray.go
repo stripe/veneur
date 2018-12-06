@@ -67,6 +67,7 @@ type XRaySpanSink struct {
 	conn            *net.UDPConn
 	sampleThreshold uint32
 	commonTags      map[string]string
+	annotationTags  map[string]struct{}
 	log             *logrus.Logger
 	spansDropped    int64
 	spansHandled    int64
@@ -76,7 +77,7 @@ type XRaySpanSink struct {
 var _ sinks.SpanSink = &XRaySpanSink{}
 
 // NewXRaySpanSink creates a new instance of a XRaySpanSink.
-func NewXRaySpanSink(daemonAddr string, sampleRatePercentage int, commonTags map[string]string, log *logrus.Logger) (*XRaySpanSink, error) {
+func NewXRaySpanSink(daemonAddr string, sampleRatePercentage int, commonTags map[string]string, annotationTags []string, log *logrus.Logger) (*XRaySpanSink, error) {
 
 	log.WithFields(logrus.Fields{
 		"Address": daemonAddr,
@@ -104,12 +105,18 @@ func NewXRaySpanSink(daemonAddr string, sampleRatePercentage int, commonTags map
 		return nil, err
 	}
 
+	annotationTagsMap := map[string]struct{}{}
+	for _, key := range annotationTags {
+		annotationTagsMap[key] = struct{}{}
+	}
+
 	return &XRaySpanSink{
 		daemonAddr:      daemonAddr,
 		sampleThreshold: sampleThreshold,
 		commonTags:      commonTags,
 		log:             log,
 		nameRegex:       reg,
+		annotationTags:  annotationTagsMap,
 	}, nil
 }
 
@@ -150,6 +157,7 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	}
 
 	metadata := map[string]string{}
+	annotations := map[string]string{}
 	for k, v := range x.commonTags {
 		metadata[k] = v
 	}
@@ -157,11 +165,16 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		if k != XRayTagNameClientIP {
 			metadata[k] = v
 		}
+		if _, present := x.annotationTags[k]; present {
+			annotations[k] = v
+		}
 	}
 	if ssfSpan.Indicator {
 		metadata["indicator"] = "true"
+		annotations["indicator"] = "true"
 	} else {
 		metadata["indicator"] = "false"
+		annotations["indicator"] = "false"
 	}
 
 	name := string(x.nameRegex.ReplaceAll([]byte(ssfSpan.Service), []byte("_")))
@@ -179,13 +192,14 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		// ID is a 64-bit hex
 		ID: fmt.Sprintf("%016x", ssfSpan.Id),
 		// Trace ID is version-startTimeUnixAs8CharHex-traceIdAs24CharHex
-		TraceID:   fmt.Sprintf("1-%08x-%024x", ssfSpan.StartTimestamp/1e9, ssfSpan.TraceId),
-		Name:      name,
-		StartTime: float64(float64(ssfSpan.StartTimestamp) / float64(time.Second)),
-		EndTime:   float64(float64(ssfSpan.EndTimestamp) / float64(time.Second)),
-		Metadata:  metadata,
-		Namespace: "remote",
-		Error:     ssfSpan.Error,
+		TraceID:     fmt.Sprintf("1-%08x-%024x", ssfSpan.StartTimestamp/1e9, ssfSpan.TraceId),
+		Name:        name,
+		StartTime:   float64(float64(ssfSpan.StartTimestamp) / float64(time.Second)),
+		EndTime:     float64(float64(ssfSpan.EndTimestamp) / float64(time.Second)),
+		Annotations: annotations,
+		Metadata:    metadata,
+		Namespace:   "remote",
+		Error:       ssfSpan.Error,
 		// Because X-Ray doesn't offer another way to get this data in, we pretend
 		// it's HTTP for now. It's likely that as X-Ray and/or Veneur develop this
 		// will change.

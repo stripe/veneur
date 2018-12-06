@@ -400,7 +400,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			if conf.XraySamplePercentage == 0 {
 				log.Warn("XRay sample percentage is 0, no segments will be sent.")
 			} else {
-				xraySink, err := xray.NewXRaySpanSink(conf.XrayAddress, conf.XraySamplePercentage, ret.TagsAsMap, log)
+				xraySink, err := xray.NewXRaySpanSink(conf.XrayAddress, conf.XraySamplePercentage, ret.TagsAsMap, conf.XrayAnnotationTags, log)
 				if err != nil {
 					return ret, err
 				}

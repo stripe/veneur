@@ -285,6 +285,12 @@ xray_address: "localhost:2000"
 # will sample the same segments by using the trace id as input for a checksum.
 xray_sample_percentage: 100
 
+# All tags are sent as (unindexed) Metadata to X-ray. Up to 50 tags per trace
+# (not per span) can be indexed as Annotations for search. Tag keys specified here
+# will be provided as Annotations
+xray_annotation_tags:
+  - ""
+
 # == LightStep ==
 # LightStep can be a sink for trace spans.
 

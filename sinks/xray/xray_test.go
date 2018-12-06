@@ -17,7 +17,7 @@ import (
 func TestConstructor(t *testing.T) {
 	logger := logrus.StandardLogger()
 
-	sink, err := NewXRaySpanSink("127.0.0.1:2000", 100, map[string]string{"foo": "bar"}, logger)
+	sink, err := NewXRaySpanSink("127.0.0.1:2000", 100, map[string]string{"foo": "bar"}, nil, logger)
 	assert.NoError(t, err)
 	assert.Equal(t, "xray", sink.Name())
 	assert.Equal(t, "bar", sink.commonTags["foo"])
@@ -54,7 +54,7 @@ func TestIngestSpans(t *testing.T) {
 		}
 	}()
 
-	sink, err := NewXRaySpanSink(fmt.Sprintf("127.0.0.1:%d", port), 100, map[string]string{"foo": "bar"}, logrus.New())
+	sink, err := NewXRaySpanSink(fmt.Sprintf("127.0.0.1:%d", port), 100, map[string]string{"foo": "bar"}, nil, logrus.New())
 	assert.NoError(t, err)
 	err = sink.Start(nil)
 	assert.NoError(t, err)
@@ -123,7 +123,7 @@ func TestSampleSpans(t *testing.T) {
 		}
 	}()
 
-	sink, err := NewXRaySpanSink(fmt.Sprintf("127.0.0.1:%d", port), 50, map[string]string{"foo": "bar"}, logrus.New())
+	sink, err := NewXRaySpanSink(fmt.Sprintf("127.0.0.1:%d", port), 50, map[string]string{"foo": "bar"}, nil, logrus.New())
 	assert.NoError(t, err)
 	err = sink.Start(nil)
 	assert.NoError(t, err)
