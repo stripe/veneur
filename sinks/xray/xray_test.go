@@ -55,7 +55,7 @@ func TestIngestSpans(t *testing.T) {
 		}
 	}()
 
-	sink, err := NewXRaySpanSink(fmt.Sprintf("127.0.0.1:%d", port), 100, map[string]string{"foo": "bar"}, nil, logrus.New())
+	sink, err := NewXRaySpanSink(fmt.Sprintf("127.0.0.1:%d", port), 100, map[string]string{"foo": "bar"}, []string{"baz", "mind"}, logrus.New())
 	assert.NoError(t, err)
 	err = sink.Start(nil)
 	assert.NoError(t, err)
@@ -74,7 +74,9 @@ func TestIngestSpans(t *testing.T) {
 		Error:          false,
 		Service:        "farts-srv",
 		Tags: map[string]string{
-			"baz": "qux",
+			"baz":      "qux",
+			"mind":     "crystal",
+			"feelings": "magenta",
 		},
 		Indicator: false,
 		Name:      "farting farty farts",
@@ -124,7 +126,7 @@ func TestSampleSpans(t *testing.T) {
 		}
 	}()
 
-	sink, err := NewXRaySpanSink(fmt.Sprintf("127.0.0.1:%d", port), 50, map[string]string{"foo": "bar"}, nil, logrus.New())
+	sink, err := NewXRaySpanSink(fmt.Sprintf("127.0.0.1:%d", port), 50, map[string]string{"foo": "bar"}, []string{"baz", "mind"}, logrus.New())
 	assert.NoError(t, err)
 	err = sink.Start(nil)
 	assert.NoError(t, err)
@@ -175,7 +177,9 @@ func TestSampleSpans(t *testing.T) {
 		Error:          false,
 		Service:        "farts-srv",
 		Tags: map[string]string{
-			"baz": "qux",
+			"baz":      "qux",
+			"mind":     "crystal",
+			"feelings": "magenta",
 		},
 		Indicator: false,
 		Name:      "farting farty farts",
