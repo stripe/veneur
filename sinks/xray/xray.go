@@ -43,6 +43,10 @@ type XRaySegmentHTTP struct {
 // XRaySegment is a trace segment for X-Ray as defined by:
 // https://docs.aws.amazon.com/xray/latest/devguide/xray-api-segmentdocuments.html
 type XRaySegment struct {
+	// The 3-tuple (name, segment type, account ID) uniquely defines
+	// an X-Ray service. The Veneur X-Ray sink uses the default type (segment)
+	// for all segments, so for a deployment that only uses a single AWS account ID,
+	// the name field will uniquely define the service (and be used as the service name)
 	Name        string            `json:"name"`
 	ID          string            `json:"id"`
 	TraceID     string            `json:"trace_id"`
@@ -161,8 +165,12 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	}
 
 	name := string(x.nameRegex.ReplaceAll([]byte(ssfSpan.Service), []byte("_")))
-	if len(name) > 200 {
-		name = name[:200]
+	if len(name) > 190 {
+		name = name[:190]
+	}
+
+	if ssfSpan.Indicator {
+		name = name + "-indicator"
 	}
 
 	// The fields below are defined here:
