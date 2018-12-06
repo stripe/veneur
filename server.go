@@ -406,7 +406,10 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 				}
 				ret.spanSinks = append(ret.spanSinks, xraySink)
 
-				logger.Info("Configured X-Ray span sink")
+				logger.WithFields(logrus.Fields{
+					"sample_percentage":   conf.XraySamplePercentage,
+					"num_annotation_tags": len(conf.XrayAnnotationTags),
+				}).Info("Configured X-Ray span sink")
 			}
 		}
 
