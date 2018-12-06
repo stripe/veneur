@@ -4,7 +4,12 @@
 # Use in conjunction with dev-local.yaml.
 stats_address: 127.0.0.1:8200
 ssf_listen_addresses:
+- unix:///tmp/veneur.sock
+- udp://127.0.0.1:8128
+statsd_listen_addresses:
+- udp://127.0.0.1:8200
 trace_max_length_bytes: 16000
+http_address: localhost:6060
 num_workers: 4
 num_readers: 1
 interval: 10s

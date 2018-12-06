@@ -2,6 +2,7 @@ package channel
 
 import (
 	"context"
+	"time"
 
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/ssf"

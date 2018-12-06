@@ -29,6 +29,7 @@
 package protocol
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"sync"
@@ -179,6 +180,12 @@ var pbufPool = sync.Pool{
 	},
 }
 
+var bufPool = sync.Pool{
+	New: func() interface{} {
+		return &bytes.Buffer{}
+	},
+}
+
 // WriteSSF writes an SSF span with a preceding v0 frame onto a stream
 // and returns the number of bytes written, as well as an error.
 //
@@ -192,22 +199,26 @@ func WriteSSF(out io.Writer, ssf *ssf.SSFSpan) (int, error) {
 		// anything to the stream yet.
 		return 0, err
 	}
+
+	buf := bufPool.Get().(*bytes.Buffer)
 	defer func() {
 		// Make sure we reset the scratch protobuffer (by default, it
 		// would retain its contents) and put it back into the pool:
 		pbuf.Reset()
 		pbufPool.Put(pbuf)
+		buf.Reset()
+		bufPool.Put(buf)
 	}()
-
-	if err = binary.Write(out, binary.BigEndian, version0); err != nil {
+	if err = binary.Write(buf, binary.BigEndian, version0); err != nil {
 		return 0, &errFramingIO{err}
 	}
-	if err = binary.Write(out, binary.BigEndian, uint32(len(pbuf.Bytes()))); err != nil {
+	if err := binary.Write(buf, binary.BigEndian, uint32(ssf.Size())); err != nil {
 		return 0, &errFramingIO{err}
 	}
-	n, err := out.Write(pbuf.Bytes())
+	n, err := buf.Write(pbuf.Bytes())
 	if err != nil {
 		return n, &errFramingIO{err}
 	}
+	buf.WriteTo(out)
 	return n, nil
 }

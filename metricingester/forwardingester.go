@@ -27,7 +27,7 @@ type Connecter interface {
 	// Return a connection in the event of error.
 	//
 	// Some errors require throwing away the connection.
-	Error(net.Conn, error)
+	Return(net.Conn, error)
 }
 
 func (f ForwardingIngester) Ingest(ctx context.Context, m Metric) error {
@@ -47,11 +47,11 @@ func (f ForwardingIngester) Ingest(ctx context.Context, m Metric) error {
 		)
 	}
 
-	_, err = protocol.WriteSSF(conn, &ssf.SSFSpan{Metrics: []*ssf.SSFSample{toSSF(m)}})
-	if err != nil {
-		f.connecter.Error(conn, err)
-		return err
-	}
+	_, err = protocol.WriteSSF(
+		conn,
+		&ssf.SSFSpan{Metrics: []*ssf.SSFSample{toSSF(m)}},
+	)
+	f.connecter.Return(conn, err)
 	return nil
 }
 

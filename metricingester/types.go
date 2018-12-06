@@ -328,18 +328,18 @@ func newSamplerEnvelope() samplerEnvelope {
  ***********/
 
 func ToMetric(u samplers.UDPMetric) (Metric, error) {
-	var i64 int64
 	var f64 float64
+	var s string
 	switch v := u.Value.(type) {
-	case int64:
-		i64 = v
 	case float64:
 		f64 = v
+	case string:
+		s = v
 	}
 
 	switch u.Type {
 	case "counter":
-		return NewCounter(u.Name, i64, u.Tags, u.SampleRate, u.HostName), nil
+		return NewCounter(u.Name, int64(f64), u.Tags, u.SampleRate, u.HostName), nil
 	case "gauge":
 		return NewGauge(u.Name, f64, u.Tags, u.SampleRate, u.HostName), nil
 	case "histogram":
@@ -347,7 +347,7 @@ func ToMetric(u samplers.UDPMetric) (Metric, error) {
 	case "timer":
 		return NewHisto(u.Name, f64, u.Tags, u.SampleRate, u.HostName), nil
 	case "set":
-		return NewSet(u.Name, u.Message, u.Tags, u.SampleRate, u.HostName), nil
+		return NewSet(u.Name, s, u.Tags, u.SampleRate, u.HostName), nil
 	case "status":
 		return NewStatusCheck(u.Name, f64, u.Message, u.Tags, u.SampleRate, u.HostName), nil
 	}

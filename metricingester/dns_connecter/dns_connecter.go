@@ -93,7 +93,7 @@ func (d StripeDNSUDP) Conn(ctx context.Context, hash string) (net.Conn, error) {
 }
 
 // Error is a noop because UDP connections are always reset anyway!
-func (d StripeDNSUDP) Error(net.Conn, error) {
+func (d StripeDNSUDP) Return(net.Conn, error) {
 }
 
 // dnssrv uses a DNS SRV request to discover services.

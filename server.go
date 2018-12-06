@@ -652,6 +652,10 @@ func (s *Server) Start() {
 		}()
 	}
 
+	if ing, ok := s.mi.(metricingester.AggregatingIngestor); ok {
+		ing.Start()
+	}
+
 	statsdPool := &sync.Pool{
 		// We +1 this so we an "detect" when someone sends us too long of a metric!
 		New: func() interface{} {
@@ -1204,6 +1208,9 @@ func (s *Server) gRPCStop() {
 // Shutdown signals the server to shut down after closing all
 // current connections.
 func (s *Server) Shutdown() {
+	if ing, ok := s.mi.(metricingester.AggregatingIngestor); ok {
+		ing.Stop()
+	}
 	// TODO(aditya) shut down workers and socket readers
 	log.Info("Shutting down server gracefully")
 	close(s.shutdown)
