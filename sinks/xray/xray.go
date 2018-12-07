@@ -207,11 +207,7 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 			Request: XRaySegmentHTTPRequest{
 				URL:      fmt.Sprintf("%s:%s", ssfSpan.Service, ssfSpan.Name),
 				ClientIP: ssfSpan.Tags[XRayTagNameClientIP],
-				// Method:   "GET",
 			},
-			// Response: XRaySegmentHTTPResponse{
-			// 	Status: 200,
-			// },
 		},
 	}
 	if ssfSpan.ParentId != 0 {
