@@ -1,7 +1,6 @@
-package trace
+package trace_test
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,17 +11,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/testbackend"
 )
 
-func mustRecord(t *testing.T, client *Client, tr *Trace) (retries int) {
+func mustRecord(t *testing.T, client *trace.Client, tr *trace.Trace) (retries int) {
 	for {
 		err := tr.ClientRecord(client, "", map[string]string{})
-		if err != ErrWouldBlock {
+		if err != trace.ErrWouldBlock {
 			assert.NoError(t, err)
 			return
 		}
@@ -31,18 +31,18 @@ func mustRecord(t *testing.T, client *Client, tr *Trace) (retries int) {
 	}
 }
 
-func mustFlush(t *testing.T, client *Client) (retries int) {
-	anyBlockage := func(err *FlushError) bool {
+func mustFlush(t *testing.T, client *trace.Client) (retries int) {
+	anyBlockage := func(err *trace.FlushError) bool {
 		for _, subErr := range err.Errors {
-			if subErr != ErrWouldBlock {
+			if subErr != trace.ErrWouldBlock {
 				return false
 			}
 		}
 		return true
 	}
 	for {
-		err := Flush(client)
-		if err == nil || !anyBlockage(err.(*FlushError)) {
+		err := trace.Flush(client)
+		if err == nil || !anyBlockage(err.(*trace.FlushError)) {
 			require.NoError(t, err)
 			return
 		}
@@ -52,25 +52,8 @@ func mustFlush(t *testing.T, client *Client) (retries int) {
 }
 
 func TestNoClient(t *testing.T) {
-	err := Record(nil, nil, nil)
-	assert.Equal(t, ErrNoClient, err)
-}
-
-func TestSetDefaultClient(t *testing.T) {
-	newClient, err := NewBackendClient(&testBackend{})
-	assert.NoError(t, err)
-
-	defer initializeDefaultClient()
-
-	var nilClient *Client = nil
-
-	// Setting nil works
-	SetDefaultClient(nilClient)
-	assert.Equal(t, nilClient, DefaultClient)
-
-	// Replacing nil and setting a client works
-	SetDefaultClient(newClient)
-	assert.Equal(t, newClient, DefaultClient)
+	err := trace.Record(nil, nil, nil)
+	assert.Equal(t, trace.ErrNoClient, err)
 }
 
 func TestUDP(t *testing.T) {
@@ -85,7 +68,7 @@ func TestUDP(t *testing.T) {
 	err = serverConn.SetReadBuffer(BufferSize)
 	assert.NoError(t, err)
 
-	client, err := NewClient(fmt.Sprintf("udp://%s", serverConn.LocalAddr().String()), Capacity(4))
+	client, err := trace.NewClient(fmt.Sprintf("udp://%s", serverConn.LocalAddr().String()), trace.Capacity(4))
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -93,7 +76,7 @@ func TestUDP(t *testing.T) {
 
 	for i := 0; i < 4; i++ {
 		name := fmt.Sprintf("Testing-%d", i)
-		tr := StartTrace(name)
+		tr := trace.StartTrace(name)
 		tr.Sent = sentCh
 		err = tr.ClientRecord(client, name, map[string]string{})
 		assert.NoError(t, err)
@@ -125,14 +108,14 @@ func TestUNIX(t *testing.T) {
 	})
 	defer cleanup()
 
-	client, err := NewClient((&url.URL{Scheme: "unix", Path: sockName}).String(), Capacity(4))
+	client, err := trace.NewClient((&url.URL{Scheme: "unix", Path: sockName}).String(), trace.Capacity(4))
 	require.NoError(t, err)
 	defer client.Close()
 
 	sentCh := make(chan error)
 	for i := 0; i < 4; i++ {
 		name := fmt.Sprintf("Testing-%d", i)
-		tr := StartTrace(name)
+		tr := trace.StartTrace(name)
 		tr.Sent = sentCh
 		mustRecord(t, client, tr)
 	}
@@ -164,17 +147,17 @@ func TestUNIXBuffered(t *testing.T) {
 	})
 	defer cleanup()
 
-	client, err := NewClient((&url.URL{Scheme: "unix", Path: sockName}).String(),
-		Capacity(4),
-		ParallelBackends(1),
-		Buffered)
+	client, err := trace.NewClient((&url.URL{Scheme: "unix", Path: sockName}).String(),
+		trace.Capacity(4),
+		trace.ParallelBackends(1),
+		trace.Buffered)
 	require.NoError(t, err)
 	defer client.Close()
 
 	sentCh := make(chan error)
 	for i := 0; i < 4; i++ {
 		name := fmt.Sprintf("Testing-%d", i)
-		tr := StartTrace(name)
+		tr := trace.StartTrace(name)
 		tr.Sent = sentCh
 		mustRecord(t, client, tr)
 	}
@@ -219,7 +202,7 @@ func TestUDPError(t *testing.T) {
 	err = serverConn.SetReadBuffer(BufferSize)
 	assert.NoError(t, err)
 
-	client, err := NewClient(fmt.Sprintf("udp://%s", serverConn.LocalAddr().String()), Capacity(4))
+	client, err := trace.NewClient(fmt.Sprintf("udp://%s", serverConn.LocalAddr().String()), trace.Capacity(4))
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -231,7 +214,7 @@ func TestUDPError(t *testing.T) {
 
 	for i := 0; i < 4; i++ {
 		name := fmt.Sprintf("Testing-%d", i)
-		tr := StartTrace(name)
+		tr := trace.StartTrace(name)
 		tr.Sent = sentCh
 		mustRecord(t, client, tr)
 	}
@@ -270,9 +253,9 @@ func TestReconnectUNIX(t *testing.T) {
 	})
 	defer cleanup()
 
-	client, err := NewClient((&url.URL{Scheme: "unix", Path: sockName}).String(),
-		Capacity(4),
-		ParallelBackends(1),
+	client, err := trace.NewClient((&url.URL{Scheme: "unix", Path: sockName}).String(),
+		trace.Capacity(4),
+		trace.ParallelBackends(1),
 	)
 	require.NoError(t, err)
 	defer client.Close()
@@ -280,7 +263,7 @@ func TestReconnectUNIX(t *testing.T) {
 	sentCh := make(chan error)
 	{
 		name := "Testing-success"
-		tr := StartTrace(name)
+		tr := trace.StartTrace(name)
 		tr.Sent = sentCh
 		t.Logf("submitting span")
 		mustRecord(t, client, tr)
@@ -291,7 +274,7 @@ func TestReconnectUNIX(t *testing.T) {
 	}
 	{
 		name := "Testing-failure"
-		tr := StartTrace(name)
+		tr := trace.StartTrace(name)
 		tr.Sent = sentCh
 		t.Logf("submitting span")
 		mustRecord(t, client, tr)
@@ -302,7 +285,7 @@ func TestReconnectUNIX(t *testing.T) {
 	}
 	{
 		name := "Testing-success2"
-		tr := StartTrace(name)
+		tr := trace.StartTrace(name)
 		tr.Sent = sentCh
 		t.Logf("submitting span")
 		mustRecord(t, client, tr)
@@ -338,17 +321,17 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 	})
 	defer cleanup()
 
-	client, err := NewClient((&url.URL{Scheme: "unix", Path: sockName}).String(),
-		Capacity(4),
-		ParallelBackends(1),
-		Buffered)
+	client, err := trace.NewClient((&url.URL{Scheme: "unix", Path: sockName}).String(),
+		trace.Capacity(4),
+		trace.ParallelBackends(1),
+		trace.Buffered)
 	require.NoError(t, err)
 	defer client.Close()
 
 	sentCh := make(chan error, 1)
 	{
 		name := "Testing-success"
-		tr := StartTrace(name)
+		tr := trace.StartTrace(name)
 		tr.Sent = sentCh
 		t.Logf("submitting span")
 		mustRecord(t, client, tr)
@@ -361,7 +344,7 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 	}
 	{
 		name := "Testing-failure"
-		tr := StartTrace(name)
+		tr := trace.StartTrace(name)
 		tr.Sent = sentCh
 		t.Logf("submitting span")
 		mustRecord(t, client, tr)
@@ -372,12 +355,12 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 		// Just keep trying until we get a flush kicked off
 	FlushRetries:
 		for {
-			require.NoError(t, FlushAsync(client, flushErr))
-			err := (<-flushErr).(*FlushError)
+			require.NoError(t, trace.FlushAsync(client, flushErr))
+			err := (<-flushErr).(*trace.FlushError)
 			// same as the number of parallel backends
 			require.Len(t, err.Errors, 1)
 			for _, err := range err.Errors {
-				if err != ErrWouldBlock {
+				if err != trace.ErrWouldBlock {
 					require.Error(t, err, "Expected an error flushing on the broken socket")
 					break FlushRetries
 				}
@@ -388,7 +371,7 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 	}
 	{
 		name := "Testing-success2"
-		tr := StartTrace(name)
+		tr := trace.StartTrace(name)
 		tr.Sent = sentCh
 		t.Logf("submitting span")
 		mustRecord(t, client, tr)
@@ -407,37 +390,15 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 	}
 }
 
-type testBackend struct {
-	t  *testing.T
-	ch chan *ssf.SSFSpan
-}
-
-func (tb *testBackend) Close() error {
-	tb.t.Logf("Closing backend")
-	close(tb.ch)
-	return nil
-}
-
-func (tb *testBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
-	tb.t.Logf("Sending span")
-	tb.ch <- span
-	return nil
-}
-
-func (tb *testBackend) FlushSync(ctx context.Context) error {
-	return nil
-}
-
 func TestInternalBackend(t *testing.T) {
 	received := make(chan *ssf.SSFSpan)
 
-	tb := testBackend{t, received}
-	cl, err := NewBackendClient(&tb, Capacity(5))
+	cl, err := trace.NewBackendClient(testbackend.NewBackend(received), trace.Capacity(5))
 	require.NoError(t, err)
 
 	sent := make(chan error, 10)
 	somespan := func() error {
-		tr := StartTrace("hi there")
+		tr := trace.StartTrace("hi there")
 		tr.Sent = sent
 		return tr.ClientRecord(cl, "hi there", map[string]string{})
 	}
@@ -446,7 +407,7 @@ func TestInternalBackend(t *testing.T) {
 	for {
 		t.Logf("submitting span %d", inflight)
 		err := somespan()
-		if err == ErrWouldBlock {
+		if err == trace.ErrWouldBlock {
 			t.Logf("got note that we'd block, breaking")
 			break
 		}
@@ -463,73 +424,58 @@ func TestInternalBackend(t *testing.T) {
 	assert.NoError(t, cl.Close())
 }
 
-type successTestBackend struct {
-	t         *testing.T
-	block     chan chan struct{}
-	flushChan chan chan<- error
-}
+type testStatsCollector map[string]int64
 
-func (tb *successTestBackend) Close() error {
-	// no-op
+func (ts testStatsCollector) Count(metric string, count int64, _ []string, _ float64) error {
+	ts[metric] = count
 	return nil
-}
-
-func (tb *successTestBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
-	tb.t.Logf("Sending span")
-	select {
-	case block := <-tb.block:
-		<-block
-	default:
-	}
-	return nil
-}
-
-func (tb *successTestBackend) FlushSync(ctx context.Context) error {
-	tb.t.Logf("flushing")
-	select {
-	case block := <-tb.block:
-		<-block
-	default:
-	}
-	return nil
-}
-
-func (tb *successTestBackend) FlushChan() chan chan<- error {
-	return tb.flushChan
 }
 
 func TestDropStatistics(t *testing.T) {
 	blockNext := make(chan chan struct{}, 1)
-	flushChan := make(chan chan<- error)
-	defer close(flushChan)
-	tb := successTestBackend{t: t, block: blockNext, flushChan: flushChan}
+	shouldBlock := func() error {
+		select {
+		case block := <-blockNext:
+			<-block
+		default:
+		}
+		return nil
+	}
+	flushChan := make(chan []*ssf.SSFSpan, 1)
+	tb := testbackend.NewFlushingBackend(flushChan,
+		testbackend.FlushErrors(
+			func(*ssf.SSFSpan) error { return shouldBlock() },
+			func([]*ssf.SSFSpan) error { return shouldBlock() }))
 
 	// Make a client that blocks if nothing listens:
-	cl, err := NewBackendClient(&tb, Capacity(0))
+	cl, err := trace.NewBackendClient(tb, trace.Capacity(0))
 	require.NoError(t, err)
 
 	// reset client stats:
-	stats, err := statsd.NewBuffered("127.0.0.1:8200", 4096)
-	require.NoError(t, err)
-	SendClientStatistics(cl, stats, nil)
+	stats := testStatsCollector{}
+	trace.SendClientStatistics(cl, stats, nil)
 
 	// Actually test the client:
-	flushRetries := mustFlush(t, cl)
+	mustFlush(t, cl)
 	assert.NoError(t, err, "Flushing an empty client should succeed")
-	assert.Equal(t, int64(1), cl.successfulFlushes, "successful flushes")
+	trace.SendClientStatistics(cl, stats, nil)
+	assert.Equal(t, int64(1), stats["trace_client.flushes_succeeded_total"], "successful flushes")
 
 	done := make(chan struct{})
 	blockNext <- done
-	retries := mustRecord(t, cl, StartTrace("hi there"))
-	assert.Equal(t, int64(1), cl.successfulRecords, "successful records")
+	mustRecord(t, cl, trace.StartTrace("hi there"))
+	trace.SendClientStatistics(cl, stats, nil)
+	assert.Equal(t, int64(1), stats["trace_client.records_succeeded_total"], "successful records")
 
-	err = StartTrace("hi there").ClientRecord(cl, "", map[string]string{})
+	err = trace.StartTrace("hi there").ClientRecord(cl, "", map[string]string{})
 	assert.Error(t, err)
-	assert.Equal(t, ErrWouldBlock, err, "Expected to report a blocked channel")
-	assert.Equal(t, int64(1+retries), cl.failedRecords, "failed records")
+	assert.Equal(t, trace.ErrWouldBlock, err, "Expected to report a blocked channel")
+	trace.SendClientStatistics(cl, stats, nil)
+	assert.Equal(t, int64(1), stats["trace_client.records_failed_total"], "failed records")
 
-	err = Flush(cl)
-	assert.Equal(t, int64(1+flushRetries), cl.failedFlushes, "failed flushes")
+	err = trace.Flush(cl)
+	trace.SendClientStatistics(cl, stats, nil)
+	assert.Equal(t, int64(1), stats["trace_client.flushes_failed_total"], "failed flushes")
 	close(done)
 	close(blockNext)
 }

@@ -1,7 +1,6 @@
 package veneur
 
 import (
-	"context"
 	"strings"
 	"sync"
 	"testing"
@@ -10,6 +9,7 @@ import (
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/testbackend"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -251,26 +251,9 @@ func (s *fakeSpanSink) Ingest(span *ssf.SSFSpan) error {
 	return nil
 }
 
-type testBackend struct {
-	spans chan *ssf.SSFSpan
-}
-
-func (be *testBackend) Close() error {
-	return nil
-}
-
-func (be *testBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
-	be.spans <- span
-	return nil
-}
-
-func (be *testBackend) FlushSync(ctx context.Context) error {
-	return nil
-}
-
 func newTestClient(t *testing.T, num int) (*trace.Client, chan *ssf.SSFSpan) {
 	ch := make(chan *ssf.SSFSpan, num)
-	cl, err := trace.NewBackendClient(&testBackend{ch})
+	cl, err := trace.NewBackendClient(testbackend.NewBackend(ch))
 	require.NoError(t, err)
 	return cl, ch
 }
