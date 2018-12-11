@@ -227,7 +227,6 @@ datadog_trace_api_address: ""
 # The size of the ring buffer used for retaining spans during a flush interval.
 datadog_span_buffer_size: 16384
 
-
 # == SignalFx ==
 # SignalFx can be a sink for metrics and events.
 
@@ -271,6 +270,25 @@ signalfx_metric_name_prefix_drops:
 # * `foo:bar` will match the key and value (well, unless there's `foo:barsnort`)
 # * `foo` to matching things like `foobar:gorch` and `foofart:fighter`
 signalfx_metric_tag_prefix_drops:
+  - ""
+
+# == AWS X-Ray ==
+# X-Ray can be a sink for trace spans.
+
+# If present, X-Ray will be enabled as a tracing sink
+xray_address: "localhost:2000"
+
+# Sample rate in percent (as an integer)
+# This should ideally be a floating point number, but at the time this was
+# written, gojson interpreted whole-number floats in yaml as integers.
+# The sink will hash the trace id of the span such that all Veneur instances
+# will sample the same segments by using the trace id as input for a checksum.
+xray_sample_percentage: 100
+
+# All tags are sent as (unindexed) Metadata to X-ray. Up to 50 tags per trace
+# (not per span) can be indexed as Annotations for search. Tag keys specified here
+# will be provided as Annotations
+xray_annotation_tags:
   - ""
 
 # == LightStep ==

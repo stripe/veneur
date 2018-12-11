@@ -50,6 +50,7 @@ import (
 	"github.com/stripe/veneur/sinks/signalfx"
 	"github.com/stripe/veneur/sinks/splunk"
 	"github.com/stripe/veneur/sinks/ssfmetrics"
+	"github.com/stripe/veneur/sinks/xray"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
 	"github.com/stripe/veneur/trace/metrics"
@@ -392,7 +393,30 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			}
 
 			ret.spanSinks = append(ret.spanSinks, ddSink)
-			logger.Info("Configured Datadog trace sink")
+			logger.Info("Configured Datadog span sink")
+		}
+
+		if conf.XrayAddress != "" {
+			if conf.XraySamplePercentage == 0 {
+				log.Warn("XRay sample percentage is 0, no segments will be sent.")
+			} else {
+
+				annotationTags := make([]string, 0, len(conf.XrayAnnotationTags))
+				for _, tag := range conf.XrayAnnotationTags {
+					annotationTags = append(annotationTags, strings.Split(tag, ":")[0])
+				}
+
+				xraySink, err := xray.NewXRaySpanSink(conf.XrayAddress, conf.XraySamplePercentage, ret.TagsAsMap, annotationTags, log)
+				if err != nil {
+					return ret, err
+				}
+				ret.spanSinks = append(ret.spanSinks, xraySink)
+
+				logger.WithFields(logrus.Fields{
+					"sample_percentage":   conf.XraySamplePercentage,
+					"num_annotation_tags": annotationTags,
+				}).Info("Configured X-Ray span sink")
+			}
 		}
 
 		// configure Lightstep as a Span Sink
@@ -409,7 +433,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			}
 			ret.spanSinks = append(ret.spanSinks, lsSink)
 
-			logger.Info("Configured Lightstep trace sink")
+			logger.Info("Configured Lightstep span sink")
 		}
 
 		if (conf.SplunkHecToken != "" && conf.SplunkHecAddress == "") ||
@@ -544,7 +568,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 				ret.registerPlugin(plugin)
 			}
 		} else {
-			logger.Info("AWS credentials not found")
+			logger.Info("AWS S3 credentials not found. S3 plugin is disabled.")
 		}
 	} else {
 		logger.Info("AWS S3 bucket not set. Skipping S3 Plugin initialization.")
