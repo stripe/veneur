@@ -6,6 +6,7 @@
 ## Added
 * The new X-Ray sink provides support for [AWS X-Ray](https://aws.amazon.com/xray/) as a tracing backend. Thanks, [gphat](https://github.com/gphat) and [aditya](https://github.com/chimeracoder)!
 * A new package `github.com/stripe/veneur/trace/testbackend` contains two trace client backends that can be used to test the trace data emitted by applications. Thanks, [antifuchs](https://github.com/antifuchs)!
+* Datadog's [distribution](https://docs.datadoghq.com/developers/metrics/distributions/) type for DogStatsD is now permitted and treated as a plain histogram for compatibility. Thanks, [gphat](https://github.com/gphat)!
 
 ## Updated
 * Updated the vendored version of x/net, which picks up a package rename that can lead issues when integrating veneur into other codebases. Thanks, [nicktrav](https://github.com/nicktrav)!
