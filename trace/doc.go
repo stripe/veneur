@@ -88,6 +88,10 @@
 // useful in tests. See the ClientBackend interface's documentation
 // for details.
 //
+// The subpackage testbackend contains backend types that allows
+// testing the trace behavior of applications. See the corresponding
+// package documentation for details.
+//
 // Additional information on Spans
 //
 // There are several additional things that can be put on a Span: the
