@@ -38,6 +38,7 @@ Veneur adheres to [the official DogStatsD datagram format](http://docs.datadoghq
 
 * The tag `veneurlocalonly` is stripped and influences forwarding behavior, as discussed below.
 * The tag `veneurglobalonly` is stripped and influences forwarding behavior, as discussed below.
+* [Distributions](https://docs.datadoghq.com/developers/metrics/distributions/) are treated as normal histograms, which are global when veneur is configured to merge. As such, Veneur will not send any metrics as distributions to Datadog.
 
 ## Lack of Host Tags for Aggregated Metrics
 

@@ -448,6 +448,14 @@ func TestParserTimer(t *testing.T) {
 	assert.Equal(t, "timer", m.Type, "Type")
 }
 
+func TestParserDistribution(t *testing.T) {
+	m, _ := samplers.ParseMetric([]byte("a.b.c:0.1716441474854946|d|#filter:flatulent"))
+	assert.NotNil(t, m, "Got nil metric!")
+	assert.Equal(t, "a.b.c", m.Name, "Name")
+	assert.Equal(t, float64(0.1716441474854946), m.Value, "Value")
+	assert.Equal(t, "histogram", m.Type, "Type")
+}
+
 func TestParserTimerFloat(t *testing.T) {
 	m, _ := samplers.ParseMetric([]byte("a.b.c:1.234|ms"))
 	assert.NotNil(t, m, "Got nil metric!")
