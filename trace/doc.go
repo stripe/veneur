@@ -69,11 +69,12 @@
 // desirable to take a Client argument in tested functions and report
 // spans to that client explicitly:
 //
+//   client := trace.DefaultClient
 //   span, ctx := trace.StartSpanFromContext(ctx, "")
-//   defer span.ClientFinish(trace.DefaultClient)
+//   defer span.ClientFinish(client)
 //
-// In case it is desired to submit no Spans at all, nil is a supported
-// trace Client value.
+// A value of nil is a supported zero value for a trace Client. It
+// will submit no spans anywhere.
 //
 // Client Backends
 //
