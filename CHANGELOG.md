@@ -1,5 +1,7 @@
 # 11.0.0, in progress
 
+## Added
+* Datadog's [distribution](https://docs.datadoghq.com/developers/metrics/distributions/) type for DogStatsD is now supported and treated as a plain histogram for compatibility. Thanks, [gphat](https://github.com/gphat)!
 
 # 10.0.0, 2018-12-19
 
