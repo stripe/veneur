@@ -2,9 +2,13 @@ package veneur
 
 import (
 	"crypto/tls"
+	"encoding/csv"
 	"fmt"
+	"io"
 	"net"
 	"os"
+	"path/filepath"
+	"strconv"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -220,4 +224,82 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) (<-chan struct{}, net.Addr) {
 		}
 	}()
 	return done, listener.Addr()
+}
+
+type SoftnetData struct {
+	Processors []SoftnetDataProcessor
+}
+
+type SoftnetDataProcessor struct {
+	Processed      int64
+	Dropped        int64
+	TimeSqueeze    int64
+	CPUCollision   int64
+	ReceivedRPS    int64
+	FlowLimitCount int64
+}
+
+// SoftnetStat provides information about UDP traffic, as provided
+// on Linux machines by /proc/net/softnet_stat. Its behavior on other
+// operating systems is undefined.
+func SoftnetStat() (SoftnetData, error) {
+	f, err := os.Open(filepath.Join("/proc", "net", "softnet_stat"))
+	if err != nil {
+		return SoftnetData{}, err
+	}
+	return parseSoftnet(f)
+}
+
+func parseSoftnet(r io.Reader) (SoftnetData, error) {
+	// softnet_stat output consists of 11 columns.
+	// The first two refer to the number of packets processed and dropped.
+	// The third is the number of times "squeezing" occurred (work was remaining
+	// when netdev_budget or the time slice expired).
+	// The next five fields are always 0 for current kernel versions (they previously
+	// were used for fastroute, which is no longer supported).
+	// The last three columns provide the number of cpu collisions (when two CPUs attempted
+	// to acquire the device queue lock simultaneously), the number of times the CPU was woken
+	// up by an inter-processor interrupt, and the number of times the flow limit has been reached.
+	const columns = 11
+	cr := csv.NewReader(r)
+	cr.Comma = ' '
+	cr.FieldsPerRecord = columns
+
+	records, err := cr.ReadAll()
+	if err != nil {
+		return SoftnetData{}, err
+	}
+
+	sd := SoftnetData{}
+	sd.Processors = make([]SoftnetDataProcessor, len(records))
+	for i, processor := range records {
+		fields, err := parseSoftnetRecord(processor)
+		if err != nil {
+			return SoftnetData{}, err
+		}
+		sdp := SoftnetDataProcessor{
+			Processed:      fields[0],
+			Dropped:        fields[1],
+			TimeSqueeze:    fields[2],
+			CPUCollision:   fields[8],
+			ReceivedRPS:    fields[9],
+			FlowLimitCount: fields[10],
+		}
+		sd.Processors[i] = sdp
+	}
+	return sd, nil
+}
+
+// parseSoftnetRecord parses a single row
+func parseSoftnetRecord(processorRecord []string) ([]int64, error) {
+	const base = 16
+	r := make([]int64, len(processorRecord))
+	for i, c := range processorRecord {
+		n, err := strconv.ParseInt(c, base, 64)
+		if err != nil {
+			return nil, err
+		}
+		r[i] = n
+	}
+	return r, nil
 }
