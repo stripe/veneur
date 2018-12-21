@@ -417,3 +417,36 @@ func TestDatadogFlushServiceCheck(t *testing.T) {
 	assert.Subset(t, ddFixtureCheck.Tags, ddChecks[0].Tags, "Check posted to DD does not have matching tags")
 
 }
+
+func TestDataDogSetExcludeTags(t *testing.T) {
+	ddSink := DatadogMetricSink{
+		tags: []string{"yay:pie", "boo:snakes"},
+	}
+
+	ddSink.SetExcludedTags([]string{"foo", "boo", "host"})
+
+	interMetrics := []samplers.InterMetric{samplers.InterMetric{
+		Name:      "a.b.c",
+		Timestamp: 1476119058,
+		Value:     10,
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+			"novalue",
+		},
+		Type: samplers.CounterMetric,
+	}}
+
+	ddMetrics, serviceChecks := ddSink.finalizeMetrics(interMetrics)
+
+	assert.Empty(t, serviceChecks, "No service check metrics are reported")
+	assert.Equal(t, 1, len(ddMetrics))
+	metric := ddMetrics[0]
+	assert.Equal(t, "a.b.c", metric.Name, "Metric has wrong name")
+	tags := metric.Tags
+	assert.Equal(t, 3, len(tags), "Metric has incorrect tag count")
+
+	assert.Equal(t, "yay:pie", tags[0], "Incorrect yay tag in first position")
+	assert.Equal(t, "baz:quz", tags[1], "Incorrect baz tag in second position")
+	assert.Equal(t, "novalue", tags[2], "Incorrect novalue tag in third position")
+}

@@ -41,6 +41,7 @@ type DatadogMetricSink struct {
 	interval        float64
 	traceClient     *trace.Client
 	log             *logrus.Logger
+	excludedTags    []string
 }
 
 // DDEvent represents the structure of datadog's undocumented /intake endpoint
@@ -242,6 +243,12 @@ func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ss
 	}
 }
 
+// SetExcludedTags sets the excluded tag names. Any tags with the
+// provided key (name) will be excluded.
+func (dd *DatadogMetricSink) SetExcludedTags(excludes []string) {
+	dd.excludedTags = excludes
+}
+
 func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) ([]DDMetric, []DDServiceCheck) {
 	ddMetrics := make([]DDMetric, 0, len(metrics))
 	checks := []DDServiceCheck{}
@@ -251,8 +258,21 @@ func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) ([]
 			continue
 		}
 		// Defensively copy tags since we're gonna mutate it
-		tags := make([]string, len(dd.tags))
-		copy(tags, dd.tags)
+		tags := make([]string, 0, len(dd.tags))
+
+		for i := range dd.tags {
+			exclude := false
+			for j := range dd.excludedTags {
+				if strings.HasPrefix(dd.tags[i], dd.excludedTags[j]) {
+					exclude = true
+					break
+				}
+			}
+			if !exclude {
+				tags = append(tags, dd.tags[i])
+			}
+
+		}
 		var hostname, devicename string
 		// Let's look for "magic tags" that override metric fields host and device.
 		for _, tag := range m.Tags {
@@ -264,10 +284,20 @@ func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) ([]
 				// Same as above, but device this time
 				devicename = tag[7:]
 			} else {
-				// Add it, no reason to exclude it.
-				tags = append(tags, tag)
+				exclude := false
+				for i := range dd.excludedTags {
+					// access excluded tags by index to avoid a string copy
+					if strings.HasPrefix(tag, dd.excludedTags[i]) {
+						exclude = true
+						break
+					}
+				}
+				if !exclude {
+					tags = append(tags, tag)
+				}
 			}
 		}
+
 		if hostname == "" {
 			// No magic tag, set the hostname
 			hostname = dd.hostname
