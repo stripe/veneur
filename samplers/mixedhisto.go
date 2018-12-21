@@ -64,14 +64,14 @@ func (m MixedHisto) Flush(percentiles []float64, aggregates HistogramAggregates,
 
 	// doesn't support median! Would require implementing separated digests.
 	now := time.Now().Unix()
-	metric := func(suffix string, val float64, host string) InterMetric {
+	metric := func(suffix string, val float64, host string, mtype MetricType) InterMetric {
 		return InterMetric{
 			Name:      fmt.Sprintf("%s.%s", m.histo.Name, suffix),
 			Timestamp: now,
 			Value:     val,
 			Tags:      m.histo.Tags,
 			HostName:  host,
-			Type:      GaugeMetric,
+			Type:      mtype,
 			Sinks:     routeInfo(m.histo.Tags),
 		}
 	}
@@ -80,22 +80,22 @@ func (m MixedHisto) Flush(percentiles []float64, aggregates HistogramAggregates,
 			continue
 		}
 		if (aggregates.Value & AggregateMax) != 0 {
-			ms = append(ms, metric("max", m.max[host], host))
+			ms = append(ms, metric("max", m.max[host], host, GaugeMetric))
 		}
 		if (aggregates.Value & AggregateMin) != 0 {
-			ms = append(ms, metric("min", m.min[host], host))
+			ms = append(ms, metric("min", m.min[host], host, GaugeMetric))
 		}
 		if (aggregates.Value & AggregateSum) != 0 {
-			ms = append(ms, metric("sum", m.sum[host], host))
+			ms = append(ms, metric("sum", m.sum[host], host, GaugeMetric))
 		}
 		if (aggregates.Value & AggregateAverage) != 0 {
-			ms = append(ms, metric("avg", m.sum[host]/m.weight[host], host))
+			ms = append(ms, metric("avg", m.sum[host]/m.weight[host], host, GaugeMetric))
 		}
 		if (aggregates.Value & AggregateCount) != 0 {
-			ms = append(ms, metric("count", m.weight[host], host))
+			ms = append(ms, metric("count", m.weight[host], host, CounterMetric))
 		}
 		if (aggregates.Value & AggregateHarmonicMean) != 0 {
-			ms = append(ms, metric("hmean", m.weight[host]/m.reciprocalSum[host], host))
+			ms = append(ms, metric("hmean", m.weight[host]/m.reciprocalSum[host], host, GaugeMetric))
 		}
 	}
 	return ms

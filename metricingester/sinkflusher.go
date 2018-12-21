@@ -39,6 +39,9 @@ func (s sinkFlusher) Flush(ctx context.Context, envelope samplerEnvelope) {
 	for _, sampler := range envelope.gauges {
 		ms = append(ms, sampler.Flush()...)
 	}
+	for _, sampler := range envelope.statusChecks {
+		ms = append(ms, sampler.Flush()...)
+	}
 	for _, sampler := range envelope.histograms {
 		ms = append(ms, sampler.Flush(time.Second, s.percentiles, s.aggregates, true)...)
 	}

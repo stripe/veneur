@@ -29,8 +29,8 @@ const (
 
 // metricsIngester is the contract expected of objects to which metrics will be submitted.
 type metricsIngester interface {
-	Ingest(metricingester.Metric) error
-	Merge(metricingester.Digest) error
+	Ingest(context.Context, metricingester.Metric) error
+	Merge(context.Context, metricingester.Digest) error
 }
 
 // Server wraps a gRPC server and implements the forwardrpc.Forward service.
@@ -97,7 +97,7 @@ var (
 
 // SendMetrics accepts a batch of metrics for importing.
 func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) (*empty.Empty, error) {
-	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.importsrv.handle_send_metrics")
+	span, ctx := trace.StartSpanFromContext(ctx, "veneur.opentracing.importsrv.handle_send_metrics")
 	span.SetTag("protocol", "grpc")
 	defer span.ClientFinish(s.opts.traceClient)
 
@@ -107,11 +107,11 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 		tags := m.GetTags()
 		switch v := m.GetValue().(type) {
 		case *metricpb.Metric_Gauge:
-			s.ingester.Ingest(metricingester.NewGauge(m.Name, v.Gauge.GetValue(), tags, 1.0, hostname))
+			s.ingester.Ingest(ctx, metricingester.NewGauge(m.Name, v.Gauge.GetValue(), tags, 1.0, hostname))
 		case *metricpb.Metric_Counter:
-			s.ingester.Ingest(metricingester.NewCounter(m.Name, v.Counter.GetValue(), tags, 1.0, hostname))
+			s.ingester.Ingest(ctx, metricingester.NewCounter(m.Name, v.Counter.GetValue(), tags, 1.0, hostname))
 		case *metricpb.Metric_Set:
-			s.ingester.Merge(metricingester.NewSetDigest(m.Name, v.Set, tags, hostname))
+			s.ingester.Merge(ctx, metricingester.NewSetDigest(m.Name, v.Set, tags, hostname))
 		case *metricpb.Metric_Histogram:
 			// Scope is a legacy concept used to designate whether a metric needed to be emitted locally
 			// or aggregated globally.
@@ -132,14 +132,17 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 			switch m.GetScope() {
 			case metricpb.Scope_Mixed:
 				s.ingester.Merge(
+					ctx,
 					metricingester.NewMixedHistogramDigest(m.Name, v.Histogram, tags, hostname, false),
 				)
 			case metricpb.Scope_MixedGlobal:
 				s.ingester.Merge(
+					ctx,
 					metricingester.NewMixedHistogramDigest(m.Name, v.Histogram, tags, hostname, true),
 				)
 			case metricpb.Scope_Local, metricpb.Scope_Global:
 				s.ingester.Merge(
+					ctx,
 					metricingester.NewHistogramDigest(m.Name, v.Histogram, tags, hostname),
 				)
 			}

@@ -51,11 +51,12 @@ func TGauge(name string, value float64, opts ...func(r TestMetric) TestMetric) T
 	return r
 }
 
-func TStatus(name string, value float64, opts ...func(r TestMetric) TestMetric) TestMetric {
+func TStatus(name string, v float64, message string, opts ...func(r TestMetric) TestMetric) TestMetric {
 	r := TestMetric{
-		Name:  name,
-		Value: value,
-		Type:  StatusMetric,
+		Name:    name,
+		Value:   v,
+		Message: message,
+		Type:    StatusMetric,
 	}
 	for _, opt := range opts {
 		r = opt(r)

@@ -38,7 +38,7 @@ var testE2EFlushingCases = []struct {
 		samplers.TMetrics(
 			samplers.TGauge("test.min", 1),
 			samplers.TGauge("test.max", 3),
-			samplers.TGauge("test.count", 3),
+			samplers.TCounter("test.count", 3),
 			samplers.TGauge("test.50percentile", 2),
 			samplers.TGauge("test.95percentile", 2.925),
 		),
@@ -51,6 +51,17 @@ var testE2EFlushingCases = []struct {
 			samplers.TGauge("test.95percentile", 2.925),
 		),
 		"mixed histo not correct",
+	},
+	{
+		pbmetrics(pbhisto("test", []float64{1, 2, 3}, pbscope(metricpb.Scope_Global))),
+		samplers.TMetrics(
+			samplers.TGauge("test.50percentile", 2),
+			samplers.TGauge("test.95percentile", 2.925),
+			samplers.TGauge("test.min", 1),
+			samplers.TGauge("test.max", 3),
+			samplers.TCounter("test.count", 3),
+		),
+		"global histo not correct",
 	},
 	{
 		pbmetrics(pbset("test", []string{"asf", "clin", "aditya"})),
@@ -144,7 +155,7 @@ var testE2EFlushingCases = []struct {
 		samplers.TMetrics(
 			samplers.TGauge("test.min", 1, samplers.OptHostname("a")),
 			samplers.TGauge("test.max", 3, samplers.OptHostname("a")),
-			samplers.TGauge("test.count", 3, samplers.OptHostname("a")),
+			samplers.TCounter("test.count", 3, samplers.OptHostname("a")),
 			samplers.TGauge("test.50percentile", 2),
 			samplers.TGauge("test.95percentile", 2.925),
 		),
@@ -168,10 +179,10 @@ var testE2EFlushingCases = []struct {
 		samplers.TMetrics(
 			samplers.TGauge("test.min", 1, samplers.OptHostname("a")),
 			samplers.TGauge("test.max", 3, samplers.OptHostname("a")),
-			samplers.TGauge("test.count", 3, samplers.OptHostname("a")),
+			samplers.TCounter("test.count", 3, samplers.OptHostname("a")),
 			samplers.TGauge("test.min", 4, samplers.OptHostname("b")),
 			samplers.TGauge("test.max", 6, samplers.OptHostname("b")),
-			samplers.TGauge("test.count", 3, samplers.OptHostname("b")),
+			samplers.TCounter("test.count", 3, samplers.OptHostname("b")),
 			samplers.TGauge("test.50percentile", 3.5),
 			samplers.TGauge("test.95percentile", 5.85),
 		),
@@ -188,10 +199,6 @@ var testE2EFlushingCases = []struct {
 		),
 		"mixed histos not reporting host level aggregates for two hosts",
 	},
-
-	// sink tests
-
-	// crazy random "real world" tests
 }
 
 // TestE2EFlushingIngester tests the integration of the import endpoint with

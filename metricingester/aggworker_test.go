@@ -13,3 +13,21 @@ func BenchmarkWorkerIngest(b *testing.B) {
 		w.Ingest(NewCounter("mycounter", 100, tags, 1.0, "myhost"))
 	}
 }
+
+func BenchmarkMetric_Hash(b *testing.B) {
+	m := NewCounter("test", 1, []string{
+		"host:abcdefghjiklmn",
+		"merchant:abcdefghjijkkl",
+		"moretags:heyheyheyehey",
+		"host:abcdefghjiklmn",
+		"merchant:abcdefghjijkkl",
+		"moretags:heyheyheyehey",
+		"host:abcdefghjiklmn",
+		"merchant:abcdefghjijkkl",
+		"moretags:heyheyheyehey",
+	}, 1.0, "myhost")
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		m.Hash()
+	}
+}
