@@ -99,6 +99,7 @@ func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans
 			},
 			UseGRPC:          true,
 			MaxBufferedSpans: maximumSpans,
+			Verbose:          true,
 		}))
 	}
 
