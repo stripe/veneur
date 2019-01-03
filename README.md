@@ -58,7 +58,7 @@ More generically, Veneur is a convenient sink for various observability primitiv
 
 Once you cross a threshold into dozens, hundreds or (gasp!) thousands of machines emitting metric data for an application, you've moved into that world where data about individual hosts is uninteresting except in aggregate form. Instead of paying to store tons of data points and then aggregating them later at read-time, Veneur can calculate global aggregates, like percentiles and forward those along to your time series database, etc.
 
-Veneur is also a StatsD or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) protocol transport, fowarding the locally collected metrics over more reliable TCP
+Veneur is also a StatsD or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) protocol transport, forwarding the locally collected metrics over more reliable TCP
 implementations.
 
 Here are some examples of why Stripe and other companies are using Veneur today:
@@ -120,6 +120,10 @@ Clients can choose to override this behavior by [including the tag `veneurlocalo
 Because Veneur is built to handle lots and lots of data, it uses approximate histograms. We have our own implementation of [Dunning's t-digest](tdigest/merging_digest.go), which has bounded memory consumption and reduced error at extreme quantiles. Metrics are consistently routed to the same worker to distribute load and to be added to the same histogram.
 
 Datadog's DogStatsD — and StatsD — uses an exact histogram which retains all samples and is reset every flush period. This means that there is a loss of precision when using Veneur, but the resulting percentile values are meant to be more representative of a global view.
+
+### Datadog Distributions
+
+Because Veneur already handles "global" histograms, any DogStatsD packets received with type `d` — [Datadog's distribution type](https://docs.datadoghq.com/developers/metrics/distributions/) — will be considered a histogram and therefore compatible with all sinks. Veneur does **not** send any metrics to Datadog typed as a Datadog-native distribution.
 
 ## Approximate Sets
 

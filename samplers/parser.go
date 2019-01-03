@@ -295,7 +295,7 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 		ret.Type = "counter"
 	case 'g':
 		ret.Type = "gauge"
-	case 'h':
+	case 'd', 'h': // consider DogStatsD's "distribution" to be a histogram
 		ret.Type = "histogram"
 	case 'm': // We can ignore the s in "ms"
 		ret.Type = "timer"

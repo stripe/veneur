@@ -6,7 +6,7 @@ of the SSF data structures SSFSpan and SSFSample, and the other is a
 set of helper routines for generating SSFSamples that can be reported
 on an SSFSpan.
 
-The types in this package is meant to be used together with the
+The types in this package are meant to be used together with the
 neighboring packages trace and trace/metrics.
 
 */

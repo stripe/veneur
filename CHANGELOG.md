@@ -1,5 +1,8 @@
 # 11.0.0, in progress
 
+## Added
+* Datadog's [distribution](https://docs.datadoghq.com/developers/metrics/distributions/) type for DogStatsD is now supported and treated as a plain histogram for compatibility. Thanks, [gphat](https://github.com/gphat)!
+* The `github.com/stripe/veneur/trace` package has brand new and much more extensive [documentation](https://godoc.org/github.com/stripe/veneur/trace)! Thanks, [antifuchs](https://github.com/antifuchs)!
 
 # 10.0.0, 2018-12-19
 
