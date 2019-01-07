@@ -12,6 +12,7 @@
 
 ## Updated
 * Updated the vendored version of x/net, which picks up a package rename that can lead issues when integrating veneur into other codebases. Thanks, [nicktrav](https://github.com/nicktrav)!
+* Updated the vendored versions of x/sys, protobuf, and gRPC. Thanks [nicktrav](https://github.com/nicktrav)!
 
 # 9.0.0, 2018-11-08
 
