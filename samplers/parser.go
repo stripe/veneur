@@ -229,8 +229,8 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 
 // ParseMetric converts the incoming packet from Datadog DogStatsD
 // Datagram format in to a Metric. http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
-func ParseMetric(packet []byte) (*UDPMetric, error) {
-	ret := &UDPMetric{
+func ParseMetric(packet []byte) (UDPMetric, error) {
+	ret := UDPMetric{
 		SampleRate: 1.0,
 	}
 	pipeSplitter := NewSplitBytes(packet, '|')
@@ -238,22 +238,22 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 
 	startingColon := bytes.IndexByte(pipeSplitter.Chunk(), ':')
 	if startingColon == -1 {
-		return nil, errors.New("Invalid metric packet, need at least 1 colon")
+		return UDPMetric{}, errors.New("Invalid metric packet, need at least 1 colon")
 	}
 	nameChunk := pipeSplitter.Chunk()[:startingColon]
 	valueChunk := pipeSplitter.Chunk()[startingColon+1:]
 	if len(nameChunk) == 0 {
-		return nil, errors.New("Invalid metric packet, name cannot be empty")
+		return UDPMetric{}, errors.New("Invalid metric packet, name cannot be empty")
 	}
 
 	if !pipeSplitter.Next() {
-		return nil, errors.New("Invalid metric packet, need at least 1 pipe for type")
+		return UDPMetric{}, errors.New("Invalid metric packet, need at least 1 pipe for type")
 	}
 	typeChunk := pipeSplitter.Chunk()
 	if len(typeChunk) == 0 {
 		// avoid panicking on malformed packets missing a type
 		// (eg "foo:1||")
-		return nil, errors.New("Invalid metric packet, metric type not specified")
+		return UDPMetric{}, errors.New("Invalid metric packet, metric type not specified")
 	}
 
 	h := fnv1a.Init32
@@ -274,7 +274,7 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 	case 's':
 		ret.Type = "set"
 	default:
-		return nil, invalidMetricTypeError
+		return UDPMetric{}, invalidMetricTypeError
 	}
 	// Add the type to the digest
 	h = fnv1a.AddString32(h, ret.Type)
@@ -285,7 +285,7 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 	} else {
 		v, err := strconv.ParseFloat(string(valueChunk), 64)
 		if err != nil || math.IsNaN(v) || math.IsInf(v, 0) {
-			return nil, fmt.Errorf("Invalid number for metric value: %s", valueChunk)
+			return UDPMetric{}, fmt.Errorf("Invalid number for metric value: %s", valueChunk)
 		}
 		ret.Value = v
 	}
@@ -296,21 +296,21 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 		if len(pipeSplitter.Chunk()) == 0 {
 			// avoid panicking on malformed packets that have too many pipes
 			// (eg "foo:1|g|" or "foo:1|c||@0.1")
-			return nil, errors.New("Invalid metric packet, empty string after/between pipes")
+			return UDPMetric{}, errors.New("Invalid metric packet, empty string after/between pipes")
 		}
 		switch pipeSplitter.Chunk()[0] {
 		case '@':
 			if foundSampleRate {
-				return nil, errors.New("Invalid metric packet, multiple sample rates specified")
+				return UDPMetric{}, errors.New("Invalid metric packet, multiple sample rates specified")
 			}
 			// sample rate!
 			sr := string(pipeSplitter.Chunk()[1:])
 			sampleRate, err := strconv.ParseFloat(sr, 32)
 			if err != nil {
-				return nil, fmt.Errorf("Invalid float for sample rate: %s", sr)
+				return UDPMetric{}, fmt.Errorf("Invalid float for sample rate: %s", sr)
 			}
 			if sampleRate <= 0 || sampleRate > 1 {
-				return nil, fmt.Errorf("Sample rate %f must be >0 and <=1", sampleRate)
+				return UDPMetric{}, fmt.Errorf("Sample rate %f must be >0 and <=1", sampleRate)
 			}
 			ret.SampleRate = float32(sampleRate)
 			foundSampleRate = true
@@ -318,7 +318,7 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 		case '#':
 			// tags!
 			if ret.Tags != nil {
-				return nil, errors.New("Invalid metric packet, multiple tag sections specified")
+				return UDPMetric{}, errors.New("Invalid metric packet, multiple tag sections specified")
 			}
 			// should we be filtering known key tags from here?
 			// in order to prevent extremely high cardinality in the global stats?
@@ -347,7 +347,7 @@ func ParseMetric(packet []byte) (*UDPMetric, error) {
 			h = fnv1a.AddString32(h, ret.JoinedTags)
 
 		default:
-			return nil, fmt.Errorf("Invalid metric packet, contains unknown section %q", pipeSplitter.Chunk())
+			return UDPMetric{}, fmt.Errorf("Invalid metric packet, contains unknown section %q", pipeSplitter.Chunk())
 		}
 	}
 

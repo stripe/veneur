@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/testhelpers"
 )
 
 const ε = .01
@@ -588,5 +589,18 @@ func BenchmarkParseMetricSSF(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ParseMetricSSF(samples[i%LEN])
+	}
+}
+
+func BenchmarkParseMetricStatsd(b *testing.B) {
+	const Len = 1000
+	packets := testhelpers.GenerateRandomStatsdMetricPackets(b, Len)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := ParseMetric(packets[i%Len])
+		if err != nil {
+			b.Fatalf("error parsing metric: %s", err)
+		}
 	}
 }

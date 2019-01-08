@@ -74,6 +74,9 @@ var tracer = trace.GlobalTracer
 
 const defaultTCPReadTimeout = 10 * time.Minute
 
+var metricEventPrefix = []byte{'_', 'e', '{'}
+var metricServiceCheckPrefix = []byte{'_', 's', 'c'}
+
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers              []*Worker
@@ -704,28 +707,26 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 		// newline, it's easier to just let them be
 		return nil
 	}
-	samples := &ssf.Samples{}
-	defer metrics.Report(s.TraceClient, samples)
 
-	if bytes.HasPrefix(packet, []byte{'_', 'e', '{'}) {
+	if bytes.HasPrefix(packet, metricEventPrefix) {
 		event, err := samplers.ParseEvent(packet)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Warn("Could not parse packet")
-			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "event", "reason": "parse"}))
+			s.Statsd.Count("packet.error_total", 1, []string{"packet_type:event", "reason:parse"}, 1.0)
 			return err
 		}
 		s.EventWorker.sampleChan <- *event
-	} else if bytes.HasPrefix(packet, []byte{'_', 's', 'c'}) {
+	} else if bytes.HasPrefix(packet, metricServiceCheckPrefix) {
 		svcheck, err := samplers.ParseServiceCheck(packet)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Warn("Could not parse packet")
-			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "service_check", "reason": "parse"}))
+			s.Statsd.Count("packet.error_total", 1, []string{"packet_type:service_check", "reason:parse"}, 1.0)
 			return err
 		}
 		s.Workers[svcheck.Digest%uint32(len(s.Workers))].PacketChan <- *svcheck
@@ -736,10 +737,10 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Warn("Could not parse packet")
-			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "metric", "reason": "parse"}))
+			s.Statsd.Count("packet.error_total", 1, []string{"packet_type:metric", "reason:parse"}, 1.0)
 			return err
 		}
-		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
+		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- metric
 	}
 	return nil
 }

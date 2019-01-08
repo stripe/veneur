@@ -12,6 +12,8 @@ import (
 	"io/ioutil"
 	"sync"
 
+	crand "crypto/rand"
+	"math/big"
 	"math/rand"
 	"net"
 	"net/http"
@@ -31,6 +33,7 @@ import (
 	"github.com/stripe/veneur/sinks/blackhole"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/tdigest"
+	"github.com/stripe/veneur/testhelpers"
 	"github.com/stripe/veneur/trace"
 	"github.com/stripe/veneur/trace/metrics"
 	"github.com/zenazn/goji/graceful"
@@ -1401,5 +1404,43 @@ func BenchmarkHandleSSF(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		f.server.handleSSF(spans[i%LEN], "packet")
+	}
+}
+
+func RandomString(tb testing.TB, length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+	bts := make([]byte, length)
+	for i := range bts {
+		n, err := crand.Int(crand.Reader, big.NewInt(int64(len(charset))))
+		if err != nil {
+			tb.Fatalf("error generating random data: %s", err)
+		}
+
+		bts[i] = charset[n.Int64()]
+	}
+	return string(bts)
+}
+
+func BenchmarkHandleMetricPacket(b *testing.B) {
+	// generate test data with veneur-emit
+	// $ nc -u -l 127.0.0.1 8125
+
+	const Len = 1000
+	packets := testhelpers.GenerateRandomStatsdMetricPackets(b, Len)
+
+	config := localConfig()
+	config.Interval = "5s"
+	config.NumWorkers = 2
+	f := newFixture(b, config, nil, nil)
+	defer f.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err := f.server.HandleMetricPacket(packets[i%Len])
+		if err != nil {
+			log.WithError(err).WithField("packet", string(packets[i%Len])).Error("Error parsing packet")
+			b.Fatalf("error parsing packet: %s ", err)
+		}
 	}
 }
