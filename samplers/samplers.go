@@ -4,25 +4,60 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"hash/fnv"
 	"math"
 	"strings"
 	"time"
 
-	"github.com/clarkduvall/hyperloglog"
+	"github.com/axiomhq/hyperloglog"
+	"github.com/stripe/veneur/samplers/metricpb"
 	"github.com/stripe/veneur/tdigest"
 )
 
-// DDMetric is a data structure that represents the JSON that Datadog
-// wants when posting to the API
-type DDMetric struct {
-	Name       string        `json:"metric"`
-	Value      [1][2]float64 `json:"points"`
-	Tags       []string      `json:"tags,omitempty"`
-	MetricType string        `json:"type"`
-	Hostname   string        `json:"host,omitempty"`
-	DeviceName string        `json:"device_name,omitempty"`
-	Interval   int32         `json:"interval,omitempty"`
+// MetricType defines what kind of metric this is, so that we or our upstream
+// sinks can do the right thing with it.
+type MetricType int
+
+const (
+	// CounterMetric is a counter
+	CounterMetric MetricType = iota
+	// GaugeMetric is a gauge
+	GaugeMetric
+	// StatusMetric is a status (synonymous with a service check)
+	StatusMetric
+)
+
+// RouteInformation is a key-only map indicating sink names that are
+// supposed to receive a metric. A nil RouteInformation value
+// corresponds to the "every sink" value; an entry in a non-nil
+// RouteInformation means that the key should receive the metric.
+type RouteInformation map[string]struct{}
+
+// RouteTo returns true if the named sink should receive a metric
+// according to the route table. A nil route table causes any sink to
+// be eligible for the metric.
+func (ri RouteInformation) RouteTo(name string) bool {
+	if ri == nil {
+		return true
+	}
+	_, ok := ri[name]
+	return ok
+}
+
+// InterMetric represents a metric that has been completed and is ready for
+// flushing by sinks.
+type InterMetric struct {
+	Name      string
+	Timestamp int64
+	Value     float64
+	Tags      []string
+	Type      MetricType
+	Message   string
+	HostName  string
+
+	// Sinks, if non-nil, indicates which metric sinks a metric
+	// should be inserted into. If nil, that means the metric is
+	// meant to go to every sink.
+	Sinks RouteInformation
 }
 
 type Aggregate int
@@ -34,6 +69,7 @@ const (
 	AggregateAverage
 	AggregateCount
 	AggregateSum
+	AggregateHarmonicMean
 )
 
 var AggregatesLookup = map[string]Aggregate{
@@ -43,6 +79,7 @@ var AggregatesLookup = map[string]Aggregate{
 	"avg":    AggregateAverage,
 	"count":  AggregateCount,
 	"sum":    AggregateSum,
+	"hmean":  AggregateHarmonicMean,
 }
 
 type HistogramAggregates struct {
@@ -51,12 +88,13 @@ type HistogramAggregates struct {
 }
 
 var aggregates = [...]string{
-	AggregateMin:     "min",
-	AggregateMax:     "max",
-	AggregateMedian:  "median",
-	AggregateAverage: "avg",
-	AggregateCount:   "count",
-	AggregateSum:     "sum",
+	AggregateMin:          "min",
+	AggregateMax:          "max",
+	AggregateMedian:       "median",
+	AggregateAverage:      "avg",
+	AggregateCount:        "count",
+	AggregateSum:          "sum",
+	AggregateHarmonicMean: "hmean",
 }
 
 // JSONMetric is used to represent a metric that can be remarshaled with its
@@ -69,6 +107,25 @@ type JSONMetric struct {
 	Value []byte `json:"value"`
 }
 
+const sinkPrefix string = "veneursinkonly:"
+
+func routeInfo(tags []string) RouteInformation {
+	var info RouteInformation
+	for _, tag := range tags {
+		if !strings.HasPrefix(tag, sinkPrefix) {
+			continue
+		}
+		if info == nil {
+			info = make(RouteInformation)
+		}
+		// Take the tag suffix (the part after the ':' in
+		// "veneursinkonly:", and make that the key in our
+		// route information map:
+		info[tag[len(sinkPrefix):]] = struct{}{}
+	}
+	return info
+}
+
 // Counter is an accumulator
 type Counter struct {
 	Name  string
@@ -76,21 +133,27 @@ type Counter struct {
 	value int64
 }
 
+// GetName returns the name of the counter.
+func (c *Counter) GetName() string {
+	return c.Name
+}
+
 // Sample adds a sample to the counter.
 func (c *Counter) Sample(sample float64, sampleRate float32) {
 	c.value += int64(sample) * int64(1/sampleRate)
 }
 
-// Flush generates a DDMetric from the current state of this Counter.
-func (c *Counter) Flush(interval time.Duration) []DDMetric {
+// Flush generates an InterMetric from the current state of this Counter.
+func (c *Counter) Flush(interval time.Duration) []InterMetric {
 	tags := make([]string, len(c.Tags))
 	copy(tags, c.Tags)
-	return []DDMetric{{
-		Name:       c.Name,
-		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(c.value) / interval.Seconds()}},
-		Tags:       tags,
-		MetricType: "rate",
-		Interval:   int32(interval.Seconds()),
+	return []InterMetric{{
+		Name:      c.Name,
+		Timestamp: time.Now().Unix(),
+		Value:     float64(c.value),
+		Tags:      tags,
+		Type:      CounterMetric,
+		Sinks:     routeInfo(tags),
 	}}
 }
 
@@ -129,6 +192,23 @@ func (c *Counter) Combine(other []byte) error {
 	return nil
 }
 
+// Metric returns a protobuf-compatible metricpb.Metric with values set
+// at the time this function was called.  This should be used to export
+// a Counter for forwarding.
+func (c *Counter) Metric() (*metricpb.Metric, error) {
+	return &metricpb.Metric{
+		Name:  c.Name,
+		Tags:  c.Tags,
+		Type:  metricpb.Type_Counter,
+		Value: &metricpb.Metric_Counter{&metricpb.CounterValue{Value: c.value}},
+	}, nil
+}
+
+// Merge adds the value from the input CounterValue to this one.
+func (c *Counter) Merge(v *metricpb.CounterValue) {
+	c.value += v.Value
+}
+
 // NewCounter generates and returns a new Counter.
 func NewCounter(Name string, Tags []string) *Counter {
 	return &Counter{Name: Name, Tags: Tags}
@@ -146,43 +226,161 @@ func (g *Gauge) Sample(sample float64, sampleRate float32) {
 	g.value = sample
 }
 
-// Flush generates a DDMetric from the current state of this gauge.
-func (g *Gauge) Flush() []DDMetric {
+// Flush generates an InterMetric from the current state of this gauge.
+func (g *Gauge) Flush() []InterMetric {
 	tags := make([]string, len(g.Tags))
 	copy(tags, g.Tags)
-	return []DDMetric{{
-		Name:       g.Name,
-		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(g.value)}},
-		Tags:       tags,
-		MetricType: "gauge",
+	return []InterMetric{{
+		Name:      g.Name,
+		Timestamp: time.Now().Unix(),
+		Value:     float64(g.value),
+		Tags:      tags,
+		Type:      GaugeMetric,
+		Sinks:     routeInfo(tags),
 	}}
+
 }
 
-// NewGauge genearaaaa who am I kidding just getting rid of the warning.
+// Export converts a Gauge into a JSONMetric.
+func (g *Gauge) Export() (JSONMetric, error) {
+	var buf bytes.Buffer
+
+	err := binary.Write(&buf, binary.LittleEndian, g.value)
+	if err != nil {
+		return JSONMetric{}, err
+	}
+
+	return JSONMetric{
+		MetricKey: MetricKey{
+			Name:       g.Name,
+			Type:       "gauge",
+			JoinedTags: strings.Join(g.Tags, ","),
+		},
+		Tags:  g.Tags,
+		Value: buf.Bytes(),
+	}, nil
+}
+
+// Combine is pretty naïve for Gauges, as it just overwrites the value.
+func (g *Gauge) Combine(other []byte) error {
+	var otherValue float64
+	buf := bytes.NewReader(other)
+	err := binary.Read(buf, binary.LittleEndian, &otherValue)
+
+	if err != nil {
+		return err
+	}
+
+	g.value = otherValue
+
+	return nil
+}
+
+// GetName returns the name of the gauge.
+func (g *Gauge) GetName() string {
+	return g.Name
+}
+
+// Metric returns a protobuf-compatible metricpb.Metric with values set
+// at the time this function was called.  This should be used to export
+// a Gauge for forwarding.
+func (g *Gauge) Metric() (*metricpb.Metric, error) {
+	return &metricpb.Metric{
+		Name:  g.Name,
+		Tags:  g.Tags,
+		Type:  metricpb.Type_Gauge,
+		Value: &metricpb.Metric_Gauge{&metricpb.GaugeValue{Value: g.value}},
+	}, nil
+}
+
+// Merge sets the value of this Gauge to the value of the other.
+func (g *Gauge) Merge(v *metricpb.GaugeValue) {
+	g.value = v.Value
+}
+
+// NewGauge generates an empty (valueless) Gauge
 func NewGauge(Name string, Tags []string) *Gauge {
 	return &Gauge{Name: Name, Tags: Tags}
+}
+
+// StatusCheck retains whatever the last value was.
+type StatusCheck struct {
+	InterMetric
+}
+
+// Sample takes on whatever value is passed in as a sample.
+func (s *StatusCheck) Sample(sample float64, sampleRate float32, message string, hostname string) {
+	s.Value = sample
+	s.Message = message
+	s.HostName = hostname
+}
+
+// Flush generates an InterMetric from the current state of this status check.
+func (s *StatusCheck) Flush() []InterMetric {
+	s.Timestamp = time.Now().Unix()
+	s.Type = StatusMetric
+	s.Sinks = routeInfo(s.Tags)
+	return []InterMetric{s.InterMetric}
+}
+
+// Export converts a StatusCheck into a JSONMetric.
+func (s *StatusCheck) Export() (JSONMetric, error) {
+	var buf bytes.Buffer
+
+	err := binary.Write(&buf, binary.LittleEndian, s.Value)
+	if err != nil {
+		return JSONMetric{}, err
+	}
+
+	return JSONMetric{
+		MetricKey: MetricKey{
+			Name:       s.Name,
+			Type:       "status",
+			JoinedTags: strings.Join(s.Tags, ","),
+		},
+		Tags:  s.Tags,
+		Value: buf.Bytes(),
+	}, nil
+}
+
+// Combine is pretty naïve for StatusChecks, as it just overwrites the value.
+func (s *StatusCheck) Combine(other []byte) error {
+	var otherValue float64
+	buf := bytes.NewReader(other)
+	err := binary.Read(buf, binary.LittleEndian, &otherValue)
+
+	if err != nil {
+		return err
+	}
+
+	s.Value = otherValue
+
+	return nil
+}
+
+// NewStatusCheck generates an empty (valueless) StatusCheck
+func NewStatusCheck(Name string, Tags []string) *StatusCheck {
+	return &StatusCheck{InterMetric{Name: Name, Tags: Tags}}
 }
 
 // Set is a list of unique values seen.
 type Set struct {
 	Name string
 	Tags []string
-	Hll  *hyperloglog.HyperLogLogPlus
+	Hll  *hyperloglog.Sketch
 }
 
 // Sample checks if the supplied value has is already in the filter. If not, it increments
 // the counter!
 func (s *Set) Sample(sample string, sampleRate float32) {
-	hasher := fnv.New64a()
-	hasher.Write([]byte(sample))
-	s.Hll.Add(hasher)
+	s.Hll.Insert([]byte(sample))
 }
 
 // NewSet generates a new Set and returns it
 func NewSet(Name string, Tags []string) *Set {
 	// error is only returned if precision is outside the 4-18 range
 	// TODO: this is the maximum precision, should it be configurable?
-	Hll, _ := hyperloglog.NewPlus(18)
+	Hll := hyperloglog.New()
 	return &Set{
 		Name: Name,
 		Tags: Tags,
@@ -190,21 +388,23 @@ func NewSet(Name string, Tags []string) *Set {
 	}
 }
 
-// Flush generates a DDMetric for the state of this Set.
-func (s *Set) Flush() []DDMetric {
+// Flush generates an InterMetric for the state of this Set.
+func (s *Set) Flush() []InterMetric {
 	tags := make([]string, len(s.Tags))
 	copy(tags, s.Tags)
-	return []DDMetric{{
-		Name:       s.Name,
-		Value:      [1][2]float64{{float64(time.Now().Unix()), float64(s.Hll.Count())}},
-		Tags:       tags,
-		MetricType: "gauge",
+	return []InterMetric{{
+		Name:      s.Name,
+		Timestamp: time.Now().Unix(),
+		Value:     float64(s.Hll.Estimate()),
+		Tags:      tags,
+		Type:      GaugeMetric,
+		Sinks:     routeInfo(tags),
 	}}
 }
 
 // Export converts a Set into a JSONMetric which reports the Tags in the set.
 func (s *Set) Export() (JSONMetric, error) {
-	val, err := s.Hll.GobEncode()
+	val, err := s.Hll.MarshalBinary()
 	if err != nil {
 		return JSONMetric{}, err
 	}
@@ -221,8 +421,8 @@ func (s *Set) Export() (JSONMetric, error) {
 
 // Combine merges the values seen with another set (marshalled as a byte slice)
 func (s *Set) Combine(other []byte) error {
-	otherHLL, _ := hyperloglog.NewPlus(18)
-	if err := otherHLL.GobDecode(other); err != nil {
+	otherHLL := hyperloglog.New()
+	if err := otherHLL.UnmarshalBinary(other); err != nil {
 		return err
 	}
 	if err := s.Hll.Merge(otherHLL); err != nil {
@@ -232,6 +432,34 @@ func (s *Set) Combine(other []byte) error {
 		return err
 	}
 	return nil
+}
+
+// GetName returns the name of the set.
+func (s *Set) GetName() string {
+	return s.Name
+}
+
+// Metric returns a protobuf-compatible metricpb.Metric with values set
+// at the time this function was called.  This should be used to export
+// a Set for forwarding.
+func (s *Set) Metric() (*metricpb.Metric, error) {
+	encoded, err := s.Hll.MarshalBinary()
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode the HyperLogLog: %v", err)
+	}
+
+	return &metricpb.Metric{
+		Name:  s.Name,
+		Tags:  s.Tags,
+		Type:  metricpb.Type_Set,
+		Value: &metricpb.Metric_Set{&metricpb.SetValue{HyperLogLog: encoded}},
+	}, nil
+}
+
+// Merge combines the HyperLogLog with that of the input Set.  Since the
+// HyperLogLog is marshalled in the value, it unmarshals it first.
+func (s *Set) Merge(v *metricpb.SetValue) error {
+	return s.Combine(v.HyperLogLog)
 }
 
 // Histo is a collection of values that generates max, min, count, and
@@ -245,10 +473,11 @@ type Histo struct {
 	// we separate them because they're easy to aggregate on the backend without
 	// loss of granularity, and having host-local information on them might be
 	// useful
-	LocalWeight float64
-	LocalMin    float64
-	LocalMax    float64
-	LocalSum    float64
+	LocalWeight        float64
+	LocalMin           float64
+	LocalMax           float64
+	LocalSum           float64
+	LocalReciprocalSum float64
 }
 
 // Sample adds the supplied value to the histogram.
@@ -260,6 +489,8 @@ func (h *Histo) Sample(sample float64, sampleRate float32) {
 	h.LocalMin = math.Min(h.LocalMin, sample)
 	h.LocalMax = math.Max(h.LocalMax, sample)
 	h.LocalSum += sample * weight
+
+	h.LocalReciprocalSum += (1 / sample) * weight
 }
 
 // NewHist generates a new Histo and returns it.
@@ -275,72 +506,81 @@ func NewHist(Name string, Tags []string) *Histo {
 	}
 }
 
-// Flush generates DDMetrics for the current state of the Histo. percentiles
+// Flush generates InterMetrics for the current state of the Histo. percentiles
 // indicates what percentiles should be exported from the histogram.
-func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates HistogramAggregates) []DDMetric {
-	now := float64(time.Now().Unix())
-	// we only want to flush the number of samples we received locally, since
-	// any other samples have already been flushed by a local veneur instance
-	// before this was forwarded to us
-	rate := h.LocalWeight / interval.Seconds()
-	metrics := make([]DDMetric, 0, aggregates.Count+len(percentiles))
+func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates HistogramAggregates) []InterMetric {
+	now := time.Now().Unix()
+	metrics := make([]InterMetric, 0, aggregates.Count+len(percentiles))
+	sinks := routeInfo(h.Tags)
 
 	if (aggregates.Value&AggregateMax) == AggregateMax && !math.IsInf(h.LocalMax, 0) {
-		// Defensively recopy tags to avoid aliasing bugs in case multiple DDMetrics share the same
+		// Defensively recopy tags to avoid aliasing bugs in case multiple InterMetrics share the same
 		// tag array in the future
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
-		metrics = append(metrics, DDMetric{
-			Name:       fmt.Sprintf("%s.max", h.Name),
-			Value:      [1][2]float64{{now, h.LocalMax}},
-			Tags:       tags,
-			MetricType: "gauge",
+		metrics = append(metrics, InterMetric{
+			Name:      fmt.Sprintf("%s.max", h.Name),
+			Timestamp: now,
+			Value:     float64(h.LocalMax),
+			Tags:      tags,
+			Type:      GaugeMetric,
+			Sinks:     sinks,
 		})
 	}
 	if (aggregates.Value&AggregateMin) == AggregateMin && !math.IsInf(h.LocalMin, 0) {
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
-		metrics = append(metrics, DDMetric{
-			Name:       fmt.Sprintf("%s.min", h.Name),
-			Value:      [1][2]float64{{now, h.LocalMin}},
-			Tags:       tags,
-			MetricType: "gauge",
+		metrics = append(metrics, InterMetric{
+			Name:      fmt.Sprintf("%s.min", h.Name),
+			Timestamp: now,
+			Value:     float64(h.LocalMin),
+			Tags:      tags,
+			Type:      GaugeMetric,
+			Sinks:     sinks,
 		})
 	}
 
 	if (aggregates.Value&AggregateSum) == AggregateSum && h.LocalSum != 0 {
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
-		metrics = append(metrics, DDMetric{
-			Name:       fmt.Sprintf("%s.sum", h.Name),
-			Value:      [1][2]float64{{now, h.LocalSum}},
-			Tags:       tags,
-			MetricType: "gauge",
+		metrics = append(metrics, InterMetric{
+			Name:      fmt.Sprintf("%s.sum", h.Name),
+			Timestamp: now,
+			Value:     float64(h.LocalSum),
+			Tags:      tags,
+			Type:      GaugeMetric,
+			Sinks:     sinks,
 		})
-		if (aggregates.Value&AggregateAverage) == AggregateAverage && h.LocalWeight != 0 {
-			// we need both a rate and a non-zero sum before it will make sense
-			// to submit an average
-			metrics = append(metrics, DDMetric{
-				Name:       fmt.Sprintf("%s.avg", h.Name),
-				Value:      [1][2]float64{{now, h.LocalSum / h.LocalWeight}},
-				Tags:       tags,
-				MetricType: "gauge",
-			})
-		}
 	}
 
-	if (aggregates.Value&AggregateCount) == AggregateCount && rate != 0 {
+	if (aggregates.Value&AggregateAverage) == AggregateAverage && h.LocalSum != 0 && h.LocalWeight != 0 {
+		// we need both a rate and a non-zero sum before it will make sense
+		// to submit an average
+		tags := make([]string, len(h.Tags))
+		copy(tags, h.Tags)
+		metrics = append(metrics, InterMetric{
+			Name:      fmt.Sprintf("%s.avg", h.Name),
+			Timestamp: now,
+			Value:     float64(h.LocalSum / h.LocalWeight),
+			Tags:      tags,
+			Type:      GaugeMetric,
+			Sinks:     sinks,
+		})
+	}
+
+	if (aggregates.Value&AggregateCount) == AggregateCount && h.LocalWeight != 0 {
 		// if we haven't received any local samples, then leave this sparse,
 		// otherwise it can lead to some misleading zeroes in between the
 		// flushes of downstream instances
 		tags := make([]string, len(h.Tags))
 		copy(tags, h.Tags)
-		metrics = append(metrics, DDMetric{
-			Name:       fmt.Sprintf("%s.count", h.Name),
-			Value:      [1][2]float64{{now, rate}},
-			Tags:       tags,
-			MetricType: "rate",
-			Interval:   int32(interval.Seconds()),
+		metrics = append(metrics, InterMetric{
+			Name:      fmt.Sprintf("%s.count", h.Name),
+			Timestamp: now,
+			Value:     float64(h.LocalWeight),
+			Tags:      tags,
+			Type:      CounterMetric,
+			Sinks:     sinks,
 		})
 	}
 
@@ -349,13 +589,30 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		copy(tags, h.Tags)
 		metrics = append(
 			metrics,
-			DDMetric{
-				Name:       fmt.Sprintf("%s.median", h.Name),
-				Value:      [1][2]float64{{now, h.Value.Quantile(0.5)}},
-				Tags:       tags,
-				MetricType: "gauge",
+			InterMetric{
+				Name:      fmt.Sprintf("%s.median", h.Name),
+				Timestamp: now,
+				Value:     float64(h.Value.Quantile(0.5)),
+				Tags:      tags,
+				Type:      GaugeMetric,
+				Sinks:     sinks,
 			},
 		)
+	}
+
+	if (aggregates.Value&AggregateHarmonicMean) == AggregateHarmonicMean && h.LocalReciprocalSum != 0 && h.LocalWeight != 0 {
+		// we need both a rate and a non-zero sum before it will make sense
+		// to submit an average
+		tags := make([]string, len(h.Tags))
+		copy(tags, h.Tags)
+		metrics = append(metrics, InterMetric{
+			Name:      fmt.Sprintf("%s.hmean", h.Name),
+			Timestamp: now,
+			Value:     float64(h.LocalWeight / h.LocalReciprocalSum),
+			Tags:      tags,
+			Type:      GaugeMetric,
+			Sinks:     sinks,
+		})
 	}
 
 	for _, p := range percentiles {
@@ -364,11 +621,13 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 		metrics = append(
 			metrics,
 			// TODO Fix to allow for p999, etc
-			DDMetric{
-				Name:       fmt.Sprintf("%s.%dpercentile", h.Name, int(p*100)),
-				Value:      [1][2]float64{{now, h.Value.Quantile(p)}},
-				Tags:       tags,
-				MetricType: "gauge",
+			InterMetric{
+				Name:      fmt.Sprintf("%s.%dpercentile", h.Name, int(p*100)),
+				Timestamp: now,
+				Value:     float64(h.Value.Quantile(p)),
+				Tags:      tags,
+				Type:      GaugeMetric,
+				Sinks:     sinks,
 			},
 		)
 	}
@@ -402,4 +661,31 @@ func (h *Histo) Combine(other []byte) error {
 	}
 	h.Value.Merge(otherHistogram)
 	return nil
+}
+
+// GetName returns the name of the Histo.
+func (h *Histo) GetName() string {
+	return h.Name
+}
+
+// Metric returns a protobuf-compatible metricpb.Metric with values set
+// at the time this function was called.  This should be used to export
+// a Histo for forwarding.
+func (h *Histo) Metric() (*metricpb.Metric, error) {
+	return &metricpb.Metric{
+		Name: h.Name,
+		Tags: h.Tags,
+		Type: metricpb.Type_Histogram,
+		Value: &metricpb.Metric_Histogram{&metricpb.HistogramValue{
+			TDigest: h.Value.Data(),
+		}},
+	}, nil
+}
+
+// Merge merges the t-digests of the two histograms and mutates the state
+// of this one.
+func (h *Histo) Merge(v *metricpb.HistogramValue) {
+	if v.TDigest != nil {
+		h.Value.Merge(tdigest.NewMergingFromData(v.TDigest))
+	}
 }

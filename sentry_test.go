@@ -2,11 +2,11 @@ package veneur
 
 import (
 	"errors"
-	"github.com/Sirupsen/logrus"
 	"testing"
 	"time"
 
 	"github.com/getsentry/raven-go"
+	"github.com/sirupsen/logrus"
 )
 
 // returns the result of calling recover() after s.ConsumePanic()
@@ -14,14 +14,14 @@ func consumeAndCatchPanic(s *Server) (result interface{}) {
 	defer func() {
 		result = recover()
 	}()
-	s.ConsumePanic("panic")
+	ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, "panic")
 	return
 }
 
 func TestConsumePanicWithoutSentry(t *testing.T) {
 	s := &Server{}
 	// does nothing
-	s.ConsumePanic(nil)
+	ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, nil)
 
 	recovered := consumeAndCatchPanic(s)
 	if recovered != "panic" {
@@ -41,15 +41,15 @@ func (t *fakeSentryTransport) Send(url string, authHeader string, packet *raven.
 func TestConsumePanicWithSentry(t *testing.T) {
 	s := &Server{}
 	var err error
-	s.sentry, err = raven.NewClient("", nil)
+	s.Sentry, err = raven.NewClient("", nil)
 	if err != nil {
 		t.Fatal("failed to create sentry client:", err)
 	}
 	fakeTransport := &fakeSentryTransport{}
-	s.sentry.Transport = fakeTransport
+	s.Sentry.Transport = fakeTransport
 
 	// nil does nothing
-	s.ConsumePanic(nil)
+	ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, nil)
 	if len(fakeTransport.packets) != 0 {
 		t.Error("ConsumePanic(nil) should not send data:", fakeTransport.packets)
 	}
@@ -60,6 +60,19 @@ func TestConsumePanicWithSentry(t *testing.T) {
 	}
 	if len(fakeTransport.packets) != 1 {
 		t.Error("expected 1 packet:", fakeTransport.packets)
+	}
+}
+
+func TestHookWithoutSentry(t *testing.T) {
+	// hook with a nil sentry client is used when sentry is disabled
+	hook := &sentryHook{}
+
+	entry := &logrus.Entry{}
+	// must use Fatal so the call to Fire blocks and we can check the result
+	entry.Level = logrus.FatalLevel
+	err := hook.Fire(entry)
+	if err != nil {
+		t.Error("Fire returned an error:", err)
 	}
 }
 

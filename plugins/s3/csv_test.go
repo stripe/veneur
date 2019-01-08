@@ -15,9 +15,9 @@ import (
 )
 
 type CSVTestCase struct {
-	Name     string
-	DDMetric samplers.DDMetric
-	Row      io.Reader
+	Name        string
+	InterMetric samplers.InterMetric
+	Row         io.Reader
 }
 
 func CSVTestCases() []CSVTestCase {
@@ -27,52 +27,43 @@ func CSVTestCases() []CSVTestCase {
 	return []CSVTestCase{
 		{
 			Name: "BasicDDMetric",
-			DDMetric: samplers.DDMetric{
-				Name: "a.b.c.max",
-				Value: [1][2]float64{[2]float64{1476119058,
-					100}},
+			InterMetric: samplers.InterMetric{
+				Name:      "a.b.c.max",
+				Timestamp: 1476119058,
+				Value:     float64(100),
 				Tags: []string{"foo:bar",
 					"baz:quz"},
-				MetricType: "gauge",
-				Hostname:   "globalstats",
-				DeviceName: "food",
-				Interval:   0,
+				Type: samplers.GaugeMetric,
 			},
-			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\tgauge\tglobalstats\ttestbox-c3eac9\tfood\t0\t2016-10-10 05:04:18\t100\t%s\n", partition)),
+			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\tgauge\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
 		},
 		{
 			// Test that we are able to handle a missing field (DeviceName)
 			Name: "MissingDeviceName",
-			DDMetric: samplers.DDMetric{
-				Name: "a.b.c.max",
-				Value: [1][2]float64{[2]float64{1476119058,
-					100}},
+			InterMetric: samplers.InterMetric{
+				Name:      "a.b.c.max",
+				Timestamp: 1476119058,
+				Value:     float64(100),
 				Tags: []string{"foo:bar",
 					"baz:quz"},
-				MetricType: "rate",
-				Hostname:   "localhost",
-				DeviceName: "",
-				Interval:   10,
+				Type: samplers.CounterMetric,
 			},
-			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\trate\tlocalhost\ttestbox-c3eac9\t\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
+			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\trate\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t10\t%s\n", partition)),
 		},
 		{
 			// Test that we are able to handle tags which have tab characters in them
 			// by quoting the entire field
 			// (tags shouldn't do this, but we should handle them properly anyway)
 			Name: "TabTag",
-			DDMetric: samplers.DDMetric{
-				Name: "a.b.c.max",
-				Value: [1][2]float64{[2]float64{1476119058,
-					100}},
+			InterMetric: samplers.InterMetric{
+				Name:      "a.b.c.count",
+				Timestamp: 1476119058,
+				Value:     float64(100),
 				Tags: []string{"foo:b\tar",
 					"baz:quz"},
-				MetricType: "rate",
-				Hostname:   "localhost",
-				DeviceName: "eniac",
-				Interval:   10,
+				Type: samplers.CounterMetric,
 			},
-			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t\"{foo:b\tar,baz:quz}\"\trate\tlocalhost\ttestbox-c3eac9\teniac\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
+			Row: strings.NewReader(fmt.Sprintf("a.b.c.count\t\"{foo:b\tar,baz:quz}\"\trate\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t10\t%s\n", partition)),
 		},
 	}
 }
@@ -89,7 +80,7 @@ func TestEncodeCSV(t *testing.T) {
 			w.Comma = '\t'
 
 			tm := time.Now()
-			err := EncodeDDMetricCSV(tc.DDMetric, w, &tm, "testbox-c3eac9")
+			err := EncodeInterMetricCSV(tc.InterMetric, w, &tm, "testbox-c3eac9", 10)
 			assert.NoError(t, err)
 
 			// We need to flush or there won't actually be any data there

@@ -1,3 +1,11 @@
+<!-- Checklist For PRs
+
+* Ensure you've written tests where applicable
+* Add a CHANGELOG.md entry describing your change, thank yourself!
+* Document any changes to metrics or configuration
+-->
+
+
 #### Summary
 <!-- Simple summary of what the code does or what you have changed. -->
 
@@ -12,4 +20,3 @@
 
 #### Rollout/monitoring/revert plan
 <!-- Instructions for deploying, monitoring, and reverting this change. -->
-

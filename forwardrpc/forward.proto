@@ -1,0 +1,17 @@
+syntax = "proto3";
+package forwardrpc;
+
+import "samplers/metricpb/metric.proto";
+import "google/protobuf/empty.proto";
+
+// Forward defines a service that can be used to forward metrics from one
+// Veneur to another.
+service Forward {
+    // SendMetrics sends a batch of metrics at once, and returns no response.
+    rpc SendMetrics(MetricList) returns (google.protobuf.Empty) {}
+}
+
+// MetricList just wraps a list of metricpb.Metric's.
+message MetricList {
+    repeated metricpb.Metric metrics = 1;
+}

@@ -1,15 +1,17 @@
 package veneur
 
 import (
-	"hash/fnv"
 	"net/http"
 	"net/http/pprof"
 	"sort"
 	"time"
 
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/metrics"
 
+	"github.com/segmentio/fasthash/fnv1a"
 	"goji.io"
 	"goji.io/pat"
 	"golang.org/x/net/context"
@@ -23,13 +25,17 @@ func (s *Server) Handler() http.Handler {
 		w.Write([]byte("ok\n"))
 	})
 
+	mux.HandleFuncC(pat.Get("/builddate"), func(c context.Context, w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(BUILD_DATE))
+	})
+
+	mux.HandleFuncC(pat.Get("/version"), func(c context.Context, w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(VERSION))
+	})
+
+	// TODO3.0: Maybe remove this endpoint as it is kinda useless now that tracing is always on.
 	mux.HandleFuncC(pat.Get("/healthcheck/tracing"), func(c context.Context, w http.ResponseWriter, r *http.Request) {
-		if s.TracingEnabled() {
-			w.Write([]byte("ok\n"))
-		} else {
-			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte("nok\n"))
-		}
+		w.Write([]byte("ok\n"))
 	})
 
 	mux.Handle(pat.Post("/import"), handleImport(s))
@@ -61,8 +67,7 @@ func (s *Server) ImportMetrics(ctx context.Context, jsonMetrics []samplers.JSONM
 		nextChunk, workerIndex := sortedIter.Chunk()
 		s.Workers[workerIndex].ImportChan <- nextChunk
 	}
-
-	s.statsd.TimeInMilliseconds("import.response_duration_ns", float64(time.Since(span.Start).Nanoseconds()), []string{"part:merge"}, 1.0)
+	metrics.ReportOne(s.TraceClient, ssf.Timing("import.response_duration_ns", time.Since(span.Start), time.Nanosecond, map[string]string{"part": "merge"}))
 }
 
 // sorts a set of jsonmetrics by what worker they belong to
@@ -77,11 +82,11 @@ func newSortableJSONMetrics(metrics []samplers.JSONMetric, numWorkers int) *sort
 		workerIndices: make([]uint32, 0, len(metrics)),
 	}
 	for _, j := range metrics {
-		h := fnv.New32a()
-		h.Write([]byte(j.Name))
-		h.Write([]byte(j.Type))
-		h.Write([]byte(j.JoinedTags))
-		ret.workerIndices = append(ret.workerIndices, h.Sum32()%uint32(numWorkers))
+		h := fnv1a.Init32
+		h = fnv1a.AddString32(h, j.Name)
+		h = fnv1a.AddString32(h, j.Type)
+		h = fnv1a.AddString32(h, j.JoinedTags)
+		ret.workerIndices = append(ret.workerIndices, h%uint32(numWorkers))
 	}
 	return &ret
 }
@@ -106,7 +111,7 @@ type jsonMetricsByWorker struct {
 }
 
 // iterate over a sorted set of jsonmetrics, returning them in contiguous
-// nonempty chunks such that each chunk correpsonds to a single worker
+// nonempty chunks such that each chunk corresponds to a single worker.
 func newJSONMetricsByWorker(metrics []samplers.JSONMetric, numWorkers int) *jsonMetricsByWorker {
 	ret := &jsonMetricsByWorker{
 		sjm: newSortableJSONMetrics(metrics, numWorkers),
@@ -114,6 +119,7 @@ func newJSONMetricsByWorker(metrics []samplers.JSONMetric, numWorkers int) *json
 	sort.Sort(ret.sjm)
 	return ret
 }
+
 func (jmbw *jsonMetricsByWorker) Next() bool {
 	if jmbw.sjm.Len() == jmbw.nextStart {
 		return false

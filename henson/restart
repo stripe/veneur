@@ -1,3 +1,10 @@
 #!/bin/bash
 
-svc -h /etc/service/veneur-srv
+# This is a stripe-internal script used during our deploy process. Please ignore!
+
+if [ "$HENSON_SERVICE" = "veneur-proxy-srv" ]
+then
+  svc -h /etc/service/veneur-proxy-srv
+else
+  svc -h /etc/service/veneur-srv
+fi

@@ -3,22 +3,25 @@ package veneur
 import (
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/getsentry/raven-go"
+	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/metrics"
 )
 
 // ConsumePanic is intended to be called inside a deferred function when recovering
 // from a panic. It accepts the value of recover() as its only argument,
 // and reports the panic to Sentry, prints the stack,  and then repanics (to ensure your program terminates)
-func (s *Server) ConsumePanic(err interface{}) {
+func ConsumePanic(sentry *raven.Client, cl *trace.Client, hostname string, err interface{}) {
 	if err == nil {
 		return
 	}
 
-	if s.sentry != nil {
+	if sentry != nil {
 		p := raven.Packet{
 			Level:      raven.FATAL,
-			ServerName: s.Hostname,
+			ServerName: hostname,
 			Interfaces: []raven.Interface{
 				// ignore 2 stack frames:
 				// - the frame for ConsumePanic itself
@@ -36,8 +39,10 @@ func (s *Server) ConsumePanic(err interface{}) {
 		default:
 			p.Message = fmt.Sprintf("%#v", e)
 		}
-		_, ch := s.sentry.Capture(&p, nil)
-		s.statsd.Count("sentry.errors_total", 1, nil, 1.0)
+
+		_, ch := sentry.Capture(&p, nil)
+		metrics.ReportOne(cl, ssf.Count("sentry.errors_total", 1, nil))
+
 		// we don't want the program to terminate before reporting to sentry
 		<-ch
 	}
@@ -59,6 +64,11 @@ func (s sentryHook) Levels() []logrus.Level {
 }
 
 func (s sentryHook) Fire(e *logrus.Entry) error {
+	if s.c == nil {
+		// raven.Client works when it is nil, but skip the useless work and don't hang on Fatal
+		return nil
+	}
+
 	p := raven.Packet{
 		ServerName: s.hostname,
 		Interfaces: []raven.Interface{

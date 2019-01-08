@@ -2,30 +2,10 @@ syntax = "proto3";
 
 package ssf;
 
-message SSFTag {
-  string name = 1;
-  string value = 2;
-}
-
-message SSFTrace {
-  // the trace_id is the (span) id of the root span
-  int64 trace_id = 1;
-  // the id for this span
-  int64 id = 2;
-  // the (span) id of the direct parent,
-  // if this span is not a root span
-  int64 parent_id = 3;
-
-  // In addition to the Name (defined on the SSFSample),
-  // traces also have a Resource. Unlike the Name, Resource
-  // can include whitespace and can be (for example) the
-  // endpoint or the base of a SQL query
-  // See https://godoc.org/github.com/DataDog/dd-trace-go/tracer#Span
-  string resource = 4;
-
-  int64 duration = 5;
-}
-
+// SSFSample is similar of a StatsD-style, point in time metric. It has a Metric
+// type, a name, a value and a timestamp. Additionally it can contain a message,
+// a status, a sample rate, a map of tags as string keys and values and a unit
+// type. Note that SSF doesn't understand units, they are just strings!
 message SSFSample {
   enum Metric {
       COUNTER = 0;
@@ -33,8 +13,6 @@ message SSFSample {
       HISTOGRAM = 2;
       SET = 3;
       STATUS = 4;
-      EVENT = 5;
-      TRACE = 6;
   }
   enum Status {
       OK = 0;
@@ -49,16 +27,86 @@ message SSFSample {
   // no spaces, but . is allowed
   // e.g.: veneur.bar.baz
   string name = 2;
-  int64 timestamp = 3;
-  string message = 4;
-  Status status = 5;
-  float sample_rate = 6;
-  repeated SSFTag tags = 7;
-  string unit = 8;
-  SSFTrace trace = 9;
+  float value = 3;
+  int64 timestamp = 4;
+  string message = 5;
+  Status status = 6;
+  float sample_rate = 7;
+  map<string, string> tags = 8;
+  string unit = 9;
+}
 
+// SSFSpan is the primary unit of reporting in SSF. It embeds a set of
+// SSFSamples, as well as start/stop time stamps and a parent ID
+// (which allows assembling a span lineage for distributed tracing
+// purposes).
+//
+// Note that since this is protobuf, an SSFSpan does not *have* to
+// include metrics, just as it does not *have* to include information
+// necessary to reconstruct a trace.
+//
+// Compatibility
+//
+// On ingestion, an SSFSpan with an empty string for a name field but
+// a tag "name" will have that name field replaced with the name tag,
+// and the tag is removed.
+//
+// Metric SSFSamples with a zero sample_rate (indicating it was left
+// out) have the sample_rate field set to 1 on ingestion.
+//
+// Validity Criteria
+//
+// Programs consuming SSFSpans should take care to only process spans
+// and metrics that fulfill the following criteria:
+//
+// Metrics are considered valid if they have a name and a value.
+//
+// SSFSpans are considered valid trace spans if they have non-zero id,
+// trace_id, start_timestamp and end_timestamp fields.
+message SSFSpan {
+  reserved 9;
 
-  // the name of the service
+  int32 version = 1;
+  // the trace_id is the (span) id of the root span
+  int64 trace_id = 2;
+  // the id for this span
+  int64 id = 3;
+  // the (span) id of the direct parent, if this span is not a root
+  // span
+  int64 parent_id = 4;
+
+  int64 start_timestamp = 5;
+  int64 end_timestamp = 6;
+
+  // This flag being true signals that this span was an error. That definition
+  // of error is not implicitly fatal, as a span may error but be fixed by
+  // a subsequent retry, etc.
+  bool error = 7;
+
+  // The name of the service
   // e.g. "veneur"
-  string service = 10;
+  string service = 8;
+
+  repeated SSFSample metrics = 10;
+
+  // Tags are name value pairs that describe a facet of the span. They apply to
+  // the *entire* span as opposed to logs which apply to a specific time in
+  // the span.
+  map<string, string> tags = 11;
+
+  // An indicator span is one that represents an action that is included in a
+  // service's Service Level Indicators (https://en.wikipedia.org/wiki/Service_level_indicator)
+  // This is a signal to receivers that this span may be used to compute SLIs.
+  // In practice a service's core feature — the thing you would "bill" for, such
+  // as an API call or read/write operation — would be flagged as an indicator
+  // span, and its child spans would further describe its duration.
+  // It's also worth nothing that an indicator need not be the "root" or first
+  // span in a trace. You might have various forms of middleware that happen
+  // first or you might have multiple services participating in the same trace.
+  bool indicator = 12;
+
+  // What to call this span. This could take the form of the endpoint
+  // (/customer/:id), the function (class::name.method), a friendly name
+  // (foo middleware) or whatever makes sense in your context.
+  string name = 13;
 }

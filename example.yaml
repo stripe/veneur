@@ -1,55 +1,28 @@
 ---
-api_hostname: https://app.datadoghq.com
-metric_max_length: 4096
-trace_max_length_bytes: 16384
-flush_max_per_body: 25000
-debug: true
-enable_profiling: false
-interval: "10s"
-key: "farts"
-# Numbers larger than 1 will enable the use of SO_REUSEPORT, make sure
-# this is supported on your platform!
-num_workers: 96
-num_readers: 1
-percentiles:
-  - 0.5
-  - 0.75
-  - 0.99
-aggregates:
- - "min"
- - "max"
- - "count"
-read_buffer_size_bytes: 2097152
-stats_address: "localhost:8125"
-tags:
- - "foo:bar"
- - "baz:quz"
-udp_address: "localhost:8126"
-#http_address: "einhorn@0"
-http_address: "localhost:8127"
-forward_address: "http://veneur.example.com"
-sentry_dsn: ""
-trace_address: "127.0.0.1:8128"
-trace_api_address: "http://localhost:7777"
+# == COLLECTION ==
 
-# If absent, defaults to the os.Hostname()!
-hostname: foobar
-# If true and hostname is "" or absent, don't add the host tag
-omit_empty_hostname: false
+# The addresses on which to listen for statsd metrics. These are
+# formatted as URLs, with schemes corresponding to valid "network"
+# arguments on https://golang.org/pkg/net/#Listen. Currently, only udp
+# and tcp (including IPv4 and 6-only) schemes are supported.
+# This option supersedes the "udp_address" and "tcp_address" options.
+statsd_listen_addresses:
+ - udp://localhost:8126
+ - tcp://localhost:8126
 
-# Include these if you want to archive data to S3
-aws_access_key_id: ""
-aws_secret_access_key: ""
-aws_region: ""
-aws_s3_bucket: ""
+# The addresses on which to listen for SSF data. As with
+# statsd_listen_addresses, these are formatted as URLs, with schemes
+# corresponding to valid "network" arguments on
+# https://golang.org/pkg/net/#Listen. Currently, only UDP and Unix
+# domain sockets are supported.
+# Note: SSF sockets are required to ingest trace data.
+# This option supersedes the "ssf_address" option.
+ssf_listen_addresses:
+  - udp://localhost:8128
+  - unix:///tmp/veneur-ssf.sock
 
-# Influde these if you want write to InfluxDB
-influx_address: http://localhost:8086
-influx_consistency: one
-influx_db_name: mydb
-
-# Listen address for statsd over TCP
-tcp_address: ""
+# TLS
+# These are only useful in conjunction with TCP listening sockets
 
 # TLS server private key and certificate for encryption (specify both)
 # These are the key/certificate contents, not a file path
@@ -59,5 +32,379 @@ tls_certificate: ""
 # Authority certificate: requires clients to be authenticated
 tls_authority_certificate: ""
 
+# == BEHAVIOR ==
+
+# Use a static host for forwarding
+#forward_address: "http://veneur.example.com"
+# Do not add a prefix when setting the forward address for gRPC.
+#forward_address: "veneur.example.com"
+forward_address: ""
+
+# Whether or not to forward to an upstream Veneur over gRPC.  If this is false
+# or unset, HTTP will be used.
+forward_use_grpc: false
+
+# How often to flush. When flushing to Datadog, changing this
+# value when you've already emitted metrics will break your time
+# series data.
+interval: "10s"
+
+# Veneur can "sychronize" it's flushes with the system clock, flushing at even
+# intervals i.e. 0, 10, 20… to align with the `interval`. This is disabled by
+# default for now, as it can cause thundering herds in large installations.
+synchronize_with_interval: false
+
+# Veneur emits its own metrics; this configures where we send them. It's ok
+# to point veneur at itself for metrics consumption!
+stats_address: "localhost:8126"
+
+# The address on which to listen for HTTP imports and/or healthchecks.
+# http_address: "einhorn@0"
+http_address: "0.0.0.0:8127"
+
+# The address on which to listen for imports over gRPC.
+grpc_address: "0.0.0.0:8128"
+
+# The name of timer metrics that "indicator" spans should be tracked
+# under. If this is unset, veneur doesn't report an additional timer
+# metric for indicator spans.
+indicator_span_timer_name: "indicator_span.duration_ms"
+
+# == METRICS CONFIGURATION ==
+
+# Defaults to the os.Hostname()!
+hostname: ""
+
+# If true and hostname is "" or absent, don't add the host tag
+omit_empty_hostname: false
+
+# Tags supplied here will be added to all metrics and spans ingested by this
+# instance. Example:
+# tags:
+#  - "foo:bar"
+#  - "baz:quz"
+tags:
+  - ""
+
+# Tags listed here will be excluded from sinks. A pipe ("|") delimiter
+# can be used to specify the name of a sink, in which case the tag will
+# only be excluded from that one sink.
+# Sinks must support this behavior by providing a SetExcludedTags method,
+# or the exclusion rule will not be applied.
+tags_exclude:
+  - "nonce"
+  - "host_env|signalfx"
+
+# Set to floating point values that you'd like to output percentiles for from
+# histograms.
+percentiles:
+  - 0.5
+  - 0.75
+  - 0.99
+
+# Aggregations you'd like to output for histograms. Possible values can be any
+# or all of:
+# - `min`: the minimum value in the histogram during the flush period
+# - `max`: the maximum value in the histogram during the flush period
+# - `median`: the median value in the histogram during the flush period
+# - `avg`: the average value in the histogram during the flush period
+# - `count`: the number of values added to the histogram during the flush period
+# - `sum`: the sum of all values added to the histogram during the flush period
+# - `hmean`: the harmonic mean of the all the values added to the histogram during the flush period
+aggregates:
+ - "min"
+ - "max"
+ - "count"
+
+# == DEPRECATED ==
+
+# This configuration has been replaced by datadog_flush_max_per_body.
+flush_max_per_body: 0
+# This configuration has been replaced by datadog_span_buffer_size.
+ssf_buffer_size: 0
+# This has been replaced by lightstep_access_token
+trace_lightstep_access_token: ""
+# This has been replaced by lightstep_collector_host
+trace_lightstep_collector_host: ""
+# This has been replaced by lightstep_reconnect_period
+trace_lightstep_reconnect_period: ""
+# This has been replaced by lightstep_maximum_spans
+trace_lightstep_maximum_spans: 0
+# This has been replaced by lightstep_num_clients
+trace_lightstep_num_clients: 0
+
+# == PERFORMANCE ==
+
+# Adjusts the number of metrics workers across which Veneur will
+# distribute aggregation.  More decreases contention but has
+# diminishing returns. The default value is 1, no parallel ingestion
+# of metrics.
+num_workers: 96
+
+# Adjusts the number of listening goroutines on any UDP listener
+# (statsd and SSF). Numbers larger than 1 will enable the use of
+# SO_REUSEPORT, so make sure this is supported on your platform!
+num_readers: 1
+
+# Adjusts the number of span workers across which Veneur will
+# distribute span ingestion. The default value is 1, no parallel
+# ingestion of spans.
+num_span_workers: 10
+
+# Adjusts the number of spans that can be accomodated before the span
+# ingestion buffer blocks. This is good to tweak when you're seeing
+# spiky span ingestion patterns and a lot of spans get dropped. This
+# corresponds directly to a Go channel's capacity, for which the
+# default is zero (unbuffered).
+span_channel_capacity: 100
+
+# == LIMITS ==
+
+# How big of a buffer to allocate for incoming metrics. Metrics longer than this
+# will be truncated!
+metric_max_length: 4096
+
+# How big of a buffer to allocate for incoming traces.
+trace_max_length_bytes: 16384
+
+# The size of the buffer we'll use to buffer socket reads. Tune this if you
+# you think Veneur needs more room to keep up with all packets.
+read_buffer_size_bytes: 2097152
+
+# == DIAGNOSTICS ==
+
+# Sets the log level to DEBUG
+debug: false
+
+# Log (at level DEBUG) information about every ingested span. Be
+# careful with this setting in a real deployment - it is extremely
+# verbose.
+debug_ingested_spans: false
+
+# Log (at level DEBUG) information about every batch of flushed
+# metrics. Be careful with this setting in a real deployment - it is
+# extremely verbose.
+debug_flushed_metrics: false
+
+# runtime.SetMutexProfileFraction
+# The fraction of mutex contention events that are reported in the mutex profile.
+# On average, 1/n events are reported, so higher numbers will sample fewer events.
+# Default (0) disables mutex profiling altogether.
+mutex_profile_fraction: 0
+
+# runtime.SetBlockProfileRate.
+# The fraction of goroutine blocking events that are reported in the blocking profile.
+# On average, one blocking event will be sampled for every N nanoseconds spent blocked.
+# Default (0) disables block profiling altogether.
+block_profile_rate: 0
+
+# Providing a Sentry DSN here will send internal exceptions to Sentry
+sentry_dsn: ""
+
+# Enables Go profiling
+enable_profiling: false
+
+
+
+# == SINKS ==
+
+# == Datadog ==
+# Datadog can be a sink for metrics, events, service checks and trace spans.
+
+# Hostname to send Datadog data to.
+datadog_api_hostname: https://app.datadoghq.com
+
+# API key for acessing Datadog
+datadog_api_key: "farts"
+
+# How many metrics to include in the body of each POST to Datadog. Veneur
+# will post multiple times in parallel if the limit is exceeded.
+datadog_flush_max_per_body: 25000
+
+# Hostname to send Datadog trace data to.
+datadog_trace_api_address: ""
+
+# The size of the ring buffer used for retaining spans during a flush interval.
+datadog_span_buffer_size: 16384
+
+
+# == SignalFx ==
+# SignalFx can be a sink for metrics and events.
+
+# The API token to use, either always, or if no
+# signalfx_per_tag_api_keys match
+signalfx_api_key: "abc123"
+
+# Where to send metrics
+signalfx_endpoint_base: "https://ingest.signalfx.com"
+
+# The tag we'll add to each metric that contains the hostname we came from
+signalfx_hostname_tag: "host"
+
+# The tag that we'll (optionally) use to look up values in
+# signalfx_per_tag_api_keys. If this is empty, the SignalFX sink uses
+# only signalfx_api_key.
+signalfx_vary_key_by: host_operator
+
+# If signalfx_vary_key_by is set, and matches one of the keys in here,
+# use the value as the signalfx api token. If this is empty, only
+# signalfx_api_key is used to submit metrics.
+signalfx_per_tag_api_keys:
+  # metrics tagged with host_operator:cory will be submitted with api
+  # key "farts_in_a_general_direction"
+  - name: "cory"
+    api_key: "farts_in_a_general_direction"
+  # metrics tagged with host_operator:asf will be submitted with api
+  # key "definitely_no_farts"
+  - name: "asf"
+    api_key: "definitely_no_farts"
+
+# == LightStep ==
+# LightStep can be a sink for trace spans.
+
+# If present, lightstep will be enabled as a tracing sink
+# and this access token will be used
+# Access token for accessing LightStep
+lightstep_access_token: ""
+
+# Host to send trace data to
+lightstep_collector_host: ""
+
+# How often LightStep should reconnect to collectors. If your workload is
+# imbalanced — some veneur instances see more spans than others — then you may
+# want to reconnect more often.
+lightstep_reconnect_period: "5m"
+
+# The LightStep client has internal throttling to prevent you overwhelming
+# things. Anything that exceeds this many spans in the reporting period
+# — which is a minimum of 500ms and maxmium 2.5s at the time of this writing
+# — will be dropped. In other words, you can only submit this many spans per
+# flush! If left at zero, veneur will set the maximum to the size of
+# `ssf_buffer_size`.
+lightstep_maximum_spans: 0
+
+# Multiple clients can be used to load-balance spans cross multiple collectors,
+# improving span indexing success rates.
+# If missing (or set to zero), it will default
+# to a minimum of one client
+lightstep_num_clients: 1
+
+# == Kafka ==
+
+# Comma-delimited list of brokers suitable for Sarama's [NewAsyncProducer](https://godoc.org/github.com/Shopify/sarama#NewAsyncProducer)
+# in the form hostname:port, such as localhost:9092
+kafka_broker: ""
+
+# Name of the topic we'll be publishing checks to
+kafka_check_topic: "veneur_checks"
+
+# Name of the topic we'll be publishing events to
+kafka_event_topic: "veneur_events"
+
+# Name of the topic we'll be publishing metrics to
+kafka_metric_topic: ""
+
+# Name of the topic we'll be publishing spans to
+kafka_span_topic: "veneur_spans"
+
+# Name of a tag to hash on for sampling; if empty, spans are sampled based off
+# of traceID
+kafka_span_sample_tag: ""
+
+# Sample rate in percent (as an integer)
+# This should ideally be a floating point number, but at the time this was
+# written, gojson interpreted whole-number floats in yaml as integers.
+kafka_span_sample_rate_percent: 100
+
+kafka_metric_buffer_bytes: 0
+
+kafka_metric_buffer_messages: 0
+
+kafka_metric_buffer_frequency: ""
+
+kafka_span_serialization_format: "protobuf"
+
+# The type of partitioner to use.
+kafka_partitioner: "hash"
+
+# What type of acks to require for metrics? One of none, local or all.
+kafka_metric_require_acks: "all"
+
+# What type of acks to require for span? One of none, local or all.
+kafka_span_require_acks: "all"
+
+kafka_span_buffer_bytes: 0
+
+kafka_span_buffer_mesages: 0
+
+kafka_span_buffer_frequency: ""
+
+# The number of retries before giving up.
+kafka_retry_max: 0
+
+# == Falconer ==
+#
+# Falconer (https://github.com/stripe/falconer) is an ephemeral (in-memory)
+# trace data sink. Veneur relays data to Falconer via gRPC.
+
+falconer_address: "falconer.service.consul"
+
+# == Splunk ==
+#
+# Veneur can feed spans to splunk through the HTTP Event Consumer
+# (HEC) interface
+# See also http://dev.splunk.com/view/event-collector/SP-CAAAE6M
+
+# The URL to use for a connection to the splunk
+splunk_hec_address: "https://localhost:8088"
+
+# The authentication token veneur will use to authenticate to the HEC
+splunk_hec_token: "00000000-0000-0000-0000-000000000000"
+
+# (optional) The number of spans to submit in a single request to the
+# Splunk HEC endpoint. If unset, defaults to 100 (the recommended
+# maximum event count per batch according to Splunk).
+splunk_hec_batch_size: 100
+
+# (optional) The maximum number of parallel submissions to do to the
+# splunk HEC endpoint. Must be greater than 0. If this setting is
+# omitted, defaults to 1.
+splunk_hec_submission_workers: 3
+
+# (optional) server name set on the TLS configuration. This is useful
+# if the host you're reaching identifies with a different name than on
+# the URL.
+splunk_hec_tls_validate_hostname: "some-other-hostname"
+
+# (optional) The maximum amount of time to wait before timing out
+# sending a batch of spans to the Splunk HEC. If omitted / set to 0,
+# sending batches happens without a timeout.
+splunk_hec_send_timeout: "10ms"
+
+# (optional) The maximum amount of time to wait before timing out
+# ingesting a single span to the Splunk HEC sink. If omitted / set to
+# 0, ingestion will wait indefintely until the span can be ingested.
+splunk_hec_ingest_timeout: "10ms"
+
+
+# (optional) The fraction of traces that are chosen to be reported to
+# Splunk.  On average, 1/N traces will be chosen to be reported to
+# Splunk. Setting this value to 1 or 0 disables sampling, reporting
+# all spans from all traces to Splunk.  Sampling is performed on the
+# trace ID, so either all spans from a given trace will be reported,
+# or none will.  Spans get excluded from sampling if they have
+# indicator=true set, or if they have a trace ID of 0.
+splunk_span_sample_rate: 10
+
+# == PLUGINS ==
+
+# == S3 Output ==
+# Include these if you want to archive data to S3
+aws_access_key_id: ""
+aws_secret_access_key: ""
+aws_region: ""
+aws_s3_bucket: ""
+
+# == LocalFile Output ==
 # Include this if you want to archive data to a local file (which should then be rotated/cleaned)
 flush_file: ""

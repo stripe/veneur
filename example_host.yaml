@@ -1,0 +1,53 @@
+---
+datadog_api_hostname: https://app.datadoghq.com
+datadog_api_key: "farts"
+metric_max_length: 4096
+trace_max_length_bytes: 16384
+flush_max_per_body: 25000
+debug: true
+enable_profiling: true
+interval: "10s"
+# Numbers larger than 1 will enable the use of SO_REUSEPORT, make sure
+# this is supported on your platform!
+num_workers: 96
+num_readers: 1
+percentiles:
+  - 0.5
+  - 0.75
+  - 0.99
+aggregates:
+ - "min"
+ - "max"
+ - "count"
+read_buffer_size_bytes: 2097152
+stats_address: "localhost:8125"
+tags:
+ - "foo:bar"
+ - "baz:quz"
+statsd_listen_addresses:
+  - "udp://localhost:8126"
+#http_address: "einhorn@0"
+http_address: ""
+
+### FORWARDING
+# Use a static host for forwarding
+forward_address: "http://127.0.0.1:8127"
+
+### TRACING
+# The address on which we will listen for trace data
+#trace_address: "127.0.0.1:8128"
+# Use a static host to send traces to
+#trace_api_address: "http://localhost:7777"
+
+sentry_dsn: ""
+
+# If absent, defaults to the os.Hostname()!
+hostname: foobar
+# If true and hostname is "" or absent, don't add the host tag
+omit_empty_hostname: false
+
+# Include these if you want to archive data to S3
+aws_access_key_id: ""
+aws_secret_access_key: ""
+aws_region: ""
+aws_s3_bucket: ""

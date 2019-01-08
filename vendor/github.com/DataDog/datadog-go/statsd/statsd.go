@@ -135,6 +135,8 @@ func (c *Client) watch() {
 }
 
 func (c *Client) append(cmd string) error {
+	c.Lock()
+	defer c.Unlock()
 	c.commands = append(c.commands, cmd)
 	// if we should flush, lets do it
 	if len(c.commands) == c.bufferLength {
@@ -218,16 +220,16 @@ func (c *Client) flush() error {
 }
 
 func (c *Client) sendMsg(msg string) error {
+	// return an error if message is bigger than MaxUDPPayloadSize
+	if len(msg) > MaxUDPPayloadSize {
+		return errors.New("message size exceeds MaxUDPPayloadSize")
+	}
+
 	// if this client is buffered, then we'll just append this
-	c.Lock()
-	defer c.Unlock()
 	if c.bufferLength > 0 {
-		// return an error if message is bigger than OptimalPayloadSize
-		if len(msg) > MaxUDPPayloadSize {
-			return errors.New("message size exceeds MaxUDPPayloadSize")
-		}
 		return c.append(msg)
 	}
+
 	_, err := c.conn.Write([]byte(msg))
 	return err
 }
@@ -262,7 +264,7 @@ func (c *Client) Histogram(name string, value float64, tags []string, rate float
 	return c.send(name, stat, tags, rate)
 }
 
-// Decr is just Count of 1
+// Decr is just Count of -1
 func (c *Client) Decr(name string, tags []string, rate float64) error {
 	return c.send(name, "-1|c", tags, rate)
 }
@@ -292,6 +294,9 @@ func (c *Client) TimeInMilliseconds(name string, value float64, tags []string, r
 
 // Event sends the provided Event.
 func (c *Client) Event(e *Event) error {
+	if c == nil {
+		return nil
+	}
 	stat, err := e.Encode(c.Tags...)
 	if err != nil {
 		return err
@@ -315,7 +320,7 @@ func (c *Client) ServiceCheck(sc *ServiceCheck) error {
 }
 
 // SimpleServiceCheck sends an serviceCheck with the provided name and status.
-func (c *Client) SimpleServiceCheck(name string, status serviceCheckStatus) error {
+func (c *Client) SimpleServiceCheck(name string, status ServiceCheckStatus) error {
 	sc := NewServiceCheck(name, status)
 	return c.ServiceCheck(sc)
 }
@@ -455,17 +460,17 @@ func (e Event) Encode(tags ...string) (string, error) {
 
 // ServiceCheck support
 
-type serviceCheckStatus byte
+type ServiceCheckStatus byte
 
 const (
 	// Ok is the "ok" ServiceCheck status
-	Ok serviceCheckStatus = 0
+	Ok ServiceCheckStatus = 0
 	// Warn is the "warning" ServiceCheck status
-	Warn serviceCheckStatus = 1
+	Warn ServiceCheckStatus = 1
 	// Critical is the "critical" ServiceCheck status
-	Critical serviceCheckStatus = 2
+	Critical ServiceCheckStatus = 2
 	// Unknown is the "unknown" ServiceCheck status
-	Unknown serviceCheckStatus = 3
+	Unknown ServiceCheckStatus = 3
 )
 
 // An ServiceCheck is an object that contains status of DataDog service check.
@@ -473,7 +478,7 @@ type ServiceCheck struct {
 	// Name of the service check.  Required.
 	Name string
 	// Status of service check.  Required.
-	Status serviceCheckStatus
+	Status ServiceCheckStatus
 	// Timestamp is a timestamp for the serviceCheck.  If not provided, the dogstatsd
 	// server will set this to the current time.
 	Timestamp time.Time
@@ -487,7 +492,7 @@ type ServiceCheck struct {
 
 // NewServiceCheck creates a new serviceCheck with the given name and status.  Error checking
 // against these values is done at send-time, or upon running sc.Check.
-func NewServiceCheck(name string, status serviceCheckStatus) *ServiceCheck {
+func NewServiceCheck(name string, status ServiceCheckStatus) *ServiceCheck {
 	return &ServiceCheck{
 		Name:   name,
 		Status: status,

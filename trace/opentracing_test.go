@@ -7,15 +7,15 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/stripe/veneur/ssf"
-
 	"github.com/golang/protobuf/proto"
 	"github.com/opentracing/opentracing-go"
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/ssf"
 )
 
 // Test that the Tracer can correctly create a root-level
@@ -49,15 +49,9 @@ func TestTracerChildSpan(t *testing.T) {
 	const resource = "Robert'); DROP TABLE students;"
 	// This will be a *really* slow trace!
 	const expectedTimestamp = 1136239445
-	var expectedTags = []*ssf.SSFTag{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-		{
-			Name:  "baz",
-			Value: "quz",
-		},
+	var expectedTags = map[string]string{
+		"foo": "bar",
+		"baz": "quz",
 	}
 
 	tracer := Tracer{}
@@ -87,8 +81,8 @@ func TestTracerChildSpan(t *testing.T) {
 
 	assert.Len(t, trace.Tags, len(expectedTags))
 
-	for _, tag := range expectedTags {
-		assert.Contains(t, trace.Tags, tag)
+	for k, v := range expectedTags {
+		assert.Equal(t, trace.Tags[k], v)
 	}
 }
 
@@ -126,7 +120,7 @@ func TestTracerInjectBinary(t *testing.T) {
 	packet, err := ioutil.ReadAll(&b)
 	assert.NoError(t, err)
 
-	sample := &ssf.SSFSample{}
+	sample := &ssf.SSFSpan{}
 	err = proto.Unmarshal(packet, sample)
 	assert.NoError(t, err)
 
@@ -142,7 +136,7 @@ func TestTracerExtractBinary(t *testing.T) {
 
 	tracer := Tracer{}
 
-	packet, err := proto.Marshal(trace.SSFSample())
+	packet, err := proto.Marshal(trace.SSFSpan())
 	assert.NoError(t, err)
 
 	b := bytes.NewBuffer(packet)
@@ -170,7 +164,6 @@ func TestTracerInjectExtractBinary(t *testing.T) {
 	assert.Equal(t, trace.TraceID, ctx.TraceID())
 
 	assert.Equal(t, trace.SpanID, ctx.SpanID(), "original trace and context should share the same SpanId")
-	assert.Equal(t, trace.ParentID, ctx.ParentID(), "original trace and context should share the same ParentId")
 	assert.Equal(t, trace.Resource, ctx.Resource())
 }
 
@@ -187,7 +180,6 @@ func TestTracerInjectTextMap(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, strconv.FormatInt(trace.TraceID, 10), tm["traceid"])
-	assert.Equal(t, strconv.FormatInt(trace.ParentID, 10), tm["parentid"])
 	assert.Equal(t, strconv.FormatInt(trace.SpanID, 10), tm["spanid"])
 	assert.Equal(t, trace.Resource, tm["resource"])
 }
@@ -212,7 +204,6 @@ func TestTracerInjectExtractExtractTextMap(t *testing.T) {
 	assert.Equal(t, trace.TraceID, ctx.TraceID())
 
 	assert.Equal(t, trace.SpanID, ctx.SpanID(), "original trace and context should share the same SpanId")
-	assert.Equal(t, trace.ParentID, ctx.ParentID(), "original trace and context should share the same ParentId")
 	assert.Equal(t, trace.Resource, ctx.Resource())
 }
 
@@ -239,37 +230,76 @@ func TestTracerInjectExtractHeader(t *testing.T) {
 	assert.Equal(t, trace.TraceID, ctx.TraceID())
 
 	assert.Equal(t, trace.SpanID, ctx.SpanID(), "original trace and context should share the same SpanId")
-	assert.Equal(t, trace.ParentID, ctx.ParentID(), "original trace and context should share the same ParentId")
 	assert.Equal(t, trace.Resource, ctx.Resource())
-
 }
 
-// assertContextUnmarshalEqual is a helper that asserts that the given SSFSample
+func TestTraceExtractHeaderEnvoy(t *testing.T) {
+	tracer := Tracer{}
+	tm := textMapReaderWriter(map[string]string{
+		"ot-tracer-traceid": "3039",
+		"ot-tracer-spanid":  "10932",
+	})
+
+	c, _ := tracer.Extract(opentracing.TextMap, tm)
+
+	ctx := c.(*spanContext)
+
+	assert.Equal(t, int64(12345), ctx.TraceID())
+	assert.Equal(t, int64(67890), ctx.SpanID())
+}
+
+func TestTraceExtractHeaderOpenTracing(t *testing.T) {
+	tracer := Tracer{}
+	tm := textMapReaderWriter(map[string]string{
+		"Trace-Id": "24680",
+		"Span-Id":  "13579",
+	})
+
+	c, _ := tracer.Extract(opentracing.TextMap, tm)
+
+	ctx := c.(*spanContext)
+
+	assert.Equal(t, int64(24680), ctx.TraceID())
+	assert.Equal(t, int64(13579), ctx.SpanID())
+}
+
+func TestTraceExtractHeaderError(t *testing.T) {
+	tracer := Tracer{}
+	tm := textMapReaderWriter(map[string]string{
+		"wrong-header": "24680",
+		"bad header":   "13579",
+	})
+
+	c, err := tracer.Extract(opentracing.TextMap, tm)
+
+	assert.Nil(t, c)
+	assert.EqualError(t, err, "error parsing fields from TextMapReader")
+}
+
+// assertContextUnmarshalEqual is a helper that asserts that the given SSFSpan
 // matches the expected *Trace on all fields that are passed through a SpanContext.
 // Since a SpanContext doesn't pass fields like tags, this function will not cause
 // the assertion to fail if those differ.
-func assertContextUnmarshalEqual(t *testing.T, expected *Trace, sample *ssf.SSFSample) {
-	assert.Equal(t, expected.SSFSample().Metric, sample.Metric)
-	assert.Equal(t, expected.SSFSample().Status, sample.Status)
-
-	// Future-proofiing: Currently we don't actually pass this through
-	// but we don't support units at all.
-	assert.Equal(t, expected.SSFSample().Unit, sample.Unit)
-
-	// The sample rate is hard-coded
-	assert.Equal(t, expected.SSFSample().SampleRate, sample.SampleRate)
+// Since Resource and Name are passed in as tags, this will NOT check for equality on those fields!
+func assertContextUnmarshalEqual(t *testing.T, expected *Trace, sample *ssf.SSFSpan) {
+	assert.Equal(t, expected.SSFSpan().Metrics, sample.Metrics)
+	assert.Equal(t, expected.SSFSpan().Error, sample.Error)
 
 	// The TraceId, ParentId, and Resource should all be the same.
-	assert.Equal(t, expected.SSFSample().Trace.TraceId, sample.Trace.TraceId)
-	assert.Equal(t, expected.SSFSample().Trace.ParentId, sample.Trace.ParentId)
-	assert.Equal(t, expected.SSFSample().Trace.Id, sample.Trace.Id)
-	assert.Equal(t, expected.SSFSample().Trace.Resource, sample.Trace.Resource)
-
+	assert.Equal(t, expected.SSFSpan().TraceId, sample.TraceId)
+	assert.Equal(t, expected.SSFSpan().ParentId, sample.ParentId)
+	assert.Equal(t, expected.SSFSpan().Id, sample.Id)
 }
 
-// TestInjectRequestExtractRequestChild tests the InjectRequest
+// assertTagEqual checks that the two representations share the same value
+// for the specified tag name
+func assertTagEqual(t *testing.T, tagName string, expected *Trace, sample *ssf.SSFSpan) {
+	assert.Equal(t, expected.Tags[tagName], sample.Tags[tagName], "Tag '%s' has wrong value", tagName)
+}
+
+// TestInjectRequestExtractRequestChild tests the InjectRequest, InjectHeader,
 // and ExtractRequestChild helper functions
-func TestInjectRequestExtractRequestChild(t *testing.T) {
+func TestInjectRequestInjectHeaderExtractRequestChild(t *testing.T) {
 	const childResource = "my child resource"
 	const traceName = "my.child.name"
 	trace := DummySpan().Trace
@@ -278,8 +308,15 @@ func TestInjectRequestExtractRequestChild(t *testing.T) {
 	req, err := http.NewRequest(http.MethodPost, "/test", bytes.NewBuffer(nil))
 	assert.NoError(t, err)
 
+	req2, err := http.NewRequest(http.MethodPost, "/test2", bytes.NewBuffer(nil))
+	assert.NoError(t, err)
+
 	err = tracer.InjectRequest(trace, req)
 	assert.NoError(t, err)
+
+	err = tracer.InjectHeader(trace, req2.Header)
+	assert.NoError(t, err)
+	assert.True(t, reflect.DeepEqual(req.Header, req2.Header), "injected HTTP headers should be the same")
 
 	span, err := tracer.ExtractRequestChild(childResource, req, traceName)
 	assert.NoError(t, err)

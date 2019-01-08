@@ -13,7 +13,7 @@ func TestMergingDigest(t *testing.T) {
 
 	td := NewMerging(1000, false)
 
-	for i := 0; i < 1000000; i++ {
+	for i := 0; i < 100000; i++ {
 		td.Add(rand.Float64(), 1.0)
 	}
 	validateMergingDigest(t, td)
@@ -79,6 +79,26 @@ func TestGobEncoding(t *testing.T) {
 
 	td2 := NewMerging(1000, false)
 	assert.NoError(t, td2.GobDecode(buf), "should have decoded successfully")
+
+	assert.InEpsilon(t, td.Count(), td2.Count(), 0.02, "counts did not match")
+	assert.InEpsilon(t, td.Min(), td2.Min(), 0.02, "minimums did not match")
+	assert.InEpsilon(t, td.Max(), td2.Max(), 0.02, "maximums did not match")
+	assert.InEpsilon(t, td.Quantile(0.5), td2.Quantile(0.5), 0.02, "50%% quantiles did not match")
+}
+
+// Test that creating a MergingDigestData (for protobuf-encoding) and
+// recreating the original MergingDigest works as expected.
+func TestMergingDigestData(t *testing.T) {
+	rand.Seed(time.Now().Unix())
+
+	td := NewMerging(1000, false)
+	for i := 0; i < 1000; i++ {
+		td.Add(rand.Float64(), 1.0)
+	}
+	validateMergingDigest(t, td)
+
+	// Convert to a MergingDigestData and back again
+	td2 := NewMergingFromData(td.Data())
 
 	assert.InEpsilon(t, td.Count(), td2.Count(), 0.02, "counts did not match")
 	assert.InEpsilon(t, td.Min(), td2.Min(), 0.02, "minimums did not match")

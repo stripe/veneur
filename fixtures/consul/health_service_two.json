@@ -1,0 +1,80 @@
+[
+  {
+    "Node": {
+      "Node": "foobar1",
+      "Address": "10.1.10.12",
+      "TaggedAddresses": {
+        "lan": "10.1.10.12",
+        "wan": "10.1.10.12"
+      }
+    },
+    "Service": {
+      "ID": "veneur",
+      "Service": "veneur",
+      "Tags": null,
+      "Address": "10.1.10.12",
+      "Port": 8000
+    },
+    "Checks": [
+      {
+        "Node": "foobar1",
+        "CheckID": "service:veneur",
+        "Name": "Service 'veneur' check",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "",
+        "ServiceID": "veneur",
+        "ServiceName": "veneur"
+      },
+      {
+        "Node": "foobar1",
+        "CheckID": "serfHealth",
+        "Name": "Serf Health Status",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "",
+        "ServiceID": "",
+        "ServiceName": ""
+      }
+    ]
+  },
+  {
+    "Node": {
+      "Node": "foobar2",
+      "Address": "10.1.10.13",
+      "TaggedAddresses": {
+        "lan": "10.1.10.13",
+        "wan": "10.1.10.13"
+      }
+    },
+    "Service": {
+      "ID": "veneur",
+      "Service": "veneur",
+      "Tags": null,
+      "Address": "10.1.10.13",
+      "Port": 8000
+    },
+    "Checks": [
+      {
+        "Node": "foobar2",
+        "CheckID": "service:veneur",
+        "Name": "Service 'veneur' check",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "",
+        "ServiceID": "veneur",
+        "ServiceName": "veneur"
+      },
+      {
+        "Node": "foobar2",
+        "CheckID": "serfHealth",
+        "Name": "Serf Health Status",
+        "Status": "passing",
+        "Notes": "",
+        "Output": "",
+        "ServiceID": "",
+        "ServiceName": ""
+      }
+    ]
+  }
+]
