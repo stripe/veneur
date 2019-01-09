@@ -8,6 +8,16 @@ import (
 	"github.com/stripe/veneur/trace"
 )
 
+// MetricKeyMetricFlushDuration should be emitted as a timer by a MetricSink
+// if possible. Tagged with `sink:sink.Name()`. The `Flush` function is a great
+// place to do this.
+const MetricKeyMetricFlushDuration = "sink.metric_flush_total_duration_ns"
+
+// MetricKeyTotalMetricsFlushed should be emitted as a counter by a MetricSink
+// if possible. Tagged with `sink:sink.Name()`. The `Flush` function is a great
+// place to do this.
+const MetricKeyTotalMetricsFlushed = "sink.metrics_flushed_total"
+
 // MetricSink is a receiver of `InterMetric`s when Veneur periodically flushes
 // it's aggregated metrics.
 type MetricSink interface {
@@ -16,13 +26,43 @@ type MetricSink interface {
 	// background processing tasks that the sink might have to run
 	// in the background. It's invoked when the server starts.
 	Start(traceClient *trace.Client) error
-	// Flush receives `InterMetric`s from Veneur and is responsible for "sinking"
-	// these metrics to whatever it's backend wants. Note that the sink must
-	// **not** mutate the incoming metrics as they are shared with other sinks.
+	// Flush receives `InterMetric`s from Veneur and is
+	// responsible for "sinking" these metrics to whatever it's
+	// backend wants. Note that the sink must **not** mutate the
+	// incoming metrics as they are shared with other sinks. Sinks
+	// must also check each metric with IsAcceptableMetric to
+	// verify they are eligible to consume the metric.
 	Flush(context.Context, []samplers.InterMetric) error
 	// This one is temporary?
 	FlushEventsChecks(ctx context.Context, events []samplers.UDPEvent, checks []samplers.UDPServiceCheck)
 }
+
+// IsAcceptableMetric returns true if a metric is meant to be ingested
+// by a given sink.
+func IsAcceptableMetric(metric samplers.InterMetric, sink MetricSink) bool {
+	if metric.Sinks == nil {
+		return true
+	}
+	return metric.Sinks.RouteTo(sink.Name())
+}
+
+// MetricKeySpanFlushDuration should be emitted as a timer by a SpanSink
+// if possible. Tagged with `sink:sink.Name()`. The `Flush` function is a great
+// place to do this. If your sync does async sends, this might not be necessary.
+const MetricKeySpanFlushDuration = "sink.span_flush_total_duration_ns"
+
+// MetricKeyTotalSpansFlushed should be emitted as a counter by a SpanSink
+// if possible. Tagged with `sink:sink.Name()`. The `Flush` function is a great
+// place to do this.
+const MetricKeyTotalSpansFlushed = "sink.spans_flushed_total"
+
+const MetricKeySpanIngestDuration = "sink.span_ingest_total_duration_ns"
+
+// MetricKeyTotalSpansDropped tracks the number of spans that the sink is aware
+// it has dropped. It should be emitted as a counter by a SpanSink if possible.
+// Tagged with `sink:sink.Name()`. The `Flush` function is a great place to do
+// this.
+const MetricKeyTotalSpansDropped = "sink.spans_dropped_total"
 
 // SpanSink is a receiver of spans that handles sending those spans to some
 // downstream sink. Calls to `Ingest(span)` are meant to give the sink control

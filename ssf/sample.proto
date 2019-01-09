@@ -2,6 +2,10 @@ syntax = "proto3";
 
 package ssf;
 
+// SSFSample is similar of a StatsD-style, point in time metric. It has a Metric
+// type, a name, a value and a timestamp. Additionally it can contain a message,
+// a status, a sample rate, a map of tags as string keys and values and a unit
+// type. Note that SSF doesn't understand units, they are just strings!
 message SSFSample {
   enum Metric {
       COUNTER = 0;

@@ -1,18 +1,81 @@
-# 2.0.0, in progress
+# 4.0.0, in development
+
+## Improvements
+* Receiving SSF in UDP packets now happens on `num_readers` goroutines. Thanks, [antifuchs](https://github.com/antifuchs)
+* Updated [SignalFx library](https://github.com/signalfx/golib) dependency so that compression is enabled by default, saving significant time on large metric bodies. Thanks, [gphat](https://github.com/gphat)
+* Decreased logging output of veneur-proxy. Thanks, [gphat](https://github.com/gphat)!
+* Better warnings when invalid flag combinations are passed to `veneur-emit`. Thanks, [sdboyer](https://github.com/sdboyer)!
+
+## Added
+
+* The new `tags_exclude` parameter can be used to strip tags from all metrics Veneur processes, either for all supported sinks or a subset of sinks. Thanks, [aditya](https://github.com/chimeracoder)!
+* The SSF client now defaults to opening 8 connections in parallel to avoid blocking client code. Thanks, [antifuchs](https://github.com/antifuchs)!
+* New config settings `num_span_workers` and `span_channel_capacity` that allow you to customize the parallelism of span ingestion. Thanks, [antifuchs](https://github.com/antifuchs)!
+* New span sink utilization metrics - Thanks, [antifuchs](https://github.com/antifuchs):
+  * `veneur.sink.span_ingest_total_duration_ns` gives the total time per `sink` spent ingesting spans
+  * `veneur.worker.span_chan.total_elements` over `veneur.worker.span_chan.total_capacity` gives the utilization of the sink ingestion channel.
+* Introduce a generic gRPC streaming backend for trace spans. Thanks, [sdboyer](https://github.com/sdboyer)!
+* New config keys `signalfx_vary_key_by` and `signalfx_per_tag_api_keys` which which allow sending signalfx data points with an API key specific to these data points' dimensions. Thanks, [antifuchs](https://github.com/antifuchs)!
+* veneur-proxy now reports runtime metrics (with the prefix `veneur-proxy.`) at a configurable interval controlled by `runtime_metrics_interval`. It defaults to 10s. Thanks [gphat](https://github.com/gphat)!
+* Allow specifying trace start/end times on `veneur-emit`. Thanks, [sdboyer](https://github.com/sdboyer)!
+* Default `span_channel_capacity` to a non-zero value so we don't drop most spans in a minimal configuration. Thanks, [gphat](http://github.com/gphat)!
+
+# 3.0.0, 2018-02-27
+
+## Incompatible changes
+
+* These deprecated configuration keys are no longer supported and will cause an error on startup if used in a veneur config file:
+  * `api_hostname` - replaced in 1.5.0 by `datadog_api_hostname`
+  * `key` - replaced in 1.5.0 by `datadog_api_key`
+  * `trace_address` - replaced in 1.7.0 by `ssf_listen_addresses`
+  * `trace_api_address` - replaced in 1.5.0 by `datadog_trace_api_address`
+  * `ssf_address` - replaced in 1.7.0 by `ssf_listen_addresses`
+  * `tcp_address` and `udp_address` - replaced in 1.7.0 by `statsd_listen_addresses`
+* These metrics have changed names:
+  * Datadog, MetricExtraction, and SignalFx sinks now emit `veneur.sink.metric_flush_total_duration_ns` for metric flush duration and tag it with `sink`
+  * Datadog, Kafka, MetricExtraction, and SignalFx sinks now emits `sink.metrics_flushed_total` for metric flush counts and tag it with `sink`
+  * Datadog and LightStep sinks now emit `veneur.sink.span_flush_total_duration_ns` for span flush duration and tag it with `sink`
+  * Datadog, Kafka, MetricExtraction, and LightStep sinks now emit `sink.spans_flushed_total` for metric flush counts and tag it with `sink`
+* Veneur's internal metrics are no longer tagged with `veneurlocalonly`. This means that percentile metrics (such as timers) will now be aggregated globally.
+
+## Bugfixes
+* LightStep sink was hardcoded to use plaintext, now adjusts based on URL scheme (http versus https). Thanks [gphat](https://github.com/gphat)!
+* The Datadog sink will no longer panic if `flush_max_per_body` is not configured; a default is used instead. Thanks [silverlyra](https://github.com/silverlyra)!
+* The statsd source will no longer reject all packets if `metric_max_length` is not configured; a default is used instead. Thanks [silverlyra](https://github.com/silverlyra)!
+
+## Added
+* `veneur-emit` now infers parent and trace IDs from the environment (using the variables `VENEUR_EMIT_TRACE_ID` and `VENEUR_EMIT_PARENT_SPAN_ID`) and sets these environment variables from its `-trace_id` and `parent_span_id` when timing commands, allowing for convenient construction of trace trees if traced programs call `veneur-emit` themselves. Thanks, [antifuchs](https://github.com/antifuchs)
+* The Kafka sink for spans can now sample spans (at a rate determined by `kafka_span_sample_rate_percent`) based off of traceIDs (by default) or a tag's values (configurable via `kafka_span_sample_tag`) to consistently sample spans related to each other. Thanks, [rhwlo](https://github.com/rhwlo)!
+* Improvements in SSF metrics reporting - thanks, [antifuchs](https://github.com/antifuchs)!
+  * Function `ssf.RandomlySample` that takes an array of samples and a sample rate and randomly drops those samples, adjusting the kept samples' rates
+  * New variable `ssf.NamePrefix` that can be used to prepend a common name prefix to SSF sample names.
+  * Package `trace/metrics`, containing functions that allow reporting metrics through a trace client.
+  * New type `ssf.Samples` holding a batch of samples which can be submitted conveniently through `trace/metrics`.
+  * Method `trace.(*Trace).Add`, which allows adding metrics to a trace span.
+* `veneur-proxy` has a new configuration option `forward_timeout` which allows specifying how long forwarding a batch to global veneur servers may take in total. Thanks, [antifuchs](https://github.com/antifuchs)!
+* Add native support for running Veneur within Kubernetes. Thanks, [aditya](https://github.com/chimeracoder)!
+
+## Improvements
+* Updated Datadog span sink to latest version in Datadog tracing agent. Thanks, [gphat](https://github.com/gphat)!
+
+# 2.0.0, 2018-01-09
 
 ## Incompatible changes
 * The semantics around `veneur-emit` command timing have changed: `-shellCommand` argument has been renamed to `-command`, and `-command` is now gone. The only way to time a command is to provide the command and its arguments as separate arguments, the method of passing in a shell-escaped string is no longer supported.
 
 ## Added
-* A [SignalFX sink](https://github.com/stripe/veneur/tree/master/sinks/signalfx) has been added for flushing metrics to [SignalFX](https://signalfx.com/). Thanks, [gphat](https://github.com/gphat)!
+* A [SignalFx sink](https://github.com/stripe/veneur/tree/master/sinks/signalfx) has been added for flushing metrics to [SignalFx](https://signalfx.com/). Thanks, [gphat](https://github.com/gphat)!
+* A [Kafka sink](https://github.com/stripe/veneur/tree/master/sinks/kafka) has been added for publishing spans or metrics. Thanks, [parabuzzle](https://github.com/parabuzzle) and [gphat](https://github.com/gphat)!
 * Buffered trace clients in `github.com/stripe/veneur/trace` now have a new option to automatically flush them in a periodic interval. Thanks, [antifuchs](https://github.com/antifuchs)!
 * Gauges can now be marked as `veneurglobalonly` to be globally "last write wins". Thanks [gphat](https://github.com/gphat)!
-* `veneur-emit` now takes `-span_service`, `-trace_id`, and `-parent_id` arguments. These (combined with `-ssf`) allow submitting spans for tracing when recording timing data for commands. In addition, `-timing` with `-ssf` now works, too.
+* `veneur-emit` now takes `-span_service`, `-trace_id`, `-parent_span_id`, and `-indicator` arguments. These (combined with `-ssf`) allow submitting spans for tracing when recording timing data for commands. In addition, `-timing` with `-ssf` now works, too.
 * The `github.com/stripe/veneur/ssf` package now has a few helper functions to create samples that can be attached to spans: `Count`, `Gauge`, `Histogram`, `Timing`. In addition, veneur now has a span sink that extracts these samples and treats them as metrics. Thanks, [antifuchs](https://github.com/antifuchs)
 * Spans sent to Lightstep now have an `indicator` tag set, indicating whether the span is an indicator span or not. Thanks, [aditya](https://github.com/chimeracoder)!
+* `veneur-emit -command` now streams output from the invoked program's stdout/stderr to its own stdout/stderr. Thanks, [antifuchs](https://github.com/antifuchs)!
+* Veneur now supports the tag `veneursinkonly:<sink_name>` on metrics, which routes the metric to only the sink specified. See [the docs](README.md#routing-metrics) here. Thanks, [antifuchs](https://github.com/antifuchs)!
 
 ## Improvements
-* Veneur now emits a timer metric for every "indicator" span that it receives, if you configure the setting `indicator_span_timer_name`. Thanks, [antifuchs](https://github.com/antifuchs)!
+* Veneur now emits a timer metric giving the duration (in nanoseconds) of every "indicator" span that it receives, if you configure the setting `indicator_span_timer_name`. Thanks, [antifuchs](https://github.com/antifuchs)!
 * All sinks have been moved to their own packages for smaller code and better interfaces. Thanks [gphat](https://github.com/gphat)!
 * Removed noisy Sentry events that duplicated Datadog error reporting. Thanks, [aditya](https://github.com/chimeracoder)!
 * Veneur now reuses HTTP connections for forwarding and Datadog flushes. Furthermore each phase of the HTTP request is traced and can be seen using the trace sink of your choice. This should drastically improve performance and reliability for installs with large numbers of instances. Thanks [gphat](https://github.com/gphat)!

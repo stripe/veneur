@@ -89,6 +89,10 @@ func (x SSFSample_Status) String() string {
 }
 func (SSFSample_Status) EnumDescriptor() ([]byte, []int) { return fileDescriptorSample, []int{0, 1} }
 
+// SSFSample is similar of a StatsD-style, point in time metric. It has a Metric
+// type, a name, a value and a timestamp. Additionally it can contain a message,
+// a status, a sample rate, a map of tags as string keys and values and a unit
+// type. Note that SSF doesn't understand units, they are just strings!
 type SSFSample struct {
 	// The underlying type of the metric
 	Metric SSFSample_Metric `protobuf:"varint,1,opt,name=metric,proto3,enum=ssf.SSFSample_Metric" json:"metric,omitempty"`

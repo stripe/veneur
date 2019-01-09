@@ -92,6 +92,10 @@ type Trace struct {
 	// error (or nil) when the span has been serialized and sent.
 	Sent chan<- error
 
+	// Samples holds a list of samples / metrics to be reported
+	// alongside a span.
+	Samples []*ssf.SSFSample
+
 	error bool
 }
 
@@ -137,7 +141,7 @@ func (t *Trace) Duration() time.Duration {
 	return t.End.Sub(t.Start)
 }
 
-// SSFSample converts the Trace to an SSFSpan type.
+// SSFSpan converts the Trace to an SSFSpan type.
 // It sets the duration, so it assumes the span has already ended.
 // (It is safe to call on a span that has not ended, but the duration
 // field will be invalid)
@@ -154,9 +158,15 @@ func (t *Trace) SSFSpan() *ssf.SSFSpan {
 		Name:           name,
 		Tags:           t.Tags,
 		Service:        Service,
+		Metrics:        t.Samples,
 	}
 
 	return span
+}
+
+// Add adds a number of metrics/samples to a Trace.
+func (t *Trace) Add(samples ...*ssf.SSFSample) {
+	t.Samples = append(t.Samples, samples...)
 }
 
 // ProtoMarshalTo writes the Trace as a protocol buffer

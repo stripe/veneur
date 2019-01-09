@@ -12,30 +12,54 @@ import (
 )
 
 // StartStatsd spawns a goroutine that listens for metrics in statsd
-// format on the address a. As this is a setup routine, if any error
-// occurs, it panics.
-func StartStatsd(s *Server, a net.Addr, packetPool *sync.Pool) {
+// format on the address a, and returns the concrete listening
+// address. As this is a setup routine, if any error occurs, it
+// panics.
+func StartStatsd(s *Server, a net.Addr, packetPool *sync.Pool) net.Addr {
 	switch addr := a.(type) {
 	case *net.UDPAddr:
-		startStatsdUDP(s, addr, packetPool)
+		return startStatsdUDP(s, addr, packetPool)
 	case *net.TCPAddr:
-		startStatsdTCP(s, addr, packetPool)
+		return startStatsdTCP(s, addr, packetPool)
 	default:
 		panic(fmt.Sprintf("Can't listen on %v: only TCP and UDP are supported", a))
 	}
 }
 
-func startStatsdUDP(s *Server, addr *net.UDPAddr, packetPool *sync.Pool) {
+// udpProcessor is a function that reads packets from a socket, using
+// the pool provided.
+type udpProcessor func(net.PacketConn, *sync.Pool)
+
+// startProcessingOnUDP starts network num_readers listeners on the
+// given address in one goroutine each, using the passed pool. When
+// the listener is established, it starts the udpProcessor with the
+// listener.
+func startProcessingOnUDP(s *Server, protocol string, addr *net.UDPAddr, pool *sync.Pool, proc udpProcessor) net.Addr {
+	reusePort := s.numReaders != 1
+	// If we're reusing the port, make sure we're listening on the
+	// exact same address always; this is mostly relevant for
+	// tests, where port is typically 0 and the initial ListenUDP
+	// call results in a contrete port.
+	if reusePort {
+		sock, err := NewSocket(addr, s.RcvbufBytes, reusePort)
+		defer sock.Close()
+		if err != nil {
+			panic(fmt.Sprintf("couldn't listen on UDP socket %v: %v", addr, err))
+		}
+		addr = sock.LocalAddr().(*net.UDPAddr)
+	}
+	addrChan := make(chan net.Addr, 1)
+	once := sync.Once{}
 	for i := 0; i < s.numReaders; i++ {
 		go func() {
 			defer func() {
-				ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
+				ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
 			}()
 			// each goroutine gets its own socket
 			// if the sockets support SO_REUSEPORT, then this will cause the
 			// kernel to distribute datagrams across them, for better read
 			// performance
-			sock, err := NewSocket(addr, s.RcvbufBytes, s.numReaders != 1)
+			sock, err := NewSocket(addr, s.RcvbufBytes, reusePort)
 			if err != nil {
 				// if any goroutine fails to create the socket, we can't really
 				// recover, so we just blow up
@@ -43,13 +67,30 @@ func startStatsdUDP(s *Server, addr *net.UDPAddr, packetPool *sync.Pool) {
 				// SO_REUSEPORT support
 				panic(fmt.Sprintf("couldn't listen on UDP socket %v: %v", addr, err))
 			}
-			log.WithField("address", addr).Info("Listening for statsd metrics on UDP socket")
-			s.ReadMetricSocket(sock, packetPool)
+			// Pass the address that we are listening on
+			// back to whoever spawned this goroutine so
+			// it can return that address.
+			once.Do(func() {
+				addrChan <- sock.LocalAddr()
+				log.WithFields(logrus.Fields{
+					"address":   sock.LocalAddr(),
+					"protocol":  protocol,
+					"listeners": s.numReaders,
+				}).Info("Listening on UDP address")
+				close(addrChan)
+			})
+
+			proc(sock, pool)
 		}()
 	}
+	return <-addrChan
 }
 
-func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) {
+func startStatsdUDP(s *Server, addr *net.UDPAddr, packetPool *sync.Pool) net.Addr {
+	return startProcessingOnUDP(s, "statsd", addr, packetPool, s.ReadMetricSocket)
+}
+
+func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Addr {
 	var listener net.Listener
 	var err error
 
@@ -85,18 +126,21 @@ func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) {
 
 	go func() {
 		defer func() {
-			ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
+			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
 		}()
 		s.ReadTCPSocket(listener)
 	}()
+	return listener.Addr()
 }
 
-func StartSSF(s *Server, a net.Addr, tracePool *sync.Pool) {
+// StartSSF starts listening for SSF on an address a, and returns the
+// concrete address that the server is listening on.
+func StartSSF(s *Server, a net.Addr, tracePool *sync.Pool) net.Addr {
 	switch addr := a.(type) {
 	case *net.UDPAddr:
-		startSSFUDP(s, addr, tracePool)
+		a = startSSFUDP(s, addr, tracePool)
 	case *net.UnixAddr:
-		startSSFUnix(s, addr)
+		_, a = startSSFUnix(s, addr)
 	default:
 		panic(fmt.Sprintf("Can't listen for SSF on %v: only udp:// & unix:// are supported", a))
 	}
@@ -104,32 +148,18 @@ func StartSSF(s *Server, a net.Addr, tracePool *sync.Pool) {
 		"address": a.String(),
 		"network": a.Network(),
 	}).Info("Listening for SSF traces")
+	return a
 }
 
-func startSSFUDP(s *Server, addr *net.UDPAddr, tracePool *sync.Pool) {
-	// TODO: Make this actually use readers / add a predicate
-	// function for testing if we should SO_REUSEPORT.
-	listener, err := NewSocket(addr, s.RcvbufBytes, s.numReaders > 1)
-	if err != nil {
-		// if any goroutine fails to create the socket, we can't really
-		// recover, so we just blow up
-		// this probably indicates a systemic issue, eg lack of
-		// SO_REUSEPORT support
-		panic(fmt.Sprintf("couldn't listen on UDP socket %v: %v", addr, err))
-	}
-	go func() {
-		defer func() {
-			ConsumePanic(s.Sentry, s.Statsd, s.Hostname, recover())
-		}()
-		s.ReadSSFPacketSocket(listener, tracePool)
-	}()
+func startSSFUDP(s *Server, addr *net.UDPAddr, tracePool *sync.Pool) net.Addr {
+	return startProcessingOnUDP(s, "ssf", addr, tracePool, s.ReadSSFPacketSocket)
 }
 
 // startSSFUnix starts listening for connections that send framed SSF
 // spans on a UNIX domain socket address. It does so until the
 // server's shutdown socket is closed. startSSFUnix returns a channel
 // that is closed once the listener has terminated.
-func startSSFUnix(s *Server, addr *net.UnixAddr) <-chan struct{} {
+func startSSFUnix(s *Server, addr *net.UnixAddr) (<-chan struct{}, net.Addr) {
 	done := make(chan struct{})
 	if addr.Network() != "unix" {
 		panic(fmt.Sprintf("Can't listen for SSF on %v: only udp:// and unix:// addresses are supported", addr))
@@ -189,5 +219,5 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) <-chan struct{} {
 			}
 		}
 	}()
-	return done
+	return done, listener.Addr()
 }

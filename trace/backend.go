@@ -26,8 +26,8 @@ const DefaultMaxBackoff = 1 * time.Second
 // the span is discarded.
 const DefaultConnectTimeout = 10 * time.Second
 
-// BufferSize is the default size of the SSF buffer. It defaults to
-// enough bytes to accomodate the largest SSF span.
+// BufferSize is the default size of the SSF buffer per connection. It
+// defaults to enough bytes to accomodate the largest SSF span.
 const BufferSize int = int(protocol.MaxSSFPacketLength + protocol.SSFFrameLength)
 
 type backendParams struct {
@@ -57,6 +57,12 @@ type ClientBackend interface {
 	// encounters any non-protocol errors (e.g. in serializing the
 	// SSF span), it must return them without reconnecting.
 	SendSync(ctx context.Context, span *ssf.SSFSpan) error
+}
+
+// FlushableClientBackend represents the ability of a client to flush
+// any buffered SSF spans over to a veneur server.
+type FlushableClientBackend interface {
+	ClientBackend
 
 	// FlushSync causes all (potentially) buffered data to be sent to
 	// the upstream veneur.
@@ -114,11 +120,6 @@ func (s *packetBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
 	}
 	_, err = s.conn.Write(data)
 	return err
-}
-
-// FlushSync on a PacketStream is a no-op.
-func (s *packetBackend) FlushSync(context.Context) error {
-	return nil
 }
 
 var _ networkBackend = &packetBackend{}
@@ -187,7 +188,7 @@ func (ds *streamBackend) connection(conn net.Conn) {
 	}
 }
 
-// SendSync on a DirectStream attempts to write the packet on the
+// SendSync on a streamBackend attempts to write the packet on the
 // connection to the upstream veneur directly. If it encounters a
 // protocol error, SendSync will return the original protocol error once
 // the connection is re-established.
@@ -214,7 +215,7 @@ func (ds *streamBackend) Close() error {
 	return ds.conn.Close()
 }
 
-// FlushSync on a DirectStream flushes the buffer if one exists. If the
+// FlushSync on a streamBackend flushes the buffer if one exists. If the
 // connection was disconnected prior to flushing, FlushSync re-establishes
 // it and discards the buffer.
 func (ds *streamBackend) FlushSync(ctx context.Context) error {

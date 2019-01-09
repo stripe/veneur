@@ -1,10 +1,8 @@
 package veneur
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"time"
 
@@ -13,7 +11,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const defaultBufferSizeBytes = 1048576 * 2 // 2 MB
+var defaultConfig = Config{
+	Aggregates:             []string{"min", "max", "count"},
+	DatadogFlushMaxPerBody: 25000,
+	Interval:               "10s",
+	MetricMaxLength:        4096,
+	ReadBufferSizeBytes:    1048576 * 2, // 2 MiB
+	SpanChannelCapacity:    100,
+}
 
 // ReadProxyConfig unmarshals the proxy config file and slurps in its data.
 func ReadProxyConfig(path string) (c ProxyConfig, err error) {
@@ -22,14 +27,20 @@ func ReadProxyConfig(path string) (c ProxyConfig, err error) {
 		return c, err
 	}
 	defer f.Close()
+	return readProxyConfig(f)
+}
 
-	bts, err := ioutil.ReadAll(f)
+func readProxyConfig(r io.Reader) (ProxyConfig, error) {
+	var c ProxyConfig
+	bts, err := ioutil.ReadAll(r)
 	if err != nil {
-		return
+		return c, err
 	}
-	err = yaml.Unmarshal(bts, &c)
-	if err != nil {
-		return
+	unmarshalErr := unmarshalSemiStrictly(bts, &c)
+	if unmarshalErr != nil {
+		if _, ok := err.(*UnknownConfigKeys); !ok {
+			return c, unmarshalErr
+		}
 	}
 
 	err = envconfig.Process("veneur", &c)
@@ -37,31 +48,63 @@ func ReadProxyConfig(path string) (c ProxyConfig, err error) {
 		return c, err
 	}
 
-	return c, nil
+	return c, unmarshalErr
 }
 
-// ReadConfig unmarshals the config file and slurps in it's data.
+// UnknownConfigKeys represents a failure to strictly parse a
+// configuration YAML file has failed, indicating that the file
+// contains unknown keys.
+type UnknownConfigKeys struct {
+	err error
+}
+
+func (e *UnknownConfigKeys) Error() string {
+	return e.err.Error()
+}
+
+// ReadConfig unmarshals the config file and slurps in its
+// data. ReadConfig can return an error of type *UnknownConfigKeys,
+// which means that the file is usable, but contains unknown fields.
 func ReadConfig(path string) (c Config, err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return c, err
 	}
 	defer f.Close()
-	return readConfig(f)
+
+	c, err = readConfig(f)
+	c.applyDefaults()
+	return
 }
 
-func readConfig(r io.Reader) (c Config, err error) {
+func unmarshalSemiStrictly(bts []byte, into interface{}) error {
+	strictErr := yaml.UnmarshalStrict(bts, into)
+	if strictErr == nil {
+		return nil
+	}
+
+	looseErr := yaml.Unmarshal(bts, into)
+	if looseErr != nil {
+		return looseErr
+	}
+	return &UnknownConfigKeys{strictErr}
+}
+
+func readConfig(r io.Reader) (Config, error) {
+	var c Config
 	// Unfortunately the YAML package does not
 	// support reader inputs
 	// TODO(aditya) convert this when the
 	// upstream PR lands
 	bts, err := ioutil.ReadAll(r)
 	if err != nil {
-		return
+		return c, err
 	}
-	err = yaml.Unmarshal(bts, &c)
-	if err != nil {
-		return
+	unmarshalErr := unmarshalSemiStrictly(bts, &c)
+	if unmarshalErr != nil {
+		if _, ok := err.(*UnknownConfigKeys); !ok {
+			return c, unmarshalErr
+		}
 	}
 
 	err = envconfig.Process("veneur", &c)
@@ -69,75 +112,76 @@ func readConfig(r io.Reader) (c Config, err error) {
 		return c, err
 	}
 
+	// pass back an error about any unknown fields:
+	return c, unmarshalErr
+}
+
+func (c *Config) applyDefaults() {
+	if len(c.Aggregates) == 0 {
+		c.Aggregates = defaultConfig.Aggregates
+	}
 	if c.Hostname == "" && !c.OmitEmptyHostname {
 		c.Hostname, _ = os.Hostname()
 	}
-
+	if c.Interval == "" {
+		c.Interval = defaultConfig.Interval
+	}
+	if c.MetricMaxLength == 0 {
+		c.MetricMaxLength = defaultConfig.MetricMaxLength
+	}
 	if c.ReadBufferSizeBytes == 0 {
-		c.ReadBufferSizeBytes = defaultBufferSizeBytes
+		c.ReadBufferSizeBytes = defaultConfig.ReadBufferSizeBytes
 	}
-
-	if c.Key != "" {
-		log.Warn("The config key `key` is deprecated and replaced with `datadog_api_key` and will be removed in 2.0!")
-		// If they set the DatadogAPIKey, favor it. Otherwise, replace it.
-		if c.DatadogAPIKey == "" {
-			c.DatadogAPIKey = c.Key
+	if c.SsfBufferSize != 0 {
+		log.Warn("ssf_buffer_size configuration option has been replaced by datadog_span_buffer_size and will be removed in the next version")
+		if c.DatadogSpanBufferSize == 0 {
+			c.DatadogSpanBufferSize = c.SsfBufferSize
+		}
+	}
+	if c.FlushMaxPerBody != 0 {
+		log.Warn("flush_max_per_body configuration option has been replaced by datadog_flush_max_per_body and will be removed in the next version")
+		if c.DatadogFlushMaxPerBody == 0 {
+			c.DatadogFlushMaxPerBody = c.FlushMaxPerBody
+		}
+	}
+	if c.TraceLightstepNumClients != 0 {
+		log.Warn("trace_lightstep_num_clients configuration option has been replaced by lightstep_num_clients and will be removed in the next version")
+		if c.LightstepNumClients == 0 {
+			c.LightstepNumClients = c.TraceLightstepNumClients
+		}
+	}
+	if c.TraceLightstepCollectorHost != "" {
+		log.Warn("trace_lightstep_collector_host configuration option has been replaced by lightstep_collector_host and will be removed in the next version")
+		if c.LightstepCollectorHost == "" {
+			c.LightstepCollectorHost = c.TraceLightstepCollectorHost
+		}
+	}
+	if c.TraceLightstepAccessToken != "" {
+		log.Warn("trace_lightstep_access_token configuration option has been replaced by lightstep_access_token and will be removed in the next version")
+		if c.LightstepAccessToken == "" {
+			c.LightstepAccessToken = c.TraceLightstepAccessToken
+		}
+	}
+	if c.TraceLightstepMaximumSpans != 0 {
+		log.Warn("trace_lightstep_maximum_spans configuration option has been replaced by lightstep_maximum_spans and will be removed in the next version")
+		if c.LightstepMaximumSpans == 0 {
+			c.LightstepMaximumSpans = c.TraceLightstepMaximumSpans
+		}
+	}
+	if c.TraceLightstepReconnectPeriod != "" {
+		log.Warn("trace_lightstep_reconnect_period configuration option has been replaced by lightstep_reconnect_period and will be removed in the next version")
+		if c.LightstepReconnectPeriod == "" {
+			c.LightstepReconnectPeriod = c.TraceLightstepReconnectPeriod
 		}
 	}
 
-	if c.APIHostname != "" {
-		log.Warn("The config key `api_hostname` is deprecated and replaced with `datadog_api_hostname` and will be removed in 2.0!")
-		if c.DatadogAPIHostname == "" {
-			c.DatadogAPIHostname = c.APIHostname
-		}
+	if c.DatadogFlushMaxPerBody == 0 {
+		c.DatadogFlushMaxPerBody = defaultConfig.DatadogFlushMaxPerBody
 	}
 
-	if c.TraceAPIAddress != "" {
-		log.Warn("The config key `trace_api_address` is deprecated and replaced with `datadog_trace_api_hostname` and will be removed in 2.0!")
-		if c.DatadogTraceAPIAddress == "" {
-			c.DatadogTraceAPIAddress = c.TraceAPIAddress
-		}
+	if c.SpanChannelCapacity == 0 {
+		c.SpanChannelCapacity = defaultConfig.SpanChannelCapacity
 	}
-
-	if c.TraceAddress != "" {
-		log.Warn("The config key `trace_address` is deprecated and replaced with entries in `ssf_listen_addresses` and will be removed in 2.0!")
-		if c.SsfAddress == "" {
-			c.SsfAddress = c.TraceAddress
-		}
-	}
-
-	var statsdAddrs []string
-	if c.UdpAddress != "" {
-		if len(c.StatsdListenAddresses) > 0 {
-			err = fmt.Errorf("`statsd_listen_addresses` and deprecated parameter `udp_address` are both present")
-			return
-		}
-		log.Warn("The config key `udp_address` is deprecated and replaced with entries in `statsd_listen_addresses` and will be removed in 2.0!")
-		statsdAddrs = append(statsdAddrs, (&url.URL{Scheme: "udp", Host: c.UdpAddress}).String())
-	}
-
-	if c.TcpAddress != "" {
-		if len(c.StatsdListenAddresses) > 0 {
-			err = fmt.Errorf("`statsd_listen_addresses` and deprecated parameter `tcp_address` are both present")
-			return
-		}
-		log.Warn("The config key `tcp_address` is deprecated and replaced with entries in `statsd_listen_addresses` and will be removed in 2.0!")
-		statsdAddrs = append(statsdAddrs, (&url.URL{Scheme: "tcp", Host: c.TcpAddress}).String())
-	}
-	c.StatsdListenAddresses = append(c.StatsdListenAddresses, statsdAddrs...)
-
-	var ssfAddrs []string
-	if c.SsfAddress != "" {
-		if len(c.SsfListenAddresses) > 0 {
-			err = fmt.Errorf("`ssf_listen_addresses` and deprecated parameter `ssf_address` are both present")
-			return
-		}
-		log.Warn("The config key `ssf_address` is deprecated and replaced with entries in `ssf_listen_addresses` and will be removed in 2.0!")
-		ssfAddrs = append(ssfAddrs, (&url.URL{Scheme: "udp", Host: c.SsfAddress}).String())
-	}
-	c.SsfListenAddresses = append(c.SsfListenAddresses, ssfAddrs...)
-
-	return c, nil
 }
 
 // ParseInterval handles parsing the flush interval as a time.Duration

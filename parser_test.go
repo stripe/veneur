@@ -186,13 +186,13 @@ func TestParseSSFIndicatorSpan(t *testing.T) {
 		m := metrics[0]
 		assert.Equal(t, "timer_name", m.Name)
 		assert.Equal(t, "histogram", m.Type)
-		assert.InEpsilon(t, float32(duration*time.Millisecond), m.Value, 0.001)
+		assert.InEpsilon(t, float32(duration/time.Nanosecond), m.Value, 0.001)
 		if assert.Equal(t, 3, len(m.Tags)) {
 			var tags sort.StringSlice = m.Tags
 			sort.Sort(tags)
 			assert.Equal(t, "error:false", tags[0])
-			assert.Equal(t, fmt.Sprintf("name:%s", span.Name), tags[1])
-			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[2])
+			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[1])
+			assert.Equal(t, fmt.Sprintf("span_name:%s", span.Name), tags[2])
 		}
 	}
 }
@@ -229,13 +229,14 @@ func TestParseSSFIndicatorSpanWithError(t *testing.T) {
 		m := metrics[0]
 		assert.Equal(t, "timer_name", m.Name)
 		assert.Equal(t, "histogram", m.Type)
-		assert.InEpsilon(t, float32(duration*time.Millisecond), m.Value, 0.001)
+		assert.InEpsilon(t, float32(duration/time.Nanosecond), m.Value, 0.001,
+			"Duration seems incorrect: %f vs. %d", m.Value, duration/time.Nanosecond)
 		if assert.Equal(t, 3, len(m.Tags)) {
 			var tags sort.StringSlice = m.Tags
 			sort.Sort(tags)
 			assert.Equal(t, "error:true", tags[0])
-			assert.Equal(t, fmt.Sprintf("name:%s", span.Name), tags[1])
-			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[2])
+			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[1])
+			assert.Equal(t, fmt.Sprintf("span_name:%s", span.Name), tags[2])
 		}
 	}
 }

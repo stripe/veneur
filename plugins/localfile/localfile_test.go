@@ -73,7 +73,7 @@ func TestWritesToDevNull(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestFailsWritingToInvalidPath(t *testing.T) {
+func TestWritingToInvalidPath(t *testing.T) {
 	plugin := Plugin{FilePath: "", Logger: logrus.New(), hostname: "globblestoots"}
 	err := plugin.Flush(context.TODO(), []samplers.InterMetric{
 		samplers.InterMetric{

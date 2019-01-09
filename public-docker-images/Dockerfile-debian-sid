@@ -49,5 +49,6 @@ WORKDIR /veneur/
 EXPOSE 8126/UDP 8126/TCP 8127/TCP 8128/UDP
 COPY --from=build /build/* /veneur/
 COPY --from=src /go/src/github.com/stripe/veneur/example.yaml /veneur/config.yaml
+COPY --from=src /go/src/github.com/stripe/veneur/example_proxy.yaml /veneur/config_proxy.yaml
 ENV PATH="/veneur:${PATH}"
 CMD ["/veneur/veneur", "-f", "config.yaml"]

@@ -32,6 +32,7 @@ import (
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/tdigest"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/metrics"
 )
 
 const ε = .00002
@@ -55,12 +56,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// On the CI server, we can't be guaranteed that the port will be
-// released immediately after the server is shut down. Instead, use
-// a unique port for each test. As long as we don't have an insane number
-// of integration tests, we should be fine.
-var HTTPAddrPort = 8129
-
 // set up a boilerplate local config for later use
 func localConfig() Config {
 	return generateConfig("http://localhost")
@@ -74,47 +69,39 @@ func globalConfig() Config {
 // generateConfig is not called config to avoid
 // accidental variable shadowing
 func generateConfig(forwardAddr string) Config {
-	// we don't shut down ports so avoid address in use errors
-	port := HTTPAddrPort
-	HTTPAddrPort++
-	metricsPort := HTTPAddrPort
-	HTTPAddrPort++
-	tracePort := HTTPAddrPort
-	HTTPAddrPort++
-
 	return Config{
 		Debug:    DebugMode,
 		Hostname: "localhost",
 
 		// Use a shorter interval for tests
 		Interval:              DefaultFlushInterval.String(),
-		Key:                   "",
+		DatadogAPIKey:         "",
 		MetricMaxLength:       4096,
 		Percentiles:           []float64{.5, .75, .99},
 		Aggregates:            []string{"min", "max", "count"},
 		ReadBufferSizeBytes:   2097152,
-		StatsdListenAddresses: []string{fmt.Sprintf("udp://localhost:%d", metricsPort)},
-		HTTPAddress:           fmt.Sprintf("localhost:%d", port),
+		StatsdListenAddresses: []string{"udp://localhost:0"},
+		HTTPAddress:           fmt.Sprintf("localhost:0"),
 		ForwardAddress:        forwardAddr,
 		NumWorkers:            4,
 		FlushFile:             "",
 
 		// Use only one reader, so that we can run tests
 		// on platforms which do not support SO_REUSEPORT
-		NumReaders: 1,
+		NumReaders:     1,
+		NumSpanWorkers: 2,
 
 		// Currently this points nowhere, which is intentional.
 		// We don't need internal metrics for the tests, and they make testing
 		// more complicated.
-		StatsAddress:    "localhost:8125",
-		Tags:            []string{},
-		SentryDsn:       "",
-		FlushMaxPerBody: 1024,
+		StatsAddress:           "localhost:8125",
+		Tags:                   []string{},
+		SentryDsn:              "",
+		DatadogFlushMaxPerBody: 1024,
 
 		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
-		SsfListenAddresses:  []string{fmt.Sprintf("udp://127.0.0.1:%d", tracePort)},
+		SsfListenAddresses:  []string{"udp://127.0.0.1:0"},
 		TraceMaxLengthBytes: 4096,
-		SsfBufferSize:       32,
 	}
 }
 
@@ -142,17 +129,21 @@ func generateMetrics() (metricValues []float64, expectedMetrics map[string]float
 // If no metricSink or spanSink are provided then a `black hole` sink be used
 // so that flushes to these sinks do "nothing".
 func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper, mSink sinks.MetricSink, sSink sinks.SpanSink) *Server {
-	server, err := NewFromConfig(config)
-	if transport != nil {
-		server.HTTPClient.Transport = transport
-	}
+	logger := logrus.New()
+	server, err := NewFromConfig(logger, config)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if transport != nil {
+		server.HTTPClient.Transport = transport
 	}
 
 	if transport != nil {
 		server.HTTPClient.Transport = transport
 	}
+
+	// Make sure we don't send internal metrics when testing:
+	trace.NeutralizeClient(server.TraceClient)
 	server.TraceClient = nil
 
 	if mSink == nil {
@@ -170,8 +161,6 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 	server.spanSinks = append(server.spanSinks, sSink)
 
 	server.Start()
-
-	go server.HTTPServe()
 	return server
 }
 
@@ -221,7 +210,7 @@ func newFixture(t testing.TB, config Config, mSink sinks.MetricSink, sSink sinks
 
 	// Set up a remote server (the API that we're sending the data to)
 	// (e.g. Datadog)
-	f := &fixture{nil, &Server{}, interval, config.FlushMaxPerBody}
+	f := &fixture{nil, &Server{}, interval, config.DatadogFlushMaxPerBody}
 
 	config.NumWorkers = 1
 	f.server = setupVeneurServer(t, config, nil, mSink, sSink)
@@ -493,9 +482,11 @@ func readTestKeysCerts() (map[string]string, error) {
 // TestTCPConfig checks that invalid configurations are errors
 func TestTCPConfig(t *testing.T) {
 	config := localConfig()
+	logger := logrus.New()
+	logger.Out = ioutil.Discard
 
 	config.StatsdListenAddresses = []string{"tcp://invalid:invalid"}
-	_, err := NewFromConfig(config)
+	_, err := NewFromConfig(logger, config)
 	if err == nil {
 		t.Error("invalid TCP address is a config error")
 	}
@@ -503,7 +494,7 @@ func TestTCPConfig(t *testing.T) {
 	config.StatsdListenAddresses = []string{"tcp://localhost:8129"}
 	config.TLSKey = "somekey"
 	config.TLSCertificate = ""
-	_, err = NewFromConfig(config)
+	_, err = NewFromConfig(logger, config)
 	if err == nil {
 		t.Error("key without certificate is a config error")
 	}
@@ -514,24 +505,28 @@ func TestTCPConfig(t *testing.T) {
 	}
 	config.TLSKey = pems["serverkey.pem"]
 	config.TLSCertificate = "somecert"
-	_, err = NewFromConfig(config)
+	_, err = NewFromConfig(logger, config)
 	if err == nil {
 		t.Error("invalid key and certificate is a config error")
 	}
 
 	config.TLSKey = pems["serverkey.pem"]
 	config.TLSCertificate = pems["servercert.pem"]
-	_, err = NewFromConfig(config)
+	_, err = NewFromConfig(logger, config)
 	if err != nil {
 		t.Error("expected valid config")
 	}
 }
 
-func sendTCPMetrics(addr string, tlsConfig *tls.Config, f *fixture) error {
+func sendTCPMetrics(a *net.TCPAddr, tlsConfig *tls.Config, f *fixture) error {
 	// TODO: attempt to ensure the accept goroutine opens the port before we attempt to connect
 	// connect and send stats in two parts
 	var conn net.Conn
 	var err error
+
+	// Need to construct an address based on "localhost", as
+	// that's the name that the TLS certs are issued for:
+	addr := fmt.Sprintf("localhost:%d", a.Port)
 	if tlsConfig != nil {
 		conn, err = tls.Dial("tcp", addr, tlsConfig)
 	} else {
@@ -565,67 +560,76 @@ func TestUDPMetrics(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.Interval = "60s"
-	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
-	HTTPAddrPort++
-	config.StatsdListenAddresses = []string{fmt.Sprintf("udp://%s", addr)}
-	f := newFixture(t, config, nil, nil)
+	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0"}
+	ch := make(chan []samplers.InterMetric, 20)
+	sink, _ := NewChannelMetricSink(ch)
+	f := newFixture(t, config, sink, nil)
 	defer f.Close()
-	// Add a bit of delay to ensure things get listening
-	time.Sleep(20 * time.Millisecond)
 
-	conn, err := net.Dial("udp", addr)
-	assert.NoError(t, err)
-	defer conn.Close()
+	addr := f.server.StatsdListenAddrs[0]
+	conn := connectToAddress(t, "udp", addr.String(), 20*time.Millisecond)
 
 	conn.Write([]byte("foo.bar:1|c|#baz:gorch"))
-	// Add a bit of delay to ensure things get processed
-	time.Sleep(20 * time.Millisecond)
-	assert.Equal(t, int64(1), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+	ctx, cancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
+	defer cancel()
+	keepFlushing(ctx, f.server)
+
+	metrics := <-ch
+	require.Equal(t, 1, len(metrics), "we got a single metric")
+	assert.Equal(t, "foo.bar", metrics[0].Name, "worker processed the metric")
 }
 
 func TestMultipleUDPSockets(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.Interval = "60s"
-	addr1 := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
-	HTTPAddrPort++
-	addr2 := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
-	HTTPAddrPort++
-	config.StatsdListenAddresses = []string{fmt.Sprintf("udp://%s", addr1), fmt.Sprintf("udp://%s", addr2)}
-	f := newFixture(t, config, nil, nil)
+	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}
+	ch := make(chan []samplers.InterMetric, 20)
+	sink, _ := NewChannelMetricSink(ch)
+	f := newFixture(t, config, sink, nil)
 	defer f.Close()
-	// Add a bit of delay to ensure things get listening
-	time.Sleep(20 * time.Millisecond)
 
-	conn, err := net.Dial("udp", addr1)
-	assert.NoError(t, err)
-	defer conn.Close()
-	conn.Write([]byte("foo.bar:1|c|#baz:gorch"))
+	addr1 := f.server.StatsdListenAddrs[0]
+	addr2 := f.server.StatsdListenAddrs[1]
+	conn1 := connectToAddress(t, "udp", addr1.String(), 20*time.Millisecond)
+	defer conn1.Close()
+	conn1.Write([]byte("foo.bar:1|c|#baz:gorch"))
 
-	conn2, err := net.Dial("udp", addr2)
-	assert.NoError(t, err)
+	{
+		ctx, cancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
+		defer cancel()
+		keepFlushing(ctx, f.server)
+		metrics := <-ch
+		require.Equal(t, 1, len(metrics), "we got a single metric")
+		assert.Equal(t, "foo.bar", metrics[0].Name, "worker processed the metric")
+		cancel()
+	}
+
+	conn2 := connectToAddress(t, "udp", addr2.String(), 20*time.Millisecond)
 	defer conn2.Close()
 	conn2.Write([]byte("foo.bar:1|c|#baz:gorch"))
-
-	// Add a bit of delay to ensure things get processed
-	time.Sleep(20 * time.Millisecond)
-	assert.Equal(t, int64(2), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+	{
+		ctx, cancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
+		defer cancel()
+		keepFlushing(ctx, f.server)
+		metrics := <-ch
+		require.Equal(t, 1, len(metrics), "we got a single metric")
+		assert.Equal(t, "foo.bar", metrics[0].Name, "worker processed the metric")
+	}
 }
 
 func TestUDPMetricsSSF(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.Interval = "60s"
-	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
-	config.SsfListenAddresses = []string{fmt.Sprintf("udp://%s", addr)}
-	HTTPAddrPort++
-	f := newFixture(t, config, nil, nil)
+	config.SsfListenAddresses = []string{"udp://127.0.0.1:0"}
+	ch := make(chan []samplers.InterMetric, 20)
+	sink, _ := NewChannelMetricSink(ch)
+	f := newFixture(t, config, sink, nil)
 	defer f.Close()
-	// listen delay
-	time.Sleep(20 * time.Millisecond)
 
-	conn, err := net.Dial("udp", addr)
-	assert.NoError(t, err)
+	addr := f.server.SSFListenAddrs[0]
+	conn := connectToAddress(t, "udp", addr.String(), 20*time.Millisecond)
 	defer conn.Close()
 
 	testSample := &ssf.SSFSpan{}
@@ -640,12 +644,57 @@ func TestUDPMetricsSSF(t *testing.T) {
 	packet, err := proto.Marshal(testSample)
 	assert.NoError(t, err)
 	conn.Write(packet)
+	// unfortunately, we don't know when the UDP packet made it,
+	// so we'll have to wait a little while here:
 
-	time.Sleep(20 * time.Millisecond)
-	assert.Equal(t, int64(1), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+	ctx, cancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
+	defer cancel()
+	keepFlushing(ctx, f.server)
+	metrics := <-ch
+	require.Equal(t, 1, len(metrics), "we got a single metric")
+	assert.Equal(t, "test.metric", metrics[0].Name, "worker processed the metric")
+}
+
+func connectToAddress(t *testing.T, network string, addr string, timeout time.Duration) net.Conn {
+	ch := make(chan net.Conn)
+	go func() {
+		for {
+			conn, err := net.Dial(network, addr)
+			if err != nil {
+				time.Sleep(30 * time.Microsecond)
+				continue
+			}
+			ch <- conn
+			return
+		}
+	}()
+	select {
+	case conn := <-ch:
+		return conn
+	case <-time.After(timeout):
+		t.Fatalf("timed out connecting after %v", timeout)
+	}
+	return nil // this should not be reached
+}
+
+// keepFlushing flushes a veneur server in a tight loop until the
+// context is canceled.
+func keepFlushing(ctx context.Context, server *Server) {
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				server.Flush(ctx)
+				time.Sleep(time.Millisecond)
+			}
+		}
+	}()
 }
 
 func TestUNIXMetricsSSF(t *testing.T) {
+	ctx := context.TODO()
 	tdir, err := ioutil.TempDir("", "unixmetrics_ssf")
 	require.NoError(t, err)
 	defer os.RemoveAll(tdir)
@@ -655,14 +704,12 @@ func TestUNIXMetricsSSF(t *testing.T) {
 	config.Interval = "60s"
 	path := filepath.Join(tdir, "test.sock")
 	config.SsfListenAddresses = []string{fmt.Sprintf("unix://%s", path)}
-	HTTPAddrPort++
-	f := newFixture(t, config, nil, nil)
+	ch := make(chan []samplers.InterMetric, 20)
+	sink, _ := NewChannelMetricSink(ch)
+	f := newFixture(t, config, sink, nil)
 	defer f.Close()
-	// listen delay
-	time.Sleep(20 * time.Millisecond)
 
-	conn, err := net.Dial("unix", path)
-	assert.NoError(t, err)
+	conn := connectToAddress(t, "unix", path, 500*time.Millisecond)
 	defer conn.Close()
 
 	testSpan := &ssf.SSFSpan{}
@@ -674,16 +721,27 @@ func TestUNIXMetricsSSF(t *testing.T) {
 	testMetric.Tags["tag"] = "tagValue"
 	testSpan.Metrics = append(testSpan.Metrics, testMetric)
 
+	t.Log("Writing the first metric")
 	_, err = protocol.WriteSSF(conn, testSpan)
+	firstCtx, firstCancel := context.WithTimeout(ctx, 20*time.Millisecond)
+	defer firstCancel()
+	keepFlushing(firstCtx, f.server)
 	if assert.NoError(t, err) {
-		time.Sleep(20 * time.Millisecond)
-		assert.Equal(t, int64(1), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+		metrics := <-ch
+		require.Equal(t, 1, len(metrics), "we sent a single metric")
+		assert.Equal(t, "test.metric", metrics[0].Name, "worker processed the first metric")
 	}
+	firstCancel() // stop flushing like mad
 
+	t.Log("Writing the second metric")
+	secondCtx, secondCancel := context.WithTimeout(ctx, 20*time.Millisecond)
+	defer secondCancel()
 	_, err = protocol.WriteSSF(conn, testSpan)
+	keepFlushing(secondCtx, f.server)
 	if assert.NoError(t, err) {
-		time.Sleep(20 * time.Millisecond)
-		assert.Equal(t, int64(2), f.server.Workers[0].MetricsProcessedCount(), "worker processed metric")
+		metrics := <-ch
+		require.Equal(t, 1, len(metrics), "we sent a single metric")
+		assert.Equal(t, "test.metric", metrics[0].Name, "worker processed the second metric")
 	}
 }
 
@@ -692,16 +750,11 @@ func TestIgnoreLongUDPMetrics(t *testing.T) {
 	config.NumWorkers = 1
 	config.MetricMaxLength = 31
 	config.Interval = "60s"
-	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
-	config.StatsdListenAddresses = []string{fmt.Sprintf("udp://%s", addr)}
-	HTTPAddrPort++
+	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0"}
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
-	// Add a bit of delay to ensure things get listening
-	time.Sleep(20 * time.Millisecond)
 
-	conn, err := net.Dial("udp", addr)
-	assert.NoError(t, err)
+	conn := connectToAddress(t, "udp", f.server.StatsdListenAddrs[0].String(), 20*time.Millisecond)
 	defer conn.Close()
 
 	// nb this metric is bad because it's too long based on the `MetricMaxLength`
@@ -770,42 +823,41 @@ func TestTCPMetrics(t *testing.T) {
 		{"TLS correct cert", correctConfig},
 	}
 
-	for _, serverConfig := range serverConfigs {
-		config := localConfig()
-		config.Interval = "60s"
-		config.NumWorkers = 1
-		// Use a unique port to avoid race with shutting down accept goroutine on Linux
-		addr := fmt.Sprintf("localhost:%d", HTTPAddrPort)
-		HTTPAddrPort++
-		config.StatsdListenAddresses = []string{fmt.Sprintf("tcp://%s", addr)}
-		config.TLSKey = serverConfig.serverKey
-		config.TLSCertificate = serverConfig.serverCertificate
-		config.TLSAuthorityCertificate = serverConfig.authorityCertificate
-		f := newFixture(t, config, nil, nil)
-		defer f.Close() // ensure shutdown if the test aborts
+	for _, entry := range serverConfigs {
+		serverConfig := entry
+		t.Run(serverConfig.name, func(t *testing.T) {
+			config := localConfig()
+			config.Interval = "60s"
+			config.NumWorkers = 1
+			config.StatsdListenAddresses = []string{"tcp://127.0.0.1:0"}
+			config.TLSKey = serverConfig.serverKey
+			config.TLSCertificate = serverConfig.serverCertificate
+			config.TLSAuthorityCertificate = serverConfig.authorityCertificate
+			f := newFixture(t, config, nil, nil)
+			defer f.Close() // ensure shutdown if the test aborts
 
-		// attempt to connect and send stats with each of the client configurations
-		for i, clientConfig := range clientConfigs {
-			expectedSuccess := serverConfig.expectedConnectResults[i]
-			err := sendTCPMetrics(addr, clientConfig.tlsConfig, f)
-			if err != nil {
-				if expectedSuccess {
-					t.Errorf("server config: '%s' client config: '%s' failed: %s",
-						serverConfig.name, clientConfig.name, err.Error())
+			addr := f.server.StatsdListenAddrs[0].(*net.TCPAddr)
+			// attempt to connect and send stats with each of the client configurations
+			for i, clientConfig := range clientConfigs {
+				expectedSuccess := serverConfig.expectedConnectResults[i]
+				err := sendTCPMetrics(addr, clientConfig.tlsConfig, f)
+				if err != nil {
+					if expectedSuccess {
+						t.Errorf("server config: '%s' client config: '%s' failed: %s",
+							serverConfig.name, clientConfig.name, err.Error())
+					} else {
+						fmt.Printf("SUCCESS server config: '%s' client config: '%s' got expected error: %s\n",
+							serverConfig.name, clientConfig.name, err.Error())
+					}
+				} else if !expectedSuccess {
+					t.Errorf("server config: '%s' client config: '%s' worked; should fail!",
+						serverConfig.name, clientConfig.name)
 				} else {
-					fmt.Printf("SUCCESS server config: '%s' client config: '%s' got expected error: %s\n",
-						serverConfig.name, clientConfig.name, err.Error())
+					fmt.Printf("SUCCESS server config: '%s' client config: '%s'\n",
+						serverConfig.name, clientConfig.name)
 				}
-			} else if !expectedSuccess {
-				t.Errorf("server config: '%s' client config: '%s' worked; should fail!",
-					serverConfig.name, clientConfig.name)
-			} else {
-				fmt.Printf("SUCCESS server config: '%s' client config: '%s'\n",
-					serverConfig.name, clientConfig.name)
 			}
-		}
-
-		f.Close()
+		})
 	}
 }
 
@@ -886,7 +938,6 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 	tdir, err := ioutil.TempDir("", "unixmetrics_ssf")
 	require.NoError(b, err)
 	defer os.RemoveAll(tdir)
-	HTTPAddrPort++
 
 	path := filepath.Join(tdir, "test.sock")
 	// test the variables that have been renamed
@@ -900,7 +951,7 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 		Interval:     "10s",
 		StatsAddress: "localhost:62251",
 	}
-	s, err := NewFromConfig(config)
+	s, err := NewFromConfig(logrus.New(), config)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -949,14 +1000,12 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 // is almost an inversion of the SSFUNIX benchmark above, as UDP does
 // lose packets and we don't want to loop forever.
 func BenchmarkSendSSFUDP(b *testing.B) {
-	addr := fmt.Sprintf("127.0.0.1:%d", HTTPAddrPort)
-	HTTPAddrPort++
 	// test the variables that have been renamed
 	config := Config{
 		DatadogAPIKey:          "apikey",
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
-		SsfListenAddresses:     []string{fmt.Sprintf("udp://%s", addr)},
+		SsfListenAddresses:     []string{"udp://127.0.0.1:0"},
 		ReadBufferSizeBytes:    16 * 1024,
 		TraceMaxLengthBytes:    900 * 1024,
 
@@ -964,7 +1013,7 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 		Interval:     "10s",
 		StatsAddress: "localhost:62251",
 	}
-	s, err := NewFromConfig(config)
+	s, err := NewFromConfig(logrus.New(), config)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -974,7 +1023,7 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 		},
 	}
 	// Simulate listening for UDP SSF on the server:
-	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	udpAddr := s.StatsdListenAddrs[0].(*net.UDPAddr)
 	require.NoError(b, err)
 	l, err := NewSocket(udpAddr, s.RcvbufBytes, false)
 	require.NoError(b, err)
@@ -993,7 +1042,7 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 		testMetric.Tags["tag"] = "tagValue"
 		testSpan.Metrics = append(testSpan.Metrics, testMetric)
 
-		conn, err := net.Dial("udp", addr)
+		conn, err := net.Dial("udp", udpAddr.String())
 		require.NoError(b, err)
 		defer conn.Close()
 		for {
@@ -1045,5 +1094,158 @@ func BenchmarkServerFlush(b *testing.B) {
 		}
 
 		f.server.Flush(context.Background())
+	}
+}
+
+// TestSSFMetricsEndToEnd reports an SSF span with some attached
+// metrics to a live veneur through a UNIX domain socket and verifies
+// that the metrics have been received and processed.
+func TestSSFMetricsEndToEnd(t *testing.T) {
+	tdir, err := ioutil.TempDir("", "e2etest")
+	require.NoError(t, err)
+	defer os.RemoveAll(tdir)
+
+	path := filepath.Join(tdir, "test.sock")
+	ssfAddr := "unix://" + path
+
+	config := localConfig()
+	config.SsfListenAddresses = []string{ssfAddr}
+	metricsChan := make(chan []samplers.InterMetric, 10)
+	defer close(metricsChan)
+	cms, _ := NewChannelMetricSink(metricsChan)
+	f := newFixture(t, config, cms, nil)
+	defer f.Close()
+
+	client, err := trace.NewClient(ssfAddr, trace.Capacity(20))
+	require.NoError(t, err)
+
+	start := time.Now()
+	end := start.Add(5 * time.Second)
+	span := &ssf.SSFSpan{
+		Id:             5,
+		TraceId:        5,
+		Service:        "e2e_test",
+		StartTimestamp: start.UnixNano(),
+		EndTimestamp:   end.UnixNano(),
+		Indicator:      false,
+		Metrics: []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		},
+	}
+	done := make(chan error)
+	err = trace.Record(client, span, done)
+	require.NoError(t, err)
+	require.NoError(t, <-done)
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
+	defer cancel()
+	keepFlushing(ctx, f.server)
+
+	n := 0
+	metrics := <-metricsChan
+	for _, m := range metrics {
+		for _, tag := range m.Tags {
+			if tag == "purpose:testing" {
+				n++
+			}
+		}
+	}
+	assert.Equal(t, 2, n, "Should have gotten the right number of metrics")
+}
+
+// TestInternalSSFMetricsEndToEnd reports an SSF span with some
+// attached metrics to a live veneur through an internal trace
+// backeng, like that veneur server itself would be.
+func TestInternalSSFMetricsEndToEnd(t *testing.T) {
+	tdir, err := ioutil.TempDir("", "e2etest")
+	require.NoError(t, err)
+	defer os.RemoveAll(tdir)
+
+	path := filepath.Join(tdir, "test.sock")
+	ssfAddr := "unix://" + path
+
+	config := localConfig()
+	config.SsfListenAddresses = []string{ssfAddr}
+	metricsChan := make(chan []samplers.InterMetric, 10)
+	defer close(metricsChan)
+	cms, _ := NewChannelMetricSink(metricsChan)
+	f := newFixture(t, config, cms, nil)
+	defer f.Close()
+
+	client, err := trace.NewChannelClient(f.server.SpanChan)
+	require.NoError(t, err)
+
+	done := make(chan error)
+	for {
+		err = metrics.ReportAsync(client, []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		}, done)
+		if err != trace.ErrWouldBlock {
+			break
+		}
+	}
+	require.NoError(t, err)
+	require.NoError(t, <-done)
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 1*time.Second)
+	defer cancel()
+	keepFlushing(ctx, f.server)
+
+	n := 0
+	metrics := <-metricsChan
+	for _, m := range metrics {
+		for _, tag := range m.Tags {
+			if tag == "purpose:testing" {
+				n++
+			}
+		}
+	}
+	assert.Equal(t, 2, n, "Should have gotten the right number of metrics")
+}
+
+func TestGenerateExcludeTags(t *testing.T) {
+	type testCase struct {
+		name         string
+		sinkName     string
+		excludeRules []string
+		expected     []string
+	}
+
+	cases := []testCase{
+		{
+			name:         "GlobalExclude",
+			sinkName:     "datadog",
+			excludeRules: []string{"host"},
+			expected:     []string{"host"},
+		},
+		{
+			name:         "MultipleSinkSpecific",
+			sinkName:     "signalfx",
+			excludeRules: []string{"host", "ip|signalfx|datadog"},
+			expected:     []string{"host", "ip"},
+		},
+		{
+			name:         "MultipleSinkSpecificSecond",
+			sinkName:     "datadog",
+			excludeRules: []string{"host", "ip|signalfx|datadog"},
+			expected:     []string{"host", "ip"},
+		},
+		{
+			name:         "InapplicableSinkSpecific",
+			sinkName:     "signalfx",
+			excludeRules: []string{"host", "ip|datadog"},
+			expected:     []string{"host"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			excludes := generateExcludedTags(tc.excludeRules, tc.sinkName)
+			assert.Equal(t, len(tc.expected), len(excludes), "Received an incorrect number of excluded tags")
+			assert.Subsetf(t, tc.expected, excludes, "Excluded rules contain unexpected elements")
+			assert.Subsetf(t, excludes, tc.expected, "Did not generate all expected exclude-tags")
+		})
 	}
 }

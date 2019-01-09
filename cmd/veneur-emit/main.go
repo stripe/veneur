@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"errors"
 	"flag"
+	"io"
 	"math"
 	"math/big"
 	"net"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -19,6 +21,7 @@ import (
 	"crypto/rand"
 
 	"github.com/DataDog/datadog-go/statsd"
+	"github.com/araddon/dateparse"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/ssf"
@@ -61,9 +64,84 @@ var (
 	scMsg       = flag.String("sc_msg", "", "Message describing state of current state of service check.")
 
 	// Tracing flags
-	traceID  = flag.Int64("trace_id", 0, "ID for the trace (top-level) span. Setting a trace ID activated tracing.")
-	parentID = flag.Int64("parent_span_id", 0, "ID of the parent span.")
-	service  = flag.String("span_service", "veneur-emit", "Service name to associate with the span.")
+	traceID   = flag.Int64("trace_id", 0, "ID for the trace (top-level) span. Setting a trace ID activated tracing.")
+	parentID  = flag.Int64("parent_span_id", 0, "ID of the parent span.")
+	spanStart = flag.String("span_starttime", "", "Date/time to set for the start of the span. See https://github.com/araddon/dateparse#extended-example for formatting.")
+	spanEnd   = flag.String("span_endtime", "", "Date/time to set for the end of the span. Format is same as -span_starttime.")
+	service   = flag.String("span_service", "veneur-emit", "Service name to associate with the span.")
+	indicator = flag.Bool("indicator", false, "Mark the reported span as an indicator span")
+)
+
+type EmitMode uint
+
+const (
+	MetricMode EmitMode = 1 << iota
+	EventMode
+	ServiceCheckMode
+	AllModes = MetricMode | EventMode | ServiceCheckMode
+)
+
+func (m EmitMode) String() string {
+	switch m {
+	case MetricMode:
+		return "metric"
+	case EventMode:
+		return "event"
+	case ServiceCheckMode:
+		return "sc"
+	case AllModes:
+		return "any"
+	}
+
+	return ""
+}
+
+var flagModeMappings = map[string]EmitMode{}
+
+func init() {
+	for mode, flags := range map[EmitMode][]string{
+		AllModes: []string{
+			"hostport",
+			"debug",
+			"command",
+		},
+		MetricMode: []string{
+			"name",
+			"gauge",
+			"timing",
+			"count",
+			"tag",
+			"ssf",
+		},
+		EventMode: []string{
+			"e_title",
+			"e_text",
+			"e_time",
+			"e_hostname",
+			"e_aggr_key",
+			"e_priority",
+			"e_source_type",
+			"e_alert_type",
+			"e_event_tags",
+		},
+		ServiceCheckMode: []string{
+			"sc_name",
+			"sc_status",
+			"sc_time",
+			"sc_hostname",
+			"sc_tags",
+			"sc_msg",
+		},
+	} {
+		for _, flag := range flags {
+			flagModeMappings[flag] = mode
+		}
+	}
+}
+
+const (
+	envTraceID = "VENEUR_EMIT_TRACE_ID"
+	envSpanID  = "VENEUR_EMIT_PARENT_SPAN_ID"
 )
 
 // MinimalClient represents the functions that we call on Clients in veneur-emit.
@@ -84,6 +162,8 @@ func main() {
 	if *debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
+
+	validateFlagCombinations(passedFlags)
 
 	addr, netAddr, err := destination(hostport, *toSSF)
 	if err != nil {
@@ -126,6 +206,18 @@ func main() {
 		return
 	}
 
+	if *traceID, err = inferTraceIDInt(*traceID, envTraceID); err != nil {
+		logrus.WithError(err).
+			WithField("env_var", envTraceID).
+			WithField("ID", "trace_id").
+			Warn("Could not infer ID from environment")
+	}
+	if *parentID, err = inferTraceIDInt(*parentID, envSpanID); err != nil {
+		logrus.WithError(err).
+			WithField("env_var", envSpanID).
+			WithField("ID", "parent_span_id").
+			Warn("Could not infer ID from environment")
+	}
 	span, err := setupSpan(traceID, parentID, *name, *tag)
 	if err != nil {
 		logrus.WithError(err).
@@ -139,6 +231,7 @@ func main() {
 		logrus.WithField("trace_id", span.TraceId).
 			WithField("span_id", span.Id).
 			WithField("parent_id", span.ParentId).
+			WithField("service", span.Service).
 			WithField("name", span.Name).
 			Debug("Tracing is activated")
 	}
@@ -221,9 +314,26 @@ func destination(hostport *string, useSSF bool) (string, net.Addr, error) {
 	return addr, netAddr, nil
 }
 
+func inferTraceIDInt(existingID int64, envKey string) (id int64, err error) {
+	if existingID != 0 {
+		return existingID, nil // nothing to do
+	}
+	if strID, ok := os.LookupEnv(envKey); ok {
+		id, err = strconv.ParseInt(strID, 10, 64)
+		if err != nil {
+			return
+		}
+		logrus.WithFields(logrus.Fields{
+			"env_var": envKey,
+			"value":   id,
+		}).Debug("Inferred ID from environment")
+	}
+	return
+}
+
 func setupSpan(traceID, parentID *int64, name, tags string) (*ssf.SSFSpan, error) {
 	span := &ssf.SSFSpan{}
-	if traceID != nil {
+	if traceID != nil && *traceID != 0 {
 		span.TraceId = *traceID
 		if parentID != nil {
 			span.ParentId = *parentID
@@ -236,15 +346,57 @@ func setupSpan(traceID, parentID *int64, name, tags string) (*ssf.SSFSpan, error
 		span.Name = name
 		span.Tags = ssfTags(tags)
 		span.Service = *service
+		span.Indicator = *indicator
 	}
 	return span, nil
 }
 
-func timeCommand(command []string) (exitStatus int, start time.Time, ended time.Time, err error) {
+func streamOutput(wg *sync.WaitGroup, in io.Reader, out io.Writer) {
+	if in == nil {
+		return
+	}
+	wg.Add(1)
+	go func() {
+		_, err := io.Copy(out, in)
+		if err != nil && err != io.EOF {
+			logrus.WithError(err).Info("Could not stream output")
+		}
+		wg.Done()
+	}()
+}
+
+func timeCommand(span *ssf.SSFSpan, command []string) (exitStatus int, start time.Time, ended time.Time, err error) {
 	logrus.Debugf("Timing %q...", command)
 	cmd := exec.Command(command[0], command[1:]...)
+
+	// pass span IDs through on the environment so veneur-emits
+	// further down the line can pick them up and construct a tree:
+	cmd.Env = os.Environ()
+	if span.TraceId != 0 {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%d", envTraceID, span.TraceId))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%d", envSpanID, span.Id))
+	}
+	var wg sync.WaitGroup
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		logrus.WithError(err).Warn("Could not get stdout pipe from command")
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		logrus.WithError(err).Warn("Could not get stderr pipe from command")
+	}
 	start = time.Now()
-	err = cmd.Run()
+	err = cmd.Start()
+	if err != nil {
+		logrus.WithError(err).WithField("command", command).Error("Could not start command")
+		exitStatus = 1
+		return
+	}
+	streamOutput(&wg, stdout, os.Stdout)
+	streamOutput(&wg, stderr, os.Stderr)
+	wg.Wait()
+
+	err = cmd.Wait()
 	ended = time.Now()
 	if err != nil {
 		exitError, ok := err.(*exec.ExitError)
@@ -265,8 +417,17 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 	tags := map[string]string{}
 	if tagStr != "" {
 		for _, elem := range strings.Split(tagStr, ",") {
+			if len(elem) == 0 {
+				// Gracefully ignore a trailing comma.
+				continue
+			}
+
 			tag := strings.Split(elem, ":")
-			tags[tag[0]] = tag[1]
+			if len(tag) == 2 {
+				tags[tag[0]] = tag[1]
+			} else {
+				logrus.Fatalf("Arguments to -tag should be of the form <key>:<value>, got %q", elem)
+			}
 		}
 	}
 
@@ -274,13 +435,36 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 		if *command {
 			var start, ended time.Time
 
-			status, start, ended, err = timeCommand(flag.Args())
+			status, start, ended, err = timeCommand(span, flag.Args())
 			if err != nil {
 				return status, err
 			}
 			span.StartTimestamp = start.UnixNano()
 			span.EndTimestamp = ended.UnixNano()
 			span.Metrics = append(span.Metrics, ssf.Timing(name, ended.Sub(start), time.Millisecond, tags))
+		}
+
+		sf, shas := passedFlags["span_starttime"]
+		ef, ehas := passedFlags["span_endtime"]
+		if shas != ehas {
+			logrus.Fatal("Must provide both -span_startime and -span_endtime, or neither")
+		}
+
+		if shas || ehas {
+			var start, end time.Time
+
+			start, err = dateparse.ParseAny(sf.String())
+			if err != nil {
+				logrus.WithError(err).Fatal("Error parsing -span_starttime")
+			}
+
+			end, err = dateparse.ParseAny(ef.String())
+			if err != nil {
+				logrus.WithError(err).Fatal("Error parsing -span_endtime")
+			}
+
+			span.StartTimestamp = start.UnixNano()
+			span.EndTimestamp = end.UnixNano()
 		}
 
 		if passedFlags["timing"] != nil {
@@ -355,6 +539,31 @@ func sendStatsd(addr string, span *ssf.SSFSpan) error {
 		}
 	}
 	return nil
+}
+
+func validateFlagCombinations(passedFlags map[string]flag.Value) {
+	// Figure out which mode we're in
+	var mode EmitMode
+	mv, has := passedFlags["mode"]
+	// "metric" is the default mode, so assume that if the flag wasn't passed.
+	if !has {
+		mode = MetricMode
+	} else {
+		switch mv.String() {
+		case "metric":
+			mode = MetricMode
+		case "event":
+			mode = EventMode
+		case "sc":
+			mode = ServiceCheckMode
+		}
+	}
+
+	for flagname := range passedFlags {
+		if fmode, has := flagModeMappings[flagname]; has && (fmode&mode) != mode {
+			logrus.Fatalf("Flag %q is only valid with \"-mode %s\"", flagname, fmode)
+		}
+	}
 }
 
 func buildEventPacket(passedFlags map[string]flag.Value) (bytes.Buffer, error) {

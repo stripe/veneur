@@ -3,16 +3,30 @@ debug: true
 enable_profiling: false
 http_address: "localhost:8127"
 
+# How often to flush metrics about the Go runtime (heap, GC, etc)
+runtime_metrics_interval: "10s"
+
 # How often to refresh from Consul's healthy nodes
 consul_refresh_interval: "30s"
 
+# This field is deprecated - use ssf_destination_address instead!
 stats_address: "localhost:8125"
+
+# The address to which to send SSF spans and metrics - this is the
+# same format as on the veneur server's `ssf_listen_addresses`.
+ssf_destination_address: "udp://localhost:8126"
 
 ### FORWARDING
 # Use a static host for forwarding
 forward_address: "http://veneur.example.com"
 # Or use a consul service for consistent forwarding.
 consul_forward_service_name: "forwardServiceName"
+
+# Maximum time that forwarding each batch of metrics can take;
+# note that forwarding to multiple global veneur servers happens in
+# parallel, so every forwarding operation is expected to complete
+# within this time.
+forward_timeout: 10s
 
 ### TRACING
 # The address on which we will listen for trace data

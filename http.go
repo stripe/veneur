@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/metrics"
 
 	"goji.io"
 	"goji.io/pat"
@@ -65,7 +67,7 @@ func (s *Server) ImportMetrics(ctx context.Context, jsonMetrics []samplers.JSONM
 		nextChunk, workerIndex := sortedIter.Chunk()
 		s.Workers[workerIndex].ImportChan <- nextChunk
 	}
-	s.Statsd.TimeInMilliseconds("import.response_duration_ns", float64(time.Since(span.Start).Nanoseconds()), []string{"part:merge"}, 1.0)
+	metrics.ReportOne(s.TraceClient, ssf.Timing("import.response_duration_ns", time.Since(span.Start), time.Nanosecond, map[string]string{"part": "merge"}))
 }
 
 // sorts a set of jsonmetrics by what worker they belong to
@@ -109,7 +111,7 @@ type jsonMetricsByWorker struct {
 }
 
 // iterate over a sorted set of jsonmetrics, returning them in contiguous
-// nonempty chunks such that each chunk correpsonds to a single worker
+// nonempty chunks such that each chunk corresponds to a single worker.
 func newJSONMetricsByWorker(metrics []samplers.JSONMetric, numWorkers int) *jsonMetricsByWorker {
 	ret := &jsonMetricsByWorker{
 		sjm: newSortableJSONMetrics(metrics, numWorkers),
@@ -117,6 +119,7 @@ func newJSONMetricsByWorker(metrics []samplers.JSONMetric, numWorkers int) *json
 	sort.Sort(ret.sjm)
 	return ret
 }
+
 func (jmbw *jsonMetricsByWorker) Next() bool {
 	if jmbw.sjm.Len() == jmbw.nextStart {
 		return false

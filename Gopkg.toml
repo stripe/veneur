@@ -25,16 +25,16 @@
   version = "1.1.0"
 
 [[constraint]]
+  name = "github.com/Shopify/sarama"
+  version = "v1.15.0"
+
+[[constraint]]
   name = "github.com/sirupsen/logrus"
   revision = "89742aefa4b206dcf400792f3bd35b542998eb3b"
 
 [[constraint]]
   name = "github.com/aws/aws-sdk-go"
   version = "1.10.16"
-
-[[constraint]]
-  branch = "master"
-  name = "github.com/clarkduvall/hyperloglog"
 
 [[constraint]]
   branch = "master"
@@ -66,7 +66,7 @@
 
 [[constraint]]
   name = "github.com/stretchr/testify"
-  version = "1.1.4"
+  version = "1.2.0"
 
 [[constraint]]
   name = "github.com/zenazn/goji"
@@ -98,5 +98,14 @@
 
 [[constraint]]
   name = "github.com/signalfx/golib"
-  revision = "9903a08c245ee6c06a365af98dac468dc1ef519a"
+  revision = "8321403a729d6c8fa60a3dcf2c60bf20f71f6062"
 
+[[constraint]]
+  name = "github.com/axiomhq/hyperloglog"
+  # Updating to any version later than 8300947202c9fbce15a5a299b27c8b0f5092a520
+  # will require dropping support for Go 1.8.x
+  revision = "8300947202c9fbce15a5a299b27c8b0f5092a520"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/araddon/dateparse"

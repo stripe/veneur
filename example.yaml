@@ -32,8 +32,6 @@ tls_certificate: ""
 # Authority certificate: requires clients to be authenticated
 tls_authority_certificate: ""
 
-
-
 # == BEHAVIOR ==
 
 # Use a static host for forwarding
@@ -56,7 +54,7 @@ stats_address: "localhost:8126"
 
 # The address on which to listen for HTTP imports and/or healthchecks.
 # http_address: "einhorn@0"
-http_address: "localhost:8127"
+http_address: "0.0.0.0:8127"
 
 # The name of timer metrics that "indicator" spans should be tracked
 # under. If this is unset, veneur doesn't report an additional timer
@@ -71,15 +69,24 @@ hostname: ""
 # If true and hostname is "" or absent, don't add the host tag
 omit_empty_hostname: false
 
-# Tags supplied here will be added to all metrics ingested by this instance.
-# Example:
+# Tags supplied here will be added to all metrics and spans ingested by this
+# instance. Example:
 # tags:
 #  - "foo:bar"
 #  - "baz:quz"
 tags:
   - ""
 
-# Set to floating point values that you'd like to putput percentiles for from
+# Tags listed here will be excluded from sinks. A pipe ("|") delimiter
+# can be used to specify the name of a sink, in which case the tag will
+# only be excluded from that one sink.
+# Sinks must support this behavior by providing a SetExcludedTags method,
+# or the exclusion rule will not be applied.
+tags_exclude:
+  - "nonce"
+  - "host_env|signalfx"
+
+# Set to floating point values that you'd like to output percentiles for from
 # histograms.
 percentiles:
   - 0.5
@@ -100,19 +107,47 @@ aggregates:
  - "max"
  - "count"
 
+# == DEPRECATED ==
 
+# This configuration has been replaced by datadog_flush_max_per_body.
+flush_max_per_body: 0
+# This configuration has been replaced by datadog_span_buffer_size.
+ssf_buffer_size: 0
+# This has been replaced by lightstep_access_token
+trace_lightstep_access_token: ""
+# This has been replaced by lightstep_collector_host
+trace_lightstep_collector_host: ""
+# This has been replaced by lightstep_reconnect_period
+trace_lightstep_reconnect_period: ""
+# This has been replaced by lightstep_maximum_spans
+trace_lightstep_maximum_spans: 0
+# This has been replaced by lightstep_num_clients
+trace_lightstep_num_clients: 0
 
 # == PERFORMANCE ==
 
-# Adjusts the number of workers Veneur will distribute aggregation across.
-# More decreases contention but has diminishing returns.
+# Adjusts the number of metrics workers across which Veneur will
+# distribute aggregation.  More decreases contention but has
+# diminishing returns. The default value is 1, no parallel ingestion
+# of metrics.
 num_workers: 96
 
-# Numbers larger than 1 will enable the use of SO_REUSEPORT, make sure
-# this is supported on your platform!
+# Adjusts the number of listening goroutines on any UDP listener
+# (statsd and SSF). Numbers larger than 1 will enable the use of
+# SO_REUSEPORT, so make sure this is supported on your platform!
 num_readers: 1
 
+# Adjusts the number of span workers across which Veneur will
+# distribute span ingestion. The default value is 1, no parallel
+# ingestion of spans.
+num_span_workers: 10
 
+# Adjusts the number of spans that can be accomodated before the span
+# ingestion buffer blocks. This is good to tweak when you're seeing
+# spiky span ingestion patterns and a lot of spans get dropped. This
+# corresponds directly to a Go channel's capacity, for which the
+# default is zero (unbuffered).
+span_channel_capacity: 100
 
 # == LIMITS ==
 
@@ -123,19 +158,9 @@ metric_max_length: 4096
 # How big of a buffer to allocate for incoming traces.
 trace_max_length_bytes: 16384
 
-# The number of SSF packets that can be processed
-# per flush interval
-ssf_buffer_size: 16384
-
 # The size of the buffer we'll use to buffer socket reads. Tune this if you
 # you think Veneur needs more room to keep up with all packets.
 read_buffer_size_bytes: 2097152
-
-# How many metrics to include in the body of each POST to Datadog. Veneur
-# will post multiple times in parallel if the limit is exceeded.
-flush_max_per_body: 25000
-
-
 
 # == DIAGNOSTICS ==
 
@@ -161,15 +186,47 @@ datadog_api_hostname: https://app.datadoghq.com
 # API key for acessing Datadog
 datadog_api_key: "farts"
 
-# Hostname to send Datadog trace data to.
-datadog_trace_api_address: "http://localhost:7777"
+# How many metrics to include in the body of each POST to Datadog. Veneur
+# will post multiple times in parallel if the limit is exceeded.
+datadog_flush_max_per_body: 25000
 
-# == SignalFX ==
-# SignalFX can be a sink for metrics.
+# Hostname to send Datadog trace data to.
+datadog_trace_api_address: ""
+
+# The size of the ring buffer used for retaining spans during a flush interval.
+datadog_span_buffer_size: 16384
+
+
+# == SignalFx ==
+# SignalFx can be a sink for metrics and events.
+
+# The API token to use, either always, or if no
+# signalfx_per_tag_api_keys match
 signalfx_api_key: "abc123"
 
 # Where to send metrics
-signalfx_hostname: "https://ingest.signalfx.com"
+signalfx_endpoint_base: "https://ingest.signalfx.com"
+
+# The tag we'll add to each metric that contains the hostname we came from
+signalfx_hostname_tag: "host"
+
+# The tag that we'll (optionally) use to look up values in
+# signalfx_per_tag_api_keys. If this is empty, the SignalFX sink uses
+# only signalfx_api_key.
+signalfx_vary_key_by: host_operator
+
+# If signalfx_vary_key_by is set, and matches one of the keys in here,
+# use the value as the signalfx api token. If this is empty, only
+# signalfx_api_key is used to submit metrics.
+signalfx_per_tag_api_keys:
+  # metrics tagged with host_operator:cory will be submitted with api
+  # key "farts_in_a_general_direction"
+  - name: "cory"
+    api_key: "farts_in_a_general_direction"
+  # metrics tagged with host_operator:asf will be submitted with api
+  # key "definitely_no_farts"
+  - name: "asf"
+    api_key: "definitely_no_farts"
 
 # == LightStep ==
 # LightStep can be a sink for trace spans.
@@ -177,15 +234,15 @@ signalfx_hostname: "https://ingest.signalfx.com"
 # If present, lightstep will be enabled as a tracing sink
 # and this access token will be used
 # Access token for accessing LightStep
-trace_lightstep_access_token: ""
+lightstep_access_token: ""
 
 # Host to send trace data to
-trace_lightstep_collector_host: ""
+lightstep_collector_host: ""
 
 # How often LightStep should reconnect to collectors. If your workload is
 # imbalanced — some veneur instances see more spans than others — then you may
 # want to reconnect more often.
-trace_lightstep_reconnect_period: "5m"
+lightstep_reconnect_period: "5m"
 
 # The LightStep client has internal throttling to prevent you overwhelming
 # things. Anything that exceeds this many spans in the reporting period
@@ -193,13 +250,66 @@ trace_lightstep_reconnect_period: "5m"
 # — will be dropped. In other words, you can only submit this many spans per
 # flush! If left at zero, veneur will set the maximum to the size of
 # `ssf_buffer_size`.
-trace_lightstep_maximum_spans: 0
+lightstep_maximum_spans: 0
 
 # Multiple clients can be used to load-balance spans cross multiple collectors,
 # improving span indexing success rates.
 # If missing (or set to zero), it will default
 # to a minimum of one client
-trace_lightstep_num_clients: 1
+lightstep_num_clients: 1
+
+# == Kafka ==
+
+# Comma-delimited list of brokers suitable for Sarama's [NewAsyncProducer](https://godoc.org/github.com/Shopify/sarama#NewAsyncProducer)
+# in the form hostname:port, such as localhost:9092
+kafka_broker: ""
+
+# Name of the topic we'll be publishing checks to
+kafka_check_topic: "veneur_checks"
+
+# Name of the topic we'll be publishing events to
+kafka_event_topic: "veneur_events"
+
+# Name of the topic we'll be publishing metrics to
+kafka_metric_topic: ""
+
+# Name of the topic we'll be publishing spans to
+kafka_span_topic: "veneur_spans"
+
+# Name of a tag to hash on for sampling; if empty, spans are sampled based off
+# of traceID
+kafka_span_sample_tag: ""
+
+# Sample rate in percent (as an integer)
+# This should ideally be a floating point number, but at the time this was
+# written, gojson interpreted whole-number floats in yaml as integers.
+kafka_span_sample_rate_percent: 100
+
+kafka_metric_buffer_bytes: 0
+
+kafka_metric_buffer_messages: 0
+
+kafka_metric_buffer_frequency: ""
+
+kafka_span_serialization_format: "protobuf"
+
+# The type of partitioner to use.
+kafka_partitioner: "hash"
+
+# What type of acks to require for metrics? One of none, local or all.
+kafka_metric_require_acks: "all"
+
+# What type of acks to require for span? One of none, local or all.
+kafka_span_require_acks: "all"
+
+kafka_span_buffer_bytes: 0
+
+kafka_span_buffer_mesages: 0
+
+kafka_span_buffer_frequency: ""
+
+# The number of retries before giving up.
+kafka_retry_max: 0
 
 # == PLUGINS ==
 
@@ -213,35 +323,3 @@ aws_s3_bucket: ""
 # == LocalFile Output ==
 # Include this if you want to archive data to a local file (which should then be rotated/cleaned)
 flush_file: ""
-
-
-
-# == DEPRECATED FIELDS ==
-# The options below here have newer analogs above. They are listed here for the
-# sake of documentation and code-generation.
-
-# The address on which to listen for metrics sent to this instance over UDP,
-# leave empty to disable.
-# This option is deprecated. Use statsd_listen_addresses instead.
-udp_address: ""
-
-# The address on which to listen for metrics sent to this instance over TCP,
-# leave empty to disable.
-# This option is deprecated. Use statsd_listen_addresses instead.
-tcp_address: ""
-
-# The address on which we will listen for SSF packets via UDP
-# This option is deprecated. Use ssf_listen_addresses instead.
-ssf_address: ""
-
-# This is deprecated and will be removed in 2.0; use datadog_api_key
-key: ""
-
-# This is deprecated and will be removed in 2.0; use datadog_api_hostname
-api_hostname: ""
-
-# This is deprecated and will be removed in 2.0; use datadog_trace_api_address
-trace_api_address: ""
-
-# The address on which we will listen for UDP trace data
-trace_address: ""

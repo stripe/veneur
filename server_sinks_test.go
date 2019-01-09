@@ -68,13 +68,13 @@ func TestFlushTracesBySink(t *testing.T) {
 }
 
 func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
-	var expected []*DatadogTraceSpan
+	var expected [][]DatadogTraceSpan
 	err := json.NewDecoder(jsn).Decode(&expected)
 	assert.NoError(t, err)
 
-	remoteResponseChan := make(chan []*DatadogTraceSpan, 1)
+	remoteResponseChan := make(chan [][]DatadogTraceSpan, 1)
 	remoteServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var actual []*DatadogTraceSpan
+		var actual [][]DatadogTraceSpan
 		err = json.NewDecoder(r.Body).Decode(&actual)
 		assert.NoError(t, err)
 
@@ -84,12 +84,13 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	defer remoteServer.Close()
 
 	config := globalConfig()
+	config.DatadogAPIKey = "secret"
 	config.DatadogTraceAPIAddress = remoteServer.URL
 
 	server := setupVeneurServer(t, config, nil, nil, nil)
 	defer server.Shutdown()
 
-	ddSink, err := datadog.NewDatadogSpanSink("http://example.com", 100, server.Statsd, server.HTTPClient, server.TagsAsMap, logrus.New())
+	ddSink, err := datadog.NewDatadogSpanSink("http://example.com", 100, server.HTTPClient, server.TagsAsMap, logrus.New())
 
 	server.TraceClient = nil
 	server.spanSinks = append(server.spanSinks, ddSink)
@@ -106,7 +107,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 		assert.Equal(t, expected, actual)
 		// all is safe
 		break
-	case <-time.After(10 * time.Second):
+	case <-time.After(2 * time.Second):
 		assert.Fail(t, "Global server did not complete all responses before test terminated!")
 	}
 }
@@ -119,12 +120,12 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 	config := globalConfig()
 
 	// this can be anything as long as it's not empty
-	config.TraceLightstepAccessToken = "secret"
+	config.LightstepAccessToken = "secret"
 	server := setupVeneurServer(t, config, nil, nil, nil)
 	defer server.Shutdown()
 
 	//collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string
-	lsSink, err := lightstep.NewLightStepSpanSink("example.com", "5m", 10000, 1, "secret", server.Statsd, server.TagsAsMap, log)
+	lsSink, err := lightstep.NewLightStepSpanSink("example.com", "5m", 10000, 1, "secret", server.TagsAsMap, log)
 	server.spanSinks = append(server.spanSinks, lsSink)
 
 	packet, err := ioutil.ReadAll(protobuf)
@@ -144,13 +145,14 @@ func TestNewDatadogMetricSinkConfig(t *testing.T) {
 		DatadogAPIKey:          "apikey",
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
-		SsfAddress:             "127.0.0.1:99",
+		DatadogSpanBufferSize:  32,
+		SsfListenAddresses:     []string{"udp://127.0.0.1:99"},
 
 		// required or NewFromConfig fails
 		Interval:     "10s",
 		StatsAddress: "localhost:62251",
 	}
-	server, err := NewFromConfig(config)
+	server, err := NewFromConfig(logrus.New(), config)
 
 	if err != nil {
 		t.Fatal(err)

@@ -2,6 +2,7 @@ package veneur
 
 import (
 	"compress/zlib"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -11,20 +12,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/samplers"
 )
 
-// On the CI server, we can't be guaranteed that the port will be
-// released immediately after the server is shut down. Instead, use
-// a unique port for each test. As long as we don't have an insane number
-// of integration tests, we should be fine.
-var ProxyHTTPAddrPort = 8229
-
 func generateProxyConfig() ProxyConfig {
-	port := ProxyHTTPAddrPort
-	ProxyHTTPAddrPort++
-
 	return ProxyConfig{
 		Debug: false,
 		ConsulRefreshInterval:    "86400s",
@@ -32,7 +26,7 @@ func generateProxyConfig() ProxyConfig {
 		ConsulTraceServiceName:   "traceServiceName",
 		TraceAddress:             "127.0.0.1:8128",
 		TraceAPIAddress:          "127.0.0.1:8135",
-		HTTPAddress:              fmt.Sprintf("127.0.0.1:%d", port),
+		HTTPAddress:              "127.0.0.1:0",
 		StatsAddress:             "127.0.0.1:8201",
 	}
 }
@@ -100,7 +94,7 @@ func TestAllowStaticServices(t *testing.T) {
 	proxyConfig.ForwardAddress = "localhost:1234"
 	proxyConfig.TraceAddress = "localhost:1234"
 
-	server, error := NewProxyFromConfig(proxyConfig)
+	server, error := NewProxyFromConfig(logrus.New(), proxyConfig)
 	assert.NoError(t, error, "Should start with just static services")
 	assert.False(t, server.usingConsul, "Server isn't using consul")
 }
@@ -112,7 +106,7 @@ func TestMissingServices(t *testing.T) {
 	proxyConfig.ConsulForwardServiceName = ""
 	proxyConfig.ConsulTraceServiceName = ""
 
-	_, error := NewProxyFromConfig(proxyConfig)
+	_, error := NewProxyFromConfig(logrus.New(), proxyConfig)
 	assert.Error(t, error, "No consul services means Proxy won't start")
 }
 
@@ -121,7 +115,7 @@ func TestAcceptingBooleans(t *testing.T) {
 	proxyConfig.ConsulTraceServiceName = ""
 	proxyConfig.TraceAddress = ""
 
-	server, _ := NewProxyFromConfig(proxyConfig)
+	server, _ := NewProxyFromConfig(logrus.New(), proxyConfig)
 	assert.True(t, server.AcceptingForwards, "Server accepts forwards")
 	assert.False(t, server.AcceptingTraces, "Server does not forward traces")
 }
@@ -143,20 +137,21 @@ func TestConsistentForward(t *testing.T) {
 		t:  t,
 		wg: &wg,
 	}
-	server, _ := NewProxyFromConfig(proxyConfig)
+	server, _ := NewProxyFromConfig(logrus.New(), proxyConfig)
 
 	server.HTTPClient.Transport = transport
 	defer server.Shutdown()
 
 	server.Start()
-	go server.HTTPServe()
+	srv := httptest.NewServer(server.Handler())
+	defer srv.Close()
 
 	// Make sure we're sane first
 	assert.Len(t, server.ForwardDestinations.Members(), 2, "Incorrect host count in ring")
 
 	// Cool, now let's make a veneur to process some bits!
 	config := localConfig()
-	config.ForwardAddress = fmt.Sprintf("http://%s", proxyConfig.HTTPAddress)
+	config.ForwardAddress = srv.URL
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 
@@ -192,5 +187,46 @@ func TestConsistentForward(t *testing.T) {
 		fmt.Println("GOT 'IM")
 	case <-time.After(3 * time.Second):
 		assert.Fail(t, "Failed to receive all metrics before timeout")
+	}
+}
+
+func TestTimeout(t *testing.T) {
+	defer log.SetLevel(log.Level)
+	log.SetLevel(logrus.ErrorLevel)
+
+	cfg := generateProxyConfig()
+	cfg.ConsulTraceServiceName = ""
+	cfg.ConsulForwardServiceName = ""
+
+	never := make(chan struct{})
+	defer close(never)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-never
+	}))
+	defer ts.Close()
+
+	cfg.ForwardAddress = ts.URL
+	cfg.ForwardTimeout = "1ns" // just really really short
+	server, _ := NewProxyFromConfig(logrus.New(), cfg)
+
+	ctr := samplers.Counter{Name: "foo", Tags: []string{}}
+	ctr.Sample(20.0, 1.0)
+	jsonCtr, err := ctr.Export()
+	require.NoError(t, err)
+	metrics := []samplers.JSONMetric{jsonCtr}
+
+	// Now send the metrics to a server that never responds; we
+	// expect this to return before our (sufficiently long)
+	// timeout:
+	ch := make(chan struct{})
+	go func() {
+		server.ProxyMetrics(context.Background(), metrics, "foo.com")
+		close(ch)
+	}()
+	select {
+	case <-ch:
+		t.Log("Returned quickly, great.")
+	case <-time.After(3 * time.Second):
+		t.Fatal("Proxy took too long to time out. Is the deadline behavior working?")
 	}
 }

@@ -7,14 +7,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	lightstep "github.com/lightstep/lightstep-tracer-go"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
+	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/trace/metrics"
 )
 
 const indicatorSpanTagName = "indicator"
@@ -22,14 +23,9 @@ const indicatorSpanTagName = "indicator"
 const lightstepDefaultPort = 8080
 const lightstepDefaultInterval = 5 * time.Minute
 
-const lightStepOperationKey = "name"
-
-const totalSpansFlushedMetricKey = "worker.spans_flushed_total"
-
 // LightStepSpanSink is a sink for spans to be sent to the LightStep client.
 type LightStepSpanSink struct {
 	tracers      []opentracing.Tracer
-	stats        *statsd.Client
 	commonTags   map[string]string
 	mutex        *sync.Mutex
 	serviceCount map[string]int64
@@ -37,8 +33,10 @@ type LightStepSpanSink struct {
 	log          *logrus.Logger
 }
 
+var _ sinks.SpanSink = &LightStepSpanSink{}
+
 // NewLightStepSpanSink creates a new instance of a LightStepSpanSink.
-func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string, stats *statsd.Client, commonTags map[string]string, log *logrus.Logger) (*LightStepSpanSink, error) {
+func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string, commonTags map[string]string, log *logrus.Logger) (*LightStepSpanSink, error) {
 
 	var host *url.URL
 	host, err := url.Parse(collector)
@@ -83,6 +81,11 @@ func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans
 
 	tracers := make([]opentracing.Tracer, 0, lightstepMultiplexTracerNum)
 
+	plaintext := false
+	if host.Scheme == "http" {
+		plaintext = true
+	}
+
 	for i := 0; i < lightstepMultiplexTracerNum; i++ {
 		tracers = append(tracers, lightstep.NewTracer(lightstep.Options{
 			AccessToken:     accessToken,
@@ -90,7 +93,7 @@ func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans
 			Collector: lightstep.Endpoint{
 				Host:      host.Hostname(),
 				Port:      port,
-				Plaintext: true,
+				Plaintext: plaintext,
 			},
 			UseGRPC:          true,
 			MaxBufferedSpans: maximumSpans,
@@ -99,13 +102,13 @@ func NewLightStepSpanSink(collector string, reconnectPeriod string, maximumSpans
 
 	return &LightStepSpanSink{
 		tracers:      tracers,
-		stats:        stats,
 		serviceCount: make(map[string]int64),
 		mutex:        &sync.Mutex{},
 		log:          log,
 	}, nil
 }
 
+// Start performs final adjustments on the sink.
 func (ls *LightStepSpanSink) Start(cl *trace.Client) error {
 	ls.traceClient = cl
 	return nil
@@ -195,10 +198,14 @@ func (ls *LightStepSpanSink) Flush() {
 	ls.mutex.Lock()
 	defer ls.mutex.Unlock()
 
+	samples := &ssf.Samples{}
+	defer metrics.Report(ls.traceClient, samples)
+
 	totalCount := int64(0)
 	for service, count := range ls.serviceCount {
 		totalCount += count
-		ls.stats.Count(totalSpansFlushedMetricKey, count, []string{"sink:lightstep", fmt.Sprintf("service:%s", service)}, 1)
+		samples.Add(ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(count),
+			map[string]string{"sink": ls.Name(), "service": service}))
 	}
 	ls.serviceCount = make(map[string]int64)
 	ls.log.WithField("total_spans", totalCount).Debug("Checkpointing flushed spans for Lightstep")

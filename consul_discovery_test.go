@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -62,7 +63,7 @@ func (rt *ConsulChangingRoundTripper) RoundTrip(req *http.Request) (*http.Respon
 func TestConsulOneHost(t *testing.T) {
 	config := generateProxyConfig()
 	transport := &ConsulOneRoundTripper{}
-	server, _ := NewProxyFromConfig(config)
+	server, _ := NewProxyFromConfig(logrus.New(), config)
 
 	server.HTTPClient.Transport = transport
 
@@ -77,7 +78,7 @@ func TestConsulOneHost(t *testing.T) {
 func TestConsulChangingHosts(t *testing.T) {
 	config := generateProxyConfig()
 	transport := &ConsulChangingRoundTripper{}
-	server, _ := NewProxyFromConfig(config)
+	server, _ := NewProxyFromConfig(logrus.New(), config)
 
 	server.HTTPClient.Transport = transport
 

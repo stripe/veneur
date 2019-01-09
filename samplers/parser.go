@@ -88,24 +88,46 @@ func ConvertIndicatorMetrics(span *ssf.SSFSpan, timerName string) (metrics []UDP
 	end := time.Unix(span.EndTimestamp/1e9, span.EndTimestamp%1e9)
 	start := time.Unix(span.StartTimestamp/1e9, span.StartTimestamp%1e9)
 	tags := map[string]string{
-		"name":    span.Name,
-		"service": span.Service,
-		"error":   "false",
+		"span_name": span.Name,
+		"service":   span.Service,
+		"error":     "false",
 	}
 	if span.Error {
 		tags["error"] = "true"
 	}
-	ssfTimer := &ssf.SSFSample{
-		Metric: ssf.SSFSample_HISTOGRAM,
-		Name:   timerName,
-		Value:  float32(end.Sub(start) * time.Millisecond),
-		Tags:   tags,
-	}
+	ssfTimer := ssf.Timing(timerName, end.Sub(start), time.Nanosecond, tags)
 	timer, err := ParseMetricSSF(ssfTimer)
 	if err != nil {
 		return metrics, err
 	}
 	metrics = append(metrics, timer)
+	return metrics, nil
+}
+
+// ConvertSpanUniquenessMetrics takes a trace span and computes
+// uniqueness metrics about it, returning UDPMetrics sampled at
+// rate. Currently, the only metric returned is a Set counting the
+// unique names per indicator span/service.
+func ConvertSpanUniquenessMetrics(span *ssf.SSFSpan, rate float32) ([]UDPMetric, error) {
+	if span.Service == "" {
+		return []UDPMetric{}, nil
+	}
+	ssfMetrics := []*ssf.SSFSample{}
+	ssfMetrics = append(ssfMetrics,
+		ssf.RandomlySample(rate,
+			ssf.Set("ssf.names_unique", span.Name, map[string]string{
+				"indicator": strconv.FormatBool(span.Indicator),
+				"service":   span.Service,
+				"root_span": strconv.FormatBool(span.Id == span.TraceId),
+			}))...)
+	metrics := []UDPMetric{}
+	for _, m := range ssfMetrics {
+		udpM, err := ParseMetricSSF(m)
+		if err != nil {
+			return []UDPMetric{}, err
+		}
+		metrics = append(metrics, udpM)
+	}
 	return metrics, nil
 }
 
@@ -167,16 +189,14 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 	tempTags := make([]string, 0)
 	for key, value := range metric.Tags {
 		if key == "veneurlocalonly" {
-			// delete the tag from the list
 			ret.Scope = LocalOnly
-			break
-		} else if key == "veneurglobalonly" {
-			// delete the tag from the list
-			ret.Scope = GlobalOnly
-			break
-		} else {
-			tempTags = append(tempTags, fmt.Sprintf("%s:%s", key, value))
+			continue
 		}
+		if key == "veneurglobalonly" {
+			ret.Scope = GlobalOnly
+			continue
+		}
+		tempTags = append(tempTags, fmt.Sprintf("%s:%s", key, value))
 	}
 	sort.Strings(tempTags)
 	ret.Tags = tempTags
