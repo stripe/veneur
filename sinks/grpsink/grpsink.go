@@ -2,6 +2,7 @@ package grpsink
 
 import (
 	"context"
+	"strconv"
 	"sync/atomic"
 
 	ocontext "golang.org/x/net/context"
@@ -15,6 +16,7 @@ import (
 	"github.com/stripe/veneur/trace/metrics"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -101,7 +103,8 @@ func (gs *GRPCSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		return err
 	}
 
-	_, err := gs.ssc.SendSpan(ocontext.Background(), ssfSpan)
+	ctx := metadata.AppendToOutgoingContext(ocontext.Background(), "x-veneur-trace-id", strconv.FormatInt(ssfSpan.TraceId, 16))
+	_, err := gs.ssc.SendSpan(ctx, ssfSpan)
 
 	if err != nil {
 		atomic.AddUint32(&gs.dropCount, 1)

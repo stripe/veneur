@@ -71,7 +71,7 @@ func TestConsulOneHost(t *testing.T) {
 	defer server.Shutdown()
 
 	assert.True(t, transport.HealthGotCalled, "Health Service got called")
-	assert.Equal(t, "http://10.1.10.12:8000", server.ForwardDestinations.Members()[0], "Get ring member from Consul")
+	assert.Equal(t, "10.1.10.12:8000", server.ForwardDestinations.Members()[0], "Get ring member from Consul")
 	assert.Len(t, server.ForwardDestinations.Members(), 1, "Only one host in ring")
 }
 
@@ -86,26 +86,26 @@ func TestConsulChangingHosts(t *testing.T) {
 	defer server.Shutdown()
 	// First invocation is during startup
 	assert.Equal(t, 1, transport.Count, "Health got called once")
-	assert.Equal(t, "http://10.1.10.12:8000", server.ForwardDestinations.Members()[0], "Get ring member from Consul")
+	assert.Equal(t, "10.1.10.12:8000", server.ForwardDestinations.Members()[0], "Get ring member from Consul")
 	assert.Len(t, server.ForwardDestinations.Members(), 1, "Only one host in ring")
 
 	// Refresh! Should have two now
 	server.RefreshDestinations(config.ConsulForwardServiceName, server.ForwardDestinations, &server.ForwardDestinationsMtx)
 	assert.Equal(t, 2, transport.Count, "Health got called second time")
-	assert.Contains(t, server.ForwardDestinations.Members(), "http://10.1.10.12:8000", "Got first member from Consul")
-	assert.Contains(t, server.ForwardDestinations.Members(), "http://10.1.10.13:8000", "Got second member from Consul")
+	assert.Contains(t, server.ForwardDestinations.Members(), "10.1.10.12:8000", "Got first member from Consul")
+	assert.Contains(t, server.ForwardDestinations.Members(), "10.1.10.13:8000", "Got second member from Consul")
 	assert.Len(t, server.ForwardDestinations.Members(), 2, "Two hosts host in ring")
 
 	// Refresh! Now just none!
 	server.RefreshDestinations(config.ConsulForwardServiceName, server.ForwardDestinations, &server.ForwardDestinationsMtx)
 	assert.Equal(t, 3, transport.Count, "Health got called a third time.")
-	assert.Contains(t, server.ForwardDestinations.Members(), "http://10.1.10.12:8000", "Got first member from Consul")
-	assert.Contains(t, server.ForwardDestinations.Members(), "http://10.1.10.13:8000", "Got second member from Consul")
+	assert.Contains(t, server.ForwardDestinations.Members(), "10.1.10.12:8000", "Got first member from Consul")
+	assert.Contains(t, server.ForwardDestinations.Members(), "10.1.10.13:8000", "Got second member from Consul")
 	assert.Len(t, server.ForwardDestinations.Members(), 2, "Two hosts host in ring")
 
 	// Refresh! Now just one!
 	server.RefreshDestinations(config.ConsulForwardServiceName, server.ForwardDestinations, &server.ForwardDestinationsMtx)
 	assert.Equal(t, 4, transport.Count, "Health got called fourth time")
-	assert.Contains(t, server.ForwardDestinations.Members(), "http://10.1.10.12:8000", "Got first member from Consul")
+	assert.Contains(t, server.ForwardDestinations.Members(), "10.1.10.12:8000", "Got first member from Consul")
 	assert.Len(t, server.ForwardDestinations.Members(), 1, "One host host in ring")
 }

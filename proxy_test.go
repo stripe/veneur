@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/samplers"
+	"github.com/zenazn/goji/graceful"
 )
 
 func generateProxyConfig() ProxyConfig {
@@ -27,6 +28,7 @@ func generateProxyConfig() ProxyConfig {
 		TraceAddress:             "127.0.0.1:8128",
 		TraceAPIAddress:          "127.0.0.1:8135",
 		HTTPAddress:              "127.0.0.1:0",
+		GrpcAddress:              "127.0.0.1:0",
 		StatsAddress:             "127.0.0.1:8201",
 	}
 }
@@ -63,7 +65,7 @@ func (rt *ConsulTwoMetricRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 		z, _ := zlib.NewReader(req.Body)
 		body, _ := ioutil.ReadAll(z)
 		defer req.Body.Close()
-		if strings.Contains(string(body), "a.b.c") {
+		if strings.Contains(string(body), "y.b.c") {
 			rt.aReceived = true
 		}
 		rec.Code = http.StatusOK
@@ -71,7 +73,7 @@ func (rt *ConsulTwoMetricRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 		z, _ := zlib.NewReader(req.Body)
 		body, _ := ioutil.ReadAll(z)
 		defer req.Body.Close()
-		if strings.Contains(string(body), "x.b.c") {
+		if strings.Contains(string(body), "a.b.c") {
 			rt.bReceived = true
 		}
 		rec.Code = http.StatusOK
@@ -167,7 +169,7 @@ func TestConsistentForward(t *testing.T) {
 	})
 	f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
-			Name: "x.b.c",
+			Name: "y.b.c",
 			Type: "histogram",
 		},
 		Value:      float64(100),
@@ -228,5 +230,58 @@ func TestTimeout(t *testing.T) {
 		t.Log("Returned quickly, great.")
 	case <-time.After(3 * time.Second):
 		t.Fatal("Proxy took too long to time out. Is the deadline behavior working?")
+	}
+}
+
+// Test that (*Proxy).Serve quits when just the gRPC server is stopped.  The
+// expected behavior is that both listeners (gRPC and HTTP) stop when either
+// of them are stopped.
+//
+// This also verifies that it is safe to call (*Proxy).gRPCStop() multiple times
+// as the cleanup routing (*Proxy).Shutdown() will call it again after it is
+// called in this test.
+func TestProxyStopGRPC(t *testing.T) {
+	p, err := NewProxyFromConfig(logrus.New(), generateProxyConfig())
+	assert.NoError(t, err, "Creating a proxy server shouldn't have caused an error")
+
+	done := make(chan struct{})
+	go func() {
+		p.Serve()
+		defer p.Shutdown()
+		close(done)
+	}()
+
+	// Only stop the gRPC server. This should cause (*Proxy).Serve to exit.
+	p.gRPCStop()
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		assert.Fail(t, "Stopping the gRPC server did not cause both listeners to exit")
+	}
+}
+
+// Test that stopping the HTTP server causes the Proxy to stop serving over
+// both HTTP and gRPC.  As Serve will attempt to close any open HTTP servers
+// again, this also tests that graceful.Shutdown is safe to be called multiple times.
+func TestProxyServeStopHTTP(t *testing.T) {
+	p, err := NewProxyFromConfig(logrus.New(), generateProxyConfig())
+	assert.NoError(t, err, "Creating a Proxy shouldn't have caused an error")
+
+	done := make(chan struct{})
+	go func() {
+		p.Serve()
+		defer p.Shutdown()
+		close(done)
+	}()
+
+	// Stop the HTTP server only, causing Serve to exit.
+	waitForHTTPStart(t, &p, 3*time.Second)
+	graceful.ShutdownNow()
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		assert.Fail(t, "Stopping the Proxy over HTTP did not stop both listeners")
 	}
 }

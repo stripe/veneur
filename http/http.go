@@ -199,14 +199,14 @@ func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, 
 	span.Add(ssf.Count(action+".content_length_bytes", float32(bodyLength), nil))
 
 	req, err := http.NewRequest(method, endpoint, &bodyBuffer)
-	req = req.WithContext(ctx)
-
 	if err != nil {
 		span.Error(err)
 		span.Add(ssf.Count(action+".error_total", 1, mergeTags(extraTags, "cause", "construct")))
 		innerLogger.WithError(err).Error("Could not construct request")
 		return err
 	}
+
+	req = req.WithContext(ctx)
 	req.Header.Set("Content-Type", "application/json")
 	if compress {
 		req.Header.Set("Content-Encoding", "deflate")

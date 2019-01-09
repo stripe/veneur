@@ -1,6 +1,7 @@
 package veneur
 
 type ProxyConfig struct {
+	ConsulForwardGrpcServiceName string `yaml:"consul_forward_grpc_service_name"`
 	ConsulForwardServiceName     string `yaml:"consul_forward_service_name"`
 	ConsulRefreshInterval        string `yaml:"consul_refresh_interval"`
 	ConsulTraceServiceName       string `yaml:"consul_trace_service_name"`
@@ -8,6 +9,8 @@ type ProxyConfig struct {
 	EnableProfiling              bool   `yaml:"enable_profiling"`
 	ForwardAddress               string `yaml:"forward_address"`
 	ForwardTimeout               string `yaml:"forward_timeout"`
+	GrpcAddress                  string `yaml:"grpc_address"`
+	GrpcForwardAddress           string `yaml:"grpc_forward_address"`
 	HTTPAddress                  string `yaml:"http_address"`
 	IdleConnectionTimeout        string `yaml:"idle_connection_timeout"`
 	MaxIdleConns                 int    `yaml:"max_idle_conns"`
