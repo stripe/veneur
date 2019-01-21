@@ -4,6 +4,7 @@
 * Datadog's [distribution](https://docs.datadoghq.com/developers/metrics/distributions/) type for DogStatsD is now supported and treated as a plain histogram for compatibility. Thanks, [gphat](https://github.com/gphat)!
 * Add support for `tags_exclude` to the DataDog metrics sink. Thanks, [mhamrah](https://github.com/mhamrah)!
 * The `github.com/stripe/veneur/trace` package has brand new and much more extensive [documentation](https://godoc.org/github.com/stripe/veneur/trace)! Thanks, [antifuchs](https://github.com/antifuchs)!
+* New configuration setting `signalfx_flush_max_per_body` that allows limiting the payload of HTTP POST bodies containing data points destined for SignalFx. Thanks, [antifuchs](https://github.com/antifuchs)!
 
 # 10.0.0, 2018-12-19
 
