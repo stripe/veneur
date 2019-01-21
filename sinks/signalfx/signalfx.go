@@ -42,28 +42,65 @@ func (c *collection) addPoint(key string, point *datapoint.Datapoint) {
 	c.points = append(c.points, point)
 }
 
-func (c *collection) submit(ctx context.Context, cl *trace.Client) error {
+func submitDatapoints(ctx context.Context, cl *trace.Client, client dpsink.Sink, points []*datapoint.Datapoint, errs chan<- error) {
+	span, ctx := trace.StartSpanFromContext(ctx, "")
+	span.SetTag("datapoint_count", len(points))
+	defer span.ClientFinish(cl)
+
+	err := client.AddDatapoints(ctx, points)
+	if err != nil {
+		span.Error(err)
+		span.Add(ssf.Count("flush.error_total", 1, map[string]string{"cause": "io", "sink": "signalfx"}))
+		errs <- err
+	}
+	errs <- nil
+}
+
+func (c *collection) submit(ctx context.Context, cl *trace.Client, maxPerFlush int) error {
 	wg := &sync.WaitGroup{}
 	errorCh := make(chan error, len(c.pointsByKey)+1)
 
-	submitOne := func(client dpsink.Sink, points []*datapoint.Datapoint) {
+	submitBatch := func(client dpsink.Sink, points []*datapoint.Datapoint) {
 		span, childCtx := trace.StartSpanFromContext(ctx, "")
 		span.SetTag("datapoint_count", len(points))
 		defer span.ClientFinish(cl)
 		defer wg.Done()
-		err := client.AddDatapoints(childCtx, points)
-		if err != nil {
-			span.Error(err)
-			span.Add(ssf.Count("flush.error_total", 1, map[string]string{"cause": "io", "sink": "signalfx"}))
-			errorCh <- err
+		var firstErr error
+		perFlush := maxPerFlush
+		if perFlush == 0 {
+			perFlush = len(points)
+		}
+		errs := make(chan error)
+		flushes := 0
+		for i := 0; i < len(points); i += perFlush {
+			end := i + perFlush
+			if end > len(points) {
+				end = len(points)
+			}
+			go submitDatapoints(childCtx, cl, client, points[i:end], errs)
+			flushes++
+		}
+		for i := 0; i < flushes; i++ {
+			err := <-errs
+			if err != nil {
+				if firstErr == nil {
+					firstErr = err
+				}
+				span.Add(ssf.Count("flush.error_total", 1, map[string]string{"cause": "io", "sink": "signalfx"}))
+				errorCh <- err
+			}
+		}
+
+		if firstErr != nil {
+			span.Error(firstErr)
 		}
 	}
 
 	wg.Add(1)
-	go submitOne(c.sink.defaultClient, c.points)
+	go submitBatch(c.sink.defaultClient, c.points)
 	for key, points := range c.pointsByKey {
 		wg.Add(1)
-		go submitOne(c.sink.client(key), points)
+		go submitBatch(c.sink.client(key), points)
 	}
 	wg.Wait()
 	close(errorCh)
@@ -92,6 +129,7 @@ type SignalFxSink struct {
 	metricNamePrefixDrops []string
 	metricTagPrefixDrops  []string
 	derivedMetrics        samplers.DerivedMetricsProcessor
+	maxPointsInBatch      int
 }
 
 // A DPClient is a client that can be used to submit signalfx data
@@ -110,7 +148,7 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 }
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagPrefixDrops []string, derivedMetrics samplers.DerivedMetricsProcessor) (*SignalFxSink, error) {
+func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagPrefixDrops []string, derivedMetrics samplers.DerivedMetricsProcessor, maxPointsInBatch int) (*SignalFxSink, error) {
 	return &SignalFxSink{
 		defaultClient:         client,
 		clientsByTagValue:     perTagClients,
@@ -122,6 +160,7 @@ func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[s
 		metricNamePrefixDrops: metricNamePrefixDrops,
 		metricTagPrefixDrops:  metricTagPrefixDrops,
 		derivedMetrics:        derivedMetrics,
+		maxPointsInBatch:      maxPointsInBatch,
 	}, nil
 }
 
@@ -235,7 +274,7 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 	}
 	tags := map[string]string{"sink": "signalfx"}
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsSkipped, float32(countSkipped), tags))
-	err := coll.submit(subCtx, sfx.traceClient)
+	err := coll.submit(subCtx, sfx.traceClient, sfx.maxPointsInBatch)
 	if err != nil {
 		span.Error(err)
 	}
