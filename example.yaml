@@ -272,6 +272,14 @@ signalfx_metric_name_prefix_drops:
 signalfx_metric_tag_prefix_drops:
   - ""
 
+# The maximum number of datapoints in a single HTTP request to
+# signalfx. On flush time, if veneur would flush more than the number
+# configured here, it breaks the flushes apart into batches of this
+# configured max size and submits them in parallel HTTP requests. If
+# set to zero (the default), veneur makes a single HTTP request per
+# signalfx flush endpoint.
+signalfx_flush_max_per_body: 0
+
 # == AWS X-Ray ==
 # X-Ray can be a sink for trace spans.
 
