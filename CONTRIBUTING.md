@@ -15,15 +15,16 @@ All pull requests will be reviewed by someone on Stripe's Observability team. At
 
 * aditya-stripe (aka chimeracoder)
 * asf-stripe
-* cory-stripe (aka gphat)
-* joshu-stripe
 * krisreeves-stripe
+* aubrey-stripe
+* sjung-stripe
+* sdboyer-stripe
 
 There's no need to pick a reviewer; if you submit a pull request, we'll see it and figure out who should review it.
 
-If your pull request involves large or sensitive changes, it will probably need to be reviewed by either Aditya Mukerjee (chimeracoder || aditya-stripe) or Cory Watson (cory-stripe || gphat).
+If your pull request involves large or sensitive changes, it will probably need to be reviewed by Aditya Mukerjee (chimeracoder || aditya-stripe).
 
-For larger changes, there may be a delay in reviewing/merging if Aditya or Cory is unavailable, or if we need to complete merge some other related work first as a prerequisite. If you have any questions along the way, though, feel free to ask on the thread, and we'll be happy to help out.
+For larger changes, there may be a delay in reviewing/merging if Aditya is unavailable, or if we need to complete merge some other related work first as a prerequisite. If you have any questions along the way, though, feel free to ask on the thread, and we'll be happy to help out.
 
 ## Help us help you!
 
