@@ -1,5 +1,7 @@
 # 12.0.0, in progress
 
+## Bugfixes
+* The signalfx client no longer reports a timeout when submission to the datapoint API endpoint encounters an error. Thanks, [antifuchs](https://github.com/antifuchs)!
 
 # 11.0.0, 2019-01-22
 
