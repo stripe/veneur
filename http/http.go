@@ -131,6 +131,9 @@ func (tripper *TraceRoundTripper) RoundTrip(req *http.Request) (*http.Response, 
 	span.SetTag("action", tripper.prefix)
 	defer span.ClientFinish(tripper.tc)
 
+	// Add OpenTracing headers to the request, so downstream reqs can be identified:
+	trace.GlobalTracer.InjectRequest(span.Trace, req)
+
 	hct := newHTTPClientTracer(span.Attach(req.Context()), tripper.tc, tripper.prefix)
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), hct.getClientTrace()))
 	defer hct.finishSpan()
