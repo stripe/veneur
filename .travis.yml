@@ -20,6 +20,7 @@ install:
 before_script:
   - go get -u github.com/ChimeraCoder/gojson/gojson
   - go get -d -v github.com/gogo/protobuf/protoc-gen-gogofaster
+  - go get github.com/rakyll/gotest
   - pushd $GOPATH/src/github.com/gogo/protobuf
   - git fetch
   - git checkout v0.5
@@ -48,4 +49,4 @@ before_script:
   - git diff-index --cached --exit-code HEAD
 
 script:
-  - go test -race -v -timeout 60s ./...
+  - gotest -race -v -timeout 60s ./...
