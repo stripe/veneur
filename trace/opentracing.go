@@ -60,6 +60,10 @@ var HeaderFormats = []HeaderGroup{
 	},
 }
 
+// defaultHeaderFormat is the way .Inject sets HTTP headers by
+// default.
+var defaultHeaderFormat = HeaderFormats[0]
+
 // GlobalTracer is the… global tracer!
 var GlobalTracer = Tracer{}
 
@@ -528,7 +532,8 @@ func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier i
 		return ErrUnsupportedSpanContext
 	}
 
-	if format == opentracing.Binary {
+	switch format {
+	case opentracing.Binary:
 		// carrier is guaranteed to be an io.Writer by contract
 		w := carrier.(io.Writer)
 
@@ -541,6 +546,15 @@ func (t Tracer) Inject(sm opentracing.SpanContext, format interface{}, carrier i
 		}
 
 		return trace.ProtoMarshalTo(w)
+	case opentracing.HTTPHeaders:
+		h := carrier.(opentracing.HTTPHeadersCarrier)
+		base := 10
+		if defaultHeaderFormat.numFormat == hexadecimal {
+			base = 16
+		}
+		h.Set(defaultHeaderFormat.SpanID, strconv.FormatInt(sc.SpanID(), base))
+		h.Set(defaultHeaderFormat.TraceID, strconv.FormatInt(sc.TraceID(), base))
+		return nil
 	}
 
 	// If the carrier is a TextMapWriter, treat it as one, regardless of what the format is
