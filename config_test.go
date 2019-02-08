@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -63,6 +64,22 @@ debug: true
 	t.Log(err)
 	assert.True(t, ok, "Returned error should indicate a strictness error")
 	assert.Equal(t, true, c.Debug)
+}
+
+func TestWriteConfig(t *testing.T) {
+	c, err := ReadConfig("example.yaml")
+	assert.NoError(t, err)
+
+	tmpConfigFile, err := ioutil.TempFile("", "veneur-conf")
+	assert.NoError(t, err)
+	defer os.Remove(tmpConfigFile.Name())
+
+	err = c.WriteConfig(tmpConfigFile.Name())
+	assert.NoError(t, err)
+
+	c2, err := ReadConfig(tmpConfigFile.Name())
+	assert.NoError(t, err)
+	assert.Equal(t, c2, c)
 }
 
 func TestHostname(t *testing.T) {

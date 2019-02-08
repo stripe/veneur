@@ -149,6 +149,23 @@ func readConfig(r io.Reader) (Config, error) {
 	return c, unmarshalErr
 }
 
+// WriteConfig marshals a config into a file. It is useful
+// for dynamically configuring veneur in go and then writing
+// the config to a file to be consumed by veneur.
+func (c *Config) WriteConfig(filename string) error {
+	bts, err := yaml.Marshal(c)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(filename, bts, 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (c *Config) applyDefaults() {
 	if len(c.Aggregates) == 0 {
 		c.Aggregates = defaultConfig.Aggregates
