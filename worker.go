@@ -568,6 +568,11 @@ func (tw *SpanWorker) Work() {
 			}
 		}
 
+		if err := protocol.ValidateTrace(m); err != nil {
+			atomic.AddInt64(&tw.invalidSpanCount, 1)
+			continue
+		}
+
 		var wg sync.WaitGroup
 		for i, s := range tw.sinks {
 			tags := tw.sinkTags[i]
