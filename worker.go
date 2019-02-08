@@ -569,9 +569,17 @@ func (tw *SpanWorker) Work() {
 			}
 		}
 
+		// An SSF packet may contain a valid span, one or more valid metrics,
+		// or both (a valid span *and* one or more valid metrics).
+		// If it contains neither, it is the result of a client error, and the
+		// span does not need to be passed to any sink.
+		// If the span is empty but one or more metrics exist, the span still needs
+		// to be passed to the sinks for potential metric extraction.
 		if err := protocol.ValidateTrace(m); err != nil {
-			atomic.AddInt64(&tw.invalidSpanCount, 1)
-			continue
+			if len(m.Metrics) == 0 {
+				atomic.AddInt64(&tw.invalidSpanCount, 1)
+				continue
+			}
 		}
 
 		var wg sync.WaitGroup
