@@ -578,6 +578,7 @@ func (tw *SpanWorker) Work() {
 		if err := protocol.ValidateTrace(m); err != nil {
 			if len(m.Metrics) == 0 {
 				atomic.AddInt64(&tw.emptySSFCount, 1)
+				log.WithError(err).Debug("Invalid SSF packet: packet contains neither valid metrics nor a valid span")
 				continue
 			}
 		}
