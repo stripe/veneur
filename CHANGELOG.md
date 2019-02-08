@@ -3,6 +3,7 @@
 ## Added
 
 * The OpenTracing implementation's `Tracer.Inject` in the `trace` package now sets HTTP headers in a way that tools like [Envoy](https://www.envoyproxy.io/) can propagate on traces. Thanks, [antifuchs](https://github.com/antifuchs)!
+* The ability to write configs to file using config.WriteConfig(...) so other Go programs can read/modify/write configs to be consumed by veneur. Thanks, [choo-stripe](https://github.com/choo-stripe)!
 
 ## Bugfixes
 * The signalfx client no longer reports a timeout when submission to the datapoint API endpoint encounters an error. Thanks, [antifuchs](https://github.com/antifuchs)!
