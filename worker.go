@@ -525,6 +525,7 @@ type SpanWorker struct {
 	traceClient     *trace.Client
 	statsd          *statsd.Client
 	capCount        int64
+	emptySSFCount   int64
 }
 
 // NewSpanWorker creates a SpanWorker ready to collect events and service checks.
@@ -565,6 +566,20 @@ func (tw *SpanWorker) Work() {
 		for k, v := range tw.commonTags {
 			if _, has := m.Tags[k]; !has {
 				m.Tags[k] = v
+			}
+		}
+
+		// An SSF packet may contain a valid span, one or more valid metrics,
+		// or both (a valid span *and* one or more valid metrics).
+		// If it contains neither, it is the result of a client error, and the
+		// span does not need to be passed to any sink.
+		// If the span is empty but one or more metrics exist, the span still needs
+		// to be passed to the sinks for potential metric extraction.
+		if err := protocol.ValidateTrace(m); err != nil {
+			if len(m.Metrics) == 0 {
+				atomic.AddInt64(&tw.emptySSFCount, 1)
+				log.WithError(err).Debug("Invalid SSF packet: packet contains neither valid metrics nor a valid span")
+				continue
 			}
 		}
 
@@ -642,4 +657,5 @@ func (tw *SpanWorker) Flush() {
 
 	metrics.Report(tw.traceClient, samples)
 	tw.statsd.Count("worker.span.hit_chan_cap", atomic.SwapInt64(&tw.capCount, 0), nil, 1.0)
+	tw.statsd.Count("worker.ssf.empty_total", atomic.SwapInt64(&tw.emptySSFCount, 0), nil, 1.0)
 }
