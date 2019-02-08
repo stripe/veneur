@@ -3,6 +3,7 @@
 ## Added
 
 * The OpenTracing implementation's `Tracer.Inject` in the `trace` package now sets HTTP headers in a way that tools like [Envoy](https://www.envoyproxy.io/) can propagate on traces. Thanks, [antifuchs](https://github.com/antifuchs)!
+* Spans are now validated before being passed to sinks, instead of requiring each sink to perform validation separately. The metric `veneur.worker.span.invalid_total` tracks the number of invalid spans encountered. Thanks, [tummychow](https://github.com/tummychow) and [aditya](https://github.com/chimeracoder)!
 
 ## Bugfixes
 * The signalfx client no longer reports a timeout when submission to the datapoint API endpoint encounters an error. Thanks, [antifuchs](https://github.com/antifuchs)!
