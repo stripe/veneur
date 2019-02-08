@@ -521,11 +521,11 @@ type SpanWorker struct {
 	sinks      []sinks.SpanSink
 
 	// cumulative time spent per sink, in nanoseconds
-	cumulativeTimes  []int64
-	traceClient      *trace.Client
-	statsd           *statsd.Client
-	capCount         int64
-	invalidSpanCount int64
+	cumulativeTimes []int64
+	traceClient     *trace.Client
+	statsd          *statsd.Client
+	capCount        int64
+	emptySSFCount   int64
 }
 
 // NewSpanWorker creates a SpanWorker ready to collect events and service checks.
@@ -577,7 +577,7 @@ func (tw *SpanWorker) Work() {
 		// to be passed to the sinks for potential metric extraction.
 		if err := protocol.ValidateTrace(m); err != nil {
 			if len(m.Metrics) == 0 {
-				atomic.AddInt64(&tw.invalidSpanCount, 1)
+				atomic.AddInt64(&tw.emptySSFCount, 1)
 				continue
 			}
 		}
@@ -656,5 +656,5 @@ func (tw *SpanWorker) Flush() {
 
 	metrics.Report(tw.traceClient, samples)
 	tw.statsd.Count("worker.span.hit_chan_cap", atomic.SwapInt64(&tw.capCount, 0), nil, 1.0)
-	tw.statsd.Count("worker.span.invalid_total", atomic.SwapInt64(&tw.invalidSpanCount, 0), nil, 1.0)
+	tw.statsd.Count("worker.ssf.empty_total", atomic.SwapInt64(&tw.emptySSFCount, 0), nil, 1.0)
 }
