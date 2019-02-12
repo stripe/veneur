@@ -221,7 +221,8 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	// Send the segment
 	_, err = x.conn.Write(append(segmentHeader, b...))
 	if err != nil {
-		x.log.WithError(err).Error("Error sending segment")
+		x.log.WithError(err).Warn("Error sending segment")
+		atomic.AddInt64(&x.spansDropped, 1)
 		return err
 	}
 
