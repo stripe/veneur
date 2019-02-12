@@ -5,6 +5,9 @@
 * The OpenTracing implementation's `Tracer.Inject` in the `trace` package now sets HTTP headers in a way that tools like [Envoy](https://www.envoyproxy.io/) can propagate on traces. Thanks, [antifuchs](https://github.com/antifuchs)!
 * SSF packets are now validated to ensure they contain either a valid span or at least one metric. The metric `veneur.worker.ssf.empty_total` tracks the number of empty SSF packets encountered, which indicates a client error. Thanks, [tummychow](https://github.com/tummychow) and [aditya](https://github.com/chimeracoder)!
 
+## Updated
+* The metric `veneur.sink.spans_dropped_total` now includes packets that were skipped due to UDP write errors. Thanks, [aditya](https://github.com/chimeracoder)!
+
 ## Bugfixes
 * The signalfx client no longer reports a timeout when submission to the datapoint API endpoint encounters an error. Thanks, [antifuchs](https://github.com/antifuchs)!
 
