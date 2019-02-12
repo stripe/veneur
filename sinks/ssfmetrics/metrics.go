@@ -17,6 +17,7 @@ import (
 type metricExtractionSink struct {
 	workers                []Processor
 	indicatorSpanTimerName string
+	objectiveSpanTimerName string
 	log                    *logrus.Logger
 	traceClient            *trace.Client
 	spansProcessed         int64
@@ -40,10 +41,11 @@ type DerivedMetricsSink interface {
 // NewMetricExtractionSink sets up and creates a span sink that
 // extracts metrics ("samples") from SSF spans and reports them to a
 // veneur's metrics workers.
-func NewMetricExtractionSink(mw []Processor, timerName string, cl *trace.Client, log *logrus.Logger) (DerivedMetricsSink, error) {
+func NewMetricExtractionSink(mw []Processor, indicatorTimerName, objectiveTimerName string, cl *trace.Client, log *logrus.Logger) (DerivedMetricsSink, error) {
 	return &metricExtractionSink{
 		workers:                mw,
-		indicatorSpanTimerName: timerName,
+		indicatorSpanTimerName: indicatorTimerName,
+		objectiveSpanTimerName: objectiveTimerName,
 		traceClient:            cl,
 		log:                    log,
 	}, nil
@@ -113,7 +115,7 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 	// If we made it here, we are dealing with a fully-fledged
 	// trace span, not just a mere carrier for Samples:
 
-	indicatorMetrics, err := samplers.ConvertIndicatorMetrics(span, m.indicatorSpanTimerName)
+	indicatorMetrics, err := samplers.ConvertIndicatorMetrics(span, m.indicatorSpanTimerName, m.objectiveSpanTimerName)
 	if err != nil {
 		m.log.WithError(err).
 			WithField("span_name", span.Name).

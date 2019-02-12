@@ -68,7 +68,12 @@ grpc_address: "0.0.0.0:8128"
 # The name of timer metrics that "indicator" spans should be tracked
 # under. If this is unset, veneur doesn't report an additional timer
 # metric for indicator spans.
-indicator_span_timer_name: "indicator_span.duration_ms"
+indicator_span_timer_name: "indicator_span.duration_ns"
+
+# The name of timer metrics that objectives, derived from indicator
+# spans, should be tracked under. If this is unset, veneur doesn't
+# report an additional timer metric for indicator spans.
+objective_span_timer_name: "objective_span.duration_ns"
 
 # == METRICS CONFIGURATION ==
 

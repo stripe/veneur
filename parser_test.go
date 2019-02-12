@@ -52,6 +52,7 @@ func TestValidTrace(t *testing.T) {
 
 	trace.Id = 1
 	trace.TraceId = 1
+	trace.Name = "foo"
 	trace.StartTimestamp = 1
 	trace.EndTimestamp = 5
 	assert.True(t, protocol.ValidTrace(trace))
@@ -80,6 +81,7 @@ func TestParseSSFValidTraceInvalidMetric(t *testing.T) {
 	trace := &ssf.SSFSpan{}
 	trace.Id = 1
 	trace.TraceId = 1
+	trace.Name = "foo"
 	trace.StartTimestamp = 1
 	trace.EndTimestamp = 5
 
@@ -189,7 +191,7 @@ func TestParseSSFIndicatorSpan(t *testing.T) {
 	require.NotNil(t, inSpan)
 	require.NoError(t, protocol.ValidateTrace(span))
 
-	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "timer_name")
+	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "timer_name", "")
 	assert.NoError(t, err)
 	if assert.Equal(t, 1, len(metrics)) {
 		m := metrics[0]
@@ -231,7 +233,7 @@ func TestParseSSFIndicatorSpanWithError(t *testing.T) {
 	require.NotNil(t, span)
 	require.NoError(t, protocol.ValidateTrace(span))
 
-	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "timer_name")
+	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "timer_name", "")
 	assert.NoError(t, err)
 	if assert.Equal(t, 1, len(metrics)) {
 		m := metrics[0]
@@ -244,6 +246,91 @@ func TestParseSSFIndicatorSpanWithError(t *testing.T) {
 			sort.Sort(tags)
 			assert.Equal(t, "error:true", tags[0])
 			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[1])
+		}
+	}
+}
+
+func TestParseSSFIndicatorObjective(t *testing.T) {
+	duration := 5 * time.Second
+	start := time.Now()
+	end := start.Add(duration)
+
+	span := &ssf.SSFSpan{}
+	span.Id = 1
+	span.TraceId = 5
+	span.Name = "foo"
+	span.StartTimestamp = start.UnixNano()
+	span.EndTimestamp = end.UnixNano()
+	span.Indicator = true
+	span.Service = "bar-srv"
+	span.Tags = map[string]string{
+		"this-tag":       "definitely gets ignored",
+		"this-other-tag": "also gets dropped",
+	}
+	span.Metrics = make([]*ssf.SSFSample, 0)
+	buff, err := proto.Marshal(span)
+	assert.Nil(t, err)
+	inSpan, err := protocol.ParseSSF(buff)
+	assert.NoError(t, err)
+	require.NotNil(t, inSpan)
+	require.NoError(t, protocol.ValidateTrace(span))
+
+	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "", "timer_name")
+	assert.NoError(t, err)
+	if assert.Equal(t, 1, len(metrics)) {
+		m := metrics[0]
+		assert.Equal(t, "timer_name", m.Name)
+		assert.Equal(t, "histogram", m.Type)
+		assert.InEpsilon(t, float32(duration/time.Nanosecond), m.Value, 0.001)
+		if assert.Equal(t, 3, len(m.Tags)) {
+			var tags sort.StringSlice = m.Tags
+			sort.Sort(tags)
+			assert.Equal(t, "error:false", tags[0])
+			assert.Equal(t, "objective:foo", tags[1])
+			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[2])
+		}
+	}
+}
+
+func TestParseSSFIndicatorObjectiveTag(t *testing.T) {
+	duration := 5 * time.Second
+	start := time.Now()
+	end := start.Add(duration)
+
+	span := &ssf.SSFSpan{}
+	span.Id = 1
+	span.TraceId = 5
+	span.Name = "foo"
+	span.StartTimestamp = start.UnixNano()
+	span.EndTimestamp = end.UnixNano()
+	span.Indicator = true
+	span.Service = "bar-srv"
+	span.Tags = map[string]string{
+		"this-tag":       "definitely gets ignored",
+		"this-other-tag": "also gets dropped",
+		"ssf_objective":  "bar",
+	}
+	span.Metrics = make([]*ssf.SSFSample, 0)
+	buff, err := proto.Marshal(span)
+	assert.Nil(t, err)
+	inSpan, err := protocol.ParseSSF(buff)
+	assert.NoError(t, err)
+	require.NotNil(t, inSpan)
+	require.NoError(t, protocol.ValidateTrace(span))
+
+	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "", "timer_name")
+	assert.NoError(t, err)
+	if assert.Equal(t, 1, len(metrics)) {
+		m := metrics[0]
+		assert.Equal(t, "timer_name", m.Name)
+		assert.Equal(t, "histogram", m.Type)
+		assert.InEpsilon(t, float32(duration/time.Nanosecond), m.Value, 0.001)
+		if assert.Equal(t, 3, len(m.Tags)) {
+			var tags sort.StringSlice = m.Tags
+			sort.Sort(tags)
+			assert.Equal(t, "error:false", tags[0])
+			assert.Equal(t, "objective:bar", tags[1])
+			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[2])
 		}
 	}
 }
@@ -273,7 +360,7 @@ func TestParseSSFIndicatorSpanNotNamed(t *testing.T) {
 	require.NotNil(t, inSpan)
 	require.NoError(t, protocol.ValidateTrace(inSpan))
 
-	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "")
+	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "", "")
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(metrics))
 }
@@ -304,7 +391,7 @@ func TestParseSSFNonIndicatorSpan(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, protocol.ValidateTrace(inSpan))
 
-	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "timer_name")
+	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "timer_name", "objective_name")
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(metrics))
 }

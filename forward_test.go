@@ -111,6 +111,7 @@ func TestE2EForwardingIndicatorMetrics(t *testing.T) {
 	span := &ssf.SSFSpan{
 		Id:             5,
 		TraceId:        5,
+		Name:           "foo",
 		Service:        "indicator_testing",
 		StartTimestamp: start.UnixNano(),
 		EndTimestamp:   end.UnixNano(),

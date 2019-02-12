@@ -17,7 +17,7 @@ func TestMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(0, nil, logger, nil)
 	workers := []ssfmetrics.Processor{worker}
-	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", nil, logger)
+	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "", nil, logger)
 	require.NoError(t, err)
 
 	start := time.Now()
@@ -25,6 +25,7 @@ func TestMetricExtractor(t *testing.T) {
 	span := &ssf.SSFSpan{
 		Id:             5,
 		TraceId:        5,
+		Name:           "foo",
 		StartTimestamp: start.UnixNano(),
 		EndTimestamp:   end.UnixNano(),
 		Metrics: []*ssf.SSFSample{
@@ -57,7 +58,7 @@ func setupBench() (*ssf.SSFSpan, sinks.SpanSink) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(0, nil, logger, nil)
 	workers := []ssfmetrics.Processor{worker}
-	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", nil, logger)
+	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "", nil, logger)
 	if err != nil {
 		panic(err)
 	}
@@ -67,6 +68,7 @@ func setupBench() (*ssf.SSFSpan, sinks.SpanSink) {
 	span := &ssf.SSFSpan{
 		Id:             5,
 		TraceId:        5,
+		Name:           "foo",
 		StartTimestamp: start.UnixNano(),
 		EndTimestamp:   end.UnixNano(),
 		Metrics: []*ssf.SSFSample{
@@ -109,7 +111,7 @@ func TestIndicatorMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(0, nil, logger, nil)
 	workers := []ssfmetrics.Processor{worker}
-	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", nil, logger)
+	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "bar", nil, logger)
 	require.NoError(t, err)
 
 	start := time.Now()
@@ -118,6 +120,7 @@ func TestIndicatorMetricExtractor(t *testing.T) {
 		Id:             5,
 		TraceId:        5,
 		Service:        "indicator_testing",
+		Name:           "spline.reticulate",
 		StartTimestamp: start.UnixNano(),
 		EndTimestamp:   end.UnixNano(),
 		Indicator:      true,
@@ -126,7 +129,12 @@ func TestIndicatorMetricExtractor(t *testing.T) {
 	go func() {
 		n := 0
 		for m := range worker.PacketChan {
-			if m.Name != "foo" {
+			if m.Name == "foo" {
+				assert.Contains(t, m.Tags, "service:indicator_testing")
+			} else if m.Name == "bar" {
+				assert.Contains(t, m.Tags, "service:indicator_testing")
+				assert.Contains(t, m.Tags, "objective:spline.reticulate")
+			} else {
 				t.Logf("Received additional metric %#v", m)
 				continue
 			}
@@ -136,5 +144,5 @@ func TestIndicatorMetricExtractor(t *testing.T) {
 	}()
 	assert.NoError(t, sink.Ingest(span))
 	close(worker.PacketChan)
-	assert.Equal(t, 1, <-done, "Should have sent the right number of metrics")
+	assert.Equal(t, 2, <-done, "Should have sent the right number of metrics")
 }
