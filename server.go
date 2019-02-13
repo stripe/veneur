@@ -898,6 +898,45 @@ func (s *Server) ReadMetricSocket(serverConn net.PacketConn, packetPool *sync.Po
 	}
 }
 
+// ReadStatsdDatagramSocket reads a statsd metrics packets from  connection off a datagram socket.
+func (s *Server) ReadStatsdDatagramSocket(serverConn *net.UnixConn, packetPool *sync.Pool) {
+	for {
+		buf := packetPool.Get().([]byte)
+		n, _, err := serverConn.ReadFromUnix(buf)
+		if err != nil {
+			select {
+			case <-s.shutdown:
+				log.WithError(err).Info("Ignoring ReadFrom error while shutting down")
+				return
+			default:
+				log.WithError(err).Error("Error reading packet from Unix domain socket")
+				continue
+			}
+		}
+
+		if n > s.metricMaxLength {
+			metrics.ReportOne(s.TraceClient, ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "unknown", "reason": "toolong"}))
+			continue
+		}
+
+		// statsd allows multiple packets to be joined by newlines and sent as
+		// one larger packet
+		// note that spurious newlines are not allowed in this format, it has
+		// to be exactly one newline between each packet, with no leading or
+		// trailing newlines
+		splitPacket := samplers.NewSplitBytes(buf[:n], '\n')
+		for splitPacket.Next() {
+			s.HandleMetricPacket(splitPacket.Chunk())
+		}
+
+		// the Metric struct created by HandleMetricPacket has no byte slices in it,
+		// only strings
+		// therefore there are no outstanding references to this byte slice, we
+		// can return it to the pool
+		packetPool.Put(buf)
+	}
+}
+
 // ReadSSFPacketSocket reads SSF packets off a packet connection.
 func (s *Server) ReadSSFPacketSocket(serverConn net.PacketConn, packetPool *sync.Pool) {
 	// TODO This is duplicated from ReadMetricSocket and feels like it could be it's
