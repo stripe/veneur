@@ -80,13 +80,11 @@ func (e *InvalidTrace) Error() string {
 // ValidTrace takes in an SSF span and determines if it is valid or not.
 // It also makes sure the Tags is non-nil, since we use it later.
 func ValidTrace(span *ssf.SSFSpan) bool {
-	ret := true
-	ret = ret && span.Id != 0
-	ret = ret && span.TraceId != 0
-	ret = ret && span.StartTimestamp != 0
-	ret = ret && span.EndTimestamp != 0
-	ret = ret && span.Name != ""
-	return ret
+	return span.Id != 0 &&
+		span.TraceId != 0 &&
+		span.StartTimestamp != 0 &&
+		span.EndTimestamp != 0 &&
+		span.Name != ""
 }
 
 // ValidateTrace takes in an SSF span and determines if it is valid or
