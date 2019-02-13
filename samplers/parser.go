@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/segmentio/fasthash/fnv1a"
+	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/protocol/dogstatsd"
 	"github.com/stripe/veneur/samplers/metricpb"
 	"github.com/stripe/veneur/ssf"
@@ -120,31 +121,62 @@ func ConvertMetrics(m *ssf.SSFSpan) ([]UDPMetric, error) {
 
 // ConvertIndicatorMetrics takes a span that may be an "indicator"
 // span and returns metrics that can be determined from that
-// span. Currently, it converts the span to a timer metric for the
-// duration of the span.
-func ConvertIndicatorMetrics(span *ssf.SSFSpan, timerName string) (metrics []UDPMetric, err error) {
-	if !span.Indicator || timerName == "" {
+// span. Currently, it converts the span to two timer metrics for the
+// duration of the span. One timer (the "indicator") is tagged with the
+// span's service and error-ness. The other timer (the "objective") is
+// tagged with the span's service, error-ness, and name. The name can
+// be overridden with the ssf_objective tag.
+func ConvertIndicatorMetrics(span *ssf.SSFSpan, indicatorTimerName, objectiveTimerName string) (metrics []UDPMetric, err error) {
+	if !span.Indicator || !protocol.ValidTrace(span) {
 		// No-op if this isn't an indicator span
 		return
 	}
 
 	end := time.Unix(span.EndTimestamp/1e9, span.EndTimestamp%1e9)
 	start := time.Unix(span.StartTimestamp/1e9, span.StartTimestamp%1e9)
-	tags := map[string]string{
-		"service": span.Service,
-		"error":   "false",
-	}
-	if span.Error {
-		tags["error"] = "true"
-	}
-	ssfTimer := ssf.Timing(timerName, end.Sub(start), time.Nanosecond, tags)
-	ssfTimer.Name = timerName // Ensure the name is free from any name prefixes, like "veneur."
+	duration := end.Sub(start)
 
-	timer, err := ParseMetricSSF(ssfTimer)
-	if err != nil {
-		return metrics, err
+	if indicatorTimerName != "" {
+		tags := map[string]string{
+			"service": span.Service,
+			"error":   "false",
+		}
+		if span.Error {
+			tags["error"] = "true"
+		}
+		ssfTimer := ssf.Timing(indicatorTimerName, duration, time.Nanosecond, tags)
+		ssfTimer.Name = indicatorTimerName // Ensure the name is free from any name prefixes, like "veneur."
+
+		timer, err := ParseMetricSSF(ssfTimer)
+		if err != nil {
+			return metrics, err
+		}
+		metrics = append(metrics, timer)
 	}
-	metrics = append(metrics, timer)
+
+	if objectiveTimerName != "" {
+		tags := map[string]string{
+			"service":          span.Service,
+			"objective":        span.Name,
+			"error":            "false",
+			"veneurglobalonly": "true",
+		}
+		if span.Tags["ssf_objective"] != "" {
+			tags["objective"] = span.Tags["ssf_objective"]
+		}
+		if span.Error {
+			tags["error"] = "true"
+		}
+		ssfTimer := ssf.Timing(objectiveTimerName, duration, time.Nanosecond, tags)
+		ssfTimer.Name = objectiveTimerName // Ensure the name is free from any name prefixes, like "veneur."
+
+		timer, err := ParseMetricSSF(ssfTimer)
+		if err != nil {
+			return metrics, err
+		}
+		metrics = append(metrics, timer)
+	}
+
 	return metrics, nil
 }
 

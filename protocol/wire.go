@@ -85,6 +85,7 @@ func ValidTrace(span *ssf.SSFSpan) bool {
 	ret = ret && span.TraceId != 0
 	ret = ret && span.StartTimestamp != 0
 	ret = ret && span.EndTimestamp != 0
+	ret = ret && span.Name != ""
 	return ret
 }
 
