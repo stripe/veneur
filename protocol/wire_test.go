@@ -132,6 +132,51 @@ func TestReadSSFStreamBad(t *testing.T) {
 	}
 }
 
+func BenchmarkValidTrace(b *testing.B) {
+	const Len = 1000
+	input := make([]*ssf.SSFSpan, Len)
+	for i, _ := range input {
+		p := make([]byte, 10)
+		_, err := rand.Read(p)
+		if err != nil {
+			b.Fatalf("Error generating data: %s", err)
+		}
+		msg := &ssf.SSFSpan{
+			Version:        1,
+			TraceId:        1,
+			Id:             2,
+			ParentId:       3,
+			StartTimestamp: time.Now().Unix(),
+			EndTimestamp:   time.Now().Add(5 * time.Second).Unix(),
+			Tags: map[string]string{
+				string(p[:4]):  string(p[5:]),
+				string(p[3:7]): string(p[1:3]),
+			},
+		}
+
+		switch r := i % 5; r {
+		case 1:
+			msg.Id = 0
+		case 2:
+			msg.TraceId = 0
+		case 3:
+			msg.StartTimestamp = 0
+		case 4:
+			msg.EndTimestamp = 0
+		default:
+			// do nothing
+		}
+
+		input[i] = msg
+	}
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_ = ValidTrace(input[i%Len])
+	}
+
+}
+
 func BenchmarkParseSSF(b *testing.B) {
 	const Len = 1000
 	input := make([][]byte, Len)
