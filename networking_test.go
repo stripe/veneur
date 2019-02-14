@@ -72,6 +72,7 @@ func TestConnectUNIX(t *testing.T) {
 			}
 			assert.Equal(t, 3, wrote, "Writing to %d", n)
 			assert.NotNil(t, c)
+
 			n, _ = c.Read(make([]byte, 20))
 			assert.Equal(t, 0, n)
 

@@ -898,7 +898,7 @@ func (s *Server) ReadMetricSocket(serverConn net.PacketConn, packetPool *sync.Po
 	}
 }
 
-// ReadStatsdDatagramSocket reads a statsd metrics packets from  connection off a datagram socket.
+// ReadStatsdDatagramSocket reads statsd metrics packets from connection off a unix datagram socket.
 func (s *Server) ReadStatsdDatagramSocket(serverConn *net.UnixConn, packetPool *sync.Pool) {
 	for {
 		buf := packetPool.Get().([]byte)

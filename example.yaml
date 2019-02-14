@@ -5,7 +5,7 @@
 # formatted as URLs, with schemes corresponding to valid "network"
 # arguments on https://golang.org/pkg/net/#Listen.Currently, only udp
 # tcp(including IPv4 and 6-only) and unixgram(datagram only) schemes are
-# supported.This option supersedes the "udp_address" and "tcp_address" options.
+# supported. This option supersedes the "udp_address" and "tcp_address" options.
 statsd_listen_addresses:
  - udp://localhost:8126
  - tcp://localhost:8126
