@@ -3,6 +3,7 @@ package splunk_test
 import (
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -26,7 +27,10 @@ func jsonEndpoint(t testing.TB, ch chan<- splunk.Event) http.Handler {
 		}
 		failed := false
 		j := json.NewDecoder(r.Body)
-		defer r.Body.Close()
+		defer func() {
+			ioutil.ReadAll(r.Body)
+			r.Body.Close()
+		}()
 
 		j.DisallowUnknownFields()
 		for {

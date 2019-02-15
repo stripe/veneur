@@ -189,6 +189,8 @@ func (sss *splunkSpanSink) submitter(sync chan struct{}, signalReady sync.Once, 
 
 		hecReq, err := sss.hec.newRequest()
 
+		encodeErrors := make(chan error)
+
 		ingested := 0
 		req, enc, err := hecReq.Start(ctx)
 		if err != nil {
@@ -235,12 +237,28 @@ func (sss *splunkSpanSink) submitter(sync chan struct{}, signalReady sync.Once, 
 				break Batch
 			case ev := <-sss.ingest:
 				ingested++
-				err = enc.Encode(ev)
-				if err != nil {
-					sss.log.WithError(err).
-						WithField("event", ev).
-						Warn("Could not json-encode HEC event")
-					continue Batch
+				go func() {
+					encodeErrors <- enc.Encode(ev)
+				}()
+				select {
+				case <-batchTimeout.C:
+					sss.log.Warn("Timed out trying to write HEC event")
+					timedOut = true
+					hecReq.Close()
+					break Batch
+				case err := <-encodeErrors:
+					if err != nil {
+						if err == io.ErrClosedPipe {
+							// Our connection went away. Try to re-establish it:
+							hecReq.Close()
+							break Batch
+						}
+						sss.log.WithError(err).
+							WithField("event", ev).
+							WithField("ingested", ingested).
+							Warn("Could not json-encode HEC event")
+						continue Batch
+					}
 				}
 				if ingested >= sss.batchSize {
 					// we consumed the batch size's worth, let's send it:
