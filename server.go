@@ -875,27 +875,32 @@ func (s *Server) ReadMetricSocket(serverConn net.PacketConn, packetPool *sync.Po
 			log.WithError(err).Error("Error reading from UDP metrics socket")
 			continue
 		}
-		if n > s.metricMaxLength {
-			metrics.ReportOne(s.TraceClient, ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "unknown", "reason": "toolong"}))
-			continue
-		}
-
-		// statsd allows multiple packets to be joined by newlines and sent as
-		// one larger packet
-		// note that spurious newlines are not allowed in this format, it has
-		// to be exactly one newline between each packet, with no leading or
-		// trailing newlines
-		splitPacket := samplers.NewSplitBytes(buf[:n], '\n')
-		for splitPacket.Next() {
-			s.HandleMetricPacket(splitPacket.Chunk())
-		}
-
-		// the Metric struct created by HandleMetricPacket has no byte slices in it,
-		// only strings
-		// therefore there are no outstanding references to this byte slice, we
-		// can return it to the pool
-		packetPool.Put(buf)
+		s.processMetricPacket(n, buf, packetPool)
 	}
+}
+
+// Splits the read metric packet into multiple metrics and handles them
+func (s *Server) processMetricPacket(numBytes int, buf []byte, packetPool *sync.Pool) {
+	if numBytes > s.metricMaxLength {
+		metrics.ReportOne(s.TraceClient, ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "unknown", "reason": "toolong"}))
+		return
+	}
+
+	// statsd allows multiple packets to be joined by newlines and sent as
+	// one larger packet
+	// note that spurious newlines are not allowed in this format, it has
+	// to be exactly one newline between each packet, with no leading or
+	// trailing newlines
+	splitPacket := samplers.NewSplitBytes(buf[:numBytes], '\n')
+	for splitPacket.Next() {
+		go s.HandleMetricPacket(splitPacket.Chunk())
+	}
+
+	// the Metric struct created by HandleMetricPacket has no byte slices in it,
+	// only strings
+	// therefore there are no outstanding references to this byte slice, we
+	// can return it to the pool
+	packetPool.Put(buf)
 }
 
 // ReadStatsdDatagramSocket reads statsd metrics packets from connection off a unix datagram socket.
@@ -914,26 +919,7 @@ func (s *Server) ReadStatsdDatagramSocket(serverConn *net.UnixConn, packetPool *
 			}
 		}
 
-		if n > s.metricMaxLength {
-			metrics.ReportOne(s.TraceClient, ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "unknown", "reason": "toolong"}))
-			continue
-		}
-
-		// statsd allows multiple packets to be joined by newlines and sent as
-		// one larger packet
-		// note that spurious newlines are not allowed in this format, it has
-		// to be exactly one newline between each packet, with no leading or
-		// trailing newlines
-		splitPacket := samplers.NewSplitBytes(buf[:n], '\n')
-		for splitPacket.Next() {
-			s.HandleMetricPacket(splitPacket.Chunk())
-		}
-
-		// the Metric struct created by HandleMetricPacket has no byte slices in it,
-		// only strings
-		// therefore there are no outstanding references to this byte slice, we
-		// can return it to the pool
-		packetPool.Put(buf)
+		go s.processMetricPacket(n, buf, packetPool)
 	}
 }
 

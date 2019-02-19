@@ -158,23 +158,23 @@ func startStatsdUnix(s *Server, addr *net.UnixAddr, packetPool *sync.Pool) (<-ch
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't set permissions on %v: %v", addr, err))
 	}
+
 	go func() {
-		go func() {
-			defer func() {
-				lock.Unlock()
-				close(done)
-			}()
-			for {
-				_, open := <-s.shutdown
-				// occurs when cleanly shutting down the server e.g. in tests; ignore errors
-				if !open {
-					conn.Close()
-					return
-				}
-			}
+		defer func() {
+			lock.Unlock()
+			close(done)
 		}()
-		go s.ReadStatsdDatagramSocket(conn, packetPool)
+		for {
+			_, open := <-s.shutdown
+			// occurs when cleanly shutting down the server e.g. in tests; ignore errors
+			if !open {
+				conn.Close()
+				return
+			}
+		}
 	}()
+	go s.ReadStatsdDatagramSocket(conn, packetPool)
+
 	return done, addr
 }
 
@@ -255,6 +255,7 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) (<-chan struct{}, net.Addr) {
 			}
 		}
 	}()
+
 	return done, listener.Addr()
 }
 
