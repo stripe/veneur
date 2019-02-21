@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stripe/veneur/sinks/channel"
+
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/samplers"
@@ -181,7 +183,7 @@ func forwardGRPCTestMetrics() []*samplers.UDPMetric {
 // after passing through a proxy.
 func TestE2EForwardingGRPCMetrics(t *testing.T) {
 	ch := make(chan []samplers.InterMetric)
-	sink, _ := NewChannelMetricSink(ch)
+	sink, _ := channel.NewChannelMetricSink(ch)
 
 	ff := newForwardGRPCFixture(t, localConfig(), sink)
 	defer ff.stop()
@@ -224,7 +226,7 @@ func TestE2EForwardingGRPCMetrics(t *testing.T) {
 		}
 
 		assert.ElementsMatch(t, expectedNames, actualNames,
-			"The global Veneur didn't flush the right metrics")
+			"The global Veneur didn't flush the right metrics.\nEXPECTED: %v\nACTUAL: %v", expectedNames, actualNames)
 		close(done)
 	}()
 	ff.local.Flush(context.TODO())

@@ -19,6 +19,7 @@ message Metric {
     }
 
     Scope scope = 9;
+    string hostname = 10;
 }
 
 // Scope describes at which level the metric will be emitted.
@@ -26,6 +27,7 @@ enum Scope {
     Mixed = 0;
     Local = 1;
     Global = 2;
+    MixedGlobal = 3;
 }
 
 // Type can be any of the valid metric types recognized by Veneur.

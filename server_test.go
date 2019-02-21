@@ -12,6 +12,8 @@ import (
 	"io/ioutil"
 	"sync"
 
+	"github.com/stripe/veneur/sinks/channel"
+
 	"math/rand"
 	"net"
 	"net/http"
@@ -132,7 +134,12 @@ func generateMetrics() (metricValues []float64, expectedMetrics map[string]float
 // so that flushes to these sinks do "nothing".
 func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper, mSink sinks.MetricSink, sSink sinks.SpanSink) *Server {
 	logger := logrus.New()
-	server, err := NewFromConfig(logger, config)
+	if mSink == nil {
+		// Install a blackhole sink if we have no other sinks
+		bhs, _ := blackhole.NewBlackholeMetricSink()
+		mSink = bhs
+	}
+	server, err := NewFromConfig(logger, config, mSink)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,11 +155,6 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 	trace.NeutralizeClient(server.TraceClient)
 	server.TraceClient = nil
 
-	if mSink == nil {
-		// Install a blackhole sink if we have no other sinks
-		bhs, _ := blackhole.NewBlackholeMetricSink()
-		mSink = bhs
-	}
 	server.metricSinks = append(server.metricSinks, mSink)
 
 	if sSink == nil {
@@ -164,38 +166,6 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 
 	server.Start()
 	return server
-}
-
-type channelMetricSink struct {
-	metricsChannel chan []samplers.InterMetric
-}
-
-// NewChannelMetricSink creates a new channelMetricSink. This sink writes any
-// flushed metrics to its `metricsChannel` such that the test can inspect
-// the metrics for correctness.
-func NewChannelMetricSink(ch chan []samplers.InterMetric) (*channelMetricSink, error) {
-	return &channelMetricSink{
-		metricsChannel: ch,
-	}, nil
-}
-
-func (c *channelMetricSink) Name() string {
-	return "channel"
-}
-
-func (c *channelMetricSink) Start(*trace.Client) error {
-	return nil
-}
-
-func (c *channelMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
-	// Put the whole slice in since many tests want to see all of them and we
-	// don't want them to have to loop over and wait on empty or something
-	c.metricsChannel <- metrics
-	return nil
-}
-
-func (c *channelMetricSink) FlushOtherSamples(ctx context.Context, events []ssf.SSFSample) {
-	return
 }
 
 // fixture sets up a mock Datadog API server and Veneur
@@ -236,7 +206,7 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	config.Tags = []string{"butts:farts"}
 
 	metricsChan := make(chan []samplers.InterMetric, 10)
-	cms, _ := NewChannelMetricSink(metricsChan)
+	cms, _ := channel.NewChannelMetricSink(metricsChan)
 	defer close(metricsChan)
 
 	f := newFixture(t, config, cms, nil)
@@ -266,7 +236,7 @@ func TestGlobalServerFlush(t *testing.T) {
 	config := globalConfig()
 
 	metricsChan := make(chan []samplers.InterMetric, 10)
-	cms, _ := NewChannelMetricSink(metricsChan)
+	cms, _ := channel.NewChannelMetricSink(metricsChan)
 	defer close(metricsChan)
 
 	f := newFixture(t, config, cms, nil)
@@ -560,7 +530,7 @@ func TestUDPMetrics(t *testing.T) {
 	config.Interval = "60s"
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0"}
 	ch := make(chan []samplers.InterMetric, 20)
-	sink, _ := NewChannelMetricSink(ch)
+	sink, _ := channel.NewChannelMetricSink(ch)
 	f := newFixture(t, config, sink, nil)
 	defer f.Close()
 
@@ -583,7 +553,7 @@ func TestMultipleUDPSockets(t *testing.T) {
 	config.Interval = "60s"
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}
 	ch := make(chan []samplers.InterMetric, 20)
-	sink, _ := NewChannelMetricSink(ch)
+	sink, _ := channel.NewChannelMetricSink(ch)
 	f := newFixture(t, config, sink, nil)
 	defer f.Close()
 
@@ -622,7 +592,7 @@ func TestUDPMetricsSSF(t *testing.T) {
 	config.Interval = "60s"
 	config.SsfListenAddresses = []string{"udp://127.0.0.1:0"}
 	ch := make(chan []samplers.InterMetric, 20)
-	sink, _ := NewChannelMetricSink(ch)
+	sink, _ := channel.NewChannelMetricSink(ch)
 	f := newFixture(t, config, sink, nil)
 	defer f.Close()
 
@@ -703,7 +673,7 @@ func TestUNIXMetricsSSF(t *testing.T) {
 	path := filepath.Join(tdir, "test.sock")
 	config.SsfListenAddresses = []string{fmt.Sprintf("unix://%s", path)}
 	ch := make(chan []samplers.InterMetric, 20)
-	sink, _ := NewChannelMetricSink(ch)
+	sink, _ := channel.NewChannelMetricSink(ch)
 	f := newFixture(t, config, sink, nil)
 	defer f.Close()
 
@@ -1109,7 +1079,7 @@ func TestSSFMetricsEndToEnd(t *testing.T) {
 	config := localConfig()
 	config.SsfListenAddresses = []string{ssfAddr}
 	metricsChan := make(chan []samplers.InterMetric, 10)
-	cms, _ := NewChannelMetricSink(metricsChan)
+	cms, _ := channel.NewChannelMetricSink(metricsChan)
 	f := newFixture(t, config, cms, nil)
 	defer f.Close()
 
@@ -1170,7 +1140,7 @@ func TestInternalSSFMetricsEndToEnd(t *testing.T) {
 	config := localConfig()
 	config.SsfListenAddresses = []string{ssfAddr}
 	metricsChan := make(chan []samplers.InterMetric, 10)
-	cms, _ := NewChannelMetricSink(metricsChan)
+	cms, _ := channel.NewChannelMetricSink(metricsChan)
 	f := newFixture(t, config, cms, nil)
 	defer f.Close()
 

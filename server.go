@@ -20,6 +20,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/stripe/veneur/metricingester"
+
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -155,7 +157,7 @@ func SetLogger(logger *logrus.Logger) {
 // NewFromConfig creates a new veneur server from a configuration
 // specification and sets up the passed logger according to the
 // configuration.
-func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
+func NewFromConfig(logger *logrus.Logger, conf Config, moreSinks ...metricingester.Sink) (*Server, error) {
 	ret := &Server{}
 
 	ret.Hostname = conf.Hostname
@@ -607,13 +609,30 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.grpcListenAddress = conf.GrpcAddress
 	if ret.grpcListenAddress != "" {
 		// convert all the workers to the proper interface
-		ingesters := make([]importsrv.MetricIngester, len(ret.Workers))
-		for i, worker := range ret.Workers {
-			ingesters[i] = worker
+		var sinks []metricingester.Sink
+
+		sinks = append(sinks, moreSinks...)
+
+		for _, s := range ret.metricSinks {
+			sinks = append(sinks, s)
+		}
+		for _, s := range ret.plugins {
+			sinks = append(sinks, s)
 		}
 
-		ret.grpcServer = importsrv.New(ingesters,
-			importsrv.WithTraceClient(ret.TraceClient))
+		ing := metricingester.NewFlushingIngester(
+			conf.NumWorkers,
+			ret.interval,
+			sinks,
+			conf.Percentiles,
+			ret.HistogramAggregates.Value,
+			metricingester.OptTraceClient(ret.TraceClient),
+		)
+		ing.Start()
+		ret.grpcServer = importsrv.New(
+			ing,
+			importsrv.WithTraceClient(ret.TraceClient),
+		)
 	}
 
 	logger.WithField("config", conf).Debug("Initialized server")
