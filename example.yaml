@@ -3,12 +3,13 @@
 
 # The addresses on which to listen for statsd metrics. These are
 # formatted as URLs, with schemes corresponding to valid "network"
-# arguments on https://golang.org/pkg/net/#Listen. Currently, only udp
-# and tcp (including IPv4 and 6-only) schemes are supported.
-# This option supersedes the "udp_address" and "tcp_address" options.
+# arguments on https://golang.org/pkg/net/#Listen. Currently, only udp,
+# tcp(including IPv4 and 6-only) and unixgram(datagram only) schemes are
+# supported. This option supersedes the "udp_address" and "tcp_address" options.
 statsd_listen_addresses:
  - udp://localhost:8126
  - tcp://localhost:8126
+ - unixgram:///tmp/veneur-statsd.sock
 
 # The addresses on which to listen for SSF data. As with
 # statsd_listen_addresses, these are formatted as URLs, with schemes

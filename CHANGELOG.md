@@ -5,6 +5,7 @@
 * The OpenTracing implementation's `Tracer.Inject` in the `trace` package now sets HTTP headers in a way that tools like [Envoy](https://www.envoyproxy.io/) can propagate on traces. Thanks, [antifuchs](https://github.com/antifuchs)!
 * SSF packets are now validated to ensure they contain either a valid span or at least one metric. The metric `veneur.worker.ssf.empty_total` tracks the number of empty SSF packets encountered, which indicates a client error. Thanks, [tummychow](https://github.com/tummychow) and [aditya](https://github.com/chimeracoder)!
 * SSF indicator spans can now report an additional "objective" metric, tagged with their service and name. Thanks, [tummychow](https://github.com/tummychow)!
+* Support for listening to statsd metrics on Unix Domain Socket(Datagram type). Thanks, [prudhvi](https://github.com/prudhvi)!
 
 ## Updated
 * The metric `veneur.sink.spans_dropped_total` now includes packets that were skipped due to UDP write errors. Thanks, [aditya](https://github.com/chimeracoder)!

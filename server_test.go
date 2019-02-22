@@ -577,6 +577,49 @@ func TestUDPMetrics(t *testing.T) {
 	assert.Equal(t, "foo.bar", metrics[0].Name, "worker processed the metric")
 }
 
+func TestUnixSocketMetrics(t *testing.T) {
+	ctx := context.TODO()
+	tdir, err := ioutil.TempDir("", "unixmetrics_statsd")
+	require.NoError(t, err)
+	defer os.RemoveAll(tdir)
+
+	config := localConfig()
+	config.NumWorkers = 1
+	config.Interval = "60s"
+	path := filepath.Join(tdir, "testdatagram.sock")
+	config.StatsdListenAddresses = []string{fmt.Sprintf("unixgram://%s", path)}
+	ch := make(chan []samplers.InterMetric, 20)
+	sink, _ := NewChannelMetricSink(ch)
+	f := newFixture(t, config, sink, nil)
+	defer f.Close()
+
+	conn := connectToAddress(t, "unixgram", path, 500*time.Millisecond)
+	defer conn.Close()
+
+	t.Log("Writing the first metric")
+	_, err = conn.Write([]byte("foo.bar:1|c|#baz:gorch"))
+	ctx, firstCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
+	defer firstCancel()
+	keepFlushing(ctx, f.server)
+	if assert.NoError(t, err) {
+		metrics := <-ch
+		require.Equal(t, 1, len(metrics), "we sent a single metric")
+		assert.Equal(t, "foo.bar", metrics[0].Name, "worker processed the first metric")
+	}
+
+	t.Log("Writing the second metric")
+	_, err = conn.Write([]byte("foo.baz:1|c|#baz:gorch"))
+	secondCtx, secondCancel := context.WithTimeout(ctx, 20*time.Millisecond)
+	defer secondCancel()
+	keepFlushing(secondCtx, f.server)
+
+	if assert.NoError(t, err) {
+		metrics := <-ch
+		require.Equal(t, 1, len(metrics), "we sent a single metric")
+		assert.Equal(t, "foo.baz", metrics[0].Name, "worker processed the second metric")
+	}
+}
+
 func TestMultipleUDPSockets(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1

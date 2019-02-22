@@ -21,8 +21,11 @@ func StartStatsd(s *Server, a net.Addr, packetPool *sync.Pool) net.Addr {
 		return startStatsdUDP(s, addr, packetPool)
 	case *net.TCPAddr:
 		return startStatsdTCP(s, addr, packetPool)
+	case *net.UnixAddr:
+		_, b := startStatsdUnix(s, addr, packetPool)
+		return b
 	default:
-		panic(fmt.Sprintf("Can't listen on %v: only TCP and UDP are supported", a))
+		panic(fmt.Sprintf("Can't listen on %v: only TCP, UDP and unixgram:// are supported", a))
 	}
 }
 
@@ -133,6 +136,46 @@ func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Add
 	return listener.Addr()
 }
 
+// startStatsdUnix starts listening for datagram statsd metric packets
+// on a UNIX domain socket address. It does so until the
+// server's shutdown socket is closed. startStatsdUnix returns a channel
+// that is closed once the listening connection has terminated.
+func startStatsdUnix(s *Server, addr *net.UnixAddr, packetPool *sync.Pool) (<-chan struct{}, net.Addr) {
+	done := make(chan struct{})
+	// ensure we are the only ones locking this socket:
+	lock := acquireLockForSocket(addr)
+
+	conn, err := net.ListenUnixgram(addr.Network(), addr)
+	if err != nil {
+		panic(fmt.Sprintf("Couldn't listen on UNIX socket %v: %v", addr, err))
+	}
+
+	// Make the socket connectable by everyone with access to the socket pathname:
+	err = os.Chmod(addr.String(), 0666)
+	if err != nil {
+		panic(fmt.Sprintf("Couldn't set permissions on %v: %v", addr, err))
+	}
+
+	go func() {
+		defer func() {
+			lock.Unlock()
+			close(done)
+		}()
+		for {
+			_, open := <-s.shutdown
+			// occurs when cleanly shutting down the server e.g. in tests; ignore errors
+			if !open {
+				conn.Close()
+				return
+			}
+		}
+	}()
+	for i := 0; i < s.numReaders; i++ {
+		go s.ReadStatsdDatagramSocket(conn, packetPool)
+	}
+	return done, addr
+}
+
 // StartSSF starts listening for SSF on an address a, and returns the
 // concrete address that the server is listening on.
 func StartSSF(s *Server, a net.Addr, tracePool *sync.Pool) net.Addr {
@@ -165,17 +208,8 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) (<-chan struct{}, net.Addr) {
 		panic(fmt.Sprintf("Can't listen for SSF on %v: only udp:// and unix:// addresses are supported", addr))
 	}
 	// ensure we are the only ones locking this socket:
-	lockname := fmt.Sprintf("%s.lock", addr.String())
-	lock := flock.NewFlock(lockname)
-	locked, err := lock.TryLock()
-	if err != nil {
-		panic(fmt.Sprintf("Could not acquire the lock %q to listen on %v: %v", lockname, addr, err))
-	}
-	if !locked {
-		panic(fmt.Sprintf("Lock file %q for %v is in use by another process already", lockname, addr))
-	}
-	// We have the exclusive use of the socket, clear away any old sockets and listen:
-	_ = os.Remove(addr.String())
+	lock := acquireLockForSocket(addr)
+
 	listener, err := net.ListenUnix(addr.Network(), addr)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't listen on UNIX socket %v: %v", addr, err))
@@ -219,5 +253,23 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) (<-chan struct{}, net.Addr) {
 			}
 		}
 	}()
+
 	return done, listener.Addr()
+}
+
+// Acquires exclusive use lock for a given socket file and returns the lock
+// Panic's if unable to acquire lock
+func acquireLockForSocket(addr *net.UnixAddr) *flock.Flock {
+	lockname := fmt.Sprintf("%s.lock", addr.String())
+	lock := flock.NewFlock(lockname)
+	locked, err := lock.TryLock()
+	if err != nil {
+		panic(fmt.Sprintf("Could not acquire the lock %q to listen on %v: %v", lockname, addr, err))
+	}
+	if !locked {
+		panic(fmt.Sprintf("Lock file %q for %v is in use by another process already", lockname, addr))
+	}
+	// We have the exclusive use of the socket, clear away any old sockets and listen:
+	_ = os.Remove(addr.String())
+	return lock
 }
