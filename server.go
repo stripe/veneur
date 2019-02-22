@@ -893,7 +893,7 @@ func (s *Server) processMetricPacket(numBytes int, buf []byte, packetPool *sync.
 	// trailing newlines
 	splitPacket := samplers.NewSplitBytes(buf[:numBytes], '\n')
 	for splitPacket.Next() {
-		go s.HandleMetricPacket(splitPacket.Chunk())
+		s.HandleMetricPacket(splitPacket.Chunk())
 	}
 
 	// the Metric struct created by HandleMetricPacket has no byte slices in it,
@@ -919,7 +919,7 @@ func (s *Server) ReadStatsdDatagramSocket(serverConn *net.UnixConn, packetPool *
 			}
 		}
 
-		go s.processMetricPacket(n, buf, packetPool)
+		s.processMetricPacket(n, buf, packetPool)
 	}
 }
 

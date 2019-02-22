@@ -25,7 +25,7 @@ func StartStatsd(s *Server, a net.Addr, packetPool *sync.Pool) net.Addr {
 		_, b := startStatsdUnix(s, addr, packetPool)
 		return b
 	default:
-		panic(fmt.Sprintf("Can't listen on %v: only TCP , UDP and unixgram:// are supported", a))
+		panic(fmt.Sprintf("Can't listen on %v: only TCP, UDP and unixgram:// are supported", a))
 	}
 }
 
@@ -142,9 +142,6 @@ func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Add
 // that is closed once the listening connection has terminated.
 func startStatsdUnix(s *Server, addr *net.UnixAddr, packetPool *sync.Pool) (<-chan struct{}, net.Addr) {
 	done := make(chan struct{})
-	if addr.Network() != "unixgram" {
-		panic(fmt.Sprintf("Can't listen for statsd metrics on %v: only udp:// and unixgram:// addresses are supported", addr))
-	}
 	// ensure we are the only ones locking this socket:
 	lock := acquireLockForSocket(addr)
 
@@ -173,8 +170,9 @@ func startStatsdUnix(s *Server, addr *net.UnixAddr, packetPool *sync.Pool) (<-ch
 			}
 		}
 	}()
-	go s.ReadStatsdDatagramSocket(conn, packetPool)
-
+	for i := 0; i < s.numReaders; i++ {
+		go s.ReadStatsdDatagramSocket(conn, packetPool)
+	}
 	return done, addr
 }
 
