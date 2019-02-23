@@ -329,7 +329,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		mpf = runtime.SetMutexProfileFraction(conf.MutexProfileFraction)
 	}
 
-	log.WithFields(logrus.Fields{
+	logger.WithFields(logrus.Fields{
 		"MutexProfileFraction":         conf.MutexProfileFraction,
 		"previousMutexProfileFraction": mpf,
 	}).Info("Set mutex profile fraction")
@@ -337,7 +337,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	if conf.BlockProfileRate > 0 {
 		runtime.SetBlockProfileRate(conf.BlockProfileRate)
 	}
-	log.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
+	logger.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
 
 	if conf.EnableProfiling {
 		ret.enableProfiling = true
@@ -504,7 +504,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 		if conf.XrayAddress != "" {
 			if conf.XraySamplePercentage == 0 {
-				log.Warn("XRay sample percentage is 0, no segments will be sent.")
+				logger.Warn("XRay sample percentage is 0, no segments will be sent.")
 			} else {
 
 				annotationTags := make([]string, 0, len(conf.XrayAnnotationTags))
