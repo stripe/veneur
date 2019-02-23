@@ -974,9 +974,10 @@ func TestCalculateTickerDelay(t *testing.T) {
 	assert.Equal(t, 3.629, delay.Seconds(), "Delay is incorrect")
 }
 
-// BenchmarkSendSSFUNIX sends b.N metrics to veneur and waits until
-// all of them have been read (not processed).
-func BenchmarkSendSSFUNIX(b *testing.B) {
+// BenchmarkSendSSFUNIXDimensions sends b.N spans (with a metric that
+// has attached Dimensions and a nil Tags field) to veneur and waits
+// until all of them have been read (not processed).
+func BenchmarkSendSSFUNIXDimensions(b *testing.B) {
 	tdir, err := ioutil.TempDir("", "unixmetrics_ssf")
 	require.NoError(b, err)
 	defer os.RemoveAll(tdir)
@@ -993,16 +994,10 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 		Interval:     "10s",
 		StatsAddress: "localhost:62251",
 	}
-	s, err := NewFromConfig(logrus.New(), config)
+	s, err := NewFromConfig(nullLogger(), config)
 	if err != nil {
 		b.Fatal(err)
 	}
-	// Simulate a metrics worker:
-	w := NewWorker(0, nil, nullLogger(), s.Statsd)
-	s.Workers = []*Worker{w}
-	go func() {
-	}()
-	defer close(w.QuitChan)
 	// Simulate an incoming connection on the server:
 	l, err := net.Listen("unix", path)
 	require.NoError(b, err)
@@ -1013,8 +1008,9 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 		testMetric.Name = "test.metric"
 		testMetric.Metric = ssf.SSFSample_COUNTER
 		testMetric.Value = 1
-		testMetric.Tags = make(map[string]string)
-		testMetric.Tags["tag"] = "tagValue"
+		for i := 0; i < 200; i++ {
+			testMetric.AddTag(fmt.Sprintf("tagName%d", i), "tagValue")
+		}
 		testSpan.Metrics = append(testSpan.Metrics, testMetric)
 
 		conn, err := net.Dial("unix", path)
@@ -1032,8 +1028,70 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		<-w.PacketChan
+		<-s.SpanChan
 	}
+	b.StopTimer()
+	close(s.shutdown)
+}
+
+// BenchmarkSendSSFUNIX sends b.N spans with a metric (tagged with 200
+// tags) to veneur and waits until all of them have been read (not
+// processed).
+func BenchmarkSendSSFUNIX(b *testing.B) {
+	tdir, err := ioutil.TempDir("", "unixmetrics_ssf")
+	require.NoError(b, err)
+	defer os.RemoveAll(tdir)
+
+	path := filepath.Join(tdir, "test.sock")
+	// test the variables that have been renamed
+	config := Config{
+		DatadogAPIKey:          "apikey",
+		DatadogAPIHostname:     "http://api",
+		DatadogTraceAPIAddress: "http://trace",
+		SsfListenAddresses:     []string{fmt.Sprintf("unix://%s", path)},
+
+		// required or NewFromConfig fails
+		Interval:     "10s",
+		StatsAddress: "localhost:62251",
+	}
+	s, err := NewFromConfig(nullLogger(), config)
+	if err != nil {
+		b.Fatal(err)
+	}
+	// Simulate an incoming connection on the server:
+	l, err := net.Listen("unix", path)
+	require.NoError(b, err)
+	defer l.Close()
+	go func() {
+		testSpan := &ssf.SSFSpan{}
+		testMetric := &ssf.SSFSample{}
+		testMetric.Name = "test.metric"
+		testMetric.Metric = ssf.SSFSample_COUNTER
+		testMetric.Value = 1
+		testMetric.Tags = map[string]string{}
+		for i := 0; i < 200; i++ {
+			testMetric.Tags[fmt.Sprintf("tagName%d", i)] = "tagValue"
+		}
+		testSpan.Metrics = append(testSpan.Metrics, testMetric)
+
+		conn, err := net.Dial("unix", path)
+		require.NoError(b, err)
+		defer conn.Close()
+		for i := 0; i < b.N; i++ {
+			_, err := protocol.WriteSSF(conn, testSpan)
+			require.NoError(b, err)
+		}
+		conn.Close()
+	}()
+	sConn, err := l.Accept()
+	require.NoError(b, err)
+	go s.ReadSSFStreamSocket(sConn)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		<-s.SpanChan
+	}
+	b.StopTimer()
 	close(s.shutdown)
 }
 
