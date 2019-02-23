@@ -210,7 +210,7 @@ func TestCreateMetrics(t *testing.T) {
 	assert.Len(t, span.Metrics, 2)
 	for _, metric := range span.Metrics {
 		assert.Equal(t, "test.metric", metric.Name)
-		assert.Equal(t, "value1", metric.Tags["tag1"])
+		assert.Equal(t, []*ssf.Dimension{{Key: "tag1", Value: "value1"}}, metric.AllDimensions())
 	}
 }
 

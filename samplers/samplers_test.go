@@ -625,6 +625,9 @@ func TestParseMetricSSF(t *testing.T) {
 					"wilde":           "true",
 					"veneurlocalonly": "true",
 				},
+				Dimensions: []*ssf.Dimension{
+					&ssf.Dimension{"oink", "maybe"},
+				},
 				Unit: "frobs per second",
 			},
 
@@ -632,13 +635,14 @@ func TestParseMetricSSF(t *testing.T) {
 				MetricKey: MetricKey{
 					Name:       "my.test.metric",
 					Type:       "gauge",
-					JoinedTags: "keats:false,wilde:true,yeats:false",
+					JoinedTags: "keats:false,oink:maybe,wilde:true,yeats:false",
 				},
-				Digest:     0x7ae783ad,
+				Digest:     0x871cca1c,
 				Value:      val,
 				SampleRate: sampleRate,
 				Tags: []string{
 					"keats:false",
+					"oink:maybe",
 					"wilde:true",
 					"yeats:false",
 				},
@@ -726,14 +730,14 @@ func TestParseMetricSSF(t *testing.T) {
 			t.Parallel()
 			udpMetric, err := ParseMetricSSF(&sample)
 			assert.NoError(t, err)
-			assert.Equal(t, udpMetric.MetricKey, expected.MetricKey)
-			assert.Equal(t, udpMetric.Type, expected.Type)
-			assert.Equal(t, udpMetric.Digest, expected.Digest)
-			assert.InEpsilon(t, udpMetric.Value, expected.Value, ε)
-			assert.InEpsilon(t, udpMetric.SampleRate, expected.SampleRate, ε)
-			assert.Equal(t, udpMetric.JoinedTags, expected.JoinedTags)
-			assert.Equal(t, udpMetric.Tags, expected.Tags)
-			assert.Equal(t, udpMetric.Scope, expected.Scope)
+			assert.Equal(t, expected.MetricKey, udpMetric.MetricKey)
+			assert.Equal(t, expected.Type, udpMetric.Type)
+			assert.Equal(t, expected.Digest, udpMetric.Digest)
+			assert.InEpsilon(t, expected.Value, udpMetric.Value, ε)
+			assert.InEpsilon(t, expected.SampleRate, udpMetric.SampleRate, ε)
+			assert.Equal(t, expected.JoinedTags, udpMetric.JoinedTags)
+			assert.Equal(t, expected.Tags, udpMetric.Tags)
+			assert.Equal(t, expected.Scope, udpMetric.Scope)
 		})
 	}
 }

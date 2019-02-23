@@ -200,7 +200,7 @@ readMetrics:
 		}
 	}
 	require.NotNil(t, found, "Expected a timeout metric to be reported")
-	assert.Equal(t, found.Tags["cause"], "submission_timeout")
+	assert.Equal(t, []string{"submission_timeout"}, ssf.DimensionValues(found, "cause"))
 	sink.Stop()
 }
 
