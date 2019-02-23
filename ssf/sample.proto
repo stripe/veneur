@@ -2,6 +2,35 @@ syntax = "proto3";
 
 package ssf;
 
+// A Dimension (aka "tag") is a key-value pair that can be attached to
+// an SSFSample or to an SSFSpan.
+//
+// Resolving Ambiguity
+//
+// Multiple Dimensions with the same key can be present, but if
+// multiple Dimensions with the same key *and value* are present, SSF
+// receivers must dedup (collapse them into a single Dimension) before
+// reporting to the destination system.
+//
+// Some destination systems (particularly those in which dimensions
+// are represented as a map) only support a single tag. For those
+// systems, the last Dimension "wins".
+//
+// Dimension target formats
+//
+// Most destination systems support dimensions in the shape of a list
+// of strings attached to a span or metric, with "key:value"
+// representing the natural representation of a Dimension with key and
+// value filled. These destination systems tend to also support bare
+// "value" dimensions (e.g. veneur's own "veneurglobalonly" tag).
+//
+// To represent these bare dimensions, an SSF Dimension should leave
+// the key empty and set the value.
+message Dimension {
+  string key = 1;
+  string value = 2;
+}
+
 // SSFSample is similar of a StatsD-style, point in time metric. It has a Metric
 // type, a name, a value and a timestamp. Additionally it can contain a message,
 // a status, a sample rate, a map of tags as string keys and values and a unit
@@ -38,17 +67,35 @@ message SSFSample {
   string message = 5;
   Status status = 6;
   float sample_rate = 7;
+
+  // Tags holds additional information about the SSFSample. It is
+  // deprecated -- users of SSF should prefer to use Dimensions, as
+  // they perform much better in encoding/decoding and more accurately
+  // match destination systems' data models.
+  //
+  // Normalization
+  //
+  // When normalizing Dimensions, the Tags field's contents will be
+  // gathered up first, which means that Dimensions with the same key
+  // as those present on Tags can override their values.
   map<string, string> tags = 8;
+
   string unit = 9;
 
   // scope indicates to an SSF endpoint what it should do with a metric:
-  // 
+  //
   //     - DEFAULT (or absent) - aggregate counters and gauges locally,
   //       handle histograms and sets globally.
   //     - LOCAL - aggregate all metrics locally.
   //     - GLOBAL - aggregate all metrics globally.
   //
   Scope scope = 10;
+
+  // Dimensions hold information about the SSFSample that can be used
+  // by destination systems to e.g., keep separate time series. Users
+  // should be aware that variable information on Dimensions usually
+  // leads to higher cardinality in the destination system.
+  repeated Dimension dimensions = 11;
 }
 
 // SSFSpan is the primary unit of reporting in SSF. It embeds a set of
@@ -107,6 +154,16 @@ message SSFSpan {
   // Tags are name value pairs that describe a facet of the span. They apply to
   // the *entire* span as opposed to logs which apply to a specific time in
   // the span.
+  //
+  // The Tags field is deprecated - users of SSF are encouraged to use
+  // the Dimensions field instead, as it encodes faster and allows
+  // representing destination reprensentations of tags better.
+  //
+  // Normalization
+  //
+  // When normalizing Dimensions, the Tags field's contents will be
+  // gathered up first, which means that Dimensions with the same key
+  // as those present on Tags can override their values.
   map<string, string> tags = 11;
 
   // An indicator span is one that represents an action that is included in a
@@ -124,4 +181,10 @@ message SSFSpan {
   // (/customer/:id), the function (class::name.method), a friendly name
   // (foo middleware) or whatever makes sense in your context.
   string name = 13;
+
+  // Dimensions are name/value (or just plain value) pairs that
+  // describe a facet of a span. They apply to the *entire* span and
+  // are typically used for high-cardinality information, e.g.. to
+  // hold information about the unit of work that the span describes.
+  repeated Dimension dimensions = 14;
 }
