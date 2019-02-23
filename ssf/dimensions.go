@@ -103,3 +103,33 @@ func DimensionValues(d Dimensional, name string) (found []string) {
 	}
 	return
 }
+
+// Finds the named Dimension on the SSFSpan and returns its value and
+// true, if found.
+func (s *SSFSpan) DimensionValue(name string) (value string, ok bool) {
+	if s.Tags != nil {
+		value, ok = s.Tags[name]
+		if ok {
+			return
+		}
+	}
+	for _, dim := range s.Dimensions {
+		if dim.Key == name {
+			return dim.Value, ok
+		}
+	}
+	return "", false
+}
+
+// NewDimension constructs a normalized Dimension.
+func NewDimension(key, value string) *Dimension {
+	dim := &Dimension{Key: key, Value: value}
+	if value != "" {
+		return dim
+	}
+	// Normalize those dimensions that have no values into "plain"
+	// dimensions:
+	dim.Value = dim.Key
+	dim.Key = ""
+	return dim
+}

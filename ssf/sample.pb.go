@@ -127,7 +127,7 @@ func (SSFSample_Scope) EnumDescriptor() ([]byte, []int) {
 //
 // Some destination systems (particularly those in which dimensions
 // are represented as a map) only support a single tag. For those
-// systems, the last Dimension "wins".
+// systems, the first Dimension to be set "wins".
 //
 // Dimension target formats
 //
@@ -139,6 +139,25 @@ func (SSFSample_Scope) EnumDescriptor() ([]byte, []int) {
 //
 // To represent these bare dimensions, an SSF Dimension should leave
 // the key empty and set the value.
+//
+// Normalization of Tags
+//
+// Since Dimensions can appear on SSFSpans and SSFSamples alongside
+// Tags, ingestion systems must normalize these tags into a coherent
+// set of Dimensions, in the right order. To retrieve normalized
+// Dimensions in the go library from a span or sample, use the
+// AllDimensions() method.
+//
+// This method normalizes tags and dimensions by creating a new array
+// containing any Tags, if they are set. Then, it appends the
+// Dimensions already set on the span or sample.
+//
+// Note that Tags, when set, come first in the result aray - if any
+// Tag is set, it overrides the value of the corresponding Dimension.
+//
+// Further normalization happens to "plain" tags: Tags with no value
+// set are assumed to be "plain", and so their corresponding Dimension
+// has an unset Key and the Tag's key set as the Value.
 type Dimension struct {
 	Key   string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	Value string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
@@ -417,7 +436,7 @@ type SSFSpan struct {
 	// (/customer/:id), the function (class::name.method), a friendly name
 	// (foo middleware) or whatever makes sense in your context.
 	Name string `protobuf:"bytes,13,opt,name=name,proto3" json:"name,omitempty"`
-	// Dimensions are name/value (or just plain key) pairs that
+	// Dimensions are name/value (or just plain value) pairs that
 	// describe a facet of a span. They apply to the *entire* span and
 	// are typically used for high-cardinality information, e.g.. to
 	// hold information about the unit of work that the span describes.

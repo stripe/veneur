@@ -119,12 +119,14 @@ func TimeUnit(resolution time.Duration) SampleOption {
 
 func create(base *SSFSample, tags map[string]string, opts []SampleOption) *SSFSample {
 	base.Name = NamePrefix + base.Name
+	dims := make([]*Dimension, 0, len(tags))
 	for _, opt := range opts {
 		opt(base)
 	}
 	for k, v := range tags {
-		base.AddTag(k, v)
+		dims = append(dims, NewDimension(k, v))
 	}
+	base.Dimensions = dims
 	return base
 }
 
