@@ -40,7 +40,7 @@ We've got some novel ideas that we've put in to SSF. It might help to be familia
 
 You can examine the [protobuf definition](https://github.com/stripe/veneur/blob/master/ssf/sample.proto), but in a nutshell SSF provides the following:
 
-A `metric` field describing its type as one of `COUNTER`, `GAUGE`, `HISTOGRAM` (supplanting a timer), `SET` and `STATUS`. Rounding out the traditional fields are `name`, `value`, `sample_rate` and `timestamp`. There is a map of `tags` string key-value pairs.
+A `metric` field describing its type as one of `COUNTER`, `GAUGE`, `HISTOGRAM` (supplanting a timer), `SET` and `STATUS`. Rounding out the traditional fields are `name`, `value`, `sample_rate` and `timestamp`. There is a list of of `dimensions` with string key-value pairs.
 
 ## Others
 
@@ -50,7 +50,7 @@ Beyond these StatsD-stye fields are also `message` for including an arbitrary st
 A `Metric` of `STATUS` is most like a Nagios check result.
 
 ## Log Samples?
-Since all fields are optional, one could leave out many fields and represent a log line in SSF by setting `timestamp`, `name` with a canonical name and `tags` for parameters. This is intended to be used in the future for Veneur to unify observability primitives.
+Since all fields are optional, one could leave out many fields and represent a log line in SSF by setting `timestamp`, `name` with a canonical name and `dimensions` for parameters. This is intended to be used in the future for Veneur to unify observability primitives.
 
 # Inspiration
 
