@@ -140,3 +140,69 @@ func TestAddTag(t *testing.T) {
 		})
 	}
 }
+
+func TestAddTagPlain(t *testing.T) {
+	tests := []struct {
+		name    string
+		element tagged
+		kv      []string
+		output  []*Dimension
+	}{
+		{
+			"one element on a Span",
+			&SSFSpan{},
+			[]string{"hi"},
+			[]*Dimension{&Dimension{Value: "hi"}},
+		},
+		{
+			"one element on a Sample",
+			&SSFSample{},
+			[]string{"hi"},
+			[]*Dimension{&Dimension{Value: "hi"}},
+		},
+		{
+			"multiple elements on a Span",
+			&SSFSpan{},
+			[]string{"farts", "veneurglobalonly"},
+			[]*Dimension{
+				&Dimension{Value: "farts"},
+				&Dimension{Value: "veneurglobalonly"},
+			},
+		},
+		{
+			"multiple elements on a Sample",
+			&SSFSample{},
+			[]string{"hi", "farts", "veneurglobalonly"},
+			[]*Dimension{
+				&Dimension{Value: "hi"},
+				&Dimension{Value: "farts"},
+				&Dimension{Value: "veneurglobalonly"},
+			},
+		},
+		{
+			"existing elements on a Sample",
+			&SSFSample{
+				Dimensions: []*Dimension{
+					&Dimension{"existing", "element"},
+				},
+			},
+			[]string{"hi", "farts", "veneurglobalonly"},
+			[]*Dimension{
+				&Dimension{"existing", "element"},
+				&Dimension{Value: "hi"},
+				&Dimension{Value: "farts"},
+				&Dimension{Value: "veneurglobalonly"},
+			},
+		},
+	}
+	for _, elt := range tests {
+		test := elt
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			for _, tag := range test.kv {
+				test.element.AddTagPlain(tag)
+			}
+			assert.Equal(t, test.output, test.element.AllDimensions())
+		})
+	}
+}

@@ -1,5 +1,14 @@
 package ssf
 
+// The Dimensional interface applies to all SSF data structures that
+// have a Dimensions field. They allow adding dimensions and
+// retrieving the dimensions that are set on a structure.
+type Dimensional interface {
+	AddTag(key, value string)
+	AddTagPlain(value string)
+	AllDimensions() []*Dimension
+}
+
 // AddTag adds a dimension as a key/value pair to the SSFSample.
 func (s *SSFSample) AddTag(key, value string) {
 	s.Dimensions = append(s.Dimensions, &Dimension{Key: key, Value: value})
@@ -80,4 +89,17 @@ func (s *SSFSample) AllDimensions() []*Dimension {
 // represented as a Dimension with an empty Key and a non-empty Value.
 func (s *SSFSpan) AllDimensions() []*Dimension {
 	return allDimensions(s.Tags, s.Dimensions)
+}
+
+// DimensionValues retrieves all Dimensions on a data structure with
+// dimensions and returns all Values whose key/value pair's key
+// matches name, in order (if any Tag matches, it is returned as the
+// first element). If no dimensions match, a nil array is returned.
+func DimensionValues(d Dimensional, name string) (found []string) {
+	for _, d := range d.AllDimensions() {
+		if d.Key == name {
+			found = append(found, d.Value)
+		}
+	}
+	return
 }

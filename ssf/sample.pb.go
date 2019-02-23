@@ -417,7 +417,7 @@ type SSFSpan struct {
 	// (/customer/:id), the function (class::name.method), a friendly name
 	// (foo middleware) or whatever makes sense in your context.
 	Name string `protobuf:"bytes,13,opt,name=name,proto3" json:"name,omitempty"`
-	// Dimensions are name/value (or just plain value) pairs that
+	// Dimensions are name/value (or just plain key) pairs that
 	// describe a facet of a span. They apply to the *entire* span and
 	// are typically used for high-cardinality information, e.g.. to
 	// hold information about the unit of work that the span describes.
