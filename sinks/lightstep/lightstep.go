@@ -162,8 +162,10 @@ func (ls *LightStepSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	// TODO don't hardcode
 	sp.SetTag("type", "http")
 	sp.SetTag("error-code", errorCode)
-	for k, v := range ssfSpan.Tags {
-		sp.SetTag(k, v)
+	dims := ssfSpan.AllDimensions()
+	for i := range dims {
+		dimension := dims[len(dims)-1-i]
+		sp.SetTag(dimension.Key, dimension.Value)
 	}
 	// TODO add metrics as tags to the span as well?
 
