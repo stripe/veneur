@@ -96,11 +96,17 @@ func TestSpanIngestBatch(t *testing.T) {
 		Indicator:      true,
 		Error:          true,
 		Tags: map[string]string{
-			"farts": "mandatory",
+			"farts":      "mandatory",
+			"overridden": "by-tags",
 		},
 		Metrics: []*ssf.SSFSample{
 			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
 			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		},
+		Dimensions: []*ssf.Dimension{
+			ssf.NewDimension("hi", "there"),
+			ssf.NewDimension("overridden", "this should not appear on the output"),
+			ssf.NewDimension("overridden", "this should not definitely appear on the output"),
 		},
 	}
 	for i := 0; i < nToFlush; i++ {
@@ -137,7 +143,12 @@ func TestSpanIngestBatch(t *testing.T) {
 		assert.Equal(t, strconv.FormatInt(span.ParentId, 10), output.ParentId)
 		assert.Equal(t, strconv.FormatInt(span.TraceId, 10), output.TraceId)
 		assert.Equal(t, "test-span", output.Name)
-		assert.Equal(t, map[string]string{"farts": "mandatory"}, output.Tags)
+		assert.Equal(t, map[string]string{
+			"farts":      "mandatory",
+			"hi":         "there",
+			"overridden": "by-tags",
+		},
+			output.Tags)
 		assert.Equal(t, true, output.Indicator)
 		assert.Equal(t, true, output.Error)
 	}
