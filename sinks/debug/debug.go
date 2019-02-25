@@ -116,7 +116,7 @@ func (b *debugSpanSink) Ingest(span *ssf.SSFSpan) error {
 		"traceId":         span.TraceId,
 		"parentId":        span.ParentId,
 		"id":              span.Id,
-		"tags":            span.Tags,
+		"tags":            span.AllDimensions(),
 		"start":           span.StartTimestamp,
 		"duration":        duration,
 		"info":            info,

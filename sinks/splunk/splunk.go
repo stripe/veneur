@@ -469,16 +469,11 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		StartTimestamp: float64(ssfSpan.StartTimestamp) / float64(time.Second),
 		EndTimestamp:   float64(ssfSpan.EndTimestamp) / float64(time.Second),
 		Duration:       ssfSpan.EndTimestamp - ssfSpan.StartTimestamp,
-		Tags:           map[string]string{},
+		Tags:           ssfSpan.DimensionsAsTags(),
 		Error:          ssfSpan.Error,
 		Service:        ssfSpan.Service,
 		Indicator:      ssfSpan.Indicator,
 		Name:           ssfSpan.Name,
-	}
-	dims := ssfSpan.AllDimensions()
-	for i := range dims {
-		dimension := dims[len(dims)-1-i]
-		serialized.Tags[dimension.Key] = dimension.Value
 	}
 
 	if wouldDrop {

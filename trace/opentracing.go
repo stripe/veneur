@@ -600,7 +600,7 @@ func (t Tracer) Extract(format interface{}, carrier interface{}) (ctx opentracin
 			return nil, err
 		}
 
-		resource := sample.Tags[ResourceKey]
+		resource, _ := sample.DimensionValue(ResourceKey)
 
 		trace := &Trace{
 			TraceID:  sample.TraceId,

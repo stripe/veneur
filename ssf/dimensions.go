@@ -104,6 +104,31 @@ func DimensionValues(d Dimensional, name string) (found []string) {
 	return
 }
 
+// DimensionsAsTags constructs a hash following the rules of dimension
+// normalization: The first dimension set on the list of dimensions
+// wins. "Plain" tags are flipped back, so their value is on the key,
+// and their value is "".
+func (s *SSFSpan) DimensionsAsTags() map[string]string {
+	ret := map[string]string{}
+	for k, v := range s.Tags {
+		ret[k] = v
+	}
+	for i := range s.Dimensions {
+		dim := s.Dimensions[len(s.Dimensions)-1-i]
+		key := dim.Key
+		value := dim.Value
+		if key == "" {
+			key = dim.Value
+			value = ""
+		}
+		if _, ok := ret[key]; ok {
+			continue
+		}
+		ret[key] = value
+	}
+	return ret
+}
+
 // Finds the named Dimension on the SSFSpan and returns its value and
 // true, if found.
 func (s *SSFSpan) DimensionValue(name string) (value string, ok bool) {
