@@ -203,10 +203,10 @@ func (sss *splunkSpanSink) batchTimeout() (time.Duration, bool) {
 // setupHTTPRequest sets up and kicks off an HTTP request. It returns
 // the elements of it that are necessary in sending a single batch to
 // the HEC.
-func (sss *splunkSpanSink) setupHTTPRequest(ctx context.Context) (context.CancelFunc, *hecRequest, *json.Encoder, error) {
+func (sss *splunkSpanSink) setupHTTPRequest(ctx context.Context) (context.CancelFunc, *hecRequest, io.Writer, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	hecReq, err := sss.hec.newRequest()
-	req, enc, err := hecReq.Start(ctx)
+	req, w, err := hecReq.Start(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -214,13 +214,13 @@ func (sss *splunkSpanSink) setupHTTPRequest(ctx context.Context) (context.Cancel
 	// At this point, we have a workable HTTP connection;
 	// open it in the background:
 	go sss.makeHTTPRequest(req, cancel)
-	return cancel, hecReq, enc, nil
+	return cancel, hecReq, w, nil
 }
 
 func (sss *splunkSpanSink) submitBatch(ctx context.Context, sync chan struct{}, ready chan struct{}) (exit bool) {
 	ingested := 0
 	timedOut := 0
-	httpCancel, hecReq, enc, err := sss.setupHTTPRequest(ctx)
+	httpCancel, hecReq, w, err := sss.setupHTTPRequest(ctx)
 	if err != nil {
 		sss.log.WithError(err).
 			Warn("Could not create HEC request")
@@ -253,7 +253,7 @@ func (sss *splunkSpanSink) submitBatch(ctx context.Context, sync chan struct{}, 
 			// batch's max lifetime is reached, let's send it:
 			return
 		case ev := <-sss.ingest:
-			err := sss.submitOneEvent(ctx, enc, ev)
+			err := sss.submitOneEvent(ctx, w, ev)
 			if err != nil {
 				if err == io.ErrClosedPipe {
 					// Our connection went away. Try to re-establish it:
@@ -288,14 +288,14 @@ func (sss *splunkSpanSink) submitBatch(ctx context.Context, sync chan struct{}, 
 // connection. It observes the configured splunk_hec_ingest_timeout -
 // if the timeout is exceeded, it returns an error. If the timeout is
 // 0, it waits forever to submit the event.
-func (sss *splunkSpanSink) submitOneEvent(ctx context.Context, enc *json.Encoder, ev *Event) error {
+func (sss *splunkSpanSink) submitOneEvent(ctx context.Context, w io.Writer, ev *Event) error {
 	if sss.sendTimeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, sss.sendTimeout)
 		defer cancel()
 	}
 	encodeErrors := make(chan error)
-
+	enc := json.NewEncoder(w)
 	go func() {
 		err := enc.Encode(ev)
 		select {
