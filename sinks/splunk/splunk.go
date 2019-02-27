@@ -48,6 +48,7 @@ type splunkSpanSink struct {
 	hostname      string
 	sendTimeout   time.Duration
 	ingestTimeout time.Duration
+	initOnce      sync.Once
 
 	workers int
 
@@ -152,10 +153,9 @@ func (sss *splunkSpanSink) Start(cl *trace.Client) error {
 	sss.sync = make([]chan struct{}, workers)
 
 	ready := make(chan struct{})
-	var signalReady sync.Once
 	for i := 0; i < workers; i++ {
 		ch := make(chan struct{})
-		go sss.submitter(ch, signalReady, ready)
+		go sss.submitter(ch, ready)
 		sss.sync[i] = ch
 	}
 
@@ -177,96 +177,137 @@ func (sss *splunkSpanSink) Sync() {
 	sss.synced.Wait()
 }
 
-func (sss *splunkSpanSink) submitter(sync chan struct{}, signalReady sync.Once, ready chan struct{}) {
-	timedOut := false
-	batchTimeout := time.NewTimer(time.Duration(0))
+// submitter runs for the lifetime of the sink and performs batch-wise
+// submission to the HEC sink.
+func (sss *splunkSpanSink) submitter(sync chan struct{}, ready chan struct{}) {
+	ctx := context.Background()
 	for {
-		// We're not using cancelation for anything other than
-		// tests, but does allow neat control over the
-		// lifetime of a connection:
-		ctx := context.Background()
-		ctx, cancel := context.WithCancel(ctx)
-
-		hecReq, err := sss.hec.newRequest()
-
-		encodeErrors := make(chan error)
-
-		ingested := 0
-		req, enc, err := hecReq.Start(ctx)
-		if err != nil {
-			sss.log.WithError(err).
-				Warn("Could not create HEC request")
-			time.Sleep(1 * time.Second)
-			continue
+		exit := sss.submitBatch(ctx, sync, ready)
+		if exit {
+			return
 		}
+	}
+}
 
-		// At this point, we have a workable HTTP connection;
-		// open it in the background:
-		go sss.makeHTTPRequest(req, cancel)
+func (sss *splunkSpanSink) batchTimeout() (time.Duration, bool) {
+	lifetime := sss.maxConnLifetime
+	if sss.connLifetimeJitter > 0 {
+		lifetime += time.Duration(sss.rand.Int63n(int64(sss.connLifetimeJitter)))
+	}
+	if lifetime > 0 {
+		return lifetime, true
+	}
+	return 0, false
+}
 
-		// Set the maximum lifetime of the connection:
-		lifetime := sss.maxConnLifetime
-		if !timedOut && !batchTimeout.Stop() {
-			// the Stop call raced with the timer firing,
-			// drain the channel:
-			<-batchTimeout.C
-		}
-		if sss.connLifetimeJitter > 0 {
-			lifetime += time.Duration(sss.rand.Int63n(int64(sss.connLifetimeJitter)))
-		}
-		if lifetime > 0 {
-			batchTimeout.Reset(lifetime)
-		}
-		timedOut = false
-		signalReady.Do(func() { close(ready) })
-	Batch:
-		for {
-			select {
-			case _, ok := <-sync:
-				hecReq.Close()
-				if !ok {
-					// sink is shutting down, exit forever:
-					cancel()
+// setupHTTPRequest sets up and kicks off an HTTP request. It returns
+// the elements of it that are necessary in sending a single batch to
+// the HEC.
+func (sss *splunkSpanSink) setupHTTPRequest(ctx context.Context) (context.CancelFunc, *hecRequest, *json.Encoder, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	hecReq, err := sss.hec.newRequest()
+	req, enc, err := hecReq.Start(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// At this point, we have a workable HTTP connection;
+	// open it in the background:
+	go sss.makeHTTPRequest(req, cancel)
+	return cancel, hecReq, enc, nil
+}
+
+func (sss *splunkSpanSink) submitBatch(ctx context.Context, sync chan struct{}, ready chan struct{}) (exit bool) {
+	ingested := 0
+	timedOut := 0
+	httpCancel, hecReq, enc, err := sss.setupHTTPRequest(ctx)
+	if err != nil {
+		sss.log.WithError(err).
+			Warn("Could not create HEC request")
+		time.Sleep(1 * time.Second)
+		return
+	}
+	defer hecReq.Close()
+
+	// Set the maximum lifetime of the connection:
+	lifetime, ok := sss.batchTimeout()
+	if ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, lifetime)
+		defer cancel()
+	}
+
+	sss.initOnce.Do(func() { close(ready) })
+	for {
+		select {
+		case _, ok := <-sync:
+			if !ok {
+				// sink is shutting down, exit forever:
+				httpCancel()
+				exit = true
+				return
+			}
+			sss.synced.Done()
+			return
+		case <-ctx.Done():
+			// batch's max lifetime is reached, let's send it:
+			return
+		case ev := <-sss.ingest:
+			err := sss.submitOneEvent(ctx, enc, ev)
+			if err != nil {
+				if err == io.ErrClosedPipe {
+					// Our connection went away. Try to re-establish it:
 					return
 				}
-				sss.synced.Done()
-				break Batch
-			case <-batchTimeout.C:
-				timedOut = true
-				hecReq.Close()
-				break Batch
-			case ev := <-sss.ingest:
-				ingested++
-				go func() {
-					encodeErrors <- enc.Encode(ev)
-				}()
-				select {
-				case <-batchTimeout.C:
-					sss.log.Warn("Timed out trying to write HEC event")
-					timedOut = true
-					hecReq.Close()
-					break Batch
-				case err := <-encodeErrors:
-					if err != nil {
-						if err == io.ErrClosedPipe {
-							// Our connection went away. Try to re-establish it:
-							hecReq.Close()
-							break Batch
-						}
-						sss.log.WithError(err).
-							WithField("event", ev).
-							WithField("ingested", ingested).
-							Warn("Could not json-encode HEC event")
-						continue Batch
-					}
+				if err == context.DeadlineExceeded {
+					// Couldn't write the event
+					// within timeout, keep going:
+					timedOut++
+					continue
 				}
-				if ingested >= sss.batchSize {
-					// we consumed the batch size's worth, let's send it:
-					hecReq.Close()
-					break Batch
-				}
+				sss.log.WithError(err).
+					WithField("event", ev).
+					WithFields(logrus.Fields{
+						"ingested":  ingested,
+						"timed_out": timedOut,
+					}).
+					Warn("Could not json-encode HEC event")
+				continue
+			}
+			ingested++
+
+			if ingested >= sss.batchSize {
+				// we consumed the batch size's worth, let's send it:
+				return
 			}
 		}
+	}
+}
+
+// submitOneEvent takes one event and submits it to an HEC HTTP
+// connection. It observes the configured splunk_hec_ingest_timeout -
+// if the timeout is exceeded, it returns an error. If the timeout is
+// 0, it waits forever to submit the event.
+func (sss *splunkSpanSink) submitOneEvent(ctx context.Context, enc *json.Encoder, ev *Event) error {
+	if sss.sendTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, sss.sendTimeout)
+		defer cancel()
+	}
+	encodeErrors := make(chan error)
+
+	go func() {
+		err := enc.Encode(ev)
+		select {
+		case encodeErrors <- err:
+		case <-ctx.Done():
+		}
+	}()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-encodeErrors:
+		return err
 	}
 }
 
