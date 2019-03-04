@@ -536,7 +536,9 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			ret.metricSinks = append(ret.metricSinks, debug.NewDebugMetricSink(&mtx, log))
 		}
 		if conf.DebugIngestedSpans {
-			ret.spanSinks = append(ret.spanSinks, debug.NewDebugSpanSink(&mtx, log))
+			blackhole := debug.NewDebugSpanSink(&mtx, log)
+			ret.spanSinks = append(ret.spanSinks, blackhole)
+			logger.WithField("name", blackhole.Name()).Info("Starting logger debug sink")
 		}
 	}
 
