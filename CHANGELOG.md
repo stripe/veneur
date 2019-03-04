@@ -15,6 +15,9 @@
 * The signalfx client no longer reports a timeout when submission to the datapoint API endpoint encounters an error. Thanks, [antifuchs](https://github.com/antifuchs)!
 * SSF packets without a name are no longer considered valid for `protocol.ValidTrace`. Thanks, [tummychow](https://github.com/tummychow)!
 
+## Removed
+* Go 1.10 is no longer supported.
+
 # 11.0.0, 2019-01-22
 
 ## Added
