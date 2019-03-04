@@ -106,13 +106,20 @@ func (b *debugSpanSink) Ingest(span *ssf.SSFSpan) error {
 	if len(info) > 0 {
 		info = " (" + info + ")"
 	}
+
 	duration := time.Duration(span.EndTimestamp - span.StartTimestamp)
-	b.log.Debugf("Span %s:%s(%v) %x/%x/%x %v+%v%s (m:%d)",
-		span.Service, span.Name, span.Tags,
-		span.TraceId, span.ParentId, span.Id,
-		span.StartTimestamp, duration,
-		info, len(span.Metrics),
-	)
+	b.log.WithFields(logrus.Fields{
+		"service":    span.Service,
+		"name":       span.Name,
+		"traceId":    span.TraceId,
+		"parentId":   span.ParentId,
+		"id":         span.Id,
+		"tags":       span.Tags,
+		"start":      span.StartTimestamp,
+		"duration":   duration,
+		"info":       info,
+		"numMetrics": len(span.Metrics),
+	}).Debug("Received span")
 	return nil
 }
 
