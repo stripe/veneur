@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
@@ -109,16 +110,17 @@ func (b *debugSpanSink) Ingest(span *ssf.SSFSpan) error {
 
 	duration := time.Duration(span.EndTimestamp - span.StartTimestamp)
 	b.log.WithFields(logrus.Fields{
-		"service":    span.Service,
-		"name":       span.Name,
-		"traceId":    span.TraceId,
-		"parentId":   span.ParentId,
-		"id":         span.Id,
-		"tags":       span.Tags,
-		"start":      span.StartTimestamp,
-		"duration":   duration,
-		"info":       info,
-		"numMetrics": len(span.Metrics),
+		"service":         span.Service,
+		"validationError": protocol.ValidateTrace(span),
+		"name":            span.Name,
+		"traceId":         span.TraceId,
+		"parentId":        span.ParentId,
+		"id":              span.Id,
+		"tags":            span.Tags,
+		"start":           span.StartTimestamp,
+		"duration":        duration,
+		"info":            info,
+		"numMetrics":      len(span.Metrics),
 	}).Debug("Received span")
 	return nil
 }
