@@ -9,6 +9,7 @@
 
 ## Updated
 * The metric `veneur.sink.spans_dropped_total` now includes packets that were skipped due to UDP write errors. Thanks, [aditya](https://github.com/chimeracoder)!
+* The `debug` blackhole sink features improved logging output, with more data and better formatting. Thanks, [aditya](https://github.com/chimeracoder)!
 
 ## Bugfixes
 * The signalfx client no longer reports a timeout when submission to the datapoint API endpoint encounters an error. Thanks, [antifuchs](https://github.com/antifuchs)!
