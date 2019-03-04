@@ -121,7 +121,7 @@ func (b *debugSpanSink) Ingest(span *ssf.SSFSpan) error {
 		"duration":        duration,
 		"info":            info,
 		"numMetrics":      len(span.Metrics),
-	}).Debug("Received span")
+	}).Debug("Span")
 	return nil
 }
 
