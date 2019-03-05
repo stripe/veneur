@@ -15,6 +15,7 @@
 ## Bugfixes
 * The signalfx client no longer reports a timeout when submission to the datapoint API endpoint encounters an error. Thanks, [antifuchs](https://github.com/antifuchs)!
 * SSF packets without a name are no longer considered valid for `protocol.ValidTrace`. Thanks, [tummychow](https://github.com/tummychow)!
+* The splunk sink no longer hangs or complains when a HEC endpoint should close the connection. Thanks, [antifuchs](https://github.com/antifuchs)!
 
 ## Removed
 * Go 1.10 is no longer supported.
