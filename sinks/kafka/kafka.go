@@ -325,6 +325,7 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 				// If the span isn't tagged appropriately, we should drop it, regardless
 				// of our sample rate.
 				k.logger.Debug("Rejected span without appropriate tag")
+				samples.Add(ssf.Count(sinks.MetricKeyTotalSpansDropped, 1, map[string]string{"sink": k.Name()}))
 				return nil
 			}
 		}
@@ -344,6 +345,7 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 		// we previously computed.
 		if hashKey > k.sampleThreshold {
 			k.logger.WithField("traceId", span.TraceId).WithField("sampleTag", k.sampleTag).WithField("sampleTagValue", sampleTagValue).WithField("hashKey", hashKey).WithField("sampleThreshold", k.sampleThreshold).Debug("Rejected span based off of sampling rules")
+			samples.Add(ssf.Count(sinks.MetricKeyTotalSpansSkipped, 1, map[string]string{"sink": k.Name()}))
 			return nil
 		}
 	}
