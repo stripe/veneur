@@ -1,8 +1,9 @@
 # 13.0.0, in progress
 
-### Added
+## Added
 
 * The Kafka sink now includes metrics for skipped and dropped spans, as well as a debug log line for flushes. Thanks, [franklinhu](https://github.com/franklinhu)
+* The SignalFx sink now supports dynamically fetching per-tag Access tokens from SignalFX. Thanks, [szabado](https://github.com/szabado)!
 
 ## Updated
 

@@ -1,8 +1,10 @@
 package signalfx
 
 import (
+	"bytes"
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"sort"
 	"strconv"
 	"sync"
@@ -71,7 +73,7 @@ func TestNewSignalFxSink(t *testing.T) {
 	// test the variables that have been renamed
 	client := NewClient("http://www.example.com", "secret", http.DefaultClient)
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), client, "", nil, nil, nil, derived, 0)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), client, "", nil, nil, nil, derived, 0, "", false, time.Second, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +98,7 @@ func TestNewSignalFxSink(t *testing.T) {
 func TestSignalFxFlushRouting(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0, "", false, time.Second, "", nil)
 
 	assert.NoError(t, err)
 
@@ -150,7 +152,7 @@ func TestSignalFxFlushRouting(t *testing.T) {
 func TestSignalFxFlushGauge(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0, "", false, time.Second, "", nil)
 
 	assert.NoError(t, err)
 
@@ -186,7 +188,7 @@ func TestSignalFxFlushGauge(t *testing.T) {
 func TestSignalFxFlushCounter(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0, "", false, time.Second, "", nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{samplers.InterMetric{
@@ -223,7 +225,7 @@ func TestSignalFxFlushCounter(t *testing.T) {
 func TestSignalFxFlushWithDrops(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, []string{"foo.bar"}, []string{"baz:gorch"}, derived, 0)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, []string{"foo.bar"}, []string{"baz:gorch"}, derived, 0, "", false, time.Second, "", nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{
@@ -272,7 +274,7 @@ func TestSignalFxFlushWithDrops(t *testing.T) {
 func TestSignalFxFlushStatus(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0, "", false, time.Second, "", nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{samplers.InterMetric{
@@ -310,7 +312,7 @@ func TestSignalFxFlushStatus(t *testing.T) {
 func TestSignalFxServiceCheckFlushOther(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0, "", false, time.Second, "", nil)
 	assert.NoError(t, err)
 
 	serviceCheckMsg := "Service Farts starting[an example link](http://catchpoint.com/session_id \"Title\")"
@@ -331,7 +333,7 @@ func TestSignalFxServiceCheckFlushOther(t *testing.T) {
 func TestSignalFxEventFlush(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0, "", false, time.Second, "", nil)
 	assert.NoError(t, err)
 
 	evMessage := "[an example link](http://catchpoint.com/session_id \"Title\")"
@@ -362,7 +364,7 @@ func TestSignalFxEventFlush(t *testing.T) {
 func TestSignalFxSetExcludeTags(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie", "boo": "snakes"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie", "boo": "snakes"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0, "", false, time.Second, "", nil)
 
 	sink.SetExcludedTags([]string{"foo", "boo", "host"})
 	assert.NoError(t, err)
@@ -426,7 +428,7 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 	specialized := NewFakeSink()
 
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{"available": specialized}, nil, nil, derived, 0)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{"available": specialized}, nil, nil, derived, 0, "", false, time.Second, "", nil)
 
 	assert.NoError(t, err)
 
@@ -497,7 +499,7 @@ func TestSignalFxFlushBatches(t *testing.T) {
 
 	derived := newDerivedProcessor()
 	perBatch := 1
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{}, nil, nil, derived, perBatch)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{}, nil, nil, derived, perBatch, "", false, time.Second, "", nil)
 
 	assert.NoError(t, err)
 
@@ -544,4 +546,148 @@ func TestNewSinkDoubleSlashes(t *testing.T) {
 	cl := NewClient("http://example.com/", "foo", nil).(*sfxclient.HTTPSink)
 	assert.Equal(t, "http://example.com/v2/datapoint", cl.DatapointEndpoint)
 	assert.Equal(t, "http://example.com/v2/event", cl.EventEndpoint)
+}
+
+const (
+	response1 = `{
+  "results": [
+    {
+      "name": "service",
+      "secret": "accessToken"
+    },
+    {
+      "name": "differentService",
+      "secret": "differentAccessToken"
+    }
+  ]
+}`
+	response2 = `{
+  "results": [
+  ]
+}`
+	response3 = `{
+  "results": [
+    {
+      "name": "thirdService",
+      "secret": "thirdAccessToken"
+    }
+  ]
+}`
+)
+
+func TestSignalFxExtractTokensFromResponse(t *testing.T) {
+	tests := []struct {
+		input         string
+		output        map[string]string
+		expectedCount int
+	}{
+		{
+			input: response1,
+			output: map[string]string{
+				"service":          "accessToken",
+				"differentService": "differentAccessToken",
+			},
+			expectedCount: 2,
+		},
+		{
+			input:         response2,
+			output:        map[string]string{},
+			expectedCount: 0,
+		},
+	}
+
+	for _, test := range tests {
+		result := make(map[string]string)
+		b := bytes.NewBufferString(test.input)
+
+		count, err := extractTokensFromResponse(result, b)
+
+		require.NoError(t, err)
+		require.Equal(t, test.expectedCount, count)
+		require.Equal(t, test.output, result)
+	}
+}
+
+type mockHandler struct {
+	returns []string
+	index   int
+}
+
+func (m *mockHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+	if m.index >= len(m.returns) {
+		resp.WriteHeader(http.StatusBadRequest)
+		resp.Write([]byte("not enough responses specified"))
+		return
+	}
+
+	resp.WriteHeader(http.StatusOK)
+	resp.Write([]byte(m.returns[m.index]))
+	m.index++
+}
+
+func TestSignalFxFetchAPITokens(t *testing.T) {
+	m := &mockHandler{
+		returns: []string{
+			response1,
+			response3,
+			response2,
+		},
+	}
+
+	server := httptest.NewServer(m)
+
+	expected := map[string]string{
+		"service":          "accessToken",
+		"differentService": "differentAccessToken",
+		"thirdService":     "thirdAccessToken",
+	}
+
+	result, err := fetchAPIKeys(server.Client(), server.URL, "")
+	require.NoError(t, err)
+	require.Equal(t, expected, result)
+}
+
+func TestSignalFxClientByTagUpdater(t *testing.T) {
+	m := &mockHandler{
+		returns: []string{
+			response1,
+			response3,
+			response2,
+		},
+	}
+
+	server := httptest.NewServer(m)
+
+	fallback := NewFakeSink()
+
+	derived := newDerivedProcessor()
+	perBatch := 1
+
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{}, nil, nil, derived, perBatch, "", true, 5*time.Millisecond, server.URL, server.Client())
+	require.NoError(t, err)
+
+	err = sink.Start(nil)
+	require.NoError(t, err)
+
+	time.Sleep(50 * time.Millisecond)
+
+	sink.clientsByTagValueMu.Lock()
+
+	expectedPerTagClients := []string{
+		"service",
+		"differentService",
+		"thirdService",
+	}
+
+	actualPerTagClients := make([]string, 0)
+
+	for tag, client := range sink.clientsByTagValue {
+		actualPerTagClients = append(actualPerTagClients, tag)
+		require.NotNil(t, client)
+	}
+
+	sort.Strings(expectedPerTagClients)
+	sort.Strings(actualPerTagClients)
+
+	require.Equal(t, expectedPerTagClients, actualPerTagClients)
 }
