@@ -390,6 +390,9 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 func (k *KafkaSpanSink) Flush() {
 	// TODO We have no stuff in here for detecting failed writes from the async
 	// producer. We should add that.
+	k.logger.WithFields(logrus.Fields{
+		"flushed_spans": atomic.LoadInt64(&k.spansFlushed),
+	}).Debug("Checkpointing flushed spans for Kafka")
 	metrics.ReportOne(k.traceClient, ssf.Count(sinks.MetricKeyTotalSpansFlushed, float32(atomic.LoadInt64(&k.spansFlushed)), map[string]string{"sink": k.Name()}))
 	atomic.SwapInt64(&k.spansFlushed, 0)
 }
