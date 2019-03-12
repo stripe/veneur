@@ -1,5 +1,9 @@
 # 13.0.0, in progress
 
+### Added
+
+* The Kafka sink now includes metrics for skipped and dropped spans, as well as a debug log line for flushes. Thanks, [franklinhu](https://github.com/franklinhu)
+
 # 12.0.0, 2019-03-06
 
 ## Added
