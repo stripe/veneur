@@ -8,6 +8,10 @@
 
 * Updated the vendored version of DataDog/datadog-go which adds support for sending metrics to Unix Domain socket. Thanks, [prudhvi](https://github.com/prudhvi)!
 
+## Bugfixes
+
+* The splunk HEC span sink didn't correctly spawn the number of submission workers configured with `splunk_hec_submission_workers`, only spawning one. Now it spawns the number configured. Thanks, [antifuchs](https://github.com/antifuchs)!
+
 # 12.0.0, 2019-03-06
 
 ## Added
