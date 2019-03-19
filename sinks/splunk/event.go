@@ -50,17 +50,6 @@ func (e *Event) SetTime(time time.Time) {
 	e.Time = String(epochTime(&time))
 }
 
-func (e *Event) empty() bool {
-	switch e.Event.(type) {
-	case *string:
-		return e.Event.(*string) == nil || *e.Event.(*string) == ""
-	case string:
-		return e.Event.(string) == ""
-	default:
-		return e.Event == nil
-	}
-}
-
 func epochTime(t *time.Time) string {
 	millis := t.UnixNano() / 1000000
 	return fmt.Sprintf("%d.%03d", millis/1000, millis%1000)
