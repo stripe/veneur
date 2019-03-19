@@ -133,6 +133,7 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 		rand:               mrand.New(mrand.NewSource(seed.Int64())),
 		maxConnLifetime:    maxConnLifetime,
 		connLifetimeJitter: connLifetimeJitter,
+		workers:            workers,
 	}, nil
 }
 
