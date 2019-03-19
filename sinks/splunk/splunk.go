@@ -52,10 +52,9 @@ type splunkSpanSink struct {
 
 	workers int
 
-	batchSize            int
-	hecSubmissionWorkers int
-	ingestedSpans        uint32
-	droppedSpans         uint32
+	batchSize     int
+	ingestedSpans uint32
+	droppedSpans  uint32
 
 	ingest chan *Event
 
@@ -322,7 +321,7 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request, cancel func()) {
 	start := time.Now()
 	defer func() {
 		cancel()
-		samples.Add(ssf.Timing(timingMetric, time.Now().Sub(start),
+		samples.Add(ssf.Timing(timingMetric, time.Since(start),
 			time.Nanosecond, map[string]string{}))
 	}()
 
@@ -425,7 +424,6 @@ func (sss *splunkSpanSink) Flush() {
 	)
 
 	metrics.Report(sss.traceClient, samples)
-	return
 }
 
 // Ingest takes in a span and batches it up to be sent in the next

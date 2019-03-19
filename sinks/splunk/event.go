@@ -20,11 +20,11 @@ type Event struct {
 
 func NewEvent(data interface{}) *Event {
 	// Empty event is not allowed, but let HEC complain the error
-	switch data.(type) {
+	switch data := data.(type) {
 	case *string:
-		return &Event{Event: *data.(*string)}
+		return &Event{Event: *data}
 	case string:
-		return &Event{Event: data.(string)}
+		return &Event{Event: data}
 	default:
 		return &Event{Event: data}
 	}

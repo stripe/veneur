@@ -28,7 +28,7 @@ func jsonEndpoint(t testing.TB, ch chan<- splunk.Event) http.Handler {
 		failed := false
 		j := json.NewDecoder(r.Body)
 		defer func() {
-			ioutil.ReadAll(r.Body)
+			_, _ = ioutil.ReadAll(r.Body)
 			r.Body.Close()
 		}()
 
@@ -118,7 +118,7 @@ func TestSpanIngestBatch(t *testing.T) {
 		require.NoError(t, err)
 		output := splunk.SerializedSSF{}
 		err = json.Unmarshal(spanB, &output)
-
+		require.NoError(t, err)
 		assert.Equal(t, float64(span.StartTimestamp)/float64(time.Second), output.StartTimestamp)
 		assert.Equal(t, float64(span.EndTimestamp)/float64(time.Second), output.EndTimestamp)
 
@@ -290,7 +290,7 @@ func TestSampling(t *testing.T) {
 
 	// check how many events we got:
 	events := 0
-	for _ = range ch {
+	for range ch {
 		events++
 		// Don't close the receiving end until the first
 		// span, to avoid failing the test by racing the
@@ -351,7 +351,7 @@ func TestSamplingIndicators(t *testing.T) {
 
 	// check how many events we got:
 	events := 0
-	for _ = range ch {
+	for range ch {
 		events++
 		// Don't close the receiving end until the first
 		// span, to avoid failing the test by racing the
@@ -371,8 +371,7 @@ func TestClosedIngestionEndpoint(t *testing.T) {
 	logger := logrus.StandardLogger()
 
 	ch := make(chan splunk.Event, nToFlush)
-	var ts *httptest.Server
-	ts = httptest.NewServer(jsonEndpoint(t, ch))
+	ts := httptest.NewServer(jsonEndpoint(t, ch))
 	defer func() {
 		ts.Close()
 	}()
@@ -415,7 +414,7 @@ func TestClosedIngestionEndpoint(t *testing.T) {
 	sink.Sync()
 	sink.Stop()
 	events := 0
-	for _ = range ch {
+	for range ch {
 		events++
 		// Don't close the receiving end until the first
 		// span, to avoid failing the test by racing the
