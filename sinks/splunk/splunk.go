@@ -205,9 +205,10 @@ func (sss *splunkSpanSink) batchTimeout() (time.Duration, bool) {
 // the HEC.
 func (sss *splunkSpanSink) setupHTTPRequest(ctx context.Context) (context.CancelFunc, *hecRequest, io.Writer, error) {
 	ctx, cancel := context.WithCancel(ctx)
-	hecReq, err := sss.hec.newRequest()
+	hecReq := sss.hec.newRequest()
 	req, w, err := hecReq.Start(ctx)
 	if err != nil {
+		cancel()
 		return nil, nil, nil, err
 	}
 
