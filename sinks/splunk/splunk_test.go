@@ -183,13 +183,14 @@ func TestTimeout(t *testing.T) {
 	}
 
 	sink.Sync()
-	ms := <-spans
-	require.NotNil(t, ms)
 	var found *ssf.SSFSample
-	for _, sample := range ms.Metrics {
-		if strings.HasSuffix(sample.Name, "splunk.hec_submission_failed_total") {
-			found = sample
-			break
+readMetrics:
+	for ms := range spans {
+		for _, sample := range ms.Metrics {
+			if strings.HasSuffix(sample.Name, "splunk.hec_submission_failed_total") {
+				found = sample
+				break readMetrics
+			}
 		}
 	}
 	require.NotNil(t, found, "Expected a timeout metric to be reported")
