@@ -20,11 +20,11 @@ type Event struct {
 
 func NewEvent(data interface{}) *Event {
 	// Empty event is not allowed, but let HEC complain the error
-	switch data.(type) {
+	switch data := data.(type) {
 	case *string:
-		return &Event{Event: *data.(*string)}
+		return &Event{Event: *data}
 	case string:
-		return &Event{Event: data.(string)}
+		return &Event{Event: data}
 	default:
 		return &Event{Event: data}
 	}
@@ -48,17 +48,6 @@ func (e *Event) SetSource(source string) {
 
 func (e *Event) SetTime(time time.Time) {
 	e.Time = String(epochTime(&time))
-}
-
-func (e *Event) empty() bool {
-	switch e.Event.(type) {
-	case *string:
-		return e.Event.(*string) == nil || *e.Event.(*string) == ""
-	case string:
-		return e.Event.(string) == ""
-	default:
-		return e.Event == nil
-	}
 }
 
 func epochTime(t *time.Time) string {

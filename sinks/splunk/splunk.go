@@ -52,10 +52,9 @@ type splunkSpanSink struct {
 
 	workers int
 
-	batchSize            int
-	hecSubmissionWorkers int
-	ingestedSpans        uint32
-	droppedSpans         uint32
+	batchSize     int
+	ingestedSpans uint32
+	droppedSpans  uint32
 
 	ingest chan *Event
 
@@ -134,6 +133,7 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 		rand:               mrand.New(mrand.NewSource(seed.Int64())),
 		maxConnLifetime:    maxConnLifetime,
 		connLifetimeJitter: connLifetimeJitter,
+		workers:            workers,
 	}, nil
 }
 
@@ -205,9 +205,10 @@ func (sss *splunkSpanSink) batchTimeout() (time.Duration, bool) {
 // the HEC.
 func (sss *splunkSpanSink) setupHTTPRequest(ctx context.Context) (context.CancelFunc, *hecRequest, io.Writer, error) {
 	ctx, cancel := context.WithCancel(ctx)
-	hecReq, err := sss.hec.newRequest()
+	hecReq := sss.hec.newRequest()
 	req, w, err := hecReq.Start(ctx)
 	if err != nil {
+		cancel()
 		return nil, nil, nil, err
 	}
 
@@ -321,7 +322,7 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request, cancel func()) {
 	start := time.Now()
 	defer func() {
 		cancel()
-		samples.Add(ssf.Timing(timingMetric, time.Now().Sub(start),
+		samples.Add(ssf.Timing(timingMetric, time.Since(start),
 			time.Nanosecond, map[string]string{}))
 	}()
 
@@ -424,7 +425,6 @@ func (sss *splunkSpanSink) Flush() {
 	)
 
 	metrics.Report(sss.traceClient, samples)
-	return
 }
 
 // Ingest takes in a span and batches it up to be sent in the next
