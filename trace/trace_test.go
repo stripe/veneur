@@ -225,7 +225,8 @@ func TestError(t *testing.T) {
 	err := localError{errorMessage}
 
 	root := StartTrace(resource)
-	root.Error(err)
+	errReturned := root.Error(err)
+	assert.Equal(t, err, errReturned)
 
 	assert.Equal(t, root.Status, ssf.SSFSample_CRITICAL)
 	assert.Equal(t, len(root.Tags), 3)

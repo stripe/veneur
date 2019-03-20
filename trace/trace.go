@@ -204,7 +204,14 @@ func (t *Trace) ClientRecord(cl *Client, name string, tags map[string]string) er
 	return Record(cl, span, t.Sent)
 }
 
-func (t *Trace) Error(err error) {
+// Error marks the trace span as failed by setting the Error flag and
+// by attaching information about the error as tags to the span. Error
+// returns the error it was given, so users can use it like so:
+//
+//     if err != nil {
+//         return span.Error(err)
+//     }
+func (t *Trace) Error(err error) error {
 	t.Status = ssf.SSFSample_CRITICAL
 	t.error = true
 
@@ -220,6 +227,7 @@ func (t *Trace) Error(err error) {
 	t.Tags[errorMessageTag] = err.Error()
 	t.Tags[errorTypeTag] = errorType
 	t.Tags[errorStackTag] = err.Error()
+	return err
 }
 
 // Attach attaches the current trace to the context
