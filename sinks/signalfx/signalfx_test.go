@@ -539,3 +539,9 @@ func TestSignalFxFlushBatches(t *testing.T) {
 	assert.True(t, found["first"])
 	assert.True(t, found["second"])
 }
+
+func TestNewSinkDoubleSlashes(t *testing.T) {
+	cl := NewClient("http://example.com/", "foo", nil).(*sfxclient.HTTPSink)
+	assert.Equal(t, "http://example.com/v2/datapoint", cl.DatapointEndpoint)
+	assert.Equal(t, "http://example.com/v2/event", cl.EventEndpoint)
+}

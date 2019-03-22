@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -22,6 +23,26 @@ import (
 
 const EventNameMaxLength = 256
 const EventDescriptionMaxLength = 256
+
+var datapointURL *url.URL
+var eventURL *url.URL
+
+const (
+	datapointAddr string = "/v2/datapoint"
+	eventAddr     string = "/v2/event"
+)
+
+func init() {
+	var err error
+	datapointURL, err = url.Parse(datapointAddr)
+	if err != nil {
+		panic(fmt.Sprintf("Could not parse %q: %v", datapointAddr, err))
+	}
+	eventURL, err = url.Parse(eventAddr)
+	if err != nil {
+		panic(fmt.Sprintf("Could not parse %q: %v", eventAddr, err))
+	}
+}
 
 // collection is a structure that aggregates signalfx data points
 // per-endpoint. It takes care of collecting the metrics by the tag
@@ -138,10 +159,14 @@ type DPClient dpsink.Sink
 // NewClient constructs a new signalfx HTTP client for the given
 // endpoint and API token.
 func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
+	baseURL, err := url.Parse(endpoint)
+	if err != nil {
+		panic(fmt.Sprintf("Could not parse endpoint base URL %q: %v", endpoint, err))
+	}
 	httpSink := sfxclient.NewHTTPSink()
 	httpSink.AuthToken = apiKey
-	httpSink.DatapointEndpoint = fmt.Sprintf("%s/v2/datapoint", endpoint)
-	httpSink.EventEndpoint = fmt.Sprintf("%s/v2/event", endpoint)
+	httpSink.DatapointEndpoint = baseURL.ResolveReference(datapointURL).String()
+	httpSink.EventEndpoint = baseURL.ResolveReference(eventURL).String()
 	httpSink.Client = client
 	return httpSink
 }
