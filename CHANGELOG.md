@@ -11,6 +11,7 @@
 ## Bugfixes
 
 * The splunk HEC span sink didn't correctly spawn the number of submission workers configured with `splunk_hec_submission_workers`, only spawning one. Now it spawns the number configured. Thanks, [antifuchs](https://github.com/antifuchs)!
+* The signalfx sink now correctly constructs ingestion endpoint URLs when given URLs that end in slashes. Thanks, [antifuchs](https://github.com/antifuchs)!
 
 # 12.0.0, 2019-03-06
 
