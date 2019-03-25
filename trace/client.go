@@ -57,14 +57,15 @@ type Client struct {
 	flushBackends []flushNotifier
 
 	// Parameters adjusted by client initialization:
-	backendParams *backendParams
-	nBackends     uint
-	cap           uint
-	cancel        context.CancelFunc
-	flush         func(context.Context)
-	report        func(context.Context)
-	records       chan *recordOp
-	spans         chan<- *ssf.SSFSpan
+	backendParams      *backendParams
+	nBackends          uint
+	cap                uint
+	cancel             context.CancelFunc
+	flush              func(context.Context)
+	report             func(context.Context)
+	records            chan *recordOp
+	spans              chan<- *ssf.SSFSpan
+	defaultSampleScope ssf.SSFSample_Scope
 
 	// statistics:
 	failedFlushes     int64
@@ -281,6 +282,13 @@ func ParallelBackends(nBackends uint) ClientParam {
 			return ErrClientNotNetworked
 		}
 		cl.nBackends = nBackends
+		return nil
+	}
+}
+
+func DefaultSampleScope(scope ssf.SampleScope) ClientParam {
+	return func(cl *Client) error {
+		cl.defaultSampleScope = ssf.SSFSample_Scope(scope)
 		return nil
 	}
 }
