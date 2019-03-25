@@ -24,6 +24,8 @@ type Config struct {
 	GrpcAddress                   string    `yaml:"grpc_address"`
 	Hostname                      string    `yaml:"hostname"`
 	HTTPAddress                   string    `yaml:"http_address"`
+	HTTPEnvoyTimeoutAllowance     string    `yaml:"http_envoy_timeout_allowance"`
+	HTTPUseEnvoy                  bool      `yaml:"http_use_envoy"`
 	IndicatorSpanTimerName        string    `yaml:"indicator_span_timer_name"`
 	Interval                      string    `yaml:"interval"`
 	KafkaBroker                   string    `yaml:"kafka_broker"`

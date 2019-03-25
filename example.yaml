@@ -211,7 +211,14 @@ sentry_dsn: ""
 # Enables Go profiling
 enable_profiling: false
 
+# == HTTP ==
 
+# Set envoy timeout headers for outgoing HTTP requests
+http_use_envoy: true
+
+# Amount of time by which to reduce the envoy timeout, to create a
+# "timeout funnel".
+http_envoy_timeout_allowance: 5ms
 
 # == SINKS ==
 

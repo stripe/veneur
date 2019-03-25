@@ -35,6 +35,7 @@ import (
 	"github.com/pkg/profile"
 
 	vhttp "github.com/stripe/veneur/http"
+	"github.com/stripe/veneur/http/envoyhttp"
 	"github.com/stripe/veneur/importsrv"
 	"github.com/stripe/veneur/plugins"
 	localfilep "github.com/stripe/veneur/plugins/localfile"
@@ -179,8 +180,21 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		return ret, err
 	}
 
-	transport := &http.Transport{
+	var transport http.RoundTripper = &http.Transport{
 		IdleConnTimeout: ret.interval * 2, // If we're idle more than one interval something is up
+	}
+	if conf.HTTPUseEnvoy {
+		et := &envoyhttp.Transport{
+			Inner: transport,
+		}
+		if conf.HTTPEnvoyTimeoutAllowance != "" {
+			allowance, err := time.ParseDuration(conf.HTTPEnvoyTimeoutAllowance)
+			if err != nil {
+				return ret, err
+			}
+			et.ExtraAllowance = allowance
+		}
+		transport = et
 	}
 
 	ret.HTTPClient = &http.Client{
