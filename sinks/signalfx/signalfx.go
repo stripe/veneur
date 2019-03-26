@@ -159,7 +159,8 @@ type SignalFxSink struct {
 	metricTagPrefixDrops      []string
 	derivedMetrics            samplers.DerivedMetricsProcessor
 	maxPointsInBatch          int
-	endpoint                  string
+	metricsEndpoint           string
+	apiEndpoint               string
 	httpClient                *http.Client
 }
 
@@ -183,7 +184,7 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 }
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagPrefixDrops []string, derivedMetrics samplers.DerivedMetricsProcessor, maxPointsInBatch int, defaultToken string, enableDynamicPerTagTokens bool, dynamicKeyRefreshPeriod time.Duration, endpoint string, httpClient *http.Client) (*SignalFxSink, error) {
+func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagPrefixDrops []string, derivedMetrics samplers.DerivedMetricsProcessor, maxPointsInBatch int, defaultToken string, enableDynamicPerTagTokens bool, dynamicKeyRefreshPeriod time.Duration, metricsEndpoint string, apiEndpoint string, httpClient *http.Client) (*SignalFxSink, error) {
 	return &SignalFxSink{
 		defaultClient:             client,
 		clientsByTagValueMu:       &sync.RWMutex{},
@@ -200,7 +201,8 @@ func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[s
 		metricTagPrefixDrops:      metricTagPrefixDrops,
 		derivedMetrics:            derivedMetrics,
 		maxPointsInBatch:          maxPointsInBatch,
-		endpoint:                  endpoint,
+		metricsEndpoint:           metricsEndpoint,
+		apiEndpoint:               apiEndpoint,
 		httpClient:                httpClient,
 	}, nil
 }
@@ -236,7 +238,7 @@ func (sfx *SignalFxSink) clientByTagUpdater() {
 		return
 	}
 
-	endpoint, err := url.Parse(sfx.endpoint)
+	endpoint, err := url.Parse(sfx.apiEndpoint)
 	if err != nil {
 		sfx.log.WithError(err).Warn("Failed to parse SignalFX endpoint")
 		return
@@ -258,7 +260,7 @@ func (sfx *SignalFxSink) clientByTagUpdater() {
 
 		for name, token := range tokens {
 			sfx.clientsByTagValueMu.Lock()
-			sfx.clientsByTagValue[name] = NewClient(sfx.endpoint, token, sfx.httpClient)
+			sfx.clientsByTagValue[name] = NewClient(sfx.metricsEndpoint, token, sfx.httpClient)
 			sfx.clientsByTagValueMu.Unlock()
 		}
 	}
