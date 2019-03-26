@@ -156,6 +156,82 @@ func SetLogger(logger *logrus.Logger) {
 	log = logger
 }
 
+func scopeFromName(name string) (ssf.SSFSample_Scope, error) {
+	switch name {
+	case "default":
+		fallthrough
+	case "":
+		return ssf.SSFSample_DEFAULT, nil
+	case "global":
+		return ssf.SSFSample_GLOBAL, nil
+	case "local":
+		return ssf.SSFSample_LOCAL, nil
+	default:
+		return 0, fmt.Errorf("unknown metric scope option %q", name)
+	}
+}
+
+func normalizeSpans(conf Config) trace.ClientParam {
+	return func(cl *trace.Client) error {
+		var err error
+		typeScopes := map[ssf.SSFSample_Metric]ssf.SSFSample_Scope{}
+		typeScopes[ssf.SSFSample_COUNTER], err = scopeFromName(conf.VeneurMetricsScopes.Counter)
+		if err != nil {
+			return err
+		}
+		typeScopes[ssf.SSFSample_GAUGE], err = scopeFromName(conf.VeneurMetricsScopes.Gauge)
+		if err != nil {
+			return err
+		}
+		typeScopes[ssf.SSFSample_HISTOGRAM], err = scopeFromName(conf.VeneurMetricsScopes.Histogram)
+		if err != nil {
+			return err
+		}
+		typeScopes[ssf.SSFSample_SET], err = scopeFromName(conf.VeneurMetricsScopes.Set)
+		if err != nil {
+			return err
+		}
+		typeScopes[ssf.SSFSample_STATUS], err = scopeFromName(conf.VeneurMetricsScopes.Status)
+		if err != nil {
+			return err
+		}
+
+		tags := map[string]string{}
+		for _, elem := range conf.VeneurMetricsAdditionalTags {
+			tag := strings.SplitN(elem, ":", 2)
+			switch len(tag) {
+			case 2:
+				tags[tag[0]] = tag[1]
+			case 1:
+				tags[tag[0]] = ""
+			}
+		}
+
+		normalizer := func(sample *ssf.SSFSample) {
+			// adjust tags:
+			if sample.Tags == nil {
+				sample.Tags = map[string]string{}
+			}
+			for k, v := range tags {
+				if _, ok := sample.Tags[k]; ok {
+					// do not overwrite existing tags:
+					continue
+				}
+				sample.Tags[k] = v
+			}
+
+			// adjust the scope:
+			toScope := typeScopes[sample.Metric]
+			if sample.Scope != ssf.SSFSample_DEFAULT || toScope == ssf.SSFSample_DEFAULT {
+				return
+			}
+			sample.Scope = toScope
+		}
+		option := trace.NormalizeSamples(normalizer)
+		return option(cl)
+	}
+}
+
 // NewFromConfig creates a new veneur server from a configuration
 // specification and sets up the passed logger according to the
 // configuration.
@@ -206,6 +282,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.SpanChan = make(chan *ssf.SSFSpan, conf.SpanChannelCapacity)
 	ret.TraceClient, err = trace.NewChannelClient(ret.SpanChan,
 		trace.ReportStatistics(stats, 1*time.Second, []string{"ssf_format:internal"}),
+		normalizeSpans(conf),
 	)
 	if err != nil {
 		return ret, err

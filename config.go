@@ -98,7 +98,15 @@ type Config struct {
 	TraceLightstepNumClients          int      `yaml:"trace_lightstep_num_clients"`
 	TraceLightstepReconnectPeriod     string   `yaml:"trace_lightstep_reconnect_period"`
 	TraceMaxLengthBytes               int      `yaml:"trace_max_length_bytes"`
-	XrayAddress                       string   `yaml:"xray_address"`
-	XrayAnnotationTags                []string `yaml:"xray_annotation_tags"`
-	XraySamplePercentage              int      `yaml:"xray_sample_percentage"`
+	VeneurMetricsAdditionalTags       []string `yaml:"veneur_metrics_additional_tags"`
+	VeneurMetricsScopes               struct {
+		Counter   string `yaml:"counter"`
+		Gauge     string `yaml:"gauge"`
+		Histogram string `yaml:"histogram"`
+		Set       string `yaml:"set"`
+		Status    string `yaml:"status"`
+	} `yaml:"veneur_metrics_scopes"`
+	XrayAddress          string   `yaml:"xray_address"`
+	XrayAnnotationTags   []string `yaml:"xray_annotation_tags"`
+	XraySamplePercentage int      `yaml:"xray_sample_percentage"`
 }

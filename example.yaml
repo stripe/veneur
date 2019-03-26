@@ -128,6 +128,41 @@ aggregates:
  - "max"
  - "count"
 
+# Metrics that Veneur reports about its own operation. Each of the
+# entries here can have the value "global", "local", "default" and ""
+# ("default" and "" mean the same thing). Setting
+# this to any value other than the default will make all metrics
+# of that type have the following behavior:
+#
+#  - "default"/"": scope remains unchanged
+#  - "global": scope for "default"-scoped metrics of that type will be
+#    changed to global, so they get forwarded to a global veneur node.
+#  - "local": scope for "default"-scoped metrics of that type will be
+#    changed to local, so they get reported from the local veneur node
+#    only.
+#
+# When this is unset in configuration, the default values for all
+# metric types are "", indicating that veneur will use the default
+# scope for each of the metrics it reports.
+veneur_metrics_scopes:
+  counter: local
+
+  # changing the setting for "gauge" to "global" is not recommended,
+  # as the global aggregation method for gauges is "last write wins".
+  gauge: local
+
+  histogram: global
+
+  set: global
+
+  status: local
+
+
+# Tags supplied here will be attached to all metrics that veneur
+# reports about its own operation.
+veneur_metrics_additional_tags:
+  - "veneur_internal_metric:true"
+
 # == DEPRECATED ==
 
 # This configuration has been replaced by datadog_flush_max_per_body.
