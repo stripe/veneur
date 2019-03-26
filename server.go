@@ -42,6 +42,7 @@ import (
 	s3p "github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/scopedstatsd"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/sinks/datadog"
 	"github.com/stripe/veneur/sinks/debug"
@@ -84,7 +85,7 @@ type Server struct {
 	SpanWorker           *SpanWorker
 	SpanWorkerGoroutines int
 
-	Statsd *statsd.Client
+	Statsd scopedstatsd.Client
 	Sentry *raven.Client
 
 	Hostname  string
@@ -232,6 +233,24 @@ func normalizeSpans(conf Config) trace.ClientParam {
 	}
 }
 
+func scopesFromConfig(conf Config) (scopedstatsd.MetricScopes, error) {
+	var err error
+	var ms scopedstatsd.MetricScopes
+	ms.Gauge, err = scopeFromName(conf.VeneurMetricsScopes.Gauge)
+	if err != nil {
+		return ms, err
+	}
+	ms.Count, err = scopeFromName(conf.VeneurMetricsScopes.Counter)
+	if err != nil {
+		return ms, err
+	}
+	ms.Histogram, err = scopeFromName(conf.VeneurMetricsScopes.Histogram)
+	if err != nil {
+		return ms, err
+	}
+	return ms, nil
+}
+
 // NewFromConfig creates a new veneur server from a configuration
 // specification and sets up the passed logger according to the
 // configuration.
@@ -277,7 +296,11 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 	stats.Namespace = "veneur."
 
-	ret.Statsd = stats
+	scopes, err := scopesFromConfig(conf)
+	if err != nil {
+		return ret, err
+	}
+	ret.Statsd = scopedstatsd.NewClient(stats, conf.VeneurMetricsAdditionalTags, scopes)
 
 	ret.SpanChan = make(chan *ssf.SSFSpan, conf.SpanChannelCapacity)
 	ret.TraceClient, err = trace.NewChannelClient(ret.SpanChan,

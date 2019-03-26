@@ -7,11 +7,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/samplers/metricpb"
+	"github.com/stripe/veneur/scopedstatsd"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
@@ -38,7 +38,7 @@ type Worker struct {
 	traceClient      *trace.Client
 	logger           *logrus.Logger
 	wm               WorkerMetrics
-	stats            *statsd.Client
+	stats            scopedstatsd.Client
 }
 
 // IngestUDP on a Worker feeds the metric into the worker's PacketChan.
@@ -233,7 +233,7 @@ func (wm WorkerMetrics) appendExportedMetric(res []*metricpb.Metric, exp metricE
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, cl *trace.Client, logger *logrus.Logger, stats *statsd.Client) *Worker {
+func NewWorker(id int, cl *trace.Client, logger *logrus.Logger, stats scopedstatsd.Client) *Worker {
 	return &Worker{
 		id:               id,
 		PacketChan:       make(chan samplers.UDPMetric, 32),
@@ -471,11 +471,11 @@ type EventWorker struct {
 	mutex       *sync.Mutex
 	samples     []ssf.SSFSample
 	traceClient *trace.Client
-	stats       *statsd.Client
+	stats       scopedstatsd.Client
 }
 
 // NewEventWorker creates an EventWorker ready to collect events and service checks.
-func NewEventWorker(cl *trace.Client, stats *statsd.Client) *EventWorker {
+func NewEventWorker(cl *trace.Client, stats scopedstatsd.Client) *EventWorker {
 	return &EventWorker{
 		sampleChan:  make(chan ssf.SSFSample),
 		mutex:       &sync.Mutex{},
@@ -523,13 +523,13 @@ type SpanWorker struct {
 	// cumulative time spent per sink, in nanoseconds
 	cumulativeTimes []int64
 	traceClient     *trace.Client
-	statsd          *statsd.Client
+	statsd          scopedstatsd.Client
 	capCount        int64
 	emptySSFCount   int64
 }
 
 // NewSpanWorker creates a SpanWorker ready to collect events and service checks.
-func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, statsd *statsd.Client, spanChan <-chan *ssf.SSFSpan, commonTags map[string]string) *SpanWorker {
+func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, statsd scopedstatsd.Client, spanChan <-chan *ssf.SSFSpan, commonTags map[string]string) *SpanWorker {
 	tags := make([]map[string]string, len(sinks))
 	for i, sink := range sinks {
 		tags[i] = map[string]string{
