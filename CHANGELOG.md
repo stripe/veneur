@@ -6,6 +6,8 @@
 * A flush "watchdog" controlled by the config setting `flush_watchdog_missed_flushes`. If veneur has not started this many flushes, the watchdog panics and terminates veneur (so it can be restarted by process supervision). Thanks, [antifuchs](https://github.com/antifuchs)!
 * Splunk sink: Trace-related IDs are now represented in hexadecimal for cross-tool compatibility and a small byte savings. Thanks, [myndzi](https://github.com/myndzi)
 * Splunk sink: Indicator spans are now tagged with `"partial":true` when they would otherwise have been sampled, distinguishing between partial and full traces. Thanks, [myndzi](https://github.com/myndzi)
+* New configuration options `veneur_metrics_scopes` and `veneur_metrics_additional_tags`, which allow configuring veneur such that it aggregates its own metrics globally (rather than reporting a set of internal metrics per instance/container/etc). Thanks, [antifuchs](https://github.com/antifuchs)!
+* New SSF `sample` field: `scope`. This field lets clients tell Veneur what to do with the sample - it corresponds exactly to the `veneurglobalonly` and `veneurlocalonly` tags that metrics can hold. Thanks, [antifuchs](https://github.com/antifuchs)!
 
 ## Updated
 
