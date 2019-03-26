@@ -85,7 +85,7 @@ type Server struct {
 	SpanWorker           *SpanWorker
 	SpanWorkerGoroutines int
 
-	Statsd scopedstatsd.Client
+	Statsd *scopedstatsd.ScopedClient
 	Sentry *raven.Client
 
 	Hostname  string

@@ -246,7 +246,7 @@ func NewWorker(id int, cl *trace.Client, logger *logrus.Logger, stats scopedstat
 		traceClient:      cl,
 		logger:           logger,
 		wm:               NewWorkerMetrics(),
-		stats:            stats,
+		stats:            scopedstatsd.Ensure(stats),
 	}
 }
 
@@ -480,7 +480,7 @@ func NewEventWorker(cl *trace.Client, stats scopedstatsd.Client) *EventWorker {
 		sampleChan:  make(chan ssf.SSFSample),
 		mutex:       &sync.Mutex{},
 		traceClient: cl,
-		stats:       stats,
+		stats:       scopedstatsd.Ensure(stats),
 	}
 }
 
@@ -544,7 +544,7 @@ func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, statsd scopedstatsd
 		commonTags:      commonTags,
 		cumulativeTimes: make([]int64, len(sinks)),
 		traceClient:     cl,
-		statsd:          statsd,
+		statsd:          scopedstatsd.Ensure(statsd),
 	}
 }
 
