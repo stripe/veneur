@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/signalfx/golib/datapoint"
 	"github.com/signalfx/golib/datapoint/dpsink"
 	"github.com/signalfx/golib/event"
@@ -185,6 +186,16 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
 func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagPrefixDrops []string, derivedMetrics samplers.DerivedMetricsProcessor, maxPointsInBatch int, defaultToken string, enableDynamicPerTagTokens bool, dynamicKeyRefreshPeriod time.Duration, metricsEndpoint string, apiEndpoint string, httpClient *http.Client) (*SignalFxSink, error) {
+	endpoint, err := url.Parse(apiEndpoint)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse signalfx api endpoint")
+	}
+
+	endpoint, err = endpoint.Parse("/v2/token")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to generate signalfx token endpoint")
+	}
+
 	return &SignalFxSink{
 		defaultClient:             client,
 		clientsByTagValueMu:       &sync.RWMutex{},
@@ -202,7 +213,7 @@ func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[s
 		derivedMetrics:            derivedMetrics,
 		maxPointsInBatch:          maxPointsInBatch,
 		metricsEndpoint:           metricsEndpoint,
-		apiEndpoint:               apiEndpoint,
+		apiEndpoint:               endpoint.String(),
 		httpClient:                httpClient,
 	}, nil
 }
@@ -238,21 +249,9 @@ func (sfx *SignalFxSink) clientByTagUpdater() {
 		return
 	}
 
-	endpoint, err := url.Parse(sfx.apiEndpoint)
-	if err != nil {
-		sfx.log.WithError(err).Warn("Failed to parse SignalFX endpoint")
-		return
-	}
-
-	endpoint, err = endpoint.Parse("/v2/token")
-	if err != nil {
-		sfx.log.WithError(err).Warn("Failed to generate SignalFX token endpoint")
-		return
-	}
-
 	ticker := time.NewTicker(sfx.dynamicKeyRefreshPeriod)
 	for range ticker.C {
-		tokens, err := fetchAPIKeys(sfx.httpClient, endpoint.String(), sfx.defaultToken)
+		tokens, err := fetchAPIKeys(sfx.httpClient, sfx.apiEndpoint, sfx.defaultToken)
 		if err != nil {
 			sfx.log.WithError(err).Warn("Failed to fetch new tokens from SignalFX")
 			continue
