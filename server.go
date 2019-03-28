@@ -725,14 +725,22 @@ func (s *Server) Start() {
 		// incoming tick signal fast enough that the amount we are "off" is
 		// negligible.
 		ticker := time.NewTicker(s.interval)
+		var cancel func()
 		for {
 			select {
 			case <-s.shutdown:
 				// stop flushing on graceful shutdown
 				ticker.Stop()
 				return
-			case <-ticker.C:
-				s.Flush(context.TODO())
+			case triggered := <-ticker.C:
+				if cancel != nil {
+					// Clean up any previous context we may have had in
+					// the last flush interval:
+					cancel()
+				}
+				ctx := context.Background()
+				ctx, cancel = context.WithDeadline(ctx, triggered.Add(s.interval))
+				s.Flush(ctx)
 			}
 		}
 	}()

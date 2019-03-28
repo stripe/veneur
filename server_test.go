@@ -1405,6 +1405,54 @@ func TestServeStopHTTP(t *testing.T) {
 	}
 }
 
+type blockySink struct {
+	blocker chan struct{}
+}
+
+func (s *blockySink) Name() string {
+	return "blocky_sink"
+}
+
+func (s *blockySink) Start(traceClient *trace.Client) error {
+	return nil
+}
+
+func (s *blockySink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+	if len(metrics) == 0 {
+		return nil
+	}
+
+	<-ctx.Done()
+	close(s.blocker)
+	return ctx.Err()
+}
+
+func (s *blockySink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {}
+
+func TestFlushDeadline(t *testing.T) {
+	config := localConfig()
+	config.Interval = "1us"
+
+	ch := make(chan struct{})
+	sink := &blockySink{blocker: ch}
+	f := newFixture(t, config, sink, nil)
+	defer f.Close()
+
+	f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "histogram",
+		},
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.LocalOnly,
+	})
+
+	_, ok := <-ch
+	assert.False(t, ok)
+}
+
 func BenchmarkHandleTracePacket(b *testing.B) {
 	const LEN = 1000
 	input := generateSSFPackets(b, LEN)
