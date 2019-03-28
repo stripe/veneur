@@ -47,16 +47,14 @@ type ScopedClient struct {
 var _ Client = &ScopedClient{}
 
 func addScopeTag(tags []string, scope ssf.SSFSample_Scope) []string {
-	if scope == ssf.SSFSample_DEFAULT {
-		return tags
-	}
 	switch scope {
 	case ssf.SSFSample_LOCAL:
 		return append(tags, "veneurlocalonly:true")
 	case ssf.SSFSample_GLOBAL:
 		return append(tags, "veneurglobalonly:true")
+	default:
+		return tags
 	}
-	return tags
 }
 
 func (s *ScopedClient) Gauge(name string, value float64, tags []string, rate float64) error {
