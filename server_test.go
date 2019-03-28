@@ -1422,12 +1422,9 @@ func (s *blockySink) Flush(ctx context.Context, metrics []samplers.InterMetric) 
 		return nil
 	}
 
-	select {
-	case <-ctx.Done():
-		close(s.blocker)
-		return ctx.Err()
-	}
-	return nil
+	<-ctx.Done()
+	close(s.blocker)
+	return ctx.Err()
 }
 
 func (s *blockySink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {}
