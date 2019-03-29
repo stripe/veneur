@@ -146,7 +146,7 @@ jobs:
           name: go generate
           command: |
             export PATH=$PATH:/opt/protoc/bin
-            go generate
+            go generate -v
       - run: "dep check"
       - run:
           name: "gofmt"
