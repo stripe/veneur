@@ -23,12 +23,15 @@ commands:
       stringer_rev:
         type: string
         default: "25101aadb97aa42907eee6a238d6d26a6cb3c756"
+      gojson_tag:
+        type: string
+        default: "v1.0.0"
       cachebust:
         type: string
         default: "1"
     steps:
-      - restore_cache:
-          key: "protoc-<<parameters.protoc_version>>_gogofaster-<<parameters.protoc_gen_gogofaster_tag>>_stringer-<<parameters.stringer_rev>>_<<parameters.cachebust>>"
+      - restore_cache: &prereq_cache_key
+          key: "protoc-<<parameters.protoc_version>>_gogofaster-<<parameters.protoc_gen_gogofaster_tag>>_stringer-<<parameters.stringer_rev>>_gojson-<<parameters.gojson_tag>>_<<parameters.cachebust>>"
       - run:
           name: protoc
           command: |
@@ -53,7 +56,11 @@ commands:
           name: gojson
           command: |
             if ! [ -x $GOPATH/bin/gojson ] ; then
-              go get -u github.com/ChimeraCoder/gojson/gojson
+              go get -d -u github.com/ChimeraCoder/gojson/gojson
+              cd $GOPATH/src/github.com/ChimeraCoder/gojson
+              git fetch
+              git reset --hard <<parameters.gojson_tag>>
+              go install github.com/ChimeraCoder/gojson/gojson
             fi
       - run:
           name: dep
@@ -71,7 +78,7 @@ commands:
               go install
             fi
       - save_cache:
-          key: "protoc-<<parameters.protoc_version>>_gogofaster-<<parameters.protoc_gen_gogofaster_tag>>_stringer-<<parameters.stringer_rev>>_<<parameters.cachebust>>"
+          <<: *prereq_cache_key
           paths:
             - /opt/protoc
             - /go/bin/protoc-gen-gogofaster
