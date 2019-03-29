@@ -135,12 +135,6 @@ commands:
           path: /tmp/test-results/go
 
 jobs:
-  success:
-    docker:
-      - image: alpine:latest
-    steps:
-      - run: echo yay
-
   code_hygiene:
     executor:
       name: gofmt
@@ -202,12 +196,6 @@ workflows:
       - test_stable
       - test_previous
       - test_tip
-      - success:
-          requires:
-          - code_hygiene
-          - test_stable
-          - test_previous
-          - test_tip
   scheduled_tests:
     jobs:
       - test_stable
