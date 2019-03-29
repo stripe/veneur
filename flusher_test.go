@@ -26,6 +26,7 @@ func TestServerFlushGRPC(t *testing.T) {
 	defer testServer.Stop()
 
 	localCfg := localConfig()
+	localCfg.DebugFlushedMetrics = true
 	localCfg.ForwardAddress = testServer.Addr().String()
 	localCfg.ForwardUseGrpc = true
 	local := setupVeneurServer(t, localCfg, nil, nil, nil)
@@ -35,8 +36,6 @@ func TestServerFlushGRPC(t *testing.T) {
 	for _, input := range inputs {
 		local.Workers[0].ProcessMetric(input)
 	}
-
-	local.Flush(context.Background())
 
 	expected := []string{
 		testGRPCMetric("histogram"),
@@ -48,11 +47,14 @@ func TestServerFlushGRPC(t *testing.T) {
 		testGRPCMetric("set"),
 	}
 
+	// Wait until the running server has flushed out the metrics for us:
 	select {
 	case v := <-done:
+		log.Print("got the goods")
 		assert.ElementsMatch(t, expected, v,
 			"Flush didn't output the right metrics")
 	case <-time.After(time.Second):
+		log.Print("timed out")
 		t.Fatal("Timed out waiting for the gRPC server to receive the flush")
 	}
 }

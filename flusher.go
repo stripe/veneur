@@ -69,12 +69,20 @@ func (s *Server) Flush(ctx context.Context) {
 
 	s.reportMetricsFlushCounts(ms)
 
+	wg := sync.WaitGroup{}
 	if s.IsLocal() {
+		wg.Add(1)
 		// Forward over gRPC or HTTP depending on the configuration
 		if s.forwardUseGRPC {
-			go s.forwardGRPC(span.Attach(ctx), tempMetrics)
+			go func() {
+				s.forwardGRPC(span.Attach(ctx), tempMetrics)
+				wg.Done()
+			}()
 		} else {
-			go s.flushForward(span.Attach(ctx), tempMetrics)
+			go func() {
+				s.flushForward(span.Attach(ctx), tempMetrics)
+				wg.Done()
+			}()
 		}
 	} else {
 		s.reportGlobalMetricsFlushCounts(ms)
@@ -85,7 +93,6 @@ func (s *Server) Flush(ctx context.Context) {
 		return
 	}
 
-	wg := sync.WaitGroup{}
 	for _, sink := range s.metricSinks {
 		wg.Add(1)
 		go func(ms sinks.MetricSink) {

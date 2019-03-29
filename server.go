@@ -713,6 +713,13 @@ func (s *Server) Start() {
 			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
 		}()
 
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() {
+			// If the server is shutting down, cancel any in-flight flush:
+			<-s.shutdown
+			cancel()
+		}()
+
 		if s.synchronizeInterval {
 			// We want to align our ticker to a multiple of its duration for
 			// convenience of bucketing.
@@ -725,7 +732,6 @@ func (s *Server) Start() {
 		// incoming tick signal fast enough that the amount we are "off" is
 		// negligible.
 		ticker := time.NewTicker(s.interval)
-		var cancel func()
 		for {
 			select {
 			case <-s.shutdown:
@@ -733,14 +739,9 @@ func (s *Server) Start() {
 				ticker.Stop()
 				return
 			case triggered := <-ticker.C:
-				if cancel != nil {
-					// Clean up any previous context we may have had in
-					// the last flush interval:
-					cancel()
-				}
-				ctx := context.Background()
-				ctx, cancel = context.WithDeadline(ctx, triggered.Add(s.interval))
+				ctx, cancel := context.WithDeadline(ctx, triggered.Add(s.interval))
 				s.Flush(ctx)
+				cancel()
 			}
 		}
 	}()
