@@ -1,8 +1,5 @@
 version: 2.1
 executors:
-  "gofmt":
-    docker:
-      - image: golang:1.11
   "previous":
     docker:
       - image: golang:1.11
@@ -31,7 +28,7 @@ commands:
         default: "1"
     steps:
       - restore_cache: &prereq_cache_key
-          key: "protoc-<<parameters.protoc_version>>_gogofaster-<<parameters.protoc_gen_gogofaster_tag>>_stringer-<<parameters.stringer_rev>>_gojson-<<parameters.gojson_tag>>_<<parameters.cachebust>>"
+          key: 'protoc-<<parameters.protoc_version>>_gogofaster-<<parameters.protoc_gen_gogofaster_tag>>_stringer-<<parameters.stringer_rev>>_gojson-<<parameters.gojson_tag>>_{{checksum "/usr/local/go/bin/go" }}_<<parameters.cachebust>>'
       - run:
           name: protoc
           command: |
@@ -137,7 +134,7 @@ commands:
 jobs:
   code_hygiene:
     executor:
-      name: gofmt
+      name: stable
     working_directory: /go/src/github.com/stripe/veneur
     steps:
       - install
