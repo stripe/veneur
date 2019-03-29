@@ -61,14 +61,35 @@ func TestServerFlushGRPC(t *testing.T) {
 
 // Just test that a flushing to a bad address is handled without panicing
 func TestServerFlushGRPCBadAddress(t *testing.T) {
+	rcv := make(chan []samplers.InterMetric, 10)
+	sink, err := NewChannelMetricSink(rcv)
+	require.NoError(t, err)
+
 	localCfg := localConfig()
 	localCfg.ForwardAddress = "bad-address:123"
 	localCfg.ForwardUseGrpc = true
-	local := setupVeneurServer(t, localCfg, nil, nil, nil)
+
+	local := setupVeneurServer(t, localCfg, nil, sink, nil)
 	defer local.Shutdown()
 
 	local.Workers[0].ProcessMetric(forwardGRPCTestMetrics()[0])
-	local.Flush(context.Background())
+	m := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "counter",
+			Type: counterTypeName,
+		},
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.MixedScope,
+	}
+	local.Workers[0].ProcessMetric(&m)
+	select {
+	case <-rcv:
+		t.Log("Received my metric, assume this is working.")
+	case <-time.After(time.Second * 5):
+		t.Fatal("timed out waiting for global veneur flush")
+	}
 }
 
 // Ensure that if someone sends a histogram to the global stats box directly,
