@@ -49,7 +49,7 @@ commands:
               go get -d -v github.com/gogo/protobuf/protoc-gen-gogofaster
               cd $GOPATH/src/github.com/gogo/protobuf
               git fetch
-              git reset --hard v0.5
+              git reset --hard <<parameters.protoc_gen_gogofaster_tag>>
               go install github.com/gogo/protobuf/protoc-gen-gogofaster
             fi
       - run:
