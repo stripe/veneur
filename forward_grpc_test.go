@@ -224,7 +224,8 @@ func TestE2EForwardingGRPCMetrics(t *testing.T) {
 		}
 
 		assert.ElementsMatch(t, expectedNames, actualNames,
-			"The global Veneur didn't flush the right metrics")
+			"The global Veneur didn't flush the right metrics: expectedNames=%v actualNames=%v",
+			expectedNames, actualNames)
 		close(done)
 	}()
 	ff.local.Flush(context.TODO())
