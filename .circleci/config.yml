@@ -16,7 +16,7 @@ commands:
         default: "3.1.0"
       protoc_gen_gogofaster_tag:
         type: string
-        default: "v0.5"
+        default: "v1.2.1"
       stringer_rev:
         type: string
         default: "25101aadb97aa42907eee6a238d6d26a6cb3c756"
