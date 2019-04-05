@@ -130,7 +130,7 @@ func generateMetrics() (metricValues []float64, expectedMetrics map[string]float
 // and starts listening for requests. It returns the server for inspection.
 // If no metricSink or spanSink are provided then a `black hole` sink be used
 // so that flushes to these sinks do "nothing".
-func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper, mSink sinks.MetricSink, sSink sinks.SpanSink) *Server {
+func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper, mSink sinks.MetricSink, sSink sinks.SpanSink, traceClient *trace.Client) *Server {
 	logger := logrus.New()
 	server, err := NewFromConfig(logger, config)
 	if err != nil {
@@ -146,7 +146,7 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 
 	// Make sure we don't send internal metrics when testing:
 	trace.NeutralizeClient(server.TraceClient)
-	server.TraceClient = nil
+	server.TraceClient = traceClient
 
 	if mSink == nil {
 		// Install a blackhole sink if we have no other sinks
@@ -215,7 +215,7 @@ func newFixture(t testing.TB, config Config, mSink sinks.MetricSink, sSink sinks
 	f := &fixture{nil, &Server{}, interval, config.DatadogFlushMaxPerBody}
 
 	config.NumWorkers = 1
-	f.server = setupVeneurServer(t, config, nil, mSink, sSink)
+	f.server = setupVeneurServer(t, config, nil, mSink, sSink, nil)
 	return f
 }
 

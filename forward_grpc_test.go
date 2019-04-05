@@ -31,7 +31,7 @@ func newForwardGRPCFixture(t testing.TB, localConfig Config, sink sinks.MetricSi
 	// Create a global Veneur
 	globalCfg := globalConfig()
 	globalCfg.GrpcAddress = unusedLocalTCPAddress(t)
-	global := setupVeneurServer(t, globalCfg, nil, sink, nil)
+	global := setupVeneurServer(t, globalCfg, nil, sink, nil, nil)
 	go func() {
 		global.Serve()
 	}()
@@ -51,7 +51,7 @@ func newForwardGRPCFixture(t testing.TB, localConfig Config, sink sinks.MetricSi
 
 	localConfig.ForwardAddress = proxyCfg.GrpcAddress
 	localConfig.ForwardUseGrpc = true
-	local := setupVeneurServer(t, localConfig, nil, nil, nil)
+	local := setupVeneurServer(t, localConfig, nil, nil, nil, nil)
 
 	return &forwardGRPCFixture{t: t, proxy: &proxy, global: global, local: local}
 }

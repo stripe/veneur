@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/trace"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,7 +31,7 @@ func TestServerFlushGRPC(t *testing.T) {
 	localCfg.DebugFlushedMetrics = true
 	localCfg.ForwardAddress = testServer.Addr().String()
 	localCfg.ForwardUseGrpc = true
-	local := setupVeneurServer(t, localCfg, nil, nil, nil)
+	local := setupVeneurServer(t, localCfg, nil, nil, nil, nil)
 	defer local.Shutdown()
 
 	inputs := forwardGRPCTestMetrics()
@@ -59,6 +61,54 @@ func TestServerFlushGRPC(t *testing.T) {
 	}
 }
 
+func TestServerFlushGRPCTimeout(t *testing.T) {
+	testServer := forwardtest.NewServer(func(ms []*metricpb.Metric) {
+		time.Sleep(500 * time.Millisecond)
+	})
+	testServer.Start(t)
+	defer testServer.Stop()
+
+	spanCh := make(chan *ssf.SSFSpan, 900)
+	cl, err := trace.NewChannelClient(spanCh)
+	require.NoError(t, err)
+	defer func() {
+		cl.Close()
+	}()
+
+	got := make(chan *ssf.SSFSample)
+	go func() {
+		for span := range spanCh {
+			for _, sample := range span.Metrics {
+				if sample.Name == "forward.error_total" && span.Tags != nil && sample.Tags["cause"] == "deadline_exceeded" {
+					got <- sample
+					return
+				}
+			}
+		}
+	}()
+
+	localCfg := localConfig()
+	localCfg.Interval = "20us"
+	localCfg.DebugFlushedMetrics = true
+	localCfg.ForwardAddress = testServer.Addr().String()
+	localCfg.ForwardUseGrpc = true
+	local := setupVeneurServer(t, localCfg, nil, nil, nil, cl)
+	defer local.Shutdown()
+
+	inputs := forwardGRPCTestMetrics()
+	for _, input := range inputs {
+		local.Workers[0].ProcessMetric(input)
+	}
+
+	// Wait until the running server has flushed out the metrics for us:
+	select {
+	case v := <-got:
+		assert.Equal(t, float32(1.0), v.Value)
+	case <-time.After(time.Second):
+		t.Fatal("The server didn't time out flushing.")
+	}
+}
+
 // Just test that a flushing to a bad address is handled without panicing
 func TestServerFlushGRPCBadAddress(t *testing.T) {
 	rcv := make(chan []samplers.InterMetric, 10)
@@ -69,7 +119,7 @@ func TestServerFlushGRPCBadAddress(t *testing.T) {
 	localCfg.ForwardAddress = "bad-address:123"
 	localCfg.ForwardUseGrpc = true
 
-	local := setupVeneurServer(t, localCfg, nil, sink, nil)
+	local := setupVeneurServer(t, localCfg, nil, sink, nil, nil)
 	defer local.Shutdown()
 
 	local.Workers[0].ProcessMetric(forwardGRPCTestMetrics()[0])
@@ -103,7 +153,7 @@ func TestGlobalAcceptsHistogramsOverUDP(t *testing.T) {
 	cfg := globalConfig()
 	cfg.Percentiles = []float64{}
 	cfg.Aggregates = []string{"min"}
-	global := setupVeneurServer(t, cfg, nil, sink, nil)
+	global := setupVeneurServer(t, cfg, nil, sink, nil, nil)
 	defer global.Shutdown()
 
 	// simulate introducing a histogram to a global veneur.
