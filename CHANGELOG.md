@@ -15,6 +15,10 @@
 * The signalfx sink now correctly constructs ingestion endpoint URLs when given URLs that end in slashes. Thanks, [antifuchs](https://github.com/antifuchs)!
 * Veneur now sets a deadline for its flushes: No flush may take longer than the configured server flush interval. Thanks, [antifuchs](https://github.com/antifuchs)!
 
+## Removed
+
+* A dependency on `github.com/Sirupsen/logrus` from the trace client package `github.com/stripe/veneur/trace`. Thanks, [antifuchs](https://github.com/antifuchs) and [samczsun](https://github.com/samczsun)!
+
 # 12.0.0, 2019-03-06
 
 ## Added
