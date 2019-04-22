@@ -1,7 +1,7 @@
 # For running Veneur under Docker, you probably want either the pre-built images
 # published at https://hub.docker.com/r/stripe/veneur/
 # or the Dockerfiles in https://github.com/stripe/veneur/tree/master/public-docker-images
-FROM golang:1.11
+FROM golang:1.12
 MAINTAINER The Stripe Observability Team <support@stripe.com>
 
 RUN mkdir -p /build
@@ -12,7 +12,7 @@ RUN go get -u -v github.com/ChimeraCoder/gojson/gojson
 RUN go get -d -v github.com/gogo/protobuf/protoc-gen-gogofaster
 WORKDIR /go/src/github.com/gogo/protobuf
 RUN git fetch
-RUN git checkout v0.5
+RUN git checkout v1.2.1
 RUN go install github.com/gogo/protobuf/protoc-gen-gogofaster
 WORKDIR /go
 RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh

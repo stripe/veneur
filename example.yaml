@@ -57,6 +57,7 @@ synchronize_with_interval: false
 
 # Veneur emits its own metrics; this configures where we send them. It's ok
 # to point veneur at itself for metrics consumption!
+# This can be host:port combination or a Unix Domain Socket(eg: unix:///tmp/veneur-statsd.sock)
 stats_address: "localhost:8126"
 
 # The address on which to listen for HTTP imports and/or healthchecks.

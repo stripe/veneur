@@ -1,4 +1,25 @@
-# 12.0.0, in progress
+# 13.0.0, in progress
+
+### Added
+
+* The Kafka sink now includes metrics for skipped and dropped spans, as well as a debug log line for flushes. Thanks, [franklinhu](https://github.com/franklinhu)
+
+## Updated
+
+* Updated the vendored version of DataDog/datadog-go which adds support for sending metrics to Unix Domain socket. Thanks, [prudhvi](https://github.com/prudhvi)!
+* Updated the vendored version of github.com/gogo/protobuf which fixes Gopkg.toml conflicts for users of veneur. Thanks, [dtbartle](http://github.com/dtbartle)!
+
+## Bugfixes
+
+* The splunk HEC span sink didn't correctly spawn the number of submission workers configured with `splunk_hec_submission_workers`, only spawning one. Now it spawns the number configured. Thanks, [antifuchs](https://github.com/antifuchs)!
+* The signalfx sink now correctly constructs ingestion endpoint URLs when given URLs that end in slashes. Thanks, [antifuchs](https://github.com/antifuchs)!
+* Veneur now sets a deadline for its flushes: No flush may take longer than the configured server flush interval. Thanks, [antifuchs](https://github.com/antifuchs)!
+
+## Removed
+
+* A dependency on `github.com/Sirupsen/logrus` from the trace client package `github.com/stripe/veneur/trace`. Thanks, [antifuchs](https://github.com/antifuchs) and [samczsun](https://github.com/samczsun)!
+
+# 12.0.0, 2019-03-06
 
 ## Added
 
@@ -9,10 +30,16 @@
 
 ## Updated
 * The metric `veneur.sink.spans_dropped_total` now includes packets that were skipped due to UDP write errors. Thanks, [aditya](https://github.com/chimeracoder)!
+* The `debug` blackhole sink features improved logging output, with more data and better formatting. Thanks, [aditya](https://github.com/chimeracoder)!
+* Container images are now built with Go 1.12. Thanks, [aditya](https://github.com/chimeracoder)!
 
 ## Bugfixes
 * The signalfx client no longer reports a timeout when submission to the datapoint API endpoint encounters an error. Thanks, [antifuchs](https://github.com/antifuchs)!
 * SSF packets without a name are no longer considered valid for `protocol.ValidTrace`. Thanks, [tummychow](https://github.com/tummychow)!
+* The splunk sink no longer hangs or complains when a HEC endpoint should close the connection. Thanks, [antifuchs](https://github.com/antifuchs)!
+
+## Removed
+* Go 1.10 is no longer supported.
 
 # 11.0.0, 2019-01-22
 

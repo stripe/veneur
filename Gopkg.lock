@@ -2,12 +2,12 @@
 
 
 [[projects]]
-  digest = "1:e19b5f95a27782c318519562d75ace34827ec034ee1a3105540064e09773aacb"
+  digest = "1:6d83aad9c98e13079ad8a4dbc740892edf5384bcd07f1d789bb66cd8ecfae2cd"
   name = "github.com/DataDog/datadog-go"
   packages = ["statsd"]
   pruneopts = "NUT"
-  revision = "0ddda6bee21174ef6c4873647cb0d6ec9cba996f"
-  version = "1.1.0"
+  revision = "e67964b4021ad3a334e748e8811eb3cd6becbc6e"
+  version = "2.1.0"
 
 [[projects]]
   digest = "1:e30fbdce732588b475a444cbeabbcbef1c6c08b8d4f3efc142853551a1b0ab13"
@@ -151,7 +151,7 @@
   version = "v1.28.0"
 
 [[projects]]
-  digest = "1:aca1c1840b0795ee1870204d8f65f6d2376503769b47869db747cd30f600c093"
+  digest = "1:37234906013da82d4c05666262eda5bdec8f736bafa7d4ec1fb3314e965b476f"
   name = "github.com/gogo/protobuf"
   packages = [
     "gogoproto",
@@ -160,8 +160,8 @@
     "sortkeys",
   ]
   pruneopts = "NUT"
-  revision = "342cbe0a04158f6dcb03ca0079991a51a4248c02"
-  version = "v0.5"
+  revision = "ba06b47c162d49f2af050fb4c75bcbc86a159d5c"
+  version = "v1.2.1"
 
 [[projects]]
   branch = "master"

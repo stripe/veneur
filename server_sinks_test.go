@@ -87,7 +87,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	config.DatadogAPIKey = "secret"
 	config.DatadogTraceAPIAddress = remoteServer.URL
 
-	server := setupVeneurServer(t, config, nil, nil, nil)
+	server := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer server.Shutdown()
 
 	ddSink, err := datadog.NewDatadogSpanSink("http://example.com", 100, server.HTTPClient, logrus.New())
@@ -121,7 +121,7 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 
 	// this can be anything as long as it's not empty
 	config.LightstepAccessToken = "secret"
-	server := setupVeneurServer(t, config, nil, nil, nil)
+	server := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer server.Shutdown()
 
 	//collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string

@@ -1,7 +1,7 @@
 language: go
 go:
-  - "1.10"
   - "1.11"
+  - "1.12"
   - tip
 
 install:
@@ -22,7 +22,7 @@ before_script:
   - go get -d -v github.com/gogo/protobuf/protoc-gen-gogofaster
   - pushd $GOPATH/src/github.com/gogo/protobuf
   - git fetch
-  - git checkout v0.5
+  - git checkout v1.2.1
   - popd
   - go install github.com/gogo/protobuf/protoc-gen-gogofaster
   - curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh

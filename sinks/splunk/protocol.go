@@ -2,12 +2,11 @@ package splunk
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
 
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 )
 
 type hecClient struct {
@@ -43,10 +42,10 @@ func init() {
 
 // newRequest creates a new streaming HEC raw request and returns the
 // writer to it. The request is submitted when the writer is closed.
-func (c *hecClient) newRequest() (*hecRequest, error) {
+func (c *hecClient) newRequest() *hecRequest {
 	req := &hecRequest{url: c.url(c.idGen.String()), authHeader: c.authHeader()}
 	req.r, req.w = io.Pipe()
-	return req, nil
+	return req
 }
 
 type hecRequest struct {
@@ -56,7 +55,7 @@ type hecRequest struct {
 	authHeader string
 }
 
-func (r *hecRequest) Start(ctx context.Context) (*http.Request, *json.Encoder, error) {
+func (r *hecRequest) Start(ctx context.Context) (*http.Request, io.Writer, error) {
 	req, err := http.NewRequest("POST", r.url, r.r)
 	if err != nil {
 		return nil, nil, err
@@ -64,7 +63,7 @@ func (r *hecRequest) Start(ctx context.Context) (*http.Request, *json.Encoder, e
 	req.Header.Add("Authorization", r.authHeader)
 	req = req.WithContext(ctx)
 
-	return req, json.NewEncoder(r.w), nil
+	return req, r.w, nil
 }
 
 func (r *hecRequest) Close() error {

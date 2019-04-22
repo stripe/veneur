@@ -115,7 +115,7 @@ func testServerImport(t *testing.T, filename string, contentEncoding string) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	handler := handleImport(s)
@@ -156,7 +156,7 @@ func TestServerImportGzip(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	handler := handleImport(s)
@@ -181,7 +181,7 @@ func TestServerImportCompressedInvalid(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	handler := handleImport(s)
@@ -206,7 +206,7 @@ func TestServerImportUncompressedInvalid(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	handler := handleImport(s)
@@ -260,7 +260,7 @@ func TestGeneralHealthCheck(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/healthcheck", nil)
 
 	config := localConfig()
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	w := httptest.NewRecorder()
@@ -278,7 +278,7 @@ func TestOkTraceHealthCheck(t *testing.T) {
 	// We must enable tracing, as it's disabled by default, by turning on one
 	// of the tracing sinks.
 	config.LightstepAccessToken = "farts"
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	w := httptest.NewRecorder()
@@ -312,7 +312,7 @@ func TestBuildDate(t *testing.T) {
 
 	config := localConfig()
 	config.SsfListenAddresses = []string{}
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	w := httptest.NewRecorder()
@@ -344,7 +344,7 @@ func TestVersion(t *testing.T) {
 
 	config := localConfig()
 	config.SsfListenAddresses = []string{}
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	w := httptest.NewRecorder()
@@ -369,7 +369,7 @@ func testServerImportHelper(t *testing.T, data interface{}) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	handler := handleImport(s)

@@ -3,6 +3,7 @@ package splunk_test
 import (
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -26,7 +27,10 @@ func jsonEndpoint(t testing.TB, ch chan<- splunk.Event) http.Handler {
 		}
 		failed := false
 		j := json.NewDecoder(r.Body)
-		defer r.Body.Close()
+		defer func() {
+			_, _ = ioutil.ReadAll(r.Body)
+			r.Body.Close()
+		}()
 
 		j.DisallowUnknownFields()
 		for {
@@ -114,7 +118,7 @@ func TestSpanIngestBatch(t *testing.T) {
 		require.NoError(t, err)
 		output := splunk.SerializedSSF{}
 		err = json.Unmarshal(spanB, &output)
-
+		require.NoError(t, err)
 		assert.Equal(t, float64(span.StartTimestamp)/float64(time.Second), output.StartTimestamp)
 		assert.Equal(t, float64(span.EndTimestamp)/float64(time.Second), output.EndTimestamp)
 
@@ -179,13 +183,14 @@ func TestTimeout(t *testing.T) {
 	}
 
 	sink.Sync()
-	ms := <-spans
-	require.NotNil(t, ms)
 	var found *ssf.SSFSample
-	for _, sample := range ms.Metrics {
-		if strings.HasSuffix(sample.Name, "splunk.hec_submission_failed_total") {
-			found = sample
-			break
+readMetrics:
+	for ms := range spans {
+		for _, sample := range ms.Metrics {
+			if strings.HasSuffix(sample.Name, "splunk.hec_submission_failed_total") {
+				found = sample
+				break readMetrics
+			}
 		}
 	}
 	require.NotNil(t, found, "Expected a timeout metric to be reported")
@@ -286,7 +291,7 @@ func TestSampling(t *testing.T) {
 
 	// check how many events we got:
 	events := 0
-	for _ = range ch {
+	for range ch {
 		events++
 		// Don't close the receiving end until the first
 		// span, to avoid failing the test by racing the
@@ -347,7 +352,7 @@ func TestSamplingIndicators(t *testing.T) {
 
 	// check how many events we got:
 	events := 0
-	for _ = range ch {
+	for range ch {
 		events++
 		// Don't close the receiving end until the first
 		// span, to avoid failing the test by racing the
@@ -360,4 +365,69 @@ func TestSamplingIndicators(t *testing.T) {
 	}
 	assert.Equal(t, events, nToFlush, "Should have sent all the spans, but received %d of %d", events, nToFlush)
 	t.Logf("Received %d of %d events", events, nToFlush)
+}
+
+func TestClosedIngestionEndpoint(t *testing.T) {
+	const nToFlush = 100
+	logger := logrus.StandardLogger()
+
+	ch := make(chan splunk.Event, nToFlush)
+	ts := httptest.NewServer(jsonEndpoint(t, ch))
+	defer func() {
+		ts.Close()
+	}()
+	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
+		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0, 10, 10*time.Millisecond, 0)
+	require.NoError(t, err)
+	sink := gsink.(splunk.TestableSplunkSpanSink)
+	err = sink.Start(nil)
+	require.NoError(t, err)
+
+	start := time.Unix(100000, 1000000)
+	end := start.Add(5 * time.Second)
+	span := &ssf.SSFSpan{
+		ParentId:       4,
+		StartTimestamp: start.UnixNano(),
+		EndTimestamp:   end.UnixNano(),
+		Service:        "test-srv",
+		Name:           "test-span",
+		Indicator:      true,
+		Error:          true,
+		Tags: map[string]string{
+			"farts": "mandatory",
+		},
+		Metrics: []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		},
+	}
+
+	breakConnsAt := 20
+	for i := 0; i < nToFlush; i++ {
+		span.Id = int64(i + 1)
+		span.TraceId = int64(i + 1)
+		err = sink.Ingest(span)
+		require.NoError(t, err, "error ingesting the %dth span", i)
+		if i == breakConnsAt {
+			ts.CloseClientConnections()
+		}
+	}
+	sink.Sync()
+	sink.Stop()
+	events := 0
+	for range ch {
+		events++
+		// Don't close the receiving end until the first
+		// span, to avoid failing the test by racing the
+		// receiver:
+		if ch != nil {
+			ts.Close()
+			close(ch)
+			ch = nil
+		}
+	}
+	want := breakConnsAt * 3
+	t.Logf("Got %d spans, want %d", events, want)
+	assert.True(t, events > want,
+		"Should have received more than %d spans, but got %d out of %d", want, events, nToFlush)
 }

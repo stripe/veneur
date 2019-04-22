@@ -536,7 +536,9 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			ret.metricSinks = append(ret.metricSinks, debug.NewDebugMetricSink(&mtx, log))
 		}
 		if conf.DebugIngestedSpans {
-			ret.spanSinks = append(ret.spanSinks, debug.NewDebugSpanSink(&mtx, log))
+			blackhole := debug.NewDebugSpanSink(&mtx, log)
+			ret.spanSinks = append(ret.spanSinks, blackhole)
+			logger.WithField("name", blackhole.Name()).Info("Starting logger debug sink")
 		}
 	}
 
@@ -711,6 +713,13 @@ func (s *Server) Start() {
 			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
 		}()
 
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() {
+			// If the server is shutting down, cancel any in-flight flush:
+			<-s.shutdown
+			cancel()
+		}()
+
 		if s.synchronizeInterval {
 			// We want to align our ticker to a multiple of its duration for
 			// convenience of bucketing.
@@ -729,8 +738,10 @@ func (s *Server) Start() {
 				// stop flushing on graceful shutdown
 				ticker.Stop()
 				return
-			case <-ticker.C:
-				s.Flush(context.TODO())
+			case triggered := <-ticker.C:
+				ctx, cancel := context.WithDeadline(ctx, triggered.Add(s.interval))
+				s.Flush(ctx)
+				cancel()
 			}
 		}
 	}()
