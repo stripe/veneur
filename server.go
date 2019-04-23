@@ -136,6 +136,9 @@ type Server struct {
 
 	// gRPC forward clients
 	grpcForwardConn *grpc.ClientConn
+
+	stuckIntervals int
+	lastFlushUnix  int64
 }
 
 // ssfServiceSpanMetrics refer to the span metrics that will
@@ -178,6 +181,8 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	if err != nil {
 		return ret, err
 	}
+
+	ret.stuckIntervals = conf.FlushWatchdogMissedFlushes
 
 	transport := &http.Transport{
 		IdleConnTimeout: ret.interval * 2, // If we're idle more than one interval something is up
@@ -706,6 +711,32 @@ func (s *Server) Start() {
 			}).Fatal("Failed to initialize a gRPC connection for forwarding")
 		}
 	}
+
+	s.lastFlushUnix = time.Now().UnixNano()
+
+	// Be a watchdog forever!
+	go func() {
+		if s.stuckIntervals == 0 {
+			// No watchdog needed:
+			return
+		}
+		// if we haven't flushed in 3x the flush interval, we're stuck.
+		ticker := time.NewTicker(s.interval)
+		for {
+			select {
+			case <-s.shutdown:
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				last := time.Unix(0, atomic.LoadInt64(&s.lastFlushUnix))
+				if time.Since(last) > 3*s.interval {
+					s.Statsd.Count("flush_watchdog.fired", 1, nil, 1.0)
+					log.WithField("last_flush", last).
+						Panic("Flushing seems to be stuck. Terminating.")
+				}
+			}
+		}
+	}()
 
 	// Flush every Interval forever!
 	go func() {
