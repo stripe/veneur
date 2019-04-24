@@ -51,7 +51,7 @@ func (s *Server) Start(t testing.TB) {
 	}
 
 	go func() {
-		if err := s.Serve(s.lis); err != nil {
+		if err := s.Serve(s.lis); err != nil && err != grpc.ErrServerStopped {
 			t.Logf("failed to stop the test forwarding gRPC server: %v", err)
 		}
 	}()

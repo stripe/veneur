@@ -50,6 +50,11 @@ forward_use_grpc: false
 # series data.
 interval: "10s"
 
+# How many flushes veneur may miss before it considers itself buggy
+# and terminates. Leaving this at the default of 0 disables the
+# watchdog.
+flush_watchdog_missed_flushes: 0
+
 # Veneur can "sychronize" it's flushes with the system clock, flushing at even
 # intervals i.e. 0, 10, 20… to align with the `interval`. This is disabled by
 # default for now, as it can cause thundering herds in large installations.

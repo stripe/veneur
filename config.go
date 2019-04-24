@@ -19,6 +19,7 @@ type Config struct {
 	FalconerAddress               string    `yaml:"falconer_address"`
 	FlushFile                     string    `yaml:"flush_file"`
 	FlushMaxPerBody               int       `yaml:"flush_max_per_body"`
+	FlushWatchdogMissedFlushes    int       `yaml:"flush_watchdog_missed_flushes"`
 	ForwardAddress                string    `yaml:"forward_address"`
 	ForwardUseGrpc                bool      `yaml:"forward_use_grpc"`
 	GrpcAddress                   string    `yaml:"grpc_address"`

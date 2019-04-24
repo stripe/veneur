@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"reflect"
 	"runtime"
+	rtdebug "runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -136,6 +137,9 @@ type Server struct {
 
 	// gRPC forward clients
 	grpcForwardConn *grpc.ClientConn
+
+	stuckIntervals int
+	lastFlushUnix  int64
 }
 
 // ssfServiceSpanMetrics refer to the span metrics that will
@@ -178,6 +182,8 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	if err != nil {
 		return ret, err
 	}
+
+	ret.stuckIntervals = conf.FlushWatchdogMissedFlushes
 
 	transport := &http.Transport{
 		IdleConnTimeout: ret.interval * 2, // If we're idle more than one interval something is up
@@ -745,6 +751,50 @@ func (s *Server) Start() {
 			}
 		}
 	}()
+}
+
+// FlushWatchdog periodically checks that at most
+// `flush_watchdog_missed_flushes` were skipped in a Server. If more
+// than that number was skipped, it panics (assuming that flushing is
+// stuck) with a full level of detail on that panic's backtraces.
+//
+// It never terminates, so is ideally run from a goroutine in a
+// program's main function.
+func (s *Server) FlushWatchdog() {
+	defer func() {
+		ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+	}()
+
+	if s.stuckIntervals == 0 {
+		// No watchdog needed:
+		return
+	}
+	atomic.StoreInt64(&s.lastFlushUnix, time.Now().UnixNano())
+
+	ticker := time.NewTicker(s.interval)
+	for {
+		select {
+		case <-s.shutdown:
+			ticker.Stop()
+			return
+		case <-ticker.C:
+			last := time.Unix(0, atomic.LoadInt64(&s.lastFlushUnix))
+			since := time.Since(last)
+
+			// If no flush was kicked off in the last N
+			// times, we're stuck - panic because that's a
+			// bug.
+			if since > time.Duration(s.stuckIntervals)*s.interval {
+				rtdebug.SetTraceback("all")
+				log.WithFields(logrus.Fields{
+					"last_flush":       last,
+					"missed_intervals": s.stuckIntervals,
+					"time_since":       since,
+				}).
+					Panic("Flushing seems to be stuck. Terminating.")
+			}
+		}
+	}
 }
 
 // HandleMetricPacket processes each packet that is sent to the server, and sends to an
