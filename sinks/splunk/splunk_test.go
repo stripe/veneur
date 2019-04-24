@@ -291,8 +291,14 @@ func TestSampling(t *testing.T) {
 
 	// check how many events we got:
 	events := 0
-	for range ch {
+	markedPartial := 0
+	for v := range ch {
 		events++
+		if serialized, ok := v.Event.(map[string]interface{}); ok {
+			if _, ok := serialized["partial"].(bool); ok {
+				markedPartial++
+			}
+		}
 		// Don't close the receiving end until the first
 		// span, to avoid failing the test by racing the
 		// receiver:
@@ -304,6 +310,7 @@ func TestSampling(t *testing.T) {
 	}
 	assert.True(t, events > 0, "Should have sent around 1/10 of spans, but received zero")
 	assert.True(t, events < nToFlush/2, "Should have sent less than half the spans, but received %d of %d", events, nToFlush)
+	assert.Equal(t, 0, markedPartial, "Expected `partial` to be omitted from non-indicator spans, but it was there")
 	t.Logf("Received %d of %d events", events, nToFlush)
 }
 

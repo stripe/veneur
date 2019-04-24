@@ -467,9 +467,13 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		Tags:           ssfSpan.Tags,
 		Indicator:      ssfSpan.Indicator,
 		Name:           ssfSpan.Name,
+	}
+
+	if ssfSpan.Indicator {
 		// if we would have dropped this span, the trace is marked as "partial"
 		// this lets us readily search for indicator spans that have full traces
-		Partial: wouldDrop,
+		// we only mark indicator spans this way
+		serialized.Partial = &wouldDrop
 	}
 
 	event := &Event{
@@ -505,5 +509,5 @@ type SerializedSSF struct {
 	Tags           map[string]string `json:"tags"`
 	Indicator      bool              `json:"indicator"`
 	Name           string            `json:"name"`
-	Partial        bool              `json:"partial"`
+	Partial        *bool             `json:"partial,omitempty"`
 }
