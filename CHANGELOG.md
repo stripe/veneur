@@ -3,6 +3,7 @@
 ### Added
 
 * The Kafka sink now includes metrics for skipped and dropped spans, as well as a debug log line for flushes. Thanks, [franklinhu](https://github.com/franklinhu)
+* A flush "watchdog" controlled by the config setting `flush_watchdog_missed_flushes`. If veneur has not started this many flushes, the watchdog panics and terminates veneur (so it can be restarted by process supervision). Thanks, [antifuchs](https://github.com/antifuchs)!
 
 ## Updated
 
