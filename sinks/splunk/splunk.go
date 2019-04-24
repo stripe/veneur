@@ -435,10 +435,15 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		return err
 	}
 
-	// choose (1/spanSampleRate) spans for sampling if any spans
-	// have the traceID of 0 or are declared indicator spans, they
-	// will always be chosen, regardless of the sample rate.
-	if !ssfSpan.Indicator && ssfSpan.TraceId%sss.spanSampleRate != 0 {
+	// wouldDrop indicates whether this span would be dropped
+	// according to the sample rate. (1/spanSampleRate) spans
+	// will be kept. spans with a traceID of 0 will always be
+	// kept.
+	wouldDrop := ssfSpan.TraceId%sss.spanSampleRate != 0
+
+	// skip this span if the sample rate says so, UNLESS it
+	// is also an indicator span.
+	if wouldDrop && !ssfSpan.Indicator {
 		atomic.AddUint32(&sss.skippedSpans, 1)
 		return nil
 	}
@@ -462,6 +467,9 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		Tags:           ssfSpan.Tags,
 		Indicator:      ssfSpan.Indicator,
 		Name:           ssfSpan.Name,
+		// if we would have dropped this span, the trace is marked as "partial"
+		// this lets us readily search for indicator spans that have full traces
+		Partial: wouldDrop,
 	}
 
 	event := &Event{
@@ -497,4 +505,5 @@ type SerializedSSF struct {
 	Tags           map[string]string `json:"tags"`
 	Indicator      bool              `json:"indicator"`
 	Name           string            `json:"name"`
+	Partial        bool              `json:"partial"`
 }
