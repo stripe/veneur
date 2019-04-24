@@ -456,9 +456,9 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	}
 
 	serialized := SerializedSSF{
-		TraceId:        strconv.FormatInt(ssfSpan.TraceId, 10),
-		Id:             strconv.FormatInt(ssfSpan.Id, 10),
-		ParentId:       strconv.FormatInt(ssfSpan.ParentId, 10),
+		TraceId:        strconv.FormatInt(ssfSpan.TraceId, 16),
+		Id:             strconv.FormatInt(ssfSpan.Id, 16),
+		ParentId:       strconv.FormatInt(ssfSpan.ParentId, 16),
 		StartTimestamp: float64(ssfSpan.StartTimestamp) / float64(time.Second),
 		EndTimestamp:   float64(ssfSpan.EndTimestamp) / float64(time.Second),
 		Duration:       ssfSpan.EndTimestamp - ssfSpan.StartTimestamp,
