@@ -733,7 +733,7 @@ func (s *Server) Start() {
 				return
 			case <-ticker.C:
 				last := time.Unix(0, atomic.LoadInt64(&s.lastFlushUnix))
-				if time.Since(last) > 3*s.interval {
+				if time.Since(last) > time.Duration(s.stuckIntervals)*s.interval {
 					s.Statsd.Count("flush_watchdog.fired", 1, nil, 1.0)
 					log.WithField("last_flush", last).
 						Panic("Flushing seems to be stuck. Terminating.")
