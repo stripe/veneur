@@ -771,7 +771,6 @@ func (s *Server) FlushWatchdog() {
 	}
 	atomic.StoreInt64(&s.lastFlushUnix, time.Now().UnixNano())
 
-	// if we haven't flushed in 3x the flush interval, we're stuck.
 	ticker := time.NewTicker(s.interval)
 	for {
 		select {
@@ -781,6 +780,10 @@ func (s *Server) FlushWatchdog() {
 		case <-ticker.C:
 			last := time.Unix(0, atomic.LoadInt64(&s.lastFlushUnix))
 			since := time.Since(last)
+
+			// If no flush was kicked off in the last N
+			// times, we're stuck - panic because that's a
+			// bug.
 			if since > time.Duration(s.stuckIntervals)*s.interval {
 				rtdebug.SetTraceback("all")
 				log.WithFields(logrus.Fields{
