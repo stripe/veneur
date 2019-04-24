@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"reflect"
 	"runtime"
+	rtdebug "runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -712,36 +713,6 @@ func (s *Server) Start() {
 		}
 	}
 
-	s.lastFlushUnix = time.Now().UnixNano()
-
-	// Be a watchdog forever!
-	go func() {
-		defer func() {
-			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
-		}()
-
-		if s.stuckIntervals == 0 {
-			// No watchdog needed:
-			return
-		}
-		// if we haven't flushed in 3x the flush interval, we're stuck.
-		ticker := time.NewTicker(s.interval)
-		for {
-			select {
-			case <-s.shutdown:
-				ticker.Stop()
-				return
-			case <-ticker.C:
-				last := time.Unix(0, atomic.LoadInt64(&s.lastFlushUnix))
-				if time.Since(last) > time.Duration(s.stuckIntervals)*s.interval {
-					s.Statsd.Count("flush_watchdog.fired", 1, nil, 1.0)
-					log.WithField("last_flush", last).
-						Panic("Flushing seems to be stuck. Terminating.")
-				}
-			}
-		}
-	}()
-
 	// Flush every Interval forever!
 	go func() {
 		defer func() {
@@ -780,6 +751,47 @@ func (s *Server) Start() {
 			}
 		}
 	}()
+}
+
+// FlushWatchdog periodically checks that at most
+// `flush_watchdog_missed_flushes` were skipped in a Server. If more
+// than that number was skipped, it panics (assuming that flushing is
+// stuck) with a full level of detail on that panic's backtraces.
+//
+// It never terminates, so is ideally run from a goroutine in a
+// program's main function.
+func (s *Server) FlushWatchdog() {
+	defer func() {
+		ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+	}()
+
+	if s.stuckIntervals == 0 {
+		// No watchdog needed:
+		return
+	}
+	atomic.StoreInt64(&s.lastFlushUnix, time.Now().UnixNano())
+
+	// if we haven't flushed in 3x the flush interval, we're stuck.
+	ticker := time.NewTicker(s.interval)
+	for {
+		select {
+		case <-s.shutdown:
+			ticker.Stop()
+			return
+		case <-ticker.C:
+			last := time.Unix(0, atomic.LoadInt64(&s.lastFlushUnix))
+			since := time.Since(last)
+			if since > time.Duration(s.stuckIntervals)*s.interval {
+				rtdebug.SetTraceback("all")
+				log.WithFields(logrus.Fields{
+					"last_flush":       last,
+					"missed_intervals": s.stuckIntervals,
+					"time_since":       since,
+				}).
+					Panic("Flushing seems to be stuck. Terminating.")
+			}
+		}
+	}
 }
 
 // HandleMetricPacket processes each packet that is sent to the server, and sends to an

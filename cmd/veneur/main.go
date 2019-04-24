@@ -88,6 +88,7 @@ func main() {
 		}
 		trace.DefaultClient = server.TraceClient
 	}
+	go server.FlushWatchdog()
 	server.Start()
 
 	if conf.HTTPAddress != "" || conf.GrpcAddress != "" {
