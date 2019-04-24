@@ -716,6 +716,10 @@ func (s *Server) Start() {
 
 	// Be a watchdog forever!
 	go func() {
+		defer func() {
+			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+		}()
+
 		if s.stuckIntervals == 0 {
 			// No watchdog needed:
 			return
