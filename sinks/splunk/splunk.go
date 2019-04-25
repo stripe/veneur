@@ -437,8 +437,7 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 
 	// wouldDrop indicates whether this span would be dropped
 	// according to the sample rate. (1/spanSampleRate) spans
-	// will be kept. spans with a traceID of 0 will always be
-	// kept.
+	// will be kept.
 	wouldDrop := ssfSpan.TraceId%sss.spanSampleRate != 0
 
 	// skip this span if the sample rate says so, UNLESS it
