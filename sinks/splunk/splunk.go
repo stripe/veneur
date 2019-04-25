@@ -435,10 +435,14 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		return err
 	}
 
-	// choose (1/spanSampleRate) spans for sampling if any spans
-	// have the traceID of 0 or are declared indicator spans, they
-	// will always be chosen, regardless of the sample rate.
-	if !ssfSpan.Indicator && ssfSpan.TraceId%sss.spanSampleRate != 0 {
+	// wouldDrop indicates whether this span would be dropped
+	// according to the sample rate. (1/spanSampleRate) spans
+	// will be kept. `wouldDrop` is marked on Splunk events
+	// below when it's true
+	wouldDrop := ssfSpan.TraceId%sss.spanSampleRate != 0
+
+	// indicator spans are never sampled
+	if wouldDrop && !ssfSpan.Indicator {
 		atomic.AddUint32(&sss.skippedSpans, 1)
 		return nil
 	}
@@ -451,9 +455,9 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	}
 
 	serialized := SerializedSSF{
-		TraceId:        strconv.FormatInt(ssfSpan.TraceId, 10),
-		Id:             strconv.FormatInt(ssfSpan.Id, 10),
-		ParentId:       strconv.FormatInt(ssfSpan.ParentId, 10),
+		TraceId:        strconv.FormatInt(ssfSpan.TraceId, 16),
+		Id:             strconv.FormatInt(ssfSpan.Id, 16),
+		ParentId:       strconv.FormatInt(ssfSpan.ParentId, 16),
 		StartTimestamp: float64(ssfSpan.StartTimestamp) / float64(time.Second),
 		EndTimestamp:   float64(ssfSpan.EndTimestamp) / float64(time.Second),
 		Duration:       ssfSpan.EndTimestamp - ssfSpan.StartTimestamp,
@@ -462,6 +466,13 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		Tags:           ssfSpan.Tags,
 		Indicator:      ssfSpan.Indicator,
 		Name:           ssfSpan.Name,
+	}
+
+	if wouldDrop {
+		// if we would have dropped this span, the trace is marked as "partial"
+		// this lets us readily search for indicator spans that have full traces
+		// we only mark indicator spans this way
+		serialized.Partial = &wouldDrop
 	}
 
 	event := &Event{
@@ -497,4 +508,5 @@ type SerializedSSF struct {
 	Tags           map[string]string `json:"tags"`
 	Indicator      bool              `json:"indicator"`
 	Name           string            `json:"name"`
+	Partial        *bool             `json:"partial,omitempty"`
 }
