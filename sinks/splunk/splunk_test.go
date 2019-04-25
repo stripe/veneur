@@ -311,7 +311,7 @@ func TestSampling(t *testing.T) {
 	assert.True(t, events > 0, "Should have sent around 1/10 of spans, but received zero")
 	assert.True(t, events < nToFlush/2, "Should have sent less than half the spans, but received %d of %d", events, nToFlush)
 	assert.Equal(t, 0, markedPartial, "Expected `partial` to be omitted from non-indicator spans, but it was there")
-	t.Logf("Received %d of %d events", events, nToFlush)
+	t.Logf("Received %d of %d events (%d marked partial)", events, nToFlush, markedPartial)
 }
 
 func TestSamplingIndicators(t *testing.T) {
@@ -379,7 +379,7 @@ func TestSamplingIndicators(t *testing.T) {
 	assert.Equal(t, events, nToFlush, "Should have sent all the spans, but received %d of %d", events, nToFlush)
 	assert.True(t, markedPartial > 0, "Should marked around 1/10 of spans as partial, but received zero")
 	assert.True(t, (nToFlush-markedPartial) < nToFlush/2, "Should have marked less than half the spans as partial, but received %d of %d", markedPartial, nToFlush)
-	t.Logf("Received %d of %d events", events, nToFlush)
+	t.Logf("Received %d of %d events (%d marked partial)", events, nToFlush, markedPartial)
 }
 
 func TestClosedIngestionEndpoint(t *testing.T) {

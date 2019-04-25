@@ -437,11 +437,11 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 
 	// wouldDrop indicates whether this span would be dropped
 	// according to the sample rate. (1/spanSampleRate) spans
-	// will be kept.
+	// will be kept. `wouldDrop` is marked on Splunk events
+	// below when it's true
 	wouldDrop := ssfSpan.TraceId%sss.spanSampleRate != 0
 
-	// skip this span if the sample rate says so, UNLESS it
-	// is also an indicator span.
+	// indicator spans are never sampled
 	if wouldDrop && !ssfSpan.Indicator {
 		atomic.AddUint32(&sss.skippedSpans, 1)
 		return nil
@@ -468,7 +468,7 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		Name:           ssfSpan.Name,
 	}
 
-	if ssfSpan.Indicator {
+	if wouldDrop {
 		// if we would have dropped this span, the trace is marked as "partial"
 		// this lets us readily search for indicator spans that have full traces
 		// we only mark indicator spans this way
