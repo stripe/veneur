@@ -63,7 +63,9 @@ func (c *collection) addPoint(key string, point *datapoint.Datapoint) {
 	c.points = append(c.points, point)
 }
 
-func submitDatapoints(ctx context.Context, cl *trace.Client, client dpsink.Sink, points []*datapoint.Datapoint, errs chan<- error) {
+func submitDatapoints(ctx context.Context, wg *sync.WaitGroup, cl *trace.Client, client dpsink.Sink, points []*datapoint.Datapoint, errs chan<- error) {
+	defer wg.Done()
+
 	span, ctx := trace.StartSpanFromContext(ctx, "")
 	span.SetTag("datapoint_count", len(points))
 	defer span.ClientFinish(cl)
@@ -77,61 +79,54 @@ func submitDatapoints(ctx context.Context, cl *trace.Client, client dpsink.Sink,
 }
 
 func (c *collection) submit(ctx context.Context, cl *trace.Client, maxPerFlush int) error {
+	span, ctx := trace.StartSpanFromContext(ctx, "")
+	defer span.ClientFinish(cl)
+
 	wg := &sync.WaitGroup{}
-	errorCh := make(chan error, len(c.pointsByKey)+1)
+	resultCh := make(chan error)
+	errorCh := make(chan error) // the consolidated error we'll return from submit
+
+	go func() {
+		errors := []error{}
+		for err := range resultCh {
+			if err != nil {
+				span.Add(ssf.Count("flush.error_total", 1, map[string]string{"cause": "io", "sink": "signalfx"}))
+				errors = append(errors, err)
+			}
+		}
+		if len(errors) > 0 {
+			errorCh <- fmt.Errorf("unable to submit to all endpoints: %v", errors)
+		}
+		errorCh <- nil
+	}()
 
 	submitBatch := func(client dpsink.Sink, points []*datapoint.Datapoint) {
-		span, childCtx := trace.StartSpanFromContext(ctx, "")
-		span.SetTag("datapoint_count", len(points))
-		defer span.ClientFinish(cl)
-		defer wg.Done()
-		var firstErr error
 		perFlush := maxPerFlush
 		if perFlush == 0 {
 			perFlush = len(points)
 		}
-		errs := make(chan error)
-		flushes := 0
 		for i := 0; i < len(points); i += perFlush {
 			end := i + perFlush
 			if end > len(points) {
 				end = len(points)
 			}
-			go submitDatapoints(childCtx, cl, client, points[i:end], errs)
-			flushes++
-		}
-		for i := 0; i < flushes; i++ {
-			err := <-errs
-			if err != nil {
-				if firstErr == nil {
-					firstErr = err
-				}
-				span.Add(ssf.Count("flush.error_total", 1, map[string]string{"cause": "io", "sink": "signalfx"}))
-				errorCh <- err
-			}
-		}
-
-		if firstErr != nil {
-			span.Error(firstErr)
+			wg.Add(1)
+			go submitDatapoints(ctx, wg, cl, client, points[i:end], resultCh)
 		}
 	}
 
-	wg.Add(1)
-	go submitBatch(c.sink.defaultClient, c.points)
+	submitBatch(c.sink.defaultClient, c.points)
 	for key, points := range c.pointsByKey {
-		wg.Add(1)
-		go submitBatch(c.sink.client(key), points)
+		submitBatch(c.sink.client(key), points)
 	}
 	wg.Wait()
-	close(errorCh)
-	errors := []error{}
-	for err := range errorCh {
-		errors = append(errors, err)
+
+	close(resultCh)
+	err := <-errorCh
+	if err != nil {
+		span.Error(err)
 	}
-	if len(errors) > 0 {
-		return fmt.Errorf("Could not submit to all sfx sinks: %v", errors)
-	}
-	return nil
+	return err
 }
 
 // SignalFxSink is a MetricsSink implementation.

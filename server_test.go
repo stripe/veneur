@@ -127,9 +127,10 @@ func generateMetrics() (metricValues []float64, expectedMetrics map[string]float
 }
 
 // setupVeneurServer creates a local server from the specified config
-// and starts listening for requests. It returns the server for inspection.
-// If no metricSink or spanSink are provided then a `black hole` sink be used
-// so that flushes to these sinks do "nothing".
+// and starts listening for requests. It returns the server for
+// inspection.  If no metricSink or spanSink are provided then a
+// `black hole` sink will be used so that flushes to these sinks do
+// "nothing".
 func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper, mSink sinks.MetricSink, sSink sinks.SpanSink, traceClient *trace.Client) *Server {
 	logger := logrus.New()
 	server, err := NewFromConfig(logger, config)
@@ -1451,6 +1452,53 @@ func TestFlushDeadline(t *testing.T) {
 
 	_, ok := <-ch
 	assert.False(t, ok)
+}
+
+type blockingSink struct {
+	ch chan struct{}
+}
+
+func (bs blockingSink) Name() string { return "a_blocky_boi" }
+
+func (bs blockingSink) Start(traceClient *trace.Client) error {
+	return nil
+}
+
+func (bs blockingSink) Flush(context.Context, []samplers.InterMetric) error {
+	log.Print("hi, I'm blocking")
+	<-bs.ch
+	return nil
+}
+
+func (bs blockingSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {}
+
+func TestWatchdog(t *testing.T) {
+	config := localConfig()
+	config.Interval = "10ms"
+	config.FlushWatchdogMissedFlushes = 10
+
+	sink := blockingSink{make(chan struct{})}
+
+	f := newFixture(t, config, sink, nil)
+	defer f.Close()
+
+	// ingesting this metric will cause the blocking sink to block
+	// in Flush:
+	f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "histogram",
+		},
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.LocalOnly,
+	})
+
+	assert.Panics(t, func() {
+		f.server.FlushWatchdog()
+	}, "watchdog should have triggered")
+	close(sink.ch)
 }
 
 func BenchmarkHandleTracePacket(b *testing.B) {

@@ -31,11 +31,15 @@ func (s *Server) Flush(ctx context.Context) {
 	mem := &runtime.MemStats{}
 	runtime.ReadMemStats(mem)
 
+	flushTime := time.Now().UnixNano()
+	atomic.StoreInt64(&s.lastFlushUnix, flushTime)
+
 	s.Statsd.Gauge("worker.span_chan.total_elements", float64(len(s.SpanChan)), nil, 1.0)
 	s.Statsd.Gauge("worker.span_chan.total_capacity", float64(cap(s.SpanChan)), nil, 1.0)
 	s.Statsd.Gauge("gc.number", float64(mem.NumGC), nil, 1.0)
 	s.Statsd.Gauge("gc.pause_total_ns", float64(mem.PauseTotalNs), nil, 1.0)
 	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
+	s.Statsd.Gauge("flush.flush_timestamp_ns", float64(flushTime), nil, 1.0)
 
 	samples := s.EventWorker.Flush()
 
