@@ -374,9 +374,17 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request, cancel func()) {
 		dec := json.NewDecoder(resp.Body)
 		err := dec.Decode(&parsed)
 		if err != nil {
-			sss.log.WithError(err).
-				WithField("http_status_code", resp.StatusCode).
-				Warn("Could not parse response from splunk HEC")
+			entry := sss.log.WithError(err).
+				WithFields(logrus.Fields{
+					"http_status_code": resp.StatusCode,
+					"endpoint":         req.URL.String(),
+				})
+			if sss.log.Level >= logrus.DebugLevel {
+				body, _ := ioutil.ReadAll(dec.Buffered())
+				entry = entry.WithField("response_body", string(body))
+			}
+			entry.Warn("Could not parse response from splunk HEC")
+
 			return
 		}
 		cause = "error"
