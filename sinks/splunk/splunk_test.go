@@ -64,9 +64,15 @@ func jsonEndpoint(t testing.TB, ch chan<- splunk.Event) http.Handler {
 	})
 }
 
+func testLogger() *logrus.Logger {
+	logger := logrus.New()
+	logger.SetLevel(logrus.DebugLevel)
+	return logger
+}
+
 func TestSpanIngestBatch(t *testing.T) {
 	const nToFlush = 10
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
@@ -140,7 +146,7 @@ func TestSpanIngestBatch(t *testing.T) {
 
 func TestTimeout(t *testing.T) {
 	const nToFlush = 10
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(time.Duration(100 * time.Millisecond))
@@ -202,7 +208,7 @@ const benchmarkCapacity = 100
 const benchmarkWorkers = 3
 
 func BenchmarkBatchIngest(b *testing.B) {
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	// set up a null responder that we can flush to:
 	ts := httptest.NewServer(jsonEndpoint(b, nil))
@@ -248,7 +254,7 @@ func BenchmarkBatchIngest(b *testing.B) {
 
 func TestSampling(t *testing.T) {
 	const nToFlush = 1000
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
@@ -316,7 +322,7 @@ func TestSampling(t *testing.T) {
 
 func TestSamplingIndicators(t *testing.T) {
 	const nToFlush = 100
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
@@ -384,7 +390,7 @@ func TestSamplingIndicators(t *testing.T) {
 
 func TestClosedIngestionEndpoint(t *testing.T) {
 	const nToFlush = 100
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))

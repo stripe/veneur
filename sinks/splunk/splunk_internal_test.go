@@ -1,6 +1,8 @@
 package splunk
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"testing"
 	"time"
@@ -23,8 +25,14 @@ func TestWorkerCount(t *testing.T) {
 		workerProcs := out
 		t.Run(strconv.Itoa(nWorkers), func(t *testing.T) {
 			t.Parallel()
-			logger := logrus.StandardLogger()
-			sink, err := NewSplunkSpanSink("http://example.com", "00000000-0000-0000-0000-000000000000",
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(200)
+			}))
+			defer ts.Close()
+
+			logger := logrus.New()
+			logger.SetLevel(logrus.DebugLevel)
+			sink, err := NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
 				"test-host", "", logger, time.Duration(0), time.Duration(0), 100, nWorkers, 10, 10*time.Millisecond, 0)
 			sss := sink.(*splunkSpanSink)
 			defer sss.Stop()
