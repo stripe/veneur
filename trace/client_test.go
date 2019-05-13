@@ -479,3 +479,29 @@ func TestDropStatistics(t *testing.T) {
 	close(done)
 	close(blockNext)
 }
+
+func TestNormalize(t *testing.T) {
+	received := make(chan *ssf.SSFSpan, 1)
+
+	normalizer := func(sample *ssf.SSFSample) {
+		sample.Scope = ssf.SSFSample_Scope(ssf.Global)
+		sample.Tags["woo_yay"] = "blort"
+	}
+	cl, err := trace.NewBackendClient(testbackend.NewBackend(received),
+		trace.Capacity(5),
+		trace.NormalizeSamples(normalizer))
+	require.NoError(t, err)
+
+	span := trace.StartTrace("hi there")
+	span.Add(ssf.Gauge("whee.gauge", 20, map[string]string{}))
+	span.Add(ssf.Count("whee.counter", 20, map[string]string{}, ssf.Scope(ssf.Local)))
+	go mustRecord(t, cl, span)
+
+	out := <-received
+	for _, sample := range out.Metrics {
+		assert.Equal(t, ssf.SSFSample_Scope(ssf.Global), sample.Scope,
+			"sample: %v", sample)
+		assert.Equal(t, "blort", sample.Tags["woo_yay"],
+			"sample: %v", sample)
+	}
+}

@@ -21,6 +21,12 @@ message SSFSample {
       UNKNOWN = 3;
   }
 
+  enum Scope {
+    DEFAULT = 0;
+    LOCAL = 1;
+    GLOBAL = 2;
+  }
+
   // The underlying type of the metric
   Metric metric = 1;
 
@@ -34,6 +40,15 @@ message SSFSample {
   float sample_rate = 7;
   map<string, string> tags = 8;
   string unit = 9;
+
+  // scope indicates to an SSF endpoint what it should do with a metric:
+  // 
+  //     - DEFAULT (or absent) - aggregate counters and gauges locally,
+  //       handle histograms and sets globally.
+  //     - LOCAL - aggregate all metrics locally.
+  //     - GLOBAL - aggregate all metrics globally.
+  //
+  Scope scope = 10;
 }
 
 // SSFSpan is the primary unit of reporting in SSF. It embeds a set of

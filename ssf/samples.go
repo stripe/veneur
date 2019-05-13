@@ -60,6 +60,25 @@ func Timestamp(ts time.Time) SampleOption {
 	}
 }
 
+// SampleScope is a slightly more ergonomic representation of the
+// internal type SSFSample_Scope.
+type SampleScope SSFSample_Scope
+
+const (
+	DefaultScope SampleScope = SampleScope(SSFSample_DEFAULT)
+	Local        SampleScope = SampleScope(SSFSample_LOCAL)
+	Global       SampleScope = SampleScope(SSFSample_GLOBAL)
+)
+
+// Scope is a SampleOption that sets the scope of a metric to be
+// either "global" (i.e., aggregated on a central node), or "local"
+// (i.e., aggregated exclusively on the central node).
+func Scope(scope SampleScope) SampleOption {
+	return func(s *SSFSample) {
+		s.Scope = SSFSample_Scope(scope)
+	}
+}
+
 // SampleRate sets the rate at which a measurement is sampled. The
 // rate is a number on the interval (0..1] (1 means that the value is
 // not sampled). Any numbers outside this interval result in no change
