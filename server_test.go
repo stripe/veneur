@@ -469,7 +469,7 @@ func readTestKeysCerts() (map[string]string, error) {
 		"serverkey.pem",
 	}
 	for _, fileName := range pemFileNames {
-		b, err := ioutil.ReadFile(filepath.Join("fixtures", fileName))
+		b, err := ioutil.ReadFile(filepath.Join("testdata", fileName))
 		if err != nil {
 			return nil, err
 		}

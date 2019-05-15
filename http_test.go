@@ -127,20 +127,20 @@ func testServerImport(t *testing.T, filename string, contentEncoding string) {
 func TestServerImportCompressed(t *testing.T) {
 	// Test that the global veneur instance can handle
 	// requests that provide compressed metrics
-	testServerImport(t, filepath.Join("fixtures", "import.deflate"), "deflate")
+	testServerImport(t, filepath.Join("testdata", "import.deflate"), "deflate")
 }
 
 func TestServerImportUncompressed(t *testing.T) {
 	// Test that the global veneur instance can handle
 	// requests that provide uncompressed metrics
-	testServerImport(t, filepath.Join("fixtures", "import.uncompressed"), "")
+	testServerImport(t, filepath.Join("testdata", "import.uncompressed"), "")
 }
 
 func TestServerImportGzip(t *testing.T) {
 	// Test that the global veneur instance
 	// returns a 400 for gzipped-input
 
-	f, err := os.Open(filepath.Join("fixtures", "import.uncompressed"))
+	f, err := os.Open(filepath.Join("testdata", "import.uncompressed"))
 	assert.NoError(t, err, "Error reading response fixture")
 	defer f.Close()
 
@@ -171,7 +171,7 @@ func TestServerImportCompressedInvalid(t *testing.T) {
 
 	//TODO(aditya) test that the metrics are properly reported
 
-	f, err := os.Open(filepath.Join("fixtures", "import.uncompressed"))
+	f, err := os.Open(filepath.Join("testdata", "import.uncompressed"))
 	assert.NoError(t, err, "Error reading response fixture")
 	defer f.Close()
 
@@ -196,7 +196,7 @@ func TestServerImportUncompressedInvalid(t *testing.T) {
 
 	//TODO(aditya) test that the metrics are properly reported
 
-	f, err := os.Open(filepath.Join("fixtures", "import.deflate"))
+	f, err := os.Open(filepath.Join("testdata", "import.deflate"))
 	assert.NoError(t, err, "Error reading response fixture")
 	defer f.Close()
 
@@ -380,7 +380,7 @@ func testServerImportHelper(t *testing.T, data interface{}) {
 
 func BenchmarkNewSortableJSONMetrics(b *testing.B) {
 	const numWorkers = 100
-	filename := filepath.Join("fixtures", "import.deflate")
+	filename := filepath.Join("testdata", "import.deflate")
 	contentEncoding := "deflate"
 
 	f, err := os.Open(filename)

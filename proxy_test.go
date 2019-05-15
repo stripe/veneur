@@ -51,11 +51,11 @@ func (rt *ConsulTwoMetricRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 
 	rec := httptest.NewRecorder()
 	if req.URL.Path == "/v1/health/service/forwardServiceName" {
-		resp, _ := ioutil.ReadFile("fixtures/consul/health_service_two.json")
+		resp, _ := ioutil.ReadFile("testdata/consul/health_service_two.json")
 		rec.Write(resp)
 		rec.Code = http.StatusOK
 	} else if req.URL.Path == "/v1/health/service/traceServiceName" {
-		resp, _ := ioutil.ReadFile("fixtures/consul/health_service_two.json")
+		resp, _ := ioutil.ReadFile("testdata/consul/health_service_two.json")
 		rec.Write(resp)
 		rec.Code = http.StatusOK
 	} else if req.URL.Path == "/api/v1/series" {

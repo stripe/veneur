@@ -18,7 +18,7 @@ type ConsulOneRoundTripper struct {
 func (rt *ConsulOneRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	rec := httptest.NewRecorder()
 	if strings.HasPrefix(req.URL.Path, "/v1/health/service/") {
-		resp, _ := ioutil.ReadFile("fixtures/consul/health_service_one.json")
+		resp, _ := ioutil.ReadFile("testdata/consul/health_service_one.json")
 		rec.Write(resp)
 		rec.Code = http.StatusOK
 		rt.HealthGotCalled = true
@@ -38,12 +38,12 @@ func (rt *ConsulChangingRoundTripper) RoundTrip(req *http.Request) (*http.Respon
 		var resp []byte
 		if rt.Count == 2 {
 			// On the second invocation, return zero hosts!
-			resp, _ = ioutil.ReadFile("fixtures/consul/health_service_zero.json")
+			resp, _ = ioutil.ReadFile("testdata/consul/health_service_zero.json")
 		} else if rt.Count == 1 {
 			// On the second invocation, return two hosts!
-			resp, _ = ioutil.ReadFile("fixtures/consul/health_service_two.json")
+			resp, _ = ioutil.ReadFile("testdata/consul/health_service_two.json")
 		} else {
-			resp, _ = ioutil.ReadFile("fixtures/consul/health_service_one.json")
+			resp, _ = ioutil.ReadFile("testdata/consul/health_service_one.json")
 		}
 		rec.Write(resp)
 		rec.Code = http.StatusOK
@@ -52,7 +52,7 @@ func (rt *ConsulChangingRoundTripper) RoundTrip(req *http.Request) (*http.Respon
 	} else if req.URL.Path == "/v1/health/service/traceServiceName" {
 		// These don't count. Since we make different calls, we'll return some junk
 		// for tracing and leave forwarding to it's own thing.
-		resp, _ := ioutil.ReadFile("fixtures/consul/health_service_one.json")
+		resp, _ := ioutil.ReadFile("testdata/consul/health_service_one.json")
 		rec.Write(resp)
 		rec.Code = http.StatusOK
 	}
