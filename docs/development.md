@@ -41,3 +41,9 @@ concerning the run time of this process to veneur.
 
 `veneur-emit` has a bunch more options, check out the usage for it
 with `go run ./cmd/veneur-emit/main.go -help`!
+
+## Adding test data files
+
+When your tests depend on data files, put them into a `testdata`
+directory next to the test file, and use relative paths to refer to
+them.

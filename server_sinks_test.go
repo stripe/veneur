@@ -28,13 +28,13 @@ func TestFlushTracesBySink(t *testing.T) {
 	cases := []TestCase{
 		{
 			Name:         "Success",
-			ProtobufFile: filepath.Join("fixtures", "protobuf", "trace.pb"),
-			JSONFile:     filepath.Join("fixtures", "tracing_agent", "spans", "trace.pb.json"),
+			ProtobufFile: filepath.Join("testdata", "protobuf", "trace.pb"),
+			JSONFile:     filepath.Join("testdata", "tracing_agent", "spans", "trace.pb.json"),
 		},
 		{
 			Name:         "Critical",
-			ProtobufFile: filepath.Join("fixtures", "protobuf", "trace_critical.pb"),
-			JSONFile:     filepath.Join("fixtures", "tracing_agent", "spans", "trace_critical.pb.json"),
+			ProtobufFile: filepath.Join("testdata", "protobuf", "trace_critical.pb"),
+			JSONFile:     filepath.Join("testdata", "tracing_agent", "spans", "trace_critical.pb.json"),
 		},
 	}
 
