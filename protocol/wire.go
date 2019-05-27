@@ -155,12 +155,12 @@ func ParseSSF(packet []byte) (*ssf.SSFSpan, error) {
 	if span.Name == "" {
 		// Even though incoming packets should have Name set,
 		// this allows Veneur to be backwards-compatible.
-		for k, v := range span.Tags {
-			if k == "name" {
-				span.Name = v
-			}
+		// Since Dimensions got introduced way after we
+		// started setting a span Name, this uses only tags:
+		if name, ok := span.Tags["name"]; ok {
+			span.Name = name
+			delete(span.Tags, "name")
 		}
-		delete(span.Tags, "name")
 	}
 
 	// Normalize metrics on the span:

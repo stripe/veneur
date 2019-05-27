@@ -3,6 +3,7 @@ package protocol
 import (
 	"bytes"
 	"crypto/rand"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -177,39 +178,183 @@ func BenchmarkValidTrace(b *testing.B) {
 
 }
 
-func BenchmarkParseSSF(b *testing.B) {
-	const Len = 1000
-	input := make([][]byte, Len)
-	for i, _ := range input {
-		p := make([]byte, 10)
-		_, err := rand.Read(p)
-		if err != nil {
-			b.Fatalf("Error generating data: %s", err)
-		}
-		msg := &ssf.SSFSpan{
-			Version:        1,
-			TraceId:        1,
-			Id:             2,
-			ParentId:       3,
-			StartTimestamp: time.Now().Unix(),
-			EndTimestamp:   time.Now().Add(5 * time.Second).Unix(),
-			Tags: map[string]string{
-				string(p[:4]):  string(p[5:]),
-				string(p[3:7]): string(p[1:3]),
-			},
-		}
-
-		data, err := msg.Marshal()
-		assert.NoError(b, err)
-
-		input[i] = data
+func generateTags(n int) map[string]string {
+	res := map[string]string{}
+	for i := 0; i < n; i++ {
+		res[fmt.Sprintf("tag-name-%d", i)] = fmt.Sprintf("tag-value-%d", i)
 	}
-	b.ResetTimer()
+	return res
+}
 
-	for i := 0; i < b.N; i++ {
-		_, err := ParseSSF(input[i%Len])
-		if err != nil {
-			b.Fatalf("Error parsing SSF %s", err)
-		}
+func generateDims(n int) []*ssf.Dimension {
+	res := make([]*ssf.Dimension, 0, n)
+	for i := 0; i < n; i++ {
+		res = append(res, &ssf.Dimension{
+			Key:   fmt.Sprintf("tag-name-%d", i),
+			Value: fmt.Sprintf("tag-value-%d", i),
+		})
+	}
+	return res
+}
+
+const nTags = 400
+
+func BenchmarkSSFParseSSF(b *testing.B) {
+	p := make([]byte, 10)
+	_, err := rand.Read(p)
+	if err != nil {
+		b.Fatalf("Error generating data: %s", err)
+	}
+	scenarios := []struct {
+		name string
+		msg  *ssf.SSFSpan
+	}{
+		{
+			name: "span_with_Tags",
+			msg: &ssf.SSFSpan{
+				Version:        1,
+				TraceId:        1,
+				Id:             2,
+				ParentId:       3,
+				StartTimestamp: time.Now().Unix(),
+				EndTimestamp:   time.Now().Add(5 * time.Second).Unix(),
+				Tags:           generateTags(nTags),
+			},
+		},
+		{
+			name: "span_with_Dimensions",
+			msg: &ssf.SSFSpan{
+				Version:        1,
+				TraceId:        1,
+				Id:             2,
+				ParentId:       3,
+				StartTimestamp: time.Now().Unix(),
+				EndTimestamp:   time.Now().Add(5 * time.Second).Unix(),
+				Dimensions:     generateDims(nTags),
+			},
+		},
+		{
+			name: "sample_with_Tags",
+			msg: &ssf.SSFSpan{
+				Metrics: []*ssf.SSFSample{
+					&ssf.SSFSample{
+						Metric: ssf.SSFSample_GAUGE,
+						Name:   "a_test_sample",
+						Value:  100.0,
+						Tags:   generateTags(nTags),
+					},
+				},
+			},
+		},
+		{
+			name: "sample_with_Dimensions",
+			msg: &ssf.SSFSpan{
+				Metrics: []*ssf.SSFSample{
+					&ssf.SSFSample{
+						Metric:     ssf.SSFSample_GAUGE,
+						Name:       "a_test_sample",
+						Value:      100.0,
+						Dimensions: generateDims(nTags),
+					},
+				},
+			},
+		},
+	}
+	for _, elt := range scenarios {
+		bench := elt
+		b.Run(bench.name, func(t *testing.B) {
+			const Len = 1000
+			input := make([][]byte, Len)
+
+			for i, _ := range input {
+				msg := bench.msg
+				data, err := msg.Marshal()
+				assert.NoError(b, err)
+
+				input[i] = data
+			}
+			b.ResetTimer()
+
+			for i := 0; i < b.N; i++ {
+				_, err := ParseSSF(input[i%Len])
+				if err != nil {
+					b.Fatalf("Error parsing SSF %s", err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkSSFMarshal(b *testing.B) {
+	p := make([]byte, 10)
+	_, err := rand.Read(p)
+	if err != nil {
+		b.Fatalf("Error generating data: %s", err)
+	}
+	scenarios := []struct {
+		name string
+		msg  *ssf.SSFSpan
+	}{
+		{
+			name: "span_with_Tags",
+			msg: &ssf.SSFSpan{
+				Version:        1,
+				TraceId:        1,
+				Id:             2,
+				ParentId:       3,
+				StartTimestamp: time.Now().Unix(),
+				EndTimestamp:   time.Now().Add(5 * time.Second).Unix(),
+				Tags:           generateTags(nTags),
+			},
+		},
+		{
+			name: "span_with_Dimensions",
+			msg: &ssf.SSFSpan{
+				Version:        1,
+				TraceId:        1,
+				Id:             2,
+				ParentId:       3,
+				StartTimestamp: time.Now().Unix(),
+				EndTimestamp:   time.Now().Add(5 * time.Second).Unix(),
+				Dimensions:     generateDims(nTags),
+			},
+		},
+		{
+			name: "sample_with_Tags",
+			msg: &ssf.SSFSpan{
+				Metrics: []*ssf.SSFSample{
+					&ssf.SSFSample{
+						Metric: ssf.SSFSample_GAUGE,
+						Name:   "a_test_sample",
+						Value:  100.0,
+						Tags:   generateTags(nTags),
+					},
+				},
+			},
+		},
+		{
+			name: "sample_with_Dimensions",
+			msg: &ssf.SSFSpan{
+				Metrics: []*ssf.SSFSample{
+					&ssf.SSFSample{
+						Metric:     ssf.SSFSample_GAUGE,
+						Name:       "a_test_sample",
+						Value:      100.0,
+						Dimensions: generateDims(nTags),
+					},
+				},
+			},
+		},
+	}
+	for _, elt := range scenarios {
+		bench := elt
+		b.Run(bench.name, func(t *testing.B) {
+			for i := 0; i < b.N*3000; i++ {
+				_, err := bench.msg.Marshal()
+				if err != nil {
+					b.Fatalf("Error parsing SSF %s", err)
+				}
+			}
+		})
 	}
 }

@@ -329,7 +329,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		mpf = runtime.SetMutexProfileFraction(conf.MutexProfileFraction)
 	}
 
-	log.WithFields(logrus.Fields{
+	logger.WithFields(logrus.Fields{
 		"MutexProfileFraction":         conf.MutexProfileFraction,
 		"previousMutexProfileFraction": mpf,
 	}).Info("Set mutex profile fraction")
@@ -337,7 +337,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	if conf.BlockProfileRate > 0 {
 		runtime.SetBlockProfileRate(conf.BlockProfileRate)
 	}
-	log.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
+	logger.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
 
 	if conf.EnableProfiling {
 		ret.enableProfiling = true
@@ -504,7 +504,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 		if conf.XrayAddress != "" {
 			if conf.XraySamplePercentage == 0 {
-				log.Warn("XRay sample percentage is 0, no segments will be sent.")
+				logger.Warn("XRay sample percentage is 0, no segments will be sent.")
 			} else {
 
 				annotationTags := make([]string, 0, len(conf.XrayAnnotationTags))
@@ -990,7 +990,7 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string) {
 
 	if (span.Id % internalMetricSampleRate) == 1 {
 		// we can't avoid emitting this metric synchronously by aggregating in-memory, but that's okay
-		s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)), []string{"service:" + span.Service, "ssf_format:" + ssfFormat}, 1)
+		s.Statsd.Histogram("ssf.spans.tags_per_span", float64(len(span.Tags)+len(span.Dimensions)), []string{"service:" + span.Service, "ssf_format:" + ssfFormat}, 1)
 	}
 
 	metrics, ok := s.ssfInternalMetrics.Load(key)

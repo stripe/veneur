@@ -117,11 +117,16 @@ func TimeUnit(resolution time.Duration) SampleOption {
 	}
 }
 
-func create(base *SSFSample, opts []SampleOption) *SSFSample {
+func create(base *SSFSample, tags map[string]string, opts []SampleOption) *SSFSample {
 	base.Name = NamePrefix + base.Name
+	dims := make([]*Dimension, 0, len(tags))
 	for _, opt := range opts {
 		opt(base)
 	}
+	for k, v := range tags {
+		dims = append(dims, NewDimension(k, v))
+	}
+	base.Dimensions = dims
 	return base
 }
 
@@ -161,9 +166,8 @@ func Count(name string, value float32, tags map[string]string, opts ...SampleOpt
 		Metric:     SSFSample_COUNTER,
 		Name:       name,
 		Value:      value,
-		Tags:       tags,
 		SampleRate: 1.0,
-	}, opts)
+	}, tags, opts)
 }
 
 // Gauge returns an SSFSample representing a gauge at a certain
@@ -174,9 +178,8 @@ func Gauge(name string, value float32, tags map[string]string, opts ...SampleOpt
 		Metric:     SSFSample_GAUGE,
 		Name:       name,
 		Value:      value,
-		Tags:       tags,
 		SampleRate: 1.0,
-	}, opts)
+	}, tags, opts)
 }
 
 // Histogram returns an SSFSample representing a value on a histogram,
@@ -187,9 +190,8 @@ func Histogram(name string, value float32, tags map[string]string, opts ...Sampl
 		Metric:     SSFSample_HISTOGRAM,
 		Name:       name,
 		Value:      value,
-		Tags:       tags,
 		SampleRate: 1.0,
-	}, opts)
+	}, tags, opts)
 }
 
 // Set returns an SSFSample representing a value on a set, useful for
@@ -199,9 +201,8 @@ func Set(name string, value string, tags map[string]string, opts ...SampleOption
 		Metric:     SSFSample_SET,
 		Name:       name,
 		Message:    value,
-		Tags:       tags,
 		SampleRate: 1.0,
-	}, opts)
+	}, tags, opts)
 }
 
 // Timing returns an SSFSample (really a histogram) representing the
@@ -218,7 +219,6 @@ func Status(name string, state SSFSample_Status, tags map[string]string, opts ..
 		Metric:     SSFSample_STATUS,
 		Name:       name,
 		Status:     state,
-		Tags:       tags,
 		SampleRate: 1.0,
-	}, opts)
+	}, tags, opts)
 }

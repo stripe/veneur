@@ -161,7 +161,7 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	for k, v := range x.commonTags {
 		metadata[k] = v
 	}
-	for k, v := range ssfSpan.Tags {
+	for k, v := range ssfSpan.DimensionsAsTags() {
 		if k != XRayTagNameClientIP {
 			metadata[k] = v
 		}

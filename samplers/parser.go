@@ -156,18 +156,18 @@ func ConvertIndicatorMetrics(span *ssf.SSFSpan, indicatorTimerName, objectiveTim
 
 	if objectiveTimerName != "" {
 		tags := map[string]string{
-			"service":          span.Service,
-			"objective":        span.Name,
-			"error":            "false",
-			"veneurglobalonly": "true",
+			"service":   span.Service,
+			"objective": span.Name,
+			"error":     "false",
 		}
-		if span.Tags["ssf_objective"] != "" {
-			tags["objective"] = span.Tags["ssf_objective"]
+		if objective, ok := span.DimensionValue("ssf_objective"); ok && objective != "" {
+			tags["objective"] = objective
 		}
 		if span.Error {
 			tags["error"] = "true"
 		}
 		ssfTimer := ssf.Timing(objectiveTimerName, duration, time.Nanosecond, tags)
+		ssfTimer.AddTagPlain("veneurglobalonly")
 		ssfTimer.Name = objectiveTimerName // Ensure the name is free from any name prefixes, like "veneur."
 
 		timer, err := ParseMetricSSF(ssfTimer)
@@ -274,16 +274,20 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 	}
 	ret.SampleRate = metric.SampleRate
 	tempTags := make([]string, 0, len(metric.Tags))
-	for key, value := range metric.Tags {
-		if key == "veneurlocalonly" {
+	for _, dim := range metric.AllDimensions() {
+		if dim.Value == "veneurlocalonly" || (dim.Key == "veneurlocalonly" && dim.Value == "true") {
 			ret.Scope = LocalOnly
 			continue
 		}
-		if key == "veneurglobalonly" {
+		if dim.Value == "veneurglobalonly" || (dim.Key == "veneurglobalonly" && dim.Value == "true") {
 			ret.Scope = GlobalOnly
 			continue
 		}
-		tempTags = append(tempTags, key+":"+value)
+		if dim.Key == "" {
+			tempTags = append(tempTags, dim.Value)
+			continue
+		}
+		tempTags = append(tempTags, dim.Key+":"+dim.Value)
 	}
 	sort.Strings(tempTags)
 	ret.Tags = tempTags

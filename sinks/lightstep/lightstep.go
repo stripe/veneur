@@ -156,13 +156,14 @@ func (ls *LightStepSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		lightstep.SetSpanID(uint64(ssfSpan.Id)),
 		lightstep.SetParentSpanID(uint64(parentID)))
 
-	sp.SetTag(trace.ResourceKey, ssfSpan.Tags[trace.ResourceKey]) // TODO Why is this here?
+	tags := ssfSpan.DimensionsAsTags()
+	sp.SetTag(trace.ResourceKey, tags[trace.ResourceKey]) // TODO Why is this here?
 	sp.SetTag(lightstep.ComponentNameKey, ssfSpan.Service)
 	sp.SetTag(indicatorSpanTagName, strconv.FormatBool(ssfSpan.Indicator))
 	// TODO don't hardcode
 	sp.SetTag("type", "http")
 	sp.SetTag("error-code", errorCode)
-	for k, v := range ssfSpan.Tags {
+	for k, v := range tags {
 		sp.SetTag(k, v)
 	}
 	// TODO add metrics as tags to the span as well?

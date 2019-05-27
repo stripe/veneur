@@ -469,9 +469,9 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		StartTimestamp: float64(ssfSpan.StartTimestamp) / float64(time.Second),
 		EndTimestamp:   float64(ssfSpan.EndTimestamp) / float64(time.Second),
 		Duration:       ssfSpan.EndTimestamp - ssfSpan.StartTimestamp,
+		Tags:           ssfSpan.DimensionsAsTags(),
 		Error:          ssfSpan.Error,
 		Service:        ssfSpan.Service,
-		Tags:           ssfSpan.Tags,
 		Indicator:      ssfSpan.Indicator,
 		Name:           ssfSpan.Name,
 	}

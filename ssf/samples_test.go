@@ -19,7 +19,9 @@ func TestValidity(t *testing.T) {
 			sample := test("foo", 1, map[string]string{"purpose": "testing"})
 			assert.Equal(t, "foo", sample.Name)
 			assert.Equal(t, float32(1), sample.Value)
-			assert.Equal(t, map[string]string{"purpose": "testing"}, sample.Tags)
+			assert.Equal(t, 1, len(sample.Dimensions))
+			assert.Equal(t, &Dimension{"purpose", "testing"}, sample.Dimensions[0])
+			assert.Nil(t, sample.Tags, nil)
 		})
 	}
 }

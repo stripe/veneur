@@ -488,14 +488,10 @@ func (dd *DatadogSpanSink) Flush() {
 			parentID = 0
 		}
 
-		tags := map[string]string{}
-		// Get the span's existing tags
-		for k, v := range span.Tags {
-			tags[k] = v
-		}
+		tags := span.DimensionsAsTags()
 
-		resource := span.Tags[datadogResourceKey]
-		if resource == "" {
+		resource, ok := tags[datadogResourceKey]
+		if !ok {
 			resource = "unknown"
 		}
 		delete(tags, datadogResourceKey)
