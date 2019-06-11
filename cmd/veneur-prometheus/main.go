@@ -1,9 +1,12 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math"
 	"net/http"
 	"regexp"
@@ -24,6 +27,11 @@ var (
 	ignoredMetricsStr = flag.String("ignored-metrics", "", "A comma-seperated list of metric name regexes to not export")
 	prefix            = flag.String("p", "", "A prefix to append to any metrics emitted. Do not include a trailing period.")
 	statsHost         = flag.String("s", "127.0.0.1:8126", "The host and port — like '127.0.0.1:8126' — to send our metrics to.")
+
+	// mTLS params for collecting metrics
+	cert   = flag.String("cert", "", "The path to a client cert to present to the server. Only used if using mTLS.")
+	key    = flag.String("key", "", "The path to a private key to use for mTLS. Only used if using mTLS.")
+	caCert = flag.String("cacert", "", "The path to a CA cert used to validate the server certificate. Only used if using mTLS.")
 )
 
 func main() {
@@ -72,7 +80,8 @@ func collect(c *statsd.Client, ignoredLabels []*regexp.Regexp, ignoredMetrics []
 		"ignored_metrics": ignoredMetrics,
 	}).Debug("Beginning collection")
 
-	resp, err := http.Get(*metricsHost)
+	client := newHTTPClient(*cert, *key, *caCert)
+	resp, err := client.Get(*metricsHost)
 	if err != nil {
 		logrus.WithError(err).WithField("metrics_host", *metricsHost).Warn(fmt.Sprintf("Failed to collect metrics"))
 		return
@@ -183,4 +192,37 @@ func shouldExportMetric(mf dto.MetricFamily, ignoredMetrics []*regexp.Regexp) bo
 	}
 
 	return true
+}
+
+func newHTTPClient(certPath, keyPath, caCertPath string) *http.Client {
+	var caCertPool *x509.CertPool
+	var clientCerts []tls.Certificate
+
+	if certPath != "" {
+		clientCert, err := tls.LoadX509KeyPair(certPath, keyPath)
+		if err != nil {
+			logrus.WithError(err).Fatalf("error reading client cert and key")
+		}
+		clientCerts = append(clientCerts, clientCert)
+	}
+
+	if caCertPath != "" {
+		caCertPool = x509.NewCertPool()
+		caCert, err := ioutil.ReadFile(caCertPath)
+		if err != nil {
+			logrus.WithError(err).Fatalf("error reading ca cert")
+		}
+		caCertPool.AppendCertsFromPEM(caCert)
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				Certificates: clientCerts,
+				RootCAs:      caCertPool,
+			},
+		},
+	}
+
+	return client
 }
