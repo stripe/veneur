@@ -37,7 +37,11 @@ var (
 func main() {
 	flag.Parse()
 
-	c, _ := statsd.New(*statsHost)
+	statsClient, _ := statsd.New(*statsHost)
+
+	if *prefix != "" {
+		statsClient.Namespace = *prefix
+	}
 
 	if *debug {
 		logrus.SetLevel(logrus.DebugLevel)
@@ -62,17 +66,15 @@ func main() {
 		}
 	}
 
+	httpClient := newHTTPClient(*cert, *key, *caCert)
+
 	ticker := time.NewTicker(i)
 	for _ = range ticker.C {
-		collect(c, ignoredLabels, ignoredMetrics)
-	}
-
-	if *prefix != "" {
-		c.Namespace = *prefix
+		collect(httpClient, statsClient, ignoredLabels, ignoredMetrics)
 	}
 }
 
-func collect(c *statsd.Client, ignoredLabels []*regexp.Regexp, ignoredMetrics []*regexp.Regexp) {
+func collect(httpClient *http.Client, statsClient *statsd.Client, ignoredLabels []*regexp.Regexp, ignoredMetrics []*regexp.Regexp) {
 	logrus.WithFields(logrus.Fields{
 		"stats_host":      *statsHost,
 		"metrics_host":    *metricsHost,
@@ -80,8 +82,7 @@ func collect(c *statsd.Client, ignoredLabels []*regexp.Regexp, ignoredMetrics []
 		"ignored_metrics": ignoredMetrics,
 	}).Debug("Beginning collection")
 
-	client := newHTTPClient(*cert, *key, *caCert)
-	resp, err := client.Get(*metricsHost)
+	resp, err := httpClient.Get(*metricsHost)
 	if err != nil {
 		logrus.WithError(err).WithField("metrics_host", *metricsHost).Warn(fmt.Sprintf("Failed to collect metrics"))
 		return
@@ -95,7 +96,7 @@ func collect(c *statsd.Client, ignoredLabels []*regexp.Regexp, ignoredMetrics []
 			// We've hit the end, break out!
 			break
 		} else if err != nil {
-			c.Count("veneur.prometheus.decode_errors_total", 1, nil, 1.0)
+			statsClient.Count("veneur.prometheus.decode_errors_total", 1, nil, 1.0)
 			logrus.WithError(err).Warn("Failed to decode a metric")
 			break
 		}
@@ -109,13 +110,13 @@ func collect(c *statsd.Client, ignoredLabels []*regexp.Regexp, ignoredMetrics []
 		case dto.MetricType_COUNTER:
 			for _, counter := range mf.GetMetric() {
 				tags := getTags(counter.GetLabel(), ignoredLabels)
-				c.Count(mf.GetName(), int64(counter.GetCounter().GetValue()), tags, 1.0)
+				statsClient.Count(mf.GetName(), int64(counter.GetCounter().GetValue()), tags, 1.0)
 				metricCount++
 			}
 		case dto.MetricType_GAUGE:
 			for _, gauge := range mf.GetMetric() {
 				tags := getTags(gauge.GetLabel(), ignoredLabels)
-				c.Gauge(mf.GetName(), float64(gauge.GetGauge().GetValue()), tags, 1.0)
+				statsClient.Gauge(mf.GetName(), float64(gauge.GetGauge().GetValue()), tags, 1.0)
 				metricCount++
 			}
 		case dto.MetricType_SUMMARY:
@@ -123,14 +124,14 @@ func collect(c *statsd.Client, ignoredLabels []*regexp.Regexp, ignoredMetrics []
 				tags := getTags(summary.GetLabel(), ignoredLabels)
 				name := mf.GetName()
 				data := summary.GetSummary()
-				c.Gauge(fmt.Sprintf("%s.sum", name), data.GetSampleSum(), tags, 1.0)
-				c.Count(fmt.Sprintf("%s.count", name), int64(data.GetSampleCount()), tags, 1.0)
+				statsClient.Gauge(fmt.Sprintf("%s.sum", name), data.GetSampleSum(), tags, 1.0)
+				statsClient.Count(fmt.Sprintf("%s.count", name), int64(data.GetSampleCount()), tags, 1.0)
 				metricCount += 2 // One for sum, one for count, one for each percentile bucket
 
 				for _, quantile := range data.GetQuantile() {
 					v := quantile.GetValue()
 					if !math.IsNaN(v) {
-						c.Gauge(fmt.Sprintf("%s.%dpercentile", name, int(quantile.GetQuantile()*100)), v, tags, 1.0)
+						statsClient.Gauge(fmt.Sprintf("%s.%dpercentile", name, int(quantile.GetQuantile()*100)), v, tags, 1.0)
 						metricCount++
 					}
 				}
@@ -140,22 +141,22 @@ func collect(c *statsd.Client, ignoredLabels []*regexp.Regexp, ignoredMetrics []
 				tags := getTags(histo.GetLabel(), ignoredLabels)
 				name := mf.GetName()
 				data := histo.GetHistogram()
-				c.Gauge(fmt.Sprintf("%s.sum", name), data.GetSampleSum(), tags, 1.0)
-				c.Count(fmt.Sprintf("%s.count", name), int64(data.GetSampleCount()), tags, 1.0)
+				statsClient.Gauge(fmt.Sprintf("%s.sum", name), data.GetSampleSum(), tags, 1.0)
+				statsClient.Count(fmt.Sprintf("%s.count", name), int64(data.GetSampleCount()), tags, 1.0)
 				metricCount += 2 // One for sum, one for count, one for each histo bucket
 
 				for _, bucket := range data.GetBucket() {
 					b := bucket.GetUpperBound()
 					if !math.IsNaN(b) {
-						c.Count(fmt.Sprintf("%s.le%f", name, b), int64(bucket.GetCumulativeCount()), tags, 1.0)
+						statsClient.Count(fmt.Sprintf("%s.le%f", name, b), int64(bucket.GetCumulativeCount()), tags, 1.0)
 						metricCount++
 					}
 				}
 			}
 		default:
-			c.Count("veneur.prometheus.unknown_metric_type_total", 1, nil, 1.0)
+			statsClient.Count("veneur.prometheus.unknown_metric_type_total", 1, nil, 1.0)
 		}
-		c.Count("veneur.prometheus.metrics_flushed_total", metricCount, nil, 1.0)
+		statsClient.Count("veneur.prometheus.metrics_flushed_total", metricCount, nil, 1.0)
 	}
 }
 
