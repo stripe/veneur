@@ -26,7 +26,7 @@ Usage of ./veneur-prometheus:
   -key string
     	The path to a private key to use for mTLS. Only used if using mTLS.
   -p string
-    	A prefix to append to any metrics emitted. Do not include a trailing period.
+    	A prefix to append to any metrics emitted. Include a trailing period. (e.g. "myservice.")
   -s string
     	The host and port — like '127.0.0.1:8126' — to send our metrics to. (default "127.0.0.1:8126")
 ```
