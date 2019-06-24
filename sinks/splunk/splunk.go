@@ -401,7 +401,7 @@ func (sss *splunkSpanSink) makeHTTPRequest(req *http.Request, cancel func()) {
 			"hec_status_code":   parsed.Code,
 			"hec_response_text": parsed.Text,
 			"event_number":      parsed.InvalidEventNumber,
-		}).Error("Error response from Splunk HEC")
+		}).Warn("Error response from Splunk HEC. (Splunk restarts may cause transient errors).")
 	}
 	samples.Add(ssf.Count(failureMetric, 1, map[string]string{
 		"cause":       cause,
