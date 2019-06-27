@@ -3,5 +3,4 @@
 henson_tarball:
   docker: {}
 network:
-  restrict_network: true
   http_proxy_report_only: true
