@@ -22,6 +22,7 @@
 * The signalfx sink now correctly constructs ingestion endpoint URLs when given URLs that end in slashes. Thanks, [antifuchs](https://github.com/antifuchs)!
 * Veneur now sets a deadline for its flushes: No flush may take longer than the configured server flush interval. Thanks, [antifuchs](https://github.com/antifuchs)!
 * The signalfx sink no longer deadlocks the flush process if it receives more than one error per submission. Thanks, [antifuchs](https://github.com/antifuchs)!
+* Fixed the README to link to the correct HLL implementation. Thanks, [gphat](https://github.com/gphat)!
 
 ## Removed
 
