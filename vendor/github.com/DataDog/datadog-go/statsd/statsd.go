@@ -67,6 +67,16 @@ const (
 	entityIDTagName = "dd.internal.entity_id"
 )
 
+type noClientErr string
+
+// ErrNoClient is returned if statsd reporting methods are invoked on
+// a nil client.
+const ErrNoClient = noClientErr("statsd client is nil")
+
+func (e noClientErr) Error() string {
+	return string(e)
+}
+
 /*
 Stat suffixes
 */
@@ -220,7 +230,7 @@ func (c *Client) format(name string, value interface{}, suffix []byte, tags []st
 // SetWriteTimeout allows the user to set a custom UDS write timeout. Not supported for UDP.
 func (c *Client) SetWriteTimeout(d time.Duration) error {
 	if c == nil {
-		return fmt.Errorf("Client is nil")
+		return ErrNoClient
 	}
 	return c.writer.SetWriteTimeout(d)
 }
@@ -307,7 +317,7 @@ func copyAndResetBuffer(buf *bytes.Buffer) []byte {
 // Flush forces a flush of the pending commands in the buffer
 func (c *Client) Flush() error {
 	if c == nil {
-		return fmt.Errorf("Client is nil")
+		return ErrNoClient
 	}
 	c.Lock()
 	defer c.Unlock()
@@ -361,7 +371,7 @@ func (c *Client) sendMsg(msg []byte) error {
 // send handles sampling and sends the message over UDP. It also adds global namespace prefixes and tags.
 func (c *Client) send(name string, value interface{}, suffix []byte, tags []string, rate float64) error {
 	if c == nil {
-		return fmt.Errorf("Client is nil")
+		return ErrNoClient
 	}
 	if rate < 1 && rand.Float64() > rate {
 		return nil
@@ -419,7 +429,7 @@ func (c *Client) TimeInMilliseconds(name string, value float64, tags []string, r
 // Event sends the provided Event.
 func (c *Client) Event(e *Event) error {
 	if c == nil {
-		return fmt.Errorf("Client is nil")
+		return ErrNoClient
 	}
 	stat, err := e.Encode(c.Tags...)
 	if err != nil {
@@ -437,7 +447,7 @@ func (c *Client) SimpleEvent(title, text string) error {
 // ServiceCheck sends the provided ServiceCheck.
 func (c *Client) ServiceCheck(sc *ServiceCheck) error {
 	if c == nil {
-		return fmt.Errorf("Client is nil")
+		return ErrNoClient
 	}
 	stat, err := sc.Encode(c.Tags...)
 	if err != nil {
@@ -455,7 +465,7 @@ func (c *Client) SimpleServiceCheck(name string, status ServiceCheckStatus) erro
 // Close the client connection.
 func (c *Client) Close() error {
 	if c == nil {
-		return fmt.Errorf("Client is nil")
+		return ErrNoClient
 	}
 	select {
 	case c.stop <- struct{}{}:
