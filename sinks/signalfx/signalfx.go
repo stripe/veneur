@@ -1,7 +1,9 @@
 package signalfx
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -9,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/signalfx/golib/datapoint"
 	"github.com/signalfx/golib/datapoint/dpsink"
 	"github.com/signalfx/golib/event"
@@ -54,6 +57,9 @@ type collection struct {
 }
 
 func (c *collection) addPoint(key string, point *datapoint.Datapoint) {
+	c.sink.clientsByTagValueMu.RLock()
+	defer c.sink.clientsByTagValueMu.RUnlock()
+
 	if c.sink.clientsByTagValue != nil {
 		if _, ok := c.sink.clientsByTagValue[key]; ok {
 			c.pointsByKey[key] = append(c.pointsByKey[key], point)
@@ -131,20 +137,27 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client, maxPerFlush i
 
 // SignalFxSink is a MetricsSink implementation.
 type SignalFxSink struct {
-	defaultClient         DPClient
-	clientsByTagValue     map[string]DPClient
-	keyClients            map[string]dpsink.Sink
-	varyBy                string
-	hostnameTag           string
-	hostname              string
-	commonDimensions      map[string]string
-	log                   *logrus.Logger
-	traceClient           *trace.Client
-	excludedTags          map[string]struct{}
-	metricNamePrefixDrops []string
-	metricTagPrefixDrops  []string
-	derivedMetrics        samplers.DerivedMetricsProcessor
-	maxPointsInBatch      int
+	defaultClient             DPClient
+	clientsByTagValue         map[string]DPClient
+	clientsByTagValueMu       *sync.RWMutex
+	enableDynamicPerTagTokens bool
+	defaultToken              string
+	dynamicKeyRefreshPeriod   time.Duration
+	keyClients                map[string]dpsink.Sink
+	varyBy                    string
+	hostnameTag               string
+	hostname                  string
+	commonDimensions          map[string]string
+	log                       *logrus.Logger
+	traceClient               *trace.Client
+	excludedTags              map[string]struct{}
+	metricNamePrefixDrops     []string
+	metricTagPrefixDrops      []string
+	derivedMetrics            samplers.DerivedMetricsProcessor
+	maxPointsInBatch          int
+	metricsEndpoint           string
+	apiEndpoint               string
+	httpClient                *http.Client
 }
 
 // A DPClient is a client that can be used to submit signalfx data
@@ -167,19 +180,36 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 }
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagPrefixDrops []string, derivedMetrics samplers.DerivedMetricsProcessor, maxPointsInBatch int) (*SignalFxSink, error) {
+func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagPrefixDrops []string, derivedMetrics samplers.DerivedMetricsProcessor, maxPointsInBatch int, defaultToken string, enableDynamicPerTagTokens bool, dynamicKeyRefreshPeriod time.Duration, metricsEndpoint string, apiEndpoint string, httpClient *http.Client) (*SignalFxSink, error) {
+	endpoint, err := url.Parse(apiEndpoint)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse signalfx api endpoint")
+	}
+
+	endpoint, err = endpoint.Parse("/v2/token")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to generate signalfx token endpoint")
+	}
+
 	return &SignalFxSink{
-		defaultClient:         client,
-		clientsByTagValue:     perTagClients,
-		hostnameTag:           hostnameTag,
-		hostname:              hostname,
-		commonDimensions:      commonDimensions,
-		log:                   log,
-		varyBy:                varyBy,
-		metricNamePrefixDrops: metricNamePrefixDrops,
-		metricTagPrefixDrops:  metricTagPrefixDrops,
-		derivedMetrics:        derivedMetrics,
-		maxPointsInBatch:      maxPointsInBatch,
+		defaultClient:             client,
+		clientsByTagValueMu:       &sync.RWMutex{},
+		clientsByTagValue:         perTagClients,
+		enableDynamicPerTagTokens: enableDynamicPerTagTokens,
+		defaultToken:              defaultToken,
+		dynamicKeyRefreshPeriod:   dynamicKeyRefreshPeriod,
+		hostnameTag:               hostnameTag,
+		hostname:                  hostname,
+		commonDimensions:          commonDimensions,
+		log:                       log,
+		varyBy:                    varyBy,
+		metricNamePrefixDrops:     metricNamePrefixDrops,
+		metricTagPrefixDrops:      metricTagPrefixDrops,
+		derivedMetrics:            derivedMetrics,
+		maxPointsInBatch:          maxPointsInBatch,
+		metricsEndpoint:           metricsEndpoint,
+		apiEndpoint:               endpoint.String(),
+		httpClient:                httpClient,
 	}, nil
 }
 
@@ -188,9 +218,11 @@ func (sfx *SignalFxSink) Name() string {
 	return "signalfx"
 }
 
-// Start begins the sink. For SignalFx this is a noop.
+// Start begins the sink. For SignalFx this starts the clientByTagUpdater
 func (sfx *SignalFxSink) Start(traceClient *trace.Client) error {
 	sfx.traceClient = traceClient
+	go sfx.clientByTagUpdater()
+
 	return nil
 }
 
@@ -198,10 +230,131 @@ func (sfx *SignalFxSink) Start(traceClient *trace.Client) error {
 // value. If no client is specified for that tag value, the default
 // client is returned.
 func (sfx *SignalFxSink) client(key string) DPClient {
+	sfx.clientsByTagValueMu.RLock()
+	defer sfx.clientsByTagValueMu.RUnlock()
+
 	if cl, ok := sfx.clientsByTagValue[key]; ok {
 		return cl
 	}
 	return sfx.defaultClient
+}
+
+func (sfx *SignalFxSink) clientByTagUpdater() {
+	if !sfx.enableDynamicPerTagTokens {
+		return
+	}
+
+	ticker := time.NewTicker(sfx.dynamicKeyRefreshPeriod)
+	for range ticker.C {
+		tokens, err := fetchAPIKeys(sfx.httpClient, sfx.apiEndpoint, sfx.defaultToken)
+		if err != nil {
+			sfx.log.WithError(err).Warn("Failed to fetch new tokens from SignalFX")
+			continue
+		}
+
+		for name, token := range tokens {
+			sfx.clientsByTagValueMu.Lock()
+			sfx.clientsByTagValue[name] = NewClient(sfx.metricsEndpoint, token, sfx.httpClient)
+			sfx.clientsByTagValueMu.Unlock()
+		}
+	}
+}
+
+const (
+	offsetQueryParam = "offset"
+	limitQueryParam  = "limit"
+	nameQueryParam   = "name"
+
+	limitQueryValue = 200
+)
+
+func fetchAPIKeys(client *http.Client, endpoint, apiToken string) (map[string]string, error) {
+	b := &bytes.Buffer{}
+
+	req, err := http.NewRequest(http.MethodGet, endpoint, bytes.NewReader(b.Bytes()))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set(sfxclient.TokenHeaderName, apiToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	req.URL.Query().Add(limitQueryParam, fmt.Sprint(limitQueryValue))
+	req.URL.Query().Add(nameQueryParam, "")
+
+	allFetched := false
+
+	offset := 0
+
+	apiTokensByName := make(map[string]string)
+
+	for !allFetched {
+		req.URL.Query().Del(offsetQueryParam)
+		req.URL.Query().Add(offsetQueryParam, fmt.Sprint(offset))
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return apiTokensByName, err
+		}
+
+		// The API always returns OK, even if it doesn't have any tokens to return
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("signalfx api returned unknown response code: %s", resp.Status)
+		}
+
+		body := &bytes.Buffer{}
+		_, err = body.ReadFrom(resp.Body)
+
+		if err != nil {
+			return nil, err
+		}
+
+		count, err := extractTokensFromResponse(apiTokensByName, body)
+		if err != nil {
+			return nil, err
+		}
+
+		allFetched = count == 0
+		offset += limitQueryValue
+	}
+
+	return apiTokensByName, nil
+}
+
+func extractTokensFromResponse(tokensByName map[string]string, body *bytes.Buffer) (count int, err error) {
+	var response = make(map[string]interface{})
+	err = json.Unmarshal(body.Bytes(), &response)
+	if err != nil {
+		return count, err
+	}
+
+	results, ok := response["results"].([]interface{})
+	if !ok {
+		return count, fmt.Errorf("unknown results structure returned from signalfx api")
+	}
+
+	for _, object := range results {
+		result, ok := object.(map[string]interface{})
+		if !ok {
+			return count, fmt.Errorf("unknown result structure returned from signalfx api")
+		}
+
+		name, ok := result["name"].(string)
+		if !ok {
+			return count, fmt.Errorf("failed to extract name from result")
+		}
+
+		apiKey, ok := result["secret"].(string)
+		if !ok {
+			return count, fmt.Errorf("failed to extract api key from result")
+		}
+
+		tokensByName[name] = apiKey
+
+		count++
+	}
+
+	return count, nil
 }
 
 // newPointCollection creates an empty collection object and returns it
