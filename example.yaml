@@ -50,6 +50,11 @@ forward_use_grpc: false
 # series data.
 interval: "10s"
 
+# How many flushes veneur may miss before it considers itself buggy
+# and terminates. Leaving this at the default of 0 disables the
+# watchdog.
+flush_watchdog_missed_flushes: 0
+
 # Veneur can "sychronize" it's flushes with the system clock, flushing at even
 # intervals i.e. 0, 10, 20… to align with the `interval`. This is disabled by
 # default for now, as it can cause thundering herds in large installations.
@@ -122,6 +127,41 @@ aggregates:
  - "min"
  - "max"
  - "count"
+
+# Metrics that Veneur reports about its own operation. Each of the
+# entries here can have the value "global", "local", "default" and ""
+# ("default" and "" mean the same thing). Setting
+# this to any value other than the default will make all metrics
+# of that type have the following behavior:
+#
+#  - "default"/"": scope remains unchanged
+#  - "global": scope for "default"-scoped metrics of that type will be
+#    changed to global, so they get forwarded to a global veneur node.
+#  - "local": scope for "default"-scoped metrics of that type will be
+#    changed to local, so they get reported from the local veneur node
+#    only.
+#
+# When this is unset in configuration, the default values for all
+# metric types are "", indicating that veneur will use the default
+# scope for each of the metrics it reports.
+veneur_metrics_scopes:
+  counter: local
+
+  # changing the setting for "gauge" to "global" is not recommended,
+  # as the global aggregation method for gauges is "last write wins".
+  gauge: local
+
+  histogram: global
+
+  set: global
+
+  status: local
+
+
+# Tags supplied here will be attached to all metrics that veneur
+# reports about its own operation.
+veneur_metrics_additional_tags:
+  - "veneur_internal_metric:true"
 
 # == DEPRECATED ==
 

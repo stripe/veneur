@@ -87,7 +87,7 @@ func TestNoTagName(t *testing.T) {
 }
 
 func TestOperation(t *testing.T) {
-	pbFile := filepath.Join("fixtures", "protobuf", "span-with-operation-062017.pb")
+	pbFile := filepath.Join("testdata", "protobuf", "span-with-operation-062017.pb")
 	pb, err := os.Open(pbFile)
 	assert.NoError(t, err)
 	defer pb.Close()

@@ -31,7 +31,7 @@ func newForwardGRPCFixture(t testing.TB, localConfig Config, sink sinks.MetricSi
 	// Create a global Veneur
 	globalCfg := globalConfig()
 	globalCfg.GrpcAddress = unusedLocalTCPAddress(t)
-	global := setupVeneurServer(t, globalCfg, nil, sink, nil)
+	global := setupVeneurServer(t, globalCfg, nil, sink, nil, nil)
 	go func() {
 		global.Serve()
 	}()
@@ -51,7 +51,7 @@ func newForwardGRPCFixture(t testing.TB, localConfig Config, sink sinks.MetricSi
 
 	localConfig.ForwardAddress = proxyCfg.GrpcAddress
 	localConfig.ForwardUseGrpc = true
-	local := setupVeneurServer(t, localConfig, nil, nil, nil)
+	local := setupVeneurServer(t, localConfig, nil, nil, nil, nil)
 
 	return &forwardGRPCFixture{t: t, proxy: &proxy, global: global, local: local}
 }
@@ -192,9 +192,10 @@ func TestE2EForwardingGRPCMetrics(t *testing.T) {
 	}
 	done := make(chan struct{})
 	go func() {
-		metrics := <-ch
+		defer close(done)
 
-		expectedNames := []string{
+		expected := map[string]bool{}
+		for _, name := range []string{
 			testGRPCMetric("histogram.50percentile"),
 			testGRPCMetric("histogram.75percentile"),
 			testGRPCMetric("histogram.99percentile"),
@@ -216,16 +217,34 @@ func TestE2EForwardingGRPCMetrics(t *testing.T) {
 			testGRPCMetric("counter"),
 			testGRPCMetric("gauge"),
 			testGRPCMetric("set"),
+		} {
+			expected[name] = false
 		}
 
-		actualNames := make([]string, len(metrics))
-		for i, metric := range metrics {
-			actualNames[i] = metric.Name
+	metrics:
+		for {
+			metrics := <-ch
+
+			for _, metric := range metrics {
+				_, ok := expected[metric.Name]
+				if !ok {
+					t.Errorf("unexpected metric %q", metric.Name)
+					continue
+				}
+				expected[metric.Name] = true
+			}
+			for name, got := range expected {
+				if !got {
+					// we have more metrics to read:
+					t.Logf("metric %q still missing", name)
+					continue metrics
+				}
+			}
+			// if there had been metrics to read, we'd
+			// have restarted the loop:
+			return
 		}
 
-		assert.ElementsMatch(t, expectedNames, actualNames,
-			"The global Veneur didn't flush the right metrics")
-		close(done)
 	}()
 	ff.local.Flush(context.TODO())
 	ff.global.Flush(context.TODO())

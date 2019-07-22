@@ -75,7 +75,7 @@ func TestUnreachableDestinations(t *testing.T) {
 	ring.Add("not-a-real-host:9001")
 	ring.Add("another-bad-host:9001")
 
-	server := newServer(t, ring)
+	server := newServer(t, ring, WithForwardTimeout(500*time.Millisecond))
 	err := server.sendMetrics(context.Background(),
 		&forwardrpc.MetricList{metrictest.RandomForwardMetrics(10)})
 	assert.Error(t, err, "sendMetrics should have returned an error when all "+

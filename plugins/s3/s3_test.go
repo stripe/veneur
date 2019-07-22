@@ -53,7 +53,7 @@ func TestS3Post(t *testing.T) {
 	}()
 
 	client := &s3Mock.MockS3Client{}
-	f, err := os.Open(path.Join("..", "..", "fixtures", "aws", "PutObject", "2016", "10", "13", "1476370612.tsv.gz"))
+	f, err := os.Open(path.Join("testdata", "aws", "PutObject", "2016", "10", "13", "1476370612.tsv.gz"))
 	assert.NoError(t, err)
 	defer f.Close()
 
@@ -124,7 +124,7 @@ func TestS3Path(t *testing.T) {
 func TestS3PostNoCredentials(t *testing.T) {
 	s3p := &S3Plugin{Logger: log, Svc: nil}
 
-	f, err := os.Open(path.Join("..", "..", "fixtures", "aws", "PutObject", "2016", "10", "07", "1475863542.json"))
+	f, err := os.Open(path.Join("testdata", "aws", "PutObject", "2016", "10", "07", "1475863542.json"))
 	assert.NoError(t, err)
 	defer f.Close()
 

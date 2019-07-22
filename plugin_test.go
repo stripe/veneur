@@ -123,7 +123,7 @@ func TestGlobalServerS3PluginFlush(t *testing.T) {
 
 	client := &s3Mock.MockS3Client{}
 	client.SetPutObject(func(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
-		f, err := os.Open(path.Join("fixtures", "aws", "PutObject", "2016", "10", "14", "1476481302.tsv.gz"))
+		f, err := os.Open(path.Join("testdata", "aws", "PutObject", "2016", "10", "14", "1476481302.tsv.gz"))
 		assert.NoError(t, err)
 		defer f.Close()
 

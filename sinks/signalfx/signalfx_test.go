@@ -3,6 +3,7 @@ package signalfx
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -52,6 +53,16 @@ func (fs *FakeSink) AddEvents(ctx context.Context, events []*event.Event) (err e
 	fs.events = append(fs.events, events...)
 	fs.eventAdds += 1
 	return nil
+}
+
+type failSink struct{}
+
+func (fs failSink) AddDatapoints(ctx context.Context, points []*datapoint.Datapoint) (err error) {
+	return errors.New("simulated failure to send")
+}
+
+func (fs failSink) AddEvents(ctx context.Context, events []*event.Event) (err error) {
+	return errors.New("simulated failure to send")
 }
 
 type testDerivedSink struct {
@@ -540,6 +551,45 @@ func TestSignalFxFlushBatches(t *testing.T) {
 	}
 	assert.True(t, found["first"])
 	assert.True(t, found["second"])
+}
+
+func TestSignalFxFlushBatchHang(t *testing.T) {
+	fallback := failSink{}
+
+	derived := newDerivedProcessor()
+	perBatch := 1
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{}, nil, nil, derived, perBatch)
+
+	assert.NoError(t, err)
+
+	interMetrics := []samplers.InterMetric{
+		samplers.InterMetric{
+			Name:      "a.b.c",
+			Timestamp: 1476119058,
+			Value:     float64(100),
+			Tags: []string{
+				"foo:bar",
+				"baz:quz",
+				"test_by:first",
+			},
+			Type: samplers.GaugeMetric,
+		},
+		samplers.InterMetric{
+			Name:      "a.b.c.d",
+			Timestamp: 1476119058,
+			Value:     float64(100),
+			Tags: []string{
+				"foo:bar",
+				"baz:quz",
+				"test_by:first",
+			},
+			Type: samplers.GaugeMetric,
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	defer cancel()
+	require.Error(t, sink.Flush(ctx, interMetrics))
 }
 
 func TestNewSinkDoubleSlashes(t *testing.T) {

@@ -36,7 +36,7 @@ func newForwardingFixture(t testing.TB, localConfig Config, transport http.Round
 	ff := &forwardFixture{t: t}
 
 	// Make the global veneur:
-	ff.global = setupVeneurServer(t, globalConfig(), transport, globalSink, nil)
+	ff.global = setupVeneurServer(t, globalConfig(), transport, globalSink, nil, nil)
 	ff.globalTS = httptest.NewServer(handleImport(ff.global))
 
 	// Make the proxy that sends to the global veneur:
@@ -53,7 +53,7 @@ func newForwardingFixture(t testing.TB, localConfig Config, transport http.Round
 
 	// Now make the local server, have it forward to the proxy:
 	localConfig.ForwardAddress = ff.proxyTS.URL
-	ff.server = setupVeneurServer(t, localConfig, transport, nil, nil)
+	ff.server = setupVeneurServer(t, localConfig, transport, nil, nil, nil)
 
 	return ff
 }

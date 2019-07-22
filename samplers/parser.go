@@ -266,6 +266,12 @@ func ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 	default:
 		ret.Value = float64(metric.Value)
 	}
+	switch metric.Scope {
+	case ssf.SSFSample_LOCAL:
+		ret.Scope = LocalOnly
+	case ssf.SSFSample_GLOBAL:
+		ret.Scope = GlobalOnly
+	}
 	ret.SampleRate = metric.SampleRate
 	tempTags := make([]string, 0, len(metric.Tags))
 	for key, value := range metric.Tags {

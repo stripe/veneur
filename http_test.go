@@ -115,7 +115,7 @@ func testServerImport(t *testing.T, filename string, contentEncoding string) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	handler := handleImport(s)
@@ -127,20 +127,20 @@ func testServerImport(t *testing.T, filename string, contentEncoding string) {
 func TestServerImportCompressed(t *testing.T) {
 	// Test that the global veneur instance can handle
 	// requests that provide compressed metrics
-	testServerImport(t, filepath.Join("fixtures", "import.deflate"), "deflate")
+	testServerImport(t, filepath.Join("testdata", "import.deflate"), "deflate")
 }
 
 func TestServerImportUncompressed(t *testing.T) {
 	// Test that the global veneur instance can handle
 	// requests that provide uncompressed metrics
-	testServerImport(t, filepath.Join("fixtures", "import.uncompressed"), "")
+	testServerImport(t, filepath.Join("testdata", "import.uncompressed"), "")
 }
 
 func TestServerImportGzip(t *testing.T) {
 	// Test that the global veneur instance
 	// returns a 400 for gzipped-input
 
-	f, err := os.Open(filepath.Join("fixtures", "import.uncompressed"))
+	f, err := os.Open(filepath.Join("testdata", "import.uncompressed"))
 	assert.NoError(t, err, "Error reading response fixture")
 	defer f.Close()
 
@@ -156,7 +156,7 @@ func TestServerImportGzip(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	handler := handleImport(s)
@@ -171,7 +171,7 @@ func TestServerImportCompressedInvalid(t *testing.T) {
 
 	//TODO(aditya) test that the metrics are properly reported
 
-	f, err := os.Open(filepath.Join("fixtures", "import.uncompressed"))
+	f, err := os.Open(filepath.Join("testdata", "import.uncompressed"))
 	assert.NoError(t, err, "Error reading response fixture")
 	defer f.Close()
 
@@ -181,7 +181,7 @@ func TestServerImportCompressedInvalid(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	handler := handleImport(s)
@@ -196,7 +196,7 @@ func TestServerImportUncompressedInvalid(t *testing.T) {
 
 	//TODO(aditya) test that the metrics are properly reported
 
-	f, err := os.Open(filepath.Join("fixtures", "import.deflate"))
+	f, err := os.Open(filepath.Join("testdata", "import.deflate"))
 	assert.NoError(t, err, "Error reading response fixture")
 	defer f.Close()
 
@@ -206,7 +206,7 @@ func TestServerImportUncompressedInvalid(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	handler := handleImport(s)
@@ -260,7 +260,7 @@ func TestGeneralHealthCheck(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/healthcheck", nil)
 
 	config := localConfig()
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	w := httptest.NewRecorder()
@@ -278,7 +278,7 @@ func TestOkTraceHealthCheck(t *testing.T) {
 	// We must enable tracing, as it's disabled by default, by turning on one
 	// of the tracing sinks.
 	config.LightstepAccessToken = "farts"
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	w := httptest.NewRecorder()
@@ -312,7 +312,7 @@ func TestBuildDate(t *testing.T) {
 
 	config := localConfig()
 	config.SsfListenAddresses = []string{}
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	w := httptest.NewRecorder()
@@ -344,7 +344,7 @@ func TestVersion(t *testing.T) {
 
 	config := localConfig()
 	config.SsfListenAddresses = []string{}
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	w := httptest.NewRecorder()
@@ -369,7 +369,7 @@ func testServerImportHelper(t *testing.T, data interface{}) {
 	w := httptest.NewRecorder()
 
 	config := localConfig()
-	s := setupVeneurServer(t, config, nil, nil, nil)
+	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
 	handler := handleImport(s)
@@ -380,7 +380,7 @@ func testServerImportHelper(t *testing.T, data interface{}) {
 
 func BenchmarkNewSortableJSONMetrics(b *testing.B) {
 	const numWorkers = 100
-	filename := filepath.Join("fixtures", "import.deflate")
+	filename := filepath.Join("testdata", "import.deflate")
 	contentEncoding := "deflate"
 
 	f, err := os.Open(filename)

@@ -57,14 +57,15 @@ type Client struct {
 	flushBackends []flushNotifier
 
 	// Parameters adjusted by client initialization:
-	backendParams *backendParams
-	nBackends     uint
-	cap           uint
-	cancel        context.CancelFunc
-	flush         func(context.Context)
-	report        func(context.Context)
-	records       chan *recordOp
-	spans         chan<- *ssf.SSFSpan
+	backendParams    *backendParams
+	nBackends        uint
+	cap              uint
+	cancel           context.CancelFunc
+	flush            func(context.Context)
+	report           func(context.Context)
+	records          chan *recordOp
+	spans            chan<- *ssf.SSFSpan
+	sampleNormalizer func(*ssf.SSFSample)
 
 	// statistics:
 	failedFlushes     int64
@@ -285,6 +286,20 @@ func ParallelBackends(nBackends uint) ClientParam {
 	}
 }
 
+// NormalizeSamples takes a function that gets run on every SSFSample
+// reported as part of a span. This allows conditionally adjusting
+// tags or scopes on metrics that might exceed cardinality limits.
+//
+// Note that the normalizer gets run on Samples every time the
+// trace.Report function is called. This happen more than once,
+// depending on the error handling behavior of the reporting program.
+func NormalizeSamples(normalizer func(*ssf.SSFSample)) ClientParam {
+	return func(cl *Client) error {
+		cl.sampleNormalizer = normalizer
+		return nil
+	}
+}
+
 func newFlushNofifier(backend ClientBackend) flushNotifier {
 	fb := flushNotifier{backend: backend}
 	if _, ok := backend.(FlushableClientBackend); ok {
@@ -469,6 +484,13 @@ func SendClientStatistics(cl *Client, stats StatsCounter, tags []string) {
 func Record(cl *Client, span *ssf.SSFSpan, done chan<- error) error {
 	if cl == nil {
 		return ErrNoClient
+	}
+
+	// fixup any samples:
+	if cl.sampleNormalizer != nil {
+		for _, sample := range span.Metrics {
+			cl.sampleNormalizer(sample)
+		}
 	}
 
 	op := &recordOp{span: span, result: done}

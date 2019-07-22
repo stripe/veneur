@@ -28,13 +28,13 @@ func TestFlushTracesBySink(t *testing.T) {
 	cases := []TestCase{
 		{
 			Name:         "Success",
-			ProtobufFile: filepath.Join("fixtures", "protobuf", "trace.pb"),
-			JSONFile:     filepath.Join("fixtures", "tracing_agent", "spans", "trace.pb.json"),
+			ProtobufFile: filepath.Join("testdata", "protobuf", "trace.pb"),
+			JSONFile:     filepath.Join("testdata", "tracing_agent", "spans", "trace.pb.json"),
 		},
 		{
 			Name:         "Critical",
-			ProtobufFile: filepath.Join("fixtures", "protobuf", "trace_critical.pb"),
-			JSONFile:     filepath.Join("fixtures", "tracing_agent", "spans", "trace_critical.pb.json"),
+			ProtobufFile: filepath.Join("testdata", "protobuf", "trace_critical.pb"),
+			JSONFile:     filepath.Join("testdata", "tracing_agent", "spans", "trace_critical.pb.json"),
 		},
 	}
 
@@ -87,7 +87,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	config.DatadogAPIKey = "secret"
 	config.DatadogTraceAPIAddress = remoteServer.URL
 
-	server := setupVeneurServer(t, config, nil, nil, nil)
+	server := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer server.Shutdown()
 
 	ddSink, err := datadog.NewDatadogSpanSink("http://example.com", 100, server.HTTPClient, logrus.New())
@@ -121,7 +121,7 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 
 	// this can be anything as long as it's not empty
 	config.LightstepAccessToken = "secret"
-	server := setupVeneurServer(t, config, nil, nil, nil)
+	server := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer server.Shutdown()
 
 	//collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string

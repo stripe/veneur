@@ -15,7 +15,6 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/sirupsen/logrus"
 )
 
 // Experimental
@@ -245,10 +244,7 @@ func (t *Trace) Attach(c context.Context) context.Context {
 // allocates a new span with a parent ID set to that of the span
 // stored on the context.
 func SpanFromContext(c context.Context) *Trace {
-	parent, ok := c.Value(traceKey).(*Trace)
-	if !ok {
-		logrus.WithField("type", reflect.TypeOf(c.Value(traceKey))).Error("expected *Trace from context")
-	}
+	parent := c.Value(traceKey).(*Trace)
 	return StartChildSpan(parent)
 }
 

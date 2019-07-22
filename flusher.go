@@ -31,11 +31,15 @@ func (s *Server) Flush(ctx context.Context) {
 	mem := &runtime.MemStats{}
 	runtime.ReadMemStats(mem)
 
+	flushTime := time.Now().UnixNano()
+	atomic.StoreInt64(&s.lastFlushUnix, flushTime)
+
 	s.Statsd.Gauge("worker.span_chan.total_elements", float64(len(s.SpanChan)), nil, 1.0)
 	s.Statsd.Gauge("worker.span_chan.total_capacity", float64(cap(s.SpanChan)), nil, 1.0)
 	s.Statsd.Gauge("gc.number", float64(mem.NumGC), nil, 1.0)
 	s.Statsd.Gauge("gc.pause_total_ns", float64(mem.PauseTotalNs), nil, 1.0)
 	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
+	s.Statsd.Gauge("flush.flush_timestamp_ns", float64(flushTime), nil, 1.0)
 
 	samples := s.EventWorker.Flush()
 
@@ -69,12 +73,20 @@ func (s *Server) Flush(ctx context.Context) {
 
 	s.reportMetricsFlushCounts(ms)
 
+	wg := sync.WaitGroup{}
 	if s.IsLocal() {
+		wg.Add(1)
 		// Forward over gRPC or HTTP depending on the configuration
 		if s.forwardUseGRPC {
-			go s.forwardGRPC(span.Attach(ctx), tempMetrics)
+			go func() {
+				s.forwardGRPC(span.Attach(ctx), tempMetrics)
+				wg.Done()
+			}()
 		} else {
-			go s.flushForward(span.Attach(ctx), tempMetrics)
+			go func() {
+				s.flushForward(span.Attach(ctx), tempMetrics)
+				wg.Done()
+			}()
 		}
 	} else {
 		s.reportGlobalMetricsFlushCounts(ms)
@@ -85,7 +97,6 @@ func (s *Server) Flush(ctx context.Context) {
 		return
 	}
 
-	wg := sync.WaitGroup{}
 	for _, sink := range s.metricSinks {
 		wg.Add(1)
 		go func(ms sinks.MetricSink) {
@@ -482,7 +493,11 @@ func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
 	grpcStart := time.Now()
 	_, err := c.SendMetrics(ctx, &forwardrpc.MetricList{Metrics: metrics})
 	if err != nil {
-		if statErr, ok := status.FromError(err); ok && (statErr.Message() == "all SubConns are in TransientFailure" || statErr.Message() == "transport is closing") {
+		if ctx.Err() != nil {
+			// We exceeded the deadline of the flush context.
+			span.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "deadline_exceeded"}))
+		} else if statErr, ok := status.FromError(err); ok &&
+			(statErr.Message() == "all SubConns are in TransientFailure" || statErr.Message() == "transport is closing") {
 			// We could check statErr.Code() == codes.Unavailable, but we don't know all of the cases that
 			// could return that code. These two particular cases are fairly safe and usually associated
 			// with connection rebalancing or host replacement, so we don't want them going to sentry.

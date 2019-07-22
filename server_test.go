@@ -127,10 +127,11 @@ func generateMetrics() (metricValues []float64, expectedMetrics map[string]float
 }
 
 // setupVeneurServer creates a local server from the specified config
-// and starts listening for requests. It returns the server for inspection.
-// If no metricSink or spanSink are provided then a `black hole` sink be used
-// so that flushes to these sinks do "nothing".
-func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper, mSink sinks.MetricSink, sSink sinks.SpanSink) *Server {
+// and starts listening for requests. It returns the server for
+// inspection.  If no metricSink or spanSink are provided then a
+// `black hole` sink will be used so that flushes to these sinks do
+// "nothing".
+func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper, mSink sinks.MetricSink, sSink sinks.SpanSink, traceClient *trace.Client) *Server {
 	logger := logrus.New()
 	server, err := NewFromConfig(logger, config)
 	if err != nil {
@@ -146,7 +147,7 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 
 	// Make sure we don't send internal metrics when testing:
 	trace.NeutralizeClient(server.TraceClient)
-	server.TraceClient = nil
+	server.TraceClient = traceClient
 
 	if mSink == nil {
 		// Install a blackhole sink if we have no other sinks
@@ -215,7 +216,7 @@ func newFixture(t testing.TB, config Config, mSink sinks.MetricSink, sSink sinks
 	f := &fixture{nil, &Server{}, interval, config.DatadogFlushMaxPerBody}
 
 	config.NumWorkers = 1
-	f.server = setupVeneurServer(t, config, nil, mSink, sSink)
+	f.server = setupVeneurServer(t, config, nil, mSink, sSink, nil)
 	return f
 }
 
@@ -468,7 +469,7 @@ func readTestKeysCerts() (map[string]string, error) {
 		"serverkey.pem",
 	}
 	for _, fileName := range pemFileNames {
-		b, err := ioutil.ReadFile(filepath.Join("fixtures", fileName))
+		b, err := ioutil.ReadFile(filepath.Join("testdata", fileName))
 		if err != nil {
 			return nil, err
 		}
@@ -1403,6 +1404,101 @@ func TestServeStopHTTP(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		assert.Fail(t, "Stopping the Server over HTTP did not stop both listeners")
 	}
+}
+
+type blockySink struct {
+	blocker chan struct{}
+}
+
+func (s *blockySink) Name() string {
+	return "blocky_sink"
+}
+
+func (s *blockySink) Start(traceClient *trace.Client) error {
+	return nil
+}
+
+func (s *blockySink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+	if len(metrics) == 0 {
+		return nil
+	}
+
+	<-ctx.Done()
+	close(s.blocker)
+	return ctx.Err()
+}
+
+func (s *blockySink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {}
+
+func TestFlushDeadline(t *testing.T) {
+	config := localConfig()
+	config.Interval = "1us"
+
+	ch := make(chan struct{})
+	sink := &blockySink{blocker: ch}
+	f := newFixture(t, config, sink, nil)
+	defer f.Close()
+
+	f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "histogram",
+		},
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.LocalOnly,
+	})
+
+	_, ok := <-ch
+	assert.False(t, ok)
+}
+
+type blockingSink struct {
+	ch chan struct{}
+}
+
+func (bs blockingSink) Name() string { return "a_blocky_boi" }
+
+func (bs blockingSink) Start(traceClient *trace.Client) error {
+	return nil
+}
+
+func (bs blockingSink) Flush(context.Context, []samplers.InterMetric) error {
+	log.Print("hi, I'm blocking")
+	<-bs.ch
+	return nil
+}
+
+func (bs blockingSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {}
+
+func TestWatchdog(t *testing.T) {
+	config := localConfig()
+	config.Interval = "10ms"
+	config.FlushWatchdogMissedFlushes = 10
+
+	sink := blockingSink{make(chan struct{})}
+
+	f := newFixture(t, config, sink, nil)
+	defer f.Close()
+
+	// ingesting this metric will cause the blocking sink to block
+	// in Flush:
+	f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "histogram",
+		},
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.LocalOnly,
+	})
+
+	assert.Panics(t, func() {
+		f.server.FlushWatchdog()
+	}, "watchdog should have triggered")
+	close(sink.ch)
 }
 
 func BenchmarkHandleTracePacket(b *testing.B) {

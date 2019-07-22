@@ -126,7 +126,7 @@ func encodedGob(t *testing.T) ([]byte, error) {
 }
 
 func deserializeGob(t *testing.T, fname string) []byte {
-	f, err := os.Open("oldgob.base64")
+	f, err := os.Open("testdata/oldgob.base64")
 	require.NoError(t, err)
 	buf, err := ioutil.ReadAll(base64.NewDecoder(base64.StdEncoding, f))
 	require.NoError(t, err)

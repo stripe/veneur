@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"reflect"
 	"runtime"
+	rtdebug "runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -41,6 +42,7 @@ import (
 	s3p "github.com/stripe/veneur/plugins/s3"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/scopedstatsd"
 	"github.com/stripe/veneur/sinks"
 	"github.com/stripe/veneur/sinks/datadog"
 	"github.com/stripe/veneur/sinks/debug"
@@ -83,7 +85,7 @@ type Server struct {
 	SpanWorker           *SpanWorker
 	SpanWorkerGoroutines int
 
-	Statsd *statsd.Client
+	Statsd *scopedstatsd.ScopedClient
 	Sentry *raven.Client
 
 	Hostname  string
@@ -136,6 +138,9 @@ type Server struct {
 
 	// gRPC forward clients
 	grpcForwardConn *grpc.ClientConn
+
+	stuckIntervals int
+	lastFlushUnix  int64
 }
 
 // ssfServiceSpanMetrics refer to the span metrics that will
@@ -150,6 +155,100 @@ type ssfServiceSpanMetrics struct {
 // SetLogger sets the default logger in veneur to the passed value.
 func SetLogger(logger *logrus.Logger) {
 	log = logger
+}
+
+func scopeFromName(name string) (ssf.SSFSample_Scope, error) {
+	switch name {
+	case "default":
+		fallthrough
+	case "":
+		return ssf.SSFSample_DEFAULT, nil
+	case "global":
+		return ssf.SSFSample_GLOBAL, nil
+	case "local":
+		return ssf.SSFSample_LOCAL, nil
+	default:
+		return 0, fmt.Errorf("unknown metric scope option %q", name)
+	}
+}
+
+func normalizeSpans(conf Config) trace.ClientParam {
+	return func(cl *trace.Client) error {
+		var err error
+		typeScopes := map[ssf.SSFSample_Metric]ssf.SSFSample_Scope{}
+		typeScopes[ssf.SSFSample_COUNTER], err = scopeFromName(conf.VeneurMetricsScopes.Counter)
+		if err != nil {
+			return err
+		}
+		typeScopes[ssf.SSFSample_GAUGE], err = scopeFromName(conf.VeneurMetricsScopes.Gauge)
+		if err != nil {
+			return err
+		}
+		typeScopes[ssf.SSFSample_HISTOGRAM], err = scopeFromName(conf.VeneurMetricsScopes.Histogram)
+		if err != nil {
+			return err
+		}
+		typeScopes[ssf.SSFSample_SET], err = scopeFromName(conf.VeneurMetricsScopes.Set)
+		if err != nil {
+			return err
+		}
+		typeScopes[ssf.SSFSample_STATUS], err = scopeFromName(conf.VeneurMetricsScopes.Status)
+		if err != nil {
+			return err
+		}
+
+		tags := map[string]string{}
+		for _, elem := range conf.VeneurMetricsAdditionalTags {
+			tag := strings.SplitN(elem, ":", 2)
+			switch len(tag) {
+			case 2:
+				tags[tag[0]] = tag[1]
+			case 1:
+				tags[tag[0]] = ""
+			}
+		}
+
+		normalizer := func(sample *ssf.SSFSample) {
+			// adjust tags:
+			if sample.Tags == nil {
+				sample.Tags = map[string]string{}
+			}
+			for k, v := range tags {
+				if _, ok := sample.Tags[k]; ok {
+					// do not overwrite existing tags:
+					continue
+				}
+				sample.Tags[k] = v
+			}
+
+			// adjust the scope:
+			toScope := typeScopes[sample.Metric]
+			if sample.Scope != ssf.SSFSample_DEFAULT || toScope == ssf.SSFSample_DEFAULT {
+				return
+			}
+			sample.Scope = toScope
+		}
+		option := trace.NormalizeSamples(normalizer)
+		return option(cl)
+	}
+}
+
+func scopesFromConfig(conf Config) (scopedstatsd.MetricScopes, error) {
+	var err error
+	var ms scopedstatsd.MetricScopes
+	ms.Gauge, err = scopeFromName(conf.VeneurMetricsScopes.Gauge)
+	if err != nil {
+		return ms, err
+	}
+	ms.Count, err = scopeFromName(conf.VeneurMetricsScopes.Counter)
+	if err != nil {
+		return ms, err
+	}
+	ms.Histogram, err = scopeFromName(conf.VeneurMetricsScopes.Histogram)
+	if err != nil {
+		return ms, err
+	}
+	return ms, nil
 }
 
 // NewFromConfig creates a new veneur server from a configuration
@@ -179,6 +278,8 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		return ret, err
 	}
 
+	ret.stuckIntervals = conf.FlushWatchdogMissedFlushes
+
 	transport := &http.Transport{
 		IdleConnTimeout: ret.interval * 2, // If we're idle more than one interval something is up
 	}
@@ -195,11 +296,16 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 	stats.Namespace = "veneur."
 
-	ret.Statsd = stats
+	scopes, err := scopesFromConfig(conf)
+	if err != nil {
+		return ret, err
+	}
+	ret.Statsd = scopedstatsd.NewClient(stats, conf.VeneurMetricsAdditionalTags, scopes)
 
 	ret.SpanChan = make(chan *ssf.SSFSpan, conf.SpanChannelCapacity)
 	ret.TraceClient, err = trace.NewChannelClient(ret.SpanChan,
 		trace.ReportStatistics(stats, 1*time.Second, []string{"ssf_format:internal"}),
+		normalizeSpans(conf),
 	)
 	if err != nil {
 		return ret, err
@@ -723,6 +829,13 @@ func (s *Server) Start() {
 			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
 		}()
 
+		ctx, cancel := context.WithCancel(context.Background())
+		go func() {
+			// If the server is shutting down, cancel any in-flight flush:
+			<-s.shutdown
+			cancel()
+		}()
+
 		if s.synchronizeInterval {
 			// We want to align our ticker to a multiple of its duration for
 			// convenience of bucketing.
@@ -741,11 +854,57 @@ func (s *Server) Start() {
 				// stop flushing on graceful shutdown
 				ticker.Stop()
 				return
-			case <-ticker.C:
-				s.Flush(context.TODO())
+			case triggered := <-ticker.C:
+				ctx, cancel := context.WithDeadline(ctx, triggered.Add(s.interval))
+				s.Flush(ctx)
+				cancel()
 			}
 		}
 	}()
+}
+
+// FlushWatchdog periodically checks that at most
+// `flush_watchdog_missed_flushes` were skipped in a Server. If more
+// than that number was skipped, it panics (assuming that flushing is
+// stuck) with a full level of detail on that panic's backtraces.
+//
+// It never terminates, so is ideally run from a goroutine in a
+// program's main function.
+func (s *Server) FlushWatchdog() {
+	defer func() {
+		ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+	}()
+
+	if s.stuckIntervals == 0 {
+		// No watchdog needed:
+		return
+	}
+	atomic.StoreInt64(&s.lastFlushUnix, time.Now().UnixNano())
+
+	ticker := time.NewTicker(s.interval)
+	for {
+		select {
+		case <-s.shutdown:
+			ticker.Stop()
+			return
+		case <-ticker.C:
+			last := time.Unix(0, atomic.LoadInt64(&s.lastFlushUnix))
+			since := time.Since(last)
+
+			// If no flush was kicked off in the last N
+			// times, we're stuck - panic because that's a
+			// bug.
+			if since > time.Duration(s.stuckIntervals)*s.interval {
+				rtdebug.SetTraceback("all")
+				log.WithFields(logrus.Fields{
+					"last_flush":       last,
+					"missed_intervals": s.stuckIntervals,
+					"time_since":       since,
+				}).
+					Panic("Flushing seems to be stuck. Terminating.")
+			}
+		}
+	}
 }
 
 // HandleMetricPacket processes each packet that is sent to the server, and sends to an

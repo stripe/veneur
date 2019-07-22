@@ -64,9 +64,15 @@ func jsonEndpoint(t testing.TB, ch chan<- splunk.Event) http.Handler {
 	})
 }
 
+func testLogger() *logrus.Logger {
+	logger := logrus.New()
+	logger.SetLevel(logrus.DebugLevel)
+	return logger
+}
+
 func TestSpanIngestBatch(t *testing.T) {
 	const nToFlush = 10
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
@@ -123,7 +129,7 @@ func TestSpanIngestBatch(t *testing.T) {
 		assert.Equal(t, float64(span.EndTimestamp)/float64(time.Second), output.EndTimestamp)
 
 		// span IDs can arrive out of order:
-		spanID, err := strconv.Atoi(output.Id)
+		spanID, err := strconv.ParseInt(output.Id, 16, 64)
 		require.NoError(t, err)
 		assert.True(t, spanID < nToFlush+1, "Expected %d to be < %d", spanID, nToFlush)
 		assert.True(t, spanID > 0, "Expected %d to be > 0", spanID)
@@ -140,7 +146,7 @@ func TestSpanIngestBatch(t *testing.T) {
 
 func TestTimeout(t *testing.T) {
 	const nToFlush = 10
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(time.Duration(100 * time.Millisecond))
@@ -202,7 +208,7 @@ const benchmarkCapacity = 100
 const benchmarkWorkers = 3
 
 func BenchmarkBatchIngest(b *testing.B) {
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	// set up a null responder that we can flush to:
 	ts := httptest.NewServer(jsonEndpoint(b, nil))
@@ -248,7 +254,7 @@ func BenchmarkBatchIngest(b *testing.B) {
 
 func TestSampling(t *testing.T) {
 	const nToFlush = 1000
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
@@ -291,8 +297,14 @@ func TestSampling(t *testing.T) {
 
 	// check how many events we got:
 	events := 0
-	for range ch {
+	markedPartial := 0
+	for v := range ch {
 		events++
+		if serialized, ok := v.Event.(map[string]interface{}); ok {
+			if _, ok := serialized["partial"].(bool); ok {
+				markedPartial++
+			}
+		}
 		// Don't close the receiving end until the first
 		// span, to avoid failing the test by racing the
 		// receiver:
@@ -303,13 +315,14 @@ func TestSampling(t *testing.T) {
 		}
 	}
 	assert.True(t, events > 0, "Should have sent around 1/10 of spans, but received zero")
-	assert.True(t, events < nToFlush/2, "Should have sent less than all the spans, but received %d of %d", events, nToFlush)
-	t.Logf("Received %d of %d events", events, nToFlush)
+	assert.True(t, events < nToFlush/2, "Should have sent less than half the spans, but received %d of %d", events, nToFlush)
+	assert.Equal(t, 0, markedPartial, "Expected `partial` to be omitted from non-indicator spans, but it was there")
+	t.Logf("Received %d of %d events (%d marked partial)", events, nToFlush, markedPartial)
 }
 
 func TestSamplingIndicators(t *testing.T) {
 	const nToFlush = 100
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
@@ -352,8 +365,14 @@ func TestSamplingIndicators(t *testing.T) {
 
 	// check how many events we got:
 	events := 0
-	for range ch {
+	markedPartial := 0
+	for v := range ch {
 		events++
+		if serialized, ok := v.Event.(map[string]interface{}); ok {
+			if bv, ok := serialized["partial"].(bool); ok && bv {
+				markedPartial++
+			}
+		}
 		// Don't close the receiving end until the first
 		// span, to avoid failing the test by racing the
 		// receiver:
@@ -364,12 +383,14 @@ func TestSamplingIndicators(t *testing.T) {
 		}
 	}
 	assert.Equal(t, events, nToFlush, "Should have sent all the spans, but received %d of %d", events, nToFlush)
-	t.Logf("Received %d of %d events", events, nToFlush)
+	assert.True(t, markedPartial > 0, "Should marked around 1/10 of spans as partial, but received zero")
+	assert.True(t, (nToFlush-markedPartial) < nToFlush/2, "Should have marked less than half the spans as partial, but received %d of %d", markedPartial, nToFlush)
+	t.Logf("Received %d of %d events (%d marked partial)", events, nToFlush, markedPartial)
 }
 
 func TestClosedIngestionEndpoint(t *testing.T) {
 	const nToFlush = 100
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
