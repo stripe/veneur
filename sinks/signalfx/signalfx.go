@@ -181,14 +181,18 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 
 // NewSignalFxSink creates a new SignalFx sink for metrics.
 func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagPrefixDrops []string, derivedMetrics samplers.DerivedMetricsProcessor, maxPointsInBatch int, defaultToken string, enableDynamicPerTagTokens bool, dynamicKeyRefreshPeriod time.Duration, metricsEndpoint string, apiEndpoint string, httpClient *http.Client) (*SignalFxSink, error) {
-	endpoint, err := url.Parse(apiEndpoint)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to parse signalfx api endpoint")
-	}
+	var endpointStr string
+	if apiEndpoint != "" {
+		endpoint, err := url.Parse(apiEndpoint)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse signalfx api endpoint")
+		}
 
-	endpoint, err = endpoint.Parse("/v2/token")
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to generate signalfx token endpoint")
+		endpoint, err = endpoint.Parse("/v2/token")
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to generate signalfx token endpoint")
+		}
+		endpointStr = endpoint.String()
 	}
 
 	return &SignalFxSink{
@@ -208,7 +212,7 @@ func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[s
 		derivedMetrics:            derivedMetrics,
 		maxPointsInBatch:          maxPointsInBatch,
 		metricsEndpoint:           metricsEndpoint,
-		apiEndpoint:               endpoint.String(),
+		apiEndpoint:               endpointStr,
 		httpClient:                httpClient,
 	}, nil
 }
