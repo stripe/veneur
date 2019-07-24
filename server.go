@@ -466,7 +466,17 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		for _, perTag := range conf.SignalfxPerTagAPIKeys {
 			byTagClients[perTag.Name] = signalfx.NewClient(conf.SignalfxEndpointBase, perTag.APIKey, &tracedHTTP)
 		}
-		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback, conf.SignalfxVaryKeyBy, byTagClients, conf.SignalfxMetricNamePrefixDrops, conf.SignalfxMetricTagPrefixDrops, metricSink, conf.SignalfxFlushMaxPerBody)
+
+		if conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod == "" {
+			conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod = "10m"
+		}
+
+		dynamicKeyRefreshPeriod, err := time.ParseDuration(conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod)
+		if err != nil {
+			return ret, err
+		}
+
+		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback, conf.SignalfxVaryKeyBy, byTagClients, conf.SignalfxMetricNamePrefixDrops, conf.SignalfxMetricTagPrefixDrops, metricSink, conf.SignalfxFlushMaxPerBody, conf.SignalfxAPIKey, conf.SignalfxDynamicPerTagAPIKeysEnable, dynamicKeyRefreshPeriod, conf.SignalfxEndpointBase, conf.SignalfxEndpointAPI, &tracedHTTP)
 		if err != nil {
 			return ret, err
 		}
