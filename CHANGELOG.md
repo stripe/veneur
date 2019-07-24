@@ -1,7 +1,8 @@
 # 13.0.0, in progress
 
-### Added
+## Added
 
+* The SignalFx sink now supports dynamically fetching per-tag Access tokens from SignalFX. Thanks, [szabado](https://github.com/szabado)!
 * The Kafka sink now includes metrics for skipped and dropped spans, as well as a debug log line for flushes. Thanks, [franklinhu](https://github.com/franklinhu)
 * A flush "watchdog" controlled by the config setting `flush_watchdog_missed_flushes`. If veneur has not started this many flushes, the watchdog panics and terminates veneur (so it can be restarted by process supervision). Thanks, [antifuchs](https://github.com/antifuchs)!
 * Splunk sink: Trace-related IDs are now represented in hexadecimal for cross-tool compatibility and a small byte savings. Thanks, [myndzi](https://github.com/myndzi)
@@ -17,7 +18,7 @@
 * Updated the vendored version of github.com/gogo/protobuf which fixes Gopkg.toml conflicts for users of veneur. Thanks, [dtbartle](http://github.com/dtbartle)!
 
 ## Bugfixes
-
+* Veneur listening on UDS for statsd metrics will respect the `read_buffer_size_bytes` config. Thanks, [prudhvi](https://github.com/prudhvi)!
 * The splunk HEC span sink didn't correctly spawn the number of submission workers configured with `splunk_hec_submission_workers`, only spawning one. Now it spawns the number configured. Thanks, [antifuchs](https://github.com/antifuchs)!
 * The signalfx sink now correctly constructs ingestion endpoint URLs when given URLs that end in slashes. Thanks, [antifuchs](https://github.com/antifuchs)!
 * Veneur now sets a deadline for its flushes: No flush may take longer than the configured server flush interval. Thanks, [antifuchs](https://github.com/antifuchs)!

@@ -150,6 +150,12 @@ func startStatsdUnix(s *Server, addr *net.UnixAddr, packetPool *sync.Pool) (<-ch
 		panic(fmt.Sprintf("Couldn't listen on UNIX socket %v: %v", addr, err))
 	}
 
+	if rcvbufsize := s.RcvbufBytes; rcvbufsize != 0 {
+		if err := conn.SetReadBuffer(rcvbufsize); err != nil {
+			panic(fmt.Sprintf("Couldn't set buffer size for UNIX socket %v: %v", addr, err))
+		}
+	}
+
 	// Make the socket connectable by everyone with access to the socket pathname:
 	err = os.Chmod(addr.String(), 0666)
 	if err != nil {
