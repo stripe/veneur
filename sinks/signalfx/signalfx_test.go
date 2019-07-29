@@ -660,19 +660,19 @@ func TestSignalFxExtractTokensFromResponse(t *testing.T) {
 
 // mockHandler cycles through a slice of predefined HTTP responses
 type mockHandler struct {
-	returns []string
-	index   int
+	responses []string
+	index     int
 }
 
 func (m *mockHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	resp.WriteHeader(http.StatusOK)
-	resp.Write([]byte(m.returns[m.index%len(m.returns)]))
+	resp.Write([]byte(m.responses[m.index%len(m.responses)]))
 	m.index++
 }
 
 func TestSignalFxFetchAPITokens(t *testing.T) {
 	m := &mockHandler{
-		returns: []string{
+		responses: []string{
 			response1,
 			response3,
 			response2,
@@ -695,7 +695,7 @@ func TestSignalFxFetchAPITokens(t *testing.T) {
 func TestSignalFxClientByTagUpdater(t *testing.T) {
 	const dynamicKeyRefreshPeriod = 5 * time.Millisecond
 	m := &mockHandler{
-		returns: []string{
+		responses: []string{
 			response1,
 			response3,
 			response2,
