@@ -658,26 +658,21 @@ func TestSignalFxExtractTokensFromResponse(t *testing.T) {
 	}
 }
 
+// mockHandler cycles through a slice of predefined HTTP responses
 type mockHandler struct {
-	returns []string
-	index   int
+	responses []string
+	index     int
 }
 
 func (m *mockHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
-	if m.index >= len(m.returns) {
-		resp.WriteHeader(http.StatusBadRequest)
-		resp.Write([]byte("not enough responses specified"))
-		return
-	}
-
 	resp.WriteHeader(http.StatusOK)
-	resp.Write([]byte(m.returns[m.index]))
+	resp.Write([]byte(m.responses[m.index%len(m.responses)]))
 	m.index++
 }
 
 func TestSignalFxFetchAPITokens(t *testing.T) {
 	m := &mockHandler{
-		returns: []string{
+		responses: []string{
 			response1,
 			response3,
 			response2,
@@ -698,8 +693,9 @@ func TestSignalFxFetchAPITokens(t *testing.T) {
 }
 
 func TestSignalFxClientByTagUpdater(t *testing.T) {
+	const dynamicKeyRefreshPeriod = 5 * time.Millisecond
 	m := &mockHandler{
-		returns: []string{
+		responses: []string{
 			response1,
 			response3,
 			response2,
@@ -713,13 +709,14 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 	derived := newDerivedProcessor()
 	perBatch := 1
 
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{}, nil, nil, derived, perBatch, "", true, 5*time.Millisecond, "", server.URL, server.Client())
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{}, nil, nil, derived, perBatch, "", true, dynamicKeyRefreshPeriod, "", server.URL, server.Client())
 	require.NoError(t, err)
 
 	err = sink.Start(nil)
 	require.NoError(t, err)
 
-	time.Sleep(50 * time.Millisecond)
+	// TODO better synchronization here than time.Sleep
+	time.Sleep(10 * dynamicKeyRefreshPeriod)
 
 	sink.clientsByTagValueMu.Lock()
 
@@ -739,5 +736,9 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 	sort.Strings(expectedPerTagClients)
 	sort.Strings(actualPerTagClients)
 
-	require.Equal(t, expectedPerTagClients, actualPerTagClients)
+	// Check that both sets are equal (subsets of each other)
+	// The order might be different due to modular division, but we should always receive the same
+	// three responses
+	assert.Subset(t, expectedPerTagClients, actualPerTagClients, "The actual values should be a subset of the expected values")
+	assert.Subset(t, actualPerTagClients, expectedPerTagClients, "The expected values should be a subset of the actual values")
 }
