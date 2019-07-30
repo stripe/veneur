@@ -501,6 +501,7 @@ func TestParser(t *testing.T) {
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
+	assert.Equal(t, 0, len(m.Tags), "# of tags")
 }
 
 func TestParserGauge(t *testing.T) {
@@ -565,7 +566,18 @@ func TestParserWithTags(t *testing.T) {
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
-	assert.Equal(t, 2, len(m.Tags), "# of Tags")
+	assert.EqualValues(t, []string{"baz:gorch", "foo:bar"}, m.Tags, "Expected Tags")
+
+	// ensure that tag order doesn't matter: it must produce the same digest
+	m2, _ := samplers.ParseMetric([]byte("a.b.c:1|c|#baz:gorch,foo:bar"))
+	assert.EqualValues(t, []string{"baz:gorch", "foo:bar"}, m2.Tags, "Expected Tags")
+	assert.Equal(t, m.Digest, m2.Digest, "Digest must not depend on tag order")
+	assert.Equal(t, m.MetricKey, m2.MetricKey, "MetricKey must not depend on tag order")
+
+	// treated as an empty tag
+	m, err := samplers.ParseMetric([]byte("a.b.c:1|c|#"))
+	assert.Equal(t, nil, err, "not an error")
+	assert.EqualValues(t, []string{""}, m.Tags, "expected empty tag")
 
 	_, valueError := samplers.ParseMetric([]byte("a.b.c:fart|c"))
 	assert.NotNil(t, valueError, "No errors when parsing")
@@ -799,4 +811,38 @@ func BenchmarkParseSSF(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		protocol.ParseSSF(buff)
 	}
+}
+
+var benchResult uint32
+
+func BenchmarkParseMetric(b *testing.B) {
+	var total uint32
+
+	tests := []struct {
+		testName    string
+		metricValue string
+	}{
+		{"IntCountZeroTags", "a.b.c:1|c"},
+		{"IntCountOneTag", "a.b.c:1|c|#baz:gorch"},
+		{"IntCountTwoTags", "a.b.c:1|c|#foo:bar,baz:gorch"},
+
+		{"FloatHistogramZeroTags", "a.b.c:4.5|h"},
+		{"FloatHistogramOneTag", "a.b.c:4.5|c|#baz:gorch"},
+		{"FloatHistogramTwoTags", "a.b.c:4.5|c|#foo:bar,baz:gorch"},
+	}
+	for _, test := range tests {
+		metricBytes := []byte(test.metricValue)
+
+		b.Run(test.testName, func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				m, err := samplers.ParseMetric(metricBytes)
+				if err != nil {
+					b.Fatal(err)
+				}
+				total += m.Digest
+			}
+		})
+	}
+	// Attempt to avoid compiler optimizations? Is this relevant?
+	benchResult = total
 }
