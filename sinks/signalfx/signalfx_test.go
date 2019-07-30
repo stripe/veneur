@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -661,13 +662,13 @@ func TestSignalFxExtractTokensFromResponse(t *testing.T) {
 // mockHandler cycles through a slice of predefined HTTP responses
 type mockHandler struct {
 	responses []string
-	index     int
+	index     int64
 }
 
 func (m *mockHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	resp.WriteHeader(http.StatusOK)
-	resp.Write([]byte(m.responses[m.index%len(m.responses)]))
-	m.index++
+	resp.Write([]byte(m.responses[atomic.LoadInt64(&m.index)%int64(len(m.responses))]))
+	atomic.AddInt64(&m.index, 1)
 }
 
 func TestSignalFxFetchAPITokens(t *testing.T) {
@@ -729,6 +730,9 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 
 	actualPerTagClients := make([]string, 0)
 
+	mindex := atomic.LoadInt64(&m.index)
+	assert.True(t, mindex >= 3, "m.index should be at least 3, not %d", mindex)
+	assert.Equal(t, len(sink.clientsByTagValue), len(expectedPerTagClients), "Sink should have %d clients", len(expectedPerTagClients))
 	for tag, client := range sink.clientsByTagValue {
 		actualPerTagClients = append(actualPerTagClients, tag)
 		require.NotNil(t, client)
@@ -742,5 +746,5 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 	// three responses
 	assert.Subset(t, expectedPerTagClients, actualPerTagClients, "The actual values should be a subset of the expected values")
 	assert.Subset(t, actualPerTagClients, expectedPerTagClients, "The expected values should be a subset of the actual values")
-	assert.GreaterOrEqual(t, m.index, 3)
+
 }
