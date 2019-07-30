@@ -111,8 +111,6 @@ type Server struct {
 	metricMaxLength     int
 	traceMaxLengthBytes int
 
-	readerTimeseries []ReaderTimeseries
-
 	tlsConfig      *tls.Config
 	tcpReadTimeout time.Duration
 
@@ -144,21 +142,9 @@ type Server struct {
 
 	stuckIntervals int
 	lastFlushUnix  int64
-}
 
-// TODO: document this
-type ReaderTimeseries struct {
-	*samplers.Set
-	*sync.RWMutex
-}
-
-func (s *Server) NewReaderTimeseries() ReaderTimeseries {
-	mts := ReaderTimeseries{
-		Set:     samplers.NewSet("", []string{""}),
-		RWMutex: &sync.RWMutex{},
-	}
-	s.readerTimeseries = append(s.readerTimeseries, mts)
-	return mts
+	totalMTS    *samplers.Set
+	totalMTSMtx sync.RWMutex
 }
 
 // ssfServiceSpanMetrics refer to the span metrics that will
@@ -290,6 +276,11 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 	ret.HistogramAggregates.Count = len(conf.Aggregates)
 
+	// TODO: figure out name
+	// TODO: figure out tags
+	ret.totalMTSMtx = sync.RWMutex{}
+	ret.totalMTS = samplers.NewSet("", []string{""})
+
 	var err error
 	ret.interval, err = conf.ParseInterval()
 	if err != nil {
@@ -390,8 +381,6 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	// Allocate the slice, we'll fill it with workers later.
 	ret.Workers = make([]*Worker, numWorkers)
 	ret.numReaders = conf.NumReaders
-
-	ret.readerTimeseries = make([]ReaderTimeseries, 0)
 
 	// Use the pre-allocated Workers slice to know how many to start.
 	for i := range ret.Workers {
@@ -929,7 +918,7 @@ func (s *Server) FlushWatchdog() {
 
 // HandleMetricPacket processes each packet that is sent to the server, and sends to an
 // appropriate worker (EventWorker or Worker).
-func (s *Server) HandleMetricPacket(packet []byte, readerTimeseries ReaderTimeseries) error {
+func (s *Server) HandleMetricPacket(packet []byte) error {
 	// This is a very performance-sensitive function
 	// and packets may be dropped if it gets slowed down.
 	// Keep that in mind when modifying!
@@ -974,9 +963,9 @@ func (s *Server) HandleMetricPacket(packet []byte, readerTimeseries ReaderTimese
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "metric", "reason": "parse"}))
 			return err
 		}
-		readerTimeseries.RWMutex.RLock()
-		readerTimeseries.Set.Sample(strconv.FormatUint(uint64(metric.Digest), 10), 1)
-		readerTimeseries.RWMutex.RUnlock()
+		s.totalMTSMtx.RLock()
+		s.totalMTS.Sample(strconv.FormatUint(uint64(metric.Digest), 10), 1)
+		s.totalMTSMtx.RUnlock()
 		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
 	}
 	return nil
@@ -1061,7 +1050,7 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string) {
 }
 
 // ReadMetricSocket listens for available packets to handle.
-func (s *Server) ReadMetricSocket(serverConn net.PacketConn, packetPool *sync.Pool, readerTimeseries ReaderTimeseries) {
+func (s *Server) ReadMetricSocket(serverConn net.PacketConn, packetPool *sync.Pool) {
 	for {
 		buf := packetPool.Get().([]byte)
 		n, _, err := serverConn.ReadFrom(buf)
@@ -1069,12 +1058,12 @@ func (s *Server) ReadMetricSocket(serverConn net.PacketConn, packetPool *sync.Po
 			log.WithError(err).Error("Error reading from UDP metrics socket")
 			continue
 		}
-		s.processMetricPacket(n, buf, packetPool, readerTimeseries)
+		s.processMetricPacket(n, buf, packetPool)
 	}
 }
 
 // Splits the read metric packet into multiple metrics and handles them
-func (s *Server) processMetricPacket(numBytes int, buf []byte, packetPool *sync.Pool, readerTimeseries ReaderTimeseries) {
+func (s *Server) processMetricPacket(numBytes int, buf []byte, packetPool *sync.Pool) {
 	if numBytes > s.metricMaxLength {
 		metrics.ReportOne(s.TraceClient, ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "unknown", "reason": "toolong"}))
 		return
@@ -1087,7 +1076,7 @@ func (s *Server) processMetricPacket(numBytes int, buf []byte, packetPool *sync.
 	// trailing newlines
 	splitPacket := samplers.NewSplitBytes(buf[:numBytes], '\n')
 	for splitPacket.Next() {
-		s.HandleMetricPacket(splitPacket.Chunk(), readerTimeseries)
+		s.HandleMetricPacket(splitPacket.Chunk())
 	}
 
 	// the Metric struct created by HandleMetricPacket has no byte slices in it,
@@ -1098,7 +1087,7 @@ func (s *Server) processMetricPacket(numBytes int, buf []byte, packetPool *sync.
 }
 
 // ReadStatsdDatagramSocket reads statsd metrics packets from connection off a unix datagram socket.
-func (s *Server) ReadStatsdDatagramSocket(serverConn *net.UnixConn, packetPool *sync.Pool, readerTimeseries ReaderTimeseries) {
+func (s *Server) ReadStatsdDatagramSocket(serverConn *net.UnixConn, packetPool *sync.Pool) {
 	for {
 		buf := packetPool.Get().([]byte)
 		n, _, err := serverConn.ReadFromUnix(buf)
@@ -1113,7 +1102,7 @@ func (s *Server) ReadStatsdDatagramSocket(serverConn *net.UnixConn, packetPool *
 			}
 		}
 
-		s.processMetricPacket(n, buf, packetPool, readerTimeseries)
+		s.processMetricPacket(n, buf, packetPool)
 	}
 }
 
@@ -1192,7 +1181,7 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 	}
 }
 
-func (s *Server) handleTCPGoroutine(conn net.Conn, readerTimeseries ReaderTimeseries) {
+func (s *Server) handleTCPGoroutine(conn net.Conn) {
 	defer func() {
 		ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
 	}()
@@ -1257,7 +1246,7 @@ func (s *Server) handleTCPGoroutine(conn net.Conn, readerTimeseries ReaderTimese
 	}
 	for scanWithDeadline() {
 		// treat each line as a separate packet
-		err := s.HandleMetricPacket(buf.Bytes(), readerTimeseries)
+		err := s.HandleMetricPacket(buf.Bytes())
 		if err != nil {
 			// don't consume bad data from a client indefinitely
 			// HandleMetricPacket logs the err and packet, and increments error counters
@@ -1276,7 +1265,7 @@ func (s *Server) handleTCPGoroutine(conn net.Conn, readerTimeseries ReaderTimese
 }
 
 // ReadTCPSocket listens on Server.TCPAddr for new connections, starting a goroutine for each.
-func (s *Server) ReadTCPSocket(listener net.Listener, readerTimeseries ReaderTimeseries) {
+func (s *Server) ReadTCPSocket(listener net.Listener) {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -1290,7 +1279,7 @@ func (s *Server) ReadTCPSocket(listener net.Listener, readerTimeseries ReaderTim
 			}
 		}
 
-		go s.handleTCPGoroutine(conn, readerTimeseries)
+		go s.handleTCPGoroutine(conn)
 	}
 }
 

@@ -697,7 +697,7 @@ func TestUDPMetricsSSF(t *testing.T) {
 	assert.Equal(t, "test.metric", metrics[0].Name, "worker processed the metric")
 }
 
-func TestAsdf(t *testing.T) {
+func TestTotalMTS(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.Interval = "5m"
@@ -712,16 +712,13 @@ func TestAsdf(t *testing.T) {
 	defer conn.Close()
 
 	packet := []byte("foo.bar:1|c|#baz:gorch")
-	readerTimeseries := f.server.NewReaderTimeseries()
-	fmt.Println(len(f.server.readerTimeseries))
-	assert.Equal(t, 1, 1)
-	f.server.HandleMetricPacket(packet, readerTimeseries)
-	assert.Equal(t, 1, int(f.server.readerTimeseries[2].Set.Hll.Estimate()))
-	f.server.HandleMetricPacket(packet, readerTimeseries)
-	assert.Equal(t, 1, int(f.server.readerTimeseries[2].Set.Hll.Estimate()))
+	f.server.HandleMetricPacket(packet)
+	assert.Equal(t, 1, int(f.server.totalMTS.Hll.Estimate()))
+	f.server.HandleMetricPacket(packet)
+	assert.Equal(t, 1, int(f.server.totalMTS.Hll.Estimate()))
 	packet2 := []byte("foo.bar:1|c|#boom:bap")
-	f.server.HandleMetricPacket(packet2, readerTimeseries)
-	assert.Equal(t, 2, int(f.server.readerTimeseries[2].Set.Hll.Estimate()))
+	f.server.HandleMetricPacket(packet2)
+	assert.Equal(t, 2, int(f.server.totalMTS.Hll.Estimate()))
 }
 
 func connectToAddress(t *testing.T, network string, addr string, timeout time.Duration) net.Conn {
@@ -970,7 +967,7 @@ func TestHandleTCPGoroutineTimeout(t *testing.T) {
 
 	// handleTCPGoroutine should not block forever: it will time outTest
 	log.Printf("handling goroutine")
-	s.handleTCPGoroutine(conn, s.NewReaderTimeseries())
+	s.handleTCPGoroutine(conn)
 	<-acceptorDone
 
 	// we should have received one metric
