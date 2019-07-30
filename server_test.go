@@ -697,6 +697,30 @@ func TestUDPMetricsSSF(t *testing.T) {
 	assert.Equal(t, "test.metric", metrics[0].Name, "worker processed the metric")
 }
 
+func TestTotalMTS(t *testing.T) {
+	config := localConfig()
+	config.NumWorkers = 1
+	config.Interval = "5m"
+	config.SsfListenAddresses = []string{"udp://127.0.0.1:0"}
+	ch := make(chan []samplers.InterMetric, 20)
+	sink, _ := NewChannelMetricSink(ch)
+	f := newFixture(t, config, sink, nil)
+	defer f.Close()
+
+	addr := f.server.SSFListenAddrs[0]
+	conn := connectToAddress(t, "udp", addr.String(), 20*time.Millisecond)
+	defer conn.Close()
+
+	packet := []byte("foo.bar:1|c|#baz:gorch")
+	f.server.HandleMetricPacket(packet)
+	assert.Equal(t, 1, int(f.server.totalMTS.Hll.Estimate()))
+	f.server.HandleMetricPacket(packet)
+	assert.Equal(t, 1, int(f.server.totalMTS.Hll.Estimate()))
+	packet2 := []byte("foo.bar:1|c|#boom:bap")
+	f.server.HandleMetricPacket(packet2)
+	assert.Equal(t, 2, int(f.server.totalMTS.Hll.Estimate()))
+}
+
 func connectToAddress(t *testing.T, network string, addr string, timeout time.Duration) net.Conn {
 	ch := make(chan net.Conn)
 	go func() {

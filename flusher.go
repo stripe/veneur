@@ -25,6 +25,7 @@ import (
 
 // Flush collects sampler's metrics and passes them to sinks.
 func (s *Server) Flush(ctx context.Context) {
+	// TODO: combine and reset the sets
 	span := tracer.StartSpan("flush").(*trace.Span)
 	defer span.ClientFinish(s.TraceClient)
 

@@ -372,6 +372,7 @@ type Set struct {
 
 // Sample checks if the supplied value has is already in the filter. If not, it increments
 // the counter!
+// TODO: actually use sampleRate
 func (s *Set) Sample(sample string, sampleRate float32) {
 	s.Hll.Insert([]byte(sample))
 }

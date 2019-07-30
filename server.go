@@ -15,6 +15,7 @@ import (
 	"reflect"
 	"runtime"
 	rtdebug "runtime/debug"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -141,6 +142,9 @@ type Server struct {
 
 	stuckIntervals int
 	lastFlushUnix  int64
+
+	totalMTS    *samplers.Set
+	totalMTSMtx sync.RWMutex
 }
 
 // ssfServiceSpanMetrics refer to the span metrics that will
@@ -271,6 +275,11 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		ret.HistogramAggregates.Value += samplers.AggregatesLookup[agg]
 	}
 	ret.HistogramAggregates.Count = len(conf.Aggregates)
+
+	// TODO: figure out name
+	// TODO: figure out tags
+	ret.totalMTSMtx = sync.RWMutex{}
+	ret.totalMTS = samplers.NewSet("", []string{""})
 
 	var err error
 	ret.interval, err = conf.ParseInterval()
@@ -954,6 +963,9 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "metric", "reason": "parse"}))
 			return err
 		}
+		s.totalMTSMtx.RLock()
+		s.totalMTS.Sample(strconv.FormatUint(uint64(metric.Digest), 10), 1)
+		s.totalMTSMtx.RUnlock()
 		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
 	}
 	return nil
