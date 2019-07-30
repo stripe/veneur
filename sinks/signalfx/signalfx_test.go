@@ -716,8 +716,22 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 	err = sink.Start(nil)
 	require.NoError(t, err)
 
-	// TODO better synchronization here than time.Sleep
-	time.Sleep(100 * dynamicKeyRefreshPeriod)
+	timeout := time.After(100 * dynamicKeyRefreshPeriod)
+	interval := time.NewTicker(2 * dynamicKeyRefreshPeriod)
+
+LOOP:
+	for {
+		select {
+		case <-timeout:
+			require.FailNow(t, "Timed out waiting for SignalFX sink to synchronize clients")
+		case <-interval.C:
+			// The sink polls and updates serially, so by the time it has made the fourth
+			// request, it is guaranteed to have finished processing the third.
+			if atomic.LoadInt64(&m.index) >= 4 {
+				break LOOP
+			}
+		}
+	}
 
 	sink.clientsByTagValueMu.Lock()
 	defer sink.clientsByTagValueMu.Unlock()
