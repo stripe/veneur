@@ -10,9 +10,9 @@ SSF is based on prior art of metrics formats and protocols mentioned in the [ins
 
 Because we want to:
 
-* leverage protobuf so we no longer have to write buggy, string-based marshaling and unmarshaling code in clients libraries and server implementations
+* leverage protobuf so we no longer have to write buggy, string-based marshaling and unmarshaling code in client libraries and server implementations
 * benefit from the efficiency of protobuf
-* collect and combine the great ideas from our [inspiration](https://github.com/stripe/veneur/tree/master/ssf#inspiration)
+* collect and combine the great ideas from the [tools that inspired us](https://github.com/stripe/veneur/tree/master/ssf#inspiration)
 * add some of [our own ideas](https://github.com/stripe/veneur/tree/master/ssf#philosophy)
 
 # Using SSF
@@ -34,7 +34,7 @@ We've got some novel ideas that we've put in to SSF. It might help to be familia
 * other point metrics (e.g. counters and gauges) can be constituents of a span
   * it's more valuable to know the depth of a queue in the context of a span than alone
   * improve the context of counters and gauges, as they are part of a span
-* provide a format containing the superset of many backend's features
+* provide a format containing the superset of many backends' features
 
 # Components
 
