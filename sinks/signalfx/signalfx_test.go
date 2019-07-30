@@ -694,7 +694,7 @@ func TestSignalFxFetchAPITokens(t *testing.T) {
 }
 
 func TestSignalFxClientByTagUpdater(t *testing.T) {
-	const dynamicKeyRefreshPeriod = 5 * time.Millisecond
+	const dynamicKeyRefreshPeriod = 1 * time.Millisecond
 	m := &mockHandler{
 		responses: []string{
 			response1,
@@ -717,7 +717,7 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 	require.NoError(t, err)
 
 	// TODO better synchronization here than time.Sleep
-	time.Sleep(10 * dynamicKeyRefreshPeriod)
+	time.Sleep(100 * dynamicKeyRefreshPeriod)
 
 	sink.clientsByTagValueMu.Lock()
 	defer sink.clientsByTagValueMu.Unlock()
