@@ -719,6 +719,7 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 	time.Sleep(10 * dynamicKeyRefreshPeriod)
 
 	sink.clientsByTagValueMu.Lock()
+	defer sink.clientsByTagValueMu.Unlock()
 
 	expectedPerTagClients := []string{
 		"service",
@@ -741,4 +742,5 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 	// three responses
 	assert.Subset(t, expectedPerTagClients, actualPerTagClients, "The actual values should be a subset of the expected values")
 	assert.Subset(t, actualPerTagClients, expectedPerTagClients, "The expected values should be a subset of the actual values")
+	assert.GreaterOrEqual(t, m.index, 3)
 }
