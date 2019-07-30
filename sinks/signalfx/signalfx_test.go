@@ -732,7 +732,7 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 
 	mindex := atomic.LoadInt64(&m.index)
 	assert.True(t, mindex >= 3, "m.index should be at least 3, not %d", mindex)
-	assert.Equal(t, len(sink.clientsByTagValue), len(expectedPerTagClients), "Sink should have %d clients", len(expectedPerTagClients))
+	assert.Equal(t, len(expectedPerTagClients), len(sink.clientsByTagValue), "Sink should have %d clients", len(expectedPerTagClients))
 	for tag, client := range sink.clientsByTagValue {
 		actualPerTagClients = append(actualPerTagClients, tag)
 		require.NotNil(t, client)
