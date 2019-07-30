@@ -29,11 +29,23 @@ func StartStatsd(s *Server, a net.Addr, packetPool *sync.Pool) net.Addr {
 	}
 }
 
-// udpProcessor is a function that reads packets from a socket, using
-// the pool provided.
-type udpProcessor func(net.PacketConn, *sync.Pool)
+// udpProcessor is a wrapper for the udpSSFProcessor and
+// udpStatsdProcessor types.
+type udpProcessor struct {
+	SsfProc    udpSSFProcessor
+	StatsdProc udpStatsdProcessor
+}
 
-// startProcessingOnUDP starts network num_readers listeners on the
+// udpSSFProcessor is a function that reads SSF packets from a
+// socket, using the pool provided.
+type udpSSFProcessor func(net.PacketConn, *sync.Pool)
+
+// udpStatsdProcessor is a function that reads Statsd packets from a
+// socket, using the pool provided.
+// TODO: document aggregation
+type udpStatsdProcessor func(net.PacketConn, *sync.Pool, ReaderTimeseries)
+
+// startProcessingOnUDP starts network numReaders listeners on the
 // given address in one goroutine each, using the passed pool. When
 // the listener is established, it starts the udpProcessor with the
 // listener.
@@ -54,6 +66,7 @@ func startProcessingOnUDP(s *Server, protocol string, addr *net.UDPAddr, pool *s
 	addrChan := make(chan net.Addr, 1)
 	once := sync.Once{}
 	for i := 0; i < s.numReaders; i++ {
+		readerTimeseries := s.NewReaderTimeseries()
 		go func() {
 			defer func() {
 				ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
@@ -83,14 +96,21 @@ func startProcessingOnUDP(s *Server, protocol string, addr *net.UDPAddr, pool *s
 				close(addrChan)
 			})
 
-			proc(sock, pool)
+			if protocol == "ssf" {
+				proc.SsfProc(sock, pool)
+			} else if protocol == "statsd" {
+				proc.StatsdProc(sock, pool, readerTimeseries)
+			}
 		}()
 	}
 	return <-addrChan
 }
 
 func startStatsdUDP(s *Server, addr *net.UDPAddr, packetPool *sync.Pool) net.Addr {
-	return startProcessingOnUDP(s, "statsd", addr, packetPool, s.ReadMetricSocket)
+	proc := udpProcessor{
+		StatsdProc: s.ReadMetricSocket,
+	}
+	return startProcessingOnUDP(s, "statsd", addr, packetPool, proc)
 }
 
 func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Addr {
@@ -127,11 +147,15 @@ func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Add
 		"address": addr, "mode": mode,
 	}).Info("Listening for statsd metrics on TCP socket")
 
+	// TODO: figure out name
+	// TODO: figure out tags
+	readerTimeseries := s.NewReaderTimeseries()
+
 	go func() {
 		defer func() {
 			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
 		}()
-		s.ReadTCPSocket(listener)
+		s.ReadTCPSocket(listener, readerTimeseries)
 	}()
 	return listener.Addr()
 }
@@ -177,7 +201,7 @@ func startStatsdUnix(s *Server, addr *net.UnixAddr, packetPool *sync.Pool) (<-ch
 		}
 	}()
 	for i := 0; i < s.numReaders; i++ {
-		go s.ReadStatsdDatagramSocket(conn, packetPool)
+		go s.ReadStatsdDatagramSocket(conn, packetPool, s.readerTimeseries[i])
 	}
 	return done, addr
 }
@@ -201,7 +225,10 @@ func StartSSF(s *Server, a net.Addr, tracePool *sync.Pool) net.Addr {
 }
 
 func startSSFUDP(s *Server, addr *net.UDPAddr, tracePool *sync.Pool) net.Addr {
-	return startProcessingOnUDP(s, "ssf", addr, tracePool, s.ReadSSFPacketSocket)
+	proc := udpProcessor{
+		SsfProc: s.ReadSSFPacketSocket,
+	}
+	return startProcessingOnUDP(s, "ssf", addr, tracePool, proc)
 }
 
 // startSSFUnix starts listening for connections that send framed SSF
