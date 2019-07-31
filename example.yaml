@@ -285,7 +285,8 @@ signalfx_api_key: "abc123"
 signalfx_endpoint_base: "https://ingest.signalfx.com"
 
 # Where to send API calls
-signalfx_endpoint_api: "https://api.{REALM}.signalfx.com"
+# Substitute the correct SignalFX realm
+signalfx_endpoint_api: "https://api.REALM.signalfx.com"
 
 # The tag we'll add to each metric that contains the hostname we came from
 signalfx_hostname_tag: "host"
