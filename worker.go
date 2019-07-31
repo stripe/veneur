@@ -290,7 +290,8 @@ func (w *Worker) MetricsProcessedCount() int64 {
 	return w.processed
 }
 
-// TODO: document
+// SampleTimeseries takes a metric and counts whether the timeseries
+// has already been seen by the worker in this flush interval.
 func (w *Worker) SampleTimeseries(m *samplers.UDPMetric) {
 	digestStr := strconv.FormatUint(uint64(m.Digest), 10)
 	w.totalMTSMtx.RLock()

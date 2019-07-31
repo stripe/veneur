@@ -25,7 +25,6 @@ import (
 
 // Flush collects sampler's metrics and passes them to sinks.
 func (s *Server) Flush(ctx context.Context) {
-	// TODO: combine and reset the sets
 	span := tracer.StartSpan("flush").(*trace.Span)
 	defer span.ClientFinish(s.TraceClient)
 
@@ -329,7 +328,6 @@ func (s *Server) reportMetricsFlushCounts(ms metricsSummary) {
 // globalCounters, globalGauges, totalHistograms, totalSets, and totalTimers,
 // which are the three metrics reported *only* by the global
 // veneur instance.
-// TODO: update this because it's no longer just 3 metrics
 func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 	// we only report these lengths in FlushGlobal
 	// since if we're the global veneur instance responsible for flushing them
