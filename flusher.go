@@ -42,7 +42,7 @@ func (s *Server) Flush(ctx context.Context) {
 	s.Statsd.Gauge("flush.flush_timestamp_ns", float64(flushTime), nil, 1.0)
 
 	mts := s.tallyTimeseries()
-	s.Statsd.Count("worker.unique_timeseries_total", mts.count, mts.tags, 1.0)
+	s.Statsd.Count("flush.unique_timeseries_total", mts.count, mts.tags, 1.0)
 
 	samples := s.EventWorker.Flush()
 
