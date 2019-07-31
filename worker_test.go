@@ -448,11 +448,11 @@ func TestLocalWorkerSampleTimeseries(t *testing.T) {
 		Scope:  samplers.MixedScope,
 	}
 	w.SampleTimeseries(&m)
-	assert.Equal(t, uint64(1), w.totalMTS.Hll.Estimate())
+	assert.Equal(t, uint64(1), w.uniqueMTS.Estimate())
 	w.SampleTimeseries(&m)
-	assert.Equal(t, uint64(1), w.totalMTS.Hll.Estimate())
+	assert.Equal(t, uint64(1), w.uniqueMTS.Estimate())
 	w.SampleTimeseries(&m2)
-	assert.Equal(t, uint64(2), w.totalMTS.Hll.Estimate())
+	assert.Equal(t, uint64(2), w.uniqueMTS.Estimate())
 }
 
 func TestLocalWorkerSampleForwardedTimeseries(t *testing.T) {
@@ -476,7 +476,7 @@ func TestLocalWorkerSampleForwardedTimeseries(t *testing.T) {
 	}
 	w.SampleTimeseries(&m)
 	w.SampleTimeseries(&m2)
-	assert.Equal(t, uint64(0), w.totalMTS.Hll.Estimate())
+	assert.Equal(t, uint64(0), w.uniqueMTS.Estimate())
 }
 
 func TestGlobalWorkerSampleTimeseries(t *testing.T) {
@@ -500,5 +500,5 @@ func TestGlobalWorkerSampleTimeseries(t *testing.T) {
 	}
 	w.SampleTimeseries(&m)
 	w.SampleTimeseries(&m2)
-	assert.Equal(t, uint64(2), w.totalMTS.Hll.Estimate())
+	assert.Equal(t, uint64(2), w.uniqueMTS.Estimate())
 }

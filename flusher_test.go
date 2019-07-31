@@ -179,7 +179,7 @@ func TestGlobalAcceptsHistogramsOverUDP(t *testing.T) {
 	}
 }
 
-func TestFlushResetsWorkerTotalMTS(t *testing.T) {
+func TestFlushResetsWorkerUniqueMTS(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 2
 	config.Interval = "60s"
@@ -200,18 +200,18 @@ func TestFlushResetsWorkerTotalMTS(t *testing.T) {
 
 	for _, w := range f.server.Workers {
 		w.SampleTimeseries(&m)
-		assert.Equal(t, uint64(1), w.totalMTS.Hll.Estimate())
+		assert.Equal(t, uint64(1), w.uniqueMTS.Estimate())
 	}
 
 	f.server.Flush(context.Background())
 	for _, w := range f.server.Workers {
-		assert.Equal(t, uint64(0), w.totalMTS.Hll.Estimate())
+		assert.Equal(t, uint64(0), w.uniqueMTS.Estimate())
 	}
 }
 
 func TestTimeseriesSummary(t *testing.T) {
 	config := localConfig()
-	config.NumWorkers = 1
+	config.NumWorkers = 10
 	config.Interval = "60s"
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}
 	ch := make(chan []samplers.InterMetric, 20)
@@ -227,13 +227,23 @@ func TestTimeseriesSummary(t *testing.T) {
 		Digest: 1,
 		Scope:  samplers.LocalOnly,
 	}
+	for _, w := range f.server.Workers {
+		w.SampleTimeseries(&m)
+	}
 
-	w := f.server.Workers[0]
-	w.SampleTimeseries(&m)
+	m2 := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "counter",
+		},
+		Digest: 2,
+		Scope:  samplers.LocalOnly,
+	}
+	f.server.Workers[0].SampleTimeseries(&m2)
 
 	summary := f.server.tallyTimeseries()
 	assert.Equal(t, timeseriesSummary{
 		tags:  []string{"global_veneur:false"},
-		count: 1,
+		count: 2,
 	}, summary)
 }

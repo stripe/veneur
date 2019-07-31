@@ -215,7 +215,9 @@ func newFixture(t testing.TB, config Config, mSink sinks.MetricSink, sSink sinks
 	// (e.g. Datadog)
 	f := &fixture{nil, &Server{}, interval, config.DatadogFlushMaxPerBody}
 
-	config.NumWorkers = 1
+	if config.NumWorkers == 0 {
+		config.NumWorkers = 1
+	}
 	f.server = setupVeneurServer(t, config, nil, mSink, sSink, nil)
 	return f
 }

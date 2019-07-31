@@ -1,13 +1,14 @@
 package veneur
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/axiomhq/hyperloglog"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
@@ -30,8 +31,8 @@ const statusTypeName = "status"
 type Worker struct {
 	id                    int
 	runningInGlobalVeneur bool
-	totalMTS              *samplers.Set
-	totalMTSMtx           *sync.RWMutex
+	uniqueMTS             *hyperloglog.Sketch
+	uniqueMTSMtx          *sync.RWMutex
 	PacketChan            chan samplers.UDPMetric
 	ImportChan            chan []samplers.JSONMetric
 	ImportMetricChan      chan []*metricpb.Metric
@@ -241,8 +242,8 @@ func NewWorker(id int, runningInGlobalVeneur bool, cl *trace.Client, logger *log
 	return &Worker{
 		id:                    id,
 		runningInGlobalVeneur: runningInGlobalVeneur,
-		totalMTS:              samplers.NewSet("", []string{""}), // TODO
-		totalMTSMtx:           &sync.RWMutex{},
+		uniqueMTS:             hyperloglog.New(),
+		uniqueMTSMtx:          &sync.RWMutex{},
 		PacketChan:            make(chan samplers.UDPMetric, 32),
 		ImportChan:            make(chan []samplers.JSONMetric, 32),
 		ImportMetricChan:      make(chan []*metricpb.Metric, 32),
@@ -293,14 +294,16 @@ func (w *Worker) MetricsProcessedCount() int64 {
 // SampleTimeseries takes a metric and counts whether the timeseries
 // has already been seen by the worker in this flush interval.
 func (w *Worker) SampleTimeseries(m *samplers.UDPMetric) {
-	digestStr := strconv.FormatUint(uint64(m.Digest), 10)
-	w.totalMTSMtx.RLock()
-	defer w.totalMTSMtx.RUnlock()
+	digest := make([]byte, 8)
+	binary.LittleEndian.PutUint32(digest, m.Digest)
+
+	w.uniqueMTSMtx.RLock()
+	defer w.uniqueMTSMtx.RUnlock()
 
 	// Always sample if worker is running in global Veneur instance,
 	// as there is nowhere the metric can be forwarded to.
 	if w.runningInGlobalVeneur {
-		w.totalMTS.Sample(digestStr, 1)
+		w.uniqueMTS.Insert(digest)
 		return
 	}
 	// Otherwise, sample the timeseries iff the metric will not be
@@ -308,26 +311,26 @@ func (w *Worker) SampleTimeseries(m *samplers.UDPMetric) {
 	switch m.Type {
 	case counterTypeName:
 		if m.Scope != samplers.GlobalOnly {
-			w.totalMTS.Sample(digestStr, 1)
+			w.uniqueMTS.Insert(digest)
 		}
 	case gaugeTypeName:
 		if m.Scope != samplers.GlobalOnly {
-			w.totalMTS.Sample(digestStr, 1)
+			w.uniqueMTS.Insert(digest)
 		}
 	case histogramTypeName:
 		if m.Scope == samplers.LocalOnly {
-			w.totalMTS.Sample(digestStr, 1)
+			w.uniqueMTS.Insert(digest)
 		}
 	case setTypeName:
 		if m.Scope == samplers.LocalOnly {
-			w.totalMTS.Sample(digestStr, 1)
+			w.uniqueMTS.Insert(digest)
 		}
 	case timerTypeName:
 		if m.Scope == samplers.LocalOnly {
-			w.totalMTS.Sample(digestStr, 1)
+			w.uniqueMTS.Insert(digest)
 		}
 	case statusTypeName:
-		w.totalMTS.Sample(digestStr, 1)
+		w.uniqueMTS.Insert(digest)
 	default:
 		log.WithField("type", m.Type).Error("Unknown metric type for counting")
 	}
