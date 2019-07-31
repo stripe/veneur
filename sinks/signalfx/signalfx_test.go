@@ -667,7 +667,8 @@ type mockHandler struct {
 
 func (m *mockHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	resp.WriteHeader(http.StatusOK)
-	resp.Write([]byte(m.responses[atomic.LoadInt64(&m.index)%int64(len(m.responses))]))
+	response := m.responses[atomic.LoadInt64(&m.index)%int64(len(m.responses))]
+	resp.Write([]byte(response))
 	atomic.AddInt64(&m.index, 1)
 }
 
