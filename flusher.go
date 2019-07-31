@@ -42,6 +42,9 @@ func (s *Server) Flush(ctx context.Context) {
 	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
 	s.Statsd.Gauge("flush.flush_timestamp_ns", float64(flushTime), nil, 1.0)
 
+	mts := s.tallyTimeseries()
+	s.Statsd.Count("worker.unique_timeseries_total", mts.count, mts.tags, 1.0)
+
 	samples := s.EventWorker.Flush()
 
 	// TODO Concurrency
@@ -125,6 +128,28 @@ func (s *Server) Flush(ctx context.Context) {
 			samples.Add(ssf.Gauge(fmt.Sprintf("flush.plugins.%s.post_metrics_total", p.Name()), float32(len(finalMetrics)), nil))
 		}
 	}()
+}
+
+type timeseriesSummary struct {
+	tags  []string
+	count int64
+}
+
+func (s *Server) tallyTimeseries() timeseriesSummary {
+	tags := []string{fmt.Sprintf("global_veneur:%t", !s.IsLocal())}
+	count := int64(0)
+
+	for _, w := range s.Workers {
+		w.totalMTSMtx.Lock()
+		count += int64(w.totalMTS.Hll.Estimate())
+		w.totalMTS = samplers.NewSet("", []string{""}) // todo
+		w.totalMTSMtx.Unlock()
+	}
+
+	return timeseriesSummary{
+		tags:  tags,
+		count: count,
+	}
 }
 
 type metricsSummary struct {
@@ -304,6 +329,7 @@ func (s *Server) reportMetricsFlushCounts(ms metricsSummary) {
 // globalCounters, globalGauges, totalHistograms, totalSets, and totalTimers,
 // which are the three metrics reported *only* by the global
 // veneur instance.
+// TODO: update this because it's no longer just 3 metrics
 func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 	// we only report these lengths in FlushGlobal
 	// since if we're the global veneur instance responsible for flushing them

@@ -178,3 +178,62 @@ func TestGlobalAcceptsHistogramsOverUDP(t *testing.T) {
 		t.Fatal("timed out waiting for global veneur flush")
 	}
 }
+
+func TestFlushResetsWorkerTotalMTS(t *testing.T) {
+	config := localConfig()
+	config.NumWorkers = 2
+	config.Interval = "60s"
+	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}
+	ch := make(chan []samplers.InterMetric, 20)
+	sink, _ := NewChannelMetricSink(ch)
+	f := newFixture(t, config, sink, nil)
+	defer f.Close()
+
+	m := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "histogram",
+		},
+		Digest: 1,
+		Scope:  samplers.LocalOnly,
+	}
+
+	for _, w := range f.server.Workers {
+		w.SampleTimeseries(&m)
+		assert.Equal(t, uint64(1), w.totalMTS.Hll.Estimate())
+	}
+
+	f.server.Flush(context.Background())
+	for _, w := range f.server.Workers {
+		assert.Equal(t, uint64(0), w.totalMTS.Hll.Estimate())
+	}
+}
+
+func TestTimeseriesSummary(t *testing.T) {
+	config := localConfig()
+	config.NumWorkers = 1
+	config.Interval = "60s"
+	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}
+	ch := make(chan []samplers.InterMetric, 20)
+	sink, _ := NewChannelMetricSink(ch)
+	f := newFixture(t, config, sink, nil)
+	defer f.Close()
+
+	m := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "histogram",
+		},
+		Digest: 1,
+		Scope:  samplers.LocalOnly,
+	}
+
+	w := f.server.Workers[0]
+	w.SampleTimeseries(&m)
+
+	summary := f.server.tallyTimeseries()
+	assert.Equal(t, timeseriesSummary{
+		tags:  []string{"global_veneur:false"},
+		count: 1,
+	}, summary)
+}

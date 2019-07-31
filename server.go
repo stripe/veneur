@@ -15,7 +15,6 @@ import (
 	"reflect"
 	"runtime"
 	rtdebug "runtime/debug"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -142,9 +141,6 @@ type Server struct {
 
 	stuckIntervals int
 	lastFlushUnix  int64
-
-	totalMTS    *samplers.Set
-	totalMTSMtx sync.RWMutex
 }
 
 // ssfServiceSpanMetrics refer to the span metrics that will
@@ -276,11 +272,6 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 	ret.HistogramAggregates.Count = len(conf.Aggregates)
 
-	// TODO: figure out name
-	// TODO: figure out tags
-	ret.totalMTSMtx = sync.RWMutex{}
-	ret.totalMTS = samplers.NewSet("", []string{""})
-
 	var err error
 	ret.interval, err = conf.ParseInterval()
 	if err != nil {
@@ -382,9 +373,13 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.Workers = make([]*Worker, numWorkers)
 	ret.numReaders = conf.NumReaders
 
+	// This must come before worker initialization. We need to
+	// initialize workers with state from *Server.IsWorker.
+	ret.ForwardAddr = conf.ForwardAddress
+
 	// Use the pre-allocated Workers slice to know how many to start.
 	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.TraceClient, log, ret.Statsd)
+		ret.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {
@@ -428,7 +423,6 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.RcvbufBytes = conf.ReadBufferSizeBytes
 	ret.HTTPAddr = conf.HTTPAddress
 	ret.numListeningHTTP = new(int32)
-	ret.ForwardAddr = conf.ForwardAddress
 
 	if conf.TLSKey != "" {
 		if conf.TLSCertificate == "" {
@@ -963,9 +957,6 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "metric", "reason": "parse"}))
 			return err
 		}
-		s.totalMTSMtx.RLock()
-		s.totalMTS.Sample(strconv.FormatUint(uint64(metric.Digest), 10), 1)
-		s.totalMTSMtx.RUnlock()
 		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
 	}
 	return nil
