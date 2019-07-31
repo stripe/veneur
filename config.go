@@ -25,6 +25,7 @@ type Config struct {
 	GrpcAddress                               string    `yaml:"grpc_address"`
 	Hostname                                  string    `yaml:"hostname"`
 	HTTPAddress                               string    `yaml:"http_address"`
+	HTTPQuit                                  bool      `yaml:"http_quit"`
 	IndicatorSpanTimerName                    string    `yaml:"indicator_span_timer_name"`
 	Interval                                  string    `yaml:"interval"`
 	KafkaBroker                               string    `yaml:"kafka_broker"`

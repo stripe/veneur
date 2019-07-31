@@ -33,6 +33,14 @@ func (s *Server) Handler() http.Handler {
 		w.Write([]byte(VERSION))
 	})
 
+	if s.httpQuit {
+		mux.HandleFuncC(pat.Post(httpQuitEndpoint), func(c context.Context, w http.ResponseWriter, r *http.Request) {
+			log.WithField("endpoint", httpQuitEndpoint).Info("Received shutdown request on HTTP quit endpoint")
+			w.Write([]byte("Beginning graceful shutdown....\n"))
+			s.Shutdown()
+		})
+	}
+
 	// TODO3.0: Maybe remove this endpoint as it is kinda useless now that tracing is always on.
 	mux.HandleFuncC(pat.Get("/healthcheck/tracing"), func(c context.Context, w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok\n"))
