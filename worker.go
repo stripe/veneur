@@ -29,21 +29,22 @@ const statusTypeName = "status"
 
 // Worker is the doodad that does work.
 type Worker struct {
-	id               int
-	isLocal          bool
-	uniqueMTS        *hyperloglog.Sketch
-	uniqueMTSMtx     *sync.RWMutex
-	PacketChan       chan samplers.UDPMetric
-	ImportChan       chan []samplers.JSONMetric
-	ImportMetricChan chan []*metricpb.Metric
-	QuitChan         chan struct{}
-	processed        int64
-	imported         int64
-	mutex            *sync.Mutex
-	traceClient      *trace.Client
-	logger           *logrus.Logger
-	wm               WorkerMetrics
-	stats            scopedstatsd.Client
+	id                    int
+	isLocal               bool
+	countUniqueTimeseries bool
+	uniqueMTS             *hyperloglog.Sketch
+	uniqueMTSMtx          *sync.RWMutex
+	PacketChan            chan samplers.UDPMetric
+	ImportChan            chan []samplers.JSONMetric
+	ImportMetricChan      chan []*metricpb.Metric
+	QuitChan              chan struct{}
+	processed             int64
+	imported              int64
+	mutex                 *sync.Mutex
+	traceClient           *trace.Client
+	logger                *logrus.Logger
+	wm                    WorkerMetrics
+	stats                 scopedstatsd.Client
 }
 
 // IngestUDP on a Worker feeds the metric into the worker's PacketChan.
@@ -238,23 +239,24 @@ func (wm WorkerMetrics) appendExportedMetric(res []*metricpb.Metric, exp metricE
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, isLocal bool, cl *trace.Client, logger *logrus.Logger, stats scopedstatsd.Client) *Worker {
+func NewWorker(id int, isLocal bool, countUniqueTimeseries bool, cl *trace.Client, logger *logrus.Logger, stats scopedstatsd.Client) *Worker {
 	return &Worker{
-		id:               id,
-		isLocal:          isLocal,
-		uniqueMTS:        hyperloglog.New(),
-		uniqueMTSMtx:     &sync.RWMutex{},
-		PacketChan:       make(chan samplers.UDPMetric, 32),
-		ImportChan:       make(chan []samplers.JSONMetric, 32),
-		ImportMetricChan: make(chan []*metricpb.Metric, 32),
-		QuitChan:         make(chan struct{}),
-		processed:        0,
-		imported:         0,
-		mutex:            &sync.Mutex{},
-		traceClient:      cl,
-		logger:           logger,
-		wm:               NewWorkerMetrics(),
-		stats:            scopedstatsd.Ensure(stats),
+		id:                    id,
+		isLocal:               isLocal,
+		countUniqueTimeseries: countUniqueTimeseries,
+		uniqueMTS:             hyperloglog.New(),
+		uniqueMTSMtx:          &sync.RWMutex{},
+		PacketChan:            make(chan samplers.UDPMetric, 32),
+		ImportChan:            make(chan []samplers.JSONMetric, 32),
+		ImportMetricChan:      make(chan []*metricpb.Metric, 32),
+		QuitChan:              make(chan struct{}),
+		processed:             0,
+		imported:              0,
+		mutex:                 &sync.Mutex{},
+		traceClient:           cl,
+		logger:                logger,
+		wm:                    NewWorkerMetrics(),
+		stats:                 scopedstatsd.Ensure(stats),
 	}
 }
 
@@ -264,7 +266,9 @@ func (w *Worker) Work() {
 	for {
 		select {
 		case m := <-w.PacketChan:
-			w.SampleTimeseries(&m)
+			if w.countUniqueTimeseries {
+				w.SampleTimeseries(&m)
+			}
 			w.ProcessMetric(&m)
 		case m := <-w.ImportChan:
 			for _, j := range m {

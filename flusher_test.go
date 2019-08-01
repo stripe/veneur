@@ -181,6 +181,7 @@ func TestGlobalAcceptsHistogramsOverUDP(t *testing.T) {
 
 func TestFlushResetsWorkerUniqueMTS(t *testing.T) {
 	config := localConfig()
+	config.CountUniqueTimeseries = true
 	config.NumWorkers = 2
 	config.Interval = "60s"
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}
@@ -211,6 +212,7 @@ func TestFlushResetsWorkerUniqueMTS(t *testing.T) {
 
 func TestTallyTimeseries(t *testing.T) {
 	config := localConfig()
+	config.CountUniqueTimeseries = true
 	config.NumWorkers = 10
 	config.Interval = "60s"
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}

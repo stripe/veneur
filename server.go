@@ -79,11 +79,12 @@ const defaultTCPReadTimeout = 10 * time.Minute
 
 // A Server is the actual veneur instance that will be run.
 type Server struct {
-	Workers              []*Worker
-	EventWorker          *EventWorker
-	SpanChan             chan *ssf.SSFSpan
-	SpanWorker           *SpanWorker
-	SpanWorkerGoroutines int
+	Workers               []*Worker
+	EventWorker           *EventWorker
+	SpanChan              chan *ssf.SSFSpan
+	SpanWorker            *SpanWorker
+	SpanWorkerGoroutines  int
+	CountUniqueTimeseries bool
 
 	Statsd *scopedstatsd.ScopedClient
 	Sentry *raven.Client
@@ -377,9 +378,14 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	// initialize workers with state from *Server.IsWorker.
 	ret.ForwardAddr = conf.ForwardAddress
 
+	// Control whether Veneur should emit metric
+	// "veneur.flush.unique_timeseries_total", which may come at a
+	// slight performance hit to workers.
+	ret.CountUniqueTimeseries = conf.CountUniqueTimeseries
+
 	// Use the pre-allocated Workers slice to know how many to start.
 	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
+		ret.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, log, ret.Statsd)
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {

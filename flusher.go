@@ -42,7 +42,9 @@ func (s *Server) Flush(ctx context.Context) {
 	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
 	s.Statsd.Gauge("flush.flush_timestamp_ns", float64(flushTime), nil, 1.0)
 
-	s.Statsd.Count("flush.unique_timeseries_total", s.tallyTimeseries(), []string{fmt.Sprintf("global_veneur:%t", !s.IsLocal())}, 1.0)
+	if s.CountUniqueTimeseries {
+		s.Statsd.Count("flush.unique_timeseries_total", s.tallyTimeseries(), []string{fmt.Sprintf("global_veneur:%t", !s.IsLocal())}, 1.0)
+	}
 
 	samples := s.EventWorker.Flush()
 
