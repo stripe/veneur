@@ -127,7 +127,7 @@ Because Veneur already handles "global" histograms, any DogStatsD packets receiv
 
 ## Approximate Sets
 
-Veneur uses [HyperLogLogs](https://github.com/clarkduvall/hyperloglog) for approximate unique sets. These are a very efficient unique counter with fixed memory consumption.
+Veneur uses [HyperLogLogs](https://github.com/axiomhq/hyperloglog) for approximate unique sets. These are [a very efficient unique counter with fixed memory consumption](https://djhworld.github.io/hyperloglog/).
 
 ## Global Counters
 
