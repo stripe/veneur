@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -661,13 +662,14 @@ func TestSignalFxExtractTokensFromResponse(t *testing.T) {
 // mockHandler cycles through a slice of predefined HTTP responses
 type mockHandler struct {
 	responses []string
-	index     int
+	index     int64
 }
 
 func (m *mockHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	resp.WriteHeader(http.StatusOK)
-	resp.Write([]byte(m.responses[m.index%len(m.responses)]))
-	m.index++
+	response := m.responses[atomic.LoadInt64(&m.index)%int64(len(m.responses))]
+	resp.Write([]byte(response))
+	atomic.AddInt64(&m.index, 1)
 }
 
 func TestSignalFxFetchAPITokens(t *testing.T) {
@@ -693,7 +695,7 @@ func TestSignalFxFetchAPITokens(t *testing.T) {
 }
 
 func TestSignalFxClientByTagUpdater(t *testing.T) {
-	const dynamicKeyRefreshPeriod = 5 * time.Millisecond
+	const dynamicKeyRefreshPeriod = 1 * time.Millisecond
 	m := &mockHandler{
 		responses: []string{
 			response1,
@@ -715,10 +717,25 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 	err = sink.Start(nil)
 	require.NoError(t, err)
 
-	// TODO better synchronization here than time.Sleep
-	time.Sleep(10 * dynamicKeyRefreshPeriod)
+	timeout := time.After(100 * dynamicKeyRefreshPeriod)
+	interval := time.NewTicker(2 * dynamicKeyRefreshPeriod)
+
+LOOP:
+	for {
+		select {
+		case <-timeout:
+			require.FailNow(t, "Timed out waiting for SignalFX sink to synchronize clients")
+		case <-interval.C:
+			// The sink polls and updates serially, so by the time it has made the fourth
+			// request, it is guaranteed to have finished processing the third.
+			if atomic.LoadInt64(&m.index) >= 4 {
+				break LOOP
+			}
+		}
+	}
 
 	sink.clientsByTagValueMu.Lock()
+	defer sink.clientsByTagValueMu.Unlock()
 
 	expectedPerTagClients := []string{
 		"service",
@@ -728,6 +745,9 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 
 	actualPerTagClients := make([]string, 0)
 
+	mindex := atomic.LoadInt64(&m.index)
+	assert.True(t, mindex >= 3, "m.index should be at least 3, not %d", mindex)
+	assert.Equal(t, len(expectedPerTagClients), len(sink.clientsByTagValue), "Sink should have %d clients", len(expectedPerTagClients))
 	for tag, client := range sink.clientsByTagValue {
 		actualPerTagClients = append(actualPerTagClients, tag)
 		require.NotNil(t, client)
@@ -741,4 +761,5 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 	// three responses
 	assert.Subset(t, expectedPerTagClients, actualPerTagClients, "The actual values should be a subset of the expected values")
 	assert.Subset(t, actualPerTagClients, expectedPerTagClients, "The expected values should be a subset of the actual values")
+
 }
