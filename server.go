@@ -77,6 +77,8 @@ var tracer = trace.GlobalTracer
 
 const defaultTCPReadTimeout = 10 * time.Minute
 
+const httpQuitEndpoint = "/quitquitquit"
+
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers              []*Worker
@@ -115,6 +117,7 @@ type Server struct {
 
 	// closed when the server is shutting down gracefully
 	shutdown chan struct{}
+	httpQuit bool
 
 	HistogramPercentiles []float64
 
@@ -709,6 +712,10 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 	// closed in Shutdown; Same approach and http.Shutdown
 	ret.shutdown = make(chan struct{})
+	if conf.HTTPQuit {
+		logger.WithField("endpoint", httpQuitEndpoint).Info("Enabling graceful shutdown endpoint (via HTTP POST request)")
+		ret.httpQuit = true
+	}
 
 	// Don't emit keys into logs now that we're done with them.
 	conf.SentryDsn = REDACTED
