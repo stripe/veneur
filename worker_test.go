@@ -505,40 +505,81 @@ func TestGlobalWorkerSampleTimeseries(t *testing.T) {
 
 func BenchmarkPacketChanWork(b *testing.B) {
 	w := NewWorker(1, true, nil, logrus.New(), nil)
-	m := samplers.UDPMetric{
-		MetricKey: samplers.MetricKey{
-			Name: "counter",
-			Type: counterTypeName,
-		},
-		Value:      20.0,
-		Digest:     12345,
-		SampleRate: 1.0,
-		Scope:      samplers.MixedScope,
+
+	const Len = 1000
+	input := make([]*samplers.UDPMetric, Len)
+	for i, _ := range input {
+		m := samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: "counter",
+				Type: counterTypeName,
+			},
+			Value:      20.0,
+			Digest:     12345,
+			SampleRate: 1.0,
+			Scope:      samplers.MixedScope,
+		}
+
+		switch r := i % 5; r {
+		case 1:
+			m.MetricKey.Type = gaugeTypeName
+		case 2:
+			m.MetricKey.Type = histogramTypeName
+		case 3:
+			m.MetricKey.Type = setTypeName
+			m.Value = "a value here!"
+		case 4:
+			m.MetricKey.Type = timerTypeName
+		default:
+			// do nothing
+		}
+
+		input[i] = &m
 	}
 
 	go w.Work()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		w.PacketChan <- m
+		w.PacketChan <- *input[i%Len]
 	}
 	w.Stop()
 }
 
 func BenchmarkSampleTimeseries(b *testing.B) {
 	w := NewWorker(1, true, nil, logrus.New(), nil)
-	m := samplers.UDPMetric{
-		MetricKey: samplers.MetricKey{
-			Name: "counter",
-			Type: counterTypeName,
-		},
-		Value:      20.0,
-		Digest:     12345,
-		SampleRate: 1.0,
-		Scope:      samplers.MixedScope,
+	const Len = 1000
+	input := make([]*samplers.UDPMetric, Len)
+	for i, _ := range input {
+		m := samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: "counter",
+				Type: counterTypeName,
+			},
+			Value:      20.0,
+			Digest:     12345,
+			SampleRate: 1.0,
+			Scope:      samplers.MixedScope,
+		}
+
+		switch r := i % 5; r {
+		case 1:
+			m.MetricKey.Type = gaugeTypeName
+		case 2:
+			m.MetricKey.Type = histogramTypeName
+		case 3:
+			m.MetricKey.Type = setTypeName
+			m.Value = "a value here!"
+		case 4:
+			m.MetricKey.Type = timerTypeName
+		default:
+			// do nothing
+		}
+
+		input[i] = &m
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		w.SampleTimeseries(&m)
+		w.SampleTimeseries(input[i%Len])
 	}
 }
