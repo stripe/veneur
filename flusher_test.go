@@ -209,7 +209,7 @@ func TestFlushResetsWorkerUniqueMTS(t *testing.T) {
 	}
 }
 
-func TestTimeseriesSummary(t *testing.T) {
+func TestTallyTimeseries(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 10
 	config.Interval = "60s"
@@ -242,8 +242,5 @@ func TestTimeseriesSummary(t *testing.T) {
 	f.server.Workers[0].SampleTimeseries(&m2)
 
 	summary := f.server.tallyTimeseries()
-	assert.Equal(t, timeseriesSummary{
-		tags:  []string{"global_veneur:false"},
-		count: 2,
-	}, summary)
+	assert.Equal(t, int64(2), summary)
 }
