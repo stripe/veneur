@@ -95,8 +95,8 @@ func TestWorkerGlobal(t *testing.T) {
 func TestWorkerImportSet(t *testing.T) {
 	w := NewWorker(1, true, nil, logrus.New(), nil)
 	testset := samplers.NewSet("a.b.c", nil)
-	testset.Sample("foo", 1.0)
-	testset.Sample("bar", 1.0)
+	testset.Sample("foo")
+	testset.Sample("bar")
 
 	jsonMetric, err := testset.Export()
 	assert.NoError(t, err, "should have exported successfully")
@@ -317,7 +317,7 @@ func TestWorkerImportMetricGRPC(t *testing.T) {
 	t.Run("set", func(t *testing.T) {
 		t.Parallel()
 		s := samplers.NewSet("test.set", nil)
-		s.Sample("value", 1.0)
+		s.Sample("value")
 
 		assert.Len(t, exportMetricAndFlush(t, s).sets, 1,
 			"The number of flushed sets is not correct")

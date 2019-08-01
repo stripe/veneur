@@ -193,14 +193,14 @@ func TestSet(t *testing.T) {
 	assert.Len(t, s.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", s.Tags[0], "First tag")
 
-	s.Sample("5", 1.0)
+	s.Sample("5")
 
-	s.Sample("5", 1.0)
+	s.Sample("5")
 
-	s.Sample("123", 1.0)
+	s.Sample("123")
 
-	s.Sample("2147483647", 1.0)
-	s.Sample("-2147483648", 1.0)
+	s.Sample("2147483647")
+	s.Sample("-2147483648")
 
 	metrics := s.Flush()
 	assert.Len(t, metrics, 1, "Flush")
@@ -217,7 +217,7 @@ func TestSetMerge(t *testing.T) {
 
 	s := NewSet("a.b.c", []string{"a:b"})
 	for i := 0; i < 100; i++ {
-		s.Sample(strconv.Itoa(rand.Int()), 1.0)
+		s.Sample(strconv.Itoa(rand.Int()))
 	}
 	assert.Equal(t, uint64(100), s.Hll.Estimate(), "counts did not match")
 
@@ -240,7 +240,7 @@ func TestSetMergeMetric(t *testing.T) {
 
 	s := NewSet("a.b.c", []string{"a:b"})
 	for i := 0; i < 100; i++ {
-		s.Sample(strconv.Itoa(rand.Int()), 1.0)
+		s.Sample(strconv.Itoa(rand.Int()))
 	}
 	assert.Equal(t, uint64(100), s.Hll.Estimate(), "counts did not match")
 

@@ -366,9 +366,9 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 		}
 	case setTypeName:
 		if m.Scope == samplers.LocalOnly {
-			w.wm.localSets[m.MetricKey].Sample(m.Value.(string), m.SampleRate)
+			w.wm.localSets[m.MetricKey].Sample(m.Value.(string))
 		} else {
-			w.wm.sets[m.MetricKey].Sample(m.Value.(string), m.SampleRate)
+			w.wm.sets[m.MetricKey].Sample(m.Value.(string))
 		}
 	case timerTypeName:
 		if m.Scope == samplers.LocalOnly {
