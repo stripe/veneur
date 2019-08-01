@@ -502,3 +502,43 @@ func TestGlobalWorkerSampleTimeseries(t *testing.T) {
 	w.SampleTimeseries(&m2)
 	assert.Equal(t, uint64(2), w.uniqueMTS.Estimate())
 }
+
+func BenchmarkPacketChanWork(b *testing.B) {
+	w := NewWorker(1, true, nil, logrus.New(), nil)
+	m := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "counter",
+			Type: counterTypeName,
+		},
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.MixedScope,
+	}
+
+	go w.Work()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w.PacketChan <- m
+	}
+	w.Stop()
+}
+
+func BenchmarkSampleTimeseries(b *testing.B) {
+	w := NewWorker(1, true, nil, logrus.New(), nil)
+	m := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "counter",
+			Type: counterTypeName,
+		},
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.MixedScope,
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w.SampleTimeseries(&m)
+	}
+}
