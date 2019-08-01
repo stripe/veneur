@@ -29,21 +29,21 @@ const statusTypeName = "status"
 
 // Worker is the doodad that does work.
 type Worker struct {
-	id                    int
-	runningInGlobalVeneur bool
-	uniqueMTS             *hyperloglog.Sketch
-	uniqueMTSMtx          *sync.RWMutex
-	PacketChan            chan samplers.UDPMetric
-	ImportChan            chan []samplers.JSONMetric
-	ImportMetricChan      chan []*metricpb.Metric
-	QuitChan              chan struct{}
-	processed             int64
-	imported              int64
-	mutex                 *sync.Mutex
-	traceClient           *trace.Client
-	logger                *logrus.Logger
-	wm                    WorkerMetrics
-	stats                 scopedstatsd.Client
+	id               int
+	isLocal          bool
+	uniqueMTS        *hyperloglog.Sketch
+	uniqueMTSMtx     *sync.RWMutex
+	PacketChan       chan samplers.UDPMetric
+	ImportChan       chan []samplers.JSONMetric
+	ImportMetricChan chan []*metricpb.Metric
+	QuitChan         chan struct{}
+	processed        int64
+	imported         int64
+	mutex            *sync.Mutex
+	traceClient      *trace.Client
+	logger           *logrus.Logger
+	wm               WorkerMetrics
+	stats            scopedstatsd.Client
 }
 
 // IngestUDP on a Worker feeds the metric into the worker's PacketChan.
@@ -238,23 +238,23 @@ func (wm WorkerMetrics) appendExportedMetric(res []*metricpb.Metric, exp metricE
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, runningInGlobalVeneur bool, cl *trace.Client, logger *logrus.Logger, stats scopedstatsd.Client) *Worker {
+func NewWorker(id int, isLocal bool, cl *trace.Client, logger *logrus.Logger, stats scopedstatsd.Client) *Worker {
 	return &Worker{
-		id:                    id,
-		runningInGlobalVeneur: runningInGlobalVeneur,
-		uniqueMTS:             hyperloglog.New(),
-		uniqueMTSMtx:          &sync.RWMutex{},
-		PacketChan:            make(chan samplers.UDPMetric, 32),
-		ImportChan:            make(chan []samplers.JSONMetric, 32),
-		ImportMetricChan:      make(chan []*metricpb.Metric, 32),
-		QuitChan:              make(chan struct{}),
-		processed:             0,
-		imported:              0,
-		mutex:                 &sync.Mutex{},
-		traceClient:           cl,
-		logger:                logger,
-		wm:                    NewWorkerMetrics(),
-		stats:                 scopedstatsd.Ensure(stats),
+		id:               id,
+		isLocal:          isLocal,
+		uniqueMTS:        hyperloglog.New(),
+		uniqueMTSMtx:     &sync.RWMutex{},
+		PacketChan:       make(chan samplers.UDPMetric, 32),
+		ImportChan:       make(chan []samplers.JSONMetric, 32),
+		ImportMetricChan: make(chan []*metricpb.Metric, 32),
+		QuitChan:         make(chan struct{}),
+		processed:        0,
+		imported:         0,
+		mutex:            &sync.Mutex{},
+		traceClient:      cl,
+		logger:           logger,
+		wm:               NewWorkerMetrics(),
+		stats:            scopedstatsd.Ensure(stats),
 	}
 }
 
@@ -302,7 +302,7 @@ func (w *Worker) SampleTimeseries(m *samplers.UDPMetric) {
 
 	// Always sample if worker is running in global Veneur instance,
 	// as there is nowhere the metric can be forwarded to.
-	if w.runningInGlobalVeneur {
+	if !w.isLocal {
 		w.uniqueMTS.Insert(digest)
 		return
 	}

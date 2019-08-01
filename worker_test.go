@@ -19,7 +19,7 @@ import (
 )
 
 func TestWorker(t *testing.T) {
-	w := NewWorker(1, false, nil, logrus.New(), nil)
+	w := NewWorker(1, true, nil, logrus.New(), nil)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -40,7 +40,7 @@ func TestWorker(t *testing.T) {
 }
 
 func TestWorkerLocal(t *testing.T) {
-	w := NewWorker(1, false, nil, logrus.New(), nil)
+	w := NewWorker(1, true, nil, logrus.New(), nil)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -93,7 +93,7 @@ func TestWorkerGlobal(t *testing.T) {
 }
 
 func TestWorkerImportSet(t *testing.T) {
-	w := NewWorker(1, false, nil, logrus.New(), nil)
+	w := NewWorker(1, true, nil, logrus.New(), nil)
 	testset := samplers.NewSet("a.b.c", nil)
 	testset.Sample("foo", 1.0)
 	testset.Sample("bar", 1.0)
@@ -108,7 +108,7 @@ func TestWorkerImportSet(t *testing.T) {
 }
 
 func TestWorkerImportHistogram(t *testing.T) {
-	w := NewWorker(1, false, nil, logrus.New(), nil)
+	w := NewWorker(1, true, nil, logrus.New(), nil)
 	testhisto := samplers.NewHist("a.b.c", nil)
 	testhisto.Sample(1.0, 1.0)
 	testhisto.Sample(2.0, 1.0)
@@ -123,7 +123,7 @@ func TestWorkerImportHistogram(t *testing.T) {
 }
 
 func TestWorkerStatusMetric(t *testing.T) {
-	w := NewWorker(1, false, nil, logrus.New(), nil)
+	w := NewWorker(1, true, nil, logrus.New(), nil)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -264,7 +264,7 @@ type testMetricExporter interface {
 }
 
 func exportMetricAndFlush(t testing.TB, exp testMetricExporter) WorkerMetrics {
-	w := NewWorker(1, false, nil, logrus.New(), nil)
+	w := NewWorker(1, true, nil, logrus.New(), nil)
 	m, err := exp.Metric()
 	assert.NoErrorf(t, err, "exporting the metric '%s' shouldn't have failed",
 		exp.GetName())
@@ -301,7 +301,7 @@ func TestWorkerImportMetricGRPC(t *testing.T) {
 	})
 	t.Run("timer", func(t *testing.T) {
 		t.Parallel()
-		w := NewWorker(1, false, nil, logrus.New(), nil)
+		w := NewWorker(1, true, nil, logrus.New(), nil)
 		h := samplers.NewHist("test.timer", nil)
 		h.Sample(1.0, 1.0)
 
@@ -327,7 +327,7 @@ func TestWorkerImportMetricGRPC(t *testing.T) {
 func TestWorkerImportMetricGRPCNilValue(t *testing.T) {
 	t.Parallel()
 
-	w := NewWorker(1, false, nil, logrus.New(), nil)
+	w := NewWorker(1, true, nil, logrus.New(), nil)
 	metric := &metricpb.Metric{
 		Name:  "test",
 		Type:  metricpb.Type_Histogram,
@@ -429,7 +429,7 @@ func TestWorkerMetricsForwardableMetrics(t *testing.T) {
 }
 
 func TestLocalWorkerSampleTimeseries(t *testing.T) {
-	w := NewWorker(1, false, nil, logrus.New(), nil)
+	w := NewWorker(1, true, nil, logrus.New(), nil)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -456,7 +456,7 @@ func TestLocalWorkerSampleTimeseries(t *testing.T) {
 }
 
 func TestLocalWorkerSampleForwardedTimeseries(t *testing.T) {
-	w := NewWorker(1, false, nil, logrus.New(), nil)
+	w := NewWorker(1, true, nil, logrus.New(), nil)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -480,7 +480,7 @@ func TestLocalWorkerSampleForwardedTimeseries(t *testing.T) {
 }
 
 func TestGlobalWorkerSampleTimeseries(t *testing.T) {
-	w := NewWorker(1, true, nil, logrus.New(), nil)
+	w := NewWorker(1, false, nil, logrus.New(), nil)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{

@@ -1000,7 +1000,7 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 		b.Fatal(err)
 	}
 	// Simulate a metrics worker:
-	w := NewWorker(0, false, nil, nullLogger(), s.Statsd)
+	w := NewWorker(0, s.IsLocal(), nil, nullLogger(), s.Statsd)
 	s.Workers = []*Worker{w}
 	go func() {
 	}()
@@ -1073,7 +1073,7 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 	require.NoError(b, err)
 
 	// Simulate a metrics worker:
-	w := NewWorker(0, false, nil, nullLogger(), s.Statsd)
+	w := NewWorker(0, s.IsLocal(), nil, nullLogger(), s.Statsd)
 	s.Workers = []*Worker{w}
 
 	go func() {
