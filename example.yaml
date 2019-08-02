@@ -82,6 +82,12 @@ indicator_span_timer_name: "indicator_span.duration_ns"
 # report an additional timer metric for indicator spans.
 objective_span_timer_name: "objective_span.duration_ns"
 
+# If enabled, issuing an unathenticated HTTP POST request to /quitquitquit
+# will gracefully shut down the server.
+# This is intended to be used in environments where network access is already
+# restricted, such as inside containerized deployments.
+http_quit: false
+
 # == METRICS CONFIGURATION ==
 
 # Defaults to the os.Hostname()!
