@@ -163,6 +163,8 @@ veneur_metrics_scopes:
 veneur_metrics_additional_tags:
   - "veneur_internal_metric:true"
 
+count_unique_timeseries: false
+
 # == DEPRECATED ==
 
 # This configuration has been replaced by datadog_flush_max_per_body.
