@@ -261,6 +261,7 @@ func (sfx *SignalFxSink) clientByTagUpdater() {
 			sfx.clientsByTagValue[name] = NewClient(sfx.metricsEndpoint, token, sfx.httpClient)
 			sfx.clientsByTagValueMu.Unlock()
 		}
+		sfx.log.Debugf("Fetched %d tokens in total", len(tokens))
 	}
 }
 
@@ -272,7 +273,7 @@ const (
 	limitQueryValue = 200
 )
 
-func fetchAPIKeys(client *http.Client, endpoint, apiToken string) (map[string]string, error) {
+func getTokensApiResponseFromOffset(client *http.Client, endpoint, apiToken string, offset int) (*bytes.Buffer, error) {
 	b := &bytes.Buffer{}
 
 	req, err := http.NewRequest(http.MethodGet, endpoint, bytes.NewReader(b.Bytes()))
@@ -283,36 +284,47 @@ func fetchAPIKeys(client *http.Client, endpoint, apiToken string) (map[string]st
 	req.Header.Set(sfxclient.TokenHeaderName, apiToken)
 	req.Header.Set("Content-Type", "application/json")
 
-	req.URL.Query().Add(limitQueryParam, fmt.Sprint(limitQueryValue))
-	req.URL.Query().Add(nameQueryParam, "")
+	q := req.URL.Query()
+	q.Add(limitQueryParam, fmt.Sprint(limitQueryValue))
+	q.Add(nameQueryParam, "")
 
+	q.Del(offsetQueryParam)
+	q.Add(offsetQueryParam, fmt.Sprint(offset))
+
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	// The API always returns OK, even if it doesn't have any tokens to return
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("signalfx api returned unknown response code: %s", resp.Status)
+	}
+
+	body := &bytes.Buffer{}
+	_, err = body.ReadFrom(resp.Body)
+
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+func fetchAPIKeys(client *http.Client, endpoint, apiToken string) (map[string]string, error) {
 	allFetched := false
-
 	offset := 0
 
 	apiTokensByName := make(map[string]string)
 
 	for !allFetched {
-		req.URL.Query().Del(offsetQueryParam)
-		req.URL.Query().Add(offsetQueryParam, fmt.Sprint(offset))
-
-		resp, err := client.Do(req)
-		if err != nil {
-			return apiTokensByName, err
-		}
-
-		// The API always returns OK, even if it doesn't have any tokens to return
-		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("signalfx api returned unknown response code: %s", resp.Status)
-		}
-
-		body := &bytes.Buffer{}
-		_, err = body.ReadFrom(resp.Body)
-
+		body, err := getTokensApiResponseFromOffset(client, endpoint, apiToken, offset)
 		if err != nil {
 			return nil, err
 		}
-
 		count, err := extractTokensFromResponse(apiTokensByName, body)
 		if err != nil {
 			return nil, err
