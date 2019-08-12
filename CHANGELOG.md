@@ -11,6 +11,7 @@
 * New SSF `sample` field: `scope`. This field lets clients tell Veneur what to do with the sample - it corresponds exactly to the `veneurglobalonly` and `veneurlocalonly` tags that metrics can hold. Thanks, [antifuchs](https://github.com/antifuchs)!
 * veneur-prometheus now allows you to specify mTLS configuration for the polling HTTP client. Thanks, [choo-stripe](https://github.com/choo-stripe)!
 * The `http_quit` config option enables the `/quitquitquit` endpoint, which can be used to trigger a graceful shutdown using an HTTP POST request. Thanks, [aditya](https://github.com/chimeracoder)!
+* New config option `count_unique_timeseries` which is used to emit metric `veneur.flush.unique_timeseries_total`, the HyperLogLog cardinality estimate of the unique timeseries in a flush interval. Thanks, [randallm](https://github.com/randallm)!
 
 ## Updated
 
