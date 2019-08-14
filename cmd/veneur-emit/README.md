@@ -149,3 +149,11 @@ the values from the parent of whatever is calling veneur-emit):
 ```sh
 veneur-emit -ssf -hostport unix:///var/run/veneur/ssf.sock -span_service 'testing' -trace_id 99 -parent_span_id 9999 -name some.command.timer -tag purpose:demonstration -command sleep 30
 ```
+
+When timing a command in SSF mode, if the command returns non-zero
+status code, the error flag will be set on the span, as if `-error`
+were passed in:
+
+```sh
+veneur-emit -ssf -hostport unix:///var/run/veneur/ssf.sock -name some.command.timer -command not_a_real_command
+```

@@ -495,6 +495,9 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 		span.StartTimestamp = start.UnixNano()
 		span.EndTimestamp = ended.UnixNano()
 		span.Metrics = append(span.Metrics, ssf.Timing(name, ended.Sub(start), time.Millisecond, tags))
+		if status != 0 {
+			span.Error = true
+		}
 	}
 
 	sf, shas := passedFlags["span_starttime"]
