@@ -253,7 +253,7 @@ func TestInferID(t *testing.T) {
 }
 
 func TestSetupSpanWithTracing(t *testing.T) {
-	span, err := setupSpan(1, 2, "oink", "hi:there", "oink-srv", "foo:bar", false)
+	span, err := setupSpan(1, 2, "oink", "hi:there", "oink-srv", "foo:bar", false, true)
 	if assert.NoError(t, err) {
 		assert.NotZero(t, span.Id)
 		assert.Equal(t, int64(1), span.TraceId)
@@ -263,17 +263,19 @@ func TestSetupSpanWithTracing(t *testing.T) {
 		assert.Equal(t, 2, len(span.Tags))
 		assert.Equal(t, span.Tags["hi"], "there")
 		assert.Equal(t, span.Tags["foo"], "bar")
+		assert.Equal(t, span.Error, true)
 	}
 }
 
 func TestSetupSpanWithoutTracing(t *testing.T) {
-	span, err := setupSpan(0, 0, "oink", "hi:there", "oink-srv", "", false)
+	span, err := setupSpan(0, 0, "oink", "hi:there", "oink-srv", "", false, false)
 	if assert.NoError(t, err) {
 		assert.Zero(t, span.Id)
 		assert.Zero(t, span.TraceId)
 		assert.Zero(t, span.ParentId)
 		assert.Equal(t, "", span.Name)
 		assert.Equal(t, 0, len(span.Tags))
+		assert.Equal(t, span.Indicator, false)
 	}
 }
 
