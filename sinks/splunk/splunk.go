@@ -68,6 +68,8 @@ type splunkSpanSink struct {
 	connLifetimeJitter time.Duration
 	rand               *mrand.Rand
 
+	excludedTags map[string]struct{}
+
 	// these fields are for testing only:
 
 	// sync holds one channel per submission worker.
@@ -455,6 +457,14 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		return nil
 	}
 
+	// If the span has any of the disallowed tags,
+	// the entire span should be skipped
+	for k := range sss.excludedTags {
+		if _, ok := ssfSpan.Tags[k]; ok {
+			return nil
+		}
+	}
+
 	ctx := context.Background()
 	if sss.ingestTimeout > 0 {
 		var cancel func()
@@ -498,6 +508,20 @@ func (sss *splunkSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		atomic.AddUint32(&sss.droppedSpans, 1)
 	}
 	return nil
+}
+
+// SetExcludedTags sets the excluded tag names. Any spans with the
+// provided key (name) will be excluded entirely. Unlike other sinks,
+// the Splunk sink will skip the entire span, rather than stripping only
+// the single tag, because Splunk restricts purely on volume rather than
+// tag cardinality.
+func (sss *splunkSpanSink) SetExcludedTags(excludes []string) {
+
+	tagsSet := map[string]struct{}{}
+	for _, tag := range excludes {
+		tagsSet[tag] = struct{}{}
+	}
+	sss.excludedTags = tagsSet
 }
 
 // SerializedSSF holds a set of fields in a format that Splunk can
