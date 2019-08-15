@@ -87,7 +87,6 @@ type Config struct {
 	SplunkHecTLSValidateHostname      string   `yaml:"splunk_hec_tls_validate_hostname"`
 	SplunkHecToken                    string   `yaml:"splunk_hec_token"`
 	SplunkSpanSampleRate              int      `yaml:"splunk_span_sample_rate"`
-	SplunkTagsExclude                 []string `yaml:"splunk_tags_exclude"`
 	SsfBufferSize                     int      `yaml:"ssf_buffer_size"`
 	SsfListenAddresses                []string `yaml:"ssf_listen_addresses"`
 	StatsAddress                      string   `yaml:"stats_address"`
