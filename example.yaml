@@ -524,6 +524,14 @@ splunk_hec_max_connection_lifetime: "10s"
 # the same time. If set to 0, there will be no jitter.
 splunk_hec_connection_lifetime_jitter: "10s"
 
+
+# Like tags_exclude, but applies to the Splunk sink only.
+# These exlusion rules will be applied to both indicator and non-indicator spans.
+# If tags_exclude and splunk_tags_exclude are both provided, only splunk_tags_exclude
+# will be applied to the Splunk sink.
+splunk_tags_exclude:
+  - "service|envoy"
+
 # == PLUGINS ==
 
 # == S3 Output ==
