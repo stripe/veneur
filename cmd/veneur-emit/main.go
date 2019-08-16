@@ -71,6 +71,7 @@ type Flags struct {
 		EndTime   string
 		Service   string
 		Indicator bool
+		Error     bool
 		Tags      string
 	}
 }
@@ -233,7 +234,7 @@ func Main(args []string) int {
 			WithField("ID", "parent_span_id").
 			Warn("Could not infer ID from environment")
 	}
-	span, err := setupSpan(flagStruct.Span.TraceID, flagStruct.Span.ParentID, flagStruct.Name, flagStruct.Tag, flagStruct.Span.Service, flagStruct.Span.Tags, flagStruct.Span.Indicator)
+	span, err := setupSpan(flagStruct.Span.TraceID, flagStruct.Span.ParentID, flagStruct.Name, flagStruct.Tag, flagStruct.Span.Service, flagStruct.Span.Tags, flagStruct.Span.Indicator, flagStruct.Span.Error)
 	if err != nil {
 		logrus.WithError(err).
 			Error("Couldn't set up the main span")
@@ -338,6 +339,7 @@ func flags(args []string) (Flags, map[string]flag.Value, error) {
 	flagset.StringVar(&flagStruct.Span.EndTime, "span_endtime", "", "Date/time to set for the end of the span. Format is same as -span_starttime.")
 	flagset.StringVar(&flagStruct.Span.Service, "span_service", "veneur-emit", "Service name to associate with the span.")
 	flagset.BoolVar(&flagStruct.Span.Indicator, "indicator", false, "Mark the reported span as an indicator span")
+	flagset.BoolVar(&flagStruct.Span.Error, "error", false, "Mark the reported span as having errored")
 	flagset.StringVar(&flagStruct.Span.Tags, "span_tags", "", "Tag(s) for span, comma separated. Useful for avoiding high cardinality tags. Ex 'user_id:ac0b23,widget_id:284802'")
 
 	err := flagset.Parse(args[1:])
@@ -413,7 +415,7 @@ func inferTraceIDInt(existingID int64, envKey string) (id int64, err error) {
 	return
 }
 
-func setupSpan(traceID, parentID int64, name, tags, service, spanTags string, indicator bool) (*ssf.SSFSpan, error) {
+func setupSpan(traceID, parentID int64, name, tags, service, spanTags string, indicator, errFlag bool) (*ssf.SSFSpan, error) {
 	span := &ssf.SSFSpan{}
 	if traceID != 0 {
 		span.TraceId = traceID
@@ -430,6 +432,7 @@ func setupSpan(traceID, parentID int64, name, tags, service, spanTags string, in
 		}
 		span.Service = service
 		span.Indicator = indicator
+		span.Error = errFlag
 	}
 	return span, nil
 }
@@ -492,6 +495,9 @@ func createMetric(span *ssf.SSFSpan, passedFlags map[string]flag.Value, name str
 		span.StartTimestamp = start.UnixNano()
 		span.EndTimestamp = ended.UnixNano()
 		span.Metrics = append(span.Metrics, ssf.Timing(name, ended.Sub(start), time.Millisecond, tags))
+		if status != 0 {
+			span.Error = true
+		}
 	}
 
 	sf, shas := passedFlags["span_starttime"]

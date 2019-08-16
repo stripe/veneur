@@ -1,9 +1,10 @@
 `veneur-emit` is a command line utility for emitting metrics to [Veneur](https://github.com/stripe/veneur).
 
 Some common use cases:
-* Instrument shell scripts
-* Instrumenting shell-based tools like init scripts, startup scripts and more
-* Testing
+
+- Instrument shell scripts
+- Instrumenting shell-based tools like init scripts, startup scripts and more
+- Testing
 
 # Usage
 
@@ -47,6 +48,8 @@ Usage of veneur-emit:
         Address of destination (hostport or listening address URL).
   -indicator
         Mark the reported span as an indicator span
+  -error
+        Mark the reported span as having errored
   -mode string
         Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'. (default "metric")
   -name string
@@ -93,31 +96,31 @@ instance.
 
 Increment a counter in dogstatsd mode:
 
-``` sh
+```sh
 veneur-emit -hostport udp://127.0.0.1:8200 -name that.metric.name -tag hi:there -count 1
 ```
 
 Time a command in dogstatsd mode:
 
-``` sh
+```sh
 veneur-emit -hostport udp://127.0.0.1:8200 -name some.command.timer -tag purpose:demonstration -command sleep 30
 ```
 
 Submit a service check in dogstatsd mode (this isn't supported in SSF yet):
 
-``` sh
+```sh
 veneur-emit -hostport udp://127.0.0.1:8200 -sc_name my.service.check -sc_msg "I'm not dead" -sc_status OK
 ```
 
 Submit an event in dogstatsd mode (this isn't supported in SSF yet):
 
-``` sh
+```sh
 veneur-emit -hostport udp://127.0.0.1:8200 -e_text "Something went wrong:\\n\\nTell a lie, it's all good." -e_title "I'm just testing" -e_source_type "demonstration"
 ```
 
 Submit a "set" metric (the count of unique values across a time interval):
 
-``` sh
+```sh
 veneur-emit -hostport udp://127.0.0.1:8200 -name some.set.metric -set customer_a
 ```
 
@@ -129,13 +132,13 @@ checks.
 
 Increment a counter in SSF mode:
 
-``` sh
+```sh
 veneur-emit -ssf -hostport unix:///var/run/veneur/ssf.sock -name that.metric.name -tag hi:there -count 1
 ```
 
 Time a command in SSF mode:
 
-``` sh
+```sh
 veneur-emit -ssf -hostport unix:///var/run/veneur/ssf.sock -name some.command.timer -tag purpose:demonstration -command sleep 30
 ```
 
@@ -143,6 +146,14 @@ Time a command in SSF mode and submit a trace span for the process
 (the `-trace_id` and `-parent_span_id` arguments need to be be set to
 the values from the parent of whatever is calling veneur-emit):
 
-``` sh
+```sh
 veneur-emit -ssf -hostport unix:///var/run/veneur/ssf.sock -span_service 'testing' -trace_id 99 -parent_span_id 9999 -name some.command.timer -tag purpose:demonstration -command sleep 30
+```
+
+When timing a command in SSF mode, if the command returns non-zero
+status code, the error flag will be set on the span, as if `-error`
+were passed in:
+
+```sh
+veneur-emit -ssf -hostport unix:///var/run/veneur/ssf.sock -name some.command.timer -command not_a_real_command
 ```
