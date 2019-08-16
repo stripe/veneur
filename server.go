@@ -671,7 +671,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 
 	// After all sinks are initialized, set the list of tags to exclude
-	setSinkExcludedTags(conf.TagsExclude, ret.metricSinks)
+	setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)
 
 	var svc s3iface.S3API
 	awsID := conf.AwsAccessKeyID
@@ -1453,7 +1453,7 @@ func CalculateTickDelay(interval time.Duration, t time.Time) time.Duration {
 }
 
 // Set the list of tags to exclude on each sink
-func setSinkExcludedTags(excludeRules []string, metricSinks []sinks.MetricSink) {
+func setSinkExcludedTags(excludeRules []string, metricSinks []sinks.MetricSink, spanSinks []sinks.SpanSink) {
 	type excludableSink interface {
 		SetExcludedTags([]string)
 	}
@@ -1464,7 +1464,18 @@ func setSinkExcludedTags(excludeRules []string, metricSinks []sinks.MetricSink) 
 			log.WithFields(logrus.Fields{
 				"sink":         sink.Name(),
 				"excludedTags": excludedTags,
-			}).Debug("Setting excluded tags on sink")
+			}).Info("Setting excluded tags on metric sink")
+			s.SetExcludedTags(excludedTags)
+		}
+	}
+
+	for _, sink := range spanSinks {
+		if s, ok := sink.(excludableSink); ok {
+			excludedTags := generateExcludedTags(excludeRules, sink.Name())
+			log.WithFields(logrus.Fields{
+				"sink":         sink.Name(),
+				"excludedTags": excludedTags,
+			}).Info("Setting excluded tags on span sink")
 			s.SetExcludedTags(excludedTags)
 		}
 	}
