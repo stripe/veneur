@@ -13,6 +13,7 @@
 * The `http_quit` config option enables the `/quitquitquit` endpoint, which can be used to trigger a graceful shutdown using an HTTP POST request. Thanks, [aditya](https://github.com/chimeracoder)!
 * New config option `count_unique_timeseries` which is used to emit metric `veneur.flush.unique_timeseries_total`, the HyperLogLog cardinality estimate of the unique timeseries in a flush interval. Thanks, [randallm](https://github.com/randallm)!
 * veneur-emit now allows you to mark SSF spans as having errored. Thanks, [randallm](https://github.com/randallm)!
+* The Splunk span sink supports tag exclusion, to better manage Splunk indexing volume. If a span contains a tag that's in the excluded set, the Splunk sink will skip sending that span to Splunk. Thanks, [aditya](https://github.com/chimeracoder)!
 
 ## Updated
 
