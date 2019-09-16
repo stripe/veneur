@@ -71,6 +71,14 @@
   revision = "8300947202c9fbce15a5a299b27c8b0f5092a520"
 
 [[projects]]
+  digest = "1:707ebe952a8b3d00b343c01536c79c73771d100f63ec6babeaed5c79e2b8a8dd"
+  name = "github.com/beorn7/perks"
+  packages = ["quantile"]
+  pruneopts = "NUT"
+  revision = "37c8de3658fcb183f997c4e13e8337516ab753e6"
+  version = "v1.0.1"
+
+[[projects]]
   digest = "1:f24bb5f05a37aed04e90c38448b04dee647b9327f90f848cf0834d2b100b327b"
   name = "github.com/certifi/gocertifi"
   packages = ["."]
@@ -417,6 +425,18 @@
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:097cc61836050f45cbb712ae3bb45d66fba464c16b8fac09907fa3c1f753eff6"
+  name = "github.com/prometheus/client_golang"
+  packages = [
+    "prometheus",
+    "prometheus/internal",
+    "prometheus/promhttp",
+  ]
+  pruneopts = "NUT"
+  revision = "170205fb58decfd011f1550d4cfb737230d7ae4f"
+  version = "v1.1.0"
+
+[[projects]]
   branch = "master"
   digest = "1:32d10bdfa8f09ecf13598324dba86ab891f11db3c538b6a34d1c3b5b99d7c36b"
   name = "github.com/prometheus/client_model"
@@ -435,6 +455,18 @@
   ]
   pruneopts = "NUT"
   revision = "61f87aac8082fa8c3c5655c7608d7478d46ac2ad"
+
+[[projects]]
+  digest = "1:bbbacd138cb711e328390a2d4bfaca1a41a8575f3c893450bf2ea1b74acdc7be"
+  name = "github.com/prometheus/procfs"
+  packages = [
+    ".",
+    "internal/fs",
+    "internal/util",
+  ]
+  pruneopts = "NUT"
+  revision = "499c85531f756d1129edd26485a5f73871eeb308"
+  version = "v0.0.5"
 
 [[projects]]
   branch = "master"
@@ -854,6 +886,7 @@
     "github.com/opentracing/opentracing-go/log",
     "github.com/pkg/errors",
     "github.com/pkg/profile",
+    "github.com/prometheus/client_golang/prometheus/promhttp",
     "github.com/prometheus/client_model/go",
     "github.com/prometheus/common/expfmt",
     "github.com/rcrowley/go-metrics",
