@@ -8,31 +8,21 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 )
 
-type config struct {
+type prometheusConfig struct {
 	metricsHost    string
-	statsHost      string
 	httpClient     *http.Client
-	statsClient    statsC
 	ignoredLabels  []*regexp.Regexp
 	ignoredMetrics []*regexp.Regexp
 }
 
-func configFromArgs() config {
-	statsClient, _ := statsd.New(*statsHost)
+func prometheusConfigFromArguments() prometheusConfig {
 
-	if *prefix != "" {
-		statsClient.Namespace = *prefix
-	}
-
-	return config{
+	return prometheusConfig{
 		metricsHost:    *metricsHost,
-		statsHost:      *statsHost,
 		httpClient:     newHTTPClient(*cert, *key, *caCert),
-		statsClient:    statsClient,
 		ignoredLabels:  getIgnoredFromArg(*ignoredLabelsStr),
 		ignoredMetrics: getIgnoredFromArg(*ignoredMetricsStr),
 	}
