@@ -3,16 +3,21 @@ package main
 import (
 	"fmt"
 	"strings"
+	"sync"
 )
 
 type countCache struct {
+	sync.Mutex
 	last map[string]prometheusCount
 	next map[string]prometheusCount
 }
 
 //GetAndSwap will return the previous count for this metric and add the passed in one for future use
 //bool indicates if Get was successful
-func (c *countCache) GetAndSwap(n prometheusCount) (prev prometheusCount, ok bool) {
+func (c *countCache) GetAndSwap(n prometheusCount) (prev prometheusCount, ok bool, first bool) {
+	c.Lock()
+	defer c.Unlock()
+
 	if c == nil {
 		c = &countCache{}
 	}
@@ -24,7 +29,8 @@ func (c *countCache) GetAndSwap(n prometheusCount) (prev prometheusCount, ok boo
 	key := cacheKey(n)
 	c.next[key] = n
 
-	if c.FirstObservation() {
+	first = c.last == nil
+	if first {
 		return
 	}
 
@@ -32,13 +38,12 @@ func (c *countCache) GetAndSwap(n prometheusCount) (prev prometheusCount, ok boo
 	return
 }
 
-func (c *countCache) FirstObservation() bool {
-	return c == nil || c.last == nil
-}
-
 //indicates that a single observations sweep is done.
 //this is important for determining if 'we' are new or if 'they' are
 func (c *countCache) Done() {
+	c.Lock()
+	defer c.Unlock()
+
 	if c == nil {
 		return
 	}

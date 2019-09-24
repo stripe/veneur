@@ -73,17 +73,18 @@ func (c prometheusCount) Translate(cache *countCache) statsdStat {
 }
 
 func (c prometheusCount) diff(cache *countCache) int64 {
-	cached, has := cache.GetAndSwap(c)
-	if !has {
-		//if this is the first observation cycle the cache has been through
-		//then we have _no_ basis for calculations for any metrics dont count
-		//the values you see
-		if cache.FirstObservation() {
-			return 0
-		}
+	cached, has, first := cache.GetAndSwap(c)
 
-		//if we don't have this particular metric, but we do have other it means
-		//this metric is new.  you can assume those are part of this sample cycle
+	//if this is the first observation cycle the cache has been through
+	//then we have _no_ basis for calculations for any metrics dont count
+	//the values you see
+	if first {
+		return 0
+	}
+
+	//if we don't have this particular metric, but we do have other it means
+	//this metric is new.  you can assume those are part of this sample cycle
+	if !has {
 		return c.Value
 	}
 
