@@ -22,6 +22,9 @@
 * Updated the vendored version of github.com/gogo/protobuf which fixes Gopkg.toml conflicts for users of veneur. Thanks, [dtbartle](http://github.com/dtbartle)!
 
 ## Bugfixes
+* veneur-prometheus now reports incremental counters instead of cumulative counters. This may cause dramatic differences in the statistics reported by veneur-prometheus.  Thanks, [kklipsch-stripe](https://github.com/kklipsch-stripe)!
+
+## Bugfixes
 * Veneur listening on UDS for statsd metrics will respect the `read_buffer_size_bytes` config. Thanks, [prudhvi](https://github.com/prudhvi)!
 * The splunk HEC span sink didn't correctly spawn the number of submission workers configured with `splunk_hec_submission_workers`, only spawning one. Now it spawns the number configured. Thanks, [antifuchs](https://github.com/antifuchs)!
 * The signalfx sink now correctly constructs ingestion endpoint URLs when given URLs that end in slashes. Thanks, [antifuchs](https://github.com/antifuchs)!
