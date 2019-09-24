@@ -388,6 +388,96 @@ func TestSamplingIndicators(t *testing.T) {
 	t.Logf("Received %d of %d events (%d marked partial)", events, nToFlush, markedPartial)
 }
 
+func TestExcludedTagsIndicators(t *testing.T) {
+	const nToFlush = 100
+	logger := testLogger()
+
+	type excludableSink interface {
+		SetExcludedTags([]string)
+	}
+
+	ch := make(chan splunk.Event, nToFlush)
+	ts := httptest.NewServer(jsonEndpoint(t, ch))
+	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
+		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0, 10, 1*time.Second, 0)
+
+	gesink := gsink.(excludableSink)
+	// no farts allowed
+	gesink.SetExcludedTags([]string{"farts"})
+	require.NoError(t, err)
+	sink := gsink.(splunk.TestableSplunkSpanSink)
+	err = sink.Start(nil)
+	require.NoError(t, err)
+
+	start := time.Unix(100000, 1000000)
+	end := start.Add(5 * time.Second)
+
+	spans := []*ssf.SSFSpan{
+		&ssf.SSFSpan{
+			ParentId:       4,
+			StartTimestamp: start.UnixNano(),
+			EndTimestamp:   end.UnixNano(),
+			Service:        "test-srv",
+			Name:           "test-span",
+			Indicator:      true,
+			Error:          true,
+			Tags: map[string]string{
+				"farts": "mandatory",
+			},
+			Metrics: []*ssf.SSFSample{
+				ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+				ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+			},
+		},
+		&ssf.SSFSpan{
+			ParentId:       4,
+			StartTimestamp: start.UnixNano(),
+			EndTimestamp:   end.UnixNano(),
+			Service:        "test-srv",
+			Name:           "test-span",
+			Indicator:      true,
+			Error:          true,
+			Tags: map[string]string{
+				"nofarts": "forbidden",
+			},
+			Metrics: []*ssf.SSFSample{
+				ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+				ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+			},
+		},
+	}
+
+	for i := 0; i < nToFlush; i++ {
+		span := spans[i%2]
+		span.Id = int64(i + 1)
+		span.TraceId = int64(i + 1)
+		err = sink.Ingest(span)
+		require.NoError(t, err, "error ingesting the %dth span", i)
+	}
+
+	sink.Sync()
+
+	// Ensure nothing sends into the channel anymore:
+	sink.Stop()
+
+	const expectedEvents = nToFlush / 2
+	// check how many events we got:
+	events := 0
+	for _ = range ch {
+		events++
+		// Don't close the receiving end until the first
+		// span, to avoid failing the test by racing the
+		// receiver:
+		if ch != nil {
+			ts.Close()
+			close(ch)
+			ch = nil
+		}
+	}
+
+	assert.Equal(t, expectedEvents, events, "Should have sent no spans, but received %d of %d", events, nToFlush)
+}
+
 func TestClosedIngestionEndpoint(t *testing.T) {
 	const nToFlush = 100
 	logger := testLogger()

@@ -7,6 +7,7 @@ type Config struct {
 	AwsS3Bucket                               string    `yaml:"aws_s3_bucket"`
 	AwsSecretAccessKey                        string    `yaml:"aws_secret_access_key"`
 	BlockProfileRate                          int       `yaml:"block_profile_rate"`
+	CountUniqueTimeseries                     bool      `yaml:"count_unique_timeseries"`
 	DatadogAPIHostname                        string    `yaml:"datadog_api_hostname"`
 	DatadogAPIKey                             string    `yaml:"datadog_api_key"`
 	DatadogFlushMaxPerBody                    int       `yaml:"datadog_flush_max_per_body"`

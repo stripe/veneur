@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/axiomhq/hyperloglog"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/forwardrpc"
 	vhttp "github.com/stripe/veneur/http"
@@ -40,6 +41,10 @@ func (s *Server) Flush(ctx context.Context) {
 	s.Statsd.Gauge("gc.pause_total_ns", float64(mem.PauseTotalNs), nil, 1.0)
 	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
 	s.Statsd.Gauge("flush.flush_timestamp_ns", float64(flushTime), nil, 1.0)
+
+	if s.CountUniqueTimeseries {
+		s.Statsd.Count("flush.unique_timeseries_total", s.tallyTimeseries(), []string{fmt.Sprintf("global_veneur:%t", !s.IsLocal())}, 1.0)
+	}
 
 	samples := s.EventWorker.Flush()
 
@@ -124,6 +129,17 @@ func (s *Server) Flush(ctx context.Context) {
 			samples.Add(ssf.Gauge(fmt.Sprintf("flush.plugins.%s.post_metrics_total", p.Name()), float32(len(finalMetrics)), nil))
 		}
 	}()
+}
+
+func (s *Server) tallyTimeseries() int64 {
+	allTimeseries := hyperloglog.New()
+	for _, w := range s.Workers {
+		w.uniqueMTSMtx.Lock()
+		allTimeseries.Merge(w.uniqueMTS)
+		w.uniqueMTS = hyperloglog.New()
+		w.uniqueMTSMtx.Unlock()
+	}
+	return int64(allTimeseries.Estimate())
 }
 
 type metricsSummary struct {

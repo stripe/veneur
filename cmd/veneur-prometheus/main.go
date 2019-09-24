@@ -1,21 +1,10 @@
 package main
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"flag"
-	"fmt"
-	"io"
-	"io/ioutil"
-	"math"
-	"net/http"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	dto "github.com/prometheus/client_model/go"
-	"github.com/prometheus/common/expfmt"
 	"github.com/sirupsen/logrus"
 )
 
@@ -37,12 +26,6 @@ var (
 func main() {
 	flag.Parse()
 
-	statsClient, _ := statsd.New(*statsHost)
-
-	if *prefix != "" {
-		statsClient.Namespace = *prefix
-	}
-
 	if *debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
@@ -52,178 +35,44 @@ func main() {
 		logrus.WithError(err).Fatalf("Failed to parse interval '%s'", *interval)
 	}
 
-	ignoredLabels := []*regexp.Regexp{}
-	ignoredMetrics := []*regexp.Regexp{}
+	statsClient, _ := statsd.New(*statsHost)
 
-	for _, ignoredLabelStr := range strings.Split(*ignoredLabelsStr, ",") {
-		if len(ignoredLabelStr) > 0 {
-			ignoredLabels = append(ignoredLabels, regexp.MustCompile(ignoredLabelStr))
-		}
-	}
-	for _, ignoredMetricStr := range strings.Split(*ignoredMetricsStr, ",") {
-		if len(ignoredMetricStr) > 0 {
-			ignoredMetrics = append(ignoredMetrics, regexp.MustCompile(ignoredMetricStr))
-		}
+	if *prefix != "" {
+		statsClient.Namespace = *prefix
 	}
 
-	httpClient := newHTTPClient(*cert, *key, *caCert)
-
+	cfg := prometheusConfigFromArguments()
 	ticker := time.NewTicker(i)
 	for _ = range ticker.C {
-		collect(httpClient, statsClient, ignoredLabels, ignoredMetrics)
+		inMemory := collect(cfg)
+		sendToStatsd(statsClient, *statsHost, inMemory)
 	}
 }
 
-func collect(httpClient *http.Client, statsClient *statsd.Client, ignoredLabels []*regexp.Regexp, ignoredMetrics []*regexp.Regexp) {
+func collect(cfg prometheusConfig) <-chan []inMemoryStat {
 	logrus.WithFields(logrus.Fields{
-		"stats_host":      *statsHost,
-		"metrics_host":    *metricsHost,
-		"ignored_labels":  ignoredLabels,
-		"ignored_metrics": ignoredMetrics,
-	}).Debug("Beginning collection")
+		"metrics_host":    cfg.metricsHost,
+		"ignored_labels":  cfg.ignoredLabels,
+		"ignored_metrics": cfg.ignoredMetrics,
+	}).Debug("beginning collection")
 
-	resp, err := httpClient.Get(*metricsHost)
-	if err != nil {
-		logrus.WithError(err).WithField("metrics_host", *metricsHost).Warn(fmt.Sprintf("Failed to collect metrics"))
-		return
-	}
-
-	d := expfmt.NewDecoder(resp.Body, expfmt.FmtText)
-	var mf dto.MetricFamily
-	for {
-		err := d.Decode(&mf)
-		if err == io.EOF {
-			// We've hit the end, break out!
-			break
-		} else if err != nil {
-			statsClient.Count("veneur.prometheus.decode_errors_total", 1, nil, 1.0)
-			logrus.WithError(err).Warn("Failed to decode a metric")
-			break
-		}
-
-		if !shouldExportMetric(mf, ignoredMetrics) {
-			continue
-		}
-
-		var metricCount int64
-		switch mf.GetType() {
-		case dto.MetricType_COUNTER:
-			for _, counter := range mf.GetMetric() {
-				tags := getTags(counter.GetLabel(), ignoredLabels)
-				statsClient.Count(mf.GetName(), int64(counter.GetCounter().GetValue()), tags, 1.0)
-				metricCount++
-			}
-		case dto.MetricType_GAUGE:
-			for _, gauge := range mf.GetMetric() {
-				tags := getTags(gauge.GetLabel(), ignoredLabels)
-				statsClient.Gauge(mf.GetName(), float64(gauge.GetGauge().GetValue()), tags, 1.0)
-				metricCount++
-			}
-		case dto.MetricType_SUMMARY:
-			for _, summary := range mf.GetMetric() {
-				tags := getTags(summary.GetLabel(), ignoredLabels)
-				name := mf.GetName()
-				data := summary.GetSummary()
-				statsClient.Gauge(fmt.Sprintf("%s.sum", name), data.GetSampleSum(), tags, 1.0)
-				statsClient.Count(fmt.Sprintf("%s.count", name), int64(data.GetSampleCount()), tags, 1.0)
-				metricCount += 2 // One for sum, one for count, one for each percentile bucket
-
-				for _, quantile := range data.GetQuantile() {
-					v := quantile.GetValue()
-					if !math.IsNaN(v) {
-						statsClient.Gauge(fmt.Sprintf("%s.%dpercentile", name, int(quantile.GetQuantile()*100)), v, tags, 1.0)
-						metricCount++
-					}
-				}
-			}
-		case dto.MetricType_HISTOGRAM:
-			for _, histo := range mf.GetMetric() {
-				tags := getTags(histo.GetLabel(), ignoredLabels)
-				name := mf.GetName()
-				data := histo.GetHistogram()
-				statsClient.Gauge(fmt.Sprintf("%s.sum", name), data.GetSampleSum(), tags, 1.0)
-				statsClient.Count(fmt.Sprintf("%s.count", name), int64(data.GetSampleCount()), tags, 1.0)
-				metricCount += 2 // One for sum, one for count, one for each histo bucket
-
-				for _, bucket := range data.GetBucket() {
-					b := bucket.GetUpperBound()
-					if !math.IsNaN(b) {
-						statsClient.Count(fmt.Sprintf("%s.le%f", name, b), int64(bucket.GetCumulativeCount()), tags, 1.0)
-						metricCount++
-					}
-				}
-			}
-		default:
-			statsClient.Count("veneur.prometheus.unknown_metric_type_total", 1, nil, 1.0)
-		}
-		statsClient.Count("veneur.prometheus.metrics_flushed_total", metricCount, nil, 1.0)
-	}
+	prometheus := queryPrometheus(cfg.httpClient, cfg.metricsHost, cfg.ignoredMetrics)
+	return translatePrometheus(cfg.ignoredLabels, prometheus)
 }
 
-func getTags(labels []*dto.LabelPair, ignoredLabels []*regexp.Regexp) []string {
-	var tags []string
+func sendToStatsd(client *statsd.Client, host string, stats <-chan []inMemoryStat) {
+	logrus.WithField("stats_host", host).Debug("beginning stats send")
 
-	for _, pair := range labels {
-		labelName := pair.GetName()
-		labelValue := pair.GetValue()
-		include := true
+	for batch := range stats {
+		for _, s := range batch {
+			err := s.Send(client)
 
-		for _, ignoredLabel := range ignoredLabels {
-			if ignoredLabel.MatchString(labelName) {
-				include = false
-				break
+			if err != nil {
+				logrus.
+					WithError(err).
+					WithField("stats_host", host).
+					Warn("failed sending stats")
 			}
 		}
-
-		if include {
-			tags = append(tags, fmt.Sprintf("%s:%s", labelName, labelValue))
-		}
 	}
-
-	return tags
-}
-
-func shouldExportMetric(mf dto.MetricFamily, ignoredMetrics []*regexp.Regexp) bool {
-	for _, ignoredMetric := range ignoredMetrics {
-		metricName := mf.GetName()
-
-		if ignoredMetric.MatchString(metricName) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func newHTTPClient(certPath, keyPath, caCertPath string) *http.Client {
-	var caCertPool *x509.CertPool
-	var clientCerts []tls.Certificate
-
-	if certPath != "" {
-		clientCert, err := tls.LoadX509KeyPair(certPath, keyPath)
-		if err != nil {
-			logrus.WithError(err).Fatalf("error reading client cert and key")
-		}
-		clientCerts = append(clientCerts, clientCert)
-	}
-
-	if caCertPath != "" {
-		caCertPool = x509.NewCertPool()
-		caCert, err := ioutil.ReadFile(caCertPath)
-		if err != nil {
-			logrus.WithError(err).Fatalf("error reading ca cert")
-		}
-		caCertPool.AppendCertsFromPEM(caCert)
-	}
-
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				Certificates: clientCerts,
-				RootCAs:      caCertPool,
-			},
-		},
-	}
-
-	return client
 }
