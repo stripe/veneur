@@ -8,14 +8,23 @@ import (
 	dto "github.com/prometheus/client_model/go"
 )
 
-func translatePrometheus(ignoredLabels []*regexp.Regexp, prometheus <-chan prometheusResults) <-chan []inMemoryStat {
-	inmemory := make(chan []inMemoryStat)
-	go sendTranslated(prometheus, ignoredLabels, inmemory)
+var (
+	connectError = newStatsdCount("veneur.prometheus.connect_errors_total", nil, 1)
+	decodeError  = newStatsdCount("veneur.prometheus.decode_errors_total", nil, 1)
 
-	return inmemory
+	unknownPrometheusTypeID = statID{"veneur.prometheus.unknown_metric_type_total", nil}
+	flushedMetricsID        = statID{"veneur.prometheus.metrics_flushed_total", nil}
+)
+
+func translatePrometheus(ignoredLabels []*regexp.Regexp, cache *countCache, prometheus <-chan prometheusResults) <-chan []statsdStat {
+	statsd := make(chan []statsdStat)
+	s := sender{statsd, cache}
+	go sendTranslated(prometheus, ignoredLabels, s)
+
+	return statsd
 }
 
-func sendTranslated(prometheus <-chan prometheusResults, translate translator, s sendor) {
+func sendTranslated(prometheus <-chan prometheusResults, translate translator, s sender) {
 
 	count := int64(0)
 	unknown := int64(0)
@@ -25,13 +34,13 @@ func sendTranslated(prometheus <-chan prometheusResults, translate translator, s
 
 		if result.clientError != nil {
 			count++
-			s.send(newCount("veneur.prometheus.connect_errors_total", nil, 1))
+			s.statsd(connectError)
 			continue
 		}
 
 		if result.decodeError != nil {
 			count++
-			s.send(newCount("veneur.prometheus.decode_errors_total", nil, 1))
+			s.statsd(decodeError)
 			continue
 		}
 
@@ -55,22 +64,35 @@ func sendTranslated(prometheus <-chan prometheusResults, translate translator, s
 		}
 	}
 
-	s.send(
-		newCount("veneur.prometheus.unknown_metric_type_total", nil, unknown),
-		newCount("veneur.prometheus.metrics_flushed_total", nil, count+2),
+	s.statsd(
+		statsdCount{unknownPrometheusTypeID, unknown},
+		statsdCount{flushedMetricsID, count + 2},
 	)
 
 	s.Close()
 }
 
-type sendor chan<- []inMemoryStat
-
-func (s sendor) send(stats ...inMemoryStat) {
-	s <- stats
+type sender struct {
+	ch    chan<- []statsdStat
+	cache *countCache
 }
 
-func (s sendor) Close() {
-	close(s)
+func (s sender) statsd(stats ...statsdStat) {
+	s.ch <- stats
+}
+
+func (s sender) send(stats ...inMemoryStat) {
+	var statsd []statsdStat
+	for _, inmemory := range stats {
+		statsd = append(statsd, inmemory.Translate(s.cache))
+	}
+
+	s.statsd(statsd...)
+}
+
+func (s sender) Close() {
+	close(s.ch)
+	s.cache.Done()
 }
 
 type translator []*regexp.Regexp
@@ -79,7 +101,7 @@ func (t translator) PrometheusCounter(mf dto.MetricFamily) []inMemoryStat {
 	var stats []inMemoryStat
 	for _, counter := range mf.GetMetric() {
 		tags := t.Tags(counter.GetLabel())
-		stats = append(stats, newCount(mf.GetName(), tags, int64(counter.GetCounter().GetValue())))
+		stats = append(stats, newPrometheusCount(mf.GetName(), tags, int64(counter.GetCounter().GetValue())))
 	}
 	return stats
 }
@@ -101,7 +123,7 @@ func (t translator) PrometheusSummary(mf dto.MetricFamily) []inMemoryStat {
 		data := summary.GetSummary()
 
 		stats = append(stats, newGauge(fmt.Sprintf("%s.sum", name), tags, data.GetSampleSum()))
-		stats = append(stats, newCount(fmt.Sprintf("%s.count", name), tags, int64(data.GetSampleCount())))
+		stats = append(stats, newPrometheusCount(fmt.Sprintf("%s.count", name), tags, int64(data.GetSampleCount())))
 
 		for _, quantile := range data.GetQuantile() {
 			v := quantile.GetValue()
@@ -126,13 +148,13 @@ func (t translator) PrometheusHistogram(mf dto.MetricFamily) []inMemoryStat {
 		data := histo.GetHistogram()
 
 		stats = append(stats, newGauge(fmt.Sprintf("%s.sum", name), tags, data.GetSampleSum()))
-		stats = append(stats, newCount(fmt.Sprintf("%s.count", name), tags, int64(data.GetSampleCount())))
+		stats = append(stats, newPrometheusCount(fmt.Sprintf("%s.count", name), tags, int64(data.GetSampleCount())))
 
 		for _, bucket := range data.GetBucket() {
 			b := bucket.GetUpperBound()
 			if !math.IsNaN(b) {
 				stats = append(stats,
-					newCount(
+					newPrometheusCount(
 						fmt.Sprintf("%s.le%f", name, b),
 						tags,
 						int64(bucket.GetCumulativeCount())))

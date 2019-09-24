@@ -9,6 +9,600 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestVeneurGeneratedCountsAreCorrect(t *testing.T) {
+	counter1 := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "counter1",
+		Help: "A typical counter.",
+	})
+
+	counter2 := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "counter2",
+		Help: "A typical counter.",
+	})
+
+	counter3 := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "counter3",
+		Help: "A typical counter.",
+	})
+
+	ts, err := testPrometheusEndpoint(
+		counter1,
+		counter2,
+		counter3,
+	)
+	require.NoError(t, err)
+	defer ts.Close()
+
+	cfg := prometheusConfig{
+		metricsHost:    ts.URL,
+		httpClient:     newHTTPClient("", "", ""),
+		ignoredLabels:  getIgnoredFromArg(""),
+		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
+	}
+
+	cache := new(countCache)
+	counts, _ := splitStats(collect(cfg, cache))
+	flushed, _ := countValue(counts, "veneur.prometheus.metrics_flushed_total")
+	assert.Equal(t, 5, flushed)
+
+	counts, _ = splitStats(collect(cfg, cache))
+	flushed, _ = countValue(counts, "veneur.prometheus.metrics_flushed_total")
+	assert.Equal(t, 5, flushed)
+
+	counter2.Inc()
+
+	counts, _ = splitStats(collect(cfg, cache))
+	flushed, _ = countValue(counts, "veneur.prometheus.metrics_flushed_total")
+	assert.Equal(t, 5, flushed)
+}
+
+func TestCountsOnBridgeRestarts(t *testing.T) {
+	counter := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "counter",
+		Help: "A typical counter.",
+	})
+
+	ts, err := testPrometheusEndpoint(
+		counter,
+	)
+	require.NoError(t, err)
+	defer ts.Close()
+
+	cache := new(countCache)
+	cfg := prometheusConfig{
+		metricsHost:    ts.URL,
+		httpClient:     newHTTPClient("", "", ""),
+		ignoredLabels:  getIgnoredFromArg(""),
+		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
+	}
+
+	splitStats(collect(cfg, cache))
+
+	counter.Inc()
+	counter.Inc()
+	counter.Inc()
+
+	counts, _ := splitStats(collect(cfg, cache))
+	count, _ := countValue(counts, "counter")
+	assert.Equal(t, 3, count)
+
+	counter.Inc()
+	counter.Inc()
+	counter.Inc()
+
+	//cache gets cleared on restarts
+	cache = new(countCache)
+	counts, _ = splitStats(collect(cfg, cache))
+
+	count, _ = countValue(counts, "counter")
+	assert.Equal(t, 0, count) //missed it because of our restart
+
+	counter.Inc()
+	counter.Inc()
+
+	counts, _ = splitStats(collect(cfg, cache))
+	count, _ = countValue(counts, "counter")
+	assert.Equal(t, 2, count) //back on track
+}
+
+func TestCountsOnMonitoredServerRestarts(t *testing.T) {
+	counter := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "counter",
+		Help: "A typical counter.",
+	})
+
+	ts, err := testPrometheusEndpoint(
+		counter,
+	)
+	require.NoError(t, err)
+	defer ts.Close()
+
+	cache := new(countCache)
+	cfg := prometheusConfig{
+		metricsHost:    ts.URL,
+		httpClient:     newHTTPClient("", "", ""),
+		ignoredLabels:  getIgnoredFromArg(""),
+		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
+	}
+
+	splitStats(collect(cfg, cache))
+
+	counter.Inc()
+	counter.Inc()
+	counter.Inc()
+
+	counts, _ := splitStats(collect(cfg, cache))
+	count, _ := countValue(counts, "counter")
+	assert.Equal(t, 3, count)
+
+	counter.Inc()
+	counts, _ = splitStats(collect(cfg, cache))
+	count, _ = countValue(counts, "counter")
+	assert.Equal(t, 1, count)
+
+	//gonna lose these in the restart
+	counter.Inc()
+	counter.Inc()
+	counter.Inc()
+	counter.Inc()
+
+	counter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "counter",
+		Help: "A typical counter.",
+	})
+
+	ts, err = testPrometheusEndpoint(
+		counter,
+	)
+	require.NoError(t, err)
+	defer ts.Close()
+
+	//these will show up as they are post restart
+	counter.Inc()
+	counter.Inc()
+
+	cfg = prometheusConfig{
+		metricsHost:    ts.URL,
+		httpClient:     newHTTPClient("", "", ""),
+		ignoredLabels:  getIgnoredFromArg(""),
+		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
+	}
+	counts, _ = splitStats(collect(cfg, cache))
+	count, _ = countValue(counts, "counter")
+	assert.Equal(t, 2, count)
+}
+
+func TestHistogramsNewBucketsAreTranslatedToDiffs(t *testing.T) {
+	histogram := prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "histogram",
+		Help:    "A typical histogram.",
+		Buckets: []float64{1, 2, 5},
+	})
+
+	ts, err := testPrometheusEndpoint(
+		histogram,
+	)
+	require.NoError(t, err)
+	defer ts.Close()
+
+	cache := new(countCache)
+	cfg := prometheusConfig{
+		metricsHost:    ts.URL,
+		httpClient:     newHTTPClient("", "", ""),
+		ignoredLabels:  getIgnoredFromArg("ignore"),
+		ignoredMetrics: getIgnoredFromArg("(.*)_ignore,promhttp_(.*)"),
+	}
+
+	splitStats(collect(cfg, cache))
+
+	histogram.Observe(1.5)
+	histogram.Observe(2.3)
+
+	counts, gauges := splitStats(collect(cfg, cache))
+
+	sum, _ := gaugeValue(gauges, "histogram.sum")
+	count, _ := countValue(counts, "histogram.count")
+	bucket1, _ := countValue(counts, "histogram.le1.000000")
+	bucket2, _ := countValue(counts, "histogram.le2.000000")
+	bucket5, _ := countValue(counts, "histogram.le5.000000")
+	bucketInf, _ := countValue(counts, "histogram.le+Inf")
+
+	assert.Equal(t, 3.8, sum)
+	assert.Equal(t, 2, count)
+	assert.Equal(t, 0, bucket1)
+	assert.Equal(t, 1, bucket2)
+	assert.Equal(t, 2, bucket5)
+	assert.Equal(t, 2, bucketInf)
+
+	histogram = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "histogram",
+		Help:    "A typical histogram.",
+		Buckets: []float64{1, 1.75, 2, 6},
+	})
+
+	ts, err = testPrometheusEndpoint(
+		histogram,
+	)
+	require.NoError(t, err)
+	defer ts.Close()
+	cfg.metricsHost = ts.URL
+
+	histogram.Observe(1.3)
+	histogram.Observe(2.3)
+
+	counts, gauges = splitStats(collect(cfg, cache))
+
+	sum, _ = gaugeValue(gauges, "histogram.sum")
+	count, _ = countValue(counts, "histogram.count")
+	bucket1, _ = countValue(counts, "histogram.le1.000000")
+	bucket175, _ := countValue(counts, "histogram.le1.750000")
+	bucket2, _ = countValue(counts, "histogram.le2.000000")
+	_, hasbucket5 := countValue(counts, "histogram.le5.000000")
+	bucket6, _ := countValue(counts, "histogram.le6.000000")
+	bucketInf, _ = countValue(counts, "histogram.le+Inf")
+
+	//prom reports some goofy numbers at times
+	assert.True(t, sum < 4) //note this is 'wrong' in that we lost the real sum
+
+	assert.Equal(t, 0, bucket1)
+	assert.Equal(t, 1, bucket175)
+	assert.Equal(t, 2, bucket6, fmt.Sprintf("%v", counts))
+
+	//these counts are the same as the previous observation, even though a restart
+	//edge case where we lose data we lost it
+	assert.Equal(t, 0, count)
+	assert.Equal(t, 0, bucket2)
+	assert.Equal(t, 0, bucketInf, fmt.Sprintf("%v", counts))
+
+	assert.False(t, hasbucket5)
+}
+
+func TestHistogramsAreTranslatedToDiffs(t *testing.T) {
+	histogram := prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    "histogram",
+		Help:    "A typical histogram.",
+		Buckets: []float64{1, 2, 5},
+	})
+
+	histogramVec := prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "histogram_vec",
+		Help:    "A typical histogram vec with labels",
+		Buckets: []float64{1, 2, 5},
+	},
+		[]string{"g", "h"},
+	)
+
+	ts, err := testPrometheusEndpoint(
+		histogram,
+		histogramVec,
+	)
+	require.NoError(t, err)
+	defer ts.Close()
+
+	cache := new(countCache)
+	cfg := prometheusConfig{
+		metricsHost:    ts.URL,
+		httpClient:     newHTTPClient("", "", ""),
+		ignoredLabels:  getIgnoredFromArg("ignore"),
+		ignoredMetrics: getIgnoredFromArg("(.*)_ignore,promhttp_(.*)"),
+	}
+
+	counts, gauges := splitStats(collect(cfg, cache))
+
+	assert.True(t, gaugeReceived(gauges, "histogram.sum"))
+	assert.True(t, countReceived(counts, "histogram.count"))
+	assert.True(t, countReceived(counts, "histogram.le1.000000"))
+	assert.True(t, countReceived(counts, "histogram.le2.000000"))
+	assert.True(t, countReceived(counts, "histogram.le5.000000"))
+	assert.True(t, countReceived(counts, "histogram.le+Inf"))
+
+	assert.False(t, gaugeReceived(gauges, "histogram_vec.sum", "g:G1", "h:H1"))
+	assert.False(t, countReceived(counts, "histogram_vec.count", "g:G1", "h:H1"))
+	assert.False(t, countReceived(counts, "histogram_vec.le1.000000", "g:G1", "h:H1"))
+	assert.False(t, countReceived(counts, "histogram_vec.le2.000000", "g:G1", "h:H1"))
+	assert.False(t, countReceived(counts, "histogram_vec.le5.000000", "g:G1", "h:H1"))
+	assert.False(t, countReceived(counts, "histogram_vec.le+Inf", "g:G1", "h:H1"))
+
+	sum, _ := gaugeValue(gauges, "histogram.sum")
+	count, _ := countValue(counts, "histogram.count")
+	bucket1, _ := countValue(counts, "histogram.le1.000000")
+	bucket2, _ := countValue(counts, "histogram.le2.000000")
+	bucket5, _ := countValue(counts, "histogram.le5.000000")
+	bucketInf, _ := countValue(counts, "histogram.le+Inf")
+
+	assert.Equal(t, 0.0, sum)
+	assert.Equal(t, 0, count)
+	assert.Equal(t, 0, bucket1)
+	assert.Equal(t, 0, bucket2)
+	assert.Equal(t, 0, bucket5)
+	assert.Equal(t, 0, bucketInf)
+
+	histogram.Observe(3)
+	histogramVec.WithLabelValues("G1", "H1").Observe(1.5)
+
+	counts, gauges = splitStats(collect(cfg, cache))
+
+	sum, _ = gaugeValue(gauges, "histogram.sum")
+	count, _ = countValue(counts, "histogram.count")
+	bucket1, _ = countValue(counts, "histogram.le1.000000")
+	bucket2, _ = countValue(counts, "histogram.le2.000000")
+	bucket5, _ = countValue(counts, "histogram.le5.000000")
+	bucketInf, _ = countValue(counts, "histogram.le+Inf")
+
+	assert.Equal(t, 3.0, sum)
+	assert.Equal(t, 1, count)
+	assert.Equal(t, 0, bucket1) //this stayed zero
+	assert.Equal(t, 0, bucket2) //this staed zero
+	assert.Equal(t, 1, bucket5)
+	assert.Equal(t, 1, bucketInf)
+
+	//sum shows up because it is a gauge. don't have diffs for the rest
+	sum, _ = gaugeValue(gauges, "histogram_vec.sum", "g:G1", "h:H1")
+	assert.Equal(t, 1.5, sum)
+
+	sum, _ = gaugeValue(gauges, "histogram_vec.sum", "g:G1", "h:H1")
+	count, _ = countValue(counts, "histogram_vec.count", "g:G1", "h:H1")
+	bucket1, _ = countValue(counts, "histogram_vec.le1.000000", "g:G1", "h:H1")
+	bucket2, _ = countValue(counts, "histogram_vec.le2.000000", "g:G1", "h:H1")
+	bucket5, _ = countValue(counts, "histogram_vec.le5.000000", "g:G1", "h:H1")
+	bucketInf, _ = countValue(counts, "histogram_vec.le+Inf", "g:G1", "h:H1")
+
+	assert.Equal(t, 1.5, sum)
+	assert.Equal(t, 1, count)
+	assert.Equal(t, 0, bucket1)
+	assert.Equal(t, 1, bucket2)
+	assert.Equal(t, 1, bucket5)
+	assert.Equal(t, 1, bucketInf)
+
+	histogram.Observe(0.5)
+	histogram.Observe(4.5)
+	histogramVec.WithLabelValues("G1", "H1").Observe(6)
+
+	counts, gauges = splitStats(collect(cfg, cache))
+
+	sum, _ = gaugeValue(gauges, "histogram.sum")
+	count, _ = countValue(counts, "histogram.count")
+	bucket1, _ = countValue(counts, "histogram.le1.000000")
+	bucket2, _ = countValue(counts, "histogram.le2.000000")
+	bucket5, _ = countValue(counts, "histogram.le5.000000")
+	bucketInf, _ = countValue(counts, "histogram.le+Inf")
+
+	assert.Equal(t, 8.0, sum)
+	assert.Equal(t, 2, count)
+	assert.Equal(t, 1, bucket1)
+	assert.Equal(t, 1, bucket2)
+	assert.Equal(t, 2, bucket5)
+	assert.Equal(t, 2, bucketInf)
+
+	sum, _ = gaugeValue(gauges, "histogram_vec.sum", "g:G1", "h:H1")
+	count, _ = countValue(counts, "histogram_vec.count", "g:G1", "h:H1")
+	bucket1, _ = countValue(counts, "histogram_vec.le1.000000", "g:G1", "h:H1")
+	bucket2, _ = countValue(counts, "histogram_vec.le2.000000", "g:G1", "h:H1")
+	bucket5, _ = countValue(counts, "histogram_vec.le5.000000", "g:G1", "h:H1")
+	bucketInf, _ = countValue(counts, "histogram_vec.le+Inf", "g:G1", "h:H1")
+
+	assert.Equal(t, 7.5, sum)
+	assert.Equal(t, 1, count)
+	assert.Equal(t, 0, bucket1)
+	assert.Equal(t, 0, bucket2)
+	assert.Equal(t, 0, bucket5)
+	assert.Equal(t, 1, bucketInf)
+}
+
+func TestSummariesCountAreTranslatedToDiffs(t *testing.T) {
+	summary := prometheus.NewSummary(prometheus.SummaryOpts{
+		Name:       "summary",
+		Help:       "A typical summary.",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+	})
+
+	summaryVec := prometheus.NewSummaryVec(prometheus.SummaryOpts{
+		Name:       "summary_vec",
+		Help:       "A typical summary vec with labels",
+		Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+	},
+		[]string{"e", "f"},
+	)
+
+	ts, err := testPrometheusEndpoint(
+		summary,
+		summaryVec,
+	)
+	require.NoError(t, err)
+	defer ts.Close()
+
+	cache := new(countCache)
+	cfg := prometheusConfig{
+		metricsHost:    ts.URL,
+		httpClient:     newHTTPClient("", "", ""),
+		ignoredLabels:  getIgnoredFromArg(""),
+		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
+	}
+
+	counts, gauges := splitStats(collect(cfg, cache))
+
+	count, _ := countValue(counts, "summary.count")
+	sum, _ := gaugeValue(gauges, "summary.sum")
+	assert.Equal(t, 0, count)
+	assert.Equal(t, 0.0, sum)
+
+	//doesnt show up until there are values
+	assert.False(t, gaugeReceived(gauges, "summary.50percentile"))
+
+	//nothing shows for vecs until they have some values assigned
+	assert.False(t, gaugeReceived(gauges, "summary_vec.50percentile", "e:E1", "f:F1"))
+	assert.False(t, gaugeReceived(gauges, "summary_vec.sum", "e:E1", "f:F1"))
+	assert.False(t, countReceived(counts, "summary_vec.count", "e:E1", "f:F1"))
+
+	summary.Observe(30)
+	summaryVec.WithLabelValues("E1", "F1").Observe(30)
+
+	counts, gauges = splitStats(collect(cfg, cache))
+
+	count, _ = countValue(counts, "summary.count")
+	sum, _ = gaugeValue(gauges, "summary.sum")
+	perc50, _ := gaugeValue(gauges, "summary.50percentile")
+	perc90, _ := gaugeValue(gauges, "summary.90percentile")
+	assert.Equal(t, 1, count)
+	assert.Equal(t, 30.0, sum)
+	assert.Equal(t, 30.0, perc50)
+	assert.Equal(t, 30.0, perc90)
+
+	count, _ = countValue(counts, "summary_vec.count", "e:E1", "f:F1")
+	sum, _ = gaugeValue(gauges, "summary_vec.sum", "e:E1", "f:F1")
+	perc50, _ = gaugeValue(gauges, "summary_vec.50percentile", "e:E1", "f:F1")
+	perc90, _ = gaugeValue(gauges, "summary_vec.90percentile", "e:E1", "f:F1")
+
+	assert.Equal(t, 1, count)
+	assert.Equal(t, 30.0, sum)
+	assert.Equal(t, 30.0, perc50)
+	assert.Equal(t, 30.0, perc90)
+
+	summary.Observe(60)
+	summary.Observe(60)
+
+	summaryVec.WithLabelValues("E1", "F1").Observe(60)
+	summaryVec.WithLabelValues("E1", "F1").Observe(60)
+
+	counts, gauges = splitStats(collect(cfg, cache))
+
+	count, _ = countValue(counts, "summary.count")
+	sum, _ = gaugeValue(gauges, "summary.sum")
+	perc50, _ = gaugeValue(gauges, "summary.50percentile")
+	perc90, _ = gaugeValue(gauges, "summary.90percentile")
+
+	assert.Equal(t, 2, count)
+	assert.Equal(t, 150.0, sum)
+	assert.Equal(t, 60.0, perc50)
+	assert.Equal(t, 60.0, perc90)
+
+	count, _ = countValue(counts, "summary_vec.count", "e:E1", "f:F1")
+	sum, _ = gaugeValue(gauges, "summary_vec.sum", "e:E1", "f:F1")
+	perc50, _ = gaugeValue(gauges, "summary_vec.50percentile", "e:E1", "f:F1")
+	perc90, _ = gaugeValue(gauges, "summary_vec.90percentile", "e:E1", "f:F1")
+
+	assert.Equal(t, 2, count)
+	assert.Equal(t, 150.0, sum)
+	assert.Equal(t, 60.0, perc50)
+	assert.Equal(t, 60.0, perc90)
+}
+
+func TestGaugesAreNOTTranslatedToDiffs(t *testing.T) {
+	gauge := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "gauge",
+		Help: "A typical gauge",
+	})
+
+	gaugeVec := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "gauge_vec",
+		Help: "A typical guage vec with labels",
+	},
+		[]string{"c", "d"},
+	)
+
+	ts, err := testPrometheusEndpoint(
+		gauge,
+		gaugeVec,
+	)
+	require.NoError(t, err)
+	defer ts.Close()
+
+	cache := new(countCache)
+	cfg := prometheusConfig{
+		metricsHost:    ts.URL,
+		httpClient:     newHTTPClient("", "", ""),
+		ignoredLabels:  getIgnoredFromArg(""),
+		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
+	}
+
+	_, gauges := splitStats(collect(cfg, cache))
+
+	//vecs dont show up until they have a call
+	assert.False(t, gaugeReceived(gauges, "gauge_vec", "c:C1", "d:D1"))
+	val, _ := gaugeValue(gauges, "gauge")
+	assert.Equal(t, 0.0, val)
+
+	gauge.Set(3.4)
+	gaugeVec.WithLabelValues("C1", "D1").Set(29.9)
+	gaugeVec.WithLabelValues("C1", "D1").Set(27.8)
+
+	_, gauges = splitStats(collect(cfg, cache))
+	val1, _ := gaugeValue(gauges, "gauge")
+	val2, _ := gaugeValue(gauges, "gauge_vec", "c:C1", "d:D1")
+
+	assert.Equal(t, 3.4, val1)
+	assert.Equal(t, 27.8, val2)
+}
+
+func TestCountsAreTranslatedToDiffs(t *testing.T) {
+	counter := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "counter",
+		Help: "A typical counter.",
+	})
+
+	counterVec := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "counter_vec",
+		Help: "A typical counter vec with labels"},
+		[]string{"a", "b"},
+	)
+
+	ts, err := testPrometheusEndpoint(
+		counter,
+		counterVec,
+	)
+	require.NoError(t, err)
+	defer ts.Close()
+
+	cache := new(countCache)
+	cfg := prometheusConfig{
+		metricsHost:    ts.URL,
+		httpClient:     newHTTPClient("", "", ""),
+		ignoredLabels:  getIgnoredFromArg(""),
+		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
+	}
+
+	counts, _ := splitStats(collect(cfg, cache))
+	//won't show up in prom endpoint until its inc'd
+	assert.False(t, countReceived(counts, "counter_vec", "a:A1", "b:B1"))
+
+	counter.Inc()
+	counterVec.WithLabelValues("A1", "B1").Inc()
+
+	counts, _ = splitStats(collect(cfg, cache))
+	count1, _ := countValue(counts, "counter")
+	count2, _ := countValue(counts, "counter_vec", "a:A1", "b:B1")
+	assert.Equal(t, 1, count1) //0 from init, 1 from inc, diff is 1
+	assert.Equal(t, 1, count2) //new metric can take all of its count
+
+	counter.Inc()
+	counterVec.WithLabelValues("A1", "B1").Inc()
+	counterVec.WithLabelValues("A2", "B1").Inc()
+
+	counts, _ = splitStats(collect(cfg, cache))
+
+	count1, _ = countValue(counts, "counter")
+	count2, _ = countValue(counts, "counter_vec", "a:A1", "b:B1")
+	count3, _ := countValue(counts, "counter_vec", "a:A2", "b:B1")
+	assert.Equal(t, 1, count1) //0 from init, 1 from inc, diff is 1
+	assert.Equal(t, 1, count2)
+	//a new metric, but we've had observations before so we can assume its all new
+	assert.Equal(t, 1, count3)
+
+	counter.Add(5)
+	counterVec.WithLabelValues("A1", "B1").Add(5)
+	counterVec.WithLabelValues("A2", "B1").Add(5)
+
+	counts, _ = splitStats(collect(cfg, cache))
+
+	//all got 5 between last
+	count1, _ = countValue(counts, "counter")
+	count2, _ = countValue(counts, "counter_vec", "a:A1", "b:B1")
+	count3, _ = countValue(counts, "counter_vec", "a:A2", "b:B1")
+	assert.Equal(t, 5, count1)
+	assert.Equal(t, 5, count2)
+	assert.Equal(t, 5, count3)
+}
+
 func TestCollectGetsAllMetricsItShould(t *testing.T) {
 	counter := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "counter",
@@ -117,6 +711,7 @@ func TestCollectGetsAllMetricsItShould(t *testing.T) {
 	histogramVec.WithLabelValues("G1", "H1", "Ignored4").Observe(45)
 	histogramIgnored.Observe(45)
 
+	cache := new(countCache)
 	cfg := prometheusConfig{
 		metricsHost:    ts.URL,
 		httpClient:     newHTTPClient("", "", ""),
@@ -124,7 +719,7 @@ func TestCollectGetsAllMetricsItShould(t *testing.T) {
 		ignoredMetrics: getIgnoredFromArg("(.*)_ignore,promhttp_(.*)"),
 	}
 
-	counts, gauges := splitStats(collect(cfg))
+	counts, gauges := splitStats(collect(cfg, cache))
 
 	assert.True(t, countReceived(counts, "counter"))
 	assert.True(t, countReceived(counts, "counter_vec", "a:A1", "b:B1"))
@@ -165,13 +760,13 @@ func TestCollectGetsAllMetricsItShould(t *testing.T) {
 	assert.True(t, countReceived(counts, "veneur.prometheus.metrics_flushed_total"))
 }
 
-func splitStats(stats <-chan []inMemoryStat) ([]count, []gauge) {
-	var c []count
+func splitStats(stats <-chan []statsdStat) ([]statsdCount, []gauge) {
+	var c []statsdCount
 	var g []gauge
 	for batch := range stats {
 		for _, s := range batch {
 			switch i := s.(type) {
-			case count:
+			case statsdCount:
 				c = append(c, i)
 			case gauge:
 				g = append(g, i)
@@ -185,24 +780,35 @@ func splitStats(stats <-chan []inMemoryStat) ([]count, []gauge) {
 	return c, g
 }
 
-func gaugeReceived(gauges []gauge, name string, tags ...string) bool {
+func gaugeValue(gauges []gauge, name string, tags ...string) (float64, bool) {
 	b := statID{name, tags}
 	for _, a := range gauges {
 		if same(a.statID, b) {
-			return true
+			return a.Value, true
 		}
 	}
 
-	return false
+	return 0, false
 }
 
-func countReceived(counts []count, name string, tags ...string) bool {
+func gaugeReceived(gauges []gauge, name string, tags ...string) bool {
+	_, found := gaugeValue(gauges, name, tags...)
+	return found
+}
+
+func countValue(counts []statsdCount, name string, tags ...string) (int, bool) {
 	b := statID{name, tags}
 	for _, a := range counts {
 		if same(a.statID, b) {
-			return true
+			//our tests won't have int64 in them but prod might
+			return int(a.Value), true
 		}
 	}
 
-	return false
+	return 0, false
+}
+
+func countReceived(counts []statsdCount, name string, tags ...string) bool {
+	_, found := countValue(counts, name, tags...)
+	return found
 }
