@@ -28,6 +28,7 @@
 * Veneur now sets a deadline for its flushes: No flush may take longer than the configured server flush interval. Thanks, [antifuchs](https://github.com/antifuchs)!
 * The signalfx sink no longer deadlocks the flush process if it receives more than one error per submission. Thanks, [antifuchs](https://github.com/antifuchs)!
 * Fixed the README to link to the correct HLL implementation. Thanks, [gphat](https://github.com/gphat)!
+* Fixed the BucketRegionError while using the S3 Plugin. Thanks, [linuxdynasty](https://github.com/linuxdynasty)!
 
 ## Removed
 

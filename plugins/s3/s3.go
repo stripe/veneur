@@ -71,9 +71,6 @@ const (
 	tsvGzFt          = "tsv.gz"
 )
 
-// S3Bucket name of S3 bucket to post to
-var S3Bucket string
-
 var S3ClientUninitializedError = errors.New("s3 client has not been initialized")
 
 func (p *S3Plugin) S3Post(hostname string, data io.ReadSeeker, ft filetype) error {
@@ -81,7 +78,7 @@ func (p *S3Plugin) S3Post(hostname string, data io.ReadSeeker, ft filetype) erro
 		return S3ClientUninitializedError
 	}
 	params := &s3.PutObjectInput{
-		Bucket: aws.String(S3Bucket),
+		Bucket: aws.String(p.S3Bucket),
 		Key:    S3Path(hostname, ft),
 		Body:   data,
 	}
