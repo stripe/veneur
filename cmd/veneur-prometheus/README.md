@@ -8,25 +8,25 @@ At present these metrics are emitting as DogStatsD style metrics. We will add SS
 
 ## Prometheus Counters vs Statsd Counters
 
-Prometheus counters continue to increase over the life time of the monitored service.  Conversely, statsd counters are only the counts of events that have happened since the last time they were reported.  Therefore it is incorrect to naively read from a Prometheus endpoint and just pass the values returned for counters to statsd.  Instead you need to send the difference between the last observation point and the current one to get an accurate mapping.
+Prometheus is a pull-based system that uses cumulative counters, which continue to increase over the lifetime of the monitored service. Conversely, statsd counters incrementally track events as they are reported.  Therefore, converting Prometheus counters to statsd requires taking the difference between the previous observation (cached) and the current observation to create an accurate mapping, with four possible states:
 
-This leads to the following conditions:
-- we've made no observations to cache and compare against.  We won't report any metrics to statsd until a second observation allows us to diff.
-- we have some observations in our cache, but a particular metric does not exist there (common for vector types to appear over time). In this case, we can implicitly compare that metric to 0.
-- our cache version is smaller than the Prometheus metric count.  This is the normal case and indicates that there have ben events on that metric.  We report the difference.
-- our cache version is bigger than the Prometheus metric count.  This indicates a restart on the monitored service.  The best we can do is report the events since that restart.
+1. The cache is empty. When the cache is empty, metrics reported by Prometheus will *not* be passed to statsd, but they will be added to the cache to compare future reports against.
+2. The cache is non-empty, but a reported metric is missing from the cache. It's assumed that the metric is being reported for the first time (Prometheus vector types commonly appear over time). In this case, the metric is implicitly compared to 0 and passed directly to statsd as an incremental counter,
+3. The cached value of the counter is less than than the Prometheus-reported counter. This is the normal case, indicating that the counter has been incremented application-side since the last report. The difference between the reported counter and the cached counter is passed to statsd as an incremental counter.
+4. The cached value of the counter is greater than the Prometheus-reported metric count. This indicates that the monitored service was restarted sometime between the previous report and the current report, with Prometheus reporting the cumulative count since the application was restarted. The current Prometheus-reported metric is implicitly compared to 0 and passed directly to statsd as an incremental counter. Any accumulated values that happened *after* the previous report but *before* the application was restarted cannot be tracked.
 
-This leads to the following cases where we will miss metrics:
-- `veneur-prometheus` is restarted.  All counts while `veneur-prometheus` is down, plus those that happen between the first and second observation, are missed.
-- the monitored service is restarted.  Any events that happen after the `veneur-prometheus` observation and before the monitored service restart are missed.
+Because of these four states, there are two situations which will result in missing metrics.
+
+1. `veneur-prometheus` is restarted.  All counts that accumulate while `veneur-prometheus` is down, plus those that happen between the first and second observation, are missed. (This is analogous to metrics that are missed when push-based metrics are reported over UDP to `veneur-srv`).
+2. The monitored service is restarted.  Any counts that accumulate after the previous `veneur-prometheus` observation and before the monitored service restart are missed. (This is unique to pull-based metrics reporting).
 
 ### Prometheus Histograms are (mostly) Counters
 
-Prometheus implements its histograms as additive counters.  That is if you have a set of buckets like 1 second, 2 seconds, 5 seconds, when an event that is 1.8 seconds long is observed the count on the 2 second bucket, the 5 second bucket and the infinity bucket are incremented.  These buckets are just Prometheus counters so all of the cases above apply to each of them.  Further the histogram keeps a count as well which is impacted.
+Prometheus implements histograms as cumulative counters on the upper bound of buckets. Given a set of buckets {1s, 2s, 5s}, an observation of 1.8s will increment the counts on the 2s and 5s bucket, as well as the implicit "infinity" bucket, and an additional counter that tracks the total number of observed data points. Because histogram buckets are treated as Prometheus counters, all of the previous conditions regrading counters apply to histogram buckets as well.
 
-Our rules above get particularly problematic when dealing with histogram metrics where the buckets have changed on a monitored service restart.  That is if it previously had 1, 2, 5 second buckets and after a restart has 1, 2, 6 second buckets.  The end result is that our translation of Prometheus histograms around monitored restarts are likely not ever going to provide extremely accurate information.
+Buckets are defined explicitly by the application. If the definition of bucket boundaries changes within the application, it is recommended to restart `veneur-prometheus` as well. If `veneur-prometheus` is not restarted, the reported histogram metrics will be inaccurate.
 
-*Note* Prometheus Summaries also have a count sub-component that is a counter and impacted by the above.  The majority of information in Summaries are gauges though.
+*Note*: Prometheus Summaries also have a count sub-component that is a counter and similarly subject to the same conditions that apply to counters. However, the majority of information in Summaries are gauges.
 
 # Usage
 
