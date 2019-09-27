@@ -680,8 +680,24 @@ func TestSignalFxFetchAPITokens(t *testing.T) {
 			response2,
 		},
 	}
+	expectedParams := []string{offsetQueryParam, limitQueryParam}
+	respCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if r.Method != "GET" {
+			t.Errorf("Expected ‘GET’ request, got ‘%s’", r.Method)
+		}
+		q := r.URL.Query()
 
-	server := httptest.NewServer(m)
+		for _, param := range expectedParams {
+			if q.Get(param) == "" {
+				t.Errorf("Expected %s parameter to be present in the request URL", param)
+			}
+		}
+
+		w.Write([]byte(m.responses[respCount]))
+		respCount += 1
+	}))
 
 	expected := map[string]string{
 		"service":          "accessToken",
