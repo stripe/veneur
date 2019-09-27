@@ -41,15 +41,16 @@ func main() {
 		statsClient.Namespace = *prefix
 	}
 
+	cache := new(countCache)
 	cfg := prometheusConfigFromArguments()
 	ticker := time.NewTicker(i)
 	for _ = range ticker.C {
-		inMemory := collect(cfg)
-		sendToStatsd(statsClient, *statsHost, inMemory)
+		statsdStats := collect(cfg, cache)
+		sendToStatsd(statsClient, *statsHost, statsdStats)
 	}
 }
 
-func collect(cfg prometheusConfig) <-chan []inMemoryStat {
+func collect(cfg prometheusConfig, cache *countCache) <-chan []statsdStat {
 	logrus.WithFields(logrus.Fields{
 		"metrics_host":    cfg.metricsHost,
 		"ignored_labels":  cfg.ignoredLabels,
@@ -57,10 +58,10 @@ func collect(cfg prometheusConfig) <-chan []inMemoryStat {
 	}).Debug("beginning collection")
 
 	prometheus := queryPrometheus(cfg.httpClient, cfg.metricsHost, cfg.ignoredMetrics)
-	return translatePrometheus(cfg.ignoredLabels, prometheus)
+	return translatePrometheus(cfg.ignoredLabels, cache, prometheus)
 }
 
-func sendToStatsd(client *statsd.Client, host string, stats <-chan []inMemoryStat) {
+func sendToStatsd(client *statsd.Client, host string, stats <-chan []statsdStat) {
 	logrus.WithField("stats_host", host).Debug("beginning stats send")
 
 	for batch := range stats {
