@@ -77,13 +77,16 @@ var tracer = trace.GlobalTracer
 
 const defaultTCPReadTimeout = 10 * time.Minute
 
+const httpQuitEndpoint = "/quitquitquit"
+
 // A Server is the actual veneur instance that will be run.
 type Server struct {
-	Workers              []*Worker
-	EventWorker          *EventWorker
-	SpanChan             chan *ssf.SSFSpan
-	SpanWorker           *SpanWorker
-	SpanWorkerGoroutines int
+	Workers               []*Worker
+	EventWorker           *EventWorker
+	SpanChan              chan *ssf.SSFSpan
+	SpanWorker            *SpanWorker
+	SpanWorkerGoroutines  int
+	CountUniqueTimeseries bool
 
 	Statsd *scopedstatsd.ScopedClient
 	Sentry *raven.Client
@@ -115,6 +118,7 @@ type Server struct {
 
 	// closed when the server is shutting down gracefully
 	shutdown chan struct{}
+	httpQuit bool
 
 	HistogramPercentiles []float64
 
@@ -373,9 +377,18 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.Workers = make([]*Worker, numWorkers)
 	ret.numReaders = conf.NumReaders
 
+	// This must come before worker initialization. We need to
+	// initialize workers with state from *Server.IsWorker.
+	ret.ForwardAddr = conf.ForwardAddress
+
+	// Control whether Veneur should emit metric
+	// "veneur.flush.unique_timeseries_total", which may come at a
+	// slight performance hit to workers.
+	ret.CountUniqueTimeseries = conf.CountUniqueTimeseries
+
 	// Use the pre-allocated Workers slice to know how many to start.
 	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.TraceClient, log, ret.Statsd)
+		ret.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, log, ret.Statsd)
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {
@@ -419,7 +432,6 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.RcvbufBytes = conf.ReadBufferSizeBytes
 	ret.HTTPAddr = conf.HTTPAddress
 	ret.numListeningHTTP = new(int32)
-	ret.ForwardAddr = conf.ForwardAddress
 
 	if conf.TLSKey != "" {
 		if conf.TLSCertificate == "" {
@@ -466,7 +478,17 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		for _, perTag := range conf.SignalfxPerTagAPIKeys {
 			byTagClients[perTag.Name] = signalfx.NewClient(conf.SignalfxEndpointBase, perTag.APIKey, &tracedHTTP)
 		}
-		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback, conf.SignalfxVaryKeyBy, byTagClients, conf.SignalfxMetricNamePrefixDrops, conf.SignalfxMetricTagPrefixDrops, metricSink, conf.SignalfxFlushMaxPerBody)
+
+		if conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod == "" {
+			conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod = "10m"
+		}
+
+		dynamicKeyRefreshPeriod, err := time.ParseDuration(conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod)
+		if err != nil {
+			return ret, err
+		}
+
+		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback, conf.SignalfxVaryKeyBy, byTagClients, conf.SignalfxMetricNamePrefixDrops, conf.SignalfxMetricTagPrefixDrops, metricSink, conf.SignalfxFlushMaxPerBody, conf.SignalfxAPIKey, conf.SignalfxDynamicPerTagAPIKeysEnable, dynamicKeyRefreshPeriod, conf.SignalfxEndpointBase, conf.SignalfxEndpointAPI, &tracedHTTP)
 		if err != nil {
 			return ret, err
 		}
@@ -649,7 +671,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 
 	// After all sinks are initialized, set the list of tags to exclude
-	setSinkExcludedTags(conf.TagsExclude, ret.metricSinks)
+	setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)
 
 	var svc s3iface.S3API
 	awsID := conf.AwsAccessKeyID
@@ -699,6 +721,10 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 	// closed in Shutdown; Same approach and http.Shutdown
 	ret.shutdown = make(chan struct{})
+	if conf.HTTPQuit {
+		logger.WithField("endpoint", httpQuitEndpoint).Info("Enabling graceful shutdown endpoint (via HTTP POST request)")
+		ret.httpQuit = true
+	}
 
 	// Don't emit keys into logs now that we're done with them.
 	conf.SentryDsn = REDACTED
@@ -1427,7 +1453,7 @@ func CalculateTickDelay(interval time.Duration, t time.Time) time.Duration {
 }
 
 // Set the list of tags to exclude on each sink
-func setSinkExcludedTags(excludeRules []string, metricSinks []sinks.MetricSink) {
+func setSinkExcludedTags(excludeRules []string, metricSinks []sinks.MetricSink, spanSinks []sinks.SpanSink) {
 	type excludableSink interface {
 		SetExcludedTags([]string)
 	}
@@ -1438,7 +1464,18 @@ func setSinkExcludedTags(excludeRules []string, metricSinks []sinks.MetricSink) 
 			log.WithFields(logrus.Fields{
 				"sink":         sink.Name(),
 				"excludedTags": excludedTags,
-			}).Debug("Setting excluded tags on sink")
+			}).Info("Setting excluded tags on metric sink")
+			s.SetExcludedTags(excludedTags)
+		}
+	}
+
+	for _, sink := range spanSinks {
+		if s, ok := sink.(excludableSink); ok {
+			excludedTags := generateExcludedTags(excludeRules, sink.Name())
+			log.WithFields(logrus.Fields{
+				"sink":         sink.Name(),
+				"excludedTags": excludedTags,
+			}).Info("Setting excluded tags on span sink")
 			s.SetExcludedTags(excludedTags)
 		}
 	}

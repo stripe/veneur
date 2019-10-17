@@ -1,7 +1,8 @@
 # 13.0.0, in progress
 
-### Added
+## Added
 
+* The SignalFx sink now supports dynamically fetching per-tag Access tokens from SignalFX. Thanks, [szabado](https://github.com/szabado)!
 * The Kafka sink now includes metrics for skipped and dropped spans, as well as a debug log line for flushes. Thanks, [franklinhu](https://github.com/franklinhu)
 * A flush "watchdog" controlled by the config setting `flush_watchdog_missed_flushes`. If veneur has not started this many flushes, the watchdog panics and terminates veneur (so it can be restarted by process supervision). Thanks, [antifuchs](https://github.com/antifuchs)!
 * Splunk sink: Trace-related IDs are now represented in hexadecimal for cross-tool compatibility and a small byte savings. Thanks, [myndzi](https://github.com/myndzi)
@@ -9,6 +10,10 @@
 * New configuration options `veneur_metrics_scopes` and `veneur_metrics_additional_tags`, which allow configuring veneur such that it aggregates its own metrics globally (rather than reporting a set of internal metrics per instance/container/etc). Thanks, [antifuchs](https://github.com/antifuchs)!
 * New SSF `sample` field: `scope`. This field lets clients tell Veneur what to do with the sample - it corresponds exactly to the `veneurglobalonly` and `veneurlocalonly` tags that metrics can hold. Thanks, [antifuchs](https://github.com/antifuchs)!
 * veneur-prometheus now allows you to specify mTLS configuration for the polling HTTP client. Thanks, [choo-stripe](https://github.com/choo-stripe)!
+* The `http_quit` config option enables the `/quitquitquit` endpoint, which can be used to trigger a graceful shutdown using an HTTP POST request. Thanks, [aditya](https://github.com/chimeracoder)!
+* New config option `count_unique_timeseries` which is used to emit metric `veneur.flush.unique_timeseries_total`, the HyperLogLog cardinality estimate of the unique timeseries in a flush interval. Thanks, [randallm](https://github.com/randallm)!
+* veneur-emit now allows you to mark SSF spans as having errored. Thanks, [randallm](https://github.com/randallm)!
+* The Splunk span sink supports tag exclusion, to better manage Splunk indexing volume. If a span contains a tag that's in the excluded set, the Splunk sink will skip sending that span to Splunk. Thanks, [aditya](https://github.com/chimeracoder)!
 
 ## Updated
 
@@ -17,11 +22,16 @@
 * Updated the vendored version of github.com/gogo/protobuf which fixes Gopkg.toml conflicts for users of veneur. Thanks, [dtbartle](http://github.com/dtbartle)!
 
 ## Bugfixes
+* veneur-prometheus now reports incremental counters instead of cumulative counters. This may cause dramatic differences in the statistics reported by veneur-prometheus.  Thanks, [kklipsch-stripe](https://github.com/kklipsch-stripe)!
 
+## Bugfixes
+* Veneur listening on UDS for statsd metrics will respect the `read_buffer_size_bytes` config. Thanks, [prudhvi](https://github.com/prudhvi)!
 * The splunk HEC span sink didn't correctly spawn the number of submission workers configured with `splunk_hec_submission_workers`, only spawning one. Now it spawns the number configured. Thanks, [antifuchs](https://github.com/antifuchs)!
 * The signalfx sink now correctly constructs ingestion endpoint URLs when given URLs that end in slashes. Thanks, [antifuchs](https://github.com/antifuchs)!
 * Veneur now sets a deadline for its flushes: No flush may take longer than the configured server flush interval. Thanks, [antifuchs](https://github.com/antifuchs)!
 * The signalfx sink no longer deadlocks the flush process if it receives more than one error per submission. Thanks, [antifuchs](https://github.com/antifuchs)!
+* Fixed the README to link to the correct HLL implementation. Thanks, [gphat](https://github.com/gphat)!
+* Fixed the BucketRegionError while using the S3 Plugin. Thanks, [linuxdynasty](https://github.com/linuxdynasty)!
 
 ## Removed
 

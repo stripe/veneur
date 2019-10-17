@@ -1,12 +1,14 @@
 package veneur
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/axiomhq/hyperloglog"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/samplers"
@@ -27,18 +29,22 @@ const statusTypeName = "status"
 
 // Worker is the doodad that does work.
 type Worker struct {
-	id               int
-	PacketChan       chan samplers.UDPMetric
-	ImportChan       chan []samplers.JSONMetric
-	ImportMetricChan chan []*metricpb.Metric
-	QuitChan         chan struct{}
-	processed        int64
-	imported         int64
-	mutex            *sync.Mutex
-	traceClient      *trace.Client
-	logger           *logrus.Logger
-	wm               WorkerMetrics
-	stats            scopedstatsd.Client
+	id                    int
+	isLocal               bool
+	countUniqueTimeseries bool
+	uniqueMTS             *hyperloglog.Sketch
+	uniqueMTSMtx          *sync.RWMutex
+	PacketChan            chan samplers.UDPMetric
+	ImportChan            chan []samplers.JSONMetric
+	ImportMetricChan      chan []*metricpb.Metric
+	QuitChan              chan struct{}
+	processed             int64
+	imported              int64
+	mutex                 *sync.Mutex
+	traceClient           *trace.Client
+	logger                *logrus.Logger
+	wm                    WorkerMetrics
+	stats                 scopedstatsd.Client
 }
 
 // IngestUDP on a Worker feeds the metric into the worker's PacketChan.
@@ -233,20 +239,24 @@ func (wm WorkerMetrics) appendExportedMetric(res []*metricpb.Metric, exp metricE
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, cl *trace.Client, logger *logrus.Logger, stats scopedstatsd.Client) *Worker {
+func NewWorker(id int, isLocal bool, countUniqueTimeseries bool, cl *trace.Client, logger *logrus.Logger, stats scopedstatsd.Client) *Worker {
 	return &Worker{
-		id:               id,
-		PacketChan:       make(chan samplers.UDPMetric, 32),
-		ImportChan:       make(chan []samplers.JSONMetric, 32),
-		ImportMetricChan: make(chan []*metricpb.Metric, 32),
-		QuitChan:         make(chan struct{}),
-		processed:        0,
-		imported:         0,
-		mutex:            &sync.Mutex{},
-		traceClient:      cl,
-		logger:           logger,
-		wm:               NewWorkerMetrics(),
-		stats:            scopedstatsd.Ensure(stats),
+		id:                    id,
+		isLocal:               isLocal,
+		countUniqueTimeseries: countUniqueTimeseries,
+		uniqueMTS:             hyperloglog.New(),
+		uniqueMTSMtx:          &sync.RWMutex{},
+		PacketChan:            make(chan samplers.UDPMetric, 32),
+		ImportChan:            make(chan []samplers.JSONMetric, 32),
+		ImportMetricChan:      make(chan []*metricpb.Metric, 32),
+		QuitChan:              make(chan struct{}),
+		processed:             0,
+		imported:              0,
+		mutex:                 &sync.Mutex{},
+		traceClient:           cl,
+		logger:                logger,
+		wm:                    NewWorkerMetrics(),
+		stats:                 scopedstatsd.Ensure(stats),
 	}
 }
 
@@ -256,6 +266,9 @@ func (w *Worker) Work() {
 	for {
 		select {
 		case m := <-w.PacketChan:
+			if w.countUniqueTimeseries {
+				w.SampleTimeseries(&m)
+			}
 			w.ProcessMetric(&m)
 		case m := <-w.ImportChan:
 			for _, j := range m {
@@ -280,6 +293,51 @@ func (w *Worker) MetricsProcessedCount() int64 {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 	return w.processed
+}
+
+// SampleTimeseries takes a metric and counts whether the timeseries
+// has already been seen by the worker in this flush interval.
+func (w *Worker) SampleTimeseries(m *samplers.UDPMetric) {
+	digest := make([]byte, 8)
+	binary.LittleEndian.PutUint32(digest, m.Digest)
+
+	w.uniqueMTSMtx.RLock()
+	defer w.uniqueMTSMtx.RUnlock()
+
+	// Always sample if worker is running in global Veneur instance,
+	// as there is nowhere the metric can be forwarded to.
+	if !w.isLocal {
+		w.uniqueMTS.Insert(digest)
+		return
+	}
+	// Otherwise, sample the timeseries iff the metric will not be
+	// forwarded to a global Veneur instance.
+	switch m.Type {
+	case counterTypeName:
+		if m.Scope != samplers.GlobalOnly {
+			w.uniqueMTS.Insert(digest)
+		}
+	case gaugeTypeName:
+		if m.Scope != samplers.GlobalOnly {
+			w.uniqueMTS.Insert(digest)
+		}
+	case histogramTypeName:
+		if m.Scope == samplers.LocalOnly {
+			w.uniqueMTS.Insert(digest)
+		}
+	case setTypeName:
+		if m.Scope == samplers.LocalOnly {
+			w.uniqueMTS.Insert(digest)
+		}
+	case timerTypeName:
+		if m.Scope == samplers.LocalOnly {
+			w.uniqueMTS.Insert(digest)
+		}
+	case statusTypeName:
+		w.uniqueMTS.Insert(digest)
+	default:
+		log.WithField("type", m.Type).Error("Unknown metric type for counting")
+	}
 }
 
 // ProcessMetric takes a Metric and samples it
@@ -312,9 +370,9 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 		}
 	case setTypeName:
 		if m.Scope == samplers.LocalOnly {
-			w.wm.localSets[m.MetricKey].Sample(m.Value.(string), m.SampleRate)
+			w.wm.localSets[m.MetricKey].Sample(m.Value.(string))
 		} else {
-			w.wm.sets[m.MetricKey].Sample(m.Value.(string), m.SampleRate)
+			w.wm.sets[m.MetricKey].Sample(m.Value.(string))
 		}
 	case timerTypeName:
 		if m.Scope == samplers.LocalOnly {

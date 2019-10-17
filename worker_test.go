@@ -19,7 +19,7 @@ import (
 )
 
 func TestWorker(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -40,7 +40,7 @@ func TestWorker(t *testing.T) {
 }
 
 func TestWorkerLocal(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -60,7 +60,7 @@ func TestWorkerLocal(t *testing.T) {
 }
 
 func TestWorkerGlobal(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New(), nil)
+	w := NewWorker(1, false, false, nil, logrus.New(), nil)
 
 	gc := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -93,10 +93,10 @@ func TestWorkerGlobal(t *testing.T) {
 }
 
 func TestWorkerImportSet(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil)
 	testset := samplers.NewSet("a.b.c", nil)
-	testset.Sample("foo", 1.0)
-	testset.Sample("bar", 1.0)
+	testset.Sample("foo")
+	testset.Sample("bar")
 
 	jsonMetric, err := testset.Export()
 	assert.NoError(t, err, "should have exported successfully")
@@ -108,7 +108,7 @@ func TestWorkerImportSet(t *testing.T) {
 }
 
 func TestWorkerImportHistogram(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil)
 	testhisto := samplers.NewHist("a.b.c", nil)
 	testhisto.Sample(1.0, 1.0)
 	testhisto.Sample(2.0, 1.0)
@@ -123,7 +123,7 @@ func TestWorkerImportHistogram(t *testing.T) {
 }
 
 func TestWorkerStatusMetric(t *testing.T) {
-	w := NewWorker(1, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil)
 
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -264,7 +264,7 @@ type testMetricExporter interface {
 }
 
 func exportMetricAndFlush(t testing.TB, exp testMetricExporter) WorkerMetrics {
-	w := NewWorker(1, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil)
 	m, err := exp.Metric()
 	assert.NoErrorf(t, err, "exporting the metric '%s' shouldn't have failed",
 		exp.GetName())
@@ -301,7 +301,7 @@ func TestWorkerImportMetricGRPC(t *testing.T) {
 	})
 	t.Run("timer", func(t *testing.T) {
 		t.Parallel()
-		w := NewWorker(1, nil, logrus.New(), nil)
+		w := NewWorker(1, true, false, nil, logrus.New(), nil)
 		h := samplers.NewHist("test.timer", nil)
 		h.Sample(1.0, 1.0)
 
@@ -317,7 +317,7 @@ func TestWorkerImportMetricGRPC(t *testing.T) {
 	t.Run("set", func(t *testing.T) {
 		t.Parallel()
 		s := samplers.NewSet("test.set", nil)
-		s.Sample("value", 1.0)
+		s.Sample("value")
 
 		assert.Len(t, exportMetricAndFlush(t, s).sets, 1,
 			"The number of flushed sets is not correct")
@@ -327,7 +327,7 @@ func TestWorkerImportMetricGRPC(t *testing.T) {
 func TestWorkerImportMetricGRPCNilValue(t *testing.T) {
 	t.Parallel()
 
-	w := NewWorker(1, nil, logrus.New(), nil)
+	w := NewWorker(1, true, false, nil, logrus.New(), nil)
 	metric := &metricpb.Metric{
 		Name:  "test",
 		Type:  metricpb.Type_Histogram,
@@ -425,5 +425,203 @@ func TestWorkerMetricsForwardableMetrics(t *testing.T) {
 			assert.ElementsMatch(t, tc.expected, actual,
 				"The output of ForwardableMetrics doesn't have the right metrics")
 		})
+	}
+}
+
+func TestLocalWorkerSampleTimeseries(t *testing.T) {
+	w := NewWorker(1, true, true, nil, logrus.New(), nil)
+
+	m := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "histogram",
+		},
+		Digest: 1,
+		Scope:  samplers.LocalOnly,
+	}
+	m2 := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "counter",
+		},
+		Digest: 2,
+		Scope:  samplers.MixedScope,
+	}
+	w.SampleTimeseries(&m)
+	assert.Equal(t, uint64(1), w.uniqueMTS.Estimate())
+	w.SampleTimeseries(&m)
+	assert.Equal(t, uint64(1), w.uniqueMTS.Estimate())
+	w.SampleTimeseries(&m2)
+	assert.Equal(t, uint64(2), w.uniqueMTS.Estimate())
+}
+
+func TestLocalWorkerSampleForwardedTimeseries(t *testing.T) {
+	w := NewWorker(1, true, true, nil, logrus.New(), nil)
+
+	m := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "histogram",
+		},
+		Digest: 1,
+		Scope:  samplers.MixedScope,
+	}
+	m2 := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "counter",
+		},
+		Digest: 2,
+		Scope:  samplers.GlobalOnly,
+	}
+	w.SampleTimeseries(&m)
+	w.SampleTimeseries(&m2)
+	assert.Equal(t, uint64(0), w.uniqueMTS.Estimate())
+}
+
+func TestGlobalWorkerSampleTimeseries(t *testing.T) {
+	w := NewWorker(1, false, true, nil, logrus.New(), nil)
+
+	m := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "histogram",
+		},
+		Digest: 1,
+		Scope:  samplers.LocalOnly,
+	}
+	m2 := samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name: "a.b.c",
+			Type: "counter",
+		},
+		Digest: 2,
+		Scope:  samplers.GlobalOnly,
+	}
+	w.SampleTimeseries(&m)
+	w.SampleTimeseries(&m2)
+	assert.Equal(t, uint64(2), w.uniqueMTS.Estimate())
+}
+
+func BenchmarkWork(b *testing.B) {
+	w := NewWorker(1, true, false, nil, logrus.New(), nil)
+
+	const Len = 1000
+	input := make([]*samplers.UDPMetric, Len)
+	for i, _ := range input {
+		m := samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: "counter",
+				Type: counterTypeName,
+			},
+			Value:      20.0,
+			Digest:     12345,
+			SampleRate: 1.0,
+			Scope:      samplers.MixedScope,
+		}
+
+		switch r := i % 5; r {
+		case 1:
+			m.MetricKey.Type = gaugeTypeName
+		case 2:
+			m.MetricKey.Type = histogramTypeName
+		case 3:
+			m.MetricKey.Type = setTypeName
+			m.Value = "a value here!"
+		case 4:
+			m.MetricKey.Type = timerTypeName
+		default:
+			// do nothing
+		}
+
+		input[i] = &m
+	}
+
+	go w.Work()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w.PacketChan <- *input[i%Len]
+	}
+	w.Stop()
+}
+
+func BenchmarkWorkWithCountUniqueTimeseries(b *testing.B) {
+	w := NewWorker(1, true, true, nil, logrus.New(), nil)
+
+	const Len = 1000
+	input := make([]*samplers.UDPMetric, Len)
+	for i, _ := range input {
+		m := samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: "counter",
+				Type: counterTypeName,
+			},
+			Value:      20.0,
+			Digest:     12345,
+			SampleRate: 1.0,
+			Scope:      samplers.MixedScope,
+		}
+
+		switch r := i % 5; r {
+		case 1:
+			m.MetricKey.Type = gaugeTypeName
+		case 2:
+			m.MetricKey.Type = histogramTypeName
+		case 3:
+			m.MetricKey.Type = setTypeName
+			m.Value = "a value here!"
+		case 4:
+			m.MetricKey.Type = timerTypeName
+		default:
+			// do nothing
+		}
+
+		input[i] = &m
+	}
+
+	go w.Work()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w.PacketChan <- *input[i%Len]
+	}
+	w.Stop()
+}
+
+func BenchmarkSampleTimeseries(b *testing.B) {
+	w := NewWorker(1, true, true, nil, logrus.New(), nil)
+	const Len = 1000
+	input := make([]*samplers.UDPMetric, Len)
+	for i, _ := range input {
+		m := samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: "counter",
+				Type: counterTypeName,
+			},
+			Value:      20.0,
+			Digest:     12345,
+			SampleRate: 1.0,
+			Scope:      samplers.MixedScope,
+		}
+
+		switch r := i % 5; r {
+		case 1:
+			m.MetricKey.Type = gaugeTypeName
+		case 2:
+			m.MetricKey.Type = histogramTypeName
+		case 3:
+			m.MetricKey.Type = setTypeName
+			m.Value = "a value here!"
+		case 4:
+			m.MetricKey.Type = timerTypeName
+		default:
+			// do nothing
+		}
+
+		input[i] = &m
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w.SampleTimeseries(input[i%Len])
 	}
 }
