@@ -243,7 +243,7 @@ func NewKafkaSpanSink(logger *logrus.Logger, cl *trace.Client, brokers string, t
 	}
 
 	var sampleThreshold uint32
-	if sampleRatePercentage <= 0 || sampleRatePercentage > 100 {
+	if sampleRatePercentage < 0 || sampleRatePercentage > 100 {
 		return nil, errors.New("Span sample rate percentage must be greater than 0%% and less than or equal to 100%%")
 	}
 
