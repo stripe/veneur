@@ -225,7 +225,7 @@ func (k *KafkaMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.S
 }
 
 // NewKafkaSpanSink creates a new Kafka Plugin.
-func NewKafkaSpanSink(logger *logrus.Logger, cl *trace.Client, brokers string, topic string, partitioner string, ackRequirement string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, serializationFormat string, sampleTag string, sampleRatePercentage int) (*KafkaSpanSink, error) {
+func NewKafkaSpanSink(logger *logrus.Logger, cl *trace.Client, brokers string, topic string, partitioner string, ackRequirement string, retries int, bufferBytes int, bufferMessages int, bufferDuration string, serializationFormat string, sampleTag string, sampleRatePercentage float64) (*KafkaSpanSink, error) {
 	if logger == nil {
 		logger = &logrus.Logger{Out: ioutil.Discard}
 	}
