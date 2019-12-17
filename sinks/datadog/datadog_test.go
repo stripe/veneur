@@ -294,7 +294,7 @@ func TestDatadogMetricRouting(t *testing.T) {
 
 func TestDatadogFlushEvents(t *testing.T) {
 	transport := &DatadogRoundTripper{Endpoint: "/intake", Contains: ""}
-	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New())
+	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New(), nil)
 	assert.NoError(t, err)
 
 	testEvent := ssf.SSFSample{
@@ -350,7 +350,7 @@ func TestDatadogFlushEvents(t *testing.T) {
 
 func TestDatadogFlushOtherMetricsForServiceChecks(t *testing.T) {
 	transport := &DatadogRoundTripper{Endpoint: "/api/v1/check_run", Contains: ""}
-	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New())
+	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New(), nil)
 	assert.NoError(t, err)
 
 	testCheck := ssf.SSFSample{
@@ -373,7 +373,7 @@ func TestDatadogFlushOtherMetricsForServiceChecks(t *testing.T) {
 
 func TestDatadogFlushServiceCheck(t *testing.T) {
 	transport := &DatadogRoundTripper{Endpoint: "/api/v1/check_run", Contains: ""}
-	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New())
+	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New(), nil)
 	assert.NoError(t, err)
 
 	testCheck := samplers.InterMetric{
@@ -449,4 +449,22 @@ func TestDataDogSetExcludeTags(t *testing.T) {
 	assert.Equal(t, "yay:pie", tags[0], "Incorrect yay tag in first position")
 	assert.Equal(t, "baz:quz", tags[1], "Incorrect baz tag in second position")
 	assert.Equal(t, "novalue", tags[2], "Incorrect novalue tag in third position")
+}
+
+func TestDataDogDropMetric(t *testing.T) {
+
+	ddSink := DatadogMetricSink{
+		metricNamePrefixDrops: []string{"drop"},
+	}
+
+	interMetrics := []samplers.InterMetric{
+		{Name: "foo.a.b"},
+		{Name: "foo.a.b.c"},
+		{Name: "drop.a.b.c"},
+	}
+
+	ddMetrics, serviceChecks := ddSink.finalizeMetrics(interMetrics)
+
+	assert.Empty(t, serviceChecks, "No service check metrics are reported")
+	assert.Equal(t, 2, len(ddMetrics))
 }

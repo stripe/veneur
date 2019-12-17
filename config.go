@@ -13,6 +13,7 @@ type Config struct {
 	DatadogFlushMaxPerBody                    int       `yaml:"datadog_flush_max_per_body"`
 	DatadogSpanBufferSize                     int       `yaml:"datadog_span_buffer_size"`
 	DatadogTraceAPIAddress                    string    `yaml:"datadog_trace_api_address"`
+	DatadogMetricNamePrefixDrops              []string  `yaml:"datadog_metric_name_prefix_drops"`
 	Debug                                     bool      `yaml:"debug"`
 	DebugFlushedMetrics                       bool      `yaml:"debug_flushed_metrics"`
 	DebugIngestedSpans                        bool      `yaml:"debug_ingested_spans"`
