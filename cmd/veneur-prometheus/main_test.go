@@ -9,6 +9,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestUntyped(t *testing.T) {
+	untypedVal := float64(8989)
+
+	untyped := prometheus.NewUntypedFunc(prometheus.UntypedOpts{
+		Name: "untyped",
+	}, func() float64 { return untypedVal })
+
+	ts, err := testPrometheusEndpoint(
+		untyped,
+	)
+	require.NoError(t, err)
+	defer ts.Close()
+
+	cfg := prometheusConfig{
+		metricsHost:    ts.URL,
+		httpClient:     newHTTPClient("", "", ""),
+		ignoredLabels:  getIgnoredFromArg(""),
+		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
+	}
+
+	cache := new(countCache)
+	counts, gauges := splitStats(collect(cfg, cache))
+	unknown, _ := countValue(counts, "veneur.prometheus.unknown_metric_type_total")
+	assert.Equal(t, 0, unknown)
+
+	got, _ := gaugeValue(gauges, "untyped")
+	assert.Equal(t, float64(8989), got)
+}
+
 func TestVeneurGeneratedCountsAreCorrect(t *testing.T) {
 	counter1 := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "counter1",
