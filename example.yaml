@@ -279,6 +279,12 @@ datadog_flush_max_per_body: 25000
 # Hostname to send Datadog trace data to.
 datadog_trace_api_address: ""
 
+# A list of metric *prefixes* to drop. Note that this is not the whole string
+# and not a regexp. Just a prefix. Any metrics that have this prefix as a name
+# will be dropped before sending to Datadog.
+datadog_metric_name_prefix_drops:
+  - ""
+
 # The size of the ring buffer used for retaining spans during a flush interval.
 datadog_span_buffer_size: 16384
 
