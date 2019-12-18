@@ -255,7 +255,7 @@ func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) ([]
 	ddMetrics := make([]DDMetric, 0, len(metrics))
 	checks := []DDServiceCheck{}
 
-METRICLOOP: // Convenience label so that inner nested loops and `continue` easily
+METRICLOOP:
 	for _, m := range metrics {
 		if !sinks.IsAcceptableMetric(m, dd) {
 			continue

@@ -283,7 +283,7 @@ datadog_trace_api_address: ""
 # and not a regexp. Just a prefix. Any metrics that have this prefix as a name
 # will be dropped before sending to Datadog.
 datadog_metric_name_prefix_drops:
-  - ""
+  - "an_ignorable_metric."
 
 # The size of the ring buffer used for retaining spans during a flush interval.
 datadog_span_buffer_size: 16384
