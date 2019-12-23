@@ -22,12 +22,7 @@ func TestUntyped(t *testing.T) {
 	require.NoError(t, err)
 	defer ts.Close()
 
-	cfg := prometheusConfig{
-		metricsHost:    ts.URL,
-		httpClient:     newHTTPClient("", "", ""),
-		ignoredLabels:  getIgnoredFromArg(""),
-		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
-	}
+	cfg := testConfig(ts.URL)
 
 	cache := new(countCache)
 	counts, gauges := splitStats(collect(cfg, cache))
@@ -62,12 +57,7 @@ func TestVeneurGeneratedCountsAreCorrect(t *testing.T) {
 	require.NoError(t, err)
 	defer ts.Close()
 
-	cfg := prometheusConfig{
-		metricsHost:    ts.URL,
-		httpClient:     newHTTPClient("", "", ""),
-		ignoredLabels:  getIgnoredFromArg(""),
-		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
-	}
+	cfg := testConfig(ts.URL)
 
 	cache := new(countCache)
 	counts, _ := splitStats(collect(cfg, cache))
@@ -98,12 +88,7 @@ func TestCountsOnBridgeRestarts(t *testing.T) {
 	defer ts.Close()
 
 	cache := new(countCache)
-	cfg := prometheusConfig{
-		metricsHost:    ts.URL,
-		httpClient:     newHTTPClient("", "", ""),
-		ignoredLabels:  getIgnoredFromArg(""),
-		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
-	}
+	cfg := testConfig(ts.URL)
 
 	splitStats(collect(cfg, cache))
 
@@ -147,12 +132,7 @@ func TestCountsOnMonitoredServerRestarts(t *testing.T) {
 	defer ts.Close()
 
 	cache := new(countCache)
-	cfg := prometheusConfig{
-		metricsHost:    ts.URL,
-		httpClient:     newHTTPClient("", "", ""),
-		ignoredLabels:  getIgnoredFromArg(""),
-		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
-	}
+	cfg := testConfig(ts.URL)
 
 	splitStats(collect(cfg, cache))
 
@@ -190,12 +170,7 @@ func TestCountsOnMonitoredServerRestarts(t *testing.T) {
 	counter.Inc()
 	counter.Inc()
 
-	cfg = prometheusConfig{
-		metricsHost:    ts.URL,
-		httpClient:     newHTTPClient("", "", ""),
-		ignoredLabels:  getIgnoredFromArg(""),
-		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
-	}
+	cfg = testConfig(ts.URL)
 	counts, _ = splitStats(collect(cfg, cache))
 	count, _ = countValue(counts, "counter")
 	assert.Equal(t, 2, count)
@@ -215,12 +190,7 @@ func TestHistogramsNewBucketsAreTranslatedToDiffs(t *testing.T) {
 	defer ts.Close()
 
 	cache := new(countCache)
-	cfg := prometheusConfig{
-		metricsHost:    ts.URL,
-		httpClient:     newHTTPClient("", "", ""),
-		ignoredLabels:  getIgnoredFromArg("ignore"),
-		ignoredMetrics: getIgnoredFromArg("(.*)_ignore,promhttp_(.*)"),
-	}
+	cfg := ignoreConfig(ts.URL)
 
 	splitStats(collect(cfg, cache))
 
@@ -309,12 +279,7 @@ func TestHistogramsAreTranslatedToDiffs(t *testing.T) {
 	defer ts.Close()
 
 	cache := new(countCache)
-	cfg := prometheusConfig{
-		metricsHost:    ts.URL,
-		httpClient:     newHTTPClient("", "", ""),
-		ignoredLabels:  getIgnoredFromArg("ignore"),
-		ignoredMetrics: getIgnoredFromArg("(.*)_ignore,promhttp_(.*)"),
-	}
+	cfg := ignoreConfig(ts.URL)
 
 	counts, gauges := splitStats(collect(cfg, cache))
 
@@ -441,12 +406,7 @@ func TestSummariesCountAreTranslatedToDiffs(t *testing.T) {
 	defer ts.Close()
 
 	cache := new(countCache)
-	cfg := prometheusConfig{
-		metricsHost:    ts.URL,
-		httpClient:     newHTTPClient("", "", ""),
-		ignoredLabels:  getIgnoredFromArg(""),
-		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
-	}
+	cfg := testConfig(ts.URL)
 
 	counts, gauges := splitStats(collect(cfg, cache))
 
@@ -537,12 +497,7 @@ func TestGaugesAreNOTTranslatedToDiffs(t *testing.T) {
 	defer ts.Close()
 
 	cache := new(countCache)
-	cfg := prometheusConfig{
-		metricsHost:    ts.URL,
-		httpClient:     newHTTPClient("", "", ""),
-		ignoredLabels:  getIgnoredFromArg(""),
-		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
-	}
+	cfg := testConfig(ts.URL)
 
 	_, gauges := splitStats(collect(cfg, cache))
 
@@ -583,12 +538,7 @@ func TestCountsAreTranslatedToDiffs(t *testing.T) {
 	defer ts.Close()
 
 	cache := new(countCache)
-	cfg := prometheusConfig{
-		metricsHost:    ts.URL,
-		httpClient:     newHTTPClient("", "", ""),
-		ignoredLabels:  getIgnoredFromArg(""),
-		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
-	}
+	cfg := testConfig(ts.URL)
 
 	counts, _ := splitStats(collect(cfg, cache))
 	//won't show up in prom endpoint until its inc'd
@@ -741,12 +691,7 @@ func TestCollectGetsAllMetricsItShould(t *testing.T) {
 	histogramIgnored.Observe(45)
 
 	cache := new(countCache)
-	cfg := prometheusConfig{
-		metricsHost:    ts.URL,
-		httpClient:     newHTTPClient("", "", ""),
-		ignoredLabels:  getIgnoredFromArg("ignore"),
-		ignoredMetrics: getIgnoredFromArg("(.*)_ignore,promhttp_(.*)"),
-	}
+	cfg := ignoreConfig(ts.URL)
 
 	counts, gauges := splitStats(collect(cfg, cache))
 
@@ -840,4 +785,32 @@ func countValue(counts []statsdCount, name string, tags ...string) (int, bool) {
 func countReceived(counts []statsdCount, name string, tags ...string) bool {
 	_, found := countValue(counts, name, tags...)
 	return found
+}
+
+func testConfig(url string) prometheusConfig {
+	c, err := newHTTPClient("", "", "", "")
+	if err != nil {
+		panic(err)
+	}
+
+	return prometheusConfig{
+		metricsHost:    url,
+		httpClient:     c,
+		ignoredLabels:  getIgnoredFromArg(""),
+		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
+	}
+}
+
+func ignoreConfig(url string) prometheusConfig {
+	c, err := newHTTPClient("", "", "", "")
+	if err != nil {
+		panic(err)
+	}
+
+	return prometheusConfig{
+		metricsHost:    url,
+		httpClient:     c,
+		ignoredLabels:  getIgnoredFromArg("ignore"),
+		ignoredMetrics: getIgnoredFromArg("(.*)_ignore,promhttp_(.*)"),
+	}
 }
