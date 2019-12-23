@@ -16,7 +16,7 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/DataDog/datadog-go/statsd"
 	raven "github.com/getsentry/raven-go"

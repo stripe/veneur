@@ -11,10 +11,10 @@ import (
 	"github.com/stripe/veneur/trace"
 	"github.com/stripe/veneur/trace/metrics"
 
+	"context"
 	"github.com/segmentio/fasthash/fnv1a"
 	"goji.io"
 	"goji.io/pat"
-	"golang.org/x/net/context"
 )
 
 // Handler returns the Handler responsible for routing request processing.

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	ocontext "golang.org/x/net/context"
+	ocontext "context"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
