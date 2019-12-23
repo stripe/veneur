@@ -21,6 +21,7 @@ var (
 	cert   = flag.String("cert", "", "The path to a client cert to present to the server. Only used if using mTLS.")
 	key    = flag.String("key", "", "The path to a private key to use for mTLS. Only used if using mTLS.")
 	caCert = flag.String("cacert", "", "The path to a CA cert used to validate the server certificate. Only used if using mTLS.")
+	socket = flag.String("socket", "", "The path to a unix socket to use for transport. Useful for certains styles of proxy.")
 )
 
 func main() {
@@ -32,7 +33,10 @@ func main() {
 
 	i, err := time.ParseDuration(*interval)
 	if err != nil {
-		logrus.WithError(err).Fatalf("Failed to parse interval '%s'", *interval)
+		logrus.WithFields(logrus.Fields{
+			"error":    err,
+			"interval": *interval,
+		}).Fatal("failed to parse interval")
 	}
 
 	statsClient, _ := statsd.New(*statsHost)
@@ -41,8 +45,12 @@ func main() {
 		statsClient.Namespace = *prefix
 	}
 
+	cfg, err := prometheusConfigFromArguments()
+	if err != nil {
+		logrus.WithError(err).Fatal("unable to build prometheus config")
+	}
+
 	cache := new(countCache)
-	cfg := prometheusConfigFromArguments()
 	ticker := time.NewTicker(i)
 	for _ = range ticker.C {
 		statsdStats := collect(cfg, cache)
