@@ -15,7 +15,8 @@
 * veneur-emit now allows you to mark SSF spans as having errored. Thanks, [randallm](https://github.com/randallm)!
 * The Splunk span sink supports tag exclusion, to better manage Splunk indexing volume. If a span contains a tag that's in the excluded set, the Splunk sink will skip sending that span to Splunk. Thanks, [aditya](https://github.com/chimeracoder)!
 * veneur-prometheus now supports Prometheus Untyped metrics. Thanks, [kklipsch-stripe](https://github.com/kklipsch-stripe)!
-* The Datadog sink can now filter metric names by prefix with `datadog_metric_name_prefix_drops`.
+* veneur-prometheus now accepts a socket parameter for proxied requests. Thanks, [kklipsch-stripe](https://github.com/kklipsch-stripe)!
+* The Datadog sink can now filter metric names by prefix with `datadog_metric_name_prefix_drops`. Thanks, [kaplanelad](https://github.com/kaplanelad)!
 
 ## Updated
 
