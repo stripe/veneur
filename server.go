@@ -497,7 +497,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	if conf.DatadogAPIKey != "" && conf.DatadogAPIHostname != "" {
 		ddSink, err := datadog.NewDatadogMetricSink(
 			ret.interval.Seconds(), conf.DatadogFlushMaxPerBody, conf.Hostname, ret.Tags,
-			conf.DatadogAPIHostname, conf.DatadogAPIKey, ret.HTTPClient, log,
+			conf.DatadogAPIHostname, conf.DatadogAPIKey, ret.HTTPClient, log, conf.DatadogMetricNamePrefixDrops,
 		)
 		if err != nil {
 			return ret, err

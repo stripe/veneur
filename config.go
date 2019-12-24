@@ -11,6 +11,7 @@ type Config struct {
 	DatadogAPIHostname                        string    `yaml:"datadog_api_hostname"`
 	DatadogAPIKey                             string    `yaml:"datadog_api_key"`
 	DatadogFlushMaxPerBody                    int       `yaml:"datadog_flush_max_per_body"`
+	DatadogMetricNamePrefixDrops              []string  `yaml:"datadog_metric_name_prefix_drops"`
 	DatadogSpanBufferSize                     int       `yaml:"datadog_span_buffer_size"`
 	DatadogTraceAPIAddress                    string    `yaml:"datadog_trace_api_address"`
 	Debug                                     bool      `yaml:"debug"`

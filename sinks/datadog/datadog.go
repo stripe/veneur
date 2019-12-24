@@ -32,16 +32,17 @@ const datadogSpanType = "web"
 const datadogSpanBufferSize = 1 << 14
 
 type DatadogMetricSink struct {
-	HTTPClient      *http.Client
-	APIKey          string
-	DDHostname      string
-	hostname        string
-	flushMaxPerBody int
-	tags            []string
-	interval        float64
-	traceClient     *trace.Client
-	log             *logrus.Logger
-	excludedTags    []string
+	HTTPClient            *http.Client
+	APIKey                string
+	DDHostname            string
+	hostname              string
+	flushMaxPerBody       int
+	tags                  []string
+	interval              float64
+	traceClient           *trace.Client
+	log                   *logrus.Logger
+	metricNamePrefixDrops []string
+	excludedTags          []string
 }
 
 // DDEvent represents the structure of datadog's undocumented /intake endpoint
@@ -80,16 +81,17 @@ type DDServiceCheck struct {
 }
 
 // NewDatadogMetricSink creates a new Datadog sink for trace spans.
-func NewDatadogMetricSink(interval float64, flushMaxPerBody int, hostname string, tags []string, ddHostname string, apiKey string, httpClient *http.Client, log *logrus.Logger) (*DatadogMetricSink, error) {
+func NewDatadogMetricSink(interval float64, flushMaxPerBody int, hostname string, tags []string, ddHostname string, apiKey string, httpClient *http.Client, log *logrus.Logger, metricNamePrefixDrops []string) (*DatadogMetricSink, error) {
 	return &DatadogMetricSink{
-		HTTPClient:      httpClient,
-		APIKey:          apiKey,
-		DDHostname:      ddHostname,
-		interval:        interval,
-		flushMaxPerBody: flushMaxPerBody,
-		hostname:        hostname,
-		tags:            tags,
-		log:             log,
+		HTTPClient:            httpClient,
+		APIKey:                apiKey,
+		DDHostname:            ddHostname,
+		interval:              interval,
+		flushMaxPerBody:       flushMaxPerBody,
+		hostname:              hostname,
+		tags:                  tags,
+		metricNamePrefixDrops: metricNamePrefixDrops,
+		log:                   log,
 	}, nil
 }
 
@@ -253,10 +255,18 @@ func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) ([]
 	ddMetrics := make([]DDMetric, 0, len(metrics))
 	checks := []DDServiceCheck{}
 
+METRICLOOP:
 	for _, m := range metrics {
 		if !sinks.IsAcceptableMetric(m, dd) {
 			continue
 		}
+
+		for _, dropMetricPrefix := range dd.metricNamePrefixDrops {
+			if strings.HasPrefix(m.Name, dropMetricPrefix) {
+				continue METRICLOOP
+			}
+		}
+
 		// Defensively copy tags since we're gonna mutate it
 		tags := make([]string, 0, len(dd.tags))
 
