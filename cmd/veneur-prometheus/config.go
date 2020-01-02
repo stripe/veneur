@@ -63,7 +63,7 @@ func httpTransport(certPath, keyPath, caCertPath string) (http.RoundTripper, err
 	if certPath != "" {
 		clientCert, err := tls.LoadX509KeyPair(certPath, keyPath)
 		if err != nil {
-			return nil, fmt.Errorf("error reading client cert and key: %w", err)
+			return nil, fmt.Errorf("error reading client cert and key: %s", err)
 		}
 		clientCerts = append(clientCerts, clientCert)
 	}
@@ -72,7 +72,7 @@ func httpTransport(certPath, keyPath, caCertPath string) (http.RoundTripper, err
 		caCertPool = x509.NewCertPool()
 		caCert, err := ioutil.ReadFile(caCertPath)
 		if err != nil {
-			return nil, fmt.Errorf("error reading ca cert: %w", err)
+			return nil, fmt.Errorf("error reading ca cert: %s", err)
 		}
 		caCertPool.AppendCertsFromPEM(caCert)
 	}
