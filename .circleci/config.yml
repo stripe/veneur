@@ -2,10 +2,10 @@ version: 2.1
 executors:
   "previous":
     docker:
-      - image: golang:1.11
+      - image: golang:1.12
   "stable":
     docker:
-      - image: golang:1.12
+      - image: golang:1.13
 
 commands:
   install:

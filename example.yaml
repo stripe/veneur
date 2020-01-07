@@ -285,6 +285,13 @@ datadog_trace_api_address: ""
 datadog_metric_name_prefix_drops:
   - "an_ignorable_metric."
 
+# Excluded tags *prefixes* from specific metric *prefixes*
+# Any metrics that have tags *prefixes* will be dropped before sending to Datadog.
+datadog_exclude_tags_prefix_by_prefix_metric:
+  - metric_prefix: "metric_prefix"
+    tags: 
+      - an_ignorable_tag_prefix"
+
 # The size of the ring buffer used for retaining spans during a flush interval.
 datadog_span_buffer_size: 16384
 
