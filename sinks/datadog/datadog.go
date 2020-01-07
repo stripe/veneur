@@ -32,17 +32,18 @@ const datadogSpanType = "web"
 const datadogSpanBufferSize = 1 << 14
 
 type DatadogMetricSink struct {
-	HTTPClient            *http.Client
-	APIKey                string
-	DDHostname            string
-	hostname              string
-	flushMaxPerBody       int
-	tags                  []string
-	interval              float64
-	traceClient           *trace.Client
-	log                   *logrus.Logger
-	metricNamePrefixDrops []string
-	excludedTags          []string
+	HTTPClient                      *http.Client
+	APIKey                          string
+	DDHostname                      string
+	hostname                        string
+	flushMaxPerBody                 int
+	tags                            []string
+	interval                        float64
+	traceClient                     *trace.Client
+	log                             *logrus.Logger
+	metricNamePrefixDrops           []string
+	excludedTags                    []string
+	excludeTagsPrefixByPrefixMetric map[string][]string
 }
 
 // DDEvent represents the structure of datadog's undocumented /intake endpoint
@@ -81,17 +82,18 @@ type DDServiceCheck struct {
 }
 
 // NewDatadogMetricSink creates a new Datadog sink for trace spans.
-func NewDatadogMetricSink(interval float64, flushMaxPerBody int, hostname string, tags []string, ddHostname string, apiKey string, httpClient *http.Client, log *logrus.Logger, metricNamePrefixDrops []string) (*DatadogMetricSink, error) {
+func NewDatadogMetricSink(interval float64, flushMaxPerBody int, hostname string, tags []string, ddHostname string, apiKey string, httpClient *http.Client, log *logrus.Logger, metricNamePrefixDrops []string, excludeTagsPrefixByPrefixMetric map[string][]string) (*DatadogMetricSink, error) {
 	return &DatadogMetricSink{
-		HTTPClient:            httpClient,
-		APIKey:                apiKey,
-		DDHostname:            ddHostname,
-		interval:              interval,
-		flushMaxPerBody:       flushMaxPerBody,
-		hostname:              hostname,
-		tags:                  tags,
-		metricNamePrefixDrops: metricNamePrefixDrops,
-		log:                   log,
+		HTTPClient:                      httpClient,
+		APIKey:                          apiKey,
+		DDHostname:                      ddHostname,
+		interval:                        interval,
+		flushMaxPerBody:                 flushMaxPerBody,
+		hostname:                        hostname,
+		tags:                            tags,
+		metricNamePrefixDrops:           metricNamePrefixDrops,
+		excludeTagsPrefixByPrefixMetric: excludeTagsPrefixByPrefixMetric,
+		log:                             log,
 	}, nil
 }
 
@@ -270,6 +272,17 @@ METRICLOOP:
 		// Defensively copy tags since we're gonna mutate it
 		tags := make([]string, 0, len(dd.tags))
 
+		// Prepare exclude tags by specific prefix metric
+		var excludeTagsPrefixByPrefixMetric []string
+		if len(dd.excludeTagsPrefixByPrefixMetric) > 0 {
+			for prefixMetric, tags := range dd.excludeTagsPrefixByPrefixMetric {
+				if strings.HasPrefix(m.Name, prefixMetric) {
+					excludeTagsPrefixByPrefixMetric = tags
+					break
+				}
+			}
+		}
+
 		for i := range dd.tags {
 			exclude := false
 			for j := range dd.excludedTags {
@@ -298,6 +311,14 @@ METRICLOOP:
 				for i := range dd.excludedTags {
 					// access excluded tags by index to avoid a string copy
 					if strings.HasPrefix(tag, dd.excludedTags[i]) {
+						exclude = true
+						break
+					}
+
+				}
+
+				for i := range excludeTagsPrefixByPrefixMetric {
+					if strings.HasPrefix(tag, excludeTagsPrefixByPrefixMetric[i]) {
 						exclude = true
 						break
 					}

@@ -294,7 +294,7 @@ func TestDatadogMetricRouting(t *testing.T) {
 
 func TestDatadogFlushEvents(t *testing.T) {
 	transport := &DatadogRoundTripper{Endpoint: "/intake", Contains: ""}
-	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New(), nil)
+	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New(), nil, nil)
 	assert.NoError(t, err)
 
 	testEvent := ssf.SSFSample{
@@ -350,7 +350,7 @@ func TestDatadogFlushEvents(t *testing.T) {
 
 func TestDatadogFlushOtherMetricsForServiceChecks(t *testing.T) {
 	transport := &DatadogRoundTripper{Endpoint: "/api/v1/check_run", Contains: ""}
-	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New(), nil)
+	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New(), nil, nil)
 	assert.NoError(t, err)
 
 	testCheck := ssf.SSFSample{
@@ -373,7 +373,7 @@ func TestDatadogFlushOtherMetricsForServiceChecks(t *testing.T) {
 
 func TestDatadogFlushServiceCheck(t *testing.T) {
 	transport := &DatadogRoundTripper{Endpoint: "/api/v1/check_run", Contains: ""}
-	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New(), nil)
+	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New(), nil, nil)
 	assert.NoError(t, err)
 
 	testCheck := samplers.InterMetric{
@@ -467,4 +467,33 @@ func TestDataDogDropMetric(t *testing.T) {
 
 	assert.Empty(t, serviceChecks, "No service check metrics are reported")
 	assert.Equal(t, 2, len(ddMetrics))
+}
+
+func TestDataDogDropTagsByMetricPrefix(t *testing.T) {
+
+	ddSink := DatadogMetricSink{
+		excludeTagsPrefixByPrefixMetric: map[string][]string{
+			"remove.a": []string{"tag-ab"},
+		},
+	}
+
+	testsMetricCount := []struct {
+		Name             string
+		Metric           samplers.InterMetric
+		expectedTagCount int
+	}{
+		{"Ignore dropped tags", samplers.InterMetric{Name: "foo.a.b", Tags: []string{"tag-a", "tag-ab", "tag-abc"}}, 3},
+		{"dropped tags", samplers.InterMetric{Name: "remove.a.b", Tags: []string{"tag-a", "tag-ab", "tag-abc"}}, 1},
+		{"dropped tags", samplers.InterMetric{Name: "remove.a", Tags: []string{"tag-a", "tag-ab"}}, 1},
+	}
+
+	for _, test := range testsMetricCount {
+		t.Run(test.Name, func(t *testing.T) {
+			metrics := []samplers.InterMetric{test.Metric}
+			ddMetrics, serviceChecks := ddSink.finalizeMetrics(metrics)
+			assert.Empty(t, serviceChecks, "No service check metrics are reported")
+			assert.Equal(t, test.expectedTagCount, len(ddMetrics[0].Tags))
+		})
+	}
+
 }
