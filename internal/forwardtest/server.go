@@ -5,8 +5,9 @@ import (
 	"sync"
 	"testing"
 
+	"context"
+
 	"github.com/golang/protobuf/ptypes/empty"
-	"golang.org/x/net/context" // This can be replace with "context" after Go 1.8 support is dropped
 	"google.golang.org/grpc"
 
 	"github.com/stripe/veneur/forwardrpc"
