@@ -54,6 +54,8 @@ func sendTranslated(prometheus <-chan prometheusResults, translate translator, s
 			stats = translate.PrometheusSummary(mf)
 		case dto.MetricType_HISTOGRAM:
 			stats = translate.PrometheusHistogram(mf)
+		case dto.MetricType_UNTYPED:
+			stats = translate.PrometheusUntyped(mf)
 		default:
 			unknown++
 		}
@@ -111,6 +113,15 @@ func (t translator) PrometheusGauge(mf dto.MetricFamily) []inMemoryStat {
 	for _, gauge := range mf.GetMetric() {
 		tags := t.Tags(gauge.GetLabel())
 		stats = append(stats, newGauge(mf.GetName(), tags, float64(gauge.GetGauge().GetValue())))
+	}
+	return stats
+}
+
+func (t translator) PrometheusUntyped(mf dto.MetricFamily) []inMemoryStat {
+	var stats []inMemoryStat
+	for _, untyped := range mf.GetMetric() {
+		tags := t.Tags(untyped.GetLabel())
+		stats = append(stats, newGauge(mf.GetName(), tags, float64(untyped.GetUntyped().GetValue())))
 	}
 	return stats
 }

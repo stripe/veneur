@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"sync/atomic"
 
-	ocontext "golang.org/x/net/context"
+	ocontext "context"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
