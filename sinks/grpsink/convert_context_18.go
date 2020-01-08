@@ -5,7 +5,7 @@ package grpsink
 import (
 	"context"
 
-	ocontext "golang.org/x/net/context"
+	ocontext "context"
 )
 
 func convertContext(ctx context.Context) ocontext.Context {

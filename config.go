@@ -1,16 +1,21 @@
 package veneur
 
 type Config struct {
-	Aggregates                                []string  `yaml:"aggregates"`
-	AwsAccessKeyID                            string    `yaml:"aws_access_key_id"`
-	AwsRegion                                 string    `yaml:"aws_region"`
-	AwsS3Bucket                               string    `yaml:"aws_s3_bucket"`
-	AwsSecretAccessKey                        string    `yaml:"aws_secret_access_key"`
-	BlockProfileRate                          int       `yaml:"block_profile_rate"`
-	CountUniqueTimeseries                     bool      `yaml:"count_unique_timeseries"`
-	DatadogAPIHostname                        string    `yaml:"datadog_api_hostname"`
-	DatadogAPIKey                             string    `yaml:"datadog_api_key"`
+	Aggregates                             []string `yaml:"aggregates"`
+	AwsAccessKeyID                         string   `yaml:"aws_access_key_id"`
+	AwsRegion                              string   `yaml:"aws_region"`
+	AwsS3Bucket                            string   `yaml:"aws_s3_bucket"`
+	AwsSecretAccessKey                     string   `yaml:"aws_secret_access_key"`
+	BlockProfileRate                       int      `yaml:"block_profile_rate"`
+	CountUniqueTimeseries                  bool     `yaml:"count_unique_timeseries"`
+	DatadogAPIHostname                     string   `yaml:"datadog_api_hostname"`
+	DatadogAPIKey                          string   `yaml:"datadog_api_key"`
+	DatadogExcludeTagsPrefixByPrefixMetric []struct {
+		MetricPrefix string   `yaml:"metric_prefix"`
+		Tags         []string `yaml:"tags"`
+	} `yaml:"datadog_exclude_tags_prefix_by_prefix_metric"`
 	DatadogFlushMaxPerBody                    int       `yaml:"datadog_flush_max_per_body"`
+	DatadogMetricNamePrefixDrops              []string  `yaml:"datadog_metric_name_prefix_drops"`
 	DatadogSpanBufferSize                     int       `yaml:"datadog_span_buffer_size"`
 	DatadogTraceAPIAddress                    string    `yaml:"datadog_trace_api_address"`
 	Debug                                     bool      `yaml:"debug"`
