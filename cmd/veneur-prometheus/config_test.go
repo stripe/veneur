@@ -9,10 +9,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetHTTPClientHTTP(t *testing.T) {
-	client := newHTTPClient("", "", "")
+	client, err := newHTTPClient("", "", "", "")
+	require.NoError(t, err)
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -25,7 +27,8 @@ func TestGetHTTPClientHTTP(t *testing.T) {
 }
 
 func TestGetHTTPClientHTTPS(t *testing.T) {
-	client := newHTTPClient("./testdata/client.pem", "./testdata/client.key", "./testdata/root.pem")
+	client, err := newHTTPClient("", "./testdata/client.pem", "./testdata/client.key", "./testdata/root.pem")
+	require.NoError(t, err)
 
 	caCertPool := x509.NewCertPool()
 	caCert, err := ioutil.ReadFile("./testdata/root.pem")

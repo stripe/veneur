@@ -15,9 +15,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"context"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context" // This can be replace with "context" after Go 1.8 support is dropped
 	"google.golang.org/grpc"
 	"stathat.com/c/consistent"
 

@@ -2,10 +2,10 @@ version: 2.1
 executors:
   "previous":
     docker:
-      - image: golang:1.11
+      - image: golang:1.12
   "stable":
     docker:
-      - image: golang:1.12
+      - image: golang:1.13
 
 commands:
   install:
@@ -22,7 +22,7 @@ commands:
         default: "25101aadb97aa42907eee6a238d6d26a6cb3c756"
       gojson_tag:
         type: string
-        default: "v1.0.0"
+        default: "v1.1.0"
       cachebust:
         type: string
         default: "1"

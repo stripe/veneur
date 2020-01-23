@@ -193,13 +193,17 @@ func TestSpanInstantiateError(t *testing.T) {
 	_, err3 := NewKafkaSpanSink(logger, nil, "", "farts", "hash", "all", 1, 2, 3, "farts", "", "", 100)
 	assert.Error(t, err3)
 
-	// Sampling rate set <= 0%
-	_, err4 := NewKafkaSpanSink(logger, nil, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", 0)
+	// Sampling rate set < 0%
+	_, err4 := NewKafkaSpanSink(logger, nil, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", -1)
 	assert.Error(t, err4)
 
+	// Sampling rate set = 0%
+	_, err5 := NewKafkaSpanSink(logger, nil, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", 0)
+	assert.NoError(t, err5)
+
 	// Sampling rate set > 100%
-	_, err5 := NewKafkaSpanSink(logger, nil, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", 101)
-	assert.Error(t, err5)
+	_, err6 := NewKafkaSpanSink(logger, nil, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", 101)
+	assert.Error(t, err6)
 }
 
 func TestSpanConstructorAck(t *testing.T) {
