@@ -433,16 +433,12 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 
 		// metric-specified API key, if present, should override the common dimension
 		metricKey := ""
-		overridePresent := false
+		metricVaryByOverride := false
 
 		if sfx.varyBy != "" {
 			if val, ok := dims[sfx.varyBy]; ok {
 				metricKey = val
-				overridePresent = true
-			} else {
-				if val, ok := sfx.commonDimensions[sfx.varyBy]; ok {
-					metricKey = val
-				}
+				metricVaryByOverride = true
 			}
 		}
 
@@ -452,7 +448,7 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		}
 
 		// re-copy metric-specified API key, if present
-		if overridePresent && sfx.varyBy != "" {
+		if metricVaryByOverride {
 			dims[sfx.varyBy] = metricKey
 		}
 
