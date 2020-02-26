@@ -45,6 +45,7 @@ type Worker struct {
 	logger                *logrus.Logger
 	wm                    WorkerMetrics
 	stats                 scopedstatsd.Client
+	defaultScope          samplers.MetricScope
 }
 
 // IngestUDP on a Worker feeds the metric into the worker's PacketChan.
@@ -239,7 +240,10 @@ func (wm WorkerMetrics) appendExportedMetric(res []*metricpb.Metric, exp metricE
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, isLocal bool, countUniqueTimeseries bool, cl *trace.Client, logger *logrus.Logger, stats scopedstatsd.Client) *Worker {
+func NewWorker(
+	id int, isLocal bool, countUniqueTimeseries bool, cl *trace.Client, logger *logrus.Logger,
+	stats scopedstatsd.Client, defaultMetricScope samplers.MetricScope,
+) *Worker {
 	return &Worker{
 		id:                    id,
 		isLocal:               isLocal,
@@ -257,6 +261,7 @@ func NewWorker(id int, isLocal bool, countUniqueTimeseries bool, cl *trace.Clien
 		logger:                logger,
 		wm:                    NewWorkerMetrics(),
 		stats:                 scopedstatsd.Ensure(stats),
+		defaultScope:          defaultMetricScope,
 	}
 }
 
@@ -342,6 +347,11 @@ func (w *Worker) SampleTimeseries(m *samplers.UDPMetric) {
 
 // ProcessMetric takes a Metric and samples it
 func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
+	// TODO: This modifies the scope; is this okay? What else depends on this?
+	if w.defaultScope != samplers.MixedScope && m.Scope == samplers.MixedScope {
+		m.Scope = w.defaultScope
+	}
+
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 	w.processed++
