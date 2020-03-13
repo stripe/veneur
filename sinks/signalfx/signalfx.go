@@ -430,15 +430,26 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 				dims[key] = kv[1]
 			}
 		}
+
+		// metric-specified API key, if present, should override the common dimension
+		metricKey := ""
+		metricVaryByOverride := false
+
+		if sfx.varyBy != "" {
+			if val, ok := dims[sfx.varyBy]; ok {
+				metricKey = val
+				metricVaryByOverride = true
+			}
+		}
+
 		// Copy common dimensions
 		for k, v := range sfx.commonDimensions {
 			dims[k] = v
 		}
-		metricKey := ""
-		if sfx.varyBy != "" {
-			if val, ok := dims[sfx.varyBy]; ok {
-				metricKey = val
-			}
+
+		// re-copy metric-specified API key, if present
+		if metricVaryByOverride {
+			dims[sfx.varyBy] = metricKey
 		}
 
 		for k := range sfx.excludedTags {
