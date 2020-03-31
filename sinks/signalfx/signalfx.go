@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -120,10 +121,19 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client, maxPerFlush i
 			go submitDatapoints(ctx, wg, cl, client, points[i:end], resultCh)
 		}
 	}
-
 	submitBatch(c.sink.defaultClient, c.points)
+	unixClient, dialErr := net.Dial("unix", "/tmp/signalfx-tail.sock")
+	if dialErr != nil {
+		fmt.Println("Failed to Dial")
+	}
+	defer unixClient.Close()
 	for key, points := range c.pointsByKey {
 		submitBatch(c.sink.client(key), points)
+		msg := fmt.Sprintf("key=%v points=%v", key, points)
+		_, err := unixClient.Write([]byte(msg))
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 	wg.Wait()
 
