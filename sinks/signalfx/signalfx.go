@@ -465,7 +465,6 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		case samplers.GaugeMetric:
 			point = sfxclient.GaugeF(metric.Name, dims, metric.Value)
 		case samplers.CounterMetric:
-			// TODO I am not certain if this should be a Counter or a Cumulative
 			point = sfxclient.Counter(metric.Name, dims, int64(metric.Value))
 		case samplers.StatusMetric:
 			countStatusMetrics++
