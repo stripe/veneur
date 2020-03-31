@@ -121,16 +121,21 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client, maxPerFlush i
 			go submitDatapoints(ctx, wg, cl, client, points[i:end], resultCh)
 		}
 	}
-	submitBatch(c.sink.defaultClient, c.points)
 	unixClient, dialErr := net.Dial("unix", "/tmp/signalfx-tail.sock")
 	if dialErr != nil {
 		fmt.Println("Failed to Dial")
 	}
 	defer unixClient.Close()
+	submitBatch(c.sink.defaultClient, c.points)
+	msg := fmt.Sprintf("fallback client path points=%v", c.points)
+	_, err := unixClient.Write([]byte(msg))
+	if err != nil {
+		fmt.Println(err)
+	}
 	for key, points := range c.pointsByKey {
 		submitBatch(c.sink.client(key), points)
-		msg := fmt.Sprintf("key=%v points=%v", key, points)
-		_, err := unixClient.Write([]byte(msg))
+		msg = fmt.Sprintf("pointsByKey path key=%v points=%v", key, points)
+		_, err = unixClient.Write([]byte(msg))
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -138,7 +143,7 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client, maxPerFlush i
 	wg.Wait()
 
 	close(resultCh)
-	err := <-errorCh
+	err = <-errorCh
 	if err != nil {
 		span.Error(err)
 	}
