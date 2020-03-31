@@ -62,7 +62,6 @@ func (c *collection) addPoint(key string, point *datapoint.Datapoint) {
 
 	if c.sink.clientsByTagValue != nil {
 		if _, ok := c.sink.clientsByTagValue[key]; ok {
-			fmt.Println("key=", key)
 			c.pointsByKey[key] = append(c.pointsByKey[key], point)
 			return
 		}
@@ -435,9 +434,10 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		metricKey := ""
 		metricVaryByOverride := false
 
-		fmt.Printf("flushing sfx.varyBy=%v\n", sfx.varyBy)
+		// fmt.Printf("flushing sfx.varyBy=%v\n", sfx.varyBy)
 
 		if sfx.varyBy != "" {
+			fmt.Println("trying to lookup", sfx.varyBy, "from", dims)
 			if val, ok := dims[sfx.varyBy]; ok {
 				metricKey = val
 				fmt.Printf("varyBy started as dims[%v]=%v, will get deleted\n", sfx.varyBy, val)
