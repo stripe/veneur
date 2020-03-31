@@ -476,6 +476,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		fallback := signalfx.NewClient(conf.SignalfxEndpointBase, conf.SignalfxAPIKey, &tracedHTTP)
 		byTagClients := map[string]signalfx.DPClient{}
 		for _, perTag := range conf.SignalfxPerTagAPIKeys {
+			fmt.Printf("populating byTagClients name=%v\n", perTag.Name)
 			byTagClients[perTag.Name] = signalfx.NewClient(conf.SignalfxEndpointBase, perTag.APIKey, &tracedHTTP)
 		}
 
