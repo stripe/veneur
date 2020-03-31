@@ -61,8 +61,8 @@ func (c *collection) addPoint(key string, point *datapoint.Datapoint) {
 	defer c.sink.clientsByTagValueMu.RUnlock()
 
 	if c.sink.clientsByTagValue != nil {
-		fmt.Println("clientsByTagValue", c.sink.clientsByTagValue)
 		if _, ok := c.sink.clientsByTagValue[key]; ok {
+			fmt.Println("key=", key)
 			c.pointsByKey[key] = append(c.pointsByKey[key], point)
 			return
 		}
