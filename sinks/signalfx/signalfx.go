@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -61,29 +60,14 @@ func (c *collection) addPoint(key string, point *datapoint.Datapoint) {
 	c.sink.clientsByTagValueMu.RLock()
 	defer c.sink.clientsByTagValueMu.RUnlock()
 
-	unixClient, dialErr := net.Dial("unix", "/tmp/signalfx-tail.sock")
-	if dialErr != nil {
-		fmt.Println("Failed to Dial")
-	}
-	defer unixClient.Close()
-
-	var msg string
-
 	if c.sink.clientsByTagValue != nil {
+		fmt.Println("clientsByTagValue", c.sink.clientsByTagValue)
 		if _, ok := c.sink.clientsByTagValue[key]; ok {
 			c.pointsByKey[key] = append(c.pointsByKey[key], point)
-			msg = fmt.Sprintf("added point to pointsByKey key=%v", key)
 			return
 		}
-		msg = fmt.Sprintf("failed to lookup clientsByTagValue key=%v", key)
-	} else {
-		msg = fmt.Sprintf("added point to collection using default path")
 	}
 	c.points = append(c.points, point)
-	_, err := unixClient.Write([]byte(msg))
-	if err != nil {
-		fmt.Println(err)
-	}
 }
 
 func submitDatapoints(ctx context.Context, wg *sync.WaitGroup, cl *trace.Client, client dpsink.Sink, points []*datapoint.Datapoint, errs chan<- error) {
@@ -137,29 +121,14 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client, maxPerFlush i
 			go submitDatapoints(ctx, wg, cl, client, points[i:end], resultCh)
 		}
 	}
-	unixClient, dialErr := net.Dial("unix", "/tmp/signalfx-tail.sock")
-	if dialErr != nil {
-		fmt.Println("Failed to Dial")
-	}
-	defer unixClient.Close()
 	submitBatch(c.sink.defaultClient, c.points)
-	msg := fmt.Sprintf("fallback client path")
-	_, err := unixClient.Write([]byte(msg))
-	if err != nil {
-		fmt.Println(err)
-	}
 	for key, points := range c.pointsByKey {
 		submitBatch(c.sink.client(key), points)
-		msg = fmt.Sprintf("pointsByKey path key=%v", key)
-		_, err = unixClient.Write([]byte(msg))
-		if err != nil {
-			fmt.Println(err)
-		}
 	}
 	wg.Wait()
 
 	close(resultCh)
-	err = <-errorCh
+	err := <-errorCh
 	if err != nil {
 		span.Error(err)
 	}
@@ -465,6 +434,8 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		// metric-specified API key, if present, should override the common dimension
 		metricKey := ""
 		metricVaryByOverride := false
+
+		fmt.Printf("flushing sfx.varyBy=%v\n", sfx.varyBy)
 
 		if sfx.varyBy != "" {
 			if val, ok := dims[sfx.varyBy]; ok {
