@@ -127,14 +127,14 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client, maxPerFlush i
 	}
 	defer unixClient.Close()
 	submitBatch(c.sink.defaultClient, c.points)
-	msg := fmt.Sprintf("fallback client path points=%v", c.points)
+	msg := fmt.Sprintf("fallback client path")
 	_, err := unixClient.Write([]byte(msg))
 	if err != nil {
 		fmt.Println(err)
 	}
 	for key, points := range c.pointsByKey {
 		submitBatch(c.sink.client(key), points)
-		msg = fmt.Sprintf("pointsByKey path key=%v points=%v", key, points)
+		msg = fmt.Sprintf("pointsByKey path key=%v", key)
 		_, err = unixClient.Write([]byte(msg))
 		if err != nil {
 			fmt.Println(err)
