@@ -61,13 +61,29 @@ func (c *collection) addPoint(key string, point *datapoint.Datapoint) {
 	c.sink.clientsByTagValueMu.RLock()
 	defer c.sink.clientsByTagValueMu.RUnlock()
 
+	unixClient, dialErr := net.Dial("unix", "/tmp/signalfx-tail.sock")
+	if dialErr != nil {
+		fmt.Println("Failed to Dial")
+	}
+	defer unixClient.Close()
+
+	var msg string
+
 	if c.sink.clientsByTagValue != nil {
 		if _, ok := c.sink.clientsByTagValue[key]; ok {
 			c.pointsByKey[key] = append(c.pointsByKey[key], point)
+			msg = fmt.Sprintf("added point to pointsByKey key=%v", key)
 			return
 		}
+		msg = fmt.Sprintf("failed to lookup clientsByTagValue key=%v", key)
+	} else {
+		msg = fmt.Sprintf("added point to collection using default path")
 	}
 	c.points = append(c.points, point)
+	_, err := unixClient.Write([]byte(msg))
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func submitDatapoints(ctx context.Context, wg *sync.WaitGroup, cl *trace.Client, client dpsink.Sink, points []*datapoint.Datapoint, errs chan<- error) {
