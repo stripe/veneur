@@ -3,6 +3,8 @@ package scopedstatsd
 import (
 	"testing"
 
+	"github.com/pkg/errors"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -10,7 +12,7 @@ func TestEnsure(t *testing.T) {
 	var theNilOne Client = nil
 	ensured := Ensure(theNilOne)
 	assert.NotNil(t, ensured)
-	assert.NoError(t, ensured.Count("hi", 0, nil, 1.0))
+	assert.Error(t, errors.New("statsd client is nil"), ensured.Count("hi", 0, nil, 1.0))
 }
 
 func TestDoesSomething(t *testing.T) {
@@ -49,7 +51,7 @@ func TestDoesSomething(t *testing.T) {
 				},
 			}
 			for _, fn := range testFuncs {
-				assert.NoError(t, fn())
+				assert.Error(t, errors.New("statsd client is nil"), fn())
 			}
 		})
 	}

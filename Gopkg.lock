@@ -2,12 +2,11 @@
 
 
 [[projects]]
-  digest = "1:6d83aad9c98e13079ad8a4dbc740892edf5384bcd07f1d789bb66cd8ecfae2cd"
+  digest = "1:6c364e65eec127e77ec8b0696f1422890af3c19a252f2b72b98784ab24b9752e"
   name = "github.com/DataDog/datadog-go"
   packages = ["statsd"]
   pruneopts = "NUT"
-  revision = "e67964b4021ad3a334e748e8811eb3cd6becbc6e"
-  version = "2.1.0"
+  revision = "f6e76752dd64e7329d6b314f92a08748a78c2250"
 
 [[projects]]
   digest = "1:e30fbdce732588b475a444cbeabbcbef1c6c08b8d4f3efc142853551a1b0ab13"
