@@ -65,7 +65,6 @@ func (c *collection) addPoint(key string, point *datapoint.Datapoint) {
 			c.pointsByKey[key] = append(c.pointsByKey[key], point)
 			return
 		}
-		c.sink.log.Warn(fmt.Sprintf("No SignalFx client exists for tag value '%s', using default client", key))
 	}
 	c.points = append(c.points, point)
 }
