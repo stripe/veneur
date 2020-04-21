@@ -68,7 +68,7 @@ func (c *collection) addPoint(ctx context.Context, key string, point *datapoint.
 			c.pointsByKey[key] = append(c.pointsByKey[key], point)
 			return
 		}
-		span.Add(ssf.Count("flush.fallback_client_points_flushed", 1, map[string]string{"key": key, "sink": "signalfx", "veneurglobalonly": "true"}))
+		span.Add(ssf.Count("flush.fallback_client_points_flushed", 1, map[string]string{"vary_by": c.sink.varyBy, "key": key, "sink": "signalfx", "veneurglobalonly": "true"}))
 	}
 	c.points = append(c.points, point)
 }
