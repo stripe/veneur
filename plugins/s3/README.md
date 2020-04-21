@@ -19,7 +19,7 @@ Optional parameters below.
 * aws_access_key_id `string`
 * aws_secret_access_key `string`
 
-The Golang AWS SDK will load up Credentials in the following order. https://docs.aws.amazon.com/sdk-for-go/api/aws/session/
+The Go AWS SDK will load up Credentials in the following order. https://docs.aws.amazon.com/sdk-for-go/api/aws/session/
 
 1. Environment Variables `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_PROFILE`, `AWS_REGION`
 2. Shared Credentials file `~/.aws/credentials`
