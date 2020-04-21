@@ -684,28 +684,32 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	awsID := conf.AwsAccessKeyID
 	awsSecret := conf.AwsSecretAccessKey
 	if conf.AwsS3Bucket != "" {
+		var sess *session.Session
+		var err error
 		if len(awsID) > 0 && len(awsSecret) > 0 {
-			sess, err := session.NewSession(&aws.Config{
+			sess, err = session.NewSession(&aws.Config{
 				Region:      aws.String(conf.AwsRegion),
 				Credentials: credentials.NewStaticCredentials(awsID, awsSecret, ""),
 			})
-
-			if err != nil {
-				logger.Infof("error getting AWS session: %s", err)
-				svc = nil
-			} else {
-				logger.Info("Successfully created AWS session")
-				svc = s3.New(sess)
-				plugin := &s3p.S3Plugin{
-					Logger:   log,
-					Svc:      svc,
-					S3Bucket: conf.AwsS3Bucket,
-					Hostname: ret.Hostname,
-				}
-				ret.registerPlugin(plugin)
-			}
 		} else {
-			logger.Info("AWS S3 credentials not found. S3 plugin is disabled.")
+			sess, err = session.NewSession(&aws.Config{
+				Region: aws.String(conf.AwsRegion),
+			})
+		}
+
+		if err != nil {
+			logger.Infof("error getting AWS session: %s", err)
+			svc = nil
+		} else {
+			logger.Info("Successfully created AWS session")
+			svc = s3.New(sess)
+			plugin := &s3p.S3Plugin{
+				Logger:   log,
+				Svc:      svc,
+				S3Bucket: conf.AwsS3Bucket,
+				Hostname: ret.Hostname,
+			}
+			ret.registerPlugin(plugin)
 		}
 	} else {
 		logger.Info("AWS S3 bucket not set. Skipping S3 Plugin initialization.")
