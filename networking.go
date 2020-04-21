@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -142,9 +143,15 @@ func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Add
 // that is closed once the listening connection has terminated.
 func startStatsdUnix(s *Server, addr *net.UnixAddr, packetPool *sync.Pool) (<-chan struct{}, net.Addr) {
 	done := make(chan struct{})
-	// ensure we are the only ones locking this socket:
-	lock := acquireLockForSocket(addr)
 
+	isAbstractSocket := isAbstractSocket(addr)
+
+	// ensure we are the only ones locking this socket if it's a file:
+	var lock *flock.Flock
+	if !isAbstractSocket {
+		lock = acquireLockForSocket(addr)
+	}
+	fmt.Println(addr.String())
 	conn, err := net.ListenUnixgram(addr.Network(), addr)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't listen on UNIX socket %v: %v", addr, err))
@@ -157,14 +164,18 @@ func startStatsdUnix(s *Server, addr *net.UnixAddr, packetPool *sync.Pool) (<-ch
 	}
 
 	// Make the socket connectable by everyone with access to the socket pathname:
-	err = os.Chmod(addr.String(), 0666)
-	if err != nil {
-		panic(fmt.Sprintf("Couldn't set permissions on %v: %v", addr, err))
+	if !isAbstractSocket {
+		err = os.Chmod(addr.String(), 0666)
+		if err != nil {
+			panic(fmt.Sprintf("Couldn't set permissions on %v: %v", addr, err))
+		}
 	}
 
 	go func() {
 		defer func() {
-			lock.Unlock()
+			if !isAbstractSocket {
+				lock.Unlock()
+			}
 			close(done)
 		}()
 		for {
@@ -213,8 +224,14 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) (<-chan struct{}, net.Addr) {
 	if addr.Network() != "unix" {
 		panic(fmt.Sprintf("Can't listen for SSF on %v: only udp:// and unix:// addresses are supported", addr))
 	}
-	// ensure we are the only ones locking this socket:
-	lock := acquireLockForSocket(addr)
+
+	isAbstractSocket := isAbstractSocket(addr)
+
+	// ensure we are the only ones locking this socket if it's a file:
+	var lock *flock.Flock
+	if !isAbstractSocket {
+		lock = acquireLockForSocket(addr)
+	}
 
 	listener, err := net.ListenUnix(addr.Network(), addr)
 	if err != nil {
@@ -222,16 +239,20 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) (<-chan struct{}, net.Addr) {
 	}
 
 	// Make the socket connectable by everyone with access to the socket pathname:
-	err = os.Chmod(addr.String(), 0666)
-	if err != nil {
-		panic(fmt.Sprintf("Couldn't set permissions on %v: %v", addr, err))
+	if !isAbstractSocket {
+		err = os.Chmod(addr.String(), 0666)
+		if err != nil {
+			panic(fmt.Sprintf("Couldn't set permissions on %v: %v", addr, err))
+		}
 	}
 
 	go func() {
 		conns := make(chan net.Conn)
 		go func() {
 			defer func() {
-				lock.Unlock()
+				if !isAbstractSocket {
+					lock.Unlock()
+				}
 				close(done)
 			}()
 			for {
@@ -278,4 +299,8 @@ func acquireLockForSocket(addr *net.UnixAddr) *flock.Flock {
 	// We have the exclusive use of the socket, clear away any old sockets and listen:
 	_ = os.Remove(addr.String())
 	return lock
+}
+
+func isAbstractSocket(addr *net.UnixAddr) bool {
+	return strings.HasPrefix(addr.String(), "@")
 }
