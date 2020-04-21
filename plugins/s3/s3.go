@@ -29,7 +29,7 @@ type S3Plugin struct {
 	Svc      s3iface.S3API
 	S3Bucket string
 	Hostname string
-	Interval int
+	Interval float64
 }
 
 func (p *S3Plugin) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
@@ -96,7 +96,7 @@ func S3Path(hostname string, ft filetype) *string {
 // EncodeInterMetricsCSV returns a reader containing the gzipped CSV representation of the
 // InterMetric data, one row per InterMetric.
 // the AWS sdk requires seekable input, so we return a ReadSeeker here
-func EncodeInterMetricsCSV(metrics []samplers.InterMetric, delimiter rune, includeHeaders bool, hostname string, interval int) (io.ReadSeeker, error) {
+func EncodeInterMetricsCSV(metrics []samplers.InterMetric, delimiter rune, includeHeaders bool, hostname string, interval float64) (io.ReadSeeker, error) {
 	b := &bytes.Buffer{}
 	gzw := gzip.NewWriter(b)
 	w := csv.NewWriter(gzw)

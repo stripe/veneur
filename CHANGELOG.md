@@ -42,6 +42,7 @@
 * The signalfx sink no longer deadlocks the flush process if it receives more than one error per submission. Thanks, [antifuchs](https://github.com/antifuchs)!
 * Fixed the README to link to the correct HLL implementation. Thanks, [gphat](https://github.com/gphat)!
 * Fixed the BucketRegionError while using the S3 Plugin. Thanks, [linuxdynasty](https://github.com/linuxdynasty)!
+* Fixed server.go so that it passes `Interval` to the S3 Plugin and localfile plugin. Also added tests in the csv_test.go to test for `+Inf` when passing an Interval of 0. Thanks, [Linuxdynasty(https://github.com/linuxdynasty)!
 
 ## Removed
 

@@ -68,6 +68,27 @@ func CSVTestCases() []CSVTestCase {
 	}
 }
 
+func ZeroIntervalCSVTestCases() []CSVTestCase {
+
+	partition := time.Now().UTC().Format("20060102")
+
+	return []CSVTestCase{
+		{
+			// Test that when passed an interval of 0, it will return +Inf
+			Name: "Interval of 0",
+			InterMetric: samplers.InterMetric{
+				Name:      "a.b.c.max",
+				Timestamp: 1476119058,
+				Value:     float64(100),
+				Tags: []string{"foo:bar",
+					"baz:quz"},
+				Type: samplers.CounterMetric,
+			},
+			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\trate\ttestbox-c3eac9\t0\t2016-10-10 05:04:18\t+Inf\t%s\n", partition)),
+		},
+	}
+}
+
 func TestEncodeCSV(t *testing.T) {
 	testCases := CSVTestCases()
 
@@ -81,6 +102,30 @@ func TestEncodeCSV(t *testing.T) {
 
 			tm := time.Now()
 			err := EncodeInterMetricCSV(tc.InterMetric, w, &tm, "testbox-c3eac9", 10)
+			assert.NoError(t, err)
+
+			// We need to flush or there won't actually be any data there
+			w.Flush()
+			assert.NoError(t, err)
+
+			assertReadersEqual(t, tc.Row, b)
+		})
+	}
+}
+
+func TestEncodeCSVZeroInterval(t *testing.T) {
+	testCases := ZeroIntervalCSVTestCases()
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+
+			b := &bytes.Buffer{}
+
+			w := csv.NewWriter(b)
+			w.Comma = '\t'
+
+			tm := time.Now()
+			err := EncodeInterMetricCSV(tc.InterMetric, w, &tm, "testbox-c3eac9", 0)
 			assert.NoError(t, err)
 
 			// We need to flush or there won't actually be any data there
