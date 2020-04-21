@@ -10,6 +10,7 @@ statsd_listen_addresses:
  - udp://localhost:8126
  - tcp://localhost:8126
  - unixgram:///tmp/veneur-statsd.sock
+ - unixgram:@veneur-statsd.sock
 
 # The addresses on which to listen for SSF data. As with
 # statsd_listen_addresses, these are formatted as URLs, with schemes
@@ -21,6 +22,7 @@ statsd_listen_addresses:
 ssf_listen_addresses:
   - udp://localhost:8128
   - unix:///tmp/veneur-ssf.sock
+  - unix:@veneur-ssf.sock
 
 # TLS
 # These are only useful in conjunction with TCP listening sockets

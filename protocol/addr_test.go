@@ -16,6 +16,7 @@ func TestListenAddr(t *testing.T) {
 		{"tcp://:8200", "tcp", ":8200"},
 		{"tcp6://[::1]:8200", "tcp", "[::1]:8200"},
 		{"unix:///tmp/foo.sock", "unix", "/tmp/foo.sock"},
+		{"unix:@abstract.sock", "unix", "@abstract.sock"},
 		{"unixgram:///tmp/foo.sock", "unixgram", "/tmp/foo.sock"},
 		{"unixpacket:///tmp/foo.sock", "unixpacket", "/tmp/foo.sock"},
 	}
