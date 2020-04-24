@@ -56,7 +56,10 @@ type collection struct {
 	pointsByKey map[string][]*datapoint.Datapoint
 }
 
-func (c *collection) addPoint(key string, point *datapoint.Datapoint) {
+func (c *collection) addPoint(ctx context.Context, key string, point *datapoint.Datapoint) {
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	defer span.ClientFinish(c.sink.traceClient)
+
 	c.sink.clientsByTagValueMu.RLock()
 	defer c.sink.clientsByTagValueMu.RUnlock()
 
@@ -65,7 +68,7 @@ func (c *collection) addPoint(key string, point *datapoint.Datapoint) {
 			c.pointsByKey[key] = append(c.pointsByKey[key], point)
 			return
 		}
-		c.sink.log.Warn(fmt.Sprintf("No SignalFx client exists for tag value '%s', using default client", key))
+		span.Add(ssf.Count("flush.fallback_client_points_flushed", 1, map[string]string{"vary_by": c.sink.varyBy, "key": key, "sink": "signalfx", "veneurglobalonly": "true"}))
 	}
 	c.points = append(c.points, point)
 }
@@ -471,7 +474,7 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 			countStatusMetrics++
 			point = sfxclient.GaugeF(metric.Name, dims, metric.Value)
 		}
-		coll.addPoint(metricKey, point)
+		coll.addPoint(subCtx, metricKey, point)
 		numPoints++
 	}
 	tags := map[string]string{"sink": "signalfx"}
