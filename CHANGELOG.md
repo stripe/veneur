@@ -4,6 +4,10 @@
 * The Datadog sink can now filter metric names by prefix with `datadog_metric_name_prefix_drops`. Thanks, [kaplanelad](https://github.com/kaplanelad)!
 * The Datadog sink can now filter tags by metric names prefix with `datadog_exclude_tags_prefix_by_prefix_metric`. Thanks, [kaplanelad](https://github.com/kaplanelad)!
 * When specifying the SignalFx key with `signalfx_vary_key_by`, if both the host and the metric provide a value, the metric-provided value will take precedence over the host-provided value. This allows more granular forms of metric organization and attribution. Thanks, [aditya](https://github.com/chimeracoder)!
+* Support for listening to abstract statsd metrics on Unix Domain Socket(Datagram type). Thanks, [androohan](https://github.com/androohan)!
+
+## Updated
+* Updated the vendored version of DataDog/datadog-go which fixes parsing for abstract unix domain sockets in the statsd client. Thanks, [androohan](https://github.com/androohan)!
 
 # 13.0.0, 2020-01-03
 
@@ -30,6 +34,7 @@
 * Updated the vendored version of DataDog/datadog-go which adds support for sending metrics to Unix Domain socket. Thanks, [prudhvi](https://github.com/prudhvi)!
 * Splunk sink: Downgraded Splunk HEC errors to be logged at warning level, rather than error level. Added a note to clarify that Splunk cluster restarts can cause temporary errors, which are not necessarily problematic. Thanks, [aditya](https://github.com/chimeracoder)!
 * Updated the vendored version of github.com/gogo/protobuf which fixes Gopkg.toml conflicts for users of veneur. Thanks, [dtbartle](http://github.com/dtbartle)!
+* Updated server.go to use the aws sdk (https://docs.aws.amazon.com/sdk-for-go/api/aws/session/) when the creds are not set in the config.yaml. Thanks, [linuxdynasty](https://github.com/linuxdynasty)!
 
 ## Bugfixes
 * veneur-prometheus now reports incremental counters instead of cumulative counters. This may cause dramatic differences in the statistics reported by veneur-prometheus.  Thanks, [kklipsch-stripe](https://github.com/kklipsch-stripe)!
