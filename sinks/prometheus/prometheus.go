@@ -25,7 +25,7 @@ var (
 
 	// Use DogstatsD serialization format.
 	// https://github.com/prometheus/statsd_exporter#tagging-extensions.
-	serializationFormat = "{{.Name}}:{{.Value}}|{{.Type}}#{{.Tags}}"
+	serializationFormat = "{{.Name}}:{{.Value}}|{{.Type}}|#{{.Tags}}"
 )
 
 // StatsdRepeater is the metric sink implementation for Prometheus.

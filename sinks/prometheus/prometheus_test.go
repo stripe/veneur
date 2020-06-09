@@ -36,7 +36,7 @@ func TestNewStatsdRepeater(t *testing.T) {
 		},
 		"invalid address": {
 			addr:    "hi",
-			network: "ip4",
+			network: "tcp",
 			wantErr: true,
 		},
 	} {
@@ -117,8 +117,8 @@ func TestMetricFlush(t *testing.T) {
 	}))
 
 	for _, want := range []string{
-		"a.b.gauge:100|g#foo:bar,baz:quz\na.b.counter:2|c#foo:bar",
-		"a.b.status:5|g#",
+		"a.b.gauge:100|g|#foo:bar,baz:quz\na.b.counter:2|c|#foo:bar",
+		"a.b.status:5|g|#",
 	} {
 		select {
 		case res := <-resChan:
