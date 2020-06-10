@@ -230,7 +230,7 @@ Relatedly, if you want to forward a counter or gauge to the global Veneur instan
 
 #### Routing metrics
 
-Veneur supports specifying that metrics should only be routed to a specific metric sink, with the `veneursinkonly:<sink_name>` tag. The `<sink_name>` value can be any configured metric sink. Currently, that's `datadog`, `kafka`, `signalfx`. It's possible to specify multiple sink destination tags on a metric, which will cause the metric to be routed to each sink specified.
+Veneur supports specifying that metrics should only be routed to a specific metric sink, with the `veneursinkonly:<sink_name>` tag. The `<sink_name>` value can be any configured metric sink. Currently, that's `datadog`, `kafka`, `signalfx`, `prometheus`. It's possible to specify multiple sink destination tags on a metric, which will cause the metric to be routed to each sink specified.
 
 # Configuration
 

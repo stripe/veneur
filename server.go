@@ -49,6 +49,7 @@ import (
 	"github.com/stripe/veneur/sinks/falconer"
 	"github.com/stripe/veneur/sinks/kafka"
 	"github.com/stripe/veneur/sinks/lightstep"
+	"github.com/stripe/veneur/sinks/prometheus"
 	"github.com/stripe/veneur/sinks/signalfx"
 	"github.com/stripe/veneur/sinks/splunk"
 	"github.com/stripe/veneur/sinks/ssfmetrics"
@@ -663,6 +664,20 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		} else {
 			logger.Warn("Kafka span sink skipped due to missing span topic")
 		}
+	}
+
+	if conf.PrometheusRepeaterAddress != "" {
+		prometheusMetricSink, err := prometheus.NewStatsdRepeater(
+			conf.PrometheusRepeaterAddress,
+			conf.PrometheusNetworkType,
+			log,
+		)
+		if err != nil {
+			return ret, err
+		}
+
+		ret.metricSinks = append(ret.metricSinks, prometheusMetricSink)
+		logger.Info("Configured Prometheus metric sink.")
 	}
 
 	{
