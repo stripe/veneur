@@ -25,7 +25,7 @@ var (
 
 	// Use DogstatsD serialization format.
 	// https://github.com/prometheus/statsd_exporter#tagging-extensions.
-	serializationFormat = "{{.Name}}:{{.Value}}|{{.Type}}|#{{.Tags}}"
+	serializationFormat = "{{.Name}}:{{.Value}}|{{.Type}}|#{{.Tags}}\n"
 )
 
 // StatsdRepeater is the metric sink implementation for Prometheus.
@@ -128,7 +128,7 @@ func (s *StatsdRepeater) serializeMetrics(metrics []samplers.InterMetric) string
 		statsdMetrics = append(statsdMetrics, sm.String())
 	}
 
-	return strings.Join(statsdMetrics, "\n")
+	return strings.Join(statsdMetrics, "")
 }
 
 // metricTypeEnc returns "g" for gauge and status metrics, "c" for counters.

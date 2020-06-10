@@ -117,8 +117,8 @@ func TestMetricFlush(t *testing.T) {
 	}))
 
 	for _, want := range []string{
-		"a.b.gauge:100|g|#foo:bar,baz:quz\na.b.counter:2|c|#foo:bar",
-		"a.b.status:5|g|#",
+		"a.b.gauge:100|g|#foo:bar,baz:quz\na.b.counter:2|c|#foo:bar\n",
+		"a.b.status:5|g|#\n",
 	} {
 		select {
 		case res := <-resChan:
