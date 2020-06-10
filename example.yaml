@@ -537,6 +537,15 @@ splunk_hec_max_connection_lifetime: "10s"
 # the same time. If set to 0, there will be no jitter.
 splunk_hec_connection_lifetime_jitter: "10s"
 
+# == Prometheus ==
+#
+# The URL to used to send packets to Statsd Repeater.
+prometheus_repeater_address: "localhost:9125"
+
+# (optional) The packet type (tcp / udp) that Veneur will use to send packets
+# to Statsd Repeater. This will be tcp by default.
+prometheus_network_type: "tcp"
+
 # == PLUGINS ==
 
 # == S3 Output ==

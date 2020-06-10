@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/sinks/datadog"
 	"github.com/stripe/veneur/sinks/lightstep"
+	"github.com/stripe/veneur/sinks/prometheus"
 )
 
 func TestFlushTracesBySink(t *testing.T) {
@@ -161,4 +162,21 @@ func TestNewDatadogMetricSinkConfig(t *testing.T) {
 	assert.Equal(t, "datadog", sink.Name())
 	// Verify that the values got set	assert.Equal(t, "apikey", sink.APIKey)
 	assert.Equal(t, "http://api", sink.DDHostname)
+}
+
+func TestNewPrometheusMetricSinkConfig(t *testing.T) {
+	config := Config{
+		PrometheusRepeaterAddress: "localhost:9125",
+		PrometheusNetworkType:     "tcp",
+
+		// Required or NewFromConfig fails.
+		Interval:     "10s",
+		StatsAddress: "localhost:62251",
+	}
+
+	server, err := NewFromConfig(logrus.New(), config)
+	assert.NoError(t, err)
+
+	sink := server.metricSinks[0].(*prometheus.StatsdRepeater)
+	assert.Equal(t, "prometheus", sink.Name())
 }
