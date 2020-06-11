@@ -57,7 +57,7 @@ func startProcessingOnUDP(s *Server, protocol string, addr *net.UDPAddr, pool *s
 	for i := 0; i < s.numReaders; i++ {
 		go func() {
 			defer func() {
-				ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+				ConsumePanic(s.TraceClient, s.Hostname, recover())
 			}()
 			// each goroutine gets its own socket
 			// if the sockets support SO_REUSEPORT, then this will cause the
@@ -130,7 +130,7 @@ func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Add
 
 	go func() {
 		defer func() {
-			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+			ConsumePanic(s.TraceClient, s.Hostname, recover())
 		}()
 		s.ReadTCPSocket(listener)
 	}()
