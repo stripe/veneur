@@ -27,7 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
-	"github.com/getsentry/raven-go"
+	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
@@ -90,7 +90,6 @@ type Server struct {
 	CountUniqueTimeseries bool
 
 	Statsd *scopedstatsd.ScopedClient
-	Sentry *raven.Client
 
 	Hostname  string
 	Tags      []string
@@ -316,10 +315,12 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		return ret, err
 	}
 
-	// nil is a valid sentry client that noops all methods, if there is no DSN
-	// we can just leave it as nil
+	// Initialize Sentry if a Dsn is provided, else we leave it uninitalized
+	// and no-op the methods.
 	if conf.SentryDsn != "" {
-		ret.Sentry, err = raven.New(conf.SentryDsn)
+		err = sentry.Init(sentry.ClientOptions{
+			Dsn: conf.SentryDsn,
+		})
 		if err != nil {
 			return ret, err
 		}
@@ -355,7 +356,6 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	// https://github.com/sirupsen/logrus/issues/295
 	if _, ok := logger.Hooks[logrus.FatalLevel]; !ok {
 		logger.AddHook(sentryHook{
-			c:        ret.Sentry,
 			hostname: ret.Hostname,
 			lv: []logrus.Level{
 				logrus.ErrorLevel,
@@ -393,7 +393,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {
-				ConsumePanic(ret.Sentry, ret.TraceClient, ret.Hostname, recover())
+				ConsumePanic(ret.TraceClient, ret.Hostname, recover())
 			}()
 			w.Work()
 		}(ret.Workers[i])
@@ -790,7 +790,7 @@ func (s *Server) Start() {
 	go func() {
 		log.Info("Starting Event worker")
 		defer func() {
-			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+			ConsumePanic(s.TraceClient, s.Hostname, recover())
 		}()
 		s.EventWorker.Work()
 	}()
@@ -799,7 +799,7 @@ func (s *Server) Start() {
 	for i := 0; i < s.SpanWorkerGoroutines; i++ {
 		go func() {
 			defer func() {
-				ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+				ConsumePanic(s.TraceClient, s.Hostname, recover())
 			}()
 			s.SpanWorker.Work()
 		}()
@@ -864,7 +864,7 @@ func (s *Server) Start() {
 	// Flush every Interval forever!
 	go func() {
 		defer func() {
-			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+			ConsumePanic(s.TraceClient, s.Hostname, recover())
 		}()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -910,7 +910,7 @@ func (s *Server) Start() {
 // program's main function.
 func (s *Server) FlushWatchdog() {
 	defer func() {
-		ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+		ConsumePanic(s.TraceClient, s.Hostname, recover())
 	}()
 
 	if s.stuckIntervals == 0 {
@@ -1209,7 +1209,7 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 
 func (s *Server) handleTCPGoroutine(conn net.Conn) {
 	defer func() {
-		ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+		ConsumePanic(s.TraceClient, s.Hostname, recover())
 	}()
 
 	defer func() {

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/getsentry/raven-go"
+	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 )
 
@@ -14,14 +14,14 @@ func consumeAndCatchPanic(s *Server) (result interface{}) {
 	defer func() {
 		result = recover()
 	}()
-	ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, "panic")
+	ConsumePanic(s.TraceClient, s.Hostname, "panic")
 	return
 }
 
 func TestConsumePanicWithoutSentry(t *testing.T) {
 	s := &Server{}
 	// does nothing
-	ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, nil)
+	ConsumePanic(s.TraceClient, s.Hostname, nil)
 
 	recovered := consumeAndCatchPanic(s)
 	if recovered != "panic" {
@@ -29,37 +29,50 @@ func TestConsumePanicWithoutSentry(t *testing.T) {
 	}
 }
 
-type fakeSentryTransport struct {
-	packets []*raven.Packet
+// Mock transport for capturing sent events.
+type transportMock struct {
+	events []*sentry.Event
 }
 
-func (t *fakeSentryTransport) Send(url string, authHeader string, packet *raven.Packet) error {
-	t.packets = append(t.packets, packet)
-	return nil
+func (t *transportMock) Configure(options sentry.ClientOptions) {}
+
+func (t *transportMock) SendEvent(event *sentry.Event) {
+	t.events = append(t.events, event)
+}
+
+func (t *transportMock) Flush(timeout time.Duration) bool {
+	return true
+}
+
+func (t *transportMock) Events() []*sentry.Event {
+	return t.events
+}
+
+func (t *transportMock) ClearEvents() {
+	t.events = []*sentry.Event{}
 }
 
 func TestConsumePanicWithSentry(t *testing.T) {
-	s := &Server{}
-	var err error
-	s.Sentry, err = raven.NewClient("", nil)
+	transport := &transportMock{}
+	err := sentry.Init(sentry.ClientOptions{
+		Transport: transport,
+	})
 	if err != nil {
-		t.Fatal("failed to create sentry client:", err)
+		t.Fatal("failed to create sentry client with mock transport:", err)
 	}
-	fakeTransport := &fakeSentryTransport{}
-	s.Sentry.Transport = fakeTransport
 
-	// nil does nothing
-	ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, nil)
-	if len(fakeTransport.packets) != 0 {
-		t.Error("ConsumePanic(nil) should not send data:", fakeTransport.packets)
+	s := &Server{}
+	ConsumePanic(s.TraceClient, s.Hostname, nil)
+	if len(transport.Events()) != 0 {
+		t.Error("ConsumePanic(nil) should not send data:", transport.Events())
 	}
 
 	recovered := consumeAndCatchPanic(s)
 	if recovered != "panic" {
-		t.Error("ConsumePanic should panic", recovered)
+		t.Errorf("ConsumePanic(panic) should panic, got %v instead", recovered)
 	}
-	if len(fakeTransport.packets) != 1 {
-		t.Error("expected 1 packet:", fakeTransport.packets)
+	if len(transport.Events()) != 1 {
+		t.Error("expected 1 packet:", transport.Events())
 	}
 }
 
@@ -78,13 +91,13 @@ func TestHookWithoutSentry(t *testing.T) {
 
 func TestHook(t *testing.T) {
 	hook := &sentryHook{}
-	var err error
-	hook.c, err = raven.NewClient("", nil)
+	transport := &transportMock{}
+	err := sentry.Init(sentry.ClientOptions{
+		Transport: transport,
+	})
 	if err != nil {
-		t.Fatal("error creating sentry client:", err)
+		t.Fatal("failed to create sentry client with mock transport:", err)
 	}
-	fakeTransport := &fakeSentryTransport{}
-	hook.c.Transport = fakeTransport
 
 	// entry without any tags
 	entry := &logrus.Entry{}
@@ -94,22 +107,21 @@ func TestHook(t *testing.T) {
 	entry.Message = "received zero-length trace packet"
 	hook.Fire(entry)
 
-	if len(fakeTransport.packets) != 1 {
-		t.Fatal("expected 1 packet", fakeTransport.packets)
+	if len(transport.Events()) != 1 {
+		t.Fatal("expected 1 packet", transport.Events())
 	}
-	if len(fakeTransport.packets[0].Extra) != 0 {
-		t.Error("expected no extra tags", fakeTransport.packets[0].Extra)
+	if len(transport.Events()[0].Extra) != 0 {
+		t.Error("expected no extra tags", transport.Events()[0].Extra)
 	}
-	fakeTransport.packets = nil
+	transport.ClearEvents()
 
 	// entry with an error tag that gets stripped
 	entry.Data = map[string]interface{}{logrus.ErrorKey: errors.New("some error")}
 	hook.Fire(entry)
-	if len(fakeTransport.packets) != 1 {
-		t.Fatal("expected 1 packet", fakeTransport.packets)
+	if len(transport.Events()) != 1 {
+		t.Fatal("expected 1 packet", transport.Events())
 	}
-	if len(fakeTransport.packets[0].Extra) != 0 {
-		t.Error("expected no extra tags", fakeTransport.packets[0].Extra)
+	if len(transport.Events()[0].Extra) != 0 {
+		t.Error("expected no extra tags", transport.Events()[0].Extra)
 	}
-	fakeTransport.packets = nil
 }

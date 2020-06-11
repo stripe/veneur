@@ -19,7 +19,7 @@ import (
 	"context"
 
 	"github.com/DataDog/datadog-go/statsd"
-	raven "github.com/getsentry/raven-go"
+	"github.com/getsentry/sentry-go"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/profile"
 	"github.com/sirupsen/logrus"
@@ -38,7 +38,6 @@ import (
 )
 
 type Proxy struct {
-	Sentry                     *raven.Client
 	Hostname                   string
 	ForwardDestinations        *consistent.Consistent
 	TraceDestinations          *consistent.Consistent
@@ -84,8 +83,16 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 	p.Hostname = hostname
 	p.shutdown = make(chan struct{})
 
+	if conf.SentryDsn != "" {
+		err = sentry.Init(sentry.ClientOptions{
+			Dsn: conf.SentryDsn,
+		})
+		if err != nil {
+			return
+		}
+	}
+
 	logger.AddHook(sentryHook{
-		c:        p.Sentry,
 		hostname: hostname,
 		lv: []logrus.Level{
 			logrus.ErrorLevel,
@@ -322,7 +329,7 @@ func (p *Proxy) Start() {
 		log.Info("Creating service discovery goroutine")
 		go func() {
 			defer func() {
-				ConsumePanic(p.Sentry, p.TraceClient, p.Hostname, recover())
+				ConsumePanic(p.TraceClient, p.Hostname, recover())
 			}()
 			ticker := time.NewTicker(p.ConsulInterval)
 			for range ticker.C {
@@ -349,7 +356,7 @@ func (p *Proxy) Start() {
 	go func() {
 		hostname, _ := os.Hostname()
 		defer func() {
-			ConsumePanic(p.Sentry, p.TraceClient, hostname, recover())
+			ConsumePanic(p.TraceClient, hostname, recover())
 		}()
 		ticker := time.NewTicker(p.MetricsInterval)
 		for {
