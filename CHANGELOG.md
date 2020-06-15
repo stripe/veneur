@@ -9,6 +9,7 @@
 
 ## Updated
 * Updated the vendored version of DataDog/datadog-go which fixes parsing for abstract unix domain sockets in the statsd client. Thanks, [androohan](https://github.com/androohan)!
+* Veneur uses sentry-go instead of the deprecated Sentry package, raven-go. Thanks, [yanke](https://github.com/yanske1)!
 
 # 13.0.0, 2020-01-03
 
