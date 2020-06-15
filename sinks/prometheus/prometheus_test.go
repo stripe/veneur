@@ -3,6 +3,7 @@ package prometheus
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net"
 	"testing"
 
@@ -52,19 +53,15 @@ func TestNewStatsdRepeater(t *testing.T) {
 }
 
 func TestMetricFlush(t *testing.T) {
-	logger := logrus.StandardLogger()
-	sink, err := NewStatsdRepeater("localhost:9112", "tcp", logger)
+	// Create a TCP server emulating the statsd exporter, replaying the
+	// requests back for testing.
+	ln, err := net.Listen("tcp", ":0")
 	assert.NoError(t, err)
+	defer ln.Close()
 
 	// Limit batchSize for testing.
 	batchSize = 2
 	expectedMessageCount := 2
-
-	// Create a TCP server emulating the statsd exporter, replaying the
-	// requests back for testing.
-	ln, err := net.Listen("tcp", ":9112")
-	assert.NoError(t, err)
-	defer ln.Close()
 
 	errChan := make(chan error)
 	resChan := make(chan string)
@@ -86,6 +83,11 @@ func TestMetricFlush(t *testing.T) {
 			resChan <- string(bytes.Trim(buf, "\x00"))
 		}
 	}()
+
+	logger := logrus.StandardLogger()
+	port := ln.Addr().(*net.TCPAddr).Port
+	sink, err := NewStatsdRepeater(fmt.Sprintf("localhost:%d", port), "tcp", logger)
+	assert.NoError(t, err)
 
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 	assert.NoError(t, sink.Flush(context.Background(), []samplers.InterMetric{
