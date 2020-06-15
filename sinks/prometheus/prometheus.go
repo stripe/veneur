@@ -17,16 +17,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var (
-	// Max package size for TCP (and hardcoded for UDP in Statsd Exporter) is
-	// 65535 bytes. Assuming a generous 50 bytes for metric name, 10 bytes for
-	// value, and 200 bytes for tags, we can have ~200 packets per batch.
-	batchSize = 200
+// Max package size for TCP (and hardcoded for UDP in Statsd Exporter) is
+// 65535 bytes. Assuming a generous 50 bytes for metric name, 10 bytes for
+// value, and 200 bytes for tags, we can have ~200 packets per batch.
+var batchSize = 200
 
-	// Use DogstatsD serialization format.
-	// https://github.com/prometheus/statsd_exporter#tagging-extensions.
-	serializationFormat = "{{.Name}}:{{.Value}}|{{.Type}}|#{{.Tags}}\n"
-)
+// Use DogstatsD serialization format.
+// https://github.com/prometheus/statsd_exporter#tagging-extensions.
+const serializationFormat = "{{.Name}}:{{.Value}}|{{.Type}}|#{{.Tags}}\n"
 
 // StatsdRepeater is the metric sink implementation for Prometheus.
 // In exporting to Prometheus as a metric sink, we are tentatively choosing to
@@ -101,9 +99,9 @@ func (s *StatsdRepeater) Flush(ctx context.Context, interMetrics []samplers.Inte
 	return nil
 }
 
-// FlushOtherSamples sends events to SignalFx.
+// FlushOtherSamples sends events to SignalFx. This is a no-op for Prometheus
+// sinks as Prometheus does not support other samples.
 func (s *StatsdRepeater) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
-	// TODO. This is currently a no-op.
 }
 
 // serializeMetrics seralizes metrics according to the defined
