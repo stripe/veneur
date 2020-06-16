@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -90,6 +92,40 @@ func getRequestBodyFromEvent(event *Event) []byte {
 	Logger.Println("Event couldn't be marshalled, even with stripped contextual data. Skipping delivery. " +
 		"Please notify the SDK owners with possibly broken payload.")
 	return nil
+}
+
+func getEnvelopeFromBody(body []byte, now time.Time) *bytes.Buffer {
+	var b bytes.Buffer
+	fmt.Fprintf(&b, `{"sent_at":"%s"}`, now.UTC().Format(time.RFC3339Nano))
+	fmt.Fprint(&b, "\n", `{"type":"transaction"}`, "\n")
+	b.Write(body)
+	return &b
+}
+
+func getRequestFromEvent(event *Event, dsn *Dsn) (*http.Request, error) {
+	body := getRequestBodyFromEvent(event)
+	if body == nil {
+		return nil, errors.New("event could not be marshalled")
+	}
+
+	if event.Type == transactionType {
+		env := getEnvelopeFromBody(body, time.Now())
+		request, _ := http.NewRequest(
+			http.MethodPost,
+			dsn.EnvelopeAPIURL().String(),
+			env,
+		)
+
+		return request, nil
+	}
+
+	request, _ := http.NewRequest(
+		http.MethodPost,
+		dsn.StoreAPIURL().String(),
+		bytes.NewBuffer(body),
+	)
+
+	return request, nil
 }
 
 // ================================
@@ -187,16 +223,10 @@ func (t *HTTPTransport) SendEvent(event *Event) {
 		return
 	}
 
-	body := getRequestBodyFromEvent(event)
-	if body == nil {
+	request, err := getRequestFromEvent(event, t.dsn)
+	if err != nil {
 		return
 	}
-
-	request, _ := http.NewRequest(
-		http.MethodPost,
-		t.dsn.StoreAPIURL().String(),
-		bytes.NewBuffer(body),
-	)
 
 	for headerKey, headerValue := range t.dsn.RequestHeaders() {
 		request.Header.Set(headerKey, headerValue)
@@ -386,16 +416,10 @@ func (t *HTTPSyncTransport) SendEvent(event *Event) {
 		return
 	}
 
-	body := getRequestBodyFromEvent(event)
-	if body == nil {
+	request, err := getRequestFromEvent(event, t.dsn)
+	if err != nil {
 		return
 	}
-
-	request, _ := http.NewRequest(
-		http.MethodPost,
-		t.dsn.StoreAPIURL().String(),
-		bytes.NewBuffer(body),
-	)
 
 	for headerKey, headerValue := range t.dsn.RequestHeaders() {
 		request.Header.Set(headerKey, headerValue)

@@ -127,12 +127,12 @@
   version = "v1.1.0"
 
 [[projects]]
-  digest = "1:0c2955f43d30b8bd9f8203431ff89481bb15afd7558c4c1d43d5c3e41ddc228e"
+  branch = "master"
+  digest = "1:1a1c1310bf8b2cbc37f098b34aadbd959afe56cfd139b3e745fd478a08f4feb0"
   name = "github.com/getsentry/sentry-go"
   packages = ["."]
   pruneopts = "NUT"
-  revision = "4104e33144033fec8e24add945c8d1b0e943d323"
-  version = "v0.6.1"
+  revision = "abb91bfdb057c12d00233498aab725cacfa00acc"
 
 [[projects]]
   digest = "1:81466b4218bf6adddac2572a30ac733a9255919bc2f470b4827a317bd4ee1756"
