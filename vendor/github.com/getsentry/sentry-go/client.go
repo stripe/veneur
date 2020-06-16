@@ -36,14 +36,22 @@ type usageError struct {
 // can be enabled by either using `Logger.SetOutput` directly or with `Debug` client option
 var Logger = log.New(ioutil.Discard, "[Sentry] ", log.LstdFlags) //nolint: gochecknoglobals
 
+// EventProcessor is a function that processes an event.
+// Event processors are used to change an event before it is sent to Sentry.
 type EventProcessor func(event *Event, hint *EventHint) *Event
 
+// EventModifier is the interface that wraps the ApplyToEvent method.
+//
+// ApplyToEvent changes an event based on external data and/or
+// an event hint.
 type EventModifier interface {
 	ApplyToEvent(event *Event, hint *EventHint) *Event
 }
 
 var globalEventProcessors []EventProcessor //nolint: gochecknoglobals
 
+// AddGlobalEventProcessor adds a EventProcessor to the global list of
+// event processors.
 func AddGlobalEventProcessor(processor EventProcessor) {
 	globalEventProcessors = append(globalEventProcessors, processor)
 }
@@ -252,7 +260,7 @@ func (client *Client) Recover(err interface{}, hint *EventHint, scope EventModif
 	return nil
 }
 
-// Recover captures a panic and passes relevant context object.
+// RecoverWithContext captures a panic and passes relevant context object.
 // Returns `EventID` if successfully, or `nil` if there's no error to recover from.
 func (client *Client) RecoverWithContext(
 	ctx context.Context,
@@ -380,7 +388,8 @@ func (client *Client) processEvent(event *Event, hint *EventHint, scope EventMod
 		return nil
 	}
 
-	if options.BeforeSend != nil {
+	// As per spec, transactions do not go through BeforeSend.
+	if event.Type != transactionType && options.BeforeSend != nil {
 		h := &EventHint{}
 		if hint != nil {
 			h = hint
