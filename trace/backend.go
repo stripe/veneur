@@ -21,7 +21,7 @@ const DefaultBackoff = 20 * time.Millisecond
 // wait interval will be longer than this.
 const DefaultMaxBackoff = 1 * time.Second
 
-// DefaultConnectTimeout is to 10 seconts. Any attempt to (re)connect
+// DefaultConnectTimeout is to 10 seconds. Any attempt to (re)connect
 // to a veneur will take longer than this. If it would take longer,
 // the span is discarded.
 const DefaultConnectTimeout = 10 * time.Second

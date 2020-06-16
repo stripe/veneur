@@ -11,6 +11,10 @@ import (
 	"github.com/stripe/veneur/trace/metrics"
 )
 
+// SentryFlushTimeout is set to 10 seconds. If events are not flushed to Sentry
+// within the time limit, they are dropped.
+const SentryFlushTimeout = 10 * time.Second
+
 // ConsumePanic is intended to be called inside a deferred function when recovering
 // from a panic. It accepts the value of recover() as its only argument,
 // and reports the panic to Sentry, prints the stack,  and then repanics (to ensure your program terminates)
@@ -49,7 +53,7 @@ func ConsumePanic(cl *trace.Client, hostname string, err interface{}) {
 
 		sentry.CaptureEvent(event)
 		// TODO: what happens when we time out? We don't want it to hang.
-		sentry.Flush(10 * time.Second)
+		sentry.Flush(SentryFlushTimeout)
 
 		metrics.ReportOne(cl, ssf.Count("sentry.errors_total", 1, nil))
 	}
@@ -123,7 +127,7 @@ func (s sentryHook) Fire(e *logrus.Entry) error {
 	sentry.CaptureEvent(event)
 	if e.Level == logrus.PanicLevel || e.Level == logrus.FatalLevel {
 		// TODO: what to do when timed out?
-		sentry.Flush(10 * time.Second)
+		sentry.Flush(SentryFlushTimeout)
 	}
 	return nil
 }
