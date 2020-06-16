@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"os"
-	"time"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
@@ -51,8 +50,6 @@ func main() {
 	veneur.SetLogger(logger)
 	if err != nil {
 		e := err
-		logrus.WithError(e).Error("Error initializing server")
-
 		if conf.SentryDsn != "" {
 			err = sentry.Init(sentry.ClientOptions{
 				Dsn: conf.SentryDsn,
@@ -60,17 +57,17 @@ func main() {
 			if err != nil {
 				logrus.WithError(err).Error("Error initializing Sentry client")
 			}
-		}
 
-		event := sentry.NewEvent()
-		event.Message = e.Error()
-		hostname, _ := os.Hostname()
-		if hostname != "" {
-			event.ServerName = hostname
-		}
+			event := sentry.NewEvent()
+			event.Message = e.Error()
+			hostname, _ := os.Hostname()
+			if hostname != "" {
+				event.ServerName = hostname
+			}
 
-		sentry.CaptureEvent(event)
-		sentry.Flush(veneur.SentryFlushTimeout)
+			sentry.CaptureEvent(event)
+			sentry.Flush(veneur.SentryFlushTimeout)
+		}
 
 		logrus.WithError(e).Fatal("Could not initialize server")
 	}
