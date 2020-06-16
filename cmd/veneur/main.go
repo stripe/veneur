@@ -70,7 +70,7 @@ func main() {
 		}
 
 		sentry.CaptureEvent(event)
-		sentry.Flush(10 * time.Second)
+		sentry.Flush(veneur.SentryFlushTimeout)
 
 		logrus.WithError(e).Fatal("Could not initialize server")
 	}
