@@ -125,7 +125,7 @@ func (hub *Hub) Scope() *Scope {
 	return top.scope
 }
 
-// Scope returns top-level `Client` of the current `Hub` or `nil` if no `Client` is bound.
+// Client returns top-level `Client` of the current `Hub` or `nil` if no `Client` is bound.
 func (hub *Hub) Client() *Client {
 	top := hub.stackTop()
 	if top == nil {
@@ -161,7 +161,7 @@ func (hub *Hub) PushScope() *Scope {
 	return scope
 }
 
-// PushScope pops the most recent scope for the current `Hub`.
+// PopScope pops the most recent scope for the current `Hub`.
 func (hub *Hub) PopScope() {
 	hub.mu.Lock()
 	defer hub.mu.Unlock()

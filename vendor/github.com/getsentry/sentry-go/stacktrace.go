@@ -127,7 +127,8 @@ func extractPcs(method reflect.Value) []uintptr {
 	return pcs
 }
 
-// https://docs.sentry.io/development/sdk-dev/event-payloads/stacktrace/
+// Frame represents a function call and it's metadata. Frames are associated
+// with a Stacktrace.
 type Frame struct {
 	Function    string                 `json:"function,omitempty"`
 	Symbol      string                 `json:"symbol,omitempty"`

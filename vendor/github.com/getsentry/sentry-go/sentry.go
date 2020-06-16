@@ -63,7 +63,7 @@ func Recover() *EventID {
 	return nil
 }
 
-// Recover captures a panic and passes relevant context object.
+// RecoverWithContext captures a panic and passes relevant context object.
 func RecoverWithContext(ctx context.Context) *EventID {
 	if err := recover(); err != nil {
 		var hub *Hub

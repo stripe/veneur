@@ -38,7 +38,7 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/getsentry/raven-go"
+  name = "github.com/getsentry/sentry-go"
 
 [[constraint]]
   name = "github.com/gogo/protobuf"
