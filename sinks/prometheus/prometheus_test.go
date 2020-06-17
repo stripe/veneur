@@ -61,7 +61,10 @@ func TestMetricFlush(t *testing.T) {
 
 	// Limit batchSize for testing.
 	batchSize = 2
-	expectedMessageCount := 2
+	expectedMessages := []string{
+		"a.b.gauge:100|g|#foo:bar,baz:quz\na.b.counter:2|c|#foo:bar\n",
+		"a.b.status:5|g|#\n",
+	}
 
 	errChan := make(chan error)
 	resChan := make(chan string)
@@ -73,8 +76,11 @@ func TestMetricFlush(t *testing.T) {
 		}
 		defer conn.Close()
 
-		for i := 0; i < expectedMessageCount; i++ {
-			buf := make([]byte, 1024)
+		for i := 0; i < len(expectedMessages); i++ {
+			// By forcing the receive buffer to be the size of the message,
+			// TCP would block and ensure that another message doesn't come
+			// in.
+			buf := make([]byte, len(expectedMessages[i]))
 			_, err = conn.Read(buf)
 			if err != nil {
 				errChan <- err
@@ -118,10 +124,7 @@ func TestMetricFlush(t *testing.T) {
 		},
 	}))
 
-	for _, want := range []string{
-		"a.b.gauge:100|g|#foo:bar,baz:quz\na.b.counter:2|c|#foo:bar\n",
-		"a.b.status:5|g|#\n",
-	} {
+	for _, want := range expectedMessages {
 		select {
 		case res := <-resChan:
 			assert.Equal(t, want, res)
