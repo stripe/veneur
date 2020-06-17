@@ -3,6 +3,7 @@ package prometheus
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net"
 	"testing"
 
@@ -52,19 +53,18 @@ func TestNewStatsdRepeater(t *testing.T) {
 }
 
 func TestMetricFlush(t *testing.T) {
-	logger := logrus.StandardLogger()
-	sink, err := NewStatsdRepeater("localhost:9112", "tcp", logger)
+	// Create a TCP server emulating the statsd exporter, replaying the
+	// requests back for testing.
+	ln, err := net.Listen("tcp", ":0")
 	assert.NoError(t, err)
+	defer ln.Close()
 
 	// Limit batchSize for testing.
 	batchSize = 2
-	expectedMessageCount := 2
-
-	// Create a TCP server emulating the statsd exporter, replaying the
-	// requests back for testing.
-	ln, err := net.Listen("tcp", ":9112")
-	assert.NoError(t, err)
-	defer ln.Close()
+	expectedMessages := []string{
+		"a.b.gauge:100|g|#foo:bar,baz:quz\na.b.counter:2|c|#foo:bar\n",
+		"a.b.status:5|g|#\n",
+	}
 
 	errChan := make(chan error)
 	resChan := make(chan string)
@@ -76,8 +76,11 @@ func TestMetricFlush(t *testing.T) {
 		}
 		defer conn.Close()
 
-		for i := 0; i < expectedMessageCount; i++ {
-			buf := make([]byte, 1024)
+		for i := 0; i < len(expectedMessages); i++ {
+			// By forcing the receive buffer to be the size of the message,
+			// TCP would block and ensure that another message doesn't come
+			// in.
+			buf := make([]byte, len(expectedMessages[i]))
 			_, err = conn.Read(buf)
 			if err != nil {
 				errChan <- err
@@ -86,6 +89,11 @@ func TestMetricFlush(t *testing.T) {
 			resChan <- string(bytes.Trim(buf, "\x00"))
 		}
 	}()
+
+	logger := logrus.StandardLogger()
+	port := ln.Addr().(*net.TCPAddr).Port
+	sink, err := NewStatsdRepeater(fmt.Sprintf("localhost:%d", port), "tcp", logger)
+	assert.NoError(t, err)
 
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 	assert.NoError(t, sink.Flush(context.Background(), []samplers.InterMetric{
@@ -116,10 +124,7 @@ func TestMetricFlush(t *testing.T) {
 		},
 	}))
 
-	for _, want := range []string{
-		"a.b.gauge:100|g|#foo:bar,baz:quz\na.b.counter:2|c|#foo:bar\n",
-		"a.b.status:5|g|#\n",
-	} {
+	for _, want := range expectedMessages {
 		select {
 		case res := <-resChan:
 			assert.Equal(t, want, res)
