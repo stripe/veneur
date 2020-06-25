@@ -541,7 +541,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 					annotationTags = append(annotationTags, strings.Split(tag, ":")[0])
 				}
 
-				xraySink, err := xray.NewXRaySpanSink(conf.XrayAddress, conf.XraySamplePercentage, ret.TagsAsMap, annotationTags, log)
+				xraySink, err := xray.NewXRaySpanSink(conf.XrayAddress, conf.XraySamplePercentage, ret.TagsAsMap, annotationTags, conf.XrayThrottleTag, conf.XrayFaultTag, log)
 				if err != nil {
 					return ret, err
 				}

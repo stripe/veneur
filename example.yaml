@@ -390,6 +390,16 @@ xray_sample_percentage: 100
 xray_annotation_tags:
   - ""
 
+# If not `""` then any spans with the specified tag key (values are ignored)
+# will be marked as `throttle` when sent to X-Ray. Note that this tag will be
+# not be included in the span's metadata.
+xray_throttle_tag: ""
+
+# If not `""` then any spans with the specified tag key (values are ignored)
+# will be marked as `fault` when sent to X-Ray. Note that this tag will be
+# not be included in the span's metadata.
+xray_fault_tag: ""
+
 # == LightStep ==
 # LightStep can be a sink for trace spans.
 

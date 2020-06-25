@@ -55,6 +55,8 @@ type XRaySegment struct {
 	EndTime     float64           `json:"end_time"`
 	Namespace   string            `json:"namespace"`
 	Error       bool              `json:"error"`
+	Throttle    bool              `json:"throttle"`
+	Fault       bool              `json:"fault"`
 	Annotations map[string]string `json:"annotations,omitempty"`
 	Metadata    map[string]string `json:"metadata,omitempty"`
 	HTTP        XRaySegmentHTTP   `json:"http,omitempty"`
@@ -68,6 +70,8 @@ type XRaySpanSink struct {
 	sampleThreshold uint32
 	commonTags      map[string]string
 	annotationTags  map[string]struct{}
+	throttleTag     string
+	faultTag        string
 	log             *logrus.Logger
 	spansDropped    int64
 	spansHandled    int64
@@ -77,7 +81,7 @@ type XRaySpanSink struct {
 var _ sinks.SpanSink = &XRaySpanSink{}
 
 // NewXRaySpanSink creates a new instance of a XRaySpanSink.
-func NewXRaySpanSink(daemonAddr string, sampleRatePercentage int, commonTags map[string]string, annotationTags []string, log *logrus.Logger) (*XRaySpanSink, error) {
+func NewXRaySpanSink(daemonAddr string, sampleRatePercentage int, commonTags map[string]string, annotationTags []string, throttleTag string, faultTag string, log *logrus.Logger) (*XRaySpanSink, error) {
 
 	log.WithFields(logrus.Fields{
 		"Address": daemonAddr,
@@ -116,6 +120,8 @@ func NewXRaySpanSink(daemonAddr string, sampleRatePercentage int, commonTags map
 		commonTags:      commonTags,
 		log:             log,
 		nameRegex:       reg,
+		throttleTag:     throttleTag,
+		faultTag:        faultTag,
 		annotationTags:  annotationTagsMap,
 	}, nil
 }
@@ -156,12 +162,24 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		return nil
 	}
 
+	// Set these so we can review them during the loop of tags
+	fault := false
+	throttle := false
+
 	metadata := map[string]string{}
 	annotations := map[string]string{}
 	for k, v := range x.commonTags {
 		metadata[k] = v
 	}
 	for k, v := range ssfSpan.Tags {
+		if x.faultTag != "" && k == x.faultTag {
+			fault = true
+			continue // don't add it to anything
+		}
+		if x.throttleTag != "" && k == x.throttleTag {
+			throttle = true
+			continue // don't add it to anything
+		}
 		if k != XRayTagNameClientIP {
 			metadata[k] = v
 		}
@@ -200,6 +218,8 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		Metadata:    metadata,
 		Namespace:   "remote",
 		Error:       ssfSpan.Error,
+		Throttle:    throttle,
+		Fault:       fault,
 		// Because X-Ray doesn't offer another way to get this data in, we pretend
 		// it's HTTP for now. It's likely that as X-Ray and/or Veneur develop this
 		// will change.

@@ -118,5 +118,7 @@ type Config struct {
 	} `yaml:"veneur_metrics_scopes"`
 	XrayAddress          string   `yaml:"xray_address"`
 	XrayAnnotationTags   []string `yaml:"xray_annotation_tags"`
+	XrayFaultTag         string   `yaml:"xray_fault_tag"`
 	XraySamplePercentage int      `yaml:"xray_sample_percentage"`
+	XrayThrottleTag      string   `yaml:"xray_throttle_tag"`
 }
