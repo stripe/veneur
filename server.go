@@ -677,7 +677,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		}
 
 		ret.metricSinks = append(ret.metricSinks, prometheusMetricSink)
-		logger.Info("Configured Prometheus metric sink.")
+		logger.Infof("Configured Prometheus metric sink: %+v.", prometheusMetricSink)
 	}
 
 	{

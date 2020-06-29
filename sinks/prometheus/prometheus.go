@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/stripe/veneur/samplers"
 	"github.com/stripe/veneur/sinks"
@@ -74,6 +75,9 @@ func (s *StatsdRepeater) Flush(ctx context.Context, interMetrics []samplers.Inte
 		return nil
 	}
 
+	flushStart := time.Now()
+	batchWrites := 0
+
 	conn, err := net.Dial(s.network, s.addr)
 	if err != nil {
 		return err
@@ -94,8 +98,14 @@ func (s *StatsdRepeater) Flush(ctx context.Context, interMetrics []samplers.Inte
 		}
 
 		conn.Write([]byte(body))
+		batchWrites += 1
 	}
 
+	s.logger.WithFields(logrus.Fields{
+		"count":    len(interMetrics),
+		"batches":  batchWrites,
+		"duration": time.Now().Sub(flushStart),
+	}).Info("Flushed metrics to statsd-exporter.")
 	return nil
 }
 
