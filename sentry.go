@@ -2,6 +2,7 @@ package veneur
 
 import (
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/getsentry/sentry-go"
@@ -28,20 +29,6 @@ func ConsumePanic(cl *trace.Client, hostname string, err interface{}) {
 		event.Level = sentry.LevelFatal
 		event.ServerName = hostname
 
-		stacktrace := sentry.NewStacktrace()
-		if len(stacktrace.Frames) >= 2 {
-			// Very carefully, filter out the frame for ConsumePanic itself,
-			// and the frame for the deferred function that invoked
-			// ConsumePanic.
-			stacktrace.Frames = stacktrace.Frames[:len(stacktrace.Frames)-2]
-		}
-
-		event.Exception = []sentry.Exception{
-			sentry.Exception{
-				Stacktrace: stacktrace,
-			},
-		}
-
 		switch e := err.(type) {
 		case error:
 			event.Message = e.Error()
@@ -49,6 +36,21 @@ func ConsumePanic(cl *trace.Client, hostname string, err interface{}) {
 			event.Message = e.String()
 		default:
 			event.Message = fmt.Sprintf("%#v", e)
+		}
+
+		stacktrace := sentry.NewStacktrace()
+		if len(stacktrace.Frames) >= 2 {
+			// Very carefully, filter out the frame for ConsumePanic itself,
+			// and the frame for the deferred function that invoked
+			// ConsumePanic.
+			stacktrace.Frames = stacktrace.Frames[:len(stacktrace.Frames)-2]
+		}
+		event.Exception = []sentry.Exception{
+			sentry.Exception{
+				Value:      event.Message,
+				Type:       reflect.TypeOf(err).String(),
+				Stacktrace: stacktrace,
+			},
 		}
 
 		sentry.CaptureEvent(event)
@@ -81,6 +83,15 @@ func (s sentryHook) Fire(e *logrus.Entry) error {
 	event := sentry.NewEvent()
 	event.ServerName = s.hostname
 
+	packetExtraLength := len(e.Data)
+	if err, ok := e.Data[logrus.ErrorKey].(error); ok {
+		event.Message = err.Error()
+		// don't send the error as an extra field
+		packetExtraLength--
+	} else {
+		event.Message = e.Message
+	}
+
 	stacktrace := sentry.NewStacktrace()
 	if len(stacktrace.Frames) >= 2 {
 		// Very carefully, filter out the frame for ConsumePanic itself,
@@ -90,17 +101,10 @@ func (s sentryHook) Fire(e *logrus.Entry) error {
 	}
 	event.Exception = []sentry.Exception{
 		sentry.Exception{
+			Value:      event.Message,
+			Type:       "Logrus Entry",
 			Stacktrace: stacktrace,
 		},
-	}
-
-	packetExtraLength := len(e.Data)
-	if err, ok := e.Data[logrus.ErrorKey].(error); ok {
-		event.Message = err.Error()
-		// don't send the error as an extra field
-		packetExtraLength--
-	} else {
-		event.Message = e.Message
 	}
 
 	event.Extra = make(map[string]interface{}, packetExtraLength)
