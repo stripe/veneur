@@ -9,6 +9,9 @@
 ## Updated
 * Updated the vendored version of DataDog/datadog-go which fixes parsing for abstract unix domain sockets in the statsd client. Thanks, [androohan](https://github.com/androohan)!
 
+## Bugfixes
+* veneur-emit no longer panics when an empty command is passed. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
+
 # 13.0.0, 2020-01-03
 
 ## Added
