@@ -199,10 +199,12 @@ func StartSSF(s *Server, a net.Addr, tracePool *sync.Pool) net.Addr {
 	switch addr := a.(type) {
 	case *net.UDPAddr:
 		a = startSSFUDP(s, addr, tracePool)
+	case *net.TCPAddr:
+		a = startSFFTCP(s, addr, tracePool)
 	case *net.UnixAddr:
 		_, a = startSSFUnix(s, addr)
 	default:
-		panic(fmt.Sprintf("Can't listen for SSF on %v: only udp:// & unix:// are supported", a))
+		panic(fmt.Sprintf("Can't listen for SSF on %v: only TCP, UDP and unixgram:// are supported", a))
 	}
 	log.WithFields(logrus.Fields{
 		"address": a.String(),
@@ -213,6 +215,49 @@ func StartSSF(s *Server, a net.Addr, tracePool *sync.Pool) net.Addr {
 
 func startSSFUDP(s *Server, addr *net.UDPAddr, tracePool *sync.Pool) net.Addr {
 	return startProcessingOnUDP(s, "ssf", addr, tracePool, s.ReadSSFPacketSocket)
+}
+
+func startSFFTCP(s *Server, addr *net.TCPAddr, tracePool *sync.Pool) net.Addr {
+	var listener net.Listener
+	var err error
+
+	listener, err = net.ListenTCP("tcp", addr)
+	if err != nil {
+		panic(fmt.Sprintf("couldn't listen on TCP socket %v: %v", addr, err))
+	}
+
+	go func() {
+		<-s.shutdown
+		// TODO: the socket is in use until there are no goroutines blocked in Accept
+		// we should wait until the accepting goroutine exits
+		err := listener.Close()
+		if err != nil {
+			log.WithError(err).Warn("Ignoring error closing TCP listener")
+		}
+	}()
+
+	mode := "unencrypted"
+	if s.tlsConfig != nil {
+		// wrap the listener with TLS
+		listener = tls.NewListener(listener, s.tlsConfig)
+		if s.tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
+			mode = "authenticated"
+		} else {
+			mode = "encrypted"
+		}
+	}
+
+	log.WithFields(logrus.Fields{
+		"address": addr, "mode": mode,
+	}).Info("Listening for SSF metrics on TCP socket")
+
+	go func() {
+		defer func() {
+			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+		}()
+		s.ReadTCPSocket(listener)
+	}()
+	return listener.Addr()
 }
 
 // startSSFUnix starts listening for connections that send framed SSF

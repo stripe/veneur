@@ -15,8 +15,7 @@ statsd_listen_addresses:
 # The addresses on which to listen for SSF data. As with
 # statsd_listen_addresses, these are formatted as URLs, with schemes
 # corresponding to valid "network" arguments on
-# https://golang.org/pkg/net/#Listen. Currently, only UDP and Unix
-# domain sockets are supported.
+# https://golang.org/pkg/net/#Listen.
 # Note: SSF sockets are required to ingest trace data.
 # This option supersedes the "ssf_address" option.
 ssf_listen_addresses:
