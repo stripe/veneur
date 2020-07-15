@@ -263,7 +263,6 @@ func (x *XRaySpanSink) CalculateTraceID(ssfSpan *ssf.SSFSpan) string {
 	// For multiple segments to be aggregated into a single trace, they should have identical traceID.
 	// For this reason, the startTimestamp needs to be the timestamp of the original (i.e. root) request
 	// and not the subsequent spans.
-	x.log.WithField("RootStartTimestamp", ssfSpan.RootStartTimestamp).Info("Root startTimestamp value")
 	startTimestamp := ssfSpan.RootStartTimestamp / 1e9
 	if startTimestamp == 0 {
 		// We want to have a stable value here, but don't want to rely on the
