@@ -200,7 +200,7 @@ func StartSSF(s *Server, a net.Addr, tracePool *sync.Pool) net.Addr {
 	case *net.UDPAddr:
 		a = startSSFUDP(s, addr, tracePool)
 	case *net.TCPAddr:
-		a = startSFFTCP(s, addr, tracePool)
+		a = startSSFTCP(s, addr, tracePool)
 	case *net.UnixAddr:
 		_, a = startSSFUnix(s, addr)
 	default:
@@ -217,7 +217,7 @@ func startSSFUDP(s *Server, addr *net.UDPAddr, tracePool *sync.Pool) net.Addr {
 	return startProcessingOnUDP(s, "ssf", addr, tracePool, s.ReadSSFPacketSocket)
 }
 
-func startSFFTCP(s *Server, addr *net.TCPAddr, tracePool *sync.Pool) net.Addr {
+func startSSFTCP(s *Server, addr *net.TCPAddr, tracePool *sync.Pool) net.Addr {
 	var listener net.Listener
 	var err error
 
