@@ -344,3 +344,46 @@ func TestSampleSpans(t *testing.T) {
 	sink.Flush()
 	assert.Equal(t, int64(0), sink.spansHandled)
 }
+
+func TestCalculateTraceID(t *testing.T) {
+	sink, err := NewXRaySpanSink(fmt.Sprintf("127.0.0.1:12345", ), 50, map[string]string{"foo": "bar"}, []string{"baz", "mind"}, logrus.New())
+	assert.NoError(t, err)
+	
+	start := time.Unix(1518279577, 0)
+	end := start.Add(2 * time.Second)
+
+	testSpan := &ssf.SSFSpan{
+		TraceId:        4601851300195147788,
+		ParentId:       1,
+		Id:             2,
+		StartTimestamp: int64(start.UnixNano()),
+		EndTimestamp:   int64(end.UnixNano()),
+		Error:          false,
+		Service:        "farts-srv",
+		Tags: map[string]string{},
+		Indicator:          false,
+		Name:               "farting farty farts",
+	}
+
+	// TraceID in hex: 000000003fdd0f60394d200c
+	// Span starttime in hex - 5A7F1B99
+	// -> middle timestamp should be 5A7F200C
+	assert.Equal(t, sink.CalculateTraceID(testSpan), "1-5a7f200c-000000003fdd0f60394d200c")
+
+	testSpan = &ssf.SSFSpan{
+		TraceId:        4601851300195147788,
+		ParentId:       1,
+		Id:             2,
+		StartTimestamp: int64(start.UnixNano()),
+		EndTimestamp:   int64(end.UnixNano()),
+		Error:          false,
+		Service:        "farts-srv",
+		Tags: map[string]string{},
+		Indicator:          false,
+		Name:               "farting farty farts",
+		RootStartTimestamp: int64(1e9),
+	}
+
+	assert.Equal(t, sink.CalculateTraceID(testSpan), "1-00000001-000000003fdd0f60394d200c")
+
+}
