@@ -215,7 +215,7 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	// https://docs.aws.amazon.com/xray/latest/devguide/xray-api-segmentdocuments.html#api-segmentdocuments-fields
 	segment := XRaySegment{
 		// ID is a 64-bit hex
-		ID: fmt.Sprintf("%016x", ssfSpan.Id),
+		ID:          fmt.Sprintf("%016x", ssfSpan.Id),
 		TraceID:     x.CalculateTraceID(ssfSpan),
 		Name:        name,
 		StartTime:   float64(float64(ssfSpan.StartTimestamp) / float64(time.Second)),
@@ -266,14 +266,14 @@ func (x *XRaySpanSink) CalculateTraceID(ssfSpan *ssf.SSFSpan) string {
 	x.log.WithField("RootStartTimestamp", ssfSpan.RootStartTimestamp).Info("Root startTimestamp value")
 	startTimestamp := ssfSpan.RootStartTimestamp / 1e9
 	if startTimestamp == 0 {
-		// We want to have a stable value here, but don't want to rely on the 
+		// We want to have a stable value here, but don't want to rely on the
 		// SSF start time precisely, so that we can start gaining traces even
 		// before all SSF producer start emitting the new field.
-		// Logic basically creates a number where the MSBs are roughly decsriptive 
+		// Logic basically creates a number where the MSBs are roughly decsriptive
 		// of the timestamp DAY, and the LSBs are copied from the traceID.
 		// This makes this number opaque but still meets AWS requirements.
 		temp := ssfSpan.StartTimestamp / 1e9
-		// clearing the last 2 bytes. MSB is 0 so we 
+		// clearing the last 2 bytes. MSB is 0 so we
 		// don't need to go between uint64 and int64
 		temp = temp & 0xFFFFFFFFFF0000
 		lsb := ssfSpan.TraceId & 0xFFFF
