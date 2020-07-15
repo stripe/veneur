@@ -22,6 +22,9 @@ import (
 var segmentHeader = []byte(`{"format": "json", "version": 1}` + "\n")
 
 const XRayTagNameClientIP = "xray_client_ip"
+const SpanTagNameHttpUrl = "http.url"
+const SpanTagNameHttpStatusCode = "http.status_code"
+const SpanTagNameHttpMethod = "http.method"
 
 type XRaySegmentHTTPRequest struct {
 	Method        string `json:"method,omitempty"`
@@ -161,10 +164,32 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	for k, v := range x.commonTags {
 		metadata[k] = v
 	}
+
+	http := XRaySegmentHTTP{
+		Request: XRaySegmentHTTPRequest{
+			URL:      fmt.Sprintf("%s:%s", ssfSpan.Service, ssfSpan.Name),
+			ClientIP: ssfSpan.Tags[XRayTagNameClientIP],
+		},
+	}
+
 	for k, v := range ssfSpan.Tags {
-		if k != XRayTagNameClientIP {
-			metadata[k] = v
+		switch k {
+		case XRayTagNameClientIP:
+			continue
+		case SpanTagNameHttpUrl:
+			http.Request.URL = v
+		case SpanTagNameHttpMethod:
+			http.Request.Method = v
+		case SpanTagNameHttpStatusCode:
+			status, err := strconv.Atoi(v)
+			if err != nil || status > 599 || status < 100 {
+				x.log.WithField("status", v).Warn("Malformed status code")
+			} else {
+				http.Response.Status = status
+			}
 		}
+
+		metadata[k] = v
 		if _, present := x.annotationTags[k]; present {
 			annotations[k] = v
 		}
@@ -186,13 +211,22 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		name = name + "-indicator"
 	}
 
+	// For multiple segments to be aggregated into a single trace, they should have identical traceID.
+	// For this reason, the startTimestamp needs to be the timestamp of the original (i.e. root) request
+	// and not the subsequent spans.
+	x.log.WithField("RootStartTimestamp", ssfSpan.RootStartTimestamp).Info("Root startTimestamp value")
+	startTimestamp := ssfSpan.RootStartTimestamp
+	if startTimestamp == 0 {
+		startTimestamp = ssfSpan.StartTimestamp
+	}
+
 	// The fields below are defined here:
 	// https://docs.aws.amazon.com/xray/latest/devguide/xray-api-segmentdocuments.html#api-segmentdocuments-fields
 	segment := XRaySegment{
 		// ID is a 64-bit hex
 		ID: fmt.Sprintf("%016x", ssfSpan.Id),
 		// Trace ID is version-startTimeUnixAs8CharHex-traceIdAs24CharHex
-		TraceID:     fmt.Sprintf("1-%08x-%024x", ssfSpan.StartTimestamp/1e9, ssfSpan.TraceId),
+		TraceID:     fmt.Sprintf("1-%08x-%024x", startTimestamp/1e9, ssfSpan.TraceId),
 		Name:        name,
 		StartTime:   float64(float64(ssfSpan.StartTimestamp) / float64(time.Second)),
 		EndTime:     float64(float64(ssfSpan.EndTimestamp) / float64(time.Second)),
@@ -200,15 +234,7 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 		Metadata:    metadata,
 		Namespace:   "remote",
 		Error:       ssfSpan.Error,
-		// Because X-Ray doesn't offer another way to get this data in, we pretend
-		// it's HTTP for now. It's likely that as X-Ray and/or Veneur develop this
-		// will change.
-		HTTP: XRaySegmentHTTP{
-			Request: XRaySegmentHTTPRequest{
-				URL:      fmt.Sprintf("%s:%s", ssfSpan.Service, ssfSpan.Name),
-				ClientIP: ssfSpan.Tags[XRayTagNameClientIP],
-			},
-		},
+		HTTP:        http,
 	}
 	if ssfSpan.ParentId != 0 {
 		segment.ParentID = fmt.Sprintf("%016x", ssfSpan.ParentId)
