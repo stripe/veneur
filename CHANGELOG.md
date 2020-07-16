@@ -8,6 +8,7 @@
 
 ## Updated
 * Updated the vendored version of DataDog/datadog-go which fixes parsing for abstract unix domain sockets in the statsd client. Thanks, [androohan](https://github.com/androohan)!
+* Changed the certificates that veneur tests with to include SANs and no longer rely on Common Names, in order to comply with go's [upcoming crackdown on CN certificate constraints](https://github.com/stripe/veneur/issues/791). Tahnks, [antifuchs](https://github.com/antifuchs)!
 
 # 13.0.0, 2020-01-03
 
