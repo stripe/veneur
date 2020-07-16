@@ -163,12 +163,6 @@ openssl req -subj "${CA_SUBJ}" -batch -new -key ca_wrong/ca.key -out ca_wrong/ca
 openssl ca -batch -selfsign -key "${PASS}" -name "CA_wrong" -in ca_wrong/ca.csr -out ca_wrong/ca.crt
 rm ca_wrong/ca.csr
 
-# Generate the "wrong" CA cert:
-echo "$PASS" | openssl genrsa -passout stdin -out ca/ca_wrong.key
-openssl req -subj "${CA_SUBJ}" -batch -new -key ca/ca_wrong.key -out ca/ca_wrong.csr  -passin pass:"$PASS"
-openssl ca -batch -selfsign -key "${PASS}" -in ca/ca_wrong.csr -out ca/ca_wrong.crt
-rm ca/ca_wrong.csr
-
 # Generate a server key & cert:
 generate_cert "$TESTDATADIR"/serverkey.pem "$TESTDATADIR"/servercert.pem server_certs CA_default "server"
 
