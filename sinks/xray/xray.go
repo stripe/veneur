@@ -265,10 +265,10 @@ func (x *XRaySpanSink) CalculateTraceID(ssfSpan *ssf.SSFSpan) string {
 	// and not the subsequent spans.
 	startTimestamp := ssfSpan.RootStartTimestamp / 1e9
 	if startTimestamp == 0 {
-		// We want to have a stable value here, but don't want to rely on the
-		// SSF start time precisely, so that we can start gaining traces even
-		// before all SSF producer start emitting the new field.
-		// Logic basically creates a number where the MSBs are roughly decsriptive
+		// We want to have a stable value here, but want to allow this functionality
+		// without requiring the SSF clients to start emitting the new field.
+		// Instead, we compute here a psuedo timestamp that is not dependent on a single span.
+		// Logic basically creates a number where the MSBs are roughly descriptive
 		// of the timestamp DAY, and the LSBs are copied from the traceID.
 		// This makes this number opaque but still meets AWS requirements.
 		temp := ssfSpan.StartTimestamp / 1e9
