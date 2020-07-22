@@ -267,16 +267,12 @@ func (x *XRaySpanSink) CalculateTraceID(ssfSpan *ssf.SSFSpan) string {
 	if startTimestamp == 0 {
 		// We want to have a stable value here, but want to allow this functionality
 		// without requiring the SSF clients to start emitting the new field.
-		// Instead, we compute here a psuedo timestamp that is not dependent on a single span.
-		// Logic basically creates a number where the MSBs are roughly descriptive
-		// of the timestamp DAY, and the LSBs are copied from the traceID.
-		// This makes this number opaque but still meets AWS requirements.
+		// Instead, we compute here a psuedo timestamp based on the ~4min interval the span is in.
+		// This makes sure the time passed is always is the past and multiple spans of the same
+		// trace will have the same AWS X-Ray's TraceID 
 		temp := ssfSpan.StartTimestamp / 1e9
-		// clearing the last 2 bytes. MSB is 0 so we
-		// don't need to go between uint64 and int64
-		temp = temp & 0xFFFFFFFFFF0000
-		lsb := ssfSpan.TraceId & 0xFFFF
-		startTimestamp = temp | lsb // setting the last 2 bytes from the traceID
+		// clearing the last byte. MSB is 0 so we don't care signed/unsigned
+		startTimestamp = temp & 0xFFFFFFFFFFFF00
 	}
 	// Trace ID is version-startTimeUnixAs8CharHex-traceIdAs24CharHex
 	return fmt.Sprintf("1-%08x-%024x", startTimestamp, ssfSpan.TraceId)

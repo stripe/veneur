@@ -368,7 +368,7 @@ func TestCalculateTraceID(t *testing.T) {
 	// TraceID in hex: 000000003fdd0f60394d200c
 	// Span starttime in hex - 5A7F1B99
 	// -> middle timestamp should be 5A7F200C
-	assert.Equal(t, sink.CalculateTraceID(testSpan), "1-5a7f200c-000000003fdd0f60394d200c")
+	assert.Equal(t, sink.CalculateTraceID(testSpan), "1-5a7f1b00-000000003fdd0f60394d200c")
 
 	testSpan = &ssf.SSFSpan{
 		TraceId:            4601851300195147788,
