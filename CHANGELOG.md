@@ -11,6 +11,9 @@
 * Changed the certificates that veneur tests with to include SANs and no longer rely on Common Names, in order to comply with Go's [upcoming crackdown on CN certificate constraints](https://github.com/stripe/veneur/issues/791). Thanks, [antifuchs](https://github.com/antifuchs)!
 * Disabled the dogstatsd client telemetry on the internal statsd client used by Veneur. Thanks, [prudhvi](https://github.com/prudhvi)!
 
+## Bugfixes
+* veneur-emit no longer panics when an empty command is passed. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
+
 # 13.0.0, 2020-01-03
 
 ## Added
