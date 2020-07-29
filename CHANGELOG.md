@@ -13,9 +13,7 @@
 
 ## Bugfixes
 * veneur-emit no longer panics when an empty command is passed. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
-
-## Bugfixes
-* veneur-emit no longer panics when an empty command is passed. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
+* veneur-emit now flushes datadog metrics. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
 
 # 13.0.0, 2020-01-03
 
