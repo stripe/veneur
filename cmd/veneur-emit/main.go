@@ -608,6 +608,7 @@ func sendStatsd(addr string, span *ssf.SSFSpan) error {
 			return err
 		}
 	}
+	client.Flush()
 	return nil
 }
 
