@@ -124,4 +124,9 @@ message SSFSpan {
   // (/customer/:id), the function (class::name.method), a friendly name
   // (foo middleware) or whatever makes sense in your context.
   string name = 13;
+
+  // Root trace start time. This may be different than the span starting time.
+  // This is especially useful for communicating with AWS X-Ray and have a consistent 
+  // TraceID.
+  int64 root_start_timestamp = 14;
 }
