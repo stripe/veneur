@@ -49,6 +49,7 @@ import (
 	"github.com/stripe/veneur/sinks/falconer"
 	"github.com/stripe/veneur/sinks/kafka"
 	"github.com/stripe/veneur/sinks/lightstep"
+	"github.com/stripe/veneur/sinks/newrelic"
 	"github.com/stripe/veneur/sinks/signalfx"
 	"github.com/stripe/veneur/sinks/splunk"
 	"github.com/stripe/veneur/sinks/ssfmetrics"
@@ -494,8 +495,24 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		}
 		ret.metricSinks = append(ret.metricSinks, sfxSink)
 	}
-	if conf.DatadogAPIKey != "" && conf.DatadogAPIHostname != "" {
 
+	if conf.NewrelicInsertKey != "" && conf.NewrelicAccountID > 0 {
+		nrSink, err := newrelic.NewNewRelicMetricSink(
+			conf.NewrelicInsertKey,
+			conf.NewrelicAccountID,
+			conf.NewrelicRegion,
+			conf.NewrelicEventType,
+			conf.NewrelicCommonTags,
+			log,
+			conf.NewrelicStatusCheckEventType,
+		)
+		if err != nil {
+			return ret, err
+		}
+		ret.metricSinks = append(ret.metricSinks, nrSink)
+	}
+
+	if conf.DatadogAPIKey != "" && conf.DatadogAPIHostname != "" {
 		excludeTagsPrefixByPrefixMetric := map[string][]string{}
 		for _, m := range conf.DatadogExcludeTagsPrefixByPrefixMetric {
 			excludeTagsPrefixByPrefixMetric[m.MetricPrefix] = m.Tags
@@ -552,6 +569,27 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 					"num_annotation_tags": annotationTags,
 				}).Info("Configured X-Ray span sink")
 			}
+		}
+
+		if conf.NewrelicInsertKey != "" {
+			nrSpanSink, err := newrelic.NewNewRelicSpanSink(
+				conf.NewrelicInsertKey,
+				conf.NewrelicAccountID,
+				conf.NewrelicRegion,
+				conf.NewrelicCommonTags,
+				conf.NewrelicTraceObserverURL,
+				log,
+			)
+			if err != nil {
+				return ret, err
+			}
+
+			ret.spanSinks = append(ret.spanSinks, nrSpanSink)
+
+			logger.WithFields(logrus.Fields{
+				"span_url":    conf.NewrelicTraceObserverURL,
+				"common_tags": conf.NewrelicCommonTags,
+			}).Info("Configured New Relic span sink")
 		}
 
 		// configure Lightstep as a Span Sink
@@ -738,13 +776,14 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 
 	// Don't emit keys into logs now that we're done with them.
-	conf.SentryDsn = REDACTED
-	conf.TLSKey = REDACTED
-	conf.DatadogAPIKey = REDACTED
-	conf.SignalfxAPIKey = REDACTED
-	conf.LightstepAccessToken = REDACTED
 	conf.AwsAccessKeyID = REDACTED
 	conf.AwsSecretAccessKey = REDACTED
+	conf.DatadogAPIKey = REDACTED
+	conf.LightstepAccessToken = REDACTED
+	conf.NewrelicInsertKey = REDACTED
+	conf.SentryDsn = REDACTED
+	conf.SignalfxAPIKey = REDACTED
+	conf.TLSKey = REDACTED
 
 	ret.forwardUseGRPC = conf.ForwardUseGrpc
 

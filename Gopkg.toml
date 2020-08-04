@@ -78,10 +78,6 @@
 
 [[constraint]]
   branch = "master"
-  name = "golang.org/x/net"
-
-[[constraint]]
-  branch = "master"
   name = "golang.org/x/sys"
 
 [[constraint]]
@@ -130,3 +126,12 @@
 [[constraint]]
   name = "github.com/prometheus/client_golang"
   version = "1.1.0"
+
+[[constraint]]
+  name = "github.com/newrelic/newrelic-telemetry-sdk-go"
+  version = "0.3.0"
+
+[[constraint]]
+  name = "github.com/newrelic/newrelic-client-go"
+  version = "0.35.1"
+

@@ -32,15 +32,52 @@ to allow your production shell scripts to submit data too), we ship a
 tool called `veneur-emit`. Much like veneur itself, you don't need to
 compile it before running either:
 
-``` sh
-go run ./cmd/veneur-emit/main.go -ssf -hostport unix:///tmp/veneur.sock -trace_id 999 -parent_span_id 9999 -name hi.there -span_service veneur_ssf_investigation -debug -command /usr/bin/true
- ```
+### Metric data via ssf
+
+```sh
+go run ./cmd/veneur-emit/main.go \
+  -ssf \
+  -hostport unix:///tmp/veneur.sock \
+  -trace_id 999 \
+  -parent_span_id 9999 \
+  -name hi.there \
+  -span_service veneur_ssf_investigation \
+  -debug \
+  -command /usr/bin/true
+```
 
 This will time the command `/usr/bin/true` and submit an SSF span
 concerning the run time of this process to veneur.
 
 `veneur-emit` has a bunch more options, check out the usage for it
 with `go run ./cmd/veneur-emit/main.go -help`!
+
+
+### Event data
+
+```sh
+go run ./cmd/veneur-emit/main.go \
+  -mode event \
+  -hostport 127.0.0.1:8200 \
+  -e_event_tags 'service:airflow,host_type:qa' \
+  -e_source_type 'test_source' \
+  -e_text 'text blah' \
+  -e_title 'some title' \
+  -debug
+```
+
+### Service Checks
+
+```sh
+go run ./cmd/veneur-emit/main.go \
+  -mode sc \
+  -hostport 127.0.0.1:8200 \
+  -sc_msg 'message of sc' \
+  -sc_name 'my-service-check' \
+  -sc_status 0 \
+  -sc_tags 'env:prod' \
+  -debug
+```
 
 ## Adding test data files
 
