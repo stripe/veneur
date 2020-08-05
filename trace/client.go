@@ -348,7 +348,7 @@ func NewClient(addrStr string, opts ...ClientParam) (*Client, error) {
 			be := &streamBackend{backendParams: *cl.backendParams}
 			fb = append(fb, newFlushNofifier(be))
 		case *net.TCPAddr:
-			be := &packetBackend{backendParams: *cl.backendParams}
+			be := &streamBackend{backendParams: *cl.backendParams}
 			fb = append(fb, newFlushNofifier(be))
 		default:
 			return nil, fmt.Errorf("can not connect to %v addresses", addr.Network())

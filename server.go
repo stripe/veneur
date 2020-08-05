@@ -1279,8 +1279,8 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 	}
 }
 
-// ReadTCPSocket listens on Server.TCPAddr for new connections, starting a goroutine for each.
-func (s *Server) ReadTCPSocket(listener net.Listener) {
+// ReadStatsdTCPSocket listens on Server.TCPAddr for new statd connections, starting a goroutine for each.
+func (s *Server) ReadStatsdTCPSocket(listener net.Listener) {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -1295,6 +1295,25 @@ func (s *Server) ReadTCPSocket(listener net.Listener) {
 		}
 
 		go s.handleTCPGoroutine(conn)
+	}
+}
+
+// ReadSSFTCPSocket listens on Server.TCPAddr for new SSF connections, starting a goroutine for each.
+func (s *Server) ReadSSFTCPSocket(listener net.Listener) {
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			select {
+			case <-s.shutdown:
+				// occurs when cleanly shutting down the server e.g. in tests; ignore errors
+				log.WithError(err).Info("Ignoring Accept error while shutting down")
+				return
+			default:
+				log.WithError(err).Fatal("TCP accept failed")
+			}
+		}
+
+		go s.ReadSSFStreamSocket(conn)
 	}
 }
 

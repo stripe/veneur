@@ -132,7 +132,7 @@ func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Add
 		defer func() {
 			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
 		}()
-		s.ReadTCPSocket(listener)
+		s.ReadStatsdTCPSocket(listener)
 	}()
 	return listener.Addr()
 }
@@ -255,7 +255,7 @@ func startSSFTCP(s *Server, addr *net.TCPAddr, tracePool *sync.Pool) net.Addr {
 		defer func() {
 			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
 		}()
-		s.ReadTCPSocket(listener)
+		s.ReadSSFTCPSocket(listener)
 	}()
 	return listener.Addr()
 }
