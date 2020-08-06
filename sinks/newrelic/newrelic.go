@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/newrelic/newrelic-client-go/pkg/config"
-	"github.com/newrelic/newrelic-client-go/pkg/nrdb"
 	"github.com/newrelic/newrelic-client-go/pkg/region"
 	"github.com/newrelic/newrelic-telemetry-sdk-go/telemetry"
 	"github.com/sirupsen/logrus"
@@ -17,38 +15,6 @@ const (
 	DefaultEventType             = "veneur"
 	DefaultServiceCheckEventType = "veneurCheck"
 )
-
-func newEventClient(insertKey string, reg string, log *logrus.Logger) (*nrdb.Nrdb, error) {
-	var err error
-	regName := DefaultRegion
-
-	// Configure what region we are reporting to
-	if reg != "" {
-		regName, err = region.Parse(reg)
-		if err != nil {
-			log.WithError(err).WithFields(logrus.Fields{
-				"configured": reg,
-				"default":    DefaultRegion,
-			}).Warn("failed to parse New Relic region, using default")
-
-			regName = DefaultRegion
-		}
-	}
-
-	nrRegion, err := region.Get(regName)
-	if err != nil {
-		return nil, err
-	}
-
-	nrdbConfig := config.New()
-	nrdbConfig.InsightsInsertKey = insertKey
-	nrdbConfig.ServiceName = "veneur"
-	nrdbConfig.SetRegion(nrRegion)
-
-	n := nrdb.New(nrdbConfig)
-
-	return &n, nil
-}
 
 // newHarvester creates a New Relic telemetry harvester for sending
 // Metric and/or Span data
@@ -84,12 +50,12 @@ func newHarvester(insertKey string, log *logrus.Logger, tags []string, spanURL s
 
 	if spanURL != "" {
 		nrCfg = append(nrCfg, telemetry.ConfigSpansURLOverride(spanURL))
-		log.WithField("spanURL", spanURL).Info("using custom span destination url")
+		logger.WithField("spanURL", spanURL).Info("using custom span destination url")
 	}
 
 	ret, err := telemetry.NewHarvester(nrCfg...)
 	if err != nil {
-		log.WithError(err).Error("unable to create New Relic harvester")
+		logger.WithError(err).Error("unable to create New Relic harvester")
 		return nil, err
 	}
 

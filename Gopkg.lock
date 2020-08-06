@@ -951,8 +951,6 @@
     "github.com/kelseyhightower/envconfig",
     "github.com/lightstep/lightstep-tracer-go",
     "github.com/newrelic/newrelic-client-go/newrelic",
-    "github.com/newrelic/newrelic-client-go/pkg/config",
-    "github.com/newrelic/newrelic-client-go/pkg/nrdb",
     "github.com/newrelic/newrelic-client-go/pkg/region",
     "github.com/newrelic/newrelic-telemetry-sdk-go/telemetry",
     "github.com/opentracing/opentracing-go",
