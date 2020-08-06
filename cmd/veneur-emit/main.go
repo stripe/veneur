@@ -274,19 +274,13 @@ func Main(args []string) int {
 			return 1
 		}
 	} else {
-		if netAddr.Network() != "udp" {
-			logrus.WithField("address", addr).
-				WithField("network", netAddr.Network()).
-				Error("hostport must be a UDP address for statsd metrics")
-			return 1
-		}
 		if len(span.Metrics) == 0 {
 			logrus.Error("No metrics to send. Must pass metric data via at least one of -count, -gauge, -timing, or -set.")
 			return 1
 		}
-		err = sendStatsd(netAddr.String(), span)
+		err = sendStatsd(netAddr, span)
 		if err != nil {
-			logrus.WithError(err).Error("Could not send UDP metrics")
+			logrus.WithError(err).Error("Could not send metrics")
 			return 1
 		}
 	}
@@ -574,10 +568,54 @@ func sendSSF(client *trace.Client, span *ssf.SSFSpan) error {
 	return <-done
 }
 
+// Adapted from https://github.com/DataDog/datadog-go/blob/master/statsd/udp.go
+func newDatadogTCPWriter(addr string) (*datadogTCPWriter, error) {
+	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := net.DialTCP("tcp", nil, tcpAddr)
+	if err != nil {
+		return nil, err
+	}
+	writer := &datadogTCPWriter{conn: conn}
+	return writer, nil
+}
+
+type datadogTCPWriter struct {
+	timeout time.Duration
+	conn    net.Conn
+}
+
+func (w *datadogTCPWriter) Write(data []byte) (n int, err error) {
+	return w.conn.Write(data)
+}
+
+func (w *datadogTCPWriter) SetWriteTimeout(timeout time.Duration) error {
+	return nil
+}
+
+func (w *datadogTCPWriter) Close() error {
+	return w.conn.Close()
+}
+
 // sendStatsd sends the metrics gathered in a span to a dogstatsd
 // endpoint.
-func sendStatsd(addr string, span *ssf.SSFSpan) error {
-	client, err := statsd.New(addr)
+func sendStatsd(addr net.Addr, span *ssf.SSFSpan) error {
+	var client *statsd.Client
+	var err error
+	network := addr.Network()
+	switch network {
+	case "udp":
+		client, err = statsd.New(addr.String())
+	case "tcp":
+		writer, err := newDatadogTCPWriter(addr.String())
+		if err == nil {
+			client, err = statsd.NewWithWriter(writer)
+		}
+	default:
+		err = fmt.Errorf("%s is not supported for sending statsd metrics", network)
+	}
 	if err != nil {
 		return err
 	}
