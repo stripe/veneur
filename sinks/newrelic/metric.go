@@ -16,20 +16,20 @@ import (
 )
 
 type NewRelicMetricSink struct {
-	accountID        int
-	client           *newrelic.NewRelic
-	eventType        string
-	statusCheckEvent string
-	harvester        *telemetry.Harvester
-	log              *logrus.Logger
-	traceClient      *trace.Client
+	accountID         int
+	client            *newrelic.NewRelic
+	eventType         string
+	serviceCheckEvent string
+	harvester         *telemetry.Harvester
+	log               *logrus.Logger
+	traceClient       *trace.Client
 }
 
 var _ sinks.MetricSink = &NewRelicMetricSink{}
 
 // NewNewRelicMetricSink creates a new NewRelicMetricSink. This sink sends
 // data to the New Relic platform
-func NewNewRelicMetricSink(insertKey string, accountID int, region string, eventType string, tags []string, log *logrus.Logger, statusCheckEvent string) (*NewRelicMetricSink, error) {
+func NewNewRelicMetricSink(insertKey string, accountID int, region string, eventType string, tags []string, log *logrus.Logger, serviceCheckEvent string) (*NewRelicMetricSink, error) {
 	if log == nil {
 		log = logrus.StandardLogger()
 	}
@@ -44,8 +44,8 @@ func NewNewRelicMetricSink(insertKey string, accountID int, region string, event
 	if eventType == "" {
 		eventType = DefaultEventType
 	}
-	if statusCheckEvent == "" {
-		statusCheckEvent = DefaultStatusCheckEventType
+	if serviceCheckEvent == "" {
+		serviceCheckEvent = DefaultServiceCheckEventType
 	}
 
 	nr, err := newrelic.New(
@@ -65,18 +65,18 @@ func NewNewRelicMetricSink(insertKey string, accountID int, region string, event
 		return nil, err
 	}
 	log.WithFields(logrus.Fields{
-		"accountID":            accountID,
-		"eventType":            eventType,
-		"statusCheckEventType": statusCheckEvent,
+		"accountID":             accountID,
+		"eventType":             eventType,
+		"serviceCheckEventType": serviceCheckEvent,
 	}).Info("started New Relic sink")
 
 	return &NewRelicMetricSink{
-		accountID:        accountID,
-		client:           nr,
-		eventType:        eventType,
-		harvester:        h,
-		log:              log,
-		statusCheckEvent: statusCheckEvent,
+		accountID:         accountID,
+		client:            nr,
+		eventType:         eventType,
+		harvester:         h,
+		log:               log,
+		serviceCheckEvent: serviceCheckEvent,
 	}, nil
 
 }
@@ -141,8 +141,7 @@ func (nr *NewRelicMetricSink) Flush(ctx context.Context, interMetrics []samplers
 
 		case samplers.StatusMetric:
 			// already have a map, flush it out
-			attrs["eventType"] = nr.statusCheckEvent
-			attrs["type"] = "statusCheck"
+			attrs["eventType"] = nr.serviceCheckEvent
 			attrs["name"] = m.Name
 			attrs["timestamp"] = timestamp
 			attrs["statusCode"] = int(m.Value)

@@ -8,12 +8,12 @@ import (
 )
 
 const (
-	testNewRelicAccount         = 0
-	testNewRelicApiKey          = "INVALID_API_KEY"
-	testNewRelicEventType       = "testVeneur"
-	testNewRelicRegion          = "US"
-	testNewRelicSpanURL         = ""
-	testNewRelicStatusEventType = "testStatusCheck"
+	testNewRelicAccount          = 0
+	testNewRelicApiKey           = "INVALID_API_KEY"
+	testNewRelicEventType        = "testVeneur"
+	testNewRelicRegion           = "US"
+	testNewRelicSpanURL          = ""
+	testNewRelicServiceEventType = "testServiceCheck"
 )
 
 func TestNewHarvester(t *testing.T) {

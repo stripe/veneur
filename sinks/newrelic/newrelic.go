@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	DefaultRegion               = region.US
-	DefaultEventType            = "veneur"
-	DefaultStatusCheckEventType = "statusChecks"
+	DefaultRegion                = region.US
+	DefaultEventType             = "veneur"
+	DefaultServiceCheckEventType = "veneurCheck"
 )
 
 func newEventClient(insertKey string, reg string, log *logrus.Logger) (*nrdb.Nrdb, error) {

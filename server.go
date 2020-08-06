@@ -504,7 +504,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			conf.NewrelicEventType,
 			conf.NewrelicCommonTags,
 			log,
-			conf.NewrelicStatusCheckEventType,
+			conf.NewrelicServiceCheckEventType,
 		)
 		if err != nil {
 			return ret, err

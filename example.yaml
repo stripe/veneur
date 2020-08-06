@@ -323,8 +323,8 @@ newrelic_common_tags:
 newrelic_event_type: ""
 
 # Event type to use when reporting status checks to New Relic
-# Optional, default: "statusChecks"
-newrelic_status_check_event_type: ""
+# Optional, default: "veneurCheck"
+newrelic_service_check_event_type: ""
 
 # To enable Infinite Tracing on the New Relic Edge, set this field to your
 # Trace Observer URL including scheme and path. See:

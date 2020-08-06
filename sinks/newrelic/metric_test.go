@@ -17,7 +17,7 @@ func TestNewNewRelicMetricSink(t *testing.T) {
 	t.Parallel()
 
 	logger := logrus.New()
-	s, err := NewNewRelicMetricSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, testNewRelicEventType, []string{}, logger, testNewRelicStatusEventType)
+	s, err := NewNewRelicMetricSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, testNewRelicEventType, []string{}, logger, testNewRelicServiceEventType)
 
 	require.NotNil(t, s)
 	assert.NoError(t, err)
@@ -33,7 +33,7 @@ func TestNewRelicMetricSink_Start(t *testing.T) {
 	t.Parallel()
 
 	logger := logrus.New()
-	s, err := NewNewRelicMetricSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, testNewRelicEventType, []string{}, logger, testNewRelicStatusEventType)
+	s, err := NewNewRelicMetricSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, testNewRelicEventType, []string{}, logger, testNewRelicServiceEventType)
 
 	require.NotNil(t, s)
 	require.NoError(t, err)
@@ -48,7 +48,7 @@ func TestNewRelicMetricSink_Flush(t *testing.T) {
 	t.Parallel()
 
 	logger := logrus.New()
-	s, err := NewNewRelicMetricSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, testNewRelicEventType, []string{}, logger, testNewRelicStatusEventType)
+	s, err := NewNewRelicMetricSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, testNewRelicEventType, []string{}, logger, testNewRelicServiceEventType)
 
 	require.NotNil(t, s)
 	require.NoError(t, err)
@@ -63,7 +63,7 @@ func TestNewRelicMetricSink_FlushOtherSamples(t *testing.T) {
 	t.Parallel()
 
 	logger := logrus.New()
-	s, err := NewNewRelicMetricSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, testNewRelicEventType, []string{}, logger, testNewRelicStatusEventType)
+	s, err := NewNewRelicMetricSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, testNewRelicEventType, []string{}, logger, testNewRelicServiceEventType)
 
 	require.NotNil(t, s)
 	require.NoError(t, err)

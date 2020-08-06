@@ -64,7 +64,7 @@ type Config struct {
 	NewrelicEventType                         string    `yaml:"newrelic_event_type"`
 	NewrelicInsertKey                         string    `yaml:"newrelic_insert_key"`
 	NewrelicRegion                            string    `yaml:"newrelic_region"`
-	NewrelicStatusCheckEventType              string    `yaml:"newrelic_status_check_event_type"`
+	NewrelicServiceCheckEventType             string    `yaml:"newrelic_service_check_event_type"`
 	NewrelicTraceObserverURL                  string    `yaml:"newrelic_trace_observer_url"`
 	NumReaders                                int       `yaml:"num_readers"`
 	NumSpanWorkers                            int       `yaml:"num_span_workers"`
