@@ -62,7 +62,7 @@ When a local server's `(*Server).Start` method is called, that kicks
 off listening for Statsd metrics and for SSF spans:
 
 * statsd metrics are read by [`(*Server).ReadMetricSocket`](https://godoc.org/github.com/stripe/veneur#Server.ReadMetricSocket) (for UDP) or [`(*Server).ReadStatsdTCPSocket`](https://godoc.org/github.com/stripe/veneur#Server.ReadStatsdTCPSocket).
-* SSF spans on UNIX domain sockets are read by [`ReadSSFStreamSocket`](https://godoc.org/github.com/stripe/veneur#Server.ReadSSFStreamSocket) using the framing protocol in [package `protocol`](https://godoc.org/github.com/stripe/veneur/protocol).
+* SSF spans on UNIX domain sockets are read by [`ReadSSFStreamSocket`](https://godoc.org/github.com/stripe/veneur#Server.ReadSSFStreamSocket) using the framing protocol in [package `protocol`](https://godoc.org/github.com/stripe/veneur/protocol) and [`(*Server).ReadSSFTCPSocket`](https://godoc.org/github.com/stripe/veneur#Server.ReadStatsdTCPSocket) for TCP.
 * SSF spans from UDP are read by [`(*Server).ReadSSFPacketSocket`](https://godoc.org/github.com/stripe/veneur#Server.ReadSSFPacketSocket). The packets contain only the protobuf representation of an SSF span.
 
 #### Workers - processing data internally

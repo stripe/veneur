@@ -16,9 +16,6 @@
 * veneur-emit no longer panics when an empty command is passed. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
 * Fixed a bug that caused some veneur-emit builds to not flush metrics to udp. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
 
-## Bugfixes
-* veneur-emit no longer panics when an empty command is passed. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
-
 # 13.0.0, 2020-01-03
 
 ## Added
