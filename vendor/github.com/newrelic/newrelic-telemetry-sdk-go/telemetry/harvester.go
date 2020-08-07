@@ -4,6 +4,7 @@
 package telemetry
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -320,6 +321,10 @@ func harvestRequest(req request, cfg *Config) {
 			return
 		}
 		attempts++
+
+		// Reattach request body because the original one has already been read
+		// and closed.
+		req.Request.Body = ioutil.NopCloser(bytes.NewBuffer(req.compressedBody))
 	}
 }
 

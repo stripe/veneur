@@ -21,6 +21,7 @@ type request struct {
 	Request          *http.Request
 	UncompressedBody json.RawMessage
 
+	compressedBody       []byte
 	compressedBodyLength int
 }
 
@@ -60,6 +61,7 @@ func newRequestsInternal(batch requestsBuilder, apiKey string, url string, userA
 	r := request{
 		Request:              req,
 		UncompressedBody:     uncompressed,
+		compressedBody:       compressed.Bytes(),
 		compressedBodyLength: compressedLen,
 	}
 

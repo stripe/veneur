@@ -414,7 +414,7 @@
   version = "v0.35.1"
 
 [[projects]]
-  digest = "1:a8668c612e74fde6af081cc46f535975b99a23e4e6f9d0be840cd4536db7d633"
+  digest = "1:684eccb126043368bd78c8064e980633360f68a5fe14941478022657c590af72"
   name = "github.com/newrelic/newrelic-telemetry-sdk-go"
   packages = [
     "internal",
@@ -422,8 +422,8 @@
     "telemetry",
   ]
   pruneopts = "NUT"
-  revision = "bfbcaeaf4d96a94caced2965ebe8ecfc8faa9406"
-  version = "v0.3.0"
+  revision = "e3d912863ace96681b2b66ebffdb0acc5f874ff2"
+  version = "v0.4.0"
 
 [[projects]]
   digest = "1:7da29c22bcc5c2ffb308324377dc00b5084650348c2799e573ed226d8cc9faf0"

@@ -129,7 +129,7 @@
 
 [[constraint]]
   name = "github.com/newrelic/newrelic-telemetry-sdk-go"
-  version = "0.3.0"
+  version = "0.4.0"
 
 [[constraint]]
   name = "github.com/newrelic/newrelic-client-go"
