@@ -568,7 +568,7 @@ func sendSSF(client *trace.Client, span *ssf.SSFSpan) error {
 	return <-done
 }
 
-// Adapted from https://github.com/DataDog/datadog-go/blob/master/statsd/udp.go
+// newDatadogTCPWriter is adapted from https://github.com/DataDog/datadog-go/blob/master/statsd/udp.go
 func newDatadogTCPWriter(addr string) (*datadogTCPWriter, error) {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
@@ -583,8 +583,7 @@ func newDatadogTCPWriter(addr string) (*datadogTCPWriter, error) {
 }
 
 type datadogTCPWriter struct {
-	timeout time.Duration
-	conn    net.Conn
+	conn net.Conn
 }
 
 func (w *datadogTCPWriter) Write(data []byte) (n int, err error) {
@@ -592,6 +591,7 @@ func (w *datadogTCPWriter) Write(data []byte) (n int, err error) {
 }
 
 func (w *datadogTCPWriter) SetWriteTimeout(timeout time.Duration) error {
+	// This is unused in the current implementation
 	return nil
 }
 
