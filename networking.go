@@ -26,7 +26,7 @@ func StartStatsd(s *Server, a net.Addr, packetPool *sync.Pool) net.Addr {
 		_, b := startStatsdUnix(s, addr, packetPool)
 		return b
 	default:
-		panic(fmt.Sprintf("Can't listen on %v: only TCP, UDP and unixgram:// are supported", a))
+		panic(fmt.Sprintf("Can't listen on %v: only tcp://, udp://, and unixgram:// are supported", a))
 	}
 }
 
@@ -204,7 +204,7 @@ func StartSSF(s *Server, a net.Addr, tracePool *sync.Pool) net.Addr {
 	case *net.UnixAddr:
 		_, a = startSSFUnix(s, addr)
 	default:
-		panic(fmt.Sprintf("Can't listen for SSF on %v: only TCP, UDP and unixgram:// are supported", a))
+		panic(fmt.Sprintf("Can't listen for SSF on %v: only tcp://, udp://, and unix:// are supported", a))
 	}
 	log.WithFields(logrus.Fields{
 		"address": a.String(),
