@@ -13,6 +13,7 @@ import (
 	"github.com/stripe/veneur/ssf"
 	flock "github.com/theckman/go-flock"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 // StartStatsd spawns a goroutine that listens for metrics in statsd
@@ -316,17 +317,20 @@ func startGRPCTCP(s *Server, addr *net.TCPAddr) net.Addr {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	grpcServer := grpc.NewServer()
-	ssf.RegisterSSFGRPCServer(grpcServer, &grpcSSFServer{server: s})
+	var grpcServer *grpc.Server
 	mode := "unencrypted"
 	if s.tlsConfig != nil {
-		// SHRIVUTODO
+		tlsCreds := credentials.NewTLS(s.tlsConfig)
 		if s.tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
 			mode = "authenticated"
 		} else {
 			mode = "encrypted"
 		}
+		grpcServer = grpc.NewServer(grpc.Creds(tlsCreds))
+	} else {
+		grpcServer = grpc.NewServer()
 	}
+	ssf.RegisterSSFGRPCServer(grpcServer, &grpcSSFServer{server: s})
 	log.WithFields(logrus.Fields{
 		"address": addr, "mode": mode,
 	}).Info("Listening for SSF metrics on GRPC socket")
