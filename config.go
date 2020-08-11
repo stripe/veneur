@@ -94,6 +94,7 @@ type Config struct {
 	SplunkSpanSampleRate              int      `yaml:"splunk_span_sample_rate"`
 	SsfBufferSize                     int      `yaml:"ssf_buffer_size"`
 	SsfListenAddresses                []string `yaml:"ssf_listen_addresses"`
+	GrpcListenAddresses               []string `yaml:"grpc_listen_addresses"`
 	StatsAddress                      string   `yaml:"stats_address"`
 	StatsdListenAddresses             []string `yaml:"statsd_listen_addresses"`
 	SynchronizeWithInterval           bool     `yaml:"synchronize_with_interval"`

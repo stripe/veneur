@@ -1,6 +1,7 @@
 package veneur
 
 //go:generate protoc --gogofaster_out=Mssf/sample.proto=github.com/stripe/veneur/ssf,plugins=grpc:. sinks/grpsink/grpc_sink.proto
+//go:generate protoc --gogofaster_out=plugins=grpc:. ssf/grpc.proto
 //go:generate protoc --gogofaster_out=. ssf/sample.proto
 //go:generate protoc -I=. -I=$GOPATH/src -I=$GOPATH/src/github.com/gogo/protobuf/protobuf --gogofaster_out=. tdigest/tdigest.proto
 //go:generate protoc -I=. -I=$GOPATH/src -I=$GOPATH/src/github.com/gogo/protobuf/protobuf --gogofaster_out=Mtdigest/tdigest.proto=github.com/stripe/veneur/tdigest:. samplers/metricpb/metric.proto

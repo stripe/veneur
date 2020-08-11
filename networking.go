@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -9,7 +10,9 @@ import (
 	"sync"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/ssf"
 	flock "github.com/theckman/go-flock"
+	"google.golang.org/grpc"
 )
 
 // StartStatsd spawns a goroutine that listens for metrics in statsd
@@ -282,6 +285,59 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) (<-chan struct{}, net.Addr) {
 	}()
 
 	return done, listener.Addr()
+}
+
+// StartGRPC TODO
+func StartGRPC(s *Server, a net.Addr, tracePool *sync.Pool) net.Addr {
+	switch addr := a.(type) {
+	case *net.TCPAddr:
+		a = startGRPCTCP(s, addr, tracePool)
+	default:
+		panic(fmt.Sprintf("Can't listen for GRPC on %s because it's not tcp://", a))
+	}
+	log.WithFields(logrus.Fields{
+		"address": a.String(),
+		"network": a.Network(),
+	}).Info("Listening for GRPC SSF traces")
+	return a
+}
+
+// GrpcServer SHRIVUTODO
+type GrpcServer struct{}
+
+// SendSpan SHRIVUTODO
+func (grpcsrv *GrpcServer) SendSpan(ctx context.Context, span *ssf.SSFSpan) (*ssf.Empty, error) {
+	panic(span)
+	return &ssf.Empty{}, nil
+}
+
+func startGRPCTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Addr {
+	listener, err := net.Listen("tcp", addr.String())
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	grpcServer := grpc.NewServer()
+	ssf.RegisterSSFGRPCServer(grpcServer, &GrpcServer{})
+	mode := "unencrypted"
+	if s.tlsConfig != nil {
+		// SHRIVUTODO
+		if s.tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
+			mode = "authenticated"
+		} else {
+			mode = "encrypted"
+		}
+	}
+	log.WithFields(logrus.Fields{
+		"address": addr, "mode": mode,
+	}).Info("Listening for SSF metrics on GRPC socket")
+	// go func() {
+	// 	defer func() {
+	// 		ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+	// 	}()
+	// 	s.ReadTCPSocket(listener)
+	// }()
+	grpcServer.Serve(listener)
+	return listener.Addr()
 }
 
 // Acquires exclusive use lock for a given socket file and returns the lock
