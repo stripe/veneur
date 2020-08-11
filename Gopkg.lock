@@ -907,6 +907,7 @@
     "goji.io/pat",
     "golang.org/x/sys/unix",
     "google.golang.org/grpc",
+    "google.golang.org/grpc/codes",
     "google.golang.org/grpc/connectivity",
     "google.golang.org/grpc/metadata",
     "google.golang.org/grpc/status",

@@ -291,7 +291,7 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) (<-chan struct{}, net.Addr) {
 func StartGRPC(s *Server, a net.Addr, tracePool *sync.Pool) net.Addr {
 	switch addr := a.(type) {
 	case *net.TCPAddr:
-		a = startGRPCTCP(s, addr, tracePool)
+		a = startGRPCTCP(s, addr)
 	default:
 		panic(fmt.Sprintf("Can't listen for GRPC on %s because it's not tcp://", a))
 	}
@@ -302,22 +302,22 @@ func StartGRPC(s *Server, a net.Addr, tracePool *sync.Pool) net.Addr {
 	return a
 }
 
-// GrpcServer SHRIVUTODO
-type GrpcServer struct{}
+type grpcSSFServer struct {
+	server *Server
+}
 
-// SendSpan SHRIVUTODO
-func (grpcsrv *GrpcServer) SendSpan(ctx context.Context, span *ssf.SSFSpan) (*ssf.Empty, error) {
-	panic(span)
+func (grpcsrv *grpcSSFServer) SendSpan(ctx context.Context, span *ssf.SSFSpan) (*ssf.Empty, error) {
+	grpcsrv.server.handleSSF(span, "grpc")
 	return &ssf.Empty{}, nil
 }
 
-func startGRPCTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Addr {
+func startGRPCTCP(s *Server, addr *net.TCPAddr) net.Addr {
 	listener, err := net.Listen("tcp", addr.String())
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
-	ssf.RegisterSSFGRPCServer(grpcServer, &GrpcServer{})
+	ssf.RegisterSSFGRPCServer(grpcServer, &grpcSSFServer{server: s})
 	mode := "unencrypted"
 	if s.tlsConfig != nil {
 		// SHRIVUTODO
@@ -330,12 +330,6 @@ func startGRPCTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Addr 
 	log.WithFields(logrus.Fields{
 		"address": addr, "mode": mode,
 	}).Info("Listening for SSF metrics on GRPC socket")
-	// go func() {
-	// 	defer func() {
-	// 		ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
-	// 	}()
-	// 	s.ReadTCPSocket(listener)
-	// }()
 	grpcServer.Serve(listener)
 	return listener.Addr()
 }
