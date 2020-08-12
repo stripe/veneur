@@ -32,11 +32,12 @@ import (
 type EmitMode uint
 
 type Flags struct {
-	HostPort  string
-	Mode      string
-	Debug     bool
-	Command   bool
-	ExtraArgs []string
+	HostPort      string
+	Mode          string
+	Debug         bool
+	Command       bool
+	HTTPAuthority string
+	ExtraArgs     []string
 
 	Name   string
 	Gauge  float64
@@ -279,7 +280,11 @@ func Main(args []string) int {
 			return 1
 		}
 	} else if flagStruct.ToGrpc {
-		conn, err := grpc.Dial(netAddr.String(), grpc.WithInsecure())
+		grpcDialOptions := []grpc.DialOption{grpc.WithInsecure()}
+		if flagStruct.HTTPAuthority != "" {
+			grpcDialOptions = append(grpcDialOptions, grpc.WithAuthority(flagStruct.HTTPAuthority))
+		}
+		conn, err := grpc.Dial(addr, grpcDialOptions...)
 		if err != nil {
 			logrus.WithError(err).Error("Could not dial grpc server")
 			return 1
@@ -321,6 +326,7 @@ func flags(args []string) (Flags, map[string]flag.Value, error) {
 	flagset.StringVar(&flagStruct.Mode, "mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
 	flagset.BoolVar(&flagStruct.Debug, "debug", false, "Turns on debug messages.")
 	flagset.BoolVar(&flagStruct.Command, "command", false, "Turns on command-timing mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.")
+	flagset.StringVar(&flagStruct.HTTPAuthority, "http_authority", "", "Sets the authority header if using HTTP. This is the equivalent of Host for HTTP/2.")
 
 	// Metric flags
 	flagset.StringVar(&flagStruct.Name, "name", "", "Name of metric to report. Ex: 'daemontools.service.starts'")
