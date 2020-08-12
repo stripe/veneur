@@ -173,11 +173,10 @@ func TestConnectGRPC(t *testing.T) {
 			_, err = client.SendSpan(context.Background(), &ssf.SSFSpan{})
 			require.NoError(t, err)
 			conns <- struct{}{}
-
 		}()
 	}
 
-	timeout := time.After(20 * time.Second)
+	timeout := time.After(3 * time.Second)
 	for i := 0; i < 5; i++ {
 		select {
 		case <-timeout:
