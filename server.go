@@ -851,7 +851,7 @@ func (s *Server) Start() {
 	if len(s.GRPCListenAddrs) > 0 {
 		concreteAddrs := make([]net.Addr, 0, len(s.GRPCListenAddrs))
 		for _, addr := range s.GRPCListenAddrs {
-			concreteAddrs = append(concreteAddrs, StartGRPC(s, addr, tracePool))
+			concreteAddrs = append(concreteAddrs, StartGRPC(s, addr))
 		}
 		s.SSFListenAddrs = concreteAddrs
 	} else {

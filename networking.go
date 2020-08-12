@@ -288,11 +288,11 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) (<-chan struct{}, net.Addr) {
 	return done, listener.Addr()
 }
 
-// StartGRPC TODO
-func StartGRPC(s *Server, a net.Addr, tracePool *sync.Pool) net.Addr {
+// StartGRPC starts listening for spans over HTTP
+func StartGRPC(s *Server, a net.Addr) net.Addr {
 	switch addr := a.(type) {
 	case *net.TCPAddr:
-		a = startGRPCTCP(s, addr)
+		_, a = startGRPCTCP(s, addr)
 	default:
 		panic(fmt.Sprintf("Can't listen for GRPC on %s because it's not tcp://", a))
 	}
@@ -312,7 +312,7 @@ func (grpcsrv *grpcSSFServer) SendSpan(ctx context.Context, span *ssf.SSFSpan) (
 	return &ssf.Empty{}, nil
 }
 
-func startGRPCTCP(s *Server, addr *net.TCPAddr) net.Addr {
+func startGRPCTCP(s *Server, addr *net.TCPAddr) (*grpc.Server, net.Addr) {
 	listener, err := net.Listen("tcp", addr.String())
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -334,8 +334,8 @@ func startGRPCTCP(s *Server, addr *net.TCPAddr) net.Addr {
 	log.WithFields(logrus.Fields{
 		"address": addr, "mode": mode,
 	}).Info("Listening for SSF metrics on GRPC socket")
-	grpcServer.Serve(listener)
-	return listener.Addr()
+	go grpcServer.Serve(listener)
+	return grpcServer, listener.Addr()
 }
 
 // Acquires exclusive use lock for a given socket file and returns the lock
