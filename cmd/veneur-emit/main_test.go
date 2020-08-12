@@ -70,6 +70,13 @@ func TestTimeCommand(t *testing.T) {
 		assert.NoError(t, err, "timeCommand threw an error.")
 		assert.Equal(t, 42, st)
 	})
+
+	t.Run("emptyCall", func(t *testing.T) {
+		command := []string{}
+		st, _, _, err := timeCommand(&ssf.SSFSpan{}, command)
+		assert.Error(t, err)
+		assert.Equal(t, 1, st)
+	})
 }
 
 func TestGauge(t *testing.T) {

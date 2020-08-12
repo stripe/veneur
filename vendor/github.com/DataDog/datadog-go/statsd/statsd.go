@@ -25,7 +25,6 @@ package statsd
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"strings"
 	"sync"
@@ -75,7 +74,7 @@ var clientTelemetryTag = "client:go"
 /*
 clientVersionTelemetryTag is a tag identifying this specific client version.
 */
-var clientVersionTelemetryTag = "client_version:3.5.0"
+var clientVersionTelemetryTag = "client_version:3.7.2"
 
 /*
 UnixAddressPrefix holds the prefix to use to enable Unix Domain Socket
@@ -109,6 +108,13 @@ const (
 	timing
 	event
 	serviceCheck
+)
+
+type ReceivingMode int
+
+const (
+	MutexMode ReceivingMode = iota
+	ChannelMode
 )
 
 type metric struct {
@@ -203,19 +209,24 @@ type Client struct {
 	flushTime     time.Duration
 	bufferPool    *bufferPool
 	buffer        *statsdBuffer
-	metrics       ClientMetrics
+	metrics       *ClientMetrics
 	telemetryTags []string
 	stop          chan struct{}
 	wg            sync.WaitGroup
-	sync.Mutex
-	closerLock sync.Mutex
+	bufferShards  []*worker
+	closerLock    sync.Mutex
+	receiveMode   ReceivingMode
+	agg           *aggregator
+	options       []Option
+	addrOption    string
 }
 
 // ClientMetrics contains metrics about the client
 type ClientMetrics struct {
-	TotalMetrics       uint64
-	TotalEvents        uint64
-	TotalServiceChecks uint64
+	TotalMetrics          uint64
+	TotalEvents           uint64
+	TotalServiceChecks    uint64
+	TotalDroppedOnReceive uint64
 }
 
 // Verify that Client implements the ClientInterface.
@@ -258,7 +269,12 @@ func New(addr string, options ...Option) (*Client, error) {
 	if o.SenderQueueSize == 0 {
 		o.SenderQueueSize = defaultBufferPoolSize
 	}
-	return newWithWriter(w, o, writerType)
+	client, err := newWithWriter(w, o, writerType)
+	if err == nil {
+		client.options = append(client.options, options...)
+		client.addrOption = addr
+	}
+	return client, err
 }
 
 // NewWithWriter creates a new Client with given writer. Writer is a
@@ -271,14 +287,31 @@ func NewWithWriter(w statsdWriter, options ...Option) (*Client, error) {
 	return newWithWriter(w, o, "custom")
 }
 
+// CloneWithExtraOptions create a new Client with extra options
+func CloneWithExtraOptions(c *Client, options ...Option) (*Client, error) {
+	if c == nil {
+		return nil, ErrNoClient
+	}
+
+	if c.addrOption == "" {
+		return nil, fmt.Errorf("can't clone client with no addrOption")
+	}
+	opt := append(c.options, options...)
+	return New(c.addrOption, opt...)
+}
+
 func newWithWriter(w statsdWriter, o *Options, writerName string) (*Client, error) {
 
 	w.SetWriteTimeout(o.WriteTimeoutUDS)
 
 	c := Client{
-		Namespace:     o.Namespace,
-		Tags:          o.Tags,
-		telemetryTags: []string{clientTelemetryTag, clientVersionTelemetryTag, "client_transport:" + writerName},
+		Namespace: o.Namespace,
+		Tags:      o.Tags,
+		metrics:   &ClientMetrics{},
+	}
+	if o.Aggregation {
+		c.agg = newAggregator(&c)
+		c.agg.start(o.AggregationFlushInterval)
 	}
 
 	// Inject values of DD_* environment variables as global tags.
@@ -287,6 +320,8 @@ func newWithWriter(w statsdWriter, o *Options, writerName string) (*Client, erro
 			c.Tags = append(c.Tags, fmt.Sprintf("%s:%s", tagName, value))
 		}
 	}
+
+	c.telemetryTags = append(c.Tags, clientTelemetryTag, clientVersionTelemetryTag, "client_transport:"+writerName)
 
 	if o.MaxBytesPerPayload == 0 {
 		o.MaxBytesPerPayload = OptimalUDPPayloadSize
@@ -298,9 +333,17 @@ func newWithWriter(w statsdWriter, o *Options, writerName string) (*Client, erro
 		o.SenderQueueSize = DefaultUDPBufferPoolSize
 	}
 
+	c.receiveMode = o.ReceiveMode
 	c.bufferPool = newBufferPool(o.BufferPoolSize, o.MaxBytesPerPayload, o.MaxMessagesPerPayload)
 	c.buffer = c.bufferPool.borrowBuffer()
 	c.sender = newSender(w, o.SenderQueueSize, c.bufferPool)
+	for i := 0; i < o.BufferShardCount; i++ {
+		w := newWorker(c.bufferPool, c.sender)
+		c.bufferShards = append(c.bufferShards, w)
+		if c.receiveMode == ChannelMode {
+			w.startReceivingMetric(o.ChannelModeBufferSize) // TODO make it configurable
+		}
+	}
 	c.flushTime = o.BufferFlushInterval
 	c.stop = make(chan struct{}, 1)
 	c.wg.Add(1)
@@ -341,9 +384,9 @@ func (c *Client) watch() {
 	for {
 		select {
 		case <-ticker.C:
-			c.Lock()
-			c.flushUnsafe()
-			c.Unlock()
+			for _, w := range c.bufferShards {
+				w.flush()
+			}
 		case <-c.stop:
 			ticker.Stop()
 			return
@@ -356,19 +399,9 @@ func (c *Client) telemetry() {
 	for {
 		select {
 		case <-ticker.C:
-			clientMetrics := c.flushMetrics()
-			c.telemetryCount("datadog.dogstatsd.client.metrics", int64(clientMetrics.TotalMetrics), c.telemetryTags, 1)
-			c.telemetryCount("datadog.dogstatsd.client.events", int64(clientMetrics.TotalEvents), c.telemetryTags, 1)
-			c.telemetryCount("datadog.dogstatsd.client.service_checks", int64(clientMetrics.TotalServiceChecks), c.telemetryTags, 1)
-			senderMetrics := c.sender.flushMetrics()
-			c.telemetryCount("datadog.dogstatsd.client.packets_sent", int64(senderMetrics.TotalSentPayloads), c.telemetryTags, 1)
-			c.telemetryCount("datadog.dogstatsd.client.bytes_sent", int64(senderMetrics.TotalSentBytes), c.telemetryTags, 1)
-			c.telemetryCount("datadog.dogstatsd.client.packets_dropped", int64(senderMetrics.TotalDroppedPayloads), c.telemetryTags, 1)
-			c.telemetryCount("datadog.dogstatsd.client.bytes_dropped", int64(senderMetrics.TotalDroppedBytes), c.telemetryTags, 1)
-			c.telemetryCount("datadog.dogstatsd.client.packets_dropped_queue", int64(senderMetrics.TotalDroppedPayloadsQueueFull), c.telemetryTags, 1)
-			c.telemetryCount("datadog.dogstatsd.client.bytes_dropped_queue", int64(senderMetrics.TotalDroppedBytesQueueFull), c.telemetryTags, 1)
-			c.telemetryCount("datadog.dogstatsd.client.packets_dropped_writer", int64(senderMetrics.TotalDroppedPayloadsWriter), c.telemetryTags, 1)
-			c.telemetryCount("datadog.dogstatsd.client.bytes_dropped_writer", int64(senderMetrics.TotalDroppedBytesWriter), c.telemetryTags, 1)
+			for _, m := range c.flushTelemetry() {
+				c.send(m)
+			}
 		case <-c.stop:
 			ticker.Stop()
 			return
@@ -376,9 +409,31 @@ func (c *Client) telemetry() {
 	}
 }
 
-// same as Count but without global namespace / tags
-func (c *Client) telemetryCount(name string, value int64, tags []string, rate float64) {
-	c.addMetric(metric{metricType: count, name: name, ivalue: value, tags: tags, rate: rate})
+// flushTelemetry returns Telemetry metrics to be flushed. It's its own function to ease testing.
+func (c *Client) flushTelemetry() []metric {
+	m := []metric{}
+
+	// same as Count but without global namespace
+	telemetryCount := func(name string, value int64) {
+		m = append(m, metric{metricType: count, name: name, ivalue: value, tags: c.telemetryTags, rate: 1})
+	}
+
+	clientMetrics := c.FlushTelemetryMetrics()
+	telemetryCount("datadog.dogstatsd.client.metrics", int64(clientMetrics.TotalMetrics))
+	telemetryCount("datadog.dogstatsd.client.events", int64(clientMetrics.TotalEvents))
+	telemetryCount("datadog.dogstatsd.client.service_checks", int64(clientMetrics.TotalServiceChecks))
+	telemetryCount("datadog.dogstatsd.client.metric_dropped_on_receive", int64(clientMetrics.TotalDroppedOnReceive))
+
+	senderMetrics := c.sender.flushTelemetryMetrics()
+	telemetryCount("datadog.dogstatsd.client.packets_sent", int64(senderMetrics.TotalSentPayloads))
+	telemetryCount("datadog.dogstatsd.client.bytes_sent", int64(senderMetrics.TotalSentBytes))
+	telemetryCount("datadog.dogstatsd.client.packets_dropped", int64(senderMetrics.TotalDroppedPayloads))
+	telemetryCount("datadog.dogstatsd.client.bytes_dropped", int64(senderMetrics.TotalDroppedBytes))
+	telemetryCount("datadog.dogstatsd.client.packets_dropped_queue", int64(senderMetrics.TotalDroppedPayloadsQueueFull))
+	telemetryCount("datadog.dogstatsd.client.bytes_dropped_queue", int64(senderMetrics.TotalDroppedBytesQueueFull))
+	telemetryCount("datadog.dogstatsd.client.packets_dropped_writer", int64(senderMetrics.TotalDroppedPayloadsWriter))
+	telemetryCount("datadog.dogstatsd.client.bytes_dropped_writer", int64(senderMetrics.TotalDroppedBytesWriter))
+	return m
 }
 
 // Flush forces a flush of all the queued dogstatsd payloads
@@ -388,117 +443,84 @@ func (c *Client) Flush() error {
 	if c == nil {
 		return ErrNoClient
 	}
-	c.Lock()
-	defer c.Unlock()
-	c.flushUnsafe()
+	for _, w := range c.bufferShards {
+		w.flush()
+	}
 	c.sender.flush()
 	return nil
 }
 
-// flush the current buffer. Lock must be held by caller.
-// flushed buffer written to the network asynchronously.
-func (c *Client) flushUnsafe() {
-	if len(c.buffer.bytes()) > 0 {
-		c.sender.send(c.buffer)
-		c.buffer = c.bufferPool.borrowBuffer()
-	}
-}
-
-func (c *Client) flushMetrics() ClientMetrics {
+func (c *Client) FlushTelemetryMetrics() ClientMetrics {
 	return ClientMetrics{
-		TotalMetrics:       atomic.SwapUint64(&c.metrics.TotalMetrics, 0),
-		TotalEvents:        atomic.SwapUint64(&c.metrics.TotalEvents, 0),
-		TotalServiceChecks: atomic.SwapUint64(&c.metrics.TotalServiceChecks, 0),
+		TotalMetrics:          atomic.SwapUint64(&c.metrics.TotalMetrics, 0),
+		TotalEvents:           atomic.SwapUint64(&c.metrics.TotalEvents, 0),
+		TotalServiceChecks:    atomic.SwapUint64(&c.metrics.TotalServiceChecks, 0),
+		TotalDroppedOnReceive: atomic.SwapUint64(&c.metrics.TotalDroppedOnReceive, 0),
 	}
 }
 
-func (c *Client) shouldSample(rate float64) bool {
-	if rate < 1 && rand.Float64() > rate {
-		return true
-	}
-	return false
-}
-
-func (c *Client) globalTags() []string {
-	if c != nil {
-		return c.Tags
-	}
-	return nil
-}
-
-func (c *Client) namespace() string {
-	if c != nil {
-		return c.Namespace
-	}
-	return ""
-}
-
-func (c *Client) writeMetricUnsafe(m metric) error {
-	switch m.metricType {
-	case gauge:
-		atomic.AddUint64(&c.metrics.TotalMetrics, 1)
-		return c.buffer.writeGauge(m.namespace, m.globalTags, m.name, m.fvalue, m.tags, m.rate)
-	case count:
-		atomic.AddUint64(&c.metrics.TotalMetrics, 1)
-		return c.buffer.writeCount(m.namespace, m.globalTags, m.name, m.ivalue, m.tags, m.rate)
-	case histogram:
-		atomic.AddUint64(&c.metrics.TotalMetrics, 1)
-		return c.buffer.writeHistogram(m.namespace, m.globalTags, m.name, m.fvalue, m.tags, m.rate)
-	case distribution:
-		atomic.AddUint64(&c.metrics.TotalMetrics, 1)
-		return c.buffer.writeDistribution(m.namespace, m.globalTags, m.name, m.fvalue, m.tags, m.rate)
-	case set:
-		atomic.AddUint64(&c.metrics.TotalMetrics, 1)
-		return c.buffer.writeSet(m.namespace, m.globalTags, m.name, m.svalue, m.tags, m.rate)
-	case timing:
-		atomic.AddUint64(&c.metrics.TotalMetrics, 1)
-		return c.buffer.writeTiming(m.namespace, m.globalTags, m.name, m.fvalue, m.tags, m.rate)
-	case event:
-		atomic.AddUint64(&c.metrics.TotalEvents, 1)
-		return c.buffer.writeEvent(*m.evalue, m.globalTags)
-	case serviceCheck:
-		atomic.AddUint64(&c.metrics.TotalServiceChecks, 1)
-		return c.buffer.writeServiceCheck(*m.scvalue, m.globalTags)
-	default:
-		return nil
-	}
-}
-
-func (c *Client) addMetric(m metric) error {
+func (c *Client) send(m metric) error {
 	if c == nil {
 		return ErrNoClient
 	}
-	if c.shouldSample(m.rate) {
+
+	m.globalTags = c.Tags
+	m.namespace = c.Namespace
+
+	h := hashString32(m.name)
+	worker := c.bufferShards[h%uint32(len(c.bufferShards))]
+
+	if c.receiveMode == ChannelMode {
+		select {
+		case worker.inputMetrics <- m:
+		default:
+			atomic.AddUint64(&c.metrics.TotalDroppedOnReceive, 1)
+		}
 		return nil
 	}
-	c.Lock()
-	var err error
-	if err = c.writeMetricUnsafe(m); err == errBufferFull {
-		c.flushUnsafe()
-		err = c.writeMetricUnsafe(m)
-	}
-	c.Unlock()
-	return err
+	return worker.processMetric(m)
 }
 
 // Gauge measures the value of a metric at a particular time.
 func (c *Client) Gauge(name string, value float64, tags []string, rate float64) error {
-	return c.addMetric(metric{namespace: c.namespace(), globalTags: c.globalTags(), metricType: gauge, name: name, fvalue: value, tags: tags, rate: rate})
+	if c == nil {
+		return ErrNoClient
+	}
+	atomic.AddUint64(&c.metrics.TotalMetrics, 1)
+	if c.agg != nil {
+		return c.agg.gauge(name, value, tags, rate)
+	}
+	return c.send(metric{metricType: gauge, name: name, fvalue: value, tags: tags, rate: rate})
 }
 
 // Count tracks how many times something happened per second.
 func (c *Client) Count(name string, value int64, tags []string, rate float64) error {
-	return c.addMetric(metric{namespace: c.namespace(), globalTags: c.globalTags(), metricType: count, name: name, ivalue: value, tags: tags, rate: rate})
+	if c == nil {
+		return ErrNoClient
+	}
+	atomic.AddUint64(&c.metrics.TotalMetrics, 1)
+	if c.agg != nil {
+		return c.agg.count(name, value, tags, rate)
+	}
+	return c.send(metric{metricType: count, name: name, ivalue: value, tags: tags, rate: rate})
 }
 
 // Histogram tracks the statistical distribution of a set of values on each host.
 func (c *Client) Histogram(name string, value float64, tags []string, rate float64) error {
-	return c.addMetric(metric{namespace: c.namespace(), globalTags: c.globalTags(), metricType: histogram, name: name, fvalue: value, tags: tags, rate: rate})
+	if c == nil {
+		return ErrNoClient
+	}
+	atomic.AddUint64(&c.metrics.TotalMetrics, 1)
+	return c.send(metric{metricType: histogram, name: name, fvalue: value, tags: tags, rate: rate})
 }
 
 // Distribution tracks the statistical distribution of a set of values across your infrastructure.
 func (c *Client) Distribution(name string, value float64, tags []string, rate float64) error {
-	return c.addMetric(metric{namespace: c.namespace(), globalTags: c.globalTags(), metricType: distribution, name: name, fvalue: value, tags: tags, rate: rate})
+	if c == nil {
+		return ErrNoClient
+	}
+	atomic.AddUint64(&c.metrics.TotalMetrics, 1)
+	return c.send(metric{metricType: distribution, name: name, fvalue: value, tags: tags, rate: rate})
 }
 
 // Decr is just Count of -1
@@ -513,7 +535,14 @@ func (c *Client) Incr(name string, tags []string, rate float64) error {
 
 // Set counts the number of unique elements in a group.
 func (c *Client) Set(name string, value string, tags []string, rate float64) error {
-	return c.addMetric(metric{namespace: c.namespace(), globalTags: c.globalTags(), metricType: set, name: name, svalue: value, tags: tags, rate: rate})
+	if c == nil {
+		return ErrNoClient
+	}
+	atomic.AddUint64(&c.metrics.TotalMetrics, 1)
+	if c.agg != nil {
+		return c.agg.set(name, value, tags, rate)
+	}
+	return c.send(metric{metricType: set, name: name, svalue: value, tags: tags, rate: rate})
 }
 
 // Timing sends timing information, it is an alias for TimeInMilliseconds
@@ -524,12 +553,20 @@ func (c *Client) Timing(name string, value time.Duration, tags []string, rate fl
 // TimeInMilliseconds sends timing information in milliseconds.
 // It is flushed by statsd with percentiles, mean and other info (https://github.com/etsy/statsd/blob/master/docs/metric_types.md#timing)
 func (c *Client) TimeInMilliseconds(name string, value float64, tags []string, rate float64) error {
-	return c.addMetric(metric{namespace: c.namespace(), globalTags: c.globalTags(), metricType: timing, name: name, fvalue: value, tags: tags, rate: rate})
+	if c == nil {
+		return ErrNoClient
+	}
+	atomic.AddUint64(&c.metrics.TotalMetrics, 1)
+	return c.send(metric{metricType: timing, name: name, fvalue: value, tags: tags, rate: rate})
 }
 
 // Event sends the provided Event.
 func (c *Client) Event(e *Event) error {
-	return c.addMetric(metric{globalTags: c.globalTags(), metricType: event, evalue: e, rate: 1})
+	if c == nil {
+		return ErrNoClient
+	}
+	atomic.AddUint64(&c.metrics.TotalEvents, 1)
+	return c.send(metric{metricType: event, evalue: e, rate: 1})
 }
 
 // SimpleEvent sends an event with the provided title and text.
@@ -540,7 +577,11 @@ func (c *Client) SimpleEvent(title, text string) error {
 
 // ServiceCheck sends the provided ServiceCheck.
 func (c *Client) ServiceCheck(sc *ServiceCheck) error {
-	return c.addMetric(metric{globalTags: c.globalTags(), metricType: serviceCheck, scvalue: sc, rate: 1})
+	if c == nil {
+		return ErrNoClient
+	}
+	atomic.AddUint64(&c.metrics.TotalServiceChecks, 1)
+	return c.send(metric{metricType: serviceCheck, scvalue: sc, rate: 1})
 }
 
 // SimpleServiceCheck sends an serviceCheck with the provided name and status.
@@ -567,14 +608,20 @@ func (c *Client) Close() error {
 	}
 	close(c.stop)
 
+	if c.receiveMode == ChannelMode {
+		for _, w := range c.bufferShards {
+			w.stopReceivingMetric()
+		}
+	}
+
 	// Wait for the threads to stop
 	c.wg.Wait()
 
 	// Finally flush any remaining metrics that may have come in at the last moment
-	c.Lock()
-	defer c.Unlock()
+	if c.agg != nil {
+		c.agg.stop()
+	}
+	c.Flush()
 
-	c.flushUnsafe()
-	c.sender.flush()
 	return c.sender.close()
 }

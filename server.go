@@ -295,7 +295,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		Transport: transport,
 	}
 
-	stats, err := statsd.NewBuffered(conf.StatsAddress, 4096)
+	stats, err := statsd.New(conf.StatsAddress, statsd.WithoutTelemetry(), statsd.WithMaxMessagesPerPayload(4096))
 	if err != nil {
 		return ret, err
 	}

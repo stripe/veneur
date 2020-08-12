@@ -31,7 +31,7 @@ type sender struct {
 	transport statsdWriter
 	pool      *bufferPool
 	queue     chan *statsdBuffer
-	metrics   SenderMetrics
+	metrics   *SenderMetrics
 	stop      chan struct{}
 }
 
@@ -40,6 +40,7 @@ func newSender(transport statsdWriter, queueSize int, pool *bufferPool) *sender 
 		transport: transport,
 		pool:      pool,
 		queue:     make(chan *statsdBuffer, queueSize),
+		metrics:   &SenderMetrics{},
 		stop:      make(chan struct{}),
 	}
 
@@ -73,7 +74,7 @@ func (s *sender) write(buffer *statsdBuffer) {
 	s.pool.returnBuffer(buffer)
 }
 
-func (s *sender) flushMetrics() SenderMetrics {
+func (s *sender) flushTelemetryMetrics() SenderMetrics {
 	return SenderMetrics{
 		TotalSentBytes:                atomic.SwapUint64(&s.metrics.TotalSentBytes, 0),
 		TotalSentPayloads:             atomic.SwapUint64(&s.metrics.TotalSentPayloads, 0),
@@ -110,9 +111,8 @@ func (s *sender) flush() {
 }
 
 func (s *sender) close() error {
-	s.flush()
-	err := s.transport.Close()
 	s.stop <- struct{}{}
 	<-s.stop
-	return err
+	s.flush()
+	return s.transport.Close()
 }

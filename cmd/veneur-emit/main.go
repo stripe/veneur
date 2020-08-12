@@ -458,6 +458,11 @@ func setupSpan(traceID, parentID int64, name, tags, service, spanTags string, in
 }
 
 func timeCommand(span *ssf.SSFSpan, command []string) (exitStatus int, start time.Time, ended time.Time, err error) {
+	if len(command) == 0 {
+		exitStatus = 1
+		err = fmt.Errorf("cannot time an empty command")
+		return
+	}
 	logrus.Debugf("Timing %q...", command)
 	cmd := exec.Command(command[0], command[1:]...)
 
@@ -623,6 +628,7 @@ func sendStatsd(addr string, span *ssf.SSFSpan) error {
 			return err
 		}
 	}
+	client.Flush()
 	return nil
 }
 
