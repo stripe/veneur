@@ -79,14 +79,6 @@
   version = "v1.0.1"
 
 [[projects]]
-  digest = "1:f24bb5f05a37aed04e90c38448b04dee647b9327f90f848cf0834d2b100b327b"
-  name = "github.com/certifi/gocertifi"
-  packages = ["."]
-  pruneopts = "NUT"
-  revision = "3fd9e1adb12b72d2f3f82191d49be9b93c69f67c"
-  version = "2017.07.27"
-
-[[projects]]
   digest = "1:a2c1d0e43bd3baaa071d1b9ed72c27d78169b2b269f71c105ac4ba34b1be4a39"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
@@ -136,11 +128,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d0bf01f4719fd005c2c19f805f539c52c3c50ce44a9639ef4b53b93240574893"
-  name = "github.com/getsentry/raven-go"
+  digest = "1:1a1c1310bf8b2cbc37f098b34aadbd959afe56cfd139b3e745fd478a08f4feb0"
+  name = "github.com/getsentry/sentry-go"
   packages = ["."]
   pruneopts = "NUT"
-  revision = "d175f85701dfbf44cb0510114c9943e665e60907"
+  revision = "abb91bfdb057c12d00233498aab725cacfa00acc"
 
 [[projects]]
   digest = "1:81466b4218bf6adddac2572a30ac733a9255919bc2f470b4827a317bd4ee1756"
@@ -873,7 +865,7 @@
     "github.com/aws/aws-sdk-go/service/s3",
     "github.com/aws/aws-sdk-go/service/s3/s3iface",
     "github.com/axiomhq/hyperloglog",
-    "github.com/getsentry/raven-go",
+    "github.com/getsentry/sentry-go",
     "github.com/gogo/protobuf/gogoproto",
     "github.com/gogo/protobuf/proto",
     "github.com/golang/protobuf/proto",

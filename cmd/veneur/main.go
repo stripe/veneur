@@ -3,9 +3,8 @@ package main
 import (
 	"flag"
 	"os"
-	"time"
 
-	"github.com/getsentry/raven-go"
+	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur"
 	"github.com/stripe/veneur/ssf"
@@ -51,27 +50,23 @@ func main() {
 	veneur.SetLogger(logger)
 	if err != nil {
 		e := err
-
-		logrus.WithError(e).Error("Error initializing server")
-		var sentry *raven.Client
 		if conf.SentryDsn != "" {
-			sentry, err = raven.New(conf.SentryDsn)
+			err = sentry.Init(sentry.ClientOptions{
+				Dsn: conf.SentryDsn,
+			})
 			if err != nil {
 				logrus.WithError(err).Error("Error initializing Sentry client")
 			}
-		}
 
-		hostname, _ := os.Hostname()
+			event := sentry.NewEvent()
+			event.Message = e.Error()
+			hostname, _ := os.Hostname()
+			if hostname != "" {
+				event.ServerName = hostname
+			}
 
-		p := raven.NewPacket(e.Error())
-		if hostname != "" {
-			p.ServerName = hostname
-		}
-
-		_, ch := sentry.Capture(p, nil)
-		select {
-		case <-ch:
-		case <-time.After(10 * time.Second):
+			sentry.CaptureEvent(event)
+			sentry.Flush(veneur.SentryFlushTimeout)
 		}
 
 		logrus.WithError(e).Fatal("Could not initialize server")
@@ -79,7 +74,7 @@ func main() {
 	ssf.NamePrefix = "veneur."
 
 	defer func() {
-		veneur.ConsumePanic(server.Sentry, server.TraceClient, server.Hostname, recover())
+		veneur.ConsumePanic(server.TraceClient, server.Hostname, recover())
 	}()
 
 	if server.TraceClient != nil {
