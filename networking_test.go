@@ -149,3 +149,44 @@ func TestConnectUNIXStatsd(t *testing.T) {
 	}
 	close(srv.shutdown)
 }
+
+func TestConnectTCPSSF(t *testing.T) {
+	srv := &Server{}
+	srv.shutdown = make(chan struct{})
+
+	addrNet, err := protocol.ResolveAddr("tcp://127.0.0.1:8125")
+	require.NoError(t, err)
+	addr, ok := addrNet.(*net.TCPAddr)
+	require.True(t, ok)
+	startSSFTCP(srv, addr, &sync.Pool{})
+
+	conns := make(chan struct{})
+	for i := 0; i < 5; i++ {
+		n := i
+		go func() {
+			c, err := net.Dial("tcp", addr.String())
+			assert.NoError(t, err, "Connecting %d", n)
+			wrote, err := c.Write([]byte("foo"))
+			if !assert.NoError(t, err, "Writing to %d", n) {
+				return
+			}
+			assert.Equal(t, 3, wrote, "Writing to %d", n)
+			assert.NotNil(t, c)
+
+			err = c.Close()
+			assert.NoError(t, err)
+
+			conns <- struct{}{}
+		}()
+	}
+	timeout := time.After(3 * time.Second)
+	for i := 0; i < 5; i++ {
+		select {
+		case <-timeout:
+			t.Fatalf("Timed out waiting for connection, %d made it", i)
+		case <-conns:
+			// pass
+		}
+	}
+	close(srv.shutdown)
+}

@@ -44,7 +44,7 @@ A `metric` field describing its type as one of `COUNTER`, `GAUGE`, `HISTOGRAM` (
 
 ## Others
 
-Beyond these StatsD-stye fields are also `message` for including an arbitrary string such as a log message and `unit` as a string describing the unit of the message such as `seconds`. Note that SSF does not have defined units at present. Only strings!
+Beyond these StatsD-style fields are also `message` for including an arbitrary string such as a log message and `unit` as a string describing the unit of the message such as `seconds`. Note that SSF does not have defined units at present. Only strings!
 
 ## STATUS Samples
 A `Metric` of `STATUS` is most like a Nagios check result.
