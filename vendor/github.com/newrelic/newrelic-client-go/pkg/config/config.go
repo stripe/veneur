@@ -12,6 +12,9 @@ import (
 
 // Config contains all the configuration data for the API Client.
 type Config struct {
+	// LicenseKey to authenticate Log API requests
+	// see: https://docs.newrelic.com/docs/accounts/accounts-billing/account-setup/new-relic-license-key
+	LicenseKey string
 	// PersonalAPIKey to authenticate API requests
 	// see: https://docs.newrelic.com/docs/apis/get-started/intro-apis/types-new-relic-api-keys#personal-api-key
 	PersonalAPIKey string

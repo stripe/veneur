@@ -133,5 +133,5 @@
 
 [[constraint]]
   name = "github.com/newrelic/newrelic-client-go"
-  version = "0.35.1"
+  version = "0.39.0"
 

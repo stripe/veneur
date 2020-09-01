@@ -19,11 +19,12 @@ type Name string
 // Region represents the members of the Region enumeration.
 type Region struct {
 	name                  string
-	restBaseURL           string
 	infrastructureBaseURL string
-	syntheticsBaseURL     string
-	nerdGraphBaseURL      string
 	insightsBaseURL       string
+	logsBaseURL           string
+	nerdGraphBaseURL      string
+	restBaseURL           string
+	syntheticsBaseURL     string
 }
 
 // String returns a human readable value for the specified Region Name
@@ -186,4 +187,25 @@ func concatURLPaths(host string, path []string) (string, error) {
 	}
 
 	return strings.Join(elements, "/"), nil
+}
+
+//
+// Logs
+//
+
+// SetLogsBaseURL Allows overriding the Logs Base URL
+func (r *Region) SetLogsBaseURL(url string) {
+	if r != nil && url != "" {
+		r.logsBaseURL = url
+	}
+}
+
+// LogsURL returns the Full URL for the Log API
+func (r *Region) LogsURL() string {
+	if r == nil {
+		log.Errorf("call to nil region.LogsURL")
+		return ""
+	}
+
+	return r.logsBaseURL
 }

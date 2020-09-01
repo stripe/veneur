@@ -161,6 +161,21 @@ type AlertsMutingRuleInput struct {
 	Enabled bool `json:"enabled"`
 	// The name of the MutingRule.
 	Name string `json:"name"`
+	// The time window when the MutingRule should actively mute violations.
+	Schedule AlertsMutingRuleScheduleInput `json:"schedule"`
+}
+
+// AlertsMutingRuleScheduleInput - The time window when the MutingRule should actively mute violations.
+type AlertsMutingRuleScheduleInput struct {
+	// The datetime stamp that represents when the MutingRule should end.
+	// This is in local ISO 8601 format without an offset. Example: '2020-07-10T15:00:00'
+	EndTime NaiveDateTime `json:"endTime"`
+	// The datetime stamp that represents when the MutingRule should start.
+	// This is in local ISO 8601 format without an offset. Example: '2020-07-08T14:30:00'
+	StartTime NaiveDateTime `json:"startTime"`
+	// The time zone that applies to the muting rule schedule.
+	// Example: 'America/Los_Angeles'.  See https://en.wikipedia.org/wiki/List_of_tz_database_time_zones.
+	TimeZone string `json:"timeZone"`
 }
 
 // AlertsPoliciesSearchCriteriaInput - Search criteria for returning specific policies.
@@ -206,3 +221,6 @@ type AlertsPolicyUpdateInput struct {
 	// Description of the policy.
 	Name string `json:"name"`
 }
+
+// NaiveDateTime - The `NaiveDateTime` scalar represents a date and time without a Time Zone. The `NaiveDateTime` appears as an ISO8601 formatted string.
+type NaiveDateTime string

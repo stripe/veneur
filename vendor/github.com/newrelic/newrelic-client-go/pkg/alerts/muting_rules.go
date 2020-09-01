@@ -2,16 +2,24 @@ package alerts
 
 // MutingRule represents the alert suppression mechanism in the Alerts API.
 type MutingRule struct {
-	ID          int                      `json:"id,string,omitempty"`
-	AccountID   int                      `json:"accountId,omitempty"`
-	Condition   MutingRuleConditionGroup `json:"condition,omitempty"`
-	CreatedAt   string                   `json:"createdAt,omitempty"`
-	CreatedBy   string                   `json:"createdBy,omitempty"`
-	Description string                   `json:"description,omitempty"`
-	Enabled     bool                     `json:"enabled,omitempty"`
-	Name        string                   `json:"name,omitempty"`
-	UpdatedAt   string                   `json:"updatedAt,omitempty"`
-	UpdatedBy   string                   `json:"updatedBy,omitempty"`
+	ID            int                      `json:"id,string,omitempty"`
+	AccountID     int                      `json:"accountId,omitempty"`
+	Condition     MutingRuleConditionGroup `json:"condition,omitempty"`
+	CreatedAt     string                   `json:"createdAt,omitempty"`
+	CreatedByUser ByUser                   `json:"createdByUser,omitempty"`
+	Description   string                   `json:"description,omitempty"`
+	Enabled       bool                     `json:"enabled,omitempty"`
+	Name          string                   `json:"name,omitempty"`
+	UpdatedAt     string                   `json:"updatedAt,omitempty"`
+	UpdatedByUser ByUser                   `json:"updatedByUser,omitempty"`
+}
+
+// ByUser is a collection of the user information that created or updated the muting rule.
+type ByUser struct {
+	Email    string `json:"email"`
+	Gravatar string `json:"gravatar"`
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
 }
 
 // MutingRuleConditionGroup is a collection of conditions for muting.
@@ -187,26 +195,51 @@ const (
 		actor {
 			account(id: $accountID) {
 				alerts {
-					mutingRule(id: $ruleID) {
-						id
-					}
-				}
+					mutingRule(id: $ruleID) {` +
+		alertsMutingRuleFields +
+		`}}}}}`
+
+	alertsMutingRuleFields = ` 
+		accountId
+		condition {
+			conditions {
+				attribute
+				operator
+				values
 			}
+			operator
 		}
-	}`
+		id
+		name
+		enabled
+		description
+		createdAt
+		createdByUser {
+			email
+			gravatar
+			id
+			name
+		}
+		updatedAt
+		updatedByUser {
+			email
+			gravatar
+			id
+			name
+		}
+	`
 
 	alertsMutingRulesCreate = `mutation CreateRule($accountID: Int!, $rule: AlertsMutingRuleInput!) {
-		alertsMutingRuleCreate(accountId: $accountID, rule: $rule) {
-			id
-		}
+		alertsMutingRuleCreate(accountId: $accountID, rule: $rule) {` +
+		alertsMutingRuleFields +
+
+		`}
 	}`
 
 	alertsMutingRulesUpdate = `mutation UpdateRule($accountID: Int!, $ruleID: ID!, $rule: AlertsMutingRuleUpdateInput!) {
-		alertsMutingRuleUpdate(accountId: $accountID, id: $ruleID, rule: $rule) {
-			name
-			description
-			enabled
-		}
+		alertsMutingRuleUpdate(accountId: $accountID, id: $ruleID, rule: $rule) {` +
+		alertsMutingRuleFields +
+		`}
 	}`
 
 	alertsMutingRuleDelete = `mutation DeleteRule($accountID: Int!, $ruleID: ID!) {

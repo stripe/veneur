@@ -381,7 +381,7 @@
   revision = "b8bc1bf767474819792c23f32d8286a45736f1c6"
 
 [[projects]]
-  digest = "1:010d6628bdc301366967132bf9b6cfb10fc458e2bec43fa49521a002e94c466a"
+  digest = "1:714193f3cec6d095ff85aebcc6bdd57bdd254a4ad600f974b4b6db167ae10f37"
   name = "github.com/newrelic/newrelic-client-go"
   packages = [
     "internal/http",
@@ -391,6 +391,7 @@
     "newrelic",
     "pkg/accounts",
     "pkg/alerts",
+    "pkg/apiaccess",
     "pkg/apm",
     "pkg/config",
     "pkg/dashboards",
@@ -400,6 +401,7 @@
     "pkg/events",
     "pkg/eventstometrics",
     "pkg/infrastructure",
+    "pkg/logs",
     "pkg/nerdgraph",
     "pkg/nerdstorage",
     "pkg/nrdb",
@@ -410,8 +412,8 @@
     "pkg/workloads",
   ]
   pruneopts = "NUT"
-  revision = "f54b6f0d1a5aeaf0a51389891d674a85dec3c50c"
-  version = "v0.35.1"
+  revision = "13ed6ee7fa172cce9218cf30e98eab6e1805541d"
+  version = "v0.39.0"
 
 [[projects]]
   digest = "1:684eccb126043368bd78c8064e980633360f68a5fe14941478022657c590af72"

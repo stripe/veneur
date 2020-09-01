@@ -16,6 +16,7 @@ const (
 	LogLevel       = "debug"                                           // LogLevel used in mock configs
 	PersonalAPIKey = "personalAPIKey"                                  // PersonalAPIKey used in mock configs (from Environment for Integration tests)
 	UserAgent      = "newrelic/newrelic-client-go (automated testing)" // UserAgent used in mock configs
+	LicenseKey     = "APMLicenseKey"                                   // LicenseKey used in mock configs
 )
 
 // NewTestConfig returns a fully saturated configration with modified BaseURLs
@@ -28,12 +29,14 @@ func NewTestConfig(t *testing.T, testServer *httptest.Server) config.Config {
 	cfg.LogLevel = LogLevel
 	cfg.PersonalAPIKey = PersonalAPIKey
 	cfg.UserAgent = UserAgent
+	cfg.LicenseKey = LicenseKey
 
 	if testServer != nil {
 		cfg.Region().SetInfrastructureBaseURL(testServer.URL)
 		cfg.Region().SetNerdGraphBaseURL(testServer.URL)
 		cfg.Region().SetRestBaseURL(testServer.URL)
 		cfg.Region().SetSyntheticsBaseURL(testServer.URL)
+		cfg.Region().SetLogsBaseURL(testServer.URL)
 	}
 
 	return cfg
@@ -45,6 +48,7 @@ func NewIntegrationTestConfig(t *testing.T) config.Config {
 	envPersonalAPIKey := os.Getenv("NEW_RELIC_API_KEY")
 	envAdminAPIKey := os.Getenv("NEW_RELIC_ADMIN_API_KEY")
 	envInsightsInsertKey := os.Getenv("NEW_RELIC_INSIGHTS_INSERT_KEY")
+	envLicenseKey := os.Getenv("NEW_RELIC_LICENSE_KEY")
 	envRegion := os.Getenv("NEW_RELIC_REGION")
 
 	if envPersonalAPIKey == "" && envAdminAPIKey == "" {
@@ -60,6 +64,7 @@ func NewIntegrationTestConfig(t *testing.T) config.Config {
 	cfg.PersonalAPIKey = envPersonalAPIKey
 	cfg.AdminAPIKey = envAdminAPIKey
 	cfg.InsightsInsertKey = envInsightsInsertKey
+	cfg.LicenseKey = envLicenseKey
 
 	if envRegion != "" {
 		regName, err := region.Parse(envRegion)

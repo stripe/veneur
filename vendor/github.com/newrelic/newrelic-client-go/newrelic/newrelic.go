@@ -10,6 +10,7 @@ import (
 	"github.com/newrelic/newrelic-client-go/internal/logging"
 	"github.com/newrelic/newrelic-client-go/pkg/accounts"
 	"github.com/newrelic/newrelic-client-go/pkg/alerts"
+	"github.com/newrelic/newrelic-client-go/pkg/apiaccess"
 	"github.com/newrelic/newrelic-client-go/pkg/apm"
 	"github.com/newrelic/newrelic-client-go/pkg/config"
 	"github.com/newrelic/newrelic-client-go/pkg/dashboards"
@@ -17,6 +18,7 @@ import (
 	"github.com/newrelic/newrelic-client-go/pkg/entities"
 	"github.com/newrelic/newrelic-client-go/pkg/events"
 	"github.com/newrelic/newrelic-client-go/pkg/eventstometrics"
+	"github.com/newrelic/newrelic-client-go/pkg/logs"
 	"github.com/newrelic/newrelic-client-go/pkg/nerdgraph"
 	"github.com/newrelic/newrelic-client-go/pkg/nerdstorage"
 	"github.com/newrelic/newrelic-client-go/pkg/nrdb"
@@ -29,13 +31,15 @@ import (
 // NewRelic is a collection of New Relic APIs.
 type NewRelic struct {
 	Accounts        accounts.Accounts
-	APM             apm.APM
 	Alerts          alerts.Alerts
+	APIAccess       apiaccess.APIAccess
+	APM             apm.APM
 	Dashboards      dashboards.Dashboards
 	Edge            edge.Edge
 	Entities        entities.Entities
 	Events          events.Events
 	EventsToMetrics eventstometrics.EventsToMetrics
+	Logs            logs.Logs
 	NerdGraph       nerdgraph.NerdGraph
 	NerdStorage     nerdstorage.NerdStorage
 	Nrdb            nrdb.Nrdb
@@ -67,13 +71,15 @@ func New(opts ...ConfigOption) (*NewRelic, error) {
 		config: config,
 
 		Accounts:        accounts.New(config),
-		APM:             apm.New(config),
 		Alerts:          alerts.New(config),
+		APIAccess:       apiaccess.New(config),
+		APM:             apm.New(config),
 		Dashboards:      dashboards.New(config),
 		Edge:            edge.New(config),
 		Entities:        entities.New(config),
 		Events:          events.New(config),
 		EventsToMetrics: eventstometrics.New(config),
+		Logs:            logs.New(config),
 		NerdGraph:       nerdgraph.New(config),
 		NerdStorage:     nerdstorage.New(config),
 		Nrdb:            nrdb.New(config),
