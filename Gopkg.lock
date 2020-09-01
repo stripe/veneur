@@ -203,6 +203,14 @@
   revision = "e89373fe6b4a7413d7acd6da1725b83ef713e6e4"
 
 [[projects]]
+  digest = "1:a63cff6b5d8b95638bfe300385d93b2a6d9d687734b863da8e09dc834510a690"
+  name = "github.com/google/go-querystring"
+  packages = ["query"]
+  pruneopts = "NUT"
+  revision = "44c6ddd0a2342c386950e880b658017258da92fc"
+  version = "v1.0.0"
+
+[[projects]]
   branch = "master"
   digest = "1:52c5834e2bebac9030c97cc0798ac11c3aa8a39f098aeb419f142533da6cd3cc"
   name = "github.com/google/gofuzz"
@@ -250,6 +258,14 @@
   revision = "3573b8b52aa7b37b9358d966a898feb387f62437"
 
 [[projects]]
+  digest = "1:3544397657dd6f47a3e552c63a2df4cf6b9107dff860094d296338feb584572d"
+  name = "github.com/hashicorp/go-retryablehttp"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "dd1fc3518973fac02fd58865aad8972da9af6410"
+  version = "v0.6.6"
+
+[[projects]]
   branch = "master"
   digest = "1:cdb5ce76cd7af19e3d2d5ba9b6458a2ee804f0d376711215dd3df5f51100d423"
   name = "github.com/hashicorp/go-rootcerts"
@@ -264,6 +280,14 @@
   pruneopts = "NUT"
   revision = "d6574a5bb1226678d7010325fb6c985db20ee458"
   version = "v0.8.1"
+
+[[projects]]
+  digest = "1:f9552caa69b93afa34e0990ffb1305d2da27ff608d6e4a026d82443a4a4235be"
+  name = "github.com/imdario/mergo"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "e8f744e2d97d12cba92319b97c9cec06bd2dd780"
+  version = "v0.3.10"
 
 [[projects]]
   digest = "1:7c818eb119c69fc685573449e8f799596ba81827074b006ff0cb71052424f254"
@@ -296,6 +320,14 @@
   pruneopts = "NUT"
   revision = "f611eb38b3875cc3bd991ca91c51d06446afa14c"
   version = "v1.3.0"
+
+[[projects]]
+  digest = "1:a3998f85665bdf805d519735e658c0e0125bd67b57bb15e414a5a9e360e32455"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "edb144dfd453055e1e49a3d8b410a660b5a87613"
+  version = "v1.0.3"
 
 [[projects]]
   branch = "master"
@@ -347,6 +379,53 @@
   packages = ["."]
   pruneopts = "NUT"
   revision = "b8bc1bf767474819792c23f32d8286a45736f1c6"
+
+[[projects]]
+  digest = "1:714193f3cec6d095ff85aebcc6bdd57bdd254a4ad600f974b4b6db167ae10f37"
+  name = "github.com/newrelic/newrelic-client-go"
+  packages = [
+    "internal/http",
+    "internal/logging",
+    "internal/serialization",
+    "internal/version",
+    "newrelic",
+    "pkg/accounts",
+    "pkg/alerts",
+    "pkg/apiaccess",
+    "pkg/apm",
+    "pkg/config",
+    "pkg/dashboards",
+    "pkg/edge",
+    "pkg/entities",
+    "pkg/errors",
+    "pkg/events",
+    "pkg/eventstometrics",
+    "pkg/infrastructure",
+    "pkg/logs",
+    "pkg/nerdgraph",
+    "pkg/nerdstorage",
+    "pkg/nrdb",
+    "pkg/plugins",
+    "pkg/region",
+    "pkg/synthetics",
+    "pkg/testhelpers",
+    "pkg/workloads",
+  ]
+  pruneopts = "NUT"
+  revision = "13ed6ee7fa172cce9218cf30e98eab6e1805541d"
+  version = "v0.39.0"
+
+[[projects]]
+  digest = "1:684eccb126043368bd78c8064e980633360f68a5fe14941478022657c590af72"
+  name = "github.com/newrelic/newrelic-telemetry-sdk-go"
+  packages = [
+    "internal",
+    "internal/jsonx",
+    "telemetry",
+  ]
+  pruneopts = "NUT"
+  revision = "e3d912863ace96681b2b66ebffdb0acc5f874ff2"
+  version = "v0.4.0"
 
 [[projects]]
   digest = "1:7da29c22bcc5c2ffb308324377dc00b5084650348c2799e573ed226d8cc9faf0"
@@ -520,12 +599,12 @@
   version = "v2.0.0"
 
 [[projects]]
-  digest = "1:b2339e83ce9b5c4f79405f949429a7f68a9a904fed903c672aac1e7ceb7f5f02"
+  digest = "1:1dbbefdedbdb89fc0073bfa0df49e0f117f9d901fe265c24552b72473cc5a650"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   pruneopts = "NUT"
-  revision = "3e01752db0189b9157070a0e1668a620f9a85da2"
-  version = "v1.0.6"
+  revision = "60c74ad9be0d874af0ab0daef6ab07c5c5911f0d"
+  version = "v1.6.0"
 
 [[projects]]
   digest = "1:3ab855aa584d08db6541ce99dad60c12bd6a328ecb8a7358363887f85c976347"
@@ -555,6 +634,14 @@
   revision = "6de226b0d5f040ed85b88c82c381709b98277f3d"
 
 [[projects]]
+  digest = "1:5cf4eb1ceaa1b2c96fd9779fef101def21e68932b33809913563a312e2f88275"
+  name = "github.com/tomnomnom/linkheader"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "6953a30d444317754766fccdd3f7f000edc874f6"
+  version = "0.1.0"
+
+[[projects]]
   digest = "1:17a72c8447cd243d7dc0887c118fd46c540a3e02ffc3650460937a6819c5ccd3"
   name = "github.com/zenazn/goji"
   packages = [
@@ -578,14 +665,6 @@
   ]
   pruneopts = "NUT"
   revision = "bc2e9e7dc2769805d1b6ce4dc48ec23a03ae82ec"
-
-[[projects]]
-  branch = "master"
-  digest = "1:94fcc699aafcb4f8af1e58129495cd013b0982c7a99e0925df62ddac6356afbd"
-  name = "golang.org/x/crypto"
-  packages = ["ssh/terminal"]
-  pruneopts = "NUT"
-  revision = "b176d7def5d71bdd214203491f89843ed217f420"
 
 [[projects]]
   branch = "master"
@@ -873,6 +952,9 @@
     "github.com/hashicorp/consul/api",
     "github.com/kelseyhightower/envconfig",
     "github.com/lightstep/lightstep-tracer-go",
+    "github.com/newrelic/newrelic-client-go/newrelic",
+    "github.com/newrelic/newrelic-client-go/pkg/region",
+    "github.com/newrelic/newrelic-telemetry-sdk-go/telemetry",
     "github.com/opentracing/opentracing-go",
     "github.com/opentracing/opentracing-go/ext",
     "github.com/opentracing/opentracing-go/log",

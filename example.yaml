@@ -297,6 +297,40 @@ datadog_exclude_tags_prefix_by_prefix_metric:
 # The size of the ring buffer used for retaining spans during a flush interval.
 datadog_span_buffer_size: 16384
 
+
+# == New Relic ==
+# New Relic can be a sink for metrics, events, and trace spans.
+
+# New Relic Insert Key used for sending data
+# Required
+newrelic_insert_key: ""
+
+# New Relic Account ID to send data to
+# Required
+newrelic_account_id: 0
+
+# New Relic Region to send data to
+# Optional, default: US
+newrelic_region: "US"
+
+# Common tags are metadata that will be added to all
+# Metrics reported to New Relic.
+newrelic_common_tags:
+  - "environment:dev"
+
+# Event type to use when reporting events to New Relic
+# Optional, default: "veneur"
+newrelic_event_type: ""
+
+# Event type to use when reporting status checks to New Relic
+# Optional, default: "veneurCheck"
+newrelic_service_check_event_type: ""
+
+# To enable Infinite Tracing on the New Relic Edge, set this field to your
+# Trace Observer URL including scheme and path. See:
+# https://docs.newrelic.com/docs/understand-dependencies/distributed-tracing/enable-configure/enable-distributed-tracing
+newrelic_trace_observer_url: ""
+
 # == SignalFx ==
 # SignalFx can be a sink for metrics and events.
 
