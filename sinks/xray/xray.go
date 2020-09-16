@@ -80,7 +80,7 @@ type XRaySpanSink struct {
 var _ sinks.SpanSink = &XRaySpanSink{}
 
 // NewXRaySpanSink creates a new instance of a XRaySpanSink.
-func NewXRaySpanSink(daemonAddr string, sampleRatePercentage int, commonTags map[string]string, annotationTags []string, log *logrus.Logger) (*XRaySpanSink, error) {
+func NewXRaySpanSink(daemonAddr string, sampleRatePercentage float64, commonTags map[string]string, annotationTags []string, log *logrus.Logger) (*XRaySpanSink, error) {
 
 	log.WithFields(logrus.Fields{
 		"Address": daemonAddr,
