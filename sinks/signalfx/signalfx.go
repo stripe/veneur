@@ -83,6 +83,7 @@ func submitDatapoints(ctx context.Context, wg *sync.WaitGroup, cl *trace.Client,
 	err := client.AddDatapoints(ctx, points)
 	if err != nil {
 		span.Error(err)
+		logrus.WithError(err).Error("SignalFX IO error")
 		span.Add(ssf.Count("flush.error_total", 1, map[string]string{"cause": "io", "sink": "signalfx"}))
 	}
 	errs <- err
