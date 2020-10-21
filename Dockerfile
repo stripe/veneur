@@ -6,25 +6,19 @@ MAINTAINER The Stripe Observability Team <support@stripe.com>
 
 RUN mkdir -p /build
 ENV GOPATH=/go
+ENV GO111MODULE=on
 RUN apt-get update
 RUN apt-get install -y zip
 RUN go get -u -v github.com/ChimeraCoder/gojson/gojson
-RUN go get -d -v github.com/gogo/protobuf/protoc-gen-gogofaster
-WORKDIR /go/src/github.com/gogo/protobuf
-RUN git fetch
-RUN git checkout v1.2.1
-RUN go install github.com/gogo/protobuf/protoc-gen-gogofaster
 WORKDIR /go
-RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-RUN go get -u -v golang.org/x/tools/cmd/stringer
-WORKDIR /go/src/golang.org/x/tools/cmd/stringer
-RUN git checkout d11f6ec946130207fd66b479a9a6def585b5110b
-RUN go install
+RUN go get -u -v golang.org/x/tools/cmd/stringer@d11f6ec946130207fd66b479a9a6def585b5110b
 WORKDIR /go
-RUN wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
-RUN unzip protoc-3.1.0-linux-x86_64.zip
+RUN wget https://github.com/google/protobuf/releases/download/v3.13.0/protoc-3.13.0-linux-x86_64.zip
+RUN unzip protoc-3.13.0-linux-x86_64.zip
 RUN cp bin/protoc /usr/bin/protoc
 RUN chmod 777 /usr/bin/protoc
+RUN go get google.golang.org/protobuf/cmd/protoc-gen-go
+RUN go get google.golang.org/grpc/cmd/protoc-gen-go-grpc
 
 WORKDIR /go/src/github.com/stripe/veneur
 ADD . /go/src/github.com/stripe/veneur
