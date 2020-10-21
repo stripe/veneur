@@ -24,11 +24,9 @@ require (
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/golang/protobuf v1.4.2
-	github.com/golang/snappy v0.0.0-20170215233205-553a64147049 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
-	github.com/googleapis/gnostic v0.1.0 // indirect
-	github.com/gregjones/httpcache v0.0.0-20171119193500-2bcd89a1743f // indirect
 	github.com/hashicorp/consul v0.9.0 // indirect
+	github.com/hashicorp/consul/api v1.1.0
 	github.com/juju/ratelimit v1.0.1 // indirect
 	github.com/kelseyhightower/envconfig v1.3.0
 	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
@@ -63,12 +61,13 @@ require (
 	goji.io v1.1.0
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae
 	google.golang.org/grpc v1.29.1
-	gopkg.in/inf.v0 v0.9.0 // indirect
 	gopkg.in/logfmt.v0 v0.3.0 // indirect
 	gopkg.in/stack.v1 v1.6.0 // indirect
 	gopkg.in/yaml.v2 v2.3.0
-	k8s.io/api v0.0.0-20180213175254-0d0b2f481328
-	k8s.io/apimachinery v0.0.0-20180213174950-da3b134bab57
-	k8s.io/client-go v6.0.0+incompatible
+	k8s.io/api v0.0.0-20190325185214-7544f9db76f6
+	k8s.io/apimachinery v0.0.0-20190223001710-c182ff3b9841
+	k8s.io/client-go v8.0.0+incompatible
 	stathat.com/c/consistent v1.0.0
 )
+
+replace github.com/hashicorp/consul => github.com/hashicorp/consul v1.5.1
