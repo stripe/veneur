@@ -55,6 +55,8 @@ require (
 	goji.io v1.1.0
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae
 	google.golang.org/grpc v1.29.1
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.0.0 // indirect
+	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/logfmt.v0 v0.3.0 // indirect
 	gopkg.in/stack.v1 v1.6.0 // indirect
