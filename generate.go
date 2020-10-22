@@ -1,7 +1,6 @@
 package veneur
 
 //go:generate protoc --go_opt=paths=source_relative --go_out=. --go-grpc_out=. --go-grpc_opt=paths=source_relative sinks/grpsink/grpc_sink.proto
-//go:generate protoc --go_opt=paths=source_relative --go_out=. tdigest/gogoproto/gogo.proto
 //go:generate protoc --go_opt=paths=source_relative --go_out=. ssf/sample.proto
 //go:generate protoc --go_opt=paths=source_relative --go_out=. -I=$GOPATH/src -I=. tdigest/tdigest.proto
 //go:generate protoc --go_opt=paths=source_relative --go_out=. -I=$GOPATH/src -I=. samplers/metricpb/metric.proto
