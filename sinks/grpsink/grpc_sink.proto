@@ -1,6 +1,8 @@
 syntax = "proto3";
 package grpsink;
 
+option go_package = "github.com/stripe/veneur/sinks/grpsink";
+
 import "ssf/sample.proto";
 
 message Empty {}

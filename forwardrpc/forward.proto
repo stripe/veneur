@@ -1,6 +1,8 @@
 syntax = "proto3";
 package forwardrpc;
 
+option go_package = "github.com/stripe/veneur/forwardrpc";
+
 import "samplers/metricpb/metric.proto";
 import "google/protobuf/empty.proto";
 

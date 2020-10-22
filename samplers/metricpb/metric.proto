@@ -3,6 +3,8 @@ package metricpb;
 
 import "tdigest/tdigest.proto";
 
+option go_package = "github.com/stripe/veneur/samplers/metricpb";
+
 // Metric is a common container for any metric type. Common fields such as
 // Name, Tags, and Type are all present for all types, while the value can
 // vary.
