@@ -32,7 +32,6 @@ RUN git reset --hard HEAD && git status
 # because we are guaranteed only one version of Go
 # used to build protoc-gen-go
 RUN go generate
-RUN dep check
 # Exclude vendor from gofmt checks.
 RUN mv vendor ../ && gofmt -w . && mv ../vendor .
 
@@ -53,5 +52,5 @@ RUN git diff --cached
 RUN git diff-index --cached --exit-code HEAD
 
 
-RUN go test -race -v -timeout 60s -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur.BUILD_DATE=$(date +%s)" ./...
-CMD cp -r henson /build/ && env GOBIN=/build go install -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur.BUILD_DATE=$(date +%s)" ./cmd/...
+RUN go test -mod=vendor -race -v -timeout 60s -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur.BUILD_DATE=$(date +%s)" ./...
+CMD cp -r henson /build/ && env GOBIN=/build go install -mod=vendor -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur.BUILD_DATE=$(date +%s)" ./cmd/...
