@@ -120,8 +120,7 @@ var EdgeTraceObserverStatusTypes = struct {
 
 // EdgeAccountStitchedFields -
 type EdgeAccountStitchedFields struct {
-	// Provides access to Tracing data.
-	Tracing EdgeTracing `json:"tracing"`
+	TraceObservers EdgeTraceObserverResponse `json:"traceObservers"`
 }
 
 // EdgeAgentEndpointDetail - All the details necessary to configure an agent to connect to an endoint.
@@ -129,7 +128,8 @@ type EdgeAgentEndpointDetail struct {
 	// Full host name that is used to connect to the endpoint. This is the part that will be placed into an agent config named `infinite_tracing.trace_observer.host`.
 	Host string `json:"host"`
 	// Port that is used to connect to the endpoint. This is the part that will be placed into an agent config named `infinite_tracing.trace_observer.port`.
-	Port int `json:"port"`
+	Port int    `json:"port"`
+	Url  string `json:"url"`
 }
 
 func (x *EdgeAgentEndpointDetail) ImplementsEdgeEndpointDetail() {}
@@ -235,8 +235,6 @@ type EdgeTraceObserver struct {
 
 // EdgeTraceObserverResponse - Array of trace observers, or a list of errors for why they couldn't be retrieved.
 type EdgeTraceObserverResponse struct {
-	// All trace observer's response errors, if any.
-	Errors []EdgeTraceObserverResponseError `json:"errors"`
 	// All trace observers found, if any.
 	TraceObservers []EdgeTraceObserver `json:"traceObservers"`
 }

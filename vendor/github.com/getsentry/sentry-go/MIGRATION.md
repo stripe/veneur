@@ -22,7 +22,7 @@ raven-go
 import "github.com/getsentry/raven-go"
 
 func main() {
-    raven.SetDSN("___PUBLIC_DSN___")
+    raven.SetDSN("https://16427b2f210046b585ee51fd8a1ac54f@sentry.io/1")
 }
 ```
 
@@ -36,7 +36,7 @@ import (
 
 func main() {
     err := sentry.Init(sentry.ClientOptions{
-        Dsn: "___PUBLIC_DSN___",
+        Dsn: "https://16427b2f210046b585ee51fd8a1ac54f@sentry.io/1",
     })
 
     if err != nil {
@@ -62,7 +62,7 @@ sentry-go
 
 ```go
 sentry.Init(sentry.ClientOptions{
-    Dsn: "___PUBLIC_DSN___",
+    Dsn: "https://16427b2f210046b585ee51fd8a1ac54f@sentry.io/1",
     DebugWriter: os.Stderr,
     Debug: true,
     Environment: "environment",
@@ -77,7 +77,7 @@ Available options: see [Configuration](https://docs.sentry.io/platforms/go/confi
 
 ### Providing SSL Certificates
 
-By default, TLS uses the host's root CA set. If you don't have `ca-certificates` (which should be your go-to way of fixing the issue of missing certificates) and want to use `gocertifi` instead, you can provide pre-loaded cert files as one of the options to the `sentry.Init` call:
+By default, TLS uses the host's root CA set. If you don't have `ca-certificates` (which should be your go-to way of fixing the issue of missing ceritificates) and want to use `gocertifi` instead, you can provide pre-loaded cert files as one of the options to the `sentry.Init` call:
 
 ```go
 package main
@@ -90,12 +90,12 @@ import (
 )
 
 sentryClientOptions := sentry.ClientOptions{
-    Dsn: "___PUBLIC_DSN___",
+    Dsn: "https://16427b2f210046b585ee51fd8a1ac54f@sentry.io/1",
 }
 
 rootCAs, err := gocertifi.CACerts()
 if err != nil {
-    log.Println("Couldn't load CA Certificates: %v\n", err)
+    log.Println("Coudnt load CA Certificates: %v\n", err)
 } else {
     sentryClientOptions.CaCerts = rootCAs
 }

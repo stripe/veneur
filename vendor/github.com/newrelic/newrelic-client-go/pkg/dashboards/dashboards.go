@@ -17,8 +17,11 @@ type Dashboards struct {
 
 // New is used to create a new Dashboards client instance.
 func New(config config.Config) Dashboards {
+	client := http.NewClient(config)
+	client.SetAuthStrategy(&http.PersonalAPIKeyCapableV2Authorizer{})
+
 	pkg := Dashboards{
-		client: http.NewClient(config),
+		client: client,
 		config: config,
 		logger: config.GetLogger(),
 		pager:  &http.LinkHeaderPager{},

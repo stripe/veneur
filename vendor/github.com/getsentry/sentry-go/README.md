@@ -9,152 +9,77 @@
 
 [![Build Status](https://travis-ci.com/getsentry/sentry-go.svg?branch=master)](https://travis-ci.com/getsentry/sentry-go)
 [![Go Report Card](https://goreportcard.com/badge/github.com/getsentry/sentry-go)](https://goreportcard.com/report/github.com/getsentry/sentry-go)
-[![Discord](https://img.shields.io/discord/621778831602221064)](https://discord.gg/Ww9hbqr)
-[![GoDoc](https://godoc.org/github.com/getsentry/sentry-go?status.svg)](https://godoc.org/github.com/getsentry/sentry-go)
-[![go.dev](https://img.shields.io/badge/go.dev-pkg-007d9c.svg?style=flat)](https://pkg.go.dev/github.com/getsentry/sentry-go)
 
-`sentry-go` provides a Sentry client implementation for the Go programming
-language. This is the next line of the Go SDK for [Sentry](https://sentry.io/),
-intended to replace the `raven-go` package.
+`sentry-go` provides a Sentry client implementation for the Go programming language. This is the next line of the Go SDK for [Sentry](https://sentry.io/), intended to replace the `raven-go` package.
 
 > Looking for the old `raven-go` SDK documentation? See the Legacy client section [here](https://docs.sentry.io/clients/go/).
 > If you want to start using sentry-go instead, check out the [migration guide](https://docs.sentry.io/platforms/go/migration/).
 
 ## Requirements
 
-The only requirement is a Go compiler.
+We verify this package against N-2 recent versions of Go compiler. As of June 2019, those versions are:
 
-We verify this package against the 3 most recent releases of Go. Those are the
-supported versions. The exact versions are defined in
-[`.travis.yml`](.travis.yml).
-
-In addition, we run tests against the current master branch of the Go toolchain,
-though support for this configuration is best-effort.
+* 1.10
+* 1.11
+* 1.12
 
 ## Installation
 
 `sentry-go` can be installed like any other Go library through `go get`:
 
-```console
+```bash
 $ go get github.com/getsentry/sentry-go
 ```
 
-Or, if you are already using
-[Go Modules](https://github.com/golang/go/wiki/Modules), you may specify a
-version number as well:
+Or, if you are already using Go Modules, specify a version number as well:
 
-```console
-$ go get github.com/getsentry/sentry-go@latest
+```bash
+$ go get github.com/getsentry/sentry-go@v0.1.0
 ```
-
-Check out the [list of released versions](https://pkg.go.dev/github.com/getsentry/sentry-go?tab=versions). 
 
 ## Configuration
 
-To use `sentry-go`, you’ll need to import the `sentry-go` package and initialize
-it with your DSN and other [options](https://godoc.org/github.com/getsentry/sentry-go#ClientOptions).
+To use `sentry-go`, you’ll need to import the `sentry-go` package and initialize it with the client options that will include your DSN. If you specify the `SENTRY_DSN` environment variable, you can omit this value from options and it will be picked up automatically for you. The release and environment can also be specified in the environment variables `SENTRY_RELEASE` and `SENTRY_ENVIRONMENT` respectively.
 
-If not specified in the SDK initialization, the
-[DSN](https://docs.sentry.io/error-reporting/configuration/?platform=go#dsn),
-[Release](https://docs.sentry.io/workflow/releases/?platform=go) and
-[Environment](https://docs.sentry.io/enriching-error-data/environments/?platform=go)
-are read from the environment variables `SENTRY_DSN`, `SENTRY_RELEASE` and
-`SENTRY_ENVIRONMENT`, respectively.
-
-More on this in the [Configuration](https://docs.sentry.io/platforms/go/config/)
-section of the official Sentry documentation.
+More on this in [Configuration](https://docs.sentry.io/platforms/go/config/) section.
 
 ## Usage
 
-The SDK must be initialized with a call to `sentry.Init`. The default transport
-is asynchronous and thus most programs should call `sentry.Flush` to wait until
-buffered events are sent to Sentry right before the program terminates.
-
-Typically, `sentry.Init` is called in the beginning of `func main` and
-`sentry.Flush` is [deferred](https://golang.org/ref/spec#Defer_statements) right
-after.
-
-> Note that if the program terminates with a call to
-> [`os.Exit`](https://golang.org/pkg/os/#Exit), either directly or indirectly
-> via another function like `log.Fatal`, deferred functions are not run.
->
-> In that case, and if it is important for you to report outstanding events
-> before terminating the program, arrange for `sentry.Flush` to be called before
-> the program terminates.
-
-Example:
+By default, Sentry Go SDK uses asynchronous transport, which in the code example below requires an explicit awaiting for event delivery to be finished using `sentry.Flush` method. It is necessary, because otherwise the program would not wait for the async HTTP calls to return a response, and exit the process immediately when it reached the end of the `main` function. It would not be required inside a running goroutine or if you would use `HTTPSyncTransport`, which you can read about in `Transports` section.
 
 ```go
-// This is an example program that makes an HTTP request and prints response
-// headers. Whenever a request fails, the error is reported to Sentry.
-//
-// Try it by running:
-//
-// 	go run main.go
-// 	go run main.go https://sentry.io
-// 	go run main.go bad-url
-//
-// To actually report events to Sentry, set the DSN either by editing the
-// appropriate line below or setting the environment variable SENTRY_DSN to
-// match the DSN of your Sentry project.
 package main
 
 import (
-	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"time"
+    "fmt"
+    "os"
+    "time"
 
-	"github.com/getsentry/sentry-go"
+    "github.com/getsentry/sentry-go"
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		log.Fatalf("usage: %s URL", os.Args[0])
-	}
+  err := sentry.Init(sentry.ClientOptions{
+    Dsn: "___DSN___",
+  })
 
-	err := sentry.Init(sentry.ClientOptions{
-		// Either set your DSN here or set the SENTRY_DSN environment variable.
-		Dsn: "",
-		// Enable printing of SDK debug messages.
-		// Useful when getting started or trying to figure something out.
-		Debug: true,
-	})
-	if err != nil {
-		log.Fatalf("sentry.Init: %s", err)
-	}
-	// Flush buffered events before the program terminates.
-	// Set the timeout to the maximum duration the program can afford to wait.
-	defer sentry.Flush(2 * time.Second)
-
-	resp, err := http.Get(os.Args[1])
-	if err != nil {
-		sentry.CaptureException(err)
-		log.Printf("reported to Sentry: %s", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	for header, values := range resp.Header {
-		for _, value := range values {
-			fmt.Printf("%s=%s\n", header, value)
-		}
-	}
+  if err != nil {
+    fmt.Printf("Sentry initialization failed: %v\n", err)
+  }
+  
+  f, err := os.Open("filename.ext")
+  if err != nil {
+    sentry.CaptureException(err)
+    sentry.Flush(time.Second * 5)
+  }
 }
 ```
 
-For your convenience, this example is available at
-[`example/basic/main.go`](example/basic/main.go).
-There are also more examples in the
-[example](example) directory.
-
-For more detailed information about how to get the most out of `sentry-go`,
-checkout the official documentation:
+For more detailed information about how to get the most out of `sentry-go` there is additional documentation available:
 
 - [Configuration](https://docs.sentry.io/platforms/go/config)
 - [Error Reporting](https://docs.sentry.io/error-reporting/quickstart?platform=go)
-- [Enriching Error Data](https://docs.sentry.io/enriching-error-data/additional-data/?platform=go)
+- [Enriching Error Data](https://docs.sentry.io/enriching-error-data/context?platform=go)
 - [Transports](https://docs.sentry.io/platforms/go/transports)
 - [Integrations](https://docs.sentry.io/platforms/go/integrations)
   - [net/http](https://docs.sentry.io/platforms/go/http)
@@ -165,26 +90,19 @@ checkout the official documentation:
   - [martini](https://docs.sentry.io/platforms/go/martini)
   - [negroni](https://docs.sentry.io/platforms/go/negroni)
 
-## Resources
+## Resources:
 
 - [Bug Tracker](https://github.com/getsentry/sentry-go/issues)
 - [GitHub Project](https://github.com/getsentry/sentry-go)
-- [![GoDoc](https://godoc.org/github.com/getsentry/sentry-go?status.svg)](https://godoc.org/github.com/getsentry/sentry-go)
-- [![go.dev](https://img.shields.io/badge/go.dev-pkg-007d9c.svg?style=flat)](https://pkg.go.dev/github.com/getsentry/sentry-go)
-- [![Documentation](https://img.shields.io/badge/documentation-sentry.io-green.svg)](https://docs.sentry.io/platforms/go/)
-- [![Forum](https://img.shields.io/badge/forum-sentry-green.svg)](https://forum.sentry.io/c/sdks)
-- [![Discord](https://img.shields.io/discord/621778831602221064)](https://discord.gg/Ww9hbqr)
-- [![Stack Overflow](https://img.shields.io/badge/stack%20overflow-sentry-green.svg)](http://stackoverflow.com/questions/tagged/sentry)
-- [![Twitter Follow](https://img.shields.io/twitter/follow/getsentry?label=getsentry&style=social)](https://twitter.com/intent/follow?screen_name=getsentry)
-
+- [Godocs](https://godoc.org/github.com/getsentry/sentry-go)
+- [@getsentry](https://twitter.com/getsentry) on Twitter for updates
 
 ## License
 
-Licensed under
-[The 2-Clause BSD License](https://opensource.org/licenses/BSD-2-Clause), see
-[`LICENSE`](LICENSE).
+Licensed under the BSD license, see `LICENSE`
 
 ## Community
 
-Join Sentry's [`#go` channel on Discord](https://discord.gg/Ww9hbqr) to get
-involved and help us improve the SDK!
+Want to join our Sentry's `community-golang` channel, get involved and help us improve the SDK?
+
+Do not hesistate to shoot me up an email at [kamil@sentry.io](mailto:kamil@sentry.io) for Slack invite!

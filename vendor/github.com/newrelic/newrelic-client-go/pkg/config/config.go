@@ -15,12 +15,13 @@ type Config struct {
 	// LicenseKey to authenticate Log API requests
 	// see: https://docs.newrelic.com/docs/accounts/accounts-billing/account-setup/new-relic-license-key
 	LicenseKey string
+
 	// PersonalAPIKey to authenticate API requests
 	// see: https://docs.newrelic.com/docs/apis/get-started/intro-apis/types-new-relic-api-keys#personal-api-key
 	PersonalAPIKey string
 
 	// AdminAPIKey to authenticate API requests
-	// Note this will be deprecated in the future!
+	// Deprecated.  Use a Personal API key for authentication.
 	// see: https://docs.newrelic.com/docs/apis/get-started/intro-apis/types-new-relic-api-keys#admin
 	AdminAPIKey string
 

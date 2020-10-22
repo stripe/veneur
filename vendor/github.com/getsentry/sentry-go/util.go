@@ -27,7 +27,7 @@ func fileExists(fileName string) bool {
 	return true
 }
 
-//nolint: deadcode, unused
+// nolint: deadcode, unused
 func prettyPrint(data interface{}) {
 	dbg, _ := json.MarshalIndent(data, "", "  ")
 	fmt.Println(string(dbg))

@@ -5,12 +5,8 @@ import (
 	"time"
 )
 
-// Version is the version of the sentry-go SDK.
-const Version = "0.6.1"
-
-// apiVersion is the minimum version of the Sentry API compatible with the
-// sentry-go SDK.
-const apiVersion = "7"
+// Version Sentry-Go SDK Version
+const Version = "0.2.1"
 
 // Init initializes whole SDK by creating new `Client` and binding it to the current `Hub`
 func Init(options ClientOptions) error {
@@ -63,7 +59,7 @@ func Recover() *EventID {
 	return nil
 }
 
-// RecoverWithContext captures a panic and passes relevant context object.
+// Recover captures a panic and passes relevant context object.
 func RecoverWithContext(ctx context.Context) *EventID {
 	if err := recover(); err != nil {
 		var hub *Hub
@@ -112,17 +108,8 @@ func PopScope() {
 	hub.PopScope()
 }
 
-// Flush waits until the underlying Transport sends any buffered events to the
-// Sentry server, blocking for at most the given timeout. It returns false if
-// the timeout was reached. In that case, some events may not have been sent.
-//
-// Flush should be called before terminating the program to avoid
-// unintentionally dropping events.
-//
-// Do not call Flush indiscriminately after every call to CaptureEvent,
-// CaptureException or CaptureMessage. Instead, to have the SDK send events over
-// the network synchronously, configure it to use the HTTPSyncTransport in the
-// call to Init.
+// Flush notifies when all the buffered events have been sent by returning `true`
+// or `false` if timeout was reached.
 func Flush(timeout time.Duration) bool {
 	hub := CurrentHub()
 	return hub.Flush(timeout)

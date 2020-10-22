@@ -9,6 +9,7 @@ import (
 // a single error message from an error response object.
 type ErrorResponse interface {
 	IsNotFound() bool
+	IsTimeout() bool
 	Error() string
 	New() ErrorResponse
 }
@@ -34,6 +35,10 @@ func (e *DefaultErrorResponse) Error() string {
 }
 
 func (e *DefaultErrorResponse) IsNotFound() bool {
+	return false
+}
+
+func (e *DefaultErrorResponse) IsTimeout() bool {
 	return false
 }
 

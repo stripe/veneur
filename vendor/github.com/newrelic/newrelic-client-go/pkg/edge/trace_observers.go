@@ -15,12 +15,7 @@ func (e *Edge) ListTraceObservers(accountID int) ([]EdgeTraceObserver, error) {
 		return nil, err
 	}
 
-	errors := resp.Actor.Account.Edge.Tracing.TraceObservers.Errors
-	if len(errors) > 0 {
-		return nil, fmt.Errorf("error listing trace observers: %s", errors[0].Message)
-	}
-
-	return resp.Actor.Account.Edge.Tracing.TraceObservers.TraceObservers, nil
+	return resp.Actor.Account.Edge.Tracing.TraceObservers, nil
 }
 
 // CreateTraceObserver creates a trace observer for an account.
@@ -68,9 +63,7 @@ type traceObserverResponse struct {
 	Actor struct {
 		Account struct {
 			Edge struct {
-				Tracing struct {
-					TraceObservers EdgeTraceObserverResponse
-				}
+				Tracing EdgeTraceObserverResponse
 			}
 		}
 	}
@@ -102,12 +95,10 @@ const (
 			message
 		}`
 
-	listTraceObserversQuery = `query($accountId: Int!) { actor { account(id: $accountId) { edge { tracing { traceObservers {
+	listTraceObserversQuery = `query($accountId: Int!) { actor { account(id: $accountId) { edge { tracing {
 			traceObservers { ` +
 		traceObserverSchemaFields + `
-			} ` +
-		traceObserverErrorSchema + `
-		} } } } } }`
+			} } } } } }`
 
 	createTraceObserverMutation = `
 	mutation($traceObserverConfigs: [EdgeCreateTraceObserverInput!]!, $accountId: Int!) {

@@ -15,43 +15,18 @@ import (
 	"time"
 )
 
-// maxErrorDepth is the maximum number of errors reported in a chain of errors.
-// This protects the SDK from an arbitrarily long chain of wrapped errors.
-//
-// An additional consideration is that arguably reporting a long chain of errors
-// is of little use when debugging production errors with Sentry. The Sentry UI
-// is not optimized for long chains either. The top-level error together with a
-// stack trace is often the most useful information.
-const maxErrorDepth = 10
-
-// usageError is used to report to Sentry an SDK usage error.
-//
-// It is not exported because it is never returned by any function or method in
-// the exported API.
-type usageError struct {
-	error
-}
-
 // Logger is an instance of log.Logger that is use to provide debug information about running Sentry Client
 // can be enabled by either using `Logger.SetOutput` directly or with `Debug` client option
-var Logger = log.New(ioutil.Discard, "[Sentry] ", log.LstdFlags) //nolint: gochecknoglobals
+var Logger = log.New(ioutil.Discard, "[Sentry] ", log.LstdFlags) // nolint: gochecknoglobals
 
-// EventProcessor is a function that processes an event.
-// Event processors are used to change an event before it is sent to Sentry.
 type EventProcessor func(event *Event, hint *EventHint) *Event
 
-// EventModifier is the interface that wraps the ApplyToEvent method.
-//
-// ApplyToEvent changes an event based on external data and/or
-// an event hint.
 type EventModifier interface {
 	ApplyToEvent(event *Event, hint *EventHint) *Event
 }
 
-var globalEventProcessors []EventProcessor //nolint: gochecknoglobals
+var globalEventProcessors []EventProcessor // nolint: gochecknoglobals
 
-// AddGlobalEventProcessor adds a EventProcessor to the global list of
-// event processors.
 func AddGlobalEventProcessor(processor EventProcessor) {
 	globalEventProcessors = append(globalEventProcessors, processor)
 }
@@ -72,7 +47,7 @@ type ClientOptions struct {
 	// Configures whether SDK should generate and attach stacktraces to pure capture message calls.
 	AttachStacktrace bool
 	// The sample rate for event submission (0.0 - 1.0, defaults to 1.0).
-	SampleRate float64
+	SampleRate float32
 	// List of regexp strings that will be used to match against event's message
 	// and if applicable, caught errors type and value.
 	// If the match is found, then a whole event will be dropped.
@@ -99,12 +74,8 @@ type ClientOptions struct {
 	Environment string
 	// Maximum number of breadcrumbs.
 	MaxBreadcrumbs int
-	// An optional pointer to `http.Client` that will be used with a default HTTPTransport.
-	// Using your own client will make HTTPTransport, HTTPProxy, HTTPSProxy and CaCerts options ignored.
-	HTTPClient *http.Client
 	// An optional pointer to `http.Transport` that will be used with a default HTTPTransport.
-	// Using your own transport will make HTTPProxy, HTTPSProxy and CaCerts options ignored.
-	HTTPTransport http.RoundTripper
+	HTTPTransport *http.Transport
 	// An optional HTTP proxy to use.
 	// This will default to the `http_proxy` environment variable.
 	// or `https_proxy` if that one exists.
@@ -113,7 +84,7 @@ type ClientOptions struct {
 	// This will default to the `HTTPS_PROXY` environment variable
 	// or `http_proxy` if that one exists.
 	HTTPSProxy string
-	// An optional CaCerts to use.
+	// An optionsl CaCerts to use.
 	// Defaults to `gocertifi.CACerts()`.
 	CaCerts *x509.CertPool
 }
@@ -260,7 +231,7 @@ func (client *Client) Recover(err interface{}, hint *EventHint, scope EventModif
 	return nil
 }
 
-// RecoverWithContext captures a panic and passes relevant context object.
+// Recover captures a panic and passes relevant context object.
 // Returns `EventID` if successfully, or `nil` if there's no error to recover from.
 func (client *Client) RecoverWithContext(
 	ctx context.Context,
@@ -291,17 +262,8 @@ func (client *Client) RecoverWithContext(
 	return nil
 }
 
-// Flush waits until the underlying Transport sends any buffered events to the
-// Sentry server, blocking for at most the given timeout. It returns false if
-// the timeout was reached. In that case, some events may not have been sent.
-//
-// Flush should be called before terminating the program to avoid
-// unintentionally dropping events.
-//
-// Do not call Flush indiscriminately after every call to CaptureEvent,
-// CaptureException or CaptureMessage. Instead, to have the SDK send events over
-// the network synchronously, configure it to use the HTTPSyncTransport in the
-// call to Init.
+// Flush notifies when all the buffered events have been sent by returning `true`
+// or `false` if timeout was reached. It calls `Flush` method of the configured `Transport`.
 func (client *Client) Flush(timeout time.Duration) bool {
 	return client.Transport.Flush(timeout)
 }
@@ -323,50 +285,27 @@ func (client *Client) eventFromMessage(message string, level Level) *Event {
 }
 
 func (client *Client) eventFromException(exception error, level Level) *Event {
-	err := exception
-	if err == nil {
-		err = usageError{fmt.Errorf("%s called with nil error", callerFunctionName())}
+	if exception == nil {
+		event := NewEvent()
+		event.Level = level
+		event.Message = fmt.Sprintf("Called %s with nil value", callerFunctionName())
+		return event
+	}
+
+	stacktrace := ExtractStacktrace(exception)
+
+	if stacktrace == nil {
+		stacktrace = NewStacktrace()
 	}
 
 	event := NewEvent()
 	event.Level = level
-
-	for i := 0; i < maxErrorDepth && err != nil; i++ {
-		event.Exception = append(event.Exception, Exception{
-			Value:      err.Error(),
-			Type:       reflect.TypeOf(err).String(),
-			Stacktrace: ExtractStacktrace(err),
-		})
-		switch previous := err.(type) {
-		case interface{ Unwrap() error }:
-			err = previous.Unwrap()
-		case interface{ Cause() error }:
-			err = previous.Cause()
-		default:
-			err = nil
-		}
-	}
-
-	// Add a trace of the current stack to the most recent error in a chain if
-	// it doesn't have a stack trace yet.
-	// We only add to the most recent error to avoid duplication and because the
-	// current stack is most likely unrelated to errors deeper in the chain.
-	if event.Exception[0].Stacktrace == nil {
-		event.Exception[0].Stacktrace = NewStacktrace()
-	}
-
-	// event.Exception should be sorted such that the most recent error is last.
-	reverse(event.Exception)
-
+	event.Exception = []Exception{{
+		Value:      exception.Error(),
+		Type:       reflect.TypeOf(exception).String(),
+		Stacktrace: stacktrace,
+	}}
 	return event
-}
-
-// reverse reverses the slice a in place.
-func reverse(a []Exception) {
-	for i := len(a)/2 - 1; i >= 0; i-- {
-		opp := len(a) - 1 - i
-		a[i], a[opp] = a[opp], a[i]
-	}
 }
 
 func (client *Client) processEvent(event *Event, hint *EventHint, scope EventModifier) *EventID {
@@ -377,7 +316,7 @@ func (client *Client) processEvent(event *Event, hint *EventHint, scope EventMod
 	// which means that if someone uses ClientOptions{} struct directly
 	// and we would not check for 0 here, we'd skip all events by default
 	if options.SampleRate != 0.0 {
-		randomFloat := rand.New(rand.NewSource(time.Now().UnixNano())).Float64()
+		randomFloat := rand.New(rand.NewSource(time.Now().UnixNano())).Float32()
 		if randomFloat > options.SampleRate {
 			Logger.Println("Event dropped due to SampleRate hit.")
 			return nil
@@ -388,8 +327,7 @@ func (client *Client) processEvent(event *Event, hint *EventHint, scope EventMod
 		return nil
 	}
 
-	// As per spec, transactions do not go through BeforeSend.
-	if event.Type != transactionType && options.BeforeSend != nil {
+	if options.BeforeSend != nil {
 		h := &EventHint{}
 		if hint != nil {
 			h = hint
@@ -410,8 +348,8 @@ func (client *Client) prepareEvent(event *Event, hint *EventHint, scope EventMod
 		event.EventID = EventID(uuid())
 	}
 
-	if event.Timestamp.IsZero() {
-		event.Timestamp = time.Now().UTC()
+	if event.Timestamp == 0 {
+		event.Timestamp = time.Now().Unix()
 	}
 
 	if event.Level == "" {
@@ -449,12 +387,7 @@ func (client *Client) prepareEvent(event *Event, hint *EventHint, scope EventMod
 		}},
 	}
 
-	if scope != nil {
-		event = scope.ApplyToEvent(event, hint)
-		if event == nil {
-			return nil
-		}
-	}
+	event = scope.ApplyToEvent(event, hint)
 
 	for _, processor := range client.eventProcessors {
 		id := event.EventID

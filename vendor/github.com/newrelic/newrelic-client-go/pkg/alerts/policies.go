@@ -229,12 +229,24 @@ type alertPoliciesErrorResponse struct {
 }
 
 func (r *alertPoliciesErrorResponse) IsNotFound() bool {
-	if len(r.Errors) == 0 || len(r.Errors[0].DownstreamResponse) == 0 {
+	if len(r.Errors) == 0 {
 		return false
 	}
 
-	return r.Errors[0].DownstreamResponse[0].Message == "Not Found" &&
-		r.Errors[0].DownstreamResponse[0].Extensions.Code == "BAD_USER_INPUT"
+	for _, err := range r.Errors {
+		if len(err.DownstreamResponse) == 0 {
+			continue
+		}
+
+		for _, downstreamRes := range err.DownstreamResponse {
+			if downstreamRes.Message == "Not Found" &&
+				downstreamRes.Extensions.Code == "BAD_USER_INPUT" {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func (r *alertPoliciesErrorResponse) Error() string {

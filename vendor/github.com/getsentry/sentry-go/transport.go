@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -66,98 +64,26 @@ func retryAfter(now time.Time, r *http.Response) time.Duration {
 	return defaultRetryAfter
 }
 
-func getRequestBodyFromEvent(event *Event) []byte {
-	body, err := json.Marshal(event)
-	if err == nil {
-		return body
-	}
-
-	partialMarshallMessage := "Original event couldn't be marshalled. Succeeded by stripping the data " +
-		"that uses interface{} type. Please verify that the data you attach to the scope is serializable."
-	// Try to serialize the event, with all the contextual data that allows for interface{} stripped.
-	event.Breadcrumbs = nil
-	event.Contexts = nil
-	event.Extra = map[string]interface{}{
-		"info": partialMarshallMessage,
-	}
-	body, err = json.Marshal(event)
-	if err == nil {
-		Logger.Println(partialMarshallMessage)
-		return body
-	}
-
-	// This should _only_ happen when Event.Exception[0].Stacktrace.Frames[0].Vars is unserializable
-	// Which won't ever happen, as we don't use it now (although it's the part of public interface accepted by Sentry)
-	// Juuust in case something, somehow goes utterly wrong.
-	Logger.Println("Event couldn't be marshalled, even with stripped contextual data. Skipping delivery. " +
-		"Please notify the SDK owners with possibly broken payload.")
-	return nil
-}
-
-func getEnvelopeFromBody(body []byte, now time.Time) *bytes.Buffer {
-	var b bytes.Buffer
-	fmt.Fprintf(&b, `{"sent_at":"%s"}`, now.UTC().Format(time.RFC3339Nano))
-	fmt.Fprint(&b, "\n", `{"type":"transaction"}`, "\n")
-	b.Write(body)
-	return &b
-}
-
-func getRequestFromEvent(event *Event, dsn *Dsn) (*http.Request, error) {
-	body := getRequestBodyFromEvent(event)
-	if body == nil {
-		return nil, errors.New("event could not be marshalled")
-	}
-
-	if event.Type == transactionType {
-		env := getEnvelopeFromBody(body, time.Now())
-		request, _ := http.NewRequest(
-			http.MethodPost,
-			dsn.EnvelopeAPIURL().String(),
-			env,
-		)
-
-		return request, nil
-	}
-
-	request, _ := http.NewRequest(
-		http.MethodPost,
-		dsn.StoreAPIURL().String(),
-		bytes.NewBuffer(body),
-	)
-
-	return request, nil
-}
-
 // ================================
 // HTTPTransport
 // ================================
-
-// A batch groups items that are processed sequentially.
-type batch struct {
-	items   chan *http.Request
-	started chan struct{} // closed to signal items started to be worked on
-	done    chan struct{} // closed to signal completion of all items
-}
 
 // HTTPTransport is a default implementation of `Transport` interface used by `Client`.
 type HTTPTransport struct {
 	dsn       *Dsn
 	client    *http.Client
-	transport http.RoundTripper
+	transport *http.Transport
 
-	// buffer is a channel of batches. Calling Flush terminates work on the
-	// current in-flight items and starts a new batch for subsequent events.
-	buffer chan batch
+	buffer        chan *http.Request
+	disabledUntil time.Time
 
+	wg    sync.WaitGroup
 	start sync.Once
 
 	// Size of the transport buffer. Defaults to 30.
 	BufferSize int
 	// HTTP Client request timeout. Defaults to 30 seconds.
 	Timeout time.Duration
-
-	mu            sync.RWMutex
-	disabledUntil time.Time
 }
 
 // NewHTTPTransport returns a new pre-configured instance of HTTPTransport
@@ -176,17 +102,9 @@ func (t *HTTPTransport) Configure(options ClientOptions) {
 		Logger.Printf("%v\n", err)
 		return
 	}
-	t.dsn = dsn
 
-	// A buffered channel with capacity 1 works like a mutex, ensuring only one
-	// goroutine can access the current batch at a given time. Access is
-	// synchronized by reading from and writing to the channel.
-	t.buffer = make(chan batch, 1)
-	t.buffer <- batch{
-		items:   make(chan *http.Request, t.BufferSize),
-		started: make(chan struct{}),
-		done:    make(chan struct{}),
-	}
+	t.dsn = dsn
+	t.buffer = make(chan *http.Request, t.BufferSize)
 
 	if options.HTTPTransport != nil {
 		t.transport = options.HTTPTransport
@@ -197,13 +115,9 @@ func (t *HTTPTransport) Configure(options ClientOptions) {
 		}
 	}
 
-	if options.HTTPClient != nil {
-		t.client = options.HTTPClient
-	} else {
-		t.client = &http.Client{
-			Transport: t.transport,
-			Timeout:   t.Timeout,
-		}
+	t.client = &http.Client{
+		Transport: t.transport,
+		Timeout:   t.Timeout,
 	}
 
 	t.start.Do(func() {
@@ -213,40 +127,26 @@ func (t *HTTPTransport) Configure(options ClientOptions) {
 
 // SendEvent assembles a new packet out of `Event` and sends it to remote server.
 func (t *HTTPTransport) SendEvent(event *Event) {
-	if t.dsn == nil {
-		return
-	}
-	t.mu.RLock()
-	disabled := time.Now().Before(t.disabledUntil)
-	t.mu.RUnlock()
-	if disabled {
+	if t.dsn == nil || time.Now().Before(t.disabledUntil) {
 		return
 	}
 
-	request, err := getRequestFromEvent(event, t.dsn)
-	if err != nil {
-		return
-	}
+	body, _ := json.Marshal(event)
+
+	request, _ := http.NewRequest(
+		http.MethodPost,
+		t.dsn.StoreAPIURL().String(),
+		bytes.NewBuffer(body),
+	)
 
 	for headerKey, headerValue := range t.dsn.RequestHeaders() {
 		request.Header.Set(headerKey, headerValue)
 	}
 
-	// <-t.buffer is equivalent to acquiring a lock to access the current batch.
-	// A few lines below, t.buffer <- b releases the lock.
-	//
-	// The lock must be held during the select block below to guarantee that
-	// b.items is not closed while trying to send to it. Remember that sending
-	// on a closed channel panics.
-	//
-	// Note that the select block takes a bounded amount of CPU time because of
-	// the default case that is executed if sending on b.items would block. That
-	// is, the event is dropped if it cannot be sent immediately to the b.items
-	// channel (used as a queue).
-	b := <-t.buffer
+	t.wg.Add(1)
 
 	select {
-	case b.items <- request:
+	case t.buffer <- request:
 		Logger.Printf(
 			"Sending %s event [%s] to %s project: %d\n",
 			event.Level,
@@ -255,106 +155,51 @@ func (t *HTTPTransport) SendEvent(event *Event) {
 			t.dsn.projectID,
 		)
 	default:
+		t.wg.Done()
 		Logger.Println("Event dropped due to transport buffer being full.")
+		// worker would block, drop the packet
 	}
-
-	t.buffer <- b
 }
 
-// Flush waits until any buffered events are sent to the Sentry server, blocking
-// for at most the given timeout. It returns false if the timeout was reached.
-// In that case, some events may not have been sent.
-//
-// Flush should be called before terminating the program to avoid
-// unintentionally dropping events.
-//
-// Do not call Flush indiscriminately after every call to SendEvent. Instead, to
-// have the SDK send events over the network synchronously, configure it to use
-// the HTTPSyncTransport in the call to Init.
+// Flush notifies when all the buffered events have been sent by returning `true`
+// or `false` if timeout was reached.
 func (t *HTTPTransport) Flush(timeout time.Duration) bool {
-	toolate := time.After(timeout)
+	c := make(chan struct{})
 
-	// Wait until processing the current batch has started or the timeout.
-	//
-	// We must wait until the worker has seen the current batch, because it is
-	// the only way b.done will be closed. If we do not wait, there is a
-	// possible execution flow in which b.done is never closed, and the only way
-	// out of Flush would be waiting for the timeout, which is undesired.
-	var b batch
-	for {
-		select {
-		case b = <-t.buffer:
-			select {
-			case <-b.started:
-				goto started
-			default:
-				t.buffer <- b
-			}
-		case <-toolate:
-			goto fail
-		}
-	}
+	go func() {
+		t.wg.Wait()
+		close(c)
+	}()
 
-started:
-	// Signal that there won't be any more items in this batch, so that the
-	// worker inner loop can end.
-	close(b.items)
-	// Start a new batch for subsequent events.
-	t.buffer <- batch{
-		items:   make(chan *http.Request, t.BufferSize),
-		started: make(chan struct{}),
-		done:    make(chan struct{}),
-	}
-
-	// Wait until the current batch is done or the timeout.
 	select {
-	case <-b.done:
+	case <-c:
 		Logger.Println("Buffer flushed successfully.")
 		return true
-	case <-toolate:
-		goto fail
+	case <-time.After(timeout):
+		Logger.Println("Buffer flushing reached the timeout.")
+		return false
 	}
-
-fail:
-	Logger.Println("Buffer flushing reached the timeout.")
-	return false
 }
 
 func (t *HTTPTransport) worker() {
-	for b := range t.buffer {
-		// Signal that processing of the current batch has started.
-		close(b.started)
-
-		// Return the batch to the buffer so that other goroutines can use it.
-		// Equivalent to releasing a lock.
-		t.buffer <- b
-
-		// Process all batch items.
-		for request := range b.items {
-			t.mu.RLock()
-			disabled := time.Now().Before(t.disabledUntil)
-			t.mu.RUnlock()
-			if disabled {
-				continue
-			}
-
-			response, err := t.client.Do(request)
-
-			if err != nil {
-				Logger.Printf("There was an issue with sending an event: %v", err)
-			}
-
-			if response != nil && response.StatusCode == http.StatusTooManyRequests {
-				deadline := time.Now().Add(retryAfter(time.Now(), response))
-				t.mu.Lock()
-				t.disabledUntil = deadline
-				t.mu.Unlock()
-				Logger.Printf("Too many requests, backing off till: %s\n", deadline)
-			}
+	for request := range t.buffer {
+		if time.Now().Before(t.disabledUntil) {
+			t.wg.Done()
+			continue
 		}
 
-		// Signal that processing of the batch is done.
-		close(b.done)
+		response, err := t.client.Do(request)
+
+		if err != nil {
+			Logger.Printf("There was an issue with sending an event: %v", err)
+		}
+
+		if response != nil && response.StatusCode == http.StatusTooManyRequests {
+			t.disabledUntil = time.Now().Add(retryAfter(time.Now(), response))
+			Logger.Printf("Too many requests, backing off till: %s\n", t.disabledUntil)
+		}
+
+		t.wg.Done()
 	}
 }
 
@@ -366,7 +211,7 @@ func (t *HTTPTransport) worker() {
 type HTTPSyncTransport struct {
 	dsn           *Dsn
 	client        *http.Client
-	transport     http.RoundTripper
+	transport     *http.Transport
 	disabledUntil time.Time
 
 	// HTTP Client request timeout. Defaults to 30 seconds.
@@ -400,13 +245,9 @@ func (t *HTTPSyncTransport) Configure(options ClientOptions) {
 		}
 	}
 
-	if options.HTTPClient != nil {
-		t.client = options.HTTPClient
-	} else {
-		t.client = &http.Client{
-			Transport: t.transport,
-			Timeout:   t.Timeout,
-		}
+	t.client = &http.Client{
+		Transport: t.transport,
+		Timeout:   t.Timeout,
 	}
 }
 
@@ -416,10 +257,13 @@ func (t *HTTPSyncTransport) SendEvent(event *Event) {
 		return
 	}
 
-	request, err := getRequestFromEvent(event, t.dsn)
-	if err != nil {
-		return
-	}
+	body, _ := json.Marshal(event)
+
+	request, _ := http.NewRequest(
+		http.MethodPost,
+		t.dsn.StoreAPIURL().String(),
+		bytes.NewBuffer(body),
+	)
 
 	for headerKey, headerValue := range t.dsn.RequestHeaders() {
 		request.Header.Set(headerKey, headerValue)
@@ -445,7 +289,8 @@ func (t *HTTPSyncTransport) SendEvent(event *Event) {
 	}
 }
 
-// Flush is a no-op for HTTPSyncTransport. It always returns true immediately.
+// Flush notifies when all the buffered events have been sent by returning `true`
+// or `false` if timeout was reached. No-op for HTTPSyncTransport.
 func (t *HTTPSyncTransport) Flush(_ time.Duration) bool {
 	return true
 }

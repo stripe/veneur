@@ -27,8 +27,6 @@ func (scheme scheme) defaultPort() int {
 	}
 }
 
-// DsnParseError represents an error that occurs if a Sentry
-// DSN cannot be parsed.
 type DsnParseError struct {
 	Message string
 }
@@ -48,13 +46,13 @@ type Dsn struct {
 	projectID int
 }
 
-// NewDsn creates an instance of `Dsn` by parsing provided url in a `string` format.
+// NewDsn creates an instance od `Dsn` by parsing provided url in a `string` format.
 // If Dsn is not set the client is effectively disabled.
 func NewDsn(rawURL string) (*Dsn, error) {
 	// Parse
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
-		return nil, &DsnParseError{fmt.Sprintf("invalid url: %v", err)}
+		return nil, &DsnParseError{"invalid url"}
 	}
 
 	// Scheme
@@ -143,36 +141,23 @@ func (dsn Dsn) String() string {
 	return url
 }
 
-// StoreAPIURL returns the URL of the store endpoint of the project associated
-// with the DSN.
+// StoreAPIURL returns assembled url to be used in the transport.
+// It points to configures Sentry instance.
 func (dsn Dsn) StoreAPIURL() *url.URL {
-	return dsn.getAPIURL("store")
-}
-
-// EnvelopeAPIURL returns the URL of the envelope endpoint of the project
-// associated with the DSN.
-func (dsn Dsn) EnvelopeAPIURL() *url.URL {
-	return dsn.getAPIURL("envelope")
-}
-
-func (dsn Dsn) getAPIURL(s string) *url.URL {
 	var rawURL string
 	rawURL += fmt.Sprintf("%s://%s", dsn.scheme, dsn.host)
 	if dsn.port != dsn.scheme.defaultPort() {
 		rawURL += fmt.Sprintf(":%d", dsn.port)
 	}
-	if dsn.path != "" {
-		rawURL += dsn.path
-	}
-	rawURL += fmt.Sprintf("/api/%d/%s/", dsn.projectID, s)
+	rawURL += fmt.Sprintf("/api/%d/store/", dsn.projectID)
 	parsedURL, _ := url.Parse(rawURL)
 	return parsedURL
 }
 
 // RequestHeaders returns all the necessary headers that have to be used in the transport.
 func (dsn Dsn) RequestHeaders() map[string]string {
-	auth := fmt.Sprintf("Sentry sentry_version=%s, sentry_timestamp=%d, "+
-		"sentry_client=sentry.go/%s, sentry_key=%s", apiVersion, time.Now().Unix(), Version, dsn.publicKey)
+	auth := fmt.Sprintf("Sentry sentry_version=%d, sentry_timestamp=%d, "+
+		"sentry_client=sentry.go/%s, sentry_key=%s", 7, time.Now().Unix(), Version, dsn.publicKey)
 
 	if dsn.secretKey != "" {
 		auth = fmt.Sprintf("%s, sentry_secret=%s", auth, dsn.secretKey)
@@ -184,12 +169,10 @@ func (dsn Dsn) RequestHeaders() map[string]string {
 	}
 }
 
-// MarshalJSON converts the Dsn struct to JSON.
 func (dsn Dsn) MarshalJSON() ([]byte, error) {
 	return json.Marshal(dsn.String())
 }
 
-// UnmarshalJSON converts JSON data to the Dsn struct.
 func (dsn *Dsn) UnmarshalJSON(data []byte) error {
 	var str string
 	_ = json.Unmarshal(data, &str)

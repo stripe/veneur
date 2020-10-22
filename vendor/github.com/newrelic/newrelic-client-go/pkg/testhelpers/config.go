@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	AdminAPIKey    = "adminAPIKey"                                     // AdminAPIKey used in mock configs (from Environment for Integration tests)
 	LogLevel       = "debug"                                           // LogLevel used in mock configs
 	PersonalAPIKey = "personalAPIKey"                                  // PersonalAPIKey used in mock configs (from Environment for Integration tests)
 	UserAgent      = "newrelic/newrelic-client-go (automated testing)" // UserAgent used in mock configs
@@ -25,7 +24,6 @@ func NewTestConfig(t *testing.T, testServer *httptest.Server) config.Config {
 	cfg := config.New()
 
 	// Set some defaults from Testing constants
-	cfg.AdminAPIKey = AdminAPIKey
 	cfg.LogLevel = LogLevel
 	cfg.PersonalAPIKey = PersonalAPIKey
 	cfg.UserAgent = UserAgent
@@ -46,13 +44,12 @@ func NewTestConfig(t *testing.T, testServer *httptest.Server) config.Config {
 // returns a fully saturated configuration
 func NewIntegrationTestConfig(t *testing.T) config.Config {
 	envPersonalAPIKey := os.Getenv("NEW_RELIC_API_KEY")
-	envAdminAPIKey := os.Getenv("NEW_RELIC_ADMIN_API_KEY")
 	envInsightsInsertKey := os.Getenv("NEW_RELIC_INSIGHTS_INSERT_KEY")
 	envLicenseKey := os.Getenv("NEW_RELIC_LICENSE_KEY")
 	envRegion := os.Getenv("NEW_RELIC_REGION")
 
-	if envPersonalAPIKey == "" && envAdminAPIKey == "" {
-		t.Skipf("acceptance testing requires NEW_RELIC_API_KEY and NEW_RELIC_ADMIN_API_KEY")
+	if envPersonalAPIKey == "" {
+		t.Skipf("acceptance testing requires NEW_RELIC_API_KEY")
 	}
 
 	cfg := config.New()
@@ -62,7 +59,6 @@ func NewIntegrationTestConfig(t *testing.T) config.Config {
 	cfg.UserAgent = UserAgent
 
 	cfg.PersonalAPIKey = envPersonalAPIKey
-	cfg.AdminAPIKey = envAdminAPIKey
 	cfg.InsightsInsertKey = envInsightsInsertKey
 	cfg.LicenseKey = envLicenseKey
 

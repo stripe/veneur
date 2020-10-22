@@ -22,9 +22,9 @@ const defaultMaxBreadcrumbs = 30
 const maxBreadcrumbs = 100
 
 // Initial instance of the Hub that has no `Client` bound and an empty `Scope`
-var currentHub = NewHub(nil, NewScope()) //nolint: gochecknoglobals
+var currentHub = NewHub(nil, NewScope()) // nolint: gochecknoglobals
 
-// Hub is the central object that manages scopes and clients.
+// Hub is the central object that can manages scopes and clients.
 //
 // This can be used to capture events and manage the scope.
 // The default hub that is available automatically.
@@ -35,31 +35,14 @@ var currentHub = NewHub(nil, NewScope()) //nolint: gochecknoglobals
 // possible in which case it might become necessary to manually work with the
 // hub. This is for instance the case when working with async code.
 type Hub struct {
-	mu          sync.RWMutex
+	sync.RWMutex
 	stack       *stack
 	lastEventID EventID
 }
 
 type layer struct {
-	// mu protects concurrent reads and writes to client.
-	mu     sync.RWMutex
 	client *Client
-	// scope is read-only, not protected by mu.
-	scope *Scope
-}
-
-// Client returns the layer's client. Safe for concurrent use.
-func (l *layer) Client() *Client {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
-	return l.client
-}
-
-// SetClient sets the layer's client. Safe for concurrent use.
-func (l *layer) SetClient(c *Client) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.client = c
+	scope  *Scope
 }
 
 type stack []*layer
@@ -86,8 +69,8 @@ func (hub *Hub) LastEventID() EventID {
 }
 
 func (hub *Hub) stackTop() *layer {
-	hub.mu.RLock()
-	defer hub.mu.RUnlock()
+	hub.RLock()
+	defer hub.RUnlock()
 
 	stack := hub.stack
 	if stack == nil {
@@ -113,7 +96,7 @@ func (hub *Hub) Clone() *Hub {
 	if scope != nil {
 		scope = scope.Clone()
 	}
-	return NewHub(top.Client(), scope)
+	return NewHub(top.client, scope)
 }
 
 // Scope returns top-level `Scope` of the current `Hub` or `nil` if no `Scope` is bound.
@@ -125,13 +108,13 @@ func (hub *Hub) Scope() *Scope {
 	return top.scope
 }
 
-// Client returns top-level `Client` of the current `Hub` or `nil` if no `Client` is bound.
+// Scope returns top-level `Client` of the current `Hub` or `nil` if no `Client` is bound.
 func (hub *Hub) Client() *Client {
 	top := hub.stackTop()
 	if top == nil {
 		return nil
 	}
-	return top.Client()
+	return top.client
 }
 
 // PushScope pushes a new scope for the current `Hub` and reuses previously bound `Client`.
@@ -140,7 +123,7 @@ func (hub *Hub) PushScope() *Scope {
 
 	var client *Client
 	if top != nil {
-		client = top.Client()
+		client = top.client
 	}
 
 	var scope *Scope
@@ -150,8 +133,8 @@ func (hub *Hub) PushScope() *Scope {
 		scope = NewScope()
 	}
 
-	hub.mu.Lock()
-	defer hub.mu.Unlock()
+	hub.Lock()
+	defer hub.Unlock()
 
 	*hub.stack = append(*hub.stack, &layer{
 		client: client,
@@ -161,10 +144,10 @@ func (hub *Hub) PushScope() *Scope {
 	return scope
 }
 
-// PopScope pops the most recent scope for the current `Hub`.
+// PushScope pops the most recent scope for the current `Hub`.
 func (hub *Hub) PopScope() {
-	hub.mu.Lock()
-	defer hub.mu.Unlock()
+	hub.Lock()
+	defer hub.Unlock()
 
 	stack := *hub.stack
 	stackLen := len(stack)
@@ -177,7 +160,7 @@ func (hub *Hub) PopScope() {
 func (hub *Hub) BindClient(client *Client) {
 	top := hub.stackTop()
 	if top != nil {
-		top.SetClient(client)
+		top.client = client
 	}
 }
 
@@ -210,13 +193,7 @@ func (hub *Hub) CaptureEvent(event *Event) *EventID {
 	if client == nil || scope == nil {
 		return nil
 	}
-	eventID := client.CaptureEvent(event, nil, scope)
-	if eventID != nil {
-		hub.lastEventID = *eventID
-	} else {
-		hub.lastEventID = ""
-	}
-	return eventID
+	return client.CaptureEvent(event, nil, scope)
 }
 
 // CaptureMessage calls the method of a same name on currently bound `Client` instance
@@ -227,13 +204,7 @@ func (hub *Hub) CaptureMessage(message string) *EventID {
 	if client == nil || scope == nil {
 		return nil
 	}
-	eventID := client.CaptureMessage(message, nil, scope)
-	if eventID != nil {
-		hub.lastEventID = *eventID
-	} else {
-		hub.lastEventID = ""
-	}
-	return eventID
+	return client.CaptureMessage(message, nil, scope)
 }
 
 // CaptureException calls the method of a same name on currently bound `Client` instance
@@ -244,13 +215,7 @@ func (hub *Hub) CaptureException(exception error) *EventID {
 	if client == nil || scope == nil {
 		return nil
 	}
-	eventID := client.CaptureException(exception, &EventHint{OriginalException: exception}, scope)
-	if eventID != nil {
-		hub.lastEventID = *eventID
-	} else {
-		hub.lastEventID = ""
-	}
-	return eventID
+	return client.CaptureException(exception, &EventHint{OriginalException: exception}, scope)
 }
 
 // AddBreadcrumb records a new breadcrumb.
@@ -322,17 +287,7 @@ func (hub *Hub) RecoverWithContext(ctx context.Context, err interface{}) *EventI
 	return client.RecoverWithContext(ctx, err, &EventHint{RecoveredException: err}, scope)
 }
 
-// Flush waits until the underlying Transport sends any buffered events to the
-// Sentry server, blocking for at most the given timeout. It returns false if
-// the timeout was reached. In that case, some events may not have been sent.
-//
-// Flush should be called before terminating the program to avoid
-// unintentionally dropping events.
-//
-// Do not call Flush indiscriminately after every call to CaptureEvent,
-// CaptureException or CaptureMessage. Instead, to have the SDK send events over
-// the network synchronously, configure it to use the HTTPSyncTransport in the
-// call to Init.
+// Flush calls the method of a same name on currently bound `Client` instance.
 func (hub *Hub) Flush(timeout time.Duration) bool {
 	client := hub.Client()
 

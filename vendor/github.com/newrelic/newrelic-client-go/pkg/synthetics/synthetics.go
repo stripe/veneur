@@ -59,9 +59,14 @@ func (e *ErrorResponse) IsNotFound() bool {
 	return false
 }
 
+func (e *ErrorResponse) IsTimeout() bool {
+	return false
+}
+
 // New is used to create a new Synthetics client instance.
 func New(config config.Config) Synthetics {
 	client := http.NewClient(config)
+	client.SetAuthStrategy(&http.PersonalAPIKeyCapableV2Authorizer{})
 	client.SetErrorValue(&ErrorResponse{})
 
 	pkg := Synthetics{

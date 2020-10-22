@@ -19,9 +19,9 @@ https://discuss.newrelic.com/t/end-of-life-notice-synthetics-labels-and-syntheti
 
 Authentication
 
-You will need a valid Admin's API key to communicate with the backend New Relic
-API that provides this functionality.  See the API key documentation below for
-more information on how to locate these keys:
+You will need a Personal API key to communicate with the backend New Relic API
+that provides this functionality.  See the API key documentation below for more
+information on how to locate this keys:
 
 https://docs.newrelic.com/docs/apis/get-started/intro-apis/types-new-relic-api-keys
 

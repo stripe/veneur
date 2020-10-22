@@ -96,7 +96,7 @@ func New(opts ...ConfigOption) (*NewRelic, error) {
 type ConfigOption func(*config.Config) error
 
 // ConfigPersonalAPIKey sets the New Relic Admin API key this client will use.
-// One of ConfigPersonalAPIKey or ConfigAdminAPIKey must be used to create a client.
+// This key should be used to create a client instance.
 // https://docs.newrelic.com/docs/apis/get-started/intro-apis/types-new-relic-api-keys
 func ConfigPersonalAPIKey(apiKey string) ConfigOption {
 	return func(cfg *config.Config) error {
@@ -115,7 +115,7 @@ func ConfigInsightsInsertKey(insightsInsertKey string) ConfigOption {
 }
 
 // ConfigAdminAPIKey sets the New Relic Admin API key this client will use.
-// One of ConfigAPIKey or ConfigAdminAPIKey must be used to create a client.
+// Deprecated.  Use a personal API key for authentication.
 // https://docs.newrelic.com/docs/apis/get-started/intro-apis/types-new-relic-api-keys
 func ConfigAdminAPIKey(adminAPIKey string) ConfigOption {
 	return func(cfg *config.Config) error {

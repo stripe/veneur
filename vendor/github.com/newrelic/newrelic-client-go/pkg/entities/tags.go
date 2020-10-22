@@ -17,7 +17,8 @@ type TagValue struct {
 	Value string
 }
 
-// ListTags returns a collection of tags for a given entity by entity GUID.
+// ListTags returns a collection of mutable tags for a given entity by entity
+// GUID.
 func (e *Entities) ListTags(guid string) ([]*Tag, error) {
 	resp := listTagsResponse{}
 	vars := map[string]interface{}{
@@ -28,7 +29,51 @@ func (e *Entities) ListTags(guid string) ([]*Tag, error) {
 		return nil, err
 	}
 
+	return filterMutable(resp)
+}
+
+// ListAllTags returns a collection of all tags (mutable and not) for a given
+// entity by entity GUID.
+func (e *Entities) ListAllTags(guid string) ([]*Tag, error) {
+	resp := listTagsResponse{}
+	vars := map[string]interface{}{
+		"guid": guid,
+	}
+
+	if err := e.client.NerdGraphQuery(listTagsQuery, vars, &resp); err != nil {
+		return nil, err
+	}
+
 	return resp.Actor.Entity.Tags, nil
+}
+
+// filterMutable removes tag values that are read-only from the received response.
+func filterMutable(resp listTagsResponse) ([]*Tag, error) {
+	var tags []*Tag
+
+	for _, responseTag := range resp.Actor.Entity.TagsWithMetadata {
+		if responseTag != nil {
+			tag := Tag{
+				Key: responseTag.Key,
+			}
+
+			mutable := 0
+			for _, responseTagValue := range responseTag.Values {
+				if responseTagValue.Mutable {
+					mutable++
+					tag.Values = append(tag.Values, responseTagValue.Value)
+				}
+			}
+
+			// All values were mutable
+			if len(responseTag.Values) == mutable {
+				tags = append(tags, &tag)
+			}
+
+		}
+	}
+
+	return tags, nil
 }
 
 // AddTags writes tags to the entity specified by the provided entity GUID.
@@ -121,23 +166,32 @@ func parseTagMutationErrors(errors []tagMutationError) string {
 	return strings.Join(messages, ", ")
 }
 
+// EntityTagValueWithMetadata - The value and metadata of a single entity tag.
+type EntityTagValueWithMetadata struct {
+	// Whether or not the tag can be mutated by the user.
+	Mutable bool `json:"mutable"`
+	// The tag value.
+	Value string `json:"value"`
+}
+
+// EntityTagWithMetadata - The tags with metadata of the entity.
+type EntityTagWithMetadata struct {
+	// The tag's key.
+	Key string `json:"key"`
+	// A list of tag values with metadata information.
+	Values []EntityTagValueWithMetadata `json:"values"`
+}
+
 var listTagsQuery = `
-	query($guid:EntityGuid!) {
-		actor {
-			entity(guid: $guid)  {
-				tags {
-					values
-					key
-				}
-			}
-		}
-	}
-`
+	query($guid:EntityGuid!) { actor { entity(guid: $guid)  {` +
+	graphqlEntityStructTagsFields +
+	` } } }`
 
 type listTagsResponse struct {
 	Actor struct {
 		Entity struct {
-			Tags []*Tag
+			Tags             []*Tag
+			TagsWithMetadata []*EntityTagWithMetadata
 		}
 	}
 }

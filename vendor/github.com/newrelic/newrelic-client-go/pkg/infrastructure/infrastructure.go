@@ -38,3 +38,7 @@ func (e *ErrorResponse) New() http.ErrorResponse {
 func (e *ErrorResponse) IsNotFound() bool {
 	return false
 }
+
+func (e *ErrorResponse) IsTimeout() bool {
+	return false
+}

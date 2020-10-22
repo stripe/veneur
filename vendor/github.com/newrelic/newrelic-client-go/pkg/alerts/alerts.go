@@ -21,6 +21,7 @@ func New(config config.Config) Alerts {
 	infraConfig := config
 
 	infraClient := http.NewClient(infraConfig)
+	infraClient.SetAuthStrategy(&http.PersonalAPIKeyCapableV2Authorizer{})
 	infraClient.SetErrorValue(&infrastructure.ErrorResponse{})
 
 	client := http.NewClient(config)

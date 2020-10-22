@@ -216,6 +216,19 @@ const (
 					reporting
 					type
 `
+	graphqlEntityStructTagsFields = `
+					tagsWithMetadata {
+						key
+						values {
+							mutable
+							value
+						}
+					}
+					tags {
+						key
+						values
+					}
+`
 
 	graphqlApmApplicationEntityFields = `
 					... on ApmApplicationEntity {
@@ -275,6 +288,7 @@ const (
 
 	getEntitiesQuery = `query($guids: [String!]!) { actor { entities(guids: $guids)  {` +
 		graphqlEntityStructFields +
+		graphqlEntityStructTagsFields +
 		graphqlApmApplicationEntityFields +
 		graphqlBrowserApplicationEntityFields +
 		graphqlMobileApplicationEntityFields +
@@ -282,6 +296,7 @@ const (
 
 	getEntityQuery = `query($guid: String!) { actor { entity(guid: $guid)  {` +
 		graphqlEntityStructFields +
+		graphqlEntityStructTagsFields +
 		graphqlApmApplicationEntityFields +
 		graphqlBrowserApplicationEntityFields +
 		graphqlMobileApplicationEntityFields +

@@ -17,7 +17,7 @@ require (
 	github.com/eapache/queue v1.1.0 // indirect
 	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 // indirect
 	github.com/facebookgo/stackerr v0.0.0-20150612192056-c2fcf88613f4 // indirect
-	github.com/getsentry/sentry-go v0.6.2-0.20200616133211-abb91bfdb057
+	github.com/getsentry/sentry-go v0.2.1
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.4.2
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
@@ -26,15 +26,19 @@ require (
 	github.com/hashicorp/consul/api v1.1.0
 	github.com/hashicorp/go-msgpack v0.5.4 // indirect
 	github.com/hashicorp/memberlist v0.1.4 // indirect
+	github.com/juju/errors v0.0.0-20181118221551-089d3ea4e4d5 // indirect
+	github.com/juju/loggo v0.0.0-20180524022052-584905176618 // indirect
+	github.com/juju/testing v0.0.0-20180920084828-472a3e8b2073 // indirect
 	github.com/kelseyhightower/envconfig v1.3.0
 	github.com/lightstep/lightstep-tracer-go v0.13.1-0.20170818234450-ea8cdd9df863
 	github.com/mailru/easyjson v0.0.0-20180606163543-3fdea8d05856 // indirect
-	github.com/newrelic/newrelic-client-go v0.39.0
+	github.com/newrelic/newrelic-client-go v0.47.0
 	github.com/newrelic/newrelic-telemetry-sdk-go v0.4.0
 	github.com/opentracing/opentracing-go v1.0.2
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pierrec/lz4 v1.0.2-0.20171218195038-2fcda4cb7018 // indirect
 	github.com/pierrec/xxHash v0.1.1 // indirect
+	github.com/pingcap/errors v0.11.4 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.2.1
 	github.com/prometheus/client_golang v1.1.0
@@ -48,19 +52,18 @@ require (
 	github.com/signalfx/gohistogram v0.0.0-20160107210732-1ccfd2ff5083 // indirect
 	github.com/signalfx/golib v2.0.0+incompatible
 	github.com/simplereach/timeutils v1.2.0 // indirect
-	github.com/sirupsen/logrus v1.6.0
+	github.com/sirupsen/logrus v1.7.0
 	github.com/stretchr/testify v1.6.1
 	github.com/theckman/go-flock v0.0.0-20170522022801-6de226b0d5f0
 	github.com/zenazn/goji v0.9.1-0.20160507202103-64eb34159fe5
 	goji.io v1.1.0
-	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9 // indirect
 	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/grpc v1.29.1
-	google.golang.org/protobuf v1.25.0
+	google.golang.org/protobuf v1.24.0
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/logfmt.v0 v0.3.0 // indirect
+	gopkg.in/mgo.v2 v2.0.0-20180705113604-9856a29383ce // indirect
 	gopkg.in/stack.v1 v1.6.0 // indirect
 	gopkg.in/yaml.v2 v2.3.0
 	k8s.io/api v0.0.0-20190325185214-7544f9db76f6

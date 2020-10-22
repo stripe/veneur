@@ -66,8 +66,8 @@ func (e *Events) CreateEvent(accountID int, event interface{}) error {
 	}
 
 	resp := &createEventResponse{}
-	_, err = e.client.Post(e.config.Region().InsightsURL(accountID), nil, jsonData, resp)
 
+	_, err = e.client.Post(e.config.Region().InsightsURL(accountID), nil, *jsonData, resp)
 	if err != nil {
 		return err
 	}

@@ -220,7 +220,7 @@ func obfuscate(input string) string {
 	return strings.Join(result, "")
 }
 
-func logCleanHeaderMarhsalJSON(header http.Header) ([]byte, error) {
+func logCleanHeaderMarshalJSON(header http.Header) ([]byte, error) {
 	h := http.Header{}
 
 	for k, values := range header {
@@ -250,67 +250,27 @@ func logCleanHeaderMarhsalJSON(header http.Header) ([]byte, error) {
 
 // Do initiates an HTTP request as configured by the passed Request struct.
 func (c *Client) Do(req *Request) (*http.Response, error) {
-	r, err := req.makeRequest()
-	if err != nil {
-		return nil, err
-	}
+	var resp *http.Response
+	var errorValue ErrorResponse
+	var body []byte
 
 	logger := c.config.GetLogger()
+	logger.Debug("performing request", "method", req.method, "url", req.url)
 
-	logger.Debug("performing request", "method", req.method, "url", r.URL)
+	for i := 0; ; i++ {
+		var shouldRetry bool
+		var err error
 
-	logHeaders, err := logCleanHeaderMarhsalJSON(r.Header)
-	if err != nil {
-		return nil, err
-	}
-
-	if req.reqBody != nil {
-		switch reflect.TypeOf(req.reqBody).String() {
-		case "*http.graphQLRequest":
-			x := req.reqBody.(*graphQLRequest)
-
-			logVariables, marshalErr := json.Marshal(x.Variables)
-			if marshalErr != nil {
-				return nil, marshalErr
-			}
-
-			logger.Trace("request details",
-				"headers", logNice(string(logHeaders)),
-				"query", logNice(x.Query),
-				"variables", string(logVariables),
-			)
-		case "string":
-			logger.Trace("request details", "headers", string(logHeaders), "body", logNice(req.reqBody.(string)))
+		errorValue = req.errorValue.New()
+		resp, body, shouldRetry, err = c.innerDo(req, errorValue, i)
+		if err != nil {
+			return nil, err
 		}
-	} else {
-		logger.Trace("request details", "headers", string(logHeaders))
+
+		if !shouldRetry {
+			break
+		}
 	}
-
-	resp, retryErr := c.client.Do(r)
-	if retryErr != nil {
-		return nil, retryErr
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, &nrErrors.NotFound{}
-	}
-
-	body, readErr := ioutil.ReadAll(resp.Body)
-	if readErr != nil {
-		return nil, readErr
-	}
-
-	logHeaders, err = json.Marshal(resp.Header)
-	if err != nil {
-		return nil, err
-	}
-
-	logger.Trace("request completed", "method", req.method, "url", r.URL, "status_code", resp.StatusCode, "headers", string(logHeaders), "body", string(body))
-
-	errorValue := req.errorValue.New()
-	_ = json.Unmarshal(body, &errorValue)
 
 	if !isResponseSuccess(resp) {
 		return nil, nrErrors.NewUnexpectedStatusCode(resp.StatusCode, errorValue.Error())
@@ -318,6 +278,10 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 
 	if errorValue.IsNotFound() {
 		return nil, nrErrors.NewNotFound("resource not found")
+	}
+
+	if errorValue.IsTimeout() {
+		return nil, nrErrors.NewTimeout("server timeout")
 	}
 
 	if errorValue.Error() != "" {
@@ -334,6 +298,94 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 	}
 
 	return resp, nil
+}
+
+func (c *Client) innerDo(req *Request, errorValue ErrorResponse, i int) (*http.Response, []byte, bool, error) {
+	shouldRetry := false
+
+	r, err := req.makeRequest()
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	logger := c.config.GetLogger()
+
+	logHeaders, err := logCleanHeaderMarshalJSON(r.Header)
+	if err != nil {
+		return nil, nil, false, err
+	}
+
+	if req.reqBody != nil {
+		switch reflect.TypeOf(req.reqBody).String() {
+		case "*http.graphQLRequest":
+			x := req.reqBody.(*graphQLRequest)
+
+			logVariables, marshalErr := json.Marshal(x.Variables)
+			if marshalErr != nil {
+				return nil, nil, false, marshalErr
+			}
+
+			logger.Trace("request details",
+				"headers", logNice(string(logHeaders)),
+				"query", logNice(x.Query),
+				"variables", string(logVariables),
+			)
+		case "string":
+			logger.Trace("request details", "headers", string(logHeaders), "body", logNice(req.reqBody.(string)))
+		}
+	} else {
+		logger.Trace("request details", "headers", string(logHeaders))
+	}
+
+	if i > 0 {
+		logger.Debug(fmt.Sprintf("retrying request (attempt %d)", i), "method", req.method, "url", r.URL)
+	}
+
+	resp, retryErr := c.client.Do(r)
+	if retryErr != nil {
+		return resp, nil, false, retryErr
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return resp, nil, false, &nrErrors.NotFound{}
+	}
+
+	body, readErr := ioutil.ReadAll(resp.Body)
+
+	if readErr != nil {
+		return resp, body, false, readErr
+	}
+
+	logHeaders, err = json.Marshal(resp.Header)
+	if err != nil {
+		return resp, body, false, err
+	}
+
+	logger.Trace("request completed", "method", req.method, "url", r.URL, "status_code", resp.StatusCode, "headers", string(logHeaders), "body", string(body))
+
+	_ = json.Unmarshal(body, &errorValue)
+
+	if errorValue.IsTimeout() {
+		shouldRetry = true
+	}
+
+	if !shouldRetry {
+		return resp, body, false, nil
+	}
+
+	remain := c.client.RetryMax - i
+	if remain <= 0 {
+		logger.Debug(fmt.Sprintf("giving up after %d attempts", c.client.RetryMax), "method", req.method, "url", r.URL)
+		return resp, body, false, nil
+	}
+
+	wait := c.client.Backoff(c.client.RetryWaitMin, c.client.RetryWaitMax, i, resp)
+
+	time.Sleep(wait)
+
+	return resp, body, true, nil
 }
 
 // Ensures the response status code falls within the

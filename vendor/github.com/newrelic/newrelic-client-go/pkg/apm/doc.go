@@ -12,10 +12,9 @@ APM product.  It can be used for a variety of operations, including:
 
 Authentication
 
-You will need a valid API key to communicate with the backend New Relic APIs
-that provide this functionality.  Using a Personal API key is the preferred method
-but an Admin's API key will also work.  See the API key documentation below for
-more information on how to locate these keys:
+You will need a valid Personal API key to communicate with the backend New Relic
+APIs that provide this functionality. See the API key documentation below for
+more information on how to locate this key:
 
 https://docs.newrelic.com/docs/apis/get-started/intro-apis/types-new-relic-api-keys
 

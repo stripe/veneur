@@ -2,9 +2,48 @@ package alerts
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/newrelic/newrelic-client-go/internal/http"
 	"github.com/newrelic/newrelic-client-go/pkg/errors"
 )
+
+// AlertsNrqlConditionExpiration - **Preview access:** These fields may be viewed and set, but will not be active until the release date.
+// Settings for how violations are opened or closed when a signal expires.
+// nolint:golint
+type AlertsNrqlConditionExpiration struct {
+	ExpirationDuration          *int `json:"expirationDuration"`
+	CloseViolationsOnExpiration bool `json:"closeViolationsOnExpiration"`
+	OpenViolationOnExpiration   bool `json:"openViolationOnExpiration"`
+}
+
+// AlertsNrqlConditionSignal - Configuration that defines the signal that the NRQL condition will use to evaluate.
+// nolint:golint
+type AlertsNrqlConditionSignal struct {
+	AggregationWindow *int              `json:"aggregationWindow,omitempty"`
+	EvaluationOffset  *int              `json:"evaluationOffset,omitempty"`
+	FillOption        *AlertsFillOption `json:"fillOption"`
+	FillValue         *float64          `json:"fillValue"`
+}
+
+// AlertsFillOption - The available fill options.
+type AlertsFillOption string // nolint:golint
+
+var AlertsFillOptionTypes = struct {
+	// Fill using the last known value.
+	LAST_VALUE AlertsFillOption // nolint:golint
+	// Do not fill data.
+	NONE AlertsFillOption
+	// Fill using a static value.
+	STATIC AlertsFillOption
+}{
+	// Fill using the last known value.
+	LAST_VALUE: "LAST_VALUE",
+	// Do not fill data.
+	NONE: "NONE",
+	// Fill using a static value.
+	STATIC: "STATIC",
+}
 
 // ThresholdOccurrence specifies the threshold occurrence for NRQL alert condition terms.
 type ThresholdOccurrence string
@@ -144,6 +183,8 @@ type NrqlConditionBase struct {
 	Terms              []NrqlConditionTerm             `json:"terms,omitempty"`
 	Type               NrqlConditionType               `json:"type,omitempty"`
 	ViolationTimeLimit NrqlConditionViolationTimeLimit `json:"violationTimeLimit,omitempty"`
+	Expiration         *AlertsNrqlConditionExpiration  `json:"expiration,omitempty"`
+	Signal             *AlertsNrqlConditionSignal      `json:"signal,omitempty"`
 }
 
 // NrqlConditionInput represents the input options for creating or updating a Nrql Condition.
@@ -315,7 +356,15 @@ func (a *Alerts) GetNrqlConditionQuery(
 		"id":        conditionID,
 	}
 
-	if err := a.client.NerdGraphQuery(getNrqlConditionQuery, vars, &resp); err != nil {
+	req, err := a.client.NewNerdGraphRequest(getNrqlConditionQuery, vars, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	var errorResponse nrqlConditionErrorResponse
+	req.SetErrorValue(&errorResponse)
+
+	if _, err := a.client.Do(req); err != nil {
 		return nil, err
 	}
 
@@ -544,28 +593,67 @@ type getNrqlConditionQueryResponse struct {
 	} `json:"actor"`
 }
 
+type nrqlConditionErrorResponse struct {
+	http.GraphQLErrorResponse
+}
+
+func (r *nrqlConditionErrorResponse) IsNotFound() bool {
+	if len(r.Errors) == 0 {
+		return false
+	}
+
+	for _, err := range r.Errors {
+		for _, downStreamResp := range err.DownstreamResponse {
+			if strings.Contains(downStreamResp.Message, "Not Found") {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func (r *nrqlConditionErrorResponse) Error() string {
+	return r.GraphQLErrorResponse.Error()
+}
+
+func (r *nrqlConditionErrorResponse) New() http.ErrorResponse {
+	return &nrqlConditionErrorResponse{}
+}
+
 const (
 	graphqlNrqlConditionStructFields = `
-		id
-		name
-		nrql {
-			evaluationOffset
-			query
-		}
-		enabled
-		description
-		policyId
-		runbookUrl
-		terms {
-			operator
-			priority
-			threshold
-			thresholdDuration
-			thresholdOccurrences
-		}
-		type
-		violationTimeLimit
-	`
+    id
+    name
+    nrql {
+      evaluationOffset
+      query
+    }
+    enabled
+    description
+    policyId
+    runbookUrl
+    terms {
+      operator
+      priority
+      threshold
+      thresholdDuration
+      thresholdOccurrences
+    }
+    type
+    violationTimeLimit
+    expiration {
+      closeViolationsOnExpiration
+      expirationDuration
+      openViolationOnExpiration
+    }
+    signal {
+	  aggregationWindow
+      evaluationOffset
+      fillOption
+      fillValue
+    }
+  `
 
 	graphqlFragmentNrqlBaselineConditionFields = `
 		... on AlertsNrqlBaselineCondition {

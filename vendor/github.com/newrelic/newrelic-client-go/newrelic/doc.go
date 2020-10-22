@@ -5,9 +5,9 @@ Refer to each package's documentation to learn more about its capabilities.
 
 Authentication
 
-You will need a valid Personal API key and/or Admin's API key to communicate with
-the backend New Relic APIs that this client communicates with.  See the API key
-documentation below for more information on how to locate this key:
+You will need a valid Personal API to communicate with the backend New Relic
+APIs that this client communicates with.  See the API key documentation below
+for more information on how to locate this key:
 
 https://docs.newrelic.com/docs/apis/get-started/intro-apis/types-new-relic-api-keys
 

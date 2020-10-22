@@ -4,6 +4,7 @@ import (
 	"go/build"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -127,8 +128,7 @@ func extractPcs(method reflect.Value) []uintptr {
 	return pcs
 }
 
-// Frame represents a function call and it's metadata. Frames are associated
-// with a Stacktrace.
+// https://docs.sentry.io/development/sdk-dev/interfaces/stacktrace/
 type Frame struct {
 	Function    string                 `json:"function,omitempty"`
 	Symbol      string                 `json:"symbol,omitempty"`
@@ -150,10 +150,10 @@ func NewFrame(f runtime.Frame) Frame {
 	abspath := f.File
 	filename := f.File
 	function := f.Function
-	var pkg string
+	var module string
 
 	if filename != "" {
-		filename = filepath.Base(filename)
+		filename = extractFilename(filename)
 	} else {
 		filename = unknown
 	}
@@ -163,29 +163,20 @@ func NewFrame(f runtime.Frame) Frame {
 	}
 
 	if function != "" {
-		pkg, function = splitQualifiedFunctionName(function)
+		module, function = deconstructFunctionName(function)
 	}
 
 	frame := Frame{
 		AbsPath:  abspath,
 		Filename: filename,
 		Lineno:   f.Line,
-		Module:   pkg,
+		Module:   module,
 		Function: function,
 	}
 
 	frame.InApp = isInAppFrame(frame)
 
 	return frame
-}
-
-// splitQualifiedFunctionName splits a package path-qualified function name into
-// package name and function name. Such qualified names are found in
-// runtime.Frame.Function values.
-func splitQualifiedFunctionName(name string) (pkg string, fun string) {
-	pkg = packageName(name)
-	fun = strings.TrimPrefix(name, pkg+".")
-	return
 }
 
 func extractFrames(pcs []uintptr) []Frame {
@@ -207,30 +198,33 @@ func extractFrames(pcs []uintptr) []Frame {
 	return frames
 }
 
-// filterFrames filters out stack frames that are not meant to be reported to
-// Sentry. Those are frames internal to the SDK or Go.
 func filterFrames(frames []Frame) []Frame {
-	if len(frames) == 0 {
-		return nil
-	}
-
+	isTestFileRegexp := regexp.MustCompile(`getsentry/sentry-go/.+_test.go`)
+	isExampleFileRegexp := regexp.MustCompile(`getsentry/sentry-go/example/`)
 	filteredFrames := make([]Frame, 0, len(frames))
 
 	for _, frame := range frames {
-		// Skip Go internal frames.
+		// go runtime frames
 		if frame.Module == "runtime" || frame.Module == "testing" {
 			continue
 		}
-		// Skip Sentry internal frames, except for frames in _test packages (for
-		// testing).
-		if strings.HasPrefix(frame.Module, "github.com/getsentry/sentry-go") &&
-			!strings.HasSuffix(frame.Module, "_test") {
+		// sentry internal frames
+		isTestFile := isTestFileRegexp.MatchString(frame.AbsPath)
+		isExampleFile := isExampleFileRegexp.MatchString(frame.AbsPath)
+		if strings.Contains(frame.AbsPath, "github.com/getsentry/sentry-go") &&
+			!isTestFile &&
+			!isExampleFile {
 			continue
 		}
 		filteredFrames = append(filteredFrames, frame)
 	}
 
 	return filteredFrames
+}
+
+func extractFilename(path string) string {
+	_, file := filepath.Split(path)
+	return file
 }
 
 func isInAppFrame(frame Frame) bool {
@@ -243,42 +237,21 @@ func isInAppFrame(frame Frame) bool {
 	return true
 }
 
+// Transform `runtime/debug.*T·ptrmethod` into `{ module: runtime/debug, function: *T.ptrmethod }`
+func deconstructFunctionName(name string) (module string, function string) {
+	if idx := strings.LastIndex(name, "."); idx != -1 {
+		module = name[:idx]
+		function = name[idx+1:]
+	}
+	function = strings.Replace(function, "·", ".", -1)
+	return module, function
+}
+
 func callerFunctionName() string {
 	pcs := make([]uintptr, 1)
 	runtime.Callers(3, pcs)
 	callersFrames := runtime.CallersFrames(pcs)
 	callerFrame, _ := callersFrames.Next()
-	return baseName(callerFrame.Function)
-}
-
-// packageName returns the package part of the symbol name, or the empty string
-// if there is none.
-// It replicates https://golang.org/pkg/debug/gosym/#Sym.PackageName, avoiding a
-// dependency on debug/gosym.
-func packageName(name string) string {
-	// A prefix of "type." and "go." is a compiler-generated symbol that doesn't belong to any package.
-	// See variable reservedimports in cmd/compile/internal/gc/subr.go
-	if strings.HasPrefix(name, "go.") || strings.HasPrefix(name, "type.") {
-		return ""
-	}
-
-	pathend := strings.LastIndex(name, "/")
-	if pathend < 0 {
-		pathend = 0
-	}
-
-	if i := strings.Index(name[pathend:], "."); i != -1 {
-		return name[:pathend+i]
-	}
-	return ""
-}
-
-// baseName returns the symbol name without the package or receiver name.
-// It replicates https://golang.org/pkg/debug/gosym/#Sym.BaseName, avoiding a
-// dependency on debug/gosym.
-func baseName(name string) string {
-	if i := strings.LastIndex(name, "."); i != -1 {
-		return name[i+1:]
-	}
-	return name
+	_, function := deconstructFunctionName(callerFrame.Function)
+	return function
 }

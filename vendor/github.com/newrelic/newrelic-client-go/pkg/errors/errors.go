@@ -33,6 +33,34 @@ func (e *NotFound) Error() string {
 	return e.err
 }
 
+// NewTimeout returns a new instance of Timeout with an optional custom error message.
+func NewTimeout(err string) *Timeout {
+	e := Timeout{
+		err: err,
+	}
+
+	return &e
+}
+
+// NewTimeoutf returns a new instance of Timeout
+// with an optional formatted custom error message.
+func NewTimeoutf(format string, args ...interface{}) *Timeout {
+	return NewTimeout(fmt.Sprintf(format, args...))
+}
+
+// Timeout is returned when the target resource cannot be located.
+type Timeout struct {
+	err string
+}
+
+func (e *Timeout) Error() string {
+	if e.err == "" {
+		return "server timeout"
+	}
+
+	return e.err
+}
+
 // NewUnexpectedStatusCode returns a new instance of UnexpectedStatusCode
 // with an optional custom message.
 func NewUnexpectedStatusCode(statusCode int, err string) *UnexpectedStatusCode {

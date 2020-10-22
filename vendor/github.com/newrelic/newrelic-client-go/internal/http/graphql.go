@@ -16,7 +16,11 @@ type graphQLResponse struct {
 
 // GraphQLError represents a single error.
 type GraphQLError struct {
-	Message            string                      `json:"message"`
+	Message    string   `json:"message,omitempty"`
+	Path       []string `json:"path,omitempty"`
+	Extensions struct {
+		ErrorClass string `json:"errorClass,omitempty"`
+	} `json:"extensions,omitempty"`
 	DownstreamResponse []GraphQLDownstreamResponse `json:"downstreamResponse,omitempty"`
 }
 
@@ -41,10 +45,15 @@ func (r *GraphQLErrorResponse) Error() string {
 	if len(r.Errors) > 0 {
 		messages := []string{}
 		for _, e := range r.Errors {
-			f, _ := json.Marshal(e.DownstreamResponse)
 
-			messages = append(messages, e.Message)
-			messages = append(messages, string(f))
+			if e.Message != "" {
+				messages = append(messages, e.Message)
+			}
+
+			if e.DownstreamResponse != nil {
+				f, _ := json.Marshal(e.DownstreamResponse)
+				messages = append(messages, string(f))
+			}
 		}
 		return strings.Join(messages, ", ")
 	}
@@ -54,6 +63,21 @@ func (r *GraphQLErrorResponse) Error() string {
 
 // IsNotFound determines if the error is due to a missing resource.
 func (r *GraphQLErrorResponse) IsNotFound() bool {
+	return false
+}
+
+// IsTimeout determines if the error is due to a server timeout.
+func (r *GraphQLErrorResponse) IsTimeout() bool {
+	if len(r.Errors) == 0 {
+		return false
+	}
+
+	for _, err := range r.Errors {
+		if err.Extensions.ErrorClass == "TIMEOUT" {
+			return true
+		}
+	}
+
 	return false
 }
 
