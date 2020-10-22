@@ -24,12 +24,12 @@ type MergingDigest struct {
 	compression float64
 
 	// main list of centroids
-	mainCentroids []Centroid
+	mainCentroids []*Centroid
 	// total weight of unmerged centroids
 	mainWeight float64
 
 	// centroids that have been added but not yet merged into main list
-	tempCentroids []Centroid
+	tempCentroids []*Centroid
 	// total weight of unmerged centroids
 	tempWeight float64
 
@@ -43,7 +43,7 @@ type MergingDigest struct {
 var _ sort.Interface = centroidList{}
 
 // sort centroids by their mean
-type centroidList []Centroid
+type centroidList []*Centroid
 
 func (cl centroidList) Len() int {
 	return len(cl)
@@ -72,8 +72,8 @@ func NewMerging(compression float64, debug bool) *MergingDigest {
 
 	return &MergingDigest{
 		compression:   compression,
-		mainCentroids: make([]Centroid, 0, sizeBound),
-		tempCentroids: make([]Centroid, 0, estimateTempBuffer(compression)),
+		mainCentroids: make([]*Centroid, 0, sizeBound),
+		tempCentroids: make([]*Centroid, 0, estimateTempBuffer(compression)),
 		min:           math.Inf(+1),
 		max:           math.Inf(-1),
 		debug:         debug,
@@ -87,7 +87,7 @@ func NewMergingFromData(d *MergingDigestData) *MergingDigest {
 	td := &MergingDigest{
 		compression:   d.Compression,
 		mainCentroids: d.MainCentroids,
-		tempCentroids: make([]Centroid, 0, estimateTempBuffer(d.Compression)),
+		tempCentroids: make([]*Centroid, 0, estimateTempBuffer(d.Compression)),
 		min:           d.Min,
 		max:           d.Max,
 		reciprocalSum: d.ReciprocalSum,
@@ -132,7 +132,7 @@ func (td *MergingDigest) Add(value float64, weight float64) {
 	if td.debug {
 		next.Samples = []float64{value}
 	}
-	td.tempCentroids = append(td.tempCentroids, next)
+	td.tempCentroids = append(td.tempCentroids, &next)
 	td.tempWeight += weight
 }
 
@@ -167,7 +167,7 @@ func (td *MergingDigest) mergeAllTemps() {
 	swappedCentroids := td.tempCentroids[:0]
 
 	for len(actualMainCentroids)+len(swappedCentroids) != 0 || tempIndex < len(td.tempCentroids) {
-		nextTemp := Centroid{
+		nextTemp := &Centroid{
 			Mean:   math.Inf(+1),
 			Weight: 0,
 		}
@@ -175,7 +175,7 @@ func (td *MergingDigest) mergeAllTemps() {
 			nextTemp = td.tempCentroids[tempIndex]
 		}
 
-		nextMain := Centroid{
+		nextMain := &Centroid{
 			Mean:   math.Inf(+1),
 			Weight: 0,
 		}
@@ -226,7 +226,7 @@ func (td *MergingDigest) mergeAllTemps() {
 // merges a single centroid into the mergedCentroids list
 // note that "merging" sometimes creates a new centroid in the list, however
 // the length of the list has a strict upper bound (see constructor)
-func (td *MergingDigest) mergeOne(beforeWeight, totalWeight, beforeIndex float64, next Centroid) float64 {
+func (td *MergingDigest) mergeOne(beforeWeight, totalWeight, beforeIndex float64, next *Centroid) float64 {
 	// compute the quantile index of the element we're about to merge
 	nextIndex := td.indexEstimate((beforeWeight + next.Weight) / totalWeight)
 
@@ -444,7 +444,7 @@ func (td *MergingDigest) GobDecode(b []byte) error {
 	}
 	td.tempWeight = 0
 	if tempSize := estimateTempBuffer(td.compression); cap(td.tempCentroids) != tempSize {
-		td.tempCentroids = make([]Centroid, 0, tempSize)
+		td.tempCentroids = make([]*Centroid, 0, tempSize)
 	} else {
 		// discard any unmerged centroids if we didn't reallocate
 		td.tempCentroids = td.tempCentroids[:0]
@@ -460,7 +460,7 @@ func (td *MergingDigest) GobDecode(b []byte) error {
 // result in undefined behavior.
 //
 // This function will panic if debug is not enabled for this t-digest.
-func (td *MergingDigest) Centroids() []Centroid {
+func (td *MergingDigest) Centroids() []*Centroid {
 	if !td.debug {
 		panic("must enable debug to call Centroids()")
 	}

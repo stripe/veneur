@@ -33,8 +33,9 @@ type MergingDigestData struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Use values rather than pointers for the Centroid array.  This avoids
-	// a ton of code changes and probably a lot of allocations as well.
+	// With the standard Go protobuf generation, we have to use pointers
+	// for the Centroid array, even though values would avoid a ton of code changes
+	// and probably a lot of allocations as well.
 	MainCentroids []*Centroid `protobuf:"bytes,1,rep,name=main_centroids,json=mainCentroids,proto3" json:"main_centroids,omitempty"`
 	Compression   float64     `protobuf:"fixed64,2,opt,name=compression,proto3" json:"compression,omitempty"`
 	Min           float64     `protobuf:"fixed64,3,opt,name=min,proto3" json:"min,omitempty"`
