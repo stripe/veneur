@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	proto "github.com/golang/protobuf/proto"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/ssf"
@@ -199,7 +201,7 @@ func BenchmarkParseSSF(b *testing.B) {
 			},
 		}
 
-		data, err := msg.Marshal()
+		data, err := proto.Marshal(msg)
 		assert.NoError(b, err)
 
 		input[i] = data

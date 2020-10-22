@@ -1,4 +1,4 @@
-FROM golang:1.13.5-alpine3.10 AS base
+FROM golang:1.15.3-alpine3.12 AS base
 MAINTAINER The Stripe Observability Team <support@stripe.com>
 
 
@@ -9,14 +9,9 @@ RUN apk add --no-cache go zip git musl-dev libressl protobuf
 RUN go get -u -v github.com/ChimeraCoder/gojson/gojson
 RUN go get -u -v github.com/golang/protobuf/protoc-gen-go
 RUN go get -d -v github.com/gogo/protobuf/protoc-gen-gofast
-WORKDIR /go/src/github.com/gogo/protobuf
-RUN git fetch
-RUN git checkout v1.2.1
-RUN go install github.com/gogo/protobuf/protoc-gen-gofast
 WORKDIR /go
-RUN go get -u github.com/golang/dep/cmd/dep
 RUN go get -u -v golang.org/x/tools/cmd/stringer
-RUN wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
+RUN wget https://github.com/google/protobuf/releases/download/v3.13.0/protoc-3.13.0-linux-x86_64.zip
 RUN unzip protoc-3.1.0-linux-x86_64.zip
 RUN cp bin/protoc /usr/bin/protoc
 RUN chmod 777 /usr/bin/protoc
@@ -39,9 +34,9 @@ FROM src AS test
 
 FROM test AS build
 RUN go install -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" .
-RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur ./cmd/veneur
-RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-emit ./cmd/veneur-emit
-RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-prometheus ./cmd/veneur-prometheus
+RUN go build -mod=vendor -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur ./cmd/veneur
+RUN go build -mod=vendor -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-emit ./cmd/veneur-emit
+RUN go build -mod=vendor -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-prometheus ./cmd/veneur-prometheus
 RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-proxy ./cmd/veneur-proxy
 
 
