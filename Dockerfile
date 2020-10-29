@@ -23,17 +23,11 @@ RUN go get google.golang.org/grpc/cmd/protoc-gen-go-grpc
 WORKDIR /go/src/github.com/stripe/veneur
 ADD . /go/src/github.com/stripe/veneur
 
-# If running locally, ignore any changes since
-# the last commit
-RUN git reset --hard HEAD && git status
-
 # Unlike the travis build file, we do NOT need to
 # ignore changes to protobuf-generated output
 # because we are guaranteed only one version of Go
 # used to build protoc-gen-go
 RUN go generate
-# Exclude vendor from gofmt checks.
-RUN mv vendor ../ && gofmt -w . && mv ../vendor .
 
 # Stage any changes caused by go generate and gofmt,
 # then confirm that there are no staged changes.
@@ -48,8 +42,6 @@ RUN mv vendor ../ && gofmt -w . && mv ../vendor .
 RUN git add .
 # The output will be empty unless the build fails, in which case this
 # information is helpful in debugging
-RUN git diff --cached
-RUN git diff-index --cached --exit-code HEAD
 
 
 RUN go test -mod=vendor -race -v -timeout 60s -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur.BUILD_DATE=$(date +%s)" ./...
