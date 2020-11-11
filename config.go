@@ -57,6 +57,7 @@ type Config struct {
 	LightstepMaximumSpans                     int               `yaml:"lightstep_maximum_spans"`
 	LightstepNumClients                       int               `yaml:"lightstep_num_clients"`
 	LightstepReconnectPeriod                  string            `yaml:"lightstep_reconnect_period"`
+	LogzioCustomListener                      string            `yaml:"logzio_custom_listener"`
 	LogzioDimensions                          map[string]string `yaml:"logzio_dimensions"`
 	LogzioLogsToken                           string            `yaml:"logzio_logs_shipping_token"`
 	LogzioMetricsToken                        string            `yaml:"logzio_metrics_shipping_token"`
