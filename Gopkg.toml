@@ -135,3 +135,7 @@
   name = "github.com/newrelic/newrelic-client-go"
   version = "0.39.0"
 
+[[constraint]]
+  name = "github.com/logzio/logzio-go"
+  branch = "master"
+

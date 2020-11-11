@@ -569,6 +569,26 @@ splunk_hec_max_connection_lifetime: "10s"
 # the same time. If set to 0, there will be no jitter.
 splunk_hec_connection_lifetime_jitter: "10s"
 
+# == Logzio ==
+
+# Your Logz.io metrics account token.
+logzio_metrics_shipping_token: ""
+
+# Your Logz.io logs account token.
+logzio_logs_shipping_token: ""
+
+# Your Logz.io region code.
+# For example if your region is US, then your region code is `us`.
+# You can find your region code here: https://docs.logz.io/user-guide/accounts/account-region.html#regions-and-urls
+logzio_region: ""
+
+# (optional) Set a custom URL to ship logs to (e.g., http://localhost:9200). This overrides the logzio_region configuration
+logzio_custom_listener: ""
+
+# (optional) Dimensions to add to all metrics that will be send from
+# the logzio sink.
+logzio_dimensions: {}
+
 # == PLUGINS ==
 
 # == S3 Output ==
