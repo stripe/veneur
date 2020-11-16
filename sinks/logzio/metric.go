@@ -38,7 +38,7 @@ type LogzioMetric struct {
 const (
 	defaultFlushInterval = 10 * time.Second
 	logzioType           = "veneur"
-	logzioListenerPort   = "8070"
+	logzioListenerPort   = "8071"
 )
 
 var logzioRegionCodes = []string{"us", "au", "ca", "eu", "nl", "uk", "wa"}
