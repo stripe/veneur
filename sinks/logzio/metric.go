@@ -325,7 +325,7 @@ func GetLogzioListenerUrl(regionCode string, customListener string) (string, err
 		regionSuffix = fmt.Sprintf("-%s", regionCode)
 	}
 
-	listenerUrl := fmt.Sprintf("http://listener%s.logz.io:%s", regionSuffix, logzioListenerPort)
+	listenerUrl := fmt.Sprintf("https://listener%s.logz.io:%s", regionSuffix, logzioListenerPort)
 
 	return listenerUrl, nil
 }
