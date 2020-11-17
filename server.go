@@ -530,7 +530,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		ret.metricSinks = append(ret.metricSinks, ddSink)
 	}
 
-	if conf.LogzioMetricsToken != "" && conf.LogzioLogsToken != "" && (conf.LogzioRegion != "" || conf.LogzioCustomListener != "") {
+	if conf.LogzioMetricsToken != "" && conf.LogzioLogsToken != "" {
 		logzSink, err := logzio.NewLogzioMetricSink(
 			conf.LogzioMetricsToken,
 			conf.LogzioLogsToken,

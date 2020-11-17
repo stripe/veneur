@@ -38,39 +38,37 @@ type LogzioMetric struct {
 const (
 	defaultFlushInterval = 10 * time.Second
 	logzioType           = "veneur"
-	logzioListenerPort   = "8070"
+	logzioListenerPort   = "8071"
 )
 
 var logzioRegionCodes = []string{"us", "au", "ca", "eu", "nl", "uk", "wa"}
 
-var _ sinks.MetricSink = &LogzioMetricsSink{}
-
 // NewLogzioMetricSink creates a new LogzioMetricsSink that sends data to Logzio
 func NewLogzioMetricSink(logzioMetricsToken string, logzioLogsToken string, logzioRegion string, logzioCustomListener string, log *logrus.Logger, dimensions map[string]string) (*LogzioMetricsSink, error) {
 
-	tokensErr := ValidTokens(logzioMetricsToken, logzioLogsToken)
+	err := ValidTokens(logzioMetricsToken, logzioLogsToken)
 
-	if tokensErr != nil {
-		return nil, tokensErr
+	if err != nil {
+		return nil, err
 	}
 
-	listener, listenerErr := GetLogzioListenerUrl(logzioRegion, logzioCustomListener)
-	if listenerErr != nil {
-		return nil, listenerErr
+	listener, err := GetLogzioListenerUrl(logzioRegion, logzioCustomListener)
+	if err != nil {
+		return nil, err
 	}
 
-	metricsSender, errMetrics := CreateLogzioSender(logzioMetricsToken, listener)
+	metricsSender, err := CreateLogzioSender(logzioMetricsToken, listener)
 
-	if errMetrics != nil {
-		log.WithError(errMetrics).Error("couldn't create logzio sender for metrics")
-		return nil, errMetrics
+	if err != nil {
+		log.WithError(err).Error("couldn't create logzio sender for metrics")
+		return nil, err
 	}
 
-	eventSender, errEvents := CreateLogzioSender(logzioLogsToken, listener)
+	eventSender, err := CreateLogzioSender(logzioLogsToken, listener)
 
-	if errEvents != nil {
-		log.WithError(errEvents).Error("couldn't create logzio sender for events")
-		return nil, errEvents
+	if err != nil {
+		log.WithError(err).Error("couldn't create logzio sender for events")
+		return nil, err
 	}
 
 	return &LogzioMetricsSink{
@@ -100,12 +98,11 @@ func (logz *LogzioMetricsSink) Flush(ctx context.Context, metrics []samplers.Int
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(logz.traceClient)
 
-	if len(metrics) <= 0 {
-		return nil
-	}
-
+	droppedMetricsCounter := 0
 	for _, m := range metrics {
 		if !sinks.IsAcceptableMetric(m, logz) {
+			droppedMetricsCounter++
+			logz.log.Debug("dropping inter metric: ", m)
 			continue
 		}
 
@@ -121,6 +118,10 @@ func (logz *LogzioMetricsSink) Flush(ctx context.Context, metrics []samplers.Int
 	}
 
 	logz.metricSender.Drain()
+
+	if droppedMetricsCounter > 0 {
+		logz.log.Warning(fmt.Sprintf("dropped %d inter metrics", droppedMetricsCounter))
+	}
 
 	return nil
 }
@@ -143,10 +144,6 @@ func CreateLogzioMetric(interMetric samplers.InterMetric, logz *LogzioMetricsSin
 
 // FlushOtherSamples handles non-metric, non-span samples.
 func (logz *LogzioMetricsSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
-	if len(samples) == 0 {
-		return
-	}
-
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(logz.traceClient)
 
@@ -155,7 +152,7 @@ func (logz *LogzioMetricsSink) FlushOtherSamples(ctx context.Context, samples []
 
 		eventByte, err := json.Marshal(event)
 		if err != nil {
-			logz.log.WithError(err).Error("failed to marshal event")
+			logz.log.WithError(err).Error("failed to marshal event", event)
 		}
 		logz.eventSender.Send(eventByte)
 	}
@@ -219,9 +216,7 @@ func CreateDimensions(tags []string, logz *LogzioMetricsSink) map[string]string 
 		dims[t[0]] = t[1]
 	}
 
-	if len(logz.dimensions) > 0 {
-		AddDimensionsFromClient(logz.dimensions, dims)
-	}
+	AddDimensionsFromClient(logz.dimensions, dims)
 
 	return dims
 }
@@ -240,11 +235,7 @@ func CreateLogzioSender(token string, listener string) (*logzio.LogzioSender, er
 		logzio.SetDrainDuration(defaultFlushInterval),
 	)
 
-	if err != nil {
-		return nil, err
-	}
-
-	return sender, nil
+	return sender, err
 }
 
 //AddDimensionsFromInterMetric adds dimensions to logzio metric from fields in the InterMetric
@@ -309,23 +300,25 @@ func GetLogzioListenerUrl(regionCode string, customListener string) (string, err
 	}
 
 	isInRegionList := false
-	for _, region := range logzioRegionCodes {
-		if regionCode == region {
-			isInRegionList = true
-			break
+	if regionCode != "" {
+		for _, region := range logzioRegionCodes {
+			if regionCode == region {
+				isInRegionList = true
+				break
+			}
+		}
+
+		if !isInRegionList {
+			return "", errors.New("logzio region code is invalid")
 		}
 	}
 
-	if !isInRegionList {
-		return "", errors.New("logzio region code is invalid")
-	}
-
 	regionSuffix := ""
-	if regionCode != "us" {
+	if regionCode != "us" && regionCode != "" {
 		regionSuffix = fmt.Sprintf("-%s", regionCode)
 	}
 
-	listenerUrl := fmt.Sprintf("http://listener%s.logz.io:%s", regionSuffix, logzioListenerPort)
+	listenerUrl := fmt.Sprintf("https://listener%s.logz.io:%s", regionSuffix, logzioListenerPort)
 
 	return listenerUrl, nil
 }

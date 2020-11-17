@@ -19,7 +19,7 @@ Veneur is also a StatsD or DogStatsD protocol transport, forwarding the locally 
 
 ## Metrics
 
-Enabled if `logzio_shipping_token` and `logzio_listener` are set to non-empty
+Enabled if `logzio_metrics_shipping_token` and `logzio_logs_shipping_token` and `logzio_region` are set to non-empty
 values.<br>
 Conversions:
 * Tags will be converted to appear under dimensions.
