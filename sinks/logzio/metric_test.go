@@ -270,6 +270,7 @@ func TestLogzioSender(t *testing.T) {
 	assert.NoError(t, err)
 
 	requests := strings.Split(string(recordedRequests), "\n")
+	assert.Equal(t, 1, len(requests) - 1)
 	var logzMetric LogzioMetric
 	assert.NoError(t, json.Unmarshal([]byte(requests[0]), &logzMetric))
 	require.Equal(t, map[string]float64{testMetric.Name: testMetric.Value}, logzMetric.Metric)
