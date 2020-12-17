@@ -176,11 +176,13 @@ Veneur is capable of ingesting:
 * [DogStatsD](https://docs.datadoghq.com/guides/dogstatsd/) including events and service checks
 * [SSF](https://github.com/stripe/veneur/tree/master/ssf)
 * StatsD as a subset of DogStatsD, but this may cause trouble depending on where you store your metrics.
+* SSF can be used over GRPC
 
 To use clients with Veneur you need only configure your client of choice to the proper host and port combination. This port should match one of:
 
 * `statsd_listen_addresses` for UDP- and TCP-based clients
 * `ssf_listen_addresses` for SSF-based clients using UDP or UNIX domain sockets.
+* `grpc_listen_addresses` for SSF-based clients using GRPC (over TCP).
 
 ## Einhorn Usage
 
