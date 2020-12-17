@@ -22,7 +22,7 @@
 
 [[constraint]]
   name = "github.com/DataDog/datadog-go"
-  version = "3.5.0"
+  version = "3.7.2"
 
 [[constraint]]
   name = "github.com/Shopify/sarama"
@@ -38,7 +38,7 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/getsentry/raven-go"
+  name = "github.com/getsentry/sentry-go"
 
 [[constraint]]
   name = "github.com/gogo/protobuf"
@@ -75,10 +75,6 @@
 [[constraint]]
   name = "goji.io"
   branch = "net-context"
-
-[[constraint]]
-  branch = "master"
-  name = "golang.org/x/net"
 
 [[constraint]]
   branch = "master"
@@ -130,3 +126,12 @@
 [[constraint]]
   name = "github.com/prometheus/client_golang"
   version = "1.1.0"
+
+[[constraint]]
+  name = "github.com/newrelic/newrelic-telemetry-sdk-go"
+  version = "0.4.0"
+
+[[constraint]]
+  name = "github.com/newrelic/newrelic-client-go"
+  version = "0.39.0"
+

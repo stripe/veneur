@@ -59,6 +59,13 @@ type Config struct {
 	LightstepReconnectPeriod                  string    `yaml:"lightstep_reconnect_period"`
 	MetricMaxLength                           int       `yaml:"metric_max_length"`
 	MutexProfileFraction                      int       `yaml:"mutex_profile_fraction"`
+	NewrelicAccountID                         int       `yaml:"newrelic_account_id"`
+	NewrelicCommonTags                        []string  `yaml:"newrelic_common_tags"`
+	NewrelicEventType                         string    `yaml:"newrelic_event_type"`
+	NewrelicInsertKey                         string    `yaml:"newrelic_insert_key"`
+	NewrelicRegion                            string    `yaml:"newrelic_region"`
+	NewrelicServiceCheckEventType             string    `yaml:"newrelic_service_check_event_type"`
+	NewrelicTraceObserverURL                  string    `yaml:"newrelic_trace_observer_url"`
 	NumReaders                                int       `yaml:"num_readers"`
 	NumSpanWorkers                            int       `yaml:"num_span_workers"`
 	NumWorkers                                int       `yaml:"num_workers"`
@@ -118,5 +125,5 @@ type Config struct {
 	} `yaml:"veneur_metrics_scopes"`
 	XrayAddress          string   `yaml:"xray_address"`
 	XrayAnnotationTags   []string `yaml:"xray_annotation_tags"`
-	XraySamplePercentage int      `yaml:"xray_sample_percentage"`
+	XraySamplePercentage float64  `yaml:"xray_sample_percentage"`
 }

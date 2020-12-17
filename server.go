@@ -27,7 +27,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
-	"github.com/getsentry/raven-go"
+	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
@@ -49,6 +49,7 @@ import (
 	"github.com/stripe/veneur/sinks/falconer"
 	"github.com/stripe/veneur/sinks/kafka"
 	"github.com/stripe/veneur/sinks/lightstep"
+	"github.com/stripe/veneur/sinks/newrelic"
 	"github.com/stripe/veneur/sinks/signalfx"
 	"github.com/stripe/veneur/sinks/splunk"
 	"github.com/stripe/veneur/sinks/ssfmetrics"
@@ -89,7 +90,6 @@ type Server struct {
 	CountUniqueTimeseries bool
 
 	Statsd *scopedstatsd.ScopedClient
-	Sentry *raven.Client
 
 	Hostname  string
 	Tags      []string
@@ -294,7 +294,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		Transport: transport,
 	}
 
-	stats, err := statsd.NewBuffered(conf.StatsAddress, 4096)
+	stats, err := statsd.New(conf.StatsAddress, statsd.WithoutTelemetry(), statsd.WithMaxMessagesPerPayload(4096))
 	if err != nil {
 		return ret, err
 	}
@@ -315,10 +315,12 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		return ret, err
 	}
 
-	// nil is a valid sentry client that noops all methods, if there is no DSN
-	// we can just leave it as nil
+	// Initialize Sentry if a Dsn is provided, else we leave it uninitalized
+	// and no-op the methods.
 	if conf.SentryDsn != "" {
-		ret.Sentry, err = raven.New(conf.SentryDsn)
+		err = sentry.Init(sentry.ClientOptions{
+			Dsn: conf.SentryDsn,
+		})
 		if err != nil {
 			return ret, err
 		}
@@ -354,7 +356,6 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	// https://github.com/sirupsen/logrus/issues/295
 	if _, ok := logger.Hooks[logrus.FatalLevel]; !ok {
 		logger.AddHook(sentryHook{
-			c:        ret.Sentry,
 			hostname: ret.Hostname,
 			lv: []logrus.Level{
 				logrus.ErrorLevel,
@@ -392,7 +393,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {
-				ConsumePanic(ret.Sentry, ret.TraceClient, ret.Hostname, recover())
+				ConsumePanic(ret.TraceClient, ret.Hostname, recover())
 			}()
 			w.Work()
 		}(ret.Workers[i])
@@ -494,8 +495,24 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		}
 		ret.metricSinks = append(ret.metricSinks, sfxSink)
 	}
-	if conf.DatadogAPIKey != "" && conf.DatadogAPIHostname != "" {
 
+	if conf.NewrelicInsertKey != "" && conf.NewrelicAccountID > 0 {
+		nrSink, err := newrelic.NewNewRelicMetricSink(
+			conf.NewrelicInsertKey,
+			conf.NewrelicAccountID,
+			conf.NewrelicRegion,
+			conf.NewrelicEventType,
+			conf.NewrelicCommonTags,
+			log,
+			conf.NewrelicServiceCheckEventType,
+		)
+		if err != nil {
+			return ret, err
+		}
+		ret.metricSinks = append(ret.metricSinks, nrSink)
+	}
+
+	if conf.DatadogAPIKey != "" && conf.DatadogAPIHostname != "" {
 		excludeTagsPrefixByPrefixMetric := map[string][]string{}
 		for _, m := range conf.DatadogExcludeTagsPrefixByPrefixMetric {
 			excludeTagsPrefixByPrefixMetric[m.MetricPrefix] = m.Tags
@@ -552,6 +569,27 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 					"num_annotation_tags": annotationTags,
 				}).Info("Configured X-Ray span sink")
 			}
+		}
+
+		if conf.NewrelicInsertKey != "" {
+			nrSpanSink, err := newrelic.NewNewRelicSpanSink(
+				conf.NewrelicInsertKey,
+				conf.NewrelicAccountID,
+				conf.NewrelicRegion,
+				conf.NewrelicCommonTags,
+				conf.NewrelicTraceObserverURL,
+				log,
+			)
+			if err != nil {
+				return ret, err
+			}
+
+			ret.spanSinks = append(ret.spanSinks, nrSpanSink)
+
+			logger.WithFields(logrus.Fields{
+				"span_url":    conf.NewrelicTraceObserverURL,
+				"common_tags": conf.NewrelicCommonTags,
+			}).Info("Configured New Relic span sink")
 		}
 
 		// configure Lightstep as a Span Sink
@@ -738,13 +776,14 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 
 	// Don't emit keys into logs now that we're done with them.
-	conf.SentryDsn = REDACTED
-	conf.TLSKey = REDACTED
-	conf.DatadogAPIKey = REDACTED
-	conf.SignalfxAPIKey = REDACTED
-	conf.LightstepAccessToken = REDACTED
 	conf.AwsAccessKeyID = REDACTED
 	conf.AwsSecretAccessKey = REDACTED
+	conf.DatadogAPIKey = REDACTED
+	conf.LightstepAccessToken = REDACTED
+	conf.NewrelicInsertKey = REDACTED
+	conf.SentryDsn = REDACTED
+	conf.SignalfxAPIKey = REDACTED
+	conf.TLSKey = REDACTED
 
 	ret.forwardUseGRPC = conf.ForwardUseGrpc
 
@@ -779,7 +818,7 @@ func (s *Server) Start() {
 	go func() {
 		log.Info("Starting Event worker")
 		defer func() {
-			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+			ConsumePanic(s.TraceClient, s.Hostname, recover())
 		}()
 		s.EventWorker.Work()
 	}()
@@ -788,7 +827,7 @@ func (s *Server) Start() {
 	for i := 0; i < s.SpanWorkerGoroutines; i++ {
 		go func() {
 			defer func() {
-				ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+				ConsumePanic(s.TraceClient, s.Hostname, recover())
 			}()
 			s.SpanWorker.Work()
 		}()
@@ -853,7 +892,7 @@ func (s *Server) Start() {
 	// Flush every Interval forever!
 	go func() {
 		defer func() {
-			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+			ConsumePanic(s.TraceClient, s.Hostname, recover())
 		}()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -899,7 +938,7 @@ func (s *Server) Start() {
 // program's main function.
 func (s *Server) FlushWatchdog() {
 	defer func() {
-		ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+		ConsumePanic(s.TraceClient, s.Hostname, recover())
 	}()
 
 	if s.stuckIntervals == 0 {
@@ -1198,7 +1237,7 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 
 func (s *Server) handleTCPGoroutine(conn net.Conn) {
 	defer func() {
-		ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+		ConsumePanic(s.TraceClient, s.Hostname, recover())
 	}()
 
 	defer func() {

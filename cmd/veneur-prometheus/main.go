@@ -39,7 +39,7 @@ func main() {
 		}).Fatal("failed to parse interval")
 	}
 
-	statsClient, _ := statsd.New(*statsHost)
+	statsClient, _ := statsd.New(*statsHost, statsd.WithoutTelemetry())
 
 	if *prefix != "" {
 		statsClient.Namespace = *prefix
