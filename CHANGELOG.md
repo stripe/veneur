@@ -7,6 +7,7 @@
 * Support for listening to abstract statsd metrics on Unix Domain Socket(Datagram type). Thanks, [androohan](https://github.com/androohan)!
 * Initial implementation of a Prometheus sink through Statsd Exporter. Thanks, [yanke](https://github.com/yanske1)!
 * New Relic sink supporting Metrics, Events, Service Checks (as events) and Trace Spans. Thanks, [jthurman42](https://github.com/jthurman42)!
+* Logz.io sink supporting Metrics. Thanks [mirii1994](https://github.com/mirii1994)!
 
 ## Updated
 * Updated the vendored version of DataDog/datadog-go which fixes parsing for abstract unix domain sockets in the statsd client. Thanks, [androohan](https://github.com/androohan)!

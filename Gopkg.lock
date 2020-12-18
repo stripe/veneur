@@ -21,6 +21,14 @@
   version = "v1.15.0"
 
 [[projects]]
+  digest = "1:36d54915655a1d3d14d2fbb0854f588d5ed9ed8b7c6fd287fbaa52000615cd1f"
+  name = "github.com/StackExchange/wmi"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "cbe66965904dbe8a6cd589e2298e5d8b986bd7dd"
+  version = "1.1.0"
+
+[[projects]]
   branch = "master"
   digest = "1:611f8c10363d5aa35f01b1ccc11d9f813dbf0d65552c269cb55289c87467e501"
   name = "github.com/araddon/dateparse"
@@ -69,6 +77,14 @@
   packages = ["."]
   pruneopts = "NUT"
   revision = "8300947202c9fbce15a5a299b27c8b0f5092a520"
+
+[[projects]]
+  digest = "1:d768f07cae89ef57499d1e90fc8287b0cff9bb18c488541b100c963649f40e02"
+  name = "github.com/beeker1121/goque"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "d618510128aff49b39efd28bd1c72a18ad563e94"
+  version = "v2.1.1"
 
 [[projects]]
   digest = "1:707ebe952a8b3d00b343c01536c79c73771d100f63ec6babeaed5c79e2b8a8dd"
@@ -149,6 +165,17 @@
   pruneopts = "NUT"
   revision = "d3de07a94d22b4a0972deb4b96d790c2c0ce8333"
   version = "v1.28.0"
+
+[[projects]]
+  digest = "1:022649cb675f044f3b7b6ab58c528dad7b11eee526ecd792a1b04ee4b0c692da"
+  name = "github.com/go-ole/go-ole"
+  packages = [
+    ".",
+    "oleutil",
+  ]
+  pruneopts = "NUT"
+  revision = "97b6244175ae18ea6eef668034fd6565847501c9"
+  version = "v1.2.4"
 
 [[projects]]
   digest = "1:37234906013da82d4c05666262eda5bdec8f736bafa7d4ec1fb3314e965b476f"
@@ -350,6 +377,14 @@
   ]
   pruneopts = "NUT"
   revision = "ea8cdd9df8635eca5fcde3e602f52c4b7971adcd"
+
+[[projects]]
+  branch = "master"
+  digest = "1:2c3e665231bd17d0684f49267f5c4d2bbae2ae4a42d4f7430fdebd9bfd4d3474"
+  name = "github.com/logzio/logzio-go"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "ac8fc0e2910e9e352db5a1e39f3075cd189c166a"
 
 [[projects]]
   branch = "master"
@@ -564,6 +599,17 @@
   revision = "a72b379d632eab4b49e4f4b2c765cfebf0a74796"
 
 [[projects]]
+  digest = "1:703790cae02dfbff4b28d1d1a5144157ed90bcd7a3d480f6df792174bad47073"
+  name = "github.com/shirou/gopsutil"
+  packages = [
+    "disk",
+    "internal/common",
+  ]
+  pruneopts = "NUT"
+  revision = "5084874a4c559ab9141f1645e3d3e7e89ce11fcf"
+  version = "v2.20.9"
+
+[[projects]]
   branch = "master"
   digest = "1:74a468852019b3440166581a31d8c4c8b44a8c8ae05979277c441ba9b6b53be3"
   name = "github.com/signalfx/com_signalfx_metrics_protobuf"
@@ -626,6 +672,27 @@
   version = "v1.2.1"
 
 [[projects]]
+  digest = "1:5b180f17d5bc50b765f4dcf0d126c72979531cbbd7f7929bf3edd87fb801ea2d"
+  name = "github.com/syndtr/goleveldb"
+  packages = [
+    "leveldb",
+    "leveldb/cache",
+    "leveldb/comparer",
+    "leveldb/errors",
+    "leveldb/filter",
+    "leveldb/iterator",
+    "leveldb/journal",
+    "leveldb/memdb",
+    "leveldb/opt",
+    "leveldb/storage",
+    "leveldb/table",
+    "leveldb/util",
+  ]
+  pruneopts = "NUT"
+  revision = "9d007e481048296f09f59bd19bb7ae584563cd95"
+  version = "v1.0.0"
+
+[[projects]]
   branch = "master"
   digest = "1:691257e645fa7575205b7b936f482e4926fe93c9280747be1f6b3551e4f709d2"
   name = "github.com/theckman/go-flock"
@@ -652,6 +719,14 @@
   pruneopts = "NUT"
   revision = "64eb34159fe53473206c2b3e70fe396a639452f2"
   version = "v1.0"
+
+[[projects]]
+  digest = "1:bb042ee0d02d4c75dbc3dd96bb807733d96901c2c2877c34bfbe7f87bd5488e6"
+  name = "go.uber.org/atomic"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "12f27ba2637fa0e13772a4f05fa46a5d18d53182"
+  version = "v1.7.0"
 
 [[projects]]
   branch = "net-context"
@@ -952,6 +1027,7 @@
     "github.com/hashicorp/consul/api",
     "github.com/kelseyhightower/envconfig",
     "github.com/lightstep/lightstep-tracer-go",
+    "github.com/logzio/logzio-go",
     "github.com/newrelic/newrelic-client-go/newrelic",
     "github.com/newrelic/newrelic-client-go/pkg/region",
     "github.com/newrelic/newrelic-telemetry-sdk-go/telemetry",
