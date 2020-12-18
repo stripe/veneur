@@ -1,33 +1,24 @@
 # For running Veneur under Docker, you probably want either the pre-built images
 # published at https://hub.docker.com/r/stripe/veneur/
 # or the Dockerfiles in https://github.com/stripe/veneur/tree/master/public-docker-images
-FROM golang:1.14
-MAINTAINER The Stripe Observability Team <support@stripe.com>
+FROM golang:1.15
+LABEL maintainer="The Stripe Observability Team <support@stripe.com>"
 
-RUN mkdir -p /build
 ENV GOPATH=/go
+ENV GO111MODULE=on
 RUN apt-get update
 RUN apt-get install -y zip
 RUN go get -u -v github.com/ChimeraCoder/gojson/gojson
-RUN go get -d -v github.com/gogo/protobuf/protoc-gen-gogofaster
-WORKDIR /go/src/github.com/gogo/protobuf
-RUN git fetch
-RUN git checkout v1.2.1
-RUN go install github.com/gogo/protobuf/protoc-gen-gogofaster
-WORKDIR /go
-RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+RUN go get -u -v github.com/gogo/protobuf/protoc-gen-gogofaster@v1.2.1
 RUN go get -u -v golang.org/x/tools/cmd/stringer
-WORKDIR /go/src/golang.org/x/tools/cmd/stringer
-RUN git checkout d11f6ec946130207fd66b479a9a6def585b5110b
-RUN go install
-WORKDIR /go
+WORKDIR /protoc
 RUN wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
 RUN unzip protoc-3.1.0-linux-x86_64.zip
 RUN cp bin/protoc /usr/bin/protoc
 RUN chmod 777 /usr/bin/protoc
 
-WORKDIR /go/src/github.com/stripe/veneur
-ADD . /go/src/github.com/stripe/veneur
+WORKDIR /veneur
+ADD . /veneur
 
 # If running locally, ignore any changes since
 # the last commit
@@ -38,7 +29,6 @@ RUN git reset --hard HEAD && git status
 # because we are guaranteed only one version of Go
 # used to build protoc-gen-go
 RUN go generate
-RUN dep check
 # Exclude vendor from gofmt checks.
 RUN mv vendor ../ && gofmt -w . && mv ../vendor .
 
@@ -58,6 +48,6 @@ RUN git add .
 RUN git diff --cached
 RUN git diff-index --cached --exit-code HEAD
 
-
+RUN mkdir -p /build
 RUN go test -race -v -timeout 60s -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur.BUILD_DATE=$(date +%s)" ./...
 CMD cp -r henson /build/ && env GOBIN=/build go install -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur.BUILD_DATE=$(date +%s)" ./cmd/...

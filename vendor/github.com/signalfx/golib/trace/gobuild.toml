@@ -1,0 +1,2 @@
+[vars]
+  ignoreDirs = ["format"]
