@@ -105,6 +105,7 @@ type Server struct {
 
 	StatsdListenAddrs []net.Addr
 	SSFListenAddrs    []net.Addr
+	GRPCListenAddrs   []net.Addr
 	RcvbufBytes       int
 
 	interval            time.Duration
@@ -427,6 +428,13 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		}
 		ret.SSFListenAddrs = append(ret.SSFListenAddrs, addr)
 	}
+	for _, addrStr := range conf.GrpcListenAddresses {
+		addr, err := protocol.ResolveAddr(addrStr)
+		if err != nil {
+			return ret, err
+		}
+		ret.GRPCListenAddrs = append(ret.GRPCListenAddrs, addr)
+	}
 
 	ret.metricMaxLength = conf.MetricMaxLength
 	ret.traceMaxLengthBytes = conf.TraceMaxLengthBytes
@@ -530,7 +538,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	}
 
 	// Configure tracing sinks
-	if len(conf.SsfListenAddresses) > 0 {
+	if len(conf.SsfListenAddresses) > 0 || len(conf.GrpcListenAddresses) > 0 {
 
 		trace.Enable()
 
@@ -867,7 +875,7 @@ func (s *Server) Start() {
 	}
 	s.StatsdListenAddrs = concreteAddrs
 
-	// Read Traces Forever!
+	// Read traces forever!
 	if len(s.SSFListenAddrs) > 0 {
 		concreteAddrs := make([]net.Addr, 0, len(s.StatsdListenAddrs))
 		for _, addr := range s.SSFListenAddrs {
@@ -876,6 +884,17 @@ func (s *Server) Start() {
 		s.SSFListenAddrs = concreteAddrs
 	} else {
 		logrus.Info("Tracing sockets are not configured - not reading trace socket")
+	}
+
+	// Read grpc traces forever!
+	if len(s.GRPCListenAddrs) > 0 {
+		concreteAddrs := make([]net.Addr, 0, len(s.GRPCListenAddrs))
+		for _, addr := range s.GRPCListenAddrs {
+			concreteAddrs = append(concreteAddrs, StartGRPC(s, addr))
+		}
+		s.SSFListenAddrs = concreteAddrs
+	} else {
+		logrus.Info("GRPC tracing sockets are not configured - not reading trace socket")
 	}
 
 	// Initialize a gRPC connection for forwarding

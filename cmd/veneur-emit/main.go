@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"fmt"
 	"strconv"
 
@@ -24,16 +26,18 @@ import (
 	"github.com/stripe/veneur/protocol"
 	"github.com/stripe/veneur/ssf"
 	"github.com/stripe/veneur/trace"
+	"google.golang.org/grpc"
 )
 
 type EmitMode uint
 
 type Flags struct {
-	HostPort  string
-	Mode      string
-	Debug     bool
-	Command   bool
-	ExtraArgs []string
+	HostPort      string
+	Mode          string
+	Debug         bool
+	Command       bool
+	HTTPAuthority string
+	ExtraArgs     []string
 
 	Name   string
 	Gauge  float64
@@ -42,6 +46,7 @@ type Flags struct {
 	Set    string
 	Tag    string
 	ToSSF  bool
+	ToGrpc bool
 
 	Event struct {
 		Title      string
@@ -184,6 +189,7 @@ func Main(args []string) int {
 	logrus.WithField("net", netAddr.Network()).
 		WithField("addr", netAddr.String()).
 		WithField("ssf", flagStruct.ToSSF).
+		WithField("grpc", flagStruct.ToGrpc).
 		Debugf("destination")
 
 	if flagStruct.Mode == "event" {
@@ -241,7 +247,7 @@ func Main(args []string) int {
 		return 1
 	}
 	if span.TraceId != 0 {
-		if !flagStruct.ToSSF {
+		if !flagStruct.ToSSF && !flagStruct.ToGrpc {
 			logrus.WithField("ssf", flagStruct.ToSSF).
 				Error("Can't use tracing in non-ssf operation: Use -ssf to emit trace spans.")
 			return 1
@@ -273,6 +279,24 @@ func Main(args []string) int {
 			logrus.WithError(err).Error("Could not send SSF span")
 			return 1
 		}
+	} else if flagStruct.ToGrpc {
+		grpcDialOptions := []grpc.DialOption{grpc.WithInsecure()}
+		if flagStruct.HTTPAuthority != "" {
+			grpcDialOptions = append(grpcDialOptions, grpc.WithAuthority(flagStruct.HTTPAuthority))
+		}
+		conn, err := grpc.Dial(addr, grpcDialOptions...)
+		if err != nil {
+			logrus.WithError(err).Error("Could not dial grpc server")
+			return 1
+		}
+		defer conn.Close()
+		client := ssf.NewSSFGRPCClient(conn)
+		_, err = client.SendSpan(context.Background(), span)
+		if err != nil {
+			logrus.WithError(err).Error("Could not send span over grpc")
+			return 1
+		}
+
 	} else {
 		if netAddr.Network() != "udp" {
 			logrus.WithField("address", addr).
@@ -302,6 +326,7 @@ func flags(args []string) (Flags, map[string]flag.Value, error) {
 	flagset.StringVar(&flagStruct.Mode, "mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
 	flagset.BoolVar(&flagStruct.Debug, "debug", false, "Turns on debug messages.")
 	flagset.BoolVar(&flagStruct.Command, "command", false, "Turns on command-timing mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.")
+	flagset.StringVar(&flagStruct.HTTPAuthority, "http_authority", "", "Sets the authority header if using HTTP. This is the equivalent of Host for HTTP/2.")
 
 	// Metric flags
 	flagset.StringVar(&flagStruct.Name, "name", "", "Name of metric to report. Ex: 'daemontools.service.starts'")
@@ -311,6 +336,7 @@ func flags(args []string) (Flags, map[string]flag.Value, error) {
 	flagset.StringVar(&flagStruct.Set, "set", "", "Report a 'set' metric with an arbitrary string value.")
 	flagset.StringVar(&flagStruct.Tag, "tag", "", "Tag(s) for metric, comma separated. Ex: 'service:airflow'. Note: Any tags here are applied to all emitted data. See also mode-specific tag options (e.g. span_tags)")
 	flagset.BoolVar(&flagStruct.ToSSF, "ssf", false, "Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)")
+	flagset.BoolVar(&flagStruct.ToGrpc, "grpc", false, "Send the metric over grpc (SSF format)")
 
 	// Event flags
 	// TODO: what should flags be called?
