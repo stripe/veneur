@@ -9,6 +9,7 @@
 * New Relic sink supporting Metrics, Events, Service Checks (as events) and Trace Spans. Thanks, [jthurman42](https://github.com/jthurman42)!
 
 ## Updated
+* Migrated from dep to Go modules. Thanks, [andybons](https://github.com/andybons-stripe)!
 * Updated the vendored version of DataDog/datadog-go which fixes parsing for abstract unix domain sockets in the statsd client. Thanks, [androohan](https://github.com/androohan)!
 * Changed the certificates that veneur tests with to include SANs and no longer rely on Common Names, in order to comply with Go's [upcoming crackdown on CN certificate constraints](https://github.com/stripe/veneur/issues/791). Thanks, [antifuchs](https://github.com/antifuchs)!
 * Disabled the dogstatsd client telemetry on the internal statsd client used by Veneur. Thanks, [prudhvi](https://github.com/prudhvi)!
