@@ -16,6 +16,7 @@ var defaultConfig = Config{
 	DatadogFlushMaxPerBody:         25000,
 	Interval:                       "10s",
 	MetricMaxLength:                4096,
+	PrometheusNetworkType:          "tcp",
 	ReadBufferSizeBytes:            1048576 * 2, // 2 MiB
 	SpanChannelCapacity:            100,
 	SplunkHecBatchSize:             100,
@@ -161,6 +162,9 @@ func (c *Config) applyDefaults() {
 	}
 	if c.MetricMaxLength == 0 {
 		c.MetricMaxLength = defaultConfig.MetricMaxLength
+	}
+	if c.PrometheusNetworkType == "" {
+		c.PrometheusNetworkType = defaultConfig.PrometheusNetworkType
 	}
 	if c.ReadBufferSizeBytes == 0 {
 		c.ReadBufferSizeBytes = defaultConfig.ReadBufferSizeBytes
