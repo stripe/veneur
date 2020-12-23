@@ -388,9 +388,17 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	// slight performance hit to workers.
 	ret.CountUniqueTimeseries = conf.CountUniqueTimeseries
 
+	// Default to "mixed" scope, but allow config to force metrics to be global
+	defaultMetricScope := samplers.MixedScope
+	if conf.ForwardOnly {
+		logger.WithField("scope", "global").Debug("Forwarding all metrics to global veneur")
+		defaultMetricScope = samplers.GlobalOnly
+	}
+
 	// Use the pre-allocated Workers slice to know how many to start.
 	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, log, ret.Statsd)
+		ret.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient,
+			log, ret.Statsd, defaultMetricScope)
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {

@@ -43,6 +43,11 @@ tls_authority_certificate: ""
 #forward_address: "veneur.example.com"
 forward_address: ""
 
+# If true: Forward all metrics to the global veneur for aggregation. This is useful
+# when wanting to aggregate a large volume of metrics that all should be global, without
+# needing to explicitly tag them.
+forward_only: false
+
 # Whether or not to forward to an upstream Veneur over gRPC.  If this is false
 # or unset, HTTP will be used.
 forward_use_grpc: false
