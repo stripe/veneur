@@ -10,7 +10,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 const ε = .00002
@@ -245,33 +245,69 @@ func TestError(t *testing.T) {
 
 func TestStripPackageName(t *testing.T) {
 	type testCase struct {
-		Name     string
+		name     string
 		fname    string
 		expected string
 	}
 
 	cases := []testCase{
 		{
-			Name:     "Method",
+			name:     "Method",
 			fname:    "github.com/stripe/veneur.(*Server).Flush",
 			expected: "veneur.(*Server).Flush",
 		},
 		{
-			Name:     "NestedPackageMethod",
+			name:     "NestedPackageMethod",
 			fname:    "github.com/stripe/veneur/trace.(*Tracer).StartSpan",
+			expected: "trace.(*Tracer).StartSpan",
+		},
+		{
+			name:     "Method (major version)",
+			fname:    "github.com/stripe/veneur/v14.(*Server).Flush",
+			expected: "veneur.(*Server).Flush",
+		},
+		{
+			name:     "NestedPackageMethod (major version)",
+			fname:    "github.com/stripe/veneur/v14/trace.(*Tracer).StartSpan",
+			expected: "trace.(*Tracer).StartSpan",
+		},
+		{
+			name:     "Function (gopkg.in)",
+			fname:    "gopkg.in/veneur.v14.(*Server).Flush",
+			expected: "veneur.v14.(*Server).Flush",
+		},
+		{
+			name:     "NestedPackageMethod (gopkg.in)",
+			fname:    "gopkg.in/veneur.v14/trace.(*Tracer).StartSpan",
+			expected: "trace.(*Tracer).StartSpan",
+		},
+		{
+			// runtime will report gopkg.in paths with escaped dots before
+			// the version string.
+			// See golang.org/issue/35558
+			name:     "Function (gopkg.in escaped)",
+			fname:    "gopkg.in/veneur%2ev14.(*Server).Flush",
+			expected: "veneur.v14.(*Server).Flush",
+		},
+		{
+			// runtime will report gopkg.in paths with escaped dots before
+			// the version string.
+			// See golang.org/issue/35558
+			name:     "NestedPackageMethod (gopkg.in escaped)",
+			fname:    "gopkg.in/veneur%2ev14/trace.(*Tracer).StartSpan",
 			expected: "trace.(*Tracer).StartSpan",
 		},
 		{
 			// This shouldn't be valid, but we should at least ensure we don't
 			// cause a runtime panic if it's passed
-			Name:     "TrailingSlash",
+			name:     "TrailingSlash",
 			fname:    "github.com/",
 			expected: "github.com/",
 		},
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.Name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, stripPackageName(tc.fname), tc.expected)
 		})
 	}

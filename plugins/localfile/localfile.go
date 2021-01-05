@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur/plugins"
-	"github.com/stripe/veneur/plugins/s3"
-	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/v14/plugins"
+	"github.com/stripe/veneur/v14/plugins/s3"
+	"github.com/stripe/veneur/v14/samplers"
 )
 
 var _ plugins.Plugin = &Plugin{}

@@ -35,29 +35,29 @@ import (
 
 	"github.com/pkg/profile"
 
-	vhttp "github.com/stripe/veneur/http"
-	"github.com/stripe/veneur/importsrv"
-	"github.com/stripe/veneur/plugins"
-	localfilep "github.com/stripe/veneur/plugins/localfile"
-	s3p "github.com/stripe/veneur/plugins/s3"
-	"github.com/stripe/veneur/protocol"
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/scopedstatsd"
-	"github.com/stripe/veneur/sinks"
-	"github.com/stripe/veneur/sinks/datadog"
-	"github.com/stripe/veneur/sinks/debug"
-	"github.com/stripe/veneur/sinks/falconer"
-	"github.com/stripe/veneur/sinks/kafka"
-	"github.com/stripe/veneur/sinks/lightstep"
-	"github.com/stripe/veneur/sinks/newrelic"
-	"github.com/stripe/veneur/sinks/prometheus"
-	"github.com/stripe/veneur/sinks/signalfx"
-	"github.com/stripe/veneur/sinks/splunk"
-	"github.com/stripe/veneur/sinks/ssfmetrics"
-	"github.com/stripe/veneur/sinks/xray"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/metrics"
+	vhttp "github.com/stripe/veneur/v14/http"
+	"github.com/stripe/veneur/v14/importsrv"
+	"github.com/stripe/veneur/v14/plugins"
+	localfilep "github.com/stripe/veneur/v14/plugins/localfile"
+	s3p "github.com/stripe/veneur/v14/plugins/s3"
+	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/scopedstatsd"
+	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/sinks/datadog"
+	"github.com/stripe/veneur/v14/sinks/debug"
+	"github.com/stripe/veneur/v14/sinks/falconer"
+	"github.com/stripe/veneur/v14/sinks/kafka"
+	"github.com/stripe/veneur/v14/sinks/lightstep"
+	"github.com/stripe/veneur/v14/sinks/newrelic"
+	"github.com/stripe/veneur/v14/sinks/prometheus"
+	"github.com/stripe/veneur/v14/sinks/signalfx"
+	"github.com/stripe/veneur/v14/sinks/splunk"
+	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
+	"github.com/stripe/veneur/v14/sinks/xray"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/trace/metrics"
 )
 
 // VERSION stores the current veneur version.
@@ -1210,7 +1210,7 @@ func (s *Server) ReadSSFPacketSocket(serverConn net.PacketConn, packetPool *sync
 
 // ReadSSFStreamSocket reads a streaming connection in framed wire format
 // off a streaming socket. See package
-// github.com/stripe/veneur/protocol for details.
+// github.com/stripe/veneur/v14/protocol for details.
 func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 	defer func() {
 		serverConn.Close()

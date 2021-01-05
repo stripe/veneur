@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/trace"
 )
 
 // WithForwardTimeout sets the time after which an individual RPC to a

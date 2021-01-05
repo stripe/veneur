@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/v14/samplers"
 )
 
 const PartitionDateFormat = "20060102"

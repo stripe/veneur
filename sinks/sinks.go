@@ -3,9 +3,9 @@ package sinks
 import (
 	"context"
 
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
 )
 
 // MetricKeyMetricFlushDuration should be emitted as a timer by a MetricSink

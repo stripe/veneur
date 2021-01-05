@@ -16,8 +16,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/sirupsen/logrus"
 
-	"github.com/stripe/veneur/plugins"
-	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/v14/plugins"
+	"github.com/stripe/veneur/v14/samplers"
 )
 
 // TODO set log level

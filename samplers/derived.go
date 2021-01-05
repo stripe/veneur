@@ -1,7 +1,7 @@
 package samplers
 
 import (
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 // DerivedMetricsProcessor processes any metric created from events or service checks into

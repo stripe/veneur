@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/segmentio/fasthash/fnv1a"
-	"github.com/stripe/veneur/protocol"
-	"github.com/stripe/veneur/protocol/dogstatsd"
-	"github.com/stripe/veneur/samplers/metricpb"
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/protocol/dogstatsd"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 var invalidMetricTypeError = errors.New("Invalid type for metric")

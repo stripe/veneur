@@ -3,7 +3,7 @@ package plugins
 import (
 	"context"
 
-	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/v14/samplers"
 )
 
 // Plugin flushes the metrics provided to an arbitrary destination.

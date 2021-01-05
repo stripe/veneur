@@ -14,9 +14,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	s3p "github.com/stripe/veneur/plugins/s3"
-	s3Mock "github.com/stripe/veneur/plugins/s3/mock"
-	"github.com/stripe/veneur/samplers"
+	s3p "github.com/stripe/veneur/v14/plugins/s3"
+	s3Mock "github.com/stripe/veneur/v14/plugins/s3/mock"
+	"github.com/stripe/veneur/v14/samplers"
 )
 
 type dummyPlugin struct {

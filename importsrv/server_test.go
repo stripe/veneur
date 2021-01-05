@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stripe/veneur/forwardrpc"
-	"github.com/stripe/veneur/samplers/metricpb"
-	metrictest "github.com/stripe/veneur/samplers/metricpb/testutils"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/forwardrpc"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
+	metrictest "github.com/stripe/veneur/v14/samplers/metricpb/testutils"
+	"github.com/stripe/veneur/v14/trace"
 )
 
 type testMetricIngester struct {

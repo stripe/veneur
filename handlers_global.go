@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/metrics"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/trace/metrics"
 )
 
 type contextHandler func(c context.Context, w http.ResponseWriter, r *http.Request)

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 func BenchmarkConvertSpanUniquenessMetrics(b *testing.B) {

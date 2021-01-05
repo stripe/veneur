@@ -1,4 +1,4 @@
-module github.com/stripe/veneur
+module github.com/stripe/veneur/v14
 
 go 1.15
 
@@ -53,6 +53,7 @@ require (
 	github.com/theckman/go-flock v0.0.0-20170522022801-6de226b0d5f0
 	github.com/zenazn/goji v0.9.1-0.20160507202103-64eb34159fe5
 	goji.io v1.1.0
+	golang.org/x/mod v0.4.0
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae
 	google.golang.org/grpc v1.29.1
 	gopkg.in/inf.v0 v0.9.1 // indirect

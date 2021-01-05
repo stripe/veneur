@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stripe/veneur/tdigest"
+	"github.com/stripe/veneur/v14/tdigest"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 const ε = .01

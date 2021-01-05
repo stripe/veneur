@@ -8,7 +8,7 @@ import (
 	fmt "fmt"
 	proto "github.com/gogo/protobuf/proto"
 	empty "github.com/golang/protobuf/ptypes/empty"
-	metricpb "github.com/stripe/veneur/samplers/metricpb"
+	metricpb "github.com/stripe/veneur/v14/samplers/metricpb"
 	grpc "google.golang.org/grpc"
 	io "io"
 	math "math"

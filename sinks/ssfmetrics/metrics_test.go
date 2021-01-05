@@ -7,10 +7,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stripe/veneur"
-	"github.com/stripe/veneur/sinks"
-	"github.com/stripe/veneur/sinks/ssfmetrics"
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 func TestMetricExtractor(t *testing.T) {

@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"strconv"
 
-	"github.com/stripe/veneur/samplers/metricpb"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
 )
 
 // RandomForwardMetric generates a metricpb.Metric with most fields

@@ -6,12 +6,13 @@ import (
 	"sort"
 	"time"
 
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/metrics"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/trace/metrics"
 
 	"context"
+
 	"github.com/segmentio/fasthash/fnv1a"
 	"goji.io"
 	"goji.io/pat"

@@ -17,11 +17,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/trace"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/v14/samplers"
 )
 
 func TestSortableJSONMetrics(t *testing.T) {
