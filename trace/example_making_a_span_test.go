@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/trace"
 )
 
 func ExampleStartSpanFromContext() {

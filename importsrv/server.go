@@ -16,10 +16,10 @@ import (
 	"github.com/segmentio/fasthash/fnv1a"
 	"google.golang.org/grpc"
 
-	"github.com/stripe/veneur/forwardrpc"
-	"github.com/stripe/veneur/samplers/metricpb"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/forwardrpc"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
 )
 
 const (

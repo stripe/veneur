@@ -10,8 +10,8 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
-	"github.com/stripe/veneur/forwardrpc"
-	"github.com/stripe/veneur/samplers/metricpb"
+	"github.com/stripe/veneur/v14/forwardrpc"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
 )
 
 // SendMetricHandler is a handler that is called when a Server gets a

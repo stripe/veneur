@@ -7,7 +7,7 @@ import (
 	encoding_binary "encoding/binary"
 	fmt "fmt"
 	proto "github.com/gogo/protobuf/proto"
-	tdigest "github.com/stripe/veneur/tdigest"
+	tdigest "github.com/stripe/veneur/v14/tdigest"
 	io "io"
 	math "math"
 )

@@ -1,6 +1,6 @@
 package importsrv
 
-import "github.com/stripe/veneur/trace"
+import "github.com/stripe/veneur/v14/trace"
 
 // WithTraceClient sets the trace client for the server.  Otherwise it uses
 // trace.DefaultClient.

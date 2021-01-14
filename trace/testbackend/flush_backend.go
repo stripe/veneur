@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 // FlushErrorSource is a function that a test can provide. It returns

@@ -9,7 +9,7 @@ package veneur
 
 // 	"github.com/sirupsen/logrus"
 // 	"github.com/gogo/protobuf/proto"
-// 	"github.com/stripe/veneur/ssf"
+// 	"github.com/stripe/veneur/v14/ssf"
 // )
 
 // func check(err error) {

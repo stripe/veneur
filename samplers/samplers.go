@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/axiomhq/hyperloglog"
-	"github.com/stripe/veneur/samplers/metricpb"
-	"github.com/stripe/veneur/tdigest"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
+	"github.com/stripe/veneur/v14/tdigest"
 )
 
 // MetricType defines what kind of metric this is, so that we or our upstream

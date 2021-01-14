@@ -12,7 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stripe/veneur/protocol"
+	"github.com/stripe/veneur/v14/protocol"
 )
 
 func TestMultipleListeners(t *testing.T) {

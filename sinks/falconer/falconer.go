@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur/sinks/grpsink"
+	"github.com/stripe/veneur/v14/sinks/grpsink"
 	"google.golang.org/grpc"
 )
 

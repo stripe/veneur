@@ -14,9 +14,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	s3Mock "github.com/stripe/veneur/plugins/s3/mock"
-	"github.com/stripe/veneur/samplers"
-	. "github.com/stripe/veneur/testhelpers"
+	s3Mock "github.com/stripe/veneur/v14/plugins/s3/mock"
+	"github.com/stripe/veneur/v14/samplers"
+	. "github.com/stripe/veneur/v14/testhelpers"
 )
 
 const DefaultServerTimeout = 100 * time.Millisecond

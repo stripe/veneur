@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/trace"
 )
 
 func TestStartSpanDefaultName(t *testing.T) {

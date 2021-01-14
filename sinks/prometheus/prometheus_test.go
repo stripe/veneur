@@ -7,8 +7,8 @@ import (
 	"net"
 	"testing"
 
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/trace"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"

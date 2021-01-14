@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
 )
 
 func ExampleTrace_Add() {

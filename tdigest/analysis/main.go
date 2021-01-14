@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/stripe/veneur/tdigest"
+	"github.com/stripe/veneur/v14/tdigest"
 )
 
 // populate a single t-digest, of a given compression, with a given number of

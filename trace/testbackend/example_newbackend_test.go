@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/testbackend"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/trace/testbackend"
 )
 
 func ExampleNewBackend() {

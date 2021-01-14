@@ -1,7 +1,7 @@
 package trace_test
 
 import (
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/trace"
 )
 
 // This demonstrates how to switch out an existing

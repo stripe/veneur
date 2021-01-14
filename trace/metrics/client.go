@@ -3,8 +3,8 @@
 package metrics
 
 import (
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
 )
 
 // NoMetrics indicates that no metrics were included in the batch of

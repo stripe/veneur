@@ -5,8 +5,8 @@ package testbackend
 import (
 	"context"
 
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
 )
 
 // SendErrorSource is a function that a test can provide. It returns
