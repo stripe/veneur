@@ -1,25 +1,9 @@
-# 14.0.0, 2020-01-06 (TBD)
-
-## Added
-* The Datadog sink can now filter metric names by prefix with `datadog_metric_name_prefix_drops`. Thanks, [kaplanelad](https://github.com/kaplanelad)!
-* The Datadog sink can now filter tags by metric names prefix with `datadog_exclude_tags_prefix_by_prefix_metric`. Thanks, [kaplanelad](https://github.com/kaplanelad)!
-* When specifying the SignalFx key with `signalfx_vary_key_by`, if both the host and the metric provide a value, the metric-provided value will take precedence over the host-provided value. This allows more granular forms of metric organization and attribution. Thanks, [aditya](https://github.com/chimeracoder)!
-* Support for listening to abstract statsd metrics on Unix Domain Socket(Datagram type). Thanks, [androohan](https://github.com/androohan)!
-* Implementation of a Prometheus sink through Statsd Exporter. Thanks, [yanske](https://github.com/yanske)!
-* New Relic sink supporting Metrics, Events, Service Checks (as events) and Trace Spans. Thanks, [jthurman42](https://github.com/jthurman42)!
+# 14.0.0, 2020-01-14
 
 ## Updated
 * Migrated from dep to Go modules. Clients must now use the updated import path `github.com/stripe/veneur/v14`. Thanks, [andybons](https://github.com/andybons)!
-* Updated the vendored version of DataDog/datadog-go which fixes parsing for abstract unix domain sockets in the statsd client. Thanks, [androohan](https://github.com/androohan)!
-* Changed the certificates that veneur tests with to include SANs and no longer rely on Common Names, in order to comply with Go's [upcoming crackdown on CN certificate constraints](https://github.com/stripe/veneur/issues/791). Thanks, [antifuchs](https://github.com/antifuchs)!
-* Disabled the dogstatsd client telemetry on the internal statsd client used by Veneur. Thanks, [prudhvi](https://github.com/prudhvi)!
-* Migrated from the deprecated Sentry package, raven-go, to sentry-go. Thanks, [yanske](https://github.com/yanske)!
 
-## Bugfixes
-* veneur-emit no longer panics when an empty command is passed. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
-* Fixed a bug that caused some veneur-emit builds to not flush metrics to udp. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
-
-# 13.0.0, 2020-01-03
+# 13.0.0, 2020-01-05
 
 ## Added
 
@@ -38,6 +22,11 @@
 * veneur-prometheus now supports Prometheus Untyped metrics. Thanks, [kklipsch-stripe](https://github.com/kklipsch-stripe)!
 * veneur-prometheus now accepts a socket parameter for proxied requests. Thanks, [kklipsch-stripe](https://github.com/kklipsch-stripe)!
 * The Datadog sink can now filter metric names by prefix with `datadog_metric_name_prefix_drops`. Thanks, [kaplanelad](https://github.com/kaplanelad)!
+* The Datadog sink can now filter tags by metric names prefix with `datadog_exclude_tags_prefix_by_prefix_metric`. Thanks, [kaplanelad](https://github.com/kaplanelad)!
+* When specifying the SignalFx key with `signalfx_vary_key_by`, if both the host and the metric provide a value, the metric-provided value will take precedence over the host-provided value. This allows more granular forms of metric organization and attribution. Thanks, [aditya](https://github.com/chimeracoder)!
+* Support for listening to abstract statsd metrics on Unix Domain Socket(Datagram type). Thanks, [androohan](https://github.com/androohan)!
+* Implementation of a Prometheus sink through Statsd Exporter. Thanks, [yanske](https://github.com/yanske)!
+* New Relic sink supporting Metrics, Events, Service Checks (as events) and Trace Spans. Thanks, [jthurman42](https://github.com/jthurman42)!
 
 ## Updated
 
@@ -45,9 +34,14 @@
 * Splunk sink: Downgraded Splunk HEC errors to be logged at warning level, rather than error level. Added a note to clarify that Splunk cluster restarts can cause temporary errors, which are not necessarily problematic. Thanks, [aditya](https://github.com/chimeracoder)!
 * Updated the vendored version of github.com/gogo/protobuf which fixes Gopkg.toml conflicts for users of veneur. Thanks, [dtbartle](http://github.com/dtbartle)!
 * Updated server.go to use the aws sdk (https://docs.aws.amazon.com/sdk-for-go/api/aws/session/) when the creds are not set in the config.yaml. Thanks, [linuxdynasty](https://github.com/linuxdynasty)!
+* Changed the certificates that veneur tests with to include SANs and no longer rely on Common Names, in order to comply with Go's [upcoming crackdown on CN certificate constraints](https://github.com/stripe/veneur/issues/791). Thanks, [antifuchs](https://github.com/antifuchs)!
+* Disabled the dogstatsd client telemetry on the internal statsd client used by Veneur. Thanks, [prudhvi](https://github.com/prudhvi)!
+* Migrated from the deprecated Sentry package, raven-go, to sentry-go. Thanks, [yanske](https://github.com/yanske)!
 
 ## Bugfixes
 * veneur-prometheus now reports incremental counters instead of cumulative counters. This may cause dramatic differences in the statistics reported by veneur-prometheus.  Thanks, [kklipsch-stripe](https://github.com/kklipsch-stripe)!
+* veneur-emit no longer panics when an empty command is passed. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
+* Fixed a bug that caused some veneur-emit builds to not flush metrics to udp. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
 
 ## Bugfixes
 * Veneur listening on UDS for statsd metrics will respect the `read_buffer_size_bytes` config. Thanks, [prudhvi](https://github.com/prudhvi)!
