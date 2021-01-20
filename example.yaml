@@ -24,6 +24,14 @@ ssf_listen_addresses:
   - unix:///tmp/veneur-ssf.sock
   - unix:@veneur-ssf.sock
 
+# The addresses on which to listen for GRPC encoded SSF data. As with
+# statsd_listen_addresses, these are formatted as URLs, with schemes
+# corresponding to valid "network" arguments on
+# https://golang.org/pkg/net/#Listen. Only TCP addresses are supported.
+# This option can be used in conjunction with ssf_listen_addresses and statsd_listen_addresses.
+grpc_listen_addresses:
+ - tcp://localhost:8181
+
 # TLS
 # These are only useful in conjunction with TCP listening sockets
 

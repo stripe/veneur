@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -9,7 +10,10 @@ import (
 	"sync"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/v14/ssf"
 	flock "github.com/theckman/go-flock"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 // StartStatsd spawns a goroutine that listens for metrics in statsd
@@ -282,6 +286,56 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) (<-chan struct{}, net.Addr) {
 	}()
 
 	return done, listener.Addr()
+}
+
+// StartGRPC starts listening for spans over HTTP
+func StartGRPC(s *Server, a net.Addr) net.Addr {
+	switch addr := a.(type) {
+	case *net.TCPAddr:
+		_, a = startGRPCTCP(s, addr)
+	default:
+		panic(fmt.Sprintf("Can't listen for GRPC on %s because it's not tcp://", a))
+	}
+	log.WithFields(logrus.Fields{
+		"address": a.String(),
+		"network": a.Network(),
+	}).Info("Listening for GRPC SSF spans")
+	return a
+}
+
+type grpcSSFServer struct {
+	server *Server
+}
+
+func (grpcsrv *grpcSSFServer) SendSpan(ctx context.Context, span *ssf.SSFSpan) (*ssf.Empty, error) {
+	grpcsrv.server.handleSSF(span, "grpc")
+	return &ssf.Empty{}, nil
+}
+
+func startGRPCTCP(s *Server, addr *net.TCPAddr) (*grpc.Server, net.Addr) {
+	listener, err := net.Listen("tcp", addr.String())
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	var grpcServer *grpc.Server
+	mode := "unencrypted"
+	if s.tlsConfig != nil {
+		tlsCreds := credentials.NewTLS(s.tlsConfig)
+		if s.tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
+			mode = "authenticated"
+		} else {
+			mode = "encrypted"
+		}
+		grpcServer = grpc.NewServer(grpc.Creds(tlsCreds))
+	} else {
+		grpcServer = grpc.NewServer()
+	}
+	ssf.RegisterSSFGRPCServer(grpcServer, &grpcSSFServer{server: s})
+	log.WithFields(logrus.Fields{
+		"address": addr, "mode": mode,
+	}).Info("Listening for SSF metrics on GRPC socket")
+	go grpcServer.Serve(listener)
+	return grpcServer, listener.Addr()
 }
 
 // Acquires exclusive use lock for a given socket file and returns the lock
