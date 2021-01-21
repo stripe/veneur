@@ -18,8 +18,8 @@ require (
 	github.com/facebookgo/stack v0.0.0-20160209184415-751773369052 // indirect
 	github.com/facebookgo/stackerr v0.0.0-20150612192056-c2fcf88613f4 // indirect
 	github.com/getsentry/sentry-go v0.6.2-0.20200616133211-abb91bfdb057
-	github.com/gogo/protobuf v1.3.2
-	github.com/golang/protobuf v1.4.3
+	github.com/gogo/protobuf v1.3.1
+	github.com/golang/protobuf v1.4.2
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
@@ -54,13 +54,8 @@ require (
 	github.com/zenazn/goji v0.9.1-0.20160507202103-64eb34159fe5
 	goji.io v1.1.0
 	golang.org/x/mod v0.4.0
-	golang.org/x/net v0.0.0-20210119194325-5f4716e94777
-	golang.org/x/sys v0.0.0-20210119212857-b64e53b001e4
-	golang.org/x/text v0.3.5 // indirect
-	google.golang.org/genproto v0.0.0-20210119180700-e258113e47cc // indirect
-	google.golang.org/grpc v1.35.0
-	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.1.0 // indirect
-	google.golang.org/protobuf v1.25.0 // indirect
+	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae
+	google.golang.org/grpc v1.29.1
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/logfmt.v0 v0.3.0 // indirect
 	gopkg.in/stack.v1 v1.6.0 // indirect
