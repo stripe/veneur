@@ -120,8 +120,6 @@ func init() {
 			"set",
 			"tag",
 			"ssf",
-			"grpc",
-			"proxy",
 		},
 		EventMode: []string{
 			"e_title",
@@ -442,13 +440,13 @@ func destination(hostport string, proxy string) (string, net.Addr, error) {
 	}
 
 	if proxy != "" {
-		proxyAddr, err := resolveHostport(proxy)
+		_, proxyAddr, err := resolveHostport(proxy)
 		if err != nil {
 			return "", nil, err
 		}
 		return hostport, proxyAddr, nil
 	} else {
-		addr, err := resolveHostport(hostport)
+		hostport, addr, err := resolveHostport(hostport)
 		if err != nil {
 			return "", nil, err
 		}
@@ -456,7 +454,7 @@ func destination(hostport string, proxy string) (string, net.Addr, error) {
 	}
 }
 
-func resolveHostport(hostport string) (net.Addr, error) {
+func resolveHostport(hostport string) (string, net.Addr, error) {
 	netAddr, err := protocol.ResolveAddr(hostport)
 	if err != nil {
 		// This is fine - we can attempt to treat the
@@ -464,11 +462,11 @@ func resolveHostport(hostport string) (net.Addr, error) {
 		hostport := fmt.Sprintf("udp://%s", hostport)
 		udpAddr, err := protocol.ResolveAddr(hostport)
 		if err != nil {
-			return nil, err
+			return "", nil, err
 		}
-		return udpAddr, nil
+		return hostport, udpAddr, nil
 	}
-	return netAddr, nil
+	return hostport, netAddr, nil
 }
 
 func inferTraceIDInt(existingID int64, envKey string) (id int64, err error) {
