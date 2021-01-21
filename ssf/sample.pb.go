@@ -9,7 +9,6 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	io "io"
 	math "math"
-	math_bits "math/bits"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -21,7 +20,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
+const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
 type SSFSample_Metric int32
 
@@ -157,7 +156,7 @@ func (m *SSFSample) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_SSFSample.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
+		n, err := m.MarshalTo(b)
 		if err != nil {
 			return nil, err
 		}
@@ -330,7 +329,7 @@ func (m *SSFSpan) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return xxx_messageInfo_SSFSpan.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
+		n, err := m.MarshalTo(b)
 		if err != nil {
 			return nil, err
 		}
@@ -500,7 +499,7 @@ var fileDescriptor_7ef0544ca34aff6f = []byte{
 func (m *SSFSample) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
@@ -508,94 +507,84 @@ func (m *SSFSample) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *SSFSample) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *SSFSample) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
+	var i int
 	_ = i
 	var l int
 	_ = l
-	if m.Scope != 0 {
-		i = encodeVarintSample(dAtA, i, uint64(m.Scope))
-		i--
-		dAtA[i] = 0x50
-	}
-	if len(m.Unit) > 0 {
-		i -= len(m.Unit)
-		copy(dAtA[i:], m.Unit)
-		i = encodeVarintSample(dAtA, i, uint64(len(m.Unit)))
-		i--
-		dAtA[i] = 0x4a
-	}
-	if len(m.Tags) > 0 {
-		for k := range m.Tags {
-			v := m.Tags[k]
-			baseI := i
-			i -= len(v)
-			copy(dAtA[i:], v)
-			i = encodeVarintSample(dAtA, i, uint64(len(v)))
-			i--
-			dAtA[i] = 0x12
-			i -= len(k)
-			copy(dAtA[i:], k)
-			i = encodeVarintSample(dAtA, i, uint64(len(k)))
-			i--
-			dAtA[i] = 0xa
-			i = encodeVarintSample(dAtA, i, uint64(baseI-i))
-			i--
-			dAtA[i] = 0x42
-		}
-	}
-	if m.SampleRate != 0 {
-		i -= 4
-		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.SampleRate))))
-		i--
-		dAtA[i] = 0x3d
-	}
-	if m.Status != 0 {
-		i = encodeVarintSample(dAtA, i, uint64(m.Status))
-		i--
-		dAtA[i] = 0x30
-	}
-	if len(m.Message) > 0 {
-		i -= len(m.Message)
-		copy(dAtA[i:], m.Message)
-		i = encodeVarintSample(dAtA, i, uint64(len(m.Message)))
-		i--
-		dAtA[i] = 0x2a
-	}
-	if m.Timestamp != 0 {
-		i = encodeVarintSample(dAtA, i, uint64(m.Timestamp))
-		i--
-		dAtA[i] = 0x20
-	}
-	if m.Value != 0 {
-		i -= 4
-		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Value))))
-		i--
-		dAtA[i] = 0x1d
+	if m.Metric != 0 {
+		dAtA[i] = 0x8
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(m.Metric))
 	}
 	if len(m.Name) > 0 {
-		i -= len(m.Name)
-		copy(dAtA[i:], m.Name)
-		i = encodeVarintSample(dAtA, i, uint64(len(m.Name)))
-		i--
 		dAtA[i] = 0x12
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(len(m.Name)))
+		i += copy(dAtA[i:], m.Name)
 	}
-	if m.Metric != 0 {
-		i = encodeVarintSample(dAtA, i, uint64(m.Metric))
-		i--
-		dAtA[i] = 0x8
+	if m.Value != 0 {
+		dAtA[i] = 0x1d
+		i++
+		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.Value))))
+		i += 4
 	}
-	return len(dAtA) - i, nil
+	if m.Timestamp != 0 {
+		dAtA[i] = 0x20
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(m.Timestamp))
+	}
+	if len(m.Message) > 0 {
+		dAtA[i] = 0x2a
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(len(m.Message)))
+		i += copy(dAtA[i:], m.Message)
+	}
+	if m.Status != 0 {
+		dAtA[i] = 0x30
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(m.Status))
+	}
+	if m.SampleRate != 0 {
+		dAtA[i] = 0x3d
+		i++
+		encoding_binary.LittleEndian.PutUint32(dAtA[i:], uint32(math.Float32bits(float32(m.SampleRate))))
+		i += 4
+	}
+	if len(m.Tags) > 0 {
+		for k, _ := range m.Tags {
+			dAtA[i] = 0x42
+			i++
+			v := m.Tags[k]
+			mapSize := 1 + len(k) + sovSample(uint64(len(k))) + 1 + len(v) + sovSample(uint64(len(v)))
+			i = encodeVarintSample(dAtA, i, uint64(mapSize))
+			dAtA[i] = 0xa
+			i++
+			i = encodeVarintSample(dAtA, i, uint64(len(k)))
+			i += copy(dAtA[i:], k)
+			dAtA[i] = 0x12
+			i++
+			i = encodeVarintSample(dAtA, i, uint64(len(v)))
+			i += copy(dAtA[i:], v)
+		}
+	}
+	if len(m.Unit) > 0 {
+		dAtA[i] = 0x4a
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(len(m.Unit)))
+		i += copy(dAtA[i:], m.Unit)
+	}
+	if m.Scope != 0 {
+		dAtA[i] = 0x50
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(m.Scope))
+	}
+	return i, nil
 }
 
 func (m *SSFSpan) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	n, err := m.MarshalTo(dAtA)
 	if err != nil {
 		return nil, err
 	}
@@ -603,130 +592,117 @@ func (m *SSFSpan) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *SSFSpan) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *SSFSpan) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
+	var i int
 	_ = i
 	var l int
 	_ = l
-	if m.RootStartTimestamp != 0 {
-		i = encodeVarintSample(dAtA, i, uint64(m.RootStartTimestamp))
-		i--
-		dAtA[i] = 0x70
+	if m.Version != 0 {
+		dAtA[i] = 0x8
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(m.Version))
 	}
-	if len(m.Name) > 0 {
-		i -= len(m.Name)
-		copy(dAtA[i:], m.Name)
-		i = encodeVarintSample(dAtA, i, uint64(len(m.Name)))
-		i--
-		dAtA[i] = 0x6a
+	if m.TraceId != 0 {
+		dAtA[i] = 0x10
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(m.TraceId))
 	}
-	if m.Indicator {
-		i--
-		if m.Indicator {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i--
-		dAtA[i] = 0x60
+	if m.Id != 0 {
+		dAtA[i] = 0x18
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(m.Id))
 	}
-	if len(m.Tags) > 0 {
-		for k := range m.Tags {
-			v := m.Tags[k]
-			baseI := i
-			i -= len(v)
-			copy(dAtA[i:], v)
-			i = encodeVarintSample(dAtA, i, uint64(len(v)))
-			i--
-			dAtA[i] = 0x12
-			i -= len(k)
-			copy(dAtA[i:], k)
-			i = encodeVarintSample(dAtA, i, uint64(len(k)))
-			i--
-			dAtA[i] = 0xa
-			i = encodeVarintSample(dAtA, i, uint64(baseI-i))
-			i--
-			dAtA[i] = 0x5a
-		}
+	if m.ParentId != 0 {
+		dAtA[i] = 0x20
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(m.ParentId))
 	}
-	if len(m.Metrics) > 0 {
-		for iNdEx := len(m.Metrics) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Metrics[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintSample(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0x52
-		}
+	if m.StartTimestamp != 0 {
+		dAtA[i] = 0x28
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(m.StartTimestamp))
 	}
-	if len(m.Service) > 0 {
-		i -= len(m.Service)
-		copy(dAtA[i:], m.Service)
-		i = encodeVarintSample(dAtA, i, uint64(len(m.Service)))
-		i--
-		dAtA[i] = 0x42
+	if m.EndTimestamp != 0 {
+		dAtA[i] = 0x30
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(m.EndTimestamp))
 	}
 	if m.Error {
-		i--
+		dAtA[i] = 0x38
+		i++
 		if m.Error {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
 		}
-		i--
-		dAtA[i] = 0x38
+		i++
 	}
-	if m.EndTimestamp != 0 {
-		i = encodeVarintSample(dAtA, i, uint64(m.EndTimestamp))
-		i--
-		dAtA[i] = 0x30
+	if len(m.Service) > 0 {
+		dAtA[i] = 0x42
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(len(m.Service)))
+		i += copy(dAtA[i:], m.Service)
 	}
-	if m.StartTimestamp != 0 {
-		i = encodeVarintSample(dAtA, i, uint64(m.StartTimestamp))
-		i--
-		dAtA[i] = 0x28
+	if len(m.Metrics) > 0 {
+		for _, msg := range m.Metrics {
+			dAtA[i] = 0x52
+			i++
+			i = encodeVarintSample(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
 	}
-	if m.ParentId != 0 {
-		i = encodeVarintSample(dAtA, i, uint64(m.ParentId))
-		i--
-		dAtA[i] = 0x20
+	if len(m.Tags) > 0 {
+		for k, _ := range m.Tags {
+			dAtA[i] = 0x5a
+			i++
+			v := m.Tags[k]
+			mapSize := 1 + len(k) + sovSample(uint64(len(k))) + 1 + len(v) + sovSample(uint64(len(v)))
+			i = encodeVarintSample(dAtA, i, uint64(mapSize))
+			dAtA[i] = 0xa
+			i++
+			i = encodeVarintSample(dAtA, i, uint64(len(k)))
+			i += copy(dAtA[i:], k)
+			dAtA[i] = 0x12
+			i++
+			i = encodeVarintSample(dAtA, i, uint64(len(v)))
+			i += copy(dAtA[i:], v)
+		}
 	}
-	if m.Id != 0 {
-		i = encodeVarintSample(dAtA, i, uint64(m.Id))
-		i--
-		dAtA[i] = 0x18
+	if m.Indicator {
+		dAtA[i] = 0x60
+		i++
+		if m.Indicator {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i++
 	}
-	if m.TraceId != 0 {
-		i = encodeVarintSample(dAtA, i, uint64(m.TraceId))
-		i--
-		dAtA[i] = 0x10
+	if len(m.Name) > 0 {
+		dAtA[i] = 0x6a
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(len(m.Name)))
+		i += copy(dAtA[i:], m.Name)
 	}
-	if m.Version != 0 {
-		i = encodeVarintSample(dAtA, i, uint64(m.Version))
-		i--
-		dAtA[i] = 0x8
+	if m.RootStartTimestamp != 0 {
+		dAtA[i] = 0x70
+		i++
+		i = encodeVarintSample(dAtA, i, uint64(m.RootStartTimestamp))
 	}
-	return len(dAtA) - i, nil
+	return i, nil
 }
 
 func encodeVarintSample(dAtA []byte, offset int, v uint64) int {
-	offset -= sovSample(v)
-	base := offset
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
 		v >>= 7
 		offset++
 	}
 	dAtA[offset] = uint8(v)
-	return base
+	return offset + 1
 }
 func (m *SSFSample) Size() (n int) {
 	if m == nil {
@@ -834,7 +810,14 @@ func (m *SSFSpan) Size() (n int) {
 }
 
 func sovSample(x uint64) (n int) {
-	return (math_bits.Len64(x|1) + 6) / 7
+	for {
+		n++
+		x >>= 7
+		if x == 0 {
+			break
+		}
+	}
+	return n
 }
 func sozSample(x uint64) (n int) {
 	return sovSample(uint64((x << 1) ^ uint64((int64(x) >> 63))))
@@ -1127,7 +1110,7 @@ func (m *SSFSample) Unmarshal(dAtA []byte) error {
 					if err != nil {
 						return err
 					}
-					if (skippy < 0) || (iNdEx+skippy) < 0 {
+					if skippy < 0 {
 						return ErrInvalidLengthSample
 					}
 					if (iNdEx + skippy) > postIndex {
@@ -1195,7 +1178,10 @@ func (m *SSFSample) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
+			if skippy < 0 {
+				return ErrInvalidLengthSample
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthSample
 			}
 			if (iNdEx + skippy) > l {
@@ -1555,7 +1541,7 @@ func (m *SSFSpan) Unmarshal(dAtA []byte) error {
 					if err != nil {
 						return err
 					}
-					if (skippy < 0) || (iNdEx+skippy) < 0 {
+					if skippy < 0 {
 						return ErrInvalidLengthSample
 					}
 					if (iNdEx + skippy) > postIndex {
@@ -1643,7 +1629,10 @@ func (m *SSFSpan) Unmarshal(dAtA []byte) error {
 			if err != nil {
 				return err
 			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
+			if skippy < 0 {
+				return ErrInvalidLengthSample
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthSample
 			}
 			if (iNdEx + skippy) > l {
@@ -1661,7 +1650,6 @@ func (m *SSFSpan) Unmarshal(dAtA []byte) error {
 func skipSample(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
-	depth := 0
 	for iNdEx < l {
 		var wire uint64
 		for shift := uint(0); ; shift += 7 {
@@ -1693,8 +1681,10 @@ func skipSample(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
+			return iNdEx, nil
 		case 1:
 			iNdEx += 8
+			return iNdEx, nil
 		case 2:
 			var length int
 			for shift := uint(0); ; shift += 7 {
@@ -1715,30 +1705,55 @@ func skipSample(dAtA []byte) (n int, err error) {
 				return 0, ErrInvalidLengthSample
 			}
 			iNdEx += length
-		case 3:
-			depth++
-		case 4:
-			if depth == 0 {
-				return 0, ErrUnexpectedEndOfGroupSample
+			if iNdEx < 0 {
+				return 0, ErrInvalidLengthSample
 			}
-			depth--
+			return iNdEx, nil
+		case 3:
+			for {
+				var innerWire uint64
+				var start int = iNdEx
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return 0, ErrIntOverflowSample
+					}
+					if iNdEx >= l {
+						return 0, io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					innerWire |= (uint64(b) & 0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				innerWireType := int(innerWire & 0x7)
+				if innerWireType == 4 {
+					break
+				}
+				next, err := skipSample(dAtA[start:])
+				if err != nil {
+					return 0, err
+				}
+				iNdEx = start + next
+				if iNdEx < 0 {
+					return 0, ErrInvalidLengthSample
+				}
+			}
+			return iNdEx, nil
+		case 4:
+			return iNdEx, nil
 		case 5:
 			iNdEx += 4
+			return iNdEx, nil
 		default:
 			return 0, fmt.Errorf("proto: illegal wireType %d", wireType)
 		}
-		if iNdEx < 0 {
-			return 0, ErrInvalidLengthSample
-		}
-		if depth == 0 {
-			return iNdEx, nil
-		}
 	}
-	return 0, io.ErrUnexpectedEOF
+	panic("unreachable")
 }
 
 var (
-	ErrInvalidLengthSample        = fmt.Errorf("proto: negative length found during unmarshaling")
-	ErrIntOverflowSample          = fmt.Errorf("proto: integer overflow")
-	ErrUnexpectedEndOfGroupSample = fmt.Errorf("proto: unexpected end of group")
+	ErrInvalidLengthSample = fmt.Errorf("proto: negative length found during unmarshaling")
+	ErrIntOverflowSample   = fmt.Errorf("proto: integer overflow")
 )

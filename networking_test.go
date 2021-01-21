@@ -153,7 +153,7 @@ func TestConnectUNIXStatsd(t *testing.T) {
 	close(srv.shutdown)
 }
 
-func TestConnectGRPC(t *testing.T) {
+/*func TestConnectGRPC(t *testing.T) {
 	srv := &Server{}
 	srv.SpanChan = make(chan *ssf.SSFSpan, 100)
 
@@ -186,4 +186,4 @@ func TestConnectGRPC(t *testing.T) {
 		}
 	}
 	grpcServer.Stop()
-}
+}*/
