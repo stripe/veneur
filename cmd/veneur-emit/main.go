@@ -36,6 +36,7 @@ type Flags struct {
 	Mode      string
 	Debug     bool
 	Command   bool
+	Proxy     string
 	ExtraArgs []string
 
 	Name   string
@@ -119,6 +120,8 @@ func init() {
 			"set",
 			"tag",
 			"ssf",
+			"grpc",
+			"proxy",
 		},
 		EventMode: []string{
 			"e_title",
@@ -183,16 +186,26 @@ func Main(args []string) int {
 	//addr is the address scheme string passed on the command line via -hostport.
 	//  If no protocol is specified for the hostport then we prepend "udp://" to what was passed on the command line
 	//netAddr is the resolved net.Addr that we resolved from addr. Use netAddr for dialing/sending stuff
-	addr, netAddr, err := destination(flagStruct.HostPort, flagStruct.ToSSF)
+	addr, netAddr, err := destination(flagStruct.HostPort, flagStruct.Proxy)
 	if err != nil {
 		logrus.WithError(err).Error("Error getting destination address.")
 		return 1
 	}
-	logrus.WithField("net", netAddr.Network()).
-		WithField("addr", netAddr.String()).
-		WithField("ssf", flagStruct.ToSSF).
-		WithField("grpc", flagStruct.ToGrpc).
-		Debugf("destination")
+
+	//If they are providing a proxy then we will print differently to reflect that
+	if flagStruct.Proxy != "" {
+		logrus.WithField("proxy net", netAddr.Network()).
+			WithField("proxy addr", netAddr.String()).
+			WithField("destination", addr).
+			WithField("grcp", flagStruct.ToGrpc).
+			Debugf("destination")
+	} else {
+		logrus.WithField("net", netAddr.Network()).
+			WithField("addr", netAddr.String()).
+			WithField("ssf", flagStruct.ToSSF).
+			WithField("grcp", flagStruct.ToGrpc).
+			Debugf("destination")
+	}
 
 	if flagStruct.Mode == "event" {
 		if flagStruct.ToSSF {
@@ -251,7 +264,7 @@ func Main(args []string) int {
 	if span.TraceId != 0 {
 		if !flagStruct.ToSSF && !flagStruct.ToGrpc {
 			logrus.WithField("ssf", flagStruct.ToSSF).
-				Error("Can't use tracing in non-ssf operation: Use -ssf to emit trace spans.")
+				Error("Can't use tracing in non-ssf operation: Use -ssf or -grcp to emit trace spans.")
 			return 1
 		}
 		logrus.WithField("trace_id", span.TraceId).
@@ -268,6 +281,12 @@ func Main(args []string) int {
 		return 1
 	}
 	if flagStruct.ToSSF {
+		if flagStruct.Proxy != "" {
+			logrus.WithField("grcp", flagStruct.ToGrpc).
+				Error("Can't use proxy for non grcp protocol: use -grcp with -proxy")
+			return 1
+		}
+
 		client, err := trace.NewClient(addr)
 		if err != nil {
 			logrus.WithError(err).
@@ -282,7 +301,14 @@ func Main(args []string) int {
 			return 1
 		}
 	} else if flagStruct.ToGrpc {
-		conn, err := grpc.Dial(netAddr.String(), grpc.WithInsecure())
+		grpcDialOptions := []grpc.DialOption{grpc.WithInsecure()}
+		//If proxy is provided, then the netAddr will actually be the provided proxy address and we should attach
+		//	the hostport to the request so the proxy can route it.
+		//For this case we are ASSUMING that addr will always represent hostport no matter the proxy settings
+		if flagStruct.Proxy != "" {
+			grpcDialOptions = append(grpcDialOptions, grpc.WithAuthority(addr))
+		}
+		conn, err := grpc.Dial(netAddr.String(), grpcDialOptions...)
 		if err != nil {
 			logrus.WithError(err).Error("Could not dial grpc server")
 			return 1
@@ -296,6 +322,12 @@ func Main(args []string) int {
 		}
 
 	} else {
+		if flagStruct.Proxy != "" {
+			logrus.WithField("grcp", flagStruct.ToGrpc).
+				Error("Can't use proxy for non grcp protocol: use -grcp with -proxy")
+			return 1
+		}
+
 		if netAddr.Network() != "udp" && netAddr.Network() != "tcp" {
 			logrus.WithField("address", addr).
 				WithField("network", netAddr.Network()).
@@ -324,6 +356,7 @@ func flags(args []string) (Flags, map[string]flag.Value, error) {
 	flagset.StringVar(&flagStruct.Mode, "mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
 	flagset.BoolVar(&flagStruct.Debug, "debug", false, "Turns on debug messages.")
 	flagset.BoolVar(&flagStruct.Command, "command", false, "Turns on command-timing mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.")
+	flagset.StringVar(&flagStruct.Proxy, "proxy", "", "Uses the argument (in hostport format) to proxy your emit. (Sets the authority header if using HTTP. This is the equivalent of Host for HTTP/2)")
 
 	// Metric flags
 	flagset.StringVar(&flagStruct.Name, "name", "", "Name of metric to report. Ex: 'daemontools.service.starts'")
@@ -403,22 +436,39 @@ func tagsFromString(csv string) map[string]string {
 	return tags
 }
 
-func destination(hostport string, useSSF bool) (string, net.Addr, error) {
+func destination(hostport string, proxy string) (string, net.Addr, error) {
 	if hostport == "" {
 		return "", nil, errors.New("you must specify a valid hostport")
 	}
+
+	if proxy != "" {
+		proxyAddr, err := resolveHostport(proxy)
+		if err != nil {
+			return "", nil, err
+		}
+		return hostport, proxyAddr, nil
+	} else {
+		addr, err := resolveHostport(hostport)
+		if err != nil {
+			return "", nil, err
+		}
+		return hostport, addr, nil
+	}
+}
+
+func resolveHostport(hostport string) (net.Addr, error) {
 	netAddr, err := protocol.ResolveAddr(hostport)
 	if err != nil {
 		// This is fine - we can attempt to treat the
 		// host:port combination as a UDP address:
-		hostport = fmt.Sprintf("udp://%s", hostport)
+		hostport := fmt.Sprintf("udp://%s", hostport)
 		udpAddr, err := protocol.ResolveAddr(hostport)
 		if err != nil {
-			return "", nil, err
+			return nil, err
 		}
-		return hostport, udpAddr, nil
+		return udpAddr, nil
 	}
-	return hostport, netAddr, nil
+	return netAddr, nil
 }
 
 func inferTraceIDInt(existingID int64, envKey string) (id int64, err error) {
