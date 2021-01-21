@@ -3,7 +3,8 @@
 ## Added
 
 * Support for sending statsd metrics over TCP in veneur-emit. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
-
+* Support for listening for ssf spans over GRPC in veneur-srv. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
+* Support for sending ssf spans (metrics/traces) over GRPC in veneur-emit. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
 
 # 14.0.0, 2020-01-14
 
