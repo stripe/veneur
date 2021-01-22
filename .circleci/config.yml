@@ -129,13 +129,19 @@ jobs:
             export PATH=$PATH:/opt/protoc/bin
             go generate -v
       - run:
+          name: "check if generated files different from committed versions"
+          command: |
+            git add .
+            env PAGER=cat git diff --cached
+            git diff-index --cached --exit-code HEAD
+      - run:
           name: "gofmt"
           command: |
             mv vendor /tmp/veneur-vendor
             gofmt -w .
             mv /tmp/veneur-vendor ./vendor
       - run:
-          name: "check if any files changed"
+          name: "check for files formatted differently from gofmt"
           command: |
             git add .
             env PAGER=cat git diff --cached
