@@ -13,8 +13,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/ssf"
 	"google.golang.org/grpc"
 )
 
