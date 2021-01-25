@@ -4,5 +4,3 @@ henson_tarball:
   docker: {}
 network:
   http_proxy_report_only: true
-  http_proxy_whitelist:
-    - proxy.golang.org
