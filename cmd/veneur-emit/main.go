@@ -181,9 +181,7 @@ func Main(args []string) int {
 
 	validateFlagCombinations(passedFlags, flagStruct.ExtraArgs)
 
-	//addr is the address scheme string passed on the command line via -hostport.
-	//  If no protocol is specified for the hostport then we prepend "udp://" to what was passed on the command line
-	//netAddr is the resolved net.Addr that we resolved from addr. Use netAddr for dialing/sending stuff
+
 	addr, netAddr, err := destination(flagStruct.HostPort, flagStruct.Proxy)
 	if err != nil {
 		logrus.WithError(err).Error("Error getting destination address.")
@@ -193,8 +191,8 @@ func Main(args []string) int {
 	//If they are providing a proxy then we will print differently to reflect that
 	if flagStruct.Proxy != "" {
 		logrus.WithField("proxy net", netAddr.Network()).
-			WithField("proxy addr", netAddr.String()).
-			WithField("destination", addr).
+			WithField("proxy addr", addr).
+			WithField("destination", flagStruct.HostPort).
 			WithField("grcp", flagStruct.ToGrpc).
 			Debugf("destination")
 	} else {
@@ -304,9 +302,9 @@ func Main(args []string) int {
 		//	the hostport to the request so the proxy can route it.
 		//For this case we are ASSUMING that addr will always represent hostport no matter the proxy settings
 		if flagStruct.Proxy != "" {
-			grpcDialOptions = append(grpcDialOptions, grpc.WithAuthority(addr))
+			grpcDialOptions = append(grpcDialOptions, grpc.WithAuthority(flagStruct.HostPort))
 		}
-		conn, err := grpc.Dial(netAddr.String(), grpcDialOptions...)
+		conn, err := grpc.Dial(addr, grpcDialOptions...)
 		if err != nil {
 			logrus.WithError(err).Error("Could not dial grpc server")
 			return 1
@@ -444,7 +442,7 @@ func destination(hostport string, proxy string) (string, net.Addr, error) {
 		if err != nil {
 			return "", nil, err
 		}
-		return hostport, proxyAddr, nil
+		return proxy, proxyAddr, nil
 	} else {
 		hostport, addr, err := resolveHostport(hostport)
 		if err != nil {
