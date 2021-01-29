@@ -52,7 +52,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/theckman/go-flock v0.0.0-20170522022801-6de226b0d5f0
 	github.com/zenazn/goji v0.9.1-0.20160507202103-64eb34159fe5
-	goji.io v1.1.0
+	goji.io v2.0.2+incompatible
 	golang.org/x/mod v0.4.0
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae
 	google.golang.org/grpc v1.29.1

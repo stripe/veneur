@@ -1,14 +1,16 @@
 package goji
 
 import (
+	"context"
+	"net/http"
+
 	"goji.io/internal"
-	"golang.org/x/net/context"
 )
 
 type match struct {
 	context.Context
 	p Pattern
-	h Handler
+	h http.Handler
 }
 
 func (m match) Value(key interface{}) interface{} {
