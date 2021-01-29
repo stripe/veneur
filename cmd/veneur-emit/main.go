@@ -181,7 +181,6 @@ func Main(args []string) int {
 
 	validateFlagCombinations(passedFlags, flagStruct.ExtraArgs)
 
-
 	addr, netAddr, err := destination(flagStruct.HostPort, flagStruct.Proxy)
 	if err != nil {
 		logrus.WithError(err).Error("Error getting destination address.")
@@ -297,14 +296,17 @@ func Main(args []string) int {
 			return 1
 		}
 	} else if flagStruct.ToGrpc {
-		grpcDialOptions := []grpc.DialOption{grpc.WithInsecure()}
+		grpcDialOptions := []grpc.DialOption{grpc.WithBlock(), grpc.WithInsecure()}
 		//If proxy is provided, then the netAddr will actually be the provided proxy address and we should attach
 		//	the hostport to the request so the proxy can route it.
 		//For this case we are ASSUMING that addr will always represent hostport no matter the proxy settings
 		if flagStruct.Proxy != "" {
-			grpcDialOptions = append(grpcDialOptions, grpc.WithAuthority(flagStruct.HostPort))
+			//grpcDialOptions = append(grpcDialOptions, grpc.WithAuthority(flagStruct.HostPort))
+			grpcDialOptions = append(grpcDialOptions, grpc.WithDialer(func(_ string, timeout time.Duration) (net.Conn, error) {
+				return net.DialTimeout(netAddr.Network(), netAddr.String(), timeout)
+			}))
 		}
-		conn, err := grpc.Dial(addr, grpcDialOptions...)
+		conn, err := grpc.Dial(flagStruct.HostPort, grpcDialOptions...)
 		if err != nil {
 			logrus.WithError(err).Error("Could not dial grpc server")
 			return 1
