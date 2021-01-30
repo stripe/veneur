@@ -524,7 +524,7 @@ func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consist
 func (p *Proxy) Handler() http.Handler {
 	mux := goji.NewMux()
 
-	mux.HandleFuncC(pat.Get("/healthcheck"), func(c context.Context, w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(pat.Get("/healthcheck"), func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok\n"))
 	})
 
