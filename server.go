@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"reflect"
@@ -465,6 +466,66 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			clientAuthMode = tls.RequireAndVerifyClientCert
 			clientCAs = x509.NewCertPool()
 			ok := clientCAs.AppendCertsFromPEM([]byte(conf.TLSAuthorityCertificate))
+			if !ok {
+				err = errors.New("tls_authority_certificate: Could not load any certificates")
+				logger.WithError(err).Error("Improper TLS configuration")
+				return ret, err
+			}
+		}
+
+		ret.tlsConfig = &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			ClientAuth:   clientAuthMode,
+			ClientCAs:    clientCAs,
+		}
+	} else if conf.TLSKeyPath != "" {
+		if conf.TLSCertificatePath == "" {
+			err = errors.New("tls_key_path is set; must set tls_certificate_path")
+			logger.WithError(err).Error("Improper TLS configuration")
+			return ret, err
+		}
+
+		// read the TLS certificate from a file
+		certContents, err := ioutil.ReadFile(conf.TLSCertificatePath)
+		if err != nil {
+			err = errors.New("tls_certificate_path: Could not read a certificate from file")
+			logger.WithError(err).Error("Improper TLS configuration")
+			return ret, err
+		}
+
+		// read the TLS key from a file
+		keyContents, err := ioutil.ReadFile(conf.TLSKeyPath)
+		if err != nil {
+			err = errors.New("tls_key_path: Could not read a key from file")
+			logger.WithError(err).Error("Improper TLS configuration")
+			return ret, err
+		}
+
+		// try and load the tls key and tls certificate that were read from files
+		var cert tls.Certificate
+		cert, err = tls.X509KeyPair(certContents, keyContents)
+		if err != nil {
+			logger.WithError(err).Error("Improper TLS configuration")
+			return ret, err
+		}
+
+		clientAuthMode := tls.NoClientCert
+		var clientCAs *x509.CertPool
+		if conf.TLSAuthorityCertificatePath != "" {
+			// load the authority; require clients to present certificated signed by this authority
+			clientAuthMode = tls.RequireAndVerifyClientCert
+			clientCAs = x509.NewCertPool()
+
+			// read the authority from a file
+			caCert, err := ioutil.ReadFile(conf.TLSCertificatePath)
+			if err != nil {
+				err = errors.New("tls_authority_certificate_path: Could not read any certificates from file")
+				logger.WithError(err).Error("Improper TLS configuration")
+				return ret, err
+			}
+
+			// try and load the authority from the file we read
+			ok := clientCAs.AppendCertsFromPEM(caCert)
 			if !ok {
 				err = errors.New("tls_authority_certificate: Could not load any certificates")
 				logger.WithError(err).Error("Improper TLS configuration")

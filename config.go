@@ -112,6 +112,9 @@ type Config struct {
 	TLSAuthorityCertificate           string   `yaml:"tls_authority_certificate"`
 	TLSCertificate                    string   `yaml:"tls_certificate"`
 	TLSKey                            string   `yaml:"tls_key"`
+	TLSAuthorityCertificatePath       string   `yaml:"tls_authority_certificate_path"`
+	TLSCertificatePath                string   `yaml:"tls_certificate_path"`
+	TLSKeyPath                        string   `yaml:"tls_key_path"`
 	TraceLightstepAccessToken         string   `yaml:"trace_lightstep_access_token"`
 	TraceLightstepCollectorHost       string   `yaml:"trace_lightstep_collector_host"`
 	TraceLightstepMaximumSpans        int      `yaml:"trace_lightstep_maximum_spans"`
