@@ -170,7 +170,7 @@ type DPClient dpsink.Sink
 
 // NewClient constructs a new signalfx HTTP client for the given
 // endpoint and API token.
-func NewClient(endpoint, apiKey string, client *http.Client, log *logrus.Logger) DPClient {
+func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 	baseURL, err := url.Parse(endpoint)
 	if err != nil {
 		panic(fmt.Sprintf("Could not parse endpoint base URL %q: %v", endpoint, err))
@@ -180,7 +180,6 @@ func NewClient(endpoint, apiKey string, client *http.Client, log *logrus.Logger)
 	httpSink.DatapointEndpoint = baseURL.ResolveReference(datapointURL).String()
 	httpSink.EventEndpoint = baseURL.ResolveReference(eventURL).String()
 	httpSink.Client = client
-	log.WithField("endpoint_base", endpoint).Info("Created new SignalFx client")
 	return httpSink
 }
 
@@ -263,7 +262,7 @@ func (sfx *SignalFxSink) clientByTagUpdater() {
 
 		for name, token := range tokens {
 			sfx.clientsByTagValueMu.Lock()
-			sfx.clientsByTagValue[name] = NewClient(sfx.metricsEndpoint, token, sfx.httpClient, sfx.log)
+			sfx.clientsByTagValue[name] = NewClient(sfx.metricsEndpoint, token, sfx.httpClient)
 			sfx.clientsByTagValueMu.Unlock()
 		}
 		sfx.log.Debugf("Fetched %d tokens in total", len(tokens))

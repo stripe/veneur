@@ -475,10 +475,10 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		tracedHTTP := *ret.HTTPClient
 		tracedHTTP.Transport = vhttp.NewTraceRoundTripper(tracedHTTP.Transport, ret.TraceClient, "signalfx")
 
-		fallback := signalfx.NewClient(conf.SignalfxEndpointBase, conf.SignalfxAPIKey, &tracedHTTP, log)
+		fallback := signalfx.NewClient(conf.SignalfxEndpointBase, conf.SignalfxAPIKey, &tracedHTTP)
 		byTagClients := map[string]signalfx.DPClient{}
 		for _, perTag := range conf.SignalfxPerTagAPIKeys {
-			byTagClients[perTag.Name] = signalfx.NewClient(conf.SignalfxEndpointBase, perTag.APIKey, &tracedHTTP, log)
+			byTagClients[perTag.Name] = signalfx.NewClient(conf.SignalfxEndpointBase, perTag.APIKey, &tracedHTTP)
 		}
 
 		if conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod == "" {

@@ -82,12 +82,10 @@ func newDerivedProcessor() *testDerivedSink {
 }
 
 func TestNewSignalFxSink(t *testing.T) {
-	log := logrus.New()
-
 	// test the variables that have been renamed
-	client := NewClient("http://www.example.com", "secret", http.DefaultClient, log)
+	client := NewClient("http://www.example.com", "secret", http.DefaultClient)
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, log, client, "", nil, nil, nil, derived, 0, "", false, time.Second, "", "", nil)
+	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), client, "", nil, nil, nil, derived, 0, "", false, time.Second, "", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -596,7 +594,7 @@ func TestSignalFxFlushBatchHang(t *testing.T) {
 }
 
 func TestNewSinkDoubleSlashes(t *testing.T) {
-	cl := NewClient("http://example.com/", "foo", nil, logrus.New()).(*sfxclient.HTTPSink)
+	cl := NewClient("http://example.com/", "foo", nil).(*sfxclient.HTTPSink)
 	assert.Equal(t, "http://example.com/v2/datapoint", cl.DatapointEndpoint)
 	assert.Equal(t, "http://example.com/v2/event", cl.EventEndpoint)
 }
