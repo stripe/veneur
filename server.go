@@ -488,7 +488,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		// read the TLS certificate from a file
 		certContents, err := ioutil.ReadFile(conf.TLSCertificatePath)
 		if err != nil {
-			err = errors.New("tls_certificate_path: Could not read a certificate from file")
+			//err = errors.New("tls_certificate_path: Could not read a certificate from file")
 			logger.WithError(err).Error("Improper TLS configuration")
 			return ret, err
 		}
@@ -496,7 +496,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		// read the TLS key from a file
 		keyContents, err := ioutil.ReadFile(conf.TLSKeyPath)
 		if err != nil {
-			err = errors.New("tls_key_path: Could not read a key from file")
+			//err = errors.New("tls_key_path: Could not read a key from file")
 			logger.WithError(err).Error("Improper TLS configuration")
 			return ret, err
 		}
