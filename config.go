@@ -110,10 +110,10 @@ type Config struct {
 	Tags                              []string `yaml:"tags"`
 	TagsExclude                       []string `yaml:"tags_exclude"`
 	TLSAuthorityCertificate           string   `yaml:"tls_authority_certificate"`
-	TLSCertificate                    string   `yaml:"tls_certificate"`
-	TLSKey                            string   `yaml:"tls_key"`
 	TLSAuthorityCertificatePath       string   `yaml:"tls_authority_certificate_path"`
+	TLSCertificate                    string   `yaml:"tls_certificate"`
 	TLSCertificatePath                string   `yaml:"tls_certificate_path"`
+	TLSKey                            string   `yaml:"tls_key"`
 	TLSKeyPath                        string   `yaml:"tls_key_path"`
 	TraceLightstepAccessToken         string   `yaml:"trace_lightstep_access_token"`
 	TraceLightstepCollectorHost       string   `yaml:"trace_lightstep_collector_host"`
