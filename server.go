@@ -490,6 +490,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			return ret, err
 		}
 
+		log.WithField("endpoint_base", conf.SignalfxEndpointBase).Info("Creating SignalFx sink")
 		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback, conf.SignalfxVaryKeyBy, byTagClients, conf.SignalfxMetricNamePrefixDrops, conf.SignalfxMetricTagPrefixDrops, metricSink, conf.SignalfxFlushMaxPerBody, conf.SignalfxAPIKey, conf.SignalfxDynamicPerTagAPIKeysEnable, dynamicKeyRefreshPeriod, conf.SignalfxEndpointBase, conf.SignalfxEndpointAPI, &tracedHTTP)
 		if err != nil {
 			return ret, err
