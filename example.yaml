@@ -43,6 +43,10 @@ tls_certificate: ""
 # Authority certificate: requires clients to be authenticated
 tls_authority_certificate: ""
 
+tls_key_path: ""
+tls_certificate_path: ""
+tls_authority_certificate_path: ""
+
 # == BEHAVIOR ==
 
 # Use a static host for forwarding
