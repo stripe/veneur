@@ -14,6 +14,8 @@ import (
 	flock "github.com/theckman/go-flock"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 // StartStatsd spawns a goroutine that listens for metrics in statsd
@@ -330,6 +332,9 @@ func startGRPCTCP(s *Server, addr *net.TCPAddr) (*grpc.Server, net.Addr) {
 	} else {
 		grpcServer = grpc.NewServer()
 	}
+	healthServer := health.NewServer()
+	healthServer.SetServingStatus("veneur", grpc_health_v1.HealthCheckResponse_SERVING)
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
 	ssf.RegisterSSFGRPCServer(grpcServer, &grpcSSFServer{server: s})
 	log.WithFields(logrus.Fields{
 		"address": addr, "mode": mode,
