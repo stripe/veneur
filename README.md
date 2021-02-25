@@ -181,6 +181,7 @@ To use clients with Veneur you need only configure your client of choice to the 
 
 * `statsd_listen_addresses` for UDP- and TCP-based clients
 * `ssf_listen_addresses` for SSF-based clients using UDP or UNIX domain sockets.
+* `grpc_listen_addresses` for both SSF and dogstatsd based clients using GRPC (over TCP).
 
 ## Einhorn Usage
 
