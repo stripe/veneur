@@ -186,4 +186,3 @@ func TestHealthCheckGRPC(t *testing.T) {
 	}
 	grpcServer.Stop()
 }
-
