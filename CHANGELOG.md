@@ -3,6 +3,9 @@
 ## Updated
 * Migrated from dep to Go modules. Clients must now use the updated import path `github.com/stripe/veneur/v14`. Thanks, [andybons](https://github.com/andybons)!
 
+## Added
+* A config option and health checking for beginning support of emitting/receiving metrics via gRPC. Thanks, [eriwo-stripe](https://github.com/eriwo-stripe)!  
+
 # 13.0.0, 2020-01-05
 
 ## Added

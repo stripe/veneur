@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"sync"
@@ -13,6 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/v14/protocol"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func TestMultipleListeners(t *testing.T) {
@@ -148,4 +151,38 @@ func TestConnectUNIXStatsd(t *testing.T) {
 		}
 	}
 	close(srv.shutdown)
+}
+
+func TestHealthCheckGRPC(t *testing.T) {
+	srv := &Server{}
+
+	addrNet, err := protocol.ResolveAddr("tcp://127.0.0.1:8181")
+	require.NoError(t, err)
+	addr, ok := addrNet.(*net.TCPAddr)
+	require.True(t, ok)
+	grpcServer, _ := startGRPCTCP(srv, addr)
+
+	conns := make(chan struct{})
+	for i := 0; i < 5; i++ {
+		go func() {
+			conn, err := grpc.Dial(addr.String(), grpc.WithInsecure())
+			defer conn.Close()
+			require.NoError(t, err)
+			_, err = grpc_health_v1.NewHealthClient(conn).Check(context.Background(), &grpc_health_v1.HealthCheckRequest{})
+			require.NoError(t, err)
+
+			conns <- struct{}{}
+		}()
+	}
+
+	timeout := time.After(3 * time.Second)
+	for i := 0; i < 5; i++ {
+		select {
+		case <-timeout:
+			t.Fatalf("Timed out waiting for connection, %d made it", i)
+		case <-conns:
+			// pass
+		}
+	}
+	grpcServer.Stop()
 }
