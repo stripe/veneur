@@ -2,6 +2,7 @@
 
 ## Updated
 * Migrated from dep to Go modules. Clients must now use the updated import path `github.com/stripe/veneur/v14`. Thanks, [andybons](https://github.com/andybons)!
+* Introduced a workaround for finding the `veneur-global` container in a pod with multiple containers in Kubernetes.
 
 # 13.0.0, 2020-01-05
 
