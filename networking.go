@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -9,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/v14/ssf"
 	flock "github.com/theckman/go-flock"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -303,6 +305,15 @@ func StartGRPC(s *Server, a net.Addr) net.Addr {
 	return a
 }
 
+type grpcSSFServer struct {
+	server *Server
+}
+
+func (grpcsrv *grpcSSFServer) SendSpan(ctx context.Context, span *ssf.SSFSpan) (*ssf.Empty, error) {
+	grpcsrv.server.handleSSF(span, "grpc")
+	return &ssf.Empty{}, nil
+}
+
 func startGRPCTCP(s *Server, addr *net.TCPAddr) (*grpc.Server, net.Addr) {
 	listener, err := net.Listen("tcp", addr.String())
 	if err != nil {
@@ -324,6 +335,7 @@ func startGRPCTCP(s *Server, addr *net.TCPAddr) (*grpc.Server, net.Addr) {
 	healthServer := health.NewServer()
 	healthServer.SetServingStatus("veneur", grpc_health_v1.HealthCheckResponse_SERVING)
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	ssf.RegisterSSFGRPCServer(grpcServer, &grpcSSFServer{server: s})
 	log.WithFields(logrus.Fields{
 		"address": addr, "mode": mode,
 	}).Info("Listening for metrics on GRPC socket")
