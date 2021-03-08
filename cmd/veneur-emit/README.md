@@ -94,6 +94,28 @@ instance.
 
 ## Dogstatsd mode
 
+### Dogstatsd Protocols
+
+We currently support both **TCP** `(tcp://)` and **UDP** `(udp://)` protocols for emitting in dogstatsd. 
+The protocol should be specified as part of the "hostport" argument. If no protocol is specified then UDP is used as a default.
+
+**UDP protocol:**
+```sh
+veneur-emit -hostport udp://127.0.0.1:8200 -name ...
+```
+
+**also UDP protocol:**
+```sh
+veneur-emit -hostport 127.0.0.1:8200 -name ...
+```
+
+**TCP protocol:**
+```sh
+veneur-emit -hostport tcp://127.0.0.1:8200 -name ...
+```
+
+### Dogstatsd Examples
+
 Increment a counter in dogstatsd mode:
 
 ```sh
@@ -129,6 +151,29 @@ veneur-emit -hostport udp://127.0.0.1:8200 -name some.set.metric -set customer_a
 In SSF mode, veneur-emit will construct and submit an SSF span with
 optional metrics. SSF mode does not yet support events or service
 checks.
+
+### SSF Protocols
+
+Currently we support both **UDP** `(udp://)` and **Unix Socket** `(unix://)` protocols for emitting in SSF.
+The protocol should be specified as part of the "hostport" argument. If no protocol is specified then UDP is used as a default.
+
+**UDP protocol:**
+```sh
+veneur-emit -ssf -hostport udp://127.0.0.1:8200 -name ...
+```
+
+**also UDP protocol:**
+```sh
+veneur-emit -hostport 127.0.0.1:8200 -name ...
+```
+
+**Unix Socket protocol:**
+```sh
+veneur-emit -ssf -hostport unix:///var/run/veneur/ssf.sock -name ...
+```
+
+### SSF Examples
+
 
 Increment a counter in SSF mode:
 
