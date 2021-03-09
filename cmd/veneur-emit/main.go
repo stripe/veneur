@@ -181,10 +181,15 @@ func Main(args []string) int {
 
 	validateFlagCombinations(passedFlags, flagStruct.ExtraArgs)
 
-	addr, netAddr, err := destination(flagStruct.HostPort)
-	proxy, proxyAddr, err := destination(flagStruct.Proxy)
+	addr, netAddr, err := destination(flagStruct.HostPort, flagStruct.ToGrpc)
+	proxy, proxyAddr, proxyErr := destination(flagStruct.Proxy, false)
 	if err != nil {
-		logrus.WithError(err).Error("Error getting destination address.")
+		logrus.WithError(err).Error("Error resolving destination address.")
+		return 1
+	}
+
+	if flagStruct.Proxy != "" && proxyErr != nil {
+		logrus.WithError(err).Error("Error resolving proxy destination address.")
 		return 1
 	}
 
@@ -194,11 +199,12 @@ func Main(args []string) int {
 		WithField("grcp", flagStruct.ToGrpc).
 		Debugf("destination")
 
-	logrus.WithField("addr", proxy).
-		WithField("net", proxyAddr.Network()).
-		WithField("proxy", flagStruct.Proxy).
-		Debugf("proxy")
-
+	if flagStruct.Proxy != "" {
+		logrus.WithField("addr", proxy).
+			WithField("net", proxyAddr.Network()).
+			WithField("proxy", flagStruct.Proxy).
+			Debugf("proxy")
+	}
 
 	if flagStruct.Mode == "event" {
 		if flagStruct.ToSSF {
@@ -300,7 +306,9 @@ func Main(args []string) int {
 				return net.DialTimeout(proxyAddr.Network(), proxyAddr.String(), timeout)
 			}))
 		}
-		conn, err := grpc.Dial(addr, grpcDialOptions...)
+		logrus.WithField("proxying", proxyAddr != nil).
+			Debugf("Sending metric via gRPC")
+		conn, err := grpc.Dial(netAddr.String(), grpcDialOptions...)
 		if err != nil {
 			logrus.WithError(err).Error("Could not dial grpc stats server")
 			return 1
@@ -331,7 +339,7 @@ func Main(args []string) int {
 		}
 		err = sendStatsd(netAddr, span)
 		if err != nil {
-			logrus.WithError(err).Error("Could not send UDP metrics")
+			logrus.WithError(err).Error("Could not send metrics")
 			return 1
 		}
 	}
@@ -347,6 +355,7 @@ func flags(args []string) (Flags, map[string]flag.Value, error) {
 	flagset.StringVar(&flagStruct.Mode, "mode", "metric", "Mode for veneur-emit. Must be one of: 'metric', 'event', 'sc'.")
 	flagset.BoolVar(&flagStruct.Debug, "debug", false, "Turns on debug messages.")
 	flagset.BoolVar(&flagStruct.Command, "command", false, "Turns on command-timing mode. veneur-emit will grab everything after the first non-known-flag argument, time its execution, and report it as a timing metric.")
+	flagset.StringVar(&flagStruct.Proxy, "proxy", "", "Uses the argument (in hostport format) to proxy your emit. (Sets the authority header if using HTTP. This is the equivalent of Host for HTTP/2)")
 
 	// Metric flags
 	flagset.StringVar(&flagStruct.Name, "name", "", "Name of metric to report. Ex: 'daemontools.service.starts'")
@@ -356,6 +365,7 @@ func flags(args []string) (Flags, map[string]flag.Value, error) {
 	flagset.StringVar(&flagStruct.Set, "set", "", "Report a 'set' metric with an arbitrary string value.")
 	flagset.StringVar(&flagStruct.Tag, "tag", "", "Tag(s) for metric, comma separated. Ex: 'service:airflow'. Note: Any tags here are applied to all emitted data. See also mode-specific tag options (e.g. span_tags)")
 	flagset.BoolVar(&flagStruct.ToSSF, "ssf", false, "Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)")
+	flagset.BoolVar(&flagStruct.ToGrpc, "grpc", false, "Send the metric over grpc (SSF format)")
 
 	// Event flags
 	// TODO: what should flags be called?
@@ -425,24 +435,28 @@ func tagsFromString(csv string) map[string]string {
 	return tags
 }
 
-func destination(hostport string) (string, net.Addr, error) {
+func destination(hostport string, isGrpc bool) (string, net.Addr, error) {
+	defaultScheme := "udp"
+	if isGrpc {
+		defaultScheme = "tcp"
+	}
 	if hostport == "" {
 		return "", nil, errors.New("you must specify a valid hostport")
 	}
 
-	hostport, addr, err := resolveHostport(hostport)
+	hostport, addr, err := resolveHostport(hostport, defaultScheme)
 	if err != nil {
 		return "", nil, err
 	}
 	return hostport, addr, nil
 }
 
-func resolveHostport(hostport string) (string, net.Addr, error) {
+func resolveHostport(hostport string, defaultScheme string) (string, net.Addr, error) {
 	netAddr, err := protocol.ResolveAddr(hostport)
 	if err != nil {
 		// This is fine - we can attempt to treat the
 		// host:port combination as a UDP address:
-		hostport := fmt.Sprintf("udp://%s", hostport)
+		hostport := fmt.Sprintf("%s://%s", defaultScheme, hostport)
 		udpAddr, err := protocol.ResolveAddr(hostport)
 		if err != nil {
 			return "", nil, err
