@@ -1182,11 +1182,14 @@ func (s *Server) processMetricPacket(numBytes int, buf []byte, packetPool *sync.
 		s.HandleMetricPacket(splitPacket.Chunk())
 	}
 
-	// the Metric struct created by HandleMetricPacket has no byte slices in it,
-	// only strings
-	// therefore there are no outstanding references to this byte slice, we
-	// can return it to the pool
-	packetPool.Put(buf)
+	//Only return to the pool if there is a pool
+	if packetPool != nil {
+		// the Metric struct created by HandleMetricPacket has no byte slices in it,
+		// only strings
+		// therefore there are no outstanding references to this byte slice, we
+		// can return it to the pool
+		packetPool.Put(buf)
+	}
 }
 
 // ReadStatsdDatagramSocket reads statsd metrics packets from connection off a unix datagram socket.

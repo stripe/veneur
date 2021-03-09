@@ -11,6 +11,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/protocol/dogstatsd"
 	flock "github.com/theckman/go-flock"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -305,11 +306,17 @@ func StartGRPC(s *Server, a net.Addr) net.Addr {
 	return a
 }
 
-type grpcSSFServer struct {
+type grpcStatsServer struct {
 	server *Server
 }
 
-func (grpcsrv *grpcSSFServer) SendSpan(ctx context.Context, span *ssf.SSFSpan) (*ssf.Empty, error) {
+func (grpcsrv *grpcStatsServer) SendPacket(ctx context.Context, packet *dogstatsd.DogstatsdPacket) (*dogstatsd.Empty, error) {
+	//We use processMetricPacket instead of handleMetricPacket because process can split the byte array into multiple packets if needed
+	grpcsrv.server.processMetricPacket(len(packet.GetPacketBytes()), packet.GetPacketBytes(), nil)
+	return &dogstatsd.Empty{}, nil
+}
+
+func (grpcsrv *grpcStatsServer) SendSpan(ctx context.Context, span *ssf.SSFSpan) (*ssf.Empty, error) {
 	grpcsrv.server.handleSSF(span, "grpc")
 	return &ssf.Empty{}, nil
 }
@@ -334,8 +341,13 @@ func startGRPCTCP(s *Server, addr *net.TCPAddr) (*grpc.Server, net.Addr) {
 	}
 	healthServer := health.NewServer()
 	healthServer.SetServingStatus("veneur", grpc_health_v1.HealthCheckResponse_SERVING)
+
+	statsServer := &grpcStatsServer{server: s}
+
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
-	ssf.RegisterSSFGRPCServer(grpcServer, &grpcSSFServer{server: s})
+	ssf.RegisterSSFGRPCServer(grpcServer, statsServer)
+	dogstatsd.RegisterDogstatsdGRPCServer(grpcServer, statsServer)
+
 	log.WithFields(logrus.Fields{
 		"address": addr, "mode": mode,
 	}).Info("Listening for metrics on GRPC socket")

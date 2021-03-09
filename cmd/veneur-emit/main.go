@@ -24,6 +24,7 @@ import (
 	"github.com/araddon/dateparse"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/protocol/dogstatsd"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"google.golang.org/grpc"
@@ -280,53 +281,43 @@ func Main(args []string) int {
 		return 1
 	}
 	if flagStruct.ToSSF {
-		if proxyAddr != nil {
-			logrus.WithField("grcp", flagStruct.ToGrpc).
-				Error("Can't use proxy for non grcp protocol: use -grcp with -proxy")
-			return 1
+		if flagStruct.ToGrpc { // SSF via gRPC
+			grpcDialOptions := []grpc.DialOption{grpc.WithBlock(), grpc.WithInsecure()}
+			if proxyAddr != nil {
+				grpcDialOptions = append(grpcDialOptions, grpc.WithDialer(func(_ string, timeout time.Duration) (net.Conn, error) {
+					return net.DialTimeout(proxyAddr.Network(), proxyAddr.String(), timeout)
+				}))
+			}
+			logrus.WithField("proxying", proxyAddr != nil).
+				Debugf("Sending SSF metrics via gRPC")
+			conn, err := grpc.Dial(netAddr.String(), grpcDialOptions...)
+			if err != nil {
+				logrus.WithError(err).Error("Could not dial grpc stats server")
+				return 1
+			}
+			defer conn.Close()
+			client := ssf.NewSSFGRPCClient(conn)
+			_, err = client.SendSpan(context.Background(), span)
+			if err != nil {
+				logrus.WithError(err).Error("Could not send span over grpc")
+				return 1
+			}
+		} else { // SSF via UDP
+			client, err := trace.NewClient(addr)
+			if err != nil {
+				logrus.WithError(err).
+					WithField("address", addr).
+					Error("Could not construct client")
+				return 1
+			}
+			defer client.Close()
+			err = sendSSF(client, span)
+			if err != nil {
+				logrus.WithError(err).Error("Could not send SSF span")
+				return 1
+			}
 		}
-
-		client, err := trace.NewClient(addr)
-		if err != nil {
-			logrus.WithError(err).
-				WithField("address", addr).
-				Error("Could not construct client")
-			return 1
-		}
-		defer client.Close()
-		err = sendSSF(client, span)
-		if err != nil {
-			logrus.WithError(err).Error("Could not send SSF span")
-			return 1
-		}
-	} else if flagStruct.ToGrpc {
-		grpcDialOptions := []grpc.DialOption{grpc.WithBlock(), grpc.WithInsecure()}
-		if proxyAddr != nil {
-			grpcDialOptions = append(grpcDialOptions, grpc.WithDialer(func(_ string, timeout time.Duration) (net.Conn, error) {
-				return net.DialTimeout(proxyAddr.Network(), proxyAddr.String(), timeout)
-			}))
-		}
-		logrus.WithField("proxying", proxyAddr != nil).
-			Debugf("Sending metric via gRPC")
-		conn, err := grpc.Dial(netAddr.String(), grpcDialOptions...)
-		if err != nil {
-			logrus.WithError(err).Error("Could not dial grpc stats server")
-			return 1
-		}
-		defer conn.Close()
-		client := ssf.NewSSFGRPCClient(conn)
-		_, err = client.SendSpan(context.Background(), span)
-		if err != nil {
-			logrus.WithError(err).Error("Could not send span over grpc")
-			return 1
-		}
-	} else {
-		if proxyAddr != nil {
-			logrus.WithField("grcp", flagStruct.ToGrpc).
-				Error("Can't use proxy for non grcp protocol: use -grcp with -proxy")
-			return 1
-		}
-
+	} else { // This is the dogstatsd code block
 		if netAddr.Network() != "udp" && netAddr.Network() != "tcp" {
 			logrus.WithField("address", addr).
 				WithField("network", netAddr.Network()).
@@ -337,7 +328,7 @@ func Main(args []string) int {
 			logrus.Error("No metrics to send. Must pass metric data via at least one of -count, -gauge, -timing, or -set.")
 			return 1
 		}
-		err = sendStatsd(netAddr, span)
+		err = sendStatsd(netAddr, span, flagStruct.ToGrpc, proxyAddr)
 		if err != nil {
 			logrus.WithError(err).Error("Could not send metrics")
 			return 1
@@ -673,23 +664,76 @@ func (w *datadogTCPWriter) Close() error {
 	return w.conn.Close()
 }
 
+// newDatadogTCPWriter is adapted from https://github.com/DataDog/datadog-go/blob/master/statsd/udp.go
+func newDatadogGrpcWriter(addr net.Addr, proxyAddr net.Addr) (*datadogGrpcWriter, error) {
+	grpcDialOptions := []grpc.DialOption{grpc.WithBlock(), grpc.WithInsecure()}
+	if proxyAddr != nil {
+		grpcDialOptions = append(grpcDialOptions, grpc.WithDialer(func(_ string, timeout time.Duration) (net.Conn, error) {
+			return net.DialTimeout(proxyAddr.Network(), proxyAddr.String(), timeout)
+		}))
+	}
+	conn, err := grpc.Dial(addr.String(), grpcDialOptions...)
+	if err != nil {
+		logrus.WithError(err).Error("Could not dial grpc stats server")
+		return nil, err
+	}
+	client := dogstatsd.NewDogstatsdGRPCClient(conn)
+	if err != nil {
+		logrus.WithError(err).Error("Could not send span over grpc")
+		return nil, err
+	}
+	writer := &datadogGrpcWriter{client: client, conn: conn}
+	return writer, nil
+}
+
+type datadogGrpcWriter struct {
+	client dogstatsd.DogstatsdGRPCClient
+	conn *grpc.ClientConn
+}
+
+func (w *datadogGrpcWriter) Write(data []byte) (n int, err error) {
+	metricPacket := &dogstatsd.DogstatsdPacket{}
+	metricPacket.PacketBytes = data
+	_, err = w.client.SendPacket(context.Background(), metricPacket)
+	if err != nil {
+		logrus.WithError(err).Error("Error sending dogstatsd over gRPC")
+		return 0, err
+	}
+	return len(data), nil
+}
+
+func (w *datadogGrpcWriter) SetWriteTimeout(timeout time.Duration) error {
+	// This is unused in the current implementation
+	return nil
+}
+
+func (w *datadogGrpcWriter) Close() error {
+	return w.conn.Close()
+}
 
 // sendStatsd sends the metrics gathered in a span to a dogstatsd
 // endpoint.
-func sendStatsd(addr net.Addr, span *ssf.SSFSpan) error {
+func sendStatsd(addr net.Addr, span *ssf.SSFSpan, useGrpc bool, proxyAddr net.Addr) error {
 	var client *statsd.Client
 	var err error
-	network := addr.Network()
-	switch network {
-	case "udp":
-		client, err = statsd.New(addr.String())
-	case "tcp":
-		writer, err := newDatadogTCPWriter(addr.String())
+	if useGrpc {
+		writer, err := newDatadogGrpcWriter(addr, proxyAddr)
 		if err == nil {
 			client, err = statsd.NewWithWriter(writer)
 		}
-	default:
-		err = fmt.Errorf("%s is not supported for sending statsd metrics", network)
+	} else {
+		network := addr.Network()
+		switch network {
+		case "udp":
+			client, err = statsd.New(addr.String())
+		case "tcp":
+			writer, err := newDatadogTCPWriter(addr.String())
+			if err == nil {
+				client, err = statsd.NewWithWriter(writer)
+			}
+		default:
+			err = fmt.Errorf("%s is not supported for sending statsd metrics", network)
+		}
 	}
 	if err != nil {
 		return err

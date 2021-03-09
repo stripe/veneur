@@ -46,6 +46,20 @@ func ResolveAddr(str string) (net.Addr, error) {
 			return nil, err
 		}
 		return addr, nil
+		/*case "grpc":
+		addr, err := net.ResolveTCPAddr("tcp", u.Host)
+		if err != nil {
+			addr, err := net.ResolveTCPAddr("tcp4", u.Host)
+			if err != nil {
+				addr, err := net.ResolveTCPAddr("tcp", u.Host)
+				if err != nil {
+					return nil, err
+				}
+				return addr, nil
+			}
+			return addr, nil
+		}
+		return addr, nil*/
 	}
 	return nil, fmt.Errorf("unknown address family %q on address %q", u.Scheme, u.String())
 }
