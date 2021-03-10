@@ -292,14 +292,14 @@ func Main(args []string) int {
 				Debugf("Sending SSF metrics via gRPC")
 			conn, err := grpc.Dial(netAddr.String(), grpcDialOptions...)
 			if err != nil {
-				logrus.WithError(err).Error("Could not dial grpc stats server")
+				logrus.WithError(err).Error("Could not dial grpc ssf server")
 				return 1
 			}
 			defer conn.Close()
 			client := ssf.NewSSFGRPCClient(conn)
 			_, err = client.SendSpan(context.Background(), span)
 			if err != nil {
-				logrus.WithError(err).Error("Could not send span over grpc")
+				logrus.WithError(err).Error("Could not send ssf span over grpc")
 				return 1
 			}
 		} else { // SSF via UDP
@@ -674,14 +674,10 @@ func newDatadogGrpcWriter(addr net.Addr, proxyAddr net.Addr) (*datadogGrpcWriter
 	}
 	conn, err := grpc.Dial(addr.String(), grpcDialOptions...)
 	if err != nil {
-		logrus.WithError(err).Error("Could not dial grpc stats server")
+		logrus.WithError(err).Error("Could not dial grpc dogstatsd server")
 		return nil, err
 	}
 	client := dogstatsd.NewDogstatsdGRPCClient(conn)
-	if err != nil {
-		logrus.WithError(err).Error("Could not send span over grpc")
-		return nil, err
-	}
 	writer := &datadogGrpcWriter{client: client, conn: conn}
 	return writer, nil
 }
@@ -696,7 +692,7 @@ func (w *datadogGrpcWriter) Write(data []byte) (n int, err error) {
 	metricPacket.PacketBytes = data
 	_, err = w.client.SendPacket(context.Background(), metricPacket)
 	if err != nil {
-		logrus.WithError(err).Error("Error sending dogstatsd over gRPC")
+		logrus.WithError(err).Error("Could not send dogstatsd over grpc")
 		return 0, err
 	}
 	return len(data), nil
