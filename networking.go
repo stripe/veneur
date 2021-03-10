@@ -10,8 +10,8 @@ import (
 	"sync"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/protocol/dogstatsd"
+	"github.com/stripe/veneur/v14/ssf"
 	flock "github.com/theckman/go-flock"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

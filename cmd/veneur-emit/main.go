@@ -262,7 +262,7 @@ func Main(args []string) int {
 		return 1
 	}
 	if span.TraceId != 0 {
-		if !flagStruct.ToSSF && !flagStruct.ToGrpc  {
+		if !flagStruct.ToSSF && !flagStruct.ToGrpc {
 			logrus.WithField("ssf", flagStruct.ToSSF).
 				Error("Can't use tracing in non-ssf operation: Use -ssf or -grpc to emit trace spans.")
 			return 1
@@ -684,7 +684,7 @@ func newDatadogGrpcWriter(addr net.Addr, proxyAddr net.Addr) (*datadogGrpcWriter
 
 type datadogGrpcWriter struct {
 	client dogstatsd.DogstatsdGRPCClient
-	conn *grpc.ClientConn
+	conn   *grpc.ClientConn
 }
 
 func (w *datadogGrpcWriter) Write(data []byte) (n int, err error) {
