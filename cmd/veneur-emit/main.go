@@ -207,39 +207,71 @@ func Main(args []string) int {
 			Debugf("proxy")
 	}
 
-	if flagStruct.Mode == "event" {
+	// We do "special" emitting for events and service checks.
+	// If we are doing gRPC then we just use the datadogGrpcWriter to send them as normal bytes
+	// If not, we send them as basic bytes over the network connection without making an intermediary ssf span
+	if flagStruct.Mode == "event" || flagStruct.Mode == "sc" {
 		if flagStruct.ToSSF {
 			logrus.WithField("mode", flagStruct.Mode).
 				Error("Unsupported mode with SSF")
 			return 1
 		}
-		logrus.Debug("Sending event")
-		nconn, _ := net.Dial(netAddr.Network(), netAddr.String())
-		pkt, err := buildEventPacket(passedFlags)
-		if err != nil {
-			logrus.WithError(err).Error("build event")
-			return 1
-		}
-		nconn.Write(pkt.Bytes())
-		logrus.Debugf("Buffer string: %s", pkt.String())
-		return 0
-	}
 
-	if flagStruct.Mode == "sc" {
-		if flagStruct.ToSSF {
-			logrus.WithField("mode", flagStruct.Mode).
-				Error("Unsupported mode with SSF")
-			return 1
+		//We are going to be using the "mode" field a lot in order to differentiate between service checks and events
+		logrus.WithField("mode", flagStruct.Mode).
+			Debug("Building packet")
+
+		var pkt bytes.Buffer
+		var err error
+		if flagStruct.Mode == "event" {
+			pkt, err = buildEventPacket(passedFlags)
+		} else {
+			pkt, err = buildSCPacket(passedFlags)
 		}
-		logrus.Debug("Sending service check")
-		nconn, _ := net.Dial(netAddr.Network(), netAddr.String())
-		pkt, err := buildSCPacket(passedFlags)
 		if err != nil {
-			logrus.WithError(err).Error("build event")
+			logrus.WithField("mode", flagStruct.Mode).
+				WithError(err).
+				Error("build packet")
 			return 1
 		}
-		nconn.Write(pkt.Bytes())
-		logrus.Debugf("Buffer string: %s", pkt.String())
+		logrus.Debugf("Packet Buffer string: %s", pkt.String())
+
+		if flagStruct.ToGrpc {
+			logrus.WithField("mode", flagStruct.Mode).
+				Debug("Sending packet via gRPC")
+
+			writer, err := newDatadogGrpcWriter(netAddr, proxyAddr)
+			if err != nil {
+				logrus.WithField("mode", flagStruct.Mode).
+					WithError(err).
+					Error("Initialize grpcWriter")
+				return 1
+			}
+			defer writer.Close()
+			_, err = writer.Write(pkt.Bytes())
+			if err != nil {
+				logrus.WithField("mode", flagStruct.Mode).
+					WithError(err).
+					Error("Writing to grpcWriter")
+				return 1
+			}
+		} else {
+			logrus.WithField("mode", flagStruct.Mode).
+				Debug("Sending packet")
+
+			nconn, _ := net.Dial(netAddr.Network(), netAddr.String())
+			defer nconn.Close()
+			_, err = nconn.Write(pkt.Bytes())
+			if err != nil {
+				logrus.WithField("mode", flagStruct.Mode).
+					WithError(err).
+					Error("Sending packet")
+				return 1
+			}
+		}
+
+		logrus.WithField("mode", flagStruct.Mode).
+			Debug("Packet sent")
 		return 0
 	}
 
