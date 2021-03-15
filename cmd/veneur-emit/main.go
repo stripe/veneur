@@ -240,7 +240,7 @@ func Main(args []string) int {
 			logrus.WithField("mode", flagStruct.Mode).
 				Debug("Sending packet via gRPC")
 
-			writer, err := newDatadogGrpcWriter(netAddr, proxyAddr)
+			writer, err := newDatadogGrpcWriter(netAddr, flagStruct.HostPort, proxyAddr)
 			if err != nil {
 				logrus.WithField("mode", flagStruct.Mode).
 					WithError(err).
@@ -313,16 +313,19 @@ func Main(args []string) int {
 		return 1
 	}
 	if flagStruct.ToSSF {
+		dialAddr := netAddr.String()
 		if flagStruct.ToGrpc { // SSF via gRPC
 			grpcDialOptions := []grpc.DialOption{grpc.WithBlock(), grpc.WithInsecure()}
 			if proxyAddr != nil {
 				grpcDialOptions = append(grpcDialOptions, grpc.WithDialer(func(_ string, timeout time.Duration) (net.Conn, error) {
 					return net.DialTimeout(proxyAddr.Network(), proxyAddr.String(), timeout)
 				}))
+				// If we are proxying then we want to pass the unresolved hostport to avoid SSL errors
+				dialAddr = flagStruct.HostPort
 			}
 			logrus.WithField("proxying", proxyAddr != nil).
 				Debugf("Sending SSF metrics via gRPC")
-			conn, err := grpc.Dial(netAddr.String(), grpcDialOptions...)
+			conn, err := grpc.Dial(dialAddr, grpcDialOptions...)
 			if err != nil {
 				logrus.WithError(err).Error("Could not dial grpc ssf server")
 				return 1
@@ -360,7 +363,7 @@ func Main(args []string) int {
 			logrus.Error("No metrics to send. Must pass metric data via at least one of -count, -gauge, -timing, or -set.")
 			return 1
 		}
-		err = sendStatsd(netAddr, span, flagStruct.ToGrpc, proxyAddr)
+		err = sendStatsd(netAddr, flagStruct.HostPort, span, flagStruct.ToGrpc, proxyAddr)
 		if err != nil {
 			logrus.WithError(err).Error("Could not send metrics")
 			return 1
@@ -697,14 +700,18 @@ func (w *datadogTCPWriter) Close() error {
 }
 
 // newDatadogTCPWriter is adapted from https://github.com/DataDog/datadog-go/blob/master/statsd/udp.go
-func newDatadogGrpcWriter(addr net.Addr, proxyAddr net.Addr) (*datadogGrpcWriter, error) {
+func newDatadogGrpcWriter(netAddr net.Addr, addr string, proxyAddr net.Addr) (*datadogGrpcWriter, error) {
+	dialAddr := netAddr.String()
 	grpcDialOptions := []grpc.DialOption{grpc.WithBlock(), grpc.WithInsecure()}
 	if proxyAddr != nil {
 		grpcDialOptions = append(grpcDialOptions, grpc.WithDialer(func(_ string, timeout time.Duration) (net.Conn, error) {
 			return net.DialTimeout(proxyAddr.Network(), proxyAddr.String(), timeout)
 		}))
+
+		// If we are proxying then we want to pass the unresolved hostport to avoid SSL errors
+		dialAddr = addr
 	}
-	conn, err := grpc.Dial(addr.String(), grpcDialOptions...)
+	conn, err := grpc.Dial(dialAddr, grpcDialOptions...)
 	if err != nil {
 		logrus.WithError(err).Error("Could not dial grpc dogstatsd server")
 		return nil, err
@@ -741,21 +748,21 @@ func (w *datadogGrpcWriter) Close() error {
 
 // sendStatsd sends the metrics gathered in a span to a dogstatsd
 // endpoint.
-func sendStatsd(addr net.Addr, span *ssf.SSFSpan, useGrpc bool, proxyAddr net.Addr) error {
+func sendStatsd(netAddr net.Addr, addr string, span *ssf.SSFSpan, useGrpc bool, proxyAddr net.Addr) error {
 	var client *statsd.Client
 	var err error
 	if useGrpc {
-		writer, err := newDatadogGrpcWriter(addr, proxyAddr)
+		writer, err := newDatadogGrpcWriter(netAddr, addr, proxyAddr)
 		if err == nil {
 			client, err = statsd.NewWithWriter(writer)
 		}
 	} else {
-		network := addr.Network()
+		network := netAddr.Network()
 		switch network {
 		case "udp":
-			client, err = statsd.New(addr.String())
+			client, err = statsd.New(netAddr.String())
 		case "tcp":
-			writer, err := newDatadogTCPWriter(addr.String())
+			writer, err := newDatadogTCPWriter(netAddr.String())
 			if err == nil {
 				client, err = statsd.NewWithWriter(writer)
 			}
