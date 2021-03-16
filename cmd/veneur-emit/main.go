@@ -185,12 +185,12 @@ func Main(args []string) int {
 	addr, netAddr, err := destination(flagStruct.HostPort, flagStruct.ToGrpc)
 	proxy, proxyAddr, proxyErr := destination(flagStruct.Proxy, false)
 	if err != nil {
-		logrus.WithError(err).Error("Error resolving destination address.")
+		logrus.WithError(err).Error("Error encountered while resolving destination address.")
 		return 1
 	}
 
 	if flagStruct.Proxy != "" && proxyErr != nil {
-		logrus.WithError(err).Error("Error resolving proxy destination address.")
+		logrus.WithError(err).Error("Error encountered while resolving proxy destination address.")
 		return 1
 	}
 
@@ -231,7 +231,7 @@ func Main(args []string) int {
 		if err != nil {
 			logrus.WithField("mode", flagStruct.Mode).
 				WithError(err).
-				Error("build packet")
+				Error("Error encountered while building packet")
 			return 1
 		}
 		logrus.Debugf("Packet Buffer string: %s", pkt.String())
@@ -244,7 +244,7 @@ func Main(args []string) int {
 			if err != nil {
 				logrus.WithField("mode", flagStruct.Mode).
 					WithError(err).
-					Error("Initialize grpcWriter")
+					Error("Error encountered while initializing grpcWriter")
 				return 1
 			}
 			defer writer.Close()
@@ -252,7 +252,7 @@ func Main(args []string) int {
 			if err != nil {
 				logrus.WithField("mode", flagStruct.Mode).
 					WithError(err).
-					Error("Writing to grpcWriter")
+					Error("Error encountered while writing to grpcWriter")
 				return 1
 			}
 		} else {
@@ -265,7 +265,7 @@ func Main(args []string) int {
 			if err != nil {
 				logrus.WithField("mode", flagStruct.Mode).
 					WithError(err).
-					Error("Sending packet")
+					Error("Error encountered while sending packet")
 				return 1
 			}
 		}
@@ -309,7 +309,7 @@ func Main(args []string) int {
 
 	status, err := createMetric(span, passedFlags, flagStruct.Name, flagStruct.Tag, flagStruct.Command, flagStruct.ExtraArgs)
 	if err != nil {
-		logrus.WithError(err).Error("Error creating metrics.")
+		logrus.WithError(err).Error("Error encountered while creating metrics.")
 		return 1
 	}
 	if flagStruct.ToSSF {
@@ -327,14 +327,14 @@ func Main(args []string) int {
 				Debugf("Sending SSF metrics via gRPC")
 			conn, err := grpc.Dial(dialAddr, grpcDialOptions...)
 			if err != nil {
-				logrus.WithError(err).Error("Could not dial grpc ssf server")
+				logrus.WithError(err).Error("Error encountered while dialing grpc ssf server")
 				return 1
 			}
 			defer conn.Close()
 			client := ssf.NewSSFGRPCClient(conn)
 			_, err = client.SendSpan(context.Background(), span)
 			if err != nil {
-				logrus.WithError(err).Error("Could not send ssf span over grpc")
+				logrus.WithError(err).Error("Error encountered while sending ssf span over grpc")
 				return 1
 			}
 		} else { // SSF via UDP
@@ -342,13 +342,13 @@ func Main(args []string) int {
 			if err != nil {
 				logrus.WithError(err).
 					WithField("address", addr).
-					Error("Could not construct client")
+					Error("Error encountered while constructing client")
 				return 1
 			}
 			defer client.Close()
 			err = sendSSF(client, span)
 			if err != nil {
-				logrus.WithError(err).Error("Could not send SSF span")
+				logrus.WithError(err).Error("Error encountered while sending SSF span")
 				return 1
 			}
 		}
@@ -365,7 +365,7 @@ func Main(args []string) int {
 		}
 		err = sendStatsd(netAddr, flagStruct.HostPort, span, flagStruct.ToGrpc, proxyAddr)
 		if err != nil {
-			logrus.WithError(err).Error("Could not send metrics")
+			logrus.WithError(err).Error("Error encountered while sending metrics")
 			return 1
 		}
 	}
@@ -731,7 +731,7 @@ func (w *datadogGrpcWriter) Write(data []byte) (n int, err error) {
 	metricPacket.PacketBytes = data
 	_, err = w.client.SendPacket(context.Background(), metricPacket)
 	if err != nil {
-		logrus.WithError(err).Error("Could not send dogstatsd over grpc")
+		logrus.WithError(err).Error("Error encountered while sending dogstatsd over grpc")
 		return 0, err
 	}
 	return len(data), nil
@@ -800,6 +800,8 @@ func sendStatsd(netAddr net.Addr, addr string, span *ssf.SSFSpan, useGrpc bool, 
 			return err
 		}
 	}
+	//Using Close() instead of Flush() avoids dropping metrics and avoids a potential race condition as called out here:
+	//https://github.com/DataDog/datadog-go/pull/120
 	client.Close()
 	return nil
 }
