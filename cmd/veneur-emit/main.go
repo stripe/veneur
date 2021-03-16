@@ -197,7 +197,7 @@ func Main(args []string) int {
 	logrus.WithField("addr", addr).
 		WithField("net", netAddr.Network()).
 		WithField("destination", flagStruct.HostPort).
-		WithField("grcp", flagStruct.ToGrpc).
+		WithField("grpc", flagStruct.ToGrpc).
 		Debugf("destination")
 
 	if flagStruct.Proxy != "" {
@@ -294,9 +294,9 @@ func Main(args []string) int {
 		return 1
 	}
 	if span.TraceId != 0 {
-		if !flagStruct.ToSSF && !flagStruct.ToGrpc {
+		if !flagStruct.ToSSF {
 			logrus.WithField("ssf", flagStruct.ToSSF).
-				Error("Can't use tracing in non-ssf operation: Use -ssf or -grpc to emit trace spans.")
+				Error("Can't use tracing in non-ssf operation: Use -ssf to emit trace spans.")
 			return 1
 		}
 		logrus.WithField("trace_id", span.TraceId).

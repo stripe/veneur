@@ -59,7 +59,7 @@ Usage of veneur-emit:
   -parent_span_id int
         ID of the parent span.
   -proxy string
-        Address or URL to be used for proxing gRPC requests. The request will be sent to the proxy with the "hostport" attached so the proxy can forward the request. This can only be used with the "-grpc" flag.
+        Address or URL to be used for proxying gRPC requests. The request will be sent to the proxy with the "hostport" attached so the proxy can forward the request. This can only be used with the "-grpc" flag.
   -sc_hostname string
         Add hostname to the event.
   -sc_msg string
@@ -139,7 +139,7 @@ veneur-emit -hostport unix:///var/run/veneur/dogstats.sock -name ...
 
 #### gRPC protocol:
 
-We support the gRPC protocol through the `-grpc` flag. When this flag is provided, we treat the `-hostport` argument as a TCP address or URL for the underlying gRPC connection.
+We support the gRPC protocol through the `-grpc` flag. When this flag is provided, the `-hostport` argument is treated as the URI of a Veneur instance serving gRPC requests.
 
 **Example command:**
 
