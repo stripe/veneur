@@ -1,4 +1,4 @@
-# 14.1.0, 2020-03-15
+# 14.1.0, (WIP)
 
 ## Added
 * The ability to emit dogstatsd metrics from veneur-emit over plain TCP in addition to the current plain UDP. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
