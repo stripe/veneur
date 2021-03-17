@@ -162,6 +162,7 @@ type GlobalListeningPerProtocolMetrics struct {
 }
 
 type ProtocolType int
+
 const (
 	DOGSTATSD_TCP ProtocolType = iota
 	DOGSTATSD_UDP
@@ -864,14 +865,15 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	// If this is a global veneur then initialize the listening per protocol metrics
 	if !ret.IsLocal() {
 		ret.listeningPerProtocolMetrics = &GlobalListeningPerProtocolMetrics{
-			dogstatsdTcpReceivedTotal: 0,
-			dogstatsdUdpReceivedTotal: 0,
+			dogstatsdTcpReceivedTotal:  0,
+			dogstatsdUdpReceivedTotal:  0,
 			dogstatsdUnixReceivedTotal: 0,
 			dogstatsdGrpcReceivedTotal: 0,
-			ssfUdpReceivedTotal: 0,
-			ssfUnixReceivedTotal: 0,
-			ssfGrpcReceivedTotal: 0,
+			ssfUdpReceivedTotal:        0,
+			ssfUnixReceivedTotal:       0,
+			ssfGrpcReceivedTotal:       0,
 		}
+		log.Info("Tracking listening per protocol metrics on global instance")
 	}
 
 	logger.WithField("config", conf).Debug("Initialized server")
@@ -1070,7 +1072,6 @@ func (s *Server) FlushWatchdog() {
 	}
 }
 
-
 func incrementListeningProtocol(s *Server, protocol ProtocolType) {
 	metricsStruct := s.listeningPerProtocolMetrics
 	if metricsStruct != nil {
@@ -1096,7 +1097,6 @@ func incrementListeningProtocol(s *Server, protocol ProtocolType) {
 		}
 	}
 }
-
 
 // HandleMetricPacket processes each packet that is sent to the server, and sends to an
 // appropriate worker (EventWorker or Worker).

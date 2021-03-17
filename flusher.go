@@ -348,14 +348,14 @@ func (s *Server) reportGlobalReceivedProtocolMetrics() {
 	ssfUnixTotal := atomic.SwapInt64(&protocolMetrics.ssfUnixReceivedTotal, 0)
 	ssfGrpcTotal := atomic.SwapInt64(&protocolMetrics.ssfGrpcReceivedTotal, 0)
 
-	s.Statsd.Count("listening.received_per_protocol", dogstatsdTcpTotal, []string{"metric_type:global_counter", "protocol:"+DOGSTATSD_TCP.String()}, 1.0)
-	s.Statsd.Count("listening.received_per_protocol", dogstatsdUdpTotal, []string{"metric_type:global_counter", "protocol:"+DOGSTATSD_UDP.String()}, 1.0)
-	s.Statsd.Count("listening.received_per_protocol", dogstatsdUnixTotal, []string{"metric_type:global_counter", "protocol:"+DOGSTATSD_UNIX.String()}, 1.0)
-	s.Statsd.Count("listening.received_per_protocol", dogstatsdGrpcTotal, []string{"metric_type:global_counter", "protocol:"+DOGSTATSD_GRPC.String()}, 1.0)
+	s.Statsd.Count("listening.received_per_protocol", dogstatsdTcpTotal, []string{"metric_type:global_counter", "protocol:" + DOGSTATSD_TCP.String()}, 1.0)
+	s.Statsd.Count("listening.received_per_protocol", dogstatsdUdpTotal, []string{"metric_type:global_counter", "protocol:" + DOGSTATSD_UDP.String()}, 1.0)
+	s.Statsd.Count("listening.received_per_protocol", dogstatsdUnixTotal, []string{"metric_type:global_counter", "protocol:" + DOGSTATSD_UNIX.String()}, 1.0)
+	s.Statsd.Count("listening.received_per_protocol", dogstatsdGrpcTotal, []string{"metric_type:global_counter", "protocol:" + DOGSTATSD_GRPC.String()}, 1.0)
 
-	s.Statsd.Count("listening.received_per_protocol", ssfUdpTotal, []string{"metric_type:global_counter", "protocol:"+SSF_UDP.String()}, 1.0)
-	s.Statsd.Count("listening.received_per_protocol", ssfUnixTotal, []string{"metric_type:global_counter", "protocol:"+SSF_UNIX.String()}, 1.0)
-	s.Statsd.Count("listening.received_per_protocol", ssfGrpcTotal, []string{"metric_type:global_counter", "protocol:"+SSF_GRPC.String()}, 1.0)
+	s.Statsd.Count("listening.received_per_protocol", ssfUdpTotal, []string{"metric_type:global_counter", "protocol:" + SSF_UDP.String()}, 1.0)
+	s.Statsd.Count("listening.received_per_protocol", ssfUnixTotal, []string{"metric_type:global_counter", "protocol:" + SSF_UNIX.String()}, 1.0)
+	s.Statsd.Count("listening.received_per_protocol", ssfGrpcTotal, []string{"metric_type:global_counter", "protocol:" + SSF_GRPC.String()}, 1.0)
 }
 
 func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
