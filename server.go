@@ -1084,7 +1084,6 @@ func incrementListeningProtocol(s *Server, protocol ProtocolType) {
 			atomic.AddInt64(&metricsStruct.dogstatsdUnixReceivedTotal, 1)
 		case DOGSTATSD_GRPC:
 			atomic.AddInt64(&metricsStruct.dogstatsdGrpcReceivedTotal, 1)
-
 		case SSF_UDP:
 			atomic.AddInt64(&metricsStruct.ssfUdpReceivedTotal, 1)
 		case SSF_UNIX:
