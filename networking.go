@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -9,6 +10,8 @@ import (
 	"sync"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/v14/protocol/dogstatsd"
+	"github.com/stripe/veneur/v14/ssf"
 	flock "github.com/theckman/go-flock"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -303,6 +306,23 @@ func StartGRPC(s *Server, a net.Addr) net.Addr {
 	return a
 }
 
+type grpcStatsServer struct {
+	server *Server
+}
+
+//This is the function that fulfils the ssf server proto
+func (grpcsrv *grpcStatsServer) SendPacket(ctx context.Context, packet *dogstatsd.DogstatsdPacket) (*dogstatsd.Empty, error) {
+	//We use processMetricPacket instead of handleMetricPacket because process can split the byte array into multiple packets if needed
+	grpcsrv.server.processMetricPacket(len(packet.GetPacketBytes()), packet.GetPacketBytes(), nil)
+	return &dogstatsd.Empty{}, nil
+}
+
+// This is the function that fulfils the dogstatsd server proto
+func (grpcsrv *grpcStatsServer) SendSpan(ctx context.Context, span *ssf.SSFSpan) (*ssf.Empty, error) {
+	grpcsrv.server.handleSSF(span, "grpc")
+	return &ssf.Empty{}, nil
+}
+
 func startGRPCTCP(s *Server, addr *net.TCPAddr) (*grpc.Server, net.Addr) {
 	listener, err := net.Listen("tcp", addr.String())
 	if err != nil {
@@ -323,7 +343,13 @@ func startGRPCTCP(s *Server, addr *net.TCPAddr) (*grpc.Server, net.Addr) {
 	}
 	healthServer := health.NewServer()
 	healthServer.SetServingStatus("veneur", grpc_health_v1.HealthCheckResponse_SERVING)
+
+	statsServer := &grpcStatsServer{server: s}
+
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	ssf.RegisterSSFGRPCServer(grpcServer, statsServer)
+	dogstatsd.RegisterDogstatsdGRPCServer(grpcServer, statsServer)
+
 	log.WithFields(logrus.Fields{
 		"address": addr, "mode": mode,
 	}).Info("Listening for metrics on GRPC socket")
