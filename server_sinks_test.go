@@ -99,7 +99,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	packet, err := ioutil.ReadAll(protobuf)
 	assert.NoError(t, err)
 
-	server.HandleTracePacket(packet)
+	server.HandleTracePacket(packet, SSF_UNIX)
 	server.Flush(context.Background())
 
 	// wait for remoteServer to process the POST
@@ -132,7 +132,7 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 	packet, err := ioutil.ReadAll(protobuf)
 	assert.NoError(t, err)
 
-	server.HandleTracePacket(packet)
+	server.HandleTracePacket(packet, SSF_UNIX)
 
 	assert.NoError(t, err)
 	server.Flush(context.Background())
