@@ -1072,6 +1072,7 @@ func (s *Server) FlushWatchdog() {
 	}
 }
 
+// Increment internal metrics keeping track of protocols received when listening
 func incrementListeningProtocol(s *Server, protocol ProtocolType) {
 	metricsStruct := s.listeningPerProtocolMetrics
 	if metricsStruct != nil {
@@ -1113,7 +1114,6 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 	defer metrics.Report(s.TraceClient, samples)
 
 	if !s.IsLocal() {
-		//Increment internal metrics keeping track of protocols received when listening
 		incrementListeningProtocol(s, protocolType)
 	}
 
@@ -1230,7 +1230,6 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string, protocolType Pro
 	}
 
 	if !s.IsLocal() {
-		//Increment internal metrics keeping track of protocols received while listening
 		incrementListeningProtocol(s, protocolType)
 	}
 
