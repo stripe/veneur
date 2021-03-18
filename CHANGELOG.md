@@ -14,6 +14,10 @@
 * Upgrade to Goji 2.0.2 and use the modern Goji mux API. Thanks [hans-stripe](https://github.com/hans-stripe)!
 * Increase the timeout of TestCountActiveHandlers from 3 seconds to 10 seconds. Helps some tests pass in certain environments. Thanks [sushain97](https://github.com/sushain97)!
 
+## Bugfixes
+
+* Fixed forwarding metrics with gRPC using the kubernetes discoverer. Thanks, [androohan](https://github.com/androohan)!
+
 # 14.0.0, 2020-01-14
 
 ## Updated
