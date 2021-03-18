@@ -1,199 +1,26 @@
 version: 2.1
-executors:
-  "previous":
-    docker:
-      - image: golang:1.14
-  "stable":
-    docker:
-      - image: golang:1.15
 
-commands:
-  install:
-    description: "Install prerequisites"
-    parameters:
-      protoc_version:
-        type: string
-        default: "3.1.0"
-      protoc_gen_gogofaster_tag:
-        type: string
-        default: "v1.2.1"
-      stringer_rev:
-        type: string
-        default: "25101aadb97aa42907eee6a238d6d26a6cb3c756"
-      gojson_tag:
-        type: string
-        default: "v1.1.0"
-      cachebust:
-        type: string
-        default: "1"
-    steps:
-      - restore_cache: &prereq_cache_key
-          key: 'protoc-<<parameters.protoc_version>>_gogofaster-<<parameters.protoc_gen_gogofaster_tag>>_stringer-<<parameters.stringer_rev>>_gojson-<<parameters.gojson_tag>>_{{checksum "/usr/local/go/bin/go" }}_<<parameters.cachebust>>'
-      - run:
-          name: protoc
-          command: |
-            if ! [ -d /opt/protoc ]; then
-              apt-get -q update
-              apt-get install -yq unzip
-              mkdir /opt/protoc
-              wget -O/tmp/protoc.zip https://github.com/google/protobuf/releases/download/v<<parameters.protoc_version>>/protoc-<<parameters.protoc_version>>-linux-x86_64.zip
-              unzip /tmp/protoc.zip -d /opt/protoc
-            fi
-      - run:
-          name: protoc-gen-gogofaster
-          command: |
-            if ! [ -x $GOPATH/bin/protoc-gen-gogofaster ] ; then
-              go get -u -v github.com/gogo/protobuf/protoc-gen-gogofaster@<<parameters.protoc_gen_gogofaster_tag>>
-            fi
-      - run:
-          name: gojson
-          command: |
-            if ! [ -x $GOPATH/bin/gojson ] ; then
-              go get -u -v github.com/ChimeraCoder/gojson/gojson@<<parameters.gojson_tag>>
-            fi
-      - run:
-          name: stringer
-          command: |
-            if ! [ -x $GOPATH/bin/stringer ] ; then
-              go get -u -v golang.org/x/tools/cmd/stringer
-            fi
-      - save_cache:
-          <<: *prereq_cache_key
-          paths:
-            - /opt/protoc
-            - /go/bin/protoc-gen-gogofaster
-            - /go/pkg/mod/github.com/gogo/protobuf@<<parameters.protoc_gen_gogofaster_tag>>
-            - /go/bin/stringer
-  fetch_and_build_latest_go:
-    description: "Builds the latest version of go from source"
-    steps:
-      - run:
-          name: create datestamp
-          command: |
-            echo go-master-$(date +%Y-%m-%d) | tee /tmp/go-version
-      - run:
-          name: "Move away stable go"
-          command: |
-            if ! [ -d /usr/local/go-stable ] ; then
-              mv /usr/local/go /usr/local/go-stable
-            fi
-      - restore_cache:
-          key: |
-            {{ checksum "/tmp/go-version" }}
-      - run:
-          name: get latest master
-          command: |
-            if [ "$(cat /tmp/go-version)" = "$(cat /usr/local/go/VERSION)" ] ; then
-              exit 0
-            fi
-            wget -O/tmp/go-master.tgz https://github.com/golang/go/archive/master.tar.gz
-            tar -C /tmp -zxf /tmp/go-master.tgz
-            mv /tmp/go-master /usr/local/go
-            export GOSRC=/usr/local/go
-            export GOROOT=$GOSRC
-            export GOROOT_BOOTSTRAP=/usr/local/go-stable
-            export GOBUILD=$GOSRC/src
-            cp /tmp/go-version $GOROOT/VERSION
-            cd $GOBUILD
-            ./make.bash
-      - save_cache:
-          key: |
-            {{ checksum "/tmp/go-version" }}
-          paths:
-            - /usr/local/go
-  test:
-    description: "Run the tests"
-    steps:
-      - run:
-          name: go test
-          command: |
-            mkdir -p /tmp/test-results/go
-            trap "go get -u github.com/jstemmer/go-junit-report && go-junit-report </tmp/go-test-output.txt > /tmp/test-results/go/test-report.xml" EXIT
-            go test -race -v -timeout 60s ./... | tee /tmp/go-test-output.txt
-      - store_test_results:
-          path: /tmp/test-results/go
-
-jobs:
-  code_hygiene:
-    executor:
-      name: stable
-    working_directory: /go/src/github.com/stripe/veneur
-    environment:
-      GO111MODULE: "on"
-    steps:
-      - install
-      - checkout
-      - run:
-          name: go generate
-          command: |
-            export PATH=$PATH:/opt/protoc/bin
-            go generate -v
-      - run:
-          name: "check if files generated in the previous step (go generate) differ from their committed versions"
-          command: |
-            git add .
-            env PAGER=cat git diff --cached
-            git diff-index --cached --exit-code HEAD
-      - run:
-          name: "gofmt"
-          command: |
-            mv vendor /tmp/veneur-vendor
-            gofmt -w .
-            mv /tmp/veneur-vendor ./vendor
-      - run:
-          name: "check if the previous step (gofmt) formatted any files because the committed versions weren't formatted"
-          command: |
-            git add .
-            env PAGER=cat git diff --cached
-            git diff-index --cached --exit-code HEAD
-
-  test_stable:
-    executor:
-      name: stable
-    working_directory: /go/src/github.com/stripe/veneur
-    environment:
-      GO111MODULE: "on"
-    steps:
-      - checkout
-      - test
-
-  test_previous:
-    executor:
-      name: previous
-    working_directory: /go/src/github.com/stripe/veneur
-    environment:
-      GO111MODULE: "on"
-    steps:
-      - checkout
-      - test
-
-  test_tip:
-    docker:
-      - image: golang:latest
-    working_directory: /go/src/github.com/stripe/veneur
-    environment:
-      GO111MODULE: "on"
-    steps:
-      - fetch_and_build_latest_go
-      - checkout
-      - test
+orbs:
+  loom-docker: loomhq/docker@1.0.2
 
 workflows:
   version: 2
-  continuous_integration:
+  build:
     jobs:
-      - code_hygiene
-      - test_stable
-      - test_previous
-      - test_tip
-  scheduled_tests:
-    jobs:
-      - test_stable
-      - test_previous
-      - test_tip
-    triggers:
-      - schedule:
-          cron: 0 16 * * 1-5
+      # Build only
+      - loom-docker/build-image:
+          context: aws
+          image-name: veneur
+          dockerfile: public-docker-images/Dockerfile-debian-sid
           filters:
             branches:
-              only: ["master"]
+              ignore: master
+
+      # Publish
+      - loom-docker/build-and-push-image:
+          context: aws
+          image-name: veneur
+          dockerfile: public-docker-images/Dockerfile-debian-sid
+          filters:
+            branches:
+              only: master

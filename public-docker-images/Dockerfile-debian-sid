@@ -1,6 +1,4 @@
-FROM golang:1.13.5 AS base
-MAINTAINER The Stripe Observability Team <support@stripe.com>
-
+FROM golang:1.16 AS base
 
 FROM base AS deps
 RUN mkdir -p /build
