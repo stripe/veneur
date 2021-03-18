@@ -50,6 +50,12 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 		if len(pod.Spec.Containers) > 0 {
 			for _, container := range pod.Spec.Containers {
 				for _, port := range container.Ports {
+					if port.Name == "grpc" {
+						forwardPort = strconv.Itoa(int(port.ContainerPort))
+						log.WithField("port", forwardPort).Debug("Found grpc port")
+						break
+					}
+
 					if port.Name == "http" {
 						forwardPort = strconv.Itoa(int(port.ContainerPort))
 						log.WithField("port", forwardPort).Debug("Found http port")
@@ -83,8 +89,7 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 			continue
 		}
 
-		// prepend with // so that it is a valid URL parseable by url.Parse
-		podIp := fmt.Sprintf("http://%s:%s", pod.Status.PodIP, forwardPort)
+		podIp := fmt.Sprintf("%s:%s", pod.Status.PodIP, forwardPort)
 		ips = append(ips, podIp)
 	}
 	return ips, nil
