@@ -5,6 +5,7 @@
 * A config option and health checking for beginning support of emitting/receiving metrics via gRPC. Thanks, [eriwo-stripe](https://github.com/eriwo-stripe)!  
 * A gRPC server that listens for SSF spans and dogstatsd metrics on grpc_listening_addresses. Thanks [eriwo-stripe](https://github.com/eriwo-stripe) and [shrivu-stripe](https://github.com/shrivu-stripe)!
 * The ability to emit metrics from veneur-emit via the gRPC protocol as well as the option to specify a proxy for those metrics. Thanks [eriwo-stripe](https://github.com/eriwo-stripe) and [shrivu-stripe](https://github.com/shrivu-stripe)!
+* The "veneur.listen.received_per_protocol_total" metric to be published by global Veneur instances. This is a counter to track the metrics being directly listened for (rather than imported) by protocol. Thanks, [eriwo-stripe](https://github.com/eriwo-stripe)!
 
 # 14.0.0, 2020-01-14
 
