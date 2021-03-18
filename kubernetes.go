@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/sirupsen/logrus"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -49,6 +49,10 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 		// TODO don't assume there is only one container for the veneur global
 		if len(pod.Spec.Containers) > 0 {
 			for _, container := range pod.Spec.Containers {
+				if container.Name != "veneur-global" {
+					continue
+				}
+
 				for _, port := range container.Ports {
 					if port.Name == "http" {
 						forwardPort = strconv.Itoa(int(port.ContainerPort))
