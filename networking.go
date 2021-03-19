@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -9,7 +10,13 @@ import (
 	"sync"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/v14/protocol/dogstatsd"
+	"github.com/stripe/veneur/v14/ssf"
 	flock "github.com/theckman/go-flock"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 // StartStatsd spawns a goroutine that listens for metrics in statsd
@@ -282,6 +289,72 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) (<-chan struct{}, net.Addr) {
 	}()
 
 	return done, listener.Addr()
+}
+
+// StartGRPC starts listening for spans over HTTP
+func StartGRPC(s *Server, a net.Addr) net.Addr {
+	switch addr := a.(type) {
+	case *net.TCPAddr:
+		_, a = startGRPCTCP(s, addr)
+	default:
+		panic(fmt.Sprintf("Can't listen for GRPC on %s because it's not tcp://", a))
+	}
+	log.WithFields(logrus.Fields{
+		"address": a.String(),
+		"network": a.Network(),
+	}).Info("Listening for GRPC stats data")
+	return a
+}
+
+type grpcStatsServer struct {
+	server *Server
+}
+
+//This is the function that fulfils the ssf server proto
+func (grpcsrv *grpcStatsServer) SendPacket(ctx context.Context, packet *dogstatsd.DogstatsdPacket) (*dogstatsd.Empty, error) {
+	//We use processMetricPacket instead of handleMetricPacket because process can split the byte array into multiple packets if needed
+	grpcsrv.server.processMetricPacket(len(packet.GetPacketBytes()), packet.GetPacketBytes(), nil, DOGSTATSD_GRPC)
+	return &dogstatsd.Empty{}, nil
+}
+
+// This is the function that fulfils the dogstatsd server proto
+func (grpcsrv *grpcStatsServer) SendSpan(ctx context.Context, span *ssf.SSFSpan) (*ssf.Empty, error) {
+	grpcsrv.server.handleSSF(span, "packet", SSF_GRPC)
+	return &ssf.Empty{}, nil
+}
+
+func startGRPCTCP(s *Server, addr *net.TCPAddr) (*grpc.Server, net.Addr) {
+	listener, err := net.Listen("tcp", addr.String())
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	var grpcServer *grpc.Server
+	mode := "unencrypted"
+	if s.tlsConfig != nil {
+		tlsCreds := credentials.NewTLS(s.tlsConfig)
+		if s.tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert {
+			mode = "authenticated"
+		} else {
+			mode = "encrypted"
+		}
+		grpcServer = grpc.NewServer(grpc.Creds(tlsCreds))
+	} else {
+		grpcServer = grpc.NewServer()
+	}
+	healthServer := health.NewServer()
+	healthServer.SetServingStatus("veneur", grpc_health_v1.HealthCheckResponse_SERVING)
+
+	statsServer := &grpcStatsServer{server: s}
+
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	ssf.RegisterSSFGRPCServer(grpcServer, statsServer)
+	dogstatsd.RegisterDogstatsdGRPCServer(grpcServer, statsServer)
+
+	log.WithFields(logrus.Fields{
+		"address": addr, "mode": mode,
+	}).Info("Listening for metrics on GRPC socket")
+	go grpcServer.Serve(listener)
+	return grpcServer, listener.Addr()
 }
 
 // Acquires exclusive use lock for a given socket file and returns the lock

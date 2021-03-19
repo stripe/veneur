@@ -1540,7 +1540,7 @@ func BenchmarkHandleTracePacket(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		f.server.HandleTracePacket(input[i%LEN])
+		f.server.HandleTracePacket(input[i%LEN], SSF_UNIX)
 	}
 }
 
@@ -1562,6 +1562,6 @@ func BenchmarkHandleSSF(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		f.server.handleSSF(spans[i%LEN], "packet")
+		f.server.handleSSF(spans[i%LEN], "packet", SSF_UNIX)
 	}
 }
