@@ -1,11 +1,18 @@
-# 14.1.0, (WIP)
+# 14.1.0, 2021-03-16
 
 ## Added
+
 * The ability to emit dogstatsd metrics from veneur-emit over plain TCP in addition to the current plain UDP. Thanks, [shrivu-stripe](https://github.com/shrivu-stripe)!
 * A config option and health checking for beginning support of emitting/receiving metrics via gRPC. Thanks, [eriwo-stripe](https://github.com/eriwo-stripe)!  
 * A gRPC server that listens for SSF spans and dogstatsd metrics on grpc_listening_addresses. Thanks [eriwo-stripe](https://github.com/eriwo-stripe) and [shrivu-stripe](https://github.com/shrivu-stripe)!
 * The ability to emit metrics from veneur-emit via the gRPC protocol as well as the option to specify a proxy for those metrics. Thanks [eriwo-stripe](https://github.com/eriwo-stripe) and [shrivu-stripe](https://github.com/shrivu-stripe)!
 * The "veneur.listen.received_per_protocol_total" metric to be published by global Veneur instances. This is a counter to track the metrics being directly listened for (rather than imported) by protocol. Thanks, [eriwo-stripe](https://github.com/eriwo-stripe)!
+* Log the SignalFX endpoint base on creation of the sink. Useful for grepping across multiple host logs. Thanks [rma-stripe](https://github.com/rma-stripe)!
+
+## Updated
+
+* Upgrade to Goji 2.0.2 and use the modern Goji mux API. Thanks [hans-stripe](https://github.com/hans-stripe)!
+* Increase the timeout of TestCountActiveHandlers from 3 seconds to 10 seconds. Helps some tests pass in certain environments. Thanks [sushain97](https://github.com/sushain97)!
 
 # 14.0.0, 2020-01-14
 
