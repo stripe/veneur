@@ -44,6 +44,20 @@ func (s *Server) Flush(ctx context.Context) {
 
 	if s.CountUniqueTimeseries {
 		s.Statsd.Count("flush.unique_timeseries_total", s.tallyTimeseries(), []string{fmt.Sprintf("global_veneur:%t", !s.IsLocal())}, 1.0)
+		s.Statsd.Count("flush.unique_timeseries_daily_cumulative", int64(s.cumulativeTimeseries.Estimate()), []string{"veneurglobalonly:true"}, 1.0)
+
+		t := time.Now()
+
+		// Ensure that the cumulative daily count is reset around midnight.
+		// It will reset at most 6 times between 00:00:00 and 00:01:00, which is
+		// an acceptable level of precision for this estimate.
+		// (Skipping at most five flush cycles' worth of data in the cumulative count
+		// will be unnoticable)
+		// The alternative would require using synchronization such as a time.Ticker
+		// and a lock around the HLL, which is overkill and fiddly.
+		if t.Minute() == 0 && t.Hour() == 0 {
+			s.cumulativeTimeseries = hyperloglog.New()
+		}
 	}
 
 	samples := s.EventWorker.Flush()
@@ -140,6 +154,7 @@ func (s *Server) tallyTimeseries() int64 {
 		w.uniqueMTS = hyperloglog.New()
 		w.uniqueMTSMtx.Unlock()
 	}
+	s.cumulativeTimeseries.Merge(allTimeseries)
 	return int64(allTimeseries.Estimate())
 }
 
