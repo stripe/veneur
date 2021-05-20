@@ -106,6 +106,7 @@ type Server struct {
 
 	StatsdListenAddrs []net.Addr
 	SSFListenAddrs    []net.Addr
+	GRPCListenAddrs   []net.Addr
 	RcvbufBytes       int
 
 	interval            time.Duration
@@ -135,7 +136,8 @@ type Server struct {
 
 	TraceClient *trace.Client
 
-	ssfInternalMetrics sync.Map
+	ssfInternalMetrics          sync.Map
+	listeningPerProtocolMetrics *GlobalListeningPerProtocolMetrics
 
 	// gRPC server
 	grpcListenAddress string
@@ -146,6 +148,41 @@ type Server struct {
 
 	stuckIntervals int
 	lastFlushUnix  int64
+}
+
+type GlobalListeningPerProtocolMetrics struct {
+	dogstatsdTcpReceivedTotal  int64
+	dogstatsdUdpReceivedTotal  int64
+	dogstatsdUnixReceivedTotal int64
+	dogstatsdGrpcReceivedTotal int64
+
+	ssfUnixReceivedTotal int64
+	ssfUdpReceivedTotal  int64
+	ssfGrpcReceivedTotal int64
+}
+
+type ProtocolType int
+
+const (
+	DOGSTATSD_TCP ProtocolType = iota
+	DOGSTATSD_UDP
+	DOGSTATSD_UNIX
+	DOGSTATSD_GRPC
+	SSF_UNIX
+	SSF_UDP
+	SSF_GRPC
+)
+
+func (p ProtocolType) String() string {
+	return [...]string{
+		"dogstatsd-tcp",
+		"dogstatsd-udp",
+		"dogstatsd-unix",
+		"dogstatsd-grpc",
+		"ssf-unix",
+		"ssf-udp",
+		"ssf-grpc",
+	}[p]
 }
 
 // ssfServiceSpanMetrics refer to the span metrics that will
@@ -421,12 +458,21 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		}
 		ret.StatsdListenAddrs = append(ret.StatsdListenAddrs, addr)
 	}
+
 	for _, addrStr := range conf.SsfListenAddresses {
 		addr, err := protocol.ResolveAddr(addrStr)
 		if err != nil {
 			return ret, err
 		}
 		ret.SSFListenAddrs = append(ret.SSFListenAddrs, addr)
+	}
+
+	for _, addrStr := range conf.GrpcListenAddresses {
+		addr, err := protocol.ResolveAddr(addrStr)
+		if err != nil {
+			return ret, err
+		}
+		ret.GRPCListenAddrs = append(ret.GRPCListenAddrs, addr)
 	}
 
 	ret.metricMaxLength = conf.MetricMaxLength
@@ -490,6 +536,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			return ret, err
 		}
 
+		log.WithField("endpoint_base", conf.SignalfxEndpointBase).Info("Creating SignalFx sink")
 		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback, conf.SignalfxVaryKeyBy, byTagClients, conf.SignalfxMetricNamePrefixDrops, conf.SignalfxMetricTagPrefixDrops, metricSink, conf.SignalfxFlushMaxPerBody, conf.SignalfxAPIKey, conf.SignalfxDynamicPerTagAPIKeysEnable, dynamicKeyRefreshPeriod, conf.SignalfxEndpointBase, conf.SignalfxEndpointAPI, &tracedHTTP)
 		if err != nil {
 			return ret, err
@@ -530,8 +577,8 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		ret.metricSinks = append(ret.metricSinks, ddSink)
 	}
 
-	// Configure tracing sinks
-	if len(conf.SsfListenAddresses) > 0 {
+	// Configure tracing sinks if we are listening for ssf
+	if len(conf.SsfListenAddresses) > 0 || len(conf.GrpcListenAddresses) > 0 {
 
 		trace.Enable()
 
@@ -815,6 +862,20 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			importsrv.WithTraceClient(ret.TraceClient))
 	}
 
+	// If this is a global veneur then initialize the listening per protocol metrics
+	if !ret.IsLocal() {
+		ret.listeningPerProtocolMetrics = &GlobalListeningPerProtocolMetrics{
+			dogstatsdTcpReceivedTotal:  0,
+			dogstatsdUdpReceivedTotal:  0,
+			dogstatsdUnixReceivedTotal: 0,
+			dogstatsdGrpcReceivedTotal: 0,
+			ssfUdpReceivedTotal:        0,
+			ssfUnixReceivedTotal:       0,
+			ssfGrpcReceivedTotal:       0,
+		}
+		log.Info("Tracking listening per protocol metrics on global instance")
+	}
+
 	logger.WithField("config", conf).Debug("Initialized server")
 
 	return ret, err
@@ -891,6 +952,29 @@ func (s *Server) Start() {
 		s.SSFListenAddrs = concreteAddrs
 	} else {
 		logrus.Info("Tracing sockets are not configured - not reading trace socket")
+	}
+
+	// Read grpc traces forever!
+	if len(s.GRPCListenAddrs) > 0 {
+		concreteAddrs := make([]net.Addr, 0, len(s.GRPCListenAddrs))
+		for _, addr := range s.GRPCListenAddrs {
+			concreteAddrs = append(concreteAddrs, StartGRPC(s, addr))
+		}
+		//If there are already ssf listen addresses then append the grpc ones otherwise just use the grpc ones
+		if len(s.SSFListenAddrs) > 0 {
+			s.SSFListenAddrs = append(s.SSFListenAddrs, concreteAddrs...)
+		} else {
+			s.SSFListenAddrs = concreteAddrs
+		}
+
+		//If there are already statsd listen addresses then append the grpc ones otherwise just use the grpc ones
+		if len(s.StatsdListenAddrs) > 0 {
+			s.StatsdListenAddrs = append(s.StatsdListenAddrs, concreteAddrs...)
+		} else {
+			s.StatsdListenAddrs = concreteAddrs
+		}
+	} else {
+		logrus.Info("GRPC tracing sockets are not configured - not reading trace socket")
 	}
 
 	// Initialize a gRPC connection for forwarding
@@ -988,9 +1072,35 @@ func (s *Server) FlushWatchdog() {
 	}
 }
 
+// Increment internal metrics keeping track of protocols received when listening
+func incrementListeningProtocol(s *Server, protocol ProtocolType) {
+	metricsStruct := s.listeningPerProtocolMetrics
+	if metricsStruct != nil {
+		switch protocol {
+		case DOGSTATSD_TCP:
+			atomic.AddInt64(&metricsStruct.dogstatsdTcpReceivedTotal, 1)
+		case DOGSTATSD_UDP:
+			atomic.AddInt64(&metricsStruct.dogstatsdUdpReceivedTotal, 1)
+		case DOGSTATSD_UNIX:
+			atomic.AddInt64(&metricsStruct.dogstatsdUnixReceivedTotal, 1)
+		case DOGSTATSD_GRPC:
+			atomic.AddInt64(&metricsStruct.dogstatsdGrpcReceivedTotal, 1)
+		case SSF_UDP:
+			atomic.AddInt64(&metricsStruct.ssfUdpReceivedTotal, 1)
+		case SSF_UNIX:
+			atomic.AddInt64(&metricsStruct.ssfUnixReceivedTotal, 1)
+		case SSF_GRPC:
+			atomic.AddInt64(&metricsStruct.ssfGrpcReceivedTotal, 1)
+		default: //If it is an unrecognized protocol then don't increment anything
+			logrus.WithField("protocol", protocol).
+				Warning("Attempted to increment metrics for unrecognized protocol")
+		}
+	}
+}
+
 // HandleMetricPacket processes each packet that is sent to the server, and sends to an
 // appropriate worker (EventWorker or Worker).
-func (s *Server) HandleMetricPacket(packet []byte) error {
+func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) error {
 	// This is a very performance-sensitive function
 	// and packets may be dropped if it gets slowed down.
 	// Keep that in mind when modifying!
@@ -1002,6 +1112,10 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 	}
 	samples := &ssf.Samples{}
 	defer metrics.Report(s.TraceClient, samples)
+
+	if !s.IsLocal() {
+		incrementListeningProtocol(s, protocolType)
+	}
 
 	if bytes.HasPrefix(packet, []byte{'_', 'e', '{'}) {
 		event, err := samplers.ParseEvent(packet)
@@ -1042,7 +1156,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 
 // HandleTracePacket accepts an incoming packet as bytes and sends it to the
 // appropriate worker.
-func (s *Server) HandleTracePacket(packet []byte) {
+func (s *Server) HandleTracePacket(packet []byte, protocolType ProtocolType) {
 	samples := &ssf.Samples{}
 	defer metrics.Report(s.TraceClient, samples)
 
@@ -1070,10 +1184,10 @@ func (s *Server) HandleTracePacket(packet []byte) {
 		log.Warn("HandleTracePacket: Span ID is zero")
 	}
 
-	s.handleSSF(span, "packet")
+	s.handleSSF(span, "packet", protocolType)
 }
 
-func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string) {
+func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string, protocolType ProtocolType) {
 	// 1/internalMetricSampleRate packets will be chosen
 	const internalMetricSampleRate = 1000
 
@@ -1115,6 +1229,10 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string) {
 		atomic.AddInt64(&metricsStruct.ssfRootSpansReceivedTotal, 1)
 	}
 
+	if !s.IsLocal() {
+		incrementListeningProtocol(s, protocolType)
+	}
+
 	s.SpanChan <- span
 }
 
@@ -1127,12 +1245,12 @@ func (s *Server) ReadMetricSocket(serverConn net.PacketConn, packetPool *sync.Po
 			log.WithError(err).Error("Error reading from UDP metrics socket")
 			continue
 		}
-		s.processMetricPacket(n, buf, packetPool)
+		s.processMetricPacket(n, buf, packetPool, DOGSTATSD_UDP)
 	}
 }
 
 // Splits the read metric packet into multiple metrics and handles them
-func (s *Server) processMetricPacket(numBytes int, buf []byte, packetPool *sync.Pool) {
+func (s *Server) processMetricPacket(numBytes int, buf []byte, packetPool *sync.Pool, protocolType ProtocolType) {
 	if numBytes > s.metricMaxLength {
 		metrics.ReportOne(s.TraceClient, ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "unknown", "reason": "toolong"}))
 		return
@@ -1145,14 +1263,17 @@ func (s *Server) processMetricPacket(numBytes int, buf []byte, packetPool *sync.
 	// trailing newlines
 	splitPacket := samplers.NewSplitBytes(buf[:numBytes], '\n')
 	for splitPacket.Next() {
-		s.HandleMetricPacket(splitPacket.Chunk())
+		s.HandleMetricPacket(splitPacket.Chunk(), protocolType)
 	}
 
-	// the Metric struct created by HandleMetricPacket has no byte slices in it,
-	// only strings
-	// therefore there are no outstanding references to this byte slice, we
-	// can return it to the pool
-	packetPool.Put(buf)
+	//Only return to the pool if there is a pool
+	if packetPool != nil {
+		// the Metric struct created by HandleMetricPacket has no byte slices in it,
+		// only strings
+		// therefore there are no outstanding references to this byte slice, we
+		// can return it to the pool
+		packetPool.Put(buf)
+	}
 }
 
 // ReadStatsdDatagramSocket reads statsd metrics packets from connection off a unix datagram socket.
@@ -1171,7 +1292,7 @@ func (s *Server) ReadStatsdDatagramSocket(serverConn *net.UnixConn, packetPool *
 			}
 		}
 
-		s.processMetricPacket(n, buf, packetPool)
+		s.processMetricPacket(n, buf, packetPool, DOGSTATSD_UNIX)
 	}
 }
 
@@ -1203,7 +1324,7 @@ func (s *Server) ReadSSFPacketSocket(serverConn net.PacketConn, packetPool *sync
 			}
 		}
 
-		s.HandleTracePacket(buf[:n])
+		s.HandleTracePacket(buf[:n], SSF_UDP)
 		packetPool.Put(buf)
 	}
 }
@@ -1246,7 +1367,7 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 			tags = tags[:1]
 			continue
 		}
-		s.handleSSF(msg, "framed")
+		s.handleSSF(msg, "framed", SSF_UNIX)
 	}
 }
 
@@ -1315,7 +1436,7 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 	}
 	for scanWithDeadline() {
 		// treat each line as a separate packet
-		err := s.HandleMetricPacket(buf.Bytes())
+		err := s.HandleMetricPacket(buf.Bytes(), DOGSTATSD_TCP)
 		if err != nil {
 			// don't consume bad data from a client indefinitely
 			// HandleMetricPacket logs the err and packet, and increments error counters

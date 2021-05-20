@@ -13,8 +13,9 @@ to standardize on a few common interfaces may find this package useful.
 package pattern
 
 import (
+	"context"
+
 	"goji.io/internal"
-	"golang.org/x/net/context"
 )
 
 /*

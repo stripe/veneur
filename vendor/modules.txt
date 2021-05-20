@@ -299,7 +299,7 @@ github.com/tomnomnom/linkheader
 github.com/zenazn/goji/bind
 github.com/zenazn/goji/graceful
 github.com/zenazn/goji/graceful/listener
-# goji.io v1.1.0
+# goji.io v2.0.2+incompatible
 ## explicit
 goji.io
 goji.io/internal
