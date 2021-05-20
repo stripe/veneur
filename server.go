@@ -58,6 +58,8 @@ import (
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+
+	"github.com/axiomhq/hyperloglog"
 )
 
 // VERSION stores the current veneur version.
@@ -148,6 +150,8 @@ type Server struct {
 
 	stuckIntervals int
 	lastFlushUnix  int64
+
+	cumulativeTimeseries *hyperloglog.Sketch
 }
 
 type GlobalListeningPerProtocolMetrics struct {
@@ -313,6 +317,8 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		ret.HistogramAggregates.Value += samplers.AggregatesLookup[agg]
 	}
 	ret.HistogramAggregates.Count = len(conf.Aggregates)
+
+	ret.cumulativeTimeseries = hyperloglog.New()
 
 	var err error
 	ret.interval, err = conf.ParseInterval()
