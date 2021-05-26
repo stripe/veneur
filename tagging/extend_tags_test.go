@@ -6,6 +6,71 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestShouldDropTag(t *testing.T) {
+	tests := []struct {
+		name     string
+		prefixes []string
+		tag      string
+		expected bool
+	}{
+		{
+			name:     "No prefixes",
+			prefixes: []string{},
+			tag:      "foo:bar",
+			expected: false,
+		},
+		{
+			name:     "Valueless tag, exact match",
+			prefixes: []string{"foo"},
+			tag:      "foo",
+			expected: true,
+		},
+		{
+			name:     "Tag too short for prefix",
+			prefixes: []string{"foo"},
+			tag:      "fo",
+			expected: false,
+		},
+		{
+			name:     "Valueless tag, prefix match",
+			prefixes: []string{"foo"},
+			tag:      "foobar",
+			expected: false,
+		},
+		{
+			name:     "Tag with value, key match",
+			prefixes: []string{"foo"},
+			tag:      "foo:bar",
+			expected: true,
+		},
+		{
+			name:     "Tag with value, key prefix match",
+			prefixes: []string{"foo"},
+			tag:      "foobar:baz",
+			expected: false,
+		},
+		{
+			name:     "Tag with value, off by -1",
+			prefixes: []string{"foo"},
+			tag:      "fo:baz",
+			expected: false,
+		},
+		{
+			name:     "Tag with value, off by +1",
+			prefixes: []string{"foo"},
+			tag:      "foob:baz",
+			expected: false,
+		},
+	}
+	for _, elt := range tests {
+		test := elt
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			extendTags := ExtendTags{dropPrefixes: test.prefixes}
+			assert.Equal(t, test.expected, extendTags.shouldDropTag(test.tag))
+		})
+	}
+}
 func TestExtend(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -66,57 +131,13 @@ func TestExtend(t *testing.T) {
 		test := elt
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			extraTags := NewExtendTags(test.implicitTags)
+			extendTags := NewExtendTags(test.implicitTags)
 
-			actualTags := extraTags.Extend(test.explicitTags)
+			actualTags := extendTags.Extend(test.explicitTags, false)
 			assert.Equal(t, test.expectedTags, actualTags)
 
-			mappedTags := extraTags.ExtendMap(ParseTagSliceToMap(test.explicitTags))
+			mappedTags := extendTags.ExtendMap(ParseTagSliceToMap(test.explicitTags), false)
 			assert.Equal(t, ParseTagSliceToMap(test.expectedTags), mappedTags)
 		})
 	}
 }
-
-// var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-// func randSeq(n int) string {
-// 	b := make([]rune, n)
-// 	for i := range b {
-// 		b[i] = letters[rand.Intn(len(letters))]
-// 	}
-// 	return string(b)
-// }
-
-// func randTags(n int, tagLen int, prefix string) []string {
-// 	tags := make([]string, 0, n)
-// 	for i := 0; i < n; i++ {
-// 		tags = append(tags, fmt.Sprintf("%s%s", prefix, randSeq(tagLen-len(prefix))))
-// 	}
-// 	return tags
-// }
-
-// func BenchmarkExtend(b *testing.B) {
-// 	tagSize := 15
-// 	for prefixLen := 0; prefixLen <= 7; prefixLen += 7 {
-// 		prefixStr := randSeq(prefixLen)
-// 		for sharedQty := 0; sharedQty <= 100; sharedQty += 25 {
-// 			shared := randTags(sharedQty, tagSize, prefixStr)
-// 			for implicitQty := sharedQty; implicitQty <= 100; implicitQty += 25 {
-// 				implicit := append(shared, randTags(implicitQty, tagSize, prefixStr)...)
-// 				for explicitQty := sharedQty; explicitQty <= 100; explicitQty += 25 {
-// 					explicit := append(shared, randTags(explicitQty, tagSize, prefixStr)...)
-
-// 					extraTags := NewExtraTags(implicit)
-// 					b.Run(fmt.Sprintf("Map: pl=%d sq=%d iq=%d eq=%d", prefixLen, sharedQty, implicitQty, explicitQty), func(b *testing.B) {
-// 						res := extraTags.ExtendMap(explicit)
-// 						assert.NotEqual(b, []string{"a"}, res)
-// 					})
-// 					b.Run(fmt.Sprintf("Prefix: pl=%d sq=%d iq=%d eq=%d", prefixLen, sharedQty, implicitQty, explicitQty), func(b *testing.B) {
-// 						res := extraTags.ExtendPrefix(explicit)
-// 						assert.NotEqual(b, []string{"a"}, res)
-// 					})
-// 				}
-// 			}
-// 		}
-// 	}
-// }

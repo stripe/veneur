@@ -39,7 +39,7 @@ type UDPMetric struct {
 // `extendTags` as an argument to ensure it doesn't get forgotten, since we
 // have so many different functions constructing UDPMetrics in different ways
 func (u *UDPMetric) UpdateTags(tags []string, extendTags tagging.ExtendTags) {
-	u.Tags = extendTags.Extend(tags)
+	u.Tags = extendTags.Extend(tags, true)
 	h := fnv1a.Init32
 	h = fnv1a.AddString32(h, u.Name)
 	h = fnv1a.AddString32(h, u.Type)
@@ -582,7 +582,7 @@ func (p Parser) ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 			return nil, errors.New("Invalid event packet, unrecognized metadata section")
 		}
 	}
-	ret.Tags = p.extendTags.ExtendMap(ret.Tags)
+	ret.Tags = p.extendTags.ExtendMap(ret.Tags, true)
 
 	return ret, nil
 }

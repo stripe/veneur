@@ -1057,30 +1057,55 @@ var benchResult uint32
 func BenchmarkParseMetric(b *testing.B) {
 	var total uint32
 
-	tests := []struct {
-		testName    string
+	metricName := "a.b.c"
+	metricValues := []struct {
+		name        string
 		metricValue string
+		metricType  string
 	}{
-		{"IntCountZeroTags", "a.b.c:1|c"},
-		{"IntCountOneTag", "a.b.c:1|c|#baz:gorch"},
-		{"IntCountTwoTags", "a.b.c:1|c|#foo:bar,baz:gorch"},
-
-		{"FloatHistogramZeroTags", "a.b.c:4.5|h"},
-		{"FloatHistogramOneTag", "a.b.c:4.5|c|#baz:gorch"},
-		{"FloatHistogramTwoTags", "a.b.c:4.5|c|#foo:bar,baz:gorch"},
+		{"IntCount", "1", "c"},
+		{"FloatHistogram", "4.5", "h"},
 	}
-	for _, test := range tests {
-		metricBytes := []byte(test.metricValue)
+	explicitTags := []struct {
+		name       string
+		metricTags string
+	}{
+		{"ZeroTags", ""},
+		{"OneTag", "baz:gorch"},
+		{"TwoTags", "foo:bar,baz:gorch"},
+	}
+	implicitTags := []struct {
+		name       string
+		metricTags []string
+	}{
+		{"NoImplicit", []string{}},
+		{"OneImplicit", []string{"six:6"}},
+		{"TwoImplicit", []string{"three:three", "six:6"}},
+	}
 
-		b.Run(test.testName, func(b *testing.B) {
-			for n := 0; n < b.N; n++ {
-				m, err := samplers.Parser{}.ParseMetric(metricBytes)
-				if err != nil {
-					b.Fatal(err)
+	for _, mv := range metricValues {
+		for _, it := range implicitTags {
+			for _, et := range explicitTags {
+				var statsd string
+				if et.metricTags == "" {
+					statsd = fmt.Sprintf("%s:%s|%s", metricName, mv.metricValue, mv.metricType)
+				} else {
+					statsd = fmt.Sprintf("%s:%s|%s#%s", metricName, mv.metricValue, mv.metricType, et.metricTags)
 				}
-				total += m.Digest
+				benchName := fmt.Sprintf("%s%s%s", mv.name, it.name, et.name)
+				metricBytes := []byte(statsd)
+				parser := samplers.NewParser(it.metricTags)
+				b.Run(benchName, func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						m, err := parser.ParseMetric(metricBytes)
+						if err != nil {
+							b.Fatal(err)
+						}
+						total += m.Digest
+					}
+				})
 			}
-		})
+		}
 	}
 	// Attempt to avoid compiler optimizations? Is this relevant?
 	benchResult = total
