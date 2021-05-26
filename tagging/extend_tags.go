@@ -57,6 +57,10 @@ func (et *ExtendTags) Extend(tags []string) []string {
 			if _, ok := et.dropPrefixesMap[pre]; !ok {
 				ret = append(ret, tag)
 			}
+		} else {
+			// maintain explicit empty tags. not sure why, but we have
+			// a test that this works this way
+			ret = append(ret, "")
 		}
 	}
 	ret = append(ret, et.extraTags...)
