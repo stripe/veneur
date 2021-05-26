@@ -107,12 +107,20 @@ hostname: ""
 # If true and hostname is "" or absent, don't add the host tag
 omit_empty_hostname: false
 
-# Tags supplied here will be added to all metrics and spans ingested by this
-# instance. Example:
+# Tags supplied here will be added to all metrics and spans when flushing
+# to vendor sinks. They will not be forwarded to global Veneur instances.
 # tags:
 #  - "foo:bar"
 #  - "baz:quz"
 tags:
+  - ""
+
+# Tags suppliedhere will be added to all metrics and spans at parse/ingestion
+# time. They *will* be forwarded to global Veneur instances.
+# extend_tags:
+#  - "foo:bar"
+#  - "baz:quz"
+extend_tags:
   - ""
 
 # Tags listed here will be excluded from sinks. A pipe ("|") delimiter
@@ -300,7 +308,7 @@ datadog_metric_name_prefix_drops:
 # Any metrics that have tags *prefixes* will be dropped before sending to Datadog.
 datadog_exclude_tags_prefix_by_prefix_metric:
   - metric_prefix: "metric_prefix"
-    tags: 
+    tags:
       - an_ignorable_tag_prefix"
 
 # The size of the ring buffer used for retaining spans during a flush interval.

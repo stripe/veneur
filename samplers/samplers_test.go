@@ -724,7 +724,7 @@ func TestParseMetricSSF(t *testing.T) {
 		expected := elt.expected
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Parallel()
-			udpMetric, err := ParseMetricSSF(&sample)
+			udpMetric, err := Parser{}.ParseMetricSSF(&sample)
 			assert.NoError(t, err)
 			assert.Equal(t, udpMetric.MetricKey, expected.MetricKey)
 			assert.Equal(t, udpMetric.Type, expected.Type)
@@ -764,8 +764,9 @@ func BenchmarkParseMetricSSF(b *testing.B) {
 		}
 		samples[i] = &sample
 	}
+	p := Parser{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ParseMetricSSF(samples[i%LEN])
+		p.ParseMetricSSF(samples[i%LEN])
 	}
 }
