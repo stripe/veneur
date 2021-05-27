@@ -18,7 +18,7 @@ func TestMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(0, true, false, nil, logger, nil)
 	workers := []ssfmetrics.Processor{worker}
-	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "", nil, logger, samplers.Parser{})
+	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "", nil, logger, &samplers.Parser{})
 	require.NoError(t, err)
 
 	start := time.Now()
@@ -59,7 +59,7 @@ func setupBench() (*ssf.SSFSpan, sinks.SpanSink) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(0, true, false, nil, logger, nil)
 	workers := []ssfmetrics.Processor{worker}
-	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "", nil, logger, samplers.Parser{})
+	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "", nil, logger, &samplers.Parser{})
 	if err != nil {
 		panic(err)
 	}
@@ -112,7 +112,7 @@ func TestIndicatorMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(0, true, false, nil, logger, nil)
 	workers := []ssfmetrics.Processor{worker}
-	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "bar", nil, logger, samplers.Parser{})
+	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "bar", nil, logger, &samplers.Parser{})
 	require.NoError(t, err)
 
 	start := time.Now()

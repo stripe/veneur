@@ -97,7 +97,7 @@ func TestParseSSFValidTraceInvalidMetric(t *testing.T) {
 		assert.NotNil(t, span)
 		assert.NotNil(t, span.Tags)
 
-		metrics, err := samplers.Parser{}.ConvertMetrics(span)
+		metrics, err := (&samplers.Parser{}).ConvertMetrics(span)
 		assert.NoError(t, err)
 		assert.Empty(t, metrics)
 	}
@@ -119,7 +119,7 @@ func TestParseSSFInvalidTraceValidMetric(t *testing.T) {
 	span, err := protocol.ParseSSF(buff)
 	assert.NoError(t, err)
 	if assert.NotNil(t, span) {
-		metrics, err := samplers.Parser{}.ConvertMetrics(span)
+		metrics, err := (&samplers.Parser{}).ConvertMetrics(span)
 		assert.NoError(t, err)
 		if assert.Equal(t, 1, len(metrics)) {
 			m := metrics[0]
@@ -473,7 +473,7 @@ func TestParseSSFIndicatorSpanNotNamed(t *testing.T) {
 	require.NotNil(t, inSpan)
 	require.NoError(t, protocol.ValidateTrace(inSpan))
 
-	metrics, err := samplers.Parser{}.ConvertIndicatorMetrics(inSpan, "", "")
+	metrics, err := (&samplers.Parser{}).ConvertIndicatorMetrics(inSpan, "", "")
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(metrics))
 }
@@ -504,7 +504,7 @@ func TestParseSSFNonIndicatorSpan(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, protocol.ValidateTrace(inSpan))
 
-	metrics, err := samplers.Parser{}.ConvertIndicatorMetrics(inSpan, "timer_name", "objective_name")
+	metrics, err := (&samplers.Parser{}).ConvertIndicatorMetrics(inSpan, "timer_name", "objective_name")
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(metrics))
 }
@@ -524,7 +524,7 @@ func TestParseSSFBadMetric(t *testing.T) {
 	span, err := protocol.ParseSSF(buff)
 	assert.NoError(t, err)
 	if assert.NotNil(t, span) {
-		metrics, err := samplers.Parser{}.ConvertMetrics(span)
+		metrics, err := (&samplers.Parser{}).ConvertMetrics(span)
 		assert.Error(t, err)
 		assert.Equal(t, 0, len(metrics))
 		invalid, ok := err.(samplers.InvalidMetrics)
@@ -536,7 +536,7 @@ func TestParseSSFBadMetric(t *testing.T) {
 
 func TestParserSSF(t *testing.T) {
 	standardMetric := freshSSFMetric()
-	m, _ := samplers.Parser{}.ParseMetricSSF(standardMetric)
+	m, _ := (&samplers.Parser{}).ParseMetricSSF(standardMetric)
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, standardMetric.Name, m.Name, "Name")
 	assert.Equal(t, float64(standardMetric.Value), m.Value, "Value")
@@ -546,7 +546,7 @@ func TestParserSSF(t *testing.T) {
 func TestParserSSFGauge(t *testing.T) {
 	standardMetric := freshSSFMetric()
 	standardMetric.Metric = ssf.SSFSample_GAUGE
-	m, _ := samplers.Parser{}.ParseMetricSSF(standardMetric)
+	m, _ := (&samplers.Parser{}).ParseMetricSSF(standardMetric)
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, standardMetric.Name, m.Name, "Name")
 	assert.Equal(t, float64(standardMetric.Value), m.Value, "Value")
@@ -556,7 +556,7 @@ func TestParserSSFGauge(t *testing.T) {
 func TestParserSSFSet(t *testing.T) {
 	standardMetric := freshSSFMetric()
 	standardMetric.Metric = ssf.SSFSample_SET
-	m, _ := samplers.Parser{}.ParseMetricSSF(standardMetric)
+	m, _ := (&samplers.Parser{}).ParseMetricSSF(standardMetric)
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, standardMetric.Name, m.Name, "Name")
 	assert.Equal(t, standardMetric.Message, m.Value, "Value")
@@ -583,7 +583,7 @@ func TestParserSSFWithTags(t *testing.T) {
 func TestParserSSFWithSampleRate(t *testing.T) {
 	standardMetric := freshSSFMetric()
 	standardMetric.SampleRate = 0.1
-	m, _ := samplers.Parser{}.ParseMetricSSF(standardMetric)
+	m, _ := (&samplers.Parser{}).ParseMetricSSF(standardMetric)
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, standardMetric.Name, m.Name, "Name")
 	assert.Equal(t, float64(standardMetric.Value), m.Value, "Value")
@@ -789,11 +789,11 @@ func TestParserWithSampleRate(t *testing.T) {
 	m, _ = yesTags.ParseMetric([]byte("a.b.c:1|c|@0.1"))
 	assert.Equal(t, 1, len(m.Tags), "# of tags")
 
-	_, valueError := samplers.Parser{}.ParseMetric([]byte("a.b.c:fart|c"))
+	_, valueError := (&samplers.Parser{}).ParseMetric([]byte("a.b.c:fart|c"))
 	assert.NotNil(t, valueError, "No errors when parsing")
 	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 
-	_, valueError = samplers.Parser{}.ParseMetric([]byte("a.b.c:1|g|@0.1"))
+	_, valueError = (&samplers.Parser{}).ParseMetric([]byte("a.b.c:1|g|@0.1"))
 	assert.NoError(t, valueError, "Got errors when parsing")
 }
 
@@ -811,7 +811,7 @@ func TestParserWithSampleRateAndTags(t *testing.T) {
 	m, _ = yesTags.ParseMetric([]byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"))
 	assert.Len(t, m.Tags, 3, "Tags")
 
-	_, valueError := samplers.Parser{}.ParseMetric([]byte("a.b.c:fart|c"))
+	_, valueError := (&samplers.Parser{}).ParseMetric([]byte("a.b.c:fart|c"))
 	assert.NotNil(t, valueError, "No errors when parsing")
 	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 }
@@ -836,14 +836,14 @@ func TestInvalidPackets(t *testing.T) {
 	}
 
 	for packet, errContent := range table {
-		_, err := samplers.Parser{}.ParseMetric([]byte(packet))
+		_, err := (&samplers.Parser{}).ParseMetric([]byte(packet))
 		assert.NotNil(t, err, "Should have gotten error parsing %q", packet)
 		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
 	}
 }
 
 func TestLocalOnlyEscape(t *testing.T) {
-	m, err := samplers.Parser{}.ParseMetric([]byte("a.b.c:1|h|#veneurlocalonly,tag2:quacks"))
+	m, err := (&samplers.Parser{}).ParseMetric([]byte("a.b.c:1|h|#veneurlocalonly,tag2:quacks"))
 	assert.NoError(t, err, "should have no error parsing")
 	assert.Equal(t, samplers.LocalOnly, m.Scope, "should have gotten local only metric")
 	assert.NotContains(t, m.Tags, "veneurlocalonly", "veneurlocalonly should not actually be a tag")
@@ -851,7 +851,7 @@ func TestLocalOnlyEscape(t *testing.T) {
 }
 
 func TestGlobalOnlyEscape(t *testing.T) {
-	m, err := samplers.Parser{}.ParseMetric([]byte("a.b.c:1|h|#veneurglobalonly,tag2:quacks"))
+	m, err := (&samplers.Parser{}).ParseMetric([]byte("a.b.c:1|h|#veneurglobalonly,tag2:quacks"))
 	assert.NoError(t, err, "should have no error parsing")
 	assert.Equal(t, samplers.GlobalOnly, m.Scope, "should have gotten local only metric")
 	assert.NotContains(t, m.Tags, "veneurglobalonly", "veneurlocalonly should not actually be a tag")
@@ -906,7 +906,7 @@ func TestEvents(t *testing.T) {
 		"_e{3,3}":                       "colon",
 	}
 	for packet, errContent := range table {
-		_, err := samplers.Parser{}.ParseEvent([]byte(packet))
+		_, err := (&samplers.Parser{}).ParseEvent([]byte(packet))
 		assert.NotNil(t, err, "Should have gotten error parsing %q", packet)
 		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
 	}
@@ -975,7 +975,7 @@ func TestServiceChecks(t *testing.T) {
 		"_sc|foo.bar|0|d:abc": "date",
 	}
 	for packet, errContent := range table {
-		_, err := samplers.Parser{}.ParseServiceCheck([]byte(packet))
+		_, err := (&samplers.Parser{}).ParseServiceCheck([]byte(packet))
 		assert.NotNil(t, err, "Should have gotten error parsing %q", packet)
 		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
 	}
@@ -983,21 +983,21 @@ func TestServiceChecks(t *testing.T) {
 
 func TestEventMessageUnescape(t *testing.T) {
 	packet := []byte("_e{3,15}:foo|foo\\nbar\\nbaz\\n")
-	evt, err := samplers.Parser{}.ParseEvent(packet)
+	evt, err := (&samplers.Parser{}).ParseEvent(packet)
 	assert.NoError(t, err, "Should have parsed correctly")
 	assert.Equal(t, "foo\nbar\nbaz\n", evt.Message, "Should contain newline")
 }
 
 func TestServiceCheckMessageUnescape(t *testing.T) {
 	packet := []byte("_sc|foo|0|m:foo\\nbar\\nbaz\\n")
-	svcheck, err := samplers.Parser{}.ParseServiceCheck(packet)
+	svcheck, err := (&samplers.Parser{}).ParseServiceCheck(packet)
 	assert.NoError(t, err, "Should have parsed correctly")
 	assert.Equal(t, "foo\nbar\nbaz\n", svcheck.Message, "Should contain newline")
 }
 
 func TestServiceCheckMessageStatus(t *testing.T) {
 	packet := []byte("_sc|foo|1|m:foo")
-	svcheck, err := samplers.Parser{}.ParseServiceCheck(packet)
+	svcheck, err := (&samplers.Parser{}).ParseServiceCheck(packet)
 	assert.NoError(t, err, "Should have parsed correctly")
 	assert.Equal(t, "foo", svcheck.Message, "Should contain newline")
 	assert.Equal(t, ssf.SSFSample_WARNING, svcheck.Value, "Should parse status correctly")
@@ -1080,7 +1080,7 @@ func BenchmarkParseMetric(b *testing.B) {
 	}{
 		{"NoImplicit", []string{}},
 		{"OneImplicit", []string{"six:6"}},
-		{"TwoImplicit", []string{"three:three", "six:6"}},
+		{"TwoImplicit", []string{"three:three", "six:6", "nine:9", "ten:10", "eleven:11", "twelve:12"}},
 	}
 
 	for _, mv := range metricValues {
@@ -1109,4 +1109,64 @@ func BenchmarkParseMetric(b *testing.B) {
 	}
 	// Attempt to avoid compiler optimizations? Is this relevant?
 	benchResult = total
+}
+
+var benchResultInt int
+
+func BenchmarkConvertIndicatorMetrics(b *testing.B) {
+	explicitTags := []struct {
+		name       string
+		metricTags string
+	}{
+		{"ZeroTags", ""},
+		{"OneTag", "baz:gorch"},
+		{"TwoTags", "foo:bar,baz:gorch"},
+	}
+	implicitTags := []struct {
+		name       string
+		metricTags []string
+	}{
+		{"NoImplicit", []string{}},
+		{"OneImplicit", []string{"six:6"}},
+		{"SixImplicit", []string{"three:three", "six:6", "nine:9", "ten:10", "eleven:11", "twelve:12"}},
+	}
+
+	total := 0
+
+	for _, it := range implicitTags {
+		for _, et := range explicitTags {
+			duration := 5 * time.Second
+			start := time.Now()
+			end := start.Add(duration)
+			span := &ssf.SSFSpan{}
+			span.Id = 1
+			span.TraceId = 5
+			span.Name = "foo"
+			span.StartTimestamp = start.UnixNano()
+			span.EndTimestamp = end.UnixNano()
+			span.Indicator = true
+			span.Service = "bar-srv"
+			span.Metrics = make([]*ssf.SSFSample, 0)
+			buff, err := proto.Marshal(span)
+			assert.Nil(b, err)
+			inSpan, err := protocol.ParseSSF(buff)
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			benchName := fmt.Sprintf("%s%s", it.name, et.name)
+			parser := samplers.NewParser(it.metricTags)
+			b.Run(benchName, func(b *testing.B) {
+				for n := 0; n < b.N; n++ {
+					ums, err := parser.ConvertIndicatorMetrics(inSpan, "", "timer_name")
+					if err != nil {
+						b.Fatal(err)
+					}
+					total += len(ums)
+				}
+			})
+		}
+	}
+	// Attempt to avoid compiler optimizations? Is this relevant?
+	benchResultInt = total
 }

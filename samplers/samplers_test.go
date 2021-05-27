@@ -724,7 +724,7 @@ func TestParseMetricSSF(t *testing.T) {
 		expected := elt.expected
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Parallel()
-			udpMetric, err := Parser{}.ParseMetricSSF(&sample)
+			udpMetric, err := (&Parser{}).ParseMetricSSF(&sample)
 			assert.NoError(t, err)
 			assert.Equal(t, udpMetric.MetricKey, expected.MetricKey)
 			assert.Equal(t, udpMetric.Type, expected.Type)

@@ -33,13 +33,24 @@ type UDPMetric struct {
 	HostName   string
 }
 
+var emptyExtendTags = tagging.NewExtendTags([]string{})
+
 // UpdateTags ensures that JoinedTags and Digest are correct, and that any
 // extra tags that should be added to everything have been added. It's not
 // really the concern of this function which tags are present, but I've added
 // `extendTags` as an argument to ensure it doesn't get forgotten, since we
 // have so many different functions constructing UDPMetrics in different ways
-func (u *UDPMetric) UpdateTags(tags []string, extendTags tagging.ExtendTags) {
-	u.Tags = extendTags.Extend(tags, true)
+func (u *UDPMetric) UpdateTags(tags []string, extendTags *tagging.ExtendTags) {
+	if extendTags == nil {
+		// we don't expect to hit this case, but storing extendTags as a pointer to
+		// avoid copying in hot path. this will avoid a nil pointer dereference, and
+		// it's sane that if we don't specify any extend tags configuration that we
+		// don't add any new tags. the `Extend` method handles sorting and optional
+		// defensive copying though, so we want to use the same behavior
+		u.Tags = emptyExtendTags.Extend(tags, true)
+	} else {
+		u.Tags = extendTags.Extend(tags, true)
+	}
 	h := fnv1a.Init32
 	h = fnv1a.AddString32(h, u.Name)
 	h = fnv1a.AddString32(h, u.Type)
@@ -111,12 +122,14 @@ func (m MetricKey) String() string {
 }
 
 type Parser struct {
-	extendTags tagging.ExtendTags
+	extendTags *tagging.ExtendTags
 }
 
-func NewParser(extendTags []string) Parser {
+func NewParser(tags []string) Parser {
+	extendTags := tagging.NewExtendTags(tags)
+
 	return Parser{
-		extendTags: tagging.NewExtendTags(extendTags),
+		extendTags: &extendTags,
 	}
 }
 
@@ -125,7 +138,7 @@ func NewParser(extendTags []string) Parser {
 // error occurs in processing any of the metrics, ExtractMetrics
 // collects them into the error type InvalidMetrics and returns this
 // error alongside any valid metrics that could be parsed.
-func (p Parser) ConvertMetrics(m *ssf.SSFSpan) ([]UDPMetric, error) {
+func (p *Parser) ConvertMetrics(m *ssf.SSFSpan) ([]UDPMetric, error) {
 	samples := m.Metrics
 	metrics := make([]UDPMetric, 0, len(samples)+1)
 	invalid := []*ssf.SSFSample{}
@@ -151,7 +164,7 @@ func (p Parser) ConvertMetrics(m *ssf.SSFSpan) ([]UDPMetric, error) {
 // span's service and error-ness. The other timer (the "objective") is
 // tagged with the span's service, error-ness, and name. The name can
 // be overridden with the ssf_objective tag.
-func (p Parser) ConvertIndicatorMetrics(span *ssf.SSFSpan, indicatorTimerName, objectiveTimerName string) (metrics []UDPMetric, err error) {
+func (p *Parser) ConvertIndicatorMetrics(span *ssf.SSFSpan, indicatorTimerName, objectiveTimerName string) (metrics []UDPMetric, err error) {
 	if !span.Indicator || !protocol.ValidTrace(span) {
 		// No-op if this isn't an indicator span
 		return
@@ -209,7 +222,7 @@ func (p Parser) ConvertIndicatorMetrics(span *ssf.SSFSpan, indicatorTimerName, o
 // uniqueness metrics about it, returning UDPMetrics sampled at
 // rate. Currently, the only metric returned is a Set counting the
 // unique names per indicator span/service.
-func (p Parser) ConvertSpanUniquenessMetrics(span *ssf.SSFSpan, rate float32) ([]UDPMetric, error) {
+func (p *Parser) ConvertSpanUniquenessMetrics(span *ssf.SSFSpan, rate float32) ([]UDPMetric, error) {
 	if span.Service == "" {
 		return []UDPMetric{}, nil
 	}
@@ -261,7 +274,7 @@ func (err *invalidMetrics) Samples() []*ssf.SSFSample {
 }
 
 // ParseMetricSSF converts an incoming SSF packet to a Metric.
-func (p Parser) ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
+func (p *Parser) ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 	ret := UDPMetric{
 		SampleRate: 1.0,
 	}
@@ -320,7 +333,7 @@ func (p Parser) ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 
 // ParseMetric converts the incoming packet from Datadog DogStatsD
 // Datagram format in to a Metric. http://docs.datadoghq.com/guides/dogstatsd/#datagram-format
-func (p Parser) ParseMetric(packet []byte) (*UDPMetric, error) {
+func (p *Parser) ParseMetric(packet []byte) (*UDPMetric, error) {
 	ret := &UDPMetric{
 		SampleRate: 1.0,
 	}
@@ -442,7 +455,7 @@ func (p Parser) ParseMetric(packet []byte) (*UDPMetric, error) {
 // tags are set as defined in protocol/dogstatsd/protocol.go. Any sink that wants
 // to consume these events will then need to implement FlushOtherSamples and
 // unwind these special tags into whatever is appropriate for that sink.
-func (p Parser) ParseEvent(packet []byte) (*ssf.SSFSample, error) {
+func (p *Parser) ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 
 	ret := &ssf.SSFSample{
 		Timestamp: time.Now().Unix(),
@@ -582,7 +595,10 @@ func (p Parser) ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 			return nil, errors.New("Invalid event packet, unrecognized metadata section")
 		}
 	}
-	ret.Tags = p.extendTags.ExtendMap(ret.Tags, true)
+
+	if p.extendTags != nil {
+		ret.Tags = p.extendTags.ExtendMap(ret.Tags, true)
+	}
 
 	return ret, nil
 }
@@ -591,7 +607,7 @@ func (p Parser) ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 // returns a UDPMetric or an error on failure. The UDPMetric struct has explicit
 // fields for each value of a service status check and does not require
 // overloading magical tags for conversion.
-func (p Parser) ParseServiceCheck(packet []byte) (*UDPMetric, error) {
+func (p *Parser) ParseServiceCheck(packet []byte) (*UDPMetric, error) {
 	ret := &UDPMetric{
 		SampleRate: 1.0,
 		Timestamp:  time.Now().Unix(),
