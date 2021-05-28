@@ -9,9 +9,9 @@ import (
 // "extend tags" operation on a slice of strings representing
 // some tags
 type ExtendTags struct {
-	extraTags    []string
-	extraTagsMap map[string]string
-	dropPrefixes []string
+	extraTags        []string
+	extraTagsMap     map[string]string
+	extraTagPrefixes []string
 }
 
 // NewExtendTags creates a new ExtraTags struct, including
@@ -20,19 +20,39 @@ type ExtendTags struct {
 func NewExtendTags(tags []string) ExtendTags {
 	extraTags := make([]string, 0, len(tags))
 	extraTagsMap := ParseTagSliceToMap(tags)
-	dropPrefixes := make([]string, 0, len(tags))
+	extraTagPrefixes := make([]string, 0, len(tags))
+	// in most contexts, we'll receive a slice of tags, formatted
+	// like "tag" or "tag:value". to avoid extra processing in the
+	// hot path, we precalculate the tag key / prefix, which is used
+	// to merge the explicit tags and the implicit tags.
+	//
+	// in `shouldDropTag` below, we use the prefixes to drop conflicting
+	// tag keys from the _explicit_ tags; this behavior is similar to
+	// building a map[string]string where implicit tags override the
+	// explicit ones.
+	//
+	// implicitly configured tags overriding the explicitly specified
+	// ones is pre-existing behavior, so we're selecting this ordering
+	// because it matches what Veneur already does.
+	//
+	// we exclude empty tags as a non-fatal config error: there's no
+	// point in replacing an empty string with an empty string, so we
+	// can just keep the explicitly specified one if there was a conflict.
+	//
+	// there's no apparent purpose to allowing a use-case of "define an
+	// empty tag that is added to all metrics", so it's simply not supported
 	for _, tag := range tags {
 		if tag != "" {
 			extraTags = append(extraTags, tag)
 			pre := strings.SplitN(tag, ":", 2)[0]
-			dropPrefixes = append(dropPrefixes, pre)
+			extraTagPrefixes = append(extraTagPrefixes, pre)
 		}
 	}
 	sort.Strings(extraTags)
 	return ExtendTags{
-		extraTags:    extraTags,
-		extraTagsMap: extraTagsMap,
-		dropPrefixes: dropPrefixes,
+		extraTags:        extraTags,
+		extraTagsMap:     extraTagsMap,
+		extraTagPrefixes: extraTagPrefixes,
 	}
 }
 
@@ -42,7 +62,7 @@ func NewExtendTags(tags []string) ExtendTags {
 // prefixes. A map lookup requires a string slice by ":" to get the
 // key that should be looked up, though.
 func (et *ExtendTags) shouldDropTag(tag string) bool {
-	for _, pre := range et.dropPrefixes {
+	for _, pre := range et.extraTagPrefixes {
 		// prefix length greater than the entire tag? can't match
 		if len(pre) > len(tag) {
 			continue
@@ -73,7 +93,9 @@ func (et *ExtendTags) Extend(tags []string, mutate bool) []string {
 		return []string{}
 	}
 
-	// one of the two sides is empty: just sort
+	// if `tags` is empty but `extraTags` is not, all we need to do
+	// is return a copy of `extraTags`. The tags are pre-sorted at
+	// initialization.
 	if len(tags) == 0 {
 		// make a copy so nothing mutates our expected state
 		ret := make([]string, len(et.extraTags))
@@ -91,6 +113,12 @@ func (et *ExtendTags) Extend(tags []string, mutate bool) []string {
 		copy(callerTags, tags)
 	}
 
+	// if `extraTags` is empty, all we need to do is return `tags`,
+	// but sorted. Because we _must_ sort in the final case, _all_
+	// sorting was moved out of the parsing code into this function.
+	// as a result, this function must always be called to have
+	// correct tags, and shouldn't be "optimized out" of calling
+	// code paths
 	if len(et.extraTags) == 0 {
 		sort.Strings(callerTags)
 		return callerTags

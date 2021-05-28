@@ -66,7 +66,7 @@ func TestShouldDropTag(t *testing.T) {
 		test := elt
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			extendTags := ExtendTags{dropPrefixes: test.prefixes}
+			extendTags := ExtendTags{extraTagPrefixes: test.prefixes}
 			assert.Equal(t, test.expected, extendTags.shouldDropTag(test.tag))
 		})
 	}
