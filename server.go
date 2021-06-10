@@ -56,6 +56,7 @@ import (
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
 	"github.com/stripe/veneur/v14/sinks/xray"
 	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/tagging"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
 )
@@ -148,6 +149,8 @@ type Server struct {
 
 	stuckIntervals int
 	lastFlushUnix  int64
+
+	parser samplers.Parser
 }
 
 type GlobalListeningPerProtocolMetrics struct {
@@ -302,11 +305,14 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	ret.Hostname = conf.Hostname
 	ret.Tags = conf.Tags
 
-	mappedTags := samplers.ParseTagSliceToMap(ret.Tags)
+	mappedTags := tagging.ParseTagSliceToMap(ret.Tags)
 
 	ret.synchronizeInterval = conf.SynchronizeWithInterval
 
 	ret.TagsAsMap = mappedTags
+
+	ret.parser = samplers.NewParser(conf.ExtendTags)
+
 	ret.HistogramPercentiles = conf.Percentiles
 	ret.HistogramAggregates.Value = 0
 	for _, agg := range conf.Aggregates {
@@ -445,7 +451,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	for i, w := range ret.Workers {
 		processors[i] = w
 	}
-	metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log)
+	metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log, &ret.parser)
 	if err != nil {
 		return ret, err
 	}
@@ -1118,7 +1124,7 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 	}
 
 	if bytes.HasPrefix(packet, []byte{'_', 'e', '{'}) {
-		event, err := samplers.ParseEvent(packet)
+		event, err := s.parser.ParseEvent(packet)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
@@ -1129,7 +1135,7 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 		}
 		s.EventWorker.sampleChan <- *event
 	} else if bytes.HasPrefix(packet, []byte{'_', 's', 'c'}) {
-		svcheck, err := samplers.ParseServiceCheck(packet)
+		svcheck, err := s.parser.ParseServiceCheck(packet)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
@@ -1140,7 +1146,7 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 		}
 		s.Workers[svcheck.Digest%uint32(len(s.Workers))].PacketChan <- *svcheck
 	} else {
-		metric, err := samplers.ParseMetric(packet)
+		metric, err := s.parser.ParseMetric(packet)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,

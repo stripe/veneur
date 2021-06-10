@@ -22,6 +22,7 @@ type Config struct {
 	DebugFlushedMetrics                       bool      `yaml:"debug_flushed_metrics"`
 	DebugIngestedSpans                        bool      `yaml:"debug_ingested_spans"`
 	EnableProfiling                           bool      `yaml:"enable_profiling"`
+	ExtendTags                                []string  `yaml:"extend_tags"`
 	FalconerAddress                           string    `yaml:"falconer_address"`
 	FlushFile                                 string    `yaml:"flush_file"`
 	FlushMaxPerBody                           int       `yaml:"flush_max_per_body"`
