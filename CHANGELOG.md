@@ -1,3 +1,8 @@
+# 14.2.0, UNRELEASED
+
+## Bugfixes
+* A fix for forwarding metrics with gRPC using the kubernetes discoverer. Thanks, [androohan](https://github.com/androohan)!
+
 # 14.1.0, 2021-03-16
 
 ## Added
