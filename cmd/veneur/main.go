@@ -7,6 +7,7 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 )
@@ -46,7 +47,16 @@ func main() {
 	}
 
 	logger := logrus.StandardLogger()
-	server, err := veneur.NewFromConfig(logger, conf)
+	server, err := veneur.NewFromConfig(veneur.ServerConfig{
+		Config:          conf,
+		Logger:          logger,
+		MetricSinkTypes: map[string]func(string, interface{}) sinks.MetricSink{
+			// TODO(arnavdugar): Migrate metric sink types.
+		},
+		SpanSinkTypes: map[string]func(string, interface{}) sinks.SpanSink{
+			// TODO(arnavdugar): Migrate span sink types.
+		},
+	})
 	veneur.SetLogger(logger)
 	if err != nil {
 		e := err

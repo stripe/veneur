@@ -295,7 +295,10 @@ func TestNoTracingConfiguredTraceHealthCheck(t *testing.T) {
 	config := localConfig()
 
 	config.SsfListenAddresses = []string{}
-	server, _ := NewFromConfig(logrus.New(), config)
+	server, _ := NewFromConfig(ServerConfig{
+		Logger: logrus.New(),
+		Config: config,
+	})
 	server.Start()
 	defer server.Shutdown()
 

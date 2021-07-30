@@ -89,7 +89,10 @@ func TestLocalFilePluginRegister(t *testing.T) {
 	config := globalConfig()
 	config.FlushFile = "/dev/null"
 
-	server, err := NewFromConfig(logrus.New(), config)
+	server, err := NewFromConfig(ServerConfig{
+		Logger: logrus.New(),
+		Config: config,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

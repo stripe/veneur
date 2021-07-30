@@ -147,6 +147,20 @@ jobs:
             env PAGER=cat git diff --cached
             git diff-index --cached --exit-code HEAD
 
+  test_config:
+    executor:
+      name: stable
+    working_directory: /go/src/github.com/stripe/veneur
+    environment:
+      GO111MODULE: "on"
+    steps:
+      - checkout
+      - run:
+          name: check example.yaml
+          command: |
+            go build -o dist/main cmd/veneur/main.go
+            ./dist/main -f example.yaml -validate-config -validate-config-strict
+
   test_stable:
     executor:
       name: stable
@@ -183,6 +197,7 @@ workflows:
   continuous_integration:
     jobs:
       - code_hygiene
+      - test_config
       - test_stable
       - test_previous
       - test_tip
