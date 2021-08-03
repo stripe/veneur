@@ -2,6 +2,7 @@
 
 ## Bugfixes
 * A fix for forwarding metrics with gRPC using the kubernetes discoverer. Thanks, [androohan](https://github.com/androohan)!
+* Regenerate testing certs/CA that have expired and have broken tests. Thanks, [randallm](https://github.com/randallm)
 
 # 14.1.0, 2021-03-16
 
