@@ -86,8 +86,8 @@ const httpQuitEndpoint = "/quitquitquit"
 type ServerConfig struct {
 	Config          Config
 	Logger          *logrus.Logger
-	MetricSinkTypes map[string]func(*Server, string, interface{}) sinks.MetricSink
-	SpanSinkTypes   map[string]func(*Server, string, interface{}) sinks.SpanSink
+	MetricSinkTypes map[string]func(*Server, string, Config, interface{}) (sinks.MetricSink, error)
+	SpanSinkTypes   map[string]func(*Server, string, Config, interface{}) (sinks.SpanSink, error)
 }
 
 // A Server is the actual veneur instance that will be run.
@@ -304,36 +304,48 @@ func scopesFromConfig(conf Config) (scopedstatsd.MetricScopes, error) {
 	return ms, nil
 }
 
+type SpanSinkTypes = map[string]func(
+	*Server, string, Config, interface{},
+) (sinks.SpanSink, error)
+
 func (server *Server) createSpanSinks(
-	logger *logrus.Logger, conf Config,
-	sinkTypes map[string]func(*Server, string, interface{}) sinks.SpanSink,
-) []sinks.SpanSink {
+	logger *logrus.Logger, config Config, sinkTypes SpanSinkTypes,
+) ([]sinks.SpanSink, error) {
 	sinks := []sinks.SpanSink{}
-	for _, sinkConfig := range conf.SpanSinks {
+	for _, sinkConfig := range config.SpanSinks {
 		sinkFactory, ok := sinkTypes[sinkConfig.Kind]
 		if !ok {
 			logger.Warnf("Unknown sink kind %s; skipping.", sinkConfig.Kind)
 		}
-		sinks = append(sinks, sinkFactory(
-			server, sinkConfig.Name, sinkConfig.Config))
+		sink, err := sinkFactory(server, sinkConfig.Name, config, sinkConfig.Config)
+		if err != nil {
+			return nil, err
+		}
+		sinks = append(sinks, sink)
 	}
-	return sinks
+	return sinks, nil
 }
 
+type MetricSinkTypes = map[string]func(
+	*Server, string, Config, interface{},
+) (sinks.MetricSink, error)
+
 func (server *Server) createMetricSinks(
-	logger *logrus.Logger, conf Config,
-	sinkTypes map[string]func(*Server, string, interface{}) sinks.MetricSink,
-) []sinks.MetricSink {
+	logger *logrus.Logger, config Config, sinkTypes MetricSinkTypes,
+) ([]sinks.MetricSink, error) {
 	sinks := []sinks.MetricSink{}
-	for _, sinkConfig := range conf.MetricSinks {
+	for _, sinkConfig := range config.MetricSinks {
 		sinkFactory, ok := sinkTypes[sinkConfig.Kind]
 		if !ok {
 			logger.Warnf("Unknown sink kind %s; skipping.", sinkConfig.Kind)
 		}
-		sinks = append(sinks, sinkFactory(
-			server, sinkConfig.Name, sinkConfig.Config))
+		sink, err := sinkFactory(server, sinkConfig.Name, config, sinkConfig.Config)
+		if err != nil {
+			return nil, err
+		}
+		sinks = append(sinks, sink)
 	}
-	return sinks
+	return sinks, nil
 }
 
 // NewFromConfig creates a new veneur server from a configuration
@@ -827,19 +839,37 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	}
 	switch conf.Features.MigrateMetricSinks {
 	case "append":
-		customMetricSinks := ret.createMetricSinks(logger, conf, config.MetricSinkTypes)
+		customMetricSinks, err :=
+			ret.createMetricSinks(logger, conf, config.MetricSinkTypes)
+		if err != nil {
+			return nil, err
+		}
 		ret.metricSinks = append(ret.metricSinks, customMetricSinks...)
 	case "exclusive":
-		ret.metricSinks = ret.createMetricSinks(logger, conf, config.MetricSinkTypes)
+		customMetricSinks, err :=
+			ret.createMetricSinks(logger, conf, config.MetricSinkTypes)
+		if err != nil {
+			return nil, err
+		}
+		ret.metricSinks = customMetricSinks
 	default:
 		break
 	}
 	switch conf.Features.MigrateSpanSinks {
 	case "append":
-		customSpanSinks := ret.createSpanSinks(logger, conf, config.SpanSinkTypes)
+		customSpanSinks, err :=
+			ret.createSpanSinks(logger, conf, config.SpanSinkTypes)
+		if err != nil {
+			return nil, err
+		}
 		ret.spanSinks = append(ret.spanSinks, customSpanSinks...)
 	case "exclusive":
-		ret.spanSinks = ret.createSpanSinks(logger, conf, config.SpanSinkTypes)
+		customSpanSinks, err :=
+			ret.createSpanSinks(logger, conf, config.SpanSinkTypes)
+		if err != nil {
+			return nil, err
+		}
+		ret.spanSinks = customSpanSinks
 	default:
 		break
 	}
