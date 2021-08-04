@@ -86,8 +86,8 @@ const httpQuitEndpoint = "/quitquitquit"
 type ServerConfig struct {
 	Config          Config
 	Logger          *logrus.Logger
-	MetricSinkTypes map[string]func(string, interface{}) sinks.MetricSink
-	SpanSinkTypes   map[string]func(string, interface{}) sinks.SpanSink
+	MetricSinkTypes map[string]func(*Server, string, interface{}) sinks.MetricSink
+	SpanSinkTypes   map[string]func(*Server, string, interface{}) sinks.SpanSink
 }
 
 // A Server is the actual veneur instance that will be run.
@@ -304,9 +304,9 @@ func scopesFromConfig(conf Config) (scopedstatsd.MetricScopes, error) {
 	return ms, nil
 }
 
-func createSpanSinks(
+func (server *Server) createSpanSinks(
 	logger *logrus.Logger, conf Config,
-	sinkTypes map[string]func(string, interface{}) sinks.SpanSink,
+	sinkTypes map[string]func(*Server, string, interface{}) sinks.SpanSink,
 ) []sinks.SpanSink {
 	sinks := []sinks.SpanSink{}
 	for _, sinkConfig := range conf.SpanSinks {
@@ -314,14 +314,15 @@ func createSpanSinks(
 		if !ok {
 			logger.Warnf("Unknown sink kind %s; skipping.", sinkConfig.Kind)
 		}
-		sinks = append(sinks, sinkFactory(sinkConfig.Name, sinkConfig.Config))
+		sinks = append(sinks, sinkFactory(
+			server, sinkConfig.Name, sinkConfig.Config))
 	}
 	return sinks
 }
 
-func createMetricSinks(
+func (server *Server) createMetricSinks(
 	logger *logrus.Logger, conf Config,
-	sinkTypes map[string]func(string, interface{}) sinks.MetricSink,
+	sinkTypes map[string]func(*Server, string, interface{}) sinks.MetricSink,
 ) []sinks.MetricSink {
 	sinks := []sinks.MetricSink{}
 	for _, sinkConfig := range conf.MetricSinks {
@@ -329,7 +330,8 @@ func createMetricSinks(
 		if !ok {
 			logger.Warnf("Unknown sink kind %s; skipping.", sinkConfig.Kind)
 		}
-		sinks = append(sinks, sinkFactory(sinkConfig.Name, sinkConfig.Config))
+		sinks = append(sinks, sinkFactory(
+			server, sinkConfig.Name, sinkConfig.Config))
 	}
 	return sinks
 }
@@ -825,19 +827,19 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	}
 	switch conf.Features.MigrateMetricSinks {
 	case "append":
-		customMetricSinks := createMetricSinks(logger, conf, config.MetricSinkTypes)
+		customMetricSinks := ret.createMetricSinks(logger, conf, config.MetricSinkTypes)
 		ret.metricSinks = append(ret.metricSinks, customMetricSinks...)
 	case "exclusive":
-		ret.metricSinks = createMetricSinks(logger, conf, config.MetricSinkTypes)
+		ret.metricSinks = ret.createMetricSinks(logger, conf, config.MetricSinkTypes)
 	default:
 		break
 	}
 	switch conf.Features.MigrateSpanSinks {
 	case "append":
-		customSpanSinks := createSpanSinks(logger, conf, config.SpanSinkTypes)
+		customSpanSinks := ret.createSpanSinks(logger, conf, config.SpanSinkTypes)
 		ret.spanSinks = append(ret.spanSinks, customSpanSinks...)
 	case "exclusive":
-		ret.spanSinks = createSpanSinks(logger, conf, config.SpanSinkTypes)
+		ret.spanSinks = ret.createSpanSinks(logger, conf, config.SpanSinkTypes)
 	default:
 		break
 	}

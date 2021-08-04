@@ -48,12 +48,14 @@ func main() {
 
 	logger := logrus.StandardLogger()
 	server, err := veneur.NewFromConfig(veneur.ServerConfig{
-		Config:          conf,
-		Logger:          logger,
-		MetricSinkTypes: map[string]func(string, interface{}) sinks.MetricSink{
+		Config: conf,
+		Logger: logger,
+		MetricSinkTypes: map[string]func(
+			*veneur.Server, string, interface{}) sinks.MetricSink{
 			// TODO(arnavdugar): Migrate metric sink types.
 		},
-		SpanSinkTypes: map[string]func(string, interface{}) sinks.SpanSink{
+		SpanSinkTypes: map[string]func(
+			*veneur.Server, string, interface{}) sinks.SpanSink{
 			// TODO(arnavdugar): Migrate span sink types.
 		},
 	})
