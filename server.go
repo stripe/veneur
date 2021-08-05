@@ -82,12 +82,20 @@ const defaultTCPReadTimeout = 10 * time.Minute
 
 const httpQuitEndpoint = "/quitquitquit"
 
+type SpanSinkTypes = map[string]func(
+	*Server, string, Config, interface{},
+) (sinks.SpanSink, error)
+
+type MetricSinkTypes = map[string]func(
+	*Server, string, Config, interface{},
+) (sinks.MetricSink, error)
+
 // Config used to create a new server.
 type ServerConfig struct {
 	Config          Config
 	Logger          *logrus.Logger
-	MetricSinkTypes map[string]func(*Server, string, Config, interface{}) (sinks.MetricSink, error)
-	SpanSinkTypes   map[string]func(*Server, string, Config, interface{}) (sinks.SpanSink, error)
+	MetricSinkTypes MetricSinkTypes
+	SpanSinkTypes   SpanSinkTypes
 }
 
 // A Server is the actual veneur instance that will be run.
@@ -304,10 +312,6 @@ func scopesFromConfig(conf Config) (scopedstatsd.MetricScopes, error) {
 	return ms, nil
 }
 
-type SpanSinkTypes = map[string]func(
-	*Server, string, Config, interface{},
-) (sinks.SpanSink, error)
-
 func (server *Server) createSpanSinks(
 	logger *logrus.Logger, config Config, sinkTypes SpanSinkTypes,
 ) ([]sinks.SpanSink, error) {
@@ -325,10 +329,6 @@ func (server *Server) createSpanSinks(
 	}
 	return sinks, nil
 }
-
-type MetricSinkTypes = map[string]func(
-	*Server, string, Config, interface{},
-) (sinks.MetricSink, error)
 
 func (server *Server) createMetricSinks(
 	logger *logrus.Logger, config Config, sinkTypes MetricSinkTypes,
