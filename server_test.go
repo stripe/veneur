@@ -33,6 +33,7 @@ import (
 	"github.com/stripe/veneur/v14/tdigest"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util"
 	"github.com/zenazn/goji/graceful"
 )
 
@@ -76,7 +77,7 @@ func generateConfig(forwardAddr string) Config {
 
 		// Use a shorter interval for tests
 		Interval:              DefaultFlushInterval.String(),
-		DatadogAPIKey:         "",
+		DatadogAPIKey:         util.StringSecret{Value: ""},
 		MetricMaxLength:       4096,
 		Percentiles:           []float64{.5, .75, .99},
 		Aggregates:            []string{"min", "max", "count"},
@@ -98,7 +99,7 @@ func generateConfig(forwardAddr string) Config {
 		// more complicated.
 		StatsAddress:           "localhost:8125",
 		Tags:                   []string{},
-		SentryDsn:              "",
+		SentryDsn:              util.StringSecret{Value: ""},
 		DatadogFlushMaxPerBody: 1024,
 
 		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
@@ -484,7 +485,7 @@ func TestTCPConfig(t *testing.T) {
 	}
 
 	config.StatsdListenAddresses = []string{"tcp://localhost:8129"}
-	config.TLSKey = "somekey"
+	config.TLSKey = util.StringSecret{Value: "somekey"}
 	config.TLSCertificate = ""
 	_, err = NewFromConfig(ServerConfig{
 		Logger: logger,
@@ -498,7 +499,7 @@ func TestTCPConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal("could not read test keys/certs:", err)
 	}
-	config.TLSKey = pems["serverkey.pem"]
+	config.TLSKey = util.StringSecret{Value: pems["serverkey.pem"]}
 	config.TLSCertificate = "somecert"
 	_, err = NewFromConfig(ServerConfig{
 		Logger: logger,
@@ -508,7 +509,7 @@ func TestTCPConfig(t *testing.T) {
 		t.Error("invalid key and certificate is a config error")
 	}
 
-	config.TLSKey = pems["serverkey.pem"]
+	config.TLSKey = util.StringSecret{Value: pems["serverkey.pem"]}
 	config.TLSCertificate = pems["servercert.pem"]
 	_, err = NewFromConfig(ServerConfig{
 		Logger: logger,
@@ -914,7 +915,7 @@ func TestTCPMetrics(t *testing.T) {
 			config.Interval = "60s"
 			config.NumWorkers = 1
 			config.StatsdListenAddresses = []string{"tcp://127.0.0.1:0"}
-			config.TLSKey = serverConfig.serverKey
+			config.TLSKey = util.StringSecret{Value: serverConfig.serverKey}
 			config.TLSCertificate = serverConfig.serverCertificate
 			config.TLSAuthorityCertificate = serverConfig.authorityCertificate
 			f := newFixture(t, config, nil, nil)
@@ -1026,7 +1027,7 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 	path := filepath.Join(tdir, "test.sock")
 	// test the variables that have been renamed
 	config := Config{
-		DatadogAPIKey:          "apikey",
+		DatadogAPIKey:          util.StringSecret{Value: "apikey"},
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
 		SsfListenAddresses:     []string{fmt.Sprintf("unix://%s", path)},
@@ -1089,7 +1090,7 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 func BenchmarkSendSSFUDP(b *testing.B) {
 	// test the variables that have been renamed
 	config := Config{
-		DatadogAPIKey:          "apikey",
+		DatadogAPIKey:          util.StringSecret{Value: "apikey"},
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
 		SsfListenAddresses:     []string{"udp://127.0.0.1:0"},

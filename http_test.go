@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -277,7 +278,7 @@ func TestOkTraceHealthCheck(t *testing.T) {
 	config := localConfig()
 	// We must enable tracing, as it's disabled by default, by turning on one
 	// of the tracing sinks.
-	config.LightstepAccessToken = "farts"
+	config.LightstepAccessToken = util.StringSecret{Value: "farts"}
 	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 

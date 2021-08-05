@@ -1,8 +1,12 @@
 # 14.2.0, UNRELEASED
 
+## Added
+* A flag -print-secrets to disable redacting config secrets.
+
 ## Bugfixes
 * A fix for forwarding metrics with gRPC using the kubernetes discoverer. Thanks, [androohan](https://github.com/androohan)!
 * Regenerate testing certs/CA that have expired and have broken tests. Thanks, [randallm](https://github.com/randallm)
+* The config field `trace_lightstep_access_token` is redacted if printed. Thanks [arnavdugar](https://github.com/arnavdugar)!
 
 # 14.1.0, 2021-03-16
 
