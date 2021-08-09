@@ -837,41 +837,25 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			logger.WithField("name", blackhole.Name()).Info("Starting logger debug sink")
 		}
 	}
-	switch conf.Features.MigrateMetricSinks {
-	case "append":
-		customMetricSinks, err :=
-			ret.createMetricSinks(logger, conf, config.MetricSinkTypes)
-		if err != nil {
-			return nil, err
-		}
-		ret.metricSinks = append(ret.metricSinks, customMetricSinks...)
-	case "exclusive":
-		customMetricSinks, err :=
-			ret.createMetricSinks(logger, conf, config.MetricSinkTypes)
-		if err != nil {
-			return nil, err
-		}
-		ret.metricSinks = customMetricSinks
-	default:
-		break
+	customMetricSinks, err :=
+		ret.createMetricSinks(logger, conf, config.MetricSinkTypes)
+	if err != nil {
+		return nil, err
 	}
-	switch conf.Features.MigrateSpanSinks {
-	case "append":
-		customSpanSinks, err :=
-			ret.createSpanSinks(logger, conf, config.SpanSinkTypes)
-		if err != nil {
-			return nil, err
-		}
-		ret.spanSinks = append(ret.spanSinks, customSpanSinks...)
-	case "exclusive":
-		customSpanSinks, err :=
-			ret.createSpanSinks(logger, conf, config.SpanSinkTypes)
-		if err != nil {
-			return nil, err
-		}
+	if conf.Features.MigrateMetricSinks {
+		ret.metricSinks = customMetricSinks
+	} else {
+		ret.metricSinks = append(ret.metricSinks, customMetricSinks...)
+	}
+	customSpanSinks, err :=
+		ret.createSpanSinks(logger, conf, config.SpanSinkTypes)
+	if err != nil {
+		return nil, err
+	}
+	if conf.Features.MigrateSpanSinks {
 		ret.spanSinks = customSpanSinks
-	default:
-		break
+	} else {
+		ret.spanSinks = append(ret.spanSinks, customSpanSinks...)
 	}
 
 	// After all sinks are initialized, set the list of tags to exclude

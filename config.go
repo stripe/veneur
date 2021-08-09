@@ -25,8 +25,8 @@ type Config struct {
 	ExtendTags                   []string `yaml:"extend_tags"`
 	FalconerAddress              string   `yaml:"falconer_address"`
 	Features                     struct {
-		MigrateMetricSinks string `yaml:"migrate_metric_sinks"`
-		MigrateSpanSinks   string `yaml:"migrate_span_sinks"`
+		MigrateMetricSinks bool `yaml:"migrate_metric_sinks"`
+		MigrateSpanSinks   bool `yaml:"migrate_span_sinks"`
 	}
 	FlushFile                    string   `yaml:"flush_file"`
 	FlushMaxPerBody              int      `yaml:"flush_max_per_body"`
