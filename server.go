@@ -82,6 +82,22 @@ const defaultTCPReadTimeout = 10 * time.Minute
 
 const httpQuitEndpoint = "/quitquitquit"
 
+type SpanSinkTypes = map[string]func(
+	*Server, string, Config, interface{},
+) (sinks.SpanSink, error)
+
+type MetricSinkTypes = map[string]func(
+	*Server, string, Config, interface{},
+) (sinks.MetricSink, error)
+
+// Config used to create a new server.
+type ServerConfig struct {
+	Config          Config
+	Logger          *logrus.Logger
+	MetricSinkTypes MetricSinkTypes
+	SpanSinkTypes   SpanSinkTypes
+}
+
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Workers               []*Worker
@@ -296,10 +312,49 @@ func scopesFromConfig(conf Config) (scopedstatsd.MetricScopes, error) {
 	return ms, nil
 }
 
+func (server *Server) createSpanSinks(
+	logger *logrus.Logger, config Config, sinkTypes SpanSinkTypes,
+) ([]sinks.SpanSink, error) {
+	sinks := []sinks.SpanSink{}
+	for _, sinkConfig := range config.SpanSinks {
+		sinkFactory, ok := sinkTypes[sinkConfig.Kind]
+		if !ok {
+			logger.Warnf("Unknown sink kind %s; skipping.", sinkConfig.Kind)
+		}
+		sink, err := sinkFactory(server, sinkConfig.Name, config, sinkConfig.Config)
+		if err != nil {
+			return nil, err
+		}
+		sinks = append(sinks, sink)
+	}
+	return sinks, nil
+}
+
+func (server *Server) createMetricSinks(
+	logger *logrus.Logger, config Config, sinkTypes MetricSinkTypes,
+) ([]sinks.MetricSink, error) {
+	sinks := []sinks.MetricSink{}
+	for _, sinkConfig := range config.MetricSinks {
+		sinkFactory, ok := sinkTypes[sinkConfig.Kind]
+		if !ok {
+			logger.Warnf("Unknown sink kind %s; skipping.", sinkConfig.Kind)
+		}
+		sink, err := sinkFactory(server, sinkConfig.Name, config, sinkConfig.Config)
+		if err != nil {
+			return nil, err
+		}
+		sinks = append(sinks, sink)
+	}
+	return sinks, nil
+}
+
 // NewFromConfig creates a new veneur server from a configuration
 // specification and sets up the passed logger according to the
 // configuration.
-func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
+func NewFromConfig(config ServerConfig) (*Server, error) {
+	logger := config.Logger
+	conf := config.Config
+
 	ret := &Server{}
 
 	ret.Hostname = conf.Hostname
@@ -781,6 +836,26 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			ret.spanSinks = append(ret.spanSinks, blackhole)
 			logger.WithField("name", blackhole.Name()).Info("Starting logger debug sink")
 		}
+	}
+	customMetricSinks, err :=
+		ret.createMetricSinks(logger, conf, config.MetricSinkTypes)
+	if err != nil {
+		return nil, err
+	}
+	if conf.Features.MigrateMetricSinks {
+		ret.metricSinks = customMetricSinks
+	} else {
+		ret.metricSinks = append(ret.metricSinks, customMetricSinks...)
+	}
+	customSpanSinks, err :=
+		ret.createSpanSinks(logger, conf, config.SpanSinkTypes)
+	if err != nil {
+		return nil, err
+	}
+	if conf.Features.MigrateSpanSinks {
+		ret.spanSinks = customSpanSinks
+	} else {
+		ret.spanSinks = append(ret.spanSinks, customSpanSinks...)
 	}
 
 	// After all sinks are initialized, set the list of tags to exclude

@@ -153,7 +153,10 @@ func TestNewDatadogMetricSinkConfig(t *testing.T) {
 		Interval:     "10s",
 		StatsAddress: "localhost:62251",
 	}
-	server, err := NewFromConfig(logrus.New(), config)
+	server, err := NewFromConfig(ServerConfig{
+		Logger: logrus.New(),
+		Config: config,
+	})
 
 	if err != nil {
 		t.Fatal(err)
@@ -174,7 +177,10 @@ func TestNewPrometheusMetricSinkConfig(t *testing.T) {
 		StatsAddress: "localhost:62251",
 	}
 
-	server, err := NewFromConfig(logrus.New(), config)
+	server, err := NewFromConfig(ServerConfig{
+		Logger: logrus.New(),
+		Config: config,
+	})
 	assert.NoError(t, err)
 
 	sink := server.metricSinks[0].(*prometheus.StatsdRepeater)

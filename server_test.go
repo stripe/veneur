@@ -133,7 +133,10 @@ func generateMetrics() (metricValues []float64, expectedMetrics map[string]float
 // "nothing".
 func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper, mSink sinks.MetricSink, sSink sinks.SpanSink, traceClient *trace.Client) *Server {
 	logger := logrus.New()
-	server, err := NewFromConfig(logger, config)
+	server, err := NewFromConfig(ServerConfig{
+		Logger: logger,
+		Config: config,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -472,7 +475,10 @@ func TestTCPConfig(t *testing.T) {
 	logger.Out = ioutil.Discard
 
 	config.StatsdListenAddresses = []string{"tcp://invalid:invalid"}
-	_, err := NewFromConfig(logger, config)
+	_, err := NewFromConfig(ServerConfig{
+		Logger: logger,
+		Config: config,
+	})
 	if err == nil {
 		t.Error("invalid TCP address is a config error")
 	}
@@ -480,7 +486,10 @@ func TestTCPConfig(t *testing.T) {
 	config.StatsdListenAddresses = []string{"tcp://localhost:8129"}
 	config.TLSKey = "somekey"
 	config.TLSCertificate = ""
-	_, err = NewFromConfig(logger, config)
+	_, err = NewFromConfig(ServerConfig{
+		Logger: logger,
+		Config: config,
+	})
 	if err == nil {
 		t.Error("key without certificate is a config error")
 	}
@@ -491,14 +500,20 @@ func TestTCPConfig(t *testing.T) {
 	}
 	config.TLSKey = pems["serverkey.pem"]
 	config.TLSCertificate = "somecert"
-	_, err = NewFromConfig(logger, config)
+	_, err = NewFromConfig(ServerConfig{
+		Logger: logger,
+		Config: config,
+	})
 	if err == nil {
 		t.Error("invalid key and certificate is a config error")
 	}
 
 	config.TLSKey = pems["serverkey.pem"]
 	config.TLSCertificate = pems["servercert.pem"]
-	_, err = NewFromConfig(logger, config)
+	_, err = NewFromConfig(ServerConfig{
+		Logger: logger,
+		Config: config,
+	})
 	if err != nil {
 		t.Error("expected valid config")
 	}
@@ -1020,7 +1035,10 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 		Interval:     "10s",
 		StatsAddress: "localhost:62251",
 	}
-	s, err := NewFromConfig(logrus.New(), config)
+	s, err := NewFromConfig(ServerConfig{
+		Logger: logrus.New(),
+		Config: config,
+	})
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -1082,7 +1100,10 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 		Interval:     "10s",
 		StatsAddress: "localhost:62251",
 	}
-	s, err := NewFromConfig(logrus.New(), config)
+	s, err := NewFromConfig(ServerConfig{
+		Logger: logrus.New(),
+		Config: config,
+	})
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -1363,7 +1384,10 @@ func generateSSFPackets(tb testing.TB, length int) [][]byte {
 // multiple times as Serve should try to call it again after the gRPC server
 // exits.
 func TestServeStopGRPC(t *testing.T) {
-	s, err := NewFromConfig(logrus.New(), globalConfig())
+	s, err := NewFromConfig(ServerConfig{
+		Logger: logrus.New(),
+		Config: globalConfig(),
+	})
 	assert.NoError(t, err, "Creating a server shouldn't have caused an error")
 
 	done := make(chan struct{})
@@ -1412,7 +1436,10 @@ func TestServeStopHTTP(t *testing.T) {
 	t.Skipf("Testing stopping the Server over HTTP requires a slow pause, and " +
 		"this test probably doesn't need to be run all the time.")
 
-	s, err := NewFromConfig(logrus.New(), globalConfig())
+	s, err := NewFromConfig(ServerConfig{
+		Logger: logrus.New(),
+		Config: globalConfig(),
+	})
 	assert.NoError(t, err, "Creating a server shouldn't have caused an error")
 
 	done := make(chan struct{})

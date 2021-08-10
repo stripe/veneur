@@ -46,7 +46,16 @@ func main() {
 	}
 
 	logger := logrus.StandardLogger()
-	server, err := veneur.NewFromConfig(logger, conf)
+	server, err := veneur.NewFromConfig(veneur.ServerConfig{
+		Config:          conf,
+		Logger:          logger,
+		MetricSinkTypes: veneur.MetricSinkTypes{
+			// TODO(arnavdugar): Migrate metric sink types.
+		},
+		SpanSinkTypes: veneur.SpanSinkTypes{
+			// TODO(arnavdugar): Migrate span sink types.
+		},
+	})
 	veneur.SetLogger(logger)
 	if err != nil {
 		e := err
