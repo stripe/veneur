@@ -59,9 +59,9 @@ func main() {
 	veneur.SetLogger(logger)
 	if err != nil {
 		e := err
-		if conf.SentryDsn != "" {
+		if conf.SentryDsn.Value != "" {
 			err = sentry.Init(sentry.ClientOptions{
-				Dsn: conf.SentryDsn,
+				Dsn: conf.SentryDsn.Value,
 			})
 			if err != nil {
 				logrus.WithError(err).Error("Error initializing Sentry client")

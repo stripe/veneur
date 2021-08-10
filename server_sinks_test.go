@@ -17,6 +17,7 @@ import (
 	"github.com/stripe/veneur/v14/sinks/datadog"
 	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/prometheus"
+	"github.com/stripe/veneur/v14/util"
 )
 
 func TestFlushTracesBySink(t *testing.T) {
@@ -85,7 +86,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	defer remoteServer.Close()
 
 	config := globalConfig()
-	config.DatadogAPIKey = "secret"
+	config.DatadogAPIKey = util.StringSecret{Value: "secret"}
 	config.DatadogTraceAPIAddress = remoteServer.URL
 
 	server := setupVeneurServer(t, config, nil, nil, nil, nil)
@@ -121,7 +122,7 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 	config := globalConfig()
 
 	// this can be anything as long as it's not empty
-	config.LightstepAccessToken = "secret"
+	config.LightstepAccessToken = util.StringSecret{Value: "secret"}
 	server := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer server.Shutdown()
 
@@ -143,7 +144,7 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 func TestNewDatadogMetricSinkConfig(t *testing.T) {
 	// test the variables that have been renamed
 	config := Config{
-		DatadogAPIKey:          "apikey",
+		DatadogAPIKey:          util.StringSecret{Value: "apikey"},
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
 		DatadogSpanBufferSize:  32,

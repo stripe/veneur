@@ -170,7 +170,7 @@ trace_lightstep_num_clients: 2
 	// they should get copied to the new config options
 	assert.Equal(t, 1234, c.DatadogFlushMaxPerBody)
 	assert.Equal(t, 3456, c.DatadogSpanBufferSize)
-	assert.Equal(t, "123", c.LightstepAccessToken)
+	assert.Equal(t, "123", c.LightstepAccessToken.Value)
 	assert.Equal(t, "456", c.LightstepCollectorHost)
 	assert.Equal(t, "789", c.LightstepReconnectPeriod)
 	assert.Equal(t, 1, c.LightstepMaximumSpans)

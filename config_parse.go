@@ -193,9 +193,9 @@ func (c *Config) applyDefaults() {
 			c.LightstepCollectorHost = c.TraceLightstepCollectorHost
 		}
 	}
-	if c.TraceLightstepAccessToken != "" {
+	if c.TraceLightstepAccessToken.Value != "" {
 		log.Warn("trace_lightstep_access_token configuration option has been replaced by lightstep_access_token and will be removed in the next version")
-		if c.LightstepAccessToken == "" {
+		if c.LightstepAccessToken.Value == "" {
 			c.LightstepAccessToken = c.TraceLightstepAccessToken
 		}
 	}

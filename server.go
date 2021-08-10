@@ -69,9 +69,6 @@ var BUILD_DATE = defaultLinkValue
 
 const defaultLinkValue = "dirty"
 
-// REDACTED is used to replace values that we don't want to leak into loglines (e.g., credentials)
-const REDACTED = "REDACTED"
-
 var profileStartOnce = sync.Once{}
 
 var log = logrus.StandardLogger()
@@ -416,9 +413,9 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	// Initialize Sentry if a Dsn is provided, else we leave it uninitalized
 	// and no-op the methods.
-	if conf.SentryDsn != "" {
+	if conf.SentryDsn.Value != "" {
 		err = sentry.Init(sentry.ClientOptions{
-			Dsn: conf.SentryDsn,
+			Dsn: conf.SentryDsn.Value,
 		})
 		if err != nil {
 			return ret, err
@@ -542,7 +539,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	ret.HTTPAddr = conf.HTTPAddress
 	ret.numListeningHTTP = new(int32)
 
-	if conf.TLSKey != "" {
+	if conf.TLSKey.Value != "" {
 		if conf.TLSCertificate == "" {
 			err = errors.New("tls_key is set; must set tls_certificate")
 			logger.WithError(err).Error("Improper TLS configuration")
@@ -551,7 +548,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 		// load the TLS key and certificate
 		var cert tls.Certificate
-		cert, err = tls.X509KeyPair([]byte(conf.TLSCertificate), []byte(conf.TLSKey))
+		cert, err = tls.X509KeyPair([]byte(conf.TLSCertificate), []byte(conf.TLSKey.Value))
 		if err != nil {
 			logger.WithError(err).Error("Improper TLS configuration")
 			return ret, err
@@ -578,11 +575,12 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		}
 	}
 
-	if conf.SignalfxAPIKey != "" {
+	if conf.SignalfxAPIKey.Value != "" {
 		tracedHTTP := *ret.HTTPClient
 		tracedHTTP.Transport = vhttp.NewTraceRoundTripper(tracedHTTP.Transport, ret.TraceClient, "signalfx")
 
-		fallback := signalfx.NewClient(conf.SignalfxEndpointBase, conf.SignalfxAPIKey, &tracedHTTP)
+		fallback := signalfx.NewClient(
+			conf.SignalfxEndpointBase, conf.SignalfxAPIKey.Value, &tracedHTTP)
 		byTagClients := map[string]signalfx.DPClient{}
 		for _, perTag := range conf.SignalfxPerTagAPIKeys {
 			byTagClients[perTag.Name] = signalfx.NewClient(conf.SignalfxEndpointBase, perTag.APIKey, &tracedHTTP)
@@ -598,16 +596,22 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		}
 
 		log.WithField("endpoint_base", conf.SignalfxEndpointBase).Info("Creating SignalFx sink")
-		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback, conf.SignalfxVaryKeyBy, byTagClients, conf.SignalfxMetricNamePrefixDrops, conf.SignalfxMetricTagPrefixDrops, metricSink, conf.SignalfxFlushMaxPerBody, conf.SignalfxAPIKey, conf.SignalfxDynamicPerTagAPIKeysEnable, dynamicKeyRefreshPeriod, conf.SignalfxEndpointBase, conf.SignalfxEndpointAPI, &tracedHTTP)
+		sfxSink, err := signalfx.NewSignalFxSink(
+			conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback,
+			conf.SignalfxVaryKeyBy, byTagClients, conf.SignalfxMetricNamePrefixDrops,
+			conf.SignalfxMetricTagPrefixDrops, metricSink,
+			conf.SignalfxFlushMaxPerBody, conf.SignalfxAPIKey.Value,
+			conf.SignalfxDynamicPerTagAPIKeysEnable, dynamicKeyRefreshPeriod,
+			conf.SignalfxEndpointBase, conf.SignalfxEndpointAPI, &tracedHTTP)
 		if err != nil {
 			return ret, err
 		}
 		ret.metricSinks = append(ret.metricSinks, sfxSink)
 	}
 
-	if conf.NewrelicInsertKey != "" && conf.NewrelicAccountID > 0 {
+	if conf.NewrelicInsertKey.Value != "" && conf.NewrelicAccountID > 0 {
 		nrSink, err := newrelic.NewNewRelicMetricSink(
-			conf.NewrelicInsertKey,
+			conf.NewrelicInsertKey.Value,
 			conf.NewrelicAccountID,
 			conf.NewrelicRegion,
 			conf.NewrelicEventType,
@@ -621,15 +625,16 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.metricSinks = append(ret.metricSinks, nrSink)
 	}
 
-	if conf.DatadogAPIKey != "" && conf.DatadogAPIHostname != "" {
+	if conf.DatadogAPIKey.Value != "" && conf.DatadogAPIHostname != "" {
 		excludeTagsPrefixByPrefixMetric := map[string][]string{}
 		for _, m := range conf.DatadogExcludeTagsPrefixByPrefixMetric {
 			excludeTagsPrefixByPrefixMetric[m.MetricPrefix] = m.Tags
 		}
 
 		ddSink, err := datadog.NewDatadogMetricSink(
-			ret.interval.Seconds(), conf.DatadogFlushMaxPerBody, conf.Hostname, ret.Tags,
-			conf.DatadogAPIHostname, conf.DatadogAPIKey, ret.HTTPClient, log, conf.DatadogMetricNamePrefixDrops,
+			ret.interval.Seconds(), conf.DatadogFlushMaxPerBody, conf.Hostname,
+			ret.Tags, conf.DatadogAPIHostname, conf.DatadogAPIKey.Value,
+			ret.HTTPClient, log, conf.DatadogMetricNamePrefixDrops,
 			excludeTagsPrefixByPrefixMetric,
 		)
 		if err != nil {
@@ -644,7 +649,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		trace.Enable()
 
 		// configure Datadog as a Span sink
-		if conf.DatadogAPIKey != "" && conf.DatadogTraceAPIAddress != "" {
+		if conf.DatadogAPIKey.Value != "" && conf.DatadogTraceAPIAddress != "" {
 			ddSink, err := datadog.NewDatadogSpanSink(
 				conf.DatadogTraceAPIAddress, conf.DatadogSpanBufferSize,
 				ret.HTTPClient, log,
@@ -680,9 +685,9 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			}
 		}
 
-		if conf.NewrelicInsertKey != "" {
+		if conf.NewrelicInsertKey.Value != "" {
 			nrSpanSink, err := newrelic.NewNewRelicSpanSink(
-				conf.NewrelicInsertKey,
+				conf.NewrelicInsertKey.Value,
 				conf.NewrelicAccountID,
 				conf.NewrelicRegion,
 				conf.NewrelicCommonTags,
@@ -702,13 +707,13 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		}
 
 		// configure Lightstep as a Span Sink
-		if conf.LightstepAccessToken != "" {
+		if conf.LightstepAccessToken.Value != "" {
 
 			var lsSink sinks.SpanSink
 			lsSink, err = lightstep.NewLightStepSpanSink(
 				conf.LightstepCollectorHost, conf.LightstepReconnectPeriod,
 				conf.LightstepMaximumSpans, conf.LightstepNumClients,
-				conf.LightstepAccessToken, log,
+				conf.LightstepAccessToken.Value, log,
 			)
 			if err != nil {
 				return ret, err
@@ -867,10 +872,11 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	if conf.AwsS3Bucket != "" {
 		var sess *session.Session
 		var err error
-		if len(awsID) > 0 && len(awsSecret) > 0 {
+		if len(awsID.Value) > 0 && len(awsSecret.Value) > 0 {
 			sess, err = session.NewSession(&aws.Config{
-				Region:      aws.String(conf.AwsRegion),
-				Credentials: credentials.NewStaticCredentials(awsID, awsSecret, ""),
+				Region: aws.String(conf.AwsRegion),
+				Credentials: credentials.NewStaticCredentials(
+					awsID.Value, awsSecret.Value, ""),
 			})
 		} else {
 			sess, err = session.NewSession(&aws.Config{
@@ -917,16 +923,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		logger.WithField("endpoint", httpQuitEndpoint).Info("Enabling graceful shutdown endpoint (via HTTP POST request)")
 		ret.httpQuit = true
 	}
-
-	// Don't emit keys into logs now that we're done with them.
-	conf.AwsAccessKeyID = REDACTED
-	conf.AwsSecretAccessKey = REDACTED
-	conf.DatadogAPIKey = REDACTED
-	conf.LightstepAccessToken = REDACTED
-	conf.NewrelicInsertKey = REDACTED
-	conf.SentryDsn = REDACTED
-	conf.SignalfxAPIKey = REDACTED
-	conf.TLSKey = REDACTED
 
 	ret.forwardUseGRPC = conf.ForwardUseGrpc
 
