@@ -35,7 +35,6 @@ import (
 
 	"github.com/pkg/profile"
 
-	vhttp "github.com/stripe/veneur/v14/http"
 	"github.com/stripe/veneur/v14/importsrv"
 	"github.com/stripe/veneur/v14/plugins"
 	localfilep "github.com/stripe/veneur/v14/plugins/localfile"
@@ -51,7 +50,6 @@ import (
 	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/newrelic"
 	"github.com/stripe/veneur/v14/sinks/prometheus"
-	"github.com/stripe/veneur/v14/sinks/signalfx"
 	"github.com/stripe/veneur/v14/sinks/splunk"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
 	"github.com/stripe/veneur/v14/sinks/xray"
@@ -213,6 +211,10 @@ type ssfServiceSpanMetrics struct {
 // SetLogger sets the default logger in veneur to the passed value.
 func SetLogger(logger *logrus.Logger) {
 	log = logger
+}
+
+func GetLogger() *logrus.Logger {
+	return log
 }
 
 func scopeFromName(name string) (ssf.SSFSample_Scope, error) {
@@ -573,40 +575,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			ClientAuth:   clientAuthMode,
 			ClientCAs:    clientCAs,
 		}
-	}
-
-	if conf.SignalfxAPIKey.Value != "" {
-		tracedHTTP := *ret.HTTPClient
-		tracedHTTP.Transport = vhttp.NewTraceRoundTripper(tracedHTTP.Transport, ret.TraceClient, "signalfx")
-
-		fallback := signalfx.NewClient(
-			conf.SignalfxEndpointBase, conf.SignalfxAPIKey.Value, &tracedHTTP)
-		byTagClients := map[string]signalfx.DPClient{}
-		for _, perTag := range conf.SignalfxPerTagAPIKeys {
-			byTagClients[perTag.Name] = signalfx.NewClient(conf.SignalfxEndpointBase, perTag.APIKey, &tracedHTTP)
-		}
-
-		if conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod == "" {
-			conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod = "10m"
-		}
-
-		dynamicKeyRefreshPeriod, err := time.ParseDuration(conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod)
-		if err != nil {
-			return ret, err
-		}
-
-		log.WithField("endpoint_base", conf.SignalfxEndpointBase).Info("Creating SignalFx sink")
-		sfxSink, err := signalfx.NewSignalFxSink(
-			conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback,
-			conf.SignalfxVaryKeyBy, byTagClients, conf.SignalfxMetricNamePrefixDrops,
-			conf.SignalfxMetricTagPrefixDrops, metricSink,
-			conf.SignalfxFlushMaxPerBody, conf.SignalfxAPIKey.Value,
-			conf.SignalfxDynamicPerTagAPIKeysEnable, dynamicKeyRefreshPeriod,
-			conf.SignalfxEndpointBase, conf.SignalfxEndpointAPI, &tracedHTTP)
-		if err != nil {
-			return ret, err
-		}
-		ret.metricSinks = append(ret.metricSinks, sfxSink)
 	}
 
 	if conf.NewrelicInsertKey.Value != "" && conf.NewrelicAccountID > 0 {

@@ -99,8 +99,8 @@ type Config struct {
 	SignalfxMetricNamePrefixDrops             []string          `yaml:"signalfx_metric_name_prefix_drops"`
 	SignalfxMetricTagPrefixDrops              []string          `yaml:"signalfx_metric_tag_prefix_drops"`
 	SignalfxPerTagAPIKeys                     []struct {
-		APIKey string `yaml:"api_key"`
-		Name   string `yaml:"name"`
+		APIKey util.StringSecret `yaml:"api_key"`
+		Name   string            `yaml:"name"`
 	} `yaml:"signalfx_per_tag_api_keys"`
 	SignalfxVaryKeyBy   string `yaml:"signalfx_vary_key_by"`
 	SpanChannelCapacity int    `yaml:"span_channel_capacity"`

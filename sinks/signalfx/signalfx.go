@@ -17,11 +17,14 @@ import (
 	"github.com/signalfx/golib/event"
 	"github.com/signalfx/golib/sfxclient"
 	"github.com/sirupsen/logrus"
+	veneur "github.com/stripe/veneur/v14"
+	vhttp "github.com/stripe/veneur/v14/http"
 	"github.com/stripe/veneur/v14/protocol/dogstatsd"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util"
 )
 
 const EventNameMaxLength = 256
@@ -139,6 +142,23 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client, maxPerFlush i
 	return err
 }
 
+type SignalFxSinkConfig struct {
+	APIKey                            util.StringSecret `yaml:"api_key"`
+	DynamicPerTagAPIKeysEnable        bool              `yaml:"dynamic_per_tag_api_keys_enable"`
+	DynamicPerTagAPIKeysRefreshPeriod time.Duration     `yaml:"dynamic_per_tag_api_keys_refresh_period"`
+	EndpointAPI                       string            `yaml:"endpoint_api"`
+	EndpointBase                      string            `yaml:"endpoint_base"`
+	FlushMaxPerBody                   int               `yaml:"flush_max_per_body"`
+	HostnameTag                       string            `yaml:"hostname_tag"`
+	MetricNamePrefixDrops             []string          `yaml:"metric_name_prefix_drops"`
+	MetricTagPrefixDrops              []string          `yaml:"metric_tag_prefix_drops"`
+	PerTagAPIKeys                     []struct {
+		APIKey util.StringSecret `yaml:"api_key"`
+		Name   string            `yaml:"name"`
+	} `yaml:"per_tag_api_keys"`
+	VaryKeyBy string `yaml:"vary_key_by"`
+}
+
 // SignalFxSink is a MetricsSink implementation.
 type SignalFxSink struct {
 	defaultClient             DPClient
@@ -147,7 +167,6 @@ type SignalFxSink struct {
 	enableDynamicPerTagTokens bool
 	defaultToken              string
 	dynamicKeyRefreshPeriod   time.Duration
-	keyClients                map[string]dpsink.Sink
 	varyBy                    string
 	hostnameTag               string
 	hostname                  string
@@ -157,7 +176,6 @@ type SignalFxSink struct {
 	excludedTags              map[string]struct{}
 	metricNamePrefixDrops     []string
 	metricTagPrefixDrops      []string
-	derivedMetrics            samplers.DerivedMetricsProcessor
 	maxPointsInBatch          int
 	metricsEndpoint           string
 	apiEndpoint               string
@@ -183,11 +201,91 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 	return httpSink
 }
 
+func MigrateConfig(conf *veneur.Config) error {
+	if conf.SignalfxAPIKey.Value != "" {
+		return nil
+	}
+	if conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod == "" {
+		conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod = "10m"
+	}
+	dynamicPerTagAPIKeysRefreshPeriod, err :=
+		time.ParseDuration(conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod)
+	if err != nil {
+		return err
+	}
+	conf.MetricSinks = append(conf.MetricSinks, struct {
+		Kind   string      "yaml:\"kind\""
+		Name   string      "yaml:\"name\""
+		Config interface{} "yaml:\"config\""
+	}{
+		Kind: "signalfx",
+		Name: "signalfx",
+		Config: SignalFxSinkConfig{
+			APIKey:                            conf.SignalfxAPIKey,
+			DynamicPerTagAPIKeysEnable:        conf.SignalfxDynamicPerTagAPIKeysEnable,
+			DynamicPerTagAPIKeysRefreshPeriod: dynamicPerTagAPIKeysRefreshPeriod,
+			EndpointAPI:                       conf.SignalfxEndpointAPI,
+			EndpointBase:                      conf.SignalfxEndpointBase,
+			FlushMaxPerBody:                   conf.SignalfxFlushMaxPerBody,
+			HostnameTag:                       conf.SignalfxHostnameTag,
+			MetricNamePrefixDrops:             conf.SignalfxMetricNamePrefixDrops,
+			MetricTagPrefixDrops:              conf.SignalfxMetricTagPrefixDrops,
+			PerTagAPIKeys:                     conf.SignalfxPerTagAPIKeys,
+			VaryKeyBy:                         conf.SignalfxVaryKeyBy,
+		},
+	})
+	return nil
+}
+
+func CreateSignalFxSink(
+	server *veneur.Server, name string, config veneur.Config,
+	sinkConfig interface{},
+) (sinks.MetricSink, error) {
+	signalFxConfig := SignalFxSinkConfig{}
+	err := util.DecodeConfig(sinkConfig, &signalFxConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	log := veneur.GetLogger()
+
+	tracedHTTP := *server.HTTPClient
+	tracedHTTP.Transport = vhttp.NewTraceRoundTripper(
+		tracedHTTP.Transport, server.TraceClient, "signalfx")
+
+	fallback := NewClient(
+		signalFxConfig.EndpointBase, signalFxConfig.APIKey.Value, &tracedHTTP)
+	byTagClients := map[string]DPClient{}
+	for _, perTag := range signalFxConfig.PerTagAPIKeys {
+		byTagClients[perTag.Name] =
+			NewClient(signalFxConfig.EndpointBase, perTag.APIKey.Value, &tracedHTTP)
+	}
+
+	log.WithField(
+		"endpoint_base", signalFxConfig.EndpointBase).Info("Creating SignalFx sink")
+	return NewSignalFxSink(
+		signalFxConfig,
+		config.Hostname,
+		server.TagsAsMap,
+		log,
+		fallback,
+		byTagClients,
+		&tracedHTTP)
+}
+
 // NewSignalFxSink creates a new SignalFx sink for metrics.
-func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[string]string, log *logrus.Logger, client DPClient, varyBy string, perTagClients map[string]DPClient, metricNamePrefixDrops []string, metricTagPrefixDrops []string, derivedMetrics samplers.DerivedMetricsProcessor, maxPointsInBatch int, defaultToken string, enableDynamicPerTagTokens bool, dynamicKeyRefreshPeriod time.Duration, metricsEndpoint string, apiEndpoint string, httpClient *http.Client) (*SignalFxSink, error) {
+func NewSignalFxSink(
+	config SignalFxSinkConfig,
+	hostname string,
+	commonDimensions map[string]string,
+	log *logrus.Logger,
+	client DPClient,
+	perTagClients map[string]DPClient,
+	httpClient *http.Client,
+) (*SignalFxSink, error) {
 	var endpointStr string
-	if apiEndpoint != "" {
-		endpoint, err := url.Parse(apiEndpoint)
+	if config.EndpointAPI != "" {
+		endpoint, err := url.Parse(config.EndpointAPI)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to parse signalfx api endpoint")
 		}
@@ -198,24 +296,26 @@ func NewSignalFxSink(hostnameTag string, hostname string, commonDimensions map[s
 		}
 		endpointStr = endpoint.String()
 	}
+	if config.DynamicPerTagAPIKeysRefreshPeriod == 0 {
+		config.DynamicPerTagAPIKeysRefreshPeriod = time.Duration(10 * time.Minute)
+	}
 
 	return &SignalFxSink{
 		defaultClient:             client,
 		clientsByTagValueMu:       &sync.RWMutex{},
 		clientsByTagValue:         perTagClients,
-		enableDynamicPerTagTokens: enableDynamicPerTagTokens,
-		defaultToken:              defaultToken,
-		dynamicKeyRefreshPeriod:   dynamicKeyRefreshPeriod,
-		hostnameTag:               hostnameTag,
+		enableDynamicPerTagTokens: config.DynamicPerTagAPIKeysEnable,
+		defaultToken:              config.APIKey.Value,
+		dynamicKeyRefreshPeriod:   config.DynamicPerTagAPIKeysRefreshPeriod,
+		hostnameTag:               config.HostnameTag,
 		hostname:                  hostname,
 		commonDimensions:          commonDimensions,
 		log:                       log,
-		varyBy:                    varyBy,
-		metricNamePrefixDrops:     metricNamePrefixDrops,
-		metricTagPrefixDrops:      metricTagPrefixDrops,
-		derivedMetrics:            derivedMetrics,
-		maxPointsInBatch:          maxPointsInBatch,
-		metricsEndpoint:           metricsEndpoint,
+		varyBy:                    config.VaryKeyBy,
+		metricNamePrefixDrops:     config.MetricNamePrefixDrops,
+		metricTagPrefixDrops:      config.MetricTagPrefixDrops,
+		maxPointsInBatch:          config.FlushMaxPerBody,
+		metricsEndpoint:           config.EndpointBase,
 		apiEndpoint:               endpointStr,
 		httpClient:                httpClient,
 	}, nil
@@ -531,14 +631,6 @@ func (sfx *SignalFxSink) SetExcludedTags(excludes []string) {
 	}
 	sfx.excludedTags = tagsSet
 }
-
-type ddSampleKind int
-
-const (
-	ddSampleUnknown ddSampleKind = iota
-	ddSampleEvent
-	ddSampleServiceCheck
-)
 
 func (sfx *SignalFxSink) reportEvent(ctx context.Context, sample *ssf.SSFSample) error {
 	// Copy common dimensions in
