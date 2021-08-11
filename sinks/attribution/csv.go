@@ -2,9 +2,7 @@ package attribution
 
 import (
 	"encoding/csv"
-	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -20,14 +18,6 @@ const (
 	// the order in which these appear determines the
 	// order of the fields in the resultant TSV
 	TsvName tsvField = iota
-	TsvTags
-	TsvMetricType
-
-	// The hostName of the server flushing the data
-	TsvVeneurHostname
-
-	TsvInterval
-
 	TsvTimestamp
 	TsvValue
 
@@ -38,14 +28,10 @@ const (
 )
 
 var tsvSchema = [...]string{
-	TsvName:           "Name",
-	TsvTags:           "Tags",
-	TsvMetricType:     "MetricType",
-	TsvInterval:       "Interval",
-	TsvVeneurHostname: "VeneurHostname",
-	TsvTimestamp:      "Timestamp",
-	TsvValue:          "Value",
-	TsvPartition:      "Partition",
+	TsvName:      "Name",
+	TsvTimestamp: "Timestamp",
+	TsvValue:     "Value",
+	TsvPartition: "Partition",
 }
 
 // EncodeInterMetricCSV generates a newline-terminated CSV row that describes
@@ -53,37 +39,10 @@ var tsvSchema = [...]string{
 // The caller is responsible for setting w.Comma as the appropriate delimiter.
 // For performance, encodeCSV does not flush after every call; the caller is
 // expected to flush at the end of the operation cycle
-func encodeInterMetricCSV(d samplers.InterMetric, w *csv.Writer, partitionDate time.Time, hostName string, interval int) error {
-	// TODO(aditya) some better error handling for this
-	// to guarantee that the result is proper JSON
-	tags := "{" + strings.Join(d.Tags, ",") + "}"
-
-	metricType := ""
-	metricValue := d.Value
-	switch d.Type {
-	case samplers.CounterMetric:
-		metricValue = d.Value / float64(interval)
-		metricType = "rate"
-
-	case samplers.GaugeMetric:
-		metricType = "gauge"
-	default:
-		return errors.New(fmt.Sprintf("Encountered an unknown metric type %s", d.Type.String()))
-	}
-
+func encodeInterMetricCSV(d samplers.InterMetric, w *csv.Writer, partitionDate time.Time) error {
 	fields := [...]string{
-		// the order here doesn't actually matter
-		// as long as the keys are right
-		TsvName:           d.Name,
-		TsvTags:           tags,
-		TsvMetricType:     metricType,
-		TsvInterval:       strconv.Itoa(interval),
-		TsvVeneurHostname: hostName,
-		TsvValue:          strconv.FormatFloat(metricValue, 'f', -1, 64),
-
+		TsvName:      d.Name,
 		TsvTimestamp: time.Unix(d.Timestamp, 0).UTC().Format(RedshiftDateFormat),
-
-		// TODO avoid edge case at midnight
 		TsvPartition: partitionDate.UTC().Format(PartitionDateFormat),
 	}
 

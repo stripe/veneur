@@ -18,6 +18,7 @@ import (
 
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 )
 
@@ -54,10 +55,11 @@ func (s *AttributionSink) Name() string {
 }
 
 func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
-	span, subCtx := trace.StartSpanFromContext(ctx, "")
+	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 
 	flushStart := time.Now()
+	spanTags := map[string]string{"sink": s.Name()}
 
 	for _, metric := range metrics {
 		if !sinks.IsAcceptableMetric(metric, s) {
@@ -65,7 +67,7 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 		}
 	}
 
-	csv, err := encodeInterMetricsCSV(metrics, flushStart, s.Hostname)
+	csv, err := encodeInterMetricsCSV(metrics, flushStart)
 	if err != nil {
 		s.log.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
@@ -76,7 +78,7 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 
 	err = s.s3Post(csv)
 	if err != nil {
-		s.Logger.WithFields(logrus.Fields{
+		s.log.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
 			"metrics":       len(metrics),
 		}).Error("Error posting to s3")
@@ -84,6 +86,7 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 	}
 
 	s.log.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
+	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, spanTags))
 	return nil
 }
 
@@ -125,4 +128,10 @@ func s3Path(hostname string) *string {
 	t := time.Now()
 	filename := strconv.FormatInt(t.Unix(), 10) + "." + FileExtension
 	return aws.String(path.Join(t.Format("2006/01/02"), hostname, filename))
+}
+
+// FlushOtherSamples is a no-op for the time being
+// TODO: Implement span attribution
+func (s *AttributionSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
+	return
 }
