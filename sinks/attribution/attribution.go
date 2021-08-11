@@ -16,13 +16,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/sirupsen/logrus"
 
-	"github.com/stripe/veneur/v14/plugins"
 	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/trace"
 )
 
 const Delimiter = '\t'
 const FileExtension = "tsv.gz"
-const S3ClientUninitializedError = errors.New("s3 client has not been initialized")
+
+var S3ClientUninitializedError = errors.New("s3 client has not been initialized")
 
 type AttributionSink struct {
 	traceClient *trace.Client
@@ -57,13 +59,15 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 
 	flushStart := time.Now()
 
-	if !sinks.IsAcceptableMetric(metric, s) {
-		continue
+	for _, metric := range metrics {
+		if !sinks.IsAcceptableMetric(metric, s) {
+			continue
+		}
 	}
 
 	csv, err := encodeInterMetricsCSV(metrics, flushStart, s.Hostname)
 	if err != nil {
-		s.Logger.WithFields(logrus.Fields{
+		s.log.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
 			"metrics":       len(metrics),
 		}).Error("Could not marshal metrics before posting to s3")
@@ -79,7 +83,7 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 		return err
 	}
 
-	s.Logger.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
+	s.log.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
 	return nil
 }
 
@@ -104,16 +108,16 @@ func encodeInterMetricsCSV(metrics []samplers.InterMetric, ts time.Time) (io.Rea
 }
 
 func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
-	if s.Svc == nil {
+	if s.s3Svc == nil {
 		return S3ClientUninitializedError
 	}
 	params := &s3.PutObjectInput{
-		Bucket: aws.String(s.S3Bucket),
-		Key:    s3Path(s.Hostname),
+		Bucket: aws.String(s.s3Bucket),
+		Key:    s3Path(s.hostname),
 		Body:   data,
 	}
 
-	_, err := s.S3Svc.PutObject(params)
+	_, err := s.s3Svc.PutObject(params)
 	return err
 }
 
