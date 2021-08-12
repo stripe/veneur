@@ -29,6 +29,7 @@ require (
 	github.com/kelseyhightower/envconfig v1.3.0
 	github.com/lightstep/lightstep-tracer-go v0.13.1-0.20170818234450-ea8cdd9df863
 	github.com/mailru/easyjson v0.0.0-20180606163543-3fdea8d05856 // indirect
+	github.com/mitchellh/mapstructure v1.4.1
 	github.com/newrelic/newrelic-client-go v0.39.0
 	github.com/newrelic/newrelic-telemetry-sdk-go v0.4.0
 	github.com/opentracing/opentracing-go v1.0.2
@@ -61,6 +62,7 @@ require (
 	gopkg.in/logfmt.v0 v0.3.0 // indirect
 	gopkg.in/stack.v1 v1.6.0 // indirect
 	gopkg.in/yaml.v2 v2.3.0
+	gopkg.in/yaml.v3 v3.0.0-20200605160147-a5ece683394c
 	k8s.io/api v0.0.0-20190325185214-7544f9db76f6
 	k8s.io/apimachinery v0.0.0-20190223001710-c182ff3b9841
 	k8s.io/client-go v8.0.0+incompatible

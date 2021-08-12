@@ -7,6 +7,7 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/sinks/signalfx"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 )
@@ -44,13 +45,20 @@ func main() {
 	if *validateConfig {
 		os.Exit(0)
 	}
+	if !conf.Features.MigrateMetricSinks {
+		err = signalfx.MigrateConfig(&conf)
+	}
+	if err != nil {
+		logrus.WithError(err).Fatal("error migrating signalfx config")
+	}
 
 	logger := logrus.StandardLogger()
 	server, err := veneur.NewFromConfig(veneur.ServerConfig{
-		Config:          conf,
-		Logger:          logger,
+		Config: conf,
+		Logger: logger,
 		MetricSinkTypes: veneur.MetricSinkTypes{
 			// TODO(arnavdugar): Migrate metric sink types.
+			"signalfx": signalfx.CreateSignalFxSink,
 		},
 		SpanSinkTypes: veneur.SpanSinkTypes{
 			// TODO(arnavdugar): Migrate span sink types.

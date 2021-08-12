@@ -1,6 +1,10 @@
 package veneur
 
-import "github.com/stripe/veneur/v14/util"
+import (
+	"time"
+
+	"github.com/stripe/veneur/v14/util"
+)
 
 type Config struct {
 	Aggregates                             []string          `yaml:"aggregates"`
@@ -91,7 +95,7 @@ type Config struct {
 	SentryDsn                                 util.StringSecret `yaml:"sentry_dsn"`
 	SignalfxAPIKey                            util.StringSecret `yaml:"signalfx_api_key"`
 	SignalfxDynamicPerTagAPIKeysEnable        bool              `yaml:"signalfx_dynamic_per_tag_api_keys_enable"`
-	SignalfxDynamicPerTagAPIKeysRefreshPeriod string            `yaml:"signalfx_dynamic_per_tag_api_keys_refresh_period"`
+	SignalfxDynamicPerTagAPIKeysRefreshPeriod time.Duration     `yaml:"signalfx_dynamic_per_tag_api_keys_refresh_period"`
 	SignalfxEndpointAPI                       string            `yaml:"signalfx_endpoint_api"`
 	SignalfxEndpointBase                      string            `yaml:"signalfx_endpoint_base"`
 	SignalfxFlushMaxPerBody                   int               `yaml:"signalfx_flush_max_per_body"`
@@ -99,8 +103,8 @@ type Config struct {
 	SignalfxMetricNamePrefixDrops             []string          `yaml:"signalfx_metric_name_prefix_drops"`
 	SignalfxMetricTagPrefixDrops              []string          `yaml:"signalfx_metric_tag_prefix_drops"`
 	SignalfxPerTagAPIKeys                     []struct {
-		APIKey string `yaml:"api_key"`
-		Name   string `yaml:"name"`
+		APIKey util.StringSecret `yaml:"api_key"`
+		Name   string            `yaml:"name"`
 	} `yaml:"signalfx_per_tag_api_keys"`
 	SignalfxVaryKeyBy   string `yaml:"signalfx_vary_key_by"`
 	SpanChannelCapacity int    `yaml:"span_channel_capacity"`
