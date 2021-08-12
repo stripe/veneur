@@ -6,9 +6,9 @@ import (
 	"context"
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"io"
 	"path"
-	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -23,7 +23,6 @@ import (
 )
 
 const Delimiter = '\t'
-const FileExtension = "tsv.gz"
 
 var S3ClientUninitializedError = errors.New("s3 client has not been initialized")
 
@@ -116,7 +115,7 @@ func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
 	}
 	params := &s3.PutObjectInput{
 		Bucket: aws.String(s.s3Bucket),
-		Key:    s3Path(s.hostname),
+		Key:    s3Key(s.hostname),
 		Body:   data,
 	}
 
@@ -124,10 +123,15 @@ func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
 	return err
 }
 
-func s3Path(hostname string) *string {
-	t := time.Now()
-	filename := strconv.FormatInt(t.Unix(), 10) + "." + FileExtension
-	return aws.String(path.Join(t.Format("2006/01/02"), hostname, filename))
+func s3Key(hostname string) *string {
+	// NOTE: It would be cool if we could do something like this instead of hardcoding
+	// 1h partitions:
+    // aws_s3_key_template: "{{ .TimeUnix }}/{{ .SchemaVersion }}/{{ .Hostname }}"
+	t := time.Now().UTC()
+	exactFlushTs := t.Unix()
+	hourPartition := t.Format("2006/01/02/03")
+	key := fmt.Sprintf("%s/%s-%s.tsv.gz", hourPartition, hostname, exactFlushTs)
+	return aws.String(key)
 }
 
 // FlushOtherSamples is a no-op for the time being
