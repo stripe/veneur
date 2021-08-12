@@ -39,11 +39,11 @@ import (
 	"github.com/stripe/veneur/v14/importsrv"
 	"github.com/stripe/veneur/v14/plugins"
 	localfilep "github.com/stripe/veneur/v14/plugins/localfile"
-	s3p "github.com/stripe/veneur/v14/plugins/s3"
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/scopedstatsd"
 	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/sinks/attribution"
 	"github.com/stripe/veneur/v14/sinks/datadog"
 	"github.com/stripe/veneur/v14/sinks/debug"
 	"github.com/stripe/veneur/v14/sinks/falconer"
@@ -809,13 +809,11 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		} else {
 			logger.Info("Successfully created AWS session")
 			svc = s3.New(sess)
-			plugin := &s3p.S3Plugin{
-				Logger:   log,
-				Svc:      svc,
-				S3Bucket: conf.AwsS3Bucket,
-				Hostname: ret.Hostname,
+			attributionSink, err := attribution.NewAttributionSink(log, ret.Hostname, svc, conf.AwsS3Bucket)
+			if err != nil {
+				return nil, err
 			}
-			ret.registerPlugin(plugin)
+			ret.metricSinks = append(ret.metricSinks, attributionSink)
 		}
 	} else {
 		logger.Info("AWS S3 bucket not set. Skipping S3 Plugin initialization.")
