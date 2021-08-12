@@ -171,7 +171,7 @@ type SignalFxSink struct {
 	hostnameTag               string
 	hostname                  string
 	commonDimensions          map[string]string
-	log                       *logrus.Logger
+	log                       *logrus.Entry
 	traceClient               *trace.Client
 	excludedTags              map[string]struct{}
 	metricNamePrefixDrops     []string
@@ -238,16 +238,14 @@ func MigrateConfig(conf *veneur.Config) error {
 }
 
 func CreateSignalFxSink(
-	server *veneur.Server, name string, config veneur.Config,
-	sinkConfig interface{},
+	server *veneur.Server, name string, logger *logrus.Entry,
+	config veneur.Config, sinkConfig interface{},
 ) (sinks.MetricSink, error) {
 	signalFxConfig := SignalFxSinkConfig{}
 	err := util.DecodeConfig(sinkConfig, &signalFxConfig)
 	if err != nil {
 		return nil, err
 	}
-
-	log := veneur.GetLogger()
 
 	tracedHTTP := *server.HTTPClient
 	tracedHTTP.Transport = vhttp.NewTraceRoundTripper(
@@ -261,13 +259,13 @@ func CreateSignalFxSink(
 			NewClient(signalFxConfig.EndpointBase, perTag.APIKey.Value, &tracedHTTP)
 	}
 
-	log.WithField(
+	logger.WithField(
 		"endpoint_base", signalFxConfig.EndpointBase).Info("Creating SignalFx sink")
 	return NewSignalFxSink(
 		signalFxConfig,
 		config.Hostname,
 		server.TagsAsMap,
-		log,
+		logger,
 		fallback,
 		byTagClients,
 		&tracedHTTP)
@@ -278,7 +276,7 @@ func NewSignalFxSink(
 	config SignalFxSinkConfig,
 	hostname string,
 	commonDimensions map[string]string,
-	log *logrus.Logger,
+	log *logrus.Entry,
 	client DPClient,
 	perTagClients map[string]DPClient,
 	httpClient *http.Client,

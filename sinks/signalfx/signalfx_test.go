@@ -96,7 +96,7 @@ func TestNewSignalFxSink(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.New(), nil, nil, nil)
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestSignalFxFlushRouting(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, nil, nil)
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 
 	assert.NoError(t, err)
 
@@ -192,7 +192,7 @@ func TestSignalFxFlushGauge(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, nil, nil)
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 
 	assert.NoError(t, err)
 
@@ -239,7 +239,7 @@ func TestSignalFxFlushCounter(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, nil, nil)
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{{
@@ -286,7 +286,7 @@ func TestSignalFxFlushWithDrops(t *testing.T) {
 		MetricNamePrefixDrops:             []string{"foo.bar"},
 		MetricTagPrefixDrops:              []string{"baz:gorch"},
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, nil, nil)
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{{
@@ -342,7 +342,7 @@ func TestSignalFxFlushStatus(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, nil, nil)
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{{
@@ -391,7 +391,7 @@ func TestSignalFxServiceCheckFlushOther(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, nil, nil)
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	assert.NoError(t, err)
 
 	serviceCheckMsg := "Service Farts starting[an example link](http://catchpoint.com/session_id \"Title\")"
@@ -422,7 +422,7 @@ func TestSignalFxEventFlush(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, nil, nil)
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	assert.NoError(t, err)
 
 	evMessage := "[an example link](http://catchpoint.com/session_id \"Title\")"
@@ -464,7 +464,7 @@ func TestSignalFxSetExcludeTags(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, nil, nil)
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	sink.SetExcludedTags([]string{"foo", "boo", "host"})
 	assert.NoError(t, err)
 
@@ -538,7 +538,7 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "test_by",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.New(), fallback, map[string]DPClient{"available": specialized}, nil)
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{"available": specialized}, nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{{
@@ -615,7 +615,7 @@ func TestSignalFxFlushBatches(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "test_by",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.New(), fallback, map[string]DPClient{}, nil)
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{}, nil)
 
 	assert.NoError(t, err)
 
@@ -670,7 +670,7 @@ func TestSignalFxFlushBatchHang(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "test_by",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.New(), fallback, map[string]DPClient{}, nil)
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{}, nil)
 
 	assert.NoError(t, err)
 
@@ -842,7 +842,7 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "test_by",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.New(), fallback, map[string]DPClient{}, server.Client())
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{}, server.Client())
 
 	require.NoError(t, err)
 
@@ -916,7 +916,7 @@ func TestSignalFxVaryByOverride(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         varyByTagKey,
-	}, "signalfx-hostname", commonDimensions, logrus.New(), defaultFakeSink, perTagClients, nil)
+	}, "signalfx-hostname", commonDimensions, logrus.NewEntry(logrus.New()), defaultFakeSink, perTagClients, nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{{

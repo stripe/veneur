@@ -78,11 +78,11 @@ const defaultTCPReadTimeout = 10 * time.Minute
 const httpQuitEndpoint = "/quitquitquit"
 
 type SpanSinkTypes = map[string]func(
-	*Server, string, Config, interface{},
+	*Server, string, *logrus.Entry, Config, interface{},
 ) (sinks.SpanSink, error)
 
 type MetricSinkTypes = map[string]func(
-	*Server, string, Config, interface{},
+	*Server, string, *logrus.Entry, Config, interface{},
 ) (sinks.MetricSink, error)
 
 // Config used to create a new server.
@@ -213,10 +213,6 @@ func SetLogger(logger *logrus.Logger) {
 	log = logger
 }
 
-func GetLogger() *logrus.Logger {
-	return log
-}
-
 func scopeFromName(name string) (ssf.SSFSample_Scope, error) {
 	switch name {
 	case "default":
@@ -320,7 +316,9 @@ func (server *Server) createSpanSinks(
 		if !ok {
 			logger.Warnf("Unknown sink kind %s; skipping.", sinkConfig.Kind)
 		}
-		sink, err := sinkFactory(server, sinkConfig.Name, config, sinkConfig.Config)
+		sink, err := sinkFactory(
+			server, sinkConfig.Name, logger.WithField("sink", sinkConfig.Name),
+			config, sinkConfig.Config)
 		if err != nil {
 			return nil, err
 		}
@@ -338,7 +336,9 @@ func (server *Server) createMetricSinks(
 		if !ok {
 			logger.Warnf("Unknown sink kind %s; skipping.", sinkConfig.Kind)
 		}
-		sink, err := sinkFactory(server, sinkConfig.Name, config, sinkConfig.Config)
+		sink, err := sinkFactory(
+			server, sinkConfig.Name, logger.WithField("sink", sinkConfig.Name),
+			config, sinkConfig.Config)
 		if err != nil {
 			return nil, err
 		}
