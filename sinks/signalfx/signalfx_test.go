@@ -85,7 +85,7 @@ func newDerivedProcessor() *testDerivedSink {
 func TestNewSignalFxSink(t *testing.T) {
 	// test the variables that have been renamed
 	client := NewClient("http://www.example.com", "secret", http.DefaultClient)
-	sink, err := NewSignalFxSink(SignalFxSinkConfig{
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
 		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
@@ -118,7 +118,7 @@ func TestNewSignalFxSink(t *testing.T) {
 
 func TestSignalFxFlushRouting(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink(SignalFxSinkConfig{
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
 		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
@@ -181,7 +181,7 @@ func TestSignalFxFlushGauge(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
 
-	sink, err := NewSignalFxSink(SignalFxSinkConfig{
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
 		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
@@ -228,7 +228,7 @@ func TestSignalFxFlushGauge(t *testing.T) {
 func TestSignalFxFlushCounter(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink(SignalFxSinkConfig{
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
 		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
@@ -275,7 +275,7 @@ func TestSignalFxFlushCounter(t *testing.T) {
 
 func TestSignalFxFlushWithDrops(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink(SignalFxSinkConfig{
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
 		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
@@ -331,7 +331,7 @@ func TestSignalFxFlushWithDrops(t *testing.T) {
 func TestSignalFxFlushStatus(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink(SignalFxSinkConfig{
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
 		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
@@ -380,7 +380,7 @@ func TestSignalFxFlushStatus(t *testing.T) {
 func TestSignalFxServiceCheckFlushOther(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink(SignalFxSinkConfig{
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
 		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
@@ -411,7 +411,7 @@ func TestSignalFxServiceCheckFlushOther(t *testing.T) {
 
 func TestSignalFxEventFlush(t *testing.T) {
 	fakeSink := NewFakeSink()
-	sink, err := NewSignalFxSink(SignalFxSinkConfig{
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
 		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
@@ -453,7 +453,7 @@ func TestSignalFxEventFlush(t *testing.T) {
 func TestSignalFxSetExcludeTags(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink(SignalFxSinkConfig{
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
 		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
@@ -527,7 +527,7 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 	specialized := NewFakeSink()
 
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink(SignalFxSinkConfig{
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
 		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
@@ -604,7 +604,7 @@ func TestSignalFxFlushBatches(t *testing.T) {
 	fallback := NewFakeSink()
 
 	perBatch := 1
-	sink, err := NewSignalFxSink(SignalFxSinkConfig{
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
 		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
@@ -659,7 +659,7 @@ func TestSignalFxFlushBatchHang(t *testing.T) {
 	fallback := failSink{}
 
 	perBatch := 1
-	sink, err := NewSignalFxSink(SignalFxSinkConfig{
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
 		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
@@ -831,7 +831,7 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 	server := httptest.NewServer(m)
 	fallback := NewFakeSink()
 	perBatch := 1
-	sink, err := NewSignalFxSink(SignalFxSinkConfig{
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        true,
 		DynamicPerTagAPIKeysRefreshPeriod: dynamicKeyRefreshPeriod,
@@ -905,7 +905,7 @@ func TestSignalFxVaryByOverride(t *testing.T) {
 	perTagClients["foo"] = customFakeSinkFoo
 	perTagClients["bar"] = customFakeSinkBar
 
-	sink, err := NewSignalFxSink(SignalFxSinkConfig{
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
 		DynamicPerTagAPIKeysRefreshPeriod: time.Second,

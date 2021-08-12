@@ -1,6 +1,10 @@
 package veneur
 
-import "github.com/stripe/veneur/v14/util"
+import (
+	"time"
+
+	"github.com/stripe/veneur/v14/util"
+)
 
 type Config struct {
 	Aggregates                             []string          `yaml:"aggregates"`
@@ -91,7 +95,7 @@ type Config struct {
 	SentryDsn                                 util.StringSecret `yaml:"sentry_dsn"`
 	SignalfxAPIKey                            util.StringSecret `yaml:"signalfx_api_key"`
 	SignalfxDynamicPerTagAPIKeysEnable        bool              `yaml:"signalfx_dynamic_per_tag_api_keys_enable"`
-	SignalfxDynamicPerTagAPIKeysRefreshPeriod string            `yaml:"signalfx_dynamic_per_tag_api_keys_refresh_period"`
+	SignalfxDynamicPerTagAPIKeysRefreshPeriod time.Duration     `yaml:"signalfx_dynamic_per_tag_api_keys_refresh_period"`
 	SignalfxEndpointAPI                       string            `yaml:"signalfx_endpoint_api"`
 	SignalfxEndpointBase                      string            `yaml:"signalfx_endpoint_base"`
 	SignalfxFlushMaxPerBody                   int               `yaml:"signalfx_flush_max_per_body"`
