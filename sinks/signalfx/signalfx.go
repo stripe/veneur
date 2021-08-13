@@ -205,7 +205,7 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 // TODO(arnavdugar): Remove this once the old configuration format has been
 // removed.
 func MigrateConfig(conf *veneur.Config) error {
-	if conf.SignalfxAPIKey.Value != "" {
+	if conf.SignalfxAPIKey.Value == "" {
 		return nil
 	}
 	// To maintain compatability, set the default value of
