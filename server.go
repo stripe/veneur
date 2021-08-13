@@ -809,7 +809,9 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		} else {
 			logger.Info("Successfully created AWS session")
 			svc = s3.New(sess)
-			attributionSink, err := attribution.NewAttributionSink(log, ret.Hostname, svc, conf.AwsS3Bucket)
+			groupings := make([]string, 1)
+			groupings = append(groupings, "host_contact")
+			attributionSink, err := attribution.NewAttributionSink(log, ret.Hostname, svc, conf.AwsS3Bucket, groupings)
 			if err != nil {
 				return nil, err
 			}

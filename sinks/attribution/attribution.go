@@ -8,12 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+	"github.com/axiomhq/hyperloglog"
 	"github.com/sirupsen/logrus"
 
 	"github.com/stripe/veneur/v14/samplers"
@@ -26,19 +27,42 @@ import (
 // AttributionSink is nil
 var S3ClientUninitializedError = errors.New("s3 client has not been initialized")
 
-type TimeseriesKey []string
-
 type Timeseries struct {
 	Name string
 	Tags []string
 }
 
-func (ts *Timeseries) Serialize() (serialized []byte) {
-	serialized := make([]byte, len(ts.Name))
-	serialized = append(serialized, []byte(ts.Name))
+func (ts *Timeseries) ID() string {
+	var b strings.Builder
+	b.WriteString(ts.Name)
+	// TODO: This needs to be order sensitive
 	for _, tag := range ts.Tags {
-		serialized = append(serialized, tag)
+		b.WriteString(tag)
 	}
+	return b.String()
+}
+
+func (ts *Timeseries) GroupID(groupByTag []string) string {
+	var b strings.Builder
+	b.WriteString(ts.Name)
+
+	// Extract information from tags for grouping purposes, if s.groupByTag is non-empty
+	if len(groupByTag) > 0 {
+		tagKeyComponents := make([]string, len(groupByTag))
+		for _, tag := range ts.Tags {
+			for i, tagName := range groupByTag {
+				kv := strings.SplitN(tag, fmt.Sprintf("%s:", tagName), 2)
+				if len(kv) == 2 {
+					tagKeyComponents[i] = kv[1]
+				}
+			}
+		}
+		for _, component := range tagKeyComponents {
+			b.WriteString(component)
+		}
+	}
+
+	return b.String()
 }
 
 // AttributionSink is a sink for flushing ownership/usage (attribution data) to S3
@@ -48,18 +72,9 @@ type AttributionSink struct {
 	hostname        string
 	s3Svc           s3iface.S3API
 	s3Bucket        string
-	attributionData map[TimeseriesKey]*hyperloglog.Sketch
+	attributionData map[string]*hyperloglog.Sketch
 	groupByTag      []string
 }
-
-// TimeseriesSet is used to determine approx. how many timeseries corresponding to a
-// grouping of metric attributes (names, ownership tags) are being flushed in one batch
-// type TimeseriesSet struct {
-// 	// Group is typically at least a metric name, but can include other metadata
-// 	Group []byte
-// 	// Hll keeps track of approximate unique MTS corrsesponding to a Groop
-// 	Hll   *hyperloglog.Sketch
-// }
 
 // NewAttributionSink creates a new sink to flush ownership/usage (attribution) data to S3
 func NewAttributionSink(log *logrus.Logger, hostname string, s3Svc s3iface.S3API, s3Bucket string, groupByTag []string) (*AttributionSink, error) {
@@ -67,7 +82,7 @@ func NewAttributionSink(log *logrus.Logger, hostname string, s3Svc s3iface.S3API
 	// increase cardinality on a per-Veneur level. The metric attribution schemas are designed for
 	// to account for config.Tags increasing cardinality across a fleet of Veneurs, such that many
 	// attribution dumps can be batch aggregated together accurately.
-	return &AttributionSink{nil, log, hostname, s3Svc, s3Bucket, groupByTag}, nil
+	return &AttributionSink{nil, log, hostname, s3Svc, s3Bucket, map[string]*hyperloglog.Sketch{}, groupByTag}, nil
 }
 
 // Start starts the AttributionSink
@@ -84,8 +99,8 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 
-	flushStart := time.Now()
-	spanTags := map[string]string{"sink": s.Name()}
+	// flushStart := time.Now()
+	// spanTags := map[string]string{"sink": s.Name()}
 
 	for _, metric := range metrics {
 		if sinks.IsAcceptableMetric(metric, s) {
@@ -120,33 +135,15 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 
 // recordMetric tallies an InterMetric
 func (s *AttributionSink) recordMetric(metric samplers.InterMetric) {
-	key := make([]string, len(s.groupByTag) + 1)
-	key = append(key, metric.Name)
+	ts := Timeseries{metric.Name, metric.Tags}
+	tsID := ts.ID()
+	tsGroupID := ts.GroupID(s.groupByTag)
 
-	// Extract information from tags for grouping purposes, if s.groupByTag is non-empty
-	if len(s.groupByTag) > 0 {
-		tagKeyComponents := make([]string, len(s.groupByTag))
-		for _, tag := range metric.Tags {
-			for i, tagName := range s.groupByTag {
-				kv := strings.SplitN(tag, fmt.Sprintf("%s:", tagName), 2)
-				key := kv[0]
-				if len(kv) == 2 {
-					tagKeyComponents[i] = kv[1]
-				}
-			}
-		}
-		key = append(key, tagKeyComponents)
+	_, ok := s.attributionData[tsGroupID]
+	if !ok {
+		s.attributionData[tsGroupID] = hyperloglog.New()
 	}
-
-	timeseries := Timeseries{metric.Name, metric.Tags}
-	serialized := timeseries.Serialize()
-
-	hll, ok := s.attributionData[key]
-	if ok {
-		s.attributionData[key].Insert(serialized)
-	} else {
-		s.attributionData[key] = hyperloglog.New()
-	}
+	s.attributionData[tsGroupID].Insert([]byte(tsID))
 }
 
 // encodeInterMetricsCSV returns a reader containing the gzipped CSV representation of the
@@ -156,8 +153,6 @@ func encodeInterMetricsCSV(metrics []samplers.InterMetric, ts time.Time) (io.Rea
 	gzw := gzip.NewWriter(b)
 	w := csv.NewWriter(gzw)
 	w.Comma = '\t'
-
-	attributionReport := compileAttributionReport(metrics)
 
 	for _, metric := range metrics {
 		encodeInterMetricCSV(metric, w, ts)
@@ -192,7 +187,7 @@ func s3Key(hostname string) *string {
 	t := time.Now().UTC()
 	exactFlushTs := t.Unix()
 	hourPartition := t.Format("2006/01/02/03")
-	key := fmt.Sprintf("%s/%s-%s.tsv.gz", hourPartition, hostname, exactFlushTs)
+	key := fmt.Sprintf("%s/%s-%d.tsv.gz", hourPartition, hostname, exactFlushTs)
 	return aws.String(key)
 }
 
