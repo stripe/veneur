@@ -67,22 +67,23 @@ func (ts *Timeseries) GroupID(groupByTag []string) string {
 
 // AttributionSink is a sink for flushing ownership/usage (attribution data) to S3
 type AttributionSink struct {
-	traceClient     *trace.Client
-	log             *logrus.Logger
-	hostname        string
-	s3Svc           s3iface.S3API
-	s3Bucket        string
-	attributionData map[string]*hyperloglog.Sketch
-	groupByTag      []string
+	traceClient         *trace.Client
+	log                 *logrus.Logger
+	additionalKeyPrefix string
+	hostname            string
+	s3Svc               s3iface.S3API
+	s3Bucket            string
+	attributionData     map[string]*hyperloglog.Sketch
+	groupByTag          []string
 }
 
 // NewAttributionSink creates a new sink to flush ownership/usage (attribution) data to S3
-func NewAttributionSink(log *logrus.Logger, hostname string, s3Svc s3iface.S3API, s3Bucket string, groupByTag []string) (*AttributionSink, error) {
+func NewAttributionSink(log *logrus.Logger, additionalKeyPrefix string, hostname string, s3Svc s3iface.S3API, s3Bucket string, groupByTag []string) (*AttributionSink, error) {
 	// NOTE: We don't need to account for config.Tags because they do not, generally speaking,
 	// increase cardinality on a per-Veneur level. The metric attribution schemas are designed for
 	// to account for config.Tags increasing cardinality across a fleet of Veneurs, such that many
 	// attribution dumps can be batch aggregated together accurately.
-	return &AttributionSink{nil, log, hostname, s3Svc, s3Bucket, map[string]*hyperloglog.Sketch{}, groupByTag}, nil
+	return &AttributionSink{nil, log, "rmatest1", hostname, s3Svc, s3Bucket, map[string]*hyperloglog.Sketch{}, groupByTag}, nil
 }
 
 // Start starts the AttributionSink
@@ -106,6 +107,10 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 		if sinks.IsAcceptableMetric(metric, s) {
 			s.recordMetric(metric)
 		}
+	}
+
+	for k, v := range s.attributionData {
+		s.log.Debug(fmt.Sprintf("%s - %d", k, v.Estimate()))
 	}
 
 	s.log.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
@@ -172,7 +177,7 @@ func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
 	}
 	params := &s3.PutObjectInput{
 		Bucket: aws.String(s.s3Bucket),
-		Key:    s3Key(s.hostname),
+		Key:    s3Key(s.additionalKeyPrefix, s.hostname),
 		Body:   data,
 	}
 
@@ -180,7 +185,7 @@ func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
 	return err
 }
 
-func s3Key(hostname string) *string {
+func s3Key(additionalKeyPrefix, hostname string) *string {
 	// NOTE: It would be cool if we could do something like this instead of hardcoding
 	// 1h partitions:
     // aws_s3_key_template: "{{ .TimeUnix }}/{{ .SchemaVersion }}/{{ .Hostname }}"

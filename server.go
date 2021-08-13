@@ -811,7 +811,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			svc = s3.New(sess)
 			groupings := make([]string, 1)
 			groupings = append(groupings, "host_contact")
-			attributionSink, err := attribution.NewAttributionSink(log, ret.Hostname, svc, conf.AwsS3Bucket, groupings)
+			attributionSink, err := attribution.NewAttributionSink(log, "host_contact", ret.Hostname, svc, conf.AwsS3Bucket, groupings)
 			if err != nil {
 				return nil, err
 			}
