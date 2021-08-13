@@ -77,13 +77,25 @@ const defaultTCPReadTimeout = 10 * time.Minute
 
 const httpQuitEndpoint = "/quitquitquit"
 
-type SpanSinkTypes = map[string]func(
-	*Server, string, *logrus.Entry, Config, interface{},
-) (sinks.SpanSink, error)
+type SpanSinkTypes = map[string]struct {
+	// Creates a new span sink intsance.
+	Create func(
+		*Server, string, *logrus.Entry, Config, interface{},
+	) (sinks.SpanSink, error)
+	// Parses the config for the sink into a format that is validated and safe to
+	// log.
+	ParseConfig func(interface{}) (interface{}, error)
+}
 
-type MetricSinkTypes = map[string]func(
-	*Server, string, *logrus.Entry, Config, interface{},
-) (sinks.MetricSink, error)
+type MetricSinkTypes = map[string]struct {
+	// Creates a new metric sink instance.
+	Create func(
+		*Server, string, *logrus.Entry, Config, interface{},
+	) (sinks.MetricSink, error)
+	// Parses the config for the sink into a format that is validated and safe to
+	// log.
+	ParseConfig func(interface{}) (interface{}, error)
+}
 
 // Config used to create a new server.
 type ServerConfig struct {
@@ -308,17 +320,24 @@ func scopesFromConfig(conf Config) (scopedstatsd.MetricScopes, error) {
 }
 
 func (server *Server) createSpanSinks(
-	logger *logrus.Logger, config Config, sinkTypes SpanSinkTypes,
+	logger *logrus.Logger, config *Config, sinkTypes SpanSinkTypes,
 ) ([]sinks.SpanSink, error) {
 	sinks := []sinks.SpanSink{}
-	for _, sinkConfig := range config.SpanSinks {
+	for index, sinkConfig := range config.SpanSinks {
 		sinkFactory, ok := sinkTypes[sinkConfig.Kind]
 		if !ok {
 			logger.Warnf("Unknown sink kind %s; skipping.", sinkConfig.Kind)
 		}
-		sink, err := sinkFactory(
+		parsedSinkConfig, err := sinkFactory.ParseConfig(sinkConfig.Config)
+		if err != nil {
+			return nil, err
+		}
+		// Overwrite the map config with the parsed config. This prevents senstive
+		// fields in the map from accidentally being logged.
+		config.SpanSinks[index].Config = parsedSinkConfig
+		sink, err := sinkFactory.Create(
 			server, sinkConfig.Name, logger.WithField("sink", sinkConfig.Name),
-			config, sinkConfig.Config)
+			*config, parsedSinkConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -328,17 +347,24 @@ func (server *Server) createSpanSinks(
 }
 
 func (server *Server) createMetricSinks(
-	logger *logrus.Logger, config Config, sinkTypes MetricSinkTypes,
+	logger *logrus.Logger, config *Config, sinkTypes MetricSinkTypes,
 ) ([]sinks.MetricSink, error) {
 	sinks := []sinks.MetricSink{}
-	for _, sinkConfig := range config.MetricSinks {
+	for index, sinkConfig := range config.MetricSinks {
 		sinkFactory, ok := sinkTypes[sinkConfig.Kind]
 		if !ok {
 			logger.Warnf("Unknown sink kind %s; skipping.", sinkConfig.Kind)
 		}
-		sink, err := sinkFactory(
+		parsedSinkConfig, err := sinkFactory.ParseConfig(sinkConfig.Config)
+		if err != nil {
+			return nil, err
+		}
+		// Overwrite the map config with the parsed config. This prevents senstive
+		// fields in the map from accidentally being logged.
+		config.SpanSinks[index].Config = parsedSinkConfig
+		sink, err := sinkFactory.Create(
 			server, sinkConfig.Name, logger.WithField("sink", sinkConfig.Name),
-			config, sinkConfig.Config)
+			*config, parsedSinkConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -811,7 +837,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		}
 	}
 	customMetricSinks, err :=
-		ret.createMetricSinks(logger, conf, config.MetricSinkTypes)
+		ret.createMetricSinks(logger, &conf, config.MetricSinkTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -821,7 +847,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.metricSinks = append(ret.metricSinks, customMetricSinks...)
 	}
 	customSpanSinks, err :=
-		ret.createSpanSinks(logger, conf, config.SpanSinkTypes)
+		ret.createSpanSinks(logger, &conf, config.SpanSinkTypes)
 	if err != nil {
 		return nil, err
 	}
