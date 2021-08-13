@@ -104,6 +104,7 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 	// spanTags := map[string]string{"sink": s.Name()}
 
 	for _, metric := range metrics {
+		s.log.Debug(fmt.Sprintf("Checking %s", metric.Name))
 		if sinks.IsAcceptableMetric(metric, s) {
 			s.recordMetric(metric)
 		}
