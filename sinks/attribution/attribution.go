@@ -22,25 +22,52 @@ import (
 	"github.com/stripe/veneur/v14/trace"
 )
 
-const Delimiter = '\t'
-
+// S3ClientUninitializedError is an error returned when the S3 client provided to
+// AttributionSink is nil
 var S3ClientUninitializedError = errors.New("s3 client has not been initialized")
 
-type AttributionSink struct {
-	traceClient *trace.Client
-	log         *logrus.Logger
-	hostname    string
-	s3Svc       s3iface.S3API
-	s3Bucket    string
+type TimeseriesKey []string
+
+type Timeseries struct {
+	Name string
+	Tags []string
 }
 
+func (ts *Timeseries) Serialize() (serialized []byte) {
+	serialized := make([]byte, len(ts.Name))
+	serialized = append(serialized, []byte(ts.Name))
+	for _, tag := range ts.Tags {
+		serialized = append(serialized, tag)
+	}
+}
+
+// AttributionSink is a sink for flushing ownership/usage (attribution data) to S3
+type AttributionSink struct {
+	traceClient     *trace.Client
+	log             *logrus.Logger
+	hostname        string
+	s3Svc           s3iface.S3API
+	s3Bucket        string
+	attributionData map[TimeseriesKey]*hyperloglog.Sketch
+	groupByTag      []string
+}
+
+// TimeseriesSet is used to determine approx. how many timeseries corresponding to a
+// grouping of metric attributes (names, ownership tags) are being flushed in one batch
+// type TimeseriesSet struct {
+// 	// Group is typically at least a metric name, but can include other metadata
+// 	Group []byte
+// 	// Hll keeps track of approximate unique MTS corrsesponding to a Groop
+// 	Hll   *hyperloglog.Sketch
+// }
+
 // NewAttributionSink creates a new sink to flush ownership/usage (attribution) data to S3
-func NewAttributionSink(log *logrus.Logger, hostname string, s3Svc s3iface.S3API, s3Bucket string) (*AttributionSink, error) {
+func NewAttributionSink(log *logrus.Logger, hostname string, s3Svc s3iface.S3API, s3Bucket string, groupByTag []string) (*AttributionSink, error) {
 	// NOTE: We don't need to account for config.Tags because they do not, generally speaking,
 	// increase cardinality on a per-Veneur level. The metric attribution schemas are designed for
 	// to account for config.Tags increasing cardinality across a fleet of Veneurs, such that many
 	// attribution dumps can be batch aggregated together accurately.
-	return &AttributionSink{nil, log, hostname, s3Svc, s3Bucket}, nil
+	return &AttributionSink{nil, log, hostname, s3Svc, s3Bucket, groupByTag}, nil
 }
 
 // Start starts the AttributionSink
@@ -61,32 +88,65 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 	spanTags := map[string]string{"sink": s.Name()}
 
 	for _, metric := range metrics {
-		if !sinks.IsAcceptableMetric(metric, s) {
-			continue
+		if sinks.IsAcceptableMetric(metric, s) {
+			s.recordMetric(metric)
 		}
 	}
 
-	csv, err := encodeInterMetricsCSV(metrics, flushStart)
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			logrus.ErrorKey: err,
-			"metrics":       len(metrics),
-		}).Error("Could not marshal metrics before posting to s3")
-		return err
-	}
-
-	err = s.s3Post(csv)
-	if err != nil {
-		s.log.WithFields(logrus.Fields{
-			logrus.ErrorKey: err,
-			"metrics":       len(metrics),
-		}).Error("Error posting to s3")
-		return err
-	}
-
 	s.log.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
-	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, spanTags))
+
+	// csv, err := encodeInterMetricsCSV(metrics, flushStart)
+	// if err != nil {
+	// 	s.log.WithFields(logrus.Fields{
+	// 		logrus.ErrorKey: err,
+	// 		"metrics":       len(metrics),
+	// 	}).Error("Could not marshal metrics before posting to s3")
+	// 	return err
+	// }
+
+	// err = s.s3Post(csv)
+	// if err != nil {
+	// 	s.log.WithFields(logrus.Fields{
+	// 		logrus.ErrorKey: err,
+	// 		"metrics":       len(metrics),
+	// 	}).Error("Error posting to s3")
+	// 	return err
+	// }
+
+	// s.log.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
+	// span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, spanTags))
 	return nil
+}
+
+// recordMetric tallies an InterMetric
+func (s *AttributionSink) recordMetric(metric samplers.InterMetric) {
+	key := make([]string, len(s.groupByTag) + 1)
+	key = append(key, metric.Name)
+
+	// Extract information from tags for grouping purposes, if s.groupByTag is non-empty
+	if len(s.groupByTag) > 0 {
+		tagKeyComponents := make([]string, len(s.groupByTag))
+		for _, tag := range metric.Tags {
+			for i, tagName := range s.groupByTag {
+				kv := strings.SplitN(tag, fmt.Sprintf("%s:", tagName), 2)
+				key := kv[0]
+				if len(kv) == 2 {
+					tagKeyComponents[i] = kv[1]
+				}
+			}
+		}
+		key = append(key, tagKeyComponents)
+	}
+
+	timeseries := Timeseries{metric.Name, metric.Tags}
+	serialized := timeseries.Serialize()
+
+	hll, ok := s.attributionData[key]
+	if ok {
+		s.attributionData[key].Insert(serialized)
+	} else {
+		s.attributionData[key] = hyperloglog.New()
+	}
 }
 
 // encodeInterMetricsCSV returns a reader containing the gzipped CSV representation of the
@@ -95,7 +155,9 @@ func encodeInterMetricsCSV(metrics []samplers.InterMetric, ts time.Time) (io.Rea
 	b := &bytes.Buffer{}
 	gzw := gzip.NewWriter(b)
 	w := csv.NewWriter(gzw)
-	w.Comma = Delimiter
+	w.Comma = '\t'
+
+	attributionReport := compileAttributionReport(metrics)
 
 	for _, metric := range metrics {
 		encodeInterMetricCSV(metric, w, ts)
