@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/sinks/splunk"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
@@ -64,10 +65,10 @@ func jsonEndpoint(t testing.TB, ch chan<- splunk.Event) http.Handler {
 	})
 }
 
-func testLogger() *logrus.Logger {
+func testLogger() *logrus.Entry {
 	logger := logrus.New()
 	logger.SetLevel(logrus.DebugLevel)
-	return logger
+	return logrus.NewEntry(logger)
 }
 
 func TestSpanIngestBatch(t *testing.T) {
@@ -77,8 +78,22 @@ func TestSpanIngestBatch(t *testing.T) {
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
 	defer ts.Close()
-	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0, 1, 1*time.Second, 0)
+	gsink, err := splunk.Create(&veneur.Server{}, "splunk", logger,
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  ts.URL,
+			HecBatchSize:                nToFlush,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    1 * time.Second,
+			HecSendTimeout:              time.Duration(0),
+			HecSubmissionWorkers:        0,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              1,
+		})
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)
@@ -152,8 +167,22 @@ func TestTimeout(t *testing.T) {
 		time.Sleep(time.Duration(100 * time.Millisecond))
 	}))
 	defer ts.Close()
-	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(10*time.Millisecond), nToFlush, 0, 1, 1*time.Second, 0)
+	gsink, err := splunk.Create(&veneur.Server{}, "splunk", logger,
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  ts.URL,
+			HecBatchSize:                nToFlush,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    1 * time.Second,
+			HecSendTimeout:              time.Duration(10 * time.Millisecond),
+			HecSubmissionWorkers:        0,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              1,
+		})
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 
@@ -213,8 +242,22 @@ func BenchmarkBatchIngest(b *testing.B) {
 	// set up a null responder that we can flush to:
 	ts := httptest.NewServer(jsonEndpoint(b, nil))
 	defer ts.Close()
-	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(0), benchmarkCapacity, benchmarkWorkers, 1, 1*time.Second, 0)
+	gsink, err := splunk.Create(&veneur.Server{}, "splunk", logger,
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  ts.URL,
+			HecBatchSize:                benchmarkCapacity,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    1 * time.Second,
+			HecSendTimeout:              time.Duration(0),
+			HecSubmissionWorkers:        benchmarkWorkers,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              1,
+		})
 	require.NoError(b, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 
@@ -258,8 +301,22 @@ func TestSampling(t *testing.T) {
 
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
-	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0, 10, 1*time.Second, 0)
+	gsink, err := splunk.Create(&veneur.Server{}, "splunk", logger,
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  ts.URL,
+			HecBatchSize:                nToFlush,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    1 * time.Second,
+			HecSendTimeout:              time.Duration(0),
+			HecSubmissionWorkers:        0,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              10,
+		})
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)
@@ -326,8 +383,22 @@ func TestSamplingIndicators(t *testing.T) {
 
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
-	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0, 10, 1*time.Second, 0)
+	gsink, err := splunk.Create(&veneur.Server{}, "splunk", logger,
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  ts.URL,
+			HecBatchSize:                nToFlush,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    1 * time.Second,
+			HecSendTimeout:              time.Duration(0),
+			HecSubmissionWorkers:        0,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              10,
+		})
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)
@@ -398,8 +469,22 @@ func TestExcludedTagsIndicators(t *testing.T) {
 
 	ch := make(chan splunk.Event, nToFlush)
 	ts := httptest.NewServer(jsonEndpoint(t, ch))
-	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0, 10, 1*time.Second, 0)
+	gsink, err := splunk.Create(&veneur.Server{}, "splunk", logger,
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  ts.URL,
+			HecBatchSize:                nToFlush,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    1 * time.Second,
+			HecSendTimeout:              time.Duration(0),
+			HecSubmissionWorkers:        0,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              10,
+		})
 
 	gesink := gsink.(excludableSink)
 	// no farts allowed
@@ -487,8 +572,22 @@ func TestClosedIngestionEndpoint(t *testing.T) {
 	defer func() {
 		ts.Close()
 	}()
-	gsink, err := splunk.NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-		"test-host", "", logger, time.Duration(0), time.Duration(0), nToFlush, 0, 10, 10*time.Millisecond, 0)
+	gsink, err := splunk.Create(&veneur.Server{}, "splunk", logger,
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  ts.URL,
+			HecBatchSize:                nToFlush,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    10 * time.Second,
+			HecSendTimeout:              time.Duration(0),
+			HecSubmissionWorkers:        0,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              10,
+		})
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)

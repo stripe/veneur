@@ -20,7 +20,7 @@ var defaultConfig = Config{
 	ReadBufferSizeBytes:            1048576 * 2, // 2 MiB
 	SpanChannelCapacity:            100,
 	SplunkHecBatchSize:             100,
-	SplunkHecMaxConnectionLifetime: "10s", // same as Interval
+	SplunkHecMaxConnectionLifetime: time.Duration(10 * time.Second), // same as Interval
 }
 
 var defaultProxyConfig = ProxyConfig{
@@ -224,7 +224,7 @@ func (c *Config) applyDefaults() {
 		c.SplunkHecBatchSize = defaultConfig.SplunkHecBatchSize
 	}
 
-	if c.SplunkHecMaxConnectionLifetime == "" {
+	if c.SplunkHecMaxConnectionLifetime == 0 {
 		c.SplunkHecMaxConnectionLifetime = defaultConfig.SplunkHecMaxConnectionLifetime
 	}
 }

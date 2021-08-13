@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math"
@@ -20,11 +21,13 @@ import (
 	mrand "math/rand"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util"
 )
 
 // TestableSplunkSpanSink provides methods that are useful for testing
@@ -42,33 +45,40 @@ type TestableSplunkSpanSink interface {
 	Sync()
 }
 
+type SplunkSinkConfig struct {
+	HecAddress                  string        `yaml:"hec_address"`
+	HecBatchSize                int           `yaml:"hec_batch_size"`
+	HecConnectionLifetimeJitter time.Duration `yaml:"hec_connection_lifetime_jitter"`
+	HecIngestTimeout            time.Duration `yaml:"hec_ingest_timeout"`
+	HecMaxConnectionLifetime    time.Duration `yaml:"hec_max_connection_lifetime"`
+	HecSendTimeout              time.Duration `yaml:"hec_max_connection_lifetime"`
+	HecSubmissionWorkers        int           `yaml:"hec_submission_workers"`
+	HecTLSValidateHostname      string        `yaml:"hec_tls_validate_hostname"`
+	HecToken                    string        `yaml:"hec_token"`
+	SpanSampleRate              int           `yaml:"span_sample_rate"`
+}
+
 type splunkSpanSink struct {
-	hec           *hecClient
-	httpClient    *http.Client
-	hostname      string
-	sendTimeout   time.Duration
-	ingestTimeout time.Duration
-	initOnce      sync.Once
-
-	workers int
-
-	batchSize     int
-	ingestedSpans uint32
-	droppedSpans  uint32
-
-	ingest chan *Event
-
-	traceClient *trace.Client
-	log         *logrus.Logger
-
-	spanSampleRate int64
-	skippedSpans   uint32
-
-	maxConnLifetime    time.Duration
+	batchSize          int
 	connLifetimeJitter time.Duration
+	droppedSpans       uint32
+	excludedTags       map[string]struct{}
+	hec                *hecClient
+	hostname           string
+	httpClient         *http.Client
+	ingest             chan *Event
+	ingestedSpans      uint32
+	ingestTimeout      time.Duration
+	initOnce           sync.Once
+	log                *logrus.Entry
+	maxConnLifetime    time.Duration
+	name               string
 	rand               *mrand.Rand
-
-	excludedTags map[string]struct{}
+	sendTimeout        time.Duration
+	skippedSpans       uint32
+	spanSampleRate     int64
+	traceClient        *trace.Client
+	workers            int
 
 	// these fields are for testing only:
 
@@ -83,7 +93,48 @@ type splunkSpanSink struct {
 var _ sinks.SpanSink = &splunkSpanSink{}
 var _ TestableSplunkSpanSink = &splunkSpanSink{}
 
-// NewSplunkSpanSink constructs a new splunk span sink from the server
+func MigrateConfig(conf *veneur.Config) error {
+	if conf.SplunkHecToken == "" && conf.SplunkHecAddress == "" {
+		return nil
+	}
+	if conf.SplunkHecToken == "" || conf.SplunkHecAddress == "" {
+		return fmt.Errorf("both hec_address and hec_token must be set")
+	}
+	conf.SpanSinks = append(conf.MetricSinks, struct {
+		Kind   string      "yaml:\"kind\""
+		Name   string      "yaml:\"name\""
+		Config interface{} "yaml:\"config\""
+	}{
+		Kind: "signalfx",
+		Name: "signalfx",
+		Config: SplunkSinkConfig{
+			HecAddress:                  conf.SplunkHecAddress,
+			HecBatchSize:                conf.SplunkHecBatchSize,
+			HecConnectionLifetimeJitter: conf.SplunkHecConnectionLifetimeJitter,
+			HecIngestTimeout:            conf.SplunkHecIngestTimeout,
+			HecMaxConnectionLifetime:    conf.SplunkHecMaxConnectionLifetime,
+			HecSendTimeout:              conf.SplunkHecSendTimeout,
+			HecSubmissionWorkers:        conf.SplunkHecSubmissionWorkers,
+			HecTLSValidateHostname:      conf.SplunkHecTLSValidateHostname,
+			HecToken:                    conf.SplunkHecToken,
+			SpanSampleRate:              conf.SplunkSpanSampleRate,
+		},
+	})
+	return nil
+}
+
+// ParseConfig decodes the map config for a Splunk sink into a SplunkSinkConfig
+// struct.
+func ParseConfig(config interface{}) (veneur.SpanSinkConfig, error) {
+	signalFxConfig := SplunkSinkConfig{}
+	err := util.DecodeConfig(config, &signalFxConfig)
+	if err != nil {
+		return nil, err
+	}
+	return signalFxConfig, nil
+}
+
+// Create constructs a new splunk span sink from the server
 // name and token provided, using the local hostname configured for
 // veneur. An optional argument, validateServerName is used (if
 // non-empty) to instruct go to validate a different hostname than the
@@ -92,12 +143,17 @@ var _ TestableSplunkSpanSink = &splunkSpanSink{}
 // that all spans in the trace will be chosen for the sample is 1/spanSampleRate.
 // Sampling is performed on the trace ID, so either all spans within a given trace
 // will be chosen, or none will.
-func NewSplunkSpanSink(server string, token string, localHostname string, validateServerName string, log *logrus.Logger, ingestTimeout time.Duration, sendTimeout time.Duration, batchSize int, workers int, spanSampleRate int, maxConnLifetime time.Duration, connLifetimeJitter time.Duration) (sinks.SpanSink, error) {
-	if spanSampleRate < 1 {
-		spanSampleRate = 1
+func Create(
+	server *veneur.Server, name string, logger *logrus.Entry,
+	config veneur.Config, sinkConfig veneur.SpanSinkConfig,
+) (sinks.SpanSink, error) {
+	splunkConfig := sinkConfig.(SplunkSinkConfig)
+
+	if splunkConfig.SpanSampleRate < 1 {
+		splunkConfig.SpanSampleRate = 1
 	}
 
-	client, err := newHecClient(server, token)
+	client, err := newHecClient(splunkConfig.HecAddress, splunkConfig.HecToken)
 	if err != nil {
 		return nil, err
 	}
@@ -106,15 +162,15 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 	httpC := &http.Client{Transport: trnsp}
 
 	// keep an idle connection in reserve for every worker:
-	trnsp.MaxIdleConnsPerHost = workers
+	trnsp.MaxIdleConnsPerHost = splunkConfig.HecSubmissionWorkers
 
-	if validateServerName != "" {
+	if splunkConfig.HecTLSValidateHostname != "" {
 		tlsCfg := &tls.Config{}
-		tlsCfg.ServerName = validateServerName
+		tlsCfg.ServerName = splunkConfig.HecTLSValidateHostname
 		trnsp.TLSClientConfig = tlsCfg
 	}
-	if sendTimeout > 0 {
-		trnsp.ResponseHeaderTimeout = sendTimeout
+	if splunkConfig.HecSendTimeout > 0 {
+		trnsp.ResponseHeaderTimeout = splunkConfig.HecSendTimeout
 	}
 
 	seed, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
@@ -123,25 +179,26 @@ func NewSplunkSpanSink(server string, token string, localHostname string, valida
 	}
 
 	return &splunkSpanSink{
+		batchSize:          splunkConfig.HecBatchSize,
+		connLifetimeJitter: splunkConfig.HecConnectionLifetimeJitter,
 		hec:                client,
+		hostname:           config.Hostname,
 		httpClient:         httpC,
 		ingest:             make(chan *Event),
-		hostname:           localHostname,
-		log:                log,
-		sendTimeout:        sendTimeout,
-		ingestTimeout:      ingestTimeout,
-		batchSize:          batchSize,
-		spanSampleRate:     int64(spanSampleRate),
+		ingestTimeout:      splunkConfig.HecIngestTimeout,
+		log:                logger,
+		maxConnLifetime:    splunkConfig.HecMaxConnectionLifetime,
+		name:               "splunk",
 		rand:               mrand.New(mrand.NewSource(seed.Int64())),
-		maxConnLifetime:    maxConnLifetime,
-		connLifetimeJitter: connLifetimeJitter,
-		workers:            workers,
+		sendTimeout:        splunkConfig.HecSendTimeout,
+		spanSampleRate:     int64(splunkConfig.SpanSampleRate),
+		workers:            splunkConfig.HecSubmissionWorkers,
 	}, nil
 }
 
 // Name returns this sink's name
-func (*splunkSpanSink) Name() string {
-	return "splunk"
+func (sink *splunkSpanSink) Name() string {
+	return sink.name
 }
 
 func (sss *splunkSpanSink) Start(cl *trace.Client) error {

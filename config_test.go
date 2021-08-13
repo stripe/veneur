@@ -105,8 +105,10 @@ func TestConfigDefaults(t *testing.T) {
 }
 
 func TestDefaultConfigEquivalence(t *testing.T) {
+	defaultInterval, err := time.ParseDuration(defaultConfig.Interval)
+	assert.Nil(t, err)
 	assert.Equal(t,
-		defaultConfig.Interval,
+		defaultInterval,
 		defaultConfig.SplunkHecMaxConnectionLifetime,
 		"splunk_hec_max_connection_lifetime should default to interval")
 
