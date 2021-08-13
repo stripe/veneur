@@ -361,7 +361,7 @@ func (server *Server) createMetricSinks(
 		}
 		// Overwrite the map config with the parsed config. This prevents senstive
 		// fields in the map from accidentally being logged.
-		config.SpanSinks[index].Config = parsedSinkConfig
+		config.MetricSinks[index].Config = parsedSinkConfig
 		sink, err := sinkFactory.Create(
 			server, sinkConfig.Name, logger.WithField("sink", sinkConfig.Name),
 			*config, parsedSinkConfig)
