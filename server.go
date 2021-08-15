@@ -46,7 +46,6 @@ import (
 	"github.com/stripe/veneur/v14/sinks/datadog"
 	"github.com/stripe/veneur/v14/sinks/debug"
 	"github.com/stripe/veneur/v14/sinks/falconer"
-	"github.com/stripe/veneur/v14/sinks/kafka"
 	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/newrelic"
 	"github.com/stripe/veneur/v14/sinks/prometheus"
@@ -339,7 +338,7 @@ func (server *Server) createSpanSinks(
 		// fields in the map from accidentally being logged.
 		config.SpanSinks[index].Config = parsedSinkConfig
 		sink, err := sinkFactory.Create(
-			server, sinkConfig.Name, logger.WithField("sink", sinkConfig.Name),
+			server, sinkConfig.Name, logger.WithField("span_sink", sinkConfig.Name),
 			*config, parsedSinkConfig)
 		if err != nil {
 			return nil, err
@@ -366,7 +365,7 @@ func (server *Server) createMetricSinks(
 		// fields in the map from accidentally being logged.
 		config.MetricSinks[index].Config = parsedSinkConfig
 		sink, err := sinkFactory.Create(
-			server, sinkConfig.Name, logger.WithField("sink", sinkConfig.Name),
+			server, sinkConfig.Name, logger.WithField("metric_sink", sinkConfig.Name),
 			*config, parsedSinkConfig)
 		if err != nil {
 			return nil, err
@@ -773,44 +772,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.SpanWorkerGoroutines = 1
 		if conf.NumSpanWorkers > 0 {
 			ret.SpanWorkerGoroutines = conf.NumSpanWorkers
-		}
-	}
-
-	if conf.KafkaBroker != "" {
-		if conf.KafkaMetricTopic != "" || conf.KafkaCheckTopic != "" || conf.KafkaEventTopic != "" {
-			kSink, err := kafka.NewKafkaMetricSink(
-				log, ret.TraceClient, conf.KafkaBroker, conf.KafkaCheckTopic, conf.KafkaEventTopic,
-				conf.KafkaMetricTopic, conf.KafkaMetricRequireAcks,
-				conf.KafkaPartitioner, conf.KafkaRetryMax,
-				conf.KafkaMetricBufferBytes, conf.KafkaMetricBufferMessages,
-				conf.KafkaMetricBufferFrequency,
-			)
-			if err != nil {
-				return ret, err
-			}
-
-			ret.metricSinks = append(ret.metricSinks, kSink)
-
-			logger.Info("Configured Kafka metric sink")
-		} else {
-			logger.Warn("Kafka metric sink skipped due to missing metric, check and event topic")
-		}
-
-		if conf.KafkaSpanTopic != "" {
-			sink, err := kafka.NewKafkaSpanSink(log, ret.TraceClient, conf.KafkaBroker, conf.KafkaSpanTopic,
-				conf.KafkaPartitioner, conf.KafkaMetricRequireAcks, conf.KafkaRetryMax,
-				conf.KafkaSpanBufferBytes, conf.KafkaSpanBufferMesages,
-				conf.KafkaSpanBufferFrequency, conf.KafkaSpanSerializationFormat,
-				conf.KafkaSpanSampleTag, conf.KafkaSpanSampleRatePercent,
-			)
-			if err != nil {
-				return ret, err
-			}
-
-			ret.spanSinks = append(ret.spanSinks, sink)
-			logger.Info("Configured Kafka span sink")
-		} else {
-			logger.Warn("Kafka span sink skipped due to missing span topic")
 		}
 	}
 
