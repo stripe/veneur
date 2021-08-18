@@ -1197,7 +1197,7 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
-			}).Warn("Could not parse packet")
+			}).Debug("Could not parse packet")
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "event", "reason": "parse"}))
 			return err
 		}
@@ -1208,7 +1208,7 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
-			}).Warn("Could not parse packet")
+			}).Debug("Could not parse packet")
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "service_check", "reason": "parse"}))
 			return err
 		}
@@ -1219,7 +1219,7 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
-			}).Warn("Could not parse packet")
+			}).Debug("Could not parse packet")
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "metric", "reason": "parse"}))
 			return err
 		}
