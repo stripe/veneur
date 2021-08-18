@@ -77,24 +77,27 @@ const defaultTCPReadTimeout = 10 * time.Minute
 
 const httpQuitEndpoint = "/quitquitquit"
 
+type MetricSinkConfig interface{}
+type SpanSinkConfig interface{}
+
 type SpanSinkTypes = map[string]struct {
 	// Creates a new span sink intsance.
 	Create func(
-		*Server, string, *logrus.Entry, Config, interface{},
+		*Server, string, *logrus.Entry, Config, SpanSinkConfig,
 	) (sinks.SpanSink, error)
 	// Parses the config for the sink into a format that is validated and safe to
 	// log.
-	ParseConfig func(interface{}) (interface{}, error)
+	ParseConfig func(interface{}) (SpanSinkConfig, error)
 }
 
 type MetricSinkTypes = map[string]struct {
 	// Creates a new metric sink instance.
 	Create func(
-		*Server, string, *logrus.Entry, Config, interface{},
+		*Server, string, *logrus.Entry, Config, MetricSinkConfig,
 	) (sinks.MetricSink, error)
 	// Parses the config for the sink into a format that is validated and safe to
 	// log.
-	ParseConfig func(interface{}) (interface{}, error)
+	ParseConfig func(interface{}) (MetricSinkConfig, error)
 }
 
 // Config used to create a new server.

@@ -241,7 +241,7 @@ func MigrateConfig(conf *veneur.Config) error {
 
 // ParseConfig decodes the map config for a SignalFx sink into a
 // SignalFxSinkConfig struct.
-func ParseConfig(config interface{}) (interface{}, error) {
+func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
 	signalFxConfig := SignalFxSinkConfig{}
 	err := util.DecodeConfig(config, &signalFxConfig)
 	if err != nil {
@@ -256,9 +256,12 @@ func ParseConfig(config interface{}) (interface{}, error) {
 // provided configuration.
 func Create(
 	server *veneur.Server, name string, logger *logrus.Entry,
-	config veneur.Config, sinkConfig interface{},
+	config veneur.Config, sinkConfig veneur.MetricSinkConfig,
 ) (sinks.MetricSink, error) {
-	signalFxConfig := sinkConfig.(SignalFxSinkConfig)
+	signalFxConfig, ok := sinkConfig.(SignalFxSinkConfig)
+	if !ok {
+		return nil, errors.New("invalid sink config type")
+	}
 
 	tracedHTTP := *server.HTTPClient
 	tracedHTTP.Transport = vhttp.NewTraceRoundTripper(
