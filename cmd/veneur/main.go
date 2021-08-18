@@ -58,7 +58,10 @@ func main() {
 		Logger: logger,
 		MetricSinkTypes: veneur.MetricSinkTypes{
 			// TODO(arnavdugar): Migrate metric sink types.
-			"signalfx": signalfx.CreateSignalFxSink,
+			"signalfx": {
+				Create:      signalfx.Create,
+				ParseConfig: signalfx.ParseConfig,
+			},
 		},
 		SpanSinkTypes: veneur.SpanSinkTypes{
 			// TODO(arnavdugar): Migrate span sink types.

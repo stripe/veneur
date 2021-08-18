@@ -239,18 +239,28 @@ func MigrateConfig(conf *veneur.Config) error {
 	return nil
 }
 
-// CreateSignalFxSink creates a new SignalFx sink for metrics. This function
+// ParseConfig decodes the map config for a SignalFx sink into a
+// SignalFxSinkConfig struct.
+func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
+	signalFxConfig := SignalFxSinkConfig{}
+	err := util.DecodeConfig(config, &signalFxConfig)
+	if err != nil {
+		return nil, err
+	}
+	return signalFxConfig, nil
+}
+
+// Create creates a new SignalFx sink for metrics. This function
 // should match the signature of a value in veneur.MetricSinkTypes, and is
 // intended to be passed into veneur.NewFromConfig to be called based on the
 // provided configuration.
-func CreateSignalFxSink(
+func Create(
 	server *veneur.Server, name string, logger *logrus.Entry,
-	config veneur.Config, sinkConfig interface{},
+	config veneur.Config, sinkConfig veneur.MetricSinkConfig,
 ) (sinks.MetricSink, error) {
-	signalFxConfig := SignalFxSinkConfig{}
-	err := util.DecodeConfig(sinkConfig, &signalFxConfig)
-	if err != nil {
-		return nil, err
+	signalFxConfig, ok := sinkConfig.(SignalFxSinkConfig)
+	if !ok {
+		return nil, errors.New("invalid sink config type")
 	}
 
 	tracedHTTP := *server.HTTPClient

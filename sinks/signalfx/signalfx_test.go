@@ -89,7 +89,9 @@ func TestMigrateConfig(t *testing.T) {
 	}
 	MigrateConfig(&config)
 	assert.Len(t, config.MetricSinks, 1)
-	signalFxConfig, ok := config.MetricSinks[0].Config.(SignalFxSinkConfig)
+	parsedConfig, err := ParseConfig(config.MetricSinks[0].Config)
+	assert.Nil(t, err)
+	signalFxConfig, ok := parsedConfig.(SignalFxSinkConfig)
 	assert.True(t, ok)
 	assert.Equal(t, "signalfx-api-key", signalFxConfig.APIKey.Value)
 }
