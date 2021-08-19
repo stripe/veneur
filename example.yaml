@@ -498,7 +498,7 @@ kafka_metric_buffer_bytes: 0
 
 kafka_metric_buffer_messages: 0
 
-kafka_metric_buffer_frequency: ""
+kafka_metric_buffer_frequency: "10s"
 
 kafka_span_serialization_format: "protobuf"
 
@@ -515,7 +515,7 @@ kafka_span_buffer_bytes: 0
 
 kafka_span_buffer_mesages: 0
 
-kafka_span_buffer_frequency: ""
+kafka_span_buffer_frequency: "10s"
 
 # The number of retries before giving up.
 kafka_retry_max: 0

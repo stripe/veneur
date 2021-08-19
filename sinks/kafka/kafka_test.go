@@ -11,6 +11,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
@@ -23,16 +24,32 @@ func TestMetricFlush(t *testing.T) {
 
 	producerMock.ExpectInputAndSucceed()
 
-	// I would use the logrus test logger but the package needs to be
-	// updated from Sirupsen/logrus to sirupsen/logrus
-	// https://github.com/stripe/veneur/issues/277
-	logger := logrus.StandardLogger()
-
-	sink, err := NewKafkaMetricSink(logger, nil, "testing", "testCheckTopic", "testEventTopic", "testMetricTopic", "all", "hash", 0, 0, 0, "")
+	sink, err := CreateMetricSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaMetricSinkConfig{
+			Broker:               "testing",
+			CheckTopic:           "testCheckTopic",
+			EventTopic:           "testEventTopic",
+			MetricTopic:          "testMetricTopic",
+			MetricRequireAcks:    "all",
+			Partitioner:          "hash",
+			RetryMax:             0,
+			MetricBufferBytes:    0,
+			MetricBufferMessages: 0,
+		},
+	)
 	assert.NoError(t, err)
-	sink.Start(trace.DefaultClient)
+	kafkaSink, ok := sink.(*KafkaMetricSink)
+	assert.True(t, ok)
 
-	sink.producer = producerMock
+	kafkaSink.Start(trace.DefaultClient)
+
+	kafkaSink.producer = producerMock
 	metric := samplers.InterMetric{
 		Name:      "a.b.c",
 		Timestamp: 1476119058,
@@ -43,7 +60,7 @@ func TestMetricFlush(t *testing.T) {
 		},
 		Type: samplers.GaugeMetric,
 	}
-	ferr := sink.Flush(context.Background(), []samplers.InterMetric{metric})
+	ferr := kafkaSink.Flush(context.Background(), []samplers.InterMetric{metric})
 	assert.NoError(t, ferr)
 
 	msg := <-producerMock.Successes()
@@ -117,18 +134,34 @@ func TestMetricFlushRouting(t *testing.T) {
 				producerMock.ExpectInputAndSucceed()
 			}
 
-			// I would use the logrus test logger but the package needs to be
-			// updated from Sirupsen/logrus to sirupsen/logrus
-			// https://github.com/stripe/veneur/issues/277
-			logger := logrus.StandardLogger()
-
-			sink, err := NewKafkaMetricSink(logger, nil, "testing", "testCheckTopic", "testEventTopic", "testMetricTopic", "all", "hash", 0, 0, 0, "")
+			sink, err := CreateMetricSink(
+				&veneur.Server{
+					TraceClient: nil,
+				},
+				"kafka",
+				logrus.NewEntry(logrus.StandardLogger()),
+				veneur.Config{},
+				KafkaMetricSinkConfig{
+					Broker:               "testing",
+					CheckTopic:           "testCheckTopic",
+					EventTopic:           "testEventTopic",
+					MetricTopic:          "testMetricTopic",
+					MetricRequireAcks:    "all",
+					Partitioner:          "hash",
+					RetryMax:             0,
+					MetricBufferBytes:    0,
+					MetricBufferMessages: 0,
+				},
+			)
 			assert.NoError(t, err)
 			sink.Start(trace.DefaultClient)
+			kafkaSink, ok := sink.(*KafkaMetricSink)
+			assert.True(t, ok)
 
-			sink.producer = producerMock
+			kafkaSink.producer = producerMock
 
-			ferr := sink.Flush(context.Background(), []samplers.InterMetric{test.metric})
+			ferr := kafkaSink.Flush(
+				context.Background(), []samplers.InterMetric{test.metric})
 			producerMock.Close()
 			assert.NoError(t, ferr)
 			if test.expect {
@@ -136,107 +169,331 @@ func TestMetricFlushRouting(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Contains(t, string(contents), test.metric.Name)
 			} else {
-				select {
-				case _, ok := <-producerMock.Successes():
-					if ok {
-						t.Fatal("Expected no input for this case")
-					}
+				_, ok := <-producerMock.Successes()
+				if ok {
+					t.Fatal("Expected no input for this case")
 				}
 			}
 		})
 	}
 }
 
-func TestMetricConstructor(t *testing.T) {
-	logger := logrus.StandardLogger()
-
-	sink, err := NewKafkaMetricSink(logger, nil, "testing", "veneur_checks", "veneur_events", "veneur_metrics", "all", "hash", 1, 2, 3, "10s")
+func TestCreateMetricSink(t *testing.T) {
+	sink, err := CreateMetricSink(
+		&veneur.Server{
+			TraceClient: nil,
+		}, "kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaMetricSinkConfig{
+			Broker:                "testing",
+			CheckTopic:            "veneur_checks",
+			EventTopic:            "veneur_events",
+			MetricTopic:           "veneur_metrics",
+			MetricRequireAcks:     "all",
+			Partitioner:           "hash",
+			RetryMax:              1,
+			MetricBufferBytes:     2,
+			MetricBufferMessages:  3,
+			MetricBufferFrequency: time.Duration(10 * time.Second),
+		})
 	assert.NoError(t, err)
+	kafkaSink, ok := sink.(*KafkaMetricSink)
+	assert.True(t, ok)
 
-	assert.Equal(t, "kafka", sink.Name())
+	assert.Equal(t, "kafka", kafkaSink.Name())
 
-	assert.Equal(t, "veneur_checks", sink.checkTopic, "check topic did not set correctly")
-	assert.Equal(t, "veneur_events", sink.eventTopic, "event topic did not set correctly")
-	assert.Equal(t, "veneur_metrics", sink.metricTopic, "metric topic did not set correctly")
+	assert.Equal(t, "veneur_checks", kafkaSink.checkTopic,
+		"check topic did not set correctly")
+	assert.Equal(t, "veneur_events", kafkaSink.eventTopic,
+		"event topic did not set correctly")
+	assert.Equal(t, "veneur_metrics", kafkaSink.metricTopic,
+		"metric topic did not set correctly")
 
-	assert.Equal(t, sarama.WaitForAll, sink.config.Producer.RequiredAcks, "ack did not set correctly")
-	assert.Equal(t, 1, sink.config.Producer.Retry.Max, "retries did not set correctly")
-	assert.Equal(t, 2, sink.config.Producer.Flush.Bytes, "buffer bytes did not set correctly")
-	assert.Equal(t, 3, sink.config.Producer.Flush.Messages, "buffer messages did not set correctly")
-	assert.Equal(t, time.Second*10, sink.config.Producer.Flush.Frequency, "flush frequency did not set correctly")
+	assert.Equal(t, sarama.WaitForAll, kafkaSink.config.Producer.RequiredAcks,
+		"ack did not set correctly")
+	assert.Equal(t, 1, kafkaSink.config.Producer.Retry.Max,
+		"retries did not set correctly")
+	assert.Equal(t, 2, kafkaSink.config.Producer.Flush.Bytes,
+		"buffer bytes did not set correctly")
+	assert.Equal(t, 3, kafkaSink.config.Producer.Flush.Messages,
+		"buffer messages did not set correctly")
+	assert.Equal(t, time.Second*10, kafkaSink.config.Producer.Flush.Frequency,
+		"flush frequency did not set correctly")
 }
 
-func TestMetricInstantiateError(t *testing.T) {
-	logger := logrus.StandardLogger()
-
-	// Busted duration
-	_, err1 := NewKafkaMetricSink(logger, nil, "testing", "veneur_checks", "veneur_events", "veneur_metrics", "all", "hash", 1, 2, 3, "farts")
-	assert.Error(t, err1)
-
-	// No topics
-	_, err := NewKafkaMetricSink(logger, nil, "testing", "", "", "", "all", "hash", 1, 2, 3, "10s")
+func TestCreateMetricSinkWithoutTopics(t *testing.T) {
+	_, err := CreateMetricSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaMetricSinkConfig{
+			Broker:                "testing",
+			CheckTopic:            "",
+			EventTopic:            "",
+			MetricTopic:           "",
+			MetricRequireAcks:     "all",
+			Partitioner:           "hash",
+			RetryMax:              1,
+			MetricBufferBytes:     2,
+			MetricBufferMessages:  3,
+			MetricBufferFrequency: time.Duration(10 * time.Second),
+		})
 	assert.Error(t, err)
 }
 
-func TestSpanInstantiateError(t *testing.T) {
-	logger := logrus.StandardLogger()
-
-	// Busted duration
-	_, err := NewKafkaSpanSink(logger, nil, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "farts", "", "", 100)
+func TestCreateSpanSinkWithoutTopic(t *testing.T) {
+	_, err := CreateSpanSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaSpanSinkConfig{
+			Broker:                  "testing",
+			Partitioner:             "hash",
+			RetryMax:                1,
+			SpanBufferBytes:         2,
+			SpanBufferFrequency:     0,
+			SpanBufferMesages:       3,
+			SpanRequireAcks:         "all",
+			SpanSampleRatePercent:   100,
+			SpanSampleTag:           "",
+			SpanSerializationFormat: "",
+			SpanTopic:               "",
+		},
+	)
 	assert.Error(t, err)
-
-	// Missing topic
-	_, err2 := NewKafkaSpanSink(logger, nil, "testing", "", "hash", "all", 1, 2, 3, "farts", "", "", 100)
-	assert.Error(t, err2)
-
-	// Missing brokers
-	_, err3 := NewKafkaSpanSink(logger, nil, "", "farts", "hash", "all", 1, 2, 3, "farts", "", "", 100)
-	assert.Error(t, err3)
-
-	// Sampling rate set < 0%
-	_, err4 := NewKafkaSpanSink(logger, nil, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", -1)
-	assert.Error(t, err4)
-
-	// Sampling rate set = 0%
-	_, err5 := NewKafkaSpanSink(logger, nil, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", 0)
-	assert.NoError(t, err5)
-
-	// Sampling rate set > 100%
-	_, err6 := NewKafkaSpanSink(logger, nil, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "", 101)
-	assert.Error(t, err6)
 }
 
-func TestSpanConstructorAck(t *testing.T) {
-	logger := logrus.StandardLogger()
-
-	sink1, _ := NewKafkaSpanSink(logger, nil, "testing", "veneur_spans", "hash", "none", 1, 2, 3, "10s", "", "", 100)
-	assert.Equal(t, sarama.NoResponse, sink1.config.Producer.RequiredAcks, "ack did not set correctly")
-
-	sink2, _ := NewKafkaSpanSink(logger, nil, "testing", "veneur_spans", "hash", "local", 1, 2, 3, "10s", "", "", 100)
-	assert.Equal(t, sarama.WaitForLocal, sink2.config.Producer.RequiredAcks, "ack did not set correctly")
-
-	sink3, _ := NewKafkaSpanSink(logger, nil, "testing", "veneur_spans", "random", "farts", 1, 2, 3, "10s", "", "", 100)
-	assert.Equal(t, sarama.WaitForAll, sink3.config.Producer.RequiredAcks, "ack did not default correctly")
+func TestCreateSpanSinkWithoutBroker(t *testing.T) {
+	_, err := CreateSpanSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaSpanSinkConfig{
+			Broker:                  "",
+			Partitioner:             "hash",
+			RetryMax:                1,
+			SpanBufferBytes:         2,
+			SpanBufferFrequency:     0,
+			SpanBufferMesages:       3,
+			SpanRequireAcks:         "all",
+			SpanSampleRatePercent:   100,
+			SpanSampleTag:           "",
+			SpanSerializationFormat: "",
+			SpanTopic:               "veneur_spans",
+		},
+	)
+	assert.Error(t, err)
 }
 
-func TestSpanConstructor(t *testing.T) {
-	logger := logrus.StandardLogger()
+func TestCreateSpanSinkWithSampleRateTooLow(t *testing.T) {
+	_, err := CreateSpanSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaSpanSinkConfig{
+			Broker:                  "testing",
+			Partitioner:             "hash",
+			RetryMax:                1,
+			SpanBufferBytes:         2,
+			SpanBufferFrequency:     time.Duration(10 * time.Second),
+			SpanBufferMesages:       3,
+			SpanRequireAcks:         "all",
+			SpanSampleRatePercent:   -1,
+			SpanSampleTag:           "",
+			SpanSerializationFormat: "",
+			SpanTopic:               "veneur_spans",
+		},
+	)
+	assert.Error(t, err)
+}
 
-	sink, err := NewKafkaSpanSink(logger, nil, "testing", "veneur_spans", "hash", "all", 1, 2, 3, "10s", "", "foo", 100)
+func TestCreateSpanSinkWithSampleRateZero(t *testing.T) {
+	_, err := CreateSpanSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaSpanSinkConfig{
+			Broker:                  "testing",
+			Partitioner:             "hash",
+			RetryMax:                1,
+			SpanBufferBytes:         2,
+			SpanBufferFrequency:     time.Duration(10 * time.Second),
+			SpanBufferMesages:       3,
+			SpanRequireAcks:         "all",
+			SpanSampleRatePercent:   0,
+			SpanSampleTag:           "",
+			SpanSerializationFormat: "",
+			SpanTopic:               "veneur_spans",
+		},
+	)
+	assert.NoError(t, err)
+}
+
+func TestCreateSpanSinkWithSampleRateTooHigh(t *testing.T) {
+	_, err := CreateSpanSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaSpanSinkConfig{
+			Broker:                  "testing",
+			Partitioner:             "hash",
+			RetryMax:                1,
+			SpanBufferBytes:         2,
+			SpanBufferFrequency:     time.Duration(10 * time.Second),
+			SpanBufferMesages:       3,
+			SpanRequireAcks:         "all",
+			SpanSampleRatePercent:   101,
+			SpanSampleTag:           "",
+			SpanSerializationFormat: "",
+			SpanTopic:               "veneur_spans",
+		},
+	)
+	assert.Error(t, err)
+}
+
+func TestCreateSpanSinkWithRequireAcksNone(t *testing.T) {
+	sink, err := CreateSpanSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaSpanSinkConfig{
+			Broker:                  "testing",
+			Partitioner:             "hash",
+			RetryMax:                1,
+			SpanBufferBytes:         2,
+			SpanBufferFrequency:     time.Duration(10 * time.Second),
+			SpanBufferMesages:       3,
+			SpanRequireAcks:         "none",
+			SpanSampleRatePercent:   100,
+			SpanSampleTag:           "",
+			SpanSerializationFormat: "",
+			SpanTopic:               "veneur_spans",
+		},
+	)
+	assert.NoError(t, err)
+	kafkaSink, ok := sink.(*KafkaSpanSink)
+	assert.True(t, ok)
+	assert.Equal(t, sarama.NoResponse, kafkaSink.config.Producer.RequiredAcks)
+}
+
+func TestCreateSpanSinkWithRequireAcksLocal(t *testing.T) {
+	sink, err := CreateSpanSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaSpanSinkConfig{
+			Broker:                  "testing",
+			Partitioner:             "hash",
+			RetryMax:                1,
+			SpanBufferBytes:         2,
+			SpanBufferFrequency:     time.Duration(10 * time.Second),
+			SpanBufferMesages:       3,
+			SpanRequireAcks:         "local",
+			SpanSampleRatePercent:   100,
+			SpanSampleTag:           "",
+			SpanSerializationFormat: "",
+			SpanTopic:               "veneur_spans",
+		},
+	)
+	assert.NoError(t, err)
+	kafkaSink, ok := sink.(*KafkaSpanSink)
+	assert.True(t, ok)
+	assert.Equal(t, sarama.WaitForLocal, kafkaSink.config.Producer.RequiredAcks)
+}
+
+func TestCreateSpanSinkWithRequireAcksInvalid(t *testing.T) {
+	sink, err := CreateSpanSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaSpanSinkConfig{
+			Broker:                  "testing",
+			Partitioner:             "hash",
+			RetryMax:                1,
+			SpanBufferBytes:         2,
+			SpanBufferFrequency:     time.Duration(10 * time.Second),
+			SpanBufferMesages:       3,
+			SpanRequireAcks:         "invalid",
+			SpanSampleRatePercent:   100,
+			SpanSampleTag:           "",
+			SpanSerializationFormat: "",
+			SpanTopic:               "veneur_spans",
+		},
+	)
+	assert.NoError(t, err)
+	kafkaSink, ok := sink.(*KafkaSpanSink)
+	assert.True(t, ok)
+	assert.Equal(t, sarama.WaitForAll, kafkaSink.config.Producer.RequiredAcks)
+}
+
+func TestCreateSpanSink(t *testing.T) {
+	sink, err := CreateSpanSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaSpanSinkConfig{
+			Broker:                  "testing",
+			Partitioner:             "hash",
+			RetryMax:                1,
+			SpanBufferBytes:         2,
+			SpanBufferFrequency:     time.Duration(10 * time.Second),
+			SpanBufferMesages:       3,
+			SpanRequireAcks:         "all",
+			SpanSampleRatePercent:   100,
+			SpanSampleTag:           "foo",
+			SpanSerializationFormat: "",
+			SpanTopic:               "veneur_spans",
+		},
+	)
+	assert.NoError(t, err)
+	kafkaSink, ok := sink.(*KafkaSpanSink)
+
+	assert.True(t, ok)
 	assert.NoError(t, err)
 	assert.Equal(t, "kafka", sink.Name())
 
-	assert.Equal(t, "protobuf", sink.serializer, "Serializer did not default correctly")
-	assert.Equal(t, "veneur_spans", sink.topic, "Topic did not set correctly")
+	assert.Equal(t, "protobuf", kafkaSink.serializer)
+	assert.Equal(t, "veneur_spans", kafkaSink.topic)
 
-	assert.Equal(t, uint32(math.MaxUint32), sink.sampleThreshold, "Sample threshold did not set correctly")
-	assert.Equal(t, "foo", sink.sampleTag, "Sample tag did not set correctly")
+	assert.Equal(t, uint32(math.MaxUint32), kafkaSink.sampleThreshold)
+	assert.Equal(t, "foo", kafkaSink.sampleTag)
 
-	assert.Equal(t, sarama.WaitForAll, sink.config.Producer.RequiredAcks, "ack did not set correctly")
-	assert.Equal(t, 1, sink.config.Producer.Retry.Max, "retries did not set correctly")
-	assert.Equal(t, 2, sink.config.Producer.Flush.Bytes, "buffer bytes did not set correctly")
-	assert.Equal(t, 3, sink.config.Producer.Flush.Messages, "buffer messages did not set correctly")
-	assert.Equal(t, time.Second*10, sink.config.Producer.Flush.Frequency, "flush frequency did not set correctly")
+	assert.Equal(t, sarama.WaitForAll, kafkaSink.config.Producer.RequiredAcks)
+	assert.Equal(t, 1, kafkaSink.config.Producer.Retry.Max)
+	assert.Equal(t, 2, kafkaSink.config.Producer.Flush.Bytes)
+	assert.Equal(t, 3, kafkaSink.config.Producer.Flush.Messages)
+	assert.Equal(t, 10*time.Second, kafkaSink.config.Producer.Flush.Frequency)
 }
 
 func TestSpanTraceIdSampling(t *testing.T) {
@@ -246,16 +503,31 @@ func TestSpanTraceIdSampling(t *testing.T) {
 
 	producerMock.ExpectInputAndSucceed()
 
-	// I would use the logrus test logger but the package needs to be
-	// updated from Sirupsen/logrus to sirupsen/logrus
-	// https://github.com/stripe/veneur/issues/277
-	logger := logrus.StandardLogger()
-	logger.SetLevel(logrus.DebugLevel)
-
-	sink, err := NewKafkaSpanSink(logger, nil, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "json", "", 50)
+	sink, err := CreateSpanSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaSpanSinkConfig{
+			Broker:                  "testing",
+			SpanTopic:               "testSpanTopic",
+			Partitioner:             "hash",
+			RetryMax:                0,
+			SpanBufferBytes:         0,
+			SpanBufferMesages:       0,
+			SpanRequireAcks:         "all",
+			SpanSerializationFormat: "json",
+			SpanSampleTag:           "",
+			SpanSampleRatePercent:   50,
+		},
+	)
 	assert.NoError(t, err)
+	kafkaSink, ok := sink.(*KafkaSpanSink)
+	assert.True(t, ok)
 
-	sink.producer = producerMock
+	kafkaSink.producer = producerMock
 
 	start := time.Now()
 	end := start.Add(2 * time.Second)
@@ -306,16 +578,30 @@ func TestSpanTagSampling(t *testing.T) {
 
 	producerMock.ExpectInputAndSucceed()
 
-	// I would use the logrus test logger but the package needs to be
-	// updated from Sirupsen/logrus to sirupsen/logrus
-	// https://github.com/stripe/veneur/issues/277
-	logger := logrus.StandardLogger()
-	logger.SetLevel(logrus.DebugLevel)
-
-	sink, err := NewKafkaSpanSink(logger, nil, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "json", "baz", 50)
+	sink, err := CreateSpanSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaSpanSinkConfig{
+			Broker:                  "testing",
+			SpanTopic:               "testSpanTopic",
+			Partitioner:             "hash",
+			RetryMax:                0,
+			SpanBufferBytes:         0,
+			SpanBufferMesages:       0,
+			SpanRequireAcks:         "all",
+			SpanSerializationFormat: "json",
+			SpanSampleTag:           "baz",
+			SpanSampleRatePercent:   50,
+		},
+	)
 	assert.NoError(t, err)
-
-	sink.producer = producerMock
+	kafkaSink, ok := sink.(*KafkaSpanSink)
+	assert.True(t, ok)
+	kafkaSink.producer = producerMock
 
 	start := time.Now()
 	end := start.Add(2 * time.Second)
@@ -394,13 +680,6 @@ func TestSpanTagSampling(t *testing.T) {
 	}
 }
 
-func TestBadDuration(t *testing.T) {
-	logger := logrus.StandardLogger()
-
-	_, err := NewKafkaSpanSink(logger, nil, "testing", "", "hash", "all", 0, 0, 0, "pthbbbbbt", "", "", 100)
-	assert.Error(t, err)
-}
-
 func TestSpanFlushJson(t *testing.T) {
 	config := sarama.NewConfig()
 	config.Producer.Return.Successes = true
@@ -408,15 +687,30 @@ func TestSpanFlushJson(t *testing.T) {
 
 	producerMock.ExpectInputAndSucceed()
 
-	// I would use the logrus test logger but the package needs to be
-	// updated from Sirupsen/logrus to sirupsen/logrus
-	// https://github.com/stripe/veneur/issues/277
-	logger := logrus.StandardLogger()
-
-	sink, err := NewKafkaSpanSink(logger, nil, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "json", "", 100)
+	sink, err := CreateSpanSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaSpanSinkConfig{
+			Broker:                  "testing",
+			SpanTopic:               "testSpanTopic",
+			Partitioner:             "hash",
+			RetryMax:                0,
+			SpanBufferBytes:         0,
+			SpanBufferMesages:       0,
+			SpanRequireAcks:         "all",
+			SpanSerializationFormat: "json",
+			SpanSampleTag:           "",
+			SpanSampleRatePercent:   100,
+		},
+	)
 	assert.NoError(t, err)
-
-	sink.producer = producerMock
+	kafkaSink, ok := sink.(*KafkaSpanSink)
+	assert.True(t, ok)
+	kafkaSink.producer = producerMock
 
 	start := time.Now()
 	end := start.Add(2 * time.Second)
@@ -451,15 +745,31 @@ func TestSpanFlushProtobuf(t *testing.T) {
 
 	producerMock.ExpectInputAndSucceed()
 
-	// I would use the logrus test logger but the package needs to be
-	// updated from Sirupsen/logrus to sirupsen/logrus
-	// https://github.com/stripe/veneur/issues/277
-	logger := logrus.StandardLogger()
-
-	sink, err := NewKafkaSpanSink(logger, nil, "testing", "testSpanTopic", "hash", "all", 0, 0, 0, "", "protobuf", "", 100)
+	sink, err := CreateSpanSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"kafka",
+		logrus.NewEntry(logrus.StandardLogger()),
+		veneur.Config{},
+		KafkaSpanSinkConfig{
+			Broker:                  "testing",
+			SpanTopic:               "testSpanTopic",
+			Partitioner:             "hash",
+			RetryMax:                0,
+			SpanBufferBytes:         0,
+			SpanBufferMesages:       0,
+			SpanRequireAcks:         "all",
+			SpanSerializationFormat: "protobuf",
+			SpanSampleTag:           "",
+			SpanSampleRatePercent:   100,
+		},
+	)
 	assert.NoError(t, err)
+	kafkaSink, ok := sink.(*KafkaSpanSink)
+	assert.True(t, ok)
 
-	sink.producer = producerMock
+	kafkaSink.producer = producerMock
 
 	start := time.Now()
 	end := start.Add(2 * time.Second)
