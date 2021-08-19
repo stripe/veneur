@@ -9,6 +9,7 @@ import (
 	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/sinks/kafka"
 	"github.com/stripe/veneur/v14/sinks/signalfx"
+	"github.com/stripe/veneur/v14/sinks/splunk"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 )
@@ -55,6 +56,10 @@ func main() {
 		if err != nil {
 			logrus.WithError(err).Fatal("error migrating kafka config")
 		}
+		err = splunk.MigrateConfig(&conf)
+		if err != nil {
+			logrus.WithError(err).Fatal("error migrating splunk config")
+		}
 	}
 
 	logger := logrus.StandardLogger()
@@ -77,6 +82,10 @@ func main() {
 			"kafka": {
 				Create:      kafka.CreateSpanSink,
 				ParseConfig: kafka.ParseSpanConfig,
+			},
+			"splunk": {
+				Create:      splunk.Create,
+				ParseConfig: splunk.ParseConfig,
 			},
 		},
 	})

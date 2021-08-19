@@ -107,10 +107,10 @@ type Config struct {
 	SpanSinks                         []SinkConfig      `yaml:"span_sinks"`
 	SplunkHecAddress                  string            `yaml:"splunk_hec_address"`
 	SplunkHecBatchSize                int               `yaml:"splunk_hec_batch_size"`
-	SplunkHecConnectionLifetimeJitter string            `yaml:"splunk_hec_connection_lifetime_jitter"`
-	SplunkHecIngestTimeout            string            `yaml:"splunk_hec_ingest_timeout"`
-	SplunkHecMaxConnectionLifetime    string            `yaml:"splunk_hec_max_connection_lifetime"`
-	SplunkHecSendTimeout              string            `yaml:"splunk_hec_send_timeout"`
+	SplunkHecConnectionLifetimeJitter time.Duration     `yaml:"splunk_hec_connection_lifetime_jitter"`
+	SplunkHecIngestTimeout            time.Duration     `yaml:"splunk_hec_ingest_timeout"`
+	SplunkHecMaxConnectionLifetime    time.Duration     `yaml:"splunk_hec_max_connection_lifetime"`
+	SplunkHecSendTimeout              time.Duration     `yaml:"splunk_hec_send_timeout"`
 	SplunkHecSubmissionWorkers        int               `yaml:"splunk_hec_submission_workers"`
 	SplunkHecTLSValidateHostname      string            `yaml:"splunk_hec_tls_validate_hostname"`
 	SplunkHecToken                    string            `yaml:"splunk_hec_token"`

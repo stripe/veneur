@@ -10,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stripe/veneur/v14"
 )
 
 func TestWorkerCount(t *testing.T) {
@@ -32,8 +33,22 @@ func TestWorkerCount(t *testing.T) {
 
 			logger := logrus.New()
 			logger.SetLevel(logrus.DebugLevel)
-			sink, err := NewSplunkSpanSink(ts.URL, "00000000-0000-0000-0000-000000000000",
-				"test-host", "", logger, time.Duration(0), time.Duration(0), 100, nWorkers, 10, 10*time.Millisecond, 0)
+			sink, err := Create(&veneur.Server{}, "splunk", logrus.NewEntry(logger),
+				veneur.Config{
+					Hostname: "test-host",
+				},
+				SplunkSinkConfig{
+					HecAddress:                  ts.URL,
+					HecBatchSize:                100,
+					HecConnectionLifetimeJitter: 0,
+					HecIngestTimeout:            time.Duration(0),
+					HecMaxConnectionLifetime:    10 * time.Second,
+					HecSendTimeout:              time.Duration(0),
+					HecSubmissionWorkers:        nWorkers,
+					HecTLSValidateHostname:      "",
+					HecToken:                    "00000000-0000-0000-0000-000000000000",
+					SpanSampleRate:              10,
+				})
 			sss := sink.(*splunkSpanSink)
 			defer sss.Stop()
 			require.NoError(t, err)

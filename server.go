@@ -49,7 +49,6 @@ import (
 	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/newrelic"
 	"github.com/stripe/veneur/v14/sinks/prometheus"
-	"github.com/stripe/veneur/v14/sinks/splunk"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
 	"github.com/stripe/veneur/v14/sinks/xray"
 	"github.com/stripe/veneur/v14/ssf"
@@ -717,45 +716,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			ret.spanSinks = append(ret.spanSinks, lsSink)
 
 			logger.Info("Configured Lightstep span sink")
-		}
-
-		if (conf.SplunkHecToken != "" && conf.SplunkHecAddress == "") ||
-			(conf.SplunkHecToken == "" && conf.SplunkHecAddress != "") {
-			return ret, fmt.Errorf("both splunk_hec_address and splunk_hec_token need to be set!")
-		}
-		if conf.SplunkHecToken != "" && conf.SplunkHecAddress != "" {
-			var sendTimeout, ingestTimeout, connLifetime, connJitter time.Duration
-			if conf.SplunkHecSendTimeout != "" {
-				sendTimeout, err = time.ParseDuration(conf.SplunkHecSendTimeout)
-				if err != nil {
-					return ret, err
-				}
-			}
-			if conf.SplunkHecIngestTimeout != "" {
-				ingestTimeout, err = time.ParseDuration(conf.SplunkHecIngestTimeout)
-				if err != nil {
-					return ret, err
-				}
-			}
-			if conf.SplunkHecMaxConnectionLifetime != "" {
-				connLifetime, err = time.ParseDuration(conf.SplunkHecMaxConnectionLifetime)
-				if err != nil {
-					return ret, err
-				}
-			}
-			if conf.SplunkHecConnectionLifetimeJitter != "" {
-				connJitter, err = time.ParseDuration(conf.SplunkHecConnectionLifetimeJitter)
-				if err != nil {
-					return ret, err
-				}
-			}
-
-			sss, err := splunk.NewSplunkSpanSink(conf.SplunkHecAddress, conf.SplunkHecToken, conf.Hostname, conf.SplunkHecTLSValidateHostname, log, ingestTimeout, sendTimeout, conf.SplunkHecBatchSize, conf.SplunkHecSubmissionWorkers, conf.SplunkSpanSampleRate, connLifetime, connJitter)
-			if err != nil {
-				return ret, err
-			}
-
-			ret.spanSinks = append(ret.spanSinks, sss)
 		}
 
 		if conf.FalconerAddress != "" {
