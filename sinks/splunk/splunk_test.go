@@ -526,40 +526,37 @@ func TestExcludedTagsIndicators(t *testing.T) {
 	start := time.Unix(100000, 1000000)
 	end := start.Add(5 * time.Second)
 
-	spans := []*ssf.SSFSpan{
-		&ssf.SSFSpan{
-			ParentId:       4,
-			StartTimestamp: start.UnixNano(),
-			EndTimestamp:   end.UnixNano(),
-			Service:        "test-srv",
-			Name:           "test-span",
-			Indicator:      true,
-			Error:          true,
-			Tags: map[string]string{
-				"farts": "mandatory",
-			},
-			Metrics: []*ssf.SSFSample{
-				ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
-				ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
-			},
+	spans := []*ssf.SSFSpan{{
+		ParentId:       4,
+		StartTimestamp: start.UnixNano(),
+		EndTimestamp:   end.UnixNano(),
+		Service:        "test-srv",
+		Name:           "test-span",
+		Indicator:      true,
+		Error:          true,
+		Tags: map[string]string{
+			"farts": "mandatory",
 		},
-		&ssf.SSFSpan{
-			ParentId:       4,
-			StartTimestamp: start.UnixNano(),
-			EndTimestamp:   end.UnixNano(),
-			Service:        "test-srv",
-			Name:           "test-span",
-			Indicator:      true,
-			Error:          true,
-			Tags: map[string]string{
-				"nofarts": "forbidden",
-			},
-			Metrics: []*ssf.SSFSample{
-				ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
-				ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
-			},
+		Metrics: []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
 		},
-	}
+	}, {
+		ParentId:       4,
+		StartTimestamp: start.UnixNano(),
+		EndTimestamp:   end.UnixNano(),
+		Service:        "test-srv",
+		Name:           "test-span",
+		Indicator:      true,
+		Error:          true,
+		Tags: map[string]string{
+			"nofarts": "forbidden",
+		},
+		Metrics: []*ssf.SSFSample{
+			ssf.Count("some.counter", 1, map[string]string{"purpose": "testing"}),
+			ssf.Gauge("some.gauge", 20, map[string]string{"purpose": "testing"}),
+		},
+	}}
 
 	for i := 0; i < nToFlush; i++ {
 		span := spans[i%2]
@@ -577,7 +574,7 @@ func TestExcludedTagsIndicators(t *testing.T) {
 	const expectedEvents = nToFlush / 2
 	// check how many events we got:
 	events := 0
-	for _ = range ch {
+	for range ch {
 		events++
 		// Don't close the receiving end until the first
 		// span, to avoid failing the test by racing the
