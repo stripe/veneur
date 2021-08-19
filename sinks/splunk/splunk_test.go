@@ -71,6 +71,35 @@ func testLogger() *logrus.Entry {
 	return logrus.NewEntry(logger)
 }
 
+func TestSinkName(t *testing.T) {
+	ch := make(chan splunk.Event, 10)
+	server := httptest.NewServer(jsonEndpoint(t, ch))
+	sink, err := splunk.Create(
+		&veneur.Server{},
+		"custom-splunk-sink-name",
+		testLogger(),
+		veneur.Config{
+			Hostname: "test-host",
+		},
+		splunk.SplunkSinkConfig{
+			HecAddress:                  server.URL,
+			HecBatchSize:                10,
+			HecConnectionLifetimeJitter: 0,
+			HecIngestTimeout:            time.Duration(0),
+			HecMaxConnectionLifetime:    1 * time.Second,
+			HecSendTimeout:              time.Duration(0),
+			HecSubmissionWorkers:        0,
+			HecTLSValidateHostname:      "",
+			HecToken:                    "00000000-0000-0000-0000-000000000000",
+			SpanSampleRate:              1,
+		})
+	require.NoError(t, err)
+	splunkSink := sink.(splunk.TestableSplunkSpanSink)
+	err = sink.Start(nil)
+	require.NoError(t, err)
+	assert.Equal(t, "custom-splunk-sink-name", splunkSink.Name())
+}
+
 func TestSpanIngestBatch(t *testing.T) {
 	const nToFlush = 10
 	logger := testLogger()

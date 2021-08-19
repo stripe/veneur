@@ -188,7 +188,7 @@ func Create(
 		ingestTimeout:      splunkConfig.HecIngestTimeout,
 		log:                logger,
 		maxConnLifetime:    splunkConfig.HecMaxConnectionLifetime,
-		name:               "splunk",
+		name:               name,
 		rand:               mrand.New(mrand.NewSource(seed.Int64())),
 		sendTimeout:        splunkConfig.HecSendTimeout,
 		spanSampleRate:     int64(splunkConfig.SpanSampleRate),
