@@ -46,11 +46,9 @@ import (
 	"github.com/stripe/veneur/v14/sinks/datadog"
 	"github.com/stripe/veneur/v14/sinks/debug"
 	"github.com/stripe/veneur/v14/sinks/falconer"
-	"github.com/stripe/veneur/v14/sinks/kafka"
 	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/newrelic"
 	"github.com/stripe/veneur/v14/sinks/prometheus"
-	"github.com/stripe/veneur/v14/sinks/splunk"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
 	"github.com/stripe/veneur/v14/sinks/xray"
 	"github.com/stripe/veneur/v14/ssf"
@@ -339,7 +337,7 @@ func (server *Server) createSpanSinks(
 		// fields in the map from accidentally being logged.
 		config.SpanSinks[index].Config = parsedSinkConfig
 		sink, err := sinkFactory.Create(
-			server, sinkConfig.Name, logger.WithField("sink", sinkConfig.Name),
+			server, sinkConfig.Name, logger.WithField("span_sink", sinkConfig.Name),
 			*config, parsedSinkConfig)
 		if err != nil {
 			return nil, err
@@ -366,7 +364,7 @@ func (server *Server) createMetricSinks(
 		// fields in the map from accidentally being logged.
 		config.MetricSinks[index].Config = parsedSinkConfig
 		sink, err := sinkFactory.Create(
-			server, sinkConfig.Name, logger.WithField("sink", sinkConfig.Name),
+			server, sinkConfig.Name, logger.WithField("metric_sink", sinkConfig.Name),
 			*config, parsedSinkConfig)
 		if err != nil {
 			return nil, err
@@ -720,45 +718,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			logger.Info("Configured Lightstep span sink")
 		}
 
-		if (conf.SplunkHecToken != "" && conf.SplunkHecAddress == "") ||
-			(conf.SplunkHecToken == "" && conf.SplunkHecAddress != "") {
-			return ret, fmt.Errorf("both splunk_hec_address and splunk_hec_token need to be set!")
-		}
-		if conf.SplunkHecToken != "" && conf.SplunkHecAddress != "" {
-			var sendTimeout, ingestTimeout, connLifetime, connJitter time.Duration
-			if conf.SplunkHecSendTimeout != "" {
-				sendTimeout, err = time.ParseDuration(conf.SplunkHecSendTimeout)
-				if err != nil {
-					return ret, err
-				}
-			}
-			if conf.SplunkHecIngestTimeout != "" {
-				ingestTimeout, err = time.ParseDuration(conf.SplunkHecIngestTimeout)
-				if err != nil {
-					return ret, err
-				}
-			}
-			if conf.SplunkHecMaxConnectionLifetime != "" {
-				connLifetime, err = time.ParseDuration(conf.SplunkHecMaxConnectionLifetime)
-				if err != nil {
-					return ret, err
-				}
-			}
-			if conf.SplunkHecConnectionLifetimeJitter != "" {
-				connJitter, err = time.ParseDuration(conf.SplunkHecConnectionLifetimeJitter)
-				if err != nil {
-					return ret, err
-				}
-			}
-
-			sss, err := splunk.NewSplunkSpanSink(conf.SplunkHecAddress, conf.SplunkHecToken, conf.Hostname, conf.SplunkHecTLSValidateHostname, log, ingestTimeout, sendTimeout, conf.SplunkHecBatchSize, conf.SplunkHecSubmissionWorkers, conf.SplunkSpanSampleRate, connLifetime, connJitter)
-			if err != nil {
-				return ret, err
-			}
-
-			ret.spanSinks = append(ret.spanSinks, sss)
-		}
-
 		if conf.FalconerAddress != "" {
 			falsink, err := falconer.NewSpanSink(context.Background(), conf.FalconerAddress, log, grpc.WithInsecure())
 			if err != nil {
@@ -773,44 +732,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.SpanWorkerGoroutines = 1
 		if conf.NumSpanWorkers > 0 {
 			ret.SpanWorkerGoroutines = conf.NumSpanWorkers
-		}
-	}
-
-	if conf.KafkaBroker != "" {
-		if conf.KafkaMetricTopic != "" || conf.KafkaCheckTopic != "" || conf.KafkaEventTopic != "" {
-			kSink, err := kafka.NewKafkaMetricSink(
-				log, ret.TraceClient, conf.KafkaBroker, conf.KafkaCheckTopic, conf.KafkaEventTopic,
-				conf.KafkaMetricTopic, conf.KafkaMetricRequireAcks,
-				conf.KafkaPartitioner, conf.KafkaRetryMax,
-				conf.KafkaMetricBufferBytes, conf.KafkaMetricBufferMessages,
-				conf.KafkaMetricBufferFrequency,
-			)
-			if err != nil {
-				return ret, err
-			}
-
-			ret.metricSinks = append(ret.metricSinks, kSink)
-
-			logger.Info("Configured Kafka metric sink")
-		} else {
-			logger.Warn("Kafka metric sink skipped due to missing metric, check and event topic")
-		}
-
-		if conf.KafkaSpanTopic != "" {
-			sink, err := kafka.NewKafkaSpanSink(log, ret.TraceClient, conf.KafkaBroker, conf.KafkaSpanTopic,
-				conf.KafkaPartitioner, conf.KafkaMetricRequireAcks, conf.KafkaRetryMax,
-				conf.KafkaSpanBufferBytes, conf.KafkaSpanBufferMesages,
-				conf.KafkaSpanBufferFrequency, conf.KafkaSpanSerializationFormat,
-				conf.KafkaSpanSampleTag, conf.KafkaSpanSampleRatePercent,
-			)
-			if err != nil {
-				return ret, err
-			}
-
-			ret.spanSinks = append(ret.spanSinks, sink)
-			logger.Info("Configured Kafka span sink")
-		} else {
-			logger.Warn("Kafka span sink skipped due to missing span topic")
 		}
 	}
 

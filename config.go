@@ -34,47 +34,43 @@ type Config struct {
 		MigrateMetricSinks bool `yaml:"migrate_metric_sinks"`
 		MigrateSpanSinks   bool `yaml:"migrate_span_sinks"`
 	}
-	FlushFile                    string            `yaml:"flush_file"`
-	FlushMaxPerBody              int               `yaml:"flush_max_per_body"`
-	FlushWatchdogMissedFlushes   int               `yaml:"flush_watchdog_missed_flushes"`
-	ForwardAddress               string            `yaml:"forward_address"`
-	ForwardUseGrpc               bool              `yaml:"forward_use_grpc"`
-	GrpcAddress                  string            `yaml:"grpc_address"`
-	GrpcListenAddresses          []string          `yaml:"grpc_listen_addresses"`
-	Hostname                     string            `yaml:"hostname"`
-	HTTPAddress                  string            `yaml:"http_address"`
-	HTTPQuit                     bool              `yaml:"http_quit"`
-	IndicatorSpanTimerName       string            `yaml:"indicator_span_timer_name"`
-	Interval                     string            `yaml:"interval"`
-	KafkaBroker                  string            `yaml:"kafka_broker"`
-	KafkaCheckTopic              string            `yaml:"kafka_check_topic"`
-	KafkaEventTopic              string            `yaml:"kafka_event_topic"`
-	KafkaMetricBufferBytes       int               `yaml:"kafka_metric_buffer_bytes"`
-	KafkaMetricBufferFrequency   string            `yaml:"kafka_metric_buffer_frequency"`
-	KafkaMetricBufferMessages    int               `yaml:"kafka_metric_buffer_messages"`
-	KafkaMetricRequireAcks       string            `yaml:"kafka_metric_require_acks"`
-	KafkaMetricTopic             string            `yaml:"kafka_metric_topic"`
-	KafkaPartitioner             string            `yaml:"kafka_partitioner"`
-	KafkaRetryMax                int               `yaml:"kafka_retry_max"`
-	KafkaSpanBufferBytes         int               `yaml:"kafka_span_buffer_bytes"`
-	KafkaSpanBufferFrequency     string            `yaml:"kafka_span_buffer_frequency"`
-	KafkaSpanBufferMesages       int               `yaml:"kafka_span_buffer_mesages"`
-	KafkaSpanRequireAcks         string            `yaml:"kafka_span_require_acks"`
-	KafkaSpanSampleRatePercent   float64           `yaml:"kafka_span_sample_rate_percent"`
-	KafkaSpanSampleTag           string            `yaml:"kafka_span_sample_tag"`
-	KafkaSpanSerializationFormat string            `yaml:"kafka_span_serialization_format"`
-	KafkaSpanTopic               string            `yaml:"kafka_span_topic"`
-	LightstepAccessToken         util.StringSecret `yaml:"lightstep_access_token"`
-	LightstepCollectorHost       string            `yaml:"lightstep_collector_host"`
-	LightstepMaximumSpans        int               `yaml:"lightstep_maximum_spans"`
-	LightstepNumClients          int               `yaml:"lightstep_num_clients"`
-	LightstepReconnectPeriod     string            `yaml:"lightstep_reconnect_period"`
-	MetricMaxLength              int               `yaml:"metric_max_length"`
-	MetricSinks                  []struct {
-		Kind   string      `yaml:"kind"`
-		Name   string      `yaml:"name"`
-		Config interface{} `yaml:"config"`
-	} `yaml:"metric_sinks"`
+	FlushFile                                 string            `yaml:"flush_file"`
+	FlushMaxPerBody                           int               `yaml:"flush_max_per_body"`
+	FlushWatchdogMissedFlushes                int               `yaml:"flush_watchdog_missed_flushes"`
+	ForwardAddress                            string            `yaml:"forward_address"`
+	ForwardUseGrpc                            bool              `yaml:"forward_use_grpc"`
+	GrpcAddress                               string            `yaml:"grpc_address"`
+	GrpcListenAddresses                       []string          `yaml:"grpc_listen_addresses"`
+	Hostname                                  string            `yaml:"hostname"`
+	HTTPAddress                               string            `yaml:"http_address"`
+	HTTPQuit                                  bool              `yaml:"http_quit"`
+	IndicatorSpanTimerName                    string            `yaml:"indicator_span_timer_name"`
+	Interval                                  string            `yaml:"interval"`
+	KafkaBroker                               string            `yaml:"kafka_broker"`
+	KafkaCheckTopic                           string            `yaml:"kafka_check_topic"`
+	KafkaEventTopic                           string            `yaml:"kafka_event_topic"`
+	KafkaMetricBufferBytes                    int               `yaml:"kafka_metric_buffer_bytes"`
+	KafkaMetricBufferFrequency                time.Duration     `yaml:"kafka_metric_buffer_frequency"`
+	KafkaMetricBufferMessages                 int               `yaml:"kafka_metric_buffer_messages"`
+	KafkaMetricRequireAcks                    string            `yaml:"kafka_metric_require_acks"`
+	KafkaMetricTopic                          string            `yaml:"kafka_metric_topic"`
+	KafkaPartitioner                          string            `yaml:"kafka_partitioner"`
+	KafkaRetryMax                             int               `yaml:"kafka_retry_max"`
+	KafkaSpanBufferBytes                      int               `yaml:"kafka_span_buffer_bytes"`
+	KafkaSpanBufferFrequency                  time.Duration     `yaml:"kafka_span_buffer_frequency"`
+	KafkaSpanBufferMesages                    int               `yaml:"kafka_span_buffer_mesages"`
+	KafkaSpanRequireAcks                      string            `yaml:"kafka_span_require_acks"`
+	KafkaSpanSampleRatePercent                float64           `yaml:"kafka_span_sample_rate_percent"`
+	KafkaSpanSampleTag                        string            `yaml:"kafka_span_sample_tag"`
+	KafkaSpanSerializationFormat              string            `yaml:"kafka_span_serialization_format"`
+	KafkaSpanTopic                            string            `yaml:"kafka_span_topic"`
+	LightstepAccessToken                      util.StringSecret `yaml:"lightstep_access_token"`
+	LightstepCollectorHost                    string            `yaml:"lightstep_collector_host"`
+	LightstepMaximumSpans                     int               `yaml:"lightstep_maximum_spans"`
+	LightstepNumClients                       int               `yaml:"lightstep_num_clients"`
+	LightstepReconnectPeriod                  string            `yaml:"lightstep_reconnect_period"`
+	MetricMaxLength                           int               `yaml:"metric_max_length"`
+	MetricSinks                               []SinkConfig      `yaml:"metric_sinks"`
 	MutexProfileFraction                      int               `yaml:"mutex_profile_fraction"`
 	NewrelicAccountID                         int               `yaml:"newrelic_account_id"`
 	NewrelicCommonTags                        []string          `yaml:"newrelic_common_tags"`
@@ -106,19 +102,15 @@ type Config struct {
 		APIKey util.StringSecret `yaml:"api_key"`
 		Name   string            `yaml:"name"`
 	} `yaml:"signalfx_per_tag_api_keys"`
-	SignalfxVaryKeyBy   string `yaml:"signalfx_vary_key_by"`
-	SpanChannelCapacity int    `yaml:"span_channel_capacity"`
-	SpanSinks           []struct {
-		Kind   string      `yaml:"kind"`
-		Name   string      `yaml:"name"`
-		Config interface{} `yaml:"config"`
-	} `yaml:"span_sinks"`
+	SignalfxVaryKeyBy                 string            `yaml:"signalfx_vary_key_by"`
+	SpanChannelCapacity               int               `yaml:"span_channel_capacity"`
+	SpanSinks                         []SinkConfig      `yaml:"span_sinks"`
 	SplunkHecAddress                  string            `yaml:"splunk_hec_address"`
 	SplunkHecBatchSize                int               `yaml:"splunk_hec_batch_size"`
-	SplunkHecConnectionLifetimeJitter string            `yaml:"splunk_hec_connection_lifetime_jitter"`
-	SplunkHecIngestTimeout            string            `yaml:"splunk_hec_ingest_timeout"`
-	SplunkHecMaxConnectionLifetime    string            `yaml:"splunk_hec_max_connection_lifetime"`
-	SplunkHecSendTimeout              string            `yaml:"splunk_hec_send_timeout"`
+	SplunkHecConnectionLifetimeJitter time.Duration     `yaml:"splunk_hec_connection_lifetime_jitter"`
+	SplunkHecIngestTimeout            time.Duration     `yaml:"splunk_hec_ingest_timeout"`
+	SplunkHecMaxConnectionLifetime    time.Duration     `yaml:"splunk_hec_max_connection_lifetime"`
+	SplunkHecSendTimeout              time.Duration     `yaml:"splunk_hec_send_timeout"`
 	SplunkHecSubmissionWorkers        int               `yaml:"splunk_hec_submission_workers"`
 	SplunkHecTLSValidateHostname      string            `yaml:"splunk_hec_tls_validate_hostname"`
 	SplunkHecToken                    string            `yaml:"splunk_hec_token"`
@@ -150,4 +142,10 @@ type Config struct {
 	XrayAddress          string   `yaml:"xray_address"`
 	XrayAnnotationTags   []string `yaml:"xray_annotation_tags"`
 	XraySamplePercentage float64  `yaml:"xray_sample_percentage"`
+}
+
+type SinkConfig struct {
+	Kind   string      `yaml:"kind"`
+	Name   string      `yaml:"name"`
+	Config interface{} `yaml:"config"`
 }

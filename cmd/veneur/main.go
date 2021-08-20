@@ -7,7 +7,9 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/sinks/kafka"
 	"github.com/stripe/veneur/v14/sinks/signalfx"
+	"github.com/stripe/veneur/v14/sinks/splunk"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 )
@@ -47,9 +49,17 @@ func main() {
 	}
 	if !conf.Features.MigrateMetricSinks {
 		err = signalfx.MigrateConfig(&conf)
-	}
-	if err != nil {
-		logrus.WithError(err).Fatal("error migrating signalfx config")
+		if err != nil {
+			logrus.WithError(err).Fatal("error migrating signalfx config")
+		}
+		err = kafka.MigrateConfig(&conf)
+		if err != nil {
+			logrus.WithError(err).Fatal("error migrating kafka config")
+		}
+		err = splunk.MigrateConfig(&conf)
+		if err != nil {
+			logrus.WithError(err).Fatal("error migrating splunk config")
+		}
 	}
 
 	logger := logrus.StandardLogger()
@@ -58,6 +68,10 @@ func main() {
 		Logger: logger,
 		MetricSinkTypes: veneur.MetricSinkTypes{
 			// TODO(arnavdugar): Migrate metric sink types.
+			"kafka": {
+				Create:      kafka.CreateMetricSink,
+				ParseConfig: kafka.ParseMetricConfig,
+			},
 			"signalfx": {
 				Create:      signalfx.Create,
 				ParseConfig: signalfx.ParseConfig,
@@ -65,6 +79,14 @@ func main() {
 		},
 		SpanSinkTypes: veneur.SpanSinkTypes{
 			// TODO(arnavdugar): Migrate span sink types.
+			"kafka": {
+				Create:      kafka.CreateSpanSink,
+				ParseConfig: kafka.ParseSpanConfig,
+			},
+			"splunk": {
+				Create:      splunk.Create,
+				ParseConfig: splunk.ParseConfig,
+			},
 		},
 	})
 	veneur.SetLogger(logger)
