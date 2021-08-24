@@ -82,19 +82,23 @@ github.com/eapache/go-xerial-snappy
 # github.com/eapache/queue v1.1.0
 ## explicit
 github.com/eapache/queue
-# github.com/facebookgo/stack v0.0.0-20160209184415-751773369052
-## explicit
-# github.com/facebookgo/stackerr v0.0.0-20150612192056-c2fcf88613f4
-## explicit
 # github.com/getsentry/sentry-go v0.6.2-0.20200616133211-abb91bfdb057
 ## explicit
 github.com/getsentry/sentry-go
+# github.com/go-logfmt/logfmt v0.4.0
+github.com/go-logfmt/logfmt
+# github.com/go-stack/stack v1.8.0
+github.com/go-stack/stack
+# github.com/gogo/googleapis v1.3.1
+github.com/gogo/googleapis/google/api
 # github.com/gogo/protobuf v1.3.1
 ## explicit
 github.com/gogo/protobuf/gogoproto
+github.com/gogo/protobuf/jsonpb
 github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/protoc-gen-gogo/descriptor
 github.com/gogo/protobuf/sortkeys
+github.com/gogo/protobuf/types
 # github.com/golang/protobuf v1.4.2
 ## explicit
 github.com/golang/protobuf/proto
@@ -115,8 +119,6 @@ github.com/google/gofuzz
 github.com/googleapis/gnostic/OpenAPIv2
 github.com/googleapis/gnostic/compiler
 github.com/googleapis/gnostic/extensions
-# github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7
-## explicit
 # github.com/hashicorp/consul/api v1.1.0
 ## explicit
 github.com/hashicorp/consul/api
@@ -138,6 +140,8 @@ github.com/hashicorp/golang-lru/simplelru
 github.com/hashicorp/serf/coordinate
 # github.com/imdario/mergo v0.3.11
 github.com/imdario/mergo
+# github.com/jaegertracing/jaeger v1.15.1
+github.com/jaegertracing/jaeger/model
 # github.com/jmespath/go-jmespath v0.3.0
 github.com/jmespath/go-jmespath
 # github.com/json-iterator/go v1.1.8
@@ -156,8 +160,7 @@ github.com/lightstep/lightstep-tracer-go/collectorpb
 github.com/lightstep/lightstep-tracer-go/lightstep_thrift
 github.com/lightstep/lightstep-tracer-go/lightsteppb
 github.com/lightstep/lightstep-tracer-go/thrift_0_9_2/lib/go/thrift
-# github.com/mailru/easyjson v0.0.0-20180606163543-3fdea8d05856
-## explicit
+# github.com/mailru/easyjson v0.0.0-20190626092158-b2ccc519800e
 github.com/mailru/easyjson
 github.com/mailru/easyjson/buffer
 github.com/mailru/easyjson/jlexer
@@ -206,13 +209,11 @@ github.com/newrelic/newrelic-client-go/pkg/workloads
 github.com/newrelic/newrelic-telemetry-sdk-go/internal
 github.com/newrelic/newrelic-telemetry-sdk-go/internal/jsonx
 github.com/newrelic/newrelic-telemetry-sdk-go/telemetry
-# github.com/opentracing/opentracing-go v1.0.2
+# github.com/opentracing/opentracing-go v1.1.0
 ## explicit
 github.com/opentracing/opentracing-go
 github.com/opentracing/opentracing-go/ext
 github.com/opentracing/opentracing-go/log
-# github.com/peterbourgon/diskv v2.0.1+incompatible
-## explicit
 # github.com/pierrec/lz4 v1.0.2-0.20171218195038-2fcda4cb7018
 ## explicit
 github.com/pierrec/lz4
@@ -245,7 +246,7 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/rcrowley/go-metrics v0.0.0-20171128170426-e181e095bae9
+# github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0
 ## explicit
 github.com/rcrowley/go-metrics
 # github.com/satori/go.uuid v1.2.1-0.20180103174451-36e9d2ebbde5
@@ -254,24 +255,26 @@ github.com/satori/go.uuid
 # github.com/segmentio/fasthash v1.0.0
 ## explicit
 github.com/segmentio/fasthash/fnv1a
-# github.com/signalfx/com_signalfx_metrics_protobuf v0.0.0-20170330202426-93e507b42f43
-## explicit
-github.com/signalfx/com_signalfx_metrics_protobuf
+# github.com/signalfx/com_signalfx_metrics_protobuf v0.0.2
+github.com/signalfx/com_signalfx_metrics_protobuf/model
 # github.com/signalfx/gohistogram v0.0.0-20160107210732-1ccfd2ff5083
-## explicit
 github.com/signalfx/gohistogram
-# github.com/signalfx/golib v2.0.0+incompatible
+# github.com/signalfx/golib/v3 v3.3.36
 ## explicit
-github.com/signalfx/golib/datapoint
-github.com/signalfx/golib/datapoint/dpsink
-github.com/signalfx/golib/errors
-github.com/signalfx/golib/event
-github.com/signalfx/golib/eventcounter
-github.com/signalfx/golib/log
-github.com/signalfx/golib/sfxclient
-github.com/signalfx/golib/timekeeper
-github.com/signalfx/golib/trace
-github.com/signalfx/golib/trace/format
+github.com/signalfx/golib/v3/datapoint
+github.com/signalfx/golib/v3/datapoint/dpsink
+github.com/signalfx/golib/v3/errors
+github.com/signalfx/golib/v3/event
+github.com/signalfx/golib/v3/eventcounter
+github.com/signalfx/golib/v3/log
+github.com/signalfx/golib/v3/sfxclient
+github.com/signalfx/golib/v3/sfxclient/spanfilter
+github.com/signalfx/golib/v3/timekeeper
+github.com/signalfx/golib/v3/trace
+github.com/signalfx/golib/v3/trace/format
+github.com/signalfx/golib/v3/trace/translator
+# github.com/signalfx/sapm-proto v0.4.0
+github.com/signalfx/sapm-proto/gen
 # github.com/simplereach/timeutils v1.2.0
 ## explicit
 # github.com/sirupsen/logrus v1.6.0
@@ -417,14 +420,7 @@ google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/emptypb
 google.golang.org/protobuf/types/known/timestamppb
 # gopkg.in/inf.v0 v0.9.1
-## explicit
 gopkg.in/inf.v0
-# gopkg.in/logfmt.v0 v0.3.0
-## explicit
-gopkg.in/logfmt.v0
-# gopkg.in/stack.v1 v1.6.0
-## explicit
-gopkg.in/stack.v1
 # gopkg.in/yaml.v2 v2.3.0
 ## explicit
 gopkg.in/yaml.v2

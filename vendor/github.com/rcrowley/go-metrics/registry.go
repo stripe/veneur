@@ -54,7 +54,7 @@ type Registry interface {
 // of names to metrics.
 type StandardRegistry struct {
 	metrics map[string]interface{}
-	mutex   sync.Mutex
+	mutex   sync.RWMutex
 }
 
 // Create a new registry.
@@ -64,15 +64,17 @@ func NewRegistry() Registry {
 
 // Call the given function for each registered metric.
 func (r *StandardRegistry) Each(f func(string, interface{})) {
-	for name, i := range r.registered() {
-		f(name, i)
+	metrics := r.registered()
+	for i := range metrics {
+		kv := &metrics[i]
+		f(kv.name, kv.value)
 	}
 }
 
 // Get the metric by the given name or nil if none is registered.
 func (r *StandardRegistry) Get(name string) interface{} {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	return r.metrics[name]
 }
 
@@ -81,6 +83,15 @@ func (r *StandardRegistry) Get(name string) interface{} {
 // The interface can be the metric to register if not found in registry,
 // or a function returning the metric for lazy instantiation.
 func (r *StandardRegistry) GetOrRegister(name string, i interface{}) interface{} {
+	// access the read lock first which should be re-entrant
+	r.mutex.RLock()
+	metric, ok := r.metrics[name]
+	r.mutex.RUnlock()
+	if ok {
+		return metric
+	}
+
+	// only take the write lock if we'll be modifying the metrics map
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 	if metric, ok := r.metrics[name]; ok {
@@ -103,8 +114,8 @@ func (r *StandardRegistry) Register(name string, i interface{}) error {
 
 // Run all registered healthchecks.
 func (r *StandardRegistry) RunHealthchecks() {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 	for _, i := range r.metrics {
 		if h, ok := i.(Healthcheck); ok {
 			h.Check()
@@ -202,12 +213,20 @@ func (r *StandardRegistry) register(name string, i interface{}) error {
 	return nil
 }
 
-func (r *StandardRegistry) registered() map[string]interface{} {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-	metrics := make(map[string]interface{}, len(r.metrics))
+type metricKV struct {
+	name  string
+	value interface{}
+}
+
+func (r *StandardRegistry) registered() []metricKV {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+	metrics := make([]metricKV, 0, len(r.metrics))
 	for name, i := range r.metrics {
-		metrics[name] = i
+		metrics = append(metrics, metricKV{
+			name:  name,
+			value: i,
+		})
 	}
 	return metrics
 }
