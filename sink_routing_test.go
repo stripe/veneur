@@ -37,10 +37,10 @@ func TestMatchNameAny(t *testing.T) {
 	}
 
 	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	assert.True(t, config.Match("aaa", map[string]string{}))
-	assert.True(t, config.Match("aab", map[string]string{}))
-	assert.True(t, config.Match("aaba", map[string]string{}))
-	assert.True(t, config.Match("abb", map[string]string{}))
+	assert.True(t, config.Match("aaa", []string{}))
+	assert.True(t, config.Match("aab", []string{}))
+	assert.True(t, config.Match("aaba", []string{}))
+	assert.True(t, config.Match("abb", []string{}))
 }
 
 func TestMatchNameExact(t *testing.T) {
@@ -55,10 +55,10 @@ func TestMatchNameExact(t *testing.T) {
 	}
 
 	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	assert.False(t, config.Match("aaa", map[string]string{}))
-	assert.True(t, config.Match("aab", map[string]string{}))
-	assert.False(t, config.Match("aaba", map[string]string{}))
-	assert.False(t, config.Match("abb", map[string]string{}))
+	assert.False(t, config.Match("aaa", []string{}))
+	assert.True(t, config.Match("aab", []string{}))
+	assert.False(t, config.Match("aaba", []string{}))
+	assert.False(t, config.Match("abb", []string{}))
 }
 
 func TestMatchNamePrefix(t *testing.T) {
@@ -73,10 +73,10 @@ func TestMatchNamePrefix(t *testing.T) {
 	}
 
 	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	assert.True(t, config.Match("aaa", map[string]string{}))
-	assert.True(t, config.Match("aab", map[string]string{}))
-	assert.True(t, config.Match("aaba", map[string]string{}))
-	assert.False(t, config.Match("abb", map[string]string{}))
+	assert.True(t, config.Match("aaa", []string{}))
+	assert.True(t, config.Match("aab", []string{}))
+	assert.True(t, config.Match("aaba", []string{}))
+	assert.False(t, config.Match("abb", []string{}))
 }
 
 func TestMatchNameRegex(t *testing.T) {
@@ -91,10 +91,10 @@ func TestMatchNameRegex(t *testing.T) {
 	}
 
 	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	assert.False(t, config.Match("aaa", map[string]string{}))
-	assert.True(t, config.Match("aab", map[string]string{}))
-	assert.False(t, config.Match("aaba", map[string]string{}))
-	assert.True(t, config.Match("abb", map[string]string{}))
+	assert.False(t, config.Match("aaa", []string{}))
+	assert.True(t, config.Match("aab", []string{}))
+	assert.False(t, config.Match("aaba", []string{}))
+	assert.True(t, config.Match("abb", []string{}))
 }
 
 func TestMatchNameInvalidRegex(t *testing.T) {
@@ -124,104 +124,25 @@ func TestMatchNameInvalidKind(t *testing.T) {
 	assert.Error(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
 }
 
-func TestMatchTagNameAny(t *testing.T) {
+func TestMatchTagExact(t *testing.T) {
 	config := veneur.SinkRoutingConfig{
 		MatchConfigs: []veneur.MatcherConfig{{
 			Name: veneur.NameMatcher{
 				Kind: "any",
 			},
 			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind: "any",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind: "any",
-				},
+				Kind:  "exact",
+				Value: "aab",
 			}},
 		}},
 	}
 
 	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
 	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-	assert.True(t, config.Match("name", map[string]string{
-		"aaa": "value",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"aab": "value",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"aaba": "value",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"abb": "value",
-	}))
-}
-
-func TestMatchTagNameAnyUnset(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind: "any",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind: "unset",
-				},
-			}},
-		}},
-	}
-
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-	assert.False(t, config.Match("name", map[string]string{
-		"aaa": "value",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"aab": "value",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"aaba": "value",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"abb": "value",
-	}))
-}
-
-func TestMatchTagNameExact(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind:  "exact",
-					Value: "aab",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind: "any",
-				},
-			}},
-		}},
-	}
-
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-	assert.False(t, config.Match("name", map[string]string{
-		"aaa": "value",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"aab": "value",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"aaba": "value",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"abb": "value",
-	}))
+	assert.False(t, config.Match("name", []string{"aaa"}))
+	assert.True(t, config.Match("name", []string{"aab"}))
+	assert.False(t, config.Match("name", []string{"aaba"}))
+	assert.False(t, config.Match("name", []string{"abb"}))
 }
 
 func TestMatchTagNameExactUnset(t *testing.T) {
@@ -231,31 +152,19 @@ func TestMatchTagNameExactUnset(t *testing.T) {
 				Kind: "any",
 			},
 			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind:  "exact",
-					Value: "aab",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind: "unset",
-				},
+				Kind:  "exact",
+				Unset: true,
+				Value: "aab",
 			}},
 		}},
 	}
 
 	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
 	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-	assert.True(t, config.Match("name", map[string]string{
-		"aaa": "value",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"aab": "value",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"aaba": "value",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"abb": "value",
-	}))
+	assert.True(t, config.Match("name", []string{"aaa"}))
+	assert.False(t, config.Match("name", []string{"aab"}))
+	assert.True(t, config.Match("name", []string{"aaba"}))
+	assert.True(t, config.Match("name", []string{"abb"}))
 }
 
 func TestMatchTagNamePrefix(t *testing.T) {
@@ -265,31 +174,18 @@ func TestMatchTagNamePrefix(t *testing.T) {
 				Kind: "any",
 			},
 			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind:  "prefix",
-					Value: "aa",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind: "any",
-				},
+				Kind:  "prefix",
+				Value: "aa",
 			}},
 		}},
 	}
 
 	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
 	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-	assert.True(t, config.Match("name", map[string]string{
-		"aaa": "value",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"aab": "value",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"aaba": "value",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"abb": "value",
-	}))
+	assert.True(t, config.Match("name", []string{"aaa"}))
+	assert.True(t, config.Match("name", []string{"aab"}))
+	assert.True(t, config.Match("name", []string{"aaba"}))
+	assert.False(t, config.Match("name", []string{"abb"}))
 }
 
 func TestMatchTagNamePrefixUnset(t *testing.T) {
@@ -299,31 +195,19 @@ func TestMatchTagNamePrefixUnset(t *testing.T) {
 				Kind: "any",
 			},
 			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind:  "prefix",
-					Value: "aa",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind: "unset",
-				},
+				Kind:  "prefix",
+				Unset: true,
+				Value: "aa",
 			}},
 		}},
 	}
 
 	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
 	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-	assert.False(t, config.Match("name", map[string]string{
-		"aaa": "value",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"aab": "value",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"aaba": "value",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"abb": "value",
-	}))
+	assert.False(t, config.Match("name", []string{"aaa"}))
+	assert.False(t, config.Match("name", []string{"aab"}))
+	assert.False(t, config.Match("name", []string{"aaba"}))
+	assert.True(t, config.Match("name", []string{"abb"}))
 }
 
 func TestMatchTagNameRegex(t *testing.T) {
@@ -333,31 +217,18 @@ func TestMatchTagNameRegex(t *testing.T) {
 				Kind: "any",
 			},
 			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind:  "regex",
-					Value: "ab+$",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind: "any",
-				},
+				Kind:  "regex",
+				Value: "ab+$",
 			}},
 		}},
 	}
 
 	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
 	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-	assert.False(t, config.Match("name", map[string]string{
-		"aaa": "value",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"aab": "value",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"aaba": "value",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"abb": "value",
-	}))
+	assert.False(t, config.Match("name", []string{"aaa"}))
+	assert.True(t, config.Match("name", []string{"aab"}))
+	assert.False(t, config.Match("name", []string{"aaba"}))
+	assert.True(t, config.Match("name", []string{"abb"}))
 }
 
 func TestMatchTagNameRegexUnset(t *testing.T) {
@@ -367,31 +238,19 @@ func TestMatchTagNameRegexUnset(t *testing.T) {
 				Kind: "any",
 			},
 			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind:  "regex",
-					Value: "ab+$",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind: "unset",
-				},
+				Kind:  "regex",
+				Unset: true,
+				Value: "ab+$",
 			}},
 		}},
 	}
 
 	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
 	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-	assert.True(t, config.Match("name", map[string]string{
-		"aaa": "value",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"aab": "value",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"aaba": "value",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"abb": "value",
-	}))
+	assert.True(t, config.Match("name", []string{"aaa"}))
+	assert.False(t, config.Match("name", []string{"aab"}))
+	assert.True(t, config.Match("name", []string{"aaba"}))
+	assert.False(t, config.Match("name", []string{"abb"}))
 }
 
 func TestMatchTagNameInvalidRegex(t *testing.T) {
@@ -401,13 +260,8 @@ func TestMatchTagNameInvalidRegex(t *testing.T) {
 				Kind: "any",
 			},
 			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind:  "regex",
-					Value: "[",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind: "any",
-				},
+				Kind:  "regex",
+				Value: "[",
 			}},
 		}},
 	}
@@ -423,12 +277,7 @@ func TestMatchTagNameInvalidKind(t *testing.T) {
 				Kind: "any",
 			},
 			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind: "invalid",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind: "any",
-				},
+				Kind: "invalid",
 			}},
 		}},
 	}
@@ -437,180 +286,43 @@ func TestMatchTagNameInvalidKind(t *testing.T) {
 	require.Error(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
 }
 
-func TestMatchTagValueExact(t *testing.T) {
+func TestMatchTagMultiple(t *testing.T) {
 	config := veneur.SinkRoutingConfig{
 		MatchConfigs: []veneur.MatcherConfig{{
 			Name: veneur.NameMatcher{
 				Kind: "any",
 			},
 			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind: "any",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind:  "exact",
-					Value: "aab",
-				},
+				Kind:  "prefix",
+				Value: "aa",
 			}},
 		}},
 	}
 
 	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
 	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-	assert.False(t, config.Match("name", map[string]string{
-		"key": "aaa",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"key": "aab",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"key": "aaba",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"key": "abb",
-	}))
+	assert.True(t, config.Match("name", []string{"aaab", "baba"}))
+	assert.False(t, config.Match("name", []string{"abba", "baba"}))
 }
 
-func TestMatchTagValuePrefix(t *testing.T) {
+func TestMatchTagUnsetMultiple(t *testing.T) {
 	config := veneur.SinkRoutingConfig{
 		MatchConfigs: []veneur.MatcherConfig{{
 			Name: veneur.NameMatcher{
 				Kind: "any",
 			},
 			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind: "any",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind:  "prefix",
-					Value: "aa",
-				},
+				Kind:  "prefix",
+				Unset: true,
+				Value: "aa",
 			}},
 		}},
 	}
 
 	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
 	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-	assert.True(t, config.Match("name", map[string]string{
-		"key": "aaa",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"key": "aab",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"key": "aaba",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"key": "abb",
-	}))
-}
-
-func TestMatchTagValueRegex(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind: "any",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind:  "regex",
-					Value: "ab+$",
-				},
-			}},
-		}},
-	}
-
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-	assert.False(t, config.Match("name", map[string]string{
-		"key": "aaa",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"key": "aab",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"key": "aaba",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"key": "abb",
-	}))
-}
-
-func TestMatchTagValueInvalidRegex(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind: "any",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind:  "regex",
-					Value: "[",
-				},
-			}},
-		}},
-	}
-
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Error(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-}
-
-func TestMatchTagValueInvalidKind(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind: "any",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind: "invalid",
-				},
-			}},
-		}},
-	}
-
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Error(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-}
-
-func TestMatchMultipleTags(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind:  "prefix",
-					Value: "aa",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind:  "prefix",
-					Value: "bb",
-				},
-			}},
-		}},
-	}
-
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-	assert.False(t, config.Match("name", map[string]string{
-		"aaab": "abab",
-		"baba": "bbab",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"aaba": "bbab",
-		"baba": "bbab",
-	}))
+	assert.False(t, config.Match("name", []string{"aaab", "baba"}))
+	assert.True(t, config.Match("name", []string{"abba", "baba"}))
 }
 
 func TestMultipleTagMatchers(t *testing.T) {
@@ -620,23 +332,11 @@ func TestMultipleTagMatchers(t *testing.T) {
 				Kind: "any",
 			},
 			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind:  "exact",
-					Value: "ab",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind:  "prefix",
-					Value: "ab",
-				},
+				Kind:  "exact",
+				Value: "ab",
 			}, {
-				Key: veneur.TagKeyMatcher{
-					Kind:  "prefix",
-					Value: "aa",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind:  "prefix",
-					Value: "bb",
-				},
+				Kind:  "prefix",
+				Value: "aa",
 			}},
 		}},
 	}
@@ -644,19 +344,9 @@ func TestMultipleTagMatchers(t *testing.T) {
 	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
 	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
 	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[1]))
-	assert.False(t, config.Match("name", map[string]string{
-		"aaab": "bbab",
-		"baba": "abab",
-	}))
-	assert.False(t, config.Match("name", map[string]string{
-		"ab":   "abab",
-		"baab": "bbab",
-	}))
-	assert.True(t, config.Match("name", map[string]string{
-		"ab":   "abab",
-		"aaab": "bbab",
-		"baba": "bbab",
-	}))
+	assert.False(t, config.Match("name", []string{"ab", "baab"}))
+	assert.False(t, config.Match("name", []string{"aaab", "baba"}))
+	assert.True(t, config.Match("name", []string{"ab", "aaab", "baba"}))
 }
 
 func TestMultipleMatcherConfigs(t *testing.T) {
@@ -667,14 +357,8 @@ func TestMultipleMatcherConfigs(t *testing.T) {
 				Value: "aa",
 			},
 			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind:  "exact",
-					Value: "ab",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind:  "prefix",
-					Value: "ab",
-				},
+				Kind:  "exact",
+				Value: "ab",
 			}},
 		}, {
 			Name: veneur.NameMatcher{
@@ -682,14 +366,8 @@ func TestMultipleMatcherConfigs(t *testing.T) {
 				Value: "bb",
 			},
 			Tags: []veneur.TagMatcher{{
-				Key: veneur.TagKeyMatcher{
-					Kind:  "prefix",
-					Value: "aa",
-				},
-				Value: veneur.TagValueMatcher{
-					Kind:  "prefix",
-					Value: "bb",
-				},
+				Kind:  "prefix",
+				Value: "aa",
 			}},
 		}},
 	}
@@ -698,20 +376,8 @@ func TestMultipleMatcherConfigs(t *testing.T) {
 	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
 	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[1].Name))
 	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[1].Tags[0]))
-	assert.False(t, config.Match("aa", map[string]string{
-		"aaab": "bbab",
-		"baba": "abab",
-	}))
-	assert.True(t, config.Match("bb", map[string]string{
-		"aaab": "bbab",
-		"baba": "abab",
-	}))
-	assert.True(t, config.Match("aa", map[string]string{
-		"ab":   "abab",
-		"baab": "bbab",
-	}))
-	assert.False(t, config.Match("bb", map[string]string{
-		"ab":   "abab",
-		"baab": "bbab",
-	}))
+	assert.False(t, config.Match("aa", []string{"aaab", "baba"}))
+	assert.True(t, config.Match("bb", []string{"aaab", "baba"}))
+	assert.True(t, config.Match("aa", []string{"ab", "baab"}))
+	assert.False(t, config.Match("bb", []string{"ab", "baab"}))
 }
