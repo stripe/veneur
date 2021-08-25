@@ -1,11 +1,12 @@
 package veneur
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
 	"github.com/sirupsen/logrus"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -86,9 +87,11 @@ func getDestinationFromPod(podIndex int, pod v1.Pod) string {
 }
 
 func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([]string, error) {
-	pods, err := kd.clientset.CoreV1().Pods(metav1.NamespaceAll).List(metav1.ListOptions{
-		LabelSelector: "app=veneur-global",
-	})
+	pods, err := kd.clientset.CoreV1().Pods(metav1.NamespaceAll).List(
+		context.Background(),
+		metav1.ListOptions{
+			LabelSelector: "app=veneur-global",
+		})
 	if err != nil {
 		return nil, err
 	}
