@@ -103,10 +103,39 @@ func (s *Server) Flush(ctx context.Context) {
 		return
 	}
 
+	if s.Config.Features.EnableMetricSinkRouting {
+		for _, metric := range finalMetrics {
+			metric.Sinks = make(samplers.RouteInformation)
+			for _, config := range s.Config.MetricSinkRouting {
+				var sinks []string
+				if config.Match(metric.Name, metric.Tags) {
+					sinks = config.Sinks.Matched
+				} else {
+					sinks = config.Sinks.NotMatched
+				}
+				for _, sink := range sinks {
+					metric.Sinks[sink] = struct{}{}
+				}
+			}
+		}
+	}
+
 	for _, sink := range s.metricSinks {
 		wg.Add(1)
 		go func(ms sinks.MetricSink) {
-			err := ms.Flush(span.Attach(ctx), finalMetrics)
+			filteredMetrics := finalMetrics
+			if s.Config.Features.EnableMetricSinkRouting {
+				sinkName := ms.Name()
+				filteredMetrics = []samplers.InterMetric{}
+				for _, metric := range finalMetrics {
+					_, ok := metric.Sinks[sinkName]
+					if !ok {
+						continue
+					}
+					filteredMetrics = append(filteredMetrics, metric)
+				}
+			}
+			err := ms.Flush(span.Attach(ctx), filteredMetrics)
 			if err != nil {
 				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
 			}

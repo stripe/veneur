@@ -108,6 +108,7 @@ type ServerConfig struct {
 
 // A Server is the actual veneur instance that will be run.
 type Server struct {
+	Config                Config
 	Workers               []*Worker
 	EventWorker           *EventWorker
 	SpanChan              chan *ssf.SSFSpan
@@ -381,7 +382,9 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	logger := config.Logger
 	conf := config.Config
 
-	ret := &Server{}
+	ret := &Server{
+		Config: conf,
+	}
 
 	ret.Hostname = conf.Hostname
 	ret.Tags = conf.Tags
