@@ -383,7 +383,8 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	conf := config.Config
 
 	ret := &Server{
-		Config: conf,
+		Config:   conf,
+		interval: conf.Interval,
 	}
 
 	ret.Hostname = conf.Hostname
@@ -403,12 +404,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.HistogramAggregates.Value += samplers.AggregatesLookup[agg]
 	}
 	ret.HistogramAggregates.Count = len(conf.Aggregates)
-
-	var err error
-	ret.interval, err = conf.ParseInterval()
-	if err != nil {
-		return ret, err
-	}
 
 	ret.stuckIntervals = conf.FlushWatchdogMissedFlushes
 

@@ -46,7 +46,7 @@ type Config struct {
 	HTTPAddress                               string              `yaml:"http_address"`
 	HTTPQuit                                  bool                `yaml:"http_quit"`
 	IndicatorSpanTimerName                    string              `yaml:"indicator_span_timer_name"`
-	Interval                                  string              `yaml:"interval"`
+	Interval                                  time.Duration       `yaml:"interval"`
 	KafkaBroker                               string              `yaml:"kafka_broker"`
 	KafkaCheckTopic                           string              `yaml:"kafka_check_topic"`
 	KafkaEventTopic                           string              `yaml:"kafka_event_topic"`

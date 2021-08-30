@@ -76,7 +76,7 @@ func generateConfig(forwardAddr string) Config {
 		Hostname: "localhost",
 
 		// Use a shorter interval for tests
-		Interval:              DefaultFlushInterval.String(),
+		Interval:              DefaultFlushInterval,
 		DatadogAPIKey:         util.StringSecret{Value: ""},
 		MetricMaxLength:       4096,
 		Percentiles:           []float64{.5, .75, .99},
@@ -212,12 +212,9 @@ type fixture struct {
 }
 
 func newFixture(t testing.TB, config Config, mSink sinks.MetricSink, sSink sinks.SpanSink) *fixture {
-	interval, err := config.ParseInterval()
-	assert.NoError(t, err)
-
 	// Set up a remote server (the API that we're sending the data to)
 	// (e.g. Datadog)
-	f := &fixture{nil, &Server{}, interval, config.DatadogFlushMaxPerBody}
+	f := &fixture{nil, &Server{}, config.Interval, config.DatadogFlushMaxPerBody}
 
 	if config.NumWorkers == 0 {
 		config.NumWorkers = 1
@@ -561,7 +558,7 @@ func sendTCPMetrics(a *net.TCPAddr, tlsConfig *tls.Config, f *fixture) error {
 func TestUDPMetrics(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
-	config.Interval = "60s"
+	config.Interval = time.Duration(time.Minute)
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0"}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)
@@ -589,7 +586,7 @@ func TestUnixSocketMetrics(t *testing.T) {
 
 	config := localConfig()
 	config.NumWorkers = 1
-	config.Interval = "60s"
+	config.Interval = time.Duration(time.Minute)
 	path := filepath.Join(tdir, "testdatagram.sock")
 	config.StatsdListenAddresses = []string{fmt.Sprintf("unixgram://%s", path)}
 	ch := make(chan []samplers.InterMetric, 20)
@@ -627,7 +624,7 @@ func TestUnixSocketMetrics(t *testing.T) {
 func TestAbstractUnixSocketMetrics(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
-	config.Interval = "60s"
+	config.Interval = time.Duration(time.Minute)
 	path := "@abstract.sock"
 	defer os.RemoveAll(path)
 
@@ -667,7 +664,7 @@ func TestAbstractUnixSocketMetrics(t *testing.T) {
 func TestMultipleUDPSockets(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
-	config.Interval = "60s"
+	config.Interval = time.Duration(time.Minute)
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)
@@ -706,7 +703,7 @@ func TestMultipleUDPSockets(t *testing.T) {
 func TestUDPMetricsSSF(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
-	config.Interval = "60s"
+	config.Interval = time.Duration(time.Minute)
 	config.SsfListenAddresses = []string{"udp://127.0.0.1:0"}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)
@@ -786,7 +783,7 @@ func TestUNIXMetricsSSF(t *testing.T) {
 
 	config := localConfig()
 	config.NumWorkers = 1
-	config.Interval = "60s"
+	config.Interval = time.Duration(time.Minute)
 	path := filepath.Join(tdir, "test.sock")
 	config.SsfListenAddresses = []string{fmt.Sprintf("unix://%s", path)}
 	ch := make(chan []samplers.InterMetric, 20)
@@ -834,7 +831,7 @@ func TestIgnoreLongUDPMetrics(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.MetricMaxLength = 31
-	config.Interval = "60s"
+	config.Interval = time.Duration(time.Minute)
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0"}
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
@@ -912,7 +909,7 @@ func TestTCPMetrics(t *testing.T) {
 		serverConfig := entry
 		t.Run(serverConfig.name, func(t *testing.T) {
 			config := localConfig()
-			config.Interval = "60s"
+			config.Interval = time.Duration(time.Minute)
 			config.NumWorkers = 1
 			config.StatsdListenAddresses = []string{"tcp://127.0.0.1:0"}
 			config.TLSKey = util.StringSecret{Value: serverConfig.serverKey}
@@ -1008,12 +1005,10 @@ func nullLogger() *logrus.Logger {
 }
 
 func TestCalculateTickerDelay(t *testing.T) {
-	interval, _ := time.ParseDuration("10s")
-
 	layout := "2006-01-02T15:04:05.000Z"
 	str := "2014-11-12T11:45:26.371Z"
 	theTime, _ := time.Parse(layout, str)
-	delay := CalculateTickDelay(interval, theTime)
+	delay := CalculateTickDelay(time.Duration(10*time.Second), theTime)
 	assert.Equal(t, 3.629, delay.Seconds(), "Delay is incorrect")
 }
 
@@ -1033,7 +1028,7 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 		SsfListenAddresses:     []string{fmt.Sprintf("unix://%s", path)},
 
 		// required or NewFromConfig fails
-		Interval:     "10s",
+		Interval:     time.Duration(10 * time.Second),
 		StatsAddress: "localhost:62251",
 	}
 	s, err := NewFromConfig(ServerConfig{
@@ -1098,7 +1093,7 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 		TraceMaxLengthBytes:    900 * 1024,
 
 		// required or NewFromConfig fails
-		Interval:     "10s",
+		Interval:     time.Duration(10 * time.Second),
 		StatsAddress: "localhost:62251",
 	}
 	s, err := NewFromConfig(ServerConfig{
@@ -1487,7 +1482,7 @@ func (s *blockySink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSam
 
 func TestFlushDeadline(t *testing.T) {
 	config := localConfig()
-	config.Interval = "1us"
+	config.Interval = time.Duration(time.Microsecond)
 
 	ch := make(chan struct{})
 	sink := &blockySink{blocker: ch}
@@ -1529,7 +1524,7 @@ func (bs blockingSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFS
 
 func TestWatchdog(t *testing.T) {
 	config := localConfig()
-	config.Interval = "10ms"
+	config.Interval = time.Duration(10 * time.Millisecond)
 	config.FlushWatchdogMissedFlushes = 10
 
 	sink := blockingSink{make(chan struct{})}
