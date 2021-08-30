@@ -88,7 +88,7 @@ func TestServerFlushGRPCTimeout(t *testing.T) {
 	}()
 
 	localCfg := localConfig()
-	localCfg.Interval = "20us"
+	localCfg.Interval = time.Duration(20 * time.Microsecond)
 	localCfg.DebugFlushedMetrics = true
 	localCfg.ForwardAddress = testServer.Addr().String()
 	localCfg.ForwardUseGrpc = true
@@ -183,7 +183,7 @@ func TestFlushResetsWorkerUniqueMTS(t *testing.T) {
 	config := localConfig()
 	config.CountUniqueTimeseries = true
 	config.NumWorkers = 2
-	config.Interval = "60s"
+	config.Interval = time.Duration(time.Minute)
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)
@@ -214,7 +214,7 @@ func TestTallyTimeseries(t *testing.T) {
 	config := localConfig()
 	config.CountUniqueTimeseries = true
 	config.NumWorkers = 10
-	config.Interval = "60s"
+	config.Interval = time.Duration(time.Minute)
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)

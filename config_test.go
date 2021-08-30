@@ -23,9 +23,7 @@ func TestReadConfig(t *testing.T) {
 	assert.Equal(t, "https://app.datadoghq.com", c.DatadogAPIHostname)
 	assert.Equal(t, 96, c.NumWorkers)
 
-	interval, err := c.ParseInterval()
-	assert.NoError(t, err)
-	assert.Equal(t, interval, 10*time.Second)
+	assert.Equal(t, c.Interval, 10*time.Second)
 }
 
 func TestReadBadConfig(t *testing.T) {
@@ -105,10 +103,8 @@ func TestConfigDefaults(t *testing.T) {
 }
 
 func TestDefaultConfigEquivalence(t *testing.T) {
-	defaultInterval, err := time.ParseDuration(defaultConfig.Interval)
-	assert.Nil(t, err)
 	assert.Equal(t,
-		defaultInterval,
+		defaultConfig.Interval,
 		defaultConfig.SplunkHecMaxConnectionLifetime,
 		"splunk_hec_max_connection_lifetime should default to interval")
 

@@ -14,7 +14,7 @@ import (
 var defaultConfig = Config{
 	Aggregates:                     []string{"min", "max", "count"},
 	DatadogFlushMaxPerBody:         25000,
-	Interval:                       "10s",
+	Interval:                       time.Duration(10 * time.Second),
 	MetricMaxLength:                4096,
 	PrometheusNetworkType:          "tcp",
 	ReadBufferSizeBytes:            1048576 * 2, // 2 MiB
@@ -157,7 +157,7 @@ func (c *Config) applyDefaults() {
 	if c.Hostname == "" && !c.OmitEmptyHostname {
 		c.Hostname, _ = os.Hostname()
 	}
-	if c.Interval == "" {
+	if c.Interval == 0 {
 		c.Interval = defaultConfig.Interval
 	}
 	if c.MetricMaxLength == 0 {
@@ -227,9 +227,4 @@ func (c *Config) applyDefaults() {
 	if c.SplunkHecMaxConnectionLifetime == 0 {
 		c.SplunkHecMaxConnectionLifetime = defaultConfig.SplunkHecMaxConnectionLifetime
 	}
-}
-
-// ParseInterval handles parsing the flush interval as a time.Duration
-func (c Config) ParseInterval() (time.Duration, error) {
-	return time.ParseDuration(c.Interval)
 }
