@@ -67,7 +67,7 @@ func (b *debugMetricSink) Start(*trace.Client) error {
 }
 
 func (b *debugMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
-	if len(metrics) == 0 || b.log.Level < logrus.DebugLevel {
+	if len(metrics) == 0 || b.log.Logger.Level < logrus.DebugLevel {
 		return nil
 	}
 	b.mtx.Lock()
@@ -85,7 +85,7 @@ func (b *debugMetricSink) Flush(ctx context.Context, metrics []samplers.InterMet
 }
 
 func (b *debugMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
-	if len(samples) == 0 || b.log.Level < logrus.DebugLevel {
+	if len(samples) == 0 || b.log.Logger.Level < logrus.DebugLevel {
 		return
 	}
 	b.mtx.Lock()
@@ -113,7 +113,7 @@ func ParseSpanConfig(_ interface{}) (veneur.SpanSinkConfig, error) {
 	return nil, nil
 }
 
-// CreateSpanSink creates a new Kafka sink for spans. This function
+// CreateSpanSink creates a new debug sink for spans. This function
 // should match the signature of a value in veneur.SpanSinkTypes, and is
 // intended to be passed into veneur.NewFromConfig to be called based on the
 // provided configuration.
@@ -138,7 +138,7 @@ func (b *debugSpanSink) Start(*trace.Client) error {
 }
 
 func (b *debugSpanSink) Ingest(span *ssf.SSFSpan) error {
-	if b.log.Level < logrus.DebugLevel {
+	if b.log.Logger.Level < logrus.DebugLevel {
 		return nil
 	}
 	b.mtx.Lock()
