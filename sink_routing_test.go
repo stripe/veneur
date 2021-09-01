@@ -1,11 +1,13 @@
 package veneur_test
 
 import (
+	"regexp/syntax"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/v14"
+	"gopkg.in/yaml.v3"
 )
 
 func CreateNameMatcher(
@@ -27,16 +29,14 @@ func CreateTagMatcher(
 }
 
 func TestMatchNameAny(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: any
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
+	require.Nil(t, err)
 	assert.True(t, config.Match("aaa", []string{}))
 	assert.True(t, config.Match("aab", []string{}))
 	assert.True(t, config.Match("aaba", []string{}))
@@ -44,17 +44,15 @@ func TestMatchNameAny(t *testing.T) {
 }
 
 func TestMatchNameExact(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind:  "exact",
-				Value: "aab",
-			},
-			Tags: []veneur.TagMatcher{},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: exact
+      value: aab
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
+	require.Nil(t, err)
 	assert.False(t, config.Match("aaa", []string{}))
 	assert.True(t, config.Match("aab", []string{}))
 	assert.False(t, config.Match("aaba", []string{}))
@@ -62,17 +60,15 @@ func TestMatchNameExact(t *testing.T) {
 }
 
 func TestMatchNamePrefix(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind:  "prefix",
-				Value: "aa",
-			},
-			Tags: []veneur.TagMatcher{},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: prefix
+      value: aa
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
+	require.Nil(t, err)
 	assert.True(t, config.Match("aaa", []string{}))
 	assert.True(t, config.Match("aab", []string{}))
 	assert.True(t, config.Match("aaba", []string{}))
@@ -80,17 +76,15 @@ func TestMatchNamePrefix(t *testing.T) {
 }
 
 func TestMatchNameRegex(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind:  "regex",
-				Value: "ab+$",
-			},
-			Tags: []veneur.TagMatcher{},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: regex
+      value: ab+$
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
+	require.Nil(t, err)
 	assert.False(t, config.Match("aaa", []string{}))
 	assert.True(t, config.Match("aab", []string{}))
 	assert.False(t, config.Match("aaba", []string{}))
@@ -98,47 +92,44 @@ func TestMatchNameRegex(t *testing.T) {
 }
 
 func TestMatchNameInvalidRegex(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind:  "regex",
-				Value: "[",
-			},
-			Tags: []veneur.TagMatcher{},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: regex
+      value: "["
+`), &config)
 
-	assert.Error(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
+	require.Error(t, err)
+	syntaxError, ok := err.(*syntax.Error)
+	require.True(t, ok)
+	assert.Equal(t, syntaxError.Code, syntax.ErrMissingBracket)
 }
 
 func TestMatchNameInvalidKind(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "invalid",
-			},
-			Tags: []veneur.TagMatcher{},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: invalid
+`), &config)
 
-	assert.Error(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
+	require.Error(t, err)
+	assert.Equal(t, err.Error(), "unknown matcher kind \"invalid\"")
 }
 
 func TestMatchTagExact(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Kind:  "exact",
-				Value: "aab",
-			}},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: any
+    tags:
+      - kind: exact
+        value: aab
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
+	require.Nil(t, err)
 	assert.False(t, config.Match("name", []string{"aaa"}))
 	assert.True(t, config.Match("name", []string{"aab"}))
 	assert.False(t, config.Match("name", []string{"aaba"}))
@@ -146,21 +137,18 @@ func TestMatchTagExact(t *testing.T) {
 }
 
 func TestMatchTagNameExactUnset(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Kind:  "exact",
-				Unset: true,
-				Value: "aab",
-			}},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: any
+    tags:
+      - kind: exact
+        unset: true
+        value: aab
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
+	require.Nil(t, err)
 	assert.True(t, config.Match("name", []string{"aaa"}))
 	assert.False(t, config.Match("name", []string{"aab"}))
 	assert.True(t, config.Match("name", []string{"aaba"}))
@@ -168,20 +156,17 @@ func TestMatchTagNameExactUnset(t *testing.T) {
 }
 
 func TestMatchTagNamePrefix(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Kind:  "prefix",
-				Value: "aa",
-			}},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: any
+    tags:
+      - kind: prefix
+        value: aa
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
+	require.Nil(t, err)
 	assert.True(t, config.Match("name", []string{"aaa"}))
 	assert.True(t, config.Match("name", []string{"aab"}))
 	assert.True(t, config.Match("name", []string{"aaba"}))
@@ -189,21 +174,18 @@ func TestMatchTagNamePrefix(t *testing.T) {
 }
 
 func TestMatchTagNamePrefixUnset(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Kind:  "prefix",
-				Unset: true,
-				Value: "aa",
-			}},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: any
+    tags:
+      - kind: prefix
+        unset: true
+        value: aa
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
+	require.Nil(t, err)
 	assert.False(t, config.Match("name", []string{"aaa"}))
 	assert.False(t, config.Match("name", []string{"aab"}))
 	assert.False(t, config.Match("name", []string{"aaba"}))
@@ -211,20 +193,17 @@ func TestMatchTagNamePrefixUnset(t *testing.T) {
 }
 
 func TestMatchTagNameRegex(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Kind:  "regex",
-				Value: "ab+$",
-			}},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: any
+    tags:
+      - kind: regex
+        value: ab+$
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
+	require.Nil(t, err)
 	assert.False(t, config.Match("name", []string{"aaa"}))
 	assert.True(t, config.Match("name", []string{"aab"}))
 	assert.False(t, config.Match("name", []string{"aaba"}))
@@ -232,21 +211,18 @@ func TestMatchTagNameRegex(t *testing.T) {
 }
 
 func TestMatchTagNameRegexUnset(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Kind:  "regex",
-				Unset: true,
-				Value: "ab+$",
-			}},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: any
+    tags:
+      - kind: regex
+        unset: true
+        value: ab+$
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
+	require.Nil(t, err)
 	assert.True(t, config.Match("name", []string{"aaa"}))
 	assert.False(t, config.Match("name", []string{"aab"}))
 	assert.True(t, config.Match("name", []string{"aaba"}))
@@ -254,128 +230,109 @@ func TestMatchTagNameRegexUnset(t *testing.T) {
 }
 
 func TestMatchTagNameInvalidRegex(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Kind:  "regex",
-				Value: "[",
-			}},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: any
+    tags:
+      - kind: regex
+        value: "["
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Error(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
+	require.Error(t, err)
+	syntaxError, ok := err.(*syntax.Error)
+	require.True(t, ok)
+	assert.Equal(t, syntaxError.Code, syntax.ErrMissingBracket)
 }
 
 func TestMatchTagNameInvalidKind(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Kind: "invalid",
-			}},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: any
+    tags:
+      - kind: invalid
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Error(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
+	require.Error(t, err)
+	assert.Equal(t, err.Error(), "unknown matcher kind \"invalid\"")
 }
 
 func TestMatchTagMultiple(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Kind:  "prefix",
-				Value: "aa",
-			}},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: any
+    tags:
+      - kind: prefix
+        value: aa
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
+	require.Nil(t, err)
 	assert.True(t, config.Match("name", []string{"aaab", "baba"}))
+	assert.True(t, config.Match("name", []string{"baba", "aaab"}))
 	assert.False(t, config.Match("name", []string{"abba", "baba"}))
 }
 
 func TestMatchTagUnsetMultiple(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Kind:  "prefix",
-				Unset: true,
-				Value: "aa",
-			}},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: any
+    tags:
+      - kind: prefix
+        unset: true
+        value: aa
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
+	require.Nil(t, err)
 	assert.False(t, config.Match("name", []string{"aaab", "baba"}))
+	assert.False(t, config.Match("name", []string{"baba", "aaab"}))
 	assert.True(t, config.Match("name", []string{"abba", "baba"}))
 }
 
 func TestMultipleTagMatchers(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind: "any",
-			},
-			Tags: []veneur.TagMatcher{{
-				Kind:  "exact",
-				Value: "ab",
-			}, {
-				Kind:  "prefix",
-				Value: "aa",
-			}},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: any
+    tags:
+      - kind: exact
+        value: ab
+      - kind: prefix
+        value: aa
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[1]))
+	require.Nil(t, err)
 	assert.False(t, config.Match("name", []string{"ab", "baab"}))
 	assert.False(t, config.Match("name", []string{"aaab", "baba"}))
 	assert.True(t, config.Match("name", []string{"ab", "aaab", "baba"}))
 }
 
 func TestMultipleMatcherConfigs(t *testing.T) {
-	config := veneur.SinkRoutingConfig{
-		MatchConfigs: []veneur.MatcherConfig{{
-			Name: veneur.NameMatcher{
-				Kind:  "exact",
-				Value: "aa",
-			},
-			Tags: []veneur.TagMatcher{{
-				Kind:  "exact",
-				Value: "ab",
-			}},
-		}, {
-			Name: veneur.NameMatcher{
-				Kind:  "exact",
-				Value: "bb",
-			},
-			Tags: []veneur.TagMatcher{{
-				Kind:  "prefix",
-				Value: "aa",
-			}},
-		}},
-	}
+	config := veneur.SinkRoutingConfig{}
+	err := yaml.Unmarshal([]byte(`---
+match:
+  - name:
+      kind: exact
+      value: aa
+    tags:
+      - kind: exact
+        value: ab
+  - name:
+      kind: exact
+      value: bb
+    tags:
+      - kind: prefix
+        value: aa
+`), &config)
 
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[0].Name))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[0].Tags[0]))
-	require.Nil(t, CreateNameMatcher(t, &config.MatchConfigs[1].Name))
-	require.Nil(t, CreateTagMatcher(t, &config.MatchConfigs[1].Tags[0]))
+	require.Nil(t, err)
 	assert.False(t, config.Match("aa", []string{"aaab", "baba"}))
 	assert.True(t, config.Match("bb", []string{"aaab", "baba"}))
 	assert.True(t, config.Match("aa", []string{"ab", "baab"}))

@@ -104,7 +104,8 @@ func (s *Server) Flush(ctx context.Context) {
 	}
 
 	if s.Config.Features.EnableMetricSinkRouting {
-		for _, metric := range finalMetrics {
+		for index := range finalMetrics {
+			metric := &finalMetrics[index]
 			metric.Sinks = make(samplers.RouteInformation)
 			for _, config := range s.Config.MetricSinkRouting {
 				var sinks []string
