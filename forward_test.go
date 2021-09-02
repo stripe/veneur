@@ -46,7 +46,7 @@ func newForwardingFixture(t testing.TB, localConfig Config, transport http.Round
 	proxyCfg.ConsulForwardServiceName = ""
 	proxy, err := NewProxyFromConfig(logrus.New(), proxyCfg)
 	require.NoError(t, err)
-	ff.proxy = &proxy
+	ff.proxy = proxy
 
 	ff.proxy.Start()
 	ff.proxyTS = httptest.NewServer(ff.proxy.Handler())

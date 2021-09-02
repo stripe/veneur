@@ -276,7 +276,7 @@ func TestProxyServeStopHTTP(t *testing.T) {
 	}()
 
 	// Stop the HTTP server only, causing Serve to exit.
-	waitForHTTPStart(t, &p, 3*time.Second)
+	waitForHTTPStart(t, p, 3*time.Second)
 	graceful.ShutdownNow()
 
 	select {
