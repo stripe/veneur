@@ -18,7 +18,7 @@ import (
 func TestName(t *testing.T) {
 	// Implicitly test that CortexMetricsSink implements MetricSink
 	var sink sinks.MetricSink
-	sink, err := NewCortexMetricSink()
+	sink, err := NewCortexMetricSink("https://localhost/")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "cortex", sink.Name())

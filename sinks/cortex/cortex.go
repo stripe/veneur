@@ -11,11 +11,13 @@ import (
 // CortexMetricSink writes metrics to one or more configured Cortex instances
 // using the prometheus remote-write API. For specifications, see
 // https://github.com/prometheus/compliance/tree/main/remote_write
-type CortexMetricSink struct{}
+type CortexMetricSink struct {
+	URL string
+}
 
 // NewCortexMetricSink creates and returns a new instance of the sink
-func NewCortexMetricSink() (*CortexMetricSink, error) {
-	return &CortexMetricSink{}, nil
+func NewCortexMetricSink(URL string) (*CortexMetricSink, error) {
+	return &CortexMetricSink{URL}, nil
 }
 
 // Name returns the string cortex
