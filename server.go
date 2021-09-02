@@ -44,7 +44,6 @@ import (
 	"github.com/stripe/veneur/v14/scopedstatsd"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/sinks/datadog"
-	"github.com/stripe/veneur/v14/sinks/debug"
 	"github.com/stripe/veneur/v14/sinks/falconer"
 	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/newrelic"
@@ -356,6 +355,7 @@ func (server *Server) createMetricSinks(
 		sinkFactory, ok := sinkTypes[sinkConfig.Kind]
 		if !ok {
 			logger.Warnf("Unknown sink kind %s; skipping.", sinkConfig.Kind)
+			continue
 		}
 		parsedSinkConfig, err := sinkFactory.ParseConfig(sinkConfig.Config)
 		if err != nil {
@@ -747,17 +747,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		logger.Info("Configured Prometheus metric sink.")
 	}
 
-	{
-		mtx := sync.Mutex{}
-		if conf.DebugFlushedMetrics {
-			ret.metricSinks = append(ret.metricSinks, debug.NewDebugMetricSink(&mtx, log))
-		}
-		if conf.DebugIngestedSpans {
-			blackhole := debug.NewDebugSpanSink(&mtx, log)
-			ret.spanSinks = append(ret.spanSinks, blackhole)
-			logger.WithField("name", blackhole.Name()).Info("Starting logger debug sink")
-		}
-	}
 	customMetricSinks, err :=
 		ret.createMetricSinks(logger, &conf, config.MetricSinkTypes)
 	if err != nil {
