@@ -67,11 +67,17 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	encoded := snappy.Encode(nil, data)
 	buf.Write(encoded)
 
-	// _, err = http.Post(s.URL, "application/x-protobuf", &buf)
 	req, err := http.NewRequest("POST", s.URL, &buf)
 	if err != nil {
 		return err
 	}
+
+	// This set of headers is prescribed by the remote-write standard
+	req.Header.Set("Content-Encoding", "snappy")
+	req.Header.Set("Content-Type", "application/x-protobuf")
+	req.Header.Set("User-Agent", "veneur/cortex")
+	req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
+
 	r, err := s.client.Do(req)
 	// failing to close the body can result in resource leak
 	defer r.Body.Close()

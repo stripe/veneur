@@ -115,6 +115,14 @@ func NewTestServer(t *testing.T) *TestServer {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+
+		if !hasHeader(r.Header, "Content-Encoding", "snappy") ||
+			!hasHeader(r.Header, "Content-Type", "application/x-protobuf") ||
+			!hasHeader(r.Header, "User-Agent", "veneur/cortex") ||
+			!hasHeader(r.Header, "X-Prometheus-Remote-Write-Version", "0.1.0") {
+			http.Error(w, "missing headers", http.StatusBadRequest)
+			return
+		}
 		// keep a record of the most recently received request
 		result.data = wr
 	})
@@ -125,6 +133,16 @@ func NewTestServer(t *testing.T) *TestServer {
 	t.Log("test server listening on", server.URL)
 
 	return &result
+}
+
+// hasHeader checks for the existence of the specified header
+func hasHeader(h http.Header, key string, value string) bool {
+	for _, val := range h[key] {
+		if val == value {
+			return true
+		}
+	}
+	return false
 }
 
 // readpb reads, decompresses and unmarshals a WriteRequest from a reader
