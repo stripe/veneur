@@ -16,10 +16,10 @@ import (
 )
 
 const (
-	// TIMEOUT is the time in seconds before a remote-write request fails
-	TIMEOUT = 0
-	// MAX_CONNS is the number of simultaneous connections we allow to one host
-	MAX_CONNS = 100
+	// Timeout is the time in seconds before a remote-write request fails
+	Timeout = 0
+	// MaxConns is the number of simultaneous connections we allow to one host
+	MaxConns = 100
 )
 
 // CortexMetricSink writes metrics to one or more configured Cortex instances
@@ -44,12 +44,12 @@ func (s *CortexMetricSink) Name() string {
 func (s *CortexMetricSink) Start(*trace.Client) error {
 	// Default concurrent connections is 2
 	t := http.DefaultTransport.(*http.Transport).Clone()
-	t.MaxIdleConns = MAX_CONNS
-	t.MaxConnsPerHost = MAX_CONNS
-	t.MaxIdleConnsPerHost = MAX_CONNS
+	t.MaxIdleConns = MaxConns
+	t.MaxConnsPerHost = MaxConns
+	t.MaxIdleConnsPerHost = MaxConns
 
 	s.client = &http.Client{
-		Timeout:   time.Duration(TIMEOUT * time.Second),
+		Timeout:   time.Duration(Timeout * time.Second),
 		Transport: t,
 	}
 	return nil
@@ -79,12 +79,19 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
 
 	r, err := s.client.Do(req)
-	// failing to close the body can result in resource leak
-	defer r.Body.Close()
+	// Returning err here would be neater, but fails go vet
+	if err != nil {
+		return err
+	}
 
-	return err
+	// Resource leak can occur if body isn't closed explicitly
+	r.Body.Close()
+
+	return nil
 }
 
+// FlushOtherSamples would forward non-metric sanples like spans. Prometheus
+// cannot receive them, so this is a no-op.
 func (s *CortexMetricSink) FlushOtherSamples(context.Context, []ssf.SSFSample) {
 	return
 }
@@ -110,21 +117,21 @@ func makeWriteRequest(metrics []samplers.InterMetric) *prompb.WriteRequest {
 func metricToTimeSeries(metric samplers.InterMetric) *prompb.TimeSeries {
 	var ts prompb.TimeSeries
 	ts.Labels = []*prompb.Label{
-		&prompb.Label{"__name__", sanitise(metric.Name)},
+		&prompb.Label{Name: "__name__", Value: sanitise(metric.Name)},
 	}
 	for _, tag := range metric.Tags {
 		kv := strings.SplitN(tag, ":", 2)
 		if len(kv) < 2 {
 			continue // drop illegal tag
 		}
-		ts.Labels = append(ts.Labels, &prompb.Label{sanitise(kv[0]), kv[1]})
+		ts.Labels = append(ts.Labels, &prompb.Label{Name: sanitise(kv[0]), Value: kv[1]})
 	}
 
 	// Prom format has the ability to carry batched samples, in this instance we
 	// send a single sample per write. Probably worth exploring this as an area
 	// for optimisation if we find the write path becomes contended
 	ts.Samples = []prompb.Sample{
-		prompb.Sample{metric.Value, metric.Timestamp},
+		prompb.Sample{Value: metric.Value, Timestamp: metric.Timestamp},
 	}
 
 	return &ts
