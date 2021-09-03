@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/snappy"
@@ -14,16 +15,24 @@ import (
 	"github.com/stripe/veneur/v14/trace"
 )
 
+const (
+	// TIMEOUT is the time in seconds before a remote-write request fails
+	TIMEOUT = 0
+	// MAX_CONNS is the number of simultaneous connections we allow to one host
+	MAX_CONNS = 100
+)
+
 // CortexMetricSink writes metrics to one or more configured Cortex instances
 // using the prometheus remote-write API. For specifications, see
 // https://github.com/prometheus/compliance/tree/main/remote_write
 type CortexMetricSink struct {
-	URL string
+	URL    string
+	client *http.Client
 }
 
 // NewCortexMetricSink creates and returns a new instance of the sink
 func NewCortexMetricSink(URL string) (*CortexMetricSink, error) {
-	return &CortexMetricSink{URL}, nil
+	return &CortexMetricSink{URL: URL}, nil
 }
 
 // Name returns the string cortex
@@ -31,14 +40,25 @@ func (s *CortexMetricSink) Name() string {
 	return "cortex"
 }
 
+// Start sets up the HTTP client for writing to Cortex
 func (s *CortexMetricSink) Start(*trace.Client) error {
+	// Default concurrent connections is 2
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.MaxIdleConns = MAX_CONNS
+	t.MaxConnsPerHost = MAX_CONNS
+	t.MaxIdleConnsPerHost = MAX_CONNS
+
+	s.client = &http.Client{
+		Timeout:   time.Duration(TIMEOUT * time.Second),
+		Transport: t,
+	}
 	return nil
 }
 
 // Flush sends a batch of metrics to the configured remote-write endpoint
 func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
-	req := makeWriteRequest(metrics)
-	data, err := proto.Marshal(req)
+	wr := makeWriteRequest(metrics)
+	data, err := proto.Marshal(wr)
 	if err != nil {
 		return err
 	}
@@ -47,9 +67,15 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	encoded := snappy.Encode(nil, data)
 	buf.Write(encoded)
 
-	// TODO avoid using the default client here
-	_, err = http.Post(s.URL, "application/x-protobuf", &buf)
-	// TODO ensure that all required headers are sent
+	// _, err = http.Post(s.URL, "application/x-protobuf", &buf)
+	req, err := http.NewRequest("POST", s.URL, &buf)
+	if err != nil {
+		return err
+	}
+	r, err := s.client.Do(req)
+	// failing to close the body can result in resource leak
+	defer r.Body.Close()
+
 	return err
 }
 
