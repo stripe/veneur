@@ -23,7 +23,7 @@ import (
 func TestName(t *testing.T) {
 	// Implicitly test that CortexMetricsSink implements MetricSink
 	var sink sinks.MetricSink
-	sink, err := NewCortexMetricSink("https://localhost/")
+	sink, err := NewCortexMetricSink("https://localhost/", 30, "")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "cortex", sink.Name())
@@ -35,7 +35,7 @@ func TestFlush(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL)
+	sink, err := NewCortexMetricSink(server.URL, 30, "")
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 

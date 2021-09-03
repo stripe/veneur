@@ -4,35 +4,80 @@ import (
 	"bytes"
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/snappy"
+	"github.com/pkg/errors"
 	"github.com/prometheus/prometheus/prompb"
+	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util"
 )
 
 const (
-	// Timeout is the time in seconds before a remote-write request fails
-	Timeout = 0
 	// MaxConns is the number of simultaneous connections we allow to one host
 	MaxConns = 100
+	// DefaultRemoteTimeout after which a write request will time out
+	DefaultRemoteTimeout = time.Duration(30 * time.Second)
 )
 
 // CortexMetricSink writes metrics to one or more configured Cortex instances
 // using the prometheus remote-write API. For specifications, see
 // https://github.com/prometheus/compliance/tree/main/remote_write
 type CortexMetricSink struct {
-	URL    string
-	client *http.Client
+	URL           string
+	RemoteTimeout time.Duration
+	ProxyURL      string
+	client        *http.Client
+}
+
+type CortexMetricSinkConfig struct {
+	URL           string        `yaml:"url"`
+	RemoteTimeout time.Duration `yaml:"remote_timeout"`
+	ProxyURL      string        `yaml:"proxy_url"`
+}
+
+// Create creates a new Cortex sink.
+// @see veneur.MetricSinkTypes
+func Create(
+	server *veneur.Server, name string, logger *logrus.Entry,
+	config veneur.Config, sinkConfig veneur.MetricSinkConfig,
+) (sinks.MetricSink, error) {
+	conf, ok := sinkConfig.(CortexMetricSinkConfig)
+	if !ok {
+		return nil, errors.New("invalid sink config type")
+	}
+
+	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL)
+}
+
+// ParseConfig extracts Cortex specific fields from the global veneur config
+func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
+	cortexConfig := CortexMetricSinkConfig{}
+	err := util.DecodeConfig(config, &cortexConfig)
+	if err != nil {
+		return nil, err
+	}
+	if cortexConfig.RemoteTimeout == 0 {
+		cortexConfig.RemoteTimeout = DefaultRemoteTimeout
+	}
+	return cortexConfig, nil
 }
 
 // NewCortexMetricSink creates and returns a new instance of the sink
-func NewCortexMetricSink(URL string) (*CortexMetricSink, error) {
-	return &CortexMetricSink{URL: URL}, nil
+func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string) (*CortexMetricSink, error) {
+	return &CortexMetricSink{
+		URL:           URL,
+		RemoteTimeout: timeout,
+		ProxyURL:      proxyURL,
+	}, nil
 }
 
 // Name returns the string cortex
@@ -48,8 +93,17 @@ func (s *CortexMetricSink) Start(*trace.Client) error {
 	t.MaxConnsPerHost = MaxConns
 	t.MaxIdleConnsPerHost = MaxConns
 
+	// Configure proxy URL, if supplied
+	if len(s.ProxyURL) > 0 {
+		p, err := url.Parse(s.ProxyURL)
+		if err != nil {
+			return errors.Wrap(err, "malformed cortex_proxy_url")
+		}
+		t.Proxy = http.ProxyURL(p)
+	}
+
 	s.client = &http.Client{
-		Timeout:   time.Duration(Timeout * time.Second),
+		Timeout:   time.Duration(s.RemoteTimeout * time.Second),
 		Transport: t,
 	}
 	return nil
