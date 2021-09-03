@@ -58,7 +58,25 @@ func TestFlush(t *testing.T) {
 	expected, err := os.ReadFile("testdata/expected.json")
 	assert.NoError(t, err)
 	assert.Equal(t, string(expected), string(actual))
+}
 
+func TestSanitise(t *testing.T) {
+	data := map[string]string{
+		"foo_bar": "foo_bar",
+		"FOO_BAR": "FOO_BAR",
+		"foo:bar": "foo:bar",
+		"foo!bar": "foo_bar",
+		"123_foo": "_123_foo",
+	}
+	for input, expected := range data {
+		assert.Equal(t, expected, sanitise(input))
+	}
+}
+
+func BenchmarkSanitise(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sanitise("123_the_leith_police_123_dismisseth_$%89_us")
+	}
 }
 
 // TestServer wraps an internal httptest.Server and provides a convenience

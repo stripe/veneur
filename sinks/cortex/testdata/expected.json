@@ -4,7 +4,7 @@
       "labels": [
         {
           "name": "__name__",
-          "value": "a.b.gauge"
+          "value": "a_b_gauge"
         },
         {
           "name": "foo",
@@ -26,7 +26,7 @@
       "labels": [
         {
           "name": "__name__",
-          "value": "a.b.counter"
+          "value": "a_b_counter"
         },
         {
           "name": "foo",
@@ -44,7 +44,7 @@
       "labels": [
         {
           "name": "__name__",
-          "value": "a.b.status"
+          "value": "a_b_status"
         }
       ],
       "samples": [

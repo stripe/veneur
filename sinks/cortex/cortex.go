@@ -71,22 +71,21 @@ func makeWriteRequest(metrics []samplers.InterMetric) *prompb.WriteRequest {
 }
 
 // metricToTimeSeries converts a sample to a prometheus timeseries.
-// This is not a 1:1 conversion! We constrain metric names and values to the
+// This is not a 1:1 conversion! We constrain metric and label names to the
 // legal set of characters (see https://prometheus.io/docs/practices/naming)
 // and we drop tags which are not in "key:value" format
 // (see https://prometheus.io/docs/concepts/data_model/)
 func metricToTimeSeries(metric samplers.InterMetric) *prompb.TimeSeries {
 	var ts prompb.TimeSeries
-	// TODO remove illegal characters
 	ts.Labels = []*prompb.Label{
-		&prompb.Label{"__name__", metric.Name},
+		&prompb.Label{"__name__", sanitise(metric.Name)},
 	}
 	for _, tag := range metric.Tags {
 		kv := strings.SplitN(tag, ":", 2)
 		if len(kv) < 2 {
 			continue // drop illegal tag
 		}
-		ts.Labels = append(ts.Labels, &prompb.Label{kv[0], kv[1]})
+		ts.Labels = append(ts.Labels, &prompb.Label{sanitise(kv[0]), kv[1]})
 	}
 
 	// Prom format has the ability to carry batched samples, in this instance we
@@ -97,4 +96,38 @@ func metricToTimeSeries(metric samplers.InterMetric) *prompb.TimeSeries {
 	}
 
 	return &ts
+}
+
+// sanitise replaces all characters which are not in the set [a-zA-Z0-9_:]
+// with underscores, and additionally prefixes the whole with an underscore if
+// the first character is numeric
+func sanitise(input string) string {
+	output := make([]rune, len(input))
+	prefix := false
+
+	// this relatively verbose byte comparison is ~4x quicker than using a single
+	// compiled regexp.ReplaceAll, and we'll be calling it a lot
+	for i, r := range input {
+		switch {
+		case r >= 'a' && r <= 'z':
+			output[i] = r
+		case r >= 'A' && r <= 'Z':
+			output[i] = r
+		case r >= '0' && r <= '9':
+			if i == 0 {
+				prefix = true
+			}
+			output[i] = r
+		case r == '_':
+			output[i] = r
+		case r == ':':
+			output[i] = r
+		default:
+			output[i] = '_'
+		}
+	}
+	if prefix {
+		return "_" + string(output)
+	}
+	return string(output)
 }
