@@ -71,6 +71,10 @@ func main() {
 		Logger: logger,
 		MetricSinkTypes: veneur.MetricSinkTypes{
 			// TODO(arnavdugar): Migrate metric sink types.
+			"cortex": {
+				Create:      cortex.Create,
+				ParseConfig: cortex.ParseConfig,
+			},
 			"debug": {
 				Create:      debug.CreateMetricSink,
 				ParseConfig: debug.ParseMetricConfig,
@@ -82,10 +86,6 @@ func main() {
 			"signalfx": {
 				Create:      signalfx.Create,
 				ParseConfig: signalfx.ParseConfig,
-			},
-			"cortex": {
-				Create:      cortex.Create,
-				ParseConfig: cortex.ParseConfig,
 			},
 		},
 		SpanSinkTypes: veneur.SpanSinkTypes{
