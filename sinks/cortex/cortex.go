@@ -36,6 +36,7 @@ type CortexMetricSink struct {
 	RemoteTimeout time.Duration
 	ProxyURL      string
 	client        *http.Client
+	name          string
 }
 
 type CortexMetricSinkConfig struct {
@@ -55,7 +56,7 @@ func Create(
 		return nil, errors.New("invalid sink config type")
 	}
 
-	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL)
+	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, name)
 }
 
 // ParseConfig extracts Cortex specific fields from the global veneur config
@@ -72,17 +73,18 @@ func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
 }
 
 // NewCortexMetricSink creates and returns a new instance of the sink
-func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string) (*CortexMetricSink, error) {
+func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, name string) (*CortexMetricSink, error) {
 	return &CortexMetricSink{
 		URL:           URL,
 		RemoteTimeout: timeout,
 		ProxyURL:      proxyURL,
+		name:          name,
 	}, nil
 }
 
 // Name returns the string cortex
 func (s *CortexMetricSink) Name() string {
-	return "cortex"
+	return s.name
 }
 
 // Start sets up the HTTP client for writing to Cortex
