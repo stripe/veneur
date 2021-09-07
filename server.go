@@ -765,12 +765,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	// After all sinks are initialized, set the list of tags to exclude
 	setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)
 
-	if conf.AwsS3Bucket != "" {
-
-	} else {
-		logger.Info("AWS S3 bucket not set. Skipping S3 Plugin initialization.")
-	}
-
 	if conf.FlushFile != "" {
 		localFilePlugin := &localfilep.Plugin{
 			FilePath: conf.FlushFile,
