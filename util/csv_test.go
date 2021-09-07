@@ -1,7 +1,8 @@
-package s3
+package util_test
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/csv"
 	"fmt"
 	"io"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/testhelpers"
+	"github.com/stripe/veneur/v14/util"
 )
 
 type CSVTestCase struct {
@@ -35,7 +38,8 @@ func CSVTestCases() []CSVTestCase {
 					"baz:quz"},
 				Type: samplers.GaugeMetric,
 			},
-			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\tgauge\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
+			Row: strings.NewReader(fmt.Sprintf(
+				"a.b.c.max\t{foo:bar,baz:quz}\tgauge\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t100\t%s\n", partition)),
 		},
 		{
 			// Test that we are able to handle a missing field (DeviceName)
@@ -48,7 +52,8 @@ func CSVTestCases() []CSVTestCase {
 					"baz:quz"},
 				Type: samplers.CounterMetric,
 			},
-			Row: strings.NewReader(fmt.Sprintf("a.b.c.max\t{foo:bar,baz:quz}\trate\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t10\t%s\n", partition)),
+			Row: strings.NewReader(fmt.Sprintf(
+				"a.b.c.max\t{foo:bar,baz:quz}\trate\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t10\t%s\n", partition)),
 		},
 		{
 			// Test that we are able to handle tags which have tab characters in them
@@ -63,7 +68,8 @@ func CSVTestCases() []CSVTestCase {
 					"baz:quz"},
 				Type: samplers.CounterMetric,
 			},
-			Row: strings.NewReader(fmt.Sprintf("a.b.c.count\t\"{foo:b\tar,baz:quz}\"\trate\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t10\t%s\n", partition)),
+			Row: strings.NewReader(fmt.Sprintf(
+				"a.b.c.count\t\"{foo:b\tar,baz:quz}\"\trate\ttestbox-c3eac9\t10\t2016-10-10 05:04:18\t10\t%s\n", partition)),
 		},
 	}
 }
@@ -80,7 +86,8 @@ func TestEncodeCSV(t *testing.T) {
 			w.Comma = '\t'
 
 			tm := time.Now()
-			err := EncodeInterMetricCSV(tc.InterMetric, w, &tm, "testbox-c3eac9", 10)
+			err := util.EncodeInterMetricCSV(
+				tc.InterMetric, w, &tm, "testbox-c3eac9", 10)
 			assert.NoError(t, err)
 
 			// We need to flush or there won't actually be any data there
@@ -114,4 +121,52 @@ func assertReadersEqual(t *testing.T, expected io.Reader, actual io.Reader) {
 	}
 
 	assert.Equal(t, string(bts), string(bts2))
+}
+
+func TestEncodeDDMetricsCSV(t *testing.T) {
+	ExpectedHeader := []string{
+		"Name", "Tags", "MetricType", "VeneurHostname", "Interval", "Timestamp",
+		"Value", "Partition"}
+	const Delimiter = '\t'
+	const VeneurHostname = "testbox-c3eac9"
+
+	testCases := CSVTestCases()
+
+	metrics := make([]samplers.InterMetric, len(testCases))
+	for i, tc := range testCases {
+		metrics[i] = tc.InterMetric
+	}
+
+	c, err := util.EncodeInterMetricsCSV(
+		metrics, Delimiter, true, VeneurHostname, 10)
+	assert.NoError(t, err)
+	gzr, err := gzip.NewReader(c)
+	assert.NoError(t, err)
+	r := csv.NewReader(gzr)
+	r.FieldsPerRecord = 8
+	r.Comma = Delimiter
+
+	// first line should always contain header information
+	header, err := r.Read()
+	assert.NoError(t, err)
+	assert.Equal(t, ExpectedHeader, header)
+
+	records, err := r.ReadAll()
+	assert.NoError(t, err)
+
+	assert.Lenf(
+		t, records, len(metrics),
+		"Expected %d records and got %d", len(metrics), len(records))
+	for i, tc := range testCases {
+		record := records[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			for j, cell := range record {
+				if strings.ContainsRune(cell, Delimiter) {
+					record[j] = `"` + cell + `"`
+				}
+			}
+			testhelpers.AssertReadersEqual(
+				t, testCases[i].Row, strings.NewReader(strings.Join(record, "\t")+"\n"))
+		})
+	}
 }

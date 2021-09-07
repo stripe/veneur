@@ -11,8 +11,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14/plugins"
-	"github.com/stripe/veneur/v14/plugins/s3"
 	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/util"
 )
 
 var _ plugins.Plugin = &Plugin{}
@@ -47,7 +47,7 @@ func appendToWriter(appender io.Writer, metrics []samplers.InterMetric, hostname
 
 	partitionDate := time.Now()
 	for _, metric := range metrics {
-		s3.EncodeInterMetricCSV(metric, csvW, &partitionDate, hostname, interval)
+		util.EncodeInterMetricCSV(metric, csvW, &partitionDate, hostname, interval)
 	}
 	csvW.Flush()
 	gzW.Close()
