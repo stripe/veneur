@@ -64,12 +64,12 @@ func MigrateConfig(config *veneur.Config) {
 // ParseConfig decodes the map config for an S3 sink into an S3SinkConfig
 // struct.
 func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
-	signalFxConfig := S3SinkConfig{}
-	err := util.DecodeConfig(config, &signalFxConfig)
+	s3Config := S3SinkConfig{}
+	err := util.DecodeConfig(config, &s3Config)
 	if err != nil {
 		return nil, err
 	}
-	return signalFxConfig, nil
+	return s3Config, nil
 }
 
 // Create creates a new S3 sink for metrics. This function should match the
