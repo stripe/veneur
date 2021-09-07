@@ -114,7 +114,6 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
 
 	r, err := s.client.Do(req)
-	// Returning err here would be neater, but fails go vet
 	if err != nil {
 		return err
 	}
