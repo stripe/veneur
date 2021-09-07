@@ -100,7 +100,7 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 
-	// flushStart := time.Now()
+	flushStart := time.Now()
 	// spanTags := map[string]string{"sink": s.Name()}
 
 	for _, metric := range metrics {
@@ -114,16 +114,14 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 		s.log.Debug(fmt.Sprintf("%s - %d", k, v.Estimate()))
 	}
 
-	s.log.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
-
-	// csv, err := encodeInterMetricsCSV(metrics, flushStart)
-	// if err != nil {
-	// 	s.log.WithFields(logrus.Fields{
-	// 		logrus.ErrorKey: err,
-	// 		"metrics":       len(metrics),
-	// 	}).Error("Could not marshal metrics before posting to s3")
-	// 	return err
-	// }
+	csv, err := encodeAttributionDataCSV(s.attributionData, flushStart)
+	if err != nil {
+		s.log.WithFields(logrus.Fields{
+			logrus.ErrorKey: err,
+			"metrics":       len(metrics),
+		}).Error("Could not marshal metrics before posting to s3")
+		return err
+	}
 
 	// err = s.s3Post(csv)
 	// if err != nil {
@@ -134,7 +132,7 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 	// 	return err
 	// }
 
-	// s.log.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
+	s.log.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
 	// span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, spanTags))
 	return nil
 }
@@ -154,7 +152,7 @@ func (s *AttributionSink) recordMetric(metric samplers.InterMetric) {
 
 // encodeInterMetricsCSV returns a reader containing the gzipped CSV representation of the
 // InterMetric data, one row per InterMetric. The AWS sdk requires seekable input, so we return a ReadSeeker here.
-func encodeInterMetricsCSV(metrics []samplers.InterMetric, ts time.Time) (io.ReadSeeker, error) {
+func encodeAttributionDataCSV(metrics []samplers.InterMetric, ts time.Time) (io.ReadSeeker, error) {
 	b := &bytes.Buffer{}
 	gzw := gzip.NewWriter(b)
 	w := csv.NewWriter(gzw)
