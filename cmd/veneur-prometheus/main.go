@@ -54,7 +54,7 @@ func main() {
 
 	cache := new(countCache)
 	ticker := time.NewTicker(i)
-	for _ = range ticker.C {
+	for range ticker.C {
 		statsdStats := collect(cfg, cache)
 		sendToStatsd(statsClient, *statsHost, statsdStats)
 	}
