@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -40,7 +39,7 @@ func TestFlush(t *testing.T) {
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
 	// input.json contains three timeseries samples in InterMetrics format
-	jsInput, err := os.ReadFile("testdata/input.json")
+	jsInput, err := ioutil.ReadFile("testdata/input.json")
 	assert.NoError(t, err)
 	var metrics []samplers.InterMetric
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
@@ -57,7 +56,7 @@ func TestFlush(t *testing.T) {
 	assert.NoError(t, err)
 
 	//  Load in the expected data and compare
-	expected, err := os.ReadFile("testdata/expected.json")
+	expected, err := ioutil.ReadFile("testdata/expected.json")
 	assert.NoError(t, err)
 	assert.Equal(t, string(expected), string(actual))
 }
