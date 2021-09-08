@@ -39,7 +39,11 @@ func TestTranslateTags(t *testing.T) {
 		regexp.MustCompile(".*abel1.*"),
 	}
 
-	tags := translator(ignoredLabels).Tags(labels)
+	tr := translator{
+		ignored: ignoredLabels,
+	}
+
+	tags := tr.Tags(labels)
 	expectedTags := []string{
 		"label2Name:label2Value",
 		"label3Name:label3Value",

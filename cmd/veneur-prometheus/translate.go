@@ -19,7 +19,10 @@ var (
 func translatePrometheus(ignoredLabels []*regexp.Regexp, cache *countCache, prometheus <-chan prometheusResults) <-chan []statsdStat {
 	statsd := make(chan []statsdStat)
 	s := sender{statsd, cache}
-	go sendTranslated(prometheus, ignoredLabels, s)
+	t := translator{
+		ignored: ignoredLabels,
+	}
+	go sendTranslated(prometheus, t, s)
 
 	return statsd
 }
@@ -97,7 +100,9 @@ func (s sender) Close() {
 	s.cache.Done()
 }
 
-type translator []*regexp.Regexp
+type translator struct {
+	ignored []*regexp.Regexp
+}
 
 func (t translator) PrometheusCounter(mf dto.MetricFamily) []inMemoryStat {
 	var stats []inMemoryStat
@@ -184,7 +189,7 @@ func (t translator) Tags(labels []*dto.LabelPair) []string {
 		labelValue := pair.GetValue()
 		include := true
 
-		for _, ignoredLabel := range t {
+		for _, ignoredLabel := range t.ignored {
 			if ignoredLabel.MatchString(labelName) {
 				include = false
 				break
