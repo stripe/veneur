@@ -16,8 +16,8 @@ var (
 	ignoredMetricsStr = flag.String("ignored-metrics", "", "A comma-seperated list of metric name regexes to not export")
 	prefix            = flag.String("p", "", "A prefix to append to any metrics emitted. Include a trailing period. (e.g. \"myservice.\")")
 	statsHost         = flag.String("s", "127.0.0.1:8126", "The host and port — like '127.0.0.1:8126' — to send our metrics to.")
-	renameTags        = flag.String("r", "", "A comma-seperated list of rename rules for tags. (e.g. \"oldtag=newtag,otheroldtag=othernewtag\"")
-	addTags           = flag.String("a", "", "A comma-seperated list of tags to add. (e.g. \"newtag=newtagvalue,othernewtag=othernewtagvalue\"")
+	renameLabelsStr   = flag.String("r", "", "A comma-seperated list of rename rules for tags. (e.g. \"oldtag=newtag,otheroldtag=othernewtag\"")
+	addLabelsStr      = flag.String("a", "", "A comma-seperated list of tags to add. (e.g. \"newtag=newtagvalue,othernewtag=othernewtagvalue\"")
 
 	// mTLS params for collecting metrics
 	cert   = flag.String("cert", "", "The path to a client cert to present to the server. Only used if using mTLS.")
