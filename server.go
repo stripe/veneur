@@ -22,11 +22,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
@@ -38,7 +33,6 @@ import (
 	"github.com/stripe/veneur/v14/importsrv"
 	"github.com/stripe/veneur/v14/plugins"
 	localfilep "github.com/stripe/veneur/v14/plugins/localfile"
-	s3p "github.com/stripe/veneur/v14/plugins/s3"
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/scopedstatsd"
@@ -770,48 +764,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	// After all sinks are initialized, set the list of tags to exclude
 	setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)
-
-	var svc s3iface.S3API
-	awsID := conf.AwsAccessKeyID
-	awsSecret := conf.AwsSecretAccessKey
-	if conf.AwsS3Bucket != "" {
-		var sess *session.Session
-		var err error
-		if len(awsID.Value) > 0 && len(awsSecret.Value) > 0 {
-			sess, err = session.NewSession(&aws.Config{
-				Region: aws.String(conf.AwsRegion),
-				Credentials: credentials.NewStaticCredentials(
-					awsID.Value, awsSecret.Value, ""),
-			})
-		} else {
-			sess, err = session.NewSession(&aws.Config{
-				Region: aws.String(conf.AwsRegion),
-			})
-		}
-
-		if err != nil {
-			logger.Infof("error getting AWS session: %s", err)
-			svc = nil
-		} else {
-			logger.Info("Successfully created AWS session")
-			svc = s3.New(sess)
-			plugin := &s3p.S3Plugin{
-				Logger:   log,
-				Svc:      svc,
-				S3Bucket: conf.AwsS3Bucket,
-				Hostname: ret.Hostname,
-			}
-			ret.registerPlugin(plugin)
-		}
-	} else {
-		logger.Info("AWS S3 bucket not set. Skipping S3 Plugin initialization.")
-	}
-
-	if svc == nil {
-		logger.Info("S3 archives are disabled")
-	} else {
-		logger.Info("S3 archives are enabled")
-	}
 
 	if conf.FlushFile != "" {
 		localFilePlugin := &localfilep.Plugin{
