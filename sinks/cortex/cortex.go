@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -21,6 +22,8 @@ import (
 )
 
 const (
+	// MaxConns is the number of simultaneous connections we allow to one host
+	MaxConns = 100
 	// DefaultRemoteTimeout after which a write request will time out
 	DefaultRemoteTimeout = time.Duration(30 * time.Second)
 )
@@ -53,7 +56,7 @@ func Create(
 		return nil, errors.New("invalid sink config type")
 	}
 
-	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, name, server.HTTPClient)
+	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, name)
 }
 
 // ParseConfig extracts Cortex specific fields from the global veneur config
@@ -70,12 +73,11 @@ func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
 }
 
 // NewCortexMetricSink creates and returns a new instance of the sink
-func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, name string, client *http.Client) (*CortexMetricSink, error) {
+func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, name string) (*CortexMetricSink, error) {
 	return &CortexMetricSink{
 		URL:           URL,
 		RemoteTimeout: timeout,
 		ProxyURL:      proxyURL,
-		client:        client,
 		name:          name,
 	}, nil
 }
@@ -85,8 +87,27 @@ func (s *CortexMetricSink) Name() string {
 	return s.name
 }
 
-// Start does nothing for the moment
+// Start sets up the HTTP client for writing to Cortex
 func (s *CortexMetricSink) Start(*trace.Client) error {
+	// Default concurrent connections is 2
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.MaxIdleConns = MaxConns
+	t.MaxConnsPerHost = MaxConns
+	t.MaxIdleConnsPerHost = MaxConns
+
+	// Configure proxy URL, if supplied
+	if len(s.ProxyURL) > 0 {
+		p, err := url.Parse(s.ProxyURL)
+		if err != nil {
+			return errors.Wrap(err, "malformed cortex_proxy_url")
+		}
+		t.Proxy = http.ProxyURL(p)
+	}
+
+	s.client = &http.Client{
+		Timeout:   time.Duration(s.RemoteTimeout * time.Second),
+		Transport: t,
+	}
 	return nil
 }
 

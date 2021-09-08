@@ -17,12 +17,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/trace"
 )
 
 func TestName(t *testing.T) {
 	// Implicitly test that CortexMetricsSink implements MetricSink
 	var sink sinks.MetricSink
-	sink, err := NewCortexMetricSink("https://localhost/", 30, "", "cortex", &http.Client{})
+	sink, err := NewCortexMetricSink("https://localhost/", 30, "", "cortex")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "cortex", sink.Name())
@@ -34,8 +35,9 @@ func TestFlush(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30, "", "", &http.Client{})
+	sink, err := NewCortexMetricSink(server.URL, 30, "", "")
 	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
 
 	// input.json contains three timeseries samples in InterMetrics format
 	jsInput, err := os.ReadFile("testdata/input.json")
