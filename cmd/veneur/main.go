@@ -10,6 +10,7 @@ import (
 	"github.com/stripe/veneur/v14/sinks/cortex"
 	"github.com/stripe/veneur/v14/sinks/debug"
 	"github.com/stripe/veneur/v14/sinks/kafka"
+	"github.com/stripe/veneur/v14/sinks/s3"
 	"github.com/stripe/veneur/v14/sinks/signalfx"
 	"github.com/stripe/veneur/v14/sinks/splunk"
 	"github.com/stripe/veneur/v14/ssf"
@@ -51,6 +52,7 @@ func main() {
 	}
 	if !conf.Features.MigrateMetricSinks {
 		debug.MigrateConfig(&conf)
+		s3.MigrateConfig(&conf)
 		err = signalfx.MigrateConfig(&conf)
 		if err != nil {
 			logrus.WithError(err).Fatal("error migrating signalfx config")
@@ -82,6 +84,10 @@ func main() {
 			"kafka": {
 				Create:      kafka.CreateMetricSink,
 				ParseConfig: kafka.ParseMetricConfig,
+			},
+			"s3": {
+				Create:      s3.Create,
+				ParseConfig: s3.ParseConfig,
 			},
 			"signalfx": {
 				Create:      signalfx.Create,
