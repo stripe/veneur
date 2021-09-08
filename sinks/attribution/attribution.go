@@ -28,12 +28,13 @@ import (
 )
 
 type AttributionSinkConfig struct {
-	VeneurInstanceID   string            `yaml:"veneur_instance_id"`
 	AWSAccessKeyID     util.StringSecret `yaml:"aws_access_key_id"`
 	AWSRegion          string            `yaml:"aws_region"`
 	AWSSecretAccessKey util.StringSecret `yaml:"aws_secret_access_key"`
+	GroupByKey         string            `yaml:"group_by_key"`
 	S3Bucket           string            `yaml:"s3_bucket"`
 	S3KeyPrefix        string            `yaml:"s3_key_prefix"`
+	VeneurInstanceID   string            `yaml:"veneur_instance_id"`
 }
 
 // ParseConfig decodes the map config for an S3 sink into an S3SinkConfig
@@ -56,6 +57,7 @@ type AttributionSink struct {
 	s3Svc               s3iface.S3API
 	s3Bucket            string
 	attributionData     map[string]*hyperloglog.Sketch
+	groupByKey          string
 }
 
 // S3ClientUninitializedError is an error returned when the S3 client provided to
@@ -77,9 +79,18 @@ func (ts *Timeseries) ID() string {
 	return b.String()
 }
 
-func (ts *Timeseries) GroupID() string {
+func (ts *Timeseries) GroupID(ownerByTag string) string {
 	var b strings.Builder
 	b.WriteString(ts.Name)
+
+	// Find the tag matching ownerByTag and add its value to the Group ID
+	for _, tag := range ts.Tags {
+		tagSplit := strings.SplitN(tag, fmt.Sprintf("%s:", tagName), 2)
+		if len(tagSplit) == 2 && tagSplit[0] == ownerByTag {
+			b.WriteString(tagSplit[1])
+		}
+	}
+
 	return b.String()
 }
 
@@ -128,6 +139,7 @@ func Create(
 		s3Svc:               s3.New(sess),
 		s3Bucket:            attributionSinkConfig.S3Bucket,
 		attributionData:     map[string]*hyperloglog.Sketch{},
+		groupByKey:          attributionSinkConfig.GroupByKey,
 	}, nil
 }
 
@@ -187,7 +199,7 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 func (s *AttributionSink) recordMetric(metric samplers.InterMetric) {
 	ts := Timeseries{metric.Name, metric.Tags}
 	tsID := ts.ID()
-	tsGroupID := ts.GroupID()
+	tsGroupID := ts.GroupID(s.groupByKey)
 
 	_, ok := s.attributionData[tsGroupID]
 	if !ok {
