@@ -15,6 +15,8 @@ type prometheusConfig struct {
 	httpClient     *http.Client
 	ignoredLabels  []*regexp.Regexp
 	ignoredMetrics []*regexp.Regexp
+	addedLabels    map[string]string
+	renameLabels   map[string]string
 }
 
 func prometheusConfigFromArguments() (prometheusConfig, error) {
@@ -25,6 +27,8 @@ func prometheusConfigFromArguments() (prometheusConfig, error) {
 		httpClient:     client,
 		ignoredLabels:  getIgnoredFromArg(*ignoredLabelsStr),
 		ignoredMetrics: getIgnoredFromArg(*ignoredMetricsStr),
+		addedLabels:    getAddedFromArg(*addLabelsStr),
+		renameLabels:   getRenamedFromArg(*renameLabelsStr),
 	}, err
 }
 
@@ -37,6 +41,38 @@ func getIgnoredFromArg(arg string) []*regexp.Regexp {
 	}
 
 	return ignore
+}
+
+func getRenamedFromArg(arg string) map[string]string {
+	renamed := make(map[string]string)
+	for _, renameStr := range strings.Split(arg, ",") {
+		if len(renameStr) <= 0 {
+			continue
+		}
+
+		parts := strings.SplitN(renameStr, "=", 2)
+		if len(parts) == 2 {
+			renamed[parts[0]] = parts[1]
+		}
+	}
+
+	return renamed
+}
+
+func getAddedFromArg(arg string) map[string]string {
+	added := make(map[string]string)
+	for _, addStr := range strings.Split(arg, ",") {
+		if len(addStr) <= 0 {
+			continue
+		}
+
+		parts := strings.SplitN(addStr, "=", 2)
+		if len(parts) == 2 {
+			added[parts[0]] = parts[1]
+		}
+	}
+
+	return added
 }
 
 func newHTTPClient(socket, certPath, keyPath, caCertPath string) (*http.Client, error) {
