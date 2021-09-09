@@ -31,7 +31,7 @@ type AttributionSinkConfig struct {
 	AWSAccessKeyID     util.StringSecret `yaml:"aws_access_key_id"`
 	AWSRegion          string            `yaml:"aws_region"`
 	AWSSecretAccessKey util.StringSecret `yaml:"aws_secret_access_key"`
-	GroupByKey         string            `yaml:"group_by_key"`
+	OwnerKey           string            `yaml:"owner_key"`
 	S3Bucket           string            `yaml:"s3_bucket"`
 	S3KeyPrefix        string            `yaml:"s3_key_prefix"`
 	VeneurInstanceID   string            `yaml:"veneur_instance_id"`
@@ -52,12 +52,12 @@ func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
 type AttributionSink struct {
 	traceClient         *trace.Client
 	log                 *logrus.Entry
-	additionalKeyPrefix string
+	s3KeyPrefix         string
 	hostname            string
 	s3Svc               s3iface.S3API
 	s3Bucket            string
-	attributionData     map[string]*hyperloglog.Sketch
-	groupByKey          string
+	attributionData     map[string]*Timeseries
+	ownerKey            string
 }
 
 // S3ClientUninitializedError is an error returned when the S3 client provided to
@@ -65,33 +65,9 @@ type AttributionSink struct {
 var S3ClientUninitializedError = errors.New("s3 client has not been initialized")
 
 type Timeseries struct {
-	Name string
-	Tags []string
-}
-
-func (ts *Timeseries) ID() string {
-	var b strings.Builder
-	b.WriteString(ts.Name)
-	// TODO: Check whether tags are ordered past samplers.go
-	for _, tag := range ts.Tags {
-		b.WriteString(tag)
-	}
-	return b.String()
-}
-
-func (ts *Timeseries) GroupID(ownerByTag string) string {
-	var b strings.Builder
-	b.WriteString(ts.Name)
-
-	// Find the tag matching ownerByTag and add its value to the Group ID
-	for _, tag := range ts.Tags {
-		tagSplit := strings.SplitN(tag, fmt.Sprintf("%s:", tagName), 2)
-		if len(tagSplit) == 2 && tagSplit[0] == ownerByTag {
-			b.WriteString(tagSplit[1])
-		}
-	}
-
-	return b.String()
+	Metric samplers.InterMetric
+	Owner  string
+	Sketch *hyperloglog.Sketch
 }
 
 func Create(
@@ -128,18 +104,15 @@ func Create(
 	logger.Info("Successfully created AWS session")
 	logger.Info("S3 attribution sink is enabled")
 
-	groupings := make([]string, 1)
-	groupings = append(groupings, "host_contact")
-
 	return &AttributionSink{
 		traceClient:         nil,
 		log:                 logger,
-		additionalKeyPrefix: "rmatest1",
-		hostname:            "sirenbox-1234.northwest.qa.stripe.io",
+		s3KeyPrefix:         attributionSinkConfig.S3KeyPrefix,
+		hostname:            attributionSinkConfig.VeneurInstanceID,
 		s3Svc:               s3.New(sess),
 		s3Bucket:            attributionSinkConfig.S3Bucket,
-		attributionData:     map[string]*hyperloglog.Sketch{},
-		groupByKey:          attributionSinkConfig.GroupByKey,
+		attributionData:     map[string]*Timeseries{},
+		ownerKey:            attributionSinkConfig.OwnerKey,
 	}, nil
 }
 
@@ -158,7 +131,6 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 	defer span.ClientFinish(s.traceClient)
 
 	// flushStart := time.Now()
-	// spanTags := map[string]string{"sink": s.Name()}
 
 	for _, metric := range metrics {
 		s.log.Debug(fmt.Sprintf("Checking %s", metric.Name))
@@ -169,55 +141,82 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 
 	// TODO: Don't even iterate if debug level is not Debug
 	for k, v := range s.attributionData {
-		s.log.Debug(fmt.Sprintf("%s - %d", k, v.Estimate()))
+		s.log.Debug(fmt.Sprintf("%s - %d", k, v.Sketch.Estimate()))
 	}
 
-	// csv, err := encodeAttributionDataCSV(s.attributionData, flushStart)
-	// if err != nil {
-	// 	s.log.WithFields(logrus.Fields{
-	// 		logrus.ErrorKey: err,
-	// 		"metrics":       len(metrics),
-	// 	}).Error("Could not marshal metrics before posting to s3")
-	// 	return err
-	// }
+	csv, err := encodeAttributionDataCSV(s.attributionData)
+	if err != nil {
+		s.log.WithFields(logrus.Fields{
+			logrus.ErrorKey: err,
+			"metrics":       len(metrics),
+		}).Error("Could not marshal metrics before posting to s3")
+		return err
+	}
 
-	// err = s.s3Post(csv)
-	// if err != nil {
-	// 	s.log.WithFields(logrus.Fields{
-	// 		logrus.ErrorKey: err,
-	// 		"metrics":       len(metrics),
-	// 	}).Error("Error posting to s3")
-	// 	return err
-	// }
+	err = s.s3Post(csv)
+	if err != nil {
+		s.log.WithFields(logrus.Fields{
+			logrus.ErrorKey: err,
+			"metrics":       len(metrics),
+		}).Error("Error posting to s3")
+		return err
+	}
 
 	s.log.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
+	// spanTags := map[string]string{"sink": s.Name()}
 	// span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, spanTags))
 	return nil
 }
 
+func timeseriesID(metric samplers.InterMetric) string {
+	var b strings.Builder
+	b.WriteString(metric.Name)
+	// TODO: Check whether tags are ordered past samplers.go
+	for _, tag := range metric.Tags {
+		b.WriteString(tag)
+	}
+	return b.String()
+}
+
+func timeseriesGroupIDAndOwner(metric samplers.InterMetric, ownerKey string) (groupID, owner string) {
+	var b strings.Builder
+	b.WriteString(metric.Name)
+
+	// Find the tag matching ownerKey and add its value to the Group ID
+	for _, tag := range metric.Tags {
+		tagSplit := strings.SplitN(tag, fmt.Sprintf("%s:", tag), 2)
+		if len(tagSplit) == 2 && tagSplit[0] == ownerKey {
+			owner = tagSplit[1]
+			b.WriteString(owner)
+		}
+	}
+
+	groupID = b.String()
+	return
+}
+
 // recordMetric tallies an InterMetric
 func (s *AttributionSink) recordMetric(metric samplers.InterMetric) {
-	ts := Timeseries{metric.Name, metric.Tags}
-	tsID := ts.ID()
-	tsGroupID := ts.GroupID(s.groupByKey)
-
-	_, ok := s.attributionData[tsGroupID]
+	tsGroupID, owner := timeseriesGroupIDAndOwner(metric, s.ownerKey)
+	ts, ok := s.attributionData[tsGroupID]
 	if !ok {
-		s.attributionData[tsGroupID] = hyperloglog.New()
+		ts = &Timeseries{metric, owner, hyperloglog.New()}
+		s.attributionData[tsGroupID] = ts
 	}
-	s.attributionData[tsGroupID].Insert([]byte(tsID))
+	tsID := timeseriesID(metric)
+	ts.Sketch.Insert([]byte(tsID))
 }
 
 // encodeInterMetricsCSV returns a reader containing the gzipped CSV representation of the
 // InterMetric data, one row per InterMetric. The AWS sdk requires seekable input, so we return a ReadSeeker here.
-func encodeAttributionDataCSV(metrics []samplers.InterMetric, ts time.Time) (io.ReadSeeker, error) {
+func encodeAttributionDataCSV(attributionData map[string]*Timeseries) (io.ReadSeeker, error) {
 	b := &bytes.Buffer{}
 	gzw := gzip.NewWriter(b)
 	w := csv.NewWriter(gzw)
 	w.Comma = '\t'
 
-	for _, metric := range metrics {
-		encodeInterMetricCSV(metric, w, ts)
+	for _, metric := range attributionData {
+		encodeInterMetricCSV(metric, w)
 	}
 
 	w.Flush()
@@ -232,25 +231,37 @@ func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
 	if s.s3Svc == nil {
 		return S3ClientUninitializedError
 	}
+	key := s3Key(s.s3KeyPrefix, s.hostname)
 	params := &s3.PutObjectInput{
 		Bucket: aws.String(s.s3Bucket),
-		Key:    s3Key(s.additionalKeyPrefix, s.hostname),
+		Key:    aws.String(key),
 		Body:   data,
 	}
+
+	s.log.WithFields(logrus.Fields{
+		"bucket": s.s3Bucket,
+		"key": key,
+	}).Debug("Posting to S3")
 
 	_, err := s.s3Svc.PutObject(params)
 	return err
 }
 
-func s3Key(additionalKeyPrefix, hostname string) *string {
+func s3Key(s3KeyPrefix, hostname string) string {
 	// NOTE: It would be cool if we could do something like this instead of hardcoding
 	// 1h partitions:
     // aws_s3_key_template: "{{ .TimeUnix }}/{{ .SchemaVersion }}/{{ .Hostname }}"
 	t := time.Now().UTC()
 	exactFlushTs := t.Unix()
 	hourPartition := t.Format("2006/01/02/03")
-	key := fmt.Sprintf("%s/%s-%d.tsv.gz", hourPartition, hostname, exactFlushTs)
-	return aws.String(key)
+
+	prefix := ""
+	if s3KeyPrefix != "" {
+		prefix = fmt.Sprintf("%s/", s3KeyPrefix)
+	}
+
+	key := fmt.Sprintf("%s%s/%s-%d.tsv.gz", prefix, hourPartition, hostname, exactFlushTs)
+	return key
 }
 
 // FlushOtherSamples is a no-op for the time being
