@@ -53,14 +53,14 @@ func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
 
 // AttributionSink is a sink for flushing ownership/usage (attribution data) to S3
 type AttributionSink struct {
-	traceClient     *trace.Client
-	log             *logrus.Entry
-	s3KeyPrefix     string
-	hostname        string
-	s3Svc           s3iface.S3API
-	s3Bucket        string
-	attributionData map[string]*Timeseries
-	ownerKey        string
+	traceClient      *trace.Client
+	log              *logrus.Entry
+	s3KeyPrefix      string
+	veneurInstanceID string
+	s3Svc            s3iface.S3API
+	s3Bucket         string
+	attributionData  map[string]*Timeseries
+	ownerKey         string
 }
 
 // S3ClientUninitializedError is an error returned when the S3 client provided to
@@ -114,14 +114,14 @@ func Create(
 	logger.Info("S3 attribution sink is enabled")
 
 	return &AttributionSink{
-		traceClient:     nil,
-		log:             logger,
-		s3KeyPrefix:     attributionSinkConfig.S3KeyPrefix,
-		hostname:        attributionSinkConfig.VeneurInstanceID,
-		s3Svc:           s3.New(sess),
-		s3Bucket:        attributionSinkConfig.S3Bucket,
-		attributionData: map[string]*Timeseries{},
-		ownerKey:        attributionSinkConfig.OwnerKey,
+		traceClient:      nil,
+		log:              logger,
+		s3KeyPrefix:      attributionSinkConfig.S3KeyPrefix,
+		veneurInstanceID: attributionSinkConfig.VeneurInstanceID,
+		s3Svc:            s3.New(sess),
+		s3Bucket:         attributionSinkConfig.S3Bucket,
+		attributionData:  map[string]*Timeseries{},
+		ownerKey:         attributionSinkConfig.OwnerKey,
 	}, nil
 }
 
@@ -268,7 +268,7 @@ func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
 	if s.s3Svc == nil {
 		return S3ClientUninitializedError
 	}
-	key := s3Key(s.s3KeyPrefix, s.hostname)
+	key := s3Key(s.s3KeyPrefix, s.veneurInstanceID)
 	params := &s3.PutObjectInput{
 		Bucket: aws.String(s.s3Bucket),
 		Key:    aws.String(key),
@@ -289,7 +289,7 @@ func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
 // For the time being, the key format here is hardcoded assuming 1h wide
 // partitions. In the future, it may be useful to expand to other partition
 // widths, e.g.:
-// aws_s3_key_template: "{{ .TimeUnix }}/{{ .SchemaVersion }}/{{ .Hostname }}"
+// aws_s3_key_template: "{{ .TimeUnix }}/{{ .SchemaVersion }}/{{ .VeneurInstanceID }}"
 // Note that the example setting here is hypothetical and does NOT yet exist.
 //
 // AWS documentation makes reference to a baseline S3 PUT rate of 3.5k req/s
@@ -297,9 +297,9 @@ func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
 // https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html
 // It is unclear whether this rate limit works on a per-bucket, or
 // per-application-per-bucket level. Should it be per-bucket, encoding a unique
-// Veneur instance ID per instance of the attribution sink (such as a hostname
+// Veneur instance ID per instance of the attribution sink (such as a veneurInstanceID
 // or Kubernetes pod ID) will help a fleet of Veneurs avoid hitting this limit.
-func s3Key(s3KeyPrefix, hostname string) string {
+func s3Key(s3KeyPrefix, veneurInstanceID string) string {
 	t := time.Now().UTC()
 	exactFlushTs := t.Unix()
 	hourPartition := t.Format("2006/01/02/03")
@@ -309,7 +309,7 @@ func s3Key(s3KeyPrefix, hostname string) string {
 		prefix = fmt.Sprintf("%s/", s3KeyPrefix)
 	}
 
-	key := fmt.Sprintf("%s%s/%s-%d.tsv.gz", prefix, hourPartition, hostname, exactFlushTs)
+	key := fmt.Sprintf("%s%s/%s-%d.tsv.gz", prefix, hourPartition, veneurInstanceID, exactFlushTs)
 	return key
 }
 
