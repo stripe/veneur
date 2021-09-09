@@ -11,7 +11,7 @@ type tsvField int
 const (
 	// the order in which these appear determines the
 	// order of the fields in the resultant TSV
-	TsvName        tsvField = iota
+	TsvName tsvField = iota
 	TsvOwner
 	TsvCardinality
 )

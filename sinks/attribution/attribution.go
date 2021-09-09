@@ -50,14 +50,14 @@ func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
 
 // AttributionSink is a sink for flushing ownership/usage (attribution data) to S3
 type AttributionSink struct {
-	traceClient         *trace.Client
-	log                 *logrus.Entry
-	s3KeyPrefix         string
-	hostname            string
-	s3Svc               s3iface.S3API
-	s3Bucket            string
-	attributionData     map[string]*Timeseries
-	ownerKey            string
+	traceClient     *trace.Client
+	log             *logrus.Entry
+	s3KeyPrefix     string
+	hostname        string
+	s3Svc           s3iface.S3API
+	s3Bucket        string
+	attributionData map[string]*Timeseries
+	ownerKey        string
 }
 
 // S3ClientUninitializedError is an error returned when the S3 client provided to
@@ -105,14 +105,14 @@ func Create(
 	logger.Info("S3 attribution sink is enabled")
 
 	return &AttributionSink{
-		traceClient:         nil,
-		log:                 logger,
-		s3KeyPrefix:         attributionSinkConfig.S3KeyPrefix,
-		hostname:            attributionSinkConfig.VeneurInstanceID,
-		s3Svc:               s3.New(sess),
-		s3Bucket:            attributionSinkConfig.S3Bucket,
-		attributionData:     map[string]*Timeseries{},
-		ownerKey:            attributionSinkConfig.OwnerKey,
+		traceClient:     nil,
+		log:             logger,
+		s3KeyPrefix:     attributionSinkConfig.S3KeyPrefix,
+		hostname:        attributionSinkConfig.VeneurInstanceID,
+		s3Svc:           s3.New(sess),
+		s3Bucket:        attributionSinkConfig.S3Bucket,
+		attributionData: map[string]*Timeseries{},
+		ownerKey:        attributionSinkConfig.OwnerKey,
 	}, nil
 }
 
@@ -240,7 +240,7 @@ func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
 
 	s.log.WithFields(logrus.Fields{
 		"bucket": s.s3Bucket,
-		"key": key,
+		"key":    key,
 	}).Debug("Posting to S3")
 
 	_, err := s.s3Svc.PutObject(params)
@@ -250,7 +250,7 @@ func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
 func s3Key(s3KeyPrefix, hostname string) string {
 	// NOTE: It would be cool if we could do something like this instead of hardcoding
 	// 1h partitions:
-    // aws_s3_key_template: "{{ .TimeUnix }}/{{ .SchemaVersion }}/{{ .Hostname }}"
+	// aws_s3_key_template: "{{ .TimeUnix }}/{{ .SchemaVersion }}/{{ .Hostname }}"
 	t := time.Now().UTC()
 	exactFlushTs := t.Unix()
 	hourPartition := t.Format("2006/01/02/03")
