@@ -51,3 +51,52 @@ func TestTranslateTags(t *testing.T) {
 
 	assert.Equal(t, expectedTags, tags)
 }
+
+func TestAddTags(t *testing.T) {
+	name := "originalName"
+	value := "originalValue"
+	pair := &dto.LabelPair{
+		Name:  &name,
+		Value: &value,
+	}
+	labels := []*dto.LabelPair{pair}
+
+	tr := translator{
+		added: map[string]string{
+			"new": "tags",
+			"so":  "good",
+		},
+	}
+
+	tags := tr.Tags(labels)
+	expectedTags := []string{
+		"originalName:originalValue",
+		"new:tags",
+		"so:good",
+	}
+
+	assert.ElementsMatch(t, expectedTags, tags)
+}
+
+func TestReplaceTags(t *testing.T) {
+	name := "originalName"
+	value := "originalValue"
+	pair := &dto.LabelPair{
+		Name:  &name,
+		Value: &value,
+	}
+	labels := []*dto.LabelPair{pair}
+
+	tr := translator{
+		renamed: map[string]string{
+			"originalName": "newName",
+		},
+	}
+
+	tags := tr.Tags(labels)
+	expectedTags := []string{
+		"newName:originalValue",
+	}
+
+	assert.ElementsMatch(t, expectedTags, tags)
+}

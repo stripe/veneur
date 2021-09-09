@@ -68,7 +68,7 @@ func collect(cfg prometheusConfig, cache *countCache) <-chan []statsdStat {
 	}).Debug("beginning collection")
 
 	prometheus := queryPrometheus(cfg.httpClient, cfg.metricsHost, cfg.ignoredMetrics)
-	return translatePrometheus(cfg.ignoredLabels, cache, prometheus)
+	return translatePrometheus(cfg, cache, prometheus)
 }
 
 func sendToStatsd(client *statsd.Client, host string, stats <-chan []statsdStat) {
