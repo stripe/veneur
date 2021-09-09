@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"time"
 
@@ -185,8 +186,20 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 func timeseriesID(metric samplers.InterMetric) string {
 	var b strings.Builder
 	b.WriteString(metric.Name)
-	// TODO: Check whether tags are ordered past samplers.go
-	for _, tag := range metric.Tags {
+
+	// Workers have some notion of timeseries uniqueness, but one that isn't
+	// quite rigorous enough to perform timeseries cardinality computation
+	// accurately:
+	// https://github.com/stripe/veneur/blob/531ffab0dc9bc105a69fa9106023ddc36b49591e/samplers/parser.go#L38-L60
+	// DogStatsD tags can be ordered arbitrarily, but (*UDPMetric) UpdateTags
+	// does not take into account that (foo:val, bar:val) and
+	// (bar:val, foo:val) are semantically identical. However, it's a more
+	// involved refactor to make Tags order agnostic, so in the meantime we
+	// have this hack so we can accurately tally timeseries:
+	tagsToWrite := metric.Tags // make a copy
+	sort.Strings(tagsToWrite)
+
+	for _, tag := range tagsToWrite {
 		b.WriteString(tag)
 	}
 	return b.String()
