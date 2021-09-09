@@ -27,6 +27,8 @@ import (
 	"github.com/stripe/veneur/v14/util"
 )
 
+// AttributionSinkConfig represents the YAML options that can be used to
+// configure an instance of AttributionSink
 type AttributionSinkConfig struct {
 	AWSAccessKeyID     util.StringSecret `yaml:"aws_access_key_id"`
 	AWSRegion          string            `yaml:"aws_region"`
@@ -64,12 +66,18 @@ type AttributionSink struct {
 // AttributionSink is nil
 var S3ClientUninitializedError = errors.New("s3 client has not been initialized")
 
+// Timeseries represents an attributable unit of metrics data, complete with
+// owner, metadata corresponding to the metrics data grouping, and cardinality
+// tallying
 type Timeseries struct {
+	// TODO: This shouldn't be a full InterMetric, it should just be the
+	// relevant fields we pull from an InterMetric
 	Metric samplers.InterMetric
 	Owner  string
 	Sketch *hyperloglog.Sketch
 }
 
+// Create returns a pointer to an AttributionSink
 func Create(
 	server *veneur.Server, name string, logger *logrus.Entry,
 	config veneur.Config, sinkConfig veneur.MetricSinkConfig,
@@ -122,10 +130,13 @@ func (s *AttributionSink) Start(traceClient *trace.Client) error {
 	return nil
 }
 
+// Name returns the name of the sink
 func (s *AttributionSink) Name() string {
 	return "attribution"
 }
 
+// Flush tallies together metrics, then makes a PUT request to the AWS API to
+// persist attribution data to S3.
 func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
@@ -168,6 +179,9 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 	return nil
 }
 
+// timeseriesID takes in InterMetric and derives an identifier that can be used
+// to tell if multiple InterMetrics correspond to the same Timeseries, for
+// tallying purposes
 func timeseriesID(metric samplers.InterMetric) string {
 	var b strings.Builder
 	b.WriteString(metric.Name)
@@ -178,6 +192,12 @@ func timeseriesID(metric samplers.InterMetric) string {
 	return b.String()
 }
 
+// timeseriesGroupIDAndOwner takes an InterMetric and the name of a tag that
+// can be used to derive a Timeseries owner, and returns an identifier that
+// ultimately corresponds to a TSV row and tally
+//
+// If an ownerKey is not specified, timeseriesGroupIDAndOwner returns the name
+// of the metric and a blank owner
 func timeseriesGroupIDAndOwner(metric samplers.InterMetric, ownerKey string) (groupID, owner string) {
 	var b strings.Builder
 	b.WriteString(metric.Name)
@@ -195,7 +215,7 @@ func timeseriesGroupIDAndOwner(metric samplers.InterMetric, ownerKey string) (gr
 	return
 }
 
-// recordMetric tallies an InterMetric
+// recordMetric tallies an InterMetric, creating a Timeseries in the process
 func (s *AttributionSink) recordMetric(metric samplers.InterMetric) {
 	tsGroupID, owner := timeseriesGroupIDAndOwner(metric, s.ownerKey)
 	ts, ok := s.attributionData[tsGroupID]
@@ -207,8 +227,9 @@ func (s *AttributionSink) recordMetric(metric samplers.InterMetric) {
 	ts.Sketch.Insert([]byte(tsID))
 }
 
-// encodeInterMetricsCSV returns a reader containing the gzipped CSV representation of the
-// InterMetric data, one row per InterMetric. The AWS sdk requires seekable input, so we return a ReadSeeker here.
+// encodeInterMetricsCSV returns a reader containing the gzipped CSV
+// representation of Timeseries data, one row per Timeseries. The AWS SDK
+// requires seekable input, so we return a ReadSeeker here
 func encodeAttributionDataCSV(attributionData map[string]*Timeseries) (io.ReadSeeker, error) {
 	b := &bytes.Buffer{}
 	gzw := gzip.NewWriter(b)
@@ -227,6 +248,8 @@ func encodeAttributionDataCSV(attributionData map[string]*Timeseries) (io.ReadSe
 	return bytes.NewReader(b.Bytes()), w.Error()
 }
 
+// s3Post takes in an io.ReadSeeker created in Flush, and persists the data in
+// question to S3
 func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
 	if s.s3Svc == nil {
 		return S3ClientUninitializedError
@@ -247,10 +270,22 @@ func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
 	return err
 }
 
+// s3Key generates the full key attribution data is to be stored at in S3.
+//
+// For the time being, the key format here is hardcoded assuming 1h wide
+// partitions. In the future, it may be useful to expand to other partition
+// widths, e.g.:
+// aws_s3_key_template: "{{ .TimeUnix }}/{{ .SchemaVersion }}/{{ .Hostname }}"
+// Note that the example setting here is hypothetical and does NOT yet exist.
+//
+// AWS documentation makes reference to a baseline S3 PUT rate of 3.5k req/s
+// per S3 prefix for a given application:
+// https://docs.aws.amazon.com/AmazonS3/latest/userguide/optimizing-performance.html
+// It is unclear whether this rate limit works on a per-bucket, or
+// per-application-per-bucket level. Should it be per-bucket, encoding a unique
+// Veneur instance ID per instance of the attribution sink (such as a hostname
+// or Kubernetes pod ID) will help a fleet of Veneurs avoid hitting this limit.
 func s3Key(s3KeyPrefix, hostname string) string {
-	// NOTE: It would be cool if we could do something like this instead of hardcoding
-	// 1h partitions:
-	// aws_s3_key_template: "{{ .TimeUnix }}/{{ .SchemaVersion }}/{{ .Hostname }}"
 	t := time.Now().UTC()
 	exactFlushTs := t.Unix()
 	hourPartition := t.Format("2006/01/02/03")
@@ -264,8 +299,8 @@ func s3Key(s3KeyPrefix, hostname string) string {
 	return key
 }
 
-// FlushOtherSamples is a no-op for the time being
-// TODO: Implement span attribution
+// FlushOtherSamples is a no-op for the time being, so span attribution does
+// not yet exist
 func (s *AttributionSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
 	return
 }
