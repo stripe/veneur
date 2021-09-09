@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/axiomhq/hyperloglog"
+	"github.com/segmentio/fasthash/fnv1a"
 	"github.com/sirupsen/logrus"
 
 	veneur "github.com/stripe/veneur/v14"
@@ -59,7 +60,7 @@ type AttributionSink struct {
 	veneurInstanceID string
 	s3Svc            s3iface.S3API
 	s3Bucket         string
-	attributionData  map[string]*Timeseries
+	attributionData  map[string]*TimeseriesGroup
 	ownerKey         string
 }
 
@@ -67,15 +68,14 @@ type AttributionSink struct {
 // AttributionSink is nil
 var S3ClientUninitializedError = errors.New("s3 client has not been initialized")
 
-// Timeseries represents an attributable unit of metrics data, complete with
+// TimeseriesGroup represents an attributable unit of metrics data, complete with
 // owner, metadata corresponding to the metrics data grouping, and cardinality
 // tallying
-type Timeseries struct {
-	// TODO: This shouldn't be a full InterMetric, it should just be the
-	// relevant fields we pull from an InterMetric
-	Metric samplers.InterMetric
-	Owner  string
-	Sketch *hyperloglog.Sketch
+type TimeseriesGroup struct {
+	Name    string
+	Owner   string
+	Digests []uint32
+	Sketch  *hyperloglog.Sketch
 }
 
 // Create returns a pointer to an AttributionSink
@@ -120,7 +120,7 @@ func Create(
 		veneurInstanceID: attributionSinkConfig.VeneurInstanceID,
 		s3Svc:            s3.New(sess),
 		s3Bucket:         attributionSinkConfig.S3Bucket,
-		attributionData:  map[string]*Timeseries{},
+		attributionData:  map[string]*TimeseriesGroup{},
 		ownerKey:         attributionSinkConfig.OwnerKey,
 	}, nil
 }
@@ -181,13 +181,10 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 	return nil
 }
 
-// timeseriesID takes in InterMetric and derives an identifier that can be used
-// to tell if multiple InterMetrics correspond to the same Timeseries, for
+// timeseriesDigest takes in InterMetric and derives an digest that can be used
+// to tell if multiple InterMetrics correspond to the same TimeseriesGroup, for
 // tallying purposes
-func timeseriesID(metric samplers.InterMetric) string {
-	var b strings.Builder
-	b.WriteString(metric.Name)
-
+func timeseriesDigest(metric samplers.InterMetric) uint32 {
 	// Workers have some notion of timeseries uniqueness, but one that isn't
 	// quite rigorous enough to perform timeseries cardinality computation
 	// accurately:
@@ -197,22 +194,25 @@ func timeseriesID(metric samplers.InterMetric) string {
 	// (bar:val, foo:val) are semantically identical. However, it's a more
 	// involved refactor to make Tags order agnostic, so in the meantime we
 	// have this hack so we can accurately tally timeseries:
-	tagsToWrite := metric.Tags // make a copy
-	sort.Strings(tagsToWrite)
+	tagsToAdd := metric.Tags // make a copy
+	sort.Strings(tagsToAdd)
 
-	for _, tag := range tagsToWrite {
-		b.WriteString(tag)
+	h := fnv1a.Init32
+	h = fnv1a.AddString32(h, metric.Name)
+	for _, tag := range tagsToAdd {
+		h = fnv1a.AddString32(h, tag)
 	}
-	return b.String()
+	return h
 }
 
-// timeseriesGroupIDAndOwner takes an InterMetric and the name of a tag that
-// can be used to derive a Timeseries owner, and returns an identifier that
-// ultimately corresponds to a TSV row and tally
+// timeseriesIDs takes an InterMetric and the name of a tag that can be used to
+// derive a TimeseriesGroup owner, and returns (1) an identifier that
+// ultimately corresponds to a grouping of Timeseries to be tallied and (2) an
+// owner corresponding to said group
 //
-// If an ownerKey is not specified, timeseriesGroupIDAndOwner returns the name
+// If an ownerKey is not specified, timeseriesIDs returns the name
 // of the metric and a blank owner
-func timeseriesGroupIDAndOwner(metric samplers.InterMetric, ownerKey string) (groupID, owner string) {
+func timeseriesIDs(metric samplers.InterMetric, ownerKey string) (groupID, owner string) {
 	var b strings.Builder
 	b.WriteString(metric.Name)
 
@@ -229,22 +229,31 @@ func timeseriesGroupIDAndOwner(metric samplers.InterMetric, ownerKey string) (gr
 	return
 }
 
-// recordMetric tallies an InterMetric, creating a Timeseries in the process
+// recordMetric tallies an InterMetric, creating a TimeseriesGroup in the process
 func (s *AttributionSink) recordMetric(metric samplers.InterMetric) {
-	tsGroupID, owner := timeseriesGroupIDAndOwner(metric, s.ownerKey)
+	tsDigest := timeseriesDigest(metric)
+	tsGroupID, tsOwnerID := timeseriesIDs(metric, s.ownerKey)
 	ts, ok := s.attributionData[tsGroupID]
 	if !ok {
-		ts = &Timeseries{metric, owner, hyperloglog.New()}
+		ts = &TimeseriesGroup{metric.Name, tsOwnerID, []uint32{}, hyperloglog.New()}
 		s.attributionData[tsGroupID] = ts
 	}
-	tsID := timeseriesID(metric)
-	ts.Sketch.Insert([]byte(tsID))
+	s.attributionData[tsGroupID].Digests = append(ts.Digests, tsDigest)
+
+	// Convert uint32 to []byte, so we can insert into ts.Sketch:
+	bDigest := [4]byte{
+        byte(0xff & tsDigest),
+        byte(0xff & (tsDigest >> 8)),
+        byte(0xff & (tsDigest >> 16)),
+        byte(0xff & (tsDigest >> 24)),
+	}
+	ts.Sketch.Insert(bDigest[:])
 }
 
 // encodeInterMetricsCSV returns a reader containing the gzipped CSV
-// representation of Timeseries data, one row per Timeseries. The AWS SDK
-// requires seekable input, so we return a ReadSeeker here
-func encodeAttributionDataCSV(attributionData map[string]*Timeseries) (io.ReadSeeker, error) {
+// representation of TimeseriesGroup data, one row per TimeseriesGroup. The AWS
+// SDK requires seekable input, so we return a ReadSeeker here
+func encodeAttributionDataCSV(attributionData map[string]*TimeseriesGroup) (io.ReadSeeker, error) {
 	b := &bytes.Buffer{}
 	gzw := gzip.NewWriter(b)
 	w := csv.NewWriter(gzw)

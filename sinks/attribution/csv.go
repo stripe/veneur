@@ -27,11 +27,11 @@ var tsvSchema = [...]string{
 // The caller is responsible for setting w.Comma as the appropriate delimiter.
 // For performance, encodeCSV does not flush after every call; the caller is
 // expected to flush at the end of the operation cycle
-func encodeInterMetricCSV(ts *Timeseries, w *csv.Writer) error {
+func encodeInterMetricCSV(g *TimeseriesGroup, w *csv.Writer) error {
 	fields := [...]string{
-		TsvName:        ts.Metric.Name,
-		TsvOwner:       ts.Owner,
-		TsvCardinality: fmt.Sprintf("%d", ts.Sketch.Estimate()),
+		TsvName:        g.Name,
+		TsvOwner:       g.Owner,
+		TsvCardinality: fmt.Sprintf("%d", g.Sketch.Estimate()),
 	}
 
 	w.Write(fields[:])
