@@ -16,10 +16,15 @@ var (
 	flushedMetricsID        = statID{"veneur.prometheus.metrics_flushed_total", nil}
 )
 
-func translatePrometheus(ignoredLabels []*regexp.Regexp, cache *countCache, prometheus <-chan prometheusResults) <-chan []statsdStat {
+func translatePrometheus(cfg prometheusConfig, cache *countCache, prometheus <-chan prometheusResults) <-chan []statsdStat {
 	statsd := make(chan []statsdStat)
 	s := sender{statsd, cache}
-	go sendTranslated(prometheus, ignoredLabels, s)
+	t := translator{
+		ignored: cfg.ignoredLabels,
+		added:   cfg.addedLabels,
+		renamed: cfg.renameLabels,
+	}
+	go sendTranslated(prometheus, t, s)
 
 	return statsd
 }
@@ -97,7 +102,11 @@ func (s sender) Close() {
 	s.cache.Done()
 }
 
-type translator []*regexp.Regexp
+type translator struct {
+	ignored []*regexp.Regexp
+	renamed map[string]string
+	added   map[string]string
+}
 
 func (t translator) PrometheusCounter(mf dto.MetricFamily) []inMemoryStat {
 	var stats []inMemoryStat
@@ -184,7 +193,7 @@ func (t translator) Tags(labels []*dto.LabelPair) []string {
 		labelValue := pair.GetValue()
 		include := true
 
-		for _, ignoredLabel := range t {
+		for _, ignoredLabel := range t.ignored {
 			if ignoredLabel.MatchString(labelName) {
 				include = false
 				break
@@ -192,8 +201,16 @@ func (t translator) Tags(labels []*dto.LabelPair) []string {
 		}
 
 		if include {
+			if newName, found := t.renamed[labelName]; found {
+				labelName = newName
+			}
+
 			tags = append(tags, fmt.Sprintf("%s:%s", labelName, labelValue))
 		}
+	}
+
+	for name, value := range t.added {
+		tags = append(tags, fmt.Sprintf("%s:%s", name, value))
 	}
 
 	return tags
