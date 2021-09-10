@@ -43,6 +43,9 @@ type CortexMetricSink struct {
 	traceClient   *trace.Client
 }
 
+// TODO: implement queue config options, at least
+// max_samples_per_send, max_shards, and capacity
+// https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
 type CortexMetricSinkConfig struct {
 	URL           string        `yaml:"url"`
 	RemoteTimeout time.Duration `yaml:"remote_timeout"`
@@ -162,6 +165,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	// Resource leak can occur if body isn't closed explicitly
 	defer r.Body.Close()
 
+	// TODO: retry on 400/500 (per remote-write spec)
 	if r.StatusCode >= 300 {
 		b, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -187,6 +191,8 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 // FlushOtherSamples would forward non-metric sanples like spans. Prometheus
 // cannot receive them, so this is a no-op.
 func (s *CortexMetricSink) FlushOtherSamples(context.Context, []ssf.SSFSample) {
+	// TODO convert samples to metrics and send them
+	// as in FlushOtherSamples in the signalfx sink
 	return
 }
 
