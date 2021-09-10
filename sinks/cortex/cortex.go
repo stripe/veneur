@@ -3,6 +3,7 @@ package cortex
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -152,9 +153,17 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		s.logger.WithError(err).Info("Failed to post request")
 		return err
 	}
-
 	// Resource leak can occur if body isn't closed explicitly
-	r.Body.Close()
+	defer r.Body.Close()
+
+	if r.StatusCode >= 300 {
+		b, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return errors.Wrap(err, "could not read response body")
+		}
+		// Cortex responds with terse and informative messages
+		s.logger.Infof("Flush failed with HTTP %d: %s", r.StatusCode, b)
+	}
 
 	// Emit standard sink metrics
 	metricsCount := len(metrics)
