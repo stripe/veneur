@@ -212,16 +212,18 @@ func timeseriesDigest(metric samplers.InterMetric) uint32 {
 //
 // If an ownerKey is not specified, timeseriesIDs returns the name
 // of the metric and a blank owner
-func timeseriesIDs(metric samplers.InterMetric, ownerKey string) (groupID, owner string) {
+func timeseriesIDs(metric samplers.InterMetric, ownerKey string) (groupID, ownerID string) {
 	var b strings.Builder
 	b.WriteString(metric.Name)
 
-	// Find the tag matching ownerKey and add its value to the Group ID
-	for _, tag := range metric.Tags {
-		tagSplit := strings.SplitN(tag, fmt.Sprintf("%s:", tag), 2)
-		if len(tagSplit) == 2 && tagSplit[0] == ownerKey {
-			owner = tagSplit[1]
-			b.WriteString(owner)
+	if ownerKey != "" {
+		// Find the tag matching ownerKey and add its value to the Group ID
+		for _, tag := range metric.Tags {
+			tagSplit := strings.SplitN(tag, ":", 2)
+			if len(tagSplit) == 2 && tagSplit[0] == ownerKey {
+				ownerID = tagSplit[1]
+				b.WriteString(ownerID)
+			}
 		}
 	}
 
