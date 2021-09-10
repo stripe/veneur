@@ -38,6 +38,7 @@ type CortexMetricSink struct {
 	client        *http.Client
 	logger        *logrus.Entry
 	name          string
+	traceClient   *trace.Client
 }
 
 type CortexMetricSinkConfig struct {
@@ -90,7 +91,7 @@ func (s *CortexMetricSink) Name() string {
 }
 
 // Start sets up the HTTP client for writing to Cortex
-func (s *CortexMetricSink) Start(*trace.Client) error {
+func (s *CortexMetricSink) Start(tc *trace.Client) error {
 	s.logger.Infof("Starting sink for %s", s.URL)
 	// Default concurrent connections is 2
 	t := http.DefaultTransport.(*http.Transport).Clone()
@@ -111,11 +112,19 @@ func (s *CortexMetricSink) Start(*trace.Client) error {
 		Timeout:   time.Duration(s.RemoteTimeout * time.Second),
 		Transport: t,
 	}
+
+	s.traceClient = tc
 	return nil
 }
 
 // Flush sends a batch of metrics to the configured remote-write endpoint
 func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	defer span.ClientFinish(s.traceClient)
+
+	tags := map[string]string{"sink": s.name, "sink_type": "cortex"}
+	flushStart := time.Now()
+
 	wr := makeWriteRequest(metrics)
 	data, err := proto.Marshal(wr)
 	if err != nil {
@@ -139,12 +148,20 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 
 	r, err := s.client.Do(req)
 	if err != nil {
+		span.Error(err)
 		s.logger.WithError(err).Info("Failed to post request")
 		return err
 	}
 
 	// Resource leak can occur if body isn't closed explicitly
 	r.Body.Close()
+
+	// Emit standard sink metrics
+	metricsCount := len(metrics)
+	flushCount := len(wr.Timeseries)
+	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsSkipped, float32(metricsCount-flushCount), tags))
+	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags))
+	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(flushCount), tags))
 
 	s.logger.Info("Flush complete")
 
