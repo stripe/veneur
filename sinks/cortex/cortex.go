@@ -39,6 +39,7 @@ type CortexMetricSink struct {
 	client        *http.Client
 	logger        *logrus.Entry
 	name          string
+	tags          map[string]string
 	traceClient   *trace.Client
 }
 
@@ -59,7 +60,12 @@ func Create(
 		return nil, errors.New("invalid sink config type")
 	}
 
-	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name)
+	// TagsAsMap is a set of configurable common tags applied to every metric
+	tags := server.TagsAsMap
+	// Host has to be supplied especially
+	tags["host"] = config.Hostname
+
+	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, tags)
 }
 
 // ParseConfig extracts Cortex specific fields from the global veneur config
@@ -76,11 +82,12 @@ func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
 }
 
 // NewCortexMetricSink creates and returns a new instance of the sink
-func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string) (*CortexMetricSink, error) {
+func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string) (*CortexMetricSink, error) {
 	return &CortexMetricSink{
 		URL:           URL,
 		RemoteTimeout: timeout,
 		ProxyURL:      proxyURL,
+		tags:          tags,
 		logger:        logger.WithFields(logrus.Fields{"sink": name, "sink_type": "cortex"}),
 		name:          name,
 	}, nil
@@ -123,10 +130,9 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 
-	tags := map[string]string{"sink": s.name, "sink_type": "cortex"}
 	flushStart := time.Now()
 
-	wr := makeWriteRequest(metrics)
+	wr := makeWriteRequest(metrics, s.tags)
 	data, err := proto.Marshal(wr)
 	if err != nil {
 		return err
@@ -166,6 +172,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	}
 
 	// Emit standard sink metrics
+	tags := map[string]string{"sink": s.name, "sink_type": "cortex"}
 	metricsCount := len(metrics)
 	flushCount := len(wr.Timeseries)
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsSkipped, float32(metricsCount-flushCount), tags))
@@ -185,10 +192,10 @@ func (s *CortexMetricSink) FlushOtherSamples(context.Context, []ssf.SSFSample) {
 
 // makeWriteRequest converts a list of samples from a flush into a single
 // prometheus remote-write compatible protobuf object
-func makeWriteRequest(metrics []samplers.InterMetric) *prompb.WriteRequest {
+func makeWriteRequest(metrics []samplers.InterMetric, tags map[string]string) *prompb.WriteRequest {
 	ts := make([]*prompb.TimeSeries, len(metrics))
 	for i, metric := range metrics {
-		ts[i] = metricToTimeSeries(metric)
+		ts[i] = metricToTimeSeries(metric, tags)
 	}
 
 	return &prompb.WriteRequest{
@@ -201,7 +208,7 @@ func makeWriteRequest(metrics []samplers.InterMetric) *prompb.WriteRequest {
 // legal set of characters (see https://prometheus.io/docs/practices/naming)
 // and we drop tags which are not in "key:value" format
 // (see https://prometheus.io/docs/concepts/data_model/)
-func metricToTimeSeries(metric samplers.InterMetric) *prompb.TimeSeries {
+func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string) *prompb.TimeSeries {
 	var ts prompb.TimeSeries
 	ts.Labels = []*prompb.Label{
 		&prompb.Label{Name: "__name__", Value: sanitise(metric.Name)},
@@ -212,6 +219,9 @@ func metricToTimeSeries(metric samplers.InterMetric) *prompb.TimeSeries {
 			continue // drop illegal tag
 		}
 		ts.Labels = append(ts.Labels, &prompb.Label{Name: sanitise(kv[0]), Value: kv[1]})
+	}
+	for k, v := range tags {
+		ts.Labels = append(ts.Labels, &prompb.Label{Name: sanitise(k), Value: v})
 	}
 
 	// Prom format has the ability to carry batched samples, in this instance we
