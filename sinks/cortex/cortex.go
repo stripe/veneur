@@ -36,6 +36,7 @@ type CortexMetricSink struct {
 	RemoteTimeout time.Duration
 	ProxyURL      string
 	client        *http.Client
+	logger        *logrus.Entry
 	name          string
 }
 
@@ -56,7 +57,7 @@ func Create(
 		return nil, errors.New("invalid sink config type")
 	}
 
-	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, name)
+	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name)
 }
 
 // ParseConfig extracts Cortex specific fields from the global veneur config
@@ -73,11 +74,12 @@ func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
 }
 
 // NewCortexMetricSink creates and returns a new instance of the sink
-func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, name string) (*CortexMetricSink, error) {
+func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string) (*CortexMetricSink, error) {
 	return &CortexMetricSink{
 		URL:           URL,
 		RemoteTimeout: timeout,
 		ProxyURL:      proxyURL,
+		logger:        logger.WithFields(logrus.Fields{"sink": name, "sink_type": "cortex"}),
 		name:          name,
 	}, nil
 }
@@ -89,6 +91,7 @@ func (s *CortexMetricSink) Name() string {
 
 // Start sets up the HTTP client for writing to Cortex
 func (s *CortexMetricSink) Start(*trace.Client) error {
+	s.logger.Infof("Starting sink for %s", s.URL)
 	// Default concurrent connections is 2
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.MaxIdleConns = MaxConns
@@ -136,11 +139,14 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 
 	r, err := s.client.Do(req)
 	if err != nil {
+		s.logger.WithError(err).Info("Failed to post request")
 		return err
 	}
 
 	// Resource leak can occur if body isn't closed explicitly
 	r.Body.Close()
+
+	s.logger.Info("Flush complete")
 
 	return nil
 }
