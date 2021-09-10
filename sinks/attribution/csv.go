@@ -3,6 +3,7 @@ package attribution
 import (
 	"encoding/csv"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -12,14 +13,16 @@ const (
 	// the order in which these appear determines the
 	// order of the fields in the resultant TSV
 	TsvName tsvField = iota
-	TsvOwner
 	TsvCardinality
+	TsvDigests
+	TsvOwner
 )
 
 var tsvSchema = [...]string{
 	TsvName:        "Name",
-	TsvOwner:       "Owner",
 	TsvCardinality: "Value",
+	TsvDigests:     "Digests",
+	TsvOwner:       "Owner",
 }
 
 // EncodeInterMetricCSV generates a newline-terminated CSV row that describes
@@ -27,11 +30,21 @@ var tsvSchema = [...]string{
 // The caller is responsible for setting w.Comma as the appropriate delimiter.
 // For performance, encodeCSV does not flush after every call; the caller is
 // expected to flush at the end of the operation cycle
-func encodeInterMetricCSV(g *TimeseriesGroup, w *csv.Writer) error {
+func encodeInterMetricCSV(g *TimeseriesGroup, w *csv.Writer, includeDigests bool) error {
+	digests := ""
+	if includeDigests {
+		var strDigests []string
+		for _, digest := range g.Digests {
+			strDigests = append(strDigests, strconv.FormatUint(uint64(digest), 10))
+		}
+		digests = strings.Join(strDigests, ",")
+	}
+
 	fields := [...]string{
 		TsvName:        g.Name,
-		TsvOwner:       g.Owner,
 		TsvCardinality: fmt.Sprintf("%d", g.Sketch.Estimate()),
+		TsvDigests:     digests,
+		TsvOwner:       g.Owner,
 	}
 
 	w.Write(fields[:])

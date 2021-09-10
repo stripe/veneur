@@ -36,6 +36,7 @@ type AttributionSinkConfig struct {
 	AWSRegion          string            `yaml:"aws_region"`
 	AWSSecretAccessKey util.StringSecret `yaml:"aws_secret_access_key"`
 	HostnameTag        string            `yaml:"hostname_tag"`
+	IncludeDigests     bool              `yaml:"include_digests"`
 	OwnerKey           string            `yaml:"owner_key"`
 	S3Bucket           string            `yaml:"s3_bucket"`
 	S3KeyPrefix        string            `yaml:"s3_key_prefix"`
@@ -66,6 +67,7 @@ type AttributionSink struct {
 	commonDimensions map[string]string
 	hostnameTag      string
 	hostname         string
+	includeDigests   bool
 }
 
 // S3ClientUninitializedError is an error returned when the S3 client provided to
@@ -129,6 +131,7 @@ func Create(
 		commonDimensions: server.TagsAsMap,
 		hostnameTag:      attributionSinkConfig.HostnameTag,
 		hostname:         server.Hostname,
+		includeDigests:   attributionSinkConfig.IncludeDigests,
 	}, nil
 }
 
@@ -164,7 +167,7 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 		}
 	}
 
-	csv, err := encodeAttributionDataCSV(s.attributionData)
+	csv, err := encodeAttributionDataCSV(s.attributionData, s.includeDigests)
 	if err != nil {
 		s.log.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
@@ -264,17 +267,17 @@ func (s *AttributionSink) recordMetric(metric samplers.InterMetric) {
 	ts.Sketch.Insert(bDigest[:])
 }
 
-// encodeInterMetricsCSV returns a reader containing the gzipped CSV
+// encodeAttributionDataCSV returns a reader containing the gzipped CSV
 // representation of TimeseriesGroup data, one row per TimeseriesGroup. The AWS
 // SDK requires seekable input, so we return a ReadSeeker here
-func encodeAttributionDataCSV(attributionData map[string]*TimeseriesGroup) (io.ReadSeeker, error) {
+func encodeAttributionDataCSV(attributionData map[string]*TimeseriesGroup, includeDigests bool) (io.ReadSeeker, error) {
 	b := &bytes.Buffer{}
 	gzw := gzip.NewWriter(b)
 	w := csv.NewWriter(gzw)
 	w.Comma = '\t'
 
 	for _, metric := range attributionData {
-		encodeInterMetricCSV(metric, w)
+		encodeInterMetricCSV(metric, w, includeDigests)
 	}
 
 	w.Flush()
