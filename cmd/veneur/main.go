@@ -77,6 +77,7 @@ func main() {
 			"attribution": {
 				Create:      attribution.Create,
 				ParseConfig: attribution.ParseConfig,
+			},
 			"cortex": {
 				Create:      cortex.Create,
 				ParseConfig: cortex.ParseConfig,
