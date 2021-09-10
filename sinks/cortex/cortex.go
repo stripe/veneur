@@ -177,11 +177,9 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 
 	// Emit standard sink metrics
 	tags := map[string]string{"sink": s.name, "sink_type": "cortex"}
-	metricsCount := len(metrics)
-	flushCount := len(wr.Timeseries)
-	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsSkipped, float32(metricsCount-flushCount), tags))
+	// We don't send sinks.MetricKeyTotalMetricsSkipped at present, as it would always be 0
 	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags))
-	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(flushCount), tags))
+	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(metrics)), tags))
 
 	s.logger.Info("Flush complete")
 
