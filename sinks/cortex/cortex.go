@@ -186,7 +186,7 @@ func metricToTimeSeries(metric samplers.InterMetric) *prompb.TimeSeries {
 	// send a single sample per write. Probably worth exploring this as an area
 	// for optimisation if we find the write path becomes contended
 	ts.Samples = []prompb.Sample{
-		prompb.Sample{Value: metric.Value, Timestamp: metric.Timestamp},
+		prompb.Sample{Value: metric.Value, Timestamp: metric.Timestamp * 1000},
 	}
 
 	return &ts

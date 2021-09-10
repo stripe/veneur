@@ -18,7 +18,7 @@
       "samples": [
         {
           "value": 100,
-          "timestamp": 1
+          "timestamp": 1000
         }
       ]
     },
@@ -36,7 +36,7 @@
       "samples": [
         {
           "value": 2,
-          "timestamp": 1
+          "timestamp": 1000
         }
       ]
     },
@@ -50,7 +50,7 @@
       "samples": [
         {
           "value": 5,
-          "timestamp": 1
+          "timestamp": 1000
         }
       ]
     }
