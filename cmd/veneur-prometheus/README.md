@@ -32,11 +32,13 @@ Buckets are defined explicitly by the application. If the definition of bucket b
 
 ```
 Usage of ./veneur-prometheus:
+  -a string
+    	A comma-seperated list of tags to add. (e.g. "newtag=newtagvalue,othernewtag=othernewtagvalue"
   -cacert string
     	The path to a CA cert used to validate the server certificate. Only used if using mTLS.
   -cert string
     	The path to a client cert to present to the server. Only used if using mTLS.
-  -d    Enable debug mode
+  -d	Enable debug mode
   -h string
     	The full URL — like 'http://localhost:9090/metrics' to query for Prometheus metrics. (default "http://localhost:9090/metrics")
   -i string
@@ -49,6 +51,10 @@ Usage of ./veneur-prometheus:
     	The path to a private key to use for mTLS. Only used if using mTLS.
   -p string
     	A prefix to append to any metrics emitted. Include a trailing period. (e.g. "myservice.")
+  -r string
+    	A comma-seperated list of rename rules for tags. (e.g. "oldtag=newtag,otheroldtag=othernewtag"
   -s string
     	The host and port — like '127.0.0.1:8126' — to send our metrics to. (default "127.0.0.1:8126")
+  -socket string
+    	The path to a unix socket to use for transport. Useful for certains styles of proxy.
 ```

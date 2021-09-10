@@ -1,9 +1,9 @@
-S3 Plugin
-===========
+S3 Sink
+=======
 
-The S3 plugin archives every flush to S3 as a separate S3 object.
+The S3 sink archives every flush to S3 as a separate S3 object.
 
-This plugin is still in an experimental state.
+This sink is still in an experimental state.
 
 
 
@@ -11,13 +11,13 @@ This plugin is still in an experimental state.
 
 Mandatory parameters below.
 
-* aws_s3_bucket: `string`
+* aws_s3_bucket: `util.StringSecret`
 * aws_region: `string`
 
 Optional parameters below.
 
 * aws_access_key_id `string`
-* aws_secret_access_key `string`
+* aws_secret_access_key `util.StringSecret`
 
 The Go AWS SDK will load up Credentials in the following order. https://docs.aws.amazon.com/sdk-for-go/api/aws/session/
 

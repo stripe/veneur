@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/sinks/attribution"
+	"github.com/stripe/veneur/v14/sinks/cortex"
 	"github.com/stripe/veneur/v14/sinks/debug"
 	"github.com/stripe/veneur/v14/sinks/kafka"
 	"github.com/stripe/veneur/v14/sinks/s3"
@@ -76,6 +77,9 @@ func main() {
 			"attribution": {
 				Create:      attribution.Create,
 				ParseConfig: attribution.ParseConfig,
+			"cortex": {
+				Create:      cortex.Create,
+				ParseConfig: cortex.ParseConfig,
 			},
 			"debug": {
 				Create:      debug.CreateMetricSink,
