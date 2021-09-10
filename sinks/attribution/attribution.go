@@ -74,6 +74,8 @@ type AttributionSink struct {
 // AttributionSink is nil
 var S3ClientUninitializedError = errors.New("s3 client has not been initialized")
 
+const ATTRIBUTION_PATH_FORMAT_VERSION = "v1"
+
 // TimeseriesGroup represents an attributable unit of metrics data, complete with
 // owner, metadata corresponding to the metrics data grouping, and cardinality
 // tallying
@@ -330,12 +332,10 @@ func s3Key(s3KeyPrefix, veneurInstanceID string) string {
 	exactFlushTs := t.Unix()
 	hourPartition := t.Format("2006/01/02/03")
 
-	prefix := ""
+	key := fmt.Sprintf("%s/%s/%s-%d.tsv.gz", ATTRIBUTION_PATH_FORMAT_VERSION, hourPartition, veneurInstanceID, exactFlushTs)
 	if s3KeyPrefix != "" {
-		prefix = fmt.Sprintf("%s/", s3KeyPrefix)
+		key = fmt.Sprintf("%s/%s", s3KeyPrefix, key)
 	}
-
-	key := fmt.Sprintf("%s%s/%s-%d.tsv.gz", prefix, hourPartition, veneurInstanceID, exactFlushTs)
 	return key
 }
 
