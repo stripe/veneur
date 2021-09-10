@@ -13,12 +13,16 @@
         {
           "name": "baz",
           "value": "qux"
+        },
+        {
+          "name": "corge",
+          "value": "grault"
         }
       ],
       "samples": [
         {
           "value": 100,
-          "timestamp": 1
+          "timestamp": 1000
         }
       ]
     },
@@ -31,12 +35,16 @@
         {
           "name": "foo",
           "value": "bar"
+        },
+        {
+          "name": "corge",
+          "value": "grault"
         }
       ],
       "samples": [
         {
           "value": 2,
-          "timestamp": 1
+          "timestamp": 1000
         }
       ]
     },
@@ -45,12 +53,16 @@
         {
           "name": "__name__",
           "value": "a_b_status"
+        },
+        {
+          "name": "corge",
+          "value": "grault"
         }
       ],
       "samples": [
         {
           "value": 5,
-          "timestamp": 1
+          "timestamp": 1000
         }
       ]
     }

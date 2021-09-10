@@ -13,6 +13,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/prometheus/prompb"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks"
@@ -22,7 +23,7 @@ import (
 func TestName(t *testing.T) {
 	// Implicitly test that CortexMetricsSink implements MetricSink
 	var sink sinks.MetricSink
-	sink, err := NewCortexMetricSink("https://localhost/", 30, "", "cortex")
+	sink, err := NewCortexMetricSink("https://localhost/", 30, "", logrus.NewEntry(logrus.New()), "cortex", map[string]string{})
 
 	assert.NoError(t, err)
 	assert.Equal(t, "cortex", sink.Name())
@@ -34,7 +35,7 @@ func TestFlush(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30, "", "")
+	sink, err := NewCortexMetricSink(server.URL, 30, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"})
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 

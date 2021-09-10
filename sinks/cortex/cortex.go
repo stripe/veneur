@@ -3,6 +3,7 @@ package cortex
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -36,9 +37,15 @@ type CortexMetricSink struct {
 	RemoteTimeout time.Duration
 	ProxyURL      string
 	client        *http.Client
+	logger        *logrus.Entry
 	name          string
+	tags          map[string]string
+	traceClient   *trace.Client
 }
 
+// TODO: implement queue config options, at least
+// max_samples_per_send, max_shards, and capacity
+// https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
 type CortexMetricSinkConfig struct {
 	URL           string        `yaml:"url"`
 	RemoteTimeout time.Duration `yaml:"remote_timeout"`
@@ -56,7 +63,12 @@ func Create(
 		return nil, errors.New("invalid sink config type")
 	}
 
-	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, name)
+	// TagsAsMap is a set of configurable common tags applied to every metric
+	tags := server.TagsAsMap
+	// Host has to be supplied especially
+	tags["host"] = config.Hostname
+
+	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, tags)
 }
 
 // ParseConfig extracts Cortex specific fields from the global veneur config
@@ -73,11 +85,13 @@ func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
 }
 
 // NewCortexMetricSink creates and returns a new instance of the sink
-func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, name string) (*CortexMetricSink, error) {
+func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string) (*CortexMetricSink, error) {
 	return &CortexMetricSink{
 		URL:           URL,
 		RemoteTimeout: timeout,
 		ProxyURL:      proxyURL,
+		tags:          tags,
+		logger:        logger.WithFields(logrus.Fields{"sink_type": "cortex"}),
 		name:          name,
 	}, nil
 }
@@ -88,7 +102,8 @@ func (s *CortexMetricSink) Name() string {
 }
 
 // Start sets up the HTTP client for writing to Cortex
-func (s *CortexMetricSink) Start(*trace.Client) error {
+func (s *CortexMetricSink) Start(tc *trace.Client) error {
+	s.logger.Infof("Starting sink for %s", s.URL)
 	// Default concurrent connections is 2
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	t.MaxIdleConns = MaxConns
@@ -108,12 +123,19 @@ func (s *CortexMetricSink) Start(*trace.Client) error {
 		Timeout:   time.Duration(s.RemoteTimeout * time.Second),
 		Transport: t,
 	}
+
+	s.traceClient = tc
 	return nil
 }
 
 // Flush sends a batch of metrics to the configured remote-write endpoint
 func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
-	wr := makeWriteRequest(metrics)
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	defer span.ClientFinish(s.traceClient)
+
+	flushStart := time.Now()
+
+	wr := makeWriteRequest(metrics, s.tags)
 	data, err := proto.Marshal(wr)
 	if err != nil {
 		return err
@@ -136,11 +158,30 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 
 	r, err := s.client.Do(req)
 	if err != nil {
+		span.Error(err)
+		s.logger.WithError(err).Info("Failed to post request")
 		return err
 	}
-
 	// Resource leak can occur if body isn't closed explicitly
-	r.Body.Close()
+	defer r.Body.Close()
+
+	// TODO: retry on 400/500 (per remote-write spec)
+	if r.StatusCode >= 300 {
+		b, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			return errors.Wrap(err, "could not read response body")
+		}
+		// Cortex responds with terse and informative messages
+		s.logger.Infof("Flush failed with HTTP %d: %s", r.StatusCode, b)
+	}
+
+	// Emit standard sink metrics
+	tags := map[string]string{"sink": s.name, "sink_type": "cortex"}
+	// We don't send sinks.MetricKeyTotalMetricsSkipped at present, as it would always be 0
+	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags))
+	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(metrics)), tags))
+
+	s.logger.Info("Flush complete")
 
 	return nil
 }
@@ -148,15 +189,17 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 // FlushOtherSamples would forward non-metric sanples like spans. Prometheus
 // cannot receive them, so this is a no-op.
 func (s *CortexMetricSink) FlushOtherSamples(context.Context, []ssf.SSFSample) {
+	// TODO convert samples to metrics and send them
+	// as in FlushOtherSamples in the signalfx sink
 	return
 }
 
 // makeWriteRequest converts a list of samples from a flush into a single
 // prometheus remote-write compatible protobuf object
-func makeWriteRequest(metrics []samplers.InterMetric) *prompb.WriteRequest {
+func makeWriteRequest(metrics []samplers.InterMetric, tags map[string]string) *prompb.WriteRequest {
 	ts := make([]*prompb.TimeSeries, len(metrics))
 	for i, metric := range metrics {
-		ts[i] = metricToTimeSeries(metric)
+		ts[i] = metricToTimeSeries(metric, tags)
 	}
 
 	return &prompb.WriteRequest{
@@ -169,7 +212,7 @@ func makeWriteRequest(metrics []samplers.InterMetric) *prompb.WriteRequest {
 // legal set of characters (see https://prometheus.io/docs/practices/naming)
 // and we drop tags which are not in "key:value" format
 // (see https://prometheus.io/docs/concepts/data_model/)
-func metricToTimeSeries(metric samplers.InterMetric) *prompb.TimeSeries {
+func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string) *prompb.TimeSeries {
 	var ts prompb.TimeSeries
 	ts.Labels = []*prompb.Label{
 		&prompb.Label{Name: "__name__", Value: sanitise(metric.Name)},
@@ -181,12 +224,15 @@ func metricToTimeSeries(metric samplers.InterMetric) *prompb.TimeSeries {
 		}
 		ts.Labels = append(ts.Labels, &prompb.Label{Name: sanitise(kv[0]), Value: kv[1]})
 	}
+	for k, v := range tags {
+		ts.Labels = append(ts.Labels, &prompb.Label{Name: sanitise(k), Value: v})
+	}
 
 	// Prom format has the ability to carry batched samples, in this instance we
 	// send a single sample per write. Probably worth exploring this as an area
 	// for optimisation if we find the write path becomes contended
 	ts.Samples = []prompb.Sample{
-		prompb.Sample{Value: metric.Value, Timestamp: metric.Timestamp},
+		prompb.Sample{Value: metric.Value, Timestamp: metric.Timestamp * 1000},
 	}
 
 	return &ts
