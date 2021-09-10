@@ -91,7 +91,7 @@ func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, log
 		RemoteTimeout: timeout,
 		ProxyURL:      proxyURL,
 		tags:          tags,
-		logger:        logger.WithFields(logrus.Fields{"sink": name, "sink_type": "cortex"}),
+		logger:        logger.WithFields(logrus.Fields{"sink_type": "cortex"}),
 		name:          name,
 	}, nil
 }
@@ -176,7 +176,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	}
 
 	// Emit standard sink metrics
-	tags := map[string]string{"sink_type": "cortex"}
+	tags := map[string]string{"sink": s.name, "sink_type": "cortex"}
 	metricsCount := len(metrics)
 	flushCount := len(wr.Timeseries)
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsSkipped, float32(metricsCount-flushCount), tags))
