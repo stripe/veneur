@@ -259,10 +259,10 @@ func (s *AttributionSink) recordMetric(metric samplers.InterMetric) {
 
 	// Convert uint32 to []byte, so we can insert into ts.Sketch:
 	bDigest := [4]byte{
-        byte(0xff & tsDigest),
-        byte(0xff & (tsDigest >> 8)),
-        byte(0xff & (tsDigest >> 16)),
-        byte(0xff & (tsDigest >> 24)),
+		byte(0xff & tsDigest),
+		byte(0xff & (tsDigest >> 8)),
+		byte(0xff & (tsDigest >> 16)),
+		byte(0xff & (tsDigest >> 24)),
 	}
 	ts.Sketch.Insert(bDigest[:])
 }
