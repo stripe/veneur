@@ -35,6 +35,7 @@ type AttributionSinkConfig struct {
 	AWSAccessKeyID     util.StringSecret `yaml:"aws_access_key_id"`
 	AWSRegion          string            `yaml:"aws_region"`
 	AWSSecretAccessKey util.StringSecret `yaml:"aws_secret_access_key"`
+	HostnameTag        string            `yaml:"hostname_tag"`
 	OwnerKey           string            `yaml:"owner_key"`
 	S3Bucket           string            `yaml:"s3_bucket"`
 	S3KeyPrefix        string            `yaml:"s3_key_prefix"`
@@ -62,6 +63,9 @@ type AttributionSink struct {
 	s3Bucket         string
 	attributionData  map[string]*TimeseriesGroup
 	ownerKey         string
+	commonDimensions map[string]string
+	hostnameTag      string
+	hostname         string
 }
 
 // S3ClientUninitializedError is an error returned when the S3 client provided to
@@ -122,6 +126,9 @@ func Create(
 		s3Bucket:         attributionSinkConfig.S3Bucket,
 		attributionData:  map[string]*TimeseriesGroup{},
 		ownerKey:         attributionSinkConfig.OwnerKey,
+		commonDimensions: server.TagsAsMap,
+		hostnameTag:      attributionSinkConfig.HostnameTag,
+		hostname:         server.Hostname,
 	}, nil
 }
 
@@ -181,10 +188,10 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 	return nil
 }
 
-// timeseriesDigest takes in InterMetric and derives an digest that can be used
-// to tell if multiple InterMetrics correspond to the same TimeseriesGroup, for
-// tallying purposes
-func timeseriesDigest(metric samplers.InterMetric) uint32 {
+// timeseriesDigest takes in metric metadata and derives an digest that can be
+// used to tell if multiple InterMetrics correspond to the same
+// TimeseriesGroup, for tallying purposes
+func timeseriesDigest(name string, tags []string) uint32 {
 	// Workers have some notion of timeseries uniqueness, but one that isn't
 	// quite rigorous enough to perform timeseries cardinality computation
 	// accurately:
@@ -194,31 +201,30 @@ func timeseriesDigest(metric samplers.InterMetric) uint32 {
 	// (bar:val, foo:val) are semantically identical. However, it's a more
 	// involved refactor to make Tags order agnostic, so in the meantime we
 	// have this hack so we can accurately tally timeseries:
-	tagsToAdd := metric.Tags // make a copy
-	sort.Strings(tagsToAdd)
+	sort.Strings(tags)
 
 	h := fnv1a.Init32
-	h = fnv1a.AddString32(h, metric.Name)
-	for _, tag := range tagsToAdd {
+	h = fnv1a.AddString32(h, name)
+	for _, tag := range tags {
 		h = fnv1a.AddString32(h, tag)
 	}
 	return h
 }
 
-// timeseriesIDs takes an InterMetric and the name of a tag that can be used to
-// derive a TimeseriesGroup owner, and returns (1) an identifier that
+// timeseriesIDs takes metric metadata and the name of a tag that can be used
+// to derive a TimeseriesGroup owner, and returns (1) an identifier that
 // ultimately corresponds to a grouping of Timeseries to be tallied and (2) an
 // owner corresponding to said group
 //
 // If an ownerKey is not specified, timeseriesIDs returns the name
 // of the metric and a blank owner
-func timeseriesIDs(metric samplers.InterMetric, ownerKey string) (groupID, ownerID string) {
+func timeseriesIDs(name string, tags []string, ownerKey string) (groupID, ownerID string) {
 	var b strings.Builder
-	b.WriteString(metric.Name)
+	b.WriteString(name)
 
 	if ownerKey != "" {
 		// Find the tag matching ownerKey and add its value to the Group ID
-		for _, tag := range metric.Tags {
+		for _, tag := range tags {
 			tagSplit := strings.SplitN(tag, ":", 2)
 			if len(tagSplit) == 2 && tagSplit[0] == ownerKey {
 				ownerID = tagSplit[1]
@@ -233,8 +239,14 @@ func timeseriesIDs(metric samplers.InterMetric, ownerKey string) (groupID, owner
 
 // recordMetric tallies an InterMetric, creating a TimeseriesGroup in the process
 func (s *AttributionSink) recordMetric(metric samplers.InterMetric) {
-	tsDigest := timeseriesDigest(metric)
-	tsGroupID, tsOwnerID := timeseriesIDs(metric, s.ownerKey)
+	tags := metric.Tags
+	tags = append(tags, fmt.Sprintf("%s:%s", s.hostnameTag, s.hostname))
+	for k, v := range s.commonDimensions {
+		tags = append(tags, fmt.Sprintf("%s:%s", k, v))
+	}
+
+	tsDigest := timeseriesDigest(metric.Name, tags)
+	tsGroupID, tsOwnerID := timeseriesIDs(metric.Name, tags, s.ownerKey)
 	ts, ok := s.attributionData[tsGroupID]
 	if !ok {
 		ts = &TimeseriesGroup{metric.Name, tsOwnerID, []uint32{}, hyperloglog.New()}
