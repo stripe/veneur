@@ -6,16 +6,12 @@ import (
 	"strings"
 )
 
-type SinkRoutingConfig struct {
-	Name         string           `yaml:"name"`
-	MatchConfigs []MatcherConfig  `yaml:"match"`
-	Sinks        SinkRoutingSinks `yaml:"sinks"`
-}
-
 type MatcherConfig struct {
 	Name NameMatcher  `yaml:"name"`
 	Tags []TagMatcher `yaml:"tags"`
 }
+
+type MatcherConfigs []MatcherConfig
 
 type NameMatcherConfig struct {
 	Kind  string `yaml:"kind"`
@@ -41,9 +37,32 @@ type TagMatcher struct {
 	value string
 }
 
-type SinkRoutingSinks struct {
-	Matched    []string `yaml:"matched"`
-	NotMatched []string `yaml:"not_matched"`
+func (matcherConfigs MatcherConfigs) Matches(
+	name string, tags []string,
+) bool {
+configLoop:
+	for _, matcherConfig := range matcherConfigs {
+		if !matcherConfig.Name.match(name) {
+			continue
+		}
+	tagLoop:
+		for _, tagMatchConfig := range matcherConfig.Tags {
+			for _, tag := range tags {
+				if tagMatchConfig.match(tag) {
+					if tagMatchConfig.unset {
+						continue configLoop
+					} else {
+						continue tagLoop
+					}
+				}
+			}
+			if !tagMatchConfig.unset {
+				continue configLoop
+			}
+		}
+		return true
+	}
+	return false
 }
 
 // UnmarshalYAML unmarshals and validates the yaml config for matching the name
@@ -133,32 +152,4 @@ func (matcher *TagMatcher) matchPrefix(value string) bool {
 
 func (matcher *TagMatcher) matchRegex(value string) bool {
 	return matcher.regex.MatchString(value)
-}
-
-func (config *SinkRoutingConfig) Match(
-	name string, tags []string,
-) bool {
-configLoop:
-	for _, matchConfig := range config.MatchConfigs {
-		if !matchConfig.Name.match(name) {
-			continue
-		}
-	tagLoop:
-		for _, tagMatchConfig := range matchConfig.Tags {
-			for _, tag := range tags {
-				if tagMatchConfig.match(tag) {
-					if tagMatchConfig.unset {
-						continue configLoop
-					} else {
-						continue tagLoop
-					}
-				}
-			}
-			if !tagMatchConfig.unset {
-				continue configLoop
-			}
-		}
-		return true
-	}
-	return false
 }

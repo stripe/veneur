@@ -109,7 +109,7 @@ func (s *Server) Flush(ctx context.Context) {
 			metric.Sinks = make(samplers.RouteInformation)
 			for _, config := range s.Config.MetricSinkRouting {
 				var sinks []string
-				if config.Match(metric.Name, metric.Tags) {
+				if config.MatcherConfigs.Matches(metric.Name, metric.Tags) {
 					sinks = config.Sinks.Matched
 				} else {
 					sinks = config.Sinks.NotMatched
