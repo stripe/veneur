@@ -754,17 +754,17 @@ func sendStatsd(netAddr net.Addr, addr string, span *ssf.SSFSpan, useGrpc bool, 
 	if useGrpc {
 		writer, err := newDatadogGrpcWriter(netAddr, addr, proxyAddr)
 		if err == nil {
-			client, err = statsd.NewWithWriter(writer)
+			client, err = statsd.NewWithWriter(writer, statsd.WithoutTelemetry())
 		}
 	} else {
 		network := netAddr.Network()
 		switch network {
 		case "udp":
-			client, err = statsd.New(netAddr.String())
+			client, err = statsd.New(netAddr.String(), statsd.WithoutTelemetry())
 		case "tcp":
 			writer, err := newDatadogTCPWriter(netAddr.String())
 			if err == nil {
-				client, err = statsd.NewWithWriter(writer)
+				client, err = statsd.NewWithWriter(writer, statsd.WithoutTelemetry())
 			}
 		default:
 			err = fmt.Errorf("%s is not supported for sending statsd metrics", network)
