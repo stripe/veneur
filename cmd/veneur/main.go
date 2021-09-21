@@ -10,6 +10,7 @@ import (
 	"github.com/stripe/veneur/v14/sinks/cortex"
 	"github.com/stripe/veneur/v14/sinks/debug"
 	"github.com/stripe/veneur/v14/sinks/kafka"
+	"github.com/stripe/veneur/v14/sinks/localfile"
 	"github.com/stripe/veneur/v14/sinks/s3"
 	"github.com/stripe/veneur/v14/sinks/signalfx"
 	"github.com/stripe/veneur/v14/sinks/splunk"
@@ -84,6 +85,10 @@ func main() {
 			"kafka": {
 				Create:      kafka.CreateMetricSink,
 				ParseConfig: kafka.ParseMetricConfig,
+			},
+			"localfile": {
+				Create:      localfile.Create,
+				ParseConfig: localfile.ParseConfig,
 			},
 			"s3": {
 				Create:      s3.Create,
