@@ -102,7 +102,7 @@ type ServerConfig struct {
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Config                Config
-	Workers               []*Worker
+	Workers               []WorkerSet
 	EventWorker           *EventWorker
 	SpanChan              chan *ssf.SSFSpan
 	SpanWorker            *SpanWorker
@@ -401,10 +401,12 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	ret.stuckIntervals = conf.FlushWatchdogMissedFlushes
 
+	// TODO: transport timeout should vary on a per-workerset basis, not be global
 	transport := &http.Transport{
 		IdleConnTimeout: ret.interval * 2, // If we're idle more than one interval something is up
 	}
 
+	// TODO: this timeout should also vary on a per-workerset basis
 	ret.HTTPClient = &http.Client{
 		// make sure that POSTs to datadog do not overflow the flush interval
 		Timeout:   ret.interval * 9 / 10,
@@ -486,13 +488,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	// found during setup we should use logger.Fatal or
 	// logger.Panic, because that will give us breakage monitoring
 	// through Sentry.
-	numWorkers := 1
-	if conf.NumWorkers > 1 {
-		numWorkers = conf.NumWorkers
-	}
-	logger.WithField("number", numWorkers).Info("Preparing workers")
-	// Allocate the slice, we'll fill it with workers later.
-	ret.Workers = make([]*Worker, numWorkers)
+
 	ret.numReaders = conf.NumReaders
 
 	// This must come before worker initialization. We need to
@@ -504,19 +500,50 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	// slight performance hit to workers.
 	ret.CountUniqueTimeseries = conf.CountUniqueTimeseries
 
-	// Use the pre-allocated Workers slice to know how many to start.
-	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, log, ret.Statsd)
-		// do not close over loop index
-		go func(w *Worker) {
-			defer func() {
-				ConsumePanic(ret.TraceClient, ret.Hostname, recover())
-			}()
-			w.Work()
-		}(ret.Workers[i])
+	ret.Workers = make([]WorkerSet, 0)
+	if conf.Features.EnableMetricComputationRouting {
+		for _, config := range conf.MetricComputationRouting {
+			if config.WorkerCount < 1 {
+				logger.WithFields(logrus.Fields{
+					"worker_name":  config.Name,
+					"worker_count": config.WorkerCount,
+				}).Fatal("WorkerCount must be greater than 0")
+			}
+			logger.WithField("worker_name", config.Name).Info("Preparing WorkerSet")
+			workerSet := make(WorkerSet, config.WorkerCount)
+			for i := 0; i < config.WorkerCount; i++ {
+				// TODO: ids are not unique like this?
+				workerSet[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, log, ret.Statsd)
+			}
+			ret.Workers = append(ret.Workers, workerSet)
+		}
+	} else {
+		numWorkers := 1
+		if conf.NumWorkers > 1 {
+			numWorkers = conf.NumWorkers
+		}
+		logger.WithField("number", numWorkers).Info("Preparing workers")
+		workerSet := make([]*Worker, numWorkers)
+		for i := 0; i < numWorkers; i++ {
+			workerSet[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, log, ret.Statsd)
+		}
+		ret.Workers = append(ret.Workers, workerSet)
+	}
+
+	for _, workerSet := range ret.Workers {
+		for _, worker := range workerSet {
+			go func(w *Worker) {
+				defer func() {
+					ConsumePanic(ret.TraceClient, ret.Hostname, recover())
+				}()
+				w.Work()
+			}(worker)
+		}
 	}
 
 	ret.EventWorker = NewEventWorker(ret.TraceClient, ret.Statsd)
+
+	// TODO: SSFMetrics is incompatible with multi-interval Veneur
 
 	// Set up a span sink that extracts metrics from SSF spans and
 	// reports them via the metric workers:
@@ -618,6 +645,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			excludeTagsPrefixByPrefixMetric[m.MetricPrefix] = m.Tags
 		}
 
+		// TODO: datadog sink should get interval from the flushgroup metadata
 		ddSink, err := datadog.NewDatadogMetricSink(
 			ret.interval.Seconds(), conf.DatadogFlushMaxPerBody, conf.Hostname,
 			ret.Tags, conf.DatadogAPIHostname, conf.DatadogAPIKey.Value,
@@ -789,6 +817,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		// convert all the workers to the proper interface
 		ingesters := make([]importsrv.MetricIngester, len(ret.Workers))
 		for i, worker := range ret.Workers {
+			// TODO: multi-interval veneur is incompatible with importsrv
 			ingesters[i] = worker
 		}
 

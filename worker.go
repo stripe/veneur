@@ -56,6 +56,11 @@ func (w *Worker) IngestMetrics(ms []*metricpb.Metric) {
 	w.ImportMetricChan <- ms
 }
 
+// WorkerSet is a set of workers that can ingest metrics. WorkerSet is
+// explicitly defined as its own type because it is possible to have multiple
+// WorkerSets via ComputationRoutingConfig
+type WorkerSet []*Worker
+
 // WorkerMetrics is just a plain struct bundling together the flushed contents of a worker
 type WorkerMetrics struct {
 	// we do not want to key on the metric's Digest here, because those could
