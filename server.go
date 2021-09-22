@@ -127,9 +127,9 @@ type Server struct {
 	GRPCListenAddrs   []net.Addr
 	RcvbufBytes       int
 
-	enableMetricComputationRouting bool
-	interval                       time.Duration
-	synchronizeInterval            bool
+	enableMetricRouting bool
+	interval            time.Duration
+	synchronizeInterval bool
 
 	numReaders          int
 	metricMaxLength     int
@@ -151,8 +151,9 @@ type Server struct {
 
 	HistogramAggregates samplers.HistogramAggregates
 
-	spanSinks   []sinks.SpanSink
-	metricSinks []sinks.MetricSink
+	spanSinks                   []sinks.SpanSink
+	metricSinks                 []sinks.MetricSink
+	subscribedFlushGroupsBySink map[string][]string
 
 	TraceClient *trace.Client
 
@@ -366,6 +367,14 @@ func (server *Server) createMetricSinks(
 			return nil, err
 		}
 		sinks = append(sinks, sink)
+
+		// Add flush groups to subscribedFlushGroupsBySink, so the flusher can
+		// later determine which WorkerSets should flush to this sink
+		for _, routingConfig := range config.MetricSinkRouting {
+			if routingConfig.Name == sink.Name() {
+				server.subscribedFlushGroupsBySink[sink.Name()] = routingConfig.FlushGroupSubscriptions
+			}
+		}
 	}
 	return sinks, nil
 }
@@ -497,9 +506,9 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	ret.ForwardAddr = conf.ForwardAddress
 
 	// TODO: Verify this defaults to False
-	ret.enableMetricComputationRouting = conf.Features.EnableMetricComputationRouting
+	ret.enableMetricRouting = conf.Features.EnableMetricRouting
 	ret.WorkerSets = make([]WorkerSet, 0)
-	if ret.enableMetricComputationRouting {
+	if ret.enableMetricRouting {
 		for _, config := range conf.MetricComputationRouting {
 			if config.WorkerCount < 1 {
 				logger.WithFields(logrus.Fields{
@@ -970,7 +979,7 @@ func (s *Server) Start() {
 		}
 	}
 
-	if s.enableMetricComputationRouting {
+	if s.enableMetricRouting {
 		// Flush every Interval forever!
 		for _, workerSet := range s.WorkerSets {
 			go func(workerSet WorkerSet) {

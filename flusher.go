@@ -103,53 +103,65 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 		return
 	}
 
-	// TODO move match from Sink Routing to Computation Routing
+	// we moved match from Sink Routing to Computation Routing
 	// With >1 WorkerSet, if we don't move match from Sink Routing to Comptuation Routing,
 	// a problem arises where a user configures a match that does not specify a flush group, but is just
 	// regex against a shape of metric. At that point it matches the same metric twice from two different flush groups.
 	// This is a common pitfall and we should steer users away from it.
-
-	if s.Config.Features.EnableMetricSinkRouting {
-		for index := range finalMetrics {
-			metric := &finalMetrics[index]
-			metric.Sinks = make(samplers.RouteInformation)
-			for _, config := range s.Config.MetricSinkRouting {
-				var sinks []string
-				if config.MatcherConfigs.Matches(metric.Name, metric.Tags) {
-					sinks = config.Sinks.Matched
-				} else {
-					sinks = config.Sinks.NotMatched
-				}
-				for _, sink := range sinks {
-					metric.Sinks[sink] = struct{}{}
-				}
-			}
-		}
-	}
-
 	for _, sink := range s.metricSinks {
 		wg.Add(1)
 		go func(ms sinks.MetricSink) {
-			filteredMetrics := finalMetrics
-			if s.Config.Features.EnableMetricSinkRouting {
+			defer wg.Done()
+
+			if s.Config.Features.EnableMetricRouting {
 				sinkName := ms.Name()
-				filteredMetrics = []samplers.InterMetric{}
-				for _, metric := range finalMetrics {
+
+				flushGroups, ok := s.subscribedFlushGroupsBySink[sinkName]
+				if !ok {
+					log.WithField("sink", sinkName).Warn("Flush failed due to missing flush group initialization")
+				}
+				shouldFlush := false
+				for _, flushGroup := range flushGroups {
+					if flushGroup == workerSet.ComputationRoutingConfig.FlushGroup {
+						shouldFlush = true
+						break
+					}
+				}
+				if !shouldFlush {
+					log.WithField("sink", sinkName).Debug("Skipping flush; sink not opted into flush group")
+					return
+				}
+
+				routeInformationFilteredMetrics := []samplers.InterMetric{}
+				for _, metric := range routeInformationFilteredMetrics {
 					_, ok := metric.Sinks[sinkName]
 					if !ok {
 						continue
 					}
-					filteredMetrics = append(filteredMetrics, metric)
+					routeInformationFilteredMetrics = append(routeInformationFilteredMetrics, metric)
+				}
+				// TODO calling flush should pass along some metadata
+				// I think at a minimum, this is flush group name
+				// but datadog needs the interval too
+				err := ms.Flush(span.Attach(ctx), routeInformationFilteredMetrics)
+				if err != nil {
+					log.WithError(err).WithField("sink", sinkName).Warn("Error flushing sink")
+				}
+			} else {
+				routeInformationFilteredMetrics := []samplers.InterMetric{}
+				for _, metric := range routeInformationFilteredMetrics {
+					_, ok := metric.Sinks[ms.Name()]
+					if !ok {
+						continue
+					}
+					routeInformationFilteredMetrics = append(routeInformationFilteredMetrics, metric)
+				}
+
+				err := ms.Flush(span.Attach(ctx), routeInformationFilteredMetrics)
+				if err != nil {
+					log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
 				}
 			}
-			// TODO calling flush should pass along some metadata
-			// I think at a minimum, this is flush group name
-			// but datadog needs the interval too
-			err := ms.Flush(span.Attach(ctx), filteredMetrics)
-			if err != nil {
-				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
-			}
-			wg.Done()
 		}(sink)
 	}
 	wg.Wait()
