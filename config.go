@@ -13,7 +13,6 @@ type Config struct {
 	AwsS3Bucket                            string            `yaml:"aws_s3_bucket"`
 	AwsSecretAccessKey                     util.StringSecret `yaml:"aws_secret_access_key"`
 	BlockProfileRate                       int               `yaml:"block_profile_rate"`
-	CountUniqueTimeseries                  bool              `yaml:"count_unique_timeseries"`
 	DatadogAPIHostname                     string            `yaml:"datadog_api_hostname"`
 	DatadogAPIKey                          util.StringSecret `yaml:"datadog_api_key"`
 	DatadogExcludeTagsPrefixByPrefixMetric []struct {

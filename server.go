@@ -101,13 +101,12 @@ type ServerConfig struct {
 
 // A Server is the actual veneur instance that will be run.
 type Server struct {
-	Config                Config
-	Workers               []WorkerSet
-	EventWorker           *EventWorker
-	SpanChan              chan *ssf.SSFSpan
-	SpanWorker            *SpanWorker
-	SpanWorkerGoroutines  int
-	CountUniqueTimeseries bool
+	Config               Config
+	WorkerSets           []WorkerSet
+	EventWorker          *EventWorker
+	SpanChan             chan *ssf.SSFSpan
+	SpanWorker           *SpanWorker
+	SpanWorkerGoroutines int
 
 	Statsd *scopedstatsd.ScopedClient
 
@@ -128,8 +127,10 @@ type Server struct {
 	GRPCListenAddrs   []net.Addr
 	RcvbufBytes       int
 
-	interval            time.Duration
-	synchronizeInterval bool
+	enableMetricComputationRouting bool
+	interval                       time.Duration
+	synchronizeInterval            bool
+
 	numReaders          int
 	metricMaxLength     int
 	traceMaxLengthBytes int
@@ -495,13 +496,10 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	// initialize workers with state from *Server.IsWorker.
 	ret.ForwardAddr = conf.ForwardAddress
 
-	// Control whether Veneur should emit metric
-	// "veneur.flush.unique_timeseries_total", which may come at a
-	// slight performance hit to workers.
-	ret.CountUniqueTimeseries = conf.CountUniqueTimeseries
-
-	ret.Workers = make([]WorkerSet, 0)
-	if conf.Features.EnableMetricComputationRouting {
+	// TODO: Verify this defaults to False
+	ret.enableMetricComputationRouting = conf.Features.EnableMetricComputationRouting
+	ret.WorkerSets = make([]WorkerSet, 0)
+	if ret.enableMetricComputationRouting {
 		for _, config := range conf.MetricComputationRouting {
 			if config.WorkerCount < 1 {
 				logger.WithFields(logrus.Fields{
@@ -510,12 +508,12 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 				}).Fatal("WorkerCount must be greater than 0")
 			}
 			logger.WithField("worker_name", config.Name).Info("Preparing WorkerSet")
-			workerSet := make(WorkerSet, config.WorkerCount)
+			workerSet := WorkerSet{make([]*Worker, config.WorkerCount), &config}
 			for i := 0; i < config.WorkerCount; i++ {
 				// TODO: ids are not unique like this?
-				workerSet[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, log, ret.Statsd)
+				workerSet.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
 			}
-			ret.Workers = append(ret.Workers, workerSet)
+			ret.WorkerSets = append(ret.WorkerSets, workerSet)
 		}
 	} else {
 		numWorkers := 1
@@ -523,15 +521,25 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			numWorkers = conf.NumWorkers
 		}
 		logger.WithField("number", numWorkers).Info("Preparing workers")
-		workerSet := make([]*Worker, numWorkers)
+		workers := make([]*Worker, numWorkers)
 		for i := 0; i < numWorkers; i++ {
-			workerSet[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, log, ret.Statsd)
+			workers[i] = NewWorker(i+1, ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
 		}
-		ret.Workers = append(ret.Workers, workerSet)
+		ret.WorkerSets = append(ret.WorkerSets, WorkerSet{
+			workers,
+			&ComputationRoutingConfig{
+				"",
+				"",
+				MatcherConfigs{},
+				ret.interval,
+				numWorkers,
+				true,
+			},
+		})
 	}
 
-	for _, workerSet := range ret.Workers {
-		for _, worker := range workerSet {
+	for _, workerSet := range ret.WorkerSets {
+		for _, worker := range workerSet.Workers {
 			go func(w *Worker) {
 				defer func() {
 					ConsumePanic(ret.TraceClient, ret.Hostname, recover())
@@ -543,19 +551,22 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	ret.EventWorker = NewEventWorker(ret.TraceClient, ret.Statsd)
 
-	// TODO: SSFMetrics is incompatible with multi-interval Veneur
-
-	// Set up a span sink that extracts metrics from SSF spans and
-	// reports them via the metric workers:
-	processors := make([]ssfmetrics.Processor, len(ret.Workers))
-	for i, w := range ret.Workers {
-		processors[i] = w
+	// TODO: multi-interval veneur is incompatible with SSFMetrics
+	// However we need to build this PR out in pieces, so to get the build to pass, we're going to hardcode this assumption that
+	// there will only be one WorkerSet
+	if len(ret.WorkerSets) == 1 {
+		// Set up a span sink that extracts metrics from SSF spans and
+		// reports them via the metric workers:
+		processors := make([]ssfmetrics.Processor, len(ret.WorkerSets[0].Workers))
+		for i, w := range ret.WorkerSets[0].Workers {
+			processors[i] = w
+		}
+		metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log, &ret.parser)
+		if err != nil {
+			return ret, err
+		}
+		ret.spanSinks = append(ret.spanSinks, metricSink)
 	}
-	metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log, &ret.parser)
-	if err != nil {
-		return ret, err
-	}
-	ret.spanSinks = append(ret.spanSinks, metricSink)
 
 	for _, addrStr := range conf.StatsdListenAddresses {
 		addr, err := protocol.ResolveAddr(addrStr)
@@ -815,9 +826,17 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	ret.grpcListenAddress = conf.GrpcAddress
 	if ret.grpcListenAddress != "" {
 		// convert all the workers to the proper interface
-		ingesters := make([]importsrv.MetricIngester, len(ret.Workers))
-		for i, worker := range ret.Workers {
-			// TODO: multi-interval veneur is incompatible with importsrv
+
+		// TODO: multi-interval veneur is incompatible with importsrv
+		// However we need to build this PR out in pieces, so to get the build to pass, we're going to hardcode this assumption that
+		// there will only be one WorkerSet
+
+		if len(ret.WorkerSets) > 1 {
+			logger.Fatal("FIXME")
+		}
+
+		ingesters := make([]importsrv.MetricIngester, len(ret.WorkerSets[0].Workers))
+		for i, worker := range ret.WorkerSets[0].Workers {
 			ingesters[i] = worker
 		}
 
@@ -951,44 +970,88 @@ func (s *Server) Start() {
 		}
 	}
 
-	// Flush every Interval forever!
-	go func() {
-		defer func() {
-			ConsumePanic(s.TraceClient, s.Hostname, recover())
-		}()
+	if s.enableMetricComputationRouting {
+		// Flush every Interval forever!
+		for _, workerSet := range s.WorkerSets {
+			go func(workerSet WorkerSet) {
+				defer func() {
+					ConsumePanic(s.TraceClient, s.Hostname, recover())
+				}()
 
-		ctx, cancel := context.WithCancel(context.Background())
+				ctx, cancel := context.WithCancel(context.Background())
+				go func() {
+					// If the server is shutting down, cancel any in-flight flush:
+					<-s.shutdown
+					cancel()
+				}()
+
+				if s.synchronizeInterval {
+					// We want to align our ticker to a multiple of its duration for
+					// convenience of bucketing.
+					<-time.After(CalculateTickDelay(workerSet.ComputationRoutingConfig.WorkerInterval, time.Now()))
+				}
+
+				// We aligned the ticker to our interval above. It's worth noting that just
+				// because we aligned once we're not guaranteed to be perfect on each
+				// subsequent tick. This code is small, however, and should service the
+				// incoming tick signal fast enough that the amount we are "off" is
+				// negligible.
+				ticker := time.NewTicker(workerSet.ComputationRoutingConfig.WorkerInterval)
+				for {
+					select {
+					case <-s.shutdown:
+						// stop flushing on graceful shutdown
+						ticker.Stop()
+						return
+					case triggered := <-ticker.C:
+						ctx, cancel := context.WithDeadline(ctx, triggered.Add(s.interval))
+						s.Flush(ctx, workerSet)
+						cancel()
+					}
+				}
+
+			}(workerSet)
+		}
+	} else {
+		// Flush every Interval forever!
 		go func() {
-			// If the server is shutting down, cancel any in-flight flush:
-			<-s.shutdown
-			cancel()
-		}()
+			defer func() {
+				ConsumePanic(s.TraceClient, s.Hostname, recover())
+			}()
 
-		if s.synchronizeInterval {
-			// We want to align our ticker to a multiple of its duration for
-			// convenience of bucketing.
-			<-time.After(CalculateTickDelay(s.interval, time.Now()))
-		}
-
-		// We aligned the ticker to our interval above. It's worth noting that just
-		// because we aligned once we're not guaranteed to be perfect on each
-		// subsequent tick. This code is small, however, and should service the
-		// incoming tick signal fast enough that the amount we are "off" is
-		// negligible.
-		ticker := time.NewTicker(s.interval)
-		for {
-			select {
-			case <-s.shutdown:
-				// stop flushing on graceful shutdown
-				ticker.Stop()
-				return
-			case triggered := <-ticker.C:
-				ctx, cancel := context.WithDeadline(ctx, triggered.Add(s.interval))
-				s.Flush(ctx)
+			ctx, cancel := context.WithCancel(context.Background())
+			go func() {
+				// If the server is shutting down, cancel any in-flight flush:
+				<-s.shutdown
 				cancel()
+			}()
+
+			if s.synchronizeInterval {
+				// We want to align our ticker to a multiple of its duration for
+				// convenience of bucketing.
+				<-time.After(CalculateTickDelay(s.interval, time.Now()))
 			}
-		}
-	}()
+
+			// We aligned the ticker to our interval above. It's worth noting that just
+			// because we aligned once we're not guaranteed to be perfect on each
+			// subsequent tick. This code is small, however, and should service the
+			// incoming tick signal fast enough that the amount we are "off" is
+			// negligible.
+			ticker := time.NewTicker(s.interval)
+			for {
+				select {
+				case <-s.shutdown:
+					// stop flushing on graceful shutdown
+					ticker.Stop()
+					return
+				case triggered := <-ticker.C:
+					ctx, cancel := context.WithDeadline(ctx, triggered.Add(s.interval))
+					s.Flush(ctx, s.WorkerSets[0])
+					cancel()
+				}
+			}
+		}()
+	}
 }
 
 // FlushWatchdog periodically checks that at most
@@ -1008,6 +1071,8 @@ func (s *Server) FlushWatchdog() {
 		return
 	}
 	atomic.StoreInt64(&s.lastFlushUnix, time.Now().UnixNano())
+
+	// TODO: Support multiple intervals
 
 	ticker := time.NewTicker(s.interval)
 	for {
@@ -1101,7 +1166,10 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "service_check", "reason": "parse"}))
 			return err
 		}
-		s.Workers[svcheck.Digest%uint32(len(s.Workers))].PacketChan <- *svcheck
+		for _, workerSet := range s.WorkerSets {
+			numWorkers := uint32(len(workerSet.Workers))
+			workerSet.Workers[svcheck.Digest%numWorkers].PacketChan <- *svcheck
+		}
 	} else {
 		metric, err := s.parser.ParseMetric(packet)
 		if err != nil {
@@ -1112,7 +1180,10 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "metric", "reason": "parse"}))
 			return err
 		}
-		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
+		for _, workerSet := range s.WorkerSets {
+			numWorkers := uint32(len(workerSet.Workers))
+			workerSet.Workers[metric.Digest%numWorkers].PacketChan <- *metric
+		}
 	}
 	return nil
 }

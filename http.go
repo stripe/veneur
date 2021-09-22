@@ -71,10 +71,14 @@ func (s *Server) ImportMetrics(ctx context.Context, jsonMetrics []samplers.JSONM
 	// of allocations)
 	// instead, we'll compute the fnv hash of every metric in the array,
 	// and sort the array by the hashes
-	sortedIter := newJSONMetricsByWorker(jsonMetrics, len(s.Workers))
+
+	// TODO
+	// - we'll need to figure out how to make this work with WorkerSets
+	// - it should still be possible
+	sortedIter := newJSONMetricsByWorker(jsonMetrics, len(s.WorkerSets[0].Workers))
 	for sortedIter.Next() {
 		nextChunk, workerIndex := sortedIter.Chunk()
-		s.Workers[workerIndex].ImportChan <- nextChunk
+		s.WorkerSets[0].Workers[workerIndex].ImportChan <- nextChunk
 	}
 	metrics.ReportOne(s.TraceClient, ssf.Timing("import.response_duration_ns", time.Since(span.Start), time.Nanosecond, map[string]string{"part": "merge"}))
 }

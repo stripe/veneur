@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/axiomhq/hyperloglog"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14/forwardrpc"
 	vhttp "github.com/stripe/veneur/v14/http"
@@ -25,7 +24,7 @@ import (
 )
 
 // Flush collects sampler's metrics and passes them to sinks.
-func (s *Server) Flush(ctx context.Context) {
+func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 	span := tracer.StartSpan("flush").(*trace.Span)
 	defer span.ClientFinish(s.TraceClient)
 
@@ -41,10 +40,6 @@ func (s *Server) Flush(ctx context.Context) {
 	s.Statsd.Gauge("gc.pause_total_ns", float64(mem.PauseTotalNs), nil, 1.0)
 	s.Statsd.Gauge("mem.heap_alloc_bytes", float64(mem.HeapAlloc), nil, 1.0)
 	s.Statsd.Gauge("flush.flush_timestamp_ns", float64(flushTime), nil, 1.0)
-
-	if s.CountUniqueTimeseries {
-		s.Statsd.Count("flush.unique_timeseries_total", s.tallyTimeseries(), []string{fmt.Sprintf("global_veneur:%t", !s.IsLocal())}, 1.0)
-	}
 
 	samples := s.EventWorker.Flush()
 
@@ -65,6 +60,11 @@ func (s *Server) Flush(ctx context.Context) {
 	//   * Percentiles are only accurate when aggregated globally.
 	//   * Avoid double counting and breaking existing queries (if count is also
 	//     emitted globally, queries that sum over counts double!)
+	//
+	// TODO: With Metrics Computation Routing, percentiles should be
+	// customizable on a per-sink basis, instead of hardcoded globally.
+	// However, to simplify the initial implementation of MCR we will leave
+	// this setting global only for simplicity's sake.
 	var percentiles []float64
 	aggregates := s.HistogramAggregates
 	if !s.IsLocal() {
@@ -72,14 +72,15 @@ func (s *Server) Flush(ctx context.Context) {
 		aggregates = samplers.HistogramAggregates{}
 	}
 
-	tempMetrics, ms := s.tallyMetrics(percentiles)
+	tempMetrics, ms := s.tallyMetrics(workerSet, percentiles)
 
+	// ms is only used for length of intermetrics array here
 	finalMetrics = s.generateInterMetrics(span.Attach(ctx), percentiles, aggregates, tempMetrics, ms)
 
-	s.reportMetricsFlushCounts(ms)
+	s.reportMetricsFlushCounts(workerSet, ms)
 
 	wg := sync.WaitGroup{}
-	if s.IsLocal() {
+	if s.IsLocal() && workerSet.ComputationRoutingConfig.ForwardMetrics {
 		wg.Add(1)
 		// Forward over gRPC or HTTP depending on the configuration
 		if s.forwardUseGRPC {
@@ -98,10 +99,15 @@ func (s *Server) Flush(ctx context.Context) {
 		s.reportGlobalReceivedProtocolMetrics()
 	}
 
-	// If there's nothing to flush, don't bother calling the plugins and stuff.
 	if len(finalMetrics) == 0 {
 		return
 	}
+
+	// TODO move match from Sink Routing to Computation Routing
+	// With >1 WorkerSet, if we don't move match from Sink Routing to Comptuation Routing,
+	// a problem arises where a user configures a match that does not specify a flush group, but is just
+	// regex against a shape of metric. At that point it matches the same metric twice from two different flush groups.
+	// This is a common pitfall and we should steer users away from it.
 
 	if s.Config.Features.EnableMetricSinkRouting {
 		for index := range finalMetrics {
@@ -136,6 +142,9 @@ func (s *Server) Flush(ctx context.Context) {
 					filteredMetrics = append(filteredMetrics, metric)
 				}
 			}
+			// TODO calling flush should pass along some metadata
+			// I think at a minimum, this is flush group name
+			// but datadog needs the interval too
 			err := ms.Flush(span.Attach(ctx), filteredMetrics)
 			if err != nil {
 				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
@@ -160,17 +169,6 @@ func (s *Server) Flush(ctx context.Context) {
 			samples.Add(ssf.Gauge(fmt.Sprintf("flush.plugins.%s.post_metrics_total", p.Name()), float32(len(finalMetrics)), nil))
 		}
 	}()
-}
-
-func (s *Server) tallyTimeseries() int64 {
-	allTimeseries := hyperloglog.New()
-	for _, w := range s.Workers {
-		w.uniqueMTSMtx.Lock()
-		allTimeseries.Merge(w.uniqueMTS)
-		w.uniqueMTS = hyperloglog.New()
-		w.uniqueMTSMtx.Unlock()
-	}
-	return int64(allTimeseries.Estimate())
 }
 
 type metricsSummary struct {
@@ -199,14 +197,15 @@ const perProtocolTotalMetricName string = "listen.received_per_protocol_total"
 // of metrics we'll be reporting, so that we can pre-allocate
 // a slice of the correct length instead of constantly appending
 // for performance
-func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSummary) {
+func (s *Server) tallyMetrics(workerSet WorkerSet, percentiles []float64) ([]WorkerMetrics, metricsSummary) {
 	// allocating this long array to count up the sizes is cheaper than appending
 	// the []WorkerMetrics together one at a time
-	tempMetrics := make([]WorkerMetrics, 0, len(s.Workers))
+	tempMetrics := make([]WorkerMetrics, 0, len(workerSet.Workers))
 
 	ms := metricsSummary{}
 
-	for i, w := range s.Workers {
+	for i, w := range workerSet.Workers {
+		// TODO: this should probably log the worker id or something instead
 		log.WithField("worker", i).Debug("Flushing")
 		wm := w.Flush()
 		tempMetrics = append(tempMetrics, wm)
@@ -339,13 +338,16 @@ const flushTotalMetric = "worker.metrics_flushed_total"
 // because those are only performed by the global veneur instance.
 // It also does not report the total metrics posted, because on the local veneur,
 // that should happen *after* the flush-forward operation.
-func (s *Server) reportMetricsFlushCounts(ms metricsSummary) {
-	s.Statsd.Count(flushTotalMetric, int64(ms.totalCounters), []string{"metric_type:counter"}, 1.0)
-	s.Statsd.Count(flushTotalMetric, int64(ms.totalGauges), []string{"metric_type:gauge"}, 1.0)
-	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalHistograms), []string{"metric_type:local_histogram"}, 1.0)
-	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalSets), []string{"metric_type:local_set"}, 1.0)
-	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalTimers), []string{"metric_type:local_timer"}, 1.0)
-	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalStatusChecks), []string{"metric_type:status"}, 1.0)
+func (s *Server) reportMetricsFlushCounts(workerSet WorkerSet, ms metricsSummary) {
+	nameTag := fmt.Sprintf("computation_routing_name:%s", workerSet.ComputationRoutingConfig.Name)
+	flushGroupTag := fmt.Sprintf("flush_group:%s", workerSet.ComputationRoutingConfig.FlushGroup)
+
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalCounters), []string{"metric_type:counter", nameTag, flushGroupTag}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalGauges), []string{"metric_type:gauge", nameTag, flushGroupTag}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalHistograms), []string{"metric_type:local_histogram", nameTag, flushGroupTag}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalSets), []string{"metric_type:local_set", nameTag, flushGroupTag}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalTimers), []string{"metric_type:local_timer", nameTag, flushGroupTag}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalStatusChecks), []string{"metric_type:status", nameTag, flushGroupTag}, 1.0)
 }
 
 // reportGlobalMetricsFlushCounts reports the counts of

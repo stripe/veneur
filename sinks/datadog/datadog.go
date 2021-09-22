@@ -20,7 +20,6 @@ import (
 	"github.com/stripe/veneur/v14/trace/metrics"
 )
 
-const datadogNameKey = "name"
 const datadogResourceKey = "resource"
 
 // At present Veneur has no way to differentiate between types. This could likely
