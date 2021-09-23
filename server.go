@@ -411,12 +411,12 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	ret.stuckIntervals = conf.FlushWatchdogMissedFlushes
 
-	// TODO: transport timeout should vary on a per-workerset basis, not be global
 	transport := &http.Transport{
 		IdleConnTimeout: ret.interval * 2, // If we're idle more than one interval something is up
 	}
 
-	// TODO: this timeout should also vary on a per-workerset basis
+	// TODO: There should not be a global HTTPClient; these parameters are not
+	//       one-size-fits-all, and should be customized by the sink
 	ret.HTTPClient = &http.Client{
 		// make sure that POSTs to datadog do not overflow the flush interval
 		Timeout:   ret.interval * 9 / 10,
@@ -505,7 +505,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	// initialize workers with state from *Server.IsWorker.
 	ret.ForwardAddr = conf.ForwardAddress
 
-	// TODO: Verify this defaults to False
 	ret.enableMetricRouting = conf.Features.EnableMetricRouting
 	ret.WorkerSets = make([]WorkerSet, 0)
 	ret.subscribedFlushGroupsBySink = make(map[string][]string)
@@ -666,7 +665,9 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			excludeTagsPrefixByPrefixMetric[m.MetricPrefix] = m.Tags
 		}
 
-		// TODO: datadog sink should get interval from the flushgroup metadata
+		// TODO: The Datadog sink should not be dependent on the global config
+		//       Interval, but rather should gather this information from the
+		//       WorkerSet on flush
 		ddSink, err := datadog.NewDatadogMetricSink(
 			ret.interval.Seconds(), conf.DatadogFlushMaxPerBody, conf.Hostname,
 			ret.Tags, conf.DatadogAPIHostname, conf.DatadogAPIKey.Value,
