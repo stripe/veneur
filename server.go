@@ -1177,6 +1177,9 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 			return err
 		}
 		for _, workerSet := range s.WorkerSets {
+			if !workerSet.ComputationRoutingConfig.MatcherConfigs.Match(svcheck.Name, svcheck.Tags) {
+				continue
+			}
 			numWorkers := uint32(len(workerSet.Workers))
 			workerSet.Workers[svcheck.Digest%numWorkers].PacketChan <- *svcheck
 		}
@@ -1191,6 +1194,9 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 			return err
 		}
 		for _, workerSet := range s.WorkerSets {
+			if !workerSet.ComputationRoutingConfig.MatcherConfigs.Match(metric.Name, metric.Tags) {
+				continue
+			}
 			numWorkers := uint32(len(workerSet.Workers))
 			workerSet.Workers[metric.Digest%numWorkers].PacketChan <- *metric
 		}

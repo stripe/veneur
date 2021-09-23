@@ -37,7 +37,7 @@ type TagMatcher struct {
 	value string
 }
 
-func (matcherConfigs MatcherConfigs) Matches(
+func (matcherConfigs MatcherConfigs) Match(
 	name string, tags []string,
 ) bool {
 configLoop:
