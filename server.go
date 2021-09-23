@@ -508,6 +508,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	// TODO: Verify this defaults to False
 	ret.enableMetricRouting = conf.Features.EnableMetricRouting
 	ret.WorkerSets = make([]WorkerSet, 0)
+	ret.subscribedFlushGroupsBySink = make(map[string][]string)
 	if ret.enableMetricRouting {
 		for _, config := range conf.MetricComputationRouting {
 			if config.WorkerCount < 1 {

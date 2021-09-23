@@ -12,12 +12,6 @@ type ComputationRoutingConfig struct {
 }
 
 type SinkRoutingConfig struct {
-	Name                    string           `yaml:"name"`
-	FlushGroupSubscriptions []string         `yaml:"flush_group_subscriptions"`
-	Sinks                   SinkRoutingSinks `yaml:"sinks"`
-}
-
-type SinkRoutingSinks struct {
-	Matched    []string `yaml:"matched"`
-	NotMatched []string `yaml:"not_matched"`
+	Name                    string   `yaml:"name"`
+	FlushGroupSubscriptions []string `yaml:"flush_group_subscriptions"`
 }

@@ -72,11 +72,13 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 		aggregates = samplers.HistogramAggregates{}
 	}
 
+	log.WithField("worker_set", workerSet.ComputationRoutingConfig.Name).Debug("Tallying metrics")
 	tempMetrics, ms := s.tallyMetrics(workerSet, percentiles)
 
-	// ms is only used for length of intermetrics array here
+	log.WithField("worker_set", workerSet.ComputationRoutingConfig.Name).Debug("Generating InterMetrics")
 	finalMetrics = s.generateInterMetrics(span.Attach(ctx), percentiles, aggregates, tempMetrics, ms)
 
+	log.WithField("worker_set", workerSet.ComputationRoutingConfig.Name).Debug("Reporting flush metrics")
 	s.reportMetricsFlushCounts(workerSet, ms)
 
 	wg := sync.WaitGroup{}
@@ -112,8 +114,8 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 		wg.Add(1)
 		go func(ms sinks.MetricSink) {
 			defer wg.Done()
-
-			if s.Config.Features.EnableMetricRouting {
+			filteredMetrics := finalMetrics
+			if s.enableMetricRouting {
 				sinkName := ms.Name()
 
 				flushGroups, ok := s.subscribedFlushGroupsBySink[sinkName]
@@ -132,32 +134,25 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 					return
 				}
 
-				routeInformationFilteredMetrics := []samplers.InterMetric{}
-				for _, metric := range routeInformationFilteredMetrics {
-					_, ok := metric.Sinks[sinkName]
-					if !ok {
-						continue
-					}
-					routeInformationFilteredMetrics = append(routeInformationFilteredMetrics, metric)
-				}
+				log.WithField("worker_set", workerSet.ComputationRoutingConfig.Name).Debug("Flushing metrics sink")
 				// TODO calling flush should pass along some metadata
 				// I think at a minimum, this is flush group name
 				// but datadog needs the interval too
-				err := ms.Flush(span.Attach(ctx), routeInformationFilteredMetrics)
+				err := ms.Flush(span.Attach(ctx), filteredMetrics)
 				if err != nil {
 					log.WithError(err).WithField("sink", sinkName).Warn("Error flushing sink")
 				}
 			} else {
-				routeInformationFilteredMetrics := []samplers.InterMetric{}
-				for _, metric := range routeInformationFilteredMetrics {
+				// TODO: We should really unship/migrate IsAcceptableMetric
+				for _, metric := range filteredMetrics {
 					_, ok := metric.Sinks[ms.Name()]
 					if !ok {
 						continue
 					}
-					routeInformationFilteredMetrics = append(routeInformationFilteredMetrics, metric)
+					filteredMetrics = append(filteredMetrics, metric)
 				}
 
-				err := ms.Flush(span.Attach(ctx), routeInformationFilteredMetrics)
+				err := ms.Flush(span.Attach(ctx), filteredMetrics)
 				if err != nil {
 					log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
 				}
@@ -216,9 +211,7 @@ func (s *Server) tallyMetrics(workerSet WorkerSet, percentiles []float64) ([]Wor
 
 	ms := metricsSummary{}
 
-	for i, w := range workerSet.Workers {
-		// TODO: this should probably log the worker id or something instead
-		log.WithField("worker", i).Debug("Flushing")
+	for _, w := range workerSet.Workers {
 		wm := w.Flush()
 		tempMetrics = append(tempMetrics, wm)
 
