@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -15,6 +16,7 @@ import (
 	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks/localfile"
+	"github.com/stripe/veneur/v14/util"
 )
 
 var metrics = []samplers.InterMetric{{
@@ -86,7 +88,8 @@ func TestFlush(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, [][]string{{
 		"a.b.c.max", "{foo:bar,baz:quz}", "gauge", "hostname", "0",
-		"2016-10-10 05:04:18", "100", "20210921",
+		"2016-10-10 05:04:18", "100",
+		time.Now().UTC().Format(util.PartitionDateFormat),
 	}}, result)
 }
 
