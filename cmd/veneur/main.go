@@ -53,6 +53,7 @@ func main() {
 	}
 	if !conf.Features.MigrateMetricSinks {
 		debug.MigrateConfig(&conf)
+		localfile.MigrateConfig(&conf)
 		s3.MigrateConfig(&conf)
 		err = signalfx.MigrateConfig(&conf)
 		if err != nil {
