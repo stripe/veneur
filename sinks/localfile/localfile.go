@@ -19,8 +19,8 @@ import (
 )
 
 type LocalFileSinkConfig struct {
-	Delimiter rune   `yaml:"delimiter"`
-	FlushFile string `yaml:"flush_file"`
+	Delimiter util.Rune `yaml:"delimiter"`
+	FlushFile string    `yaml:"flush_file"`
 }
 
 // LocalFileSink is the LocalFile plugin that we'll use in Veneur
@@ -104,7 +104,7 @@ func NewLocalFileSink(
 	logger *logrus.Entry, name string,
 ) *LocalFileSink {
 	return &LocalFileSink{
-		Delimiter:  config.Delimiter,
+		Delimiter:  rune(config.Delimiter),
 		FilePath:   config.FlushFile,
 		FileSystem: filesystem,
 		hostname:   hostname,
