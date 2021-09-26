@@ -169,7 +169,6 @@ type Server struct {
 	grpcForwardConn *grpc.ClientConn
 
 	stuckIntervals int
-	lastFlushUnix  int64
 
 	parser samplers.Parser
 }
