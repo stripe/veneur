@@ -840,23 +840,23 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	// Setup the grpc server if it was configured
 	ret.grpcListenAddress = conf.GrpcAddress
 	if ret.grpcListenAddress != "" {
-		// convert all the workers to the proper interface
+		// convert all the WorkerSets to the proper interface
+		ingesterSets := make([]importsrv.IngesterSet, len(ret.WorkerSets))
 
-		// TODO: multi-interval veneur is incompatible with importsrv
-		// However we need to build this PR out in pieces, so to get the build to pass, we're going to hardcode this assumption that
-		// there will only be one WorkerSet
-
-		if len(ret.WorkerSets) > 1 {
-			logger.Fatal("FIXME")
+		for i, workerSet := range ret.WorkerSets {
+			ingesterSet := importsrv.IngesterSet{
+				Ingesters: make([]importsrv.MetricIngester, len(workerSet.Workers)),
+				Name:      workerSet.ComputationRoutingConfig.Name,
+			}
+			for _, worker := range workerSet.Workers {
+				ingesterSet.Ingesters[i] = worker
+			}
 		}
 
-		ingesters := make([]importsrv.MetricIngester, len(ret.WorkerSets[0].Workers))
-		for i, worker := range ret.WorkerSets[0].Workers {
-			ingesters[i] = worker
-		}
-
-		ret.grpcServer = importsrv.New(ingesters,
-			importsrv.WithTraceClient(ret.TraceClient))
+		ret.grpcServer = importsrv.New(
+			ingesterSets,
+			importsrv.WithTraceClient(ret.TraceClient),
+		)
 	}
 
 	// If this is a global veneur then initialize the listening per protocol metrics

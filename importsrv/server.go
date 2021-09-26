@@ -31,14 +31,19 @@ type MetricIngester interface {
 	IngestMetrics([]*metricpb.Metric)
 }
 
+type IngesterSet struct {
+	Ingesters []MetricIngester
+	Name      string
+}
+
 // Server wraps a gRPC server and implements the forwardrpc.Forward service.
 // It reads a list of metrics, and based on the provided key chooses a
 // MetricIngester to send it to.  A unique metric (name, tags, and type)
 // should always be routed to the same MetricIngester.
 type Server struct {
 	*grpc.Server
-	metricOuts []MetricIngester
-	opts       *options
+	ingesterSets []IngesterSet
+	opts         *options
 }
 
 type options struct {
@@ -51,11 +56,11 @@ type Option func(*options)
 
 // New creates an unstarted Server with the input MetricIngester's to send
 // output to.
-func New(metricOuts []MetricIngester, opts ...Option) *Server {
+func New(ingesterSets []IngesterSet, opts ...Option) *Server {
 	res := &Server{
-		Server:     grpc.NewServer(),
-		metricOuts: metricOuts,
-		opts:       &options{},
+		Server:       grpc.NewServer(),
+		ingesterSets: ingesterSets,
+		opts:         &options{},
 	}
 
 	for _, opt := range opts {
@@ -104,32 +109,43 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 	span.SetTag("protocol", "grpc")
 	defer span.ClientFinish(s.opts.traceClient)
 
-	dests := make([][]*metricpb.Metric, len(s.metricOuts))
+	for _, ingesterSet := range s.ingesterSets {
+		dests := make([][]*metricpb.Metric, len(ingesterSet.Ingesters))
 
-	// group metrics by their destination
-	groupStart := time.Now()
-	for _, m := range mlist.Metrics {
-		workerIdx := s.hashMetric(m) % uint32(len(dests))
-		dests[workerIdx] = append(dests[workerIdx], m)
-	}
-	span.Add(ssf.Timing(responseDurationMetric, time.Since(groupStart), time.Nanosecond, responseGroupTags))
-
-	// send each set of metrics to its destination.  Since this is typically
-	// implemented with channels, batching the metrics together avoids
-	// repeated channel send operations
-	sendStart := time.Now()
-	for i, ms := range dests {
-		if len(ms) > 0 {
-			s.metricOuts[i].IngestMetrics(ms)
+		// group metrics by their destination
+		groupStart := time.Now()
+		for _, m := range mlist.Metrics {
+			workerIdx := s.hashMetric(m) % uint32(len(dests))
+			dests[workerIdx] = append(dests[workerIdx], m)
 		}
-	}
+		span.Add(ssf.Timing(responseDurationMetric, time.Since(groupStart), time.Nanosecond, s.withIngesterSetTag(responseGroupTags, ingesterSet)))
 
-	span.Add(
-		ssf.Timing(responseDurationMetric, time.Since(sendStart), time.Nanosecond, responseSendTags),
-		ssf.Count("import.metrics_total", float32(len(mlist.Metrics)), grpcTags),
-	)
+		// send each set of metrics to its destination.  Since this is typically
+		// implemented with channels, batching the metrics together avoids
+		// repeated channel send operations
+		sendStart := time.Now()
+		for i, ms := range dests {
+			if len(ms) > 0 {
+				ingesterSet.Ingesters[i].IngestMetrics(ms)
+			}
+		}
+
+		span.Add(
+			ssf.Timing(responseDurationMetric, time.Since(sendStart), time.Nanosecond, s.withIngesterSetTag(responseSendTags, ingesterSet)),
+			ssf.Count("import.metrics_total", float32(len(mlist.Metrics)), s.withIngesterSetTag(grpcTags, ingesterSet)),
+		)
+	}
 
 	return &empty.Empty{}, nil
+}
+
+func (s *Server) withIngesterSetTag(tags map[string]string, ingesterSet IngesterSet) map[string]string {
+	withIngesterSet := make(map[string]string, len(tags)+1)
+	for k, v := range tags {
+		withIngesterSet[k] = v
+	}
+	withIngesterSet["ingester_set"] = ingesterSet.Name
+	return withIngesterSet
 }
 
 // hashMetric returns a 32-bit hash from the input metric based on its name,
