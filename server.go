@@ -563,14 +563,11 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	ret.EventWorker = NewEventWorker(ret.TraceClient, ret.Statsd)
 
-	// TODO: multi-interval veneur is incompatible with SSFMetrics
-	// However we need to build this PR out in pieces, so to get the build to pass, we're going to hardcode this assumption that
-	// there will only be one WorkerSet
-	if len(ret.WorkerSets) == 1 {
+	for _, workerSet := range ret.WorkerSets {
 		// Set up a span sink that extracts metrics from SSF spans and
 		// reports them via the metric workers:
-		processors := make([]ssfmetrics.Processor, len(ret.WorkerSets[0].Workers))
-		for i, w := range ret.WorkerSets[0].Workers {
+		processors := make([]ssfmetrics.Processor, len(workerSet.Workers))
+		for i, w := range workerSet.Workers {
 			processors[i] = w
 		}
 		metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log, &ret.parser)

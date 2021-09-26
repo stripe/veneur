@@ -23,6 +23,8 @@ type metricExtractionSink struct {
 	spansProcessed         int64
 	metricsGenerated       int64
 	parser                 samplers.Parser
+	// TODO add some "additionalTags" field here so that we can identify
+	//      the WorkerSet that corresponds to a metricExtractionSink
 }
 
 var _ sinks.SpanSink = &metricExtractionSink{}
