@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"reflect"
 	"runtime"
-	rtdebug "runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -127,9 +126,11 @@ type Server struct {
 	GRPCListenAddrs   []net.Addr
 	RcvbufBytes       int
 
-	enableMetricRouting bool
-	interval            time.Duration
-	synchronizeInterval bool
+	enableMetricRouting      bool
+	computationRoutingConfig []ComputationRoutingConfig
+	interval                 time.Duration
+	synchronizeInterval      bool
+	lastFlushes              map[string]*int64
 
 	numReaders          int
 	metricMaxLength     int
@@ -409,6 +410,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	}
 	ret.HistogramAggregates.Count = len(conf.Aggregates)
 
+	ret.lastFlushes = make(map[string]*int64)
 	ret.stuckIntervals = conf.FlushWatchdogMissedFlushes
 
 	transport := &http.Transport{
@@ -506,10 +508,11 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	ret.ForwardAddr = conf.ForwardAddress
 
 	ret.enableMetricRouting = conf.Features.EnableMetricRouting
+	ret.computationRoutingConfig = conf.MetricComputationRouting
 	ret.WorkerSets = make([]WorkerSet, 0)
 	ret.subscribedFlushGroupsBySink = make(map[string][]string)
 	if ret.enableMetricRouting {
-		for _, config := range conf.MetricComputationRouting {
+		for _, config := range ret.computationRoutingConfig {
 			if config.WorkerCount < 1 {
 				logger.WithFields(logrus.Fields{
 					"worker_name":  config.Name,
@@ -541,6 +544,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 				"",
 				MatcherConfigs{},
 				ret.interval,
+				0,
 				numWorkers,
 				true,
 			},
@@ -1062,52 +1066,6 @@ func (s *Server) Start() {
 				}
 			}
 		}()
-	}
-}
-
-// FlushWatchdog periodically checks that at most
-// `flush_watchdog_missed_flushes` were skipped in a Server. If more
-// than that number was skipped, it panics (assuming that flushing is
-// stuck) with a full level of detail on that panic's backtraces.
-//
-// It never terminates, so is ideally run from a goroutine in a
-// program's main function.
-func (s *Server) FlushWatchdog() {
-	defer func() {
-		ConsumePanic(s.TraceClient, s.Hostname, recover())
-	}()
-
-	if s.stuckIntervals == 0 {
-		// No watchdog needed:
-		return
-	}
-	atomic.StoreInt64(&s.lastFlushUnix, time.Now().UnixNano())
-
-	// TODO: Support multiple intervals
-
-	ticker := time.NewTicker(s.interval)
-	for {
-		select {
-		case <-s.shutdown:
-			ticker.Stop()
-			return
-		case <-ticker.C:
-			last := time.Unix(0, atomic.LoadInt64(&s.lastFlushUnix))
-			since := time.Since(last)
-
-			// If no flush was kicked off in the last N
-			// times, we're stuck - panic because that's a
-			// bug.
-			if since > time.Duration(s.stuckIntervals)*s.interval {
-				rtdebug.SetTraceback("all")
-				log.WithFields(logrus.Fields{
-					"last_flush":       last,
-					"missed_intervals": s.stuckIntervals,
-					"time_since":       since,
-				}).
-					Panic("Flushing seems to be stuck. Terminating.")
-			}
-		}
 	}
 }
 
