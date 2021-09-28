@@ -174,3 +174,16 @@ trace_lightstep_num_clients: 2
 	assert.Equal(t, 1, c.LightstepMaximumSpans)
 	assert.Equal(t, 2, c.LightstepNumClients)
 }
+
+func TestReadConfigEnvironmentVariables(t *testing.T) {
+	const fakeApiKey = "fake_api_key"
+	defer os.Unsetenv("VENEUR_DATADOGAPIKEY")
+	os.Setenv("VENEUR_DATADOGAPIKEY", fakeApiKey)
+	// read in empty config
+	c, err := readConfig(strings.NewReader(""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// make sure value was pulled from environment variable
+	assert.Equal(t, fakeApiKey, c.DatadogAPIKey.Value)
+}
