@@ -11,7 +11,11 @@ func (r *Rune) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
-	nativeRune, _ := utf8.DecodeRune([]byte(runeString))
+	return r.UnmarshalText([]byte(runeString))
+}
+
+func (r *Rune) UnmarshalText(text []byte) error {
+	nativeRune, _ := utf8.DecodeRune(text)
 	*r = Rune(nativeRune)
 	return nil
 }
