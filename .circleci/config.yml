@@ -2,10 +2,10 @@ version: 2.1
 executors:
   "previous":
     docker:
-      - image: golang:1.14
+      - image: golang:1.16
   "stable":
     docker:
-      - image: golang:1.15
+      - image: golang:1.17
 
 commands:
   install:
@@ -64,43 +64,6 @@ commands:
             - /go/bin/protoc-gen-gogofaster
             - /go/pkg/mod/github.com/gogo/protobuf@<<parameters.protoc_gen_gogofaster_tag>>
             - /go/bin/stringer
-  fetch_and_build_latest_go:
-    description: "Builds the latest version of go from source"
-    steps:
-      - run:
-          name: create datestamp
-          command: |
-            echo go-master-$(date +%Y-%m-%d) | tee /tmp/go-version
-      - run:
-          name: "Move away stable go"
-          command: |
-            if ! [ -d /usr/local/go-stable ] ; then
-              mv /usr/local/go /usr/local/go-stable
-            fi
-      - restore_cache:
-          key: |
-            {{ checksum "/tmp/go-version" }}
-      - run:
-          name: get latest master
-          command: |
-            if [ "$(cat /tmp/go-version)" = "$(cat /usr/local/go/VERSION)" ] ; then
-              exit 0
-            fi
-            wget -O/tmp/go-master.tgz https://github.com/golang/go/archive/master.tar.gz
-            tar -C /tmp -zxf /tmp/go-master.tgz
-            mv /tmp/go-master /usr/local/go
-            export GOSRC=/usr/local/go
-            export GOROOT=$GOSRC
-            export GOROOT_BOOTSTRAP=/usr/local/go-stable
-            export GOBUILD=$GOSRC/src
-            cp /tmp/go-version $GOROOT/VERSION
-            cd $GOBUILD
-            ./make.bash
-      - save_cache:
-          key: |
-            {{ checksum "/tmp/go-version" }}
-          paths:
-            - /usr/local/go
   test:
     description: "Run the tests"
     steps:
@@ -181,17 +144,6 @@ jobs:
       - checkout
       - test
 
-  test_tip:
-    docker:
-      - image: golang:latest
-    working_directory: /go/src/github.com/stripe/veneur
-    environment:
-      GO111MODULE: "on"
-    steps:
-      - fetch_and_build_latest_go
-      - checkout
-      - test
-
 workflows:
   version: 2
   continuous_integration:
@@ -200,12 +152,10 @@ workflows:
       - test_config
       - test_stable
       - test_previous
-      - test_tip
   scheduled_tests:
     jobs:
       - test_stable
       - test_previous
-      - test_tip
     triggers:
       - schedule:
           cron: 0 16 * * 1-5
