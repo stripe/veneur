@@ -56,6 +56,7 @@ func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
 
 // AttributionSink is a sink for flushing ownership/usage (attribution data) to S3
 type AttributionSink struct {
+	name             string
 	traceClient      *trace.Client
 	log              *logrus.Entry
 	s3KeyPrefix      string
@@ -122,6 +123,7 @@ func Create(
 	logger.Info("S3 attribution sink is enabled")
 
 	return &AttributionSink{
+		name:             name,
 		traceClient:      nil,
 		log:              logger,
 		s3KeyPrefix:      attributionSinkConfig.S3KeyPrefix,
@@ -145,7 +147,7 @@ func (s *AttributionSink) Start(traceClient *trace.Client) error {
 
 // Name returns the name of the sink
 func (s *AttributionSink) Name() string {
-	return "attribution"
+	return s.name
 }
 
 // Flush tallies together metrics, then makes a PUT request to the AWS API to
