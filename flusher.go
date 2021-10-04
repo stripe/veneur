@@ -19,7 +19,6 @@ import (
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
-	"github.com/stripe/veneur/v14/trace/metrics"
 	"google.golang.org/grpc/status"
 )
 
@@ -152,22 +151,6 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 		}(sink)
 	}
 	wg.Wait()
-
-	go func() {
-		samples := &ssf.Samples{}
-		defer metrics.Report(s.TraceClient, samples)
-
-		tags := map[string]string{"part": "post"}
-		for _, p := range s.getPlugins() {
-			start := time.Now()
-			err := p.Flush(span.Attach(ctx), finalMetrics)
-			samples.Add(ssf.Timing(fmt.Sprintf("flush.plugins.%s.total_duration_ns", p.Name()), time.Since(start), time.Nanosecond, tags))
-			if err != nil {
-				samples.Add(ssf.Count(fmt.Sprintf("flush.plugins.%s.error_total", p.Name()), 1, nil))
-			}
-			samples.Add(ssf.Gauge(fmt.Sprintf("flush.plugins.%s.post_metrics_total", p.Name()), float32(len(finalMetrics)), nil))
-		}
-	}()
 }
 
 type metricsSummary struct {

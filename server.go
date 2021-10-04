@@ -22,6 +22,7 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/getsentry/sentry-go"
+	"github.com/newrelic/newrelic-client-go/pkg/plugins"
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
@@ -30,8 +31,6 @@ import (
 	"github.com/pkg/profile"
 
 	"github.com/stripe/veneur/v14/importsrv"
-	"github.com/stripe/veneur/v14/plugins"
-	localfilep "github.com/stripe/veneur/v14/plugins/localfile"
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/scopedstatsd"
@@ -814,15 +813,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	// After all sinks are initialized, set the list of tags to exclude
 	setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)
-
-	if conf.FlushFile != "" {
-		localFilePlugin := &localfilep.Plugin{
-			FilePath: conf.FlushFile,
-			Logger:   log,
-		}
-		ret.registerPlugin(localFilePlugin)
-		logger.Info(fmt.Sprintf("Local file logging to %s", conf.FlushFile))
-	}
 
 	// closed in Shutdown; Same approach and http.Shutdown
 	ret.shutdown = make(chan struct{})
@@ -1618,23 +1608,6 @@ func (s *Server) IsLocal() bool {
 // isListeningHTTP returns if the Server is currently listening over HTTP
 func (s *Server) isListeningHTTP() bool {
 	return atomic.LoadInt32(s.numListeningHTTP) > 0
-}
-
-// registerPlugin registers a plugin for use
-// on the veneur server. It is blocking
-// and not threadsafe.
-func (s *Server) registerPlugin(p plugins.Plugin) {
-	s.pluginMtx.Lock()
-	defer s.pluginMtx.Unlock()
-	s.plugins = append(s.plugins, p)
-}
-
-func (s *Server) getPlugins() []plugins.Plugin {
-	s.pluginMtx.Lock()
-	plugins := make([]plugins.Plugin, len(s.plugins))
-	copy(plugins, s.plugins)
-	s.pluginMtx.Unlock()
-	return plugins
 }
 
 // CalculateTickDelay takes the provided time, `Truncate`s it a rounded-down
