@@ -195,7 +195,7 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 	return nil
 }
 
-// timeseriesDigest takes in metric metadata and derives an digest that can be
+// timeseriesDigest takes in metric metadata and derives a digest that can be
 // used to tell if multiple InterMetrics correspond to the same
 // TimeseriesGroup, for tallying purposes
 func timeseriesDigest(name string, tags []string) uint32 {
