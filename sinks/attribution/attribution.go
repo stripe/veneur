@@ -279,7 +279,7 @@ func encodeAttributionDataCSV(attributionData map[string]*TimeseriesGroup, schem
 	w.Comma = '\t'
 
 	for _, metric := range attributionData {
-		encodeInterMetricCSV(metric, w, schemaVersion)
+		encodeTimeseriesGroupCSV(metric, w, schemaVersion)
 	}
 
 	w.Flush()

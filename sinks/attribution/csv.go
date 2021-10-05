@@ -16,12 +16,13 @@ const (
 	SchemaNonUniqueMTSWithDigests
 )
 
-// EncodeInterMetricCSV generates a newline-terminated CSV row that describes
-// the data represented by the InterMetric.
+// encodeTimeseriesGroupCSV generates a newline-terminated CSV row that
+// describes the data represented by the TimeseriesGroup.
+//
 // The caller is responsible for setting w.Comma as the appropriate delimiter.
 // For performance, encodeCSV does not flush after every call; the caller is
 // expected to flush at the end of the operation cycle
-func encodeInterMetricCSV(g *TimeseriesGroup, w *csv.Writer, schemaVersion int) error {
+func encodeTimeseriesGroupCSV(g *TimeseriesGroup, w *csv.Writer, schemaVersion int) error {
 	if schemaVersion == SchemaGloballyUniqueMTS {
 		row := [...]string{
 			g.Name,
