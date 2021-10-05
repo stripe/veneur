@@ -36,7 +36,7 @@ type AttributionSinkConfig struct {
 	AWSRegion          string            `yaml:"aws_region"`
 	AWSSecretAccessKey util.StringSecret `yaml:"aws_secret_access_key"`
 	HostnameTag        string            `yaml:"hostname_tag"`
-	IncludeDigests     bool              `yaml:"include_digests"`
+	SchemaVersion      int               `yaml:"schema_version"`
 	OwnerKey           string            `yaml:"owner_key"`
 	S3Bucket           string            `yaml:"s3_bucket"`
 	S3KeyPrefix        string            `yaml:"s3_key_prefix"`
@@ -68,14 +68,12 @@ type AttributionSink struct {
 	commonDimensions map[string]string
 	hostnameTag      string
 	hostname         string
-	includeDigests   bool
+	schemaVersion    int
 }
 
-// S3ClientUninitializedError is an error returned when the S3 client provided to
-// AttributionSink is nil
-var S3ClientUninitializedError = errors.New("s3 client has not been initialized")
-
-const ATTRIBUTION_PATH_FORMAT_VERSION = "v1"
+// ErrS3ClientUninitializedError is an error returned when the S3 client
+// provided to AttributionSink is nil
+var ErrS3ClientUninitialized = errors.New("s3 client has not been initialized")
 
 // TimeseriesGroup represents an attributable unit of metrics data, complete with
 // owner, metadata corresponding to the metrics data grouping, and cardinality
@@ -135,7 +133,7 @@ func Create(
 		commonDimensions: server.TagsAsMap,
 		hostnameTag:      attributionSinkConfig.HostnameTag,
 		hostname:         server.Hostname,
-		includeDigests:   attributionSinkConfig.IncludeDigests,
+		schemaVersion:    attributionSinkConfig.SchemaVersion,
 	}, nil
 }
 
@@ -171,7 +169,7 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 		}
 	}
 
-	csv, err := encodeAttributionDataCSV(s.attributionData, s.includeDigests)
+	csv, err := encodeAttributionDataCSV(s.attributionData, s.schemaVersion)
 	if err != nil {
 		s.log.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
@@ -274,14 +272,14 @@ func (s *AttributionSink) recordMetric(metric samplers.InterMetric) {
 // encodeAttributionDataCSV returns a reader containing the gzipped CSV
 // representation of TimeseriesGroup data, one row per TimeseriesGroup. The AWS
 // SDK requires seekable input, so we return a ReadSeeker here
-func encodeAttributionDataCSV(attributionData map[string]*TimeseriesGroup, includeDigests bool) (io.ReadSeeker, error) {
+func encodeAttributionDataCSV(attributionData map[string]*TimeseriesGroup, schemaVersion int) (io.ReadSeeker, error) {
 	b := &bytes.Buffer{}
 	gzw := gzip.NewWriter(b)
 	w := csv.NewWriter(gzw)
 	w.Comma = '\t'
 
 	for _, metric := range attributionData {
-		encodeInterMetricCSV(metric, w, includeDigests)
+		encodeInterMetricCSV(metric, w, schemaVersion)
 	}
 
 	w.Flush()
@@ -296,9 +294,9 @@ func encodeAttributionDataCSV(attributionData map[string]*TimeseriesGroup, inclu
 // question to S3
 func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
 	if s.s3Svc == nil {
-		return S3ClientUninitializedError
+		return ErrS3ClientUninitialized
 	}
-	key := s3Key(s.s3KeyPrefix, s.veneurInstanceID)
+	key := s3Key(s.schemaVersion, s.s3KeyPrefix, s.veneurInstanceID)
 	params := &s3.PutObjectInput{
 		Bucket: aws.String(s.s3Bucket),
 		Key:    aws.String(key),
@@ -329,20 +327,20 @@ func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
 // per-application-per-bucket level. Should it be per-bucket, encoding a unique
 // Veneur instance ID per instance of the attribution sink (such as a veneurInstanceID
 // or Kubernetes pod ID) will help a fleet of Veneurs avoid hitting this limit.
-func s3Key(s3KeyPrefix, veneurInstanceID string) string {
+func s3Key(schemaVersion int, s3KeyPrefix, veneurInstanceID string) string {
 	t := time.Now().UTC()
 	exactFlushTs := t.Unix()
 	hourPartition := t.Format("2006/01/02/03")
 
-	key := fmt.Sprintf("%s/%s/%s-%d.tsv.gz", ATTRIBUTION_PATH_FORMAT_VERSION, hourPartition, veneurInstanceID, exactFlushTs)
+	prefix := ""
 	if s3KeyPrefix != "" {
-		key = fmt.Sprintf("%s/%s", s3KeyPrefix, key)
+		prefix = fmt.Sprintf("%s/", s3KeyPrefix)
 	}
+
+	key := fmt.Sprintf("%sv%d/%s/%s-%d.tsv.gz", prefix, schemaVersion, hourPartition, veneurInstanceID, exactFlushTs)
 	return key
 }
 
 // FlushOtherSamples is a no-op for the time being, so span attribution does
 // not yet exist
-func (s *AttributionSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
-	return
-}
+func (s *AttributionSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {}
