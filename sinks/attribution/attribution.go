@@ -330,7 +330,7 @@ func (s *AttributionSink) s3Post(data io.ReadSeeker) error {
 func s3Key(schemaVersion int, s3KeyPrefix, veneurInstanceID string) string {
 	t := time.Now().UTC()
 	exactFlushTs := t.Unix()
-	hourPartition := t.Format("2006/01/02/03")
+	hourPartition := t.Format("2006/01/02/15")
 
 	prefix := ""
 	if s3KeyPrefix != "" {
