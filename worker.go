@@ -28,7 +28,6 @@ const statusTypeName = "status"
 
 // Worker is the doodad that does work.
 type Worker struct {
-	id               int
 	isLocal          bool
 	uniqueMTS        *hyperloglog.Sketch
 	uniqueMTSMtx     *sync.RWMutex
@@ -245,9 +244,8 @@ func (wm WorkerMetrics) appendExportedMetric(res []*metricpb.Metric, exp metricE
 }
 
 // NewWorker creates, and returns a new Worker object.
-func NewWorker(id int, isLocal bool, cl *trace.Client, logger *logrus.Logger, stats scopedstatsd.Client) *Worker {
+func NewWorker(isLocal bool, cl *trace.Client, logger *logrus.Logger, stats scopedstatsd.Client) *Worker {
 	return &Worker{
-		id:               id,
 		isLocal:          isLocal,
 		uniqueMTS:        hyperloglog.New(),
 		uniqueMTSMtx:     &sync.RWMutex{},
@@ -282,7 +280,7 @@ func (w *Worker) Work() {
 			}
 		case <-w.QuitChan:
 			// We have been asked to stop.
-			log.WithField("worker", w.id).Error("Stopping")
+			log.Error("Stopping worker")
 			return
 		}
 	}

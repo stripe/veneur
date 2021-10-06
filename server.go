@@ -520,8 +520,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			logger.WithField("worker_name", config.Name).Info("Preparing WorkerSet")
 			workerSet := WorkerSet{make([]*Worker, config.WorkerCount), &config}
 			for i := 0; i < config.WorkerCount; i++ {
-				// TODO: ids are not unique like this?
-				workerSet.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
+				workerSet.Workers[i] = NewWorker(ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
 			}
 			ret.WorkerSets = append(ret.WorkerSets, workerSet)
 		}
@@ -533,7 +532,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		logger.WithField("number", numWorkers).Info("Preparing workers")
 		workers := make([]*Worker, numWorkers)
 		for i := 0; i < numWorkers; i++ {
-			workers[i] = NewWorker(i+1, ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
+			workers[i] = NewWorker(ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
 		}
 		ret.WorkerSets = append(ret.WorkerSets, WorkerSet{
 			workers,
