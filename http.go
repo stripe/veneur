@@ -81,7 +81,6 @@ func (s *Server) ImportMetrics(ctx context.Context, jsonMetrics []samplers.JSONM
 		}
 	}
 
-	// do something with this........
 	metrics.ReportOne(s.TraceClient, ssf.Timing("import.response_duration_ns", time.Since(span.Start), time.Nanosecond, map[string]string{"part": "merge"}))
 }
 
