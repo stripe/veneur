@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/segmentio/fasthash/fnv1a"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
@@ -13,7 +14,6 @@ import (
 
 	"context"
 
-	"github.com/segmentio/fasthash/fnv1a"
 	"goji.io"
 	"goji.io/pat"
 )
@@ -64,42 +64,44 @@ func (s *Server) ImportMetrics(ctx context.Context, jsonMetrics []samplers.JSONM
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.import.import_metrics")
 	defer span.Finish()
 
-	// we have a slice of json metrics that we need to divide up across the workers
-	// we don't want to push one metric at a time (too much channel contention
-	// and goroutine switching) and we also don't want to allocate a temp
-	// slice for each worker (which we'll have to append to, therefore lots
-	// of allocations)
-	// instead, we'll compute the fnv hash of every metric in the array,
-	// and sort the array by the hashes
+	// We have a slice of JSONMetrics that we need to divide up across the
+	// server WorkerSets. Per WorkerSet, we don't want to push one metric at a
+	// time (too much channel contention and goroutine switching) and we also
+	// don't want to allocate a temp slice for each worker (which we'll have to
+	// append to, therefore lots of allocations). Instead, we'll compute the
+	// fnv hash of every metric in the array, and sort the array by the hashes.
+	sortedJSONMetrics := newSortableJSONMetrics(jsonMetrics)
+	sort.Sort(sortedJSONMetrics)
 
-	// TODO
-	// - we'll need to figure out how to make this work with WorkerSets
-	// - it should still be possible
-	sortedIter := newJSONMetricsByWorker(jsonMetrics, len(s.WorkerSets[0].Workers))
-	for sortedIter.Next() {
-		nextChunk, workerIndex := sortedIter.Chunk()
-		s.WorkerSets[0].Workers[workerIndex].ImportChan <- nextChunk
+	for _, workerSet := range s.WorkerSets {
+		iterableSortedJSONMetrics := newJSONMetricsByWorkerSet(sortedJSONMetrics, workerSet)
+		for iterableSortedJSONMetrics.Next() {
+			nextChunk, workerIndex := iterableSortedJSONMetrics.Chunk()
+			workerSet.Workers[workerIndex].ImportChan <- nextChunk
+		}
 	}
+
+	// do something with this........
 	metrics.ReportOne(s.TraceClient, ssf.Timing("import.response_duration_ns", time.Since(span.Start), time.Nanosecond, map[string]string{"part": "merge"}))
 }
 
-// sorts a set of jsonmetrics by what worker they belong to
+// sorts a set of jsonmetrics by fnv1a of the jsonmetrics
 type sortableJSONMetrics struct {
-	metrics       []samplers.JSONMetric
-	workerIndices []uint32
+	metrics []samplers.JSONMetric
+	digests []uint32
 }
 
-func newSortableJSONMetrics(metrics []samplers.JSONMetric, numWorkers int) *sortableJSONMetrics {
+func newSortableJSONMetrics(metrics []samplers.JSONMetric) *sortableJSONMetrics {
 	ret := sortableJSONMetrics{
-		metrics:       metrics,
-		workerIndices: make([]uint32, 0, len(metrics)),
+		metrics: metrics,
+		digests: make([]uint32, 0, len(metrics)),
 	}
 	for _, j := range metrics {
 		h := fnv1a.Init32
 		h = fnv1a.AddString32(h, j.Name)
 		h = fnv1a.AddString32(h, j.Type)
 		h = fnv1a.AddString32(h, j.JoinedTags)
-		ret.workerIndices = append(ret.workerIndices, h%uint32(numWorkers))
+		ret.digests = append(ret.digests, h)
 	}
 	return &ret
 }
@@ -110,46 +112,50 @@ func (sjm *sortableJSONMetrics) Len() int {
 	return len(sjm.metrics)
 }
 func (sjm *sortableJSONMetrics) Less(i, j int) bool {
-	return sjm.workerIndices[i] < sjm.workerIndices[j]
+	return sjm.digests[i] < sjm.digests[j]
 }
 func (sjm *sortableJSONMetrics) Swap(i, j int) {
 	sjm.metrics[i], sjm.metrics[j] = sjm.metrics[j], sjm.metrics[i]
-	sjm.workerIndices[i], sjm.workerIndices[j] = sjm.workerIndices[j], sjm.workerIndices[i]
+	sjm.digests[i], sjm.digests[j] = sjm.digests[j], sjm.digests[i]
 }
 
-type jsonMetricsByWorker struct {
-	sjm          *sortableJSONMetrics
-	currentStart int
-	nextStart    int
+type jsonMetricsByWorkerSet struct {
+	sortedJSONMetrics *sortableJSONMetrics
+	workerSet         WorkerSet
+	currentStart      int
+	nextStart         int
+	calledNextCount   int
 }
 
-// iterate over a sorted set of jsonmetrics, returning them in contiguous
-// nonempty chunks such that each chunk corresponds to a single worker.
-func newJSONMetricsByWorker(metrics []samplers.JSONMetric, numWorkers int) *jsonMetricsByWorker {
-	ret := &jsonMetricsByWorker{
-		sjm: newSortableJSONMetrics(metrics, numWorkers),
+// Iterable chunks of JSONMetrics for consumption by a WorkerSet. Each chunk
+// should correspond to a single Worker within a WorkerSet
+func newJSONMetricsByWorkerSet(metrics *sortableJSONMetrics, workerSet WorkerSet) *jsonMetricsByWorkerSet {
+	ret := &jsonMetricsByWorkerSet{
+		sortedJSONMetrics: metrics,
+		workerSet:         workerSet,
 	}
-	sort.Sort(ret.sjm)
 	return ret
 }
 
-func (jmbw *jsonMetricsByWorker) Next() bool {
-	if jmbw.sjm.Len() == jmbw.nextStart {
+func (jmbws *jsonMetricsByWorkerSet) Next() bool {
+	if jmbws.nextStart == jmbws.sortedJSONMetrics.Len() {
 		return false
 	}
 
-	// look for the first metric whose worker is different from our starting
-	// one, or until the end of the list in which case all metrics have the
-	// same worker
-	for i := jmbw.nextStart; i <= jmbw.sjm.Len(); i++ {
-		if i == jmbw.sjm.Len() || jmbw.sjm.workerIndices[i] != jmbw.sjm.workerIndices[jmbw.nextStart] {
-			jmbw.currentStart = jmbw.nextStart
-			jmbw.nextStart = i
-			break
-		}
+	jmbws.currentStart = jmbws.nextStart
+
+	increment := jmbws.sortedJSONMetrics.Len() / jmbws.workerSet.ComputationRoutingConfig.WorkerCount
+	if jmbws.currentStart+increment > jmbws.sortedJSONMetrics.Len() {
+		jmbws.nextStart = jmbws.sortedJSONMetrics.Len()
+	} else {
+		jmbws.nextStart = jmbws.currentStart + increment
 	}
+
+	jmbws.calledNextCount += 1
+
 	return true
 }
-func (jmbw *jsonMetricsByWorker) Chunk() ([]samplers.JSONMetric, int) {
-	return jmbw.sjm.metrics[jmbw.currentStart:jmbw.nextStart], int(jmbw.sjm.workerIndices[jmbw.currentStart])
+
+func (jmbws *jsonMetricsByWorkerSet) Chunk() ([]samplers.JSONMetric, int) {
+	return jmbws.sortedJSONMetrics.metrics[jmbws.currentStart:jmbws.nextStart], jmbws.calledNextCount - 1
 }
