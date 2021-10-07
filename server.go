@@ -538,7 +538,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.WorkerSets = append(ret.WorkerSets, WorkerSet{
 			workers,
 			&routing.ComputationRoutingConfig{
-				"",
+				"deprecated",
 				"",
 				routing.MatcherConfigs{},
 				ret.interval,
