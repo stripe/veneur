@@ -32,6 +32,7 @@ import (
 
 	"github.com/stripe/veneur/v14/importsrv"
 	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/routing"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/scopedstatsd"
 	"github.com/stripe/veneur/v14/sinks"
@@ -126,7 +127,7 @@ type Server struct {
 	RcvbufBytes       int
 
 	enableMetricRouting      bool
-	computationRoutingConfig []ComputationRoutingConfig
+	computationRoutingConfig []routing.ComputationRoutingConfig
 	interval                 time.Duration
 	synchronizeInterval      bool
 	lastFlushes              map[string]*int64
@@ -536,10 +537,10 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		}
 		ret.WorkerSets = append(ret.WorkerSets, WorkerSet{
 			workers,
-			&ComputationRoutingConfig{
+			&routing.ComputationRoutingConfig{
 				"",
 				"",
-				MatcherConfigs{},
+				routing.MatcherConfigs{},
 				ret.interval,
 				0,
 				numWorkers,
@@ -568,7 +569,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		for i, w := range workerSet.Workers {
 			processors[i] = w
 		}
-		metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log, &ret.parser)
+		metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log, &ret.parser, workerSet.ComputationRoutingConfig)
 		if err != nil {
 			return ret, err
 		}
@@ -830,8 +831,8 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 		for i, workerSet := range ret.WorkerSets {
 			ingesterSet := importsrv.IngesterSet{
-				Ingesters: make([]importsrv.MetricIngester, len(workerSet.Workers)),
-				Name:      workerSet.ComputationRoutingConfig.Name,
+				Ingesters:                make([]importsrv.MetricIngester, len(workerSet.Workers)),
+				ComputationRoutingConfig: *workerSet.ComputationRoutingConfig,
 			}
 			for _, worker := range workerSet.Workers {
 				ingesterSet.Ingesters[i] = worker

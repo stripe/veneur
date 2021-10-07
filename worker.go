@@ -10,6 +10,7 @@ import (
 	"github.com/axiomhq/hyperloglog"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/routing"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/samplers/metricpb"
 	"github.com/stripe/veneur/v14/scopedstatsd"
@@ -58,7 +59,7 @@ func (w *Worker) IngestMetrics(ms []*metricpb.Metric) {
 // WorkerSets via ComputationRoutingConfig
 type WorkerSet struct {
 	Workers                  []*Worker
-	ComputationRoutingConfig *ComputationRoutingConfig
+	ComputationRoutingConfig *routing.ComputationRoutingConfig
 }
 
 // WorkerMetrics is just a plain struct bundling together the flushed contents of a worker

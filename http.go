@@ -129,9 +129,22 @@ type jsonMetricsByWorkerSet struct {
 // Iterable chunks of JSONMetrics for consumption by a WorkerSet. Each chunk
 // should correspond to a single Worker within a WorkerSet
 func newJSONMetricsByWorkerSet(metrics *sortableJSONMetrics, workerSet WorkerSet) *jsonMetricsByWorkerSet {
+	filteredMetrics := make([]samplers.JSONMetric, 0, metrics.Len())
+	filteredDigests := make([]uint32, 0, metrics.Len())
+	for i := 0; i < metrics.Len(); i++ {
+		metric := metrics.metrics[i]
+		digest := metrics.digests[i]
+		if workerSet.ComputationRoutingConfig.MatcherConfigs.Match(metric.MetricKey.Name, metric.Tags) {
+			filteredMetrics = append(filteredMetrics, metric)
+			filteredDigests = append(filteredDigests, digest)
+		}
+	}
 	ret := &jsonMetricsByWorkerSet{
-		sortedJSONMetrics: metrics,
-		workerSet:         workerSet,
+		sortedJSONMetrics: &sortableJSONMetrics{
+			metrics: filteredMetrics,
+			digests: filteredDigests,
+		},
+		workerSet: workerSet,
 	}
 	return ret
 }

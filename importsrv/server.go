@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/stripe/veneur/v14/forwardrpc"
+	"github.com/stripe/veneur/v14/routing"
 	"github.com/stripe/veneur/v14/samplers/metricpb"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
@@ -32,8 +33,8 @@ type MetricIngester interface {
 }
 
 type IngesterSet struct {
-	Ingesters []MetricIngester
-	Name      string
+	Ingesters                []MetricIngester
+	ComputationRoutingConfig routing.ComputationRoutingConfig
 }
 
 // Server wraps a gRPC server and implements the forwardrpc.Forward service.
@@ -118,34 +119,40 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 			workerIdx := s.hashMetric(m) % uint32(len(dests))
 			dests[workerIdx] = append(dests[workerIdx], m)
 		}
-		span.Add(ssf.Timing(responseDurationMetric, time.Since(groupStart), time.Nanosecond, s.withIngesterSetTag(responseGroupTags, ingesterSet)))
+		span.Add(ssf.Timing(responseDurationMetric, time.Since(groupStart), time.Nanosecond, s.withComputationRoutingTags(responseGroupTags, ingesterSet)))
 
 		// send each set of metrics to its destination.  Since this is typically
 		// implemented with channels, batching the metrics together avoids
 		// repeated channel send operations
 		sendStart := time.Now()
 		for i, ms := range dests {
-			if len(ms) > 0 {
-				ingesterSet.Ingesters[i].IngestMetrics(ms)
+			filteredMs := make([]*metricpb.Metric, 0, len(ms))
+			for _, m := range filteredMs {
+				if ingesterSet.ComputationRoutingConfig.MatcherConfigs.Match(m.GetName(), m.GetTags()) {
+					filteredMs = append(filteredMs, m)
+				}
+			}
+			if len(filteredMs) > 0 {
+				ingesterSet.Ingesters[i].IngestMetrics(filteredMs)
 			}
 		}
 
 		span.Add(
-			ssf.Timing(responseDurationMetric, time.Since(sendStart), time.Nanosecond, s.withIngesterSetTag(responseSendTags, ingesterSet)),
-			ssf.Count("import.metrics_total", float32(len(mlist.Metrics)), s.withIngesterSetTag(grpcTags, ingesterSet)),
+			ssf.Timing(responseDurationMetric, time.Since(sendStart), time.Nanosecond, s.withComputationRoutingTags(responseSendTags, ingesterSet)),
+			ssf.Count("import.metrics_total", float32(len(mlist.Metrics)), s.withComputationRoutingTags(grpcTags, ingesterSet)),
 		)
 	}
 
 	return &empty.Empty{}, nil
 }
 
-func (s *Server) withIngesterSetTag(tags map[string]string, ingesterSet IngesterSet) map[string]string {
-	withIngesterSet := make(map[string]string, len(tags)+1)
+func (s *Server) withComputationRoutingTags(tags map[string]string, ingesterSet IngesterSet) map[string]string {
+	ret := make(map[string]string, len(tags)+1)
 	for k, v := range tags {
-		withIngesterSet[k] = v
+		ret[k] = v
 	}
-	withIngesterSet["ingester_set"] = ingesterSet.Name
-	return withIngesterSet
+	ret["computation_routing_name"] = ingesterSet.ComputationRoutingConfig.Name
+	return ret
 }
 
 // hashMetric returns a 32-bit hash from the input metric based on its name,
