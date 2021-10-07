@@ -127,7 +127,7 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 		sendStart := time.Now()
 		for i, ms := range dests {
 			filteredMs := make([]*metricpb.Metric, 0, len(ms))
-			for _, m := range filteredMs {
+			for _, m := range ms {
 				if ingesterSet.ComputationRoutingConfig.MatcherConfigs.Match(m.GetName(), m.GetTags()) {
 					filteredMs = append(filteredMs, m)
 				}
