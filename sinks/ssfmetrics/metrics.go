@@ -44,7 +44,7 @@ type DerivedMetricsSink interface {
 // NewMetricExtractionSink sets up and creates a span sink that
 // extracts metrics ("samples") from SSF spans and reports them to a
 // veneur's metrics workers.
-func NewMetricExtractionSink(mw []Processor, indicatorTimerName, objectiveTimerName string, cl *trace.Client, log *logrus.Logger, p *samplers.Parser, computationRoutingConfig ComputationRoutingConfig) (DerivedMetricsSink, error) {
+func NewMetricExtractionSink(mw []Processor, indicatorTimerName, objectiveTimerName string, cl *trace.Client, log *logrus.Logger, p *samplers.Parser, computationRoutingConfig routing.ComputationRoutingConfig) (DerivedMetricsSink, error) {
 	return &metricExtractionSink{
 		workers:                  mw,
 		indicatorSpanTimerName:   indicatorTimerName,

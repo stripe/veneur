@@ -569,7 +569,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		for i, w := range workerSet.Workers {
 			processors[i] = w
 		}
-		metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log, &ret.parser, workerSet.ComputationRoutingConfig)
+		metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log, &ret.parser, *workerSet.ComputationRoutingConfig)
 		if err != nil {
 			return ret, err
 		}
