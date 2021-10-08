@@ -19,7 +19,7 @@ const (
 func TestNewHarvester(t *testing.T) {
 	t.Parallel()
 
-	log := logrus.New()
+	log := logrus.NewEntry(logrus.New())
 	h, err := newHarvester("", log, []string{}, "")
 
 	assert.Nil(t, h)

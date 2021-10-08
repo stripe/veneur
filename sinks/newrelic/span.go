@@ -8,39 +8,68 @@ import (
 
 	"github.com/newrelic/newrelic-telemetry-sdk-go/telemetry"
 	"github.com/sirupsen/logrus"
+	veneur "github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util"
 )
+
+type NewRelicSpanSinkConfig struct {
+	CommonTags       []string          `yaml:"common_tags"`
+	InsertKey        util.StringSecret `yaml:"insert_key"`
+	TraceObserverURL string            `yaml:"trace_observer_url"`
+}
 
 type NewRelicSpanSink struct {
 	harvester   *telemetry.Harvester
-	log         *logrus.Logger
+	log         *logrus.Entry
+	name        string
 	traceClient *trace.Client
 }
 
-var _ sinks.SpanSink = &NewRelicSpanSink{}
-
-// NewNewRelicSpanSink creates a new NewRelicSpanSink. This sink sends
-// span data to the New Relic Platform
-func NewNewRelicSpanSink(insertKey string, accountID int, reg string, tags []string, spanURL string, log *logrus.Logger) (*NewRelicSpanSink, error) {
-	var ret NewRelicSpanSink
-
-	h, err := newHarvester(insertKey, log, tags, spanURL)
+// ParseSpanConfig decodes the map config for a New Relic span sink into a
+// NewRelicSpanSinkConfig struct.
+func ParseSpanConfig(config interface{}) (veneur.SpanSinkConfig, error) {
+	newRelicConfig := NewRelicSpanSinkConfig{}
+	err := util.DecodeConfig(config, &newRelicConfig)
 	if err != nil {
-		log.WithError(err).Error("unable to create NewRelicSpanSink")
-		return &ret, err
+		return nil, err
 	}
-	ret.harvester = h
-	ret.log = log
+	return newRelicConfig, nil
+}
 
-	return &ret, nil
+// CreateSpanSink creates a new New Relic sink for spans. This function
+// should match the signature of a value in veneur.SpanSinkTypes, and is
+// intended to be passed into veneur.NewFromConfig to be called based on the
+// provided configuration.
+func CreateSpanSink(
+	server *veneur.Server, name string, logger *logrus.Entry,
+	config veneur.Config, sinkConfig veneur.SpanSinkConfig,
+) (sinks.SpanSink, error) {
+	newRelicConfig := sinkConfig.(NewRelicSpanSinkConfig)
+
+	sink := NewRelicSpanSink{
+		log:  logger,
+		name: name,
+	}
+
+	harvester, err := newHarvester(
+		newRelicConfig.InsertKey.Value, logger, newRelicConfig.CommonTags,
+		newRelicConfig.TraceObserverURL)
+	if err != nil {
+		logger.WithError(err).Error("unable to create NewRelicSpanSink")
+		return nil, err
+	}
+	sink.harvester = harvester
+
+	return &sink, nil
 }
 
 // Name returns the name of the sink
 func (nr *NewRelicSpanSink) Name() string {
-	return "newrelic"
+	return nr.name
 }
 
 // Start

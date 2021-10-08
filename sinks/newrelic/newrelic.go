@@ -8,6 +8,7 @@ import (
 	"github.com/newrelic/newrelic-client-go/pkg/region"
 	"github.com/newrelic/newrelic-telemetry-sdk-go/telemetry"
 	"github.com/sirupsen/logrus"
+	veneur "github.com/stripe/veneur/v14"
 )
 
 const (
@@ -16,9 +17,45 @@ const (
 	DefaultServiceCheckEventType = "veneurCheck"
 )
 
+// TODO(arnavdugar): Remove this once the old configuration format has been
+// removed.
+func MigrateConfig(conf *veneur.Config) {
+	if conf.NewrelicInsertKey.Value != "" && conf.NewrelicAccountID > 0 {
+		conf.MetricSinks = append(conf.MetricSinks, struct {
+			Kind   string      "yaml:\"kind\""
+			Name   string      "yaml:\"name\""
+			Config interface{} "yaml:\"config\""
+		}{
+			Kind: "newrelic",
+			Name: "newrelic",
+			Config: NewRelicMetricSinkConfig{
+				AccountID:             conf.NewrelicAccountID,
+				CommonTags:            conf.NewrelicCommonTags,
+				EventType:             conf.NewrelicEventType,
+				InsertKey:             conf.NewrelicInsertKey,
+				Region:                conf.NewrelicRegion,
+				ServiceCheckEventType: conf.NewrelicServiceCheckEventType,
+			},
+		})
+	}
+	if conf.NewrelicInsertKey.Value != "" {
+		conf.SpanSinks = append(conf.SpanSinks, veneur.SinkConfig{
+			Kind: "newrelic",
+			Name: "newrelic",
+			Config: NewRelicSpanSinkConfig{
+				CommonTags:       conf.NewrelicCommonTags,
+				InsertKey:        conf.NewrelicInsertKey,
+				TraceObserverURL: conf.NewrelicTraceObserverURL,
+			},
+		})
+	}
+}
+
 // newHarvester creates a New Relic telemetry harvester for sending
 // Metric and/or Span data
-func newHarvester(insertKey string, log *logrus.Logger, tags []string, spanURL string) (*telemetry.Harvester, error) {
+func newHarvester(
+	insertKey string, logger *logrus.Entry, tags []string, spanURL string,
+) (*telemetry.Harvester, error) {
 	nrCfg := []func(*telemetry.Config){
 		telemetry.ConfigHarvestPeriod(0), // Never harvest automatically
 	}
@@ -28,12 +65,6 @@ func newHarvester(insertKey string, log *logrus.Logger, tags []string, spanURL s
 		return nil, errors.New("insert key required for New Relic sink")
 	}
 	nrCfg = append(nrCfg, telemetry.ConfigAPIKey(insertKey))
-
-	// Add logger
-	logger := log
-	if logger == nil {
-		logger = logrus.StandardLogger()
-	}
 
 	nrCfg = append(nrCfg,
 		telemetry.ConfigBasicErrorLogger(logger.WriterLevel(logrus.ErrorLevel)),
