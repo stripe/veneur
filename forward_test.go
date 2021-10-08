@@ -70,11 +70,11 @@ func (ff *forwardFixture) Close() {
 // Flush synchronously waits until all metrics have been flushed along
 // the chain of veneur servers.
 func (ff *forwardFixture) Flush(ctx context.Context) {
-	ff.server.Flush(ctx)
+	ff.server.Flush(ctx, ff.server.WorkerSets[0])
 	// The proxy proxies synchronously, so when the local server
 	// returns, we assume it has proxied everything to the global
 	// veneur.
-	ff.global.Flush(ctx)
+	ff.global.Flush(ctx, ff.server.WorkerSets[0])
 }
 
 // IngestSpan synchronously writes a span to the forwarding fixture's
@@ -90,7 +90,7 @@ func (ff *forwardFixture) IngestSpan(span *ssf.SSFSpan) {
 // the (*forwardFixture).Flush method so the ingestion effects can be
 // observed.
 func (ff *forwardFixture) IngestMetric(m *samplers.UDPMetric) {
-	ff.server.Workers[0].ProcessMetric(m)
+	ff.server.WorkerSets[0].Workers[0].ProcessMetric(m)
 }
 
 // TestForwardingIndicatorMetrics ensures that the metrics extracted

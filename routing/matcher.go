@@ -19,9 +19,9 @@ type NameMatcherConfig struct {
 }
 
 type NameMatcher struct {
-	match func(string) bool
-	regex *regexp.Regexp
-	value string
+	Match func(string) bool
+	Regex *regexp.Regexp
+	Value string
 }
 
 type TagMatcherConfig struct {
@@ -31,10 +31,10 @@ type TagMatcherConfig struct {
 }
 
 type TagMatcher struct {
-	match func(string) bool
-	regex *regexp.Regexp
-	unset bool
-	value string
+	Match func(string) bool
+	Regex *regexp.Regexp
+	Unset bool
+	Value string
 }
 
 func (matcherConfigs MatcherConfigs) Match(
@@ -42,21 +42,21 @@ func (matcherConfigs MatcherConfigs) Match(
 ) bool {
 configLoop:
 	for _, matcherConfig := range matcherConfigs {
-		if !matcherConfig.Name.match(name) {
+		if !matcherConfig.Name.Match(name) {
 			continue
 		}
 	tagLoop:
 		for _, tagMatchConfig := range matcherConfig.Tags {
 			for _, tag := range tags {
-				if tagMatchConfig.match(tag) {
-					if tagMatchConfig.unset {
+				if tagMatchConfig.Match(tag) {
+					if tagMatchConfig.Unset {
 						continue configLoop
 					} else {
 						continue tagLoop
 					}
 				}
 			}
-			if !tagMatchConfig.unset {
+			if !tagMatchConfig.Unset {
 				continue configLoop
 			}
 		}
@@ -77,19 +77,19 @@ func (matcher *NameMatcher) UnmarshalYAML(
 	}
 	switch config.Kind {
 	case "any":
-		matcher.match = matcher.matchAny
+		matcher.Match = matcher.matchAny
 	case "exact":
-		matcher.match = matcher.matchExact
-		matcher.value = config.Value
+		matcher.Match = matcher.matchExact
+		matcher.Value = config.Value
 	case "prefix":
-		matcher.match = matcher.matchPrefix
-		matcher.value = config.Value
+		matcher.Match = matcher.matchPrefix
+		matcher.Value = config.Value
 	case "regex":
-		matcher.regex, err = regexp.Compile(config.Value)
+		matcher.Regex, err = regexp.Compile(config.Value)
 		if err != nil {
 			return err
 		}
-		matcher.match = matcher.matchRegex
+		matcher.Match = matcher.matchRegex
 	default:
 		return fmt.Errorf("unknown matcher kind \"%s\"", config.Kind)
 	}
@@ -101,15 +101,15 @@ func (matcher *NameMatcher) matchAny(value string) bool {
 }
 
 func (matcher *NameMatcher) matchExact(value string) bool {
-	return value == matcher.value
+	return value == matcher.Value
 }
 
 func (matcher *NameMatcher) matchPrefix(value string) bool {
-	return strings.HasPrefix(value, matcher.value)
+	return strings.HasPrefix(value, matcher.Value)
 }
 
 func (matcher *NameMatcher) matchRegex(value string) bool {
-	return matcher.regex.MatchString(value)
+	return matcher.Regex.MatchString(value)
 }
 
 // UnmarshalYAML unmarshals and validates the yaml config for matching tags
@@ -124,32 +124,32 @@ func (matcher *TagMatcher) UnmarshalYAML(
 	}
 	switch config.Kind {
 	case "exact":
-		matcher.match = matcher.matchExact
-		matcher.value = config.Value
+		matcher.Match = matcher.matchExact
+		matcher.Value = config.Value
 	case "prefix":
-		matcher.match = matcher.matchPrefix
-		matcher.value = config.Value
+		matcher.Match = matcher.matchPrefix
+		matcher.Value = config.Value
 	case "regex":
-		matcher.regex, err = regexp.Compile(config.Value)
+		matcher.Regex, err = regexp.Compile(config.Value)
 		if err != nil {
 			return err
 		}
-		matcher.match = matcher.matchRegex
+		matcher.Match = matcher.matchRegex
 	default:
 		return fmt.Errorf("unknown matcher kind \"%s\"", config.Kind)
 	}
-	matcher.unset = config.Unset
+	matcher.Unset = config.Unset
 	return nil
 }
 
 func (matcher *TagMatcher) matchExact(value string) bool {
-	return value == matcher.value
+	return value == matcher.Value
 }
 
 func (matcher *TagMatcher) matchPrefix(value string) bool {
-	return strings.HasPrefix(value, matcher.value)
+	return strings.HasPrefix(value, matcher.Value)
 }
 
 func (matcher *TagMatcher) matchRegex(value string) bool {
-	return matcher.regex.MatchString(value)
+	return matcher.Regex.MatchString(value)
 }

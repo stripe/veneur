@@ -36,7 +36,7 @@ func TestServerFlushGRPC(t *testing.T) {
 
 	inputs := forwardGRPCTestMetrics()
 	for _, input := range inputs {
-		local.Workers[0].ProcessMetric(input)
+		local.WorkerSets[0].Workers[0].ProcessMetric(input)
 	}
 
 	expected := []string{
@@ -97,7 +97,7 @@ func TestServerFlushGRPCTimeout(t *testing.T) {
 
 	inputs := forwardGRPCTestMetrics()
 	for _, input := range inputs {
-		local.Workers[0].ProcessMetric(input)
+		local.WorkerSets[0].Workers[0].ProcessMetric(input)
 	}
 
 	// Wait until the running server has flushed out the metrics for us:
@@ -122,7 +122,7 @@ func TestServerFlushGRPCBadAddress(t *testing.T) {
 	local := setupVeneurServer(t, localCfg, nil, sink, nil, nil)
 	defer local.Shutdown()
 
-	local.Workers[0].ProcessMetric(forwardGRPCTestMetrics()[0])
+	local.WorkerSets[0].Workers[0].ProcessMetric(forwardGRPCTestMetrics()[0])
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
 			Name: "counter",
@@ -133,7 +133,7 @@ func TestServerFlushGRPCBadAddress(t *testing.T) {
 		SampleRate: 1.0,
 		Scope:      samplers.MixedScope,
 	}
-	local.Workers[0].ProcessMetric(&m)
+	local.WorkerSets[0].Workers[0].ProcessMetric(&m)
 	select {
 	case <-rcv:
 		t.Log("Received my metric, assume this is working.")
@@ -167,8 +167,8 @@ func TestGlobalAcceptsHistogramsOverUDP(t *testing.T) {
 		SampleRate: 1.0,
 		Scope:      samplers.MixedScope,
 	}
-	global.Workers[0].ProcessMetric(&m)
-	global.Flush(context.Background())
+	global.WorkerSets[0].Workers[0].ProcessMetric(&m)
+	global.Flush(context.Background(), global.WorkerSets[0])
 
 	select {
 	case results := <-rcv:

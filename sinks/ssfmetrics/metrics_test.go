@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/routing"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
@@ -16,9 +17,20 @@ import (
 
 func TestMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
-	worker := veneur.NewWorker(0, true, false, nil, logger, nil)
+	worker := veneur.NewWorker(true, nil, logger, nil)
 	workers := []ssfmetrics.Processor{worker}
-	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "", nil, logger, &samplers.Parser{})
+	computationRoutingConfig := routing.ComputationRoutingConfig{
+		MatcherConfigs: []routing.MatcherConfig{
+			{
+				Name: routing.NameMatcher{
+					Match: func(s string) bool {
+						return true
+					},
+				},
+			},
+		},
+	}
+	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "", nil, logger, &samplers.Parser{}, computationRoutingConfig)
 	require.NoError(t, err)
 
 	start := time.Now()
@@ -57,9 +69,9 @@ func TestMetricExtractor(t *testing.T) {
 
 func setupBench() (*ssf.SSFSpan, sinks.SpanSink) {
 	logger := logrus.StandardLogger()
-	worker := veneur.NewWorker(0, true, false, nil, logger, nil)
+	worker := veneur.NewWorker(true, nil, logger, nil)
 	workers := []ssfmetrics.Processor{worker}
-	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "", nil, logger, &samplers.Parser{})
+	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "", nil, logger, &samplers.Parser{}, routing.ComputationRoutingConfig{})
 	if err != nil {
 		panic(err)
 	}
@@ -110,9 +122,20 @@ func BenchmarkParallelMetricExtractor(b *testing.B) {
 
 func TestIndicatorMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
-	worker := veneur.NewWorker(0, true, false, nil, logger, nil)
+	worker := veneur.NewWorker(true, nil, logger, nil)
 	workers := []ssfmetrics.Processor{worker}
-	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "bar", nil, logger, &samplers.Parser{})
+	computationRoutingConfig := routing.ComputationRoutingConfig{
+		MatcherConfigs: []routing.MatcherConfig{
+			{
+				Name: routing.NameMatcher{
+					Match: func(s string) bool {
+						return true
+					},
+				},
+			},
+		},
+	}
+	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "bar", nil, logger, &samplers.Parser{}, computationRoutingConfig)
 	require.NoError(t, err)
 
 	start := time.Now()

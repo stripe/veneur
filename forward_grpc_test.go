@@ -68,7 +68,7 @@ func (ff *forwardGRPCFixture) stop() {
 // the (*forwardFixture).local.Flush method so the ingestion effects can be
 // observed.
 func (ff *forwardGRPCFixture) IngestMetric(m *samplers.UDPMetric) {
-	ff.local.Workers[0].ProcessMetric(m)
+	ff.local.WorkerSets[0].Workers[0].ProcessMetric(m)
 }
 
 // unusedLocalTCPAddress returns a host:port combination on the loopback
@@ -246,8 +246,8 @@ func TestE2EForwardingGRPCMetrics(t *testing.T) {
 		}
 
 	}()
-	ff.local.Flush(context.TODO())
-	ff.global.Flush(context.TODO())
+	ff.local.Flush(context.TODO(), ff.local.WorkerSets[0])
+	ff.global.Flush(context.TODO(), ff.global.WorkerSets[0])
 	select {
 	case <-done:
 	case <-time.After(3 * time.Second):

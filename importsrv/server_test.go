@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/forwardrpc"
+	"github.com/stripe/veneur/v14/routing"
 	"github.com/stripe/veneur/v14/samplers/metricpb"
 	metrictest "github.com/stripe/veneur/v14/samplers/metricpb/testutils"
 	"github.com/stripe/veneur/v14/trace"
@@ -29,20 +30,30 @@ func (mi *testMetricIngester) clear() {
 // Test that sending the same metric to a Veneur results in it being hashed
 // to the same worker every time
 func TestSendMetrics_ConsistentHash(t *testing.T) {
-	ingesters := []*testMetricIngester{&testMetricIngester{}, &testMetricIngester{}}
-
+	ingesters := []*testMetricIngester{{}, {}}
 	casted := make([]MetricIngester, len(ingesters))
 	for i, ingester := range ingesters {
 		casted[i] = ingester
 	}
-	s := New(casted)
+	ingesterSet := IngesterSet{casted, routing.ComputationRoutingConfig{
+		MatcherConfigs: []routing.MatcherConfig{
+			{
+				Name: routing.NameMatcher{
+					Match: func(s string) bool {
+						return true
+					},
+				},
+			},
+		},
+	}}
+	s := New([]IngesterSet{ingesterSet})
 
 	inputs := []*metricpb.Metric{
-		&metricpb.Metric{Name: "test.counter", Type: metricpb.Type_Counter, Tags: []string{"tag:1"}},
-		&metricpb.Metric{Name: "test.gauge", Type: metricpb.Type_Gauge},
-		&metricpb.Metric{Name: "test.histogram", Type: metricpb.Type_Histogram, Tags: []string{"type:histogram"}},
-		&metricpb.Metric{Name: "test.set", Type: metricpb.Type_Set},
-		&metricpb.Metric{Name: "test.gauge3", Type: metricpb.Type_Gauge},
+		{Name: "test.counter", Type: metricpb.Type_Counter, Tags: []string{"tag:1"}},
+		{Name: "test.gauge", Type: metricpb.Type_Gauge},
+		{Name: "test.histogram", Type: metricpb.Type_Histogram, Tags: []string{"type:histogram"}},
+		{Name: "test.set", Type: metricpb.Type_Set},
+		{Name: "test.gauge3", Type: metricpb.Type_Gauge},
 	}
 
 	// Send the same inputs many times
@@ -62,7 +73,8 @@ func TestSendMetrics_ConsistentHash(t *testing.T) {
 
 func TestSendMetrics_Empty(t *testing.T) {
 	ingester := &testMetricIngester{}
-	s := New([]MetricIngester{ingester})
+	ingesterSets := []IngesterSet{{[]MetricIngester{ingester}, routing.ComputationRoutingConfig{}}}
+	s := New(ingesterSets)
 	s.SendMetrics(context.Background(), &forwardrpc.MetricList{})
 
 	assert.Empty(t, ingester.metrics, "The server shouldn't have submitted "+
@@ -75,7 +87,10 @@ func TestOptions_WithTraceClient(t *testing.T) {
 		t.Fatalf("failed to initialize a trace client: %v", err)
 	}
 
-	s := New([]MetricIngester{}, WithTraceClient(c))
+	ingester := &testMetricIngester{}
+	ingesterSets := []IngesterSet{IngesterSet{[]MetricIngester{ingester}, routing.ComputationRoutingConfig{}}}
+
+	s := New(ingesterSets, WithTraceClient(c))
 	assert.Equal(t, c, s.opts.traceClient, "WithTraceClient didn't correctly "+
 		"set the trace client")
 }
@@ -124,7 +139,9 @@ func BenchmarkImportServerSendMetrics(b *testing.B) {
 			defer ingester.stop()
 			ingesters[i] = ingester
 		}
-		s := New(ingesters)
+
+		ingesterSets := []IngesterSet{{ingesters, routing.ComputationRoutingConfig{}}}
+		s := New(ingesterSets)
 		ctx := context.Background()
 		input := &forwardrpc.MetricList{Metrics: metrics[:inputSize]}
 

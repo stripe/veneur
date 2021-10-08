@@ -200,7 +200,7 @@ func TestFlush(t *testing.T) {
 	metricValues := []float64{1.0, 2.0, 7.0, 8.0, 100.0}
 
 	for _, value := range metricValues {
-		server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		server.WorkerSets[0].Workers[0].ProcessMetric(&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: "a.b.c",
 				Type: "histogram",
@@ -212,7 +212,7 @@ func TestFlush(t *testing.T) {
 		})
 	}
 
-	server.Flush(context.Background())
+	server.Flush(context.Background(), server.WorkerSets[0])
 }
 
 func parseGzipTSV(r io.Reader) ([][]string, error) {
