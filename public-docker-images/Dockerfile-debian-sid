@@ -1,5 +1,5 @@
-FROM golang:1.13.5 AS base
-MAINTAINER The Stripe Observability Team <support@stripe.com>
+FROM golang:1.17 AS base
+LABEL maintainer="The Stripe Observability Team <support@stripe.com>"
 
 
 FROM base AS deps
