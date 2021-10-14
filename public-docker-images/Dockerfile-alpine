@@ -1,5 +1,5 @@
-FROM golang:1.13.5-alpine3.10 AS base
-MAINTAINER The Stripe Observability Team <support@stripe.com>
+FROM golang:1.17-alpine3.14 AS base
+LABEL maintainer="The Stripe Observability Team <support@stripe.com>"
 
 
 FROM base AS deps
@@ -45,7 +45,7 @@ RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse
 RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-proxy ./cmd/veneur-proxy
 
 
-FROM alpine:3.6 AS release
+FROM alpine:3.14 AS release
 RUN apk add --no-cache ca-certificates
 WORKDIR /veneur/
 EXPOSE 8126/UDP 8126/TCP 8127/TCP 8128/UDP
