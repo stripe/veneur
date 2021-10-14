@@ -1,54 +1,18 @@
-FROM golang:1.17 AS base
-LABEL maintainer="The Stripe Observability Team <support@stripe.com>"
-
-
-FROM base AS deps
-RUN mkdir -p /build
-ENV GOPATH=/go
-RUN apt-get update && apt-get install -y zip ca-certificates
-RUN go get -u -v github.com/ChimeraCoder/gojson/gojson
-RUN go get -u -v github.com/golang/protobuf/protoc-gen-go
-RUN go get -d -v github.com/gogo/protobuf/protoc-gen-gofast
-WORKDIR /go/src/github.com/gogo/protobuf
-RUN git fetch
-RUN git checkout v1.2.1
-RUN go install github.com/gogo/protobuf/protoc-gen-gofast
-WORKDIR /go
-RUN go get -u github.com/golang/dep/cmd/dep
-RUN go get -u -v golang.org/x/tools/cmd/stringer
-RUN wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
-RUN unzip protoc-3.1.0-linux-x86_64.zip
-RUN cp bin/protoc /usr/bin/protoc
-RUN chmod 777 /usr/bin/protoc
-
-
-FROM deps AS src
-ARG BUILD_REF=master
-RUN mkdir -p /go/src/github.com/stripe
-WORKDIR /go/src/github.com/stripe
-RUN git clone --depth 1 https://github.com/stripe/veneur
-WORKDIR /go/src/github.com/stripe/veneur
-RUN git fetch --depth 1 origin ${BUILD_REF}:docker/${BUILD_REF}
-RUN git checkout docker/${BUILD_REF}
-
-
-FROM src AS test
-RUN go test -race -v -timeout 60s -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur.BUILD_DATE=$(date +%s)" ./...
-
-
-FROM test AS build
-RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur ./cmd/veneur
-RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-emit ./cmd/veneur-emit
-RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-prometheus ./cmd/veneur-prometheus
-RUN go build -a -v -ldflags "-X github.com/stripe/veneur.VERSION=$(git rev-parse HEAD)" -o /build/veneur-proxy ./cmd/veneur-proxy
+FROM golang:1.17 AS build
+WORKDIR /veneur/
+COPY . .
+RUN go build -a -ldflags "-X github.com/stripe/veneur.VERSION=${VERSION}" -o /build/veneur ./cmd/veneur &&\
+    go build -a -ldflags "-X github.com/stripe/veneur.VERSION=${VERSION}" -o /build/veneur-emit ./cmd/veneur-emit &&\
+    go build -a -ldflags "-X github.com/stripe/veneur.VERSION=${VERSION}" -o /build/veneur-prometheus ./cmd/veneur-prometheus &&\
+    go build -a -ldflags "-X github.com/stripe/veneur.VERSION=${VERSION}" -o /build/veneur-proxy ./cmd/veneur-proxy
 
 
 FROM debian:sid AS release
+LABEL maintainer="The Stripe Observability Team <support@stripe.com>"
 RUN apt-get update && apt-get -y install ca-certificates
 WORKDIR /veneur/
 EXPOSE 8126/UDP 8126/TCP 8127/TCP 8128/UDP
 COPY --from=build /build/* /veneur/
-COPY --from=src /go/src/github.com/stripe/veneur/example.yaml /veneur/config.yaml
-COPY --from=src /go/src/github.com/stripe/veneur/example_proxy.yaml /veneur/config_proxy.yaml
-ENV PATH="/veneur:${PATH}"
+COPY example.yaml /veneur/config.yaml
+COPY example_proxy.yaml /veneur/config_proxy.yaml
 CMD ["/veneur/veneur", "-f", "config.yaml"]
