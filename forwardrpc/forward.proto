@@ -9,6 +9,7 @@ import "google/protobuf/empty.proto";
 service Forward {
     // SendMetrics sends a batch of metrics at once, and returns no response.
     rpc SendMetrics(MetricList) returns (google.protobuf.Empty) {}
+    rpc SendMetricsV2(stream metricpb.Metric) returns (google.protobuf.Empty) {}
 }
 
 // MetricList just wraps a list of metricpb.Metric's.

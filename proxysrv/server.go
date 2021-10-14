@@ -8,6 +8,7 @@ package proxysrv
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"strings"
@@ -185,6 +186,25 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 		atomic.AddInt64(s.activeProxyHandlers, -1)
 	}()
 	return &empty.Empty{}, nil
+}
+
+func (s *Server) SendMetricsV2(
+	server forwardrpc.Forward_SendMetricsV2Server,
+) error {
+	metrics := []*metricpb.Metric{}
+	for {
+		metric, err := server.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+		metrics = append(metrics, metric)
+	}
+	_, err := s.SendMetrics(context.Background(), &forwardrpc.MetricList{
+		Metrics: metrics,
+	})
+	return err
 }
 
 func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) error {
