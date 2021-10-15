@@ -43,7 +43,7 @@ type AttributionSinkConfig struct {
 	VeneurInstanceID   string            `yaml:"veneur_instance_id"`
 }
 
-// ParseConfig decodes the map config for an S3 sink into an S3SinkConfig
+// ParseConfig decodes the map config for an S3 sink into an AttributionSinkConfig
 // struct.
 func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
 	attributionSinkConfig := AttributionSinkConfig{}
