@@ -7,6 +7,7 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/sinks/attribution"
 	"github.com/stripe/veneur/v14/sinks/cortex"
 	"github.com/stripe/veneur/v14/sinks/debug"
 	"github.com/stripe/veneur/v14/sinks/kafka"
@@ -77,6 +78,10 @@ func main() {
 		Logger: logger,
 		MetricSinkTypes: veneur.MetricSinkTypes{
 			// TODO(arnavdugar): Migrate metric sink types.
+			"attribution": {
+				Create:      attribution.Create,
+				ParseConfig: attribution.ParseConfig,
+			},
 			"cortex": {
 				Create:      cortex.Create,
 				ParseConfig: cortex.ParseConfig,
