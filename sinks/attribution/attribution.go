@@ -87,8 +87,11 @@ type TimeseriesGroup struct {
 
 // Create returns a pointer to an AttributionSink
 func Create(
-	server *veneur.Server, name string, logger *logrus.Entry,
-	config veneur.Config, sinkConfig veneur.MetricSinkConfig,
+	server *veneur.Server,
+	name string,
+	logger *logrus.Entry,
+	config veneur.Config,
+	sinkConfig veneur.MetricSinkConfig,
 ) (sinks.MetricSink, error) {
 	attributionSinkConfig, ok := sinkConfig.(AttributionSinkConfig)
 	if !ok {
