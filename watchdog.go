@@ -37,9 +37,7 @@ func (s *Server) FlushWatchdog() {
 				conf.WorkerWatchdogIntervals,
 				conf.WorkerInterval,
 			})
-			lastFlushUnix := new(int64)
-			s.lastFlushes[conf.Name] = lastFlushUnix
-			atomic.StoreInt64(lastFlushUnix, time.Now().UnixNano())
+			atomic.StoreInt64(s.lastFlushes[conf.Name], time.Now().UnixNano())
 		}
 	} else {
 		if s.stuckIntervals == 0 {
@@ -52,9 +50,7 @@ func (s *Server) FlushWatchdog() {
 			s.stuckIntervals,
 			s.interval,
 		})
-		lastFlushUnix := new(int64)
-		s.lastFlushes["deprecated"] = lastFlushUnix
-		atomic.StoreInt64(lastFlushUnix, time.Now().UnixNano())
+		atomic.StoreInt64(s.lastFlushes["deprecated"], time.Now().UnixNano())
 	}
 
 	for _, ticker := range tickers {

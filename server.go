@@ -524,6 +524,10 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 				workerSet.Workers[i] = NewWorker(ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
 			}
 			ret.WorkerSets = append(ret.WorkerSets, workerSet)
+
+			// Need to initialize lastFlushes here, otherwise this creates a
+			// data race since FlushWatchdog is called in a goroutine
+			ret.lastFlushes[config.Name] = new(int64)
 		}
 	} else {
 		numWorkers := 1
@@ -547,6 +551,10 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 				true,
 			},
 		})
+
+		// Need to initialize lastFlushes here, otherwise this creates a
+		// data race since FlushWatchdog is called in a goroutine
+		ret.lastFlushes["deprecated"] = new(int64)
 	}
 
 	for _, workerSet := range ret.WorkerSets {
