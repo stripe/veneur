@@ -244,7 +244,8 @@ func timeseriesIDs(name string, tags []string, ownerKey string) (groupID, ownerI
 
 // recordMetric tallies an InterMetric, creating a TimeseriesGroup in the process
 func (s *AttributionSink) recordMetric(metric samplers.InterMetric) {
-	tags := metric.Tags
+	tags := make([]string, len(metric.Tags))
+	copy(metric.Tags, tags)
 	tags = append(tags, fmt.Sprintf("%s:%s", s.hostnameTag, s.hostname))
 	for k, v := range s.commonDimensions {
 		tags = append(tags, fmt.Sprintf("%s:%s", k, v))
