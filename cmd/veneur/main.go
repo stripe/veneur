@@ -12,6 +12,7 @@ import (
 	"github.com/stripe/veneur/v14/sinks/debug"
 	"github.com/stripe/veneur/v14/sinks/kafka"
 	"github.com/stripe/veneur/v14/sinks/localfile"
+	"github.com/stripe/veneur/v14/sinks/newrelic"
 	"github.com/stripe/veneur/v14/sinks/s3"
 	"github.com/stripe/veneur/v14/sinks/signalfx"
 	"github.com/stripe/veneur/v14/sinks/splunk"
@@ -55,6 +56,7 @@ func main() {
 	if !conf.Features.MigrateMetricSinks {
 		debug.MigrateConfig(&conf)
 		localfile.MigrateConfig(&conf)
+		newrelic.MigrateConfig(&conf)
 		s3.MigrateConfig(&conf)
 		err = signalfx.MigrateConfig(&conf)
 		if err != nil {
@@ -96,6 +98,10 @@ func main() {
 				Create:      localfile.Create,
 				ParseConfig: localfile.ParseConfig,
 			},
+			"newrelic": {
+				Create:      newrelic.CreateMetricSink,
+				ParseConfig: newrelic.ParseMetricConfig,
+			},
 			"s3": {
 				Create:      s3.Create,
 				ParseConfig: s3.ParseConfig,
@@ -114,6 +120,10 @@ func main() {
 			"kafka": {
 				Create:      kafka.CreateSpanSink,
 				ParseConfig: kafka.ParseSpanConfig,
+			},
+			"newrelic": {
+				Create:      newrelic.CreateSpanSink,
+				ParseConfig: newrelic.ParseSpanConfig,
 			},
 			"splunk": {
 				Create:      splunk.Create,

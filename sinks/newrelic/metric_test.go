@@ -8,38 +8,57 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util"
 )
 
-func TestNewNewRelicMetricSink(t *testing.T) {
+func TestCreateMetricSink(t *testing.T) {
 	t.Parallel()
 
-	logger := logrus.New()
-	s, err := NewNewRelicMetricSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, testNewRelicEventType, []string{}, logger, testNewRelicServiceEventType)
+	logger := logrus.NewEntry(logrus.New())
+	sink, err := CreateMetricSink(
+		nil, "newrelic", logger, veneur.Config{}, NewRelicMetricSinkConfig{
+			AccountID:             testNewRelicAccount,
+			CommonTags:            []string{},
+			EventType:             testNewRelicEventType,
+			InsertKey:             util.StringSecret{Value: testNewRelicApiKey},
+			Region:                testNewRelicRegion,
+			ServiceCheckEventType: testNewRelicServiceEventType,
+		})
 
-	require.NotNil(t, s)
+	require.NotNil(t, sink)
 	assert.NoError(t, err)
+	assert.Equal(t, "newrelic", sink.Name())
 
-	assert.NotNil(t, s.log)
-	assert.Equal(t, logger, s.log)
-	assert.NotNil(t, s.harvester)
+	newRelicSink := sink.(*NewRelicMetricSink)
 
-	assert.Equal(t, "newrelic", s.Name())
+	assert.NotNil(t, newRelicSink.log)
+	assert.Equal(t, logger, newRelicSink.log)
+	assert.NotNil(t, newRelicSink.harvester)
 }
 
 func TestNewRelicMetricSink_Start(t *testing.T) {
 	t.Parallel()
 
-	logger := logrus.New()
-	s, err := NewNewRelicMetricSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, testNewRelicEventType, []string{}, logger, testNewRelicServiceEventType)
+	logger := logrus.NewEntry(logrus.New())
+	sink, err := CreateMetricSink(
+		nil, "newrelic", logger, veneur.Config{}, NewRelicMetricSinkConfig{
+			AccountID:             testNewRelicAccount,
+			CommonTags:            []string{},
+			EventType:             testNewRelicEventType,
+			InsertKey:             util.StringSecret{Value: testNewRelicApiKey},
+			Region:                testNewRelicRegion,
+			ServiceCheckEventType: testNewRelicServiceEventType,
+		})
 
-	require.NotNil(t, s)
+	require.NotNil(t, sink)
 	require.NoError(t, err)
 
 	tc := &trace.Client{}
-	err = s.Start(tc)
+	err = sink.Start(tc)
 	assert.NoError(t, err)
 }
 
@@ -47,28 +66,44 @@ func TestNewRelicMetricSink_Start(t *testing.T) {
 func TestNewRelicMetricSink_Flush(t *testing.T) {
 	t.Parallel()
 
-	logger := logrus.New()
-	s, err := NewNewRelicMetricSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, testNewRelicEventType, []string{}, logger, testNewRelicServiceEventType)
+	logger := logrus.NewEntry(logrus.New())
+	sink, err := CreateMetricSink(
+		nil, "newrelic", logger, veneur.Config{}, NewRelicMetricSinkConfig{
+			AccountID:             testNewRelicAccount,
+			CommonTags:            []string{},
+			EventType:             testNewRelicEventType,
+			InsertKey:             util.StringSecret{Value: testNewRelicApiKey},
+			Region:                testNewRelicRegion,
+			ServiceCheckEventType: testNewRelicServiceEventType,
+		})
 
-	require.NotNil(t, s)
+	require.NotNil(t, sink)
 	require.NoError(t, err)
 
 	samples := []samplers.InterMetric{}
 
-	s.Flush(context.TODO(), samples)
+	sink.Flush(context.TODO(), samples)
 }
 
 // Integration test, to be implemented
 func TestNewRelicMetricSink_FlushOtherSamples(t *testing.T) {
 	t.Parallel()
 
-	logger := logrus.New()
-	s, err := NewNewRelicMetricSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, testNewRelicEventType, []string{}, logger, testNewRelicServiceEventType)
+	logger := logrus.NewEntry(logrus.New())
+	sink, err := CreateMetricSink(
+		nil, "newrelic", logger, veneur.Config{}, NewRelicMetricSinkConfig{
+			AccountID:             testNewRelicAccount,
+			CommonTags:            []string{},
+			EventType:             testNewRelicEventType,
+			InsertKey:             util.StringSecret{Value: testNewRelicApiKey},
+			Region:                testNewRelicRegion,
+			ServiceCheckEventType: testNewRelicServiceEventType,
+		})
 
-	require.NotNil(t, s)
+	require.NotNil(t, sink)
 	require.NoError(t, err)
 
 	samples := []ssf.SSFSample{}
 
-	s.FlushOtherSamples(context.TODO(), samples)
+	sink.FlushOtherSamples(context.TODO(), samples)
 }

@@ -7,37 +7,51 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util"
 )
 
-func TestNewNewRelicSpanSink(t *testing.T) {
+func TestCreateSpanSink(t *testing.T) {
 	t.Parallel()
 
-	logger := logrus.New()
-	s, err := NewNewRelicSpanSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, []string{}, testNewRelicSpanURL, logger)
+	logger := logrus.NewEntry(logrus.New())
+	sink, err := CreateSpanSink(nil, "newrelic", logger,
+		veneur.Config{}, NewRelicSpanSinkConfig{
+			CommonTags:       []string{},
+			InsertKey:        util.StringSecret{Value: testNewRelicApiKey},
+			TraceObserverURL: testNewRelicSpanURL,
+		})
 
-	require.NotNil(t, s)
+	require.NotNil(t, sink)
 	assert.NoError(t, err)
 
-	assert.NotNil(t, s.log)
-	assert.Equal(t, logger, s.log)
-	assert.NotNil(t, s.harvester)
+	newRelicSink := sink.(*NewRelicSpanSink)
 
-	assert.Equal(t, "newrelic", s.Name())
+	assert.NotNil(t, newRelicSink.log)
+	assert.Equal(t, logger, newRelicSink.log)
+	assert.NotNil(t, newRelicSink.harvester)
+
+	assert.Equal(t, "newrelic", newRelicSink.Name())
 }
 
 func TestNewRelicSpanSink_Start(t *testing.T) {
 	t.Parallel()
 
-	logger := logrus.New()
-	s, err := NewNewRelicSpanSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, []string{}, testNewRelicSpanURL, logger)
+	logger := logrus.NewEntry(logrus.New())
+	sink, err := CreateSpanSink(nil, "newrelic", logger,
+		veneur.Config{}, NewRelicSpanSinkConfig{
+			CommonTags:       []string{},
+			InsertKey:        util.StringSecret{Value: testNewRelicApiKey},
+			TraceObserverURL: testNewRelicSpanURL,
+		})
 
-	require.NotNil(t, s)
+	require.NotNil(t, sink)
 	require.NoError(t, err)
 
 	tc := &trace.Client{}
-	err = s.Start(tc)
+	err = sink.Start(tc)
 	assert.NoError(t, err)
 }
 
@@ -45,15 +59,20 @@ func TestNewRelicSpanSink_Start(t *testing.T) {
 func TestNewRelicSpanSink_Ingest(t *testing.T) {
 	t.Parallel()
 
-	logger := logrus.New()
-	s, err := NewNewRelicSpanSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, []string{}, testNewRelicSpanURL, logger)
+	logger := logrus.NewEntry(logrus.New())
+	sink, err := CreateSpanSink(nil, "newrelic", logger,
+		veneur.Config{}, NewRelicSpanSinkConfig{
+			CommonTags:       []string{},
+			InsertKey:        util.StringSecret{Value: testNewRelicApiKey},
+			TraceObserverURL: testNewRelicSpanURL,
+		})
 
-	require.NotNil(t, s)
+	require.NotNil(t, sink)
 	require.NoError(t, err)
 
 	ssfSpan := &ssf.SSFSpan{}
 
-	err = s.Ingest(ssfSpan)
+	err = sink.Ingest(ssfSpan)
 	assert.Error(t, err)
 }
 
@@ -61,11 +80,16 @@ func TestNewRelicSpanSink_Ingest(t *testing.T) {
 func TestNewRelicSpanSink_Flush(t *testing.T) {
 	t.Parallel()
 
-	logger := logrus.New()
-	s, err := NewNewRelicSpanSink(testNewRelicApiKey, testNewRelicAccount, testNewRelicRegion, []string{}, testNewRelicSpanURL, logger)
+	logger := logrus.NewEntry(logrus.New())
+	sink, err := CreateSpanSink(nil, "newrelic", logger,
+		veneur.Config{}, NewRelicSpanSinkConfig{
+			CommonTags:       []string{},
+			InsertKey:        util.StringSecret{Value: testNewRelicApiKey},
+			TraceObserverURL: testNewRelicSpanURL,
+		})
 
-	require.NotNil(t, s)
+	require.NotNil(t, sink)
 	require.NoError(t, err)
 
-	s.Flush()
+	sink.Flush()
 }
