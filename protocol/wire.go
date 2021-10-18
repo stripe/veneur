@@ -36,7 +36,7 @@ import (
 	"encoding/binary"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 // MaxSSFPacketLength is the maximum length of an SSF packet. This is

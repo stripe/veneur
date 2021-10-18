@@ -10,6 +10,7 @@ statsd_listen_addresses:
  - udp://localhost:8126
  - tcp://localhost:8126
  - unixgram:///tmp/veneur-statsd.sock
+ - unixgram:@veneur-statsd.sock
 
 # The addresses on which to listen for SSF data. As with
 # statsd_listen_addresses, these are formatted as URLs, with schemes
@@ -21,6 +22,16 @@ statsd_listen_addresses:
 ssf_listen_addresses:
   - udp://localhost:8128
   - unix:///tmp/veneur-ssf.sock
+  - unix:@veneur-ssf.sock
+
+# The addresses on which to listen for GRPC encoded SSF or dogstatsd data. As with
+# statsd_listen_addresses, these are formatted as URLs, with schemes
+# corresponding to valid "network" arguments on
+# https://golang.org/pkg/net/#Listen. Only TCP addresses are supported.
+# This option can be used in conjunction with ssf_listen_addresses and statsd_listen_addresses.
+# Each address listed here can support both SSF and dogstatsd on the same address and same port (the wonders of gRPC).
+grpc_listen_addresses:
+ - tcp://localhost:8181
 
 # TLS
 # These are only useful in conjunction with TCP listening sockets
@@ -96,12 +107,20 @@ hostname: ""
 # If true and hostname is "" or absent, don't add the host tag
 omit_empty_hostname: false
 
-# Tags supplied here will be added to all metrics and spans ingested by this
-# instance. Example:
+# Tags supplied here will be added to all metrics and spans when flushing
+# to vendor sinks. They will not be forwarded to global Veneur instances.
 # tags:
 #  - "foo:bar"
 #  - "baz:quz"
 tags:
+  - ""
+
+# Tags suppliedhere will be added to all metrics and spans at parse/ingestion
+# time. They *will* be forwarded to global Veneur instances.
+# extend_tags:
+#  - "foo:bar"
+#  - "baz:quz"
+extend_tags:
   - ""
 
 # Tags listed here will be excluded from sinks. A pipe ("|") delimiter
@@ -289,11 +308,45 @@ datadog_metric_name_prefix_drops:
 # Any metrics that have tags *prefixes* will be dropped before sending to Datadog.
 datadog_exclude_tags_prefix_by_prefix_metric:
   - metric_prefix: "metric_prefix"
-    tags: 
+    tags:
       - an_ignorable_tag_prefix"
 
 # The size of the ring buffer used for retaining spans during a flush interval.
 datadog_span_buffer_size: 16384
+
+
+# == New Relic ==
+# New Relic can be a sink for metrics, events, and trace spans.
+
+# New Relic Insert Key used for sending data
+# Required
+newrelic_insert_key: ""
+
+# New Relic Account ID to send data to
+# Required
+newrelic_account_id: 0
+
+# New Relic Region to send data to
+# Optional, default: US
+newrelic_region: "US"
+
+# Common tags are metadata that will be added to all
+# Metrics reported to New Relic.
+newrelic_common_tags:
+  - "environment:dev"
+
+# Event type to use when reporting events to New Relic
+# Optional, default: "veneur"
+newrelic_event_type: ""
+
+# Event type to use when reporting status checks to New Relic
+# Optional, default: "veneurCheck"
+newrelic_service_check_event_type: ""
+
+# To enable Infinite Tracing on the New Relic Edge, set this field to your
+# Trace Observer URL including scheme and path. See:
+# https://docs.newrelic.com/docs/understand-dependencies/distributed-tracing/enable-configure/enable-distributed-tracing
+newrelic_trace_observer_url: ""
 
 # == SignalFx ==
 # SignalFx can be a sink for metrics and events.
@@ -376,11 +429,9 @@ signalfx_dynamic_per_tag_api_keys_refresh_period: "10m"
 xray_address: "localhost:2000"
 
 # Sample rate in percent (as an integer)
-# This should ideally be a floating point number, but at the time this was
-# written, gojson interpreted whole-number floats in yaml as integers.
 # The sink will hash the trace id of the span such that all Veneur instances
 # will sample the same segments by using the trace id as input for a checksum.
-xray_sample_percentage: 100
+xray_sample_percentage: 100.0
 
 # All tags are sent as (unindexed) Metadata to X-ray. Up to 50 tags per trace
 # (not per span) can be indexed as Annotations for search. Tag keys specified here
@@ -447,7 +498,7 @@ kafka_metric_buffer_bytes: 0
 
 kafka_metric_buffer_messages: 0
 
-kafka_metric_buffer_frequency: ""
+kafka_metric_buffer_frequency: "10s"
 
 kafka_span_serialization_format: "protobuf"
 
@@ -464,7 +515,7 @@ kafka_span_buffer_bytes: 0
 
 kafka_span_buffer_mesages: 0
 
-kafka_span_buffer_frequency: ""
+kafka_span_buffer_frequency: "10s"
 
 # The number of retries before giving up.
 kafka_retry_max: 0
@@ -534,6 +585,15 @@ splunk_hec_max_connection_lifetime: "10s"
 # of submission workers that close & re-open their HTTP connections at
 # the same time. If set to 0, there will be no jitter.
 splunk_hec_connection_lifetime_jitter: "10s"
+
+# == Prometheus ==
+#
+# The URL to used to send packets to Statsd Repeater.
+prometheus_repeater_address: "localhost:9125"
+
+# (optional) The packet type (tcp / udp) that Veneur will use to send packets
+# to Statsd Repeater. This will be tcp by default.
+prometheus_network_type: "tcp"
 
 # == PLUGINS ==
 

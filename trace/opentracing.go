@@ -15,7 +15,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	opentracing "github.com/opentracing/opentracing-go"
 	opentracinglog "github.com/opentracing/opentracing-go/log"
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 // Lists the names of headers that a specification uses for representing trace information.

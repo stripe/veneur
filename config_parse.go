@@ -14,12 +14,13 @@ import (
 var defaultConfig = Config{
 	Aggregates:                     []string{"min", "max", "count"},
 	DatadogFlushMaxPerBody:         25000,
-	Interval:                       "10s",
+	Interval:                       time.Duration(10 * time.Second),
 	MetricMaxLength:                4096,
+	PrometheusNetworkType:          "tcp",
 	ReadBufferSizeBytes:            1048576 * 2, // 2 MiB
 	SpanChannelCapacity:            100,
 	SplunkHecBatchSize:             100,
-	SplunkHecMaxConnectionLifetime: "10s", // same as Interval
+	SplunkHecMaxConnectionLifetime: time.Duration(10 * time.Second), // same as Interval
 }
 
 var defaultProxyConfig = ProxyConfig{
@@ -156,11 +157,14 @@ func (c *Config) applyDefaults() {
 	if c.Hostname == "" && !c.OmitEmptyHostname {
 		c.Hostname, _ = os.Hostname()
 	}
-	if c.Interval == "" {
+	if c.Interval == 0 {
 		c.Interval = defaultConfig.Interval
 	}
 	if c.MetricMaxLength == 0 {
 		c.MetricMaxLength = defaultConfig.MetricMaxLength
+	}
+	if c.PrometheusNetworkType == "" {
+		c.PrometheusNetworkType = defaultConfig.PrometheusNetworkType
 	}
 	if c.ReadBufferSizeBytes == 0 {
 		c.ReadBufferSizeBytes = defaultConfig.ReadBufferSizeBytes
@@ -189,9 +193,9 @@ func (c *Config) applyDefaults() {
 			c.LightstepCollectorHost = c.TraceLightstepCollectorHost
 		}
 	}
-	if c.TraceLightstepAccessToken != "" {
+	if c.TraceLightstepAccessToken.Value != "" {
 		log.Warn("trace_lightstep_access_token configuration option has been replaced by lightstep_access_token and will be removed in the next version")
-		if c.LightstepAccessToken == "" {
+		if c.LightstepAccessToken.Value == "" {
 			c.LightstepAccessToken = c.TraceLightstepAccessToken
 		}
 	}
@@ -220,12 +224,7 @@ func (c *Config) applyDefaults() {
 		c.SplunkHecBatchSize = defaultConfig.SplunkHecBatchSize
 	}
 
-	if c.SplunkHecMaxConnectionLifetime == "" {
+	if c.SplunkHecMaxConnectionLifetime == 0 {
 		c.SplunkHecMaxConnectionLifetime = defaultConfig.SplunkHecMaxConnectionLifetime
 	}
-}
-
-// ParseInterval handles parsing the flush interval as a time.Duration
-func (c Config) ParseInterval() (time.Duration, error) {
-	return time.ParseDuration(c.Interval)
 }

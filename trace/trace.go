@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"math/rand"
+	"path"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -11,10 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/stripe/veneur/ssf"
-
 	"github.com/golang/protobuf/proto"
 	opentracing "github.com/opentracing/opentracing-go"
+	"github.com/stripe/veneur/v14/ssf"
+	"golang.org/x/mod/module"
 )
 
 // Experimental
@@ -354,12 +355,46 @@ func StartChildSpan(parent *Trace) *Trace {
 }
 
 // stripPackageName strips the package name from a function
-// name (as formatted by the runtime package)
+// name (as formatted by the runtime package). If the module has a
+// major version >1 and the function is in the top-level package,
+// it will be reported by the runtime as "module/foo/vN.Bar". This
+// function strips the vN portion so that the above case becomes
+// "foo.Bar".
+// As a special case, gopkg.in paths are recognized directly.
+// They require ".vN" instead of "/vN", and for all N, not just N >= 2.
+// The version suffix is NOT stripped from gopkg.in paths.
 func stripPackageName(name string) string {
+	if strings.HasPrefix(name, "gopkg.in/") {
+		return stripPackageNameGoPkgIn(name)
+	}
+
+	idx := -1
+	for i := len(name) - 1; i >= 0; i-- {
+		if name[i] == '/' {
+			break
+		}
+		if name[i] == '.' {
+			idx = i
+		}
+	}
+	if idx == -1 || idx >= len(name) {
+		return name
+	}
+	p, _, ok := module.SplitPathVersion(name[:idx])
+	if !ok {
+		return name
+	}
+
+	return path.Base(p) + name[idx:]
+}
+
+func stripPackageNameGoPkgIn(name string) string {
 	i := strings.LastIndex(name, "/")
 	if i < 0 || i >= len(name)-1 {
 		return name
 	}
 
-	return name[i+1:]
+	// The compiler escapes the package path.
+	// See golang.org/issue/35558
+	return strings.Replace(name[i+1:], "%2e", ".", 1)
 }

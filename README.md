@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/stripe/veneur/gh-pages/veneur_logo.svg?sanitize=true">
 </div>
 
-[![Build Status](https://travis-ci.org/stripe/veneur.svg?branch=master)](https://travis-ci.org/stripe/veneur)
+[![Build Status](https://circleci.com/gh/stripe/veneur.svg?style=svg)](https://app.circleci.com/pipelines/github/stripe/veneur)
 [![GoDoc](https://godoc.org/github.com/stripe/veneur?status.svg)](http://godoc.org/github.com/stripe/veneur)
 
 # Table of Contents
@@ -82,7 +82,7 @@ We wanted percentiles, histograms and sets to be global. We wanted to unify our 
 
 Veneur is currently handling all metrics for Stripe and is considered production ready. It is under active development and maintenance! Starting with v1.6, Veneur operates on a six-week release cycle, and all releases are tagged in git. If you'd like to contribute, see [CONTRIBUTING](https://github.com/stripe/veneur/blob/master/CONTRIBUTING.md)!
 
-Building Veneur requires Go 1.9 or later.
+Building Veneur requires Go 1.11 or later.
 
 # Features
 
@@ -181,6 +181,7 @@ To use clients with Veneur you need only configure your client of choice to the 
 
 * `statsd_listen_addresses` for UDP- and TCP-based clients
 * `ssf_listen_addresses` for SSF-based clients using UDP or UNIX domain sockets.
+* `grpc_listen_addresses` for both SSF and dogstatsd based clients using GRPC (over TCP).
 
 ## Einhorn Usage
 
@@ -230,7 +231,7 @@ Relatedly, if you want to forward a counter or gauge to the global Veneur instan
 
 #### Routing metrics
 
-Veneur supports specifying that metrics should only be routed to a specific metric sink, with the `veneursinkonly:<sink_name>` tag. The `<sink_name>` value can be any configured metric sink. Currently, that's `datadog`, `kafka`, `signalfx`. It's possible to specify multiple sink destination tags on a metric, which will cause the metric to be routed to each sink specified.
+Veneur supports specifying that metrics should only be routed to a specific metric sink, with the `veneursinkonly:<sink_name>` tag. The `<sink_name>` value can be any configured metric sink. Currently, that's `datadog`, `kafka`, `signalfx`, `prometheus`. It's possible to specify multiple sink destination tags on a metric, which will cause the metric to be routed to each sink specified.
 
 # Configuration
 
@@ -294,6 +295,7 @@ Veneur will emit metrics to the `stats_address` configured above in DogStatsD fo
 * `veneur.worker.metrics_imported_total` - Total number of metrics received via the importing endpoint. A "metric", in this context, refers to a unique combination of name, tags, type _and originating host_. This metric indicates how much of a Veneur instance's load is coming from imports.
 * `veneur.import.response_duration_ns` - Time spent responding to import HTTP requests. This metric is broken into `part` tags for `request` (time spent blocking the client) and `merge` (time spent sending metrics to workers).
 * `veneur.import.request_error_total` - A counter for the number of import requests that have errored out. You can use this for monitoring and alerting when imports fail.
+* `veneur.listen.received_per_protocol_total` - A counter for the number of metrics/spans/etc. received by direct listening on global Veneur instances. This can be used to observe metrics that were received from direct emits as opposed to imports. Tagged by `protocol`.
 
 ## Error Handling
 

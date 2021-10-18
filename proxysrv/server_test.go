@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stripe/veneur/forwardrpc"
-	"github.com/stripe/veneur/internal/forwardtest"
-	"github.com/stripe/veneur/samplers/metricpb"
-	metrictest "github.com/stripe/veneur/samplers/metricpb/testutils"
+	"github.com/stripe/veneur/v14/forwardrpc"
+	"github.com/stripe/veneur/v14/internal/forwardtest"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
+	metrictest "github.com/stripe/veneur/v14/samplers/metricpb/testutils"
 	"stathat.com/c/consistent"
 )
 
@@ -187,7 +187,7 @@ func TestCountActiveHandlers(t *testing.T) {
 			tick := time.NewTicker(10 * time.Nanosecond)
 			defer tick.Stop()
 
-			timeout := time.NewTicker(3 * time.Second)
+			timeout := time.NewTicker(10 * time.Second)
 			defer timeout.Stop()
 			for int64(n) != atomic.LoadInt64(s.activeProxyHandlers) {
 				select {
@@ -204,7 +204,7 @@ func TestCountActiveHandlers(t *testing.T) {
 
 			// Stop all of the servers and check that the counter goes to zero
 			close(done)
-			timeout = time.NewTicker(3 * time.Second)
+			timeout = time.NewTicker(10 * time.Second)
 			defer timeout.Stop()
 			for atomic.LoadInt64(s.activeProxyHandlers) != 0 {
 				select {

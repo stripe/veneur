@@ -7,26 +7,59 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur/protocol"
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/sinks"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
 )
 
-type debugMetricSink struct {
-	log *logrus.Logger
-	mtx *sync.Mutex
+func MigrateConfig(conf *veneur.Config) {
+	if conf.DebugFlushedMetrics {
+		conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
+			Kind: "debug",
+			Name: "debug",
+		})
+	}
+	if conf.DebugIngestedSpans {
+		conf.SpanSinks = append(conf.SpanSinks, veneur.SinkConfig{
+			Kind: "debug",
+			Name: "debug",
+		})
+	}
 }
 
-var _ sinks.MetricSink = &debugMetricSink{}
+type debugMetricSink struct {
+	log  *logrus.Entry
+	mtx  *sync.Mutex
+	name string
+}
 
-func NewDebugMetricSink(mtx *sync.Mutex, log *logrus.Logger) sinks.MetricSink {
-	return &debugMetricSink{log, mtx}
+// Prevents debug sinks from logging at the same time.
+var mtx = sync.Mutex{}
+
+func ParseMetricConfig(_ interface{}) (veneur.MetricSinkConfig, error) {
+	return nil, nil
+}
+
+// CreateMetricSink creates a new debug sink for metrics. This function
+// should match the signature of a value in veneur.MetricSinkTypes, and is
+// intended to be passed into veneur.NewFromConfig to be called based on the
+// provided configuration.
+func CreateMetricSink(
+	server *veneur.Server, name string, logger *logrus.Entry,
+	config veneur.Config, sinkConfig veneur.MetricSinkConfig,
+) (sinks.MetricSink, error) {
+	return &debugMetricSink{
+		log:  logger,
+		mtx:  &mtx,
+		name: name,
+	}, nil
 }
 
 func (b *debugMetricSink) Name() string {
-	return "blackhole"
+	return b.name
 }
 
 func (b *debugMetricSink) Start(*trace.Client) error {
@@ -34,7 +67,7 @@ func (b *debugMetricSink) Start(*trace.Client) error {
 }
 
 func (b *debugMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
-	if len(metrics) == 0 || b.log.Level < logrus.DebugLevel {
+	if len(metrics) == 0 || b.log.Logger.Level < logrus.DebugLevel {
 		return nil
 	}
 	b.mtx.Lock()
@@ -52,7 +85,7 @@ func (b *debugMetricSink) Flush(ctx context.Context, metrics []samplers.InterMet
 }
 
 func (b *debugMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
-	if len(samples) == 0 || b.log.Level < logrus.DebugLevel {
+	if len(samples) == 0 || b.log.Logger.Level < logrus.DebugLevel {
 		return
 	}
 	b.mtx.Lock()
@@ -71,18 +104,32 @@ func (b *debugMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.S
 }
 
 type debugSpanSink struct {
-	log *logrus.Logger
-	mtx *sync.Mutex
+	log  *logrus.Entry
+	mtx  *sync.Mutex
+	name string
 }
 
-var _ sinks.SpanSink = &debugSpanSink{}
+func ParseSpanConfig(_ interface{}) (veneur.SpanSinkConfig, error) {
+	return nil, nil
+}
 
-func NewDebugSpanSink(mtx *sync.Mutex, log *logrus.Logger) sinks.SpanSink {
-	return &debugSpanSink{log, mtx}
+// CreateSpanSink creates a new debug sink for spans. This function
+// should match the signature of a value in veneur.SpanSinkTypes, and is
+// intended to be passed into veneur.NewFromConfig to be called based on the
+// provided configuration.
+func CreateSpanSink(
+	server *veneur.Server, name string, logger *logrus.Entry,
+	config veneur.Config, sinkConfig veneur.SpanSinkConfig,
+) (sinks.SpanSink, error) {
+	return &debugSpanSink{
+		log:  logger,
+		mtx:  &mtx,
+		name: name,
+	}, nil
 }
 
 func (b *debugSpanSink) Name() string {
-	return "debug"
+	return b.name
 }
 
 // Start performs final adjustments on the sink.
@@ -91,7 +138,7 @@ func (b *debugSpanSink) Start(*trace.Client) error {
 }
 
 func (b *debugSpanSink) Ingest(span *ssf.SSFSpan) error {
-	if b.log.Level < logrus.DebugLevel {
+	if b.log.Logger.Level < logrus.DebugLevel {
 		return nil
 	}
 	b.mtx.Lock()

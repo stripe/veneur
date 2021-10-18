@@ -19,16 +19,16 @@ import (
 	"context"
 
 	"github.com/DataDog/datadog-go/statsd"
-	raven "github.com/getsentry/raven-go"
+	"github.com/getsentry/sentry-go"
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/profile"
 	"github.com/sirupsen/logrus"
-	vhttp "github.com/stripe/veneur/http"
-	"github.com/stripe/veneur/proxysrv"
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/metrics"
+	vhttp "github.com/stripe/veneur/v14/http"
+	"github.com/stripe/veneur/v14/proxysrv"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/trace/metrics"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
 	"stathat.com/c/consistent"
@@ -38,7 +38,6 @@ import (
 )
 
 type Proxy struct {
-	Sentry                     *raven.Client
 	Hostname                   string
 	ForwardDestinations        *consistent.Consistent
 	TraceDestinations          *consistent.Consistent
@@ -74,18 +73,29 @@ type Proxy struct {
 	numListeningHTTP *int32
 }
 
-func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err error) {
+func NewProxyFromConfig(
+	logger *logrus.Logger, conf ProxyConfig,
+) (*Proxy, error) {
+	proxy := Proxy{}
 
 	hostname, err := os.Hostname()
 	if err != nil {
 		logger.WithError(err).Error("Error finding hostname")
-		return
+		return nil, err
 	}
-	p.Hostname = hostname
-	p.shutdown = make(chan struct{})
+	proxy.Hostname = hostname
+	proxy.shutdown = make(chan struct{})
+
+	if conf.SentryDsn != "" {
+		err = sentry.Init(sentry.ClientOptions{
+			Dsn: conf.SentryDsn,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	logger.AddHook(sentryHook{
-		c:        p.Sentry,
 		hostname: hostname,
 		lv: []logrus.Level{
 			logrus.ErrorLevel,
@@ -94,13 +104,13 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 		},
 	})
 
-	p.HTTPAddr = conf.HTTPAddress
+	proxy.HTTPAddr = conf.HTTPAddress
 
 	var idleTimeout time.Duration
 	if conf.IdleConnectionTimeout != "" {
 		idleTimeout, err = time.ParseDuration(conf.IdleConnectionTimeout)
 		if err != nil {
-			return p, err
+			return nil, err
 		}
 	}
 	transport := &http.Transport{
@@ -111,108 +121,117 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 		MaxIdleConnsPerHost: conf.MaxIdleConnsPerHost,
 	}
 
-	p.HTTPClient = &http.Client{
+	proxy.HTTPClient = &http.Client{
 		Transport: transport,
 	}
-	p.numListeningHTTP = new(int32)
+	proxy.numListeningHTTP = new(int32)
 
-	p.enableProfiling = conf.EnableProfiling
+	proxy.enableProfiling = conf.EnableProfiling
 
-	p.ConsulForwardService = conf.ConsulForwardServiceName
-	p.ConsulTraceService = conf.ConsulTraceServiceName
-	p.ConsulForwardGRPCService = conf.ConsulForwardGrpcServiceName
+	proxy.ConsulForwardService = conf.ConsulForwardServiceName
+	proxy.ConsulTraceService = conf.ConsulTraceServiceName
+	proxy.ConsulForwardGRPCService = conf.ConsulForwardGrpcServiceName
 
-	if p.ConsulForwardService != "" || conf.ForwardAddress != "" {
-		p.AcceptingForwards = true
+	if proxy.ConsulForwardService != "" || conf.ForwardAddress != "" {
+		proxy.AcceptingForwards = true
 	}
-	if p.ConsulTraceService != "" || conf.TraceAddress != "" {
-		p.AcceptingTraces = true
+	if proxy.ConsulTraceService != "" || conf.TraceAddress != "" {
+		proxy.AcceptingTraces = true
 	}
-	if p.ConsulForwardGRPCService != "" || conf.GrpcForwardAddress != "" {
-		p.AcceptingGRPCForwards = true
+	if proxy.ConsulForwardGRPCService != "" || conf.GrpcForwardAddress != "" {
+		proxy.AcceptingGRPCForwards = true
 	}
 
 	// We need a convenient way to know if we're even using Consul later
-	if p.ConsulForwardService != "" || p.ConsulTraceService != "" || p.ConsulForwardGRPCService != "" {
+	if proxy.ConsulForwardService != "" ||
+		proxy.ConsulTraceService != "" ||
+		proxy.ConsulForwardGRPCService != "" {
 		log.WithFields(logrus.Fields{
-			"consulForwardService":     p.ConsulForwardService,
-			"consulTraceService":       p.ConsulTraceService,
-			"consulGRPCForwardService": p.ConsulForwardGRPCService,
+			"consulForwardService":     proxy.ConsulForwardService,
+			"consulTraceService":       proxy.ConsulTraceService,
+			"consulGRPCForwardService": proxy.ConsulForwardGRPCService,
 		}).Info("Using consul for service discovery")
-		p.usingConsul = true
+		proxy.usingConsul = true
 	}
 
 	// check if we are running on Kubernetes
-	if _, err := os.Stat("/var/run/secrets/kubernetes.io/serviceaccount"); !os.IsNotExist(err) {
+	_, err = os.Stat("/var/run/secrets/kubernetes.io/serviceaccount")
+	if !os.IsNotExist(err) {
 		log.Info("Using Kubernetes for service discovery")
-		p.usingKubernetes = true
+		proxy.usingKubernetes = true
 
 		//TODO don't overload this
 		if conf.ConsulForwardServiceName != "" {
-			p.AcceptingForwards = true
+			proxy.AcceptingForwards = true
 		}
 	}
 
-	p.ForwardDestinations = consistent.New()
-	p.TraceDestinations = consistent.New()
-	p.ForwardGRPCDestinations = consistent.New()
+	proxy.ForwardDestinations = consistent.New()
+	proxy.TraceDestinations = consistent.New()
+	proxy.ForwardGRPCDestinations = consistent.New()
 
 	if conf.ForwardTimeout != "" {
-		p.ForwardTimeout, err = time.ParseDuration(conf.ForwardTimeout)
+		proxy.ForwardTimeout, err = time.ParseDuration(conf.ForwardTimeout)
 		if err != nil {
 			logger.WithError(err).
 				WithField("value", conf.ForwardTimeout).
 				Error("Could not parse forward timeout")
-			return
+			return nil, err
 		}
 	}
 
 	// We got a static forward address, stick it in the destination!
-	if p.ConsulForwardService == "" && conf.ForwardAddress != "" {
-		p.ForwardDestinations.Add(conf.ForwardAddress)
+	if proxy.ConsulForwardService == "" && conf.ForwardAddress != "" {
+		proxy.ForwardDestinations.Add(conf.ForwardAddress)
 	}
-	if p.ConsulTraceService == "" && conf.TraceAddress != "" {
-		p.TraceDestinations.Add(conf.TraceAddress)
+	if proxy.ConsulTraceService == "" && conf.TraceAddress != "" {
+		proxy.TraceDestinations.Add(conf.TraceAddress)
 	}
-	if p.ConsulForwardGRPCService == "" && conf.GrpcForwardAddress != "" {
-		p.ForwardGRPCDestinations.Add(conf.GrpcForwardAddress)
+	if proxy.ConsulForwardGRPCService == "" && conf.GrpcForwardAddress != "" {
+		proxy.ForwardGRPCDestinations.Add(conf.GrpcForwardAddress)
 	}
 
-	if !p.AcceptingForwards && !p.AcceptingTraces && !p.AcceptingGRPCForwards {
-		err = errors.New("refusing to start with no Consul service names or static addresses in config")
+	if !proxy.AcceptingForwards &&
+		!proxy.AcceptingTraces &&
+		!proxy.AcceptingGRPCForwards {
+		err = errors.New(
+			"refusing to start with no Consul service names or static addresses in config")
 		logger.WithError(err).WithFields(logrus.Fields{
-			"consul_forward_service_name":      p.ConsulForwardService,
-			"consul_trace_service_name":        p.ConsulTraceService,
-			"consul_forward_grpc_service_name": p.ConsulForwardGRPCService,
+			"consul_forward_service_name":      proxy.ConsulForwardService,
+			"consul_trace_service_name":        proxy.ConsulTraceService,
+			"consul_forward_grpc_service_name": proxy.ConsulForwardGRPCService,
 			"forward_address":                  conf.ForwardAddress,
 			"trace_address":                    conf.TraceAddress,
 		}).Error("Oops")
-		return
+		return nil, err
 	}
 
-	if p.usingConsul {
-		p.ConsulInterval, err = time.ParseDuration(conf.ConsulRefreshInterval)
+	if proxy.usingConsul {
+		proxy.ConsulInterval, err = time.ParseDuration(conf.ConsulRefreshInterval)
 		if err != nil {
 			logger.WithError(err).Error("Error parsing Consul refresh interval")
-			return
+			return nil, err
 		}
-		logger.WithField("interval", conf.ConsulRefreshInterval).Info("Will use Consul for service discovery")
+		logger.WithField("interval", conf.ConsulRefreshInterval).
+			Info("Will use Consul for service discovery")
 	}
 
-	p.MetricsInterval = time.Second * 10
+	proxy.MetricsInterval = time.Second * 10
 	if conf.RuntimeMetricsInterval != "" {
-		p.MetricsInterval, err = time.ParseDuration(conf.RuntimeMetricsInterval)
+		proxy.MetricsInterval, err = time.ParseDuration(conf.RuntimeMetricsInterval)
 		if err != nil {
 			logger.WithError(err).Error("Error parsing metric refresh interval")
-			return
+			return nil, err
 		}
 	}
 
-	p.TraceClient = trace.DefaultClient
+	proxy.TraceClient = trace.DefaultClient
 	if conf.SsfDestinationAddress != "" {
-		stats, err := statsd.NewBuffered(conf.StatsAddress, 4096)
+		stats, err := statsd.New(
+			conf.StatsAddress, statsd.WithoutTelemetry(),
+			statsd.WithMaxMessagesPerPayload(4096))
 		if err != nil {
-			return p, err
+			return nil, err
 		}
 		stats.Namespace = "veneur_proxy."
 		format := "ssf_format:packet"
@@ -220,18 +239,20 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 			format = "ssf_format:framed"
 		}
 
-		traceFlushInterval, err := time.ParseDuration(conf.TracingClientFlushInterval)
+		traceFlushInterval, err :=
+			time.ParseDuration(conf.TracingClientFlushInterval)
 		if err != nil {
 			logger.WithError(err).Error("Error parsing tracing flush interval")
-			return p, err
+			return nil, err
 		}
-		traceMetricsInterval, err := time.ParseDuration(conf.TracingClientMetricsInterval)
+		traceMetricsInterval, err :=
+			time.ParseDuration(conf.TracingClientMetricsInterval)
 		if err != nil {
 			logger.WithError(err).Error("Error parsing tracing metrics interval")
-			return p, err
+			return nil, err
 		}
 
-		p.TraceClient, err = trace.NewClient(conf.SsfDestinationAddress,
+		proxy.TraceClient, err = trace.NewClient(conf.SsfDestinationAddress,
 			trace.Buffered,
 			trace.Capacity(uint(conf.TracingClientCapacity)),
 			trace.FlushInterval(traceFlushInterval),
@@ -245,11 +266,11 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 	}
 
 	if conf.GrpcAddress != "" {
-		p.grpcListenAddress = conf.GrpcAddress
-		p.grpcServer, err = proxysrv.New(p.ForwardGRPCDestinations,
-			proxysrv.WithForwardTimeout(p.ForwardTimeout),
+		proxy.grpcListenAddress = conf.GrpcAddress
+		proxy.grpcServer, err = proxysrv.New(proxy.ForwardGRPCDestinations,
+			proxysrv.WithForwardTimeout(proxy.ForwardTimeout),
 			proxysrv.WithLog(logrus.NewEntry(log)),
-			proxysrv.WithTraceClient(p.TraceClient),
+			proxysrv.WithTraceClient(proxy.TraceClient),
 		)
 		if err != nil {
 			logger.WithError(err).Fatal("Failed to initialize the gRPC server")
@@ -265,7 +286,7 @@ func NewProxyFromConfig(logger *logrus.Logger, conf ProxyConfig) (p Proxy, err e
 
 	logger.WithField("config", conf).Debug("Initialized server")
 
-	return
+	return &proxy, nil
 }
 
 // Start fires up the various goroutines that run on behalf of the server.
@@ -322,7 +343,7 @@ func (p *Proxy) Start() {
 		log.Info("Creating service discovery goroutine")
 		go func() {
 			defer func() {
-				ConsumePanic(p.Sentry, p.TraceClient, p.Hostname, recover())
+				ConsumePanic(p.TraceClient, p.Hostname, recover())
 			}()
 			ticker := time.NewTicker(p.ConsulInterval)
 			for range ticker.C {
@@ -349,7 +370,7 @@ func (p *Proxy) Start() {
 	go func() {
 		hostname, _ := os.Hostname()
 		defer func() {
-			ConsumePanic(p.Sentry, p.TraceClient, hostname, recover())
+			ConsumePanic(p.TraceClient, hostname, recover())
 		}()
 		ticker := time.NewTicker(p.MetricsInterval)
 		for {
@@ -517,7 +538,7 @@ func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consist
 func (p *Proxy) Handler() http.Handler {
 	mux := goji.NewMux()
 
-	mux.HandleFuncC(pat.Get("/healthcheck"), func(c context.Context, w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(pat.Get("/healthcheck"), func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok\n"))
 	})
 

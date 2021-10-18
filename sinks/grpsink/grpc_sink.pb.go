@@ -7,7 +7,7 @@ import (
 	context "context"
 	fmt "fmt"
 	proto "github.com/gogo/protobuf/proto"
-	ssf "github.com/stripe/veneur/ssf"
+	ssf "github.com/stripe/veneur/v14/ssf"
 	grpc "google.golang.org/grpc"
 	io "io"
 	math "math"

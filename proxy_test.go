@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/v14/samplers"
 	"github.com/zenazn/goji/graceful"
 )
 
@@ -276,7 +276,7 @@ func TestProxyServeStopHTTP(t *testing.T) {
 	}()
 
 	// Stop the HTTP server only, causing Serve to exit.
-	waitForHTTPStart(t, &p, 3*time.Second)
+	waitForHTTPStart(t, p, 3*time.Second)
 	graceful.ShutdownNow()
 
 	select {

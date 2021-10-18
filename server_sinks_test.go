@@ -14,8 +14,10 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/stripe/veneur/sinks/datadog"
-	"github.com/stripe/veneur/sinks/lightstep"
+	"github.com/stripe/veneur/v14/sinks/datadog"
+	"github.com/stripe/veneur/v14/sinks/lightstep"
+	"github.com/stripe/veneur/v14/sinks/prometheus"
+	"github.com/stripe/veneur/v14/util"
 )
 
 func TestFlushTracesBySink(t *testing.T) {
@@ -84,7 +86,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	defer remoteServer.Close()
 
 	config := globalConfig()
-	config.DatadogAPIKey = "secret"
+	config.DatadogAPIKey = util.StringSecret{Value: "secret"}
 	config.DatadogTraceAPIAddress = remoteServer.URL
 
 	server := setupVeneurServer(t, config, nil, nil, nil, nil)
@@ -98,7 +100,7 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 	packet, err := ioutil.ReadAll(protobuf)
 	assert.NoError(t, err)
 
-	server.HandleTracePacket(packet)
+	server.HandleTracePacket(packet, SSF_UNIX)
 	server.Flush(context.Background())
 
 	// wait for remoteServer to process the POST
@@ -120,7 +122,7 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 	config := globalConfig()
 
 	// this can be anything as long as it's not empty
-	config.LightstepAccessToken = "secret"
+	config.LightstepAccessToken = util.StringSecret{Value: "secret"}
 	server := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer server.Shutdown()
 
@@ -131,7 +133,7 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 	packet, err := ioutil.ReadAll(protobuf)
 	assert.NoError(t, err)
 
-	server.HandleTracePacket(packet)
+	server.HandleTracePacket(packet, SSF_UNIX)
 
 	assert.NoError(t, err)
 	server.Flush(context.Background())
@@ -142,17 +144,20 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 func TestNewDatadogMetricSinkConfig(t *testing.T) {
 	// test the variables that have been renamed
 	config := Config{
-		DatadogAPIKey:          "apikey",
+		DatadogAPIKey:          util.StringSecret{Value: "apikey"},
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
 		DatadogSpanBufferSize:  32,
 		SsfListenAddresses:     []string{"udp://127.0.0.1:99"},
 
 		// required or NewFromConfig fails
-		Interval:     "10s",
+		Interval:     time.Duration(10 * time.Second),
 		StatsAddress: "localhost:62251",
 	}
-	server, err := NewFromConfig(logrus.New(), config)
+	server, err := NewFromConfig(ServerConfig{
+		Logger: logrus.New(),
+		Config: config,
+	})
 
 	if err != nil {
 		t.Fatal(err)
@@ -161,4 +166,24 @@ func TestNewDatadogMetricSinkConfig(t *testing.T) {
 	assert.Equal(t, "datadog", sink.Name())
 	// Verify that the values got set	assert.Equal(t, "apikey", sink.APIKey)
 	assert.Equal(t, "http://api", sink.DDHostname)
+}
+
+func TestNewPrometheusMetricSinkConfig(t *testing.T) {
+	config := Config{
+		PrometheusRepeaterAddress: "localhost:9125",
+		PrometheusNetworkType:     "tcp",
+
+		// Required or NewFromConfig fails.
+		Interval:     time.Duration(10 * time.Second),
+		StatsAddress: "localhost:62251",
+	}
+
+	server, err := NewFromConfig(ServerConfig{
+		Logger: logrus.New(),
+		Config: config,
+	})
+	assert.NoError(t, err)
+
+	sink := server.metricSinks[0].(*prometheus.StatsdRepeater)
+	assert.Equal(t, "prometheus", sink.Name())
 }

@@ -13,15 +13,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/signalfx/golib/datapoint"
-	"github.com/signalfx/golib/event"
-	"github.com/signalfx/golib/sfxclient"
+	"github.com/signalfx/golib/v3/datapoint"
+	"github.com/signalfx/golib/v3/event"
+	"github.com/signalfx/golib/v3/sfxclient"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stripe/veneur/protocol/dogstatsd"
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/ssf"
+	veneur "github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/protocol/dogstatsd"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/util"
 )
 
 type FakeSink struct {
@@ -81,11 +83,34 @@ func newDerivedProcessor() *testDerivedSink {
 	}
 }
 
+func TestMigrateConfig(t *testing.T) {
+	config := veneur.Config{
+		SignalfxAPIKey: util.StringSecret{Value: "signalfx-api-key"},
+	}
+	MigrateConfig(&config)
+	assert.Len(t, config.MetricSinks, 1)
+	parsedConfig, err := ParseConfig(config.MetricSinks[0].Config)
+	assert.Nil(t, err)
+	signalFxConfig, ok := parsedConfig.(SignalFxSinkConfig)
+	assert.True(t, ok)
+	assert.Equal(t, "signalfx-api-key", signalFxConfig.APIKey.Value)
+}
+
 func TestNewSignalFxSink(t *testing.T) {
 	// test the variables that have been renamed
 	client := NewClient("http://www.example.com", "secret", http.DefaultClient)
-	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), client, "", nil, nil, nil, derived, 0, "", false, time.Second, "", "", nil)
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   0,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		VaryKeyBy:                         "",
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,26 +120,34 @@ func TestNewSignalFxSink(t *testing.T) {
 	}
 
 	httpsink, ok := client.(*sfxclient.HTTPSink)
-	if !ok {
-		assert.Fail(t, "SignalFx sink isn't the correct type")
-	}
+	assert.True(t, ok, "SignalFx sink isn't the correct type")
 	assert.Equal(t, "http://www.example.com/v2/datapoint", httpsink.DatapointEndpoint)
 	assert.Equal(t, "http://www.example.com/v2/event", httpsink.EventEndpoint)
 
 	assert.Equal(t, "signalfx", sink.Name())
 	assert.Equal(t, "host", sink.hostnameTag)
-	assert.Equal(t, "glooblestoots", sink.hostname)
+	assert.Equal(t, "signalfx-hostname", sink.hostname)
 	assert.Equal(t, map[string]string{"yay": "pie"}, sink.commonDimensions)
 }
 
 func TestSignalFxFlushRouting(t *testing.T) {
 	fakeSink := NewFakeSink()
-	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0, "", false, time.Second, "", "", nil)
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   0,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		VaryKeyBy:                         "",
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 
 	assert.NoError(t, err)
 
-	interMetrics := []samplers.InterMetric{samplers.InterMetric{
+	interMetrics := []samplers.InterMetric{{
 		Name:      "any",
 		Timestamp: 1476119058,
 		Value:     float64(100),
@@ -123,32 +156,29 @@ func TestSignalFxFlushRouting(t *testing.T) {
 			"baz:quz",
 		},
 		Type: samplers.GaugeMetric,
-	},
-		samplers.InterMetric{
-			Name:      "sfx",
-			Timestamp: 1476119058,
-			Value:     float64(100),
-			Tags: []string{
-				"foo:bar",
-				"baz:quz",
-				"veneursinkonly:signalfx",
-			},
-			Type:  samplers.GaugeMetric,
-			Sinks: samplers.RouteInformation{"signalfx": struct{}{}},
+	}, {
+		Name:      "sfx",
+		Timestamp: 1476119058,
+		Value:     float64(100),
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+			"veneursinkonly:signalfx",
 		},
-		samplers.InterMetric{
-			Name:      "not.us",
-			Timestamp: 1476119058,
-			Value:     float64(100),
-			Tags: []string{
-				"foo:bar",
-				"baz:quz",
-				"veneursinkonly:anyone_else",
-			},
-			Type:  samplers.GaugeMetric,
-			Sinks: samplers.RouteInformation{"anyone_else": struct{}{}},
+		Type:  samplers.GaugeMetric,
+		Sinks: samplers.RouteInformation{"signalfx": struct{}{}},
+	}, {
+		Name:      "not.us",
+		Timestamp: 1476119058,
+		Value:     float64(100),
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+			"veneursinkonly:anyone_else",
 		},
-	}
+		Type:  samplers.GaugeMetric,
+		Sinks: samplers.RouteInformation{"anyone_else": struct{}{}},
+	}}
 
 	sink.Flush(context.TODO(), interMetrics)
 
@@ -164,11 +194,23 @@ func TestSignalFxFlushRouting(t *testing.T) {
 func TestSignalFxFlushGauge(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0, "", false, time.Second, "", "", nil)
+
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   0,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		VaryKeyBy:                         "",
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 
 	assert.NoError(t, err)
 
-	interMetrics := []samplers.InterMetric{samplers.InterMetric{
+	interMetrics := []samplers.InterMetric{{
 		Name:      "a.b.c",
 		Timestamp: 1476119058,
 		Value:     float64(100),
@@ -193,17 +235,28 @@ func TestSignalFxFlushGauge(t *testing.T) {
 	assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Metric is missing common tag")
-	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
+	assert.Equal(t, "signalfx-hostname", dims["host"], "Metric is missing host tag")
 	assert.Empty(t, derived.samples, "Gauges should not generated derived metrics")
 }
 
 func TestSignalFxFlushCounter(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0, "", false, time.Second, "", "", nil)
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   0,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		VaryKeyBy:                         "",
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	assert.NoError(t, err)
 
-	interMetrics := []samplers.InterMetric{samplers.InterMetric{
+	interMetrics := []samplers.InterMetric{{
 		Name:      "a.b.c",
 		Timestamp: 1476119058,
 		Value:     10,
@@ -230,51 +283,57 @@ func TestSignalFxFlushCounter(t *testing.T) {
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
 	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Metric is missing a common tag")
-	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
+	assert.Equal(t, "signalfx-hostname", dims["host"], "Metric is missing host tag")
 	assert.Empty(t, derived.samples, "Counters should not generated derived metrics")
 }
 
 func TestSignalFxFlushWithDrops(t *testing.T) {
 	fakeSink := NewFakeSink()
-	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, []string{"foo.bar"}, []string{"baz:gorch"}, derived, 0, "", false, time.Second, "", "", nil)
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   0,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             []string{"foo.bar"},
+		MetricTagPrefixDrops:              []string{"baz:gorch"},
+		VaryKeyBy:                         "",
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	assert.NoError(t, err)
 
-	interMetrics := []samplers.InterMetric{
-		samplers.InterMetric{
-			Name:      "foo.bar.baz", // tag prefix drop
-			Timestamp: 1476119058,
-			Value:     10,
-			Tags: []string{
-				"foo:bar",
-				"baz:quz",
-				"novalue",
-			},
-			Type: samplers.CounterMetric,
+	interMetrics := []samplers.InterMetric{{
+		Name:      "foo.bar.baz", // tag prefix drop
+		Timestamp: 1476119058,
+		Value:     10,
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+			"novalue",
 		},
-		samplers.InterMetric{
-			Name:      "fart.farts",
-			Timestamp: 1476119058,
-			Value:     10,
-			Tags: []string{
-				"foo:bar",
-				"baz:quz",
-				"novalue",
-			},
-			Type: samplers.CounterMetric,
+		Type: samplers.CounterMetric,
+	}, {
+		Name:      "fart.farts",
+		Timestamp: 1476119058,
+		Value:     10,
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+			"novalue",
 		},
-		samplers.InterMetric{
-			Name:      "fart.farts2",
-			Timestamp: 1476119058,
-			Value:     10,
-			Tags: []string{
-				"baz:gorch", // literal tag drop
-				"baz:quz",
-				"novalue",
-			},
-			Type: samplers.CounterMetric,
+		Type: samplers.CounterMetric,
+	}, {
+		Name:      "fart.farts2",
+		Timestamp: 1476119058,
+		Value:     10,
+		Tags: []string{
+			"baz:gorch", // literal tag drop
+			"baz:quz",
+			"novalue",
 		},
-	}
+		Type: samplers.CounterMetric,
+	}}
 
 	sink.Flush(context.TODO(), interMetrics)
 
@@ -286,10 +345,21 @@ func TestSignalFxFlushWithDrops(t *testing.T) {
 func TestSignalFxFlushStatus(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0, "", false, time.Second, "", "", nil)
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   0,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		VaryKeyBy:                         "",
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	assert.NoError(t, err)
 
-	interMetrics := []samplers.InterMetric{samplers.InterMetric{
+	interMetrics := []samplers.InterMetric{{
 		Name:      "a.b.c",
 		Timestamp: 1476119058,
 		Value:     float64(ssf.SSFSample_UNKNOWN),
@@ -317,14 +387,25 @@ func TestSignalFxFlushStatus(t *testing.T) {
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
 	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Metric is missing a common tag")
-	assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
+	assert.Equal(t, "signalfx-hostname", dims["host"], "Metric is missing host tag")
 	assert.Empty(t, derived.samples, "Counters should not generated derived metrics")
 }
 
 func TestSignalFxServiceCheckFlushOther(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0, "", false, time.Second, "", "", nil)
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   0,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		VaryKeyBy:                         "",
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	assert.NoError(t, err)
 
 	serviceCheckMsg := "Service Farts starting[an example link](http://catchpoint.com/session_id \"Title\")"
@@ -344,8 +425,18 @@ func TestSignalFxServiceCheckFlushOther(t *testing.T) {
 
 func TestSignalFxEventFlush(t *testing.T) {
 	fakeSink := NewFakeSink()
-	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0, "", false, time.Second, "", "", nil)
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   0,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		VaryKeyBy:                         "",
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	assert.NoError(t, err)
 
 	evMessage := "[an example link](http://catchpoint.com/session_id \"Title\")"
@@ -370,18 +461,28 @@ func TestSignalFxEventFlush(t *testing.T) {
 	assert.Equal(t, "gorch", dims["baz"], "Event has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Event missing a common tag")
 	assert.Equal(t, "", dims["novalue"], "Event has a busted tag")
-	assert.Equal(t, "glooblestoots", dims["host"], "Event is missing host tag")
+	assert.Equal(t, "signalfx-hostname", dims["host"], "Event is missing host tag")
 }
 
 func TestSignalFxSetExcludeTags(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie", "boo": "snakes"}, logrus.New(), fakeSink, "", nil, nil, nil, derived, 0, "", false, time.Second, "", "", nil)
-
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   0,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		VaryKeyBy:                         "",
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	sink.SetExcludedTags([]string{"foo", "boo", "host"})
 	assert.NoError(t, err)
 
-	interMetrics := []samplers.InterMetric{samplers.InterMetric{
+	interMetrics := []samplers.InterMetric{{
 		Name:      "a.b.c",
 		Timestamp: 1476119058,
 		Value:     10,
@@ -440,34 +541,41 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 	specialized := NewFakeSink()
 
 	derived := newDerivedProcessor()
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{"available": specialized}, nil, nil, derived, 0, "", false, time.Second, "", "", nil)
-
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   0,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		VaryKeyBy:                         "test_by",
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{"available": specialized}, nil)
 	assert.NoError(t, err)
 
-	interMetrics := []samplers.InterMetric{
-		samplers.InterMetric{
-			Name:      "a.b.c",
-			Timestamp: 1476119058,
-			Value:     float64(100),
-			Tags: []string{
-				"foo:bar",
-				"baz:quz",
-				"test_by:needs_fallback",
-			},
-			Type: samplers.GaugeMetric,
+	interMetrics := []samplers.InterMetric{{
+		Name:      "a.b.c",
+		Timestamp: 1476119058,
+		Value:     float64(100),
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+			"test_by:needs_fallback",
 		},
-		samplers.InterMetric{
-			Name:      "a.b.c",
-			Timestamp: 1476119058,
-			Value:     float64(99),
-			Tags: []string{
-				"foo:bar",
-				"baz:quz",
-				"test_by:available",
-			},
-			Type: samplers.GaugeMetric,
+		Type: samplers.GaugeMetric,
+	}, {
+		Name:      "a.b.c",
+		Timestamp: 1476119058,
+		Value:     float64(99),
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+			"test_by:available",
 		},
-	}
+		Type: samplers.GaugeMetric,
+	}}
 
 	sink.Flush(context.TODO(), interMetrics)
 
@@ -485,7 +593,7 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 		assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
 		assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
 		assert.Equal(t, "pie", dims["yay"], "Metric is missing common tag")
-		assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
+		assert.Equal(t, "signalfx-hostname", dims["host"], "Metric is missing host tag")
 		assert.Equal(t, "needs_fallback", dims["test_by"], "Metric should have the right test_by tag")
 	}
 	{
@@ -500,7 +608,7 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 		assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
 		assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
 		assert.Equal(t, "pie", dims["yay"], "Metric is missing common tag")
-		assert.Equal(t, "glooblestoots", dims["host"], "Metric is missing host tag")
+		assert.Equal(t, "signalfx-hostname", dims["host"], "Metric is missing host tag")
 		assert.Equal(t, "available", dims["test_by"], "Metric should have the right test_by tag")
 	}
 	assert.Empty(t, derived.samples, "Gauges should not generated derived metrics")
@@ -509,36 +617,43 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 func TestSignalFxFlushBatches(t *testing.T) {
 	fallback := NewFakeSink()
 
-	derived := newDerivedProcessor()
 	perBatch := 1
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{}, nil, nil, derived, perBatch, "", false, time.Second, "", "", nil)
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   perBatch,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		VaryKeyBy:                         "test_by",
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{}, nil)
 
 	assert.NoError(t, err)
 
-	interMetrics := []samplers.InterMetric{
-		samplers.InterMetric{
-			Name:      "a.b.c",
-			Timestamp: 1476119058,
-			Value:     float64(100),
-			Tags: []string{
-				"foo:bar",
-				"baz:quz",
-				"test_by:first",
-			},
-			Type: samplers.GaugeMetric,
+	interMetrics := []samplers.InterMetric{{
+		Name:      "a.b.c",
+		Timestamp: 1476119058,
+		Value:     float64(100),
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+			"test_by:first",
 		},
-		samplers.InterMetric{
-			Name:      "a.b.c",
-			Timestamp: 1476119058,
-			Value:     float64(99),
-			Tags: []string{
-				"foo:bar",
-				"baz:quz",
-				"test_by:second",
-			},
-			Type: samplers.GaugeMetric,
+		Type: samplers.GaugeMetric,
+	}, {
+		Name:      "a.b.c",
+		Timestamp: 1476119058,
+		Value:     float64(99),
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+			"test_by:second",
 		},
-	}
+		Type: samplers.GaugeMetric,
+	}}
 
 	require.NoError(t, sink.Flush(context.TODO(), interMetrics))
 
@@ -557,36 +672,43 @@ func TestSignalFxFlushBatches(t *testing.T) {
 func TestSignalFxFlushBatchHang(t *testing.T) {
 	fallback := failSink{}
 
-	derived := newDerivedProcessor()
 	perBatch := 1
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{}, nil, nil, derived, perBatch, "", false, time.Second, "", "", nil)
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   perBatch,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		VaryKeyBy:                         "test_by",
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{}, nil)
 
 	assert.NoError(t, err)
 
-	interMetrics := []samplers.InterMetric{
-		samplers.InterMetric{
-			Name:      "a.b.c",
-			Timestamp: 1476119058,
-			Value:     float64(100),
-			Tags: []string{
-				"foo:bar",
-				"baz:quz",
-				"test_by:first",
-			},
-			Type: samplers.GaugeMetric,
+	interMetrics := []samplers.InterMetric{{
+		Name:      "a.b.c",
+		Timestamp: 1476119058,
+		Value:     float64(100),
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+			"test_by:first",
 		},
-		samplers.InterMetric{
-			Name:      "a.b.c.d",
-			Timestamp: 1476119058,
-			Value:     float64(100),
-			Tags: []string{
-				"foo:bar",
-				"baz:quz",
-				"test_by:first",
-			},
-			Type: samplers.GaugeMetric,
+		Type: samplers.GaugeMetric,
+	}, {
+		Name:      "a.b.c.d",
+		Timestamp: 1476119058,
+		Value:     float64(100),
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
+			"test_by:first",
 		},
-	}
+		Type: samplers.GaugeMetric,
+	}}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()
@@ -721,13 +843,21 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 	}
 
 	server := httptest.NewServer(m)
-
 	fallback := NewFakeSink()
-
-	derived := newDerivedProcessor()
 	perBatch := 1
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        true,
+		DynamicPerTagAPIKeysRefreshPeriod: dynamicKeyRefreshPeriod,
+		EndpointAPI:                       server.URL,
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   perBatch,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		VaryKeyBy:                         "test_by",
+	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{}, server.Client())
 
-	sink, err := NewSignalFxSink("host", "glooblestoots", map[string]string{"yay": "pie"}, logrus.New(), fallback, "test_by", map[string]DPClient{}, nil, nil, derived, perBatch, "", true, dynamicKeyRefreshPeriod, "", server.URL, server.Client())
 	require.NoError(t, err)
 
 	err = sink.Start(nil)
@@ -777,5 +907,51 @@ LOOP:
 	// three responses
 	assert.Subset(t, expectedPerTagClients, actualPerTagClients, "The actual values should be a subset of the expected values")
 	assert.Subset(t, actualPerTagClients, expectedPerTagClients, "The expected values should be a subset of the actual values")
+}
 
+func TestSignalFxVaryByOverride(t *testing.T) {
+	varyByTagKey := "vary_by"
+	commonDimensions := map[string]string{"vary_by": "bar"}
+	defaultFakeSink := NewFakeSink()
+	customFakeSinkFoo := NewFakeSink()
+	customFakeSinkBar := NewFakeSink()
+	perTagClients := make(map[string]DPClient)
+	perTagClients["foo"] = customFakeSinkFoo
+	perTagClients["bar"] = customFakeSinkBar
+
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   0,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		VaryKeyBy:                         varyByTagKey,
+	}, "signalfx-hostname", commonDimensions, logrus.NewEntry(logrus.New()), defaultFakeSink, perTagClients, nil)
+	assert.NoError(t, err)
+
+	interMetrics := []samplers.InterMetric{{
+		Name:      "a.b.c",
+		Timestamp: 1476119058,
+		Value:     float64(100),
+		Tags: []string{
+			"vary_by:foo",
+		},
+		Type: samplers.GaugeMetric,
+	}, {
+		Name:      "a.b.d",
+		Timestamp: 1476119059,
+		Value:     float64(100),
+		Tags:      []string{},
+		Type:      samplers.GaugeMetric,
+	}}
+
+	sink.Flush(context.TODO(), interMetrics)
+
+	assert.Equal(t, 0, len(defaultFakeSink.points))
+	assert.Equal(t, 1, len(customFakeSinkFoo.points))
+	assert.Equal(t, 1, len(customFakeSinkBar.points))
 }

@@ -14,8 +14,8 @@ import (
 	"sync/atomic"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/stripe/veneur/protocol"
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 func init() {

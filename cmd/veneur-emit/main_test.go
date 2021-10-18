@@ -10,9 +10,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/testbackend"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/trace/testbackend"
 )
 
 var (
@@ -69,6 +69,13 @@ func TestTimeCommand(t *testing.T) {
 		st, _, _, err := timeCommand(&ssf.SSFSpan{}, command)
 		assert.NoError(t, err, "timeCommand threw an error.")
 		assert.Equal(t, 42, st)
+	})
+
+	t.Run("emptyCall", func(t *testing.T) {
+		command := []string{}
+		st, _, _, err := timeCommand(&ssf.SSFSpan{}, command)
+		assert.Error(t, err)
+		assert.Equal(t, 1, st)
 	})
 }
 

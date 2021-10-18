@@ -8,8 +8,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/sinks"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/sinks"
 )
 
 const (
@@ -47,13 +47,13 @@ func newForwardGRPCFixture(t testing.TB, localConfig Config, sink sinks.MetricSi
 	go func() {
 		proxy.Serve()
 	}()
-	waitForHTTPStart(t, &proxy, 3*time.Second)
+	waitForHTTPStart(t, proxy, 3*time.Second)
 
 	localConfig.ForwardAddress = proxyCfg.GrpcAddress
 	localConfig.ForwardUseGrpc = true
 	local := setupVeneurServer(t, localConfig, nil, nil, nil, nil)
 
-	return &forwardGRPCFixture{t: t, proxy: &proxy, global: global, local: local}
+	return &forwardGRPCFixture{t: t, proxy: proxy, global: global, local: local}
 }
 
 // stop stops all of the various servers inside the fixture.

@@ -22,12 +22,8 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
-	"github.com/getsentry/raven-go"
+	"github.com/getsentry/sentry-go"
+	"github.com/newrelic/newrelic-client-go/pkg/plugins"
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
@@ -35,27 +31,21 @@ import (
 
 	"github.com/pkg/profile"
 
-	vhttp "github.com/stripe/veneur/http"
-	"github.com/stripe/veneur/importsrv"
-	"github.com/stripe/veneur/plugins"
-	localfilep "github.com/stripe/veneur/plugins/localfile"
-	s3p "github.com/stripe/veneur/plugins/s3"
-	"github.com/stripe/veneur/protocol"
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/scopedstatsd"
-	"github.com/stripe/veneur/sinks"
-	"github.com/stripe/veneur/sinks/datadog"
-	"github.com/stripe/veneur/sinks/debug"
-	"github.com/stripe/veneur/sinks/falconer"
-	"github.com/stripe/veneur/sinks/kafka"
-	"github.com/stripe/veneur/sinks/lightstep"
-	"github.com/stripe/veneur/sinks/signalfx"
-	"github.com/stripe/veneur/sinks/splunk"
-	"github.com/stripe/veneur/sinks/ssfmetrics"
-	"github.com/stripe/veneur/sinks/xray"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/metrics"
+	"github.com/stripe/veneur/v14/importsrv"
+	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/scopedstatsd"
+	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/sinks/datadog"
+	"github.com/stripe/veneur/v14/sinks/falconer"
+	"github.com/stripe/veneur/v14/sinks/lightstep"
+	"github.com/stripe/veneur/v14/sinks/prometheus"
+	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
+	"github.com/stripe/veneur/v14/sinks/xray"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/tagging"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/trace/metrics"
 )
 
 // VERSION stores the current veneur version.
@@ -65,9 +55,6 @@ var VERSION = defaultLinkValue
 var BUILD_DATE = defaultLinkValue
 
 const defaultLinkValue = "dirty"
-
-// REDACTED is used to replace values that we don't want to leak into loglines (e.g., credentials)
-const REDACTED = "REDACTED"
 
 var profileStartOnce = sync.Once{}
 
@@ -79,8 +66,40 @@ const defaultTCPReadTimeout = 10 * time.Minute
 
 const httpQuitEndpoint = "/quitquitquit"
 
+type MetricSinkConfig interface{}
+type SpanSinkConfig interface{}
+
+type SpanSinkTypes = map[string]struct {
+	// Creates a new span sink intsance.
+	Create func(
+		*Server, string, *logrus.Entry, Config, SpanSinkConfig,
+	) (sinks.SpanSink, error)
+	// Parses the config for the sink into a format that is validated and safe to
+	// log.
+	ParseConfig func(interface{}) (SpanSinkConfig, error)
+}
+
+type MetricSinkTypes = map[string]struct {
+	// Creates a new metric sink instance.
+	Create func(
+		*Server, string, *logrus.Entry, Config, MetricSinkConfig,
+	) (sinks.MetricSink, error)
+	// Parses the config for the sink into a format that is validated and safe to
+	// log.
+	ParseConfig func(interface{}) (MetricSinkConfig, error)
+}
+
+// Config used to create a new server.
+type ServerConfig struct {
+	Config          Config
+	Logger          *logrus.Logger
+	MetricSinkTypes MetricSinkTypes
+	SpanSinkTypes   SpanSinkTypes
+}
+
 // A Server is the actual veneur instance that will be run.
 type Server struct {
+	Config                Config
 	Workers               []*Worker
 	EventWorker           *EventWorker
 	SpanChan              chan *ssf.SSFSpan
@@ -89,7 +108,6 @@ type Server struct {
 	CountUniqueTimeseries bool
 
 	Statsd *scopedstatsd.ScopedClient
-	Sentry *raven.Client
 
 	Hostname  string
 	Tags      []string
@@ -105,6 +123,7 @@ type Server struct {
 
 	StatsdListenAddrs []net.Addr
 	SSFListenAddrs    []net.Addr
+	GRPCListenAddrs   []net.Addr
 	RcvbufBytes       int
 
 	interval            time.Duration
@@ -134,7 +153,8 @@ type Server struct {
 
 	TraceClient *trace.Client
 
-	ssfInternalMetrics sync.Map
+	ssfInternalMetrics          sync.Map
+	listeningPerProtocolMetrics *GlobalListeningPerProtocolMetrics
 
 	// gRPC server
 	grpcListenAddress string
@@ -145,6 +165,43 @@ type Server struct {
 
 	stuckIntervals int
 	lastFlushUnix  int64
+
+	parser samplers.Parser
+}
+
+type GlobalListeningPerProtocolMetrics struct {
+	dogstatsdTcpReceivedTotal  int64
+	dogstatsdUdpReceivedTotal  int64
+	dogstatsdUnixReceivedTotal int64
+	dogstatsdGrpcReceivedTotal int64
+
+	ssfUnixReceivedTotal int64
+	ssfUdpReceivedTotal  int64
+	ssfGrpcReceivedTotal int64
+}
+
+type ProtocolType int
+
+const (
+	DOGSTATSD_TCP ProtocolType = iota
+	DOGSTATSD_UDP
+	DOGSTATSD_UNIX
+	DOGSTATSD_GRPC
+	SSF_UNIX
+	SSF_UDP
+	SSF_GRPC
+)
+
+func (p ProtocolType) String() string {
+	return [...]string{
+		"dogstatsd-tcp",
+		"dogstatsd-udp",
+		"dogstatsd-unix",
+		"dogstatsd-grpc",
+		"ssf-unix",
+		"ssf-udp",
+		"ssf-grpc",
+	}[p]
 }
 
 // ssfServiceSpanMetrics refer to the span metrics that will
@@ -255,32 +312,90 @@ func scopesFromConfig(conf Config) (scopedstatsd.MetricScopes, error) {
 	return ms, nil
 }
 
+func (server *Server) createSpanSinks(
+	logger *logrus.Logger, config *Config, sinkTypes SpanSinkTypes,
+) ([]sinks.SpanSink, error) {
+	sinks := []sinks.SpanSink{}
+	for index, sinkConfig := range config.SpanSinks {
+		sinkFactory, ok := sinkTypes[sinkConfig.Kind]
+		if !ok {
+			logger.Warnf("Unknown sink kind %s; skipping.", sinkConfig.Kind)
+		}
+		parsedSinkConfig, err := sinkFactory.ParseConfig(sinkConfig.Config)
+		if err != nil {
+			return nil, err
+		}
+		// Overwrite the map config with the parsed config. This prevents senstive
+		// fields in the map from accidentally being logged.
+		config.SpanSinks[index].Config = parsedSinkConfig
+		sink, err := sinkFactory.Create(
+			server, sinkConfig.Name, logger.WithField("span_sink", sinkConfig.Name),
+			*config, parsedSinkConfig)
+		if err != nil {
+			return nil, err
+		}
+		sinks = append(sinks, sink)
+	}
+	return sinks, nil
+}
+
+func (server *Server) createMetricSinks(
+	logger *logrus.Logger, config *Config, sinkTypes MetricSinkTypes,
+) ([]sinks.MetricSink, error) {
+	sinks := []sinks.MetricSink{}
+	for index, sinkConfig := range config.MetricSinks {
+		sinkFactory, ok := sinkTypes[sinkConfig.Kind]
+		if !ok {
+			logger.Warnf("Unknown sink kind %s; skipping.", sinkConfig.Kind)
+			continue
+		}
+		parsedSinkConfig, err := sinkFactory.ParseConfig(sinkConfig.Config)
+		if err != nil {
+			return nil, err
+		}
+		// Overwrite the map config with the parsed config. This prevents senstive
+		// fields in the map from accidentally being logged.
+		config.MetricSinks[index].Config = parsedSinkConfig
+		sink, err := sinkFactory.Create(
+			server, sinkConfig.Name, logger.WithField("metric_sink", sinkConfig.Name),
+			*config, parsedSinkConfig)
+		if err != nil {
+			return nil, err
+		}
+		sinks = append(sinks, sink)
+	}
+	return sinks, nil
+}
+
 // NewFromConfig creates a new veneur server from a configuration
 // specification and sets up the passed logger according to the
 // configuration.
-func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
-	ret := &Server{}
+func NewFromConfig(config ServerConfig) (*Server, error) {
+	logger := config.Logger
+	conf := config.Config
+
+	ret := &Server{
+		Config:   conf,
+		interval: conf.Interval,
+	}
 
 	ret.Hostname = conf.Hostname
 	ret.Tags = conf.Tags
 
-	mappedTags := samplers.ParseTagSliceToMap(ret.Tags)
+	mappedTags := tagging.ParseTagSliceToMap(ret.Tags)
 
 	ret.synchronizeInterval = conf.SynchronizeWithInterval
 
 	ret.TagsAsMap = mappedTags
+
+	ret.parser = samplers.NewParser(conf.ExtendTags)
+
 	ret.HistogramPercentiles = conf.Percentiles
 	ret.HistogramAggregates.Value = 0
 	for _, agg := range conf.Aggregates {
 		ret.HistogramAggregates.Value += samplers.AggregatesLookup[agg]
 	}
 	ret.HistogramAggregates.Count = len(conf.Aggregates)
-
-	var err error
-	ret.interval, err = conf.ParseInterval()
-	if err != nil {
-		return ret, err
-	}
 
 	ret.stuckIntervals = conf.FlushWatchdogMissedFlushes
 
@@ -294,7 +409,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		Transport: transport,
 	}
 
-	stats, err := statsd.NewBuffered(conf.StatsAddress, 4096)
+	stats, err := statsd.New(conf.StatsAddress, statsd.WithoutTelemetry(), statsd.WithMaxMessagesPerPayload(4096))
 	if err != nil {
 		return ret, err
 	}
@@ -315,10 +430,12 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		return ret, err
 	}
 
-	// nil is a valid sentry client that noops all methods, if there is no DSN
-	// we can just leave it as nil
-	if conf.SentryDsn != "" {
-		ret.Sentry, err = raven.New(conf.SentryDsn)
+	// Initialize Sentry if a Dsn is provided, else we leave it uninitalized
+	// and no-op the methods.
+	if conf.SentryDsn.Value != "" {
+		err = sentry.Init(sentry.ClientOptions{
+			Dsn: conf.SentryDsn.Value,
+		})
 		if err != nil {
 			return ret, err
 		}
@@ -354,7 +471,6 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	// https://github.com/sirupsen/logrus/issues/295
 	if _, ok := logger.Hooks[logrus.FatalLevel]; !ok {
 		logger.AddHook(sentryHook{
-			c:        ret.Sentry,
 			hostname: ret.Hostname,
 			lv: []logrus.Level{
 				logrus.ErrorLevel,
@@ -392,7 +508,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {
-				ConsumePanic(ret.Sentry, ret.TraceClient, ret.Hostname, recover())
+				ConsumePanic(ret.TraceClient, ret.Hostname, recover())
 			}()
 			w.Work()
 		}(ret.Workers[i])
@@ -406,7 +522,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 	for i, w := range ret.Workers {
 		processors[i] = w
 	}
-	metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log)
+	metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log, &ret.parser)
 	if err != nil {
 		return ret, err
 	}
@@ -419,6 +535,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		}
 		ret.StatsdListenAddrs = append(ret.StatsdListenAddrs, addr)
 	}
+
 	for _, addrStr := range conf.SsfListenAddresses {
 		addr, err := protocol.ResolveAddr(addrStr)
 		if err != nil {
@@ -427,13 +544,21 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		ret.SSFListenAddrs = append(ret.SSFListenAddrs, addr)
 	}
 
+	for _, addrStr := range conf.GrpcListenAddresses {
+		addr, err := protocol.ResolveAddr(addrStr)
+		if err != nil {
+			return ret, err
+		}
+		ret.GRPCListenAddrs = append(ret.GRPCListenAddrs, addr)
+	}
+
 	ret.metricMaxLength = conf.MetricMaxLength
 	ret.traceMaxLengthBytes = conf.TraceMaxLengthBytes
 	ret.RcvbufBytes = conf.ReadBufferSizeBytes
 	ret.HTTPAddr = conf.HTTPAddress
 	ret.numListeningHTTP = new(int32)
 
-	if conf.TLSKey != "" {
+	if conf.TLSKey.Value != "" {
 		if conf.TLSCertificate == "" {
 			err = errors.New("tls_key is set; must set tls_certificate")
 			logger.WithError(err).Error("Improper TLS configuration")
@@ -442,7 +567,7 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 		// load the TLS key and certificate
 		var cert tls.Certificate
-		cert, err = tls.X509KeyPair([]byte(conf.TLSCertificate), []byte(conf.TLSKey))
+		cert, err = tls.X509KeyPair([]byte(conf.TLSCertificate), []byte(conf.TLSKey.Value))
 		if err != nil {
 			logger.WithError(err).Error("Improper TLS configuration")
 			return ret, err
@@ -469,41 +594,16 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		}
 	}
 
-	if conf.SignalfxAPIKey != "" {
-		tracedHTTP := *ret.HTTPClient
-		tracedHTTP.Transport = vhttp.NewTraceRoundTripper(tracedHTTP.Transport, ret.TraceClient, "signalfx")
-
-		fallback := signalfx.NewClient(conf.SignalfxEndpointBase, conf.SignalfxAPIKey, &tracedHTTP)
-		byTagClients := map[string]signalfx.DPClient{}
-		for _, perTag := range conf.SignalfxPerTagAPIKeys {
-			byTagClients[perTag.Name] = signalfx.NewClient(conf.SignalfxEndpointBase, perTag.APIKey, &tracedHTTP)
-		}
-
-		if conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod == "" {
-			conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod = "10m"
-		}
-
-		dynamicKeyRefreshPeriod, err := time.ParseDuration(conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod)
-		if err != nil {
-			return ret, err
-		}
-
-		sfxSink, err := signalfx.NewSignalFxSink(conf.SignalfxHostnameTag, conf.Hostname, ret.TagsAsMap, log, fallback, conf.SignalfxVaryKeyBy, byTagClients, conf.SignalfxMetricNamePrefixDrops, conf.SignalfxMetricTagPrefixDrops, metricSink, conf.SignalfxFlushMaxPerBody, conf.SignalfxAPIKey, conf.SignalfxDynamicPerTagAPIKeysEnable, dynamicKeyRefreshPeriod, conf.SignalfxEndpointBase, conf.SignalfxEndpointAPI, &tracedHTTP)
-		if err != nil {
-			return ret, err
-		}
-		ret.metricSinks = append(ret.metricSinks, sfxSink)
-	}
-	if conf.DatadogAPIKey != "" && conf.DatadogAPIHostname != "" {
-
+	if conf.DatadogAPIKey.Value != "" && conf.DatadogAPIHostname != "" {
 		excludeTagsPrefixByPrefixMetric := map[string][]string{}
 		for _, m := range conf.DatadogExcludeTagsPrefixByPrefixMetric {
 			excludeTagsPrefixByPrefixMetric[m.MetricPrefix] = m.Tags
 		}
 
 		ddSink, err := datadog.NewDatadogMetricSink(
-			ret.interval.Seconds(), conf.DatadogFlushMaxPerBody, conf.Hostname, ret.Tags,
-			conf.DatadogAPIHostname, conf.DatadogAPIKey, ret.HTTPClient, log, conf.DatadogMetricNamePrefixDrops,
+			ret.interval.Seconds(), conf.DatadogFlushMaxPerBody, conf.Hostname,
+			ret.Tags, conf.DatadogAPIHostname, conf.DatadogAPIKey.Value,
+			ret.HTTPClient, log, conf.DatadogMetricNamePrefixDrops,
 			excludeTagsPrefixByPrefixMetric,
 		)
 		if err != nil {
@@ -512,13 +612,13 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		ret.metricSinks = append(ret.metricSinks, ddSink)
 	}
 
-	// Configure tracing sinks
-	if len(conf.SsfListenAddresses) > 0 {
+	// Configure tracing sinks if we are listening for ssf
+	if len(conf.SsfListenAddresses) > 0 || len(conf.GrpcListenAddresses) > 0 {
 
 		trace.Enable()
 
 		// configure Datadog as a Span sink
-		if conf.DatadogAPIKey != "" && conf.DatadogTraceAPIAddress != "" {
+		if conf.DatadogAPIKey.Value != "" && conf.DatadogTraceAPIAddress != "" {
 			ddSink, err := datadog.NewDatadogSpanSink(
 				conf.DatadogTraceAPIAddress, conf.DatadogSpanBufferSize,
 				ret.HTTPClient, log,
@@ -555,13 +655,13 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		}
 
 		// configure Lightstep as a Span Sink
-		if conf.LightstepAccessToken != "" {
+		if conf.LightstepAccessToken.Value != "" {
 
 			var lsSink sinks.SpanSink
 			lsSink, err = lightstep.NewLightStepSpanSink(
 				conf.LightstepCollectorHost, conf.LightstepReconnectPeriod,
 				conf.LightstepMaximumSpans, conf.LightstepNumClients,
-				conf.LightstepAccessToken, log,
+				conf.LightstepAccessToken.Value, log,
 			)
 			if err != nil {
 				return ret, err
@@ -569,45 +669,6 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 			ret.spanSinks = append(ret.spanSinks, lsSink)
 
 			logger.Info("Configured Lightstep span sink")
-		}
-
-		if (conf.SplunkHecToken != "" && conf.SplunkHecAddress == "") ||
-			(conf.SplunkHecToken == "" && conf.SplunkHecAddress != "") {
-			return ret, fmt.Errorf("both splunk_hec_address and splunk_hec_token need to be set!")
-		}
-		if conf.SplunkHecToken != "" && conf.SplunkHecAddress != "" {
-			var sendTimeout, ingestTimeout, connLifetime, connJitter time.Duration
-			if conf.SplunkHecSendTimeout != "" {
-				sendTimeout, err = time.ParseDuration(conf.SplunkHecSendTimeout)
-				if err != nil {
-					return ret, err
-				}
-			}
-			if conf.SplunkHecIngestTimeout != "" {
-				ingestTimeout, err = time.ParseDuration(conf.SplunkHecIngestTimeout)
-				if err != nil {
-					return ret, err
-				}
-			}
-			if conf.SplunkHecMaxConnectionLifetime != "" {
-				connLifetime, err = time.ParseDuration(conf.SplunkHecMaxConnectionLifetime)
-				if err != nil {
-					return ret, err
-				}
-			}
-			if conf.SplunkHecConnectionLifetimeJitter != "" {
-				connJitter, err = time.ParseDuration(conf.SplunkHecConnectionLifetimeJitter)
-				if err != nil {
-					return ret, err
-				}
-			}
-
-			sss, err := splunk.NewSplunkSpanSink(conf.SplunkHecAddress, conf.SplunkHecToken, conf.Hostname, conf.SplunkHecTLSValidateHostname, log, ingestTimeout, sendTimeout, conf.SplunkHecBatchSize, conf.SplunkHecSubmissionWorkers, conf.SplunkSpanSampleRate, connLifetime, connJitter)
-			if err != nil {
-				return ret, err
-			}
-
-			ret.spanSinks = append(ret.spanSinks, sss)
 		}
 
 		if conf.FalconerAddress != "" {
@@ -627,104 +688,43 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		}
 	}
 
-	if conf.KafkaBroker != "" {
-		if conf.KafkaMetricTopic != "" || conf.KafkaCheckTopic != "" || conf.KafkaEventTopic != "" {
-			kSink, err := kafka.NewKafkaMetricSink(
-				log, ret.TraceClient, conf.KafkaBroker, conf.KafkaCheckTopic, conf.KafkaEventTopic,
-				conf.KafkaMetricTopic, conf.KafkaMetricRequireAcks,
-				conf.KafkaPartitioner, conf.KafkaRetryMax,
-				conf.KafkaMetricBufferBytes, conf.KafkaMetricBufferMessages,
-				conf.KafkaMetricBufferFrequency,
-			)
-			if err != nil {
-				return ret, err
-			}
-
-			ret.metricSinks = append(ret.metricSinks, kSink)
-
-			logger.Info("Configured Kafka metric sink")
-		} else {
-			logger.Warn("Kafka metric sink skipped due to missing metric, check and event topic")
+	if conf.PrometheusRepeaterAddress != "" {
+		prometheusMetricSink, err := prometheus.NewStatsdRepeater(
+			conf.PrometheusRepeaterAddress,
+			conf.PrometheusNetworkType,
+			log,
+		)
+		if err != nil {
+			return ret, err
 		}
 
-		if conf.KafkaSpanTopic != "" {
-			sink, err := kafka.NewKafkaSpanSink(log, ret.TraceClient, conf.KafkaBroker, conf.KafkaSpanTopic,
-				conf.KafkaPartitioner, conf.KafkaMetricRequireAcks, conf.KafkaRetryMax,
-				conf.KafkaSpanBufferBytes, conf.KafkaSpanBufferMesages,
-				conf.KafkaSpanBufferFrequency, conf.KafkaSpanSerializationFormat,
-				conf.KafkaSpanSampleTag, conf.KafkaSpanSampleRatePercent,
-			)
-			if err != nil {
-				return ret, err
-			}
-
-			ret.spanSinks = append(ret.spanSinks, sink)
-			logger.Info("Configured Kafka span sink")
-		} else {
-			logger.Warn("Kafka span sink skipped due to missing span topic")
-		}
+		ret.metricSinks = append(ret.metricSinks, prometheusMetricSink)
+		logger.Info("Configured Prometheus metric sink.")
 	}
 
-	{
-		mtx := sync.Mutex{}
-		if conf.DebugFlushedMetrics {
-			ret.metricSinks = append(ret.metricSinks, debug.NewDebugMetricSink(&mtx, log))
-		}
-		if conf.DebugIngestedSpans {
-			blackhole := debug.NewDebugSpanSink(&mtx, log)
-			ret.spanSinks = append(ret.spanSinks, blackhole)
-			logger.WithField("name", blackhole.Name()).Info("Starting logger debug sink")
-		}
+	customMetricSinks, err :=
+		ret.createMetricSinks(logger, &conf, config.MetricSinkTypes)
+	if err != nil {
+		return nil, err
+	}
+	if conf.Features.MigrateMetricSinks {
+		ret.metricSinks = customMetricSinks
+	} else {
+		ret.metricSinks = append(ret.metricSinks, customMetricSinks...)
+	}
+	customSpanSinks, err :=
+		ret.createSpanSinks(logger, &conf, config.SpanSinkTypes)
+	if err != nil {
+		return nil, err
+	}
+	if conf.Features.MigrateSpanSinks {
+		ret.spanSinks = customSpanSinks
+	} else {
+		ret.spanSinks = append(ret.spanSinks, customSpanSinks...)
 	}
 
 	// After all sinks are initialized, set the list of tags to exclude
 	setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)
-
-	var svc s3iface.S3API
-	awsID := conf.AwsAccessKeyID
-	awsSecret := conf.AwsSecretAccessKey
-	if conf.AwsS3Bucket != "" {
-		if len(awsID) > 0 && len(awsSecret) > 0 {
-			sess, err := session.NewSession(&aws.Config{
-				Region:      aws.String(conf.AwsRegion),
-				Credentials: credentials.NewStaticCredentials(awsID, awsSecret, ""),
-			})
-
-			if err != nil {
-				logger.Infof("error getting AWS session: %s", err)
-				svc = nil
-			} else {
-				logger.Info("Successfully created AWS session")
-				svc = s3.New(sess)
-				plugin := &s3p.S3Plugin{
-					Logger:   log,
-					Svc:      svc,
-					S3Bucket: conf.AwsS3Bucket,
-					Hostname: ret.Hostname,
-				}
-				ret.registerPlugin(plugin)
-			}
-		} else {
-			logger.Info("AWS S3 credentials not found. S3 plugin is disabled.")
-		}
-	} else {
-		logger.Info("AWS S3 bucket not set. Skipping S3 Plugin initialization.")
-	}
-
-	if svc == nil {
-		logger.Info("S3 archives are disabled")
-	} else {
-		logger.Info("S3 archives are enabled")
-	}
-
-	if conf.FlushFile != "" {
-		localFilePlugin := &localfilep.Plugin{
-			FilePath: conf.FlushFile,
-			Logger:   log,
-		}
-		ret.registerPlugin(localFilePlugin)
-		logger.Info(fmt.Sprintf("Local file logging to %s", conf.FlushFile))
-	}
 
 	// closed in Shutdown; Same approach and http.Shutdown
 	ret.shutdown = make(chan struct{})
@@ -732,15 +732,6 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 		logger.WithField("endpoint", httpQuitEndpoint).Info("Enabling graceful shutdown endpoint (via HTTP POST request)")
 		ret.httpQuit = true
 	}
-
-	// Don't emit keys into logs now that we're done with them.
-	conf.SentryDsn = REDACTED
-	conf.TLSKey = REDACTED
-	conf.DatadogAPIKey = REDACTED
-	conf.SignalfxAPIKey = REDACTED
-	conf.LightstepAccessToken = REDACTED
-	conf.AwsAccessKeyID = REDACTED
-	conf.AwsSecretAccessKey = REDACTED
 
 	ret.forwardUseGRPC = conf.ForwardUseGrpc
 
@@ -755,6 +746,20 @@ func NewFromConfig(logger *logrus.Logger, conf Config) (*Server, error) {
 
 		ret.grpcServer = importsrv.New(ingesters,
 			importsrv.WithTraceClient(ret.TraceClient))
+	}
+
+	// If this is a global veneur then initialize the listening per protocol metrics
+	if !ret.IsLocal() {
+		ret.listeningPerProtocolMetrics = &GlobalListeningPerProtocolMetrics{
+			dogstatsdTcpReceivedTotal:  0,
+			dogstatsdUdpReceivedTotal:  0,
+			dogstatsdUnixReceivedTotal: 0,
+			dogstatsdGrpcReceivedTotal: 0,
+			ssfUdpReceivedTotal:        0,
+			ssfUnixReceivedTotal:       0,
+			ssfGrpcReceivedTotal:       0,
+		}
+		log.Info("Tracking listening per protocol metrics on global instance")
 	}
 
 	logger.WithField("config", conf).Debug("Initialized server")
@@ -775,7 +780,7 @@ func (s *Server) Start() {
 	go func() {
 		log.Info("Starting Event worker")
 		defer func() {
-			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+			ConsumePanic(s.TraceClient, s.Hostname, recover())
 		}()
 		s.EventWorker.Work()
 	}()
@@ -784,7 +789,7 @@ func (s *Server) Start() {
 	for i := 0; i < s.SpanWorkerGoroutines; i++ {
 		go func() {
 			defer func() {
-				ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+				ConsumePanic(s.TraceClient, s.Hostname, recover())
 			}()
 			s.SpanWorker.Work()
 		}()
@@ -835,6 +840,29 @@ func (s *Server) Start() {
 		logrus.Info("Tracing sockets are not configured - not reading trace socket")
 	}
 
+	// Read grpc traces forever!
+	if len(s.GRPCListenAddrs) > 0 {
+		concreteAddrs := make([]net.Addr, 0, len(s.GRPCListenAddrs))
+		for _, addr := range s.GRPCListenAddrs {
+			concreteAddrs = append(concreteAddrs, StartGRPC(s, addr))
+		}
+		//If there are already ssf listen addresses then append the grpc ones otherwise just use the grpc ones
+		if len(s.SSFListenAddrs) > 0 {
+			s.SSFListenAddrs = append(s.SSFListenAddrs, concreteAddrs...)
+		} else {
+			s.SSFListenAddrs = concreteAddrs
+		}
+
+		//If there are already statsd listen addresses then append the grpc ones otherwise just use the grpc ones
+		if len(s.StatsdListenAddrs) > 0 {
+			s.StatsdListenAddrs = append(s.StatsdListenAddrs, concreteAddrs...)
+		} else {
+			s.StatsdListenAddrs = concreteAddrs
+		}
+	} else {
+		logrus.Info("GRPC tracing sockets are not configured - not reading trace socket")
+	}
+
 	// Initialize a gRPC connection for forwarding
 	if s.forwardUseGRPC {
 		var err error
@@ -849,7 +877,7 @@ func (s *Server) Start() {
 	// Flush every Interval forever!
 	go func() {
 		defer func() {
-			ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+			ConsumePanic(s.TraceClient, s.Hostname, recover())
 		}()
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -895,7 +923,7 @@ func (s *Server) Start() {
 // program's main function.
 func (s *Server) FlushWatchdog() {
 	defer func() {
-		ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+		ConsumePanic(s.TraceClient, s.Hostname, recover())
 	}()
 
 	if s.stuckIntervals == 0 {
@@ -930,9 +958,35 @@ func (s *Server) FlushWatchdog() {
 	}
 }
 
+// Increment internal metrics keeping track of protocols received when listening
+func incrementListeningProtocol(s *Server, protocol ProtocolType) {
+	metricsStruct := s.listeningPerProtocolMetrics
+	if metricsStruct != nil {
+		switch protocol {
+		case DOGSTATSD_TCP:
+			atomic.AddInt64(&metricsStruct.dogstatsdTcpReceivedTotal, 1)
+		case DOGSTATSD_UDP:
+			atomic.AddInt64(&metricsStruct.dogstatsdUdpReceivedTotal, 1)
+		case DOGSTATSD_UNIX:
+			atomic.AddInt64(&metricsStruct.dogstatsdUnixReceivedTotal, 1)
+		case DOGSTATSD_GRPC:
+			atomic.AddInt64(&metricsStruct.dogstatsdGrpcReceivedTotal, 1)
+		case SSF_UDP:
+			atomic.AddInt64(&metricsStruct.ssfUdpReceivedTotal, 1)
+		case SSF_UNIX:
+			atomic.AddInt64(&metricsStruct.ssfUnixReceivedTotal, 1)
+		case SSF_GRPC:
+			atomic.AddInt64(&metricsStruct.ssfGrpcReceivedTotal, 1)
+		default: //If it is an unrecognized protocol then don't increment anything
+			logrus.WithField("protocol", protocol).
+				Warning("Attempted to increment metrics for unrecognized protocol")
+		}
+	}
+}
+
 // HandleMetricPacket processes each packet that is sent to the server, and sends to an
 // appropriate worker (EventWorker or Worker).
-func (s *Server) HandleMetricPacket(packet []byte) error {
+func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) error {
 	// This is a very performance-sensitive function
 	// and packets may be dropped if it gets slowed down.
 	// Keep that in mind when modifying!
@@ -945,35 +999,39 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 	samples := &ssf.Samples{}
 	defer metrics.Report(s.TraceClient, samples)
 
+	if !s.IsLocal() {
+		incrementListeningProtocol(s, protocolType)
+	}
+
 	if bytes.HasPrefix(packet, []byte{'_', 'e', '{'}) {
-		event, err := samplers.ParseEvent(packet)
+		event, err := s.parser.ParseEvent(packet)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
-			}).Warn("Could not parse packet")
+			}).Debug("Could not parse packet")
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "event", "reason": "parse"}))
 			return err
 		}
 		s.EventWorker.sampleChan <- *event
 	} else if bytes.HasPrefix(packet, []byte{'_', 's', 'c'}) {
-		svcheck, err := samplers.ParseServiceCheck(packet)
+		svcheck, err := s.parser.ParseServiceCheck(packet)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
-			}).Warn("Could not parse packet")
+			}).Debug("Could not parse packet")
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "service_check", "reason": "parse"}))
 			return err
 		}
 		s.Workers[svcheck.Digest%uint32(len(s.Workers))].PacketChan <- *svcheck
 	} else {
-		metric, err := samplers.ParseMetric(packet)
+		metric, err := s.parser.ParseMetric(packet)
 		if err != nil {
 			log.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
-			}).Warn("Could not parse packet")
+			}).Debug("Could not parse packet")
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "metric", "reason": "parse"}))
 			return err
 		}
@@ -984,7 +1042,7 @@ func (s *Server) HandleMetricPacket(packet []byte) error {
 
 // HandleTracePacket accepts an incoming packet as bytes and sends it to the
 // appropriate worker.
-func (s *Server) HandleTracePacket(packet []byte) {
+func (s *Server) HandleTracePacket(packet []byte, protocolType ProtocolType) {
 	samples := &ssf.Samples{}
 	defer metrics.Report(s.TraceClient, samples)
 
@@ -1009,13 +1067,13 @@ func (s *Server) HandleTracePacket(packet []byte) {
 	if span.Id == 0 {
 		reason := "reason:" + "empty_id"
 		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:ssf_metric", reason}, 1.0)
-		log.WithError(err).Warn("ParseSSF")
+		log.Warn("HandleTracePacket: Span ID is zero")
 	}
 
-	s.handleSSF(span, "packet")
+	s.handleSSF(span, "packet", protocolType)
 }
 
-func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string) {
+func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string, protocolType ProtocolType) {
 	// 1/internalMetricSampleRate packets will be chosen
 	const internalMetricSampleRate = 1000
 
@@ -1057,6 +1115,10 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string) {
 		atomic.AddInt64(&metricsStruct.ssfRootSpansReceivedTotal, 1)
 	}
 
+	if !s.IsLocal() {
+		incrementListeningProtocol(s, protocolType)
+	}
+
 	s.SpanChan <- span
 }
 
@@ -1069,12 +1131,12 @@ func (s *Server) ReadMetricSocket(serverConn net.PacketConn, packetPool *sync.Po
 			log.WithError(err).Error("Error reading from UDP metrics socket")
 			continue
 		}
-		s.processMetricPacket(n, buf, packetPool)
+		s.processMetricPacket(n, buf, packetPool, DOGSTATSD_UDP)
 	}
 }
 
 // Splits the read metric packet into multiple metrics and handles them
-func (s *Server) processMetricPacket(numBytes int, buf []byte, packetPool *sync.Pool) {
+func (s *Server) processMetricPacket(numBytes int, buf []byte, packetPool *sync.Pool, protocolType ProtocolType) {
 	if numBytes > s.metricMaxLength {
 		metrics.ReportOne(s.TraceClient, ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "unknown", "reason": "toolong"}))
 		return
@@ -1087,14 +1149,17 @@ func (s *Server) processMetricPacket(numBytes int, buf []byte, packetPool *sync.
 	// trailing newlines
 	splitPacket := samplers.NewSplitBytes(buf[:numBytes], '\n')
 	for splitPacket.Next() {
-		s.HandleMetricPacket(splitPacket.Chunk())
+		s.HandleMetricPacket(splitPacket.Chunk(), protocolType)
 	}
 
-	// the Metric struct created by HandleMetricPacket has no byte slices in it,
-	// only strings
-	// therefore there are no outstanding references to this byte slice, we
-	// can return it to the pool
-	packetPool.Put(buf)
+	//Only return to the pool if there is a pool
+	if packetPool != nil {
+		// the Metric struct created by HandleMetricPacket has no byte slices in it,
+		// only strings
+		// therefore there are no outstanding references to this byte slice, we
+		// can return it to the pool
+		packetPool.Put(buf)
+	}
 }
 
 // ReadStatsdDatagramSocket reads statsd metrics packets from connection off a unix datagram socket.
@@ -1113,7 +1178,7 @@ func (s *Server) ReadStatsdDatagramSocket(serverConn *net.UnixConn, packetPool *
 			}
 		}
 
-		s.processMetricPacket(n, buf, packetPool)
+		s.processMetricPacket(n, buf, packetPool, DOGSTATSD_UNIX)
 	}
 }
 
@@ -1145,14 +1210,14 @@ func (s *Server) ReadSSFPacketSocket(serverConn net.PacketConn, packetPool *sync
 			}
 		}
 
-		s.HandleTracePacket(buf[:n])
+		s.HandleTracePacket(buf[:n], SSF_UDP)
 		packetPool.Put(buf)
 	}
 }
 
 // ReadSSFStreamSocket reads a streaming connection in framed wire format
 // off a streaming socket. See package
-// github.com/stripe/veneur/protocol for details.
+// github.com/stripe/veneur/v14/protocol for details.
 func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 	defer func() {
 		serverConn.Close()
@@ -1188,13 +1253,13 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 			tags = tags[:1]
 			continue
 		}
-		s.handleSSF(msg, "framed")
+		s.handleSSF(msg, "framed", SSF_UNIX)
 	}
 }
 
 func (s *Server) handleTCPGoroutine(conn net.Conn) {
 	defer func() {
-		ConsumePanic(s.Sentry, s.TraceClient, s.Hostname, recover())
+		ConsumePanic(s.TraceClient, s.Hostname, recover())
 	}()
 
 	defer func() {
@@ -1257,7 +1322,7 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 	}
 	for scanWithDeadline() {
 		// treat each line as a separate packet
-		err := s.HandleMetricPacket(buf.Bytes())
+		err := s.HandleMetricPacket(buf.Bytes(), DOGSTATSD_TCP)
 		if err != nil {
 			// don't consume bad data from a client indefinitely
 			// HandleMetricPacket logs the err and packet, and increments error counters
@@ -1434,23 +1499,6 @@ func (s *Server) IsLocal() bool {
 // isListeningHTTP returns if the Server is currently listening over HTTP
 func (s *Server) isListeningHTTP() bool {
 	return atomic.LoadInt32(s.numListeningHTTP) > 0
-}
-
-// registerPlugin registers a plugin for use
-// on the veneur server. It is blocking
-// and not threadsafe.
-func (s *Server) registerPlugin(p plugins.Plugin) {
-	s.pluginMtx.Lock()
-	defer s.pluginMtx.Unlock()
-	s.plugins = append(s.plugins, p)
-}
-
-func (s *Server) getPlugins() []plugins.Plugin {
-	s.pluginMtx.Lock()
-	plugins := make([]plugins.Plugin, len(s.plugins))
-	copy(plugins, s.plugins)
-	s.pluginMtx.Unlock()
-	return plugins
 }
 
 // CalculateTickDelay takes the provided time, `Truncate`s it a rounded-down

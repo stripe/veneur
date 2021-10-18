@@ -1,0 +1,12 @@
+syntax = "proto3";
+package dogstatsd;
+
+message Empty {}
+
+message DogstatsdPacket {
+  bytes packetBytes = 1;
+}
+
+service DogstatsdGRPC {
+  rpc SendPacket(DogstatsdPacket) returns (Empty);
+}

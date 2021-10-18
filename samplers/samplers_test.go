@@ -1,16 +1,18 @@
 package samplers
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/stripe/veneur/tdigest"
-
+	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/tdigest"
 )
 
 const ε = .01
@@ -724,7 +726,7 @@ func TestParseMetricSSF(t *testing.T) {
 		expected := elt.expected
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Parallel()
-			udpMetric, err := ParseMetricSSF(&sample)
+			udpMetric, err := (&Parser{}).ParseMetricSSF(&sample)
 			assert.NoError(t, err)
 			assert.Equal(t, udpMetric.MetricKey, expected.MetricKey)
 			assert.Equal(t, udpMetric.Type, expected.Type)
@@ -739,7 +741,6 @@ func TestParseMetricSSF(t *testing.T) {
 }
 
 func BenchmarkParseMetricSSF(b *testing.B) {
-
 	const LEN = 10000
 
 	samples := make([]*ssf.SSFSample, LEN)
@@ -764,8 +765,69 @@ func BenchmarkParseMetricSSF(b *testing.B) {
 		}
 		samples[i] = &sample
 	}
+	p := Parser{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		ParseMetricSSF(samples[i%LEN])
+		p.ParseMetricSSF(samples[i%LEN])
 	}
+}
+
+var benchResultInt int
+
+func BenchmarkConvertIndicatorMetrics(b *testing.B) {
+	explicitTags := []struct {
+		name       string
+		metricTags string
+	}{
+		{"ZeroTags", ""},
+		{"OneTag", "baz:gorch"},
+		{"TwoTags", "foo:bar,baz:gorch"},
+	}
+	implicitTags := []struct {
+		name       string
+		metricTags []string
+	}{
+		{"NoImplicit", []string{}},
+		{"OneImplicit", []string{"six:6"}},
+		{"SixImplicit", []string{"three:three", "six:6", "nine:9", "ten:10", "eleven:11", "twelve:12"}},
+	}
+
+	total := 0
+
+	for _, it := range implicitTags {
+		for _, et := range explicitTags {
+			duration := 5 * time.Second
+			start := time.Now()
+			end := start.Add(duration)
+			span := &ssf.SSFSpan{}
+			span.Id = 1
+			span.TraceId = 5
+			span.Name = "foo"
+			span.StartTimestamp = start.UnixNano()
+			span.EndTimestamp = end.UnixNano()
+			span.Indicator = true
+			span.Service = "bar-srv"
+			span.Metrics = make([]*ssf.SSFSample, 0)
+			buff, err := proto.Marshal(span)
+			assert.Nil(b, err)
+			inSpan, err := protocol.ParseSSF(buff)
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			benchName := fmt.Sprintf("%s%s", it.name, et.name)
+			parser := NewParser(it.metricTags)
+			b.Run(benchName, func(b *testing.B) {
+				for n := 0; n < b.N; n++ {
+					ums, err := parser.ConvertIndicatorMetrics(inSpan, "", "timer_name")
+					if err != nil {
+						b.Fatal(err)
+					}
+					total += len(ums)
+				}
+			})
+		}
+	}
+	// Attempt to avoid compiler optimizations? Is this relevant?
+	benchResultInt = total
 }

@@ -17,11 +17,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/stripe/veneur/samplers"
+	"github.com/stripe/veneur/v14/samplers"
 )
 
 func TestSortableJSONMetrics(t *testing.T) {
@@ -45,7 +46,7 @@ func TestSortableJSONMetrics(t *testing.T) {
 }
 
 func TestSortableJSONMetricHashing(t *testing.T) {
-	packet, err := samplers.ParseMetric([]byte("foo:1|h|#bar"))
+	packet, err := (&samplers.Parser{}).ParseMetric([]byte("foo:1|h|#bar"))
 	assert.NoError(t, err, "should have parsed test packet")
 
 	testList := []samplers.JSONMetric{
@@ -277,7 +278,7 @@ func TestOkTraceHealthCheck(t *testing.T) {
 	config := localConfig()
 	// We must enable tracing, as it's disabled by default, by turning on one
 	// of the tracing sinks.
-	config.LightstepAccessToken = "farts"
+	config.LightstepAccessToken = util.StringSecret{Value: "farts"}
 	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
@@ -295,7 +296,10 @@ func TestNoTracingConfiguredTraceHealthCheck(t *testing.T) {
 	config := localConfig()
 
 	config.SsfListenAddresses = []string{}
-	server, _ := NewFromConfig(logrus.New(), config)
+	server, _ := NewFromConfig(ServerConfig{
+		Logger: logrus.New(),
+		Config: config,
+	})
 	server.Start()
 	defer server.Shutdown()
 

@@ -16,6 +16,8 @@ var (
 	ignoredMetricsStr = flag.String("ignored-metrics", "", "A comma-seperated list of metric name regexes to not export")
 	prefix            = flag.String("p", "", "A prefix to append to any metrics emitted. Include a trailing period. (e.g. \"myservice.\")")
 	statsHost         = flag.String("s", "127.0.0.1:8126", "The host and port — like '127.0.0.1:8126' — to send our metrics to.")
+	renameLabelsStr   = flag.String("r", "", "A comma-seperated list of rename rules for tags. (e.g. \"oldtag=newtag,otheroldtag=othernewtag\"")
+	addLabelsStr      = flag.String("a", "", "A comma-seperated list of tags to add. (e.g. \"newtag=newtagvalue,othernewtag=othernewtagvalue\"")
 
 	// mTLS params for collecting metrics
 	cert   = flag.String("cert", "", "The path to a client cert to present to the server. Only used if using mTLS.")
@@ -39,7 +41,7 @@ func main() {
 		}).Fatal("failed to parse interval")
 	}
 
-	statsClient, _ := statsd.New(*statsHost)
+	statsClient, _ := statsd.New(*statsHost, statsd.WithoutTelemetry())
 
 	if *prefix != "" {
 		statsClient.Namespace = *prefix
@@ -52,7 +54,7 @@ func main() {
 
 	cache := new(countCache)
 	ticker := time.NewTicker(i)
-	for _ = range ticker.C {
+	for range ticker.C {
 		statsdStats := collect(cfg, cache)
 		sendToStatsd(statsClient, *statsHost, statsdStats)
 	}
@@ -66,7 +68,7 @@ func collect(cfg prometheusConfig, cache *countCache) <-chan []statsdStat {
 	}).Debug("beginning collection")
 
 	prometheus := queryPrometheus(cfg.httpClient, cfg.metricsHost, cfg.ignoredMetrics)
-	return translatePrometheus(cfg.ignoredLabels, cache, prometheus)
+	return translatePrometheus(cfg, cache, prometheus)
 }
 
 func sendToStatsd(client *statsd.Client, host string, stats <-chan []statsdStat) {

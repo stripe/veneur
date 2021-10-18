@@ -13,14 +13,13 @@ import (
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur/forwardrpc"
-	vhttp "github.com/stripe/veneur/http"
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/samplers/metricpb"
-	"github.com/stripe/veneur/sinks"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/metrics"
+	"github.com/stripe/veneur/v14/forwardrpc"
+	vhttp "github.com/stripe/veneur/v14/http"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
+	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
 	"google.golang.org/grpc/status"
 )
 
@@ -95,6 +94,7 @@ func (s *Server) Flush(ctx context.Context) {
 		}
 	} else {
 		s.reportGlobalMetricsFlushCounts(ms)
+		s.reportGlobalReceivedProtocolMetrics()
 	}
 
 	// If there's nothing to flush, don't bother calling the plugins and stuff.
@@ -102,10 +102,40 @@ func (s *Server) Flush(ctx context.Context) {
 		return
 	}
 
+	if s.Config.Features.EnableMetricSinkRouting {
+		for index := range finalMetrics {
+			metric := &finalMetrics[index]
+			metric.Sinks = make(samplers.RouteInformation)
+			for _, config := range s.Config.MetricSinkRouting {
+				var sinks []string
+				if config.Match(metric.Name, metric.Tags) {
+					sinks = config.Sinks.Matched
+				} else {
+					sinks = config.Sinks.NotMatched
+				}
+				for _, sink := range sinks {
+					metric.Sinks[sink] = struct{}{}
+				}
+			}
+		}
+	}
+
 	for _, sink := range s.metricSinks {
 		wg.Add(1)
 		go func(ms sinks.MetricSink) {
-			err := ms.Flush(span.Attach(ctx), finalMetrics)
+			filteredMetrics := finalMetrics
+			if s.Config.Features.EnableMetricSinkRouting {
+				sinkName := ms.Name()
+				filteredMetrics = []samplers.InterMetric{}
+				for _, metric := range finalMetrics {
+					_, ok := metric.Sinks[sinkName]
+					if !ok {
+						continue
+					}
+					filteredMetrics = append(filteredMetrics, metric)
+				}
+			}
+			err := ms.Flush(span.Attach(ctx), filteredMetrics)
 			if err != nil {
 				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
 			}
@@ -113,22 +143,6 @@ func (s *Server) Flush(ctx context.Context) {
 		}(sink)
 	}
 	wg.Wait()
-
-	go func() {
-		samples := &ssf.Samples{}
-		defer metrics.Report(s.TraceClient, samples)
-
-		tags := map[string]string{"part": "post"}
-		for _, p := range s.getPlugins() {
-			start := time.Now()
-			err := p.Flush(span.Attach(ctx), finalMetrics)
-			samples.Add(ssf.Timing(fmt.Sprintf("flush.plugins.%s.total_duration_ns", p.Name()), time.Since(start), time.Nanosecond, tags))
-			if err != nil {
-				samples.Add(ssf.Count(fmt.Sprintf("flush.plugins.%s.error_total", p.Name()), 1, nil))
-			}
-			samples.Add(ssf.Gauge(fmt.Sprintf("flush.plugins.%s.post_metrics_total", p.Name()), float32(len(finalMetrics)), nil))
-		}
-	}()
 }
 
 func (s *Server) tallyTimeseries() int64 {
@@ -161,6 +175,8 @@ type metricsSummary struct {
 
 	totalLength int
 }
+
+const perProtocolTotalMetricName string = "listen.received_per_protocol_total"
 
 // tallyMetrics gives a slight overestimate of the number
 // of metrics we'll be reporting, so that we can pre-allocate
@@ -333,6 +349,28 @@ func (s *Server) reportGlobalMetricsFlushCounts(ms metricsSummary) {
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalHistograms), []string{"metric_type:histogram"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalSets), []string{"metric_type:set"}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalTimers), []string{"metric_type:timer"}, 1.0)
+}
+
+func (s *Server) reportGlobalReceivedProtocolMetrics() {
+	protocolMetrics := s.listeningPerProtocolMetrics
+
+	dogstatsdTcpTotal := atomic.SwapInt64(&protocolMetrics.dogstatsdTcpReceivedTotal, 0)
+	dogstatsdUdpTotal := atomic.SwapInt64(&protocolMetrics.dogstatsdUdpReceivedTotal, 0)
+	dogstatsdUnixTotal := atomic.SwapInt64(&protocolMetrics.dogstatsdUnixReceivedTotal, 0)
+	dogstatsdGrpcTotal := atomic.SwapInt64(&protocolMetrics.dogstatsdGrpcReceivedTotal, 0)
+
+	ssfUdpTotal := atomic.SwapInt64(&protocolMetrics.ssfUdpReceivedTotal, 0)
+	ssfUnixTotal := atomic.SwapInt64(&protocolMetrics.ssfUnixReceivedTotal, 0)
+	ssfGrpcTotal := atomic.SwapInt64(&protocolMetrics.ssfGrpcReceivedTotal, 0)
+
+	s.Statsd.Count(perProtocolTotalMetricName, dogstatsdTcpTotal, []string{"veneurglobalonly:true", "protocol:" + DOGSTATSD_TCP.String()}, 1.0)
+	s.Statsd.Count(perProtocolTotalMetricName, dogstatsdUdpTotal, []string{"veneurglobalonly:true", "protocol:" + DOGSTATSD_UDP.String()}, 1.0)
+	s.Statsd.Count(perProtocolTotalMetricName, dogstatsdUnixTotal, []string{"veneurglobalonly:true", "protocol:" + DOGSTATSD_UNIX.String()}, 1.0)
+	s.Statsd.Count(perProtocolTotalMetricName, dogstatsdGrpcTotal, []string{"veneurglobalonly:true", "protocol:" + DOGSTATSD_GRPC.String()}, 1.0)
+
+	s.Statsd.Count(perProtocolTotalMetricName, ssfUdpTotal, []string{"veneurglobalonly:true", "protocol:" + SSF_UDP.String()}, 1.0)
+	s.Statsd.Count(perProtocolTotalMetricName, ssfUnixTotal, []string{"veneurglobalonly:true", "protocol:" + SSF_UNIX.String()}, 1.0)
+	s.Statsd.Count(perProtocolTotalMetricName, ssfGrpcTotal, []string{"veneurglobalonly:true", "protocol:" + SSF_GRPC.String()}, 1.0)
 }
 
 func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {

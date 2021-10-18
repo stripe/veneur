@@ -10,9 +10,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/sinks"
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 type forwardFixture struct {
@@ -46,7 +46,7 @@ func newForwardingFixture(t testing.TB, localConfig Config, transport http.Round
 	proxyCfg.ConsulForwardServiceName = ""
 	proxy, err := NewProxyFromConfig(logrus.New(), proxyCfg)
 	require.NoError(t, err)
-	ff.proxy = &proxy
+	ff.proxy = proxy
 
 	ff.proxy.Start()
 	ff.proxyTS = httptest.NewServer(ff.proxy.Handler())

@@ -25,14 +25,15 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stripe/veneur/protocol"
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/sinks"
-	"github.com/stripe/veneur/sinks/blackhole"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/tdigest"
-	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/metrics"
+	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/sinks"
+	"github.com/stripe/veneur/v14/sinks/blackhole"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/tdigest"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util"
 	"github.com/zenazn/goji/graceful"
 )
 
@@ -75,8 +76,8 @@ func generateConfig(forwardAddr string) Config {
 		Hostname: "localhost",
 
 		// Use a shorter interval for tests
-		Interval:              DefaultFlushInterval.String(),
-		DatadogAPIKey:         "",
+		Interval:              DefaultFlushInterval,
+		DatadogAPIKey:         util.StringSecret{Value: ""},
 		MetricMaxLength:       4096,
 		Percentiles:           []float64{.5, .75, .99},
 		Aggregates:            []string{"min", "max", "count"},
@@ -98,7 +99,7 @@ func generateConfig(forwardAddr string) Config {
 		// more complicated.
 		StatsAddress:           "localhost:8125",
 		Tags:                   []string{},
-		SentryDsn:              "",
+		SentryDsn:              util.StringSecret{Value: ""},
 		DatadogFlushMaxPerBody: 1024,
 
 		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
@@ -133,7 +134,10 @@ func generateMetrics() (metricValues []float64, expectedMetrics map[string]float
 // "nothing".
 func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper, mSink sinks.MetricSink, sSink sinks.SpanSink, traceClient *trace.Client) *Server {
 	logger := logrus.New()
-	server, err := NewFromConfig(logger, config)
+	server, err := NewFromConfig(ServerConfig{
+		Logger: logger,
+		Config: config,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,12 +212,9 @@ type fixture struct {
 }
 
 func newFixture(t testing.TB, config Config, mSink sinks.MetricSink, sSink sinks.SpanSink) *fixture {
-	interval, err := config.ParseInterval()
-	assert.NoError(t, err)
-
 	// Set up a remote server (the API that we're sending the data to)
 	// (e.g. Datadog)
-	f := &fixture{nil, &Server{}, interval, config.DatadogFlushMaxPerBody}
+	f := &fixture{nil, &Server{}, config.Interval, config.DatadogFlushMaxPerBody}
 
 	if config.NumWorkers == 0 {
 		config.NumWorkers = 1
@@ -441,32 +442,17 @@ func checkBufferSplit(t *testing.T, buf []byte) {
 }
 
 func readTestKeysCerts() (map[string]string, error) {
-	// reads the insecure test keys and certificates in fixtures generated with:
-	// # Generate the authority key and certificate (1024-bit RSA signed using SHA-256)
-	// openssl genrsa -out cakey.pem 1024
-	// openssl req -new -x509 -key cakey.pem -out cacert.pem -days 1095 -subj "/O=Example Inc/CN=Example Certificate Authority"
-
-	// # Generate the server key and certificate, signed by the authority
-	// openssl genrsa -out serverkey.pem 1024
-	// openssl req -new -key serverkey.pem -out serverkey.csr -days 1095 -subj "/O=Example Inc/CN=localhost"
-	// openssl x509 -req -in serverkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out servercert.pem -days 1095
-
-	// # Generate a client key and certificate, signed by the authority
-	// openssl genrsa -out clientkey.pem 1024
-	// openssl req -new -key clientkey.pem -out clientkey.csr -days 1095 -subj "/O=Example Inc/CN=Veneur client key"
-	// openssl x509 -req -in clientkey.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out clientcert_correct.pem -days 1095
-
-	// # Generate another ca and sign the client key
-	// openssl genrsa -out wrongcakey.pem 1024
-	// openssl req -new -x509 -key wrongcakey.pem -out wrongcacert.pem -days 1095 -subj "/O=Wrong Inc/CN=Wrong Certificate Authority"
-	// openssl x509 -req -in clientkey.csr -CA wrongcacert.pem -CAkey wrongcakey.pem -CAcreateserial -out clientcert_wrong.pem -days 1095
-
+	// reads the insecure test keys and certificates in fixtures
+	// generated with: Run the testdata/_bin/generate_certs.sh
+	// script (tested on macOS Catalina) to re-generate the CA and
+	// certs).
 	pems := map[string]string{}
 	pemFileNames := []string{
 		"cacert.pem",
 		"clientcert_correct.pem",
 		"clientcert_wrong.pem",
 		"clientkey.pem",
+		"wrongkey.pem",
 		"servercert.pem",
 		"serverkey.pem",
 	}
@@ -487,15 +473,21 @@ func TestTCPConfig(t *testing.T) {
 	logger.Out = ioutil.Discard
 
 	config.StatsdListenAddresses = []string{"tcp://invalid:invalid"}
-	_, err := NewFromConfig(logger, config)
+	_, err := NewFromConfig(ServerConfig{
+		Logger: logger,
+		Config: config,
+	})
 	if err == nil {
 		t.Error("invalid TCP address is a config error")
 	}
 
 	config.StatsdListenAddresses = []string{"tcp://localhost:8129"}
-	config.TLSKey = "somekey"
+	config.TLSKey = util.StringSecret{Value: "somekey"}
 	config.TLSCertificate = ""
-	_, err = NewFromConfig(logger, config)
+	_, err = NewFromConfig(ServerConfig{
+		Logger: logger,
+		Config: config,
+	})
 	if err == nil {
 		t.Error("key without certificate is a config error")
 	}
@@ -504,16 +496,22 @@ func TestTCPConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal("could not read test keys/certs:", err)
 	}
-	config.TLSKey = pems["serverkey.pem"]
+	config.TLSKey = util.StringSecret{Value: pems["serverkey.pem"]}
 	config.TLSCertificate = "somecert"
-	_, err = NewFromConfig(logger, config)
+	_, err = NewFromConfig(ServerConfig{
+		Logger: logger,
+		Config: config,
+	})
 	if err == nil {
 		t.Error("invalid key and certificate is a config error")
 	}
 
-	config.TLSKey = pems["serverkey.pem"]
+	config.TLSKey = util.StringSecret{Value: pems["serverkey.pem"]}
 	config.TLSCertificate = pems["servercert.pem"]
-	_, err = NewFromConfig(logger, config)
+	_, err = NewFromConfig(ServerConfig{
+		Logger: logger,
+		Config: config,
+	})
 	if err != nil {
 		t.Error("expected valid config")
 	}
@@ -560,7 +558,7 @@ func sendTCPMetrics(a *net.TCPAddr, tlsConfig *tls.Config, f *fixture) error {
 func TestUDPMetrics(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
-	config.Interval = "60s"
+	config.Interval = time.Duration(time.Minute)
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0"}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)
@@ -588,7 +586,7 @@ func TestUnixSocketMetrics(t *testing.T) {
 
 	config := localConfig()
 	config.NumWorkers = 1
-	config.Interval = "60s"
+	config.Interval = time.Duration(time.Minute)
 	path := filepath.Join(tdir, "testdatagram.sock")
 	config.StatsdListenAddresses = []string{fmt.Sprintf("unixgram://%s", path)}
 	ch := make(chan []samplers.InterMetric, 20)
@@ -623,10 +621,50 @@ func TestUnixSocketMetrics(t *testing.T) {
 	}
 }
 
+func TestAbstractUnixSocketMetrics(t *testing.T) {
+	config := localConfig()
+	config.NumWorkers = 1
+	config.Interval = time.Duration(time.Minute)
+	path := "@abstract.sock"
+	defer os.RemoveAll(path)
+
+	config.StatsdListenAddresses = []string{fmt.Sprintf("unixgram:%s", path)}
+	ch := make(chan []samplers.InterMetric, 20)
+	sink, _ := NewChannelMetricSink(ch)
+	f := newFixture(t, config, sink, nil)
+	defer f.Close()
+
+	conn := connectToAddress(t, "unixgram", path, 500*time.Millisecond)
+	defer conn.Close()
+
+	t.Log("Writing the first metric")
+	_, err := conn.Write([]byte("foo.bar:1|c|#baz:gorch"))
+	ctx, firstCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
+	defer firstCancel()
+	keepFlushing(ctx, f.server)
+	if assert.NoError(t, err) {
+		metrics := <-ch
+		require.Equal(t, 1, len(metrics), "we sent a single metric")
+		assert.Equal(t, "foo.bar", metrics[0].Name, "worker processed the first metric")
+	}
+
+	t.Log("Writing the second metric")
+	_, err = conn.Write([]byte("foo.baz:1|c|#baz:gorch"))
+	secondCtx, secondCancel := context.WithTimeout(ctx, 20*time.Millisecond)
+	defer secondCancel()
+	keepFlushing(secondCtx, f.server)
+
+	if assert.NoError(t, err) {
+		metrics := <-ch
+		require.Equal(t, 1, len(metrics), "we sent a single metric")
+		assert.Equal(t, "foo.baz", metrics[0].Name, "worker processed the second metric")
+	}
+}
+
 func TestMultipleUDPSockets(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
-	config.Interval = "60s"
+	config.Interval = time.Duration(time.Minute)
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)
@@ -665,7 +703,7 @@ func TestMultipleUDPSockets(t *testing.T) {
 func TestUDPMetricsSSF(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
-	config.Interval = "60s"
+	config.Interval = time.Duration(time.Minute)
 	config.SsfListenAddresses = []string{"udp://127.0.0.1:0"}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)
@@ -745,7 +783,7 @@ func TestUNIXMetricsSSF(t *testing.T) {
 
 	config := localConfig()
 	config.NumWorkers = 1
-	config.Interval = "60s"
+	config.Interval = time.Duration(time.Minute)
 	path := filepath.Join(tdir, "test.sock")
 	config.SsfListenAddresses = []string{fmt.Sprintf("unix://%s", path)}
 	ch := make(chan []samplers.InterMetric, 20)
@@ -793,7 +831,7 @@ func TestIgnoreLongUDPMetrics(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.MetricMaxLength = 31
-	config.Interval = "60s"
+	config.Interval = time.Duration(time.Minute)
 	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0"}
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
@@ -838,7 +876,7 @@ func TestTCPMetrics(t *testing.T) {
 		t.Fatal("could not load server certificate")
 	}
 	wrongCert, err := tls.X509KeyPair(
-		[]byte(pems["clientcert_wrong.pem"]), []byte(pems["clientkey.pem"]))
+		[]byte(pems["clientcert_wrong.pem"]), []byte(pems["wrongkey.pem"]))
 	if err != nil {
 		t.Fatal("could not load wrong client cert/key:", err)
 	}
@@ -871,10 +909,10 @@ func TestTCPMetrics(t *testing.T) {
 		serverConfig := entry
 		t.Run(serverConfig.name, func(t *testing.T) {
 			config := localConfig()
-			config.Interval = "60s"
+			config.Interval = time.Duration(time.Minute)
 			config.NumWorkers = 1
 			config.StatsdListenAddresses = []string{"tcp://127.0.0.1:0"}
-			config.TLSKey = serverConfig.serverKey
+			config.TLSKey = util.StringSecret{Value: serverConfig.serverKey}
 			config.TLSCertificate = serverConfig.serverCertificate
 			config.TLSAuthorityCertificate = serverConfig.authorityCertificate
 			f := newFixture(t, config, nil, nil)
@@ -967,12 +1005,10 @@ func nullLogger() *logrus.Logger {
 }
 
 func TestCalculateTickerDelay(t *testing.T) {
-	interval, _ := time.ParseDuration("10s")
-
 	layout := "2006-01-02T15:04:05.000Z"
 	str := "2014-11-12T11:45:26.371Z"
 	theTime, _ := time.Parse(layout, str)
-	delay := CalculateTickDelay(interval, theTime)
+	delay := CalculateTickDelay(time.Duration(10*time.Second), theTime)
 	assert.Equal(t, 3.629, delay.Seconds(), "Delay is incorrect")
 }
 
@@ -986,16 +1022,19 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 	path := filepath.Join(tdir, "test.sock")
 	// test the variables that have been renamed
 	config := Config{
-		DatadogAPIKey:          "apikey",
+		DatadogAPIKey:          util.StringSecret{Value: "apikey"},
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
 		SsfListenAddresses:     []string{fmt.Sprintf("unix://%s", path)},
 
 		// required or NewFromConfig fails
-		Interval:     "10s",
+		Interval:     time.Duration(10 * time.Second),
 		StatsAddress: "localhost:62251",
 	}
-	s, err := NewFromConfig(logrus.New(), config)
+	s, err := NewFromConfig(ServerConfig{
+		Logger: logrus.New(),
+		Config: config,
+	})
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -1046,7 +1085,7 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 func BenchmarkSendSSFUDP(b *testing.B) {
 	// test the variables that have been renamed
 	config := Config{
-		DatadogAPIKey:          "apikey",
+		DatadogAPIKey:          util.StringSecret{Value: "apikey"},
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
 		SsfListenAddresses:     []string{"udp://127.0.0.1:0"},
@@ -1054,10 +1093,13 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 		TraceMaxLengthBytes:    900 * 1024,
 
 		// required or NewFromConfig fails
-		Interval:     "10s",
+		Interval:     time.Duration(10 * time.Second),
 		StatsAddress: "localhost:62251",
 	}
-	s, err := NewFromConfig(logrus.New(), config)
+	s, err := NewFromConfig(ServerConfig{
+		Logger: logrus.New(),
+		Config: config,
+	})
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -1338,7 +1380,10 @@ func generateSSFPackets(tb testing.TB, length int) [][]byte {
 // multiple times as Serve should try to call it again after the gRPC server
 // exits.
 func TestServeStopGRPC(t *testing.T) {
-	s, err := NewFromConfig(logrus.New(), globalConfig())
+	s, err := NewFromConfig(ServerConfig{
+		Logger: logrus.New(),
+		Config: globalConfig(),
+	})
 	assert.NoError(t, err, "Creating a server shouldn't have caused an error")
 
 	done := make(chan struct{})
@@ -1387,7 +1432,10 @@ func TestServeStopHTTP(t *testing.T) {
 	t.Skipf("Testing stopping the Server over HTTP requires a slow pause, and " +
 		"this test probably doesn't need to be run all the time.")
 
-	s, err := NewFromConfig(logrus.New(), globalConfig())
+	s, err := NewFromConfig(ServerConfig{
+		Logger: logrus.New(),
+		Config: globalConfig(),
+	})
 	assert.NoError(t, err, "Creating a server shouldn't have caused an error")
 
 	done := make(chan struct{})
@@ -1434,7 +1482,7 @@ func (s *blockySink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSam
 
 func TestFlushDeadline(t *testing.T) {
 	config := localConfig()
-	config.Interval = "1us"
+	config.Interval = time.Duration(time.Microsecond)
 
 	ch := make(chan struct{})
 	sink := &blockySink{blocker: ch}
@@ -1476,7 +1524,7 @@ func (bs blockingSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFS
 
 func TestWatchdog(t *testing.T) {
 	config := localConfig()
-	config.Interval = "10ms"
+	config.Interval = time.Duration(10 * time.Millisecond)
 	config.FlushWatchdogMissedFlushes = 10
 
 	sink := blockingSink{make(chan struct{})}
@@ -1515,7 +1563,7 @@ func BenchmarkHandleTracePacket(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		f.server.HandleTracePacket(input[i%LEN])
+		f.server.HandleTracePacket(input[i%LEN], SSF_UNIX)
 	}
 }
 
@@ -1537,6 +1585,6 @@ func BenchmarkHandleSSF(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		f.server.handleSSF(spans[i%LEN], "packet")
+		f.server.handleSSF(spans[i%LEN], "packet", SSF_UNIX)
 	}
 }

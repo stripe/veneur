@@ -1,0 +1,37 @@
+[
+  {
+    "Name": "a.b.gauge",
+    "Timestamp": 1,
+    "Value": 100,
+    "Tags": [
+      "foo:bar",
+      "baz:qux"
+    ],
+    "Type": 1,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  },
+  {
+    "Name": "a.b.counter",
+    "Timestamp": 1,
+    "Value": 2,
+    "Tags": [
+      "foo:bar"
+    ],
+    "Type": 0,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  },
+  {
+    "Name": "a.b.status",
+    "Timestamp": 1,
+    "Value": 5,
+    "Tags": null,
+    "Type": 2,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  }
+]

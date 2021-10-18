@@ -6,12 +6,13 @@ import (
 	"sort"
 	"time"
 
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
-	"github.com/stripe/veneur/trace/metrics"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/trace/metrics"
 
 	"context"
+
 	"github.com/segmentio/fasthash/fnv1a"
 	"goji.io"
 	"goji.io/pat"
@@ -21,20 +22,20 @@ import (
 func (s *Server) Handler() http.Handler {
 	mux := goji.NewMux()
 
-	mux.HandleFuncC(pat.Get("/healthcheck"), func(c context.Context, w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(pat.Get("/healthcheck"), func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok\n"))
 	})
 
-	mux.HandleFuncC(pat.Get("/builddate"), func(c context.Context, w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(pat.Get("/builddate"), func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(BUILD_DATE))
 	})
 
-	mux.HandleFuncC(pat.Get("/version"), func(c context.Context, w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(pat.Get("/version"), func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(VERSION))
 	})
 
 	if s.httpQuit {
-		mux.HandleFuncC(pat.Post(httpQuitEndpoint), func(c context.Context, w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc(pat.Post(httpQuitEndpoint), func(w http.ResponseWriter, r *http.Request) {
 			log.WithField("endpoint", httpQuitEndpoint).Info("Received shutdown request on HTTP quit endpoint")
 			w.Write([]byte("Beginning graceful shutdown....\n"))
 			s.Shutdown()
@@ -42,7 +43,7 @@ func (s *Server) Handler() http.Handler {
 	}
 
 	// TODO3.0: Maybe remove this endpoint as it is kinda useless now that tracing is always on.
-	mux.HandleFuncC(pat.Get("/healthcheck/tracing"), func(c context.Context, w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(pat.Get("/healthcheck/tracing"), func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok\n"))
 	})
 

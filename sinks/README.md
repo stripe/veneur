@@ -6,8 +6,9 @@ Veneur is all about sending observability primitives on to other places.
 * [Datadog](https://github.com/stripe/veneur/tree/master/sinks/datadog#readme)
 * [Kafka](https://github.com/stripe/veneur/tree/master/sinks/kafka#readme)
 * [LightStep](https://github.com/stripe/veneur/tree/master/sinks/lightstep#readme)
-* [SignalFx](https://github.com/stripe/veneur/tree/master/sinks/signalfx#readme)
+* [New Relic](https://github.com/stripe/veneur/tree/master/sinks/newrelic#readme)
 * [SSFMetrics](https://github.com/stripe/veneur/tree/master/sinks/ssfmetrics#readme)
+* [SignalFx](https://github.com/stripe/veneur/tree/master/sinks/signalfx#readme)
 
 # Looking For Something Else?
 

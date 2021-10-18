@@ -10,10 +10,10 @@ import (
 	"github.com/segmentio/fasthash/fnv1a"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stripe/veneur/protocol"
-	"github.com/stripe/veneur/protocol/dogstatsd"
-	"github.com/stripe/veneur/samplers"
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/protocol/dogstatsd"
+	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 func freshSSFMetric() *ssf.SSFSample {
@@ -34,15 +34,17 @@ func freshSSFMetric() *ssf.SSFSample {
 func TestValidMetric(t *testing.T) {
 	metric := freshSSFMetric()
 
-	m, _ := samplers.ParseMetricSSF(metric)
+	parser := samplers.Parser{}
+
+	m, _ := parser.ParseMetricSSF(metric)
 	assert.True(t, samplers.ValidMetric(m))
 
 	metric.Name = ""
-	m, _ = samplers.ParseMetricSSF(metric)
+	m, _ = parser.ParseMetricSSF(metric)
 	assert.False(t, samplers.ValidMetric(m))
 
 	metric.SampleRate = 0
-	m, _ = samplers.ParseMetricSSF(metric)
+	m, _ = parser.ParseMetricSSF(metric)
 	assert.False(t, samplers.ValidMetric(m))
 }
 
@@ -95,7 +97,7 @@ func TestParseSSFValidTraceInvalidMetric(t *testing.T) {
 		assert.NotNil(t, span)
 		assert.NotNil(t, span.Tags)
 
-		metrics, err := samplers.ConvertMetrics(span)
+		metrics, err := (&samplers.Parser{}).ConvertMetrics(span)
 		assert.NoError(t, err)
 		assert.Empty(t, metrics)
 	}
@@ -117,7 +119,7 @@ func TestParseSSFInvalidTraceValidMetric(t *testing.T) {
 	span, err := protocol.ParseSSF(buff)
 	assert.NoError(t, err)
 	if assert.NotNil(t, span) {
-		metrics, err := samplers.ConvertMetrics(span)
+		metrics, err := (&samplers.Parser{}).ConvertMetrics(span)
 		assert.NoError(t, err)
 		if assert.Equal(t, 1, len(metrics)) {
 			m := metrics[0]
@@ -154,7 +156,10 @@ func TestParseSSFValid(t *testing.T) {
 	msg, err := protocol.ParseSSF(buff)
 	assert.NoError(t, err)
 	if assert.NotNil(t, msg) {
-		metrics, err := samplers.ConvertMetrics(msg)
+		noTags := samplers.NewParser([]string{})
+		yesTags := samplers.NewParser([]string{"implicit"})
+
+		metrics, err := noTags.ConvertMetrics(msg)
 		assert.NoError(t, err)
 		if assert.Equal(t, 1, len(metrics)) {
 			m := metrics[0]
@@ -162,6 +167,18 @@ func TestParseSSFValid(t *testing.T) {
 			assert.Equal(t, float64(metric.Value), m.Value, "Value")
 			assert.Equal(t, "counter", m.Type, "Type")
 			assert.NotContains(t, m.Tags, "foo", "Metric should not inherit tags from its parent span")
+			assert.NotContains(t, m.Tags, "implicit")
+		}
+
+		metrics, err = yesTags.ConvertMetrics(msg)
+		assert.NoError(t, err)
+		if assert.Equal(t, 1, len(metrics)) {
+			m := metrics[0]
+			assert.Equal(t, metric.Name, m.Name, "Name")
+			assert.Equal(t, float64(metric.Value), m.Value, "Value")
+			assert.Equal(t, "counter", m.Type, "Type")
+			assert.NotContains(t, m.Tags, "foo", "Metric should not inherit tags from its parent span")
+			assert.Contains(t, m.Tags, "implicit")
 		}
 	}
 }
@@ -191,7 +208,10 @@ func TestParseSSFIndicatorSpan(t *testing.T) {
 	require.NotNil(t, inSpan)
 	require.NoError(t, protocol.ValidateTrace(span))
 
-	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "timer_name", "")
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	metrics, err := noTags.ConvertIndicatorMetrics(inSpan, "timer_name", "")
 	assert.NoError(t, err)
 	if assert.Equal(t, 1, len(metrics)) {
 		m := metrics[0]
@@ -201,8 +221,29 @@ func TestParseSSFIndicatorSpan(t *testing.T) {
 		if assert.Equal(t, 2, len(m.Tags)) {
 			var tags sort.StringSlice = m.Tags
 			sort.Sort(tags)
-			assert.Equal(t, "error:false", tags[0])
-			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[1])
+			assert.Equal(t, sort.StringSlice{
+				"error:false",
+				fmt.Sprintf("service:%s", span.Service),
+			}, tags)
+		}
+		assert.NotContains(t, m.Tags, "implicit")
+	}
+
+	metrics, err = yesTags.ConvertIndicatorMetrics(inSpan, "timer_name", "")
+	assert.NoError(t, err)
+	if assert.Equal(t, 1, len(metrics)) {
+		m := metrics[0]
+		assert.Equal(t, "timer_name", m.Name)
+		assert.Equal(t, "histogram", m.Type)
+		assert.InEpsilon(t, float32(duration/time.Nanosecond), m.Value, 0.001)
+		if assert.Equal(t, 3, len(m.Tags)) {
+			var tags sort.StringSlice = m.Tags
+			sort.Sort(tags)
+			assert.Equal(t, sort.StringSlice{
+				"error:false",
+				"implicit",
+				fmt.Sprintf("service:%s", span.Service),
+			}, tags)
 		}
 	}
 }
@@ -233,7 +274,10 @@ func TestParseSSFIndicatorSpanWithError(t *testing.T) {
 	require.NotNil(t, span)
 	require.NoError(t, protocol.ValidateTrace(span))
 
-	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "timer_name", "")
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	metrics, err := noTags.ConvertIndicatorMetrics(inSpan, "timer_name", "")
 	assert.NoError(t, err)
 	if assert.Equal(t, 1, len(metrics)) {
 		m := metrics[0]
@@ -244,8 +288,29 @@ func TestParseSSFIndicatorSpanWithError(t *testing.T) {
 		if assert.Equal(t, 2, len(m.Tags)) {
 			var tags sort.StringSlice = m.Tags
 			sort.Sort(tags)
-			assert.Equal(t, "error:true", tags[0])
-			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[1])
+			assert.Equal(t, sort.StringSlice{
+				"error:true",
+				fmt.Sprintf("service:%s", span.Service),
+			}, tags)
+		}
+	}
+
+	metrics, err = yesTags.ConvertIndicatorMetrics(inSpan, "timer_name", "")
+	assert.NoError(t, err)
+	if assert.Equal(t, 1, len(metrics)) {
+		m := metrics[0]
+		assert.Equal(t, "timer_name", m.Name)
+		assert.Equal(t, "histogram", m.Type)
+		assert.InEpsilon(t, float32(duration/time.Nanosecond), m.Value, 0.001,
+			"Duration seems incorrect: %f vs. %d", m.Value, duration/time.Nanosecond)
+		if assert.Equal(t, 3, len(m.Tags)) {
+			var tags sort.StringSlice = m.Tags
+			sort.Sort(tags)
+			assert.Equal(t, sort.StringSlice{
+				"error:true",
+				"implicit",
+				fmt.Sprintf("service:%s", span.Service),
+			}, tags)
 		}
 	}
 }
@@ -275,7 +340,10 @@ func TestParseSSFIndicatorObjective(t *testing.T) {
 	require.NotNil(t, inSpan)
 	require.NoError(t, protocol.ValidateTrace(span))
 
-	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "", "timer_name")
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	metrics, err := noTags.ConvertIndicatorMetrics(inSpan, "", "timer_name")
 	assert.NoError(t, err)
 	if assert.Equal(t, 1, len(metrics)) {
 		m := metrics[0]
@@ -285,9 +353,30 @@ func TestParseSSFIndicatorObjective(t *testing.T) {
 		if assert.Equal(t, 3, len(m.Tags)) {
 			var tags sort.StringSlice = m.Tags
 			sort.Sort(tags)
-			assert.Equal(t, "error:false", tags[0])
-			assert.Equal(t, "objective:foo", tags[1])
-			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[2])
+			assert.Equal(t, sort.StringSlice{
+				"error:false",
+				"objective:foo",
+				fmt.Sprintf("service:%s", span.Service),
+			}, tags)
+		}
+	}
+
+	metrics, err = yesTags.ConvertIndicatorMetrics(inSpan, "", "timer_name")
+	assert.NoError(t, err)
+	if assert.Equal(t, 1, len(metrics)) {
+		m := metrics[0]
+		assert.Equal(t, "timer_name", m.Name)
+		assert.Equal(t, "histogram", m.Type)
+		assert.InEpsilon(t, float32(duration/time.Nanosecond), m.Value, 0.001)
+		if assert.Equal(t, 4, len(m.Tags)) {
+			var tags sort.StringSlice = m.Tags
+			sort.Sort(tags)
+			assert.Equal(t, sort.StringSlice{
+				"error:false",
+				"implicit",
+				"objective:foo",
+				fmt.Sprintf("service:%s", span.Service),
+			}, tags)
 		}
 	}
 }
@@ -318,7 +407,10 @@ func TestParseSSFIndicatorObjectiveTag(t *testing.T) {
 	require.NotNil(t, inSpan)
 	require.NoError(t, protocol.ValidateTrace(span))
 
-	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "", "timer_name")
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	metrics, err := noTags.ConvertIndicatorMetrics(inSpan, "", "timer_name")
 	assert.NoError(t, err)
 	if assert.Equal(t, 1, len(metrics)) {
 		m := metrics[0]
@@ -328,9 +420,30 @@ func TestParseSSFIndicatorObjectiveTag(t *testing.T) {
 		if assert.Equal(t, 3, len(m.Tags)) {
 			var tags sort.StringSlice = m.Tags
 			sort.Sort(tags)
-			assert.Equal(t, "error:false", tags[0])
-			assert.Equal(t, "objective:bar", tags[1])
-			assert.Equal(t, fmt.Sprintf("service:%s", span.Service), tags[2])
+			assert.Equal(t, sort.StringSlice{
+				"error:false",
+				"objective:bar",
+				fmt.Sprintf("service:%s", span.Service),
+			}, tags)
+		}
+	}
+
+	metrics, err = yesTags.ConvertIndicatorMetrics(inSpan, "", "timer_name")
+	assert.NoError(t, err)
+	if assert.Equal(t, 1, len(metrics)) {
+		m := metrics[0]
+		assert.Equal(t, "timer_name", m.Name)
+		assert.Equal(t, "histogram", m.Type)
+		assert.InEpsilon(t, float32(duration/time.Nanosecond), m.Value, 0.001)
+		if assert.Equal(t, 4, len(m.Tags)) {
+			var tags sort.StringSlice = m.Tags
+			sort.Sort(tags)
+			assert.Equal(t, sort.StringSlice{
+				"error:false",
+				"implicit",
+				"objective:bar",
+				fmt.Sprintf("service:%s", span.Service),
+			}, tags)
 		}
 	}
 }
@@ -360,7 +473,7 @@ func TestParseSSFIndicatorSpanNotNamed(t *testing.T) {
 	require.NotNil(t, inSpan)
 	require.NoError(t, protocol.ValidateTrace(inSpan))
 
-	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "", "")
+	metrics, err := (&samplers.Parser{}).ConvertIndicatorMetrics(inSpan, "", "")
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(metrics))
 }
@@ -391,7 +504,7 @@ func TestParseSSFNonIndicatorSpan(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, protocol.ValidateTrace(inSpan))
 
-	metrics, err := samplers.ConvertIndicatorMetrics(inSpan, "timer_name", "objective_name")
+	metrics, err := (&samplers.Parser{}).ConvertIndicatorMetrics(inSpan, "timer_name", "objective_name")
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(metrics))
 }
@@ -411,7 +524,7 @@ func TestParseSSFBadMetric(t *testing.T) {
 	span, err := protocol.ParseSSF(buff)
 	assert.NoError(t, err)
 	if assert.NotNil(t, span) {
-		metrics, err := samplers.ConvertMetrics(span)
+		metrics, err := (&samplers.Parser{}).ConvertMetrics(span)
 		assert.Error(t, err)
 		assert.Equal(t, 0, len(metrics))
 		invalid, ok := err.(samplers.InvalidMetrics)
@@ -423,7 +536,7 @@ func TestParseSSFBadMetric(t *testing.T) {
 
 func TestParserSSF(t *testing.T) {
 	standardMetric := freshSSFMetric()
-	m, _ := samplers.ParseMetricSSF(standardMetric)
+	m, _ := (&samplers.Parser{}).ParseMetricSSF(standardMetric)
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, standardMetric.Name, m.Name, "Name")
 	assert.Equal(t, float64(standardMetric.Value), m.Value, "Value")
@@ -433,7 +546,7 @@ func TestParserSSF(t *testing.T) {
 func TestParserSSFGauge(t *testing.T) {
 	standardMetric := freshSSFMetric()
 	standardMetric.Metric = ssf.SSFSample_GAUGE
-	m, _ := samplers.ParseMetricSSF(standardMetric)
+	m, _ := (&samplers.Parser{}).ParseMetricSSF(standardMetric)
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, standardMetric.Name, m.Name, "Name")
 	assert.Equal(t, float64(standardMetric.Value), m.Value, "Value")
@@ -443,7 +556,7 @@ func TestParserSSFGauge(t *testing.T) {
 func TestParserSSFSet(t *testing.T) {
 	standardMetric := freshSSFMetric()
 	standardMetric.Metric = ssf.SSFSample_SET
-	m, _ := samplers.ParseMetricSSF(standardMetric)
+	m, _ := (&samplers.Parser{}).ParseMetricSSF(standardMetric)
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, standardMetric.Name, m.Name, "Name")
 	assert.Equal(t, standardMetric.Message, m.Value, "Value")
@@ -452,18 +565,25 @@ func TestParserSSFSet(t *testing.T) {
 
 func TestParserSSFWithTags(t *testing.T) {
 	standardMetric := freshSSFMetric()
-	m, _ := samplers.ParseMetricSSF(standardMetric)
+
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	m, _ := noTags.ParseMetricSSF(standardMetric)
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, standardMetric.Name, m.Name, "Name")
 	assert.Equal(t, float64(standardMetric.Value), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.Equal(t, 2, len(m.Tags), "# of Tags")
+
+	m, _ = yesTags.ParseMetricSSF(standardMetric)
+	assert.Equal(t, 3, len(m.Tags), "# of Tags")
 }
 
 func TestParserSSFWithSampleRate(t *testing.T) {
 	standardMetric := freshSSFMetric()
 	standardMetric.SampleRate = 0.1
-	m, _ := samplers.ParseMetricSSF(standardMetric)
+	m, _ := (&samplers.Parser{}).ParseMetricSSF(standardMetric)
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, standardMetric.Name, m.Name, "Name")
 	assert.Equal(t, float64(standardMetric.Value), m.Value, "Value")
@@ -474,142 +594,224 @@ func TestParserSSFWithSampleRate(t *testing.T) {
 func TestParserSSFWithSampleRateAndTags(t *testing.T) {
 	standardMetric := freshSSFMetric()
 	standardMetric.SampleRate = 0.1
-	m, _ := samplers.ParseMetricSSF(standardMetric)
+
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	m, _ := noTags.ParseMetricSSF(standardMetric)
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, standardMetric.Name, m.Name, "Name")
 	assert.Equal(t, float64(standardMetric.Value), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.Equal(t, float32(0.1), m.SampleRate, "Sample Rate")
 	assert.Len(t, m.Tags, 2, "Tags")
+	m, _ = yesTags.ParseMetricSSF(standardMetric)
+	assert.Len(t, m.Tags, 3, "Tags")
 }
 
 func TestParserSSFWithStatusCheck(t *testing.T) {
 	standardMetric := freshSSFMetric()
 	standardMetric.Metric = ssf.SSFSample_STATUS
 	standardMetric.Status = ssf.SSFSample_UNKNOWN
-	m, _ := samplers.ParseMetricSSF(standardMetric)
+
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	m, _ := noTags.ParseMetricSSF(standardMetric)
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, standardMetric.Name, m.Name, "Name")
 	assert.Equal(t, ssf.SSFSample_UNKNOWN, m.Value, "Value")
 	assert.Equal(t, "status", m.Type, "Type")
 	assert.Len(t, m.Tags, 2, "Tags")
+	m, _ = yesTags.ParseMetricSSF(standardMetric)
+	assert.Len(t, m.Tags, 3, "Tags")
 }
 
 func TestParser(t *testing.T) {
-	m, _ := samplers.ParseMetric([]byte("a.b.c:1|c"))
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	m, _ := noTags.ParseMetric([]byte("a.b.c:1|c"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.Equal(t, 0, len(m.Tags), "# of tags")
+	m, _ = yesTags.ParseMetric([]byte("a.b.c:1|c"))
+	assert.Equal(t, 1, len(m.Tags), "# of tags")
 }
 
 func TestParserGauge(t *testing.T) {
-	m, _ := samplers.ParseMetric([]byte("a.b.c:1|g"))
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	m, _ := noTags.ParseMetric([]byte("a.b.c:1|g"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "gauge", m.Type, "Type")
+	assert.Equal(t, 0, len(m.Tags), "# of tags")
+	m, _ = yesTags.ParseMetric([]byte("a.b.c:1|g"))
+	assert.Equal(t, 1, len(m.Tags), "# of tags")
 }
 
 func TestParserHistogram(t *testing.T) {
-	m, _ := samplers.ParseMetric([]byte("a.b.c:1|h"))
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	m, _ := noTags.ParseMetric([]byte("a.b.c:1|h"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "histogram", m.Type, "Type")
+	assert.Equal(t, 0, len(m.Tags), "# of tags")
+	m, _ = yesTags.ParseMetric([]byte("a.b.c:1|h"))
+	assert.Equal(t, 1, len(m.Tags), "# of tags")
 }
 
 func TestParserHistogramFloat(t *testing.T) {
-	m, _ := samplers.ParseMetric([]byte("a.b.c:1.234|h"))
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	m, _ := noTags.ParseMetric([]byte("a.b.c:1.234|h"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1.234), m.Value, "Value")
 	assert.Equal(t, "histogram", m.Type, "Type")
+	assert.Equal(t, 0, len(m.Tags), "# of tags")
+	m, _ = yesTags.ParseMetric([]byte("a.b.c:1.234|h"))
+	assert.Equal(t, 1, len(m.Tags), "# of tags")
 }
 
 func TestParserTimer(t *testing.T) {
-	m, _ := samplers.ParseMetric([]byte("a.b.c:1|ms"))
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	m, _ := noTags.ParseMetric([]byte("a.b.c:1|ms"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "timer", m.Type, "Type")
+	assert.Equal(t, 0, len(m.Tags), "# of tags")
+	m, _ = yesTags.ParseMetric([]byte("a.b.c:1|ms"))
+	assert.Equal(t, 1, len(m.Tags), "# of tags")
 }
 
 func TestParserDistribution(t *testing.T) {
-	m, _ := samplers.ParseMetric([]byte("a.b.c:0.1716441474854946|d|#filter:flatulent"))
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	m, _ := noTags.ParseMetric([]byte("a.b.c:0.1716441474854946|d|#filter:flatulent"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(0.1716441474854946), m.Value, "Value")
 	assert.Equal(t, "histogram", m.Type, "Type")
+	assert.Equal(t, 1, len(m.Tags), "# of tags")
+	m, _ = yesTags.ParseMetric([]byte("a.b.c:0.1716441474854946|d|#filter:flatulent"))
+	assert.Equal(t, 2, len(m.Tags), "# of tags")
 }
 
 func TestParserTimerFloat(t *testing.T) {
-	m, _ := samplers.ParseMetric([]byte("a.b.c:1.234|ms"))
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	m, _ := noTags.ParseMetric([]byte("a.b.c:1.234|ms"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1.234), m.Value, "Value")
 	assert.Equal(t, "timer", m.Type, "Type")
+	assert.Equal(t, 0, len(m.Tags), "# of tags")
+	m, _ = yesTags.ParseMetric([]byte("a.b.c:1.234|ms"))
+	assert.Equal(t, 1, len(m.Tags), "# of tags")
 }
 
 func TestParserSet(t *testing.T) {
-	m, _ := samplers.ParseMetric([]byte("a.b.c:foo|s"))
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	m, _ := noTags.ParseMetric([]byte("a.b.c:foo|s"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, "foo", m.Value, "Value")
 	assert.Equal(t, "set", m.Type, "Type")
+	assert.Equal(t, 0, len(m.Tags), "# of tags")
+	m, _ = yesTags.ParseMetric([]byte("a.b.c:foo|s"))
+	assert.Equal(t, 1, len(m.Tags), "# of tags")
 }
 
 func TestParserWithTags(t *testing.T) {
-	m, _ := samplers.ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	m, _ := noTags.ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.EqualValues(t, []string{"baz:gorch", "foo:bar"}, m.Tags, "Expected Tags")
+	y, _ := yesTags.ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
+	assert.EqualValues(t, []string{"baz:gorch", "foo:bar", "implicit"}, y.Tags, "Expected Tags")
 
 	// ensure that tag order doesn't matter: it must produce the same digest
-	m2, _ := samplers.ParseMetric([]byte("a.b.c:1|c|#baz:gorch,foo:bar"))
+	m2, _ := noTags.ParseMetric([]byte("a.b.c:1|c|#baz:gorch,foo:bar"))
 	assert.EqualValues(t, []string{"baz:gorch", "foo:bar"}, m2.Tags, "Expected Tags")
 	assert.Equal(t, m.Digest, m2.Digest, "Digest must not depend on tag order")
 	assert.Equal(t, m.MetricKey, m2.MetricKey, "MetricKey must not depend on tag order")
+	y2, _ := yesTags.ParseMetric([]byte("a.b.c:1|c|#baz:gorch,foo:bar"))
+	assert.EqualValues(t, []string{"baz:gorch", "foo:bar", "implicit"}, y2.Tags, "Expected Tags")
+	assert.Equal(t, y.Digest, y2.Digest, "Digest must not depend on tag order")
+	assert.Equal(t, y.MetricKey, y2.MetricKey, "MetricKey must not depend on tag order")
 
 	// treated as an empty tag
-	m, err := samplers.ParseMetric([]byte("a.b.c:1|c|#"))
+	m, err := noTags.ParseMetric([]byte("a.b.c:1|c|#"))
 	assert.Equal(t, nil, err, "not an error")
 	assert.EqualValues(t, []string{""}, m.Tags, "expected empty tag")
+	m, err = yesTags.ParseMetric([]byte("a.b.c:1|c|#"))
+	assert.Equal(t, nil, err, "not an error")
+	assert.EqualValues(t, []string{"", "implicit"}, m.Tags, "expected empty tag")
 
-	_, valueError := samplers.ParseMetric([]byte("a.b.c:fart|c"))
+	_, valueError := noTags.ParseMetric([]byte("a.b.c:fart|c"))
 	assert.NotNil(t, valueError, "No errors when parsing")
 	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 }
 
 func TestParserWithSampleRate(t *testing.T) {
-	m, _ := samplers.ParseMetric([]byte("a.b.c:1|c|@0.1"))
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	m, _ := noTags.ParseMetric([]byte("a.b.c:1|c|@0.1"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.Equal(t, float32(0.1), m.SampleRate, "Sample Rate")
+	assert.Equal(t, 0, len(m.Tags), "# of tags")
+	m, _ = yesTags.ParseMetric([]byte("a.b.c:1|c|@0.1"))
+	assert.Equal(t, 1, len(m.Tags), "# of tags")
 
-	_, valueError := samplers.ParseMetric([]byte("a.b.c:fart|c"))
+	_, valueError := (&samplers.Parser{}).ParseMetric([]byte("a.b.c:fart|c"))
 	assert.NotNil(t, valueError, "No errors when parsing")
 	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 
-	_, valueError = samplers.ParseMetric([]byte("a.b.c:1|g|@0.1"))
+	_, valueError = (&samplers.Parser{}).ParseMetric([]byte("a.b.c:1|g|@0.1"))
 	assert.NoError(t, valueError, "Got errors when parsing")
 }
 
 func TestParserWithSampleRateAndTags(t *testing.T) {
-	m, _ := samplers.ParseMetric([]byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"))
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	m, _ := noTags.ParseMetric([]byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"))
 	assert.NotNil(t, m, "Got nil metric!")
 	assert.Equal(t, "a.b.c", m.Name, "Name")
 	assert.Equal(t, float64(1), m.Value, "Value")
 	assert.Equal(t, "counter", m.Type, "Type")
 	assert.Equal(t, float32(0.1), m.SampleRate, "Sample Rate")
 	assert.Len(t, m.Tags, 2, "Tags")
+	m, _ = yesTags.ParseMetric([]byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"))
+	assert.Len(t, m.Tags, 3, "Tags")
 
-	_, valueError := samplers.ParseMetric([]byte("a.b.c:fart|c"))
+	_, valueError := (&samplers.Parser{}).ParseMetric([]byte("a.b.c:fart|c"))
 	assert.NotNil(t, valueError, "No errors when parsing")
 	assert.Contains(t, valueError.Error(), "Invalid number", "Invalid number error missing")
 }
@@ -634,14 +836,14 @@ func TestInvalidPackets(t *testing.T) {
 	}
 
 	for packet, errContent := range table {
-		_, err := samplers.ParseMetric([]byte(packet))
+		_, err := (&samplers.Parser{}).ParseMetric([]byte(packet))
 		assert.NotNil(t, err, "Should have gotten error parsing %q", packet)
 		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
 	}
 }
 
 func TestLocalOnlyEscape(t *testing.T) {
-	m, err := samplers.ParseMetric([]byte("a.b.c:1|h|#veneurlocalonly,tag2:quacks"))
+	m, err := (&samplers.Parser{}).ParseMetric([]byte("a.b.c:1|h|#veneurlocalonly,tag2:quacks"))
 	assert.NoError(t, err, "should have no error parsing")
 	assert.Equal(t, samplers.LocalOnly, m.Scope, "should have gotten local only metric")
 	assert.NotContains(t, m.Tags, "veneurlocalonly", "veneurlocalonly should not actually be a tag")
@@ -649,7 +851,7 @@ func TestLocalOnlyEscape(t *testing.T) {
 }
 
 func TestGlobalOnlyEscape(t *testing.T) {
-	m, err := samplers.ParseMetric([]byte("a.b.c:1|h|#veneurglobalonly,tag2:quacks"))
+	m, err := (&samplers.Parser{}).ParseMetric([]byte("a.b.c:1|h|#veneurglobalonly,tag2:quacks"))
 	assert.NoError(t, err, "should have no error parsing")
 	assert.Equal(t, samplers.GlobalOnly, m.Scope, "should have gotten local only metric")
 	assert.NotContains(t, m.Tags, "veneurglobalonly", "veneurlocalonly should not actually be a tag")
@@ -657,7 +859,10 @@ func TestGlobalOnlyEscape(t *testing.T) {
 }
 
 func TestEvents(t *testing.T) {
-	evt, err := samplers.ParseEvent([]byte("_e{3,3}:foo|bar|k:foos|s:test|t:success|p:low|#foo:bar,baz:qux|d:1136239445|h:example.com"))
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	evt, err := noTags.ParseEvent([]byte("_e{3,3}:foo|bar|k:foos|s:test|t:success|p:low|#foo:bar,baz:qux|d:1136239445|h:example.com"))
 	assert.NoError(t, err, "should have parsed correctly")
 	assert.EqualValues(t, &ssf.SSFSample{
 		Name:      "foo",
@@ -674,6 +879,19 @@ func TestEvents(t *testing.T) {
 			"baz":                               "qux",
 		},
 	}, evt, "should have parsed event")
+	evt, err = yesTags.ParseEvent([]byte("_e{3,3}:foo|bar|k:foos|s:test|t:success|p:low|#foo:bar,baz:qux|d:1136239445|h:example.com"))
+	assert.NoError(t, err, "should have parsed correctly")
+	assert.Equal(t, map[string]string{
+		dogstatsd.EventIdentifierKey:        "",
+		dogstatsd.EventAggregationKeyTagKey: "foos",
+		dogstatsd.EventSourceTypeTagKey:     "test",
+		dogstatsd.EventAlertTypeTagKey:      "success",
+		dogstatsd.EventPriorityTagKey:       "low",
+		dogstatsd.EventHostnameTagKey:       "example.com",
+		"foo":                               "bar",
+		"baz":                               "qux",
+		"implicit":                          "",
+	}, evt.Tags)
 
 	table := map[string]string{
 		"_e{4,3}:foo|bar":               "title length",
@@ -688,14 +906,17 @@ func TestEvents(t *testing.T) {
 		"_e{3,3}":                       "colon",
 	}
 	for packet, errContent := range table {
-		_, err := samplers.ParseEvent([]byte(packet))
+		_, err := (&samplers.Parser{}).ParseEvent([]byte(packet))
 		assert.NotNil(t, err, "Should have gotten error parsing %q", packet)
 		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
 	}
 }
 
 func TestServiceChecks(t *testing.T) {
-	svcCheck, err := samplers.ParseServiceCheck([]byte("_sc|foo.bar|0|#foo:bar,qux:dor|d:1136239445|h:example.com"))
+	noTags := samplers.NewParser([]string{})
+	yesTags := samplers.NewParser([]string{"implicit"})
+
+	svcCheck, err := noTags.ParseServiceCheck([]byte("_sc|foo.bar|0|#foo:bar,qux:dor|d:1136239445|h:example.com"))
 	assert.NoError(t, err, "should have parsed correctly")
 	expected := &samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
@@ -720,6 +941,32 @@ func TestServiceChecks(t *testing.T) {
 
 	assert.EqualValues(t, expected, svcCheck, "should have parsed event")
 
+	svcCheck, err = yesTags.ParseServiceCheck([]byte("_sc|foo.bar|0|#foo:bar,qux:dor|d:1136239445|h:example.com"))
+	assert.NoError(t, err, "should have parsed correctly")
+	expected = &samplers.UDPMetric{
+		MetricKey: samplers.MetricKey{
+			Name:       "foo.bar",
+			Type:       "status",
+			JoinedTags: "foo:bar,implicit,qux:dor",
+		},
+		SampleRate: 1.0,
+		Value:      ssf.SSFSample_OK,
+		Timestamp:  1136239445,
+		HostName:   "example.com",
+		Tags: []string{
+			"foo:bar",
+			"implicit",
+			"qux:dor",
+		},
+	}
+	h = fnv1a.Init32
+	h = fnv1a.AddString32(h, expected.Name)
+	h = fnv1a.AddString32(h, expected.Type)
+	h = fnv1a.AddString32(h, expected.JoinedTags)
+	expected.Digest = h
+
+	assert.EqualValues(t, expected, svcCheck, "should have parsed event")
+
 	table := map[string]string{
 		"foo.bar|0":           "_sc",
 		"_sc|foo.bar":         "status",
@@ -728,7 +975,7 @@ func TestServiceChecks(t *testing.T) {
 		"_sc|foo.bar|0|d:abc": "date",
 	}
 	for packet, errContent := range table {
-		_, err := samplers.ParseServiceCheck([]byte(packet))
+		_, err := (&samplers.Parser{}).ParseServiceCheck([]byte(packet))
 		assert.NotNil(t, err, "Should have gotten error parsing %q", packet)
 		assert.Contains(t, err.Error(), errContent, "Error should have contained text")
 	}
@@ -736,21 +983,21 @@ func TestServiceChecks(t *testing.T) {
 
 func TestEventMessageUnescape(t *testing.T) {
 	packet := []byte("_e{3,15}:foo|foo\\nbar\\nbaz\\n")
-	evt, err := samplers.ParseEvent(packet)
+	evt, err := (&samplers.Parser{}).ParseEvent(packet)
 	assert.NoError(t, err, "Should have parsed correctly")
 	assert.Equal(t, "foo\nbar\nbaz\n", evt.Message, "Should contain newline")
 }
 
 func TestServiceCheckMessageUnescape(t *testing.T) {
 	packet := []byte("_sc|foo|0|m:foo\\nbar\\nbaz\\n")
-	svcheck, err := samplers.ParseServiceCheck(packet)
+	svcheck, err := (&samplers.Parser{}).ParseServiceCheck(packet)
 	assert.NoError(t, err, "Should have parsed correctly")
 	assert.Equal(t, "foo\nbar\nbaz\n", svcheck.Message, "Should contain newline")
 }
 
 func TestServiceCheckMessageStatus(t *testing.T) {
 	packet := []byte("_sc|foo|1|m:foo")
-	svcheck, err := samplers.ParseServiceCheck(packet)
+	svcheck, err := (&samplers.Parser{}).ParseServiceCheck(packet)
 	assert.NoError(t, err, "Should have parsed correctly")
 	assert.Equal(t, "foo", svcheck.Message, "Should contain newline")
 	assert.Equal(t, ssf.SSFSample_WARNING, svcheck.Value, "Should parse status correctly")
@@ -794,14 +1041,6 @@ func TestConsecutiveParseSSF(t *testing.T) {
 	assert.Equal(t, "", span2.Tags["foo"], "Tagless span has tags!")
 }
 
-func TestTagSliceToMap(t *testing.T) {
-	tags := []string{"foo:bar", "baz:gorch", "blerg"}
-	mappedTags := samplers.ParseTagSliceToMap(tags)
-	assert.Equal(t, "bar", mappedTags["foo"])
-	assert.Equal(t, "gorch", mappedTags["baz"])
-	assert.Equal(t, "", mappedTags["blerg"])
-}
-
 func BenchmarkParseSSF(b *testing.B) {
 	span := &ssf.SSFSpan{}
 
@@ -818,30 +1057,55 @@ var benchResult uint32
 func BenchmarkParseMetric(b *testing.B) {
 	var total uint32
 
-	tests := []struct {
-		testName    string
+	metricName := "a.b.c"
+	metricValues := []struct {
+		name        string
 		metricValue string
+		metricType  string
 	}{
-		{"IntCountZeroTags", "a.b.c:1|c"},
-		{"IntCountOneTag", "a.b.c:1|c|#baz:gorch"},
-		{"IntCountTwoTags", "a.b.c:1|c|#foo:bar,baz:gorch"},
-
-		{"FloatHistogramZeroTags", "a.b.c:4.5|h"},
-		{"FloatHistogramOneTag", "a.b.c:4.5|c|#baz:gorch"},
-		{"FloatHistogramTwoTags", "a.b.c:4.5|c|#foo:bar,baz:gorch"},
+		{"IntCount", "1", "c"},
+		{"FloatHistogram", "4.5", "h"},
 	}
-	for _, test := range tests {
-		metricBytes := []byte(test.metricValue)
+	explicitTags := []struct {
+		name       string
+		metricTags string
+	}{
+		{"ZeroTags", ""},
+		{"OneTag", "baz:gorch"},
+		{"TwoTags", "foo:bar,baz:gorch"},
+	}
+	implicitTags := []struct {
+		name       string
+		metricTags []string
+	}{
+		{"NoImplicit", []string{}},
+		{"OneImplicit", []string{"six:6"}},
+		{"TwoImplicit", []string{"three:three", "six:6", "nine:9", "ten:10", "eleven:11", "twelve:12"}},
+	}
 
-		b.Run(test.testName, func(b *testing.B) {
-			for n := 0; n < b.N; n++ {
-				m, err := samplers.ParseMetric(metricBytes)
-				if err != nil {
-					b.Fatal(err)
+	for _, mv := range metricValues {
+		for _, it := range implicitTags {
+			for _, et := range explicitTags {
+				var statsd string
+				if et.metricTags == "" {
+					statsd = fmt.Sprintf("%s:%s|%s", metricName, mv.metricValue, mv.metricType)
+				} else {
+					statsd = fmt.Sprintf("%s:%s|%s#%s", metricName, mv.metricValue, mv.metricType, et.metricTags)
 				}
-				total += m.Digest
+				benchName := fmt.Sprintf("%s%s%s", mv.name, it.name, et.name)
+				metricBytes := []byte(statsd)
+				parser := samplers.NewParser(it.metricTags)
+				b.Run(benchName, func(b *testing.B) {
+					for n := 0; n < b.N; n++ {
+						m, err := parser.ParseMetric(metricBytes)
+						if err != nil {
+							b.Fatal(err)
+						}
+						total += m.Digest
+					}
+				})
 			}
-		})
+		}
 	}
 	// Attempt to avoid compiler optimizations? Is this relevant?
 	benchResult = total

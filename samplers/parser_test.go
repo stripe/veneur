@@ -5,10 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stripe/veneur/ssf"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 func BenchmarkConvertSpanUniquenessMetrics(b *testing.B) {
+	p := Parser{}
+
 	const LEN = 10000
 
 	spans := make([]*ssf.SSFSpan, LEN)
@@ -66,7 +68,7 @@ func BenchmarkConvertSpanUniquenessMetrics(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		result, err := ConvertSpanUniquenessMetrics(spans[(i%LEN)], 1)
+		result, err := p.ConvertSpanUniquenessMetrics(spans[(i%LEN)], 1)
 		if err != nil {
 			b.Fatalf("Error converting span uniqueness metrics: %s", err)
 		}

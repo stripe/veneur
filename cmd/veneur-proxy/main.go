@@ -4,9 +4,9 @@ import (
 	"flag"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stripe/veneur"
-	"github.com/stripe/veneur/ssf"
-	"github.com/stripe/veneur/trace"
+	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/trace"
 )
 
 var (
@@ -43,7 +43,7 @@ func main() {
 		logrus.WithError(err).Fatal("Could not initialize proxy")
 	}
 	defer func() {
-		veneur.ConsumePanic(proxy.Sentry, proxy.TraceClient, proxy.Hostname, recover())
+		veneur.ConsumePanic(proxy.TraceClient, proxy.Hostname, recover())
 	}()
 
 	if proxy.TraceClient != trace.DefaultClient && proxy.TraceClient != nil {

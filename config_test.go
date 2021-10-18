@@ -23,9 +23,7 @@ func TestReadConfig(t *testing.T) {
 	assert.Equal(t, "https://app.datadoghq.com", c.DatadogAPIHostname)
 	assert.Equal(t, 96, c.NumWorkers)
 
-	interval, err := c.ParseInterval()
-	assert.NoError(t, err)
-	assert.Equal(t, interval, 10*time.Second)
+	assert.Equal(t, c.Interval, 10*time.Second)
 }
 
 func TestReadBadConfig(t *testing.T) {
@@ -199,9 +197,22 @@ trace_lightstep_num_clients: 2
 	// they should get copied to the new config options
 	assert.Equal(t, 1234, c.DatadogFlushMaxPerBody)
 	assert.Equal(t, 3456, c.DatadogSpanBufferSize)
-	assert.Equal(t, "123", c.LightstepAccessToken)
+	assert.Equal(t, "123", c.LightstepAccessToken.Value)
 	assert.Equal(t, "456", c.LightstepCollectorHost)
 	assert.Equal(t, "789", c.LightstepReconnectPeriod)
 	assert.Equal(t, 1, c.LightstepMaximumSpans)
 	assert.Equal(t, 2, c.LightstepNumClients)
+}
+
+func TestReadConfigEnvironmentVariables(t *testing.T) {
+	const fakeApiKey = "fake_api_key"
+	defer os.Unsetenv("VENEUR_DATADOGAPIKEY")
+	os.Setenv("VENEUR_DATADOGAPIKEY", fakeApiKey)
+	// read in empty config
+	c, err := readConfig(strings.NewReader(""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// make sure value was pulled from environment variable
+	assert.Equal(t, fakeApiKey, c.DatadogAPIKey.Value)
 }
