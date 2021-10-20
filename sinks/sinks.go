@@ -8,9 +8,8 @@ import (
 	"github.com/stripe/veneur/v14/trace"
 )
 
-// MetricKeyMetricFlushDuration should be emitted as a timer by a MetricSink
-// if possible. Tagged with `sink:sink.Name()`. The `Flush` function is a great
-// place to do this.
+// MetricKeyMetricFlushDuration is emitted as a timer for each sink by the
+// flusher, tagged with the name for the sink.
 const MetricKeyMetricFlushDuration = "sink.metric_flush_total_duration_ns"
 
 // MetricKeyTotalMetricsFlushed should be emitted as a counter by a MetricSink

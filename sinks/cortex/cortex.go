@@ -133,8 +133,6 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 
-	flushStart := time.Now()
-
 	wr := makeWriteRequest(metrics, s.tags)
 	data, err := proto.Marshal(wr)
 	if err != nil {
@@ -178,7 +176,6 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	// Emit standard sink metrics
 	tags := map[string]string{"sink": s.name, "sink_type": "cortex"}
 	// We don't send sinks.MetricKeyTotalMetricsSkipped at present, as it would always be 0
-	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags))
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(metrics)), tags))
 
 	s.logger.Info("Flush complete")

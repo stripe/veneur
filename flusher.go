@@ -120,6 +120,7 @@ func (s *Server) Flush(ctx context.Context) {
 		}
 	}
 
+	flushStart := time.Now()
 	for _, sink := range s.metricSinks {
 		wg.Add(1)
 		go func(ms sinks.MetricSink) {
@@ -136,6 +137,9 @@ func (s *Server) Flush(ctx context.Context) {
 				}
 			}
 			err := ms.Flush(span.Attach(ctx), filteredMetrics)
+			span.Add(ssf.Timing(
+				sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
+				time.Nanosecond, map[string]string{"sink": ms.Name()}))
 			if err != nil {
 				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
 			}

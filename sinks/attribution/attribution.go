@@ -157,8 +157,6 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 
-	flushStart := time.Now()
-
 	for _, metric := range metrics {
 		s.log.Debug(fmt.Sprintf("Checking %s", metric.Name))
 		if sinks.IsAcceptableMetric(metric, s) {
@@ -191,8 +189,6 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 	}
 
 	s.log.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
-	spanTags := map[string]string{"sink": s.Name()}
-	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, spanTags))
 	return nil
 }
 
