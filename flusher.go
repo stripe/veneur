@@ -135,7 +135,11 @@ func (s *Server) Flush(ctx context.Context) {
 					filteredMetrics = append(filteredMetrics, metric)
 				}
 			}
+			flushStart := time.Now()
 			err := ms.Flush(span.Attach(ctx), filteredMetrics)
+			span.Add(ssf.Timing(
+				sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
+				time.Nanosecond, map[string]string{"sink": ms.Name()}))
 			if err != nil {
 				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
 			}

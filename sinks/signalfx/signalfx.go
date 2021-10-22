@@ -510,7 +510,6 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 	span, subCtx := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sfx.traceClient)
 
-	flushStart := time.Now()
 	coll := sfx.newPointCollection()
 	numPoints := 0
 	countSkipped := 0
@@ -602,7 +601,6 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 	if err != nil {
 		span.Error(err)
 	}
-	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags))
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(numPoints), tags))
 	sfx.log.WithFields(logrus.Fields{
 		"metrics": len(interMetrics),
