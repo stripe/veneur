@@ -136,7 +136,6 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 	dd.log.WithField("workers", workers).Debug("Worker count chosen")
 	dd.log.WithField("chunkSize", chunkSize).Debug("Chunk size chosen")
 	var wg sync.WaitGroup
-	flushStart := time.Now()
 	for i := 0; i < workers; i++ {
 		chunk := ddmetrics[i*chunkSize:]
 		if i < workers-1 {
@@ -149,7 +148,6 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 	wg.Wait()
 	tags := map[string]string{"sink": dd.Name()}
 	span.Add(
-		ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags),
 		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(ddmetrics)), tags),
 	)
 	dd.log.WithField("metrics", len(ddmetrics)).Info("Completed flush to Datadog")

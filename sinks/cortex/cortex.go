@@ -133,8 +133,6 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 
-	flushStart := time.Now()
-
 	wr := makeWriteRequest(metrics, s.tags)
 	data, err := proto.Marshal(wr)
 	if err != nil {
@@ -145,7 +143,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	encoded := snappy.Encode(nil, data)
 	buf.Write(encoded)
 
-	req, err := http.NewRequest("POST", s.URL, &buf)
+	req, err := http.NewRequestWithContext(ctx, "POST", s.URL, &buf)
 	if err != nil {
 		return err
 	}
@@ -178,7 +176,6 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	// Emit standard sink metrics
 	tags := map[string]string{"sink": s.name, "sink_type": "cortex"}
 	// We don't send sinks.MetricKeyTotalMetricsSkipped at present, as it would always be 0
-	span.Add(ssf.Timing(sinks.MetricKeyMetricFlushDuration, time.Since(flushStart), time.Nanosecond, tags))
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(metrics)), tags))
 
 	s.logger.Info("Flush complete")
@@ -191,7 +188,6 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 func (s *CortexMetricSink) FlushOtherSamples(context.Context, []ssf.SSFSample) {
 	// TODO convert samples to metrics and send them
 	// as in FlushOtherSamples in the signalfx sink
-	return
 }
 
 // makeWriteRequest converts a list of samples from a flush into a single
@@ -214,9 +210,9 @@ func makeWriteRequest(metrics []samplers.InterMetric, tags map[string]string) *p
 // (see https://prometheus.io/docs/concepts/data_model/)
 func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string) *prompb.TimeSeries {
 	var ts prompb.TimeSeries
-	ts.Labels = []*prompb.Label{
-		&prompb.Label{Name: "__name__", Value: sanitise(metric.Name)},
-	}
+	ts.Labels = []*prompb.Label{{
+		Name: "__name__", Value: sanitise(metric.Name),
+	}}
 	for _, tag := range metric.Tags {
 		kv := strings.SplitN(tag, ":", 2)
 		if len(kv) < 2 {
@@ -231,9 +227,9 @@ func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string) *pr
 	// Prom format has the ability to carry batched samples, in this instance we
 	// send a single sample per write. Probably worth exploring this as an area
 	// for optimisation if we find the write path becomes contended
-	ts.Samples = []prompb.Sample{
-		prompb.Sample{Value: metric.Value, Timestamp: metric.Timestamp * 1000},
-	}
+	ts.Samples = []prompb.Sample{{
+		Value: metric.Value, Timestamp: metric.Timestamp * 1000,
+	}}
 
 	return &ts
 }

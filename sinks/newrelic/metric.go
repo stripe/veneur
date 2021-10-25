@@ -9,81 +9,109 @@ import (
 	"github.com/newrelic/newrelic-telemetry-sdk-go/telemetry"
 	"github.com/sirupsen/logrus"
 
+	veneur "github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util"
 )
+
+type NewRelicMetricSinkConfig struct {
+	AccountID             int               `yaml:"account_id"`
+	CommonTags            []string          `yaml:"common_tags"`
+	EventType             string            `yaml:"event_type"`
+	InsertKey             util.StringSecret `yaml:"insert_key"`
+	Region                string            `yaml:"region"`
+	ServiceCheckEventType string            `yaml:"service_check_event_type"`
+}
 
 type NewRelicMetricSink struct {
 	accountID         int
 	client            *newrelic.NewRelic
 	eventType         string
-	serviceCheckEvent string
 	harvester         *telemetry.Harvester
-	log               *logrus.Logger
+	log               *logrus.Entry
+	name              string
+	serviceCheckEvent string
 	traceClient       *trace.Client
 }
 
-var _ sinks.MetricSink = &NewRelicMetricSink{}
+// ParseConfig decodes the map config for a NewRelic sink into a
+// NewRelicSinkConfig struct.
+func ParseMetricConfig(config interface{}) (veneur.MetricSinkConfig, error) {
+	newRelicConfig := NewRelicMetricSinkConfig{}
+	err := util.DecodeConfig(config, &newRelicConfig)
+	if err != nil {
+		return nil, err
+	}
+	return newRelicConfig, nil
+}
 
-// NewNewRelicMetricSink creates a new NewRelicMetricSink. This sink sends
-// data to the New Relic platform
-func NewNewRelicMetricSink(insertKey string, accountID int, region string, eventType string, tags []string, log *logrus.Logger, serviceCheckEvent string) (*NewRelicMetricSink, error) {
-	if log == nil {
-		log = logrus.StandardLogger()
+// CreateMetricSink creates a new NewRelic sink for metrics. This function
+// should match the signature of a value in veneur.MetricSinkTypes, and is
+// intended to be passed into veneur.NewFromConfig to be called based on the
+// provided configuration.
+func CreateMetricSink(
+	server *veneur.Server, name string, logger *logrus.Entry,
+	config veneur.Config, sinkConfig veneur.MetricSinkConfig,
+) (sinks.MetricSink, error) {
+	newRelicConfig, ok := sinkConfig.(NewRelicMetricSinkConfig)
+	if !ok {
+		return nil, errors.New("invalid sink config type")
 	}
 
 	// For storing metrics
-	h, err := newHarvester(insertKey, log, tags, "") // No Span Override
+	h, err := newHarvester(
+		newRelicConfig.InsertKey.Value, logger, newRelicConfig.CommonTags, "") // No Span Override
 	if err != nil {
-		log.WithError(err).Error("unable to create NewRelicMetricSink")
+		logger.WithError(err).Error("unable to create NewRelicMetricSink")
 		return nil, err
 	}
 
-	if eventType == "" {
-		eventType = DefaultEventType
+	if newRelicConfig.EventType == "" {
+		newRelicConfig.EventType = DefaultEventType
 	}
-	if serviceCheckEvent == "" {
-		serviceCheckEvent = DefaultServiceCheckEventType
+	if newRelicConfig.ServiceCheckEventType == "" {
+		newRelicConfig.ServiceCheckEventType = DefaultServiceCheckEventType
 	}
 
 	nr, err := newrelic.New(
-		newrelic.ConfigInsightsInsertKey(insertKey),
-		newrelic.ConfigRegion(region),
+		newrelic.ConfigInsightsInsertKey(newRelicConfig.InsertKey.Value),
+		newrelic.ConfigRegion(newRelicConfig.Region),
 		newrelic.ConfigServiceName("veneur"),
 	)
 	if err != nil {
-		log.WithError(err).Error("unable to create NewRelicMetricSink")
+		logger.WithError(err).Error("unable to create NewRelicMetricSink")
 		return nil, err
 	}
 
 	// Start the batch workers
-	err = nr.Events.BatchMode(context.Background(), accountID)
+	err = nr.Events.BatchMode(context.Background(), newRelicConfig.AccountID)
 	if err != nil {
-		log.WithError(err).Error("unable to create NewRelicMetricSink")
+		logger.WithError(err).Error("unable to create NewRelicMetricSink")
 		return nil, err
 	}
-	log.WithFields(logrus.Fields{
-		"accountID":             accountID,
-		"eventType":             eventType,
-		"serviceCheckEventType": serviceCheckEvent,
+	logger.WithFields(logrus.Fields{
+		"accountID":             newRelicConfig.AccountID,
+		"eventType":             newRelicConfig.EventType,
+		"serviceCheckEventType": newRelicConfig.ServiceCheckEventType,
 	}).Info("started New Relic sink")
 
 	return &NewRelicMetricSink{
-		accountID:         accountID,
+		accountID:         newRelicConfig.AccountID,
 		client:            nr,
-		eventType:         eventType,
+		eventType:         newRelicConfig.EventType,
 		harvester:         h,
-		log:               log,
-		serviceCheckEvent: serviceCheckEvent,
+		log:               logger,
+		name:              name,
+		serviceCheckEvent: newRelicConfig.ServiceCheckEventType,
 	}, nil
-
 }
 
 // Name returns the name of the sink
 func (nr *NewRelicMetricSink) Name() string {
-	return "newrelic"
+	return nr.name
 }
 
 func (nr *NewRelicMetricSink) Start(c *trace.Client) error {

@@ -129,7 +129,11 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 				}
 
 				log.WithField("worker_set", workerSet.ComputationRoutingConfig.Name).Debug("Flushing metrics sink")
+				flushStart := time.Now()
 				err := ms.Flush(span.Attach(ctx), filteredMetrics)
+				span.Add(ssf.Timing(
+					sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
+					time.Nanosecond, map[string]string{"sink": ms.Name()}))
 				if err != nil {
 					log.WithError(err).WithField("sink", sinkName).Warn("Error flushing sink")
 				}
@@ -142,8 +146,11 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 					}
 					filteredMetrics = append(filteredMetrics, metric)
 				}
-
+				flushStart := time.Now()
 				err := ms.Flush(span.Attach(ctx), filteredMetrics)
+				span.Add(ssf.Timing(
+					sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
+					time.Nanosecond, map[string]string{"sink": ms.Name()}))
 				if err != nil {
 					log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
 				}

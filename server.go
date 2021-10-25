@@ -39,7 +39,6 @@ import (
 	"github.com/stripe/veneur/v14/sinks/datadog"
 	"github.com/stripe/veneur/v14/sinks/falconer"
 	"github.com/stripe/veneur/v14/sinks/lightstep"
-	"github.com/stripe/veneur/v14/sinks/newrelic"
 	"github.com/stripe/veneur/v14/sinks/prometheus"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
 	"github.com/stripe/veneur/v14/sinks/xray"
@@ -650,22 +649,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		}
 	}
 
-	if conf.NewrelicInsertKey.Value != "" && conf.NewrelicAccountID > 0 {
-		nrSink, err := newrelic.NewNewRelicMetricSink(
-			conf.NewrelicInsertKey.Value,
-			conf.NewrelicAccountID,
-			conf.NewrelicRegion,
-			conf.NewrelicEventType,
-			conf.NewrelicCommonTags,
-			log,
-			conf.NewrelicServiceCheckEventType,
-		)
-		if err != nil {
-			return ret, err
-		}
-		ret.metricSinks = append(ret.metricSinks, nrSink)
-	}
-
 	if conf.DatadogAPIKey.Value != "" && conf.DatadogAPIHostname != "" {
 		excludeTagsPrefixByPrefixMetric := map[string][]string{}
 		for _, m := range conf.DatadogExcludeTagsPrefixByPrefixMetric {
@@ -727,27 +710,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 					"num_annotation_tags": annotationTags,
 				}).Info("Configured X-Ray span sink")
 			}
-		}
-
-		if conf.NewrelicInsertKey.Value != "" {
-			nrSpanSink, err := newrelic.NewNewRelicSpanSink(
-				conf.NewrelicInsertKey.Value,
-				conf.NewrelicAccountID,
-				conf.NewrelicRegion,
-				conf.NewrelicCommonTags,
-				conf.NewrelicTraceObserverURL,
-				log,
-			)
-			if err != nil {
-				return ret, err
-			}
-
-			ret.spanSinks = append(ret.spanSinks, nrSpanSink)
-
-			logger.WithFields(logrus.Fields{
-				"span_url":    conf.NewrelicTraceObserverURL,
-				"common_tags": conf.NewrelicCommonTags,
-			}).Info("Configured New Relic span sink")
 		}
 
 		// configure Lightstep as a Span Sink

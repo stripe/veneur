@@ -7,10 +7,12 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/sinks/attribution"
 	"github.com/stripe/veneur/v14/sinks/cortex"
 	"github.com/stripe/veneur/v14/sinks/debug"
 	"github.com/stripe/veneur/v14/sinks/kafka"
 	"github.com/stripe/veneur/v14/sinks/localfile"
+	"github.com/stripe/veneur/v14/sinks/newrelic"
 	"github.com/stripe/veneur/v14/sinks/s3"
 	"github.com/stripe/veneur/v14/sinks/signalfx"
 	"github.com/stripe/veneur/v14/sinks/splunk"
@@ -54,6 +56,7 @@ func main() {
 	if !conf.Features.MigrateMetricSinks {
 		debug.MigrateConfig(&conf)
 		localfile.MigrateConfig(&conf)
+		newrelic.MigrateConfig(&conf)
 		s3.MigrateConfig(&conf)
 		err = signalfx.MigrateConfig(&conf)
 		if err != nil {
@@ -75,6 +78,10 @@ func main() {
 		Logger: logger,
 		MetricSinkTypes: veneur.MetricSinkTypes{
 			// TODO(arnavdugar): Migrate metric sink types.
+			"attribution": {
+				Create:      attribution.Create,
+				ParseConfig: attribution.ParseConfig,
+			},
 			"cortex": {
 				Create:      cortex.Create,
 				ParseConfig: cortex.ParseConfig,
@@ -90,6 +97,10 @@ func main() {
 			"localfile": {
 				Create:      localfile.Create,
 				ParseConfig: localfile.ParseConfig,
+			},
+			"newrelic": {
+				Create:      newrelic.CreateMetricSink,
+				ParseConfig: newrelic.ParseMetricConfig,
 			},
 			"s3": {
 				Create:      s3.Create,
@@ -109,6 +120,10 @@ func main() {
 			"kafka": {
 				Create:      kafka.CreateSpanSink,
 				ParseConfig: kafka.ParseSpanConfig,
+			},
+			"newrelic": {
+				Create:      newrelic.CreateSpanSink,
+				ParseConfig: newrelic.ParseSpanConfig,
 			},
 			"splunk": {
 				Create:      splunk.Create,
