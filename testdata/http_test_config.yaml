@@ -25,6 +25,7 @@ features:
   enable_metric_sink_routing: false
   migrate_metric_sinks: false
   migrate_span_sinks: false
+  proxy_protocol: ""
 flush_file: ""
 flush_max_per_body: 0
 flush_on_shutdown: false
