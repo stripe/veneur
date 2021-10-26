@@ -150,24 +150,24 @@ func newJSONMetricsByWorkerSet(metrics *sortableJSONMetrics, workerSet WorkerSet
 }
 
 func (jmbws *jsonMetricsByWorkerSet) Next() bool {
-	if jmbws.nextStart == jmbws.sortedJSONMetrics.Len() {
+	if jmbws.sortedJSONMetrics.Len() == jmbws.nextStart {
 		return false
 	}
 
-	jmbws.currentStart = jmbws.nextStart
-
-	increment := jmbws.sortedJSONMetrics.Len() / jmbws.workerSet.ComputationRoutingConfig.WorkerCount
-	if jmbws.currentStart+increment > jmbws.sortedJSONMetrics.Len() {
-		jmbws.nextStart = jmbws.sortedJSONMetrics.Len()
-	} else {
-		jmbws.nextStart = jmbws.currentStart + increment
+	// look for the first metric whose worker is different from our starting
+	// one, or until the end of the list in which case all metrics have the
+	// same worker
+	for i := jmbws.nextStart; i <= jmbws.sortedJSONMetrics.Len(); i++ {
+		if i == jmbws.sortedJSONMetrics.Len() || jmbws.sortedJSONMetrics.digests[i] != jmbws.sortedJSONMetrics.digests[jmbws.nextStart] {
+			jmbws.currentStart = jmbws.nextStart
+			jmbws.nextStart = i
+			break
+		}
 	}
-
 	jmbws.calledNextCount += 1
-
 	return true
 }
 
 func (jmbws *jsonMetricsByWorkerSet) Chunk() ([]samplers.JSONMetric, int) {
-	return jmbws.sortedJSONMetrics.metrics[jmbws.currentStart:jmbws.nextStart], jmbws.calledNextCount - 1
+	return jmbws.sortedJSONMetrics.metrics[jmbws.currentStart:jmbws.nextStart], (jmbws.calledNextCount - 1) % jmbws.workerSet.ComputationRoutingConfig.WorkerCount
 }

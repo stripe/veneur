@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stripe/veneur/v14/routing"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/util"
 
@@ -27,81 +28,123 @@ import (
 
 func TestSortableJSONMetrics(t *testing.T) {
 	testList := []samplers.JSONMetric{
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
+		{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+		{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
+		{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+		{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
 	}
 
-	sortable := newSortableJSONMetrics(testList, 96)
-	assert.EqualValues(t, []uint32{0x4f, 0x3a, 0x2, 0x3c}, sortable.workerIndices, "should have hashed correctly")
-
+	sortable := newSortableJSONMetrics(testList)
 	sort.Sort(sortable)
 	assert.EqualValues(t, []samplers.JSONMetric{
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+		{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+		{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+		{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
+		{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
 	}, testList, "should have sorted the metrics by hashes")
 }
 
-func TestSortableJSONMetricHashing(t *testing.T) {
-	packet, err := (&samplers.Parser{}).ParseMetric([]byte("foo:1|h|#bar"))
-	assert.NoError(t, err, "should have parsed test packet")
-
+func TestIteratingByWorkerSet(t *testing.T) {
 	testList := []samplers.JSONMetric{
-		samplers.JSONMetric{
-			MetricKey: packet.MetricKey,
-			Tags:      packet.Tags,
+		{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+		{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
+		{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+		{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+		{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
+		{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+		{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
+		{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
+	}
+
+	workerSet := WorkerSet{
+		Workers: []*Worker{
+			{}, {}, {},
+		},
+		ComputationRoutingConfig: &routing.ComputationRoutingConfig{
+			MatcherConfigs: []routing.MatcherConfig{
+				{
+					Name: routing.NameMatcher{
+						Match: func(s string) bool {
+							return true
+						},
+					},
+				},
+			},
+			WorkerCount: 3,
 		},
 	}
 
-	sortable := newSortableJSONMetrics(testList, 96)
-	assert.Equal(t, 1, sortable.Len(), "should have exactly 1 metric")
-	assert.Equal(t, packet.Digest%96, sortable.workerIndices[0], "should have had the same hash")
-}
-
-func TestIteratingByWorker(t *testing.T) {
-	testList := []samplers.JSONMetric{
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
-	}
-
+	sortable := newSortableJSONMetrics(testList)
+	sort.Sort(sortable)
 	var testChunks [][]samplers.JSONMetric
-	iter := newJSONMetricsByWorker(testList, 96)
+	iter := newJSONMetricsByWorkerSet(sortable, workerSet)
+	testWorkerIndices := []int{}
 	for iter.Next() {
 		nextChunk, workerIndex := iter.Chunk()
 		testChunks = append(testChunks, nextChunk)
-
-		for i := iter.currentStart; i < iter.nextStart; i++ {
-			assert.Equal(t, workerIndex, int(iter.sjm.workerIndices[i]), "mismatched worker index for %#v", iter.sjm.metrics[i])
-		}
+		testWorkerIndices = append(testWorkerIndices, workerIndex)
 	}
-
 	assert.EqualValues(t, [][]samplers.JSONMetric{
 		[]samplers.JSONMetric{
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+			{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+			{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
 		},
 		[]samplers.JSONMetric{
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
+			{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+			{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
 		},
 		[]samplers.JSONMetric{
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
+			{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
+			{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
 		},
 		[]samplers.JSONMetric{
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+			{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
+			{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
 		},
-	}, testChunks, "should have sorted the metrics by hashes")
+	}, testChunks, "should have arranged metrics that hashed equally contiguously")
+	assert.EqualValues(t, []int{0, 1, 2, 0}, testWorkerIndices, "should have distributed chunks to workers round-robin")
+}
+
+func TestJSONMetricsComputationRoutingFiltering(t *testing.T) {
+	testList := []samplers.JSONMetric{
+		{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+		{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+	}
+
+	workerSet := WorkerSet{
+		Workers: []*Worker{
+			{}, {}, {},
+		},
+		ComputationRoutingConfig: &routing.ComputationRoutingConfig{
+			MatcherConfigs: []routing.MatcherConfig{
+				{
+					Name: routing.NameMatcher{
+						Match: func(s string) bool {
+							return s != "foo"
+						},
+					},
+				},
+			},
+			WorkerCount: 3,
+		},
+	}
+
+	sortable := newSortableJSONMetrics(testList)
+	sort.Sort(sortable)
+	var testChunks [][]samplers.JSONMetric
+	iter := newJSONMetricsByWorkerSet(sortable, workerSet)
+	testWorkerIndices := []int{}
+	for iter.Next() {
+		nextChunk, workerIndex := iter.Chunk()
+		testChunks = append(testChunks, nextChunk)
+		testWorkerIndices = append(testWorkerIndices, workerIndex)
+	}
+	assert.EqualValues(t, [][]samplers.JSONMetric{
+		[]samplers.JSONMetric{
+			{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+		},
+	}, testChunks, "should have skipped foo")
+	assert.EqualValues(t, []int{0}, testWorkerIndices, "first chunk should go to worker 0")
 }
 
 func testServerImport(t *testing.T, filename string, contentEncoding string) {
@@ -383,7 +426,6 @@ func testServerImportHelper(t *testing.T, data interface{}) {
 }
 
 func BenchmarkNewSortableJSONMetrics(b *testing.B) {
-	const numWorkers = 100
 	filename := filepath.Join("testdata", "import.deflate")
 	contentEncoding := "deflate"
 
@@ -401,6 +443,6 @@ func BenchmarkNewSortableJSONMetrics(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		newSortableJSONMetrics(jsonMetrics, numWorkers)
+		newSortableJSONMetrics(jsonMetrics)
 	}
 }
