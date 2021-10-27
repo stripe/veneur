@@ -22,7 +22,6 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/getsentry/sentry-go"
-	"github.com/newrelic/newrelic-client-go/pkg/plugins"
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
@@ -143,9 +142,6 @@ type Server struct {
 	httpQuit bool
 
 	HistogramPercentiles []float64
-
-	plugins   []plugins.Plugin
-	pluginMtx sync.Mutex
 
 	enableProfiling bool
 
@@ -541,13 +537,21 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.WorkerSets = append(ret.WorkerSets, WorkerSet{
 			workers,
 			&routing.ComputationRoutingConfig{
-				"deprecated",
-				"",
-				routing.MatcherConfigs{},
-				ret.interval,
-				0,
-				numWorkers,
-				true,
+				Name:       "deprecated",
+				FlushGroup: "",
+				MatcherConfigs: []routing.MatcherConfig{
+					{
+						Name: routing.NameMatcher{
+							Match: func(s string) bool {
+								return true
+							},
+						},
+					},
+				},
+				WorkerInterval:          ret.interval,
+				WorkerWatchdogIntervals: 0,
+				WorkerCount:             numWorkers,
+				ForwardMetrics:          true,
 			},
 		})
 
@@ -797,16 +801,17 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	ret.grpcListenAddress = conf.GrpcAddress
 	if ret.grpcListenAddress != "" {
 		// convert all the WorkerSets to the proper interface
-		ingesterSets := make([]importsrv.IngesterSet, len(ret.WorkerSets))
+		ingesterSets := make([]importsrv.IngesterSet, 0, len(ret.WorkerSets))
 
-		for i, workerSet := range ret.WorkerSets {
+		for _, workerSet := range ret.WorkerSets {
 			ingesterSet := importsrv.IngesterSet{
 				Ingesters:                make([]importsrv.MetricIngester, len(workerSet.Workers)),
 				ComputationRoutingConfig: *workerSet.ComputationRoutingConfig,
 			}
-			for _, worker := range workerSet.Workers {
+			for i, worker := range workerSet.Workers {
 				ingesterSet.Ingesters[i] = worker
 			}
+			ingesterSets = append(ingesterSets, ingesterSet)
 		}
 
 		ret.grpcServer = importsrv.New(

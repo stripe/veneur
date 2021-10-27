@@ -7,10 +7,10 @@
 # tcp(including IPv4 and 6-only) and unixgram(datagram only) schemes are
 # supported. This option supersedes the "udp_address" and "tcp_address" options.
 statsd_listen_addresses:
- - udp://localhost:8126
- - tcp://localhost:8126
- - unixgram:///tmp/veneur-statsd.sock
- - unixgram:@veneur-statsd.sock
+  - udp://localhost:8126
+  - tcp://localhost:8126
+  - unixgram:///tmp/veneur-statsd.sock
+  - unixgram:@veneur-statsd.sock
 
 # The addresses on which to listen for SSF data. As with
 # statsd_listen_addresses, these are formatted as URLs, with schemes
@@ -31,7 +31,7 @@ ssf_listen_addresses:
 # This option can be used in conjunction with ssf_listen_addresses and statsd_listen_addresses.
 # Each address listed here can support both SSF and dogstatsd on the same address and same port (the wonders of gRPC).
 grpc_listen_addresses:
- - tcp://localhost:8181
+  - tcp://localhost:8181
 
 # TLS
 # These are only useful in conjunction with TCP listening sockets
@@ -149,9 +149,9 @@ percentiles:
 # - `sum`: the sum of all values added to the histogram during the flush period
 # - `hmean`: the harmonic mean of the all the values added to the histogram during the flush period
 aggregates:
- - "min"
- - "max"
- - "count"
+  - "min"
+  - "max"
+  - "count"
 
 # Metrics that Veneur reports about its own operation. Each of the
 # entries here can have the value "global", "local", "default" and ""
@@ -182,13 +182,10 @@ veneur_metrics_scopes:
 
   status: local
 
-
 # Tags supplied here will be attached to all metrics that veneur
 # reports about its own operation.
 veneur_metrics_additional_tags:
   - "veneur_internal_metric:true"
-
-count_unique_timeseries: false
 
 # == DEPRECATED ==
 
@@ -278,8 +275,6 @@ sentry_dsn: ""
 # Enables Go profiling
 enable_profiling: false
 
-
-
 # == SINKS ==
 
 # == Datadog ==
@@ -313,7 +308,6 @@ datadog_exclude_tags_prefix_by_prefix_metric:
 
 # The size of the ring buffer used for retaining spans during a flush interval.
 datadog_span_buffer_size: 16384
-
 
 # == New Relic ==
 # New Relic can be a sink for metrics, events, and trace spans.
@@ -563,7 +557,6 @@ splunk_hec_send_timeout: "10ms"
 # ingesting a single span to the Splunk HEC sink. If omitted / set to
 # 0, ingestion will wait indefintely until the span can be ingested.
 splunk_hec_ingest_timeout: "10ms"
-
 
 # (optional) The fraction of traces that are chosen to be reported to
 # Splunk.  On average, 1/N traces will be chosen to be reported to

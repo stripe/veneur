@@ -157,7 +157,7 @@ func TestConsistentForward(t *testing.T) {
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 
-	f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+	f.server.WorkerSets[0].Workers[0].ProcessMetric(&samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
 			Name: "a.b.c",
 			Type: "histogram",
@@ -167,7 +167,7 @@ func TestConsistentForward(t *testing.T) {
 		SampleRate: 1.0,
 		Scope:      samplers.MixedScope,
 	})
-	f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+	f.server.WorkerSets[0].Workers[0].ProcessMetric(&samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
 			Name: "y.b.c",
 			Type: "histogram",

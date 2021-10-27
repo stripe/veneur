@@ -166,7 +166,6 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 		sSink = bhs
 	}
 	server.spanSinks = append(server.spanSinks, sSink)
-
 	server.Start()
 	return server
 }
@@ -247,7 +246,7 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	defer f.Close()
 
 	for _, value := range metricValues {
-		f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		f.server.WorkerSets[0].Workers[0].ProcessMetric(&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: "a.b.c",
 				Type: "histogram",
@@ -259,7 +258,7 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 		})
 	}
 
-	f.server.Flush(context.TODO())
+	f.server.Flush(context.TODO(), f.server.WorkerSets[0])
 
 	interMetrics := <-metricsChan
 	assert.Equal(t, 6, len(interMetrics), "incorrect number of elements in the flushed series on the remote server")
@@ -277,7 +276,7 @@ func TestGlobalServerFlush(t *testing.T) {
 	defer f.Close()
 
 	for _, value := range metricValues {
-		f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		f.server.WorkerSets[0].Workers[0].ProcessMetric(&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: "a.b.c",
 				Type: "histogram",
@@ -289,7 +288,7 @@ func TestGlobalServerFlush(t *testing.T) {
 		})
 	}
 
-	f.server.Flush(context.TODO())
+	f.server.Flush(context.TODO(), f.server.WorkerSets[0])
 
 	interMetrics := <-metricsChan
 	assert.Equal(t, len(expectedMetrics), len(interMetrics), "incorrect number of elements in the flushed series on the remote server")
@@ -365,7 +364,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 
 	// Create non-local metrics that should be passed to the global veneur instance
 	for _, value := range HistogramValues {
-		f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		f.server.WorkerSets[0].Workers[0].ProcessMetric(&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: "a.b.c",
 				Type: "histogram",
@@ -379,7 +378,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 
 	// Create local-only metrics that should be passed directly to the remote API
 	for i := 0; i < CounterNumEvents; i++ {
-		f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+		f.server.WorkerSets[0].Workers[0].ProcessMetric(&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: "x.y.z",
 				Type: "counter",
@@ -391,7 +390,7 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 		})
 	}
 
-	f.server.Flush(context.TODO())
+	f.server.Flush(context.TODO(), f.server.WorkerSets[0])
 
 	// the global veneur instance should get valid data
 	td := <-globalTD
@@ -548,7 +547,7 @@ func sendTCPMetrics(a *net.TCPAddr, tlsConfig *tls.Config, f *fixture) error {
 	// check that the server received the stats; HACK: sleep to ensure workers process before flush
 	time.Sleep(20 * time.Millisecond)
 
-	if f.server.Workers[0].MetricsProcessedCount() < 1 {
+	if f.server.WorkerSets[0].Workers[0].MetricsProcessedCount() < 1 {
 		return fmt.Errorf("metrics were not processed")
 	}
 
@@ -768,7 +767,7 @@ func keepFlushing(ctx context.Context, server *Server) {
 			case <-ctx.Done():
 				return
 			default:
-				server.Flush(ctx)
+				server.Flush(ctx, server.WorkerSets[0])
 				time.Sleep(time.Millisecond)
 			}
 		}
@@ -844,7 +843,7 @@ func TestIgnoreLongUDPMetrics(t *testing.T) {
 	conn.Write([]byte("foo.bar:1|c|#baz:gorch,long:tag,is:long"))
 	// Add a bit of delay to ensure things get processed
 	time.Sleep(20 * time.Millisecond)
-	assert.Equal(t, int64(0), f.server.Workers[0].processed, "worker did not process a metric")
+	assert.Equal(t, int64(0), f.server.WorkerSets[0].Workers[0].processed, "worker did not process a metric")
 }
 
 // TestTCPMetrics checks that a server can accept metrics over a TCP socket.
@@ -946,9 +945,16 @@ func TestTCPMetrics(t *testing.T) {
 // TestHandleTCPGoroutineTimeout verifies that an idle TCP connection doesn't block forever.
 func TestHandleTCPGoroutineTimeout(t *testing.T) {
 	const readTimeout = 30 * time.Millisecond
-	s := &Server{tcpReadTimeout: readTimeout, Workers: []*Worker{
-		&Worker{PacketChan: make(chan samplers.UDPMetric, 1)},
-	}}
+	s := &Server{
+		tcpReadTimeout: readTimeout,
+		WorkerSets: []WorkerSet{
+			{
+				Workers: []*Worker{
+					&Worker{PacketChan: make(chan samplers.UDPMetric, 1)},
+				},
+			},
+		},
+	}
 
 	// make a real TCP connection ... to ourselves
 	listener, err := net.Listen("tcp", "localhost:0")
@@ -987,7 +993,7 @@ func TestHandleTCPGoroutineTimeout(t *testing.T) {
 	<-acceptorDone
 
 	// we should have received one metric
-	packet := <-s.Workers[0].PacketChan
+	packet := <-s.WorkerSets[0].Workers[0].PacketChan
 	if packet.Name != "metric" {
 		t.Error("Expected packet for metric:", packet)
 	}
@@ -1039,8 +1045,12 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 		b.Fatal(err)
 	}
 	// Simulate a metrics worker:
-	w := NewWorker(0, s.IsLocal(), nil, nullLogger(), s.Statsd)
-	s.Workers = []*Worker{w}
+	w := NewWorker(s.IsLocal(), nil, nullLogger(), s.Statsd)
+	s.WorkerSets = []WorkerSet{
+		{
+			Workers: []*Worker{w},
+		},
+	}
 	go func() {
 	}()
 	defer close(w.QuitChan)
@@ -1115,8 +1125,12 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 	require.NoError(b, err)
 
 	// Simulate a metrics worker:
-	w := NewWorker(0, s.IsLocal(), nil, nullLogger(), s.Statsd)
-	s.Workers = []*Worker{w}
+	w := NewWorker(s.IsLocal(), nil, nullLogger(), s.Statsd)
+	s.WorkerSets = []WorkerSet{
+		{
+			Workers: []*Worker{w},
+		},
+	}
 
 	go func() {
 		testSpan := &ssf.SSFSpan{}
@@ -1167,7 +1181,7 @@ func BenchmarkServerFlush(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, value := range metricValues {
-			f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+			f.server.WorkerSets[0].Workers[0].ProcessMetric(&samplers.UDPMetric{
 				MetricKey: samplers.MetricKey{
 					Name: "a.b.c",
 					Type: "histogram",
@@ -1179,7 +1193,7 @@ func BenchmarkServerFlush(b *testing.B) {
 			})
 		}
 
-		f.server.Flush(context.Background())
+		f.server.Flush(context.Background(), f.server.WorkerSets[0])
 	}
 }
 
@@ -1489,7 +1503,7 @@ func TestFlushDeadline(t *testing.T) {
 	f := newFixture(t, config, sink, nil)
 	defer f.Close()
 
-	f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+	f.server.WorkerSets[0].Workers[0].ProcessMetric(&samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
 			Name: "a.b.c",
 			Type: "histogram",
@@ -1534,7 +1548,7 @@ func TestWatchdog(t *testing.T) {
 
 	// ingesting this metric will cause the blocking sink to block
 	// in Flush:
-	f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
+	f.server.WorkerSets[0].Workers[0].ProcessMetric(&samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
 			Name: "a.b.c",
 			Type: "histogram",

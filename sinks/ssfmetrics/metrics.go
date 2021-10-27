@@ -146,7 +146,7 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 
 	joined := append(indicatorMetrics, spanMetrics...)
 	filteredFullTraceSpanMetrics := make([]samplers.UDPMetric, 0, len(joined))
-	for _, metric := range filteredFullTraceSpanMetrics {
+	for _, metric := range joined {
 		if m.computationRoutingConfig.MatcherConfigs.Match(metric.Name, metric.Tags) {
 			filteredFullTraceSpanMetrics = append(filteredFullTraceSpanMetrics, metric)
 		}
