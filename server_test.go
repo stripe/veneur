@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/v14/protocol"
+	"github.com/stripe/veneur/v14/routing"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/sinks/blackhole"
@@ -950,7 +951,19 @@ func TestHandleTCPGoroutineTimeout(t *testing.T) {
 		WorkerSets: []WorkerSet{
 			{
 				Workers: []*Worker{
-					&Worker{PacketChan: make(chan samplers.UDPMetric, 1)},
+					{PacketChan: make(chan samplers.UDPMetric, 1)},
+				},
+				ComputationRoutingConfig: &routing.ComputationRoutingConfig{
+					MatcherConfigs: []routing.MatcherConfig{
+						{
+							Name: routing.NameMatcher{
+								Match: func(s string) bool {
+									return true
+								},
+							},
+						},
+					},
+					WorkerCount: 3,
 				},
 			},
 		},
@@ -1559,9 +1572,7 @@ func TestWatchdog(t *testing.T) {
 		Scope:      samplers.LocalOnly,
 	})
 
-	assert.Panics(t, func() {
-		f.server.FlushWatchdog()
-	}, "watchdog should have triggered")
+	assert.Panics(t, f.server.FlushWatchdog, "watchdog should have triggered")
 	close(sink.ch)
 }
 

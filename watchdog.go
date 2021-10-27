@@ -53,10 +53,14 @@ func (s *Server) FlushWatchdog() {
 		atomic.StoreInt64(s.lastFlushes["deprecated"], time.Now().UnixNano())
 	}
 
+	// Promote panics outside of the goroutines this function spawns, such that we can assert
+	// the watchdog panics in automated tests
+	recoveredPanicCh := make(chan interface{})
+
 	for _, ticker := range tickers {
 		go func(metadata watchdogTickerMetadata) {
 			defer func() {
-				ConsumePanic(s.TraceClient, s.Hostname, recover())
+				recoveredPanicCh <- recover()
 			}()
 
 			for {
@@ -84,4 +88,6 @@ func (s *Server) FlushWatchdog() {
 			}
 		}(ticker)
 	}
+	recoveredPanic := <-recoveredPanicCh
+	ConsumePanic(s.TraceClient, s.Hostname, recoveredPanic)
 }

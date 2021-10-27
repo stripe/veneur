@@ -549,7 +549,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 					},
 				},
 				WorkerInterval:          ret.interval,
-				WorkerWatchdogIntervals: 0,
+				WorkerWatchdogIntervals: ret.stuckIntervals,
 				WorkerCount:             numWorkers,
 				ForwardMetrics:          true,
 			},
