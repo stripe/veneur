@@ -81,7 +81,12 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 	s.reportMetricsFlushCounts(workerSet, ms)
 
 	wg := sync.WaitGroup{}
-	if s.IsLocal() && workerSet.ComputationRoutingConfig.ForwardMetrics {
+	if !s.IsLocal() {
+		// TODO: The introduction of WorkerSets degrades monitoring accuracy here, since these
+		// metrics are not split out by WorkerSet
+		s.reportGlobalMetricsFlushCounts(ms)
+		s.reportGlobalReceivedProtocolMetrics()
+	} else if workerSet.ComputationRoutingConfig.ForwardMetrics {
 		wg.Add(1)
 		// Forward over gRPC or HTTP depending on the configuration
 		if s.forwardUseGRPC {
@@ -95,9 +100,6 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 				wg.Done()
 			}()
 		}
-	} else {
-		s.reportGlobalMetricsFlushCounts(ms)
-		s.reportGlobalReceivedProtocolMetrics()
 	}
 
 	if len(finalMetrics) == 0 {
