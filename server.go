@@ -513,7 +513,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 					"worker_count": config.WorkerCount,
 				}).Fatal("WorkerCount must be greater than 0")
 			}
-			logger.WithField("flush_group", config.FlushGroup).Info("Preparing WorkerSet")
 			workerSet := WorkerSet{make([]*Worker, config.WorkerCount), &config}
 			for i := 0; i < config.WorkerCount; i++ {
 				workerSet.Workers[i] = NewWorker(ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
@@ -529,7 +528,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		if conf.NumWorkers > 1 {
 			numWorkers = conf.NumWorkers
 		}
-		logger.WithField("number", numWorkers).Info("Preparing workers")
 		workers := make([]*Worker, numWorkers)
 		for i := 0; i < numWorkers; i++ {
 			workers[i] = NewWorker(ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
@@ -559,7 +557,11 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.lastFlushes["deprecated"] = new(int64)
 	}
 
-	log.WithField("worker_sets", ret.WorkerSets).Info("Initialized WorkerSets")
+	computationRoutingConfigsInfo := []routing.ComputationRoutingConfig{}
+	for _, c := range ret.WorkerSets {
+		computationRoutingConfigsInfo = append(computationRoutingConfigsInfo, *c.ComputationRoutingConfig)
+	}
+	log.WithField("computation_routing_config", computationRoutingConfigsInfo).Info("Initialized WorkerSets")
 
 	for _, workerSet := range ret.WorkerSets {
 		for _, worker := range workerSet.Workers {
