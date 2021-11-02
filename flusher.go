@@ -114,10 +114,7 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 			if s.enableMetricRouting {
 				sinkName := ms.Name()
 
-				flushGroups, ok := s.subscribedFlushGroupsBySink[sinkName]
-				if !ok {
-					log.WithField("sink", sinkName).Warn("Flush failed due to missing flush group initialization")
-				}
+				flushGroups := s.subscribedFlushGroupsBySink[sinkName]
 				shouldFlush := false
 				for _, flushGroup := range flushGroups {
 					if flushGroup == workerSet.ComputationRoutingConfig.FlushGroup {
@@ -125,8 +122,14 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 						break
 					}
 				}
+
+				log.WithFields(logrus.Fields{
+					"sink":                    sinkName,
+					"subscribed_flush_groups": flushGroups,
+					"flush_group":             workerSet.ComputationRoutingConfig.FlushGroup,
+					"should_flush":            shouldFlush,
+				}).Debug("Sink flush outcome determined")
 				if !shouldFlush {
-					log.WithField("sink", sinkName).Debug("Skipping flush; sink not opted into flush group")
 					return
 				}
 
