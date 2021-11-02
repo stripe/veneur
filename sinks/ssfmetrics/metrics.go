@@ -169,6 +169,6 @@ func (m *metricExtractionSink) withComputationRoutingTags(tags map[string]string
 	for k, v := range tags {
 		ret[k] = v
 	}
-	ret["computation_routing_name"] = m.computationRoutingConfig.Name
+	ret["flush_group"] = m.computationRoutingConfig.FlushGroup
 	return ret
 }

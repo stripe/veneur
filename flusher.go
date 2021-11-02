@@ -27,11 +27,13 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 	span := tracer.StartSpan("flush").(*trace.Span)
 	defer span.ClientFinish(s.TraceClient)
 
+	log.WithField("flush_group", workerSet.ComputationRoutingConfig.FlushGroup).Debug("Flushing flush group")
+
 	mem := &runtime.MemStats{}
 	runtime.ReadMemStats(mem)
 
 	flushTime := time.Now().UnixNano()
-	atomic.StoreInt64(s.lastFlushes[workerSet.ComputationRoutingConfig.Name], flushTime)
+	atomic.StoreInt64(s.lastFlushes[workerSet.ComputationRoutingConfig.FlushGroup], flushTime)
 
 	s.Statsd.Gauge("worker.span_chan.total_elements", float64(len(s.SpanChan)), nil, 1.0)
 	s.Statsd.Gauge("worker.span_chan.total_capacity", float64(cap(s.SpanChan)), nil, 1.0)
@@ -71,13 +73,13 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 		aggregates = samplers.HistogramAggregates{}
 	}
 
-	log.WithField("worker_set", workerSet.ComputationRoutingConfig.Name).Debug("Tallying metrics")
+	log.WithField("flush_group", workerSet.ComputationRoutingConfig.FlushGroup).Debug("Tallying metrics")
 	tempMetrics, ms := s.tallyMetrics(workerSet, percentiles)
 
-	log.WithField("worker_set", workerSet.ComputationRoutingConfig.Name).Debug("Generating InterMetrics")
+	log.WithField("flush_group", workerSet.ComputationRoutingConfig.FlushGroup).Debug("Generating InterMetrics")
 	finalMetrics = s.generateInterMetrics(span.Attach(ctx), percentiles, aggregates, tempMetrics, ms)
 
-	log.WithField("worker_set", workerSet.ComputationRoutingConfig.Name).Debug("Reporting flush metrics")
+	log.WithField("flush_group", workerSet.ComputationRoutingConfig.FlushGroup).Debug("Reporting flush metrics")
 	s.reportMetricsFlushCounts(workerSet, ms)
 
 	wg := sync.WaitGroup{}
@@ -133,7 +135,7 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 					return
 				}
 
-				log.WithField("worker_set", workerSet.ComputationRoutingConfig.Name).Debug("Flushing metrics sink")
+				log.WithField("flush_group", workerSet.ComputationRoutingConfig.FlushGroup).Debug("Flushing metrics sink")
 				flushStart := time.Now()
 				err := ms.Flush(span.Attach(ctx), filteredMetrics)
 				span.Add(ssf.Timing(
@@ -331,15 +333,14 @@ const flushTotalMetric = "worker.metrics_flushed_total"
 // It also does not report the total metrics posted, because on the local veneur,
 // that should happen *after* the flush-forward operation.
 func (s *Server) reportMetricsFlushCounts(workerSet WorkerSet, ms metricsSummary) {
-	nameTag := fmt.Sprintf("computation_routing_name:%s", workerSet.ComputationRoutingConfig.Name)
 	flushGroupTag := fmt.Sprintf("flush_group:%s", workerSet.ComputationRoutingConfig.FlushGroup)
 
-	s.Statsd.Count(flushTotalMetric, int64(ms.totalCounters), []string{"metric_type:counter", nameTag, flushGroupTag}, 1.0)
-	s.Statsd.Count(flushTotalMetric, int64(ms.totalGauges), []string{"metric_type:gauge", nameTag, flushGroupTag}, 1.0)
-	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalHistograms), []string{"metric_type:local_histogram", nameTag, flushGroupTag}, 1.0)
-	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalSets), []string{"metric_type:local_set", nameTag, flushGroupTag}, 1.0)
-	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalTimers), []string{"metric_type:local_timer", nameTag, flushGroupTag}, 1.0)
-	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalStatusChecks), []string{"metric_type:status", nameTag, flushGroupTag}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalCounters), []string{"metric_type:counter", flushGroupTag}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalGauges), []string{"metric_type:gauge", flushGroupTag}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalHistograms), []string{"metric_type:local_histogram", flushGroupTag}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalSets), []string{"metric_type:local_set", flushGroupTag}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalTimers), []string{"metric_type:local_timer", flushGroupTag}, 1.0)
+	s.Statsd.Count(flushTotalMetric, int64(ms.totalLocalStatusChecks), []string{"metric_type:status", flushGroupTag}, 1.0)
 }
 
 // reportGlobalMetricsFlushCounts reports the counts of

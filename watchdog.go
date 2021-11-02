@@ -10,7 +10,7 @@ import (
 )
 
 type watchdogTickerMetadata struct {
-	Name           string
+	FlushGroup     string
 	Ticker         *time.Ticker
 	StuckIntervals int
 	Interval       time.Duration
@@ -32,12 +32,12 @@ func (s *Server) FlushWatchdog() {
 				return
 			}
 			tickers = append(tickers, watchdogTickerMetadata{
-				conf.Name,
+				conf.FlushGroup,
 				time.NewTicker(conf.WorkerInterval),
 				conf.WorkerWatchdogIntervals,
 				conf.WorkerInterval,
 			})
-			atomic.StoreInt64(s.lastFlushes[conf.Name], time.Now().UnixNano())
+			atomic.StoreInt64(s.lastFlushes[conf.FlushGroup], time.Now().UnixNano())
 		}
 	} else {
 		if s.stuckIntervals == 0 {
@@ -69,7 +69,7 @@ func (s *Server) FlushWatchdog() {
 					metadata.Ticker.Stop()
 					return
 				case <-metadata.Ticker.C:
-					last := time.Unix(0, atomic.LoadInt64(s.lastFlushes[metadata.Name]))
+					last := time.Unix(0, atomic.LoadInt64(s.lastFlushes[metadata.FlushGroup]))
 					since := time.Since(last)
 
 					// If no flush was kicked off in the last N

@@ -151,7 +151,7 @@ func (s *Server) withComputationRoutingTags(tags map[string]string, ingesterSet 
 	for k, v := range tags {
 		ret[k] = v
 	}
-	ret["computation_routing_name"] = ingesterSet.ComputationRoutingConfig.Name
+	ret["flush_group"] = ingesterSet.ComputationRoutingConfig.FlushGroup
 	return ret
 }
 

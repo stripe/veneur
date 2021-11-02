@@ -3,7 +3,6 @@ package routing
 import "time"
 
 type ComputationRoutingConfig struct {
-	Name                    string         `yaml:"name"`
 	FlushGroup              string         `yaml:"flush_group"`
 	MatcherConfigs          MatcherConfigs `yaml:"match"`
 	WorkerInterval          time.Duration  `yaml:"worker_interval"`
@@ -13,6 +12,6 @@ type ComputationRoutingConfig struct {
 }
 
 type SinkRoutingConfig struct {
-	Name                    string   `yaml:"name"`
+	SinkName                string   `yaml:"sink_name"`
 	FlushGroupSubscriptions []string `yaml:"flush_group_subscriptions"`
 }

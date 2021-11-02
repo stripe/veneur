@@ -365,9 +365,9 @@ func (server *Server) createMetricSinks(
 
 		// Add flush groups to subscribedFlushGroupsBySink, so the flusher can
 		// later determine which WorkerSets should flush to this sink
-		for _, routingConfig := range config.MetricSinkRouting {
-			if routingConfig.Name == sink.Name() {
-				server.subscribedFlushGroupsBySink[sink.Name()] = routingConfig.FlushGroupSubscriptions
+		for _, metricSinkRoutingConfig := range config.MetricSinkRouting {
+			if metricSinkRoutingConfig.SinkName == sink.Name() {
+				server.subscribedFlushGroupsBySink[sink.Name()] = metricSinkRoutingConfig.FlushGroupSubscriptions
 			}
 		}
 	}
@@ -509,11 +509,11 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		for _, config := range ret.computationRoutingConfig {
 			if config.WorkerCount < 1 {
 				logger.WithFields(logrus.Fields{
-					"worker_name":  config.Name,
+					"flush_group":  config.FlushGroup,
 					"worker_count": config.WorkerCount,
 				}).Fatal("WorkerCount must be greater than 0")
 			}
-			logger.WithField("worker_name", config.Name).Info("Preparing WorkerSet")
+			logger.WithField("flush_group", config.FlushGroup).Info("Preparing WorkerSet")
 			workerSet := WorkerSet{make([]*Worker, config.WorkerCount), &config}
 			for i := 0; i < config.WorkerCount; i++ {
 				workerSet.Workers[i] = NewWorker(ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
@@ -522,7 +522,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 			// Need to initialize lastFlushes here, otherwise this creates a
 			// data race since FlushWatchdog is called in a goroutine
-			ret.lastFlushes[config.Name] = new(int64)
+			ret.lastFlushes[config.FlushGroup] = new(int64)
 		}
 	} else {
 		numWorkers := 1
@@ -537,8 +537,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.WorkerSets = append(ret.WorkerSets, WorkerSet{
 			workers,
 			&routing.ComputationRoutingConfig{
-				Name:       "deprecated",
-				FlushGroup: "",
+				FlushGroup: "deprecated",
 				MatcherConfigs: []routing.MatcherConfig{
 					{
 						Name: routing.NameMatcher{
