@@ -559,6 +559,8 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.lastFlushes["deprecated"] = new(int64)
 	}
 
+	log.WithField("worker_sets", ret.WorkerSets).Info("Initialized WorkerSets")
+
 	for _, workerSet := range ret.WorkerSets {
 		for _, worker := range workerSet.Workers {
 			go func(w *Worker) {
