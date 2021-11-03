@@ -128,7 +128,7 @@ type Server struct {
 	computationRoutingConfig []routing.ComputationRoutingConfig
 	interval                 time.Duration
 	synchronizeInterval      bool
-	lastFlushes              map[string]*int64
+	lastFlushTsByFlushGroup  map[string]*int64
 
 	numReaders          int
 	metricMaxLength     int
@@ -404,7 +404,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	}
 	ret.HistogramAggregates.Count = len(conf.Aggregates)
 
-	ret.lastFlushes = make(map[string]*int64)
+	ret.lastFlushTsByFlushGroup = make(map[string]*int64)
 	ret.stuckIntervals = conf.FlushWatchdogMissedFlushes
 
 	transport := &http.Transport{
@@ -520,9 +520,9 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			}
 			ret.WorkerSets = append(ret.WorkerSets, workerSet)
 
-			// Need to initialize lastFlushes here, otherwise this creates a
+			// Need to initialize lastFlushTsByFlushGroup here, otherwise this creates a
 			// data race since FlushWatchdog is called in a goroutine
-			ret.lastFlushes[config.FlushGroup] = new(int64)
+			ret.lastFlushTsByFlushGroup[config.FlushGroup] = new(int64)
 		}
 	} else {
 		numWorkers := 1
@@ -553,9 +553,9 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			},
 		})
 
-		// Need to initialize lastFlushes here, otherwise this creates a
+		// Need to initialize lastFlushTsByFlushGroup here, otherwise this creates a
 		// data race since FlushWatchdog is called in a goroutine
-		ret.lastFlushes["deprecated"] = new(int64)
+		ret.lastFlushTsByFlushGroup["deprecated"] = new(int64)
 	}
 
 	computationRoutingConfigsInfo := []routing.ComputationRoutingConfig{}

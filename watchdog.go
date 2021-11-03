@@ -37,7 +37,7 @@ func (s *Server) FlushWatchdog() {
 				conf.WorkerWatchdogIntervals,
 				conf.WorkerInterval,
 			})
-			atomic.StoreInt64(s.lastFlushes[conf.FlushGroup], time.Now().UnixNano())
+			atomic.StoreInt64(s.lastFlushTsByFlushGroup[conf.FlushGroup], time.Now().UnixNano())
 		}
 	} else {
 		if s.stuckIntervals == 0 {
@@ -50,7 +50,7 @@ func (s *Server) FlushWatchdog() {
 			s.stuckIntervals,
 			s.interval,
 		})
-		atomic.StoreInt64(s.lastFlushes["deprecated"], time.Now().UnixNano())
+		atomic.StoreInt64(s.lastFlushTsByFlushGroup["deprecated"], time.Now().UnixNano())
 	}
 
 	// Promote panics outside of the goroutines this function spawns, such that we can assert
@@ -69,7 +69,7 @@ func (s *Server) FlushWatchdog() {
 					metadata.Ticker.Stop()
 					return
 				case <-metadata.Ticker.C:
-					last := time.Unix(0, atomic.LoadInt64(s.lastFlushes[metadata.FlushGroup]))
+					last := time.Unix(0, atomic.LoadInt64(s.lastFlushTsByFlushGroup[metadata.FlushGroup]))
 					since := time.Since(last)
 
 					// If no flush was kicked off in the last N

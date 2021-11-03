@@ -33,7 +33,7 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 	runtime.ReadMemStats(mem)
 
 	flushTime := time.Now().UnixNano()
-	atomic.StoreInt64(s.lastFlushes[workerSet.ComputationRoutingConfig.FlushGroup], flushTime)
+	atomic.StoreInt64(s.lastFlushTsByFlushGroup[workerSet.ComputationRoutingConfig.FlushGroup], flushTime)
 
 	s.Statsd.Gauge("worker.span_chan.total_elements", float64(len(s.SpanChan)), nil, 1.0)
 	s.Statsd.Gauge("worker.span_chan.total_capacity", float64(cap(s.SpanChan)), nil, 1.0)
