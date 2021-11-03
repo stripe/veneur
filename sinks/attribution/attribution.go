@@ -188,7 +188,7 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 		return err
 	}
 
-	s.log.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
+	s.log.WithField("metrics", len(metrics)).Info("Completed flush")
 	return nil
 }
 
