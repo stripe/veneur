@@ -363,13 +363,7 @@ func (server *Server) createMetricSinks(
 		}
 		sinks = append(sinks, sink)
 
-		// Add flush groups to subscribedFlushGroupsBySink, so the flusher can
-		// later determine which WorkerSets should flush to this sink
-		for _, metricSinkRoutingConfig := range config.MetricSinkRouting {
-			if metricSinkRoutingConfig.SinkName == sink.Name() {
-				server.subscribedFlushGroupsBySink[sink.Name()] = metricSinkRoutingConfig.FlushGroupSubscriptions
-			}
-		}
+		server.subscribedFlushGroupsBySink[sinkConfig.Name] = sinkConfig.FlushGroupSubscriptions
 	}
 	return sinks, nil
 }

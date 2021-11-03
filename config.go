@@ -72,7 +72,6 @@ type Config struct {
 	LightstepReconnectPeriod                  string                             `yaml:"lightstep_reconnect_period"`
 	MetricComputationRouting                  []routing.ComputationRoutingConfig `yaml:"metric_computation_routing"`
 	MetricMaxLength                           int                                `yaml:"metric_max_length"`
-	MetricSinkRouting                         []routing.SinkRoutingConfig        `yaml:"metric_sink_routing"`
 	MetricSinks                               []SinkConfig                       `yaml:"metric_sinks"`
 	MutexProfileFraction                      int                                `yaml:"mutex_profile_fraction"`
 	NewrelicAccountID                         int                                `yaml:"newrelic_account_id"`
@@ -148,7 +147,8 @@ type Config struct {
 }
 
 type SinkConfig struct {
-	Kind   string      `yaml:"kind"`
-	Name   string      `yaml:"name"`
-	Config interface{} `yaml:"config"`
+	Kind                    string      `yaml:"kind"`
+	Name                    string      `yaml:"name"`
+	Config                  interface{} `yaml:"config"`
+	FlushGroupSubscriptions []string    `yaml:"flush_group_subscriptions"`
 }

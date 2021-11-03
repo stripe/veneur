@@ -21,11 +21,7 @@ const (
 // removed.
 func MigrateConfig(conf *veneur.Config) {
 	if conf.NewrelicInsertKey.Value != "" && conf.NewrelicAccountID > 0 {
-		conf.MetricSinks = append(conf.MetricSinks, struct {
-			Kind   string      "yaml:\"kind\""
-			Name   string      "yaml:\"name\""
-			Config interface{} "yaml:\"config\""
-		}{
+		conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
 			Kind: "newrelic",
 			Name: "newrelic",
 			Config: NewRelicMetricSinkConfig{
@@ -36,6 +32,7 @@ func MigrateConfig(conf *veneur.Config) {
 				Region:                conf.NewrelicRegion,
 				ServiceCheckEventType: conf.NewrelicServiceCheckEventType,
 			},
+			FlushGroupSubscriptions: []string{"default"},
 		})
 	}
 	if conf.NewrelicInsertKey.Value != "" {
