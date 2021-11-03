@@ -243,11 +243,24 @@ func timeseriesIDs(name string, tags []string, ownerKey string) (groupID, ownerI
 
 // recordMetric tallies an InterMetric, creating a TimeseriesGroup in the process
 func (s *AttributionSink) recordMetric(attributionData map[string]*TimeseriesGroup, metric samplers.InterMetric) {
-	tags := make([]string, len(metric.Tags))
-	copy(tags, metric.Tags)
-	tags = append(tags, fmt.Sprintf("%s:%s", s.hostnameTag, s.hostname))
+	tagKeysSeen := make(map[string]struct{})
+	tags := make([]string, 0, len(metric.Tags))
+
+	if s.hostnameTag != "" {
+		tagKeysSeen[s.hostnameTag] = struct{}{}
+		tags = append(tags, fmt.Sprintf("%s:%s", s.hostnameTag, s.hostname))
+	}
 	for k, v := range s.commonDimensions {
+		tagKeysSeen[k] = struct{}{}
 		tags = append(tags, fmt.Sprintf("%s:%s", k, v))
+	}
+
+	for _, tag := range metric.Tags {
+		k := strings.SplitN(tag, ":", 2)[0]
+		if _, ok := tagKeysSeen[k]; !ok {
+			tagKeysSeen[k] = struct{}{}
+			tags = append(tags, tag)
+		}
 	}
 
 	tsDigest := timeseriesDigest(metric.Name, tags)
