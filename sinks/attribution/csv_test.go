@@ -15,10 +15,13 @@ func TestEncodeGloballyUniqueMTSRow(t *testing.T) {
 	const Comma = '\t'
 
 	tsGroup := TimeseriesGroup{
-		Name:    "csv-test.1",
-		Owner:   "observability",
-		Digests: []uint32{1, 2},
-		Sketch:  hyperloglog.New(),
+		Name:  "csv-test.1",
+		Owner: "observability",
+		Digests: map[uint32]struct{}{
+			1: {},
+			2: {},
+		},
+		Sketch: hyperloglog.New(),
 	}
 	tsGroup.Sketch.Insert([]byte{'a'})
 	tsGroup.Sketch.Insert([]byte{'b'})
@@ -48,10 +51,13 @@ func TestNonUniqueMTSWithDigestsRows(t *testing.T) {
 	const Comma = '\t'
 
 	tsGroup := TimeseriesGroup{
-		Name:    "csv-test.1",
-		Owner:   "observability",
-		Digests: []uint32{1, 2},
-		Sketch:  hyperloglog.New(),
+		Name:  "csv-test.1",
+		Owner: "observability",
+		Digests: map[uint32]struct{}{
+			1: {},
+			2: {},
+		},
+		Sketch: hyperloglog.New(),
 	}
 	tsGroup.Sketch.Insert([]byte{'a'})
 	tsGroup.Sketch.Insert([]byte{'b'})

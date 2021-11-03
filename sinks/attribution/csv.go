@@ -35,7 +35,7 @@ func encodeTimeseriesGroupCSV(g *TimeseriesGroup, w *csv.Writer, schemaVersion i
 			return err
 		}
 	} else if schemaVersion == SchemaNonUniqueMTSWithDigests {
-		for _, digest := range g.Digests {
+		for digest := range g.Digests {
 			row := [...]string{
 				g.Name,
 				g.Owner,

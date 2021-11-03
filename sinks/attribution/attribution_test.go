@@ -68,9 +68,9 @@ func TestS3Post(t *testing.T) {
 // accounted for
 func TestRecordMetric(t *testing.T) {
 	sink := &AttributionSink{
-		log:             log,
-		attributionData: map[string]*TimeseriesGroup{},
+		log: log,
 	}
+	attributionData := make(map[string]*TimeseriesGroup)
 
 	dp1 := samplers.InterMetric{
 		Name:      "atrtest.1",
@@ -93,16 +93,58 @@ func TestRecordMetric(t *testing.T) {
 		Tags:      []string{"dim1:val1"},
 		Type:      samplers.CounterMetric,
 	}
-	sink.recordMetric(dp1)
-	sink.recordMetric(dp2)
-	sink.recordMetric(dp3)
+	sink.recordMetric(attributionData, dp1)
+	sink.recordMetric(attributionData, dp2)
+	sink.recordMetric(attributionData, dp3)
 
-	tsGroup1, ok := sink.attributionData["atrtest.1"]
+	tsGroup1, ok := attributionData["atrtest.1"]
 	assert.True(t, ok)
-	assert.Equal(t, tsGroup1.Sketch.Estimate(), uint64(2))
-	assert.Equal(t, len(tsGroup1.Digests), 2)
-	tsGroup2, ok := sink.attributionData["atrtest.2"]
+	assert.Equal(t, uint64(2), tsGroup1.Sketch.Estimate())
+	assert.Equal(t, 2, len(tsGroup1.Digests))
+	tsGroup2, ok := attributionData["atrtest.2"]
 	assert.True(t, ok)
-	assert.Equal(t, tsGroup2.Sketch.Estimate(), uint64(1))
-	assert.Equal(t, len(tsGroup2.Digests), 1)
+	assert.Equal(t, uint64(1), tsGroup2.Sketch.Estimate())
+	assert.Equal(t, 1, len(tsGroup2.Digests))
+}
+
+func TestRecordMetricCommonDimensions(t *testing.T) {
+	sink := &AttributionSink{
+		log:         log,
+		hostnameTag: "host",
+		hostname:    "i-1234.west.prod.veneur.org",
+		commonDimensions: map[string]string{
+			"host_env": "prod",
+		},
+	}
+	attributionData := make(map[string]*TimeseriesGroup)
+
+	dp1 := samplers.InterMetric{
+		Name:      "atrtest.1",
+		Timestamp: 1532009163,
+		Value:     1,
+		Tags:      []string{"dim1:val1"},
+		Type:      samplers.CounterMetric,
+	}
+	dp2 := samplers.InterMetric{
+		Name:      "atrtest.1",
+		Timestamp: 1532009163,
+		Value:     1,
+		Tags:      []string{"dim1:val1", "host:this-should-be-overridden"},
+		Type:      samplers.CounterMetric,
+	}
+	dp3 := samplers.InterMetric{
+		Name:      "atrtest.1",
+		Timestamp: 1532009163,
+		Value:     1,
+		Tags:      []string{"dim1:val1", "host_env:this-should-also-be-overridden"},
+		Type:      samplers.CounterMetric,
+	}
+	sink.recordMetric(attributionData, dp1)
+	sink.recordMetric(attributionData, dp2)
+	sink.recordMetric(attributionData, dp3)
+
+	tsGroup1, ok := attributionData["atrtest.1"]
+	assert.True(t, ok)
+	assert.Equal(t, uint64(1), tsGroup1.Sketch.Estimate())
+	assert.Equal(t, 1, len(tsGroup1.Digests))
 }
