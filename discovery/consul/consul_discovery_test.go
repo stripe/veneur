@@ -1,4 +1,4 @@
-package veneur
+package consul_test
 
 import (
 	"io/ioutil"
@@ -9,16 +9,34 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/v14"
 )
 
 type ConsulOneRoundTripper struct {
 	HealthGotCalled bool
 }
 
+func generateProxyConfig() veneur.ProxyConfig {
+	return veneur.ProxyConfig{
+		Debug:                    false,
+		ConsulRefreshInterval:    "86400s",
+		ConsulForwardServiceName: "forwardServiceName",
+		ConsulTraceServiceName:   "traceServiceName",
+		TraceAddress:             "127.0.0.1:8128",
+		TraceAPIAddress:          "127.0.0.1:8135",
+		HTTPAddress:              "127.0.0.1:0",
+		GrpcAddress:              "127.0.0.1:0",
+		StatsAddress:             "127.0.0.1:8201",
+	}
+}
+
 func (rt *ConsulOneRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	rec := httptest.NewRecorder()
 	if strings.HasPrefix(req.URL.Path, "/v1/health/service/") {
-		resp, _ := ioutil.ReadFile("testdata/consul/health_service_one.json")
+		resp, err := ioutil.ReadFile("testdata/health_service_one.json")
+		if err != nil {
+			return nil, err
+		}
 		rec.Write(resp)
 		rec.Code = http.StatusOK
 		rt.HealthGotCalled = true
@@ -36,14 +54,19 @@ func (rt *ConsulChangingRoundTripper) RoundTrip(req *http.Request) (*http.Respon
 	rec := httptest.NewRecorder()
 	if req.URL.Path == "/v1/health/service/forwardServiceName" {
 		var resp []byte
-		if rt.Count == 2 {
-			// On the second invocation, return zero hosts!
-			resp, _ = ioutil.ReadFile("testdata/consul/health_service_zero.json")
-		} else if rt.Count == 1 {
-			// On the second invocation, return two hosts!
-			resp, _ = ioutil.ReadFile("testdata/consul/health_service_two.json")
-		} else {
-			resp, _ = ioutil.ReadFile("testdata/consul/health_service_one.json")
+		var err error
+		switch rt.Count {
+		case 1:
+			// On the first invocation, return two hosts
+			resp, err = ioutil.ReadFile("testdata/health_service_two.json")
+		case 2:
+			// On the second invocation, return zero hosts
+			resp, err = ioutil.ReadFile("testdata/health_service_zero.json")
+		default:
+			resp, err = ioutil.ReadFile("testdata/health_service_one.json")
+		}
+		if err != nil {
+			return nil, err
 		}
 		rec.Write(resp)
 		rec.Code = http.StatusOK
@@ -52,7 +75,10 @@ func (rt *ConsulChangingRoundTripper) RoundTrip(req *http.Request) (*http.Respon
 	} else if req.URL.Path == "/v1/health/service/traceServiceName" {
 		// These don't count. Since we make different calls, we'll return some junk
 		// for tracing and leave forwarding to it's own thing.
-		resp, _ := ioutil.ReadFile("testdata/consul/health_service_one.json")
+		resp, err := ioutil.ReadFile("testdata/health_service_one.json")
+		if err != nil {
+			return nil, err
+		}
 		rec.Write(resp)
 		rec.Code = http.StatusOK
 	}
@@ -63,7 +89,7 @@ func (rt *ConsulChangingRoundTripper) RoundTrip(req *http.Request) (*http.Respon
 func TestConsulOneHost(t *testing.T) {
 	config := generateProxyConfig()
 	transport := &ConsulOneRoundTripper{}
-	server, _ := NewProxyFromConfig(logrus.New(), config)
+	server, _ := veneur.NewProxyFromConfig(logrus.New(), config)
 
 	server.HTTPClient.Transport = transport
 
@@ -78,7 +104,7 @@ func TestConsulOneHost(t *testing.T) {
 func TestConsulChangingHosts(t *testing.T) {
 	config := generateProxyConfig()
 	transport := &ConsulChangingRoundTripper{}
-	server, _ := NewProxyFromConfig(logrus.New(), config)
+	server, _ := veneur.NewProxyFromConfig(logrus.New(), config)
 
 	server.HTTPClient.Transport = transport
 
