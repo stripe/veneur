@@ -513,7 +513,8 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 					"worker_count": config.WorkerCount,
 				}).Fatal("WorkerCount must be greater than 0")
 			}
-			workerSet := WorkerSet{make([]*Worker, config.WorkerCount), &config}
+			configCopy := config // variables declared by `for` init are re-used in each iteration
+			workerSet := WorkerSet{make([]*Worker, config.WorkerCount), &configCopy}
 			for i := 0; i < config.WorkerCount; i++ {
 				workerSet.Workers[i] = NewWorker(ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
 			}
