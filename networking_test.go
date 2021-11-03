@@ -168,8 +168,8 @@ func TestHealthCheckGRPC(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		go func() {
 			conn, err := grpc.Dial(addr.String(), grpc.WithInsecure())
-			defer conn.Close()
 			require.NoError(t, err)
+			defer conn.Close()
 			_, err = grpc_health_v1.NewHealthClient(conn).Check(context.Background(), &grpc_health_v1.HealthCheckRequest{})
 			require.NoError(t, err)
 
@@ -203,8 +203,8 @@ func TestConnectSSFGRPC(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		go func() {
 			conn, err := grpc.Dial(addr.String(), grpc.WithInsecure())
-			defer conn.Close()
 			require.NoError(t, err)
+			defer conn.Close()
 			client := ssf.NewSSFGRPCClient(conn)
 			_, err = client.SendSpan(context.Background(), &ssf.SSFSpan{})
 			require.NoError(t, err)
@@ -238,8 +238,8 @@ func TestConnectDogstatsdGRPC(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		go func() {
 			conn, err := grpc.Dial(addr.String(), grpc.WithInsecure())
-			defer conn.Close()
 			require.NoError(t, err)
+			defer conn.Close()
 			client := dogstatsd.NewDogstatsdGRPCClient(conn)
 			metricPacket := &dogstatsd.DogstatsdPacket{}
 			metricPacket.PacketBytes = nil

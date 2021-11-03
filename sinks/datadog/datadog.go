@@ -20,7 +20,6 @@ import (
 	"github.com/stripe/veneur/v14/trace/metrics"
 )
 
-const datadogNameKey = "name"
 const datadogResourceKey = "resource"
 
 // At present Veneur has no way to differentiate between types. This could likely
@@ -363,11 +362,9 @@ METRICLOOP:
 
 		ddMetric := DDMetric{
 			Name: m.Name,
-			Value: [1][2]float64{
-				[2]float64{
-					float64(m.Timestamp), value,
-				},
-			},
+			Value: [1][2]float64{{
+				float64(m.Timestamp), value,
+			}},
 			Tags:       tags,
 			MetricType: metricType,
 			Interval:   int32(dd.interval),

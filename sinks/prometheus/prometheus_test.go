@@ -96,33 +96,29 @@ func TestMetricFlush(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.NoError(t, sink.Start(trace.DefaultClient))
-	assert.NoError(t, sink.Flush(context.Background(), []samplers.InterMetric{
-		samplers.InterMetric{
-			Name:      "a.b.gauge",
-			Timestamp: 1,
-			Value:     float64(100),
-			Tags: []string{
-				"foo:bar",
-				"baz:quz",
-			},
-			Type: samplers.GaugeMetric,
+	assert.NoError(t, sink.Flush(context.Background(), []samplers.InterMetric{{
+		Name:      "a.b.gauge",
+		Timestamp: 1,
+		Value:     float64(100),
+		Tags: []string{
+			"foo:bar",
+			"baz:quz",
 		},
-		samplers.InterMetric{
-			Name:      "a.b.counter",
-			Timestamp: 1,
-			Value:     float64(2),
-			Tags: []string{
-				"foo:bar",
-			},
-			Type: samplers.CounterMetric,
+		Type: samplers.GaugeMetric,
+	}, {
+		Name:      "a.b.counter",
+		Timestamp: 1,
+		Value:     float64(2),
+		Tags: []string{
+			"foo:bar",
 		},
-		samplers.InterMetric{
-			Name:      "a.b.status",
-			Timestamp: 1,
-			Value:     float64(5),
-			Type:      samplers.StatusMetric,
-		},
-	}))
+		Type: samplers.CounterMetric,
+	}, {
+		Name:      "a.b.status",
+		Timestamp: 1,
+		Value:     float64(5),
+		Type:      samplers.StatusMetric,
+	}}))
 
 	for _, want := range expectedMessages {
 		select {
@@ -131,7 +127,6 @@ func TestMetricFlush(t *testing.T) {
 		case err := <-errChan:
 			// Give up here since it's likely if it failed, it may hang.
 			assert.NoError(t, err)
-			break
 		}
 	}
 }

@@ -14,7 +14,7 @@ import (
 )
 
 func validSample() ssf.SSFSpan {
-	return *&ssf.SSFSpan{
+	return ssf.SSFSpan{
 		TraceId:        1,
 		Id:             1,
 		StartTimestamp: 1,

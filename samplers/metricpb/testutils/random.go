@@ -11,10 +11,14 @@ import (
 // initialized to random values.
 func RandomForwardMetric() *metricpb.Metric {
 	return &metricpb.Metric{
-		Name:  strconv.Itoa(rand.Int()),
-		Type:  metricpb.Type_Counter,
-		Tags:  []string{strconv.Itoa(rand.Int())},
-		Value: &metricpb.Metric_Counter{&metricpb.CounterValue{rand.Int63()}},
+		Name: strconv.Itoa(rand.Int()),
+		Type: metricpb.Type_Counter,
+		Tags: []string{strconv.Itoa(rand.Int())},
+		Value: &metricpb.Metric_Counter{
+			Counter: &metricpb.CounterValue{
+				Value: rand.Int63(),
+			},
+		},
 	}
 }
 

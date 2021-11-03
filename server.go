@@ -23,7 +23,6 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/getsentry/sentry-go"
-	"github.com/newrelic/newrelic-client-go/pkg/plugins"
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
@@ -140,9 +139,6 @@ type Server struct {
 	httpQuit bool
 
 	HistogramPercentiles []float64
-
-	plugins   []plugins.Plugin
-	pluginMtx sync.Mutex
 
 	enableProfiling bool
 
@@ -377,18 +373,21 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	ret := &Server{
 		Config:   conf,
 		interval: conf.Interval,
+		HTTPClient: &http.Client{
+			// make sure that POSTs to datadog do not overflow the flush interval
+			Timeout: conf.Interval * 9 / 10,
+			Transport: &http.Transport{
+				// If we're idle more than one interval something is up
+				IdleConnTimeout: conf.Interval * 2,
+			},
+		},
+		Hostname:            conf.Hostname,
+		parser:              samplers.NewParser(conf.ExtendTags),
+		stuckIntervals:      conf.FlushWatchdogMissedFlushes,
+		synchronizeInterval: conf.SynchronizeWithInterval,
+		Tags:                conf.Tags,
+		TagsAsMap:           tagging.ParseTagSliceToMap(conf.Tags),
 	}
-
-	ret.Hostname = conf.Hostname
-	ret.Tags = conf.Tags
-
-	mappedTags := tagging.ParseTagSliceToMap(ret.Tags)
-
-	ret.synchronizeInterval = conf.SynchronizeWithInterval
-
-	ret.TagsAsMap = mappedTags
-
-	ret.parser = samplers.NewParser(conf.ExtendTags)
 
 	ret.HistogramPercentiles = conf.Percentiles
 	ret.HistogramAggregates.Value = 0
@@ -396,18 +395,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.HistogramAggregates.Value += samplers.AggregatesLookup[agg]
 	}
 	ret.HistogramAggregates.Count = len(conf.Aggregates)
-
-	ret.stuckIntervals = conf.FlushWatchdogMissedFlushes
-
-	transport := &http.Transport{
-		IdleConnTimeout: ret.interval * 2, // If we're idle more than one interval something is up
-	}
-
-	ret.HTTPClient = &http.Client{
-		// make sure that POSTs to datadog do not overflow the flush interval
-		Timeout:   ret.interval * 9 / 10,
-		Transport: transport,
-	}
 
 	stats, err := statsd.New(conf.StatsAddress, statsd.WithoutTelemetry(), statsd.WithMaxMessagesPerPayload(4096))
 	if err != nil {
@@ -1090,7 +1077,7 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string, protocolType Pro
 		// ensure that the value is in the map
 		// we only do this if the value was not found in the map once already, to save an
 		// allocation and more expensive operation in the typical case
-		metrics, ok = s.ssfInternalMetrics.LoadOrStore(key, &ssfServiceSpanMetrics{})
+		metrics, _ = s.ssfInternalMetrics.LoadOrStore(key, &ssfServiceSpanMetrics{})
 		if metrics == nil {
 			log.WithFields(logrus.Fields{
 				"service":   span.Service,

@@ -55,7 +55,11 @@ func TestManyDestinations(t *testing.T) {
 		expected := metrictest.RandomForwardMetrics(100)
 
 		server := newServer(t, ring)
-		err := server.sendMetrics(context.Background(), &forwardrpc.MetricList{expected})
+		err := server.sendMetrics(
+			context.Background(),
+			&forwardrpc.MetricList{
+				Metrics: expected,
+			})
 		assert.NoError(t, err, "sendMetrics shouldn't have failed")
 
 		assert.ElementsMatch(t, expected, actual)
@@ -64,8 +68,11 @@ func TestManyDestinations(t *testing.T) {
 
 func TestNoDestinations(t *testing.T) {
 	server := newServer(t, consistent.New())
-	err := server.sendMetrics(context.Background(),
-		&forwardrpc.MetricList{metrictest.RandomForwardMetrics(10)})
+	err := server.sendMetrics(
+		context.Background(),
+		&forwardrpc.MetricList{
+			Metrics: metrictest.RandomForwardMetrics(10),
+		})
 	assert.Error(t, err, "sendMetrics should have returned an error when there "+
 		"are no valid destinations")
 }
@@ -76,8 +83,11 @@ func TestUnreachableDestinations(t *testing.T) {
 	ring.Add("another-bad-host:9001")
 
 	server := newServer(t, ring, WithForwardTimeout(500*time.Millisecond))
-	err := server.sendMetrics(context.Background(),
-		&forwardrpc.MetricList{metrictest.RandomForwardMetrics(10)})
+	err := server.sendMetrics(
+		context.Background(),
+		&forwardrpc.MetricList{
+			Metrics: metrictest.RandomForwardMetrics(10),
+		})
 	assert.Error(t, err, "sendMetrics should have returned an error when all "+
 		"of the destinations are unreachable")
 }
@@ -90,8 +100,11 @@ func TestTimeout(t *testing.T) {
 	ring.Set(addrsFromServers(dests))
 
 	server := newServer(t, ring, WithForwardTimeout(1*time.Nanosecond))
-	err := server.sendMetrics(context.Background(),
-		&forwardrpc.MetricList{metrictest.RandomForwardMetrics(10)})
+	err := server.sendMetrics(
+		context.Background(),
+		&forwardrpc.MetricList{
+			Metrics: metrictest.RandomForwardMetrics(10),
+		})
 	assert.Error(t, err, "sendMetrics should have returned an error when the "+
 		"timeout was set to effectively zero")
 }
@@ -124,8 +137,10 @@ func TestSetDestinations(t *testing.T) {
 	// Send some metrics.  This should go to the original set of servers
 	server := newServer(t, ring)
 	defer server.Stop()
-	err := server.sendMetrics(context.Background(),
-		&forwardrpc.MetricList{metrictest.RandomForwardMetrics(10)})
+	err := server.sendMetrics(
+		context.Background(),
+		&forwardrpc.MetricList{
+			Metrics: metrictest.RandomForwardMetrics(10)})
 	assert.NoError(t, err, "sendMetrics should not have returned an error")
 	assert.True(t, receivedByOriginal, "the original set of servers should have gotten some requests, but didn't")
 	assert.False(t, receivedByNew, "the new servers shouldn't have gotten RPCs")
@@ -134,8 +149,11 @@ func TestSetDestinations(t *testing.T) {
 	receivedByOriginal = false
 	ring.Set(addrsFromServers(new))
 	assert.NoError(t, server.SetDestinations(ring), "setting the destinations failed")
-	err = server.sendMetrics(context.Background(),
-		&forwardrpc.MetricList{metrictest.RandomForwardMetrics(10)})
+	err = server.sendMetrics(
+		context.Background(),
+		&forwardrpc.MetricList{
+			Metrics: metrictest.RandomForwardMetrics(10),
+		})
 	assert.NoError(t, err, "sendMetrics should not have returned an error")
 	assert.True(t, receivedByNew, "the new servers should have had RPCs")
 	assert.False(t, receivedByOriginal, "the old servers should not have gotten RPCs")
@@ -146,8 +164,10 @@ func TestSetDestinations(t *testing.T) {
 	both := []*forwardtest.Server{original[0], original[1], new[1], new[2]}
 	ring.Set(addrsFromServers(both))
 	assert.NoError(t, server.SetDestinations(ring), "setting the destinations failed")
-	err = server.sendMetrics(context.Background(),
-		&forwardrpc.MetricList{metrictest.RandomForwardMetrics(100)})
+	err = server.sendMetrics(
+		context.Background(),
+		&forwardrpc.MetricList{
+			Metrics: metrictest.RandomForwardMetrics(100)})
 	assert.NoError(t, err, "sendMetrics should not have returned an error")
 	assert.True(t, receivedByNew, "the new servers should have had RPCs")
 	assert.True(t, receivedByOriginal, "the old servers should have gotten RPCs")
@@ -172,7 +192,9 @@ func TestCountActiveHandlers(t *testing.T) {
 			ring := consistent.New()
 			ring.Set(addrsFromServers(blocking))
 
-			metrics := &forwardrpc.MetricList{metrictest.RandomForwardMetrics(100)}
+			metrics := &forwardrpc.MetricList{
+				Metrics: metrictest.RandomForwardMetrics(100),
+			}
 			s := newServer(t, ring, WithStatsInterval(10*time.Nanosecond))
 
 			// Make the specified number of calls, all of these should spawn
@@ -238,7 +260,9 @@ func BenchmarkProxyServerSendMetrics(b *testing.B) {
 	for _, inputSize := range []int{10, 100, 1000, 10000} {
 		s := newServer(b, ring)
 		ctx := context.Background()
-		input := &forwardrpc.MetricList{Metrics: metrics[:inputSize]}
+		input := &forwardrpc.MetricList{
+			Metrics: metrics[:inputSize],
+		}
 
 		b.Run(fmt.Sprintf("InputSize=%d", inputSize), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {

@@ -45,13 +45,11 @@ func ConsumePanic(cl *trace.Client, hostname string, err interface{}) {
 			// ConsumePanic.
 			stacktrace.Frames = stacktrace.Frames[:len(stacktrace.Frames)-2]
 		}
-		event.Exception = []sentry.Exception{
-			sentry.Exception{
-				Value:      event.Message,
-				Type:       reflect.TypeOf(err).String(),
-				Stacktrace: stacktrace,
-			},
-		}
+		event.Exception = []sentry.Exception{{
+			Value:      event.Message,
+			Type:       reflect.TypeOf(err).String(),
+			Stacktrace: stacktrace,
+		}}
 
 		sentry.CaptureEvent(event)
 		// TODO: what happens when we time out? We don't want it to hang.
@@ -99,13 +97,11 @@ func (s sentryHook) Fire(e *logrus.Entry) error {
 		// ConsumePanic.
 		stacktrace.Frames = stacktrace.Frames[:len(stacktrace.Frames)-2]
 	}
-	event.Exception = []sentry.Exception{
-		sentry.Exception{
-			Value:      event.Message,
-			Type:       "Logrus Entry",
-			Stacktrace: stacktrace,
-		},
-	}
+	event.Exception = []sentry.Exception{{
+		Value:      event.Message,
+		Type:       "Logrus Entry",
+		Stacktrace: stacktrace,
+	}}
 
 	event.Extra = make(map[string]interface{}, packetExtraLength)
 	for k, v := range e.Data {

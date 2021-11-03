@@ -94,86 +94,77 @@ func testGRPCMetric(name string) string {
 }
 
 func forwardGRPCTestMetrics() []*samplers.UDPMetric {
-	return []*samplers.UDPMetric{
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("histogram"),
-				Type: histogramTypeName,
-			},
-			Value:      20.0,
-			Digest:     12345,
-			SampleRate: 1.0,
-			Scope:      samplers.MixedScope,
+	return []*samplers.UDPMetric{{
+		MetricKey: samplers.MetricKey{
+			Name: testGRPCMetric("histogram"),
+			Type: histogramTypeName,
 		},
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("histogram_global"),
-				Type: histogramTypeName,
-			},
-			Value:      20.0,
-			Digest:     12345,
-			SampleRate: 1.0,
-			Scope:      samplers.GlobalOnly,
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.MixedScope,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: testGRPCMetric("histogram_global"),
+			Type: histogramTypeName,
 		},
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("gauge"),
-				Type: gaugeTypeName,
-			},
-			Value:      1.0,
-			SampleRate: 1.0,
-			Scope:      samplers.GlobalOnly,
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: testGRPCMetric("gauge"),
+			Type: gaugeTypeName,
 		},
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("counter"),
-				Type: counterTypeName,
-			},
-			Value:      2.0,
-			SampleRate: 1.0,
-			Scope:      samplers.GlobalOnly,
+		Value:      1.0,
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: testGRPCMetric("counter"),
+			Type: counterTypeName,
 		},
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("timer_mixed"),
-				Type: timerTypeName,
-			},
-			Value:      100.0,
-			Digest:     12345,
-			SampleRate: 1.0,
-			Scope:      samplers.MixedScope,
+		Value:      2.0,
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: testGRPCMetric("timer_mixed"),
+			Type: timerTypeName,
 		},
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("timer"),
-				Type: timerTypeName,
-			},
-			Value:      100.0,
-			Digest:     12345,
-			SampleRate: 1.0,
-			Scope:      samplers.GlobalOnly,
+		Value:      100.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.MixedScope,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: testGRPCMetric("timer"),
+			Type: timerTypeName,
 		},
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("set"),
-				Type: setTypeName,
-			},
-			Value:      "test",
-			SampleRate: 1.0,
-			Scope:      samplers.GlobalOnly,
+		Value:      100.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: testGRPCMetric("set"),
+			Type: setTypeName,
 		},
+		Value:      "test",
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}, {
 		// Only global metrics should be forwarded
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("counter.local"),
-				Type: counterTypeName,
-			},
-			Value:      100.0,
-			Digest:     12345,
-			SampleRate: 1.0,
-			Scope:      samplers.MixedScope,
+		MetricKey: samplers.MetricKey{
+			Name: testGRPCMetric("counter.local"),
+			Type: counterTypeName,
 		},
-	}
+		Value:      100.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.MixedScope,
+	}}
 }
 
 // TestE2EForwardingGRPCMetrics inputs a set of metrics to a local Veneur,

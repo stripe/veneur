@@ -26,11 +26,11 @@ func TestRouting(t *testing.T) {
 	}{
 		{"none specified", []string{"foo:bar", "veneurlocalonly"}, nil, []string{"foosink", "barsink"}},
 		{"none specified", []string{"foo:bar", "veneurlocalonly:"}, nil, []string{"foosink", "barsink"}},
-		{"one sink", []string{"veneursinkonly:foobar"}, map[string]struct{}{"foobar": struct{}{}}, []string{"foobar"}},
+		{"one sink", []string{"veneursinkonly:foobar"}, map[string]struct{}{"foobar": {}}, []string{"foobar"}},
 		{
 			"multiple sinks",
 			[]string{"veneursinkonly:foobar", "veneursinkonly:baz"},
-			map[string]struct{}{"foobar": struct{}{}, "baz": struct{}{}},
+			map[string]struct{}{"foobar": {}, "baz": {}},
 			[]string{"foobar", "baz"},
 		},
 	}
@@ -745,7 +745,7 @@ func BenchmarkParseMetricSSF(b *testing.B) {
 
 	samples := make([]*ssf.SSFSample, LEN)
 
-	for i, _ := range samples {
+	for i := range samples {
 		p := make([]byte, 10)
 		_, err := rand.Read(p)
 		if err != nil {

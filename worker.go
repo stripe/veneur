@@ -478,9 +478,9 @@ func (w *Worker) ImportMetricGRPC(other *metricpb.Metric) (err error) {
 			}
 		}
 	case nil:
-		err = errors.New("Can't import a metric with a nil value")
+		err = errors.New("can't import a metric with a nil value")
 	default:
-		err = fmt.Errorf("Unknown metric type for importing: %T", v)
+		err = fmt.Errorf("unknown metric type for importing: %T", v)
 	}
 
 	if err != nil {
@@ -545,13 +545,10 @@ func NewEventWorker(cl *trace.Client, stats scopedstatsd.Client) *EventWorker {
 // Work will start the EventWorker listening for events and service checks.
 // This function will never return.
 func (ew *EventWorker) Work() {
-	for {
-		select {
-		case s := <-ew.sampleChan:
-			ew.mutex.Lock()
-			ew.samples = append(ew.samples, s)
-			ew.mutex.Unlock()
-		}
+	for s := range ew.sampleChan {
+		ew.mutex.Lock()
+		ew.samples = append(ew.samples, s)
+		ew.mutex.Unlock()
 	}
 }
 
@@ -672,7 +669,7 @@ func (tw *SpanWorker) Work() {
 				}()
 
 				select {
-				case _ = <-done:
+				case <-done:
 				case <-time.After(Timeout):
 					log.WithFields(logrus.Fields{
 						"sink":  sink.Name(),

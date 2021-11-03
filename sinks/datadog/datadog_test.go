@@ -425,7 +425,7 @@ func TestDataDogSetExcludeTags(t *testing.T) {
 
 	ddSink.SetExcludedTags([]string{"foo", "boo", "host"})
 
-	interMetrics := []samplers.InterMetric{samplers.InterMetric{
+	interMetrics := []samplers.InterMetric{{
 		Name:      "a.b.c",
 		Timestamp: 1476119058,
 		Value:     10,
@@ -473,7 +473,7 @@ func TestDataDogDropTagsByMetricPrefix(t *testing.T) {
 
 	ddSink := DatadogMetricSink{
 		excludeTagsPrefixByPrefixMetric: map[string][]string{
-			"remove.a": []string{"tag-ab"},
+			"remove.a": {"tag-ab"},
 		},
 	}
 

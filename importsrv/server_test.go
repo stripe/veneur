@@ -29,7 +29,7 @@ func (mi *testMetricIngester) clear() {
 // Test that sending the same metric to a Veneur results in it being hashed
 // to the same worker every time
 func TestSendMetrics_ConsistentHash(t *testing.T) {
-	ingesters := []*testMetricIngester{&testMetricIngester{}, &testMetricIngester{}}
+	ingesters := []*testMetricIngester{{}, {}}
 
 	casted := make([]MetricIngester, len(ingesters))
 	for i, ingester := range ingesters {
@@ -37,17 +37,23 @@ func TestSendMetrics_ConsistentHash(t *testing.T) {
 	}
 	s := New(casted)
 
-	inputs := []*metricpb.Metric{
-		&metricpb.Metric{Name: "test.counter", Type: metricpb.Type_Counter, Tags: []string{"tag:1"}},
-		&metricpb.Metric{Name: "test.gauge", Type: metricpb.Type_Gauge},
-		&metricpb.Metric{Name: "test.histogram", Type: metricpb.Type_Histogram, Tags: []string{"type:histogram"}},
-		&metricpb.Metric{Name: "test.set", Type: metricpb.Type_Set},
-		&metricpb.Metric{Name: "test.gauge3", Type: metricpb.Type_Gauge},
-	}
+	inputs := []*metricpb.Metric{{
+		Name: "test.counter", Type: metricpb.Type_Counter, Tags: []string{"tag:1"},
+	}, {
+		Name: "test.gauge", Type: metricpb.Type_Gauge,
+	}, {
+		Name: "test.histogram", Type: metricpb.Type_Histogram, Tags: []string{"type:histogram"},
+	}, {
+		Name: "test.set", Type: metricpb.Type_Set,
+	}, {
+		Name: "test.gauge3", Type: metricpb.Type_Gauge,
+	}}
 
 	// Send the same inputs many times
 	for i := 0; i < 10; i++ {
-		s.SendMetrics(context.Background(), &forwardrpc.MetricList{inputs})
+		s.SendMetrics(context.Background(), &forwardrpc.MetricList{
+			Metrics: inputs,
+		})
 
 		assert.Equal(t, []*metricpb.Metric{inputs[0], inputs[4]},
 			ingesters[0].metrics, "Ingester 0 has the wrong metrics")

@@ -40,7 +40,7 @@ type StatsdRepeater struct {
 func NewStatsdRepeater(addr string, network string, logger *logrus.Logger) (*StatsdRepeater, error) {
 	// TODO(yanke): what about UNIX sockets?
 	if network != "tcp" && network != "udp" {
-		return nil, fmt.Errorf("Statsd Exporter only listens to TCP/UDP, but %s was requested", network)
+		return nil, fmt.Errorf("statsd Exporter only listens to TCP/UDP, but %s was requested", network)
 	}
 	if _, err := url.ParseRequestURI(addr); err != nil {
 		return nil, err

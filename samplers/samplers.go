@@ -197,10 +197,14 @@ func (c *Counter) Combine(other []byte) error {
 // a Counter for forwarding.
 func (c *Counter) Metric() (*metricpb.Metric, error) {
 	return &metricpb.Metric{
-		Name:  c.Name,
-		Tags:  c.Tags,
-		Type:  metricpb.Type_Counter,
-		Value: &metricpb.Metric_Counter{&metricpb.CounterValue{Value: c.value}},
+		Name: c.Name,
+		Tags: c.Tags,
+		Type: metricpb.Type_Counter,
+		Value: &metricpb.Metric_Counter{
+			Counter: &metricpb.CounterValue{
+				Value: c.value,
+			},
+		},
 	}, nil
 }
 
@@ -286,10 +290,14 @@ func (g *Gauge) GetName() string {
 // a Gauge for forwarding.
 func (g *Gauge) Metric() (*metricpb.Metric, error) {
 	return &metricpb.Metric{
-		Name:  g.Name,
-		Tags:  g.Tags,
-		Type:  metricpb.Type_Gauge,
-		Value: &metricpb.Metric_Gauge{&metricpb.GaugeValue{Value: g.value}},
+		Name: g.Name,
+		Tags: g.Tags,
+		Type: metricpb.Type_Gauge,
+		Value: &metricpb.Metric_Gauge{
+			Gauge: &metricpb.GaugeValue{
+				Value: g.value,
+			},
+		},
 	}, nil
 }
 
@@ -449,10 +457,14 @@ func (s *Set) Metric() (*metricpb.Metric, error) {
 	}
 
 	return &metricpb.Metric{
-		Name:  s.Name,
-		Tags:  s.Tags,
-		Type:  metricpb.Type_Set,
-		Value: &metricpb.Metric_Set{&metricpb.SetValue{HyperLogLog: encoded}},
+		Name: s.Name,
+		Tags: s.Tags,
+		Type: metricpb.Type_Set,
+		Value: &metricpb.Metric_Set{
+			Set: &metricpb.SetValue{
+				HyperLogLog: encoded,
+			},
+		},
 	}, nil
 }
 
@@ -715,9 +727,11 @@ func (h *Histo) Metric() (*metricpb.Metric, error) {
 		Name: h.Name,
 		Tags: h.Tags,
 		Type: metricpb.Type_Histogram,
-		Value: &metricpb.Metric_Histogram{&metricpb.HistogramValue{
-			TDigest: h.Value.Data(),
-		}},
+		Value: &metricpb.Metric_Histogram{
+			Histogram: &metricpb.HistogramValue{
+				TDigest: h.Value.Data(),
+			},
+		},
 	}, nil
 }
 

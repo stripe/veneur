@@ -135,7 +135,7 @@ func TestReadSSFStreamBad(t *testing.T) {
 func BenchmarkValidTrace(b *testing.B) {
 	const Len = 1000
 	input := make([]*ssf.SSFSpan, Len)
-	for i, _ := range input {
+	for i := range input {
 		p := make([]byte, 10)
 		_, err := rand.Read(p)
 		if err != nil {
@@ -180,7 +180,7 @@ func BenchmarkValidTrace(b *testing.B) {
 func BenchmarkParseSSF(b *testing.B) {
 	const Len = 1000
 	input := make([][]byte, Len)
-	for i, _ := range input {
+	for i := range input {
 		p := make([]byte, 10)
 		_, err := rand.Read(p)
 		if err != nil {

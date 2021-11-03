@@ -15,7 +15,7 @@ func BenchmarkConvertSpanUniquenessMetrics(b *testing.B) {
 
 	spans := make([]*ssf.SSFSpan, LEN)
 
-	for i, _ := range spans {
+	for i := range spans {
 		p := make([]byte, 10)
 		_, err := rand.Read(p)
 		if err != nil {

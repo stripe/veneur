@@ -356,40 +356,33 @@ func TestWorkerMetricsForwardableMetrics(t *testing.T) {
 	}{
 		{
 			name: "no global metrics",
-			inputs: []testMetric{
-				testMetric{
-					name:  "test.gauge",
-					scope: samplers.MixedScope,
-					mType: gaugeTypeName,
-				},
-				testMetric{
-					name:  "test.counter",
-					scope: samplers.LocalOnly,
-					mType: counterTypeName,
-				},
-			},
+			inputs: []testMetric{{
+				name:  "test.gauge",
+				scope: samplers.MixedScope,
+				mType: gaugeTypeName,
+			}, {
+				name:  "test.counter",
+				scope: samplers.LocalOnly,
+				mType: counterTypeName,
+			}},
 			expected: []testMetric{},
 		},
 		{
 			name: "some global metrics",
-			inputs: []testMetric{
-				testMetric{
-					name:  "test.gauge",
-					scope: samplers.MixedScope,
-					mType: gaugeTypeName,
-				},
-				testMetric{
-					name:  "test.mixed.histo",
-					scope: samplers.MixedScope,
-					mType: histogramTypeName,
-				},
+			inputs: []testMetric{{
+				name:  "test.gauge",
+				scope: samplers.MixedScope,
+				mType: gaugeTypeName,
+			}, {
+				name:  "test.mixed.histo",
+				scope: samplers.MixedScope,
+				mType: histogramTypeName,
+			}},
+			expected: []testMetric{{
+				name:  "test.mixed.histo",
+				scope: samplers.MixedScope,
+				mType: histogramTypeName,
 			},
-			expected: []testMetric{
-				testMetric{
-					name:  "test.mixed.histo",
-					scope: samplers.MixedScope,
-					mType: histogramTypeName,
-				},
 			},
 		},
 		{
@@ -508,7 +501,7 @@ func BenchmarkWork(b *testing.B) {
 
 	const Len = 1000
 	input := make([]*samplers.UDPMetric, Len)
-	for i, _ := range input {
+	for i := range input {
 		m := samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: "counter",
@@ -550,7 +543,7 @@ func BenchmarkWorkWithCountUniqueTimeseries(b *testing.B) {
 
 	const Len = 1000
 	input := make([]*samplers.UDPMetric, Len)
-	for i, _ := range input {
+	for i := range input {
 		m := samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: "counter",
@@ -591,7 +584,7 @@ func BenchmarkSampleTimeseries(b *testing.B) {
 	w := NewWorker(1, true, true, nil, logrus.New(), nil)
 	const Len = 1000
 	input := make([]*samplers.UDPMetric, Len)
-	for i, _ := range input {
+	for i := range input {
 		m := samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: "counter",

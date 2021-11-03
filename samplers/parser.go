@@ -17,7 +17,7 @@ import (
 	"github.com/stripe/veneur/v14/tagging"
 )
 
-var invalidMetricTypeError = errors.New("Invalid type for metric")
+var errInvalidMetricType = errors.New("invalid type for metric")
 
 // UDPMetric is a representation of the sample provided by a client. The tag list
 // should be deterministically ordered.
@@ -293,7 +293,7 @@ func (p *Parser) ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 	case ssf.SSFSample_STATUS:
 		ret.Type = "status"
 	default:
-		return UDPMetric{}, invalidMetricTypeError
+		return UDPMetric{}, errInvalidMetricType
 	}
 
 	switch metric.Metric {
@@ -342,22 +342,22 @@ func (p *Parser) ParseMetric(packet []byte) (*UDPMetric, error) {
 
 	startingColon := bytes.IndexByte(pipeSplitter.Chunk(), ':')
 	if startingColon == -1 {
-		return nil, errors.New("Invalid metric packet, need at least 1 colon")
+		return nil, errors.New("invalid metric packet, need at least 1 colon")
 	}
 	nameChunk := pipeSplitter.Chunk()[:startingColon]
 	valueChunk := pipeSplitter.Chunk()[startingColon+1:]
 	if len(nameChunk) == 0 {
-		return nil, errors.New("Invalid metric packet, name cannot be empty")
+		return nil, errors.New("invalid metric packet, name cannot be empty")
 	}
 
 	if !pipeSplitter.Next() {
-		return nil, errors.New("Invalid metric packet, need at least 1 pipe for type")
+		return nil, errors.New("invalid metric packet, need at least 1 pipe for type")
 	}
 	typeChunk := pipeSplitter.Chunk()
 	if len(typeChunk) == 0 {
 		// avoid panicking on malformed packets missing a type
 		// (eg "foo:1||")
-		return nil, errors.New("Invalid metric packet, metric type not specified")
+		return nil, errors.New("invalid metric packet, metric type not specified")
 	}
 
 	ret.Name = string(nameChunk)
@@ -375,7 +375,7 @@ func (p *Parser) ParseMetric(packet []byte) (*UDPMetric, error) {
 	case 's':
 		ret.Type = "set"
 	default:
-		return nil, invalidMetricTypeError
+		return nil, errInvalidMetricType
 	}
 
 	// Now convert the metric's value
@@ -384,7 +384,7 @@ func (p *Parser) ParseMetric(packet []byte) (*UDPMetric, error) {
 	} else {
 		v, err := strconv.ParseFloat(string(valueChunk), 64)
 		if err != nil || math.IsNaN(v) || math.IsInf(v, 0) {
-			return nil, fmt.Errorf("Invalid number for metric value: %s", valueChunk)
+			return nil, fmt.Errorf("invalid number for metric value: %s", valueChunk)
 		}
 		ret.Value = v
 	}
@@ -396,18 +396,18 @@ func (p *Parser) ParseMetric(packet []byte) (*UDPMetric, error) {
 		if len(pipeSplitter.Chunk()) == 0 {
 			// avoid panicking on malformed packets that have too many pipes
 			// (eg "foo:1|g|" or "foo:1|c||@0.1")
-			return nil, errors.New("Invalid metric packet, empty string after/between pipes")
+			return nil, errors.New("invalid metric packet, empty string after/between pipes")
 		}
 		switch pipeSplitter.Chunk()[0] {
 		case '@':
 			if foundSampleRate {
-				return nil, errors.New("Invalid metric packet, multiple sample rates specified")
+				return nil, errors.New("invalid metric packet, multiple sample rates specified")
 			}
 			// sample rate!
 			sr := string(pipeSplitter.Chunk()[1:])
 			sampleRate, err := strconv.ParseFloat(sr, 32)
 			if err != nil {
-				return nil, fmt.Errorf("Invalid float for sample rate: %s", sr)
+				return nil, fmt.Errorf("invalid float for sample rate: %s", sr)
 			}
 			if sampleRate <= 0 || sampleRate > 1 {
 				return nil, fmt.Errorf("Sample rate %f must be >0 and <=1", sampleRate)
@@ -418,7 +418,7 @@ func (p *Parser) ParseMetric(packet []byte) (*UDPMetric, error) {
 		case '#':
 			// tags!
 			if tempTags != nil {
-				return nil, errors.New("Invalid metric packet, multiple tag sections specified")
+				return nil, errors.New("invalid metric packet, multiple tag sections specified")
 			}
 			// should we be filtering known key tags from here?
 			// in order to prevent extremely high cardinality in the global stats?
@@ -440,7 +440,7 @@ func (p *Parser) ParseMetric(packet []byte) (*UDPMetric, error) {
 				}
 			}
 		default:
-			return nil, fmt.Errorf("Invalid metric packet, contains unknown section %q", pipeSplitter.Chunk())
+			return nil, fmt.Errorf("invalid metric packet, contains unknown section %q", pipeSplitter.Chunk())
 		}
 	}
 
@@ -467,51 +467,51 @@ func (p *Parser) ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 
 	startingColon := bytes.IndexByte(pipeSplitter.Chunk(), ':')
 	if startingColon == -1 {
-		return nil, errors.New("Invalid event packet, need at least 1 colon")
+		return nil, errors.New("invalid event packet, need at least 1 colon")
 	}
 
 	lengthsChunk := pipeSplitter.Chunk()[:startingColon]
 	// the second half of the condition will never panic, because the first half
 	// guarantees that it has a nonzero length
 	if !bytes.HasPrefix(lengthsChunk, []byte{'_', 'e', '{'}) || lengthsChunk[len(lengthsChunk)-1] != '}' {
-		return nil, errors.New("Invalid event packet, must have _e{} wrapper around length section")
+		return nil, errors.New("invalid event packet, must have _e{} wrapper around length section")
 	}
 	// discard the _e{} wrapper
 	lengthsChunk = lengthsChunk[3 : len(lengthsChunk)-1]
 
 	lengthComma := bytes.IndexByte(lengthsChunk, ',')
 	if lengthComma == -1 {
-		return nil, errors.New("Invalid event packet, length section requires comma divider")
+		return nil, errors.New("invalid event packet, length section requires comma divider")
 	}
 
 	titleExpectedLength, err := strconv.Atoi(string(lengthsChunk[:lengthComma]))
 	if err != nil {
-		return nil, fmt.Errorf("Invalid event packet, title length is not an integer: %s", err)
+		return nil, fmt.Errorf("invalid event packet, title length is not an integer: %s", err)
 	}
 	if titleExpectedLength <= 0 {
-		return nil, errors.New("Invalid event packet, title length must be positive")
+		return nil, errors.New("invalid event packet, title length must be positive")
 	}
 
 	textExpectedLength, err := strconv.Atoi(string(lengthsChunk[lengthComma+1:]))
 	if err != nil {
-		return nil, fmt.Errorf("Invalid event packet, text length is not an integer: %s", err)
+		return nil, fmt.Errorf("invalid event packet, text length is not an integer: %s", err)
 	}
 	if textExpectedLength <= 0 {
-		return nil, errors.New("Invalid event packet, text length must be positive")
+		return nil, errors.New("invalid event packet, text length must be positive")
 	}
 
 	titleChunk := pipeSplitter.Chunk()[startingColon+1:]
 	if len(titleChunk) != titleExpectedLength {
-		return nil, errors.New("Invalid event packet, actual title length did not match encoded length")
+		return nil, errors.New("invalid event packet, actual title length did not match encoded length")
 	}
 	ret.Name = string(titleChunk)
 
 	if !pipeSplitter.Next() {
-		return nil, errors.New("Invalid event packet, must have at least 1 pipe for text")
+		return nil, errors.New("invalid event packet, must have at least 1 pipe for text")
 	}
 	textChunk := pipeSplitter.Chunk()
 	if len(textChunk) != textExpectedLength {
-		return nil, errors.New("Invalid event packet, actual text length did not match encoded length")
+		return nil, errors.New("invalid event packet, actual text length did not match encoded length")
 	}
 	ret.Message = strings.Replace(string(textChunk), "\\n", "\n", -1)
 
@@ -526,63 +526,63 @@ func (p *Parser) ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 	)
 	for pipeSplitter.Next() {
 		if len(pipeSplitter.Chunk()) == 0 {
-			return nil, errors.New("Invalid event packet, empty string after/between pipes")
+			return nil, errors.New("invalid event packet, empty string after/between pipes")
 		}
 
 		switch {
 		case bytes.HasPrefix(pipeSplitter.Chunk(), []byte{'d', ':'}):
 			if foundTimestamp {
-				return nil, errors.New("Invalid event packet, multiple date sections")
+				return nil, errors.New("invalid event packet, multiple date sections")
 			}
 			unixTimestamp, err := strconv.ParseInt(string(pipeSplitter.Chunk()[2:]), 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("Invalid event packet, could not parse date as unix timestamp: %s", err)
+				return nil, fmt.Errorf("invalid event packet, could not parse date as unix timestamp: %s", err)
 			}
 			ret.Timestamp = unixTimestamp
 			foundTimestamp = true
 		case bytes.HasPrefix(pipeSplitter.Chunk(), []byte{'h', ':'}):
 			if foundHostname {
-				return nil, errors.New("Invalid event packet, multiple hostname sections")
+				return nil, errors.New("invalid event packet, multiple hostname sections")
 			}
 			ret.Tags[dogstatsd.EventHostnameTagKey] = string(pipeSplitter.Chunk()[2:])
 			foundHostname = true
 		case bytes.HasPrefix(pipeSplitter.Chunk(), []byte{'k', ':'}):
-			if foundAggregation == true {
-				return nil, errors.New("Invalid event packet, multiple aggregation key sections")
+			if foundAggregation {
+				return nil, errors.New("invalid event packet, multiple aggregation key sections")
 			}
 			ret.Tags[dogstatsd.EventAggregationKeyTagKey] = string(pipeSplitter.Chunk()[2:])
 			foundAggregation = true
 		case bytes.HasPrefix(pipeSplitter.Chunk(), []byte{'p', ':'}):
-			if foundPriority == true {
-				return nil, errors.New("Invalid event packet, multiple priority sections")
+			if foundPriority {
+				return nil, errors.New("invalid event packet, multiple priority sections")
 			}
 			ret.Tags[dogstatsd.EventPriorityTagKey] = string(pipeSplitter.Chunk()[2:])
 			if ret.Tags[dogstatsd.EventPriorityTagKey] != "normal" && ret.Tags[dogstatsd.EventPriorityTagKey] != "low" {
-				return nil, errors.New("Invalid event packet, priority must be normal or low")
+				return nil, errors.New("invalid event packet, priority must be normal or low")
 			}
 			foundPriority = true
 		case bytes.HasPrefix(pipeSplitter.Chunk(), []byte{'s', ':'}):
-			if foundSource == true {
-				return nil, errors.New("Invalid event packet, multiple source sections")
+			if foundSource {
+				return nil, errors.New("invalid event packet, multiple source sections")
 			}
 			ret.Tags[dogstatsd.EventSourceTypeTagKey] = string(pipeSplitter.Chunk()[2:])
 			foundSource = true
 		case bytes.HasPrefix(pipeSplitter.Chunk(), []byte{'t', ':'}):
-			if foundAlert == true {
-				return nil, errors.New("Invalid event packet, multiple alert sections")
+			if foundAlert {
+				return nil, errors.New("invalid event packet, multiple alert sections")
 			}
 			aType := string(pipeSplitter.Chunk()[2:])
 			if aType != "error" &&
 				aType != "warning" &&
 				aType != "info" &&
 				aType != "success" {
-				return nil, errors.New("Invalid event packet, alert level must be error, warning, info or success")
+				return nil, errors.New("invalid event packet, alert level must be error, warning, info or success")
 			}
 			ret.Tags[dogstatsd.EventAlertTypeTagKey] = aType
 			foundAlert = true
 		case pipeSplitter.Chunk()[0] == '#':
-			if foundTags == true {
-				return nil, errors.New("Invalid event packet, multiple tag sections")
+			if foundTags {
+				return nil, errors.New("invalid event packet, multiple tag sections")
 			}
 			tags := strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
 			mappedTags := tagging.ParseTagSliceToMap(tags)
@@ -592,7 +592,7 @@ func (p *Parser) ParseEvent(packet []byte) (*ssf.SSFSample, error) {
 			}
 			foundTags = true
 		default:
-			return nil, errors.New("Invalid event packet, unrecognized metadata section")
+			return nil, errors.New("invalid event packet, unrecognized metadata section")
 		}
 	}
 
@@ -619,19 +619,19 @@ func (p *Parser) ParseServiceCheck(packet []byte) (*UDPMetric, error) {
 	pipeSplitter.Next()
 
 	if !bytes.Equal(pipeSplitter.Chunk(), []byte{'_', 's', 'c'}) {
-		return nil, errors.New("Invalid service check packet, no _sc prefix")
+		return nil, errors.New("invalid service check packet, no _sc prefix")
 	}
 
 	if !pipeSplitter.Next() {
-		return nil, errors.New("Invalid service check packet, need name section")
+		return nil, errors.New("invalid service check packet, need name section")
 	}
 	if len(pipeSplitter.Chunk()) == 0 {
-		return nil, errors.New("Invalid service check packet, empty name")
+		return nil, errors.New("invalid service check packet, empty name")
 	}
 	ret.Name = string(pipeSplitter.Chunk())
 
 	if !pipeSplitter.Next() {
-		return nil, errors.New("Invalid service check packet, need status section")
+		return nil, errors.New("invalid service check packet, need status section")
 	}
 	switch {
 	case bytes.Equal(pipeSplitter.Chunk(), []byte{'0'}):
@@ -643,7 +643,7 @@ func (p *Parser) ParseServiceCheck(packet []byte) (*UDPMetric, error) {
 	case bytes.Equal(pipeSplitter.Chunk(), []byte{'3'}):
 		ret.Value = ssf.SSFSample_UNKNOWN
 	default:
-		return nil, errors.New("Invalid service check packet, must have status of 0, 1, 2, or 3")
+		return nil, errors.New("invalid service check packet, must have status of 0, 1, 2, or 3")
 	}
 
 	var (
@@ -655,26 +655,26 @@ func (p *Parser) ParseServiceCheck(packet []byte) (*UDPMetric, error) {
 	var tempTags []string
 	for pipeSplitter.Next() {
 		if len(pipeSplitter.Chunk()) == 0 {
-			return nil, errors.New("Invalid service packet packet, empty string after/between pipes")
+			return nil, errors.New("invalid service packet packet, empty string after/between pipes")
 		}
 		if foundMessage {
-			return nil, errors.New("Invalid service check packet, message must be the last metadata section")
+			return nil, errors.New("invalid service check packet, message must be the last metadata section")
 		}
 
 		switch {
 		case bytes.HasPrefix(pipeSplitter.Chunk(), []byte{'d', ':'}):
 			if foundTimestamp || foundMessage {
-				return nil, errors.New("Invalid service check packet, multiple date sections")
+				return nil, errors.New("invalid service check packet, multiple date sections")
 			}
 			unixTimestamp, err := strconv.ParseInt(string(pipeSplitter.Chunk()[2:]), 10, 64)
 			if err != nil {
-				return nil, fmt.Errorf("Invalid service check packet, could not parse date as unix timestamp: %s", err)
+				return nil, fmt.Errorf("invalid service check packet, could not parse date as unix timestamp: %s", err)
 			}
 			ret.Timestamp = unixTimestamp
 			foundTimestamp = true
 		case bytes.HasPrefix(pipeSplitter.Chunk(), []byte{'h', ':'}):
 			if foundHostname || foundMessage {
-				return nil, errors.New("Invalid service check packet, multiple hostname sections")
+				return nil, errors.New("invalid service check packet, multiple hostname sections")
 			}
 			ret.HostName = string(pipeSplitter.Chunk()[2:])
 			foundHostname = true
@@ -682,13 +682,13 @@ func (p *Parser) ParseServiceCheck(packet []byte) (*UDPMetric, error) {
 			// this section must come last, so its flag also gets checked by
 			// the other cases
 			if foundMessage {
-				return nil, errors.New("Invalid service check packet, multiple message sections")
+				return nil, errors.New("invalid service check packet, multiple message sections")
 			}
 			ret.Message = strings.Replace(string(pipeSplitter.Chunk()[2:]), "\\n", "\n", -1)
 			foundMessage = true
 		case pipeSplitter.Chunk()[0] == '#':
 			if foundTags == true {
-				return nil, errors.New("Invalid service chack packet, multiple tag sections")
+				return nil, errors.New("invalid service chack packet, multiple tag sections")
 			}
 			tempTags = strings.Split(string(pipeSplitter.Chunk()[1:]), ",")
 			for i, tag := range tempTags {
@@ -708,7 +708,7 @@ func (p *Parser) ParseServiceCheck(packet []byte) (*UDPMetric, error) {
 			}
 			foundTags = true
 		default:
-			return nil, errors.New("Invalid service check packet, unrecognized metadata section")
+			return nil, errors.New("invalid service check packet, unrecognized metadata section")
 		}
 	}
 	ret.UpdateTags(tempTags, p.extendTags)
