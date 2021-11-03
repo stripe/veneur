@@ -63,7 +63,6 @@ type AttributionSink struct {
 	veneurInstanceID string
 	s3Svc            s3iface.S3API
 	s3Bucket         string
-	attributionData  map[string]*TimeseriesGroup
 	ownerKey         string
 	commonDimensions map[string]string
 	hostnameTag      string
@@ -81,7 +80,7 @@ var ErrS3ClientUninitialized = errors.New("s3 client has not been initialized")
 type TimeseriesGroup struct {
 	Name    string
 	Owner   string
-	Digests []uint32
+	Digests map[uint32]struct{}
 	Sketch  *hyperloglog.Sketch
 }
 
@@ -131,7 +130,6 @@ func Create(
 		veneurInstanceID: attributionSinkConfig.VeneurInstanceID,
 		s3Svc:            s3.New(sess),
 		s3Bucket:         attributionSinkConfig.S3Bucket,
-		attributionData:  map[string]*TimeseriesGroup{},
 		ownerKey:         attributionSinkConfig.OwnerKey,
 		commonDimensions: server.TagsAsMap,
 		hostnameTag:      attributionSinkConfig.HostnameTag,
@@ -157,20 +155,22 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 
+	attributionData := make(map[string]*TimeseriesGroup)
+
 	for _, metric := range metrics {
 		s.log.Debug(fmt.Sprintf("Checking %s", metric.Name))
 		if sinks.IsAcceptableMetric(metric, s) {
-			s.recordMetric(metric)
+			s.recordMetric(attributionData, metric)
 		}
 	}
 
 	if s.log.Level >= logrus.DebugLevel {
-		for k, v := range s.attributionData {
+		for k, v := range attributionData {
 			s.log.Debug(fmt.Sprintf("%s - %d", k, v.Sketch.Estimate()))
 		}
 	}
 
-	csv, err := encodeAttributionDataCSV(s.attributionData, s.schemaVersion)
+	csv, err := encodeAttributionDataCSV(attributionData, s.schemaVersion)
 	if err != nil {
 		s.log.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
@@ -188,7 +188,7 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 		return err
 	}
 
-	s.log.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
+	s.log.WithField("metrics", len(metrics)).Info("Completed flush")
 	return nil
 }
 
@@ -242,22 +242,37 @@ func timeseriesIDs(name string, tags []string, ownerKey string) (groupID, ownerI
 }
 
 // recordMetric tallies an InterMetric, creating a TimeseriesGroup in the process
-func (s *AttributionSink) recordMetric(metric samplers.InterMetric) {
-	tags := make([]string, len(metric.Tags))
-	copy(tags, metric.Tags)
-	tags = append(tags, fmt.Sprintf("%s:%s", s.hostnameTag, s.hostname))
+func (s *AttributionSink) recordMetric(attributionData map[string]*TimeseriesGroup, metric samplers.InterMetric) {
+	tagKeysSeen := make(map[string]struct{})
+	tags := make([]string, 0, len(metric.Tags))
+
+	if s.hostnameTag != "" {
+		tagKeysSeen[s.hostnameTag] = struct{}{}
+		tags = append(tags, fmt.Sprintf("%s:%s", s.hostnameTag, s.hostname))
+	}
 	for k, v := range s.commonDimensions {
+		tagKeysSeen[k] = struct{}{}
 		tags = append(tags, fmt.Sprintf("%s:%s", k, v))
+	}
+
+	for _, tag := range metric.Tags {
+		k := strings.SplitN(tag, ":", 2)[0]
+		if _, ok := tagKeysSeen[k]; !ok {
+			tagKeysSeen[k] = struct{}{}
+			tags = append(tags, tag)
+		}
 	}
 
 	tsDigest := timeseriesDigest(metric.Name, tags)
 	tsGroupID, tsOwnerID := timeseriesIDs(metric.Name, tags, s.ownerKey)
-	ts, ok := s.attributionData[tsGroupID]
+	ts, ok := attributionData[tsGroupID]
 	if !ok {
-		ts = &TimeseriesGroup{metric.Name, tsOwnerID, []uint32{}, hyperloglog.New()}
-		s.attributionData[tsGroupID] = ts
+		ts = &TimeseriesGroup{metric.Name, tsOwnerID, map[uint32]struct{}{}, hyperloglog.New()}
+		attributionData[tsGroupID] = ts
 	}
-	s.attributionData[tsGroupID].Digests = append(ts.Digests, tsDigest)
+	if _, ok := attributionData[tsGroupID].Digests[tsDigest]; !ok {
+		attributionData[tsGroupID].Digests[tsDigest] = struct{}{}
+	}
 
 	// Convert uint32 to []byte, so we can insert into ts.Sketch:
 	bDigest := [4]byte{

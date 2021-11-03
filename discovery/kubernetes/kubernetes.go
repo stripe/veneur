@@ -1,4 +1,4 @@
-package veneur
+package kubernetes
 
 import (
 	"context"
@@ -14,9 +14,10 @@ import (
 
 type KubernetesDiscoverer struct {
 	clientset *kubernetes.Clientset
+	Logger    *logrus.Entry
 }
 
-func NewKubernetesDiscoverer() (*KubernetesDiscoverer, error) {
+func NewKubernetesDiscoverer(logger *logrus.Entry) (*KubernetesDiscoverer, error) {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -27,10 +28,10 @@ func NewKubernetesDiscoverer() (*KubernetesDiscoverer, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &KubernetesDiscoverer{clientset}, nil
+	return &KubernetesDiscoverer{clientset, logger}, nil
 }
 
-func getDestinationFromPod(podIndex int, pod v1.Pod) string {
+func (kd *KubernetesDiscoverer) GetDestinationFromPod(podIndex int, pod v1.Pod) string {
 	var forwardPort string
 	protocolPrefix := ""
 
@@ -44,14 +45,14 @@ func getDestinationFromPod(podIndex int, pod v1.Pod) string {
 			for _, port := range container.Ports {
 				if port.Name == "grpc" {
 					forwardPort = strconv.Itoa(int(port.ContainerPort))
-					log.WithField("port", forwardPort).Debug("Found grpc port")
+					kd.Logger.WithField("port", forwardPort).Debug("Found grpc port")
 					break
 				}
 
 				if port.Name == "http" {
 					protocolPrefix = "http://"
 					forwardPort = strconv.Itoa(int(port.ContainerPort))
-					log.WithField("port", forwardPort).Debug("Found http port")
+					kd.Logger.WithField("port", forwardPort).Debug("Found http port")
 					break
 				}
 
@@ -59,14 +60,14 @@ func getDestinationFromPod(podIndex int, pod v1.Pod) string {
 				if port.Protocol == "TCP" {
 					protocolPrefix = "http://"
 					forwardPort = strconv.Itoa(int(port.ContainerPort))
-					log.WithField("port", forwardPort).Debug("Found TCP port")
+					kd.Logger.WithField("port", forwardPort).Debug("Found TCP port")
 				}
 			}
 		}
 	}
 
 	if forwardPort == "" || forwardPort == "0" {
-		log.WithFields(logrus.Fields{
+		kd.Logger.WithFields(logrus.Fields{
 			"podIndex":    podIndex,
 			"PodIP":       pod.Status.PodIP,
 			"forwardPort": forwardPort,
@@ -75,7 +76,7 @@ func getDestinationFromPod(podIndex int, pod v1.Pod) string {
 	}
 
 	if pod.Status.PodIP == "" {
-		log.WithFields(logrus.Fields{
+		kd.Logger.WithFields(logrus.Fields{
 			"podIndex":    podIndex,
 			"PodIP":       pod.Status.PodIP,
 			"forwardPort": forwardPort,
@@ -98,7 +99,7 @@ func (kd *KubernetesDiscoverer) GetDestinationsForService(serviceName string) ([
 
 	ips := make([]string, 0, len(pods.Items))
 	for podIndex, pod := range pods.Items {
-		podIp := getDestinationFromPod(podIndex, pod)
+		podIp := kd.GetDestinationFromPod(podIndex, pod)
 		if len(podIp) > 0 {
 			ips = append(ips, podIp)
 		}

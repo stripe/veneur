@@ -23,6 +23,9 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/pkg/profile"
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/v14/discovery"
+	"github.com/stripe/veneur/v14/discovery/consul"
+	"github.com/stripe/veneur/v14/discovery/kubernetes"
 	vhttp "github.com/stripe/veneur/v14/http"
 	"github.com/stripe/veneur/v14/proxysrv"
 	"github.com/stripe/veneur/v14/samplers"
@@ -42,7 +45,7 @@ type Proxy struct {
 	ForwardDestinations        *consistent.Consistent
 	TraceDestinations          *consistent.Consistent
 	ForwardGRPCDestinations    *consistent.Consistent
-	Discoverer                 Discoverer
+	Discoverer                 discovery.Discoverer
 	ConsulForwardService       string
 	ConsulTraceService         string
 	ConsulForwardGRPCService   string
@@ -300,7 +303,7 @@ func (p *Proxy) Start() {
 	config.HttpClient = p.HTTPClient
 
 	if p.usingKubernetes {
-		disc, err := NewKubernetesDiscoverer()
+		disc, err := kubernetes.NewKubernetesDiscoverer(logrus.NewEntry(log))
 		if err != nil {
 			log.WithError(err).Error("Error creating KubernetesDiscoverer")
 			return
@@ -308,7 +311,7 @@ func (p *Proxy) Start() {
 		p.Discoverer = disc
 		log.Info("Set Kubernetes discoverer")
 	} else if p.usingConsul {
-		disc, consulErr := NewConsul(config)
+		disc, consulErr := consul.NewConsul(config)
 		if consulErr != nil {
 			log.WithError(consulErr).Error("Error creating Consul discoverer")
 			return

@@ -1,4 +1,4 @@
-package veneur
+package consul
 
 import (
 	"errors"
