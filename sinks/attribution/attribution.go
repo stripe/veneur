@@ -80,7 +80,7 @@ var ErrS3ClientUninitialized = errors.New("s3 client has not been initialized")
 type TimeseriesGroup struct {
 	Name    string
 	Owner   string
-	Digests []uint32
+	Digests map[uint32]struct{}
 	Sketch  *hyperloglog.Sketch
 }
 
@@ -254,10 +254,12 @@ func (s *AttributionSink) recordMetric(attributionData map[string]*TimeseriesGro
 	tsGroupID, tsOwnerID := timeseriesIDs(metric.Name, tags, s.ownerKey)
 	ts, ok := attributionData[tsGroupID]
 	if !ok {
-		ts = &TimeseriesGroup{metric.Name, tsOwnerID, []uint32{}, hyperloglog.New()}
+		ts = &TimeseriesGroup{metric.Name, tsOwnerID, map[uint32]struct{}{}, hyperloglog.New()}
 		attributionData[tsGroupID] = ts
 	}
-	attributionData[tsGroupID].Digests = append(ts.Digests, tsDigest)
+	if _, ok := attributionData[tsGroupID].Digests[tsDigest]; !ok {
+		attributionData[tsGroupID].Digests[tsDigest] = struct{}{}
+	}
 
 	// Convert uint32 to []byte, so we can insert into ts.Sketch:
 	bDigest := [4]byte{
