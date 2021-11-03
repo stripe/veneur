@@ -768,15 +768,15 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		logger.Info("Configured Prometheus metric sink.")
 	}
 
-	customMetricSinks, err :=
+	createdMetricSinks, err :=
 		ret.createMetricSinks(logger, &conf, config.MetricSinkTypes)
 	if err != nil {
 		return nil, err
 	}
-	if conf.Features.MigrateMetricSinks {
-		ret.metricSinks = customMetricSinks
+	if conf.Features.DisableLegacySinks {
+		ret.metricSinks = createdMetricSinks
 	} else {
-		ret.metricSinks = append(ret.metricSinks, customMetricSinks...)
+		ret.metricSinks = append(ret.metricSinks, createdMetricSinks...)
 	}
 	customSpanSinks, err :=
 		ret.createSpanSinks(logger, &conf, config.SpanSinkTypes)

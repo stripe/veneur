@@ -32,7 +32,7 @@ type Config struct {
 	FalconerAddress              string   `yaml:"falconer_address"`
 	Features                     struct {
 		EnableMetricRouting bool `yaml:"enable_metric_routing"`
-		MigrateMetricSinks  bool `yaml:"migrate_metric_sinks"`
+		DisableLegacySinks  bool `yaml:"disable_legacy_sinks"`
 		MigrateSpanSinks    bool `yaml:"migrate_span_sinks"`
 	} `yaml:"features"`
 	FlushFile                                 string                             `yaml:"flush_file"`
