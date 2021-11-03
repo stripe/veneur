@@ -68,9 +68,9 @@ func TestS3Post(t *testing.T) {
 // accounted for
 func TestRecordMetric(t *testing.T) {
 	sink := &AttributionSink{
-		log:             log,
-		attributionData: map[string]*TimeseriesGroup{},
+		log: log,
 	}
+	attributionData := make(map[string]*TimeseriesGroup)
 
 	dp1 := samplers.InterMetric{
 		Name:      "atrtest.1",
@@ -93,15 +93,15 @@ func TestRecordMetric(t *testing.T) {
 		Tags:      []string{"dim1:val1"},
 		Type:      samplers.CounterMetric,
 	}
-	sink.recordMetric(dp1)
-	sink.recordMetric(dp2)
-	sink.recordMetric(dp3)
+	sink.recordMetric(attributionData, dp1)
+	sink.recordMetric(attributionData, dp2)
+	sink.recordMetric(attributionData, dp3)
 
-	tsGroup1, ok := sink.attributionData["atrtest.1"]
+	tsGroup1, ok := attributionData["atrtest.1"]
 	assert.True(t, ok)
 	assert.Equal(t, tsGroup1.Sketch.Estimate(), uint64(2))
 	assert.Equal(t, len(tsGroup1.Digests), 2)
-	tsGroup2, ok := sink.attributionData["atrtest.2"]
+	tsGroup2, ok := attributionData["atrtest.2"]
 	assert.True(t, ok)
 	assert.Equal(t, tsGroup2.Sketch.Estimate(), uint64(1))
 	assert.Equal(t, len(tsGroup2.Digests), 1)
