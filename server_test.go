@@ -106,6 +106,22 @@ func generateConfig(forwardAddr string) Config {
 		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
 		SsfListenAddresses:  []string{"udp://127.0.0.1:0"},
 		TraceMaxLengthBytes: 4096,
+
+		// Accept all metrics
+		MetricComputationRouting: []routing.ComputationRoutingConfig{
+			{
+				MatcherConfigs: []routing.MatcherConfig{
+					{
+						Name: routing.NameMatcher{
+							Match: func(s string) bool {
+								return true
+							},
+						},
+					},
+				},
+				WorkerCount: 3,
+			},
+		},
 	}
 }
 
