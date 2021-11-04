@@ -79,9 +79,9 @@ func TestNonUniqueMTSWithDigestsRows(t *testing.T) {
 
 	assert.Equal(t, "csv-test.1", records[0][0])
 	assert.Equal(t, "observability", records[0][1])
-	assert.Equal(t, "1", records[0][2])
-
 	assert.Equal(t, "csv-test.1", records[1][0])
 	assert.Equal(t, "observability", records[1][1])
-	assert.Equal(t, "2", records[1][2])
+
+	// Map ordering is not guaranteed
+	assert.True(t, (records[0][2] == "1" && records[1][2] == "2") || (records[0][2] == "2" && records[1][2] == "1"))
 }
