@@ -58,8 +58,8 @@ func (w *Worker) IngestMetrics(ms []*metricpb.Metric) {
 // explicitly defined as its own type because it is possible to have multiple
 // WorkerSets via ComputationRoutingConfig
 type WorkerSet struct {
-	Workers                  []*Worker
-	ComputationRoutingConfig *routing.ComputationRoutingConfig
+	Workers []*Worker
+	*routing.ComputationRoutingConfig
 }
 
 // WorkerMetrics is just a plain struct bundling together the flushed contents of a worker

@@ -19,7 +19,7 @@ func TestMetricExtractor(t *testing.T) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(true, nil, logger, nil)
 	workers := []ssfmetrics.Processor{worker}
-	computationRoutingConfig := routing.ComputationRoutingConfig{
+	computationRoutingConfig := &routing.ComputationRoutingConfig{
 		MatcherConfigs: []routing.MatcherConfig{
 			{
 				Name: routing.NameMatcher{
@@ -71,7 +71,7 @@ func setupBench() (*ssf.SSFSpan, sinks.SpanSink) {
 	logger := logrus.StandardLogger()
 	worker := veneur.NewWorker(true, nil, logger, nil)
 	workers := []ssfmetrics.Processor{worker}
-	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "", nil, logger, &samplers.Parser{}, routing.ComputationRoutingConfig{})
+	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "", nil, logger, &samplers.Parser{}, &routing.ComputationRoutingConfig{})
 	if err != nil {
 		panic(err)
 	}
@@ -135,7 +135,7 @@ func TestIndicatorMetricExtractor(t *testing.T) {
 			},
 		},
 	}
-	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "bar", nil, logger, &samplers.Parser{}, computationRoutingConfig)
+	sink, err := ssfmetrics.NewMetricExtractionSink(workers, "foo", "bar", nil, logger, &samplers.Parser{}, &computationRoutingConfig)
 	require.NoError(t, err)
 
 	start := time.Now()

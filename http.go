@@ -134,7 +134,7 @@ func newJSONMetricsByWorkerSet(metrics *sortableJSONMetrics, workerSet WorkerSet
 	for i := 0; i < metrics.Len(); i++ {
 		metric := metrics.metrics[i]
 		digest := metrics.digests[i]
-		if workerSet.ComputationRoutingConfig.MatcherConfigs.Match(metric.MetricKey.Name, metric.Tags) {
+		if workerSet.MatcherConfigs.Match(metric.MetricKey.Name, metric.Tags) {
 			filteredMetrics = append(filteredMetrics, metric)
 			filteredDigests = append(filteredDigests, digest)
 		}
@@ -169,5 +169,5 @@ func (jmbws *jsonMetricsByWorkerSet) Next() bool {
 }
 
 func (jmbws *jsonMetricsByWorkerSet) Chunk() ([]samplers.JSONMetric, int) {
-	return jmbws.sortedJSONMetrics.metrics[jmbws.currentStart:jmbws.nextStart], (jmbws.calledNextCount - 1) % jmbws.workerSet.ComputationRoutingConfig.WorkerCount
+	return jmbws.sortedJSONMetrics.metrics[jmbws.currentStart:jmbws.nextStart], (jmbws.calledNextCount - 1) % jmbws.workerSet.WorkerCount
 }

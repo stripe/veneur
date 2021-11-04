@@ -33,8 +33,8 @@ type MetricIngester interface {
 }
 
 type IngesterSet struct {
-	Ingesters                []MetricIngester
-	ComputationRoutingConfig routing.ComputationRoutingConfig
+	Ingesters []MetricIngester
+	*routing.ComputationRoutingConfig
 }
 
 // Server wraps a gRPC server and implements the forwardrpc.Forward service.
@@ -128,7 +128,7 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 		for i, ms := range dests {
 			filteredMs := make([]*metricpb.Metric, 0, len(ms))
 			for _, m := range ms {
-				if ingesterSet.ComputationRoutingConfig.MatcherConfigs.Match(m.GetName(), m.GetTags()) {
+				if ingesterSet.MatcherConfigs.Match(m.GetName(), m.GetTags()) {
 					filteredMs = append(filteredMs, m)
 				}
 			}
@@ -151,7 +151,7 @@ func (s *Server) withComputationRoutingTags(tags map[string]string, ingesterSet 
 	for k, v := range tags {
 		ret[k] = v
 	}
-	ret["flush_group"] = ingesterSet.ComputationRoutingConfig.FlushGroup
+	ret["flush_group"] = ingesterSet.FlushGroup
 	return ret
 }
 

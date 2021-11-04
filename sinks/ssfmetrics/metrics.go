@@ -16,15 +16,15 @@ import (
 
 // metricExtractionSink enqueues ssf spans or udp metrics for processing in the next pipeline iteration.
 type metricExtractionSink struct {
-	workers                  []Processor
-	indicatorSpanTimerName   string
-	objectiveSpanTimerName   string
-	log                      *logrus.Logger
-	traceClient              *trace.Client
-	spansProcessed           int64
-	metricsGenerated         int64
-	parser                   samplers.Parser
-	computationRoutingConfig routing.ComputationRoutingConfig
+	workers                []Processor
+	indicatorSpanTimerName string
+	objectiveSpanTimerName string
+	log                    *logrus.Logger
+	traceClient            *trace.Client
+	spansProcessed         int64
+	metricsGenerated       int64
+	parser                 samplers.Parser
+	*routing.ComputationRoutingConfig
 }
 
 var _ sinks.SpanSink = &metricExtractionSink{}
@@ -44,7 +44,7 @@ type DerivedMetricsSink interface {
 // NewMetricExtractionSink sets up and creates a span sink that
 // extracts metrics ("samples") from SSF spans and reports them to a
 // veneur's metrics workers.
-func NewMetricExtractionSink(mw []Processor, indicatorTimerName, objectiveTimerName string, cl *trace.Client, log *logrus.Logger, p *samplers.Parser, computationRoutingConfig routing.ComputationRoutingConfig) (DerivedMetricsSink, error) {
+func NewMetricExtractionSink(mw []Processor, indicatorTimerName, objectiveTimerName string, cl *trace.Client, log *logrus.Logger, p *samplers.Parser, computationRoutingConfig *routing.ComputationRoutingConfig) (DerivedMetricsSink, error) {
 	return &metricExtractionSink{
 		workers:                  mw,
 		indicatorSpanTimerName:   indicatorTimerName,
@@ -52,7 +52,7 @@ func NewMetricExtractionSink(mw []Processor, indicatorTimerName, objectiveTimerN
 		traceClient:              cl,
 		log:                      log,
 		parser:                   *p,
-		computationRoutingConfig: computationRoutingConfig,
+		ComputationRoutingConfig: computationRoutingConfig,
 	}, nil
 }
 
@@ -115,7 +115,7 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 	}
 	filteredMetrics := make([]samplers.UDPMetric, 0, len(metrics))
 	for _, metric := range metrics {
-		if m.computationRoutingConfig.MatcherConfigs.Match(metric.Name, metric.Tags) {
+		if m.MatcherConfigs.Match(metric.Name, metric.Tags) {
 			filteredMetrics = append(filteredMetrics, metric)
 		}
 	}
@@ -147,7 +147,7 @@ func (m *metricExtractionSink) Ingest(span *ssf.SSFSpan) error {
 	joined := append(indicatorMetrics, spanMetrics...)
 	filteredFullTraceSpanMetrics := make([]samplers.UDPMetric, 0, len(joined))
 	for _, metric := range joined {
-		if m.computationRoutingConfig.MatcherConfigs.Match(metric.Name, metric.Tags) {
+		if m.MatcherConfigs.Match(metric.Name, metric.Tags) {
 			filteredFullTraceSpanMetrics = append(filteredFullTraceSpanMetrics, metric)
 		}
 	}
@@ -169,6 +169,6 @@ func (m *metricExtractionSink) withComputationRoutingTags(tags map[string]string
 	for k, v := range tags {
 		ret[k] = v
 	}
-	ret["flush_group"] = m.computationRoutingConfig.FlushGroup
+	ret["flush_group"] = m.FlushGroup
 	return ret
 }

@@ -578,7 +578,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		for i, w := range workerSet.Workers {
 			processors[i] = w
 		}
-		metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log, &ret.parser, *workerSet.ComputationRoutingConfig)
+		metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log, &ret.parser, workerSet.ComputationRoutingConfig)
 		if err != nil {
 			return ret, err
 		}
@@ -804,7 +804,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		for _, workerSet := range ret.WorkerSets {
 			ingesterSet := importsrv.IngesterSet{
 				Ingesters:                make([]importsrv.MetricIngester, len(workerSet.Workers)),
-				ComputationRoutingConfig: *workerSet.ComputationRoutingConfig,
+				ComputationRoutingConfig: workerSet.ComputationRoutingConfig,
 			}
 			for i, worker := range workerSet.Workers {
 				ingesterSet.Ingesters[i] = worker
@@ -962,7 +962,7 @@ func (s *Server) Start() {
 				if s.synchronizeInterval {
 					// We want to align our ticker to a multiple of its duration for
 					// convenience of bucketing.
-					<-time.After(CalculateTickDelay(workerSet.ComputationRoutingConfig.WorkerInterval, time.Now()))
+					<-time.After(CalculateTickDelay(workerSet.WorkerInterval, time.Now()))
 				}
 
 				// We aligned the ticker to our interval above. It's worth noting that just
@@ -970,7 +970,7 @@ func (s *Server) Start() {
 				// subsequent tick. This code is small, however, and should service the
 				// incoming tick signal fast enough that the amount we are "off" is
 				// negligible.
-				ticker := time.NewTicker(workerSet.ComputationRoutingConfig.WorkerInterval)
+				ticker := time.NewTicker(workerSet.WorkerInterval)
 				for {
 					select {
 					case <-s.shutdown:
@@ -1095,7 +1095,7 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 			return err
 		}
 		for _, workerSet := range s.WorkerSets {
-			if !workerSet.ComputationRoutingConfig.MatcherConfigs.Match(svcheck.Name, svcheck.Tags) {
+			if !workerSet.MatcherConfigs.Match(svcheck.Name, svcheck.Tags) {
 				continue
 			}
 			numWorkers := uint32(len(workerSet.Workers))
@@ -1112,7 +1112,7 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 			return err
 		}
 		for _, workerSet := range s.WorkerSets {
-			if !workerSet.ComputationRoutingConfig.MatcherConfigs.Match(metric.Name, metric.Tags) {
+			if !workerSet.MatcherConfigs.Match(metric.Name, metric.Tags) {
 				continue
 			}
 			numWorkers := uint32(len(workerSet.Workers))

@@ -35,7 +35,7 @@ func TestSendMetrics_ConsistentHash(t *testing.T) {
 	for i, ingester := range ingesters {
 		casted[i] = ingester
 	}
-	ingesterSet := IngesterSet{casted, routing.ComputationRoutingConfig{
+	ingesterSet := IngesterSet{casted, &routing.ComputationRoutingConfig{
 		MatcherConfigs: []routing.MatcherConfig{
 			{
 				Name: routing.NameMatcher{
@@ -73,7 +73,7 @@ func TestSendMetrics_ConsistentHash(t *testing.T) {
 
 func TestSendMetrics_Empty(t *testing.T) {
 	ingester := &testMetricIngester{}
-	ingesterSets := []IngesterSet{{[]MetricIngester{ingester}, routing.ComputationRoutingConfig{}}}
+	ingesterSets := []IngesterSet{{[]MetricIngester{ingester}, &routing.ComputationRoutingConfig{}}}
 	s := New(ingesterSets)
 	s.SendMetrics(context.Background(), &forwardrpc.MetricList{})
 
@@ -88,7 +88,7 @@ func TestOptions_WithTraceClient(t *testing.T) {
 	}
 
 	ingester := &testMetricIngester{}
-	ingesterSets := []IngesterSet{IngesterSet{[]MetricIngester{ingester}, routing.ComputationRoutingConfig{}}}
+	ingesterSets := []IngesterSet{IngesterSet{[]MetricIngester{ingester}, &routing.ComputationRoutingConfig{}}}
 
 	s := New(ingesterSets, WithTraceClient(c))
 	assert.Equal(t, c, s.opts.traceClient, "WithTraceClient didn't correctly "+
@@ -140,7 +140,7 @@ func BenchmarkImportServerSendMetrics(b *testing.B) {
 			ingesters[i] = ingester
 		}
 
-		ingesterSets := []IngesterSet{{ingesters, routing.ComputationRoutingConfig{}}}
+		ingesterSets := []IngesterSet{{ingesters, &routing.ComputationRoutingConfig{}}}
 		s := New(ingesterSets)
 		ctx := context.Background()
 		input := &forwardrpc.MetricList{Metrics: metrics[:inputSize]}

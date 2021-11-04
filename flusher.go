@@ -27,13 +27,13 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 	span := tracer.StartSpan("flush").(*trace.Span)
 	defer span.ClientFinish(s.TraceClient)
 
-	log.WithField("flush_group", workerSet.ComputationRoutingConfig.FlushGroup).Debug("Flushing flush group")
+	log.WithField("flush_group", workerSet.FlushGroup).Debug("Flushing flush group")
 
 	mem := &runtime.MemStats{}
 	runtime.ReadMemStats(mem)
 
 	flushTime := time.Now().UnixNano()
-	atomic.StoreInt64(s.lastFlushTsByFlushGroup[workerSet.ComputationRoutingConfig.FlushGroup], flushTime)
+	atomic.StoreInt64(s.lastFlushTsByFlushGroup[workerSet.FlushGroup], flushTime)
 
 	s.Statsd.Gauge("worker.span_chan.total_elements", float64(len(s.SpanChan)), nil, 1.0)
 	s.Statsd.Gauge("worker.span_chan.total_capacity", float64(cap(s.SpanChan)), nil, 1.0)
@@ -73,13 +73,13 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 		aggregates = samplers.HistogramAggregates{}
 	}
 
-	log.WithField("flush_group", workerSet.ComputationRoutingConfig.FlushGroup).Debug("Tallying metrics")
+	log.WithField("flush_group", workerSet.FlushGroup).Debug("Tallying metrics")
 	tempMetrics, ms := s.tallyMetrics(workerSet, percentiles)
 
-	log.WithField("flush_group", workerSet.ComputationRoutingConfig.FlushGroup).Debug("Generating InterMetrics")
+	log.WithField("flush_group", workerSet.FlushGroup).Debug("Generating InterMetrics")
 	finalMetrics = s.generateInterMetrics(span.Attach(ctx), percentiles, aggregates, tempMetrics, ms)
 
-	log.WithField("flush_group", workerSet.ComputationRoutingConfig.FlushGroup).Debug("Reporting flush metrics")
+	log.WithField("flush_group", workerSet.FlushGroup).Debug("Reporting flush metrics")
 	s.reportMetricsFlushCounts(workerSet, ms)
 
 	wg := sync.WaitGroup{}
@@ -88,7 +88,7 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 		// metrics are not split out by WorkerSet
 		s.reportGlobalMetricsFlushCounts(ms)
 		s.reportGlobalReceivedProtocolMetrics()
-	} else if workerSet.ComputationRoutingConfig.ForwardMetrics {
+	} else if workerSet.ForwardMetrics {
 		wg.Add(1)
 		// Forward over gRPC or HTTP depending on the configuration
 		if s.forwardUseGRPC {
@@ -119,7 +119,7 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 				flushGroups := s.subscribedFlushGroupsBySink[sinkName]
 				shouldFlush := false
 				for _, flushGroup := range flushGroups {
-					if flushGroup == workerSet.ComputationRoutingConfig.FlushGroup {
+					if flushGroup == workerSet.FlushGroup {
 						shouldFlush = true
 						break
 					}
@@ -128,14 +128,14 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 				log.WithFields(logrus.Fields{
 					"sink":                    sinkName,
 					"subscribed_flush_groups": flushGroups,
-					"flush_group":             workerSet.ComputationRoutingConfig.FlushGroup,
+					"flush_group":             workerSet.FlushGroup,
 					"should_flush":            shouldFlush,
 				}).Debug("Sink flush outcome determined")
 				if !shouldFlush {
 					return
 				}
 
-				log.WithField("flush_group", workerSet.ComputationRoutingConfig.FlushGroup).Debug("Flushing metrics sink")
+				log.WithField("flush_group", workerSet.FlushGroup).Debug("Flushing metrics sink")
 				flushStart := time.Now()
 				err := ms.Flush(span.Attach(ctx), filteredMetrics)
 				span.Add(ssf.Timing(
@@ -333,7 +333,7 @@ const flushTotalMetric = "worker.metrics_flushed_total"
 // It also does not report the total metrics posted, because on the local veneur,
 // that should happen *after* the flush-forward operation.
 func (s *Server) reportMetricsFlushCounts(workerSet WorkerSet, ms metricsSummary) {
-	flushGroupTag := fmt.Sprintf("flush_group:%s", workerSet.ComputationRoutingConfig.FlushGroup)
+	flushGroupTag := fmt.Sprintf("flush_group:%s", workerSet.FlushGroup)
 
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalCounters), []string{"metric_type:counter", flushGroupTag}, 1.0)
 	s.Statsd.Count(flushTotalMetric, int64(ms.totalGauges), []string{"metric_type:gauge", flushGroupTag}, 1.0)
