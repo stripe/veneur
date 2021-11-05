@@ -546,7 +546,7 @@ func sendTCPMetrics(a *net.TCPAddr, tlsConfig *tls.Config, f *fixture) error {
 	}
 
 	// check that the server received the stats; HACK: sleep to ensure workers process before flush
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(40 * time.Millisecond)
 
 	if f.server.WorkerSets[0].Workers[0].MetricsProcessedCount() < 1 {
 		return fmt.Errorf("metrics were not processed")
