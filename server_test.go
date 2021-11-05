@@ -160,6 +160,8 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 		mSink = bhs
 	}
 	server.metricSinks = append(server.metricSinks, mSink)
+	server.subscribedFlushGroupsBySink = map[string][]string{}
+	server.subscribedFlushGroupsBySink[mSink.Name()] = []string{"default"}
 
 	if sSink == nil {
 		// Install a blackhole sink if we have no other sinks

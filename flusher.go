@@ -113,37 +113,38 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 		go func(ms sinks.MetricSink) {
 			defer wg.Done()
 			filteredMetrics := finalMetrics
-				sinkName := ms.Name()
+			sinkName := ms.Name()
 
-				flushGroups := s.subscribedFlushGroupsBySink[sinkName]
-				shouldFlush := false
-				for _, flushGroup := range flushGroups {
-					if flushGroup == workerSet.FlushGroup {
-						shouldFlush = true
-						break
-					}
+			flushGroups := s.subscribedFlushGroupsBySink[sinkName]
+			shouldFlush := false
+			for _, flushGroup := range flushGroups {
+				if flushGroup == workerSet.FlushGroup {
+					shouldFlush = true
+					break
 				}
+			}
 
-				log.WithFields(logrus.Fields{
-					"sink":                    sinkName,
-					"subscribed_flush_groups": flushGroups,
-					"flush_group":             workerSet.FlushGroup,
-					"should_flush":            shouldFlush,
-				}).Debug("Sink flush outcome determined")
-				if !shouldFlush {
-					return
-				}
+			log.WithFields(logrus.Fields{
+				"sink":                    sinkName,
+				"subscribed_flush_groups": flushGroups,
+				"flush_group":             workerSet.FlushGroup,
+				"should_flush":            shouldFlush,
+			}).Debug("Sink flush outcome determined")
+			if !shouldFlush {
+				return
+			}
 
-				log.WithField("flush_group", workerSet.FlushGroup).Debug("Flushing metrics sink")
-				flushStart := time.Now()
-				err := ms.Flush(span.Attach(ctx), filteredMetrics)
-				span.Add(ssf.Timing(
-					sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
-					time.Nanosecond, map[string]string{"sink": ms.Name()}))
-				if err != nil {
-					log.WithError(err).WithField("sink", sinkName).Warn("Error flushing sink")
-				}
-			}(sink)
+			log.WithField("flush_group", workerSet.FlushGroup).Debug("Flushing metrics sink")
+			flushStart := time.Now()
+			err := ms.Flush(span.Attach(ctx), filteredMetrics)
+			span.Add(ssf.Timing(
+				sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
+				time.Nanosecond, map[string]string{"sink": ms.Name()}))
+			if err != nil {
+				log.WithError(err).WithField("sink", sinkName).Warn("Error flushing sink")
+			}
+		}(sink)
+	}
 	wg.Wait()
 }
 

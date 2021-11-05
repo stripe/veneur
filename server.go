@@ -363,7 +363,11 @@ func (server *Server) createMetricSinks(
 		}
 		sinks = append(sinks, sink)
 
-		server.subscribedFlushGroupsBySink[sinkConfig.Name] = sinkConfig.FlushGroupSubscriptions
+		if server.enableMetricRouting {
+			server.subscribedFlushGroupsBySink[sinkConfig.Name] = sinkConfig.FlushGroupSubscriptions
+		} else {
+			server.subscribedFlushGroupsBySink[sinkConfig.Name] = []string{"default"}
+		}
 	}
 	return sinks, nil
 }
@@ -526,29 +530,25 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	}
 
 	for _, config := range ret.computationRoutingConfig {
-		if config.WorkerCount < 1 {
+		configCopy := config // variables declared by `for` init are re-used in each iteration
+		log.WithField("flush_group", configCopy.FlushGroup).Info("Initializing WorkerSet")
+
+		if configCopy.WorkerCount < 1 {
 			logger.WithFields(logrus.Fields{
-				"flush_group":  config.FlushGroup,
-				"worker_count": config.WorkerCount,
+				"flush_group":  configCopy.FlushGroup,
+				"worker_count": configCopy.WorkerCount,
 			}).Fatal("WorkerCount must be greater than 0")
 		}
-		configCopy := config // variables declared by `for` init are re-used in each iteration
-		workerSet := WorkerSet{make([]*Worker, config.WorkerCount), &configCopy}
-		for i := 0; i < config.WorkerCount; i++ {
+		workerSet := WorkerSet{make([]*Worker, configCopy.WorkerCount), &configCopy}
+		for i := 0; i < configCopy.WorkerCount; i++ {
 			workerSet.Workers[i] = NewWorker(ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
 		}
 		ret.WorkerSets = append(ret.WorkerSets, workerSet)
 
 		// Need to initialize lastFlushTsByFlushGroup here, otherwise this creates a
 		// data race since FlushWatchdog is called in a goroutine
-		ret.lastFlushTsByFlushGroup[config.FlushGroup] = new(int64)
+		ret.lastFlushTsByFlushGroup[configCopy.FlushGroup] = new(int64)
 	}
-
-	computationRoutingConfigsInfo := []routing.ComputationRoutingConfig{}
-	for _, c := range ret.WorkerSets {
-		computationRoutingConfigsInfo = append(computationRoutingConfigsInfo, *c.ComputationRoutingConfig)
-	}
-	log.WithField("computation_routing_config", computationRoutingConfigsInfo).Info("Initialized WorkerSets")
 
 	for _, workerSet := range ret.WorkerSets {
 		for _, worker := range workerSet.Workers {
