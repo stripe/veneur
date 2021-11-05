@@ -8,7 +8,6 @@ ENV GOPATH=/go
 ENV GO111MODULE=on
 RUN apt-get update
 RUN apt-get install -y zip
-RUN go get -u -v github.com/ChimeraCoder/gojson/gojson
 RUN go get -u -v github.com/gogo/protobuf/protoc-gen-gogofaster@v1.2.1
 RUN go get -u -v golang.org/x/tools/cmd/stringer
 WORKDIR /protoc

@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,7 +22,11 @@ func TestListenAddr(t *testing.T) {
 		{"unixpacket:///tmp/foo.sock", "unixpacket", "/tmp/foo.sock"},
 	}
 	for _, test := range tests {
-		addr, err := ResolveAddr(test.input)
+		u, err := url.Parse(test.input)
+		if !assert.NoError(t, err) {
+			continue
+		}
+		addr, err := ResolveAddr(u)
 		if !assert.NoError(t, err) {
 			continue
 		}

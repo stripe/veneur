@@ -41,7 +41,7 @@ type Config struct {
 	ForwardAddress                            string              `yaml:"forward_address"`
 	ForwardUseGrpc                            bool                `yaml:"forward_use_grpc"`
 	GrpcAddress                               string              `yaml:"grpc_address"`
-	GrpcListenAddresses                       []string            `yaml:"grpc_listen_addresses"`
+	GrpcListenAddresses                       []util.Url          `yaml:"grpc_listen_addresses"`
 	Hostname                                  string              `yaml:"hostname"`
 	HTTPAddress                               string              `yaml:"http_address"`
 	HTTPQuit                                  bool                `yaml:"http_quit"`
@@ -118,9 +118,9 @@ type Config struct {
 	SplunkHecToken                    string            `yaml:"splunk_hec_token"`
 	SplunkSpanSampleRate              int               `yaml:"splunk_span_sample_rate"`
 	SsfBufferSize                     int               `yaml:"ssf_buffer_size"`
-	SsfListenAddresses                []string          `yaml:"ssf_listen_addresses"`
+	SsfListenAddresses                []util.Url        `yaml:"ssf_listen_addresses"`
 	StatsAddress                      string            `yaml:"stats_address"`
-	StatsdListenAddresses             []string          `yaml:"statsd_listen_addresses"`
+	StatsdListenAddresses             []util.Url        `yaml:"statsd_listen_addresses"`
 	SynchronizeWithInterval           bool              `yaml:"synchronize_with_interval"`
 	Tags                              []string          `yaml:"tags"`
 	TagsExclude                       []string          `yaml:"tags_exclude"`

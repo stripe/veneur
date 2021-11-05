@@ -68,7 +68,10 @@ func TestUDP(t *testing.T) {
 	err = serverConn.SetReadBuffer(BufferSize)
 	assert.NoError(t, err)
 
-	client, err := trace.NewClient(fmt.Sprintf("udp://%s", serverConn.LocalAddr().String()), trace.Capacity(4))
+	client, err := trace.NewClient(&url.URL{
+		Scheme: "udp",
+		Host:   serverConn.LocalAddr().String(),
+	}, trace.Capacity(4))
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -108,10 +111,14 @@ func TestUNIX(t *testing.T) {
 	})
 	defer cleanup()
 
-	client, err := trace.NewClient((&url.URL{Scheme: "unix", Path: sockName}).String(), trace.Capacity(4))
+	client, err := trace.NewClient(
+		&url.URL{
+			Scheme: "unix",
+			Path:   sockName,
+		},
+		trace.Capacity(4))
 	require.NoError(t, err)
 	defer client.Close()
-
 	sentCh := make(chan error)
 	for i := 0; i < 4; i++ {
 		name := fmt.Sprintf("Testing-%d", i)
@@ -147,7 +154,11 @@ func TestUNIXBuffered(t *testing.T) {
 	})
 	defer cleanup()
 
-	client, err := trace.NewClient((&url.URL{Scheme: "unix", Path: sockName}).String(),
+	client, err := trace.NewClient(
+		&url.URL{
+			Scheme: "unix",
+			Path:   sockName,
+		},
 		trace.Capacity(4),
 		trace.ParallelBackends(1),
 		trace.Buffered)
@@ -202,7 +213,10 @@ func TestUDPError(t *testing.T) {
 	err = serverConn.SetReadBuffer(BufferSize)
 	assert.NoError(t, err)
 
-	client, err := trace.NewClient(fmt.Sprintf("udp://%s", serverConn.LocalAddr().String()), trace.Capacity(4))
+	client, err := trace.NewClient(&url.URL{
+		Scheme: "udp",
+		Host:   serverConn.LocalAddr().String(),
+	}, trace.Capacity(4))
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -253,7 +267,11 @@ func TestReconnectUNIX(t *testing.T) {
 	})
 	defer cleanup()
 
-	client, err := trace.NewClient((&url.URL{Scheme: "unix", Path: sockName}).String(),
+	client, err := trace.NewClient(
+		&url.URL{
+			Scheme: "unix",
+			Path:   sockName,
+		},
 		trace.Capacity(4),
 		trace.ParallelBackends(1),
 	)
@@ -321,7 +339,11 @@ func TestReconnectBufferedUNIX(t *testing.T) {
 	})
 	defer cleanup()
 
-	client, err := trace.NewClient((&url.URL{Scheme: "unix", Path: sockName}).String(),
+	client, err := trace.NewClient(
+		&url.URL{
+			Scheme: "unix",
+			Path:   sockName,
+		},
 		trace.Capacity(4),
 		trace.ParallelBackends(1),
 		trace.Buffered)
