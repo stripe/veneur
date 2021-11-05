@@ -105,7 +105,7 @@ type Server struct {
 	SpanWorkerGoroutines int
 
 	WorkerSets               []WorkerSet                        // groupings of metric workers
-	enableMetricRouting      bool                               //
+	enableMetricRouting      bool                               // determine whether to create a "default" flush group
 	computationRoutingConfig []routing.ComputationRoutingConfig // configuration for computation/rollup level routing
 	interval                 time.Duration                      // deprecated in favor of WorkerInterval
 	synchronizeInterval      bool                               // configure flush ticker alignment
@@ -499,38 +499,15 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	ret.computationRoutingConfig = conf.MetricComputationRouting
 	ret.WorkerSets = make([]WorkerSet, 0)
 	ret.subscribedFlushGroupsBySink = make(map[string][]string)
-	if ret.enableMetricRouting {
-		for _, config := range ret.computationRoutingConfig {
-			if config.WorkerCount < 1 {
-				logger.WithFields(logrus.Fields{
-					"flush_group":  config.FlushGroup,
-					"worker_count": config.WorkerCount,
-				}).Fatal("WorkerCount must be greater than 0")
-			}
-			configCopy := config // variables declared by `for` init are re-used in each iteration
-			workerSet := WorkerSet{make([]*Worker, config.WorkerCount), &configCopy}
-			for i := 0; i < config.WorkerCount; i++ {
-				workerSet.Workers[i] = NewWorker(ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
-			}
-			ret.WorkerSets = append(ret.WorkerSets, workerSet)
 
-			// Need to initialize lastFlushTsByFlushGroup here, otherwise this creates a
-			// data race since FlushWatchdog is called in a goroutine
-			ret.lastFlushTsByFlushGroup[config.FlushGroup] = new(int64)
-		}
-	} else {
+	if !ret.enableMetricRouting {
 		numWorkers := 1
 		if conf.NumWorkers > 1 {
 			numWorkers = conf.NumWorkers
 		}
-		workers := make([]*Worker, numWorkers)
-		for i := 0; i < numWorkers; i++ {
-			workers[i] = NewWorker(ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
-		}
-		ret.WorkerSets = append(ret.WorkerSets, WorkerSet{
-			workers,
-			&routing.ComputationRoutingConfig{
-				FlushGroup: "deprecated",
+		ret.computationRoutingConfig = []routing.ComputationRoutingConfig{
+			{
+				FlushGroup: "default",
 				MatcherConfigs: []routing.MatcherConfig{
 					{
 						Name: routing.NameMatcher{
@@ -545,11 +522,26 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 				WorkerCount:             numWorkers,
 				ForwardMetrics:          true,
 			},
-		})
+		}
+	}
+
+	for _, config := range ret.computationRoutingConfig {
+		if config.WorkerCount < 1 {
+			logger.WithFields(logrus.Fields{
+				"flush_group":  config.FlushGroup,
+				"worker_count": config.WorkerCount,
+			}).Fatal("WorkerCount must be greater than 0")
+		}
+		configCopy := config // variables declared by `for` init are re-used in each iteration
+		workerSet := WorkerSet{make([]*Worker, config.WorkerCount), &configCopy}
+		for i := 0; i < config.WorkerCount; i++ {
+			workerSet.Workers[i] = NewWorker(ret.IsLocal(), ret.TraceClient, log, ret.Statsd)
+		}
+		ret.WorkerSets = append(ret.WorkerSets, workerSet)
 
 		// Need to initialize lastFlushTsByFlushGroup here, otherwise this creates a
 		// data race since FlushWatchdog is called in a goroutine
-		ret.lastFlushTsByFlushGroup["deprecated"] = new(int64)
+		ret.lastFlushTsByFlushGroup[config.FlushGroup] = new(int64)
 	}
 
 	computationRoutingConfigsInfo := []routing.ComputationRoutingConfig{}
@@ -944,51 +936,9 @@ func (s *Server) Start() {
 		}
 	}
 
-	if s.enableMetricRouting {
-		// Flush every Interval forever!
-		for _, workerSet := range s.WorkerSets {
-			go func(workerSet WorkerSet) {
-				defer func() {
-					ConsumePanic(s.TraceClient, s.Hostname, recover())
-				}()
-
-				ctx, cancel := context.WithCancel(context.Background())
-				go func() {
-					// If the server is shutting down, cancel any in-flight flush:
-					<-s.shutdown
-					cancel()
-				}()
-
-				if s.synchronizeInterval {
-					// We want to align our ticker to a multiple of its duration for
-					// convenience of bucketing.
-					<-time.After(CalculateTickDelay(workerSet.WorkerInterval, time.Now()))
-				}
-
-				// We aligned the ticker to our interval above. It's worth noting that just
-				// because we aligned once we're not guaranteed to be perfect on each
-				// subsequent tick. This code is small, however, and should service the
-				// incoming tick signal fast enough that the amount we are "off" is
-				// negligible.
-				ticker := time.NewTicker(workerSet.WorkerInterval)
-				for {
-					select {
-					case <-s.shutdown:
-						// stop flushing on graceful shutdown
-						ticker.Stop()
-						return
-					case triggered := <-ticker.C:
-						ctx, cancel := context.WithDeadline(ctx, triggered.Add(s.interval))
-						s.Flush(ctx, workerSet)
-						cancel()
-					}
-				}
-
-			}(workerSet)
-		}
-	} else {
-		// Flush every Interval forever!
-		go func() {
+	// Flush every Interval forever!
+	for _, workerSet := range s.WorkerSets {
+		go func(workerSet WorkerSet) {
 			defer func() {
 				ConsumePanic(s.TraceClient, s.Hostname, recover())
 			}()
@@ -1003,7 +953,7 @@ func (s *Server) Start() {
 			if s.synchronizeInterval {
 				// We want to align our ticker to a multiple of its duration for
 				// convenience of bucketing.
-				<-time.After(CalculateTickDelay(s.interval, time.Now()))
+				<-time.After(CalculateTickDelay(workerSet.WorkerInterval, time.Now()))
 			}
 
 			// We aligned the ticker to our interval above. It's worth noting that just
@@ -1011,7 +961,7 @@ func (s *Server) Start() {
 			// subsequent tick. This code is small, however, and should service the
 			// incoming tick signal fast enough that the amount we are "off" is
 			// negligible.
-			ticker := time.NewTicker(s.interval)
+			ticker := time.NewTicker(workerSet.WorkerInterval)
 			for {
 				select {
 				case <-s.shutdown:
@@ -1020,11 +970,12 @@ func (s *Server) Start() {
 					return
 				case triggered := <-ticker.C:
 					ctx, cancel := context.WithDeadline(ctx, triggered.Add(s.interval))
-					s.Flush(ctx, s.WorkerSets[0])
+					s.Flush(ctx, workerSet)
 					cancel()
 				}
 			}
-		}()
+
+		}(workerSet)
 	}
 }
 

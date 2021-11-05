@@ -113,7 +113,6 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 		go func(ms sinks.MetricSink) {
 			defer wg.Done()
 			filteredMetrics := finalMetrics
-			if s.enableMetricRouting {
 				sinkName := ms.Name()
 
 				flushGroups := s.subscribedFlushGroupsBySink[sinkName]
@@ -144,26 +143,7 @@ func (s *Server) Flush(ctx context.Context, workerSet WorkerSet) {
 				if err != nil {
 					log.WithError(err).WithField("sink", sinkName).Warn("Error flushing sink")
 				}
-			} else {
-				// TODO: We should really unship/migrate IsAcceptableMetric
-				for _, metric := range filteredMetrics {
-					_, ok := metric.Sinks[ms.Name()]
-					if !ok {
-						continue
-					}
-					filteredMetrics = append(filteredMetrics, metric)
-				}
-				flushStart := time.Now()
-				err := ms.Flush(span.Attach(ctx), filteredMetrics)
-				span.Add(ssf.Timing(
-					sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
-					time.Nanosecond, map[string]string{"sink": ms.Name()}))
-				if err != nil {
-					log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
-				}
-			}
-		}(sink)
-	}
+			}(sink)
 	wg.Wait()
 }
 

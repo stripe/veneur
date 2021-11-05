@@ -25,32 +25,18 @@ type watchdogTickerMetadata struct {
 // program's main function.
 func (s *Server) FlushWatchdog() {
 	tickers := make([]watchdogTickerMetadata, 0, len(s.computationRoutingConfig))
-	if s.enableMetricRouting {
-		for _, conf := range s.computationRoutingConfig {
-			if conf.WorkerWatchdogIntervals == 0 {
-				// No watchdog needed:
-				return
-			}
-			tickers = append(tickers, watchdogTickerMetadata{
-				conf.FlushGroup,
-				time.NewTicker(conf.WorkerInterval),
-				conf.WorkerWatchdogIntervals,
-				conf.WorkerInterval,
-			})
-			atomic.StoreInt64(s.lastFlushTsByFlushGroup[conf.FlushGroup], time.Now().UnixNano())
-		}
-	} else {
-		if s.stuckIntervals == 0 {
+	for _, conf := range s.computationRoutingConfig {
+		if conf.WorkerWatchdogIntervals == 0 {
 			// No watchdog needed:
 			return
 		}
 		tickers = append(tickers, watchdogTickerMetadata{
-			"deprecated",
-			time.NewTicker(s.interval),
-			s.stuckIntervals,
-			s.interval,
+			conf.FlushGroup,
+			time.NewTicker(conf.WorkerInterval),
+			conf.WorkerWatchdogIntervals,
+			conf.WorkerInterval,
 		})
-		atomic.StoreInt64(s.lastFlushTsByFlushGroup["deprecated"], time.Now().UnixNano())
+		atomic.StoreInt64(s.lastFlushTsByFlushGroup[conf.FlushGroup], time.Now().UnixNano())
 	}
 
 	// Promote panics outside of the goroutines this function spawns, such that we can assert
