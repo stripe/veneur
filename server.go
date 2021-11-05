@@ -99,11 +99,16 @@ type ServerConfig struct {
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Config               Config
-	WorkerSets           []WorkerSet
 	EventWorker          *EventWorker
 	SpanChan             chan *ssf.SSFSpan
 	SpanWorker           *SpanWorker
 	SpanWorkerGoroutines int
+
+	WorkerSets               []WorkerSet                        // groupings of metric workers
+	enableMetricRouting      bool                               //
+	computationRoutingConfig []routing.ComputationRoutingConfig // configuration for computation/rollup level routing
+	interval                 time.Duration                      // deprecated in favor of WorkerInterval
+	synchronizeInterval      bool                               // configure flush ticker alignment
 
 	Statsd *scopedstatsd.ScopedClient
 
@@ -124,11 +129,8 @@ type Server struct {
 	GRPCListenAddrs   []net.Addr
 	RcvbufBytes       int
 
-	enableMetricRouting      bool
-	computationRoutingConfig []routing.ComputationRoutingConfig
-	interval                 time.Duration
-	synchronizeInterval      bool
-	lastFlushTsByFlushGroup  map[string]*int64
+	lastFlushTsByFlushGroup map[string]*int64 // used by watchdog/flusher to determine whether sinks have recently flushed
+	stuckIntervals          int               // deprecated option, superceded by WorkerWatchdogIntervals
 
 	numReaders          int
 	metricMaxLength     int
@@ -149,7 +151,7 @@ type Server struct {
 
 	spanSinks                   []sinks.SpanSink
 	metricSinks                 []sinks.MetricSink
-	subscribedFlushGroupsBySink map[string][]string
+	subscribedFlushGroupsBySink map[string][]string // maps sink names (not types) to workerset flushgroups
 
 	TraceClient *trace.Client
 
@@ -162,8 +164,6 @@ type Server struct {
 
 	// gRPC forward clients
 	grpcForwardConn *grpc.ClientConn
-
-	stuckIntervals int
 
 	parser samplers.Parser
 }
