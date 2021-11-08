@@ -529,7 +529,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	ret.spanSinks = append(ret.spanSinks, metricSink)
 
 	for _, addrStr := range conf.StatsdListenAddresses {
-		addr, err := protocol.ResolveAddr(addrStr)
+		addr, err := protocol.ResolveAddr(addrStr.Value)
 		if err != nil {
 			return ret, err
 		}
@@ -537,7 +537,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	}
 
 	for _, addrStr := range conf.SsfListenAddresses {
-		addr, err := protocol.ResolveAddr(addrStr)
+		addr, err := protocol.ResolveAddr(addrStr.Value)
 		if err != nil {
 			return ret, err
 		}
@@ -545,7 +545,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	}
 
 	for _, addrStr := range conf.GrpcListenAddresses {
-		addr, err := protocol.ResolveAddr(addrStr)
+		addr, err := protocol.ResolveAddr(addrStr.Value)
 		if err != nil {
 			return ret, err
 		}

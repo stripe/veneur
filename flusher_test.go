@@ -2,12 +2,14 @@ package veneur
 
 import (
 	"context"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -184,7 +186,15 @@ func TestFlushResetsWorkerUniqueMTS(t *testing.T) {
 	config.CountUniqueTimeseries = true
 	config.NumWorkers = 2
 	config.Interval = time.Duration(time.Minute)
-	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}
+	config.StatsdListenAddresses = []util.Url{{
+		Value: &url.URL{
+			Scheme: "udp",
+			Host:   "127.0.0.1:0",
+		}}, {
+		Value: &url.URL{
+			Scheme: "udp",
+			Host:   "127.0.0.1:0",
+		}}}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)
 	f := newFixture(t, config, sink, nil)
@@ -215,7 +225,15 @@ func TestTallyTimeseries(t *testing.T) {
 	config.CountUniqueTimeseries = true
 	config.NumWorkers = 10
 	config.Interval = time.Duration(time.Minute)
-	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}
+	config.StatsdListenAddresses = []util.Url{{
+		Value: &url.URL{
+			Scheme: "udp",
+			Host:   "127.0.0.1:0",
+		}}, {
+		Value: &url.URL{
+			Scheme: "udp",
+			Host:   "127.0.0.1:0",
+		}}}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)
 	f := newFixture(t, config, sink, nil)

@@ -16,6 +16,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -76,18 +77,23 @@ func generateConfig(forwardAddr string) Config {
 		Hostname: "localhost",
 
 		// Use a shorter interval for tests
-		Interval:              DefaultFlushInterval,
-		DatadogAPIKey:         util.StringSecret{Value: ""},
-		MetricMaxLength:       4096,
-		Percentiles:           []float64{.5, .75, .99},
-		Aggregates:            []string{"min", "max", "count"},
-		ReadBufferSizeBytes:   2097152,
-		StatsdListenAddresses: []string{"udp://localhost:0"},
-		HTTPAddress:           fmt.Sprintf("localhost:0"),
-		GrpcAddress:           fmt.Sprintf("localhost:0"),
-		ForwardAddress:        forwardAddr,
-		NumWorkers:            4,
-		FlushFile:             "",
+		Interval:            DefaultFlushInterval,
+		DatadogAPIKey:       util.StringSecret{Value: ""},
+		MetricMaxLength:     4096,
+		Percentiles:         []float64{.5, .75, .99},
+		Aggregates:          []string{"min", "max", "count"},
+		ReadBufferSizeBytes: 2097152,
+		StatsdListenAddresses: []util.Url{{
+			Value: &url.URL{
+				Scheme: "udp",
+				Host:   "localhost:0",
+			},
+		}},
+		HTTPAddress:    fmt.Sprintf("localhost:0"),
+		GrpcAddress:    fmt.Sprintf("localhost:0"),
+		ForwardAddress: forwardAddr,
+		NumWorkers:     4,
+		FlushFile:      "",
 
 		// Use only one reader, so that we can run tests
 		// on platforms which do not support SO_REUSEPORT
@@ -103,7 +109,12 @@ func generateConfig(forwardAddr string) Config {
 		DatadogFlushMaxPerBody: 1024,
 
 		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
-		SsfListenAddresses:  []string{"udp://127.0.0.1:0"},
+		SsfListenAddresses: []util.Url{{
+			Value: &url.URL{
+				Scheme: "udp",
+				Host:   "127.0.0.1:0",
+			},
+		}},
 		TraceMaxLengthBytes: 4096,
 	}
 }
@@ -472,19 +483,15 @@ func TestTCPConfig(t *testing.T) {
 	logger := logrus.New()
 	logger.Out = ioutil.Discard
 
-	config.StatsdListenAddresses = []string{"tcp://invalid:invalid"}
-	_, err := NewFromConfig(ServerConfig{
-		Logger: logger,
-		Config: config,
-	})
-	if err == nil {
-		t.Error("invalid TCP address is a config error")
-	}
-
-	config.StatsdListenAddresses = []string{"tcp://localhost:8129"}
+	config.StatsdListenAddresses = []util.Url{{
+		Value: &url.URL{
+			Scheme: "tcp",
+			Host:   "localhost:8129",
+		},
+	}}
 	config.TLSKey = util.StringSecret{Value: "somekey"}
 	config.TLSCertificate = ""
-	_, err = NewFromConfig(ServerConfig{
+	_, err := NewFromConfig(ServerConfig{
 		Logger: logger,
 		Config: config,
 	})
@@ -559,7 +566,12 @@ func TestUDPMetrics(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.Interval = time.Duration(time.Minute)
-	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0"}
+	config.StatsdListenAddresses = []util.Url{{
+		Value: &url.URL{
+			Scheme: "udp",
+			Host:   "127.0.0.1:0",
+		},
+	}}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)
 	f := newFixture(t, config, sink, nil)
@@ -588,7 +600,12 @@ func TestUnixSocketMetrics(t *testing.T) {
 	config.NumWorkers = 1
 	config.Interval = time.Duration(time.Minute)
 	path := filepath.Join(tdir, "testdatagram.sock")
-	config.StatsdListenAddresses = []string{fmt.Sprintf("unixgram://%s", path)}
+	config.StatsdListenAddresses = []util.Url{{
+		Value: &url.URL{
+			Scheme: "unixgram",
+			Path:   path,
+		},
+	}}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)
 	f := newFixture(t, config, sink, nil)
@@ -628,7 +645,12 @@ func TestAbstractUnixSocketMetrics(t *testing.T) {
 	path := "@abstract.sock"
 	defer os.RemoveAll(path)
 
-	config.StatsdListenAddresses = []string{fmt.Sprintf("unixgram:%s", path)}
+	config.StatsdListenAddresses = []util.Url{{
+		Value: &url.URL{
+			Scheme: "unixgram",
+			Path:   path,
+		},
+	}}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)
 	f := newFixture(t, config, sink, nil)
@@ -664,8 +686,17 @@ func TestAbstractUnixSocketMetrics(t *testing.T) {
 func TestMultipleUDPSockets(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
-	config.Interval = time.Duration(time.Minute)
-	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0", "udp://127.0.0.1:0"}
+	config.StatsdListenAddresses = []util.Url{{
+		Value: &url.URL{
+			Scheme: "udp",
+			Host:   "127.0.0.1:0",
+		},
+	}, {
+		Value: &url.URL{
+			Scheme: "udp",
+			Host:   "127.0.0.1:0",
+		},
+	}}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)
 	f := newFixture(t, config, sink, nil)
@@ -704,7 +735,12 @@ func TestUDPMetricsSSF(t *testing.T) {
 	config := localConfig()
 	config.NumWorkers = 1
 	config.Interval = time.Duration(time.Minute)
-	config.SsfListenAddresses = []string{"udp://127.0.0.1:0"}
+	config.SsfListenAddresses = []util.Url{{
+		Value: &url.URL{
+			Scheme: "udp",
+			Host:   "127.0.0.1:0",
+		},
+	}}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)
 	f := newFixture(t, config, sink, nil)
@@ -785,7 +821,12 @@ func TestUNIXMetricsSSF(t *testing.T) {
 	config.NumWorkers = 1
 	config.Interval = time.Duration(time.Minute)
 	path := filepath.Join(tdir, "test.sock")
-	config.SsfListenAddresses = []string{fmt.Sprintf("unix://%s", path)}
+	config.SsfListenAddresses = []util.Url{{
+		Value: &url.URL{
+			Scheme: "unix",
+			Path:   path,
+		}},
+	}
 	ch := make(chan []samplers.InterMetric, 20)
 	sink, _ := NewChannelMetricSink(ch)
 	f := newFixture(t, config, sink, nil)
@@ -832,7 +873,12 @@ func TestIgnoreLongUDPMetrics(t *testing.T) {
 	config.NumWorkers = 1
 	config.MetricMaxLength = 31
 	config.Interval = time.Duration(time.Minute)
-	config.StatsdListenAddresses = []string{"udp://127.0.0.1:0"}
+	config.StatsdListenAddresses = []util.Url{{
+		Value: &url.URL{
+			Scheme: "udp",
+			Host:   "127.0.0.1:0",
+		},
+	}}
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 
@@ -911,7 +957,12 @@ func TestTCPMetrics(t *testing.T) {
 			config := localConfig()
 			config.Interval = time.Duration(time.Minute)
 			config.NumWorkers = 1
-			config.StatsdListenAddresses = []string{"tcp://127.0.0.1:0"}
+			config.StatsdListenAddresses = []util.Url{{
+				Value: &url.URL{
+					Scheme: "tcp",
+					Host:   "127.0.0.1:0",
+				},
+			}}
 			config.TLSKey = util.StringSecret{Value: serverConfig.serverKey}
 			config.TLSCertificate = serverConfig.serverCertificate
 			config.TLSAuthorityCertificate = serverConfig.authorityCertificate
@@ -1025,7 +1076,12 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 		DatadogAPIKey:          util.StringSecret{Value: "apikey"},
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
-		SsfListenAddresses:     []string{fmt.Sprintf("unix://%s", path)},
+		SsfListenAddresses: []util.Url{{
+			Value: &url.URL{
+				Scheme: "unix",
+				Path:   path,
+			}},
+		},
 
 		// required or NewFromConfig fails
 		Interval:     time.Duration(10 * time.Second),
@@ -1088,9 +1144,14 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 		DatadogAPIKey:          util.StringSecret{Value: "apikey"},
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
-		SsfListenAddresses:     []string{"udp://127.0.0.1:0"},
-		ReadBufferSizeBytes:    16 * 1024,
-		TraceMaxLengthBytes:    900 * 1024,
+		SsfListenAddresses: []util.Url{{
+			Value: &url.URL{
+				Scheme: "udp",
+				Host:   "127.0.0.1:0",
+			},
+		}},
+		ReadBufferSizeBytes: 16 * 1024,
+		TraceMaxLengthBytes: 900 * 1024,
 
 		// required or NewFromConfig fails
 		Interval:     time.Duration(10 * time.Second),
@@ -1192,10 +1253,10 @@ func TestSSFMetricsEndToEnd(t *testing.T) {
 	defer os.RemoveAll(tdir)
 
 	path := filepath.Join(tdir, "test.sock")
-	ssfAddr := "unix://" + path
+	ssfAddr := &url.URL{Scheme: "unix", Path: path}
 
 	config := localConfig()
-	config.SsfListenAddresses = []string{ssfAddr}
+	config.SsfListenAddresses = []util.Url{{Value: ssfAddr}}
 	metricsChan := make(chan []samplers.InterMetric, 10)
 	cms, _ := NewChannelMetricSink(metricsChan)
 	f := newFixture(t, config, cms, nil)
@@ -1253,10 +1314,14 @@ func TestInternalSSFMetricsEndToEnd(t *testing.T) {
 	defer os.RemoveAll(tdir)
 
 	path := filepath.Join(tdir, "test.sock")
-	ssfAddr := "unix://" + path
 
 	config := localConfig()
-	config.SsfListenAddresses = []string{ssfAddr}
+	config.SsfListenAddresses = []util.Url{{
+		Value: &url.URL{
+			Scheme: "unix",
+			Path:   path,
+		},
+	}}
 	metricsChan := make(chan []samplers.InterMetric, 10)
 	cms, _ := NewChannelMetricSink(metricsChan)
 	f := newFixture(t, config, cms, nil)
