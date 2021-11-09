@@ -759,11 +759,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	if conf.Features.DisableLegacySinks {
-		ret.metricSinks = createdMetricSinks
-	} else {
-		ret.metricSinks = append(ret.metricSinks, createdMetricSinks...)
-	}
+	ret.metricSinks = append(ret.metricSinks, createdMetricSinks...)
 	customSpanSinks, err :=
 		ret.createSpanSinks(logger, &conf, config.SpanSinkTypes)
 	if err != nil {

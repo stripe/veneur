@@ -53,21 +53,23 @@ func main() {
 	if *validateConfig {
 		os.Exit(0)
 	}
-	debug.MigrateConfig(&conf)
-	localfile.MigrateConfig(&conf)
-	newrelic.MigrateConfig(&conf)
-	s3.MigrateConfig(&conf)
-	err = signalfx.MigrateConfig(&conf)
-	if err != nil {
-		logrus.WithError(err).Fatal("error migrating signalfx config")
-	}
-	err = kafka.MigrateConfig(&conf)
-	if err != nil {
-		logrus.WithError(err).Fatal("error migrating kafka config")
-	}
-	err = splunk.MigrateConfig(&conf)
-	if err != nil {
-		logrus.WithError(err).Fatal("error migrating splunk config")
+	if !conf.Features.DisableLegacySinks {
+		debug.MigrateConfig(&conf)
+		localfile.MigrateConfig(&conf)
+		newrelic.MigrateConfig(&conf)
+		s3.MigrateConfig(&conf)
+		err = signalfx.MigrateConfig(&conf)
+		if err != nil {
+			logrus.WithError(err).Fatal("error migrating signalfx config")
+		}
+		err = kafka.MigrateConfig(&conf)
+		if err != nil {
+			logrus.WithError(err).Fatal("error migrating kafka config")
+		}
+		err = splunk.MigrateConfig(&conf)
+		if err != nil {
+			logrus.WithError(err).Fatal("error migrating splunk config")
+		}
 	}
 
 	logger := logrus.StandardLogger()
