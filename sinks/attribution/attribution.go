@@ -158,12 +158,12 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 	attributionData := make(map[string]*TimeseriesGroup)
 
 	for _, metric := range metrics {
-		if sinks.IsAcceptableMetric(metric, s) {
-			s.log.WithField("metric_name", metric.Name).Debug("Recording metric")
-			s.recordMetric(attributionData, metric)
-		} else {
+		if !sinks.IsAcceptableMetric(metric, s) {
 			s.log.WithField("metric_name", metric.Name).Debug("Skipping metric recording: unacceptable metric")
+			continue
 		}
+		s.log.WithField("metric_name", metric.Name).Debug("Recording metric")
+		s.recordMetric(attributionData, metric)
 	}
 
 	for k, v := range attributionData {
