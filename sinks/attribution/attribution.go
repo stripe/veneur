@@ -164,10 +164,8 @@ func (s *AttributionSink) Flush(ctx context.Context, metrics []samplers.InterMet
 		}
 	}
 
-	if s.log.Level >= logrus.DebugLevel {
-		for k, v := range attributionData {
-			s.log.Debug(fmt.Sprintf("%s - %d", k, v.Sketch.Estimate()))
-		}
+	for k, v := range attributionData {
+		s.log.Debug(fmt.Sprintf("%s - %d", k, v.Sketch.Estimate()))
 	}
 
 	csv, err := encodeAttributionDataCSV(attributionData, s.schemaVersion)
