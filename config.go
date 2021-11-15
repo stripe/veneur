@@ -105,6 +105,7 @@ type Config struct {
 		Name   string            `yaml:"name"`
 	} `yaml:"signalfx_per_tag_api_keys"`
 	SignalfxVaryKeyBy                 string            `yaml:"signalfx_vary_key_by"`
+	Sources                           []SourceConfig    `yaml:"sources"`
 	SpanChannelCapacity               int               `yaml:"span_channel_capacity"`
 	SpanSinks                         []SinkConfig      `yaml:"span_sinks"`
 	SplunkHecAddress                  string            `yaml:"splunk_hec_address"`
@@ -144,6 +145,12 @@ type Config struct {
 	XrayAddress          string   `yaml:"xray_address"`
 	XrayAnnotationTags   []string `yaml:"xray_annotation_tags"`
 	XraySamplePercentage float64  `yaml:"xray_sample_percentage"`
+}
+
+type SourceConfig struct {
+	Kind   string      `yaml:"kind"`
+	Name   string      `yaml:"name"`
+	Config interface{} `yaml:"config"`
 }
 
 type SinkConfig struct {
