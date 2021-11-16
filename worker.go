@@ -20,12 +20,14 @@ import (
 	"github.com/stripe/veneur/v14/trace/metrics"
 )
 
-const counterTypeName = "counter"
-const gaugeTypeName = "gauge"
-const histogramTypeName = "histogram"
-const setTypeName = "set"
-const timerTypeName = "timer"
-const statusTypeName = "status"
+const (
+	CounterTypeName   = "counter"
+	GaugeTypeName     = "gauge"
+	HistogramTypeName = "histogram"
+	SetTypeName       = "set"
+	TimerTypeName     = "timer"
+	StatusTypeName    = "status"
+)
 
 // Worker is the doodad that does work.
 type Worker struct {
@@ -108,7 +110,7 @@ func NewWorkerMetrics() WorkerMetrics {
 func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope, tags []string) bool {
 	present := false
 	switch mk.Type {
-	case counterTypeName:
+	case CounterTypeName:
 		if Scope == samplers.GlobalOnly {
 			if _, present = wm.globalCounters[mk]; !present {
 				wm.globalCounters[mk] = samplers.NewCounter(mk.Name, tags)
@@ -118,7 +120,7 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 				wm.counters[mk] = samplers.NewCounter(mk.Name, tags)
 			}
 		}
-	case gaugeTypeName:
+	case GaugeTypeName:
 		if Scope == samplers.GlobalOnly {
 			if _, present = wm.globalGauges[mk]; !present {
 				wm.globalGauges[mk] = samplers.NewGauge(mk.Name, tags)
@@ -128,7 +130,7 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 				wm.gauges[mk] = samplers.NewGauge(mk.Name, tags)
 			}
 		}
-	case histogramTypeName:
+	case HistogramTypeName:
 		if Scope == samplers.LocalOnly {
 			if _, present = wm.localHistograms[mk]; !present {
 				wm.localHistograms[mk] = samplers.NewHist(mk.Name, tags)
@@ -142,7 +144,7 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 				wm.histograms[mk] = samplers.NewHist(mk.Name, tags)
 			}
 		}
-	case setTypeName:
+	case SetTypeName:
 		if Scope == samplers.LocalOnly {
 			if _, present = wm.localSets[mk]; !present {
 				wm.localSets[mk] = samplers.NewSet(mk.Name, tags)
@@ -152,7 +154,7 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 				wm.sets[mk] = samplers.NewSet(mk.Name, tags)
 			}
 		}
-	case timerTypeName:
+	case TimerTypeName:
 		if Scope == samplers.LocalOnly {
 			if _, present = wm.localTimers[mk]; !present {
 				wm.localTimers[mk] = samplers.NewHist(mk.Name, tags)
@@ -166,7 +168,7 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 				wm.timers[mk] = samplers.NewHist(mk.Name, tags)
 			}
 		}
-	case statusTypeName:
+	case StatusTypeName:
 		if _, present = wm.localStatusChecks[mk]; !present {
 			wm.localStatusChecks[mk] = samplers.NewStatusCheck(mk.Name, tags)
 		}
@@ -313,27 +315,27 @@ func (w *Worker) SampleTimeseries(m *samplers.UDPMetric) {
 	// Otherwise, sample the timeseries iff the metric will not be
 	// forwarded to a global Veneur instance.
 	switch m.Type {
-	case counterTypeName:
+	case CounterTypeName:
 		if m.Scope != samplers.GlobalOnly {
 			w.uniqueMTS.Insert(digest)
 		}
-	case gaugeTypeName:
+	case GaugeTypeName:
 		if m.Scope != samplers.GlobalOnly {
 			w.uniqueMTS.Insert(digest)
 		}
-	case histogramTypeName:
+	case HistogramTypeName:
 		if m.Scope == samplers.LocalOnly {
 			w.uniqueMTS.Insert(digest)
 		}
-	case setTypeName:
+	case SetTypeName:
 		if m.Scope == samplers.LocalOnly {
 			w.uniqueMTS.Insert(digest)
 		}
-	case timerTypeName:
+	case TimerTypeName:
 		if m.Scope == samplers.LocalOnly {
 			w.uniqueMTS.Insert(digest)
 		}
-	case statusTypeName:
+	case StatusTypeName:
 		w.uniqueMTS.Insert(digest)
 	default:
 		log.WithField("type", m.Type).Error("Unknown metric type for counting")
@@ -348,19 +350,19 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 	w.wm.Upsert(m.MetricKey, m.Scope, m.Tags)
 
 	switch m.Type {
-	case counterTypeName:
+	case CounterTypeName:
 		if m.Scope == samplers.GlobalOnly {
 			w.wm.globalCounters[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		} else {
 			w.wm.counters[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		}
-	case gaugeTypeName:
+	case GaugeTypeName:
 		if m.Scope == samplers.GlobalOnly {
 			w.wm.globalGauges[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		} else {
 			w.wm.gauges[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		}
-	case histogramTypeName:
+	case HistogramTypeName:
 		if m.Scope == samplers.LocalOnly {
 			w.wm.localHistograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		} else if m.Scope == samplers.GlobalOnly {
@@ -368,13 +370,13 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 		} else {
 			w.wm.histograms[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		}
-	case setTypeName:
+	case SetTypeName:
 		if m.Scope == samplers.LocalOnly {
 			w.wm.localSets[m.MetricKey].Sample(m.Value.(string))
 		} else {
 			w.wm.sets[m.MetricKey].Sample(m.Value.(string))
 		}
-	case timerTypeName:
+	case TimerTypeName:
 		if m.Scope == samplers.LocalOnly {
 			w.wm.localTimers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		} else if m.Scope == samplers.GlobalOnly {
@@ -382,7 +384,7 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 		} else {
 			w.wm.timers[m.MetricKey].Sample(m.Value.(float64), m.SampleRate)
 		}
-	case statusTypeName:
+	case StatusTypeName:
 		v := float64(m.Value.(ssf.SSFSample_Status))
 		w.wm.localStatusChecks[m.MetricKey].Sample(v, m.SampleRate, m.Message, m.HostName)
 	default:
@@ -398,7 +400,7 @@ func (w *Worker) ImportMetric(other samplers.JSONMetric) {
 	// we don't increment the processed metric counter here, it was already
 	// counted by the original veneur that sent this to us
 	w.imported++
-	if other.Type == counterTypeName || other.Type == gaugeTypeName {
+	if other.Type == CounterTypeName || other.Type == GaugeTypeName {
 		// this is an odd special case -- counters that are imported are global
 		w.wm.Upsert(other.MetricKey, samplers.GlobalOnly, other.Tags)
 	} else {
@@ -406,23 +408,23 @@ func (w *Worker) ImportMetric(other samplers.JSONMetric) {
 	}
 
 	switch other.Type {
-	case counterTypeName:
+	case CounterTypeName:
 		if err := w.wm.globalCounters[other.MetricKey].Combine(other.Value); err != nil {
 			log.WithError(err).Error("Could not merge counters")
 		}
-	case gaugeTypeName:
+	case GaugeTypeName:
 		if err := w.wm.globalGauges[other.MetricKey].Combine(other.Value); err != nil {
 			log.WithError(err).Error("Could not merge gauges")
 		}
-	case setTypeName:
+	case SetTypeName:
 		if err := w.wm.sets[other.MetricKey].Combine(other.Value); err != nil {
 			log.WithError(err).Error("Could not merge sets")
 		}
-	case histogramTypeName:
+	case HistogramTypeName:
 		if err := w.wm.histograms[other.MetricKey].Combine(other.Value); err != nil {
 			log.WithError(err).Error("Could not merge histograms")
 		}
-	case timerTypeName:
+	case TimerTypeName:
 		if err := w.wm.timers[other.MetricKey].Combine(other.Value); err != nil {
 			log.WithError(err).Error("Could not merge timers")
 		}

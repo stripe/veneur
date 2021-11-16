@@ -98,7 +98,7 @@ func forwardGRPCTestMetrics() []*samplers.UDPMetric {
 		&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: testGRPCMetric("histogram"),
-				Type: histogramTypeName,
+				Type: HistogramTypeName,
 			},
 			Value:      20.0,
 			Digest:     12345,
@@ -108,7 +108,7 @@ func forwardGRPCTestMetrics() []*samplers.UDPMetric {
 		&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: testGRPCMetric("histogram_global"),
-				Type: histogramTypeName,
+				Type: HistogramTypeName,
 			},
 			Value:      20.0,
 			Digest:     12345,
@@ -118,7 +118,7 @@ func forwardGRPCTestMetrics() []*samplers.UDPMetric {
 		&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: testGRPCMetric("gauge"),
-				Type: gaugeTypeName,
+				Type: GaugeTypeName,
 			},
 			Value:      1.0,
 			SampleRate: 1.0,
@@ -127,7 +127,7 @@ func forwardGRPCTestMetrics() []*samplers.UDPMetric {
 		&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: testGRPCMetric("counter"),
-				Type: counterTypeName,
+				Type: CounterTypeName,
 			},
 			Value:      2.0,
 			SampleRate: 1.0,
@@ -136,7 +136,7 @@ func forwardGRPCTestMetrics() []*samplers.UDPMetric {
 		&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: testGRPCMetric("timer_mixed"),
-				Type: timerTypeName,
+				Type: TimerTypeName,
 			},
 			Value:      100.0,
 			Digest:     12345,
@@ -146,7 +146,7 @@ func forwardGRPCTestMetrics() []*samplers.UDPMetric {
 		&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: testGRPCMetric("timer"),
-				Type: timerTypeName,
+				Type: TimerTypeName,
 			},
 			Value:      100.0,
 			Digest:     12345,
@@ -156,7 +156,7 @@ func forwardGRPCTestMetrics() []*samplers.UDPMetric {
 		&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: testGRPCMetric("set"),
-				Type: setTypeName,
+				Type: SetTypeName,
 			},
 			Value:      "test",
 			SampleRate: 1.0,
@@ -166,7 +166,7 @@ func forwardGRPCTestMetrics() []*samplers.UDPMetric {
 		&samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: testGRPCMetric("counter.local"),
-				Type: counterTypeName,
+				Type: CounterTypeName,
 			},
 			Value:      100.0,
 			Digest:     12345,
