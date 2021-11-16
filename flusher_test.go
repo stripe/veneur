@@ -128,7 +128,7 @@ func TestServerFlushGRPCBadAddress(t *testing.T) {
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
 			Name: "counter",
-			Type: counterTypeName,
+			Type: CounterTypeName,
 		},
 		Value:      20.0,
 		Digest:     12345,
@@ -162,7 +162,7 @@ func TestGlobalAcceptsHistogramsOverUDP(t *testing.T) {
 	m := samplers.UDPMetric{
 		MetricKey: samplers.MetricKey{
 			Name: "histo",
-			Type: histogramTypeName,
+			Type: HistogramTypeName,
 		},
 		Value:      20.0,
 		Digest:     12345,
