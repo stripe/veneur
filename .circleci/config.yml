@@ -17,18 +17,18 @@ commands:
       protoc_gen_gogofaster_tag:
         type: string
         default: "v1.2.1"
-      stringer_rev:
+      stringer_tag:
         type: string
-        default: "25101aadb97aa42907eee6a238d6d26a6cb3c756"
-      gojson_tag:
+        default: "v0.1.7"
+      mockgen_tag:
         type: string
-        default: "v1.1.0"
+        default: "v1.6.0"
       cachebust:
         type: string
         default: "1"
     steps:
       - restore_cache: &prereq_cache_key
-          key: 'protoc-<<parameters.protoc_version>>_gogofaster-<<parameters.protoc_gen_gogofaster_tag>>_stringer-<<parameters.stringer_rev>>_gojson-<<parameters.gojson_tag>>_{{checksum "/usr/local/go/bin/go" }}_<<parameters.cachebust>>'
+          key: 'protoc-<<parameters.protoc_version>>_gogofaster-<<parameters.protoc_gen_gogofaster_tag>>_stringer-<<parameters.stringer_tag>>_mockgen-<<parameters.mockgen_tag>>_{{checksum "/usr/local/go/bin/go" }}_<<parameters.cachebust>>'
       - run:
           name: protoc
           command: |
@@ -43,19 +43,19 @@ commands:
           name: protoc-gen-gogofaster
           command: |
             if ! [ -x $GOPATH/bin/protoc-gen-gogofaster ] ; then
-              go get -u -v github.com/gogo/protobuf/protoc-gen-gogofaster@<<parameters.protoc_gen_gogofaster_tag>>
+              go install github.com/gogo/protobuf/protoc-gen-gogofaster@<<parameters.protoc_gen_gogofaster_tag>>
             fi
       - run:
-          name: gojson
+          name: mockgen
           command: |
-            if ! [ -x $GOPATH/bin/gojson ] ; then
-              go get -u -v github.com/ChimeraCoder/gojson/gojson@<<parameters.gojson_tag>>
+            if ! [ -x $GOPATH/bin/mockgen ] ; then
+              go install github.com/golang/mock/mockgen@<<parameters.mockgen_tag>>
             fi
       - run:
           name: stringer
           command: |
             if ! [ -x $GOPATH/bin/stringer ] ; then
-              go get -u -v golang.org/x/tools/cmd/stringer
+              go install golang.org/x/tools/cmd/stringer@<<parameters.stringer_tag>>
             fi
       - save_cache:
           <<: *prereq_cache_key
