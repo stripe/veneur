@@ -1,57 +1,170 @@
-package veneur
+package veneur_test
 
 import (
 	"context"
+	"errors"
 	"net"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks"
-)
-
-const (
-	grpcTestMetricPrefix = "test.grpc."
+	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util"
 )
 
 type forwardGRPCFixture struct {
 	t      testing.TB
-	proxy  *Proxy
-	global *Server
-	local  *Server
+	proxy  *veneur.Proxy
+	global *veneur.Server
+	local  *veneur.Server
+}
+
+// generateConfig is not called config to avoid
+// accidental variable shadowing
+func generateConfig() veneur.Config {
+	return veneur.Config{
+		Debug: true,
+
+		// Use a shorter interval for tests
+		Interval:            veneur.DefaultFlushInterval,
+		Percentiles:         []float64{.5, .75, .99},
+		Aggregates:          []string{"min", "max", "count"},
+		ReadBufferSizeBytes: 2097152,
+		HTTPAddress:         "localhost:0",
+		NumWorkers:          4,
+
+		// Use only one reader, so that we can run tests
+		// on platforms which do not support SO_REUSEPORT
+		NumReaders: 1,
+
+		// Currently this points nowhere, which is intentional.
+		// We don't need internal metrics for the tests, and they make testing
+		// more complicated.
+		StatsAddress: "localhost:8125",
+
+		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
+		SsfListenAddresses: []util.Url{{
+			Value: &url.URL{
+				Scheme: "udp",
+				Host:   "127.0.0.1:0",
+			},
+		}},
+		TraceMaxLengthBytes: 4096,
+	}
+}
+
+// setupVeneurServer creates a local server from the specified config
+// and starts listening for requests. It returns the server for
+// inspection.  If no metricSink or spanSink are provided then a
+// `black hole` sink will be used so that flushes to these sinks do
+// "nothing".
+func setupVeneurServer(
+	t testing.TB, config veneur.Config,
+) *veneur.Server {
+	logger := logrus.New()
+	server, err := veneur.NewFromConfig(veneur.ServerConfig{
+		Logger: logger,
+		Config: config,
+		MetricSinkTypes: veneur.MetricSinkTypes{
+			"channel": {
+				Create: func(
+					server *veneur.Server, name string, logger *logrus.Entry,
+					config veneur.Config, sinkConfig veneur.MetricSinkConfig,
+				) (sinks.MetricSink, error) {
+					ch, ok := sinkConfig.(chan []samplers.InterMetric)
+					if !ok {
+						return nil, errors.New("invalid config")
+					}
+					return veneur.NewChannelMetricSink(ch)
+				},
+				ParseConfig: func(config interface{}) (veneur.MetricSinkConfig, error) {
+					return config, nil
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Make sure we don't send internal metrics when testing:
+	trace.NeutralizeClient(server.TraceClient)
+
+	server.Start()
+	return server
+}
+
+type testHTTPStarter interface {
+	IsListeningHTTP() bool
+}
+
+// waitForHTTPStart blocks until the Server's HTTP server is started, or until
+// the specified duration is elapsed.
+func waitForHTTPStart(t testing.TB, s testHTTPStarter, timeout time.Duration) {
+	tickCh := time.Tick(10 * time.Millisecond)
+	timeoutCh := time.After(timeout)
+
+	for {
+		select {
+		case <-tickCh:
+			if s.IsListeningHTTP() {
+				return
+			}
+		case <-timeoutCh:
+			t.Errorf("The HTTP server did not start within the specified duration")
+		}
+	}
 }
 
 // newForwardGRPCFixture creates a set of resources that forward to each other
 // over gRPC.  Specifically this includes a local Server, which forwards
 // metrics over gRPC to a Proxy, which then forwards over gRPC again to a
 // global Server.
-func newForwardGRPCFixture(t testing.TB, localConfig Config, sink sinks.MetricSink) *forwardGRPCFixture {
+func newForwardGRPCFixture(
+	t testing.TB, ch chan []samplers.InterMetric,
+) *forwardGRPCFixture {
 	// Create a global Veneur
-	globalCfg := globalConfig()
-	globalCfg.GrpcAddress = unusedLocalTCPAddress(t)
-	global := setupVeneurServer(t, globalCfg, nil, sink, nil, nil)
+	globalConfig := generateConfig()
+	globalConfig.GrpcAddress = unusedLocalTCPAddress(t)
+	globalConfig.MetricSinks = []veneur.SinkConfig{{
+		Name:   "channel",
+		Kind:   "channel",
+		Config: ch,
+	}}
+	global := setupVeneurServer(t, globalConfig)
 	go func() {
 		global.Serve()
 	}()
 	waitForHTTPStart(t, global, 3*time.Second)
 
 	// Create a proxy Veneur
-	proxyCfg := generateProxyConfig()
-	proxyCfg.GrpcForwardAddress = globalCfg.GrpcAddress
-	proxyCfg.GrpcAddress = unusedLocalTCPAddress(t)
-	proxyCfg.ConsulForwardServiceName = ""
-	proxy, err := NewProxyFromConfig(logrus.New(), proxyCfg)
+	proxyConfig := veneur.ProxyConfig{
+		Debug:                  false,
+		ConsulRefreshInterval:  "86400s",
+		ConsulTraceServiceName: "traceServiceName",
+		TraceAddress:           "127.0.0.1:8128",
+		TraceAPIAddress:        "127.0.0.1:8135",
+		HTTPAddress:            "127.0.0.1:0",
+		GrpcAddress:            unusedLocalTCPAddress(t),
+		StatsAddress:           "127.0.0.1:8201",
+		GrpcForwardAddress:     globalConfig.GrpcAddress,
+	}
+	proxy, err := veneur.NewProxyFromConfig(logrus.New(), proxyConfig)
 	assert.NoError(t, err)
 	go func() {
 		proxy.Serve()
 	}()
 	waitForHTTPStart(t, proxy, 3*time.Second)
 
-	localConfig.ForwardAddress = proxyCfg.GrpcAddress
+	localConfig := generateConfig()
+	localConfig.ForwardAddress = proxyConfig.GrpcAddress
 	localConfig.ForwardUseGrpc = true
-	local := setupVeneurServer(t, localConfig, nil, nil, nil, nil)
+	local := setupVeneurServer(t, localConfig)
 
 	return &forwardGRPCFixture{t: t, proxy: proxy, global: global, local: local}
 }
@@ -88,92 +201,77 @@ func unusedLocalTCPAddress(t testing.TB) string {
 	return ln.Addr().String()
 }
 
-// testGRPCMetric appends a common prefix to the given metric name.
-func testGRPCMetric(name string) string {
-	return grpcTestMetricPrefix + name
-}
-
 func forwardGRPCTestMetrics() []*samplers.UDPMetric {
-	return []*samplers.UDPMetric{
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("histogram"),
-				Type: HistogramTypeName,
-			},
-			Value:      20.0,
-			Digest:     12345,
-			SampleRate: 1.0,
-			Scope:      samplers.MixedScope,
+	return []*samplers.UDPMetric{{
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.histogram",
+			Type: veneur.HistogramTypeName,
 		},
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("histogram_global"),
-				Type: HistogramTypeName,
-			},
-			Value:      20.0,
-			Digest:     12345,
-			SampleRate: 1.0,
-			Scope:      samplers.GlobalOnly,
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.MixedScope,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.histogram_global",
+			Type: veneur.HistogramTypeName,
 		},
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("gauge"),
-				Type: GaugeTypeName,
-			},
-			Value:      1.0,
-			SampleRate: 1.0,
-			Scope:      samplers.GlobalOnly,
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.gauge",
+			Type: veneur.GaugeTypeName,
 		},
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("counter"),
-				Type: CounterTypeName,
-			},
-			Value:      2.0,
-			SampleRate: 1.0,
-			Scope:      samplers.GlobalOnly,
+		Value:      1.0,
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.counter",
+			Type: veneur.CounterTypeName,
 		},
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("timer_mixed"),
-				Type: TimerTypeName,
-			},
-			Value:      100.0,
-			Digest:     12345,
-			SampleRate: 1.0,
-			Scope:      samplers.MixedScope,
+		Value:      2.0,
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.timer_mixed",
+			Type: veneur.TimerTypeName,
 		},
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("timer"),
-				Type: TimerTypeName,
-			},
-			Value:      100.0,
-			Digest:     12345,
-			SampleRate: 1.0,
-			Scope:      samplers.GlobalOnly,
+		Value:      100.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.MixedScope,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.timer",
+			Type: veneur.TimerTypeName,
 		},
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("set"),
-				Type: SetTypeName,
-			},
-			Value:      "test",
-			SampleRate: 1.0,
-			Scope:      samplers.GlobalOnly,
+		Value:      100.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.set",
+			Type: veneur.SetTypeName,
 		},
-		// Only global metrics should be forwarded
-		&samplers.UDPMetric{
-			MetricKey: samplers.MetricKey{
-				Name: testGRPCMetric("counter.local"),
-				Type: CounterTypeName,
-			},
-			Value:      100.0,
-			Digest:     12345,
-			SampleRate: 1.0,
-			Scope:      samplers.MixedScope,
+		Value:      "test",
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.counter.local",
+			Type: veneur.CounterTypeName,
 		},
-	}
+		Value:      100.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.MixedScope,
+	}}
 }
 
 // TestE2EForwardingGRPCMetrics inputs a set of metrics to a local Veneur,
@@ -181,9 +279,8 @@ func forwardGRPCTestMetrics() []*samplers.UDPMetric {
 // after passing through a proxy.
 func TestE2EForwardingGRPCMetrics(t *testing.T) {
 	ch := make(chan []samplers.InterMetric)
-	sink, _ := NewChannelMetricSink(ch)
 
-	ff := newForwardGRPCFixture(t, localConfig(), sink)
+	ff := newForwardGRPCFixture(t, ch)
 	defer ff.stop()
 
 	input := forwardGRPCTestMetrics()
@@ -196,27 +293,27 @@ func TestE2EForwardingGRPCMetrics(t *testing.T) {
 
 		expected := map[string]bool{}
 		for _, name := range []string{
-			testGRPCMetric("histogram.50percentile"),
-			testGRPCMetric("histogram.75percentile"),
-			testGRPCMetric("histogram.99percentile"),
-			testGRPCMetric("histogram_global.99percentile"),
-			testGRPCMetric("histogram_global.50percentile"),
-			testGRPCMetric("histogram_global.75percentile"),
-			testGRPCMetric("histogram_global.max"),
-			testGRPCMetric("histogram_global.min"),
-			testGRPCMetric("histogram_global.count"),
-			testGRPCMetric("timer_mixed.50percentile"),
-			testGRPCMetric("timer_mixed.75percentile"),
-			testGRPCMetric("timer_mixed.99percentile"),
-			testGRPCMetric("timer.50percentile"),
-			testGRPCMetric("timer.75percentile"),
-			testGRPCMetric("timer.99percentile"),
-			testGRPCMetric("timer.max"),
-			testGRPCMetric("timer.min"),
-			testGRPCMetric("timer.count"),
-			testGRPCMetric("counter"),
-			testGRPCMetric("gauge"),
-			testGRPCMetric("set"),
+			"test.grpc.histogram.50percentile",
+			"test.grpc.histogram.75percentile",
+			"test.grpc.histogram.99percentile",
+			"test.grpc.histogram_global.99percentile",
+			"test.grpc.histogram_global.50percentile",
+			"test.grpc.histogram_global.75percentile",
+			"test.grpc.histogram_global.max",
+			"test.grpc.histogram_global.min",
+			"test.grpc.histogram_global.count",
+			"test.grpc.timer_mixed.50percentile",
+			"test.grpc.timer_mixed.75percentile",
+			"test.grpc.timer_mixed.99percentile",
+			"test.grpc.timer.50percentile",
+			"test.grpc.timer.75percentile",
+			"test.grpc.timer.99percentile",
+			"test.grpc.timer.max",
+			"test.grpc.timer.min",
+			"test.grpc.timer.count",
+			"test.grpc.counter",
+			"test.grpc.gauge",
+			"test.grpc.set",
 		} {
 			expected[name] = false
 		}
