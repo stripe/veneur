@@ -39,9 +39,11 @@ type NewRelicMetricSink struct {
 
 // ParseConfig decodes the map config for a NewRelic sink into a
 // NewRelicSinkConfig struct.
-func ParseMetricConfig(config interface{}) (veneur.MetricSinkConfig, error) {
+func ParseMetricConfig(
+	name string, config interface{},
+) (veneur.MetricSinkConfig, error) {
 	newRelicConfig := NewRelicMetricSinkConfig{}
-	err := util.DecodeConfig(config, &newRelicConfig)
+	err := util.DecodeConfig(name, config, &newRelicConfig)
 	if err != nil {
 		return nil, err
 	}

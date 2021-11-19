@@ -72,9 +72,11 @@ func Create(
 }
 
 // ParseConfig extracts Cortex specific fields from the global veneur config
-func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
+func ParseConfig(
+	name string, config interface{},
+) (veneur.MetricSinkConfig, error) {
 	cortexConfig := CortexMetricSinkConfig{}
-	err := util.DecodeConfig(config, &cortexConfig)
+	err := util.DecodeConfig(name, config, &cortexConfig)
 	if err != nil {
 		return nil, err
 	}

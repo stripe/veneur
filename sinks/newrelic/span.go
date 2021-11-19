@@ -31,9 +31,11 @@ type NewRelicSpanSink struct {
 
 // ParseSpanConfig decodes the map config for a New Relic span sink into a
 // NewRelicSpanSinkConfig struct.
-func ParseSpanConfig(config interface{}) (veneur.SpanSinkConfig, error) {
+func ParseSpanConfig(
+	name string, config interface{},
+) (veneur.SpanSinkConfig, error) {
 	newRelicConfig := NewRelicSpanSinkConfig{}
-	err := util.DecodeConfig(config, &newRelicConfig)
+	err := util.DecodeConfig(name, config, &newRelicConfig)
 	if err != nil {
 		return nil, err
 	}
