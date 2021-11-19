@@ -697,7 +697,7 @@ func (p *Proxy) Shutdown() {
 	p.gRPCStop()
 }
 
-// isListeningHTTP returns if the Proxy is currently listening over HTTP
-func (p *Proxy) isListeningHTTP() bool {
+// IsListeningHTTP returns if the Proxy is currently listening over HTTP
+func (p *Proxy) IsListeningHTTP() bool {
 	return atomic.LoadInt32(p.numListeningHTTP) > 0
 }

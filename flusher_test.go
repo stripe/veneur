@@ -17,6 +17,79 @@ import (
 	"github.com/stripe/veneur/v14/samplers/metricpb"
 )
 
+func forwardGRPCTestMetrics() []*samplers.UDPMetric {
+	return []*samplers.UDPMetric{{
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.histogram",
+			Type: HistogramTypeName,
+		},
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.MixedScope,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.histogram_global",
+			Type: HistogramTypeName,
+		},
+		Value:      20.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.gauge",
+			Type: GaugeTypeName,
+		},
+		Value:      1.0,
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.counter",
+			Type: CounterTypeName,
+		},
+		Value:      2.0,
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.timer_mixed",
+			Type: TimerTypeName,
+		},
+		Value:      100.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.MixedScope,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.timer",
+			Type: TimerTypeName,
+		},
+		Value:      100.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.set",
+			Type: SetTypeName,
+		},
+		Value:      "test",
+		SampleRate: 1.0,
+		Scope:      samplers.GlobalOnly,
+	}, {
+		MetricKey: samplers.MetricKey{
+			Name: "test.grpc.counter.local",
+			Type: CounterTypeName,
+		},
+		Value:      100.0,
+		Digest:     12345,
+		SampleRate: 1.0,
+		Scope:      samplers.MixedScope,
+	}}
+}
+
 func TestServerFlushGRPC(t *testing.T) {
 	done := make(chan []string)
 	testServer := forwardtest.NewServer(func(ms []*metricpb.Metric) {
@@ -42,13 +115,13 @@ func TestServerFlushGRPC(t *testing.T) {
 	}
 
 	expected := []string{
-		testGRPCMetric("histogram"),
-		testGRPCMetric("histogram_global"),
-		testGRPCMetric("timer"),
-		testGRPCMetric("timer_mixed"),
-		testGRPCMetric("counter"),
-		testGRPCMetric("gauge"),
-		testGRPCMetric("set"),
+		"test.grpc.histogram",
+		"test.grpc.histogram_global",
+		"test.grpc.timer",
+		"test.grpc.timer_mixed",
+		"test.grpc.counter",
+		"test.grpc.gauge",
+		"test.grpc.set",
 	}
 
 	// Wait until the running server has flushed out the metrics for us:

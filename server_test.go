@@ -152,9 +152,6 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 	if err != nil {
 		t.Fatal(err)
 	}
-	if transport != nil {
-		server.HTTPClient.Transport = transport
-	}
 
 	if transport != nil {
 		server.HTTPClient.Transport = transport
@@ -1469,7 +1466,7 @@ func TestServeStopGRPC(t *testing.T) {
 }
 
 type testHTTPStarter interface {
-	isListeningHTTP() bool
+	IsListeningHTTP() bool
 }
 
 // waitForHTTPStart blocks until the Server's HTTP server is started, or until
@@ -1481,7 +1478,7 @@ func waitForHTTPStart(t testing.TB, s testHTTPStarter, timeout time.Duration) {
 	for {
 		select {
 		case <-tickCh:
-			if s.isListeningHTTP() {
+			if s.IsListeningHTTP() {
 				return
 			}
 		case <-timeoutCh:

@@ -1496,8 +1496,8 @@ func (s *Server) IsLocal() bool {
 	return s.ForwardAddr != ""
 }
 
-// isListeningHTTP returns if the Server is currently listening over HTTP
-func (s *Server) isListeningHTTP() bool {
+// IsListeningHTTP returns if the Server is currently listening over HTTP
+func (s *Server) IsListeningHTTP() bool {
 	return atomic.LoadInt32(s.numListeningHTTP) > 0
 }
 
