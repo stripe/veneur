@@ -17,6 +17,8 @@ func (factory *MockMetricSinkFactory) CreateMetricSink(
 	config veneur.Config, sinkConfig veneur.MetricSinkConfig,
 ) (sinks.MetricSink, error) {
 	sink := NewMockMetricSink(factory.Controller)
+	// Have the mock Name method always return the passed in name, since each sink
+	// should have this behavior.
 	sink.EXPECT().Name().AnyTimes().Return(name)
 	factory.Sinks[name] = sink
 	return sink, nil
@@ -32,6 +34,8 @@ func (factory *MockSpanSinkFactory) CreateSpanSink(
 	config veneur.Config, sinkConfig veneur.SpanSinkConfig,
 ) (sinks.SpanSink, error) {
 	sink := NewMockSpanSink(factory.Controller)
+	// Have the mock Name method always return the passed in name, since each sink
+	// should have this behavior.
 	sink.EXPECT().Name().AnyTimes().Return(name)
 	factory.Sinks[name] = sink
 	return sink, nil
