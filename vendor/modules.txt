@@ -99,6 +99,9 @@ github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/protoc-gen-gogo/descriptor
 github.com/gogo/protobuf/sortkeys
 github.com/gogo/protobuf/types
+# github.com/golang/mock v1.6.0
+## explicit
+github.com/golang/mock/gomock
 # github.com/golang/protobuf v1.4.2
 ## explicit
 github.com/golang/protobuf/jsonpb
@@ -315,11 +318,11 @@ goji.io/pat
 goji.io/pattern
 # golang.org/x/crypto v0.0.0-20200709230013-948cd5f35899
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/mod v0.4.0
+# golang.org/x/mod v0.4.2
 ## explicit
 golang.org/x/mod/module
 golang.org/x/mod/semver
-# golang.org/x/net v0.0.0-20200707034311-ab3426394381
+# golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -332,7 +335,7 @@ golang.org/x/net/trace
 # golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae
+# golang.org/x/sys v0.0.0-20210510120138-977fb7262007
 ## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
@@ -344,7 +347,7 @@ golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
 # golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 golang.org/x/time/rate
-# golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
+# golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
 # google.golang.org/appengine v1.6.6

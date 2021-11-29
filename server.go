@@ -23,7 +23,6 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/getsentry/sentry-go"
-	"github.com/newrelic/newrelic-client-go/pkg/plugins"
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
@@ -42,6 +41,7 @@ import (
 	"github.com/stripe/veneur/v14/sinks/prometheus"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
 	"github.com/stripe/veneur/v14/sinks/xray"
+	"github.com/stripe/veneur/v14/sources"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/tagging"
 	"github.com/stripe/veneur/v14/trace"
@@ -66,8 +66,19 @@ const defaultTCPReadTimeout = 10 * time.Minute
 
 const httpQuitEndpoint = "/quitquitquit"
 
+type ParsedSourceConfig interface{}
 type MetricSinkConfig interface{}
 type SpanSinkConfig interface{}
+
+type SourceTypes = map[string]struct {
+	// Creates a new source intsance.
+	Create func(
+		*Server, string, *logrus.Entry, ParsedSourceConfig,
+	) (sources.Source, error)
+	// Parses the config for the source into a format that is validated and safe
+	// to log.
+	ParseConfig func(interface{}) (ParsedSourceConfig, error)
+}
 
 type SpanSinkTypes = map[string]struct {
 	// Creates a new span sink intsance.
@@ -94,6 +105,7 @@ type ServerConfig struct {
 	Config          Config
 	Logger          *logrus.Logger
 	MetricSinkTypes MetricSinkTypes
+	SourceTypes     SourceTypes
 	SpanSinkTypes   SpanSinkTypes
 }
 
@@ -141,13 +153,11 @@ type Server struct {
 
 	HistogramPercentiles []float64
 
-	plugins   []plugins.Plugin
-	pluginMtx sync.Mutex
-
 	enableProfiling bool
 
 	HistogramAggregates samplers.HistogramAggregates
 
+	sources     []sources.Source
 	spanSinks   []sinks.SpanSink
 	metricSinks []sinks.MetricSink
 
@@ -310,6 +320,33 @@ func scopesFromConfig(conf Config) (scopedstatsd.MetricScopes, error) {
 		return ms, err
 	}
 	return ms, nil
+}
+
+func (server *Server) createSources(
+	logger *logrus.Logger, config *Config, sourceTypes SourceTypes,
+) ([]sources.Source, error) {
+	sources := []sources.Source{}
+	for index, sourceConfig := range config.Sources {
+		sourceFactory, ok := sourceTypes[sourceConfig.Kind]
+		if !ok {
+			logger.Warnf("Unknown source kind %s; skipping.", sourceConfig.Kind)
+		}
+		parsedSourceConfig, err := sourceFactory.ParseConfig(sourceConfig.Config)
+		if err != nil {
+			return nil, err
+		}
+		// Overwrite the map config with the parsed config. This prevents senstive
+		// fields in the map from accidentally being logged.
+		config.Sources[index].Config = parsedSourceConfig
+		source, err := sourceFactory.Create(
+			server, sourceConfig.Name, logger.WithField("source", sourceConfig.Name),
+			parsedSourceConfig)
+		if err != nil {
+			return nil, err
+		}
+		sources = append(sources, source)
+	}
+	return sources, nil
 }
 
 func (server *Server) createSpanSinks(
@@ -748,6 +785,11 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 		ret.grpcServer = importsrv.New(ingesters,
 			importsrv.WithTraceClient(ret.TraceClient))
+	}
+
+	ret.sources, err = ret.createSources(logger, &conf, config.SourceTypes)
+	if err != nil {
+		return nil, err
 	}
 
 	// If this is a global veneur then initialize the listening per protocol metrics
@@ -1373,6 +1415,13 @@ func (s *Server) Serve() {
 		}()
 	}
 
+	for _, source := range s.sources {
+		go func(source sources.Source) {
+			source.Start()
+			done <- struct{}{}
+		}(source)
+	}
+
 	if s.grpcListenAddress != "" {
 		go func() {
 			s.gRPCServe()
@@ -1383,6 +1432,9 @@ func (s *Server) Serve() {
 	// wait until at least one of the servers has shut down
 	<-done
 	graceful.Shutdown()
+	for _, source := range s.sources {
+		source.Stop()
+	}
 	s.gRPCStop()
 }
 
@@ -1483,6 +1535,9 @@ func (s *Server) Shutdown() {
 	log.Info("Shutting down server gracefully")
 	close(s.shutdown)
 	graceful.Shutdown()
+	for _, source := range s.sources {
+		source.Stop()
+	}
 	s.gRPCStop()
 
 	// Close the gRPC connection for forwarding
