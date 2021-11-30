@@ -89,7 +89,7 @@ func TestMigrateConfig(t *testing.T) {
 	}
 	MigrateConfig(&config)
 	assert.Len(t, config.MetricSinks, 1)
-	parsedConfig, err := ParseConfig(config.MetricSinks[0].Config)
+	parsedConfig, err := ParseConfig("singalfx", config.MetricSinks[0].Config)
 	assert.Nil(t, err)
 	signalFxConfig, ok := parsedConfig.(SignalFxSinkConfig)
 	assert.True(t, ok)

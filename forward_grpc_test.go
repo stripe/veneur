@@ -82,7 +82,9 @@ func setupVeneurServer(
 					}
 					return veneur.NewChannelMetricSink(ch)
 				},
-				ParseConfig: func(config interface{}) (veneur.MetricSinkConfig, error) {
+				ParseConfig: func(
+					name string, config interface{},
+				) (veneur.MetricSinkConfig, error) {
 					return config, nil
 				},
 			},

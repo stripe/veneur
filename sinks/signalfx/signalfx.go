@@ -241,9 +241,11 @@ func MigrateConfig(conf *veneur.Config) error {
 
 // ParseConfig decodes the map config for a SignalFx sink into a
 // SignalFxSinkConfig struct.
-func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
+func ParseConfig(
+	name string, config interface{},
+) (veneur.MetricSinkConfig, error) {
 	signalFxConfig := SignalFxSinkConfig{}
-	err := util.DecodeConfig(config, &signalFxConfig)
+	err := util.DecodeConfig(name, config, &signalFxConfig)
 	if err != nil {
 		return nil, err
 	}

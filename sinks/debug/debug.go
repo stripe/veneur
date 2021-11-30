@@ -39,7 +39,9 @@ type debugMetricSink struct {
 // Prevents debug sinks from logging at the same time.
 var mtx = sync.Mutex{}
 
-func ParseMetricConfig(_ interface{}) (veneur.MetricSinkConfig, error) {
+func ParseMetricConfig(
+	_ string, _ interface{},
+) (veneur.MetricSinkConfig, error) {
 	return nil, nil
 }
 
@@ -100,7 +102,6 @@ func (b *debugMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.S
 		// TODO: more information about events
 		b.log.Debugf("  %s: %s(%v) = %f%s", m.Metric.String(), m.Name, m.Tags, m.Value, msg)
 	}
-	return
 }
 
 type debugSpanSink struct {
@@ -109,7 +110,7 @@ type debugSpanSink struct {
 	name string
 }
 
-func ParseSpanConfig(_ interface{}) (veneur.SpanSinkConfig, error) {
+func ParseSpanConfig(_ string, _ interface{}) (veneur.SpanSinkConfig, error) {
 	return nil, nil
 }
 
@@ -173,5 +174,5 @@ func (b *debugSpanSink) Ingest(span *ssf.SSFSpan) error {
 }
 
 func (b *debugSpanSink) Flush() {
-	return
+	// Do nothing.
 }

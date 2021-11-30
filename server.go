@@ -87,7 +87,7 @@ type SpanSinkTypes = map[string]struct {
 	) (sinks.SpanSink, error)
 	// Parses the config for the sink into a format that is validated and safe to
 	// log.
-	ParseConfig func(interface{}) (SpanSinkConfig, error)
+	ParseConfig func(string, interface{}) (SpanSinkConfig, error)
 }
 
 type MetricSinkTypes = map[string]struct {
@@ -97,7 +97,7 @@ type MetricSinkTypes = map[string]struct {
 	) (sinks.MetricSink, error)
 	// Parses the config for the sink into a format that is validated and safe to
 	// log.
-	ParseConfig func(interface{}) (MetricSinkConfig, error)
+	ParseConfig func(string, interface{}) (MetricSinkConfig, error)
 }
 
 // Config used to create a new server.
@@ -358,7 +358,8 @@ func (server *Server) createSpanSinks(
 		if !ok {
 			logger.Warnf("Unknown sink kind %s; skipping.", sinkConfig.Kind)
 		}
-		parsedSinkConfig, err := sinkFactory.ParseConfig(sinkConfig.Config)
+		parsedSinkConfig, err := sinkFactory.ParseConfig(
+			sinkConfig.Name, sinkConfig.Config)
 		if err != nil {
 			return nil, err
 		}
@@ -386,7 +387,8 @@ func (server *Server) createMetricSinks(
 			logger.Warnf("Unknown sink kind %s; skipping.", sinkConfig.Kind)
 			continue
 		}
-		parsedSinkConfig, err := sinkFactory.ParseConfig(sinkConfig.Config)
+		parsedSinkConfig, err := sinkFactory.ParseConfig(
+			sinkConfig.Name, sinkConfig.Config)
 		if err != nil {
 			return nil, err
 		}
