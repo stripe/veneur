@@ -49,7 +49,7 @@ func ParseConfig(
 	name string, config interface{},
 ) (veneur.MetricSinkConfig, error) {
 	attributionSinkConfig := AttributionSinkConfig{}
-	err := util.DecodeConfig("attribution", config, &attributionSinkConfig)
+	err := util.DecodeConfig(name, config, &attributionSinkConfig)
 	if err != nil {
 		return nil, err
 	}
