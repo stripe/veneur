@@ -41,7 +41,7 @@ type Config struct {
 	ForwardAddress                            string                             `yaml:"forward_address"`
 	ForwardUseGrpc                            bool                               `yaml:"forward_use_grpc"`
 	GrpcAddress                               string                             `yaml:"grpc_address"`
-	GrpcListenAddresses                       []string                           `yaml:"grpc_listen_addresses"`
+	GrpcListenAddresses                       []util.Url                         `yaml:"grpc_listen_addresses"`
 	Hostname                                  string                             `yaml:"hostname"`
 	HTTPAddress                               string                             `yaml:"http_address"`
 	HTTPQuit                                  bool                               `yaml:"http_quit"`

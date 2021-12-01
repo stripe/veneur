@@ -2,7 +2,6 @@ package veneur
 
 import (
 	"context"
-	"log"
 	"testing"
 	"time"
 
