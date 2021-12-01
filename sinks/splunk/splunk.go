@@ -122,9 +122,11 @@ func MigrateConfig(conf *veneur.Config) error {
 
 // ParseConfig decodes the map config for a Splunk sink into a SplunkSinkConfig
 // struct.
-func ParseConfig(config interface{}) (veneur.SpanSinkConfig, error) {
+func ParseConfig(
+	name string, config interface{},
+) (veneur.SpanSinkConfig, error) {
 	signalFxConfig := SplunkSinkConfig{}
-	err := util.DecodeConfig(config, &signalFxConfig)
+	err := util.DecodeConfig(name, config, &signalFxConfig)
 	if err != nil {
 		return nil, err
 	}

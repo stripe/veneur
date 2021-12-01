@@ -69,9 +69,11 @@ func MigrateConfig(config *veneur.Config) {
 
 // ParseConfig decodes the map config for an local file sink into a
 // LocalFileSinkConfig struct.
-func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
+func ParseConfig(
+	name string, config interface{},
+) (veneur.MetricSinkConfig, error) {
 	localFileConfig := LocalFileSinkConfig{}
-	err := util.DecodeConfig(config, &localFileConfig)
+	err := util.DecodeConfig(name, config, &localFileConfig)
 	if err != nil {
 		return nil, err
 	}

@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"math/rand"
 	"net"
+	"net/url"
 	"time"
 
 	"sync/atomic"
@@ -311,14 +312,14 @@ func newFlushNofifier(backend ClientBackend) flushNotifier {
 // NewClient constructs a new client that will attempt to connect
 // to addrStr (an address in veneur URL format) using the parameters
 // in opts. It returns the constructed client or an error.
-func NewClient(addrStr string, opts ...ClientParam) (*Client, error) {
+func NewClient(url *url.URL, opts ...ClientParam) (*Client, error) {
 	n, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
 		return nil, err
 	}
 	rand.Seed(n.Int64())
 
-	addr, err := protocol.ResolveAddr(addrStr)
+	addr, err := protocol.ResolveAddr(url)
 	if err != nil {
 		return nil, err
 	}
@@ -444,7 +445,10 @@ const DefaultParallelism = 8
 
 // DefaultVeneurAddress is the address that a reasonable veneur should
 // listen on. Currently it defaults to UDP port 8128.
-const DefaultVeneurAddress string = "udp://127.0.0.1:8128"
+var DefaultVeneurAddress = &url.URL{
+	Scheme: "udp",
+	Host:   "127.0.0.1:8128",
+}
 
 // ErrNoClient indicates that no client is yet initialized.
 var ErrNoClient = errors.New("client is not initialized")

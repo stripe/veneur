@@ -360,12 +360,12 @@ func TestWorkerMetricsForwardableMetrics(t *testing.T) {
 				testMetric{
 					name:  "test.gauge",
 					scope: samplers.MixedScope,
-					mType: gaugeTypeName,
+					mType: GaugeTypeName,
 				},
 				testMetric{
 					name:  "test.counter",
 					scope: samplers.LocalOnly,
-					mType: counterTypeName,
+					mType: CounterTypeName,
 				},
 			},
 			expected: []testMetric{},
@@ -376,19 +376,19 @@ func TestWorkerMetricsForwardableMetrics(t *testing.T) {
 				testMetric{
 					name:  "test.gauge",
 					scope: samplers.MixedScope,
-					mType: gaugeTypeName,
+					mType: GaugeTypeName,
 				},
 				testMetric{
 					name:  "test.mixed.histo",
 					scope: samplers.MixedScope,
-					mType: histogramTypeName,
+					mType: HistogramTypeName,
 				},
 			},
 			expected: []testMetric{
 				testMetric{
 					name:  "test.mixed.histo",
 					scope: samplers.MixedScope,
-					mType: histogramTypeName,
+					mType: HistogramTypeName,
 				},
 			},
 		},
@@ -437,7 +437,7 @@ func BenchmarkWork(b *testing.B) {
 		m := samplers.UDPMetric{
 			MetricKey: samplers.MetricKey{
 				Name: "counter",
-				Type: counterTypeName,
+				Type: CounterTypeName,
 			},
 			Value:      20.0,
 			Digest:     12345,
@@ -447,14 +447,14 @@ func BenchmarkWork(b *testing.B) {
 
 		switch r := i % 5; r {
 		case 1:
-			m.MetricKey.Type = gaugeTypeName
+			m.MetricKey.Type = GaugeTypeName
 		case 2:
-			m.MetricKey.Type = histogramTypeName
+			m.MetricKey.Type = HistogramTypeName
 		case 3:
-			m.MetricKey.Type = setTypeName
+			m.MetricKey.Type = SetTypeName
 			m.Value = "a value here!"
 		case 4:
-			m.MetricKey.Type = timerTypeName
+			m.MetricKey.Type = TimerTypeName
 		default:
 			// do nothing
 		}

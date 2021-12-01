@@ -45,9 +45,11 @@ type AttributionSinkConfig struct {
 
 // ParseConfig decodes the map config for an S3 sink into an AttributionSinkConfig
 // struct.
-func ParseConfig(config interface{}) (veneur.MetricSinkConfig, error) {
+func ParseConfig(
+	name string, config interface{},
+) (veneur.MetricSinkConfig, error) {
 	attributionSinkConfig := AttributionSinkConfig{}
-	err := util.DecodeConfig(config, &attributionSinkConfig)
+	err := util.DecodeConfig(name, config, &attributionSinkConfig)
 	if err != nil {
 		return nil, err
 	}

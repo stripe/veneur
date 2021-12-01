@@ -2,8 +2,8 @@ package trace
 
 import (
 	"context"
-	"fmt"
 	"net"
+	"net/url"
 	"testing"
 	"time"
 
@@ -60,7 +60,10 @@ func testRecord(t *testing.T, trace *Trace, name string, tags map[string]string)
 		close(kill)
 	}()
 
-	client, err := NewClient(fmt.Sprintf("udp://%s", serverConn.LocalAddr().String()))
+	client, err := NewClient(&url.URL{
+		Scheme: "udp",
+		Host:   serverConn.LocalAddr().String(),
+	})
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -72,7 +75,7 @@ func testRecord(t *testing.T, trace *Trace, name string, tags map[string]string)
 		end = time.Now()
 
 		select {
-		case _ = <-kill:
+		case <-kill:
 			assert.Fail(t, "timed out waiting for socket read")
 		case resp := <-respChan:
 			// Because this is marshalled using protobuf,

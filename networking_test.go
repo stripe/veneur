@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/url"
 	"sync"
 	"testing"
 	"time"
@@ -28,7 +29,10 @@ func TestMultipleListeners(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 
-	addrNet, err := protocol.ResolveAddr(fmt.Sprintf("unix://%s/socket", dir))
+	addrNet, err := protocol.ResolveAddr(&url.URL{
+		Scheme: "unix",
+		Path:   fmt.Sprintf("/%s/socket", dir),
+	})
 	require.NoError(t, err)
 	addr, ok := addrNet.(*net.UnixAddr)
 	require.True(t, ok)
@@ -57,7 +61,10 @@ func TestConnectUNIX(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 
-	addrNet, err := protocol.ResolveAddr(fmt.Sprintf("unix://%s/socket", dir))
+	addrNet, err := protocol.ResolveAddr(&url.URL{
+		Scheme: "unix",
+		Path:   fmt.Sprintf("/%s/socket", dir),
+	})
 	require.NoError(t, err)
 	addr, ok := addrNet.(*net.UnixAddr)
 	require.True(t, ok)
@@ -108,7 +115,10 @@ func TestConnectUNIXStatsd(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 
-	addrNet, err := protocol.ResolveAddr(fmt.Sprintf("unixgram://%s/datagramsocket", dir))
+	addrNet, err := protocol.ResolveAddr(&url.URL{
+		Scheme: "unixgram",
+		Path:   fmt.Sprintf("/%s/datagramsocket", dir),
+	})
 	require.NoError(t, err)
 	addr, ok := addrNet.(*net.UnixAddr)
 	require.True(t, ok)
@@ -158,7 +168,10 @@ func TestConnectUNIXStatsd(t *testing.T) {
 func TestHealthCheckGRPC(t *testing.T) {
 	srv := &Server{}
 
-	addrNet, err := protocol.ResolveAddr("tcp://127.0.0.1:8181")
+	addrNet, err := protocol.ResolveAddr(&url.URL{
+		Scheme: "tcp",
+		Host:   "127.0.0.1:8181",
+	})
 	require.NoError(t, err)
 	addr, ok := addrNet.(*net.TCPAddr)
 	require.True(t, ok)
@@ -193,7 +206,10 @@ func TestConnectSSFGRPC(t *testing.T) {
 	srv := &Server{}
 	srv.SpanChan = make(chan *ssf.SSFSpan, 100)
 
-	addrNet, err := protocol.ResolveAddr("tcp://127.0.0.1:8181")
+	addrNet, err := protocol.ResolveAddr(&url.URL{
+		Scheme: "tcp",
+		Host:   "127.0.0.1:8181",
+	})
 	require.NoError(t, err)
 	addr, ok := addrNet.(*net.TCPAddr)
 	require.True(t, ok)
@@ -228,7 +244,10 @@ func TestConnectDogstatsdGRPC(t *testing.T) {
 	srv := &Server{}
 	srv.SpanChan = make(chan *ssf.SSFSpan, 100)
 
-	addrNet, err := protocol.ResolveAddr("tcp://127.0.0.1:8181")
+	addrNet, err := protocol.ResolveAddr(&url.URL{
+		Scheme: "tcp",
+		Host:   "127.0.0.1:8181",
+	})
 	require.NoError(t, err)
 	addr, ok := addrNet.(*net.TCPAddr)
 	require.True(t, ok)

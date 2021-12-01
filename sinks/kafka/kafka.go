@@ -135,9 +135,11 @@ func MigrateConfig(conf *veneur.Config) error {
 
 // ParseMetricConfig decodes the map config for a Kafka metric sink into a
 // KafkaMetricSinkConfig struct.
-func ParseMetricConfig(config interface{}) (veneur.MetricSinkConfig, error) {
+func ParseMetricConfig(
+	name string, config interface{},
+) (veneur.MetricSinkConfig, error) {
 	kafkaConfig := KafkaMetricSinkConfig{}
-	err := util.DecodeConfig(config, &kafkaConfig)
+	err := util.DecodeConfig(name, config, &kafkaConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -309,9 +311,11 @@ func (k *KafkaMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.S
 
 // ParseSpanConfig decodes the map config for a Kafka span sink into a
 // KafkaSpanSinkConfig struct.
-func ParseSpanConfig(config interface{}) (veneur.SpanSinkConfig, error) {
+func ParseSpanConfig(
+	name string, config interface{},
+) (veneur.SpanSinkConfig, error) {
 	kafkaConfig := KafkaSpanSinkConfig{}
-	err := util.DecodeConfig(config, &kafkaConfig)
+	err := util.DecodeConfig(name, config, &kafkaConfig)
 	if err != nil {
 		return nil, err
 	}

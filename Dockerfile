@@ -8,9 +8,9 @@ ENV GOPATH=/go
 ENV GO111MODULE=on
 RUN apt-get update
 RUN apt-get install -y zip
-RUN go get -u -v github.com/ChimeraCoder/gojson/gojson
-RUN go get -u -v github.com/gogo/protobuf/protoc-gen-gogofaster@v1.2.1
-RUN go get -u -v golang.org/x/tools/cmd/stringer
+RUN go install github.com/gogo/protobuf/protoc-gen-gogofaster@v1.2.1 && \
+    go install golang.org/x/tools/cmd/stringer@v0.1.7 && \
+    go install github.com/golang/mock/mockgen@v1.6.0
 WORKDIR /protoc
 RUN wget https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
 RUN unzip protoc-3.1.0-linux-x86_64.zip

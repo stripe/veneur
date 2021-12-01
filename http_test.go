@@ -338,7 +338,7 @@ func TestNoTracingConfiguredTraceHealthCheck(t *testing.T) {
 
 	config := localConfig()
 
-	config.SsfListenAddresses = []string{}
+	config.SsfListenAddresses = []util.Url{}
 	server, _ := NewFromConfig(ServerConfig{
 		Logger: logrus.New(),
 		Config: config,
@@ -358,7 +358,7 @@ func TestBuildDate(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/builddate", nil)
 
 	config := localConfig()
-	config.SsfListenAddresses = []string{}
+	config.SsfListenAddresses = []util.Url{}
 	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 
@@ -390,7 +390,7 @@ func TestVersion(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/version", nil)
 
 	config := localConfig()
-	config.SsfListenAddresses = []string{}
+	config.SsfListenAddresses = []util.Url{}
 	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 

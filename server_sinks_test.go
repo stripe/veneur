@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -148,7 +149,12 @@ func TestNewDatadogMetricSinkConfig(t *testing.T) {
 		DatadogAPIHostname:     "http://api",
 		DatadogTraceAPIAddress: "http://trace",
 		DatadogSpanBufferSize:  32,
-		SsfListenAddresses:     []string{"udp://127.0.0.1:99"},
+		SsfListenAddresses: []util.Url{{
+			Value: &url.URL{
+				Scheme: "udp",
+				Host:   "127.0.0.1:99",
+			},
+		}},
 
 		// required or NewFromConfig fails
 		Interval:     time.Duration(10 * time.Second),

@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/big"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -338,7 +339,14 @@ func Main(args []string) int {
 				return 1
 			}
 		} else { // SSF via UDP
-			client, err := trace.NewClient(addr)
+			u, err := url.Parse(addr)
+			if err != nil {
+				logrus.WithError(err).
+					WithField("address", addr).
+					Error("error parsing address")
+				return 1
+			}
+			client, err := trace.NewClient(u)
 			if err != nil {
 				logrus.WithError(err).
 					WithField("address", addr).
@@ -470,24 +478,28 @@ func destination(hostport string, isGrpc bool) (string, net.Addr, error) {
 		return "", nil, errors.New("you must specify a valid hostport")
 	}
 
-	hostport, addr, err := resolveHostport(hostport, defaultScheme)
+	resolvedHostport, addr, err := resolveHostport(hostport, defaultScheme)
+	if err == nil {
+		return resolvedHostport, addr, nil
+	}
+	// This is fine - we can attempt to treat the
+	// host:port combination as a UDP address:
+	hostport = fmt.Sprintf("%s://%s", defaultScheme, hostport)
+	resolvedHostport, addr, err = resolveHostport(hostport, defaultScheme)
 	if err != nil {
 		return "", nil, err
 	}
-	return hostport, addr, nil
+	return resolvedHostport, addr, nil
 }
 
 func resolveHostport(hostport string, defaultScheme string) (string, net.Addr, error) {
-	netAddr, err := protocol.ResolveAddr(hostport)
+	u, err := url.Parse(hostport)
 	if err != nil {
-		// This is fine - we can attempt to treat the
-		// host:port combination as a UDP address:
-		hostport := fmt.Sprintf("%s://%s", defaultScheme, hostport)
-		udpAddr, err := protocol.ResolveAddr(hostport)
-		if err != nil {
-			return "", nil, err
-		}
-		return hostport, udpAddr, nil
+		return "", nil, err
+	}
+	netAddr, err := protocol.ResolveAddr(u)
+	if err != nil {
+		return "", nil, err
 	}
 	return hostport, netAddr, nil
 }

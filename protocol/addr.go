@@ -15,11 +15,7 @@ import (
 //   udp6://127.0.0.1:8000
 //   unix:///tmp/foo.sock
 //   tcp://127.0.0.1:9002
-func ResolveAddr(str string) (net.Addr, error) {
-	u, err := url.Parse(str)
-	if err != nil {
-		return nil, err
-	}
+func ResolveAddr(u *url.URL) (net.Addr, error) {
 	switch u.Scheme {
 	case "unix", "unixgram", "unixpacket":
 		var path string

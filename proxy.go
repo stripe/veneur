@@ -229,7 +229,7 @@ func NewProxyFromConfig(
 	}
 
 	proxy.TraceClient = trace.DefaultClient
-	if conf.SsfDestinationAddress != "" {
+	if conf.SsfDestinationAddress.Value != nil {
 		stats, err := statsd.New(
 			conf.StatsAddress, statsd.WithoutTelemetry(),
 			statsd.WithMaxMessagesPerPayload(4096))
@@ -238,7 +238,7 @@ func NewProxyFromConfig(
 		}
 		stats.Namespace = "veneur_proxy."
 		format := "ssf_format:packet"
-		if strings.HasPrefix(conf.SsfDestinationAddress, "unix://") {
+		if conf.SsfDestinationAddress.Value.Scheme == "unix" {
 			format = "ssf_format:framed"
 		}
 
@@ -255,7 +255,7 @@ func NewProxyFromConfig(
 			return nil, err
 		}
 
-		proxy.TraceClient, err = trace.NewClient(conf.SsfDestinationAddress,
+		proxy.TraceClient, err = trace.NewClient(conf.SsfDestinationAddress.Value,
 			trace.Buffered,
 			trace.Capacity(uint(conf.TracingClientCapacity)),
 			trace.FlushInterval(traceFlushInterval),
@@ -697,7 +697,7 @@ func (p *Proxy) Shutdown() {
 	p.gRPCStop()
 }
 
-// isListeningHTTP returns if the Proxy is currently listening over HTTP
-func (p *Proxy) isListeningHTTP() bool {
+// IsListeningHTTP returns if the Proxy is currently listening over HTTP
+func (p *Proxy) IsListeningHTTP() bool {
 	return atomic.LoadInt32(p.numListeningHTTP) > 0
 }
