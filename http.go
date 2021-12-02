@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/pprof"
 	"sort"
@@ -10,6 +11,7 @@ import (
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"gopkg.in/yaml.v2"
 
 	"context"
 
@@ -33,6 +35,32 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc(pat.Get("/version"), func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(VERSION))
 	})
+
+	mux.HandleFunc(
+		pat.Get("/config/json"),
+		func(w http.ResponseWriter, r *http.Request) {
+			config, err := json.MarshalIndent(s.Config, "", "  ")
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			w.Header().Add("Content-Type", "application/json")
+			w.Write(config)
+		})
+
+	mux.HandleFunc(
+		pat.Get("/config/yaml"),
+		func(w http.ResponseWriter, r *http.Request) {
+			config, err := yaml.Marshal(s.Config)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(err.Error()))
+				return
+			}
+			w.Header().Add("Content-Type", "application/x-yaml")
+			w.Write(config)
+		})
 
 	if s.httpQuit {
 		mux.HandleFunc(pat.Post(httpQuitEndpoint), func(w http.ResponseWriter, r *http.Request) {

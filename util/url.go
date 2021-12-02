@@ -1,11 +1,20 @@
 package util
 
 import (
+	"fmt"
 	"net/url"
 )
 
 type Url struct {
 	Value *url.URL
+}
+
+func (u Url) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("\"%s\"", u.Value.String())), nil
+}
+
+func (u Url) MarshalYAML() (interface{}, error) {
+	return u.Value.String(), nil
 }
 
 func (u *Url) UnmarshalYAML(unmarshal func(interface{}) error) error {
