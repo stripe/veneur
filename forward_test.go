@@ -100,7 +100,7 @@ func (ff *forwardFixture) IngestMetric(m *samplers.UDPMetric) {
 func TestE2EForwardingIndicatorMetrics(t *testing.T) {
 	t.Parallel()
 	ch := make(chan []samplers.InterMetric)
-	sink, _ := NewChannelMetricSink(ch)
+	sink, _ := NewChannelMetricSink(ch, "channel")
 	cfg := localConfig()
 	cfg.IndicatorSpanTimerName = "indicator.span.timer"
 	ffx := newForwardingFixture(t, cfg, nil, sink)
@@ -144,7 +144,7 @@ func TestE2EForwardingIndicatorMetrics(t *testing.T) {
 func TestE2EForwardMetric(t *testing.T) {
 	t.Parallel()
 	ch := make(chan []samplers.InterMetric)
-	sink, _ := NewChannelMetricSink(ch)
+	sink, _ := NewChannelMetricSink(ch, "channel")
 	cfg := localConfig()
 	cfg.IndicatorSpanTimerName = "indicator.span.timer"
 	ffx := newForwardingFixture(t, cfg, nil, sink)

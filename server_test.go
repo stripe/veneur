@@ -169,7 +169,9 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 	}
 	server.metricSinks = append(server.metricSinks, mSink)
 	server.subscribedFlushGroupsBySink = map[string][]string{}
-	server.subscribedFlushGroupsBySink[mSink.Name()] = []string{"default"}
+	if !server.enableMetricRouting {
+		server.subscribedFlushGroupsBySink[mSink.Name()] = []string{"default"}
+	}
 
 	if sSink == nil {
 		// Install a blackhole sink if we have no other sinks
@@ -183,19 +185,21 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 
 type channelMetricSink struct {
 	metricsChannel chan []samplers.InterMetric
+	name           string
 }
 
 // NewChannelMetricSink creates a new channelMetricSink. This sink writes any
 // flushed metrics to its `metricsChannel` such that the test can inspect
 // the metrics for correctness.
-func NewChannelMetricSink(ch chan []samplers.InterMetric) (*channelMetricSink, error) {
+func NewChannelMetricSink(ch chan []samplers.InterMetric, name string) (*channelMetricSink, error) {
 	return &channelMetricSink{
 		metricsChannel: ch,
+		name:           name,
 	}, nil
 }
 
 func (c *channelMetricSink) Name() string {
-	return "channel"
+	return c.name
 }
 
 func (c *channelMetricSink) Start(*trace.Client) error {
@@ -250,7 +254,7 @@ func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	config.Tags = []string{"butts:farts"}
 
 	metricsChan := make(chan []samplers.InterMetric, 10)
-	cms, _ := NewChannelMetricSink(metricsChan)
+	cms, _ := NewChannelMetricSink(metricsChan, "channel")
 	defer close(metricsChan)
 
 	f := newFixture(t, config, cms, nil)
@@ -280,7 +284,7 @@ func TestGlobalServerFlush(t *testing.T) {
 	config := globalConfig()
 
 	metricsChan := make(chan []samplers.InterMetric, 10)
-	cms, _ := NewChannelMetricSink(metricsChan)
+	cms, _ := NewChannelMetricSink(metricsChan, "channel")
 	defer close(metricsChan)
 
 	f := newFixture(t, config, cms, nil)
@@ -572,7 +576,7 @@ func TestUDPMetrics(t *testing.T) {
 		},
 	}}
 	ch := make(chan []samplers.InterMetric, 20)
-	sink, _ := NewChannelMetricSink(ch)
+	sink, _ := NewChannelMetricSink(ch, "channel")
 	f := newFixture(t, config, sink, nil)
 	defer f.Close()
 
@@ -606,7 +610,7 @@ func TestUnixSocketMetrics(t *testing.T) {
 		},
 	}}
 	ch := make(chan []samplers.InterMetric, 20)
-	sink, _ := NewChannelMetricSink(ch)
+	sink, _ := NewChannelMetricSink(ch, "channel")
 	f := newFixture(t, config, sink, nil)
 	defer f.Close()
 
@@ -651,7 +655,7 @@ func TestAbstractUnixSocketMetrics(t *testing.T) {
 		},
 	}}
 	ch := make(chan []samplers.InterMetric, 20)
-	sink, _ := NewChannelMetricSink(ch)
+	sink, _ := NewChannelMetricSink(ch, "channel")
 	f := newFixture(t, config, sink, nil)
 	defer f.Close()
 
@@ -697,7 +701,7 @@ func TestMultipleUDPSockets(t *testing.T) {
 		},
 	}}
 	ch := make(chan []samplers.InterMetric, 20)
-	sink, _ := NewChannelMetricSink(ch)
+	sink, _ := NewChannelMetricSink(ch, "channel")
 	f := newFixture(t, config, sink, nil)
 	defer f.Close()
 
@@ -741,7 +745,7 @@ func TestUDPMetricsSSF(t *testing.T) {
 		},
 	}}
 	ch := make(chan []samplers.InterMetric, 20)
-	sink, _ := NewChannelMetricSink(ch)
+	sink, _ := NewChannelMetricSink(ch, "channel")
 	f := newFixture(t, config, sink, nil)
 	defer f.Close()
 
@@ -803,7 +807,9 @@ func keepFlushing(ctx context.Context, server *Server) {
 			case <-ctx.Done():
 				return
 			default:
-				server.Flush(ctx, server.WorkerSets[0])
+				for _, ws := range server.WorkerSets {
+					server.Flush(ctx, ws)
+				}
 				time.Sleep(time.Millisecond)
 			}
 		}
@@ -827,7 +833,7 @@ func TestUNIXMetricsSSF(t *testing.T) {
 		}},
 	}
 	ch := make(chan []samplers.InterMetric, 20)
-	sink, _ := NewChannelMetricSink(ch)
+	sink, _ := NewChannelMetricSink(ch, "channel")
 	f := newFixture(t, config, sink, nil)
 	defer f.Close()
 
@@ -1284,7 +1290,7 @@ func TestSSFMetricsEndToEnd(t *testing.T) {
 	config := localConfig()
 	config.SsfListenAddresses = []util.Url{{Value: ssfAddr}}
 	metricsChan := make(chan []samplers.InterMetric, 10)
-	cms, _ := NewChannelMetricSink(metricsChan)
+	cms, _ := NewChannelMetricSink(metricsChan, "channel")
 	f := newFixture(t, config, cms, nil)
 	defer f.Close()
 
@@ -1349,7 +1355,7 @@ func TestInternalSSFMetricsEndToEnd(t *testing.T) {
 		},
 	}}
 	metricsChan := make(chan []samplers.InterMetric, 10)
-	cms, _ := NewChannelMetricSink(metricsChan)
+	cms, _ := NewChannelMetricSink(metricsChan, "channel")
 	f := newFixture(t, config, cms, nil)
 	defer f.Close()
 
@@ -1676,4 +1682,88 @@ func BenchmarkHandleSSF(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		f.server.handleSSF(spans[i%LEN], "packet", SSF_UNIX)
 	}
+}
+
+func TestWorkerSetDistinctness(t *testing.T) {
+	config := localConfig()
+	config.Features.EnableMetricRouting = true
+	config.MetricComputationRouting = []routing.ComputationRoutingConfig{
+		{
+			FlushGroup: "A",
+			MatcherConfigs: []routing.MatcherConfig{
+				{
+					Name: routing.NameMatcher{
+						Match: func(s string) bool {
+							return s == "foo.1"
+						},
+					},
+				},
+			},
+			WorkerInterval:          time.Second * 10,
+			WorkerWatchdogIntervals: 3,
+			WorkerCount:             1,
+			ForwardMetrics:          true,
+		},
+		{
+			FlushGroup: "B",
+			MatcherConfigs: []routing.MatcherConfig{
+				{
+					Name: routing.NameMatcher{
+						Match: func(s string) bool {
+							return s == "foo.2"
+						},
+					},
+				},
+			},
+			WorkerInterval:          time.Second * 10,
+			WorkerWatchdogIntervals: 3,
+			WorkerCount:             1,
+			ForwardMetrics:          true,
+		},
+	}
+	config.StatsdListenAddresses = []util.Url{{
+		Value: &url.URL{
+			Scheme: "udp",
+			Host:   "127.0.0.1:0",
+		},
+	}}
+
+	ch1 := make(chan []samplers.InterMetric, 20)
+	sink1, _ := NewChannelMetricSink(ch1, "ch1")
+	ch2 := make(chan []samplers.InterMetric, 20)
+	sink2, _ := NewChannelMetricSink(ch2, "ch2")
+
+	s := setupVeneurServer(t, config, nil, sink1, nil, nil)
+	s.metricSinks = append(s.metricSinks, sink2)
+	s.subscribedFlushGroupsBySink[sink1.Name()] = []string{"A"}
+	s.subscribedFlushGroupsBySink[sink2.Name()] = []string{"B"}
+
+	addr := s.StatsdListenAddrs[0]
+	conn := connectToAddress(t, "udp", addr.String(), 20*time.Millisecond)
+
+	conn.Write([]byte("foo.1:1|c|#baz:gorch"))
+	conn.Write([]byte("foo.2:1|c|#baz:gorch"))
+	ctx, cancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
+	defer cancel()
+	keepFlushing(ctx, s)
+
+	metrics1 := <-ch1
+	require.Equal(t, 1, len(metrics1), "we got a single metric")
+	assert.Equal(t, "foo.1", metrics1[0].Name, "ws1 processed the metric")
+
+	metrics2 := <-ch2
+	require.Equal(t, 1, len(metrics2), "we got a single metric")
+	assert.Equal(t, "foo.2", metrics2[0].Name, "ws2 processed the metric")
+
+	go func() {
+		select {
+		case <-ch1:
+			assert.FailNow(t, "we should not have gotten a second metric")
+		case <-ch2:
+			assert.FailNow(t, "we should not have gotten a second metric")
+		case <-time.After(1 * time.Second):
+			t.Log("neither ws received a second metric")
+			return
+		}
+	}()
 }

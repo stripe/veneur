@@ -185,7 +185,7 @@ func TestServerFlushGRPCTimeout(t *testing.T) {
 // Just test that a flushing to a bad address is handled without panicing
 func TestServerFlushGRPCBadAddress(t *testing.T) {
 	rcv := make(chan []samplers.InterMetric, 10)
-	sink, err := NewChannelMetricSink(rcv)
+	sink, err := NewChannelMetricSink(rcv, "rcv")
 	require.NoError(t, err)
 
 	localCfg := localConfig()
@@ -220,7 +220,7 @@ func TestServerFlushGRPCBadAddress(t *testing.T) {
 // histo).
 func TestGlobalAcceptsHistogramsOverUDP(t *testing.T) {
 	rcv := make(chan []samplers.InterMetric, 10)
-	sink, err := NewChannelMetricSink(rcv)
+	sink, err := NewChannelMetricSink(rcv, "rcv")
 	require.NoError(t, err)
 
 	cfg := globalConfig()

@@ -80,7 +80,7 @@ func setupVeneurServer(
 					if !ok {
 						return nil, errors.New("invalid config")
 					}
-					return veneur.NewChannelMetricSink(ch)
+					return veneur.NewChannelMetricSink(ch, "channel")
 				},
 				ParseConfig: func(
 					name string, config interface{},
