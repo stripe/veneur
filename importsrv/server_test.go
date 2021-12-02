@@ -152,3 +152,55 @@ func BenchmarkImportServerSendMetrics(b *testing.B) {
 		})
 	}
 }
+
+func TestWorkerSetMetricHandling(t *testing.T) {
+	matcherConfigs := [...]routing.MatcherConfig{
+		{
+			Name: routing.NameMatcher{
+				Match: func(s string) bool {
+					return true
+				},
+			},
+		},
+		{
+			Name: routing.NameMatcher{
+				Match: func(s string) bool {
+					return s == "test.gauge"
+				},
+			},
+		},
+		{
+			Name: routing.NameMatcher{
+				Match: func(s string) bool {
+					return false
+				},
+			},
+		},
+	}
+
+	ingesterSets := []IngesterSet{}
+	introspectableIngesters := []*testMetricIngester{}
+	for i := 0; i < 3; i++ {
+		ingesters := []*testMetricIngester{{}}
+		introspectableIngesters = append(introspectableIngesters, ingesters[0])
+		casted := []MetricIngester{ingesters[0]}
+		ingesterSet := IngesterSet{casted, &routing.ComputationRoutingConfig{
+			MatcherConfigs: []routing.MatcherConfig{
+				matcherConfigs[i],
+			},
+		}}
+		ingesterSets = append(ingesterSets, ingesterSet)
+	}
+	s := New(ingesterSets)
+
+	inputs := []*metricpb.Metric{
+		{Name: "test.counter", Type: metricpb.Type_Counter, Tags: []string{"tag:1"}},
+		{Name: "test.gauge", Type: metricpb.Type_Counter, Tags: []string{"tag:1"}},
+	}
+
+	s.SendMetrics(context.Background(), &forwardrpc.MetricList{Metrics: inputs})
+
+	assert.Equal(t, []*metricpb.Metric{inputs[0], inputs[1]}, introspectableIngesters[0].metrics, "IngesterSet 0 has the wrong metrics")
+	assert.Equal(t, []*metricpb.Metric{inputs[1]}, introspectableIngesters[1].metrics, "IngesterSet 1 has the wrong metrics")
+	assert.Equal(t, 0, len(introspectableIngesters[2].metrics), "IngesterSet 2 has the wrong metrics")
+}
