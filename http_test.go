@@ -483,3 +483,32 @@ func TestConfigYaml(t *testing.T) {
 	assert.Equal(t, http.StatusOK, recorder.Code)
 	assert.Equal(t, string(expectedBody), string(body))
 }
+
+func TestConfigDisabled(t *testing.T) {
+	config := Config{
+		Aggregates: []string{"min", "max", "count"},
+		HTTP: HttpConfig{
+			Config: false,
+		},
+		Interval:            time.Millisecond,
+		NumReaders:          1,
+		Percentiles:         []float64{.5, .75, .99},
+		ReadBufferSizeBytes: 2097152,
+		SentryDsn: util.StringSecret{
+			Value: "https://public@sentry.example.com/1",
+		},
+		StatsAddress: "localhost:8125",
+	}
+	server := setupVeneurServer(t, config, nil, nil, nil, nil)
+	handler := server.Handler()
+
+	jsonRequest := httptest.NewRequest(http.MethodGet, "/config/json", nil)
+	jsonRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(jsonRecorder, jsonRequest)
+	assert.Equal(t, http.StatusNotFound, jsonRecorder.Code)
+
+	yamlRequest := httptest.NewRequest(http.MethodGet, "/config/yaml", nil)
+	yamlRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(yamlRecorder, yamlRequest)
+	assert.Equal(t, http.StatusNotFound, yamlRecorder.Code)
+}
