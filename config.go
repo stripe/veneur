@@ -43,6 +43,7 @@ type Config struct {
 	GrpcAddress                               string              `yaml:"grpc_address"`
 	GrpcListenAddresses                       []util.Url          `yaml:"grpc_listen_addresses"`
 	Hostname                                  string              `yaml:"hostname"`
+	HTTP                                      HttpConfig          `yaml:"http"`
 	HTTPAddress                               string              `yaml:"http_address"`
 	HTTPQuit                                  bool                `yaml:"http_quit"`
 	IndicatorSpanTimerName                    string              `yaml:"indicator_span_timer_name"`
@@ -145,6 +146,13 @@ type Config struct {
 	XrayAddress          string   `yaml:"xray_address"`
 	XrayAnnotationTags   []string `yaml:"xray_annotation_tags"`
 	XraySamplePercentage float64  `yaml:"xray_sample_percentage"`
+}
+
+type HttpConfig struct {
+	// Enables /config/json and /config/yaml endpoints for displaying the current
+	// configuration. Entries of type util.StringSecret will be redacted unless
+	// the -print-secrets flag is set.
+	Config bool `yaml:"config"`
 }
 
 type SourceConfig struct {
