@@ -33,6 +33,8 @@ forward_use_grpc: false
 grpc_address: ""
 grpc_listen_addresses: []
 hostname: ""
+http:
+  config: true
 http_address: ""
 http_quit: false
 indicator_span_timer_name: ""

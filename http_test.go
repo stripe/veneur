@@ -424,15 +424,18 @@ func TestConfigJson(t *testing.T) {
 	assert.NoError(t, err)
 
 	config := Config{
+		Aggregates: []string{"min", "max", "count"},
+		HTTP: HttpConfig{
+			Config: true,
+		},
 		Interval:            time.Millisecond,
-		Percentiles:         []float64{.5, .75, .99},
-		Aggregates:          []string{"min", "max", "count"},
-		ReadBufferSizeBytes: 2097152,
 		NumReaders:          1,
-		StatsAddress:        "localhost:8125",
+		Percentiles:         []float64{.5, .75, .99},
+		ReadBufferSizeBytes: 2097152,
 		SentryDsn: util.StringSecret{
 			Value: "https://public@sentry.example.com/1",
 		},
+		StatsAddress: "localhost:8125",
 	}
 	server := setupVeneurServer(t, config, nil, nil, nil, nil)
 	handler := server.Handler()
@@ -457,15 +460,18 @@ func TestConfigYaml(t *testing.T) {
 	assert.NoError(t, err)
 
 	config := Config{
+		Aggregates: []string{"min", "max", "count"},
+		HTTP: HttpConfig{
+			Config: true,
+		},
 		Interval:            time.Millisecond,
-		Percentiles:         []float64{.5, .75, .99},
-		Aggregates:          []string{"min", "max", "count"},
-		ReadBufferSizeBytes: 2097152,
 		NumReaders:          1,
-		StatsAddress:        "localhost:8125",
+		Percentiles:         []float64{.5, .75, .99},
+		ReadBufferSizeBytes: 2097152,
 		SentryDsn: util.StringSecret{
 			Value: "https://public@sentry.example.com/1",
 		},
+		StatsAddress: "localhost:8125",
 	}
 	server := setupVeneurServer(t, config, nil, nil, nil, nil)
 	handler := server.Handler()

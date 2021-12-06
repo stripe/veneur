@@ -36,6 +36,9 @@
   "GrpcAddress": "",
   "GrpcListenAddresses": null,
   "Hostname": "",
+  "HTTP": {
+    "Config": true
+  },
   "HTTPAddress": "",
   "HTTPQuit": false,
   "IndicatorSpanTimerName": "",
