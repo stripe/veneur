@@ -1,0 +1,138 @@
+aggregates:
+- min
+- max
+- count
+aws_access_key_id: ""
+aws_region: ""
+aws_s3_bucket: ""
+aws_secret_access_key: ""
+block_profile_rate: 0
+count_unique_timeseries: false
+datadog_api_hostname: ""
+datadog_api_key: ""
+datadog_exclude_tags_prefix_by_prefix_metric: []
+datadog_flush_max_per_body: 0
+datadog_metric_name_prefix_drops: []
+datadog_span_buffer_size: 0
+datadog_trace_api_address: ""
+debug: false
+debug_flushed_metrics: false
+debug_ingested_spans: false
+enable_profiling: false
+extend_tags: []
+falconer_address: ""
+features:
+  enable_metric_sink_routing: false
+  migrate_metric_sinks: false
+  migrate_span_sinks: false
+flush_file: ""
+flush_max_per_body: 0
+flush_watchdog_missed_flushes: 0
+forward_address: ""
+forward_use_grpc: false
+grpc_address: ""
+grpc_listen_addresses: []
+hostname: ""
+http:
+  config: true
+http_address: ""
+http_quit: false
+indicator_span_timer_name: ""
+interval: 1ms
+kafka_broker: ""
+kafka_check_topic: ""
+kafka_event_topic: ""
+kafka_metric_buffer_bytes: 0
+kafka_metric_buffer_frequency: 0s
+kafka_metric_buffer_messages: 0
+kafka_metric_require_acks: ""
+kafka_metric_topic: ""
+kafka_partitioner: ""
+kafka_retry_max: 0
+kafka_span_buffer_bytes: 0
+kafka_span_buffer_frequency: 0s
+kafka_span_buffer_mesages: 0
+kafka_span_require_acks: ""
+kafka_span_sample_rate_percent: 0
+kafka_span_sample_tag: ""
+kafka_span_serialization_format: ""
+kafka_span_topic: ""
+lightstep_access_token: ""
+lightstep_collector_host: ""
+lightstep_maximum_spans: 0
+lightstep_num_clients: 0
+lightstep_reconnect_period: ""
+metric_max_length: 0
+metric_sink_routing: []
+metric_sinks: []
+mutex_profile_fraction: 0
+newrelic_account_id: 0
+newrelic_common_tags: []
+newrelic_event_type: ""
+newrelic_insert_key: ""
+newrelic_region: ""
+newrelic_service_check_event_type: ""
+newrelic_trace_observer_url: ""
+num_readers: 1
+num_span_workers: 0
+num_workers: 0
+objective_span_timer_name: ""
+omit_empty_hostname: false
+percentiles:
+- 0.5
+- 0.75
+- 0.99
+prometheus_network_type: ""
+prometheus_repeater_address: ""
+read_buffer_size_bytes: 2097152
+sentry_dsn: REDACTED
+signalfx_api_key: ""
+signalfx_dynamic_per_tag_api_keys_enable: false
+signalfx_dynamic_per_tag_api_keys_refresh_period: 0s
+signalfx_endpoint_api: ""
+signalfx_endpoint_base: ""
+signalfx_flush_max_per_body: 0
+signalfx_hostname_tag: ""
+signalfx_metric_name_prefix_drops: []
+signalfx_metric_tag_prefix_drops: []
+signalfx_per_tag_api_keys: []
+signalfx_vary_key_by: ""
+sources: []
+span_channel_capacity: 0
+span_sinks: []
+splunk_hec_address: ""
+splunk_hec_batch_size: 0
+splunk_hec_connection_lifetime_jitter: 0s
+splunk_hec_ingest_timeout: 0s
+splunk_hec_max_connection_lifetime: 0s
+splunk_hec_send_timeout: 0s
+splunk_hec_submission_workers: 0
+splunk_hec_tls_validate_hostname: ""
+splunk_hec_token: ""
+splunk_span_sample_rate: 0
+ssf_buffer_size: 0
+ssf_listen_addresses: []
+stats_address: localhost:8125
+statsd_listen_addresses: []
+synchronize_with_interval: false
+tags: []
+tags_exclude: []
+tls_authority_certificate: ""
+tls_certificate: ""
+tls_key: ""
+trace_lightstep_access_token: ""
+trace_lightstep_collector_host: ""
+trace_lightstep_maximum_spans: 0
+trace_lightstep_num_clients: 0
+trace_lightstep_reconnect_period: ""
+trace_max_length_bytes: 0
+veneur_metrics_additional_tags: []
+veneur_metrics_scopes:
+  counter: ""
+  gauge: ""
+  histogram: ""
+  set: ""
+  status: ""
+xray_address: ""
+xray_annotation_tags: []
+xray_sample_percentage: 0

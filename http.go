@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/pprof"
 	"sort"
@@ -10,6 +11,7 @@ import (
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"gopkg.in/yaml.v2"
 
 	"context"
 
@@ -34,6 +36,11 @@ func (s *Server) Handler() http.Handler {
 		w.Write([]byte(VERSION))
 	})
 
+	if s.Config.HTTP.Config {
+		mux.HandleFunc(pat.Get("/config/json"), s.handleConfigJson)
+		mux.HandleFunc(pat.Get("/config/yaml"), s.handleConfigYaml)
+	}
+
 	if s.httpQuit {
 		mux.HandleFunc(pat.Post(httpQuitEndpoint), func(w http.ResponseWriter, r *http.Request) {
 			log.WithField("endpoint", httpQuitEndpoint).Info("Received shutdown request on HTTP quit endpoint")
@@ -57,6 +64,28 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle(pat.Get("/debug/pprof/*"), http.HandlerFunc(pprof.Index))
 
 	return mux
+}
+
+func (s *Server) handleConfigJson(w http.ResponseWriter, r *http.Request) {
+	config, err := json.MarshalIndent(s.Config, "", "  ")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	w.Header().Add("Content-Type", "application/json")
+	w.Write(config)
+}
+
+func (s *Server) handleConfigYaml(w http.ResponseWriter, r *http.Request) {
+	config, err := yaml.Marshal(s.Config)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	w.Header().Add("Content-Type", "application/x-yaml")
+	w.Write(config)
 }
 
 // ImportMetrics feeds a slice of json metrics to the server's workers

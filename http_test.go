@@ -26,35 +26,39 @@ import (
 )
 
 func TestSortableJSONMetrics(t *testing.T) {
-	testList := []samplers.JSONMetric{
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
-	}
+	testList := []samplers.JSONMetric{{
+		MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"},
+	}, {
+		MetricKey: samplers.MetricKey{Name: "bar", Type: "set"},
+	}, {
+		MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"},
+	}, {
+		MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"},
+	}}
 
 	sortable := newSortableJSONMetrics(testList, 96)
 	assert.EqualValues(t, []uint32{0x4f, 0x3a, 0x2, 0x3c}, sortable.workerIndices, "should have hashed correctly")
 
 	sort.Sort(sortable)
-	assert.EqualValues(t, []samplers.JSONMetric{
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
-	}, testList, "should have sorted the metrics by hashes")
+	assert.EqualValues(t, []samplers.JSONMetric{{
+		MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"},
+	}, {
+		MetricKey: samplers.MetricKey{Name: "bar", Type: "set"},
+	}, {
+		MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"},
+	}, {
+		MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"},
+	}}, testList, "should have sorted the metrics by hashes")
 }
 
 func TestSortableJSONMetricHashing(t *testing.T) {
 	packet, err := (&samplers.Parser{}).ParseMetric([]byte("foo:1|h|#bar"))
 	assert.NoError(t, err, "should have parsed test packet")
 
-	testList := []samplers.JSONMetric{
-		samplers.JSONMetric{
-			MetricKey: packet.MetricKey,
-			Tags:      packet.Tags,
-		},
-	}
+	testList := []samplers.JSONMetric{{
+		MetricKey: packet.MetricKey,
+		Tags:      packet.Tags,
+	}}
 
 	sortable := newSortableJSONMetrics(testList, 96)
 	assert.Equal(t, 1, sortable.Len(), "should have exactly 1 metric")
@@ -62,16 +66,23 @@ func TestSortableJSONMetricHashing(t *testing.T) {
 }
 
 func TestIteratingByWorker(t *testing.T) {
-	testList := []samplers.JSONMetric{
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-		samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
-	}
+	testList := []samplers.JSONMetric{{
+		MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"},
+	}, {
+		MetricKey: samplers.MetricKey{Name: "bar", Type: "set"},
+	}, {
+		MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"},
+	}, {
+		MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"},
+	}, {
+		MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"},
+	}, {
+		MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"},
+	}, {
+		MetricKey: samplers.MetricKey{Name: "bar", Type: "set"},
+	}, {
+		MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"},
+	}}
 
 	var testChunks [][]samplers.JSONMetric
 	iter := newJSONMetricsByWorker(testList, 96)
@@ -84,23 +95,19 @@ func TestIteratingByWorker(t *testing.T) {
 		}
 	}
 
-	assert.EqualValues(t, [][]samplers.JSONMetric{
-		[]samplers.JSONMetric{
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
-		},
-		[]samplers.JSONMetric{
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
-		},
-		[]samplers.JSONMetric{
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
-		},
-		[]samplers.JSONMetric{
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
-			samplers.JSONMetric{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
-		},
+	assert.EqualValues(t, [][]samplers.JSONMetric{{
+		{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+		{MetricKey: samplers.MetricKey{Name: "baz", Type: "counter"}},
+	}, {
+		{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
+		{MetricKey: samplers.MetricKey{Name: "bar", Type: "set"}},
+	}, {
+		{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
+		{MetricKey: samplers.MetricKey{Name: "qux", Type: "gauge"}},
+	}, {
+		{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+		{MetricKey: samplers.MetricKey{Name: "foo", Type: "histogram"}},
+	},
 	}, testChunks, "should have sorted the metrics by hashes")
 }
 
@@ -403,4 +410,105 @@ func BenchmarkNewSortableJSONMetrics(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		newSortableJSONMetrics(jsonMetrics, numWorkers)
 	}
+}
+
+func TestConfigJson(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/config/json", nil)
+	recorder := httptest.NewRecorder()
+
+	filename := filepath.Join("testdata", "http_test_config.json")
+	file, err := os.Open(filename)
+	assert.NoError(t, err)
+	defer file.Close()
+	expectedBody, err := io.ReadAll(file)
+	assert.NoError(t, err)
+
+	config := Config{
+		Aggregates: []string{"min", "max", "count"},
+		HTTP: HttpConfig{
+			Config: true,
+		},
+		Interval:            time.Millisecond,
+		NumReaders:          1,
+		Percentiles:         []float64{.5, .75, .99},
+		ReadBufferSizeBytes: 2097152,
+		SentryDsn: util.StringSecret{
+			Value: "https://public@sentry.example.com/1",
+		},
+		StatsAddress: "localhost:8125",
+	}
+	server := setupVeneurServer(t, config, nil, nil, nil, nil)
+	handler := server.Handler()
+	handler.ServeHTTP(recorder, request)
+
+	assert.Equal(t, "application/json", recorder.Header().Get("Content-Type"))
+	body, err := ioutil.ReadAll(recorder.Body)
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Equal(t, string(expectedBody), string(body))
+}
+
+func TestConfigYaml(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/config/yaml", nil)
+	recorder := httptest.NewRecorder()
+
+	filename := filepath.Join("testdata", "http_test_config.yaml")
+	file, err := os.Open(filename)
+	assert.NoError(t, err)
+	defer file.Close()
+	expectedBody, err := io.ReadAll(file)
+	assert.NoError(t, err)
+
+	config := Config{
+		Aggregates: []string{"min", "max", "count"},
+		HTTP: HttpConfig{
+			Config: true,
+		},
+		Interval:            time.Millisecond,
+		NumReaders:          1,
+		Percentiles:         []float64{.5, .75, .99},
+		ReadBufferSizeBytes: 2097152,
+		SentryDsn: util.StringSecret{
+			Value: "https://public@sentry.example.com/1",
+		},
+		StatsAddress: "localhost:8125",
+	}
+	server := setupVeneurServer(t, config, nil, nil, nil, nil)
+	handler := server.Handler()
+	handler.ServeHTTP(recorder, request)
+
+	assert.Equal(t, "application/x-yaml", recorder.Header().Get("Content-Type"))
+	body, err := ioutil.ReadAll(recorder.Body)
+	assert.Nil(t, err)
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Equal(t, string(expectedBody), string(body))
+}
+
+func TestConfigDisabled(t *testing.T) {
+	config := Config{
+		Aggregates: []string{"min", "max", "count"},
+		HTTP: HttpConfig{
+			Config: false,
+		},
+		Interval:            time.Millisecond,
+		NumReaders:          1,
+		Percentiles:         []float64{.5, .75, .99},
+		ReadBufferSizeBytes: 2097152,
+		SentryDsn: util.StringSecret{
+			Value: "https://public@sentry.example.com/1",
+		},
+		StatsAddress: "localhost:8125",
+	}
+	server := setupVeneurServer(t, config, nil, nil, nil, nil)
+	handler := server.Handler()
+
+	jsonRequest := httptest.NewRequest(http.MethodGet, "/config/json", nil)
+	jsonRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(jsonRecorder, jsonRequest)
+	assert.Equal(t, http.StatusNotFound, jsonRecorder.Code)
+
+	yamlRequest := httptest.NewRequest(http.MethodGet, "/config/yaml", nil)
+	yamlRecorder := httptest.NewRecorder()
+	handler.ServeHTTP(yamlRecorder, yamlRequest)
+	assert.Equal(t, http.StatusNotFound, yamlRecorder.Code)
 }
