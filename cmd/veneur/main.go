@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
@@ -22,6 +24,7 @@ import (
 
 var (
 	configFile           = flag.String("f", "", "The config file to read for settings.")
+	configDir            = flag.String("config-dir", "", "The config dir to read config files.")
 	validateConfig       = flag.Bool("validate-config", false, "Validate the config file is valid YAML with correct value types, then immediately exit.")
 	validateConfigStrict = flag.Bool("validate-config-strict", false, "Validate as with -validate-config, but also fail if there are any unknown fields.")
 )
@@ -33,11 +36,28 @@ func init() {
 func main() {
 	flag.Parse()
 
-	if configFile == nil || *configFile == "" {
-		logrus.Fatal("You must specify a config file")
+	var configFiles []string
+
+	if configFile != nil && *configFile != "" {
+		configFiles = append(configFiles, *configFile)
 	}
 
-	conf, err := veneur.ReadConfig(*configFile)
+	if configDir != nil && *configDir != "" {
+		files, err := ioutil.ReadDir(*configDir)
+		if err != nil {
+			logrus.Fatalf("Config dir specified but cannot be read (%s): %+v", *configDir, err)
+		}
+
+		for _, file := range files {
+			configFiles = append(configFiles, filepath.Join(*configDir, file.Name()))
+		}
+	}
+
+	if len(configFiles) == 0 {
+		logrus.Fatal("You must specify a config file or config dir")
+	}
+
+	conf, err := veneur.ReadConfig(configFiles)
 	if err != nil {
 		if _, ok := err.(*veneur.UnknownConfigKeys); ok {
 			if *validateConfigStrict {

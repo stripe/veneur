@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -14,10 +15,9 @@ func TestReadConfig(t *testing.T) {
 	assert.NoError(t, err)
 	defer exampleConfig.Close()
 
-	c, err := readConfig(exampleConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
+	var c Config
+	err = readConfigFile(exampleConfig, &c)
+	assert.NoError(t, err)
 	c.applyDefaults()
 
 	assert.Equal(t, "https://app.datadoghq.com", c.DatadogAPIHostname)
@@ -29,7 +29,8 @@ func TestReadConfig(t *testing.T) {
 func TestReadBadConfig(t *testing.T) {
 	const exampleConfig = `--- api_hostname: :bad`
 	r := strings.NewReader(exampleConfig)
-	c, err := readConfig(r)
+	var c Config
+	err := readConfigFile(r, &c)
 
 	assert.NotNil(t, err, "Should have encountered parsing error when reading invalid config file")
 	assert.Equal(t, c, Config{}, "Parsing invalid config file should return zero struct")
@@ -41,7 +42,8 @@ no_such_key: 1
 hostname: foobar
 `
 	r := strings.NewReader(config)
-	c, err := readConfig(r)
+	var c Config
+	err := readConfigFile(r, &c)
 	assert.Error(t, err)
 	_, ok := err.(*UnknownConfigKeys)
 	t.Log(err)
@@ -66,13 +68,15 @@ debug: true
 func TestHostname(t *testing.T) {
 	const hostnameConfig = "hostname: foo"
 	r := strings.NewReader(hostnameConfig)
-	c, err := readConfig(r)
+	var c Config
+	err := readConfigFile(r, &c)
 	assert.Nil(t, err, "Should parsed valid config file: %s", hostnameConfig)
 	assert.Equal(t, c.Hostname, "foo", "Should have parsed hostname into Config")
 
 	const noHostname = "hostname: ''"
 	r = strings.NewReader(noHostname)
-	c, err = readConfig(r)
+	c = Config{}
+	err = readConfigFile(r, &c)
 	assert.Nil(t, err, "Should parsed valid config file: %s", noHostname)
 	currentHost, err := os.Hostname()
 	assert.Nil(t, err, "Could not get current hostname")
@@ -81,7 +85,8 @@ func TestHostname(t *testing.T) {
 
 	const omitHostname = "omit_empty_hostname: true"
 	r = strings.NewReader(omitHostname)
-	c, err = readConfig(r)
+	c = Config{}
+	err = readConfigFile(r, &c)
 	assert.Nil(t, err, "Should parsed valid config file: %s", omitHostname)
 	c.applyDefaults()
 	assert.Equal(t, c.Hostname, "", "Should have respected omit_empty_hostname")
@@ -90,7 +95,8 @@ func TestHostname(t *testing.T) {
 func TestConfigDefaults(t *testing.T) {
 	const emptyConfig = "---"
 	r := strings.NewReader(emptyConfig)
-	c, err := readConfig(r)
+	var c Config
+	err := readConfigFile(r, &c)
 	assert.Nil(t, err, "Should parsed empty config file: %s", emptyConfig)
 
 	expectedConfig := defaultConfig
@@ -130,7 +136,7 @@ func TestVeneurExamples(t *testing.T) {
 		test := elt
 		t.Run(test, func(t *testing.T) {
 			t.Parallel()
-			_, err := ReadConfig(test)
+			_, err := ReadConfig([]string{test})
 			assert.NoError(t, err)
 		})
 	}
@@ -159,7 +165,8 @@ trace_lightstep_reconnect_period: "789"
 trace_lightstep_maximum_spans: 1
 trace_lightstep_num_clients: 2
 `
-	c, err := readConfig(strings.NewReader(config))
+	var c Config
+	err := readConfigFile(strings.NewReader(config), &c)
 	c.applyDefaults()
 	if err != nil {
 		t.Fatal(err)
@@ -179,11 +186,39 @@ func TestReadConfigEnvironmentVariables(t *testing.T) {
 	const fakeApiKey = "fake_api_key"
 	defer os.Unsetenv("VENEUR_DATADOGAPIKEY")
 	os.Setenv("VENEUR_DATADOGAPIKEY", fakeApiKey)
+
+	file, err := ioutil.TempFile("", "veneur-test-")
+	assert.NoError(t, err)
+
 	// read in empty config
-	c, err := readConfig(strings.NewReader(""))
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, err := ReadConfig([]string{file.Name()})
+	assert.NoError(t, err)
 	// make sure value was pulled from environment variable
 	assert.Equal(t, fakeApiKey, c.DatadogAPIKey.Value)
+}
+
+func TestMergesConfigs(t *testing.T) {
+	var configYaml string = `---
+tags:
+ - hi`
+	configFile, err := ioutil.TempFile(os.TempDir(), "veneur-test-")
+	assert.NoError(t, err)
+	_, err = configFile.Write([]byte(configYaml))
+	assert.NoError(t, err)
+	defer os.Remove(configFile.Name())
+
+	var configYamlOverride string = `---
+tags:
+ - hello`
+	configFileOverride, err := ioutil.TempFile(os.TempDir(), "veneur-test-")
+	assert.NoError(t, err)
+	_, err = configFileOverride.Write([]byte(configYamlOverride))
+	assert.NoError(t, err)
+	defer os.Remove(configFileOverride.Name())
+
+	c, err := ReadConfig([]string{configFile.Name(), configFileOverride.Name()})
+	assert.NoError(t, err)
+	c.applyDefaults()
+
+	assert.ElementsMatch(t, []string{"hi", "hello"}, c.Tags)
 }

@@ -99,14 +99,26 @@ func (e *UnknownConfigKeys) Error() string {
 // ReadConfig unmarshals the config file and slurps in its
 // data. ReadConfig can return an error of type *UnknownConfigKeys,
 // which means that the file is usable, but contains unknown fields.
-func ReadConfig(path string) (c Config, err error) {
-	f, err := os.Open(path)
+func ReadConfig(paths []string) (c Config, err error) {
+	// yaml overriding works: https://go.dev/play/p/QXwQ6fxuQuw
+	for _, path := range paths {
+		f, err := os.Open(path)
+		if err != nil {
+			return c, err
+		}
+		defer f.Close()
+
+		err = readConfigFile(f, &c)
+		if err != nil {
+			return c, err
+		}
+	}
+
+	err = envconfig.Process("veneur", &c)
 	if err != nil {
 		return c, err
 	}
-	defer f.Close()
 
-	c, err = readConfig(f)
 	c.applyDefaults()
 	return
 }
@@ -124,30 +136,24 @@ func unmarshalSemiStrictly(bts []byte, into interface{}) error {
 	return &UnknownConfigKeys{strictErr}
 }
 
-func readConfig(r io.Reader) (Config, error) {
-	var c Config
+func readConfigFile(r io.Reader, c *Config) error {
 	// Unfortunately the YAML package does not
 	// support reader inputs
 	// TODO(aditya) convert this when the
 	// upstream PR lands
 	bts, err := ioutil.ReadAll(r)
 	if err != nil {
-		return c, err
+		return err
 	}
 	unmarshalErr := unmarshalSemiStrictly(bts, &c)
 	if unmarshalErr != nil {
 		if _, ok := err.(*UnknownConfigKeys); !ok {
-			return c, unmarshalErr
+			return unmarshalErr
 		}
 	}
 
-	err = envconfig.Process("veneur", &c)
-	if err != nil {
-		return c, err
-	}
-
 	// pass back an error about any unknown fields:
-	return c, unmarshalErr
+	return unmarshalErr
 }
 
 func (c *Config) applyDefaults() {
