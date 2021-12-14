@@ -3,16 +3,19 @@ package prometheus
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"strings"
 	"text/template"
 
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util"
 
 	"github.com/sirupsen/logrus"
 )
@@ -26,55 +29,78 @@ var batchSize = 200
 // https://github.com/prometheus/statsd_exporter#tagging-extensions.
 const serializationFormat = "{{.Name}}:{{.Value}}|{{.Type}}|#{{.Tags}}\n"
 
-// StatsdRepeater is the metric sink implementation for Prometheus.
-// In exporting to Prometheus as a metric sink, we are tentatively choosing to
-// use https://github.com/prometheus/statsd_exporter.
-type StatsdRepeater struct {
-	addr        string
-	network     string
-	logger      *logrus.Logger
-	traceClient *trace.Client
+type PrometheusMetricSinkConfig struct {
+	RepeaterAddress string `yaml:"repeater_address"`
+	NetworkType     string `yaml:"network_type"`
 }
 
-// NewStatsdRepeater returns a new StatsdRepeater, validating addr and network.
-func NewStatsdRepeater(addr string, network string, logger *logrus.Logger) (*StatsdRepeater, error) {
-	// TODO(yanke): what about UNIX sockets?
-	if network != "tcp" && network != "udp" {
-		return nil, fmt.Errorf("Statsd Exporter only listens to TCP/UDP, but %s was requested", network)
+// In exporting to Prometheus as a metric sink, we are tentatively choosing to
+// use https://github.com/prometheus/statsd_exporter.
+type PrometheusMetricSink struct {
+	name            string
+	repeaterAddress string
+	networkType     string
+	logger          *logrus.Entry
+	traceClient     *trace.Client
+}
+
+func ParseMetricConfig(name string, config interface{}) (veneur.MetricSinkConfig, error) {
+	prometheusConfig := PrometheusMetricSinkConfig{}
+	fmt.Printf("debug prometheus.ParseMetricConfig config -> %+v\n", config)
+	err := util.DecodeConfig(name, config, &prometheusConfig)
+	if err != nil {
+		return nil, err
 	}
-	if _, err := url.ParseRequestURI(addr); err != nil {
+	fmt.Printf("debug prometheus.ParseMetricConfig prom -> %+v\n", prometheusConfig)
+	return prometheusConfig, nil
+}
+
+func CreateMetricSink(
+	server *veneur.Server, name string, logger *logrus.Entry,
+	config veneur.Config, sinkConfig veneur.MetricSinkConfig,
+) (sinks.MetricSink, error) {
+	prometheusConfig, ok := sinkConfig.(PrometheusMetricSinkConfig)
+	if !ok {
+		return nil, errors.New("invalid sink config type")
+	}
+
+	if prometheusConfig.NetworkType != "tcp" && prometheusConfig.NetworkType != "udp" {
+		return nil, fmt.Errorf("Statsd Exporter only listens to TCP/UDP, but '%s' was requested", prometheusConfig.NetworkType)
+	}
+
+	if _, err := url.ParseRequestURI(prometheusConfig.RepeaterAddress); err != nil {
 		return nil, err
 	}
 
-	return &StatsdRepeater{
-		addr:    addr,
-		network: network,
-		logger:  logger,
+	return &PrometheusMetricSink{
+		name:            name,
+		repeaterAddress: prometheusConfig.RepeaterAddress,
+		networkType:     prometheusConfig.NetworkType,
+		logger:          logger,
+		traceClient:     server.TraceClient,
 	}, nil
 }
 
-// Name returns the name of this sink.
-func (s *StatsdRepeater) Name() string {
-	return "prometheus"
+func (sink *PrometheusMetricSink) Name() string {
+	return sink.name
 }
 
-// Start begins the sink.
-func (s *StatsdRepeater) Start(cl *trace.Client) error {
-	s.traceClient = cl
+func (sink *PrometheusMetricSink) Start(traceClient *trace.Client) error {
+	sink.traceClient = traceClient
 	return nil
 }
 
 // Flush sends metrics to the Statsd Exporter in batches.
-func (s *StatsdRepeater) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
+func (sink *PrometheusMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
-	defer span.ClientFinish(s.traceClient)
+	defer span.ClientFinish(sink.traceClient)
 
 	if len(interMetrics) == 0 {
-		s.logger.Info("Nothing to flush, skipping.")
+		sink.logger.Info("Nothing to flush, skipping.")
 		return nil
 	}
 
-	conn, err := net.Dial(s.network, s.addr)
+	conn, err := net.Dial(sink.networkType, sink.repeaterAddress)
 	if err != nil {
 		return err
 	}
@@ -88,7 +114,7 @@ func (s *StatsdRepeater) Flush(ctx context.Context, interMetrics []samplers.Inte
 			end = len(interMetrics)
 		}
 
-		body := s.serializeMetrics(interMetrics[i:end])
+		body := sink.serializeMetrics(interMetrics[i:end])
 		if body == "" {
 			continue
 		}
@@ -101,17 +127,17 @@ func (s *StatsdRepeater) Flush(ctx context.Context, interMetrics []samplers.Inte
 
 // FlushOtherSamples sends events to SignalFx. This is a no-op for Prometheus
 // sinks as Prometheus does not support other samples.
-func (s *StatsdRepeater) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
+func (sink *PrometheusMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
 }
 
 // serializeMetrics seralizes metrics according to the defined
 // serializationFormat.
-func (s *StatsdRepeater) serializeMetrics(metrics []samplers.InterMetric) string {
+func (sink *PrometheusMetricSink) serializeMetrics(metrics []samplers.InterMetric) string {
 	t := template.Must(template.New("statsd_metric").Parse(serializationFormat))
 
 	statsdMetrics := []string{}
 	for _, metric := range metrics {
-		if !sinks.IsAcceptableMetric(metric, s) {
+		if !sinks.IsAcceptableMetric(metric, sink) {
 			continue
 		}
 
@@ -138,4 +164,18 @@ func metricTypeEnc(metric samplers.InterMetric) string {
 		return "c"
 	}
 	return ""
+}
+
+func MigrateConfig(conf *veneur.Config) error {
+	if conf.PrometheusRepeaterAddress != "" {
+		conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
+			Kind: "prometheus",
+			Name: "prometheus",
+			Config: PrometheusMetricSinkConfig{
+				RepeaterAddress: conf.PrometheusRepeaterAddress,
+				NetworkType:     conf.PrometheusNetworkType,
+			},
+		})
+	}
+	return nil
 }
