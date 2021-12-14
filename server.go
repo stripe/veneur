@@ -391,8 +391,6 @@ func (server *Server) createMetricSinks(
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("debug createMetricSinks original config -> %+v\n", config)
-		fmt.Printf("debug createMetricSinks parsed -> %+v\n", parsedSinkConfig)
 		// Overwrite the map config with the parsed config. This prevents senstive
 		// fields in the map from accidentally being logged.
 		config.MetricSinks[index].Config = parsedSinkConfig

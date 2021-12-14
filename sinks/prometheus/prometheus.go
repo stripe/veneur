@@ -46,12 +46,10 @@ type PrometheusMetricSink struct {
 
 func ParseMetricConfig(name string, config interface{}) (veneur.MetricSinkConfig, error) {
 	prometheusConfig := PrometheusMetricSinkConfig{}
-	fmt.Printf("debug prometheus.ParseMetricConfig config -> %+v\n", config)
 	err := util.DecodeConfig(name, config, &prometheusConfig)
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("debug prometheus.ParseMetricConfig prom -> %+v\n", prometheusConfig)
 	return prometheusConfig, nil
 }
 
