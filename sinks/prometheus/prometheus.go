@@ -164,16 +164,17 @@ func metricTypeEnc(metric samplers.InterMetric) string {
 	return ""
 }
 
-func MigrateConfig(conf *veneur.Config) error {
-	if conf.PrometheusRepeaterAddress != "" {
-		conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
-			Kind: "prometheus",
-			Name: "prometheus",
-			Config: PrometheusMetricSinkConfig{
-				RepeaterAddress: conf.PrometheusRepeaterAddress,
-				NetworkType:     conf.PrometheusNetworkType,
-			},
-		})
+func MigrateConfig(conf *veneur.Config) {
+	if conf.PrometheusRepeaterAddress == "" {
+		return
 	}
-	return nil
+
+	conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
+		Kind: "prometheus",
+		Name: "prometheus",
+		Config: PrometheusMetricSinkConfig{
+			RepeaterAddress: conf.PrometheusRepeaterAddress,
+			NetworkType:     conf.PrometheusNetworkType,
+		},
+	})
 }
