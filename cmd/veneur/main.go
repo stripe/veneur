@@ -59,6 +59,7 @@ func main() {
 		localfile.MigrateConfig(&conf)
 		newrelic.MigrateConfig(&conf)
 		s3.MigrateConfig(&conf)
+		prometheus.MigrateConfig(&conf)
 		err = signalfx.MigrateConfig(&conf)
 		if err != nil {
 			logrus.WithError(err).Fatal("error migrating signalfx config")
@@ -70,10 +71,6 @@ func main() {
 		err = splunk.MigrateConfig(&conf)
 		if err != nil {
 			logrus.WithError(err).Fatal("error migrating splunk config")
-		}
-		err = prometheus.MigrateConfig(&conf)
-		if err != nil {
-			logrus.WithError(err).Fatal("error migrating prometheus config")
 		}
 	}
 
