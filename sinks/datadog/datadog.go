@@ -3,6 +3,7 @@ package datadog
 import (
 	"container/ring"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/v14"
 	vhttp "github.com/stripe/veneur/v14/http"
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/protocol/dogstatsd"
@@ -18,6 +20,7 @@ import (
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util"
 )
 
 const datadogNameKey = "name"
@@ -31,6 +34,14 @@ const datadogSpanType = "web"
 // we can flush per flush-interval
 const datadogSpanBufferSize = 1 << 14
 
+type DatadogMetricSinkConfig struct {
+	APIKey                          string              `yaml:"datadog_api_key"`
+	APIHostname                     string              `yaml:"datadog_api_hostname"`
+	FlushMaxPerBody                 int                 `yaml:"datadog_flush_max_per_body"`
+	MetricNamePrefixDrops           []string            `yaml:"datadog_metric_name_prefix_drops"`
+	ExcludeTagsPrefixByPrefixMetric map[string][]string `yaml:"datadog_exclude_tags_prefix_by_prefix_metric"`
+}
+
 type DatadogMetricSink struct {
 	HTTPClient                      *http.Client
 	APIKey                          string
@@ -40,10 +51,63 @@ type DatadogMetricSink struct {
 	tags                            []string
 	interval                        float64
 	traceClient                     *trace.Client
-	log                             *logrus.Logger
+	log                             *logrus.Entry
+	name                            string
 	metricNamePrefixDrops           []string
 	excludedTags                    []string
 	excludeTagsPrefixByPrefixMetric map[string][]string
+}
+
+func ParseMetricConfig(name string, config interface{}) (veneur.MetricSinkConfig, error) {
+	datadogConfig := DatadogMetricSinkConfig{}
+	err := util.DecodeConfig(name, config, &datadogConfig)
+	if err != nil {
+		return nil, err
+	}
+	return datadogConfig, nil
+}
+
+// TODO(arnavdugar): Remove this once the old configuration format has been
+// removed.
+func MigrateConfig(conf *veneur.Config) {
+	if conf.DatadogAPIKey.Value != "" && conf.DatadogAPIHostname != "" {
+		excludeTagsPrefixByPrefixMetric := map[string][]string{}
+		for _, m := range conf.DatadogExcludeTagsPrefixByPrefixMetric {
+			excludeTagsPrefixByPrefixMetric[m.MetricPrefix] = m.Tags
+		}
+
+		conf.MetricSinks = append(conf.MetricSinks, struct {
+			Kind   string      "yaml:\"kind\""
+			Name   string      "yaml:\"name\""
+			Config interface{} "yaml:\"config\""
+		}{
+			Kind: "datadog",
+			Name: "datadog",
+			Config: DatadogMetricSinkConfig{
+				APIKey:                          conf.DatadogAPIKey.Value,
+				APIHostname:                     conf.DatadogAPIHostname,
+				FlushMaxPerBody:                 conf.DatadogFlushMaxPerBody,
+				MetricNamePrefixDrops:           conf.DatadogMetricNamePrefixDrops,
+				ExcludeTagsPrefixByPrefixMetric: excludeTagsPrefixByPrefixMetric,
+			},
+		})
+	}
+
+	// configure Datadog as a Span sink
+	if conf.DatadogAPIKey.Value != "" && conf.DatadogTraceAPIAddress != "" {
+		conf.SpanSinks = append(conf.SpanSinks, struct {
+			Kind   string      "yaml:\"kind\""
+			Name   string      "yaml:\"name\""
+			Config interface{} "yaml:\"config\""
+		}{
+			Kind: "datadog",
+			Name: "datadog",
+			Config: DatadogSpanSinkConfig{
+				SpanBufferSize:  conf.DatadogSpanBufferSize,
+				TraceAPIAddress: conf.DatadogTraceAPIAddress,
+			},
+		})
+	}
 }
 
 // DDEvent represents the structure of datadog's undocumented /intake endpoint
@@ -81,25 +145,33 @@ type DDServiceCheck struct {
 	Message   string   `json:"message,omitempty"`
 }
 
-// NewDatadogMetricSink creates a new Datadog sink for trace spans.
-func NewDatadogMetricSink(interval float64, flushMaxPerBody int, hostname string, tags []string, ddHostname string, apiKey string, httpClient *http.Client, log *logrus.Logger, metricNamePrefixDrops []string, excludeTagsPrefixByPrefixMetric map[string][]string) (*DatadogMetricSink, error) {
+func CreateMetricSink(
+	server *veneur.Server, name string, logger *logrus.Entry,
+	config veneur.Config, sinkConfig veneur.MetricSinkConfig,
+) (sinks.MetricSink, error) {
+	datadogConfig, ok := sinkConfig.(DatadogMetricSinkConfig)
+	if !ok {
+		return nil, errors.New("invalid sink config type")
+	}
+
 	return &DatadogMetricSink{
-		HTTPClient:                      httpClient,
-		APIKey:                          apiKey,
-		DDHostname:                      ddHostname,
-		interval:                        interval,
-		flushMaxPerBody:                 flushMaxPerBody,
-		hostname:                        hostname,
-		tags:                            tags,
-		metricNamePrefixDrops:           metricNamePrefixDrops,
-		excludeTagsPrefixByPrefixMetric: excludeTagsPrefixByPrefixMetric,
-		log:                             log,
+		HTTPClient:                      server.HTTPClient,
+		APIKey:                          datadogConfig.APIKey,
+		DDHostname:                      datadogConfig.APIHostname,
+		interval:                        server.Interval.Seconds(),
+		flushMaxPerBody:                 datadogConfig.FlushMaxPerBody,
+		hostname:                        config.Hostname,
+		tags:                            server.Tags,
+		name:                            name,
+		metricNamePrefixDrops:           datadogConfig.MetricNamePrefixDrops,
+		excludeTagsPrefixByPrefixMetric: datadogConfig.ExcludeTagsPrefixByPrefixMetric,
+		log:                             logger,
 	}, nil
 }
 
 // Name returns the name of this sink.
 func (dd *DatadogMetricSink) Name() string {
-	return "datadog"
+	return dd.name
 }
 
 // Start sets the sink up.
@@ -119,7 +191,7 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 		// this endpoint is not documented to take an array... but it does
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
-		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/api/v1/check_run?api_key=%s", dd.DDHostname, dd.APIKey), checks, "flush_checks", false, map[string]string{"sink": "datadog"}, dd.log)
+		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/api/v1/check_run?api_key=%s", dd.DDHostname, dd.APIKey), checks, "flush_checks", false, map[string]string{"sink": "datadog"}, dd.log.Logger)
 		if err == nil {
 			dd.log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
 		} else {
@@ -233,7 +305,7 @@ func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ss
 			"events": {
 				"api": events,
 			},
-		}, "flush_events", true, map[string]string{"sink": "datadog"}, dd.log)
+		}, "flush_events", true, map[string]string{"sink": "datadog"}, dd.log.Logger)
 
 		if err == nil {
 			dd.log.WithField("events", len(events)).Info("Completed flushing events to Datadog")
@@ -384,7 +456,7 @@ func (dd *DatadogMetricSink) flushPart(ctx context.Context, metricSlice []DDMetr
 	defer wg.Done()
 	vhttp.PostHelper(ctx, dd.HTTPClient, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.DDHostname, dd.APIKey), map[string][]DDMetric{
 		"series": metricSlice,
-	}, "flush", true, map[string]string{"sink": "datadog"}, dd.log)
+	}, "flush", true, map[string]string{"sink": "datadog"}, dd.log.Logger)
 }
 
 // DatadogTraceSpan represents a trace span as JSON for the
@@ -404,6 +476,11 @@ type DatadogTraceSpan struct {
 	Type     string             `json:"type"`
 }
 
+type DatadogSpanSinkConfig struct {
+	SpanBufferSize  int    `yaml:"datadog_span_buffer_size"`
+	TraceAPIAddress string `yaml:"datadog_trace_api_address"`
+}
+
 // DatadogSpanSink is a sink for sending spans to a Datadog trace agent.
 type DatadogSpanSink struct {
 	HTTPClient   *http.Client
@@ -412,28 +489,42 @@ type DatadogSpanSink struct {
 	mutex        *sync.Mutex
 	traceAddress string
 	traceClient  *trace.Client
-	log          *logrus.Logger
+	log          *logrus.Entry
+	name         string
 }
 
-// NewDatadogSpanSink creates a new Datadog sink for trace spans.
-func NewDatadogSpanSink(address string, bufferSize int, httpClient *http.Client, log *logrus.Logger) (*DatadogSpanSink, error) {
-	if bufferSize == 0 {
-		bufferSize = datadogSpanBufferSize
+func ParseSpanConfig(name string, config interface{}) (veneur.SpanSinkConfig, error) {
+	datadogConfig := DatadogSpanSinkConfig{}
+	err := util.DecodeConfig(name, config, &datadogConfig)
+	if err != nil {
+		return nil, err
+	}
+	return datadogConfig, nil
+}
+
+func CreateSpanSink(
+	server *veneur.Server, name string, logger *logrus.Entry,
+	config veneur.Config, sinkConfig veneur.SpanSinkConfig,
+) (sinks.SpanSink, error) {
+	datadogConfig, ok := sinkConfig.(DatadogSpanSinkConfig)
+	if !ok {
+		return nil, errors.New("invalid sink config type")
 	}
 
 	return &DatadogSpanSink{
-		HTTPClient:   httpClient,
-		bufferSize:   bufferSize,
-		buffer:       ring.New(bufferSize),
+		HTTPClient:   server.HTTPClient,
+		bufferSize:   datadogConfig.SpanBufferSize,
+		buffer:       ring.New(datadogConfig.SpanBufferSize),
 		mutex:        &sync.Mutex{},
-		traceAddress: address,
-		log:          log,
+		traceAddress: datadogConfig.TraceAPIAddress,
+		log:          logger,
+		name:         name,
 	}, nil
 }
 
 // Name returns the name of this sink.
 func (dd *DatadogSpanSink) Name() string {
-	return "datadog"
+	return dd.name
 }
 
 // Start performs final adjustments on the sink.
@@ -571,7 +662,7 @@ func (dd *DatadogSpanSink) Flush() {
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
 
-		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPut, fmt.Sprintf("%s/v0.3/traces", dd.traceAddress), finalTraces, "flush_traces", false, map[string]string{"sink": "datadog"}, dd.log)
+		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPut, fmt.Sprintf("%s/v0.3/traces", dd.traceAddress), finalTraces, "flush_traces", false, map[string]string{"sink": "datadog"}, dd.log.Logger)
 		if err == nil {
 			dd.log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
 		} else {
