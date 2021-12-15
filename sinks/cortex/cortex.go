@@ -36,7 +36,7 @@ type CortexMetricSink struct {
 	URL           string
 	RemoteTimeout time.Duration
 	ProxyURL      string
-	client        *http.Client
+	Client        *http.Client
 	logger        *logrus.Entry
 	name          string
 	tags          map[string]string
@@ -121,8 +121,8 @@ func (s *CortexMetricSink) Start(tc *trace.Client) error {
 		t.Proxy = http.ProxyURL(p)
 	}
 
-	s.client = &http.Client{
-		Timeout:   time.Duration(s.RemoteTimeout * time.Second),
+	s.Client = &http.Client{
+		Timeout:   s.RemoteTimeout,
 		Transport: t,
 	}
 
@@ -156,10 +156,14 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	req.Header.Set("User-Agent", "veneur/cortex")
 	req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
 
-	r, err := s.client.Do(req)
+	ts := time.Now()
+	r, err := s.Client.Do(req)
 	if err != nil {
 		span.Error(err)
-		s.logger.WithError(err).Info("Failed to post request")
+		s.logger.WithFields(logrus.Fields{
+			"error":        err,
+			"time_seconds": time.Since(ts).Seconds(),
+		}).Error("Failed to post request")
 		return err
 	}
 	// Resource leak can occur if body isn't closed explicitly
