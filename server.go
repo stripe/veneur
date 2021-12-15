@@ -38,7 +38,6 @@ import (
 	"github.com/stripe/veneur/v14/sinks/datadog"
 	"github.com/stripe/veneur/v14/sinks/falconer"
 	"github.com/stripe/veneur/v14/sinks/lightstep"
-	"github.com/stripe/veneur/v14/sinks/prometheus"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
 	"github.com/stripe/veneur/v14/sinks/xray"
 	"github.com/stripe/veneur/v14/sources"
@@ -725,20 +724,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		if conf.NumSpanWorkers > 0 {
 			ret.SpanWorkerGoroutines = conf.NumSpanWorkers
 		}
-	}
-
-	if conf.PrometheusRepeaterAddress != "" {
-		prometheusMetricSink, err := prometheus.NewStatsdRepeater(
-			conf.PrometheusRepeaterAddress,
-			conf.PrometheusNetworkType,
-			log,
-		)
-		if err != nil {
-			return ret, err
-		}
-
-		ret.metricSinks = append(ret.metricSinks, prometheusMetricSink)
-		logger.Info("Configured Prometheus metric sink.")
 	}
 
 	customMetricSinks, err :=
