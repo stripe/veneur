@@ -35,11 +35,14 @@ const datadogSpanType = "web"
 const datadogSpanBufferSize = 1 << 14
 
 type DatadogMetricSinkConfig struct {
-	APIKey                          string              `yaml:"datadog_api_key"`
-	APIHostname                     string              `yaml:"datadog_api_hostname"`
-	FlushMaxPerBody                 int                 `yaml:"datadog_flush_max_per_body"`
-	MetricNamePrefixDrops           []string            `yaml:"datadog_metric_name_prefix_drops"`
-	ExcludeTagsPrefixByPrefixMetric map[string][]string `yaml:"datadog_exclude_tags_prefix_by_prefix_metric"`
+	APIKey                          string   `yaml:"datadog_api_key"`
+	APIHostname                     string   `yaml:"datadog_api_hostname"`
+	FlushMaxPerBody                 int      `yaml:"datadog_flush_max_per_body"`
+	MetricNamePrefixDrops           []string `yaml:"datadog_metric_name_prefix_drops"`
+	ExcludeTagsPrefixByPrefixMetric []struct {
+		MetricPrefix string   `yaml:"metric_prefix"`
+		Tags         []string `yaml:"tags"`
+	} `yaml:"datadog_exclude_tags_prefix_by_prefix_metric"`
 }
 
 type DatadogMetricSink struct {
@@ -71,11 +74,6 @@ func ParseMetricConfig(name string, config interface{}) (veneur.MetricSinkConfig
 // removed.
 func MigrateConfig(conf *veneur.Config) {
 	if conf.DatadogAPIKey.Value != "" && conf.DatadogAPIHostname != "" {
-		excludeTagsPrefixByPrefixMetric := map[string][]string{}
-		for _, m := range conf.DatadogExcludeTagsPrefixByPrefixMetric {
-			excludeTagsPrefixByPrefixMetric[m.MetricPrefix] = m.Tags
-		}
-
 		conf.MetricSinks = append(conf.MetricSinks, struct {
 			Kind   string      "yaml:\"kind\""
 			Name   string      "yaml:\"name\""
@@ -88,7 +86,7 @@ func MigrateConfig(conf *veneur.Config) {
 				APIHostname:                     conf.DatadogAPIHostname,
 				FlushMaxPerBody:                 conf.DatadogFlushMaxPerBody,
 				MetricNamePrefixDrops:           conf.DatadogMetricNamePrefixDrops,
-				ExcludeTagsPrefixByPrefixMetric: excludeTagsPrefixByPrefixMetric,
+				ExcludeTagsPrefixByPrefixMetric: conf.DatadogExcludeTagsPrefixByPrefixMetric,
 			},
 		})
 	}
@@ -154,6 +152,11 @@ func CreateMetricSink(
 		return nil, errors.New("invalid sink config type")
 	}
 
+	excludeTagsPrefixByPrefixMetric := map[string][]string{}
+	for _, m := range datadogConfig.ExcludeTagsPrefixByPrefixMetric {
+		excludeTagsPrefixByPrefixMetric[m.MetricPrefix] = m.Tags
+	}
+
 	return &DatadogMetricSink{
 		HTTPClient:                      server.HTTPClient,
 		APIKey:                          datadogConfig.APIKey,
@@ -164,7 +167,7 @@ func CreateMetricSink(
 		tags:                            server.Tags,
 		name:                            name,
 		metricNamePrefixDrops:           datadogConfig.MetricNamePrefixDrops,
-		excludeTagsPrefixByPrefixMetric: datadogConfig.ExcludeTagsPrefixByPrefixMetric,
+		excludeTagsPrefixByPrefixMetric: excludeTagsPrefixByPrefixMetric,
 		log:                             logger,
 	}, nil
 }
