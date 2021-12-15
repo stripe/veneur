@@ -554,3 +554,33 @@ func TestDataDogDropTagsByMetricPrefix(t *testing.T) {
 	}
 
 }
+
+func TestParseMetricConfig(t *testing.T) {
+	testConfigValues := map[string]interface{}{
+		"datadog_api_key":                  "KEY",
+		"datadog_api_hostname":             "HOSTNAME",
+		"datadog_flush_max_per_body":       9001,
+		"datadog_metric_name_prefix_drops": []string{"prefix1", "prefix2"},
+	}
+
+	parsedConfig, err := ParseMetricConfig("datadog", testConfigValues)
+	datadogConfig := parsedConfig.(DatadogMetricSinkConfig)
+	assert.NoError(t, err)
+	assert.Equal(t, datadogConfig.APIKey, testConfigValues["datadog_api_key"])
+	assert.Equal(t, datadogConfig.APIHostname, testConfigValues["datadog_api_hostname"])
+	assert.Equal(t, datadogConfig.FlushMaxPerBody, testConfigValues["datadog_flush_max_per_body"])
+	assert.Equal(t, datadogConfig.MetricNamePrefixDrops, testConfigValues["datadog_metric_name_prefix_drops"])
+}
+
+func TestParseSpanConfig(t *testing.T) {
+	testConfigValues := map[string]interface{}{
+		"datadog_span_buffer_size":  1337,
+		"datadog_trace_api_address": "0.0.0.0",
+	}
+
+	parsedConfig, err := ParseSpanConfig("datadog", testConfigValues)
+	datadogConfig := parsedConfig.(DatadogSpanSinkConfig)
+	assert.NoError(t, err)
+	assert.Equal(t, datadogConfig.SpanBufferSize, testConfigValues["datadog_span_buffer_size"])
+	assert.Equal(t, datadogConfig.TraceAPIAddress, testConfigValues["datadog_trace_api_address"])
+}
