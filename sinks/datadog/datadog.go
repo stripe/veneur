@@ -61,6 +61,8 @@ type DatadogMetricSink struct {
 	excludeTagsPrefixByPrefixMetric map[string][]string
 }
 
+// ParseMetricConfig decodes the map config for a Datadog metric sink into a
+// DatadogMetricSinkConfig struct.
 func ParseMetricConfig(name string, config interface{}) (veneur.MetricSinkConfig, error) {
 	datadogConfig := DatadogMetricSinkConfig{}
 	err := util.DecodeConfig(name, config, &datadogConfig)
@@ -68,6 +70,39 @@ func ParseMetricConfig(name string, config interface{}) (veneur.MetricSinkConfig
 		return nil, err
 	}
 	return datadogConfig, nil
+}
+
+// CreateMetricSink creates a new Datadog sink for metrics. This function
+// should match the signature of a value in veneur.MetricSinkTypes, and is
+// intended to be passed into veneur.NewFromConfig to be called based on the
+// provided configuration.
+func CreateMetricSink(
+	server *veneur.Server, name string, logger *logrus.Entry,
+	config veneur.Config, sinkConfig veneur.MetricSinkConfig,
+) (sinks.MetricSink, error) {
+	datadogConfig, ok := sinkConfig.(DatadogMetricSinkConfig)
+	if !ok {
+		return nil, errors.New("invalid sink config type")
+	}
+
+	excludeTagsPrefixByPrefixMetric := map[string][]string{}
+	for _, m := range datadogConfig.ExcludeTagsPrefixByPrefixMetric {
+		excludeTagsPrefixByPrefixMetric[m.MetricPrefix] = m.Tags
+	}
+
+	return &DatadogMetricSink{
+		HTTPClient:                      server.HTTPClient,
+		APIKey:                          datadogConfig.APIKey,
+		DDHostname:                      datadogConfig.APIHostname,
+		interval:                        server.Interval.Seconds(),
+		flushMaxPerBody:                 datadogConfig.FlushMaxPerBody,
+		hostname:                        config.Hostname,
+		tags:                            server.Tags,
+		name:                            name,
+		metricNamePrefixDrops:           datadogConfig.MetricNamePrefixDrops,
+		excludeTagsPrefixByPrefixMetric: excludeTagsPrefixByPrefixMetric,
+		log:                             logger,
+	}, nil
 }
 
 // TODO(arnavdugar): Remove this once the old configuration format has been
@@ -141,35 +176,6 @@ type DDServiceCheck struct {
 	Timestamp int64    `json:"timestamp,omitempty"` // represented as a unix epoch
 	Tags      []string `json:"tags,omitempty"`
 	Message   string   `json:"message,omitempty"`
-}
-
-func CreateMetricSink(
-	server *veneur.Server, name string, logger *logrus.Entry,
-	config veneur.Config, sinkConfig veneur.MetricSinkConfig,
-) (sinks.MetricSink, error) {
-	datadogConfig, ok := sinkConfig.(DatadogMetricSinkConfig)
-	if !ok {
-		return nil, errors.New("invalid sink config type")
-	}
-
-	excludeTagsPrefixByPrefixMetric := map[string][]string{}
-	for _, m := range datadogConfig.ExcludeTagsPrefixByPrefixMetric {
-		excludeTagsPrefixByPrefixMetric[m.MetricPrefix] = m.Tags
-	}
-
-	return &DatadogMetricSink{
-		HTTPClient:                      server.HTTPClient,
-		APIKey:                          datadogConfig.APIKey,
-		DDHostname:                      datadogConfig.APIHostname,
-		interval:                        server.Interval.Seconds(),
-		flushMaxPerBody:                 datadogConfig.FlushMaxPerBody,
-		hostname:                        config.Hostname,
-		tags:                            server.Tags,
-		name:                            name,
-		metricNamePrefixDrops:           datadogConfig.MetricNamePrefixDrops,
-		excludeTagsPrefixByPrefixMetric: excludeTagsPrefixByPrefixMetric,
-		log:                             logger,
-	}, nil
 }
 
 // Name returns the name of this sink.
@@ -496,6 +502,8 @@ type DatadogSpanSink struct {
 	name         string
 }
 
+// ParseSpanConfig decodes the map config for a Datadog span sink into a
+// DatadogSpanSinkConfig struct.
 func ParseSpanConfig(name string, config interface{}) (veneur.SpanSinkConfig, error) {
 	datadogConfig := DatadogSpanSinkConfig{}
 	err := util.DecodeConfig(name, config, &datadogConfig)
@@ -505,6 +513,10 @@ func ParseSpanConfig(name string, config interface{}) (veneur.SpanSinkConfig, er
 	return datadogConfig, nil
 }
 
+// CreateSpanSink creates a new Datadog sink for spans. This function
+// should match the signature of a value in veneur.SpanSinkTypes, and is
+// intended to be passed into veneur.NewFromConfig to be called based on the
+// provided configuration.
 func CreateSpanSink(
 	server *veneur.Server, name string, logger *logrus.Entry,
 	config veneur.Config, sinkConfig veneur.SpanSinkConfig,
