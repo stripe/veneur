@@ -2,18 +2,12 @@ package veneur
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/util"
