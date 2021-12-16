@@ -35,14 +35,14 @@ const datadogSpanType = "web"
 const datadogSpanBufferSize = 1 << 14
 
 type DatadogMetricSinkConfig struct {
-	APIKey                          string   `yaml:"datadog_api_key"`
-	APIHostname                     string   `yaml:"datadog_api_hostname"`
-	FlushMaxPerBody                 int      `yaml:"datadog_flush_max_per_body"`
-	MetricNamePrefixDrops           []string `yaml:"datadog_metric_name_prefix_drops"`
+	APIKey                          string   `yaml:"api_key"`
+	APIHostname                     string   `yaml:"pi_hostname"`
+	FlushMaxPerBody                 int      `yaml:"flush_max_per_body"`
+	MetricNamePrefixDrops           []string `yaml:"metric_name_prefix_drops"`
 	ExcludeTagsPrefixByPrefixMetric []struct {
 		MetricPrefix string   `yaml:"metric_prefix"`
 		Tags         []string `yaml:"tags"`
-	} `yaml:"datadog_exclude_tags_prefix_by_prefix_metric"`
+	} `yaml:"exclude_tags_prefix_by_prefix_metric"`
 }
 
 type DatadogMetricSink struct {
