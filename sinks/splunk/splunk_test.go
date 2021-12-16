@@ -1,6 +1,7 @@
 package splunk_test
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -92,7 +93,9 @@ func TestSinkName(t *testing.T) {
 			HecTLSValidateHostname:      "",
 			HecToken:                    "00000000-0000-0000-0000-000000000000",
 			SpanSampleRate:              1,
-		})
+		},
+		context.Background(),
+	)
 	require.NoError(t, err)
 	splunkSink := sink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)
@@ -122,7 +125,9 @@ func TestSpanIngestBatch(t *testing.T) {
 			HecTLSValidateHostname:      "",
 			HecToken:                    "00000000-0000-0000-0000-000000000000",
 			SpanSampleRate:              1,
-		})
+		},
+		context.Background(),
+	)
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)
@@ -211,7 +216,9 @@ func TestTimeout(t *testing.T) {
 			HecTLSValidateHostname:      "",
 			HecToken:                    "00000000-0000-0000-0000-000000000000",
 			SpanSampleRate:              1,
-		})
+		},
+		context.Background(),
+	)
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 
@@ -286,7 +293,9 @@ func BenchmarkBatchIngest(b *testing.B) {
 			HecTLSValidateHostname:      "",
 			HecToken:                    "00000000-0000-0000-0000-000000000000",
 			SpanSampleRate:              1,
-		})
+		},
+		context.Background(),
+	)
 	require.NoError(b, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 
@@ -345,7 +354,9 @@ func TestSampling(t *testing.T) {
 			HecTLSValidateHostname:      "",
 			HecToken:                    "00000000-0000-0000-0000-000000000000",
 			SpanSampleRate:              10,
-		})
+		},
+		context.Background(),
+	)
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)
@@ -427,7 +438,9 @@ func TestSamplingIndicators(t *testing.T) {
 			HecTLSValidateHostname:      "",
 			HecToken:                    "00000000-0000-0000-0000-000000000000",
 			SpanSampleRate:              10,
-		})
+		},
+		context.Background(),
+	)
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)
@@ -513,7 +526,9 @@ func TestExcludedTagsIndicators(t *testing.T) {
 			HecTLSValidateHostname:      "",
 			HecToken:                    "00000000-0000-0000-0000-000000000000",
 			SpanSampleRate:              10,
-		})
+		},
+		context.Background(),
+	)
 
 	gesink := gsink.(excludableSink)
 	// no farts allowed
@@ -613,7 +628,9 @@ func TestClosedIngestionEndpoint(t *testing.T) {
 			HecTLSValidateHostname:      "",
 			HecToken:                    "00000000-0000-0000-0000-000000000000",
 			SpanSampleRate:              10,
-		})
+		},
+		context.Background(),
+	)
 	require.NoError(t, err)
 	sink := gsink.(splunk.TestableSplunkSpanSink)
 	err = sink.Start(nil)

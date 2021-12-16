@@ -147,7 +147,7 @@ func ParseConfig(
 // will be chosen, or none will.
 func Create(
 	server *veneur.Server, name string, logger *logrus.Entry,
-	config veneur.Config, sinkConfig veneur.SpanSinkConfig,
+	config veneur.Config, sinkConfig veneur.SpanSinkConfig, ctx context.Context,
 ) (sinks.SpanSink, error) {
 	splunkConfig := sinkConfig.(SplunkSinkConfig)
 

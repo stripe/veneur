@@ -36,7 +36,6 @@ import (
 	"github.com/stripe/veneur/v14/scopedstatsd"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/sinks/datadog"
-	"github.com/stripe/veneur/v14/sinks/falconer"
 	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/prometheus"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
@@ -83,7 +82,7 @@ type SourceTypes = map[string]struct {
 type SpanSinkTypes = map[string]struct {
 	// Creates a new span sink intsance.
 	Create func(
-		*Server, string, *logrus.Entry, Config, SpanSinkConfig,
+		*Server, string, *logrus.Entry, Config, SpanSinkConfig, context.Context,
 	) (sinks.SpanSink, error)
 	// Parses the config for the sink into a format that is validated and safe to
 	// log.
@@ -368,7 +367,7 @@ func (server *Server) createSpanSinks(
 		config.SpanSinks[index].Config = parsedSinkConfig
 		sink, err := sinkFactory.Create(
 			server, sinkConfig.Name, logger.WithField("span_sink", sinkConfig.Name),
-			*config, parsedSinkConfig)
+			*config, parsedSinkConfig, context.Background())
 		if err != nil {
 			return nil, err
 		}
@@ -708,16 +707,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			ret.spanSinks = append(ret.spanSinks, lsSink)
 
 			logger.Info("Configured Lightstep span sink")
-		}
-
-		if conf.FalconerAddress != "" {
-			falsink, err := falconer.NewSpanSink(context.Background(), conf.FalconerAddress, log, grpc.WithInsecure())
-			if err != nil {
-				return ret, err
-			}
-
-			ret.spanSinks = append(ret.spanSinks, falsink)
-			logger.Info("Configured Falconer trace sink")
 		}
 
 		// Set up as many span workers as we need:

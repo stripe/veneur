@@ -266,6 +266,7 @@ func TestCreateSpanSinkWithoutTopic(t *testing.T) {
 			SpanSerializationFormat: "",
 			SpanTopic:               "",
 		},
+		context.Background(),
 	)
 	assert.Error(t, err)
 }
@@ -291,6 +292,7 @@ func TestCreateSpanSinkWithoutBroker(t *testing.T) {
 			SpanSerializationFormat: "",
 			SpanTopic:               "veneur_spans",
 		},
+		context.Background(),
 	)
 	assert.Error(t, err)
 }
@@ -316,6 +318,7 @@ func TestCreateSpanSinkWithSampleRateTooLow(t *testing.T) {
 			SpanSerializationFormat: "",
 			SpanTopic:               "veneur_spans",
 		},
+		context.Background(),
 	)
 	assert.Error(t, err)
 }
@@ -341,6 +344,7 @@ func TestCreateSpanSinkWithSampleRateZero(t *testing.T) {
 			SpanSerializationFormat: "",
 			SpanTopic:               "veneur_spans",
 		},
+		context.Background(),
 	)
 	assert.NoError(t, err)
 }
@@ -366,6 +370,7 @@ func TestCreateSpanSinkWithSampleRateTooHigh(t *testing.T) {
 			SpanSerializationFormat: "",
 			SpanTopic:               "veneur_spans",
 		},
+		context.Background(),
 	)
 	assert.Error(t, err)
 }
@@ -391,6 +396,7 @@ func TestCreateSpanSinkWithRequireAcksNone(t *testing.T) {
 			SpanSerializationFormat: "",
 			SpanTopic:               "veneur_spans",
 		},
+		context.Background(),
 	)
 	assert.NoError(t, err)
 	kafkaSink, ok := sink.(*KafkaSpanSink)
@@ -419,6 +425,7 @@ func TestCreateSpanSinkWithRequireAcksLocal(t *testing.T) {
 			SpanSerializationFormat: "",
 			SpanTopic:               "veneur_spans",
 		},
+		context.Background(),
 	)
 	assert.NoError(t, err)
 	kafkaSink, ok := sink.(*KafkaSpanSink)
@@ -447,6 +454,7 @@ func TestCreateSpanSinkWithRequireAcksInvalid(t *testing.T) {
 			SpanSerializationFormat: "",
 			SpanTopic:               "veneur_spans",
 		},
+		context.Background(),
 	)
 	assert.NoError(t, err)
 	kafkaSink, ok := sink.(*KafkaSpanSink)
@@ -475,6 +483,7 @@ func TestCreateSpanSink(t *testing.T) {
 			SpanSerializationFormat: "",
 			SpanTopic:               "veneur_spans",
 		},
+		context.Background(),
 	)
 	assert.NoError(t, err)
 	kafkaSink, ok := sink.(*KafkaSpanSink)
@@ -522,6 +531,7 @@ func TestSpanTraceIdSampling(t *testing.T) {
 			SpanSampleTag:           "",
 			SpanSampleRatePercent:   50,
 		},
+		context.Background(),
 	)
 	assert.NoError(t, err)
 	kafkaSink, ok := sink.(*KafkaSpanSink)
@@ -597,6 +607,7 @@ func TestSpanTagSampling(t *testing.T) {
 			SpanSampleTag:           "baz",
 			SpanSampleRatePercent:   50,
 		},
+		context.Background(),
 	)
 	assert.NoError(t, err)
 	kafkaSink, ok := sink.(*KafkaSpanSink)
@@ -706,6 +717,7 @@ func TestSpanFlushJson(t *testing.T) {
 			SpanSampleTag:           "",
 			SpanSampleRatePercent:   100,
 		},
+		context.Background(),
 	)
 	assert.NoError(t, err)
 	kafkaSink, ok := sink.(*KafkaSpanSink)
@@ -764,6 +776,7 @@ func TestSpanFlushProtobuf(t *testing.T) {
 			SpanSampleTag:           "",
 			SpanSampleRatePercent:   100,
 		},
+		context.Background(),
 	)
 	assert.NoError(t, err)
 	kafkaSink, ok := sink.(*KafkaSpanSink)

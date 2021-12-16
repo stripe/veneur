@@ -48,7 +48,7 @@ func ParseSpanConfig(
 // provided configuration.
 func CreateSpanSink(
 	server *veneur.Server, name string, logger *logrus.Entry,
-	config veneur.Config, sinkConfig veneur.SpanSinkConfig,
+	config veneur.Config, sinkConfig veneur.SpanSinkConfig, ctx context.Context,
 ) (sinks.SpanSink, error) {
 	newRelicConfig := sinkConfig.(NewRelicSpanSinkConfig)
 

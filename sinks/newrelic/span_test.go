@@ -1,6 +1,7 @@
 package newrelic
 
 import (
+	"context"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -22,7 +23,9 @@ func TestCreateSpanSink(t *testing.T) {
 			CommonTags:       []string{},
 			InsertKey:        util.StringSecret{Value: testNewRelicApiKey},
 			TraceObserverURL: testNewRelicSpanURL,
-		})
+		},
+		context.Background(),
+	)
 
 	require.NotNil(t, sink)
 	assert.NoError(t, err)
@@ -45,7 +48,9 @@ func TestNewRelicSpanSink_Start(t *testing.T) {
 			CommonTags:       []string{},
 			InsertKey:        util.StringSecret{Value: testNewRelicApiKey},
 			TraceObserverURL: testNewRelicSpanURL,
-		})
+		},
+		context.Background(),
+	)
 
 	require.NotNil(t, sink)
 	require.NoError(t, err)
@@ -65,7 +70,9 @@ func TestNewRelicSpanSink_Ingest(t *testing.T) {
 			CommonTags:       []string{},
 			InsertKey:        util.StringSecret{Value: testNewRelicApiKey},
 			TraceObserverURL: testNewRelicSpanURL,
-		})
+		},
+		context.Background(),
+	)
 
 	require.NotNil(t, sink)
 	require.NoError(t, err)
@@ -86,7 +93,9 @@ func TestNewRelicSpanSink_Flush(t *testing.T) {
 			CommonTags:       []string{},
 			InsertKey:        util.StringSecret{Value: testNewRelicApiKey},
 			TraceObserverURL: testNewRelicSpanURL,
-		})
+		},
+		context.Background(),
+	)
 
 	require.NotNil(t, sink)
 	require.NoError(t, err)

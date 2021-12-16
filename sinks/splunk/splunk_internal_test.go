@@ -1,6 +1,7 @@
 package splunk
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -48,7 +49,9 @@ func TestWorkerCount(t *testing.T) {
 					HecTLSValidateHostname:      "",
 					HecToken:                    "00000000-0000-0000-0000-000000000000",
 					SpanSampleRate:              10,
-				})
+				},
+				context.Background(),
+			)
 			sss := sink.(*splunkSpanSink)
 			defer sss.Stop()
 			require.NoError(t, err)

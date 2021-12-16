@@ -120,7 +120,7 @@ func ParseSpanConfig(_ string, _ interface{}) (veneur.SpanSinkConfig, error) {
 // provided configuration.
 func CreateSpanSink(
 	server *veneur.Server, name string, logger *logrus.Entry,
-	config veneur.Config, sinkConfig veneur.SpanSinkConfig,
+	config veneur.Config, sinkConfig veneur.SpanSinkConfig, ctx context.Context,
 ) (sinks.SpanSink, error) {
 	return &debugSpanSink{
 		log:  logger,

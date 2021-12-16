@@ -5,6 +5,9 @@ import (
 	"strconv"
 	"sync/atomic"
 
+	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/util"
+
 	ocontext "context"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -20,30 +23,36 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+type GRPCSpanSinkConfig struct {
+	Target string `yaml:"target"`
+}
+
 // GRPCSpanSink is a generic sink that sends spans to a configurable target
 // service over gRPC. The sink is only tied to the grpc_sink.proto definition of
 // a SpanSink service, and thus is agnostic with respect to the specific server
 // it is connecting to.
 type GRPCSpanSink struct {
-	name   string
-	target string
+	// Total counts of dropped spans
+	dropCount uint32
 	// The underlying gRPC connection ("channel") to the target server.
 	grpcConn *grpc.ClientConn
-	// Total counts of sent and dropped spans, respectively
-	sentCount, dropCount uint32
+	log      *logrus.Entry
 	// Marker to indicate if an error has been logged since the last state
 	// transition. Allows us to guarantee only one error message per state
 	// change.
 	loggedSinceTransition uint32
-	ssc                   SpanSinkClient
-	stats                 *statsd.Client
-	traceClient           *trace.Client
-	log                   *logrus.Logger
+	name                  string
+	// Total counts of sent spans
+	sentCount   uint32
+	ssc         SpanSinkClient
+	stats       *statsd.Client
+	target      string
+	traceClient *trace.Client
 }
 
 var _ sinks.SpanSink = &GRPCSpanSink{}
 
-// NewGRPCSpanSink creates a sinks.SpanSink that can write to any
+// creates a sinks.SpanSink that can write to any
 // compliant gRPC server.
 //
 // The target parameter should be of the "host:port"; the name parameter is
@@ -52,13 +61,18 @@ var _ sinks.SpanSink = &GRPCSpanSink{}
 //
 // Any grpc.CallOpts that are provided will be used while first establishing the
 // connection to the target server (in grpc.DialContext()).
-func NewGRPCSpanSink(ctx context.Context, target, name string, log *logrus.Logger, opts ...grpc.DialOption) (*GRPCSpanSink, error) {
+
+func Create(
+	server *veneur.Server, name string, logger *logrus.Entry,
+	config veneur.Config, sinkConfig veneur.SpanSinkConfig, ctx context.Context,
+) (sinks.SpanSink, error) {
+	grpcConfig := sinkConfig.(GRPCSpanSinkConfig)
 	name = "grpc-" + name
-	conn, err := grpc.DialContext(convertContext(ctx), target, opts...)
+	conn, err := grpc.DialContext(convertContext(ctx), grpcConfig.Target, grpc.WithInsecure())
 	if err != nil {
-		log.WithError(err).WithFields(logrus.Fields{
+		logger.WithError(err).WithFields(logrus.Fields{
 			"name":   name,
-			"target": target,
+			"target": grpcConfig.Target,
 		}).Error("Error establishing connection to gRPC server")
 		return nil, err
 	}
@@ -67,9 +81,22 @@ func NewGRPCSpanSink(ctx context.Context, target, name string, log *logrus.Logge
 		grpcConn: conn,
 		ssc:      NewSpanSinkClient(conn),
 		name:     name,
-		target:   target,
-		log:      log,
+		target:   grpcConfig.Target,
+		log:      logger,
 	}, nil
+}
+
+// ParseConfig decodes the map config for a Grpc sink into a GrpcSpanSinkConfig
+// struct.
+func ParseConfig(
+	name string, config interface{},
+) (veneur.SpanSinkConfig, error) {
+	grpcConfig := GRPCSpanSinkConfig{}
+	err := util.DecodeConfig(name, config, &grpcConfig)
+	if err != nil {
+		return nil, err
+	}
+	return grpcConfig, nil
 }
 
 // Start performs final preparations on the sink before it is

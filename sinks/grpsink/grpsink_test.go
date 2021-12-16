@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stripe/veneur/v14"
+
 	ocontext "context"
 
 	"github.com/sirupsen/logrus"
@@ -47,6 +49,12 @@ func (m *MockSpanSinkServer) spanCount() int {
 	return len(m.spans)
 }
 
+func testLogger() *logrus.Entry {
+	logger := logrus.New()
+	logger.SetLevel(logrus.DebugLevel)
+	return logrus.NewEntry(logger)
+}
+
 func TestEndToEnd(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.ErrorLevel)
@@ -68,9 +76,22 @@ func TestEndToEnd(t *testing.T) {
 	}()
 	block <- struct{}{}
 
-	sink, err := NewGRPCSpanSink(context.Background(), testaddr, "test1", log, grpc.WithInsecure())
+	//sink, err := NewGRPCSpanSink(context.Background(), testaddr, "test1", log, grpc.WithInsecure())
+	sink, err := Create(
+		&veneur.Server{},
+		"grpc",
+		testLogger(),
+		veneur.Config{},
+		GRPCSpanSinkConfig{
+			Target: testaddr,
+		},
+		context.Background(),
+	)
 	require.NoError(t, err)
-	assert.NotNil(t, sink.grpcConn)
+
+	grpcSink, ok := sink.(*GRPCSpanSink)
+	assert.NotNil(t, grpcSink.grpcConn)
+	assert.True(t, ok)
 
 	err = sink.Start(nil)
 	require.NoError(t, err)
@@ -100,7 +121,7 @@ func TestEndToEnd(t *testing.T) {
 
 	// Stoppage will happen in the background, and forward progress will be blocked by the wait sequence.
 	go srv.Stop()
-	waitThroughStateSequence(t, sink, 5*time.Second,
+	waitThroughStateSequence(t, grpcSink, 5*time.Second,
 		connectivity.Ready,
 		connectivity.TransientFailure,
 	)
@@ -122,7 +143,7 @@ func TestEndToEnd(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 	block <- struct{}{}
-	reconnectWithin(t, sink, 2*time.Second)
+	reconnectWithin(t, grpcSink, 2*time.Second)
 
 	err = sink.Ingest(testSpan)
 	require.NoError(t, err)

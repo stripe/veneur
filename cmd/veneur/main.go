@@ -10,6 +10,7 @@ import (
 	"github.com/stripe/veneur/v14/sinks/attribution"
 	"github.com/stripe/veneur/v14/sinks/cortex"
 	"github.com/stripe/veneur/v14/sinks/debug"
+	"github.com/stripe/veneur/v14/sinks/falconer"
 	"github.com/stripe/veneur/v14/sinks/kafka"
 	"github.com/stripe/veneur/v14/sinks/localfile"
 	"github.com/stripe/veneur/v14/sinks/newrelic"
@@ -70,6 +71,10 @@ func main() {
 		if err != nil {
 			logrus.WithError(err).Fatal("error migrating splunk config")
 		}
+		err = falconer.MigrateConfig(&conf)
+		if err != nil {
+			logrus.WithError(err).Fatal("error migrating falconer config")
+		}
 	}
 
 	logger := logrus.StandardLogger()
@@ -116,6 +121,10 @@ func main() {
 			"debug": {
 				Create:      debug.CreateSpanSink,
 				ParseConfig: debug.ParseSpanConfig,
+			},
+			"falconer": {
+				Create:      falconer.Create,
+				ParseConfig: falconer.ParseConfig,
 			},
 			"kafka": {
 				Create:      kafka.CreateSpanSink,
