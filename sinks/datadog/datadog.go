@@ -526,10 +526,15 @@ func CreateSpanSink(
 		return nil, errors.New("invalid sink config type")
 	}
 
+	bufferSize := datadogConfig.SpanBufferSize
+	if bufferSize == 0 {
+		bufferSize = datadogSpanBufferSize
+	}
+
 	return &DatadogSpanSink{
 		HTTPClient:   server.HTTPClient,
-		bufferSize:   datadogConfig.SpanBufferSize,
-		buffer:       ring.New(datadogConfig.SpanBufferSize),
+		bufferSize:   bufferSize,
+		buffer:       ring.New(bufferSize),
 		mutex:        &sync.Mutex{},
 		traceAddress: datadogConfig.TraceAPIAddress,
 		log:          logger,
