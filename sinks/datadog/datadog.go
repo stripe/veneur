@@ -36,7 +36,7 @@ const datadogSpanBufferSize = 1 << 14
 
 type DatadogMetricSinkConfig struct {
 	APIKey                          string   `yaml:"api_key"`
-	APIHostname                     string   `yaml:"pi_hostname"`
+	APIHostname                     string   `yaml:"api_hostname"`
 	FlushMaxPerBody                 int      `yaml:"flush_max_per_body"`
 	MetricNamePrefixDrops           []string `yaml:"metric_name_prefix_drops"`
 	ExcludeTagsPrefixByPrefixMetric []struct {
