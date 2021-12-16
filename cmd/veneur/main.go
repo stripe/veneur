@@ -14,6 +14,7 @@ import (
 	"github.com/stripe/veneur/v14/sinks/kafka"
 	"github.com/stripe/veneur/v14/sinks/localfile"
 	"github.com/stripe/veneur/v14/sinks/newrelic"
+	"github.com/stripe/veneur/v14/sinks/prometheus"
 	"github.com/stripe/veneur/v14/sinks/s3"
 	"github.com/stripe/veneur/v14/sinks/signalfx"
 	"github.com/stripe/veneur/v14/sinks/splunk"
@@ -60,6 +61,7 @@ func main() {
 		localfile.MigrateConfig(&conf)
 		newrelic.MigrateConfig(&conf)
 		s3.MigrateConfig(&conf)
+		prometheus.MigrateConfig(&conf)
 		err = signalfx.MigrateConfig(&conf)
 		if err != nil {
 			logrus.WithError(err).Fatal("error migrating signalfx config")
@@ -107,6 +109,10 @@ func main() {
 			"newrelic": {
 				Create:      newrelic.CreateMetricSink,
 				ParseConfig: newrelic.ParseMetricConfig,
+			},
+			"prometheus": {
+				Create:      prometheus.CreateMetricSink,
+				ParseConfig: prometheus.ParseMetricConfig,
 			},
 			"s3": {
 				Create:      s3.Create,

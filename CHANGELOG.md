@@ -4,6 +4,7 @@
 * A flag -print-secrets to disable redacting config secrets.
 * A prometheus remote-write sink compatible with Cortex and more. Thanks, [philipnrmn](https://github.com/philipnrmn)!
 * Some veneur-prometheus arguments to rename and add additional tags. Thanks, [christopherb-stripe](https://github.com/christopherb-stripe)!
+* Migrate Prometheus to new config format; part of multi-sink routing update. Thanks, [truong-stripe](https://github.com/truong-stripe)!
 
 ## Bugfixes
 * A fix for forwarding metrics with gRPC using the kubernetes discoverer. Thanks, [androohan](https://github.com/androohan)!

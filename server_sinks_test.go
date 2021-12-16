@@ -2,8 +2,12 @@ package veneur
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,7 +16,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/sinks/lightstep"
-	"github.com/stripe/veneur/v14/sinks/prometheus"
 	"github.com/stripe/veneur/v14/util"
 )
 
@@ -76,24 +79,4 @@ func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
 
 	assert.NoError(t, err)
 	server.Flush(context.Background())
-}
-
-func TestNewPrometheusMetricSinkConfig(t *testing.T) {
-	config := Config{
-		PrometheusRepeaterAddress: "localhost:9125",
-		PrometheusNetworkType:     "tcp",
-
-		// Required or NewFromConfig fails.
-		Interval:     time.Duration(10 * time.Second),
-		StatsAddress: "localhost:62251",
-	}
-
-	server, err := NewFromConfig(ServerConfig{
-		Logger: logrus.New(),
-		Config: config,
-	})
-	assert.NoError(t, err)
-
-	sink := server.metricSinks[0].(*prometheus.StatsdRepeater)
-	assert.Equal(t, "prometheus", sink.Name())
 }
