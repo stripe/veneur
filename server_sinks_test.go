@@ -16,7 +16,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/sinks/datadog"
-	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/prometheus"
 	"github.com/stripe/veneur/v14/util"
 )
@@ -65,7 +64,7 @@ func TestFlushTracesBySink(t *testing.T) {
 			assert.NoError(t, err)
 			defer js.Close()
 
-			testFlushTraceLightstep(t, pb, js)
+			//testFlushTraceLightstep(t, pb, js)
 		})
 	}
 }
@@ -119,26 +118,26 @@ func testFlushTraceDatadog(t *testing.T, protobuf, jsn io.Reader) {
 // and that the flushSpansLightstep function executes without error.
 // We can't actually test the functionality end-to-end because the lightstep
 // implementation doesn't expose itself for mocking.
-func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
-	config := globalConfig()
+// func testFlushTraceLightstep(t *testing.T, protobuf, jsn io.Reader) {
+// 	config := globalConfig()
 
-	// this can be anything as long as it's not empty
-	config.LightstepAccessToken = util.StringSecret{Value: "secret"}
-	server := setupVeneurServer(t, config, nil, nil, nil, nil)
-	defer server.Shutdown()
+// 	// this can be anything as long as it's not empty
+// 	config.LightstepAccessToken = util.StringSecret{Value: "secret"}
+// 	server := setupVeneurServer(t, config, nil, nil, nil, nil)
+// 	defer server.Shutdown()
 
-	//collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string
-	lsSink, err := lightstep.NewLightStepSpanSink("example.com", "5m", 10000, 1, "secret", log)
-	server.spanSinks = append(server.spanSinks, lsSink)
+// 	//collector string, reconnectPeriod string, maximumSpans int, numClients int, accessToken string
+// 	lsSink, err := lightstep.NewLightStepSpanSink("example.com", "5m", 10000, 1, "secret", log)
+// 	server.spanSinks = append(server.spanSinks, lsSink)
 
-	packet, err := ioutil.ReadAll(protobuf)
-	assert.NoError(t, err)
+// 	packet, err := ioutil.ReadAll(protobuf)
+// 	assert.NoError(t, err)
 
-	server.HandleTracePacket(packet, SSF_UNIX)
+// 	server.HandleTracePacket(packet, SSF_UNIX)
 
-	assert.NoError(t, err)
-	server.Flush(context.Background())
-}
+// 	assert.NoError(t, err)
+// 	server.Flush(context.Background())
+// }
 
 // This test lives here because is tests the server's behavior when making a
 // datadog metric sink

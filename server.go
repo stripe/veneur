@@ -37,7 +37,6 @@ import (
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/sinks/datadog"
 	"github.com/stripe/veneur/v14/sinks/falconer"
-	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/prometheus"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
 	"github.com/stripe/veneur/v14/sinks/xray"
@@ -691,23 +690,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 					"num_annotation_tags": annotationTags,
 				}).Info("Configured X-Ray span sink")
 			}
-		}
-
-		// configure Lightstep as a Span Sink
-		if conf.LightstepAccessToken.Value != "" {
-
-			var lsSink sinks.SpanSink
-			lsSink, err = lightstep.NewLightStepSpanSink(
-				conf.LightstepCollectorHost, conf.LightstepReconnectPeriod,
-				conf.LightstepMaximumSpans, conf.LightstepNumClients,
-				conf.LightstepAccessToken.Value, log,
-			)
-			if err != nil {
-				return ret, err
-			}
-			ret.spanSinks = append(ret.spanSinks, lsSink)
-
-			logger.Info("Configured Lightstep span sink")
 		}
 
 		if conf.FalconerAddress != "" {
