@@ -92,9 +92,9 @@ var _ sinks.SpanSink = &XRaySpanSink{}
 
 // TODO(yeogai): Remove this once the old configuration format has been
 // removed.
-func MigrateConfig(conf *veneur.Config) error {
+func MigrateConfig(conf *veneur.Config) {
 	if conf.XrayAddress == "" {
-		return nil
+		return
 	}
 	conf.SpanSinks = append(conf.SpanSinks, struct {
 		Kind   string      "yaml:\"kind\""
@@ -109,7 +109,6 @@ func MigrateConfig(conf *veneur.Config) error {
 			SamplePercentage: conf.XraySamplePercentage,
 		},
 	})
-	return nil
 }
 
 // ParseConfig decodes the map config for an X-Ray sink into a XRaySinkConfig
