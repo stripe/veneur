@@ -418,10 +418,9 @@ func TestDatadogFlushOtherMetricsForServiceChecks(t *testing.T) {
 func TestDatadogFlushServiceCheck(t *testing.T) {
 	transport := &DatadogRoundTripper{Endpoint: "/api/v1/check_run", Contains: ""}
 	logger := logrus.NewEntry(logrus.New())
-	interval, _ := time.ParseDuration("10s")
 	sink, err := CreateMetricSink(&veneur.Server{
 		HTTPClient: &http.Client{Transport: transport},
-		Interval:   interval,
+		Interval:   10 * time.Second,
 		Tags:       []string{"gloobles:toots"},
 	},
 		"datadog", logger, veneur.Config{Hostname: "example.com"},
