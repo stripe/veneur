@@ -4,6 +4,8 @@ import (
 	"compress/zlib"
 	"context"
 	"encoding/json"
+	"github.com/stripe/veneur/v14"
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -117,16 +119,23 @@ func TestDeviceMagicTag(t *testing.T) {
 
 func TestNewDatadogSpanSinkConfig(t *testing.T) {
 	// test the variables that have been renamed
-	ddSink, err := NewDatadogSpanSink("http://example.com", 100, &http.Client{}, logrus.New())
+	logger := logrus.NewEntry(logrus.New())
+	sink, err := CreateSpanSink(
+		&veneur.Server{HTTPClient: &http.Client{}}, "datadog", logger, veneur.Config{},
+		DatadogSpanSinkConfig{
+			SpanBufferSize:  100,
+			TraceAPIAddress: "http://example.com",
+		})
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ddSink.Start(nil)
+	err = sink.Start(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, "http://example.com", ddSink.traceAddress)
+	datadogSink := sink.(*DatadogSpanSink)
+	assert.Equal(t, "http://example.com", datadogSink.traceAddress)
 }
 
 type DatadogRoundTripper struct {
@@ -164,7 +173,13 @@ func TestDatadogFlushSpans(t *testing.T) {
 	// test the variables that have been renamed
 
 	transport := &DatadogRoundTripper{Endpoint: "/v0.3/traces", Contains: "farts-srv"}
-	ddSink, err := NewDatadogSpanSink("http://example.com", 100, &http.Client{Transport: transport}, logrus.New())
+	logger := logrus.NewEntry(logrus.New())
+	sink, err := CreateSpanSink(
+		&veneur.Server{HTTPClient: &http.Client{Transport: transport}}, "datadog", logger, veneur.Config{},
+		DatadogSpanSinkConfig{
+			SpanBufferSize:  100,
+			TraceAPIAddress: "http://example.com",
+		})
 	assert.NoError(t, err)
 
 	start := time.Now()
@@ -184,10 +199,10 @@ func TestDatadogFlushSpans(t *testing.T) {
 		Indicator: false,
 		Name:      "farting farty farts",
 	}
-	err = ddSink.Ingest(testSpan)
+	err = sink.Ingest(testSpan)
 	assert.NoError(t, err)
 
-	ddSink.Flush()
+	sink.Flush()
 	assert.Equal(t, true, transport.GotCalled, "Did not call spans endpoint")
 }
 
@@ -266,9 +281,10 @@ func TestDatadogMetricRouting(t *testing.T) {
 				DDHostname:      srv.URL,
 				HTTPClient:      client,
 				flushMaxPerBody: 15,
-				log:             logrus.New(),
+				log:             logrus.NewEntry(logrus.New()),
 				tags:            []string{"a:b", "c:d"},
 				interval:        10,
+				name:            "datadog",
 			}
 			done := make(chan struct{})
 			go func() {
@@ -294,7 +310,21 @@ func TestDatadogMetricRouting(t *testing.T) {
 
 func TestDatadogFlushEvents(t *testing.T) {
 	transport := &DatadogRoundTripper{Endpoint: "/intake", Contains: ""}
-	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New(), nil, nil)
+	logger := logrus.NewEntry(logrus.New())
+	interval, _ := time.ParseDuration("10s")
+	sink, err := CreateMetricSink(&veneur.Server{
+		HTTPClient: &http.Client{Transport: transport},
+		Interval:   interval,
+		Tags:       []string{"gloobles:toots"},
+	},
+		"datadog", logger, veneur.Config{Hostname: "example.com"},
+		DatadogMetricSinkConfig{
+			APIKey:                          "secret",
+			APIHostname:                     "http://example.com",
+			FlushMaxPerBody:                 2500,
+			MetricNamePrefixDrops:           nil,
+			ExcludeTagsPrefixByPrefixMetric: nil,
+		})
 	assert.NoError(t, err)
 
 	testEvent := ssf.SSFSample{
@@ -328,7 +358,7 @@ func TestDatadogFlushEvents(t *testing.T) {
 		},
 	}
 
-	ddSink.FlushOtherSamples(context.TODO(), []ssf.SSFSample{testEvent})
+	sink.FlushOtherSamples(context.TODO(), []ssf.SSFSample{testEvent})
 	assert.NoError(t, err)
 
 	assert.Equal(t, true, transport.GotCalled, "Did not call endpoint")
@@ -350,7 +380,21 @@ func TestDatadogFlushEvents(t *testing.T) {
 
 func TestDatadogFlushOtherMetricsForServiceChecks(t *testing.T) {
 	transport := &DatadogRoundTripper{Endpoint: "/api/v1/check_run", Contains: ""}
-	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New(), nil, nil)
+	logger := logrus.NewEntry(logrus.New())
+	interval, _ := time.ParseDuration("10s")
+	sink, err := CreateMetricSink(&veneur.Server{
+		HTTPClient: &http.Client{Transport: transport},
+		Interval:   interval,
+		Tags:       []string{"gloobles:toots"},
+	},
+		"datadog", logger, veneur.Config{Hostname: "example.com"},
+		DatadogMetricSinkConfig{
+			APIKey:                          "secret",
+			APIHostname:                     "http://example.com",
+			FlushMaxPerBody:                 2500,
+			MetricNamePrefixDrops:           nil,
+			ExcludeTagsPrefixByPrefixMetric: nil,
+		})
 	assert.NoError(t, err)
 
 	testCheck := ssf.SSFSample{
@@ -365,7 +409,7 @@ func TestDatadogFlushOtherMetricsForServiceChecks(t *testing.T) {
 		},
 	}
 
-	ddSink.FlushOtherSamples(context.TODO(), []ssf.SSFSample{testCheck})
+	sink.FlushOtherSamples(context.TODO(), []ssf.SSFSample{testCheck})
 	assert.NoError(t, err)
 
 	assert.Equal(t, false, transport.GotCalled, "Was not supposed to log a service check in the FlushOtherSamples")
@@ -373,7 +417,20 @@ func TestDatadogFlushOtherMetricsForServiceChecks(t *testing.T) {
 
 func TestDatadogFlushServiceCheck(t *testing.T) {
 	transport := &DatadogRoundTripper{Endpoint: "/api/v1/check_run", Contains: ""}
-	ddSink, err := NewDatadogMetricSink(10, 2500, "example.com", []string{"gloobles:toots"}, "http://example.com", "secret", &http.Client{Transport: transport}, logrus.New(), nil, nil)
+	logger := logrus.NewEntry(logrus.New())
+	sink, err := CreateMetricSink(&veneur.Server{
+		HTTPClient: &http.Client{Transport: transport},
+		Interval:   10 * time.Second,
+		Tags:       []string{"gloobles:toots"},
+	},
+		"datadog", logger, veneur.Config{Hostname: "example.com"},
+		DatadogMetricSinkConfig{
+			APIKey:                          "secret",
+			APIHostname:                     "http://example.com",
+			FlushMaxPerBody:                 2500,
+			MetricNamePrefixDrops:           nil,
+			ExcludeTagsPrefixByPrefixMetric: nil,
+		})
 	assert.NoError(t, err)
 
 	testCheck := samplers.InterMetric{
@@ -388,7 +445,7 @@ func TestDatadogFlushServiceCheck(t *testing.T) {
 		},
 	}
 
-	ddSink.Flush(context.TODO(), []samplers.InterMetric{testCheck})
+	sink.Flush(context.TODO(), []samplers.InterMetric{testCheck})
 	assert.NoError(t, err)
 
 	assert.Equal(t, true, transport.GotCalled, "Should have called the datadog transport")
@@ -496,4 +553,54 @@ func TestDataDogDropTagsByMetricPrefix(t *testing.T) {
 		})
 	}
 
+}
+
+func TestParseMetricConfig(t *testing.T) {
+	testConfigValues := map[string]interface{}{
+		"api_key":                  "KEY",
+		"api_hostname":             "HOSTNAME",
+		"flush_max_per_body":       9001,
+		"metric_name_prefix_drops": []string{"prefix1", "prefix2"},
+	}
+
+	parsedConfig, err := ParseMetricConfig("datadog", testConfigValues)
+	datadogConfig := parsedConfig.(DatadogMetricSinkConfig)
+	assert.NoError(t, err)
+	assert.Equal(t, datadogConfig.APIKey, testConfigValues["api_key"])
+	assert.Equal(t, datadogConfig.APIHostname, testConfigValues["api_hostname"])
+	assert.Equal(t, datadogConfig.FlushMaxPerBody, testConfigValues["flush_max_per_body"])
+	assert.Equal(t, datadogConfig.MetricNamePrefixDrops, testConfigValues["metric_name_prefix_drops"])
+}
+
+func TestMigrateMetricConfig(t *testing.T) {
+	testConfigValues := map[string]interface{}{
+		"datadog_api_key":                  "KEY",
+		"datadog_api_hostname":             "HOSTNAME",
+		"datadog_flush_max_per_body":       9001,
+		"datadog_metric_name_prefix_drops": []string{"prefix1", "prefix2"},
+	}
+	bts, _ := yaml.Marshal(testConfigValues)
+	config := veneur.Config{}
+	_ = yaml.Unmarshal(bts, &config)
+
+	MigrateConfig(&config)
+	assert.NotEmpty(t, config.MetricSinks)
+	datadogConfig := config.MetricSinks[0].Config.(DatadogMetricSinkConfig)
+	assert.Equal(t, datadogConfig.APIKey, testConfigValues["datadog_api_key"])
+	assert.Equal(t, datadogConfig.APIHostname, testConfigValues["datadog_api_hostname"])
+	assert.Equal(t, datadogConfig.FlushMaxPerBody, testConfigValues["datadog_flush_max_per_body"])
+	assert.Equal(t, datadogConfig.MetricNamePrefixDrops, testConfigValues["datadog_metric_name_prefix_drops"])
+}
+
+func TestParseSpanConfig(t *testing.T) {
+	testConfigValues := map[string]interface{}{
+		"datadog_span_buffer_size":  1337,
+		"datadog_trace_api_address": "0.0.0.0",
+	}
+
+	parsedConfig, err := ParseSpanConfig("datadog", testConfigValues)
+	datadogConfig := parsedConfig.(DatadogSpanSinkConfig)
+	assert.NoError(t, err)
+	assert.Equal(t, datadogConfig.SpanBufferSize, testConfigValues["datadog_span_buffer_size"])
+	assert.Equal(t, datadogConfig.TraceAPIAddress, testConfigValues["datadog_trace_api_address"])
 }

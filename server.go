@@ -35,7 +35,6 @@ import (
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/scopedstatsd"
 	"github.com/stripe/veneur/v14/sinks"
-	"github.com/stripe/veneur/v14/sinks/datadog"
 	"github.com/stripe/veneur/v14/sinks/falconer"
 	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
@@ -137,7 +136,7 @@ type Server struct {
 	GRPCListenAddrs   []net.Addr
 	RcvbufBytes       int
 
-	interval            time.Duration
+	Interval            time.Duration
 	synchronizeInterval bool
 	numReaders          int
 	metricMaxLength     int
@@ -414,7 +413,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	ret := &Server{
 		Config:   conf,
-		interval: conf.Interval,
+		Interval: conf.Interval,
 	}
 
 	ret.Hostname = conf.Hostname
@@ -438,12 +437,12 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	ret.stuckIntervals = conf.FlushWatchdogMissedFlushes
 
 	transport := &http.Transport{
-		IdleConnTimeout: ret.interval * 2, // If we're idle more than one interval something is up
+		IdleConnTimeout: ret.Interval * 2, // If we're idle more than one interval something is up
 	}
 
 	ret.HTTPClient = &http.Client{
 		// make sure that POSTs to datadog do not overflow the flush interval
-		Timeout:   ret.interval * 9 / 10,
+		Timeout:   ret.Interval * 9 / 10,
 		Transport: transport,
 	}
 
@@ -632,42 +631,10 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		}
 	}
 
-	if conf.DatadogAPIKey.Value != "" && conf.DatadogAPIHostname != "" {
-		excludeTagsPrefixByPrefixMetric := map[string][]string{}
-		for _, m := range conf.DatadogExcludeTagsPrefixByPrefixMetric {
-			excludeTagsPrefixByPrefixMetric[m.MetricPrefix] = m.Tags
-		}
-
-		ddSink, err := datadog.NewDatadogMetricSink(
-			ret.interval.Seconds(), conf.DatadogFlushMaxPerBody, conf.Hostname,
-			ret.Tags, conf.DatadogAPIHostname, conf.DatadogAPIKey.Value,
-			ret.HTTPClient, log, conf.DatadogMetricNamePrefixDrops,
-			excludeTagsPrefixByPrefixMetric,
-		)
-		if err != nil {
-			return ret, err
-		}
-		ret.metricSinks = append(ret.metricSinks, ddSink)
-	}
-
 	// Configure tracing sinks if we are listening for ssf
 	if len(conf.SsfListenAddresses) > 0 || len(conf.GrpcListenAddresses) > 0 {
 
 		trace.Enable()
-
-		// configure Datadog as a Span sink
-		if conf.DatadogAPIKey.Value != "" && conf.DatadogTraceAPIAddress != "" {
-			ddSink, err := datadog.NewDatadogSpanSink(
-				conf.DatadogTraceAPIAddress, conf.DatadogSpanBufferSize,
-				ret.HTTPClient, log,
-			)
-			if err != nil {
-				return ret, err
-			}
-
-			ret.spanSinks = append(ret.spanSinks, ddSink)
-			logger.Info("Configured Datadog span sink")
-		}
 
 		if conf.XrayAddress != "" {
 			if conf.XraySamplePercentage == 0 {
@@ -919,7 +886,7 @@ func (s *Server) Start() {
 		if s.synchronizeInterval {
 			// We want to align our ticker to a multiple of its duration for
 			// convenience of bucketing.
-			<-time.After(CalculateTickDelay(s.interval, time.Now()))
+			<-time.After(CalculateTickDelay(s.Interval, time.Now()))
 		}
 
 		// We aligned the ticker to our interval above. It's worth noting that just
@@ -927,7 +894,7 @@ func (s *Server) Start() {
 		// subsequent tick. This code is small, however, and should service the
 		// incoming tick signal fast enough that the amount we are "off" is
 		// negligible.
-		ticker := time.NewTicker(s.interval)
+		ticker := time.NewTicker(s.Interval)
 		for {
 			select {
 			case <-s.shutdown:
@@ -935,7 +902,7 @@ func (s *Server) Start() {
 				ticker.Stop()
 				return
 			case triggered := <-ticker.C:
-				ctx, cancel := context.WithDeadline(ctx, triggered.Add(s.interval))
+				ctx, cancel := context.WithDeadline(ctx, triggered.Add(s.Interval))
 				s.Flush(ctx)
 				cancel()
 			}
@@ -961,7 +928,7 @@ func (s *Server) FlushWatchdog() {
 	}
 	atomic.StoreInt64(&s.lastFlushUnix, time.Now().UnixNano())
 
-	ticker := time.NewTicker(s.interval)
+	ticker := time.NewTicker(s.Interval)
 	for {
 		select {
 		case <-s.shutdown:
@@ -974,7 +941,7 @@ func (s *Server) FlushWatchdog() {
 			// If no flush was kicked off in the last N
 			// times, we're stuck - panic because that's a
 			// bug.
-			if since > time.Duration(s.stuckIntervals)*s.interval {
+			if since > time.Duration(s.stuckIntervals)*s.Interval {
 				rtdebug.SetTraceback("all")
 				log.WithFields(logrus.Fields{
 					"last_flush":       last,
