@@ -9,6 +9,7 @@ import (
 	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/sinks/attribution"
 	"github.com/stripe/veneur/v14/sinks/cortex"
+	"github.com/stripe/veneur/v14/sinks/datadog"
 	"github.com/stripe/veneur/v14/sinks/debug"
 	"github.com/stripe/veneur/v14/sinks/kafka"
 	"github.com/stripe/veneur/v14/sinks/localfile"
@@ -56,6 +57,7 @@ func main() {
 		os.Exit(0)
 	}
 	if !conf.Features.MigrateMetricSinks {
+		datadog.MigrateConfig(&conf)
 		debug.MigrateConfig(&conf)
 		localfile.MigrateConfig(&conf)
 		newrelic.MigrateConfig(&conf)
@@ -90,6 +92,10 @@ func main() {
 				Create:      cortex.Create,
 				ParseConfig: cortex.ParseConfig,
 			},
+			"datadog": {
+				Create:      datadog.CreateMetricSink,
+				ParseConfig: datadog.ParseMetricConfig,
+			},
 			"debug": {
 				Create:      debug.CreateMetricSink,
 				ParseConfig: debug.ParseMetricConfig,
@@ -121,6 +127,10 @@ func main() {
 		},
 		SpanSinkTypes: veneur.SpanSinkTypes{
 			// TODO(arnavdugar): Migrate span sink types.
+			"datadog": {
+				Create:      datadog.CreateSpanSink,
+				ParseConfig: datadog.ParseSpanConfig,
+			},
 			"debug": {
 				Create:      debug.CreateSpanSink,
 				ParseConfig: debug.ParseSpanConfig,
