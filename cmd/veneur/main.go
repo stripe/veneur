@@ -18,6 +18,7 @@ import (
 	"github.com/stripe/veneur/v14/sinks/s3"
 	"github.com/stripe/veneur/v14/sinks/signalfx"
 	"github.com/stripe/veneur/v14/sinks/splunk"
+	"github.com/stripe/veneur/v14/sinks/xray"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 )
@@ -74,6 +75,7 @@ func main() {
 		if err != nil {
 			logrus.WithError(err).Fatal("error migrating splunk config")
 		}
+		xray.MigrateConfig(&conf)
 	}
 
 	logger := logrus.StandardLogger()
@@ -144,6 +146,10 @@ func main() {
 			"splunk": {
 				Create:      splunk.Create,
 				ParseConfig: splunk.ParseConfig,
+			},
+			"xray": {
+				Create:      xray.Create,
+				ParseConfig: xray.ParseConfig,
 			},
 		},
 	})

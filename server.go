@@ -38,7 +38,6 @@ import (
 	"github.com/stripe/veneur/v14/sinks/falconer"
 	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
-	"github.com/stripe/veneur/v14/sinks/xray"
 	"github.com/stripe/veneur/v14/sources"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/tagging"
@@ -635,29 +634,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	if len(conf.SsfListenAddresses) > 0 || len(conf.GrpcListenAddresses) > 0 {
 
 		trace.Enable()
-
-		if conf.XrayAddress != "" {
-			if conf.XraySamplePercentage == 0 {
-				log.Warn("XRay sample percentage is 0, no segments will be sent.")
-			} else {
-
-				annotationTags := make([]string, 0, len(conf.XrayAnnotationTags))
-				for _, tag := range conf.XrayAnnotationTags {
-					annotationTags = append(annotationTags, strings.Split(tag, ":")[0])
-				}
-
-				xraySink, err := xray.NewXRaySpanSink(conf.XrayAddress, conf.XraySamplePercentage, ret.TagsAsMap, annotationTags, log)
-				if err != nil {
-					return ret, err
-				}
-				ret.spanSinks = append(ret.spanSinks, xraySink)
-
-				logger.WithFields(logrus.Fields{
-					"sample_percentage":   conf.XraySamplePercentage,
-					"num_annotation_tags": annotationTags,
-				}).Info("Configured X-Ray span sink")
-			}
-		}
 
 		// configure Lightstep as a Span Sink
 		if conf.LightstepAccessToken.Value != "" {
