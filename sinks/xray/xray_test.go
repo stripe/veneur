@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,17 +13,32 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/ssf"
 )
 
 func TestConstructor(t *testing.T) {
-	logger := logrus.StandardLogger()
+	logger := logrus.NewEntry(logrus.New())
 
-	sink, err := NewXRaySpanSink("127.0.0.1:2000", 100, map[string]string{"foo": "bar"}, nil, logger)
+	sink, err := Create(
+		&veneur.Server{
+			HTTPClient: &http.Client{},
+			TagsAsMap:  map[string]string{"foo": "bar"},
+		},
+		"xray",
+		logger,
+		veneur.Config{},
+		XRaySinkConfig{
+			Address:          "127.0.0.1:2000",
+			AnnotationTags:   nil,
+			SamplePercentage: 100,
+		})
+
+	xRaySink := sink.(*XRaySpanSink)
 	assert.NoError(t, err)
-	assert.Equal(t, "xray", sink.Name())
-	assert.Equal(t, "bar", sink.commonTags["foo"])
-	assert.Equal(t, "127.0.0.1:2000", sink.daemonAddr)
+	assert.Equal(t, "xray", xRaySink.Name())
+	assert.Equal(t, "bar", xRaySink.commonTags["foo"])
+	assert.Equal(t, "127.0.0.1:2000", xRaySink.daemonAddr)
 }
 
 func TestIngestSpans(t *testing.T) {
@@ -55,7 +71,19 @@ func TestIngestSpans(t *testing.T) {
 		}
 	}()
 
-	sink, err := NewXRaySpanSink(fmt.Sprintf("127.0.0.1:%d", port), 100, map[string]string{"foo": "bar"}, []string{"baz", "mind"}, logrus.New())
+	sink, err := Create(
+		&veneur.Server{
+			HTTPClient: &http.Client{},
+			TagsAsMap:  map[string]string{"foo": "bar"},
+		},
+		"xray",
+		logrus.NewEntry(logrus.New()),
+		veneur.Config{},
+		XRaySinkConfig{
+			Address:          fmt.Sprintf("127.0.0.1:%d", port),
+			AnnotationTags:   []string{"baz", "mind"},
+			SamplePercentage: 100,
+		})
 	assert.NoError(t, err)
 	err = sink.Start(nil)
 	assert.NoError(t, err)
@@ -91,9 +119,10 @@ func TestIngestSpans(t *testing.T) {
 		assert.Fail(t, "Did not receive segment from xray ingest")
 	}
 
-	assert.Equal(t, int64(1), sink.spansHandled)
+	xRaySink := sink.(*XRaySpanSink)
+	assert.Equal(t, int64(1), xRaySink.spansHandled)
 	sink.Flush()
-	assert.Equal(t, int64(0), sink.spansHandled)
+	assert.Equal(t, int64(0), xRaySink.spansHandled)
 }
 
 func TestIngestSpansRootStartTimestamp(t *testing.T) {
@@ -126,7 +155,19 @@ func TestIngestSpansRootStartTimestamp(t *testing.T) {
 		}
 	}()
 
-	sink, err := NewXRaySpanSink(fmt.Sprintf("127.0.0.1:%d", port), 100, map[string]string{"foo": "bar"}, []string{"baz", "mind"}, logrus.New())
+	sink, err := Create(
+		&veneur.Server{
+			HTTPClient: &http.Client{},
+			TagsAsMap:  map[string]string{"foo": "bar"},
+		},
+		"xray",
+		logrus.NewEntry(logrus.New()),
+		veneur.Config{},
+		XRaySinkConfig{
+			Address:          fmt.Sprintf("127.0.0.1:%d", port),
+			AnnotationTags:   []string{"baz", "mind"},
+			SamplePercentage: 100,
+		})
 	assert.NoError(t, err)
 	err = sink.Start(nil)
 	assert.NoError(t, err)
@@ -163,9 +204,10 @@ func TestIngestSpansRootStartTimestamp(t *testing.T) {
 		assert.Fail(t, "Did not receive segment from xray ingest")
 	}
 
-	assert.Equal(t, int64(1), sink.spansHandled)
+	xRaySink := sink.(*XRaySpanSink)
+	assert.Equal(t, int64(1), xRaySink.spansHandled)
 	sink.Flush()
-	assert.Equal(t, int64(0), sink.spansHandled)
+	assert.Equal(t, int64(0), xRaySink.spansHandled)
 }
 
 func TestIngestSpansHttpHeadersInTags(t *testing.T) {
@@ -198,7 +240,19 @@ func TestIngestSpansHttpHeadersInTags(t *testing.T) {
 		}
 	}()
 
-	sink, err := NewXRaySpanSink(fmt.Sprintf("127.0.0.1:%d", port), 100, map[string]string{"foo": "bar"}, []string{"baz", "mind"}, logrus.New())
+	sink, err := Create(
+		&veneur.Server{
+			HTTPClient: &http.Client{},
+			TagsAsMap:  map[string]string{"foo": "bar"},
+		},
+		"xray",
+		logrus.NewEntry(logrus.New()),
+		veneur.Config{},
+		XRaySinkConfig{
+			Address:          fmt.Sprintf("127.0.0.1:%d", port),
+			AnnotationTags:   []string{"baz", "mind"},
+			SamplePercentage: 100,
+		})
 	assert.NoError(t, err)
 	err = sink.Start(nil)
 	assert.NoError(t, err)
@@ -238,9 +292,10 @@ func TestIngestSpansHttpHeadersInTags(t *testing.T) {
 		assert.Fail(t, "Did not receive segment from xray ingest")
 	}
 
-	assert.Equal(t, int64(1), sink.spansHandled)
+	xRaySink := sink.(*XRaySpanSink)
+	assert.Equal(t, int64(1), xRaySink.spansHandled)
 	sink.Flush()
-	assert.Equal(t, int64(0), sink.spansHandled)
+	assert.Equal(t, int64(0), xRaySink.spansHandled)
 }
 
 func TestSampleSpans(t *testing.T) {
@@ -273,7 +328,19 @@ func TestSampleSpans(t *testing.T) {
 		}
 	}()
 
-	sink, err := NewXRaySpanSink(fmt.Sprintf("127.0.0.1:%d", port), 50, map[string]string{"foo": "bar"}, []string{"baz", "mind"}, logrus.New())
+	sink, err := Create(
+		&veneur.Server{
+			HTTPClient: &http.Client{},
+			TagsAsMap:  map[string]string{"foo": "bar"},
+		},
+		"xray",
+		logrus.NewEntry(logrus.New()),
+		veneur.Config{},
+		XRaySinkConfig{
+			Address:          fmt.Sprintf("127.0.0.1:%d", port),
+			AnnotationTags:   []string{"baz", "mind"},
+			SamplePercentage: 50,
+		})
 	assert.NoError(t, err)
 	err = sink.Start(nil)
 	assert.NoError(t, err)
@@ -340,13 +407,26 @@ func TestSampleSpans(t *testing.T) {
 		assert.Fail(t, "Did not receive segment from xray ingest")
 	}
 
-	assert.Equal(t, int64(1), sink.spansHandled)
+	xRaySink := sink.(*XRaySpanSink)
+	assert.Equal(t, int64(1), xRaySink.spansHandled)
 	sink.Flush()
-	assert.Equal(t, int64(0), sink.spansHandled)
+	assert.Equal(t, int64(0), xRaySink.spansHandled)
 }
 
 func TestCalculateTraceID(t *testing.T) {
-	sink, err := NewXRaySpanSink(fmt.Sprintf("127.0.0.1:12345"), 50, map[string]string{"foo": "bar"}, []string{"baz", "mind"}, logrus.New())
+	sink, err := Create(
+		&veneur.Server{
+			HTTPClient: &http.Client{},
+			TagsAsMap:  map[string]string{"foo": "bar"},
+		},
+		"xray",
+		logrus.NewEntry(logrus.New()),
+		veneur.Config{},
+		XRaySinkConfig{
+			Address:          "127.0.0.1:12345",
+			AnnotationTags:   []string{"baz", "mind"},
+			SamplePercentage: 50,
+		})
 	assert.NoError(t, err)
 
 	start := time.Unix(1518279577, 0)
@@ -368,7 +448,9 @@ func TestCalculateTraceID(t *testing.T) {
 	// TraceID in hex: 000000003fdd0f60394d200c
 	// Span starttime in hex - 5A7F1B99
 	// -> middle timestamp should be 5A7F200C
-	assert.Equal(t, sink.CalculateTraceID(testSpan), "1-5a7f1b00-000000003fdd0f60394d200c")
+
+	xRaySink := sink.(*XRaySpanSink)
+	assert.Equal(t, xRaySink.CalculateTraceID(testSpan), "1-5a7f1b00-000000003fdd0f60394d200c")
 
 	testSpan = &ssf.SSFSpan{
 		TraceId:            4601851300195147788,
@@ -384,6 +466,20 @@ func TestCalculateTraceID(t *testing.T) {
 		RootStartTimestamp: int64(1e9),
 	}
 
-	assert.Equal(t, sink.CalculateTraceID(testSpan), "1-00000001-000000003fdd0f60394d200c")
+	assert.Equal(t, xRaySink.CalculateTraceID(testSpan), "1-00000001-000000003fdd0f60394d200c")
+}
 
+func TestParseSpanConfig(t *testing.T) {
+	testConfigValues := map[string]interface{}{
+		"address":           "127.0.0.1:1234",
+		"annotation_tags":   []string{"foo", "bar"},
+		"sample_percentage": 10.5,
+	}
+
+	parsedConfig, err := ParseConfig("xray", testConfigValues)
+	xRaySinkConfig := parsedConfig.(XRaySinkConfig)
+	assert.NoError(t, err)
+	assert.Equal(t, xRaySinkConfig.Address, testConfigValues["address"])
+	assert.Equal(t, xRaySinkConfig.AnnotationTags, testConfigValues["annotation_tags"])
+	assert.Equal(t, xRaySinkConfig.SamplePercentage, testConfigValues["sample_percentage"])
 }

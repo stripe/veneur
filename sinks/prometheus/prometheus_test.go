@@ -7,6 +7,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/trace"
 
@@ -14,7 +15,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewStatsdRepeater(t *testing.T) {
+func testLogger() *logrus.Entry {
+	return logrus.NewEntry(logrus.New())
+}
+
+func TestCreateMetricSink(t *testing.T) {
+	logger := testLogger()
 	for name, tc := range map[string]struct {
 		addr    string
 		network string
@@ -42,7 +48,17 @@ func TestNewStatsdRepeater(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := NewStatsdRepeater(tc.addr, tc.network, nil)
+			_, err := CreateMetricSink(
+				&veneur.Server{
+					TraceClient: nil,
+				},
+				"prometheus",
+				logger,
+				veneur.Config{},
+				PrometheusMetricSinkConfig{
+					RepeaterAddress: tc.addr,
+					NetworkType:     tc.network,
+				})
 			if tc.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -50,6 +66,23 @@ func TestNewStatsdRepeater(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMetricSinkName(t *testing.T) {
+	sink, err := CreateMetricSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"prometheus-test",
+		testLogger(),
+		veneur.Config{},
+		PrometheusMetricSinkConfig{
+			RepeaterAddress: "http://127.0.0.1:5000",
+			NetworkType:     "tcp",
+		})
+	assert.NotNil(t, sink)
+	assert.NoError(t, err)
+	assert.Equal(t, "prometheus-test", sink.Name())
 }
 
 func TestMetricFlush(t *testing.T) {
@@ -90,9 +123,19 @@ func TestMetricFlush(t *testing.T) {
 		}
 	}()
 
-	logger := logrus.StandardLogger()
+	logger := testLogger()
 	port := ln.Addr().(*net.TCPAddr).Port
-	sink, err := NewStatsdRepeater(fmt.Sprintf("localhost:%d", port), "tcp", logger)
+	sink, err := CreateMetricSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"prometheus",
+		logger,
+		veneur.Config{},
+		PrometheusMetricSinkConfig{
+			RepeaterAddress: fmt.Sprintf("localhost:%d", port),
+			NetworkType:     "tcp",
+		})
 	assert.NoError(t, err)
 
 	assert.NoError(t, sink.Start(trace.DefaultClient))
@@ -134,4 +177,15 @@ func TestMetricFlush(t *testing.T) {
 			break
 		}
 	}
+}
+
+func TestParseConfig(t *testing.T) {
+	parsedConfig, err := ParseMetricConfig("prometheus", map[string]interface{}{
+		"repeater_address": "127.0.0.1:5000",
+		"network_type":     "udp",
+	})
+	prometheusConfig := parsedConfig.(PrometheusMetricSinkConfig)
+	assert.NoError(t, err)
+	assert.Equal(t, prometheusConfig.RepeaterAddress, "127.0.0.1:5000")
+	assert.Equal(t, prometheusConfig.NetworkType, "udp")
 }

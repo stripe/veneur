@@ -9,13 +9,16 @@ import (
 	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/sinks/attribution"
 	"github.com/stripe/veneur/v14/sinks/cortex"
+	"github.com/stripe/veneur/v14/sinks/datadog"
 	"github.com/stripe/veneur/v14/sinks/debug"
 	"github.com/stripe/veneur/v14/sinks/kafka"
 	"github.com/stripe/veneur/v14/sinks/localfile"
 	"github.com/stripe/veneur/v14/sinks/newrelic"
+	"github.com/stripe/veneur/v14/sinks/prometheus"
 	"github.com/stripe/veneur/v14/sinks/s3"
 	"github.com/stripe/veneur/v14/sinks/signalfx"
 	"github.com/stripe/veneur/v14/sinks/splunk"
+	"github.com/stripe/veneur/v14/sinks/xray"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 )
@@ -54,10 +57,12 @@ func main() {
 		os.Exit(0)
 	}
 	if !conf.Features.MigrateMetricSinks {
+		datadog.MigrateConfig(&conf)
 		debug.MigrateConfig(&conf)
 		localfile.MigrateConfig(&conf)
 		newrelic.MigrateConfig(&conf)
 		s3.MigrateConfig(&conf)
+		prometheus.MigrateConfig(&conf)
 		err = signalfx.MigrateConfig(&conf)
 		if err != nil {
 			logrus.WithError(err).Fatal("error migrating signalfx config")
@@ -70,6 +75,7 @@ func main() {
 		if err != nil {
 			logrus.WithError(err).Fatal("error migrating splunk config")
 		}
+		xray.MigrateConfig(&conf)
 	}
 
 	logger := logrus.StandardLogger()
@@ -85,6 +91,10 @@ func main() {
 			"cortex": {
 				Create:      cortex.Create,
 				ParseConfig: cortex.ParseConfig,
+			},
+			"datadog": {
+				Create:      datadog.CreateMetricSink,
+				ParseConfig: datadog.ParseMetricConfig,
 			},
 			"debug": {
 				Create:      debug.CreateMetricSink,
@@ -102,6 +112,10 @@ func main() {
 				Create:      newrelic.CreateMetricSink,
 				ParseConfig: newrelic.ParseMetricConfig,
 			},
+			"prometheus": {
+				Create:      prometheus.CreateMetricSink,
+				ParseConfig: prometheus.ParseMetricConfig,
+			},
 			"s3": {
 				Create:      s3.Create,
 				ParseConfig: s3.ParseConfig,
@@ -113,6 +127,10 @@ func main() {
 		},
 		SpanSinkTypes: veneur.SpanSinkTypes{
 			// TODO(arnavdugar): Migrate span sink types.
+			"datadog": {
+				Create:      datadog.CreateSpanSink,
+				ParseConfig: datadog.ParseSpanConfig,
+			},
 			"debug": {
 				Create:      debug.CreateSpanSink,
 				ParseConfig: debug.ParseSpanConfig,
@@ -128,6 +146,10 @@ func main() {
 			"splunk": {
 				Create:      splunk.Create,
 				ParseConfig: splunk.ParseConfig,
+			},
+			"xray": {
+				Create:      xray.Create,
+				ParseConfig: xray.ParseConfig,
 			},
 		},
 	})

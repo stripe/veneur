@@ -2,21 +2,25 @@ package xray
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"math"
 	"net"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util"
 )
 
 var segmentHeader = []byte(`{"format": "json", "version": 1}` + "\n")
@@ -63,6 +67,12 @@ type XRaySegment struct {
 	HTTP        XRaySegmentHTTP   `json:"http,omitempty"`
 }
 
+type XRaySinkConfig struct {
+	Address          string   `yaml:"address"`
+	AnnotationTags   []string `yaml:"annotation_tags"`
+	SamplePercentage float64  `yaml:"sample_percentage"`
+}
+
 // XRaySpanSink is a sink for spans to be sent to AWS X-Ray.
 type XRaySpanSink struct {
 	daemonAddr      string
@@ -71,35 +81,77 @@ type XRaySpanSink struct {
 	sampleThreshold uint32
 	commonTags      map[string]string
 	annotationTags  map[string]struct{}
-	log             *logrus.Logger
+	log             *logrus.Entry
 	spansDropped    int64
 	spansHandled    int64
+	name            string
 	nameRegex       *regexp.Regexp
 }
 
 var _ sinks.SpanSink = &XRaySpanSink{}
 
-// NewXRaySpanSink creates a new instance of a XRaySpanSink.
-func NewXRaySpanSink(daemonAddr string, sampleRatePercentage float64, commonTags map[string]string, annotationTags []string, log *logrus.Logger) (*XRaySpanSink, error) {
+// TODO(yeogai): Remove this once the old configuration format has been
+// removed.
+func MigrateConfig(conf *veneur.Config) {
+	if conf.XrayAddress == "" {
+		return
+	}
+	conf.SpanSinks = append(conf.SpanSinks, struct {
+		Kind   string      "yaml:\"kind\""
+		Name   string      "yaml:\"name\""
+		Config interface{} "yaml:\"config\""
+	}{
+		Kind: "xray",
+		Name: "xray",
+		Config: XRaySinkConfig{
+			Address:          conf.XrayAddress,
+			AnnotationTags:   conf.XrayAnnotationTags,
+			SamplePercentage: conf.XraySamplePercentage,
+		},
+	})
+}
 
-	log.WithFields(logrus.Fields{
-		"Address": daemonAddr,
+// ParseConfig decodes the map config for an X-Ray sink into a XRaySinkConfig
+// struct.
+func ParseConfig(
+	name string, config interface{},
+) (veneur.SpanSinkConfig, error) {
+	xrayConfig := XRaySinkConfig{}
+	err := util.DecodeConfig(name, config, &xrayConfig)
+	if err != nil {
+		return nil, err
+	}
+	return xrayConfig, nil
+}
+
+// Create creates a new instance of a XRaySpanSink.
+func Create(
+	server *veneur.Server, name string, logger *logrus.Entry,
+	config veneur.Config, sinkConfig veneur.SpanSinkConfig,
+) (sinks.SpanSink, error) {
+	xRaySinkConfig, ok := sinkConfig.(XRaySinkConfig)
+	if !ok {
+		return nil, errors.New("invalid sink config type")
+	}
+
+	logger.WithFields(logrus.Fields{
+		"Address": xRaySinkConfig.Address,
 	}).Info("Creating X-Ray client")
 
-	var sampleThreshold uint32
+	sampleRatePercentage := xRaySinkConfig.SamplePercentage
 	if sampleRatePercentage < 0 {
-		log.WithField("sampleRatePercentage", sampleRatePercentage).Warn("Sample rate < 0 is invalid, defaulting to 0")
+		logger.WithField("sampleRatePercentage", sampleRatePercentage).Warn("Sample rate < 0 is invalid, defaulting to 0")
 		sampleRatePercentage = 0
 	}
 	if sampleRatePercentage > 100 {
-		log.WithField("sampleRatePercentage", sampleRatePercentage).Warn("Sample rate > 100 is invalid, defaulting to 100")
+		logger.WithField("sampleRatePercentage", sampleRatePercentage).Warn("Sample rate > 100 is invalid, defaulting to 100")
 		sampleRatePercentage = 100
 	}
 
 	// Set the sample threshold to (sample rate) * (maximum value of uint32), so that
 	// we can store it as a uint32 instead of a float64 and compare apples-to-apples
 	// with the output of our hashing algorithm.
-	sampleThreshold = uint32(sampleRatePercentage * math.MaxUint32 / 100)
+	sampleThreshold := uint32(sampleRatePercentage * math.MaxUint32 / 100)
 
 	// Build a regex for cleaning names based on valid characters from:
 	// https://docs.aws.amazon.com/xray/latest/devguide/xray-api-segmentdocuments.html#api-segmentdocuments-fields
@@ -109,15 +161,17 @@ func NewXRaySpanSink(daemonAddr string, sampleRatePercentage float64, commonTags
 	}
 
 	annotationTagsMap := map[string]struct{}{}
-	for _, key := range annotationTags {
+	for _, tag := range xRaySinkConfig.AnnotationTags {
+		key := strings.Split(tag, ":")[0]
 		annotationTagsMap[key] = struct{}{}
 	}
 
 	return &XRaySpanSink{
-		daemonAddr:      daemonAddr,
+		daemonAddr:      xRaySinkConfig.Address,
 		sampleThreshold: sampleThreshold,
-		commonTags:      commonTags,
-		log:             log,
+		commonTags:      server.TagsAsMap,
+		log:             logger,
+		name:            name,
 		nameRegex:       reg,
 		annotationTags:  annotationTagsMap,
 	}, nil
@@ -142,7 +196,7 @@ func (x *XRaySpanSink) Start(cl *trace.Client) error {
 
 // Name returns this sink's name.
 func (x *XRaySpanSink) Name() string {
-	return "xray"
+	return x.name
 }
 
 // Ingest takes in a span and passed it along to the X-Ray client after
