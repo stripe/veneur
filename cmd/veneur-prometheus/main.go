@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"time"
 
@@ -54,20 +55,25 @@ func main() {
 
 	cache := new(countCache)
 	ticker := time.NewTicker(i)
-	for range ticker.C {
-		statsdStats := collect(cfg, cache)
+	for time := range ticker.C {
+		ctx, cancel := context.WithDeadline(context.Background(), time.Add(i))
+		statsdStats := collect(ctx, cfg, cache)
 		sendToStatsd(statsClient, *statsHost, statsdStats)
+		cancel()
 	}
 }
 
-func collect(cfg prometheusConfig, cache *countCache) <-chan []statsdStat {
+func collect(
+	ctx context.Context, cfg prometheusConfig, cache *countCache,
+) <-chan []statsdStat {
 	logrus.WithFields(logrus.Fields{
 		"metrics_host":    cfg.metricsHost,
 		"ignored_labels":  cfg.ignoredLabels,
 		"ignored_metrics": cfg.ignoredMetrics,
 	}).Debug("beginning collection")
 
-	prometheus := queryPrometheus(cfg.httpClient, cfg.metricsHost, cfg.ignoredMetrics)
+	prometheus := QueryPrometheus(
+		ctx, cfg.httpClient, cfg.metricsHost, cfg.ignoredMetrics)
 	return translatePrometheus(cfg, cache, prometheus)
 }
 

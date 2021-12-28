@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -25,7 +26,7 @@ func TestUntyped(t *testing.T) {
 	cfg := testConfig(ts.URL)
 
 	cache := new(countCache)
-	counts, gauges := splitStats(collect(cfg, cache))
+	counts, gauges := splitStats(collect(context.Background(), cfg, cache))
 	unknown, _ := countValue(counts, "veneur.prometheus.unknown_metric_type_total")
 	assert.Equal(t, 0, unknown)
 
@@ -60,17 +61,17 @@ func TestVeneurGeneratedCountsAreCorrect(t *testing.T) {
 	cfg := testConfig(ts.URL)
 
 	cache := new(countCache)
-	counts, _ := splitStats(collect(cfg, cache))
+	counts, _ := splitStats(collect(context.Background(), cfg, cache))
 	flushed, _ := countValue(counts, "veneur.prometheus.metrics_flushed_total")
 	assert.Equal(t, 5, flushed)
 
-	counts, _ = splitStats(collect(cfg, cache))
+	counts, _ = splitStats(collect(context.Background(), cfg, cache))
 	flushed, _ = countValue(counts, "veneur.prometheus.metrics_flushed_total")
 	assert.Equal(t, 5, flushed)
 
 	counter2.Inc()
 
-	counts, _ = splitStats(collect(cfg, cache))
+	counts, _ = splitStats(collect(context.Background(), cfg, cache))
 	flushed, _ = countValue(counts, "veneur.prometheus.metrics_flushed_total")
 	assert.Equal(t, 5, flushed)
 }
@@ -90,13 +91,13 @@ func TestCountsOnBridgeRestarts(t *testing.T) {
 	cache := new(countCache)
 	cfg := testConfig(ts.URL)
 
-	splitStats(collect(cfg, cache))
+	splitStats(collect(context.Background(), cfg, cache))
 
 	counter.Inc()
 	counter.Inc()
 	counter.Inc()
 
-	counts, _ := splitStats(collect(cfg, cache))
+	counts, _ := splitStats(collect(context.Background(), cfg, cache))
 	count, _ := countValue(counts, "counter")
 	assert.Equal(t, 3, count)
 
@@ -106,7 +107,7 @@ func TestCountsOnBridgeRestarts(t *testing.T) {
 
 	//cache gets cleared on restarts
 	cache = new(countCache)
-	counts, _ = splitStats(collect(cfg, cache))
+	counts, _ = splitStats(collect(context.Background(), cfg, cache))
 
 	count, _ = countValue(counts, "counter")
 	assert.Equal(t, 0, count) //missed it because of our restart
@@ -114,7 +115,7 @@ func TestCountsOnBridgeRestarts(t *testing.T) {
 	counter.Inc()
 	counter.Inc()
 
-	counts, _ = splitStats(collect(cfg, cache))
+	counts, _ = splitStats(collect(context.Background(), cfg, cache))
 	count, _ = countValue(counts, "counter")
 	assert.Equal(t, 2, count) //back on track
 }
@@ -134,18 +135,18 @@ func TestCountsOnMonitoredServerRestarts(t *testing.T) {
 	cache := new(countCache)
 	cfg := testConfig(ts.URL)
 
-	splitStats(collect(cfg, cache))
+	splitStats(collect(context.Background(), cfg, cache))
 
 	counter.Inc()
 	counter.Inc()
 	counter.Inc()
 
-	counts, _ := splitStats(collect(cfg, cache))
+	counts, _ := splitStats(collect(context.Background(), cfg, cache))
 	count, _ := countValue(counts, "counter")
 	assert.Equal(t, 3, count)
 
 	counter.Inc()
-	counts, _ = splitStats(collect(cfg, cache))
+	counts, _ = splitStats(collect(context.Background(), cfg, cache))
 	count, _ = countValue(counts, "counter")
 	assert.Equal(t, 1, count)
 
@@ -171,7 +172,7 @@ func TestCountsOnMonitoredServerRestarts(t *testing.T) {
 	counter.Inc()
 
 	cfg = testConfig(ts.URL)
-	counts, _ = splitStats(collect(cfg, cache))
+	counts, _ = splitStats(collect(context.Background(), cfg, cache))
 	count, _ = countValue(counts, "counter")
 	assert.Equal(t, 2, count)
 }
@@ -192,12 +193,12 @@ func TestHistogramsNewBucketsAreTranslatedToDiffs(t *testing.T) {
 	cache := new(countCache)
 	cfg := ignoreConfig(ts.URL)
 
-	splitStats(collect(cfg, cache))
+	splitStats(collect(context.Background(), cfg, cache))
 
 	histogram.Observe(1.5)
 	histogram.Observe(2.3)
 
-	counts, gauges := splitStats(collect(cfg, cache))
+	counts, gauges := splitStats(collect(context.Background(), cfg, cache))
 
 	sum, _ := gaugeValue(gauges, "histogram.sum")
 	count, _ := countValue(counts, "histogram.count")
@@ -229,7 +230,7 @@ func TestHistogramsNewBucketsAreTranslatedToDiffs(t *testing.T) {
 	histogram.Observe(1.3)
 	histogram.Observe(2.3)
 
-	counts, gauges = splitStats(collect(cfg, cache))
+	counts, gauges = splitStats(collect(context.Background(), cfg, cache))
 
 	sum, _ = gaugeValue(gauges, "histogram.sum")
 	count, _ = countValue(counts, "histogram.count")
@@ -281,7 +282,7 @@ func TestHistogramsAreTranslatedToDiffs(t *testing.T) {
 	cache := new(countCache)
 	cfg := ignoreConfig(ts.URL)
 
-	counts, gauges := splitStats(collect(cfg, cache))
+	counts, gauges := splitStats(collect(context.Background(), cfg, cache))
 
 	assert.True(t, gaugeReceived(gauges, "histogram.sum"))
 	assert.True(t, countReceived(counts, "histogram.count"))
@@ -314,7 +315,7 @@ func TestHistogramsAreTranslatedToDiffs(t *testing.T) {
 	histogram.Observe(3)
 	histogramVec.WithLabelValues("G1", "H1").Observe(1.5)
 
-	counts, gauges = splitStats(collect(cfg, cache))
+	counts, gauges = splitStats(collect(context.Background(), cfg, cache))
 
 	sum, _ = gaugeValue(gauges, "histogram.sum")
 	count, _ = countValue(counts, "histogram.count")
@@ -352,7 +353,7 @@ func TestHistogramsAreTranslatedToDiffs(t *testing.T) {
 	histogram.Observe(4.5)
 	histogramVec.WithLabelValues("G1", "H1").Observe(6)
 
-	counts, gauges = splitStats(collect(cfg, cache))
+	counts, gauges = splitStats(collect(context.Background(), cfg, cache))
 
 	sum, _ = gaugeValue(gauges, "histogram.sum")
 	count, _ = countValue(counts, "histogram.count")
@@ -408,7 +409,7 @@ func TestSummariesCountAreTranslatedToDiffs(t *testing.T) {
 	cache := new(countCache)
 	cfg := testConfig(ts.URL)
 
-	counts, gauges := splitStats(collect(cfg, cache))
+	counts, gauges := splitStats(collect(context.Background(), cfg, cache))
 
 	count, _ := countValue(counts, "summary.count")
 	sum, _ := gaugeValue(gauges, "summary.sum")
@@ -426,7 +427,7 @@ func TestSummariesCountAreTranslatedToDiffs(t *testing.T) {
 	summary.Observe(30)
 	summaryVec.WithLabelValues("E1", "F1").Observe(30)
 
-	counts, gauges = splitStats(collect(cfg, cache))
+	counts, gauges = splitStats(collect(context.Background(), cfg, cache))
 
 	count, _ = countValue(counts, "summary.count")
 	sum, _ = gaugeValue(gauges, "summary.sum")
@@ -453,7 +454,7 @@ func TestSummariesCountAreTranslatedToDiffs(t *testing.T) {
 	summaryVec.WithLabelValues("E1", "F1").Observe(60)
 	summaryVec.WithLabelValues("E1", "F1").Observe(60)
 
-	counts, gauges = splitStats(collect(cfg, cache))
+	counts, gauges = splitStats(collect(context.Background(), cfg, cache))
 
 	count, _ = countValue(counts, "summary.count")
 	sum, _ = gaugeValue(gauges, "summary.sum")
@@ -499,7 +500,7 @@ func TestGaugesAreNOTTranslatedToDiffs(t *testing.T) {
 	cache := new(countCache)
 	cfg := testConfig(ts.URL)
 
-	_, gauges := splitStats(collect(cfg, cache))
+	_, gauges := splitStats(collect(context.Background(), cfg, cache))
 
 	//vecs dont show up until they have a call
 	assert.False(t, gaugeReceived(gauges, "gauge_vec", "c:C1", "d:D1"))
@@ -510,7 +511,7 @@ func TestGaugesAreNOTTranslatedToDiffs(t *testing.T) {
 	gaugeVec.WithLabelValues("C1", "D1").Set(29.9)
 	gaugeVec.WithLabelValues("C1", "D1").Set(27.8)
 
-	_, gauges = splitStats(collect(cfg, cache))
+	_, gauges = splitStats(collect(context.Background(), cfg, cache))
 	val1, _ := gaugeValue(gauges, "gauge")
 	val2, _ := gaugeValue(gauges, "gauge_vec", "c:C1", "d:D1")
 
@@ -540,14 +541,14 @@ func TestCountsAreTranslatedToDiffs(t *testing.T) {
 	cache := new(countCache)
 	cfg := testConfig(ts.URL)
 
-	counts, _ := splitStats(collect(cfg, cache))
+	counts, _ := splitStats(collect(context.Background(), cfg, cache))
 	//won't show up in prom endpoint until its inc'd
 	assert.False(t, countReceived(counts, "counter_vec", "a:A1", "b:B1"))
 
 	counter.Inc()
 	counterVec.WithLabelValues("A1", "B1").Inc()
 
-	counts, _ = splitStats(collect(cfg, cache))
+	counts, _ = splitStats(collect(context.Background(), cfg, cache))
 	count1, _ := countValue(counts, "counter")
 	count2, _ := countValue(counts, "counter_vec", "a:A1", "b:B1")
 	assert.Equal(t, 1, count1) //0 from init, 1 from inc, diff is 1
@@ -557,7 +558,7 @@ func TestCountsAreTranslatedToDiffs(t *testing.T) {
 	counterVec.WithLabelValues("A1", "B1").Inc()
 	counterVec.WithLabelValues("A2", "B1").Inc()
 
-	counts, _ = splitStats(collect(cfg, cache))
+	counts, _ = splitStats(collect(context.Background(), cfg, cache))
 
 	count1, _ = countValue(counts, "counter")
 	count2, _ = countValue(counts, "counter_vec", "a:A1", "b:B1")
@@ -571,7 +572,7 @@ func TestCountsAreTranslatedToDiffs(t *testing.T) {
 	counterVec.WithLabelValues("A1", "B1").Add(5)
 	counterVec.WithLabelValues("A2", "B1").Add(5)
 
-	counts, _ = splitStats(collect(cfg, cache))
+	counts, _ = splitStats(collect(context.Background(), cfg, cache))
 
 	//all got 5 between last
 	count1, _ = countValue(counts, "counter")
@@ -693,7 +694,7 @@ func TestCollectGetsAllMetricsItShould(t *testing.T) {
 	cache := new(countCache)
 	cfg := ignoreConfig(ts.URL)
 
-	counts, gauges := splitStats(collect(cfg, cache))
+	counts, gauges := splitStats(collect(context.Background(), cfg, cache))
 
 	assert.True(t, countReceived(counts, "counter"))
 	assert.True(t, countReceived(counts, "counter_vec", "a:A1", "b:B1"))

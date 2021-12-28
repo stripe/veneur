@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"regexp"
@@ -16,13 +17,21 @@ type prometheusResults struct {
 	clientError error
 }
 
-func queryPrometheus(httpClient *http.Client, host string, ignoredMetrics []*regexp.Regexp) <-chan prometheusResults {
+func QueryPrometheus(
+	ctx context.Context, httpClient *http.Client, host string,
+	ignoredMetrics []*regexp.Regexp,
+) <-chan prometheusResults {
 	metrics := make(chan prometheusResults)
 
 	go func() {
 		defer close(metrics)
 
-		resp, err := httpClient.Get(host)
+		request, err := http.NewRequestWithContext(ctx, "GET", host, nil)
+		if err != nil {
+			metrics <- prometheusResults{clientError: err}
+			return
+		}
+		resp, err := httpClient.Do(request)
 		if err != nil {
 			metrics <- prometheusResults{clientError: err}
 			logrus.
