@@ -3,7 +3,7 @@
 // The Server wraps a grpc.Server, and implements the forwardrpc.Forward
 // service.  It receives batches of metrics, then hashes them to a specific
 // "MetricIngester" and forwards them on.
-package importsrv
+package proxy
 
 import (
 	"fmt"

@@ -30,7 +30,6 @@ import (
 
 	"github.com/pkg/profile"
 
-	"github.com/stripe/veneur/v14/importsrv"
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/scopedstatsd"
@@ -39,6 +38,7 @@ import (
 	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
 	"github.com/stripe/veneur/v14/sources"
+	"github.com/stripe/veneur/v14/sources/proxy"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/tagging"
 	"github.com/stripe/veneur/v14/trace"
@@ -165,7 +165,7 @@ type Server struct {
 
 	// gRPC server
 	grpcListenAddress string
-	grpcServer        *importsrv.Server
+	grpcServer        *proxy.Server
 
 	// gRPC forward clients
 	grpcForwardConn *grpc.ClientConn
@@ -706,13 +706,13 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	ret.grpcListenAddress = conf.GrpcAddress
 	if ret.grpcListenAddress != "" {
 		// convert all the workers to the proper interface
-		ingesters := make([]importsrv.MetricIngester, len(ret.Workers))
+		ingesters := make([]proxy.MetricIngester, len(ret.Workers))
 		for i, worker := range ret.Workers {
 			ingesters[i] = worker
 		}
 
-		ret.grpcServer = importsrv.New(ingesters,
-			importsrv.WithTraceClient(ret.TraceClient))
+		ret.grpcServer = proxy.New(ingesters,
+			proxy.WithTraceClient(ret.TraceClient))
 	}
 
 	ret.sources, err = ret.createSources(logger, &conf, config.SourceTypes)
