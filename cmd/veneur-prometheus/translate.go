@@ -9,8 +9,7 @@ import (
 )
 
 var (
-	connectError = newStatsdCount("veneur.prometheus.connect_errors_total", nil, 1)
-	decodeError  = newStatsdCount("veneur.prometheus.decode_errors_total", nil, 1)
+	decodeError = newStatsdCount("veneur.prometheus.decode_errors_total", nil, 1)
 
 	unknownPrometheusTypeID = statID{"veneur.prometheus.unknown_metric_type_total", nil}
 	flushedMetricsID        = statID{"veneur.prometheus.metrics_flushed_total", nil}
@@ -36,12 +35,6 @@ func sendTranslated(prometheus <-chan prometheusResults, translate translator, s
 
 	for result := range prometheus {
 		var stats []inMemoryStat
-
-		if result.clientError != nil {
-			count++
-			s.statsd(connectError)
-			continue
-		}
 
 		if result.decodeError != nil {
 			count++

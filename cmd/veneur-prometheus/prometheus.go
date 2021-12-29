@@ -14,38 +14,29 @@ import (
 type prometheusResults struct {
 	mf          dto.MetricFamily
 	decodeError error
-	clientError error
 }
 
 func QueryPrometheus(
 	ctx context.Context, httpClient *http.Client, host string,
 	ignoredMetrics []*regexp.Regexp,
-) <-chan prometheusResults {
-	metrics := make(chan prometheusResults)
+) (<-chan prometheusResults, error) {
+	request, err := http.NewRequestWithContext(ctx, "GET", host, nil)
+	if err != nil {
+		return nil, err
+	}
+	response, err := httpClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	decoder := expfmt.NewDecoder(response.Body, expfmt.FmtText)
 
+	metrics := make(chan prometheusResults)
 	go func() {
 		defer close(metrics)
 
-		request, err := http.NewRequestWithContext(ctx, "GET", host, nil)
-		if err != nil {
-			metrics <- prometheusResults{clientError: err}
-			return
-		}
-		resp, err := httpClient.Do(request)
-		if err != nil {
-			metrics <- prometheusResults{clientError: err}
-			logrus.
-				WithError(err).
-				WithField("prometheus_host", host).
-				Warn("unable to connect with prometheus host")
-
-			return
-		}
-
-		d := expfmt.NewDecoder(resp.Body, expfmt.FmtText)
 		for {
 			var mf dto.MetricFamily
-			err := d.Decode(&mf)
+			err := decoder.Decode(&mf)
 			if err == io.EOF {
 				// We've hit the end, break out!
 				return
@@ -66,7 +57,7 @@ func QueryPrometheus(
 		}
 	}()
 
-	return metrics
+	return metrics, nil
 }
 
 func shouldExportMetric(mf dto.MetricFamily, ignoredMetrics []*regexp.Regexp) bool {
