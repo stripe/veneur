@@ -15,7 +15,7 @@ var (
 	flushedMetricsID        = statID{"veneur.prometheus.metrics_flushed_total", nil}
 )
 
-func translatePrometheus(cfg prometheusConfig, cache *countCache, prometheus <-chan prometheusResults) <-chan []statsdStat {
+func translatePrometheus(cfg prometheusConfig, cache *countCache, prometheus <-chan PrometheusResults) <-chan []statsdStat {
 	statsd := make(chan []statsdStat)
 	s := sender{statsd, cache}
 	t := translator{
@@ -28,7 +28,7 @@ func translatePrometheus(cfg prometheusConfig, cache *countCache, prometheus <-c
 	return statsd
 }
 
-func sendTranslated(prometheus <-chan prometheusResults, translate translator, s sender) {
+func sendTranslated(prometheus <-chan PrometheusResults, translate translator, s sender) {
 
 	count := int64(0)
 	unknown := int64(0)
@@ -36,13 +36,13 @@ func sendTranslated(prometheus <-chan prometheusResults, translate translator, s
 	for result := range prometheus {
 		var stats []inMemoryStat
 
-		if result.decodeError != nil {
+		if result.Error != nil {
 			count++
 			s.statsd(decodeError)
 			continue
 		}
 
-		mf := result.mf
+		mf := result.MetricFamily
 		switch mf.GetType() {
 		case dto.MetricType_COUNTER:
 			stats = translate.PrometheusCounter(mf)

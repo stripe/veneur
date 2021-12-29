@@ -11,15 +11,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type prometheusResults struct {
-	mf          dto.MetricFamily
-	decodeError error
+type PrometheusResults struct {
+	MetricFamily dto.MetricFamily
+	Error        error
 }
 
 func QueryPrometheus(
 	ctx context.Context, httpClient *http.Client, host string,
 	ignoredMetrics []*regexp.Regexp,
-) (<-chan prometheusResults, error) {
+) (<-chan PrometheusResults, error) {
 	request, err := http.NewRequestWithContext(ctx, "GET", host, nil)
 	if err != nil {
 		return nil, err
@@ -30,18 +30,17 @@ func QueryPrometheus(
 	}
 	decoder := expfmt.NewDecoder(response.Body, expfmt.FmtText)
 
-	metrics := make(chan prometheusResults)
+	metrics := make(chan PrometheusResults)
 	go func() {
 		defer close(metrics)
 
 		for {
-			var mf dto.MetricFamily
-			err := decoder.Decode(&mf)
+			var metricFamily dto.MetricFamily
+			err := decoder.Decode(&metricFamily)
 			if err == io.EOF {
-				// We've hit the end, break out!
 				return
 			} else if err != nil {
-				metrics <- prometheusResults{decodeError: err}
+				metrics <- PrometheusResults{Error: err}
 				logrus.
 					WithError(err).
 					WithField("prometheus_host", host).
@@ -49,11 +48,11 @@ func QueryPrometheus(
 				return
 			}
 
-			if !shouldExportMetric(mf, ignoredMetrics) {
+			if !shouldExportMetric(metricFamily, ignoredMetrics) {
 				continue
 			}
 
-			metrics <- prometheusResults{mf: mf}
+			metrics <- PrometheusResults{MetricFamily: metricFamily}
 		}
 	}()
 
