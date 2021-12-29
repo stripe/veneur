@@ -700,6 +700,11 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.httpQuit = true
 	}
 
+	ret.sources, err = ret.createSources(logger, &conf, config.SourceTypes)
+	if err != nil {
+		return nil, err
+	}
+
 	ret.forwardUseGRPC = conf.ForwardUseGrpc
 
 	// Setup the grpc server if it was configured
@@ -711,13 +716,10 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			ingesters[i] = worker
 		}
 
-		ret.grpcServer = proxy.New(ingesters,
+		ret.grpcServer = proxy.New(ret.grpcListenAddress, ingesters,
 			proxy.WithTraceClient(ret.TraceClient))
-	}
 
-	ret.sources, err = ret.createSources(logger, &conf, config.SourceTypes)
-	if err != nil {
-		return nil, err
+		ret.sources = append(ret.sources, ret.grpcServer)
 	}
 
 	// If this is a global veneur then initialize the listening per protocol metrics
@@ -1350,13 +1352,6 @@ func (s *Server) Serve() {
 		}(source)
 	}
 
-	if s.grpcListenAddress != "" {
-		go func() {
-			s.gRPCServe()
-			done <- struct{}{}
-		}()
-	}
-
 	// wait until at least one of the servers has shut down
 	<-done
 	graceful.Shutdown()
@@ -1415,23 +1410,6 @@ func (s *Server) HTTPServe() {
 	log.Info("Stopped HTTP server")
 
 	graceful.Shutdown()
-}
-
-// gRPCServe starts the gRPC server and blocks until an error is encountered,
-// or the server is shutdown.
-//
-// TODO this doesn't handle SIGUSR2 and SIGHUP on it's own, unlike HTTPServe
-// As long as both are running this is actually fine, as Serve will stop
-// the gRPC server when the HTTP one exits.  When running just gRPC however,
-// the signal handling won't work.
-func (s *Server) gRPCServe() {
-	entry := log.WithFields(logrus.Fields{"address": s.grpcListenAddress})
-	entry.Info("Starting gRPC server")
-	if err := s.grpcServer.Serve(s.grpcListenAddress); err != nil {
-		entry.WithError(err).Error("gRPC server was not shut down cleanly")
-	}
-
-	entry.Info("Stopped gRPC server")
 }
 
 // Try to perform a graceful stop of the gRPC server.  If it takes more than

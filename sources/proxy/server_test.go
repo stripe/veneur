@@ -35,7 +35,7 @@ func TestSendMetrics_ConsistentHash(t *testing.T) {
 	for i, ingester := range ingesters {
 		casted[i] = ingester
 	}
-	s := New(casted)
+	s := New("localhost", casted)
 
 	inputs := []*metricpb.Metric{{
 		Name: "test.counter",
@@ -73,7 +73,7 @@ func TestSendMetrics_ConsistentHash(t *testing.T) {
 
 func TestSendMetrics_Empty(t *testing.T) {
 	ingester := &testMetricIngester{}
-	s := New([]MetricIngester{ingester})
+	s := New("localhost", []MetricIngester{ingester})
 	s.SendMetrics(context.Background(), &forwardrpc.MetricList{})
 
 	assert.Empty(t, ingester.metrics,
@@ -86,7 +86,7 @@ func TestOptions_WithTraceClient(t *testing.T) {
 		t.Fatalf("failed to initialize a trace client: %v", err)
 	}
 
-	s := New([]MetricIngester{}, WithTraceClient(c))
+	s := New("localhost", []MetricIngester{}, WithTraceClient(c))
 	assert.Equal(t, c, s.opts.traceClient,
 		"WithTraceClient didn't correctly set the trace client")
 }
@@ -135,7 +135,7 @@ func BenchmarkImportServerSendMetrics(b *testing.B) {
 			defer ingester.stop()
 			ingesters[i] = ingester
 		}
-		s := New(ingesters)
+		s := New("localhost", ingesters)
 		ctx := context.Background()
 		input := &forwardrpc.MetricList{Metrics: metrics[:inputSize]}
 
