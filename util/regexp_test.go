@@ -24,6 +24,14 @@ func TestRegexpMarshalJSON(t *testing.T) {
 	assert.Equal(t, "\"^foo$\"", string(marshaledRegexp))
 }
 
+func TestRegexpMarshalJSONWithSpecialCharacters(t *testing.T) {
+	marshaledRegexp, err := json.Marshal(util.Regexp{
+		Value: regexp.MustCompile("^foo\"bar$"),
+	})
+	assert.Nil(t, err)
+	assert.Equal(t, "\"^foo\\\"bar$\"", string(marshaledRegexp))
+}
+
 func TestRegexpMarshalYAML(t *testing.T) {
 	marshaledRegexp, err := yaml.Marshal(util.Regexp{
 		Value: regexp.MustCompile("^foo$"),

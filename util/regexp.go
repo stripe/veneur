@@ -1,7 +1,7 @@
 package util
 
 import (
-	"fmt"
+	"encoding/json"
 	"regexp"
 )
 
@@ -16,7 +16,7 @@ func (r *Regexp) Decode(value string) error {
 }
 
 func (r Regexp) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("\"%s\"", r.Value.String())), nil
+	return json.Marshal(r.Value.String())
 }
 
 func (r Regexp) MarshalYAML() (interface{}, error) {
