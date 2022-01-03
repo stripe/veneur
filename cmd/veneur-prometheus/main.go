@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"time"
 
@@ -41,7 +42,10 @@ func main() {
 		}).Fatal("failed to parse interval")
 	}
 
-	statsClient, _ := statsd.New(*statsHost, statsd.WithoutTelemetry())
+	statsClient, err := statsd.New(*statsHost, statsd.WithoutTelemetry())
+	if err != nil {
+		logrus.Fatal(err.Error())
+	}
 
 	if *prefix != "" {
 		statsClient.Namespace = *prefix
@@ -54,21 +58,37 @@ func main() {
 
 	cache := new(countCache)
 	ticker := time.NewTicker(i)
-	for range ticker.C {
-		statsdStats := collect(cfg, cache)
-		sendToStatsd(statsClient, *statsHost, statsdStats)
+	for time := range ticker.C {
+		ctx, cancel := context.WithDeadline(context.Background(), time.Add(i))
+		statsdStats, err := collect(ctx, cfg, statsClient, cache)
+		if err == nil {
+			sendToStatsd(statsClient, *statsHost, statsdStats)
+		}
+		cancel()
 	}
 }
 
-func collect(cfg prometheusConfig, cache *countCache) <-chan []statsdStat {
+func collect(
+	ctx context.Context, cfg prometheusConfig, statsClient *statsd.Client,
+	cache *countCache,
+) (<-chan []statsdStat, error) {
 	logrus.WithFields(logrus.Fields{
 		"metrics_host":    cfg.metricsHost,
 		"ignored_labels":  cfg.ignoredLabels,
 		"ignored_metrics": cfg.ignoredMetrics,
 	}).Debug("beginning collection")
 
-	prometheus := queryPrometheus(cfg.httpClient, cfg.metricsHost, cfg.ignoredMetrics)
-	return translatePrometheus(cfg, cache, prometheus)
+	prometheus, err := QueryPrometheus(
+		ctx, cfg.httpClient, cfg.metricsHost, cfg.ignoredMetrics)
+	if err != nil {
+		statsClient.Incr("veneur.prometheus.connect_errors_total", nil, 1.0)
+		logrus.
+			WithError(err).
+			WithField("prometheus_host", cfg.metricsHost).
+			Warn("unable to connect with prometheus host")
+		return nil, err
+	}
+	return translatePrometheus(cfg, cache, prometheus), nil
 }
 
 func sendToStatsd(client *statsd.Client, host string, stats <-chan []statsdStat) {
