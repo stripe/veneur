@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"regexp"
@@ -10,38 +11,36 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type prometheusResults struct {
-	mf          dto.MetricFamily
-	decodeError error
-	clientError error
+type PrometheusResults struct {
+	MetricFamily dto.MetricFamily
+	Error        error
 }
 
-func queryPrometheus(httpClient *http.Client, host string, ignoredMetrics []*regexp.Regexp) <-chan prometheusResults {
-	metrics := make(chan prometheusResults)
+func QueryPrometheus(
+	ctx context.Context, httpClient *http.Client, host string,
+	ignoredMetrics []*regexp.Regexp,
+) (<-chan PrometheusResults, error) {
+	request, err := http.NewRequestWithContext(ctx, "GET", host, nil)
+	if err != nil {
+		return nil, err
+	}
+	response, err := httpClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	decoder := expfmt.NewDecoder(response.Body, expfmt.FmtText)
 
+	metrics := make(chan PrometheusResults)
 	go func() {
 		defer close(metrics)
 
-		resp, err := httpClient.Get(host)
-		if err != nil {
-			metrics <- prometheusResults{clientError: err}
-			logrus.
-				WithError(err).
-				WithField("prometheus_host", host).
-				Warn("unable to connect with prometheus host")
-
-			return
-		}
-
-		d := expfmt.NewDecoder(resp.Body, expfmt.FmtText)
 		for {
-			var mf dto.MetricFamily
-			err := d.Decode(&mf)
+			var metricFamily dto.MetricFamily
+			err := decoder.Decode(&metricFamily)
 			if err == io.EOF {
-				// We've hit the end, break out!
 				return
 			} else if err != nil {
-				metrics <- prometheusResults{decodeError: err}
+				metrics <- PrometheusResults{Error: err}
 				logrus.
 					WithError(err).
 					WithField("prometheus_host", host).
@@ -49,15 +48,15 @@ func queryPrometheus(httpClient *http.Client, host string, ignoredMetrics []*reg
 				return
 			}
 
-			if !shouldExportMetric(mf, ignoredMetrics) {
+			if !shouldExportMetric(metricFamily, ignoredMetrics) {
 				continue
 			}
 
-			metrics <- prometheusResults{mf: mf}
+			metrics <- PrometheusResults{MetricFamily: metricFamily}
 		}
 	}()
 
-	return metrics
+	return metrics, nil
 }
 
 func shouldExportMetric(mf dto.MetricFamily, ignoredMetrics []*regexp.Regexp) bool {
