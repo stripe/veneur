@@ -105,38 +105,39 @@ type Config struct {
 		APIKey util.StringSecret `yaml:"api_key"`
 		Name   string            `yaml:"name"`
 	} `yaml:"signalfx_per_tag_api_keys"`
-	SignalfxVaryKeyBy                 string            `yaml:"signalfx_vary_key_by"`
-	Sources                           []SourceConfig    `yaml:"sources"`
-	SpanChannelCapacity               int               `yaml:"span_channel_capacity"`
-	SpanSinks                         []SinkConfig      `yaml:"span_sinks"`
-	SplunkHecAddress                  string            `yaml:"splunk_hec_address"`
-	SplunkHecBatchSize                int               `yaml:"splunk_hec_batch_size"`
-	SplunkHecConnectionLifetimeJitter time.Duration     `yaml:"splunk_hec_connection_lifetime_jitter"`
-	SplunkHecIngestTimeout            time.Duration     `yaml:"splunk_hec_ingest_timeout"`
-	SplunkHecMaxConnectionLifetime    time.Duration     `yaml:"splunk_hec_max_connection_lifetime"`
-	SplunkHecSendTimeout              time.Duration     `yaml:"splunk_hec_send_timeout"`
-	SplunkHecSubmissionWorkers        int               `yaml:"splunk_hec_submission_workers"`
-	SplunkHecTLSValidateHostname      string            `yaml:"splunk_hec_tls_validate_hostname"`
-	SplunkHecToken                    string            `yaml:"splunk_hec_token"`
-	SplunkSpanSampleRate              int               `yaml:"splunk_span_sample_rate"`
-	SsfBufferSize                     int               `yaml:"ssf_buffer_size"`
-	SsfListenAddresses                []util.Url        `yaml:"ssf_listen_addresses"`
-	StatsAddress                      string            `yaml:"stats_address"`
-	StatsdListenAddresses             []util.Url        `yaml:"statsd_listen_addresses"`
-	SynchronizeWithInterval           bool              `yaml:"synchronize_with_interval"`
-	Tags                              []string          `yaml:"tags"`
-	TagsExclude                       []string          `yaml:"tags_exclude"`
-	TLSAuthorityCertificate           string            `yaml:"tls_authority_certificate"`
-	TLSCertificate                    string            `yaml:"tls_certificate"`
-	TLSKey                            util.StringSecret `yaml:"tls_key"`
-	TraceLightstepAccessToken         util.StringSecret `yaml:"trace_lightstep_access_token"`
-	TraceLightstepCollectorHost       string            `yaml:"trace_lightstep_collector_host"`
-	TraceLightstepMaximumSpans        int               `yaml:"trace_lightstep_maximum_spans"`
-	TraceLightstepNumClients          int               `yaml:"trace_lightstep_num_clients"`
-	TraceLightstepReconnectPeriod     string            `yaml:"trace_lightstep_reconnect_period"`
-	TraceMaxLengthBytes               int               `yaml:"trace_max_length_bytes"`
-	VeneurMetricsAdditionalTags       []string          `yaml:"veneur_metrics_additional_tags"`
-	VeneurMetricsScopes               struct {
+	SignalfxVaryKeyBy                      string            `yaml:"signalfx_vary_key_by"`
+	SignalfxVaryKeyByFavorCommonDimensions bool              `yaml:"signalfx_vary_key_by_favor_common_dimensions"`
+	Sources                                []SourceConfig    `yaml:"sources"`
+	SpanChannelCapacity                    int               `yaml:"span_channel_capacity"`
+	SpanSinks                              []SinkConfig      `yaml:"span_sinks"`
+	SplunkHecAddress                       string            `yaml:"splunk_hec_address"`
+	SplunkHecBatchSize                     int               `yaml:"splunk_hec_batch_size"`
+	SplunkHecConnectionLifetimeJitter      time.Duration     `yaml:"splunk_hec_connection_lifetime_jitter"`
+	SplunkHecIngestTimeout                 time.Duration     `yaml:"splunk_hec_ingest_timeout"`
+	SplunkHecMaxConnectionLifetime         time.Duration     `yaml:"splunk_hec_max_connection_lifetime"`
+	SplunkHecSendTimeout                   time.Duration     `yaml:"splunk_hec_send_timeout"`
+	SplunkHecSubmissionWorkers             int               `yaml:"splunk_hec_submission_workers"`
+	SplunkHecTLSValidateHostname           string            `yaml:"splunk_hec_tls_validate_hostname"`
+	SplunkHecToken                         string            `yaml:"splunk_hec_token"`
+	SplunkSpanSampleRate                   int               `yaml:"splunk_span_sample_rate"`
+	SsfBufferSize                          int               `yaml:"ssf_buffer_size"`
+	SsfListenAddresses                     []util.Url        `yaml:"ssf_listen_addresses"`
+	StatsAddress                           string            `yaml:"stats_address"`
+	StatsdListenAddresses                  []util.Url        `yaml:"statsd_listen_addresses"`
+	SynchronizeWithInterval                bool              `yaml:"synchronize_with_interval"`
+	Tags                                   []string          `yaml:"tags"`
+	TagsExclude                            []string          `yaml:"tags_exclude"`
+	TLSAuthorityCertificate                string            `yaml:"tls_authority_certificate"`
+	TLSCertificate                         string            `yaml:"tls_certificate"`
+	TLSKey                                 util.StringSecret `yaml:"tls_key"`
+	TraceLightstepAccessToken              util.StringSecret `yaml:"trace_lightstep_access_token"`
+	TraceLightstepCollectorHost            string            `yaml:"trace_lightstep_collector_host"`
+	TraceLightstepMaximumSpans             int               `yaml:"trace_lightstep_maximum_spans"`
+	TraceLightstepNumClients               int               `yaml:"trace_lightstep_num_clients"`
+	TraceLightstepReconnectPeriod          string            `yaml:"trace_lightstep_reconnect_period"`
+	TraceMaxLengthBytes                    int               `yaml:"trace_max_length_bytes"`
+	VeneurMetricsAdditionalTags            []string          `yaml:"veneur_metrics_additional_tags"`
+	VeneurMetricsScopes                    struct {
 		Counter   string `yaml:"counter"`
 		Gauge     string `yaml:"gauge"`
 		Histogram string `yaml:"histogram"`
