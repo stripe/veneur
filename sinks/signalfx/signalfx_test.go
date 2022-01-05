@@ -954,4 +954,58 @@ func TestSignalFxVaryByOverride(t *testing.T) {
 	assert.Equal(t, 0, len(defaultFakeSink.points))
 	assert.Equal(t, 1, len(customFakeSinkFoo.points))
 	assert.Equal(t, 1, len(customFakeSinkBar.points))
+
+	assert.Equal(t, "foo", customFakeSinkFoo.points[0].Dimensions["vary_by"])
+	assert.Equal(t, "bar", customFakeSinkBar.points[0].Dimensions["vary_by"])
+}
+
+func TestSignalFxVaryByOverridePreferringCommonDimensions(t *testing.T) {
+	varyByTagKey := "vary_by"
+	commonDimensions := map[string]string{"vary_by": "bar"}
+	defaultFakeSink := NewFakeSink()
+	customFakeSinkFoo := NewFakeSink()
+	customFakeSinkBar := NewFakeSink()
+	perTagClients := make(map[string]DPClient)
+	perTagClients["foo"] = customFakeSinkFoo
+	perTagClients["bar"] = customFakeSinkBar
+
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   0,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		VaryKeyBy:                         varyByTagKey,
+		VaryKeyByFavorCommonDimensions:    true,
+	}, "signalfx-hostname", commonDimensions, logrus.NewEntry(logrus.New()), defaultFakeSink, perTagClients, nil)
+	assert.NoError(t, err)
+
+	interMetrics := []samplers.InterMetric{{
+		Name:      "a.b.c",
+		Timestamp: 1476119058,
+		Value:     float64(100),
+		Tags: []string{
+			"vary_by:foo",
+		},
+		Type: samplers.GaugeMetric,
+	}, {
+		Name:      "a.b.d",
+		Timestamp: 1476119059,
+		Value:     float64(100),
+		Tags:      []string{},
+		Type:      samplers.GaugeMetric,
+	}}
+
+	sink.Flush(context.TODO(), interMetrics)
+
+	assert.Equal(t, 0, len(defaultFakeSink.points))
+	assert.Equal(t, 1, len(customFakeSinkFoo.points))
+	assert.Equal(t, 1, len(customFakeSinkBar.points))
+
+	assert.Equal(t, "bar", customFakeSinkFoo.points[0].Dimensions["vary_by"])
+	assert.Equal(t, "bar", customFakeSinkBar.points[0].Dimensions["vary_by"])
 }
