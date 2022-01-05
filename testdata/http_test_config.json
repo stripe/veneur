@@ -1,5 +1,9 @@
 {
-  "Aggregates": ["min", "max", "count"],
+  "Aggregates": [
+    "min",
+    "max",
+    "count"
+  ],
   "AwsAccessKeyID": "",
   "AwsRegion": "",
   "AwsS3Bucket": "",
@@ -78,7 +82,11 @@
   "NumWorkers": 0,
   "ObjectiveSpanTimerName": "",
   "OmitEmptyHostname": false,
-  "Percentiles": [0.5, 0.75, 0.99],
+  "Percentiles": [
+    0.5,
+    0.75,
+    0.99
+  ],
   "PrometheusNetworkType": "",
   "PrometheusRepeaterAddress": "",
   "ReadBufferSizeBytes": 2097152,
@@ -94,7 +102,7 @@
   "SignalfxMetricTagPrefixDrops": null,
   "SignalfxPerTagAPIKeys": null,
   "SignalfxVaryKeyBy": "",
-  "SignalfxVaryKeyByFavorCommonDimensions": "",
+  "SignalfxVaryKeyByFavorCommonDimensions": false,
   "Sources": null,
   "SpanChannelCapacity": 0,
   "SpanSinks": null,
