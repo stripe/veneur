@@ -579,6 +579,12 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 			dims[k] = v
 		}
 
+		if sfx.varyBy != "" && metricKey == "" {
+			if val, ok := dims[sfx.varyBy]; ok {
+				metricKey = val
+			}
+		}
+
 		for k := range sfx.excludedTags {
 			delete(dims, k)
 		}
