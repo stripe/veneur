@@ -15,7 +15,6 @@ import (
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
-	"github.com/stripe/veneur/v14/trace/metrics"
 )
 
 type contextHandler func(c context.Context, w http.ResponseWriter, r *http.Request)
@@ -42,19 +41,6 @@ func handleProxy(p *Proxy) http.Handler {
 	})
 }
 
-func handleSpans(p *Proxy) http.Handler {
-	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-		span, traces, err := handleTraceRequest(ctx, p.TraceClient, w, r)
-
-		if err != nil {
-			return
-		}
-		// the server usually waits for this to return before finalizing the
-		// response, so this part must be done asynchronously
-		go p.ProxyTraces(span.Attach(ctx), traces)
-	})
-}
-
 // handleImport generates the handler that responds to POST requests submitting
 // metrics to the global veneur instance.
 func handleImport(s *Server) http.Handler {
@@ -69,47 +55,6 @@ func handleImport(s *Server) http.Handler {
 		// response, so this part must be done asynchronously
 		go s.ImportMetrics(span.Attach(ctx), jsonMetrics)
 	})
-}
-
-func handleTraceRequest(ctx context.Context, client *trace.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []DatadogTraceSpan, error) {
-	var (
-		traces []DatadogTraceSpan
-		err    error
-		span   *trace.Span
-	)
-
-	span, err = tracer.ExtractRequestChild("/spans", r, "veneur.opentracing.spans")
-	if err != nil {
-		log.WithError(err).Info("Could not extract span from request")
-		span = tracer.StartSpan("/spans").(*trace.Span)
-	} else {
-		log.WithField("trace", span.Trace).Info("Extracted span from request")
-	}
-	defer span.ClientFinish(client)
-
-	innerLogger := log.WithField("client", r.RemoteAddr)
-
-	if err = json.NewDecoder(r.Body).Decode(&traces); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		span.Error(err)
-		innerLogger.WithError(err).Error("Could not decode /spans request")
-		metrics.ReportOne(client, ssf.Count("import.request_error_total", 1, map[string]string{"cause": "json"}))
-		return nil, nil, err
-	}
-
-	if len(traces) == 0 {
-		const msg = "Received empty /spans request"
-		http.Error(w, msg, http.StatusBadRequest)
-		span.Error(errors.New(msg))
-		innerLogger.WithError(err).Error(msg)
-		return nil, nil, err
-	}
-
-	w.WriteHeader(http.StatusAccepted)
-	metrics.ReportOne(client, ssf.Timing("spans.response_duration_ns",
-		time.Since(span.Start), time.Nanosecond,
-		map[string]string{"part": "request"}))
-	return span, traces, nil
 }
 
 // unmarshalMetricsFromHTTP takes care of the common need to unmarshal a slice of metrics from a request body,

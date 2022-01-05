@@ -250,7 +250,7 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 	finalMetrics := make([]samplers.InterMetric, 0, ms.totalLength)
 	for _, wm := range tempMetrics {
 		for _, c := range wm.counters {
-			finalMetrics = append(finalMetrics, c.Flush(s.interval)...)
+			finalMetrics = append(finalMetrics, c.Flush(s.Interval)...)
 		}
 		for _, g := range wm.gauges {
 			finalMetrics = append(finalMetrics, g.Flush()...)
@@ -260,10 +260,10 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 		//
 		// if we're a global veneur, aggregates will be nil.
 		for _, h := range wm.histograms {
-			finalMetrics = append(finalMetrics, h.Flush(s.interval, percentiles, s.HistogramAggregates, false)...)
+			finalMetrics = append(finalMetrics, h.Flush(s.Interval, percentiles, s.HistogramAggregates, false)...)
 		}
 		for _, t := range wm.timers {
-			finalMetrics = append(finalMetrics, t.Flush(s.interval, percentiles, s.HistogramAggregates, false)...)
+			finalMetrics = append(finalMetrics, t.Flush(s.Interval, percentiles, s.HistogramAggregates, false)...)
 		}
 
 		// local-only samplers should be flushed in their entirety, since they
@@ -271,13 +271,13 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 		// we still want percentiles for these, even if we're a local veneur, so
 		// we use the original percentile list when flushing them
 		for _, h := range wm.localHistograms {
-			finalMetrics = append(finalMetrics, h.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates, false)...)
+			finalMetrics = append(finalMetrics, h.Flush(s.Interval, s.HistogramPercentiles, s.HistogramAggregates, false)...)
 		}
 		for _, s := range wm.localSets {
 			finalMetrics = append(finalMetrics, s.Flush()...)
 		}
 		for _, t := range wm.localTimers {
-			finalMetrics = append(finalMetrics, t.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates, false)...)
+			finalMetrics = append(finalMetrics, t.Flush(s.Interval, s.HistogramPercentiles, s.HistogramAggregates, false)...)
 		}
 
 		for _, status := range wm.localStatusChecks {
@@ -297,7 +297,7 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 			// global counters have no local parts, so if we're a local veneur,
 			// there's nothing to flush
 			for _, gc := range wm.globalCounters {
-				finalMetrics = append(finalMetrics, gc.Flush(s.interval)...)
+				finalMetrics = append(finalMetrics, gc.Flush(s.Interval)...)
 			}
 
 			// and global gauges
@@ -306,10 +306,10 @@ func (s *Server) generateInterMetrics(ctx context.Context, percentiles []float64
 			}
 
 			for _, h := range wm.globalHistograms {
-				finalMetrics = append(finalMetrics, h.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates, true)...)
+				finalMetrics = append(finalMetrics, h.Flush(s.Interval, s.HistogramPercentiles, s.HistogramAggregates, true)...)
 			}
 			for _, h := range wm.globalTimers {
-				finalMetrics = append(finalMetrics, h.Flush(s.interval, s.HistogramPercentiles, s.HistogramAggregates, true)...)
+				finalMetrics = append(finalMetrics, h.Flush(s.Interval, s.HistogramPercentiles, s.HistogramAggregates, true)...)
 			}
 		}
 	}
