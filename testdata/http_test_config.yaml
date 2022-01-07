@@ -97,6 +97,7 @@ signalfx_metric_name_prefix_drops: []
 signalfx_metric_tag_prefix_drops: []
 signalfx_per_tag_api_keys: []
 signalfx_vary_key_by: ""
+signalfx_vary_key_by_favor_common_dimensions: false
 sources: []
 span_channel_capacity: 0
 span_sinks: []
