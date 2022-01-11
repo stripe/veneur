@@ -211,14 +211,13 @@ func makeWriteRequest(metrics []samplers.InterMetric, tags map[string]string) *p
 // and we drop tags which are not in "key:value" format
 // (see https://prometheus.io/docs/concepts/data_model/)
 // we also take "last value wins" approach to duplicate labels inside a metric
-// cortex does not dupe tags
 func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string) *prompb.TimeSeries {
 	var ts prompb.TimeSeries
 	ts.Labels = []*prompb.Label{{
 		Name: "__name__", Value: sanitise(metric.Name),
 	}}
 
-	sanitizedTags := map[string]string{}
+	sanitisedTags := map[string]string{}
 
 	for _, tag := range metric.Tags {
 		kv := strings.SplitN(tag, ":", 2)
@@ -227,15 +226,15 @@ func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string) *pr
 		}
 
 		sk := sanitise(kv[0])
-		sanitizedTags[sk] = kv[1]
+		sanitisedTags[sk] = kv[1]
 	}
 
 	for k, v := range tags {
 		sk := sanitise(k)
-		sanitizedTags[sk] = v
+		sanitisedTags[sk] = v
 	}
 
-	for k, v := range sanitizedTags {
+	for k, v := range sanitisedTags {
 		ts.Labels = append(ts.Labels, &prompb.Label{Name: k, Value: v})
 	}
 
