@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/golang/protobuf/proto"
@@ -52,8 +55,23 @@ func TestFlush(t *testing.T) {
 	data, err := server.Latest()
 	assert.NoError(t, err)
 
+	// The underlying method to convert metric -> timeseries does not
+	// preserve order, so we're sorting the data here
+	for k := range data.Timeseries {
+		sort.Slice(data.Timeseries[k].Labels, func(i, j int) bool {
+			val := strings.Compare(data.Timeseries[k].Labels[i].Name, data.Timeseries[k].Labels[j].Name)
+			if val == -1 {
+				return true
+			}
+
+			return false
+		})
+
+	}
+
 	// Pretty-print output for readability, and to match expected
 	actual, err := json.MarshalIndent(data, "", "  ")
+	fmt.Printf("%v", string(actual))
 	assert.NoError(t, err)
 
 	//  Load in the expected data and compare

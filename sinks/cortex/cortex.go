@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"sort"
 	"strings"
 	"time"
 
@@ -220,7 +219,6 @@ func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string) *pr
 	}}
 
 	sanitizedTags := map[string]string{}
-	var keys []string
 
 	for _, tag := range metric.Tags {
 		kv := strings.SplitN(tag, ":", 2)
@@ -230,19 +228,15 @@ func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string) *pr
 
 		sk := sanitise(kv[0])
 		sanitizedTags[sk] = kv[1]
-		keys = append(keys, sk)
 	}
 
 	for k, v := range tags {
 		sk := sanitise(k)
 		sanitizedTags[sk] = v
-		keys = append(keys, sk)
 	}
 
-	sort.Strings(keys)
-
-	for _, k := range keys {
-		ts.Labels = append(ts.Labels, &prompb.Label{Name: k, Value: sanitizedTags[k]})
+	for k, v := range sanitizedTags {
+		ts.Labels = append(ts.Labels, &prompb.Label{Name: k, Value: v})
 	}
 
 	// Prom format has the ability to carry batched samples, in this instance we
