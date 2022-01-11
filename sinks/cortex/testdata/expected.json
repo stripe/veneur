@@ -7,16 +7,16 @@
           "value": "a_b_gauge"
         },
         {
-          "name": "foo",
-          "value": "bar"
-        },
-        {
           "name": "baz",
           "value": "qux"
         },
         {
           "name": "corge",
           "value": "grault"
+        },
+        {
+          "name": "foo",
+          "value": "bar"
         }
       ],
       "samples": [
@@ -33,12 +33,12 @@
           "value": "a_b_counter"
         },
         {
-          "name": "foo",
-          "value": "bar"
-        },
-        {
           "name": "corge",
           "value": "grault"
+        },
+        {
+          "name": "foo",
+          "value": "bar"
         }
       ],
       "samples": [
