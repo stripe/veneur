@@ -210,21 +210,33 @@ func makeWriteRequest(metrics []samplers.InterMetric, tags map[string]string) *p
 // legal set of characters (see https://prometheus.io/docs/practices/naming)
 // and we drop tags which are not in "key:value" format
 // (see https://prometheus.io/docs/concepts/data_model/)
+// we also take "last value wins" approach to duplicate labels inside a metric
+// cortex does not dupe tags
 func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string) *prompb.TimeSeries {
 	var ts prompb.TimeSeries
 	ts.Labels = []*prompb.Label{{
 		Name: "__name__", Value: sanitise(metric.Name),
 	}}
+
+	sanitizedTags := map[string]string{}
+
 	for _, tag := range metric.Tags {
 		kv := strings.SplitN(tag, ":", 2)
 		if len(kv) < 2 {
 			continue // drop illegal tag
 		}
-		ts.Labels = append(ts.Labels, &prompb.Label{Name: sanitise(kv[0]), Value: kv[1]})
+
+		sanitizedTags[sanitise(kv[0])] = kv[1]
 	}
+
 	for k, v := range tags {
-		ts.Labels = append(ts.Labels, &prompb.Label{Name: sanitise(k), Value: v})
+		sanitizedTags[sanitise(k)] = v
 	}
+
+	for k, v := range sanitizedTags {
+		ts.Labels = append(ts.Labels, &prompb.Label{Name: k, Value: v})
+	}
+
 
 	// Prom format has the ability to carry batched samples, in this instance we
 	// send a single sample per write. Probably worth exploring this as an area

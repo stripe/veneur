@@ -62,6 +62,41 @@ func TestFlush(t *testing.T) {
 	assert.Equal(t, string(expected), string(actual))
 }
 
+func TestMetricToTimeSeries(t *testing.T) {
+	expectedHostValue := "val2"
+	expectedHostContactValue := "baz"
+
+	metric := samplers.InterMetric{
+		Name:      "test_metric",
+		Timestamp: 0,
+		Value:     1,
+		Tags:      []string{
+			"host:val1",
+			"team:obs",
+			"host:" + expectedHostValue,
+			"another:tag",
+			"host_contact:foo",
+		},
+		Type:      samplers.CounterMetric,
+	}
+
+	tags := map[string]string{
+		"host_contact": expectedHostContactValue,
+	}
+
+	ts := metricToTimeSeries(metric, tags)
+
+	for _, label := range ts.Labels {
+		if label.Name == "host" {
+			assert.Equal(t, expectedHostValue, label.Value)
+		}
+
+		if label.Name == "host_contact" {
+			assert.Equal(t, expectedHostContactValue, label.Value)
+		}
+	}
+}
+
 func TestSanitise(t *testing.T) {
 	data := map[string]string{
 		"foo_bar": "foo_bar",
