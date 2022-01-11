@@ -97,7 +97,7 @@ func (s sender) Close() {
 }
 
 type translator struct {
-	ignored []*regexp.Regexp
+	ignored *regexp.Regexp
 	renamed map[string]string
 	added   map[string]string
 }
@@ -185,22 +185,16 @@ func (t translator) Tags(labels []*dto.LabelPair) []string {
 	for _, pair := range labels {
 		labelName := pair.GetName()
 		labelValue := pair.GetValue()
-		include := true
 
-		for _, ignoredLabel := range t.ignored {
-			if ignoredLabel.MatchString(labelName) {
-				include = false
-				break
-			}
+		if t.ignored != nil && t.ignored.MatchString(labelName) {
+			continue
 		}
 
-		if include {
-			if newName, found := t.renamed[labelName]; found {
-				labelName = newName
-			}
-
-			tags = append(tags, fmt.Sprintf("%s:%s", labelName, labelValue))
+		if newName, found := t.renamed[labelName]; found {
+			labelName = newName
 		}
+
+		tags = append(tags, fmt.Sprintf("%s:%s", labelName, labelValue))
 	}
 
 	for name, value := range t.added {
