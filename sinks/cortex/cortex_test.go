@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -71,7 +70,6 @@ func TestFlush(t *testing.T) {
 
 	// Pretty-print output for readability, and to match expected
 	actual, err := json.MarshalIndent(data, "", "  ")
-	fmt.Printf("%v", string(actual))
 	assert.NoError(t, err)
 
 	//  Load in the expected data and compare
