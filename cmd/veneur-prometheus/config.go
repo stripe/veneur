@@ -13,8 +13,8 @@ import (
 type prometheusConfig struct {
 	metricsHost    string
 	httpClient     *http.Client
-	ignoredLabels  []*regexp.Regexp
-	ignoredMetrics []*regexp.Regexp
+	ignoredLabels  *regexp.Regexp
+	ignoredMetrics *regexp.Regexp
 	addedLabels    map[string]string
 	renameLabels   map[string]string
 }
@@ -32,15 +32,11 @@ func prometheusConfigFromArguments() (prometheusConfig, error) {
 	}, err
 }
 
-func getIgnoredFromArg(arg string) []*regexp.Regexp {
-	ignore := []*regexp.Regexp{}
-	for _, ignoreStr := range strings.Split(arg, ",") {
-		if len(ignoreStr) > 0 {
-			ignore = append(ignore, regexp.MustCompile(ignoreStr))
-		}
+func getIgnoredFromArg(arg string) *regexp.Regexp {
+	if arg == "" {
+		return nil
 	}
-
-	return ignore
+	return regexp.MustCompile(strings.Replace(arg, ",", "|", -1))
 }
 
 func getRenamedFromArg(arg string) map[string]string {
