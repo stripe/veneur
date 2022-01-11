@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"regexp"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -15,23 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestShouldExportMetric(t *testing.T) {
-	metric1Name := "metric1Name"
-
-	mf := dto.MetricFamily{
-		Name: &metric1Name,
-	}
-
-	ignoredMetrics1 := []*regexp.Regexp{
-		regexp.MustCompile(".*0.*"),
-		regexp.MustCompile(".*1.*"),
-	}
-	ignoredMetrics2 := []*regexp.Regexp{regexp.MustCompile(".*2.*")}
-
-	assert.False(t, shouldExportMetric(mf, ignoredMetrics1))
-	assert.True(t, shouldExportMetric(mf, ignoredMetrics2))
-}
 
 func TestPrometheusCounterIsEverIncreasing(t *testing.T) {
 
