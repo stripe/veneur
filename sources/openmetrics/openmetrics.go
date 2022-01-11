@@ -18,7 +18,7 @@ type PrometheusResults struct {
 
 func Query(
 	ctx context.Context, httpClient *http.Client, host string,
-	ignoredMetrics []*regexp.Regexp,
+	ignoredMetrics *regexp.Regexp,
 ) (<-chan PrometheusResults, error) {
 	request, err := http.NewRequestWithContext(ctx, "GET", host, nil)
 	if err != nil {
@@ -48,7 +48,8 @@ func Query(
 				return
 			}
 
-			if !shouldExportMetric(metricFamily, ignoredMetrics) {
+			if ignoredMetrics != nil &&
+				ignoredMetrics.MatchString(metricFamily.GetName()) {
 				continue
 			}
 
@@ -57,16 +58,4 @@ func Query(
 	}()
 
 	return metrics, nil
-}
-
-func shouldExportMetric(mf dto.MetricFamily, ignoredMetrics []*regexp.Regexp) bool {
-	for _, ignoredMetric := range ignoredMetrics {
-		metricName := mf.GetName()
-
-		if ignoredMetric.MatchString(metricName) {
-			return false
-		}
-	}
-
-	return true
 }
