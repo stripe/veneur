@@ -6,6 +6,7 @@ import (
 	"regexp"
 
 	dto "github.com/prometheus/client_model/go"
+	"github.com/stripe/veneur/v14/sources/openmetrics"
 )
 
 var (
@@ -15,7 +16,7 @@ var (
 	flushedMetricsID        = statID{"veneur.prometheus.metrics_flushed_total", nil}
 )
 
-func translatePrometheus(cfg prometheusConfig, cache *countCache, prometheus <-chan PrometheusResults) <-chan []statsdStat {
+func translatePrometheus(cfg prometheusConfig, cache *countCache, prometheus <-chan openmetrics.PrometheusResults) <-chan []statsdStat {
 	statsd := make(chan []statsdStat)
 	s := sender{statsd, cache}
 	t := translator{
@@ -28,7 +29,7 @@ func translatePrometheus(cfg prometheusConfig, cache *countCache, prometheus <-c
 	return statsd
 }
 
-func sendTranslated(prometheus <-chan PrometheusResults, translate translator, s sender) {
+func sendTranslated(prometheus <-chan openmetrics.PrometheusResults, translate translator, s sender) {
 
 	count := int64(0)
 	unknown := int64(0)
