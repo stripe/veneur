@@ -70,14 +70,14 @@ func TestMetricToTimeSeries(t *testing.T) {
 		Name:      "test_metric",
 		Timestamp: 0,
 		Value:     1,
-		Tags:      []string{
+		Tags: []string{
 			"host:val1",
 			"team:obs",
 			"host:" + expectedHostValue,
 			"another:tag",
 			"host_contact:foo",
 		},
-		Type:      samplers.CounterMetric,
+		Type: samplers.CounterMetric,
 	}
 
 	tags := map[string]string{
