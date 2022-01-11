@@ -7,6 +7,7 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
+	"github.com/stripe/veneur/v14/sources/openmetrics"
 )
 
 var (
@@ -78,7 +79,7 @@ func collect(
 		"ignored_metrics": cfg.ignoredMetrics,
 	}).Debug("beginning collection")
 
-	prometheus, err := QueryPrometheus(
+	prometheus, err := openmetrics.Query(
 		ctx, cfg.httpClient, cfg.metricsHost, cfg.ignoredMetrics)
 	if err != nil {
 		statsClient.Incr("veneur.prometheus.connect_errors_total", nil, 1.0)

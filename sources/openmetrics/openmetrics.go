@@ -1,4 +1,4 @@
-package main
+package openmetrics
 
 import (
 	"context"
@@ -16,7 +16,7 @@ type PrometheusResults struct {
 	Error        error
 }
 
-func QueryPrometheus(
+func Query(
 	ctx context.Context, httpClient *http.Client, host string,
 	ignoredMetrics []*regexp.Regexp,
 ) (<-chan PrometheusResults, error) {
