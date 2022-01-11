@@ -237,7 +237,6 @@ func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string) *pr
 		ts.Labels = append(ts.Labels, &prompb.Label{Name: k, Value: v})
 	}
 
-
 	// Prom format has the ability to carry batched samples, in this instance we
 	// send a single sample per write. Probably worth exploring this as an area
 	// for optimisation if we find the write path becomes contended
