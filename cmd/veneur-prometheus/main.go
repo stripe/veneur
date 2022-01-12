@@ -70,7 +70,7 @@ func main() {
 }
 
 func collect(
-	ctx context.Context, cfg prometheusConfig, statsClient *statsd.Client,
+	ctx context.Context, cfg *prometheusConfig, statsClient *statsd.Client,
 	cache *countCache,
 ) (<-chan []statsdStat, error) {
 	logrus.WithFields(logrus.Fields{
@@ -79,8 +79,12 @@ func collect(
 		"ignored_metrics": cfg.ignoredMetrics,
 	}).Debug("beginning collection")
 
-	prometheus, err := openmetrics.Query(
-		ctx, cfg.httpClient, cfg.metricsHost, cfg.ignoredMetrics)
+	source := &openmetrics.OpenMetricsSource{
+		HttpClient:     cfg.httpClient,
+		Host:           cfg.metricsHost,
+		IgnoredMetrics: cfg.ignoredMetrics,
+	}
+	prometheus, err := source.Query(ctx)
 	if err != nil {
 		statsClient.Incr("veneur.prometheus.connect_errors_total", nil, 1.0)
 		logrus.

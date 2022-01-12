@@ -20,6 +20,7 @@ import (
 	"github.com/stripe/veneur/v14/sinks/signalfx"
 	"github.com/stripe/veneur/v14/sinks/splunk"
 	"github.com/stripe/veneur/v14/sinks/xray"
+	"github.com/stripe/veneur/v14/sources/openmetrics"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 )
@@ -85,6 +86,12 @@ func main() {
 	server, err := veneur.NewFromConfig(veneur.ServerConfig{
 		Config: conf,
 		Logger: logger,
+		SourceTypes: veneur.SourceTypes{
+			"openmetrics": {
+				Create:      openmetrics.Create,
+				ParseConfig: openmetrics.ParseConfig,
+			},
+		},
 		MetricSinkTypes: veneur.MetricSinkTypes{
 			// TODO(arnavdugar): Migrate metric sink types.
 			"cortex": {

@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 )
 
 type prometheusConfig struct {
-	metricsHost    string
+	metricsHost    *url.URL
 	httpClient     *http.Client
 	ignoredLabels  *regexp.Regexp
 	ignoredMetrics *regexp.Regexp
@@ -19,11 +20,16 @@ type prometheusConfig struct {
 	renameLabels   map[string]string
 }
 
-func prometheusConfigFromArguments() (prometheusConfig, error) {
+func prometheusConfigFromArguments() (*prometheusConfig, error) {
 	client, err := newHTTPClient(*socket, *cert, *key, *caCert)
 
-	return prometheusConfig{
-		metricsHost:    *metricsHost,
+	metricsHostUrl, err := url.Parse(*metricsHost)
+	if err != nil {
+		return nil, err
+	}
+
+	return &prometheusConfig{
+		metricsHost:    metricsHostUrl,
 		httpClient:     client,
 		ignoredLabels:  getIgnoredFromArg(*ignoredLabelsStr),
 		ignoredMetrics: getIgnoredFromArg(*ignoredMetricsStr),

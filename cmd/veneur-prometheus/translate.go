@@ -16,7 +16,10 @@ var (
 	flushedMetricsID        = statID{"veneur.prometheus.metrics_flushed_total", nil}
 )
 
-func translatePrometheus(cfg prometheusConfig, cache *countCache, prometheus <-chan openmetrics.PrometheusResults) <-chan []statsdStat {
+func translatePrometheus(
+	cfg *prometheusConfig, cache *countCache,
+	prometheus <-chan openmetrics.QueryResults,
+) <-chan []statsdStat {
 	statsd := make(chan []statsdStat)
 	s := sender{statsd, cache}
 	t := translator{
@@ -29,8 +32,9 @@ func translatePrometheus(cfg prometheusConfig, cache *countCache, prometheus <-c
 	return statsd
 }
 
-func sendTranslated(prometheus <-chan openmetrics.PrometheusResults, translate translator, s sender) {
-
+func sendTranslated(
+	prometheus <-chan openmetrics.QueryResults, translate translator, s sender,
+) {
 	count := int64(0)
 	unknown := int64(0)
 
