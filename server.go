@@ -717,6 +717,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		}
 
 		ret.grpcServer = proxy.New(ret.grpcListenAddress, ingesters,
+			config.Logger.WithField("source", "proxy"),
 			proxy.WithTraceClient(ret.TraceClient))
 
 		ret.sources = append(ret.sources, ret.grpcServer)
@@ -1358,7 +1359,6 @@ func (s *Server) Serve() {
 	for _, source := range s.sources {
 		source.Stop()
 	}
-	s.gRPCStop()
 }
 
 // HTTPServe starts the HTTP server and listens perpetually until it encounters an unrecoverable error.
@@ -1412,28 +1412,6 @@ func (s *Server) HTTPServe() {
 	graceful.Shutdown()
 }
 
-// Try to perform a graceful stop of the gRPC server.  If it takes more than
-// 10 seconds, timeout and force-stop.
-func (s *Server) gRPCStop() {
-	if s.grpcServer == nil {
-		return
-	}
-
-	done := make(chan struct{})
-	defer close(done)
-	go func() {
-		s.grpcServer.GracefulStop()
-		done <- struct{}{}
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(10 * time.Second):
-		log.Info("Force-stopping the gRPC server after waiting for a graceful shutdown")
-		s.grpcServer.Stop()
-	}
-}
-
 // Shutdown signals the server to shut down after closing all
 // current connections.
 func (s *Server) Shutdown() {
@@ -1444,7 +1422,6 @@ func (s *Server) Shutdown() {
 	for _, source := range s.sources {
 		source.Stop()
 	}
-	s.gRPCStop()
 
 	// Close the gRPC connection for forwarding
 	if s.grpcForwardConn != nil {

@@ -39,6 +39,7 @@ type MetricIngester interface {
 type Server struct {
 	*grpc.Server
 	address    string
+	logger     *logrus.Entry
 	metricOuts []MetricIngester
 	opts       *options
 }
@@ -53,12 +54,13 @@ type Option func(*options)
 
 // New creates an unstarted Server with the input MetricIngester's to send
 // output to.
-func New(address string, metricOuts []MetricIngester, opts ...Option) *Server {
+func New(address string, metricOuts []MetricIngester, logger *logrus.Entry, opts ...Option) *Server {
 	res := &Server{
 		address:    address,
-		Server:     grpc.NewServer(),
+		logger:     logger,
 		metricOuts: metricOuts,
 		opts:       &options{},
+		Server:     grpc.NewServer(),
 	}
 
 	for _, opt := range opts {
@@ -104,8 +106,23 @@ func (s *Server) Start() error {
 	return err
 }
 
+// Try to perform a graceful stop of the gRPC server.  If it takes more than
+// 10 seconds, timeout and force-stop.
 func (s *Server) Stop() {
-	s.GracefulStop()
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		s.GracefulStop()
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		s.logger.Info(
+			"Force-stopping the gRPC server after waiting for a graceful shutdown")
+		s.Stop()
+	}
 }
 
 // Static maps of tags used in the SendMetrics handler
