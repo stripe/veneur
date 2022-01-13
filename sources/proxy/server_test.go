@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/forwardrpc"
 	"github.com/stripe/veneur/v14/samplers/metricpb"
@@ -35,7 +36,8 @@ func TestSendMetrics_ConsistentHash(t *testing.T) {
 	for i, ingester := range ingesters {
 		casted[i] = ingester
 	}
-	s := New("localhost", casted)
+	logger := logrus.NewEntry(logrus.New())
+	s := New("localhost", casted, logger)
 
 	inputs := []*metricpb.Metric{{
 		Name: "test.counter",
@@ -73,7 +75,8 @@ func TestSendMetrics_ConsistentHash(t *testing.T) {
 
 func TestSendMetrics_Empty(t *testing.T) {
 	ingester := &testMetricIngester{}
-	s := New("localhost", []MetricIngester{ingester})
+	logger := logrus.NewEntry(logrus.New())
+	s := New("localhost", []MetricIngester{ingester}, logger)
 	s.SendMetrics(context.Background(), &forwardrpc.MetricList{})
 
 	assert.Empty(t, ingester.metrics,
@@ -81,12 +84,11 @@ func TestSendMetrics_Empty(t *testing.T) {
 }
 
 func TestOptions_WithTraceClient(t *testing.T) {
+	logger := logrus.NewEntry(logrus.New())
 	c, err := trace.NewClient(trace.DefaultVeneurAddress)
-	if err != nil {
-		t.Fatalf("failed to initialize a trace client: %v", err)
-	}
+	assert.NoError(t, err, "failed to initialize a trace client")
 
-	s := New("localhost", []MetricIngester{}, WithTraceClient(c))
+	s := New("localhost", []MetricIngester{}, logger, WithTraceClient(c))
 	assert.Equal(t, c, s.opts.traceClient,
 		"WithTraceClient didn't correctly set the trace client")
 }
@@ -135,7 +137,8 @@ func BenchmarkImportServerSendMetrics(b *testing.B) {
 			defer ingester.stop()
 			ingesters[i] = ingester
 		}
-		s := New("localhost", ingesters)
+		logger := logrus.NewEntry(logrus.New())
+		s := New("localhost", ingesters, logger)
 		ctx := context.Background()
 		input := &forwardrpc.MetricList{Metrics: metrics[:inputSize]}
 
