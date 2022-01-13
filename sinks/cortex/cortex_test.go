@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -53,6 +55,20 @@ func TestFlush(t *testing.T) {
 	data, err := server.Latest()
 	assert.NoError(t, err)
 
+	// The underlying method to convert metric -> timeseries does not
+	// preserve order, so we're sorting the data here
+	for k := range data.Timeseries {
+		sort.Slice(data.Timeseries[k].Labels, func(i, j int) bool {
+			val := strings.Compare(data.Timeseries[k].Labels[i].Name, data.Timeseries[k].Labels[j].Name)
+			if val == -1 {
+				return true
+			}
+
+			return false
+		})
+
+	}
+
 	// Pretty-print output for readability, and to match expected
 	actual, err := json.MarshalIndent(data, "", "  ")
 	assert.NoError(t, err)
@@ -73,6 +89,41 @@ func TestCorrectlySetTimeout(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, time.Duration(to), sink.Client.Timeout)
+  }
+}
+
+func TestMetricToTimeSeries(t *testing.T) {
+	expectedHostValue := "val2"
+	expectedHostContactValue := "baz"
+
+	metric := samplers.InterMetric{
+		Name:      "test_metric",
+		Timestamp: 0,
+		Value:     1,
+		Tags: []string{
+			"host:val1",
+			"team:obs",
+			"host:" + expectedHostValue,
+			"another:tag",
+			"host_contact:foo",
+		},
+		Type: samplers.CounterMetric,
+	}
+
+	tags := map[string]string{
+		"host_contact": expectedHostContactValue,
+	}
+
+	ts := metricToTimeSeries(metric, tags)
+
+	for _, label := range ts.Labels {
+		if label.Name == "host" {
+			assert.Equal(t, expectedHostValue, label.Value)
+		}
+
+		if label.Name == "host_contact" {
+			assert.Equal(t, expectedHostContactValue, label.Value)
+		}
 	}
 }
 

@@ -102,6 +102,7 @@
   "SignalfxMetricTagPrefixDrops": null,
   "SignalfxPerTagAPIKeys": null,
   "SignalfxVaryKeyBy": "",
+  "SignalfxVaryKeyByFavorCommonDimensions": false,
   "Sources": null,
   "SpanChannelCapacity": 0,
   "SpanSinks": null,
