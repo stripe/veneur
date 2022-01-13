@@ -36,7 +36,7 @@ type CortexMetricSink struct {
 	URL           string
 	RemoteTimeout time.Duration
 	ProxyURL      string
-	client        *http.Client
+	Client        *http.Client
 	logger        *logrus.Entry
 	name          string
 	tags          map[string]string
@@ -121,8 +121,8 @@ func (s *CortexMetricSink) Start(tc *trace.Client) error {
 		t.Proxy = http.ProxyURL(p)
 	}
 
-	s.client = &http.Client{
-		Timeout:   time.Duration(s.RemoteTimeout * time.Second),
+	s.Client = &http.Client{
+		Timeout:   s.RemoteTimeout,
 		Transport: t,
 	}
 
@@ -156,10 +156,14 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	req.Header.Set("User-Agent", "veneur/cortex")
 	req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
 
-	r, err := s.client.Do(req)
+	ts := time.Now()
+	r, err := s.Client.Do(req)
 	if err != nil {
 		span.Error(err)
-		s.logger.WithError(err).Info("Failed to post request")
+		s.logger.WithFields(logrus.Fields{
+			"error":        err,
+			"time_seconds": time.Since(ts).Seconds(),
+		}).Error("Failed to post request")
 		return err
 	}
 	// Resource leak can occur if body isn't closed explicitly
@@ -210,20 +214,32 @@ func makeWriteRequest(metrics []samplers.InterMetric, tags map[string]string) *p
 // legal set of characters (see https://prometheus.io/docs/practices/naming)
 // and we drop tags which are not in "key:value" format
 // (see https://prometheus.io/docs/concepts/data_model/)
+// we also take "last value wins" approach to duplicate labels inside a metric
 func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string) *prompb.TimeSeries {
 	var ts prompb.TimeSeries
 	ts.Labels = []*prompb.Label{{
 		Name: "__name__", Value: sanitise(metric.Name),
 	}}
+
+	sanitisedTags := map[string]string{}
+
 	for _, tag := range metric.Tags {
 		kv := strings.SplitN(tag, ":", 2)
 		if len(kv) < 2 {
 			continue // drop illegal tag
 		}
-		ts.Labels = append(ts.Labels, &prompb.Label{Name: sanitise(kv[0]), Value: kv[1]})
+
+		sk := sanitise(kv[0])
+		sanitisedTags[sk] = kv[1]
 	}
+
 	for k, v := range tags {
-		ts.Labels = append(ts.Labels, &prompb.Label{Name: sanitise(k), Value: v})
+		sk := sanitise(k)
+		sanitisedTags[sk] = v
+	}
+
+	for k, v := range sanitisedTags {
+		ts.Labels = append(ts.Labels, &prompb.Label{Name: k, Value: v})
 	}
 
 	// Prom format has the ability to carry batched samples, in this instance we

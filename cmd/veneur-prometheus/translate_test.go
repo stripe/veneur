@@ -34,13 +34,8 @@ func TestTranslateTags(t *testing.T) {
 		label1Pair, label2Pair, label3Pair,
 	}
 
-	ignoredLabels := []*regexp.Regexp{
-		regexp.MustCompile(".*5.*"),
-		regexp.MustCompile(".*abel1.*"),
-	}
-
 	tr := translator{
-		ignored: ignoredLabels,
+		ignored: regexp.MustCompile(".*5.*|.*abel1.*"),
 	}
 
 	tags := tr.Tags(labels)
