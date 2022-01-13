@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/snappy"
@@ -37,7 +38,7 @@ func TestFlush(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"})
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"})
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -76,6 +77,19 @@ func TestFlush(t *testing.T) {
 	expected, err := ioutil.ReadFile("testdata/expected.json")
 	assert.NoError(t, err)
 	assert.Equal(t, string(expected), string(actual))
+}
+
+func TestCorrectlySetTimeout(t *testing.T) {
+	timeouts := []int{10, 20, 30, 17, 21}
+	for to := range timeouts {
+		sink, err := NewCortexMetricSink("http://noop", time.Duration(to), "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"})
+		assert.NoError(t, err)
+
+		err = sink.Start(&trace.Client{})
+		assert.NoError(t, err)
+
+		assert.Equal(t, time.Duration(to), sink.Client.Timeout)
+	}
 }
 
 func TestMetricToTimeSeries(t *testing.T) {
