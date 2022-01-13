@@ -1456,7 +1456,9 @@ func TestServeStopGRPC(t *testing.T) {
 	}()
 
 	// Stop the gRPC server only.  This should cause Serve to exit
-	s.gRPCStop()
+	assert.Len(t, s.sources, 1)
+	assert.Equal(t, s.sources[0].Name(), "proxy")
+	s.sources[0].Stop()
 
 	select {
 	case <-done:
