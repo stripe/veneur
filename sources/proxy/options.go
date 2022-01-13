@@ -1,4 +1,4 @@
-package importsrv
+package proxy
 
 import "github.com/stripe/veneur/v14/trace"
 

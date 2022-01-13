@@ -30,7 +30,6 @@ import (
 
 	"github.com/pkg/profile"
 
-	"github.com/stripe/veneur/v14/importsrv"
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/scopedstatsd"
@@ -39,6 +38,7 @@ import (
 	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
 	"github.com/stripe/veneur/v14/sources"
+	"github.com/stripe/veneur/v14/sources/proxy"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/tagging"
 	"github.com/stripe/veneur/v14/trace"
@@ -165,7 +165,7 @@ type Server struct {
 
 	// gRPC server
 	grpcListenAddress string
-	grpcServer        *importsrv.Server
+	grpcServer        *proxy.Server
 
 	// gRPC forward clients
 	grpcForwardConn *grpc.ClientConn
@@ -700,24 +700,27 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.httpQuit = true
 	}
 
+	ret.sources, err = ret.createSources(logger, &conf, config.SourceTypes)
+	if err != nil {
+		return nil, err
+	}
+
 	ret.forwardUseGRPC = conf.ForwardUseGrpc
 
 	// Setup the grpc server if it was configured
 	ret.grpcListenAddress = conf.GrpcAddress
 	if ret.grpcListenAddress != "" {
 		// convert all the workers to the proper interface
-		ingesters := make([]importsrv.MetricIngester, len(ret.Workers))
+		ingesters := make([]proxy.MetricIngester, len(ret.Workers))
 		for i, worker := range ret.Workers {
 			ingesters[i] = worker
 		}
 
-		ret.grpcServer = importsrv.New(ingesters,
-			importsrv.WithTraceClient(ret.TraceClient))
-	}
+		ret.grpcServer = proxy.New(ret.grpcListenAddress, ingesters,
+			config.Logger.WithField("source", "proxy"),
+			proxy.WithTraceClient(ret.TraceClient))
 
-	ret.sources, err = ret.createSources(logger, &conf, config.SourceTypes)
-	if err != nil {
-		return nil, err
+		ret.sources = append(ret.sources, ret.grpcServer)
 	}
 
 	// If this is a global veneur then initialize the listening per protocol metrics
@@ -1350,20 +1353,12 @@ func (s *Server) Serve() {
 		}(source)
 	}
 
-	if s.grpcListenAddress != "" {
-		go func() {
-			s.gRPCServe()
-			done <- struct{}{}
-		}()
-	}
-
 	// wait until at least one of the servers has shut down
 	<-done
 	graceful.Shutdown()
 	for _, source := range s.sources {
 		source.Stop()
 	}
-	s.gRPCStop()
 }
 
 // HTTPServe starts the HTTP server and listens perpetually until it encounters an unrecoverable error.
@@ -1417,45 +1412,6 @@ func (s *Server) HTTPServe() {
 	graceful.Shutdown()
 }
 
-// gRPCServe starts the gRPC server and blocks until an error is encountered,
-// or the server is shutdown.
-//
-// TODO this doesn't handle SIGUSR2 and SIGHUP on it's own, unlike HTTPServe
-// As long as both are running this is actually fine, as Serve will stop
-// the gRPC server when the HTTP one exits.  When running just gRPC however,
-// the signal handling won't work.
-func (s *Server) gRPCServe() {
-	entry := log.WithFields(logrus.Fields{"address": s.grpcListenAddress})
-	entry.Info("Starting gRPC server")
-	if err := s.grpcServer.Serve(s.grpcListenAddress); err != nil {
-		entry.WithError(err).Error("gRPC server was not shut down cleanly")
-	}
-
-	entry.Info("Stopped gRPC server")
-}
-
-// Try to perform a graceful stop of the gRPC server.  If it takes more than
-// 10 seconds, timeout and force-stop.
-func (s *Server) gRPCStop() {
-	if s.grpcServer == nil {
-		return
-	}
-
-	done := make(chan struct{})
-	defer close(done)
-	go func() {
-		s.grpcServer.GracefulStop()
-		done <- struct{}{}
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(10 * time.Second):
-		log.Info("Force-stopping the gRPC server after waiting for a graceful shutdown")
-		s.grpcServer.Stop()
-	}
-}
-
 // Shutdown signals the server to shut down after closing all
 // current connections.
 func (s *Server) Shutdown() {
@@ -1466,7 +1422,6 @@ func (s *Server) Shutdown() {
 	for _, source := range s.sources {
 		source.Stop()
 	}
-	s.gRPCStop()
 
 	// Close the gRPC connection for forwarding
 	if s.grpcForwardConn != nil {

@@ -1,4 +1,4 @@
-package importsrv
+package proxy
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/forwardrpc"
 	"github.com/stripe/veneur/v14/samplers/metricpb"
@@ -29,25 +30,37 @@ func (mi *testMetricIngester) clear() {
 // Test that sending the same metric to a Veneur results in it being hashed
 // to the same worker every time
 func TestSendMetrics_ConsistentHash(t *testing.T) {
-	ingesters := []*testMetricIngester{&testMetricIngester{}, &testMetricIngester{}}
+	ingesters := []*testMetricIngester{{}, {}}
 
 	casted := make([]MetricIngester, len(ingesters))
 	for i, ingester := range ingesters {
 		casted[i] = ingester
 	}
-	s := New(casted)
+	logger := logrus.NewEntry(logrus.New())
+	s := New("localhost", casted, logger)
 
-	inputs := []*metricpb.Metric{
-		&metricpb.Metric{Name: "test.counter", Type: metricpb.Type_Counter, Tags: []string{"tag:1"}},
-		&metricpb.Metric{Name: "test.gauge", Type: metricpb.Type_Gauge},
-		&metricpb.Metric{Name: "test.histogram", Type: metricpb.Type_Histogram, Tags: []string{"type:histogram"}},
-		&metricpb.Metric{Name: "test.set", Type: metricpb.Type_Set},
-		&metricpb.Metric{Name: "test.gauge3", Type: metricpb.Type_Gauge},
-	}
+	inputs := []*metricpb.Metric{{
+		Name: "test.counter",
+		Type: metricpb.Type_Counter,
+		Tags: []string{"tag:1"},
+	}, {
+		Name: "test.gauge",
+		Type: metricpb.Type_Gauge,
+	}, {
+		Name: "test.histogram",
+		Type: metricpb.Type_Histogram,
+		Tags: []string{"type:histogram"},
+	}, {
+		Name: "test.set",
+		Type: metricpb.Type_Set,
+	}, {
+		Name: "test.gauge3",
+		Type: metricpb.Type_Gauge,
+	}}
 
 	// Send the same inputs many times
 	for i := 0; i < 10; i++ {
-		s.SendMetrics(context.Background(), &forwardrpc.MetricList{inputs})
+		s.SendMetrics(context.Background(), &forwardrpc.MetricList{Metrics: inputs})
 
 		assert.Equal(t, []*metricpb.Metric{inputs[0], inputs[4]},
 			ingesters[0].metrics, "Ingester 0 has the wrong metrics")
@@ -62,22 +75,22 @@ func TestSendMetrics_ConsistentHash(t *testing.T) {
 
 func TestSendMetrics_Empty(t *testing.T) {
 	ingester := &testMetricIngester{}
-	s := New([]MetricIngester{ingester})
+	logger := logrus.NewEntry(logrus.New())
+	s := New("localhost", []MetricIngester{ingester}, logger)
 	s.SendMetrics(context.Background(), &forwardrpc.MetricList{})
 
-	assert.Empty(t, ingester.metrics, "The server shouldn't have submitted "+
-		"any metrics")
+	assert.Empty(t, ingester.metrics,
+		"The server shouldn't have submitted any metrics")
 }
 
 func TestOptions_WithTraceClient(t *testing.T) {
+	logger := logrus.NewEntry(logrus.New())
 	c, err := trace.NewClient(trace.DefaultVeneurAddress)
-	if err != nil {
-		t.Fatalf("failed to initialize a trace client: %v", err)
-	}
+	assert.NoError(t, err, "failed to initialize a trace client")
 
-	s := New([]MetricIngester{}, WithTraceClient(c))
-	assert.Equal(t, c, s.opts.traceClient, "WithTraceClient didn't correctly "+
-		"set the trace client")
+	s := New("localhost", []MetricIngester{}, logger, WithTraceClient(c))
+	assert.Equal(t, c, s.opts.traceClient,
+		"WithTraceClient didn't correctly set the trace client")
 }
 
 type noopChannelMetricIngester struct {
@@ -124,7 +137,8 @@ func BenchmarkImportServerSendMetrics(b *testing.B) {
 			defer ingester.stop()
 			ingesters[i] = ingester
 		}
-		s := New(ingesters)
+		logger := logrus.NewEntry(logrus.New())
+		s := New("localhost", ingesters, logger)
 		ctx := context.Background()
 		input := &forwardrpc.MetricList{Metrics: metrics[:inputSize]}
 
