@@ -89,7 +89,7 @@ func TestCorrectlySetTimeout(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, time.Duration(to), sink.Client.Timeout)
-  }
+	}
 }
 
 func TestMetricToTimeSeries(t *testing.T) {
