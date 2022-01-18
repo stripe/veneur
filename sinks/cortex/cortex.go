@@ -60,7 +60,7 @@ type CortexMetricSinkConfig struct {
 	RemoteTimeout time.Duration     `yaml:"remote_timeout"`
 	ProxyURL      string            `yaml:"proxy_url"`
 	Headers       map[string]string `yaml:"headers"`
-	BasicAuth     BasicAuthType
+	BasicAuth     BasicAuthType     `yaml:"basic_auth"`
 	Authorization struct {
 		Type       string `yaml:"type"`
 		Credential string `yaml:"credentials"`

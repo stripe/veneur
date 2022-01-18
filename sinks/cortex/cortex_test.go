@@ -160,6 +160,86 @@ func TestBasicAuth(t *testing.T) {
 		"Missing or invalid Authorization header")
 }
 
+func TestParseConfig(t *testing.T) {
+	testConfigValues := map[string]interface{}{
+		"url":            "this://is.a.url",
+		"remote_timeout": "90s",
+		"proxy_url":      "http://another.url:8000",
+		"headers":        map[string]string{"My-Header": "a-header-value"},
+		"authorization": map[string]interface{}{
+			"credentials": "the-credential",
+		},
+	}
+
+	parsedConfig, err := ParseConfig("cortex", testConfigValues)
+	assert.NoError(t, err)
+	cortexConfig := parsedConfig.(CortexMetricSinkConfig)
+	assert.Equal(t, cortexConfig.URL, testConfigValues["url"])
+	assert.Equal(t, cortexConfig.RemoteTimeout, time.Duration(90*time.Second))
+	assert.Equal(t, cortexConfig.ProxyURL, testConfigValues["proxy_url"])
+	assert.Equal(t, cortexConfig.Headers, testConfigValues["headers"])
+	assert.NotNil(t, cortexConfig.Authorization)
+	assert.Equal(t, cortexConfig.Authorization.Type, DefaultAuthorizationType)
+	assert.Equal(t, cortexConfig.Authorization.Credential, "the-credential")
+	assert.Empty(t, cortexConfig.BasicAuth)
+}
+
+func TestParseConfigBasicAuth(t *testing.T) {
+	testConfigValues := map[string]interface{}{
+		"url":            "this://is.a.url",
+		"remote_timeout": "90s",
+		"proxy_url":      "http://another.url:8000",
+		"basic_auth": map[string]interface{}{
+			"username": "user",
+			"password": "pwd",
+		},
+	}
+
+	parsedConfig, err := ParseConfig("cortex", testConfigValues)
+	assert.NoError(t, err)
+	cortexConfig := parsedConfig.(CortexMetricSinkConfig)
+	assert.Equal(t, cortexConfig.URL, testConfigValues["url"])
+	assert.Equal(t, cortexConfig.RemoteTimeout, time.Duration(90*time.Second))
+	assert.Equal(t, cortexConfig.ProxyURL, testConfigValues["proxy_url"])
+	assert.Empty(t, cortexConfig.Headers)
+	assert.Empty(t, cortexConfig.Authorization)
+	assert.NotNil(t, cortexConfig.BasicAuth)
+	assert.Equal(t, cortexConfig.BasicAuth.Username, "user")
+	assert.Equal(t, cortexConfig.BasicAuth.Password, "pwd")
+}
+
+func TestParseConfigDuplicateAuth(t *testing.T) {
+	testConfigValues := map[string]interface{}{
+		"url":            "this://is.a.url",
+		"remote_timeout": "90s",
+		"proxy_url":      "http://another.url:8000",
+		"basic_auth": map[string]interface{}{
+			"username": "user",
+			"password": "pwd",
+		},
+		"authorization": map[string]interface{}{
+			"credentials": "the-credential",
+		},
+	}
+
+	_, err := ParseConfig("cortex", testConfigValues)
+	assert.Error(t, err)
+}
+
+func TestParseConfigBadBasicAuth(t *testing.T) {
+	testConfigValues := map[string]interface{}{
+		"url":            "this://is.a.url",
+		"remote_timeout": "90s",
+		"proxy_url":      "http://another.url:8000",
+		"basic_auth": map[string]interface{}{
+			"username": "user",
+		},
+	}
+
+	_, err := ParseConfig("cortex", testConfigValues)
+	assert.Error(t, err)
+}
+
 func TestCorrectlySetTimeout(t *testing.T) {
 	timeouts := []int{10, 20, 30, 17, 21}
 	for to := range timeouts {
