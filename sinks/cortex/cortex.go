@@ -44,12 +44,12 @@ type CortexMetricSink struct {
 	tags          map[string]string
 	traceClient   *trace.Client
 	addHeaders    map[string]string
-	basicAuth     *basicAuthType
+	basicAuth     *BasicAuthType
 }
 
-type basicAuthType struct {
-	username string
-	password string
+type BasicAuthType struct {
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 }
 
 // TODO: implement queue config options, at least
@@ -60,10 +60,7 @@ type CortexMetricSinkConfig struct {
 	RemoteTimeout time.Duration     `yaml:"remote_timeout"`
 	ProxyURL      string            `yaml:"proxy_url"`
 	Headers       map[string]string `yaml:"headers"`
-	BasicAuth     struct {
-		Username string `yaml:"username"`
-		Password string `yaml:"password"`
-	} `yaml:"basic_auth"`
+	BasicAuth     BasicAuthType
 	Authorization struct {
 		Type       string `yaml:"type"`
 		Credential string `yaml:"credentials"`
@@ -90,12 +87,9 @@ func Create(
 	if conf.Authorization.Type != "" {
 		headers["Authorization"] = conf.Authorization.Type + " " + conf.Authorization.Credential
 	}
-	var basicAuth *basicAuthType
+	var basicAuth *BasicAuthType
 	if conf.BasicAuth.Username != "" {
-		basicAuth = &basicAuthType{
-			username: conf.BasicAuth.Username,
-			password: conf.BasicAuth.Password,
-		}
+		basicAuth = &conf.BasicAuth
 	}
 
 	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, tags, headers, basicAuth)
@@ -128,7 +122,7 @@ func ParseConfig(
 }
 
 // NewCortexMetricSink creates and returns a new instance of the sink
-func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string, headers map[string]string, basicAuth *basicAuthType) (*CortexMetricSink, error) {
+func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string, headers map[string]string, basicAuth *BasicAuthType) (*CortexMetricSink, error) {
 	return &CortexMetricSink{
 		URL:           URL,
 		RemoteTimeout: timeout,
@@ -202,7 +196,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		req.Header.Set(key, value)
 	}
 	if s.basicAuth != nil {
-		req.SetBasicAuth(s.basicAuth.username, s.basicAuth.password)
+		req.SetBasicAuth(s.basicAuth.Username, s.basicAuth.Password)
 	}
 
 	ts := time.Now()

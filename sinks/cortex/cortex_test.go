@@ -2,6 +2,7 @@ package cortex
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -52,19 +53,21 @@ func TestFlush(t *testing.T) {
 	assert.NoError(t, sink.Flush(context.Background(), metrics))
 
 	// Retrieve the data which the server received
-	data, err := server.Latest()
+	data, headers, err := server.Latest()
 	assert.NoError(t, err)
+
+	// Check standard headers
+	assert.True(t, hasHeader(*headers, "Content-Encoding", "snappy"), "missing required Content-Encoding header")
+	assert.True(t, hasHeader(*headers, "Content-Type", "application/x-protobuf"), "missing required Content-Type header")
+	assert.True(t, hasHeader(*headers, "User-Agent", "veneur/cortex"), "missing required User-Agent header")
+	assert.True(t, hasHeader(*headers, "X-Prometheus-Remote-Write-Version", "0.1.0"), "missing required version header")
 
 	// The underlying method to convert metric -> timeseries does not
 	// preserve order, so we're sorting the data here
 	for k := range data.Timeseries {
 		sort.Slice(data.Timeseries[k].Labels, func(i, j int) bool {
 			val := strings.Compare(data.Timeseries[k].Labels[i].Name, data.Timeseries[k].Labels[j].Name)
-			if val == -1 {
-				return true
-			}
-
-			return false
+			return val == -1
 		})
 
 	}
@@ -77,6 +80,84 @@ func TestFlush(t *testing.T) {
 	expected, err := ioutil.ReadFile("testdata/expected.json")
 	assert.NoError(t, err)
 	assert.Equal(t, string(expected), string(actual))
+}
+
+func TestCustomHeaders(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Define custom headers
+	customHeaders := map[string]string{
+		"Authorization":    "Bearer 12345",
+		"My-Custom-Header": "testing-123",
+		"Another-Header":   "foobar",
+	}
+
+	// Set up a sink with custom headers
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, customHeaders, nil)
+	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
+
+	// input.json contains three timeseries samples in InterMetrics format
+	jsInput, err := ioutil.ReadFile("testdata/input.json")
+	assert.NoError(t, err)
+	var metrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
+
+	// Perform the flush to the test server
+	assert.NoError(t, sink.Flush(context.Background(), metrics))
+
+	// Retrieve the headers which the server received
+	_, headers, err := server.Latest()
+	assert.NoError(t, err)
+
+	// Check custom headers
+	for name, value := range customHeaders {
+		assert.True(t, hasHeader(*headers, name, value), "Missing header "+name)
+	}
+}
+
+func TestBasicAuth(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Define custom headers
+	customHeaders := map[string]string{
+		"My-Custom-Header": "testing-456",
+		"Another-Header":   "bazzoo",
+	}
+	auth := BasicAuthType{
+		Username: "user1",
+		Password: "p@ssWerd",
+	}
+
+	// Set up a sink with custom headers
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, customHeaders, &auth)
+	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
+
+	// input.json contains three timeseries samples in InterMetrics format
+	jsInput, err := ioutil.ReadFile("testdata/input.json")
+	assert.NoError(t, err)
+	var metrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
+
+	// Perform the flush to the test server
+	assert.NoError(t, sink.Flush(context.Background(), metrics))
+
+	// Retrieve the headers which the server received
+	_, headers, err := server.Latest()
+	assert.NoError(t, err)
+
+	// Check custom headers
+	for name, value := range customHeaders {
+		assert.True(t, hasHeader(*headers, name, value), "Missing or incorrect "+name+" header")
+	}
+	authString := auth.Username + ":" + auth.Password
+	assert.True(t, hasHeader(*headers, "Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(authString))),
+		"Missing or invalid Authorization header")
 }
 
 func TestCorrectlySetTimeout(t *testing.T) {
@@ -149,9 +230,10 @@ func BenchmarkSanitise(b *testing.B) {
 // TestServer wraps an internal httptest.Server and provides a convenience
 // method for retrieving the most recently written series
 type TestServer struct {
-	URL    string
-	data   *prompb.WriteRequest
-	server *httptest.Server
+	URL     string
+	headers *http.Header
+	data    *prompb.WriteRequest
+	server  *httptest.Server
 }
 
 // Close closes the internal test server
@@ -160,11 +242,11 @@ func (t *TestServer) Close() {
 }
 
 // Latest returns the most recent write request, or errors if there was none
-func (t *TestServer) Latest() (*prompb.WriteRequest, error) {
+func (t *TestServer) Latest() (*prompb.WriteRequest, *http.Header, error) {
 	if t.data == nil {
-		return nil, errors.New("no data received")
+		return nil, nil, errors.New("no data received")
 	}
-	return t.data, nil
+	return t.data, t.headers, nil
 }
 
 // NewTestServer starts a test server instance. Ensure calls are followed by
@@ -188,7 +270,8 @@ func NewTestServer(t *testing.T) *TestServer {
 			http.Error(w, "missing headers", http.StatusBadRequest)
 			return
 		}
-		// keep a record of the most recently received request
+		// keep a record of the most recently received headers, request
+		result.headers = &r.Header
 		result.data = wr
 	})
 
