@@ -26,6 +26,7 @@ require (
 	github.com/hashicorp/memberlist v0.1.4 // indirect
 	github.com/kelseyhightower/envconfig v1.3.0
 	github.com/lightstep/lightstep-tracer-go v0.13.1-0.20170818234450-ea8cdd9df863
+	github.com/miekg/dns v1.1.25 // indirect
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/newrelic/newrelic-client-go v0.39.0
 	github.com/newrelic/newrelic-telemetry-sdk-go v0.4.0
@@ -62,3 +63,4 @@ require (
 )
 
 replace github.com/hashicorp/consul => github.com/hashicorp/consul v1.5.1
+replace github.com/miekg/dns => github.com/miekg/dns v1.1.25

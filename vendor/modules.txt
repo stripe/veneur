@@ -180,6 +180,8 @@ github.com/mailru/easyjson/jlexer
 github.com/mailru/easyjson/jwriter
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
 github.com/matttproud/golang_protobuf_extensions/pbutil
+# github.com/miekg/dns v1.1.25 => github.com/miekg/dns v1.1.25
+## explicit
 # github.com/mitchellh/go-homedir v1.1.0
 github.com/mitchellh/go-homedir
 # github.com/mitchellh/mapstructure v1.4.1
@@ -605,3 +607,4 @@ sigs.k8s.io/yaml
 ## explicit
 stathat.com/c/consistent
 # github.com/hashicorp/consul => github.com/hashicorp/consul v1.5.1
+# github.com/miekg/dns => github.com/miekg/dns v1.1.25
