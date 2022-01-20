@@ -1,7 +1,7 @@
 package util
 
 import (
-	"fmt"
+	"encoding/json"
 	"net/url"
 )
 
@@ -10,10 +10,16 @@ type Url struct {
 }
 
 func (u Url) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("\"%s\"", u.Value.String())), nil
+	if u.Value == nil {
+		return json.Marshal(nil)
+	}
+	return json.Marshal(u.Value.String())
 }
 
 func (u Url) MarshalYAML() (interface{}, error) {
+	if u.Value == nil {
+		return "", nil
+	}
 	return u.Value.String(), nil
 }
 

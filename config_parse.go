@@ -187,9 +187,9 @@ func (c *Config) applyDefaults() {
 			c.LightstepNumClients = c.TraceLightstepNumClients
 		}
 	}
-	if c.TraceLightstepCollectorHost != "" {
+	if c.TraceLightstepCollectorHost.Value != nil {
 		log.Warn("trace_lightstep_collector_host configuration option has been replaced by lightstep_collector_host and will be removed in the next version")
-		if c.LightstepCollectorHost == "" {
+		if c.LightstepCollectorHost.Value == nil {
 			c.LightstepCollectorHost = c.TraceLightstepCollectorHost
 		}
 	}
@@ -205,9 +205,9 @@ func (c *Config) applyDefaults() {
 			c.LightstepMaximumSpans = c.TraceLightstepMaximumSpans
 		}
 	}
-	if c.TraceLightstepReconnectPeriod != "" {
+	if c.TraceLightstepReconnectPeriod != 0 {
 		log.Warn("trace_lightstep_reconnect_period configuration option has been replaced by lightstep_reconnect_period and will be removed in the next version")
-		if c.LightstepReconnectPeriod == "" {
+		if c.LightstepReconnectPeriod == 0 {
 			c.LightstepReconnectPeriod = c.TraceLightstepReconnectPeriod
 		}
 	}

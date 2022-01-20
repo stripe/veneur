@@ -12,6 +12,7 @@ import (
 	"github.com/stripe/veneur/v14/sinks/datadog"
 	"github.com/stripe/veneur/v14/sinks/debug"
 	"github.com/stripe/veneur/v14/sinks/kafka"
+	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/localfile"
 	"github.com/stripe/veneur/v14/sinks/newrelic"
 	"github.com/stripe/veneur/v14/sinks/prometheus"
@@ -60,6 +61,7 @@ func main() {
 		datadog.MigrateConfig(&conf)
 		debug.MigrateConfig(&conf)
 		localfile.MigrateConfig(&conf)
+		lightstep.MigrateConfig(&conf)
 		newrelic.MigrateConfig(&conf)
 		s3.MigrateConfig(&conf)
 		prometheus.MigrateConfig(&conf)
@@ -138,6 +140,10 @@ func main() {
 			"kafka": {
 				Create:      kafka.CreateSpanSink,
 				ParseConfig: kafka.ParseSpanConfig,
+			},
+			"lightstep": {
+				Create:      lightstep.CreateSpanSink,
+				ParseConfig: lightstep.ParseSpanConfig,
 			},
 			"newrelic": {
 				Create:      newrelic.CreateSpanSink,
