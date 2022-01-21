@@ -67,10 +67,10 @@ type Config struct {
 	KafkaSpanSerializationFormat              string              `yaml:"kafka_span_serialization_format"`
 	KafkaSpanTopic                            string              `yaml:"kafka_span_topic"`
 	LightstepAccessToken                      util.StringSecret   `yaml:"lightstep_access_token"`
-	LightstepCollectorHost                    string              `yaml:"lightstep_collector_host"`
+	LightstepCollectorHost                    util.Url            `yaml:"lightstep_collector_host"`
 	LightstepMaximumSpans                     int                 `yaml:"lightstep_maximum_spans"`
 	LightstepNumClients                       int                 `yaml:"lightstep_num_clients"`
-	LightstepReconnectPeriod                  string              `yaml:"lightstep_reconnect_period"`
+	LightstepReconnectPeriod                  time.Duration       `yaml:"lightstep_reconnect_period"`
 	MetricMaxLength                           int                 `yaml:"metric_max_length"`
 	MetricSinkRouting                         []SinkRoutingConfig `yaml:"metric_sink_routing"`
 	MetricSinks                               []SinkConfig        `yaml:"metric_sinks"`
@@ -131,10 +131,10 @@ type Config struct {
 	TLSCertificate                         string            `yaml:"tls_certificate"`
 	TLSKey                                 util.StringSecret `yaml:"tls_key"`
 	TraceLightstepAccessToken              util.StringSecret `yaml:"trace_lightstep_access_token"`
-	TraceLightstepCollectorHost            string            `yaml:"trace_lightstep_collector_host"`
+	TraceLightstepCollectorHost            util.Url          `yaml:"trace_lightstep_collector_host"`
 	TraceLightstepMaximumSpans             int               `yaml:"trace_lightstep_maximum_spans"`
 	TraceLightstepNumClients               int               `yaml:"trace_lightstep_num_clients"`
-	TraceLightstepReconnectPeriod          string            `yaml:"trace_lightstep_reconnect_period"`
+	TraceLightstepReconnectPeriod          time.Duration     `yaml:"trace_lightstep_reconnect_period"`
 	TraceMaxLengthBytes                    int               `yaml:"trace_max_length_bytes"`
 	VeneurMetricsAdditionalTags            []string          `yaml:"veneur_metrics_additional_tags"`
 	VeneurMetricsScopes                    struct {
