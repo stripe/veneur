@@ -1,6 +1,6 @@
 package veneur
 
-//go:generate protoc --gogofaster_out=Mssf/sample.proto=github.com/stripe/veneur/v14/ssf,plugins=grpc:. sinks/grpsink/grpc_sink.proto
+//go:generate protoc --gogofaster_out=Mssf/sample.proto=github.com/stripe/veneur/v14/ssf,plugins=grpc:. sinks/falconer/grpc_sink.proto
 //go:generate protoc --gogofaster_out=plugins=grpc:. ssf/grpc.proto
 //go:generate protoc --gogofaster_out=plugins=grpc:. protocol/dogstatsd/grpc.proto
 //go:generate protoc --gogofaster_out=. ssf/sample.proto
