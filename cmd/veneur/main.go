@@ -40,24 +40,38 @@ func main() {
 
 	if configFile == nil || *configFile == "" {
 		logrus.Fatal("You must specify a config file")
+		return
 	}
 
 	conf, err := veneur.ReadConfig(*configFile)
 	if err != nil {
-		if _, ok := err.(*veneur.UnknownConfigKeys); ok {
-			if *validateConfigStrict {
-				logrus.WithError(err).Fatal("Config contains invalid or deprecated keys")
-			} else {
-				logrus.WithError(err).Warn("Config contains invalid or deprecated keys")
-			}
-		} else {
+		_, ok := err.(*veneur.UnknownConfigKeys)
+		if !ok {
 			logrus.WithError(err).Fatal("Error reading config file")
+			return
 		}
+		if *validateConfigStrict {
+			logrus.WithError(err).Fatal("Config contains invalid or deprecated keys")
+			return
+		}
+		logrus.WithError(err).Warn("Config contains invalid or deprecated keys")
 	}
 
 	if *validateConfig {
-		os.Exit(0)
+		return
 	}
+
+	// Initialize Sentry if a DSN is provided
+	if conf.SentryDsn.Value != "" {
+		err := sentry.Init(sentry.ClientOptions{
+			Dsn: conf.SentryDsn.Value,
+		})
+		if err != nil {
+			logrus.WithError(err).Fatal("error initializing Sentry")
+			return
+		}
+	}
+
 	if !conf.Features.MigrateMetricSinks {
 		datadog.MigrateConfig(&conf)
 		debug.MigrateConfig(&conf)
@@ -87,7 +101,6 @@ func main() {
 		Config: conf,
 		Logger: logger,
 		MetricSinkTypes: veneur.MetricSinkTypes{
-			// TODO(arnavdugar): Migrate metric sink types.
 			"attribution": {
 				Create:      attribution.Create,
 				ParseConfig: attribution.ParseConfig,
@@ -130,7 +143,6 @@ func main() {
 			},
 		},
 		SpanSinkTypes: veneur.SpanSinkTypes{
-			// TODO(arnavdugar): Migrate span sink types.
 			"datadog": {
 				Create:      datadog.CreateSpanSink,
 				ParseConfig: datadog.ParseSpanConfig,
@@ -167,17 +179,9 @@ func main() {
 	})
 	veneur.SetLogger(logger)
 	if err != nil {
-		e := err
 		if conf.SentryDsn.Value != "" {
-			err = sentry.Init(sentry.ClientOptions{
-				Dsn: conf.SentryDsn.Value,
-			})
-			if err != nil {
-				logrus.WithError(err).Error("Error initializing Sentry client")
-			}
-
 			event := sentry.NewEvent()
-			event.Message = e.Error()
+			event.Message = err.Error()
 			hostname, _ := os.Hostname()
 			if hostname != "" {
 				event.ServerName = hostname
@@ -187,7 +191,8 @@ func main() {
 			sentry.Flush(veneur.SentryFlushTimeout)
 		}
 
-		logrus.WithError(e).Fatal("Could not initialize server")
+		logrus.WithError(err).Fatal("Could not initialize server")
+		return
 	}
 	ssf.NamePrefix = "veneur."
 
@@ -206,7 +211,5 @@ func main() {
 
 	if conf.HTTPAddress != "" || conf.GrpcAddress != "" {
 		server.Serve()
-	} else {
-		select {}
 	}
 }

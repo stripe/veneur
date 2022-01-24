@@ -89,8 +89,8 @@ func generateConfig(forwardAddr string) Config {
 				Host:   "localhost:0",
 			},
 		}},
-		HTTPAddress:    fmt.Sprintf("localhost:0"),
-		GrpcAddress:    fmt.Sprintf("localhost:0"),
+		HTTPAddress:    "localhost:0",
+		GrpcAddress:    "localhost:0",
 		ForwardAddress: forwardAddr,
 		NumWorkers:     4,
 		FlushFile:      "",
@@ -208,7 +208,7 @@ func (c *channelMetricSink) Flush(ctx context.Context, metrics []samplers.InterM
 }
 
 func (c *channelMetricSink) FlushOtherSamples(ctx context.Context, events []ssf.SSFSample) {
-	return
+	// Do nothing.
 }
 
 // fixture sets up a mock Datadog API server and Veneur
@@ -588,7 +588,6 @@ func TestUDPMetrics(t *testing.T) {
 }
 
 func TestUnixSocketMetrics(t *testing.T) {
-	ctx := context.TODO()
 	tdir, err := ioutil.TempDir("", "unixmetrics_statsd")
 	require.NoError(t, err)
 	defer os.RemoveAll(tdir)
@@ -994,9 +993,12 @@ func TestTCPMetrics(t *testing.T) {
 // TestHandleTCPGoroutineTimeout verifies that an idle TCP connection doesn't block forever.
 func TestHandleTCPGoroutineTimeout(t *testing.T) {
 	const readTimeout = 30 * time.Millisecond
-	s := &Server{tcpReadTimeout: readTimeout, Workers: []*Worker{
-		&Worker{PacketChan: make(chan samplers.UDPMetric, 1)},
-	}}
+	s := &Server{
+		tcpReadTimeout: readTimeout,
+		Workers: []*Worker{{
+			PacketChan: make(chan samplers.UDPMetric, 1),
+		}},
+	}
 
 	// make a real TCP connection ... to ourselves
 	listener, err := net.Listen("tcp", "localhost:0")
@@ -1208,7 +1210,6 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 	}
 	l.Close()
 	close(s.shutdown)
-	return
 }
 
 func BenchmarkServerFlush(b *testing.B) {
@@ -1408,7 +1409,7 @@ func TestGenerateExcludeTags(t *testing.T) {
 
 func generateSSFPackets(tb testing.TB, length int) [][]byte {
 	input := make([][]byte, length)
-	for i, _ := range input {
+	for i := range input {
 		p := make([]byte, 10)
 		_, err := rand.Read(p)
 		if err != nil {
@@ -1636,7 +1637,7 @@ func BenchmarkHandleSSF(b *testing.B) {
 	packets := generateSSFPackets(b, LEN)
 	spans := make([]*ssf.SSFSpan, len(packets))
 
-	for i, _ := range spans {
+	for i := range spans {
 		span, err := protocol.ParseSSF(packets[i])
 		assert.NoError(b, err)
 		spans[i] = span

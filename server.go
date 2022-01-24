@@ -14,7 +14,7 @@ import (
 	"net/http"
 	"reflect"
 	"runtime"
-	rtdebug "runtime/debug"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
@@ -401,82 +400,128 @@ func (server *Server) createMetricSinks(
 	return sinks, nil
 }
 
+func createTlsConfig(conf Config) (*tls.Config, error) {
+	if conf.TLSKey.Value == "" {
+		return nil, nil
+	}
+
+	if conf.TLSCertificate == "" {
+		err := errors.New("tls_key is set; must set tls_certificate")
+		return nil, err
+	}
+
+	// load the TLS key and certificate
+	var cert tls.Certificate
+	cert, err :=
+		tls.X509KeyPair([]byte(conf.TLSCertificate), []byte(conf.TLSKey.Value))
+	if err != nil {
+		return nil, err
+	}
+
+	clientAuthMode := tls.NoClientCert
+	var clientCAs *x509.CertPool
+	if conf.TLSAuthorityCertificate != "" {
+		// load the authority; require clients to present certificated signed by
+		// this authority
+		clientAuthMode = tls.RequireAndVerifyClientCert
+		clientCAs = x509.NewCertPool()
+		ok := clientCAs.AppendCertsFromPEM([]byte(conf.TLSAuthorityCertificate))
+		if !ok {
+			err = errors.New(
+				"tls_authority_certificate: Could not load any certificates")
+			return nil, err
+		}
+	}
+
+	return &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ClientAuth:   clientAuthMode,
+		ClientCAs:    clientCAs,
+	}, nil
+}
+
 // NewFromConfig creates a new veneur server from a configuration
 // specification and sets up the passed logger according to the
 // configuration.
 func NewFromConfig(config ServerConfig) (*Server, error) {
-	logger := config.Logger
 	conf := config.Config
+	logger := config.Logger
 
-	ret := &Server{
-		Config:   conf,
-		Interval: conf.Interval,
+	if conf.Debug {
+		logger.SetLevel(logrus.DebugLevel)
 	}
 
-	ret.Hostname = conf.Hostname
-	ret.Tags = conf.Tags
+	stats, err := statsd.New(
+		conf.StatsAddress, statsd.WithoutTelemetry(),
+		statsd.WithMaxMessagesPerPayload(4096))
+	if err != nil {
+		return nil, err
+	}
+	stats.Namespace = "veneur."
 
-	mappedTags := tagging.ParseTagSliceToMap(ret.Tags)
+	metricScopes, err := scopesFromConfig(conf)
+	if err != nil {
+		return nil, err
+	}
 
-	ret.synchronizeInterval = conf.SynchronizeWithInterval
+	tlsConfig, err := createTlsConfig(conf)
+	if err != nil {
+		return nil, err
+	}
 
-	ret.TagsAsMap = mappedTags
+	ret := &Server{
+		Config: conf,
+		// Control whether Veneur should emit metric
+		// "veneur.flush.unique_timeseries_total", which may come at a slight
+		// performance hit to workers.
+		CountUniqueTimeseries: conf.CountUniqueTimeseries,
+		enableProfiling:       conf.EnableProfiling,
+		// This must come before worker initialization. We need to
+		// initialize workers with state from *Server.IsWorker.
+		ForwardAddr:          conf.ForwardAddress,
+		forwardUseGRPC:       conf.ForwardUseGrpc,
+		HistogramPercentiles: conf.Percentiles,
+		Hostname:             conf.Hostname,
+		HTTPAddr:             conf.HTTPAddress,
+		HTTPClient: &http.Client{
+			// make sure that POSTs to datadog do not overflow the flush interval
+			Timeout: conf.Interval * 9 / 10,
+			Transport: &http.Transport{
+				// If we're idle more than one interval something is up
+				IdleConnTimeout: conf.Interval * 2,
+			},
+		},
+		Interval:         conf.Interval,
+		metricMaxLength:  conf.MetricMaxLength,
+		numListeningHTTP: new(int32),
+		numReaders:       conf.NumReaders,
+		parser:           samplers.NewParser(conf.ExtendTags),
+		RcvbufBytes:      conf.ReadBufferSizeBytes,
+		Statsd: scopedstatsd.NewClient(
+			stats, conf.VeneurMetricsAdditionalTags, metricScopes),
+		stuckIntervals:      conf.FlushWatchdogMissedFlushes,
+		synchronizeInterval: conf.SynchronizeWithInterval,
+		Tags:                conf.Tags,
+		TagsAsMap:           tagging.ParseTagSliceToMap(conf.Tags),
+		tlsConfig:           tlsConfig,
+		traceMaxLengthBytes: conf.TraceMaxLengthBytes,
+	}
 
-	ret.parser = samplers.NewParser(conf.ExtendTags)
-
-	ret.HistogramPercentiles = conf.Percentiles
 	ret.HistogramAggregates.Value = 0
 	for _, agg := range conf.Aggregates {
 		ret.HistogramAggregates.Value += samplers.AggregatesLookup[agg]
 	}
 	ret.HistogramAggregates.Count = len(conf.Aggregates)
 
-	ret.stuckIntervals = conf.FlushWatchdogMissedFlushes
-
-	transport := &http.Transport{
-		IdleConnTimeout: ret.Interval * 2, // If we're idle more than one interval something is up
-	}
-
-	ret.HTTPClient = &http.Client{
-		// make sure that POSTs to datadog do not overflow the flush interval
-		Timeout:   ret.Interval * 9 / 10,
-		Transport: transport,
-	}
-
-	stats, err := statsd.New(conf.StatsAddress, statsd.WithoutTelemetry(), statsd.WithMaxMessagesPerPayload(4096))
-	if err != nil {
-		return ret, err
-	}
-	stats.Namespace = "veneur."
-
-	scopes, err := scopesFromConfig(conf)
-	if err != nil {
-		return ret, err
-	}
-	ret.Statsd = scopedstatsd.NewClient(stats, conf.VeneurMetricsAdditionalTags, scopes)
-
 	ret.SpanChan = make(chan *ssf.SSFSpan, conf.SpanChannelCapacity)
-	ret.TraceClient, err = trace.NewChannelClient(ret.SpanChan,
-		trace.ReportStatistics(stats, 1*time.Second, []string{"ssf_format:internal"}),
+	ret.TraceClient, err = trace.NewChannelClient(
+		ret.SpanChan,
+		trace.ReportStatistics(
+			stats, 1*time.Second, []string{"ssf_format:internal"}),
 		normalizeSpans(conf),
 	)
 	if err != nil {
 		return ret, err
-	}
-
-	// Initialize Sentry if a Dsn is provided, else we leave it uninitalized
-	// and no-op the methods.
-	if conf.SentryDsn.Value != "" {
-		err = sentry.Init(sentry.ClientOptions{
-			Dsn: conf.SentryDsn.Value,
-		})
-		if err != nil {
-			return ret, err
-		}
-	}
-
-	if conf.Debug {
-		logger.SetLevel(logrus.DebugLevel)
 	}
 
 	mpf := 0
@@ -492,11 +537,8 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	if conf.BlockProfileRate > 0 {
 		runtime.SetBlockProfileRate(conf.BlockProfileRate)
 	}
-	log.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
-
-	if conf.EnableProfiling {
-		ret.enableProfiling = true
-	}
+	log.WithField("BlockProfileRate", conf.BlockProfileRate).
+		Info("Set block profile rate (nanoseconds)")
 
 	// This is a check to ensure that we don't repeatedly add a hook
 	// to the "global" log instance on repeated calls to `NewFromConfig`
@@ -525,20 +567,12 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	logger.WithField("number", numWorkers).Info("Preparing workers")
 	// Allocate the slice, we'll fill it with workers later.
 	ret.Workers = make([]*Worker, numWorkers)
-	ret.numReaders = conf.NumReaders
-
-	// This must come before worker initialization. We need to
-	// initialize workers with state from *Server.IsWorker.
-	ret.ForwardAddr = conf.ForwardAddress
-
-	// Control whether Veneur should emit metric
-	// "veneur.flush.unique_timeseries_total", which may come at a
-	// slight performance hit to workers.
-	ret.CountUniqueTimeseries = conf.CountUniqueTimeseries
 
 	// Use the pre-allocated Workers slice to know how many to start.
 	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, log, ret.Statsd)
+		ret.Workers[i] = NewWorker(
+			i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, log,
+			ret.Statsd)
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {
@@ -549,18 +583,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	}
 
 	ret.EventWorker = NewEventWorker(ret.TraceClient, ret.Statsd)
-
-	// Set up a span sink that extracts metrics from SSF spans and
-	// reports them via the metric workers:
-	processors := make([]ssfmetrics.Processor, len(ret.Workers))
-	for i, w := range ret.Workers {
-		processors[i] = w
-	}
-	metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log, &ret.parser)
-	if err != nil {
-		return ret, err
-	}
-	ret.spanSinks = append(ret.spanSinks, metricSink)
 
 	for _, addrStr := range conf.StatsdListenAddresses {
 		addr, err := protocol.ResolveAddr(addrStr.Value)
@@ -586,48 +608,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.GRPCListenAddrs = append(ret.GRPCListenAddrs, addr)
 	}
 
-	ret.metricMaxLength = conf.MetricMaxLength
-	ret.traceMaxLengthBytes = conf.TraceMaxLengthBytes
-	ret.RcvbufBytes = conf.ReadBufferSizeBytes
-	ret.HTTPAddr = conf.HTTPAddress
-	ret.numListeningHTTP = new(int32)
-
-	if conf.TLSKey.Value != "" {
-		if conf.TLSCertificate == "" {
-			err = errors.New("tls_key is set; must set tls_certificate")
-			logger.WithError(err).Error("Improper TLS configuration")
-			return ret, err
-		}
-
-		// load the TLS key and certificate
-		var cert tls.Certificate
-		cert, err = tls.X509KeyPair([]byte(conf.TLSCertificate), []byte(conf.TLSKey.Value))
-		if err != nil {
-			logger.WithError(err).Error("Improper TLS configuration")
-			return ret, err
-		}
-
-		clientAuthMode := tls.NoClientCert
-		var clientCAs *x509.CertPool
-		if conf.TLSAuthorityCertificate != "" {
-			// load the authority; require clients to present certificated signed by this authority
-			clientAuthMode = tls.RequireAndVerifyClientCert
-			clientCAs = x509.NewCertPool()
-			ok := clientCAs.AppendCertsFromPEM([]byte(conf.TLSAuthorityCertificate))
-			if !ok {
-				err = errors.New("tls_authority_certificate: Could not load any certificates")
-				logger.WithError(err).Error("Improper TLS configuration")
-				return ret, err
-			}
-		}
-
-		ret.tlsConfig = &tls.Config{
-			Certificates: []tls.Certificate{cert},
-			ClientAuth:   clientAuthMode,
-			ClientCAs:    clientCAs,
-		}
-	}
-
 	// Configure tracing sinks if we are listening for ssf
 	if len(conf.SsfListenAddresses) > 0 || len(conf.GrpcListenAddresses) > 0 {
 		trace.Enable()
@@ -640,26 +620,30 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		}
 	}
 
-	customMetricSinks, err :=
+	ret.metricSinks, err =
 		ret.createMetricSinks(logger, &conf, config.MetricSinkTypes)
 	if err != nil {
 		return nil, err
 	}
-	if conf.Features.MigrateMetricSinks {
-		ret.metricSinks = customMetricSinks
-	} else {
-		ret.metricSinks = append(ret.metricSinks, customMetricSinks...)
-	}
-	customSpanSinks, err :=
+	ret.spanSinks, err =
 		ret.createSpanSinks(logger, &conf, config.SpanSinkTypes)
 	if err != nil {
 		return nil, err
 	}
-	if conf.Features.MigrateSpanSinks {
-		ret.spanSinks = customSpanSinks
-	} else {
-		ret.spanSinks = append(ret.spanSinks, customSpanSinks...)
+
+	// Set up a span sink that extracts metrics from SSF spans and
+	// reports them via the metric workers:
+	processors := make([]ssfmetrics.Processor, len(ret.Workers))
+	for i, w := range ret.Workers {
+		processors[i] = w
 	}
+	metricSink, err := ssfmetrics.NewMetricExtractionSink(
+		processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName,
+		ret.TraceClient, log, &ret.parser)
+	if err != nil {
+		return ret, err
+	}
+	ret.spanSinks = append(ret.spanSinks, metricSink)
 
 	// After all sinks are initialized, set the list of tags to exclude
 	setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)
@@ -667,7 +651,8 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	// closed in Shutdown; Same approach and http.Shutdown
 	ret.shutdown = make(chan struct{})
 	if conf.HTTPQuit {
-		logger.WithField("endpoint", httpQuitEndpoint).Info("Enabling graceful shutdown endpoint (via HTTP POST request)")
+		logger.WithField("endpoint", httpQuitEndpoint).
+			Info("Enabling graceful shutdown endpoint (via HTTP POST request)")
 		ret.httpQuit = true
 	}
 
@@ -675,8 +660,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	ret.forwardUseGRPC = conf.ForwardUseGrpc
 
 	// Setup the grpc server if it was configured
 	ret.grpcListenAddress = conf.GrpcAddress
@@ -892,7 +875,7 @@ func (s *Server) FlushWatchdog() {
 			// times, we're stuck - panic because that's a
 			// bug.
 			if since > time.Duration(s.stuckIntervals)*s.Interval {
-				rtdebug.SetTraceback("all")
+				debug.SetTraceback("all")
 				log.WithFields(logrus.Fields{
 					"last_flush":       last,
 					"missed_intervals": s.stuckIntervals,
@@ -1036,7 +1019,7 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string, protocolType Pro
 		// ensure that the value is in the map
 		// we only do this if the value was not found in the map once already, to save an
 		// allocation and more expensive operation in the typical case
-		metrics, ok = s.ssfInternalMetrics.LoadOrStore(key, &ssfServiceSpanMetrics{})
+		metrics, _ = s.ssfInternalMetrics.LoadOrStore(key, &ssfServiceSpanMetrics{})
 		if metrics == nil {
 			log.WithFields(logrus.Fields{
 				"service":   span.Service,
