@@ -1,11 +1,12 @@
-package grpsink
+package falconer
 
 import (
-	"context"
 	"net"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stripe/veneur/v14"
 
 	ocontext "context"
 
@@ -23,7 +24,9 @@ type MockSpanSinkServer struct {
 }
 
 // SendSpans mocks base method
-func (m *MockSpanSinkServer) SendSpan(ctx ocontext.Context, span *ssf.SSFSpan) (*Empty, error) {
+func (m *MockSpanSinkServer) SendSpan(
+	ctx ocontext.Context, span *ssf.SSFSpan,
+) (*Empty, error) {
 	m.mut.Lock()
 	m.spans = append(m.spans, span)
 	m.mut.Unlock()
@@ -47,6 +50,12 @@ func (m *MockSpanSinkServer) spanCount() int {
 	return len(m.spans)
 }
 
+func testLogger() *logrus.Entry {
+	logger := logrus.New()
+	logger.SetLevel(logrus.DebugLevel)
+	return logrus.NewEntry(logger)
+}
+
 func TestEndToEnd(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.ErrorLevel)
@@ -68,9 +77,20 @@ func TestEndToEnd(t *testing.T) {
 	}()
 	block <- struct{}{}
 
-	sink, err := NewGRPCSpanSink(context.Background(), testaddr, "test1", log, grpc.WithInsecure())
+	sink, err := Create(
+		&veneur.Server{},
+		"grpc",
+		testLogger(),
+		veneur.Config{},
+		FalconerSpanSinkConfig{
+			Target: testaddr,
+		},
+	)
 	require.NoError(t, err)
-	assert.NotNil(t, sink.grpcConn)
+
+	grpcSink, ok := sink.(*FalconerSpanSink)
+	assert.NotNil(t, grpcSink.grpcConn)
+	assert.True(t, ok)
 
 	err = sink.Start(nil)
 	require.NoError(t, err)
@@ -98,9 +118,10 @@ func TestEndToEnd(t *testing.T) {
 	assert.Equal(t, testSpan, mock.firstSpan())
 	require.Equal(t, mock.spanCount(), 1)
 
-	// Stoppage will happen in the background, and forward progress will be blocked by the wait sequence.
+	// Stoppage will happen in the background, and forward progress will be
+	// blocked by the wait sequence.
 	go srv.Stop()
-	waitThroughStateSequence(t, sink, 5*time.Second,
+	waitThroughStateSequence(t, grpcSink, 5*time.Second,
 		connectivity.Ready,
 		connectivity.TransientFailure,
 	)
@@ -109,7 +130,8 @@ func TestEndToEnd(t *testing.T) {
 	require.Equal(t, mock.spanCount(), 1)
 	require.Error(t, err)
 
-	// Set up new net listener and server; Stop() closes the listener we used before.
+	// Set up new net listener and server; Stop() closes the listener we used
+	// before.
 	srv = grpc.NewServer()
 	RegisterSpanSinkServer(srv, mock)
 	lis, err = net.Listen("tcp", testaddr)
@@ -122,7 +144,7 @@ func TestEndToEnd(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 	block <- struct{}{}
-	reconnectWithin(t, sink, 2*time.Second)
+	reconnectWithin(t, grpcSink, 2*time.Second)
 
 	err = sink.Ingest(testSpan)
 	require.NoError(t, err)

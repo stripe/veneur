@@ -11,7 +11,9 @@ import (
 	"github.com/stripe/veneur/v14/sinks/cortex"
 	"github.com/stripe/veneur/v14/sinks/datadog"
 	"github.com/stripe/veneur/v14/sinks/debug"
+	"github.com/stripe/veneur/v14/sinks/falconer"
 	"github.com/stripe/veneur/v14/sinks/kafka"
+	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/localfile"
 	"github.com/stripe/veneur/v14/sinks/newrelic"
 	"github.com/stripe/veneur/v14/sinks/prometheus"
@@ -59,7 +61,9 @@ func main() {
 	if !conf.Features.MigrateMetricSinks {
 		datadog.MigrateConfig(&conf)
 		debug.MigrateConfig(&conf)
+		falconer.MigrateConfig(&conf)
 		localfile.MigrateConfig(&conf)
+		lightstep.MigrateConfig(&conf)
 		newrelic.MigrateConfig(&conf)
 		s3.MigrateConfig(&conf)
 		prometheus.MigrateConfig(&conf)
@@ -135,9 +139,17 @@ func main() {
 				Create:      debug.CreateSpanSink,
 				ParseConfig: debug.ParseSpanConfig,
 			},
+			"falconer": {
+				Create:      falconer.Create,
+				ParseConfig: falconer.ParseConfig,
+			},
 			"kafka": {
 				Create:      kafka.CreateSpanSink,
 				ParseConfig: kafka.ParseSpanConfig,
+			},
+			"lightstep": {
+				Create:      lightstep.CreateSpanSink,
+				ParseConfig: lightstep.ParseSpanConfig,
 			},
 			"newrelic": {
 				Create:      newrelic.CreateSpanSink,

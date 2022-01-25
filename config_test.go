@@ -154,8 +154,8 @@ func TestReadConfigBackwardsCompatible(t *testing.T) {
 flush_max_per_body: 1234
 ssf_buffer_size: 3456
 trace_lightstep_access_token: "123"
-trace_lightstep_collector_host: "456"
-trace_lightstep_reconnect_period: "789"
+trace_lightstep_collector_host: "http://example.com"
+trace_lightstep_reconnect_period: "10s"
 trace_lightstep_maximum_spans: 1
 trace_lightstep_num_clients: 2
 `
@@ -169,8 +169,8 @@ trace_lightstep_num_clients: 2
 	assert.Equal(t, 1234, c.DatadogFlushMaxPerBody)
 	assert.Equal(t, 3456, c.DatadogSpanBufferSize)
 	assert.Equal(t, "123", c.LightstepAccessToken.Value)
-	assert.Equal(t, "456", c.LightstepCollectorHost)
-	assert.Equal(t, "789", c.LightstepReconnectPeriod)
+	assert.Equal(t, "http://example.com", c.LightstepCollectorHost.Value.String())
+	assert.Equal(t, 10*time.Second, c.LightstepReconnectPeriod)
 	assert.Equal(t, 1, c.LightstepMaximumSpans)
 	assert.Equal(t, 2, c.LightstepNumClients)
 }

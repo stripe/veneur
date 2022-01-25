@@ -34,8 +34,6 @@ import (
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/scopedstatsd"
 	"github.com/stripe/veneur/v14/sinks"
-	"github.com/stripe/veneur/v14/sinks/falconer"
-	"github.com/stripe/veneur/v14/sinks/lightstep"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
 	"github.com/stripe/veneur/v14/sources"
 	"github.com/stripe/veneur/v14/sources/proxy"
@@ -632,40 +630,13 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	// Configure tracing sinks if we are listening for ssf
 	if len(conf.SsfListenAddresses) > 0 || len(conf.GrpcListenAddresses) > 0 {
-
 		trace.Enable()
 
-		// configure Lightstep as a Span Sink
-		if conf.LightstepAccessToken.Value != "" {
-
-			var lsSink sinks.SpanSink
-			lsSink, err = lightstep.NewLightStepSpanSink(
-				conf.LightstepCollectorHost, conf.LightstepReconnectPeriod,
-				conf.LightstepMaximumSpans, conf.LightstepNumClients,
-				conf.LightstepAccessToken.Value, log,
-			)
-			if err != nil {
-				return ret, err
-			}
-			ret.spanSinks = append(ret.spanSinks, lsSink)
-
-			logger.Info("Configured Lightstep span sink")
-		}
-
-		if conf.FalconerAddress != "" {
-			falsink, err := falconer.NewSpanSink(context.Background(), conf.FalconerAddress, log, grpc.WithInsecure())
-			if err != nil {
-				return ret, err
-			}
-
-			ret.spanSinks = append(ret.spanSinks, falsink)
-			logger.Info("Configured Falconer trace sink")
-		}
-
 		// Set up as many span workers as we need:
-		ret.SpanWorkerGoroutines = 1
 		if conf.NumSpanWorkers > 0 {
 			ret.SpanWorkerGoroutines = conf.NumSpanWorkers
+		} else {
+			ret.SpanWorkerGoroutines = 1
 		}
 	}
 
