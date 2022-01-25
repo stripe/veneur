@@ -17,28 +17,19 @@ type MatcherConfig struct {
 	Tags []TagMatcher `yaml:"tags"`
 }
 
-type NameMatcherConfig struct {
-	Kind  string `yaml:"kind"`
-	Value string `yaml:"value"`
-}
-
 type NameMatcher struct {
+	Kind  string `yaml:"kind"`
 	match func(string) bool
 	regex *regexp.Regexp
-	value string
-}
-
-type TagMatcherConfig struct {
-	Kind  string `yaml:"kind"`
-	Unset bool   `yaml:"unset"`
 	Value string `yaml:"value"`
 }
 
 type TagMatcher struct {
+	Kind  string `yaml:"kind"`
 	match func(string) bool
 	regex *regexp.Regexp
-	unset bool
-	value string
+	Unset bool   `yaml:"unset"`
+	Value string `yaml:"value"`
 }
 
 type SinkRoutingSinks struct {
@@ -51,7 +42,7 @@ type SinkRoutingSinks struct {
 func (matcher *NameMatcher) UnmarshalYAML(
 	unmarshal func(interface{}) error,
 ) error {
-	config := NameMatcherConfig{}
+	config := NameMatcher{}
 	err := unmarshal(&config)
 	if err != nil {
 		return err
@@ -61,10 +52,8 @@ func (matcher *NameMatcher) UnmarshalYAML(
 		matcher.match = matcher.matchAny
 	case "exact":
 		matcher.match = matcher.matchExact
-		matcher.value = config.Value
 	case "prefix":
 		matcher.match = matcher.matchPrefix
-		matcher.value = config.Value
 	case "regex":
 		matcher.regex, err = regexp.Compile(config.Value)
 		if err != nil {
@@ -82,11 +71,11 @@ func (matcher *NameMatcher) matchAny(value string) bool {
 }
 
 func (matcher *NameMatcher) matchExact(value string) bool {
-	return value == matcher.value
+	return value == matcher.Value
 }
 
 func (matcher *NameMatcher) matchPrefix(value string) bool {
-	return strings.HasPrefix(value, matcher.value)
+	return strings.HasPrefix(value, matcher.Value)
 }
 
 func (matcher *NameMatcher) matchRegex(value string) bool {
@@ -98,7 +87,7 @@ func (matcher *NameMatcher) matchRegex(value string) bool {
 func (matcher *TagMatcher) UnmarshalYAML(
 	unmarshal func(interface{}) error,
 ) error {
-	config := TagMatcherConfig{}
+	config := TagMatcher{}
 	err := unmarshal(&config)
 	if err != nil {
 		return err
@@ -106,10 +95,8 @@ func (matcher *TagMatcher) UnmarshalYAML(
 	switch config.Kind {
 	case "exact":
 		matcher.match = matcher.matchExact
-		matcher.value = config.Value
 	case "prefix":
 		matcher.match = matcher.matchPrefix
-		matcher.value = config.Value
 	case "regex":
 		matcher.regex, err = regexp.Compile(config.Value)
 		if err != nil {
@@ -119,16 +106,15 @@ func (matcher *TagMatcher) UnmarshalYAML(
 	default:
 		return fmt.Errorf("unknown matcher kind \"%s\"", config.Kind)
 	}
-	matcher.unset = config.Unset
 	return nil
 }
 
 func (matcher *TagMatcher) matchExact(value string) bool {
-	return value == matcher.value
+	return value == matcher.Value
 }
 
 func (matcher *TagMatcher) matchPrefix(value string) bool {
-	return strings.HasPrefix(value, matcher.value)
+	return strings.HasPrefix(value, matcher.Value)
 }
 
 func (matcher *TagMatcher) matchRegex(value string) bool {
@@ -147,14 +133,14 @@ configLoop:
 		for _, tagMatchConfig := range matchConfig.Tags {
 			for _, tag := range tags {
 				if tagMatchConfig.match(tag) {
-					if tagMatchConfig.unset {
+					if tagMatchConfig.Unset {
 						continue configLoop
 					} else {
 						continue tagLoop
 					}
 				}
 			}
-			if !tagMatchConfig.unset {
+			if !tagMatchConfig.Unset {
 				continue configLoop
 			}
 		}
