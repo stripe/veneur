@@ -23,17 +23,28 @@ func TestRouting(t *testing.T) {
 		tags      []string
 		sinks     RouteInformation
 		sinkNames []string
-	}{
-		{"none specified", []string{"foo:bar", "veneurlocalonly"}, nil, []string{"foosink", "barsink"}},
-		{"none specified", []string{"foo:bar", "veneurlocalonly:"}, nil, []string{"foosink", "barsink"}},
-		{"one sink", []string{"veneursinkonly:foobar"}, map[string]struct{}{"foobar": struct{}{}}, []string{"foobar"}},
-		{
-			"multiple sinks",
-			[]string{"veneursinkonly:foobar", "veneursinkonly:baz"},
-			map[string]struct{}{"foobar": struct{}{}, "baz": struct{}{}},
-			[]string{"foobar", "baz"},
-		},
-	}
+	}{{
+		"none specified",
+		[]string{"foo:bar", "veneurlocalonly"},
+		nil,
+		[]string{"foosink", "barsink"},
+	}, {
+		"none specified",
+		[]string{"foo:bar", "veneurlocalonly:"},
+		nil,
+		[]string{"foosink", "barsink"},
+	}, {
+		"one sink",
+		[]string{"veneursinkonly:foobar"},
+		map[string]struct{}{"foobar": {}},
+		[]string{"foobar"},
+	}, {
+		"multiple sinks",
+		[]string{"veneursinkonly:foobar", "veneursinkonly:baz"},
+		map[string]struct{}{"foobar": {}, "baz": {}},
+		[]string{"foobar", "baz"},
+	}}
+
 	for _, elt := range tests {
 		test := elt
 		t.Run(test.name, func(t *testing.T) {
@@ -745,7 +756,7 @@ func BenchmarkParseMetricSSF(b *testing.B) {
 
 	samples := make([]*ssf.SSFSample, LEN)
 
-	for i, _ := range samples {
+	for i := range samples {
 		p := make([]byte, 10)
 		_, err := rand.Read(p)
 		if err != nil {
