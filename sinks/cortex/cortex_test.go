@@ -22,6 +22,7 @@ import (
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util"
 )
 
 func TestName(t *testing.T) {
@@ -129,8 +130,8 @@ func TestBasicAuth(t *testing.T) {
 		"Another-Header":   "bazzoo",
 	}
 	auth := BasicAuthType{
-		Username: "user1",
-		Password: "p@ssWerd",
+		Username: util.StringSecret{Value: "user1"},
+		Password: util.StringSecret{Value: "p@ssWerd"},
 	}
 
 	// Set up a sink with custom headers
@@ -155,7 +156,7 @@ func TestBasicAuth(t *testing.T) {
 	for name, value := range customHeaders {
 		assert.True(t, hasHeader(*headers, name, value), "Missing or incorrect "+name+" header")
 	}
-	authString := auth.Username + ":" + auth.Password
+	authString := auth.Username.Value + ":" + auth.Password.Value
 	assert.True(t, hasHeader(*headers, "Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(authString))),
 		"Missing or invalid Authorization header")
 }
@@ -180,7 +181,7 @@ func TestParseConfig(t *testing.T) {
 	assert.Equal(t, cortexConfig.Headers, testConfigValues["headers"])
 	assert.NotNil(t, cortexConfig.Authorization)
 	assert.Equal(t, cortexConfig.Authorization.Type, DefaultAuthorizationType)
-	assert.Equal(t, cortexConfig.Authorization.Credential, "the-credential")
+	assert.Equal(t, cortexConfig.Authorization.Credential.Value, "the-credential")
 	assert.Empty(t, cortexConfig.BasicAuth)
 }
 
@@ -204,8 +205,8 @@ func TestParseConfigBasicAuth(t *testing.T) {
 	assert.Empty(t, cortexConfig.Headers)
 	assert.Empty(t, cortexConfig.Authorization)
 	assert.NotNil(t, cortexConfig.BasicAuth)
-	assert.Equal(t, cortexConfig.BasicAuth.Username, "user")
-	assert.Equal(t, cortexConfig.BasicAuth.Password, "pwd")
+	assert.Equal(t, cortexConfig.BasicAuth.Username.Value, "user")
+	assert.Equal(t, cortexConfig.BasicAuth.Password.Value, "pwd")
 }
 
 func TestParseConfigDuplicateAuth(t *testing.T) {

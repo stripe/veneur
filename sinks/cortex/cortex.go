@@ -48,8 +48,8 @@ type CortexMetricSink struct {
 }
 
 type BasicAuthType struct {
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
+	Username util.StringSecret `yaml:"username"`
+	Password util.StringSecret `yaml:"password"`
 }
 
 // TODO: implement queue config options, at least
@@ -62,8 +62,8 @@ type CortexMetricSinkConfig struct {
 	Headers       map[string]string `yaml:"headers"`
 	BasicAuth     BasicAuthType     `yaml:"basic_auth"`
 	Authorization struct {
-		Type       string `yaml:"type"`
-		Credential string `yaml:"credentials"`
+		Type       string            `yaml:"type"`
+		Credential util.StringSecret `yaml:"credentials"`
 	} `yaml:"authorization"`
 }
 
@@ -85,10 +85,10 @@ func Create(
 
 	headers := make(map[string]string)
 	if conf.Authorization.Type != "" {
-		headers["Authorization"] = conf.Authorization.Type + " " + conf.Authorization.Credential
+		headers["Authorization"] = conf.Authorization.Type + " " + conf.Authorization.Credential.Value
 	}
 	var basicAuth *BasicAuthType
-	if conf.BasicAuth.Username != "" {
+	if conf.BasicAuth.Username.Value != "" {
 		basicAuth = &conf.BasicAuth
 	}
 
@@ -107,15 +107,15 @@ func ParseConfig(
 	if cortexConfig.RemoteTimeout == 0 {
 		cortexConfig.RemoteTimeout = DefaultRemoteTimeout
 	}
-	if cortexConfig.BasicAuth.Username != "" {
-		if cortexConfig.BasicAuth.Password == "" {
+	if cortexConfig.BasicAuth.Username.Value != "" {
+		if cortexConfig.BasicAuth.Password.Value == "" {
 			return nil, errors.New("cortex sink needs both username and password")
 		}
-		if cortexConfig.Authorization.Credential != "" {
+		if cortexConfig.Authorization.Credential.Value != "" {
 			return nil, errors.New("cortex sink needs exactly one of basic_auth and authorization")
 		}
 	}
-	if cortexConfig.Authorization.Credential != "" && cortexConfig.Authorization.Type == "" {
+	if cortexConfig.Authorization.Credential.Value != "" && cortexConfig.Authorization.Type == "" {
 		cortexConfig.Authorization.Type = DefaultAuthorizationType
 	}
 	return cortexConfig, nil
@@ -196,7 +196,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		req.Header.Set(key, value)
 	}
 	if s.basicAuth != nil {
-		req.SetBasicAuth(s.basicAuth.Username, s.basicAuth.Password)
+		req.SetBasicAuth(s.basicAuth.Username.Value, s.basicAuth.Password.Value)
 	}
 
 	ts := time.Now()
