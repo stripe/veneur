@@ -15,10 +15,12 @@ type stringUnmarshaler interface {
 var stringUnmarshalerType = reflect.TypeOf((*stringUnmarshaler)(nil)).Elem()
 
 // DecodeConfig wraps the mapstructure decoder to unpack a map into a struct
-// and the envconfig decoder to read environment variables. This method provides
-// logic to handle decoding into StringSecret and time.Duration fields, and is
-// intended to be used by sinks while unpacking the configuration specific to
-// that sink from within the entire config.
+// and the envconfig decoder to read environment variables.
+//
+// This method provides logic to handle decoding into structs that implement the
+// stringUnmarshaler interface and is intended to be used by sources and sinks
+// while unpacking the configuration specific to that source or sink from within
+// the entire config.
 func DecodeConfig(name string, input interface{}, output interface{}) error {
 	configDecoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
