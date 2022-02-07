@@ -8,16 +8,24 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+type stringUnmarshaler interface {
+	Decode(value string) error
+}
+
+var stringUnmarshalerType = reflect.TypeOf((*stringUnmarshaler)(nil)).Elem()
+
 // DecodeConfig wraps the mapstructure decoder to unpack a map into a struct
-// and the envconfig decoder to read environment variables. This method provides
-// logic to handle decoding into StringSecret and time.Duration fields, and is
-// intended to be used by sinks while unpacking the configuration specific to
-// that sink from within the entire config.
+// and the envconfig decoder to read environment variables.
+//
+// This method provides logic to handle decoding into structs that implement the
+// stringUnmarshaler interface and is intended to be used by sources and sinks
+// while unpacking the configuration specific to that source or sink from within
+// the entire config.
 func DecodeConfig(name string, input interface{}, output interface{}) error {
 	configDecoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
-			stringSecretDecode,
 			mapstructure.StringToTimeDurationHookFunc(),
+			textUnmarshalerDecode,
 		),
 		Result:  &output,
 		TagName: "yaml",
@@ -36,18 +44,24 @@ func DecodeConfig(name string, input interface{}, output interface{}) error {
 	return nil
 }
 
-// A mapstructure decode hook to handle decoding StringSecret fields.
-func stringSecretDecode(
+// A mapstructure decode hook to handle decoding custom fields.
+func textUnmarshalerDecode(
 	inputType reflect.Type, outputType reflect.Type, data interface{},
 ) (interface{}, error) {
-	if outputType != reflect.TypeOf(StringSecret{}) {
+	if !reflect.PtrTo(outputType).Implements(stringUnmarshalerType) {
 		return data, nil
 	}
 	value, ok := data.(string)
 	if !ok {
 		return nil, fmt.Errorf("invalid type %v", inputType)
 	}
-	return StringSecret{
-		Value: value,
-	}, nil
+	parsedValue, ok := reflect.New(outputType).Interface().(stringUnmarshaler)
+	if !ok {
+		return nil, fmt.Errorf("invalid output type %v", outputType)
+	}
+	err := parsedValue.Decode(value)
+	if err != nil {
+		return nil, err
+	}
+	return parsedValue, nil
 }
