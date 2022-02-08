@@ -989,7 +989,11 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 	return nil
 }
 
+// Ingests a metric into Veneur. This method ensures that the Digest field is
+// set for the metric.
 func (s *Server) IngestMetric(metric *samplers.UDPMetric) {
+	// The Digtest field may be unset (i.e. zero) when IngestMetric is called from
+	// custom metric sources; if it is zero, we compute the value.
 	if metric.Digest == 0 {
 		hash := fnv1a.Init32
 		hash = fnv1a.AddString32(hash, metric.Name)

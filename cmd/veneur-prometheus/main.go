@@ -61,7 +61,7 @@ func main() {
 	ticker := time.NewTicker(i)
 	for time := range ticker.C {
 		ctx, cancel := context.WithDeadline(context.Background(), time.Add(i))
-		statsdStats, err := collect(ctx, cfg, statsClient, cache)
+		statsdStats, err := collect(ctx, cfg, statsClient, cache, i)
 		if err == nil {
 			sendToStatsd(statsClient, *statsHost, statsdStats)
 		}
@@ -71,7 +71,7 @@ func main() {
 
 func collect(
 	ctx context.Context, cfg *prometheusConfig, statsClient *statsd.Client,
-	cache *countCache,
+	cache *countCache, scrapeTimeout time.Duration,
 ) (<-chan []statsdStat, error) {
 	logrus.WithFields(logrus.Fields{
 		"metrics_host":    cfg.metricsHost,
@@ -81,7 +81,8 @@ func collect(
 
 	source := &openmetrics.OpenMetricsSource{
 		HttpClient:     cfg.httpClient,
-		Host:           cfg.metricsHost,
+		ScrapeTarget:   cfg.metricsHost,
+		ScrapeTimeout:  scrapeTimeout,
 		IgnoredMetrics: cfg.ignoredMetrics,
 	}
 	prometheus, err := source.Query(ctx)

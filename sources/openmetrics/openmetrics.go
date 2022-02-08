@@ -22,22 +22,26 @@ import (
 
 type OpenMetricsSourceConfig struct {
 	HistogramBucketTag string        `yaml:"histogram_bucket_tag"`
-	Host               util.Url      `yaml:"host"`
 	IgnoredMetrics     util.Regexp   `yaml:"ignored_metrics"`
-	Interval           time.Duration `yaml:"interval"`
+	ScrapeInterval     time.Duration `yaml:"scrape_interval"`
+	ScrapeTarget       util.Url      `yaml:"scrape_target"`
+	ScrapeTimeout      time.Duration `yaml:"scrape_timeout"`
 	SummaryQuantileTag string        `yaml:"summary_quantile_tag"`
 }
 
+// TODO(arnavdugar): Make public fields private once veneur-prometheus is
+// removed.
 type OpenMetricsSource struct {
 	cancelFunc         context.CancelFunc
 	context            context.Context
 	histogramBucketTag string
-	Host               *url.URL
 	HttpClient         *http.Client
 	IgnoredMetrics     *regexp.Regexp
-	interval           time.Duration
 	logger             *logrus.Entry
 	name               string
+	scrapeInterval     time.Duration
+	ScrapeTarget       *url.URL
+	ScrapeTimeout      time.Duration
 	server             *veneur.Server
 	summaryQuantileTag string
 }
@@ -55,20 +59,26 @@ type convertResults struct {
 func ParseConfig(
 	name string, config interface{},
 ) (veneur.ParsedSourceConfig, error) {
-	openMetricsSourceConfig := OpenMetricsSourceConfig{}
-	err := util.DecodeConfig(name, config, &openMetricsSourceConfig)
+	sourceConfig := OpenMetricsSourceConfig{}
+	err := util.DecodeConfig(name, config, &sourceConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	if openMetricsSourceConfig.HistogramBucketTag == "" {
-		openMetricsSourceConfig.HistogramBucketTag = "le"
+	if sourceConfig.HistogramBucketTag == "" {
+		sourceConfig.HistogramBucketTag = "le"
 	}
-	if openMetricsSourceConfig.SummaryQuantileTag == "" {
-		openMetricsSourceConfig.SummaryQuantileTag = "quantile"
+	if sourceConfig.SummaryQuantileTag == "" {
+		sourceConfig.SummaryQuantileTag = "quantile"
+	}
+	if sourceConfig.ScrapeTimeout == 0 {
+		sourceConfig.ScrapeTimeout = sourceConfig.ScrapeInterval
+	} else if sourceConfig.ScrapeTimeout > sourceConfig.ScrapeInterval {
+		return nil, errors.New(
+			"scrape timeout cannot be larger than scrape interval")
 	}
 
-	return openMetricsSourceConfig, nil
+	return sourceConfig, nil
 }
 
 func Create(
@@ -85,12 +95,13 @@ func Create(
 		cancelFunc:         cancelFunc,
 		context:            ctx,
 		histogramBucketTag: openMetricsSourceConfig.HistogramBucketTag,
-		Host:               openMetricsSourceConfig.Host.Value,
 		HttpClient:         server.HTTPClient,
 		IgnoredMetrics:     openMetricsSourceConfig.IgnoredMetrics.Value,
-		interval:           openMetricsSourceConfig.Interval,
 		logger:             logger,
 		name:               name,
+		scrapeInterval:     openMetricsSourceConfig.ScrapeInterval,
+		ScrapeTarget:       openMetricsSourceConfig.ScrapeTarget.Value,
+		ScrapeTimeout:      openMetricsSourceConfig.ScrapeTimeout,
 		server:             server,
 		summaryQuantileTag: openMetricsSourceConfig.SummaryQuantileTag,
 	}, nil
@@ -101,15 +112,18 @@ func (source OpenMetricsSource) Name() string {
 }
 
 func (source OpenMetricsSource) Start() error {
-	ticker := time.NewTicker(source.interval)
+	ticker := time.NewTicker(source.scrapeInterval)
 intervalLoop:
 	for {
 		select {
 		case t := <-ticker.C:
-			ctx, cancel :=
-				context.WithDeadline(source.context, t.Add(source.interval))
-			results, err := source.Query(ctx)
-			cancel()
+			results, err := func() (<-chan QueryResults, error) {
+				ctx, cancel :=
+					context.WithDeadline(source.context, t.Add(source.ScrapeTimeout))
+				defer cancel()
+				return source.Query(ctx)
+			}()
+
 			if err != nil {
 				source.logger.WithError(err).Warn("failed to query metrics")
 				continue
@@ -141,7 +155,7 @@ func (source *OpenMetricsSource) Query(
 	ctx context.Context,
 ) (<-chan QueryResults, error) {
 	request, err :=
-		http.NewRequestWithContext(ctx, "GET", source.Host.String(), nil)
+		http.NewRequestWithContext(ctx, "GET", source.ScrapeTarget.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +178,7 @@ func (source *OpenMetricsSource) Query(
 				metrics <- QueryResults{Error: err}
 				logrus.
 					WithError(err).
-					WithField("host", source.Host).
+					WithField("host", source.ScrapeTarget).
 					Warn("decode error")
 				return
 			}
