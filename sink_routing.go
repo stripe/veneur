@@ -21,21 +21,15 @@ type NameMatcher struct {
 	match func(string) bool
 	regex *regexp.Regexp
 	Value string `yaml:"value"`
-	Kind string `yaml:"kind"`
-}
-
-type TagMatcherConfig struct {
 	Kind  string `yaml:"kind"`
-	Unset bool   `yaml:"unset"`
-	Value string `yaml:"value"`
 }
 
 type TagMatcher struct {
 	match func(string) bool
 	regex *regexp.Regexp
-	Unset bool `yaml:"unset"`
+	Unset bool   `yaml:"unset"`
 	Value string `yaml:"value"`
-	Kind string `yaml:"kind"`
+	Kind  string `yaml:"kind"`
 }
 
 type SinkRoutingSinks struct {
@@ -103,7 +97,6 @@ func (matcher *TagMatcher) UnmarshalYAML(
 	if err != nil {
 		return err
 	}
-
 
 	var cfgVal string
 	if config["value"] != nil {
