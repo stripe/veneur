@@ -338,3 +338,50 @@ match:
 	assert.True(t, config.Match("aa", []string{"ab", "baab"}))
 	assert.False(t, config.Match("bb", []string{"ab", "baab"}))
 }
+
+func TestMarshall(t *testing.T) {
+	config := veneur.SinkRoutingConfig{}
+	yamlString := []byte(`---
+name: test
+match:
+  - name:
+      kind: exact
+      value: aa
+    tags:
+      - kind: exact
+        value: ab
+  - name:
+      kind: exact
+      value: bb
+    tags:
+      - kind: prefix
+        value: aa
+        unset: true 
+`)
+
+	require.NoError(t, yaml.Unmarshal(yamlString, &config))
+	actualYaml, err := yaml.Marshal(config)
+	require.NoError(t, err)
+
+	expectedYaml := `name: test
+match:
+    - name:
+        kind: exact
+        value: aa
+      tags:
+        - kind: exact
+          unset: false
+          value: ab
+    - name:
+        kind: exact
+        value: bb
+      tags:
+        - kind: prefix
+          unset: true
+          value: aa
+sinks:
+    matched: []
+    not_matched: []
+`
+	assert.Equal(t, expectedYaml, string(actualYaml))
+}

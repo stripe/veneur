@@ -17,10 +17,21 @@ type MatcherConfig struct {
 	Tags []TagMatcher `yaml:"tags"`
 }
 
+type NameMatcherConfig struct {
+	Kind  string `yaml:"kind"`
+	Value string `yaml:"value"`
+}
+
 type NameMatcher struct {
 	Kind  string `yaml:"kind"`
 	match func(string) bool
 	regex *regexp.Regexp
+	Value string `yaml:"value"`
+}
+
+type TagMatcherConfig struct {
+	Kind  string `yaml:"kind"`
+	Unset bool   `yaml:"unset"`
 	Value string `yaml:"value"`
 }
 
@@ -42,11 +53,13 @@ type SinkRoutingSinks struct {
 func (matcher *NameMatcher) UnmarshalYAML(
 	unmarshal func(interface{}) error,
 ) error {
-	config := NameMatcher{}
+	config := NameMatcherConfig{}
 	err := unmarshal(&config)
 	if err != nil {
 		return err
 	}
+
+	matcher.Kind = config.Kind
 	switch config.Kind {
 	case "any":
 		matcher.match = matcher.matchAny
@@ -63,6 +76,8 @@ func (matcher *NameMatcher) UnmarshalYAML(
 	default:
 		return fmt.Errorf("unknown matcher kind \"%s\"", config.Kind)
 	}
+	matcher.Value = config.Value
+
 	return nil
 }
 
@@ -87,11 +102,13 @@ func (matcher *NameMatcher) matchRegex(value string) bool {
 func (matcher *TagMatcher) UnmarshalYAML(
 	unmarshal func(interface{}) error,
 ) error {
-	config := TagMatcher{}
+	config := TagMatcherConfig{}
 	err := unmarshal(&config)
 	if err != nil {
 		return err
 	}
+
+	matcher.Kind = config.Kind
 	switch config.Kind {
 	case "exact":
 		matcher.match = matcher.matchExact
@@ -106,6 +123,9 @@ func (matcher *TagMatcher) UnmarshalYAML(
 	default:
 		return fmt.Errorf("unknown matcher kind \"%s\"", config.Kind)
 	}
+	matcher.Unset = config.Unset
+	matcher.Value = config.Value
+
 	return nil
 }
 

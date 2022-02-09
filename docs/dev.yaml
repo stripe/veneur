@@ -18,6 +18,9 @@ percentiles:
   - 0.50
   - 0.90
 
+http_address: 0.0.0.0:9085
+http:
+  config: true
 debug: true
 debug_ingested_spans: true
 debug_flushed_metrics: true
