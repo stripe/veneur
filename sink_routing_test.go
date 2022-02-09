@@ -338,3 +338,42 @@ match:
 	assert.True(t, config.Match("aa", []string{"ab", "baab"}))
 	assert.False(t, config.Match("bb", []string{"ab", "baab"}))
 }
+
+func TestUnmarshallingAndMarshalling(t *testing.T) {
+	config := veneur.SinkRoutingConfig{}
+	yamlString := []byte(`name: test
+match:
+  - name:
+      kind: exact
+      value: aa
+    tags:
+      - kind: exact
+        value: ab
+  - name:
+      kind: exact
+      value: bb
+    tags:
+      - kind: prefix
+        value: aa
+        unset: true 
+`)
+
+	require.Nil(t, yaml.Unmarshal(yamlString, &config))
+
+	backToYaml, err := yaml.Marshal(config)
+	require.Nil(t, err)
+
+	nConfig := veneur.SinkRoutingConfig{}
+	require.Nil(t, yaml.Unmarshal(backToYaml, &nConfig))
+
+	assert.Equal(t, config.MatchConfigs[0].Name.Kind, nConfig.MatchConfigs[0].Name.Kind)
+	assert.Equal(t, config.MatchConfigs[0].Name.Value, nConfig.MatchConfigs[0].Name.Value)
+	assert.Equal(t, config.MatchConfigs[0].Tags[0].Kind, nConfig.MatchConfigs[0].Tags[0].Kind)
+	assert.Equal(t, config.MatchConfigs[0].Tags[0].Value, nConfig.MatchConfigs[0].Tags[0].Value)
+
+	assert.Equal(t, config.MatchConfigs[1].Name.Kind, nConfig.MatchConfigs[1].Name.Kind)
+	assert.Equal(t, config.MatchConfigs[1].Name.Value, nConfig.MatchConfigs[1].Name.Value)
+	assert.Equal(t, config.MatchConfigs[1].Tags[0].Kind, nConfig.MatchConfigs[1].Tags[0].Kind)
+	assert.Equal(t, config.MatchConfigs[1].Tags[0].Value, nConfig.MatchConfigs[1].Tags[0].Value)
+	assert.Equal(t, config.MatchConfigs[1].Tags[0].Unset, nConfig.MatchConfigs[1].Tags[0].Unset)
+}

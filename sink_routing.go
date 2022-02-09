@@ -17,15 +17,11 @@ type MatcherConfig struct {
 	Tags []TagMatcher `yaml:"tags"`
 }
 
-type NameMatcherConfig struct {
-	Kind  string `yaml:"kind"`
-	Value string `yaml:"value"`
-}
-
 type NameMatcher struct {
 	match func(string) bool
 	regex *regexp.Regexp
-	value string
+	Value string `yaml:"value"`
+	Kind string `yaml:"kind"`
 }
 
 type TagMatcherConfig struct {
@@ -37,8 +33,9 @@ type TagMatcherConfig struct {
 type TagMatcher struct {
 	match func(string) bool
 	regex *regexp.Regexp
-	unset bool
-	value string
+	Unset bool `yaml:"unset"`
+	Value string `yaml:"value"`
+	Kind string `yaml:"kind"`
 }
 
 type SinkRoutingSinks struct {
@@ -51,28 +48,31 @@ type SinkRoutingSinks struct {
 func (matcher *NameMatcher) UnmarshalYAML(
 	unmarshal func(interface{}) error,
 ) error {
-	config := NameMatcherConfig{}
+	var config map[string]string
 	err := unmarshal(&config)
 	if err != nil {
 		return err
 	}
-	switch config.Kind {
+
+	matcher.Kind = config["kind"]
+	switch config["kind"] {
 	case "any":
 		matcher.match = matcher.matchAny
 	case "exact":
 		matcher.match = matcher.matchExact
-		matcher.value = config.Value
+		matcher.Value = config["value"]
 	case "prefix":
 		matcher.match = matcher.matchPrefix
-		matcher.value = config.Value
+		matcher.Value = config["value"]
 	case "regex":
-		matcher.regex, err = regexp.Compile(config.Value)
+		matcher.regex, err = regexp.Compile(config["value"])
+		matcher.Value = config["value"]
 		if err != nil {
 			return err
 		}
 		matcher.match = matcher.matchRegex
 	default:
-		return fmt.Errorf("unknown matcher kind \"%s\"", config.Kind)
+		return fmt.Errorf("unknown matcher kind \"%s\"", config["kind"])
 	}
 	return nil
 }
@@ -82,11 +82,11 @@ func (matcher *NameMatcher) matchAny(value string) bool {
 }
 
 func (matcher *NameMatcher) matchExact(value string) bool {
-	return value == matcher.value
+	return value == matcher.Value
 }
 
 func (matcher *NameMatcher) matchPrefix(value string) bool {
-	return strings.HasPrefix(value, matcher.value)
+	return strings.HasPrefix(value, matcher.Value)
 }
 
 func (matcher *NameMatcher) matchRegex(value string) bool {
@@ -98,37 +98,51 @@ func (matcher *NameMatcher) matchRegex(value string) bool {
 func (matcher *TagMatcher) UnmarshalYAML(
 	unmarshal func(interface{}) error,
 ) error {
-	config := TagMatcherConfig{}
+	var config map[string]interface{}
 	err := unmarshal(&config)
 	if err != nil {
 		return err
 	}
-	switch config.Kind {
+
+
+	var cfgVal string
+	if config["value"] != nil {
+		cfgVal = config["value"].(string)
+	}
+
+	if config["kind"] != nil {
+		matcher.Kind = config["kind"].(string)
+	}
+
+	switch matcher.Kind {
 	case "exact":
 		matcher.match = matcher.matchExact
-		matcher.value = config.Value
+		matcher.Value = cfgVal
 	case "prefix":
 		matcher.match = matcher.matchPrefix
-		matcher.value = config.Value
+		matcher.Value = cfgVal
 	case "regex":
-		matcher.regex, err = regexp.Compile(config.Value)
+		matcher.regex, err = regexp.Compile(cfgVal)
 		if err != nil {
 			return err
 		}
 		matcher.match = matcher.matchRegex
 	default:
-		return fmt.Errorf("unknown matcher kind \"%s\"", config.Kind)
+		return fmt.Errorf("unknown matcher kind \"%s\"", matcher.Kind)
 	}
-	matcher.unset = config.Unset
+
+	if config["unset"] != nil {
+		matcher.Unset = config["unset"].(bool)
+	}
 	return nil
 }
 
 func (matcher *TagMatcher) matchExact(value string) bool {
-	return value == matcher.value
+	return value == matcher.Value
 }
 
 func (matcher *TagMatcher) matchPrefix(value string) bool {
-	return strings.HasPrefix(value, matcher.value)
+	return strings.HasPrefix(value, matcher.Value)
 }
 
 func (matcher *TagMatcher) matchRegex(value string) bool {
@@ -147,14 +161,14 @@ configLoop:
 		for _, tagMatchConfig := range matchConfig.Tags {
 			for _, tag := range tags {
 				if tagMatchConfig.match(tag) {
-					if tagMatchConfig.unset {
+					if tagMatchConfig.Unset {
 						continue configLoop
 					} else {
 						continue tagLoop
 					}
 				}
 			}
-			if !tagMatchConfig.unset {
+			if !tagMatchConfig.Unset {
 				continue configLoop
 			}
 		}
