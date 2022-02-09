@@ -35,14 +35,6 @@ func main() {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	i, err := time.ParseDuration(*interval)
-	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"error":    err,
-			"interval": *interval,
-		}).Fatal("failed to parse interval")
-	}
-
 	statsClient, err := statsd.New(*statsHost, statsd.WithoutTelemetry())
 	if err != nil {
 		logrus.Fatal(err.Error())
@@ -58,10 +50,11 @@ func main() {
 	}
 
 	cache := new(countCache)
-	ticker := time.NewTicker(i)
+	ticker := time.NewTicker(cfg.interval)
 	for time := range ticker.C {
-		ctx, cancel := context.WithDeadline(context.Background(), time.Add(i))
-		statsdStats, err := collect(ctx, cfg, statsClient, cache, i)
+		ctx, cancel := context.WithDeadline(
+			context.Background(), time.Add(cfg.interval))
+		statsdStats, err := collect(ctx, cfg, statsClient, cache)
 		if err == nil {
 			sendToStatsd(statsClient, *statsHost, statsdStats)
 		}
@@ -71,7 +64,7 @@ func main() {
 
 func collect(
 	ctx context.Context, cfg *prometheusConfig, statsClient *statsd.Client,
-	cache *countCache, scrapeTimeout time.Duration,
+	cache *countCache,
 ) (<-chan []statsdStat, error) {
 	logrus.WithFields(logrus.Fields{
 		"metrics_host":    cfg.metricsHost,
@@ -80,10 +73,10 @@ func collect(
 	}).Debug("beginning collection")
 
 	source := &openmetrics.OpenMetricsSource{
-		HttpClient:     cfg.httpClient,
-		ScrapeTarget:   cfg.metricsHost,
-		ScrapeTimeout:  scrapeTimeout,
-		IgnoredMetrics: cfg.ignoredMetrics,
+		Denylist:      cfg.ignoredMetrics,
+		HttpClient:    cfg.httpClient,
+		ScrapeTarget:  cfg.metricsHost,
+		ScrapeTimeout: cfg.interval,
 	}
 	prometheus, err := source.Query(ctx)
 	if err != nil {

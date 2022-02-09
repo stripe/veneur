@@ -12,7 +12,6 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	dto "github.com/prometheus/client_model/go"
-	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,9 +24,10 @@ import (
 
 func TestParseConfig(t *testing.T) {
 	yamlConfig := `---
-host: https://example.com/
-ignored_metrics: ^foo.*$
-interval: 10s
+allowlist: ^foo.*$
+denylist: ^bar.*$
+scrape_interval: 10s
+scrape_target: https://example.com/
 `
 	parsedConfig := map[string]interface{}{}
 	yaml.Unmarshal([]byte(yamlConfig), &parsedConfig)
@@ -38,14 +38,17 @@ interval: 10s
 	assert.True(t, ok)
 
 	assert.Equal(t, "le", openMetricsConfig.HistogramBucketTag)
-	if assert.NotNil(t, openMetricsConfig.Host.Value) {
+	if assert.NotNil(t, openMetricsConfig.ScrapeTarget.Value) {
 		assert.Equal(
-			t, "https://example.com/", openMetricsConfig.Host.Value.String())
+			t, "https://example.com/", openMetricsConfig.ScrapeTarget.Value.String())
 	}
-	if assert.NotNil(t, openMetricsConfig.IgnoredMetrics.Value) {
-		assert.Equal(t, "^foo.*$", openMetricsConfig.IgnoredMetrics.Value.String())
+	if assert.NotNil(t, openMetricsConfig.Allowlist.Value) {
+		assert.Equal(t, "^foo.*$", openMetricsConfig.Allowlist.Value.String())
 	}
-	assert.Equal(t, 10*time.Second, openMetricsConfig.Interval)
+	if assert.NotNil(t, openMetricsConfig.Denylist.Value) {
+		assert.Equal(t, "^bar.*$", openMetricsConfig.Denylist.Value.String())
+	}
+	assert.Equal(t, 10*time.Second, openMetricsConfig.ScrapeInterval)
 	assert.Equal(t, "quantile", openMetricsConfig.SummaryQuantileTag)
 }
 
@@ -88,7 +91,7 @@ requests{status="500"} 1
 	source := CreateSource(
 		t, testHttpServer,
 		openmetrics.OpenMetricsSourceConfig{
-			Host: util.Url{
+			ScrapeTarget: util.Url{
 				Value: testUrl,
 			},
 		})
@@ -125,7 +128,7 @@ requests{status="500"} 1
 	}
 }
 
-func TestQueryIgnoresMetrics(t *testing.T) {
+func TestQueryMetricsAllowlist(t *testing.T) {
 	testHttpServer := httptest.NewServer(http.HandlerFunc(
 		func(writer http.ResponseWriter, request *http.Request) {
 			writer.Write([]byte(`
@@ -141,10 +144,54 @@ bar 7
 	source := CreateSource(
 		t, testHttpServer,
 		openmetrics.OpenMetricsSourceConfig{
-			Host: util.Url{
+			ScrapeTarget: util.Url{
 				Value: testUrl,
 			},
-			IgnoredMetrics: util.Regexp{
+			Allowlist: util.Regexp{
+				Value: regexp.MustCompile("^foo$"),
+			},
+		})
+
+	queryResponse, err := source.Query(context.Background())
+	assert.NoError(t, err)
+
+	results := []dto.MetricFamily{}
+	for result := range queryResponse {
+		assert.NoError(t, result.Error)
+		results = append(results, result.MetricFamily)
+	}
+
+	if assert.Len(t, results, 1) {
+		assert.Equal(t, "foo", *results[0].Name)
+		assert.Equal(t, dto.MetricType_UNTYPED, *results[0].Type)
+		if assert.Len(t, results[0].Metric, 1) {
+			if assert.NotNil(t, results[0].Metric[0].Untyped) {
+				assert.Equal(t, 5.0, *results[0].Metric[0].Untyped.Value)
+			}
+		}
+	}
+}
+
+func TestQueryMetricsDenylist(t *testing.T) {
+	testHttpServer := httptest.NewServer(http.HandlerFunc(
+		func(writer http.ResponseWriter, request *http.Request) {
+			writer.Write([]byte(`
+foo 5
+bar 7
+# EOF
+`))
+		},
+	))
+	testUrl, err := url.Parse(testHttpServer.URL)
+	assert.NoError(t, err)
+
+	source := CreateSource(
+		t, testHttpServer,
+		openmetrics.OpenMetricsSourceConfig{
+			ScrapeTarget: util.Url{
+				Value: testUrl,
+			},
+			Denylist: util.Regexp{
 				Value: regexp.MustCompile("^foo$"),
 			},
 		})
@@ -193,7 +240,7 @@ func TestConvertCounter(t *testing.T) {
 		t, httptest.NewServer(http.DefaultServeMux),
 		openmetrics.OpenMetricsSourceConfig{})
 
-	metricFamily := io_prometheus_client.MetricFamily{}
+	metricFamily := dto.MetricFamily{}
 	err := proto.UnmarshalText(counterMetric, &metricFamily)
 	require.NoError(t, err)
 
@@ -220,7 +267,7 @@ func TestConvertCounter(t *testing.T) {
 			assert.Equal(t, "tag1:value1", results[0].Tags[0])
 			assert.Equal(t, "tag2:value2", results[0].Tags[1])
 		}
-		assert.Equal(t, 3.0, *results[0].Value.(*float64))
+		assert.Equal(t, 3.0, results[0].Value)
 		assert.Equal(t, int64(101), results[0].Timestamp)
 	}
 }
@@ -249,7 +296,7 @@ func TestConvertGauge(t *testing.T) {
 		t, httptest.NewServer(http.DefaultServeMux),
 		openmetrics.OpenMetricsSourceConfig{})
 
-	metricFamily := io_prometheus_client.MetricFamily{}
+	metricFamily := dto.MetricFamily{}
 	err := proto.UnmarshalText(gaugeMetric, &metricFamily)
 	require.NoError(t, err)
 
@@ -276,7 +323,7 @@ func TestConvertGauge(t *testing.T) {
 			assert.Equal(t, "tag1:value1", results[0].Tags[0])
 			assert.Equal(t, "tag2:value2", results[0].Tags[1])
 		}
-		assert.Equal(t, 3.0, *results[0].Value.(*float64))
+		assert.Equal(t, 3.0, results[0].Value)
 		assert.Equal(t, int64(107), results[0].Timestamp)
 	}
 }
@@ -316,7 +363,7 @@ func TestConvertSummary(t *testing.T) {
 			SummaryQuantileTag: "quantile",
 		})
 
-	metricFamily := io_prometheus_client.MetricFamily{}
+	metricFamily := dto.MetricFamily{}
 	err := proto.UnmarshalText(summaryMetric, &metricFamily)
 	require.NoError(t, err)
 
@@ -344,7 +391,7 @@ func TestConvertSummary(t *testing.T) {
 			assert.Equal(t, "tag2:value2", results[0].Tags[1])
 			assert.Equal(t, "quantile:90.000000", results[0].Tags[2])
 		}
-		assert.Equal(t, 1.0, *results[0].Value.(*float64))
+		assert.Equal(t, 1.0, results[0].Value)
 		assert.Equal(t, int64(127), results[0].Timestamp)
 
 		assert.Equal(t, "gauge", results[1].Type)
@@ -354,7 +401,7 @@ func TestConvertSummary(t *testing.T) {
 			assert.Equal(t, "tag2:value2", results[1].Tags[1])
 			assert.Equal(t, "quantile:99.000000", results[1].Tags[2])
 		}
-		assert.Equal(t, 2.0, *results[1].Value.(*float64))
+		assert.Equal(t, 2.0, results[1].Value)
 		assert.Equal(t, int64(127), results[1].Timestamp)
 
 		assert.Equal(t, "counter", results[2].Type)
@@ -363,7 +410,7 @@ func TestConvertSummary(t *testing.T) {
 			assert.Equal(t, "tag1:value1", results[2].Tags[0])
 			assert.Equal(t, "tag2:value2", results[2].Tags[1])
 		}
-		assert.Equal(t, uint64(3), *results[2].Value.(*uint64))
+		assert.Equal(t, 3.0, results[2].Value)
 		assert.Equal(t, int64(127), results[2].Timestamp)
 
 		assert.Equal(t, "counter", results[3].Type)
@@ -372,7 +419,7 @@ func TestConvertSummary(t *testing.T) {
 			assert.Equal(t, "tag1:value1", results[3].Tags[0])
 			assert.Equal(t, "tag2:value2", results[3].Tags[1])
 		}
-		assert.Equal(t, 4.0, *results[3].Value.(*float64))
+		assert.Equal(t, 4.0, results[3].Value)
 		assert.Equal(t, int64(127), results[3].Timestamp)
 	}
 }
@@ -412,7 +459,7 @@ func TestConvertHistogram(t *testing.T) {
 			HistogramBucketTag: "le",
 		})
 
-	metricFamily := io_prometheus_client.MetricFamily{}
+	metricFamily := dto.MetricFamily{}
 	err := proto.UnmarshalText(histogramMetric, &metricFamily)
 	require.NoError(t, err)
 
@@ -440,7 +487,7 @@ func TestConvertHistogram(t *testing.T) {
 			assert.Equal(t, "tag2:value2", results[0].Tags[1])
 			assert.Equal(t, "le:3.000000", results[0].Tags[2])
 		}
-		assert.Equal(t, uint64(2), *results[0].Value.(*uint64))
+		assert.Equal(t, 2.0, results[0].Value)
 		assert.Equal(t, int64(149), results[0].Timestamp)
 
 		assert.Equal(t, "counter", results[1].Type)
@@ -450,7 +497,7 @@ func TestConvertHistogram(t *testing.T) {
 			assert.Equal(t, "tag2:value2", results[1].Tags[1])
 			assert.Equal(t, "le:5.000000", results[1].Tags[2])
 		}
-		assert.Equal(t, uint64(4), *results[1].Value.(*uint64))
+		assert.Equal(t, 4.0, results[1].Value)
 		assert.Equal(t, int64(149), results[1].Timestamp)
 
 		assert.Equal(t, "counter", results[2].Type)
@@ -459,7 +506,7 @@ func TestConvertHistogram(t *testing.T) {
 			assert.Equal(t, "tag1:value1", results[2].Tags[0])
 			assert.Equal(t, "tag2:value2", results[2].Tags[1])
 		}
-		assert.Equal(t, uint64(6), *results[2].Value.(*uint64))
+		assert.Equal(t, 6.0, results[2].Value)
 		assert.Equal(t, int64(149), results[2].Timestamp)
 
 		assert.Equal(t, "counter", results[3].Type)
@@ -468,7 +515,7 @@ func TestConvertHistogram(t *testing.T) {
 			assert.Equal(t, "tag1:value1", results[3].Tags[0])
 			assert.Equal(t, "tag2:value2", results[3].Tags[1])
 		}
-		assert.Equal(t, 8.0, *results[3].Value.(*float64))
+		assert.Equal(t, 8.0, results[3].Value)
 		assert.Equal(t, int64(149), results[3].Timestamp)
 	}
 }
@@ -499,7 +546,7 @@ func TestConvertUntyped(t *testing.T) {
 			HistogramBucketTag: "le",
 		})
 
-	metricFamily := io_prometheus_client.MetricFamily{}
+	metricFamily := dto.MetricFamily{}
 	err := proto.UnmarshalText(untypedMetric, &metricFamily)
 	require.NoError(t, err)
 
@@ -526,7 +573,7 @@ func TestConvertUntyped(t *testing.T) {
 			assert.Equal(t, "tag1:value1", results[0].Tags[0])
 			assert.Equal(t, "tag2:value2", results[0].Tags[1])
 		}
-		assert.Equal(t, 9.0, *results[0].Value.(*float64))
+		assert.Equal(t, 9.0, results[0].Value)
 		assert.Equal(t, int64(151), results[0].Timestamp)
 	}
 }

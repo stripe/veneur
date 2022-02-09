@@ -48,7 +48,8 @@ This field generally should not be used.
 
 Required. Type: duration.
 
-The interval at which the source scrapes targets.
+The interval at which the source scrapes targets. Warning: Currently this _must_
+be set to the flush interval for the OpenMetrics source to work. 
 
 ### scrape_target
 

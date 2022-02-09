@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 type prometheusConfig struct {
@@ -18,12 +19,18 @@ type prometheusConfig struct {
 	ignoredMetrics *regexp.Regexp
 	addedLabels    map[string]string
 	renameLabels   map[string]string
+	interval       time.Duration
 }
 
 func prometheusConfigFromArguments() (*prometheusConfig, error) {
 	client, err := newHTTPClient(*socket, *cert, *key, *caCert)
 
 	metricsHostUrl, err := url.Parse(*metricsHost)
+	if err != nil {
+		return nil, err
+	}
+
+	parsedInterval, err := time.ParseDuration(*interval)
 	if err != nil {
 		return nil, err
 	}
@@ -35,6 +42,7 @@ func prometheusConfigFromArguments() (*prometheusConfig, error) {
 		ignoredMetrics: getIgnoredFromArg(*ignoredMetricsStr),
 		addedLabels:    getAddedFromArg(*addLabelsStr),
 		renameLabels:   getRenamedFromArg(*renameLabelsStr),
+		interval:       parsedInterval,
 	}, err
 }
 

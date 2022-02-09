@@ -21,8 +21,9 @@ import (
 )
 
 type OpenMetricsSourceConfig struct {
+	Allowlist          util.Regexp   `yaml:"allowlist"`
+	Denylist           util.Regexp   `yaml:"denylist"`
 	HistogramBucketTag string        `yaml:"histogram_bucket_tag"`
-	IgnoredMetrics     util.Regexp   `yaml:"ignored_metrics"`
 	ScrapeInterval     time.Duration `yaml:"scrape_interval"`
 	ScrapeTarget       util.Url      `yaml:"scrape_target"`
 	ScrapeTimeout      time.Duration `yaml:"scrape_timeout"`
@@ -32,11 +33,12 @@ type OpenMetricsSourceConfig struct {
 // TODO(arnavdugar): Make public fields private once veneur-prometheus is
 // removed.
 type OpenMetricsSource struct {
+	allowlist          *regexp.Regexp
 	cancelFunc         context.CancelFunc
 	context            context.Context
+	Denylist           *regexp.Regexp
 	histogramBucketTag string
 	HttpClient         *http.Client
-	IgnoredMetrics     *regexp.Regexp
 	logger             *logrus.Entry
 	name               string
 	scrapeInterval     time.Duration
@@ -92,11 +94,12 @@ func Create(
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	return OpenMetricsSource{
+		allowlist:          openMetricsSourceConfig.Allowlist.Value,
 		cancelFunc:         cancelFunc,
 		context:            ctx,
+		Denylist:           openMetricsSourceConfig.Denylist.Value,
 		histogramBucketTag: openMetricsSourceConfig.HistogramBucketTag,
 		HttpClient:         server.HTTPClient,
-		IgnoredMetrics:     openMetricsSourceConfig.IgnoredMetrics.Value,
 		logger:             logger,
 		name:               name,
 		scrapeInterval:     openMetricsSourceConfig.ScrapeInterval,
@@ -183,9 +186,14 @@ func (source *OpenMetricsSource) Query(
 				return
 			}
 
-			if source.IgnoredMetrics != nil &&
-				source.IgnoredMetrics.MatchString(*metricFamily.Name) {
-				continue
+			if source.allowlist != nil {
+				if !source.allowlist.MatchString(*metricFamily.Name) {
+					continue
+				}
+			} else if source.Denylist != nil {
+				if source.Denylist.MatchString(*metricFamily.Name) {
+					continue
+				}
 			}
 
 			metrics <- QueryResults{MetricFamily: metricFamily}
@@ -239,9 +247,10 @@ func (source *OpenMetricsSource) convertCounter(
 					Name: *metricFamily.Name,
 					Type: "counter",
 				},
-				Tags:      getTags(metric.Label),
-				Timestamp: *metric.TimestampMs,
-				Value:     metric.Counter.Value,
+				SampleRate: 1.0,
+				Tags:       getTags(metric.Label),
+				Timestamp:  metric.GetTimestampMs(),
+				Value:      *metric.Counter.Value,
 			},
 		}
 	}
@@ -257,9 +266,10 @@ func (source *OpenMetricsSource) convertGauge(
 					Name: *metricFamily.Name,
 					Type: "gauge",
 				},
-				Tags:      getTags(metric.Label),
-				Timestamp: *metric.TimestampMs,
-				Value:     metric.Gauge.Value,
+				SampleRate: 1.0,
+				Tags:       getTags(metric.Label),
+				Timestamp:  metric.GetTimestampMs(),
+				Value:      *metric.Gauge.Value,
 			},
 		}
 	}
@@ -270,6 +280,7 @@ func (source *OpenMetricsSource) convertSummary(
 ) {
 	for _, metric := range metricFamily.Metric {
 		tags := getTags(metric.Label)
+		timestamp := metric.GetTimestampMs()
 		for _, quantile := range metric.Summary.Quantile {
 			summaryTags := make([]string, len(tags))
 			copy(summaryTags, tags)
@@ -282,9 +293,10 @@ func (source *OpenMetricsSource) convertSummary(
 						Name: *metricFamily.Name,
 						Type: "gauge",
 					},
-					Tags:      summaryTags,
-					Timestamp: *metric.TimestampMs,
-					Value:     quantile.Value,
+					SampleRate: 1.0,
+					Tags:       summaryTags,
+					Timestamp:  timestamp,
+					Value:      *quantile.Value,
 				},
 			}
 		}
@@ -294,9 +306,10 @@ func (source *OpenMetricsSource) convertSummary(
 					Name: fmt.Sprintf("%s.count", *metricFamily.Name),
 					Type: "counter",
 				},
-				Tags:      tags,
-				Timestamp: *metric.TimestampMs,
-				Value:     metric.Summary.SampleCount,
+				SampleRate: 1.0,
+				Tags:       tags,
+				Timestamp:  timestamp,
+				Value:      float64(*metric.Summary.SampleCount),
 			},
 		}
 		metrics <- &convertResults{
@@ -305,9 +318,10 @@ func (source *OpenMetricsSource) convertSummary(
 					Name: fmt.Sprintf("%s.sum", *metricFamily.Name),
 					Type: "counter",
 				},
-				Tags:      tags,
-				Timestamp: *metric.TimestampMs,
-				Value:     metric.Summary.SampleSum,
+				SampleRate: 1.0,
+				Tags:       tags,
+				Timestamp:  timestamp,
+				Value:      *metric.Summary.SampleSum,
 			},
 		}
 	}
@@ -318,6 +332,7 @@ func (source *OpenMetricsSource) convertHistogram(
 ) {
 	for _, metric := range metricFamily.Metric {
 		tags := getTags(metric.Label)
+		timestamp := metric.GetTimestampMs()
 		for _, bucket := range metric.Histogram.Bucket {
 			bucketTags := make([]string, len(tags))
 			copy(bucketTags, tags)
@@ -330,9 +345,10 @@ func (source *OpenMetricsSource) convertHistogram(
 						Name: *metricFamily.Name,
 						Type: "counter",
 					},
-					Tags:      bucketTags,
-					Timestamp: *metric.TimestampMs,
-					Value:     bucket.CumulativeCount,
+					SampleRate: 1.0,
+					Tags:       bucketTags,
+					Timestamp:  timestamp,
+					Value:      float64(*bucket.CumulativeCount),
 				},
 			}
 		}
@@ -342,9 +358,10 @@ func (source *OpenMetricsSource) convertHistogram(
 					Name: fmt.Sprintf("%s.count", *metricFamily.Name),
 					Type: "counter",
 				},
-				Tags:      tags,
-				Timestamp: *metric.TimestampMs,
-				Value:     metric.Histogram.SampleCount,
+				SampleRate: 1.0,
+				Tags:       tags,
+				Timestamp:  timestamp,
+				Value:      float64(*metric.Histogram.SampleCount),
 			},
 		}
 		metrics <- &convertResults{
@@ -353,9 +370,10 @@ func (source *OpenMetricsSource) convertHistogram(
 					Name: fmt.Sprintf("%s.sum", *metricFamily.Name),
 					Type: "counter",
 				},
-				Tags:      tags,
-				Timestamp: *metric.TimestampMs,
-				Value:     metric.Histogram.SampleSum,
+				SampleRate: 1.0,
+				Tags:       tags,
+				Timestamp:  timestamp,
+				Value:      *metric.Histogram.SampleSum,
 			},
 		}
 	}
@@ -371,9 +389,10 @@ func (source *OpenMetricsSource) convertUntyped(
 					Name: *metricFamily.Name,
 					Type: "gauge",
 				},
-				Tags:      getTags(metric.Label),
-				Timestamp: *metric.TimestampMs,
-				Value:     metric.Untyped.Value,
+				SampleRate: 1.0,
+				Tags:       getTags(metric.Label),
+				Timestamp:  metric.GetTimestampMs(),
+				Value:      *metric.Untyped.Value,
 			},
 		}
 	}
