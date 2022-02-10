@@ -341,29 +341,7 @@ match:
 
 func TestMarshall(t *testing.T) {
 	config := veneur.SinkRoutingConfig{}
-	yamlString := []byte(`---
-name: test
-match:
-  - name:
-      kind: exact
-      value: aa
-    tags:
-      - kind: exact
-        value: ab
-  - name:
-      kind: exact
-      value: bb
-    tags:
-      - kind: prefix
-        value: aa
-        unset: true 
-`)
-
-	require.NoError(t, yaml.Unmarshal(yamlString, &config))
-	actualYaml, err := yaml.Marshal(config)
-	require.NoError(t, err)
-
-	expectedYaml := `name: test
+	yamlString := `name: test
 match:
     - name:
         kind: exact
@@ -380,8 +358,14 @@ match:
           unset: true
           value: aa
 sinks:
-    matched: []
-    not_matched: []
+    matched:
+        - sink1
+    not_matched:
+        - sink2
 `
-	assert.Equal(t, expectedYaml, string(actualYaml))
+
+	require.NoError(t, yaml.Unmarshal([]byte(yamlString), &config))
+	actualYaml, err := yaml.Marshal(config)
+	require.NoError(t, err)
+	assert.Equal(t, yamlString, string(actualYaml))
 }
