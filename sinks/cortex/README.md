@@ -15,6 +15,18 @@ metric_sinks:
       remote_timeout: 30s
 # Optional proxy URL.
       proxy_url: http://localhost:1080
+# Optional added headers
+      headers:
+        My-Header: custom header content
+# Optional basic auth
+      basic_auth:
+        username: user1
+        password: the-password
+# Optional authorization (Bearer or other), if no basic auth
+      authorization:
+        # Defaults to Bearer if not specified
+        type: Bearer
+        credentials: my-token
 ```
 
 ## Duplicate Labels
