@@ -15,6 +15,7 @@ import (
 	"reflect"
 	"runtime"
 	rtdebug "runtime/debug"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/getsentry/sentry-go"
+	"github.com/segmentio/fasthash/fnv1a"
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
@@ -72,7 +74,7 @@ type SourceTypes = map[string]struct {
 	) (sources.Source, error)
 	// Parses the config for the source into a format that is validated and safe
 	// to log.
-	ParseConfig func(interface{}) (ParsedSourceConfig, error)
+	ParseConfig func(string, interface{}) (ParsedSourceConfig, error)
 }
 
 type SpanSinkTypes = map[string]struct {
@@ -326,7 +328,8 @@ func (server *Server) createSources(
 		if !ok {
 			logger.Warnf("Unknown source kind %s; skipping.", sourceConfig.Kind)
 		}
-		parsedSourceConfig, err := sourceFactory.ParseConfig(sourceConfig.Config)
+		parsedSourceConfig, err :=
+			sourceFactory.ParseConfig(sourceConfig.Name, sourceConfig.Config)
 		if err != nil {
 			return nil, err
 		}
@@ -970,7 +973,7 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "service_check", "reason": "parse"}))
 			return err
 		}
-		s.Workers[svcheck.Digest%uint32(len(s.Workers))].PacketChan <- *svcheck
+		s.IngestMetric(svcheck)
 	} else {
 		metric, err := s.parser.ParseMetric(packet)
 		if err != nil {
@@ -981,9 +984,27 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "metric", "reason": "parse"}))
 			return err
 		}
-		s.Workers[metric.Digest%uint32(len(s.Workers))].PacketChan <- *metric
+		s.IngestMetric(metric)
 	}
 	return nil
+}
+
+// Ingests a metric into Veneur. This method ensures that the Digest field is
+// set for the metric.
+func (s *Server) IngestMetric(metric *samplers.UDPMetric) {
+	// The Digtest field may be unset (i.e. zero) when IngestMetric is called from
+	// custom metric sources; if it is zero, we compute the value.
+	if metric.Digest == 0 {
+		hash := fnv1a.Init32
+		hash = fnv1a.AddString32(hash, metric.Name)
+		hash = fnv1a.AddString32(hash, metric.Type)
+		sort.Strings(metric.Tags)
+		metric.JoinedTags = strings.Join(metric.Tags, ",")
+		hash = fnv1a.AddString32(hash, metric.JoinedTags)
+		metric.Digest = hash
+	}
+	workerIndex := metric.Digest % uint32(len(s.Workers))
+	s.Workers[workerIndex].PacketChan <- *metric
 }
 
 // HandleTracePacket accepts an incoming packet as bytes and sends it to the

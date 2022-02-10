@@ -1,0 +1,26 @@
+debug: true
+features:
+  enable_metric_sink_routing: true
+interval: 1s
+metric_sinks:
+  - kind: debug
+    name: debug
+metric_sink_routing:
+  - name: default
+    match:
+      - name:
+          kind: prefix
+          value: demo_
+    sinks:
+      matched:
+        - debug
+sources:
+  - kind: openmetrics
+    name: openmetrics
+    config:
+      scrape_interval: 1s
+      scrape_target: http://localhost:2112/metrics
+num_readers: 1
+stats_address: "localhost:8125"
+statsd_listen_addresses:
+ - udp://localhost:8126

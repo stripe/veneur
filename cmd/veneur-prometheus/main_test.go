@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"testing"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -24,7 +25,7 @@ func TestUntyped(t *testing.T) {
 	require.NoError(t, err)
 	defer ts.Close()
 
-	cfg := testConfig(ts.URL)
+	cfg := testConfig(t, ts.URL)
 	statsClient, err := statsd.New("localhost:8125", statsd.WithoutTelemetry())
 	assert.NoError(t, err)
 
@@ -63,7 +64,7 @@ func TestVeneurGeneratedCountsAreCorrect(t *testing.T) {
 	require.NoError(t, err)
 	defer ts.Close()
 
-	cfg := testConfig(ts.URL)
+	cfg := testConfig(t, ts.URL)
 	statsClient, err := statsd.New("localhost:8125", statsd.WithoutTelemetry())
 	assert.NoError(t, err)
 
@@ -102,7 +103,7 @@ func TestCountsOnBridgeRestarts(t *testing.T) {
 	defer ts.Close()
 
 	cache := new(countCache)
-	cfg := testConfig(ts.URL)
+	cfg := testConfig(t, ts.URL)
 	statsClient, err := statsd.New("localhost:8125", statsd.WithoutTelemetry())
 	assert.NoError(t, err)
 
@@ -156,7 +157,7 @@ func TestCountsOnMonitoredServerRestarts(t *testing.T) {
 	defer ts.Close()
 
 	cache := new(countCache)
-	cfg := testConfig(ts.URL)
+	cfg := testConfig(t, ts.URL)
 	statsClient, err := statsd.New("localhost:8125", statsd.WithoutTelemetry())
 	assert.NoError(t, err)
 
@@ -202,7 +203,7 @@ func TestCountsOnMonitoredServerRestarts(t *testing.T) {
 	counter.Inc()
 	counter.Inc()
 
-	cfg = testConfig(ts.URL)
+	cfg = testConfig(t, ts.URL)
 	stats, err = collect(context.Background(), cfg, statsClient, cache)
 	assert.NoError(t, err)
 	counts, _ = splitStats(stats)
@@ -224,7 +225,7 @@ func TestHistogramsNewBucketsAreTranslatedToDiffs(t *testing.T) {
 	defer ts.Close()
 
 	cache := new(countCache)
-	cfg := ignoreConfig(ts.URL)
+	cfg := ignoreConfig(t, ts.URL)
 	statsClient, err := statsd.New("localhost:8125", statsd.WithoutTelemetry())
 	assert.NoError(t, err)
 
@@ -264,7 +265,9 @@ func TestHistogramsNewBucketsAreTranslatedToDiffs(t *testing.T) {
 	)
 	require.NoError(t, err)
 	defer ts.Close()
-	cfg.metricsHost = ts.URL
+	metricsHostUrl, err := url.Parse(ts.URL)
+	require.NoError(t, err)
+	cfg.metricsHost = metricsHostUrl
 
 	histogram.Observe(1.3)
 	histogram.Observe(2.3)
@@ -321,7 +324,7 @@ func TestHistogramsAreTranslatedToDiffs(t *testing.T) {
 	defer ts.Close()
 
 	cache := new(countCache)
-	cfg := ignoreConfig(ts.URL)
+	cfg := ignoreConfig(t, ts.URL)
 	statsClient, err := statsd.New("localhost:8125", statsd.WithoutTelemetry())
 	assert.NoError(t, err)
 
@@ -456,7 +459,7 @@ func TestSummariesCountAreTranslatedToDiffs(t *testing.T) {
 	defer ts.Close()
 
 	cache := new(countCache)
-	cfg := testConfig(ts.URL)
+	cfg := testConfig(t, ts.URL)
 	statsClient, err := statsd.New("localhost:8125", statsd.WithoutTelemetry())
 	assert.NoError(t, err)
 
@@ -555,7 +558,7 @@ func TestGaugesAreNOTTranslatedToDiffs(t *testing.T) {
 	defer ts.Close()
 
 	cache := new(countCache)
-	cfg := testConfig(ts.URL)
+	cfg := testConfig(t, ts.URL)
 	statsClient, err := statsd.New("localhost:8125", statsd.WithoutTelemetry())
 	assert.NoError(t, err)
 
@@ -602,7 +605,7 @@ func TestCountsAreTranslatedToDiffs(t *testing.T) {
 	defer ts.Close()
 
 	cache := new(countCache)
-	cfg := testConfig(ts.URL)
+	cfg := testConfig(t, ts.URL)
 	statsClient, err := statsd.New("localhost:8125", statsd.WithoutTelemetry())
 	assert.NoError(t, err)
 
@@ -765,7 +768,7 @@ func TestCollectGetsAllMetricsItShould(t *testing.T) {
 	histogramIgnored.Observe(45)
 
 	cache := new(countCache)
-	cfg := ignoreConfig(ts.URL)
+	cfg := ignoreConfig(t, ts.URL)
 	statsClient, err := statsd.New("localhost:8125", statsd.WithoutTelemetry())
 	assert.NoError(t, err)
 
@@ -865,28 +868,30 @@ func countReceived(counts []statsdCount, name string, tags ...string) bool {
 	return found
 }
 
-func testConfig(url string) prometheusConfig {
+func testConfig(t *testing.T, metricsHost string) *prometheusConfig {
 	c, err := newHTTPClient("", "", "", "")
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 
-	return prometheusConfig{
-		metricsHost:    url,
+	metricsHostUrl, err := url.Parse(metricsHost)
+	require.NoError(t, err)
+
+	return &prometheusConfig{
+		metricsHost:    metricsHostUrl,
 		httpClient:     c,
 		ignoredLabels:  getIgnoredFromArg(""),
 		ignoredMetrics: getIgnoredFromArg("promhttp_(.*)"),
 	}
 }
 
-func ignoreConfig(url string) prometheusConfig {
+func ignoreConfig(t *testing.T, metricsHost string) *prometheusConfig {
 	c, err := newHTTPClient("", "", "", "")
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 
-	return prometheusConfig{
-		metricsHost:    url,
+	metricsHostUrl, err := url.Parse(metricsHost)
+	require.NoError(t, err)
+
+	return &prometheusConfig{
+		metricsHost:    metricsHostUrl,
 		httpClient:     c,
 		ignoredLabels:  getIgnoredFromArg("ignore"),
 		ignoredMetrics: getIgnoredFromArg("(.*)_ignore,promhttp_(.*)"),
