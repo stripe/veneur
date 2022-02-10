@@ -27,6 +27,8 @@ const (
 	MaxConns = 100
 	// DefaultRemoteTimeout after which a write request will time out
 	DefaultRemoteTimeout = time.Duration(30 * time.Second)
+	// DefaultAuthorizationType if a credential is supplied
+	DefaultAuthorizationType = "Bearer"
 )
 
 // CortexMetricSink writes metrics to one or more configured Cortex instances
@@ -41,15 +43,28 @@ type CortexMetricSink struct {
 	name          string
 	tags          map[string]string
 	traceClient   *trace.Client
+	addHeaders    map[string]string
+	basicAuth     *BasicAuthType
+}
+
+type BasicAuthType struct {
+	Username util.StringSecret `yaml:"username"`
+	Password util.StringSecret `yaml:"password"`
 }
 
 // TODO: implement queue config options, at least
 // max_samples_per_send, max_shards, and capacity
 // https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
 type CortexMetricSinkConfig struct {
-	URL           string        `yaml:"url"`
-	RemoteTimeout time.Duration `yaml:"remote_timeout"`
-	ProxyURL      string        `yaml:"proxy_url"`
+	URL           string            `yaml:"url"`
+	RemoteTimeout time.Duration     `yaml:"remote_timeout"`
+	ProxyURL      string            `yaml:"proxy_url"`
+	Headers       map[string]string `yaml:"headers"`
+	BasicAuth     BasicAuthType     `yaml:"basic_auth"`
+	Authorization struct {
+		Type       string            `yaml:"type"`
+		Credential util.StringSecret `yaml:"credentials"`
+	} `yaml:"authorization"`
 }
 
 // Create creates a new Cortex sink.
@@ -68,7 +83,16 @@ func Create(
 	// Host has to be supplied especially
 	tags["host"] = config.Hostname
 
-	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, tags)
+	headers := make(map[string]string)
+	if conf.Authorization.Type != "" {
+		headers["Authorization"] = conf.Authorization.Type + " " + conf.Authorization.Credential.Value
+	}
+	var basicAuth *BasicAuthType
+	if conf.BasicAuth.Username.Value != "" {
+		basicAuth = &conf.BasicAuth
+	}
+
+	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, tags, headers, basicAuth)
 }
 
 // ParseConfig extracts Cortex specific fields from the global veneur config
@@ -83,11 +107,22 @@ func ParseConfig(
 	if cortexConfig.RemoteTimeout == 0 {
 		cortexConfig.RemoteTimeout = DefaultRemoteTimeout
 	}
+	if cortexConfig.BasicAuth.Username.Value != "" {
+		if cortexConfig.BasicAuth.Password.Value == "" {
+			return nil, errors.New("cortex sink needs both username and password")
+		}
+		if cortexConfig.Authorization.Credential.Value != "" {
+			return nil, errors.New("cortex sink needs exactly one of basic_auth and authorization")
+		}
+	}
+	if cortexConfig.Authorization.Credential.Value != "" && cortexConfig.Authorization.Type == "" {
+		cortexConfig.Authorization.Type = DefaultAuthorizationType
+	}
 	return cortexConfig, nil
 }
 
 // NewCortexMetricSink creates and returns a new instance of the sink
-func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string) (*CortexMetricSink, error) {
+func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string, headers map[string]string, basicAuth *BasicAuthType) (*CortexMetricSink, error) {
 	return &CortexMetricSink{
 		URL:           URL,
 		RemoteTimeout: timeout,
@@ -95,6 +130,8 @@ func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, log
 		tags:          tags,
 		logger:        logger.WithFields(logrus.Fields{"sink_type": "cortex"}),
 		name:          name,
+		addHeaders:    headers,
+		basicAuth:     basicAuth,
 	}, nil
 }
 
@@ -155,6 +192,12 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	req.Header.Set("Content-Type", "application/x-protobuf")
 	req.Header.Set("User-Agent", "veneur/cortex")
 	req.Header.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
+	for key, value := range s.addHeaders {
+		req.Header.Set(key, value)
+	}
+	if s.basicAuth != nil {
+		req.SetBasicAuth(s.basicAuth.Username.Value, s.basicAuth.Password.Value)
+	}
 
 	ts := time.Now()
 	r, err := s.Client.Do(req)

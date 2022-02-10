@@ -5,6 +5,8 @@
 * A prometheus remote-write sink compatible with Cortex and more. Thanks, [philipnrmn](https://github.com/philipnrmn)!
 * Some veneur-prometheus arguments to rename and add additional tags. Thanks, [christopherb-stripe](https://github.com/christopherb-stripe)!
 * Migrate Prometheus to new config format; part of multi-sink routing update. Thanks, [truong-stripe](https://github.com/truong-stripe)!
+* Authentication support for Cortex remote-write sink. Thanks,
+[oscil8](https://github.com/oscil8)!
 
 ## Bugfixes
 * A fix for forwarding metrics with gRPC using the kubernetes discoverer. Thanks, [androohan](https://github.com/androohan)!
