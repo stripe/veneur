@@ -6,6 +6,7 @@
 package proxy
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -141,7 +142,11 @@ var (
 // SendMetrics takes a list of metrics and hashes each one (based on the
 // metric key) to a specific metric ingester.
 func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) (*empty.Empty, error) {
-	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.importsrv.handle_send_metrics")
+	span, ctx := trace.StartSpanFromContext(ctx, "veneur.opentracing.importsrv.handle_send_metrics")
+	if ctx != nil {
+		return nil, errors.New("could not create span")
+	}
+
 	span.SetTag("protocol", "grpc")
 	defer span.ClientFinish(s.opts.traceClient)
 
