@@ -224,7 +224,7 @@ github.com/newrelic/newrelic-client-go/pkg/workloads
 github.com/newrelic/newrelic-telemetry-sdk-go/internal
 github.com/newrelic/newrelic-telemetry-sdk-go/internal/jsonx
 github.com/newrelic/newrelic-telemetry-sdk-go/telemetry
-# github.com/opentracing/opentracing-go v1.1.0
+# github.com/opentracing/opentracing-go v1.2.0
 ## explicit
 github.com/opentracing/opentracing-go
 github.com/opentracing/opentracing-go/ext

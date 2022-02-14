@@ -266,14 +266,9 @@ func SpanFromContext(c context.Context) *Trace {
 //
 // StartSpanFromContext is the recommended way to create trace spans in a
 // program.
-func StartSpanFromContext(ctx context.Context, name string, opts ...opentracing.StartSpanOption) (s *Span, c context.Context) {
-	defer func() {
-		if r := recover(); r != nil {
-			s = nil
-			c = ctx
-		}
-	}()
-
+func StartSpanFromContext(
+	ctx context.Context, name string, opts ...opentracing.StartSpanOption,
+) (s *Span, c context.Context) {
 	if name == "" {
 		pc, _, _, ok := runtime.Caller(1)
 		details := runtime.FuncForPC(pc)

@@ -30,7 +30,7 @@ require (
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/newrelic/newrelic-client-go v0.39.0
 	github.com/newrelic/newrelic-telemetry-sdk-go v0.4.0
-	github.com/opentracing/opentracing-go v1.1.0
+	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pierrec/lz4 v1.0.2-0.20171218195038-2fcda4cb7018 // indirect
 	github.com/pierrec/xxHash v0.1.1 // indirect
 	github.com/pkg/errors v0.9.1
