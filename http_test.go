@@ -228,23 +228,6 @@ func TestServerImportUncompressedInvalid(t *testing.T) {
 // if it receives what amounts to an empty struct,
 // because that's usually the sign of an error
 func TestServerImportEmptyError(t *testing.T) {
-
-	// explicitly use the wrong type here
-	data := []struct {
-		Bad string
-	}{
-		{"Foo"},
-		{"Bar"},
-	}
-	testServerImportHelper(t, data)
-}
-
-// TestServerImportEmptyError tests that
-// the global veneur instance returns an error
-// if it receives what amounts to a slice of empty structs
-// because that's usually the sign of an error
-func TestServerImportEmptyStructError(t *testing.T) {
-
 	// explicitly use the wrong type here
 	data := []struct {
 		Bad string

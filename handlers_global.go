@@ -94,7 +94,7 @@ func unmarshalMetricsFromHTTP(ctx context.Context, client *trace.Client, w http.
 		defer body.Close()
 	default:
 		http.Error(w, encoding, http.StatusUnsupportedMediaType)
-		span.Error(errors.New("Could not determine content-encoding of request"))
+		span.Error(errors.New("could not determine content-encoding of request"))
 		encLogger.Error("Could not determine content-encoding of request")
 		span.Add(ssf.Count("import.request_error_total", 1, map[string]string{"cause": "unknown_content_encoding"}))
 		return span, nil, err
@@ -110,7 +110,7 @@ func unmarshalMetricsFromHTTP(ctx context.Context, client *trace.Client, w http.
 	}
 
 	if len(jsonMetrics) == 0 {
-		const msg = "Received empty /import request"
+		const msg = "received empty /import request"
 		http.Error(w, msg, http.StatusBadRequest)
 		span.Error(errors.New(msg))
 		innerLogger.WithError(err).Error(msg)
@@ -123,11 +123,11 @@ func unmarshalMetricsFromHTTP(ctx context.Context, client *trace.Client, w http.
 	// into the wrong struct type
 
 	if !nonEmpty(span.Attach(ctx), client, jsonMetrics) {
-		const msg = "Received empty or improperly-formed metrics"
+		const msg = "received empty or improperly-formed metrics"
 		http.Error(w, msg, http.StatusBadRequest)
 		span.Error(errors.New(msg))
 		innerLogger.Error(msg)
-		return nil, nil, err
+		return span, nil, err
 	}
 
 	w.WriteHeader(http.StatusAccepted)
