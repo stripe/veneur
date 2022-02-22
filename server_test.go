@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"sync"
 
 	"math/rand"
@@ -47,7 +48,7 @@ var DebugMode bool
 
 func seedRand() {
 	seed := time.Now().Unix()
-	log.WithFields(logrus.Fields{
+	logrus.New().WithFields(logrus.Fields{
 		"randSeed": seed,
 	}).Info("Re-seeding random number generator")
 	rand.Seed(seed)
@@ -994,9 +995,14 @@ func TestTCPMetrics(t *testing.T) {
 // TestHandleTCPGoroutineTimeout verifies that an idle TCP connection doesn't block forever.
 func TestHandleTCPGoroutineTimeout(t *testing.T) {
 	const readTimeout = 30 * time.Millisecond
-	s := &Server{tcpReadTimeout: readTimeout, Workers: []*Worker{
-		&Worker{PacketChan: make(chan samplers.UDPMetric, 1)},
-	}}
+	s := &Server{
+		logger:         logrus.NewEntry(logrus.New()),
+		tcpReadTimeout: readTimeout,
+		Workers: []*Worker{{
+			logger:     logrus.New(),
+			PacketChan: make(chan samplers.UDPMetric, 1),
+		}},
+	}
 
 	// make a real TCP connection ... to ourselves
 	listener, err := net.Listen("tcp", "localhost:0")

@@ -19,12 +19,13 @@ func init() {
 
 func main() {
 	flag.Parse()
+	logger := logrus.StandardLogger()
 
 	if configFile == nil || *configFile == "" {
 		logrus.Fatal("You must specify a config file")
 	}
 
-	conf, err := veneur.ReadProxyConfig(*configFile)
+	conf, err := veneur.ReadProxyConfig(logrus.NewEntry(logger), *configFile)
 	if err != nil {
 		if _, ok := err.(*veneur.UnknownConfigKeys); ok {
 			logrus.WithError(err).Warn("Config contains invalid or deprecated keys")
@@ -33,9 +34,7 @@ func main() {
 		}
 	}
 
-	logger := logrus.StandardLogger()
 	proxy, err := veneur.NewProxyFromConfig(logger, conf)
-	veneur.SetLogger(logger)
 
 	ssf.NamePrefix = "veneur_proxy."
 

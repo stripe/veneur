@@ -386,7 +386,9 @@ func BenchmarkNewSortableJSONMetrics(b *testing.B) {
 
 	w := httptest.NewRecorder()
 
-	_, jsonMetrics, err := unmarshalMetricsFromHTTP(context.Background(), trace.DefaultClient, w, r)
+	logger := logrus.NewEntry(logrus.New())
+	_, jsonMetrics, err := unmarshalMetricsFromHTTP(
+		context.Background(), trace.DefaultClient, w, r, logger)
 	assert.NoError(b, err)
 
 	b.ResetTimer()

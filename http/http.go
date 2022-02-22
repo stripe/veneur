@@ -156,7 +156,11 @@ func mergeTags(tags map[string]string, k, v string) map[string]string {
 // this function - probably a static string for each callsite
 // you can disable compression with compress=false for endpoints that don't
 // support it
-func PostHelper(ctx context.Context, httpClient *http.Client, tc *trace.Client, method string, endpoint string, bodyObject interface{}, action string, compress bool, extraTags map[string]string, log *logrus.Logger) error {
+func PostHelper(
+	ctx context.Context, httpClient *http.Client, tc *trace.Client, method string,
+	endpoint string, bodyObject interface{}, action string, compress bool,
+	extraTags map[string]string, log *logrus.Entry,
+) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	span.SetTag("action", action)
 	for k, v := range extraTags {

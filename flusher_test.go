@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
@@ -91,6 +92,7 @@ func forwardGRPCTestMetrics() []*samplers.UDPMetric {
 }
 
 func TestServerFlushGRPC(t *testing.T) {
+	logger := logrus.NewEntry(logrus.New())
 	done := make(chan []string)
 	testServer := forwardtest.NewServer(func(ms []*metricpb.Metric) {
 		var names []string
@@ -127,11 +129,11 @@ func TestServerFlushGRPC(t *testing.T) {
 	// Wait until the running server has flushed out the metrics for us:
 	select {
 	case v := <-done:
-		log.Print("got the goods")
+		logger.Print("got the goods")
 		assert.ElementsMatch(t, expected, v,
 			"Flush didn't output the right metrics")
 	case <-time.After(time.Second):
-		log.Print("timed out")
+		logger.Print("timed out")
 		t.Fatal("Timed out waiting for the gRPC server to receive the flush")
 	}
 }

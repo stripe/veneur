@@ -54,7 +54,7 @@ func main() {
 		sampleSummary,
 	)
 
-	config, err := veneur.ReadConfig(*configFile)
+	config, err := veneur.ReadConfig(logrus.NewEntry(logger), *configFile)
 	if err != nil {
 		logger.Fatal(err.Error())
 	}

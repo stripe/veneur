@@ -141,7 +141,8 @@ func (s *Server) Flush(ctx context.Context) {
 				sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
 				time.Nanosecond, map[string]string{"sink": ms.Name()}))
 			if err != nil {
-				log.WithError(err).WithField("sink", ms.Name()).Warn("Error flushing sink")
+				s.logger.WithError(err).WithField("sink", ms.Name()).
+					Warn("Error flushing sink")
 			}
 			wg.Done()
 		}(sink)
@@ -194,7 +195,7 @@ func (s *Server) tallyMetrics(percentiles []float64) ([]WorkerMetrics, metricsSu
 	ms := metricsSummary{}
 
 	for i, w := range s.Workers {
-		log.WithField("worker", i).Debug("Flushing")
+		s.logger.WithField("worker", i).Debug("Flushing")
 		wm := w.Flush()
 		tempMetrics = append(tempMetrics, wm)
 
@@ -395,7 +396,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 		for _, count := range wm.globalCounters {
 			jm, err := count.Export()
 			if err != nil {
-				log.WithFields(logrus.Fields{
+				s.logger.WithFields(logrus.Fields{
 					logrus.ErrorKey: err,
 					"type":          "counter",
 					"name":          count.Name,
@@ -407,7 +408,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 		for _, gauge := range wm.globalGauges {
 			jm, err := gauge.Export()
 			if err != nil {
-				log.WithFields(logrus.Fields{
+				s.logger.WithFields(logrus.Fields{
 					logrus.ErrorKey: err,
 					"type":          "gauge",
 					"name":          gauge.Name,
@@ -419,7 +420,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 		for _, histo := range wm.histograms {
 			jm, err := histo.Export()
 			if err != nil {
-				log.WithFields(logrus.Fields{
+				s.logger.WithFields(logrus.Fields{
 					logrus.ErrorKey: err,
 					"type":          "histogram",
 					"name":          histo.Name,
@@ -431,7 +432,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 		for _, set := range wm.sets {
 			jm, err := set.Export()
 			if err != nil {
-				log.WithFields(logrus.Fields{
+				s.logger.WithFields(logrus.Fields{
 					logrus.ErrorKey: err,
 					"type":          "set",
 					"name":          set.Name,
@@ -443,7 +444,7 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 		for _, timer := range wm.timers {
 			jm, err := timer.Export()
 			if err != nil {
-				log.WithFields(logrus.Fields{
+				s.logger.WithFields(logrus.Fields{
 					logrus.ErrorKey: err,
 					"type":          "timer",
 					"name":          timer.Name,
@@ -458,15 +459,17 @@ func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
 	s.Statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(exportStart).Nanoseconds()), []string{"part:export"}, 1.0)
 	s.Statsd.Count("forward.post_metrics_total", int64(len(jsonMetrics)), nil, 1.0)
 	if len(jsonMetrics) == 0 {
-		log.Debug("Nothing to forward, skipping.")
+		s.logger.Debug("Nothing to forward, skipping.")
 		return
 	}
 
 	// the error has already been logged (if there was one), so we only care
 	// about the success case
 	endpoint := fmt.Sprintf("%s/import", s.ForwardAddr)
-	if vhttp.PostHelper(span.Attach(ctx), s.HTTPClient, s.TraceClient, http.MethodPost, endpoint, jsonMetrics, "forward", true, nil, log) == nil {
-		log.WithFields(logrus.Fields{
+	if vhttp.PostHelper(
+		span.Attach(ctx), s.HTTPClient, s.TraceClient, http.MethodPost, endpoint,
+		jsonMetrics, "forward", true, nil, s.logger) == nil {
+		s.logger.WithFields(logrus.Fields{
 			"metrics":     len(jsonMetrics),
 			"endpoint":    endpoint,
 			"forwardAddr": s.ForwardAddr,
@@ -478,7 +481,7 @@ func (s *Server) flushTraces(ctx context.Context) {
 	s.ssfInternalMetrics.Range(func(keyI, valueI interface{}) bool {
 		key, ok := keyI.(string)
 		if !ok {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				"key":  keyI,
 				"type": reflect.TypeOf(keyI),
 			}).Error("received non-string key")
@@ -487,7 +490,7 @@ func (s *Server) flushTraces(ctx context.Context) {
 
 		value, ok := valueI.(*ssfServiceSpanMetrics)
 		if !ok {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				"value": valueI,
 				"type":  reflect.TypeOf(valueI),
 			}).Error("received non-struct value")
@@ -496,7 +499,7 @@ func (s *Server) flushTraces(ctx context.Context) {
 
 		tags := strings.Split(key, ",")
 		if len(tags) != 2 {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				"key":    key,
 				"length": len(tags),
 			}).Error("received key of incorrect format")
@@ -523,7 +526,7 @@ func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
 	// Collect all of the forwardable metrics from the various WorkerMetrics.
 	var metrics []*metricpb.Metric
 	for _, wm := range wms {
-		metrics = append(metrics, wm.ForwardableMetrics(s.TraceClient)...)
+		metrics = append(metrics, wm.ForwardableMetrics(s.TraceClient, s.logger)...)
 	}
 
 	span.Add(
@@ -535,11 +538,11 @@ func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
 	)
 
 	if len(metrics) == 0 {
-		log.Debug("Nothing to forward, skipping.")
+		s.logger.Debug("Nothing to forward, skipping.")
 		return
 	}
 
-	entry := log.WithFields(logrus.Fields{
+	entry := s.logger.WithFields(logrus.Fields{
 		"metrics":     len(metrics),
 		"destination": s.ForwardAddr,
 		"protocol":    "grpc",

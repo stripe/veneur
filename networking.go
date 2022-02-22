@@ -19,18 +19,24 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
+type UdpMetricsSource struct {
+	logger *logrus.Entry
+}
+
 // StartStatsd spawns a goroutine that listens for metrics in statsd
 // format on the address a, and returns the concrete listening
 // address. As this is a setup routine, if any error occurs, it
 // panics.
-func StartStatsd(s *Server, a net.Addr, packetPool *sync.Pool) net.Addr {
+func (source *UdpMetricsSource) StartStatsd(
+	s *Server, a net.Addr, packetPool *sync.Pool,
+) net.Addr {
 	switch addr := a.(type) {
 	case *net.UDPAddr:
-		return startStatsdUDP(s, addr, packetPool)
+		return source.startStatsdUDP(s, addr, packetPool)
 	case *net.TCPAddr:
-		return startStatsdTCP(s, addr, packetPool)
+		return source.startStatsdTCP(s, addr, packetPool)
 	case *net.UnixAddr:
-		_, b := startStatsdUnix(s, addr, packetPool)
+		_, b := source.startStatsdUnix(s, addr, packetPool)
 		return b
 	default:
 		panic(fmt.Sprintf("Can't listen on %v: only TCP, UDP and unixgram:// are supported", a))
@@ -45,7 +51,10 @@ type udpProcessor func(net.PacketConn, *sync.Pool)
 // given address in one goroutine each, using the passed pool. When
 // the listener is established, it starts the udpProcessor with the
 // listener.
-func startProcessingOnUDP(s *Server, protocol string, addr *net.UDPAddr, pool *sync.Pool, proc udpProcessor) net.Addr {
+func startProcessingOnUDP(
+	s *Server, protocol string, addr *net.UDPAddr, pool *sync.Pool,
+	proc udpProcessor,
+) net.Addr {
 	reusePort := s.numReaders != 1
 	// If we're reusing the port, make sure we're listening on the
 	// exact same address always; this is mostly relevant for
@@ -83,7 +92,7 @@ func startProcessingOnUDP(s *Server, protocol string, addr *net.UDPAddr, pool *s
 			// it can return that address.
 			once.Do(func() {
 				addrChan <- sock.LocalAddr()
-				log.WithFields(logrus.Fields{
+				s.logger.WithFields(logrus.Fields{
 					"address":   sock.LocalAddr(),
 					"protocol":  protocol,
 					"listeners": s.numReaders,
@@ -97,11 +106,16 @@ func startProcessingOnUDP(s *Server, protocol string, addr *net.UDPAddr, pool *s
 	return <-addrChan
 }
 
-func startStatsdUDP(s *Server, addr *net.UDPAddr, packetPool *sync.Pool) net.Addr {
-	return startProcessingOnUDP(s, "statsd", addr, packetPool, s.ReadMetricSocket)
+func (source *UdpMetricsSource) startStatsdUDP(
+	s *Server, addr *net.UDPAddr, packetPool *sync.Pool,
+) net.Addr {
+	return startProcessingOnUDP(
+		s, "statsd", addr, packetPool, s.ReadMetricSocket)
 }
 
-func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Addr {
+func (source *UdpMetricsSource) startStatsdTCP(
+	s *Server, addr *net.TCPAddr, packetPool *sync.Pool,
+) net.Addr {
 	var listener net.Listener
 	var err error
 
@@ -116,7 +130,7 @@ func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Add
 		// we should wait until the accepting goroutine exits
 		err := listener.Close()
 		if err != nil {
-			log.WithError(err).Warn("Ignoring error closing TCP listener")
+			source.logger.WithError(err).Warn("Ignoring error closing TCP listener")
 		}
 	}()
 
@@ -131,7 +145,7 @@ func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Add
 		}
 	}
 
-	log.WithFields(logrus.Fields{
+	source.logger.WithFields(logrus.Fields{
 		"address": addr, "mode": mode,
 	}).Info("Listening for statsd metrics on TCP socket")
 
@@ -148,7 +162,7 @@ func startStatsdTCP(s *Server, addr *net.TCPAddr, packetPool *sync.Pool) net.Add
 // on a UNIX domain socket address. It does so until the
 // server's shutdown socket is closed. startStatsdUnix returns a channel
 // that is closed once the listening connection has terminated.
-func startStatsdUnix(s *Server, addr *net.UnixAddr, packetPool *sync.Pool) (<-chan struct{}, net.Addr) {
+func (source *UdpMetricsSource) startStatsdUnix(s *Server, addr *net.UnixAddr, packetPool *sync.Pool) (<-chan struct{}, net.Addr) {
 	done := make(chan struct{})
 
 	isAbstractSocket := isAbstractSocket(addr)
@@ -200,33 +214,44 @@ func startStatsdUnix(s *Server, addr *net.UnixAddr, packetPool *sync.Pool) (<-ch
 	return done, addr
 }
 
+type SsfMetricsSource struct {
+	logger *logrus.Entry
+}
+
 // StartSSF starts listening for SSF on an address a, and returns the
 // concrete address that the server is listening on.
-func StartSSF(s *Server, a net.Addr, tracePool *sync.Pool) net.Addr {
+func (source *SsfMetricsSource) StartSSF(
+	s *Server, a net.Addr, tracePool *sync.Pool,
+) net.Addr {
 	switch addr := a.(type) {
 	case *net.UDPAddr:
-		a = startSSFUDP(s, addr, tracePool)
+		a = source.startSSFUDP(s, addr, tracePool)
 	case *net.UnixAddr:
-		_, a = startSSFUnix(s, addr)
+		_, a = source.startSSFUnix(s, addr)
 	default:
 		panic(fmt.Sprintf("Can't listen for SSF on %v: only udp:// & unix:// are supported", a))
 	}
-	log.WithFields(logrus.Fields{
+	source.logger.WithFields(logrus.Fields{
 		"address": a.String(),
 		"network": a.Network(),
 	}).Info("Listening for SSF traces")
 	return a
 }
 
-func startSSFUDP(s *Server, addr *net.UDPAddr, tracePool *sync.Pool) net.Addr {
-	return startProcessingOnUDP(s, "ssf", addr, tracePool, s.ReadSSFPacketSocket)
+func (source *SsfMetricsSource) startSSFUDP(
+	s *Server, addr *net.UDPAddr, tracePool *sync.Pool,
+) net.Addr {
+	return startProcessingOnUDP(
+		s, "ssf", addr, tracePool, s.ReadSSFPacketSocket)
 }
 
 // startSSFUnix starts listening for connections that send framed SSF
 // spans on a UNIX domain socket address. It does so until the
 // server's shutdown socket is closed. startSSFUnix returns a channel
 // that is closed once the listener has terminated.
-func startSSFUnix(s *Server, addr *net.UnixAddr) (<-chan struct{}, net.Addr) {
+func (source *SsfMetricsSource) startSSFUnix(
+	s *Server, addr *net.UnixAddr,
+) (<-chan struct{}, net.Addr) {
 	done := make(chan struct{})
 	if addr.Network() != "unix" {
 		panic(fmt.Sprintf("Can't listen for SSF on %v: only udp:// and unix:// addresses are supported", addr))
@@ -267,11 +292,13 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) (<-chan struct{}, net.Addr) {
 				if err != nil {
 					select {
 					case <-s.shutdown:
-						// occurs when cleanly shutting down the server e.g. in tests; ignore errors
-						log.WithError(err).Info("Ignoring Accept error while shutting down")
+						// occurs when cleanly shutting down the server e.g. in tests;
+						// ignore errors
+						source.logger.WithError(err).
+							Info("Ignoring Accept error while shutting down")
 						return
 					default:
-						log.WithError(err).Fatal("Unix accept failed")
+						source.logger.WithError(err).Fatal("Unix accept failed")
 					}
 				}
 				conns <- conn
@@ -291,15 +318,19 @@ func startSSFUnix(s *Server, addr *net.UnixAddr) (<-chan struct{}, net.Addr) {
 	return done, listener.Addr()
 }
 
+type GrpcMetricsSource struct {
+	logger *logrus.Entry
+}
+
 // StartGRPC starts listening for spans over HTTP
-func StartGRPC(s *Server, a net.Addr) net.Addr {
+func (source *GrpcMetricsSource) StartGRPC(s *Server, a net.Addr) net.Addr {
 	switch addr := a.(type) {
 	case *net.TCPAddr:
-		_, a = startGRPCTCP(s, addr)
+		_, a = source.startGRPCTCP(s, addr)
 	default:
 		panic(fmt.Sprintf("Can't listen for GRPC on %s because it's not tcp://", a))
 	}
-	log.WithFields(logrus.Fields{
+	source.logger.WithFields(logrus.Fields{
 		"address": a.String(),
 		"network": a.Network(),
 	}).Info("Listening for GRPC stats data")
@@ -323,10 +354,12 @@ func (grpcsrv *grpcStatsServer) SendSpan(ctx context.Context, span *ssf.SSFSpan)
 	return &ssf.Empty{}, nil
 }
 
-func startGRPCTCP(s *Server, addr *net.TCPAddr) (*grpc.Server, net.Addr) {
+func (source *GrpcMetricsSource) startGRPCTCP(
+	s *Server, addr *net.TCPAddr,
+) (*grpc.Server, net.Addr) {
 	listener, err := net.Listen("tcp", addr.String())
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		source.logger.Fatalf("failed to listen: %v", err)
 	}
 	var grpcServer *grpc.Server
 	mode := "unencrypted"
@@ -350,7 +383,7 @@ func startGRPCTCP(s *Server, addr *net.TCPAddr) (*grpc.Server, net.Addr) {
 	ssf.RegisterSSFGRPCServer(grpcServer, statsServer)
 	dogstatsd.RegisterDogstatsdGRPCServer(grpcServer, statsServer)
 
-	log.WithFields(logrus.Fields{
+	source.logger.WithFields(logrus.Fields{
 		"address": addr, "mode": mode,
 	}).Info("Listening for metrics on GRPC socket")
 	go grpcServer.Serve(listener)
