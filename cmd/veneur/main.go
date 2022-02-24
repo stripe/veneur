@@ -37,12 +37,13 @@ func init() {
 
 func main() {
 	flag.Parse()
+	logger := logrus.StandardLogger()
 
 	if configFile == nil || *configFile == "" {
 		logrus.Fatal("You must specify a config file")
 	}
 
-	conf, err := veneur.ReadConfig(*configFile)
+	conf, err := veneur.ReadConfig(logrus.NewEntry(logger), *configFile)
 	if err != nil {
 		if _, ok := err.(*veneur.UnknownConfigKeys); ok {
 			if *validateConfigStrict {
@@ -82,7 +83,6 @@ func main() {
 		xray.MigrateConfig(&conf)
 	}
 
-	logger := logrus.StandardLogger()
 	server, err := veneur.NewFromConfig(veneur.ServerConfig{
 		Config: conf,
 		Logger: logger,
@@ -167,7 +167,6 @@ func main() {
 			},
 		},
 	})
-	veneur.SetLogger(logger)
 	if err != nil {
 		e := err
 		if conf.SentryDsn.Value != "" {

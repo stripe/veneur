@@ -55,8 +55,6 @@ const defaultLinkValue = "dirty"
 
 var profileStartOnce = sync.Once{}
 
-var log = logrus.StandardLogger()
-
 var tracer = trace.GlobalTracer
 
 const defaultTCPReadTimeout = 10 * time.Minute
@@ -109,6 +107,7 @@ type ServerConfig struct {
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Config                Config
+	logger                *logrus.Entry
 	Workers               []*Worker
 	EventWorker           *EventWorker
 	SpanChan              chan *ssf.SSFSpan
@@ -218,11 +217,6 @@ func (p ProtocolType) String() string {
 type ssfServiceSpanMetrics struct {
 	ssfSpansReceivedTotal     int64
 	ssfRootSpansReceivedTotal int64
-}
-
-// SetLogger sets the default logger in veneur to the passed value.
-func SetLogger(logger *logrus.Logger) {
-	log = logger
 }
 
 func scopeFromName(name string) (ssf.SSFSample_Scope, error) {
@@ -414,6 +408,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	ret := &Server{
 		Config:   conf,
 		Interval: conf.Interval,
+		logger:   logrus.NewEntry(config.Logger),
 	}
 
 	ret.Hostname = conf.Hostname
@@ -487,7 +482,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		mpf = runtime.SetMutexProfileFraction(conf.MutexProfileFraction)
 	}
 
-	log.WithFields(logrus.Fields{
+	logger.WithFields(logrus.Fields{
 		"MutexProfileFraction":         conf.MutexProfileFraction,
 		"previousMutexProfileFraction": mpf,
 	}).Info("Set mutex profile fraction")
@@ -495,7 +490,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	if conf.BlockProfileRate > 0 {
 		runtime.SetBlockProfileRate(conf.BlockProfileRate)
 	}
-	log.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
+	logger.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
 
 	if conf.EnableProfiling {
 		ret.enableProfiling = true
@@ -541,7 +536,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	// Use the pre-allocated Workers slice to know how many to start.
 	for i := range ret.Workers {
-		ret.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, log, ret.Statsd)
+		ret.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, logger, ret.Statsd)
 		// do not close over loop index
 		go func(w *Worker) {
 			defer func() {
@@ -559,7 +554,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	for i, w := range ret.Workers {
 		processors[i] = w
 	}
-	metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, log, &ret.parser)
+	metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, logger, &ret.parser)
 	if err != nil {
 		return ret, err
 	}
@@ -665,7 +660,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	}
 
 	// After all sinks are initialized, set the list of tags to exclude
-	setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)
+	ret.setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)
 
 	// closed in Shutdown; Same approach and http.Shutdown
 	ret.shutdown = make(chan struct{})
@@ -708,7 +703,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			ssfUnixReceivedTotal:       0,
 			ssfGrpcReceivedTotal:       0,
 		}
-		log.Info("Tracking listening per protocol metrics on global instance")
+		logger.Info("Tracking listening per protocol metrics on global instance")
 	}
 
 	logger.WithField("config", conf).Debug("Initialized server")
@@ -719,22 +714,23 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 // Start spins up the Server to do actual work, firing off goroutines for
 // various workers and utilities.
 func (s *Server) Start() {
-	log.WithField("version", VERSION).Info("Starting server")
+	s.logger.WithField("version", VERSION).Info("Starting server")
 
 	// Set up the processors for spans:
 
 	// Use the pre-allocated Workers slice to know how many to start.
-	s.SpanWorker = NewSpanWorker(s.spanSinks, s.TraceClient, s.Statsd, s.SpanChan, s.TagsAsMap)
+	s.SpanWorker = NewSpanWorker(
+		s.spanSinks, s.TraceClient, s.Statsd, s.SpanChan, s.TagsAsMap, s.logger)
 
 	go func() {
-		log.Info("Starting Event worker")
+		s.logger.Info("Starting Event worker")
 		defer func() {
 			ConsumePanic(s.TraceClient, s.Hostname, recover())
 		}()
 		s.EventWorker.Work()
 	}()
 
-	log.WithField("n", s.SpanWorkerGoroutines).Info("Starting span workers")
+	s.logger.WithField("n", s.SpanWorkerGoroutines).Info("Starting span workers")
 	for i := 0; i < s.SpanWorkerGoroutines; i++ {
 		go func() {
 			defer func() {
@@ -773,16 +769,24 @@ func (s *Server) Start() {
 
 	// Read Metrics Forever!
 	concreteAddrs := make([]net.Addr, 0, len(s.StatsdListenAddrs))
+	statsdSource := UdpMetricsSource{
+		logger: s.logger,
+	}
 	for _, addr := range s.StatsdListenAddrs {
-		concreteAddrs = append(concreteAddrs, StartStatsd(s, addr, statsdPool))
+		concreteAddrs = append(
+			concreteAddrs, statsdSource.StartStatsd(s, addr, statsdPool))
 	}
 	s.StatsdListenAddrs = concreteAddrs
 
 	// Read Traces Forever!
+	ssfSource := SsfMetricsSource{
+		logger: s.logger,
+	}
 	if len(s.SSFListenAddrs) > 0 {
 		concreteAddrs := make([]net.Addr, 0, len(s.StatsdListenAddrs))
 		for _, addr := range s.SSFListenAddrs {
-			concreteAddrs = append(concreteAddrs, StartSSF(s, addr, tracePool))
+			concreteAddrs = append(
+				concreteAddrs, ssfSource.StartSSF(s, addr, tracePool))
 		}
 		s.SSFListenAddrs = concreteAddrs
 	} else {
@@ -792,8 +796,11 @@ func (s *Server) Start() {
 	// Read grpc traces forever!
 	if len(s.GRPCListenAddrs) > 0 {
 		concreteAddrs := make([]net.Addr, 0, len(s.GRPCListenAddrs))
+		grpcSource := GrpcMetricsSource{
+			logger: s.logger,
+		}
 		for _, addr := range s.GRPCListenAddrs {
-			concreteAddrs = append(concreteAddrs, StartGRPC(s, addr))
+			concreteAddrs = append(concreteAddrs, grpcSource.StartGRPC(s, addr))
 		}
 		//If there are already ssf listen addresses then append the grpc ones otherwise just use the grpc ones
 		if len(s.SSFListenAddrs) > 0 {
@@ -817,7 +824,7 @@ func (s *Server) Start() {
 		var err error
 		s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure())
 		if err != nil {
-			log.WithError(err).WithFields(logrus.Fields{
+			s.logger.WithError(err).WithFields(logrus.Fields{
 				"forwardAddr": s.ForwardAddr,
 			}).Fatal("Failed to initialize a gRPC connection for forwarding")
 		}
@@ -896,7 +903,7 @@ func (s *Server) FlushWatchdog() {
 			// bug.
 			if since > time.Duration(s.stuckIntervals)*s.Interval {
 				rtdebug.SetTraceback("all")
-				log.WithFields(logrus.Fields{
+				s.logger.WithFields(logrus.Fields{
 					"last_flush":       last,
 					"missed_intervals": s.stuckIntervals,
 					"time_since":       since,
@@ -955,7 +962,7 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 	if bytes.HasPrefix(packet, []byte{'_', 'e', '{'}) {
 		event, err := s.parser.ParseEvent(packet)
 		if err != nil {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Debug("Could not parse packet")
@@ -966,7 +973,7 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 	} else if bytes.HasPrefix(packet, []byte{'_', 's', 'c'}) {
 		svcheck, err := s.parser.ParseServiceCheck(packet)
 		if err != nil {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Debug("Could not parse packet")
@@ -977,7 +984,7 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 	} else {
 		metric, err := s.parser.ParseMetric(packet)
 		if err != nil {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"packet":        string(packet),
 			}).Debug("Could not parse packet")
@@ -1016,7 +1023,7 @@ func (s *Server) HandleTracePacket(packet []byte, protocolType ProtocolType) {
 	// Unlike metrics, protobuf shouldn't have an issue with 0-length packets
 	if len(packet) == 0 {
 		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:unknown", "reason:zerolength"}, 1.0)
-		log.Warn("received zero-length trace packet")
+		s.logger.Warn("received zero-length trace packet")
 		return
 	}
 
@@ -1026,7 +1033,7 @@ func (s *Server) HandleTracePacket(packet []byte, protocolType ProtocolType) {
 	if err != nil {
 		reason := "reason:" + err.Error()
 		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:ssf_metric", reason}, 1.0)
-		log.WithError(err).Warn("ParseSSF")
+		s.logger.WithError(err).Warn("ParseSSF")
 		return
 	}
 	// we want to keep track of this, because it's a client problem, but still
@@ -1034,7 +1041,7 @@ func (s *Server) HandleTracePacket(packet []byte, protocolType ProtocolType) {
 	if span.Id == 0 {
 		reason := "reason:" + "empty_id"
 		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:ssf_metric", reason}, 1.0)
-		log.Warn("HandleTracePacket: Span ID is zero")
+		s.logger.Warn("HandleTracePacket: Span ID is zero")
 	}
 
 	s.handleSSF(span, "packet", protocolType)
@@ -1059,7 +1066,7 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string, protocolType Pro
 		// allocation and more expensive operation in the typical case
 		metrics, ok = s.ssfInternalMetrics.LoadOrStore(key, &ssfServiceSpanMetrics{})
 		if metrics == nil {
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				"service":   span.Service,
 				"ssfFormat": ssfFormat,
 			}).Error("found nil value in ssfInternalMetrics map")
@@ -1068,8 +1075,8 @@ func (s *Server) handleSSF(span *ssf.SSFSpan, ssfFormat string, protocolType Pro
 
 	metricsStruct, ok := metrics.(*ssfServiceSpanMetrics)
 	if !ok {
-		log.WithField("type", reflect.TypeOf(metrics)).Error()
-		log.WithFields(logrus.Fields{
+		s.logger.WithField("type", reflect.TypeOf(metrics)).Error()
+		s.logger.WithFields(logrus.Fields{
 			"type":      reflect.TypeOf(metrics),
 			"service":   span.Service,
 			"ssfFormat": ssfFormat,
@@ -1095,7 +1102,7 @@ func (s *Server) ReadMetricSocket(serverConn net.PacketConn, packetPool *sync.Po
 		buf := packetPool.Get().([]byte)
 		n, _, err := serverConn.ReadFrom(buf)
 		if err != nil {
-			log.WithError(err).Error("Error reading from UDP metrics socket")
+			s.logger.WithError(err).Error("Error reading from UDP metrics socket")
 			continue
 		}
 		s.processMetricPacket(n, buf, packetPool, DOGSTATSD_UDP)
@@ -1137,10 +1144,12 @@ func (s *Server) ReadStatsdDatagramSocket(serverConn *net.UnixConn, packetPool *
 		if err != nil {
 			select {
 			case <-s.shutdown:
-				log.WithError(err).Info("Ignoring ReadFrom error while shutting down")
+				s.logger.WithError(err).Info(
+					"Ignoring ReadFrom error while shutting down")
 				return
 			default:
-				log.WithError(err).Error("Error reading packet from Unix domain socket")
+				s.logger.WithError(err).Error(
+					"Error reading packet from Unix domain socket")
 				continue
 			}
 		}
@@ -1155,7 +1164,7 @@ func (s *Server) ReadSSFPacketSocket(serverConn net.PacketConn, packetPool *sync
 	// own function?
 	p := packetPool.Get().([]byte)
 	if len(p) == 0 {
-		log.WithField("len", len(p)).Fatal(
+		s.logger.WithField("len", len(p)).Fatal(
 			"packetPool making empty slices: trace_max_length_bytes must be >= 0")
 	}
 	packetPool.Put(p)
@@ -1169,10 +1178,10 @@ func (s *Server) ReadSSFPacketSocket(serverConn net.PacketConn, packetPool *sync
 			// socket, which returns an error, so let's handle it here:
 			select {
 			case <-s.shutdown:
-				log.WithError(err).Info("Ignoring ReadFrom error while shutting down")
+				s.logger.WithError(err).Info("Ignoring ReadFrom error while shutting down")
 				return
 			default:
-				log.WithError(err).Error("Error reading from UDP trace socket")
+				s.logger.WithError(err).Error("Error reading from UDP trace socket")
 				continue
 			}
 		}
@@ -1204,7 +1213,7 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 				return
 			}
 			if protocol.IsFramingError(err) {
-				log.WithError(err).
+				s.logger.WithError(err).
 					WithField("remote", serverConn.RemoteAddr()).
 					Info("Frame error reading from SSF connection. Closing.")
 				tags = append(tags, []string{"packet_type:unknown", "reason:framing"}...)
@@ -1212,7 +1221,7 @@ func (s *Server) ReadSSFStreamSocket(serverConn net.Conn) {
 				return
 			}
 			// Non-frame errors means we can continue reading:
-			log.WithError(err).
+			s.logger.WithError(err).
 				WithField("remote", serverConn.RemoteAddr()).
 				Error("Error processing an SSF frame")
 			tags = append(tags, []string{"packet_type:unknown", "reason:processing"}...)
@@ -1230,12 +1239,12 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 	}()
 
 	defer func() {
-		log.WithField("peer", conn.RemoteAddr()).Debug("Closing TCP connection")
+		s.logger.WithField("peer", conn.RemoteAddr()).Debug("Closing TCP connection")
 		err := conn.Close()
 		metrics.ReportOne(s.TraceClient, ssf.Count("tcp.disconnects", 1, nil))
 		if err != nil {
 			// most often "write: broken pipe"; not really an error
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"peer":          conn.RemoteAddr(),
 			}).Info("TCP close failed")
@@ -1257,7 +1266,7 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 			// usually io.EOF or "read: connection reset by peer"; not really errors
 			// it can also be caused by certificate authentication problems
 			metrics.ReportOne(s.TraceClient, ssf.Count("tcp.tls_handshake_failures", 1, nil))
-			log.WithFields(logrus.Fields{
+			s.logger.WithFields(logrus.Fields{
 				logrus.ErrorKey: err,
 				"peer":          conn.RemoteAddr(),
 			}).Info("TLS Handshake failed")
@@ -1270,12 +1279,12 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 		if len(state.PeerCertificates) > 0 {
 			clientCert = state.PeerCertificates[0].Subject.ToRDNSequence()
 		}
-		log.WithFields(logrus.Fields{
+		s.logger.WithFields(logrus.Fields{
 			"peer":        conn.RemoteAddr(),
 			"client_cert": clientCert,
 		}).Debug("Starting TLS connection")
 	} else {
-		log.WithFields(logrus.Fields{
+		s.logger.WithFields(logrus.Fields{
 			"peer": conn.RemoteAddr(),
 		}).Debug("Starting TCP connection")
 	}
@@ -1293,14 +1302,14 @@ func (s *Server) handleTCPGoroutine(conn net.Conn) {
 		if err != nil {
 			// don't consume bad data from a client indefinitely
 			// HandleMetricPacket logs the err and packet, and increments error counters
-			log.WithField("peer", conn.RemoteAddr()).Warn(
+			s.logger.WithField("peer", conn.RemoteAddr()).Warn(
 				"Error parsing packet; closing TCP connection")
 			return
 		}
 	}
 	if buf.Err() != nil {
 		// usually "read: connection reset by peer" or "i/o timeout"
-		log.WithFields(logrus.Fields{
+		s.logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: buf.Err(),
 			"peer":          conn.RemoteAddr(),
 		}).Info("Error reading from TCP client")
@@ -1315,10 +1324,10 @@ func (s *Server) ReadTCPSocket(listener net.Listener) {
 			select {
 			case <-s.shutdown:
 				// occurs when cleanly shutting down the server e.g. in tests; ignore errors
-				log.WithError(err).Info("Ignoring Accept error while shutting down")
+				s.logger.WithError(err).Info("Ignoring Accept error while shutting down")
 				return
 			default:
-				log.WithError(err).Fatal("TCP accept failed")
+				s.logger.WithError(err).Fatal("TCP accept failed")
 			}
 		}
 
@@ -1381,7 +1390,7 @@ func (s *Server) HTTPServe() {
 			profileStopOnce.Do(prf.Stop)
 		}
 
-		log.Info("Terminating HTTP listener")
+		s.logger.Info("Terminating HTTP listener")
 	})
 
 	// Ensure that the server responds to SIGUSR2 even
@@ -1389,7 +1398,7 @@ func (s *Server) HTTPServe() {
 	graceful.AddSignal(syscall.SIGUSR2, syscall.SIGHUP)
 	graceful.HandleSignals()
 	gracefulSocket := graceful.WrapListener(httpSocket)
-	log.WithField("address", s.HTTPAddr).Info("HTTP server listening")
+	s.logger.WithField("address", s.HTTPAddr).Info("HTTP server listening")
 
 	// Signal that the HTTP server is starting
 	atomic.AddInt32(s.numListeningHTTP, 1)
@@ -1397,9 +1406,9 @@ func (s *Server) HTTPServe() {
 	bind.Ready()
 
 	if err := http.Serve(gracefulSocket, s.Handler()); err != nil {
-		log.WithError(err).Error("HTTP server shut down due to error")
+		s.logger.WithError(err).Error("HTTP server shut down due to error")
 	}
-	log.Info("Stopped HTTP server")
+	s.logger.Info("Stopped HTTP server")
 
 	graceful.Shutdown()
 }
@@ -1408,7 +1417,7 @@ func (s *Server) HTTPServe() {
 // current connections.
 func (s *Server) Shutdown() {
 	// TODO(aditya) shut down workers and socket readers
-	log.Info("Shutting down server gracefully")
+	s.logger.Info("Shutting down server gracefully")
 	close(s.shutdown)
 	graceful.Shutdown()
 	for _, source := range s.sources {
@@ -1440,7 +1449,10 @@ func CalculateTickDelay(interval time.Duration, t time.Time) time.Duration {
 }
 
 // Set the list of tags to exclude on each sink
-func setSinkExcludedTags(excludeRules []string, metricSinks []sinks.MetricSink, spanSinks []sinks.SpanSink) {
+func (server *Server) setSinkExcludedTags(
+	excludeRules []string, metricSinks []sinks.MetricSink,
+	spanSinks []sinks.SpanSink,
+) {
 	type excludableSink interface {
 		SetExcludedTags([]string)
 	}
@@ -1448,7 +1460,7 @@ func setSinkExcludedTags(excludeRules []string, metricSinks []sinks.MetricSink, 
 	for _, sink := range metricSinks {
 		if s, ok := sink.(excludableSink); ok {
 			excludedTags := generateExcludedTags(excludeRules, sink.Name())
-			log.WithFields(logrus.Fields{
+			server.logger.WithFields(logrus.Fields{
 				"sink":         sink.Name(),
 				"excludedTags": excludedTags,
 			}).Info("Setting excluded tags on metric sink")
@@ -1459,7 +1471,7 @@ func setSinkExcludedTags(excludeRules []string, metricSinks []sinks.MetricSink, 
 	for _, sink := range spanSinks {
 		if s, ok := sink.(excludableSink); ok {
 			excludedTags := generateExcludedTags(excludeRules, sink.Name())
-			log.WithFields(logrus.Fields{
+			server.logger.WithFields(logrus.Fields{
 				"sink":         sink.Name(),
 				"excludedTags": excludedTags,
 			}).Info("Setting excluded tags on span sink")

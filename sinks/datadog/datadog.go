@@ -200,7 +200,11 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 		// this endpoint is not documented to take an array... but it does
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
-		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/api/v1/check_run?api_key=%s", dd.DDHostname, dd.APIKey), checks, "flush_checks", false, map[string]string{"sink": "datadog"}, dd.log.Logger)
+		err := vhttp.PostHelper(
+			context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPost,
+			fmt.Sprintf("%s/api/v1/check_run?api_key=%s", dd.DDHostname, dd.APIKey),
+			checks, "flush_checks", false, map[string]string{"sink": "datadog"},
+			dd.log)
 		if err == nil {
 			dd.log.WithField("checks", len(checks)).Info("Completed flushing service checks to Datadog")
 		} else {
@@ -310,11 +314,14 @@ func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ss
 		// the official dd-agent
 		// we don't actually pass all the body keys that dd-agent passes here... but
 		// it still works
-		err := vhttp.PostHelper(context.Background(), dd.HTTPClient, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/intake?api_key=%s", dd.DDHostname, dd.APIKey), map[string]map[string][]DDEvent{
-			"events": {
-				"api": events,
-			},
-		}, "flush_events", true, map[string]string{"sink": "datadog"}, dd.log.Logger)
+		err := vhttp.PostHelper(
+			context.Background(), dd.HTTPClient, dd.traceClient, http.MethodPost,
+			fmt.Sprintf("%s/intake?api_key=%s", dd.DDHostname, dd.APIKey),
+			map[string]map[string][]DDEvent{
+				"events": {
+					"api": events,
+				},
+			}, "flush_events", true, map[string]string{"sink": "datadog"}, dd.log)
 
 		if err == nil {
 			dd.log.WithField("events", len(events)).Info("Completed flushing events to Datadog")
@@ -463,9 +470,11 @@ METRICLOOP:
 
 func (dd *DatadogMetricSink) flushPart(ctx context.Context, metricSlice []DDMetric, wg *sync.WaitGroup) {
 	defer wg.Done()
-	vhttp.PostHelper(ctx, dd.HTTPClient, dd.traceClient, http.MethodPost, fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.DDHostname, dd.APIKey), map[string][]DDMetric{
-		"series": metricSlice,
-	}, "flush", true, map[string]string{"sink": "datadog"}, dd.log.Logger)
+	vhttp.PostHelper(ctx, dd.HTTPClient, dd.traceClient, http.MethodPost,
+		fmt.Sprintf("%s/api/v1/series?api_key=%s", dd.DDHostname, dd.APIKey),
+		map[string][]DDMetric{
+			"series": metricSlice,
+		}, "flush", true, map[string]string{"sink": "datadog"}, dd.log)
 }
 
 // DatadogTraceSpan represents a trace span as JSON for the
@@ -682,7 +691,10 @@ func (dd *DatadogSpanSink) Flush() {
 		// another curious constraint of this endpoint is that it does not
 		// support "Content-Encoding: deflate"
 
-		err := vhttp.PostHelper(context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPut, fmt.Sprintf("%s/v0.3/traces", dd.traceAddress), finalTraces, "flush_traces", false, map[string]string{"sink": "datadog"}, dd.log.Logger)
+		err := vhttp.PostHelper(
+			context.TODO(), dd.HTTPClient, dd.traceClient, http.MethodPut,
+			fmt.Sprintf("%s/v0.3/traces", dd.traceAddress), finalTraces,
+			"flush_traces", false, map[string]string{"sink": "datadog"}, dd.log)
 		if err == nil {
 			dd.log.WithField("traces", len(finalTraces)).Info("Completed flushing traces to Datadog")
 		} else {

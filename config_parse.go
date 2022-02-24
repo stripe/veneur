@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/sirupsen/logrus"
 
 	"gopkg.in/yaml.v2"
 )
@@ -31,24 +32,26 @@ var defaultProxyConfig = ProxyConfig{
 }
 
 // ReadProxyConfig unmarshals the proxy config file and slurps in its data.
-func ReadProxyConfig(path string) (c ProxyConfig, err error) {
+func ReadProxyConfig(
+	logger *logrus.Entry, path string,
+) (c ProxyConfig, err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return c, err
 	}
 	defer f.Close()
 	c, err = readProxyConfig(f)
-	c.applyDefaults()
+	c.applyDefaults(logger)
 	return
 }
 
-func (c *ProxyConfig) applyDefaults() {
+func (c *ProxyConfig) applyDefaults(logger *logrus.Entry) {
 	if c.MaxIdleConnsPerHost == 0 {
 		// It's dangerous to leave this as the default. Since veneur-proxy is
 		// designed for HA environments with lots of globalstats backends we
 		// need higher defaults lest we have too small a connection pool and cause
 		// a glut of TIME_WAIT connections, so set a default.
-		log.WithField(
+		logger.WithField(
 			"new value", defaultProxyConfig.MaxIdleConnsPerHost,
 		).Warn("max_idle_conns_per_host being unset may lead to unsafe operations, defaulting!")
 		c.MaxIdleConnsPerHost = defaultProxyConfig.MaxIdleConnsPerHost
@@ -99,7 +102,7 @@ func (e *UnknownConfigKeys) Error() string {
 // ReadConfig unmarshals the config file and slurps in its
 // data. ReadConfig can return an error of type *UnknownConfigKeys,
 // which means that the file is usable, but contains unknown fields.
-func ReadConfig(path string) (c Config, err error) {
+func ReadConfig(logger *logrus.Entry, path string) (c Config, err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return c, err
@@ -107,7 +110,7 @@ func ReadConfig(path string) (c Config, err error) {
 	defer f.Close()
 
 	c, err = readConfig(f)
-	c.applyDefaults()
+	c.applyDefaults(logger)
 	return
 }
 
@@ -150,7 +153,7 @@ func readConfig(r io.Reader) (Config, error) {
 	return c, unmarshalErr
 }
 
-func (c *Config) applyDefaults() {
+func (c *Config) applyDefaults(logger *logrus.Entry) {
 	if len(c.Aggregates) == 0 {
 		c.Aggregates = defaultConfig.Aggregates
 	}
@@ -170,43 +173,50 @@ func (c *Config) applyDefaults() {
 		c.ReadBufferSizeBytes = defaultConfig.ReadBufferSizeBytes
 	}
 	if c.SsfBufferSize != 0 {
-		log.Warn("ssf_buffer_size configuration option has been replaced by datadog_span_buffer_size and will be removed in the next version")
+		logger.Warn(
+			"ssf_buffer_size configuration option has been replaced by datadog_span_buffer_size and will be removed in the next version")
 		if c.DatadogSpanBufferSize == 0 {
 			c.DatadogSpanBufferSize = c.SsfBufferSize
 		}
 	}
 	if c.FlushMaxPerBody != 0 {
-		log.Warn("flush_max_per_body configuration option has been replaced by datadog_flush_max_per_body and will be removed in the next version")
+		logger.Warn(
+			"flush_max_per_body configuration option has been replaced by datadog_flush_max_per_body and will be removed in the next version")
 		if c.DatadogFlushMaxPerBody == 0 {
 			c.DatadogFlushMaxPerBody = c.FlushMaxPerBody
 		}
 	}
 	if c.TraceLightstepNumClients != 0 {
-		log.Warn("trace_lightstep_num_clients configuration option has been replaced by lightstep_num_clients and will be removed in the next version")
+		logger.Warn(
+			"trace_lightstep_num_clients configuration option has been replaced by lightstep_num_clients and will be removed in the next version")
 		if c.LightstepNumClients == 0 {
 			c.LightstepNumClients = c.TraceLightstepNumClients
 		}
 	}
 	if c.TraceLightstepCollectorHost.Value != nil {
-		log.Warn("trace_lightstep_collector_host configuration option has been replaced by lightstep_collector_host and will be removed in the next version")
+		logger.Warn(
+			"trace_lightstep_collector_host configuration option has been replaced by lightstep_collector_host and will be removed in the next version")
 		if c.LightstepCollectorHost.Value == nil {
 			c.LightstepCollectorHost = c.TraceLightstepCollectorHost
 		}
 	}
 	if c.TraceLightstepAccessToken.Value != "" {
-		log.Warn("trace_lightstep_access_token configuration option has been replaced by lightstep_access_token and will be removed in the next version")
+		logger.Warn(
+			"trace_lightstep_access_token configuration option has been replaced by lightstep_access_token and will be removed in the next version")
 		if c.LightstepAccessToken.Value == "" {
 			c.LightstepAccessToken = c.TraceLightstepAccessToken
 		}
 	}
 	if c.TraceLightstepMaximumSpans != 0 {
-		log.Warn("trace_lightstep_maximum_spans configuration option has been replaced by lightstep_maximum_spans and will be removed in the next version")
+		logger.Warn(
+			"trace_lightstep_maximum_spans configuration option has been replaced by lightstep_maximum_spans and will be removed in the next version")
 		if c.LightstepMaximumSpans == 0 {
 			c.LightstepMaximumSpans = c.TraceLightstepMaximumSpans
 		}
 	}
 	if c.TraceLightstepReconnectPeriod != 0 {
-		log.Warn("trace_lightstep_reconnect_period configuration option has been replaced by lightstep_reconnect_period and will be removed in the next version")
+		logger.Warn(
+			"trace_lightstep_reconnect_period configuration option has been replaced by lightstep_reconnect_period and will be removed in the next version")
 		if c.LightstepReconnectPeriod == 0 {
 			c.LightstepReconnectPeriod = c.TraceLightstepReconnectPeriod
 		}

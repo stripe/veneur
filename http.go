@@ -43,7 +43,8 @@ func (s *Server) Handler() http.Handler {
 
 	if s.httpQuit {
 		mux.HandleFunc(pat.Post(httpQuitEndpoint), func(w http.ResponseWriter, r *http.Request) {
-			log.WithField("endpoint", httpQuitEndpoint).Info("Received shutdown request on HTTP quit endpoint")
+			s.logger.WithField("endpoint", httpQuitEndpoint).
+				Info("Received shutdown request on HTTP quit endpoint")
 			w.Write([]byte("Beginning graceful shutdown....\n"))
 			s.Shutdown()
 		})

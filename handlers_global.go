@@ -26,13 +26,15 @@ func (ch contextHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func handleProxy(p *Proxy) http.Handler {
 	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-		log.WithFields(logrus.Fields{
+		p.logger.WithFields(logrus.Fields{
 			"path": r.URL.Path,
 			"host": r.URL.Host,
 		}).Debug("Importing metrics on proxy")
-		span, jsonMetrics, err := unmarshalMetricsFromHTTP(ctx, p.TraceClient, w, r)
+		span, jsonMetrics, err := unmarshalMetricsFromHTTP(
+			ctx, p.TraceClient, w, r, p.logger)
 		if err != nil {
-			log.WithError(err).Error("Error unmarshalling metrics in proxy import")
+			p.logger.WithError(err).
+				Error("Error unmarshalling metrics in proxy import")
 			return
 		}
 		// the server usually waits for this to return before finalizing the
@@ -45,9 +47,10 @@ func handleProxy(p *Proxy) http.Handler {
 // metrics to the global veneur instance.
 func handleImport(s *Server) http.Handler {
 	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-		span, jsonMetrics, err := unmarshalMetricsFromHTTP(ctx, s.TraceClient, w, r)
+		span, jsonMetrics, err := unmarshalMetricsFromHTTP(
+			ctx, s.TraceClient, w, r, s.logger)
 		if err != nil {
-			log.WithError(err).Error("Error unmarshalling metrics in global import")
+			s.logger.WithError(err).Error("Error unmarshalling metrics in global import")
 			span.Add(ssf.Count("import.unmarshal.errors_total", 1, nil))
 			return
 		}
@@ -59,7 +62,10 @@ func handleImport(s *Server) http.Handler {
 
 // unmarshalMetricsFromHTTP takes care of the common need to unmarshal a slice of metrics from a request body,
 // dealing with error handling, decoding, tracing, and the associated metrics.
-func unmarshalMetricsFromHTTP(ctx context.Context, client *trace.Client, w http.ResponseWriter, r *http.Request) (*trace.Span, []samplers.JSONMetric, error) {
+func unmarshalMetricsFromHTTP(
+	ctx context.Context, client *trace.Client, w http.ResponseWriter,
+	r *http.Request, logger *logrus.Entry,
+) (*trace.Span, []samplers.JSONMetric, error) {
 	var (
 		jsonMetrics []samplers.JSONMetric
 		body        io.ReadCloser
@@ -69,14 +75,14 @@ func unmarshalMetricsFromHTTP(ctx context.Context, client *trace.Client, w http.
 	)
 	span, err = tracer.ExtractRequestChild("/import", r, "veneur.opentracing.import")
 	if err != nil {
-		log.WithError(err).Debug("Could not extract span from request")
+		logger.WithError(err).Debug("Could not extract span from request")
 		span = tracer.StartSpan("veneur.opentracing.import").(*trace.Span)
 	} else {
-		log.WithField("trace", span.Trace).Debug("Extracted span from request")
+		logger.WithField("trace", span.Trace).Debug("Extracted span from request")
 	}
 	defer span.ClientFinish(client)
 
-	innerLogger := log.WithField("client", r.RemoteAddr)
+	innerLogger := logger.WithField("client", r.RemoteAddr)
 
 	switch encLogger := innerLogger.WithField("encoding", encoding); encoding {
 	case "":

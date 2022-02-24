@@ -180,31 +180,40 @@ func (wm WorkerMetrics) Upsert(mk samplers.MetricKey, Scope samplers.MetricScope
 
 // ForwardableMetrics converts all metrics that should be forwarded to
 // metricpb.Metric (protobuf-compatible).
-func (wm WorkerMetrics) ForwardableMetrics(cl *trace.Client) []*metricpb.Metric {
+func (wm WorkerMetrics) ForwardableMetrics(
+	cl *trace.Client, logger *logrus.Entry,
+) []*metricpb.Metric {
 	bufLen := len(wm.histograms) + len(wm.sets) + len(wm.timers) +
 		len(wm.globalCounters) + len(wm.globalGauges)
 
 	metrics := make([]*metricpb.Metric, 0, bufLen)
 	for _, count := range wm.globalCounters {
-		metrics = wm.appendExportedMetric(metrics, count, metricpb.Type_Counter, cl, samplers.GlobalOnly)
+		metrics = wm.appendExportedMetric(
+			metrics, count, metricpb.Type_Counter, cl, samplers.GlobalOnly, logger)
 	}
 	for _, gauge := range wm.globalGauges {
-		metrics = wm.appendExportedMetric(metrics, gauge, metricpb.Type_Gauge, cl, samplers.GlobalOnly)
+		metrics = wm.appendExportedMetric(
+			metrics, gauge, metricpb.Type_Gauge, cl, samplers.GlobalOnly, logger)
 	}
 	for _, histo := range wm.histograms {
-		metrics = wm.appendExportedMetric(metrics, histo, metricpb.Type_Histogram, cl, samplers.MixedScope)
+		metrics = wm.appendExportedMetric(
+			metrics, histo, metricpb.Type_Histogram, cl, samplers.MixedScope, logger)
 	}
 	for _, histo := range wm.globalHistograms {
-		metrics = wm.appendExportedMetric(metrics, histo, metricpb.Type_Histogram, cl, samplers.GlobalOnly)
+		metrics = wm.appendExportedMetric(
+			metrics, histo, metricpb.Type_Histogram, cl, samplers.GlobalOnly, logger)
 	}
 	for _, set := range wm.sets {
-		metrics = wm.appendExportedMetric(metrics, set, metricpb.Type_Set, cl, samplers.MixedScope)
+		metrics = wm.appendExportedMetric(
+			metrics, set, metricpb.Type_Set, cl, samplers.MixedScope, logger)
 	}
 	for _, timer := range wm.timers {
-		metrics = wm.appendExportedMetric(metrics, timer, metricpb.Type_Timer, cl, samplers.MixedScope)
+		metrics = wm.appendExportedMetric(
+			metrics, timer, metricpb.Type_Timer, cl, samplers.MixedScope, logger)
 	}
 	for _, histo := range wm.globalTimers {
-		metrics = wm.appendExportedMetric(metrics, histo, metricpb.Type_Timer, cl, samplers.GlobalOnly)
+		metrics = wm.appendExportedMetric(
+			metrics, histo, metricpb.Type_Timer, cl, samplers.GlobalOnly, logger)
 	}
 
 	return metrics
@@ -219,11 +228,14 @@ type metricExporter interface {
 // appendExportedMetric appends the exported version of the input metric, with
 // the inputted type.  If the export fails, the original slice is returned
 // and an error is logged.
-func (wm WorkerMetrics) appendExportedMetric(res []*metricpb.Metric, exp metricExporter, mType metricpb.Type, cl *trace.Client, scope samplers.MetricScope) []*metricpb.Metric {
+func (wm WorkerMetrics) appendExportedMetric(
+	res []*metricpb.Metric, exp metricExporter, mType metricpb.Type,
+	cl *trace.Client, scope samplers.MetricScope, logger *logrus.Entry,
+) []*metricpb.Metric {
 	m, err := exp.Metric()
 	m.Scope = scope.ToPB()
 	if err != nil {
-		log.WithFields(logrus.Fields{
+		logger.WithFields(logrus.Fields{
 			logrus.ErrorKey: err,
 			"type":          mType,
 			"name":          exp.GetName(),
@@ -282,7 +294,7 @@ func (w *Worker) Work() {
 			}
 		case <-w.QuitChan:
 			// We have been asked to stop.
-			log.WithField("worker", w.id).Error("Stopping")
+			w.logger.WithField("worker", w.id).Error("Stopping")
 			return
 		}
 	}
@@ -338,7 +350,8 @@ func (w *Worker) SampleTimeseries(m *samplers.UDPMetric) {
 	case StatusTypeName:
 		w.uniqueMTS.Insert(digest)
 	default:
-		log.WithField("type", m.Type).Error("Unknown metric type for counting")
+		w.logger.WithField("type", m.Type).
+			Error("Unknown metric type for counting")
 	}
 }
 
@@ -388,7 +401,8 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 		v := float64(m.Value.(ssf.SSFSample_Status))
 		w.wm.localStatusChecks[m.MetricKey].Sample(v, m.SampleRate, m.Message, m.HostName)
 	default:
-		log.WithField("type", m.Type).Error("Unknown metric type for processing")
+		w.logger.WithField("type", m.Type).
+			Error("Unknown metric type for processing")
 	}
 }
 
@@ -410,26 +424,27 @@ func (w *Worker) ImportMetric(other samplers.JSONMetric) {
 	switch other.Type {
 	case CounterTypeName:
 		if err := w.wm.globalCounters[other.MetricKey].Combine(other.Value); err != nil {
-			log.WithError(err).Error("Could not merge counters")
+			w.logger.WithError(err).Error("Could not merge counters")
 		}
 	case GaugeTypeName:
 		if err := w.wm.globalGauges[other.MetricKey].Combine(other.Value); err != nil {
-			log.WithError(err).Error("Could not merge gauges")
+			w.logger.WithError(err).Error("Could not merge gauges")
 		}
 	case SetTypeName:
 		if err := w.wm.sets[other.MetricKey].Combine(other.Value); err != nil {
-			log.WithError(err).Error("Could not merge sets")
+			w.logger.WithError(err).Error("Could not merge sets")
 		}
 	case HistogramTypeName:
 		if err := w.wm.histograms[other.MetricKey].Combine(other.Value); err != nil {
-			log.WithError(err).Error("Could not merge histograms")
+			w.logger.WithError(err).Error("Could not merge histograms")
 		}
 	case TimerTypeName:
 		if err := w.wm.timers[other.MetricKey].Combine(other.Value); err != nil {
-			log.WithError(err).Error("Could not merge timers")
+			w.logger.WithError(err).Error("Could not merge timers")
 		}
 	default:
-		log.WithField("type", other.Type).Error("Unknown metric type for importing")
+		w.logger.WithField("type", other.Type).
+			Error("Unknown metric type for importing")
 	}
 }
 
@@ -486,7 +501,7 @@ func (w *Worker) ImportMetricGRPC(other *metricpb.Metric) (err error) {
 	}
 
 	if err != nil {
-		log.WithError(err).WithFields(logrus.Fields{
+		w.logger.WithError(err).WithFields(logrus.Fields{
 			"type":     other.Type,
 			"name":     other.Name,
 			"protocol": "grpc",
@@ -579,6 +594,7 @@ type SpanWorker struct {
 	sinkTags   []map[string]string
 	commonTags map[string]string
 	sinks      []sinks.SpanSink
+	logger     *logrus.Entry
 
 	// cumulative time spent per sink, in nanoseconds
 	cumulativeTimes []int64
@@ -589,7 +605,11 @@ type SpanWorker struct {
 }
 
 // NewSpanWorker creates a SpanWorker ready to collect events and service checks.
-func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, statsd scopedstatsd.Client, spanChan <-chan *ssf.SSFSpan, commonTags map[string]string) *SpanWorker {
+func NewSpanWorker(
+	sinks []sinks.SpanSink, cl *trace.Client, statsd scopedstatsd.Client,
+	spanChan <-chan *ssf.SSFSpan, commonTags map[string]string,
+	logger *logrus.Entry,
+) *SpanWorker {
 	tags := make([]map[string]string, len(sinks))
 	for i, sink := range sinks {
 		tags[i] = map[string]string{
@@ -605,6 +625,7 @@ func NewSpanWorker(sinks []sinks.SpanSink, cl *trace.Client, statsd scopedstatsd
 		cumulativeTimes: make([]int64, len(sinks)),
 		traceClient:     cl,
 		statsd:          scopedstatsd.Ensure(statsd),
+		logger:          logger,
 	}
 }
 
@@ -638,7 +659,8 @@ func (tw *SpanWorker) Work() {
 		if err := protocol.ValidateTrace(m); err != nil {
 			if len(m.Metrics) == 0 {
 				atomic.AddInt64(&tw.emptySSFCount, 1)
-				log.WithError(err).Debug("Invalid SSF packet: packet contains neither valid metrics nor a valid span")
+				tw.logger.WithError(err).Debug(
+					"Invalid SSF packet: packet contains neither valid metrics nor a valid span")
 				continue
 			}
 		}
@@ -676,7 +698,7 @@ func (tw *SpanWorker) Work() {
 				select {
 				case _ = <-done:
 				case <-time.After(Timeout):
-					log.WithFields(logrus.Fields{
+					tw.logger.WithFields(logrus.Fields{
 						"sink":  sink.Name(),
 						"index": i,
 					}).Error("Timed out on sink ingestion")
