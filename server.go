@@ -14,7 +14,7 @@ import (
 	"net/http"
 	"reflect"
 	"runtime"
-	rtdebug "runtime/debug"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -397,6 +397,13 @@ func (server *Server) createMetricSinks(
 	return sinks, nil
 }
 
+func max(a int, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 // NewFromConfig creates a new veneur server from a configuration
 // specification and sets up the passed logger according to the
 // configuration.
@@ -405,40 +412,52 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	conf := config.Config
 
 	ret := &Server{
-		Config:   conf,
-		Interval: conf.Interval,
-		logger:   logrus.NewEntry(config.Logger),
+		Config: conf,
+		// Control whether Veneur should emit metric
+		// "veneur.flush.unique_timeseries_total", which may come at a slight
+		// performance hit to workers.
+		CountUniqueTimeseries: conf.CountUniqueTimeseries,
+		// This must come before worker initialization. We need to initialize
+		// workers with state from *Server.IsWorker.
+		enableProfiling:      conf.EnableProfiling,
+		ForwardAddr:          conf.ForwardAddress,
+		forwardUseGRPC:       conf.ForwardUseGrpc,
+		grpcListenAddress:    conf.GrpcAddress,
+		Hostname:             conf.Hostname,
+		HistogramPercentiles: conf.Percentiles,
+		HTTPAddr:             conf.HTTPAddress,
+		HTTPClient: &http.Client{
+			// make sure that POSTs to datadog do not overflow the flush interval
+			Timeout: conf.Interval * 9 / 10,
+			Transport: &http.Transport{
+				// If we're idle more than one interval something is up
+				IdleConnTimeout: conf.Interval * 2,
+			},
+		},
+		Interval:         conf.Interval,
+		logger:           logrus.NewEntry(config.Logger),
+		metricMaxLength:  conf.MetricMaxLength,
+		numListeningHTTP: new(int32),
+		numReaders:       conf.NumReaders,
+		parser:           samplers.NewParser(conf.ExtendTags),
+		RcvbufBytes:      conf.ReadBufferSizeBytes,
+		// closed in Shutdown; Same approach and http.Shutdown
+		shutdown:            make(chan struct{}),
+		Tags:                conf.Tags,
+		TagsAsMap:           tagging.ParseTagSliceToMap(conf.Tags),
+		traceMaxLengthBytes: conf.TraceMaxLengthBytes,
+		SpanChan:            make(chan *ssf.SSFSpan, conf.SpanChannelCapacity),
+		stuckIntervals:      conf.FlushWatchdogMissedFlushes,
+		synchronizeInterval: conf.SynchronizeWithInterval,
+		// Allocate the slice, we'll fill it with workers later.
+		Workers: make([]*Worker, max(1, conf.NumWorkers)),
 	}
 
-	ret.Hostname = conf.Hostname
-	ret.Tags = conf.Tags
-
-	mappedTags := tagging.ParseTagSliceToMap(ret.Tags)
-
-	ret.synchronizeInterval = conf.SynchronizeWithInterval
-
-	ret.TagsAsMap = mappedTags
-
-	ret.parser = samplers.NewParser(conf.ExtendTags)
-
-	ret.HistogramPercentiles = conf.Percentiles
 	ret.HistogramAggregates.Value = 0
 	for _, agg := range conf.Aggregates {
 		ret.HistogramAggregates.Value += samplers.AggregatesLookup[agg]
 	}
 	ret.HistogramAggregates.Count = len(conf.Aggregates)
-
-	ret.stuckIntervals = conf.FlushWatchdogMissedFlushes
-
-	transport := &http.Transport{
-		IdleConnTimeout: ret.Interval * 2, // If we're idle more than one interval something is up
-	}
-
-	ret.HTTPClient = &http.Client{
-		// make sure that POSTs to datadog do not overflow the flush interval
-		Timeout:   ret.Interval * 9 / 10,
-		Transport: transport,
-	}
 
 	stats, err := statsd.New(conf.StatsAddress, statsd.WithoutTelemetry(), statsd.WithMaxMessagesPerPayload(4096))
 	if err != nil {
@@ -452,7 +471,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	}
 	ret.Statsd = scopedstatsd.NewClient(stats, conf.VeneurMetricsAdditionalTags, scopes)
 
-	ret.SpanChan = make(chan *ssf.SSFSpan, conf.SpanChannelCapacity)
 	ret.TraceClient, err = trace.NewChannelClient(ret.SpanChan,
 		trace.ReportStatistics(stats, 1*time.Second, []string{"ssf_format:internal"}),
 		normalizeSpans(conf),
@@ -480,33 +498,8 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	}
 	logger.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
 
-	if conf.EnableProfiling {
-		ret.enableProfiling = true
-	}
-
-	// After log hooks are configured, if any further errors are
-	// found during setup we should use logger.Fatal or
-	// logger.Panic, because that will give us breakage monitoring
-	// through Sentry.
-	numWorkers := 1
-	if conf.NumWorkers > 1 {
-		numWorkers = conf.NumWorkers
-	}
-	logger.WithField("number", numWorkers).Info("Preparing workers")
-	// Allocate the slice, we'll fill it with workers later.
-	ret.Workers = make([]*Worker, numWorkers)
-	ret.numReaders = conf.NumReaders
-
-	// This must come before worker initialization. We need to
-	// initialize workers with state from *Server.IsWorker.
-	ret.ForwardAddr = conf.ForwardAddress
-
-	// Control whether Veneur should emit metric
-	// "veneur.flush.unique_timeseries_total", which may come at a
-	// slight performance hit to workers.
-	ret.CountUniqueTimeseries = conf.CountUniqueTimeseries
-
 	// Use the pre-allocated Workers slice to know how many to start.
+	logger.WithField("number", len(ret.Workers)).Info("Preparing workers")
 	for i := range ret.Workers {
 		ret.Workers[i] = NewWorker(i+1, ret.IsLocal(), ret.CountUniqueTimeseries, ret.TraceClient, logger, ret.Statsd)
 		// do not close over loop index
@@ -555,12 +548,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		}
 		ret.GRPCListenAddrs = append(ret.GRPCListenAddrs, addr)
 	}
-
-	ret.metricMaxLength = conf.MetricMaxLength
-	ret.traceMaxLengthBytes = conf.TraceMaxLengthBytes
-	ret.RcvbufBytes = conf.ReadBufferSizeBytes
-	ret.HTTPAddr = conf.HTTPAddress
-	ret.numListeningHTTP = new(int32)
 
 	if conf.TLSKey.Value != "" {
 		if conf.TLSCertificate == "" {
@@ -634,8 +621,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	// After all sinks are initialized, set the list of tags to exclude
 	ret.setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)
 
-	// closed in Shutdown; Same approach and http.Shutdown
-	ret.shutdown = make(chan struct{})
 	if conf.HTTPQuit {
 		logger.WithField("endpoint", httpQuitEndpoint).Info("Enabling graceful shutdown endpoint (via HTTP POST request)")
 		ret.httpQuit = true
@@ -646,10 +631,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		return nil, err
 	}
 
-	ret.forwardUseGRPC = conf.ForwardUseGrpc
-
 	// Setup the grpc server if it was configured
-	ret.grpcListenAddress = conf.GrpcAddress
 	if ret.grpcListenAddress != "" {
 		// convert all the workers to the proper interface
 		ingesters := make([]proxy.MetricIngester, len(ret.Workers))
@@ -679,8 +661,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	}
 
 	logger.WithField("config", conf).Debug("Initialized server")
-
-	return ret, err
+	return ret, nil
 }
 
 // Start spins up the Server to do actual work, firing off goroutines for
@@ -874,7 +855,7 @@ func (s *Server) FlushWatchdog() {
 			// times, we're stuck - panic because that's a
 			// bug.
 			if since > time.Duration(s.stuckIntervals)*s.Interval {
-				rtdebug.SetTraceback("all")
+				debug.SetTraceback("all")
 				s.logger.WithFields(logrus.Fields{
 					"last_flush":       last,
 					"missed_intervals": s.stuckIntervals,
