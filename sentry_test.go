@@ -78,7 +78,7 @@ func TestConsumePanicWithSentry(t *testing.T) {
 
 func TestHookWithoutSentry(t *testing.T) {
 	// hook with a nil sentry client is used when sentry is disabled
-	hook := &sentryHook{}
+	hook := &SentryHook{}
 
 	entry := &logrus.Entry{}
 	// must use Fatal so the call to Fire blocks and we can check the result
@@ -90,7 +90,7 @@ func TestHookWithoutSentry(t *testing.T) {
 }
 
 func TestHook(t *testing.T) {
-	hook := &sentryHook{}
+	hook := &SentryHook{}
 	transport := &transportMock{}
 	err := sentry.Init(sentry.ClientOptions{
 		Transport: transport,

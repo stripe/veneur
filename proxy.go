@@ -94,16 +94,16 @@ func NewProxyFromConfig(
 
 	if conf.SentryDsn != "" {
 		err = sentry.Init(sentry.ClientOptions{
-			Dsn: conf.SentryDsn,
+			Dsn:        conf.SentryDsn,
+			ServerName: hostname,
 		})
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	logger.AddHook(sentryHook{
-		hostname: hostname,
-		lv: []logrus.Level{
+	logger.AddHook(SentryHook{
+		Level: []logrus.Level{
 			logrus.ErrorLevel,
 			logrus.FatalLevel,
 			logrus.PanicLevel,
