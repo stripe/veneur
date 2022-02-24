@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/getsentry/sentry-go"
 	"github.com/segmentio/fasthash/fnv1a"
 	"github.com/sirupsen/logrus"
 	"github.com/zenazn/goji/bind"
@@ -462,17 +461,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		return ret, err
 	}
 
-	// Initialize Sentry if a Dsn is provided, else we leave it uninitalized
-	// and no-op the methods.
-	if conf.SentryDsn.Value != "" {
-		err = sentry.Init(sentry.ClientOptions{
-			Dsn: conf.SentryDsn.Value,
-		})
-		if err != nil {
-			return ret, err
-		}
-	}
-
 	if conf.Debug {
 		logger.SetLevel(logrus.DebugLevel)
 	}
@@ -494,22 +482,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	if conf.EnableProfiling {
 		ret.enableProfiling = true
-	}
-
-	// This is a check to ensure that we don't repeatedly add a hook
-	// to the "global" log instance on repeated calls to `NewFromConfig`
-	// such as those made in testing. By skipping this we avoid a race
-	// condition in logrus discussed here:
-	// https://github.com/sirupsen/logrus/issues/295
-	if _, ok := logger.Hooks[logrus.FatalLevel]; !ok {
-		logger.AddHook(sentryHook{
-			hostname: ret.Hostname,
-			lv: []logrus.Level{
-				logrus.ErrorLevel,
-				logrus.FatalLevel,
-				logrus.PanicLevel,
-			},
-		})
 	}
 
 	// After log hooks are configured, if any further errors are
