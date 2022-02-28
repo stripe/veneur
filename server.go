@@ -128,9 +128,9 @@ type Server struct {
 	ForwardAddr    string
 	forwardUseGRPC bool
 
-	StatsdListenAddrs []net.Addr
-	SSFListenAddrs    []net.Addr
-	GRPCListenAddrs   []net.Addr
+	statsdListenAddrs []net.Addr
+	ssfListenAddrs    []net.Addr
+	grpcListenAddrs   []net.Addr
 	RcvbufBytes       int
 
 	Interval            time.Duration
@@ -163,7 +163,6 @@ type Server struct {
 
 	// gRPC server
 	grpcListenAddress string
-	grpcServer        *proxy.Server
 
 	// gRPC forward clients
 	grpcForwardConn *grpc.ClientConn
@@ -533,24 +532,12 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	ret.EventWorker = NewEventWorker(ret.TraceClient, ret.Statsd)
 
-	// Set up a span sink that extracts metrics from SSF spans and
-	// reports them via the metric workers:
-	processors := make([]ssfmetrics.Processor, len(ret.Workers))
-	for i, w := range ret.Workers {
-		processors[i] = w
-	}
-	metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, logger, &ret.parser)
-	if err != nil {
-		return ret, err
-	}
-	ret.spanSinks = append(ret.spanSinks, metricSink)
-
 	for _, addrStr := range conf.StatsdListenAddresses {
 		addr, err := protocol.ResolveAddr(addrStr.Value)
 		if err != nil {
 			return ret, err
 		}
-		ret.StatsdListenAddrs = append(ret.StatsdListenAddrs, addr)
+		ret.statsdListenAddrs = append(ret.statsdListenAddrs, addr)
 	}
 
 	for _, addrStr := range conf.SsfListenAddresses {
@@ -558,7 +545,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		if err != nil {
 			return ret, err
 		}
-		ret.SSFListenAddrs = append(ret.SSFListenAddrs, addr)
+		ret.ssfListenAddrs = append(ret.ssfListenAddrs, addr)
 	}
 
 	for _, addrStr := range conf.GrpcListenAddresses {
@@ -566,7 +553,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		if err != nil {
 			return ret, err
 		}
-		ret.GRPCListenAddrs = append(ret.GRPCListenAddrs, addr)
+		ret.grpcListenAddrs = append(ret.grpcListenAddrs, addr)
 	}
 
 	if conf.TLSKey.Value != "" {
@@ -617,26 +604,30 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		}
 	}
 
-	customMetricSinks, err :=
+	ret.metricSinks, err =
 		ret.createMetricSinks(logger, &conf, config.MetricSinkTypes)
 	if err != nil {
 		return nil, err
 	}
-	if conf.Features.MigrateMetricSinks {
-		ret.metricSinks = customMetricSinks
-	} else {
-		ret.metricSinks = append(ret.metricSinks, customMetricSinks...)
-	}
-	customSpanSinks, err :=
+	ret.spanSinks, err =
 		ret.createSpanSinks(logger, &conf, config.SpanSinkTypes)
 	if err != nil {
 		return nil, err
 	}
-	if conf.Features.MigrateSpanSinks {
-		ret.spanSinks = customSpanSinks
-	} else {
-		ret.spanSinks = append(ret.spanSinks, customSpanSinks...)
+
+	// Set up a span sink that extracts metrics from SSF spans and
+	// reports them via the metric workers:
+	processors := make([]ssfmetrics.Processor, len(ret.Workers))
+	for i, w := range ret.Workers {
+		processors[i] = w
 	}
+	metricSink, err := ssfmetrics.NewMetricExtractionSink(
+		processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName,
+		ret.TraceClient, logger, &ret.parser)
+	if err != nil {
+		return ret, err
+	}
+	ret.spanSinks = append(ret.spanSinks, metricSink)
 
 	// After all sinks are initialized, set the list of tags to exclude
 	ret.setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)
@@ -658,14 +649,11 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		for i, worker := range ret.Workers {
 			ingesters[i] = worker
 		}
-
-		ret.grpcServer = proxy.New(ret.grpcListenAddress, ingesters,
-			config.Logger.WithField("source", "proxy"),
-			proxy.WithTraceClient(ret.TraceClient))
-
 		ret.sources = append(ret.sources, internalSource{
-			source: ret.grpcServer,
-			tags:   []string{},
+			source: proxy.New(ret.grpcListenAddress, ingesters,
+				config.Logger.WithField("source", "proxy"),
+				proxy.WithTraceClient(ret.TraceClient)),
+			tags: []string{},
 		})
 	}
 
@@ -691,8 +679,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 // various workers and utilities.
 func (s *Server) Start() {
 	s.logger.WithField("version", VERSION).Info("Starting server")
-
-	// Set up the processors for spans:
 
 	// Use the pre-allocated Workers slice to know how many to start.
 	s.SpanWorker = NewSpanWorker(
@@ -744,52 +730,52 @@ func (s *Server) Start() {
 	}
 
 	// Read Metrics Forever!
-	concreteAddrs := make([]net.Addr, 0, len(s.StatsdListenAddrs))
+	concreteAddrs := make([]net.Addr, 0, len(s.statsdListenAddrs))
 	statsdSource := UdpMetricsSource{
 		logger: s.logger,
 	}
-	for _, addr := range s.StatsdListenAddrs {
+	for _, addr := range s.statsdListenAddrs {
 		concreteAddrs = append(
 			concreteAddrs, statsdSource.StartStatsd(s, addr, statsdPool))
 	}
-	s.StatsdListenAddrs = concreteAddrs
+	s.statsdListenAddrs = concreteAddrs
 
 	// Read Traces Forever!
 	ssfSource := SsfMetricsSource{
 		logger: s.logger,
 	}
-	if len(s.SSFListenAddrs) > 0 {
-		concreteAddrs := make([]net.Addr, 0, len(s.StatsdListenAddrs))
-		for _, addr := range s.SSFListenAddrs {
+	if len(s.ssfListenAddrs) > 0 {
+		concreteAddrs := make([]net.Addr, 0, len(s.statsdListenAddrs))
+		for _, addr := range s.ssfListenAddrs {
 			concreteAddrs = append(
 				concreteAddrs, ssfSource.StartSSF(s, addr, tracePool))
 		}
-		s.SSFListenAddrs = concreteAddrs
+		s.ssfListenAddrs = concreteAddrs
 	} else {
 		logrus.Info("Tracing sockets are not configured - not reading trace socket")
 	}
 
 	// Read grpc traces forever!
-	if len(s.GRPCListenAddrs) > 0 {
-		concreteAddrs := make([]net.Addr, 0, len(s.GRPCListenAddrs))
+	if len(s.grpcListenAddrs) > 0 {
+		concreteAddrs := make([]net.Addr, 0, len(s.grpcListenAddrs))
 		grpcSource := GrpcMetricsSource{
 			logger: s.logger,
 		}
-		for _, addr := range s.GRPCListenAddrs {
+		for _, addr := range s.grpcListenAddrs {
 			concreteAddrs = append(concreteAddrs, grpcSource.StartGRPC(s, addr))
 		}
 		//If there are already ssf listen addresses then append the grpc ones otherwise just use the grpc ones
-		if len(s.SSFListenAddrs) > 0 {
-			s.SSFListenAddrs = append(s.SSFListenAddrs, concreteAddrs...)
+		if len(s.ssfListenAddrs) > 0 {
+			s.ssfListenAddrs = append(s.ssfListenAddrs, concreteAddrs...)
 		} else {
-			s.SSFListenAddrs = concreteAddrs
+			s.ssfListenAddrs = concreteAddrs
 		}
 
 		//If there are already statsd listen addresses then append the grpc ones otherwise just use the grpc ones
-		if len(s.StatsdListenAddrs) > 0 {
-			s.StatsdListenAddrs = append(s.StatsdListenAddrs, concreteAddrs...)
+		if len(s.statsdListenAddrs) > 0 {
+			s.statsdListenAddrs = append(s.statsdListenAddrs, concreteAddrs...)
 		} else {
-			s.StatsdListenAddrs = concreteAddrs
+			s.statsdListenAddrs = concreteAddrs
 		}
 	} else {
 		logrus.Info("GRPC tracing sockets are not configured - not reading trace socket")

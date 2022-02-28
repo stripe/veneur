@@ -575,7 +575,7 @@ func TestUDPMetrics(t *testing.T) {
 	f := newFixture(t, config, sink, nil)
 	defer f.Close()
 
-	addr := f.server.StatsdListenAddrs[0]
+	addr := f.server.statsdListenAddrs[0]
 	conn := connectToAddress(t, "udp", addr.String(), 20*time.Millisecond)
 
 	conn.Write([]byte("foo.bar:1|c|#baz:gorch"))
@@ -699,8 +699,8 @@ func TestMultipleUDPSockets(t *testing.T) {
 	f := newFixture(t, config, sink, nil)
 	defer f.Close()
 
-	addr1 := f.server.StatsdListenAddrs[0]
-	addr2 := f.server.StatsdListenAddrs[1]
+	addr1 := f.server.statsdListenAddrs[0]
+	addr2 := f.server.statsdListenAddrs[1]
 	conn1 := connectToAddress(t, "udp", addr1.String(), 20*time.Millisecond)
 	defer conn1.Close()
 	conn1.Write([]byte("foo.bar:1|c|#baz:gorch"))
@@ -743,7 +743,7 @@ func TestUDPMetricsSSF(t *testing.T) {
 	f := newFixture(t, config, sink, nil)
 	defer f.Close()
 
-	addr := f.server.SSFListenAddrs[0]
+	addr := f.server.ssfListenAddrs[0]
 	conn := connectToAddress(t, "udp", addr.String(), 20*time.Millisecond)
 	defer conn.Close()
 
@@ -879,7 +879,7 @@ func TestIgnoreLongUDPMetrics(t *testing.T) {
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 
-	conn := connectToAddress(t, "udp", f.server.StatsdListenAddrs[0].String(), 20*time.Millisecond)
+	conn := connectToAddress(t, "udp", f.server.statsdListenAddrs[0].String(), 20*time.Millisecond)
 	defer conn.Close()
 
 	// nb this metric is bad because it's too long based on the `MetricMaxLength`
@@ -966,7 +966,7 @@ func TestTCPMetrics(t *testing.T) {
 			f := newFixture(t, config, nil, nil)
 			defer f.Close() // ensure shutdown if the test aborts
 
-			addr := f.server.StatsdListenAddrs[0].(*net.TCPAddr)
+			addr := f.server.statsdListenAddrs[0].(*net.TCPAddr)
 			// attempt to connect and send stats with each of the client configurations
 			for i, clientConfig := range clientConfigs {
 				expectedSuccess := serverConfig.expectedConnectResults[i]
@@ -1172,7 +1172,7 @@ func BenchmarkSendSSFUDP(b *testing.B) {
 		},
 	}
 	// Simulate listening for UDP SSF on the server:
-	udpAddr := s.StatsdListenAddrs[0].(*net.UDPAddr)
+	udpAddr := s.statsdListenAddrs[0].(*net.UDPAddr)
 	require.NoError(b, err)
 	l, err := NewSocket(udpAddr, s.RcvbufBytes, false)
 	require.NoError(b, err)

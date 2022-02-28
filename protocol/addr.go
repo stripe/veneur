@@ -24,24 +24,11 @@ func ResolveAddr(u *url.URL) (net.Addr, error) {
 		} else {
 			path = u.Path
 		}
-
-		addr, err := net.ResolveUnixAddr(u.Scheme, path)
-		if err != nil {
-			return nil, err
-		}
-		return addr, nil
+		return net.ResolveUnixAddr(u.Scheme, path)
 	case "tcp6", "tcp4", "tcp":
-		addr, err := net.ResolveTCPAddr(u.Scheme, u.Host)
-		if err != nil {
-			return nil, err
-		}
-		return addr, nil
+		return net.ResolveTCPAddr(u.Scheme, u.Host)
 	case "udp6", "udp4", "udp":
-		addr, err := net.ResolveUDPAddr(u.Scheme, u.Host)
-		if err != nil {
-			return nil, err
-		}
-		return addr, nil
+		return net.ResolveUDPAddr(u.Scheme, u.Host)
 	}
 	return nil, fmt.Errorf("unknown address family %q on address %q", u.Scheme, u.String())
 }
