@@ -66,6 +66,9 @@ interval: "10s"
 # watchdog.
 flush_watchdog_missed_flushes: 0
 
+# Whether to flush sinks on shutdown. Defaults to false
+flush_on_shutdown: false
+
 # Veneur can "sychronize" it's flushes with the system clock, flushing at even
 # intervals i.e. 0, 10, 20… to align with the `interval`. This is disabled by
 # default for now, as it can cause thundering herds in large installations.

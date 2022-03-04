@@ -133,6 +133,7 @@ type Server struct {
 	GRPCListenAddrs   []net.Addr
 	RcvbufBytes       int
 
+	FlushOnShutdown     bool
 	Interval            time.Duration
 	synchronizeInterval bool
 	numReaders          int
@@ -497,6 +498,8 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		runtime.SetBlockProfileRate(conf.BlockProfileRate)
 	}
 	logger.WithField("BlockProfileRate", conf.BlockProfileRate).Info("Set block profile rate (nanoseconds)")
+
+	ret.FlushOnShutdown = conf.FlushOnShutdown
 
 	// Use the pre-allocated Workers slice to know how many to start.
 	logger.WithField("number", len(ret.Workers)).Info("Preparing workers")
@@ -1372,6 +1375,11 @@ func (s *Server) Shutdown() {
 	// TODO(aditya) shut down workers and socket readers
 	s.logger.Info("Shutting down server gracefully")
 	close(s.shutdown)
+	if s.FlushOnShutdown {
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(s.Interval))
+		s.Flush(ctx)
+		cancel()
+	}
 	graceful.Shutdown()
 	for _, source := range s.sources {
 		source.Stop()
