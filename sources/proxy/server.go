@@ -19,6 +19,7 @@ import (
 
 	"github.com/stripe/veneur/v14/forwardrpc"
 	"github.com/stripe/veneur/v14/samplers/metricpb"
+	"github.com/stripe/veneur/v14/sources"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 )
@@ -43,6 +44,8 @@ type Server struct {
 	metricOuts []MetricIngester
 	opts       *options
 }
+
+var _ sources.Source = &Server{}
 
 type options struct {
 	traceClient *trace.Client
@@ -88,7 +91,7 @@ func (s *Server) Name() string {
 // As long as both are running this is actually fine, as Start will stop
 // the gRPC server when the HTTP one exits.  When running just gRPC however,
 // the signal handling won't work.
-func (s *Server) Start() error {
+func (s *Server) Start(ingest sources.Ingest) error {
 	entry := logrus.WithFields(logrus.Fields{"address": s.address})
 	entry.Info("Starting gRPC server")
 

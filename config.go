@@ -160,6 +160,7 @@ type SourceConfig struct {
 	Kind   string      `yaml:"kind"`
 	Name   string      `yaml:"name"`
 	Config interface{} `yaml:"config"`
+	Tags   []string    `yaml:"tags"`
 }
 
 type SinkConfig struct {
