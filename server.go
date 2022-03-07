@@ -1376,7 +1376,7 @@ func (s *Server) Shutdown() {
 	s.logger.Info("Shutting down server gracefully")
 	close(s.shutdown)
 	if s.FlushOnShutdown {
-		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(s.Interval))
+		ctx, cancel := context.WithTimeout(context.Background(), s.Interval)
 		s.Flush(ctx)
 		cancel()
 	}
