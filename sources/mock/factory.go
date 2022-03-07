@@ -14,7 +14,7 @@ type MockSourceFactory struct {
 
 func (factory *MockSourceFactory) Create(
 	server *veneur.Server, name string, logger *logrus.Entry,
-	sourceConfig veneur.ParsedSourceConfig,
+	sourceConfig veneur.ParsedSourceConfig, ingest sources.Ingest,
 ) (sources.Source, error) {
 	source := NewMockSource(factory.Controller)
 	// Have the mock Name method always return the passed in name, since each
