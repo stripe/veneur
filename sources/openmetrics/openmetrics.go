@@ -114,7 +114,7 @@ func (source OpenMetricsSource) Name() string {
 	return source.name
 }
 
-func (source OpenMetricsSource) Start() error {
+func (source OpenMetricsSource) Start(ingest sources.Ingest) error {
 	ticker := time.NewTicker(source.scrapeInterval)
 intervalLoop:
 	for {
@@ -137,7 +137,7 @@ intervalLoop:
 					source.logger.WithError(err).Warn("failed to ingest metrics")
 					continue intervalLoop
 				}
-				source.server.IngestMetric(metric.Metric)
+				ingest.IngestMetric(metric.Metric)
 			}
 		case <-source.context.Done():
 			break intervalLoop

@@ -8,6 +8,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	samplers "github.com/stripe/veneur/v14/samplers"
+	sources "github.com/stripe/veneur/v14/sources"
 )
 
 // MockSourceConfig is a mock of SourceConfig interface.
@@ -71,17 +73,17 @@ func (mr *MockSourceMockRecorder) Name() *gomock.Call {
 }
 
 // Start mocks base method.
-func (m *MockSource) Start() error {
+func (m *MockSource) Start(ingest sources.Ingest) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Start")
+	ret := m.ctrl.Call(m, "Start", ingest)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Start indicates an expected call of Start.
-func (mr *MockSourceMockRecorder) Start() *gomock.Call {
+func (mr *MockSourceMockRecorder) Start(ingest interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockSource)(nil).Start))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockSource)(nil).Start), ingest)
 }
 
 // Stop mocks base method.
@@ -94,4 +96,39 @@ func (m *MockSource) Stop() {
 func (mr *MockSourceMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockSource)(nil).Stop))
+}
+
+// MockIngest is a mock of Ingest interface.
+type MockIngest struct {
+	ctrl     *gomock.Controller
+	recorder *MockIngestMockRecorder
+}
+
+// MockIngestMockRecorder is the mock recorder for MockIngest.
+type MockIngestMockRecorder struct {
+	mock *MockIngest
+}
+
+// NewMockIngest creates a new mock instance.
+func NewMockIngest(ctrl *gomock.Controller) *MockIngest {
+	mock := &MockIngest{ctrl: ctrl}
+	mock.recorder = &MockIngestMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIngest) EXPECT() *MockIngestMockRecorder {
+	return m.recorder
+}
+
+// IngestMetric mocks base method.
+func (m *MockIngest) IngestMetric(metric *samplers.UDPMetric) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "IngestMetric", metric)
+}
+
+// IngestMetric indicates an expected call of IngestMetric.
+func (mr *MockIngestMockRecorder) IngestMetric(metric interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IngestMetric", reflect.TypeOf((*MockIngest)(nil).IngestMetric), metric)
 }

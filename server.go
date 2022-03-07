@@ -153,7 +153,7 @@ type Server struct {
 
 	HistogramAggregates samplers.HistogramAggregates
 
-	sources     []sources.Source
+	sources     []internalSource
 	spanSinks   []sinks.SpanSink
 	metricSinks []sinks.MetricSink
 
@@ -173,6 +173,11 @@ type Server struct {
 	lastFlushUnix  int64
 
 	parser samplers.Parser
+}
+
+type internalSource struct {
+	source sources.Source
+	tags   []string
 }
 
 type GlobalListeningPerProtocolMetrics struct {
@@ -313,10 +318,22 @@ func scopesFromConfig(conf Config) (scopedstatsd.MetricScopes, error) {
 	return ms, nil
 }
 
+type ingest struct {
+	server *Server
+	tags   []string
+}
+
+var _ sources.Ingest = &ingest{}
+
+func (ingest *ingest) IngestMetric(metric *samplers.UDPMetric) {
+	metric.Tags = append(metric.Tags, ingest.tags...)
+	ingest.server.ingestMetric(metric)
+}
+
 func (server *Server) createSources(
 	logger *logrus.Logger, config *Config, sourceTypes SourceTypes,
-) ([]sources.Source, error) {
-	sources := []sources.Source{}
+) ([]internalSource, error) {
+	sources := []internalSource{}
 	for index, sourceConfig := range config.Sources {
 		sourceFactory, ok := sourceTypes[sourceConfig.Kind]
 		if !ok {
@@ -336,7 +353,10 @@ func (server *Server) createSources(
 		if err != nil {
 			return nil, err
 		}
-		sources = append(sources, source)
+		sources = append(sources, internalSource{
+			source: source,
+			tags:   sourceConfig.Tags,
+		})
 	}
 	return sources, nil
 }
@@ -646,7 +666,10 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 			config.Logger.WithField("source", "proxy"),
 			proxy.WithTraceClient(ret.TraceClient))
 
-		ret.sources = append(ret.sources, ret.grpcServer)
+		ret.sources = append(ret.sources, internalSource{
+			source: ret.grpcServer,
+			tags:   []string{},
+		})
 	}
 
 	// If this is a global veneur then initialize the listening per protocol metrics
@@ -936,7 +959,7 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "service_check", "reason": "parse"}))
 			return err
 		}
-		s.IngestMetric(svcheck)
+		s.ingestMetric(svcheck)
 	} else {
 		metric, err := s.parser.ParseMetric(packet)
 		if err != nil {
@@ -947,14 +970,14 @@ func (s *Server) HandleMetricPacket(packet []byte, protocolType ProtocolType) er
 			samples.Add(ssf.Count("packet.error_total", 1, map[string]string{"packet_type": "metric", "reason": "parse"}))
 			return err
 		}
-		s.IngestMetric(metric)
+		s.ingestMetric(metric)
 	}
 	return nil
 }
 
 // Ingests a metric into Veneur. This method ensures that the Digest field is
 // set for the metric.
-func (s *Server) IngestMetric(metric *samplers.UDPMetric) {
+func (s *Server) ingestMetric(metric *samplers.UDPMetric) {
 	// The Digtest field may be unset (i.e. zero) when IngestMetric is called from
 	// custom metric sources; if it is zero, we compute the value.
 	if metric.Digest == 0 {
@@ -1304,8 +1327,11 @@ func (s *Server) Serve() {
 	}
 
 	for _, source := range s.sources {
-		go func(source sources.Source) {
-			source.Start()
+		go func(source internalSource) {
+			source.source.Start(&ingest{
+				server: s,
+				tags:   source.tags,
+			})
 			done <- struct{}{}
 		}(source)
 	}
@@ -1314,7 +1340,7 @@ func (s *Server) Serve() {
 	<-done
 	graceful.Shutdown()
 	for _, source := range s.sources {
-		source.Stop()
+		source.source.Stop()
 	}
 }
 
@@ -1382,7 +1408,7 @@ func (s *Server) Shutdown() {
 	}
 	graceful.Shutdown()
 	for _, source := range s.sources {
-		source.Stop()
+		source.source.Stop()
 	}
 
 	// Close the gRPC connection for forwarding
