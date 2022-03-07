@@ -30,6 +30,7 @@
   },
   "FlushFile": "",
   "FlushMaxPerBody": 0,
+  "FlushOnShutdown": false,
   "FlushWatchdogMissedFlushes": 0,
   "ForwardAddress": "",
   "ForwardUseGrpc": false,

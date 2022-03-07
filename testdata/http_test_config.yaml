@@ -27,6 +27,7 @@ features:
   migrate_span_sinks: false
 flush_file: ""
 flush_max_per_body: 0
+flush_on_shutdown: false
 flush_watchdog_missed_flushes: 0
 forward_address: ""
 forward_use_grpc: false

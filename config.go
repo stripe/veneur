@@ -37,6 +37,7 @@ type Config struct {
 	} `yaml:"features"`
 	FlushFile                                 string              `yaml:"flush_file"`
 	FlushMaxPerBody                           int                 `yaml:"flush_max_per_body"`
+	FlushOnShutdown                           bool                `yaml:"flush_on_shutdown"`
 	FlushWatchdogMissedFlushes                int                 `yaml:"flush_watchdog_missed_flushes"`
 	ForwardAddress                            string              `yaml:"forward_address"`
 	ForwardUseGrpc                            bool                `yaml:"forward_use_grpc"`
