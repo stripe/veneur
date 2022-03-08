@@ -120,12 +120,10 @@ intervalLoop:
 	for {
 		select {
 		case t := <-ticker.C:
-			results, err := func() (<-chan QueryResults, error) {
-				ctx, cancel :=
-					context.WithDeadline(source.context, t.Add(source.ScrapeTimeout))
-				defer cancel()
-				return source.Query(ctx)
-			}()
+			ctx, cancel :=
+				context.WithDeadline(source.context, t.Add(source.ScrapeTimeout))
+			defer cancel()
+			results, err := source.Query(ctx)
 
 			if err != nil {
 				source.logger.WithError(err).Warn("failed to query metrics")
