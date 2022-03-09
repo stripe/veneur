@@ -1020,7 +1020,7 @@ func (s *Server) HandleTracePacket(packet []byte, protocolType ProtocolType) {
 	if span.Id == 0 {
 		reason := "reason:" + "empty_id"
 		s.Statsd.Count("ssf.error_total", 1, []string{"ssf_format:packet", "packet_type:ssf_metric", reason}, 1.0)
-		s.logger.Warn("HandleTracePacket: Span ID is zero")
+		s.logger.Debug("HandleTracePacket: Span ID is zero")
 	}
 
 	s.handleSSF(span, "packet", protocolType)
