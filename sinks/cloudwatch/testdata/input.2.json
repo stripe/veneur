@@ -1,0 +1,14 @@
+[
+  {
+    "Name": "a.b.gauge",
+    "Timestamp": 1,
+    "Value": 100,
+    "Tags": [
+      "cloudwatch_standard_unit:Byte"
+    ],
+    "Type": 1,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  }
+]
