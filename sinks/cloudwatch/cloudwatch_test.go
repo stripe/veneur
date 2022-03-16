@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks"
@@ -62,7 +63,7 @@ func (t *TestServer) Latest() ([]byte, error) {
 func TestName(t *testing.T) {
 	// Implicitly test that cloudwatchMetricsSink implements MetricSink
 	var sink sinks.MetricSink
-	sink = NewCloudwatchMetricSink("http://localhost/", "test", "us-east-1000", "cloudwatch_standard_unit")
+	sink = NewCloudwatchMetricSink("http://localhost/", "test", "us-east-1000", "cloudwatch_standard_unit", logrus.NewEntry(logrus.New()))
 
 	assert.Equal(t, "cloudwatch", sink.Name())
 }
@@ -79,7 +80,7 @@ func TestFlush(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Call PutMetricData
-	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit")
+	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", logrus.NewEntry(logrus.New()))
 	sink.client = cloudwatch.New(cloudwatch.Options{
 		EndpointResolver: cloudwatch.EndpointResolverFromURL(sink.endpoint),
 		Region:           sink.region,
