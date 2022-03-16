@@ -90,6 +90,10 @@ func (s *cloudwatchMetricSink) Start(*trace.Client) error {
 }
 
 func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+	if len(metrics) == 0 {
+		return nil
+	}
+
 	metricData := make([]types.MetricDatum, len(metrics))
 	for i, metric := range metrics {
 		dimensions := make([]types.Dimension, 0, len(metric.Tags))
