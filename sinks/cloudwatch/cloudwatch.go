@@ -28,6 +28,7 @@ type CloudwatchMetricSinkConfig struct {
 }
 
 type cloudwatchMetricSink struct {
+	logger              *logrus.Entry
 	client              *cloudwatch.Client
 	endpoint            string
 	region              string
@@ -35,12 +36,13 @@ type cloudwatchMetricSink struct {
 	standardUnitTagName types.StandardUnit
 }
 
-func NewCloudwatchMetricSink(endpoint, namespace, region string, standardUnitTagName types.StandardUnit) *cloudwatchMetricSink {
+func NewCloudwatchMetricSink(endpoint, namespace, region string, standardUnitTagName types.StandardUnit, logger *logrus.Entry) *cloudwatchMetricSink {
 	return &cloudwatchMetricSink{
 		endpoint:            endpoint,
 		namespace:           namespace,
 		region:              region,
 		standardUnitTagName: standardUnitTagName,
+		logger:              logger,
 	}
 }
 
@@ -70,6 +72,7 @@ func Create(
 		conf.CloudwatchNamespace,
 		conf.AWSRegion,
 		conf.CloudwatchStandardUnitTagName,
+		logger,
 	), nil
 }
 
@@ -127,6 +130,9 @@ func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.Int
 	if err != nil {
 		return err
 	}
+
+	s.logger.Info(sinks.FlushCompleteMessage)
+
 	return nil
 }
 
