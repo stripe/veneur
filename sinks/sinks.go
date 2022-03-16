@@ -99,4 +99,4 @@ type SpanSink interface {
 	Flush()
 }
 
-const FlushCompleteMessage = "Flush complete"
+const FlushSuccessMessage = "Flush success"

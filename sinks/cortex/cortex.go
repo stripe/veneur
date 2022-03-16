@@ -227,7 +227,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	// We don't send sinks.MetricKeyTotalMetricsSkipped at present, as it would always be 0
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(metrics)), tags))
 
-	s.logger.Info("Flush complete")
+	s.logger.Info(sinks.FlushSuccessMessage)
 
 	return nil
 }

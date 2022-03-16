@@ -120,6 +120,8 @@ func (sink *PrometheusMetricSink) Flush(ctx context.Context, interMetrics []samp
 		conn.Write([]byte(body))
 	}
 
+	sink.logger.Info(sinks.FlushSuccessMessage)
+
 	return nil
 }
 

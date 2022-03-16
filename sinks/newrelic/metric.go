@@ -203,6 +203,8 @@ func (nr *NewRelicMetricSink) Flush(ctx context.Context, interMetrics []samplers
 	// Send the data off to New Relic
 	nr.harvester.HarvestNow(ctx)
 
+	nr.log.Info(sinks.FlushSuccessMessage)
+
 	return nil
 }
 

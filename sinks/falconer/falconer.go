@@ -198,4 +198,5 @@ func (gs *FalconerSpanSink) Flush() {
 	)
 
 	metrics.Report(gs.traceClient, samples)
+	gs.log.Info(sinks.FlushSuccessMessage)
 }

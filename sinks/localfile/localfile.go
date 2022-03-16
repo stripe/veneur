@@ -141,7 +141,12 @@ func (sink *LocalFileSink) Flush(
 	}
 	csvWriter.Flush()
 	gzipWriter.Close()
-	return csvWriter.Error()
+	werr := csvWriter.Error()
+	if werr != nil {
+		return err
+	}
+	sink.Logger.Info(sinks.FlushSuccessMessage)
+	return nil
 }
 
 // Name is the name of the LocalFilePlugin, i.e., "localfile"

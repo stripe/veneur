@@ -613,7 +613,7 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 	sfx.log.WithFields(logrus.Fields{
 		"metrics": len(interMetrics),
 		"success": err == nil,
-	}).Info("Completed flush to SignalFx")
+	}).Info(sinks.FlushSuccessMessage)
 
 	return err
 }

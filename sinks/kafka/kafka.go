@@ -301,6 +301,7 @@ func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.Int
 		successes++
 	}
 	samples.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(successes), map[string]string{"sink": k.Name()}))
+	k.logger.Info(sinks.FlushSuccessMessage)
 	return nil
 }
 
