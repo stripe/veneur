@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/samplers"
@@ -33,11 +33,13 @@ func (t *TestServer) Close() {
 
 // NewTestServer starts a test server instance. Ensure calls are followed by
 // defer server.Close() to avoid hanging connections
-func NewTestServer(t *testing.T) *TestServer {
+func NewTestServer(t *testing.T, handlerDelay time.Duration) *TestServer {
 	result := TestServer{}
 
 	router := http.NewServeMux()
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(handlerDelay)
+
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Error("empty request body")
@@ -65,14 +67,14 @@ func (t *TestServer) Latest() ([]byte, error) {
 func TestName(t *testing.T) {
 	// Implicitly test that cloudwatchMetricsSink implements MetricSink
 	var sink sinks.MetricSink
-	sink = NewCloudwatchMetricSink("http://localhost/", "test", "us-east-1000", "cloudwatch_standard_unit", logrus.NewEntry(logrus.New()))
+	sink = NewCloudwatchMetricSink("http://localhost/", "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, logrus.NewEntry(logrus.New()))
 
 	assert.Equal(t, "cloudwatch", sink.Name())
 }
 
 func TestFlush(t *testing.T) {
 	// Listen for PutMetricData
-	server := NewTestServer(t)
+	server := NewTestServer(t, 0)
 	defer server.Close()
 
 	// input.1.json contains three timeseries samples in InterMetrics format
@@ -82,12 +84,10 @@ func TestFlush(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Call PutMetricData
-	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", logrus.NewEntry(logrus.New()))
-	sink.client = cloudwatch.New(cloudwatch.Options{
-		EndpointResolver: cloudwatch.EndpointResolverFromURL(sink.endpoint),
-		Region:           sink.region,
-	})
-	sink.Flush(context.Background(), metrics)
+	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, logrus.NewEntry(logrus.New()))
+	sink.Start(nil)
+	err = sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
 
 	// Inspect data that was flushed
 	expectedOutput, err := ioutil.ReadFile("testdata/output.1.txt")
@@ -97,7 +97,7 @@ func TestFlush(t *testing.T) {
 
 func TestFlushWithStandardUnitTagName(t *testing.T) {
 	// Listen for PutMetricData
-	server := NewTestServer(t)
+	server := NewTestServer(t, 0)
 	defer server.Close()
 
 	// input.2.json contains one timeseries sample in InterMetrics format, with a unit specified
@@ -107,12 +107,10 @@ func TestFlushWithStandardUnitTagName(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Call PutMetricData
-	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", logrus.NewEntry(logrus.New()))
-	sink.client = cloudwatch.New(cloudwatch.Options{
-		EndpointResolver: cloudwatch.EndpointResolverFromURL(sink.endpoint),
-		Region:           sink.region,
-	})
-	sink.Flush(context.Background(), metrics)
+	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, logrus.NewEntry(logrus.New()))
+	sink.Start(nil)
+	err = sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
 
 	// Inspect data that was flushed, which should have a standard unit and no dimensions
 	expectedOutput, err := ioutil.ReadFile("testdata/output.2.txt")
@@ -122,20 +120,39 @@ func TestFlushWithStandardUnitTagName(t *testing.T) {
 
 func TestFlushNoop(t *testing.T) {
 	// Listen for PutMetricData
-	server := NewTestServer(t)
+	server := NewTestServer(t, 0)
 	defer server.Close()
 
 	// Pass empty metrics slice
 	var metrics []samplers.InterMetric
 
 	// Call PutMetricData
-	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", logrus.NewEntry(logrus.New()))
-	sink.client = cloudwatch.New(cloudwatch.Options{
-		EndpointResolver: cloudwatch.EndpointResolverFromURL(sink.endpoint),
-		Region:           sink.region,
-	})
-	sink.Flush(context.Background(), metrics)
+	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, logrus.NewEntry(logrus.New()))
+	sink.Start(nil)
+	err := sink.Flush(context.Background(), metrics)
 
 	// Assert that the server was never hit
+	assert.NoError(t, err)
 	assert.Equal(t, 0, server.numRequestsSeen)
+}
+
+func TestFlushRemoteTimeout(t *testing.T) {
+	// Server handler should return response after the flush timeout expires
+	customTimeout := time.Second * 1
+	serverDelay := customTimeout + time.Second
+
+	// Listen for PutMetricData
+	server := NewTestServer(t, serverDelay)
+	defer server.Close()
+
+	// Pass non-empty metrics slice
+	metrics := []samplers.InterMetric{{}}
+
+	// Call PutMetricData
+	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", customTimeout, logrus.NewEntry(logrus.New()))
+	sink.Start(nil)
+	err := sink.Flush(context.Background(), metrics)
+
+	// Assert the Flush failed
+	assert.Error(t, err)
 }

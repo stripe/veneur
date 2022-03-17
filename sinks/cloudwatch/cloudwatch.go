@@ -3,7 +3,9 @@ package cloudwatch
 import (
 	"context"
 	"errors"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
@@ -18,17 +20,22 @@ import (
 	"github.com/stripe/veneur/v14/util"
 )
 
-const DefaultCloudwatchStandardUnitTagName = "cloudwatch_standard_unit"
+const (
+	DefaultCloudwatchStandardUnitTagName = "cloudwatch_standard_unit"
+	DefaultRemoteTimeout                 = time.Duration(30 * time.Second)
+)
 
 type CloudwatchMetricSinkConfig struct {
 	AWSRegion                     string             `yaml:"aws_region"`
 	CloudwatchEndpoint            string             `yaml:"cloudwatch_endpoint"`
 	CloudwatchNamespace           string             `yaml:"cloudwatch_namespace"`
 	CloudwatchStandardUnitTagName types.StandardUnit `yaml:"cloudwatch_standard_unit_tag_name"`
+	RemoteTimeout                 time.Duration      `yaml:"remote_timeout"`
 }
 
 type cloudwatchMetricSink struct {
 	logger              *logrus.Entry
+	remoteTimeout       time.Duration
 	client              *cloudwatch.Client
 	endpoint            string
 	region              string
@@ -36,13 +43,14 @@ type cloudwatchMetricSink struct {
 	standardUnitTagName types.StandardUnit
 }
 
-func NewCloudwatchMetricSink(endpoint, namespace, region string, standardUnitTagName types.StandardUnit, logger *logrus.Entry) *cloudwatchMetricSink {
+func NewCloudwatchMetricSink(endpoint, namespace, region string, standardUnitTagName types.StandardUnit, remoteTimeout time.Duration, logger *logrus.Entry) *cloudwatchMetricSink {
 	return &cloudwatchMetricSink{
 		endpoint:            endpoint,
 		namespace:           namespace,
 		region:              region,
 		standardUnitTagName: standardUnitTagName,
 		logger:              logger,
+		remoteTimeout:       remoteTimeout,
 	}
 }
 
@@ -54,6 +62,9 @@ func ParseConfig(name string, config interface{}) (veneur.MetricSinkConfig, erro
 	}
 	if cloudwatchConfig.CloudwatchStandardUnitTagName == "" {
 		cloudwatchConfig.CloudwatchStandardUnitTagName = DefaultCloudwatchStandardUnitTagName
+	}
+	if cloudwatchConfig.RemoteTimeout == 0 {
+		cloudwatchConfig.RemoteTimeout = DefaultRemoteTimeout
 	}
 	return cloudwatchConfig, nil
 }
@@ -72,6 +83,7 @@ func Create(
 		conf.CloudwatchNamespace,
 		conf.AWSRegion,
 		conf.CloudwatchStandardUnitTagName,
+		conf.RemoteTimeout,
 		logger,
 	), nil
 }
@@ -87,6 +99,11 @@ func (s *cloudwatchMetricSink) Start(*trace.Client) error {
 	}
 	if s.region != "" {
 		opts.Region = s.region
+	}
+	if s.remoteTimeout != 0 {
+		opts.HTTPClient = &http.Client{
+			Timeout: s.remoteTimeout,
+		}
 	}
 	s.client = cloudwatch.New(opts)
 	return nil
