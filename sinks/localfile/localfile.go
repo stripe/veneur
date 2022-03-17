@@ -143,7 +143,7 @@ func (sink *LocalFileSink) Flush(
 	gzipWriter.Close()
 	werr := csvWriter.Error()
 	if werr != nil {
-		return err
+		return werr
 	}
 	sink.Logger.Info(sinks.FlushSuccessMessage)
 	return nil
