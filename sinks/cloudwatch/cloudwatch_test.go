@@ -65,10 +65,10 @@ func (t *TestServer) Latest() ([]byte, error) {
 }
 
 func TestName(t *testing.T) {
-	// Implicitly test that cloudwatchMetricsSink implements MetricSink
-	var sink sinks.MetricSink
-	sink = NewCloudwatchMetricSink("http://localhost/", "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, logrus.NewEntry(logrus.New()))
+	// Assert that cloudwatchMetricsSink implements MetricSink
+	var _ sinks.MetricSink = (*cloudwatchMetricSink)(nil)
 
+	sink := NewCloudwatchMetricSink("http://localhost/", "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, logrus.NewEntry(logrus.New()))
 	assert.Equal(t, "cloudwatch", sink.Name())
 }
 
