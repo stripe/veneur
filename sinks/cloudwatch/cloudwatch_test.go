@@ -1,4 +1,4 @@
-package cloudwatch_test
+package cloudwatch
 
 import (
 	"context"
