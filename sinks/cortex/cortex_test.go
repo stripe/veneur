@@ -20,15 +20,11 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/samplers"
-	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/util"
 )
 
 func TestName(t *testing.T) {
-	// Assert that cloudwatchMetricsSink implements MetricSink
-	var _ sinks.MetricSink = (*CortexMetricSink)(nil)
-
 	sink, err := NewCortexMetricSink("https://localhost/", 30, "", logrus.NewEntry(logrus.New()), "cortex", map[string]string{}, map[string]string{}, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, "cortex", sink.Name())

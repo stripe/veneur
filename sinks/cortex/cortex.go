@@ -47,6 +47,8 @@ type CortexMetricSink struct {
 	basicAuth     *BasicAuthType
 }
 
+var _ sinks.MetricSink = (*CortexMetricSink)(nil)
+
 type BasicAuthType struct {
 	Username util.StringSecret `yaml:"username"`
 	Password util.StringSecret `yaml:"password"`

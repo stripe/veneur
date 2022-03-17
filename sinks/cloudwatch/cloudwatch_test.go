@@ -14,7 +14,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/samplers"
-	"github.com/stripe/veneur/v14/sinks"
 )
 
 // TestServer wraps an internal httptest.Server and provides a convenience
@@ -65,9 +64,6 @@ func (t *TestServer) Latest() ([]byte, error) {
 }
 
 func TestName(t *testing.T) {
-	// Assert that cloudwatchMetricsSink implements MetricSink
-	var _ sinks.MetricSink = (*cloudwatchMetricSink)(nil)
-
 	sink := NewCloudwatchMetricSink("http://localhost/", "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, logrus.NewEntry(logrus.New()))
 	assert.Equal(t, "cloudwatch", sink.Name())
 }

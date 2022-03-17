@@ -43,6 +43,8 @@ type cloudwatchMetricSink struct {
 	standardUnitTagName types.StandardUnit
 }
 
+var _ sinks.MetricSink = (*cloudwatchMetricSink)(nil)
+
 func NewCloudwatchMetricSink(endpoint, namespace, region string, standardUnitTagName types.StandardUnit, remoteTimeout time.Duration, logger *logrus.Entry) *cloudwatchMetricSink {
 	return &cloudwatchMetricSink{
 		endpoint:            endpoint,
