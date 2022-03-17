@@ -145,7 +145,6 @@ func (sink *LocalFileSink) Flush(
 	if werr != nil {
 		return werr
 	}
-	sink.Logger.Info(sinks.FlushSuccessMessage)
 	return nil
 }
 

@@ -83,7 +83,6 @@ func (b *debugMetricSink) Flush(ctx context.Context, metrics []samplers.InterMet
 		}
 		b.log.Debugf("  %s: %s(%v) = %f%s", m.Type, m.Name, m.Tags, m.Value, msg)
 	}
-	b.log.Info(sinks.FlushSuccessMessage)
 	return nil
 }
 

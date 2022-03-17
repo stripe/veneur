@@ -147,9 +147,6 @@ func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.Int
 	if err != nil {
 		return err
 	}
-
-	s.logger.Info(sinks.FlushSuccessMessage)
-
 	return nil
 }
 

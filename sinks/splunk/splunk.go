@@ -494,7 +494,6 @@ func (sss *splunkSpanSink) Flush() {
 	)
 
 	metrics.Report(sss.traceClient, samples)
-	sss.log.Info(sinks.FlushSuccessMessage)
 }
 
 // Ingest takes in a span and batches it up to be sent in the next

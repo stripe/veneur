@@ -236,7 +236,7 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 	span.Add(
 		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(ddmetrics)), tags),
 	)
-	dd.log.WithField("metrics", len(ddmetrics)).Info(sinks.FlushSuccessMessage)
+	dd.log.WithField("metrics", len(ddmetrics)).Info("flushed")
 	return nil
 }
 
