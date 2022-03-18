@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,13 +17,42 @@ import (
 	"github.com/stripe/veneur/v14/samplers"
 )
 
+type TestState struct {
+	mutex           sync.Mutex
+	data            []byte
+	numRequestsSeen int
+}
+
+func (s *TestState) GetNumRequestsSeen() int {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	return s.numRequestsSeen
+}
+
+func (s *TestState) IncrementNumRequestsSeen() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.numRequestsSeen++
+}
+
+func (s *TestState) GetData() []byte {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	return s.data
+}
+
+func (s *TestState) SetData(data []byte) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	s.data = data
+}
+
 // TestServer wraps an internal httptest.Server and provides a convenience
 // method for retrieving the most recently written series
 type TestServer struct {
-	URL             string
-	data            []byte
-	server          *httptest.Server
-	numRequestsSeen int
+	URL       string
+	server    *httptest.Server
+	testState TestState
 }
 
 // Close closes the internal test server
@@ -43,8 +73,8 @@ func NewTestServer(t *testing.T, handlerDelay time.Duration) *TestServer {
 		if err != nil {
 			t.Error("empty request body")
 		}
-		result.data = b
-		result.numRequestsSeen += 1
+		result.testState.SetData(b)
+		result.testState.IncrementNumRequestsSeen()
 	})
 
 	server := httptest.NewServer(router)
@@ -57,10 +87,11 @@ func NewTestServer(t *testing.T, handlerDelay time.Duration) *TestServer {
 
 // Latest returns the most recent write request, or errors if there was none
 func (t *TestServer) Latest() ([]byte, error) {
-	if t.data == nil {
+	data := t.testState.GetData()
+	if data == nil {
 		return nil, errors.New("no data received")
 	}
-	return t.data, nil
+	return data, nil
 }
 
 func TestName(t *testing.T) {
@@ -88,7 +119,9 @@ func TestFlush(t *testing.T) {
 	// Inspect data that was flushed
 	expectedOutput, err := ioutil.ReadFile("testdata/output.1.txt")
 	assert.NoError(t, err)
-	assert.Equal(t, string(expectedOutput), string(server.data))
+	latest, err := server.Latest()
+	assert.NoError(t, err)
+	assert.Equal(t, string(expectedOutput), string(latest))
 }
 
 func TestFlushWithStandardUnitTagName(t *testing.T) {
@@ -111,7 +144,9 @@ func TestFlushWithStandardUnitTagName(t *testing.T) {
 	// Inspect data that was flushed, which should have a standard unit and no dimensions
 	expectedOutput, err := ioutil.ReadFile("testdata/output.2.txt")
 	assert.NoError(t, err)
-	assert.Equal(t, string(expectedOutput), string(server.data))
+	latest, err := server.Latest()
+	assert.NoError(t, err)
+	assert.Equal(t, string(expectedOutput), string(latest))
 }
 
 func TestFlushNoop(t *testing.T) {
@@ -129,7 +164,7 @@ func TestFlushNoop(t *testing.T) {
 
 	// Assert that the server was never hit
 	assert.NoError(t, err)
-	assert.Equal(t, 0, server.numRequestsSeen)
+	assert.Equal(t, 0, server.testState.GetNumRequestsSeen())
 }
 
 func TestFlushRemoteTimeout(t *testing.T) {
