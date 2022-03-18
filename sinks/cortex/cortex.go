@@ -47,6 +47,8 @@ type CortexMetricSink struct {
 	basicAuth     *BasicAuthType
 }
 
+var _ sinks.MetricSink = (*CortexMetricSink)(nil)
+
 type BasicAuthType struct {
 	Username util.StringSecret `yaml:"username"`
 	Password util.StringSecret `yaml:"password"`
@@ -226,8 +228,6 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	tags := map[string]string{"sink": s.name, "sink_type": "cortex"}
 	// We don't send sinks.MetricKeyTotalMetricsSkipped at present, as it would always be 0
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(metrics)), tags))
-
-	s.logger.Info("Flush complete")
 
 	return nil
 }

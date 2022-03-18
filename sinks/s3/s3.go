@@ -148,7 +148,7 @@ func (p *S3Sink) Flush(
 		return err
 	}
 
-	p.Logger.WithField("metrics", len(metrics)).Debug("Completed flush to s3")
+	p.Logger.WithField("metrics", len(metrics)).Info("flushed")
 	return nil
 }
 

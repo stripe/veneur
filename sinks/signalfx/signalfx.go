@@ -610,10 +610,7 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		span.Error(err)
 	}
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(numPoints), tags))
-	sfx.log.WithFields(logrus.Fields{
-		"metrics": len(interMetrics),
-		"success": err == nil,
-	}).Info("Completed flush to SignalFx")
+	sfx.log.WithField("metrics", len(interMetrics)).Info("flushed")
 
 	return err
 }

@@ -137,13 +137,20 @@ func (s *Server) Flush(ctx context.Context) {
 			}
 			flushStart := time.Now()
 			err := ms.Flush(span.Attach(ctx), filteredMetrics)
+			if err == nil {
+				s.logger.WithFields(logrus.Fields{
+					"sink":    ms.Name(),
+					"success": true,
+				}).Info(sinks.FlushCompleteMessage)
+			} else {
+				s.logger.WithError(err).WithFields(logrus.Fields{
+					"sink":    ms.Name(),
+					"success": false,
+				}).Warn(sinks.FlushCompleteMessage)
+			}
 			span.Add(ssf.Timing(
 				sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
 				time.Nanosecond, map[string]string{"sink": ms.Name()}))
-			if err != nil {
-				s.logger.WithError(err).WithField("sink", ms.Name()).
-					Warn("Error flushing sink")
-			}
 			wg.Done()
 		}(sink)
 	}

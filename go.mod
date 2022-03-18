@@ -8,6 +8,8 @@ require (
 	github.com/Shopify/toxiproxy v2.1.4+incompatible // indirect
 	github.com/araddon/dateparse v0.0.0-20180318191655-f58c961370c5
 	github.com/aws/aws-sdk-go v1.31.13
+	github.com/aws/aws-sdk-go-v2 v1.15.0
+	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.17.0
 	github.com/axiomhq/hyperloglog v0.0.0-20171114175703-8300947202c9
 	github.com/dgryski/go-bits v0.0.0-20160601073636-2ad8d707cc05 // indirect
 	github.com/dgryski/go-metro v0.0.0-20170608043646-0f6473574cdf // indirect

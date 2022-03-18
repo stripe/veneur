@@ -98,3 +98,5 @@ type SpanSink interface {
 	// signal for the sink to write out if it was buffering or something.
 	Flush()
 }
+
+const FlushCompleteMessage = "Flush complete"
