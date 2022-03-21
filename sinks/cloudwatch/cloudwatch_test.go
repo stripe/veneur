@@ -87,6 +87,8 @@ func NewTestServer(t *testing.T, handlerDelay time.Duration) *TestServer {
 
 // Latest returns the most recent write request, or errors if there was none
 func (t *TestServer) Latest() ([]byte, error) {
+	timeout := time.After(3 * time.Second)
+	<-timeout
 	data := t.testState.GetData()
 	if data == nil {
 		return nil, errors.New("no data received")
@@ -164,6 +166,8 @@ func TestFlushNoop(t *testing.T) {
 
 	// Assert that the server was never hit
 	assert.NoError(t, err)
+	timeout := time.After(3 * time.Second)
+	<-timeout
 	assert.Equal(t, 0, server.testState.GetNumRequestsSeen())
 }
 
