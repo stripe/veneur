@@ -27,6 +27,7 @@ const (
 
 type CloudwatchMetricSinkConfig struct {
 	AWSRegion                     string             `yaml:"aws_region"`
+	AWSDisableRetries             bool               `yaml:"aws_disable_retries"`
 	CloudwatchEndpoint            string             `yaml:"cloudwatch_endpoint"`
 	CloudwatchNamespace           string             `yaml:"cloudwatch_namespace"`
 	CloudwatchStandardUnitTagName types.StandardUnit `yaml:"cloudwatch_standard_unit_tag_name"`
@@ -41,11 +42,15 @@ type cloudwatchMetricSink struct {
 	region              string
 	namespace           string
 	standardUnitTagName types.StandardUnit
+	disableRetries      bool
 }
 
 var _ sinks.MetricSink = (*cloudwatchMetricSink)(nil)
 
-func NewCloudwatchMetricSink(endpoint, namespace, region string, standardUnitTagName types.StandardUnit, remoteTimeout time.Duration, logger *logrus.Entry) *cloudwatchMetricSink {
+func NewCloudwatchMetricSink(
+	endpoint, namespace, region string, standardUnitTagName types.StandardUnit,
+	remoteTimeout time.Duration, disableRetries bool, logger *logrus.Entry,
+) *cloudwatchMetricSink {
 	return &cloudwatchMetricSink{
 		endpoint:            endpoint,
 		namespace:           namespace,
@@ -53,6 +58,7 @@ func NewCloudwatchMetricSink(endpoint, namespace, region string, standardUnitTag
 		standardUnitTagName: standardUnitTagName,
 		logger:              logger,
 		remoteTimeout:       remoteTimeout,
+		disableRetries:      disableRetries,
 	}
 }
 
@@ -86,6 +92,7 @@ func Create(
 		conf.AWSRegion,
 		conf.CloudwatchStandardUnitTagName,
 		conf.RemoteTimeout,
+		conf.AWSDisableRetries,
 		logger,
 	), nil
 }
@@ -106,6 +113,9 @@ func (s *cloudwatchMetricSink) Start(*trace.Client) error {
 		opts.HTTPClient = &http.Client{
 			Timeout: s.remoteTimeout,
 		}
+	}
+	if s.disableRetries {
+		opts.Retryer = aws.NopRetryer{}
 	}
 	s.client = cloudwatch.New(opts)
 	return nil

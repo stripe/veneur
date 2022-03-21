@@ -19,9 +19,8 @@ import (
 // TestServer wraps an internal httptest.Server and provides a convenience
 // method for retrieving the most recently written series
 type TestServer struct {
-	URL       string
-	server    *httptest.Server
-	reqBodyCh chan []byte
+	URL    string
+	server *httptest.Server
 }
 
 // Close closes the internal test server
@@ -31,7 +30,7 @@ func (t *TestServer) Close() {
 
 // NewTestServer starts a test server instance. Ensure calls are followed by
 // defer server.Close() to avoid hanging connections
-func NewTestServer(t *testing.T, handlerDelay time.Duration) *TestServer {
+func NewTestServer(t *testing.T, handlerDelay time.Duration, reqBodyCh chan []byte) *TestServer {
 	result := TestServer{}
 
 	router := http.NewServeMux()
@@ -42,7 +41,7 @@ func NewTestServer(t *testing.T, handlerDelay time.Duration) *TestServer {
 		if err != nil {
 			t.Error("empty request body")
 		}
-		result.reqBodyCh <- b
+		reqBodyCh <- b
 	})
 
 	server := httptest.NewServer(router)
@@ -53,11 +52,11 @@ func NewTestServer(t *testing.T, handlerDelay time.Duration) *TestServer {
 	return &result
 }
 
-// Latest returns the most recent write request, or errors if there was none
-func (t *TestServer) Latest() ([]byte, error) {
-	timeout := time.After(3 * time.Second)
+// latest returns the most recent write request, or errors if there was none
+func latest(reqBodyCh chan []byte, timeoutSecs int) ([]byte, error) {
+	timeout := time.After(time.Duration(timeoutSecs) * time.Second)
 	select {
-	case data := <-t.reqBodyCh:
+	case data := <-reqBodyCh:
 		return data, nil
 	case <-timeout:
 		return nil, errors.New("no data received")
@@ -65,13 +64,14 @@ func (t *TestServer) Latest() ([]byte, error) {
 }
 
 func TestName(t *testing.T) {
-	sink := NewCloudwatchMetricSink("http://localhost/", "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, logrus.NewEntry(logrus.New()))
+	sink := NewCloudwatchMetricSink("http://localhost/", "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, true, logrus.NewEntry(logrus.New()))
 	assert.Equal(t, "cloudwatch", sink.Name())
 }
 
 func TestFlush(t *testing.T) {
 	// Listen for PutMetricData
-	server := NewTestServer(t, 0)
+	reqBodyCh := make(chan []byte)
+	server := NewTestServer(t, 0, reqBodyCh)
 	defer server.Close()
 
 	// input.1.json contains three timeseries samples in InterMetrics format
@@ -80,23 +80,32 @@ func TestFlush(t *testing.T) {
 	var metrics []samplers.InterMetric
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
-	// Call PutMetricData
-	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, logrus.NewEntry(logrus.New()))
+	// Initialize sink
+	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, true, logrus.NewEntry(logrus.New()))
 	sink.Start(nil)
+
+	// Assert data is as we expect
+	done := make(chan bool)
+	go func(reqBodyCh chan []byte, done chan bool) {
+		expectedOutput, err := ioutil.ReadFile("testdata/output.1.txt")
+		assert.NoError(t, err)
+		data, err := latest(reqBodyCh, 3)
+		assert.NoError(t, err)
+		assert.Equal(t, string(expectedOutput), string(data))
+		done <- true
+	}(reqBodyCh, done)
+
+	// Flush the sink
 	err = sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 
-	// Inspect data that was flushed
-	expectedOutput, err := ioutil.ReadFile("testdata/output.1.txt")
-	assert.NoError(t, err)
-	latest, err := server.Latest()
-	assert.NoError(t, err)
-	assert.Equal(t, string(expectedOutput), string(latest))
+	<-done
 }
 
 func TestFlushWithStandardUnitTagName(t *testing.T) {
 	// Listen for PutMetricData
-	server := NewTestServer(t, 0)
+	reqBodyCh := make(chan []byte)
+	server := NewTestServer(t, 0, reqBodyCh)
 	defer server.Close()
 
 	// input.2.json contains one timeseries sample in InterMetrics format, with a unit specified
@@ -105,37 +114,54 @@ func TestFlushWithStandardUnitTagName(t *testing.T) {
 	var metrics []samplers.InterMetric
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
-	// Call PutMetricData
-	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, logrus.NewEntry(logrus.New()))
+	// Initialize sink
+	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, true, logrus.NewEntry(logrus.New()))
 	sink.Start(nil)
+
+	// Inspect data that was flushed, which should have a standard unit and no dimensions
+	done := make(chan bool)
+	go func(reqBodyCh chan []byte, done chan bool) {
+		expectedOutput, err := ioutil.ReadFile("testdata/output.2.txt")
+		assert.NoError(t, err)
+		data, err := latest(reqBodyCh, 3)
+		assert.NoError(t, err)
+		assert.Equal(t, string(expectedOutput), string(data))
+		done <- true
+	}(reqBodyCh, done)
+
+	// Flush the sink
 	err = sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 
-	// Inspect data that was flushed, which should have a standard unit and no dimensions
-	expectedOutput, err := ioutil.ReadFile("testdata/output.2.txt")
-	assert.NoError(t, err)
-	latest, err := server.Latest()
-	assert.NoError(t, err)
-	assert.Equal(t, string(expectedOutput), string(latest))
+	<-done
 }
 
 func TestFlushNoop(t *testing.T) {
 	// Listen for PutMetricData
-	server := NewTestServer(t, 0)
+	reqBodyCh := make(chan []byte)
+	server := NewTestServer(t, 0, reqBodyCh)
 	defer server.Close()
 
 	// Pass empty metrics slice
 	var metrics []samplers.InterMetric
 
-	// Call PutMetricData
-	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, logrus.NewEntry(logrus.New()))
+	// Initialize the sink
+	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, true, logrus.NewEntry(logrus.New()))
 	sink.Start(nil)
-	err := sink.Flush(context.Background(), metrics)
 
-	// Assert that the server was never hit
+	// Assert the server was never hit
+	done := make(chan bool)
+	go func(reqBodyCh chan []byte, done chan bool) {
+		_, err := latest(reqBodyCh, 3)
+		assert.Error(t, err)
+		done <- true
+	}(reqBodyCh, done)
+
+	// Flush the sink
+	err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
-	_, err = server.Latest()
-	assert.Error(t, err)
+
+	<-done
 }
 
 func TestFlushRemoteTimeout(t *testing.T) {
@@ -144,17 +170,27 @@ func TestFlushRemoteTimeout(t *testing.T) {
 	serverDelay := customTimeout + time.Second
 
 	// Listen for PutMetricData
-	server := NewTestServer(t, serverDelay)
+	reqBodyCh := make(chan []byte)
+	server := NewTestServer(t, serverDelay, reqBodyCh)
 	defer server.Close()
 
 	// Pass non-empty metrics slice
 	metrics := []samplers.InterMetric{{}}
 
-	// Call PutMetricData
-	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", customTimeout, logrus.NewEntry(logrus.New()))
+	// Initialize the sink
+	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", customTimeout, true, logrus.NewEntry(logrus.New()))
 	sink.Start(nil)
-	err := sink.Flush(context.Background(), metrics)
 
-	// Assert the Flush failed
+	// Make sure that the server can Close, eventually
+	done := make(chan bool)
+	go func(reqBodyCh chan []byte, done chan bool) {
+		<-reqBodyCh
+		done <- true
+	}(reqBodyCh, done)
+
+	// Assert the flush failed
+	err := sink.Flush(context.Background(), metrics)
 	assert.Error(t, err)
+
+	<-done
 }
