@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"sync"
 	"testing"
 	"time"
 
@@ -17,42 +16,12 @@ import (
 	"github.com/stripe/veneur/v14/samplers"
 )
 
-type TestState struct {
-	mutex           sync.Mutex
-	data            []byte
-	numRequestsSeen int
-}
-
-func (s *TestState) GetNumRequestsSeen() int {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	return s.numRequestsSeen
-}
-
-func (s *TestState) IncrementNumRequestsSeen() {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	s.numRequestsSeen++
-}
-
-func (s *TestState) GetData() []byte {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	return s.data
-}
-
-func (s *TestState) SetData(data []byte) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	s.data = data
-}
-
 // TestServer wraps an internal httptest.Server and provides a convenience
 // method for retrieving the most recently written series
 type TestServer struct {
 	URL       string
 	server    *httptest.Server
-	testState TestState
+	reqBodyCh chan []byte
 }
 
 // Close closes the internal test server
@@ -73,8 +42,7 @@ func NewTestServer(t *testing.T, handlerDelay time.Duration) *TestServer {
 		if err != nil {
 			t.Error("empty request body")
 		}
-		result.testState.SetData(b)
-		result.testState.IncrementNumRequestsSeen()
+		result.reqBodyCh <- b
 	})
 
 	server := httptest.NewServer(router)
@@ -88,12 +56,12 @@ func NewTestServer(t *testing.T, handlerDelay time.Duration) *TestServer {
 // Latest returns the most recent write request, or errors if there was none
 func (t *TestServer) Latest() ([]byte, error) {
 	timeout := time.After(3 * time.Second)
-	<-timeout
-	data := t.testState.GetData()
-	if data == nil {
+	select {
+	case data := <-t.reqBodyCh:
+		return data, nil
+	case <-timeout:
 		return nil, errors.New("no data received")
 	}
-	return data, nil
 }
 
 func TestName(t *testing.T) {
@@ -166,9 +134,8 @@ func TestFlushNoop(t *testing.T) {
 
 	// Assert that the server was never hit
 	assert.NoError(t, err)
-	timeout := time.After(3 * time.Second)
-	<-timeout
-	assert.Equal(t, 0, server.testState.GetNumRequestsSeen())
+	_, err = server.Latest()
+	assert.Error(t, err)
 }
 
 func TestFlushRemoteTimeout(t *testing.T) {
