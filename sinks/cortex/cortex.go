@@ -178,27 +178,44 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		return s.writeMetrics(ctx, metrics)
 	}
 
-	var batch []samplers.InterMetric
-	for i := 0; i < len(metrics); i++ {
-		batch = append(batch, metrics[i])
-		if i > 0 && i%s.batchWriteSize == 0 {
-			err := s.writeMetrics(ctx, batch)
-			if err != nil {
-				return err
-			}
-
-			batch = []samplers.InterMetric{}
+	doIfNotDone := func(fn func() error) error {
+		select {
+		case <-ctx.Done():
+			return errors.New("context finished before completing metrics flush")
+		default:
+			return fn()
 		}
 	}
 
-	if len(batch) > 0 {
-		err := s.writeMetrics(ctx, metrics)
+	var batch []samplers.InterMetric
+	for i, metric := range metrics {
+		err := doIfNotDone(func() error {
+			batch = append(batch, metric)
+			if i > 0 && i%s.batchWriteSize == 0 {
+				err := s.writeMetrics(ctx, batch)
+				if err != nil {
+					return err
+				}
+
+				batch = []samplers.InterMetric{}
+			}
+
+			return nil
+		})
+
 		if err != nil {
 			return err
 		}
 	}
 
-	return nil
+	var err error
+	if len(batch) > 0 {
+		err = doIfNotDone(func() error {
+			return s.writeMetrics(ctx, batch)
+		})
+	}
+
+	return err
 }
 
 func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.InterMetric) error {

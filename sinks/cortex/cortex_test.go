@@ -85,12 +85,12 @@ func TestChunkedWrites(t *testing.T)  {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 1)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 3)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
 	// input.json contains three timeseries samples in InterMetrics format
-	jsInput, err := ioutil.ReadFile("testdata/input.json")
+	jsInput, err := ioutil.ReadFile("testdata/chunked_input.json")
 	assert.NoError(t, err)
 	var metrics []samplers.InterMetric
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
@@ -98,24 +98,41 @@ func TestChunkedWrites(t *testing.T)  {
 	// Perform the flush to the test server
 	assert.NoError(t, sink.Flush(context.Background(), metrics))
 
-	// Retrieve the requests which the server received
-	history := server.History()
-	//  Load in the expected data and compare
-	expected, err := ioutil.ReadFile("testdata/expected.json")
+	// There are 12 writes in input and our batch size is 3 so we expect 4 write requests
+	assert.Equal(t, 4, len(server.History()))
+}
+
+func TestChunkedWritesRespectContextCancellation(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Set up a sink
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 3)
 	assert.NoError(t, err)
-	wrs := []prompb.WriteRequest{}
-	assert.NoError(t, json.Unmarshal(expected, &wrs))
+	assert.NoError(t, sink.Start(trace.DefaultClient))
 
-	for i, h := range history {
-		// Pretty-print output for readability, and to match expected
-		actual, err := json.MarshalIndent(h.data, "", "  ")
-		assert.NoError(t, err)
+	// input.json contains three timeseries samples in InterMetrics format
+	jsInput, err := ioutil.ReadFile("testdata/chunked_input.json")
+	assert.NoError(t, err)
+	var metrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
-		expectedInstance, err := json.MarshalIndent(wrs[i], "", "  ")
-		assert.NoError(t, err)
+	ctx, cancel := context.WithCancel(context.Background())
+	requestCount := 0
 
-		assert.Equal(t, string(expectedInstance), string(actual))
-	}
+	server.onRequest(func() {
+		requestCount++
+		if requestCount == 2 {
+			cancel()
+		}
+	})
+
+	// Perform the flush to the test server
+	assert.Error(t, sink.Flush(ctx, metrics))
+
+	// we're cancelling after 2 so we should only see 2 chunks written
+	assert.Equal(t, 2, len(server.History()))
 }
 
 func TestCustomHeaders(t *testing.T) {
@@ -351,11 +368,12 @@ type RequestHistory struct {
 // TestServer wraps an internal httptest.Server and provides a convenience
 // method for retrieving the most recently written series
 type TestServer struct {
-	URL     string
-	headers *http.Header
-	data    *prompb.WriteRequest
-	server  *httptest.Server
-	history []*RequestHistory
+	URL       string
+	headers   *http.Header
+	data      *prompb.WriteRequest
+	server    *httptest.Server
+	history   []*RequestHistory
+	requestFn func()
 }
 
 // Close closes the internal test server
@@ -373,6 +391,10 @@ func (t *TestServer) Latest() (*prompb.WriteRequest, *http.Header, error) {
 
 func (t *TestServer) History() []*RequestHistory {
 	return t.history
+}
+
+func (t *TestServer) onRequest(fn func()) {
+	t.requestFn = fn
 }
 
 // NewTestServer starts a test server instance. Ensure calls are followed by
@@ -403,6 +425,10 @@ func NewTestServer(t *testing.T) *TestServer {
 			data:    wr,
 			headers: &r.Header,
 		})
+
+		if result.requestFn != nil {
+			result.requestFn()
+		}
 	})
 
 	server := httptest.NewServer(router)
