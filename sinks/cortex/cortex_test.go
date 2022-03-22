@@ -79,7 +79,7 @@ func TestFlush(t *testing.T) {
 	assert.Equal(t, string(expected), string(actual))
 }
 
-func TestChunkedWrites(t *testing.T)  {
+func TestChunkedWrites(t *testing.T) {
 	// Listen for prometheus writes
 	server := NewTestServer(t)
 	defer server.Close()
@@ -384,7 +384,7 @@ func BenchmarkSanitise(b *testing.B) {
 }
 
 type RequestHistory struct {
-	data 	*prompb.WriteRequest
+	data    *prompb.WriteRequest
 	headers *http.Header
 }
 
