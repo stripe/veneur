@@ -35,16 +35,17 @@ const (
 // using the prometheus remote-write API. For specifications, see
 // https://github.com/prometheus/compliance/tree/main/remote_write
 type CortexMetricSink struct {
-	URL           string
-	RemoteTimeout time.Duration
-	ProxyURL      string
-	Client        *http.Client
-	logger        *logrus.Entry
-	name          string
-	tags          map[string]string
-	traceClient   *trace.Client
-	addHeaders    map[string]string
-	basicAuth     *BasicAuthType
+	URL            string
+	RemoteTimeout  time.Duration
+	ProxyURL       string
+	Client         *http.Client
+	logger         *logrus.Entry
+	name           string
+	tags           map[string]string
+	traceClient    *trace.Client
+	addHeaders     map[string]string
+	basicAuth      *BasicAuthType
+	batchWriteSize int
 }
 
 var _ sinks.MetricSink = (*CortexMetricSink)(nil)
@@ -58,12 +59,13 @@ type BasicAuthType struct {
 // max_samples_per_send, max_shards, and capacity
 // https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
 type CortexMetricSinkConfig struct {
-	URL           string            `yaml:"url"`
-	RemoteTimeout time.Duration     `yaml:"remote_timeout"`
-	ProxyURL      string            `yaml:"proxy_url"`
-	Headers       map[string]string `yaml:"headers"`
-	BasicAuth     BasicAuthType     `yaml:"basic_auth"`
-	Authorization struct {
+	URL            string            `yaml:"url"`
+	RemoteTimeout  time.Duration     `yaml:"remote_timeout"`
+	ProxyURL       string            `yaml:"proxy_url"`
+	BatchWriteSize int 				 `yaml:"batch_write_size"`
+	Headers        map[string]string `yaml:"headers"`
+	BasicAuth      BasicAuthType     `yaml:"basic_auth"`
+	Authorization  struct {
 		Type       string            `yaml:"type"`
 		Credential util.StringSecret `yaml:"credentials"`
 	} `yaml:"authorization"`
@@ -94,7 +96,7 @@ func Create(
 		basicAuth = &conf.BasicAuth
 	}
 
-	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, tags, headers, basicAuth)
+	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, tags, headers, basicAuth, conf.BatchWriteSize)
 }
 
 // ParseConfig extracts Cortex specific fields from the global veneur config
@@ -124,16 +126,17 @@ func ParseConfig(
 }
 
 // NewCortexMetricSink creates and returns a new instance of the sink
-func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string, headers map[string]string, basicAuth *BasicAuthType) (*CortexMetricSink, error) {
+func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string, headers map[string]string, basicAuth *BasicAuthType, batchWriteSize int) (*CortexMetricSink, error) {
 	return &CortexMetricSink{
-		URL:           URL,
-		RemoteTimeout: timeout,
-		ProxyURL:      proxyURL,
-		tags:          tags,
-		logger:        logger.WithFields(logrus.Fields{"sink_type": "cortex"}),
-		name:          name,
-		addHeaders:    headers,
-		basicAuth:     basicAuth,
+		URL:            URL,
+		RemoteTimeout:  timeout,
+		ProxyURL:       proxyURL,
+		tags:           tags,
+		logger:         logger.WithFields(logrus.Fields{"sink_type": "cortex"}),
+		name:           name,
+		addHeaders:     headers,
+		basicAuth:      basicAuth,
+		batchWriteSize: batchWriteSize,
 	}, nil
 }
 
@@ -171,6 +174,34 @@ func (s *CortexMetricSink) Start(tc *trace.Client) error {
 
 // Flush sends a batch of metrics to the configured remote-write endpoint
 func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+	if s.batchWriteSize == 0 || len(metrics) == s.batchWriteSize {
+		return s.writeMetrics(ctx, metrics)
+	}
+
+	var batch []samplers.InterMetric
+	for i := 0; i < len(metrics); i++ {
+		batch = append(batch, metrics[i])
+		if i > 0 && i%s.batchWriteSize == 0 {
+			err := s.writeMetrics(ctx, batch)
+			if err != nil {
+				return err
+			}
+
+			batch = []samplers.InterMetric{}
+		}
+	}
+
+	if len(batch) > 0 {
+		err := s.writeMetrics(ctx, metrics)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.InterMetric) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 
