@@ -481,7 +481,7 @@ func TestConvertHistogram(t *testing.T) {
 
 	if assert.Len(t, results, 4) {
 		assert.Equal(t, "counter", results[0].Type)
-		assert.Equal(t, "metric_name", results[0].Name)
+		assert.Equal(t, "metric_name.bucket", results[0].Name)
 		if assert.Len(t, results[0].Tags, 3) {
 			assert.Equal(t, "tag1:value1", results[0].Tags[0])
 			assert.Equal(t, "tag2:value2", results[0].Tags[1])
@@ -491,7 +491,7 @@ func TestConvertHistogram(t *testing.T) {
 		assert.Equal(t, int64(149), results[0].Timestamp)
 
 		assert.Equal(t, "counter", results[1].Type)
-		assert.Equal(t, "metric_name", results[1].Name)
+		assert.Equal(t, "metric_name.bucket", results[1].Name)
 		if assert.Len(t, results[1].Tags, 3) {
 			assert.Equal(t, "tag1:value1", results[1].Tags[0])
 			assert.Equal(t, "tag2:value2", results[1].Tags[1])

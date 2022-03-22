@@ -340,7 +340,7 @@ func (source *OpenMetricsSource) convertHistogram(
 			metrics <- &convertResults{
 				Metric: &samplers.UDPMetric{
 					MetricKey: samplers.MetricKey{
-						Name: *metricFamily.Name,
+						Name: fmt.Sprintf("%s.bucket", *metricFamily.Name),
 						Type: "counter",
 					},
 					SampleRate: 1.0,
