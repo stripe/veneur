@@ -32,6 +32,7 @@ type CloudwatchMetricSinkConfig struct {
 	CloudwatchNamespace           string             `yaml:"cloudwatch_namespace"`
 	CloudwatchStandardUnitTagName types.StandardUnit `yaml:"cloudwatch_standard_unit_tag_name"`
 	RemoteTimeout                 time.Duration      `yaml:"remote_timeout"`
+	StripTags                     []string           `yaml:"strip_tags"`
 }
 
 type cloudwatchMetricSink struct {
@@ -43,13 +44,14 @@ type cloudwatchMetricSink struct {
 	namespace           string
 	standardUnitTagName types.StandardUnit
 	disableRetries      bool
+	stripTags           []string
 }
 
 var _ sinks.MetricSink = (*cloudwatchMetricSink)(nil)
 
 func NewCloudwatchMetricSink(
 	endpoint, namespace, region string, standardUnitTagName types.StandardUnit,
-	remoteTimeout time.Duration, disableRetries bool, logger *logrus.Entry,
+	remoteTimeout time.Duration, disableRetries bool, stripTags []string, logger *logrus.Entry,
 ) *cloudwatchMetricSink {
 	return &cloudwatchMetricSink{
 		endpoint:            endpoint,
@@ -59,6 +61,7 @@ func NewCloudwatchMetricSink(
 		logger:              logger,
 		remoteTimeout:       remoteTimeout,
 		disableRetries:      disableRetries,
+		stripTags:           stripTags,
 	}
 }
 
@@ -93,6 +96,7 @@ func Create(
 		conf.CloudwatchStandardUnitTagName,
 		conf.RemoteTimeout,
 		conf.AWSDisableRetries,
+		conf.StripTags,
 		logger,
 	), nil
 }
@@ -132,13 +136,24 @@ func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.Int
 		standardUnit := types.StandardUnitNone
 		for _, tag := range metric.Tags {
 			kv := strings.SplitN(tag, ":", 2)
+
 			if len(kv) < 2 {
 				continue // drop illegal tag
 			}
+			skip := false
 			if kv[0] == string(s.standardUnitTagName) {
 				standardUnit = types.StandardUnit(kv[1])
+				skip = true
+			}
+			for _, tag := range s.stripTags {
+				if kv[0] == tag {
+					skip = true
+				}
+			}
+			if skip {
 				continue
 			}
+
 			dimensions = append(dimensions, types.Dimension{
 				Name:  aws.String(kv[0]),
 				Value: aws.String(kv[1]),
