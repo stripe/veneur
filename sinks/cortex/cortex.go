@@ -62,7 +62,7 @@ type CortexMetricSinkConfig struct {
 	URL            string            `yaml:"url"`
 	RemoteTimeout  time.Duration     `yaml:"remote_timeout"`
 	ProxyURL       string            `yaml:"proxy_url"`
-	BatchWriteSize int 				 `yaml:"batch_write_size"`
+	BatchWriteSize int               `yaml:"batch_write_size"`
 	Headers        map[string]string `yaml:"headers"`
 	BasicAuth      BasicAuthType     `yaml:"basic_auth"`
 	Authorization  struct {
