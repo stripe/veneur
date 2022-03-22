@@ -174,6 +174,8 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 
+	metricKeyTags := map[string]string{"sink": s.name, "sink_type": "cortex"}
+
 	wr := makeWriteRequest(metrics, s.tags)
 	data, err := proto.Marshal(wr)
 	if err != nil {
@@ -216,6 +218,8 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 
 	// TODO: retry on 400/500 (per remote-write spec)
 	if r.StatusCode >= 300 {
+		defer emitMetricKeyTotalMetricsDropped(span, len(metrics), metricKeyTags)
+
 		b, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			return errors.Wrap(err, "could not read response body")
@@ -225,9 +229,8 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	}
 
 	// Emit standard sink metrics
-	tags := map[string]string{"sink": s.name, "sink_type": "cortex"}
 	// We don't send sinks.MetricKeyTotalMetricsSkipped at present, as it would always be 0
-	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(metrics)), tags))
+	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(metrics)), metricKeyTags))
 
 	return nil
 }
@@ -327,4 +330,8 @@ func sanitise(input string) string {
 		return "_" + string(output)
 	}
 	return string(output)
+}
+
+func emitMetricKeyTotalMetricsDropped(span *trace.Span, dropped int, tags map[string]string) {
+	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsDropped, float32(dropped), tags))
 }
