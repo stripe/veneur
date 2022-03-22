@@ -49,7 +49,7 @@ func (s *Server) Flush(ctx context.Context) {
 
 	// TODO Concurrency
 	for _, sink := range s.metricSinks {
-		sink.FlushOtherSamples(span.Attach(ctx), samples)
+		sink.sink.FlushOtherSamples(span.Attach(ctx), samples)
 	}
 
 	go s.flushTraces(span.Attach(ctx))
@@ -122,35 +122,50 @@ func (s *Server) Flush(ctx context.Context) {
 
 	for _, sink := range s.metricSinks {
 		wg.Add(1)
-		go func(ms sinks.MetricSink) {
+		go func(sink internalMetricSink) {
 			filteredMetrics := finalMetrics
 			if s.Config.Features.EnableMetricSinkRouting {
-				sinkName := ms.Name()
+				sinkName := sink.sink.Name()
 				filteredMetrics = []samplers.InterMetric{}
 				for _, metric := range finalMetrics {
 					_, ok := metric.Sinks[sinkName]
 					if !ok {
 						continue
 					}
+					filteredTags := []string{}
+					if len(sink.stripTags) == 0 {
+						filteredTags = metric.Tags
+					} else {
+					tagLoop:
+						for _, tag := range metric.Tags {
+							for _, tagMatcher := range sink.stripTags {
+								if tagMatcher.match(tag) {
+									continue tagLoop
+								}
+							}
+							filteredTags = append(filteredTags, tag)
+						}
+					}
+					metric.Tags = filteredTags
 					filteredMetrics = append(filteredMetrics, metric)
 				}
 			}
 			flushStart := time.Now()
-			err := ms.Flush(span.Attach(ctx), filteredMetrics)
+			err := sink.sink.Flush(span.Attach(ctx), filteredMetrics)
 			if err == nil {
 				s.logger.WithFields(logrus.Fields{
-					"sink":    ms.Name(),
+					"sink":    sink.sink.Name(),
 					"success": true,
 				}).Info(sinks.FlushCompleteMessage)
 			} else {
 				s.logger.WithError(err).WithFields(logrus.Fields{
-					"sink":    ms.Name(),
+					"sink":    sink.sink.Name(),
 					"success": false,
 				}).Warn(sinks.FlushCompleteMessage)
 			}
 			span.Add(ssf.Timing(
 				sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
-				time.Nanosecond, map[string]string{"sink": ms.Name()}))
+				time.Nanosecond, map[string]string{"sink": sink.sink.Name()}))
 			wg.Done()
 		}(sink)
 	}

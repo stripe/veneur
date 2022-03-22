@@ -165,7 +165,8 @@ type SourceConfig struct {
 }
 
 type SinkConfig struct {
-	Kind   string      `yaml:"kind"`
-	Name   string      `yaml:"name"`
-	Config interface{} `yaml:"config"`
+	Kind      string       `yaml:"kind"`
+	Name      string       `yaml:"name"`
+	Config    interface{}  `yaml:"config"`
+	StripTags []TagMatcher `yaml:"strip_tags"`
 }

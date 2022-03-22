@@ -155,7 +155,7 @@ type Server struct {
 
 	sources     []internalSource
 	spanSinks   []sinks.SpanSink
-	metricSinks []sinks.MetricSink
+	metricSinks []internalMetricSink
 
 	TraceClient *trace.Client
 
@@ -178,6 +178,11 @@ type Server struct {
 type internalSource struct {
 	source sources.Source
 	tags   []string
+}
+
+type internalMetricSink struct {
+	sink      sinks.MetricSink
+	stripTags []TagMatcher
 }
 
 type GlobalListeningPerProtocolMetrics struct {
@@ -391,8 +396,8 @@ func (server *Server) createSpanSinks(
 
 func (server *Server) createMetricSinks(
 	logger *logrus.Logger, config *Config, sinkTypes MetricSinkTypes,
-) ([]sinks.MetricSink, error) {
-	sinks := []sinks.MetricSink{}
+) ([]internalMetricSink, error) {
+	sinks := []internalMetricSink{}
 	for index, sinkConfig := range config.MetricSinks {
 		sinkFactory, ok := sinkTypes[sinkConfig.Kind]
 		if !ok {
@@ -413,7 +418,10 @@ func (server *Server) createMetricSinks(
 		if err != nil {
 			return nil, err
 		}
-		sinks = append(sinks, sink)
+		sinks = append(sinks, internalMetricSink{
+			sink:      sink,
+			stripTags: sinkConfig.StripTags,
+		})
 	}
 	return sinks, nil
 }
@@ -740,8 +748,8 @@ func (s *Server) Start() {
 	}
 
 	for _, sink := range s.metricSinks {
-		logrus.WithField("sink", sink.Name()).Info("Starting metric sink")
-		if err := sink.Start(s.TraceClient); err != nil {
+		logrus.WithField("sink", sink.sink.Name()).Info("Starting metric sink")
+		if err := sink.sink.Start(s.TraceClient); err != nil {
 			logrus.WithError(err).WithField("sink", sink).Fatal("Error starting metric sink")
 		}
 	}
@@ -1437,7 +1445,7 @@ func CalculateTickDelay(interval time.Duration, t time.Time) time.Duration {
 
 // Set the list of tags to exclude on each sink
 func (server *Server) setSinkExcludedTags(
-	excludeRules []string, metricSinks []sinks.MetricSink,
+	excludeRules []string, metricSinks []internalMetricSink,
 	spanSinks []sinks.SpanSink,
 ) {
 	type excludableSink interface {
@@ -1445,10 +1453,10 @@ func (server *Server) setSinkExcludedTags(
 	}
 
 	for _, sink := range metricSinks {
-		if s, ok := sink.(excludableSink); ok {
-			excludedTags := generateExcludedTags(excludeRules, sink.Name())
+		if s, ok := sink.sink.(excludableSink); ok {
+			excludedTags := generateExcludedTags(excludeRules, sink.sink.Name())
 			server.logger.WithFields(logrus.Fields{
-				"sink":         sink.Name(),
+				"sink":         sink.sink.Name(),
 				"excludedTags": excludedTags,
 			}).Info("Setting excluded tags on metric sink")
 			s.SetExcludedTags(excludedTags)

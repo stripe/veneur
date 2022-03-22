@@ -217,11 +217,7 @@ func MigrateConfig(conf *veneur.Config) error {
 		conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod == 0 {
 		conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod = time.Duration(10 * time.Minute)
 	}
-	conf.MetricSinks = append(conf.MetricSinks, struct {
-		Kind   string      "yaml:\"kind\""
-		Name   string      "yaml:\"name\""
-		Config interface{} "yaml:\"config\""
-	}{
+	conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
 		Kind: "signalfx",
 		Name: "signalfx",
 		Config: SignalFxSinkConfig{

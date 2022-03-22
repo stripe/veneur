@@ -109,11 +109,7 @@ func CreateMetricSink(
 // removed.
 func MigrateConfig(conf *veneur.Config) {
 	if conf.DatadogAPIKey.Value != "" && conf.DatadogAPIHostname != "" {
-		conf.MetricSinks = append(conf.MetricSinks, struct {
-			Kind   string      "yaml:\"kind\""
-			Name   string      "yaml:\"name\""
-			Config interface{} "yaml:\"config\""
-		}{
+		conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
 			Kind: "datadog",
 			Name: "datadog",
 			Config: DatadogMetricSinkConfig{
@@ -128,11 +124,7 @@ func MigrateConfig(conf *veneur.Config) {
 
 	// configure Datadog as a Span sink
 	if conf.DatadogAPIKey.Value != "" && conf.DatadogTraceAPIAddress != "" {
-		conf.SpanSinks = append(conf.SpanSinks, struct {
-			Kind   string      "yaml:\"kind\""
-			Name   string      "yaml:\"name\""
-			Config interface{} "yaml:\"config\""
-		}{
+		conf.SpanSinks = append(conf.SpanSinks, veneur.SinkConfig{
 			Kind: "datadog",
 			Name: "datadog",
 			Config: DatadogSpanSinkConfig{

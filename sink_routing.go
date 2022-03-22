@@ -48,6 +48,16 @@ type SinkRoutingSinks struct {
 	NotMatched []string `yaml:"not_matched"`
 }
 
+func CreateNameMatcher(config *NameMatcherConfig) NameMatcher {
+	nameMatcher := NameMatcher{}
+	nameMatcher.UnmarshalYAML(func(c interface{}) error {
+		nameMatcherConfig := c.(*NameMatcherConfig)
+		*nameMatcherConfig = *config
+		return nil
+	})
+	return nameMatcher
+}
+
 // UnmarshalYAML unmarshals and validates the yaml config for matching the name
 // of a metric.
 func (matcher *NameMatcher) UnmarshalYAML(
@@ -95,6 +105,16 @@ func (matcher *NameMatcher) matchPrefix(value string) bool {
 
 func (matcher *NameMatcher) matchRegex(value string) bool {
 	return matcher.regex.MatchString(value)
+}
+
+func CreateTagMatcher(config *TagMatcherConfig) TagMatcher {
+	tagMatcher := TagMatcher{}
+	tagMatcher.UnmarshalYAML(func(c interface{}) error {
+		tagMatcherConfig := c.(*TagMatcherConfig)
+		*tagMatcherConfig = *config
+		return nil
+	})
+	return tagMatcher
 }
 
 // UnmarshalYAML unmarshals and validates the yaml config for matching tags

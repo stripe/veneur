@@ -45,11 +45,7 @@ func MigrateConfig(config *veneur.Config) {
 	if config.AwsS3Bucket == "" {
 		return
 	}
-	config.MetricSinks = append(config.MetricSinks, struct {
-		Kind   string      "yaml:\"kind\""
-		Name   string      "yaml:\"name\""
-		Config interface{} "yaml:\"config\""
-	}{
+	config.MetricSinks = append(config.MetricSinks, veneur.SinkConfig{
 		Kind: "s3",
 		Name: "s3",
 		Config: S3SinkConfig{
