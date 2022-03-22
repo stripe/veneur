@@ -96,11 +96,7 @@ func MigrateConfig(conf *veneur.Config) {
 	if conf.XrayAddress == "" {
 		return
 	}
-	conf.SpanSinks = append(conf.SpanSinks, struct {
-		Kind   string      "yaml:\"kind\""
-		Name   string      "yaml:\"name\""
-		Config interface{} "yaml:\"config\""
-	}{
+	conf.SpanSinks = append(conf.SpanSinks, veneur.SinkConfig{
 		Kind: "xray",
 		Name: "xray",
 		Config: XRaySinkConfig{

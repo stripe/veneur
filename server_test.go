@@ -167,7 +167,9 @@ func setupVeneurServer(t testing.TB, config Config, transport http.RoundTripper,
 		bhs, _ := blackhole.NewBlackholeMetricSink()
 		mSink = bhs
 	}
-	server.metricSinks = append(server.metricSinks, mSink)
+	server.metricSinks = append(server.metricSinks, internalMetricSink{
+		sink: mSink,
+	})
 
 	if sSink == nil {
 		// Install a blackhole sink if we have no other sinks
@@ -1223,7 +1225,10 @@ func BenchmarkServerFlush(b *testing.B) {
 	f := newFixture(b, config, nil, nil)
 
 	bhs, _ := blackhole.NewBlackholeMetricSink()
-	f.server.metricSinks = []sinks.MetricSink{bhs}
+
+	f.server.metricSinks = []internalMetricSink{{
+		sink: bhs,
+	}}
 	defer f.Close()
 
 	b.ResetTimer()
