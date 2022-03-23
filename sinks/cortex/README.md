@@ -13,6 +13,10 @@ metric_sinks:
       url: http://localhost:9090/api/v1/receive
 # Timeout for requests to the remote write endpoint.
       remote_timeout: 30s
+# Optional batch write size
+# note: this doesn't mean if a given flush contains 13 metrics that only 10 will be written, rather that
+# for a veneur flush interval the sink will do two writes: one for 10 metrics and another for 3 
+      batch_write_size: 10
 # Optional proxy URL.
       proxy_url: http://localhost:1080
 # Optional added headers

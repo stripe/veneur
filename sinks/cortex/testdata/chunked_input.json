@@ -1,0 +1,142 @@
+[
+  {
+    "Name": "a.a.gauge",
+    "Timestamp": 1,
+    "Value": 100,
+    "Tags": [
+      "foo:bar",
+      "baz:qux"
+    ],
+    "Type": 1,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  },
+  {
+    "Name": "a.b.counter",
+    "Timestamp": 1,
+    "Value": 2,
+    "Tags": [
+      "foo:bar"
+    ],
+    "Type": 0,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  },
+  {
+    "Name": "a.c.status",
+    "Timestamp": 1,
+    "Value": 5,
+    "Tags": null,
+    "Type": 2,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  },
+  {
+    "Name": "b.a.gauge",
+    "Timestamp": 1,
+    "Value": 100,
+    "Tags": [
+      "foo:bar",
+      "baz:qux"
+    ],
+    "Type": 1,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  },
+  {
+    "Name": "b.b.counter",
+    "Timestamp": 1,
+    "Value": 2,
+    "Tags": [
+      "foo:bar"
+    ],
+    "Type": 0,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  },
+  {
+    "Name": "b.c.status",
+    "Timestamp": 1,
+    "Value": 5,
+    "Tags": null,
+    "Type": 2,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  },
+  {
+    "Name": "c.a.gauge",
+    "Timestamp": 1,
+    "Value": 100,
+    "Tags": [
+      "foo:bar",
+      "baz:qux"
+    ],
+    "Type": 1,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  },
+  {
+    "Name": "c.b.counter",
+    "Timestamp": 1,
+    "Value": 2,
+    "Tags": [
+      "foo:bar"
+    ],
+    "Type": 0,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  },
+  {
+    "Name": "c.c.status",
+    "Timestamp": 1,
+    "Value": 5,
+    "Tags": null,
+    "Type": 2,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  },
+  {
+    "Name": "d.a.gauge",
+    "Timestamp": 1,
+    "Value": 100,
+    "Tags": [
+      "foo:bar",
+      "baz:qux"
+    ],
+    "Type": 1,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  },
+  {
+    "Name": "d.b.counter",
+    "Timestamp": 1,
+    "Value": 2,
+    "Tags": [
+      "foo:bar"
+    ],
+    "Type": 0,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  },
+  {
+    "Name": "d.c.status",
+    "Timestamp": 1,
+    "Value": 5,
+    "Tags": null,
+    "Type": 2,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  }
+]
