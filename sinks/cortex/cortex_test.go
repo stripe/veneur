@@ -102,6 +102,29 @@ func TestChunkedWrites(t *testing.T) {
 	assert.Equal(t, 4, len(server.History()))
 }
 
+func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Set up a sink
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 15)
+	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
+
+	// input.json contains three timeseries samples in InterMetrics format
+	jsInput, err := ioutil.ReadFile("testdata/chunked_input.json")
+	assert.NoError(t, err)
+	var metrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
+
+	// Perform the flush to the test server
+	assert.NoError(t, sink.Flush(context.Background(), metrics))
+
+	// There are 12 writes in input and our batch size is 3 so we expect 4 write requests
+	assert.Equal(t, 1, len(server.History()))
+}
+
 func TestLeftOverBatchGetsWritten(t *testing.T) {
 	// Listen for prometheus writes
 	server := NewTestServer(t)
