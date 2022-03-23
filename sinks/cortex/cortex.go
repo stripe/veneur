@@ -177,22 +177,17 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 	metricKeyTags := map[string]string{"sink": s.name, "sink_type": "cortex"}
-	sentMetrics := 0
+	flushedMetrics := 0
 	droppedMetrics := 0
 	defer func() {
-		if sentMetrics > 0 {
-			span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(sentMetrics), metricKeyTags))
-		}
-
-		if droppedMetrics > 0 {
-			span.Add(ssf.Count(sinks.MetricKeyTotalMetricsDropped, float32(droppedMetrics), metricKeyTags))
-		}
+		span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(flushedMetrics), metricKeyTags))
+		span.Add(ssf.Count(sinks.MetricKeyTotalMetricsDropped, float32(droppedMetrics), metricKeyTags))
 	}()
 
 	if s.batchWriteSize == 0 || len(metrics) == s.batchWriteSize {
 		err := s.writeMetrics(ctx, metrics)
 		if err == nil {
-			sentMetrics = len(metrics)
+			flushedMetrics = len(metrics)
 		} else {
 			droppedMetrics = len(metrics)
 		}
@@ -219,7 +214,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 					return err
 				}
 
-				sentMetrics += len(batch)
+				flushedMetrics += len(batch)
 				batch = []samplers.InterMetric{}
 			}
 
@@ -239,7 +234,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		})
 
 		if err == nil {
-			sentMetrics += len(batch)
+			flushedMetrics += len(batch)
 		} else {
 			droppedMetrics += len(batch)
 		}
