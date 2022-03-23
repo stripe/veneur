@@ -121,7 +121,7 @@ func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
 	// Perform the flush to the test server
 	assert.NoError(t, sink.Flush(context.Background(), metrics))
 
-	// There are 12 writes in input and our batch size is 3 so we expect 4 write requests
+	// There are 12 writes in input and our batch size is 15 so we expect 1 write request
 	assert.Equal(t, 1, len(server.History()))
 }
 
