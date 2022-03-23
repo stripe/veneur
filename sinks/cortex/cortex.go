@@ -219,7 +219,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		})
 
 		if err != nil {
-			emitMetricKeyTotalMetricsDropped(span, len(metrics) - sentMetrics, metricKeyTags)
+			emitMetricKeyTotalMetricsDropped(span, len(metrics)-sentMetrics, metricKeyTags)
 			return err
 		}
 	}
@@ -231,7 +231,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		})
 	}
 
-	emitPassOrFailSpan(err, len(metrics) - sentMetrics)
+	emitPassOrFailSpan(err, len(metrics)-sentMetrics)
 	return err
 }
 
