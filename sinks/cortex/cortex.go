@@ -174,8 +174,21 @@ func (s *CortexMetricSink) Start(tc *trace.Client) error {
 
 // Flush sends a batch of metrics to the configured remote-write endpoint
 func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+	span, _ := trace.StartSpanFromContext(ctx, "")
+	defer span.ClientFinish(s.traceClient)
+	metricKeyTags := map[string]string{"sink": s.name, "sink_type": "cortex"}
+	emitPassOrFailSpan := func(err error) {
+		if err == nil {
+			span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(metrics)), metricKeyTags))
+		} else {
+			emitMetricKeyTotalMetricsDropped(span, len(metrics), metricKeyTags)
+		}
+	}
+
 	if s.batchWriteSize == 0 || len(metrics) == s.batchWriteSize {
-		return s.writeMetrics(ctx, metrics)
+		err := s.writeMetrics(ctx, metrics)
+		emitPassOrFailSpan(err)
+		return err
 	}
 
 	doIfNotDone := func(fn func() error) error {
@@ -204,6 +217,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		})
 
 		if err != nil {
+			emitMetricKeyTotalMetricsDropped(span, len(metrics), metricKeyTags)
 			return err
 		}
 	}
@@ -215,14 +229,13 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		})
 	}
 
+	emitPassOrFailSpan(err)
 	return err
 }
 
 func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.InterMetric) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
-
-	metricKeyTags := map[string]string{"sink": s.name, "sink_type": "cortex"}
 
 	wr := makeWriteRequest(metrics, s.tags)
 	data, err := proto.Marshal(wr)
@@ -266,8 +279,6 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 
 	// TODO: retry on 400/500 (per remote-write spec)
 	if r.StatusCode >= 300 {
-		defer emitMetricKeyTotalMetricsDropped(span, len(metrics), metricKeyTags)
-
 		b, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			return errors.Wrap(err, "could not read response body")
@@ -275,10 +286,6 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 		// Cortex responds with terse and informative messages
 		s.logger.Infof("Flush failed with HTTP %d: %s", r.StatusCode, b)
 	}
-
-	// Emit standard sink metrics
-	// We don't send sinks.MetricKeyTotalMetricsSkipped at present, as it would always be 0
-	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(metrics)), metricKeyTags))
 
 	return nil
 }
