@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -25,7 +26,7 @@ import (
 )
 
 func TestName(t *testing.T) {
-	sink, err := NewCortexMetricSink("https://localhost/", 30, "", logrus.NewEntry(logrus.New()), "cortex", map[string]string{}, map[string]string{}, nil, 0)
+	sink, err := NewCortexMetricSink("https://localhost/", 30, "", logrus.NewEntry(logrus.New()), "cortex", map[string]string{}, map[string]string{}, nil, 0, false, false)
 	assert.NoError(t, err)
 	assert.Equal(t, "cortex", sink.Name())
 }
@@ -36,7 +37,7 @@ func TestFlush(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 0)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 0, false, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -85,7 +86,7 @@ func TestChunkedWrites(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 3)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 3, false, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -108,7 +109,7 @@ func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 15)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 15, false, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -131,7 +132,7 @@ func TestLeftOverBatchGetsWritten(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 5)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 5, false, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -154,7 +155,7 @@ func TestChunkedWritesRespectContextCancellation(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 3)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 3, false, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -181,6 +182,109 @@ func TestChunkedWritesRespectContextCancellation(t *testing.T) {
 	assert.Equal(t, 2, len(server.History()))
 }
 
+func TestRetry(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Set up a sink
+	sink, err := NewCortexMetricSink(
+		server.URL,
+		30*time.Second,
+		"",
+		logrus.NewEntry(logrus.New()),
+		"test",
+		map[string]string{"corge": "grault"},
+		map[string]string{"Cortex-Test-Force-Fail-N": "1"},
+		nil,
+		0,
+		true,
+		false,
+	)
+	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
+
+	// input.json contains three timeseries samples in InterMetrics format
+	jsInput, err := ioutil.ReadFile("testdata/input.json")
+	assert.NoError(t, err)
+	var metrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
+
+	// Perform the flush to the test server, which should return 500
+	assert.Error(t, sink.Flush(context.Background(), metrics))
+	_, _, err = server.Latest()
+	assert.Error(t, err)
+
+	// Flush again, which should re-write the samples that previously failed,
+	// in addition to one new sample
+	newMetrics := []samplers.InterMetric{{}}
+	assert.NoError(t, sink.Flush(context.Background(), newMetrics))
+	data, _, err := server.Latest()
+	assert.NoError(t, err)
+	assert.Equal(t, 4, len(data.Timeseries))
+
+	// Flush again, with one new sample
+	assert.NoError(t, sink.Flush(context.Background(), newMetrics))
+	data, _, err = server.Latest()
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(data.Timeseries))
+
+	// Flush again, observe that no more metrics are re-flushed
+	var emptyMetrics []samplers.InterMetric
+	assert.NoError(t, sink.Flush(context.Background(), emptyMetrics))
+	_, _, err = server.Latest()
+	assert.Error(t, err)
+}
+
+func TestRetryCountBackoff(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Set up a sink
+	sink, err := NewCortexMetricSink(
+		server.URL,
+		30*time.Second,
+		"",
+		logrus.NewEntry(logrus.New()),
+		"test",
+		map[string]string{"corge": "grault"},
+		map[string]string{"Cortex-Test-Force-Fail-N": "5"},
+		nil,
+		0,
+		true,
+		false,
+	)
+	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
+
+	// input.json contains three timeseries samples in InterMetrics format
+	jsInput, err := ioutil.ReadFile("testdata/input.json")
+	assert.NoError(t, err)
+	var metrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
+
+	// Perform the flush to the test server, which should return 500
+	assert.Error(t, sink.Flush(context.Background(), metrics))
+	_, _, err = server.Latest()
+	assert.Error(t, err)
+
+	// Try again 4 more times, to pass the backoff threshold
+	for i := 0; i < 4; i++ {
+		emptyMetrics := []samplers.InterMetric{}
+		assert.Error(t, sink.Flush(context.Background(), emptyMetrics))
+		_, _, err = server.Latest()
+		assert.Error(t, err)
+	}
+
+	// Flush again, with one new sample. Observe only one sample is written.
+	newMetrics := []samplers.InterMetric{{}}
+	assert.NoError(t, sink.Flush(context.Background(), newMetrics))
+	data, _, err := server.Latest()
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(data.Timeseries))
+}
+
 func TestCustomHeaders(t *testing.T) {
 	// Listen for prometheus writes
 	server := NewTestServer(t)
@@ -194,7 +298,7 @@ func TestCustomHeaders(t *testing.T) {
 	}
 
 	// Set up a sink with custom headers
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, customHeaders, nil, 0)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, customHeaders, nil, 0, false, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -233,7 +337,7 @@ func TestBasicAuth(t *testing.T) {
 	}
 
 	// Set up a sink with custom headers
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, customHeaders, &auth, 0)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, customHeaders, &auth, 0, false, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -342,7 +446,7 @@ func TestParseConfigBadBasicAuth(t *testing.T) {
 func TestCorrectlySetTimeout(t *testing.T) {
 	timeouts := []int{10, 20, 30, 17, 21}
 	for to := range timeouts {
-		sink, err := NewCortexMetricSink("http://noop", time.Duration(to), "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 0)
+		sink, err := NewCortexMetricSink("http://noop", time.Duration(to), "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 0, false, false)
 		assert.NoError(t, err)
 
 		err = sink.Start(&trace.Client{})
@@ -429,7 +533,7 @@ func (t *TestServer) Close() {
 
 // Latest returns the most recent write request, or errors if there was none
 func (t *TestServer) Latest() (*prompb.WriteRequest, *http.Header, error) {
-	if t.data == nil {
+	if t.data == nil || len(t.data.Timeseries) == 0 {
 		return nil, nil, errors.New("no data received")
 	}
 	return t.data, t.headers, nil
@@ -449,12 +553,27 @@ func (t *TestServer) onRequest(fn func()) {
 func NewTestServer(t *testing.T) *TestServer {
 	result := TestServer{}
 
+	failedCount := 0
+
 	router := http.NewServeMux()
 	router.HandleFunc("/receive", func(w http.ResponseWriter, r *http.Request) {
 		wr, err := readpb(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
+		}
+
+		if forceFailThresholdStr, ok := r.Header["Cortex-Test-Force-Fail-N"]; ok {
+			forceFailThreshold, err := strconv.Atoi(forceFailThresholdStr[0])
+			if err != nil {
+				t.Errorf("bad Cortex-Test-Force-Fail-N value")
+			}
+			if failedCount < forceFailThreshold {
+				failedCount += 1
+				t.Logf("failing, iteration=%d, successThreshold=%d", failedCount, forceFailThreshold)
+				http.Error(w, "failing", http.StatusInternalServerError)
+				return
+			}
 		}
 
 		if !hasHeader(r.Header, "Content-Encoding", "snappy") ||

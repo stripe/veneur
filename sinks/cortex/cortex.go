@@ -3,6 +3,7 @@ package cortex
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -31,21 +32,29 @@ const (
 	DefaultAuthorizationType = "Bearer"
 )
 
+const (
+	DefaultRemoteWriteRetryThreshold = 5
+	BackoffStrategyCount             = "count"
+)
+
 // CortexMetricSink writes metrics to one or more configured Cortex instances
 // using the prometheus remote-write API. For specifications, see
 // https://github.com/prometheus/compliance/tree/main/remote_write
 type CortexMetricSink struct {
-	URL            string
-	RemoteTimeout  time.Duration
-	ProxyURL       string
-	Client         *http.Client
-	logger         *logrus.Entry
-	name           string
-	tags           map[string]string
-	traceClient    *trace.Client
-	addHeaders     map[string]string
-	basicAuth      *BasicAuthType
-	batchWriteSize int
+	URL              string
+	RemoteTimeout    time.Duration
+	ProxyURL         string
+	Client           *http.Client
+	logger           *logrus.Entry
+	name             string
+	tags             map[string]string
+	traceClient      *trace.Client
+	addHeaders       map[string]string
+	basicAuth        *BasicAuthType
+	batchWriteSize   int
+	remoteWriteQueue []retryableMetric
+	shouldRetry      bool
+	retryOnHTTP429   bool
 }
 
 var _ sinks.MetricSink = (*CortexMetricSink)(nil)
@@ -55,9 +64,15 @@ type BasicAuthType struct {
 	Password util.StringSecret `yaml:"password"`
 }
 
-// TODO: implement queue config options, at least
-// max_samples_per_send, max_shards, and capacity
-// https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
+type RetryOpts struct {
+	BackoffStrategy BackoffStrategy `yaml:"backoff_strategy"`
+	RetryOnHTTP429  bool            `yaml:"retry_on_http_429"`
+}
+
+type BackoffStrategy struct {
+	Type string `yaml:"type"`
+}
+
 type CortexMetricSinkConfig struct {
 	URL            string            `yaml:"url"`
 	RemoteTimeout  time.Duration     `yaml:"remote_timeout"`
@@ -69,6 +84,12 @@ type CortexMetricSinkConfig struct {
 		Type       string            `yaml:"type"`
 		Credential util.StringSecret `yaml:"credentials"`
 	} `yaml:"authorization"`
+	RetryOpts RetryOpts `yaml:"retry"`
+}
+
+type retryableMetric struct {
+	metric       samplers.InterMetric
+	retryAttempt int
 }
 
 // Create creates a new Cortex sink.
@@ -96,7 +117,22 @@ func Create(
 		basicAuth = &conf.BasicAuth
 	}
 
-	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, tags, headers, basicAuth, conf.BatchWriteSize)
+	shouldRetry := conf.RetryOpts.BackoffStrategy.Type == BackoffStrategyCount
+	retryOnHTTP429 := conf.RetryOpts.RetryOnHTTP429
+
+	return NewCortexMetricSink(
+		conf.URL,
+		conf.RemoteTimeout,
+		conf.ProxyURL,
+		logger,
+		name,
+		tags,
+		headers,
+		basicAuth,
+		conf.BatchWriteSize,
+		shouldRetry,
+		retryOnHTTP429,
+	)
 }
 
 // ParseConfig extracts Cortex specific fields from the global veneur config
@@ -126,7 +162,10 @@ func ParseConfig(
 }
 
 // NewCortexMetricSink creates and returns a new instance of the sink
-func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string, headers map[string]string, basicAuth *BasicAuthType, batchWriteSize int) (*CortexMetricSink, error) {
+func NewCortexMetricSink(
+	URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string,
+	tags map[string]string, headers map[string]string, basicAuth *BasicAuthType,
+	batchWriteSize int, shouldRetry bool, retryOnHTTP429 bool) (*CortexMetricSink, error) {
 	return &CortexMetricSink{
 		URL:            URL,
 		RemoteTimeout:  timeout,
@@ -137,6 +176,8 @@ func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, log
 		addHeaders:     headers,
 		basicAuth:      basicAuth,
 		batchWriteSize: batchWriteSize,
+		shouldRetry:    shouldRetry,
+		retryOnHTTP429: retryOnHTTP429,
 	}, nil
 }
 
@@ -176,6 +217,22 @@ func (s *CortexMetricSink) Start(tc *trace.Client) error {
 func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
+
+	metricsToWrite := make([]retryableMetric, 0)
+	for _, metric := range s.remoteWriteQueue {
+		metric.retryAttempt += 1
+		if metric.retryAttempt < DefaultRemoteWriteRetryThreshold {
+			metricsToWrite = append(metricsToWrite, metric)
+		}
+	}
+	for _, metric := range metrics {
+		metricsToWrite = append(metricsToWrite, retryableMetric{
+			metric:       metric,
+			retryAttempt: 0,
+		})
+	}
+	s.remoteWriteQueue = make([]retryableMetric, 0)
+
 	metricKeyTags := map[string]string{"sink": s.name, "sink_type": "cortex"}
 	flushedMetrics := 0
 	droppedMetrics := 0
@@ -184,12 +241,13 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		span.Add(ssf.Count(sinks.MetricKeyTotalMetricsDropped, float32(droppedMetrics), metricKeyTags))
 	}()
 
-	if s.batchWriteSize == 0 || len(metrics) <= s.batchWriteSize {
-		err := s.writeMetrics(ctx, metrics)
+	if s.batchWriteSize == 0 || len(metricsToWrite) <= s.batchWriteSize {
+		retryable, err := s.writeMetrics(ctx, metricsToWrite)
+		s.remoteWriteQueue = append(s.remoteWriteQueue, retryable...)
 		if err == nil {
-			flushedMetrics = len(metrics)
+			flushedMetrics = len(metricsToWrite)
 		} else {
-			droppedMetrics = len(metrics)
+			droppedMetrics = len(metricsToWrite)
 		}
 
 		return err
@@ -204,18 +262,19 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		}
 	}
 
-	var batch []samplers.InterMetric
-	for i, metric := range metrics {
+	var batch []retryableMetric
+	for i, metric := range metricsToWrite {
 		err := doIfNotDone(func() error {
 			batch = append(batch, metric)
 			if i > 0 && i%s.batchWriteSize == 0 {
-				err := s.writeMetrics(ctx, batch)
+				retryable, err := s.writeMetrics(ctx, batch)
+				s.remoteWriteQueue = append(s.remoteWriteQueue, retryable...)
 				if err != nil {
 					return err
 				}
 
 				flushedMetrics += len(batch)
-				batch = []samplers.InterMetric{}
+				batch = []retryableMetric{}
 			}
 
 			return nil
@@ -230,7 +289,9 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	var err error
 	if len(batch) > 0 {
 		err = doIfNotDone(func() error {
-			return s.writeMetrics(ctx, batch)
+			retryable, err := s.writeMetrics(ctx, batch)
+			s.remoteWriteQueue = append(s.remoteWriteQueue, retryable...)
+			return err
 		})
 
 		if err == nil {
@@ -243,14 +304,14 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	return err
 }
 
-func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.InterMetric) error {
+func (s *CortexMetricSink) writeMetrics(ctx context.Context, retryableMetrics []retryableMetric) ([]retryableMetric, error) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 
-	wr := makeWriteRequest(metrics, s.tags)
+	wr := makeWriteRequest(retryableMetrics, s.tags)
 	data, err := proto.Marshal(wr)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var buf bytes.Buffer
@@ -259,7 +320,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 
 	req, err := http.NewRequestWithContext(ctx, "POST", s.URL, &buf)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// This set of headers is prescribed by the remote-write standard
@@ -282,22 +343,52 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 			"error":        err,
 			"time_seconds": time.Since(ts).Seconds(),
 		}).Error("Failed to post request")
-		return err
+		return nil, err
 	}
 	// Resource leak can occur if body isn't closed explicitly
 	defer r.Body.Close()
 
-	// TODO: retry on 400/500 (per remote-write spec)
-	if r.StatusCode >= 300 {
-		b, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			return errors.Wrap(err, "could not read response body")
+	if r.StatusCode == 429 || r.StatusCode >= 500 {
+		errorFields := logrus.Fields{
+			"status_code": r.StatusCode,
+			"will_retry":  true,
 		}
-		// Cortex responds with terse and informative messages
-		s.logger.Infof("Flush failed with HTTP %d: %s", r.StatusCode, b)
+
+		b, err := ioutil.ReadAll(r.Body)
+		if err == nil {
+			errorFields["response_body"] = b
+		} else {
+			errorFields["additional_errors"] = err.Error()
+		}
+
+		s.logger.WithFields(errorFields).Warning("Flush failed")
+		return retryableMetrics, fmt.Errorf("Flush failed")
+	} else if r.StatusCode >= 400 {
+		errorFields := logrus.Fields{
+			"status_code": r.StatusCode,
+			"will_retry":  false,
+		}
+
+		b, err := ioutil.ReadAll(r.Body)
+		if err == nil {
+			errorFields["response_body"] = b
+		} else {
+			errorFields["additional_errors"] = err.Error()
+		}
+
+		s.logger.WithFields(errorFields).Error("Flush failed")
+		return nil, fmt.Errorf("Flush failed")
+	} else if r.StatusCode >= 300 {
+		errorFields := logrus.Fields{
+			"status_code":       r.StatusCode,
+			"will_retry":        false,
+			"additional_errors": "client should follow redirects",
+		}
+		s.logger.WithFields(errorFields).Errorf("Flush failed")
+		return nil, fmt.Errorf("Flush failed")
 	}
 
-	return nil
+	return nil, nil
 }
 
 // FlushOtherSamples would forward non-metric sanples like spans. Prometheus
@@ -309,10 +400,10 @@ func (s *CortexMetricSink) FlushOtherSamples(context.Context, []ssf.SSFSample) {
 
 // makeWriteRequest converts a list of samples from a flush into a single
 // prometheus remote-write compatible protobuf object
-func makeWriteRequest(metrics []samplers.InterMetric, tags map[string]string) *prompb.WriteRequest {
+func makeWriteRequest(metrics []retryableMetric, tags map[string]string) *prompb.WriteRequest {
 	ts := make([]*prompb.TimeSeries, len(metrics))
 	for i, metric := range metrics {
-		ts[i] = metricToTimeSeries(metric, tags)
+		ts[i] = metricToTimeSeries(metric.metric, tags)
 	}
 
 	return &prompb.WriteRequest{
