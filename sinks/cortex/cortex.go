@@ -356,7 +356,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, retryableMetrics []
 	// Resource leak can occur if body isn't closed explicitly
 	defer r.Body.Close()
 
-	if r.StatusCode == 429 || r.StatusCode >= 500 {
+	if (r.StatusCode == 429 && s.retryOnHTTP429) || r.StatusCode >= 500 {
 		errorFields := logrus.Fields{
 			"status_code": r.StatusCode,
 			"will_retry":  true,

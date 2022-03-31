@@ -188,20 +188,7 @@ func TestRetry(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(
-		server.URL,
-		30*time.Second,
-		"",
-		logrus.NewEntry(logrus.New()),
-		"test",
-		map[string]string{"corge": "grault"},
-		map[string]string{"Cortex-Test-Force-Fail-N": "1"},
-		nil,
-		0,
-		true,
-		false,
-		DefaultCountBackoffAbandonmentThreshold,
-	)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{"Cortex-Test-Force-Fail-N": "1"}, nil, 0, true, false, DefaultCountBackoffAbandonmentThreshold)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -237,26 +224,76 @@ func TestRetry(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestRetryHTTP429Enabled(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Set up a sink
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{"Cortex-Test-Force-Fail-N": "1", "Cortex-Test-Retry-Return-Status-Code": "429"}, nil, 0, true, true, DefaultCountBackoffAbandonmentThreshold)
+	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
+
+	// input.json contains three timeseries samples in InterMetrics format
+	jsInput, err := ioutil.ReadFile("testdata/input.json")
+	assert.NoError(t, err)
+	var metrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
+
+	// Perform the flush to the test server, which should return 429
+	assert.Error(t, sink.Flush(context.Background(), metrics))
+	_, _, err = server.Latest()
+	assert.Error(t, err)
+
+	// Flush again, which should retry + write one new sample
+	newMetrics := []samplers.InterMetric{{}}
+	assert.NoError(t, sink.Flush(context.Background(), newMetrics))
+	data, _, err := server.Latest()
+	assert.NoError(t, err)
+	assert.Equal(t, 4, len(data.Timeseries))
+}
+
+func TestRetryOtherStatusCodes(t *testing.T) {
+	statusCodes := []string{"300", "400", "429"}
+	for _, statusCode := range statusCodes {
+		// Listen for prometheus writes
+		server := NewTestServer(t)
+
+		// Set up a sink
+		sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{"Cortex-Test-Force-Fail-N": "1", "Cortex-Test-Retry-Return-Status-Code": statusCode}, nil, 0, true, false, DefaultCountBackoffAbandonmentThreshold)
+		assert.NoError(t, err)
+		assert.NoError(t, sink.Start(trace.DefaultClient))
+
+		// input.json contains three timeseries samples in InterMetrics format
+		jsInput, err := ioutil.ReadFile("testdata/input.json")
+		assert.NoError(t, err)
+		var metrics []samplers.InterMetric
+		assert.NoError(t, json.Unmarshal(jsInput, &metrics))
+
+		// Perform the flush to the test server, which should return a non-retryable status coe
+		assert.Error(t, sink.Flush(context.Background(), metrics))
+		_, _, err = server.Latest()
+		assert.Error(t, err)
+
+		// Flush again, which should write only one new sample
+		newMetrics := []samplers.InterMetric{{}}
+		assert.NoError(t, sink.Flush(context.Background(), newMetrics))
+		data, _, err := server.Latest()
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(data.Timeseries))
+
+		// Cleanup
+		server.Close()
+	}
+}
+
 func TestRetryCountBackoff(t *testing.T) {
 	// Listen for prometheus writes
 	server := NewTestServer(t)
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(
-		server.URL,
-		30*time.Second,
-		"",
-		logrus.NewEntry(logrus.New()),
-		"test",
-		map[string]string{"corge": "grault"},
-		map[string]string{"Cortex-Test-Force-Fail-N": "4"},
-		nil,
-		0,
-		true,
-		false,
-		4,
-	)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{"Cortex-Test-Force-Fail-N": "4"}, nil, 0, true, false, 4)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -565,17 +602,33 @@ func NewTestServer(t *testing.T) *TestServer {
 			return
 		}
 
+		returnRetryableError := false
+		retryableErrorStatusCode := http.StatusInternalServerError
+		forceFailThreshold := 0
 		if forceFailThresholdStr, ok := r.Header["Cortex-Test-Force-Fail-N"]; ok {
-			forceFailThreshold, err := strconv.Atoi(forceFailThresholdStr[0])
+			forceFailThreshold, err = strconv.Atoi(forceFailThresholdStr[0])
 			if err != nil {
 				t.Errorf("bad Cortex-Test-Force-Fail-N value")
 			}
-			if failedCount < forceFailThreshold {
-				failedCount += 1
-				t.Logf("failing, iteration=%d, successThreshold=%d", failedCount, forceFailThreshold)
-				http.Error(w, "failing", http.StatusInternalServerError)
-				return
+			returnRetryableError = true
+		}
+		if statusCode, ok := r.Header["Cortex-Test-Retry-Return-Status-Code"]; ok {
+			if statusCode[0] == "300" {
+				retryableErrorStatusCode = http.StatusMultipleChoices
+			} else if statusCode[0] == "400" {
+				retryableErrorStatusCode = http.StatusBadRequest
+			} else if statusCode[0] == "429" {
+				retryableErrorStatusCode = http.StatusTooManyRequests
+			} else {
+				t.Errorf("unknown Cortex-Test-Retry-Return-Status-Code value")
 			}
+		}
+		if returnRetryableError && failedCount < forceFailThreshold {
+			failedCount += 1
+			t.Logf("failing, iteration=%d, successThreshold=%d", failedCount, forceFailThreshold)
+
+			http.Error(w, "failing", retryableErrorStatusCode)
+			return
 		}
 
 		if !hasHeader(r.Header, "Content-Encoding", "snappy") ||
