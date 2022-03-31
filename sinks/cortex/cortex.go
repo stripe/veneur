@@ -33,28 +33,29 @@ const (
 )
 
 const (
-	DefaultRemoteWriteRetryThreshold = 5
-	BackoffStrategyCount             = "count"
+	BackoffStrategyCount                    = "count"
+	DefaultCountBackoffAbandonmentThreshold = 5
 )
 
 // CortexMetricSink writes metrics to one or more configured Cortex instances
 // using the prometheus remote-write API. For specifications, see
 // https://github.com/prometheus/compliance/tree/main/remote_write
 type CortexMetricSink struct {
-	URL              string
-	RemoteTimeout    time.Duration
-	ProxyURL         string
-	Client           *http.Client
-	logger           *logrus.Entry
-	name             string
-	tags             map[string]string
-	traceClient      *trace.Client
-	addHeaders       map[string]string
-	basicAuth        *BasicAuthType
-	batchWriteSize   int
-	remoteWriteQueue []retryableMetric
-	shouldRetry      bool
-	retryOnHTTP429   bool
+	URL                              string
+	RemoteTimeout                    time.Duration
+	ProxyURL                         string
+	Client                           *http.Client
+	logger                           *logrus.Entry
+	name                             string
+	tags                             map[string]string
+	traceClient                      *trace.Client
+	addHeaders                       map[string]string
+	basicAuth                        *BasicAuthType
+	batchWriteSize                   int
+	remoteWriteQueue                 []retryableMetric
+	shouldRetry                      bool
+	retryOnHTTP429                   bool
+	countBackoffAbandonmentThreshold int
 }
 
 var _ sinks.MetricSink = (*CortexMetricSink)(nil)
@@ -65,12 +66,11 @@ type BasicAuthType struct {
 }
 
 type RetryOpts struct {
-	BackoffStrategy BackoffStrategy `yaml:"backoff_strategy"`
-	RetryOnHTTP429  bool            `yaml:"retry_on_http_429"`
-}
-
-type BackoffStrategy struct {
-	Type string `yaml:"type"`
+	BackoffStrategy  string `yaml:"backoff_strategy"`
+	RetryOnHTTP429   bool   `yaml:"retry_on_http_429"`
+	BackoffCountOpts struct {
+		AbandonmentThreshold int `yaml:"abandonment_threshold"`
+	} `yaml:"count_opts"`
 }
 
 type CortexMetricSinkConfig struct {
@@ -117,8 +117,14 @@ func Create(
 		basicAuth = &conf.BasicAuth
 	}
 
-	shouldRetry := conf.RetryOpts.BackoffStrategy.Type == BackoffStrategyCount
+	shouldRetry := conf.RetryOpts.BackoffStrategy == BackoffStrategyCount
 	retryOnHTTP429 := conf.RetryOpts.RetryOnHTTP429
+	var countBackoffAbandonmentThreshold int
+	if conf.RetryOpts.BackoffCountOpts.AbandonmentThreshold == 0 {
+		countBackoffAbandonmentThreshold = DefaultCountBackoffAbandonmentThreshold
+	} else {
+		countBackoffAbandonmentThreshold = conf.RetryOpts.BackoffCountOpts.AbandonmentThreshold
+	}
 
 	return NewCortexMetricSink(
 		conf.URL,
@@ -132,6 +138,7 @@ func Create(
 		conf.BatchWriteSize,
 		shouldRetry,
 		retryOnHTTP429,
+		countBackoffAbandonmentThreshold,
 	)
 }
 
@@ -165,19 +172,20 @@ func ParseConfig(
 func NewCortexMetricSink(
 	URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string,
 	tags map[string]string, headers map[string]string, basicAuth *BasicAuthType,
-	batchWriteSize int, shouldRetry bool, retryOnHTTP429 bool) (*CortexMetricSink, error) {
+	batchWriteSize int, shouldRetry bool, retryOnHTTP429 bool, countBackoffAbandonmentThreshold int) (*CortexMetricSink, error) {
 	return &CortexMetricSink{
-		URL:            URL,
-		RemoteTimeout:  timeout,
-		ProxyURL:       proxyURL,
-		tags:           tags,
-		logger:         logger.WithFields(logrus.Fields{"sink_type": "cortex"}),
-		name:           name,
-		addHeaders:     headers,
-		basicAuth:      basicAuth,
-		batchWriteSize: batchWriteSize,
-		shouldRetry:    shouldRetry,
-		retryOnHTTP429: retryOnHTTP429,
+		URL:                              URL,
+		RemoteTimeout:                    timeout,
+		ProxyURL:                         proxyURL,
+		tags:                             tags,
+		logger:                           logger.WithFields(logrus.Fields{"sink_type": "cortex"}),
+		name:                             name,
+		addHeaders:                       headers,
+		basicAuth:                        basicAuth,
+		batchWriteSize:                   batchWriteSize,
+		shouldRetry:                      shouldRetry,
+		retryOnHTTP429:                   retryOnHTTP429,
+		countBackoffAbandonmentThreshold: countBackoffAbandonmentThreshold,
 	}, nil
 }
 
@@ -221,7 +229,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	metricsToWrite := make([]retryableMetric, 0)
 	for _, metric := range s.remoteWriteQueue {
 		metric.retryAttempt += 1
-		if metric.retryAttempt < DefaultRemoteWriteRetryThreshold {
+		if metric.retryAttempt < s.countBackoffAbandonmentThreshold {
 			metricsToWrite = append(metricsToWrite, metric)
 		}
 	}
