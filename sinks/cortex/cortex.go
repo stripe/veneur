@@ -364,7 +364,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, retryableMetrics []
 
 		b, err := ioutil.ReadAll(r.Body)
 		if err == nil {
-			errorFields["response_body"] = b
+			errorFields["response_body"] = string(b)
 		} else {
 			errorFields["additional_errors"] = err.Error()
 		}
@@ -379,7 +379,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, retryableMetrics []
 
 		b, err := ioutil.ReadAll(r.Body)
 		if err == nil {
-			errorFields["response_body"] = b
+			errorFields["response_body"] = string(b)
 		} else {
 			errorFields["additional_errors"] = err.Error()
 		}
