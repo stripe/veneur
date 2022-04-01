@@ -360,6 +360,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, retryableMetrics []
 		errorFields := logrus.Fields{
 			"status_code": r.StatusCode,
 			"will_retry":  true,
+			"samples":     len(retryableMetrics),
 		}
 
 		b, err := ioutil.ReadAll(r.Body)
@@ -375,6 +376,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, retryableMetrics []
 		errorFields := logrus.Fields{
 			"status_code": r.StatusCode,
 			"will_retry":  false,
+			"samples":     len(retryableMetrics),
 		}
 
 		b, err := ioutil.ReadAll(r.Body)
@@ -391,6 +393,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, retryableMetrics []
 			"status_code":       r.StatusCode,
 			"will_retry":        false,
 			"additional_errors": "client should follow redirects",
+			"samples":           len(retryableMetrics),
 		}
 		s.logger.WithFields(errorFields).Errorf("Flush failed")
 		return nil, fmt.Errorf("Flush failed")
