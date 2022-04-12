@@ -339,6 +339,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, retryableMetrics []
 	for key, value := range s.addHeaders {
 		req.Header.Set(key, value)
 	}
+    req.Header.Set("Host", "prom-proxy-srv.service.envoy:10080")
 	if s.basicAuth != nil {
 		req.SetBasicAuth(s.basicAuth.Username.Value, s.basicAuth.Password.Value)
 	}
