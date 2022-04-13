@@ -135,7 +135,7 @@ github.com/go-logfmt/logfmt
 github.com/go-stack/stack
 # github.com/gogo/googleapis v1.3.1
 github.com/gogo/googleapis/google/api
-# github.com/gogo/protobuf v1.3.1
+# github.com/gogo/protobuf v1.3.2
 ## explicit
 github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/jsonpb
