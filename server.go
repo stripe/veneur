@@ -22,6 +22,8 @@ import (
 	"syscall"
 	"time"
 
+	_ "net/http/pprof"
+
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/segmentio/fasthash/fnv1a"
 	"github.com/sirupsen/logrus"
@@ -702,6 +704,13 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 // various workers and utilities.
 func (s *Server) Start() {
 	s.logger.WithField("version", VERSION).Info("Starting server")
+
+	go func() {
+		err := http.ListenAndServe("localhost:6060", nil)
+		if err != nil {
+			s.logger.Warn(err)
+		}
+	}()
 
 	// Set up the processors for spans:
 
