@@ -135,7 +135,9 @@ intervalLoop:
 					source.logger.WithError(err).Warn("failed to ingest metrics")
 					continue intervalLoop
 				}
-				ingest.IngestMetric(metric.Metric)
+				metric2 := metric.Metric
+				metric2.Name = fmt.Sprintf("temporal.%s", metric2.Name)
+				ingest.IngestMetric(metric2)
 			}
 		case <-source.context.Done():
 			break intervalLoop
