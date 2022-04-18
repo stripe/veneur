@@ -144,6 +144,7 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client, maxPerFlush i
 
 type SignalFxSinkConfig struct {
 	APIKey                            util.StringSecret `yaml:"api_key"`
+	DropHostWithTagKey                string            `yaml:"drop_host_with_tag_key"`
 	DynamicPerTagAPIKeysEnable        bool              `yaml:"dynamic_per_tag_api_keys_enable"`
 	DynamicPerTagAPIKeysRefreshPeriod time.Duration     `yaml:"dynamic_per_tag_api_keys_refresh_period"`
 	EndpointAPI                       string            `yaml:"endpoint_api"`
@@ -168,6 +169,7 @@ type SignalFxSink struct {
 	commonDimensions            map[string]string
 	defaultClient               DPClient
 	defaultToken                string
+	dropHostWithTagKey          string
 	dynamicKeyRefreshPeriod     time.Duration
 	enableDynamicPerTagTokens   bool
 	excludedTags                map[string]struct{}
@@ -585,6 +587,13 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 			delete(dims, k)
 		}
 		delete(dims, "veneursinkonly")
+
+		if metric.Type == samplers.CounterMetric && sfx.dropHostWithTagKey != "" {
+			_, ok := dims[sfx.dropHostWithTagKey]
+			if ok {
+				delete(dims, sfx.hostnameTag)
+			}
+		}
 
 		var point *datapoint.Datapoint
 		switch metric.Type {
