@@ -328,6 +328,7 @@ func newSignalFxSink(
 		commonDimensions:            commonDimensions,
 		defaultClient:               client,
 		defaultToken:                config.APIKey.Value,
+		dropHostWithTagKey:          config.DropHostWithTagKey,
 		dynamicKeyRefreshPeriod:     config.DynamicPerTagAPIKeysRefreshPeriod,
 		enableDynamicPerTagTokens:   config.DynamicPerTagAPIKeysEnable,
 		hostname:                    hostname,
@@ -583,17 +584,17 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 			}
 		}
 
-		for k := range sfx.excludedTags {
-			delete(dims, k)
-		}
-		delete(dims, "veneursinkonly")
-
 		if metric.Type == samplers.CounterMetric && sfx.dropHostWithTagKey != "" {
 			_, ok := dims[sfx.dropHostWithTagKey]
 			if ok {
 				delete(dims, sfx.hostnameTag)
 			}
 		}
+
+		for k := range sfx.excludedTags {
+			delete(dims, k)
+		}
+		delete(dims, "veneursinkonly")
 
 		var point *datapoint.Datapoint
 		switch metric.Type {
