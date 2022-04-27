@@ -7,6 +7,7 @@ package proxy
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -174,6 +175,25 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 	)
 
 	return &empty.Empty{}, nil
+}
+
+func (s *Server) SendMetricsV2(
+	server forwardrpc.Forward_SendMetricsV2Server,
+) error {
+	metrics := []*metricpb.Metric{}
+	for {
+		metric, err := server.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+		metrics = append(metrics, metric)
+	}
+	_, err := s.SendMetrics(context.Background(), &forwardrpc.MetricList{
+		Metrics: metrics,
+	})
+	return err
 }
 
 // hashMetric returns a 32-bit hash from the input metric based on its name,
