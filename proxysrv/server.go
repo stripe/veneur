@@ -21,6 +21,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"stathat.com/c/consistent"
 
 	"github.com/stripe/veneur/v14/forwardrpc"
@@ -204,7 +205,10 @@ func (s *Server) SendMetricsV2(
 	_, err := s.SendMetrics(context.Background(), &forwardrpc.MetricList{
 		Metrics: metrics,
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	return server.SendAndClose(&emptypb.Empty{})
 }
 
 func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) error {

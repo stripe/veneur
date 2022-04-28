@@ -31,9 +31,10 @@ type Config struct {
 	ExtendTags                   []string `yaml:"extend_tags"`
 	FalconerAddress              string   `yaml:"falconer_address"`
 	Features                     struct {
-		EnableMetricSinkRouting bool `yaml:"enable_metric_sink_routing"`
-		MigrateMetricSinks      bool `yaml:"migrate_metric_sinks"`
-		MigrateSpanSinks        bool `yaml:"migrate_span_sinks"`
+		EnableMetricSinkRouting bool   `yaml:"enable_metric_sink_routing"`
+		MigrateMetricSinks      bool   `yaml:"migrate_metric_sinks"`
+		MigrateSpanSinks        bool   `yaml:"migrate_span_sinks"`
+		ProxyProtocol           string `yaml:"proxy_protocol"`
 	} `yaml:"features"`
 	FlushFile                                 string              `yaml:"flush_file"`
 	FlushMaxPerBody                           int                 `yaml:"flush_max_per_body"`

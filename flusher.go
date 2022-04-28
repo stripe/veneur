@@ -78,15 +78,17 @@ func (s *Server) Flush(ctx context.Context) {
 	s.reportMetricsFlushCounts(ms)
 
 	wg := sync.WaitGroup{}
+	defer wg.Wait()
+
 	if s.IsLocal() {
 		wg.Add(1)
-		// Forward over gRPC or HTTP depending on the configuration
-		if s.forwardUseGRPC {
+		switch s.proxyProtocol {
+		case ProxyProtocolGrpcStream, ProxyProtocolGrpcSingle:
 			go func() {
-				s.forwardGRPC(span.Attach(ctx), tempMetrics)
+				s.forwardGRPC(span.Attach(ctx), tempMetrics, s.proxyProtocol)
 				wg.Done()
 			}()
-		} else {
+		case ProxyProtocolRest:
 			go func() {
 				s.flushForward(span.Attach(ctx), tempMetrics)
 				wg.Done()
@@ -169,7 +171,6 @@ func (s *Server) Flush(ctx context.Context) {
 			wg.Done()
 		}(sink)
 	}
-	wg.Wait()
 }
 
 func (s *Server) tallyTimeseries() int64 {
@@ -538,7 +539,9 @@ func (s *Server) flushTraces(ctx context.Context) {
 }
 
 // forwardGRPC forwards all input metrics to a downstream Veneur, over gRPC.
-func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
+func (s *Server) forwardGRPC(
+	ctx context.Context, wms []WorkerMetrics, protocol ProxyProtocol,
+) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	span.SetTag("protocol", "grpc")
 	defer span.ClientFinish(s.TraceClient)
@@ -574,7 +577,12 @@ func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
 	c := forwardrpc.NewForwardClient(s.grpcForwardConn)
 
 	grpcStart := time.Now()
-	_, err := c.SendMetrics(ctx, &forwardrpc.MetricList{Metrics: metrics})
+	var err error
+	if protocol == ProxyProtocolGrpcSingle {
+		err = ForwardGrpcSingle(ctx, c, metrics)
+	} else {
+		err = ForwardGrpcStream(ctx, c, metrics)
+	}
 	if err != nil {
 		if ctx.Err() != nil {
 			// We exceeded the deadline of the flush context.
@@ -598,4 +606,27 @@ func (s *Server) forwardGRPC(ctx context.Context, wms []WorkerMetrics) {
 			map[string]string{"part": "grpc"}),
 		ssf.Count("forward.error_total", 0, nil),
 	)
+}
+
+func ForwardGrpcSingle(
+	ctx context.Context, client forwardrpc.ForwardClient,
+	metrics []*metricpb.Metric,
+) error {
+	_, err := client.SendMetrics(ctx, &forwardrpc.MetricList{Metrics: metrics})
+	return err
+}
+
+func ForwardGrpcStream(
+	ctx context.Context, client forwardrpc.ForwardClient,
+	metrics []*metricpb.Metric,
+) error {
+	sendMetricsClient, err := client.SendMetricsV2(ctx)
+	if err != nil {
+		return err
+	}
+	for _, metric := range metrics {
+		sendMetricsClient.Send(metric)
+	}
+	_, err = sendMetricsClient.CloseAndRecv()
+	return err
 }

@@ -26,7 +26,8 @@
   "Features": {
     "EnableMetricSinkRouting": false,
     "MigrateMetricSinks": false,
-    "MigrateSpanSinks": false
+    "MigrateSpanSinks": false,
+    "ProxyProtocol": ""
   },
   "FlushFile": "",
   "FlushMaxPerBody": 0,
