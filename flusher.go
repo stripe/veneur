@@ -20,6 +20,7 @@ import (
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util/matcher"
 	"google.golang.org/grpc/status"
 )
 
@@ -110,7 +111,7 @@ func (s *Server) Flush(ctx context.Context) {
 			metric.Sinks = make(samplers.RouteInformation)
 			for _, config := range s.Config.MetricSinkRouting {
 				var sinks []string
-				if config.Match(metric.Name, metric.Tags) {
+				if matcher.Match(config.Match, metric.Name, metric.Tags) {
 					sinks = config.Sinks.Matched
 				} else {
 					sinks = config.Sinks.NotMatched
@@ -141,7 +142,7 @@ func (s *Server) Flush(ctx context.Context) {
 					tagLoop:
 						for _, tag := range metric.Tags {
 							for _, tagMatcher := range sink.stripTags {
-								if tagMatcher.match(tag) {
+								if tagMatcher.Match(tag) {
 									continue tagLoop
 								}
 							}

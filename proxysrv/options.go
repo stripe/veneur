@@ -5,6 +5,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util/matcher"
 )
 
 // WithForwardTimeout sets the time after which an individual RPC to a
@@ -12,6 +13,14 @@ import (
 func WithForwardTimeout(d time.Duration) Option {
 	return func(opts *options) {
 		opts.forwardTimeout = d
+	}
+}
+
+// WithIgnoredTags sets matching rules to ignore tags for sharding metrics
+// across global veneur instances.
+func WithIgnoredTags(ignoredTags []matcher.TagMatcher) Option {
+	return func(opts *options) {
+		opts.ignoredTags = ignoredTags
 	}
 }
 
