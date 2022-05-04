@@ -18,6 +18,7 @@ import (
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util/matcher"
 )
 
 const (
@@ -456,7 +457,7 @@ func (w *Worker) ImportMetricGRPC(other *metricpb.Metric) (err error) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
-	key := samplers.NewMetricKeyFromMetric(other)
+	key := samplers.NewMetricKeyFromMetric(other, []matcher.TagMatcher{})
 
 	scope := samplers.ScopeFromPB(other.Scope)
 	if other.Type == metricpb.Type_Counter || other.Type == metricpb.Type_Gauge {

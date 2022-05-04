@@ -1,4 +1,4 @@
-package veneur_test
+package matcher_test
 
 import (
 	"regexp/syntax"
@@ -6,30 +6,34 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/util/matcher"
 	"gopkg.in/yaml.v3"
 )
 
+type config struct {
+	Match []matcher.Matcher `yaml:"match"`
+}
+
 func CreateNameMatcher(
-	t *testing.T, matcher *veneur.NameMatcher,
+	t *testing.T, nameMatcher *matcher.NameMatcher,
 ) error {
-	return matcher.UnmarshalYAML(func(matcher interface{}) error {
-		assert.IsType(t, &veneur.NameMatcher{}, matcher)
+	return nameMatcher.UnmarshalYAML(func(nameMmatcher interface{}) error {
+		assert.IsType(t, &matcher.NameMatcher{}, nameMatcher)
 		return nil
 	})
 }
 
 func CreateTagMatcher(
-	t *testing.T, matcher *veneur.TagMatcher,
+	t *testing.T, tagMatcher *matcher.TagMatcher,
 ) error {
-	return matcher.UnmarshalYAML(func(matcher interface{}) error {
-		assert.IsType(t, &veneur.TagMatcher{}, matcher)
+	return tagMatcher.UnmarshalYAML(func(tagMatcher interface{}) error {
+		assert.IsType(t, &matcher.TagMatcher{}, tagMatcher)
 		return nil
 	})
 }
 
 func TestMatchNameAny(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -37,14 +41,14 @@ match:
 `), &config)
 
 	require.Nil(t, err)
-	assert.True(t, config.Match("aaa", []string{}))
-	assert.True(t, config.Match("aab", []string{}))
-	assert.True(t, config.Match("aaba", []string{}))
-	assert.True(t, config.Match("abb", []string{}))
+	assert.True(t, matcher.Match(config.Match, "aaa", []string{}))
+	assert.True(t, matcher.Match(config.Match, "aab", []string{}))
+	assert.True(t, matcher.Match(config.Match, "aaba", []string{}))
+	assert.True(t, matcher.Match(config.Match, "abb", []string{}))
 }
 
 func TestMatchNameExact(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -53,14 +57,14 @@ match:
 `), &config)
 
 	require.Nil(t, err)
-	assert.False(t, config.Match("aaa", []string{}))
-	assert.True(t, config.Match("aab", []string{}))
-	assert.False(t, config.Match("aaba", []string{}))
-	assert.False(t, config.Match("abb", []string{}))
+	assert.False(t, matcher.Match(config.Match, "aaa", []string{}))
+	assert.True(t, matcher.Match(config.Match, "aab", []string{}))
+	assert.False(t, matcher.Match(config.Match, "aaba", []string{}))
+	assert.False(t, matcher.Match(config.Match, "abb", []string{}))
 }
 
 func TestMatchNamePrefix(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -69,14 +73,14 @@ match:
 `), &config)
 
 	require.Nil(t, err)
-	assert.True(t, config.Match("aaa", []string{}))
-	assert.True(t, config.Match("aab", []string{}))
-	assert.True(t, config.Match("aaba", []string{}))
-	assert.False(t, config.Match("abb", []string{}))
+	assert.True(t, matcher.Match(config.Match, "aaa", []string{}))
+	assert.True(t, matcher.Match(config.Match, "aab", []string{}))
+	assert.True(t, matcher.Match(config.Match, "aaba", []string{}))
+	assert.False(t, matcher.Match(config.Match, "abb", []string{}))
 }
 
 func TestMatchNameRegex(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -85,14 +89,14 @@ match:
 `), &config)
 
 	require.Nil(t, err)
-	assert.False(t, config.Match("aaa", []string{}))
-	assert.True(t, config.Match("aab", []string{}))
-	assert.False(t, config.Match("aaba", []string{}))
-	assert.True(t, config.Match("abb", []string{}))
+	assert.False(t, matcher.Match(config.Match, "aaa", []string{}))
+	assert.True(t, matcher.Match(config.Match, "aab", []string{}))
+	assert.False(t, matcher.Match(config.Match, "aaba", []string{}))
+	assert.True(t, matcher.Match(config.Match, "abb", []string{}))
 }
 
 func TestMatchNameInvalidRegex(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -107,7 +111,7 @@ match:
 }
 
 func TestMatchNameInvalidKind(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -119,7 +123,7 @@ match:
 }
 
 func TestMatchTagExact(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -130,14 +134,14 @@ match:
 `), &config)
 
 	require.Nil(t, err)
-	assert.False(t, config.Match("name", []string{"aaa"}))
-	assert.True(t, config.Match("name", []string{"aab"}))
-	assert.False(t, config.Match("name", []string{"aaba"}))
-	assert.False(t, config.Match("name", []string{"abb"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"aaa"}))
+	assert.True(t, matcher.Match(config.Match, "name", []string{"aab"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"aaba"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"abb"}))
 }
 
 func TestMatchTagNameExactUnset(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -149,14 +153,14 @@ match:
 `), &config)
 
 	require.Nil(t, err)
-	assert.True(t, config.Match("name", []string{"aaa"}))
-	assert.False(t, config.Match("name", []string{"aab"}))
-	assert.True(t, config.Match("name", []string{"aaba"}))
-	assert.True(t, config.Match("name", []string{"abb"}))
+	assert.True(t, matcher.Match(config.Match, "name", []string{"aaa"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"aab"}))
+	assert.True(t, matcher.Match(config.Match, "name", []string{"aaba"}))
+	assert.True(t, matcher.Match(config.Match, "name", []string{"abb"}))
 }
 
 func TestMatchTagNamePrefix(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -167,14 +171,14 @@ match:
 `), &config)
 
 	require.Nil(t, err)
-	assert.True(t, config.Match("name", []string{"aaa"}))
-	assert.True(t, config.Match("name", []string{"aab"}))
-	assert.True(t, config.Match("name", []string{"aaba"}))
-	assert.False(t, config.Match("name", []string{"abb"}))
+	assert.True(t, matcher.Match(config.Match, "name", []string{"aaa"}))
+	assert.True(t, matcher.Match(config.Match, "name", []string{"aab"}))
+	assert.True(t, matcher.Match(config.Match, "name", []string{"aaba"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"abb"}))
 }
 
 func TestMatchTagNamePrefixUnset(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -186,14 +190,14 @@ match:
 `), &config)
 
 	require.Nil(t, err)
-	assert.False(t, config.Match("name", []string{"aaa"}))
-	assert.False(t, config.Match("name", []string{"aab"}))
-	assert.False(t, config.Match("name", []string{"aaba"}))
-	assert.True(t, config.Match("name", []string{"abb"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"aaa"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"aab"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"aaba"}))
+	assert.True(t, matcher.Match(config.Match, "name", []string{"abb"}))
 }
 
 func TestMatchTagNameRegex(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -204,14 +208,14 @@ match:
 `), &config)
 
 	require.Nil(t, err)
-	assert.False(t, config.Match("name", []string{"aaa"}))
-	assert.True(t, config.Match("name", []string{"aab"}))
-	assert.False(t, config.Match("name", []string{"aaba"}))
-	assert.True(t, config.Match("name", []string{"abb"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"aaa"}))
+	assert.True(t, matcher.Match(config.Match, "name", []string{"aab"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"aaba"}))
+	assert.True(t, matcher.Match(config.Match, "name", []string{"abb"}))
 }
 
 func TestMatchTagNameRegexUnset(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -223,14 +227,14 @@ match:
 `), &config)
 
 	require.Nil(t, err)
-	assert.True(t, config.Match("name", []string{"aaa"}))
-	assert.False(t, config.Match("name", []string{"aab"}))
-	assert.True(t, config.Match("name", []string{"aaba"}))
-	assert.False(t, config.Match("name", []string{"abb"}))
+	assert.True(t, matcher.Match(config.Match, "name", []string{"aaa"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"aab"}))
+	assert.True(t, matcher.Match(config.Match, "name", []string{"aaba"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"abb"}))
 }
 
 func TestMatchTagNameInvalidRegex(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -247,7 +251,7 @@ match:
 }
 
 func TestMatchTagNameInvalidKind(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -261,7 +265,7 @@ match:
 }
 
 func TestMatchTagMultiple(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -272,13 +276,13 @@ match:
 `), &config)
 
 	require.Nil(t, err)
-	assert.True(t, config.Match("name", []string{"aaab", "baba"}))
-	assert.True(t, config.Match("name", []string{"baba", "aaab"}))
-	assert.False(t, config.Match("name", []string{"abba", "baba"}))
+	assert.True(t, matcher.Match(config.Match, "name", []string{"aaab", "baba"}))
+	assert.True(t, matcher.Match(config.Match, "name", []string{"baba", "aaab"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"abba", "baba"}))
 }
 
 func TestMatchTagUnsetMultiple(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -290,13 +294,13 @@ match:
 `), &config)
 
 	require.Nil(t, err)
-	assert.False(t, config.Match("name", []string{"aaab", "baba"}))
-	assert.False(t, config.Match("name", []string{"baba", "aaab"}))
-	assert.True(t, config.Match("name", []string{"abba", "baba"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"aaab", "baba"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"baba", "aaab"}))
+	assert.True(t, matcher.Match(config.Match, "name", []string{"abba", "baba"}))
 }
 
 func TestMultipleTagMatchers(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -309,13 +313,14 @@ match:
 `), &config)
 
 	require.Nil(t, err)
-	assert.False(t, config.Match("name", []string{"ab", "baab"}))
-	assert.False(t, config.Match("name", []string{"aaab", "baba"}))
-	assert.True(t, config.Match("name", []string{"ab", "aaab", "baba"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"ab", "baab"}))
+	assert.False(t, matcher.Match(config.Match, "name", []string{"aaab", "baba"}))
+	assert.True(t, matcher.Match(
+		config.Match, "name", []string{"ab", "aaab", "baba"}))
 }
 
 func TestMultipleMatcherConfigs(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
+	config := config{}
 	err := yaml.Unmarshal([]byte(`---
 match:
   - name:
@@ -333,16 +338,15 @@ match:
 `), &config)
 
 	require.Nil(t, err)
-	assert.False(t, config.Match("aa", []string{"aaab", "baba"}))
-	assert.True(t, config.Match("bb", []string{"aaab", "baba"}))
-	assert.True(t, config.Match("aa", []string{"ab", "baab"}))
-	assert.False(t, config.Match("bb", []string{"ab", "baab"}))
+	assert.False(t, matcher.Match(config.Match, "aa", []string{"aaab", "baba"}))
+	assert.True(t, matcher.Match(config.Match, "bb", []string{"aaab", "baba"}))
+	assert.True(t, matcher.Match(config.Match, "aa", []string{"ab", "baab"}))
+	assert.False(t, matcher.Match(config.Match, "bb", []string{"ab", "baab"}))
 }
 
 func TestMarshall(t *testing.T) {
-	config := veneur.SinkRoutingConfig{}
-	yamlString := `name: test
-match:
+	config := config{}
+	yamlString := `match:
     - name:
         kind: exact
         value: aa
@@ -357,11 +361,6 @@ match:
         - kind: prefix
           unset: true
           value: aa
-sinks:
-    matched:
-        - sink1
-    not_matched:
-        - sink2
 `
 
 	require.NoError(t, yaml.Unmarshal([]byte(yamlString), &config))

@@ -42,6 +42,7 @@ import (
 	"github.com/stripe/veneur/v14/tagging"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util/matcher"
 )
 
 // VERSION stores the current veneur version.
@@ -191,7 +192,7 @@ type internalSource struct {
 
 type internalMetricSink struct {
 	sink      sinks.MetricSink
-	stripTags []TagMatcher
+	stripTags []matcher.TagMatcher
 }
 
 type GlobalListeningPerProtocolMetrics struct {

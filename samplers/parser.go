@@ -15,6 +15,7 @@ import (
 	"github.com/stripe/veneur/v14/samplers/metricpb"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/tagging"
+	"github.com/stripe/veneur/v14/util/matcher"
 )
 
 var invalidMetricTypeError = errors.New("Invalid type for metric")
@@ -104,11 +105,23 @@ type MetricKey struct {
 
 // NewMetricKeyFromMetric initializes a MetricKey from the protobuf-compatible
 // metricpb.Metric
-func NewMetricKeyFromMetric(m *metricpb.Metric) MetricKey {
+func NewMetricKeyFromMetric(
+	m *metricpb.Metric, ignoredTags []matcher.TagMatcher,
+) MetricKey {
+	tags := []string{}
+tagLoop:
+	for _, tag := range m.Tags {
+		for _, matcher := range ignoredTags {
+			if matcher.Match(tag) {
+				continue tagLoop
+			}
+		}
+		tags = append(tags, tag)
+	}
 	return MetricKey{
 		Name:       m.Name,
 		Type:       strings.ToLower(m.Type.String()),
-		JoinedTags: strings.Join(m.Tags, ","),
+		JoinedTags: strings.Join(tags, ","),
 	}
 }
 

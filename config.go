@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/stripe/veneur/v14/util"
+	"github.com/stripe/veneur/v14/util/matcher"
 )
 
 type Config struct {
@@ -158,6 +159,16 @@ type HttpConfig struct {
 	Config bool `yaml:"config"`
 }
 
+type SinkRoutingConfig struct {
+	Name  string            `yaml:"name"`
+	Match []matcher.Matcher `yaml:"match"`
+	Sinks SinkRoutingSinks  `yaml:"sinks"`
+}
+
+type SinkRoutingSinks struct {
+	Matched    []string `yaml:"matched"`
+	NotMatched []string `yaml:"not_matched"`
+}
 type SourceConfig struct {
 	Kind   string      `yaml:"kind"`
 	Name   string      `yaml:"name"`
@@ -166,8 +177,8 @@ type SourceConfig struct {
 }
 
 type SinkConfig struct {
-	Kind      string       `yaml:"kind"`
-	Name      string       `yaml:"name"`
-	Config    interface{}  `yaml:"config"`
-	StripTags []TagMatcher `yaml:"strip_tags"`
+	Kind      string               `yaml:"kind"`
+	Name      string               `yaml:"name"`
+	Config    interface{}          `yaml:"config"`
+	StripTags []matcher.TagMatcher `yaml:"strip_tags"`
 }

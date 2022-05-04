@@ -30,6 +30,7 @@ import (
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util/matcher"
 )
 
 const (
@@ -63,6 +64,7 @@ type options struct {
 	forwardTimeout time.Duration
 	traceClient    *trace.Client
 	statsInterval  time.Duration
+	ignoredTags    []matcher.TagMatcher
 }
 
 // New creates a new Server with the provided destinations. The server returned
@@ -295,7 +297,7 @@ func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 
 // destForMetric returns a destination for the input metric.
 func (s *Server) destForMetric(m *metricpb.Metric) (string, error) {
-	key := samplers.NewMetricKeyFromMetric(m)
+	key := samplers.NewMetricKeyFromMetric(m, s.opts.ignoredTags)
 	dest, err := s.destinations.Get(key.String())
 	if err != nil {
 		return "", fmt.Errorf("failed to hash the MetricKey '%s' to a "+
