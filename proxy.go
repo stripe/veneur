@@ -147,7 +147,7 @@ func NewProxyFromConfig(
 	if proxy.ConsulTraceService != "" || conf.TraceAddress != "" {
 		proxy.AcceptingTraces = true
 	}
-	if proxy.ConsulForwardGRPCService != "" || conf.GrpcForwardAddress != "" {
+	if proxy.ConsulForwardGRPCService != "" || len(conf.GrpcForwardAddress) > 0 {
 		proxy.AcceptingGRPCForwards = true
 	}
 
@@ -196,8 +196,10 @@ func NewProxyFromConfig(
 	if proxy.ConsulTraceService == "" && conf.TraceAddress != "" {
 		proxy.TraceDestinations.Add(conf.TraceAddress)
 	}
-	if proxy.ConsulForwardGRPCService == "" && conf.GrpcForwardAddress != "" {
-		proxy.ForwardGRPCDestinations.Add(conf.GrpcForwardAddress)
+	if proxy.ConsulForwardGRPCService == "" {
+		for _, address := range conf.GrpcForwardAddress {
+			proxy.ForwardGRPCDestinations.Add(address)
+		}
 	}
 
 	if !proxy.AcceptingForwards &&
