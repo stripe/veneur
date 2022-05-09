@@ -154,7 +154,7 @@ func newForwardGRPCFixture(
 		HTTPAddress:            "127.0.0.1:0",
 		GrpcAddress:            unusedLocalTCPAddress(t),
 		StatsAddress:           "127.0.0.1:8201",
-		GrpcForwardAddress:     globalConfig.GrpcAddress,
+		GrpcForwardAddress:     []string{globalConfig.GrpcAddress},
 	}
 	proxy, err := veneur.NewProxyFromConfig(logrus.New(), proxyConfig)
 	assert.NoError(t, err)
