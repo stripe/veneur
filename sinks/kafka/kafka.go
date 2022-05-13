@@ -282,10 +282,6 @@ func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.Int
 
 	successes := int64(0)
 	for _, metric := range interMetrics {
-		if !sinks.IsAcceptableMetric(metric, k) {
-			continue
-		}
-
 		k.logger.Debug("Emitting Metric: ", metric.Name)
 		j, err := json.Marshal(metric)
 		if err != nil {

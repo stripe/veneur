@@ -337,10 +337,6 @@ func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) ([]
 
 METRICLOOP:
 	for _, m := range metrics {
-		if !sinks.IsAcceptableMetric(m, dd) {
-			continue
-		}
-
 		for _, dropMetricPrefix := range dd.metricNamePrefixDrops {
 			if strings.HasPrefix(m.Name, dropMetricPrefix) {
 				continue METRICLOOP

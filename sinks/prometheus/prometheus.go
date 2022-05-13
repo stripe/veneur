@@ -135,10 +135,6 @@ func (sink *PrometheusMetricSink) serializeMetrics(metrics []samplers.InterMetri
 
 	statsdMetrics := []string{}
 	for _, metric := range metrics {
-		if !sinks.IsAcceptableMetric(metric, sink) {
-			continue
-		}
-
 		var sm bytes.Buffer
 		t.Execute(&sm, map[string]interface{}{
 			"Name":  metric.Name,
