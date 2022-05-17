@@ -120,23 +120,25 @@ intervalLoop:
 	for {
 		select {
 		case t := <-ticker.C:
-			ctx, cancel :=
-				context.WithDeadline(source.context, t.Add(source.ScrapeTimeout))
-			defer cancel()
-			results, err := source.Query(ctx)
+			func() {
+				ctx, cancel :=
+					context.WithDeadline(source.context, t.Add(source.ScrapeTimeout))
+				defer cancel()
+				results, err := source.Query(ctx)
 
-			if err != nil {
-				source.logger.WithError(err).Warn("failed to query metrics")
-				continue
-			}
-			udpMetrics := source.Convert(results)
-			for metric := range udpMetrics {
-				if metric.Error != nil {
-					source.logger.WithError(err).Warn("failed to ingest metrics")
-					continue intervalLoop
+				if err != nil {
+					source.logger.WithError(err).Warn("failed to query metrics")
+					return
 				}
-				ingest.IngestMetric(metric.Metric)
-			}
+				udpMetrics := source.Convert(results)
+				for metric := range udpMetrics {
+					if metric.Error != nil {
+						source.logger.WithError(err).Warn("failed to ingest metrics")
+						return
+					}
+					ingest.IngestMetric(metric.Metric)
+				}
+			}()
 		case <-source.context.Done():
 			break intervalLoop
 		}
