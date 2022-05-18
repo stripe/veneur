@@ -626,7 +626,7 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		span.Error(err)
 	}
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(numPoints), tags))
-	sfx.log.WithField("metrics", len(interMetrics)).Info("flushed")
+	sfx.log.WithField("metrics_flushed", len(interMetrics)).Info("flushed")
 
 	return err
 }

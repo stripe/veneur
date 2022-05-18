@@ -190,6 +190,10 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	flushedMetrics := 0
 	droppedMetrics := 0
 	defer func() {
+		s.logger.WithFields(logrus.Fields{
+			"metrics_flushed": flushedMetrics,
+			"metrics_dropped": droppedMetrics,
+		}).Info("flushed")
 		span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(flushedMetrics), metricKeyTags))
 		span.Add(ssf.Count(sinks.MetricKeyTotalMetricsDropped, float32(droppedMetrics), metricKeyTags))
 	}()
