@@ -321,7 +321,7 @@ func newSignalFxSink(
 			"per tag API keys are enabled, but the refresh period is unset")
 	}
 
-	return &SignalFxSink{
+	sink := &SignalFxSink{
 		apiEndpoint:                 endpointStr,
 		clientsByTagValue:           perTagClients,
 		clientsByTagValueMu:         &sync.RWMutex{},
@@ -342,7 +342,12 @@ func newSignalFxSink(
 		name:                        name,
 		varyBy:                      config.VaryKeyBy,
 		varyByFavorCommonDimensions: config.VaryKeyByFavorCommonDimensions,
-	}, nil
+	}
+	sink.log = sink.log.WithFields(logrus.Fields{
+		"sink_name": sink.Name(),
+		"sink_kind": sink.Kind(),
+	})
+	return sink, nil
 }
 
 // Name returns the name of this sink.
@@ -614,7 +619,7 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		coll.addPoint(subCtx, metricKey, point)
 		numPoints++
 	}
-	tags := map[string]string{"sink": "signalfx"}
+	tags := map[string]string{"sink_name": sfx.Name(), "sink_kind": sfx.Kind()}
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsSkipped, float32(countSkipped), tags))
 	err := coll.submit(subCtx, sfx.traceClient, sfx.maxPointsInBatch)
 	if err != nil {
