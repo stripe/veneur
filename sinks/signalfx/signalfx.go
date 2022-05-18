@@ -350,6 +350,11 @@ func (sfx *SignalFxSink) Name() string {
 	return sfx.name
 }
 
+// Name returns the kind of this sink.
+func (sfx *SignalFxSink) Kind() string {
+	return "signalfx"
+}
+
 // Start begins the sink. For SignalFx this starts the clientByTagUpdater
 func (sfx *SignalFxSink) Start(traceClient *trace.Client) error {
 	sfx.traceClient = traceClient

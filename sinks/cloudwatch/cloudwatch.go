@@ -36,6 +36,7 @@ type CloudwatchMetricSinkConfig struct {
 }
 
 type cloudwatchMetricSink struct {
+	name                string
 	logger              *logrus.Entry
 	remoteTimeout       time.Duration
 	client              *cloudwatch.Client
@@ -50,10 +51,11 @@ type cloudwatchMetricSink struct {
 var _ sinks.MetricSink = (*cloudwatchMetricSink)(nil)
 
 func NewCloudwatchMetricSink(
-	endpoint, namespace, region string, standardUnitTagName types.StandardUnit,
+	name, endpoint, namespace, region string, standardUnitTagName types.StandardUnit,
 	remoteTimeout time.Duration, disableRetries bool, stripTags []string, logger *logrus.Entry,
 ) *cloudwatchMetricSink {
 	return &cloudwatchMetricSink{
+		name:                name,
 		endpoint:            endpoint,
 		namespace:           namespace,
 		region:              region,
@@ -90,6 +92,7 @@ func Create(
 	}
 
 	return NewCloudwatchMetricSink(
+		name,
 		conf.CloudwatchEndpoint,
 		conf.CloudwatchNamespace,
 		conf.AWSRegion,
@@ -102,6 +105,10 @@ func Create(
 }
 
 func (s *cloudwatchMetricSink) Name() string {
+	return s.name
+}
+
+func (s *cloudwatchMetricSink) Kind() string {
 	return "cloudwatch"
 }
 

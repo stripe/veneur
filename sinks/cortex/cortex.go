@@ -127,22 +127,32 @@ func ParseConfig(
 
 // NewCortexMetricSink creates and returns a new instance of the sink
 func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string, headers map[string]string, basicAuth *BasicAuthType, batchWriteSize int) (*CortexMetricSink, error) {
-	return &CortexMetricSink{
+	sink := &CortexMetricSink{
 		URL:            URL,
 		RemoteTimeout:  timeout,
 		ProxyURL:       proxyURL,
 		tags:           tags,
-		logger:         logger.WithFields(logrus.Fields{"sink_type": "cortex"}),
+		logger:         logger,
 		name:           name,
 		addHeaders:     headers,
 		basicAuth:      basicAuth,
 		batchWriteSize: batchWriteSize,
-	}, nil
+	}
+	sink.logger = sink.logger.WithFields(logrus.Fields{
+		"sink_name": sink.Name(),
+		"sink_kind": sink.Kind(),
+	})
+	return sink, nil
 }
 
-// Name returns the string cortex
+// Name returns the sink name
 func (s *CortexMetricSink) Name() string {
 	return s.name
+}
+
+// Kind returns the sink kind
+func (s *CortexMetricSink) Kind() string {
+	return "cortex"
 }
 
 // Start sets up the HTTP client for writing to Cortex
@@ -176,7 +186,7 @@ func (s *CortexMetricSink) Start(tc *trace.Client) error {
 func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
-	metricKeyTags := map[string]string{"sink": s.name, "sink_type": "cortex"}
+	metricKeyTags := map[string]string{"sink_name": s.Name(), "sink_type": s.Kind()}
 	flushedMetrics := 0
 	droppedMetrics := 0
 	defer func() {

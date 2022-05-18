@@ -149,6 +149,11 @@ func (sink *LocalFileSink) Name() string {
 	return sink.name
 }
 
+// Kind is the kind of the LocalFilePlugin, i.e. always "localfile"
+func (sink *LocalFileSink) Kind() string {
+	return "localfile"
+}
+
 func (sink *LocalFileSink) FlushOtherSamples(
 	ctx context.Context, samples []ssf.SSFSample,
 ) {

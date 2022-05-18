@@ -175,6 +175,11 @@ func (dd *DatadogMetricSink) Name() string {
 	return dd.name
 }
 
+// Kind returns the kind of this sink
+func (dd *DatadogMetricSink) Kind() string {
+	return "datadog"
+}
+
 // Start sets the sink up.
 func (dd *DatadogMetricSink) Start(cl *trace.Client) error {
 	dd.traceClient = cl

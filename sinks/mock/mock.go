@@ -71,6 +71,11 @@ func (m *MockMetricSink) Name() string {
 	return ret0
 }
 
+// Kind is hardcoded to "mock".
+func (m *MockMetricSink) Name() string {
+	return "mock"
+}
+
 // Name indicates an expected call of Name.
 func (mr *MockMetricSinkMockRecorder) Name() *gomock.Call {
 	mr.mock.ctrl.T.Helper()

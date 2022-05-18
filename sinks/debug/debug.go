@@ -64,6 +64,10 @@ func (b *debugMetricSink) Name() string {
 	return b.name
 }
 
+func (b *debugMetricSink) Kind() string {
+	return "debug"
+}
+
 func (b *debugMetricSink) Start(*trace.Client) error {
 	return nil
 }

@@ -154,18 +154,25 @@ func (s *Server) Flush(ctx context.Context) {
 			err := sink.sink.Flush(span.Attach(ctx), filteredMetrics)
 			if err == nil {
 				s.logger.WithFields(logrus.Fields{
-					"sink":    sink.sink.Name(),
-					"success": true,
+					"sink_name": sink.sink.Name(),
+					"sink_kind": sink.sink.Kind(),
+					"success":   true,
 				}).Info(sinks.FlushCompleteMessage)
 			} else {
 				s.logger.WithError(err).WithFields(logrus.Fields{
-					"sink":    sink.sink.Name(),
-					"success": false,
+					"sink_name": sink.sink.Name(),
+					"sink_kind": sink.sink.Kind(),
+					"success":   false,
 				}).Warn(sinks.FlushCompleteMessage)
 			}
 			span.Add(ssf.Timing(
-				sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
-				time.Millisecond, map[string]string{"sink": sink.sink.Name()}))
+				sinks.MetricKeyMetricFlushDuration,
+				time.Since(flushStart),
+				time.Millisecond,
+				map[string]string{
+					"sink_name": sink.sink.Name(),
+					"sink_kind": sink.sink.Kind(),
+				}))
 			wg.Done()
 		}(sink)
 	}

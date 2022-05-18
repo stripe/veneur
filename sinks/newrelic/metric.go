@@ -116,6 +116,11 @@ func (nr *NewRelicMetricSink) Name() string {
 	return nr.name
 }
 
+// Kin returns the kind of the sink
+func (nr *NewRelicMetricSink) Kind() string {
+	return "newrelic"
+}
+
 func (nr *NewRelicMetricSink) Start(c *trace.Client) error {
 	nr.traceClient = c
 

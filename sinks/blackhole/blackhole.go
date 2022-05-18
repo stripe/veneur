@@ -25,6 +25,10 @@ func (b *blackholeMetricSink) Name() string {
 	return "blackhole"
 }
 
+func (b *blackholeMetricSink) Kind() string {
+	return "blackhole"
+}
+
 func (b *blackholeMetricSink) Start(*trace.Client) error {
 	return nil
 }

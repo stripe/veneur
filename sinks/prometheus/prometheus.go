@@ -83,6 +83,10 @@ func (sink *PrometheusMetricSink) Name() string {
 	return sink.name
 }
 
+func (sink *PrometheusMetricSink) Kind() string {
+	return "prometheus"
+}
+
 func (sink *PrometheusMetricSink) Start(traceClient *trace.Client) error {
 	sink.traceClient = traceClient
 	return nil

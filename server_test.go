@@ -199,6 +199,10 @@ func (c *channelMetricSink) Name() string {
 	return "channel"
 }
 
+func (c *channelMetricSink) Kind() string {
+	return "channel"
+}
+
 func (c *channelMetricSink) Start(*trace.Client) error {
 	return nil
 }
@@ -1537,6 +1541,10 @@ func (s *blockySink) Name() string {
 	return "blocky_sink"
 }
 
+func (s *blockySink) Kind() string {
+	return "blocky_sink"
+}
+
 func (s *blockySink) Start(traceClient *trace.Client) error {
 	return nil
 }
@@ -1582,6 +1590,8 @@ type blockingSink struct {
 }
 
 func (bs blockingSink) Name() string { return "a_blocky_boi" }
+
+func (bs blockingSink) Kind() string { return "a_blocky_boi" }
 
 func (bs blockingSink) Start(traceClient *trace.Client) error {
 	return nil

@@ -260,6 +260,11 @@ func (k *KafkaMetricSink) Name() string {
 	return k.name
 }
 
+// Kind returns the kind of this sink.
+func (k *KafkaMetricSink) Kind() string {
+	return "kafka"
+}
+
 // Start performs final adjustments on the sink.
 func (k *KafkaMetricSink) Start(cl *trace.Client) error {
 	producer, err := newConfiguredProducer(k.logger, k.brokers, k.config)

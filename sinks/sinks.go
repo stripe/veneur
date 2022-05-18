@@ -35,6 +35,7 @@ const EventReportedCount = "sink.events_reported_total"
 // it's aggregated metrics.
 type MetricSink interface {
 	Name() string
+	Kind() string
 	// Start finishes setting up the sink and starts any
 	// background processing tasks that the sink might have to run
 	// in the background. It's invoked when the server starts.

@@ -156,6 +156,10 @@ func (p *S3Sink) Name() string {
 	return p.name
 }
 
+func (p *S3Sink) Kind() string {
+	return "s3"
+}
+
 type filetype string
 
 const (
