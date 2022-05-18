@@ -165,7 +165,7 @@ func (s *Server) Flush(ctx context.Context) {
 			}
 			span.Add(ssf.Timing(
 				sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
-				time.Nanosecond, map[string]string{"sink": sink.sink.Name()}))
+				time.Millisecond, map[string]string{"sink": sink.sink.Name()}))
 			wg.Done()
 		}(sink)
 	}
