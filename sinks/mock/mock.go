@@ -10,7 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	samplers "github.com/stripe/veneur/v14/samplers"
-	"github.com/stripe/veneur/v14/sinks"
+	sinks "github.com/stripe/veneur/v14/sinks"
 	ssf "github.com/stripe/veneur/v14/ssf"
 	trace "github.com/stripe/veneur/v14/trace"
 )
@@ -42,8 +42,9 @@ func (m *MockMetricSink) EXPECT() *MockMetricSinkMockRecorder {
 func (m *MockMetricSink) Flush(arg0 context.Context, arg1 []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Flush", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return sinks.MetricFlushResult{}, ret0
+	ret0, _ := ret[0].(sinks.MetricFlushResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Flush indicates an expected call of Flush.
@@ -64,17 +65,26 @@ func (mr *MockMetricSinkMockRecorder) FlushOtherSamples(ctx, samples interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FlushOtherSamples", reflect.TypeOf((*MockMetricSink)(nil).FlushOtherSamples), ctx, samples)
 }
 
+// Kind mocks base method.
+func (m *MockMetricSink) Kind() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Kind")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// Kind indicates an expected call of Kind.
+func (mr *MockMetricSinkMockRecorder) Kind() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Kind", reflect.TypeOf((*MockMetricSink)(nil).Kind))
+}
+
 // Name mocks base method.
 func (m *MockMetricSink) Name() string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Name")
 	ret0, _ := ret[0].(string)
 	return ret0
-}
-
-// Name mocks base method.
-func (m *MockMetricSink) Kind() string {
-	return "mock"
 }
 
 // Name indicates an expected call of Name.
