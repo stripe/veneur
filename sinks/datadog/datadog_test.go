@@ -4,14 +4,15 @@ import (
 	"compress/zlib"
 	"context"
 	"encoding/json"
-	"github.com/stripe/veneur/v14"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stripe/veneur/v14"
+	"gopkg.in/yaml.v2"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -299,7 +300,7 @@ func TestDatadogMetricRouting(t *testing.T) {
 				}
 				close(done)
 			}()
-			err := ddSink.Flush(context.TODO(), []samplers.InterMetric{test.metric})
+			_, err := ddSink.Flush(context.TODO(), []samplers.InterMetric{test.metric})
 			require.NoError(t, err)
 			close(rcved)
 			<-done

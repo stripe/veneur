@@ -102,7 +102,7 @@ func TestFlush(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Flush the sink
-	err = sink.Flush(context.Background(), metrics)
+	_, err = sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 
 	<-done
@@ -139,7 +139,7 @@ func TestFlushWithStandardUnitTagName(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Flush the sink
-	err = sink.Flush(context.Background(), metrics)
+	_, err = sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 
 	<-done
@@ -179,7 +179,7 @@ func TestFlushWithStripTags(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Flush the sink
-	err = sink.Flush(context.Background(), metrics)
+	_, err = sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 
 	<-done
@@ -210,7 +210,7 @@ func TestFlushNoop(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Flush the sink
-	err := sink.Flush(context.Background(), metrics)
+	_, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 
 	<-done
@@ -244,7 +244,7 @@ func TestFlushRemoteTimeout(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Assert the flush failed
-	err := sink.Flush(context.Background(), metrics)
+	_, err := sink.Flush(context.Background(), metrics)
 	assert.Error(t, err)
 
 	<-done

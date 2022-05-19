@@ -76,7 +76,7 @@ func TestFlush(t *testing.T) {
 			FlushFile: "flush-file.tsv",
 		}, filesystem, "hostname", logrus.NewEntry(logrus.New()), "sink-name")
 
-	err := sink.Flush(context.Background(), metrics)
+	_, err := sink.Flush(context.Background(), metrics)
 	require.NoError(t, err)
 
 	resultFile, ok := filesystem.files["flush-file.tsv"]
@@ -119,7 +119,7 @@ func TestFlushWriteError(t *testing.T) {
 		}, fakeFileSystemWriteError{}, "hostname", logrus.NewEntry(logrus.New()),
 		"sink-name")
 
-	err := sink.Flush(context.Background(), metrics)
+	_, err := sink.Flush(context.Background(), metrics)
 	require.Error(t, err)
 }
 
@@ -132,7 +132,7 @@ func TestFlushToDevNull(t *testing.T) {
 			FlushFile: "/dev/null",
 		})
 	require.Nil(t, err)
-	err = sink.Flush(context.Background(), metrics)
+	_, err = sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 }
 
@@ -145,6 +145,6 @@ func TestFlushToInvalidPath(t *testing.T) {
 			FlushFile: "",
 		})
 	require.Nil(t, err)
-	err = sink.Flush(context.Background(), metrics)
+	_, err = sink.Flush(context.Background(), metrics)
 	assert.Error(t, err)
 }

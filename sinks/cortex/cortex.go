@@ -183,7 +183,7 @@ func (s *CortexMetricSink) Start(tc *trace.Client) error {
 }
 
 // Flush sends a batch of metrics to the configured remote-write endpoint
-func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 	metricKeyTags := map[string]string{"sink_name": s.Name(), "sink_type": s.Kind()}
@@ -206,7 +206,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 			droppedMetrics = len(metrics)
 		}
 
-		return err
+		return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 	}
 
 	doIfNotDone := func(fn func() error) error {
@@ -237,7 +237,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 
 		if err != nil {
 			droppedMetrics += len(batch)
-			return err
+			return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 		}
 	}
 
@@ -254,7 +254,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		}
 	}
 
-	return err
+	return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 }
 
 func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.InterMetric) error {

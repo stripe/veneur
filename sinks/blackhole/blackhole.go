@@ -33,8 +33,8 @@ func (b *blackholeMetricSink) Start(*trace.Client) error {
 	return nil
 }
 
-func (b *blackholeMetricSink) Flush(context.Context, []samplers.InterMetric) error {
-	return nil
+func (b *blackholeMetricSink) Flush(context.Context, []samplers.InterMetric) (sinks.MetricFlushResult, error) {
+	return sinks.MetricFlushResult{}, nil
 }
 
 func (b *blackholeMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {

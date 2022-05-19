@@ -276,13 +276,13 @@ func (k *KafkaMetricSink) Start(cl *trace.Client) error {
 }
 
 // Flush sends a slice of metrics to Kafka
-func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
+func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	samples := &ssf.Samples{}
 	defer metrics.Report(k.traceClient, samples)
 
 	if len(interMetrics) == 0 {
 		k.logger.Info("Nothing to flush, skipping.")
-		return nil
+		return sinks.MetricFlushResult{}, nil
 	}
 
 	successes := int64(0)
@@ -296,7 +296,7 @@ func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.Int
 		if err != nil {
 			k.logger.Error("Error marshalling metric: ", metric.Name)
 			samples.Add(ssf.Count("kafka.marshal.error_total", 1, nil))
-			return err
+			return sinks.MetricFlushResult{}, err
 		}
 
 		k.producer.Input() <- &sarama.ProducerMessage{
@@ -306,7 +306,7 @@ func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.Int
 		successes++
 	}
 	samples.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(successes), map[string]string{"sink": k.Name()}))
-	return nil
+	return sinks.MetricFlushResult{}, nil
 }
 
 // FlushOtherSamples flushes non-metric, non-span samples

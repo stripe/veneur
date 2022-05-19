@@ -127,18 +127,18 @@ func (nr *NewRelicMetricSink) Start(c *trace.Client) error {
 	return nil
 }
 
-func (nr *NewRelicMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
+func (nr *NewRelicMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(nr.traceClient)
 
 	if nr.harvester == nil {
 		err := errors.New("New Relic sink was not initialized")
 		nr.log.Error(err)
-		return err
+		return sinks.MetricFlushResult{}, err
 	}
 
 	if len(interMetrics) <= 0 {
-		return nil
+		return sinks.MetricFlushResult{}, nil
 	}
 
 	for _, m := range interMetrics {
@@ -208,7 +208,7 @@ func (nr *NewRelicMetricSink) Flush(ctx context.Context, interMetrics []samplers
 	// Send the data off to New Relic
 	nr.harvester.HarvestNow(ctx)
 
-	return nil
+	return sinks.MetricFlushResult{}, nil
 }
 
 func (nr *NewRelicMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {

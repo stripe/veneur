@@ -10,6 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	samplers "github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/sinks"
 	ssf "github.com/stripe/veneur/v14/ssf"
 	trace "github.com/stripe/veneur/v14/trace"
 )
@@ -38,11 +39,11 @@ func (m *MockMetricSink) EXPECT() *MockMetricSinkMockRecorder {
 }
 
 // Flush mocks base method.
-func (m *MockMetricSink) Flush(arg0 context.Context, arg1 []samplers.InterMetric) error {
+func (m *MockMetricSink) Flush(arg0 context.Context, arg1 []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Flush", arg0, arg1)
 	ret0, _ := ret[0].(error)
-	return ret0
+	return sinks.MetricFlushResult{}, ret0
 }
 
 // Flush indicates an expected call of Flush.
@@ -71,8 +72,8 @@ func (m *MockMetricSink) Name() string {
 	return ret0
 }
 
-// Kind is hardcoded to "mock".
-func (m *MockMetricSink) Name() string {
+// Name mocks base method.
+func (m *MockMetricSink) Kind() string {
 	return "mock"
 }
 

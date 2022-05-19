@@ -521,7 +521,7 @@ func (sfx *SignalFxSink) newPointCollection() *collection {
 }
 
 // Flush sends metrics to SignalFx
-func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
+func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	span, subCtx := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sfx.traceClient)
 
@@ -626,9 +626,8 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		span.Error(err)
 	}
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(numPoints), tags))
-	sfx.log.WithField("metrics_flushed", len(interMetrics)).Info("flushed")
 
-	return err
+	return sinks.MetricFlushResult{MetricsFlushed: numPoints, MetricsSkipped: countSkipped}, err
 }
 
 var successSpanTags = map[string]string{"sink": "signalfx", "results": "success"}

@@ -72,9 +72,9 @@ func (b *debugMetricSink) Start(*trace.Client) error {
 	return nil
 }
 
-func (b *debugMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+func (b *debugMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	if len(metrics) == 0 || b.log.Logger.Level < logrus.DebugLevel {
-		return nil
+		return sinks.MetricFlushResult{}, nil
 	}
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
@@ -87,7 +87,7 @@ func (b *debugMetricSink) Flush(ctx context.Context, metrics []samplers.InterMet
 		}
 		b.log.Debugf("  %s: %s(%v) = %f%s", m.Type, m.Name, m.Tags, m.Value, msg)
 	}
-	return nil
+	return sinks.MetricFlushResult{}, nil
 }
 
 func (b *debugMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {

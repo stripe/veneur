@@ -8,6 +8,12 @@ import (
 	"github.com/stripe/veneur/v14/trace"
 )
 
+type MetricFlushResult struct {
+	MetricsFlushed int
+	MetricsSkipped int
+	MetricsDropped int
+}
+
 // MetricKeyMetricFlushDuration is emitted as a timer for each sink by the
 // flusher, tagged with the name for the sink.
 const MetricKeyMetricFlushDuration = "sink.metric_flush_total_duration_ms"
@@ -46,7 +52,7 @@ type MetricSink interface {
 	// incoming metrics as they are shared with other sinks. Sinks
 	// must also check each metric with IsAcceptableMetric to
 	// verify they are eligible to consume the metric.
-	Flush(context.Context, []samplers.InterMetric) error
+	Flush(context.Context, []samplers.InterMetric) (MetricFlushResult, error)
 	// Handle non-metric, non-span samples.
 	FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample)
 }

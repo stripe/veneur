@@ -132,9 +132,9 @@ func (s *cloudwatchMetricSink) Start(*trace.Client) error {
 	return nil
 }
 
-func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	if len(metrics) == 0 {
-		return nil
+		return sinks.MetricFlushResult{}, nil
 	}
 
 	metricData := make([]types.MetricDatum, len(metrics))
@@ -179,9 +179,9 @@ func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.Int
 	}
 	_, err := s.client.PutMetricData(ctx, input)
 	if err != nil {
-		return err
+		return sinks.MetricFlushResult{}, err
 	}
-	return nil
+	return sinks.MetricFlushResult{MetricsFlushed: len(metricData)}, nil
 }
 
 func (s *cloudwatchMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {

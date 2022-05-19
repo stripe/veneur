@@ -60,7 +60,7 @@ func TestMetricFlush(t *testing.T) {
 		},
 		Type: samplers.GaugeMetric,
 	}
-	ferr := kafkaSink.Flush(context.Background(), []samplers.InterMetric{metric})
+	_, ferr := kafkaSink.Flush(context.Background(), []samplers.InterMetric{metric})
 	assert.NoError(t, ferr)
 
 	msg := <-producerMock.Successes()
@@ -160,7 +160,7 @@ func TestMetricFlushRouting(t *testing.T) {
 
 			kafkaSink.producer = producerMock
 
-			ferr := kafkaSink.Flush(
+			_, ferr := kafkaSink.Flush(
 				context.Background(), []samplers.InterMetric{test.metric})
 			producerMock.Close()
 			assert.NoError(t, ferr)
