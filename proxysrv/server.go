@@ -8,6 +8,7 @@ package proxysrv
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"stathat.com/c/consistent"
 
 	"github.com/stripe/veneur/v14/forwardrpc"
@@ -28,6 +30,7 @@ import (
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util/matcher"
 )
 
 const (
@@ -61,6 +64,7 @@ type options struct {
 	forwardTimeout time.Duration
 	traceClient    *trace.Client
 	statsInterval  time.Duration
+	ignoredTags    []matcher.TagMatcher
 }
 
 // New creates a new Server with the provided destinations. The server returned
@@ -187,6 +191,28 @@ func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 	return &empty.Empty{}, nil
 }
 
+func (s *Server) SendMetricsV2(
+	server forwardrpc.Forward_SendMetricsV2Server,
+) error {
+	metrics := []*metricpb.Metric{}
+	for {
+		metric, err := server.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+		metrics = append(metrics, metric)
+	}
+	_, err := s.SendMetrics(context.Background(), &forwardrpc.MetricList{
+		Metrics: metrics,
+	})
+	if err != nil {
+		return err
+	}
+	return server.SendAndClose(&emptypb.Empty{})
+}
+
 func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) error {
 	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxysrv.send_metrics")
 	defer span.ClientFinish(s.opts.traceClient)
@@ -271,7 +297,7 @@ func (s *Server) sendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) 
 
 // destForMetric returns a destination for the input metric.
 func (s *Server) destForMetric(m *metricpb.Metric) (string, error) {
-	key := samplers.NewMetricKeyFromMetric(m)
+	key := samplers.NewMetricKeyFromMetric(m, s.opts.ignoredTags)
 	dest, err := s.destinations.Get(key.String())
 	if err != nil {
 		return "", fmt.Errorf("failed to hash the MetricKey '%s' to a "+

@@ -12,6 +12,7 @@ import (
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/util"
+	"github.com/stripe/veneur/v14/util/matcher"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -347,19 +348,19 @@ func TestStripTags(t *testing.T) {
 	config.MetricSinks = []SinkConfig{{
 		Kind: "channel",
 		Name: "channel",
-		StripTags: []TagMatcher{
-			CreateTagMatcher(&TagMatcherConfig{
+		StripTags: []matcher.TagMatcher{
+			matcher.CreateTagMatcher(&matcher.TagMatcherConfig{
 				Kind:  "prefix",
 				Value: "foo",
 			})},
 	}}
 	config.MetricSinkRouting = []SinkRoutingConfig{{
 		Name: "default",
-		MatchConfigs: []MatcherConfig{{
-			Name: CreateNameMatcher(&NameMatcherConfig{
+		Match: []matcher.Matcher{{
+			Name: matcher.CreateNameMatcher(&matcher.NameMatcherConfig{
 				Kind: "any",
 			}),
-			Tags: []TagMatcher{},
+			Tags: []matcher.TagMatcher{},
 		}},
 		Sinks: SinkRoutingSinks{
 			Matched: []string{"channel"},

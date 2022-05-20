@@ -32,6 +32,7 @@ import (
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util/matcher"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
 	"stathat.com/c/consistent"
@@ -61,6 +62,7 @@ type Proxy struct {
 	AcceptingGRPCForwards      bool
 	ForwardTimeout             time.Duration
 
+	ignoredTags     []matcher.TagMatcher
 	logger          *logrus.Entry
 	usingConsul     bool
 	usingKubernetes bool
@@ -81,7 +83,8 @@ func NewProxyFromConfig(
 	logger *logrus.Logger, conf ProxyConfig,
 ) (*Proxy, error) {
 	proxy := Proxy{
-		logger: logrus.NewEntry(logger),
+		ignoredTags: conf.IgnoreTags,
+		logger:      logrus.NewEntry(logger),
 	}
 
 	hostname, err := os.Hostname()
@@ -144,7 +147,7 @@ func NewProxyFromConfig(
 	if proxy.ConsulTraceService != "" || conf.TraceAddress != "" {
 		proxy.AcceptingTraces = true
 	}
-	if proxy.ConsulForwardGRPCService != "" || conf.GrpcForwardAddress != "" {
+	if proxy.ConsulForwardGRPCService != "" || len(conf.GrpcForwardAddress) > 0 {
 		proxy.AcceptingGRPCForwards = true
 	}
 
@@ -193,8 +196,10 @@ func NewProxyFromConfig(
 	if proxy.ConsulTraceService == "" && conf.TraceAddress != "" {
 		proxy.TraceDestinations.Add(conf.TraceAddress)
 	}
-	if proxy.ConsulForwardGRPCService == "" && conf.GrpcForwardAddress != "" {
-		proxy.ForwardGRPCDestinations.Add(conf.GrpcForwardAddress)
+	if proxy.ConsulForwardGRPCService == "" {
+		for _, address := range conf.GrpcForwardAddress {
+			proxy.ForwardGRPCDestinations.Add(address)
+		}
 	}
 
 	if !proxy.AcceptingForwards &&
@@ -275,6 +280,7 @@ func NewProxyFromConfig(
 		proxy.grpcListenAddress = conf.GrpcAddress
 		proxy.grpcServer, err = proxysrv.New(proxy.ForwardGRPCDestinations,
 			proxysrv.WithForwardTimeout(proxy.ForwardTimeout),
+			proxysrv.WithIgnoredTags(proxy.ignoredTags),
 			proxysrv.WithLog(logrus.NewEntry(logger)),
 			proxysrv.WithTraceClient(proxy.TraceClient),
 		)
