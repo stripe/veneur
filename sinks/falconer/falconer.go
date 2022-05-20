@@ -134,6 +134,11 @@ func (gs *FalconerSpanSink) Name() string {
 	return gs.name
 }
 
+// Kind returns this sink's kind.
+func (gs *FalconerSpanSink) Kind() string {
+	return "falconer"
+}
+
 // Ingest takes in a span and streams it over gRPC to the connected server.
 func (gs *FalconerSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 	if err := protocol.ValidateTrace(ssfSpan); err != nil {

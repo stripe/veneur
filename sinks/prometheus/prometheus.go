@@ -83,24 +83,28 @@ func (sink *PrometheusMetricSink) Name() string {
 	return sink.name
 }
 
+func (sink *PrometheusMetricSink) Kind() string {
+	return "prometheus"
+}
+
 func (sink *PrometheusMetricSink) Start(traceClient *trace.Client) error {
 	sink.traceClient = traceClient
 	return nil
 }
 
 // Flush sends metrics to the Statsd Exporter in batches.
-func (sink *PrometheusMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
+func (sink *PrometheusMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sink.traceClient)
 
 	if len(interMetrics) == 0 {
 		sink.logger.Info("Nothing to flush, skipping.")
-		return nil
+		return sinks.MetricFlushResult{}, nil
 	}
 
 	conn, err := net.Dial(sink.networkType, sink.repeaterAddress)
 	if err != nil {
-		return err
+		return sinks.MetricFlushResult{}, err
 	}
 	defer conn.Close()
 
@@ -120,7 +124,7 @@ func (sink *PrometheusMetricSink) Flush(ctx context.Context, interMetrics []samp
 		conn.Write([]byte(body))
 	}
 
-	return nil
+	return sinks.MetricFlushResult{}, nil
 }
 
 // FlushOtherSamples sends events to SignalFx. This is a no-op for Prometheus

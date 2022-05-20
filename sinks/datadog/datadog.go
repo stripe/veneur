@@ -175,6 +175,11 @@ func (dd *DatadogMetricSink) Name() string {
 	return dd.name
 }
 
+// Kind returns the kind of this sink
+func (dd *DatadogMetricSink) Kind() string {
+	return "datadog"
+}
+
 // Start sets the sink up.
 func (dd *DatadogMetricSink) Start(cl *trace.Client) error {
 	dd.traceClient = cl
@@ -182,7 +187,7 @@ func (dd *DatadogMetricSink) Start(cl *trace.Client) error {
 }
 
 // Flush sends metrics to Datadog
-func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
+func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(dd.traceClient)
 
@@ -229,7 +234,7 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(ddmetrics)), tags),
 	)
 	dd.log.WithField("metrics", len(ddmetrics)).Info("flushed")
-	return nil
+	return sinks.MetricFlushResult{}, nil
 }
 
 // FlushOtherSamples serializes Events or Service Checks directly to datadog.

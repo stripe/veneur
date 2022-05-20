@@ -321,7 +321,7 @@ func newSignalFxSink(
 			"per tag API keys are enabled, but the refresh period is unset")
 	}
 
-	return &SignalFxSink{
+	sink := &SignalFxSink{
 		apiEndpoint:                 endpointStr,
 		clientsByTagValue:           perTagClients,
 		clientsByTagValueMu:         &sync.RWMutex{},
@@ -341,12 +341,22 @@ func newSignalFxSink(
 		name:                        name,
 		varyBy:                      config.VaryKeyBy,
 		varyByFavorCommonDimensions: config.VaryKeyByFavorCommonDimensions,
-	}, nil
+	}
+	sink.log = sink.log.WithFields(logrus.Fields{
+		"sink_name": sink.Name(),
+		"sink_kind": sink.Kind(),
+	})
+	return sink, nil
 }
 
 // Name returns the name of this sink.
 func (sfx *SignalFxSink) Name() string {
 	return sfx.name
+}
+
+// Name returns the kind of this sink.
+func (sfx *SignalFxSink) Kind() string {
+	return "signalfx"
 }
 
 // Start begins the sink. For SignalFx this starts the clientByTagUpdater
@@ -510,7 +520,7 @@ func (sfx *SignalFxSink) newPointCollection() *collection {
 }
 
 // Flush sends metrics to SignalFx
-func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
+func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	span, subCtx := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sfx.traceClient)
 
@@ -608,16 +618,15 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		coll.addPoint(subCtx, metricKey, point)
 		numPoints++
 	}
-	tags := map[string]string{"sink": "signalfx"}
+	tags := map[string]string{"sink_name": sfx.Name(), "sink_kind": sfx.Kind()}
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsSkipped, float32(countSkipped), tags))
 	err := coll.submit(subCtx, sfx.traceClient, sfx.maxPointsInBatch)
 	if err != nil {
 		span.Error(err)
 	}
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(numPoints), tags))
-	sfx.log.WithField("metrics", len(interMetrics)).Info("flushed")
 
-	return err
+	return sinks.MetricFlushResult{MetricsFlushed: numPoints, MetricsSkipped: countSkipped}, err
 }
 
 var successSpanTags = map[string]string{"sink": "signalfx", "results": "success"}
