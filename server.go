@@ -491,8 +491,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		Workers: make([]*Worker, max(1, conf.NumWorkers)),
 	}
 
-	ret.Tags = append(ret.Tags, VERSION)
-
 	ret.HistogramAggregates.Value = 0
 	for _, agg := range conf.Aggregates {
 		ret.HistogramAggregates.Value += samplers.AggregatesLookup[agg]
