@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
+	"math"
 	"os"
+	"time"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
@@ -187,6 +189,15 @@ func main() {
 	if err != nil {
 		logger.WithError(err).Fatal("Could not initialize server")
 	}
+
+	go func() {
+		flushIntervalInMilliseconds := int64(server.Interval) / int64(math.Pow(10, 6))
+		uptimeCounterInterval := flushIntervalInMilliseconds / 2
+		for range time.Tick(time.Duration(uptimeCounterInterval) * time.Millisecond) {
+			server.Statsd.Count("uptime_ms", uptimeCounterInterval, []string{"commit_version:" + veneur.VERSION}, 1)
+		}
+	}()
+
 	ssf.NamePrefix = "veneur."
 
 	defer func() {
