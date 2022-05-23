@@ -60,7 +60,7 @@ func TestMetricFlush(t *testing.T) {
 		},
 		Type: samplers.GaugeMetric,
 	}
-	ferr := kafkaSink.Flush(context.Background(), []samplers.InterMetric{metric})
+	_, ferr := kafkaSink.Flush(context.Background(), []samplers.InterMetric{metric})
 	assert.NoError(t, ferr)
 
 	msg := <-producerMock.Successes()

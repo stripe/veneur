@@ -154,21 +154,27 @@ func (s *Server) Flush(ctx context.Context) {
 				}
 			}
 			flushStart := time.Now()
-			err := sink.sink.Flush(span.Attach(ctx), filteredMetrics)
+			flushResult, err := sink.sink.Flush(span.Attach(ctx), filteredMetrics)
+			flushCompleteMessageFields := logrus.Fields{
+				"sink_name": sink.sink.Name(),
+				"sink_kind": sink.sink.Kind(),
+				"flushed":   flushResult.MetricsFlushed,
+				"skipped":   flushResult.MetricsSkipped,
+				"dropped":   flushResult.MetricsDropped,
+			}
 			if err == nil {
-				s.logger.WithFields(logrus.Fields{
-					"sink":    sink.sink.Name(),
-					"success": true,
-				}).Info(sinks.FlushCompleteMessage)
+				s.logger.WithFields(flushCompleteMessageFields).WithField("success", true).Info(sinks.FlushCompleteMessage)
 			} else {
-				s.logger.WithError(err).WithFields(logrus.Fields{
-					"sink":    sink.sink.Name(),
-					"success": false,
-				}).Warn(sinks.FlushCompleteMessage)
+				s.logger.WithFields(flushCompleteMessageFields).WithField("success", false).Warn(sinks.FlushCompleteMessage)
 			}
 			span.Add(ssf.Timing(
-				sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
-				time.Nanosecond, map[string]string{"sink": sink.sink.Name()}))
+				sinks.MetricKeyMetricFlushDuration,
+				time.Since(flushStart),
+				time.Millisecond,
+				map[string]string{
+					"sink_name": sink.sink.Name(),
+					"sink_kind": sink.sink.Kind(),
+				}))
 			wg.Done()
 		}(sink)
 	}

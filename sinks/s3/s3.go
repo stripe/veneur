@@ -119,9 +119,7 @@ func (p *S3Sink) Start(traceClient *trace.Client) error {
 	return nil
 }
 
-func (p *S3Sink) Flush(
-	ctx context.Context, metrics []samplers.InterMetric,
-) error {
+func (p *S3Sink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	const Delimiter = '\t'
 	const IncludeHeaders = false
 
@@ -132,7 +130,7 @@ func (p *S3Sink) Flush(
 			logrus.ErrorKey: err,
 			"metrics":       len(metrics),
 		}).Error("Could not marshal metrics before posting to s3")
-		return err
+		return sinks.MetricFlushResult{}, err
 	}
 
 	err = p.S3Post(p.Hostname, csv, tsvGzFt)
@@ -141,11 +139,11 @@ func (p *S3Sink) Flush(
 			logrus.ErrorKey: err,
 			"metrics":       len(metrics),
 		}).Error("Error posting to s3")
-		return err
+		return sinks.MetricFlushResult{}, err
 	}
 
 	p.Logger.WithField("metrics", len(metrics)).Info("flushed")
-	return nil
+	return sinks.MetricFlushResult{}, nil
 }
 
 func (p *S3Sink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
@@ -154,6 +152,10 @@ func (p *S3Sink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample)
 
 func (p *S3Sink) Name() string {
 	return p.name
+}
+
+func (p *S3Sink) Kind() string {
+	return "s3"
 }
 
 type filetype string

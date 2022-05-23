@@ -593,7 +593,8 @@ func TestSignalFxFlushBatches(t *testing.T) {
 		Type: samplers.GaugeMetric,
 	}}
 
-	require.NoError(t, sink.Flush(context.TODO(), interMetrics))
+	_, err = sink.Flush(context.TODO(), interMetrics)
+	require.NoError(t, err)
 
 	assert.Equal(t, 2, len(fallback.points))
 	assert.Equal(t, 2, fallback.pointAdds)
@@ -650,7 +651,8 @@ func TestSignalFxFlushBatchHang(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()
-	require.Error(t, sink.Flush(ctx, interMetrics))
+	_, err = sink.Flush(ctx, interMetrics)
+	require.Error(t, err)
 }
 
 func TestNewSinkDoubleSlashes(t *testing.T) {

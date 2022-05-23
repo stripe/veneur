@@ -127,22 +127,32 @@ func ParseConfig(
 
 // NewCortexMetricSink creates and returns a new instance of the sink
 func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string, headers map[string]string, basicAuth *BasicAuthType, batchWriteSize int) (*CortexMetricSink, error) {
-	return &CortexMetricSink{
+	sink := &CortexMetricSink{
 		URL:            URL,
 		RemoteTimeout:  timeout,
 		ProxyURL:       proxyURL,
 		tags:           tags,
-		logger:         logger.WithFields(logrus.Fields{"sink_type": "cortex"}),
+		logger:         logger,
 		name:           name,
 		addHeaders:     headers,
 		basicAuth:      basicAuth,
 		batchWriteSize: batchWriteSize,
-	}, nil
+	}
+	sink.logger = sink.logger.WithFields(logrus.Fields{
+		"sink_name": sink.Name(),
+		"sink_kind": sink.Kind(),
+	})
+	return sink, nil
 }
 
-// Name returns the string cortex
+// Name returns the sink name
 func (s *CortexMetricSink) Name() string {
 	return s.name
+}
+
+// Kind returns the sink kind
+func (s *CortexMetricSink) Kind() string {
+	return "cortex"
 }
 
 // Start sets up the HTTP client for writing to Cortex
@@ -173,13 +183,17 @@ func (s *CortexMetricSink) Start(tc *trace.Client) error {
 }
 
 // Flush sends a batch of metrics to the configured remote-write endpoint
-func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
-	metricKeyTags := map[string]string{"sink": s.name, "sink_type": "cortex"}
+	metricKeyTags := map[string]string{"sink_name": s.Name(), "sink_type": s.Kind()}
 	flushedMetrics := 0
 	droppedMetrics := 0
 	defer func() {
+		s.logger.WithFields(logrus.Fields{
+			"metrics_flushed": flushedMetrics,
+			"metrics_dropped": droppedMetrics,
+		}).Info("flushed")
 		span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(flushedMetrics), metricKeyTags))
 		span.Add(ssf.Count(sinks.MetricKeyTotalMetricsDropped, float32(droppedMetrics), metricKeyTags))
 	}()
@@ -192,7 +206,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 			droppedMetrics = len(metrics)
 		}
 
-		return err
+		return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 	}
 
 	doIfNotDone := func(fn func() error) error {
@@ -223,7 +237,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 
 		if err != nil {
 			droppedMetrics += len(batch)
-			return err
+			return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 		}
 	}
 
@@ -240,7 +254,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		}
 	}
 
-	return err
+	return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 }
 
 func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.InterMetric) error {

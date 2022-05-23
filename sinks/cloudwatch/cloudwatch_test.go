@@ -65,7 +65,7 @@ func latest(reqBodyCh chan []byte, timeoutSecs int) ([]byte, error) {
 
 func TestName(t *testing.T) {
 	sink := NewCloudwatchMetricSink(
-		"http://localhost/", "test", "us-east-1000", "cloudwatch_standard_unit",
+		"cloudwatch", "http://localhost/", "test", "us-east-1000", "cloudwatch_standard_unit",
 		time.Second*30, true, []string{}, logrus.NewEntry(logrus.New()),
 	)
 	assert.Equal(t, "cloudwatch", sink.Name())
@@ -85,7 +85,7 @@ func TestFlush(t *testing.T) {
 
 	// Initialize sink
 	sink := NewCloudwatchMetricSink(
-		server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
+		"cloudwatch", server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
 		time.Second*30, true, []string{}, logrus.NewEntry(logrus.New()),
 	)
 	sink.Start(nil)
@@ -102,7 +102,7 @@ func TestFlush(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Flush the sink
-	err = sink.Flush(context.Background(), metrics)
+	_, err = sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 
 	<-done
@@ -122,7 +122,7 @@ func TestFlushWithStandardUnitTagName(t *testing.T) {
 
 	// Initialize sink
 	sink := NewCloudwatchMetricSink(
-		server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
+		"cloudwatch", server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
 		time.Second*30, true, []string{}, logrus.NewEntry(logrus.New()),
 	)
 	sink.Start(nil)
@@ -139,7 +139,7 @@ func TestFlushWithStandardUnitTagName(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Flush the sink
-	err = sink.Flush(context.Background(), metrics)
+	_, err = sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 
 	<-done
@@ -160,7 +160,7 @@ func TestFlushWithStripTags(t *testing.T) {
 	// Initialize sink
 	stripTags := []string{"baz"}
 	sink := NewCloudwatchMetricSink(
-		server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
+		"cloudwatch", server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
 		time.Second*30, true, stripTags, logrus.NewEntry(logrus.New()),
 	)
 	sink.Start(nil)
@@ -179,7 +179,7 @@ func TestFlushWithStripTags(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Flush the sink
-	err = sink.Flush(context.Background(), metrics)
+	_, err = sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 
 	<-done
@@ -196,7 +196,7 @@ func TestFlushNoop(t *testing.T) {
 
 	// Initialize the sink
 	sink := NewCloudwatchMetricSink(
-		server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
+		"cloudwatch", server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
 		time.Second*30, true, []string{}, logrus.NewEntry(logrus.New()),
 	)
 	sink.Start(nil)
@@ -210,7 +210,7 @@ func TestFlushNoop(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Flush the sink
-	err := sink.Flush(context.Background(), metrics)
+	_, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 
 	<-done
@@ -231,7 +231,7 @@ func TestFlushRemoteTimeout(t *testing.T) {
 
 	// Initialize the sink
 	sink := NewCloudwatchMetricSink(
-		server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
+		"cloudwatch", server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
 		customTimeout, true, []string{}, logrus.NewEntry(logrus.New()),
 	)
 	sink.Start(nil)
@@ -244,7 +244,7 @@ func TestFlushRemoteTimeout(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Assert the flush failed
-	err := sink.Flush(context.Background(), metrics)
+	_, err := sink.Flush(context.Background(), metrics)
 	assert.Error(t, err)
 
 	<-done

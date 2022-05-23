@@ -199,15 +199,19 @@ func (c *channelMetricSink) Name() string {
 	return "channel"
 }
 
+func (c *channelMetricSink) Kind() string {
+	return "channel"
+}
+
 func (c *channelMetricSink) Start(*trace.Client) error {
 	return nil
 }
 
-func (c *channelMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+func (c *channelMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	// Put the whole slice in since many tests want to see all of them and we
 	// don't want them to have to loop over and wait on empty or something
 	c.metricsChannel <- metrics
-	return nil
+	return sinks.MetricFlushResult{}, nil
 }
 
 func (c *channelMetricSink) FlushOtherSamples(ctx context.Context, events []ssf.SSFSample) {
@@ -1537,18 +1541,22 @@ func (s *blockySink) Name() string {
 	return "blocky_sink"
 }
 
+func (s *blockySink) Kind() string {
+	return "blocky_sink"
+}
+
 func (s *blockySink) Start(traceClient *trace.Client) error {
 	return nil
 }
 
-func (s *blockySink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+func (s *blockySink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	if len(metrics) == 0 {
-		return nil
+		return sinks.MetricFlushResult{}, nil
 	}
 
 	<-ctx.Done()
 	close(s.blocker)
-	return ctx.Err()
+	return sinks.MetricFlushResult{}, ctx.Err()
 }
 
 func (s *blockySink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {}
@@ -1583,14 +1591,16 @@ type blockingSink struct {
 
 func (bs blockingSink) Name() string { return "a_blocky_boi" }
 
+func (bs blockingSink) Kind() string { return "a_blocky_boi" }
+
 func (bs blockingSink) Start(traceClient *trace.Client) error {
 	return nil
 }
 
-func (bs blockingSink) Flush(context.Context, []samplers.InterMetric) error {
+func (bs blockingSink) Flush(context.Context, []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	log.Print("hi, I'm blocking")
 	<-bs.ch
-	return nil
+	return sinks.MetricFlushResult{}, nil
 }
 
 func (bs blockingSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {}

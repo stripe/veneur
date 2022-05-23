@@ -47,7 +47,8 @@ func TestFlush(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Perform the flush to the test server
-	assert.NoError(t, sink.Flush(context.Background(), metrics))
+	_, err = sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
 
 	// Retrieve the data which the server received
 	data, headers, err := server.Latest()
@@ -96,7 +97,8 @@ func TestChunkedWrites(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Perform the flush to the test server
-	assert.NoError(t, sink.Flush(context.Background(), metrics))
+	_, err = sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
 
 	// There are 12 writes in input and our batch size is 3 so we expect 4 write requests
 	assert.Equal(t, 4, len(server.History()))
@@ -119,7 +121,8 @@ func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Perform the flush to the test server
-	assert.NoError(t, sink.Flush(context.Background(), metrics))
+	_, err = sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
 
 	// There are 12 writes in input and our batch size is 15 so we expect 1 write request
 	assert.Equal(t, 1, len(server.History()))
@@ -142,7 +145,8 @@ func TestLeftOverBatchGetsWritten(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Perform the flush to the test server
-	assert.NoError(t, sink.Flush(context.Background(), metrics))
+	_, err = sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
 
 	// There are 12 writes in input and our batch size is 5 so we expect 3 write requests
 	assert.Equal(t, 3, len(server.History()))
@@ -175,7 +179,8 @@ func TestChunkedWritesRespectContextCancellation(t *testing.T) {
 	})
 
 	// Perform the flush to the test server
-	assert.Error(t, sink.Flush(ctx, metrics))
+	_, err = sink.Flush(ctx, metrics)
+	assert.Error(t, err)
 
 	// we're cancelling after 2 so we should only see 2 chunks written
 	assert.Equal(t, 2, len(server.History()))
@@ -205,7 +210,8 @@ func TestCustomHeaders(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Perform the flush to the test server
-	assert.NoError(t, sink.Flush(context.Background(), metrics))
+	_, err = sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
 
 	// Retrieve the headers which the server received
 	_, headers, err := server.Latest()
@@ -244,7 +250,8 @@ func TestBasicAuth(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Perform the flush to the test server
-	assert.NoError(t, sink.Flush(context.Background(), metrics))
+	_, err = sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
 
 	// Retrieve the headers which the server received
 	_, headers, err := server.Latest()

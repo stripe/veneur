@@ -157,6 +157,11 @@ func (ls *LightStepSpanSink) Name() string {
 	return ls.name
 }
 
+// Kind returns this sink's kind.
+func (ls *LightStepSpanSink) Kind() string {
+	return "lightstep"
+}
+
 // Ingest takes in a span and passed it along to the LS client after
 // some sanity checks and improvements are made.
 func (ls *LightStepSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
