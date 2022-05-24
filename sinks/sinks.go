@@ -49,21 +49,10 @@ type MetricSink interface {
 	// Flush receives `InterMetric`s from Veneur and is
 	// responsible for "sinking" these metrics to whatever it's
 	// backend wants. Note that the sink must **not** mutate the
-	// incoming metrics as they are shared with other sinks. Sinks
-	// must also check each metric with IsAcceptableMetric to
-	// verify they are eligible to consume the metric.
+	// incoming metrics as they are shared with other sinks.
 	Flush(context.Context, []samplers.InterMetric) (MetricFlushResult, error)
 	// Handle non-metric, non-span samples.
 	FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample)
-}
-
-// IsAcceptableMetric returns true if a metric is meant to be ingested
-// by a given sink.
-func IsAcceptableMetric(metric samplers.InterMetric, sink MetricSink) bool {
-	if metric.Sinks == nil {
-		return true
-	}
-	return metric.Sinks.RouteTo(sink.Name())
 }
 
 // MetricKeySpanFlushDuration should be emitted as a timer by a SpanSink

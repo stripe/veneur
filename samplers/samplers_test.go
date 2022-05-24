@@ -17,50 +17,6 @@ import (
 
 const ε = .01
 
-func TestRouting(t *testing.T) {
-	tests := []struct {
-		name      string
-		tags      []string
-		sinks     RouteInformation
-		sinkNames []string
-	}{{
-		"none specified",
-		[]string{"foo:bar", "veneurlocalonly"},
-		nil,
-		[]string{"foosink", "barsink"},
-	}, {
-		"none specified",
-		[]string{"foo:bar", "veneurlocalonly:"},
-		nil,
-		[]string{"foosink", "barsink"},
-	}, {
-		"one sink",
-		[]string{"veneursinkonly:foobar"},
-		map[string]struct{}{"foobar": {}},
-		[]string{"foobar"},
-	}, {
-		"multiple sinks",
-		[]string{"veneursinkonly:foobar", "veneursinkonly:baz"},
-		map[string]struct{}{"foobar": {}, "baz": {}},
-		[]string{"foobar", "baz"},
-	}}
-
-	for _, elt := range tests {
-		test := elt
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-			info := routeInfo(test.tags)
-			assert.Equal(t, test.sinks, info)
-			for _, sink := range test.sinkNames {
-				assert.True(t, info.RouteTo(sink), "Should route to %q", sink)
-			}
-			if test.sinks != nil {
-				assert.False(t, info.RouteTo("never_to_this_sink"))
-			}
-		})
-	}
-}
-
 func TestCounterEmpty(t *testing.T) {
 	c := NewCounter("a.b.c", []string{"a:b"})
 	c.Sample(1, 1.0)

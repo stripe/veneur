@@ -142,10 +142,6 @@ func (nr *NewRelicMetricSink) Flush(ctx context.Context, interMetrics []samplers
 	}
 
 	for _, m := range interMetrics {
-		if !sinks.IsAcceptableMetric(m, nr) {
-			continue
-		}
-
 		// defined as Now().Unix() in samplers/samplers.go#L152
 		timestamp := time.Unix(m.Timestamp, 0)
 		attrs := tagsToKeyValue(m.Tags)

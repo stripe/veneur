@@ -11,15 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stripe/veneur/v14"
-	"gopkg.in/yaml.v2"
-
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/protocol/dogstatsd"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/ssf"
+	"gopkg.in/yaml.v2"
 )
 
 // DDMetricsRequest represents the body of the POST request
@@ -230,83 +228,6 @@ func ddTestServer(t *testing.T, endpoint, contains string) (*httptest.Server, ch
 		received <- res
 	})
 	return httptest.NewServer(handler), received
-}
-
-func TestDatadogMetricRouting(t *testing.T) {
-	// test the variables that have been renamed
-	client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
-
-	tests := []struct {
-		metric samplers.InterMetric
-		expect bool
-	}{
-		{
-			samplers.InterMetric{
-				Name:      "to.anybody.in.particular",
-				Timestamp: time.Now().Unix(),
-				Value:     float64(10),
-				Tags:      []string{"gorch:frobble", "x:e"},
-				Type:      samplers.CounterMetric,
-			},
-			true,
-		},
-		{
-			samplers.InterMetric{
-				Name:      "to.datadog",
-				Timestamp: time.Now().Unix(),
-				Value:     float64(10),
-				Tags:      []string{"gorch:frobble", "x:e"},
-				Type:      samplers.CounterMetric,
-				Sinks:     samplers.RouteInformation{"datadog": struct{}{}},
-			},
-			true,
-		},
-		{
-			samplers.InterMetric{
-				Name:      "to.kafka.only",
-				Timestamp: time.Now().Unix(),
-				Value:     float64(10),
-				Tags:      []string{"gorch:frobble", "x:e"},
-				Type:      samplers.CounterMetric,
-				Sinks:     samplers.RouteInformation{"kafka": struct{}{}},
-			},
-			false,
-		},
-	}
-	for _, elt := range tests {
-		test := elt
-		t.Run(test.metric.Name, func(t *testing.T) {
-			t.Parallel()
-			srv, rcved := ddTestServer(t, "/api/v1/series", test.metric.Name)
-			ddSink := DatadogMetricSink{
-				DDHostname:      srv.URL,
-				HTTPClient:      client,
-				flushMaxPerBody: 15,
-				log:             logrus.NewEntry(logrus.New()),
-				tags:            []string{"a:b", "c:d"},
-				interval:        10,
-				name:            "datadog",
-			}
-			done := make(chan struct{})
-			go func() {
-				result, ok := <-rcved
-				if test.expect {
-					// TODO: negative case
-					assert.True(t, result.contained, "Should have sent the metric")
-				} else {
-					if ok {
-						assert.False(t, result.contained, "Should definitely not have sent the metric!")
-					}
-				}
-				close(done)
-			}()
-			_, err := ddSink.Flush(context.TODO(), []samplers.InterMetric{test.metric})
-			require.NoError(t, err)
-			close(rcved)
-			<-done
-		})
-	}
-
 }
 
 func TestDatadogFlushEvents(t *testing.T) {
