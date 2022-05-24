@@ -198,6 +198,10 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		span.Add(ssf.Count(sinks.MetricKeyTotalMetricsDropped, float32(droppedMetrics), metricKeyTags))
 	}()
 
+	if len(metrics) == 0 {
+		return sinks.MetricFlushResult{}, nil
+	}
+
 	if s.batchWriteSize == 0 || len(metrics) <= s.batchWriteSize {
 		err := s.writeMetrics(ctx, metrics)
 		if err == nil {
