@@ -239,6 +239,12 @@ type ssfServiceSpanMetrics struct {
 	ssfRootSpansReceivedTotal int64
 }
 
+func CollectUptimeMetrics(s *Server) {
+	for range time.Tick(s.Interval) {
+		s.Statsd.Count("uptime_ms", s.Interval.Milliseconds(), []string{"commit_version:" + VERSION}, 1)
+	}
+}
+
 func scopeFromName(name string) (ssf.SSFSample_Scope, error) {
 	switch name {
 	case "default":
