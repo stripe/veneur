@@ -17,6 +17,8 @@ func CollectUptimeMetrics(s *veneur.Server) {
 func CollectRuntimeMemStats(s *veneur.Server) {
 	var m runtime.MemStats
 	for range time.Tick(s.Interval) {
+		runtime.ReadMemStats(&m)
+
 		// Collect number of bytes allocated and still in use.
 		s.Statsd.Gauge("alloc_bytes", float64(m.Alloc), []string{"commit_version:" + veneur.VERSION}, 1)
 
