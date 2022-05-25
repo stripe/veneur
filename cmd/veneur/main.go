@@ -7,6 +7,7 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/diagnostics"
 	"github.com/stripe/veneur/v14/sinks/cortex"
 	"github.com/stripe/veneur/v14/sinks/datadog"
 	"github.com/stripe/veneur/v14/sinks/debug"
@@ -188,7 +189,8 @@ func main() {
 		logger.WithError(err).Fatal("Could not initialize server")
 	}
 
-	go veneur.CollectUptimeMetrics(server)
+	go diagnostics.CollectUptimeMetrics(server)
+	go diagnostics.CollectRuntimeMemStats(server)
 
 	ssf.NamePrefix = "veneur."
 
