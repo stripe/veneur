@@ -3,6 +3,7 @@ package cortex
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -203,6 +204,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		if err == nil {
 			flushedMetrics = len(metrics)
 		} else {
+			s.logger.Error(err)
 			droppedMetrics = len(metrics)
 		}
 
@@ -236,6 +238,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		})
 
 		if err != nil {
+			s.logger.Error(err)
 			droppedMetrics += len(batch)
 			return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 		}
@@ -250,6 +253,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		if err == nil {
 			flushedMetrics += len(batch)
 		} else {
+			s.logger.Error(err)
 			droppedMetrics += len(batch)
 		}
 	}
@@ -264,7 +268,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 	wr := makeWriteRequest(metrics, s.tags)
 	data, err := proto.Marshal(wr)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "cortex_err=\"failed to write batch: failed to marshal proto\"")
 	}
 
 	var buf bytes.Buffer
@@ -273,7 +277,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 
 	req, err := http.NewRequestWithContext(ctx, "POST", s.URL, &buf)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "cortex_err=\"failed to write batch: failed to create http request\"")
 	}
 
 	// This set of headers is prescribed by the remote-write standard
@@ -292,23 +296,19 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 	r, err := s.Client.Do(req)
 	if err != nil {
 		span.Error(err)
-		s.logger.WithFields(logrus.Fields{
-			"error":        err,
-			"time_seconds": time.Since(ts).Seconds(),
-		}).Error("Failed to post request")
-		return err
+		return errors.Wrapf(err, "cortex_err=\"failed to write batch: misc http client error\" duration_secs=%.2f", time.Since(ts).Seconds())
 	}
 	// Resource leak can occur if body isn't closed explicitly
 	defer r.Body.Close()
 
-	// TODO: retry on 400/500 (per remote-write spec)
+	// TODO: retry on 4xx/5xx (per remote-write spec)
+	// Draft PR: https://github.com/stripe/veneur/pull/925
 	if r.StatusCode >= 300 {
 		b, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			return errors.Wrap(err, "could not read response body")
+			return errors.Wrapf(err, "cortex_err=\"failed to write batch: downstream returned error response with unreadable body\" response_code=%d", r.StatusCode)
 		}
-		// Cortex responds with terse and informative messages
-		s.logger.Infof("Flush failed with HTTP %d: %s", r.StatusCode, b)
+		return fmt.Errorf("cortex_err=\"failed to write batch: error response\", response_code=%d response_body=\"%s\"", r.StatusCode, b)
 	}
 
 	return nil
