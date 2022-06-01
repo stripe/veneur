@@ -165,7 +165,7 @@ func (s *Server) Flush(ctx context.Context) {
 			if err == nil {
 				s.logger.WithFields(flushCompleteMessageFields).WithField("success", true).Info(sinks.FlushCompleteMessage)
 			} else {
-				s.logger.WithFields(flushCompleteMessageFields).WithField("success", false).Warn(sinks.FlushCompleteMessage)
+				s.logger.WithFields(flushCompleteMessageFields).WithField("success", false).WithError(err).Warn(sinks.FlushCompleteMessage)
 			}
 			span.Add(ssf.Timing(
 				sinks.MetricKeyMetricFlushDuration,
