@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"os"
-	"time"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
@@ -190,10 +189,7 @@ func main() {
 		logger.WithError(err).Fatal("Could not initialize server")
 	}
 
-	for range time.Tick(server.Interval) {
-		go diagnostics.CollectUptimeMetrics(server)
-		go diagnostics.CollectRuntimeMemStats(server)
-	}
+	go diagnostics.CollectDiagnosticsMetrics(server)
 
 	ssf.NamePrefix = "veneur."
 
