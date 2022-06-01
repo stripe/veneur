@@ -189,7 +189,7 @@ func main() {
 		logger.WithError(err).Fatal("Could not initialize server")
 	}
 
-	go diagnostics.CollectDiagnosticsMetrics(server)
+	go diagnostics.CollectDiagnosticsMetrics(server.Statsd, server.Interval, []string{"git_sha:" + veneur.VERSION})
 
 	ssf.NamePrefix = "veneur."
 
