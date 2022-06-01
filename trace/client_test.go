@@ -3,10 +3,8 @@ package trace_test
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/url"
-	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -90,9 +88,7 @@ func TestUDP(t *testing.T) {
 }
 
 func TestUNIX(t *testing.T) {
-	dir, err := ioutil.TempDir("", "test_unix")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	sockName := filepath.Join(dir, "sock")
 	laddr, err := net.ResolveUnixAddr("unix", sockName)
@@ -133,9 +129,7 @@ func TestUNIX(t *testing.T) {
 }
 
 func TestUNIXBuffered(t *testing.T) {
-	dir, err := ioutil.TempDir("", "test_unix")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	sockName := filepath.Join(dir, "sock")
 	laddr, err := net.ResolveUnixAddr("unix", sockName)
@@ -243,9 +237,7 @@ func TestUDPError(t *testing.T) {
 }
 
 func TestReconnectUNIX(t *testing.T) {
-	dir, err := ioutil.TempDir("", "test_unix")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	sockName := filepath.Join(dir, "sock")
 	laddr, err := net.ResolveUnixAddr("unix", sockName)
@@ -315,9 +307,7 @@ func TestReconnectUNIX(t *testing.T) {
 }
 
 func TestReconnectBufferedUNIX(t *testing.T) {
-	dir, err := ioutil.TempDir("", "test_unix")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	sockName := filepath.Join(dir, "sock")
 	laddr, err := net.ResolveUnixAddr("unix", sockName)

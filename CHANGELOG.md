@@ -8,6 +8,9 @@
 * Authentication support for Cortex remote-write sink. Thanks, [oscil8](https://github.com/oscil8)!
 * Option to flush sinks on shutdown. Thanks, [csolidum](https://github.com/csolidum)!
 
+## Updated
+* Use `T.TempDir` to create temporary directory in tests ([#944](https://github.com/stripe/veneur/pull/944)).
+
 ## Bugfixes
 * A fix for forwarding metrics with gRPC using the kubernetes discoverer. Thanks, [androohan](https://github.com/androohan)!
 * Regenerate testing certs/CA that have expired and have broken tests. Thanks, [randallm](https://github.com/randallm)

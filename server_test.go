@@ -11,8 +11,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"sync"
-
 	"math/rand"
 	"net"
 	"net/http"
@@ -20,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -595,9 +594,7 @@ func TestUDPMetrics(t *testing.T) {
 }
 
 func TestUnixSocketMetrics(t *testing.T) {
-	tdir, err := ioutil.TempDir("", "unixmetrics_statsd")
-	require.NoError(t, err)
-	defer os.RemoveAll(tdir)
+	tdir := t.TempDir()
 
 	config := localConfig()
 	config.NumWorkers = 1
@@ -618,7 +615,7 @@ func TestUnixSocketMetrics(t *testing.T) {
 	defer conn.Close()
 
 	t.Log("Writing the first metric")
-	_, err = conn.Write([]byte("foo.bar:1|c|#baz:gorch"))
+	_, err := conn.Write([]byte("foo.bar:1|c|#baz:gorch"))
 	ctx, firstCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
 	defer firstCancel()
 	keepFlushing(ctx, f.server)
@@ -816,9 +813,7 @@ func keepFlushing(ctx context.Context, server *Server) {
 
 func TestUNIXMetricsSSF(t *testing.T) {
 	ctx := context.TODO()
-	tdir, err := ioutil.TempDir("", "unixmetrics_ssf")
-	require.NoError(t, err)
-	defer os.RemoveAll(tdir)
+	tdir := t.TempDir()
 
 	config := localConfig()
 	config.NumWorkers = 1
@@ -848,7 +843,7 @@ func TestUNIXMetricsSSF(t *testing.T) {
 	testSpan.Metrics = append(testSpan.Metrics, testMetric)
 
 	t.Log("Writing the first metric")
-	_, err = protocol.WriteSSF(conn, testSpan)
+	_, err := protocol.WriteSSF(conn, testSpan)
 	firstCtx, firstCancel := context.WithTimeout(ctx, 20*time.Millisecond)
 	defer firstCancel()
 	keepFlushing(firstCtx, f.server)
@@ -1074,9 +1069,7 @@ func TestCalculateTickerDelay(t *testing.T) {
 // BenchmarkSendSSFUNIX sends b.N metrics to veneur and waits until
 // all of them have been read (not processed).
 func BenchmarkSendSSFUNIX(b *testing.B) {
-	tdir, err := ioutil.TempDir("", "unixmetrics_ssf")
-	require.NoError(b, err)
-	defer os.RemoveAll(tdir)
+	tdir := b.TempDir()
 
 	path := filepath.Join(tdir, "test.sock")
 	// test the variables that have been renamed
@@ -1258,9 +1251,7 @@ func BenchmarkServerFlush(b *testing.B) {
 // metrics to a live veneur through a UNIX domain socket and verifies
 // that the metrics have been received and processed.
 func TestSSFMetricsEndToEnd(t *testing.T) {
-	tdir, err := ioutil.TempDir("", "e2etest")
-	require.NoError(t, err)
-	defer os.RemoveAll(tdir)
+	tdir := t.TempDir()
 
 	path := filepath.Join(tdir, "test.sock")
 	ssfAddr := &url.URL{Scheme: "unix", Path: path}
@@ -1319,9 +1310,7 @@ func TestSSFMetricsEndToEnd(t *testing.T) {
 // attached metrics to a live veneur through an internal trace
 // backeng, like that veneur server itself would be.
 func TestInternalSSFMetricsEndToEnd(t *testing.T) {
-	tdir, err := ioutil.TempDir("", "e2etest")
-	require.NoError(t, err)
-	defer os.RemoveAll(tdir)
+	tdir := t.TempDir()
 
 	path := filepath.Join(tdir, "test.sock")
 
