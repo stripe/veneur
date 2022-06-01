@@ -6,10 +6,12 @@ import (
 	"github.com/stripe/veneur/v14"
 )
 
-var gitSha string = "git_sha: " + veneur.VERSION
-var prevTotalMalloc uint64 = 0
-var prevTotalFreed uint64 = 0
-var prevTotalHeapAllocBytes uint64 = 0
+var (
+	gitSha                  string = "git_sha: " + veneur.VERSION
+	prevTotalMalloc         uint64 = 0
+	prevTotalFreed          uint64 = 0
+	prevTotalHeapAllocBytes uint64 = 0
+)
 
 func CollectUptimeMetrics(s *veneur.Server) {
 	s.Statsd.Count("uptime_ms", s.Interval.Milliseconds(), []string{"commit_version:" + veneur.VERSION}, 1)
