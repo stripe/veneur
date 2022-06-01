@@ -7,7 +7,7 @@ import (
 	"github.com/stripe/veneur/v14"
 )
 
-var gitSha string = "git_sha: " + veneur.VERSION
+var gitSha string = "git_sha:" + veneur.VERSION
 
 func CollectDiagnosticsMetrics(s *veneur.Server) {
 	var memstatsCurrent runtime.MemStats
