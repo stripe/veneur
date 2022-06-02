@@ -6,6 +6,7 @@ import (
 	"time"
 
 	gomock "github.com/golang/mock/gomock"
+	"github.com/stripe/veneur/v14/scopedstatsd"
 )
 
 func setupMockMemstats(value uint64) runtime.MemStats {
@@ -39,7 +40,7 @@ func TestUptimeMetricsInstrumentedWithRightValues(t *testing.T) {
 
 	defer ctrl.Finish()
 
-	m := NewMockClient(ctrl)
+	m := scopedstatsd.NewMockClient(ctrl)
 
 	var interval time.Duration = time.Second
 	var metricName string = "uptime_ms"
@@ -59,7 +60,7 @@ func TestMemoryMetricsInstrumentedWithRightValues(t *testing.T) {
 
 	defer ctrl.Finish()
 
-	m := NewMockClient(ctrl)
+	m := scopedstatsd.NewMockClient(ctrl)
 	var tags []string = []string{"git_sha:dirty"}
 	var rate float64 = 1
 	var curMemstats = setupMockMemstats(100)
