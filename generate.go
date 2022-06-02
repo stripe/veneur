@@ -11,3 +11,4 @@ package veneur
 //TODO(aditya) reenable go:generate gojson -input fixtures/datadog_trace.json -o datadog_trace_span.go -fmt json -pkg veneur -name DatadogTraceSpan
 //go:generate mockgen -source=sinks/sinks.go -destination=sinks/mock/mock.go -package=mock
 //go:generate mockgen -source=sources/sources.go -destination=sources/mock/mock.go -package=mock
+//mockgen -source=client.go -destination=diagnostics_metrics_test.go -package=diagnostics

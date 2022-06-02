@@ -37,14 +37,13 @@ func setupMockMemstats(value uint64) runtime.MemStats {
 func TestUptimeMetricsInstrumentedWithRightValues(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	// Assert that Bar() is invoked.
 	defer ctrl.Finish()
 
 	m := NewMockClient(ctrl)
 
 	var interval time.Duration = time.Second
 	var metricName string = "uptime_ms"
-	var tags []string = []string{"dirty"}
+	var tags []string = []string{"git_sha:dirty"}
 	var rate float64 = 1.0
 
 	// Asserts that the first and only call to Count() is passed with correct parameters.
@@ -58,11 +57,10 @@ func TestUptimeMetricsInstrumentedWithRightValues(t *testing.T) {
 func TestMemoryMetricsInstrumentedWithRightValues(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	// Assert that Bar() is invoked.
 	defer ctrl.Finish()
 
 	m := NewMockClient(ctrl)
-	var tags []string = []string{"dirty"}
+	var tags []string = []string{"git_sha:dirty"}
 	var rate float64 = 1
 	var curMemstats = setupMockMemstats(100)
 	var prevMemstats = setupMockMemstats(50)
