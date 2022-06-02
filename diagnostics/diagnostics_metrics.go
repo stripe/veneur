@@ -7,7 +7,7 @@ import (
 	"github.com/stripe/veneur/v14/scopedstatsd"
 )
 
-func CollectDiagnosticsMetrics(statsd *scopedstatsd.ScopedClient, interval time.Duration, tags []string) {
+func CollectDiagnosticsMetrics(statsd scopedstatsd.Client, interval time.Duration, tags []string) {
 	var memstatsCurrent runtime.MemStats
 	var memstatsPrev runtime.MemStats
 
@@ -19,12 +19,12 @@ func CollectDiagnosticsMetrics(statsd *scopedstatsd.ScopedClient, interval time.
 	}
 }
 
-func CollectUptimeMetrics(statsd *scopedstatsd.ScopedClient, interval time.Duration, tags []string) {
+func CollectUptimeMetrics(statsd scopedstatsd.Client, interval time.Duration, tags []string) {
 	statsd.Count("uptime_ms", interval.Milliseconds(), tags, 1)
 }
 
 // This function take inspiration from the prometheus golang code base: https://github.com/prometheus/client_golang/blob/24172847e35ba46025c49d90b8846b59eb5d9ead/prometheus/go_collector.go
-func CollectRuntimeMemStats(statsd *scopedstatsd.ScopedClient, memstatsCurrent *runtime.MemStats, memstatsPrev *runtime.MemStats, tags []string) {
+func CollectRuntimeMemStats(statsd scopedstatsd.Client, memstatsCurrent *runtime.MemStats, memstatsPrev *runtime.MemStats, tags []string) {
 	// Collect number of bytes obtained from system.
 	statsd.Gauge("sys_bytes", float64(memstatsCurrent.Sys), tags, 1)
 
