@@ -130,67 +130,6 @@ func TestNewSignalFxSink(t *testing.T) {
 	assert.Equal(t, map[string]string{"yay": "pie"}, sink.commonDimensions)
 }
 
-func TestSignalFxFlushRouting(t *testing.T) {
-	fakeSink := NewFakeSink()
-	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
-		APIKey:                            util.StringSecret{Value: ""},
-		DynamicPerTagAPIKeysEnable:        false,
-		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
-		EndpointAPI:                       "",
-		EndpointBase:                      "",
-		FlushMaxPerBody:                   0,
-		HostnameTag:                       "host",
-		MetricNamePrefixDrops:             nil,
-		MetricTagPrefixDrops:              nil,
-		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
-
-	assert.NoError(t, err)
-
-	interMetrics := []samplers.InterMetric{{
-		Name:      "any",
-		Timestamp: 1476119058,
-		Value:     float64(100),
-		Tags: []string{
-			"foo:bar",
-			"baz:quz",
-		},
-		Type: samplers.GaugeMetric,
-	}, {
-		Name:      "sfx",
-		Timestamp: 1476119058,
-		Value:     float64(100),
-		Tags: []string{
-			"foo:bar",
-			"baz:quz",
-			"veneursinkonly:signalfx",
-		},
-		Type:  samplers.GaugeMetric,
-		Sinks: samplers.RouteInformation{"signalfx": struct{}{}},
-	}, {
-		Name:      "not.us",
-		Timestamp: 1476119058,
-		Value:     float64(100),
-		Tags: []string{
-			"foo:bar",
-			"baz:quz",
-			"veneursinkonly:anyone_else",
-		},
-		Type:  samplers.GaugeMetric,
-		Sinks: samplers.RouteInformation{"anyone_else": struct{}{}},
-	}}
-
-	sink.Flush(context.TODO(), interMetrics)
-
-	assert.Equal(t, 2, len(fakeSink.points))
-	metrics := make([]string, 0, len(fakeSink.points))
-	for _, pt := range fakeSink.points {
-		metrics = append(metrics, pt.Metric)
-	}
-	sort.Strings(metrics)
-	assert.Equal(t, []string{"any", "sfx"}, metrics)
-}
-
 func TestSignalFxFlushGauge(t *testing.T) {
 	fakeSink := NewFakeSink()
 	derived := newDerivedProcessor()
@@ -367,7 +306,6 @@ func TestSignalFxFlushStatus(t *testing.T) {
 			"foo:bar",
 			"baz:quz",
 			"novalue",
-			"veneursinkonly:signalfx", // should not be present in the reported metric
 		},
 		Type: samplers.StatusMetric,
 	}}
@@ -655,7 +593,8 @@ func TestSignalFxFlushBatches(t *testing.T) {
 		Type: samplers.GaugeMetric,
 	}}
 
-	require.NoError(t, sink.Flush(context.TODO(), interMetrics))
+	_, err = sink.Flush(context.TODO(), interMetrics)
+	require.NoError(t, err)
 
 	assert.Equal(t, 2, len(fallback.points))
 	assert.Equal(t, 2, fallback.pointAdds)
@@ -712,7 +651,8 @@ func TestSignalFxFlushBatchHang(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()
-	require.Error(t, sink.Flush(ctx, interMetrics))
+	_, err = sink.Flush(ctx, interMetrics)
+	require.Error(t, err)
 }
 
 func TestNewSinkDoubleSlashes(t *testing.T) {

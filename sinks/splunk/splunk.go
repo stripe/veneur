@@ -199,6 +199,11 @@ func (sink *splunkSpanSink) Name() string {
 	return sink.name
 }
 
+// Kind returns this sink's kind
+func (sink *splunkSpanSink) Kind() string {
+	return "splunk"
+}
+
 func (sss *splunkSpanSink) Start(cl *trace.Client) error {
 	sss.traceClient = cl
 

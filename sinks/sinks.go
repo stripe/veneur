@@ -8,9 +8,15 @@ import (
 	"github.com/stripe/veneur/v14/trace"
 )
 
+type MetricFlushResult struct {
+	MetricsFlushed int
+	MetricsSkipped int
+	MetricsDropped int
+}
+
 // MetricKeyMetricFlushDuration is emitted as a timer for each sink by the
 // flusher, tagged with the name for the sink.
-const MetricKeyMetricFlushDuration = "sink.metric_flush_total_duration_ns"
+const MetricKeyMetricFlushDuration = "sink.metric_flush_total_duration_ms"
 
 // MetricKeyTotalMetricsFlushed should be emitted as a counter by a MetricSink
 // if possible. Tagged with `sink:sink.Name()`. The `Flush` function is a great
@@ -35,6 +41,7 @@ const EventReportedCount = "sink.events_reported_total"
 // it's aggregated metrics.
 type MetricSink interface {
 	Name() string
+	Kind() string
 	// Start finishes setting up the sink and starts any
 	// background processing tasks that the sink might have to run
 	// in the background. It's invoked when the server starts.
@@ -42,21 +49,10 @@ type MetricSink interface {
 	// Flush receives `InterMetric`s from Veneur and is
 	// responsible for "sinking" these metrics to whatever it's
 	// backend wants. Note that the sink must **not** mutate the
-	// incoming metrics as they are shared with other sinks. Sinks
-	// must also check each metric with IsAcceptableMetric to
-	// verify they are eligible to consume the metric.
-	Flush(context.Context, []samplers.InterMetric) error
+	// incoming metrics as they are shared with other sinks.
+	Flush(context.Context, []samplers.InterMetric) (MetricFlushResult, error)
 	// Handle non-metric, non-span samples.
 	FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample)
-}
-
-// IsAcceptableMetric returns true if a metric is meant to be ingested
-// by a given sink.
-func IsAcceptableMetric(metric samplers.InterMetric, sink MetricSink) bool {
-	if metric.Sinks == nil {
-		return true
-	}
-	return metric.Sinks.RouteTo(sink.Name())
 }
 
 // MetricKeySpanFlushDuration should be emitted as a timer by a SpanSink

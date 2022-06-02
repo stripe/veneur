@@ -32,17 +32,6 @@ const (
 // RouteInformation means that the key should receive the metric.
 type RouteInformation map[string]struct{}
 
-// RouteTo returns true if the named sink should receive a metric
-// according to the route table. A nil route table causes any sink to
-// be eligible for the metric.
-func (ri RouteInformation) RouteTo(name string) bool {
-	if ri == nil {
-		return true
-	}
-	_, ok := ri[name]
-	return ok
-}
-
 // InterMetric represents a metric that has been completed and is ready for
 // flushing by sinks.
 type InterMetric struct {
@@ -107,25 +96,6 @@ type JSONMetric struct {
 	Value []byte `json:"value"`
 }
 
-const sinkPrefix string = "veneursinkonly:"
-
-func routeInfo(tags []string) RouteInformation {
-	var info RouteInformation
-	for _, tag := range tags {
-		if !strings.HasPrefix(tag, sinkPrefix) {
-			continue
-		}
-		if info == nil {
-			info = make(RouteInformation)
-		}
-		// Take the tag suffix (the part after the ':' in
-		// "veneursinkonly:", and make that the key in our
-		// route information map:
-		info[tag[len(sinkPrefix):]] = struct{}{}
-	}
-	return info
-}
-
 // Counter is an accumulator
 type Counter struct {
 	Name  string
@@ -153,7 +123,6 @@ func (c *Counter) Flush(interval time.Duration) []InterMetric {
 		Value:     float64(c.value),
 		Tags:      tags,
 		Type:      CounterMetric,
-		Sinks:     routeInfo(tags),
 	}}
 }
 
@@ -240,7 +209,6 @@ func (g *Gauge) Flush() []InterMetric {
 		Value:     float64(g.value),
 		Tags:      tags,
 		Type:      GaugeMetric,
-		Sinks:     routeInfo(tags),
 	}}
 
 }
@@ -327,7 +295,6 @@ func (s *StatusCheck) Sample(sample float64, sampleRate float32, message string,
 func (s *StatusCheck) Flush() []InterMetric {
 	s.Timestamp = time.Now().Unix()
 	s.Type = StatusMetric
-	s.Sinks = routeInfo(s.Tags)
 	return []InterMetric{s.InterMetric}
 }
 
@@ -406,7 +373,6 @@ func (s *Set) Flush() []InterMetric {
 		Value:     float64(s.Hll.Estimate()),
 		Tags:      tags,
 		Type:      GaugeMetric,
-		Sinks:     routeInfo(tags),
 	}}
 }
 
@@ -523,7 +489,6 @@ func NewHist(Name string, Tags []string) *Histo {
 func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates HistogramAggregates, global bool) []InterMetric {
 	now := time.Now().Unix()
 	metrics := make([]InterMetric, 0, aggregates.Count+len(percentiles))
-	sinks := routeInfo(h.Tags)
 
 	// The second clause in this if statement can be confusing.
 	//
@@ -555,7 +520,6 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Value:     val,
 			Tags:      tags,
 			Type:      GaugeMetric,
-			Sinks:     sinks,
 		})
 	}
 	if (aggregates.Value&AggregateMin) == AggregateMin && (!math.IsInf(h.LocalMin, 0) || global) {
@@ -571,7 +535,6 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Value:     val,
 			Tags:      tags,
 			Type:      GaugeMetric,
-			Sinks:     sinks,
 		})
 	}
 
@@ -588,7 +551,6 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Value:     val,
 			Tags:      tags,
 			Type:      GaugeMetric,
-			Sinks:     sinks,
 		})
 	}
 
@@ -607,7 +569,6 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Value:     val,
 			Tags:      tags,
 			Type:      GaugeMetric,
-			Sinks:     sinks,
 		})
 	}
 
@@ -627,7 +588,6 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Value:     val,
 			Tags:      tags,
 			Type:      CounterMetric,
-			Sinks:     sinks,
 		})
 	}
 
@@ -642,7 +602,6 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 				Value:     float64(h.Value.Quantile(0.5)),
 				Tags:      tags,
 				Type:      GaugeMetric,
-				Sinks:     sinks,
 			},
 		)
 	}
@@ -662,7 +621,6 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 			Value:     val,
 			Tags:      tags,
 			Type:      GaugeMetric,
-			Sinks:     sinks,
 		})
 	}
 
@@ -678,7 +636,6 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 				Value:     float64(h.Value.Quantile(p)),
 				Tags:      tags,
 				Type:      GaugeMetric,
-				Sinks:     sinks,
 			},
 		)
 	}

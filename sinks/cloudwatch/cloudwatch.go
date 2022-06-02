@@ -36,6 +36,7 @@ type CloudwatchMetricSinkConfig struct {
 }
 
 type cloudwatchMetricSink struct {
+	name                string
 	logger              *logrus.Entry
 	remoteTimeout       time.Duration
 	client              *cloudwatch.Client
@@ -50,10 +51,11 @@ type cloudwatchMetricSink struct {
 var _ sinks.MetricSink = (*cloudwatchMetricSink)(nil)
 
 func NewCloudwatchMetricSink(
-	endpoint, namespace, region string, standardUnitTagName types.StandardUnit,
+	name, endpoint, namespace, region string, standardUnitTagName types.StandardUnit,
 	remoteTimeout time.Duration, disableRetries bool, stripTags []string, logger *logrus.Entry,
 ) *cloudwatchMetricSink {
 	return &cloudwatchMetricSink{
+		name:                name,
 		endpoint:            endpoint,
 		namespace:           namespace,
 		region:              region,
@@ -90,6 +92,7 @@ func Create(
 	}
 
 	return NewCloudwatchMetricSink(
+		name,
 		conf.CloudwatchEndpoint,
 		conf.CloudwatchNamespace,
 		conf.AWSRegion,
@@ -102,6 +105,10 @@ func Create(
 }
 
 func (s *cloudwatchMetricSink) Name() string {
+	return s.name
+}
+
+func (s *cloudwatchMetricSink) Kind() string {
 	return "cloudwatch"
 }
 
@@ -125,9 +132,9 @@ func (s *cloudwatchMetricSink) Start(*trace.Client) error {
 	return nil
 }
 
-func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	if len(metrics) == 0 {
-		return nil
+		return sinks.MetricFlushResult{}, nil
 	}
 
 	metricData := make([]types.MetricDatum, len(metrics))
@@ -172,9 +179,9 @@ func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.Int
 	}
 	_, err := s.client.PutMetricData(ctx, input)
 	if err != nil {
-		return err
+		return sinks.MetricFlushResult{}, err
 	}
-	return nil
+	return sinks.MetricFlushResult{MetricsFlushed: len(metricData)}, nil
 }
 
 func (s *cloudwatchMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {

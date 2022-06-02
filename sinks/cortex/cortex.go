@@ -3,6 +3,7 @@ package cortex
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -127,22 +128,32 @@ func ParseConfig(
 
 // NewCortexMetricSink creates and returns a new instance of the sink
 func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string, headers map[string]string, basicAuth *BasicAuthType, batchWriteSize int) (*CortexMetricSink, error) {
-	return &CortexMetricSink{
+	sink := &CortexMetricSink{
 		URL:            URL,
 		RemoteTimeout:  timeout,
 		ProxyURL:       proxyURL,
 		tags:           tags,
-		logger:         logger.WithFields(logrus.Fields{"sink_type": "cortex"}),
+		logger:         logger,
 		name:           name,
 		addHeaders:     headers,
 		basicAuth:      basicAuth,
 		batchWriteSize: batchWriteSize,
-	}, nil
+	}
+	sink.logger = sink.logger.WithFields(logrus.Fields{
+		"sink_name": sink.Name(),
+		"sink_kind": sink.Kind(),
+	})
+	return sink, nil
 }
 
-// Name returns the string cortex
+// Name returns the sink name
 func (s *CortexMetricSink) Name() string {
 	return s.name
+}
+
+// Kind returns the sink kind
+func (s *CortexMetricSink) Kind() string {
+	return "cortex"
 }
 
 // Start sets up the HTTP client for writing to Cortex
@@ -173,10 +184,10 @@ func (s *CortexMetricSink) Start(tc *trace.Client) error {
 }
 
 // Flush sends a batch of metrics to the configured remote-write endpoint
-func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
-	metricKeyTags := map[string]string{"sink": s.name, "sink_type": "cortex"}
+	metricKeyTags := map[string]string{"sink_name": s.Name(), "sink_type": s.Kind()}
 	flushedMetrics := 0
 	droppedMetrics := 0
 	defer func() {
@@ -184,15 +195,20 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		span.Add(ssf.Count(sinks.MetricKeyTotalMetricsDropped, float32(droppedMetrics), metricKeyTags))
 	}()
 
+	if len(metrics) == 0 {
+		return sinks.MetricFlushResult{}, nil
+	}
+
 	if s.batchWriteSize == 0 || len(metrics) <= s.batchWriteSize {
 		err := s.writeMetrics(ctx, metrics)
 		if err == nil {
 			flushedMetrics = len(metrics)
 		} else {
+			s.logger.Error(err)
 			droppedMetrics = len(metrics)
 		}
 
-		return err
+		return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 	}
 
 	doIfNotDone := func(fn func() error) error {
@@ -222,8 +238,9 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		})
 
 		if err != nil {
+			s.logger.Error(err)
 			droppedMetrics += len(batch)
-			return err
+			return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 		}
 	}
 
@@ -236,11 +253,12 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		if err == nil {
 			flushedMetrics += len(batch)
 		} else {
+			s.logger.Error(err)
 			droppedMetrics += len(batch)
 		}
 	}
 
-	return err
+	return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 }
 
 func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.InterMetric) error {
@@ -250,7 +268,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 	wr := makeWriteRequest(metrics, s.tags)
 	data, err := proto.Marshal(wr)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "cortex_err=\"failed to write batch: failed to marshal proto\"")
 	}
 
 	var buf bytes.Buffer
@@ -259,7 +277,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 
 	req, err := http.NewRequestWithContext(ctx, "POST", s.URL, &buf)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "cortex_err=\"failed to write batch: failed to create http request\"")
 	}
 
 	// This set of headers is prescribed by the remote-write standard
@@ -278,23 +296,19 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 	r, err := s.Client.Do(req)
 	if err != nil {
 		span.Error(err)
-		s.logger.WithFields(logrus.Fields{
-			"error":        err,
-			"time_seconds": time.Since(ts).Seconds(),
-		}).Error("Failed to post request")
-		return err
+		return errors.Wrapf(err, "cortex_err=\"failed to write batch: misc http client error\" duration_secs=%.2f", time.Since(ts).Seconds())
 	}
 	// Resource leak can occur if body isn't closed explicitly
 	defer r.Body.Close()
 
-	// TODO: retry on 400/500 (per remote-write spec)
+	// TODO: retry on 4xx/5xx (per remote-write spec)
+	// Draft PR: https://github.com/stripe/veneur/pull/925
 	if r.StatusCode >= 300 {
 		b, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			return errors.Wrap(err, "could not read response body")
+			return errors.Wrapf(err, "cortex_err=\"failed to write batch: downstream returned error response with unreadable body\" response_code=%d", r.StatusCode)
 		}
-		// Cortex responds with terse and informative messages
-		s.logger.Infof("Flush failed with HTTP %d: %s", r.StatusCode, b)
+		return fmt.Errorf("cortex_err=\"failed to write batch: error response\", response_code=%d response_body=\"%s\"", r.StatusCode, b)
 	}
 
 	return nil
