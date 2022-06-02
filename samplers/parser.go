@@ -135,14 +135,16 @@ func (m MetricKey) String() string {
 }
 
 type Parser struct {
-	extendTags *tagging.ExtendTags
+	extendTags        *tagging.ExtendTags
+	extendTagsExclude []matcher.Matcher
 }
 
-func NewParser(tags []string) Parser {
+func NewParser(tags []string, exclude []matcher.Matcher) Parser {
 	extendTags := tagging.NewExtendTags(tags)
 
 	return Parser{
-		extendTags: &extendTags,
+		extendTags:        &extendTags,
+		extendTagsExclude: exclude,
 	}
 }
 
@@ -339,7 +341,10 @@ func (p *Parser) ParseMetricSSF(metric *ssf.SSFSample) (UDPMetric, error) {
 		}
 		tempTags = append(tempTags, key+":"+value)
 	}
-	ret.UpdateTags(tempTags, p.extendTags)
+
+	if !matcher.Match(p.extendTagsExclude, ret.Name, tempTags) {
+		ret.UpdateTags(tempTags, p.extendTags)
+	}
 
 	return ret, nil
 }
@@ -457,7 +462,9 @@ func (p *Parser) ParseMetric(packet []byte) (*UDPMetric, error) {
 		}
 	}
 
-	ret.UpdateTags(tempTags, p.extendTags)
+	if !matcher.Match(p.extendTagsExclude, ret.Name, tempTags) {
+		ret.UpdateTags(tempTags, p.extendTags)
+	}
 
 	return ret, nil
 }
@@ -724,7 +731,10 @@ func (p *Parser) ParseServiceCheck(packet []byte) (*UDPMetric, error) {
 			return nil, errors.New("Invalid service check packet, unrecognized metadata section")
 		}
 	}
-	ret.UpdateTags(tempTags, p.extendTags)
+
+	if !matcher.Match(p.extendTagsExclude, ret.Name, tempTags) {
+		ret.UpdateTags(tempTags, p.extendTags)
+	}
 
 	return ret, nil
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/tdigest"
+	"github.com/stripe/veneur/v14/util/matcher"
 )
 
 const ε = .01
@@ -783,7 +784,7 @@ func BenchmarkConvertIndicatorMetrics(b *testing.B) {
 			}
 
 			benchName := fmt.Sprintf("%s%s", it.name, et.name)
-			parser := NewParser(it.metricTags)
+			parser := NewParser(it.metricTags, []matcher.Matcher{})
 			b.Run(benchName, func(b *testing.B) {
 				for n := 0; n < b.N; n++ {
 					ums, err := parser.ConvertIndicatorMetrics(inSpan, "", "timer_name")

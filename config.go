@@ -21,16 +21,17 @@ type Config struct {
 		MetricPrefix string   `yaml:"metric_prefix"`
 		Tags         []string `yaml:"tags"`
 	} `yaml:"datadog_exclude_tags_prefix_by_prefix_metric"`
-	DatadogFlushMaxPerBody       int      `yaml:"datadog_flush_max_per_body"`
-	DatadogMetricNamePrefixDrops []string `yaml:"datadog_metric_name_prefix_drops"`
-	DatadogSpanBufferSize        int      `yaml:"datadog_span_buffer_size"`
-	DatadogTraceAPIAddress       string   `yaml:"datadog_trace_api_address"`
-	Debug                        bool     `yaml:"debug"`
-	DebugFlushedMetrics          bool     `yaml:"debug_flushed_metrics"`
-	DebugIngestedSpans           bool     `yaml:"debug_ingested_spans"`
-	EnableProfiling              bool     `yaml:"enable_profiling"`
-	ExtendTags                   []string `yaml:"extend_tags"`
-	FalconerAddress              string   `yaml:"falconer_address"`
+	DatadogFlushMaxPerBody       int               `yaml:"datadog_flush_max_per_body"`
+	DatadogMetricNamePrefixDrops []string          `yaml:"datadog_metric_name_prefix_drops"`
+	DatadogSpanBufferSize        int               `yaml:"datadog_span_buffer_size"`
+	DatadogTraceAPIAddress       string            `yaml:"datadog_trace_api_address"`
+	Debug                        bool              `yaml:"debug"`
+	DebugFlushedMetrics          bool              `yaml:"debug_flushed_metrics"`
+	DebugIngestedSpans           bool              `yaml:"debug_ingested_spans"`
+	EnableProfiling              bool              `yaml:"enable_profiling"`
+	ExtendTags                   []string          `yaml:"extend_tags"`
+	ExtendTagsExclude            []matcher.Matcher `yaml:"extend_tags_exclude"`
+	FalconerAddress              string            `yaml:"falconer_address"`
 	Features                     struct {
 		EnableMetricSinkRouting bool   `yaml:"enable_metric_sink_routing"`
 		MigrateMetricSinks      bool   `yaml:"migrate_metric_sinks"`

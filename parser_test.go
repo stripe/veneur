@@ -14,6 +14,7 @@ import (
 	"github.com/stripe/veneur/v14/protocol/dogstatsd"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/ssf"
+	"github.com/stripe/veneur/v14/util/matcher"
 )
 
 func freshSSFMetric() *ssf.SSFSample {
@@ -156,8 +157,8 @@ func TestParseSSFValid(t *testing.T) {
 	msg, err := protocol.ParseSSF(buff)
 	assert.NoError(t, err)
 	if assert.NotNil(t, msg) {
-		noTags := samplers.NewParser([]string{})
-		yesTags := samplers.NewParser([]string{"implicit"})
+		noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+		yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 		metrics, err := noTags.ConvertMetrics(msg)
 		assert.NoError(t, err)
@@ -208,8 +209,8 @@ func TestParseSSFIndicatorSpan(t *testing.T) {
 	require.NotNil(t, inSpan)
 	require.NoError(t, protocol.ValidateTrace(span))
 
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	metrics, err := noTags.ConvertIndicatorMetrics(inSpan, "timer_name", "")
 	assert.NoError(t, err)
@@ -274,8 +275,8 @@ func TestParseSSFIndicatorSpanWithError(t *testing.T) {
 	require.NotNil(t, span)
 	require.NoError(t, protocol.ValidateTrace(span))
 
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	metrics, err := noTags.ConvertIndicatorMetrics(inSpan, "timer_name", "")
 	assert.NoError(t, err)
@@ -340,8 +341,8 @@ func TestParseSSFIndicatorObjective(t *testing.T) {
 	require.NotNil(t, inSpan)
 	require.NoError(t, protocol.ValidateTrace(span))
 
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	metrics, err := noTags.ConvertIndicatorMetrics(inSpan, "", "timer_name")
 	assert.NoError(t, err)
@@ -407,8 +408,8 @@ func TestParseSSFIndicatorObjectiveTag(t *testing.T) {
 	require.NotNil(t, inSpan)
 	require.NoError(t, protocol.ValidateTrace(span))
 
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	metrics, err := noTags.ConvertIndicatorMetrics(inSpan, "", "timer_name")
 	assert.NoError(t, err)
@@ -566,8 +567,8 @@ func TestParserSSFSet(t *testing.T) {
 func TestParserSSFWithTags(t *testing.T) {
 	standardMetric := freshSSFMetric()
 
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	m, _ := noTags.ParseMetricSSF(standardMetric)
 	assert.NotNil(t, m, "Got nil metric!")
@@ -595,8 +596,8 @@ func TestParserSSFWithSampleRateAndTags(t *testing.T) {
 	standardMetric := freshSSFMetric()
 	standardMetric.SampleRate = 0.1
 
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	m, _ := noTags.ParseMetricSSF(standardMetric)
 	assert.NotNil(t, m, "Got nil metric!")
@@ -614,8 +615,8 @@ func TestParserSSFWithStatusCheck(t *testing.T) {
 	standardMetric.Metric = ssf.SSFSample_STATUS
 	standardMetric.Status = ssf.SSFSample_UNKNOWN
 
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	m, _ := noTags.ParseMetricSSF(standardMetric)
 	assert.NotNil(t, m, "Got nil metric!")
@@ -628,8 +629,8 @@ func TestParserSSFWithStatusCheck(t *testing.T) {
 }
 
 func TestParser(t *testing.T) {
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	m, _ := noTags.ParseMetric([]byte("a.b.c:1|c"))
 	assert.NotNil(t, m, "Got nil metric!")
@@ -642,8 +643,8 @@ func TestParser(t *testing.T) {
 }
 
 func TestParserGauge(t *testing.T) {
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	m, _ := noTags.ParseMetric([]byte("a.b.c:1|g"))
 	assert.NotNil(t, m, "Got nil metric!")
@@ -656,8 +657,8 @@ func TestParserGauge(t *testing.T) {
 }
 
 func TestParserHistogram(t *testing.T) {
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	m, _ := noTags.ParseMetric([]byte("a.b.c:1|h"))
 	assert.NotNil(t, m, "Got nil metric!")
@@ -670,8 +671,8 @@ func TestParserHistogram(t *testing.T) {
 }
 
 func TestParserHistogramFloat(t *testing.T) {
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	m, _ := noTags.ParseMetric([]byte("a.b.c:1.234|h"))
 	assert.NotNil(t, m, "Got nil metric!")
@@ -684,8 +685,8 @@ func TestParserHistogramFloat(t *testing.T) {
 }
 
 func TestParserTimer(t *testing.T) {
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	m, _ := noTags.ParseMetric([]byte("a.b.c:1|ms"))
 	assert.NotNil(t, m, "Got nil metric!")
@@ -698,8 +699,8 @@ func TestParserTimer(t *testing.T) {
 }
 
 func TestParserDistribution(t *testing.T) {
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	m, _ := noTags.ParseMetric([]byte("a.b.c:0.1716441474854946|d|#filter:flatulent"))
 	assert.NotNil(t, m, "Got nil metric!")
@@ -712,8 +713,8 @@ func TestParserDistribution(t *testing.T) {
 }
 
 func TestParserTimerFloat(t *testing.T) {
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	m, _ := noTags.ParseMetric([]byte("a.b.c:1.234|ms"))
 	assert.NotNil(t, m, "Got nil metric!")
@@ -726,8 +727,8 @@ func TestParserTimerFloat(t *testing.T) {
 }
 
 func TestParserSet(t *testing.T) {
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	m, _ := noTags.ParseMetric([]byte("a.b.c:foo|s"))
 	assert.NotNil(t, m, "Got nil metric!")
@@ -740,8 +741,8 @@ func TestParserSet(t *testing.T) {
 }
 
 func TestParserWithTags(t *testing.T) {
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	m, _ := noTags.ParseMetric([]byte("a.b.c:1|c|#foo:bar,baz:gorch"))
 	assert.NotNil(t, m, "Got nil metric!")
@@ -776,8 +777,8 @@ func TestParserWithTags(t *testing.T) {
 }
 
 func TestParserWithSampleRate(t *testing.T) {
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	m, _ := noTags.ParseMetric([]byte("a.b.c:1|c|@0.1"))
 	assert.NotNil(t, m, "Got nil metric!")
@@ -798,8 +799,8 @@ func TestParserWithSampleRate(t *testing.T) {
 }
 
 func TestParserWithSampleRateAndTags(t *testing.T) {
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	m, _ := noTags.ParseMetric([]byte("a.b.c:1|c|@0.1|#foo:bar,baz:gorch"))
 	assert.NotNil(t, m, "Got nil metric!")
@@ -859,8 +860,8 @@ func TestGlobalOnlyEscape(t *testing.T) {
 }
 
 func TestEvents(t *testing.T) {
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	evt, err := noTags.ParseEvent([]byte("_e{3,3}:foo|bar|k:foos|s:test|t:success|p:low|#foo:bar,baz:qux|d:1136239445|h:example.com"))
 	assert.NoError(t, err, "should have parsed correctly")
@@ -913,8 +914,8 @@ func TestEvents(t *testing.T) {
 }
 
 func TestServiceChecks(t *testing.T) {
-	noTags := samplers.NewParser([]string{})
-	yesTags := samplers.NewParser([]string{"implicit"})
+	noTags := samplers.NewParser([]string{}, []matcher.Matcher{})
+	yesTags := samplers.NewParser([]string{"implicit"}, []matcher.Matcher{})
 
 	svcCheck, err := noTags.ParseServiceCheck([]byte("_sc|foo.bar|0|#foo:bar,qux:dor|d:1136239445|h:example.com"))
 	assert.NoError(t, err, "should have parsed correctly")
@@ -1094,7 +1095,7 @@ func BenchmarkParseMetric(b *testing.B) {
 				}
 				benchName := fmt.Sprintf("%s%s%s", mv.name, it.name, et.name)
 				metricBytes := []byte(statsd)
-				parser := samplers.NewParser(it.metricTags)
+				parser := samplers.NewParser(it.metricTags, []matcher.Matcher{})
 				b.Run(benchName, func(b *testing.B) {
 					for n := 0; n < b.N; n++ {
 						m, err := parser.ParseMetric(metricBytes)

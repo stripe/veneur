@@ -477,7 +477,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		metricMaxLength:  conf.MetricMaxLength,
 		numListeningHTTP: new(int32),
 		numReaders:       conf.NumReaders,
-		parser:           samplers.NewParser(conf.ExtendTags),
+		parser:           samplers.NewParser(conf.ExtendTags, conf.ExtendTagsExclude),
 		RcvbufBytes:      conf.ReadBufferSizeBytes,
 		// closed in Shutdown; Same approach and http.Shutdown
 		shutdown:            make(chan struct{}),
