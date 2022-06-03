@@ -17,3 +17,4 @@ grpc_address: localhost:8202
 debug: true
 debug_ingested_spans: true
 debug_flushed_metrics: true
+diagnostics_metrics_enabled: false

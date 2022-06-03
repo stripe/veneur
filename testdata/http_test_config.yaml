@@ -18,6 +18,7 @@ datadog_trace_api_address: ""
 debug: false
 debug_flushed_metrics: false
 debug_ingested_spans: false
+diagnostics_metrics_enabled: false
 enable_profiling: false
 extend_tags: []
 falconer_address: ""

@@ -28,6 +28,7 @@ type Config struct {
 	Debug                        bool     `yaml:"debug"`
 	DebugFlushedMetrics          bool     `yaml:"debug_flushed_metrics"`
 	DebugIngestedSpans           bool     `yaml:"debug_ingested_spans"`
+	DiagnosticsMetricsEnabled    bool     `yaml:"diagnostics_metrics_enabled"`
 	EnableProfiling              bool     `yaml:"enable_profiling"`
 	ExtendTags                   []string `yaml:"extend_tags"`
 	FalconerAddress              string   `yaml:"falconer_address"`
