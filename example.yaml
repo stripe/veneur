@@ -263,9 +263,6 @@ debug_ingested_spans: false
 # extremely verbose.
 debug_flushed_metrics: false
 
-# Flag to determine if diagnostics metrics should be emitted.
-diagnostics_metrics_enabled: false
-
 # runtime.SetMutexProfileFraction
 # The fraction of mutex contention events that are reported in the mutex profile.
 # On average, 1/n events are reported, so higher numbers will sample fewer events.
