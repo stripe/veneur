@@ -24,6 +24,7 @@
   "ExtendTags": null,
   "FalconerAddress": "",
   "Features": {
+    "DiagnosticsMetricsEnabled": false,
     "EnableMetricSinkRouting": false,
     "MigrateMetricSinks": false,
     "MigrateSpanSinks": false,
