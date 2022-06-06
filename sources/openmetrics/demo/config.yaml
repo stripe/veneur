@@ -1,5 +1,6 @@
 debug: true
 features:
+  diagnostics_metrics_enabled: false
   enable_metric_sink_routing: true
 interval: 1s
 metric_sinks:

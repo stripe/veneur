@@ -22,6 +22,7 @@ enable_profiling: false
 extend_tags: []
 falconer_address: ""
 features:
+  diagnostics_metrics_enabled: false
   enable_metric_sink_routing: false
   migrate_metric_sinks: false
   migrate_span_sinks: false
