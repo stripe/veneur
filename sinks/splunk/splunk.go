@@ -100,7 +100,7 @@ func MigrateConfig(conf *veneur.Config) error {
 	if conf.SplunkHecToken == "" || conf.SplunkHecAddress == "" {
 		return fmt.Errorf("both hec_address and hec_token must be set")
 	}
-	conf.SpanSinks = append(conf.MetricSinks, veneur.SinkConfig{
+	conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
 		Kind: "signalfx",
 		Name: "signalfx",
 		Config: SplunkSinkConfig{
