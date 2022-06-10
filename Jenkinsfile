@@ -26,10 +26,8 @@ pipeline {
         stage('Build') {
             steps {
                 script {
-                    dir('public-docker-images') {
-                        sh "docker build -f Dockerfile-debian-sid --build-arg VERSION=${env.GIT_COMMIT} --build-arg BUILD_REF=${params.BRANCH_REV} -t ${env.IMAGE_NAME} --no-cache ."
-                        sh "docker build -f Dockerfile-alpine --build-arg VERSION=${env.GIT_COMMIT} --build-arg BUILD_REF=${params.BRANCH_REV} -t ${env.IMAGE_NAME_ALPINE} --no-cache ."
-                    }
+                    sh "docker build -f public-docker-images/Dockerfile-debian-sid --build-arg VERSION=${env.GIT_COMMIT} --build-arg BUILD_REF=${params.BRANCH_REV} -t ${env.IMAGE_NAME} --no-cache ."
+                    sh "docker build -f public-docker-images/Dockerfile-alpine --build-arg VERSION=${env.GIT_COMMIT} --build-arg BUILD_REF=${params.BRANCH_REV} -t ${env.IMAGE_NAME_ALPINE} --no-cache ."
                 }
             }
         }
