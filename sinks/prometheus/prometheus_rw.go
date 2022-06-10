@@ -16,31 +16,70 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/pkg/errors"
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/sinks/prometheus/mapper"
 	"github.com/stripe/veneur/v14/sinks/prometheus/prompb"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util"
 
 	"github.com/prometheus/common/config"
 	"github.com/sirupsen/logrus"
 )
 
-// RemoteWriteExporter is the metric sink implementation for Prometheus via remote write.
-type RemoteWriteExporter struct {
+type PrometheusRemoteWriteSinkConfig struct {
+	BearerToken         string `yaml:"bearer_token"`
+	FlushMaxConcurrency int    `yaml:"flush_max_concurrency"`
+	FlushMaxPerBody     int    `yaml:"lush_max_per_body"`
+	WriteAddress        string `yaml:"write_address"`
+}
+
+// PrometheusRemoteWriteSink is a metric sink for Prometheus via remote write.
+type PrometheusRemoteWriteSink struct {
 	addr        string
 	headers     []string
 	tags        []string
-	logger      *logrus.Logger
+	logger      *logrus.Entry
 	traceClient *trace.Client
 	promClient  *http.Client
 	flushMaxPerBody,
 	flushMaxConcurrency int
 }
 
-// NewRemoteWriteExporter returns a new RemoteWriteExporter, validating params.
-func NewRemoteWriteExporter(addr string, bearerToken string, flushMaxPerBody int, flushMaxConcurrency int, hostname string, tags []string, logger *logrus.Logger) (*RemoteWriteExporter, error) {
+func ParseRWMetricConfig(name string, config interface{}) (veneur.MetricSinkConfig, error) {
+	promRWConfig := PrometheusRemoteWriteSinkConfig{}
+	err := util.DecodeConfig(name, config, &promRWConfig)
+	if err != nil {
+		return nil, err
+	}
+	if promRWConfig.FlushMaxPerBody <= 0 {
+		promRWConfig.FlushMaxPerBody = 5000
+	}
+	if promRWConfig.FlushMaxConcurrency <= 0 {
+		promRWConfig.FlushMaxConcurrency = 10
+	}
+	return promRWConfig, nil
+}
+
+func CreateRWMetricSink(
+	server *veneur.Server, name string, logger *logrus.Entry,
+	config veneur.Config, sinkConfig veneur.MetricSinkConfig,
+) (sinks.MetricSink, error) {
+	conf, ok := sinkConfig.(PrometheusRemoteWriteSinkConfig)
+	if !ok {
+		return nil, errors.New("invalid sink config type")
+	}
+
+	return NewPrometheusRemoteWriteSink(
+		conf.WriteAddress, conf.BearerToken,
+		conf.FlushMaxPerBody, conf.FlushMaxConcurrency,
+		config.Hostname, server.Tags, logger)
+}
+
+// NewPrometheusRemoteWriteSink returns a new RemoteWriteExporter, validating params.
+func NewPrometheusRemoteWriteSink(addr string, bearerToken string, flushMaxPerBody int, flushMaxConcurrency int, hostname string, tags []string, logger *logrus.Entry) (*PrometheusRemoteWriteSink, error) {
 	if _, err := url.ParseRequestURI(addr); err != nil {
 		return nil, err
 	}
@@ -51,17 +90,9 @@ func NewRemoteWriteExporter(addr string, bearerToken string, flushMaxPerBody int
 		return nil, err
 	}
 
-	// some defaults
-	if flushMaxPerBody <= 0 {
-		flushMaxPerBody = 5000
-	}
-	if flushMaxConcurrency <= 0 {
-		flushMaxConcurrency = 10
-	}
-
-	return &RemoteWriteExporter{
+	return &PrometheusRemoteWriteSink{
 		addr:                addr,
-		logger:              logger,
+		logger:              logger.WithFields(logrus.Fields{"sink_type": "prometheus_rw"}),
 		tags:                append(tags, "host:"+hostname),
 		promClient:          httpClient,
 		flushMaxPerBody:     flushMaxPerBody,
@@ -70,18 +101,18 @@ func NewRemoteWriteExporter(addr string, bearerToken string, flushMaxPerBody int
 }
 
 // Name returns the name of this sink.
-func (prw *RemoteWriteExporter) Name() string {
+func (prw *PrometheusRemoteWriteSink) Name() string {
 	return "prometheus_rw"
 }
 
 // Start begins the sink.
-func (prw *RemoteWriteExporter) Start(cl *trace.Client) error {
+func (prw *PrometheusRemoteWriteSink) Start(cl *trace.Client) error {
 	prw.traceClient = cl
 	return nil
 }
 
 // Flush sends metrics to the Statsd Exporter in batches.
-func (prw *RemoteWriteExporter) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
+func (prw *PrometheusRemoteWriteSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(prw.traceClient)
 
@@ -143,10 +174,10 @@ func (prw *RemoteWriteExporter) Flush(ctx context.Context, interMetrics []sample
 
 // FlushOtherSamples sends events to SignalFx. This is a no-op for Prometheus
 // sinks as Prometheus does not support other samples.
-func (prw *RemoteWriteExporter) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
+func (prw *PrometheusRemoteWriteSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
 }
 
-func (prw *RemoteWriteExporter) finalizeMetrics(metrics []samplers.InterMetric) ([]prompb.TimeSeries, []prompb.MetricMetadata) {
+func (prw *PrometheusRemoteWriteSink) finalizeMetrics(metrics []samplers.InterMetric) ([]prompb.TimeSeries, []prompb.MetricMetadata) {
 	promMetrics := make([]prompb.TimeSeries, 0, len(metrics))
 	metadataStore := make(map[string]samplers.MetricType, 100)
 
@@ -218,7 +249,7 @@ func (prw *RemoteWriteExporter) finalizeMetrics(metrics []samplers.InterMetric) 
 	return promMetrics, promMetadata
 }
 
-func (prw *RemoteWriteExporter) flushRequest(ctx context.Context, request prompb.WriteRequest, wg *sync.WaitGroup) {
+func (prw *PrometheusRemoteWriteSink) flushRequest(ctx context.Context, request prompb.WriteRequest, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	req, err := prw.buildRequest(request)
@@ -252,7 +283,7 @@ func (prw *RemoteWriteExporter) flushRequest(ctx context.Context, request prompb
 	}
 }
 
-func (prw *RemoteWriteExporter) buildRequest(request prompb.WriteRequest) (req []byte, err error) {
+func (prw *PrometheusRemoteWriteSink) buildRequest(request prompb.WriteRequest) (req []byte, err error) {
 	var reqBuf []byte
 	if reqBuf, err = proto.Marshal(&request); err != nil {
 		prw.logger.Errorf("failed to marshal the WriteRequest %v", err)
@@ -275,7 +306,7 @@ type recoverableError struct {
 // storeRequest sends a marshalled batch of samples to the HTTP endpoint
 // returns statuscode or -1 if the request didn't get to the server
 // response body is returned as []byte
-func (prw *RemoteWriteExporter) store(ctx context.Context, req []byte) (int, []byte, error) {
+func (prw *PrometheusRemoteWriteSink) store(ctx context.Context, req []byte) (int, []byte, error) {
 	httpReq, err := http.NewRequest("POST", prw.addr, bytes.NewReader(req))
 	if err != nil {
 		return -1, nil, err
@@ -310,4 +341,21 @@ func (prw *RemoteWriteExporter) store(ctx context.Context, req []byte) (int, []b
 		return httpResp.StatusCode, responseBody, recoverableError{err}
 	}
 	return httpResp.StatusCode, responseBody, err
+}
+
+func MigrateRWConfig(conf *veneur.Config) {
+	if conf.PrometheusRemoteWriteAddress == "" {
+		return
+	}
+
+	conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
+		Kind: "prometheus_rw",
+		Name: "prometheus_rw",
+		Config: PrometheusRemoteWriteSinkConfig{
+			WriteAddress:        conf.PrometheusRemoteWriteAddress,
+			FlushMaxConcurrency: conf.PrometheusRemoteFlushMaxConcurrency,
+			FlushMaxPerBody:     conf.PrometheusRemoteFlushMaxPerBody,
+			BearerToken:         conf.PrometheusRemoteBearerToken,
+		},
+	})
 }

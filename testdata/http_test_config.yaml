@@ -86,6 +86,10 @@ percentiles:
 - 0.99
 prometheus_network_type: ""
 prometheus_repeater_address: ""
+prometheus_remote_bearer_token: ""
+prometheus_remote_flush_max_concurrency: 0
+prometheus_remote_flush_max_per_body: 0
+prometheus_remote_write_address: ""
 read_buffer_size_bytes: 2097152
 sentry_dsn: REDACTED
 signalfx_api_key: ""

@@ -87,6 +87,7 @@ func main() {
 		newrelic.MigrateConfig(&conf)
 		s3.MigrateConfig(&conf)
 		prometheus.MigrateConfig(&conf)
+		prometheus.MigrateRWConfig(&conf)
 		err = signalfx.MigrateConfig(&conf)
 		if err != nil {
 			logger.WithError(err).Fatal("error migrating signalfx config")
@@ -139,6 +140,10 @@ func main() {
 			"prometheus": {
 				Create:      prometheus.CreateMetricSink,
 				ParseConfig: prometheus.ParseMetricConfig,
+			},
+			"prometheus_rw": {
+				Create:      prometheus.CreateRWMetricSink,
+				ParseConfig: prometheus.ParseRWMetricConfig,
 			},
 			"s3": {
 				Create:      s3.Create,

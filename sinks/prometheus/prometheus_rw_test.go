@@ -10,8 +10,8 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks/prometheus/prompb"
 	"github.com/stripe/veneur/v14/trace"
@@ -40,7 +40,19 @@ func TestNewRemoteWriteExporter(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, err := NewRemoteWriteExporter(tc.addr, tc.bearerToken, 5, 5, "localhost", []string{}, nil)
+			_, err := CreateRWMetricSink(
+				&veneur.Server{
+					TraceClient: nil,
+				},
+				"prometheus_rw",
+				testLogger(),
+				veneur.Config{},
+				PrometheusRemoteWriteSinkConfig{
+					WriteAddress:        tc.addr,
+					BearerToken:         tc.bearerToken,
+					FlushMaxConcurrency: 5,
+					FlushMaxPerBody:     5,
+				})
 			if tc.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -48,6 +60,23 @@ func TestNewRemoteWriteExporter(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRemoteWriteSinkName(t *testing.T) {
+	sink, err := CreateMetricSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"prometheus-test-rw",
+		testLogger(),
+		veneur.Config{},
+		PrometheusRemoteWriteSinkConfig{
+			WriteAddress: "http://127.0.0.1:5000",
+			BearerToken:  "foobar",
+		})
+	assert.NotNil(t, sink)
+	assert.NoError(t, err)
+	assert.Equal(t, "prometheus-test-rw", sink.Name())
 }
 
 func TestRemoteWriteMetricFlush(t *testing.T) {
@@ -145,8 +174,19 @@ func TestRemoteWriteMetricFlush(t *testing.T) {
 		},
 	}
 
-	logger := logrus.StandardLogger()
-	sink, err := NewRemoteWriteExporter(remoteServer.URL, "token", batchSize, 1, "localhost", []string{"default:abc"}, logger)
+	sink, err := CreateRWMetricSink(
+		&veneur.Server{
+			TraceClient: nil,
+		},
+		"prometheus_rw",
+		testLogger(),
+		veneur.Config{},
+		PrometheusRemoteWriteSinkConfig{
+			WriteAddress:        remoteServer.URL,
+			BearerToken:         "token",
+			FlushMaxConcurrency: 1,
+			FlushMaxPerBody:     batchSize,
+		})
 	assert.NoError(t, err)
 
 	assert.NoError(t, sink.Start(trace.DefaultClient))
@@ -206,4 +246,19 @@ func TestRemoteWriteMetricFlush(t *testing.T) {
 			assert.Equal(t, want, res)
 		}
 	}
+}
+
+func TestParseRemoteWriteConfig(t *testing.T) {
+	parsedConfig, err := ParseMetricConfig("prometheus_rw", map[string]interface{}{
+		"write_address":         "127.0.0.1:5000",
+		"bearer_token":          "test_token",
+		"flush_max_concurrency": 55,
+		"flush_max_per_body":    88,
+	})
+	prometheusRWConfig := parsedConfig.(PrometheusRemoteWriteSinkConfig)
+	assert.NoError(t, err)
+	assert.Equal(t, prometheusRWConfig.WriteAddress, "127.0.0.1:5000")
+	assert.Equal(t, prometheusRWConfig.BearerToken, "test_token")
+	assert.Equal(t, prometheusRWConfig.FlushMaxConcurrency, 55)
+	assert.Equal(t, prometheusRWConfig.FlushMaxPerBody, 88)
 }

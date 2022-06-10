@@ -598,6 +598,25 @@ prometheus_repeater_address: "localhost:9125"
 # to Statsd Repeater. This will be tcp by default.
 prometheus_network_type: "tcp"
 
+# == Prometheus via Remote Write ==
+#
+# The available configuration is a subset of those available in
+# https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
+#
+# The URL used as the remote write destination
+prometheus_remote_write_address: "https://destination.api/prometheus/remote/write"
+
+# (optional) A bearer token to supply as authentication to the above URL
+prometheus_remote_bearer_token: "auth-token"
+
+# (optional) How many metrics to include in the body of each Remote Write. Veneur
+# will post multiple times in parallel if the limit is exceeded.
+prometheus_remote_flush_max_per_body: 5000
+
+# (optional) Maximum concurrency of parallel writes. Veneur will queue requests
+# above this limit when sending parallel requests.
+prometheus_remote_flush_max_concurrency: 10
+
 # == PLUGINS ==
 
 # == S3 Output ==
