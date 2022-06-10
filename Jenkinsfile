@@ -14,11 +14,11 @@ pipeline {
         ARTIFACTORY_REPO="docker.internal.sysdig.com"
         IMAGE_NAME_PREFIX = "${env.ARTIFACTORY_REPO}/docker/veneur-rw"
         IMAGE_NAME = "${env.IMAGE_NAME_PREFIX}:${params.IMAGE_TAG}"
-        IMAGE_NAME_ALPINE = "${env.IMAGE_NAME_PREFIX}:${params.IMAGE_TAG}-alpine3.10"
+        IMAGE_NAME_ALPINE = "${env.IMAGE_NAME_PREFIX}:${params.IMAGE_TAG}-alpine3.14"
 
         QUAY_PREFIX = "quay.io/sysdig/veneur_sink"
         QUAY_IMAGE_NAME = "${env.QUAY_PREFIX}:${params.IMAGE_TAG}"
-        QUAY_IMAGE_NAME_ALPINE = "${env.QUAY_PREFIX}:${params.IMAGE_TAG}-alpine3.10"
+        QUAY_IMAGE_NAME_ALPINE = "${env.QUAY_PREFIX}:${params.IMAGE_TAG}-alpine3.14"
     }
 
     stages {
