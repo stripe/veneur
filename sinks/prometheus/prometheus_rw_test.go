@@ -63,7 +63,7 @@ func TestNewRemoteWriteExporter(t *testing.T) {
 }
 
 func TestRemoteWriteSinkName(t *testing.T) {
-	sink, err := CreateMetricSink(
+	sink, err := CreateRWMetricSink(
 		&veneur.Server{
 			TraceClient: nil,
 		},
@@ -177,10 +177,13 @@ func TestRemoteWriteMetricFlush(t *testing.T) {
 	sink, err := CreateRWMetricSink(
 		&veneur.Server{
 			TraceClient: nil,
+			Tags:        []string{"default:abc"},
 		},
 		"prometheus_rw",
 		testLogger(),
-		veneur.Config{},
+		veneur.Config{
+			Hostname: "localhost",
+		},
 		PrometheusRemoteWriteSinkConfig{
 			WriteAddress:        remoteServer.URL,
 			BearerToken:         "token",
@@ -249,7 +252,7 @@ func TestRemoteWriteMetricFlush(t *testing.T) {
 }
 
 func TestParseRemoteWriteConfig(t *testing.T) {
-	parsedConfig, err := ParseMetricConfig("prometheus_rw", map[string]interface{}{
+	parsedConfig, err := ParseRWMetricConfig("prometheus_rw", map[string]interface{}{
 		"write_address":         "127.0.0.1:5000",
 		"bearer_token":          "test_token",
 		"flush_max_concurrency": 55,

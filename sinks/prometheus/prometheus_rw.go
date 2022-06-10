@@ -32,12 +32,13 @@ import (
 type PrometheusRemoteWriteSinkConfig struct {
 	BearerToken         string `yaml:"bearer_token"`
 	FlushMaxConcurrency int    `yaml:"flush_max_concurrency"`
-	FlushMaxPerBody     int    `yaml:"lush_max_per_body"`
+	FlushMaxPerBody     int    `yaml:"flush_max_per_body"`
 	WriteAddress        string `yaml:"write_address"`
 }
 
 // PrometheusRemoteWriteSink is a metric sink for Prometheus via remote write.
 type PrometheusRemoteWriteSink struct {
+	name        string
 	addr        string
 	headers     []string
 	tags        []string
@@ -75,11 +76,11 @@ func CreateRWMetricSink(
 	return NewPrometheusRemoteWriteSink(
 		conf.WriteAddress, conf.BearerToken,
 		conf.FlushMaxPerBody, conf.FlushMaxConcurrency,
-		config.Hostname, server.Tags, logger)
+		config.Hostname, server.Tags, name, logger)
 }
 
 // NewPrometheusRemoteWriteSink returns a new RemoteWriteExporter, validating params.
-func NewPrometheusRemoteWriteSink(addr string, bearerToken string, flushMaxPerBody int, flushMaxConcurrency int, hostname string, tags []string, logger *logrus.Entry) (*PrometheusRemoteWriteSink, error) {
+func NewPrometheusRemoteWriteSink(addr string, bearerToken string, flushMaxPerBody int, flushMaxConcurrency int, hostname string, tags []string, name string, logger *logrus.Entry) (*PrometheusRemoteWriteSink, error) {
 	if _, err := url.ParseRequestURI(addr); err != nil {
 		return nil, err
 	}
@@ -91,6 +92,7 @@ func NewPrometheusRemoteWriteSink(addr string, bearerToken string, flushMaxPerBo
 	}
 
 	return &PrometheusRemoteWriteSink{
+		name:                name,
 		addr:                addr,
 		logger:              logger.WithFields(logrus.Fields{"sink_type": "prometheus_rw"}),
 		tags:                append(tags, "host:"+hostname),
@@ -102,7 +104,7 @@ func NewPrometheusRemoteWriteSink(addr string, bearerToken string, flushMaxPerBo
 
 // Name returns the name of this sink.
 func (prw *PrometheusRemoteWriteSink) Name() string {
-	return "prometheus_rw"
+	return prw.name
 }
 
 // Start begins the sink.
