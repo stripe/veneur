@@ -1,10 +1,10 @@
 FROM golang:1.17 AS build
 WORKDIR /veneur/
 COPY . .
-RUN go build -a -ldflags "-X github.com/Oscil8/veneur.VERSION=${VERSION}" -o /build/veneur ./cmd/veneur &&\
-    go build -a -ldflags "-X github.com/Oscil8/veneur.VERSION=${VERSION}" -o /build/veneur-emit ./cmd/veneur-emit &&\
-    go build -a -ldflags "-X github.com/Oscil8/veneur.VERSION=${VERSION}" -o /build/veneur-prometheus ./cmd/veneur-prometheus &&\
-    go build -a -ldflags "-X github.com/Oscil8/veneur.VERSION=${VERSION}" -o /build/veneur-proxy ./cmd/veneur-proxy
+RUN go build -a -ldflags "-X github.com/stripe/veneur.VERSION=${VERSION}" -o /build/veneur ./cmd/veneur &&\
+    go build -a -ldflags "-X github.com/stripe/veneur.VERSION=${VERSION}" -o /build/veneur-emit ./cmd/veneur-emit &&\
+    go build -a -ldflags "-X github.com/stripe/veneur.VERSION=${VERSION}" -o /build/veneur-prometheus ./cmd/veneur-prometheus &&\
+    go build -a -ldflags "-X github.com/stripe/veneur.VERSION=${VERSION}" -o /build/veneur-proxy ./cmd/veneur-proxy
 
 
 FROM debian:sid AS release
