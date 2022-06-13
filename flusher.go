@@ -156,11 +156,12 @@ func (s *Server) Flush(ctx context.Context) {
 			flushStart := time.Now()
 			flushResult, err := sink.sink.Flush(span.Attach(ctx), filteredMetrics)
 			flushCompleteMessageFields := logrus.Fields{
-				"sink_name": sink.sink.Name(),
-				"sink_kind": sink.sink.Kind(),
-				"flushed":   flushResult.MetricsFlushed,
-				"skipped":   flushResult.MetricsSkipped,
-				"dropped":   flushResult.MetricsDropped,
+				"sink_name":  sink.sink.Name(),
+				"sink_kind":  sink.sink.Kind(),
+				"flushed":    flushResult.MetricsFlushed,
+				"skipped":    flushResult.MetricsSkipped,
+				"dropped":    flushResult.MetricsDropped,
+				"duration_s": fmt.Sprintf("%.2f", time.Since(flushStart).Seconds()),
 			}
 			if err == nil {
 				s.logger.WithFields(flushCompleteMessageFields).WithField("success", true).Info(sinks.FlushCompleteMessage)
