@@ -65,6 +65,7 @@ func main() {
 			Release:    veneur.VERSION,
 		})
 		if err != nil {
+			logger.Info("sentry dsn value: " + conf.SentryDsn.Value)
 			logger.WithError(err).Fatal("failed to initialzie Sentry")
 		}
 		logger.AddHook(veneur.SentryHook{
