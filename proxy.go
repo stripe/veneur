@@ -9,7 +9,6 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -568,52 +567,6 @@ func (p *Proxy) Handler() http.Handler {
 	mux.Handle(pat.Get("/debug/pprof/*"), http.HandlerFunc(pprof.Index))
 
 	return mux
-}
-
-func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
-	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxy.proxy_traces")
-	defer span.ClientFinish(p.TraceClient)
-	if p.ForwardTimeout > 0 {
-		var cancel func()
-		ctx, cancel = context.WithTimeout(ctx, p.ForwardTimeout)
-		defer cancel()
-	}
-
-	tracesByDestination := make(map[string][]*DatadogTraceSpan)
-	for _, h := range p.TraceDestinations.Members() {
-		tracesByDestination[h] = make([]*DatadogTraceSpan, 0)
-	}
-
-	for _, t := range traces {
-		dest, _ := p.TraceDestinations.Get(strconv.FormatInt(t.TraceID, 10))
-		tracesByDestination[dest] = append(tracesByDestination[dest], &t)
-	}
-
-	for dest, batch := range tracesByDestination {
-		if len(batch) != 0 {
-			// this endpoint is not documented to take an array... but it does
-			// another curious constraint of this endpoint is that it does not
-			// support "Content-Encoding: deflate"
-			err := vhttp.PostHelper(
-				span.Attach(ctx), p.HTTPClient, p.TraceClient, http.MethodPost,
-				fmt.Sprintf("%s/spans", dest), batch, "flush_traces", false, nil,
-				p.logger)
-			if err == nil {
-				p.logger.WithFields(logrus.Fields{
-					"traces":      len(batch),
-					"destination": dest,
-				}).Debug("Completed flushing traces to Datadog")
-			} else {
-				p.logger.WithFields(
-					logrus.Fields{
-						"traces":        len(batch),
-						logrus.ErrorKey: err}).Error("Error flushing traces to Datadog")
-			}
-		} else {
-			p.logger.WithField("destination", dest).
-				Info("No traces to flush, skipping.")
-		}
-	}
 }
 
 // ProxyMetrics takes a slice of JSONMetrics and breaks them up into
