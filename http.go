@@ -55,7 +55,7 @@ func (s *Server) Handler() http.Handler {
 		w.Write([]byte("ok\n"))
 	})
 
-	mux.Handle(pat.Post("/import"), handleImport(s))
+	mux.Handle(pat.Post("/import"), http.HandlerFunc(s.handleImport))
 
 	mux.Handle(pat.Get("/debug/pprof/cmdline"), http.HandlerFunc(pprof.Cmdline))
 	mux.Handle(pat.Get("/debug/pprof/profile"), http.HandlerFunc(pprof.Profile))
@@ -87,6 +87,22 @@ func (s *Server) handleConfigYaml(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Add("Content-Type", "application/x-yaml")
 	w.Write(config)
+}
+
+// handleImport generates the handler that responds to POST requests submitting
+// metrics to the global veneur instance.
+func (s *Server) handleImport(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	span, jsonMetrics, err := unmarshalMetricsFromHTTP(
+		ctx, s.TraceClient, w, r, s.logger)
+	if err != nil {
+		s.logger.WithError(err).Error("Error unmarshalling metrics in global import")
+		span.Add(ssf.Count("import.unmarshal.errors_total", 1, nil))
+		return
+	}
+	// the server usually waits for this to return before finalizing the
+	// response, so this part must be done asynchronously
+	go s.ImportMetrics(span.Attach(ctx), jsonMetrics)
 }
 
 // ImportMetrics feeds a slice of json metrics to the server's workers
