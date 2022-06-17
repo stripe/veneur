@@ -34,6 +34,10 @@ func main() {
 		}
 	}
 
+	if conf.Debug {
+		logger.SetLevel(logrus.DebugLevel)
+	}
+
 	proxy, err := veneur.NewProxyFromConfig(logger, conf)
 
 	ssf.NamePrefix = "veneur_proxy."
