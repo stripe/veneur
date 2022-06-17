@@ -42,18 +42,18 @@ type counterMapKey struct {
 // using the prometheus remote-write API. For specifications, see
 // https://github.com/prometheus/compliance/tree/main/remote_write
 type CortexMetricSink struct {
-	URL            			   string
-	RemoteTimeout  			   time.Duration
-	ProxyURL       			   string
-	Client         			   *http.Client
-	logger         			   *logrus.Entry
-	name           			   string
-	tags           			   map[string]string
-	traceClient    			   *trace.Client
-	addHeaders     			   map[string]string
-	basicAuth      			   *BasicAuthType
-	batchWriteSize 			   int
-	counters       			   map[counterMapKey]float64
+	URL                        string
+	RemoteTimeout              time.Duration
+	ProxyURL                   string
+	Client                     *http.Client
+	logger                     *logrus.Entry
+	name                       string
+	tags                       map[string]string
+	traceClient                *trace.Client
+	addHeaders                 map[string]string
+	basicAuth                  *BasicAuthType
+	batchWriteSize             int
+	counters                   map[counterMapKey]float64
 	convertCountersToMonotonic bool
 }
 
@@ -68,14 +68,14 @@ type BasicAuthType struct {
 // max_samples_per_send, max_shards, and capacity
 // https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
 type CortexMetricSinkConfig struct {
-	URL            			   string            `yaml:"url"`
-	RemoteTimeout  			   time.Duration     `yaml:"remote_timeout"`
-	ProxyURL       			   string            `yaml:"proxy_url"`
-	BatchWriteSize 			   int               `yaml:"batch_write_size"`
-	Headers        			   map[string]string `yaml:"headers"`
-	BasicAuth      			   BasicAuthType     `yaml:"basic_auth"`
-	ConvertCountersToMonotonic bool  			 `yaml:"convert_counters_to_monotonic"`
-	Authorization  struct {
+	URL                        string            `yaml:"url"`
+	RemoteTimeout              time.Duration     `yaml:"remote_timeout"`
+	ProxyURL                   string            `yaml:"proxy_url"`
+	BatchWriteSize             int               `yaml:"batch_write_size"`
+	Headers                    map[string]string `yaml:"headers"`
+	BasicAuth                  BasicAuthType     `yaml:"basic_auth"`
+	ConvertCountersToMonotonic bool              `yaml:"convert_counters_to_monotonic"`
+	Authorization              struct {
 		Type       string            `yaml:"type"`
 		Credential util.StringSecret `yaml:"credentials"`
 	} `yaml:"authorization"`
@@ -138,16 +138,16 @@ func ParseConfig(
 // NewCortexMetricSink creates and returns a new instance of the sink
 func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string, headers map[string]string, basicAuth *BasicAuthType, batchWriteSize int, convertCountersToMonotonic bool) (*CortexMetricSink, error) {
 	sink := &CortexMetricSink{
-		URL:            			URL,
-		RemoteTimeout:  			timeout,
-		ProxyURL:       			proxyURL,
-		tags:           			tags,
-		logger:         			logger,
-		name:           			name,
-		addHeaders:     			headers,
-		basicAuth:      			basicAuth,
-		batchWriteSize: 			batchWriteSize,
-		counters: 					map[counterMapKey]float64{},
+		URL:                        URL,
+		RemoteTimeout:              timeout,
+		ProxyURL:                   proxyURL,
+		tags:                       tags,
+		logger:                     logger,
+		name:                       name,
+		addHeaders:                 headers,
+		basicAuth:                  basicAuth,
+		batchWriteSize:             batchWriteSize,
+		counters:                   map[counterMapKey]float64{},
 		convertCountersToMonotonic: convertCountersToMonotonic,
 	}
 	sink.logger = sink.logger.WithFields(logrus.Fields{
