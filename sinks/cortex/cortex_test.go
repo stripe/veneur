@@ -139,7 +139,6 @@ func TestMonotonicCounters(t *testing.T) {
 
 	matchesDone := 0
 	for _, data := range server.history[1].data.Timeseries {
-		fmt.Printf("%v", data)
 		for _, label := range data.Labels {
 			if label.Name == "foo" {
 				matchesDone++
