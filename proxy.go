@@ -9,7 +9,6 @@ import (
 	"os"
 	"reflect"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -558,7 +557,7 @@ func (p *Proxy) Handler() http.Handler {
 		w.Write([]byte("ok\n"))
 	})
 
-	mux.Handle(pat.Post("/import"), handleProxy(p))
+	mux.Handle(pat.Post("/import"), http.HandlerFunc(p.handleProxy))
 
 	mux.Handle(pat.Get("/debug/pprof/cmdline"), http.HandlerFunc(pprof.Cmdline))
 	mux.Handle(pat.Get("/debug/pprof/profile"), http.HandlerFunc(pprof.Profile))
@@ -570,50 +569,22 @@ func (p *Proxy) Handler() http.Handler {
 	return mux
 }
 
-func (p *Proxy) ProxyTraces(ctx context.Context, traces []DatadogTraceSpan) {
-	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.proxy.proxy_traces")
-	defer span.ClientFinish(p.TraceClient)
-	if p.ForwardTimeout > 0 {
-		var cancel func()
-		ctx, cancel = context.WithTimeout(ctx, p.ForwardTimeout)
-		defer cancel()
+func (p *Proxy) handleProxy(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	p.logger.WithFields(logrus.Fields{
+		"path": r.URL.Path,
+		"host": r.URL.Host,
+	}).Debug("Importing metrics on proxy")
+	span, jsonMetrics, err := unmarshalMetricsFromHTTP(
+		ctx, p.TraceClient, w, r, p.logger)
+	if err != nil {
+		p.logger.WithError(err).
+			Error("Error unmarshalling metrics in proxy import")
+		return
 	}
-
-	tracesByDestination := make(map[string][]*DatadogTraceSpan)
-	for _, h := range p.TraceDestinations.Members() {
-		tracesByDestination[h] = make([]*DatadogTraceSpan, 0)
-	}
-
-	for _, t := range traces {
-		dest, _ := p.TraceDestinations.Get(strconv.FormatInt(t.TraceID, 10))
-		tracesByDestination[dest] = append(tracesByDestination[dest], &t)
-	}
-
-	for dest, batch := range tracesByDestination {
-		if len(batch) != 0 {
-			// this endpoint is not documented to take an array... but it does
-			// another curious constraint of this endpoint is that it does not
-			// support "Content-Encoding: deflate"
-			err := vhttp.PostHelper(
-				span.Attach(ctx), p.HTTPClient, p.TraceClient, http.MethodPost,
-				fmt.Sprintf("%s/spans", dest), batch, "flush_traces", false, nil,
-				p.logger)
-			if err == nil {
-				p.logger.WithFields(logrus.Fields{
-					"traces":      len(batch),
-					"destination": dest,
-				}).Debug("Completed flushing traces to Datadog")
-			} else {
-				p.logger.WithFields(
-					logrus.Fields{
-						"traces":        len(batch),
-						logrus.ErrorKey: err}).Error("Error flushing traces to Datadog")
-			}
-		} else {
-			p.logger.WithField("destination", dest).
-				Info("No traces to flush, skipping.")
-		}
-	}
+	// the server usually waits for this to return before finalizing the
+	// response, so this part must be done asynchronously
+	go p.ProxyMetrics(span.Attach(ctx), jsonMetrics, strings.SplitN(r.RemoteAddr, ":", 2)[0])
 }
 
 // ProxyMetrics takes a slice of JSONMetrics and breaks them up into

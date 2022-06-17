@@ -1,4 +1,4 @@
-FROM golang:1.17-alpine3.14 AS build
+FROM golang:1.18-alpine3.16 AS build
 WORKDIR /veneur/
 COPY . .
 RUN CGO_ENABLED=0 go build -a -ldflags "-X github.com/stripe/veneur.VERSION=${VERSION}" -o /build/veneur ./cmd/veneur &&\
@@ -7,7 +7,7 @@ RUN CGO_ENABLED=0 go build -a -ldflags "-X github.com/stripe/veneur.VERSION=${VE
     CGO_ENABLED=0 go build -a -ldflags "-X github.com/stripe/veneur.VERSION=${VERSION}" -o /build/veneur-proxy ./cmd/veneur-proxy
 
 
-FROM alpine:3.14 AS release
+FROM alpine:3.16 AS release
 LABEL maintainer="The Stripe Observability Team <support@stripe.com>"
 RUN apk add --no-cache ca-certificates
 WORKDIR /veneur/

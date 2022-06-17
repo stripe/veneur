@@ -37,7 +37,7 @@ func newForwardingFixture(t testing.TB, localConfig Config, transport http.Round
 
 	// Make the global veneur:
 	ff.global = setupVeneurServer(t, globalConfig(), transport, globalSink, nil, nil)
-	ff.globalTS = httptest.NewServer(handleImport(ff.global))
+	ff.globalTS = httptest.NewServer(http.HandlerFunc(ff.global.handleImport))
 
 	// Make the proxy that sends to the global veneur:
 	proxyCfg := generateProxyConfig()

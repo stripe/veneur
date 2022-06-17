@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -16,49 +15,6 @@ import (
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 )
-
-type contextHandler func(c context.Context, w http.ResponseWriter, r *http.Request)
-
-func (ch contextHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
-	ch(ctx, w, r)
-}
-
-func handleProxy(p *Proxy) http.Handler {
-	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-		p.logger.WithFields(logrus.Fields{
-			"path": r.URL.Path,
-			"host": r.URL.Host,
-		}).Debug("Importing metrics on proxy")
-		span, jsonMetrics, err := unmarshalMetricsFromHTTP(
-			ctx, p.TraceClient, w, r, p.logger)
-		if err != nil {
-			p.logger.WithError(err).
-				Error("Error unmarshalling metrics in proxy import")
-			return
-		}
-		// the server usually waits for this to return before finalizing the
-		// response, so this part must be done asynchronously
-		go p.ProxyMetrics(span.Attach(ctx), jsonMetrics, strings.SplitN(r.RemoteAddr, ":", 2)[0])
-	})
-}
-
-// handleImport generates the handler that responds to POST requests submitting
-// metrics to the global veneur instance.
-func handleImport(s *Server) http.Handler {
-	return contextHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-		span, jsonMetrics, err := unmarshalMetricsFromHTTP(
-			ctx, s.TraceClient, w, r, s.logger)
-		if err != nil {
-			s.logger.WithError(err).Error("Error unmarshalling metrics in global import")
-			span.Add(ssf.Count("import.unmarshal.errors_total", 1, nil))
-			return
-		}
-		// the server usually waits for this to return before finalizing the
-		// response, so this part must be done asynchronously
-		go s.ImportMetrics(span.Attach(ctx), jsonMetrics)
-	})
-}
 
 // unmarshalMetricsFromHTTP takes care of the common need to unmarshal a slice of metrics from a request body,
 // dealing with error handling, decoding, tracing, and the associated metrics.
