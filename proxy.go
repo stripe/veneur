@@ -557,7 +557,7 @@ func (p *Proxy) Handler() http.Handler {
 		w.Write([]byte("ok\n"))
 	})
 
-	mux.Handle(pat.Post("/import"), handleProxy(p))
+	mux.Handle(pat.Post("/import"), http.HandlerFunc(p.handleProxy))
 
 	mux.Handle(pat.Get("/debug/pprof/cmdline"), http.HandlerFunc(pprof.Cmdline))
 	mux.Handle(pat.Get("/debug/pprof/profile"), http.HandlerFunc(pprof.Profile))
@@ -567,6 +567,24 @@ func (p *Proxy) Handler() http.Handler {
 	mux.Handle(pat.Get("/debug/pprof/*"), http.HandlerFunc(pprof.Index))
 
 	return mux
+}
+
+func (p *Proxy) handleProxy(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+	p.logger.WithFields(logrus.Fields{
+		"path": r.URL.Path,
+		"host": r.URL.Host,
+	}).Debug("Importing metrics on proxy")
+	span, jsonMetrics, err := unmarshalMetricsFromHTTP(
+		ctx, p.TraceClient, w, r, p.logger)
+	if err != nil {
+		p.logger.WithError(err).
+			Error("Error unmarshalling metrics in proxy import")
+		return
+	}
+	// the server usually waits for this to return before finalizing the
+	// response, so this part must be done asynchronously
+	go p.ProxyMetrics(span.Attach(ctx), jsonMetrics, strings.SplitN(r.RemoteAddr, ":", 2)[0])
 }
 
 // ProxyMetrics takes a slice of JSONMetrics and breaks them up into
