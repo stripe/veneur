@@ -43,21 +43,17 @@ import (
 type Proxy struct {
 	Hostname                   string
 	ForwardDestinations        *consistent.Consistent
-	TraceDestinations          *consistent.Consistent
 	ForwardGRPCDestinations    *consistent.Consistent
 	Discoverer                 discovery.Discoverer
 	ConsulForwardService       string
-	ConsulTraceService         string
 	ConsulForwardGRPCService   string
 	ConsulInterval             time.Duration
 	MetricsInterval            time.Duration
 	ForwardDestinationsMtx     sync.Mutex
-	TraceDestinationsMtx       sync.Mutex
 	ForwardGRPCDestinationsMtx sync.Mutex
 	HTTPAddr                   string
 	HTTPClient                 *http.Client
 	AcceptingForwards          bool
-	AcceptingTraces            bool
 	AcceptingGRPCForwards      bool
 	ForwardTimeout             time.Duration
 
@@ -137,14 +133,10 @@ func NewProxyFromConfig(
 	proxy.enableProfiling = conf.EnableProfiling
 
 	proxy.ConsulForwardService = conf.ConsulForwardServiceName
-	proxy.ConsulTraceService = conf.ConsulTraceServiceName
 	proxy.ConsulForwardGRPCService = conf.ConsulForwardGrpcServiceName
 
 	if proxy.ConsulForwardService != "" || conf.ForwardAddress != "" {
 		proxy.AcceptingForwards = true
-	}
-	if proxy.ConsulTraceService != "" || conf.TraceAddress != "" {
-		proxy.AcceptingTraces = true
 	}
 	if proxy.ConsulForwardGRPCService != "" || len(conf.GrpcForwardAddress) > 0 {
 		proxy.AcceptingGRPCForwards = true
@@ -152,11 +144,9 @@ func NewProxyFromConfig(
 
 	// We need a convenient way to know if we're even using Consul later
 	if proxy.ConsulForwardService != "" ||
-		proxy.ConsulTraceService != "" ||
 		proxy.ConsulForwardGRPCService != "" {
 		logger.WithFields(logrus.Fields{
 			"consulForwardService":     proxy.ConsulForwardService,
-			"consulTraceService":       proxy.ConsulTraceService,
 			"consulGRPCForwardService": proxy.ConsulForwardGRPCService,
 		}).Info("Using consul for service discovery")
 		proxy.usingConsul = true
@@ -175,7 +165,6 @@ func NewProxyFromConfig(
 	}
 
 	proxy.ForwardDestinations = consistent.New()
-	proxy.TraceDestinations = consistent.New()
 	proxy.ForwardGRPCDestinations = consistent.New()
 
 	if conf.ForwardTimeout != "" {
@@ -192,9 +181,6 @@ func NewProxyFromConfig(
 	if proxy.ConsulForwardService == "" && conf.ForwardAddress != "" {
 		proxy.ForwardDestinations.Add(conf.ForwardAddress)
 	}
-	if proxy.ConsulTraceService == "" && conf.TraceAddress != "" {
-		proxy.TraceDestinations.Add(conf.TraceAddress)
-	}
 	if proxy.ConsulForwardGRPCService == "" {
 		for _, address := range conf.GrpcForwardAddress {
 			proxy.ForwardGRPCDestinations.Add(address)
@@ -202,13 +188,11 @@ func NewProxyFromConfig(
 	}
 
 	if !proxy.AcceptingForwards &&
-		!proxy.AcceptingTraces &&
 		!proxy.AcceptingGRPCForwards {
 		err = errors.New(
 			"refusing to start with no Consul service names or static addresses in config")
 		logger.WithError(err).WithFields(logrus.Fields{
 			"consul_forward_service_name":      proxy.ConsulForwardService,
-			"consul_trace_service_name":        proxy.ConsulTraceService,
 			"consul_forward_grpc_service_name": proxy.ConsulForwardGRPCService,
 			"forward_address":                  conf.ForwardAddress,
 			"trace_address":                    conf.TraceAddress,
@@ -336,14 +320,6 @@ func (p *Proxy) Start() {
 		}
 	}
 
-	if p.AcceptingTraces && p.ConsulTraceService != "" {
-		p.RefreshDestinations(p.ConsulTraceService, p.TraceDestinations, &p.TraceDestinationsMtx)
-		if len(p.ForwardDestinations.Members()) == 0 {
-			p.logger.WithField("serviceName", p.ConsulTraceService).
-				Fatal("Refusing to start with zero destinations for tracing.")
-		}
-	}
-
 	if p.AcceptingGRPCForwards && p.ConsulForwardGRPCService != "" {
 		p.RefreshDestinations(p.ConsulForwardGRPCService, p.ForwardGRPCDestinations, &p.ForwardGRPCDestinationsMtx)
 		if len(p.ForwardGRPCDestinations.Members()) == 0 {
@@ -364,14 +340,10 @@ func (p *Proxy) Start() {
 				p.logger.WithFields(logrus.Fields{
 					"acceptingForwards":        p.AcceptingForwards,
 					"consulForwardService":     p.ConsulForwardService,
-					"consulTraceService":       p.ConsulTraceService,
 					"consulForwardGRPCService": p.ConsulForwardGRPCService,
 				}).Debug("About to refresh destinations")
 				if p.AcceptingForwards && p.ConsulForwardService != "" {
 					p.RefreshDestinations(p.ConsulForwardService, p.ForwardDestinations, &p.ForwardDestinationsMtx)
-				}
-				if p.AcceptingTraces && p.ConsulTraceService != "" {
-					p.RefreshDestinations(p.ConsulTraceService, p.TraceDestinations, &p.TraceDestinationsMtx)
 				}
 				if p.AcceptingGRPCForwards && p.ConsulForwardGRPCService != "" {
 					p.RefreshDestinations(p.ConsulForwardGRPCService, p.ForwardGRPCDestinations, &p.ForwardGRPCDestinationsMtx)

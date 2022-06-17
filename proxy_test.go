@@ -119,7 +119,6 @@ func TestAcceptingBooleans(t *testing.T) {
 
 	server, _ := NewProxyFromConfig(logrus.New(), proxyConfig)
 	assert.True(t, server.AcceptingForwards, "Server accepts forwards")
-	assert.False(t, server.AcceptingTraces, "Server does not forward traces")
 }
 
 func TestConsistentForward(t *testing.T) {
