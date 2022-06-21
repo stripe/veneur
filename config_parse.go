@@ -15,20 +15,20 @@ import (
 var defaultConfig = Config{
 	Aggregates:                     []string{"min", "max", "count"},
 	DatadogFlushMaxPerBody:         25000,
-	Interval:                       time.Duration(10 * time.Second),
+	Interval:                       10 * time.Second,
 	MetricMaxLength:                4096,
 	PrometheusNetworkType:          "tcp",
 	ReadBufferSizeBytes:            1048576 * 2, // 2 MiB
 	SpanChannelCapacity:            100,
 	SplunkHecBatchSize:             100,
-	SplunkHecMaxConnectionLifetime: time.Duration(10 * time.Second), // same as Interval
+	SplunkHecMaxConnectionLifetime: 10 * time.Second, // same as Interval
 }
 
 var defaultProxyConfig = ProxyConfig{
 	MaxIdleConnsPerHost:          100,
 	TracingClientCapacity:        1024,
-	TracingClientFlushInterval:   "500ms",
-	TracingClientMetricsInterval: "1s",
+	TracingClientFlushInterval:   500 * time.Millisecond,
+	TracingClientMetricsInterval: time.Second,
 }
 
 // ReadProxyConfig unmarshals the proxy config file and slurps in its data.
@@ -59,10 +59,10 @@ func (c *ProxyConfig) applyDefaults(logger *logrus.Entry) {
 	if c.TracingClientCapacity == 0 {
 		c.TracingClientCapacity = defaultProxyConfig.TracingClientCapacity
 	}
-	if c.TracingClientFlushInterval == "" {
+	if c.TracingClientFlushInterval == 0 {
 		c.TracingClientFlushInterval = defaultProxyConfig.TracingClientFlushInterval
 	}
-	if c.TracingClientMetricsInterval == "" {
+	if c.TracingClientMetricsInterval == 0 {
 		c.TracingClientMetricsInterval = defaultProxyConfig.TracingClientMetricsInterval
 	}
 }

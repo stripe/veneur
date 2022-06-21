@@ -22,7 +22,7 @@ import (
 func generateProxyConfig() ProxyConfig {
 	return ProxyConfig{
 		Debug:                    false,
-		ConsulRefreshInterval:    "86400s",
+		ConsulRefreshInterval:    24 * time.Hour,
 		ConsulForwardServiceName: "forwardServiceName",
 		ConsulTraceServiceName:   "traceServiceName",
 		TraceAddress:             "127.0.0.1:8128",
@@ -204,7 +204,7 @@ func TestTimeout(t *testing.T) {
 	defer ts.Close()
 
 	cfg.ForwardAddress = ts.URL
-	cfg.ForwardTimeout = "1ns" // just really really short
+	cfg.ForwardTimeout = time.Nanosecond // just really really short
 	server, _ := NewProxyFromConfig(logrus.New(), cfg)
 
 	ctr := samplers.Counter{Name: "foo", Tags: []string{}}

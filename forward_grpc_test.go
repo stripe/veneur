@@ -147,7 +147,7 @@ func newForwardGRPCFixture(
 	// Create a proxy Veneur
 	proxyConfig := veneur.ProxyConfig{
 		Debug:                  false,
-		ConsulRefreshInterval:  "86400s",
+		ConsulRefreshInterval:  24 * time.Hour,
 		ConsulTraceServiceName: "traceServiceName",
 		TraceAddress:           "127.0.0.1:8128",
 		TraceAPIAddress:        "127.0.0.1:8135",
