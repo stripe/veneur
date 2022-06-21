@@ -9,9 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"io/ioutil"
-	"os"
-
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,9 +28,7 @@ func TestMultipleListeners(t *testing.T) {
 		logger: srv.logger,
 	}
 
-	dir, err := ioutil.TempDir("", "unix-listener")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	addrNet, err := protocol.ResolveAddr(&url.URL{
 		Scheme: "unix",
@@ -68,9 +63,7 @@ func TestConnectUNIX(t *testing.T) {
 		logger: srv.logger,
 	}
 
-	dir, err := ioutil.TempDir("", "unix-listener")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	addrNet, err := protocol.ResolveAddr(&url.URL{
 		Scheme: "unix",
@@ -127,9 +120,7 @@ func TestConnectUNIXStatsd(t *testing.T) {
 		logger: srv.logger,
 	}
 
-	dir, err := ioutil.TempDir("", "unix-domain-listener")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	addrNet, err := protocol.ResolveAddr(&url.URL{
 		Scheme: "unixgram",
