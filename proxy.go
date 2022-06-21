@@ -46,7 +46,7 @@ type Proxy struct {
 	ForwardGRPCDestinations    *consistent.Consistent
 	Discoverer                 discovery.Discoverer
 	ConsulForwardService       string
-	ConsulForwardGRPCService   string
+	ConsulForwardGrpcService   string
 	ConsulInterval             time.Duration
 	MetricsInterval            time.Duration
 	ForwardDestinationsMtx     sync.Mutex
@@ -77,18 +77,43 @@ type Proxy struct {
 func NewProxyFromConfig(
 	logger *logrus.Logger, conf ProxyConfig,
 ) (*Proxy, error) {
-	proxy := Proxy{
-		ignoredTags: conf.IgnoreTags,
-		logger:      logrus.NewEntry(logger),
-	}
-
 	hostname, err := os.Hostname()
 	if err != nil {
-		logger.WithError(err).Error("Error finding hostname")
+		logger.WithError(err).Error("error finding hostname")
 		return nil, err
 	}
-	proxy.Hostname = hostname
-	proxy.shutdown = make(chan struct{})
+
+	if conf.RuntimeMetricsInterval == 0 {
+		conf.RuntimeMetricsInterval = time.Second * 10
+	}
+
+	proxy := &Proxy{
+		AcceptingForwards:        conf.ConsulForwardServiceName != "" || conf.ForwardAddress != "",
+		AcceptingGRPCForwards:    conf.ConsulForwardGrpcServiceName != "" || len(conf.GrpcForwardAddress) > 0,
+		ConsulForwardService:     conf.ConsulForwardServiceName,
+		ConsulForwardGrpcService: conf.ConsulForwardGrpcServiceName,
+		enableProfiling:          conf.EnableProfiling,
+		ForwardDestinations:      consistent.New(),
+		ForwardGRPCDestinations:  consistent.New(),
+		ForwardTimeout:           conf.ForwardTimeout,
+		Hostname:                 hostname,
+		HTTPAddr:                 conf.HTTPAddress,
+		HTTPClient: &http.Client{
+			Transport: &http.Transport{
+				IdleConnTimeout: conf.IdleConnectionTimeout,
+				// Each of these properties DTRT (according to Go docs) when supplied
+				// with zero values as of Go 0.10.3
+				MaxIdleConns:        conf.MaxIdleConns,
+				MaxIdleConnsPerHost: conf.MaxIdleConnsPerHost,
+			},
+		},
+		ignoredTags:      conf.IgnoreTags,
+		logger:           logrus.NewEntry(logger),
+		MetricsInterval:  conf.RuntimeMetricsInterval,
+		numListeningHTTP: new(int32),
+		shutdown:         make(chan struct{}),
+		usingConsul:      conf.ConsulForwardServiceName != "" || conf.ConsulForwardGrpcServiceName != "",
+	}
 
 	if conf.SentryDsn != "" {
 		err = sentry.Init(sentry.ClientOptions{
@@ -98,58 +123,14 @@ func NewProxyFromConfig(
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	logger.AddHook(SentryHook{
-		Level: []logrus.Level{
-			logrus.ErrorLevel,
-			logrus.FatalLevel,
-			logrus.PanicLevel,
-		},
-	})
-
-	proxy.HTTPAddr = conf.HTTPAddress
-
-	var idleTimeout time.Duration
-	if conf.IdleConnectionTimeout != "" {
-		idleTimeout, err = time.ParseDuration(conf.IdleConnectionTimeout)
-		if err != nil {
-			return nil, err
-		}
-	}
-	transport := &http.Transport{
-		IdleConnTimeout: idleTimeout,
-		// Each of these properties DTRT (according to Go docs) when supplied with
-		// zero values as of Go 0.10.3
-		MaxIdleConns:        conf.MaxIdleConns,
-		MaxIdleConnsPerHost: conf.MaxIdleConnsPerHost,
-	}
-
-	proxy.HTTPClient = &http.Client{
-		Transport: transport,
-	}
-	proxy.numListeningHTTP = new(int32)
-
-	proxy.enableProfiling = conf.EnableProfiling
-
-	proxy.ConsulForwardService = conf.ConsulForwardServiceName
-	proxy.ConsulForwardGRPCService = conf.ConsulForwardGrpcServiceName
-
-	if proxy.ConsulForwardService != "" || conf.ForwardAddress != "" {
-		proxy.AcceptingForwards = true
-	}
-	if proxy.ConsulForwardGRPCService != "" || len(conf.GrpcForwardAddress) > 0 {
-		proxy.AcceptingGRPCForwards = true
-	}
-
-	// We need a convenient way to know if we're even using Consul later
-	if proxy.ConsulForwardService != "" ||
-		proxy.ConsulForwardGRPCService != "" {
-		logger.WithFields(logrus.Fields{
-			"consulForwardService":     proxy.ConsulForwardService,
-			"consulGRPCForwardService": proxy.ConsulForwardGRPCService,
-		}).Info("Using consul for service discovery")
-		proxy.usingConsul = true
+		logger.AddHook(SentryHook{
+			Level: []logrus.Level{
+				logrus.ErrorLevel,
+				logrus.FatalLevel,
+				logrus.PanicLevel,
+			},
+		})
 	}
 
 	// check if we are running on Kubernetes
@@ -159,29 +140,14 @@ func NewProxyFromConfig(
 		proxy.usingKubernetes = true
 
 		//TODO don't overload this
-		if conf.ConsulForwardServiceName != "" {
-			proxy.AcceptingForwards = true
-		}
-	}
-
-	proxy.ForwardDestinations = consistent.New()
-	proxy.ForwardGRPCDestinations = consistent.New()
-
-	if conf.ForwardTimeout != "" {
-		proxy.ForwardTimeout, err = time.ParseDuration(conf.ForwardTimeout)
-		if err != nil {
-			logger.WithError(err).
-				WithField("value", conf.ForwardTimeout).
-				Error("Could not parse forward timeout")
-			return nil, err
-		}
+		proxy.AcceptingForwards = conf.ConsulForwardServiceName != ""
 	}
 
 	// We got a static forward address, stick it in the destination!
 	if proxy.ConsulForwardService == "" && conf.ForwardAddress != "" {
 		proxy.ForwardDestinations.Add(conf.ForwardAddress)
 	}
-	if proxy.ConsulForwardGRPCService == "" {
+	if proxy.ConsulForwardGrpcService == "" {
 		for _, address := range conf.GrpcForwardAddress {
 			proxy.ForwardGRPCDestinations.Add(address)
 		}
@@ -193,7 +159,7 @@ func NewProxyFromConfig(
 			"refusing to start with no Consul service names or static addresses in config")
 		logger.WithError(err).WithFields(logrus.Fields{
 			"consul_forward_service_name":      proxy.ConsulForwardService,
-			"consul_forward_grpc_service_name": proxy.ConsulForwardGRPCService,
+			"consul_forward_grpc_service_name": proxy.ConsulForwardGrpcService,
 			"forward_address":                  conf.ForwardAddress,
 			"trace_address":                    conf.TraceAddress,
 		}).Error("Oops")
@@ -201,22 +167,9 @@ func NewProxyFromConfig(
 	}
 
 	if proxy.usingConsul {
-		proxy.ConsulInterval, err = time.ParseDuration(conf.ConsulRefreshInterval)
-		if err != nil {
-			logger.WithError(err).Error("Error parsing Consul refresh interval")
-			return nil, err
-		}
+		proxy.ConsulInterval = conf.ConsulRefreshInterval
 		logger.WithField("interval", conf.ConsulRefreshInterval).
 			Info("Will use Consul for service discovery")
-	}
-
-	proxy.MetricsInterval = time.Second * 10
-	if conf.RuntimeMetricsInterval != "" {
-		proxy.MetricsInterval, err = time.ParseDuration(conf.RuntimeMetricsInterval)
-		if err != nil {
-			logger.WithError(err).Error("Error parsing metric refresh interval")
-			return nil, err
-		}
 	}
 
 	proxy.TraceClient = trace.DefaultClient
@@ -233,24 +186,12 @@ func NewProxyFromConfig(
 			format = "ssf_format:framed"
 		}
 
-		traceFlushInterval, err :=
-			time.ParseDuration(conf.TracingClientFlushInterval)
-		if err != nil {
-			logger.WithError(err).Error("Error parsing tracing flush interval")
-			return nil, err
-		}
-		traceMetricsInterval, err :=
-			time.ParseDuration(conf.TracingClientMetricsInterval)
-		if err != nil {
-			logger.WithError(err).Error("Error parsing tracing metrics interval")
-			return nil, err
-		}
-
 		proxy.TraceClient, err = trace.NewClient(conf.SsfDestinationAddress.Value,
 			trace.Buffered,
 			trace.Capacity(uint(conf.TracingClientCapacity)),
-			trace.FlushInterval(traceFlushInterval),
-			trace.ReportStatistics(stats, traceMetricsInterval, []string{format}),
+			trace.FlushInterval(conf.TracingClientFlushInterval),
+			trace.ReportStatistics(
+				stats, conf.TracingClientMetricsInterval, []string{format}),
 		)
 		if err != nil {
 			logger.WithField("ssf_destination_address", conf.SsfDestinationAddress).
@@ -272,16 +213,9 @@ func NewProxyFromConfig(
 		}
 	}
 
-	// TODO Size of replicas in config?
-	//ret.ForwardDestinations.NumberOfReplicas = ???
-
-	if conf.Debug {
-		logger.SetLevel(logrus.DebugLevel)
-	}
-
 	logger.WithField("config", conf).Debug("Initialized server")
 
-	return &proxy, nil
+	return proxy, nil
 }
 
 // Start fires up the various goroutines that run on behalf of the server.
@@ -320,10 +254,10 @@ func (p *Proxy) Start() {
 		}
 	}
 
-	if p.AcceptingGRPCForwards && p.ConsulForwardGRPCService != "" {
-		p.RefreshDestinations(p.ConsulForwardGRPCService, p.ForwardGRPCDestinations, &p.ForwardGRPCDestinationsMtx)
+	if p.AcceptingGRPCForwards && p.ConsulForwardGrpcService != "" {
+		p.RefreshDestinations(p.ConsulForwardGrpcService, p.ForwardGRPCDestinations, &p.ForwardGRPCDestinationsMtx)
 		if len(p.ForwardGRPCDestinations.Members()) == 0 {
-			p.logger.WithField("serviceName", p.ConsulForwardGRPCService).
+			p.logger.WithField("serviceName", p.ConsulForwardGrpcService).
 				Fatal("Refusing to start with zero destinations for forwarding over gRPC.")
 		}
 		p.grpcServer.SetDestinations(p.ForwardGRPCDestinations)
@@ -340,13 +274,13 @@ func (p *Proxy) Start() {
 				p.logger.WithFields(logrus.Fields{
 					"acceptingForwards":        p.AcceptingForwards,
 					"consulForwardService":     p.ConsulForwardService,
-					"consulForwardGRPCService": p.ConsulForwardGRPCService,
+					"consulForwardGRPCService": p.ConsulForwardGrpcService,
 				}).Debug("About to refresh destinations")
 				if p.AcceptingForwards && p.ConsulForwardService != "" {
 					p.RefreshDestinations(p.ConsulForwardService, p.ForwardDestinations, &p.ForwardDestinationsMtx)
 				}
-				if p.AcceptingGRPCForwards && p.ConsulForwardGRPCService != "" {
-					p.RefreshDestinations(p.ConsulForwardGRPCService, p.ForwardGRPCDestinations, &p.ForwardGRPCDestinationsMtx)
+				if p.AcceptingGRPCForwards && p.ConsulForwardGrpcService != "" {
+					p.RefreshDestinations(p.ConsulForwardGrpcService, p.ForwardGRPCDestinations, &p.ForwardGRPCDestinationsMtx)
 					p.grpcServer.SetDestinations(p.ForwardGRPCDestinations)
 				}
 			}
