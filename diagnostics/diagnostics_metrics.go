@@ -1,21 +1,32 @@
 package diagnostics
 
 import (
+	"context"
 	"runtime"
 	"time"
 
 	"github.com/stripe/veneur/v14/scopedstatsd"
 )
 
-func CollectDiagnosticsMetrics(statsd scopedstatsd.Client, interval time.Duration, tags []string) {
+func CollectDiagnosticsMetrics(
+	ctx context.Context, statsd scopedstatsd.Client, interval time.Duration,
+	tags []string,
+) {
 	var memstatsCurrent runtime.MemStats
 	var memstatsPrev runtime.MemStats
 
-	for range time.Tick(interval) {
-		CollectUptimeMetrics(statsd, interval, tags)
-		runtime.ReadMemStats(&memstatsCurrent)
-		CollectRuntimeMemStats(statsd, &memstatsCurrent, &memstatsPrev, tags)
-		memstatsPrev = memstatsCurrent
+	ticker := time.NewTicker(interval)
+	for {
+		select {
+		case <-ticker.C:
+			CollectUptimeMetrics(statsd, interval, tags)
+			runtime.ReadMemStats(&memstatsCurrent)
+			CollectRuntimeMemStats(statsd, &memstatsCurrent, &memstatsPrev, tags)
+			memstatsPrev = memstatsCurrent
+		case <-ctx.Done():
+			ticker.Stop()
+			return
+		}
 	}
 }
 

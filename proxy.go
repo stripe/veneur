@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"reflect"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -286,24 +285,6 @@ func (p *Proxy) Start() {
 			}
 		}()
 	}
-
-	go func() {
-		hostname, _ := os.Hostname()
-		defer func() {
-			ConsumePanic(p.TraceClient, hostname, recover())
-		}()
-		ticker := time.NewTicker(p.MetricsInterval)
-		for {
-			select {
-			case <-p.shutdown:
-				// stop flushing on graceful shutdown
-				ticker.Stop()
-				return
-			case <-ticker.C:
-				p.ReportRuntimeMetrics()
-			}
-		}
-	}()
 }
 
 // Start all of the the configured servers (gRPC or HTTP) and block until
@@ -572,17 +553,6 @@ func (p *Proxy) doPost(ctx context.Context, wg *sync.WaitGroup, destination stri
 	samples.Add(ssf.RandomlySample(0.1,
 		ssf.Count("metrics_by_destination", float32(batchSize), map[string]string{"destination": destination, "protocol": "http"}),
 	)...)
-}
-
-func (p *Proxy) ReportRuntimeMetrics() {
-	mem := &runtime.MemStats{}
-	runtime.ReadMemStats(mem)
-	metrics.ReportBatch(p.TraceClient, []*ssf.SSFSample{
-		ssf.Gauge("mem.heap_alloc_bytes", float32(mem.HeapAlloc), nil),
-		ssf.Gauge("gc.number", float32(mem.NumGC), nil),
-		ssf.Gauge("gc.pause_total_ns", float32(mem.PauseTotalNs), nil),
-		ssf.Gauge("gc.alloc_heap_bytes", float32(mem.HeapAlloc), nil),
-	})
 }
 
 // Shutdown signals the server to shut down after closing all
