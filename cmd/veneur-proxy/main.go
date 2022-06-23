@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/diagnostics"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 )
@@ -21,11 +24,14 @@ func main() {
 	flag.Parse()
 	logger := logrus.StandardLogger()
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	if configFile == nil || *configFile == "" {
 		logrus.Fatal("You must specify a config file")
 	}
 
-	conf, err := veneur.ReadProxyConfig(logrus.NewEntry(logger), *configFile)
+	config, err := veneur.ReadProxyConfig(logrus.NewEntry(logger), *configFile)
 	if err != nil {
 		if _, ok := err.(*veneur.UnknownConfigKeys); ok {
 			logrus.WithError(err).Warn("Config contains invalid or deprecated keys")
@@ -34,11 +40,22 @@ func main() {
 		}
 	}
 
-	if conf.Debug {
+	if config.Debug {
 		logger.SetLevel(logrus.DebugLevel)
 	}
 
-	proxy, err := veneur.NewProxyFromConfig(logger, conf)
+	statsClient, err := statsd.New(
+		config.StatsAddress, statsd.WithoutTelemetry(),
+		statsd.WithMaxMessagesPerPayload(4096))
+	if err != nil {
+		logger.WithError(err).Fatal("failed to create statsd client")
+	}
+
+	go diagnostics.CollectDiagnosticsMetrics(
+		ctx, statsClient, config.RuntimeMetricsInterval,
+		[]string{"git_sha:" + veneur.VERSION})
+
+	proxy, err := veneur.NewProxyFromConfig(logger, config)
 
 	ssf.NamePrefix = "veneur_proxy."
 

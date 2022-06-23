@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 
@@ -39,6 +40,9 @@ func init() {
 func main() {
 	flag.Parse()
 	logger := logrus.StandardLogger()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	if configFile == nil || *configFile == "" {
 		logger.Fatal("You must specify a config file")
@@ -190,7 +194,9 @@ func main() {
 	}
 
 	if conf.Features.DiagnosticsMetricsEnabled {
-		go diagnostics.CollectDiagnosticsMetrics(server.Statsd, server.Interval, []string{"git_sha:" + veneur.VERSION})
+		go diagnostics.CollectDiagnosticsMetrics(
+			ctx, server.Statsd, server.Interval,
+			[]string{"git_sha:" + veneur.VERSION})
 	}
 
 	ssf.NamePrefix = "veneur."
