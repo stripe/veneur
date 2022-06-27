@@ -11,6 +11,7 @@ import (
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util/build"
 	"gopkg.in/yaml.v2"
 
 	"context"
@@ -29,11 +30,11 @@ func (s *Server) Handler() http.Handler {
 	})
 
 	mux.HandleFunc(pat.Get("/builddate"), func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(BUILD_DATE))
+		w.Write([]byte(build.BUILD_DATE))
 	})
 
 	mux.HandleFunc(pat.Get("/version"), func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(VERSION))
+		w.Write([]byte(build.VERSION))
 	})
 
 	if s.Config.HTTP.Config {

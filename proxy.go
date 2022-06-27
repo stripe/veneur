@@ -30,6 +30,7 @@ import (
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util/build"
 	"github.com/stripe/veneur/v14/util/matcher"
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
@@ -118,6 +119,7 @@ func NewProxyFromConfig(
 		err = sentry.Init(sentry.ClientOptions{
 			Dsn:        conf.SentryDsn,
 			ServerName: hostname,
+			Release:    build.VERSION,
 		})
 		if err != nil {
 			return nil, err
@@ -220,7 +222,7 @@ func NewProxyFromConfig(
 // Start fires up the various goroutines that run on behalf of the server.
 // This is separated from the constructor for testing convenience.
 func (p *Proxy) Start() {
-	p.logger.WithField("version", VERSION).Info("Starting server")
+	p.logger.WithField("version", build.VERSION).Info("Starting server")
 
 	config := api.DefaultConfig()
 	// Use the same HTTP Client we're using for other things, so we can leverage
@@ -440,8 +442,14 @@ func (p *Proxy) RefreshDestinations(serviceName string, ring *consistent.Consist
 func (p *Proxy) Handler() http.Handler {
 	mux := goji.NewMux()
 
-	mux.HandleFunc(pat.Get("/healthcheck"), func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(pat.Get("/builddate"), func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(build.BUILD_DATE))
+	})
+	mux.HandleFunc(pat.Get("/healthcheck"), func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte("ok\n"))
+	})
+	mux.HandleFunc(pat.Get("/version"), func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(build.VERSION))
 	})
 
 	mux.Handle(pat.Post("/import"), http.HandlerFunc(p.handleProxy))

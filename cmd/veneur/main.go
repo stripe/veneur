@@ -25,6 +25,7 @@ import (
 	"github.com/stripe/veneur/v14/sources/openmetrics"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util/build"
 )
 
 var (
@@ -66,7 +67,7 @@ func main() {
 		err = sentry.Init(sentry.ClientOptions{
 			Dsn:        conf.SentryDsn.Value,
 			ServerName: conf.Hostname,
-			Release:    veneur.VERSION,
+			Release:    build.VERSION,
 		})
 		if err != nil {
 			logger.WithError(err).Fatal("failed to initialzie Sentry")
@@ -196,7 +197,7 @@ func main() {
 	if conf.Features.DiagnosticsMetricsEnabled {
 		go diagnostics.CollectDiagnosticsMetrics(
 			ctx, server.Statsd, server.Interval,
-			[]string{"git_sha:" + veneur.VERSION})
+			[]string{"git_sha:" + build.VERSION})
 	}
 
 	ssf.NamePrefix = "veneur."

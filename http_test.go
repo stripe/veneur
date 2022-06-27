@@ -19,6 +19,7 @@ import (
 
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/util"
+	"github.com/stripe/veneur/v14/util/build"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -313,11 +314,11 @@ func TestBuildDate(t *testing.T) {
 	bts, err := ioutil.ReadAll(w.Body)
 	assert.NoError(t, err, "error reading /builddate")
 
-	assert.Equal(t, string(bts), BUILD_DATE, "received invalid build date")
+	assert.Equal(t, string(bts), build.BUILD_DATE, "received invalid build date")
 
 	// we can't always check this against the current time
 	// because that would break local tests when run with `go test`
-	if BUILD_DATE != defaultLinkValue {
+	if build.BUILD_DATE != "dirty" {
 		date, err := strconv.ParseInt(string(bts), 10, 64)
 		assert.NoError(t, err, "error parsing date %s", string(bts))
 
@@ -345,7 +346,7 @@ func TestVersion(t *testing.T) {
 	bts, err := ioutil.ReadAll(w.Body)
 	assert.NoError(t, err, "error reading /version")
 
-	assert.Equal(t, string(bts), VERSION, "received invalid version")
+	assert.Equal(t, string(bts), build.VERSION, "received invalid version")
 }
 
 func testServerImportHelper(t *testing.T, data interface{}) {
