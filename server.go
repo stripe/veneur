@@ -42,16 +42,9 @@ import (
 	"github.com/stripe/veneur/v14/tagging"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util/build"
 	"github.com/stripe/veneur/v14/util/matcher"
 )
-
-// VERSION stores the current veneur version.
-// It must be a var so it can be set at link time.
-var VERSION = defaultLinkValue
-
-var BUILD_DATE = defaultLinkValue
-
-const defaultLinkValue = "dirty"
 
 var profileStartOnce = sync.Once{}
 
@@ -726,7 +719,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 // Start spins up the Server to do actual work, firing off goroutines for
 // various workers and utilities.
 func (s *Server) Start() {
-	s.logger.WithField("version", VERSION).Info("Starting server")
+	s.logger.WithField("version", build.VERSION).Info("Starting server")
 
 	// Set up the processors for spans:
 

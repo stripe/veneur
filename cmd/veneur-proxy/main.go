@@ -10,6 +10,7 @@ import (
 	"github.com/stripe/veneur/v14/diagnostics"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util/build"
 )
 
 var (
@@ -52,8 +53,10 @@ func main() {
 	}
 
 	go diagnostics.CollectDiagnosticsMetrics(
-		ctx, statsClient, config.RuntimeMetricsInterval,
-		[]string{"git_sha:" + veneur.VERSION})
+		ctx, statsClient, config.RuntimeMetricsInterval, []string{
+			"git_sha:" + build.VERSION,
+			"service:veneur-proxy",
+		})
 
 	proxy, err := veneur.NewProxyFromConfig(logger, config)
 
