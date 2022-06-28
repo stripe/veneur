@@ -1,4 +1,4 @@
-# See go/stripe-build for more information about customizing this file
+# See go/stripe-build for more information about customizing this file.
 ---
 henson_tarball:
   docker: {}
