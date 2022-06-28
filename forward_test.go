@@ -44,7 +44,7 @@ func newForwardingFixture(t testing.TB, localConfig Config, transport http.Round
 	proxyCfg.ForwardAddress = ff.globalTS.URL
 	proxyCfg.ConsulTraceServiceName = ""
 	proxyCfg.ConsulForwardServiceName = ""
-	proxy, err := NewProxyFromConfig(logrus.New(), proxyCfg)
+	proxy, err := NewProxyFromConfig(logrus.New(), proxyCfg, nil)
 	require.NoError(t, err)
 	ff.proxy = proxy
 

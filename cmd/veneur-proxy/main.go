@@ -5,9 +5,11 @@ import (
 	"flag"
 
 	"github.com/DataDog/datadog-go/statsd"
+	"github.com/hashicorp/consul/api"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/diagnostics"
+	"github.com/stripe/veneur/v14/discovery/consul"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/util/build"
@@ -58,7 +60,12 @@ func main() {
 			"service:veneur-proxy",
 		})
 
-	proxy, err := veneur.NewProxyFromConfig(logger, config)
+	discoverer, err := consul.NewConsul(api.DefaultConfig())
+	if err != nil {
+		logger.WithError(err).Fatal("failed to create discoverer")
+	}
+
+	proxy, err := veneur.NewProxyFromConfig(logger, config, discoverer)
 
 	ssf.NamePrefix = "veneur_proxy."
 

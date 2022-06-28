@@ -1,20 +1,17 @@
 package veneur
 
 import (
-	"compress/zlib"
 	"context"
-	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stripe/veneur/v14/discovery"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/zenazn/goji/graceful"
 )
@@ -33,62 +30,6 @@ func generateProxyConfig() ProxyConfig {
 	}
 }
 
-type ConsulTwoMetricRoundTripper struct {
-	t         *testing.T
-	wg        *sync.WaitGroup
-	aReceived bool
-	bReceived bool
-
-	mtx sync.Mutex
-}
-
-func (rt *ConsulTwoMetricRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Ensure that only one RoundTrip is happening at once
-	// to prevent dataraces on aReceived and bReceived
-
-	rt.mtx.Lock()
-	defer rt.mtx.Unlock()
-
-	rec := httptest.NewRecorder()
-	if req.URL.Path == "/v1/health/service/forwardServiceName" {
-		resp, _ := ioutil.ReadFile("discovery/consul/testdata/health_service_two.json")
-		rec.Write(resp)
-		rec.Code = http.StatusOK
-	} else if req.URL.Path == "/v1/health/service/traceServiceName" {
-		resp, _ := ioutil.ReadFile("discovery/consul/testdata/health_service_two.json")
-		rec.Write(resp)
-		rec.Code = http.StatusOK
-	} else if req.URL.Path == "/api/v1/series" {
-		// Just make the datadog bit work
-		rec.Code = http.StatusOK
-	} else if req.URL.Path == "/import" && req.Host == "10.1.10.12:8000" {
-		z, _ := zlib.NewReader(req.Body)
-		body, _ := ioutil.ReadAll(z)
-		defer req.Body.Close()
-		if strings.Contains(string(body), "y.b.c") {
-			rt.aReceived = true
-		}
-		rec.Code = http.StatusOK
-	} else if req.URL.Path == "/import" && req.Host == "10.1.10.13:8000" {
-		z, _ := zlib.NewReader(req.Body)
-		body, _ := ioutil.ReadAll(z)
-		defer req.Body.Close()
-		if strings.Contains(string(body), "a.b.c") {
-			rt.bReceived = true
-		}
-		rec.Code = http.StatusOK
-	} else {
-		assert.Fail(rt.t, "Received an unexpected request: %s %s", req.Host, req.URL.Path)
-	}
-
-	// If we've gotten all of them, fire!
-	if rt.aReceived && rt.bReceived {
-		rt.wg.Done()
-	}
-
-	return rec.Result(), nil
-}
-
 func TestAllowStaticServices(t *testing.T) {
 	proxyConfig := generateProxyConfig()
 	proxyConfig.ConsulForwardServiceName = ""
@@ -96,9 +37,9 @@ func TestAllowStaticServices(t *testing.T) {
 	proxyConfig.ForwardAddress = "localhost:1234"
 	proxyConfig.TraceAddress = "localhost:1234"
 
-	server, error := NewProxyFromConfig(logrus.New(), proxyConfig)
+	server, error := NewProxyFromConfig(logrus.New(), proxyConfig, nil)
 	assert.NoError(t, error, "Should start with just static services")
-	assert.False(t, server.usingConsul, "Server isn't using consul")
+	assert.Nil(t, server.Discoverer)
 }
 
 func TestMissingServices(t *testing.T) {
@@ -108,7 +49,7 @@ func TestMissingServices(t *testing.T) {
 	proxyConfig.ConsulForwardServiceName = ""
 	proxyConfig.ConsulTraceServiceName = ""
 
-	_, error := NewProxyFromConfig(logrus.New(), proxyConfig)
+	_, error := NewProxyFromConfig(logrus.New(), proxyConfig, nil)
 	assert.Error(t, error, "No consul services means Proxy won't start")
 }
 
@@ -117,30 +58,26 @@ func TestAcceptingBooleans(t *testing.T) {
 	proxyConfig.ConsulTraceServiceName = ""
 	proxyConfig.TraceAddress = ""
 
-	server, _ := NewProxyFromConfig(logrus.New(), proxyConfig)
+	server, _ := NewProxyFromConfig(logrus.New(), proxyConfig, nil)
 	assert.True(t, server.AcceptingForwards, "Server accepts forwards")
 }
 
-func TestConsistentForward(t *testing.T) {
+func TestDiscovererQuery(t *testing.T) {
+	// Make the discoverer
+	ctrl := gomock.NewController(t)
+	discoverer := discovery.NewMockDiscoverer(ctrl)
 
-	// We need to set up a proxy, have a local veneur send to it, then verify
-	// that the proxy forwards to two downstream fake globals.
-	// TIME FOR SOME GAME THEORY
+	discoverer.EXPECT().GetDestinationsForService(gomock.Any()).Return([]string{
+		"localhost:9000", "localhost:9001",
+	}, nil)
 
 	// Make the proxy
 	proxyConfig := generateProxyConfig()
 	proxyConfig.ForwardAddress = "localhost:1234"
 	proxyConfig.ConsulForwardServiceName = "forwardServiceName"
 	proxyConfig.Debug = true
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	transport := &ConsulTwoMetricRoundTripper{
-		t:  t,
-		wg: &wg,
-	}
-	server, _ := NewProxyFromConfig(logrus.New(), proxyConfig)
 
-	server.HTTPClient.Transport = transport
+	server, _ := NewProxyFromConfig(logrus.New(), proxyConfig, discoverer)
 	defer server.Shutdown()
 
 	server.Start()
@@ -149,46 +86,6 @@ func TestConsistentForward(t *testing.T) {
 
 	// Make sure we're sane first
 	assert.Len(t, server.ForwardDestinations.Members(), 2, "Incorrect host count in ring")
-
-	// Cool, now let's make a veneur to process some bits!
-	config := localConfig()
-	config.ForwardAddress = srv.URL
-	f := newFixture(t, config, nil, nil)
-	defer f.Close()
-
-	f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
-		MetricKey: samplers.MetricKey{
-			Name: "a.b.c",
-			Type: "histogram",
-		},
-		Value:      float64(100),
-		Digest:     12345,
-		SampleRate: 1.0,
-		Scope:      samplers.MixedScope,
-	})
-	f.server.Workers[0].ProcessMetric(&samplers.UDPMetric{
-		MetricKey: samplers.MetricKey{
-			Name: "y.b.c",
-			Type: "histogram",
-		},
-		Value:      float64(100),
-		Digest:     12345,
-		SampleRate: 1.0,
-		Scope:      samplers.MixedScope,
-	})
-
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		wg.Wait()
-	}()
-
-	select {
-	case <-c:
-		fmt.Println("GOT 'IM")
-	case <-time.After(3 * time.Second):
-		assert.Fail(t, "Failed to receive all metrics before timeout")
-	}
 }
 
 func TestTimeout(t *testing.T) {
@@ -205,7 +102,7 @@ func TestTimeout(t *testing.T) {
 
 	cfg.ForwardAddress = ts.URL
 	cfg.ForwardTimeout = time.Nanosecond // just really really short
-	server, _ := NewProxyFromConfig(logrus.New(), cfg)
+	server, _ := NewProxyFromConfig(logrus.New(), cfg, nil)
 
 	ctr := samplers.Counter{Name: "foo", Tags: []string{}}
 	ctr.Sample(20.0, 1.0)
@@ -237,7 +134,7 @@ func TestTimeout(t *testing.T) {
 // as the cleanup routing (*Proxy).Shutdown() will call it again after it is
 // called in this test.
 func TestProxyStopGRPC(t *testing.T) {
-	p, err := NewProxyFromConfig(logrus.New(), generateProxyConfig())
+	p, err := NewProxyFromConfig(logrus.New(), generateProxyConfig(), nil)
 	assert.NoError(t, err, "Creating a proxy server shouldn't have caused an error")
 
 	done := make(chan struct{})
@@ -261,7 +158,7 @@ func TestProxyStopGRPC(t *testing.T) {
 // both HTTP and gRPC.  As Serve will attempt to close any open HTTP servers
 // again, this also tests that graceful.Shutdown is safe to be called multiple times.
 func TestProxyServeStopHTTP(t *testing.T) {
-	p, err := NewProxyFromConfig(logrus.New(), generateProxyConfig())
+	p, err := NewProxyFromConfig(logrus.New(), generateProxyConfig(), nil)
 	assert.NoError(t, err, "Creating a Proxy shouldn't have caused an error")
 
 	done := make(chan struct{})

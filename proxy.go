@@ -22,8 +22,6 @@ import (
 	"github.com/pkg/profile"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14/discovery"
-	"github.com/stripe/veneur/v14/discovery/consul"
-	"github.com/stripe/veneur/v14/discovery/kubernetes"
 	vhttp "github.com/stripe/veneur/v14/http"
 	"github.com/stripe/veneur/v14/proxysrv"
 	"github.com/stripe/veneur/v14/samplers"
@@ -59,8 +57,6 @@ type Proxy struct {
 
 	ignoredTags     []matcher.TagMatcher
 	logger          *logrus.Entry
-	usingConsul     bool
-	usingKubernetes bool
 	enableProfiling bool
 	shutdown        chan struct{}
 	TraceClient     *trace.Client
@@ -75,7 +71,7 @@ type Proxy struct {
 }
 
 func NewProxyFromConfig(
-	logger *logrus.Logger, conf ProxyConfig,
+	logger *logrus.Logger, conf ProxyConfig, discoverer discovery.Discoverer,
 ) (*Proxy, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -87,15 +83,22 @@ func NewProxyFromConfig(
 		conf.RuntimeMetricsInterval = time.Second * 10
 	}
 
+	if conf.GrpcAddress == "" {
+		return nil, errors.New("missing required grpc address")
+	}
+
 	proxy := &Proxy{
 		AcceptingForwards:        conf.ConsulForwardServiceName != "" || conf.ForwardAddress != "",
 		AcceptingGRPCForwards:    conf.ConsulForwardGrpcServiceName != "" || len(conf.GrpcForwardAddress) > 0,
 		ConsulForwardService:     conf.ConsulForwardServiceName,
 		ConsulForwardGrpcService: conf.ConsulForwardGrpcServiceName,
+		ConsulInterval:           conf.ConsulRefreshInterval,
+		Discoverer:               discoverer,
 		enableProfiling:          conf.EnableProfiling,
 		ForwardDestinations:      consistent.New(),
 		ForwardGRPCDestinations:  consistent.New(),
 		ForwardTimeout:           conf.ForwardTimeout,
+		grpcListenAddress:        conf.GrpcAddress,
 		Hostname:                 hostname,
 		HTTPAddr:                 conf.HTTPAddress,
 		HTTPClient: &http.Client{
@@ -112,7 +115,6 @@ func NewProxyFromConfig(
 		MetricsInterval:  conf.RuntimeMetricsInterval,
 		numListeningHTTP: new(int32),
 		shutdown:         make(chan struct{}),
-		usingConsul:      conf.ConsulForwardServiceName != "" || conf.ConsulForwardGrpcServiceName != "",
 	}
 
 	if conf.SentryDsn != "" {
@@ -132,16 +134,6 @@ func NewProxyFromConfig(
 				logrus.PanicLevel,
 			},
 		})
-	}
-
-	// check if we are running on Kubernetes
-	_, err = os.Stat("/var/run/secrets/kubernetes.io/serviceaccount")
-	if !os.IsNotExist(err) {
-		logger.Info("Using Kubernetes for service discovery")
-		proxy.usingKubernetes = true
-
-		//TODO don't overload this
-		proxy.AcceptingForwards = conf.ConsulForwardServiceName != ""
 	}
 
 	// We got a static forward address, stick it in the destination!
@@ -165,12 +157,6 @@ func NewProxyFromConfig(
 			"trace_address":                    conf.TraceAddress,
 		}).Error("Oops")
 		return nil, err
-	}
-
-	if proxy.usingConsul {
-		proxy.ConsulInterval = conf.ConsulRefreshInterval
-		logger.WithField("interval", conf.ConsulRefreshInterval).
-			Info("Will use Consul for service discovery")
 	}
 
 	proxy.TraceClient = trace.DefaultClient
@@ -201,17 +187,14 @@ func NewProxyFromConfig(
 		}
 	}
 
-	if conf.GrpcAddress != "" {
-		proxy.grpcListenAddress = conf.GrpcAddress
-		proxy.grpcServer, err = proxysrv.New(proxy.ForwardGRPCDestinations,
-			proxysrv.WithForwardTimeout(proxy.ForwardTimeout),
-			proxysrv.WithIgnoredTags(proxy.ignoredTags),
-			proxysrv.WithLog(logrus.NewEntry(logger)),
-			proxysrv.WithTraceClient(proxy.TraceClient),
-		)
-		if err != nil {
-			logger.WithError(err).Fatal("Failed to initialize the gRPC server")
-		}
+	proxy.grpcServer, err = proxysrv.New(proxy.ForwardGRPCDestinations,
+		proxysrv.WithForwardTimeout(proxy.ForwardTimeout),
+		proxysrv.WithIgnoredTags(proxy.ignoredTags),
+		proxysrv.WithLog(proxy.logger),
+		proxysrv.WithTraceClient(proxy.TraceClient),
+	)
+	if err != nil {
+		logger.WithError(err).Fatal("Failed to initialize the gRPC server")
 	}
 
 	logger.WithField("config", conf).Debug("Initialized server")
@@ -229,25 +212,7 @@ func (p *Proxy) Start() {
 	// it for testing.
 	config.HttpClient = p.HTTPClient
 
-	if p.usingKubernetes {
-		disc, err := kubernetes.NewKubernetesDiscoverer(p.logger)
-		if err != nil {
-			p.logger.WithError(err).Error("Error creating KubernetesDiscoverer")
-			return
-		}
-		p.Discoverer = disc
-		p.logger.Info("Set Kubernetes discoverer")
-	} else if p.usingConsul {
-		disc, consulErr := consul.NewConsul(config)
-		if consulErr != nil {
-			p.logger.WithError(consulErr).Error("Error creating Consul discoverer")
-			return
-		}
-		p.Discoverer = disc
-		p.logger.Info("Set Consul discoverer")
-	}
-
-	if p.AcceptingForwards && p.ConsulForwardService != "" {
+	if p.AcceptingForwards && p.Discoverer != nil {
 		p.RefreshDestinations(p.ConsulForwardService, p.ForwardDestinations, &p.ForwardDestinationsMtx)
 		if len(p.ForwardDestinations.Members()) == 0 {
 			p.logger.WithField("serviceName", p.ConsulForwardService).
@@ -255,7 +220,7 @@ func (p *Proxy) Start() {
 		}
 	}
 
-	if p.AcceptingGRPCForwards && p.ConsulForwardGrpcService != "" {
+	if p.AcceptingGRPCForwards && p.Discoverer != nil {
 		p.RefreshDestinations(p.ConsulForwardGrpcService, p.ForwardGRPCDestinations, &p.ForwardGRPCDestinationsMtx)
 		if len(p.ForwardGRPCDestinations.Members()) == 0 {
 			p.logger.WithField("serviceName", p.ConsulForwardGrpcService).
@@ -264,7 +229,7 @@ func (p *Proxy) Start() {
 		p.grpcServer.SetDestinations(p.ForwardGRPCDestinations)
 	}
 
-	if p.usingConsul || p.usingKubernetes {
+	if p.Discoverer != nil {
 		p.logger.Info("Creating service discovery goroutine")
 		go func() {
 			defer func() {
