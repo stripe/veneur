@@ -88,13 +88,16 @@ type MetricSinkTypes = map[string]struct {
 	ParseConfig func(string, interface{}) (MetricSinkConfig, error)
 }
 
+type HttpCustomHandlers = map[string]func(w http.ResponseWriter, r *http.Request)
+
 // Config used to create a new server.
 type ServerConfig struct {
-	Config          Config
-	Logger          *logrus.Logger
-	MetricSinkTypes MetricSinkTypes
-	SourceTypes     SourceTypes
-	SpanSinkTypes   SpanSinkTypes
+	Config             Config
+	Logger             *logrus.Logger
+	MetricSinkTypes    MetricSinkTypes
+	SourceTypes        SourceTypes
+	SpanSinkTypes      SpanSinkTypes
+	HttpCustomHandlers HttpCustomHandlers
 }
 
 type ProxyProtocol int64
@@ -127,6 +130,8 @@ type Server struct {
 
 	HTTPAddr         string
 	numListeningHTTP *int32 // An atomic boolean for whether or not the HTTP server is running
+
+	HttpCustomHandlers HttpCustomHandlers
 
 	ForwardAddr   string
 	proxyProtocol ProxyProtocol
@@ -465,13 +470,14 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 				IdleConnTimeout: conf.Interval * 2,
 			},
 		},
-		Interval:         conf.Interval,
-		logger:           logrus.NewEntry(config.Logger),
-		metricMaxLength:  conf.MetricMaxLength,
-		numListeningHTTP: new(int32),
-		numReaders:       conf.NumReaders,
-		parser:           samplers.NewParser(conf.ExtendTags),
-		RcvbufBytes:      conf.ReadBufferSizeBytes,
+		HttpCustomHandlers: config.HttpCustomHandlers,
+		Interval:           conf.Interval,
+		logger:             logrus.NewEntry(config.Logger),
+		metricMaxLength:    conf.MetricMaxLength,
+		numListeningHTTP:   new(int32),
+		numReaders:         conf.NumReaders,
+		parser:             samplers.NewParser(conf.ExtendTags),
+		RcvbufBytes:        conf.ReadBufferSizeBytes,
 		// closed in Shutdown; Same approach and http.Shutdown
 		shutdown:            make(chan struct{}),
 		Tags:                conf.Tags,
