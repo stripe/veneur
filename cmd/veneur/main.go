@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"net/http"
 	"os"
 
 	"github.com/getsentry/sentry-go"
@@ -187,6 +188,11 @@ func main() {
 			"xray": {
 				Create:      xray.Create,
 				ParseConfig: xray.ParseConfig,
+			},
+		},
+		HttpCustomHandlers: veneur.HttpCustomHandlers{
+			"/echo": func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte("hello world!\n"))
 			},
 		},
 	})

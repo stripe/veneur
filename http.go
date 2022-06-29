@@ -56,6 +56,10 @@ func (s *Server) Handler() http.Handler {
 		w.Write([]byte("ok\n"))
 	})
 
+	for endpoint, customHandler := range s.HttpCustomHandlers {
+		mux.HandleFunc(pat.Get(endpoint), customHandler)
+	}
+
 	mux.Handle(pat.Post("/import"), http.HandlerFunc(s.handleImport))
 
 	mux.Handle(pat.Get("/debug/pprof/cmdline"), http.HandlerFunc(pprof.Cmdline))
