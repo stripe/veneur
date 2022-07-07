@@ -270,6 +270,14 @@ func Create(
 	tracedHTTP.Transport = vhttp.NewTraceRoundTripper(
 		tracedHTTP.Transport, server.TraceClient, "signalfx")
 
+	logger.Info("debug started")
+
+	if signalFxConfig.APIKey.Value == "" {
+		logger.Info("empty api key")
+	} else {
+		logger.Info("api key exists")
+	}
+
 	fallback := NewClient(
 		signalFxConfig.EndpointBase, signalFxConfig.APIKey.Value, &tracedHTTP)
 	byTagClients := map[string]DPClient{}
