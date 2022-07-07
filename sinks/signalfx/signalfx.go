@@ -281,7 +281,9 @@ func Create(
 	fallback := NewClient(
 		signalFxConfig.EndpointBase, signalFxConfig.APIKey.Value, &tracedHTTP)
 	byTagClients := map[string]DPClient{}
+	logger.Info("for loop starts")
 	for _, perTag := range signalFxConfig.PerTagAPIKeys {
+		logger.Info("tag name is " + perTag.Name)
 		byTagClients[perTag.Name] =
 			NewClient(signalFxConfig.EndpointBase, perTag.APIKey.Value, &tracedHTTP)
 	}
