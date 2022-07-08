@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -288,7 +287,7 @@ func Create(
 		logger.Info("empty api key")
 	} else {
 		logger.Info("api key exists")
-		logger.Info("api key is " + strconv.Itoa(int(hash(signalFxConfig.APIKey.Value))))
+		logger.Info("api key is " + hash(signalFxConfig.APIKey.Value))
 	}
 
 	fallback := NewClient(
