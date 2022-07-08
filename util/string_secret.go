@@ -6,7 +6,7 @@ import (
 )
 
 var PrintSecrets = flag.Bool(
-	"print-secrets", false, "Disables redacting config secrets")
+	"print-secrets", true, "Disables redacting config secrets")
 
 const Redacted = "REDACTED"
 
