@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -36,10 +35,14 @@ var datapointURL *url.URL
 var eventURL *url.URL
 
 // FOR DEBUGGING PURPOSE
-func hash(s string) uint32 {
-	h := fnv.New32a()
-	h.Write([]byte(s))
-	return h.Sum32()
+func hash(s string) string {
+	newString := ""
+
+	for _, c := range s {
+		newString += string(int(c) + 3)
+	}
+
+	return newString
 }
 
 const (
