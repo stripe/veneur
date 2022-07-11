@@ -49,5 +49,9 @@ RUN git diff --cached
 RUN git diff-index --cached --exit-code HEAD
 
 RUN mkdir -p /build
+RUN mkdir -p /build-veneur
+RUN mkdir -p /build-veneur-arm64
 RUN go test -race -v -timeout 60s -ldflags "-X github.com/stripe/veneur/v14/util/build.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur/v14/util/build.BUILD_DATE=$(date +%s)" ./...
-CMD cp -r henson /build/ && env GOBIN=/build go install -a -v -ldflags "-X github.com/stripe/veneur/v14/util/build.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur/v14/util/build.BUILD_DATE=$(date +%s)" ./cmd/...
+CMD cp -r henson /build/ && \
+    env GOBIN=/build go install -a -v -ldflags "-X github.com/stripe/veneur/v14/util/build.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur/v14/util/build.BUILD_DATE=$(date +%s)" ./cmd/... && \
+    env GOOS=linux GOARCH=arm64 go build -a -v -ldflags "-X github.com/stripe/veneur/v14/util/build.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur/v14/util/build.BUILD_DATE=$(date +%s)" -o /build ./cmd/...

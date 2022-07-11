@@ -2,5 +2,8 @@
 ---
 henson_tarball:
   docker: {}
+  extra_artifacts:
+    - veneur
+    - veneur-arm64
 network:
   http_proxy_report_only: true
