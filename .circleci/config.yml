@@ -16,7 +16,7 @@ commands:
         default: "v1.2.1"
       stringer_tag:
         type: string
-        default: "v0.1.7"
+        default: "v0.1.11"
       mockgen_tag:
         type: string
         default: "v1.6.0"
@@ -138,11 +138,9 @@ workflows:
       - code_hygiene
       - test_config
       - test_stable
-      - test_previous
   scheduled_tests:
     jobs:
       - test_stable
-      - test_previous
     triggers:
       - schedule:
           cron: 0 16 * * 1-5
