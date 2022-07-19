@@ -7,6 +7,7 @@
 * Migrate Prometheus to new config format; part of multi-sink routing update. Thanks, [truong-stripe](https://github.com/truong-stripe)!
 * Authentication support for Cortex remote-write sink. Thanks, [oscil8](https://github.com/oscil8)!
 * Option to flush sinks on shutdown. Thanks, [csolidum](https://github.com/csolidum)!
+* `trace.StartTrace` and `trace.StartChildSpan` now scale better across multiple goroutines.  Thanks [bpowers](https://github.com/bpowers)
 
 ## Updated
 * Use `T.TempDir` to create temporary directory in tests ([#944](https://github.com/stripe/veneur/pull/944)).
