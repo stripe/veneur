@@ -1,8 +1,5 @@
 version: 2.1
 executors:
-  "previous":
-    docker:
-      - image: golang:1.17
   "stable":
     docker:
       - image: golang:1.18
@@ -127,16 +124,6 @@ jobs:
   test_stable:
     executor:
       name: stable
-    working_directory: /go/src/github.com/stripe/veneur
-    environment:
-      GO111MODULE: "on"
-    steps:
-      - checkout
-      - test
-
-  test_previous:
-    executor:
-      name: previous
     working_directory: /go/src/github.com/stripe/veneur
     environment:
       GO111MODULE: "on"
