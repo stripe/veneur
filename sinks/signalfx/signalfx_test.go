@@ -68,21 +68,6 @@ func (fs failSink) AddEvents(ctx context.Context, events []*event.Event) (err er
 	return errors.New("simulated failure to send")
 }
 
-type testDerivedSink struct {
-	samples []*ssf.SSFSample
-}
-
-func (d *testDerivedSink) SendSample(sample *ssf.SSFSample) error {
-	d.samples = append(d.samples, sample)
-	return nil
-}
-
-func newDerivedProcessor() *testDerivedSink {
-	return &testDerivedSink{
-		samples: []*ssf.SSFSample{},
-	}
-}
-
 func TestMigrateConfig(t *testing.T) {
 	config := veneur.Config{
 		SignalfxAPIKey: util.StringSecret{Value: "signalfx-api-key"},
@@ -132,7 +117,6 @@ func TestNewSignalFxSink(t *testing.T) {
 
 func TestSignalFxFlushGauge(t *testing.T) {
 	fakeSink := NewFakeSink()
-	derived := newDerivedProcessor()
 
 	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
@@ -175,12 +159,10 @@ func TestSignalFxFlushGauge(t *testing.T) {
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Metric is missing common tag")
 	assert.Equal(t, "signalfx-hostname", dims["host"], "Metric is missing host tag")
-	assert.Empty(t, derived.samples, "Gauges should not generated derived metrics")
 }
 
 func TestSignalFxFlushCounter(t *testing.T) {
 	fakeSink := NewFakeSink()
-	derived := newDerivedProcessor()
 	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
@@ -223,7 +205,6 @@ func TestSignalFxFlushCounter(t *testing.T) {
 	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Metric is missing a common tag")
 	assert.Equal(t, "signalfx-hostname", dims["host"], "Metric is missing host tag")
-	assert.Empty(t, derived.samples, "Counters should not generated derived metrics")
 }
 
 func TestSignalFxFlushWithDrops(t *testing.T) {
@@ -283,7 +264,6 @@ func TestSignalFxFlushWithDrops(t *testing.T) {
 
 func TestSignalFxFlushStatus(t *testing.T) {
 	fakeSink := NewFakeSink()
-	derived := newDerivedProcessor()
 	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
@@ -326,12 +306,10 @@ func TestSignalFxFlushStatus(t *testing.T) {
 	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
 	assert.Equal(t, "pie", dims["yay"], "Metric is missing a common tag")
 	assert.Equal(t, "signalfx-hostname", dims["host"], "Metric is missing host tag")
-	assert.Empty(t, derived.samples, "Counters should not generated derived metrics")
 }
 
 func TestSignalFxServiceCheckFlushOther(t *testing.T) {
 	fakeSink := NewFakeSink()
-	derived := newDerivedProcessor()
 	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
@@ -358,7 +336,6 @@ func TestSignalFxServiceCheckFlushOther(t *testing.T) {
 	sink.FlushOtherSamples(context.TODO(), []ssf.SSFSample{ev})
 
 	assert.Empty(t, fakeSink.events)
-	assert.Empty(t, derived.samples, "Should ignore any service check")
 }
 
 func TestSignalFxEventFlush(t *testing.T) {
@@ -404,7 +381,6 @@ func TestSignalFxEventFlush(t *testing.T) {
 
 func TestSignalFxSetExcludeTags(t *testing.T) {
 	fakeSink := NewFakeSink()
-	derived := newDerivedProcessor()
 	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
@@ -471,14 +447,12 @@ func TestSignalFxSetExcludeTags(t *testing.T) {
 	assert.Equal(t, "pie", dims["yay"], "Event missing a common tag")
 	assert.Equal(t, "", dims["novalue"], "Event has a busted tag")
 	assert.Equal(t, "", dims["boo"], "Event has host tag despite exclude rule")
-	assert.Empty(t, derived.samples, "Events should not generated derived metrics")
 }
 
 func TestSignalFxFlushMultiKey(t *testing.T) {
 	fallback := NewFakeSink()
 	specialized := NewFakeSink()
 
-	derived := newDerivedProcessor()
 	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
 		APIKey:                            util.StringSecret{Value: ""},
 		DynamicPerTagAPIKeysEnable:        false,
@@ -549,7 +523,6 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 		assert.Equal(t, "signalfx-hostname", dims["host"], "Metric is missing host tag")
 		assert.Equal(t, "available", dims["test_by"], "Metric should have the right test_by tag")
 	}
-	assert.Empty(t, derived.samples, "Gauges should not generated derived metrics")
 }
 
 func TestSignalFxFlushBatches(t *testing.T) {
