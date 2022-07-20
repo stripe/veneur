@@ -48,7 +48,7 @@ func NewTestServer(t *testing.T, handlerDelay time.Duration, reqBodyCh chan []by
 	server := httptest.NewServer(router)
 	result.URL = server.URL + "/"
 	result.server = server
-	t.Log("test server listening on", result.URL)
+	t.Log("test server listening on", server.URL)
 
 	return &result
 }

@@ -177,7 +177,7 @@ func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.Int
 		Namespace:  aws.String(s.namespace),
 		MetricData: metricData,
 	}
-	_, err := s.client.PutMetricData(ctx, input) // Put to AWS Cloudwatch
+	_, err := s.client.PutMetricData(ctx, input)
 	if err != nil {
 		return sinks.MetricFlushResult{MetricsDropped: len(metricData)}, err
 	}
