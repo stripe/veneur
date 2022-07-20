@@ -617,10 +617,11 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsSkipped, float32(countSkipped), tags))
 	err := coll.submit(subCtx, sfx.traceClient, sfx.maxPointsInBatch)
 	if err != nil {
+		span.Add(ssf.Count(sinks.MetricKeyTotalMetricsDropped, float32(numPoints), tags))
 		span.Error(err)
+		return sinks.MetricFlushResult{MetricsDropped: numPoints, MetricsSkipped: countSkipped}, err
 	}
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(numPoints), tags))
-
 	return sinks.MetricFlushResult{MetricsFlushed: numPoints, MetricsSkipped: countSkipped}, err
 }
 
