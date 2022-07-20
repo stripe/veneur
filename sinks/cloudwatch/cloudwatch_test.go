@@ -151,7 +151,7 @@ func TestFlushWithStripTags(t *testing.T) {
 	server := NewTestServer(t, 0, reqBodyCh)
 	defer server.Close()
 
-	// input.2.json contains timeseries with tags to strip, and tags to keep
+	// input.3.json contains timeseries with tags to strip, and tags to keep
 	jsInput, err := ioutil.ReadFile("testdata/input.3.json")
 	assert.NoError(t, err)
 	var metrics []samplers.InterMetric
