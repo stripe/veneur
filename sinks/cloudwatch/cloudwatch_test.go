@@ -105,14 +105,7 @@ func TestFlush(t *testing.T) {
 	// Flush the sink
 	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
-	assert.Equal(t,
-		sinks.MetricFlushResult{
-			MetricsFlushed: 3,
-			MetricsSkipped: 0,
-			MetricsDropped: 0,
-		},
-		flushResult,
-	)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3}, flushResult)
 
 	<-done
 }
@@ -150,14 +143,7 @@ func TestFlushWithStandardUnitTagName(t *testing.T) {
 	// Flush the sink
 	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
-	assert.Equal(t,
-		sinks.MetricFlushResult{
-			MetricsFlushed: 1,
-			MetricsSkipped: 0,
-			MetricsDropped: 0,
-		},
-		flushResult,
-	)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 1}, flushResult)
 
 	<-done
 }
@@ -198,14 +184,7 @@ func TestFlushWithStripTags(t *testing.T) {
 	// Flush the sink
 	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
-	assert.Equal(t,
-		sinks.MetricFlushResult{
-			MetricsFlushed: 3,
-			MetricsSkipped: 0,
-			MetricsDropped: 0,
-		},
-		flushResult,
-	)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3}, flushResult)
 
 	<-done
 }
@@ -237,14 +216,7 @@ func TestFlushNoop(t *testing.T) {
 	// Flush the sink
 	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
-	assert.Equal(t,
-		sinks.MetricFlushResult{
-			MetricsFlushed: 0,
-			MetricsSkipped: 0,
-			MetricsDropped: 0,
-		},
-		flushResult,
-	)
+	assert.Equal(t, sinks.MetricFlushResult{}, flushResult)
 
 	<-done
 }
@@ -279,14 +251,7 @@ func TestFlushRemoteTimeout(t *testing.T) {
 	// Assert the flush failed, and metrics were dropped
 	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.Error(t, err)
-	assert.Equal(t,
-		sinks.MetricFlushResult{
-			MetricsFlushed: 0,
-			MetricsSkipped: 0,
-			MetricsDropped: 3,
-		},
-		flushResult,
-	)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsDropped: 3}, flushResult)
 
 	<-done
 }
