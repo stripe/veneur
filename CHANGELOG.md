@@ -11,7 +11,7 @@
 
 ## Updated
 * Use `T.TempDir` to create temporary directory in tests ([#944](https://github.com/stripe/veneur/pull/944)).
-* When `PutMetricData` fails in Cloudwatch Sink, log metrics are dropped. 
+* When `PutMetricData` fails in Cloudwatch Sink, log the count of metrics that are dropped. 
 
 ## Bugfixes
 * A fix for forwarding metrics with gRPC using the kubernetes discoverer. Thanks, [androohan](https://github.com/androohan)!
