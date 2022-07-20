@@ -103,8 +103,16 @@ func TestFlush(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Flush the sink
-	_, err = sink.Flush(context.Background(), metrics)
+	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
+	assert.Equal(t,
+		sinks.MetricFlushResult{
+			MetricsFlushed: 3,
+			MetricsSkipped: 0,
+			MetricsDropped: 0,
+		},
+		flushResult,
+	)
 
 	<-done
 }
@@ -140,8 +148,16 @@ func TestFlushWithStandardUnitTagName(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Flush the sink
-	_, err = sink.Flush(context.Background(), metrics)
+	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
+	assert.Equal(t,
+		sinks.MetricFlushResult{
+			MetricsFlushed: 1,
+			MetricsSkipped: 0,
+			MetricsDropped: 0,
+		},
+		flushResult,
+	)
 
 	<-done
 }
@@ -180,8 +196,16 @@ func TestFlushWithStripTags(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Flush the sink
-	_, err = sink.Flush(context.Background(), metrics)
+	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
+	assert.Equal(t,
+		sinks.MetricFlushResult{
+			MetricsFlushed: 3,
+			MetricsSkipped: 0,
+			MetricsDropped: 0,
+		},
+		flushResult,
+	)
 
 	<-done
 }
@@ -211,8 +235,16 @@ func TestFlushNoop(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Flush the sink
-	_, err := sink.Flush(context.Background(), metrics)
+	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
+	assert.Equal(t,
+		sinks.MetricFlushResult{
+			MetricsFlushed: 0,
+			MetricsSkipped: 0,
+			MetricsDropped: 0,
+		},
+		flushResult,
+	)
 
 	<-done
 }
@@ -228,7 +260,7 @@ func TestFlushRemoteTimeout(t *testing.T) {
 	defer server.Close()
 
 	// Pass non-empty metrics slice
-	metrics := []samplers.InterMetric{{}}
+	metrics := []samplers.InterMetric{{}, {}, {}}
 
 	// Initialize the sink
 	sink := NewCloudwatchMetricSink(
@@ -244,44 +276,7 @@ func TestFlushRemoteTimeout(t *testing.T) {
 		done <- true
 	}(reqBodyCh, done)
 
-	// Assert the flush failed
-	_, err := sink.Flush(context.Background(), metrics)
-	assert.Error(t, err)
-
-	<-done
-}
-
-func TestDroppedMetricsOnFail(t *testing.T) {
-	// Server handler should return response after the flush timeout expires
-	customTimeout := time.Millisecond * 500
-	serverDelay := customTimeout + time.Second
-
-	// Listen for PutMetricData
-	reqBodyCh := make(chan []byte)
-	server := NewTestServer(t, serverDelay, reqBodyCh)
-	defer server.Close()
-
-	// input.1.json contains three timeseries samples in InterMetrics format
-	jsInput, err := ioutil.ReadFile("testdata/input.1.json")
-	assert.NoError(t, err)
-	var metrics []samplers.InterMetric
-	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
-
-	// Initialize Sink with a small timeout to simulate server issue
-	sink := NewCloudwatchMetricSink(
-		"cloudwatch", server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
-		customTimeout, true, []string{}, logrus.NewEntry(logrus.New()),
-	)
-	sink.Start(nil)
-
-	// Simulate the request to the server.
-	done := make(chan bool)
-	go func(reqBodyCh chan []byte, done chan bool) {
-		<-reqBodyCh
-		done <- true
-	}(reqBodyCh, done)
-
-	// Flush the sink
+	// Assert the flush failed, and metrics were dropped
 	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.Error(t, err)
 	assert.Equal(t,
