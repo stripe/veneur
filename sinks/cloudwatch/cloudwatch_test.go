@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/sinks"
 )
 
 // TestServer wraps an internal httptest.Server and provides a convenience
@@ -47,7 +48,7 @@ func NewTestServer(t *testing.T, handlerDelay time.Duration, reqBodyCh chan []by
 	server := httptest.NewServer(router)
 	result.URL = server.URL + "/"
 	result.server = server
-	t.Log("test server listening on", server.URL)
+	t.Log("test server listening on", result.URL)
 
 	return &result
 }
@@ -246,6 +247,51 @@ func TestFlushRemoteTimeout(t *testing.T) {
 	// Assert the flush failed
 	_, err := sink.Flush(context.Background(), metrics)
 	assert.Error(t, err)
+
+	<-done
+}
+
+func TestDroppedMetricsOnFail(t *testing.T) {
+	// Server handler should return response after the flush timeout expires
+	customTimeout := time.Millisecond * 500
+	serverDelay := customTimeout + time.Second
+
+	// Listen for PutMetricData
+	reqBodyCh := make(chan []byte)
+	server := NewTestServer(t, serverDelay, reqBodyCh)
+	defer server.Close()
+
+	// input.1.json contains three timeseries samples in InterMetrics format
+	jsInput, err := ioutil.ReadFile("testdata/input.1.json")
+	assert.NoError(t, err)
+	var metrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
+
+	// Initialize Sink with a small timeout to simulate server issue
+	sink := NewCloudwatchMetricSink(
+		"cloudwatch", server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
+		customTimeout, true, []string{}, logrus.NewEntry(logrus.New()),
+	)
+	sink.Start(nil)
+
+	// Simulate the request to the server.
+	done := make(chan bool)
+	go func(reqBodyCh chan []byte, done chan bool) {
+		<-reqBodyCh
+		done <- true
+	}(reqBodyCh, done)
+
+	// Flush the sink
+	flushResult, err := sink.Flush(context.Background(), metrics)
+	assert.Error(t, err)
+	assert.Equal(t,
+		sinks.MetricFlushResult{
+			MetricsFlushed: 0,
+			MetricsSkipped: 0,
+			MetricsDropped: 3,
+		},
+		flushResult,
+	)
 
 	<-done
 }
