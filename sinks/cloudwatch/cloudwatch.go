@@ -179,7 +179,7 @@ func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.Int
 	}
 	_, err := s.client.PutMetricData(ctx, input)
 	if err != nil {
-		return sinks.MetricFlushResult{}, err
+		return sinks.MetricFlushResult{MetricsDropped: len(metricData)}, err
 	}
 	return sinks.MetricFlushResult{MetricsFlushed: len(metricData)}, nil
 }

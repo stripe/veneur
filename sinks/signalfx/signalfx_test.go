@@ -22,6 +22,7 @@ import (
 	veneur "github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/protocol/dogstatsd"
 	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/util"
 )
@@ -144,7 +145,9 @@ func TestSignalFxFlushGauge(t *testing.T) {
 		Type: samplers.GaugeMetric,
 	}}
 
-	sink.Flush(context.TODO(), interMetrics)
+	flushResult, err := sink.Flush(context.TODO(), interMetrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 1}, flushResult)
 
 	assert.Equal(t, 1, len(fakeSink.points))
 	point := fakeSink.points[0]
@@ -189,7 +192,9 @@ func TestSignalFxFlushCounter(t *testing.T) {
 		Type: samplers.CounterMetric,
 	}}
 
-	sink.Flush(context.TODO(), interMetrics)
+	flushResult, err := sink.Flush(context.TODO(), interMetrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 1}, flushResult)
 
 	assert.Equal(t, 1, len(fakeSink.points))
 	point := fakeSink.points[0]
@@ -255,7 +260,9 @@ func TestSignalFxFlushWithDrops(t *testing.T) {
 		Type: samplers.CounterMetric,
 	}}
 
-	sink.Flush(context.TODO(), interMetrics)
+	flushResult, err := sink.Flush(context.TODO(), interMetrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 1, MetricsSkipped: 2}, flushResult)
 
 	assert.Equal(t, 1, len(fakeSink.points))
 	point := fakeSink.points[0]
@@ -290,7 +297,9 @@ func TestSignalFxFlushStatus(t *testing.T) {
 		Type: samplers.StatusMetric,
 	}}
 
-	sink.Flush(context.TODO(), interMetrics)
+	flushResult, err := sink.Flush(context.TODO(), interMetrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 1}, flushResult)
 
 	assert.Equal(t, 1, len(fakeSink.points))
 	point := fakeSink.points[0]
@@ -407,7 +416,10 @@ func TestSignalFxSetExcludeTags(t *testing.T) {
 		},
 		Type: samplers.CounterMetric,
 	}}
-	sink.Flush(context.Background(), interMetrics)
+
+	flushResult, err := sink.Flush(context.Background(), interMetrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 1}, flushResult)
 
 	ev := ssf.SSFSample{
 		Name:      "Test Event",
@@ -489,7 +501,9 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 		Type: samplers.GaugeMetric,
 	}}
 
-	sink.Flush(context.TODO(), interMetrics)
+	flushResult, err := sink.Flush(context.TODO(), interMetrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 2}, flushResult)
 
 	assert.Equal(t, 1, len(fallback.points))
 	assert.Equal(t, 1, len(specialized.points))
@@ -566,8 +580,9 @@ func TestSignalFxFlushBatches(t *testing.T) {
 		Type: samplers.GaugeMetric,
 	}}
 
-	_, err = sink.Flush(context.TODO(), interMetrics)
-	require.NoError(t, err)
+	flushResult, err := sink.Flush(context.TODO(), interMetrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 2}, flushResult)
 
 	assert.Equal(t, 2, len(fallback.points))
 	assert.Equal(t, 2, fallback.pointAdds)
@@ -624,8 +639,9 @@ func TestSignalFxFlushBatchHang(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()
-	_, err = sink.Flush(ctx, interMetrics)
-	require.Error(t, err)
+	flushResult, err := sink.Flush(ctx, interMetrics)
+	assert.Error(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsDropped: 2}, flushResult)
 }
 
 func TestNewSinkDoubleSlashes(t *testing.T) {
@@ -862,7 +878,9 @@ func TestSignalFxVaryByOverride(t *testing.T) {
 		Type:      samplers.GaugeMetric,
 	}}
 
-	sink.Flush(context.TODO(), interMetrics)
+	flushResult, err := sink.Flush(context.TODO(), interMetrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 2}, flushResult)
 
 	assert.Equal(t, 0, len(defaultFakeSink.points))
 	assert.Equal(t, 1, len(customFakeSinkFoo.points))
@@ -913,7 +931,9 @@ func TestSignalFxVaryByOverridePreferringCommonDimensions(t *testing.T) {
 		Type:      samplers.GaugeMetric,
 	}}
 
-	sink.Flush(context.TODO(), interMetrics)
+	flushResult, err := sink.Flush(context.TODO(), interMetrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 2}, flushResult)
 
 	assert.Equal(t, 0, len(defaultFakeSink.points))
 	assert.Equal(t, 1, len(customFakeSinkFoo.points))
