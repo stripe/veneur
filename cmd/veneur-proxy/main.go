@@ -87,7 +87,7 @@ func main() {
 		Config: config,
 		Destinations: destinations.Create(
 			connect.Create(
-				config.DialTimeout, loggerEntry, statsClient),
+				config.DialTimeout, loggerEntry, config.SendBufferSize, statsClient),
 			loggerEntry),
 		Discoverer:  discoverer,
 		HttpHandler: serveMux,

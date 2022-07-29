@@ -23,15 +23,18 @@ var _ Connect = &connect{}
 type connect struct {
 	dialTimeout time.Duration
 	logger      *logrus.Entry
+	sendBuffer  uint
 	statsd      scopedstatsd.Client
 }
 
 func Create(
-	dialTimeout time.Duration, logger *logrus.Entry, statsd scopedstatsd.Client,
+	dialTimeout time.Duration, logger *logrus.Entry, sendBuffer uint,
+	statsd scopedstatsd.Client,
 ) Connect {
 	return &connect{
 		dialTimeout: dialTimeout,
 		logger:      logger,
+		sendBuffer:  sendBuffer,
 		statsd:      statsd,
 	}
 }
@@ -71,17 +74,18 @@ func (connect *connect) Connect(
 
 	// Dial the destination.
 	logger.Debug("dialing destination")
-	dialContext, cancel := context.WithTimeout(ctx, connect.dialTimeout)
-	connection, err := grpc.DialContext(
-		dialContext, address, grpc.WithBlock(), grpc.WithInsecure(),
-		grpc.WithStatsHandler(&grpcstats.StatsHandler{
-			IsClient: true,
-			Statsd:   connect.statsd,
-		}))
-	cancel()
+	connection, err := func() (*grpc.ClientConn, error) {
+		dialContext, cancel := context.WithTimeout(ctx, connect.dialTimeout)
+		defer cancel()
+		return grpc.DialContext(
+			dialContext, address, grpc.WithBlock(), grpc.WithInsecure(),
+			grpc.WithStatsHandler(&grpcstats.StatsHandler{
+				IsClient: true,
+				Statsd:   connect.statsd,
+			}))
+	}()
 	if err != nil {
-		logger.WithError(err).
-			Error("failed dial destination")
+		logger.WithError(err).Error("failed to dial destination")
 		connect.statsd.Count(
 			"veneur_proxy.forward.connect", 1, []string{"status:failed_dial"}, 1.0)
 		return nil, err
@@ -106,7 +110,7 @@ func (connect *connect) Connect(
 		connection:      connection,
 		destinationHash: destinationHash,
 		logger:          logger,
-		sendChannel:     make(chan SendRequest),
+		sendChannel:     make(chan SendRequest, connect.sendBuffer),
 		statsd:          connect.statsd,
 	}
 

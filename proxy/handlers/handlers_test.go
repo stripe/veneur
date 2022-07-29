@@ -98,9 +98,6 @@ func TestProxyJson(t *testing.T) {
 	fixture.Statsd.EXPECT().Count(
 		"veneur_proxy.ingest.metrics_count",
 		int64(1), []string{"error:false", "protocol:http"}, 1.0)
-	fixture.Statsd.EXPECT().Count(
-		"veneur_proxy.forward.metrics_count",
-		int64(1), []string{"error:false"}, 1.0)
 
 	fixture.Destinations.EXPECT().
 		Get("metric-namecountertag1:value1,tag2:value2").
@@ -157,9 +154,6 @@ func TestProxyGrpcSingle(t *testing.T) {
 	fixture.Statsd.EXPECT().Count(
 		"veneur_proxy.ingest.metrics_count",
 		int64(1), []string{"error:false", "protocol:grpc-single"}, 1.0)
-	fixture.Statsd.EXPECT().Count(
-		"veneur_proxy.forward.metrics_count",
-		int64(1), []string{"error:false"}, 1.0)
 
 	fixture.Destinations.EXPECT().
 		Get("metric-namecountertag1:value1,tag2:value2").
@@ -207,9 +201,6 @@ func TestProxyGrpcStream(t *testing.T) {
 	fixture.Statsd.EXPECT().Count(
 		"veneur_proxy.ingest.metrics_count",
 		int64(1), []string{"error:false", "protocol:grpc-stream"}, 1.0)
-	fixture.Statsd.EXPECT().Count(
-		"veneur_proxy.forward.metrics_count",
-		int64(1), []string{"error:false"}, 1.0)
 
 	fixture.Destinations.EXPECT().
 		Get("metric-namecountertag1:value1,tag2:value2").
