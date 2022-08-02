@@ -17,6 +17,7 @@ import (
 	"github.com/segmentio/fasthash/fnv1a"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/stripe/veneur/v14/forwardrpc"
 	"github.com/stripe/veneur/v14/samplers/metricpb"
@@ -186,11 +187,16 @@ func (s *Server) SendMetricsV2(
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return err
+			s.logger.WithError(err).Error("error recieving metrics")
+			break
 		}
 		metrics = append(metrics, metric)
 	}
-	_, err := s.SendMetrics(context.Background(), &forwardrpc.MetricList{
+	err := server.SendAndClose(&emptypb.Empty{})
+	if err != nil {
+		s.logger.WithError(err).Error("error closing stream")
+	}
+	_, err = s.SendMetrics(context.Background(), &forwardrpc.MetricList{
 		Metrics: metrics,
 	})
 	return err
