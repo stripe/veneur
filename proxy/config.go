@@ -23,5 +23,10 @@ type Config struct {
 	SendBufferSize         uint                 `yaml:"send_buffer_size"`
 	SentryDsn              string               `yaml:"sentry_dsn"`
 	ShutdownTimeout        time.Duration        `yaml:"shutdown_timeout"`
-	StatsAddress           string               `yaml:"stats_address"`
+	Statsd                 struct {
+		Address             string        `yaml:"address"`
+		AggregationInterval time.Duration `yaml:"aggregation_interval"`
+		ChannelBufferSize   int           `yaml:"channel_buffer_size"`
+		MessagesPerPayload  int           `yaml:"messages_per_payload"`
+	} `yaml:"statsd"`
 }

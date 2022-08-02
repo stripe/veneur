@@ -19,6 +19,7 @@ import (
 	"github.com/stripe/veneur/v14/samplers/metricpb"
 	"github.com/stripe/veneur/v14/scopedstatsd"
 	"github.com/stripe/veneur/v14/util/matcher"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type TestHandlers struct {
@@ -95,9 +96,15 @@ func TestProxyJson(t *testing.T) {
 	fixture.Statsd.EXPECT().Count(
 		"veneur_proxy.ingest.request_count",
 		int64(1), []string{"protocol:http"}, 1.0)
+	fixture.Statsd.EXPECT().Timing(
+		"veneur_proxy.ingest.request_latency_ms",
+		gomock.Any(), []string{"protocol:http"}, 1.0)
 	fixture.Statsd.EXPECT().Count(
 		"veneur_proxy.ingest.metrics_count",
 		int64(1), []string{"error:false", "protocol:http"}, 1.0)
+	fixture.Statsd.EXPECT().Timing(
+		"veneur_proxy.ingest.metric_latency_ms",
+		gomock.Any(), []string{"protocol:http"}, 1.0)
 
 	fixture.Destinations.EXPECT().
 		Get("metric-namecountertag1:value1,tag2:value2").
@@ -151,9 +158,15 @@ func TestProxyGrpcSingle(t *testing.T) {
 	fixture.Statsd.EXPECT().Count(
 		"veneur_proxy.ingest.request_count",
 		int64(1), []string{"protocol:grpc-single"}, 1.0)
+	fixture.Statsd.EXPECT().Timing(
+		"veneur_proxy.ingest.request_latency_ms",
+		gomock.Any(), []string{"protocol:grpc-single"}, 1.0)
 	fixture.Statsd.EXPECT().Count(
 		"veneur_proxy.ingest.metrics_count",
 		int64(1), []string{"error:false", "protocol:grpc-single"}, 1.0)
+	fixture.Statsd.EXPECT().Timing(
+		"veneur_proxy.ingest.metric_latency_ms",
+		gomock.Any(), []string{"protocol:grpc-single"}, 1.0)
 
 	fixture.Destinations.EXPECT().
 		Get("metric-namecountertag1:value1,tag2:value2").
@@ -198,9 +211,15 @@ func TestProxyGrpcStream(t *testing.T) {
 	fixture.Statsd.EXPECT().Count(
 		"veneur_proxy.ingest.request_count",
 		int64(1), []string{"protocol:grpc-stream"}, 1.0)
+	fixture.Statsd.EXPECT().Timing(
+		"veneur_proxy.ingest.request_latency_ms",
+		gomock.Any(), []string{"protocol:grpc-stream"}, 1.0)
 	fixture.Statsd.EXPECT().Count(
 		"veneur_proxy.ingest.metrics_count",
 		int64(1), []string{"error:false", "protocol:grpc-stream"}, 1.0)
+	fixture.Statsd.EXPECT().Timing(
+		"veneur_proxy.ingest.metric_latency_ms",
+		gomock.Any(), []string{"protocol:grpc-stream"}, 1.0)
 
 	fixture.Destinations.EXPECT().
 		Get("metric-namecountertag1:value1,tag2:value2").
@@ -211,6 +230,7 @@ func TestProxyGrpcStream(t *testing.T) {
 	mockServer := forwardrpc.NewMockForward_SendMetricsV2Server(ctrl)
 	mockServer.EXPECT().Recv().Times(1).Return(metric, nil)
 	mockServer.EXPECT().Recv().Times(1).Return(nil, io.EOF)
+	mockServer.EXPECT().SendAndClose(&emptypb.Empty{}).Return(nil)
 
 	sendMetricsChannel := make(chan error)
 	go func() {
@@ -250,6 +270,8 @@ func TestProxyGrpcStreamIgnoreTags(t *testing.T) {
 
 	fixture.Statsd.EXPECT().Count(
 		gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	fixture.Statsd.EXPECT().Timing(
+		gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
 	fixture.Destinations.EXPECT().
 		Get("metric-namecountertag2:value2").
@@ -260,6 +282,7 @@ func TestProxyGrpcStreamIgnoreTags(t *testing.T) {
 	mockServer := forwardrpc.NewMockForward_SendMetricsV2Server(ctrl)
 	mockServer.EXPECT().Recv().Times(1).Return(metric, nil)
 	mockServer.EXPECT().Recv().Times(1).Return(nil, io.EOF)
+	mockServer.EXPECT().SendAndClose(&emptypb.Empty{}).Return(nil)
 
 	sendMetricsChannel := make(chan error)
 	go func() {

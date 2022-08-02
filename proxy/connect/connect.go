@@ -40,7 +40,7 @@ func Create(
 }
 
 type Destination interface {
-	SendChannel() chan SendRequest
+	SendChannel() chan<- SendRequest
 	Close()
 }
 
@@ -149,6 +149,7 @@ sendLoop:
 		}
 	}
 
+	close(d.sendChannel)
 	d.destinationHash.RemoveDestination(d.address)
 
 	err := d.client.CloseSend()
@@ -181,7 +182,7 @@ func (d *destination) listenForClose() {
 	d.cancel()
 }
 
-func (d *destination) SendChannel() chan SendRequest {
+func (d *destination) SendChannel() chan<- SendRequest {
 	return d.sendChannel
 }
 

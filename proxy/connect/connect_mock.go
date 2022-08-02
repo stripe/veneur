@@ -85,10 +85,10 @@ func (mr *MockDestinationMockRecorder) Close() *gomock.Call {
 }
 
 // SendChannel mocks base method.
-func (m *MockDestination) SendChannel() chan SendRequest {
+func (m *MockDestination) SendChannel() chan<- SendRequest {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendChannel")
-	ret0, _ := ret[0].(chan SendRequest)
+	ret0, _ := ret[0].(chan<- SendRequest)
 	return ret0
 }
 

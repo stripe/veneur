@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/sirupsen/logrus"
@@ -42,6 +43,10 @@ func (proxy *Handlers) HandleJsonMetrics(
 ) {
 	proxy.Statsd.Count(
 		"veneur_proxy.ingest.request_count", 1,
+		[]string{"protocol:http"}, 1.0)
+	requestStart := time.Now()
+	defer proxy.Statsd.Timing(
+		"veneur_proxy.ingest.request_latency_ms", time.Since(requestStart),
 		[]string{"protocol:http"}, 1.0)
 
 	jsonMetrics, err := json.ParseRequest(request)
@@ -85,6 +90,10 @@ func (proxy *Handlers) SendMetrics(
 	proxy.Statsd.Count(
 		"veneur_proxy.ingest.request_count", 1,
 		[]string{"protocol:grpc-single"}, 1.0)
+	requestStart := time.Now()
+	defer proxy.Statsd.Timing(
+		"veneur_proxy.ingest.request_latency_ms", time.Since(requestStart),
+		[]string{"protocol:grpc-single"}, 1.0)
 
 	errorCount := 0
 	for _, metric := range metricList.Metrics {
@@ -113,7 +122,17 @@ func (proxy *Handlers) SendMetricsV2(
 	proxy.Statsd.Count(
 		"veneur_proxy.ingest.request_count", 1,
 		[]string{"protocol:grpc-stream"}, 1.0)
+	requestStart := time.Now()
+	defer proxy.Statsd.Timing(
+		"veneur_proxy.ingest.request_latency_ms", time.Since(requestStart),
+		[]string{"protocol:grpc-stream"}, 1.0)
 
+	defer func() {
+		err := server.SendAndClose(&emptypb.Empty{})
+		if err != nil {
+			proxy.Logger.WithError(err).Error("error closing stream")
+		}
+	}()
 	for {
 		metric, err := server.Recv()
 		if err == io.EOF {
@@ -161,6 +180,18 @@ tagLoop:
 			[]string{"error:true"}, 1.0)
 		return err
 	}
+
+	defer func() {
+		err := recover()
+		if err != nil {
+			proxy.Logger.
+				WithError(fmt.Errorf("%s", err)).
+				Debug("failed to forward metric")
+			proxy.Statsd.Count(
+				"veneur_proxy.forward.metrics_count", 1,
+				[]string{"error:true"}, 1.0)
+		}
+	}()
 
 	errorChannel := make(chan error)
 	destination.SendChannel() <- connect.SendRequest{

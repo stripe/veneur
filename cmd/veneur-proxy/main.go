@@ -49,8 +49,13 @@ func main() {
 	}
 
 	statsClient, err := statsd.New(
-		config.StatsAddress, statsd.WithoutTelemetry(),
-		statsd.WithMaxMessagesPerPayload(4096))
+		config.Statsd.Address,
+		statsd.WithAggregationInterval(config.Statsd.AggregationInterval),
+		statsd.WithChannelMode(),
+		statsd.WithChannelModeBufferSize(config.Statsd.ChannelBufferSize),
+		statsd.WithClientSideAggregation(),
+		statsd.WithMaxMessagesPerPayload(config.Statsd.MessagesPerPayload),
+		statsd.WithoutTelemetry())
 	if err != nil {
 		logger.WithError(err).Fatal("failed to create statsd client")
 	}
