@@ -9,6 +9,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	samplers "github.com/stripe/veneur/v14/samplers"
+	metricpb "github.com/stripe/veneur/v14/samplers/metricpb"
 	sources "github.com/stripe/veneur/v14/sources"
 )
 
@@ -131,4 +132,16 @@ func (m *MockIngest) IngestMetric(metric *samplers.UDPMetric) {
 func (mr *MockIngestMockRecorder) IngestMetric(metric interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IngestMetric", reflect.TypeOf((*MockIngest)(nil).IngestMetric), metric)
+}
+
+// IngestMetricProto mocks base method.
+func (m *MockIngest) IngestMetricProto(metric *metricpb.Metric) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "IngestMetricProto", metric)
+}
+
+// IngestMetricProto indicates an expected call of IngestMetricProto.
+func (mr *MockIngestMockRecorder) IngestMetricProto(metric interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IngestMetricProto", reflect.TypeOf((*MockIngest)(nil).IngestMetricProto), metric)
 }
