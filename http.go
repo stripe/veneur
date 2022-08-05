@@ -1,7 +1,6 @@
 package veneur
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/pprof"
 	"sort"
@@ -12,7 +11,7 @@ import (
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
 	"github.com/stripe/veneur/v14/util/build"
-	"gopkg.in/yaml.v2"
+	"github.com/stripe/veneur/v14/util/config"
 
 	"context"
 
@@ -38,8 +37,8 @@ func (s *Server) Handler() http.Handler {
 	})
 
 	if s.Config.HTTP.Config {
-		mux.HandleFunc(pat.Get("/config/json"), s.handleConfigJson)
-		mux.HandleFunc(pat.Get("/config/yaml"), s.handleConfigYaml)
+		mux.HandleFunc(pat.Get("/config/json"), config.HandleConfigJson(s.Config))
+		mux.HandleFunc(pat.Get("/config/yaml"), config.HandleConfigYaml(s.Config))
 	}
 
 	if s.httpQuit {
@@ -70,28 +69,6 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle(pat.Get("/debug/pprof/*"), http.HandlerFunc(pprof.Index))
 
 	return mux
-}
-
-func (s *Server) handleConfigJson(w http.ResponseWriter, r *http.Request) {
-	config, err := json.MarshalIndent(s.Config, "", "  ")
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
-		return
-	}
-	w.Header().Add("Content-Type", "application/json")
-	w.Write(config)
-}
-
-func (s *Server) handleConfigYaml(w http.ResponseWriter, r *http.Request) {
-	config, err := yaml.Marshal(s.Config)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(err.Error()))
-		return
-	}
-	w.Header().Add("Content-Type", "application/x-yaml")
-	w.Write(config)
 }
 
 // handleImport generates the handler that responds to POST requests submitting
