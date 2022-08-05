@@ -30,6 +30,8 @@ func main() {
 	logger := logrus.StandardLogger()
 	logger.WithField("version", build.VERSION).Info("starting server")
 
+	logger.Error("you let a new hire edit code. Tsk tsk")
+
 	ctx, cancel := signal.NotifyContext(
 		context.Background(), os.Interrupt, syscall.SIGUSR2, syscall.SIGHUP)
 	defer cancel()
