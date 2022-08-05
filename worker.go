@@ -39,7 +39,7 @@ type Worker struct {
 	uniqueMTSMtx          *sync.RWMutex
 	PacketChan            chan samplers.UDPMetric
 	ImportChan            chan []samplers.JSONMetric
-	ImportMetricChan      chan []*metricpb.Metric
+	ImportMetricChan      chan *metricpb.Metric
 	QuitChan              chan struct{}
 	processed             int64
 	imported              int64
@@ -53,10 +53,6 @@ type Worker struct {
 // IngestUDP on a Worker feeds the metric into the worker's PacketChan.
 func (w *Worker) IngestUDP(metric samplers.UDPMetric) {
 	w.PacketChan <- metric
-}
-
-func (w *Worker) IngestMetrics(ms []*metricpb.Metric) {
-	w.ImportMetricChan <- ms
 }
 
 // WorkerMetrics is just a plain struct bundling together the flushed contents of a worker
@@ -263,7 +259,7 @@ func NewWorker(id int, isLocal bool, countUniqueTimeseries bool, cl *trace.Clien
 		uniqueMTSMtx:          &sync.RWMutex{},
 		PacketChan:            make(chan samplers.UDPMetric, 32),
 		ImportChan:            make(chan []samplers.JSONMetric, 32),
-		ImportMetricChan:      make(chan []*metricpb.Metric, 32),
+		ImportMetricChan:      make(chan *metricpb.Metric, 32),
 		QuitChan:              make(chan struct{}),
 		processed:             0,
 		imported:              0,
@@ -289,10 +285,8 @@ func (w *Worker) Work() {
 			for _, j := range m {
 				w.ImportMetric(j)
 			}
-		case ms := <-w.ImportMetricChan:
-			for _, m := range ms {
-				w.ImportMetricGRPC(m)
-			}
+		case metric := <-w.ImportMetricChan:
+			w.ImportMetricGRPC(metric)
 		case <-w.QuitChan:
 			// We have been asked to stop.
 			w.logger.WithField("worker", w.id).Error("Stopping")

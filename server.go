@@ -33,6 +33,7 @@ import (
 
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
 	"github.com/stripe/veneur/v14/scopedstatsd"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
@@ -341,6 +342,23 @@ var _ sources.Ingest = &ingest{}
 func (ingest *ingest) IngestMetric(metric *samplers.UDPMetric) {
 	metric.Tags = append(metric.Tags, ingest.tags...)
 	ingest.server.ingestMetric(metric)
+}
+
+func (ingest *ingest) IngestMetricProto(metric *metricpb.Metric) {
+	metric.Tags = append(metric.Tags, ingest.tags...)
+
+	// Compute a 32-bit hash from the input metric based on its name, type, and
+	// tags. The fnv1a package is used as opposed to fnv from the standard
+	// library, as it avoids allocations by not using the hash.Hash interface and
+	// by avoiding string to []byte conversions.
+	h := fnv1a.HashString32(metric.Name)
+	h = fnv1a.AddString32(h, metric.Type.String())
+	for _, tag := range metric.Tags {
+		h = fnv1a.AddString32(h, tag)
+	}
+
+	workerIndex := h % uint32(len(ingest.server.Workers))
+	ingest.server.Workers[workerIndex].ImportMetricChan <- metric
 }
 
 func (server *Server) createSources(
@@ -688,13 +706,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	// Setup the grpc server if it was configured
 	if ret.grpcListenAddress != "" {
-		// convert all the workers to the proper interface
-		ingesters := make([]proxy.MetricIngester, len(ret.Workers))
-		for i, worker := range ret.Workers {
-			ingesters[i] = worker
-		}
-
-		ret.grpcServer = proxy.New(ret.grpcListenAddress, ingesters,
+		ret.grpcServer = proxy.New(ret.grpcListenAddress,
 			config.Logger.WithField("source", "proxy"),
 			proxy.WithTraceClient(ret.TraceClient))
 
