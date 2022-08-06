@@ -125,6 +125,7 @@ jobs:
     executor:
       name: stable
     working_directory: /go/src/github.com/stripe/veneur
+    resource_class: medium+
     environment:
       GO111MODULE: "on"
     steps:
