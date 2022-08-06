@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"sync"
@@ -41,6 +42,7 @@ type Proxy struct {
 	httpListener      net.Listener
 	httpServer        http.Server
 	logger            *logrus.Entry
+	ready             chan struct{}
 	shutdownTimeout   time.Duration
 	statsd            scopedstatsd.Client
 }
@@ -70,6 +72,7 @@ func Create(params *CreateParams) *Proxy {
 			Handler: params.HttpHandler,
 		},
 		logger:          params.Logger,
+		ready:           make(chan struct{}),
 		shutdownTimeout: params.Config.ShutdownTimeout,
 		statsd:          params.Statsd,
 	}
@@ -133,7 +136,7 @@ func (proxy *Proxy) Start(ctx context.Context) error {
 	}()
 
 	// Handle HTTP shutdown
-	httpError := make(chan error)
+	httpError := make(chan error, 1)
 	waitGroup.Add(1)
 	go func() {
 		defer func() {
@@ -180,7 +183,7 @@ func (proxy *Proxy) Start(ctx context.Context) error {
 	}()
 
 	// Handle gRPC shutdown
-	grpcError := make(chan error)
+	grpcError := make(chan error, 1)
 	waitGroup.Add(1)
 	go func() {
 		defer func() {
@@ -212,26 +215,32 @@ func (proxy *Proxy) Start(ctx context.Context) error {
 			case <-ctx.Done():
 				proxy.grpcServer.Stop()
 				err := ctx.Err()
-				proxy.logger.Errorf("error shuting down grpc server: %v", err)
+				proxy.logger.WithError(err).Error("error shuting down grpc server")
 				grpcError <- err
 				return
 			}
 		}
 	}()
 
+	close(proxy.ready)
+
 	// Wait for shut down.
 	waitGroup.Wait()
 	proxy.destinations.Clear()
 	proxy.destinations.Wait()
 
-	select {
-	case err := <-httpError:
-		return err
-	case err := <-grpcError:
-		return err
-	default:
-		return nil
+	httpErr := <-httpError
+	grpcErr := <-grpcError
+
+	if httpErr != nil || grpcErr != nil {
+		return errors.New("error shutting down")
 	}
+	return nil
+}
+
+// A channel that is closed once the server is ready.
+func (proxy *Proxy) Ready() <-chan struct{} {
+	return proxy.ready
 }
 
 // The address at which the HTTP server is listening.
@@ -239,9 +248,19 @@ func (proxy *Proxy) GetHttpAddress() net.Addr {
 	return proxy.httpListener.Addr()
 }
 
+// Closes the HTTP listener.
+func (proxy *Proxy) CloseHttpListener() error {
+	return proxy.httpListener.Close()
+}
+
 // The address at which the gRPC server is listening.
 func (proxy *Proxy) GetGrpcAddress() net.Addr {
 	return proxy.grpcListener.Addr()
+}
+
+// Closes the gRPC listener.
+func (proxy *Proxy) CloseGrpcListener() error {
+	return proxy.grpcListener.Close()
 }
 
 // Poll discovery immediately, and every `discoveryInterval`. This method stops
