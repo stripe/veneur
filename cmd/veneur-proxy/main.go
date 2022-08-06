@@ -103,7 +103,6 @@ func main() {
 	err = proxy.Start(ctx)
 	if err != nil {
 		statsClient.Incr("exit", []string{"error:true"}, 1.0)
-		logger.WithError(err).Fatal("exited with error")
 	}
 
 	statsClient.Incr("exit", []string{"error:false"}, 1.0)
