@@ -157,6 +157,7 @@ type SignalFxSinkConfig struct {
 		APIKey util.StringSecret `yaml:"api_key"`
 		Name   string            `yaml:"name"`
 	} `yaml:"per_tag_api_keys"`
+	PreferredVaryKeyBy             string `yaml:"preferred_vary_key_by"`
 	VaryKeyBy                      string `yaml:"vary_key_by"`
 	VaryKeyByFavorCommonDimensions bool   `yaml:"vary_key_by_favor_common_dimensions"`
 }
@@ -183,6 +184,7 @@ type SignalFxSink struct {
 	metricTagPrefixDrops        []string
 	name                        string
 	traceClient                 *trace.Client
+	preferredVaryBy             string
 	varyBy                      string
 	varyByFavorCommonDimensions bool
 }
@@ -339,6 +341,7 @@ func newSignalFxSink(
 		metricsEndpoint:             config.EndpointBase,
 		metricTagPrefixDrops:        config.MetricTagPrefixDrops,
 		name:                        name,
+		preferredVaryBy:             config.PreferredVaryKeyBy,
 		varyBy:                      config.VaryKeyBy,
 		varyByFavorCommonDimensions: config.VaryKeyByFavorCommonDimensions,
 	}
@@ -563,15 +566,21 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 			}
 		}
 
-		metricKey := ""
-
+		clientKey := ""
 		// Datapoint-specified vary_key_by value, if present, should override the common dimension unless
 		// vary_key_by_favor_common_dimensions is set to true
 		metricOverrodeVaryBy := false
-		if sfx.varyBy != "" {
+
+		// Want to prefer to use the tag associated with preferred_vary_by
+		if sfx.preferredVaryBy != "" {
+			if val, ok := dims[sfx.preferredVaryBy]; ok {
+				metricOverrodeVaryBy = true
+				clientKey = val
+			}
+		} else if sfx.varyBy != "" {
 			if val, ok := dims[sfx.varyBy]; ok {
 				metricOverrodeVaryBy = true
-				metricKey = val
+				clientKey = val
 			}
 		}
 
@@ -583,9 +592,16 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 			dims[k] = v
 		}
 
-		if sfx.varyBy != "" && metricKey == "" {
+		// If fields were updated from commonDimensions, update clientKey as well.
+		// First try to update from preferred_vary_by, if possible, then vary_by, if possible
+		if sfx.preferredVaryBy != "" && clientKey == "" {
+			if val, ok := dims[sfx.preferredVaryBy]; ok {
+				clientKey = val
+			}
+		}
+		if sfx.varyBy != "" && clientKey == "" {
 			if val, ok := dims[sfx.varyBy]; ok {
-				metricKey = val
+				clientKey = val
 			}
 		}
 
@@ -610,7 +626,7 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 			countStatusMetrics++
 			point = sfxclient.GaugeF(metric.Name, dims, metric.Value)
 		}
-		coll.addPoint(subCtx, metricKey, point)
+		coll.addPoint(subCtx, clientKey, point)
 		numPoints++
 	}
 	tags := map[string]string{"sink_name": sfx.Name(), "sink_kind": sfx.Kind()}
