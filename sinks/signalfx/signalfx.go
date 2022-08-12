@@ -577,7 +577,8 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 				metricOverrodeVaryBy = true
 				clientKey = val
 			}
-		} else if sfx.varyBy != "" {
+		}
+		if sfx.varyBy != "" && clientKey == "" {
 			if val, ok := dims[sfx.varyBy]; ok {
 				metricOverrodeVaryBy = true
 				clientKey = val
