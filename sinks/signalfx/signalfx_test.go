@@ -1100,8 +1100,8 @@ func TestSignalFxVaryByWithPreferredVaryByKeyAndOverridePreferringCommonDimensio
 	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 4}, flushResult)
 
 	assert.Equal(t, 0, len(defaultFakeSink.points))
-	assert.Equal(t, 2, len(customFakeSinkFoo.points))
-	assert.Equal(t, 2, len(customFakeSinkBar.points))
+	assert.Equal(t, 3, len(customFakeSinkFoo.points))
+	assert.Equal(t, 1, len(customFakeSinkBar.points))
 
 	assert.Equal(t, "a.b.c", customFakeSinkFoo.points[0].Metric)
 	assert.Equal(t, "foo", customFakeSinkFoo.points[0].Dimensions["preferred_vary_by"])
@@ -1111,11 +1111,11 @@ func TestSignalFxVaryByWithPreferredVaryByKeyAndOverridePreferringCommonDimensio
 	assert.Equal(t, "foo", customFakeSinkFoo.points[1].Dimensions["preferred_vary_by"])
 	assert.Equal(t, "bar", customFakeSinkFoo.points[1].Dimensions["vary_by"])
 
-	assert.Equal(t, "a.b.e", customFakeSinkBar.points[0].Metric)
+	assert.Equal(t, "a.b.e", customFakeSinkFoo.points[2].Metric)
+	assert.Equal(t, "", customFakeSinkFoo.points[2].Dimensions["preferred_vary_by"])
+	assert.Equal(t, "bar", customFakeSinkFoo.points[2].Dimensions["vary_by"])
+
+	assert.Equal(t, "a.b.f", customFakeSinkBar.points[0].Metric)
 	assert.Equal(t, "", customFakeSinkBar.points[0].Dimensions["preferred_vary_by"])
 	assert.Equal(t, "bar", customFakeSinkBar.points[0].Dimensions["vary_by"])
-
-	assert.Equal(t, "a.b.f", customFakeSinkBar.points[1].Metric)
-	assert.Equal(t, "", customFakeSinkBar.points[1].Dimensions["preferred_vary_by"])
-	assert.Equal(t, "bar", customFakeSinkBar.points[1].Dimensions["vary_by"])
 }
