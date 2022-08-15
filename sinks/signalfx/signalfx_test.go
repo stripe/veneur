@@ -1026,11 +1026,13 @@ func TestSignalFxVaryByWithPreferredVaryByKey(t *testing.T) {
 	assert.Equal(t, "baz", customFakeSinkFoo.points[1].Dimensions["vary_by"])
 
 	assert.Equal(t, "a.b.e", customFakeSinkFoo.points[2].Metric)
-	assert.Equal(t, "", customFakeSinkFoo.points[2].Dimensions["preferred_vary_by"])
+	_, preferredVaryByIsPresent := customFakeSinkFoo.points[2].Dimensions["preferred_vary_by"]
+	assert.False(t, preferredVaryByIsPresent)
 	assert.Equal(t, "foo", customFakeSinkFoo.points[2].Dimensions["vary_by"])
 
 	assert.Equal(t, "a.b.f", customFakeSinkBar.points[0].Metric)
-	assert.Equal(t, "", customFakeSinkBar.points[0].Dimensions["preferred_vary_by"])
+	_, preferredVaryByIsPresent = customFakeSinkBar.points[0].Dimensions["preferred_vary_by"]
+	assert.False(t, preferredVaryByIsPresent)
 	assert.Equal(t, "bar", customFakeSinkBar.points[0].Dimensions["vary_by"])
 }
 
@@ -1112,10 +1114,12 @@ func TestSignalFxVaryByWithPreferredVaryByKeyAndOverridePreferringCommonDimensio
 	assert.Equal(t, "bar", customFakeSinkFoo.points[1].Dimensions["vary_by"])
 
 	assert.Equal(t, "a.b.e", customFakeSinkFoo.points[2].Metric)
-	assert.Equal(t, "", customFakeSinkFoo.points[2].Dimensions["preferred_vary_by"])
+	_, preferredVaryByIsPresent := customFakeSinkFoo.points[2].Dimensions["preferred_vary_by"]
+	assert.False(t, preferredVaryByIsPresent)
 	assert.Equal(t, "bar", customFakeSinkFoo.points[2].Dimensions["vary_by"])
 
 	assert.Equal(t, "a.b.f", customFakeSinkBar.points[0].Metric)
-	assert.Equal(t, "", customFakeSinkBar.points[0].Dimensions["preferred_vary_by"])
+	_, preferredVaryByIsPresent = customFakeSinkBar.points[0].Dimensions["preferred_vary_by"]
+	assert.False(t, preferredVaryByIsPresent)
 	assert.Equal(t, "bar", customFakeSinkBar.points[0].Dimensions["vary_by"])
 }
