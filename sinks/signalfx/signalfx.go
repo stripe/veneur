@@ -571,16 +571,15 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		// vary_key_by_favor_common_dimensions is set to true
 		metricOverrodeVaryBy := false
 
-		// Want to prefer to use the tag associated with preferred_vary_by
-		if sfx.preferredVaryBy != "" {
-			if val, ok := dims[sfx.preferredVaryBy]; ok {
+		// If preferred_vary_by is available, will override clientKey retrieved via vary_by
+		if sfx.varyBy != "" {
+			if val, ok := dims[sfx.varyBy]; ok {
 				metricOverrodeVaryBy = true
 				clientKey = val
 			}
 		}
-		if sfx.varyBy != "" && clientKey == "" {
-			if val, ok := dims[sfx.varyBy]; ok {
-				metricOverrodeVaryBy = true
+		if sfx.preferredVaryBy != "" {
+			if val, ok := dims[sfx.preferredVaryBy]; ok {
 				clientKey = val
 			}
 		}
@@ -593,15 +592,15 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 			dims[k] = v
 		}
 
-		// If fields were updated from commonDimensions, update clientKey as well.
-		// First try to update from preferred_vary_by, if possible, then vary_by, if possible
-		if sfx.preferredVaryBy != "" && clientKey == "" {
-			if val, ok := dims[sfx.preferredVaryBy]; ok {
+		// If vary_by was updated, want to update clientKey here
+		// but if preferred_vary_by is available, will override clientKey retrieved via vary_by
+		if sfx.varyBy != "" && clientKey == "" {
+			if val, ok := dims[sfx.varyBy]; ok {
 				clientKey = val
 			}
 		}
-		if sfx.varyBy != "" && clientKey == "" {
-			if val, ok := dims[sfx.varyBy]; ok {
+		if sfx.preferredVaryBy != "" && clientKey == "" {
+			if val, ok := dims[sfx.preferredVaryBy]; ok {
 				clientKey = val
 			}
 		}

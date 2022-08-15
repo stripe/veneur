@@ -1019,7 +1019,7 @@ func TestSignalFxVaryByWithPreferredVaryByKey(t *testing.T) {
 
 	assert.Equal(t, "a.b.c", customFakeSinkFoo.points[0].Metric)
 	assert.Equal(t, "foo", customFakeSinkFoo.points[0].Dimensions["preferred_vary_by"])
-	assert.Equal(t, "", customFakeSinkFoo.points[0].Dimensions["vary_by"])
+	assert.Equal(t, "bar", customFakeSinkFoo.points[0].Dimensions["vary_by"])
 
 	assert.Equal(t, "a.b.d", customFakeSinkFoo.points[1].Metric)
 	assert.Equal(t, "foo", customFakeSinkFoo.points[1].Dimensions["preferred_vary_by"])
