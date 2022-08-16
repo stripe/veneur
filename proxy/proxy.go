@@ -151,7 +151,7 @@ func (proxy *Proxy) Start(ctx context.Context) error {
 			httpError <- err
 			return
 		case <-ctx.Done():
-			proxy.logger.Debug("shutting down http server")
+			proxy.logger.Info("shutting down http server")
 			ctx, shutdownCancel :=
 				context.WithTimeout(context.Background(), proxy.shutdownTimeout)
 			defer shutdownCancel()
@@ -198,8 +198,8 @@ func (proxy *Proxy) Start(ctx context.Context) error {
 			grpcError <- err
 			return
 		case <-ctx.Done():
-			proxy.logger.Debug("shutting down grpc server")
-			ctx, shutdownCancel :=
+			proxy.logger.Info("shutting down grpc server")
+			shutdownContext, shutdownCancel :=
 				context.WithTimeout(context.Background(), proxy.shutdownTimeout)
 			defer shutdownCancel()
 
@@ -212,9 +212,9 @@ func (proxy *Proxy) Start(ctx context.Context) error {
 			select {
 			case <-done:
 				return
-			case <-ctx.Done():
+			case <-shutdownContext.Done():
 				proxy.grpcServer.Stop()
-				err := ctx.Err()
+				err := shutdownContext.Err()
 				proxy.logger.WithError(err).Error("error shuting down grpc server")
 				grpcError <- err
 				return

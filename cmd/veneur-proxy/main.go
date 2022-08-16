@@ -30,9 +30,21 @@ func main() {
 	logger := logrus.StandardLogger()
 	logger.WithField("version", build.VERSION).Info("starting server")
 
-	ctx, cancel := signal.NotifyContext(
-		context.Background(), os.Interrupt, syscall.SIGUSR2, syscall.SIGHUP)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	signalChannel := make(chan os.Signal, 1)
+	signal.Notify(signalChannel, os.Interrupt, syscall.SIGUSR2, syscall.SIGHUP)
+	go func() {
+		select {
+		case signal := <-signalChannel:
+			logger.WithField("signal", signal).Info("handling signal")
+			cancel()
+		case <-ctx.Done():
+			break
+		}
+		signal.Stop(signalChannel)
+		close(signalChannel)
+	}()
 
 	if configFile == nil || *configFile == "" {
 		logrus.Fatal("missing required config file")
