@@ -5,12 +5,12 @@ This folder holds the Docker resources for building [Veneur](https://github.com/
 ## Building
 For the Debian-based image:
 ```
-docker build --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-debian-sid .
+docker build --build-arg "VERSION=$(git rev-parse HEAD)" --no-cache -t veneur:local -f public-docker-images/Dockerfile-debian-sid .
 ```
 
 For the Alpine Linux-based image:
 ```
-docker build --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-alpine .
+docker build --build-arg "VERSION=$(git rev-parse HEAD)" --no-cache -t veneur:local -f public-docker-images/Dockerfile-alpine .
 ```
 
 ## Running

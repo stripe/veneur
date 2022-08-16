@@ -1,4 +1,4 @@
-# 14.2.0, UNRELEASED
+# 14.2.0, 2022-05-09
 
 ## Added
 * A flag -print-secrets to disable redacting config secrets.
@@ -34,7 +34,7 @@
 * Upgrade to Goji 2.0.2 and use the modern Goji mux API. Thanks [hans-stripe](https://github.com/hans-stripe)!
 * Increase the timeout of TestCountActiveHandlers from 3 seconds to 10 seconds. Helps some tests pass in certain environments. Thanks [sushain97](https://github.com/sushain97)!
 
-# 14.0.0, 2020-01-14
+# 14.0.0, 2021-01-14
 
 ## Updated
 * Migrated from dep to Go modules. Clients must now use the updated import path `github.com/stripe/veneur/v14`. Thanks, [andybons](https://github.com/andybons)!
