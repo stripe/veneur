@@ -32,7 +32,7 @@ const (
 // MetricIngester to send it to.  A unique metric (name, tags, and type)
 // should always be routed to the same MetricIngester.
 type Server struct {
-	*grpc.Server
+	server       *grpc.Server
 	address      string
 	ingest       sources.Ingest
 	listener     net.Listener
@@ -58,7 +58,7 @@ func New(address string, logger *logrus.Entry, opts ...Option) *Server {
 		address:      address,
 		logger:       logger,
 		opts:         &options{},
-		Server:       grpc.NewServer(),
+		server:       grpc.NewServer(),
 		readyChannel: make(chan struct{}),
 	}
 
@@ -70,7 +70,7 @@ func New(address string, logger *logrus.Entry, opts ...Option) *Server {
 		res.opts.traceClient = trace.DefaultClient
 	}
 
-	forwardrpc.RegisterForwardServer(res.Server, res)
+	forwardrpc.RegisterForwardServer(res.server, res)
 
 	return res
 }
@@ -102,7 +102,7 @@ func (s *Server) Start(ingest sources.Ingest) error {
 	logger.Info("Starting gRPC server")
 
 	close(s.readyChannel)
-	err = s.Server.Serve(s.listener)
+	err = s.server.Serve(s.listener)
 	if err != nil {
 		logger.WithError(err).Error("gRPC server was not shut down cleanly")
 	}
@@ -124,7 +124,7 @@ func (s *Server) Stop() {
 	done := make(chan struct{})
 	defer close(done)
 	go func() {
-		s.GracefulStop()
+		s.server.GracefulStop()
 		done <- struct{}{}
 	}()
 
@@ -133,7 +133,7 @@ func (s *Server) Stop() {
 	case <-time.After(10 * time.Second):
 		s.logger.Info(
 			"Force-stopping the gRPC server after waiting for a graceful shutdown")
-		s.Stop()
+		s.server.Stop()
 	}
 }
 
