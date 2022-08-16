@@ -1,6 +1,6 @@
 module github.com/stripe/veneur/v14
 
-go 1.18
+go 1.19
 
 require (
 	github.com/DataDog/datadog-go v3.7.2+incompatible
