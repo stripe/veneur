@@ -143,7 +143,7 @@ func ConvertJsonMetric(metric *samplers.JSONMetric) (*metricpb.Metric, error) {
 					TDigest: value.Data(),
 				},
 			},
-			Scope: metricpb.Scope_Global,
+			Scope: metricpb.Scope_Mixed,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unknown metric type: %s", metric.Type)
