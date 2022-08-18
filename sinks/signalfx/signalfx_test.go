@@ -886,7 +886,10 @@ func TestSignalFxVaryByOverride(t *testing.T) {
 	assert.Equal(t, 1, len(customFakeSinkFoo.points))
 	assert.Equal(t, 1, len(customFakeSinkBar.points))
 
+	assert.Equal(t, "a.b.c", customFakeSinkFoo.points[0].Metric)
 	assert.Equal(t, "foo", customFakeSinkFoo.points[0].Dimensions["vary_by"])
+
+	assert.Equal(t, "a.b.d", customFakeSinkBar.points[0].Metric)
 	assert.Equal(t, "bar", customFakeSinkBar.points[0].Dimensions["vary_by"])
 }
 
@@ -939,6 +942,184 @@ func TestSignalFxVaryByOverridePreferringCommonDimensions(t *testing.T) {
 	assert.Equal(t, 1, len(customFakeSinkFoo.points))
 	assert.Equal(t, 1, len(customFakeSinkBar.points))
 
+	assert.Equal(t, "a.b.c", customFakeSinkFoo.points[0].Metric)
 	assert.Equal(t, "bar", customFakeSinkFoo.points[0].Dimensions["vary_by"])
+
+	assert.Equal(t, "a.b.d", customFakeSinkBar.points[0].Metric)
+	assert.Equal(t, "bar", customFakeSinkBar.points[0].Dimensions["vary_by"])
+}
+
+func TestSignalFxVaryByWithPreferredVaryByKey(t *testing.T) {
+	preferredVaryByTagKey := "preferred_vary_by"
+	varyByTagKey := "vary_by"
+	commonDimensions := map[string]string{"vary_by": "bar"}
+	defaultFakeSink := NewFakeSink()
+	customFakeSinkFoo := NewFakeSink()
+	customFakeSinkBar := NewFakeSink()
+	perTagClients := make(map[string]DPClient)
+	perTagClients["foo"] = customFakeSinkFoo
+	perTagClients["bar"] = customFakeSinkBar
+
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   0,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		PreferredVaryKeyBy:                preferredVaryByTagKey,
+		VaryKeyBy:                         varyByTagKey,
+	}, "signalfx-hostname", commonDimensions, logrus.NewEntry(logrus.New()), defaultFakeSink, perTagClients, nil)
+	assert.NoError(t, err)
+
+	interMetrics := []samplers.InterMetric{{
+		Name:      "a.b.c",
+		Timestamp: 1476119058,
+		Value:     float64(100),
+		Tags: []string{
+			"preferred_vary_by:foo",
+		},
+		Type: samplers.GaugeMetric,
+	}, {
+		Name:      "a.b.d",
+		Timestamp: 1476119059,
+		Value:     float64(100),
+		Tags: []string{
+			"preferred_vary_by:foo",
+			"vary_by:baz",
+		},
+		Type: samplers.GaugeMetric,
+	}, {
+		Name:      "a.b.e",
+		Timestamp: 1476119600,
+		Value:     float64(100),
+		Tags: []string{
+			// No preferred_vary_by
+			"vary_by:foo",
+		},
+		Type: samplers.GaugeMetric,
+	}, {
+		Name:      "a.b.f",
+		Timestamp: 1476119601,
+		Value:     float64(100),
+		Tags:      []string{}, // No tags
+		Type:      samplers.GaugeMetric,
+	}}
+
+	flushResult, err := sink.Flush(context.TODO(), interMetrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 4}, flushResult)
+
+	assert.Equal(t, 0, len(defaultFakeSink.points))
+	assert.Equal(t, 3, len(customFakeSinkFoo.points))
+	assert.Equal(t, 1, len(customFakeSinkBar.points))
+
+	assert.Equal(t, "a.b.c", customFakeSinkFoo.points[0].Metric)
+	assert.Equal(t, "foo", customFakeSinkFoo.points[0].Dimensions["preferred_vary_by"])
+	assert.Equal(t, "bar", customFakeSinkFoo.points[0].Dimensions["vary_by"])
+
+	assert.Equal(t, "a.b.d", customFakeSinkFoo.points[1].Metric)
+	assert.Equal(t, "foo", customFakeSinkFoo.points[1].Dimensions["preferred_vary_by"])
+	assert.Equal(t, "baz", customFakeSinkFoo.points[1].Dimensions["vary_by"])
+
+	assert.Equal(t, "a.b.e", customFakeSinkFoo.points[2].Metric)
+	_, preferredVaryByIsPresent := customFakeSinkFoo.points[2].Dimensions["preferred_vary_by"]
+	assert.False(t, preferredVaryByIsPresent)
+	assert.Equal(t, "foo", customFakeSinkFoo.points[2].Dimensions["vary_by"])
+
+	assert.Equal(t, "a.b.f", customFakeSinkBar.points[0].Metric)
+	_, preferredVaryByIsPresent = customFakeSinkBar.points[0].Dimensions["preferred_vary_by"]
+	assert.False(t, preferredVaryByIsPresent)
+	assert.Equal(t, "bar", customFakeSinkBar.points[0].Dimensions["vary_by"])
+}
+
+func TestSignalFxVaryByWithPreferredVaryByKeyAndOverridePreferringCommonDimensions(t *testing.T) {
+	preferredVaryByTagKey := "preferred_vary_by"
+	varyByTagKey := "vary_by"
+	commonDimensions := map[string]string{"vary_by": "bar"}
+	defaultFakeSink := NewFakeSink()
+	customFakeSinkFoo := NewFakeSink()
+	customFakeSinkBar := NewFakeSink()
+	perTagClients := make(map[string]DPClient)
+	perTagClients["foo"] = customFakeSinkFoo
+	perTagClients["bar"] = customFakeSinkBar
+
+	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
+		APIKey:                            util.StringSecret{Value: ""},
+		DynamicPerTagAPIKeysEnable:        false,
+		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
+		EndpointAPI:                       "",
+		EndpointBase:                      "",
+		FlushMaxPerBody:                   0,
+		HostnameTag:                       "host",
+		MetricNamePrefixDrops:             nil,
+		MetricTagPrefixDrops:              nil,
+		PreferredVaryKeyBy:                preferredVaryByTagKey,
+		VaryKeyBy:                         varyByTagKey,
+		VaryKeyByFavorCommonDimensions:    true,
+	}, "signalfx-hostname", commonDimensions, logrus.NewEntry(logrus.New()), defaultFakeSink, perTagClients, nil)
+	assert.NoError(t, err)
+
+	interMetrics := []samplers.InterMetric{{
+		Name:      "a.b.c",
+		Timestamp: 1476119058,
+		Value:     float64(100),
+		Tags: []string{
+			"preferred_vary_by:foo",
+		},
+		Type: samplers.GaugeMetric,
+	}, {
+		Name:      "a.b.d",
+		Timestamp: 1476119059,
+		Value:     float64(100),
+		Tags: []string{
+			"preferred_vary_by:foo",
+			"vary_by:baz",
+		},
+		Type: samplers.GaugeMetric,
+	}, {
+		Name:      "a.b.e",
+		Timestamp: 1476119600,
+		Value:     float64(100),
+		Tags: []string{
+			// No preferred_vary_by
+			"vary_by:foo",
+		},
+		Type: samplers.GaugeMetric,
+	}, {
+		Name:      "a.b.f",
+		Timestamp: 1476119601,
+		Value:     float64(100),
+		Tags:      []string{}, // No tags
+		Type:      samplers.GaugeMetric,
+	}}
+
+	flushResult, err := sink.Flush(context.TODO(), interMetrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 4}, flushResult)
+
+	assert.Equal(t, 0, len(defaultFakeSink.points))
+	assert.Equal(t, 3, len(customFakeSinkFoo.points))
+	assert.Equal(t, 1, len(customFakeSinkBar.points))
+
+	assert.Equal(t, "a.b.c", customFakeSinkFoo.points[0].Metric)
+	assert.Equal(t, "foo", customFakeSinkFoo.points[0].Dimensions["preferred_vary_by"])
+	assert.Equal(t, "bar", customFakeSinkFoo.points[0].Dimensions["vary_by"])
+
+	assert.Equal(t, "a.b.d", customFakeSinkFoo.points[1].Metric)
+	assert.Equal(t, "foo", customFakeSinkFoo.points[1].Dimensions["preferred_vary_by"])
+	assert.Equal(t, "bar", customFakeSinkFoo.points[1].Dimensions["vary_by"])
+
+	assert.Equal(t, "a.b.e", customFakeSinkFoo.points[2].Metric)
+	_, preferredVaryByIsPresent := customFakeSinkFoo.points[2].Dimensions["preferred_vary_by"]
+	assert.False(t, preferredVaryByIsPresent)
+	assert.Equal(t, "bar", customFakeSinkFoo.points[2].Dimensions["vary_by"])
+
+	assert.Equal(t, "a.b.f", customFakeSinkBar.points[0].Metric)
+	_, preferredVaryByIsPresent = customFakeSinkBar.points[0].Dimensions["preferred_vary_by"]
+	assert.False(t, preferredVaryByIsPresent)
 	assert.Equal(t, "bar", customFakeSinkBar.points[0].Dimensions["vary_by"])
 }

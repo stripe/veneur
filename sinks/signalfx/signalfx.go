@@ -71,7 +71,9 @@ func (c *collection) addPoint(ctx context.Context, key string, point *datapoint.
 			c.pointsByKey[key] = append(c.pointsByKey[key], point)
 			return
 		}
-		span.Add(ssf.Count("flush.fallback_client_points_flushed", 1, map[string]string{"vary_by": c.sink.varyBy, "key": key, "sink": "signalfx", "veneurglobalonly": "true"}))
+
+		tags := map[string]string{"vary_by": c.sink.varyBy, "preferred_vary_by": c.sink.preferredVaryBy, "key": key, "sink": "signalfx", "veneurglobalonly": "true"}
+		span.Add(ssf.Count("flush.fallback_client_points_flushed", 1, tags))
 	}
 	c.points = append(c.points, point)
 }
@@ -157,6 +159,7 @@ type SignalFxSinkConfig struct {
 		APIKey util.StringSecret `yaml:"api_key"`
 		Name   string            `yaml:"name"`
 	} `yaml:"per_tag_api_keys"`
+	PreferredVaryKeyBy             string `yaml:"preferred_vary_key_by"`
 	VaryKeyBy                      string `yaml:"vary_key_by"`
 	VaryKeyByFavorCommonDimensions bool   `yaml:"vary_key_by_favor_common_dimensions"`
 }
@@ -183,6 +186,7 @@ type SignalFxSink struct {
 	metricTagPrefixDrops        []string
 	name                        string
 	traceClient                 *trace.Client
+	preferredVaryBy             string
 	varyBy                      string
 	varyByFavorCommonDimensions bool
 }
@@ -198,6 +202,7 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 	if err != nil {
 		panic(fmt.Sprintf("Could not parse endpoint base URL %q: %v", endpoint, err))
 	}
+	fmt.Println(baseURL)
 	httpSink := sfxclient.NewHTTPSink()
 	httpSink.AuthToken = apiKey
 	httpSink.DatapointEndpoint = baseURL.ResolveReference(datapointURL).String()
@@ -339,6 +344,7 @@ func newSignalFxSink(
 		metricsEndpoint:             config.EndpointBase,
 		metricTagPrefixDrops:        config.MetricTagPrefixDrops,
 		name:                        name,
+		preferredVaryBy:             config.PreferredVaryKeyBy,
 		varyBy:                      config.VaryKeyBy,
 		varyByFavorCommonDimensions: config.VaryKeyByFavorCommonDimensions,
 	}
@@ -563,15 +569,21 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 			}
 		}
 
-		metricKey := ""
-
+		clientKey := ""
 		// Datapoint-specified vary_key_by value, if present, should override the common dimension unless
 		// vary_key_by_favor_common_dimensions is set to true
 		metricOverrodeVaryBy := false
+
+		// If preferred_vary_by is available, will override clientKey retrieved via vary_by
 		if sfx.varyBy != "" {
 			if val, ok := dims[sfx.varyBy]; ok {
 				metricOverrodeVaryBy = true
-				metricKey = val
+				clientKey = val
+			}
+		}
+		if sfx.preferredVaryBy != "" {
+			if val, ok := dims[sfx.preferredVaryBy]; ok {
+				clientKey = val
 			}
 		}
 
@@ -583,9 +595,16 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 			dims[k] = v
 		}
 
-		if sfx.varyBy != "" && metricKey == "" {
+		// If vary_by was updated, want to update clientKey here
+		// but if preferred_vary_by is available, will override clientKey retrieved via vary_by
+		if sfx.varyBy != "" && clientKey == "" {
 			if val, ok := dims[sfx.varyBy]; ok {
-				metricKey = val
+				clientKey = val
+			}
+		}
+		if sfx.preferredVaryBy != "" && clientKey == "" {
+			if val, ok := dims[sfx.preferredVaryBy]; ok {
+				clientKey = val
 			}
 		}
 
@@ -599,6 +618,7 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 				delete(dims, sfx.hostnameTag)
 			}
 		}
+		fmt.Println(dims)
 
 		var point *datapoint.Datapoint
 		switch metric.Type {
@@ -610,7 +630,7 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 			countStatusMetrics++
 			point = sfxclient.GaugeF(metric.Name, dims, metric.Value)
 		}
-		coll.addPoint(subCtx, metricKey, point)
+		coll.addPoint(subCtx, clientKey, point)
 		numPoints++
 	}
 	tags := map[string]string{"sink_name": sfx.Name(), "sink_kind": sfx.Kind()}
