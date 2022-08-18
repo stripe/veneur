@@ -71,7 +71,9 @@ func (c *collection) addPoint(ctx context.Context, key string, point *datapoint.
 			c.pointsByKey[key] = append(c.pointsByKey[key], point)
 			return
 		}
-		span.Add(ssf.Count("flush.fallback_client_points_flushed", 1, map[string]string{"vary_by": c.sink.varyBy, "key": key, "sink": "signalfx", "veneurglobalonly": "true"}))
+
+		tags := map[string]string{"vary_by": c.sink.varyBy, "preferred_vary_by": c.sink.preferredVaryBy, "key": key, "sink": "signalfx", "veneurglobalonly": "true"}
+		span.Add(ssf.Count("flush.fallback_client_points_flushed", 1, tags))
 	}
 	c.points = append(c.points, point)
 }
@@ -200,6 +202,7 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 	if err != nil {
 		panic(fmt.Sprintf("Could not parse endpoint base URL %q: %v", endpoint, err))
 	}
+	fmt.Println(baseURL)
 	httpSink := sfxclient.NewHTTPSink()
 	httpSink.AuthToken = apiKey
 	httpSink.DatapointEndpoint = baseURL.ResolveReference(datapointURL).String()
@@ -615,6 +618,7 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 				delete(dims, sfx.hostnameTag)
 			}
 		}
+		fmt.Println(dims)
 
 		var point *datapoint.Datapoint
 		switch metric.Type {
