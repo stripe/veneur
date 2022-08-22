@@ -202,7 +202,7 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 	if err != nil {
 		panic(fmt.Sprintf("Could not parse endpoint base URL %q: %v", endpoint, err))
 	}
-	fmt.Println(baseURL)
+
 	httpSink := sfxclient.NewHTTPSink()
 	httpSink.AuthToken = apiKey
 	httpSink.DatapointEndpoint = baseURL.ResolveReference(datapointURL).String()
@@ -618,7 +618,6 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 				delete(dims, sfx.hostnameTag)
 			}
 		}
-		fmt.Println(dims)
 
 		var point *datapoint.Datapoint
 		switch metric.Type {
