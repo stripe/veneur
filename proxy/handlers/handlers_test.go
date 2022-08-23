@@ -55,13 +55,26 @@ func CreateTestHandlers(
 	}
 }
 
-func TestHealthcheckFail(t *testing.T) {
+func TestHealthcheckFailDestinations(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	fixture := CreateTestHandlers(ctrl, []matcher.TagMatcher{})
-
 	fixture.Destinations.EXPECT().Size().Return(0)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest("GET", "/healthcheck", nil)
+	fixture.Handlers.HandleHealthcheck(recorder, request)
+
+	assert.Equal(t, http.StatusNotFound, recorder.Result().StatusCode)
+}
+
+func TestHealthcheckFailShutdown(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	fixture := CreateTestHandlers(ctrl, []matcher.TagMatcher{})
+	fixture.Handlers.Shutdown = true
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest("GET", "/healthcheck", nil)

@@ -222,6 +222,12 @@ func (proxy *Proxy) Start(ctx context.Context) error {
 		}
 	}()
 
+	waitGroup.Add(1)
+	go func() {
+		<-ctx.Done()
+		proxy.handlers.Shutdown = true
+	}()
+
 	close(proxy.ready)
 
 	// Wait for shut down.
