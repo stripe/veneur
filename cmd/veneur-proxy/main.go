@@ -106,10 +106,11 @@ func main() {
 			connect.Create(
 				config.DialTimeout, loggerEntry, config.SendBufferSize, statsClient),
 			loggerEntry),
-		Discoverer:  discoverer,
-		HttpHandler: serveMux,
-		Logger:      loggerEntry,
-		Statsd:      statsClient,
+		Discoverer:         discoverer,
+		HealthcheckContext: ctx,
+		HttpHandler:        serveMux,
+		Logger:             loggerEntry,
+		Statsd:             statsClient,
 	})
 
 	err = proxy.Start(ctx)

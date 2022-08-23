@@ -19,12 +19,13 @@ import (
 )
 
 type CreateParams struct {
-	Config       *Config
-	Destinations destinations.Destinations
-	Discoverer   discovery.Discoverer
-	HttpHandler  *http.ServeMux
-	Logger       *logrus.Entry
-	Statsd       scopedstatsd.Client
+	Config             *Config
+	Destinations       destinations.Destinations
+	Discoverer         discovery.Discoverer
+	HealthcheckContext context.Context
+	HttpHandler        *http.ServeMux
+	Logger             *logrus.Entry
+	Statsd             scopedstatsd.Client
 }
 
 type Proxy struct {
@@ -62,10 +63,11 @@ func Create(params *CreateParams) *Proxy {
 			Statsd:   params.Statsd,
 		})),
 		handlers: &handlers.Handlers{
-			Destinations: params.Destinations,
-			IgnoreTags:   params.Config.IgnoreTags,
-			Logger:       params.Logger,
-			Statsd:       params.Statsd,
+			Destinations:       params.Destinations,
+			HealthcheckContext: params.HealthcheckContext,
+			IgnoreTags:         params.Config.IgnoreTags,
+			Logger:             params.Logger,
+			Statsd:             params.Statsd,
 		},
 		httpAddress: params.Config.HttpAddress,
 		httpServer: http.Server{
@@ -220,12 +222,6 @@ func (proxy *Proxy) Start(ctx context.Context) error {
 				return
 			}
 		}
-	}()
-
-	waitGroup.Add(1)
-	go func() {
-		<-ctx.Done()
-		proxy.handlers.Shutdown = true
 	}()
 
 	close(proxy.ready)
