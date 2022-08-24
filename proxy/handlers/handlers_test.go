@@ -23,11 +23,13 @@ import (
 )
 
 type TestHandlers struct {
-	Destination  *connect.MockDestination
-	Destinations *destinations.MockDestinations
-	Discoverer   *discovery.MockDiscoverer
-	Handlers     *handlers.Handlers
-	Statsd       *scopedstatsd.MockClient
+	Destination              *connect.MockDestination
+	Destinations             *destinations.MockDestinations
+	Discoverer               *discovery.MockDiscoverer
+	Handlers                 *handlers.Handlers
+	HealthcheckContext       context.Context
+	HealthcheckContextCancel func()
+	Statsd                   *scopedstatsd.MockClient
 }
 
 func CreateTestHandlers(
@@ -36,6 +38,8 @@ func CreateTestHandlers(
 	logger := logrus.New()
 	logger.SetLevel(logrus.DebugLevel)
 
+	healthcheckContext, healthcheckContextCancel :=
+		context.WithCancel(context.Background())
 	mockStatsd := scopedstatsd.NewMockClient(ctrl)
 	mockDestinations := destinations.NewMockDestinations(ctrl)
 	mockDiscoverer := discovery.NewMockDiscoverer(ctrl)
@@ -46,28 +50,52 @@ func CreateTestHandlers(
 		Destinations: mockDestinations,
 		Discoverer:   mockDiscoverer,
 		Handlers: &handlers.Handlers{
-			Destinations: mockDestinations,
-			Logger:       logrus.NewEntry(logger),
-			Statsd:       mockStatsd,
-			IgnoreTags:   ignoreTags,
+			Destinations:       mockDestinations,
+			Logger:             logrus.NewEntry(logger),
+			Statsd:             mockStatsd,
+			HealthcheckContext: healthcheckContext,
+			IgnoreTags:         ignoreTags,
 		},
-		Statsd: mockStatsd,
+		HealthcheckContext:       healthcheckContext,
+		HealthcheckContextCancel: healthcheckContextCancel,
+		Statsd:                   mockStatsd,
 	}
 }
 
-func TestHealthcheckFail(t *testing.T) {
+func TestHealthcheckFailDestinations(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	fixture := CreateTestHandlers(ctrl, []matcher.TagMatcher{})
-
 	fixture.Destinations.EXPECT().Size().Return(0)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest("GET", "/healthcheck", nil)
 	fixture.Handlers.HandleHealthcheck(recorder, request)
 
-	assert.Equal(t, http.StatusNotFound, recorder.Result().StatusCode)
+	assert.Equal(t, http.StatusServiceUnavailable, recorder.Result().StatusCode)
+}
+
+func TestHealthcheckFailContext(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	fixture := CreateTestHandlers(ctrl, []matcher.TagMatcher{})
+	fixture.Destinations.EXPECT().Size().AnyTimes().Return(1)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest("GET", "/healthcheck", nil)
+	fixture.Handlers.HandleHealthcheck(recorder, request)
+
+	assert.Equal(t, http.StatusNoContent, recorder.Result().StatusCode)
+
+	fixture.HealthcheckContextCancel()
+
+	recorder = httptest.NewRecorder()
+	request = httptest.NewRequest("GET", "/healthcheck", nil)
+	fixture.Handlers.HandleHealthcheck(recorder, request)
+
+	assert.Equal(t, http.StatusServiceUnavailable, recorder.Result().StatusCode)
 }
 
 func TestHealthcheckSuccess(t *testing.T) {

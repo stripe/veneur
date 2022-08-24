@@ -21,19 +21,20 @@ import (
 )
 
 type Handlers struct {
-	Destinations destinations.Destinations
-	IgnoreTags   []matcher.TagMatcher
-	Logger       *logrus.Entry
-	Statsd       scopedstatsd.Client
+	Destinations       destinations.Destinations
+	HealthcheckContext context.Context
+	IgnoreTags         []matcher.TagMatcher
+	Logger             *logrus.Entry
+	Statsd             scopedstatsd.Client
 }
 
 func (proxy *Handlers) HandleHealthcheck(
 	writer http.ResponseWriter, request *http.Request,
 ) {
-	if proxy.Destinations.Size() > 0 {
-		writer.WriteHeader(http.StatusNoContent)
+	if proxy.Destinations.Size() == 0 || proxy.HealthcheckContext.Err() != nil {
+		writer.WriteHeader(http.StatusServiceUnavailable)
 	} else {
-		writer.WriteHeader(http.StatusNotFound)
+		writer.WriteHeader(http.StatusNoContent)
 	}
 }
 

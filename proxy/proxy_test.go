@@ -35,12 +35,13 @@ func CreateTestServer(
 
 	return &TestServer{
 		Proxy: proxy.Create(&proxy.CreateParams{
-			Config:       config,
-			Destinations: mockDestinations,
-			Discoverer:   mockDiscoverer,
-			HttpHandler:  http.NewServeMux(),
-			Logger:       logrus.NewEntry(logger),
-			Statsd:       mockStatsd,
+			Config:             config,
+			Destinations:       mockDestinations,
+			Discoverer:         mockDiscoverer,
+			HealthcheckContext: context.Background(),
+			HttpHandler:        http.NewServeMux(),
+			Logger:             logrus.NewEntry(logger),
+			Statsd:             mockStatsd,
 		}),
 		Destinations: mockDestinations,
 		Discoverer:   mockDiscoverer,
