@@ -16,6 +16,7 @@ import (
 	"github.com/stripe/veneur/v14/proxy/handlers"
 	"github.com/stripe/veneur/v14/scopedstatsd"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 type CreateParams struct {
@@ -58,10 +59,19 @@ func Create(params *CreateParams) *Proxy {
 		forwardAddresses:  params.Config.ForwardAddresses,
 		forwardService:    params.Config.ForwardService,
 		grpcAddress:       params.Config.GrpcAddress,
-		grpcServer: grpc.NewServer(grpc.StatsHandler(&grpcstats.StatsHandler{
-			IsClient: false,
-			Statsd:   params.Statsd,
-		})),
+		grpcServer: grpc.NewServer(
+			grpc.ConnectionTimeout(params.Config.GrpcServer.ConnectionTimeout),
+			grpc.KeepaliveParams(keepalive.ServerParameters{
+				MaxConnectionIdle:     params.Config.GrpcServer.MaxConnectionIdle,
+				MaxConnectionAge:      params.Config.GrpcServer.MaxConnectionAge,
+				MaxConnectionAgeGrace: params.Config.GrpcServer.MaxConnectionAgeGrace,
+				Time:                  params.Config.GrpcServer.PingTimeout,
+				Timeout:               params.Config.GrpcServer.KeepaliveTimeout,
+			}),
+			grpc.StatsHandler(&grpcstats.StatsHandler{
+				IsClient: false,
+				Statsd:   params.Statsd,
+			})),
 		handlers: &handlers.Handlers{
 			Destinations:       params.Destinations,
 			HealthcheckContext: params.HealthcheckContext,

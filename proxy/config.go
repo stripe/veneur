@@ -12,8 +12,16 @@ type Config struct {
 	DiscoveryInterval time.Duration `yaml:"discovery_interval"`
 	ForwardAddresses  []string      `yaml:"forward_addresses"`
 	ForwardService    string        `yaml:"forward_service"`
-	GrpcAddress       string        `yaml:"grpc_address"`
-	Http              struct {
+	GrpcServer        struct {
+		ConnectionTimeout     time.Duration `yaml:"connection_timeout"`
+		MaxConnectionIdle     time.Duration `yaml:"max_connection_idle"`
+		MaxConnectionAge      time.Duration `yaml:"max_connection_age"`
+		MaxConnectionAgeGrace time.Duration `yaml:"max_connection_age_grace"`
+		PingTimeout           time.Duration `yaml:"ping_timeout"`
+		KeepaliveTimeout      time.Duration `yaml:"keepalive_timeout"`
+	} `yaml:"grpc_server"`
+	GrpcAddress string `yaml:"grpc_address"`
+	Http        struct {
 		EnableConfig    bool `yaml:"enable_config"`
 		EnableProfiling bool `yaml:"enable_profiling"`
 	} `yaml:"http"`
