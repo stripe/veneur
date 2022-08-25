@@ -60,27 +60,23 @@ func (proxy *Handlers) HandleJsonMetrics(
 		return
 	}
 
-	errorCount := 0
+	proxy.Statsd.Count(
+		"veneur_proxy.ingest.metrics_count",
+		int64(len(jsonMetrics)), []string{"protocol:http"}, 1.0)
+	convertErrorCount := 0
 	for _, jsonMetric := range jsonMetrics {
 		metric, err := json.ConvertJsonMetric(&jsonMetric)
 		if err != nil {
 			proxy.Logger.Debugf("error converting metric: %v", err)
-			errorCount += 1
+			convertErrorCount += 1
 			continue
 		}
-		err = proxy.handleMetric(metric)
-		if err != nil {
-			errorCount += 1
-		}
+		proxy.handleMetric(metric)
 	}
-
-	proxy.Statsd.Count(
-		"veneur_proxy.ingest.metrics_count", int64(len(jsonMetrics)-errorCount),
-		[]string{"error:false", "protocol:http"}, 1.0)
-	if errorCount > 0 {
+	if convertErrorCount > 0 {
 		proxy.Statsd.Count(
-			"veneur_proxy.ingest.metrics_count", int64(errorCount),
-			[]string{"error:true", "protocol:http"}, 1.0)
+			"veneur_proxy.handle.metrics_count",
+			int64(convertErrorCount), []string{"error:json_convert"}, 1.0)
 	}
 }
 
@@ -96,23 +92,13 @@ func (proxy *Handlers) SendMetrics(
 		"veneur_proxy.ingest.request_latency_ms", time.Since(requestStart),
 		[]string{"protocol:grpc-single"}, 1.0)
 
-	errorCount := 0
-	for _, metric := range metricList.Metrics {
-		err := proxy.handleMetric(metric)
-		if err != nil {
-			errorCount += 1
-		}
-	}
-
 	proxy.Statsd.Count(
 		"veneur_proxy.ingest.metrics_count",
-		int64(len(metricList.Metrics)-errorCount),
-		[]string{"error:false", "protocol:grpc-single"}, 1.0)
-	if errorCount > 0 {
-		proxy.Statsd.Count(
-			"veneur_proxy.ingest.metrics_count", int64(errorCount),
-			[]string{"error:true", "protocol:grpc-single"}, 1.0)
+		int64(len(metricList.Metrics)), []string{"protocol:grpc-single"}, 1.0)
+	for _, metric := range metricList.Metrics {
+		proxy.handleMetric(metric)
 	}
+
 	return &emptypb.Empty{}, nil
 }
 
@@ -145,21 +131,15 @@ func (proxy *Handlers) SendMetricsV2(
 				[]string{"protocol:grpc-stream"}, 1.0)
 			return err
 		}
-		err = proxy.handleMetric(metric)
-		if err != nil {
-			proxy.Statsd.Count(
-				"veneur_proxy.ingest.metrics_count",
-				int64(1), []string{"error:true", "protocol:grpc-stream"}, 1.0)
-		} else {
-			proxy.Statsd.Count(
-				"veneur_proxy.ingest.metrics_count",
-				int64(1), []string{"error:false", "protocol:grpc-stream"}, 1.0)
-		}
+		proxy.Statsd.Count(
+			"veneur_proxy.ingest.metrics_count",
+			int64(1), []string{"protocol:grpc-stream"}, 1.0)
+		proxy.handleMetric(metric)
 	}
 }
 
 // Forwards metrics to downstream global Veneur instances.
-func (proxy *Handlers) handleMetric(metric *metricpb.Metric) error {
+func (proxy *Handlers) handleMetric(metric *metricpb.Metric) {
 	tags := []string{}
 tagLoop:
 	for _, tag := range metric.Tags {
@@ -177,27 +157,40 @@ tagLoop:
 	if err != nil {
 		proxy.Logger.WithError(err).Debug("failed to get destination")
 		proxy.Statsd.Count(
-			"veneur_proxy.forward.metrics_count", 1,
-			[]string{"error:true"}, 1.0)
-		return err
+			"veneur_proxy.handle.metrics_count",
+			int64(1), []string{"error:destination"}, 1.0)
+		return
 	}
 
 	defer func() {
-		err := recover()
-		if err != nil {
-			proxy.Logger.
-				WithError(fmt.Errorf("%s", err)).
-				Debug("failed to forward metric")
-			proxy.Statsd.Count(
-				"veneur_proxy.forward.metrics_count", 1,
-				[]string{"error:true"}, 1.0)
+		recoverError := recover()
+		if recoverError != nil {
+			err = fmt.Errorf("%s", recoverError)
+			proxy.Logger.WithError(err).Debug("failed to forward metric")
 		}
 	}()
 
 	errorChannel := make(chan error)
-	destination.SendChannel() <- connect.SendRequest{
+	select {
+	case destination.SendChannel() <- connect.SendRequest{
 		Metric:       metric,
 		ErrorChannel: errorChannel,
+	}:
+		err = <-errorChannel
+		if err != nil {
+			proxy.Statsd.Count(
+				"veneur_proxy.handle.metrics_count",
+				int64(1), []string{"error:forward"}, 1.0)
+		} else {
+			proxy.Statsd.Count(
+				"veneur_proxy.handle.metrics_count",
+				int64(1), []string{"error:false"}, 1.0)
+		}
+		return
+	default:
+		proxy.Statsd.Count(
+			"veneur_proxy.handle.metrics_count",
+			int64(1), []string{"error:enqueue"}, 1.0)
+		return
 	}
-	return <-errorChannel
 }
