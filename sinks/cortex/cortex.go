@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/util/json"
 	"net/http"
 	"net/url"
 	"sort"
@@ -42,19 +43,20 @@ type counterMapKey struct {
 // using the prometheus remote-write API. For specifications, see
 // https://github.com/prometheus/compliance/tree/main/remote_write
 type CortexMetricSink struct {
-	URL                        string
-	RemoteTimeout              time.Duration
-	ProxyURL                   string
-	Client                     *http.Client
-	logger                     *logrus.Entry
-	name                       string
-	tags                       map[string]string
-	traceClient                *trace.Client
-	addHeaders                 map[string]string
-	basicAuth                  *BasicAuthType
-	batchWriteSize             int
-	counters                   map[counterMapKey]float64
-	convertCountersToMonotonic bool
+	URL                           string
+	RemoteTimeout                 time.Duration
+	ProxyURL                      string
+	Client                        *http.Client
+	logger                        *logrus.Entry
+	name                          string
+	tags                          map[string]string
+	traceClient                   *trace.Client
+	addHeaders                    map[string]string
+	basicAuth                     *BasicAuthType
+	batchWriteSize                int
+	counters                      map[counterMapKey]float64
+	convertCountersToMonotonic    bool
+	enableSparseMonotonicCounters bool
 }
 
 var _ sinks.MetricSink = (*CortexMetricSink)(nil)
@@ -68,14 +70,15 @@ type BasicAuthType struct {
 // max_samples_per_send, max_shards, and capacity
 // https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
 type CortexMetricSinkConfig struct {
-	URL                        string            `yaml:"url"`
-	RemoteTimeout              time.Duration     `yaml:"remote_timeout"`
-	ProxyURL                   string            `yaml:"proxy_url"`
-	BatchWriteSize             int               `yaml:"batch_write_size"`
-	Headers                    map[string]string `yaml:"headers"`
-	BasicAuth                  BasicAuthType     `yaml:"basic_auth"`
-	ConvertCountersToMonotonic bool              `yaml:"convert_counters_to_monotonic"`
-	Authorization              struct {
+	URL                           string            `yaml:"url"`
+	RemoteTimeout                 time.Duration     `yaml:"remote_timeout"`
+	ProxyURL                      string            `yaml:"proxy_url"`
+	BatchWriteSize                int               `yaml:"batch_write_size"`
+	Headers                       map[string]string `yaml:"headers"`
+	BasicAuth                     BasicAuthType     `yaml:"basic_auth"`
+	ConvertCountersToMonotonic    bool              `yaml:"convert_counters_to_monotonic"`
+	EnableSparseMonotonicCounters bool              `yaml:"enable_sparse_monotonic_counters"`
+	Authorization                 struct {
 		Type       string            `yaml:"type"`
 		Credential util.StringSecret `yaml:"credentials"`
 	} `yaml:"authorization"`
@@ -106,7 +109,7 @@ func Create(
 		basicAuth = &conf.BasicAuth
 	}
 
-	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, tags, headers, basicAuth, conf.BatchWriteSize, conf.ConvertCountersToMonotonic)
+	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, tags, headers, basicAuth, conf.BatchWriteSize, conf.ConvertCountersToMonotonic, conf.EnableSparseMonotonicCounters)
 }
 
 // ParseConfig extracts Cortex specific fields from the global veneur config
@@ -136,19 +139,20 @@ func ParseConfig(
 }
 
 // NewCortexMetricSink creates and returns a new instance of the sink
-func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string, headers map[string]string, basicAuth *BasicAuthType, batchWriteSize int, convertCountersToMonotonic bool) (*CortexMetricSink, error) {
+func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string, headers map[string]string, basicAuth *BasicAuthType, batchWriteSize int, convertCountersToMonotonic bool, enableSparseMonotonicCounters bool) (*CortexMetricSink, error) {
 	sink := &CortexMetricSink{
-		URL:                        URL,
-		RemoteTimeout:              timeout,
-		ProxyURL:                   proxyURL,
-		tags:                       tags,
-		logger:                     logger,
-		name:                       name,
-		addHeaders:                 headers,
-		basicAuth:                  basicAuth,
-		batchWriteSize:             batchWriteSize,
-		counters:                   map[counterMapKey]float64{},
-		convertCountersToMonotonic: convertCountersToMonotonic,
+		URL:                           URL,
+		RemoteTimeout:                 timeout,
+		ProxyURL:                      proxyURL,
+		tags:                          tags,
+		logger:                        logger,
+		name:                          name,
+		addHeaders:                    headers,
+		basicAuth:                     basicAuth,
+		batchWriteSize:                batchWriteSize,
+		counters:                      map[counterMapKey]float64{},
+		convertCountersToMonotonic:    convertCountersToMonotonic,
+		enableSparseMonotonicCounters: enableSparseMonotonicCounters,
 	}
 	sink.logger = sink.logger.WithFields(logrus.Fields{
 		"sink_name": sink.Name(),
@@ -340,7 +344,10 @@ func (s *CortexMetricSink) FlushOtherSamples(context.Context, []ssf.SSFSample) {
 // makeWriteRequest converts a list of samples from a flush into a single
 // prometheus remote-write compatible protobuf object
 func (s *CortexMetricSink) makeWriteRequest(metrics []samplers.InterMetric, tags map[string]string) (*prompb.WriteRequest, map[counterMapKey]float64) {
-	ts := make([]*prompb.TimeSeries, len(metrics))
+	// this may end up taking ~marginally more space than just declaring
+	// an empty slice but, we'll avoid having the go runtime having
+	// to malloc more ram
+	ts := make([]*prompb.TimeSeries, len(metrics)+len(s.counters))
 	updatedCounters := map[counterMapKey]float64{}
 	for i, metric := range metrics {
 		if metric.Type == samplers.CounterMetric && s.convertCountersToMonotonic {
@@ -352,6 +359,22 @@ func (s *CortexMetricSink) makeWriteRequest(metrics []samplers.InterMetric, tags
 		ts[i] = metricToTimeSeries(metric, tags)
 	}
 
+	if !s.enableSparseMonotonicCounters {
+		for key, val := range s.counters {
+			// skip counters we've seen
+			if _, ok := updatedCounters[key]; ok {
+				continue
+			}
+
+			ts = append(ts, metricToTimeSeries(samplers.InterMetric{
+				Name:      key.name,
+				Tags:      getCounterMapKeyTags(key),
+				Value:     val,
+				Timestamp: time.Now().Unix(),
+			}, tags))
+		}
+	}
+
 	return &prompb.WriteRequest{
 		Timeseries: ts,
 	}, updatedCounters
@@ -359,13 +382,24 @@ func (s *CortexMetricSink) makeWriteRequest(metrics []samplers.InterMetric, tags
 
 func (s *CortexMetricSink) convertToMonotonicCounter(metric samplers.InterMetric) (samplers.InterMetric, counterMapKey) {
 	sort.Strings(metric.Tags)
-	key := counterMapKey{
-		name: metric.Name,
-		tags: strings.Join(metric.Tags, "|"),
-	}
-
+	key := encodeCounterMapKey(metric)
 	metric.Value += s.counters[key]
 	return metric, key
+}
+
+func encodeCounterMapKey(metric samplers.InterMetric) counterMapKey {
+	tagBuf := new(bytes.Buffer)
+	json.NewEncoder(tagBuf).Encode(metric.Tags)
+	return counterMapKey{
+		name: metric.Name,
+		tags: tagBuf.String(),
+	}
+}
+
+func getCounterMapKeyTags(key counterMapKey) []string {
+	var tags []string
+	_ = json.Unmarshal([]byte(key.tags), &tags)
+	return tags
 }
 
 // metricToTimeSeries converts a sample to a prometheus timeseries.
