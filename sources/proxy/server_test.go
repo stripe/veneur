@@ -35,45 +35,6 @@ func TestStart(t *testing.T) {
 	server.Stop()
 }
 
-func TestSendMetrics(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockIngest := mock.NewMockIngest(ctrl)
-	metric := metricpb.Metric{
-		Name: "test-metric",
-		Tags: []string{"tag1:value1", "tag2:value2"},
-		Type: metricpb.Type_Counter,
-		Value: &metricpb.Metric_Counter{
-			Counter: &metricpb.CounterValue{
-				Value: 10,
-			},
-		},
-	}
-
-	logger := logrus.NewEntry(logrus.New())
-	server := proxy.New("localhost:0", logger)
-
-	go server.Start(mockIngest)
-	<-server.Ready()
-
-	connection, err := grpc.Dial(server.GetAddress(), grpc.WithInsecure())
-	assert.NoError(t, err)
-	client := forwardrpc.NewForwardClient(connection)
-
-	mockIngest.EXPECT().IngestMetricProto(&metric)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	_, err = client.SendMetrics(ctx, &forwardrpc.MetricList{
-		Metrics: []*metricpb.Metric{&metric},
-	})
-	assert.NoError(t, err)
-
-	server.Stop()
-}
-
 func TestSendMetricsV2(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

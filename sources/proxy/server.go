@@ -6,6 +6,7 @@
 package proxy
 
 import (
+	"errors"
 	"io"
 	"net"
 	"time"
@@ -19,12 +20,7 @@ import (
 
 	"github.com/stripe/veneur/v14/forwardrpc"
 	"github.com/stripe/veneur/v14/sources"
-	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
-)
-
-const (
-	responseDurationMetric = "import.response_duration_ns"
 )
 
 // Server wraps a gRPC server and implements the forwardrpc.Forward service.
@@ -137,33 +133,12 @@ func (s *Server) Stop() {
 	}
 }
 
-// Static maps of tags used in the SendMetrics handler
-var (
-	grpcTags         = map[string]string{"protocol": "grpc"}
-	responseSendTags = map[string]string{
-		"protocol": "grpc",
-		"part":     "send",
-	}
-)
-
 // SendMetrics takes a list of metrics and hashes each one (based on the
 // metric key) to a specific metric ingester.
-func (s *Server) SendMetrics(ctx context.Context, mlist *forwardrpc.MetricList) (*empty.Empty, error) {
-	span, _ := trace.StartSpanFromContext(ctx, "veneur.opentracing.importsrv.handle_send_metrics")
-	span.SetTag("protocol", "grpc")
-	defer span.ClientFinish(s.opts.traceClient)
-
-	sendStart := time.Now()
-	for _, metric := range mlist.Metrics {
-		s.ingest.IngestMetricProto(metric)
-	}
-
-	span.Add(
-		ssf.Timing(responseDurationMetric, time.Since(sendStart), time.Nanosecond, responseSendTags),
-		ssf.Count("import.metrics_total", float32(len(mlist.Metrics)), grpcTags),
-	)
-
-	return &empty.Empty{}, nil
+func (s *Server) SendMetrics(
+	_ context.Context, _ *forwardrpc.MetricList,
+) (*empty.Empty, error) {
+	return nil, errors.New("not implemented")
 }
 
 func (s *Server) SendMetricsV2(
