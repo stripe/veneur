@@ -46,16 +46,6 @@ sentry_dsn: REDACTED
 sources: []
 span_channel_capacity: 0
 span_sinks: []
-splunk_hec_address: ""
-splunk_hec_batch_size: 0
-splunk_hec_connection_lifetime_jitter: 0s
-splunk_hec_ingest_timeout: 0s
-splunk_hec_max_connection_lifetime: 0s
-splunk_hec_send_timeout: 0s
-splunk_hec_submission_workers: 0
-splunk_hec_tls_validate_hostname: ""
-splunk_hec_token: ""
-splunk_span_sample_rate: 0
 ssf_listen_addresses: []
 stats_address: localhost:8125
 statsd_listen_addresses: []

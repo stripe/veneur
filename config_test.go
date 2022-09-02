@@ -105,14 +105,6 @@ func TestConfigDefaults(t *testing.T) {
 	assert.Equal(t, c, expectedConfig, "Should have applied all config defaults")
 }
 
-func TestDefaultConfigEquivalence(t *testing.T) {
-	assert.Equal(t,
-		defaultConfig.Interval,
-		defaultConfig.SplunkHecMaxConnectionLifetime,
-		"splunk_hec_max_connection_lifetime should default to interval")
-
-}
-
 func TestProxyConfigDefaults(t *testing.T) {
 	const emptyConfig = "---"
 	r := strings.NewReader(emptyConfig)

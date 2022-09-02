@@ -13,13 +13,11 @@ import (
 )
 
 var defaultConfig = Config{
-	Aggregates:                     []string{"min", "max", "count"},
-	Interval:                       10 * time.Second,
-	MetricMaxLength:                4096,
-	ReadBufferSizeBytes:            1048576 * 2, // 2 MiB
-	SpanChannelCapacity:            100,
-	SplunkHecBatchSize:             100,
-	SplunkHecMaxConnectionLifetime: 10 * time.Second, // same as Interval
+	Aggregates:          []string{"min", "max", "count"},
+	Interval:            10 * time.Second,
+	MetricMaxLength:     4096,
+	ReadBufferSizeBytes: 1048576 * 2, // 2 MiB
+	SpanChannelCapacity: 100,
 }
 
 var defaultProxyConfig = ProxyConfig{
@@ -170,13 +168,5 @@ func (c *Config) applyDefaults(logger *logrus.Entry) {
 
 	if c.SpanChannelCapacity == 0 {
 		c.SpanChannelCapacity = defaultConfig.SpanChannelCapacity
-	}
-
-	if c.SplunkHecBatchSize == 0 {
-		c.SplunkHecBatchSize = defaultConfig.SplunkHecBatchSize
-	}
-
-	if c.SplunkHecMaxConnectionLifetime == 0 {
-		c.SplunkHecMaxConnectionLifetime = defaultConfig.SplunkHecMaxConnectionLifetime
 	}
 }
