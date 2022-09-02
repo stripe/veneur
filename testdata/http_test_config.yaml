@@ -55,11 +55,6 @@ tags_exclude: []
 tls_authority_certificate: ""
 tls_certificate: ""
 tls_key: ""
-trace_lightstep_access_token: ""
-trace_lightstep_collector_host: ""
-trace_lightstep_maximum_spans: 0
-trace_lightstep_num_clients: 0
-trace_lightstep_reconnect_period: 0s
 trace_max_length_bytes: 0
 veneur_metrics_additional_tags: []
 veneur_metrics_scopes:

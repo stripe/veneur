@@ -60,11 +60,6 @@
   "TLSAuthorityCertificate": "",
   "TLSCertificate": "",
   "TLSKey": "",
-  "TraceLightstepAccessToken": "",
-  "TraceLightstepCollectorHost": null,
-  "TraceLightstepMaximumSpans": 0,
-  "TraceLightstepNumClients": 0,
-  "TraceLightstepReconnectPeriod": 0,
   "TraceMaxLengthBytes": 0,
   "VeneurMetricsAdditionalTags": null,
   "VeneurMetricsScopes": {
