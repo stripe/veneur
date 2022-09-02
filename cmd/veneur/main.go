@@ -87,10 +87,6 @@ func main() {
 	}
 	if !conf.Features.MigrateMetricSinks {
 		debug.MigrateConfig(&conf)
-		err = signalfx.MigrateConfig(&conf)
-		if err != nil {
-			logger.WithError(err).Fatal("error migrating signalfx config")
-		}
 		err = kafka.MigrateConfig(&conf)
 		if err != nil {
 			logger.WithError(err).Fatal("error migrating kafka config")

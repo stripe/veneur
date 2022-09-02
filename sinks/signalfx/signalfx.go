@@ -211,40 +211,6 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 	return httpSink
 }
 
-// TODO(arnavdugar): Remove this once the old configuration format has been
-// removed.
-func MigrateConfig(conf *veneur.Config) error {
-	if conf.SignalfxAPIKey.Value == "" {
-		return nil
-	}
-	// To maintain compatability, set the default value of
-	// DynamicPerTagAPIKeysRefreshPeriod if dynamic per tag API keys are enabled.
-	// With the new config, not setting this field will cause an error.
-	if conf.SignalfxDynamicPerTagAPIKeysEnable &&
-		conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod == 0 {
-		conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod = time.Duration(10 * time.Minute)
-	}
-	conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
-		Kind: "signalfx",
-		Name: "signalfx",
-		Config: SignalFxSinkConfig{
-			APIKey:                            conf.SignalfxAPIKey,
-			DynamicPerTagAPIKeysEnable:        conf.SignalfxDynamicPerTagAPIKeysEnable,
-			DynamicPerTagAPIKeysRefreshPeriod: conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod,
-			EndpointAPI:                       conf.SignalfxEndpointAPI,
-			EndpointBase:                      conf.SignalfxEndpointBase,
-			FlushMaxPerBody:                   conf.SignalfxFlushMaxPerBody,
-			HostnameTag:                       conf.SignalfxHostnameTag,
-			MetricNamePrefixDrops:             conf.SignalfxMetricNamePrefixDrops,
-			MetricTagPrefixDrops:              conf.SignalfxMetricTagPrefixDrops,
-			PerTagAPIKeys:                     conf.SignalfxPerTagAPIKeys,
-			VaryKeyBy:                         conf.SignalfxVaryKeyBy,
-			VaryKeyByFavorCommonDimensions:    conf.SignalfxVaryKeyByFavorCommonDimensions,
-		},
-	})
-	return nil
-}
-
 // ParseConfig decodes the map config for a SignalFx sink into a
 // SignalFxSinkConfig struct.
 func ParseConfig(

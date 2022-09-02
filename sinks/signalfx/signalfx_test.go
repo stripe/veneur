@@ -19,7 +19,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	veneur "github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/protocol/dogstatsd"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks"
@@ -67,19 +66,6 @@ func (fs failSink) AddDatapoints(ctx context.Context, points []*datapoint.Datapo
 
 func (fs failSink) AddEvents(ctx context.Context, events []*event.Event) (err error) {
 	return errors.New("simulated failure to send")
-}
-
-func TestMigrateConfig(t *testing.T) {
-	config := veneur.Config{
-		SignalfxAPIKey: util.StringSecret{Value: "signalfx-api-key"},
-	}
-	MigrateConfig(&config)
-	assert.Len(t, config.MetricSinks, 1)
-	parsedConfig, err := ParseConfig("singalfx", config.MetricSinks[0].Config)
-	assert.Nil(t, err)
-	signalFxConfig, ok := parsedConfig.(SignalFxSinkConfig)
-	assert.True(t, ok)
-	assert.Equal(t, "signalfx-api-key", signalFxConfig.APIKey.Value)
 }
 
 func TestNewSignalFxSink(t *testing.T) {
