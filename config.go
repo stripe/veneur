@@ -57,11 +57,6 @@ type Config struct {
 	KafkaSpanSampleTag                        string              `yaml:"kafka_span_sample_tag"`
 	KafkaSpanSerializationFormat              string              `yaml:"kafka_span_serialization_format"`
 	KafkaSpanTopic                            string              `yaml:"kafka_span_topic"`
-	LightstepAccessToken                      util.StringSecret   `yaml:"lightstep_access_token"`
-	LightstepCollectorHost                    util.Url            `yaml:"lightstep_collector_host"`
-	LightstepMaximumSpans                     int                 `yaml:"lightstep_maximum_spans"`
-	LightstepNumClients                       int                 `yaml:"lightstep_num_clients"`
-	LightstepReconnectPeriod                  time.Duration       `yaml:"lightstep_reconnect_period"`
 	MetricMaxLength                           int                 `yaml:"metric_max_length"`
 	MetricSinkRouting                         []SinkRoutingConfig `yaml:"metric_sink_routing"`
 	MetricSinks                               []SinkConfig        `yaml:"metric_sinks"`

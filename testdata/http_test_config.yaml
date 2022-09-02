@@ -50,11 +50,6 @@ kafka_span_sample_rate_percent: 0
 kafka_span_sample_tag: ""
 kafka_span_serialization_format: ""
 kafka_span_topic: ""
-lightstep_access_token: ""
-lightstep_collector_host: ""
-lightstep_maximum_spans: 0
-lightstep_num_clients: 0
-lightstep_reconnect_period: 0s
 metric_max_length: 0
 metric_sink_routing: []
 metric_sinks: []

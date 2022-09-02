@@ -171,41 +171,6 @@ func (c *Config) applyDefaults(logger *logrus.Entry) {
 	if c.ReadBufferSizeBytes == 0 {
 		c.ReadBufferSizeBytes = defaultConfig.ReadBufferSizeBytes
 	}
-	if c.TraceLightstepNumClients != 0 {
-		logger.Warn(
-			"trace_lightstep_num_clients configuration option has been replaced by lightstep_num_clients and will be removed in the next version")
-		if c.LightstepNumClients == 0 {
-			c.LightstepNumClients = c.TraceLightstepNumClients
-		}
-	}
-	if c.TraceLightstepCollectorHost.Value != nil {
-		logger.Warn(
-			"trace_lightstep_collector_host configuration option has been replaced by lightstep_collector_host and will be removed in the next version")
-		if c.LightstepCollectorHost.Value == nil {
-			c.LightstepCollectorHost = c.TraceLightstepCollectorHost
-		}
-	}
-	if c.TraceLightstepAccessToken.Value != "" {
-		logger.Warn(
-			"trace_lightstep_access_token configuration option has been replaced by lightstep_access_token and will be removed in the next version")
-		if c.LightstepAccessToken.Value == "" {
-			c.LightstepAccessToken = c.TraceLightstepAccessToken
-		}
-	}
-	if c.TraceLightstepMaximumSpans != 0 {
-		logger.Warn(
-			"trace_lightstep_maximum_spans configuration option has been replaced by lightstep_maximum_spans and will be removed in the next version")
-		if c.LightstepMaximumSpans == 0 {
-			c.LightstepMaximumSpans = c.TraceLightstepMaximumSpans
-		}
-	}
-	if c.TraceLightstepReconnectPeriod != 0 {
-		logger.Warn(
-			"trace_lightstep_reconnect_period configuration option has been replaced by lightstep_reconnect_period and will be removed in the next version")
-		if c.LightstepReconnectPeriod == 0 {
-			c.LightstepReconnectPeriod = c.TraceLightstepReconnectPeriod
-		}
-	}
 
 	if c.SpanChannelCapacity == 0 {
 		c.SpanChannelCapacity = defaultConfig.SpanChannelCapacity

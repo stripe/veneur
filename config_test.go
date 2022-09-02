@@ -153,27 +153,3 @@ func TestProxyExamples(t *testing.T) {
 		})
 	}
 }
-
-func TestReadConfigBackwardsCompatible(t *testing.T) {
-	// set the deprecated config options
-	const config = `
-trace_lightstep_access_token: "123"
-trace_lightstep_collector_host: "http://example.com"
-trace_lightstep_reconnect_period: "10s"
-trace_lightstep_maximum_spans: 1
-trace_lightstep_num_clients: 2
-`
-	c, err := readConfig(strings.NewReader(config))
-	logger := logrus.NewEntry(logrus.New())
-	c.applyDefaults(logger)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// they should get copied to the new config options
-	assert.Equal(t, "123", c.LightstepAccessToken.Value)
-	assert.Equal(t, "http://example.com", c.LightstepCollectorHost.Value.String())
-	assert.Equal(t, 10*time.Second, c.LightstepReconnectPeriod)
-	assert.Equal(t, 1, c.LightstepMaximumSpans)
-	assert.Equal(t, 2, c.LightstepNumClients)
-}
