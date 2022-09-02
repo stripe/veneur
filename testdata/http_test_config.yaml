@@ -8,13 +8,6 @@ aws_s3_bucket: ""
 aws_secret_access_key: ""
 block_profile_rate: 0
 count_unique_timeseries: false
-datadog_api_hostname: ""
-datadog_api_key: ""
-datadog_exclude_tags_prefix_by_prefix_metric: []
-datadog_flush_max_per_body: 0
-datadog_metric_name_prefix_drops: []
-datadog_span_buffer_size: 0
-datadog_trace_api_address: ""
 debug: false
 debug_flushed_metrics: false
 debug_ingested_spans: false
@@ -28,7 +21,6 @@ features:
   migrate_span_sinks: false
   proxy_protocol: ""
 flush_file: ""
-flush_max_per_body: 0
 flush_on_shutdown: false
 flush_watchdog_missed_flushes: 0
 forward_address: ""
@@ -114,7 +106,6 @@ splunk_hec_submission_workers: 0
 splunk_hec_tls_validate_hostname: ""
 splunk_hec_token: ""
 splunk_span_sample_rate: 0
-ssf_buffer_size: 0
 ssf_listen_addresses: []
 stats_address: localhost:8125
 statsd_listen_addresses: []

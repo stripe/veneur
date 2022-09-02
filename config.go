@@ -8,30 +8,20 @@ import (
 )
 
 type Config struct {
-	Aggregates                             []string          `yaml:"aggregates"`
-	AwsAccessKeyID                         util.StringSecret `yaml:"aws_access_key_id"`
-	AwsRegion                              string            `yaml:"aws_region"`
-	AwsS3Bucket                            string            `yaml:"aws_s3_bucket"`
-	AwsSecretAccessKey                     util.StringSecret `yaml:"aws_secret_access_key"`
-	BlockProfileRate                       int               `yaml:"block_profile_rate"`
-	CountUniqueTimeseries                  bool              `yaml:"count_unique_timeseries"`
-	DatadogAPIHostname                     string            `yaml:"datadog_api_hostname"`
-	DatadogAPIKey                          util.StringSecret `yaml:"datadog_api_key"`
-	DatadogExcludeTagsPrefixByPrefixMetric []struct {
-		MetricPrefix string   `yaml:"metric_prefix"`
-		Tags         []string `yaml:"tags"`
-	} `yaml:"datadog_exclude_tags_prefix_by_prefix_metric"`
-	DatadogFlushMaxPerBody       int      `yaml:"datadog_flush_max_per_body"`
-	DatadogMetricNamePrefixDrops []string `yaml:"datadog_metric_name_prefix_drops"`
-	DatadogSpanBufferSize        int      `yaml:"datadog_span_buffer_size"`
-	DatadogTraceAPIAddress       string   `yaml:"datadog_trace_api_address"`
-	Debug                        bool     `yaml:"debug"`
-	DebugFlushedMetrics          bool     `yaml:"debug_flushed_metrics"`
-	DebugIngestedSpans           bool     `yaml:"debug_ingested_spans"`
-	EnableProfiling              bool     `yaml:"enable_profiling"`
-	ExtendTags                   []string `yaml:"extend_tags"`
-	FalconerAddress              string   `yaml:"falconer_address"`
-	Features                     struct {
+	Aggregates            []string          `yaml:"aggregates"`
+	AwsAccessKeyID        util.StringSecret `yaml:"aws_access_key_id"`
+	AwsRegion             string            `yaml:"aws_region"`
+	AwsS3Bucket           string            `yaml:"aws_s3_bucket"`
+	AwsSecretAccessKey    util.StringSecret `yaml:"aws_secret_access_key"`
+	BlockProfileRate      int               `yaml:"block_profile_rate"`
+	CountUniqueTimeseries bool              `yaml:"count_unique_timeseries"`
+	Debug                 bool              `yaml:"debug"`
+	DebugFlushedMetrics   bool              `yaml:"debug_flushed_metrics"`
+	DebugIngestedSpans    bool              `yaml:"debug_ingested_spans"`
+	EnableProfiling       bool              `yaml:"enable_profiling"`
+	ExtendTags            []string          `yaml:"extend_tags"`
+	FalconerAddress       string            `yaml:"falconer_address"`
+	Features              struct {
 		DiagnosticsMetricsEnabled bool   `yaml:"diagnostics_metrics_enabled"`
 		EnableMetricSinkRouting   bool   `yaml:"enable_metric_sink_routing"`
 		MigrateMetricSinks        bool   `yaml:"migrate_metric_sinks"`
@@ -39,7 +29,6 @@ type Config struct {
 		ProxyProtocol             string `yaml:"proxy_protocol"`
 	} `yaml:"features"`
 	FlushFile                                 string              `yaml:"flush_file"`
-	FlushMaxPerBody                           int                 `yaml:"flush_max_per_body"`
 	FlushOnShutdown                           bool                `yaml:"flush_on_shutdown"`
 	FlushWatchdogMissedFlushes                int                 `yaml:"flush_watchdog_missed_flushes"`
 	ForwardAddress                            string              `yaml:"forward_address"`
@@ -124,7 +113,6 @@ type Config struct {
 	SplunkHecTLSValidateHostname           string            `yaml:"splunk_hec_tls_validate_hostname"`
 	SplunkHecToken                         string            `yaml:"splunk_hec_token"`
 	SplunkSpanSampleRate                   int               `yaml:"splunk_span_sample_rate"`
-	SsfBufferSize                          int               `yaml:"ssf_buffer_size"`
 	SsfListenAddresses                     []util.Url        `yaml:"ssf_listen_addresses"`
 	StatsAddress                           string            `yaml:"stats_address"`
 	StatsdListenAddresses                  []util.Url        `yaml:"statsd_listen_addresses"`

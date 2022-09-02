@@ -86,7 +86,6 @@ func main() {
 		os.Exit(0)
 	}
 	if !conf.Features.MigrateMetricSinks {
-		datadog.MigrateConfig(&conf)
 		debug.MigrateConfig(&conf)
 		falconer.MigrateConfig(&conf)
 		localfile.MigrateConfig(&conf)

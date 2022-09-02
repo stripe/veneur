@@ -195,10 +195,6 @@ count_unique_timeseries: false
 
 # == DEPRECATED ==
 
-# This configuration has been replaced by datadog_flush_max_per_body.
-flush_max_per_body: 0
-# This configuration has been replaced by datadog_span_buffer_size.
-ssf_buffer_size: 0
 # This has been replaced by lightstep_access_token
 trace_lightstep_access_token: ""
 # This has been replaced by lightstep_collector_host
@@ -284,38 +280,6 @@ enable_profiling: false
 
 
 # == SINKS ==
-
-# == Datadog ==
-# Datadog can be a sink for metrics, events, service checks and trace spans.
-
-# Hostname to send Datadog data to.
-datadog_api_hostname: https://app.datadoghq.com
-
-# API key for acessing Datadog
-datadog_api_key: "farts"
-
-# How many metrics to include in the body of each POST to Datadog. Veneur
-# will post multiple times in parallel if the limit is exceeded.
-datadog_flush_max_per_body: 25000
-
-# Hostname to send Datadog trace data to.
-datadog_trace_api_address: ""
-
-# A list of metric *prefixes* to drop. Note that this is not the whole string
-# and not a regexp. Just a prefix. Any metrics that have this prefix as a name
-# will be dropped before sending to Datadog.
-datadog_metric_name_prefix_drops:
-  - "an_ignorable_metric."
-
-# Excluded tags *prefixes* from specific metric *prefixes*
-# Any metrics that have tags *prefixes* will be dropped before sending to Datadog.
-datadog_exclude_tags_prefix_by_prefix_metric:
-  - metric_prefix: "metric_prefix"
-    tags:
-      - an_ignorable_tag_prefix"
-
-# The size of the ring buffer used for retaining spans during a flush interval.
-datadog_span_buffer_size: 16384
 
 
 # == New Relic ==

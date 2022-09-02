@@ -14,7 +14,6 @@ import (
 
 var defaultConfig = Config{
 	Aggregates:                     []string{"min", "max", "count"},
-	DatadogFlushMaxPerBody:         25000,
 	Interval:                       10 * time.Second,
 	MetricMaxLength:                4096,
 	PrometheusNetworkType:          "tcp",
@@ -172,20 +171,6 @@ func (c *Config) applyDefaults(logger *logrus.Entry) {
 	if c.ReadBufferSizeBytes == 0 {
 		c.ReadBufferSizeBytes = defaultConfig.ReadBufferSizeBytes
 	}
-	if c.SsfBufferSize != 0 {
-		logger.Warn(
-			"ssf_buffer_size configuration option has been replaced by datadog_span_buffer_size and will be removed in the next version")
-		if c.DatadogSpanBufferSize == 0 {
-			c.DatadogSpanBufferSize = c.SsfBufferSize
-		}
-	}
-	if c.FlushMaxPerBody != 0 {
-		logger.Warn(
-			"flush_max_per_body configuration option has been replaced by datadog_flush_max_per_body and will be removed in the next version")
-		if c.DatadogFlushMaxPerBody == 0 {
-			c.DatadogFlushMaxPerBody = c.FlushMaxPerBody
-		}
-	}
 	if c.TraceLightstepNumClients != 0 {
 		logger.Warn(
 			"trace_lightstep_num_clients configuration option has been replaced by lightstep_num_clients and will be removed in the next version")
@@ -220,10 +205,6 @@ func (c *Config) applyDefaults(logger *logrus.Entry) {
 		if c.LightstepReconnectPeriod == 0 {
 			c.LightstepReconnectPeriod = c.TraceLightstepReconnectPeriod
 		}
-	}
-
-	if c.DatadogFlushMaxPerBody == 0 {
-		c.DatadogFlushMaxPerBody = defaultConfig.DatadogFlushMaxPerBody
 	}
 
 	if c.SpanChannelCapacity == 0 {

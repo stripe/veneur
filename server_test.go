@@ -78,7 +78,6 @@ func generateConfig(forwardAddr string) Config {
 
 		// Use a shorter interval for tests
 		Interval:            DefaultFlushInterval,
-		DatadogAPIKey:       util.StringSecret{Value: ""},
 		MetricMaxLength:     4096,
 		Percentiles:         []float64{.5, .75, .99},
 		Aggregates:          []string{"min", "max", "count"},
@@ -103,10 +102,9 @@ func generateConfig(forwardAddr string) Config {
 		// Currently this points nowhere, which is intentional.
 		// We don't need internal metrics for the tests, and they make testing
 		// more complicated.
-		StatsAddress:           "localhost:8125",
-		Tags:                   []string{},
-		SentryDsn:              util.StringSecret{Value: ""},
-		DatadogFlushMaxPerBody: 1024,
+		StatsAddress: "localhost:8125",
+		Tags:         []string{},
+		SentryDsn:    util.StringSecret{Value: ""},
 
 		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
 		SsfListenAddresses: []util.Url{{
@@ -219,16 +217,15 @@ func (c *channelMetricSink) FlushOtherSamples(ctx context.Context, events []ssf.
 
 // fixture sets up a mock Datadog API server and Veneur
 type fixture struct {
-	api             *httptest.Server
-	server          *Server
-	interval        time.Duration
-	flushMaxPerBody int
+	api      *httptest.Server
+	server   *Server
+	interval time.Duration
 }
 
 func newFixture(t testing.TB, config Config, mSink sinks.MetricSink, sSink sinks.SpanSink) *fixture {
 	// Set up a remote server (the API that we're sending the data to)
 	// (e.g. Datadog)
-	f := &fixture{nil, &Server{}, config.Interval, config.DatadogFlushMaxPerBody}
+	f := &fixture{nil, &Server{}, config.Interval}
 
 	if config.NumWorkers == 0 {
 		config.NumWorkers = 1
@@ -1074,9 +1071,6 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 	path := filepath.Join(tdir, "test.sock")
 	// test the variables that have been renamed
 	config := Config{
-		DatadogAPIKey:          util.StringSecret{Value: "apikey"},
-		DatadogAPIHostname:     "http://api",
-		DatadogTraceAPIAddress: "http://trace",
 		SsfListenAddresses: []util.Url{{
 			Value: &url.URL{
 				Scheme: "unix",
@@ -1142,9 +1136,6 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 func BenchmarkSendSSFUDP(b *testing.B) {
 	// test the variables that have been renamed
 	config := Config{
-		DatadogAPIKey:          util.StringSecret{Value: "apikey"},
-		DatadogAPIHostname:     "http://api",
-		DatadogTraceAPIAddress: "http://trace",
 		SsfListenAddresses: []util.Url{{
 			Value: &url.URL{
 				Scheme: "udp",
