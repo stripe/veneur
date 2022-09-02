@@ -8,18 +8,14 @@ import (
 )
 
 type Config struct {
-	Aggregates            []string          `yaml:"aggregates"`
-	AwsAccessKeyID        util.StringSecret `yaml:"aws_access_key_id"`
-	AwsRegion             string            `yaml:"aws_region"`
-	AwsS3Bucket           string            `yaml:"aws_s3_bucket"`
-	AwsSecretAccessKey    util.StringSecret `yaml:"aws_secret_access_key"`
-	BlockProfileRate      int               `yaml:"block_profile_rate"`
-	CountUniqueTimeseries bool              `yaml:"count_unique_timeseries"`
-	Debug                 bool              `yaml:"debug"`
-	DebugFlushedMetrics   bool              `yaml:"debug_flushed_metrics"`
-	DebugIngestedSpans    bool              `yaml:"debug_ingested_spans"`
-	EnableProfiling       bool              `yaml:"enable_profiling"`
-	ExtendTags            []string          `yaml:"extend_tags"`
+	Aggregates            []string `yaml:"aggregates"`
+	BlockProfileRate      int      `yaml:"block_profile_rate"`
+	CountUniqueTimeseries bool     `yaml:"count_unique_timeseries"`
+	Debug                 bool     `yaml:"debug"`
+	DebugFlushedMetrics   bool     `yaml:"debug_flushed_metrics"`
+	DebugIngestedSpans    bool     `yaml:"debug_ingested_spans"`
+	EnableProfiling       bool     `yaml:"enable_profiling"`
+	ExtendTags            []string `yaml:"extend_tags"`
 	Features              struct {
 		DiagnosticsMetricsEnabled bool   `yaml:"diagnostics_metrics_enabled"`
 		EnableMetricSinkRouting   bool   `yaml:"enable_metric_sink_routing"`

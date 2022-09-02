@@ -2,10 +2,6 @@ aggregates:
 - min
 - max
 - count
-aws_access_key_id: ""
-aws_region: ""
-aws_s3_bucket: ""
-aws_secret_access_key: ""
 block_profile_rate: 0
 count_unique_timeseries: false
 debug: false

@@ -4,10 +4,6 @@
     "max",
     "count"
   ],
-  "AwsAccessKeyID": "",
-  "AwsRegion": "",
-  "AwsS3Bucket": "",
-  "AwsSecretAccessKey": "",
   "BlockProfileRate": 0,
   "CountUniqueTimeseries": false,
   "Debug": false,

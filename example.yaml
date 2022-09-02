@@ -477,12 +477,3 @@ prometheus_repeater_address: "localhost:9125"
 # (optional) The packet type (tcp / udp) that Veneur will use to send packets
 # to Statsd Repeater. This will be tcp by default.
 prometheus_network_type: "tcp"
-
-# == PLUGINS ==
-
-# == S3 Output ==
-# Include these if you want to archive data to S3
-aws_access_key_id: ""
-aws_secret_access_key: ""
-aws_region: ""
-aws_s3_bucket: ""
