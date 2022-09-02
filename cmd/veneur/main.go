@@ -87,10 +87,6 @@ func main() {
 	}
 	if !conf.Features.MigrateMetricSinks {
 		debug.MigrateConfig(&conf)
-		err = kafka.MigrateConfig(&conf)
-		if err != nil {
-			logger.WithError(err).Fatal("error migrating kafka config")
-		}
 		err = splunk.MigrateConfig(&conf)
 		if err != nil {
 			logger.WithError(err).Fatal("error migrating splunk config")

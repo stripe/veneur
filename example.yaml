@@ -285,57 +285,6 @@ xray_sample_percentage: 100.0
 xray_annotation_tags:
   - ""
 
-# == Kafka ==
-
-# Comma-delimited list of brokers suitable for Sarama's [NewAsyncProducer](https://godoc.org/github.com/Shopify/sarama#NewAsyncProducer)
-# in the form hostname:port, such as localhost:9092
-kafka_broker: ""
-
-# Name of the topic we'll be publishing checks to
-kafka_check_topic: "veneur_checks"
-
-# Name of the topic we'll be publishing events to
-kafka_event_topic: "veneur_events"
-
-# Name of the topic we'll be publishing metrics to
-kafka_metric_topic: ""
-
-# Name of the topic we'll be publishing spans to
-kafka_span_topic: "veneur_spans"
-
-# Name of a tag to hash on for sampling; if empty, spans are sampled based off
-# of traceID
-kafka_span_sample_tag: ""
-
-# Sample rate (as a percent)
-kafka_span_sample_rate_percent: 100.0
-
-kafka_metric_buffer_bytes: 0
-
-kafka_metric_buffer_messages: 0
-
-kafka_metric_buffer_frequency: "10s"
-
-kafka_span_serialization_format: "protobuf"
-
-# The type of partitioner to use.
-kafka_partitioner: "hash"
-
-# What type of acks to require for metrics? One of none, local or all.
-kafka_metric_require_acks: "all"
-
-# What type of acks to require for span? One of none, local or all.
-kafka_span_require_acks: "all"
-
-kafka_span_buffer_bytes: 0
-
-kafka_span_buffer_mesages: 0
-
-kafka_span_buffer_frequency: "10s"
-
-# The number of retries before giving up.
-kafka_retry_max: 0
-
 # == Splunk ==
 #
 # Veneur can feed spans to splunk through the HTTP Event Consumer

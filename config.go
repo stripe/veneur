@@ -35,24 +35,6 @@ type Config struct {
 	HTTPQuit                          bool                `yaml:"http_quit"`
 	IndicatorSpanTimerName            string              `yaml:"indicator_span_timer_name"`
 	Interval                          time.Duration       `yaml:"interval"`
-	KafkaBroker                       string              `yaml:"kafka_broker"`
-	KafkaCheckTopic                   string              `yaml:"kafka_check_topic"`
-	KafkaEventTopic                   string              `yaml:"kafka_event_topic"`
-	KafkaMetricBufferBytes            int                 `yaml:"kafka_metric_buffer_bytes"`
-	KafkaMetricBufferFrequency        time.Duration       `yaml:"kafka_metric_buffer_frequency"`
-	KafkaMetricBufferMessages         int                 `yaml:"kafka_metric_buffer_messages"`
-	KafkaMetricRequireAcks            string              `yaml:"kafka_metric_require_acks"`
-	KafkaMetricTopic                  string              `yaml:"kafka_metric_topic"`
-	KafkaPartitioner                  string              `yaml:"kafka_partitioner"`
-	KafkaRetryMax                     int                 `yaml:"kafka_retry_max"`
-	KafkaSpanBufferBytes              int                 `yaml:"kafka_span_buffer_bytes"`
-	KafkaSpanBufferFrequency          time.Duration       `yaml:"kafka_span_buffer_frequency"`
-	KafkaSpanBufferMesages            int                 `yaml:"kafka_span_buffer_mesages"`
-	KafkaSpanRequireAcks              string              `yaml:"kafka_span_require_acks"`
-	KafkaSpanSampleRatePercent        float64             `yaml:"kafka_span_sample_rate_percent"`
-	KafkaSpanSampleTag                string              `yaml:"kafka_span_sample_tag"`
-	KafkaSpanSerializationFormat      string              `yaml:"kafka_span_serialization_format"`
-	KafkaSpanTopic                    string              `yaml:"kafka_span_topic"`
 	MetricMaxLength                   int                 `yaml:"metric_max_length"`
 	MetricSinkRouting                 []SinkRoutingConfig `yaml:"metric_sink_routing"`
 	MetricSinks                       []SinkConfig        `yaml:"metric_sinks"`
