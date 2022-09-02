@@ -20,7 +20,6 @@ type Config struct {
 	DebugIngestedSpans    bool              `yaml:"debug_ingested_spans"`
 	EnableProfiling       bool              `yaml:"enable_profiling"`
 	ExtendTags            []string          `yaml:"extend_tags"`
-	FalconerAddress       string            `yaml:"falconer_address"`
 	Features              struct {
 		DiagnosticsMetricsEnabled bool   `yaml:"diagnostics_metrics_enabled"`
 		EnableMetricSinkRouting   bool   `yaml:"enable_metric_sink_routing"`

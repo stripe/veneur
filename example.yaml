@@ -487,13 +487,6 @@ kafka_span_buffer_frequency: "10s"
 # The number of retries before giving up.
 kafka_retry_max: 0
 
-# == Falconer ==
-#
-# Falconer (https://github.com/stripe/falconer) is an ephemeral (in-memory)
-# trace data sink. Veneur relays data to Falconer via gRPC.
-
-falconer_address: "falconer.service.consul"
-
 # == Splunk ==
 #
 # Veneur can feed spans to splunk through the HTTP Event Consumer

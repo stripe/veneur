@@ -48,19 +48,6 @@ type FalconerSpanSink struct {
 
 var _ sinks.SpanSink = &FalconerSpanSink{}
 
-func MigrateConfig(conf *veneur.Config) {
-	if conf.FalconerAddress == "" {
-		return
-	}
-	conf.SpanSinks = append(conf.SpanSinks, veneur.SinkConfig{
-		Kind: "falconer",
-		Name: "falconer",
-		Config: FalconerSpanSinkConfig{
-			Target: conf.FalconerAddress,
-		},
-	})
-}
-
 // creates a sinks.SpanSink that can write to any
 // compliant gRPC server.
 //

@@ -87,7 +87,6 @@ func main() {
 	}
 	if !conf.Features.MigrateMetricSinks {
 		debug.MigrateConfig(&conf)
-		falconer.MigrateConfig(&conf)
 		localfile.MigrateConfig(&conf)
 		lightstep.MigrateConfig(&conf)
 		newrelic.MigrateConfig(&conf)

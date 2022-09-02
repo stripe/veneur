@@ -15,7 +15,6 @@
   "DebugIngestedSpans": false,
   "EnableProfiling": false,
   "ExtendTags": null,
-  "FalconerAddress": "",
   "Features": {
     "DiagnosticsMetricsEnabled": false,
     "EnableMetricSinkRouting": false,
