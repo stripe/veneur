@@ -68,6 +68,3 @@ veneur_metrics_scopes:
   histogram: ""
   set: ""
   status: ""
-xray_address: ""
-xray_annotation_tags: []
-xray_sample_percentage: 0

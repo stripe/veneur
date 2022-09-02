@@ -73,9 +73,6 @@ type Config struct {
 		Set       string `yaml:"set"`
 		Status    string `yaml:"status"`
 	} `yaml:"veneur_metrics_scopes"`
-	XrayAddress          string   `yaml:"xray_address"`
-	XrayAnnotationTags   []string `yaml:"xray_annotation_tags"`
-	XraySamplePercentage float64  `yaml:"xray_sample_percentage"`
 }
 
 type HttpConfig struct {

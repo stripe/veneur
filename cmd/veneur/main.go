@@ -87,7 +87,6 @@ func main() {
 	}
 	if !conf.Features.MigrateMetricSinks {
 		debug.MigrateConfig(&conf)
-		xray.MigrateConfig(&conf)
 	}
 
 	server, err := veneur.NewFromConfig(veneur.ServerConfig{

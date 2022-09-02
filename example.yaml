@@ -263,25 +263,3 @@ sentry_dsn: ""
 
 # Enables Go profiling
 enable_profiling: false
-
-
-
-# == SINKS ==
-
-# == AWS X-Ray ==
-# X-Ray can be a sink for trace spans.
-
-# If present, X-Ray will be enabled as a tracing sink
-xray_address: "localhost:2000"
-
-# Sample rate in percent (as an integer)
-# The sink will hash the trace id of the span such that all Veneur instances
-# will sample the same segments by using the trace id as input for a checksum.
-xray_sample_percentage: 100.0
-
-# All tags are sent as (unindexed) Metadata to X-ray. Up to 50 tags per trace
-# (not per span) can be indexed as Annotations for search. Tag keys specified here
-# will be provided as Annotations
-xray_annotation_tags:
-  - ""
-
