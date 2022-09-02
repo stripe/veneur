@@ -61,13 +61,6 @@ type Config struct {
 	MetricSinkRouting                         []SinkRoutingConfig `yaml:"metric_sink_routing"`
 	MetricSinks                               []SinkConfig        `yaml:"metric_sinks"`
 	MutexProfileFraction                      int                 `yaml:"mutex_profile_fraction"`
-	NewrelicAccountID                         int                 `yaml:"newrelic_account_id"`
-	NewrelicCommonTags                        []string            `yaml:"newrelic_common_tags"`
-	NewrelicEventType                         string              `yaml:"newrelic_event_type"`
-	NewrelicInsertKey                         util.StringSecret   `yaml:"newrelic_insert_key"`
-	NewrelicRegion                            string              `yaml:"newrelic_region"`
-	NewrelicServiceCheckEventType             string              `yaml:"newrelic_service_check_event_type"`
-	NewrelicTraceObserverURL                  string              `yaml:"newrelic_trace_observer_url"`
 	NumReaders                                int                 `yaml:"num_readers"`
 	NumSpanWorkers                            int                 `yaml:"num_span_workers"`
 	NumWorkers                                int                 `yaml:"num_workers"`

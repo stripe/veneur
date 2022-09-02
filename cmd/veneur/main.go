@@ -87,7 +87,6 @@ func main() {
 	}
 	if !conf.Features.MigrateMetricSinks {
 		debug.MigrateConfig(&conf)
-		newrelic.MigrateConfig(&conf)
 		s3.MigrateConfig(&conf)
 		prometheus.MigrateConfig(&conf)
 		err = signalfx.MigrateConfig(&conf)

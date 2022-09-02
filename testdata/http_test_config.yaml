@@ -54,13 +54,6 @@ metric_max_length: 0
 metric_sink_routing: []
 metric_sinks: []
 mutex_profile_fraction: 0
-newrelic_account_id: 0
-newrelic_common_tags: []
-newrelic_event_type: ""
-newrelic_insert_key: ""
-newrelic_region: ""
-newrelic_service_check_event_type: ""
-newrelic_trace_observer_url: ""
 num_readers: 1
 num_span_workers: 0
 num_workers: 0
