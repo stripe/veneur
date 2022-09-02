@@ -27,7 +27,6 @@ type Config struct {
 		MigrateSpanSinks          bool   `yaml:"migrate_span_sinks"`
 		ProxyProtocol             string `yaml:"proxy_protocol"`
 	} `yaml:"features"`
-	FlushFile                                 string              `yaml:"flush_file"`
 	FlushOnShutdown                           bool                `yaml:"flush_on_shutdown"`
 	FlushWatchdogMissedFlushes                int                 `yaml:"flush_watchdog_missed_flushes"`
 	ForwardAddress                            string              `yaml:"forward_address"`

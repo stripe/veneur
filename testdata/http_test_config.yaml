@@ -19,7 +19,6 @@ features:
   migrate_metric_sinks: false
   migrate_span_sinks: false
   proxy_protocol: ""
-flush_file: ""
 flush_on_shutdown: false
 flush_watchdog_missed_flushes: 0
 forward_address: ""

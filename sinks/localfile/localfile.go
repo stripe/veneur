@@ -50,22 +50,6 @@ func (osFS) OpenFile(
 	return os.OpenFile(name, flag, perm)
 }
 
-// TODO(arnavdugar): Remove this once the old configuration format has been
-// removed.
-func MigrateConfig(config *veneur.Config) {
-	if config.FlushFile == "" {
-		return
-	}
-	config.MetricSinks = append(config.MetricSinks, veneur.SinkConfig{
-		Kind: "localfile",
-		Name: "localfile",
-		Config: LocalFileSinkConfig{
-			Delimiter: '\t',
-			FlushFile: config.FlushFile,
-		},
-	})
-}
-
 // ParseConfig decodes the map config for an local file sink into a
 // LocalFileSinkConfig struct.
 func ParseConfig(

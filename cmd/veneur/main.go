@@ -87,7 +87,6 @@ func main() {
 	}
 	if !conf.Features.MigrateMetricSinks {
 		debug.MigrateConfig(&conf)
-		localfile.MigrateConfig(&conf)
 		lightstep.MigrateConfig(&conf)
 		newrelic.MigrateConfig(&conf)
 		s3.MigrateConfig(&conf)

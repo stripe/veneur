@@ -22,7 +22,6 @@
     "MigrateSpanSinks": false,
     "ProxyProtocol": ""
   },
-  "FlushFile": "",
   "FlushOnShutdown": false,
   "FlushWatchdogMissedFlushes": 0,
   "ForwardAddress": "",

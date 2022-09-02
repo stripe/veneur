@@ -92,7 +92,6 @@ func generateConfig(forwardAddr string) Config {
 		GrpcAddress:    "localhost:0",
 		ForwardAddress: forwardAddr,
 		NumWorkers:     4,
-		FlushFile:      "",
 
 		// Use only one reader, so that we can run tests
 		// on platforms which do not support SO_REUSEPORT
