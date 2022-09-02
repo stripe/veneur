@@ -63,8 +63,6 @@ type Config struct {
 	ObjectiveSpanTimerName                    string              `yaml:"objective_span_timer_name"`
 	OmitEmptyHostname                         bool                `yaml:"omit_empty_hostname"`
 	Percentiles                               []float64           `yaml:"percentiles"`
-	PrometheusNetworkType                     string              `yaml:"prometheus_network_type"`
-	PrometheusRepeaterAddress                 string              `yaml:"prometheus_repeater_address"`
 	ReadBufferSizeBytes                       int                 `yaml:"read_buffer_size_bytes"`
 	SentryDsn                                 util.StringSecret   `yaml:"sentry_dsn"`
 	SignalfxAPIKey                            util.StringSecret   `yaml:"signalfx_api_key"`

@@ -64,8 +64,6 @@
     0.75,
     0.99
   ],
-  "PrometheusNetworkType": "",
-  "PrometheusRepeaterAddress": "",
   "ReadBufferSizeBytes": 2097152,
   "SentryDsn": "REDACTED",
   "SignalfxAPIKey": "",

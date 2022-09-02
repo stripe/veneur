@@ -59,8 +59,6 @@ percentiles:
 - 0.5
 - 0.75
 - 0.99
-prometheus_network_type: ""
-prometheus_repeater_address: ""
 read_buffer_size_bytes: 2097152
 sentry_dsn: REDACTED
 signalfx_api_key: ""

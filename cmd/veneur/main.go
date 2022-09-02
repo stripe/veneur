@@ -87,7 +87,6 @@ func main() {
 	}
 	if !conf.Features.MigrateMetricSinks {
 		debug.MigrateConfig(&conf)
-		prometheus.MigrateConfig(&conf)
 		err = signalfx.MigrateConfig(&conf)
 		if err != nil {
 			logger.WithError(err).Fatal("error migrating signalfx config")
