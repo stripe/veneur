@@ -99,7 +99,7 @@ func (s *Server) Flush(ctx context.Context) {
 		s.reportGlobalReceivedProtocolMetrics()
 	}
 
-	// If there's nothing to flush, don't bother calling the plugins and stuff.
+	// Return early if there's nothing to flush.
 	if len(finalMetrics) == 0 {
 		return
 	}
@@ -125,59 +125,99 @@ func (s *Server) Flush(ctx context.Context) {
 	for _, sink := range s.metricSinks {
 		wg.Add(1)
 		go func(sink internalMetricSink) {
-			filteredMetrics := finalMetrics
-			if s.Config.Features.EnableMetricSinkRouting {
-				sinkName := sink.sink.Name()
-				filteredMetrics = []samplers.InterMetric{}
-				for _, metric := range finalMetrics {
-					_, ok := metric.Sinks[sinkName]
-					if !ok {
-						continue
-					}
-					filteredTags := []string{}
-					if len(sink.stripTags) == 0 {
-						filteredTags = metric.Tags
-					} else {
-					tagLoop:
-						for _, tag := range metric.Tags {
-							for _, tagMatcher := range sink.stripTags {
-								if tagMatcher.Match(tag) {
-									continue tagLoop
-								}
-							}
-							filteredTags = append(filteredTags, tag)
-						}
-					}
-					metric.Tags = filteredTags
-					filteredMetrics = append(filteredMetrics, metric)
-				}
-			}
-			flushStart := time.Now()
-			flushResult, err := sink.sink.Flush(span.Attach(ctx), filteredMetrics)
-			flushCompleteMessageFields := logrus.Fields{
-				"sink_name":  sink.sink.Name(),
-				"sink_kind":  sink.sink.Kind(),
-				"flushed":    flushResult.MetricsFlushed,
-				"skipped":    flushResult.MetricsSkipped,
-				"dropped":    flushResult.MetricsDropped,
-				"duration_s": fmt.Sprintf("%.2f", time.Since(flushStart).Seconds()),
-			}
-			if err == nil {
-				s.logger.WithFields(flushCompleteMessageFields).WithField("success", true).Info(sinks.FlushCompleteMessage)
-			} else {
-				s.logger.WithFields(flushCompleteMessageFields).WithField("success", false).WithError(err).Warn(sinks.FlushCompleteMessage)
-			}
-			span.Add(ssf.Timing(
-				sinks.MetricKeyMetricFlushDuration,
-				time.Since(flushStart),
-				time.Millisecond,
-				map[string]string{
-					"sink_name": sink.sink.Name(),
-					"sink_kind": sink.sink.Kind(),
-				}))
+			s.flushSink(ctx, sink, finalMetrics)
 			wg.Done()
 		}(sink)
 	}
+}
+
+func (s *Server) flushSink(
+	ctx context.Context, sink internalMetricSink, metrics []samplers.InterMetric,
+) {
+	flushStart := time.Now()
+
+	skippedCount := int64(0)
+	maxNameLengthCount := int64(0)
+	maxTagsCount := int64(0)
+	maxTagLengthCount := int64(0)
+	flushedCount := int64(0)
+
+	filteredMetrics := metrics
+	if s.Config.Features.EnableMetricSinkRouting {
+		sinkName := sink.sink.Name()
+		filteredMetrics = []samplers.InterMetric{}
+	metricLoop:
+		for _, metric := range metrics {
+			_, ok := metric.Sinks[sinkName]
+			if !ok {
+				skippedCount += 1
+				continue metricLoop
+			}
+			if sink.maxNameLength != 0 && len(metric.Name) > sink.maxNameLength {
+				maxNameLengthCount += 1
+				continue metricLoop
+			}
+			filteredTags := []string{}
+			if len(sink.stripTags) == 0 && sink.maxTagLength == 0 {
+				filteredTags = metric.Tags
+			} else {
+			tagLoop:
+				for _, tag := range metric.Tags {
+					for _, tagMatcher := range sink.stripTags {
+						if tagMatcher.Match(tag) {
+							continue tagLoop
+						}
+					}
+					if sink.maxTagLength != 0 && len(tag) > sink.maxTagLength {
+						maxTagLengthCount += 1
+						continue metricLoop
+					}
+					filteredTags = append(filteredTags, tag)
+				}
+			}
+			if sink.maxTags != 0 && len(filteredTags) > sink.maxTags {
+				maxTagsCount += 1
+				continue metricLoop
+			}
+			metric.Tags = filteredTags
+			flushedCount += 1
+			filteredMetrics = append(filteredMetrics, metric)
+		}
+	}
+	sinkNameTag := "sink_name:" + sink.sink.Name()
+	sinkKindTag := "sink_kind:" + sink.sink.Kind()
+	s.Statsd.Count("flushed_metrics", skippedCount, []string{
+		sinkNameTag, sinkKindTag, "status:skipped", "veneurglobalonly:true",
+	}, 1)
+	s.Statsd.Count("flushed_metrics", maxNameLengthCount, []string{
+		sinkNameTag, sinkKindTag, "status:max_name_length", "veneurglobalonly:true",
+	}, 1)
+	s.Statsd.Count("flushed_metrics", maxTagsCount, []string{
+		sinkNameTag, sinkKindTag, "status:max_tags", "veneurglobalonly:true",
+	}, 1)
+	s.Statsd.Count("flushed_metrics", maxTagLengthCount, []string{
+		sinkNameTag, sinkKindTag, "status:max_tag_length", "veneurglobalonly:true",
+	}, 1)
+	s.Statsd.Count("flushed_metrics", flushedCount, []string{
+		sinkNameTag, sinkKindTag, "status:flushed", "veneurglobalonly:true",
+	}, 1)
+	flushResult, err := sink.sink.Flush(ctx, filteredMetrics)
+	flushCompleteMessageFields := logrus.Fields{
+		"sink_name":  sink.sink.Name(),
+		"sink_kind":  sink.sink.Kind(),
+		"flushed":    flushResult.MetricsFlushed,
+		"skipped":    flushResult.MetricsSkipped,
+		"dropped":    flushResult.MetricsDropped,
+		"duration_s": fmt.Sprintf("%.2f", time.Since(flushStart).Seconds()),
+	}
+	if err == nil {
+		s.logger.WithFields(flushCompleteMessageFields).WithField("success", true).Info(sinks.FlushCompleteMessage)
+	} else {
+		s.logger.WithFields(flushCompleteMessageFields).WithField("success", false).WithError(err).Warn(sinks.FlushCompleteMessage)
+	}
+	s.Statsd.Timing(
+		sinks.MetricKeyMetricFlushDuration, time.Since(flushStart),
+		[]string{sinkNameTag, sinkKindTag}, 1.0)
 }
 
 func (s *Server) tallyTimeseries() int64 {

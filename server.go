@@ -121,7 +121,7 @@ type Server struct {
 	SpanWorkerGoroutines  int
 	CountUniqueTimeseries bool
 
-	Statsd *scopedstatsd.ScopedClient
+	Statsd scopedstatsd.Client
 
 	Hostname  string
 	Tags      []string
@@ -190,8 +190,11 @@ type internalSource struct {
 }
 
 type internalMetricSink struct {
-	sink      sinks.MetricSink
-	stripTags []matcher.TagMatcher
+	sink          sinks.MetricSink
+	maxNameLength int
+	maxTagLength  int
+	maxTags       int
+	stripTags     []matcher.TagMatcher
 }
 
 type GlobalListeningPerProtocolMetrics struct {
@@ -445,8 +448,11 @@ func (server *Server) createMetricSinks(
 			return nil, err
 		}
 		sinks = append(sinks, internalMetricSink{
-			sink:      sink,
-			stripTags: sinkConfig.StripTags,
+			sink:          sink,
+			maxNameLength: sinkConfig.MaxNameLength,
+			maxTagLength:  sinkConfig.MaxTagLength,
+			maxTags:       sinkConfig.MaxTags,
+			stripTags:     sinkConfig.StripTags,
 		})
 	}
 	return sinks, nil

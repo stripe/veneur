@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -58,6 +59,7 @@ func TestConnectUNIX(t *testing.T) {
 	srv := &Server{
 		shutdown: make(chan struct{}),
 		logger:   logrus.NewEntry(logrus.New()),
+		Statsd:   &statsd.NoOpClient{},
 	}
 	source := SsfMetricsSource{
 		logger: srv.logger,
