@@ -15,21 +15,6 @@ import (
 	"github.com/stripe/veneur/v14/trace"
 )
 
-func MigrateConfig(conf *veneur.Config) {
-	if conf.DebugFlushedMetrics {
-		conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
-			Kind: "debug",
-			Name: "debug",
-		})
-	}
-	if conf.DebugIngestedSpans {
-		conf.SpanSinks = append(conf.SpanSinks, veneur.SinkConfig{
-			Kind: "debug",
-			Name: "debug",
-		})
-	}
-}
-
 type debugMetricSink struct {
 	log  *logrus.Entry
 	mtx  *sync.Mutex
