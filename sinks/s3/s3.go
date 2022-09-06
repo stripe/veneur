@@ -39,24 +39,6 @@ type S3Sink struct {
 	Svc      s3iface.S3API
 }
 
-// TODO(arnavdugar): Remove this once the old configuration format has been
-// removed.
-func MigrateConfig(config *veneur.Config) {
-	if config.AwsS3Bucket == "" {
-		return
-	}
-	config.MetricSinks = append(config.MetricSinks, veneur.SinkConfig{
-		Kind: "s3",
-		Name: "s3",
-		Config: S3SinkConfig{
-			AccessKeyID:     config.AwsAccessKeyID,
-			S3Bucket:        config.AwsS3Bucket,
-			Region:          config.AwsRegion,
-			SecretAccessKey: config.AwsSecretAccessKey,
-		},
-	})
-}
-
 // ParseConfig decodes the map config for an S3 sink into an S3SinkConfig
 // struct.
 func ParseConfig(

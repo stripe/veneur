@@ -163,18 +163,3 @@ func metricTypeEnc(metric samplers.InterMetric) string {
 	}
 	return ""
 }
-
-func MigrateConfig(conf *veneur.Config) {
-	if conf.PrometheusRepeaterAddress == "" {
-		return
-	}
-
-	conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
-		Kind: "prometheus",
-		Name: "prometheus",
-		Config: PrometheusMetricSinkConfig{
-			RepeaterAddress: conf.PrometheusRepeaterAddress,
-			NetworkType:     conf.PrometheusNetworkType,
-		},
-	})
-}

@@ -86,53 +86,6 @@ type KafkaSpanSink struct {
 	traceClient     *trace.Client
 }
 
-func MigrateConfig(conf *veneur.Config) error {
-	if conf.KafkaBroker == "" {
-		return nil
-	}
-	if conf.KafkaMetricTopic != "" ||
-		conf.KafkaCheckTopic != "" ||
-		conf.KafkaEventTopic != "" {
-		conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
-			Kind: "kafka",
-			Name: "kafka",
-			Config: KafkaMetricSinkConfig{
-				Broker:                conf.KafkaBroker,
-				CheckTopic:            conf.KafkaCheckTopic,
-				EventTopic:            conf.KafkaEventTopic,
-				MetricBufferBytes:     conf.KafkaMetricBufferBytes,
-				MetricBufferFrequency: conf.KafkaMetricBufferFrequency,
-				MetricBufferMessages:  conf.KafkaMetricBufferMessages,
-				MetricRequireAcks:     conf.KafkaMetricRequireAcks,
-				MetricTopic:           conf.KafkaMetricTopic,
-				Partitioner:           conf.KafkaPartitioner,
-				RetryMax:              conf.KafkaRetryMax,
-			},
-		})
-	}
-
-	if conf.KafkaSpanTopic != "" {
-		conf.SpanSinks = append(conf.SpanSinks, veneur.SinkConfig{
-			Kind: "kafka",
-			Name: "kafka",
-			Config: KafkaSpanSinkConfig{
-				Broker:                  conf.KafkaBroker,
-				Partitioner:             conf.KafkaPartitioner,
-				RetryMax:                conf.KafkaRetryMax,
-				SpanBufferBytes:         conf.KafkaSpanBufferBytes,
-				SpanBufferFrequency:     conf.KafkaSpanBufferFrequency,
-				SpanBufferMesages:       conf.KafkaSpanBufferMesages,
-				SpanRequireAcks:         conf.KafkaSpanRequireAcks,
-				SpanSampleRatePercent:   conf.KafkaSpanSampleRatePercent,
-				SpanSampleTag:           conf.KafkaSpanSampleTag,
-				SpanSerializationFormat: conf.KafkaSpanSerializationFormat,
-				SpanTopic:               conf.KafkaSpanTopic,
-			},
-		})
-	}
-	return nil
-}
-
 // ParseMetricConfig decodes the map config for a Kafka metric sink into a
 // KafkaMetricSinkConfig struct.
 func ParseMetricConfig(

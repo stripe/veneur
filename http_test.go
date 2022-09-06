@@ -38,9 +38,6 @@ func TestOkTraceHealthCheck(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/healthcheck/tracing", nil)
 
 	config := localConfig()
-	// We must enable tracing, as it's disabled by default, by turning on one
-	// of the tracing sinks.
-	config.LightstepAccessToken = util.StringSecret{Value: "farts"}
 	s := setupVeneurServer(t, config, nil, nil, nil, nil)
 	defer s.Shutdown()
 

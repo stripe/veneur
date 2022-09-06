@@ -90,23 +90,6 @@ type XRaySpanSink struct {
 
 var _ sinks.SpanSink = &XRaySpanSink{}
 
-// TODO(yeogai): Remove this once the old configuration format has been
-// removed.
-func MigrateConfig(conf *veneur.Config) {
-	if conf.XrayAddress == "" {
-		return
-	}
-	conf.SpanSinks = append(conf.SpanSinks, veneur.SinkConfig{
-		Kind: "xray",
-		Name: "xray",
-		Config: XRaySinkConfig{
-			Address:          conf.XrayAddress,
-			AnnotationTags:   conf.XrayAnnotationTags,
-			SamplePercentage: conf.XraySamplePercentage,
-		},
-	})
-}
-
 // ParseConfig decodes the map config for an X-Ray sink into a XRaySinkConfig
 // struct.
 func ParseConfig(

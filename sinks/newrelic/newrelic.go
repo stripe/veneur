@@ -8,7 +8,6 @@ import (
 	"github.com/newrelic/newrelic-client-go/pkg/region"
 	"github.com/newrelic/newrelic-telemetry-sdk-go/telemetry"
 	"github.com/sirupsen/logrus"
-	veneur "github.com/stripe/veneur/v14"
 )
 
 const (
@@ -16,36 +15,6 @@ const (
 	DefaultEventType             = "veneur"
 	DefaultServiceCheckEventType = "veneurCheck"
 )
-
-// TODO(arnavdugar): Remove this once the old configuration format has been
-// removed.
-func MigrateConfig(conf *veneur.Config) {
-	if conf.NewrelicInsertKey.Value != "" && conf.NewrelicAccountID > 0 {
-		conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
-			Kind: "newrelic",
-			Name: "newrelic",
-			Config: NewRelicMetricSinkConfig{
-				AccountID:             conf.NewrelicAccountID,
-				CommonTags:            conf.NewrelicCommonTags,
-				EventType:             conf.NewrelicEventType,
-				InsertKey:             conf.NewrelicInsertKey,
-				Region:                conf.NewrelicRegion,
-				ServiceCheckEventType: conf.NewrelicServiceCheckEventType,
-			},
-		})
-	}
-	if conf.NewrelicInsertKey.Value != "" {
-		conf.SpanSinks = append(conf.SpanSinks, veneur.SinkConfig{
-			Kind: "newrelic",
-			Name: "newrelic",
-			Config: NewRelicSpanSinkConfig{
-				CommonTags:       conf.NewrelicCommonTags,
-				InsertKey:        conf.NewrelicInsertKey,
-				TraceObserverURL: conf.NewrelicTraceObserverURL,
-			},
-		})
-	}
-}
 
 // newHarvester creates a New Relic telemetry harvester for sending
 // Metric and/or Span data

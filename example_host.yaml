@@ -1,9 +1,6 @@
 ---
-datadog_api_hostname: https://app.datadoghq.com
-datadog_api_key: "farts"
 metric_max_length: 4096
 trace_max_length_bytes: 16384
-flush_max_per_body: 25000
 debug: true
 enable_profiling: true
 interval: "10s"
@@ -45,9 +42,3 @@ sentry_dsn: ""
 hostname: foobar
 # If true and hostname is "" or absent, don't add the host tag
 omit_empty_hostname: false
-
-# Include these if you want to archive data to S3
-aws_access_key_id: ""
-aws_secret_access_key: ""
-aws_region: ""
-aws_s3_bucket: ""

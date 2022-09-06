@@ -86,27 +86,7 @@ func main() {
 		os.Exit(0)
 	}
 	if !conf.Features.MigrateMetricSinks {
-		datadog.MigrateConfig(&conf)
 		debug.MigrateConfig(&conf)
-		falconer.MigrateConfig(&conf)
-		localfile.MigrateConfig(&conf)
-		lightstep.MigrateConfig(&conf)
-		newrelic.MigrateConfig(&conf)
-		s3.MigrateConfig(&conf)
-		prometheus.MigrateConfig(&conf)
-		err = signalfx.MigrateConfig(&conf)
-		if err != nil {
-			logger.WithError(err).Fatal("error migrating signalfx config")
-		}
-		err = kafka.MigrateConfig(&conf)
-		if err != nil {
-			logger.WithError(err).Fatal("error migrating kafka config")
-		}
-		err = splunk.MigrateConfig(&conf)
-		if err != nil {
-			logger.WithError(err).Fatal("error migrating splunk config")
-		}
-		xray.MigrateConfig(&conf)
 	}
 
 	server, err := veneur.NewFromConfig(veneur.ServerConfig{

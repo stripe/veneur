@@ -105,36 +105,6 @@ func CreateMetricSink(
 	}, nil
 }
 
-// TODO(arnavdugar): Remove this once the old configuration format has been
-// removed.
-func MigrateConfig(conf *veneur.Config) {
-	if conf.DatadogAPIKey.Value != "" && conf.DatadogAPIHostname != "" {
-		conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
-			Kind: "datadog",
-			Name: "datadog",
-			Config: DatadogMetricSinkConfig{
-				APIKey:                          conf.DatadogAPIKey.Value,
-				APIHostname:                     conf.DatadogAPIHostname,
-				FlushMaxPerBody:                 conf.DatadogFlushMaxPerBody,
-				MetricNamePrefixDrops:           conf.DatadogMetricNamePrefixDrops,
-				ExcludeTagsPrefixByPrefixMetric: conf.DatadogExcludeTagsPrefixByPrefixMetric,
-			},
-		})
-	}
-
-	// configure Datadog as a Span sink
-	if conf.DatadogAPIKey.Value != "" && conf.DatadogTraceAPIAddress != "" {
-		conf.SpanSinks = append(conf.SpanSinks, veneur.SinkConfig{
-			Kind: "datadog",
-			Name: "datadog",
-			Config: DatadogSpanSinkConfig{
-				SpanBufferSize:  conf.DatadogSpanBufferSize,
-				TraceAPIAddress: conf.DatadogTraceAPIAddress,
-			},
-		})
-	}
-}
-
 // DDEvent represents the structure of datadog's undocumented /intake endpoint
 type DDEvent struct {
 	Title       string   `json:"msg_title"`

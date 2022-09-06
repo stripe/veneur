@@ -17,7 +17,6 @@ import (
 	"github.com/stripe/veneur/v14/protocol/dogstatsd"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/ssf"
-	"gopkg.in/yaml.v2"
 )
 
 // DDMetricsRequest represents the body of the POST request
@@ -492,26 +491,6 @@ func TestParseMetricConfig(t *testing.T) {
 	assert.Equal(t, datadogConfig.APIHostname, testConfigValues["api_hostname"])
 	assert.Equal(t, datadogConfig.FlushMaxPerBody, testConfigValues["flush_max_per_body"])
 	assert.Equal(t, datadogConfig.MetricNamePrefixDrops, testConfigValues["metric_name_prefix_drops"])
-}
-
-func TestMigrateMetricConfig(t *testing.T) {
-	testConfigValues := map[string]interface{}{
-		"datadog_api_key":                  "KEY",
-		"datadog_api_hostname":             "HOSTNAME",
-		"datadog_flush_max_per_body":       9001,
-		"datadog_metric_name_prefix_drops": []string{"prefix1", "prefix2"},
-	}
-	bts, _ := yaml.Marshal(testConfigValues)
-	config := veneur.Config{}
-	_ = yaml.Unmarshal(bts, &config)
-
-	MigrateConfig(&config)
-	assert.NotEmpty(t, config.MetricSinks)
-	datadogConfig := config.MetricSinks[0].Config.(DatadogMetricSinkConfig)
-	assert.Equal(t, datadogConfig.APIKey, testConfigValues["datadog_api_key"])
-	assert.Equal(t, datadogConfig.APIHostname, testConfigValues["datadog_api_hostname"])
-	assert.Equal(t, datadogConfig.FlushMaxPerBody, testConfigValues["datadog_flush_max_per_body"])
-	assert.Equal(t, datadogConfig.MetricNamePrefixDrops, testConfigValues["datadog_metric_name_prefix_drops"])
 }
 
 func TestParseSpanConfig(t *testing.T) {
