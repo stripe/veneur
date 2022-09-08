@@ -7,15 +7,11 @@
   "BlockProfileRate": 0,
   "CountUniqueTimeseries": false,
   "Debug": false,
-  "DebugFlushedMetrics": false,
-  "DebugIngestedSpans": false,
   "EnableProfiling": false,
   "ExtendTags": null,
   "Features": {
     "DiagnosticsMetricsEnabled": false,
     "EnableMetricSinkRouting": false,
-    "MigrateMetricSinks": false,
-    "MigrateSpanSinks": false,
     "ProxyProtocol": ""
   },
   "FlushOnShutdown": false,

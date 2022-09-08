@@ -570,18 +570,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	ret.EventWorker = NewEventWorker(ret.TraceClient, ret.Statsd)
 
-	// Set up a span sink that extracts metrics from SSF spans and
-	// reports them via the metric workers:
-	processors := make([]ssfmetrics.Processor, len(ret.Workers))
-	for i, w := range ret.Workers {
-		processors[i] = w
-	}
-	metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, logger, &ret.parser)
-	if err != nil {
-		return ret, err
-	}
-	ret.spanSinks = append(ret.spanSinks, metricSink)
-
 	for _, addrStr := range conf.StatsdListenAddresses {
 		addr, err := protocol.ResolveAddr(addrStr.Value)
 		if err != nil {
@@ -654,26 +642,30 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		}
 	}
 
-	customMetricSinks, err :=
+	ret.metricSinks, err =
 		ret.createMetricSinks(logger, &conf, config.MetricSinkTypes)
 	if err != nil {
 		return nil, err
 	}
-	if conf.Features.MigrateMetricSinks {
-		ret.metricSinks = customMetricSinks
-	} else {
-		ret.metricSinks = append(ret.metricSinks, customMetricSinks...)
-	}
-	customSpanSinks, err :=
+	ret.spanSinks, err =
 		ret.createSpanSinks(logger, &conf, config.SpanSinkTypes)
 	if err != nil {
 		return nil, err
 	}
-	if conf.Features.MigrateSpanSinks {
-		ret.spanSinks = customSpanSinks
-	} else {
-		ret.spanSinks = append(ret.spanSinks, customSpanSinks...)
+
+	// Set up a span sink that extracts metrics from SSF spans and
+	// reports them via the metric workers:
+	processors := make([]ssfmetrics.Processor, len(ret.Workers))
+	for i, w := range ret.Workers {
+		processors[i] = w
 	}
+	metricSink, err := ssfmetrics.NewMetricExtractionSink(
+		processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName,
+		ret.TraceClient, logger, &ret.parser)
+	if err != nil {
+		return ret, err
+	}
+	ret.spanSinks = append(ret.spanSinks, metricSink)
 
 	// After all sinks are initialized, set the list of tags to exclude
 	ret.setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)

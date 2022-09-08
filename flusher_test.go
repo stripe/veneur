@@ -107,7 +107,6 @@ func TestServerFlushGRPC(t *testing.T) {
 	defer testServer.Stop()
 
 	localCfg := localConfig()
-	localCfg.DebugFlushedMetrics = true
 	localCfg.ForwardAddress = testServer.Addr().String()
 	localCfg.ForwardUseGrpc = true
 	local := setupVeneurServer(t, localCfg, nil, nil, nil, nil)
@@ -168,7 +167,6 @@ func TestServerFlushGRPCTimeout(t *testing.T) {
 
 	localCfg := localConfig()
 	localCfg.Interval = time.Duration(20 * time.Microsecond)
-	localCfg.DebugFlushedMetrics = true
 	localCfg.ForwardAddress = testServer.Addr().String()
 	localCfg.ForwardUseGrpc = true
 	local := setupVeneurServer(t, localCfg, nil, nil, nil, cl)

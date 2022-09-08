@@ -12,15 +12,11 @@ type Config struct {
 	BlockProfileRate      int      `yaml:"block_profile_rate"`
 	CountUniqueTimeseries bool     `yaml:"count_unique_timeseries"`
 	Debug                 bool     `yaml:"debug"`
-	DebugFlushedMetrics   bool     `yaml:"debug_flushed_metrics"`
-	DebugIngestedSpans    bool     `yaml:"debug_ingested_spans"`
 	EnableProfiling       bool     `yaml:"enable_profiling"`
 	ExtendTags            []string `yaml:"extend_tags"`
 	Features              struct {
 		DiagnosticsMetricsEnabled bool   `yaml:"diagnostics_metrics_enabled"`
 		EnableMetricSinkRouting   bool   `yaml:"enable_metric_sink_routing"`
-		MigrateMetricSinks        bool   `yaml:"migrate_metric_sinks"`
-		MigrateSpanSinks          bool   `yaml:"migrate_span_sinks"`
 		ProxyProtocol             string `yaml:"proxy_protocol"`
 	} `yaml:"features"`
 	FlushOnShutdown             bool                `yaml:"flush_on_shutdown"`

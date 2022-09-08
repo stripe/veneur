@@ -85,9 +85,6 @@ func main() {
 	if *validateConfig {
 		os.Exit(0)
 	}
-	if !conf.Features.MigrateMetricSinks {
-		debug.MigrateConfig(&conf)
-	}
 
 	server, err := veneur.NewFromConfig(veneur.ServerConfig{
 		Config: conf,
