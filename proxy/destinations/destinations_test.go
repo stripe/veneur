@@ -2,6 +2,7 @@ package destinations_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -65,6 +66,24 @@ func TestAddSingle(t *testing.T) {
 	actualDestination, err := fixture.destinations.Get("key")
 	assert.NoError(t, err)
 	assert.Equal(t, destination, actualDestination)
+}
+
+func TestAddSingleWithFailure(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	fixture := CreateTestDestinations(ctrl, 30*time.Second)
+	fixture.connect.EXPECT().Connect(
+		gomock.Any(), "address", fixture.destinations).
+		Return(nil, errors.New("connection failure"))
+
+	fixture.destinations.Add(context.Background(), []string{"address"})
+
+	assert.Equal(t, 0, fixture.destinations.Size())
+	assert.Eventually(t, func() bool {
+		fixture.destinations.Wait()
+		return true
+	}, 2*time.Millisecond, time.Millisecond)
 }
 
 func TestAddMultiple(t *testing.T) {
