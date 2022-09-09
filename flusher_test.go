@@ -3,11 +3,14 @@ package veneur
 import (
 	"context"
 	"net/url"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/scopedstatsd"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
@@ -340,39 +343,51 @@ func TestTallyTimeseries(t *testing.T) {
 	assert.Equal(t, int64(2), summary)
 }
 
-func TestStripTags(t *testing.T) {
-	config := localConfig()
-	config.Features.EnableMetricSinkRouting = true
-	config.MetricSinks = []SinkConfig{{
-		Kind: "channel",
-		Name: "channel",
-		StripTags: []matcher.TagMatcher{
-			matcher.CreateTagMatcher(&matcher.TagMatcherConfig{
-				Kind:  "prefix",
-				Value: "foo",
-			})},
-	}}
-	config.MetricSinkRouting = []SinkRoutingConfig{{
-		Name: "default",
-		Match: []matcher.Matcher{{
-			Name: matcher.CreateNameMatcher(&matcher.NameMatcherConfig{
-				Kind: "any",
-			}),
-			Tags: []matcher.TagMatcher{},
-		}},
-		Sinks: SinkRoutingSinks{
-			Matched: []string{"channel"},
-		},
-	}}
+func TestFlush(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
 	channel := make(chan []samplers.InterMetric)
+	mockStatsd := scopedstatsd.NewMockClient(ctrl)
 	server, err := NewFromConfig(ServerConfig{
 		Logger: logrus.New(),
-		Config: config,
+		Config: Config{
+			Debug: true,
+			Features: Features{
+				EnableMetricSinkRouting: true,
+			},
+			Hostname: "localhost",
+			Interval: DefaultFlushInterval,
+			MetricSinkRouting: []SinkRoutingConfig{{
+				Name: "default",
+				Match: []matcher.Matcher{{
+					Name: matcher.CreateNameMatcher(&matcher.NameMatcherConfig{
+						Kind: "any",
+					}),
+					Tags: []matcher.TagMatcher{},
+				}},
+				Sinks: SinkRoutingSinks{
+					Matched: []string{"channel"},
+				},
+			}},
+			MetricSinks: []SinkConfig{{
+				Kind:          "channel",
+				Name:          "channel",
+				MaxNameLength: 11,
+				MaxTagLength:  11,
+				MaxTags:       2,
+				StripTags: []matcher.TagMatcher{
+					matcher.CreateTagMatcher(&matcher.TagMatcherConfig{
+						Kind:  "prefix",
+						Value: "foo",
+					})},
+			}},
+			StatsAddress: "localhost:8125",
+		},
 		MetricSinkTypes: MetricSinkTypes{
 			"channel": {
 				Create: func(
-					server *Server, s2 string, logger *logrus.Entry, config Config,
+					server *Server, name string, logger *logrus.Entry, config Config,
 					sinkConfig MetricSinkConfig,
 				) (sinks.MetricSink, error) {
 					sink, err := NewChannelMetricSink(channel)
@@ -381,32 +396,349 @@ func TestStripTags(t *testing.T) {
 					}
 					return sink, nil
 				},
-				ParseConfig: func(s string, i interface{}) (MetricSinkConfig, error) {
+				ParseConfig: func(
+					name string, config interface{},
+				) (MetricSinkConfig, error) {
 					return nil, nil
 				},
 			},
 		},
 	})
 	assert.NoError(t, err)
-	go server.Start()
-	defer server.Shutdown()
+	server.Statsd = mockStatsd
 
-	server.Workers[0].PacketChan <- samplers.UDPMetric{
-		MetricKey: samplers.MetricKey{
-			Name:       "test.metric",
-			Type:       "counter",
-			JoinedTags: "foo:value1,bar:value2",
-		},
-		Digest:     0,
-		Scope:      samplers.LocalOnly,
-		Tags:       []string{"foo:value1", "bar:value2"},
-		Value:      1.0,
-		SampleRate: 1.0,
-	}
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		server.Start()
+		wg.Done()
+	}()
+	defer func() {
+		server.Shutdown()
+		wg.Wait()
+	}()
 
-	result := <-channel
-	assert.Len(t, result, 1)
-	assert.Equal(t, "test.metric", result[0].Name)
-	assert.Len(t, result[0].Tags, 1)
-	assert.Equal(t, "bar:value2", result[0].Tags[0])
+	mockStatsd.EXPECT().
+		Count(
+			gomock.Not("flushed_metrics"), gomock.All(), gomock.All(), gomock.All()).
+		AnyTimes()
+	mockStatsd.EXPECT().
+		Gauge(
+			gomock.Not("flushed_metrics"), gomock.All(), gomock.All(), gomock.All()).
+		AnyTimes()
+	mockStatsd.EXPECT().
+		Timing(
+			gomock.Not("flushed_metrics"), gomock.All(), gomock.All(), gomock.All()).
+		AnyTimes()
+
+	t.Run("WithStripTags", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:skipped",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_name_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tag_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:flushed",
+			"veneurglobalonly:true",
+		}, 1.0)
+
+		server.Workers[0].PacketChan <- samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name:       "test.metric",
+				Type:       "counter",
+				JoinedTags: "foo:value1,bar:value2",
+			},
+			Digest:     0,
+			Scope:      samplers.LocalOnly,
+			Tags:       []string{"foo:value1", "bar:value2"},
+			Value:      1.0,
+			SampleRate: 1.0,
+		}
+
+		result := <-channel
+		if assert.Len(t, result, 1) {
+			assert.Equal(t, "test.metric", result[0].Name)
+			if assert.Len(t, result[0].Tags, 1) {
+				assert.Equal(t, "bar:value2", result[0].Tags[0])
+			}
+		}
+	})
+
+	t.Run("WithMaxNameLength", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:skipped",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_name_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tag_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:flushed",
+			"veneurglobalonly:true",
+		}, 1.0)
+
+		server.Workers[0].PacketChan <- samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name:       "test.longmetric",
+				Type:       "counter",
+				JoinedTags: "key1:value1,key2:value2",
+			},
+			Digest:     0,
+			Scope:      samplers.LocalOnly,
+			Tags:       []string{"key1:value1", "key2:value2"},
+			Value:      1.0,
+			SampleRate: 1.0,
+		}
+
+		result := <-channel
+		assert.Len(t, result, 0)
+	})
+
+	t.Run("WithMaxTags", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:skipped",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_name_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tag_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:flushed",
+			"veneurglobalonly:true",
+		}, 1.0)
+
+		server.Workers[0].PacketChan <- samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name:       "test.metric",
+				Type:       "counter",
+				JoinedTags: "key1:value1,key2:value2,key3:value3",
+			},
+			Digest:     0,
+			Scope:      samplers.LocalOnly,
+			Tags:       []string{"key1:value1", "key2:value2", "key3:value3"},
+			Value:      1.0,
+			SampleRate: 1.0,
+		}
+
+		result := <-channel
+		assert.Len(t, result, 0)
+	})
+
+	t.Run("WithMaxTagsAndDroppedTag", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:skipped",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_name_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tag_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:flushed",
+			"veneurglobalonly:true",
+		}, 1.0)
+
+		server.Workers[0].PacketChan <- samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name:       "test.metric",
+				Type:       "counter",
+				JoinedTags: "key1:value1,key2:value2,key3:value3",
+			},
+			Digest:     0,
+			Scope:      samplers.LocalOnly,
+			Tags:       []string{"foo:value1", "key2:value2", "key3:value3"},
+			Value:      1.0,
+			SampleRate: 1.0,
+		}
+
+		result := <-channel
+		if assert.Len(t, result, 1) {
+			assert.Equal(t, "test.metric", result[0].Name)
+			if assert.Len(t, result[0].Tags, 2) {
+				assert.Equal(t, "key2:value2", result[0].Tags[0])
+				assert.Equal(t, "key3:value3", result[0].Tags[1])
+			}
+		}
+	})
+
+	t.Run("WithMaxTagLength", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:skipped",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_name_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tag_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:flushed",
+			"veneurglobalonly:true",
+		}, 1.0)
+
+		server.Workers[0].PacketChan <- samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name:       "test.metric",
+				Type:       "counter",
+				JoinedTags: "key1:value1,key2:value2,key3:value3",
+			},
+			Digest:     0,
+			Scope:      samplers.LocalOnly,
+			Tags:       []string{"key1:long1", "key2:longvalue2", "key3:value3"},
+			Value:      1.0,
+			SampleRate: 1.0,
+		}
+
+		result := <-channel
+		assert.Len(t, result, 0)
+	})
+
+	t.Run("WithMaxTagLengthAndDroppedTag", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:skipped",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_name_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tag_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:flushed",
+			"veneurglobalonly:true",
+		}, 1.0)
+
+		server.Workers[0].PacketChan <- samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name:       "test.metric",
+				Type:       "counter",
+				JoinedTags: "key1:value1,key2:value2,key3:value3",
+			},
+			Digest:     0,
+			Scope:      samplers.LocalOnly,
+			Tags:       []string{"foo:longvalue1", "key2:value2", "key3:value3"},
+			Value:      1.0,
+			SampleRate: 1.0,
+		}
+
+		result := <-channel
+		if assert.Len(t, result, 1) {
+			assert.Equal(t, "test.metric", result[0].Name)
+			if assert.Len(t, result[0].Tags, 2) {
+				assert.Equal(t, "key2:value2", result[0].Tags[0])
+				assert.Equal(t, "key3:value3", result[0].Tags[1])
+			}
+		}
+	})
 }
