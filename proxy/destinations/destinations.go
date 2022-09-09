@@ -71,6 +71,7 @@ func (d *destinations) Add(
 			d.connectionWaitGroup.Add(1)
 			destination, err := d.connecter.Connect(ctx, address, d)
 			if err != nil {
+				d.connectionWaitGroup.Done()
 				return
 			}
 			d.addDestination(address, destination)
