@@ -9,13 +9,13 @@ You should run these commands from the project root.
 For the Debian-based image:
 
 ```
-docker buildx build --platform=linux/amd64,linux/arm64 --no-cache -t veneur-local -f public-docker-images/Dockerfile-debian-sid --pull --push .
+docker buildx build --platform=linux/amd64,linux/arm64 --no-cache -t veneur:local -f public-docker-images/Dockerfile-debian-sid --pull --push .
 ```
 
 For the Alpine Linux-based image:
 
 ```
-docker buildx build --platform=linux/amd64,linux/arm64 --no-cache -t veneur-local -f public-docker-images/Dockerfile-alpine --pull --push .
+docker buildx build --platform=linux/amd64,linux/arm64 --no-cache -t veneur:local -f public-docker-images/Dockerfile-alpine --pull --push .
 ```
 
 For both cases you could remove ```--platform` arugment if you just plan build for the host architechture.
