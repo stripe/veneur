@@ -7,6 +7,7 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0 go build -a -ldflags "-X git
     GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0 go build -a -o /build/veneur-prometheus ./cmd/veneur-prometheus &&\
     GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0 go build -a -ldflags "-X github.com/stripe/veneur/v14/util/build.VERSION=${VERSION} -X github.com/stripe/veneur/v14/util/build.BUILD_DATE=$(date +%s)" -o /build/veneur-proxy ./cmd/veneur-proxy
 
+
 FROM alpine:3.16 AS release
 LABEL maintainer="The Stripe Observability Team <support@stripe.com>"
 RUN apk add --no-cache ca-certificates

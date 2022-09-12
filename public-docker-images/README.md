@@ -9,13 +9,13 @@ You should run these commands from the project root.
 For the Debian-based image:
 
 ```
-docker buildx build --platform=linux/amd64,linux/arm64 --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-debian-sid --output tar . | docker import -
+docker buildx build --platform=linux/amd64,linux/arm64 --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-debian-sid --output=tar . | docker import -
 ```
 
 For the Alpine Linux-based image:
 
 ```
-docker buildx build --platform=linux/amd64,linux/arm64 --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-alpine --output tar . | docker import -
+docker buildx build --platform=linux/amd64,linux/arm64 --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-alpine --output=tar . | docker import -
 ```
 
 For both cases you could remove ```--platform` arugment if you just plan build for the host architechture.
