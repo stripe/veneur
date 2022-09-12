@@ -14,7 +14,7 @@
 
 * Use `T.TempDir` to create temporary directory in tests ([#944](https://github.com/stripe/veneur/pull/944)).
 * When the request to send data from Cloudwatch & SFX sink fails, log the count of metrics that are dropped.
-* Improve multi-arch build by making use golang cross-compilation ([#999](https://github.com/stripe/veneur/pull/990))
+* Improve multi-arch build by making use golang cross-compilation ([#990](https://github.com/stripe/veneur/pull/990))
 
 ## Bugfixes
 
