@@ -3,15 +3,22 @@
 This folder holds the Docker resources for building [Veneur](https://github.com/stripe/veneur), and a sample systemd unit for running it.
 
 ## Building
+
+You should run these commands from the project root.
+
 For the Debian-based image:
+
 ```
-docker build --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-debian-sid .
+docker buildx build --platform=linux/amd64,linux/arm64 --no-cache -t veneur-local -f public-docker-images/Dockerfile-debian-sid --pull --push .
 ```
 
 For the Alpine Linux-based image:
+
 ```
-docker build --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-alpine .
+docker buildx build --platform=linux/amd64,linux/arm64 --no-cache -t veneur-local -f public-docker-images/Dockerfile-alpine --pull --push .
 ```
+
+For both cases you could remove ```--platform` arugment if you just plan build for the host architechture.
 
 ## Running
 
@@ -40,6 +47,7 @@ $ docker run --rm -it \
 ## Veneur-emit
 
 `veneur-emit` is also included in the image, and can be run explicitly like so:
+
 ```
-$ docker run --net=host -it veneur /veneur/veneur-emit -count 1 -name foo -hostport "127.0.0.1:8126"
+docker run --net=host -it veneur /veneur/veneur-emit -count 1 -name foo -hostport "127.0.0.1:8126"
 ```
