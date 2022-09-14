@@ -2,13 +2,12 @@ package veneur
 
 import (
 	"bytes"
-	"compress/zlib"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -22,12 +21,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stripe/veneur/v14/forwardrpc"
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/sinks/blackhole"
 	"github.com/stripe/veneur/v14/ssf"
@@ -36,6 +38,8 @@ import (
 	"github.com/stripe/veneur/v14/trace/metrics"
 	"github.com/stripe/veneur/v14/util"
 	"github.com/zenazn/goji/graceful"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const ε = .00002
@@ -308,6 +312,9 @@ func TestGlobalServerFlush(t *testing.T) {
 // TestLocalServerMixedMetrics ensures that stuff tagged as local only or local parts of mixed
 // scope metrics are sent directly to sinks while global metrics are forwarded.
 func TestLocalServerMixedMetrics(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	var HistogramValues = []float64{1.0, 2.0, 7.0, 8.0, 100.0}
 
 	// Number of events observed (in 50ms interval)
@@ -334,42 +341,31 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 	// This represents the global veneur instance, which receives request from
 	// the local veneur instances, aggregates the data, and sends it to the remote API
 	// (e.g. Datadog)
-	globalTD := make(chan *tdigest.MergingDigest)
-	globalVeneur := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, r.URL.Path, "/import", "Global veneur should receive request on /import path")
+	globalVeneur := grpc.NewServer()
+	server := forwardrpc.NewMockForwardServer(ctrl)
+	forwardrpc.RegisterForwardServer(globalVeneur, server)
+	listener, err := net.Listen("tcp", "0.0.0.0:0")
+	assert.NoError(t, err)
+	defer globalVeneur.GracefulStop()
+	go globalVeneur.Serve(listener)
 
-		zr, err := zlib.NewReader(r.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		type requestItem struct {
-			Name      string      `json:"name"`
-			Tags      interface{} `json:"tags"`
-			Tagstring string      `json:"tagstring"`
-			Type      string      `json:"type"`
-			Value     []byte      `json:"value"`
-		}
-
-		var metrics []requestItem
-
-		err = json.NewDecoder(zr).Decode(&metrics)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		assert.Equal(t, 1, len(metrics), "incorrect number of elements in the flushed series")
-
-		td := tdigest.NewMerging(100, false)
-		err = td.GobDecode(metrics[0].Value)
-		assert.NoError(t, err, "Should not have encountered error in decoding gob stream")
-		globalTD <- td
-		w.WriteHeader(http.StatusAccepted)
-	}))
-	defer globalVeneur.Close()
+	metricsChannel := make(chan *metricpb.Metric, 1)
+	server.EXPECT().SendMetricsV2(gomock.Any()).AnyTimes().
+		Do(func(server forwardrpc.Forward_SendMetricsV2Server) {
+			for {
+				metric, err := server.Recv()
+				if err == io.EOF {
+					break
+				}
+				assert.NoError(t, err)
+				metricsChannel <- metric
+			}
+			close(metricsChannel)
+			server.SendAndClose(&emptypb.Empty{})
+		})
 
 	config := localConfig()
-	config.ForwardAddress = globalVeneur.URL
+	config.ForwardAddress = listener.Addr().String()
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 
@@ -401,10 +397,13 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 		})
 	}
 
-	f.server.Flush(context.TODO())
+	f.server.Flush(context.Background())
+
+	metric := <-metricsChannel
+	assert.Equal(t, metricpb.Type_Histogram, metric.Type)
 
 	// the global veneur instance should get valid data
-	td := <-globalTD
+	td := tdigest.NewMergingFromData(metric.GetHistogram().TDigest)
 	assert.Equal(t, expectedMetrics["a.b.c.min"], td.Min(), "Minimum value is incorrect")
 	assert.Equal(t, expectedMetrics["a.b.c.max"], td.Max(), "Maximum value is incorrect")
 

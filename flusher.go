@@ -3,7 +3,6 @@ package veneur
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"reflect"
 	"runtime"
 	"strings"
@@ -14,7 +13,6 @@ import (
 	"github.com/axiomhq/hyperloglog"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14/forwardrpc"
-	vhttp "github.com/stripe/veneur/v14/http"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/samplers/metricpb"
 	"github.com/stripe/veneur/v14/sinks"
@@ -82,18 +80,10 @@ func (s *Server) Flush(ctx context.Context) {
 
 	if s.IsLocal() {
 		wg.Add(1)
-		switch s.proxyProtocol {
-		case ProxyProtocolGrpcStream, ProxyProtocolGrpcSingle:
-			go func() {
-				s.forwardGRPC(span.Attach(ctx), tempMetrics, s.proxyProtocol)
-				wg.Done()
-			}()
-		case ProxyProtocolRest:
-			go func() {
-				s.flushForward(span.Attach(ctx), tempMetrics)
-				wg.Done()
-			}()
-		}
+		go func() {
+			s.forward(span.Attach(ctx), tempMetrics)
+			wg.Done()
+		}()
 	} else {
 		s.reportGlobalMetricsFlushCounts(ms)
 		s.reportGlobalReceivedProtocolMetrics()
@@ -448,105 +438,6 @@ func (s *Server) reportGlobalReceivedProtocolMetrics() {
 	s.Statsd.Count(perProtocolTotalMetricName, ssfGrpcTotal, []string{"veneurglobalonly:true", "protocol:" + SSF_GRPC.String()}, 1.0)
 }
 
-func (s *Server) flushForward(ctx context.Context, wms []WorkerMetrics) {
-	span, _ := trace.StartSpanFromContext(ctx, "")
-	defer span.ClientFinish(s.TraceClient)
-	jmLength := 0
-	for _, wm := range wms {
-		jmLength += len(wm.globalCounters)
-		jmLength += len(wm.globalGauges)
-		jmLength += len(wm.histograms)
-		jmLength += len(wm.sets)
-		jmLength += len(wm.timers)
-	}
-
-	jsonMetrics := make([]samplers.JSONMetric, 0, jmLength)
-	exportStart := time.Now()
-	for _, wm := range wms {
-		for _, count := range wm.globalCounters {
-			jm, err := count.Export()
-			if err != nil {
-				s.logger.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "counter",
-					"name":          count.Name,
-				}).Error("Could not export metric")
-				continue
-			}
-			jsonMetrics = append(jsonMetrics, jm)
-		}
-		for _, gauge := range wm.globalGauges {
-			jm, err := gauge.Export()
-			if err != nil {
-				s.logger.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "gauge",
-					"name":          gauge.Name,
-				}).Error("Could not export metric")
-				continue
-			}
-			jsonMetrics = append(jsonMetrics, jm)
-		}
-		for _, histo := range wm.histograms {
-			jm, err := histo.Export()
-			if err != nil {
-				s.logger.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "histogram",
-					"name":          histo.Name,
-				}).Error("Could not export metric")
-				continue
-			}
-			jsonMetrics = append(jsonMetrics, jm)
-		}
-		for _, set := range wm.sets {
-			jm, err := set.Export()
-			if err != nil {
-				s.logger.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "set",
-					"name":          set.Name,
-				}).Error("Could not export metric")
-				continue
-			}
-			jsonMetrics = append(jsonMetrics, jm)
-		}
-		for _, timer := range wm.timers {
-			jm, err := timer.Export()
-			if err != nil {
-				s.logger.WithFields(logrus.Fields{
-					logrus.ErrorKey: err,
-					"type":          "timer",
-					"name":          timer.Name,
-				}).Error("Could not export metric")
-				continue
-			}
-			// the exporter doesn't know that these two are "different"
-			jm.Type = "timer"
-			jsonMetrics = append(jsonMetrics, jm)
-		}
-	}
-	s.Statsd.TimeInMilliseconds("forward.duration_ns", float64(time.Since(exportStart).Nanoseconds()), []string{"part:export"}, 1.0)
-	s.Statsd.Count("forward.post_metrics_total", int64(len(jsonMetrics)), nil, 1.0)
-	if len(jsonMetrics) == 0 {
-		s.logger.Debug("Nothing to forward, skipping.")
-		return
-	}
-
-	// the error has already been logged (if there was one), so we only care
-	// about the success case
-	endpoint := fmt.Sprintf("%s/import", s.ForwardAddr)
-	if vhttp.PostHelper(
-		span.Attach(ctx), s.HTTPClient, s.TraceClient, http.MethodPost, endpoint,
-		jsonMetrics, "forward", true, nil, s.logger) == nil {
-		s.logger.WithFields(logrus.Fields{
-			"metrics":     len(jsonMetrics),
-			"endpoint":    endpoint,
-			"forwardAddr": s.ForwardAddr,
-		}).Info("Completed forward to upstream Veneur")
-	}
-}
-
 func (s *Server) flushTraces(ctx context.Context) {
 	s.ssfInternalMetrics.Range(func(keyI, valueI interface{}) bool {
 		key, ok := keyI.(string)
@@ -585,12 +476,11 @@ func (s *Server) flushTraces(ctx context.Context) {
 	s.SpanWorker.Flush()
 }
 
-// forwardGRPC forwards all input metrics to a downstream Veneur, over gRPC.
-func (s *Server) forwardGRPC(
-	ctx context.Context, wms []WorkerMetrics, protocol ProxyProtocol,
+// forward forwards all input metrics to a downstream Veneur, over gRPC.
+func (s *Server) forward(
+	ctx context.Context, wms []WorkerMetrics,
 ) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
-	span.SetTag("protocol", "grpc")
 	defer span.ClientFinish(s.TraceClient)
 
 	exportStart := time.Now()
@@ -617,19 +507,13 @@ func (s *Server) forwardGRPC(
 	entry := s.logger.WithFields(logrus.Fields{
 		"metrics":     len(metrics),
 		"destination": s.ForwardAddr,
-		"protocol":    "grpc",
 		"grpcstate":   s.grpcForwardConn.GetState().String(),
 	})
 
 	c := forwardrpc.NewForwardClient(s.grpcForwardConn)
 
 	grpcStart := time.Now()
-	var err error
-	if protocol == ProxyProtocolGrpcSingle {
-		err = ForwardGrpcSingle(ctx, c, metrics)
-	} else {
-		err = ForwardGrpcStream(ctx, c, metrics)
-	}
+	err := forwardGrpc(ctx, c, metrics)
 	if err != nil {
 		if ctx.Err() != nil {
 			// We exceeded the deadline of the flush context.
@@ -655,15 +539,7 @@ func (s *Server) forwardGRPC(
 	)
 }
 
-func ForwardGrpcSingle(
-	ctx context.Context, client forwardrpc.ForwardClient,
-	metrics []*metricpb.Metric,
-) error {
-	_, err := client.SendMetrics(ctx, &forwardrpc.MetricList{Metrics: metrics})
-	return err
-}
-
-func ForwardGrpcStream(
+func forwardGrpc(
 	ctx context.Context, client forwardrpc.ForwardClient,
 	metrics []*metricpb.Metric,
 ) error {
