@@ -18,7 +18,6 @@ type Config struct {
 	FlushOnShutdown             bool                `yaml:"flush_on_shutdown"`
 	FlushWatchdogMissedFlushes  int                 `yaml:"flush_watchdog_missed_flushes"`
 	ForwardAddress              string              `yaml:"forward_address"`
-	ForwardUseGrpc              bool                `yaml:"forward_use_grpc"`
 	GrpcAddress                 string              `yaml:"grpc_address"`
 	GrpcListenAddresses         []util.Url          `yaml:"grpc_listen_addresses"`
 	Hostname                    string              `yaml:"hostname"`
@@ -63,9 +62,8 @@ type Config struct {
 }
 
 type Features struct {
-	DiagnosticsMetricsEnabled bool   `yaml:"diagnostics_metrics_enabled"`
-	EnableMetricSinkRouting   bool   `yaml:"enable_metric_sink_routing"`
-	ProxyProtocol             string `yaml:"proxy_protocol"`
+	DiagnosticsMetricsEnabled bool `yaml:"diagnostics_metrics_enabled"`
+	EnableMetricSinkRouting   bool `yaml:"enable_metric_sink_routing"`
 }
 
 type HttpConfig struct {

@@ -101,15 +101,6 @@ type ServerConfig struct {
 	HttpCustomHandlers HttpCustomHandlers
 }
 
-type ProxyProtocol int64
-
-const (
-	ProxyProtocolUnknown ProxyProtocol = iota
-	ProxyProtocolRest
-	ProxyProtocolGrpcSingle
-	ProxyProtocolGrpcStream
-)
-
 // A Server is the actual veneur instance that will be run.
 type Server struct {
 	Config                Config
@@ -134,8 +125,7 @@ type Server struct {
 
 	HttpCustomHandlers HttpCustomHandlers
 
-	ForwardAddr   string
-	proxyProtocol ProxyProtocol
+	ForwardAddr string
 
 	StatsdListenAddrs []net.Addr
 	SSFListenAddrs    []net.Addr
@@ -681,22 +671,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.httpQuit = true
 	}
 
-	switch conf.Features.ProxyProtocol {
-	case "grpc-stream":
-		ret.proxyProtocol = ProxyProtocolGrpcStream
-	case "grpc-single":
-		ret.proxyProtocol = ProxyProtocolGrpcSingle
-	case "json":
-		ret.proxyProtocol = ProxyProtocolRest
-	default:
-		// TODO(arnavdugar): Remove conf.ForwardUseGrpc.
-		if conf.ForwardUseGrpc {
-			ret.proxyProtocol = ProxyProtocolGrpcSingle
-		} else {
-			ret.proxyProtocol = ProxyProtocolRest
-		}
-	}
-
 	ret.sources, err = ret.createSources(logger, &conf, config.SourceTypes)
 	if err != nil {
 		return nil, err
@@ -841,15 +815,12 @@ func (s *Server) Start() {
 	}
 
 	// Initialize a gRPC connection for forwarding
-	if s.proxyProtocol == ProxyProtocolGrpcSingle ||
-		s.proxyProtocol == ProxyProtocolGrpcStream {
-		var err error
-		s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure())
-		if err != nil {
-			s.logger.WithError(err).WithFields(logrus.Fields{
-				"forwardAddr": s.ForwardAddr,
-			}).Fatal("Failed to initialize a gRPC connection for forwarding")
-		}
+	var err error
+	s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure())
+	if err != nil {
+		s.logger.WithError(err).WithFields(logrus.Fields{
+			"forwardAddr": s.ForwardAddr,
+		}).Fatal("Failed to initialize a gRPC connection for forwarding")
 	}
 
 	// Flush every Interval forever!

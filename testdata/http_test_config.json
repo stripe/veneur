@@ -11,13 +11,11 @@
   "ExtendTags": null,
   "Features": {
     "DiagnosticsMetricsEnabled": false,
-    "EnableMetricSinkRouting": false,
-    "ProxyProtocol": ""
+    "EnableMetricSinkRouting": false
   },
   "FlushOnShutdown": false,
   "FlushWatchdogMissedFlushes": 0,
   "ForwardAddress": "",
-  "ForwardUseGrpc": false,
   "GrpcAddress": "",
   "GrpcListenAddresses": null,
   "Hostname": "",
