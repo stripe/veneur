@@ -9,16 +9,32 @@ You should run these commands from the project root.
 For the Debian-based image:
 
 ```
-docker buildx build --platform=linux/amd64,linux/arm64 --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-debian-sid --output=tar . | docker import -
+docker build --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-debian-sid .
 ```
 
 For the Alpine Linux-based image:
 
 ```
-docker buildx build --platform=linux/amd64,linux/arm64 --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-alpine --output=tar . | docker import -
+docker build --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-alpine .
 ```
 
-For both cases you could remove ```--platform` arugment if you just plan build for the host architechture.
+## Building with multi-arch
+
+You should run these commands from the project root.
+
+For the Debian-based image:
+
+```
+docker buildx build --platform=linux/amd64,linux/arm64 --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-debian-sid --output=type=docker
+```
+
+For the Alpine Linux-based image:
+
+```
+docker buildx build --platform=linux/amd64,linux/arm64 --build-arg=VERSION=$(git rev-parse HEAD) --no-cache -t veneur:local -f public-docker-images/Dockerfile-alpine --output=type=docker
+```
+
+Multi-arch build works best when pushing to a remote repository, so tag it accordingly and replace `--output=type=docker` with `--push` for that to work.
 
 ## Running
 
