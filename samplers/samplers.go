@@ -1,11 +1,8 @@
 package samplers
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/axiomhq/hyperloglog"
@@ -126,41 +123,6 @@ func (c *Counter) Flush(interval time.Duration) []InterMetric {
 	}}
 }
 
-// Export converts a Counter into a JSONMetric which reports the rate.
-func (c *Counter) Export() (JSONMetric, error) {
-	buf := new(bytes.Buffer)
-
-	err := binary.Write(buf, binary.LittleEndian, c.value)
-	if err != nil {
-		return JSONMetric{}, err
-	}
-
-	return JSONMetric{
-		MetricKey: MetricKey{
-			Name:       c.Name,
-			Type:       "counter",
-			JoinedTags: strings.Join(c.Tags, ","),
-		},
-		Tags:  c.Tags,
-		Value: buf.Bytes(),
-	}, nil
-}
-
-// Combine merges the values seen with another set (marshalled as a byte slice)
-func (c *Counter) Combine(other []byte) error {
-	var otherCounts int64
-	buf := bytes.NewReader(other)
-	err := binary.Read(buf, binary.LittleEndian, &otherCounts)
-
-	if err != nil {
-		return err
-	}
-
-	c.value += otherCounts
-
-	return nil
-}
-
 // Metric returns a protobuf-compatible metricpb.Metric with values set
 // at the time this function was called.  This should be used to export
 // a Counter for forwarding.
@@ -213,41 +175,6 @@ func (g *Gauge) Flush() []InterMetric {
 
 }
 
-// Export converts a Gauge into a JSONMetric.
-func (g *Gauge) Export() (JSONMetric, error) {
-	var buf bytes.Buffer
-
-	err := binary.Write(&buf, binary.LittleEndian, g.value)
-	if err != nil {
-		return JSONMetric{}, err
-	}
-
-	return JSONMetric{
-		MetricKey: MetricKey{
-			Name:       g.Name,
-			Type:       "gauge",
-			JoinedTags: strings.Join(g.Tags, ","),
-		},
-		Tags:  g.Tags,
-		Value: buf.Bytes(),
-	}, nil
-}
-
-// Combine is pretty naïve for Gauges, as it just overwrites the value.
-func (g *Gauge) Combine(other []byte) error {
-	var otherValue float64
-	buf := bytes.NewReader(other)
-	err := binary.Read(buf, binary.LittleEndian, &otherValue)
-
-	if err != nil {
-		return err
-	}
-
-	g.value = otherValue
-
-	return nil
-}
-
 // GetName returns the name of the gauge.
 func (g *Gauge) GetName() string {
 	return g.Name
@@ -298,41 +225,6 @@ func (s *StatusCheck) Flush() []InterMetric {
 	return []InterMetric{s.InterMetric}
 }
 
-// Export converts a StatusCheck into a JSONMetric.
-func (s *StatusCheck) Export() (JSONMetric, error) {
-	var buf bytes.Buffer
-
-	err := binary.Write(&buf, binary.LittleEndian, s.Value)
-	if err != nil {
-		return JSONMetric{}, err
-	}
-
-	return JSONMetric{
-		MetricKey: MetricKey{
-			Name:       s.Name,
-			Type:       "status",
-			JoinedTags: strings.Join(s.Tags, ","),
-		},
-		Tags:  s.Tags,
-		Value: buf.Bytes(),
-	}, nil
-}
-
-// Combine is pretty naïve for StatusChecks, as it just overwrites the value.
-func (s *StatusCheck) Combine(other []byte) error {
-	var otherValue float64
-	buf := bytes.NewReader(other)
-	err := binary.Read(buf, binary.LittleEndian, &otherValue)
-
-	if err != nil {
-		return err
-	}
-
-	s.Value = otherValue
-
-	return nil
-}
-
 // NewStatusCheck generates an empty (valueless) StatusCheck
 func NewStatusCheck(Name string, Tags []string) *StatusCheck {
 	return &StatusCheck{InterMetric{Name: Name, Tags: Tags}}
@@ -376,38 +268,6 @@ func (s *Set) Flush() []InterMetric {
 	}}
 }
 
-// Export converts a Set into a JSONMetric which reports the Tags in the set.
-func (s *Set) Export() (JSONMetric, error) {
-	val, err := s.Hll.MarshalBinary()
-	if err != nil {
-		return JSONMetric{}, err
-	}
-	return JSONMetric{
-		MetricKey: MetricKey{
-			Name:       s.Name,
-			Type:       "set",
-			JoinedTags: strings.Join(s.Tags, ","),
-		},
-		Tags:  s.Tags,
-		Value: val,
-	}, nil
-}
-
-// Combine merges the values seen with another set (marshalled as a byte slice)
-func (s *Set) Combine(other []byte) error {
-	otherHLL := hyperloglog.New()
-	if err := otherHLL.UnmarshalBinary(other); err != nil {
-		return err
-	}
-	if err := s.Hll.Merge(otherHLL); err != nil {
-		// does not error unless compressions are different
-		// however, decoding the other Hll causes us to use its compression
-		// parameter, which might be different from ours
-		return err
-	}
-	return nil
-}
-
 // GetName returns the name of the set.
 func (s *Set) GetName() string {
 	return s.Name
@@ -437,7 +297,17 @@ func (s *Set) Metric() (*metricpb.Metric, error) {
 // Merge combines the HyperLogLog with that of the input Set.  Since the
 // HyperLogLog is marshalled in the value, it unmarshals it first.
 func (s *Set) Merge(v *metricpb.SetValue) error {
-	return s.Combine(v.HyperLogLog)
+	otherHLL := hyperloglog.New()
+	if err := otherHLL.UnmarshalBinary(v.HyperLogLog); err != nil {
+		return err
+	}
+	if err := s.Hll.Merge(otherHLL); err != nil {
+		// does not error unless compressions are different
+		// however, decoding the other Hll causes us to use its compression
+		// parameter, which might be different from ours
+		return err
+	}
+	return nil
 }
 
 // Histo is a collection of values that generates max, min, count, and
@@ -641,34 +511,6 @@ func (h *Histo) Flush(interval time.Duration, percentiles []float64, aggregates 
 	}
 
 	return metrics
-}
-
-// Export converts a Histogram into a JSONMetric
-func (h *Histo) Export() (JSONMetric, error) {
-	val, err := h.Value.GobEncode()
-	if err != nil {
-		return JSONMetric{}, err
-	}
-	return JSONMetric{
-		MetricKey: MetricKey{
-			Name:       h.Name,
-			Type:       "histogram",
-			JoinedTags: strings.Join(h.Tags, ","),
-		},
-		Tags:  h.Tags,
-		Value: val,
-	}, nil
-}
-
-// Combine merges the values of a histogram with another histogram
-// (marshalled as a byte slice)
-func (h *Histo) Combine(other []byte) error {
-	otherHistogram := tdigest.NewMerging(100, false)
-	if err := otherHistogram.GobDecode(other); err != nil {
-		return err
-	}
-	h.Value.Merge(otherHistogram)
-	return nil
 }
 
 // GetName returns the name of the Histo.

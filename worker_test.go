@@ -92,36 +92,6 @@ func TestWorkerGlobal(t *testing.T) {
 	assert.Equal(t, 0, len(w.wm.counters), "should have no local counters")
 }
 
-func TestWorkerImportSet(t *testing.T) {
-	w := NewWorker(1, true, false, nil, logrus.New(), nil)
-	testset := samplers.NewSet("a.b.c", nil)
-	testset.Sample("foo")
-	testset.Sample("bar")
-
-	jsonMetric, err := testset.Export()
-	assert.NoError(t, err, "should have exported successfully")
-
-	w.ImportMetric(jsonMetric)
-
-	wm := w.Flush()
-	assert.Len(t, wm.sets, 1, "number of flushed sets")
-}
-
-func TestWorkerImportHistogram(t *testing.T) {
-	w := NewWorker(1, true, false, nil, logrus.New(), nil)
-	testhisto := samplers.NewHist("a.b.c", nil)
-	testhisto.Sample(1.0, 1.0)
-	testhisto.Sample(2.0, 1.0)
-
-	jsonMetric, err := testhisto.Export()
-	assert.NoError(t, err, "should have exported successfully")
-
-	w.ImportMetric(jsonMetric)
-
-	wm := w.Flush()
-	assert.Len(t, wm.histograms, 1, "number of flushed histograms")
-}
-
 func TestWorkerStatusMetric(t *testing.T) {
 	w := NewWorker(1, true, false, nil, logrus.New(), nil)
 
@@ -272,7 +242,7 @@ func exportMetricAndFlush(t testing.TB, exp testMetricExporter) WorkerMetrics {
 	assert.NoErrorf(t, err, "exporting the metric '%s' shouldn't have failed",
 		exp.GetName())
 
-	assert.NoError(t, w.ImportMetricGRPC(m), "importing a metric shouldn't "+
+	assert.NoError(t, w.ImportMetric(m), "importing a metric shouldn't "+
 		"have failed")
 	return w.Flush()
 }
@@ -312,7 +282,7 @@ func TestWorkerImportMetricGRPC(t *testing.T) {
 		assert.NoErrorf(t, err, "exporting the histogram shouldn't have failed")
 		m.Type = metricpb.Type_Timer
 
-		assert.NoError(t, w.ImportMetricGRPC(m), "importing a timer shouldn't "+
+		assert.NoError(t, w.ImportMetric(m), "importing a timer shouldn't "+
 			"have failed")
 		assert.Len(t, w.Flush().timers, 1, "The number of flushed "+
 			"timers is not correct")
@@ -337,7 +307,7 @@ func TestWorkerImportMetricGRPCNilValue(t *testing.T) {
 		Value: nil,
 	}
 
-	assert.Error(t, w.ImportMetricGRPC(metric), "Importing a metric with "+
+	assert.Error(t, w.ImportMetric(metric), "Importing a metric with "+
 		"a nil value should have failed")
 }
 

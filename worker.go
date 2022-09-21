@@ -38,7 +38,6 @@ type Worker struct {
 	uniqueMTS             *hyperloglog.Sketch
 	uniqueMTSMtx          *sync.RWMutex
 	PacketChan            chan samplers.UDPMetric
-	ImportChan            chan []samplers.JSONMetric
 	ImportMetricChan      chan *metricpb.Metric
 	QuitChan              chan struct{}
 	processed             int64
@@ -258,7 +257,6 @@ func NewWorker(id int, isLocal bool, countUniqueTimeseries bool, cl *trace.Clien
 		uniqueMTS:             hyperloglog.New(),
 		uniqueMTSMtx:          &sync.RWMutex{},
 		PacketChan:            make(chan samplers.UDPMetric, 32),
-		ImportChan:            make(chan []samplers.JSONMetric, 32),
 		ImportMetricChan:      make(chan *metricpb.Metric, 32),
 		QuitChan:              make(chan struct{}),
 		processed:             0,
@@ -281,12 +279,8 @@ func (w *Worker) Work() {
 				w.SampleTimeseries(&m)
 			}
 			w.ProcessMetric(&m)
-		case m := <-w.ImportChan:
-			for _, j := range m {
-				w.ImportMetric(j)
-			}
 		case metric := <-w.ImportMetricChan:
-			w.ImportMetricGRPC(metric)
+			w.ImportMetric(metric)
 		case <-w.QuitChan:
 			// We have been asked to stop.
 			w.logger.WithField("worker", w.id).Error("Stopping")
@@ -401,53 +395,11 @@ func (w *Worker) ProcessMetric(m *samplers.UDPMetric) {
 	}
 }
 
-// ImportMetric receives a metric from another veneur instance
-func (w *Worker) ImportMetric(other samplers.JSONMetric) {
-	w.mutex.Lock()
-	defer w.mutex.Unlock()
-
-	// we don't increment the processed metric counter here, it was already
-	// counted by the original veneur that sent this to us
-	w.imported++
-	if other.Type == CounterTypeName || other.Type == GaugeTypeName {
-		// this is an odd special case -- counters that are imported are global
-		w.wm.Upsert(other.MetricKey, samplers.GlobalOnly, other.Tags)
-	} else {
-		w.wm.Upsert(other.MetricKey, samplers.MixedScope, other.Tags)
-	}
-
-	switch other.Type {
-	case CounterTypeName:
-		if err := w.wm.globalCounters[other.MetricKey].Combine(other.Value); err != nil {
-			w.logger.WithError(err).Error("Could not merge counters")
-		}
-	case GaugeTypeName:
-		if err := w.wm.globalGauges[other.MetricKey].Combine(other.Value); err != nil {
-			w.logger.WithError(err).Error("Could not merge gauges")
-		}
-	case SetTypeName:
-		if err := w.wm.sets[other.MetricKey].Combine(other.Value); err != nil {
-			w.logger.WithError(err).Error("Could not merge sets")
-		}
-	case HistogramTypeName:
-		if err := w.wm.histograms[other.MetricKey].Combine(other.Value); err != nil {
-			w.logger.WithError(err).Error("Could not merge histograms")
-		}
-	case TimerTypeName:
-		if err := w.wm.timers[other.MetricKey].Combine(other.Value); err != nil {
-			w.logger.WithError(err).Error("Could not merge timers")
-		}
-	default:
-		w.logger.WithField("type", other.Type).
-			Error("Unknown metric type for importing")
-	}
-}
-
-// ImportMetricGRPC receives a metric from another veneur instance over gRPC.
+// ImportMetric receives a metric from another veneur instance over gRPC.
 //
 // In practice, this is only called when in the aggregation tier, so we don't
 // handle LocalOnly scope.
-func (w *Worker) ImportMetricGRPC(other *metricpb.Metric) (err error) {
+func (w *Worker) ImportMetric(other *metricpb.Metric) (err error) {
 	w.mutex.Lock()
 	defer w.mutex.Unlock()
 
