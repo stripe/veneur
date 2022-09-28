@@ -35,7 +35,7 @@ type CloudwatchMetricSinkConfig struct {
 	StripTags                     []string           `yaml:"strip_tags"`
 }
 
-type cloudwatchMetricSink struct {
+type CloudwatchMetricSink struct {
 	name                string
 	logger              *logrus.Entry
 	remoteTimeout       time.Duration
@@ -48,13 +48,13 @@ type cloudwatchMetricSink struct {
 	stripTags           []string
 }
 
-var _ sinks.MetricSink = (*cloudwatchMetricSink)(nil)
+var _ sinks.MetricSink = (*CloudwatchMetricSink)(nil)
 
 func NewCloudwatchMetricSink(
 	name, endpoint, namespace, region string, standardUnitTagName types.StandardUnit,
 	remoteTimeout time.Duration, disableRetries bool, stripTags []string, logger *logrus.Entry,
-) *cloudwatchMetricSink {
-	return &cloudwatchMetricSink{
+) *CloudwatchMetricSink {
+	return &CloudwatchMetricSink{
 		name:                name,
 		endpoint:            endpoint,
 		namespace:           namespace,
@@ -104,15 +104,15 @@ func Create(
 	), nil
 }
 
-func (s *cloudwatchMetricSink) Name() string {
+func (s *CloudwatchMetricSink) Name() string {
 	return s.name
 }
 
-func (s *cloudwatchMetricSink) Kind() string {
+func (s *CloudwatchMetricSink) Kind() string {
 	return "cloudwatch"
 }
 
-func (s *cloudwatchMetricSink) Start(*trace.Client) error {
+func (s *CloudwatchMetricSink) Start(*trace.Client) error {
 	opts := cloudwatch.Options{}
 	if s.endpoint != "" {
 		opts.EndpointResolver = cloudwatch.EndpointResolverFromURL(s.endpoint)
@@ -132,7 +132,7 @@ func (s *cloudwatchMetricSink) Start(*trace.Client) error {
 	return nil
 }
 
-func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
+func (s *CloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	if len(metrics) == 0 {
 		return sinks.MetricFlushResult{}, nil
 	}
@@ -184,6 +184,6 @@ func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.Int
 	return sinks.MetricFlushResult{MetricsFlushed: len(metricData)}, nil
 }
 
-func (s *cloudwatchMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
+func (s *CloudwatchMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
 	// unimplemented
 }
