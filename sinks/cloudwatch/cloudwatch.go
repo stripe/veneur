@@ -53,7 +53,7 @@ var _ sinks.MetricSink = (*CloudwatchMetricSink)(nil)
 func NewCloudwatchMetricSink(
 	name, endpoint, namespace, region string, standardUnitTagName types.StandardUnit,
 	remoteTimeout time.Duration, disableRetries bool, stripTags []string, logger *logrus.Entry,
-) *cloudwatchMetricSink {
+) *CloudwatchMetricSink {
 	return &CloudwatchMetricSink{
 		name:                name,
 		endpoint:            endpoint,
