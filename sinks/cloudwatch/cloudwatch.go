@@ -39,7 +39,7 @@ type CloudwatchMetricSink struct {
 	name                string
 	logger              *logrus.Entry
 	remoteTimeout       time.Duration
-	client              *cloudwatch.Client
+	Client              *cloudwatch.Client
 	endpoint            string
 	region              string
 	namespace           string
@@ -128,7 +128,7 @@ func (s *CloudwatchMetricSink) Start(*trace.Client) error {
 	if s.disableRetries {
 		opts.Retryer = aws.NopRetryer{}
 	}
-	s.client = cloudwatch.New(opts)
+	s.Client = cloudwatch.New(opts)
 	return nil
 }
 
@@ -177,7 +177,7 @@ func (s *CloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.Int
 		Namespace:  aws.String(s.namespace),
 		MetricData: metricData,
 	}
-	_, err := s.client.PutMetricData(ctx, input)
+	_, err := s.Client.PutMetricData(ctx, input)
 	if err != nil {
 		return sinks.MetricFlushResult{MetricsDropped: len(metricData)}, err
 	}
