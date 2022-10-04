@@ -55,6 +55,7 @@ type CortexMetricSink struct {
 	batchWriteSize             int
 	counters                   map[counterMapKey]float64
 	convertCountersToMonotonic bool
+	excludedTags               map[string]struct{}
 }
 
 var _ sinks.MetricSink = (*CortexMetricSink)(nil)
@@ -149,6 +150,7 @@ func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, log
 		batchWriteSize:             batchWriteSize,
 		counters:                   map[counterMapKey]float64{},
 		convertCountersToMonotonic: convertCountersToMonotonic,
+		excludedTags:               map[string]struct{}{},
 	}
 	sink.logger = sink.logger.WithFields(logrus.Fields{
 		"sink_name": sink.Name(),
@@ -349,7 +351,7 @@ func (s *CortexMetricSink) makeWriteRequest(metrics []samplers.InterMetric, tags
 			updatedCounters[counterKey] = metric.Value
 		}
 
-		ts[i] = metricToTimeSeries(metric, tags)
+		ts[i] = metricToTimeSeries(metric, tags, s.excludedTags)
 	}
 
 	return &prompb.WriteRequest{
@@ -368,13 +370,23 @@ func (s *CortexMetricSink) convertToMonotonicCounter(metric samplers.InterMetric
 	return metric, key
 }
 
+// SetExcludedTags sets the excluded tag names. Any tags with the
+// provided key (name) will be excluded.
+func (s *CortexMetricSink) SetExcludedTags(excludes []string) {
+	tagsSet := map[string]struct{}{}
+	for _, tag := range excludes {
+		tagsSet[tag] = struct{}{}
+	}
+	s.excludedTags = tagsSet
+}
+
 // metricToTimeSeries converts a sample to a prometheus timeseries.
 // This is not a 1:1 conversion! We constrain metric and label names to the
 // legal set of characters (see https://prometheus.io/docs/practices/naming)
 // and we drop tags which are not in "key:value" format
 // (see https://prometheus.io/docs/concepts/data_model/)
 // we also take "last value wins" approach to duplicate labels inside a metric
-func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string) *prompb.TimeSeries {
+func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string, excludedTags map[string]struct{}) *prompb.TimeSeries {
 	var ts prompb.TimeSeries
 	ts.Labels = []*prompb.Label{{
 		Name: "__name__", Value: sanitise(metric.Name),
@@ -395,6 +407,11 @@ func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string) *pr
 	for k, v := range tags {
 		sk := sanitise(k)
 		sanitisedTags[sk] = v
+	}
+
+	for k := range excludedTags {
+		sk := sanitise(k)
+		delete(sanitisedTags, sk)
 	}
 
 	for k, v := range sanitisedTags {
