@@ -166,6 +166,7 @@ func (s *Server) flushSink(
 				}
 			}
 			if sink.maxTags != 0 && len(filteredTags) > sink.maxTags {
+				s.trackDroppedMetric("max_tags", metric)
 				maxTagsCount += 1
 				continue metricLoop
 			}
@@ -537,6 +538,14 @@ func (s *Server) forward(
 			map[string]string{"part": "grpc"}),
 		ssf.Count("forward.error_total", 0, nil),
 	)
+}
+
+func (s *Server) trackDroppedMetric(r string, m samplers.InterMetric) {
+	if s.droppedMetric == nil {
+		return
+	}
+
+	s.droppedMetric.Track(r, m)
 }
 
 func forwardGrpc(

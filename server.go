@@ -172,6 +172,8 @@ type Server struct {
 	lastFlushUnix  int64
 
 	parser samplers.Parser
+
+	droppedMetric DroppedMetrics
 }
 
 type internalSource struct {
@@ -821,6 +823,12 @@ func (s *Server) Start() {
 		s.logger.WithError(err).WithFields(logrus.Fields{
 			"forwardAddr": s.ForwardAddr,
 		}).Fatal("Failed to initialize a gRPC connection for forwarding")
+	}
+
+	if s.Config.DroppedMetrics.Enabled {
+		dc := s.Config.DroppedMetrics
+		s.droppedMetric = NewDroppedMetricsTracker(s.logger, DroppedMetricsOpts{format: dc.Format})
+		s.droppedMetric.Start(dc.ReportInterval)
 	}
 
 	// Flush every Interval forever!

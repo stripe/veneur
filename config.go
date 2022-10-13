@@ -52,7 +52,12 @@ type Config struct {
 	TLSKey                      util.StringSecret   `yaml:"tls_key"`
 	TraceMaxLengthBytes         int                 `yaml:"trace_max_length_bytes"`
 	VeneurMetricsAdditionalTags []string            `yaml:"veneur_metrics_additional_tags"`
-	VeneurMetricsScopes         struct {
+	DroppedMetrics              struct {
+		Enabled        bool          `yaml:"enabled"`
+		Format         string        `yaml:"format"`
+		ReportInterval time.Duration `yaml:"report_interval"`
+	} `yaml:"dropped_metrics"`
+	VeneurMetricsScopes struct {
 		Counter   string `yaml:"counter"`
 		Gauge     string `yaml:"gauge"`
 		Histogram string `yaml:"histogram"`
