@@ -98,4 +98,5 @@ type SinkConfig struct {
 	MaxTagLength  int                  `yaml:"max_tag_length"`
 	MaxTags       int                  `yaml:"max_tags"`
 	StripTags     []matcher.TagMatcher `yaml:"strip_tags"`
+	ExtraTags     map[string]string    `yaml:"extra_tags"`
 }

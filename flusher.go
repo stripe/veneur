@@ -147,6 +147,11 @@ func (s *Server) flushSink(
 				maxNameLengthCount += 1
 				continue metricLoop
 			}
+
+			for k, v := range sink.extraTags {
+				metric.Tags = append(metric.Tags, fmt.Sprintf("%s:%s", k, v))
+			}
+
 			filteredTags := []string{}
 			if len(sink.stripTags) == 0 && sink.maxTagLength == 0 {
 				filteredTags = metric.Tags
