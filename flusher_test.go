@@ -495,6 +495,13 @@ func TestFlush(t *testing.T) {
 			"status:max_name_length",
 			"veneurglobalonly:true",
 		}, 1.0)
+		mockStatsd.EXPECT().Count("dropped_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"metric_name:test.metric",
+			"reason:max_name_length",
+			"veneurglobalonly:true",
+		}, 1.0)
 		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
 			"sink_name:channel",
 			"sink_kind:channel",
