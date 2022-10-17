@@ -1,0 +1,12 @@
+[
+  {
+    "Name": "a.b.gauge",
+    "Timestamp": 1,
+    "Value": 100,
+    "Tags": [],
+    "Type": 1,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  }
+]

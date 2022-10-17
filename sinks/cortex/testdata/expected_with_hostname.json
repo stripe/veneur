@@ -1,0 +1,22 @@
+{
+  "timeseries": [
+    {
+      "labels": [
+        {
+          "name": "__name__",
+          "value": "a_b_gauge"
+        },
+        {
+          "name": "custom_hostname_tag",
+          "value": "myhostname.local"
+        }
+      ],
+      "samples": [
+        {
+          "value": 100,
+          "timestamp": 1000
+        }
+      ]
+    }
+  ]
+}
