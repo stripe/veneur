@@ -2,6 +2,7 @@ package veneur
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -17,6 +18,7 @@ type droppedMetric struct {
 	logger  *logrus.Entry
 	cancel  chan bool
 	format  string
+	mu      sync.RWMutex
 }
 
 func (m *droppedMetric) Start(ctx context.Context, d time.Duration) {
@@ -25,7 +27,9 @@ func (m *droppedMetric) Start(ctx context.Context, d time.Duration) {
 		for {
 			select {
 			case <-t.C:
+				m.mu.RLock()
 				metrics := m.metrics
+				m.mu.RUnlock()
 				for reason, dm := range metrics {
 					fields := logrus.Fields{"reason": reason}
 					for k, v := range dm {
@@ -42,6 +46,8 @@ func (m *droppedMetric) Start(ctx context.Context, d time.Duration) {
 }
 
 func (m *droppedMetric) Track(reason string, metric samplers.InterMetric) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.metrics[reason] == nil {
 		m.metrics[reason] = map[string]int64{}
 	}
