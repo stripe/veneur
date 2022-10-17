@@ -55,6 +55,11 @@ const defaultTCPReadTimeout = 10 * time.Minute
 
 const httpQuitEndpoint = "/quitquitquit"
 
+type DroppedMetrics interface {
+	Start(context.Context, time.Duration)
+	Track(string, samplers.InterMetric)
+}
+
 type ParsedSourceConfig interface{}
 type MetricSinkConfig interface{}
 type SpanSinkConfig interface{}
@@ -825,12 +830,6 @@ func (s *Server) Start() {
 		}).Fatal("Failed to initialize a gRPC connection for forwarding")
 	}
 
-	if s.Config.DroppedMetrics.Enabled {
-		dc := s.Config.DroppedMetrics
-		s.droppedMetric = NewDroppedMetricsTracker(s.logger, DroppedMetricsOpts{format: dc.Format})
-		s.droppedMetric.Start(dc.ReportInterval)
-	}
-
 	// Flush every Interval forever!
 	go func() {
 		defer func() {
@@ -843,6 +842,12 @@ func (s *Server) Start() {
 			<-s.shutdown
 			cancel()
 		}()
+
+		if s.Config.DroppedMetrics.Enabled {
+			dc := s.Config.DroppedMetrics
+			s.droppedMetric = NewDroppedMetricsTracker(s.logger, DroppedMetricsOpts{format: dc.Format})
+			s.droppedMetric.Start(ctx, dc.ReportInterval)
+		}
 
 		if s.synchronizeInterval {
 			// We want to align our ticker to a multiple of its duration for

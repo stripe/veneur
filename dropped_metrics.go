@@ -1,17 +1,12 @@
 package veneur
 
 import (
+	"context"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14/samplers"
 )
-
-type DroppedMetrics interface {
-	Start(time.Duration)
-	Stop()
-	Track(reason string, metric samplers.InterMetric)
-}
 
 type DroppedMetricsOpts struct {
 	format string
@@ -24,17 +19,11 @@ type droppedMetric struct {
 	format  string
 }
 
-func (m *droppedMetric) Stop() {
-	m.cancel <- true
-}
-
-func (m *droppedMetric) Start(d time.Duration) {
+func (m *droppedMetric) Start(ctx context.Context, d time.Duration) {
 	t := time.NewTicker(d)
 	go func() {
 		for {
 			select {
-			case <-m.cancel:
-				break
 			case <-t.C:
 				metrics := m.metrics
 				for reason, dm := range metrics {
@@ -45,6 +34,8 @@ func (m *droppedMetric) Start(d time.Duration) {
 
 					m.logger.Logger.WithFields(fields).Warnf(m.format, "dropped metrics")
 				}
+			case <-ctx.Done():
+				break
 			}
 		}
 	}()
@@ -58,7 +49,7 @@ func (m *droppedMetric) Track(reason string, metric samplers.InterMetric) {
 	m.metrics[reason][metric.Name] += 1
 }
 
-func NewDroppedMetricsTracker(logger *logrus.Entry, opts ...DroppedMetricsOpts) DroppedMetrics {
+func NewDroppedMetricsTracker(logger *logrus.Entry, opts ...DroppedMetricsOpts) *droppedMetric {
 	format := "%s"
 	if len(opts) > 0 && opts[0].format != "" {
 		format = opts[0].format

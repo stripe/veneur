@@ -144,6 +144,7 @@ func (s *Server) flushSink(
 				continue metricLoop
 			}
 			if sink.maxNameLength != 0 && len(metric.Name) > sink.maxNameLength {
+				s.trackDroppedMetric("max_name_length", metric)
 				maxNameLengthCount += 1
 				continue metricLoop
 			}
@@ -159,6 +160,7 @@ func (s *Server) flushSink(
 						}
 					}
 					if sink.maxTagLength != 0 && len(tag) > sink.maxTagLength {
+						s.trackDroppedMetric("max_tag_length", metric)
 						maxTagLengthCount += 1
 						continue metricLoop
 					}
