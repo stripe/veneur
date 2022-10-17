@@ -32,18 +32,18 @@ require (
 	github.com/satori/go.uuid v1.2.1-0.20180103174451-36e9d2ebbde5
 	github.com/segmentio/fasthash v1.0.0
 	github.com/signalfx/golib/v3 v3.3.36
-	github.com/sirupsen/logrus v1.6.0
-	github.com/stretchr/testify v1.6.1
+	github.com/sirupsen/logrus v1.9.0
+	github.com/stretchr/testify v1.8.0
 	github.com/theckman/go-flock v0.0.0-20170522022801-6de226b0d5f0
 	github.com/zenazn/goji v0.9.1-0.20160507202103-64eb34159fe5
 	goji.io v2.0.2+incompatible
 	golang.org/x/mod v0.4.2
 	golang.org/x/net v0.0.0-20211008194852-3b03d305991f
-	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac
+	golang.org/x/sys v0.0.0-20221010170243-090e33056c14
 	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.24.0
 	gopkg.in/yaml.v2 v2.3.0
-	gopkg.in/yaml.v3 v3.0.0-20200605160147-a5ece683394c
+	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.18.6
 	k8s.io/apimachinery v0.18.6
 	k8s.io/client-go v0.18.6
@@ -84,7 +84,6 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/json-iterator/go v1.1.9 // indirect
 	github.com/juju/errors v0.0.0-20181118221551-089d3ea4e4d5 // indirect
-	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
 	github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515 // indirect
 	github.com/mailru/easyjson v0.0.0-20190626092158-b2ccc519800e // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
