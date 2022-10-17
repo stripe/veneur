@@ -44,7 +44,7 @@ func (m *droppedMetric) Export() {
 			fields[k] = v
 		}
 
-		m.logger.Logger.WithFields(fields).Warnf(m.format, "dropped metrics")
+		m.logger.WithFields(fields).Warnf(m.format, "dropped metrics")
 	}
 }
 
