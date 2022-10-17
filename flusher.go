@@ -132,6 +132,12 @@ func (s *Server) flushSink(
 	maxTagLengthCount := int64(0)
 	flushedCount := int64(0)
 
+	droppedMetrics := map[string]map[string]int64{
+		"max_tag_length":  {},
+		"max_tags":        {},
+		"max_name_length": {},
+	}
+
 	filteredMetrics := metrics
 	if s.Config.Features.EnableMetricSinkRouting {
 		sinkName := sink.sink.Name()
@@ -144,11 +150,13 @@ func (s *Server) flushSink(
 				continue metricLoop
 			}
 			if sink.maxNameLength != 0 && len(metric.Name) > sink.maxNameLength {
+				droppedMetrics["max_name_length"][metric.Name] += 1
 				maxNameLengthCount += 1
 				continue metricLoop
 			}
 			filteredTags := []string{}
 			if len(sink.stripTags) == 0 && sink.maxTagLength == 0 {
+				droppedMetrics["max_tag_length"][metric.Name] += 1
 				filteredTags = metric.Tags
 			} else {
 			tagLoop:
@@ -159,6 +167,7 @@ func (s *Server) flushSink(
 						}
 					}
 					if sink.maxTagLength != 0 && len(tag) > sink.maxTagLength {
+						droppedMetrics["max_tag_length"][metric.Name] += 1
 						maxTagLengthCount += 1
 						continue metricLoop
 					}
@@ -166,6 +175,7 @@ func (s *Server) flushSink(
 				}
 			}
 			if sink.maxTags != 0 && len(filteredTags) > sink.maxTags {
+				droppedMetrics["max_tags"][metric.Name] += 1
 				maxTagsCount += 1
 				continue metricLoop
 			}
@@ -176,6 +186,15 @@ func (s *Server) flushSink(
 	}
 	sinkNameTag := "sink_name:" + sink.sink.Name()
 	sinkKindTag := "sink_kind:" + sink.sink.Kind()
+
+	for reason, dm := range droppedMetrics {
+		for m, c := range dm {
+			s.Statsd.Count("dropped_metrics", c, []string{
+				sinkNameTag, sinkKindTag, "metric_name:" + m, "reason:" + reason, "veneurglobalonly:true",
+			}, 1)
+		}
+	}
+
 	s.Statsd.Count("flushed_metrics", skippedCount, []string{
 		sinkNameTag, sinkKindTag, "status:skipped", "veneurglobalonly:true",
 	}, 1)
