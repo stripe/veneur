@@ -51,6 +51,10 @@ tls_certificate: ""
 tls_key: ""
 trace_max_length_bytes: 0
 veneur_metrics_additional_tags: []
+dropped_metrics:
+  enabled: false
+  format: ""
+  report_interval: 0s
 veneur_metrics_scopes:
   counter: ""
   gauge: ""

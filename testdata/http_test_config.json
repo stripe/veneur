@@ -56,6 +56,11 @@
   "TLSKey": "",
   "TraceMaxLengthBytes": 0,
   "VeneurMetricsAdditionalTags": null,
+  "DroppedMetrics": {
+    "Enabled": false,
+    "Format": "",
+    "ReportInterval": 0
+  },
   "VeneurMetricsScopes": {
     "Counter": "",
     "Gauge": "",
