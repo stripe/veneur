@@ -23,26 +23,29 @@ type droppedMetric struct {
 
 func (m *droppedMetric) Start(ctx context.Context, d time.Duration) {
 	t := time.NewTicker(d)
-	go func() {
-		for {
-			select {
-			case <-t.C:
-				m.mu.RLock()
-				metrics := m.metrics
-				m.mu.RUnlock()
-				for reason, dm := range metrics {
-					fields := logrus.Fields{"reason": reason}
-					for k, v := range dm {
-						fields[k] = v
-					}
-
-					m.logger.Logger.WithFields(fields).Warnf(m.format, "dropped metrics")
-				}
-			case <-ctx.Done():
-				break
-			}
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			m.Export()
+		case <-ctx.Done():
+			break
 		}
-	}()
+	}
+}
+
+func (m *droppedMetric) Export() {
+	m.mu.RLock()
+	metrics := m.metrics
+	m.mu.RUnlock()
+	for reason, dm := range metrics {
+		fields := logrus.Fields{"reason": reason}
+		for k, v := range dm {
+			fields[k] = v
+		}
+
+		m.logger.Logger.WithFields(fields).Warnf(m.format, "dropped metrics")
+	}
 }
 
 func (m *droppedMetric) Track(reason string, metric samplers.InterMetric) {

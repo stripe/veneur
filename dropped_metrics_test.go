@@ -1,9 +1,7 @@
 package veneur_test
 
 import (
-	"context"
 	"testing"
-	"time"
 
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -166,7 +164,7 @@ var testCases = []struct {
 	},
 }
 
-func Test_DroppedMetrics(t *testing.T) {
+func TestDroppedMetrics(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
@@ -174,14 +172,13 @@ func Test_DroppedMetrics(t *testing.T) {
 			tl, hook := test.NewNullLogger()
 			l := tl.WithField("process", "dropped_metrics_tracker")
 			dmt := veneur.NewDroppedMetricsTracker(l)
-			dmt.Start(context.Background(), time.Second)
 			for _, d := range tc.data {
 				for _, m := range d.metrics {
 					dmt.Track(d.reason, m)
 				}
 			}
 
-			time.Sleep(time.Second * 2)
+			dmt.Export()
 
 			entries := hook.AllEntries()
 			entryMap := map[string]map[string]interface{}{}

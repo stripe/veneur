@@ -846,7 +846,9 @@ func (s *Server) Start() {
 		if s.Config.DroppedMetrics.Enabled {
 			dc := s.Config.DroppedMetrics
 			s.droppedMetric = NewDroppedMetricsTracker(s.logger, DroppedMetricsOpts{format: dc.Format})
-			s.droppedMetric.Start(ctx, dc.ReportInterval)
+			go func() {
+				s.droppedMetric.Start(ctx, dc.ReportInterval)
+			}()
 		}
 
 		if s.synchronizeInterval {
