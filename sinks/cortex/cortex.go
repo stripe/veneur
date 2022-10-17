@@ -80,6 +80,7 @@ type CortexMetricSinkConfig struct {
 		Type       string            `yaml:"type"`
 		Credential util.StringSecret `yaml:"credentials"`
 	} `yaml:"authorization"`
+	HostnameTag string `yaml:"hostname_tag"`
 }
 
 // Create creates a new Cortex sink.
@@ -95,8 +96,10 @@ func Create(
 
 	// TagsAsMap is a set of configurable common tags applied to every metric
 	tags := server.TagsAsMap
-	// Host has to be supplied especially
-	tags["host"] = config.Hostname
+
+	if conf.HostnameTag != "" {
+		tags[conf.HostnameTag] = config.Hostname
+	}
 
 	headers := make(map[string]string)
 	if conf.Authorization.Type != "" {
