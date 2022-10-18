@@ -154,6 +154,7 @@ func (s *Server) flushSink(
 				maxNameLengthCount += 1
 				continue metricLoop
 			}
+
 			filteredTags := []string{}
 			if len(sink.stripTags) == 0 && sink.maxTagLength == 0 {
 				filteredTags = metric.Tags
@@ -175,6 +176,16 @@ func (s *Server) flushSink(
 					filteredTags = append(filteredTags, tag)
 				}
 			}
+
+			for k, v := range sink.addTags {
+				tag := fmt.Sprintf("%s:%s", k, v)
+				if sink.maxTagLength != 0 && len(tag) > sink.maxTagLength {
+					maxTagLengthCount += 1
+					continue metricLoop
+				}
+				filteredTags = append(filteredTags, tag)
+			}
+
 			if sink.maxTags != 0 && len(filteredTags) > sink.maxTags {
 				s.Statsd.Count("dropped_metrics", 1, []string{
 					sinkNameTag, sinkKindTag, "metric_name:" + metric.Name, "reason:max_tags", "veneurglobalonly:true",

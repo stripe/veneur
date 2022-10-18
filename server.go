@@ -185,6 +185,7 @@ type internalMetricSink struct {
 	maxTagLength  int
 	maxTags       int
 	stripTags     []matcher.TagMatcher
+	addTags       map[string]string
 }
 
 type GlobalListeningPerProtocolMetrics struct {
@@ -443,6 +444,7 @@ func (server *Server) createMetricSinks(
 			maxTagLength:  sinkConfig.MaxTagLength,
 			maxTags:       sinkConfig.MaxTags,
 			stripTags:     sinkConfig.StripTags,
+			addTags:       sinkConfig.AddTags,
 		})
 	}
 	return sinks, nil
