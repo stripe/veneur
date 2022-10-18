@@ -772,6 +772,12 @@ func TestFlushWithAddTags(t *testing.T) {
 				Kind:    "channel",
 				Name:    "channel",
 				AddTags: map[string]string{"foo": "bar"},
+				StripTags: []matcher.TagMatcher{
+					matcher.CreateTagMatcher(&matcher.TagMatcherConfig{
+						Kind:  "prefix",
+						Value: "foo",
+					}),
+				},
 			}},
 			StatsAddress: "localhost:8125",
 		},
@@ -822,7 +828,7 @@ func TestFlushWithAddTags(t *testing.T) {
 			gomock.Not("flushed_metrics"), gomock.All(), gomock.All(), gomock.All()).
 		AnyTimes()
 
-	t.Run("WithStripTags", func(t *testing.T) {
+	t.Run("WithAddTags", func(t *testing.T) {
 		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
 			"sink_name:channel",
 			"sink_kind:channel",
@@ -862,6 +868,73 @@ func TestFlushWithAddTags(t *testing.T) {
 			Digest:     0,
 			Scope:      samplers.LocalOnly,
 			Tags:       []string{},
+			Value:      1.0,
+			SampleRate: 1.0,
+		}
+
+		result := <-channel
+		if assert.Len(t, result, 1) {
+			assert.Equal(t, "test.metric", result[0].Name)
+			if assert.Len(t, result[0].Tags, 1) {
+				assert.Equal(t, "foo:bar", result[0].Tags[0])
+			}
+		}
+
+		server.Workers[0].PacketChan <- samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name:       "test.metric",
+				Type:       "counter",
+				JoinedTags: "foo:not_bar",
+			},
+			Digest:     0,
+			Scope:      samplers.LocalOnly,
+			Tags:       []string{"foo:not_bar"},
+			Value:      1.0,
+			SampleRate: 1.0,
+		}
+	})
+
+	t.Run("WithAddTagsAndStripTags", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:skipped",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_name_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tag_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:flushed",
+			"veneurglobalonly:true",
+		}, 1.0)
+
+		server.Workers[0].PacketChan <- samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name:       "test.metric",
+				Type:       "counter",
+				JoinedTags: "foo:not_bar",
+			},
+			Digest:     0,
+			Scope:      samplers.LocalOnly,
+			Tags:       []string{"foo:not_bar"},
 			Value:      1.0,
 			SampleRate: 1.0,
 		}
