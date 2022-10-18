@@ -522,8 +522,12 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 			}
 		}
 		dims := map[string]string{}
-		// Set the hostname as a tag, since SFx doesn't have a first-class hostname field
-		dims[sfx.hostnameTag] = sfx.hostname
+
+		if sfx.hostnameTag != "" {
+			// Set the hostname as a tag, since SFx doesn't have a first-class hostname field
+			dims[sfx.hostnameTag] = sfx.hostname
+		}
+
 		for _, tag := range metric.Tags {
 			kv := strings.SplitN(tag, ":", 2)
 			key := kv[0]
@@ -655,8 +659,11 @@ func (sfx *SignalFxSink) reportEvent(ctx context.Context, sample *ssf.SSFSample)
 	for k, v := range sfx.commonDimensions {
 		dims[k] = v
 	}
+
 	// And hostname
-	dims[sfx.hostnameTag] = sfx.hostname
+	if sfx.hostnameTag != "" {
+		dims[sfx.hostnameTag] = sfx.hostname
+	}
 
 	for k, v := range sample.Tags {
 		if k == dogstatsd.EventIdentifierKey {

@@ -19,6 +19,7 @@ import (
 	"github.com/prometheus/prometheus/prompb"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/trace"
@@ -78,6 +79,64 @@ func TestFlush(t *testing.T) {
 
 	//  Load in the expected data and compare
 	expected, err := ioutil.ReadFile("testdata/expected.json")
+	assert.NoError(t, err)
+	assert.Equal(t, string(expected), string(actual))
+}
+
+func TestFlushWithHostnameTag(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Set up a sink
+	sink, err := Create(&veneur.Server{
+		TagsAsMap: map[string]string{},
+	}, "test", logrus.NewEntry(logrus.New()), veneur.Config{
+		Hostname: "myhostname.local",
+	}, CortexMetricSinkConfig{
+		HostnameTag: "custom_hostname_tag",
+		URL:         server.URL,
+	})
+	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
+
+	// input.json contains three timeseries samples in InterMetrics format
+	jsInput, err := ioutil.ReadFile("testdata/input_with_hostname.json")
+	assert.NoError(t, err)
+	var metrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
+
+	// Perform the flush to the test server
+	flushResult, err := sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 1, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
+
+	// Retrieve the data which the server received
+	data, headers, err := server.Latest()
+	assert.NoError(t, err)
+
+	// Check standard headers
+	assert.True(t, hasHeader(*headers, "Content-Encoding", "snappy"), "missing required Content-Encoding header")
+	assert.True(t, hasHeader(*headers, "Content-Type", "application/x-protobuf"), "missing required Content-Type header")
+	assert.True(t, hasHeader(*headers, "User-Agent", "veneur/cortex"), "missing required User-Agent header")
+	assert.True(t, hasHeader(*headers, "X-Prometheus-Remote-Write-Version", "0.1.0"), "missing required version header")
+
+	// The underlying method to convert metric -> timeseries does not
+	// preserve order, so we're sorting the data here
+	for k := range data.Timeseries {
+		sort.Slice(data.Timeseries[k].Labels, func(i, j int) bool {
+			val := strings.Compare(data.Timeseries[k].Labels[i].Name, data.Timeseries[k].Labels[j].Name)
+			return val == -1
+		})
+
+	}
+
+	// Pretty-print output for readability, and to match expected
+	actual, err := json.MarshalIndent(data, "", "  ")
+	assert.NoError(t, err)
+
+	//  Load in the expected data and compare
+	expected, err := ioutil.ReadFile("testdata/expected_with_hostname.json")
 	assert.NoError(t, err)
 	assert.Equal(t, string(expected), string(actual))
 }
