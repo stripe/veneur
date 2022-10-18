@@ -741,7 +741,7 @@ func TestFlush(t *testing.T) {
 	})
 }
 
-func TestFlushWithExtraTags(t *testing.T) {
+func TestFlushWithAddTags(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -769,9 +769,9 @@ func TestFlushWithExtraTags(t *testing.T) {
 				},
 			}},
 			MetricSinks: []SinkConfig{{
-				Kind:      "channel",
-				Name:      "channel",
-				ExtraTags: map[string]string{"foo": "bar"},
+				Kind:    "channel",
+				Name:    "channel",
+				AddTags: map[string]string{"foo": "bar"},
 			}},
 			StatsAddress: "localhost:8125",
 		},

@@ -148,7 +148,7 @@ func (s *Server) flushSink(
 				continue metricLoop
 			}
 
-			for k, v := range sink.extraTags {
+			for k, v := range sink.addTags {
 				metric.Tags = append(metric.Tags, fmt.Sprintf("%s:%s", k, v))
 			}
 
