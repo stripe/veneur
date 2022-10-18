@@ -3,6 +3,7 @@ package veneur
 import (
 	"context"
 	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -418,15 +419,16 @@ func TestFlush(t *testing.T) {
 
 	mockStatsd.EXPECT().
 		Count(
-			gomock.Not("flushed_metrics"), gomock.All(), gomock.All(), gomock.All()).
+			gomock.Not(anyOf("flushed_metrics", "dropped_metrics")), gomock.All(), gomock.All(), gomock.All()).
 		AnyTimes()
+
 	mockStatsd.EXPECT().
 		Gauge(
-			gomock.Not("flushed_metrics"), gomock.All(), gomock.All(), gomock.All()).
+			gomock.Not(anyOf("flushed_metrics")), gomock.All(), gomock.All(), gomock.All()).
 		AnyTimes()
 	mockStatsd.EXPECT().
 		Timing(
-			gomock.Not("flushed_metrics"), gomock.All(), gomock.All(), gomock.All()).
+			gomock.Not(anyOf("flushed_metrics")), gomock.All(), gomock.All(), gomock.All()).
 		AnyTimes()
 
 	t.Run("WithStripTags", func(t *testing.T) {
@@ -484,6 +486,13 @@ func TestFlush(t *testing.T) {
 	})
 
 	t.Run("WithMaxNameLength", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("dropped_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"metric_name:test.longmetric",
+			"reason:max_name_length",
+			"veneurglobalonly:true",
+		}, 1.0)
 		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
 			"sink_name:channel",
 			"sink_kind:channel",
@@ -533,6 +542,13 @@ func TestFlush(t *testing.T) {
 	})
 
 	t.Run("WithMaxTags", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("dropped_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"metric_name:test.metric",
+			"reason:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
 		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
 			"sink_name:channel",
 			"sink_kind:channel",
@@ -637,6 +653,13 @@ func TestFlush(t *testing.T) {
 	})
 
 	t.Run("WithMaxTagLength", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("dropped_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"metric_name:test.metric",
+			"reason:max_tag_length",
+			"veneurglobalonly:true",
+		}, 1.0)
 		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
 			"sink_name:channel",
 			"sink_kind:channel",
@@ -947,4 +970,29 @@ func TestFlushWithAddTags(t *testing.T) {
 			}
 		}
 	})
+}
+
+type anyOfMatcher struct {
+	s []string
+}
+
+func (n anyOfMatcher) Matches(x interface{}) bool {
+	v := x.(string)
+	match := false
+	for _, e := range n.s {
+		if e == v {
+			match = true
+			break
+		}
+	}
+
+	return match
+}
+
+func (n anyOfMatcher) String() string {
+	return "anyOf(" + strings.Join(n.s, ",") + ")"
+}
+
+func anyOf(s ...string) anyOfMatcher {
+	return anyOfMatcher{s}
 }
