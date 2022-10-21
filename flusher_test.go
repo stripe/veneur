@@ -795,6 +795,7 @@ func TestFlushWithAddTags(t *testing.T) {
 				Kind:    "channel",
 				Name:    "channel",
 				AddTags: map[string]string{"foo": "bar"},
+				MaxTags: 2,
 				StripTags: []matcher.TagMatcher{
 					matcher.CreateTagMatcher(&matcher.TagMatcherConfig{
 						Kind:  "prefix",
@@ -840,7 +841,7 @@ func TestFlushWithAddTags(t *testing.T) {
 
 	mockStatsd.EXPECT().
 		Count(
-			gomock.Not("flushed_metrics"), gomock.All(), gomock.All(), gomock.All()).
+			gomock.Not(anyOf("flushed_metrics", "dropped_metrics")), gomock.All(), gomock.All(), gomock.All()).
 		AnyTimes()
 	mockStatsd.EXPECT().
 		Gauge(
@@ -968,6 +969,74 @@ func TestFlushWithAddTags(t *testing.T) {
 			if assert.Len(t, result[0].Tags, 1) {
 				assert.Equal(t, "foo:bar", result[0].Tags[0])
 			}
+		}
+	})
+
+	t.Run("WithAddTagsOverMaxTags", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("dropped_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"metric_name:test.metric",
+			"reason:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:skipped",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_name_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tag_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:flushed",
+			"veneurglobalonly:true",
+		}, 1.0)
+
+		server.Workers[0].PacketChan <- samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: "test.metric",
+				Type: "counter",
+			},
+			Digest:     0,
+			Scope:      samplers.LocalOnly,
+			Tags:       []string{"test1:val", "test2:val"},
+			Value:      1.0,
+			SampleRate: 1.0,
+		}
+
+		result := <-channel
+		assert.Len(t, result, 0)
+
+		server.Workers[0].PacketChan <- samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name:       "test.metric",
+				Type:       "counter",
+				JoinedTags: "foo:not_bar",
+			},
+			Digest:     0,
+			Scope:      samplers.LocalOnly,
+			Tags:       []string{"foo:not_bar"},
+			Value:      1.0,
+			SampleRate: 1.0,
 		}
 	})
 }

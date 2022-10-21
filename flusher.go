@@ -180,6 +180,9 @@ func (s *Server) flushSink(
 			for k, v := range sink.addTags {
 				tag := fmt.Sprintf("%s:%s", k, v)
 				if sink.maxTagLength != 0 && len(tag) > sink.maxTagLength {
+					s.Statsd.Count("dropped_metrics", 1, []string{
+						sinkNameTag, sinkKindTag, "metric_name:" + metric.Name, "reason:max_tag_length", "veneurglobalonly:true",
+					}, 1)
 					maxTagLengthCount += 1
 					continue metricLoop
 				}
