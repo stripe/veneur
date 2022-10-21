@@ -48,7 +48,6 @@ type CortexMetricSink struct {
 	Client                     *http.Client
 	logger                     *logrus.Entry
 	name                       string
-	tags                       map[string]string
 	traceClient                *trace.Client
 	addHeaders                 map[string]string
 	basicAuth                  *BasicAuthType
@@ -93,11 +92,6 @@ func Create(
 		return nil, errors.New("invalid sink config type")
 	}
 
-	// TagsAsMap is a set of configurable common tags applied to every metric
-	tags := server.TagsAsMap
-	// Host has to be supplied especially
-	tags["host"] = config.Hostname
-
 	headers := make(map[string]string)
 	if conf.Authorization.Type != "" {
 		headers["Authorization"] = conf.Authorization.Type + " " + conf.Authorization.Credential.Value
@@ -107,7 +101,7 @@ func Create(
 		basicAuth = &conf.BasicAuth
 	}
 
-	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, tags, headers, basicAuth, conf.BatchWriteSize, conf.ConvertCountersToMonotonic)
+	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, headers, basicAuth, conf.BatchWriteSize, conf.ConvertCountersToMonotonic)
 }
 
 // ParseConfig extracts Cortex specific fields from the global veneur config
@@ -137,12 +131,11 @@ func ParseConfig(
 }
 
 // NewCortexMetricSink creates and returns a new instance of the sink
-func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string, headers map[string]string, basicAuth *BasicAuthType, batchWriteSize int, convertCountersToMonotonic bool) (*CortexMetricSink, error) {
+func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, headers map[string]string, basicAuth *BasicAuthType, batchWriteSize int, convertCountersToMonotonic bool) (*CortexMetricSink, error) {
 	sink := &CortexMetricSink{
 		URL:                        URL,
 		RemoteTimeout:              timeout,
 		ProxyURL:                   proxyURL,
-		tags:                       tags,
 		logger:                     logger,
 		name:                       name,
 		addHeaders:                 headers,
@@ -278,7 +271,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 
-	wr, updatedCounters := s.makeWriteRequest(metrics, s.tags)
+	wr, updatedCounters := s.makeWriteRequest(metrics)
 
 	data, err := proto.Marshal(wr)
 	if err != nil {
@@ -341,7 +334,7 @@ func (s *CortexMetricSink) FlushOtherSamples(context.Context, []ssf.SSFSample) {
 
 // makeWriteRequest converts a list of samples from a flush into a single
 // prometheus remote-write compatible protobuf object
-func (s *CortexMetricSink) makeWriteRequest(metrics []samplers.InterMetric, tags map[string]string) (*prompb.WriteRequest, map[counterMapKey]float64) {
+func (s *CortexMetricSink) makeWriteRequest(metrics []samplers.InterMetric) (*prompb.WriteRequest, map[counterMapKey]float64) {
 	ts := make([]*prompb.TimeSeries, len(metrics))
 	updatedCounters := map[counterMapKey]float64{}
 	for i, metric := range metrics {
@@ -351,7 +344,7 @@ func (s *CortexMetricSink) makeWriteRequest(metrics []samplers.InterMetric, tags
 			updatedCounters[counterKey] = metric.Value
 		}
 
-		ts[i] = metricToTimeSeries(metric, tags, s.excludedTags)
+		ts[i] = metricToTimeSeries(metric, s.excludedTags)
 	}
 
 	return &prompb.WriteRequest{
@@ -386,7 +379,7 @@ func (s *CortexMetricSink) SetExcludedTags(excludes []string) {
 // and we drop tags which are not in "key:value" format
 // (see https://prometheus.io/docs/concepts/data_model/)
 // we also take "last value wins" approach to duplicate labels inside a metric
-func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string, excludedTags map[string]struct{}) *prompb.TimeSeries {
+func metricToTimeSeries(metric samplers.InterMetric, excludedTags map[string]struct{}) *prompb.TimeSeries {
 	var ts prompb.TimeSeries
 	ts.Labels = []*prompb.Label{{
 		Name: "__name__", Value: sanitise(metric.Name),
@@ -402,11 +395,6 @@ func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string, exc
 
 		sk := sanitise(kv[0])
 		sanitisedTags[sk] = kv[1]
-	}
-
-	for k, v := range tags {
-		sk := sanitise(k)
-		sanitisedTags[sk] = v
 	}
 
 	for k := range excludedTags {
