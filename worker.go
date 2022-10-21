@@ -537,11 +537,10 @@ func (ew *EventWorker) Flush() []ssf.SSFSample {
 
 // SpanWorker is similar to a Worker but it collects events and service checks instead of metrics.
 type SpanWorker struct {
-	SpanChan   <-chan *ssf.SSFSpan
-	sinkTags   []map[string]string
-	commonTags map[string]string
-	sinks      []sinks.SpanSink
-	logger     *logrus.Entry
+	SpanChan <-chan *ssf.SSFSpan
+	sinkTags []map[string]string
+	sinks    []sinks.SpanSink
+	logger   *logrus.Entry
 
 	// cumulative time spent per sink, in nanoseconds
 	cumulativeTimes []int64
@@ -554,7 +553,7 @@ type SpanWorker struct {
 // NewSpanWorker creates a SpanWorker ready to collect events and service checks.
 func NewSpanWorker(
 	sinks []sinks.SpanSink, cl *trace.Client, statsd scopedstatsd.Client,
-	spanChan <-chan *ssf.SSFSpan, commonTags map[string]string,
+	spanChan <-chan *ssf.SSFSpan,
 	logger *logrus.Entry,
 ) *SpanWorker {
 	tags := make([]map[string]string, len(sinks))
@@ -568,7 +567,6 @@ func NewSpanWorker(
 		SpanChan:        spanChan,
 		sinks:           sinks,
 		sinkTags:        tags,
-		commonTags:      commonTags,
 		cumulativeTimes: make([]int64, len(sinks)),
 		traceClient:     cl,
 		statsd:          scopedstatsd.Ensure(statsd),
@@ -585,16 +583,6 @@ func (tw *SpanWorker) Work() {
 		// If we are at or one below cap, increment the counter.
 		if len(tw.SpanChan) >= capcmp {
 			atomic.AddInt64(&tw.capCount, 1)
-		}
-
-		if m.Tags == nil && len(tw.commonTags) != 0 {
-			m.Tags = make(map[string]string, len(tw.commonTags))
-		}
-
-		for k, v := range tw.commonTags {
-			if _, has := m.Tags[k]; !has {
-				m.Tags[k] = v
-			}
 		}
 
 		// An SSF packet may contain a valid span, one or more valid metrics,

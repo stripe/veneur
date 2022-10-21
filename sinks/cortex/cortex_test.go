@@ -26,7 +26,7 @@ import (
 )
 
 func TestName(t *testing.T) {
-	sink, err := NewCortexMetricSink("https://localhost/", 30, "", logrus.NewEntry(logrus.New()), "cortex", map[string]string{}, map[string]string{}, nil, 0, false)
+	sink, err := NewCortexMetricSink("https://localhost/", 30, "", logrus.NewEntry(logrus.New()), "cortex", map[string]string{}, nil, 0, false)
 	assert.NoError(t, err)
 	assert.Equal(t, "cortex", sink.Name())
 }
@@ -37,7 +37,7 @@ func TestFlush(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 0, false)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 0, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -88,7 +88,7 @@ func TestFlushWithExcludedTags(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault", "corge2": "grault2"}, map[string]string{}, nil, 0, false)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 0, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -141,7 +141,7 @@ func TestChunkedWrites(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 3, false)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 3, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -166,7 +166,7 @@ func TestMonotonicCounters(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, map[string]string{}, nil, 15, true)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 15, true)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -208,7 +208,7 @@ func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 15, false)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 15, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -233,7 +233,7 @@ func TestLeftOverBatchGetsWritten(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 5, false)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 5, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -258,7 +258,7 @@ func TestChunkedWritesRespectContextCancellation(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 3, false)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 3, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -300,7 +300,7 @@ func TestCustomHeaders(t *testing.T) {
 	}
 
 	// Set up a sink with custom headers
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, customHeaders, nil, 0, false)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", customHeaders, nil, 0, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -341,7 +341,7 @@ func TestBasicAuth(t *testing.T) {
 	}
 
 	// Set up a sink with custom headers
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, customHeaders, &auth, 0, false)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", customHeaders, &auth, 0, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -451,7 +451,7 @@ func TestParseConfigBadBasicAuth(t *testing.T) {
 func TestCorrectlySetTimeout(t *testing.T) {
 	timeouts := []int{10, 20, 30, 17, 21}
 	for to := range timeouts {
-		sink, err := NewCortexMetricSink("http://noop", time.Duration(to), "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 0, false)
+		sink, err := NewCortexMetricSink("http://noop", time.Duration(to), "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 0, false)
 		assert.NoError(t, err)
 
 		err = sink.Start(&trace.Client{})
@@ -475,20 +475,16 @@ func TestMetricToTimeSeries(t *testing.T) {
 			"host:val1",
 			"host:" + expectedHostValue,
 			"another:tag",
-			"host_contact:foo",
+			"host_contact:" + expectedHostContactValue,
 			"drop:me",
 		},
 		Type: samplers.CounterMetric,
 	}
 
-	tags := map[string]string{
-		"host_contact": expectedHostContactValue,
-	}
-
 	excludedTags := map[string]struct{}{}
 	excludedTags["drop"] = struct{}{}
 
-	ts := metricToTimeSeries(metric, tags, excludedTags)
+	ts := metricToTimeSeries(metric, excludedTags)
 
 	for _, label := range ts.Labels {
 		switch label.Name {

@@ -175,9 +175,9 @@ func TestSpanWorkerTagApplication(t *testing.T) {
 
 	logger := logrus.NewEntry(logrus.New())
 	go NewSpanWorker(
-		[]sinks.SpanSink{fake}, cl, nil, spanChanNone, nil, logger).Work()
+		[]sinks.SpanSink{fake}, cl, nil, spanChanNone, logger).Work()
 	go NewSpanWorker(
-		[]sinks.SpanSink{fake}, cl, nil, spanChanFoo, tags["foo"](), logger).Work()
+		[]sinks.SpanSink{fake}, cl, nil, spanChanFoo, logger).Work()
 
 	sendAndWait := func(spanChan chan<- *ssf.SSFSpan, span *ssf.SSFSpan) {
 		fake.wg.Add(1)

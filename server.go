@@ -712,7 +712,7 @@ func (s *Server) Start() {
 
 	// Use the pre-allocated Workers slice to know how many to start.
 	s.SpanWorker = NewSpanWorker(
-		s.spanSinks, s.TraceClient, s.Statsd, s.SpanChan, s.TagsAsMap, s.logger)
+		s.spanSinks, s.TraceClient, s.Statsd, s.SpanChan, s.logger)
 
 	go func() {
 		s.logger.Info("Starting Event worker")

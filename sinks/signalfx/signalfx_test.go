@@ -82,7 +82,7 @@ func TestNewSignalFxSink(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), nil, nil, nil)
+	}, "signalfx-hostname", logrus.NewEntry(logrus.New()), nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,6 @@ func TestNewSignalFxSink(t *testing.T) {
 	assert.Equal(t, "signalfx", sink.Name())
 	assert.Equal(t, "host", sink.hostnameTag)
 	assert.Equal(t, "signalfx-hostname", sink.hostname)
-	assert.Equal(t, map[string]string{"yay": "pie"}, sink.commonDimensions)
 }
 
 func TestSignalFxFlushGauge(t *testing.T) {
@@ -116,7 +115,7 @@ func TestSignalFxFlushGauge(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
+	}, "signalfx-hostname", logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 
 	assert.NoError(t, err)
 
@@ -143,10 +142,9 @@ func TestSignalFxFlushGauge(t *testing.T) {
 	assert.Nil(t, err, "Failed to parse value as integer")
 	assert.Equal(t, int(interMetrics[0].Value), val, "Status translates to gauge Value")
 	dims := point.Dimensions
-	assert.Equal(t, 4, len(dims), "Metric has incorrect tag count")
+	assert.Equal(t, 3, len(dims), "Metric has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
-	assert.Equal(t, "pie", dims["yay"], "Metric is missing common tag")
 	assert.Equal(t, "signalfx-hostname", dims["host"], "Metric is missing host tag")
 }
 
@@ -163,7 +161,7 @@ func TestSignalFxFlushCounter(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
+	}, "signalfx-hostname", logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{{
@@ -190,11 +188,10 @@ func TestSignalFxFlushCounter(t *testing.T) {
 	assert.Nil(t, err, "Failed to parse value as integer")
 	assert.Equal(t, int(interMetrics[0].Value), val, "Status translates to gauge Value")
 	dims := point.Dimensions
-	assert.Equal(t, 5, len(dims), "Metric has incorrect tag count")
+	assert.Equal(t, 4, len(dims), "Metric has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
 	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
-	assert.Equal(t, "pie", dims["yay"], "Metric is missing a common tag")
 	assert.Equal(t, "signalfx-hostname", dims["host"], "Metric is missing host tag")
 }
 
@@ -211,7 +208,7 @@ func TestSignalFxFlushWithDrops(t *testing.T) {
 		MetricNamePrefixDrops:             []string{"foo.bar"},
 		MetricTagPrefixDrops:              []string{"baz:gorch"},
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
+	}, "signalfx-hostname", logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{{
@@ -268,7 +265,7 @@ func TestSignalFxFlushStatus(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
+	}, "signalfx-hostname", logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{{
@@ -295,11 +292,10 @@ func TestSignalFxFlushStatus(t *testing.T) {
 	assert.Nil(t, err, "Failed to parse value as integer")
 	assert.Equal(t, int(ssf.SSFSample_UNKNOWN), val, "Status translates to gauge Value")
 	dims := point.Dimensions
-	assert.Equal(t, 5, len(dims), "Metric has incorrect tag count")
+	assert.Equal(t, 4, len(dims), "Metric has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
 	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
-	assert.Equal(t, "pie", dims["yay"], "Metric is missing a common tag")
 	assert.Equal(t, "signalfx-hostname", dims["host"], "Metric is missing host tag")
 }
 
@@ -316,7 +312,7 @@ func TestSignalFxServiceCheckFlushOther(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
+	}, "signalfx-hostname", logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	assert.NoError(t, err)
 
 	serviceCheckMsg := "Service Farts starting[an example link](http://catchpoint.com/session_id \"Title\")"
@@ -346,7 +342,7 @@ func TestSignalFxEventFlush(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
+	}, "signalfx-hostname", logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	assert.NoError(t, err)
 
 	evMessage := "[an example link](http://catchpoint.com/session_id \"Title\")"
@@ -366,10 +362,9 @@ func TestSignalFxEventFlush(t *testing.T) {
 	assert.Equal(t, event.Properties["description"], evMessage)
 	dims := event.Dimensions
 	// 5 because 5 passed in, 1 eliminated (event identifier) and 1 added (host!)
-	assert.Equal(t, 5, len(dims), "Event has incorrect tag count")
+	assert.Equal(t, 4, len(dims), "Event has incorrect tag count")
 	assert.Equal(t, "bar", dims["foo"], "Event has a busted tag")
 	assert.Equal(t, "gorch", dims["baz"], "Event has a busted tag")
-	assert.Equal(t, "pie", dims["yay"], "Event missing a common tag")
 	assert.Equal(t, "", dims["novalue"], "Event has a busted tag")
 	assert.Equal(t, "signalfx-hostname", dims["host"], "Event is missing host tag")
 }
@@ -387,7 +382,7 @@ func TestSignalFxSetExcludeTags(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
+	}, "signalfx-hostname", logrus.NewEntry(logrus.New()), fakeSink, nil, nil)
 	sink.SetExcludedTags([]string{"foo", "boo", "host"})
 	assert.NoError(t, err)
 
@@ -428,21 +423,19 @@ func TestSignalFxSetExcludeTags(t *testing.T) {
 	assert.Nil(t, err, "Failed to parse value as integer")
 	assert.Equal(t, int(interMetrics[0].Value), val, "Status translates to gauge Value")
 	dims := point.Dimensions
-	assert.Equal(t, 3, len(dims), "Metric has incorrect tag count")
+	assert.Equal(t, 2, len(dims), "Metric has incorrect tag count")
 	assert.Equal(t, "", dims["foo"], "Metric has a foo tag despite exclude rule")
 	assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
 	assert.Equal(t, "", dims["novalue"], "Metric has a busted tag")
-	assert.Equal(t, "pie", dims["yay"], "Metric is missing a common tag")
 	assert.Equal(t, "", dims["boo"], "Metric has host tag despite exclude rule")
 
 	assert.Equal(t, 1, len(fakeSink.events))
 	event := fakeSink.events[0]
 	assert.Equal(t, ev.Name, event.EventType)
 	dims = event.Dimensions
-	assert.Equal(t, 3, len(dims), "Event has incorrect tag count")
+	assert.Equal(t, 2, len(dims), "Event has incorrect tag count")
 	assert.Equal(t, "", dims["foo"], "Event has a foo tag despite exclude rule")
 	assert.Equal(t, "gorch", dims["baz"], "Event has a busted tag")
-	assert.Equal(t, "pie", dims["yay"], "Event missing a common tag")
 	assert.Equal(t, "", dims["novalue"], "Event has a busted tag")
 	assert.Equal(t, "", dims["boo"], "Event has host tag despite exclude rule")
 }
@@ -462,7 +455,7 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "test_by",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{"available": specialized}, nil)
+	}, "signalfx-hostname", logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{"available": specialized}, nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{{
@@ -501,10 +494,9 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 		assert.Nil(t, err, "Failed to parse value as integer")
 		assert.Equal(t, int(interMetrics[0].Value), val, "Status translates to gauge Value")
 		dims := point.Dimensions
-		assert.Equal(t, 5, len(dims), "Metric has incorrect tag count")
+		assert.Equal(t, 4, len(dims), "Metric has incorrect tag count")
 		assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
 		assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
-		assert.Equal(t, "pie", dims["yay"], "Metric is missing common tag")
 		assert.Equal(t, "signalfx-hostname", dims["host"], "Metric is missing host tag")
 		assert.Equal(t, "needs_fallback", dims["test_by"], "Metric should have the right test_by tag")
 	}
@@ -516,10 +508,9 @@ func TestSignalFxFlushMultiKey(t *testing.T) {
 		assert.Nil(t, err, "Failed to parse value as integer")
 		assert.Equal(t, int(interMetrics[1].Value), val, "Status translates to gauge Value")
 		dims := point.Dimensions
-		assert.Equal(t, 5, len(dims), "Metric has incorrect tag count")
+		assert.Equal(t, 4, len(dims), "Metric has incorrect tag count")
 		assert.Equal(t, "bar", dims["foo"], "Metric has a busted tag")
 		assert.Equal(t, "quz", dims["baz"], "Metric has a busted tag")
-		assert.Equal(t, "pie", dims["yay"], "Metric is missing common tag")
 		assert.Equal(t, "signalfx-hostname", dims["host"], "Metric is missing host tag")
 		assert.Equal(t, "available", dims["test_by"], "Metric should have the right test_by tag")
 	}
@@ -540,7 +531,7 @@ func TestSignalFxFlushBatches(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "test_by",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{}, nil)
+	}, "signalfx-hostname", logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{}, nil)
 
 	assert.NoError(t, err)
 
@@ -597,7 +588,7 @@ func TestSignalFxFlushBatchHang(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "test_by",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{}, nil)
+	}, "signalfx-hostname", logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{}, nil)
 
 	assert.NoError(t, err)
 
@@ -771,7 +762,7 @@ func TestSignalFxClientByTagUpdater(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         "test_by",
-	}, "signalfx-hostname", map[string]string{"yay": "pie"}, logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{}, server.Client())
+	}, "signalfx-hostname", logrus.NewEntry(logrus.New()), fallback, map[string]DPClient{}, server.Client())
 
 	require.NoError(t, err)
 
@@ -826,7 +817,6 @@ LOOP:
 
 func TestSignalFxVaryByOverride(t *testing.T) {
 	varyByTagKey := "vary_by"
-	commonDimensions := map[string]string{"vary_by": "bar"}
 	defaultFakeSink := NewFakeSink()
 	customFakeSinkFoo := NewFakeSink()
 	customFakeSinkBar := NewFakeSink()
@@ -845,7 +835,7 @@ func TestSignalFxVaryByOverride(t *testing.T) {
 		MetricNamePrefixDrops:             nil,
 		MetricTagPrefixDrops:              nil,
 		VaryKeyBy:                         varyByTagKey,
-	}, "signalfx-hostname", commonDimensions, logrus.NewEntry(logrus.New()), defaultFakeSink, perTagClients, nil)
+	}, "signalfx-hostname", logrus.NewEntry(logrus.New()), defaultFakeSink, perTagClients, nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{{
@@ -860,8 +850,10 @@ func TestSignalFxVaryByOverride(t *testing.T) {
 		Name:      "a.b.d",
 		Timestamp: 1476119059,
 		Value:     float64(100),
-		Tags:      []string{},
-		Type:      samplers.GaugeMetric,
+		Tags: []string{
+			"vary_by:bar",
+		},
+		Type: samplers.GaugeMetric,
 	}}
 
 	flushResult, err := sink.Flush(context.TODO(), interMetrics)
@@ -879,66 +871,9 @@ func TestSignalFxVaryByOverride(t *testing.T) {
 	assert.Equal(t, "bar", customFakeSinkBar.points[0].Dimensions["vary_by"])
 }
 
-func TestSignalFxVaryByOverridePreferringCommonDimensions(t *testing.T) {
-	varyByTagKey := "vary_by"
-	commonDimensions := map[string]string{"vary_by": "bar"}
-	defaultFakeSink := NewFakeSink()
-	customFakeSinkFoo := NewFakeSink()
-	customFakeSinkBar := NewFakeSink()
-	perTagClients := make(map[string]DPClient)
-	perTagClients["foo"] = customFakeSinkFoo
-	perTagClients["bar"] = customFakeSinkBar
-
-	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
-		APIKey:                            util.StringSecret{Value: ""},
-		DynamicPerTagAPIKeysEnable:        false,
-		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
-		EndpointAPI:                       "",
-		EndpointBase:                      "",
-		FlushMaxPerBody:                   0,
-		HostnameTag:                       "host",
-		MetricNamePrefixDrops:             nil,
-		MetricTagPrefixDrops:              nil,
-		VaryKeyBy:                         varyByTagKey,
-		VaryKeyByFavorCommonDimensions:    true,
-	}, "signalfx-hostname", commonDimensions, logrus.NewEntry(logrus.New()), defaultFakeSink, perTagClients, nil)
-	assert.NoError(t, err)
-
-	interMetrics := []samplers.InterMetric{{
-		Name:      "a.b.c",
-		Timestamp: 1476119058,
-		Value:     float64(100),
-		Tags: []string{
-			"vary_by:foo",
-		},
-		Type: samplers.GaugeMetric,
-	}, {
-		Name:      "a.b.d",
-		Timestamp: 1476119059,
-		Value:     float64(100),
-		Tags:      []string{},
-		Type:      samplers.GaugeMetric,
-	}}
-
-	flushResult, err := sink.Flush(context.TODO(), interMetrics)
-	assert.NoError(t, err)
-	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 2}, flushResult)
-
-	assert.Equal(t, 0, len(defaultFakeSink.points))
-	assert.Equal(t, 1, len(customFakeSinkFoo.points))
-	assert.Equal(t, 1, len(customFakeSinkBar.points))
-
-	assert.Equal(t, "a.b.c", customFakeSinkFoo.points[0].Metric)
-	assert.Equal(t, "bar", customFakeSinkFoo.points[0].Dimensions["vary_by"])
-
-	assert.Equal(t, "a.b.d", customFakeSinkBar.points[0].Metric)
-	assert.Equal(t, "bar", customFakeSinkBar.points[0].Dimensions["vary_by"])
-}
-
 func TestSignalFxVaryByWithPreferredVaryByKey(t *testing.T) {
 	preferredVaryByTagKey := "preferred_vary_by"
 	varyByTagKey := "vary_by"
-	commonDimensions := map[string]string{"vary_by": "bar"}
 	defaultFakeSink := NewFakeSink()
 	customFakeSinkFoo := NewFakeSink()
 	customFakeSinkBar := NewFakeSink()
@@ -958,7 +893,7 @@ func TestSignalFxVaryByWithPreferredVaryByKey(t *testing.T) {
 		MetricTagPrefixDrops:              nil,
 		PreferredVaryKeyBy:                preferredVaryByTagKey,
 		VaryKeyBy:                         varyByTagKey,
-	}, "signalfx-hostname", commonDimensions, logrus.NewEntry(logrus.New()), defaultFakeSink, perTagClients, nil)
+	}, "signalfx-hostname", logrus.NewEntry(logrus.New()), defaultFakeSink, perTagClients, nil)
 	assert.NoError(t, err)
 
 	interMetrics := []samplers.InterMetric{{
@@ -966,6 +901,7 @@ func TestSignalFxVaryByWithPreferredVaryByKey(t *testing.T) {
 		Timestamp: 1476119058,
 		Value:     float64(100),
 		Tags: []string{
+			"vary_by:bar",
 			"preferred_vary_by:foo",
 		},
 		Type: samplers.GaugeMetric,
@@ -991,8 +927,10 @@ func TestSignalFxVaryByWithPreferredVaryByKey(t *testing.T) {
 		Name:      "a.b.f",
 		Timestamp: 1476119601,
 		Value:     float64(100),
-		Tags:      []string{}, // No tags
-		Type:      samplers.GaugeMetric,
+		Tags: []string{
+			"vary_by:bar",
+		}, // No tags
+		Type: samplers.GaugeMetric,
 	}}
 
 	flushResult, err := sink.Flush(context.TODO(), interMetrics)
@@ -1015,94 +953,6 @@ func TestSignalFxVaryByWithPreferredVaryByKey(t *testing.T) {
 	_, preferredVaryByIsPresent := customFakeSinkFoo.points[2].Dimensions["preferred_vary_by"]
 	assert.False(t, preferredVaryByIsPresent)
 	assert.Equal(t, "foo", customFakeSinkFoo.points[2].Dimensions["vary_by"])
-
-	assert.Equal(t, "a.b.f", customFakeSinkBar.points[0].Metric)
-	_, preferredVaryByIsPresent = customFakeSinkBar.points[0].Dimensions["preferred_vary_by"]
-	assert.False(t, preferredVaryByIsPresent)
-	assert.Equal(t, "bar", customFakeSinkBar.points[0].Dimensions["vary_by"])
-}
-
-func TestSignalFxVaryByWithPreferredVaryByKeyAndOverridePreferringCommonDimensions(t *testing.T) {
-	preferredVaryByTagKey := "preferred_vary_by"
-	varyByTagKey := "vary_by"
-	commonDimensions := map[string]string{"vary_by": "bar"}
-	defaultFakeSink := NewFakeSink()
-	customFakeSinkFoo := NewFakeSink()
-	customFakeSinkBar := NewFakeSink()
-	perTagClients := make(map[string]DPClient)
-	perTagClients["foo"] = customFakeSinkFoo
-	perTagClients["bar"] = customFakeSinkBar
-
-	sink, err := newSignalFxSink("signalfx", SignalFxSinkConfig{
-		APIKey:                            util.StringSecret{Value: ""},
-		DynamicPerTagAPIKeysEnable:        false,
-		DynamicPerTagAPIKeysRefreshPeriod: time.Second,
-		EndpointAPI:                       "",
-		EndpointBase:                      "",
-		FlushMaxPerBody:                   0,
-		HostnameTag:                       "host",
-		MetricNamePrefixDrops:             nil,
-		MetricTagPrefixDrops:              nil,
-		PreferredVaryKeyBy:                preferredVaryByTagKey,
-		VaryKeyBy:                         varyByTagKey,
-		VaryKeyByFavorCommonDimensions:    true,
-	}, "signalfx-hostname", commonDimensions, logrus.NewEntry(logrus.New()), defaultFakeSink, perTagClients, nil)
-	assert.NoError(t, err)
-
-	interMetrics := []samplers.InterMetric{{
-		Name:      "a.b.c",
-		Timestamp: 1476119058,
-		Value:     float64(100),
-		Tags: []string{
-			"preferred_vary_by:foo",
-		},
-		Type: samplers.GaugeMetric,
-	}, {
-		Name:      "a.b.d",
-		Timestamp: 1476119059,
-		Value:     float64(100),
-		Tags: []string{
-			"preferred_vary_by:foo",
-			"vary_by:baz",
-		},
-		Type: samplers.GaugeMetric,
-	}, {
-		Name:      "a.b.e",
-		Timestamp: 1476119600,
-		Value:     float64(100),
-		Tags: []string{
-			// No preferred_vary_by
-			"vary_by:foo",
-		},
-		Type: samplers.GaugeMetric,
-	}, {
-		Name:      "a.b.f",
-		Timestamp: 1476119601,
-		Value:     float64(100),
-		Tags:      []string{}, // No tags
-		Type:      samplers.GaugeMetric,
-	}}
-
-	flushResult, err := sink.Flush(context.TODO(), interMetrics)
-	assert.NoError(t, err)
-	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 4}, flushResult)
-
-	assert.Equal(t, 0, len(defaultFakeSink.points))
-	assert.Equal(t, 3, len(customFakeSinkFoo.points))
-	assert.Equal(t, 1, len(customFakeSinkBar.points))
-
-	assert.Equal(t, "a.b.c", customFakeSinkFoo.points[0].Metric)
-	assert.Equal(t, "foo", customFakeSinkFoo.points[0].Dimensions["preferred_vary_by"])
-	assert.Equal(t, "bar", customFakeSinkFoo.points[0].Dimensions["vary_by"])
-
-	assert.Equal(t, "a.b.d", customFakeSinkFoo.points[1].Metric)
-	assert.Equal(t, "foo", customFakeSinkFoo.points[1].Dimensions["preferred_vary_by"])
-	assert.Equal(t, "bar", customFakeSinkFoo.points[1].Dimensions["vary_by"])
-
-	assert.Equal(t, "a.b.e", customFakeSinkFoo.points[2].Metric)
-	_, preferredVaryByIsPresent := customFakeSinkFoo.points[2].Dimensions["preferred_vary_by"]
-	assert.False(t, preferredVaryByIsPresent)
-	assert.Equal(t, "bar", customFakeSinkFoo.points[2].Dimensions["vary_by"])
 
 	assert.Equal(t, "a.b.f", customFakeSinkBar.points[0].Metric)
 	_, preferredVaryByIsPresent = customFakeSinkBar.points[0].Dimensions["preferred_vary_by"]
