@@ -49,7 +49,6 @@
   "StatsAddress": "localhost:8125",
   "StatsdListenAddresses": null,
   "SynchronizeWithInterval": false,
-  "Tags": null,
   "TagsExclude": null,
   "TLSAuthorityCertificate": "",
   "TLSCertificate": "",

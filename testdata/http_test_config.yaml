@@ -44,7 +44,6 @@ ssf_listen_addresses: []
 stats_address: localhost:8125
 statsd_listen_addresses: []
 synchronize_with_interval: false
-tags: []
 tags_exclude: []
 tls_authority_certificate: ""
 tls_certificate: ""

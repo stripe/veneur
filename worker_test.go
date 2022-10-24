@@ -124,11 +124,6 @@ func TestWorkerStatusMetric(t *testing.T) {
 
 func TestSpanWorkerTagApplication(t *testing.T) {
 	tags := map[string]func() map[string]string{
-		"foo": func() map[string]string {
-			return map[string]string{
-				"foo": "bar",
-			}
-		},
 		"foo2": func() map[string]string {
 			return map[string]string{
 				"foo": "other",
@@ -141,7 +136,6 @@ func TestSpanWorkerTagApplication(t *testing.T) {
 		},
 		"both": func() map[string]string {
 			return map[string]string{
-				"foo": "bar",
 				"baz": "qux",
 			}
 		},
@@ -189,14 +183,6 @@ func TestSpanWorkerTagApplication(t *testing.T) {
 	// span already
 	sendAndWait(spanChanNone, testSpan(nil))
 	require.Nil(t, fake.latestSpan().Tags)
-
-	// Change nothing when commonTags is nil
-	sendAndWait(spanChanNone, testSpan(tags["foo"]()))
-	require.Equal(t, tags["foo"](), fake.latestSpan().Tags)
-
-	// Allocate map and add tags if no map on span and there are commonTags
-	sendAndWait(spanChanFoo, testSpan(nil))
-	require.Equal(t, tags["foo"](), fake.latestSpan().Tags)
 
 	// Do not override existing tags if keys match
 	sendAndWait(spanChanFoo, testSpan(tags["foo2"]()))
