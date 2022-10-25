@@ -532,6 +532,14 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		}
 
 		clientKey := ""
+
+		// If preferred_vary_by is available, will override clientKey retrieved via vary_by
+		if sfx.varyBy != "" {
+			if val, ok := dims[sfx.varyBy]; ok {
+				clientKey = val
+			}
+		}
+
 		if sfx.preferredVaryBy != "" {
 			if val, ok := dims[sfx.preferredVaryBy]; ok {
 				clientKey = val
