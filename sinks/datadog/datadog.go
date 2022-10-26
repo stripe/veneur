@@ -51,7 +51,6 @@ type DatadogMetricSink struct {
 	DDHostname                      string
 	hostname                        string
 	flushMaxPerBody                 int
-	tags                            []string
 	interval                        float64
 	traceClient                     *trace.Client
 	log                             *logrus.Entry
@@ -97,7 +96,6 @@ func CreateMetricSink(
 		interval:                        server.Interval.Seconds(),
 		flushMaxPerBody:                 datadogConfig.FlushMaxPerBody,
 		hostname:                        config.Hostname,
-		tags:                            server.Tags,
 		name:                            name,
 		metricNamePrefixDrops:           datadogConfig.MetricNamePrefixDrops,
 		excludeTagsPrefixByPrefixMetric: excludeTagsPrefixByPrefixMetric,
@@ -269,7 +267,7 @@ func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ss
 				finalTags = append(finalTags, fmt.Sprintf("%s:%s", k, v))
 			}
 
-			ret.Tags = append(finalTags, dd.tags...)
+			ret.Tags = finalTags
 			events = append(events, ret)
 		} else {
 			dd.log.Warn("Received an SSF Sample that wasn't an event or service check, ack!")
@@ -319,7 +317,7 @@ METRICLOOP:
 		}
 
 		// Defensively copy tags since we're gonna mutate it
-		tags := make([]string, 0, len(dd.tags))
+		tags := []string{}
 
 		// Prepare exclude tags by specific prefix metric
 		var excludeTagsPrefixByPrefixMetric []string
@@ -332,19 +330,6 @@ METRICLOOP:
 			}
 		}
 
-		for i := range dd.tags {
-			exclude := false
-			for j := range dd.excludedTags {
-				if strings.HasPrefix(dd.tags[i], dd.excludedTags[j]) {
-					exclude = true
-					break
-				}
-			}
-			if !exclude {
-				tags = append(tags, dd.tags[i])
-			}
-
-		}
 		var hostname, devicename string
 		// Let's look for "magic tags" that override metric fields host and device.
 		for _, tag := range m.Tags {

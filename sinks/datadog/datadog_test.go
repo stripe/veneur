@@ -35,7 +35,6 @@ type DDEventRequest struct {
 func TestDatadogRate(t *testing.T) {
 	ddSink := DatadogMetricSink{
 		hostname: "somehostname",
-		tags:     []string{"a:b", "c:d"},
 		interval: 10,
 	}
 
@@ -55,7 +54,6 @@ func TestDatadogRate(t *testing.T) {
 func TestServerTags(t *testing.T) {
 	ddSink := DatadogMetricSink{
 		hostname: "somehostname",
-		tags:     []string{"a:b", "c:d"},
 		interval: 10,
 	}
 
@@ -70,13 +68,11 @@ func TestServerTags(t *testing.T) {
 	ddMetrics, serviceChecks := ddSink.finalizeMetrics(metrics)
 	assert.Empty(t, serviceChecks, "No service check metrics are reported")
 	assert.Equal(t, "somehostname", ddMetrics[0].Hostname, "Metric hostname uses argument")
-	assert.Contains(t, ddMetrics[0].Tags, "a:b", "Tags should contain server tags")
 }
 
 func TestHostMagicTag(t *testing.T) {
 	ddSink := DatadogMetricSink{
 		hostname: "badhostname",
-		tags:     []string{"a:b", "c:d"},
 	}
 
 	metrics := []samplers.InterMetric{{
@@ -97,7 +93,6 @@ func TestHostMagicTag(t *testing.T) {
 func TestDeviceMagicTag(t *testing.T) {
 	ddSink := DatadogMetricSink{
 		hostname: "badhostname",
-		tags:     []string{"a:b", "c:d"},
 	}
 
 	metrics := []samplers.InterMetric{{
@@ -236,7 +231,6 @@ func TestDatadogFlushEvents(t *testing.T) {
 	sink, err := CreateMetricSink(&veneur.Server{
 		HTTPClient: &http.Client{Transport: transport},
 		Interval:   interval,
-		Tags:       []string{"gloobles:toots"},
 	},
 		"datadog", logger, veneur.Config{Hostname: "example.com"},
 		DatadogMetricSinkConfig{
@@ -306,7 +300,6 @@ func TestDatadogFlushOtherMetricsForServiceChecks(t *testing.T) {
 	sink, err := CreateMetricSink(&veneur.Server{
 		HTTPClient: &http.Client{Transport: transport},
 		Interval:   interval,
-		Tags:       []string{"gloobles:toots"},
 	},
 		"datadog", logger, veneur.Config{Hostname: "example.com"},
 		DatadogMetricSinkConfig{
@@ -342,7 +335,6 @@ func TestDatadogFlushServiceCheck(t *testing.T) {
 	sink, err := CreateMetricSink(&veneur.Server{
 		HTTPClient: &http.Client{Transport: transport},
 		Interval:   10 * time.Second,
-		Tags:       []string{"gloobles:toots"},
 	},
 		"datadog", logger, veneur.Config{Hostname: "example.com"},
 		DatadogMetricSinkConfig{
@@ -397,9 +389,7 @@ func TestDatadogFlushServiceCheck(t *testing.T) {
 }
 
 func TestDataDogSetExcludeTags(t *testing.T) {
-	ddSink := DatadogMetricSink{
-		tags: []string{"yay:pie", "boo:snakes"},
-	}
+	ddSink := DatadogMetricSink{}
 
 	ddSink.SetExcludedTags([]string{"foo", "boo", "host"})
 
@@ -422,11 +412,10 @@ func TestDataDogSetExcludeTags(t *testing.T) {
 	metric := ddMetrics[0]
 	assert.Equal(t, "a.b.c", metric.Name, "Metric has wrong name")
 	tags := metric.Tags
-	assert.Equal(t, 3, len(tags), "Metric has incorrect tag count")
+	assert.Equal(t, 2, len(tags), "Metric has incorrect tag count")
 
-	assert.Equal(t, "yay:pie", tags[0], "Incorrect yay tag in first position")
-	assert.Equal(t, "baz:quz", tags[1], "Incorrect baz tag in second position")
-	assert.Equal(t, "novalue", tags[2], "Incorrect novalue tag in third position")
+	assert.Equal(t, "baz:quz", tags[0], "Incorrect baz tag in second position")
+	assert.Equal(t, "novalue", tags[1], "Incorrect novalue tag in third position")
 }
 
 func TestDataDogDropMetric(t *testing.T) {
