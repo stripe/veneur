@@ -106,14 +106,6 @@ hostname: ""
 # If true and hostname is "" or absent, don't add the host tag
 omit_empty_hostname: false
 
-# Tags supplied here will be added to all metrics and spans when flushing
-# to vendor sinks. They will not be forwarded to global Veneur instances.
-# tags:
-#  - "foo:bar"
-#  - "baz:quz"
-tags:
-  - ""
-
 # Tags suppliedhere will be added to all metrics and spans at parse/ingestion
 # time. They *will* be forwarded to global Veneur instances.
 # extend_tags:

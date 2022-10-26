@@ -79,7 +79,6 @@ type XRaySpanSink struct {
 	traceClient     *trace.Client
 	conn            *net.UDPConn
 	sampleThreshold uint32
-	commonTags      map[string]string
 	annotationTags  map[string]struct{}
 	log             *logrus.Entry
 	spansDropped    int64
@@ -148,7 +147,6 @@ func Create(
 	return &XRaySpanSink{
 		daemonAddr:      xRaySinkConfig.Address,
 		sampleThreshold: sampleThreshold,
-		commonTags:      server.TagsAsMap,
 		log:             logger,
 		name:            name,
 		nameRegex:       reg,
@@ -194,9 +192,6 @@ func (x *XRaySpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 
 	metadata := map[string]string{}
 	annotations := map[string]string{}
-	for k, v := range x.commonTags {
-		metadata[k] = v
-	}
 
 	http := XRaySegmentHTTP{
 		Request: XRaySegmentHTTPRequest{

@@ -40,7 +40,6 @@ import (
 	"github.com/stripe/veneur/v14/sources"
 	"github.com/stripe/veneur/v14/sources/proxy"
 	"github.com/stripe/veneur/v14/ssf"
-	"github.com/stripe/veneur/v14/tagging"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
 	"github.com/stripe/veneur/v14/util/build"
@@ -114,9 +113,7 @@ type Server struct {
 
 	Statsd scopedstatsd.Client
 
-	Hostname  string
-	Tags      []string
-	TagsAsMap map[string]string
+	Hostname string
 
 	HTTPClient *http.Client
 
@@ -496,8 +493,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		RcvbufBytes:        conf.ReadBufferSizeBytes,
 		// closed in Shutdown; Same approach and http.Shutdown
 		shutdown:            make(chan struct{}),
-		Tags:                conf.Tags,
-		TagsAsMap:           tagging.ParseTagSliceToMap(conf.Tags),
 		traceMaxLengthBytes: conf.TraceMaxLengthBytes,
 		SpanChan:            make(chan *ssf.SSFSpan, conf.SpanChannelCapacity),
 		stuckIntervals:      conf.FlushWatchdogMissedFlushes,
@@ -717,7 +712,7 @@ func (s *Server) Start() {
 
 	// Use the pre-allocated Workers slice to know how many to start.
 	s.SpanWorker = NewSpanWorker(
-		s.spanSinks, s.TraceClient, s.Statsd, s.SpanChan, s.TagsAsMap, s.logger)
+		s.spanSinks, s.TraceClient, s.Statsd, s.SpanChan, s.logger)
 
 	go func() {
 		s.logger.Info("Starting Event worker")

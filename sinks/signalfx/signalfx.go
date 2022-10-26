@@ -169,7 +169,6 @@ type SignalFxSink struct {
 	apiEndpoint                 string
 	clientsByTagValue           map[string]DPClient
 	clientsByTagValueMu         *sync.RWMutex
-	commonDimensions            map[string]string
 	defaultClient               DPClient
 	defaultToken                string
 	dropHostWithTagKey          string
@@ -253,7 +252,6 @@ func Create(
 		name,
 		signalFxConfig,
 		config.Hostname,
-		server.TagsAsMap,
 		logger,
 		fallback,
 		byTagClients,
@@ -264,7 +262,6 @@ func newSignalFxSink(
 	name string,
 	config SignalFxSinkConfig,
 	hostname string,
-	commonDimensions map[string]string,
 	log *logrus.Entry,
 	client DPClient,
 	perTagClients map[string]DPClient,
@@ -296,7 +293,6 @@ func newSignalFxSink(
 		apiEndpoint:                 endpointStr,
 		clientsByTagValue:           perTagClients,
 		clientsByTagValueMu:         &sync.RWMutex{},
-		commonDimensions:            commonDimensions,
 		defaultClient:               client,
 		defaultToken:                config.APIKey.Value,
 		dynamicKeyRefreshPeriod:     config.DynamicPerTagAPIKeysRefreshPeriod,
@@ -536,29 +532,18 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 		}
 
 		clientKey := ""
-		// Datapoint-specified vary_key_by value, if present, should override the common dimension unless
-		// vary_key_by_favor_common_dimensions is set to true
-		metricOverrodeVaryBy := false
 
 		// If preferred_vary_by is available, will override clientKey retrieved via vary_by
 		if sfx.varyBy != "" {
 			if val, ok := dims[sfx.varyBy]; ok {
-				metricOverrodeVaryBy = true
-				clientKey = val
-			}
-		}
-		if sfx.preferredVaryBy != "" {
-			if val, ok := dims[sfx.preferredVaryBy]; ok {
 				clientKey = val
 			}
 		}
 
-		// Copy applicable common dimensions
-		for k, v := range sfx.commonDimensions {
-			if metricOverrodeVaryBy && k == sfx.varyBy && !sfx.varyByFavorCommonDimensions {
-				continue
+		if sfx.preferredVaryBy != "" {
+			if val, ok := dims[sfx.preferredVaryBy]; ok {
+				clientKey = val
 			}
-			dims[k] = v
 		}
 
 		// If vary_by was updated, want to update clientKey here
@@ -650,14 +635,9 @@ func (sfx *SignalFxSink) SetExcludedTags(excludes []string) {
 }
 
 func (sfx *SignalFxSink) reportEvent(ctx context.Context, sample *ssf.SSFSample) error {
-	// Copy common dimensions in
-	dims := map[string]string{}
-	for k, v := range sfx.commonDimensions {
-		dims[k] = v
+	dims := map[string]string{
+		sfx.hostnameTag: sfx.hostname,
 	}
-	// And hostname
-	dims[sfx.hostnameTag] = sfx.hostname
-
 	for k, v := range sample.Tags {
 		if k == dogstatsd.EventIdentifierKey {
 			// Don't copy this tag

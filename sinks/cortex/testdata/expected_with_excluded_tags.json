@@ -9,10 +9,6 @@
         {
           "name": "baz",
           "value": "qux"
-        },
-        {
-          "name": "corge",
-          "value": "grault"
         }
       ],
       "samples": [
@@ -27,10 +23,6 @@
         {
           "name": "__name__",
           "value": "a_b_counter"
-        },
-        {
-          "name": "corge",
-          "value": "grault"
         }
       ],
       "samples": [
@@ -45,10 +37,6 @@
         {
           "name": "__name__",
           "value": "a_b_status"
-        },
-        {
-          "name": "corge",
-          "value": "grault"
         }
       ],
       "samples": [

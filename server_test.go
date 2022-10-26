@@ -106,7 +106,6 @@ func generateConfig(forwardAddr string) Config {
 		// We don't need internal metrics for the tests, and they make testing
 		// more complicated.
 		StatsAddress: "localhost:8125",
-		Tags:         []string{},
 		SentryDsn:    util.StringSecret{Value: ""},
 
 		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
@@ -251,7 +250,6 @@ func (f *fixture) Close() {
 func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	metricValues, _ := generateMetrics()
 	config := localConfig()
-	config.Tags = []string{"butts:farts"}
 
 	metricsChan := make(chan []samplers.InterMetric, 10)
 	cms, _ := NewChannelMetricSink(metricsChan)

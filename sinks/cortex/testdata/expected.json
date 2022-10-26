@@ -11,10 +11,6 @@
           "value": "qux"
         },
         {
-          "name": "corge",
-          "value": "grault"
-        },
-        {
           "name": "foo",
           "value": "bar"
         }
@@ -33,10 +29,6 @@
           "value": "a_b_counter"
         },
         {
-          "name": "corge",
-          "value": "grault"
-        },
-        {
           "name": "foo",
           "value": "bar"
         }
@@ -53,10 +45,6 @@
         {
           "name": "__name__",
           "value": "a_b_status"
-        },
-        {
-          "name": "corge",
-          "value": "grault"
         }
       ],
       "samples": [

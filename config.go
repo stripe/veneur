@@ -45,7 +45,6 @@ type Config struct {
 	StatsAddress                string              `yaml:"stats_address"`
 	StatsdListenAddresses       []util.Url          `yaml:"statsd_listen_addresses"`
 	SynchronizeWithInterval     bool                `yaml:"synchronize_with_interval"`
-	Tags                        []string            `yaml:"tags"`
 	TagsExclude                 []string            `yaml:"tags_exclude"`
 	TLSAuthorityCertificate     string              `yaml:"tls_authority_certificate"`
 	TLSCertificate              string              `yaml:"tls_certificate"`

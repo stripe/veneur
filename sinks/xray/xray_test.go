@@ -23,7 +23,6 @@ func TestConstructor(t *testing.T) {
 	sink, err := Create(
 		&veneur.Server{
 			HTTPClient: &http.Client{},
-			TagsAsMap:  map[string]string{"foo": "bar"},
 		},
 		"xray",
 		logger,
@@ -37,7 +36,6 @@ func TestConstructor(t *testing.T) {
 	xRaySink := sink.(*XRaySpanSink)
 	assert.NoError(t, err)
 	assert.Equal(t, "xray", xRaySink.Name())
-	assert.Equal(t, "bar", xRaySink.commonTags["foo"])
 	assert.Equal(t, "127.0.0.1:2000", xRaySink.daemonAddr)
 }
 
@@ -74,7 +72,6 @@ func TestIngestSpans(t *testing.T) {
 	sink, err := Create(
 		&veneur.Server{
 			HTTPClient: &http.Client{},
-			TagsAsMap:  map[string]string{"foo": "bar"},
 		},
 		"xray",
 		logrus.NewEntry(logrus.New()),
@@ -158,7 +155,6 @@ func TestIngestSpansRootStartTimestamp(t *testing.T) {
 	sink, err := Create(
 		&veneur.Server{
 			HTTPClient: &http.Client{},
-			TagsAsMap:  map[string]string{"foo": "bar"},
 		},
 		"xray",
 		logrus.NewEntry(logrus.New()),
@@ -243,7 +239,6 @@ func TestIngestSpansHttpHeadersInTags(t *testing.T) {
 	sink, err := Create(
 		&veneur.Server{
 			HTTPClient: &http.Client{},
-			TagsAsMap:  map[string]string{"foo": "bar"},
 		},
 		"xray",
 		logrus.NewEntry(logrus.New()),
@@ -331,7 +326,6 @@ func TestSampleSpans(t *testing.T) {
 	sink, err := Create(
 		&veneur.Server{
 			HTTPClient: &http.Client{},
-			TagsAsMap:  map[string]string{"foo": "bar"},
 		},
 		"xray",
 		logrus.NewEntry(logrus.New()),
@@ -417,7 +411,6 @@ func TestCalculateTraceID(t *testing.T) {
 	sink, err := Create(
 		&veneur.Server{
 			HTTPClient: &http.Client{},
-			TagsAsMap:  map[string]string{"foo": "bar"},
 		},
 		"xray",
 		logrus.NewEntry(logrus.New()),
