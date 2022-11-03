@@ -327,3 +327,13 @@ func BenchmarkMarshalSSF(b *testing.B) {
 		proto.Marshal(span)
 	}
 }
+
+func BenchmarkStartChildSpan(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(b *testing.PB) {
+		root := StartTrace("benchmark")
+		for b.Next() {
+			_ = StartChildSpan(root)
+		}
+	})
+}

@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/sinks"
 )
 
 // TestServer wraps an internal httptest.Server and provides a convenience
@@ -64,7 +65,10 @@ func latest(reqBodyCh chan []byte, timeoutSecs int) ([]byte, error) {
 }
 
 func TestName(t *testing.T) {
-	sink := NewCloudwatchMetricSink("http://localhost/", "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, true, logrus.NewEntry(logrus.New()))
+	sink := NewCloudwatchMetricSink(
+		"cloudwatch", "http://localhost/", "test", "us-east-1000", "cloudwatch_standard_unit",
+		time.Second*30, true, logrus.NewEntry(logrus.New()),
+	)
 	assert.Equal(t, "cloudwatch", sink.Name())
 }
 
@@ -81,7 +85,10 @@ func TestFlush(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Initialize sink
-	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, true, logrus.NewEntry(logrus.New()))
+	sink := NewCloudwatchMetricSink(
+		"cloudwatch", server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
+		time.Second*30, true, logrus.NewEntry(logrus.New()),
+	)
 	sink.Start(nil)
 
 	// Assert data is as we expect
@@ -96,8 +103,9 @@ func TestFlush(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Flush the sink
-	err = sink.Flush(context.Background(), metrics)
+	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3}, flushResult)
 
 	<-done
 }
@@ -115,7 +123,10 @@ func TestFlushWithStandardUnitTagName(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Initialize sink
-	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, true, logrus.NewEntry(logrus.New()))
+	sink := NewCloudwatchMetricSink(
+		"cloudwatch", server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
+		time.Second*30, true, logrus.NewEntry(logrus.New()),
+	)
 	sink.Start(nil)
 
 	// Inspect data that was flushed, which should have a standard unit and no dimensions
@@ -130,8 +141,9 @@ func TestFlushWithStandardUnitTagName(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Flush the sink
-	err = sink.Flush(context.Background(), metrics)
+	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 1}, flushResult)
 
 	<-done
 }
@@ -146,7 +158,10 @@ func TestFlushNoop(t *testing.T) {
 	var metrics []samplers.InterMetric
 
 	// Initialize the sink
-	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", time.Second*30, true, logrus.NewEntry(logrus.New()))
+	sink := NewCloudwatchMetricSink(
+		"cloudwatch", server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
+		time.Second*30, true, logrus.NewEntry(logrus.New()),
+	)
 	sink.Start(nil)
 
 	// Assert the server was never hit
@@ -158,8 +173,9 @@ func TestFlushNoop(t *testing.T) {
 	}(reqBodyCh, done)
 
 	// Flush the sink
-	err := sink.Flush(context.Background(), metrics)
+	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{}, flushResult)
 
 	<-done
 }
@@ -175,10 +191,13 @@ func TestFlushRemoteTimeout(t *testing.T) {
 	defer server.Close()
 
 	// Pass non-empty metrics slice
-	metrics := []samplers.InterMetric{{}}
+	metrics := []samplers.InterMetric{{}, {}, {}}
 
 	// Initialize the sink
-	sink := NewCloudwatchMetricSink(server.URL, "test", "us-east-1000", "cloudwatch_standard_unit", customTimeout, true, logrus.NewEntry(logrus.New()))
+	sink := NewCloudwatchMetricSink(
+		"cloudwatch", server.URL, "test", "us-east-1000", "cloudwatch_standard_unit",
+		customTimeout, true, logrus.NewEntry(logrus.New()),
+	)
 	sink.Start(nil)
 
 	// Make sure that the server can Close, eventually
@@ -188,9 +207,10 @@ func TestFlushRemoteTimeout(t *testing.T) {
 		done <- true
 	}(reqBodyCh, done)
 
-	// Assert the flush failed
-	err := sink.Flush(context.Background(), metrics)
+	// Assert the flush failed, and metrics were dropped
+	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.Error(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsDropped: 3}, flushResult)
 
 	<-done
 }

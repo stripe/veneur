@@ -2,17 +2,14 @@ package veneur
 
 import (
 	"bytes"
-	"compress/zlib"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
-	"sync"
-
 	"math/rand"
 	"net"
 	"net/http"
@@ -20,15 +17,19 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stripe/veneur/v14/forwardrpc"
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/sinks/blackhole"
 	"github.com/stripe/veneur/v14/ssf"
@@ -37,6 +38,8 @@ import (
 	"github.com/stripe/veneur/v14/trace/metrics"
 	"github.com/stripe/veneur/v14/util"
 	"github.com/zenazn/goji/graceful"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const ε = .00002
@@ -79,7 +82,6 @@ func generateConfig(forwardAddr string) Config {
 
 		// Use a shorter interval for tests
 		Interval:            DefaultFlushInterval,
-		DatadogAPIKey:       util.StringSecret{Value: ""},
 		MetricMaxLength:     4096,
 		Percentiles:         []float64{.5, .75, .99},
 		Aggregates:          []string{"min", "max", "count"},
@@ -94,7 +96,6 @@ func generateConfig(forwardAddr string) Config {
 		GrpcAddress:    "localhost:0",
 		ForwardAddress: forwardAddr,
 		NumWorkers:     4,
-		FlushFile:      "",
 
 		// Use only one reader, so that we can run tests
 		// on platforms which do not support SO_REUSEPORT
@@ -104,10 +105,8 @@ func generateConfig(forwardAddr string) Config {
 		// Currently this points nowhere, which is intentional.
 		// We don't need internal metrics for the tests, and they make testing
 		// more complicated.
-		StatsAddress:           "localhost:8125",
-		Tags:                   []string{},
-		SentryDsn:              util.StringSecret{Value: ""},
-		DatadogFlushMaxPerBody: 1024,
+		StatsAddress: "localhost:8125",
+		SentryDsn:    util.StringSecret{Value: ""},
 
 		// Don't use the default port 8128: Veneur sends its own traces there, causing failures
 		SsfListenAddresses: []util.Url{{
@@ -199,15 +198,19 @@ func (c *channelMetricSink) Name() string {
 	return "channel"
 }
 
+func (c *channelMetricSink) Kind() string {
+	return "channel"
+}
+
 func (c *channelMetricSink) Start(*trace.Client) error {
 	return nil
 }
 
-func (c *channelMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+func (c *channelMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	// Put the whole slice in since many tests want to see all of them and we
 	// don't want them to have to loop over and wait on empty or something
 	c.metricsChannel <- metrics
-	return nil
+	return sinks.MetricFlushResult{}, nil
 }
 
 func (c *channelMetricSink) FlushOtherSamples(ctx context.Context, events []ssf.SSFSample) {
@@ -216,16 +219,15 @@ func (c *channelMetricSink) FlushOtherSamples(ctx context.Context, events []ssf.
 
 // fixture sets up a mock Datadog API server and Veneur
 type fixture struct {
-	api             *httptest.Server
-	server          *Server
-	interval        time.Duration
-	flushMaxPerBody int
+	api      *httptest.Server
+	server   *Server
+	interval time.Duration
 }
 
 func newFixture(t testing.TB, config Config, mSink sinks.MetricSink, sSink sinks.SpanSink) *fixture {
 	// Set up a remote server (the API that we're sending the data to)
 	// (e.g. Datadog)
-	f := &fixture{nil, &Server{}, config.Interval, config.DatadogFlushMaxPerBody}
+	f := &fixture{nil, &Server{}, config.Interval}
 
 	if config.NumWorkers == 0 {
 		config.NumWorkers = 1
@@ -248,7 +250,6 @@ func (f *fixture) Close() {
 func TestLocalServerUnaggregatedMetrics(t *testing.T) {
 	metricValues, _ := generateMetrics()
 	config := localConfig()
-	config.Tags = []string{"butts:farts"}
 
 	metricsChan := make(chan []samplers.InterMetric, 10)
 	cms, _ := NewChannelMetricSink(metricsChan)
@@ -309,6 +310,9 @@ func TestGlobalServerFlush(t *testing.T) {
 // TestLocalServerMixedMetrics ensures that stuff tagged as local only or local parts of mixed
 // scope metrics are sent directly to sinks while global metrics are forwarded.
 func TestLocalServerMixedMetrics(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
 	var HistogramValues = []float64{1.0, 2.0, 7.0, 8.0, 100.0}
 
 	// Number of events observed (in 50ms interval)
@@ -335,42 +339,31 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 	// This represents the global veneur instance, which receives request from
 	// the local veneur instances, aggregates the data, and sends it to the remote API
 	// (e.g. Datadog)
-	globalTD := make(chan *tdigest.MergingDigest)
-	globalVeneur := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, r.URL.Path, "/import", "Global veneur should receive request on /import path")
+	globalVeneur := grpc.NewServer()
+	server := forwardrpc.NewMockForwardServer(ctrl)
+	forwardrpc.RegisterForwardServer(globalVeneur, server)
+	listener, err := net.Listen("tcp", "0.0.0.0:0")
+	assert.NoError(t, err)
+	defer globalVeneur.GracefulStop()
+	go globalVeneur.Serve(listener)
 
-		zr, err := zlib.NewReader(r.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		type requestItem struct {
-			Name      string      `json:"name"`
-			Tags      interface{} `json:"tags"`
-			Tagstring string      `json:"tagstring"`
-			Type      string      `json:"type"`
-			Value     []byte      `json:"value"`
-		}
-
-		var metrics []requestItem
-
-		err = json.NewDecoder(zr).Decode(&metrics)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		assert.Equal(t, 1, len(metrics), "incorrect number of elements in the flushed series")
-
-		td := tdigest.NewMerging(100, false)
-		err = td.GobDecode(metrics[0].Value)
-		assert.NoError(t, err, "Should not have encountered error in decoding gob stream")
-		globalTD <- td
-		w.WriteHeader(http.StatusAccepted)
-	}))
-	defer globalVeneur.Close()
+	metricsChannel := make(chan *metricpb.Metric, 1)
+	server.EXPECT().SendMetricsV2(gomock.Any()).AnyTimes().
+		Do(func(server forwardrpc.Forward_SendMetricsV2Server) {
+			for {
+				metric, err := server.Recv()
+				if err == io.EOF {
+					break
+				}
+				assert.NoError(t, err)
+				metricsChannel <- metric
+			}
+			close(metricsChannel)
+			server.SendAndClose(&emptypb.Empty{})
+		})
 
 	config := localConfig()
-	config.ForwardAddress = globalVeneur.URL
+	config.ForwardAddress = listener.Addr().String()
 	f := newFixture(t, config, nil, nil)
 	defer f.Close()
 
@@ -402,10 +395,13 @@ func TestLocalServerMixedMetrics(t *testing.T) {
 		})
 	}
 
-	f.server.Flush(context.TODO())
+	f.server.Flush(context.Background())
+
+	metric := <-metricsChannel
+	assert.Equal(t, metricpb.Type_Histogram, metric.Type)
 
 	// the global veneur instance should get valid data
-	td := <-globalTD
+	td := tdigest.NewMergingFromData(metric.GetHistogram().TDigest)
 	assert.Equal(t, expectedMetrics["a.b.c.min"], td.Min(), "Minimum value is incorrect")
 	assert.Equal(t, expectedMetrics["a.b.c.max"], td.Max(), "Maximum value is incorrect")
 
@@ -591,9 +587,7 @@ func TestUDPMetrics(t *testing.T) {
 }
 
 func TestUnixSocketMetrics(t *testing.T) {
-	tdir, err := ioutil.TempDir("", "unixmetrics_statsd")
-	require.NoError(t, err)
-	defer os.RemoveAll(tdir)
+	tdir := t.TempDir()
 
 	config := localConfig()
 	config.NumWorkers = 1
@@ -614,7 +608,7 @@ func TestUnixSocketMetrics(t *testing.T) {
 	defer conn.Close()
 
 	t.Log("Writing the first metric")
-	_, err = conn.Write([]byte("foo.bar:1|c|#baz:gorch"))
+	_, err := conn.Write([]byte("foo.bar:1|c|#baz:gorch"))
 	ctx, firstCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
 	defer firstCancel()
 	keepFlushing(ctx, f.server)
@@ -812,9 +806,7 @@ func keepFlushing(ctx context.Context, server *Server) {
 
 func TestUNIXMetricsSSF(t *testing.T) {
 	ctx := context.TODO()
-	tdir, err := ioutil.TempDir("", "unixmetrics_ssf")
-	require.NoError(t, err)
-	defer os.RemoveAll(tdir)
+	tdir := t.TempDir()
 
 	config := localConfig()
 	config.NumWorkers = 1
@@ -844,7 +836,7 @@ func TestUNIXMetricsSSF(t *testing.T) {
 	testSpan.Metrics = append(testSpan.Metrics, testMetric)
 
 	t.Log("Writing the first metric")
-	_, err = protocol.WriteSSF(conn, testSpan)
+	_, err := protocol.WriteSSF(conn, testSpan)
 	firstCtx, firstCancel := context.WithTimeout(ctx, 20*time.Millisecond)
 	defer firstCancel()
 	keepFlushing(firstCtx, f.server)
@@ -1070,16 +1062,11 @@ func TestCalculateTickerDelay(t *testing.T) {
 // BenchmarkSendSSFUNIX sends b.N metrics to veneur and waits until
 // all of them have been read (not processed).
 func BenchmarkSendSSFUNIX(b *testing.B) {
-	tdir, err := ioutil.TempDir("", "unixmetrics_ssf")
-	require.NoError(b, err)
-	defer os.RemoveAll(tdir)
+	tdir := b.TempDir()
 
 	path := filepath.Join(tdir, "test.sock")
 	// test the variables that have been renamed
 	config := Config{
-		DatadogAPIKey:          util.StringSecret{Value: "apikey"},
-		DatadogAPIHostname:     "http://api",
-		DatadogTraceAPIAddress: "http://trace",
 		SsfListenAddresses: []util.Url{{
 			Value: &url.URL{
 				Scheme: "unix",
@@ -1145,9 +1132,6 @@ func BenchmarkSendSSFUNIX(b *testing.B) {
 func BenchmarkSendSSFUDP(b *testing.B) {
 	// test the variables that have been renamed
 	config := Config{
-		DatadogAPIKey:          util.StringSecret{Value: "apikey"},
-		DatadogAPIHostname:     "http://api",
-		DatadogTraceAPIAddress: "http://trace",
 		SsfListenAddresses: []util.Url{{
 			Value: &url.URL{
 				Scheme: "udp",
@@ -1254,9 +1238,7 @@ func BenchmarkServerFlush(b *testing.B) {
 // metrics to a live veneur through a UNIX domain socket and verifies
 // that the metrics have been received and processed.
 func TestSSFMetricsEndToEnd(t *testing.T) {
-	tdir, err := ioutil.TempDir("", "e2etest")
-	require.NoError(t, err)
-	defer os.RemoveAll(tdir)
+	tdir := t.TempDir()
 
 	path := filepath.Join(tdir, "test.sock")
 	ssfAddr := &url.URL{Scheme: "unix", Path: path}
@@ -1315,9 +1297,7 @@ func TestSSFMetricsEndToEnd(t *testing.T) {
 // attached metrics to a live veneur through an internal trace
 // backeng, like that veneur server itself would be.
 func TestInternalSSFMetricsEndToEnd(t *testing.T) {
-	tdir, err := ioutil.TempDir("", "e2etest")
-	require.NoError(t, err)
-	defer os.RemoveAll(tdir)
+	tdir := t.TempDir()
 
 	path := filepath.Join(tdir, "test.sock")
 
@@ -1537,18 +1517,22 @@ func (s *blockySink) Name() string {
 	return "blocky_sink"
 }
 
+func (s *blockySink) Kind() string {
+	return "blocky_sink"
+}
+
 func (s *blockySink) Start(traceClient *trace.Client) error {
 	return nil
 }
 
-func (s *blockySink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+func (s *blockySink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	if len(metrics) == 0 {
-		return nil
+		return sinks.MetricFlushResult{}, nil
 	}
 
 	<-ctx.Done()
 	close(s.blocker)
-	return ctx.Err()
+	return sinks.MetricFlushResult{}, ctx.Err()
 }
 
 func (s *blockySink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {}
@@ -1583,14 +1567,16 @@ type blockingSink struct {
 
 func (bs blockingSink) Name() string { return "a_blocky_boi" }
 
+func (bs blockingSink) Kind() string { return "a_blocky_boi" }
+
 func (bs blockingSink) Start(traceClient *trace.Client) error {
 	return nil
 }
 
-func (bs blockingSink) Flush(context.Context, []samplers.InterMetric) error {
+func (bs blockingSink) Flush(context.Context, []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	log.Print("hi, I'm blocking")
 	<-bs.ch
-	return nil
+	return sinks.MetricFlushResult{}, nil
 }
 
 func (bs blockingSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {}

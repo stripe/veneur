@@ -71,7 +71,9 @@ func (c *collection) addPoint(ctx context.Context, key string, point *datapoint.
 			c.pointsByKey[key] = append(c.pointsByKey[key], point)
 			return
 		}
-		span.Add(ssf.Count("flush.fallback_client_points_flushed", 1, map[string]string{"vary_by": c.sink.varyBy, "key": key, "sink": "signalfx", "veneurglobalonly": "true"}))
+
+		tags := map[string]string{"vary_by": c.sink.varyBy, "preferred_vary_by": c.sink.preferredVaryBy, "key": key, "sink": "signalfx", "veneurglobalonly": "true"}
+		span.Add(ssf.Count("flush.fallback_client_points_flushed", 1, tags))
 	}
 	c.points = append(c.points, point)
 }
@@ -144,6 +146,7 @@ func (c *collection) submit(ctx context.Context, cl *trace.Client, maxPerFlush i
 
 type SignalFxSinkConfig struct {
 	APIKey                            util.StringSecret `yaml:"api_key"`
+	DropHostWithTagKey                string            `yaml:"drop_host_with_tag_key"`
 	DynamicPerTagAPIKeysEnable        bool              `yaml:"dynamic_per_tag_api_keys_enable"`
 	DynamicPerTagAPIKeysRefreshPeriod time.Duration     `yaml:"dynamic_per_tag_api_keys_refresh_period"`
 	EndpointAPI                       string            `yaml:"endpoint_api"`
@@ -156,6 +159,7 @@ type SignalFxSinkConfig struct {
 		APIKey util.StringSecret `yaml:"api_key"`
 		Name   string            `yaml:"name"`
 	} `yaml:"per_tag_api_keys"`
+	PreferredVaryKeyBy             string `yaml:"preferred_vary_key_by"`
 	VaryKeyBy                      string `yaml:"vary_key_by"`
 	VaryKeyByFavorCommonDimensions bool   `yaml:"vary_key_by_favor_common_dimensions"`
 }
@@ -165,9 +169,9 @@ type SignalFxSink struct {
 	apiEndpoint                 string
 	clientsByTagValue           map[string]DPClient
 	clientsByTagValueMu         *sync.RWMutex
-	commonDimensions            map[string]string
 	defaultClient               DPClient
 	defaultToken                string
+	dropHostWithTagKey          string
 	dynamicKeyRefreshPeriod     time.Duration
 	enableDynamicPerTagTokens   bool
 	excludedTags                map[string]struct{}
@@ -181,6 +185,7 @@ type SignalFxSink struct {
 	metricTagPrefixDrops        []string
 	name                        string
 	traceClient                 *trace.Client
+	preferredVaryBy             string
 	varyBy                      string
 	varyByFavorCommonDimensions bool
 }
@@ -196,46 +201,13 @@ func NewClient(endpoint, apiKey string, client *http.Client) DPClient {
 	if err != nil {
 		panic(fmt.Sprintf("Could not parse endpoint base URL %q: %v", endpoint, err))
 	}
+
 	httpSink := sfxclient.NewHTTPSink()
 	httpSink.AuthToken = apiKey
 	httpSink.DatapointEndpoint = baseURL.ResolveReference(datapointURL).String()
 	httpSink.EventEndpoint = baseURL.ResolveReference(eventURL).String()
 	httpSink.Client = client
 	return httpSink
-}
-
-// TODO(arnavdugar): Remove this once the old configuration format has been
-// removed.
-func MigrateConfig(conf *veneur.Config) error {
-	if conf.SignalfxAPIKey.Value == "" {
-		return nil
-	}
-	// To maintain compatability, set the default value of
-	// DynamicPerTagAPIKeysRefreshPeriod if dynamic per tag API keys are enabled.
-	// With the new config, not setting this field will cause an error.
-	if conf.SignalfxDynamicPerTagAPIKeysEnable &&
-		conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod == 0 {
-		conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod = time.Duration(10 * time.Minute)
-	}
-	conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
-		Kind: "signalfx",
-		Name: "signalfx",
-		Config: SignalFxSinkConfig{
-			APIKey:                            conf.SignalfxAPIKey,
-			DynamicPerTagAPIKeysEnable:        conf.SignalfxDynamicPerTagAPIKeysEnable,
-			DynamicPerTagAPIKeysRefreshPeriod: conf.SignalfxDynamicPerTagAPIKeysRefreshPeriod,
-			EndpointAPI:                       conf.SignalfxEndpointAPI,
-			EndpointBase:                      conf.SignalfxEndpointBase,
-			FlushMaxPerBody:                   conf.SignalfxFlushMaxPerBody,
-			HostnameTag:                       conf.SignalfxHostnameTag,
-			MetricNamePrefixDrops:             conf.SignalfxMetricNamePrefixDrops,
-			MetricTagPrefixDrops:              conf.SignalfxMetricTagPrefixDrops,
-			PerTagAPIKeys:                     conf.SignalfxPerTagAPIKeys,
-			VaryKeyBy:                         conf.SignalfxVaryKeyBy,
-			VaryKeyByFavorCommonDimensions:    conf.SignalfxVaryKeyByFavorCommonDimensions,
-		},
-	})
-	return nil
 }
 
 // ParseConfig decodes the map config for a SignalFx sink into a
@@ -280,7 +252,6 @@ func Create(
 		name,
 		signalFxConfig,
 		config.Hostname,
-		server.TagsAsMap,
 		logger,
 		fallback,
 		byTagClients,
@@ -291,7 +262,6 @@ func newSignalFxSink(
 	name string,
 	config SignalFxSinkConfig,
 	hostname string,
-	commonDimensions map[string]string,
 	log *logrus.Entry,
 	client DPClient,
 	perTagClients map[string]DPClient,
@@ -319,11 +289,10 @@ func newSignalFxSink(
 			"per tag API keys are enabled, but the refresh period is unset")
 	}
 
-	return &SignalFxSink{
+	sink := &SignalFxSink{
 		apiEndpoint:                 endpointStr,
 		clientsByTagValue:           perTagClients,
 		clientsByTagValueMu:         &sync.RWMutex{},
-		commonDimensions:            commonDimensions,
 		defaultClient:               client,
 		defaultToken:                config.APIKey.Value,
 		dynamicKeyRefreshPeriod:     config.DynamicPerTagAPIKeysRefreshPeriod,
@@ -337,14 +306,25 @@ func newSignalFxSink(
 		metricsEndpoint:             config.EndpointBase,
 		metricTagPrefixDrops:        config.MetricTagPrefixDrops,
 		name:                        name,
+		preferredVaryBy:             config.PreferredVaryKeyBy,
 		varyBy:                      config.VaryKeyBy,
 		varyByFavorCommonDimensions: config.VaryKeyByFavorCommonDimensions,
-	}, nil
+	}
+	sink.log = sink.log.WithFields(logrus.Fields{
+		"sink_name": sink.Name(),
+		"sink_kind": sink.Kind(),
+	})
+	return sink, nil
 }
 
 // Name returns the name of this sink.
 func (sfx *SignalFxSink) Name() string {
 	return sfx.name
+}
+
+// Name returns the kind of this sink.
+func (sfx *SignalFxSink) Kind() string {
+	return "signalfx"
 }
 
 // Start begins the sink. For SignalFx this starts the clientByTagUpdater
@@ -508,7 +488,7 @@ func (sfx *SignalFxSink) newPointCollection() *collection {
 }
 
 // Flush sends metrics to SignalFx
-func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
+func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	span, subCtx := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(sfx.traceClient)
 
@@ -519,10 +499,6 @@ func (sfx *SignalFxSink) Flush(ctx context.Context, interMetrics []samplers.Inte
 
 METRICLOOP: // Convenience label so that inner nested loops and `continue` easily
 	for _, metric := range interMetrics {
-		if !sinks.IsAcceptableMetric(metric, sfx) {
-			countSkipped++
-			continue
-		}
 		if len(sfx.metricNamePrefixDrops) > 0 {
 			for _, pre := range sfx.metricNamePrefixDrops {
 				if strings.HasPrefix(metric.Name, pre) {
@@ -555,36 +531,44 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 			}
 		}
 
-		metricKey := ""
+		clientKey := ""
 
-		// Datapoint-specified vary_key_by value, if present, should override the common dimension unless
-		// vary_key_by_favor_common_dimensions is set to true
-		metricOverrodeVaryBy := false
+		// If preferred_vary_by is available, will override clientKey retrieved via vary_by
 		if sfx.varyBy != "" {
 			if val, ok := dims[sfx.varyBy]; ok {
-				metricOverrodeVaryBy = true
-				metricKey = val
+				clientKey = val
 			}
 		}
 
-		// Copy applicable common dimensions
-		for k, v := range sfx.commonDimensions {
-			if metricOverrodeVaryBy && k == sfx.varyBy && !sfx.varyByFavorCommonDimensions {
-				continue
+		if sfx.preferredVaryBy != "" {
+			if val, ok := dims[sfx.preferredVaryBy]; ok {
+				clientKey = val
 			}
-			dims[k] = v
 		}
 
-		if sfx.varyBy != "" && metricKey == "" {
+		// If vary_by was updated, want to update clientKey here
+		// but if preferred_vary_by is available, will override clientKey retrieved via vary_by
+		if sfx.varyBy != "" && clientKey == "" {
 			if val, ok := dims[sfx.varyBy]; ok {
-				metricKey = val
+				clientKey = val
+			}
+		}
+		if sfx.preferredVaryBy != "" && clientKey == "" {
+			if val, ok := dims[sfx.preferredVaryBy]; ok {
+				clientKey = val
 			}
 		}
 
 		for k := range sfx.excludedTags {
 			delete(dims, k)
 		}
-		delete(dims, "veneursinkonly")
+
+		if metric.Type == samplers.CounterMetric && sfx.dropHostWithTagKey != "" {
+			_, ok := dims[sfx.dropHostWithTagKey]
+			if ok {
+				delete(dims, sfx.hostnameTag)
+			}
+		}
 
 		var point *datapoint.Datapoint
 		switch metric.Type {
@@ -596,19 +580,19 @@ METRICLOOP: // Convenience label so that inner nested loops and `continue` easil
 			countStatusMetrics++
 			point = sfxclient.GaugeF(metric.Name, dims, metric.Value)
 		}
-		coll.addPoint(subCtx, metricKey, point)
+		coll.addPoint(subCtx, clientKey, point)
 		numPoints++
 	}
-	tags := map[string]string{"sink": "signalfx"}
+	tags := map[string]string{"sink_name": sfx.Name(), "sink_kind": sfx.Kind()}
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsSkipped, float32(countSkipped), tags))
 	err := coll.submit(subCtx, sfx.traceClient, sfx.maxPointsInBatch)
 	if err != nil {
+		span.Add(ssf.Count(sinks.MetricKeyTotalMetricsDropped, float32(numPoints), tags))
 		span.Error(err)
+		return sinks.MetricFlushResult{MetricsDropped: numPoints, MetricsSkipped: countSkipped}, err
 	}
 	span.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(numPoints), tags))
-	sfx.log.WithField("metrics", len(interMetrics)).Info("flushed")
-
-	return err
+	return sinks.MetricFlushResult{MetricsFlushed: numPoints, MetricsSkipped: countSkipped}, err
 }
 
 var successSpanTags = map[string]string{"sink": "signalfx", "results": "success"}
@@ -651,14 +635,9 @@ func (sfx *SignalFxSink) SetExcludedTags(excludes []string) {
 }
 
 func (sfx *SignalFxSink) reportEvent(ctx context.Context, sample *ssf.SSFSample) error {
-	// Copy common dimensions in
-	dims := map[string]string{}
-	for k, v := range sfx.commonDimensions {
-		dims[k] = v
+	dims := map[string]string{
+		sfx.hostnameTag: sfx.hostname,
 	}
-	// And hostname
-	dims[sfx.hostnameTag] = sfx.hostname
-
 	for k, v := range sample.Tags {
 		if k == dogstatsd.EventIdentifierKey {
 			// Don't copy this tag

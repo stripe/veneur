@@ -48,19 +48,6 @@ type FalconerSpanSink struct {
 
 var _ sinks.SpanSink = &FalconerSpanSink{}
 
-func MigrateConfig(conf *veneur.Config) {
-	if conf.FalconerAddress == "" {
-		return
-	}
-	conf.SpanSinks = append(conf.SpanSinks, veneur.SinkConfig{
-		Kind: "falconer",
-		Name: "falconer",
-		Config: FalconerSpanSinkConfig{
-			Target: conf.FalconerAddress,
-		},
-	})
-}
-
 // creates a sinks.SpanSink that can write to any
 // compliant gRPC server.
 //
@@ -132,6 +119,11 @@ func (gs *FalconerSpanSink) Start(cl *trace.Client) error {
 // that this is set via configuration and injected.
 func (gs *FalconerSpanSink) Name() string {
 	return gs.name
+}
+
+// Kind returns this sink's kind.
+func (gs *FalconerSpanSink) Kind() string {
+	return "falconer"
 }
 
 // Ingest takes in a span and streams it over gRPC to the connected server.

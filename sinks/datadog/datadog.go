@@ -51,7 +51,6 @@ type DatadogMetricSink struct {
 	DDHostname                      string
 	hostname                        string
 	flushMaxPerBody                 int
-	tags                            []string
 	interval                        float64
 	traceClient                     *trace.Client
 	log                             *logrus.Entry
@@ -97,42 +96,11 @@ func CreateMetricSink(
 		interval:                        server.Interval.Seconds(),
 		flushMaxPerBody:                 datadogConfig.FlushMaxPerBody,
 		hostname:                        config.Hostname,
-		tags:                            server.Tags,
 		name:                            name,
 		metricNamePrefixDrops:           datadogConfig.MetricNamePrefixDrops,
 		excludeTagsPrefixByPrefixMetric: excludeTagsPrefixByPrefixMetric,
 		log:                             logger,
 	}, nil
-}
-
-// TODO(arnavdugar): Remove this once the old configuration format has been
-// removed.
-func MigrateConfig(conf *veneur.Config) {
-	if conf.DatadogAPIKey.Value != "" && conf.DatadogAPIHostname != "" {
-		conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
-			Kind: "datadog",
-			Name: "datadog",
-			Config: DatadogMetricSinkConfig{
-				APIKey:                          conf.DatadogAPIKey.Value,
-				APIHostname:                     conf.DatadogAPIHostname,
-				FlushMaxPerBody:                 conf.DatadogFlushMaxPerBody,
-				MetricNamePrefixDrops:           conf.DatadogMetricNamePrefixDrops,
-				ExcludeTagsPrefixByPrefixMetric: conf.DatadogExcludeTagsPrefixByPrefixMetric,
-			},
-		})
-	}
-
-	// configure Datadog as a Span sink
-	if conf.DatadogAPIKey.Value != "" && conf.DatadogTraceAPIAddress != "" {
-		conf.SpanSinks = append(conf.SpanSinks, veneur.SinkConfig{
-			Kind: "datadog",
-			Name: "datadog",
-			Config: DatadogSpanSinkConfig{
-				SpanBufferSize:  conf.DatadogSpanBufferSize,
-				TraceAPIAddress: conf.DatadogTraceAPIAddress,
-			},
-		})
-	}
 }
 
 // DDEvent represents the structure of datadog's undocumented /intake endpoint
@@ -175,6 +143,11 @@ func (dd *DatadogMetricSink) Name() string {
 	return dd.name
 }
 
+// Kind returns the kind of this sink
+func (dd *DatadogMetricSink) Kind() string {
+	return "datadog"
+}
+
 // Start sets the sink up.
 func (dd *DatadogMetricSink) Start(cl *trace.Client) error {
 	dd.traceClient = cl
@@ -182,7 +155,7 @@ func (dd *DatadogMetricSink) Start(cl *trace.Client) error {
 }
 
 // Flush sends metrics to Datadog
-func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
+func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(dd.traceClient)
 
@@ -229,7 +202,7 @@ func (dd *DatadogMetricSink) Flush(ctx context.Context, interMetrics []samplers.
 		ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(len(ddmetrics)), tags),
 	)
 	dd.log.WithField("metrics", len(ddmetrics)).Info("flushed")
-	return nil
+	return sinks.MetricFlushResult{}, nil
 }
 
 // FlushOtherSamples serializes Events or Service Checks directly to datadog.
@@ -294,7 +267,7 @@ func (dd *DatadogMetricSink) FlushOtherSamples(ctx context.Context, samples []ss
 				finalTags = append(finalTags, fmt.Sprintf("%s:%s", k, v))
 			}
 
-			ret.Tags = append(finalTags, dd.tags...)
+			ret.Tags = finalTags
 			events = append(events, ret)
 		} else {
 			dd.log.Warn("Received an SSF Sample that wasn't an event or service check, ack!")
@@ -337,10 +310,6 @@ func (dd *DatadogMetricSink) finalizeMetrics(metrics []samplers.InterMetric) ([]
 
 METRICLOOP:
 	for _, m := range metrics {
-		if !sinks.IsAcceptableMetric(m, dd) {
-			continue
-		}
-
 		for _, dropMetricPrefix := range dd.metricNamePrefixDrops {
 			if strings.HasPrefix(m.Name, dropMetricPrefix) {
 				continue METRICLOOP
@@ -348,7 +317,7 @@ METRICLOOP:
 		}
 
 		// Defensively copy tags since we're gonna mutate it
-		tags := make([]string, 0, len(dd.tags))
+		tags := []string{}
 
 		// Prepare exclude tags by specific prefix metric
 		var excludeTagsPrefixByPrefixMetric []string
@@ -361,19 +330,6 @@ METRICLOOP:
 			}
 		}
 
-		for i := range dd.tags {
-			exclude := false
-			for j := range dd.excludedTags {
-				if strings.HasPrefix(dd.tags[i], dd.excludedTags[j]) {
-					exclude = true
-					break
-				}
-			}
-			if !exclude {
-				tags = append(tags, dd.tags[i])
-			}
-
-		}
 		var hostname, devicename string
 		// Let's look for "magic tags" that override metric fields host and device.
 		for _, tag := range m.Tags {

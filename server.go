@@ -33,24 +33,18 @@ import (
 
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/samplers/metricpb"
 	"github.com/stripe/veneur/v14/scopedstatsd"
 	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/sinks/ssfmetrics"
 	"github.com/stripe/veneur/v14/sources"
 	"github.com/stripe/veneur/v14/sources/proxy"
 	"github.com/stripe/veneur/v14/ssf"
-	"github.com/stripe/veneur/v14/tagging"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/trace/metrics"
+	"github.com/stripe/veneur/v14/util/build"
+	"github.com/stripe/veneur/v14/util/matcher"
 )
-
-// VERSION stores the current veneur version.
-// It must be a var so it can be set at link time.
-var VERSION = defaultLinkValue
-
-var BUILD_DATE = defaultLinkValue
-
-const defaultLinkValue = "dirty"
 
 var profileStartOnce = sync.Once{}
 
@@ -94,13 +88,16 @@ type MetricSinkTypes = map[string]struct {
 	ParseConfig func(string, interface{}) (MetricSinkConfig, error)
 }
 
+type HttpCustomHandlers = map[string]func(w http.ResponseWriter, r *http.Request)
+
 // Config used to create a new server.
 type ServerConfig struct {
-	Config          Config
-	Logger          *logrus.Logger
-	MetricSinkTypes MetricSinkTypes
-	SourceTypes     SourceTypes
-	SpanSinkTypes   SpanSinkTypes
+	Config             Config
+	Logger             *logrus.Logger
+	MetricSinkTypes    MetricSinkTypes
+	SourceTypes        SourceTypes
+	SpanSinkTypes      SpanSinkTypes
+	HttpCustomHandlers HttpCustomHandlers
 }
 
 // A Server is the actual veneur instance that will be run.
@@ -114,19 +111,18 @@ type Server struct {
 	SpanWorkerGoroutines  int
 	CountUniqueTimeseries bool
 
-	Statsd *scopedstatsd.ScopedClient
+	Statsd scopedstatsd.Client
 
-	Hostname  string
-	Tags      []string
-	TagsAsMap map[string]string
+	Hostname string
 
 	HTTPClient *http.Client
 
 	HTTPAddr         string
 	numListeningHTTP *int32 // An atomic boolean for whether or not the HTTP server is running
 
-	ForwardAddr    string
-	forwardUseGRPC bool
+	HttpCustomHandlers HttpCustomHandlers
+
+	ForwardAddr string
 
 	StatsdListenAddrs []net.Addr
 	SSFListenAddrs    []net.Addr
@@ -181,8 +177,12 @@ type internalSource struct {
 }
 
 type internalMetricSink struct {
-	sink      sinks.MetricSink
-	stripTags []TagMatcher
+	sink          sinks.MetricSink
+	maxNameLength int
+	maxTagLength  int
+	maxTags       int
+	stripTags     []matcher.TagMatcher
+	addTags       map[string]string
 }
 
 type GlobalListeningPerProtocolMetrics struct {
@@ -335,6 +335,23 @@ func (ingest *ingest) IngestMetric(metric *samplers.UDPMetric) {
 	ingest.server.ingestMetric(metric)
 }
 
+func (ingest *ingest) IngestMetricProto(metric *metricpb.Metric) {
+	metric.Tags = append(metric.Tags, ingest.tags...)
+
+	// Compute a 32-bit hash from the input metric based on its name, type, and
+	// tags. The fnv1a package is used as opposed to fnv from the standard
+	// library, as it avoids allocations by not using the hash.Hash interface and
+	// by avoiding string to []byte conversions.
+	h := fnv1a.HashString32(metric.Name)
+	h = fnv1a.AddString32(h, metric.Type.String())
+	for _, tag := range metric.Tags {
+		h = fnv1a.AddString32(h, tag)
+	}
+
+	workerIndex := h % uint32(len(ingest.server.Workers))
+	ingest.server.Workers[workerIndex].ImportMetricChan <- metric
+}
+
 func (server *Server) createSources(
 	logger *logrus.Logger, config *Config, sourceTypes SourceTypes,
 ) ([]internalSource, error) {
@@ -419,8 +436,12 @@ func (server *Server) createMetricSinks(
 			return nil, err
 		}
 		sinks = append(sinks, internalMetricSink{
-			sink:      sink,
-			stripTags: sinkConfig.StripTags,
+			sink:          sink,
+			maxNameLength: sinkConfig.MaxNameLength,
+			maxTagLength:  sinkConfig.MaxTagLength,
+			maxTags:       sinkConfig.MaxTags,
+			stripTags:     sinkConfig.StripTags,
+			addTags:       sinkConfig.AddTags,
 		})
 	}
 	return sinks, nil
@@ -450,7 +471,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		// workers with state from *Server.IsWorker.
 		enableProfiling:      conf.EnableProfiling,
 		ForwardAddr:          conf.ForwardAddress,
-		forwardUseGRPC:       conf.ForwardUseGrpc,
 		grpcListenAddress:    conf.GrpcAddress,
 		Hostname:             conf.Hostname,
 		HistogramPercentiles: conf.Percentiles,
@@ -463,17 +483,16 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 				IdleConnTimeout: conf.Interval * 2,
 			},
 		},
-		Interval:         conf.Interval,
-		logger:           logrus.NewEntry(config.Logger),
-		metricMaxLength:  conf.MetricMaxLength,
-		numListeningHTTP: new(int32),
-		numReaders:       conf.NumReaders,
-		parser:           samplers.NewParser(conf.ExtendTags),
-		RcvbufBytes:      conf.ReadBufferSizeBytes,
+		HttpCustomHandlers: config.HttpCustomHandlers,
+		Interval:           conf.Interval,
+		logger:             logrus.NewEntry(config.Logger),
+		metricMaxLength:    conf.MetricMaxLength,
+		numListeningHTTP:   new(int32),
+		numReaders:         conf.NumReaders,
+		parser:             samplers.NewParser(conf.ExtendTags),
+		RcvbufBytes:        conf.ReadBufferSizeBytes,
 		// closed in Shutdown; Same approach and http.Shutdown
 		shutdown:            make(chan struct{}),
-		Tags:                conf.Tags,
-		TagsAsMap:           tagging.ParseTagSliceToMap(conf.Tags),
 		traceMaxLengthBytes: conf.TraceMaxLengthBytes,
 		SpanChan:            make(chan *ssf.SSFSpan, conf.SpanChannelCapacity),
 		stuckIntervals:      conf.FlushWatchdogMissedFlushes,
@@ -543,18 +562,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	}
 
 	ret.EventWorker = NewEventWorker(ret.TraceClient, ret.Statsd)
-
-	// Set up a span sink that extracts metrics from SSF spans and
-	// reports them via the metric workers:
-	processors := make([]ssfmetrics.Processor, len(ret.Workers))
-	for i, w := range ret.Workers {
-		processors[i] = w
-	}
-	metricSink, err := ssfmetrics.NewMetricExtractionSink(processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName, ret.TraceClient, logger, &ret.parser)
-	if err != nil {
-		return ret, err
-	}
-	ret.spanSinks = append(ret.spanSinks, metricSink)
 
 	for _, addrStr := range conf.StatsdListenAddresses {
 		addr, err := protocol.ResolveAddr(addrStr.Value)
@@ -628,26 +635,30 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		}
 	}
 
-	customMetricSinks, err :=
+	ret.metricSinks, err =
 		ret.createMetricSinks(logger, &conf, config.MetricSinkTypes)
 	if err != nil {
 		return nil, err
 	}
-	if conf.Features.MigrateMetricSinks {
-		ret.metricSinks = customMetricSinks
-	} else {
-		ret.metricSinks = append(ret.metricSinks, customMetricSinks...)
-	}
-	customSpanSinks, err :=
+	ret.spanSinks, err =
 		ret.createSpanSinks(logger, &conf, config.SpanSinkTypes)
 	if err != nil {
 		return nil, err
 	}
-	if conf.Features.MigrateSpanSinks {
-		ret.spanSinks = customSpanSinks
-	} else {
-		ret.spanSinks = append(ret.spanSinks, customSpanSinks...)
+
+	// Set up a span sink that extracts metrics from SSF spans and
+	// reports them via the metric workers:
+	processors := make([]ssfmetrics.Processor, len(ret.Workers))
+	for i, w := range ret.Workers {
+		processors[i] = w
 	}
+	metricSink, err := ssfmetrics.NewMetricExtractionSink(
+		processors, conf.IndicatorSpanTimerName, conf.ObjectiveSpanTimerName,
+		ret.TraceClient, logger, &ret.parser)
+	if err != nil {
+		return ret, err
+	}
+	ret.spanSinks = append(ret.spanSinks, metricSink)
 
 	// After all sinks are initialized, set the list of tags to exclude
 	ret.setSinkExcludedTags(conf.TagsExclude, ret.metricSinks, ret.spanSinks)
@@ -664,13 +675,7 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 
 	// Setup the grpc server if it was configured
 	if ret.grpcListenAddress != "" {
-		// convert all the workers to the proper interface
-		ingesters := make([]proxy.MetricIngester, len(ret.Workers))
-		for i, worker := range ret.Workers {
-			ingesters[i] = worker
-		}
-
-		ret.grpcServer = proxy.New(ret.grpcListenAddress, ingesters,
+		ret.grpcServer = proxy.New(ret.grpcListenAddress,
 			config.Logger.WithField("source", "proxy"),
 			proxy.WithTraceClient(ret.TraceClient))
 
@@ -701,13 +706,13 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 // Start spins up the Server to do actual work, firing off goroutines for
 // various workers and utilities.
 func (s *Server) Start() {
-	s.logger.WithField("version", VERSION).Info("Starting server")
+	s.logger.WithField("version", build.VERSION).Info("Starting server")
 
 	// Set up the processors for spans:
 
 	// Use the pre-allocated Workers slice to know how many to start.
 	s.SpanWorker = NewSpanWorker(
-		s.spanSinks, s.TraceClient, s.Statsd, s.SpanChan, s.TagsAsMap, s.logger)
+		s.spanSinks, s.TraceClient, s.Statsd, s.SpanChan, s.logger)
 
 	go func() {
 		s.logger.Info("Starting Event worker")
@@ -807,14 +812,12 @@ func (s *Server) Start() {
 	}
 
 	// Initialize a gRPC connection for forwarding
-	if s.forwardUseGRPC {
-		var err error
-		s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure())
-		if err != nil {
-			s.logger.WithError(err).WithFields(logrus.Fields{
-				"forwardAddr": s.ForwardAddr,
-			}).Fatal("Failed to initialize a gRPC connection for forwarding")
-		}
+	var err error
+	s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure())
+	if err != nil {
+		s.logger.WithError(err).WithFields(logrus.Fields{
+			"forwardAddr": s.ForwardAddr,
+		}).Fatal("Failed to initialize a gRPC connection for forwarding")
 	}
 
 	// Flush every Interval forever!

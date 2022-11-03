@@ -20,12 +20,13 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/samplers"
+	"github.com/stripe/veneur/v14/sinks"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/util"
 )
 
 func TestName(t *testing.T) {
-	sink, err := NewCortexMetricSink("https://localhost/", 30, "", logrus.NewEntry(logrus.New()), "cortex", map[string]string{}, map[string]string{}, nil, 0)
+	sink, err := NewCortexMetricSink("https://localhost/", 30, "", logrus.NewEntry(logrus.New()), "cortex", map[string]string{}, nil, 0, false)
 	assert.NoError(t, err)
 	assert.Equal(t, "cortex", sink.Name())
 }
@@ -36,7 +37,7 @@ func TestFlush(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 0)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 0, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -47,7 +48,9 @@ func TestFlush(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Perform the flush to the test server
-	assert.NoError(t, sink.Flush(context.Background(), metrics))
+	flushResult, err := sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
 
 	// Retrieve the data which the server received
 	data, headers, err := server.Latest()
@@ -79,13 +82,66 @@ func TestFlush(t *testing.T) {
 	assert.Equal(t, string(expected), string(actual))
 }
 
+func TestFlushWithExcludedTags(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Set up a sink
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 0, false)
+	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
+
+	// Set up excludes list
+	sink.SetExcludedTags([]string{"foo", "host", "corge2"})
+
+	// input.json contains three timeseries samples in InterMetrics format
+	jsInput, err := ioutil.ReadFile("testdata/input_with_excluded_tags.json")
+	assert.NoError(t, err)
+	var metrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
+
+	// Perform the flush to the test server
+	flushResult, err := sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
+
+	// Retrieve the data which the server received
+	data, headers, err := server.Latest()
+	assert.NoError(t, err)
+
+	// Check standard headers
+	assert.True(t, hasHeader(*headers, "Content-Encoding", "snappy"), "missing required Content-Encoding header")
+	assert.True(t, hasHeader(*headers, "Content-Type", "application/x-protobuf"), "missing required Content-Type header")
+	assert.True(t, hasHeader(*headers, "User-Agent", "veneur/cortex"), "missing required User-Agent header")
+	assert.True(t, hasHeader(*headers, "X-Prometheus-Remote-Write-Version", "0.1.0"), "missing required version header")
+
+	// The underlying method to convert metric -> timeseries does not
+	// preserve order, so we're sorting the data here
+	for k := range data.Timeseries {
+		sort.Slice(data.Timeseries[k].Labels, func(i, j int) bool {
+			val := strings.Compare(data.Timeseries[k].Labels[i].Name, data.Timeseries[k].Labels[j].Name)
+			return val == -1
+		})
+	}
+
+	// Pretty-print output for readability, and to match expected
+	actual, err := json.MarshalIndent(data, "", "  ")
+	assert.NoError(t, err)
+
+	//  Load in the expected data and compare
+	expected, err := ioutil.ReadFile("testdata/expected_with_excluded_tags.json")
+	assert.NoError(t, err)
+	assert.Equal(t, string(expected), string(actual))
+}
+
 func TestChunkedWrites(t *testing.T) {
 	// Listen for prometheus writes
 	server := NewTestServer(t)
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 3)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 3, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -96,10 +152,54 @@ func TestChunkedWrites(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Perform the flush to the test server
-	assert.NoError(t, sink.Flush(context.Background(), metrics))
+	flushResult, err := sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 12, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
 
 	// There are 12 writes in input and our batch size is 3 so we expect 4 write requests
 	assert.Equal(t, 4, len(server.History()))
+}
+
+func TestMonotonicCounters(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Set up a sink
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 15, true)
+	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
+
+	// to_be_monotonic_counter.json contains 2 counters with the same name but different tags
+	// we want to be sure the hashing takes that into account
+	jsInput, err := ioutil.ReadFile("testdata/monotonic_counters.json")
+	assert.NoError(t, err)
+	var metrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
+
+	_, err = sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
+
+	_, err = sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
+
+	expectedVals := map[string]float64{
+		"bar": 200,
+		"baz": 300,
+		"taz": 100,
+	}
+
+	matchesDone := 0
+	for _, data := range server.history[1].data.Timeseries {
+		for _, label := range data.Labels {
+			if label.Name == "foo" {
+				matchesDone++
+				assert.Equal(t, expectedVals[label.GetValue()], data.Samples[0].GetValue())
+			}
+		}
+	}
+
+	assert.Equal(t, 3, matchesDone)
 }
 
 func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
@@ -108,7 +208,7 @@ func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 15)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 15, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -119,7 +219,9 @@ func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Perform the flush to the test server
-	assert.NoError(t, sink.Flush(context.Background(), metrics))
+	flushResult, err := sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 12, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
 
 	// There are 12 writes in input and our batch size is 15 so we expect 1 write request
 	assert.Equal(t, 1, len(server.History()))
@@ -131,7 +233,7 @@ func TestLeftOverBatchGetsWritten(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 5)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 5, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -142,7 +244,9 @@ func TestLeftOverBatchGetsWritten(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Perform the flush to the test server
-	assert.NoError(t, sink.Flush(context.Background(), metrics))
+	flushResult, err := sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 12, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
 
 	// There are 12 writes in input and our batch size is 5 so we expect 3 write requests
 	assert.Equal(t, 3, len(server.History()))
@@ -154,7 +258,7 @@ func TestChunkedWritesRespectContextCancellation(t *testing.T) {
 	defer server.Close()
 
 	// Set up a sink
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 3)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 3, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -175,7 +279,9 @@ func TestChunkedWritesRespectContextCancellation(t *testing.T) {
 	})
 
 	// Perform the flush to the test server
-	assert.Error(t, sink.Flush(ctx, metrics))
+	flushResult, err := sink.Flush(ctx, metrics)
+	assert.Error(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 4, MetricsDropped: 3, MetricsSkipped: 0}, flushResult)
 
 	// we're cancelling after 2 so we should only see 2 chunks written
 	assert.Equal(t, 2, len(server.History()))
@@ -194,7 +300,7 @@ func TestCustomHeaders(t *testing.T) {
 	}
 
 	// Set up a sink with custom headers
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, customHeaders, nil, 0)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", customHeaders, nil, 0, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -205,7 +311,9 @@ func TestCustomHeaders(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Perform the flush to the test server
-	assert.NoError(t, sink.Flush(context.Background(), metrics))
+	flushResult, err := sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
 
 	// Retrieve the headers which the server received
 	_, headers, err := server.Latest()
@@ -233,7 +341,7 @@ func TestBasicAuth(t *testing.T) {
 	}
 
 	// Set up a sink with custom headers
-	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, customHeaders, &auth, 0)
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", customHeaders, &auth, 0, false)
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
@@ -244,7 +352,8 @@ func TestBasicAuth(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
 
 	// Perform the flush to the test server
-	assert.NoError(t, sink.Flush(context.Background(), metrics))
+	_, err = sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
 
 	// Retrieve the headers which the server received
 	_, headers, err := server.Latest()
@@ -342,7 +451,7 @@ func TestParseConfigBadBasicAuth(t *testing.T) {
 func TestCorrectlySetTimeout(t *testing.T) {
 	timeouts := []int{10, 20, 30, 17, 21}
 	for to := range timeouts {
-		sink, err := NewCortexMetricSink("http://noop", time.Duration(to), "", logrus.NewEntry(logrus.New()), "test", map[string]string{"corge": "grault"}, map[string]string{}, nil, 0)
+		sink, err := NewCortexMetricSink("http://noop", time.Duration(to), "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 0, false)
 		assert.NoError(t, err)
 
 		err = sink.Start(&trace.Client{})
@@ -353,36 +462,42 @@ func TestCorrectlySetTimeout(t *testing.T) {
 }
 
 func TestMetricToTimeSeries(t *testing.T) {
+	expectedNameValue := "test_metric"
 	expectedHostValue := "val2"
 	expectedHostContactValue := "baz"
+	expectedAnotherValue := "tag"
 
 	metric := samplers.InterMetric{
-		Name:      "test_metric",
+		Name:      "test.metric",
 		Timestamp: 0,
 		Value:     1,
 		Tags: []string{
 			"host:val1",
-			"team:obs",
 			"host:" + expectedHostValue,
 			"another:tag",
-			"host_contact:foo",
+			"host_contact:" + expectedHostContactValue,
+			"drop:me",
 		},
 		Type: samplers.CounterMetric,
 	}
 
-	tags := map[string]string{
-		"host_contact": expectedHostContactValue,
-	}
+	excludedTags := map[string]struct{}{}
+	excludedTags["drop"] = struct{}{}
 
-	ts := metricToTimeSeries(metric, tags)
+	ts := metricToTimeSeries(metric, excludedTags)
 
 	for _, label := range ts.Labels {
-		if label.Name == "host" {
+		switch label.Name {
+		case "__name__":
+			assert.Equal(t, expectedNameValue, label.Value)
+		case "host":
 			assert.Equal(t, expectedHostValue, label.Value)
-		}
-
-		if label.Name == "host_contact" {
+		case "host_contact":
 			assert.Equal(t, expectedHostContactValue, label.Value)
+		case "another":
+			assert.Equal(t, expectedAnotherValue, label.Value)
+		default:
+			assert.FailNow(t, "unexpected label", label.Name)
 		}
 	}
 }

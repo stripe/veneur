@@ -139,7 +139,7 @@ func TestMetricFlush(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.NoError(t, sink.Start(trace.DefaultClient))
-	assert.NoError(t, sink.Flush(context.Background(), []samplers.InterMetric{
+	_, err = sink.Flush(context.Background(), []samplers.InterMetric{
 		samplers.InterMetric{
 			Name:      "a.b.gauge",
 			Timestamp: 1,
@@ -165,7 +165,8 @@ func TestMetricFlush(t *testing.T) {
 			Value:     float64(5),
 			Type:      samplers.StatusMetric,
 		},
-	}))
+	})
+	assert.NoError(t, err)
 
 	for _, want := range expectedMessages {
 		select {

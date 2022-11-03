@@ -3,9 +3,11 @@ package cortex
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -31,21 +33,28 @@ const (
 	DefaultAuthorizationType = "Bearer"
 )
 
+type counterMapKey struct {
+	name string
+	tags string
+}
+
 // CortexMetricSink writes metrics to one or more configured Cortex instances
 // using the prometheus remote-write API. For specifications, see
 // https://github.com/prometheus/compliance/tree/main/remote_write
 type CortexMetricSink struct {
-	URL            string
-	RemoteTimeout  time.Duration
-	ProxyURL       string
-	Client         *http.Client
-	logger         *logrus.Entry
-	name           string
-	tags           map[string]string
-	traceClient    *trace.Client
-	addHeaders     map[string]string
-	basicAuth      *BasicAuthType
-	batchWriteSize int
+	URL                        string
+	RemoteTimeout              time.Duration
+	ProxyURL                   string
+	Client                     *http.Client
+	logger                     *logrus.Entry
+	name                       string
+	traceClient                *trace.Client
+	addHeaders                 map[string]string
+	basicAuth                  *BasicAuthType
+	batchWriteSize             int
+	counters                   map[counterMapKey]float64
+	convertCountersToMonotonic bool
+	excludedTags               map[string]struct{}
 }
 
 var _ sinks.MetricSink = (*CortexMetricSink)(nil)
@@ -59,13 +68,14 @@ type BasicAuthType struct {
 // max_samples_per_send, max_shards, and capacity
 // https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
 type CortexMetricSinkConfig struct {
-	URL            string            `yaml:"url"`
-	RemoteTimeout  time.Duration     `yaml:"remote_timeout"`
-	ProxyURL       string            `yaml:"proxy_url"`
-	BatchWriteSize int               `yaml:"batch_write_size"`
-	Headers        map[string]string `yaml:"headers"`
-	BasicAuth      BasicAuthType     `yaml:"basic_auth"`
-	Authorization  struct {
+	URL                        string            `yaml:"url"`
+	RemoteTimeout              time.Duration     `yaml:"remote_timeout"`
+	ProxyURL                   string            `yaml:"proxy_url"`
+	BatchWriteSize             int               `yaml:"batch_write_size"`
+	Headers                    map[string]string `yaml:"headers"`
+	BasicAuth                  BasicAuthType     `yaml:"basic_auth"`
+	ConvertCountersToMonotonic bool              `yaml:"convert_counters_to_monotonic"`
+	Authorization              struct {
 		Type       string            `yaml:"type"`
 		Credential util.StringSecret `yaml:"credentials"`
 	} `yaml:"authorization"`
@@ -82,11 +92,6 @@ func Create(
 		return nil, errors.New("invalid sink config type")
 	}
 
-	// TagsAsMap is a set of configurable common tags applied to every metric
-	tags := server.TagsAsMap
-	// Host has to be supplied especially
-	tags["host"] = config.Hostname
-
 	headers := make(map[string]string)
 	if conf.Authorization.Type != "" {
 		headers["Authorization"] = conf.Authorization.Type + " " + conf.Authorization.Credential.Value
@@ -96,7 +101,7 @@ func Create(
 		basicAuth = &conf.BasicAuth
 	}
 
-	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, tags, headers, basicAuth, conf.BatchWriteSize)
+	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, headers, basicAuth, conf.BatchWriteSize, conf.ConvertCountersToMonotonic)
 }
 
 // ParseConfig extracts Cortex specific fields from the global veneur config
@@ -126,23 +131,35 @@ func ParseConfig(
 }
 
 // NewCortexMetricSink creates and returns a new instance of the sink
-func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, tags map[string]string, headers map[string]string, basicAuth *BasicAuthType, batchWriteSize int) (*CortexMetricSink, error) {
-	return &CortexMetricSink{
-		URL:            URL,
-		RemoteTimeout:  timeout,
-		ProxyURL:       proxyURL,
-		tags:           tags,
-		logger:         logger.WithFields(logrus.Fields{"sink_type": "cortex"}),
-		name:           name,
-		addHeaders:     headers,
-		basicAuth:      basicAuth,
-		batchWriteSize: batchWriteSize,
-	}, nil
+func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, headers map[string]string, basicAuth *BasicAuthType, batchWriteSize int, convertCountersToMonotonic bool) (*CortexMetricSink, error) {
+	sink := &CortexMetricSink{
+		URL:                        URL,
+		RemoteTimeout:              timeout,
+		ProxyURL:                   proxyURL,
+		logger:                     logger,
+		name:                       name,
+		addHeaders:                 headers,
+		basicAuth:                  basicAuth,
+		batchWriteSize:             batchWriteSize,
+		counters:                   map[counterMapKey]float64{},
+		convertCountersToMonotonic: convertCountersToMonotonic,
+		excludedTags:               map[string]struct{}{},
+	}
+	sink.logger = sink.logger.WithFields(logrus.Fields{
+		"sink_name": sink.Name(),
+		"sink_kind": sink.Kind(),
+	})
+	return sink, nil
 }
 
-// Name returns the string cortex
+// Name returns the sink name
 func (s *CortexMetricSink) Name() string {
 	return s.name
+}
+
+// Kind returns the sink kind
+func (s *CortexMetricSink) Kind() string {
+	return "cortex"
 }
 
 // Start sets up the HTTP client for writing to Cortex
@@ -173,10 +190,10 @@ func (s *CortexMetricSink) Start(tc *trace.Client) error {
 }
 
 // Flush sends a batch of metrics to the configured remote-write endpoint
-func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
-	metricKeyTags := map[string]string{"sink": s.name, "sink_type": "cortex"}
+	metricKeyTags := map[string]string{"sink_name": s.Name(), "sink_type": s.Kind()}
 	flushedMetrics := 0
 	droppedMetrics := 0
 	defer func() {
@@ -184,15 +201,20 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		span.Add(ssf.Count(sinks.MetricKeyTotalMetricsDropped, float32(droppedMetrics), metricKeyTags))
 	}()
 
+	if len(metrics) == 0 {
+		return sinks.MetricFlushResult{}, nil
+	}
+
 	if s.batchWriteSize == 0 || len(metrics) <= s.batchWriteSize {
 		err := s.writeMetrics(ctx, metrics)
 		if err == nil {
 			flushedMetrics = len(metrics)
 		} else {
+			s.logger.Error(err)
 			droppedMetrics = len(metrics)
 		}
 
-		return err
+		return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 	}
 
 	doIfNotDone := func(fn func() error) error {
@@ -222,8 +244,9 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		})
 
 		if err != nil {
+			s.logger.Error(err)
 			droppedMetrics += len(batch)
-			return err
+			return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 		}
 	}
 
@@ -236,21 +259,23 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		if err == nil {
 			flushedMetrics += len(batch)
 		} else {
+			s.logger.Error(err)
 			droppedMetrics += len(batch)
 		}
 	}
 
-	return err
+	return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 }
 
 func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.InterMetric) error {
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 
-	wr := makeWriteRequest(metrics, s.tags)
+	wr, updatedCounters := s.makeWriteRequest(metrics)
+
 	data, err := proto.Marshal(wr)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "cortex_err=\"failed to write batch: failed to marshal proto\"")
 	}
 
 	var buf bytes.Buffer
@@ -259,7 +284,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 
 	req, err := http.NewRequestWithContext(ctx, "POST", s.URL, &buf)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "cortex_err=\"failed to write batch: failed to create http request\"")
 	}
 
 	// This set of headers is prescribed by the remote-write standard
@@ -278,23 +303,23 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 	r, err := s.Client.Do(req)
 	if err != nil {
 		span.Error(err)
-		s.logger.WithFields(logrus.Fields{
-			"error":        err,
-			"time_seconds": time.Since(ts).Seconds(),
-		}).Error("Failed to post request")
-		return err
+		return errors.Wrapf(err, "cortex_err=\"failed to write batch: misc http client error\" duration_secs=%.2f", time.Since(ts).Seconds())
 	}
 	// Resource leak can occur if body isn't closed explicitly
 	defer r.Body.Close()
 
-	// TODO: retry on 400/500 (per remote-write spec)
+	// TODO: retry on 4xx/5xx (per remote-write spec)
+	// Draft PR: https://github.com/stripe/veneur/pull/925
 	if r.StatusCode >= 300 {
 		b, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			return errors.Wrap(err, "could not read response body")
+			return errors.Wrapf(err, "cortex_err=\"failed to write batch: downstream returned error response with unreadable body\" response_code=%d", r.StatusCode)
 		}
-		// Cortex responds with terse and informative messages
-		s.logger.Infof("Flush failed with HTTP %d: %s", r.StatusCode, b)
+		return fmt.Errorf("cortex_err=\"failed to write batch: error response\", response_code=%d response_body=\"%s\"", r.StatusCode, b)
+	}
+
+	for key, val := range updatedCounters {
+		s.counters[key] = val
 	}
 
 	return nil
@@ -309,15 +334,43 @@ func (s *CortexMetricSink) FlushOtherSamples(context.Context, []ssf.SSFSample) {
 
 // makeWriteRequest converts a list of samples from a flush into a single
 // prometheus remote-write compatible protobuf object
-func makeWriteRequest(metrics []samplers.InterMetric, tags map[string]string) *prompb.WriteRequest {
+func (s *CortexMetricSink) makeWriteRequest(metrics []samplers.InterMetric) (*prompb.WriteRequest, map[counterMapKey]float64) {
 	ts := make([]*prompb.TimeSeries, len(metrics))
+	updatedCounters := map[counterMapKey]float64{}
 	for i, metric := range metrics {
-		ts[i] = metricToTimeSeries(metric, tags)
+		if metric.Type == samplers.CounterMetric && s.convertCountersToMonotonic {
+			newMetric, counterKey := s.convertToMonotonicCounter(metric)
+			metric = newMetric
+			updatedCounters[counterKey] = metric.Value
+		}
+
+		ts[i] = metricToTimeSeries(metric, s.excludedTags)
 	}
 
 	return &prompb.WriteRequest{
 		Timeseries: ts,
+	}, updatedCounters
+}
+
+func (s *CortexMetricSink) convertToMonotonicCounter(metric samplers.InterMetric) (samplers.InterMetric, counterMapKey) {
+	sort.Strings(metric.Tags)
+	key := counterMapKey{
+		name: metric.Name,
+		tags: strings.Join(metric.Tags, "|"),
 	}
+
+	metric.Value += s.counters[key]
+	return metric, key
+}
+
+// SetExcludedTags sets the excluded tag names. Any tags with the
+// provided key (name) will be excluded.
+func (s *CortexMetricSink) SetExcludedTags(excludes []string) {
+	tagsSet := map[string]struct{}{}
+	for _, tag := range excludes {
+		tagsSet[tag] = struct{}{}
+	}
+	s.excludedTags = tagsSet
 }
 
 // metricToTimeSeries converts a sample to a prometheus timeseries.
@@ -326,7 +379,7 @@ func makeWriteRequest(metrics []samplers.InterMetric, tags map[string]string) *p
 // and we drop tags which are not in "key:value" format
 // (see https://prometheus.io/docs/concepts/data_model/)
 // we also take "last value wins" approach to duplicate labels inside a metric
-func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string) *prompb.TimeSeries {
+func metricToTimeSeries(metric samplers.InterMetric, excludedTags map[string]struct{}) *prompb.TimeSeries {
 	var ts prompb.TimeSeries
 	ts.Labels = []*prompb.Label{{
 		Name: "__name__", Value: sanitise(metric.Name),
@@ -344,9 +397,9 @@ func metricToTimeSeries(metric samplers.InterMetric, tags map[string]string) *pr
 		sanitisedTags[sk] = kv[1]
 	}
 
-	for k, v := range tags {
+	for k := range excludedTags {
 		sk := sanitise(k)
-		sanitisedTags[sk] = v
+		delete(sanitisedTags, sk)
 	}
 
 	for k, v := range sanitisedTags {

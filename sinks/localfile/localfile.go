@@ -50,22 +50,6 @@ func (osFS) OpenFile(
 	return os.OpenFile(name, flag, perm)
 }
 
-// TODO(arnavdugar): Remove this once the old configuration format has been
-// removed.
-func MigrateConfig(config *veneur.Config) {
-	if config.FlushFile == "" {
-		return
-	}
-	config.MetricSinks = append(config.MetricSinks, veneur.SinkConfig{
-		Kind: "localfile",
-		Name: "localfile",
-		Config: LocalFileSinkConfig{
-			Delimiter: '\t',
-			FlushFile: config.FlushFile,
-		},
-	})
-}
-
 // ParseConfig decodes the map config for an local file sink into a
 // LocalFileSinkConfig struct.
 func ParseConfig(
@@ -116,13 +100,11 @@ func (sink *LocalFileSink) Start(traceClient *trace.Client) error {
 }
 
 // Flush the metrics from the LocalFilePlugin
-func (sink *LocalFileSink) Flush(
-	ctx context.Context, metrics []samplers.InterMetric,
-) error {
+func (sink *LocalFileSink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	file, err := sink.FileSystem.OpenFile(
 		sink.FilePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, os.ModePerm)
 	if err != nil {
-		return fmt.Errorf("couldn't open %s for appending: %s", sink.FilePath, err)
+		return sinks.MetricFlushResult{}, fmt.Errorf("couldn't open %s for appending: %s", sink.FilePath, err)
 	}
 	defer file.Close()
 
@@ -139,14 +121,19 @@ func (sink *LocalFileSink) Flush(
 	gzipWriter.Close()
 	werr := csvWriter.Error()
 	if werr != nil {
-		return werr
+		return sinks.MetricFlushResult{}, werr
 	}
-	return nil
+	return sinks.MetricFlushResult{}, nil
 }
 
 // Name is the name of the LocalFilePlugin, i.e., "localfile"
 func (sink *LocalFileSink) Name() string {
 	return sink.name
+}
+
+// Kind is the kind of the LocalFilePlugin, i.e. always "localfile"
+func (sink *LocalFileSink) Kind() string {
+	return "localfile"
 }
 
 func (sink *LocalFileSink) FlushOtherSamples(

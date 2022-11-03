@@ -3,7 +3,6 @@ package trace
 import (
 	"context"
 	"io"
-	"math/rand"
 	"path"
 	"reflect"
 	"runtime"
@@ -13,9 +12,11 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	opentracing "github.com/opentracing/opentracing-go"
-	"github.com/stripe/veneur/v14/ssf"
+	"github.com/opentracing/opentracing-go"
 	"golang.org/x/mod/module"
+
+	"github.com/stripe/veneur/v14/internal/fastrand"
+	"github.com/stripe/veneur/v14/ssf"
 )
 
 // Experimental
@@ -322,29 +323,28 @@ func (t *Trace) contextAsParent() *spanContext {
 // StartTrace is called by to create the root-level span
 // for a trace
 func StartTrace(resource string) *Trace {
-	traceID := proto.Int64(rand.Int63())
+	traceID := fastrand.Int63()
 
 	t := &Trace{
-		TraceID:  *traceID,
-		SpanID:   *traceID,
+		TraceID:  traceID,
+		SpanID:   traceID,
 		ParentID: 0,
 		Resource: resource,
 		Tags:     map[string]string{},
+		Start:    time.Now(),
 	}
 
-	t.Start = time.Now()
 	return t
 }
 
 // StartChildSpan creates a new Span with the specified parent
 func StartChildSpan(parent *Trace) *Trace {
-	spanID := proto.Int64(rand.Int63())
 	span := &Trace{
-		SpanID: *spanID,
+		SpanID: fastrand.Int63(),
+		Start:  time.Now(),
 	}
 
 	span.SetParent(parent)
-	span.Start = time.Now()
 
 	return span
 }

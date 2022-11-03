@@ -1,11 +1,8 @@
 version: 2.1
 executors:
-  "previous":
-    docker:
-      - image: golang:1.16
   "stable":
     docker:
-      - image: golang:1.17
+      - image: golang:1.18
 
 commands:
   install:
@@ -19,7 +16,7 @@ commands:
         default: "v1.2.1"
       stringer_tag:
         type: string
-        default: "v0.1.7"
+        default: "v0.1.11"
       mockgen_tag:
         type: string
         default: "v1.6.0"
@@ -71,7 +68,7 @@ commands:
           name: go test
           command: |
             mkdir -p /tmp/test-results/go
-            trap "go get -u github.com/jstemmer/go-junit-report && go-junit-report </tmp/go-test-output.txt > /tmp/test-results/go/test-report.xml" EXIT
+            trap "go install github.com/jstemmer/go-junit-report@v1.0.0 && go-junit-report </tmp/go-test-output.txt > /tmp/test-results/go/test-report.xml" EXIT
             go test -race -v -timeout 60s ./... | tee /tmp/go-test-output.txt
       - store_test_results:
           path: /tmp/test-results/go
@@ -134,16 +131,6 @@ jobs:
       - checkout
       - test
 
-  test_previous:
-    executor:
-      name: previous
-    working_directory: /go/src/github.com/stripe/veneur
-    environment:
-      GO111MODULE: "on"
-    steps:
-      - checkout
-      - test
-
 workflows:
   version: 2
   continuous_integration:
@@ -151,11 +138,9 @@ workflows:
       - code_hygiene
       - test_config
       - test_stable
-      - test_previous
   scheduled_tests:
     jobs:
       - test_stable
-      - test_previous
     triggers:
       - schedule:
           cron: 0 16 * * 1-5

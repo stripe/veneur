@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"net/http"
 	"os"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14"
+	"github.com/stripe/veneur/v14/diagnostics"
 	"github.com/stripe/veneur/v14/sinks/cortex"
 	"github.com/stripe/veneur/v14/sinks/datadog"
 	"github.com/stripe/veneur/v14/sinks/debug"
@@ -23,6 +26,7 @@ import (
 	"github.com/stripe/veneur/v14/sources/openmetrics"
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/util/build"
 )
 
 var (
@@ -38,6 +42,9 @@ func init() {
 func main() {
 	flag.Parse()
 	logger := logrus.StandardLogger()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	if configFile == nil || *configFile == "" {
 		logger.Fatal("You must specify a config file")
@@ -61,7 +68,7 @@ func main() {
 		err = sentry.Init(sentry.ClientOptions{
 			Dsn:        conf.SentryDsn.Value,
 			ServerName: conf.Hostname,
-			Release:    veneur.VERSION,
+			Release:    build.VERSION,
 		})
 		if err != nil {
 			logger.WithError(err).Fatal("failed to initialzie Sentry")
@@ -77,29 +84,6 @@ func main() {
 
 	if *validateConfig {
 		os.Exit(0)
-	}
-	if !conf.Features.MigrateMetricSinks {
-		datadog.MigrateConfig(&conf)
-		debug.MigrateConfig(&conf)
-		falconer.MigrateConfig(&conf)
-		localfile.MigrateConfig(&conf)
-		lightstep.MigrateConfig(&conf)
-		newrelic.MigrateConfig(&conf)
-		s3.MigrateConfig(&conf)
-		prometheus.MigrateConfig(&conf)
-		err = signalfx.MigrateConfig(&conf)
-		if err != nil {
-			logger.WithError(err).Fatal("error migrating signalfx config")
-		}
-		err = kafka.MigrateConfig(&conf)
-		if err != nil {
-			logger.WithError(err).Fatal("error migrating kafka config")
-		}
-		err = splunk.MigrateConfig(&conf)
-		if err != nil {
-			logger.WithError(err).Fatal("error migrating splunk config")
-		}
-		xray.MigrateConfig(&conf)
 	}
 
 	server, err := veneur.NewFromConfig(veneur.ServerConfig{
@@ -183,10 +167,22 @@ func main() {
 				ParseConfig: xray.ParseConfig,
 			},
 		},
+		HttpCustomHandlers: veneur.HttpCustomHandlers{
+			"/echo": func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte("hello world!\n"))
+			},
+		},
 	})
 	if err != nil {
 		logger.WithError(err).Fatal("Could not initialize server")
 	}
+
+	if conf.Features.DiagnosticsMetricsEnabled {
+		go diagnostics.CollectDiagnosticsMetrics(
+			ctx, server.Statsd, server.Interval,
+			[]string{"git_sha:" + build.VERSION})
+	}
+
 	ssf.NamePrefix = "veneur."
 
 	defer func() {

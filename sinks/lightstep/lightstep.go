@@ -27,7 +27,7 @@ const indicatorSpanTagName = "indicator"
 const lightstepDefaultPort = 8080
 const lightstepDefaultInterval = 5 * time.Minute
 
-var unexpectedCountTypeErr = fmt.Errorf("Received unexpected count type")
+var errUnexpectedCountType = fmt.Errorf("received unexpected count type")
 
 type LightStepSpanSinkConfig struct {
 	AccessToken     util.StringSecret `yaml:"lightstep_access_token"`
@@ -127,25 +127,6 @@ func CreateSpanSink(
 	}, nil
 }
 
-// TODO(awb): Remove this once the old configuration format has been
-// removed.
-func MigrateConfig(conf *veneur.Config) {
-	if conf.LightstepAccessToken.Value == "" {
-		return
-	}
-	conf.SpanSinks = append(conf.SpanSinks, veneur.SinkConfig{
-		Kind: "lightstep",
-		Name: "lightstep",
-		Config: LightStepSpanSinkConfig{
-			AccessToken:     conf.LightstepAccessToken,
-			CollectorHost:   conf.LightstepCollectorHost,
-			MaximumSpans:    conf.LightstepMaximumSpans,
-			NumClients:      conf.LightstepNumClients,
-			ReconnectPeriod: conf.LightstepReconnectPeriod,
-		},
-	})
-}
-
 // Start performs final adjustments on the sink.
 func (ls *LightStepSpanSink) Start(cl *trace.Client) error {
 	ls.traceClient = cl
@@ -155,6 +136,11 @@ func (ls *LightStepSpanSink) Start(cl *trace.Client) error {
 // Name returns this sink's name.
 func (ls *LightStepSpanSink) Name() string {
 	return ls.name
+}
+
+// Kind returns this sink's kind.
+func (ls *LightStepSpanSink) Kind() string {
+	return "lightstep"
 }
 
 // Ingest takes in a span and passed it along to the LS client after
@@ -229,8 +215,8 @@ func (ls *LightStepSpanSink) Ingest(ssfSpan *ssf.SSFSpan) error {
 
 	c, ok := count.(*int64)
 	if !ok {
-		ls.log.WithField("type", reflect.TypeOf(count)).Debug(unexpectedCountTypeErr.Error())
-		return unexpectedCountTypeErr
+		ls.log.WithField("type", reflect.TypeOf(count)).Debug(errUnexpectedCountType.Error())
+		return errUnexpectedCountType
 	}
 	atomic.AddInt64(c, 1)
 	return nil

@@ -1,151 +1,107 @@
-package proxy
+package proxy_test
 
 import (
 	"context"
-	"fmt"
-	"math/rand"
 	"testing"
-	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stripe/veneur/v14/forwardrpc"
 	"github.com/stripe/veneur/v14/samplers/metricpb"
-	metrictest "github.com/stripe/veneur/v14/samplers/metricpb/testutils"
-	"github.com/stripe/veneur/v14/trace"
+	"github.com/stripe/veneur/v14/sources/mock"
+	"github.com/stripe/veneur/v14/sources/proxy"
+	"google.golang.org/grpc"
 )
 
-type testMetricIngester struct {
-	metrics []*metricpb.Metric
-}
-
-func (mi *testMetricIngester) IngestMetrics(ms []*metricpb.Metric) {
-	mi.metrics = append(mi.metrics, ms...)
-}
-
-func (mi *testMetricIngester) clear() {
-	mi.metrics = mi.metrics[:0]
-}
-
-// Test that sending the same metric to a Veneur results in it being hashed
-// to the same worker every time
-func TestSendMetrics_ConsistentHash(t *testing.T) {
-	ingesters := []*testMetricIngester{{}, {}}
-
-	casted := make([]MetricIngester, len(ingesters))
-	for i, ingester := range ingesters {
-		casted[i] = ingester
-	}
+func TestName(t *testing.T) {
 	logger := logrus.NewEntry(logrus.New())
-	s := New("localhost", casted, logger)
+	server := proxy.New("localhost:0", logger)
 
-	inputs := []*metricpb.Metric{{
-		Name: "test.counter",
+	assert.Equal(t, "proxy", server.Name())
+}
+
+func TestStart(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockIngest := mock.NewMockIngest(ctrl)
+
+	logger := logrus.NewEntry(logrus.New())
+	server := proxy.New("localhost:0", logger)
+
+	go server.Start(mockIngest)
+	<-server.Ready()
+	server.Stop()
+}
+
+func TestSendMetricsV2(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockIngest := mock.NewMockIngest(ctrl)
+	metric := metricpb.Metric{
+		Name: "test-metric",
+		Tags: []string{"tag1:value1", "tag2:value2"},
 		Type: metricpb.Type_Counter,
-		Tags: []string{"tag:1"},
-	}, {
-		Name: "test.gauge",
-		Type: metricpb.Type_Gauge,
-	}, {
-		Name: "test.histogram",
-		Type: metricpb.Type_Histogram,
-		Tags: []string{"type:histogram"},
-	}, {
-		Name: "test.set",
-		Type: metricpb.Type_Set,
-	}, {
-		Name: "test.gauge3",
-		Type: metricpb.Type_Gauge,
-	}}
+		Value: &metricpb.Metric_Counter{
+			Counter: &metricpb.CounterValue{
+				Value: 10,
+			},
+		},
+	}
 
-	// Send the same inputs many times
+	logger := logrus.NewEntry(logrus.New())
+	server := proxy.New("localhost:0", logger)
+
+	go server.Start(mockIngest)
+	<-server.Ready()
+
+	connection, err := grpc.Dial(server.GetAddress(), grpc.WithInsecure())
+	assert.NoError(t, err)
+	client := forwardrpc.NewForwardClient(connection)
+
+	mockIngest.EXPECT().IngestMetricProto(&metric).Times(10)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sendClient, err := client.SendMetricsV2(ctx)
+	assert.NoError(t, err)
+
 	for i := 0; i < 10; i++ {
-		s.SendMetrics(context.Background(), &forwardrpc.MetricList{Metrics: inputs})
-
-		assert.Equal(t, []*metricpb.Metric{inputs[0], inputs[4]},
-			ingesters[0].metrics, "Ingester 0 has the wrong metrics")
-		assert.Equal(t, []*metricpb.Metric{inputs[1], inputs[2], inputs[3]},
-			ingesters[1].metrics, "Ingester 1 has the wrong metrics")
-
-		for _, ingester := range ingesters {
-			ingester.clear()
-		}
+		err = sendClient.Send(&metric)
+		assert.NoError(t, err)
 	}
+
+	_, err = sendClient.CloseAndRecv()
+	assert.NoError(t, err)
+
+	server.Stop()
 }
 
-func TestSendMetrics_Empty(t *testing.T) {
-	ingester := &testMetricIngester{}
+func TestSendMetricsV2ContextCancelled(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockIngest := mock.NewMockIngest(ctrl)
+
 	logger := logrus.NewEntry(logrus.New())
-	s := New("localhost", []MetricIngester{ingester}, logger)
-	s.SendMetrics(context.Background(), &forwardrpc.MetricList{})
+	server := proxy.New("localhost:0", logger)
 
-	assert.Empty(t, ingester.metrics,
-		"The server shouldn't have submitted any metrics")
-}
+	go server.Start(mockIngest)
+	<-server.Ready()
 
-func TestOptions_WithTraceClient(t *testing.T) {
-	logger := logrus.NewEntry(logrus.New())
-	c, err := trace.NewClient(trace.DefaultVeneurAddress)
-	assert.NoError(t, err, "failed to initialize a trace client")
+	connection, err := grpc.Dial(server.GetAddress(), grpc.WithInsecure())
+	assert.NoError(t, err)
+	client := forwardrpc.NewForwardClient(connection)
 
-	s := New("localhost", []MetricIngester{}, logger, WithTraceClient(c))
-	assert.Equal(t, c, s.opts.traceClient,
-		"WithTraceClient didn't correctly set the trace client")
-}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 
-type noopChannelMetricIngester struct {
-	in   chan []*metricpb.Metric
-	quit chan struct{}
-}
+	sendClient, err := client.SendMetricsV2(ctx)
+	assert.Error(t, err)
+	assert.Nil(t, sendClient)
 
-func newNoopChannelMetricIngester() *noopChannelMetricIngester {
-	return &noopChannelMetricIngester{
-		in:   make(chan []*metricpb.Metric),
-		quit: make(chan struct{}),
-	}
-}
-
-func (mi *noopChannelMetricIngester) start() {
-	go func() {
-		for {
-			select {
-			case <-mi.in:
-			case <-mi.quit:
-				return
-			}
-		}
-	}()
-}
-
-func (mi *noopChannelMetricIngester) stop() {
-	mi.quit <- struct{}{}
-}
-
-func (mi *noopChannelMetricIngester) IngestMetrics(ms []*metricpb.Metric) {
-	mi.in <- ms
-}
-
-func BenchmarkImportServerSendMetrics(b *testing.B) {
-	rand.Seed(time.Now().Unix())
-
-	metrics := metrictest.RandomForwardMetrics(10000)
-	for _, inputSize := range []int{10, 100, 1000, 10000} {
-		ingesters := make([]MetricIngester, 100)
-		for i := range ingesters {
-			ingester := newNoopChannelMetricIngester()
-			ingester.start()
-			defer ingester.stop()
-			ingesters[i] = ingester
-		}
-		logger := logrus.NewEntry(logrus.New())
-		s := New("localhost", ingesters, logger)
-		ctx := context.Background()
-		input := &forwardrpc.MetricList{Metrics: metrics[:inputSize]}
-
-		b.Run(fmt.Sprintf("InputSize=%d", inputSize), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				s.SendMetrics(ctx, input)
-			}
-		})
-	}
+	server.Stop()
 }

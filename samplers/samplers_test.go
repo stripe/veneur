@@ -17,50 +17,6 @@ import (
 
 const ε = .01
 
-func TestRouting(t *testing.T) {
-	tests := []struct {
-		name      string
-		tags      []string
-		sinks     RouteInformation
-		sinkNames []string
-	}{{
-		"none specified",
-		[]string{"foo:bar", "veneurlocalonly"},
-		nil,
-		[]string{"foosink", "barsink"},
-	}, {
-		"none specified",
-		[]string{"foo:bar", "veneurlocalonly:"},
-		nil,
-		[]string{"foosink", "barsink"},
-	}, {
-		"one sink",
-		[]string{"veneursinkonly:foobar"},
-		map[string]struct{}{"foobar": {}},
-		[]string{"foobar"},
-	}, {
-		"multiple sinks",
-		[]string{"veneursinkonly:foobar", "veneursinkonly:baz"},
-		map[string]struct{}{"foobar": {}, "baz": {}},
-		[]string{"foobar", "baz"},
-	}}
-
-	for _, elt := range tests {
-		test := elt
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-			info := routeInfo(test.tags)
-			assert.Equal(t, test.sinks, info)
-			for _, sink := range test.sinkNames {
-				assert.True(t, info.RouteTo(sink), "Should route to %q", sink)
-			}
-			if test.sinks != nil {
-				assert.False(t, info.RouteTo("never_to_this_sink"))
-			}
-		})
-	}
-}
-
 func TestCounterEmpty(t *testing.T) {
 	c := NewCounter("a.b.c", []string{"a:b"})
 	c.Sample(1, 1.0)
@@ -97,32 +53,6 @@ func TestCounterSampleRate(t *testing.T) {
 	assert.Equal(t, float64(10), metrics[0].Value, "Metric value")
 }
 
-func TestCounterMerge(t *testing.T) {
-	c := NewCounter("a.b.c", []string{"tag:val"})
-
-	c.Sample(5, 0.5)
-	jm, err := c.Export()
-	assert.NoError(t, err, "should have exported counter successfully")
-
-	c2 := NewCounter("a.b.c", []string{"tag:val"})
-
-	c2.Sample(14, 0.5)
-	// test with a different interval, and ensure the correct rate is passed on
-	jm2, err2 := c2.Export()
-	assert.NoError(t, err2, "should have exported counter successfully")
-
-	cGlobal := NewCounter("a.b.c", []string{"tag2: val2"})
-	assert.NoError(t, cGlobal.Combine(jm.Value), "should have combined counters successfully")
-
-	metrics := cGlobal.Flush(10 * time.Second)
-	assert.Equal(t, float64(10), metrics[0].Value)
-
-	assert.NoError(t, cGlobal.Combine(jm2.Value), "should have combined counters successfully")
-
-	metrics = cGlobal.Flush(10 * time.Second)
-	assert.Equal(t, float64(38), metrics[0].Value)
-}
-
 // Test the Metric and Merge methods on Counter
 func TestCounterMergeMetric(t *testing.T) {
 	c := NewCounter("a.b.c", []string{"tag:val"})
@@ -145,21 +75,6 @@ func TestCounterMergeMetric(t *testing.T) {
 	cGlobal.Merge(m2.GetCounter())
 	metrics = cGlobal.Flush(10 * time.Second)
 	assert.Equal(t, float64(38), metrics[0].Value)
-}
-
-func TestGaugeMerge(t *testing.T) {
-	g := NewGauge("a.b.c", []string{"tag:val"})
-
-	g.Sample(5, 1.0)
-	jm, err := g.Export()
-	assert.NoError(t, err, "should have exported gauge succcesfully")
-
-	gGlobal := NewGauge("a.b.c", []string{"tag2: val2"})
-	gGlobal.value = 1 // So we can overwrite it
-	assert.NoError(t, gGlobal.Combine(jm.Value), "should have combined gauges successfully")
-
-	metrics := gGlobal.Flush()
-	assert.Equal(t, float64(5), metrics[0].Value)
 }
 
 func TestGauge(t *testing.T) {
@@ -223,28 +138,6 @@ func TestSet(t *testing.T) {
 	assert.Len(t, m1.Tags, 1, "Tag count")
 	assert.Equal(t, "a:b", m1.Tags[0], "First tag")
 	assert.Equal(t, float64(4), m1.Value, "Value")
-}
-
-func TestSetMerge(t *testing.T) {
-	rand.Seed(time.Now().Unix())
-
-	s := NewSet("a.b.c", []string{"a:b"})
-	for i := 0; i < 100; i++ {
-		s.Sample(strconv.Itoa(rand.Int()))
-	}
-	assert.Equal(t, uint64(100), s.Hll.Estimate(), "counts did not match")
-
-	jm, err := s.Export()
-	assert.NoError(t, err, "should have exported successfully")
-
-	s2 := NewSet("a.b.c", []string{"a:b"})
-	assert.NoError(t, s2.Combine(jm.Value), "should have combined successfully")
-	// HLLs are approximate, and we've seen error of +-1 here in the past, so
-	// we're giving the test some room for error to reduce flakes
-	count1 := int(s.Hll.Estimate())
-	count2 := int(s2.Hll.Estimate())
-	countDifference := count1 - count2
-	assert.True(t, -1 <= countDifference && countDifference <= 1, "counts did not match after merging (%d and %d)", count1, count2)
 }
 
 // Test the Metric and Merge function on Set
@@ -513,30 +406,6 @@ func TestHistoSampleRate(t *testing.T) {
 	assert.Equal(t, float64(10), count.Value, "count value")
 }
 
-func TestHistoMerge(t *testing.T) {
-	rand.Seed(time.Now().Unix())
-
-	h := NewHist("a.b.c", []string{"a:b"})
-	for i := 0; i < 100; i++ {
-		h.Sample(rand.NormFloat64(), 1.0)
-	}
-
-	jm, err := h.Export()
-	assert.NoError(t, err, "should have exported successfully")
-
-	h2 := NewHist("a.b.c", []string{"a:b"})
-	assert.NoError(t, h2.Combine(jm.Value), "should have combined successfully")
-	assert.InEpsilon(t, h.Value.Quantile(0.5), h2.Value.Quantile(0.5), 0.02, "50th percentiles did not match after merging")
-	assert.InDelta(t, 0, h2.LocalWeight, 0.02, "merged histogram should have count of zero")
-	assert.True(t, math.IsInf(h2.LocalMin, +1), "merged histogram should have local minimum of +inf")
-	assert.True(t, math.IsInf(h2.LocalMax, -1), "merged histogram should have local minimum of -inf")
-
-	h2.Sample(1.0, 1.0)
-	assert.InDelta(t, 1.0, h2.LocalWeight, 0.02, "merged histogram should have count of 1 after adding a value")
-	assert.InDelta(t, 1.0, h2.LocalMin, 0.02, "merged histogram should have min of 1 after adding a value")
-	assert.InDelta(t, 1.0, h2.LocalMax, 0.02, "merged histogram should have max of 1 after adding a value")
-}
-
 // Test the Metric and Merge function on Set
 func TestHistoMergeMetric(t *testing.T) {
 	rand.Seed(time.Now().Unix())
@@ -560,21 +429,6 @@ func TestHistoMergeMetric(t *testing.T) {
 	assert.InDelta(t, 1.0, h2.LocalWeight, 0.02, "merged histogram should have count of 1 after adding a value")
 	assert.InDelta(t, 1.0, h2.LocalMin, 0.02, "merged histogram should have min of 1 after adding a value")
 	assert.InDelta(t, 1.0, h2.LocalMax, 0.02, "merged histogram should have max of 1 after adding a value")
-}
-
-func TestMetricKeyEquality(t *testing.T) {
-	c1 := NewCounter("a.b.c", []string{"a:b", "c:d"})
-	ce1, _ := c1.Export()
-
-	c2 := NewCounter("a.b.c", []string{"a:b", "c:d"})
-	ce2, _ := c2.Export()
-
-	c3 := NewCounter("a.b.c", []string{"c:d", "fart:poot"})
-	ce3, _ := c3.Export()
-	assert.Equal(t, ce1.JoinedTags, ce2.JoinedTags)
-	// Make sure we can stringify that key and get equal!
-	assert.Equal(t, ce1.MetricKey.String(), ce2.MetricKey.String())
-	assert.NotEqual(t, ce1.MetricKey.String(), ce3.MetricKey.String())
 }
 
 func TestParseMetricSSF(t *testing.T) {

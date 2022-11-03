@@ -35,7 +35,7 @@ func (c *Consul) GetDestinationsForService(serviceName string) ([]string, error)
 
 	numHosts := len(serviceEntries)
 	if numHosts < 1 {
-		return nil, errors.New("Received no hosts from Consul")
+		return nil, errors.New("received no hosts from Consul")
 	}
 	// Make a slice to hold our returned hosts
 	hosts := make([]string, numHosts)

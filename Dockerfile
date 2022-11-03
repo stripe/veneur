@@ -1,7 +1,7 @@
 # For running Veneur under Docker, you probably want either the pre-built images
 # published at https://hub.docker.com/r/stripe/veneur/
 # or the Dockerfiles in https://github.com/stripe/veneur/tree/master/public-docker-images
-FROM golang:1.17
+FROM golang:1.18
 LABEL maintainer="The Stripe Observability Team <support@stripe.com>"
 
 ENV GOPATH=/go
@@ -49,5 +49,5 @@ RUN git diff --cached
 RUN git diff-index --cached --exit-code HEAD
 
 RUN mkdir -p /build
-RUN go test -race -v -timeout 60s -ldflags "-X github.com/stripe/veneur/v14.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur/v14.BUILD_DATE=$(date +%s)" ./...
-CMD cp -r henson /build/ && env GOBIN=/build go install -a -v -ldflags "-X github.com/stripe/veneur/v14.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur/v14.BUILD_DATE=$(date +%s)" ./cmd/...
+RUN go test -race -v -timeout 60s -ldflags "-X github.com/stripe/veneur/v14/util/build.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur/v14/util/build.BUILD_DATE=$(date +%s)" ./...
+CMD cp -r henson /build/ && env GOBIN=/build go install -a -v -ldflags "-X github.com/stripe/veneur/v14/util/build.VERSION=$(git rev-parse HEAD) -X github.com/stripe/veneur/v14/util/build.BUILD_DATE=$(date +%s)" ./cmd/...

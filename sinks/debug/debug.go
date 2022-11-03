@@ -15,21 +15,6 @@ import (
 	"github.com/stripe/veneur/v14/trace"
 )
 
-func MigrateConfig(conf *veneur.Config) {
-	if conf.DebugFlushedMetrics {
-		conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
-			Kind: "debug",
-			Name: "debug",
-		})
-	}
-	if conf.DebugIngestedSpans {
-		conf.SpanSinks = append(conf.SpanSinks, veneur.SinkConfig{
-			Kind: "debug",
-			Name: "debug",
-		})
-	}
-}
-
 type debugMetricSink struct {
 	log  *logrus.Entry
 	mtx  *sync.Mutex
@@ -64,13 +49,17 @@ func (b *debugMetricSink) Name() string {
 	return b.name
 }
 
+func (b *debugMetricSink) Kind() string {
+	return "debug"
+}
+
 func (b *debugMetricSink) Start(*trace.Client) error {
 	return nil
 }
 
-func (b *debugMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+func (b *debugMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	if len(metrics) == 0 || b.log.Logger.Level < logrus.DebugLevel {
-		return nil
+		return sinks.MetricFlushResult{}, nil
 	}
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
@@ -83,7 +72,7 @@ func (b *debugMetricSink) Flush(ctx context.Context, metrics []samplers.InterMet
 		}
 		b.log.Debugf("  %s: %s(%v) = %f%s", m.Type, m.Name, m.Tags, m.Value, msg)
 	}
-	return nil
+	return sinks.MetricFlushResult{}, nil
 }
 
 func (b *debugMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {

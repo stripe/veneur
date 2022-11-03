@@ -34,10 +34,11 @@ type CloudwatchMetricSinkConfig struct {
 	RemoteTimeout                 time.Duration      `yaml:"remote_timeout"`
 }
 
-type cloudwatchMetricSink struct {
+type CloudwatchMetricSink struct {
+	name                string
 	logger              *logrus.Entry
 	remoteTimeout       time.Duration
-	client              *cloudwatch.Client
+	Client              *cloudwatch.Client
 	endpoint            string
 	region              string
 	namespace           string
@@ -45,13 +46,14 @@ type cloudwatchMetricSink struct {
 	disableRetries      bool
 }
 
-var _ sinks.MetricSink = (*cloudwatchMetricSink)(nil)
+var _ sinks.MetricSink = (*CloudwatchMetricSink)(nil)
 
 func NewCloudwatchMetricSink(
-	endpoint, namespace, region string, standardUnitTagName types.StandardUnit,
+	name, endpoint, namespace, region string, standardUnitTagName types.StandardUnit,
 	remoteTimeout time.Duration, disableRetries bool, logger *logrus.Entry,
-) *cloudwatchMetricSink {
-	return &cloudwatchMetricSink{
+) *CloudwatchMetricSink {
+	return &CloudwatchMetricSink{
+		name:                name,
 		endpoint:            endpoint,
 		namespace:           namespace,
 		region:              region,
@@ -87,6 +89,7 @@ func Create(
 	}
 
 	return NewCloudwatchMetricSink(
+		name,
 		conf.CloudwatchEndpoint,
 		conf.CloudwatchNamespace,
 		conf.AWSRegion,
@@ -97,11 +100,15 @@ func Create(
 	), nil
 }
 
-func (s *cloudwatchMetricSink) Name() string {
+func (s *CloudwatchMetricSink) Name() string {
+	return s.name
+}
+
+func (s *CloudwatchMetricSink) Kind() string {
 	return "cloudwatch"
 }
 
-func (s *cloudwatchMetricSink) Start(*trace.Client) error {
+func (s *CloudwatchMetricSink) Start(*trace.Client) error {
 	opts := cloudwatch.Options{}
 	if s.endpoint != "" {
 		opts.EndpointResolver = cloudwatch.EndpointResolverFromURL(s.endpoint)
@@ -117,13 +124,13 @@ func (s *cloudwatchMetricSink) Start(*trace.Client) error {
 	if s.disableRetries {
 		opts.Retryer = aws.NopRetryer{}
 	}
-	s.client = cloudwatch.New(opts)
+	s.Client = cloudwatch.New(opts)
 	return nil
 }
 
-func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) error {
+func (s *CloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	if len(metrics) == 0 {
-		return nil
+		return sinks.MetricFlushResult{}, nil
 	}
 
 	metricData := make([]types.MetricDatum, len(metrics))
@@ -155,13 +162,13 @@ func (s *cloudwatchMetricSink) Flush(ctx context.Context, metrics []samplers.Int
 		Namespace:  aws.String(s.namespace),
 		MetricData: metricData,
 	}
-	_, err := s.client.PutMetricData(ctx, input)
+	_, err := s.Client.PutMetricData(ctx, input)
 	if err != nil {
-		return err
+		return sinks.MetricFlushResult{MetricsDropped: len(metricData)}, err
 	}
-	return nil
+	return sinks.MetricFlushResult{MetricsFlushed: len(metricData)}, nil
 }
 
-func (s *cloudwatchMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
+func (s *CloudwatchMetricSink) FlushOtherSamples(ctx context.Context, samples []ssf.SSFSample) {
 	// unimplemented
 }

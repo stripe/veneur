@@ -86,53 +86,6 @@ type KafkaSpanSink struct {
 	traceClient     *trace.Client
 }
 
-func MigrateConfig(conf *veneur.Config) error {
-	if conf.KafkaBroker == "" {
-		return nil
-	}
-	if conf.KafkaMetricTopic != "" ||
-		conf.KafkaCheckTopic != "" ||
-		conf.KafkaEventTopic != "" {
-		conf.MetricSinks = append(conf.MetricSinks, veneur.SinkConfig{
-			Kind: "kafka",
-			Name: "kafka",
-			Config: KafkaMetricSinkConfig{
-				Broker:                conf.KafkaBroker,
-				CheckTopic:            conf.KafkaCheckTopic,
-				EventTopic:            conf.KafkaEventTopic,
-				MetricBufferBytes:     conf.KafkaMetricBufferBytes,
-				MetricBufferFrequency: conf.KafkaMetricBufferFrequency,
-				MetricBufferMessages:  conf.KafkaMetricBufferMessages,
-				MetricRequireAcks:     conf.KafkaMetricRequireAcks,
-				MetricTopic:           conf.KafkaMetricTopic,
-				Partitioner:           conf.KafkaPartitioner,
-				RetryMax:              conf.KafkaRetryMax,
-			},
-		})
-	}
-
-	if conf.KafkaSpanTopic != "" {
-		conf.SpanSinks = append(conf.SpanSinks, veneur.SinkConfig{
-			Kind: "kafka",
-			Name: "kafka",
-			Config: KafkaSpanSinkConfig{
-				Broker:                  conf.KafkaBroker,
-				Partitioner:             conf.KafkaPartitioner,
-				RetryMax:                conf.KafkaRetryMax,
-				SpanBufferBytes:         conf.KafkaSpanBufferBytes,
-				SpanBufferFrequency:     conf.KafkaSpanBufferFrequency,
-				SpanBufferMesages:       conf.KafkaSpanBufferMesages,
-				SpanRequireAcks:         conf.KafkaSpanRequireAcks,
-				SpanSampleRatePercent:   conf.KafkaSpanSampleRatePercent,
-				SpanSampleTag:           conf.KafkaSpanSampleTag,
-				SpanSerializationFormat: conf.KafkaSpanSerializationFormat,
-				SpanTopic:               conf.KafkaSpanTopic,
-			},
-		})
-	}
-	return nil
-}
-
 // ParseMetricConfig decodes the map config for a Kafka metric sink into a
 // KafkaMetricSinkConfig struct.
 func ParseMetricConfig(
@@ -260,6 +213,11 @@ func (k *KafkaMetricSink) Name() string {
 	return k.name
 }
 
+// Kind returns the kind of this sink.
+func (k *KafkaMetricSink) Kind() string {
+	return "kafka"
+}
+
 // Start performs final adjustments on the sink.
 func (k *KafkaMetricSink) Start(cl *trace.Client) error {
 	producer, err := newConfiguredProducer(k.logger, k.brokers, k.config)
@@ -271,27 +229,23 @@ func (k *KafkaMetricSink) Start(cl *trace.Client) error {
 }
 
 // Flush sends a slice of metrics to Kafka
-func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) error {
+func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
 	samples := &ssf.Samples{}
 	defer metrics.Report(k.traceClient, samples)
 
 	if len(interMetrics) == 0 {
 		k.logger.Info("Nothing to flush, skipping.")
-		return nil
+		return sinks.MetricFlushResult{}, nil
 	}
 
 	successes := int64(0)
 	for _, metric := range interMetrics {
-		if !sinks.IsAcceptableMetric(metric, k) {
-			continue
-		}
-
 		k.logger.Debug("Emitting Metric: ", metric.Name)
 		j, err := json.Marshal(metric)
 		if err != nil {
 			k.logger.Error("Error marshalling metric: ", metric.Name)
 			samples.Add(ssf.Count("kafka.marshal.error_total", 1, nil))
-			return err
+			return sinks.MetricFlushResult{}, err
 		}
 
 		k.producer.Input() <- &sarama.ProducerMessage{
@@ -301,7 +255,7 @@ func (k *KafkaMetricSink) Flush(ctx context.Context, interMetrics []samplers.Int
 		successes++
 	}
 	samples.Add(ssf.Count(sinks.MetricKeyTotalMetricsFlushed, float32(successes), map[string]string{"sink": k.Name()}))
-	return nil
+	return sinks.MetricFlushResult{}, nil
 }
 
 // FlushOtherSamples flushes non-metric, non-span samples

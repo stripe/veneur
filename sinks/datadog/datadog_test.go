@@ -4,8 +4,6 @@ import (
 	"compress/zlib"
 	"context"
 	"encoding/json"
-	"github.com/stripe/veneur/v14"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -15,7 +13,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/protocol/dogstatsd"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/ssf"
@@ -37,7 +35,6 @@ type DDEventRequest struct {
 func TestDatadogRate(t *testing.T) {
 	ddSink := DatadogMetricSink{
 		hostname: "somehostname",
-		tags:     []string{"a:b", "c:d"},
 		interval: 10,
 	}
 
@@ -57,7 +54,6 @@ func TestDatadogRate(t *testing.T) {
 func TestServerTags(t *testing.T) {
 	ddSink := DatadogMetricSink{
 		hostname: "somehostname",
-		tags:     []string{"a:b", "c:d"},
 		interval: 10,
 	}
 
@@ -72,13 +68,11 @@ func TestServerTags(t *testing.T) {
 	ddMetrics, serviceChecks := ddSink.finalizeMetrics(metrics)
 	assert.Empty(t, serviceChecks, "No service check metrics are reported")
 	assert.Equal(t, "somehostname", ddMetrics[0].Hostname, "Metric hostname uses argument")
-	assert.Contains(t, ddMetrics[0].Tags, "a:b", "Tags should contain server tags")
 }
 
 func TestHostMagicTag(t *testing.T) {
 	ddSink := DatadogMetricSink{
 		hostname: "badhostname",
-		tags:     []string{"a:b", "c:d"},
 	}
 
 	metrics := []samplers.InterMetric{{
@@ -99,7 +93,6 @@ func TestHostMagicTag(t *testing.T) {
 func TestDeviceMagicTag(t *testing.T) {
 	ddSink := DatadogMetricSink{
 		hostname: "badhostname",
-		tags:     []string{"a:b", "c:d"},
 	}
 
 	metrics := []samplers.InterMetric{{
@@ -231,83 +224,6 @@ func ddTestServer(t *testing.T, endpoint, contains string) (*httptest.Server, ch
 	return httptest.NewServer(handler), received
 }
 
-func TestDatadogMetricRouting(t *testing.T) {
-	// test the variables that have been renamed
-	client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
-
-	tests := []struct {
-		metric samplers.InterMetric
-		expect bool
-	}{
-		{
-			samplers.InterMetric{
-				Name:      "to.anybody.in.particular",
-				Timestamp: time.Now().Unix(),
-				Value:     float64(10),
-				Tags:      []string{"gorch:frobble", "x:e"},
-				Type:      samplers.CounterMetric,
-			},
-			true,
-		},
-		{
-			samplers.InterMetric{
-				Name:      "to.datadog",
-				Timestamp: time.Now().Unix(),
-				Value:     float64(10),
-				Tags:      []string{"gorch:frobble", "x:e"},
-				Type:      samplers.CounterMetric,
-				Sinks:     samplers.RouteInformation{"datadog": struct{}{}},
-			},
-			true,
-		},
-		{
-			samplers.InterMetric{
-				Name:      "to.kafka.only",
-				Timestamp: time.Now().Unix(),
-				Value:     float64(10),
-				Tags:      []string{"gorch:frobble", "x:e"},
-				Type:      samplers.CounterMetric,
-				Sinks:     samplers.RouteInformation{"kafka": struct{}{}},
-			},
-			false,
-		},
-	}
-	for _, elt := range tests {
-		test := elt
-		t.Run(test.metric.Name, func(t *testing.T) {
-			t.Parallel()
-			srv, rcved := ddTestServer(t, "/api/v1/series", test.metric.Name)
-			ddSink := DatadogMetricSink{
-				DDHostname:      srv.URL,
-				HTTPClient:      client,
-				flushMaxPerBody: 15,
-				log:             logrus.NewEntry(logrus.New()),
-				tags:            []string{"a:b", "c:d"},
-				interval:        10,
-				name:            "datadog",
-			}
-			done := make(chan struct{})
-			go func() {
-				result, ok := <-rcved
-				if test.expect {
-					// TODO: negative case
-					assert.True(t, result.contained, "Should have sent the metric")
-				} else {
-					if ok {
-						assert.False(t, result.contained, "Should definitely not have sent the metric!")
-					}
-				}
-				close(done)
-			}()
-			err := ddSink.Flush(context.TODO(), []samplers.InterMetric{test.metric})
-			require.NoError(t, err)
-			close(rcved)
-			<-done
-		})
-	}
-
-}
-
 func TestDatadogFlushEvents(t *testing.T) {
 	transport := &DatadogRoundTripper{Endpoint: "/intake", Contains: ""}
 	logger := logrus.NewEntry(logrus.New())
@@ -315,7 +231,6 @@ func TestDatadogFlushEvents(t *testing.T) {
 	sink, err := CreateMetricSink(&veneur.Server{
 		HTTPClient: &http.Client{Transport: transport},
 		Interval:   interval,
-		Tags:       []string{"gloobles:toots"},
 	},
 		"datadog", logger, veneur.Config{Hostname: "example.com"},
 		DatadogMetricSinkConfig{
@@ -385,7 +300,6 @@ func TestDatadogFlushOtherMetricsForServiceChecks(t *testing.T) {
 	sink, err := CreateMetricSink(&veneur.Server{
 		HTTPClient: &http.Client{Transport: transport},
 		Interval:   interval,
-		Tags:       []string{"gloobles:toots"},
 	},
 		"datadog", logger, veneur.Config{Hostname: "example.com"},
 		DatadogMetricSinkConfig{
@@ -421,7 +335,6 @@ func TestDatadogFlushServiceCheck(t *testing.T) {
 	sink, err := CreateMetricSink(&veneur.Server{
 		HTTPClient: &http.Client{Transport: transport},
 		Interval:   10 * time.Second,
-		Tags:       []string{"gloobles:toots"},
 	},
 		"datadog", logger, veneur.Config{Hostname: "example.com"},
 		DatadogMetricSinkConfig{
@@ -476,9 +389,7 @@ func TestDatadogFlushServiceCheck(t *testing.T) {
 }
 
 func TestDataDogSetExcludeTags(t *testing.T) {
-	ddSink := DatadogMetricSink{
-		tags: []string{"yay:pie", "boo:snakes"},
-	}
+	ddSink := DatadogMetricSink{}
 
 	ddSink.SetExcludedTags([]string{"foo", "boo", "host"})
 
@@ -501,11 +412,10 @@ func TestDataDogSetExcludeTags(t *testing.T) {
 	metric := ddMetrics[0]
 	assert.Equal(t, "a.b.c", metric.Name, "Metric has wrong name")
 	tags := metric.Tags
-	assert.Equal(t, 3, len(tags), "Metric has incorrect tag count")
+	assert.Equal(t, 2, len(tags), "Metric has incorrect tag count")
 
-	assert.Equal(t, "yay:pie", tags[0], "Incorrect yay tag in first position")
-	assert.Equal(t, "baz:quz", tags[1], "Incorrect baz tag in second position")
-	assert.Equal(t, "novalue", tags[2], "Incorrect novalue tag in third position")
+	assert.Equal(t, "baz:quz", tags[0], "Incorrect baz tag in second position")
+	assert.Equal(t, "novalue", tags[1], "Incorrect novalue tag in third position")
 }
 
 func TestDataDogDropMetric(t *testing.T) {
@@ -570,26 +480,6 @@ func TestParseMetricConfig(t *testing.T) {
 	assert.Equal(t, datadogConfig.APIHostname, testConfigValues["api_hostname"])
 	assert.Equal(t, datadogConfig.FlushMaxPerBody, testConfigValues["flush_max_per_body"])
 	assert.Equal(t, datadogConfig.MetricNamePrefixDrops, testConfigValues["metric_name_prefix_drops"])
-}
-
-func TestMigrateMetricConfig(t *testing.T) {
-	testConfigValues := map[string]interface{}{
-		"datadog_api_key":                  "KEY",
-		"datadog_api_hostname":             "HOSTNAME",
-		"datadog_flush_max_per_body":       9001,
-		"datadog_metric_name_prefix_drops": []string{"prefix1", "prefix2"},
-	}
-	bts, _ := yaml.Marshal(testConfigValues)
-	config := veneur.Config{}
-	_ = yaml.Unmarshal(bts, &config)
-
-	MigrateConfig(&config)
-	assert.NotEmpty(t, config.MetricSinks)
-	datadogConfig := config.MetricSinks[0].Config.(DatadogMetricSinkConfig)
-	assert.Equal(t, datadogConfig.APIKey, testConfigValues["datadog_api_key"])
-	assert.Equal(t, datadogConfig.APIHostname, testConfigValues["datadog_api_hostname"])
-	assert.Equal(t, datadogConfig.FlushMaxPerBody, testConfigValues["datadog_flush_max_per_body"])
-	assert.Equal(t, datadogConfig.MetricNamePrefixDrops, testConfigValues["datadog_metric_name_prefix_drops"])
 }
 
 func TestParseSpanConfig(t *testing.T) {
