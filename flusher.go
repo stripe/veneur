@@ -580,14 +580,14 @@ func forwardGrpc(
 
 func getFoundTagsForDroppedAddTags(sink internalMetricSink, metric samplers.InterMetric) []string {
 	matchedTags := []string{}
-	if len(sink.droppedMetricsAddTags) == 0 {
+	if len(sink.droppedMetricsEnrichedTagMap) == 0 {
 		return matchedTags
 	}
 
 	for _, t := range metric.Tags {
-		for _, v := range sink.droppedMetricsAddTags {
-			if len(t) > len(v) && t[0:len(v)] == v {
-				matchedTags = append(matchedTags, t)
+		for k, v := range sink.droppedMetricsEnrichedTagMap {
+			if len(t) > len(k) && t[0:len(k)] == k {
+				matchedTags = append(matchedTags, v+":"+t[len(k)+1:])
 			}
 		}
 	}

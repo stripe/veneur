@@ -1004,9 +1004,9 @@ func TestFlushWithDroppedMetricAddTags(t *testing.T) {
 				Name:    "channel",
 				AddTags: map[string]string{"foo": "bar", "more": "tags"},
 				MaxTags: 2,
-				DroppedMetricsAddTags: []string{
-					"host_contact",
-					"extra_tag",
+				DroppedMetricsEnrichedTagsMap: map[string]string{
+					"host_contact": "a_new_tag",
+					"extra_tag":    "anotha_one",
 				},
 				StripTags: []matcher.TagMatcher{
 					matcher.CreateTagMatcher(&matcher.TagMatcherConfig{
@@ -1071,8 +1071,8 @@ func TestFlushWithDroppedMetricAddTags(t *testing.T) {
 			"metric_name:test.metric",
 			"reason:max_tags",
 			"veneurglobalonly:true",
-			"host_contact:test",
-			"extra_tag:value",
+			"a_new_tag:test",
+			"anotha_one:value",
 		}, 1.0)
 		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
 			"sink_name:channel",
