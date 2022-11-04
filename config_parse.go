@@ -135,7 +135,7 @@ func readConfig(r io.Reader) (Config, error) {
 	}
 	unmarshalErr := unmarshalSemiStrictly(bts, &c)
 	if unmarshalErr != nil {
-		if _, ok := err.(*UnknownConfigKeys); !ok {
+		if _, ok := unmarshalErr.(*UnknownConfigKeys); !ok {
 			return c, unmarshalErr
 		}
 	}
