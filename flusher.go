@@ -142,14 +142,15 @@ func (s *Server) flushSink(
 	metricLoop:
 		for _, metric := range metrics {
 			_, ok := metric.Sinks[sinkName]
+			tagsForDroppedMetrics := getFoundTagsForDroppedAddTags(sink, metric)
 			if !ok {
 				skippedCount += 1
 				continue metricLoop
 			}
 			if sink.maxNameLength != 0 && len(metric.Name) > sink.maxNameLength {
-				s.Statsd.Count("dropped_metrics", 1, []string{
+				s.Statsd.Count("dropped_metrics", 1, append([]string{
 					sinkNameTag, sinkKindTag, "metric_name:" + metric.Name, "reason:max_name_length", "veneurglobalonly:true",
-				}, 1)
+				}, tagsForDroppedMetrics...), 1)
 
 				maxNameLengthCount += 1
 				continue metricLoop
@@ -167,9 +168,9 @@ func (s *Server) flushSink(
 						}
 					}
 					if sink.maxTagLength != 0 && len(tag) > sink.maxTagLength {
-						s.Statsd.Count("dropped_metrics", 1, []string{
+						s.Statsd.Count("dropped_metrics", 1, append([]string{
 							sinkNameTag, sinkKindTag, "metric_name:" + metric.Name, "reason:max_tag_length", "veneurglobalonly:true",
-						}, 1)
+						}, tagsForDroppedMetrics...), 1)
 						maxTagLengthCount += 1
 						continue metricLoop
 					}
@@ -187,9 +188,9 @@ func (s *Server) flushSink(
 			}
 
 			if sink.maxTags != 0 && len(filteredTags) > sink.maxTags {
-				s.Statsd.Count("dropped_metrics", 1, []string{
+				s.Statsd.Count("dropped_metrics", 1, append([]string{
 					sinkNameTag, sinkKindTag, "metric_name:" + metric.Name, "reason:max_tags", "veneurglobalonly:true",
-				}, 1)
+				}, tagsForDroppedMetrics...), 1)
 				maxTagsCount += 1
 				continue metricLoop
 			}
@@ -575,4 +576,18 @@ func forwardGrpc(
 	}
 	_, err = sendMetricsClient.CloseAndRecv()
 	return err
+}
+
+func getFoundTagsForDroppedAddTags(sink internalMetricSink, metric samplers.InterMetric) []string {
+	matchedTags := []string{}
+
+	for _, t := range metric.Tags {
+		for _, v := range sink.droppedMetricsAddTags {
+			if v[0:len(t)] == t {
+				matchedTags = append(matchedTags, t)
+			}
+		}
+	}
+
+	return matchedTags
 }

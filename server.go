@@ -177,12 +177,13 @@ type internalSource struct {
 }
 
 type internalMetricSink struct {
-	sink          sinks.MetricSink
-	maxNameLength int
-	maxTagLength  int
-	maxTags       int
-	stripTags     []matcher.TagMatcher
-	addTags       map[string]string
+	sink                  sinks.MetricSink
+	maxNameLength         int
+	maxTagLength          int
+	maxTags               int
+	droppedMetricsAddTags []string
+	stripTags             []matcher.TagMatcher
+	addTags               map[string]string
 }
 
 type GlobalListeningPerProtocolMetrics struct {
@@ -436,12 +437,13 @@ func (server *Server) createMetricSinks(
 			return nil, err
 		}
 		sinks = append(sinks, internalMetricSink{
-			sink:          sink,
-			maxNameLength: sinkConfig.MaxNameLength,
-			maxTagLength:  sinkConfig.MaxTagLength,
-			maxTags:       sinkConfig.MaxTags,
-			stripTags:     sinkConfig.StripTags,
-			addTags:       sinkConfig.AddTags,
+			sink:                  sink,
+			maxNameLength:         sinkConfig.MaxNameLength,
+			maxTagLength:          sinkConfig.MaxTagLength,
+			maxTags:               sinkConfig.MaxTags,
+			stripTags:             sinkConfig.StripTags,
+			addTags:               sinkConfig.AddTags,
+			droppedMetricsAddTags: sinkConfig.DroppedMetricsAddTags,
 		})
 	}
 	return sinks, nil

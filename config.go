@@ -90,12 +90,13 @@ type SourceConfig struct {
 }
 
 type SinkConfig struct {
-	Kind          string               `yaml:"kind"`
-	Name          string               `yaml:"name"`
-	Config        interface{}          `yaml:"config"`
-	MaxNameLength int                  `yaml:"max_name_length"`
-	MaxTagLength  int                  `yaml:"max_tag_length"`
-	MaxTags       int                  `yaml:"max_tags"`
-	StripTags     []matcher.TagMatcher `yaml:"strip_tags"`
-	AddTags       map[string]string    `yaml:"add_tags"`
+	Kind                  string               `yaml:"kind"`
+	Name                  string               `yaml:"name"`
+	Config                interface{}          `yaml:"config"`
+	MaxNameLength         int                  `yaml:"max_name_length"`
+	MaxTagLength          int                  `yaml:"max_tag_length"`
+	MaxTags               int                  `yaml:"max_tags"`
+	DroppedMetricsAddTags []string             `yaml:"dropped_metrics_add_tags"`
+	StripTags             []matcher.TagMatcher `yaml:"strip_tags"`
+	AddTags               map[string]string    `yaml:"add_tags"`
 }
