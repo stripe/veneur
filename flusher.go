@@ -583,7 +583,7 @@ func getFoundTagsForDroppedAddTags(sink internalMetricSink, metric samplers.Inte
 
 	for _, t := range metric.Tags {
 		for _, v := range sink.droppedMetricsAddTags {
-			if v[0:len(t)] == t {
+			if len(t) > len(v) && t[0:len(v)] == v {
 				matchedTags = append(matchedTags, t)
 			}
 		}
