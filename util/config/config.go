@@ -3,16 +3,17 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
+	"text/template"
 
 	"github.com/kelseyhightower/envconfig"
 	"gopkg.in/yaml.v2"
 )
 
 func ReadConfig[Config interface{}](
-	path string, envBase string,
+	path string, templateData interface{}, envBase string,
 ) (*Config, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -20,15 +21,36 @@ func ReadConfig[Config interface{}](
 	}
 	defer file.Close()
 
-	fileData, err := ioutil.ReadAll(file)
+	fileData, err := io.ReadAll(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %v", err)
 	}
 
+	configTemplate, err := template.New("config").Parse(string(fileData))
+	if err != nil {
+		return nil, err
+	}
+
+	configReader, configWriter := io.Pipe()
+	templateErr := make(chan error)
+	go func() {
+		err := configTemplate.Execute(configWriter, templateData)
+		configWriter.Close()
+		templateErr <- err
+	}()
+
+	decoder := yaml.NewDecoder(configReader)
+	decoder.SetStrict(true)
+
 	config := new(Config)
-	err = yaml.UnmarshalStrict(fileData, config)
+	err = decoder.Decode(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config file: %v", err)
+	}
+
+	err = <-templateErr
+	if err != nil {
+		return nil, err
 	}
 
 	err = envconfig.Process(envBase, config)
