@@ -51,7 +51,7 @@ func main() {
 	}
 
 	config, err :=
-		utilConfig.ReadConfig[proxy.Config](*configFile, "veneur_proxy")
+		utilConfig.ReadConfig[proxy.Config](*configFile, nil, "veneur_proxy")
 	if err != nil {
 		logger.WithError(err).Fatal("failed to load config file")
 	}
