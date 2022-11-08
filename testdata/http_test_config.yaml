@@ -1,7 +1,7 @@
 aggregates:
-- min
-- max
-- count
+  - min
+  - max
+  - count
 block_profile_rate: 0
 count_unique_timeseries: false
 debug: false
@@ -32,9 +32,9 @@ num_workers: 0
 objective_span_timer_name: ""
 omit_empty_hostname: false
 percentiles:
-- 0.5
-- 0.75
-- 0.99
+  - 0.5
+  - 0.75
+  - 0.99
 read_buffer_size_bytes: 2097152
 sentry_dsn: REDACTED
 sources: []
