@@ -145,7 +145,7 @@ func TestChunkedWrites(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
-	// input.json contains 12 timeseries samples in InterMetrics format
+	// chunked_input.json contains 12 timeseries samples in InterMetrics format
 	jsInput, err := ioutil.ReadFile("testdata/chunked_input.json")
 	assert.NoError(t, err)
 	var metrics []samplers.InterMetric
@@ -216,7 +216,7 @@ func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
-	// input.json contains 12 timeseries samples in InterMetrics format
+	// chunked_input.json contains 12 timeseries samples in InterMetrics format
 	jsInput, err := ioutil.ReadFile("testdata/chunked_input.json")
 	assert.NoError(t, err)
 	var metrics []samplers.InterMetric
@@ -242,7 +242,7 @@ func TestLeftOverBatchGetsWritten(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
-	// input.json contains 12 timeseries samples in InterMetrics format
+	// chunked_input.json contains 12 timeseries samples in InterMetrics format
 	jsInput, err := ioutil.ReadFile("testdata/chunked_input.json")
 	assert.NoError(t, err)
 	var metrics []samplers.InterMetric
@@ -270,7 +270,7 @@ func TestChunkedWritesRespectContextCancellation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
-	// input.json contains 12 timeseries samples in InterMetrics format
+	// chunked_input.json contains 12 timeseries samples in InterMetrics format
 	jsInput, err := ioutil.ReadFile("testdata/chunked_input.json")
 	assert.NoError(t, err)
 	var metrics []samplers.InterMetric
