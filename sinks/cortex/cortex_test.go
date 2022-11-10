@@ -158,6 +158,10 @@ func TestChunkedWrites(t *testing.T) {
 
 	// There are 12 writes in input and our batch size is 3 so we expect 4 write requests
 	assert.Equal(t, 4, len(server.History()))
+	assert.Equal(t, 3, len(server.History()[0].data.GetTimeseries()))
+	assert.Equal(t, 3, len(server.History()[1].data.GetTimeseries()))
+	assert.Equal(t, 3, len(server.History()[2].data.GetTimeseries()))
+	assert.Equal(t, 3, len(server.History()[3].data.GetTimeseries()))
 }
 
 func TestMonotonicCounters(t *testing.T) {
@@ -225,6 +229,7 @@ func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
 
 	// There are 12 writes in input and our batch size is 15 so we expect 1 write request
 	assert.Equal(t, 1, len(server.History()))
+	assert.Equal(t, 12, len(server.History()[0].data.GetTimeseries()))
 }
 
 func TestLeftOverBatchGetsWritten(t *testing.T) {
@@ -248,8 +253,14 @@ func TestLeftOverBatchGetsWritten(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 12, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
 
+	t.Log(len(server.History()[0].data.GetTimeseries()))
+	t.Log(len(server.History()[1].data.GetTimeseries()))
+	t.Log(len(server.History()[2].data.GetTimeseries()))
 	// There are 12 writes in input and our batch size is 5 so we expect 3 write requests
 	assert.Equal(t, 3, len(server.History()))
+	assert.Equal(t, 5, len(server.History()[0].data.GetTimeseries()))
+	assert.Equal(t, 5, len(server.History()[1].data.GetTimeseries()))
+	assert.Equal(t, 2, len(server.History()[2].data.GetTimeseries()))
 }
 
 func TestChunkedWritesRespectContextCancellation(t *testing.T) {
@@ -281,10 +292,12 @@ func TestChunkedWritesRespectContextCancellation(t *testing.T) {
 	// Perform the flush to the test server
 	flushResult, err := sink.Flush(ctx, metrics)
 	assert.Error(t, err)
-	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 4, MetricsDropped: 3, MetricsSkipped: 0}, flushResult)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3, MetricsDropped: 3, MetricsSkipped: 0}, flushResult)
 
 	// we're cancelling after 2 so we should only see 2 chunks written
 	assert.Equal(t, 2, len(server.History()))
+	assert.Equal(t, 3, len(server.History()[0].data.GetTimeseries()))
+	assert.Equal(t, 3, len(server.History()[1].data.GetTimeseries()))
 }
 
 func TestCustomHeaders(t *testing.T) {

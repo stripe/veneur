@@ -73,6 +73,7 @@ type CortexMetricSinkConfig struct {
 	ProxyURL                   string            `yaml:"proxy_url"`
 	BatchWriteSize             int               `yaml:"batch_write_size"`
 	Headers                    map[string]string `yaml:"headers"`
+	BucketWritesByKey          string            `yaml:"bucket_writes_by_key"`
 	BasicAuth                  BasicAuthType     `yaml:"basic_auth"`
 	ConvertCountersToMonotonic bool              `yaml:"convert_counters_to_monotonic"`
 	Authorization              struct {
@@ -227,10 +228,10 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	}
 
 	var batch []samplers.InterMetric
-	for i, metric := range metrics {
+	for _, metric := range metrics {
 		err := doIfNotDone(func() error {
 			batch = append(batch, metric)
-			if i > 0 && i%s.batchWriteSize == 0 {
+			if len(batch)%s.batchWriteSize == 0 {
 				err := s.writeMetrics(ctx, batch)
 				if err != nil {
 					return err
