@@ -68,13 +68,18 @@ type BasicAuthType struct {
 // max_samples_per_send, max_shards, and capacity
 // https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write
 type CortexMetricSinkConfig struct {
-	URL                        string            `yaml:"url"`
-	RemoteTimeout              time.Duration     `yaml:"remote_timeout"`
-	ProxyURL                   string            `yaml:"proxy_url"`
-	BatchWriteSize             int               `yaml:"batch_write_size"`
-	Headers                    map[string]string `yaml:"headers"`
-	BasicAuth                  BasicAuthType     `yaml:"basic_auth"`
-	ConvertCountersToMonotonic bool              `yaml:"convert_counters_to_monotonic"`
+	URL              string            `yaml:"url"`
+	RemoteTimeout    time.Duration     `yaml:"remote_timeout"`
+	ProxyURL         string            `yaml:"proxy_url"`
+	BatchWriteSize   int               `yaml:"batch_write_size"`
+	Headers          map[string]string `yaml:"headers"`
+	BucketByKeys     []string          `yaml:"bucket_by_keys"`
+	HeadersPerBucket struct {
+		BucketName        string `yaml:"bucket_name"`
+		IncludeBucketSize bool   `yaml:"include_bucket_size"`
+	} `yaml:"headers_per_bucket"`
+	BasicAuth                  BasicAuthType `yaml:"basic_auth"`
+	ConvertCountersToMonotonic bool          `yaml:"convert_counters_to_monotonic"`
 	Authorization              struct {
 		Type       string            `yaml:"type"`
 		Credential util.StringSecret `yaml:"credentials"`
