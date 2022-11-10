@@ -73,7 +73,6 @@ type CortexMetricSinkConfig struct {
 	ProxyURL                   string            `yaml:"proxy_url"`
 	BatchWriteSize             int               `yaml:"batch_write_size"`
 	Headers                    map[string]string `yaml:"headers"`
-	BucketWritesByKey          string            `yaml:"bucket_writes_by_key"`
 	BasicAuth                  BasicAuthType     `yaml:"basic_auth"`
 	ConvertCountersToMonotonic bool              `yaml:"convert_counters_to_monotonic"`
 	Authorization              struct {
