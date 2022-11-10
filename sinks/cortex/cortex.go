@@ -55,6 +55,10 @@ type CortexMetricSink struct {
 	counters                   map[counterMapKey]float64
 	convertCountersToMonotonic bool
 	excludedTags               map[string]struct{}
+	defaultBucket              string
+	bucketByKeys               []string
+	bucketBy                   string
+	includeBucketSize          bool
 }
 
 var _ sinks.MetricSink = (*CortexMetricSink)(nil)
@@ -82,7 +86,7 @@ type CortexMetricSinkConfig struct {
 	DefaultBucket    string   `yaml:"default_bucket"`
 	BucketByKeys     []string `yaml:"bucket_by_keys"`
 	HeadersPerBucket struct {
-		BucketName        string `yaml:"bucket_name"`
+		BucketBy          string `yaml:"bucket_name"`
 		IncludeBucketSize bool   `yaml:"include_bucket_size"`
 	} `yaml:"headers_per_bucket"`
 }
