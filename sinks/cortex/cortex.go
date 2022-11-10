@@ -244,8 +244,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		})
 
 		if err != nil {
-			s.logger.Error(err)
-			droppedMetrics += len(batch)
+			droppedMetrics += len(metrics) - flushedMetrics
 			return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 		}
 	}
@@ -264,7 +263,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		}
 	}
 
-	return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
+	return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, nil
 }
 
 func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.InterMetric) error {
