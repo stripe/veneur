@@ -51,6 +51,7 @@ func TestFlush(t *testing.T) {
 	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
+	assert.Equal(t, 1, len(server.History()))
 
 	// Retrieve the data which the server received
 	data, headers, err := server.Latest()
@@ -105,6 +106,7 @@ func TestFlushWithExcludedTags(t *testing.T) {
 	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
+	assert.Equal(t, 1, len(server.History()))
 
 	// Retrieve the data which the server received
 	data, headers, err := server.Latest()
@@ -324,6 +326,7 @@ func TestCustomHeaders(t *testing.T) {
 	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
+	assert.Equal(t, 1, len(server.History()))
 
 	// Retrieve the headers which the server received
 	_, headers, err := server.Latest()
@@ -376,6 +379,7 @@ func TestBasicAuth(t *testing.T) {
 	authString := auth.Username.Value + ":" + auth.Password.Value
 	assert.True(t, hasHeader(*headers, "Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(authString))),
 		"Missing or invalid Authorization header")
+	assert.Equal(t, 1, len(server.History()))
 }
 
 func TestParseConfig(t *testing.T) {
