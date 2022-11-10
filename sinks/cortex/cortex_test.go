@@ -253,9 +253,6 @@ func TestLeftOverBatchGetsWritten(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 12, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
 
-	t.Log(len(server.History()[0].data.GetTimeseries()))
-	t.Log(len(server.History()[1].data.GetTimeseries()))
-	t.Log(len(server.History()[2].data.GetTimeseries()))
 	// There are 12 writes in input and our batch size is 5 so we expect 3 write requests
 	assert.Equal(t, 3, len(server.History()))
 	assert.Equal(t, 5, len(server.History()[0].data.GetTimeseries()))
