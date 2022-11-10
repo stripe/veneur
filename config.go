@@ -1,6 +1,7 @@
 package veneur
 
 import (
+	"os"
 	"time"
 
 	"github.com/stripe/veneur/v14/util"
@@ -98,4 +99,34 @@ type SinkConfig struct {
 	MaxTags       int                  `yaml:"max_tags"`
 	StripTags     []matcher.TagMatcher `yaml:"strip_tags"`
 	AddTags       map[string]string    `yaml:"add_tags"`
+}
+
+var defaultConfig = Config{
+	Aggregates:          []string{"min", "max", "count"},
+	Interval:            10 * time.Second,
+	MetricMaxLength:     4096,
+	ReadBufferSizeBytes: 1048576 * 2, // 2 MiB
+	SpanChannelCapacity: 100,
+}
+
+func (c *Config) ApplyDefaults() {
+	if len(c.Aggregates) == 0 {
+		c.Aggregates = defaultConfig.Aggregates
+	}
+	if c.Hostname == "" && !c.OmitEmptyHostname {
+		c.Hostname, _ = os.Hostname()
+	}
+	if c.Interval == 0 {
+		c.Interval = defaultConfig.Interval
+	}
+	if c.MetricMaxLength == 0 {
+		c.MetricMaxLength = defaultConfig.MetricMaxLength
+	}
+	if c.ReadBufferSizeBytes == 0 {
+		c.ReadBufferSizeBytes = defaultConfig.ReadBufferSizeBytes
+	}
+
+	if c.SpanChannelCapacity == 0 {
+		c.SpanChannelCapacity = defaultConfig.SpanChannelCapacity
+	}
 }
