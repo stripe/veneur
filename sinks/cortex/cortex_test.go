@@ -234,6 +234,32 @@ func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
 	assert.Equal(t, 12, len(server.History()[0].data.GetTimeseries()))
 }
 
+func TestChunkNumMetricsEqualsBatchSize(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Set up a sink
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 12, false)
+	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
+
+	// chunked_input.json contains 12 timeseries samples in InterMetrics format
+	jsInput, err := ioutil.ReadFile("testdata/chunked_input.json")
+	assert.NoError(t, err)
+	var metrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
+
+	// Perform the flush to the test server
+	flushResult, err := sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 12, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
+
+	// There are 12 writes in input and our batch size is 12 so we expect 1 write request
+	assert.Equal(t, 1, len(server.History()))
+	assert.Equal(t, 12, len(server.History()[0].data.GetTimeseries()))
+}
+
 func TestLeftOverBatchGetsWritten(t *testing.T) {
 	// Listen for prometheus writes
 	server := NewTestServer(t)
