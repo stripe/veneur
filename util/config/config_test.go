@@ -22,7 +22,7 @@ func TestReadConfigWithoutTemplate(t *testing.T) {
 	file.Write([]byte("key1: value1"))
 
 	parsedConfig, err :=
-		config.ReadConfig[Config](file.Name(), nil, "")
+		config.ReadConfig[Config](file.Name(), nil, true, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, "value1", parsedConfig.Key1)
@@ -42,7 +42,7 @@ func TestReadConfigWithTemplate(t *testing.T) {
 	parsedConfig, err :=
 		config.ReadConfig[Config](file.Name(), ConfigParams{
 			ConfigValue: "value1",
-		}, "")
+		}, true, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, "value1", parsedConfig.Key1)

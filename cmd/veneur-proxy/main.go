@@ -23,6 +23,7 @@ import (
 
 var (
 	configFile = flag.String("f", "", "The config file to read for settings.")
+	strict     = flag.Bool("strict", false, "Fails if unknown config fields are present")
 )
 
 func main() {
@@ -51,7 +52,7 @@ func main() {
 	}
 
 	config, err :=
-		utilConfig.ReadConfig[proxy.Config](*configFile, nil, "veneur_proxy")
+		utilConfig.ReadConfig[proxy.Config](*configFile, nil, *strict, "veneur_proxy")
 	if err != nil {
 		logger.WithError(err).Fatal("failed to load config file")
 	}
