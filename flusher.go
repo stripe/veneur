@@ -183,7 +183,19 @@ func (s *Server) flushSink(
 					maxTagLengthCount += 1
 					continue metricLoop
 				}
-				filteredTags = append(filteredTags, tag)
+
+				replaced := false
+				for i, ft := range filteredTags {
+					if ft[0:len(k)] == k {
+						filteredTags[i] = tag
+						replaced = true
+						break
+					}
+				}
+
+				if !replaced {
+					filteredTags = append(filteredTags, tag)
+				}
 			}
 
 			if sink.maxTags != 0 && len(filteredTags) > sink.maxTags {
