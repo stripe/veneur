@@ -1002,7 +1002,8 @@ func TestFlushWithAddTagsDedupes(t *testing.T) {
 			MetricSinks: []SinkConfig{{
 				Kind:    "channel",
 				Name:    "channel",
-				AddTags: map[string]string{"foo": "bar", "env": "qa"},
+				AddTags: map[string]string{"foo": "bar", "anotha": "one"},
+				MaxTags: 5,
 			}},
 			StatsAddress: "localhost:8125",
 		},
@@ -1026,7 +1027,6 @@ func TestFlushWithAddTagsDedupes(t *testing.T) {
 			},
 		},
 	})
-
 	assert.NoError(t, err)
 	server.Statsd = mockStatsd
 
@@ -1041,33 +1041,237 @@ func TestFlushWithAddTagsDedupes(t *testing.T) {
 		wg.Wait()
 	}()
 
-	mockStatsd.EXPECT().Count(gomock.Any(), gomock.All(), gomock.All(), gomock.All()).AnyTimes()
-	mockStatsd.EXPECT().Gauge(gomock.Any(), gomock.All(), gomock.All(), gomock.All()).AnyTimes()
-	mockStatsd.EXPECT().Timing(gomock.Any(), gomock.All(), gomock.All(), gomock.All()).AnyTimes()
+	mockStatsd.EXPECT().
+		Count(
+			gomock.Not(anyOf("flushed_metrics", "dropped_metrics")), gomock.All(), gomock.All(), gomock.All()).
+		AnyTimes()
+	mockStatsd.EXPECT().
+		Gauge(
+			gomock.Not("flushed_metrics"), gomock.All(), gomock.All(), gomock.All()).
+		AnyTimes()
+	mockStatsd.EXPECT().
+		Timing(
+			gomock.Not("flushed_metrics"), gomock.All(), gomock.All(), gomock.All()).
+		AnyTimes()
 
-	server.Workers[0].PacketChan <- samplers.UDPMetric{
-		MetricKey: samplers.MetricKey{
-			Name:       "test.metric",
-			Type:       "counter",
-			JoinedTags: "foo:not_bar",
-		},
-		Digest:     0,
-		Scope:      samplers.LocalOnly,
-		Tags:       []string{"first:tag", "foo:not_bar", "env:foo", "not_matched:oo"},
-		Value:      1.0,
-		SampleRate: 1.0,
-	}
+	t.Run("WithAddTags", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:skipped",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_name_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tag_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:flushed",
+			"veneurglobalonly:true",
+		}, 1.0)
 
-	result := <-channel
-	if assert.Len(t, result, 1) {
-		assert.Equal(t, "test.metric", result[0].Name)
-		if assert.Len(t, result[0].Tags, 4) {
-			assert.Equal(t, "first:tag", result[0].Tags[0])
-			assert.Equal(t, "foo:bar", result[0].Tags[1])
-			assert.Equal(t, "env:qa", result[0].Tags[2])
-			assert.Equal(t, "not_matched:oo", result[0].Tags[3])
+		server.Workers[0].PacketChan <- samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: "test.metric",
+				Type: "counter",
+			},
+			Digest:     0,
+			Scope:      samplers.LocalOnly,
+			Tags:       []string{"foo:baz"},
+			Value:      1.0,
+			SampleRate: 1.0,
 		}
-	}
+
+		result := <-channel
+		if assert.Len(t, result, 1) {
+			assert.Equal(t, "test.metric", result[0].Name)
+			if assert.Len(t, result[0].Tags, 2) {
+				assert.Equal(t, "foo:bar", result[0].Tags[0])
+			}
+		}
+	})
+
+	t.Run("WithAddTagsMultiple", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:skipped",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_name_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tag_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:flushed",
+			"veneurglobalonly:true",
+		}, 1.0)
+
+		server.Workers[0].PacketChan <- samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: "test.metric",
+				Type: "counter",
+			},
+			Digest:     0,
+			Scope:      samplers.LocalOnly,
+			Tags:       []string{"anotha:thing", "foo:baz", "more:tags"},
+			Value:      1.0,
+			SampleRate: 1.0,
+		}
+
+		result := <-channel
+		if assert.Len(t, result, 1) {
+			assert.Equal(t, "test.metric", result[0].Name)
+			if assert.Len(t, result[0].Tags, 3) {
+				assert.Equal(t, "anotha:one", result[0].Tags[0])
+				assert.Equal(t, "foo:bar", result[0].Tags[1])
+			}
+		}
+	})
+
+	t.Run("WithAddTagsDoesNotMax", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:skipped",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_name_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tag_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:flushed",
+			"veneurglobalonly:true",
+		}, 1.0)
+
+		server.Workers[0].PacketChan <- samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: "test.metric",
+				Type: "counter",
+			},
+			Digest:     0,
+			Scope:      samplers.LocalOnly,
+			Tags:       []string{"anotha:thing", "foo:baz", "more:tags", "tags:fordays", "last:one"},
+			Value:      1.0,
+			SampleRate: 1.0,
+		}
+
+		result := <-channel
+		if assert.Len(t, result, 1) {
+			assert.Equal(t, "test.metric", result[0].Name)
+			if assert.Len(t, result[0].Tags, 5) {
+				assert.Equal(t, "anotha:one", result[0].Tags[0])
+				assert.Equal(t, "foo:bar", result[0].Tags[1])
+				assert.Equal(t, "more:tags", result[0].Tags[2])
+				assert.Equal(t, "tags:fordays", result[0].Tags[3])
+				assert.Equal(t, "last:one", result[0].Tags[4])
+			}
+		}
+	})
+
+	t.Run("WithAddTagsHitsMaxTags", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("dropped_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"metric_name:test.metric",
+			"reason:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:skipped",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_name_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tag_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:flushed",
+			"veneurglobalonly:true",
+		}, 1.0)
+
+		server.Workers[0].PacketChan <- samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: "test.metric",
+				Type: "counter",
+			},
+			Digest:     0,
+			Scope:      samplers.LocalOnly,
+			Tags:       []string{"anotha:thing", "foo:baz", "more:tags", "tags:fordays", "last:one", "max:tags"},
+			Value:      1.0,
+			SampleRate: 1.0,
+		}
+
+		result := <-channel
+		assert.Len(t, result, 0)
+	})
 }
 
 type anyOfMatcher struct {
