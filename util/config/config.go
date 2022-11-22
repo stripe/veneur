@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,11 +10,11 @@ import (
 	"text/template"
 
 	"github.com/kelseyhightower/envconfig"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 func ReadConfig[Config interface{}](
-	path string, templateData interface{}, envBase string,
+	path string, templateData interface{}, strict bool, envBase string,
 ) (*Config, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -40,7 +41,7 @@ func ReadConfig[Config interface{}](
 	}()
 
 	decoder := yaml.NewDecoder(configReader)
-	decoder.SetStrict(true)
+	decoder.KnownFields(strict)
 
 	config := new(Config)
 	err = decoder.Decode(config)
@@ -76,13 +77,16 @@ func HandleConfigJson(config interface{}) http.HandlerFunc {
 
 func HandleConfigYaml(config interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		encodedConfig, err := yaml.Marshal(config)
+		buffer := bytes.Buffer{}
+		encoder := yaml.NewEncoder(&buffer)
+		encoder.SetIndent(2)
+		err := encoder.Encode(config)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(err.Error()))
 			return
 		}
 		w.Header().Add("Content-Type", "application/x-yaml")
-		w.Write(encodedConfig)
+		w.Write(buffer.Bytes())
 	}
 }
