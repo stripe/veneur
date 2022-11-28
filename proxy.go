@@ -281,6 +281,7 @@ func NewProxyFromConfig(
 			proxysrv.WithIgnoredTags(proxy.ignoredTags),
 			proxysrv.WithLog(logrus.NewEntry(logger)),
 			proxysrv.WithTraceClient(proxy.TraceClient),
+			proxysrv.WithEnableStreaming(conf.GrpcStream),
 		)
 		if err != nil {
 			logger.WithError(err).Fatal("Failed to initialize the gRPC server")

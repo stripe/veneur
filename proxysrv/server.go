@@ -51,6 +51,8 @@ type Server struct {
 	conns        *clientConnMap
 	updateMtx    sync.Mutex
 
+	streaming bool
+
 	// A simple counter to track the number of goroutines spawned to handle
 	// proxying metrics
 	activeProxyHandlers *int64
@@ -65,6 +67,7 @@ type options struct {
 	traceClient    *trace.Client
 	statsInterval  time.Duration
 	ignoredTags    []matcher.TagMatcher
+	streaming      bool
 }
 
 // New creates a new Server with the provided destinations. The server returned
@@ -316,10 +319,28 @@ func (s *Server) forward(ctx context.Context, dest string, ms []*metricpb.Metric
 	}
 
 	c := forwardrpc.NewForwardClient(conn)
-	_, err = c.SendMetrics(ctx, &forwardrpc.MetricList{Metrics: ms})
-	if err != nil {
-		return fmt.Errorf("failed to send %d metrics over gRPC: %v",
-			len(ms), err)
+
+	if s.streaming {
+		forwardStream, err := c.SendMetricsV2(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to send %d metrics over gRPC: %v",
+				len(ms), err)
+		}
+
+		defer forwardStream.CloseSend()
+
+		for i, metric := range ms {
+			err := forwardStream.Send(metric)
+			if err != nil {
+				return fmt.Errorf("failed to stream (%d/%d) metrics over gRPC: %v", len(ms)-i, len(ms), err)
+			}
+		}
+	} else {
+		_, err = c.SendMetrics(ctx, &forwardrpc.MetricList{Metrics: ms})
+		if err != nil {
+			return fmt.Errorf("failed to send %d metrics over gRPC: %v",
+				len(ms), err)
+		}
 	}
 
 	_ = metrics.ReportBatch(s.opts.traceClient, ssf.RandomlySample(0.1,
