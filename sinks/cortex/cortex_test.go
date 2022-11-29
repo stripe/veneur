@@ -208,6 +208,59 @@ func TestMonotonicCounters(t *testing.T) {
 	assert.Equal(t, 3, matchesDone)
 }
 
+// Here we test that a monotonic counter _persist_
+// i.e. for a counter to work correctly in prometheus
+// it must be sent _with every sample rate_ (not sparse)
+// so we're making sure that if a counter is seen on Flush#1 but
+// not passed to Flush#2 that we still report it with Flush#2
+func TestMonotonicCounterContinuity(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Set up a sink
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 15, true)
+	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
+
+	// we'll load the monotonic counters file with _all_ keys and flush it
+	jsInput, err := ioutil.ReadFile("testdata/monotonic_counters.json")
+	assert.NoError(t, err)
+	var allMetrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &allMetrics))
+
+	_, err = sink.Flush(context.Background(), allMetrics)
+	assert.NoError(t, err)
+
+	// let's load the counters with missing keys
+	jsMissingMetricsInput, err := ioutil.ReadFile("testdata/monotonic_counters_missing_keys.json")
+	assert.NoError(t, err)
+	var missingMetrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsMissingMetricsInput, &missingMetrics))
+
+	_, err = sink.Flush(context.Background(), missingMetrics)
+	assert.NoError(t, err)
+
+	expectedVals := map[string]float64{
+		"bar": 200,
+		// this counter is missing but, we should still see this value
+		"baz": 150,
+		"taz": 100,
+	}
+
+	matchesDone := 0
+	for _, data := range server.history[1].data.Timeseries {
+		for _, label := range data.Labels {
+			if label.Name == "foo" {
+				matchesDone++
+				assert.Equal(t, expectedVals[label.GetValue()], data.Samples[0].GetValue())
+			}
+		}
+	}
+
+	assert.Equal(t, 3, matchesDone)
+}
+
 func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
 	// Listen for prometheus writes
 	server := NewTestServer(t)
