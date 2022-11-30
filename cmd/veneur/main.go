@@ -53,7 +53,7 @@ func main() {
 
 	config, err :=
 		utilConfig.ReadConfig[veneur.Config](
-			*configFile, nil, *validateConfigStrict, "veneur_proxy")
+			*configFile, nil, *validateConfigStrict, "veneur")
 	if err != nil {
 		logger.WithError(err).Fatal("failed to load config file")
 	}
