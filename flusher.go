@@ -186,7 +186,7 @@ func (s *Server) flushSink(
 
 				replaced := false
 				for i, ft := range filteredTags {
-					if ft[0:len(k)] == k {
+					if len(ft) >= len(k) && ft[0:len(k)] == k {
 						filteredTags[i] = tag
 						replaced = true
 						break
