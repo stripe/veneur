@@ -1,0 +1,28 @@
+[
+  {
+    "Name": "a.a.counter.1",
+    "Timestamp": 1,
+    "Value": 100,
+    "Tags": [
+      "foo:bar",
+      "baz:qux"
+    ],
+    "Type": 0,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  },
+  {
+    "Name": "a.a.gauge.1",
+    "Timestamp": 0,
+    "Value": 100,
+    "Tags": [
+      "foo:taz",
+      "baz:qux"
+    ],
+    "Type": 1,
+    "Message": "",
+    "HostName": "",
+    "Sinks": null
+  }
+]

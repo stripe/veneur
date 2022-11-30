@@ -51,6 +51,7 @@ func TestFlush(t *testing.T) {
 	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
+	assert.Equal(t, 1, len(server.History()))
 
 	// Retrieve the data which the server received
 	data, headers, err := server.Latest()
@@ -105,6 +106,7 @@ func TestFlushWithExcludedTags(t *testing.T) {
 	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
+	assert.Equal(t, 1, len(server.History()))
 
 	// Retrieve the data which the server received
 	data, headers, err := server.Latest()
@@ -145,7 +147,7 @@ func TestChunkedWrites(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
-	// input.json contains three timeseries samples in InterMetrics format
+	// chunked_input.json contains 12 timeseries samples in InterMetrics format
 	jsInput, err := ioutil.ReadFile("testdata/chunked_input.json")
 	assert.NoError(t, err)
 	var metrics []samplers.InterMetric
@@ -158,6 +160,10 @@ func TestChunkedWrites(t *testing.T) {
 
 	// There are 12 writes in input and our batch size is 3 so we expect 4 write requests
 	assert.Equal(t, 4, len(server.History()))
+	assert.Equal(t, 3, len(server.History()[0].data.GetTimeseries()))
+	assert.Equal(t, 3, len(server.History()[1].data.GetTimeseries()))
+	assert.Equal(t, 3, len(server.History()[2].data.GetTimeseries()))
+	assert.Equal(t, 3, len(server.History()[3].data.GetTimeseries()))
 }
 
 func TestMonotonicCounters(t *testing.T) {
@@ -202,6 +208,59 @@ func TestMonotonicCounters(t *testing.T) {
 	assert.Equal(t, 3, matchesDone)
 }
 
+// Here we test that a monotonic counter _persist_
+// i.e. for a counter to work correctly in prometheus
+// it must be sent _with every sample rate_ (not sparse)
+// so we're making sure that if a counter is seen on Flush#1 but
+// not passed to Flush#2 that we still report it with Flush#2
+func TestMonotonicCounterContinuity(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Set up a sink
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 15, true)
+	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
+
+	// we'll load the monotonic counters file with _all_ keys and flush it
+	jsInput, err := ioutil.ReadFile("testdata/monotonic_counters.json")
+	assert.NoError(t, err)
+	var allMetrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &allMetrics))
+
+	_, err = sink.Flush(context.Background(), allMetrics)
+	assert.NoError(t, err)
+
+	// let's load the counters with missing keys
+	jsMissingMetricsInput, err := ioutil.ReadFile("testdata/monotonic_counters_missing_keys.json")
+	assert.NoError(t, err)
+	var missingMetrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsMissingMetricsInput, &missingMetrics))
+
+	_, err = sink.Flush(context.Background(), missingMetrics)
+	assert.NoError(t, err)
+
+	expectedVals := map[string]float64{
+		"bar": 200,
+		// this counter is missing but, we should still see this value
+		"baz": 150,
+		"taz": 100,
+	}
+
+	matchesDone := 0
+	for _, data := range server.history[1].data.Timeseries {
+		for _, label := range data.Labels {
+			if label.Name == "foo" {
+				matchesDone++
+				assert.Equal(t, expectedVals[label.GetValue()], data.Samples[0].GetValue())
+			}
+		}
+	}
+
+	assert.Equal(t, 3, matchesDone)
+}
+
 func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
 	// Listen for prometheus writes
 	server := NewTestServer(t)
@@ -212,7 +271,7 @@ func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
-	// input.json contains three timeseries samples in InterMetrics format
+	// chunked_input.json contains 12 timeseries samples in InterMetrics format
 	jsInput, err := ioutil.ReadFile("testdata/chunked_input.json")
 	assert.NoError(t, err)
 	var metrics []samplers.InterMetric
@@ -225,6 +284,33 @@ func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
 
 	// There are 12 writes in input and our batch size is 15 so we expect 1 write request
 	assert.Equal(t, 1, len(server.History()))
+	assert.Equal(t, 12, len(server.History()[0].data.GetTimeseries()))
+}
+
+func TestChunkNumMetricsEqualsBatchSize(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Set up a sink
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 12, false)
+	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
+
+	// chunked_input.json contains 12 timeseries samples in InterMetrics format
+	jsInput, err := ioutil.ReadFile("testdata/chunked_input.json")
+	assert.NoError(t, err)
+	var metrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
+
+	// Perform the flush to the test server
+	flushResult, err := sink.Flush(context.Background(), metrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 12, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
+
+	// There are 12 writes in input and our batch size is 12 so we expect 1 write request
+	assert.Equal(t, 1, len(server.History()))
+	assert.Equal(t, 12, len(server.History()[0].data.GetTimeseries()))
 }
 
 func TestLeftOverBatchGetsWritten(t *testing.T) {
@@ -237,7 +323,7 @@ func TestLeftOverBatchGetsWritten(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
-	// input.json contains three timeseries samples in InterMetrics format
+	// chunked_input.json contains 12 timeseries samples in InterMetrics format
 	jsInput, err := ioutil.ReadFile("testdata/chunked_input.json")
 	assert.NoError(t, err)
 	var metrics []samplers.InterMetric
@@ -250,6 +336,9 @@ func TestLeftOverBatchGetsWritten(t *testing.T) {
 
 	// There are 12 writes in input and our batch size is 5 so we expect 3 write requests
 	assert.Equal(t, 3, len(server.History()))
+	assert.Equal(t, 5, len(server.History()[0].data.GetTimeseries()))
+	assert.Equal(t, 5, len(server.History()[1].data.GetTimeseries()))
+	assert.Equal(t, 2, len(server.History()[2].data.GetTimeseries()))
 }
 
 func TestChunkedWritesRespectContextCancellation(t *testing.T) {
@@ -262,7 +351,7 @@ func TestChunkedWritesRespectContextCancellation(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, sink.Start(trace.DefaultClient))
 
-	// input.json contains three timeseries samples in InterMetrics format
+	// chunked_input.json contains 12 timeseries samples in InterMetrics format
 	jsInput, err := ioutil.ReadFile("testdata/chunked_input.json")
 	assert.NoError(t, err)
 	var metrics []samplers.InterMetric
@@ -281,10 +370,12 @@ func TestChunkedWritesRespectContextCancellation(t *testing.T) {
 	// Perform the flush to the test server
 	flushResult, err := sink.Flush(ctx, metrics)
 	assert.Error(t, err)
-	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 4, MetricsDropped: 3, MetricsSkipped: 0}, flushResult)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3, MetricsDropped: 9, MetricsSkipped: 0}, flushResult)
 
 	// we're cancelling after 2 so we should only see 2 chunks written
 	assert.Equal(t, 2, len(server.History()))
+	assert.Equal(t, 3, len(server.History()[0].data.GetTimeseries()))
+	assert.Equal(t, 3, len(server.History()[1].data.GetTimeseries()))
 }
 
 func TestCustomHeaders(t *testing.T) {
@@ -314,6 +405,7 @@ func TestCustomHeaders(t *testing.T) {
 	flushResult, err := sink.Flush(context.Background(), metrics)
 	assert.NoError(t, err)
 	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3, MetricsDropped: 0, MetricsSkipped: 0}, flushResult)
+	assert.Equal(t, 1, len(server.History()))
 
 	// Retrieve the headers which the server received
 	_, headers, err := server.Latest()
@@ -366,6 +458,7 @@ func TestBasicAuth(t *testing.T) {
 	authString := auth.Username.Value + ":" + auth.Password.Value
 	assert.True(t, hasHeader(*headers, "Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(authString))),
 		"Missing or invalid Authorization header")
+	assert.Equal(t, 1, len(server.History()))
 }
 
 func TestParseConfig(t *testing.T) {

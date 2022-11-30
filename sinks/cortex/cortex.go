@@ -227,10 +227,10 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	}
 
 	var batch []samplers.InterMetric
-	for i, metric := range metrics {
+	for _, metric := range metrics {
 		err := doIfNotDone(func() error {
 			batch = append(batch, metric)
-			if i > 0 && i%s.batchWriteSize == 0 {
+			if len(batch)%s.batchWriteSize == 0 {
 				err := s.writeMetrics(ctx, batch)
 				if err != nil {
 					return err
@@ -245,7 +245,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 
 		if err != nil {
 			s.logger.Error(err)
-			droppedMetrics += len(batch)
+			droppedMetrics += len(metrics) - flushedMetrics
 			return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 		}
 	}
@@ -271,7 +271,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 
-	wr, updatedCounters := s.makeWriteRequest(metrics)
+	wr := s.makeWriteRequest(metrics)
 
 	data, err := proto.Marshal(wr)
 	if err != nil {
@@ -318,10 +318,6 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 		return fmt.Errorf("cortex_err=\"failed to write batch: error response\", response_code=%d response_body=\"%s\"", r.StatusCode, b)
 	}
 
-	for key, val := range updatedCounters {
-		s.counters[key] = val
-	}
-
 	return nil
 }
 
@@ -334,33 +330,47 @@ func (s *CortexMetricSink) FlushOtherSamples(context.Context, []ssf.SSFSample) {
 
 // makeWriteRequest converts a list of samples from a flush into a single
 // prometheus remote-write compatible protobuf object
-func (s *CortexMetricSink) makeWriteRequest(metrics []samplers.InterMetric) (*prompb.WriteRequest, map[counterMapKey]float64) {
-	ts := make([]*prompb.TimeSeries, len(metrics))
-	updatedCounters := map[counterMapKey]float64{}
-	for i, metric := range metrics {
+func (s *CortexMetricSink) makeWriteRequest(metrics []samplers.InterMetric) *prompb.WriteRequest {
+	var ts []*prompb.TimeSeries
+	for _, metric := range metrics {
 		if metric.Type == samplers.CounterMetric && s.convertCountersToMonotonic {
-			newMetric, counterKey := s.convertToMonotonicCounter(metric)
-			metric = newMetric
-			updatedCounters[counterKey] = metric.Value
+			s.addToMonotonicCounter(metric)
+		} else {
+			ts = append(ts, metricToTimeSeries(metric, s.excludedTags))
 		}
+	}
 
-		ts[i] = metricToTimeSeries(metric, s.excludedTags)
+	if s.convertCountersToMonotonic {
+		for key, count := range s.counters {
+			ts = append(ts, metricToTimeSeries(samplers.InterMetric{
+				Name:      key.name,
+				Tags:      getCounterMapKeyTags(key),
+				Value:     count,
+				Timestamp: time.Now().Unix(),
+			}, s.excludedTags))
+		}
 	}
 
 	return &prompb.WriteRequest{
 		Timeseries: ts,
-	}, updatedCounters
+	}
 }
 
-func (s *CortexMetricSink) convertToMonotonicCounter(metric samplers.InterMetric) (samplers.InterMetric, counterMapKey) {
+func (s *CortexMetricSink) addToMonotonicCounter(metric samplers.InterMetric) {
+	key := encodeCounterMapKey(metric)
+	s.counters[key] += metric.Value
+}
+
+func encodeCounterMapKey(metric samplers.InterMetric) counterMapKey {
 	sort.Strings(metric.Tags)
-	key := counterMapKey{
+	return counterMapKey{
 		name: metric.Name,
 		tags: strings.Join(metric.Tags, "|"),
 	}
+}
 
-	metric.Value += s.counters[key]
-	return metric, key
+func getCounterMapKeyTags(key counterMapKey) []string {
+	return strings.Split(key.tags, "|")
 }
 
 // SetExcludedTags sets the excluded tag names. Any tags with the
