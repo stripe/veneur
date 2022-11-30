@@ -1107,6 +1107,60 @@ func TestFlushWithAddTagsDedupes(t *testing.T) {
 		}
 	})
 
+	t.Run("WithAddTagsFilteredTagsShorterThanAddTags", func(t *testing.T) {
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:skipped",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_name_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tags",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:max_tag_length",
+			"veneurglobalonly:true",
+		}, 1.0)
+		mockStatsd.EXPECT().Count("flushed_metrics", int64(1), []string{
+			"sink_name:channel",
+			"sink_kind:channel",
+			"status:flushed",
+			"veneurglobalonly:true",
+		}, 1.0)
+
+		server.Workers[0].PacketChan <- samplers.UDPMetric{
+			MetricKey: samplers.MetricKey{
+				Name: "test.metric",
+				Type: "counter",
+			},
+			Digest:     0,
+			Scope:      samplers.LocalOnly,
+			Tags:       []string{"foo:baz", "f:a"},
+			Value:      1.0,
+			SampleRate: 1.0,
+		}
+
+		result := <-channel
+		if assert.Len(t, result, 1) {
+			assert.Equal(t, "test.metric", result[0].Name)
+			if assert.Len(t, result[0].Tags, 3) {
+				assert.Equal(t, "foo:bar", result[0].Tags[0])
+				assert.Equal(t, "f:a", result[0].Tags[1])
+			}
+		}
+	})
+
 	t.Run("WithAddTagsMultiple", func(t *testing.T) {
 		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
 			"sink_name:channel",
