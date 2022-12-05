@@ -48,6 +48,6 @@ func WithTraceClient(c *trace.Client) Option {
 
 func WithEnableStreaming(streaming bool) Option {
 	return func(opts *options) {
-		opts.streaming = true
+		opts.streaming = streaming
 	}
 }
