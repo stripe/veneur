@@ -325,7 +325,7 @@ func (s *Server) forward(ctx context.Context, dest string, ms []*metricpb.Metric
 				len(ms), err)
 		}
 
-		defer forwardStream.CloseSend()
+		defer forwardStream.CloseAndRecv()
 
 		for i, metric := range ms {
 			err := forwardStream.Send(metric)
