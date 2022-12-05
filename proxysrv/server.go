@@ -51,8 +51,6 @@ type Server struct {
 	conns        *clientConnMap
 	updateMtx    sync.Mutex
 
-	streaming bool
-
 	// A simple counter to track the number of goroutines spawned to handle
 	// proxying metrics
 	activeProxyHandlers *int64
@@ -320,10 +318,10 @@ func (s *Server) forward(ctx context.Context, dest string, ms []*metricpb.Metric
 
 	c := forwardrpc.NewForwardClient(conn)
 
-	if s.streaming {
+	if s.opts.streaming {
 		forwardStream, err := c.SendMetricsV2(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to send %d metrics over gRPC: %v",
+			return fmt.Errorf("failed to stream %d metrics over gRPC: %v",
 				len(ms), err)
 		}
 
