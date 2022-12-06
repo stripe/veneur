@@ -1,3 +1,4 @@
+# This file is used for Stripe internal deployment purposes
 responsible_team: observability-monitoring
 affected_services:
   - service: service-veneur-image
