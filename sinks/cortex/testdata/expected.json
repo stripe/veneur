@@ -13,6 +13,10 @@
         {
           "name": "foo",
           "value": "bar"
+        },
+        {
+          "name": "host",
+          "value": "test"
         }
       ],
       "samples": [
@@ -31,6 +35,10 @@
         {
           "name": "foo",
           "value": "bar"
+        },
+        {
+          "name": "host",
+          "value": "test"
         }
       ],
       "samples": [
@@ -45,6 +53,10 @@
         {
           "name": "__name__",
           "value": "a_b_status"
+        },
+        {
+          "name": "host",
+          "value": "test"
         }
       ],
       "samples": [

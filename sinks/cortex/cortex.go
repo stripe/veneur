@@ -55,6 +55,7 @@ type CortexMetricSink struct {
 	counters                   map[counterMapKey]float64
 	convertCountersToMonotonic bool
 	excludedTags               map[string]struct{}
+	host                       string
 }
 
 var _ sinks.MetricSink = (*CortexMetricSink)(nil)
@@ -101,7 +102,7 @@ func Create(
 		basicAuth = &conf.BasicAuth
 	}
 
-	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, headers, basicAuth, conf.BatchWriteSize, conf.ConvertCountersToMonotonic)
+	return NewCortexMetricSink(conf.URL, conf.RemoteTimeout, conf.ProxyURL, logger, name, headers, basicAuth, conf.BatchWriteSize, conf.ConvertCountersToMonotonic, config.Hostname)
 }
 
 // ParseConfig extracts Cortex specific fields from the global veneur config
@@ -131,7 +132,7 @@ func ParseConfig(
 }
 
 // NewCortexMetricSink creates and returns a new instance of the sink
-func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, headers map[string]string, basicAuth *BasicAuthType, batchWriteSize int, convertCountersToMonotonic bool) (*CortexMetricSink, error) {
+func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, logger *logrus.Entry, name string, headers map[string]string, basicAuth *BasicAuthType, batchWriteSize int, convertCountersToMonotonic bool, host string) (*CortexMetricSink, error) {
 	sink := &CortexMetricSink{
 		URL:                        URL,
 		RemoteTimeout:              timeout,
@@ -144,6 +145,7 @@ func NewCortexMetricSink(URL string, timeout time.Duration, proxyURL string, log
 		counters:                   map[counterMapKey]float64{},
 		convertCountersToMonotonic: convertCountersToMonotonic,
 		excludedTags:               map[string]struct{}{},
+		host:                       host,
 	}
 	sink.logger = sink.logger.WithFields(logrus.Fields{
 		"sink_name": sink.Name(),
@@ -336,7 +338,7 @@ func (s *CortexMetricSink) makeWriteRequest(metrics []samplers.InterMetric) *pro
 		if metric.Type == samplers.CounterMetric && s.convertCountersToMonotonic {
 			s.addToMonotonicCounter(metric)
 		} else {
-			ts = append(ts, metricToTimeSeries(metric, s.excludedTags))
+			ts = append(ts, metricToTimeSeries(metric, s.excludedTags, s.host))
 		}
 	}
 
@@ -347,7 +349,7 @@ func (s *CortexMetricSink) makeWriteRequest(metrics []samplers.InterMetric) *pro
 				Tags:      getCounterMapKeyTags(key),
 				Value:     count,
 				Timestamp: time.Now().Unix(),
-			}, s.excludedTags))
+			}, s.excludedTags, s.host))
 		}
 	}
 
@@ -389,13 +391,15 @@ func (s *CortexMetricSink) SetExcludedTags(excludes []string) {
 // and we drop tags which are not in "key:value" format
 // (see https://prometheus.io/docs/concepts/data_model/)
 // we also take "last value wins" approach to duplicate labels inside a metric
-func metricToTimeSeries(metric samplers.InterMetric, excludedTags map[string]struct{}) *prompb.TimeSeries {
+func metricToTimeSeries(metric samplers.InterMetric, excludedTags map[string]struct{}, host string) *prompb.TimeSeries {
 	var ts prompb.TimeSeries
 	ts.Labels = []*prompb.Label{{
 		Name: "__name__", Value: sanitise(metric.Name),
 	}}
 
-	sanitisedTags := map[string]string{}
+	sanitisedTags := map[string]string{
+		"host": host,
+	}
 
 	for _, tag := range metric.Tags {
 		kv := strings.SplitN(tag, ":", 2)
