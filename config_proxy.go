@@ -16,6 +16,7 @@ type ProxyConfig struct {
 	ForwardTimeout               string               `yaml:"forward_timeout"`
 	GrpcAddress                  string               `yaml:"grpc_address"`
 	GrpcForwardAddress           string               `yaml:"grpc_forward_address"`
+	GrpcStream                   bool                 `yaml:"grpc_stream"`
 	HTTPAddress                  string               `yaml:"http_address"`
 	IdleConnectionTimeout        string               `yaml:"idle_connection_timeout"`
 	IgnoreTags                   []matcher.TagMatcher `yaml:"ignore_tags"`

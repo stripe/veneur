@@ -159,66 +159,73 @@ func TestCountActiveHandlers(t *testing.T) {
 	// Repeat this test for a couple different numbers of calls
 	for _, n := range []int{0, 1, 5, 10} {
 		n := n
-		t.Run(fmt.Sprintf("handlers=%d", n), func(t *testing.T) {
-			t.Parallel()
+		for _, protocol := range []string{"grpc", "grpc-stream"} {
+			t.Run(fmt.Sprintf("handlers=%d protocol=%s", n, protocol), func(t *testing.T) {
+				t.Parallel()
 
-			// Create some test servers that will block until explicitly stopped
-			done := make(chan struct{})
-			blocking := createTestForwardServers(t, 3, func(_ []*metricpb.Metric) {
-				<-done
+				// Create some test servers that will block until explicitly stopped
+				done := make(chan struct{})
+				blocking := createTestForwardServers(t, 3, func(_ []*metricpb.Metric) {
+					<-done
+				})
+				defer stopTestForwardServers(blocking)
+				// put all of the servers into a ring
+				ring := consistent.New()
+				ring.Set(addrsFromServers(blocking))
+
+				metrics := &forwardrpc.MetricList{metrictest.RandomForwardMetrics(100)}
+
+				opts := []Option{WithStatsInterval(10 * time.Nanosecond)}
+				if protocol == "grpc-stream" {
+					opts = append(opts, WithEnableStreaming(true))
+				}
+				s := newServer(t, ring, opts...)
+
+				// Make the specified number of calls, all of these should spawn
+				// goroutines that will block
+				for i := 0; i < n; i++ {
+					s.SendMetrics(context.Background(), metrics)
+				}
+
+				// Since the goroutines are forked immediately after the function
+				// call, it might take a bit of time for all of them to start.
+				// We should wait for a little bit
+				tick := time.NewTicker(10 * time.Nanosecond)
+				defer tick.Stop()
+
+				timeout := time.NewTicker(10 * time.Second)
+				defer timeout.Stop()
+				for int64(n) != atomic.LoadInt64(s.activeProxyHandlers) {
+					select {
+					case <-tick.C:
+						// Report statistics, just to exercise the funtion.  This
+						// would normally be called by the server periodically
+						s.reportStats()
+					case <-timeout.C:
+						assert.Failf(t, "The count of active proxy handlers didn't increase enough before the timeout",
+							"Expected: %d\tCurrent: %d", n, atomic.LoadInt64(s.activeProxyHandlers))
+						return
+					}
+				}
+
+				// Stop all of the servers and check that the counter goes to zero
+				close(done)
+				timeout = time.NewTicker(10 * time.Second)
+				defer timeout.Stop()
+				for atomic.LoadInt64(s.activeProxyHandlers) != 0 {
+					select {
+					case <-tick.C:
+						// Report statistics, just to exercise the funtion.  This
+						// would normally be called by the server periodically
+						s.reportStats()
+					case <-timeout.C:
+						assert.Failf(t, "The count of active proxy handlers didn't drop to zero",
+							"Current: %d", atomic.LoadInt64(s.activeProxyHandlers))
+						return
+					}
+				}
 			})
-			defer stopTestForwardServers(blocking)
-			// put all of the servers into a ring
-			ring := consistent.New()
-			ring.Set(addrsFromServers(blocking))
-
-			metrics := &forwardrpc.MetricList{metrictest.RandomForwardMetrics(100)}
-			s := newServer(t, ring, WithStatsInterval(10*time.Nanosecond))
-
-			// Make the specified number of calls, all of these should spawn
-			// goroutines that will block
-			for i := 0; i < n; i++ {
-				s.SendMetrics(context.Background(), metrics)
-			}
-
-			// Since the goroutines are forked immediately after the function
-			// call, it might take a bit of time for all of them to start.
-			// We should wait for a little bit
-			tick := time.NewTicker(10 * time.Nanosecond)
-			defer tick.Stop()
-
-			timeout := time.NewTicker(10 * time.Second)
-			defer timeout.Stop()
-			for int64(n) != atomic.LoadInt64(s.activeProxyHandlers) {
-				select {
-				case <-tick.C:
-					// Report statistics, just to exercise the funtion.  This
-					// would normally be called by the server periodically
-					s.reportStats()
-				case <-timeout.C:
-					assert.Failf(t, "The count of active proxy handlers didn't increase enough before the timeout",
-						"Expected: %d\tCurrent: %d", n, atomic.LoadInt64(s.activeProxyHandlers))
-					return
-				}
-			}
-
-			// Stop all of the servers and check that the counter goes to zero
-			close(done)
-			timeout = time.NewTicker(10 * time.Second)
-			defer timeout.Stop()
-			for atomic.LoadInt64(s.activeProxyHandlers) != 0 {
-				select {
-				case <-tick.C:
-					// Report statistics, just to exercise the funtion.  This
-					// would normally be called by the server periodically
-					s.reportStats()
-				case <-timeout.C:
-					assert.Failf(t, "The count of active proxy handlers didn't drop to zero",
-						"Current: %d", atomic.LoadInt64(s.activeProxyHandlers))
-					return
-				}
-			}
-		})
+		}
 	}
 }
 
