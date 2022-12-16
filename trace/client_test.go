@@ -203,7 +203,7 @@ func TestUDPBuffered(t *testing.T) {
 	serverConn, err := net.ListenUDP("udp", udpAddr)
 	require.NoError(t, err)
 	defer serverConn.Close()
-	
+
 	err = serverConn.SetReadBuffer(1087152)
 	require.NoError(t, err)
 
@@ -254,7 +254,7 @@ func serveUDP(t testing.TB, serverConn *net.UDPConn, onconnect func([]byte)) {
 			buf := make([]byte, 1087152)
 			n, _, err := serverConn.ReadFrom(buf)
 			assert.NoError(t, err)
-	
+
 			buf = buf[:n]
 			onconnect(buf)
 		}
