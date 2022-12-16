@@ -451,7 +451,7 @@ func TestAllBatchesAreAttemptedEvenIfSomeFail(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 9, MetricsDropped: 3, MetricsSkipped: 0}, flushResult)
 
-	// we're cancelling after 2 so we should only see 2 chunks written
+	// ensure we see all chunks written
 	assert.Equal(t, 4, len(server.History()))
 	assert.Equal(t, 3, len(server.History()[0].data.GetTimeseries()))
 	assert.Equal(t, 3, len(server.History()[1].data.GetTimeseries()))
