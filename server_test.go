@@ -554,8 +554,8 @@ func sendTCPMetrics(t *testing.T, a *net.TCPAddr, tlsConfig *tls.Config, f *fixt
 		func() bool {
 			return f.server.Workers[0].MetricsProcessedCount() >= 1
 		},
-		500 * time.Millisecond,
-		2 * time.Millisecond,
+		500*time.Millisecond,
+		2*time.Millisecond,
 		"metrics should be processed",
 	)
 
