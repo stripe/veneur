@@ -59,6 +59,7 @@ type CortexMetricSink struct {
 }
 
 var _ sinks.MetricSink = (*CortexMetricSink)(nil)
+var DoIfNotDoneError = errors.New("context finished before completing metrics flush")
 
 type BasicAuthType struct {
 	Username util.StringSecret `yaml:"username"`
@@ -222,7 +223,7 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	doIfNotDone := func(fn func() error) error {
 		select {
 		case <-ctx.Done():
-			return errors.New("context finished before completing metrics flush")
+			return DoIfNotDoneError
 		default:
 			return fn()
 		}
@@ -235,19 +236,24 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 			if len(batch)%s.batchWriteSize == 0 {
 				err := s.writeMetrics(ctx, batch)
 				if err != nil {
-					return err
+					s.logger.Error(err)
+					droppedMetrics += len(batch)
+				} else {
+					flushedMetrics += len(batch)
 				}
 
-				flushedMetrics += len(batch)
 				batch = []samplers.InterMetric{}
+				return err
 			}
 
 			return nil
 		})
 
-		if err != nil {
-			s.logger.Error(err)
-			droppedMetrics += len(metrics) - flushedMetrics
+		// Any other type of error will happen inside of doIfNotDone
+		// so we only need ot handle context cancellations
+		if err == DoIfNotDoneError {
+			// Don't bother with the rest of the loop, we're done.
+			droppedMetrics = len(metrics) - flushedMetrics
 			return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 		}
 	}

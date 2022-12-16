@@ -360,7 +360,7 @@ func TestChunkedWritesRespectContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	requestCount := 0
 
-	server.onRequest(func() {
+	server.onRequest(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
 		if requestCount == 2 {
 			cancel()
@@ -416,6 +416,45 @@ func TestMetricsGetEmittedWithHostTag(t *testing.T) {
 			assert.Fail(t, "did not find host in time series")
 		}
 	}
+}
+
+func TestAllBatchesAreAttemptedEvenIfSomeFail(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Set up a sink
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 3, false, "")
+	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
+
+	// chunked_input.json contains 12 timeseries samples in InterMetrics format
+	jsInput, err := ioutil.ReadFile("testdata/chunked_input.json")
+	assert.NoError(t, err)
+	var metrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	requestCount := 0
+
+	server.onRequest(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		if requestCount == 2 {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("an error!"))
+		}
+	})
+
+	// Perform the flush to the test server
+	flushResult, err := sink.Flush(ctx, metrics)
+	assert.NoError(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 9, MetricsDropped: 3, MetricsSkipped: 0}, flushResult)
+
+	// we're cancelling after 2 so we should only see 2 chunks written
+	assert.Equal(t, 4, len(server.History()))
+	assert.Equal(t, 3, len(server.History()[0].data.GetTimeseries()))
+	assert.Equal(t, 3, len(server.History()[1].data.GetTimeseries()))
 }
 
 func TestCustomHeaders(t *testing.T) {
@@ -667,7 +706,7 @@ type TestServer struct {
 	data      *prompb.WriteRequest
 	server    *httptest.Server
 	history   []*RequestHistory
-	requestFn func()
+	requestFn func(w http.ResponseWriter, r *http.Request)
 }
 
 // Close closes the internal test server
@@ -687,7 +726,7 @@ func (t *TestServer) History() []*RequestHistory {
 	return t.history
 }
 
-func (t *TestServer) onRequest(fn func()) {
+func (t *TestServer) onRequest(fn func(w http.ResponseWriter, r *http.Request)) {
 	t.requestFn = fn
 }
 
@@ -721,7 +760,7 @@ func NewTestServer(t *testing.T) *TestServer {
 		})
 
 		if result.requestFn != nil {
-			result.requestFn()
+			result.requestFn(w, r)
 		}
 	})
 
