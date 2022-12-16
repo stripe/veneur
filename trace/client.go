@@ -172,6 +172,18 @@ func BufferedSize(size uint) ClientParam {
 	}
 }
 
+// PooledSerialization indicates that a client should use a memory pool of
+// []byte (when serializing SSFSpan's on UDP), trading steady-state memory usage
+// for GC churn. The memory pressure is will grow relative to the concurrent
+// usage of SendSync * size of ssf.SSFSpan's being sent
+func PooledSerialization(cl *Client) error {
+	if cl.backendParams != nil {
+		cl.backendParams.useBytePool = true
+		return nil
+	}
+	return ErrClientNotNetworked
+}
+
 // FlushInterval sets up a buffered client to perform one synchronous
 // flush per time interval in a new goroutine. The goroutine closes
 // down when the Client's Close method is called.

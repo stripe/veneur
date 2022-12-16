@@ -155,7 +155,8 @@ func TestUNIXBuffered(t *testing.T) {
 		},
 		trace.Capacity(4),
 		trace.ParallelBackends(1),
-		trace.Buffered)
+		trace.Buffered,
+		trace.PooledSerialization)
 	require.NoError(t, err)
 	defer client.Close()
 

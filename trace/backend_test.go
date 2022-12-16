@@ -98,6 +98,12 @@ func BenchmarkSerialization(b *testing.B) {
 			addr: udpConn.LocalAddr(),
 		},
 	}
+	udpPooledBackend := &packetBackend{
+		backendParams: backendParams{
+			addr:        udpConn.LocalAddr(),
+			useBytePool: true,
+		},
+	}
 
 	spanWithMetrics := &ssf.SSFSpan{
 		Name:     "realistic_span",
@@ -157,4 +163,8 @@ func BenchmarkSerialization(b *testing.B) {
 	b.Run("UDP_plain_span_with_metrics", benchmarkPlainCombination(udpBackend, spanWithMetrics))
 	b.Run("UDP_plain_span_no_metrics", benchmarkPlainCombination(udpBackend, spanNoMetrics))
 	b.Run("UDP_plain_empty_span_with_metrics", benchmarkPlainCombination(udpBackend, emptySpanWithMetrics))
+
+	b.Run("UDP_POOLED_plain_span_with_metrics", benchmarkPlainCombination(udpPooledBackend, spanWithMetrics))
+	b.Run("UDP_POOLED_plain_span_no_metrics", benchmarkPlainCombination(udpPooledBackend, spanNoMetrics))
+	b.Run("UDP_POOLED_plain_empty_span_with_metrics", benchmarkPlainCombination(udpPooledBackend, emptySpanWithMetrics))
 }
