@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/gogo/protobuf/proto"
 	gometrics "github.com/rcrowley/go-metrics"
 	"github.com/sirupsen/logrus"
 	veneur "github.com/stripe/veneur/v14"
@@ -410,7 +409,7 @@ func (k *KafkaSpanSink) Ingest(span *ssf.SSFSpan) error {
 		}
 		enc = sarama.StringEncoder(j)
 	case "protobuf":
-		p, err := proto.Marshal(span)
+		p, err := span.Marshal()
 		if err != nil {
 			k.logger.Error("Error marshalling span")
 			samples.Add(ssf.Count("kafka.span_marshal_error_total", 1, nil))

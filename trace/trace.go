@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/opentracing/opentracing-go"
 	"golang.org/x/mod/module"
 
@@ -170,7 +169,7 @@ func (t *Trace) Add(samples ...*ssf.SSFSample) {
 // ProtoMarshalTo writes the Trace as a protocol buffer
 // in text format to the specified writer.
 func (t *Trace) ProtoMarshalTo(w io.Writer) error {
-	packet, err := proto.Marshal(t.SSFSpan())
+	packet, err := t.SSFSpan().Marshal()
 	if err != nil {
 		return err
 	}

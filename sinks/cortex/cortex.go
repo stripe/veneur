@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/pkg/errors"
 	"github.com/prometheus/prometheus/prompb"
@@ -275,7 +274,7 @@ func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.
 
 	wr := s.makeWriteRequest(metrics)
 
-	data, err := proto.Marshal(wr)
+	data, err := wr.Marshal()
 	if err != nil {
 		return errors.Wrapf(err, "cortex_err=\"failed to write batch: failed to marshal proto\"")
 	}
