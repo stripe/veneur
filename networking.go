@@ -341,7 +341,7 @@ type grpcStatsServer struct {
 	server *Server
 }
 
-//This is the function that fulfils the ssf server proto
+// This is the function that fulfils the ssf server proto
 func (grpcsrv *grpcStatsServer) SendPacket(ctx context.Context, packet *dogstatsd.DogstatsdPacket) (*dogstatsd.Empty, error) {
 	//We use processMetricPacket instead of handleMetricPacket because process can split the byte array into multiple packets if needed
 	grpcsrv.server.processMetricPacket(len(packet.GetPacketBytes()), packet.GetPacketBytes(), nil, DOGSTATSD_GRPC)
