@@ -520,7 +520,7 @@ func TestTCPConfig(t *testing.T) {
 	}
 }
 
-func sendTCPMetrics(a *net.TCPAddr, tlsConfig *tls.Config, f *fixture) error {
+func sendTCPMetrics(t *testing.T, a *net.TCPAddr, tlsConfig *tls.Config, f *fixture) error {
 	// TODO: attempt to ensure the accept goroutine opens the port before we attempt to connect
 	// connect and send stats in two parts
 	var conn net.Conn
@@ -549,9 +549,17 @@ func sendTCPMetrics(a *net.TCPAddr, tlsConfig *tls.Config, f *fixture) error {
 	}
 
 	// check that the server received the stats; HACK: sleep to ensure workers process before flush
-	time.Sleep(20 * time.Millisecond)
+	foundProcessed := assert.Eventually(
+		t,
+		func() bool {
+			return f.server.Workers[0].MetricsProcessedCount() >= 1
+		},
+		500 * time.Millisecond,
+		2 * time.Millisecond,
+		"metrics should be processed",
+	)
 
-	if f.server.Workers[0].MetricsProcessedCount() < 1 {
+	if !foundProcessed {
 		return fmt.Errorf("metrics were not processed")
 	}
 
@@ -837,7 +845,7 @@ func TestUNIXMetricsSSF(t *testing.T) {
 
 	t.Log("Writing the first metric")
 	_, err := protocol.WriteSSF(conn, testSpan)
-	firstCtx, firstCancel := context.WithTimeout(ctx, 20*time.Millisecond)
+	firstCtx, firstCancel := context.WithTimeout(ctx, 500*time.Millisecond)
 	defer firstCancel()
 	keepFlushing(firstCtx, f.server)
 	if assert.NoError(t, err) {
@@ -848,7 +856,7 @@ func TestUNIXMetricsSSF(t *testing.T) {
 	firstCancel() // stop flushing like mad
 
 	t.Log("Writing the second metric")
-	secondCtx, secondCancel := context.WithTimeout(ctx, 20*time.Millisecond)
+	secondCtx, secondCancel := context.WithTimeout(ctx, 500*time.Millisecond)
 	defer secondCancel()
 	_, err = protocol.WriteSSF(conn, testSpan)
 	keepFlushing(secondCtx, f.server)
@@ -964,7 +972,7 @@ func TestTCPMetrics(t *testing.T) {
 			// attempt to connect and send stats with each of the client configurations
 			for i, clientConfig := range clientConfigs {
 				expectedSuccess := serverConfig.expectedConnectResults[i]
-				err := sendTCPMetrics(addr, clientConfig.tlsConfig, f)
+				err := sendTCPMetrics(t, addr, clientConfig.tlsConfig, f)
 				if err != nil {
 					if expectedSuccess {
 						t.Errorf("server config: '%s' client config: '%s' failed: %s",
@@ -987,7 +995,7 @@ func TestTCPMetrics(t *testing.T) {
 
 // TestHandleTCPGoroutineTimeout verifies that an idle TCP connection doesn't block forever.
 func TestHandleTCPGoroutineTimeout(t *testing.T) {
-	const readTimeout = 30 * time.Millisecond
+	const readTimeout = 500 * time.Millisecond
 	s := &Server{
 		logger:         logrus.NewEntry(logrus.New()),
 		tcpReadTimeout: readTimeout,
