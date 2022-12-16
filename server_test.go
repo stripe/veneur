@@ -550,7 +550,7 @@ func sendTCPMetrics(t *testing.T, a *net.TCPAddr, tlsConfig *tls.Config, f *fixt
 
 	// check that the server received the stats; HACK: sleep to ensure workers process before flush
 	foundProcessed := assert.Eventually(
-		t,
+		&testing.T{},
 		func() bool {
 			return f.server.Workers[0].MetricsProcessedCount() >= 1
 		},
