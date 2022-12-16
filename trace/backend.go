@@ -7,6 +7,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/panjf2000/gnet/pkg/pool/byteslice"
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/ssf"
@@ -132,7 +133,7 @@ func (s *packetBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
 		return err
 	}
 
-	data, err := span.Marshal()
+	data, err := proto.Marshal(span)
 	if err != nil {
 		return err
 	}
