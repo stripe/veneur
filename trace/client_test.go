@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stripe/veneur/v14/protocol"
@@ -190,6 +191,72 @@ func serveUNIX(t testing.TB, laddr *net.UnixAddr, onconnect func(conn net.Conn))
 				return
 			}
 			go onconnect(in)
+		}
+	}()
+
+	return
+}
+
+func TestUDPBuffered(t *testing.T) {
+	udpAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:0")
+	require.NoError(t, err)
+	serverConn, err := net.ListenUDP("udp", udpAddr)
+	require.NoError(t, err)
+	defer serverConn.Close()
+	
+	err = serverConn.SetReadBuffer(1087152)
+	require.NoError(t, err)
+
+	outPkg := make(chan *ssf.SSFSpan, 4)
+	// udp, _ := net.ResolveUDPAddr(udpConn.LocalAddr().Network(), udpConn.LocalAddr().String())
+	serveUDP(t, serverConn, func(resp []byte) {
+		for {
+			sample := &ssf.SSFSpan{}
+			err := proto.Unmarshal(resp, sample)
+			assert.NoError(t, err)
+			outPkg <- sample
+		}
+	})
+
+	client, err := trace.NewClient(
+		&url.URL{
+			Scheme: "udp",
+			Host:   serverConn.LocalAddr().String(),
+		},
+		trace.Capacity(4),
+		trace.ParallelBackends(1),
+		trace.Buffered,
+		trace.PooledSerialization)
+	require.NoError(t, err)
+	defer client.Close()
+
+	sentCh := make(chan error)
+	for i := 0; i < 4; i++ {
+		name := fmt.Sprintf("Testing-%d", i)
+		tr := trace.StartTrace(name)
+		tr.Sent = sentCh
+		mustRecord(t, client, tr)
+	}
+	for i := 0; i < 4; i++ {
+		assert.NoError(t, <-sentCh)
+	}
+	assert.Equal(t, 0, len(outPkg), "Should not have sent any packets yet")
+
+	mustFlush(t, client)
+	for i := 0; i < 4; i++ {
+		<-outPkg
+	}
+}
+
+func serveUDP(t testing.TB, serverConn *net.UDPConn, onconnect func([]byte)) {
+	go func() {
+		for {
+			buf := make([]byte, 1087152)
+			n, _, err := serverConn.ReadFrom(buf)
+			assert.NoError(t, err)
+	
+			buf = buf[:n]
+			onconnect(buf)
 		}
 	}()
 
