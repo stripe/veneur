@@ -12,6 +12,8 @@
 ## Updated
 * Use `T.TempDir` to create temporary directory in tests ([#944](https://github.com/stripe/veneur/pull/944)).
 * When the request to send data from Cloudwatch & SFX sink fails, log the count of metrics that are dropped. 
+* Refactor Cortex sink to use a channel plus gofunc to batch work
+  asynchronously.
 
 ## Bugfixes
 * A fix for forwarding metrics with gRPC using the kubernetes discoverer. Thanks, [androohan](https://github.com/androohan)!
