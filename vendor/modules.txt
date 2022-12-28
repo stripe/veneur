@@ -191,6 +191,9 @@ github.com/grpc-ecosystem/grpc-gateway/utilities
 # github.com/hashicorp/consul/api v1.1.0
 ## explicit; go 1.12
 github.com/hashicorp/consul/api
+# github.com/hashicorp/errwrap v1.0.0
+## explicit
+github.com/hashicorp/errwrap
 # github.com/hashicorp/go-cleanhttp v0.5.1
 ## explicit
 github.com/hashicorp/go-cleanhttp
@@ -199,6 +202,9 @@ github.com/hashicorp/go-cleanhttp
 github.com/hashicorp/go-immutable-radix
 # github.com/hashicorp/go-msgpack v0.5.4
 ## explicit
+# github.com/hashicorp/go-multierror v1.1.1
+## explicit; go 1.13
+github.com/hashicorp/go-multierror
 # github.com/hashicorp/go-retryablehttp v0.6.7
 ## explicit; go 1.13
 github.com/hashicorp/go-retryablehttp
