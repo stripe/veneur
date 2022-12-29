@@ -222,12 +222,7 @@ batching:
 		batch := metrics[i:end]
 		select {
 		case <-ctx.Done():
-			err := s.writeMetrics(ctx, batch)
-			if err != nil {
-				allErrs = multierror.Append(allErrs, err)
-				s.logger.Error(err)
-				droppedMetrics += len(batch)
-			}
+			droppedMetrics += len(metrics[i:])
 			break batching
 		default:
 			err := s.writeMetrics(ctx, batch)
