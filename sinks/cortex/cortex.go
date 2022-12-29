@@ -209,36 +209,33 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	}
 
 	var allErrs *multierror.Error
-	batches := make(chan []samplers.InterMetric)
-	go func() {
-		defer close(batches)
-		if s.batchWriteSize == 0 {
-			batches <- metrics
-			return
+	batchSize := s.batchWriteSize
+	if s.batchWriteSize == 0 {
+		batchSize = len(metrics)
+	}
+batching:
+	for i := 0; i < len(metrics); i += batchSize {
+		end := i + batchSize
+		if end > len(metrics) {
+			end = len(metrics)
 		}
-	batching:
-		for i := 0; i < len(metrics); i += s.batchWriteSize {
-			end := i + s.batchWriteSize
-			if end > len(metrics) {
-				end = len(metrics)
+		batch := metrics[i:end]
+		select {
+		case <-ctx.Done():
+			err := s.writeMetrics(ctx, batch)
+			if err != nil {
+				allErrs = multierror.Append(allErrs, err)
+				s.logger.Error(err)
+				droppedMetrics += len(batch)
 			}
-			fmt.Println("loop 1")
-			fmt.Printf("i = %d; batch = %d\n", i, s.batchWriteSize)
-			select {
-			case <-ctx.Done():
-				batches <- metrics[i:end]
-				break batching
-			default:
-				batches <- metrics[i:end]
+			break batching
+		default:
+			err := s.writeMetrics(ctx, batch)
+			if err != nil {
+				allErrs = multierror.Append(allErrs, err)
+				s.logger.Error(err)
+				droppedMetrics += len(batch)
 			}
-		}
-	}()
-	for batch := range batches {
-		err := s.writeMetrics(ctx, batch)
-		if err != nil {
-			allErrs = multierror.Append(allErrs, err)
-			s.logger.Error(err)
-			droppedMetrics += len(batch)
 		}
 	}
 	return sinks.MetricFlushResult{MetricsFlushed: len(metrics) - droppedMetrics, MetricsDropped: droppedMetrics}, allErrs.ErrorOrNil()
