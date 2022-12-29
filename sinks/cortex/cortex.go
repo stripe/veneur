@@ -212,23 +212,25 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 	batches := make(chan []samplers.InterMetric)
 	go func() {
 		defer close(batches)
-		var batch []samplers.InterMetric
+		if s.batchWriteSize == 0 {
+			batches <- metrics
+			return
+		}
 	batching:
-		for _, m := range metrics {
+		for i := 0; i < len(metrics); i += s.batchWriteSize {
+			end := i + s.batchWriteSize
+			if end > len(metrics) {
+				end = len(metrics)
+			}
+			fmt.Println("loop 1")
+			fmt.Printf("i = %d; batch = %d\n", i, s.batchWriteSize)
 			select {
 			case <-ctx.Done():
-				batches <- batch
+				batches <- metrics[i:end]
 				break batching
 			default:
-				batch = append(batch, m)
-				if len(batch) == s.batchWriteSize {
-					batches <- batch
-					batch = nil
-				}
+				batches <- metrics[i:end]
 			}
-		}
-		if len(batch) > 0 {
-			batches <- batch
 		}
 	}()
 	for batch := range batches {

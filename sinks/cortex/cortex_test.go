@@ -370,7 +370,7 @@ func TestChunkedWritesRespectContextCancellation(t *testing.T) {
 	// Perform the flush to the test server
 	flushResult, err := sink.Flush(ctx, metrics)
 	assert.Error(t, err)
-	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 6, MetricsDropped: 6, MetricsSkipped: 0}, flushResult)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3, MetricsDropped: 9, MetricsSkipped: 0}, flushResult)
 
 	// we're cancelling after 2 so we should only see 2 chunks written
 	assert.Equal(t, 2, len(server.History()))
