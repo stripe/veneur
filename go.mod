@@ -6,7 +6,7 @@ require (
 	github.com/DataDog/datadog-go v3.7.2+incompatible
 	github.com/Shopify/sarama v1.15.0
 	github.com/araddon/dateparse v0.0.0-20180318191655-f58c961370c5
-	github.com/aws/aws-sdk-go v1.31.13
+	github.com/aws/aws-sdk-go v1.33.0
 	github.com/aws/aws-sdk-go-v2 v1.15.0
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.17.0
 	github.com/axiomhq/hyperloglog v0.0.0-20171114175703-8300947202c9
