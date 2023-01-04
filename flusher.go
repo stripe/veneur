@@ -24,6 +24,9 @@ import (
 
 // Flush collects sampler's metrics and passes them to sinks.
 func (s *Server) Flush(ctx context.Context) {
+	s.flushMutex.Lock()
+	defer s.flushMutex.Unlock()
+
 	span := tracer.StartSpan("flush").(*trace.Span)
 	defer span.ClientFinish(s.TraceClient)
 

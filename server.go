@@ -169,6 +169,8 @@ type Server struct {
 	lastFlushUnix  int64
 
 	parser samplers.Parser
+
+	flushMutex *sync.Mutex
 }
 
 type internalSource struct {
@@ -499,6 +501,8 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		synchronizeInterval: conf.SynchronizeWithInterval,
 		// Allocate the slice, we'll fill it with workers later.
 		Workers: make([]*Worker, max(1, conf.NumWorkers)),
+
+		flushMutex: &sync.Mutex{},
 	}
 
 	ret.HistogramAggregates.Value = 0
