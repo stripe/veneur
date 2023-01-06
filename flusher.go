@@ -184,16 +184,16 @@ func (s *Server) flushSink(
 					continue metricLoop
 				}
 
-				replaced := false
-				for i, ft := range filteredTags {
-					if len(ft) >= len(k) && ft[0:len(k)] == k {
-						filteredTags[i] = tag
-						replaced = true
+				// Choose to skip addTags if tag already exists on the metric
+				metricHasAddTagsKey := false
+				for _, currentTag := range filteredTags {
+					if strings.HasPrefix(currentTag, k) {
+						metricHasAddTagsKey = true
 						break
 					}
 				}
 
-				if !replaced {
+				if !metricHasAddTagsKey {
 					filteredTags = append(filteredTags, tag)
 				}
 			}

@@ -917,6 +917,8 @@ func TestFlushWithAddTags(t *testing.T) {
 		}
 	})
 
+	// Current behavior is to first StripTags, then AddTags.
+	// Together this can be used to override tags
 	t.Run("WithAddTagsAndStripTags", func(t *testing.T) {
 		mockStatsd.EXPECT().Count("flushed_metrics", int64(0), []string{
 			"sink_name:channel",
@@ -1102,7 +1104,8 @@ func TestFlushWithAddTagsDedupes(t *testing.T) {
 		if assert.Len(t, result, 1) {
 			assert.Equal(t, "test.metric", result[0].Name)
 			if assert.Len(t, result[0].Tags, 2) {
-				assert.Equal(t, "foo:bar", result[0].Tags[0])
+				assert.Equal(t, "foo:baz", result[0].Tags[0])
+				assert.Equal(t, "anotha:one", result[0].Tags[1])
 			}
 		}
 	})
@@ -1155,7 +1158,7 @@ func TestFlushWithAddTagsDedupes(t *testing.T) {
 		if assert.Len(t, result, 1) {
 			assert.Equal(t, "test.metric", result[0].Name)
 			if assert.Len(t, result[0].Tags, 3) {
-				assert.Equal(t, "foo:bar", result[0].Tags[0])
+				assert.Equal(t, "foo:baz", result[0].Tags[0])
 				assert.Equal(t, "f:a", result[0].Tags[1])
 			}
 		}
@@ -1209,8 +1212,9 @@ func TestFlushWithAddTagsDedupes(t *testing.T) {
 		if assert.Len(t, result, 1) {
 			assert.Equal(t, "test.metric", result[0].Name)
 			if assert.Len(t, result[0].Tags, 3) {
-				assert.Equal(t, "anotha:one", result[0].Tags[0])
-				assert.Equal(t, "foo:bar", result[0].Tags[1])
+				assert.Equal(t, "anotha:thing", result[0].Tags[0])
+				assert.Equal(t, "foo:baz", result[0].Tags[1])
+				assert.Equal(t, "more:tags", result[0].Tags[2])
 			}
 		}
 	})
@@ -1263,8 +1267,8 @@ func TestFlushWithAddTagsDedupes(t *testing.T) {
 		if assert.Len(t, result, 1) {
 			assert.Equal(t, "test.metric", result[0].Name)
 			if assert.Len(t, result[0].Tags, 5) {
-				assert.Equal(t, "anotha:one", result[0].Tags[0])
-				assert.Equal(t, "foo:bar", result[0].Tags[1])
+				assert.Equal(t, "anotha:thing", result[0].Tags[0])
+				assert.Equal(t, "foo:baz", result[0].Tags[1])
 				assert.Equal(t, "more:tags", result[0].Tags[2])
 				assert.Equal(t, "tags:fordays", result[0].Tags[3])
 				assert.Equal(t, "last:one", result[0].Tags[4])
