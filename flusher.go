@@ -186,15 +186,15 @@ func (s *Server) flushSink(
 					continue metricLoop
 				}
 
-				metricHasAddTagsKey := false
-				for _, currentTag := range filteredTags {
-					if strings.HasPrefix(currentTag, k) {
-						metricHasAddTagsKey = true
+				skipped := false
+				for _, ft := range filteredTags {
+					if strings.HasPrefix(ft, k) {
+						skipped = true
 						break
 					}
 				}
 
-				if !metricHasAddTagsKey {
+				if !skipped {
 					filteredTags = append(filteredTags, tag)
 				}
 			}
