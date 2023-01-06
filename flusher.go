@@ -177,6 +177,8 @@ func (s *Server) flushSink(
 				}
 			}
 
+			// For any addTag, append our filteredTags, unless it would overwrite an existing tag
+			// Note: if a tag was removed from stripTags above, then that tag could effectively be overwritten
 			for k, v := range sink.addTags {
 				tag := fmt.Sprintf("%s:%s", k, v)
 				if sink.maxTagLength != 0 && len(tag) > sink.maxTagLength {
@@ -184,7 +186,6 @@ func (s *Server) flushSink(
 					continue metricLoop
 				}
 
-				// Choose to skip addTags if tag already exists on the metric
 				metricHasAddTagsKey := false
 				for _, currentTag := range filteredTags {
 					if strings.HasPrefix(currentTag, k) {
