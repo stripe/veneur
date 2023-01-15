@@ -11,7 +11,8 @@
   "ExtendTags": null,
   "Features": {
     "DiagnosticsMetricsEnabled": false,
-    "EnableMetricSinkRouting": false
+    "EnableMetricSinkRouting": false,
+    "EnableSourceMetricCount": false
   },
   "FlushOnShutdown": false,
   "FlushWatchdogMissedFlushes": 0,

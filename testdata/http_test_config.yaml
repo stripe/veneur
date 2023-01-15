@@ -10,6 +10,7 @@ extend_tags: []
 features:
   diagnostics_metrics_enabled: false
   enable_metric_sink_routing: false
+  enable_source_metric_count: false
 flush_on_shutdown: false
 flush_watchdog_missed_flushes: 0
 forward_address: ""

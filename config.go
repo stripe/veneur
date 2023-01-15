@@ -64,6 +64,7 @@ type Config struct {
 type Features struct {
 	DiagnosticsMetricsEnabled bool `yaml:"diagnostics_metrics_enabled"`
 	EnableMetricSinkRouting   bool `yaml:"enable_metric_sink_routing"`
+	EnableSourceMetricCount   bool `yaml:"enable_source_metric_count"`
 }
 
 type HttpConfig struct {
