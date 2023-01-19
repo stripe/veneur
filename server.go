@@ -98,6 +98,7 @@ type ServerConfig struct {
 	SourceTypes        SourceTypes
 	SpanSinkTypes      SpanSinkTypes
 	HttpCustomHandlers HttpCustomHandlers
+	Statsd             *statsd.Client
 }
 
 // A Server is the actual veneur instance that will be run.
@@ -507,20 +508,14 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 	}
 	ret.HistogramAggregates.Count = len(conf.Aggregates)
 
-	stats, err := statsd.New(conf.StatsAddress, statsd.WithoutTelemetry(), statsd.WithMaxMessagesPerPayload(4096))
-	if err != nil {
-		return ret, err
-	}
-	stats.Namespace = "veneur."
-
 	scopes, err := scopesFromConfig(conf)
 	if err != nil {
 		return ret, err
 	}
-	ret.Statsd = scopedstatsd.NewClient(stats, conf.VeneurMetricsAdditionalTags, scopes)
+	ret.Statsd = scopedstatsd.NewClient(config.Statsd, conf.VeneurMetricsAdditionalTags, scopes)
 
 	ret.TraceClient, err = trace.NewChannelClient(ret.SpanChan,
-		trace.ReportStatistics(stats, 1*time.Second, []string{"ssf_format:internal"}),
+		trace.ReportStatistics(config.Statsd, 1*time.Second, []string{"ssf_format:internal"}),
 		normalizeSpans(conf),
 	)
 	if err != nil {
