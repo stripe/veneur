@@ -16,6 +16,7 @@ import (
 	"github.com/stripe/veneur/v14/proxy/handlers"
 	"github.com/stripe/veneur/v14/scopedstatsd"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 )
 
@@ -39,6 +40,9 @@ type Proxy struct {
 	grpcAddress       string
 	grpcListener      net.Listener
 	grpcServer        *grpc.Server
+	grpcTlsAddress    string
+	grpcTlsListener   net.Listener
+	grpcTlsServer     *grpc.Server
 	handlers          *handlers.Handlers
 	httpAddress       string
 	httpListener      net.Listener
@@ -50,7 +54,12 @@ type Proxy struct {
 }
 
 // Creates a new proxy server.
-func Create(params *CreateParams) *Proxy {
+func Create(params *CreateParams) (*Proxy, error) {
+	tlsConfig, err := params.Config.Tls.GetTlsConfig()
+	if err != nil {
+		return nil, err
+	}
+
 	proxy := &Proxy{
 		destinations:      params.Destinations,
 		dialTimeout:       params.Config.DialTimeout,
@@ -60,6 +69,21 @@ func Create(params *CreateParams) *Proxy {
 		forwardService:    params.Config.ForwardService,
 		grpcAddress:       params.Config.GrpcAddress,
 		grpcServer: grpc.NewServer(
+			grpc.ConnectionTimeout(params.Config.GrpcServer.ConnectionTimeout),
+			grpc.KeepaliveParams(keepalive.ServerParameters{
+				MaxConnectionIdle:     params.Config.GrpcServer.MaxConnectionIdle,
+				MaxConnectionAge:      params.Config.GrpcServer.MaxConnectionAge,
+				MaxConnectionAgeGrace: params.Config.GrpcServer.MaxConnectionAgeGrace,
+				Time:                  params.Config.GrpcServer.PingTimeout,
+				Timeout:               params.Config.GrpcServer.KeepaliveTimeout,
+			}),
+			grpc.StatsHandler(&grpcstats.StatsHandler{
+				IsClient: false,
+				Statsd:   params.Statsd,
+			})),
+		grpcTlsAddress: params.Config.GrpcTlsAddress,
+		grpcTlsServer: grpc.NewServer(
+			grpc.Creds(credentials.NewTLS(tlsConfig)),
 			grpc.ConnectionTimeout(params.Config.GrpcServer.ConnectionTimeout),
 			grpc.KeepaliveParams(keepalive.ServerParameters{
 				MaxConnectionIdle:     params.Config.GrpcServer.MaxConnectionIdle,
@@ -93,8 +117,9 @@ func Create(params *CreateParams) *Proxy {
 		"/healthcheck", proxy.handlers.HandleHealthcheck)
 	params.HttpHandler.HandleFunc("/import", proxy.handlers.HandleJsonMetrics)
 	forwardrpc.RegisterForwardServer(proxy.grpcServer, proxy.handlers)
+	forwardrpc.RegisterForwardServer(proxy.grpcTlsServer, proxy.handlers)
 
-	return proxy
+	return proxy, nil
 }
 
 // Starts discovery, and the HTTP and gRPC servers. This method stops polling
@@ -113,6 +138,12 @@ func (proxy *Proxy) Start(ctx context.Context) error {
 
 	// Listen on gRPC address
 	proxy.grpcListener, err = net.Listen("tcp", proxy.grpcAddress)
+	if err != nil {
+		return err
+	}
+
+	// Listen on gRPC TLS address
+	proxy.grpcTlsListener, err = net.Listen("tcp", proxy.grpcTlsAddress)
 	if err != nil {
 		return err
 	}
@@ -179,8 +210,10 @@ func (proxy *Proxy) Start(ctx context.Context) error {
 
 	// Start gRPC server
 	grpcExit := make(chan error, 1)
-	proxy.logger.WithField("address", proxy.GetGrpcAddress()).
-		Debug("serving grpc")
+	proxy.logger.WithFields(logrus.Fields{
+		"address": proxy.GetGrpcAddress(),
+		"tls":     "false",
+	}).Debug("serving grpc")
 	waitGroup.Add(1)
 	go func() {
 		defer waitGroup.Done()
@@ -234,6 +267,65 @@ func (proxy *Proxy) Start(ctx context.Context) error {
 		}
 	}()
 
+	// Start gRPC TLS server
+	grpcTlsExit := make(chan error, 1)
+	proxy.logger.WithFields(logrus.Fields{
+		"address": proxy.GetGrpcTlsAddress(),
+		"tls":     "true",
+	}).Debug("serving grpc")
+	waitGroup.Add(1)
+	go func() {
+		defer waitGroup.Done()
+
+		err := proxy.grpcTlsServer.Serve(proxy.grpcTlsListener)
+		if err != nil {
+			proxy.logger.WithError(err).Error("grpc tls server closed")
+		} else {
+			proxy.logger.Debug("grpc tls server closed")
+		}
+		grpcTlsExit <- err
+	}()
+
+	// Handle gRPC TLS shutdown
+	grpcTlsError := make(chan error, 1)
+	waitGroup.Add(1)
+	go func() {
+		defer func() {
+			proxy.grpcTlsListener.Close()
+			close(grpcTlsError)
+			waitGroup.Done()
+		}()
+
+		select {
+		case err := <-grpcTlsExit:
+			cancel()
+			grpcTlsError <- err
+			return
+		case <-ctx.Done():
+			proxy.logger.Info("shutting down grpc tls server")
+			shutdownContext, shutdownCancel :=
+				context.WithTimeout(context.Background(), proxy.shutdownTimeout)
+			defer shutdownCancel()
+
+			done := make(chan struct{})
+			go func() {
+				proxy.grpcTlsServer.GracefulStop()
+				close(done)
+			}()
+
+			select {
+			case <-done:
+				return
+			case <-shutdownContext.Done():
+				proxy.grpcTlsServer.Stop()
+				err := shutdownContext.Err()
+				proxy.logger.WithError(err).Error("error shuting down grpc tls server")
+				grpcTlsError <- err
+				return
+			}
+		}
+	}()
+
 	close(proxy.ready)
 
 	// Wait for shut down.
@@ -243,8 +335,9 @@ func (proxy *Proxy) Start(ctx context.Context) error {
 
 	httpErr := <-httpError
 	grpcErr := <-grpcError
+	grpcTlsErr := <-grpcTlsError
 
-	if httpErr != nil || grpcErr != nil {
+	if httpErr != nil || grpcErr != nil || grpcTlsErr != nil {
 		return errors.New("error shutting down")
 	}
 	return nil
@@ -273,6 +366,16 @@ func (proxy *Proxy) GetGrpcAddress() net.Addr {
 // Closes the gRPC listener.
 func (proxy *Proxy) CloseGrpcListener() error {
 	return proxy.grpcListener.Close()
+}
+
+// The address at which the gRPC TLS server is listening.
+func (proxy *Proxy) GetGrpcTlsAddress() net.Addr {
+	return proxy.grpcTlsListener.Addr()
+}
+
+// Closes the gRPC TLS listener.
+func (proxy *Proxy) CloseGrpcTlsListener() error {
+	return proxy.grpcTlsListener.Close()
 }
 
 // Poll discovery immediately, and every `discoveryInterval`. This method stops
