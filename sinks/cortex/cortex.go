@@ -193,6 +193,8 @@ func (s *CortexMetricSink) Start(tc *trace.Client) error {
 
 // Flush sends a batch of metrics to the configured remote-write endpoint
 func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMetric) (sinks.MetricFlushResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*7)
+	defer cancel()
 	span, _ := trace.StartSpanFromContext(ctx, "")
 	defer span.ClientFinish(s.traceClient)
 	metricKeyTags := map[string]string{"sink_name": s.Name(), "sink_type": s.Kind()}
@@ -219,54 +221,51 @@ func (s *CortexMetricSink) Flush(ctx context.Context, metrics []samplers.InterMe
 		return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 	}
 
-	doIfNotDone := func(fn func() error) error {
+	var batch []samplers.InterMetric
+	var batchingErrors []error
+loop:
+	for _, metric := range metrics {
+		batch = append(batch, metric)
 		select {
 		case <-ctx.Done():
-			return errors.New("context finished before completing metrics flush")
+			batch = []samplers.InterMetric{}
+			droppedMetrics = len(metrics) - flushedMetrics
+			break loop
 		default:
-			return fn()
-		}
-	}
-
-	var batch []samplers.InterMetric
-	for _, metric := range metrics {
-		err := doIfNotDone(func() error {
-			batch = append(batch, metric)
-			if len(batch)%s.batchWriteSize == 0 {
+			if len(batch) > 0 && len(batch)%s.batchWriteSize == 0 {
 				err := s.writeMetrics(ctx, batch)
 				if err != nil {
-					return err
+					batchingErrors = append(batchingErrors, err)
+					droppedMetrics += len(batch)
+				} else {
+					flushedMetrics += len(batch)
 				}
 
-				flushedMetrics += len(batch)
 				batch = []samplers.InterMetric{}
 			}
 
-			return nil
-		})
-
-		if err != nil {
-			s.logger.Error(err)
-			droppedMetrics += len(metrics) - flushedMetrics
-			return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
 		}
+
 	}
 
 	var err error
 	if len(batch) > 0 {
-		err = doIfNotDone(func() error {
-			return s.writeMetrics(ctx, batch)
-		})
+		err = s.writeMetrics(ctx, batch)
 
 		if err == nil {
 			flushedMetrics += len(batch)
 		} else {
-			s.logger.Error(err)
+			batchingErrors = append(batchingErrors, err)
 			droppedMetrics += len(batch)
 		}
 	}
 
-	return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, err
+	var flushErr error
+	if len(batchingErrors) > 0 {
+		flushErr = fmt.Errorf("there were errors flushing the sink, num errors: %d", len(batchingErrors))
+	}
+
+	return sinks.MetricFlushResult{MetricsFlushed: flushedMetrics, MetricsDropped: droppedMetrics}, flushErr
 }
 
 func (s *CortexMetricSink) writeMetrics(ctx context.Context, metrics []samplers.InterMetric) error {

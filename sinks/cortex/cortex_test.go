@@ -261,6 +261,43 @@ func TestMonotonicCounterContinuity(t *testing.T) {
 	assert.Equal(t, 3, matchesDone)
 }
 
+func TTestFlushDoesNotFailIfSingleBatchFails(t *testing.T) {
+	// Listen for prometheus writes
+	server := NewTestServer(t)
+	defer server.Close()
+
+	// Set up a sink
+	sink, err := NewCortexMetricSink(server.URL, 30*time.Second, "", logrus.NewEntry(logrus.New()), "test", map[string]string{}, nil, 3, false, "")
+	assert.NoError(t, err)
+	assert.NoError(t, sink.Start(trace.DefaultClient))
+
+	// chunked_input.json contains 12 timeseries samples in InterMetrics format
+	jsInput, err := ioutil.ReadFile("testdata/chunked_input.json")
+	assert.NoError(t, err)
+	var metrics []samplers.InterMetric
+	assert.NoError(t, json.Unmarshal(jsInput, &metrics))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	requestCount := 0
+
+	server.onRequest(func() {
+		requestCount++
+		if requestCount == 2 {
+			cancel()
+		}
+	})
+
+	// Perform the flush to the test server
+	flushResult, err := sink.Flush(ctx, metrics)
+	assert.Error(t, err)
+	assert.Equal(t, sinks.MetricFlushResult{MetricsFlushed: 3, MetricsDropped: 9, MetricsSkipped: 0}, flushResult)
+
+	// we're cancelling after 2 so we should only see 2 chunks written
+	assert.Equal(t, 2, len(server.History()))
+	assert.Equal(t, 3, len(server.History()[0].data.GetTimeseries()))
+	assert.Equal(t, 3, len(server.History()[1].data.GetTimeseries()))
+}
+
 func TestChunkNumOfMetricsLessThanBatchSize(t *testing.T) {
 	// Listen for prometheus writes
 	server := NewTestServer(t)
