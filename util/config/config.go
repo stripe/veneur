@@ -1,18 +1,20 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
+	"text/template"
 
 	"github.com/kelseyhightower/envconfig"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 func ReadConfig[Config interface{}](
-	path string, envBase string,
+	path string, templateData interface{}, strict bool, envBase string,
 ) (*Config, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -20,15 +22,36 @@ func ReadConfig[Config interface{}](
 	}
 	defer file.Close()
 
-	fileData, err := ioutil.ReadAll(file)
+	fileData, err := io.ReadAll(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %v", err)
 	}
 
+	configTemplate, err := template.New("config").Parse(string(fileData))
+	if err != nil {
+		return nil, err
+	}
+
+	configReader, configWriter := io.Pipe()
+	templateErr := make(chan error)
+	go func() {
+		err := configTemplate.Execute(configWriter, templateData)
+		configWriter.Close()
+		templateErr <- err
+	}()
+
+	decoder := yaml.NewDecoder(configReader)
+	decoder.KnownFields(strict)
+
 	config := new(Config)
-	err = yaml.UnmarshalStrict(fileData, config)
+	err = decoder.Decode(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config file: %v", err)
+	}
+
+	err = <-templateErr
+	if err != nil {
+		return nil, err
 	}
 
 	err = envconfig.Process(envBase, config)
@@ -54,13 +77,16 @@ func HandleConfigJson(config interface{}) http.HandlerFunc {
 
 func HandleConfigYaml(config interface{}) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		encodedConfig, err := yaml.Marshal(config)
+		buffer := bytes.Buffer{}
+		encoder := yaml.NewEncoder(&buffer)
+		encoder.SetIndent(2)
+		err := encoder.Encode(config)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Write([]byte(err.Error()))
 			return
 		}
 		w.Header().Add("Content-Type", "application/x-yaml")
-		w.Write(encodedConfig)
+		w.Write(buffer.Bytes())
 	}
 }

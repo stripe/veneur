@@ -23,6 +23,7 @@ import (
 
 var (
 	configFile = flag.String("f", "", "The config file to read for settings.")
+	strict     = flag.Bool("strict", false, "Fails if unknown config fields are present")
 )
 
 func main() {
@@ -51,7 +52,7 @@ func main() {
 	}
 
 	config, err :=
-		utilConfig.ReadConfig[proxy.Config](*configFile, "veneur_proxy")
+		utilConfig.ReadConfig[proxy.Config](*configFile, nil, *strict, "veneur_proxy")
 	if err != nil {
 		logger.WithError(err).Fatal("failed to load config file")
 	}
@@ -86,11 +87,17 @@ func main() {
 		serveMux.HandleFunc("/config/yaml", utilConfig.HandleConfigYaml(config))
 	}
 	if config.Http.EnableProfiling {
-		serveMux.HandleFunc("/debug/pprof/", pprof.Index)
-		serveMux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		serveMux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		serveMux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		serveMux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		serveMux.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
+		serveMux.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
+		serveMux.Handle("/debug/pprof/block", pprof.Handler("block"))
+		serveMux.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+		serveMux.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+		serveMux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+		serveMux.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
+		serveMux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+		serveMux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+		serveMux.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+		serveMux.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
 	}
 
 	discoverer, err := consul.NewConsul(api.DefaultConfig())

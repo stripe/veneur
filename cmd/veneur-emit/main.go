@@ -394,10 +394,10 @@ func flags(args []string) (Flags, map[string]flag.Value, error) {
 	// Metric flags
 	flagset.StringVar(&flagStruct.Name, "name", "", "Name of metric to report. Ex: 'daemontools.service.starts'")
 	flagset.Float64Var(&flagStruct.Gauge, "gauge", 0, "Report a 'gauge' metric. Value must be float64.")
-	flagset.DurationVar(&flagStruct.Timing, "timing", 0*time.Millisecond, "Report a 'timing' metric. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).")
+	flagset.DurationVar(&flagStruct.Timing, "timing", 0, "Report a 'timing' metric. Value must be parseable by time.ParseDuration (https://golang.org/pkg/time/#ParseDuration).")
 	flagset.Int64Var(&flagStruct.Count, "count", 0, "Report a 'count' metric. Value must be an integer.")
 	flagset.StringVar(&flagStruct.Set, "set", "", "Report a 'set' metric with an arbitrary string value.")
-	flagset.StringVar(&flagStruct.Tag, "tag", "", "Tag(s) for metric, comma separated. Ex: 'service:airflow'. Note: Any tags here are applied to all emitted data. See also mode-specific tag options (e.g. span_tags)")
+	flagset.StringVar(&flagStruct.Tag, "tag", "", "Tag(s) for metric, comma separated. Ex: 'service:airflow' or 'service:api,status_code:200'. Note: Any tags here are applied to all emitted data. See also mode-specific tag options (e.g. span_tags)")
 	flagset.BoolVar(&flagStruct.ToSSF, "ssf", false, "Sends packets via SSF instead of StatsD. (https://github.com/stripe/veneur/blob/master/ssf/)")
 	flagset.BoolVar(&flagStruct.ToGrpc, "grpc", false, "Send the metric over grpc (SSF format)")
 

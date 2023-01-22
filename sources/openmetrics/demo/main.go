@@ -12,6 +12,7 @@ import (
 	"github.com/stripe/veneur/v14"
 	"github.com/stripe/veneur/v14/sinks/debug"
 	"github.com/stripe/veneur/v14/sources/openmetrics"
+	utilConfig "github.com/stripe/veneur/v14/util/config"
 )
 
 var (
@@ -54,13 +55,14 @@ func main() {
 		sampleSummary,
 	)
 
-	config, err := veneur.ReadConfig(logrus.NewEntry(logger), *configFile)
+	config, err := utilConfig.ReadConfig[veneur.Config](*configFile, nil, true, "veneur")
 	if err != nil {
 		logger.Fatal(err.Error())
 	}
+	config.ApplyDefaults()
 
 	server, err := veneur.NewFromConfig(veneur.ServerConfig{
-		Config: config,
+		Config: *config,
 		Logger: logger,
 		SourceTypes: veneur.SourceTypes{
 			"openmetrics": {

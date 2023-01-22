@@ -27,6 +27,7 @@ import (
 	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/util/build"
+	utilConfig "github.com/stripe/veneur/v14/util/config"
 )
 
 var (
@@ -47,27 +48,21 @@ func main() {
 	defer cancel()
 
 	if configFile == nil || *configFile == "" {
-		logger.Fatal("You must specify a config file")
+		logrus.Fatal("missing required config file")
 	}
 
-	conf, err := veneur.ReadConfig(logrus.NewEntry(logger), *configFile)
+	config, err :=
+		utilConfig.ReadConfig[veneur.Config](
+			*configFile, nil, *validateConfigStrict, "veneur")
 	if err != nil {
-		_, ok := err.(*veneur.UnknownConfigKeys)
-		if ok {
-			if *validateConfigStrict {
-				logger.WithError(err).Fatal("Config contains invalid or deprecated keys")
-			} else {
-				logger.WithError(err).Warn("Config contains invalid or deprecated keys")
-			}
-		} else {
-			logger.WithError(err).Fatal("Error reading config file")
-		}
+		logger.WithError(err).Fatal("failed to load config file")
 	}
+	config.ApplyDefaults()
 
-	if conf.SentryDsn.Value != "" {
+	if config.SentryDsn.Value != "" {
 		err = sentry.Init(sentry.ClientOptions{
-			Dsn:        conf.SentryDsn.Value,
-			ServerName: conf.Hostname,
+			Dsn:        config.SentryDsn.Value,
+			ServerName: config.Hostname,
 			Release:    build.VERSION,
 		})
 		if err != nil {
@@ -87,7 +82,7 @@ func main() {
 	}
 
 	server, err := veneur.NewFromConfig(veneur.ServerConfig{
-		Config: conf,
+		Config: *config,
 		Logger: logger,
 		SourceTypes: veneur.SourceTypes{
 			"openmetrics": {
@@ -177,7 +172,7 @@ func main() {
 		logger.WithError(err).Fatal("Could not initialize server")
 	}
 
-	if conf.Features.DiagnosticsMetricsEnabled {
+	if config.Features.DiagnosticsMetricsEnabled {
 		go diagnostics.CollectDiagnosticsMetrics(
 			ctx, server.Statsd, server.Interval,
 			[]string{"git_sha:" + build.VERSION})
@@ -198,7 +193,7 @@ func main() {
 	go server.FlushWatchdog()
 	server.Start()
 
-	if conf.HTTPAddress != "" || conf.GrpcAddress != "" {
+	if config.HTTPAddress != "" || config.GrpcAddress != "" {
 		server.Serve()
 	}
 }
