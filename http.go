@@ -50,11 +50,17 @@ func (s *Server) Handler() http.Handler {
 		mux.HandleFunc(pat.Get(endpoint), customHandler)
 	}
 
+	mux.Handle(pat.Get("/debug/pprof/"), http.HandlerFunc(pprof.Index))
+	mux.Handle(pat.Get("/debug/pprof/allocs"), pprof.Handler("allocs"))
+	mux.Handle(pat.Get("/debug/pprof/block"), pprof.Handler("block"))
 	mux.Handle(pat.Get("/debug/pprof/cmdline"), http.HandlerFunc(pprof.Cmdline))
+	mux.Handle(pat.Get("/debug/pprof/goroutine"), pprof.Handler("goroutine"))
+	mux.Handle(pat.Get("/debug/pprof/heap"), pprof.Handler("heap"))
+	mux.Handle(pat.Get("/debug/pprof/mutex"), pprof.Handler("mutex"))
 	mux.Handle(pat.Get("/debug/pprof/profile"), http.HandlerFunc(pprof.Profile))
+	mux.Handle(pat.Get("/debug/pprof/threadcreate"), pprof.Handler("threadcreate"))
 	mux.Handle(pat.Get("/debug/pprof/symbol"), http.HandlerFunc(pprof.Symbol))
 	mux.Handle(pat.Get("/debug/pprof/trace"), http.HandlerFunc(pprof.Trace))
-	mux.Handle(pat.Get("/debug/pprof/"), http.HandlerFunc(pprof.Index))
 
 	return mux
 }

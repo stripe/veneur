@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/getsentry/sentry-go"
 	"github.com/sirupsen/logrus"
 	"github.com/stripe/veneur/v14"
@@ -79,6 +80,20 @@ func main() {
 
 	if *validateConfig {
 		os.Exit(0)
+	}
+
+	stats, err := statsd.New(
+		config.StatsAddress,
+		statsd.WithAggregationInterval(config.Interval),
+		statsd.WithChannelMode(),
+		statsd.WithChannelModeBufferSize(4096),
+		statsd.WithClientSideAggregation(),
+		statsd.WithMaxMessagesPerPayload(4096),
+		statsd.WithNamespace("veneur."),
+		statsd.WithoutTelemetry(),
+	)
+	if err != nil {
+		logger.WithError(err).Fatal("failed to create statsd client")
 	}
 
 	server, err := veneur.NewFromConfig(veneur.ServerConfig{
@@ -167,6 +182,7 @@ func main() {
 				w.Write([]byte("hello world!\n"))
 			},
 		},
+		Statsd: stats,
 	})
 	if err != nil {
 		logger.WithError(err).Fatal("Could not initialize server")
