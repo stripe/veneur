@@ -7,6 +7,11 @@ import (
 	"net"
 	"time"
 
+<<<<<<< HEAD
+	"github.com/golang/protobuf/proto"
+	"github.com/panjf2000/gnet/pkg/pool/byteslice"
+=======
+>>>>>>> master
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/ssf"
 )
@@ -35,9 +40,9 @@ type backendParams struct {
 	maxBackoff     time.Duration
 	connectTimeout time.Duration
 	bufferSize     uint
+	useBytePool    bool // [EXPERIMENTAL] Tells the packetBackend to use sync.Pool for the byte array when marshaling protobuf
 
-	useBytePool bool            // [EXPERIMENTAL] Tells the packetBackend to use sync.Pool for the byte array when marshaling protobuf
-	bytePool    SlicePool[byte] // [EXPERIMENTAL]
+	bytePool byteslice.Pool // [EXPERIMENTAL]
 }
 
 func (p *backendParams) params() *backendParams {
@@ -116,8 +121,10 @@ func (s *packetBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
 		}
 	}
 
+<<<<<<< HEAD
 	if s.useBytePool {
 		pool := s.bytePool.Get(span.Size())
+		defer s.bytePool.Put(pool) // This must happen in the same func as the Write()
 
 		var count int
 		count, err := span.MarshalTo(pool)
@@ -127,13 +134,13 @@ func (s *packetBackend) SendSync(ctx context.Context, span *ssf.SSFSpan) error {
 
 		data := pool[:count]
 		_, err = s.conn.Write(data)
-
-		// This must happen after Write()
-		s.bytePool.Put(pool)
 		return err
 	}
 
+	data, err := proto.Marshal(span)
+=======
 	data, err := span.Marshal()
+>>>>>>> master
 	if err != nil {
 		return err
 	}

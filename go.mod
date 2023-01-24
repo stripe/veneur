@@ -22,7 +22,6 @@ require (
 	github.com/newrelic/newrelic-client-go v0.39.0
 	github.com/newrelic/newrelic-telemetry-sdk-go v0.4.0
 	github.com/opentracing/opentracing-go v1.2.0
-	github.com/panjf2000/gnet v1.6.6
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.2.1
 	github.com/prometheus/client_golang v1.1.0
@@ -34,17 +33,17 @@ require (
 	github.com/segmentio/fasthash v1.0.0
 	github.com/signalfx/golib/v3 v3.3.36
 	github.com/sirupsen/logrus v1.6.0
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.6.1
 	github.com/theckman/go-flock v0.0.0-20170522022801-6de226b0d5f0
 	github.com/zenazn/goji v0.9.1-0.20160507202103-64eb34159fe5
 	goji.io v2.0.2+incompatible
 	golang.org/x/mod v0.4.2
 	golang.org/x/net v0.0.0-20211008194852-3b03d305991f
-	golang.org/x/sys v0.0.0-20211204120058-94396e421777
+	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac
 	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.24.0
 	gopkg.in/yaml.v2 v2.3.0
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+	gopkg.in/yaml.v3 v3.0.0-20200605160147-a5ece683394c
 	k8s.io/api v0.18.6
 	k8s.io/apimachinery v0.18.6
 	k8s.io/client-go v0.18.6
