@@ -108,7 +108,7 @@ type MetricKey struct {
 func NewMetricKeyFromMetric(
 	m *metricpb.Metric, ignoredTags []matcher.TagMatcher,
 ) MetricKey {
-	tags := []string{}
+	tags := make([]string, 0, len(m.Tags))
 tagLoop:
 	for _, tag := range m.Tags {
 		for _, matcher := range ignoredTags {
