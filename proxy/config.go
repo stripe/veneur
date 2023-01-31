@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/stripe/veneur/v14/util/matcher"
+	"github.com/stripe/veneur/v14/util/tls"
 )
 
 type Config struct {
@@ -20,8 +21,9 @@ type Config struct {
 		PingTimeout           time.Duration `yaml:"ping_timeout"`
 		KeepaliveTimeout      time.Duration `yaml:"keepalive_timeout"`
 	} `yaml:"grpc_server"`
-	GrpcAddress string `yaml:"grpc_address"`
-	Http        struct {
+	GrpcAddress    string `yaml:"grpc_address"`
+	GrpcTlsAddress string `yaml:"grpc_tls_address"`
+	Http           struct {
 		EnableConfig    bool `yaml:"enable_config"`
 		EnableProfiling bool `yaml:"enable_profiling"`
 	} `yaml:"http"`
@@ -37,4 +39,5 @@ type Config struct {
 		ChannelBufferSize   int           `yaml:"channel_buffer_size"`
 		MessagesPerPayload  int           `yaml:"messages_per_payload"`
 	} `yaml:"statsd"`
+	Tls tls.Tls `yaml:"tls"`
 }
