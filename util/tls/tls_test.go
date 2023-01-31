@@ -12,20 +12,30 @@ type yamlStruct struct {
 	Tls tls.Tls `yaml:"tls"`
 }
 
-const yamlFile = `---
-tls: 
-  ca_file: "test/cert.crt"
-  cert_file: "test/cert.crt"
-  key_file:  "test/key.key"
-`
-
 func TestGetTlsConfig(t *testing.T) {
+	yamlFile := []byte(`---
+tls:
+  ca_file: "../../testdata/cacert.pem"
+  cert_file: "../../testdata/servercert.pem"
+  key_file:  "../../testdata/serverkey.pem"
+`)
 	data := yamlStruct{}
-	err := yaml.Unmarshal([]byte(yamlFile), &data)
+	err := yaml.Unmarshal(yamlFile, &data)
 	assert.NoError(t, err)
 	tlsConfig := data.Tls.GetTlsConfig()
 	assert.NotNil(t, tlsConfig)
 	assert.Len(t, tlsConfig.Certificates, 1)
+}
+
+func TestGetTlsConfigMissingField(t *testing.T) {
+	yamlFile := []byte(`---
+tls:
+  cert_file: "../../testdata/servercert.pem"
+  key_file:  "../../testdata/serverkey.pem"
+`)
+	data := yamlStruct{}
+	err := yaml.Unmarshal(yamlFile, &data)
+	assert.Error(t, err)
 }
 
 func TestGetTlsConfigUnset(t *testing.T) {

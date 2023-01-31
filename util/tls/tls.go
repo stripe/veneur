@@ -19,27 +19,32 @@ type Tls struct {
 }
 
 func (tlsConfig *Tls) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var config config
 	err := unmarshal(&tlsConfig.config)
 	if err != nil {
 		return err
 	}
 
-	if tlsConfig.config.CaFile == "" ||
-		tlsConfig.config.CertFile == "" ||
+	if tlsConfig.config.CaFile == "" &&
+		tlsConfig.config.CertFile == "" &&
 		tlsConfig.config.KeyFile == "" {
 		return nil
 	}
 
-	certFile, err := os.ReadFile(config.CertFile)
+	if tlsConfig.config.CaFile == "" ||
+		tlsConfig.config.CertFile == "" ||
+		tlsConfig.config.KeyFile == "" {
+		return errors.New("ca_file, cert_file, and key_file must all be set")
+	}
+
+	certFile, err := os.ReadFile(tlsConfig.config.CertFile)
 	if err != nil {
 		return err
 	}
-	keyFile, err := os.ReadFile(config.KeyFile)
+	keyFile, err := os.ReadFile(tlsConfig.config.KeyFile)
 	if err != nil {
 		return err
 	}
-	caFile, err := os.ReadFile(config.CaFile)
+	caFile, err := os.ReadFile(tlsConfig.config.CaFile)
 	if err != nil {
 		return err
 	}
