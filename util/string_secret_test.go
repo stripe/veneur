@@ -17,7 +17,7 @@ func TestUnmarshal(t *testing.T) {
 	yamlFile := []byte("stringSecret: secret-value")
 	data := yamlStruct{}
 	err := yaml.Unmarshal(yamlFile, &data)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "secret-value", data.StringSecret.Value)
 }
 
