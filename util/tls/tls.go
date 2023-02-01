@@ -14,60 +14,61 @@ type config struct {
 }
 
 type Tls struct {
-	config
-	tlsConfig *tls.Config
+	*config
 }
 
-func (tlsConfig *Tls) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	err := unmarshal(&tlsConfig.config)
+func (config *Tls) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	err := unmarshal(&config.config)
 	if err != nil {
 		return err
 	}
 
-	if tlsConfig.config.CaFile == "" &&
-		tlsConfig.config.CertFile == "" &&
-		tlsConfig.config.KeyFile == "" {
+	if config.CaFile == "" &&
+		config.CertFile == "" &&
+		config.KeyFile == "" {
 		return nil
 	}
 
-	if tlsConfig.config.CaFile == "" ||
-		tlsConfig.config.CertFile == "" ||
-		tlsConfig.config.KeyFile == "" {
+	if config.CaFile == "" ||
+		config.CertFile == "" ||
+		config.KeyFile == "" {
 		return errors.New("ca_file, cert_file, and key_file must all be set")
-	}
-
-	certFile, err := os.ReadFile(tlsConfig.config.CertFile)
-	if err != nil {
-		return err
-	}
-	keyFile, err := os.ReadFile(tlsConfig.config.KeyFile)
-	if err != nil {
-		return err
-	}
-	caFile, err := os.ReadFile(tlsConfig.config.CaFile)
-	if err != nil {
-		return err
-	}
-
-	certificate, err := tls.X509KeyPair(certFile, keyFile)
-	if err != nil {
-		return err
-	}
-
-	caCertPool := x509.NewCertPool()
-	ok := caCertPool.AppendCertsFromPEM(caFile)
-	if !ok {
-		return errors.New("failed to append cert")
-	}
-
-	tlsConfig.tlsConfig = &tls.Config{
-		Certificates: []tls.Certificate{certificate},
-		RootCAs:      caCertPool,
 	}
 
 	return nil
 }
 
-func (tlsConfig *Tls) GetTlsConfig() *tls.Config {
-	return tlsConfig.tlsConfig
+func (config *Tls) GetTlsConfig() (*tls.Config, error) {
+	if config.config == nil {
+		return nil, nil
+	}
+
+	certFile, err := os.ReadFile(config.CertFile)
+	if err != nil {
+		return nil, err
+	}
+	keyFile, err := os.ReadFile(config.KeyFile)
+	if err != nil {
+		return nil, err
+	}
+	caFile, err := os.ReadFile(config.CaFile)
+	if err != nil {
+		return nil, err
+	}
+
+	certificate, err := tls.X509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, err
+	}
+
+	caCertPool := x509.NewCertPool()
+	ok := caCertPool.AppendCertsFromPEM(caFile)
+	if !ok {
+		return nil, errors.New("failed to append cert")
+	}
+
+	return &tls.Config{
+		Certificates: []tls.Certificate{certificate},
+		RootCAs:      caCertPool,
+	}, nil
 }
