@@ -22,7 +22,8 @@ tls:
 	data := yamlStruct{}
 	err := yaml.Unmarshal(yamlFile, &data)
 	assert.NoError(t, err)
-	tlsConfig := data.Tls.GetTlsConfig()
+	tlsConfig, err := data.Tls.GetTlsConfig()
+	assert.NoError(t, err)
 	assert.NotNil(t, tlsConfig)
 	assert.Len(t, tlsConfig.Certificates, 1)
 }
@@ -42,6 +43,7 @@ func TestGetTlsConfigUnset(t *testing.T) {
 	data := yamlStruct{}
 	err := yaml.Unmarshal([]byte(""), &data)
 	assert.NoError(t, err)
-	tlsConfig := data.Tls.GetTlsConfig()
+	tlsConfig, err := data.Tls.GetTlsConfig()
+	assert.NoError(t, err)
 	assert.Nil(t, tlsConfig)
 }
