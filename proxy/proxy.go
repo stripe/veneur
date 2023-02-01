@@ -161,170 +161,15 @@ func (proxy *Proxy) Start(ctx context.Context) error {
 
 	waitGroup := sync.WaitGroup{}
 
-	// Start HTTP server
-	httpExit := make(chan error, 1)
-	proxy.logger.WithField("address", proxy.GetHttpAddress()).
-		Debug("serving http")
-	waitGroup.Add(1)
-	go func() {
-		defer waitGroup.Done()
-
-		err := proxy.httpServer.Serve(proxy.httpListener)
-		if err != http.ErrServerClosed {
-			proxy.logger.WithError(err).Error("http server closed")
-		} else {
-			proxy.logger.Debug("http server closed")
-		}
-		httpExit <- err
-	}()
-
-	// Handle HTTP shutdown
-	httpError := make(chan error, 1)
-	waitGroup.Add(1)
-	go func() {
-		defer func() {
-			proxy.httpListener.Close()
-			close(httpError)
-			waitGroup.Done()
-		}()
-
-		select {
-		case err := <-httpExit:
-			cancel()
-			httpError <- err
-			return
-		case <-ctx.Done():
-			proxy.logger.Info("shutting down http server")
-			ctx, shutdownCancel :=
-				context.WithTimeout(context.Background(), proxy.shutdownTimeout)
-			defer shutdownCancel()
-
-			err := proxy.httpServer.Shutdown(ctx)
-			if err != nil {
-				proxy.logger.WithError(err).Error("error shuting down http server")
-				httpError <- err
-			}
-			return
-		}
-	}()
-
-	// Start gRPC server
-	grpcExit := make(chan error, 1)
-	proxy.logger.WithFields(logrus.Fields{
-		"address": proxy.GetGrpcAddress(),
-		"tls":     "false",
-	}).Debug("serving grpc")
-	waitGroup.Add(1)
-	go func() {
-		defer waitGroup.Done()
-
-		err := proxy.grpcServer.Serve(proxy.grpcListener)
-		if err != nil {
-			proxy.logger.WithError(err).Error("grpc server closed")
-		} else {
-			proxy.logger.Debug("grpc server closed")
-		}
-		grpcExit <- err
-	}()
-
-	// Handle gRPC shutdown
-	grpcError := make(chan error, 1)
-	waitGroup.Add(1)
-	go func() {
-		defer func() {
-			proxy.grpcListener.Close()
-			close(grpcError)
-			waitGroup.Done()
-		}()
-
-		select {
-		case err := <-grpcExit:
-			cancel()
-			grpcError <- err
-			return
-		case <-ctx.Done():
-			proxy.logger.Info("shutting down grpc server")
-			shutdownContext, shutdownCancel :=
-				context.WithTimeout(context.Background(), proxy.shutdownTimeout)
-			defer shutdownCancel()
-
-			done := make(chan struct{})
-			go func() {
-				proxy.grpcServer.GracefulStop()
-				close(done)
-			}()
-
-			select {
-			case <-done:
-				return
-			case <-shutdownContext.Done():
-				proxy.grpcServer.Stop()
-				err := shutdownContext.Err()
-				proxy.logger.WithError(err).Error("error shuting down grpc server")
-				grpcError <- err
-				return
-			}
-		}
-	}()
-
-	// Start gRPC TLS server
-	grpcTlsExit := make(chan error, 1)
-	proxy.logger.WithFields(logrus.Fields{
-		"address": proxy.GetGrpcTlsAddress(),
-		"tls":     "true",
-	}).Debug("serving grpc")
-	waitGroup.Add(1)
-	go func() {
-		defer waitGroup.Done()
-
-		err := proxy.grpcTlsServer.Serve(proxy.grpcTlsListener)
-		if err != nil {
-			proxy.logger.WithError(err).Error("grpc tls server closed")
-		} else {
-			proxy.logger.Debug("grpc tls server closed")
-		}
-		grpcTlsExit <- err
-	}()
-
-	// Handle gRPC TLS shutdown
-	grpcTlsError := make(chan error, 1)
-	waitGroup.Add(1)
-	go func() {
-		defer func() {
-			proxy.grpcTlsListener.Close()
-			close(grpcTlsError)
-			waitGroup.Done()
-		}()
-
-		select {
-		case err := <-grpcTlsExit:
-			cancel()
-			grpcTlsError <- err
-			return
-		case <-ctx.Done():
-			proxy.logger.Info("shutting down grpc tls server")
-			shutdownContext, shutdownCancel :=
-				context.WithTimeout(context.Background(), proxy.shutdownTimeout)
-			defer shutdownCancel()
-
-			done := make(chan struct{})
-			go func() {
-				proxy.grpcTlsServer.GracefulStop()
-				close(done)
-			}()
-
-			select {
-			case <-done:
-				return
-			case <-shutdownContext.Done():
-				proxy.grpcTlsServer.Stop()
-				err := shutdownContext.Err()
-				proxy.logger.WithError(err).Error("error shuting down grpc tls server")
-				grpcTlsError <- err
-				return
-			}
-		}
-	}()
+	httpError := startHttpServer(
+		ctx, cancel, proxy.logger, &waitGroup,
+		&proxy.httpServer, proxy.httpListener, proxy.shutdownTimeout)
+	grpcError := startGrpcServer(
+		ctx, cancel, proxy.logger.WithField("tls", false), &waitGroup,
+		proxy.grpcServer, proxy.grpcListener, proxy.shutdownTimeout)
+	grpcTlsError := startGrpcServer(
+		ctx, cancel, proxy.logger.WithField("tls", true), &waitGroup,
+		proxy.grpcTlsServer, proxy.grpcTlsListener, proxy.shutdownTimeout)
 
 	close(proxy.ready)
 
@@ -341,6 +186,124 @@ func (proxy *Proxy) Start(ctx context.Context) error {
 		return errors.New("error shutting down")
 	}
 	return nil
+}
+
+func startHttpServer(
+	ctx context.Context, cancel func(), logger *logrus.Entry,
+	waitGroup *sync.WaitGroup, server *http.Server, listener net.Listener,
+	shutdownTimeout time.Duration,
+) <-chan (error) {
+	// Start server
+	httpExit := make(chan error, 1)
+	logger.WithField("address", listener.Addr()).Debug("serving http")
+	waitGroup.Add(1)
+	go func() {
+		defer waitGroup.Done()
+
+		err := server.Serve(listener)
+		if err != http.ErrServerClosed {
+			logger.WithError(err).Error("http server closed")
+		} else {
+			logger.Debug("http server closed")
+		}
+		httpExit <- err
+	}()
+
+	// Handle shutdown
+	httpError := make(chan error, 1)
+	waitGroup.Add(1)
+	go func() {
+		defer func() {
+			listener.Close()
+			close(httpError)
+			waitGroup.Done()
+		}()
+
+		select {
+		case err := <-httpExit:
+			cancel()
+			httpError <- err
+			return
+		case <-ctx.Done():
+			logger.Info("shutting down http server")
+			ctx, shutdownCancel :=
+				context.WithTimeout(context.Background(), shutdownTimeout)
+			defer shutdownCancel()
+
+			err := server.Shutdown(ctx)
+			if err != nil {
+				logger.WithError(err).Error("error shuting down http server")
+				httpError <- err
+			}
+			return
+		}
+	}()
+
+	return httpError
+}
+
+func startGrpcServer(
+	ctx context.Context, cancel func(), logger *logrus.Entry,
+	waitGroup *sync.WaitGroup, server *grpc.Server, listener net.Listener,
+	shutdownTimeout time.Duration,
+) <-chan (error) {
+	// Start server
+	grpcTlsExit := make(chan error, 1)
+	logger.WithField("address", listener.Addr()).Debug("serving grpc")
+	waitGroup.Add(1)
+	go func() {
+		defer waitGroup.Done()
+
+		err := server.Serve(listener)
+		if err != nil {
+			logger.WithError(err).Error("grpc server closed")
+		} else {
+			logger.Debug("grpc server closed")
+		}
+		grpcTlsExit <- err
+	}()
+
+	// Handle shutdown
+	grpcTlsError := make(chan error, 1)
+	waitGroup.Add(1)
+	go func() {
+		defer func() {
+			listener.Close()
+			close(grpcTlsError)
+			waitGroup.Done()
+		}()
+
+		select {
+		case err := <-grpcTlsExit:
+			cancel()
+			grpcTlsError <- err
+			return
+		case <-ctx.Done():
+			logger.Info("shutting down grpc server")
+			shutdownContext, shutdownCancel :=
+				context.WithTimeout(context.Background(), shutdownTimeout)
+			defer shutdownCancel()
+
+			done := make(chan struct{})
+			go func() {
+				server.GracefulStop()
+				close(done)
+			}()
+
+			select {
+			case <-done:
+				return
+			case <-shutdownContext.Done():
+				server.Stop()
+				err := shutdownContext.Err()
+				logger.WithError(err).Error("error shutting down grpc server")
+				grpcTlsError <- err
+				return
+			}
+		}
+	}()
+
+	return grpcTlsError
 }
 
 // A channel that is closed once the server is ready.
