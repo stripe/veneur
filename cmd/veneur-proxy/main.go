@@ -72,6 +72,7 @@ func main() {
 	if err != nil {
 		logger.WithError(err).Fatal("failed to create statsd client")
 	}
+	defer statsClient.Flush()
 
 	go diagnostics.CollectDiagnosticsMetrics(
 		ctx, statsClient, config.RuntimeMetricsInterval, []string{
@@ -107,7 +108,7 @@ func main() {
 	}
 
 	loggerEntry := logrus.NewEntry(logger)
-	proxy := proxy.Create(&proxy.CreateParams{
+	proxy, err := proxy.Create(&proxy.CreateParams{
 		Config: config,
 		Destinations: destinations.Create(
 			connect.Create(
@@ -119,6 +120,10 @@ func main() {
 		Logger:             loggerEntry,
 		Statsd:             statsClient,
 	})
+	if err != nil {
+		statsClient.Incr("exit", []string{"error:true"}, 1.0)
+		logger.WithError(err).Fatal("failed to create proxy server")
+	}
 
 	err = proxy.Start(ctx)
 	if err != nil {

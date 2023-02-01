@@ -14,6 +14,7 @@ import (
 	"github.com/stripe/veneur/v14/proxy"
 	"github.com/stripe/veneur/v14/proxy/destinations"
 	"github.com/stripe/veneur/v14/scopedstatsd"
+	"github.com/stripe/veneur/v14/util/tls"
 )
 
 type TestServer struct {
@@ -25,7 +26,7 @@ type TestServer struct {
 
 func CreateTestServer(
 	ctrl *gomock.Controller, config *proxy.Config,
-) *TestServer {
+) (*TestServer, error) {
 	logger := logrus.New()
 	logger.SetLevel(logrus.DebugLevel)
 
@@ -33,30 +34,44 @@ func CreateTestServer(
 	mockDestinations := destinations.NewMockDestinations(ctrl)
 	mockDiscoverer := discovery.NewMockDiscoverer(ctrl)
 
+	config.Tls = tls.Tls{
+		Config: &tls.Config{
+			CaFile:   "../testdata/cacert.pem",
+			CertFile: "../testdata/servercert.pem",
+			KeyFile:  "../testdata/serverkey.pem",
+		},
+	}
+
+	server, err := proxy.Create(&proxy.CreateParams{
+		Config:             config,
+		Destinations:       mockDestinations,
+		Discoverer:         mockDiscoverer,
+		HealthcheckContext: context.Background(),
+		HttpHandler:        http.NewServeMux(),
+		Logger:             logrus.NewEntry(logger),
+		Statsd:             mockStatsd,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	return &TestServer{
-		Proxy: proxy.Create(&proxy.CreateParams{
-			Config:             config,
-			Destinations:       mockDestinations,
-			Discoverer:         mockDiscoverer,
-			HealthcheckContext: context.Background(),
-			HttpHandler:        http.NewServeMux(),
-			Logger:             logrus.NewEntry(logger),
-			Statsd:             mockStatsd,
-		}),
+		Proxy:        server,
 		Destinations: mockDestinations,
 		Discoverer:   mockDiscoverer,
 		Statsd:       mockStatsd,
-	}
+	}, nil
 }
 
 func TestStart(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	server := CreateTestServer(ctrl, &proxy.Config{
+	server, err := CreateTestServer(ctrl, &proxy.Config{
 		ForwardAddresses: []string{},
 		ShutdownTimeout:  time.Second,
 	})
+	assert.NoError(t, err)
 	server.Destinations.EXPECT().Add(gomock.Any(), []string{})
 	server.Destinations.EXPECT().Clear()
 
@@ -86,10 +101,11 @@ func TestStartCloseHttpListener(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	server := CreateTestServer(ctrl, &proxy.Config{
+	server, err := CreateTestServer(ctrl, &proxy.Config{
 		ForwardAddresses: []string{},
 		ShutdownTimeout:  time.Second,
 	})
+	assert.NoError(t, err)
 	server.Destinations.EXPECT().Add(gomock.Any(), []string{})
 	server.Destinations.EXPECT().Clear()
 
@@ -103,7 +119,7 @@ func TestStartCloseHttpListener(t *testing.T) {
 	server.Destinations.EXPECT().Wait()
 	server.CloseHttpListener()
 
-	err := <-proxyError
+	err = <-proxyError
 	assert.Error(t, err)
 }
 
@@ -111,10 +127,11 @@ func TestStartCloseGrpcListener(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	server := CreateTestServer(ctrl, &proxy.Config{
+	server, err := CreateTestServer(ctrl, &proxy.Config{
 		ForwardAddresses: []string{},
 		ShutdownTimeout:  time.Second,
 	})
+	assert.NoError(t, err)
 	server.Destinations.EXPECT().Add(gomock.Any(), []string{})
 	server.Destinations.EXPECT().Clear()
 
@@ -128,7 +145,7 @@ func TestStartCloseGrpcListener(t *testing.T) {
 	server.Destinations.EXPECT().Wait()
 	server.CloseGrpcListener()
 
-	err := <-proxyError
+	err = <-proxyError
 	assert.Error(t, err)
 }
 
@@ -136,11 +153,12 @@ func TestHandleDiscovery(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	server := CreateTestServer(ctrl, &proxy.Config{
+	server, err := CreateTestServer(ctrl, &proxy.Config{
 		ForwardAddresses: []string{},
 		ForwardService:   "service-name",
 		ShutdownTimeout:  time.Second,
 	})
+	assert.NoError(t, err)
 	ctx := context.Background()
 
 	server.Destinations.EXPECT().Add(ctx, []string{"address1", "address2"})

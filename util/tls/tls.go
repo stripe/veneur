@@ -7,18 +7,18 @@ import (
 	"os"
 )
 
-type config struct {
+type Config struct {
 	CaFile   string `yaml:"ca_file"`
 	CertFile string `yaml:"cert_file"`
 	KeyFile  string `yaml:"key_file"`
 }
 
 type Tls struct {
-	*config
+	*Config
 }
 
 func (config *Tls) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	err := unmarshal(&config.config)
+	err := unmarshal(&config.Config)
 	if err != nil {
 		return err
 	}
@@ -39,7 +39,7 @@ func (config *Tls) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (config *Tls) GetTlsConfig() (*tls.Config, error) {
-	if config.config == nil {
+	if config.Config == nil {
 		return nil, nil
 	}
 
