@@ -45,9 +45,7 @@ stats_address: localhost:8125
 statsd_listen_addresses: []
 synchronize_with_interval: false
 tags_exclude: []
-tls_authority_certificate: ""
-tls_certificate: ""
-tls_key: ""
+tls: {}
 trace_max_length_bytes: 0
 veneur_metrics_additional_tags: []
 veneur_metrics_scopes:

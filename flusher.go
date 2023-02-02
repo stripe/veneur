@@ -16,7 +16,6 @@ import (
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/samplers/metricpb"
 	"github.com/stripe/veneur/v14/sinks"
-	"github.com/stripe/veneur/v14/ssf"
 	"github.com/stripe/veneur/v14/trace"
 	"github.com/stripe/veneur/v14/util/matcher"
 	"google.golang.org/grpc/status"
@@ -516,9 +515,6 @@ func (s *Server) flushTraces(ctx context.Context) {
 func (s *Server) forward(
 	ctx context.Context, wms []WorkerMetrics,
 ) {
-	span, _ := trace.StartSpanFromContext(ctx, "")
-	defer span.ClientFinish(s.TraceClient)
-
 	exportStart := time.Now()
 
 	// Collect all of the forwardable metrics from the various WorkerMetrics.
@@ -527,13 +523,8 @@ func (s *Server) forward(
 		metrics = append(metrics, wm.ForwardableMetrics(s.TraceClient, s.logger)...)
 	}
 
-	span.Add(
-		ssf.Timing("forward.duration_ns", time.Since(exportStart),
-			time.Nanosecond, map[string]string{"part": "export"}),
-		ssf.Gauge("forward.metrics_total", float32(len(metrics)), nil),
-		// Maintain compatibility with metrics used in HTTP-based forwarding
-		ssf.Count("forward.post_metrics_total", float32(len(metrics)), nil),
-	)
+	s.Statsd.Timing("forward.duration_ms", time.Since(exportStart), []string{"part:export"}, 1.0)
+	s.Statsd.Gauge("forward.metrics_total", float64(len(metrics)), nil, 1.0)
 
 	if len(metrics) == 0 {
 		s.logger.Debug("Nothing to forward, skipping.")
@@ -546,33 +537,27 @@ func (s *Server) forward(
 		"grpcstate":   s.grpcForwardConn.GetState().String(),
 	})
 
-	c := forwardrpc.NewForwardClient(s.grpcForwardConn)
-
 	grpcStart := time.Now()
-	err := forwardGrpc(ctx, c, metrics)
+	err := forwardGrpc(ctx, s.grpcForwardClient, metrics)
 	if err != nil {
 		if ctx.Err() != nil {
 			// We exceeded the deadline of the flush context.
-			span.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "deadline_exceeded"}))
+			s.Statsd.Count("forward.error_total", 1, []string{"cause:deadline_exceeded"}, 1.0)
 		} else if statErr, ok := status.FromError(err); ok &&
 			(statErr.Message() == "all SubConns are in TransientFailure" || statErr.Message() == "transport is closing") {
 			// We could check statErr.Code() == codes.Unavailable, but we don't know all of the cases that
 			// could return that code. These two particular cases are fairly safe and usually associated
 			// with connection rebalancing or host replacement, so we don't want them going to sentry.
-			span.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "transient_unavailable"}))
+			s.Statsd.Count("forward.error_total", 1, []string{"cause:transient_unavailable"}, 1.0)
 		} else {
-			span.Add(ssf.Count("forward.error_total", 1, map[string]string{"cause": "send"}))
+			s.Statsd.Count("forward.error_total", 1, []string{"cause:send"}, 1.0)
 			entry.WithError(err).Error("Failed to forward to an upstream Veneur")
 		}
 	} else {
 		entry.Info("Completed forward to an upstream Veneur")
 	}
 
-	span.Add(
-		ssf.Timing("forward.duration_ns", time.Since(grpcStart), time.Nanosecond,
-			map[string]string{"part": "grpc"}),
-		ssf.Count("forward.error_total", 0, nil),
-	)
+	s.Statsd.Timing("forward.duration_ms", time.Since(grpcStart), []string{"part:grpc"}, 1.0)
 }
 
 func forwardGrpc(
@@ -584,7 +569,10 @@ func forwardGrpc(
 		return err
 	}
 	for _, metric := range metrics {
-		sendMetricsClient.Send(metric)
+		err = sendMetricsClient.Send(metric)
+		if err != nil {
+			return err
+		}
 	}
 	_, err = sendMetricsClient.CloseAndRecv()
 	return err

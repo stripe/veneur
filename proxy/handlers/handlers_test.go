@@ -462,7 +462,48 @@ func TestForwardError(t *testing.T) {
 		sendMetricsChannel <- fixture.Handlers.SendMetricsV2(mockServer)
 	}()
 	sendRequest := <-sendChannel
-	sendRequest.ErrorChannel <- errors.New("forward error")
+	err := <-sendMetricsChannel
+
+	assert.Equal(t, metric, sendRequest.Metric)
+	assert.NoError(t, err)
+}
+
+func TestSampleDroppedError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	fixture := CreateTestHandlers(ctrl, []matcher.TagMatcher{})
+
+	fixture.Statsd.EXPECT().Count(
+		"veneur_proxy.ingest.request_count",
+		int64(1), []string{"protocol:grpc-stream"}, 1.0)
+	fixture.Statsd.EXPECT().Timing(
+		"veneur_proxy.ingest.request_latency_ms",
+		gomock.Any(), []string{"protocol:grpc-stream"}, 1.0)
+	fixture.Statsd.EXPECT().Count(
+		"veneur_proxy.ingest.metrics_count",
+		int64(1), []string{"protocol:grpc-stream"}, 1.0)
+	fixture.Statsd.EXPECT().Count(
+		"veneur_proxy.handle.metrics_count",
+		int64(1), []string{"error:dropped"}, 1.0)
+
+	fixture.Destinations.EXPECT().
+		Get("metric-namecountertag1:value1,tag2:value2").
+		Return(fixture.Destination, nil)
+	sendChannel := make(chan connect.SendRequest)
+	fixture.Destination.EXPECT().SendChannel().Return(sendChannel)
+
+	mockServer := forwardrpc.NewMockForward_SendMetricsV2Server(ctrl)
+	mockServer.EXPECT().Recv().Times(1).Return(metric, nil)
+	mockServer.EXPECT().Recv().Times(1).Return(nil, io.EOF)
+	mockServer.EXPECT().SendAndClose(&emptypb.Empty{}).Return(nil)
+
+	sendMetricsChannel := make(chan error)
+	go func() {
+		sendMetricsChannel <- fixture.Handlers.SendMetricsV2(mockServer)
+	}()
+	sendRequest := <-sendChannel
+	sendRequest.ErrorChannel <- connect.ErrSampleDropped
 	err := <-sendMetricsChannel
 
 	assert.Equal(t, metric, sendRequest.Metric)

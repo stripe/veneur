@@ -17,6 +17,10 @@ type Tls struct {
 	*Config
 }
 
+func (config *Tls) MarshalYAML() (interface{}, error) {
+	return nil, errors.New("error 1")
+}
+
 func (config *Tls) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	err := unmarshal(&config.Config)
 	if err != nil {

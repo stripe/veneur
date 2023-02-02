@@ -50,9 +50,7 @@
   "StatsdListenAddresses": null,
   "SynchronizeWithInterval": false,
   "TagsExclude": null,
-  "TLSAuthorityCertificate": "",
-  "TLSCertificate": "",
-  "TLSKey": "",
+  "Tls": "",
   "TraceMaxLengthBytes": 0,
   "VeneurMetricsAdditionalTags": null,
   "VeneurMetricsScopes": {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/stripe/veneur/v14/util"
 	"github.com/stripe/veneur/v14/util/matcher"
+	"github.com/stripe/veneur/v14/util/tls"
 )
 
 type Config struct {
@@ -47,9 +48,7 @@ type Config struct {
 	StatsdListenAddresses       []util.Url          `yaml:"statsd_listen_addresses"`
 	SynchronizeWithInterval     bool                `yaml:"synchronize_with_interval"`
 	TagsExclude                 []string            `yaml:"tags_exclude"`
-	TLSAuthorityCertificate     string              `yaml:"tls_authority_certificate"`
-	TLSCertificate              string              `yaml:"tls_certificate"`
-	TLSKey                      util.StringSecret   `yaml:"tls_key"`
+	Tls                         tls.Tls             `yaml:"tls"`
 	TraceMaxLengthBytes         int                 `yaml:"trace_max_length_bytes"`
 	VeneurMetricsAdditionalTags []string            `yaml:"veneur_metrics_additional_tags"`
 	VeneurMetricsScopes         struct {

@@ -2,6 +2,7 @@ package connect
 
 import (
 	"context"
+	"errors"
 	"io"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/stripe/veneur/v14/scopedstatsd"
 	"google.golang.org/grpc"
 )
+
+var ErrSampleDropped = errors.New("sample dropped")
 
 type Connect interface {
 	Connect(context.Context, string, DestinationHash) (Destination, error)
@@ -45,8 +48,7 @@ type Destination interface {
 }
 
 type SendRequest struct {
-	Metric       *metricpb.Metric
-	ErrorChannel chan error
+	Metric *metricpb.Metric
 }
 
 type DestinationHash interface {
@@ -131,26 +133,30 @@ sendLoop:
 	for {
 		select {
 		case request := <-d.sendChannel:
+			var errorTag string
 			err := d.client.Send(request.Metric)
-			if err != nil {
+			if err == io.EOF {
 				d.logger.WithError(err).Debug("failed to forward metric")
-				d.statsd.Count(
-					"veneur_proxy.forward.metrics_count", 1,
-					[]string{"error:true"}, 1.0)
+				errorTag = "error:eof"
+			} else if err != nil {
+				d.logger.WithError(err).Debug("failed to forward metric")
+				errorTag = "error:forward"
 			} else {
-				d.statsd.Count(
-					"veneur_proxy.forward.metrics_count", 1,
-					[]string{"error:false"}, 1.0)
+				errorTag = "error:false"
 			}
-			request.ErrorChannel <- err
-			close(request.ErrorChannel)
+			d.statsd.Count(
+				"veneur_proxy.forward.metrics_count", 1,
+				[]string{errorTag}, 1.0)
+			if err == io.EOF {
+				break sendLoop
+			}
 		case <-ctx.Done():
 			break sendLoop
 		}
 	}
 
-	close(d.sendChannel)
 	d.destinationHash.RemoveDestination(d.address)
+	close(d.sendChannel)
 
 	err := d.client.CloseSend()
 	if err != nil {
@@ -159,6 +165,13 @@ sendLoop:
 	err = d.connection.Close()
 	if err != nil {
 		d.logger.WithError(err).Error("failed to close connection")
+	}
+
+	d.statsd.Count(
+		"veneur_proxy.forward.metrics_count", int64(len(d.sendChannel)),
+		[]string{"error:dropped"}, 1.0)
+	for range d.sendChannel {
+		// Do nothing.
 	}
 
 	d.destinationHash.ConnectionClosed()

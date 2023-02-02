@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"flag"
 	"fmt"
 	"io"
@@ -448,31 +447,6 @@ func checkBufferSplit(t *testing.T, buf []byte) {
 	assert.EqualValues(t, bytes.Split(buf, []byte{'A'}), testSplit, "should have split %s correctly", buf)
 }
 
-func readTestKeysCerts() (map[string]string, error) {
-	// reads the insecure test keys and certificates in fixtures
-	// generated with: Run the testdata/_bin/generate_certs.sh
-	// script (tested on macOS Catalina) to re-generate the CA and
-	// certs).
-	pems := map[string]string{}
-	pemFileNames := []string{
-		"cacert.pem",
-		"clientcert_correct.pem",
-		"clientcert_wrong.pem",
-		"clientkey.pem",
-		"wrongkey.pem",
-		"servercert.pem",
-		"serverkey.pem",
-	}
-	for _, fileName := range pemFileNames {
-		b, err := ioutil.ReadFile(filepath.Join("testdata", fileName))
-		if err != nil {
-			return nil, err
-		}
-		pems[fileName] = string(b)
-	}
-	return pems, nil
-}
-
 // TestTCPConfig checks that invalid configurations are errors
 func TestTCPConfig(t *testing.T) {
 	config := localConfig()
@@ -485,8 +459,6 @@ func TestTCPConfig(t *testing.T) {
 			Host:   "localhost:8129",
 		},
 	}}
-	config.TLSKey = util.StringSecret{Value: "somekey"}
-	config.TLSCertificate = ""
 	_, err := NewFromConfig(ServerConfig{
 		Logger: logger,
 		Config: config,
@@ -495,12 +467,6 @@ func TestTCPConfig(t *testing.T) {
 		t.Error("key without certificate is a config error")
 	}
 
-	pems, err := readTestKeysCerts()
-	if err != nil {
-		t.Fatal("could not read test keys/certs:", err)
-	}
-	config.TLSKey = util.StringSecret{Value: pems["serverkey.pem"]}
-	config.TLSCertificate = "somecert"
 	_, err = NewFromConfig(ServerConfig{
 		Logger: logger,
 		Config: config,
@@ -509,8 +475,6 @@ func TestTCPConfig(t *testing.T) {
 		t.Error("invalid key and certificate is a config error")
 	}
 
-	config.TLSKey = util.StringSecret{Value: pems["serverkey.pem"]}
-	config.TLSCertificate = pems["servercert.pem"]
 	_, err = NewFromConfig(ServerConfig{
 		Logger: logger,
 		Config: config,
@@ -886,103 +850,21 @@ func TestIgnoreLongUDPMetrics(t *testing.T) {
 
 // TestTCPMetrics checks that a server can accept metrics over a TCP socket.
 func TestTCPMetrics(t *testing.T) {
-	pems, err := readTestKeysCerts()
-	if err != nil {
-		t.Fatal("could not read test keys/certs:", err)
-	}
+	config := localConfig()
+	config.Interval = time.Duration(time.Minute)
+	config.NumWorkers = 1
+	config.StatsdListenAddresses = []util.Url{{
+		Value: &url.URL{
+			Scheme: "tcp",
+			Host:   "127.0.0.1:0",
+		},
+	}}
+	f := newFixture(t, config, nil, nil)
+	defer f.Close() // ensure shutdown if the test aborts
 
-	// all supported TCP connection modes
-	serverConfigs := []struct {
-		name                   string
-		serverKey              string
-		serverCertificate      string
-		authorityCertificate   string
-		expectedConnectResults [4]bool
-	}{
-		{"TCP", "", "", "", [4]bool{true, false, false, false}},
-		{"encrypted", pems["serverkey.pem"], pems["servercert.pem"], "",
-			[4]bool{false, true, true, true}},
-		{"authenticated", pems["serverkey.pem"], pems["servercert.pem"], pems["cacert.pem"],
-			[4]bool{false, false, false, true}},
-	}
-
-	// load all the various keys and certificates for the client
-	trustServerCA := x509.NewCertPool()
-	ok := trustServerCA.AppendCertsFromPEM([]byte(pems["cacert.pem"]))
-	if !ok {
-		t.Fatal("could not load server certificate")
-	}
-	wrongCert, err := tls.X509KeyPair(
-		[]byte(pems["clientcert_wrong.pem"]), []byte(pems["wrongkey.pem"]))
-	if err != nil {
-		t.Fatal("could not load wrong client cert/key:", err)
-	}
-	wrongConfig := &tls.Config{
-		RootCAs:      trustServerCA,
-		Certificates: []tls.Certificate{wrongCert},
-	}
-	correctCert, err := tls.X509KeyPair(
-		[]byte(pems["clientcert_correct.pem"]), []byte(pems["clientkey.pem"]))
-	if err != nil {
-		t.Fatal("could not load correct client cert/key:", err)
-	}
-	correctConfig := &tls.Config{
-		RootCAs:      trustServerCA,
-		Certificates: []tls.Certificate{correctCert},
-	}
-
-	// all supported client configurations
-	clientConfigs := []struct {
-		name      string
-		tlsConfig *tls.Config
-	}{
-		{"TCP", nil},
-		{"TLS no cert", &tls.Config{RootCAs: trustServerCA}},
-		{"TLS wrong cert", wrongConfig},
-		{"TLS correct cert", correctConfig},
-	}
-
-	for _, entry := range serverConfigs {
-		serverConfig := entry
-		t.Run(serverConfig.name, func(t *testing.T) {
-			config := localConfig()
-			config.Interval = time.Duration(time.Minute)
-			config.NumWorkers = 1
-			config.StatsdListenAddresses = []util.Url{{
-				Value: &url.URL{
-					Scheme: "tcp",
-					Host:   "127.0.0.1:0",
-				},
-			}}
-			config.TLSKey = util.StringSecret{Value: serverConfig.serverKey}
-			config.TLSCertificate = serverConfig.serverCertificate
-			config.TLSAuthorityCertificate = serverConfig.authorityCertificate
-			f := newFixture(t, config, nil, nil)
-			defer f.Close() // ensure shutdown if the test aborts
-
-			addr := f.server.StatsdListenAddrs[0].(*net.TCPAddr)
-			// attempt to connect and send stats with each of the client configurations
-			for i, clientConfig := range clientConfigs {
-				expectedSuccess := serverConfig.expectedConnectResults[i]
-				err := sendTCPMetrics(addr, clientConfig.tlsConfig, f)
-				if err != nil {
-					if expectedSuccess {
-						t.Errorf("server config: '%s' client config: '%s' failed: %s",
-							serverConfig.name, clientConfig.name, err.Error())
-					} else {
-						fmt.Printf("SUCCESS server config: '%s' client config: '%s' got expected error: %s\n",
-							serverConfig.name, clientConfig.name, err.Error())
-					}
-				} else if !expectedSuccess {
-					t.Errorf("server config: '%s' client config: '%s' worked; should fail!",
-						serverConfig.name, clientConfig.name)
-				} else {
-					fmt.Printf("SUCCESS server config: '%s' client config: '%s'\n",
-						serverConfig.name, clientConfig.name)
-				}
-			}
-		})
-	}
+	addr := f.server.StatsdListenAddrs[0].(*net.TCPAddr)
+	err := sendTCPMetrics(addr, nil, f)
+	assert.NoError(t, err)
 }
 
 // TestHandleTCPGoroutineTimeout verifies that an idle TCP connection doesn't block forever.

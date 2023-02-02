@@ -5,9 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"crypto/x509/pkix"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -31,6 +29,7 @@ import (
 
 	"github.com/pkg/profile"
 
+	"github.com/stripe/veneur/v14/forwardrpc"
 	"github.com/stripe/veneur/v14/protocol"
 	"github.com/stripe/veneur/v14/samplers"
 	"github.com/stripe/veneur/v14/samplers/metricpb"
@@ -164,7 +163,8 @@ type Server struct {
 	grpcServer        *proxy.Server
 
 	// gRPC forward clients
-	grpcForwardConn *grpc.ClientConn
+	grpcForwardConn   *grpc.ClientConn
+	grpcForwardClient forwardrpc.ForwardClient
 
 	stuckIntervals int
 	lastFlushUnix  int64
@@ -582,42 +582,6 @@ func NewFromConfig(config ServerConfig) (*Server, error) {
 		ret.GRPCListenAddrs = append(ret.GRPCListenAddrs, addr)
 	}
 
-	if conf.TLSKey.Value != "" {
-		if conf.TLSCertificate == "" {
-			err = errors.New("tls_key is set; must set tls_certificate")
-			logger.WithError(err).Error("Improper TLS configuration")
-			return ret, err
-		}
-
-		// load the TLS key and certificate
-		var cert tls.Certificate
-		cert, err = tls.X509KeyPair([]byte(conf.TLSCertificate), []byte(conf.TLSKey.Value))
-		if err != nil {
-			logger.WithError(err).Error("Improper TLS configuration")
-			return ret, err
-		}
-
-		clientAuthMode := tls.NoClientCert
-		var clientCAs *x509.CertPool
-		if conf.TLSAuthorityCertificate != "" {
-			// load the authority; require clients to present certificated signed by this authority
-			clientAuthMode = tls.RequireAndVerifyClientCert
-			clientCAs = x509.NewCertPool()
-			ok := clientCAs.AppendCertsFromPEM([]byte(conf.TLSAuthorityCertificate))
-			if !ok {
-				err = errors.New("tls_authority_certificate: Could not load any certificates")
-				logger.WithError(err).Error("Improper TLS configuration")
-				return ret, err
-			}
-		}
-
-		ret.tlsConfig = &tls.Config{
-			Certificates: []tls.Certificate{cert},
-			ClientAuth:   clientAuthMode,
-			ClientCAs:    clientCAs,
-		}
-	}
-
 	// Configure tracing sinks if we are listening for ssf
 	if len(conf.SsfListenAddresses) > 0 || len(conf.GrpcListenAddresses) > 0 {
 		trace.Enable()
@@ -814,6 +778,7 @@ func (s *Server) Start() {
 			"forwardAddr": s.ForwardAddr,
 		}).Fatal("Failed to initialize a gRPC connection for forwarding")
 	}
+	s.grpcForwardClient = forwardrpc.NewForwardClient(s.grpcForwardConn)
 
 	// Flush every Interval forever!
 	go func() {

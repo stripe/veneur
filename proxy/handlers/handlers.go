@@ -170,22 +170,12 @@ tagLoop:
 		}
 	}()
 
-	errorChannel := make(chan error)
 	select {
 	case destination.SendChannel() <- connect.SendRequest{
-		Metric:       metric,
-		ErrorChannel: errorChannel,
+		Metric: metric,
 	}:
-		err = <-errorChannel
-		if err != nil {
-			proxy.Statsd.Count(
-				"veneur_proxy.handle.metrics_count",
-				int64(1), []string{"error:forward"}, 1.0)
-		} else {
-			proxy.Statsd.Count(
-				"veneur_proxy.handle.metrics_count",
-				int64(1), []string{"error:false"}, 1.0)
-		}
+		proxy.Statsd.Count(
+			"veneur_proxy.handle.metrics_count", int64(1), nil, 1.0)
 		return
 	default:
 		proxy.Statsd.Count(
