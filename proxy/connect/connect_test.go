@@ -93,6 +93,9 @@ func TestConnect(t *testing.T) {
 	mockStatsd.EXPECT().Count(
 		"veneur_proxy.forward.metrics_count",
 		int64(1), []string{"error:false"}, 1.0)
+	mockStatsd.EXPECT().Count(
+		"veneur_proxy.forward.metrics_count",
+		int64(0), []string{"error:dropped"}, 1.0)
 	server.handler.EXPECT().SendMetricsV2(gomock.Any()).Times(1).DoAndReturn(func(
 		connection forwardrpc.Forward_SendMetricsV2Server,
 	) error {
@@ -103,7 +106,7 @@ func TestConnect(t *testing.T) {
 	})
 
 	connecter := connect.Create(
-		time.Second, logrus.NewEntry(logger), 1, mockStatsd)
+		time.Second, logrus.NewEntry(logger), 1, mockStatsd, 10*time.Second)
 	destination, err := connecter.Connect(
 		context.Background(), server.grpcListener.Addr().String(),
 		mockDestinationsHash)
@@ -149,7 +152,8 @@ func TestConnectDialTimeoutExpired(t *testing.T) {
 		"veneur_proxy.forward.connect", int64(1),
 		[]string{"status:failed_dial"}, 1.0)
 
-	connecter := connect.Create(0, logrus.NewEntry(logger), 1, mockStatsd)
+	connecter := connect.Create(
+		0, logrus.NewEntry(logger), 1, mockStatsd, 10*time.Second)
 	_, err := connecter.Connect(
 		context.Background(), "address", mockDestinationsHash)
 	assert.Error(t, err)
