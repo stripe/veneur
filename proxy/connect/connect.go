@@ -131,8 +131,13 @@ sendLoop:
 		select {
 		case request := <-d.sendChannel:
 			err := d.client.Send(request.Metric)
-			if err != nil {
-				d.logger.WithError(err).Debug("failed to forward metric")
+			if err == io.EOF {
+				d.logger.WithError(err).Error("failed to forward metric")
+				d.statsd.Count(
+					"veneur_proxy.forward.metrics_count", 1,
+					[]string{"error:eof"}, 1.0)
+			} else if err != nil {
+				d.logger.WithError(err).Error("failed to forward metric")
 				d.statsd.Count(
 					"veneur_proxy.forward.metrics_count", 1,
 					[]string{"error:true"}, 1.0)
@@ -146,7 +151,6 @@ sendLoop:
 		}
 	}
 
-	close(d.sendChannel)
 	d.destinationHash.RemoveDestination(d.address)
 
 	err := d.client.CloseSend()
@@ -157,6 +161,10 @@ sendLoop:
 	if err != nil {
 		d.logger.WithError(err).Error("failed to close connection")
 	}
+
+	d.statsd.Count(
+		"veneur_proxy.forward.metrics_count", int64(len(d.sendChannel)),
+		[]string{"error:dropped"}, 1.0)
 
 	d.destinationHash.ConnectionClosed()
 }

@@ -93,6 +93,10 @@ func TestConnect(t *testing.T) {
 	mockStatsd.EXPECT().Count(
 		"veneur_proxy.forward.metrics_count",
 		int64(1), []string{"error:false"}, 1.0)
+	mockStatsd.EXPECT().Count(
+		"veneur_proxy.forward.metrics_count",
+		int64(0), []string{"error:dropped"}, 1.0)
+
 	server.handler.EXPECT().SendMetricsV2(gomock.Any()).Times(1).DoAndReturn(func(
 		connection forwardrpc.Forward_SendMetricsV2Server,
 	) error {
