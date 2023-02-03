@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -437,9 +438,15 @@ func TestChannelBufferFull(t *testing.T) {
 	fixture.Statsd.EXPECT().Count(
 		"veneur_proxy.ingest.metrics_count",
 		int64(1), []string{"protocol:grpc-stream"}, 1.0)
+	metricsEnqueuedChannel := make(chan struct{})
 	fixture.Statsd.EXPECT().Count(
 		"veneur_proxy.handle.metrics_count",
-		int64(1), []string{"error:enqueue"}, 1.0)
+		int64(1), []string{"error:enqueue"}, 1.0).
+		Do(func(
+			string, int64, []string, float64,
+		) {
+			close(metricsEnqueuedChannel)
+		})
 
 	fixture.Destinations.EXPECT().
 		Get("metric-namecountertag1:value1,tag2:value2").
@@ -452,6 +459,17 @@ func TestChannelBufferFull(t *testing.T) {
 	mockServer.EXPECT().Recv().Times(1).Return(nil, io.EOF)
 	mockServer.EXPECT().SendAndClose(&emptypb.Empty{}).Return(nil)
 
+	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(1)
+	go func() {
+		defer waitGroup.Done()
+		<-metricsEnqueuedChannel
+		actualMetric := <-sendChannel
+		assert.Equal(t, metric, actualMetric.Metric)
+	}()
+
 	err := fixture.Handlers.SendMetricsV2(mockServer)
 	assert.NoError(t, err)
+
+	waitGroup.Wait()
 }
