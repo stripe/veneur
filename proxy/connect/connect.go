@@ -146,7 +146,6 @@ sendLoop:
 		}
 	}
 
-	close(d.sendChannel)
 	d.destinationHash.RemoveDestination(d.address)
 
 	err := d.client.CloseSend()
