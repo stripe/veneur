@@ -125,7 +125,7 @@ func (proxy *Handlers) SendMetricsV2(
 		if err == io.EOF {
 			return nil
 		} else if err != nil {
-			proxy.Logger.WithError(err).Debug("error receiving metrics")
+			proxy.Logger.WithError(err).Error("error receiving metrics")
 			proxy.Statsd.Count(
 				"veneur_proxy.ingest.request_error_count", 1,
 				[]string{"protocol:grpc-stream"}, 1.0)
