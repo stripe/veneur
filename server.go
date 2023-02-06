@@ -28,6 +28,7 @@ import (
 	"github.com/zenazn/goji/bind"
 	"github.com/zenazn/goji/graceful"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/pkg/profile"
 
@@ -807,8 +808,17 @@ func (s *Server) Start() {
 	}
 
 	// Initialize a gRPC connection for forwarding
-	var err error
-	s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure())
+	tlsConfig, err := s.Config.Tls.GetTlsConfig()
+	if err != nil {
+		s.logger.WithError(err).Fatal("failed to parse tls config")
+	}
+	if tlsConfig != nil {
+		s.grpcForwardConn, err = grpc.Dial(
+			s.ForwardAddr,
+			grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+	} else {
+		s.grpcForwardConn, err = grpc.Dial(s.ForwardAddr, grpc.WithInsecure())
+	}
 	if err != nil {
 		s.logger.WithError(err).WithFields(logrus.Fields{
 			"forwardAddr": s.ForwardAddr,
