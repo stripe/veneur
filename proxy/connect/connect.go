@@ -45,8 +45,7 @@ type Destination interface {
 }
 
 type SendRequest struct {
-	Metric       *metricpb.Metric
-	ErrorChannel chan error
+	Metric *metricpb.Metric
 }
 
 type DestinationHash interface {
@@ -142,14 +141,11 @@ sendLoop:
 					"veneur_proxy.forward.metrics_count", 1,
 					[]string{"error:false"}, 1.0)
 			}
-			request.ErrorChannel <- err
-			close(request.ErrorChannel)
 		case <-ctx.Done():
 			break sendLoop
 		}
 	}
 
-	close(d.sendChannel)
 	d.destinationHash.RemoveDestination(d.address)
 
 	err := d.client.CloseSend()

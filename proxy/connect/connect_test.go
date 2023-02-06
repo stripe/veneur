@@ -111,10 +111,8 @@ func TestConnect(t *testing.T) {
 
 	connection := <-server.connectionChannel
 
-	errorChannel := make(chan error, 1)
 	destination.SendChannel() <- connect.SendRequest{
-		ErrorChannel: errorChannel,
-		Metric:       metric,
+		Metric: metric,
 	}
 	actualMetric, err := connection.Recv()
 	assert.NoError(t, err)
