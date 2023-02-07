@@ -48,6 +48,8 @@ tags_exclude: []
 tls_authority_certificate: ""
 tls_certificate: ""
 tls_key: ""
+tls:
+  config: null
 trace_max_length_bytes: 0
 veneur_metrics_additional_tags: []
 veneur_metrics_scopes:
